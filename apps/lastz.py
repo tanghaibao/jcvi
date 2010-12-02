@@ -1,12 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-"""
-%prog -i query.fa -d database.fa [options]
-
-run LASTZ similar to the BLAST interface, and generates -m8 tabular format
-"""
-
 import os
 import os.path as op
 import sys
@@ -14,10 +8,12 @@ import math
 import logging
 logging.basicConfig(level=logging.DEBUG)
 
+from optparse import OptionParser
 from subprocess import Popen, PIPE
 from multiprocessing import Process, cpu_count, Lock
 
-from jcvi.apps.grid import GridProcess
+from grid import GridProcess
+from base import ActionDispatcher
 
 
 blast_fields = "query,subject,pctid,hitlen,nmismatch,ngaps,"\
@@ -54,7 +50,7 @@ def lastz_to_blast(row):
             start1, end1, start2, end2, evalue, score))
 
 
-def lastz(k, n, bfasta_fn, out_fh, lock, lastz_path, extra, grid=False):
+def lastz(k, n, bfasta_fn, afasta_fn, out_fh, lock, lastz_path, extra, grid=False):
     lastz_bin = lastz_path or "lastz" 
 
     lastz_cmd = "%s --format=general-:%s "\
@@ -77,56 +73,58 @@ def lastz(k, n, bfasta_fn, out_fh, lock, lastz_path, extra, grid=False):
     logging.debug("job <%d> finished" % proc.pid)
 
 
-def main(options, afasta_fn, bfasta_fn, out_fh, extra, grid=False):
-
-    lastz_path = options.lastz_path
-    # split on query so check query fasta sequence number
-    afasta_num = sum(1 for x in open(afasta_fn) if x[0]=='>')
-    cpus = min(options.cpus, cpu_count(), afasta_num)
-    logging.debug("Dispatch job to %d cpus" % cpus)
-
-    lock = Lock()
-
-    if grid:
-        for k in xrange(cpus):
-            lastz_cmd = lastz(k+1, cpus, bfasta_fn, out_fh, lock, lastz_path,
-                    extra, grid=grid)
-            pi = GridProcess(lastz_cmd)
-            pi.start()
+def main():
     
-    else:
-        processes = []
-        for k in xrange(cpus):
-            pi = Process(target=lastz, args=(k+1, cpus, bfasta_fn, out_fh, lock,
-                lastz_path, extra))
-            pi.start()
-            processes.append(pi)
-
-        for pi in processes:
-            pi.join()
+    actions = (
+        ('run', 'run lastz command'),
+        ('parse', 'parse lastz tabular outputs (often needed after SGE jobs)'),
+        )
+    p = ActionDispatcher(actions)
+    p.dispatch(globals())
 
 
-if __name__ == '__main__':
+def parse(args):
+    
+    p = OptionParser("""\
+            %prog parse files
 
-    from optparse import OptionParser
+            converts the lastz tabular outputs to blast m8 format
+            """)
+    opts, args = p.parse_args(args)
 
-    parser = OptionParser(__doc__)
-    parser.add_option("-i", dest="query",
+    from glob import glob
+
+    files = glob(args[0])
+    for f in files:
+        fp = open(f)
+        for row in fp:
+            print lastz_to_blast(row)
+
+
+def run(args):
+
+    p = OptionParser("""\
+        %prog run -i query.fa -d database.fa [options]
+
+        run LASTZ similar to the BLAST interface, and generates -m8 tabular format
+        """)
+
+    p.add_option("-i", dest="query",
             help="query sequence file in FASTA format")
-    parser.add_option("-d", dest="target",
+    p.add_option("-d", dest="target",
             help="database sequence file in FASTA format")
-    parser.add_option("-o", dest="outfile",
+    p.add_option("-o", dest="outfile",
             help="BLAST output [default: stdout]")
-    parser.add_option("-a", "-A", dest="cpus", default=1, type="int",
+    p.add_option("-a", "-A", dest="cpus", default=1, type="int",
             help="parallelize job to multiple cpus [default: %default]")
-    parser.add_option("--path", dest="lastz_path", default=None,
+    p.add_option("--path", dest="lastz_path", default=None,
             help="specify LASTZ path")
-    parser.add_option("--lastz-params", dest="extra", default="",
+    p.add_option("--lastz-params", dest="extra", default="",
             help="pass in LASTZ parameter string (please quote the string)")
-    parser.add_option("--grid", dest="grid", default=False,
+    p.add_option("--grid", dest="grid", default=False,
             action="store_true", help="use sun grid engine [default: %default]")
 
-    (opts, args) = parser.parse_args()
+    (opts, args) = p.parse_args(args)
 
     try:
         afasta_fn = opts.query
@@ -136,14 +134,43 @@ if __name__ == '__main__':
         out_fh = file(opts.outfile, "w") if opts.outfile else sys.stdout
     except Exception, e:
         print >>sys.stderr, str(e)
-        sys.exit(parser.print_help())
+        sys.exit(p.print_help())
 
     if not all((afasta_fn, bfasta_fn)):
-        sys.exit(parser.print_help())
+        sys.exit(p.print_help())
 
     grid = opts.grid
     if grid:
         print >>sys.stderr, "Running jobs on JCVI grid"
 
-    main(opts, afasta_fn, bfasta_fn, out_fh, opts.extra, grid=grid)
+    extra = opts.extra
 
+    lastz_path = opts.lastz_path
+    # split on query so check query fasta sequence number
+    afasta_num = sum(1 for x in open(afasta_fn) if x[0]=='>')
+    cpus = min(opts.cpus, cpu_count(), afasta_num)
+    logging.debug("Dispatch job to %d cpus" % cpus)
+
+    lock = Lock()
+
+    if grid:
+        for k in xrange(cpus):
+            lastz_cmd = lastz(k+1, cpus, bfasta_fn, afasta_fn, out_fh, 
+                    lock, lastz_path, extra, grid=grid)
+            pi = GridProcess(lastz_cmd)
+            pi.start()
+    
+    else:
+        processes = []
+        for k in xrange(cpus):
+            pi = Process(target=lastz, args=(k+1, cpus, bfasta_fn, afasta_fn, out_fh, 
+                lock, lastz_path, extra))
+            pi.start()
+            processes.append(pi)
+
+        for pi in processes:
+            pi.join()
+
+
+if __name__ == '__main__':
+    main()

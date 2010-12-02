@@ -4,6 +4,7 @@ Codes to submit multiple jobs to JCVI grid engine
 
 import sys
 from subprocess import call
+from optparse import OptionParser
 
 class GridProcess (object):
 
@@ -32,3 +33,12 @@ class Grid (list):
         for pi in self:
             pi.start()
 
+
+def main():
+    # clean the current folder, basically concatenates all prog.e* to prog.stderr
+    # and prog.o* to prog.stdout
+    pass
+
+
+if __name__ == '__main__':
+    main()

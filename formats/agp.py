@@ -13,7 +13,9 @@ from optparse import OptionParser
 
 from base import LineFile
 from fasta import Fasta
+
 from jcvi.utils.iter import pairwise
+from jcvi.apps.base import ActionDispatcher
 
 
 Valid_component_type = "ADFGNOPUW"
@@ -165,30 +167,17 @@ class AGP (LineFile):
             self.build_one(ob, lines, f, fw)
 
 
-def help():
-    help = """
-    available actions:
-        `build`: given agp file and component fasta file, build the
-                 pseudomolecule fasta
-        `validate`: given agp file, component fasta and pseudomolecule fasta,
-                    validate if the build is correct
-    """
-    print >>sys.stderr, help
-    sys.exit(1)
-
-
 def main():
-    if len(sys.argv) == 1:
-        help()
-    
-    action = sys.argv[1]
-    valid_actions = ('build', 'validate')
 
-    if not action in valid_actions:
-        print >>sys.stderr, "%s not a valid action" % action
-        help()
+    actions = (
+        ('build', 'given agp file and component fasta file, build the' + \
+                 'pseudomolecule fasta'),
+        ('validate', 'given agp file, component fasta and pseudomolecule fasta, ' + \
+                     'validate if the build is correct')
+            )
 
-    globals()[action](sys.argv[2:])
+    p = ActionDispatcher(actions)
+    p.dispatch(globals())
 
 
 def build(args):

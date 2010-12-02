@@ -15,6 +15,9 @@ from optparse import OptionParser
 from Bio import SeqIO
 from base import BaseFile
 
+from jcvi.apps.base import ActionDispatcher
+
+
 class Fasta (BaseFile, dict):
 
     def __init__(self, filename, index=True, key_function=None):
@@ -107,28 +110,14 @@ class Fasta (BaseFile, dict):
         return sequence
 
 
-def help():
-    help = """
-    available actions:
-        `extract`: given fasta file and an seq id, retrieve the sequence in
-                   fasta format 
-    """
-    print >>sys.stderr, help
-    sys.exit(1)
-
-
 def main():
-    if len(sys.argv) == 1:
-        help()
     
-    action = sys.argv[1]
-    valid_actions = ('extract',)
-
-    if not action in valid_actions:
-        print >>sys.stderr, "%s not a valid action" % action
-        help()
-
-    globals()[action](sys.argv[2:])
+    actions = (
+        ('extract', 'given fasta file and an seq id, retrieve the sequence ' + \
+                    'in fasta format'),
+            )
+    p = ActionDispatcher(actions)
+    p.dispatch(globals())
 
 
 def extract(args):

@@ -3,7 +3,7 @@
 
 """
 This script implements algorithm for finding intersecting rectangles, 
-both on the 2D dotplot and 1D-projection, both routines are used by quota_align.py
+both on the 2D dotplot and 1D-projection
 """
 
 from grouper import Grouper

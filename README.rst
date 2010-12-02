@@ -1,8 +1,7 @@
 JCVI utility libraries
 ======================
 My own collection of Python libraries to parse files, or perform
-assembly-related calculations. Since I just started working on the projects.
-Documentation will be lagging behind.
+assembly-related calculations. Documentations will be lagging behind.
 
 ``formats/``
     File parsers for various files used in genome assembly and comparisons. 

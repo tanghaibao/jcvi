@@ -15,7 +15,7 @@ from base import LineFile
 from fasta import Fasta
 
 from jcvi.utils.iter import pairwise
-from jcvi.apps.base import ActionDispatcher
+from jcvi.apps.base import ActionDispatcher, set_debug
 
 
 Valid_component_type = "ADFGNOPUW"
@@ -157,7 +157,8 @@ class AGP (LineFile):
     def build_all(self, componentfasta, targetfasta):
 
         from jcvi.formats.fasta import Fasta
-        f = Fasta(componentfasta)
+
+        f = Fasta(componentfasta, index=False)
         fw = open(targetfasta, "w")
 
         for ob, lines_with_same_ob in itertools.groupby(self, 
@@ -206,6 +207,8 @@ def validate(args):
         
         validate consistency between agpfile and targetfasta
         """)
+    
+    set_debug(p, args)
     opts, args = p.parse_args(args)
 
     try:
@@ -215,8 +218,8 @@ def validate(args):
         sys.exit(p.print_help())
 
     agp = AGP(agpfile)
-    build = Fasta(targetfasta, key_function=lambda x: x[-1])
-    bacs = Fasta(componentfasta)
+    build = Fasta(targetfasta, key_function=lambda x: x[0], index=False)
+    bacs = Fasta(componentfasta, index=False)
     
     # go through this line by line
     for aline in agp:

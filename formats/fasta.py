@@ -27,6 +27,13 @@ class Fasta (BaseFile, dict):
         if index:
             self.index = SeqIO.index(filename, "fasta",
                     key_function=key_function)
+        else:
+            # SeqIO.to_dict expects a different key_function that operates on
+            # the SeqRecord instead of the raw string
+            _key_function = (lambda rec: key_function(rec.description)) if \
+                    key_function else None 
+            self.index = SeqIO.to_dict(SeqIO.parse(open(filename), "fasta"),
+                    key_function=_key_function)
 
     @property
     def annotations(self):
@@ -75,7 +82,6 @@ class Fasta (BaseFile, dict):
         asstring: if true, return the sequence as a string
                 : if false, return as a biopython Seq 
 
-        >>> from pyfasta import Fasta
         >>> f = Fasta('tests/data/three_chrs.fasta')
         >>> f.sequence({'start':1, 'stop':2, 'strand':1, 'chr': 'chr1'})
         'AC'

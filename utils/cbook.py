@@ -1,5 +1,6 @@
 """
 Useful recipes from various internet sources (thanks) 
+mostly decorator patterns
 """
 
 class memoized(object):
@@ -7,7 +8,7 @@ class memoized(object):
    If called later with the same arguments, the cached value is returned, and
    not re-evaluated.
 
-   Taken from recipe (http://wiki.python.org/moin/PythonDecoratorLibrary#Memoize)
+   Taken from recipe (http://wiki.python.org/moin/PythonDecoratorLibrary)
    """
    def __init__(self, func):
       self.func = func

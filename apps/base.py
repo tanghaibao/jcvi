@@ -3,6 +3,9 @@ basic support for running library as script
 """
 
 import sys
+import logging
+from optparse import OptionParser
+
 from jcvi.utils.iter import flatten
 
 class ActionDispatcher (object):
@@ -31,4 +34,19 @@ class ActionDispatcher (object):
             self.print_help()
 
         globals[action](sys.argv[2:])
+
+
+def set_debug(instance, args):
+
+    assert isinstance(instance, OptionParser), \
+            "only OptionParser can add debug option"
+
+    instance.add_option("--debug", dest="debug",
+            default=False, action="store_true",
+            help="set to debug level")
+
+    opts, args = instance.parse_args(args)
+
+    if opts.debug:
+        logging.basicConfig(level=logging.DEBUG)
 

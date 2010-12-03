@@ -25,6 +25,14 @@ from jcvi.formats.blast import Blast
 
 from jcvi.utils.grouper import Grouper
 
+def score(cluster):
+    
+    # the score of the cluster, in this case, is the number of non-repetitive
+    # matches
+    x, y = zip(*cluster)
+    returnh min(len(set(x)), len(set(y)))
+
+
 def single_linkage(points, xdist, ydist, N):
 
     # This is the core single linkage algorithm

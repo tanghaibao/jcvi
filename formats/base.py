@@ -4,7 +4,8 @@ import sys
 import logging
 from optparse import OptionParser
 
-from jcvi.apps.base import ActionDispatcher, set_debug
+from Bio import SeqIO
+from jcvi.apps.base import ActionDispatcher
 
 
 class BaseFile (object):
@@ -38,7 +39,7 @@ class FileSplitter (object):
     def _open(self, filename):
 
         if self.klass=="seqio":
-            handle = SeqIO.parse(open(filename), format)
+            handle = SeqIO.parse(open(filename), self.format)
         else:
             handle = open(filename)
         return handle 
@@ -49,7 +50,8 @@ class FileSplitter (object):
 
     def _guess_format(self, filename):
         root, ext = op.splitext(filename)
-        self.root, self.ext = root, ext
+        ext = ext.strip(".")
+
         if ext in ("fasta", "fa", "fna"):
             format = "fasta"
         elif ext in ("fastq",):
@@ -87,12 +89,17 @@ class FileSplitter (object):
             if batch:
                 yield batch
 
-    def split(self, N=1):
+    @classmethod
+    def get_names(cls, filename, N):
+        root, ext = op.splitext(filename)
+        return ["%s_%02d%s" % (root, i, ext) for i in xrange(N)]
+
+    def split(self, N):
         
         assert 1 < N <100, "number of pieces must be 1 < N < 100"
+        self.names = self.__class__.get_names(self.filename, N)
 
-        for i, batch in enumerate(self._batch_iterator(N)):
-            filename = "%s_%02d%s" % (self.root, i, self.ext)
+        for batch, filename in zip(self._batch_iterator(N), self.names):
             fw = open(filename, "w")
 
             if self.klass=="seqio":
@@ -121,7 +128,7 @@ def split(args):
         split file into N chunks
         """)
 
-    set_debug(p, args)
+    logging.basicConfig(level=logging.DEBUG)
     opts, args = p.parse_args(args)
 
     try:

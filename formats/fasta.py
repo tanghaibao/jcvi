@@ -127,12 +127,13 @@ def main():
 
 
 def extract(args):
+    """
+    %prog extract fasta query 
+    
+    extract query out of fasta file
+    """
+    p = OptionParser(extract.__doc__)
 
-    p = OptionParser("""\n
-        %prog extract fasta query 
-        
-        extract query out of fasta file
-        """)
     opts, args = p.parse_args(args)
 
     try:

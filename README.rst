@@ -24,7 +24,7 @@ Contents
 
 ``apps/``
     Helper library to wrap command line programs and run jobs on JCVI grid
-    engine.
+    engine (split jobs, check status, etc.).
 
 ``algorithms/``
     Algorithms for math intensive stuff.

@@ -182,12 +182,12 @@ def main():
 
 
 def build(args):
-
-    p = OptionParser("""\n
-        %prog build agpfile componentfasta targetfasta
-        
-        build targetfasta based on info from agpfile
-        """)
+    """
+    %prog build agpfile componentfasta targetfasta
+    
+    build targetfasta based on info from agpfile
+    """
+    p = OptionParser(build.__doc__)
 
     set_debug(p, args)
     opts, args = p.parse_args(args)
@@ -203,12 +203,12 @@ def build(args):
 
 
 def validate(args):
-
-    p = OptionParser("""\n
-        %prog validate agpfile componentfasta targetfasta
-        
-        validate consistency between agpfile and targetfasta
-        """)
+    """
+    %prog validate agpfile componentfasta targetfasta
+    
+    validate consistency between agpfile and targetfasta
+    """
+    p = OptionParser(validate.__doc__)
     
     set_debug(p, args)
     opts, args = p.parse_args(args)

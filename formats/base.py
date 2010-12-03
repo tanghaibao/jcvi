@@ -122,11 +122,12 @@ def main():
 
 
 def split(args):
-    p = OptionParser("""\n
-        %prog split file N 
-        
-        split file into N chunks
-        """)
+    """
+    %prog split file N 
+    
+    split file into N chunks
+    """
+    p = OptionParser(split.__doc__)
 
     logging.basicConfig(level=logging.DEBUG)
     opts, args = p.parse_args(args)

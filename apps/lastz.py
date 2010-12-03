@@ -84,12 +84,12 @@ def main():
 
 
 def parse(args):
-    
-    p = OptionParser("""\n
-            %prog parse files
+    """
+    %prog parse files
 
-            converts the lastz tabular outputs to blast m8 format
-            """)
+    converts the lastz tabular outputs to blast m8 format
+    """
+    p = OptionParser(parse.__doc__)
     opts, args = p.parse_args(args)
 
     from glob import glob
@@ -107,12 +107,12 @@ def parse(args):
 
 
 def run(args):
+    """
+    %prog run -i query.fa -d database.fa [options]
 
-    p = OptionParser("""\n
-        %prog run -i query.fa -d database.fa [options]
-
-        run LASTZ similar to the BLAST interface, and generates -m8 tabular format
-        """)
+    run LASTZ similar to the BLAST interface, and generates -m8 tabular format
+    """
+    p = OptionParser(run.__doc__)
 
     p.add_option("-i", dest="query",
             help="query sequence file in FASTA format")

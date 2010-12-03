@@ -106,7 +106,7 @@ class FileSplitter (object):
 
         return names
 
-    def split(self, N):
+    def split(self, N, force=False):
         
         assert 1 < N <100, "number of pieces must be 1 < N < 100"
         self.names = self.__class__.get_names(self.filename, N)
@@ -114,6 +114,11 @@ class FileSplitter (object):
         for batch, filename in zip(self._batch_iterator(N), self.names):
             if self.outputdir:
                 filename = op.join(self.outputdir, filename)
+
+            if op.exists(filename) and not force:
+                logging.error("file %s already existed, skip file splitting" % \
+                        filename)
+                return
 
             fw = open(filename, "w")
 

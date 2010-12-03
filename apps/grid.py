@@ -17,6 +17,9 @@ from jcvi.formats.base import FileSplitter
 from jcvi.apps.base import ActionDispatcher
 
 sge = "sge"
+commitfile = op.join(sge, "COMMIT")
+statusfile = op.join(sge, "STATUS")
+
 
 class CmdSplitter (object):
     """
@@ -47,11 +50,22 @@ class GridProcess (object):
 
     pat = re.compile(r"Your job (?P<id>[0-9]*) ")
 
-    def __init__(self, cmd):
+    def __init__(self, cmd, jobid=None):
         self.cmd = cmd
+        self.jobid = jobid
 
     def __str__(self):
-        return self.cmd
+        if self.jobid:
+            return "\t".join((self.jobid, self.cmd))
+        else:
+            return self.cmd
+
+    def make_defunct(self):
+        self.cmd = "#" + self.cmd
+
+    @property
+    def is_defunct(self):
+        return self.cmd[0]=='#'
 
     def start(self):
         # qsub command (the project code is specific to jcvi)
@@ -68,18 +82,32 @@ class GridProcess (object):
 
 class Grid (list):
 
-    commitfile = op.join(sge, "COMMIT")
-    statusfile = op.join(sge, "STATUS")
-
     def __init__(self, cmds=None):
 
         self.check_sge()
 
-        self.cmds = cmds or self.readcmds()
-        assert self.cmds, "jobs need to be non-empty"
+        if cmds:
+            for cmd in cmds:
+                self.append(GridProcess(cmd))
 
-        for cmd in self.cmds:
-            self.append(GridProcess(cmd))
+        else:
+            if op.exists(commitfile):
+                self.readcommit()
+            elif op.exists(statusfile):
+                self.readstatus()
+            else:
+                logging.error("both COMMIT and STATUS not found")
+                sys.exit(1)
+
+        assert sum(1 for p in self if not p.is_defunct), "job list need to be non-empty"
+
+    def get_job(self, jobid):
+        for p in self:
+            if p.jobid==jobid and not p.is_defunct:
+                return p
+
+        logging.error("job %s not found in STATUS or is a defunct job" % jobid)
+        sys.exit(1)
 
     def run(self):
 
@@ -104,32 +132,52 @@ class Grid (list):
             os.mkdir(sge)
             logging.debug("%s folder not found, create one now" % sge)
 
-    def readcmds(self):
+    def readcommit(self):
         
-        logging.debug("read cmds from %s" % self.commitfile)
-        fp = open(self.commitfile)
+        if not op.exists(commitfile):
+            logging.error("you must run `commit` first")
+            sys.exit(1)
+
+        logging.debug("read cmds from %s" % commitfile)
+        fp = open(commitfile)
         cmds = [row.strip() for row in fp]
         fp.close()
 
-        return cmds
+        for cmd in cmds:
+            self.append(GridProcess(cmd))
 
-    def writecmds(self):
+    def readstatus(self):
 
-        fw = open(self.commitfile, "w")
+        if not op.exists(statusfile):
+            logging.error("you mush run `push` first")
+            sys.exit(1)
 
-        for cmd in self.cmds:
-            print >>sys.stderr, cmd
-            print >>fw, cmd
+        logging.debug("read cmds from %s" % statusfile)
+        fp = open(statusfile)
+        cmds = [row.strip().split("\t") for row in fp]
+        fp.close()
 
-        logging.debug("the above commands are written to %s" % \
-                self.commitfile)
+        for jobid, cmd in cmds:
+            self.append(GridProcess(cmd, jobid=jobid))
 
-    def writejobids(self):
+    def writecommit(self):
 
-        fw = open(self.statusfile, "w")
+        fw = open(commitfile, "w")
+
+        for p in self:
+            print >>sys.stderr, p 
+            print >>fw, p 
+
+        logging.debug("the above commands are written to %s" % commitfile)
+        fw.close()
+
+    def writestatus(self):
+
+        fw = open(statusfile, "w")
         
         for p in self:
-            print >>fw, "%s %s" % (p.jobid, p.cmd)
+            print >>fw, p 
+        fw.close()
 
 
 def main():
@@ -138,7 +186,8 @@ def main():
         ('commit', 'construct the commands (but do not submit jobs)'),
         ('push', 'run all commands that are commited'),
         ('rerun', 'rerun one command'),
-        ('status', 'check status of jobs')
+        ('status', 'check status of jobs'),
+        ('clean', 'reset the current folder'),
             )
 
     p = ActionDispatcher(actions)
@@ -172,10 +221,16 @@ def commit(args):
         logging.error(str(e))
         sys.exit(p.print_help())
 
+    try: # clean up first
+        os.remove(commitfile)
+        os.remove(statusfile)
+    except:
+        pass
+
     cs = CmdSplitter(cmd, N, infile, outfile)
 
     g = Grid(cs.cmds)
-    g.writecmds()
+    g.writecommit()
 
 
 def push(args):
@@ -184,9 +239,14 @@ def push(args):
 
     send the jobs to sun grid engine. the commands are from sge/COMMIT.
     """
+    p = OptionParser(push.__doc__)
+
     g = Grid()
     g.run()
-    g.writejobids()
+    g.writestatus()
+
+    # remove COMMIT file
+    os.remove(commitfile)
 
 
 def rerun(args):
@@ -195,15 +255,38 @@ def rerun(args):
     """
     p = OptionParser(rerun.__doc__)
 
-    p.add_option("-j", dest="job", type="int",
+    p.add_option("-j", dest="jobid", 
             help="rerun job with id (once resubmitted, it will get a new id)")
 
+    opts, args = p.parse_args(args)
+    
+    if not opts.jobid:
+        logging.error("you need to specify jobid (-j)")
+        sys.exit(p.print_help())
+
     g = Grid()
-    g[i].start()
+    p = g.get_job(opts.jobid)
+
+    newp = GridProcess(p.cmd)
+    newp.start() # start and acquire a job id
+
+    p.make_defunct()
+    g.append(newp)
+    g.writestatus()
 
 
 def status(args):
     pass
+
+
+def clean(args):
+    """
+    %prog clean
+
+    remove sge folder
+    """
+    p = OptionParser(clean.__doc__)
+    shutil.rmtree(sge)
 
 
 if __name__ == '__main__':

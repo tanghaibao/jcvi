@@ -10,7 +10,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 from optparse import OptionParser
 from subprocess import Popen, PIPE
-from multiprocessing import Process, cpu_count, Lock
+from multiprocessing import Process, Lock
 
 from grid import GridProcess
 from base import ActionDispatcher
@@ -85,7 +85,7 @@ def main():
 
 def parse(args):
     
-    p = OptionParser("""\
+    p = OptionParser("""\n
             %prog parse files
 
             converts the lastz tabular outputs to blast m8 format
@@ -94,7 +94,12 @@ def parse(args):
 
     from glob import glob
 
-    files = glob(args[0])
+    try:
+        files = glob(args[0])
+    except Exception, e:
+        logging.error(str(e))
+        sys.exit(p.print_help())
+
     for f in files:
         fp = open(f)
         for row in fp:
@@ -103,7 +108,7 @@ def parse(args):
 
 def run(args):
 
-    p = OptionParser("""\
+    p = OptionParser("""\n
         %prog run -i query.fa -d database.fa [options]
 
         run LASTZ similar to the BLAST interface, and generates -m8 tabular format
@@ -133,7 +138,7 @@ def run(args):
         assert op.exists(bfasta_fn), ("%s does not exist" % bfasta_fn)
         out_fh = file(opts.outfile, "w") if opts.outfile else sys.stdout
     except Exception, e:
-        print >>sys.stderr, str(e)
+        logging.error(str(e))
         sys.exit(p.print_help())
 
     if not all((afasta_fn, bfasta_fn)):
@@ -148,7 +153,7 @@ def run(args):
     lastz_path = opts.lastz_path
     # split on query so check query fasta sequence number
     afasta_num = sum(1 for x in open(afasta_fn) if x[0]=='>')
-    cpus = min(opts.cpus, cpu_count(), afasta_num)
+    cpus = min(opts.cpus, afasta_num)
     logging.debug("Dispatch job to %d cpus" % cpus)
 
     lock = Lock()

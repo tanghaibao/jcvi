@@ -24,69 +24,66 @@ def range_overlap(a, b):
     return (a_min <= b_max) and (b_min <= a_max)
 
 
-def get_1D_overlap(eclusters, depth=1):
+def range_union(ranges):
     """
-    Find blocks that are 1D overlapping,
-    returns cliques of block ids that are in conflict
+    Returns total size of ranges, expect range as (chr, left, right)
     """
-    overlap_set = set() 
-    active = set()
+    ranges.sort()
 
-    ends = []
-    for i, (chr, left, right) in enumerate(eclusters):
-        ends.append((chr, left, 0, i))  # 0/1 for left/right-ness
-        ends.append((chr, right, 1, i))
-    ends.sort()
+    total_len = 0
+    cur_chr, cur_left, cur_right = ranges[0] # left-most range
+    for r in ranges:
+        # open a new range if left > cur_right or chr != cur_chr
+        if r[1] > cur_right or r[0] != cur_chr:
+            total_len += cur_right - cur_left + 1
+            cur_chr, cur_left, cur_right = r
+        else:
+            # update cur_right
+            cur_right = max(r[2], cur_right)
 
-    chr_last = ""
-    for chr, pos, left_right, i in ends:
-        if chr != chr_last: active.clear()
-        if left_right==0: active.add(i) 
-        else: active.remove(i)    
+    # the last one
+    total_len += cur_right - cur_left + 1
 
-        if len(active) > depth:
-            overlap_set.add(tuple(sorted(active)))
-
-        chr_last = chr
-
-    return overlap_set
+    return total_len
 
 
-def get_2D_overlap(chain, eclusters):
+def range_chain(ranges):
     """
-    Implements a sweep line algorithm, that has better running time than naive O(n^2):
-    assume block has x_ends, and y_ends for the bounds
+    ranges in the form of (start, stop, score), get the best scoring chain
 
-    1. sort x_ends, and take a sweep line to scan the x_ends
-    2. if left end, test y-axis intersection of current block with `active` set;
-       also put this block in the `active` set
-    3. if right end, remove block from the `active` set
+    >>> ranges = [(0, 9, 22), (3, 18, 24), (10, 28, 20), (20, 39, 26)]
+    >>> range_chain(ranges)
+    50
     """
-    mergeables = Grouper()
-    active = set()
+    ranges.sort()
 
-    x_ends = []
-    for i, (range_x, range_y, score) in enumerate(eclusters):
-        chr, left, right = range_x
-        x_ends.append((chr, left, 0, i))  # 0/1 for left/right-ness
-        x_ends.append((chr, right, 1, i))
-    x_ends.sort()
+    endpoints = []
+    LEFT, RIGHT = 0, 1
 
-    chr_last = ""
-    for chr, pos, left_right, i in x_ends:
-        if chr != chr_last: active.clear()
-        if left_right==0: 
-            active.add(i) 
-            for x in active:
-                # check y-overlap
-                if range_overlap(eclusters[x][1], eclusters[i][1]):
-                    mergeables.join(x, i)
-        else: # right end
-            active.remove(i) 
+    for i, (start, stop, score) in enumerate(ranges):
+        endpoints.append((start, i, score, LEFT))
+        endpoints.append((stop, i, score, RIGHT))
 
-        chr_last = chr
+    endpoints.sort()
 
-    return mergeables
+    left_index = {} 
+    scores = [0]
+    cur_score = 0
+
+    for i, (pos, j, score, leftright) in enumerate(endpoints):
+
+        if leftright == LEFT:
+            left_index[j] = i + 1
+
+        else:
+            left_j = left_index[j]
+            chain_score = scores[left_j] + score
+            if chain_score > cur_score:
+                cur_score = chain_score
+
+        scores.append(cur_score)
+
+    return scores[-1]
 
 
 if __name__ == '__main__':

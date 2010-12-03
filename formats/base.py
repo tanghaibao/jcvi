@@ -1,3 +1,4 @@
+import os
 import os.path as op
 import math
 import sys
@@ -26,8 +27,10 @@ class LineFile (BaseFile, list):
 
 class FileSplitter (object):
 
-    def __init__(self, filename):
+    def __init__(self, filename, outputdir=None):
         self.filename = filename
+        self.outputdir = outputdir
+
         self.format = format = self._guess_format(filename)
         logging.debug("format is %s" % format)
 
@@ -35,6 +38,9 @@ class FileSplitter (object):
             self.klass = "seqio"
         else:
             self.klass = "txt"
+
+        if not op.isdir(outputdir):
+            os.mkdir(outputdir)
 
     def _open(self, filename):
 
@@ -92,7 +98,13 @@ class FileSplitter (object):
     @classmethod
     def get_names(cls, filename, N):
         root, ext = op.splitext(filename)
-        return ["%s_%02d%s" % (root, i, ext) for i in xrange(N)]
+
+        names = []
+        for i in xrange(N):
+            name = "%s_%02d%s" % (root, i, ext)
+            names.append(name)
+
+        return names
 
     def split(self, N):
         
@@ -100,6 +112,9 @@ class FileSplitter (object):
         self.names = self.__class__.get_names(self.filename, N)
 
         for batch, filename in zip(self._batch_iterator(N), self.names):
+            if self.outputdir:
+                filename = op.join(self.outputdir, filename)
+
             fw = open(filename, "w")
 
             if self.klass=="seqio":

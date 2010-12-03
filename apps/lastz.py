@@ -12,7 +12,7 @@ from optparse import OptionParser
 from subprocess import Popen, PIPE
 from multiprocessing import Process, Lock
 
-from grid import GridProcess
+from grid import Grid 
 from base import ActionDispatcher
 
 
@@ -159,11 +159,14 @@ def run(args):
     lock = Lock()
 
     if grid:
+        cmds = []
         for k in xrange(cpus):
             lastz_cmd = lastz(k+1, cpus, bfasta_fn, afasta_fn, out_fh, 
                     lock, lastz_path, extra, grid=grid)
-            pi = GridProcess(lastz_cmd)
-            pi.start()
+            cmds.append(lastz_cmd)
+
+        g = Grid(cmds)
+        g.run()
     
     else:
         processes = []

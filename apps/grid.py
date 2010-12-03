@@ -23,13 +23,17 @@ class CmdSplitter (object):
     The creates parallelized version of cmd, and substituting infile with
     infile_00 and outfile with outfile_00, etc.
     """
-    def __init__(self, cmd, N, infile, outfile):
+    def __init__(self, cmd, N, infile, outfile, outputdir=sge):
 
         infilepat = re.compile(r"\b%s\b" % infile)
         outfilepat = re.compile(r"\b%s\b" % outfile)
 
         split_inputs = FileSplitter.get_names(infile, N)
         split_outputs = FileSplitter.get_names(outfile, N)
+
+        # inputs need to be splitted
+        fs = FileSplitter(infile, outputdir)
+        fs.split(N)
 
         self.cmds = []
 
@@ -55,7 +59,7 @@ class GridProcess (object):
 
         cmd = qsub + self.cmd
         # run the command and get the job-ID (important)
-        p = Popen(cmd, stdout=PIPE)
+        p = Popen(cmd, stdout=PIPE, shell=True)
         output = p.communicate()[0]
         
         self.jobid = re.search(self.pat, output).group("id")
@@ -69,6 +73,8 @@ class Grid (list):
 
     def __init__(self, cmds=None):
 
+        self.check_sge()
+
         self.cmds = cmds or self.readcmds()
         assert self.cmds, "jobs need to be non-empty"
 
@@ -76,8 +82,13 @@ class Grid (list):
             self.append(GridProcess(cmd))
 
     def run(self):
+
+        cwd = os.getcwd()
+
+        os.chdir(sge)
         for pi in self:
             pi.start()
+        os.chdir(cwd)
 
     def check_sge(self, overwrite=False):
         """
@@ -94,9 +105,8 @@ class Grid (list):
             logging.debug("%s folder not found, create one now" % sge)
 
     def readcmds(self):
-        self.check_sge()
         
-        logging.debug("read cmds from %s" % self.cmds_file)
+        logging.debug("read cmds from %s" % self.commitfile)
         fp = open(self.commitfile)
         cmds = [row.strip() for row in fp]
         fp.close()
@@ -104,7 +114,7 @@ class Grid (list):
         return cmds
 
     def writecmds(self):
-        self.check_sge()
+
         fw = open(self.commitfile, "w")
 
         for cmd in self.cmds:
@@ -115,10 +125,10 @@ class Grid (list):
                 self.commitfile)
 
     def writejobids(self):
-        self.check_sge()
+
         fw = open(self.statusfile, "w")
         
-        for ps in self:
+        for p in self:
             print >>fw, "%s %s" % (p.jobid, p.cmd)
 
 
@@ -176,6 +186,7 @@ def push(args):
     """
     g = Grid()
     g.run()
+    g.writejobids()
 
 
 def rerun(args):

@@ -13,13 +13,13 @@ logging.basicConfig(level=logging.DEBUG)
 from subprocess import Popen, PIPE 
 from optparse import OptionParser
 
-from jcvi.formats.base import FileSplitter
+from jcvi.formats.base import FileMerger, FileSplitter
 from jcvi.apps.base import ActionDispatcher
 
 sge = "sge"
 commitfile = op.join(sge, "COMMIT")
 statusfile = op.join(sge, "STATUS")
-
+outputfile = op.join(sge, "OUTPUT")
 
 class CmdSplitter (object):
     """
@@ -38,12 +38,33 @@ class CmdSplitter (object):
         fs = FileSplitter(infile, outputdir)
         fs.split(N)
 
+        # record the output file list for `grid.py merge`
+        self.__class__.writeoutput(outfile, split_outputs)
+
         self.cmds = []
 
         for sinput, soutput in zip(split_inputs, split_outputs):
             scmd = re.sub(infilepat, sinput, cmd)
             scmd = re.sub(outfilepat, soutput, scmd)
             self.cmds.append(scmd)
+
+    @classmethod
+    def writeoutput(cls, outfile, split_outputs):
+
+        fw = open(outputfile, "w")
+        fw.write("#%s\n" % outfile)
+        fw.write("\n".join(split_outputs))
+        fw.close()
+        logging.debug("write output file list to %s" % outputfile)
+
+
+    @classmethod
+    def readoutput(cls):
+
+        fp = open(outputfile)
+        outfile = fp.next().strip()[1:]
+        split_outputs = [row.strip() for row in fp]
+        return outfile, split_outputs
 
 
 class GridProcess (object):
@@ -67,7 +88,14 @@ class GridProcess (object):
     def is_defunct(self):
         return self.cmd[0]=='#'
 
-    def start(self):
+    def start(self, path=sge):
+
+        if self.is_defunct: return
+
+        cwd = os.getcwd()
+        if path:
+            os.chdir(path)
+
         # qsub command (the project code is specific to jcvi)
         qsub = "qsub -cwd -P 04048 "
 
@@ -78,6 +106,8 @@ class GridProcess (object):
         
         self.jobid = re.search(self.pat, output).group("id")
         logging.debug("[%s] %s" % (self.jobid, self.cmd))
+
+        os.chdir(cwd)
 
 
 class Grid (list):
@@ -100,6 +130,7 @@ class Grid (list):
                 sys.exit(1)
 
         assert sum(1 for p in self if not p.is_defunct), "job list need to be non-empty"
+        self.cmdgroup = self[0].cmd.split()[0]
 
     def get_job(self, jobid):
         for p in self:
@@ -113,10 +144,8 @@ class Grid (list):
 
         cwd = os.getcwd()
 
-        os.chdir(sge)
         for pi in self:
             pi.start()
-        os.chdir(cwd)
 
     def check_sge(self, overwrite=False):
         """
@@ -186,6 +215,7 @@ def main():
         ('commit', 'construct the commands (but do not submit jobs)'),
         ('push', 'run all commands that are commited'),
         ('rerun', 'rerun one command'),
+        ('merge', 'merge output files (or stdouts) and stderrs'),
         ('status', 'check status of jobs'),
         ('clean', 'reset the current folder'),
             )
@@ -251,7 +281,7 @@ def push(args):
 
 def rerun(args):
     """
-    %prog rerun jobid
+    %prog rerun -j jobid
     """
     p = OptionParser(rerun.__doc__)
 
@@ -273,6 +303,54 @@ def rerun(args):
     p.make_defunct()
     g.append(newp)
     g.writestatus()
+
+
+def filemerger(split_outputs, outfile):
+    # modify the path of split_outputs to append sge prefix
+    split_outputs = [op.join(sge, x) for x in split_outputs]
+
+    fm = FileMerger(split_outputs, outfile)
+    fm.merge()
+
+def merge(args):
+    """
+    %prog merge [options]
+
+    merge all outputfiles into single file
+    """
+    p = OptionParser(__doc__)
+    p.add_option("--stdout", default=False, action="store_true",
+            help="build a merged stdout (excluding defunct runs)")
+    p.add_option("--stderr", default=False, action="store_true",
+            help="build a merged stderr (excluding defunct runs)")
+
+    opts, args = p.parse_args(args)
+
+    if not op.exists(outputfile):
+        logging.error("OUTPUT file not found, cannot merge")
+        sys.exit(1)
+
+    if not op.exists(statusfile):
+        logging.error("STATUS file not found, need to push the jobs first")
+        sys.exit(1)
+
+    outfile, split_outputs = CmdSplitter.readoutput() 
+    filemerger(split_outputs, outfile)
+
+    if not any((opts.stdout, opts.stderr)): return
+
+    g = Grid()
+    cmdgroup = g.cmdgroup # the actual command that was run
+    stdoutlist = []
+    stderrlist = []
+    for p in g:
+        stdoutlist.append("%s.o%s" % (cmdgroup, p.jobid))
+        stderrlist.append("%s.e%s" % (cmdgroup, p.jobid))
+
+    if opts.stdout:
+        filemerger(stdoutlist, "%s.stdout" % cmdgroup)
+    if opts.stderr:
+        filemerger(stdoutlist, "%s.stderr" % cmdgroup)
 
 
 def status(args):

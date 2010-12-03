@@ -3,6 +3,8 @@ Useful recipes from various internet sources (thanks)
 mostly decorator patterns
 """
 
+import logging
+
 class memoized(object):
    """Decorator that caches a function's return value each time it is called.
    If called later with the same arguments, the cached value is returned, and
@@ -34,3 +36,8 @@ class memoized(object):
       """Support instance methods."""
       return functools.partial(self.__call__, obj)
 
+
+def sh(cmd):
+    from subprocess import call
+    call(cmd, shell=True)
+    logging.debug(cmd)

@@ -7,9 +7,10 @@ from optparse import OptionParser
 
 from Bio import SeqIO
 from jcvi.apps.base import ActionDispatcher
-
+from jcvi.utils.cbook import sh
 
 class BaseFile (object):
+    
     def __init__(self, filename):
 
         self.filename = filename
@@ -23,6 +24,20 @@ class LineFile (BaseFile, list):
     def __init__(self, filename):
 
         super(LineFile, self).__init__(filename)
+
+
+class FileMerger (object):
+    """
+    same as cat * > filename
+    """
+    def __init__(self, filelist, outfile):
+        
+        self.filelist = filelist
+        self.outfile = outfile
+
+    def merge(self):
+        files = " ".join(self.filelist)
+        sh("cat %s > %s" % (files, self.outfile))
 
 
 class FileSplitter (object):
@@ -129,7 +144,7 @@ class FileSplitter (object):
                 count = len(batch)
 
             fw.close()
-            logging.debug("Wrote %d records to %s" % (count, filename))
+            logging.debug("wrote %d records to %s" % (count, filename))
 
 
 def main():

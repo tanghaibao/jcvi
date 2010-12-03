@@ -2,6 +2,7 @@
 Codes to submit multiple jobs to JCVI grid engine
 """
 
+import os.path as op
 import sys
 from subprocess import call
 from optparse import OptionParser

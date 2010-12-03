@@ -188,6 +188,8 @@ def build(args):
         
         build targetfasta based on info from agpfile
         """)
+
+    set_debug(p, args)
     opts, args = p.parse_args(args)
 
     try:

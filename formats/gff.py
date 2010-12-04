@@ -6,11 +6,64 @@ import sys
 import os
 import os.path as op
 import itertools
+import logging
+
+from urlparse import parse_qs
 from optparse import OptionParser
 
+from jcvi.formats.base import LineFile
 from jcvi.formats.fasta import Fasta
 from jcvi.formats.bed import Bed, BedLine
 from jcvi.apps.base import ActionDispatcher
+
+
+Valid_strands = ('+', '-', '?', '.')
+Valid_phases = ('0', '1', '2', '.')
+
+class GffLine (object):
+    """
+    Specification here (http://www.sequenceontology.org/gff3.shtml)
+    """
+    def __init__(self, sline, key="ID"):
+        args = sline.strip().split("\t")
+        self.seqid = args[0]
+        self.source = args[1]
+        self.type = args[2]
+        self.start = int(args[3])
+        self.end = int(args[4])
+        self.score = args[5]
+        self.strand = args[6]
+        assert self.strand in Valid_strands, \
+                "strand must be one of %s" % Valid_strands
+        self.phase = args[7]
+        assert self.phase in Valid_phases, \
+                "phase must be one of %s" % Valid_phases
+        self.attributes = parse_qs(args[8])
+        # key is not in the gff3 field, this indicates the conversion to accn
+        self.key = key # usually it's `ID=xxxxx;`
+
+    def __getitem__(self, key):
+        return getattr(self, key)
+
+    @property
+    def accn(self):
+        return self.attributes[self.key][0]
+
+    @property
+    def bedline(self):
+        row = "\t".join((self.seqid, str(self.start), str(self.end), self.accn))
+        return BedLine(row)
+
+
+class Gff (LineFile):
+
+    def __init__(self, filename):
+        super(Gff, self).__init__(filename)
+        
+        fp = open(filename)
+        for row in fp:
+            if row[0]=='#': continue
+            self.append(GffLine(row))
 
 
 def main():
@@ -32,30 +85,29 @@ def bed(args):
     generate a bed file
     '''
     p = OptionParser(bed.__doc__)
-    p.add_option("--feature", dest="feature", default="gene",
+    p.add_option("--type", dest="type", default="gene",
             help="the feature type to extract")
 
     opts, args = p.parse_args(args)
     if len(args)!=1:
         sys.exit(p.print_help())
 
-    gff_file = args[0]
-    fp = file(gff_file)
-
+    fp = open(args[0])
     b = Bed() 
-    for row in fp:
-        #chr06_pseudomolecule_IMGAG_V3   .       gene    54517   55113   .       -       .       ID=Medtr6g005000
-        atoms = row.split("\t")
-        chr, feature, start, stop, name = atoms[0], atoms[2], \
-                atoms[3], atoms[4], atoms[-1]
 
-        if feature!=opts.feature: continue
+    seen = set()
+    for row in fp: 
+
+        if row[0]=='#': continue
+
+        g = GffLine(row)
+        if g.type!=opts.type: continue
         
-        # often the names need to have slight transformation
-        chr = chr.split("_")[0]
-        name = name.split(";")[0].split("=")[1].strip()
+        if g.seqid in seen:
+            logging.error("duplicate name %s found" % g.seqid)
 
-        b.append(BedLine("\t".join((chr, start, stop, name))))
+        b.append(g.bedline)
+
     b.sort(key=b.key)
     b.print_to_file()
 

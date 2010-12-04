@@ -82,7 +82,8 @@ class GridProcess (object):
             return self.cmd
 
     def make_defunct(self):
-        self.cmd = "#" + self.cmd
+        if not self.is_defunct:
+            self.cmd = "#" + self.cmd
 
     @property
     def is_defunct(self):
@@ -314,17 +315,21 @@ def filemerger(split_outputs, outfile):
 
 def merge(args):
     """
-    %prog merge [options]
+    %prog merge output|stdout|stderr 
 
-    merge all outputfiles into single file
+    merge all outputfiles into single files, only choices are:
+    - output, concatenate all the files that are successful runs in OUTPUT
+    - stdout, concatenate all prog.o*
+    - stderr, concatenate all prog.e*
     """
-    p = OptionParser(__doc__)
-    p.add_option("--stdout", default=False, action="store_true",
-            help="build a merged stdout (excluding defunct runs)")
-    p.add_option("--stderr", default=False, action="store_true",
-            help="build a merged stderr (excluding defunct runs)")
+    p = OptionParser(merge.__doc__)
 
     opts, args = p.parse_args(args)
+    try:
+        filetype = args[0]
+    except Exception, e:
+        logging.error(str(e))
+        sys.exit(p.print_help())
 
     if not op.exists(outputfile):
         logging.error("OUTPUT file not found, cannot merge")
@@ -334,23 +339,24 @@ def merge(args):
         logging.error("STATUS file not found, need to push the jobs first")
         sys.exit(1)
 
-    outfile, split_outputs = CmdSplitter.readoutput() 
-    filemerger(split_outputs, outfile)
-
-    if not any((opts.stdout, opts.stderr)): return
+    if filetype=="output":
+        outfile, split_outputs = CmdSplitter.readoutput() 
+        filemerger(split_outputs, outfile)
+        return
 
     g = Grid()
     cmdgroup = g.cmdgroup # the actual command that was run
     stdoutlist = []
     stderrlist = []
     for p in g:
+        if p.is_defunct: continue
         stdoutlist.append("%s.o%s" % (cmdgroup, p.jobid))
         stderrlist.append("%s.e%s" % (cmdgroup, p.jobid))
 
-    if opts.stdout:
+    if filetype=="stdout":
         filemerger(stdoutlist, "%s.stdout" % cmdgroup)
-    if opts.stderr:
-        filemerger(stdoutlist, "%s.stderr" % cmdgroup)
+    elif filetype=="stderr":
+        filemerger(stderrlist, "%s.stderr" % cmdgroup)
 
 
 def status(args):

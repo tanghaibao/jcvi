@@ -331,15 +331,12 @@ def merge(args):
         logging.error(str(e))
         sys.exit(p.print_help())
 
-    if not op.exists(outputfile):
-        logging.error("OUTPUT file not found, cannot merge")
-        sys.exit(1)
-
-    if not op.exists(statusfile):
-        logging.error("STATUS file not found, need to push the jobs first")
-        sys.exit(1)
+    assert op.exists(statusfile), "STATUS file not found, cannot merge"
 
     if filetype=="output":
+        
+        assert op.exists(outputfile), "OUTPUT file not found, cannot merge"
+
         outfile, split_outputs = CmdSplitter.readoutput() 
         filemerger(split_outputs, outfile)
         return

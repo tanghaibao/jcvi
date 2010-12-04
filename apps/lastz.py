@@ -92,15 +92,7 @@ def parse(args):
     p = OptionParser(parse.__doc__)
     opts, args = p.parse_args(args)
 
-    from glob import glob
-
-    try:
-        files = glob(args[0])
-    except Exception, e:
-        logging.error(str(e))
-        sys.exit(p.print_help())
-
-    for f in files:
+    for f in args:
         fp = open(f)
         for row in fp:
             print lastz_to_blast(row)
@@ -167,6 +159,7 @@ def run(args):
 
         g = Grid(cmds)
         g.run()
+        g.writestatus()
     
     else:
         processes = []

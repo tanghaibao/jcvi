@@ -21,24 +21,22 @@ from base import LineFile
 
 class CoordsLine (object):
 
-    __slots__ = ("start1", "end1", "start2", "end2", "len1", "len2", "identity",
-            "reflen", "querylen", "refcov", "querycov", "ref", "query",
-            "quality", "orientation")
-
     """
-    151317 151396 | 79 1 | 80 79 | 98.75 | Mt3.5.1Chr1 contig_173759
+    The coords line looks like (in one line):
+        2953     4450  |      525     2023  |     1498     1499  |    98.07  |
+        8046     2023  |    18.62    74.10  | gi|270341414|gb|AC182814.30|_2    contig_100476
     """
     def __init__(self, row):
         
-        row = row.replace("|", "")
+        row = row.replace(" | ", "")
         atoms = row.split()
+        assert len(atoms)==13, "expecting 13 columns"
         
         self.start1 = int(atoms[0])
         self.end1 = int(atoms[1])
         
         self.start2 = int(atoms[2])
         self.end2 = int(atoms[3])
-        self.orientation = '+' if self.end2 >= self.start2 else '-'
         
         self.len1 = int(atoms[4])
         self.len2 = int(atoms[5])
@@ -63,6 +61,14 @@ class CoordsLine (object):
         return '\t'.join((self.ref, str(self.start1), str(self.end1), 
                 self.query, self.orientation))
 
+    @property
+    def orientation(self):
+        """
+        the orientation of the alignment between query and ref (ref is always
+        plus strand)
+        """
+        return '+' if self.end2 >= self.start2 else '-'
+
 
 class Coords (LineFile):
     
@@ -78,9 +84,12 @@ class Coords (LineFile):
         fp = open(filename)
         self.cmd = fp.next()
         
-        for x in xrange(4): fp.next()
+        #for x in xrange(4): fp.next()
         for row in fp:
-            self.append(CoordsLine(row))
+            try:
+                self.append(CoordsLine(row))
+            except AssertionError, e:
+                pass
 
     @property
     def hits(self):

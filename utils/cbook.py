@@ -36,8 +36,3 @@ class memoized(object):
       """Support instance methods."""
       return functools.partial(self.__call__, obj)
 
-
-def sh(cmd):
-    from subprocess import call
-    call(cmd, shell=True)
-    logging.debug(cmd)

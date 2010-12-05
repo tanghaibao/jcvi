@@ -6,8 +6,7 @@ import logging
 from optparse import OptionParser
 
 from Bio import SeqIO
-from jcvi.apps.base import ActionDispatcher
-from jcvi.utils.cbook import sh
+from jcvi.apps.base import ActionDispatcher, sh
 
 class BaseFile (object):
     

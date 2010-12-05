@@ -50,3 +50,11 @@ def set_debug(instance, args):
     if opts.debug:
         logging.basicConfig(level=logging.DEBUG)
 
+
+def sh(cmd):
+    """
+    simple wrapper for system calls
+    """
+    from subprocess import call
+    call(cmd, shell=True)
+    logging.debug(cmd)

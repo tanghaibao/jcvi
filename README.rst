@@ -29,6 +29,10 @@ Contents
 ``algorithms/``
     Algorithms for math intensive stuff.
 
+``graphics/``
+    Graphics to visualize comparative genomics or assembly stuff.
+
+
 Dependencies
 -------------
 * `Biopython <http://www.biopython.org>`_

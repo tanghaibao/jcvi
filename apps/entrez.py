@@ -30,7 +30,7 @@ def batch_entrez(list_of_terms, db="nucleotide", retmax=1, rettype="fasta"):
         for id in ids:
             fetch_handle = Entrez.efetch(db=db, id=id, rettype=rettype,
                     email=email)
-            yield fetch_handle.read()
+            yield id, fetch_handle.read()
 
 
 def main():
@@ -42,6 +42,10 @@ def main():
     logging.basicConfig(level=logging.DEBUG)
 
     p = OptionParser(main.__doc__)
+
+    valid_formats = ("fasta", "gb")
+    p.add_option("--format", default="fasta", choices=valid_formats,
+            help="download format [default: %default]")
     opts, args = p.parse_args()
 
     if len(args) != 1:
@@ -49,8 +53,16 @@ def main():
 
     filename = args[0]
     list_of_terms = [row.strip() for row in open(filename)]
-    for rec in batch_entrez(list_of_terms):
-        print rec
+    
+    seen = set()
+    for id, rec in batch_entrez(list_of_terms, rettype=opts.format):
+        if id in seen:
+            logging.error("duplicate key (%s) found" % rec)
+            continue
+        else:
+            print rec
+
+        seen.add(id)
 
 
 if __name__ == '__main__':

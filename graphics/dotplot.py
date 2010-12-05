@@ -40,7 +40,7 @@ def rdotplot(args):
     fd, path = tempfile.mkstemp()
     fw = os.fdopen(fd, "w")
 
-    fw.write("dots = read.table('%s', header=T)\n" % rdotplotfile)
+    fw.write("dots <- read.table('%s', header=T)\n" % rdotplotfile)
     fw.write("png('%s')\n" % pngfile)
     fw.write("plot(dots, type='l')\n")
     fw.write("dev.off()\n")

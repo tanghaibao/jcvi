@@ -1,44 +1,32 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-"""
-%prog anchor_file blast_file [options] 
-
-typical use for this program is given an anchor list (for example, syntenic genes), choose from the second blast_file for which the pairs are close to the anchors.
-
-Anchor list should have the following format, each row defines a pair:
-
-    geneA geneB
-    geneC geneD
-
-Use KD-tree for processing distance query.
-
-"""
-
 import sys
+import logging
 import numpy as np
 import collections
-from scipy.spatial import cKDTree
+from optparse import OptionParser
 
 from jcvi.formats.bed import Bed
 from jcvi.formats.blast import Blast
-
 from jcvi.utils.grouper import Grouper
+from jcvi.apps.base import ActionDispatcher
+
 
 def score(cluster):
-    
-    # the score of the cluster, in this case, is the number of non-repetitive
-    # matches
+    """ 
+    score of the cluster, in this case, is the number of non-repetitive matches
+    """
     x, y = zip(*cluster)
-    returnh min(len(set(x)), len(set(y)))
+    return min(len(set(x)), len(set(y)))
 
 
 def single_linkage(points, xdist, ydist, N):
-
-    # This is the core single linkage algorithm
-    # this behaves in O(n) complexity: we iterate through the pairs, for each pair
-    # we look back on the adjacent pairs to find links
-
+    """
+    This is the core single linkage algorithm
+    this behaves in O(n) complexity: we iterate through the pairs, for each pair
+    we look back on the adjacent pairs to find links
+    """
     clusters = Grouper()
     n = len(points)
     points.sort()
@@ -56,20 +44,77 @@ def single_linkage(points, xdist, ydist, N):
     return clusters
 
 
-def main(anchor_file, blast_file, opts):
+def main():
+
+    actions = (
+        ('scan', 'get anchor list using single-linkage algorithm'),
+        ('liftover', 'given anchor list, pull adjancent pairs from blast file')
+            )
+
+    p = ActionDispatcher(actions)
+    p.dispatch(globals())
+
+
+def scan(args):
+    """
+    %prog scan blastfile anchorfile [options]
+
+    pull out syntenic anchors from blastfile based on single-linkage algorithm
+    """
+    pass
+
+
+def liftover(args):
+    """
+    %prog liftover blastfile anchorfile [options] 
+
+    typical use for this program is given an anchor list (for example, syntennic
+    genes), choose from the second blast_file for which the pairs are close to the anchors.
+
+    Anchor list should have the following format, each row defines a pair:
+
+        geneA geneB
+        geneC geneD
+
+    Use KD-tree for processing distance query.
+    """
+    try:
+        from scipy.spatial import cKDTree
+    except ImportError, e:
+        logging.error(e)
+        logging.error("You must install python package `scipy` " + \
+                "(http://www.scipy.org)")
+        sys.exit(1)
+
+    p = OptionParser(liftover.__doc__)
+
+    p.add_option("--qbed", dest="qbed", help="path to qbed")
+    p.add_option("--sbed", dest="sbed", help="path to sbed")
+
+    p.add_option("--dist", dest="dist",
+            default=10, type="int", 
+            help="the extent of flanking regions to search [default: %default]") 
+
+    opts, files = p.parse_args(args)
+
+    if not (len(files) == 2 and opts.qbed and opts.sbed):
+        sys.exit(p.print_help())
+
+    blast_file, anchor_file = files
+
+    logging.basicConfig(level=logging.DEBUG)
 
     qbed_file, sbed_file = opts.qbed, opts.sbed
     # is this a self-self blast?
     is_self = (qbed_file == sbed_file)
     if is_self:
-        print >>sys.stderr, "... looks like a self-self BLAST to me"
+        logging.debug("... looks like a self-self BLAST to me")
 
-    print >>sys.stderr, "read annotation files %s and %s" % (qbed_file, sbed_file)
+    logging.debug("read annotation files %s and %s" % (qbed_file, sbed_file))
     qbed = Bed(qbed_file)
     sbed = Bed(sbed_file)
     qorder = qbed.get_order()
     sorder = sbed.get_order()
-    _ = lambda x: x.rsplit(".", 1)[0]
 
     blast = Blast(blast_file)
     filtered_blasts = []
@@ -118,8 +163,8 @@ def main(anchor_file, blast_file, opts):
         hits = np.array(all_hits[chr_pair])
         anchors = np.array(all_anchors[chr_pair])
 
-        print >>sys.stderr, chr_pair, len(anchors)
-        if len(anchors)==0: continue
+        logging.debug("%s: %d" % (chr_pair, len(anchors)))
+        if not anchors: continue
         tree = cKDTree(anchors, leafsize=16)
         #print tree.data
         dists, idxs = tree.query(hits, p=1, distance_upper_bound=opts.dist)
@@ -133,29 +178,10 @@ def main(anchor_file, blast_file, opts):
                 print >>fw, "\t".join((query, subject, "lifted"))
                 j+=1
     
-    print >>sys.stderr, j, "new pairs found"
+    logging.debug("%d new pairs found" % j)
 
 
 
 if __name__ == '__main__':
+    main()
     
-    import optparse
-
-    p = optparse.OptionParser(__doc__)
-
-    p.add_option("--qbed", dest="qbed", help="path to qbed")
-    p.add_option("--sbed", dest="sbed", help="path to sbed")
-
-    p.add_option("--dist", dest="dist",
-            default=10, type="int", 
-            help="the extent of flanking regions to search [default: %default]") 
-
-    opts, files = p.parse_args()
-
-    if not (len(files) == 2 and opts.qbed and opts.sbed):
-        sys.exit(p.print_help())
-
-    anchor_file, blast_file = files
-
-    main(anchor_file, blast_file, opts)
-

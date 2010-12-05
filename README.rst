@@ -39,4 +39,4 @@ Following are a list of third-party python packages that are used by some
 routines in the library. 
 
 * `Biopython <http://www.biopython.org>`_
-* `scipy <http://wwww.scipy.org>`
+* `scipy <http://www.scipy.org>`_

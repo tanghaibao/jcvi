@@ -78,14 +78,6 @@ def liftover(args):
 
     Use KD-tree for processing distance query.
     """
-    try:
-        from scipy.spatial import cKDTree
-    except ImportError, e:
-        logging.error(e)
-        logging.error("You must install python package `scipy` " + \
-                "(http://www.scipy.org)")
-        sys.exit(1)
-
     p = OptionParser(liftover.__doc__)
 
     p.add_option("--qbed", dest="qbed", help="path to qbed")
@@ -103,6 +95,13 @@ def liftover(args):
     blast_file, anchor_file = files
 
     logging.basicConfig(level=logging.DEBUG)
+    try:
+        from scipy.spatial import cKDTree
+    except ImportError, e:
+        logging.error(e)
+        logging.error("You must install python package `scipy` " + \
+                "(http://www.scipy.org)")
+        sys.exit(1)
 
     qbed_file, sbed_file = opts.qbed, opts.sbed
     # is this a self-self blast?

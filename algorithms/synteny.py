@@ -32,14 +32,15 @@ def group_hits(blasts):
     return all_hits
 
 
-def read_blast(blast_file, qorder, sorder):
+def read_blast(blast_file, qorder, sorder, is_self=False):
     """
     read the blast and convert name into coordinates
     """
     blast = Blast(blast_file)
-    filtered_blasts = []
+    filtered_blast = []
     seen = set()
     for b in blast:
+        query, subject = b.query, b.subject
         if query not in qorder or subject not in sorder: continue
 
         key = query, subject
@@ -55,9 +56,12 @@ def read_blast(blast_file, qorder, sorder):
             qi, si = si, qi
             q, s = s, q
 
-        filtered_blasts.append(b)
+        b.qseqid, b.sseqid = q.seqid, s.seqid
+        b.qi, b.si = qi, si
 
-    return filtered_blasts
+        filtered_blast.append(b)
+
+    return filtered_blast
 
 
 def read_anchors(anchor_file, qorder, sorder):
@@ -98,7 +102,8 @@ def synteny_scan(points, xdist, ydist, N):
             clusters.join(points[i], points[j])
 
     # select clusters that are at least >=N
-    clusters = [cluster for cluster in list(clusters) if _score(cluster)>=N]
+    clusters = [sorted(cluster) for cluster in list(clusters) \
+            if _score(cluster)>=N]
 
     return clusters
 
@@ -109,8 +114,13 @@ def batch_scan(points, xdist=20, ydist=20, N=6):
     """
     chr_pair_points = group_hits(points)
 
-    for points in chr_pair_points.values():
-        yield synteny_scan(points, xdist, ydist, N)
+    clusters = []
+    for chr_pair in sorted(chr_pair_points.keys()):
+        points = chr_pair_points[chr_pair]
+        logging.debug("%s: %d" % (chr_pair, len(points)))
+        clusters.extend(synteny_scan(points, xdist, ydist, N))
+
+    return clusters
 
 
 def synteny_liftover(points, anchors, dist):
@@ -162,7 +172,7 @@ def add_options(p, args):
     if is_self:
         logging.debug("... looks like a self-self BLAST to me")
 
-    return blast_file, anchor_file, qbed_file, sbed_file, opts
+    return blast_file, anchor_file, qbed_file, sbed_file, opts.dist, is_self
 
 
 def main():
@@ -178,29 +188,29 @@ def main():
 
 def scan(args):
     """
-    %prog scan blastfile anchorfile [options]
+    %prog scan blastfile anchor_file [options]
 
     pull out syntenic anchors from blastfile based on single-linkage algorithm
-    generates an anchor file
     """
     p = OptionParser(scan.__doc__)
 
-    blast_file, anchor_file, qbed_file, sbed_file, opts = add_options(p, args)
+    blast_file, anchor_file, qbed_file, sbed_file, dist, is_self = add_options(p, args)
 
     logging.debug("read annotation files %s and %s" % (qbed_file, sbed_file))
     qbed = Bed(qbed_file)
     sbed = Bed(sbed_file)
-    qorder = qbed.get_order()
-    sorder = sbed.get_order()
+    qorder = qbed.order
+    sorder = sbed.order
 
-    filtered_blasts = read_blast(blast_file, qorder, sorder)
+    filtered_blast = read_blast(blast_file, qorder, sorder, is_self=is_self)
 
-    clusters = batch_scan(filtered_blasts, xdist=opts.dist, ydist=opts.dist)
+    fw = open(anchor_file, "w")
+    clusters = batch_scan(filtered_blast, xdist=dist, ydist=dist)
     for cluster in clusters:
-        print "###"
+        print >>fw, "###"
         for qi, si in cluster:
             query, subject = qbed[qi].accn, sbed[si].accn
-            print "\t".join((query, subject))
+            print >>fw, "\t".join((query, subject))
 
 
 def liftover(args):
@@ -219,15 +229,16 @@ def liftover(args):
     """
     p = OptionParser(liftover.__doc__)
 
-    blast_file, anchor_file, qbed_file, sbed_file, opts = add_options(p, args)
+    blast_file, anchor_file, qbed_file, sbed_file, dist, is_self = add_options(p, args)
 
     logging.debug("read annotation files %s and %s" % (qbed_file, sbed_file))
     qbed = Bed(qbed_file)
     sbed = Bed(sbed_file)
-    qorder = qbed.get_order()
-    sorder = sbed.get_order()
+    qorder = qbed.order
+    sorder = sbed.order
 
-    filtered_blasts = read_blast(blast_file, qorder, sorder)
+    filtered_blast = read_blast(blast_file, qorder, sorder, is_self=is_self)
+    all_hits = group_hits(filtered_blast)
     all_anchors = read_anchors(anchor_file, qorder, sorder)
 
     # select hits that are close to the anchor list
@@ -240,7 +251,7 @@ def liftover(args):
         logging.debug("%s: %d" % (chr_pair, len(anchors)))
         if not len(anchors): continue
 
-        for qi, si in synteny_liftover(hits, anchors, opts.dist):
+        for qi, si in synteny_liftover(hits, anchors, dist):
             query, subject = qbed[qi].accn, sbed[si].accn
             print >>fw, "\t".join((query, subject, "lifted"))
             j+=1

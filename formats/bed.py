@@ -3,6 +3,8 @@
 Classes to handle the .bed filed$ and .raw file
 """
 
+import sys
+
 from base import LineFile
 
 class BedLine(object):
@@ -31,19 +33,29 @@ class BedLine(object):
 
 class Bed(LineFile):
 
-    def __init__(self, filename, key=None):
+    def __init__(self, filename=None, key=None):
         super(Bed, self).__init__(filename)
 
         # the sorting key provides some flexibility in ordering the features
         # for example, user might not like the lexico-order of seqid
         self.key = key or (lambda x: (x.seqid, x.start, x.accn))
+
+        if not filename: return
+
         for line in open(filename):
             if line[0] == "#": continue
             if line.startswith('track'): continue
             self.append(BedLine(line))
 
-        self.seqids = sorted(set(b.seqid for b in self))
         self.sort(key=self.key)
+
+    def print_to_file(self, fw=sys.stdout):
+        for bedline in self:
+            print >>fw, bedline
+
+    @property
+    def seqids(self):
+        return sorted(set(b.seqid for b in self))
 
     @property
     def order(self):

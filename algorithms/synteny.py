@@ -13,7 +13,7 @@ from jcvi.utils.grouper import Grouper
 from jcvi.apps.base import ActionDispatcher
 
 
-def score(cluster):
+def _score(cluster):
     """ 
     score of the cluster, in this case, is the number of non-repetitive matches
     """
@@ -21,7 +21,7 @@ def score(cluster):
     return min(len(set(x)), len(set(y)))
 
 
-def single_linkage(points, xdist, ydist, N):
+def synteny_scan(points, xdist, ydist, N):
     """
     This is the core single linkage algorithm
     this behaves in O(n) complexity: we iterate through the pairs, for each pair
@@ -40,8 +40,35 @@ def single_linkage(points, xdist, ydist, N):
             if abs(del_y) > ydist: continue
             # otherwise join
             clusters.join(points[i], points[j])
-    clusters = [cluster for cluster in list(clusters) if score(cluster)>=N]
+
+    # select clusters that are at least >=N
+    clusters = [cluster for cluster in list(clusters) if _score(cluster)>=N]
+
     return clusters
+
+
+def synteny_liftover(points, anchors, dist):
+    """
+    This is to get the nearest anchors for all the points (useful for the
+    `liftover` operation below).
+    """
+    try:
+        from scipy.spatial import cKDTree
+    except ImportError, e:
+        logging.error(e)
+        logging.error("You must install python package `scipy` " + \
+                "(http://www.scipy.org)")
+        sys.exit(1)
+
+    tree = cKDTree(anchors, leafsize=16)
+    #print tree.data
+    dists, idxs = tree.query(points, p=1, distance_upper_bound=dist)
+    #print [(d, idx) for (d, idx) in zip(dists, idxs) if idx!=tree.n]
+
+    for point, dist, idx in zip(points, dists, idxs):
+        # nearest is self or out of range
+        if dist==0 or idx==tree.n: continue
+        yield point, dist
 
 
 def main():
@@ -95,13 +122,6 @@ def liftover(args):
     blast_file, anchor_file = files
 
     logging.basicConfig(level=logging.DEBUG)
-    try:
-        from scipy.spatial import cKDTree
-    except ImportError, e:
-        logging.error(e)
-        logging.error("You must install python package `scipy` " + \
-                "(http://www.scipy.org)")
-        sys.exit(1)
 
     qbed_file, sbed_file = opts.qbed, opts.sbed
     # is this a self-self blast?
@@ -141,7 +161,7 @@ def liftover(args):
         filtered_blasts.append(b)
 
     all_anchors = collections.defaultdict(list)
-    fp = file(anchor_file)
+    fp = open(anchor_file)
     for row in fp:
         if row[0]=='#': continue
         a, b = row.split()
@@ -163,19 +183,13 @@ def liftover(args):
         anchors = np.array(all_anchors[chr_pair])
 
         logging.debug("%s: %d" % (chr_pair, len(anchors)))
-        if not anchors: continue
-        tree = cKDTree(anchors, leafsize=16)
-        #print tree.data
-        dists, idxs = tree.query(hits, p=1, distance_upper_bound=opts.dist)
-        #print [(d, idx) for (d, idx) in zip(dists, idxs) if idx!=tree.n]
+        if not len(anchors): continue
 
-        for i, (dd, idx) in enumerate(zip(dists, idxs)):
-            if dd==0: continue # same anchors
-            if idx!=tree.n:
-                qi, si = hits[i]
-                query, subject = qbed[qi]["accn"], sbed[si]["accn"]
-                print >>fw, "\t".join((query, subject, "lifted"))
-                j+=1
+        for qi, si in synteny_liftover(hits, anchors, opts.dist):
+
+            query, subject = qbed[qi]["accn"], sbed[si]["accn"]
+            print >>fw, "\t".join((query, subject, "lifted"))
+            j+=1
     
     logging.debug("%d new pairs found" % j)
 

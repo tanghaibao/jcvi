@@ -70,7 +70,7 @@ def main():
 
     actions = (
         ('bed', 'parse gff and produce bed file for particular feature type'),
-        ('load', 'extract the feature (i.e. CDS) sequences and concatenate'),
+        ('load', 'extract the feature (e.g. CDS) sequences and concatenate'),
             )
 
     p = ActionDispatcher(actions)

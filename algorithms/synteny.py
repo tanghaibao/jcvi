@@ -3,6 +3,8 @@
 
 import sys
 import logging
+logging.basicConfig(level=logging.DEBUG)
+
 import numpy as np
 import collections
 from optparse import OptionParser
@@ -19,6 +21,60 @@ def _score(cluster):
     """
     x, y = zip(*cluster)
     return min(len(set(x)), len(set(y)))
+
+
+def group_hits(blasts):
+    # grouping the hits based on chromosome pair
+    all_hits = collections.defaultdict(list)
+    for b in blasts:
+        all_hits[(b.qseqid, b.sseqid)].append((b.qi, b.si))
+
+    return all_hits
+
+
+def read_blast(blast_file, qorder, sorder):
+    """
+    read the blast and convert name into coordinates
+    """
+    blast = Blast(blast_file)
+    filtered_blasts = []
+    seen = set()
+    for b in blast:
+        if query not in qorder or subject not in sorder: continue
+
+        key = query, subject
+        if key in seen: continue
+        seen.add(key)
+
+        qi, q = qorder[query]
+        si, s = sorder[subject]
+
+        if is_self and qi > si:
+            # remove redundant a<->b to one side when doing self-self BLAST
+            query, subject = subject, query
+            qi, si = si, qi
+            q, s = s, q
+
+        filtered_blasts.append(b)
+
+    return filtered_blasts
+
+
+def read_anchors(anchor_file, qorder, sorder):
+    """
+    anchors file are just (geneA, geneB) pairs (with possible deflines)
+    """
+    all_anchors = collections.defaultdict(list)
+    fp = open(anchor_file)
+    for row in fp:
+        if row[0]=='#': continue
+        a, b = row.split()
+        if a not in qorder or b not in sorder: continue
+        qi, q = qorder[a]
+        si, s = sorder[b]
+        all_anchors[(q.seqid, s.seqid)].append((qi, si))
+
+    return all_anchors
 
 
 def synteny_scan(points, xdist, ydist, N):
@@ -47,6 +103,16 @@ def synteny_scan(points, xdist, ydist, N):
     return clusters
 
 
+def batch_scan(points, xdist=20, ydist=20, N=6):
+    """
+    runs synteny_scan() per chromosome pair
+    """
+    chr_pair_points = group_hits(points)
+
+    for points in chr_pair_points.values():
+        yield synteny_scan(points, xdist, ydist, N)
+
+
 def synteny_liftover(points, anchors, dist):
     """
     This is to get the nearest anchors for all the points (useful for the
@@ -68,7 +134,35 @@ def synteny_liftover(points, anchors, dist):
     for point, dist, idx in zip(points, dists, idxs):
         # nearest is self or out of range
         if dist==0 or idx==tree.n: continue
-        yield point, dist
+        yield point
+
+
+def add_options(p, args):
+    """
+    scan and liftover has similar interfaces, so share common options
+    returns opts, files
+    """
+    p.add_option("--qbed", dest="qbed", help="path to qbed")
+    p.add_option("--sbed", dest="sbed", help="path to sbed")
+
+    p.add_option("--dist", dest="dist",
+            default=10, type="int", 
+            help="the extent of flanking regions to search [default: %default]")
+
+    opts, files = p.parse_args(args)
+
+    if not (len(files) == 2 and opts.qbed and opts.sbed):
+        sys.exit(p.print_help())
+
+    blast_file, anchor_file = files
+
+    qbed_file, sbed_file = opts.qbed, opts.sbed
+    # is this a self-self blast?
+    is_self = (qbed_file == sbed_file)
+    if is_self:
+        logging.debug("... looks like a self-self BLAST to me")
+
+    return blast_file, anchor_file, qbed_file, sbed_file, opts
 
 
 def main():
@@ -87,8 +181,26 @@ def scan(args):
     %prog scan blastfile anchorfile [options]
 
     pull out syntenic anchors from blastfile based on single-linkage algorithm
+    generates an anchor file
     """
-    pass
+    p = OptionParser(scan.__doc__)
+
+    blast_file, anchor_file, qbed_file, sbed_file, opts = add_options(p, args)
+
+    logging.debug("read annotation files %s and %s" % (qbed_file, sbed_file))
+    qbed = Bed(qbed_file)
+    sbed = Bed(sbed_file)
+    qorder = qbed.get_order()
+    sorder = sbed.get_order()
+
+    filtered_blasts = read_blast(blast_file, qorder, sorder)
+
+    clusters = batch_scan(filtered_blasts, xdist=opts.dist, ydist=opts.dist)
+    for cluster in clusters:
+        print "###"
+        for qi, si in cluster:
+            query, subject = qbed[qi].accn, sbed[si].accn
+            print "\t".join((query, subject))
 
 
 def liftover(args):
@@ -107,27 +219,7 @@ def liftover(args):
     """
     p = OptionParser(liftover.__doc__)
 
-    p.add_option("--qbed", dest="qbed", help="path to qbed")
-    p.add_option("--sbed", dest="sbed", help="path to sbed")
-
-    p.add_option("--dist", dest="dist",
-            default=10, type="int", 
-            help="the extent of flanking regions to search [default: %default]") 
-
-    opts, files = p.parse_args(args)
-
-    if not (len(files) == 2 and opts.qbed and opts.sbed):
-        sys.exit(p.print_help())
-
-    blast_file, anchor_file = files
-
-    logging.basicConfig(level=logging.DEBUG)
-
-    qbed_file, sbed_file = opts.qbed, opts.sbed
-    # is this a self-self blast?
-    is_self = (qbed_file == sbed_file)
-    if is_self:
-        logging.debug("... looks like a self-self BLAST to me")
+    blast_file, anchor_file, qbed_file, sbed_file, opts = add_options(p, args)
 
     logging.debug("read annotation files %s and %s" % (qbed_file, sbed_file))
     qbed = Bed(qbed_file)
@@ -135,45 +227,8 @@ def liftover(args):
     qorder = qbed.get_order()
     sorder = sbed.get_order()
 
-    blast = Blast(blast_file)
-    filtered_blasts = []
-    seen = set()
-    for b in blast:
-        #query, subject = _(b.query), _(b.subject)
-        if query not in qorder or subject not in sorder: continue
-        qi, q = qorder[query]
-        si, s = sorder[subject]
-
-        if is_self and qi > si:
-            # remove redundant a<->b to one side when doing self-self BLAST
-            query, subject = subject, query
-            qi, si = si, qi
-            q, s = s, q
-
-        key = query, subject
-        if key in seen: continue
-        seen.add(key)
-        b.query, b.subject = key
-
-        b.qi, b.si = qi, si
-        b.qseqid, b.sseqid = q.seqid, s.seqid
-        
-        filtered_blasts.append(b)
-
-    all_anchors = collections.defaultdict(list)
-    fp = open(anchor_file)
-    for row in fp:
-        if row[0]=='#': continue
-        a, b = row.split()
-        if a not in qorder or b not in sorder: continue
-        qi, q = qorder[a]
-        si, s = sorder[b]
-        all_anchors[(q.seqid, s.seqid)].append((qi, si))
-
-    # grouping the hits based on chromosome pair for sending in find_nearby
-    all_hits = collections.defaultdict(list)
-    for b in filtered_blasts:
-        all_hits[(b.qseqid, b.sseqid)].append((b.qi, b.si))
+    filtered_blasts = read_blast(blast_file, qorder, sorder)
+    all_anchors = read_anchors(anchor_file, qorder, sorder)
 
     # select hits that are close to the anchor list
     j = 0
@@ -186,13 +241,11 @@ def liftover(args):
         if not len(anchors): continue
 
         for qi, si in synteny_liftover(hits, anchors, opts.dist):
-
-            query, subject = qbed[qi]["accn"], sbed[si]["accn"]
+            query, subject = qbed[qi].accn, sbed[si].accn
             print >>fw, "\t".join((query, subject, "lifted"))
             j+=1
     
     logging.debug("%d new pairs found" % j)
-
 
 
 if __name__ == '__main__':

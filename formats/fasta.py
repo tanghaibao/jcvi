@@ -68,8 +68,12 @@ class Fasta (BaseFile, dict):
             yield k
 
     def iteritems(self):
-        for k in self.keys():
+        for k in self.iterkeys():
             yield k, self[k]
+
+    def itersizes(self):
+        for k in self.iterkeys():
+            yield k, len(self[k])
 
     def sequence(self, f, asstring=True):
         """

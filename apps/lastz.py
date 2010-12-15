@@ -50,13 +50,16 @@ def lastz_to_blast(row):
             start1, end1, start2, end2, evalue, score))
 
 
-def lastz(k, n, bfasta_fn, afasta_fn, out_fh, lock, lastz_path, extra, grid=False):
+def lastz(k, n, bfasta_fn, afasta_fn, out_fh, lock, lastz_path, extra,
+        blastline=True, grid=False):
     lastz_bin = lastz_path or "lastz" 
 
-    lastz_cmd = "%s --format=general-:%s "\
-            "--ambiguous=iupac %s[multiple,unmask,nameparse=darkspace]"\
+    lastz_cmd = "%s --ambiguous=iupac %s[multiple,unmask,nameparse=darkspace]" \
             " %s[unmask,nameparse=darkspace,subsample=%d/%d] %s"
-    lastz_cmd %= (lastz_bin, lastz_fields, bfasta_fn, afasta_fn, k, n, extra)
+    lastz_cmd %= (lastz_bin, bfasta_fn, afasta_fn, k, n, extra)
+
+    if blastline:
+        lastz_cmd += " --format=general-:%s" % lastz_fields
 
     if grid: # if run on SGE, only the comd is needed
         return lastz_cmd
@@ -65,9 +68,10 @@ def lastz(k, n, bfasta_fn, afasta_fn, out_fh, lock, lastz_path, extra, grid=Fals
 
     logging.debug("job <%d> started: %s" % (proc.pid, lastz_cmd))
     for row in proc.stdout:
-        brow = lastz_to_blast(row)
+        if blastline:
+            row = lastz_to_blast(row)
         lock.acquire()
-        print >>out_fh, brow
+        print >>out_fh, row
         out_fh.flush()
         lock.release()
     logging.debug("job <%d> finished" % proc.pid)
@@ -111,7 +115,9 @@ def run(args):
     p.add_option("-d", dest="target",
             help="database sequence file in FASTA format")
     p.add_option("-o", dest="outfile",
-            help="BLAST output [default: stdout]")
+            help="output [default: stdout]")
+    p.add_option("-m", dest="blastline", default=True, action="store_false",
+            help="don't generate BLAST tabular format (as -m8) [default: m8]")
     p.add_option("-a", "-A", dest="cpus", default=1, type="int",
             help="parallelize job to multiple cpus [default: %default]")
     p.add_option("--path", dest="lastz_path", default=None,
@@ -154,7 +160,7 @@ def run(args):
         cmds = []
         for k in xrange(cpus):
             lastz_cmd = lastz(k+1, cpus, bfasta_fn, afasta_fn, out_fh, 
-                    lock, lastz_path, extra, grid=grid)
+                    lock, lastz_path, extra, blastline=opts.blastline, grid=grid)
             cmds.append(lastz_cmd)
 
         g = Grid(cmds)
@@ -165,7 +171,7 @@ def run(args):
         processes = []
         for k in xrange(cpus):
             pi = Process(target=lastz, args=(k+1, cpus, bfasta_fn, afasta_fn, out_fh, 
-                lock, lastz_path, extra))
+                lock, lastz_path, extra, opts.blastline))
             pi.start()
             processes.append(pi)
 

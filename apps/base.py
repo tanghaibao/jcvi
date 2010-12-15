@@ -2,6 +2,7 @@
 basic support for running library as script
 """
 
+import os
 import sys
 import logging
 from optparse import OptionParser
@@ -51,10 +52,23 @@ def set_debug(instance, args):
         logging.basicConfig(level=logging.DEBUG)
 
 
-def sh(cmd):
+def sh(cmd, blog=None):
     """
     simple wrapper for system calls
     """
+    if not blog is None:
+        cmd += " 2>%s" % blog
+
     from subprocess import call
     call(cmd, shell=True)
     logging.debug(cmd)
+
+
+def is_current_file(a, b):
+    """
+    Check if the file a is newer than file b
+    """
+    if not (os.path.exists(a) and os.path.exists(b)): return False
+    am = os.stat(a).st_mtime
+    bm = os.stat(b).st_mtime
+    return am > bm

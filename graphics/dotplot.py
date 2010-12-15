@@ -4,11 +4,17 @@ Dot plot to visualize relationship between two sequences
 
 import os
 import sys
-import tempfile
 from optparse import OptionParser
 
-from jcvi.apps.base import ActionDispatcher, sh
+from jcvi.apps.base import ActionDispatcher
+from jcvi.apps.R import RTemplate
 
+dotplot_template = """
+dots <- read.table('$rdotplotfile', header=T)
+png('$pngfile')
+plot(dots, type='l')
+dev.off()
+"""
 
 def main():
 
@@ -36,18 +42,8 @@ def rdotplot(args):
     assert rdotplotfile.endswith(".rdotplot")
     pngfile = rdotplotfile.replace(".rdotplot", ".png")
 
-    # write to a temporary R script
-    fd, path = tempfile.mkstemp()
-    fw = os.fdopen(fd, "w")
-
-    fw.write("dots <- read.table('%s', header=T)\n" % rdotplotfile)
-    fw.write("png('%s')\n" % pngfile)
-    fw.write("plot(dots, type='l')\n")
-    fw.write("dev.off()\n")
-    fw.close()
-
-    sh("Rscript %s" % path)
-    os.remove(path)
+    rtemplate = RTemplate(dotplot_template, locals())
+    rtemplate.run()
 
 
 if __name__ == '__main__':

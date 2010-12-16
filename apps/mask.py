@@ -2,7 +2,7 @@
 # -*- coding: UTF-8 -*-
 
 """
-%prog.py input.fasta <species_name>
+%prog input.fasta <species_name>
 
 This script pipelines the windowmasker in ncbi-blast+.
 Species_name is optional, when added, a blast database

@@ -51,12 +51,20 @@ def lastz_to_blast(row):
 
 
 def lastz(k, n, bfasta_fn, afasta_fn, out_fh, lock, lastz_path, extra,
-        blastline=True, grid=False):
+        blastline=True, mask=False, grid=False):
     lastz_bin = lastz_path or "lastz" 
 
-    lastz_cmd = "%s --ambiguous=iupac %s[multiple,unmask,nameparse=darkspace]" \
-            " %s[unmask,nameparse=darkspace,subsample=%d/%d] %s"
-    lastz_cmd %= (lastz_bin, bfasta_fn, afasta_fn, k, n, extra)
+    ref_tags = ["multiple", "nameparse=darkspace"]
+    qry_tags = ["nameparse=darkspace", "subsample=%d/%d" % (k, n)]
+    if not mask:
+        ref_tags.append("unmask")
+        qry_tags.append("unmask")
+
+    ref_tags = ",".join(ref_tags)
+    qry_tags = ",".join(qry_tags)
+
+    lastz_cmd = "%s --ambiguous=iupac %s[%s] %s[%s] %s"
+    lastz_cmd %= (lastz_bin, bfasta_fn, ref_tags, afasta_fn, qry_tags, extra)
 
     if blastline:
         lastz_cmd += " --format=general-:%s" % lastz_fields
@@ -124,6 +132,8 @@ def run(args):
             help="specify LASTZ path")
     p.add_option("--lastz-params", dest="extra", default="",
             help="pass in LASTZ parameter string (please quote the string)")
+    p.add_option("--mask", dest="mask", default=False, action="store_true",
+            help="treat lower-case letters as mask info [default: %default]")
     p.add_option("--grid", dest="grid", default=False,
             action="store_true", help="use sun grid engine [default: %default]")
 
@@ -149,9 +159,7 @@ def run(args):
     extra = opts.extra
 
     lastz_path = opts.lastz_path
-    # split on query so check query fasta sequence number
-    afasta_num = sum(1 for x in open(afasta_fn) if x[0]=='>')
-    cpus = min(opts.cpus, afasta_num)
+    cpus = opts.cpus
     logging.debug("Dispatch job to %d cpus" % cpus)
 
     lock = Lock()
@@ -160,7 +168,8 @@ def run(args):
         cmds = []
         for k in xrange(cpus):
             lastz_cmd = lastz(k+1, cpus, bfasta_fn, afasta_fn, out_fh, 
-                    lock, lastz_path, extra, blastline=opts.blastline, grid=grid)
+                    lock, lastz_path, extra, blastline=opts.blastline, 
+                    mask=opts.mask, grid=grid)
             cmds.append(lastz_cmd)
 
         g = Grid(cmds)
@@ -171,7 +180,7 @@ def run(args):
         processes = []
         for k in xrange(cpus):
             pi = Process(target=lastz, args=(k+1, cpus, bfasta_fn, afasta_fn, out_fh, 
-                lock, lastz_path, extra, opts.blastline))
+                lock, lastz_path, extra, opts.blastline, opts.mask))
             pi.start()
             processes.append(pi)
 

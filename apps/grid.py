@@ -9,6 +9,7 @@ import sys
 import re
 import logging
 
+from glob import glob
 from subprocess import Popen, PIPE 
 from optparse import OptionParser
 
@@ -22,9 +23,55 @@ commitfile = op.join(sge, "COMMIT")
 statusfile = op.join(sge, "STATUS")
 outputfile = op.join(sge, "OUTPUT")
 
+
+class CmdManager (object):
+
+    @classmethod
+    def writeoutput(cls, outfile, split_outputs):
+
+        fw = open(outputfile, "w")
+        fw.write("#%s\n" % outfile)
+        fw.write("\n".join(split_outputs))
+        fw.close()
+        logging.debug("write output file list to %s" % outputfile)
+
+
+    @classmethod
+    def readoutput(cls):
+
+        fp = open(outputfile)
+        outfile = fp.next().strip()[1:]
+        split_outputs = [row.strip() for row in fp]
+        return outfile, split_outputs
+
+
+
+class CmdReplacer (object):
+    """
+    This creates parallelized version of cmd, but glob the input files (with the
+    same suffix) and produce output files (with another suffix). each command
+    runs on one input file and generates corresponding output file
+    """
+    def __init__(self, cmd, infile, outfile, outputdir=sge):
+        
+        split_inputs = glob(infile)
+        infile_suffix = op.splitext(infile)[-1]
+        outfile_suffix = op.splitext(outfile)[-1]
+        split_outputs = [op.basename(x).replace(infile_suffix, outfile_suffix) for x
+                in split_inputs]
+
+        self.cmds = []
+        for sinput, soutput in zip(split_inputs, split_outputs):
+            scmd = cmd.replace(infile, sinput)
+            scmd = scmd.replace(outfile, soutput)
+            self.cmds.append(scmd)
+
+        assert self.cmds, "no commands generated"
+
+
 class CmdSplitter (object):
     """
-    The creates parallelized version of cmd, and substituting infile with
+    This creates parallelized version of cmd, and substituting infile with
     infile_00 and outfile with outfile_00, etc.
     """
     def __init__(self, cmd, N, infile, outfile, outputdir=sge):
@@ -49,23 +96,7 @@ class CmdSplitter (object):
             scmd = re.sub(outfilepat, soutput, scmd)
             self.cmds.append(scmd)
 
-    @classmethod
-    def writeoutput(cls, outfile, split_outputs):
-
-        fw = open(outputfile, "w")
-        fw.write("#%s\n" % outfile)
-        fw.write("\n".join(split_outputs))
-        fw.close()
-        logging.debug("write output file list to %s" % outputfile)
-
-
-    @classmethod
-    def readoutput(cls):
-
-        fp = open(outputfile)
-        outfile = fp.next().strip()[1:]
-        split_outputs = [row.strip() for row in fp]
-        return outfile, split_outputs
+        assert self.cmds, "no commands generated"
 
 
 class GridProcess (object):
@@ -106,7 +137,11 @@ class GridProcess (object):
         p = Popen(cmd, stdout=PIPE, shell=True)
         output = p.communicate()[0]
         
-        self.jobid = re.search(self.pat, output).group("id")
+        if output.strip()!="":
+            self.jobid = re.search(self.pat, output).group("id")
+        else:
+            self.jobid = "-1"
+
         logging.debug("[%s] %s" % (self.jobid, self.cmd))
 
         os.chdir(cwd)
@@ -240,13 +275,13 @@ def commit(args):
     p.add_option("-o", dest="outfile", help="outfile")
     p.add_option("-c", dest="cmd", 
             help="cmd needs to parallelize (please quote the string)")
-    p.add_option("-n", dest="N", type="int", 
+    p.add_option("-n", dest="N", type="int", default=4, 
             help="number of hosts to run on (1 < N < 100)")
 
     opts, args = p.parse_args(args)
     try:
-        assert all((opts.cmd, opts.N, opts.infile, opts.outfile)), \
-                "need to set all options [-i, -o, -c, -n]"
+        assert all((opts.cmd, opts.infile, opts.outfile)), \
+                "need to set all options [-i, -o, -c]"
         cmd, N = opts.cmd, opts.N 
         infile, outfile = opts.infile, opts.outfile
     except Exception, e:
@@ -259,7 +294,10 @@ def commit(args):
     except:
         pass
 
-    cs = CmdSplitter(cmd, N, infile, outfile)
+    if "*" in opts.infile:
+        cs = CmdReplacer(cmd, infile, outfile)
+    else:
+        cs = CmdSplitter(cmd, N, infile, outfile)
 
     g = Grid(cs.cmds)
     g.writecommit()
@@ -338,7 +376,7 @@ def merge(args):
         
         assert op.exists(outputfile), "OUTPUT file not found, cannot merge"
 
-        outfile, split_outputs = CmdSplitter.readoutput() 
+        outfile, split_outputs = CmdManager.readoutput() 
         filemerger(split_outputs, outfile)
         return
 

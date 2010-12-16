@@ -8,8 +8,6 @@ import logging
 
 from optparse import OptionParser
 
-from jcvi.utils.iter import flatten
-
 
 class ActionDispatcher (object):
 

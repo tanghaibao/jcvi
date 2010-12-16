@@ -3,10 +3,13 @@ import os.path as op
 import math
 import sys
 import logging
+
 from optparse import OptionParser
 
 from Bio import SeqIO
-from jcvi.apps.base import ActionDispatcher, sh
+from jcvi.apps.base import ActionDispatcher, sh, debug
+debug()
+
 
 class BaseFile (object):
     
@@ -163,7 +166,6 @@ def split(args):
     """
     p = OptionParser(split.__doc__)
 
-    logging.basicConfig(level=logging.DEBUG)
     opts, args = p.parse_args(args)
 
     try:

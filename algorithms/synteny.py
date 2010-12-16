@@ -3,16 +3,16 @@
 
 import sys
 import logging
-logging.basicConfig(level=logging.DEBUG)
+import collections
 
 import numpy as np
-import collections
 from optparse import OptionParser
 
 from jcvi.formats.bed import Bed
 from jcvi.formats.blast import Blast
 from jcvi.utils.grouper import Grouper
-from jcvi.apps.base import ActionDispatcher
+from jcvi.apps.base import ActionDispatcher, debug
+debug()
 
 
 def _score(cluster):

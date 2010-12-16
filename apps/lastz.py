@@ -6,14 +6,14 @@ import os.path as op
 import sys
 import math
 import logging
-logging.basicConfig(level=logging.DEBUG)
 
 from optparse import OptionParser
 from subprocess import Popen, PIPE
 from multiprocessing import Process, Lock
 
-from grid import Grid 
-from base import ActionDispatcher
+from jcvi.apps.grid import Grid 
+from jcvi.apps.base import ActionDispatcher, debug
+debug()
 
 
 blast_fields = "query,subject,pctid,hitlen,nmismatch,ngaps,"\

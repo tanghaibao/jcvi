@@ -8,13 +8,14 @@ import shutil
 import sys
 import re
 import logging
-logging.basicConfig(level=logging.DEBUG)
 
 from subprocess import Popen, PIPE 
 from optparse import OptionParser
 
 from jcvi.formats.base import FileMerger, FileSplitter
-from jcvi.apps.base import ActionDispatcher
+from jcvi.apps.base import ActionDispatcher, debug
+debug()
+
 
 sge = "sge"
 commitfile = op.join(sge, "COMMIT")

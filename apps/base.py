@@ -5,9 +5,11 @@ basic support for running library as script
 import os
 import sys
 import logging
+
 from optparse import OptionParser
 
 from jcvi.utils.iter import flatten
+
 
 class ActionDispatcher (object):
 
@@ -49,7 +51,7 @@ def set_debug(instance, args):
     opts, args = instance.parse_args(args)
 
     if opts.debug:
-        logging.basicConfig(level=logging.DEBUG)
+        debug()
 
 
 def sh(cmd, blog=None):
@@ -72,3 +74,11 @@ def is_current_file(a, b):
     am = os.stat(a).st_mtime
     bm = os.stat(b).st_mtime
     return am > bm
+
+
+def debug():
+    """
+    turn on the debugging
+    """
+    import logging
+    logging.basicConfig(level=logging.DEBUG)

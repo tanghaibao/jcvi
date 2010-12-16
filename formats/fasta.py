@@ -10,11 +10,11 @@ the whole description field)
 
 import sys
 import logging
+
 from optparse import OptionParser
 
 from Bio import SeqIO
-from base import BaseFile
-
+from jcvi.formats.base import BaseFile
 from jcvi.apps.base import ActionDispatcher
 
 

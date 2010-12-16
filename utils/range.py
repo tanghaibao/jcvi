@@ -6,7 +6,8 @@ This script implements algorithm for finding intersecting rectangles,
 both on the 2D dotplot and 1D-projection
 """
 
-from grouper import Grouper
+from jcvi.utils.grouper import Grouper
+
 
 def range_overlap(a, b):
     """

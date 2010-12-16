@@ -9,6 +9,7 @@ from optparse import OptionParser
 from jcvi.apps.base import ActionDispatcher
 from jcvi.apps.R import RTemplate
 
+
 dotplot_template = """
 dots <- read.table('$rdotplotfile', header=T)
 png('$pngfile')

@@ -7,6 +7,7 @@ import sys
 
 from base import LineFile
 
+
 class BedLine(object):
     # the Bed format supports more columns. we only need
     # the first 4, but keep the information in 'stuff'.

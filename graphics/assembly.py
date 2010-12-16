@@ -8,13 +8,13 @@ assembly QC.
 
 import sys
 import logging
-logging.basicConfig(level=logging.DEBUG)
 
 from bisect import bisect
 import numpy as np
 
 from jcvi.formats.fasta import Fasta
-from jcvi.apps.base import ActionDispatcher
+from jcvi.apps.base import ActionDispatcher, debug
+debug()
 
 
 def main():

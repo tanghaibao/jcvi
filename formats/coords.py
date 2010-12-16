@@ -16,7 +16,7 @@ import sys
 import itertools
 import logging
 
-from base import LineFile
+from jcvi.formats.base import LineFile
 
 
 class CoordsLine (object):

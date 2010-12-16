@@ -9,11 +9,11 @@ http://www.ncbi.nlm.nih.gov/projects/genome/assembly/agp/AGP_Specification.shtml
 import sys
 import itertools
 import logging
+
 from optparse import OptionParser
 
-from base import LineFile
-from fasta import Fasta
-
+from jcvi.formats.base import LineFile
+from jcvi.formats.fasta import Fasta
 from jcvi.utils.iter import pairwise
 from jcvi.apps.base import ActionDispatcher, set_debug
 

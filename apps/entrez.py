@@ -8,6 +8,9 @@ import logging
 from optparse import OptionParser
 from Bio import Entrez
 
+from jcvi.apps.base import debug
+
+
 email = "htang@jcvi.org"
 
 
@@ -39,7 +42,7 @@ def main():
 
     filename contains a list of terms to search 
     """
-    logging.basicConfig(level=logging.DEBUG)
+    debug()
 
     p = OptionParser(main.__doc__)
 

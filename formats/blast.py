@@ -4,7 +4,8 @@ parses tabular BLAST -m8 (-format 6 in BLAST+) format
 """
 
 import itertools
-from base import LineFile
+
+from jcvi.formats.base import LineFile
 
 
 class BlastLine(object):

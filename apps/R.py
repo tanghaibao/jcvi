@@ -3,11 +3,12 @@ uses R for statistics and graphics
 """
 
 import os
-import logging
 import tempfile
+
 from string import Template
 
-from jcvi.apps.base import sh
+from jcvi.apps.base import sh, debug
+debug()
 
 
 class RTemplate (object):
@@ -45,7 +46,6 @@ def main():
             las=1, main="cars data")
     dev.off()
     """
-    logging.basicConfig(level=logging.DEBUG)
     rtemplate = RTemplate(template, dict(pngfile="t.png"))
     rtemplate.run()
 

@@ -10,40 +10,33 @@ import re
 import logging
 
 from glob import glob
+from itertools import izip_longest
 from subprocess import Popen, PIPE 
 from optparse import OptionParser
 
-from jcvi.formats.base import FileMerger, FileSplitter
-from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.formats.base import FileSplitter
+from jcvi.apps.base import ActionDispatcher, sh, debug
 debug()
 
 
 sge = "sge"
 commitfile = op.join(sge, "COMMIT")
 statusfile = op.join(sge, "STATUS")
-outputfile = op.join(sge, "OUTPUT")
 
 
-class CmdManager (object):
-
-    @classmethod
-    def writeoutput(cls, outfile, split_outputs):
-
-        fw = open(outputfile, "w")
-        fw.write("#%s\n" % outfile)
-        fw.write("\n".join(split_outputs))
-        fw.close()
-        logging.debug("write output file list to %s" % outputfile)
-
-
-    @classmethod
-    def readoutput(cls):
-
-        fp = open(outputfile)
-        outfile = fp.next().strip()[1:]
-        split_outputs = [row.strip() for row in fp]
-        return outfile, split_outputs
-
+def check_sge(overwrite=False):
+    """
+    the `sge` folder contains all the jobs
+    make sure that this exists; if not create one
+    """
+    if op.isdir(sge):
+        if overwrite:
+            shutil.rmtree(sge)
+            os.mkdir(sge)
+            logging.debug("overwrite %s folder now" % sge)
+    else:
+        os.mkdir(sge)
+        logging.debug("%s folder not found, create one now" % sge)
 
 
 class CmdReplacer (object):
@@ -67,6 +60,9 @@ class CmdReplacer (object):
             self.cmds.append(scmd)
 
         assert self.cmds, "no commands generated"
+        
+        # cats to different files
+        self.outfiles = split_outputs 
 
 
 class CmdSplitter (object):
@@ -74,7 +70,7 @@ class CmdSplitter (object):
     This creates parallelized version of cmd, and substituting infile with
     infile_00 and outfile with outfile_00, etc.
     """
-    def __init__(self, cmd, N, infile, outfile, outputdir=sge):
+    def __init__(self, cmd, infile, outfile, outputdir=sge, N=4):
 
         infilepat = re.compile(r"\b%s\b" % infile)
         outfilepat = re.compile(r"\b%s\b" % outfile)
@@ -86,11 +82,7 @@ class CmdSplitter (object):
         fs = FileSplitter(infile, outputdir)
         fs.split(N)
 
-        # record the output file list for `grid.py merge`
-        self.__class__.writeoutput(outfile, split_outputs)
-
         self.cmds = []
-
         for sinput, soutput in zip(split_inputs, split_outputs):
             scmd = re.sub(infilepat, sinput, cmd)
             scmd = re.sub(outfilepat, soutput, scmd)
@@ -98,20 +90,21 @@ class CmdSplitter (object):
 
         assert self.cmds, "no commands generated"
 
+        # cats to the same file
+        self.outfiles = [outfile] * len(split_outputs)
+
 
 class GridProcess (object):
 
     pat = re.compile(r"Your job (?P<id>[0-9]*) ")
 
-    def __init__(self, cmd, jobid=None):
+    def __init__(self, cmd, jobid="", outfile=""):
         self.cmd = cmd
         self.jobid = jobid
+        self.outfile = outfile
 
     def __str__(self):
-        if self.jobid:
-            return "\t".join((self.jobid, self.cmd))
-        else:
-            return self.cmd
+        return "\t".join((x for x in (self.jobid, self.cmd, self.outfile) if x))
 
     def make_defunct(self):
         if not self.is_defunct:
@@ -149,13 +142,13 @@ class GridProcess (object):
 
 class Grid (list):
 
-    def __init__(self, cmds=None):
+    def __init__(self, cmds=None, outfiles=[]):
 
-        self.check_sge()
+        check_sge()
 
         if cmds:
-            for cmd in cmds:
-                self.append(GridProcess(cmd))
+            for cmd, outfile in zip(cmds, outfiles):
+                self.append(GridProcess(cmd, outfile=outfile))
 
         else:
             if op.exists(commitfile):
@@ -184,20 +177,6 @@ class Grid (list):
         for pi in self:
             pi.start()
 
-    def check_sge(self, overwrite=False):
-        """
-        the `sge` folder contains all the jobs
-        make sure that this exists; if not create one
-        """
-        if op.isdir(sge):
-            if overwrite:
-                shutil.rmtree(sge)
-                os.mkdir(sge)
-                logging.debug("overwrite %s folder now" % sge)
-        else:
-            os.mkdir(sge)
-            logging.debug("%s folder not found, create one now" % sge)
-
     def readcommit(self):
         
         if not op.exists(commitfile):
@@ -206,11 +185,11 @@ class Grid (list):
 
         logging.debug("read cmds from %s" % commitfile)
         fp = open(commitfile)
-        cmds = [row.strip() for row in fp]
+        cmds = [row.strip().split('\t') for row in fp]
         fp.close()
 
-        for cmd in cmds:
-            self.append(GridProcess(cmd))
+        for cmd, outfile in cmds:
+            self.append(GridProcess(cmd, outfile=outfile))
 
     def readstatus(self):
 
@@ -223,8 +202,8 @@ class Grid (list):
         cmds = [row.strip().split("\t") for row in fp]
         fp.close()
 
-        for jobid, cmd in cmds:
-            self.append(GridProcess(cmd, jobid=jobid))
+        for jobid, cmd, outfile in cmds:
+            self.append(GridProcess(cmd, jobid=jobid, outfile=outfile))
 
     def writecommit(self):
 
@@ -297,9 +276,9 @@ def commit(args):
     if "*" in opts.infile:
         cs = CmdReplacer(cmd, infile, outfile)
     else:
-        cs = CmdSplitter(cmd, N, infile, outfile)
+        cs = CmdSplitter(cmd, infile, outfile, N=N)
 
-    g = Grid(cs.cmds)
+    g = Grid(cs.cmds, outfiles=cs.outfiles)
     g.writecommit()
 
 
@@ -337,7 +316,7 @@ def rerun(args):
     g = Grid()
     p = g.get_job(opts.jobid)
 
-    newp = GridProcess(p.cmd)
+    newp = GridProcess(p.cmd, outfile=p.outfile)
     newp.start() # start and acquire a job id
 
     p.make_defunct()
@@ -345,12 +324,15 @@ def rerun(args):
     g.writestatus()
 
 
-def filemerger(split_outputs, outfile):
-    # modify the path of split_outputs to append sge prefix
-    split_outputs = [op.join(sge, x) for x in split_outputs]
+def filemerger(split_outputs, outfiles, dir=sge):
+    
+    assert len(outfiles)==1 or len(outfiles)==len(split_outputs), \
+            "outfiles must be length 1 or same as split_outputs"
 
-    fm = FileMerger(split_outputs, outfile)
-    fm.merge()
+    os.chdir(sge)
+    for a, b in izip_longest(split_outputs, outfiles, fillvalue=outfiles[0]):
+        sh("cat %s >> %s" % (a, b))
+
 
 def merge(args):
     """
@@ -366,33 +348,30 @@ def merge(args):
     opts, args = p.parse_args(args)
     try:
         filetype = args[0]
+        assert filetype in ("output", "stdout", "stderr")
     except Exception, e:
         logging.error(str(e))
         sys.exit(p.print_help())
 
     assert op.exists(statusfile), "STATUS file not found, cannot merge"
 
-    if filetype=="output":
-        
-        assert op.exists(outputfile), "OUTPUT file not found, cannot merge"
-
-        outfile, split_outputs = CmdManager.readoutput() 
-        filemerger(split_outputs, outfile)
-        return
-
     g = Grid()
     cmdgroup = g.cmdgroup # the actual command that was run
     stdoutlist = []
     stderrlist = []
+    outfiles = []
     for p in g:
         if p.is_defunct: continue
         stdoutlist.append("%s.o%s" % (cmdgroup, p.jobid))
         stderrlist.append("%s.e%s" % (cmdgroup, p.jobid))
+        outfiles.append(p.outfile)
 
-    if filetype=="stdout":
-        filemerger(stdoutlist, "%s.stdout" % cmdgroup)
+    if filetype=="output":
+        filemerger(stdoutlist, outfiles)
+    elif filetype=="stdout":
+        filemerger(stdoutlist, ["%s.stdout" % cmdgroup])
     elif filetype=="stderr":
-        filemerger(stderrlist, "%s.stderr" % cmdgroup)
+        filemerger(stderrlist, ["%s.stderr" % cmdgroup])
 
 
 def status(args):

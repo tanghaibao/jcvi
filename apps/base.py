@@ -60,8 +60,8 @@ def sh(cmd, blog=None):
         cmd += " 2>%s" % blog
 
     from subprocess import call
-    call(cmd, shell=True)
     logging.debug(cmd)
+    call(cmd, shell=True)
 
 
 def is_current_file(a, b):

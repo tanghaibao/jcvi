@@ -20,8 +20,8 @@ from jcvi.apps.base import sh, is_current_file
 
 def wm_mk_counts(genome_file):
     ext = ".counts"
-    cmd = "windowmasker -in %(genome_file)s -mk_counts -dust T " \
-          "-out %(genome_file)s%(ext)s" % locals()
+    cmd = "windowmasker -in %(genome_file)s -mk_counts " \
+          "> %(genome_file)s%(ext)s" % locals() 
 
     if not is_current_file(genome_file + ext, genome_file):
         sh(cmd)
@@ -30,7 +30,7 @@ def wm_mk_masks(genome_file, mask_fasta=True):
     ext = ".mask" if mask_fasta else ".asnb"
     outfmt = "fasta" if mask_fasta else "maskinfo_asn1_bin"
     cmd = "windowmasker -in %(genome_file)s -ustat %(genome_file)s.counts " \
-          "-outfmt %(outfmt)s " \
+          "-outfmt %(outfmt)s -dust T " \
           "-out %(genome_file)s%(ext)s" % locals()
 
     if not is_current_file(genome_file + ext, genome_file):

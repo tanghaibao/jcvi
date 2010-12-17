@@ -6,10 +6,10 @@ parses JCVI software NUCMER (http://mummer.sourceforge.net/manual/)
 output - mostly as *.coords file.
 
 when run as commandline,
-$ python -m jcvi.formats.coords test.coords
+$ python -m jcvi.formats.coords test.coords quality_cutoff
 
 will produce a list of BACs, mapped position and orientation (needs to 
-be >95% query coverage) in bed format
+be beyond quality cutoff, say 50) in bed format
 """
 
 import sys
@@ -58,8 +58,9 @@ class CoordsLine (object):
 
     def __str__(self):
         # bed formatted line
-        return '\t'.join((self.ref, str(self.start1), str(self.end1), 
-                self.query, self.orientation))
+        score = int(self.quality * 10)
+        return '\t'.join((self.ref, str(self.start1-1), str(self.end1), 
+                self.query, str(score), self.orientation))
 
     @property
     def orientation(self):
@@ -134,7 +135,11 @@ if __name__ == '__main__':
     opts, args = p.parse_args()
 
     try:
-        coordsfile, = args
+        coordsfile = args[0]
+        if len(args) > 1:
+            quality_cutoff = int(args[1])
+        else:
+            quality_cutoff = 50
     except Exception, e:
         logging.error(str(e))
         sys.exit(p.print_help())
@@ -142,5 +147,5 @@ if __name__ == '__main__':
     coords = Coords(coordsfile)
 
     for c in coords:
-        if c.quality < 80: continue
+        if c.quality < quality_cutoff: continue
         print c

@@ -60,8 +60,8 @@ class AGPLine (object):
     def __str__(self):
         # bed formatted line
         gid = self.component_id if not self.is_gap else "gap"
-        return "\t".join((self.object, str(self.object_beg),
-                str(self.object_end), gid, self.orientation))
+        return "\t".join((self.object, str(self.object_beg-1),
+                str(self.object_end), gid, '1000', self.orientation))
 
     def validate(self):
         assert self.component_type in Valid_component_type, \

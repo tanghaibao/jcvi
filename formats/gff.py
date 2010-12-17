@@ -51,7 +51,7 @@ class GffLine (object):
 
     @property
     def bedline(self):
-        row = "\t".join((self.seqid, str(self.start), str(self.end), self.accn))
+        row = "\t".join((self.seqid, str(self.start-1), str(self.end), self.accn))
         return BedLine(row)
 
 

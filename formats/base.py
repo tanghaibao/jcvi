@@ -125,7 +125,6 @@ class FileSplitter (object):
 
     def split(self, N, force=False):
         
-        assert 1 < N <100, "number of pieces must be 1 < N < 100"
         self.names = self.__class__.get_names(self.filename, N)
 
         for batch, filename in zip(self._batch_iterator(N), self.names):

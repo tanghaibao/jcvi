@@ -4,8 +4,9 @@ Classes to handle the .bed filed$ and .raw file
 """
 
 import sys
+import logging
 
-from base import LineFile
+from jcvi.formats.base import LineFile
 
 
 class BedLine(object):
@@ -41,7 +42,9 @@ class Bed(LineFile):
         # for example, user might not like the lexico-order of seqid
         self.key = key or (lambda x: (x.seqid, x.start, x.accn))
 
-        if not filename: return
+        if not filename: 
+            logging.debug("Initiate bed structure without filename")
+            return
 
         for line in open(filename):
             if line[0] == "#": continue

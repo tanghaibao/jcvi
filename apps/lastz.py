@@ -172,7 +172,7 @@ def run(args):
                     mask=opts.mask, grid=grid)
             cmds.append(lastz_cmd)
 
-        g = Grid(cmds)
+        g = Grid(cmds, outfiles=["lastz.out"]*len(cmds))
         g.run()
         g.writestatus()
     

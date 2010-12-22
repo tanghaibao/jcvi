@@ -28,6 +28,15 @@ def range_overlap(a, b):
 def range_union(ranges):
     """
     Returns total size of ranges, expect range as (chr, left, right)
+    >>> ranges = [("1", 30, 45), ("1", 40, 50), ("1", 10, 50)]
+    >>> range_union(ranges)
+    41
+    >>> ranges = [("1", 30, 45), ("2", 40, 50)]
+    >>> range_union(ranges)
+    27
+    >>> ranges = [("1", 30, 45), ("1", 45, 50)]
+    >>> range_union(ranges)
+    21
     """
     ranges.sort()
 

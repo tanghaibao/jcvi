@@ -3,6 +3,7 @@ import os.path as op
 import math
 import sys
 import logging
+import itertools
 
 from optparse import OptionParser
 
@@ -67,6 +68,7 @@ class FileSplitter (object):
             handle = open(filename)
         return handle 
 
+    @property
     def _num_records(self):
         handle = self._open(self.filename)
         return sum(1 for x in handle)
@@ -97,7 +99,7 @@ class FileSplitter (object):
         """
 
         entry = True #Make sure we loop once
-        batch_size = math.ceil(self._num_records() / float(N))
+        batch_size = math.ceil(self._num_records / float(N))
         handle = self._open(self.filename)
         while entry :
             batch = []
@@ -123,29 +125,53 @@ class FileSplitter (object):
 
         return names
 
-    def split(self, N, force=False):
+    def split(self, N, force=False, mode="cycle"):
+        """
+        There are two modes of splitting the records
+        - batch: splitting is sequentially to records/N chunks
+        - cycle: placing each record in the splitted files and cycles
+
+        use `cycle` if the len of the record is not evenly distributed
+        """
+        assert mode in ("batch", "cycle")
+        logging.debug("set split mode=%s" % mode)
         
         self.names = self.__class__.get_names(self.filename, N)
+        if self.outputdir:
+            self.names = [op.join(self.outputdir, x) for x in self.names]
 
-        for batch, filename in zip(self._batch_iterator(N), self.names):
-            if self.outputdir:
-                filename = op.join(self.outputdir, filename)
+        if mode=="batch":
+            for batch, filename in zip(self._batch_iterator(N), self.names):
 
-            if op.exists(filename) and not force:
-                logging.error("file %s already existed, skip file splitting" % \
-                        filename)
-                return
+                if op.exists(filename) and not force:
+                    logging.error("file %s already existed, skip file splitting" % \
+                            filename)
+                    return
 
-            fw = open(filename, "w")
+                fw = open(filename, "w")
 
-            if self.klass=="seqio":
-                count = SeqIO.write(batch, fw, self.format)
-            else:
-                for line in batch: fw.write(line)
-                count = len(batch)
+                if self.klass=="seqio":
+                    count = SeqIO.write(batch, fw, self.format)
+                else:
+                    for line in batch: fw.write(line)
+                    count = len(batch)
 
-            fw.close()
-            logging.debug("wrote %d records to %s" % (count, filename))
+                fw.close()
+                logging.debug("wrote %d records to %s" % (count, filename))
+
+        elif mode=="cycle":
+            filehandles = [open(x, "w") for x in self.names]
+            handle = self._open(self.filename)
+            for record, fw in itertools.izip(handle, itertools.cycle(filehandles)):
+                
+                #logging.debug("write record len %d to %s" % (len(record), fw.name))
+                if self.klass=="seqio":
+                    SeqIO.write(record, fw, self.format)
+                else:
+                    fw.write(record)
+
+            for fw in filehandles:
+                fw.close()
 
 
 def main():

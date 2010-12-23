@@ -136,9 +136,12 @@ def synteny_liftover(points, anchors, dist):
                 "(http://www.scipy.org)")
         sys.exit(1)
 
+    points = np.array(points)
+    if points.shape[1] > 2:
+        ppoints = points[:, :2]  
     tree = cKDTree(anchors, leafsize=16)
     #print tree.data
-    dists, idxs = tree.query(points, p=1, distance_upper_bound=dist)
+    dists, idxs = tree.query(ppoints, p=1, distance_upper_bound=dist)
     #print [(d, idx) for (d, idx) in zip(dists, idxs) if idx!=tree.n]
 
     for point, dist, idx in zip(points, dists, idxs):
@@ -244,14 +247,15 @@ def liftover(args):
     # select hits that are close to the anchor list
     j = 0
     fw = sys.stdout
-    for chr_pair in sorted(all_hits.keys()):
+    for chr_pair in sorted(all_anchors.keys()):
         hits = np.array(all_hits[chr_pair])
         anchors = np.array(all_anchors[chr_pair])
 
         logging.debug("%s: %d" % (chr_pair, len(anchors)))
-        if not len(anchors): continue
+        if not len(hits): continue
 
-        for qi, si in synteny_liftover(hits, anchors, dist):
+        for point in synteny_liftover(hits, anchors, dist):
+            qi, si = point[:2]
             query, subject = qbed[qi].accn, sbed[si].accn
             print >>fw, "\t".join((query, subject, "lifted"))
             j+=1

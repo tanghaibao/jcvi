@@ -3,7 +3,9 @@ Wrapper for calling Bio.Entrez tools to get the sequence from a list of IDs
 """
 
 import sys
+import time
 import logging
+import urllib2
 
 from optparse import OptionParser
 from Bio import Entrez
@@ -31,8 +33,17 @@ def batch_entrez(list_of_terms, db="nucleotide", retmax=1, rettype="fasta"):
             logging.error("term %s not found in db %s" % (term, db))
 
         for id in ids:
-            fetch_handle = Entrez.efetch(db=db, id=id, rettype=rettype,
-                    email=email)
+            success = False 
+            while not success:
+                try:
+                    fetch_handle = Entrez.efetch(db=db, id=id, rettype=rettype,
+                            email=email)
+                    success = True
+                except (urllib2.HTTPError, urllib2.URLError) as e:
+                    logging.error(str(e))
+                    logging.debug("wait 5 seconds to reconnect...")
+                    time.sleep(5)
+
             yield id, fetch_handle.read()
 
 

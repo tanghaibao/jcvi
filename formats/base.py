@@ -140,15 +140,15 @@ class FileSplitter (object):
         if self.outputdir:
             self.names = [op.join(self.outputdir, x) for x in self.names]
 
+        if op.exists(self.names[0]) and not force:
+            logging.error("file %s already existed, skip file splitting" % \
+                    self.names[0])
+            return
+
+        filehandles = [open(x, "w") for x in self.names]
+
         if mode=="batch":
-            for batch, filename in zip(self._batch_iterator(N), self.names):
-
-                if op.exists(filename) and not force:
-                    logging.error("file %s already existed, skip file splitting" % \
-                            filename)
-                    return
-
-                fw = open(filename, "w")
+            for batch, fw in zip(self._batch_iterator(N), filehandles):
 
                 if self.klass=="seqio":
                     count = SeqIO.write(batch, fw, self.format)
@@ -156,22 +156,19 @@ class FileSplitter (object):
                     for line in batch: fw.write(line)
                     count = len(batch)
 
-                fw.close()
-                logging.debug("wrote %d records to %s" % (count, filename))
+                logging.debug("write %d records to %s" % (count, fw.name))
 
         elif mode=="cycle":
-            filehandles = [open(x, "w") for x in self.names]
             handle = self._open(self.filename)
             for record, fw in itertools.izip(handle, itertools.cycle(filehandles)):
                 
-                #logging.debug("write record len %d to %s" % (len(record), fw.name))
                 if self.klass=="seqio":
                     SeqIO.write(record, fw, self.format)
                 else:
                     fw.write(record)
 
-            for fw in filehandles:
-                fw.close()
+        for fw in filehandles:
+            fw.close()
 
 
 def main():

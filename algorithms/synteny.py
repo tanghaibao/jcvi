@@ -146,7 +146,7 @@ def synteny_liftover(points, anchors, dist):
 
     for point, dist, idx in zip(points, dists, idxs):
         # nearest is self or out of range
-        if dist==0 or idx==tree.n: continue
+        if idx==tree.n: continue
         yield point
 
 

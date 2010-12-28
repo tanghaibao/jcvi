@@ -20,7 +20,7 @@ blast_fields = "query,subject,pctid,hitlen,nmismatch,ngaps,"\
         "qstart,qstop,sstart,sstop,evalue,score"
 
 lastz_fields = "name2,name1,identity,nmismatch,ngap,"\
-        "start2,end2,start1,end1,score"
+        "start2+,end2+,start1,end1,score"
 
 # conversion between blastz and ncbi is taken from Kent src
 # src/lib/blastOut.c

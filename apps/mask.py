@@ -2,16 +2,14 @@
 # -*- coding: UTF-8 -*-
 
 """
-%prog input.fasta <species_name>
+%prog input.fasta 
 
 This script pipelines the windowmasker in ncbi-blast+.
-Species_name is optional, when added, a blast database
-with descriptions including the species_name
+The masked fasta file will have an appended suffix of .mask with all the
+low-complexity nucleotides soft-masked (to lower case)
 """
 import os
 import sys
-
-from subprocess import Popen
 
 from jcvi.apps.base import sh, is_current_file, debug
 debug()

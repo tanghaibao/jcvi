@@ -51,7 +51,9 @@ class GffLine (object):
 
     @property
     def bedline(self):
-        row = "\t".join((self.seqid, str(self.start-1), str(self.end), self.accn))
+        score = "1000" if self.score=='.' else self.score
+        row = "\t".join((self.seqid, str(self.start-1), str(self.end),
+            self.accn, score, self.strand))
         return BedLine(row)
 
 
@@ -86,7 +88,7 @@ def bed(args):
     '''
     p = OptionParser(bed.__doc__)
     p.add_option("--type", dest="type", default="gene",
-            help="the feature type to extract")
+            help="the feature type to extract [default: %default]")
 
     opts, args = p.parse_args(args)
     if len(args)!=1:

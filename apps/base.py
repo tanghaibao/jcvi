@@ -74,6 +74,14 @@ def is_current_file(a, b):
     return am > bm
 
 
+def get_today():
+    """
+    Returns the date in 2010-07-14 format
+    """
+    from datetime import date
+    return str(date.today())
+
+
 def debug():
     """
     turn on the debugging

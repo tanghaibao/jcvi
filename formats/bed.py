@@ -1,6 +1,6 @@
 
 """
-Classes to handle the .bed filed$ and .raw file
+Classes to handle the .bed files
 """
 
 import sys

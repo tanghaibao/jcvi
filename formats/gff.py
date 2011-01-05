@@ -8,6 +8,7 @@ import os.path as op
 import itertools
 import logging
 
+from collections import defaultdict
 from urlparse import parse_qs
 from optparse import OptionParser
 
@@ -20,11 +21,26 @@ from jcvi.apps.base import ActionDispatcher
 Valid_strands = ('+', '-', '?', '.')
 Valid_phases = ('0', '1', '2', '.')
 
+
+def make_dict(s, gff3=True):
+    if gff3:
+        return parse_qs(s)
+
+    attributes = s.split(";")
+    d = defaultdict(list) 
+    for a in attributes:
+        key, val = a.strip().split(' ', 1)
+        val = val.replace('"', '')
+        d[key].append(val)
+
+    return d
+
+
 class GffLine (object):
     """
     Specification here (http://www.sequenceontology.org/gff3.shtml)
     """
-    def __init__(self, sline, key="ID"):
+    def __init__(self, sline, key="ID", gff3=True):
         args = sline.strip().split("\t")
         self.seqid = args[0]
         self.source = args[1]
@@ -38,7 +54,8 @@ class GffLine (object):
         self.phase = args[7]
         assert self.phase in Valid_phases, \
                 "phase must be one of %s" % Valid_phases
-        self.attributes = parse_qs(args[8])
+        self.attributes_text = args[8]
+        self.attributes = make_dict(self.attributes_text, gff3=gff3)
         # key is not in the gff3 field, this indicates the conversion to accn
         self.key = key # usually it's `ID=xxxxx;`
 
@@ -59,13 +76,13 @@ class GffLine (object):
 
 class Gff (LineFile):
 
-    def __init__(self, filename):
+    def __init__(self, filename, gff3=True):
         super(Gff, self).__init__(filename)
         
         fp = open(filename)
         for row in fp:
             if row[0]=='#': continue
-            self.append(GffLine(row))
+            self.append(GffLine(row, gff3=gff3))
 
 
 def main():

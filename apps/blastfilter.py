@@ -33,21 +33,9 @@ from math import log10
 from jcvi.formats.bed import Bed
 from jcvi.formats.blast import BlastLine 
 from jcvi.utils.grouper import Grouper
+from jcvi.utils.misc import gene_name
 from jcvi.apps.base import debug
 debug()
-
-
-# helper functions in the BLAST filtering to get rid alternative splicings
-def gene_name(st):
-    # this is ugly, but different annotation groups are inconsistent
-    # with how the alternative splicings are named;
-    # mostly it can be done by removing the suffix
-    # except for papaya (evm...) and maize (somewhat complicated)
-    if st.startswith("ev"):
-        return st
-    if st.startswith("Os"):
-        return st.rsplit("-",1)[0]
-    return st.rsplit(".", 1)[0]
 
 
 def main(blast_file, options):
@@ -164,8 +152,8 @@ def main(blast_file, options):
         qbed_new = Bed(qnew_name)
         sbed_new = Bed(snew_name)
 
-        qorder = qbed_new.get_order()
-        sorder = sbed_new.get_order()
+        qorder = qbed_new.order
+        sorder = sbed_new.order
 
     if filter_repeats:
         before_filter = len(filtered_blasts)

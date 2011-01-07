@@ -97,22 +97,12 @@ class FileSplitter (object):
         entries from the supplied iterator.  Each list will have
         batch_size entries, although the final list may be shorter.
         """
-
-        entry = True #Make sure we loop once
         batch_size = math.ceil(self._num_records / float(N))
         handle = self._open(self.filename)
-        while entry :
-            batch = []
-            while len(batch) < batch_size :
-                try :
-                    entry = handle.next()
-                except StopIteration :
-                    entry = None
-                if entry is None: # end of file
-                    break
-                batch.append(entry)
-            if batch:
-                yield batch
+        while True:
+            batch = list(itertools.islice(handle, batch_size))
+            if not batch: break
+            yield batch
 
     @classmethod
     def get_names(cls, filename, N):

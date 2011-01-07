@@ -104,10 +104,10 @@ def parse(args):
     p = OptionParser(parse.__doc__)
     opts, args = p.parse_args(args)
 
-    for f in args:
-        fp = open(f)
-        for row in fp:
-            print lastz_to_blast(row)
+    import fileinput
+
+    for row in fileinput.input(args):
+        print lastz_to_blast(row)
 
 
 def run(args):

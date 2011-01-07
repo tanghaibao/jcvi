@@ -125,6 +125,7 @@ def main():
     actions = (
         ('extract', 'given fasta file and an seq id, retrieve the sequence ' + \
                     'in fasta format'),
+        ('tidy', 'clean up deflines and reformat fasta'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -152,6 +153,10 @@ def extract(args):
         
         rec = f[key]
         print ">%s\n%s" % (rec.description, rec.seq)
+
+
+def tidy(args):
+    pass
 
 
 if __name__ == '__main__':

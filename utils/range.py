@@ -4,9 +4,17 @@
 """
 This script implements algorithm for finding intersecting rectangles, 
 both on the 2D dotplot and 1D-projection
+
+`range_chain` implements the exon-chain algorithm
 """
 
+from collections import namedtuple
+
 from jcvi.utils.grouper import Grouper
+
+LEFT, RIGHT = 0, 1 
+
+Range = namedtuple("Range", "seqid start end score id")
 
 
 def range_overlap(a, b):
@@ -57,43 +65,68 @@ def range_union(ranges):
     return total_len
 
 
+def _make_endpoints(ranges):
+    endpoints = []
+
+    for i, (seqid, start, end, score, id) in enumerate(ranges):
+        endpoints.append((seqid, start, LEFT, i, score))
+        endpoints.append((seqid, end, RIGHT, i, score))
+
+    return sorted(endpoints)
+
+
 def range_chain(ranges):
     """
-    ranges in the form of (start, stop, score), get the best scoring chain
+    Take a list of weighted intervals, return a non-overlapping set with max weight
+    We proceed by looking at the each end point (sorted by their relative positions)
 
-    >>> ranges = [(0, 9, 22), (3, 18, 24), (10, 28, 20), (20, 39, 26)]
+    The input are a list of ranges of the form (start, stop, score), output is a
+    subset of the non-overlapping ranges that give the highest score, score
+
+    >>> ranges = [Range("1", 0, 9, 22, 0), Range("1", 3, 18, 24, 1), Range("1", 10, 28, 20, 2)]
     >>> range_chain(ranges)
-    50
+    ([Range(seqid='1', start=0, end=9, score=22, id=0), Range(seqid='1', start=10, end=28, score=20, id=2)], 42)
+    >>> ranges = [Range("2", 0, 1, 3, 0), Range("2", 1, 4, 3, 1), Range("3", 5, 7, 3, 2)]
+    >>> range_chain(ranges)
+    ([Range(seqid='2', start=0, end=1, score=3, id=0), Range(seqid='3', start=5, end=7, score=3, id=2)], 6)
     """
     ranges.sort()
 
-    endpoints = []
-    LEFT, RIGHT = 0, 1
+    endpoints = _make_endpoints(ranges)
 
-    for i, (start, stop, score) in enumerate(ranges):
-        endpoints.append((start, i, score, LEFT))
-        endpoints.append((stop, i, score, RIGHT))
+    # stores the left end index for quick retrieval
+    left_index = {}   
+    # dynamic programming, each entry [score, from_index, which_chain]
+    scores = []
 
-    endpoints.sort()
+    for i, (seqid, pos, leftright, j, score) in enumerate(endpoints):
 
-    left_index = {} 
-    scores = [0]
-    cur_score = 0
-
-    for i, (pos, j, score, leftright) in enumerate(endpoints):
+        cur_score = [0, -1, -1] if i==0 else scores[-1][:]
 
         if leftright == LEFT:
-            left_index[j] = i + 1
+            left_index[j] = i
 
-        else:
+        else: # this is right end of j-th interval
+            # update if chaining j-th interval gives a better score
             left_j = left_index[j]
-            chain_score = scores[left_j] + score
-            if chain_score > cur_score:
-                cur_score = chain_score
+            chain_score = scores[left_j][0] + score 
+            if chain_score > cur_score[0]: 
+                cur_score = [chain_score, left_j, j]
 
         scores.append(cur_score)
 
-    return scores[-1]
+    chains = []
+    score, last, chain_id = scores[-1] # start backtracking
+    while last!=-1:
+        if chain_id!=-1: 
+            chains.append(chain_id)
+        _, last, chain_id = scores[last]
+
+    chains.reverse()
+
+    selected = [ranges[x] for x in chains]
+
+    return selected, score
 
 
 if __name__ == '__main__':

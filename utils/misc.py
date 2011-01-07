@@ -13,5 +13,3 @@ def gene_name(st):
     if st.startswith("Os"):
         return st.rsplit("-",1)[0]
     return st.rsplit(".", 1)[0]
-
-

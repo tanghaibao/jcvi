@@ -22,7 +22,14 @@ Valid_strands = ('+', '-', '?', '.')
 Valid_phases = ('0', '1', '2', '.')
 
 
-def make_dict(s, gff3=True):
+def make_attributes(s, gff3=True):
+    """
+    In GFF3, the last column is typically:
+    ID=cds00002;Parent=mRNA00002;
+
+    In GFF2, the last column is typically:
+    Gene 22240.t000374; Note "Carbonic anhydrase"
+    """
     if gff3:
         return parse_qs(s)
 
@@ -55,7 +62,7 @@ class GffLine (object):
         assert self.phase in Valid_phases, \
                 "phase must be one of %s" % Valid_phases
         self.attributes_text = args[8]
-        self.attributes = make_dict(self.attributes_text, gff3=gff3)
+        self.attributes = make_attributes(self.attributes_text, gff3=gff3)
         # key is not in the gff3 field, this indicates the conversion to accn
         self.key = key # usually it's `ID=xxxxx;`
 

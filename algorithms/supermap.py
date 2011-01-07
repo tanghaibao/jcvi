@@ -22,11 +22,14 @@ from optparse import OptionParser
 
 from jcvi.formats.blast import BlastLine
 from jcvi.utils.range import Range, range_chain
+from jcvi.apps.base import debug
+debug()
 
 
 def main(blast_file, opts):
     # filter by query
     if opts.filter!="ref":
+        logging.debug("now filter by query")
         ranges = []
         fp = open(blast_file)
 
@@ -38,6 +41,7 @@ def main(blast_file, opts):
 
     # filter by ref
     if opts.filter!="query":
+        logging.debug("now filter by ref")
         ranges = []
         fp = open(blast_file)
 
@@ -54,9 +58,11 @@ def main(blast_file, opts):
         selected_idx = query_idx
 
     elif opts.filter=="intersection":
+        logging.debug("perform intersection")
         selected_idx = ref_idx & query_idx
 
     elif opts.filter=="union":
+        logging.debug("perform union")
         selected_idx = ref_idx | query_idx
 
     assert len(selected_idx)!=0

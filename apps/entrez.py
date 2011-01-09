@@ -13,19 +13,29 @@ from Bio import Entrez
 from jcvi.apps.base import debug
 
 
-email = "htang@jcvi.org"
+myEmail = "htang@jcvi.org"
+Entrez.email = myEmail
+
+
+def batch_taxonomy(list_of_taxids):
+    """
+    Retrieve list of taxids, and generate latin names
+    """
+    for taxid in list_of_taxids:
+        handle = Entrez.efetch(db='Taxonomy', id=taxid, retmode="xml")
+        records = Entrez.read(handle)
+        yield records[0]["ScientificName"]
 
 
 def batch_entrez(list_of_terms, db="nucleotide", retmax=1, rettype="fasta"):
     """
-    Retrieving multiple rather than a single record
+    Retrieve multiple rather than a single record
     """
 
     for term in list_of_terms:
 
         logging.debug("search term %s" % term)
-        search_handle = Entrez.esearch(db=db, retmax=retmax, term=term,
-                email=email)
+        search_handle = Entrez.esearch(db=db, retmax=retmax, term=term)
         rec = Entrez.read(search_handle)
         ids = rec["IdList"]
 

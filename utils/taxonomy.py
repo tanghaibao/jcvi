@@ -58,13 +58,26 @@ class TaxIDTree(object):
         print t
 
 
+def get_names(list_of_taxids):
+    """
+    >>> mylist = [3702, 3649, 3694, 3880]
+    >>> get_names(mylist)
+    ['Arabidopsis thaliana', 'Carica papaya', 'Populus trichocarpa', 'Medicago truncatula']
+    """
+
+    list_of_taxids = [str(x) for x in list_of_taxids]
+    from jcvi.apps.entrez import batch_taxonomy
+
+    return list(batch_taxonomy(list_of_taxids))
+
+
 def MRCA(list_of_taxids):
     """
     This gets the most recent common ancester (MRCA) for a list of taxids
 
     >>> mylist = [3702, 3649, 3694, 3880]
     >>> MRCA(mylist)
-    rosids
+    'rosids'
     """
 
     from ete2 import Tree
@@ -72,9 +85,10 @@ def MRCA(list_of_taxids):
     t = TaxIDTree(list_of_taxids)
     t = Tree(str(t), format=8)
 
-    print [x.name for x in t.get_leaves()]
+    leaves = [x.name for x in t.get_leaves()]
     ancestor = t.get_common_ancestor(*t.get_leaves())
-    print ancestor.name
+
+    return ancestor.name
 
 
 if __name__ == '__main__':

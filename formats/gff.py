@@ -33,7 +33,7 @@ def make_attributes(s, gff3=True):
     if gff3:
         return parse_qs(s)
 
-    attributes = s.split(";")
+    attributes = s.split("; ")
     d = defaultdict(list) 
     for a in attributes:
         key, val = a.strip().split(' ', 1)

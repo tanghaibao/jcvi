@@ -31,7 +31,7 @@ g + geom_line(aes(colour=fasta)) +
 xlab("Contigs") + ylab("Cumulative size") +
 opts(title="A50 plot", legend.position="top")
 
-ggsave("$rpdf")
+ggsave(file="$rpdf")
 """
 
 
@@ -43,11 +43,12 @@ def main():
     p.dispatch(globals())
 
 
-def get_a50(fastafile):
+def get_a50(fastafile, cutoff=500):
 
     f = Fasta(fastafile, index=False)
     ctg_sizes = np.array([length for k, length in f.itersizes()])
     ctg_sizes = np.sort(ctg_sizes)[::-1]
+    ctg_sizes = ctg_sizes[ctg_sizes >= cutoff]
     logging.debug("`%s` ctg_sizes: %s" % (fastafile, ctg_sizes))
 
     a50 = np.cumsum(ctg_sizes)
@@ -76,6 +77,9 @@ def A50 (args):
     p = OptionParser(A50.__doc__)
     p.add_option("--overwrite", default=False, action="store_true",
             help="overwrite `%s` file if exists" % rplot)
+    p.add_option("--cutoff", default=500, type="int",
+            dest="cutoff",
+            help="use only contigs larger than certain size [default: %default]")
     opts, args = p.parse_args(args)
 
     if not args:
@@ -87,7 +91,7 @@ def A50 (args):
         header = "\t".join(("index", "cumsize", "fasta"))
         print >>fw, header
         for a in args:
-            a50, n50 = get_a50(a)
+            a50, n50 = get_a50(a, cutoff=opts.cutoff)
             logging.debug("`%s` N50: %d" % (a, n50))
 
             for i, s in zip(xrange(0, len(a50), stepsize), a50[::stepsize]):

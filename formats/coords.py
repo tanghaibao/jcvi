@@ -4,19 +4,16 @@
 """
 parses JCVI software NUCMER (http://mummer.sourceforge.net/manual/)
 output - mostly as *.coords file.
-
-when run as commandline,
-$ python -m jcvi.formats.coords test.coords quality_cutoff
-
-will produce a list of BACs, mapped position and orientation (needs to 
-be beyond quality cutoff, say 50) in bed format
 """
 
 import sys
 import itertools
 import logging
 
+from optparse import OptionParser
+
 from jcvi.formats.base import LineFile
+from jcvi.apps.base import ActionDispatcher
 
 
 class CoordsLine (object):
@@ -45,20 +42,14 @@ class CoordsLine (object):
 
         self.identity = float(atoms[6])
 
-        idx = 9 if promer else 7
-        
-        self.reflen = int(atoms[idx])
-        self.querylen = int(atoms[idx + 1])
+        self.reflen = int(atoms[7])
+        self.querylen = int(atoms[8])
 
-        idx = 11 if promer else 9
+        self.refcov = float(atoms[9]) / 100.
+        self.querycov = float(atoms[10]) / 100.
         
-        self.refcov = float(atoms[idx]) / 100.
-        self.querycov = float(atoms[idx + 1]) / 100.
-        
-        idx = 15 if promer else 11
-
-        self.ref = atoms[idx]
-        self.query = atoms[idx + 1]
+        self.ref = atoms[11]
+        self.query = atoms[12]
 
         # this is taken from CoGeBlast:
         # the coverage of the hit muliplied by percent seq identity
@@ -88,16 +79,15 @@ class Coords (LineFile):
 
     then each row would be composed as this
     """
-    def __init__(self, filename, promer=False):
+    def __init__(self, filename):
         super(Coords, self).__init__(filename)
 
         fp = open(filename)
         self.cmd = fp.next()
         
-        #for x in xrange(4): fp.next()
         for row in fp:
             try:
-                self.append(CoordsLine(row, promer=promer))
+                self.append(CoordsLine(row))
             except AssertionError, e:
                 pass
 
@@ -135,13 +125,86 @@ class Coords (LineFile):
         return best_hits
 
 
-if __name__ == '__main__':
+def get_stats(coordsfile):
     
-    from optparse import OptionParser
+    from jcvi.utils.range import range_union
 
-    p = OptionParser(__doc__)
-    p.add_option("--promer", action="store_true", default=False,
-            help="parse promer coords output [default: nucmer]")
+    fp = open(coordsfile)
+    ref_ivs = []
+    qry_ivs = []
+    identicals = 0
+    alignlen = 0
+
+    for row in fp:
+        try:
+            c = CoordsLine(row)
+        except AssertionError:
+            continue
+
+        qstart, qstop = c.start2, c.end2
+        if qstart > qstop: qstart, qstop = qstop, qstart
+        qry_ivs.append((c.query, qstart, qstop))
+
+        sstart, sstop = c.start1, c.end1
+        if sstart > sstop: sstart, sstop = sstop, sstart
+        ref_ivs.append((c.ref, sstart, sstop))
+
+        alen = sstop - sstart
+        alignlen += alen
+        identicals += c.identity / 100. * alen 
+
+    qrycovered = range_union(qry_ivs)
+    refcovered = range_union(ref_ivs)
+    id_pct = identicals * 100. / alignlen 
+
+    return qrycovered, refcovered, id_pct 
+
+
+def main():
+    
+    actions = (
+        ('summary', 'provide summary on id%% and cov%%'),
+        ('bed', 'convert to bed format'),
+            )
+    p = ActionDispatcher(actions)
+    p.dispatch(globals())
+
+
+def print_stats(qrycovered, refcovered, id_pct):
+    print >>sys.stderr, "Query coverage: %d bp" % qrycovered
+    print >>sys.stderr, "Reference coverage: %d bp" % refcovered
+    print >>sys.stderr, "ID%%: %.1f%%" % id_pct
+
+
+def summary(args):
+    """
+    %prog summary coordsfile 
+    
+    provide summary on id%% and cov%%, for both query and reference
+    """
+    p = OptionParser(summary.__doc__)
+
+    opts, args = p.parse_args(args)
+
+    if len(args)==1:
+        coordsfile = args[0]
+    else:
+        sys.exit(p.print_help())
+
+    qrycovered, refcovered, id_pct = get_stats(coordsfile)
+
+    print_stats(qrycovered, refcovered, id_pct)
+
+
+def bed(args):
+    """
+    %prog bed test.coords quality_cutoff
+
+    will produce a bed list of mapped position and orientation (needs to 
+    be beyond quality cutoff, say 50) in bed format
+    """
+    
+    p = OptionParser(bed.__doc__)
 
     opts, args = p.parse_args()
 
@@ -160,3 +223,8 @@ if __name__ == '__main__':
     for c in coords:
         if c.quality < quality_cutoff: continue
         print c
+
+
+if __name__ == '__main__':
+    main()
+

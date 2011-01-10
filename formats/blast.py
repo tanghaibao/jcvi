@@ -1,11 +1,15 @@
-
 """
 parses tabular BLAST -m8 (-format 6 in BLAST+) format
 """
 
+import sys
 import itertools
 
+from optparse import OptionParser
+
 from jcvi.formats.base import LineFile
+from jcvi.formats.coords import print_stats
+from jcvi.apps.base import ActionDispatcher
 
 
 class BlastLine(object):
@@ -66,3 +70,65 @@ class Blast (LineFile):
         return dict((query, blines.next()) for (query, blines) in \
                 itertools.groupby(self, lambda x: x.query))
 
+
+def get_stats(blastfile):
+    
+    from jcvi.utils.range import range_union
+
+    fp = open(blastfile)
+    ref_ivs = []
+    qry_ivs = []
+    identicals = 0
+    alignlen = 0
+
+    for row in fp:
+        c = BlastLine(row)
+        qstart, qstop = c.qstart, c.qstop
+        if qstart > qstop: qstart, qstop = qstop, qstart
+        qry_ivs.append((c.query, qstart, qstop))
+
+        sstart, sstop = c.sstart, c.sstop
+        if sstart > sstop: sstart, sstop = sstop, sstart
+        ref_ivs.append((c.subject, sstart, sstop))
+        
+        alen = sstop - sstart
+        alignlen += alen
+        identicals += c.pctid / 100. * alen 
+
+    qrycovered = range_union(qry_ivs)
+    refcovered = range_union(ref_ivs)
+    id_pct = identicals * 100. / alignlen 
+
+    return qrycovered, refcovered, id_pct 
+
+
+def main():
+    
+    actions = (
+        ('summary', 'provide summary on id%% and cov%%'),
+            )
+    p = ActionDispatcher(actions)
+    p.dispatch(globals())
+
+
+def summary(args):
+    """
+    %prog summary blastfile 
+    
+    provide summary on id%% and cov%%, for both query and reference
+    """
+    p = OptionParser(summary.__doc__)
+
+    opts, args = p.parse_args(args)
+
+    if len(args)==1:
+        blastfile = args[0]
+    else:
+        sys.exit(p.print_help())
+
+    qrycovered, refcovered, id_pct = get_stats(blastfile)
+    print_stats(qrycovered, refcovered, id_pct)
+
+
+if __name__ == '__main__':
+    main()

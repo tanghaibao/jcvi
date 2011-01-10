@@ -8,6 +8,7 @@ assembly QC.
 
 import sys
 import logging
+import os.path as op
 
 from bisect import bisect
 import numpy as np
@@ -15,6 +16,23 @@ import numpy as np
 from jcvi.formats.fasta import Fasta
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
+
+from jcvi.apps.R import RTemplate
+
+rplot = "A50.rplot"
+rpdf = "A50.pdf"
+
+rplot_template = """
+library(ggplot2)
+
+data <- read.table("$rplot", header=T, sep="\t")
+g <- ggplot(data, aes(x=index, y=cumsize, group=fasta))
+g + geom_line(aes(colour=fasta)) + 
+xlab("Contigs") + ylab("Cumulative size") +
+opts(title="A50 plot", legend.position="top")
+
+ggsave("$rpdf")
+"""
 
 
 def main():
@@ -27,18 +45,24 @@ def main():
 
 def get_a50(fastafile):
 
-    f = Fasta(fastafile)
+    f = Fasta(fastafile, index=False)
     ctg_sizes = np.array([length for k, length in f.itersizes()])
     ctg_sizes = np.sort(ctg_sizes)[::-1]
-    logging.debug(str(ctg_sizes))
+    logging.debug("`%s` ctg_sizes: %s" % (fastafile, ctg_sizes))
 
     a50 = np.cumsum(ctg_sizes)
-    logging.debug(str(a50))
+
     total = np.sum(ctg_sizes)
     idx = bisect(a50, total / 2)
     n50 = ctg_sizes[idx]
 
     return a50, n50
+
+
+def generate_plot(filename, rplot=rplot, rpdf=rpdf):
+
+    rtemplate = RTemplate(rplot_template, locals())
+    rtemplate.run()
 
 
 def A50 (args):
@@ -50,19 +74,28 @@ def A50 (args):
     from optparse import OptionParser
     
     p = OptionParser(A50.__doc__)
+    p.add_option("--overwrite", default=False, action="store_true",
+            help="overwrite `%s` file if exists" % rplot)
     opts, args = p.parse_args(args)
 
     if not args:
         sys.exit(p.print_help())
 
-    a50, n50 = get_a50(args[0])
-    logging.debug("`%s` N50: %d" % (args[0], n50))
+    stepsize = 10 # use stepsize to speed up drawing
+    if not op.exists(rplot) or opts.overwrite:
+        fw = open(rplot, "w")
+        header = "\t".join(("index", "cumsize", "fasta"))
+        print >>fw, header
+        for a in args:
+            a50, n50 = get_a50(a)
+            logging.debug("`%s` N50: %d" % (a, n50))
 
-    # TODO: use ggplot2
-    import matplotlib.pyplot as plt
+            for i, s in zip(xrange(0, len(a50), stepsize), a50[::stepsize]):
+                print >>fw, "\t".join((str(i), str(s), 
+                    "%s (N50=%d)" % (op.basename(a).rsplit(".", 1)[0], n50)))
+        fw.close()
 
-    plt.plot(np.arange(len(a50)), a50, "b-")
-    plt.savefig("t.png")
+    generate_plot(rplot)
 
 
 if __name__ == '__main__':

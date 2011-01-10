@@ -30,7 +30,7 @@ class RTemplate (object):
         fd, path = tempfile.mkstemp()
         fw = os.fdopen(fd, "w")
 
-        fw.write(template.substitute(**parameters))
+        fw.write(template.safe_substitute(**parameters))
         fw.close()
 
         sh("Rscript %s" % path)

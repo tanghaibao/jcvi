@@ -3,13 +3,15 @@ parses tabular BLAST -m8 (-format 6 in BLAST+) format
 """
 
 import sys
+import logging
 import itertools
 
 from optparse import OptionParser
 
 from jcvi.formats.base import LineFile
 from jcvi.formats.coords import print_stats
-from jcvi.apps.base import ActionDispatcher
+from jcvi.apps.base import ActionDispatcher, debug
+debug()
 
 
 class BlastLine(object):
@@ -75,6 +77,7 @@ def get_stats(blastfile):
     
     from jcvi.utils.range import range_union
 
+    logging.debug("report stats on `%s`" % blastfile)
     fp = open(blastfile)
     ref_ivs = []
     qry_ivs = []

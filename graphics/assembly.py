@@ -28,7 +28,7 @@ library(ggplot2)
 data <- read.table("$rplot", header=T, sep="\t")
 g <- ggplot(data, aes(x=index, y=cumsize, group=fasta))
 g + geom_line(aes(colour=fasta)) + 
-xlab("Contigs") + ylab("Cumulative size") +
+xlab("Contigs") + ylab("Cumulative size (Mb)") +
 opts(title="A50 plot", legend.position="top")
 
 ggsave(file="$rpdf")
@@ -95,7 +95,7 @@ def A50 (args):
             logging.debug("`%s` N50: %d" % (a, n50))
 
             for i, s in zip(xrange(0, len(a50), stepsize), a50[::stepsize]):
-                print >>fw, "\t".join((str(i), str(s), 
+                print >>fw, "\t".join((str(i), str(s/1000000.), 
                     "%s (N50=%d)" % (op.basename(a).rsplit(".", 1)[0], n50)))
         fw.close()
 

@@ -8,29 +8,30 @@ This script pipelines the windowmasker in ncbi-blast+.
 The masked fasta file will have an appended suffix of .mask with all the
 low-complexity nucleotides soft-masked (to lower case)
 """
+
 import os
+import os.path as op
 import sys
 
 from jcvi.apps.base import sh, is_current_file, debug
 debug()
 
 
-def wm_mk_counts(genome_file):
-    ext = ".counts"
-    cmd = "windowmasker -in %(genome_file)s -mk_counts " \
-          "-out %(genome_file)s%(ext)s" % locals() 
+def wm_mk_counts(genomefile):
+    outfile = "%s.counts" % genomefile
+    cmd = "windowmasker -in %(genomefile)s -mk_counts " \
+          "-out %(outfile)s" % locals() 
 
-    if not is_current_file(genome_file + ext, genome_file):
+    if not is_current_file(outfile, genomefile):
         sh(cmd)
 
-def wm_mk_masks(genome_file):
-    ext = ".mask"
-    outfmt = "fasta"
-    cmd = "windowmasker -in %(genome_file)s -ustat %(genome_file)s.counts " \
-          "-outfmt %(outfmt)s -dust T " \
-          "-out %(genome_file)s%(ext)s" % locals()
+def wm_mk_masks(genomefile):
+    outfile = "%s.masked%s" % op.splitext(genomefile)
+    cmd = "windowmasker -in %(genomefile)s -ustat %(genomefile)s.counts " \
+          "-outfmt fasta -dust T " \
+          "-out %(outfile)s" % locals()
 
-    if not is_current_file(genome_file + ext, genome_file):
+    if not is_current_file(outfile, genomefile):
         sh(cmd)
 
 
@@ -45,11 +46,11 @@ def main():
     if argc != 1:
         sys.exit(p.print_help())
 
-    genome_file = args[0] 
+    genomefile = args[0] 
 
     # entire pipeline
-    wm_mk_counts(genome_file)
-    wm_mk_masks(genome_file)
+    wm_mk_counts(genomefile)
+    wm_mk_masks(genomefile)
 
 
 if __name__ == '__main__':

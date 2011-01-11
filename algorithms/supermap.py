@@ -21,47 +21,73 @@ import logging
 from optparse import OptionParser
 
 from jcvi.formats.blast import BlastLine
+from jcvi.formats.coords import CoordsLine
 from jcvi.utils.range import Range, range_chain
 from jcvi.apps.base import debug
 debug()
 
 
-def main(blast_file, opts):
+def BlastOrCoordsLine(filename, filter="ref", dialect="blast"):
+    assert filter in ("ref", "query")
+    assert dialect in ("blast", "coords")
+
+    filter = filter[0]
+    dialect = dialect[0]
+    
+    fp = open(filename)
+    for i, row in enumerate(fp):
+        if dialect=="b":
+            b = BlastLine(row)
+            if filter=="q":
+                query, start, end, score = b.query, b.qstart, b.qstop
+            else:
+                query, start, end, score = b.subject, b.sstart, b.sstop
+        else:
+            try:
+                b = CoordsLine(row)
+            except AssertionError:
+                continue
+
+            if filter=="q":
+                query, start, end = b.query, b.start2, b.end2
+            else:
+                query, start, end = b.ref, b.start1, b.end1
+
+        if start > end: start, end = end, start
+
+        yield Range(query, start, end, b.score, i)
+
+
+def main(blast_file, filter="intersection", dialect="blast"):
     # filter by query
     if opts.filter!="ref":
         logging.debug("now filter by query")
-        ranges = []
-        fp = open(blast_file)
+        ranges = list(BlastOrCoordsLine(blast_file, filter="query",
+            dialect=dialect))
 
-        for i, row in enumerate(fp):
-            b = BlastLine(row)
-            ranges.append(Range(b.query, b.qstart, b.qstop, b.score, i))
         query_selected, query_score = range_chain(ranges)
         query_idx = set(x.id for x in query_selected)
 
     # filter by ref
-    if opts.filter!="query":
+    if filter!="query":
         logging.debug("now filter by ref")
-        ranges = []
-        fp = open(blast_file)
+        ranges = list(BlastOrCoordsLine(blast_file, filter="ref",
+            dialect=dialect))
 
-        for i, row in enumerate(fp):
-            b = BlastLine(row)
-            ranges.append(Range(b.subject, b.sstart, b.sstop, b.score, i))
         ref_selected, ref_score = range_chain(ranges)
         ref_idx = set(x.id for x in ref_selected)
 
-    if opts.filter=="ref":
+    if filter=="ref":
         selected_idx = ref_idx
 
-    elif opts.filter=="query":
+    elif filter=="query":
         selected_idx = query_idx
 
-    elif opts.filter=="intersection":
+    elif filter=="intersection":
         logging.debug("perform intersection")
         selected_idx = ref_idx & query_idx
 
-    elif opts.filter=="union":
+    elif filter=="union":
         logging.debug("perform union")
         selected_idx = ref_idx | query_idx
 
@@ -74,7 +100,7 @@ def main(blast_file, opts):
     for i, row in enumerate(fp):
         if i < selected:
             continue
-        print row.strip()
+        print row.rstrip()
         try: 
             selected = selected_idx.next()
         except StopIteration:
@@ -86,9 +112,14 @@ if __name__ == '__main__':
     p = OptionParser(__doc__)
 
     filter_choices = ("ref", "query", "intersection", "union")
+    dialect_choices = ("blast", "coords")
+
     p.add_option("-f", "--filter", choices=filter_choices,
             dest="filter", default="intersection", 
             help="filter choices: " + str(filter_choices) + " [default: %default]")
+    p.add_option("-d", "--dialect", choices=dialect_choices,
+            dest="dialect", default=None,
+            help="dialect choices: " + str(dialect_choices))
 
     opts, args = p.parse_args()
 
@@ -97,4 +128,12 @@ if __name__ == '__main__':
 
     blast_file = args[0]
 
-    main(blast_file, opts)
+    dialect = opts.dialect
+    if not dialect:
+        # guess from the suffix
+        dialect = "coords" if blast_file.endswith(".coords") else "blast"
+        logging.debug("dialect is %s" % dialect)
+
+    filter = opts.filter 
+
+    main(blast_file, filter=filter, dialect=dialect)

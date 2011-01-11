@@ -13,7 +13,8 @@ import logging
 from optparse import OptionParser
 
 from jcvi.formats.base import LineFile
-from jcvi.apps.base import ActionDispatcher
+from jcvi.apps.base import ActionDispatcher, debug
+debug()
 
 
 class CoordsLine (object):
@@ -55,6 +56,7 @@ class CoordsLine (object):
         # the coverage of the hit muliplied by percent seq identity
         # range from 0-100
         self.quality = self.identity * self.querycov
+        self.score = self.identity * self.len1
 
     def __str__(self):
         # bed formatted line
@@ -129,6 +131,7 @@ def get_stats(coordsfile):
     
     from jcvi.utils.range import range_union
 
+    logging.debug("report stats on `%s`" % coordsfile)
     fp = open(coordsfile)
     ref_ivs = []
     qry_ivs = []
@@ -171,8 +174,8 @@ def main():
 
 
 def print_stats(qrycovered, refcovered, id_pct):
-    print >>sys.stderr, "Query coverage: %d bp" % qrycovered
     print >>sys.stderr, "Reference coverage: %d bp" % refcovered
+    print >>sys.stderr, "Query coverage: %d bp" % qrycovered
     print >>sys.stderr, "ID%%: %.1f%%" % id_pct
 
 
@@ -206,7 +209,7 @@ def bed(args):
     
     p = OptionParser(bed.__doc__)
 
-    opts, args = p.parse_args()
+    opts, args = p.parse_args(args)
 
     try:
         coordsfile = args[0]
@@ -218,7 +221,7 @@ def bed(args):
         logging.error(str(e))
         sys.exit(p.print_help())
 
-    coords = Coords(coordsfile, promer=opts.promer)
+    coords = Coords(coordsfile)
 
     for c in coords:
         if c.quality < quality_cutoff: continue

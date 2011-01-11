@@ -125,6 +125,7 @@ def main():
     actions = (
         ('extract', 'given fasta file and an seq id, retrieve the sequence ' + \
                     'in fasta format'),
+        ('uniq', 'remove records that are the same'),
         ('tidy', 'clean up deflines and reformat fasta'),
             )
     p = ActionDispatcher(actions)
@@ -153,6 +154,29 @@ def extract(args):
         
         rec = f[key]
         print ">%s\n%s" % (rec.description, rec.seq)
+
+
+def uniq(args):
+    """
+    %prog uniq fasta > uniq.fasta
+
+    remove fasta records that are the same
+    """
+    p = OptionParser(uniq.__doc__)
+
+    opts, args = p.parse_args(args)
+    try:
+        fastafile = args[0]
+    except Exception, e:
+        logging.error(str(e))
+        sys.exit(p.print_help())
+
+    data = {}
+    for rec in SeqIO.parse(fastafile, "fasta"):
+        data[rec.id] = rec
+
+    for name, rec in sorted(data.items()):
+        SeqIO.write([rec], sys.stdout, "fasta")
 
 
 def tidy(args):

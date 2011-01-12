@@ -153,7 +153,21 @@ def extract(args):
         if query not in key: continue
         
         rec = f[key]
-        print ">%s\n%s" % (rec.description, rec.seq)
+        SeqIO.write([rec], sys.stdout, "fasta")
+
+
+def _uniq_rec(fastafile):
+    """
+    Returns unique records
+    """
+    seen = set()
+    for rec in SeqIO.parse(fastafile, "fasta"):
+        name = rec.id
+        if name in seen:
+            logging.debug("ignore %s" % name)
+            continue
+        seen.add(name)
+        yield rec
 
 
 def uniq(args):
@@ -163,6 +177,10 @@ def uniq(args):
     remove fasta records that are the same
     """
     p = OptionParser(uniq.__doc__)
+    p.add_option("-t", "--trimname", dest="trimname",
+            action="store_true", default=False,
+            help="turn on the defline trim to first space"
+            )
 
     opts, args = p.parse_args(args)
     try:
@@ -172,15 +190,9 @@ def uniq(args):
         sys.exit(p.print_help())
 
     data = {}
-    for rec in SeqIO.parse(fastafile, "fasta"):
-        data[rec.id] = rec
-
-    for name, rec in sorted(data.items()):
+    for rec in _uniq_rec(fastafile):
+        if opts.trimname: rec.description = ""
         SeqIO.write([rec], sys.stdout, "fasta")
-
-
-def tidy(args):
-    pass
 
 
 if __name__ == '__main__':

@@ -87,4 +87,8 @@ def debug():
     turn on the debugging
     """
     import logging
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.DEBUG,
+            format="%(asctime)s - [%(module)s::%(levelname)s] %(message)s",
+            datefmt="%H:%M:%S",
+            )
+

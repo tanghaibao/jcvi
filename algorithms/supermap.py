@@ -39,9 +39,9 @@ def BlastOrCoordsLine(filename, filter="ref", dialect="blast"):
         if dialect=="b":
             b = BlastLine(row)
             if filter=="q":
-                query, start, end, score = b.query, b.qstart, b.qstop
+                query, start, end = b.query, b.qstart, b.qstop
             else:
-                query, start, end, score = b.subject, b.sstart, b.sstop
+                query, start, end = b.subject, b.sstart, b.sstop
         else:
             try:
                 b = CoordsLine(row)
@@ -61,7 +61,7 @@ def BlastOrCoordsLine(filename, filter="ref", dialect="blast"):
 def main(blast_file, filter="intersection", dialect="blast"):
     # filter by query
     if opts.filter!="ref":
-        logging.debug("now filter by query")
+        logging.debug("filter by query")
         ranges = list(BlastOrCoordsLine(blast_file, filter="query",
             dialect=dialect))
 
@@ -70,7 +70,7 @@ def main(blast_file, filter="intersection", dialect="blast"):
 
     # filter by ref
     if filter!="query":
-        logging.debug("now filter by ref")
+        logging.debug("filter by ref")
         ranges = list(BlastOrCoordsLine(blast_file, filter="ref",
             dialect=dialect))
 

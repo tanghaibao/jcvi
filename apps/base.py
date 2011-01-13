@@ -87,8 +87,13 @@ def debug():
     turn on the debugging
     """
     import logging
+    
+    from jcvi.apps.console import ColoredText
+
+    format = "%(asctime)s [%(module)s::%(levelname)s] %(message)s"
+    format = str(ColoredText(format, "yellow"))
     logging.basicConfig(level=logging.DEBUG,
-            format="%(asctime)s - [%(module)s::%(levelname)s] %(message)s",
+            format=format,
             datefmt="%H:%M:%S",
             )
 

@@ -14,6 +14,7 @@ import logging
 from optparse import OptionParser
 
 from Bio import SeqIO
+from Bio.SeqRecord import SeqRecord
 from jcvi.formats.base import BaseFile
 from jcvi.apps.base import ActionDispatcher
 
@@ -75,6 +76,29 @@ class Fasta (BaseFile, dict):
         for k in self.iterkeys():
             yield k, len(self[k])
 
+    @classmethod
+    def subseq(cls, fasta, start=None, stop=None, strand=None):
+        """
+        Take Bio.SeqRecord and slice "start:stop" from it, does proper index and
+        error handling
+        """
+        start = start - 1 if start is not None else 0
+        stop = stop if stop is not None else len(fasta)
+
+        assert start >= 0, "start (%d) must >= 0" % (start + 1)
+
+        assert stop <= len(fasta), \
+                ("stop (%d) must be <= " + \
+                "length of `%s` (%d)") % (stop, fasta.id, len(fasta)) 
+
+        seq = fasta.seq[start:stop] 
+        
+        if 'strand' in (-1, '-1', '-'):
+            seq = seq.reverse_complement() 
+
+        return seq
+        
+
     def sequence(self, f, asstring=True):
         """
         Emulate brentp's pyfasta/fasta.py sequence() methods
@@ -100,24 +124,15 @@ class Fasta (BaseFile, dict):
         assert name in self, "feature: %s not in `%s`" % \
                 (f, self.filename)
 
-        fasta = self[f['chr']].seq
-        
-        start = f['start'] - 1 if 'start' in f else 0
-        stop = f['stop'] if 'stop' in f else len(fasta)
+        fasta = self[f['chr']]
 
-        assert stop <= len(fasta), \
-                ("stop (%d) needs to be <= than " + \
-                "length of `%s` (%d)") % (stop, name, len(fasta)) 
-
-        sequence = fasta[start:stop] 
-        
-        if f.get('strand') in (-1, '-1', '-'):
-            sequence = sequence.reverse_complement() 
+        seq = Fasta.subseq(fasta, 
+                f.get('start'), f.get('stop'), f.get('strand'))
         
         if asstring:
-            return str(sequence)
+            return str(seq)
         
-        return sequence
+        return seq
 
 
 def main():
@@ -136,9 +151,12 @@ def extract(args):
     """
     %prog extract fasta query 
     
-    extract query out of fasta file
+    extract query out of fasta file, query needs to be in the form of
+    "seqname", or "seqname:start-stop"
     """
     p = OptionParser(extract.__doc__)
+    p.add_option('--all', dest="all", default=False, action="store_true",
+            help="search full description line for match [default: %default]")
 
     opts, args = p.parse_args(args)
 
@@ -148,11 +166,45 @@ def extract(args):
         logging.error(str(e))
         sys.exit(p.print_help())
 
+    atoms = query.split(":")
+    key = atoms[0]
+
+    pos = "" 
+    if len(atoms) >= 2:
+        pos = atoms[1]
+
+    feature = dict(chr=key)
+
+    if "-" in pos:
+        start, stop = pos.split("-")
+        try:
+            start, stop = int(start), int(stop)
+        except ValueError as e:
+            logging.error(str(e))
+            sys.exit(p.print_help())
+
+        feature["start"] = start
+        feature["stop"] = stop
+
     f = Fasta(fastafile)
-    for key in f.keys():
-        if query not in key: continue
-        
-        rec = f[key]
+
+    if opts.all:
+        for k in f.keys():
+            if key not in k: continue
+            
+            rec = f[k]
+            seq = Fasta.subseq(rec, start, stop)
+            rec = SeqRecord(seq, id=rec.id + ":%d-%d" % (start, stop),
+                    description="")
+            SeqIO.write([rec], sys.stdout, "fasta")
+    else:
+        try:
+            seq = f.sequence(feature, asstring=False)
+        except AssertionError as e:
+            logging.error(str(e))
+            return
+
+        rec = SeqRecord(seq, id=query, description="")
         SeqIO.write([rec], sys.stdout, "fasta")
 
 

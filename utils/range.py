@@ -19,6 +19,7 @@ Range = namedtuple("Range", "seqid start end score id")
 
 def range_overlap(a, b):
     """
+    Returns whether or not two ranges overlap
     >>> range_overlap(("1", 30, 45), ("1", 45, 55))
     True
     >>> range_overlap(("1", 30, 45), ("1", 57, 68))
@@ -31,6 +32,36 @@ def range_overlap(a, b):
     # must be on the same chromosome
     if a_chr!=b_chr: return False 
     return (a_min <= b_max) and (b_min <= a_max)
+
+
+def range_distance(a, b, dist_mode='ss'):
+    """
+    Returns the distance between two ranges
+    
+    dist_mode is ss, se, es, ee and sets the place on read one and two to
+          measure the distance (s = start, e = end)
+
+    >>> range_distance(("1", 30, 45), ("1", 45, 55))
+    0
+    >>> range_distance(("1", 30, 45), ("1", 57, 68))
+    39
+    >>> range_distance(("1", 30, 42), ("1", 45, 55))
+    26
+    >>> range_distance(("1", 30, 42), ("1", 45, 55), dist_mode='ee')
+    2
+    """
+    assert dist_mode in ('ss', 'ee')
+
+    a_chr, a_min, a_max = a
+    b_chr, b_min, b_max = b
+    # must be on the same chromosome
+    if a_chr!=b_chr: return -1
+    if range_overlap(a, b): return 0
+
+    ends = [a_min, a_max, b_min, b_max]
+    a, b, c, d = sorted(ends)
+    if dist_mode=="ss": return d - a + 1
+    elif dist_mode=="ee": return c - b - 1
 
 
 def range_minmax(ranges):

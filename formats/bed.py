@@ -17,7 +17,7 @@ class BedLine(object):
     def __init__(self, sline):
         args = sline.strip().split("\t")
         self.seqid = args[0]
-        self.start = int(args[1])
+        self.start = int(args[1]) + 1
         self.end = int(args[2])
         self.accn = args[3]
         self.stuff = args[4:] if len(args) > 4 else None

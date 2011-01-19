@@ -166,7 +166,7 @@ def get_stats(coordsfile):
 def main():
     
     actions = (
-        ('summary', 'provide summary on id%% and cov%%'),
+        ('summary', 'provide summary on id% and cov%'),
         ('bed', 'convert to bed format'),
             )
     p = ActionDispatcher(actions)
@@ -183,7 +183,7 @@ def summary(args):
     """
     %prog summary coordsfile 
     
-    provide summary on id%% and cov%%, for both query and reference
+    provide summary on id% and cov%, for both query and reference
     """
     p = OptionParser(summary.__doc__)
 

@@ -33,6 +33,19 @@ def range_overlap(a, b):
     return (a_min <= b_max) and (b_min <= a_max)
 
 
+def range_minmax(ranges):
+    """
+    Returns the span of a collection of ranges where start is the smallest of
+    all starts, and end is the largest of all ends
+    >>> ranges = [(30, 45), (40, 50), (10, 100)]
+    >>> range_minmax(ranges)
+    (10, 100)
+    """
+    rmin = min(ranges)[0]
+    rmax = max(ranges, key=lambda x: x[1])[1]
+    return rmin, rmax
+
+
 def range_union(ranges):
     """
     Returns total size of ranges, expect range as (chr, left, right)

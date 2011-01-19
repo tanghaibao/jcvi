@@ -273,11 +273,8 @@ if __name__ == '__main__':
 
     import optparse
     p = optparse.OptionParser(__doc__)
-    p.add_option("--description", dest="desc", 
-            help="write term descriptions to stdout" \
-                 " from the obo file specified in args", action="store_true")
     p.add_option("--term", dest="term", help="write the parents and children" \
-            "of the query term", action="store", default=None)
+            "of the query term", default=None)
 
     opts, args = p.parse_args()
 
@@ -286,12 +283,10 @@ if __name__ == '__main__':
 
     obo_file = args[0]
     g = GODag(obo_file)
-
-    if opts.desc:
-        g.write_dag()
+    g.write_dag()
 
     # run a test case
-    if opts.term is not None:
+    if opts.term:
         rec = g.query_term(opts.term, verbose=True)
         g.draw_lineage([rec], verbose=True)
 

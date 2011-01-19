@@ -108,7 +108,7 @@ def get_stats(blastfile):
 def main():
     
     actions = (
-        ('summary', 'provide summary on id%% and cov%%'),
+        ('summary', 'provide summary on id% and cov%'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -118,7 +118,7 @@ def summary(args):
     """
     %prog summary blastfile 
     
-    provide summary on id%% and cov%%, for both query and reference
+    provide summary on id% and cov%, for both query and reference
     """
     p = OptionParser(summary.__doc__)
 

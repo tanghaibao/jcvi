@@ -11,6 +11,7 @@ the whole description field)
 import sys
 import logging
 
+from random import sample
 from optparse import OptionParser
 
 from Bio import SeqIO
@@ -141,7 +142,7 @@ def main():
         ('extract', 'given fasta file and an seq id, retrieve the sequence ' + \
                     'in fasta format'),
         ('uniq', 'remove records that are the same'),
-        ('tidy', 'clean up deflines and reformat fasta'),
+        ('random', 'random take some records'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -185,6 +186,8 @@ def extract(args):
 
         feature["start"] = start
         feature["stop"] = stop
+    else:
+        start, stop = None, None
 
     f = Fasta(fastafile)
 
@@ -194,8 +197,11 @@ def extract(args):
             
             rec = f[k]
             seq = Fasta.subseq(rec, start, stop)
-            rec = SeqRecord(seq, id=rec.id + ":%d-%d" % (start, stop),
-                    description="")
+            newid = rec.id
+            if start is not None:
+                newid += ":%d-%d" % (start, stop)
+
+            rec = SeqRecord(seq, id=newid, description="")
             SeqIO.write([rec], sys.stdout, "fasta")
     else:
         try:
@@ -237,7 +243,7 @@ def uniq(args):
     opts, args = p.parse_args(args)
     try:
         fastafile = args[0]
-    except Exception, e:
+    except Exception as e:
         logging.error(str(e))
         sys.exit(p.print_help())
 
@@ -245,6 +251,29 @@ def uniq(args):
     for rec in _uniq_rec(fastafile):
         if opts.trimname: rec.description = ""
         SeqIO.write([rec], sys.stdout, "fasta")
+
+
+def random(args):
+    """
+    %prog random fasta 100 > random100.fasta
+
+    take number of records randomly from fasta
+    """
+    p = OptionParser(random.__doc__)
+    opts, args = p.parse_args(args)
+    try:
+        fastafile, N = args
+        N = int(N)
+    except Exception as e:
+        logging.error(str(e))
+        sys.exit(p.print_help())
+
+    f = Fasta(fastafile)
+    fw = sys.stdout
+    
+    for key in sample(f.keys(), N):
+        rec = f[key]
+        SeqIO.write([rec], fw, "fasta")
 
 
 if __name__ == '__main__':

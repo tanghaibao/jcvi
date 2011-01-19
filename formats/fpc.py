@@ -39,7 +39,7 @@ class FpcRecord (object):
 
     def __str__(self):
         return '\t'.join((self.bac_name, self.ctg_name, 
-            "%.1f" % self.map_left, "%.1f" % self.map_right,
+            str(self.map_left), str(self.map_right),
             self.bands, ','.join(self.probes), ','.join(self.remark)))
 
 
@@ -69,9 +69,11 @@ class FpcReader (object):
                 if line.startswith("Map"):
                     rec.ctg_name = line.split('\"')[1]
                     if "Left" in line:
-                        rec.map_left = float(line.split("Left")[1].split()[0])
+                        rec.map_left = line.split("Left")[1].split()[0]
+                        rec.map_left = int(float(rec.map_left))
                     if "Right" in line:
-                        rec.map_right = float(line.split("Right")[1].split()[0])
+                        rec.map_right = line.split("Right")[1].split()[0]
+                        rec.map_right = int(float(rec.map_right))
                 if line.startswith("Gel_number"):
                     rec.gel_number = line.split()[-1]
                 if line.startswith("Fp_number"):

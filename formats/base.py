@@ -5,6 +5,7 @@ import sys
 import logging
 import itertools
 
+from itertools import groupby
 from optparse import OptionParser
 
 from Bio import SeqIO
@@ -159,6 +160,35 @@ class FileSplitter (object):
 
         for fw in filehandles:
             fw.close()
+
+
+def read_until(handle, start):
+    # read each line until it has a certain start, and then puts the start tag back
+    while 1:
+        pos = handle.tell()
+        line = handle.readline()
+        if not line:
+            break
+        if line.startswith(start):
+            handle.seek(pos)
+            return
+    raise EOFError, "%s tag cannot be found"
+
+
+def read_block(handle, signal):
+    """
+    Useful for reading block-like file formats, for example FASTA or OBO file,
+    such file usually startswith some signal, and in-between the signals are a
+    record
+    """
+    signal_len = len(signal)
+    it = (x[1] for x in groupby(handle, 
+        key=lambda row: row.strip()[:signal_len]==signal))
+    for header in it:
+        header = header.next().strip()
+        if header[:signal_len]!=signal: continue
+        seq = list(s.strip() for s in it.next())
+        yield header, seq
 
 
 def main():

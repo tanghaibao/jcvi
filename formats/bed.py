@@ -23,8 +23,9 @@ class BedLine(object):
         self.stuff = args[4:] if len(args) > 4 else None
 
     def __str__(self):
-        s = "\t".join(map(str, [getattr(self, attr) \
-                    for attr in BedLine.__slots__[:-1]]))
+        s = "\t".join(str(x) for x in (self.seqid, self.start-1, self.end,
+            self.accn))
+
         if self.stuff:
             s += "\t" + "\t".join(self.stuff)
         return s

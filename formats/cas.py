@@ -76,7 +76,7 @@ def bed(args):
             print b
 
 
-def summary(args, cutoff=300000):
+def summary(args):
     """
     %prog bed cas_tabbed
     
@@ -84,10 +84,14 @@ def summary(args, cutoff=300000):
     distance between paired ends, etc
     """
     p = OptionParser(summary.__doc__)
+    p.add_option("--cutoff", dest="cutoff", default=300000, type="int",
+            help="distance to call valid links between PE [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args)!=1:
         sys.exit(p.print_help())
+
+    cutoff = opts.cutoff
 
     castabfile = args[0]
     fp = open(castabfile)
@@ -96,15 +100,15 @@ def summary(args, cutoff=300000):
     num_linked = 0
     for pe, lines in groupby(data, key=lambda x: x.readname.split("/")[0]):   
         lines = list(lines)
-        if len(lines)==1: 
-            num_fragments += 1
-        else:
+        if len(lines)==2: 
             a, b = lines
             dist = range_distance((a.refnum, a.refstart, a.refstop), (b.refnum,
                 b.refstart, b.refstop))
             num_pairs += 1
             if 0 <= dist <= cutoff:
                 num_linked += 1
+        else:
+            num_fragments += 1
     
     print "%d fragments, %d pairs" % (num_fragments, num_pairs)
     print "%d pairs are linked (cutoff=%d)" % (num_linked, cutoff)

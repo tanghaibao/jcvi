@@ -86,6 +86,8 @@ def summary(args):
     p = OptionParser(summary.__doc__)
     p.add_option("--cutoff", dest="cutoff", default=300000, type="int",
             help="distance to call valid links between PE [default: %default]")
+    p.add_option("--pairs", dest="pairs", default=False, action="store_true",
+            help="write valid pairs to stdout [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args)!=1:
@@ -102,16 +104,19 @@ def summary(args):
         lines = list(lines)
         if len(lines)==2: 
             a, b = lines
+            if a.refstart==-1 or b.refstart==-1: continue
             dist = range_distance((a.refnum, a.refstart, a.refstop), (b.refnum,
                 b.refstart, b.refstop))
             num_pairs += 1
             if 0 <= dist <= cutoff:
                 num_linked += 1
+                if opts.pairs:
+                    for b in lines: print b
         else:
             num_fragments += 1
     
-    print "%d fragments, %d pairs" % (num_fragments, num_pairs)
-    print "%d pairs are linked (cutoff=%d)" % (num_linked, cutoff)
+    print >>sys.stderr, "%d fragments, %d pairs" % (num_fragments, num_pairs)
+    print >>sys.stderr, "%d pairs are linked (cutoff=%d)" % (num_linked, cutoff)
 
 
 if __name__ == '__main__':

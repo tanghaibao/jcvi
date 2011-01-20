@@ -156,8 +156,10 @@ def extract(args):
     "seqname", or "seqname:start-stop"
     """
     p = OptionParser(extract.__doc__)
-    p.add_option('--all', dest="all", default=False, action="store_true",
+    p.add_option('--include', dest="include", default=False, action="store_true",
             help="search full description line for match [default: %default]")
+    p.add_option('--exclude', dest="exclude", default=False, action="store_true",
+            help="inverse search, exclude description that matches [default: %default]")
 
     opts, args = p.parse_args(args)
 
@@ -191,9 +193,15 @@ def extract(args):
 
     f = Fasta(fastafile)
 
-    if opts.all:
+    include, exclude = opts.include, opts.exclude
+    # conflicting options, cannot be true at the same time
+    assert not (include and exclude), "--include and --exclude cannot be "\
+            "on at the same time"
+
+    if include or exclude:
         for k in f.keys():
-            if key not in k: continue
+            if include and key not in k: continue
+            if exclude and key in k: continue
             
             rec = f[k]
             seq = Fasta.subseq(rec, start, stop)

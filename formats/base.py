@@ -172,7 +172,7 @@ def read_until(handle, start):
         if line.startswith(start):
             handle.seek(pos)
             return
-    raise EOFError, "%s tag cannot be found"
+    #raise EOFError, "%s tag cannot be found"
 
 
 def read_block(handle, signal):

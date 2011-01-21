@@ -11,9 +11,9 @@ example::
     >>> print ','.join(fi.keys()[:4])
     @SNPSTER3:1:1:4:1119#0/2,@SNPSTER3:1:1:4:1153#0/2,@SNPSTER3:1:1:4:1311#0/2,@SNPSTER3:1:1:4:1932#0/2
     >>> print fi["@SNPSTER3:1:1:4:1952#0/2"].id
-    ['@SNPSTER3:1:1:4:1952#0/2', 'run=090309_SNPSTER3_0297_30JH9AAXX_PE']
+    @SNPSTER3:1:1:4:1952#0/2
     >>> print fi[2].id
-    ['@SNPSTER3:1:1:4:1311#0/2', 'run=090309_SNPSTER3_0297_30JH9AAXX_PE']
+    @SNPSTER3:1:1:4:1311#0/2
 
 adapted from brentp's fileindex and adapted to local convention
 <https://github.com/brentp/bio-playground/tree/master/fileindex>

@@ -99,24 +99,27 @@ def summary(args):
     fp = open(castabfile)
     data = [CasTabLine(row) for row in fp]
     num_fragments, num_pairs = 0, 0
-    num_linked = 0
+    linked_dist = []
     for pe, lines in groupby(data, key=lambda x: x.readname.split("/")[0]):   
         lines = list(lines)
         if len(lines)==2: 
+            num_pairs += 1
             a, b = lines
             if a.refstart==-1 or b.refstart==-1: continue
             dist = range_distance((a.refnum, a.refstart, a.refstop), (b.refnum,
                 b.refstart, b.refstop))
-            num_pairs += 1
             if 0 <= dist <= cutoff:
-                num_linked += 1
+                linked_dist.append(dist)
                 if opts.pairs:
                     for b in lines: print b
         else:
             num_fragments += 1
     
+    import numpy as np
     print >>sys.stderr, "%d fragments, %d pairs" % (num_fragments, num_pairs)
-    print >>sys.stderr, "%d pairs are linked (cutoff=%d)" % (num_linked, cutoff)
+    num_links = len(linked_dist)
+    print >>sys.stderr, "%d pairs are linked (cutoff=%d)" % (len(linked_dist), cutoff)
+    print >>sys.stderr, "median distance between PE: %d" % np.median(linked_dist) 
 
 
 if __name__ == '__main__':

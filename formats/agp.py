@@ -7,10 +7,11 @@ http://www.ncbi.nlm.nih.gov/projects/genome/assembly/agp/AGP_Specification.shtml
 """
 
 import sys
-import itertools
 import logging
 
 from optparse import OptionParser
+from collections import defaultdict
+from itertools import groupby
 
 from jcvi.formats.base import LineFile
 from jcvi.formats.fasta import Fasta
@@ -62,6 +63,8 @@ class AGPLine (object):
         gid = self.component_id if not self.is_gap else "gap"
         return "\t".join((self.object, str(self.object_beg-1),
                 str(self.object_end), gid, '1000', self.orientation))
+
+    __repr__ = __str__
 
     def validate(self):
         assert self.component_type in Valid_component_type, \
@@ -119,7 +122,7 @@ class AGP (LineFile):
 
 
     def validate_all(self):
-        for ob, lines_with_same_ob in itertools.groupby(self, 
+        for ob, lines_with_same_ob in groupby(self, 
                 key=lambda x: x.object):
             lines = list(lines_with_same_ob)
             self.validate_one(ob, lines)
@@ -161,7 +164,7 @@ class AGP (LineFile):
         f = Fasta(componentfasta, index=False)
         fw = open(targetfasta, "w")
 
-        for ob, lines_with_same_ob in itertools.groupby(self, 
+        for ob, lines_with_same_ob in groupby(self, 
                 key=lambda x: x.object):
 
             lines = list(lines_with_same_ob)
@@ -171,6 +174,8 @@ class AGP (LineFile):
 def main():
 
     actions = (
+        ('bed', 'print out the tiling paths in bed format'),
+        ('gaps', 'print out the distribution of gap sizes'),
         ('build', 'given agp file and component fasta file, build the' + \
                  'pseudomolecule fasta'),
         ('validate', 'given agp file, component fasta and pseudomolecule fasta, ' + \
@@ -179,6 +184,54 @@ def main():
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def bed(args):
+    """
+    %prog bed agpfile
+
+    print out the tiling paths in bed format
+    """
+    p = OptionParser(bed.__doc__)
+    p.add_option("--nogaps", dest="nogaps", default=False,
+            help="do not print bed lines for gaps")
+    opts, args = p.parse_args(args)
+    
+    if len(args) != 1:
+        sys.exit(p.print_help())
+
+    agpfile = args[0]
+    agp = AGP(agpfile)
+    for a in agp:
+        if opts.nogaps and a.is_gap: continue
+        print a
+
+
+def gaps(args):
+    """
+    %prog gaps agpfile
+
+    print out the distribution of gapsizes
+    """
+    p = OptionParser(bed.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(p.print_help())
+
+    agpfile = args[0]
+    agp = AGP(agpfile)
+    size_distribution = defaultdict(int)
+    for is_gap, alines in groupby(agp, key=lambda x: (x.object, x.is_gap)):
+        alines = list(alines)
+        if not is_gap[1]: continue
+        gap_size = sum(x.gap_length for x in alines)
+        if "telomere" in set(x.gap_type for x in alines):
+            gap_size = "telomere"
+        size_distribution[gap_size] += 1
+
+    for gap_size, counts in sorted(size_distribution.items()):
+        print gap_size, counts
 
 
 def build(args):

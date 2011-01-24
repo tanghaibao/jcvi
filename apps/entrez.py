@@ -47,7 +47,7 @@ def batch_entrez(list_of_terms, db="nucleotide", retmax=1, rettype="fasta"):
             while not success:
                 try:
                     fetch_handle = Entrez.efetch(db=db, id=id, rettype=rettype,
-                            email=email)
+                            email=myEmail)
                     success = True
                 except (urllib2.HTTPError, urllib2.URLError) as e:
                     logging.error(str(e))

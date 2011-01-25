@@ -61,7 +61,7 @@ class GffLine (object):
         self.phase = args[7]
         assert self.phase in Valid_phases, \
                 "phase must be one of %s" % Valid_phases
-        self.attributes_text = args[8]
+        self.attributes_text = args[8].strip()
         self.attributes = make_attributes(self.attributes_text, gff3=gff3)
         # key is not in the gff3 field, this indicates the conversion to accn
         self.key = key # usually it's `ID=xxxxx;`
@@ -71,7 +71,9 @@ class GffLine (object):
 
     @property
     def accn(self):
-        return self.attributes[self.key][0]
+        if self.key:
+            return self.attributes[self.key][0]
+        return self.attributes_text.split()[0]
 
     @property
     def bedline(self):
@@ -113,10 +115,15 @@ def bed(args):
     p = OptionParser(bed.__doc__)
     p.add_option("--type", dest="type", default="gene",
             help="the feature type to extract [default: %default]")
+    p.add_option("--key", dest="key", default="ID",
+            help="the key in the attributes to extract [default: %default]")
 
     opts, args = p.parse_args(args)
     if len(args)!=1:
         sys.exit(p.print_help())
+
+    key = opts.key
+    if key=="None": key = None
 
     fp = open(args[0])
     b = Bed() 
@@ -126,7 +133,7 @@ def bed(args):
 
         if row[0]=='#': continue
 
-        g = GffLine(row)
+        g = GffLine(row, key=key)
         if g.type!=opts.type: continue
         
         if g.seqid in seen:

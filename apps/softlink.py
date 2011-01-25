@@ -38,6 +38,7 @@ def touch(args):
     for link_name in fp:
         link_name = link_name.strip()
         if not op.islink(link_name): continue
+        if not op.exists(link_name): continue
 
         # re-link the symlinks (similar to `ln -sf`)
         source = os.readlink(link_name)
@@ -55,13 +56,15 @@ def cp(args):
     for link_name in fp:
         link_name  = link_name.strip()
         if not op.islink(link_name): continue
+        if not op.exists(link_name): continue
 
         source = os.readlink(link_name)
         link_dir = op.dirname(link_name)
         source = op.normpath(op.join(link_dir, source))
         source = op.abspath(source)
         link_name = op.basename(link_name)
-        os.symlink(source, link_name)
+        if not op.exists(link_name):
+            os.symlink(source, link_name)
         logging.debug(" => ".join((source, link_name)))
 
 

@@ -39,8 +39,8 @@ class BlastLine(object):
                 (self.query, self.subject, self.evalue, self.score)
 
     def __str__(self):
-        return "\t".join(map(str, [getattr(self, attr) \
-                for attr in BlastLine.__slots__[:-4]]))
+        return "\t".join(str(x) for x in \
+                [getattr(self, attr) for attr in BlastLine.__slots__[:-4]])
 
 
 class Blast (LineFile):

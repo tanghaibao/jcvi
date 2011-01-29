@@ -16,8 +16,9 @@ debug()
 
 class FastqRecord (object):
     def __init__(self, fh, offset=0, key=None):
-        self.name = fh.readline().split()[0]
+        self.name = fh.readline().split()
         if not self.name: return
+        self.name = self.name[0]
         self.seq = fh.readline().rstrip()
         self.l3 = fh.readline().rstrip()
         self.qual = fh.readline().rstrip()
@@ -28,6 +29,14 @@ class FastqRecord (object):
     def __str__(self):
         return "\n".join((self.name, self.seq, "+", self.qual))
     
+
+def iter_fastq(fh, offset=0, key=None):
+    while True:
+        rec = FastqRecord(fh, offset=offset, key=key)
+        if not rec: break
+        yield rec
+    yield None # guardian
+
 
 def main():
 
@@ -62,7 +71,6 @@ def pair(args):
     afastq, bfastq, frags, pairs = args
 
     assert op.exists(afastq) and op.exists(bfastq)
-    assert not op.exists(frags) and not op.exists(pairs)
 
     qual_offset = lambda x: 33 if x=="sanger" else 64 
     in_offset = qual_offset(opts.infastq)
@@ -70,8 +78,6 @@ def pair(args):
     offset = out_offset - in_offset
     ref = opts.ref
 
-    ah = open(afastq)
-    bh = open(bfastq)
     if ref: 
         rh = open(ref) 
         totalsize = op.getsize(ref) 
@@ -82,13 +88,49 @@ def pair(args):
     bar = ProgressBar(maxval=totalsize).start()
     strip_name = lambda x: x.rsplit("/", 1)[0]
 
-    j = 0
+    ah = open(afastq)
+    ah_iter = iter_fastq(ah, offset=offset, key=strip_name)
+    bh = open(bfastq)
+    bh_iter = iter_fastq(bh, offset=offset, key=strip_name)
+
+    a = ah_iter.next()
+    b = bh_iter.next()
+
+    fragsfw = open(frags, "w")
+    pairsfw = open(pairs, "w")
+
     if ref:
-        while True:
-            rec = FastqRecord(rh, offset=0, key=strip_name)
+        for r in iter_fastq(rh, offset=0, key=strip_name):
+            if not a or not b:
+                break
+
+            if a.id == b.id:
+                print >>pairsfw, a
+                print >>pairsfw, b
+                a = ah_iter.next()
+                b = bh_iter.next()
+            elif a.id == r.id:
+                print >>fragsfw, a
+                a = ah_iter.next()
+            elif b.id == r.id:
+                print >>fragsfw, b
+                b = bh_iter.next()
+
+            # update progress
             pos = rh.tell()
             bar.update(pos)
-    else:
+        
+        # write all the leftovers to frags file
+        if not a:
+            while b:
+                print >>fragsfw, b
+                b = bh_iter.next()
+        if not b:
+            while a:
+                print >>fragsfw, a
+                a = ah_iter.next()
+
+    else: # easy case when afile and bfile records are in order
         # TODO: unimplemented
         pass
     

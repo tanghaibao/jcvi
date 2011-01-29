@@ -228,13 +228,12 @@ class Grid (list):
 def main():
 
     actions = (
+        ('run', 'run a normal command on grid'),
         ('commit', 'construct the commands (but do not submit jobs)'),
         ('push', 'run all commands that are commited'),
         ('rerun', 'rerun one command'),
         ('merge', 'merge output files (or stdouts) and stderrs'),
-        ('status', 'check status of jobs'),
         ('clean', 'reset the current folder'),
-        ('run', 'run a normal command on grid'),
             )
 
     p = ActionDispatcher(actions)
@@ -243,24 +242,18 @@ def main():
 
 def run(args):
     """
-    find . -type f | %prog run -c "command *"
+    find . -type f | %prog run "command *"
 
     run a normal command on grid, the input file will be sent to command. This
-    is useful for commands that takes single input file.
+    is useful for commands that takes single input file. Most often command
+    needs to be quoted.
     """
     p = OptionParser(run.__doc__)
     
-    p.add_option("-c", dest="cmd",
-            help="cmd needs to parallelize (please quote the string)")
-
-    opts, args = p.parse_args(args)
-    try:
-        assert opts.cmd, "need to set up command"
-        cmd = opts.cmd
-    except AssertionError as e:
-        logging.error(str(e))
+    if len(args) != 1:
         sys.exit(p.print_help())
 
+    cmd = args[0]
     fp = sys.stdin
 
     for row in fp:
@@ -272,26 +265,25 @@ def run(args):
 
 def commit(args):
     """
-    %prog commit -i infile -o outfile -c "command" -n N
+    %prog commit -i infile -o outfile -n N "command" 
 
     split the command into N pieces, replacing the `infile` string with
     `infile_00` etc., also for `outfile`, write all the commands into
-    sge/commit
+    sge/commit. Most often command needs to be quoted.
     """
     p = OptionParser(commit.__doc__)
     
     p.add_option("-i", dest="infile", help="infile")
     p.add_option("-o", dest="outfile", help="outfile")
-    p.add_option("-c", dest="cmd", 
-            help="cmd needs to parallelize (please quote the string)")
     p.add_option("-n", dest="N", type="int", default=4, 
             help="number of hosts to run on (1 < N < 100)")
 
     opts, args = p.parse_args(args)
     try:
-        assert all((opts.cmd, opts.infile, opts.outfile)), \
-                "need to set all options [-i, -o, -c]"
-        cmd, N = opts.cmd, opts.N 
+        assert all(opts.infile, opts.outfile), \
+                "need to set all options [-i, -o]"
+        assert len(args)==1
+        cmd, N = args[0], opts.N 
         infile, outfile = opts.infile, opts.outfile
     except AssertionError as e:
         logging.error(str(e))
@@ -402,10 +394,6 @@ def merge(args):
         filemerger(stdoutlist, ["%s.stdout" % cmdgroup])
     elif filetype=="stderr":
         filemerger(stderrlist, ["%s.stderr" % cmdgroup])
-
-
-def status(args):
-    pass
 
 
 def clean(args):

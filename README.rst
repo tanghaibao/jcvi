@@ -40,3 +40,12 @@ routines in the library.
 
 * `Biopython <http://www.biopython.org>`_
 * `scipy <http://www.scipy.org>`_
+
+
+Installation
+------------
+Resolve dependencies first. Then place the whole folder ``jcvi/`` on your
+``PYTHONPATH``. Most scripts can both be ``import``-ed and run as utility script. 
+For example::
+
+    python -m jcvi.formats.fasta

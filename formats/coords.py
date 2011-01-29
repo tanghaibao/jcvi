@@ -167,6 +167,7 @@ def main():
     
     actions = (
         ('summary', 'provide summary on id% and cov%'),
+        ('filter', 'filter based on id% and cov%, write a new coords file'),
         ('bed', 'convert to bed format'),
             )
     p = ActionDispatcher(actions)
@@ -186,6 +187,8 @@ def summary(args):
     provide summary on id% and cov%, for both query and reference
     """
     p = OptionParser(summary.__doc__)
+    p.add_option("-s", dest="single", default=False, action="store_true",
+            help="provide stats per reference seq")
 
     opts, args = p.parse_args(args)
 
@@ -199,6 +202,35 @@ def summary(args):
     print_stats(qrycovered, refcovered, id_pct)
 
 
+def filter(args):
+    """
+    %prog filter test.coords > new.coords
+
+    produce a new coords file and filter based on id% or cov%
+    """
+    p = OptionParser(filter.__doc__)
+    p.add_option("--id", dest="id", default=0, type="float",
+            help="id% cutoff [0-100]")
+
+    opts, args = p.parse_args(args)
+    if len(args) != 1:
+        sys.exit(p.print_help())
+
+    id_cutoff = opts.id
+    assert 0 <= id_cutoff <= 100, "id% needs to be between [0, 100]"
+
+    fp = open(args[0])
+    for row in fp:
+        try:
+            c = CoordsLine(row)
+        except AssertionError:
+            continue
+
+        if c.identity < id_cutoff: continue
+
+        print row.rstrip()
+
+
 def bed(args):
     """
     %prog bed test.coords quality_cutoff
@@ -206,7 +238,6 @@ def bed(args):
     will produce a bed list of mapped position and orientation (needs to 
     be beyond quality cutoff, say 50) in bed format
     """
-    
     p = OptionParser(bed.__doc__)
 
     opts, args = p.parse_args(args)

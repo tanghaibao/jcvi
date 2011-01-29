@@ -234,10 +234,40 @@ def main():
         ('merge', 'merge output files (or stdouts) and stderrs'),
         ('status', 'check status of jobs'),
         ('clean', 'reset the current folder'),
+        ('run', 'run a normal command on grid'),
             )
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def run(args):
+    """
+    find . -type f | %prog run -c "command *"
+
+    run a normal command on grid, the input file will be sent to command. This
+    is useful for commands that takes single input file.
+    """
+    p = OptionParser(run.__doc__)
+    
+    p.add_option("-c", dest="cmd",
+            help="cmd needs to parallelize (please quote the string)")
+
+    opts, args = p.parse_args(args)
+    try:
+        assert opts.cmd, "need to set up command"
+        cmd = opts.cmd
+    except AssertionError as e:
+        logging.error(str(e))
+        sys.exit(p.print_help())
+
+    fp = sys.stdin
+
+    for row in fp:
+        filename = row.strip()
+        newcmd = cmd.replace("*", filename)
+        p = GridProcess(newcmd)
+        p.start(path=None) # current folder
 
 
 def commit(args):
@@ -263,7 +293,7 @@ def commit(args):
                 "need to set all options [-i, -o, -c]"
         cmd, N = opts.cmd, opts.N 
         infile, outfile = opts.infile, opts.outfile
-    except Exception, e:
+    except AssertionError as e:
         logging.error(str(e))
         sys.exit(p.print_help())
 

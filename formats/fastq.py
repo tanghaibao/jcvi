@@ -10,10 +10,24 @@ import sys
 
 from optparse import OptionParser
 
-from Bio import SeqIO
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
+
+class FastqRecord (object):
+    def __init__(self, fh, offset=0, key=None):
+        self.name = fh.readline().split()[0]
+        if not self.name: return
+        self.seq = fh.readline().rstrip()
+        self.l3 = fh.readline().rstrip()
+        self.qual = fh.readline().rstrip()
+        if offset != 0:
+            self.qual = "".join(chr(ord(x) + offset) for x in self.qual)
+        self.id = key(self.name) if key else self.name
+
+    def __str__(self):
+        return "\n".join((self.name, self.seq, "+", self.qual))
+    
 
 def main():
 
@@ -48,25 +62,38 @@ def pair(args):
     afastq, bfastq, frags, pairs = args
 
     assert op.exists(afastq) and op.exists(bfastq)
-    assert not op.exist(frags) and not op.exist(pairs)
+    assert not op.exists(frags) and not op.exists(pairs)
 
-    fastqfmt = lambda x: "fastq" if x=="sanger" else "fastq-illumina"
-    infmt = fastqfmt(opts.infastq)
-    outfmt = fastqfmt(opts.outfastq)
+    qual_offset = lambda x: 33 if x=="sanger" else 64 
+    in_offset = qual_offset(opts.infastq)
+    out_offset = qual_offset(opts.outfastq)
+    offset = out_offset - in_offset
     ref = opts.ref
 
-    ah = SeqIO.parse(afastq, infmt)
-    bh = SeqIO.parse(bfastq, infmt)
-    if ref: rh = SeqIO.parse(ref, infmt)
+    ah = open(afastq)
+    bh = open(bfastq)
+    if ref: 
+        rh = open(ref) 
+        totalsize = op.getsize(ref) 
+    else:
+        totalsize = op.getsize(afastq) 
 
+    from progressbar import ProgressBar
+    bar = ProgressBar(maxval=totalsize).start()
     strip_name = lambda x: x.rsplit("/", 1)[0]
 
+    j = 0
     if ref:
-        for rec in rh:
-            name = strip_name(rec.id)
+        while True:
+            rec = FastqRecord(rh, offset=0, key=strip_name)
+            pos = rh.tell()
+            bar.update(pos)
     else:
         # TODO: unimplemented
         pass
+    
+    bar.finish()
+    sys.stdout.write("\n")
 
 
 if __name__ == '__main__':

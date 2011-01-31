@@ -12,7 +12,6 @@ import sys
 
 from optparse import OptionParser
 
-from jcvi.utils.cbook import human_size 
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
@@ -85,6 +84,8 @@ def size(args):
 
     Get the size for all the paths that are pointed by the links
     """
+    from jcvi.utils.cbook import human_size 
+
     p = OptionParser(size.__doc__)
     fp = sys.stdin
 

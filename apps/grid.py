@@ -258,7 +258,11 @@ def run(args):
 
     for row in fp:
         filename = row.strip()
-        newcmd = cmd.replace("*", filename)
+        # simple command, no need to quote and no space in command
+        if " " not in cmd: 
+            newcmd = " ".join((cmd, filename))
+        else:
+            newcmd = cmd.replace("*", filename)
         p = GridProcess(newcmd)
         p.start(path=None) # current folder
 

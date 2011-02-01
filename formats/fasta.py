@@ -247,8 +247,10 @@ def uniq(args):
     p = OptionParser(uniq.__doc__)
     p.add_option("-t", "--trimname", dest="trimname",
             action="store_true", default=False,
-            help="turn on the defline trim to first space"
-            )
+            help="turn on the defline trim to first space [default: %default]")
+    p.add_option("-n", "--remove_ambiguous", dest="remove_ambiguous",
+            action="store_true", default=False,
+            help="remove ambiguous nucleotides to N [default: %default]")
 
     opts, args = p.parse_args(args)
     try:
@@ -259,7 +261,8 @@ def uniq(args):
 
     data = {}
     for rec in _uniq_rec(fastafile):
-        if opts.trimname: rec.description = ""
+        if opts.trimname: 
+            rec.description = ""
         SeqIO.write([rec], sys.stdout, "fasta")
 
 
@@ -305,15 +308,21 @@ def trim(args):
         sys.exit(p.print_help())
 
     fastafile, newfastafile = args[0:2]
-    print >>sys.stderr, "Trimm good sequence from fasta file `%s` to `%s`" % \
+    print >>sys.stderr, "Trim bad sequence from fasta file `%s` to `%s`" % \
             (fastafile, newfastafile)
 
     fw = open(newfastafile, "w")
 
     dropped = trimmed = 0
+    
+    import string
+    quality_values = dict((x, -3) for x in string.ascii_uppercase)
+    quality_values['X'] = -10 # harsh penalty for trimmed vectors
+    for x in "ACGT": quality_values[x] = 1
+
     for rec in SeqIO.parse(fastafile, "fasta"):
         seq = str(rec.seq)
-        qv = [(-100 if x=='X' else 1) for x in seq] 
+        qv = [quality_values[x.upper()] for x in seq] 
         score, trim_start, trim_end = max_sum(qv)
 
         if score < opts.min_length:

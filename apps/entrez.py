@@ -2,6 +2,7 @@
 Wrapper for calling Bio.Entrez tools to get the sequence from a list of IDs
 """
 
+import os.path as op
 import sys
 import time
 import logging
@@ -76,7 +77,11 @@ def main():
         sys.exit(p.print_help())
 
     filename = args[0]
-    list_of_terms = [row.strip() for row in open(filename)]
+    if op.exists(filename):
+        list_of_terms = [row.strip() for row in open(filename)]
+    else:
+        # the filename is the search term
+        list_of_terms = [filename.strip()] 
     
     seen = set()
     for id, rec in batch_entrez(list_of_terms, rettype=opts.format):

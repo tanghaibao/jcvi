@@ -27,15 +27,20 @@ class FastqRecord (object):
         self.qual = fh.readline().rstrip()
         if offset != 0:
             self.qual = "".join(chr(ord(x) + offset) for x in self.qual)
-        assert len(self.seq) == len(self.qual), \
+        self.length = len(self.seq)
+        assert self.length == len(self.qual), \
                 "length mismatch between seq(%s) and qual(%s)" % (self.seq, self.qual)
         self.id = key(self.name) if key else self.name
 
     def __str__(self):
         return "\n".join((self.name, self.seq, "+", self.qual))
+
+    def __len__(self):
+        return self.length
     
 
 def iter_fastq(fh, offset=0, key=None):
+    logging.debug("reading file `%s`" % fh.name)
     while True:
         rec = FastqRecord(fh, offset=offset, key=key)
         if not rec.name: break
@@ -46,11 +51,34 @@ def iter_fastq(fh, offset=0, key=None):
 def main():
 
     actions = (
+        ('size', 'total base pairs in the fastq files'),
         ('pair', 'pair up two fastq files and combine pairs'),
         ('convert', 'convert between illumina and sanger offset'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def size(args):
+    """
+    %prog size fastqfile
+
+    Find the total base pairs in a list of fastq files
+    """
+    p = OptionParser(size.__doc__)
+    opts, args = p.parse_args(args)
+
+    total_size = 0
+    total_numrecords = 0
+    for f in args:
+        fh = open(f)
+        for rec in iter_fastq(fh):
+            if rec: 
+                total_numrecords += 1
+                total_size += len(rec)
+
+    print >>sys.stderr, "A total %d bases in %s sequences" % (total_size,
+            total_numrecords)
 
 
 def is_low_complexity(seq, cutoff=20):

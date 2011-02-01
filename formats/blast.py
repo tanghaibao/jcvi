@@ -105,10 +105,40 @@ def get_stats(blastfile):
     return qrycovered, refcovered, id_pct 
 
 
+def filter(args):
+    """
+    %prog filter test.blast > new.blast
+
+    produce a new blast file and filter based on score
+    """
+    p = OptionParser(filter.__doc__)
+    p.add_option("--score", dest="score", default=0., type="float",
+            help="score cutoff [default: %default]")
+    p.add_option("--pctid", dest="pctid", default=0., type="float",
+            help="pctid cutoff [default: %default]")
+    p.add_option("--hitlen", dest="hitlen", default=0., type="float",
+            help="pctid cutoff [default: %default]")
+
+    opts, args = p.parse_args(args)
+    if len(args) != 1:
+        sys.exit(p.print_help())
+
+    fp = open(args[0])
+    for row in fp:
+        c = BlastLine(row)
+
+        if c.score < opts.score: continue
+        if c.pctid < opts.pctid: continue
+        if c.hitlen < opts.hitlen: continue
+
+        print row.rstrip()
+
+
 def main():
     
     actions = (
         ('summary', 'provide summary on id% and cov%'),
+        ('filter', 'filter BLAST file (based on e.g. score)'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())

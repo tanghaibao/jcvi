@@ -82,6 +82,6 @@ if __name__ == '__main__':
     import numpy as np
     A = np.random.random_integers(0, 100, 10)
     print list(A)
-    print longest_increasing_subsequence(A)
-    print longest_decreasing_subsequence(A)
+    print "longest increasing:", longest_increasing_subsequence(A)
+    print "longest decreasing:", longest_decreasing_subsequence(A)
 

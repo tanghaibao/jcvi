@@ -143,6 +143,7 @@ def main():
                     'in fasta format'),
         ('uniq', 'remove records that are the same'),
         ('random', 'random take some records'),
+        ('trim', 'given a cross_match screened fasta, trim the sequence'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -284,6 +285,51 @@ def random(args):
         rec = f[key]
         SeqIO.write([rec], fw, "fasta")
 
+
+def trim(args):
+    """
+    %prog trim fasta.screen newfasta
+
+    take the screen output from `cross_match` (against a vector db, for
+    example), then trim the sequences to remove X's
+    """
+
+    from jcvi.algorithms.maxsum import max_sum
+
+    p = OptionParser(trim.__doc__)
+    p.add_option("-c", dest="min_length", type="int", default=15,
+            help="minimum sequence length after trimming")
+    opts, args = p.parse_args(args)
+    
+    if len(args) != 2:
+        sys.exit(p.print_help())
+
+    fastafile, newfastafile = args[0:2]
+    print >>sys.stderr, "Trimm good sequence from fasta file `%s` to `%s`" % \
+            (fastafile, newfastafile)
+
+    fw = open(newfastafile, "w")
+
+    dropped = trimmed = 0
+    for rec in SeqIO.parse(fastafile, "fasta"):
+        seq = str(rec.seq)
+        qv = [(-100 if x=='X' else 1) for x in seq] 
+        score, trim_start, trim_end = max_sum(qv)
+
+        if score < opts.min_length:
+            dropped += 1
+            continue
+
+        if score < len(seq):
+            trimmed += 1
+            rec.seq = rec.seq[trim_start:trim_end+1]
+        
+        SeqIO.write([rec], fw, "fasta")
+
+    print >>sys.stderr, "A total of %d sequences modified." % trimmed
+    print >>sys.stderr, "A total of %d sequences dropped (length < %d)." % \
+        (dropped, opts.min_length)
+            
 
 if __name__ == '__main__':
     main()

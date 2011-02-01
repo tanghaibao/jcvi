@@ -157,7 +157,8 @@ def extract(args):
     """
     p = OptionParser(extract.__doc__)
     p.add_option('--include', dest="include", default=False, action="store_true",
-            help="search full description line for match [default: %default]")
+            help="search full description line for match, use 'all' for all " +\
+            "records [default: %default]")
     p.add_option('--exclude', dest="exclude", default=False, action="store_true",
             help="inverse search, exclude description that matches [default: %default]")
 
@@ -200,7 +201,7 @@ def extract(args):
 
     if include or exclude:
         for k in f.keys():
-            if include and key not in k: continue
+            if include and key!="all" and key not in k: continue
             if exclude and key in k: continue
             
             rec = f[k]

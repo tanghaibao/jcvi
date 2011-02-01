@@ -53,6 +53,21 @@ def main():
     p.dispatch(globals())
 
 
+def is_low_complexity(seq, cutoff=20):
+    # Here we remove seq with one dominant nucleotide
+    a, c, g, t = 0, 0, 0, 0
+    for s in seq:
+        if s=='A': a += 1
+        elif s=='C': c += 1
+        elif s=='G': g += 1
+        elif s=='T': t += 1
+
+    for x in (a, c, g, t):
+        if x * 100 / len(seq) > 95: return True
+
+    return False
+
+
 def convert(args):
     """
     %prog convert in.fastq out.fastq
@@ -61,10 +76,12 @@ def convert(args):
     script creates a new file with the correct encoding
     """
     p = OptionParser(convert.__doc__)
-    p.add_option("-Q", dest="infastq", default="illumina", 
+    p.add_option("-Q", dest="infastq", default="sanger", 
             help="input fastq [default: %default]")
     p.add_option("-q", dest="outfastq", default="sanger",
             help="output fastq format [default: %default]")
+    p.add_option("-L", dest="remove_lowcomplexity", default=False,
+            action="store_true", help="remove poly-A/C/G/T")
 
     opts, args = p.parse_args(args)
     
@@ -84,7 +101,14 @@ def convert(args):
     fw = open(outfastq, "w")
     ah = open(infastq)
 
+    low_complexity = 0
     for a in iter_fastq(ah, offset=offset):
+        if a is None: continue
+        if opts.remove_lowcomplexity:
+            if is_low_complexity(a.seq): 
+                low_complexity += 1
+                continue
+
         print >>fw, a
 
         # update progress
@@ -92,6 +116,8 @@ def convert(args):
         bar.update(pos)
 
     bar.finish()
+    print >>sys.stderr, \
+            "A total of %d low complexity region removed." % low_complexity
     sys.stdout.write("\n")
 
 

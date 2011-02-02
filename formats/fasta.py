@@ -13,6 +13,7 @@ import logging
 
 from random import sample
 from optparse import OptionParser
+from itertools import groupby
 
 from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
@@ -144,9 +145,46 @@ def main():
         ('uniq', 'remove records that are the same'),
         ('random', 'random take some records'),
         ('trim', 'given a cross_match screened fasta, trim the sequence'),
+        ('pair', 'sort paired reads to .pairs.fasta and remaining to .fragments.fasta'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def pair(args):
+    """
+    %prog pair fastafile
+
+    generate .pairs.fasta and .fragments.fasta by matching records with /1/2
+    into the pairs and the rest go to fragments
+    """
+    p = OptionParser(pair.__doc__)
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(p.print_help())
+
+    fastafile = args[0]
+    prefix = fastafile.rsplit(".", 1)[0]
+    pairsfile = prefix + ".pairs.fasta"
+    fragsfile = prefix + ".frags.fasta"
+    pairsfw = open(pairsfile, "w")
+    fragsfw = open(fragsfile, "w")
+
+    f = Fasta(args[0])
+    all_keys = list(f.iterkeys())
+    all_keys.sort()
+    for key, variants in groupby(all_keys, key=lambda x: x.rsplit('/', 1)[0]):
+        variants = list(variants)
+        fw = pairsfw if len(variants)==2 else fragsfw
+        for i, var in enumerate(variants):
+            rec = f[var]
+            rec.id = "%s/%d" % (key, i+1)
+            rec.description = ""
+            SeqIO.write([rec], fw, "fasta")
+
+    logging.debug("sequences written to `%s` and `%s`" % (pairsfile, fragsfile))
 
 
 def extract(args):
@@ -248,9 +286,6 @@ def uniq(args):
     p.add_option("-t", "--trimname", dest="trimname",
             action="store_true", default=False,
             help="turn on the defline trim to first space [default: %default]")
-    p.add_option("-n", "--remove_ambiguous", dest="remove_ambiguous",
-            action="store_true", default=False,
-            help="remove ambiguous nucleotides to N [default: %default]")
 
     opts, args = p.parse_args(args)
     try:

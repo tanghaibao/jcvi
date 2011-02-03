@@ -12,7 +12,7 @@ def get_profile(sqshrc="~/.sqshrc"):
     get database, username, password from .sqshrc file e.g.  
     \set username="user"
     """
-    _ = lambda x: x.split("=")[-1].replace('"', '').replace("'", "").strip()
+    _ = lambda x: x.split("=")[-1].translate(None, "\"'").strip()
     sqshrc = op.expanduser(sqshrc)
     for row in open(sqshrc):
         row = row.strip()

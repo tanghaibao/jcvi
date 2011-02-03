@@ -81,7 +81,7 @@ class FileIndex(object):
         self.db.close()
 
     def clear(self):
-        logging.debug("drop idex file `%s`" % self.idxfile)
+        logging.debug("drop index file `%s`" % self.idxfile)
         os.remove(self.idxfile)
 
     def keys(self):

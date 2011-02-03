@@ -1,14 +1,9 @@
 """
 Wrapper for biopython Fasta, add option to parse sequence headers
-
-when run as commandline,
-$ python -m jcvi.formats.fasta test.fasta id
-
-will retrieve the sequence of one record that contains the id (not necessarily
-the whole description field)
 """
 
 import sys
+import os.path as op
 import logging
 
 from random import sample
@@ -324,12 +319,50 @@ def random(args):
         SeqIO.write([rec], fw, "fasta")
 
 
+XQUAL = -100 # default quality for X
+NQUAL = 5 # default quality value for N 
+QUAL = 10 # default quality value
+OKQUAL = 15
+
+def modify_qual(rec):
+    qv = rec.letter_annotations['phred_quality']
+    for i, (s, q) in enumerate(zip(rec.seq, qv)):
+        if s=='X' or s=='x': qv[i] = XQUAL
+        if s=='N' or s=='x': qv[i] = NQUAL
+    return rec
+
+
+def iter_fasta_qual(fastafile, qualfile, defaultqual=OKQUAL):
+    """
+    used by trim, emits one SeqRecord with quality values in it
+    """
+    fastahandle = SeqIO.parse(fastafile, "fasta")
+
+    if op.exists(qualfile):
+        logging.warning("qual file `%s` found" % qualfile)
+        qualityhandle = SeqIO.parse(qualfile, "qual")
+        for rec, rec_qual in zip(fastahandle, qualityhandle):
+            assert len(rec) == len(rec_qual)
+            rec.letter_annotations['phred_quality'] = \
+                rec_qual.letter_annotations['phred_quality']
+            yield modify_qual(rec)
+
+    else:
+        logging.warning("qual file `%s` not found, assume qual (%d)" % \
+                (qualfile, defaultqual))
+        for rec in fastahandle:
+            rec.letter_annotations['phred_quality'] = [defaultqual] * len(rec) 
+            yield modify_qual(rec)
+
+
 def trim(args):
     """
     %prog trim fasta.screen newfasta
 
     take the screen output from `cross_match` (against a vector db, for
-    example), then trim the sequences to remove X's
+    example), then trim the sequences to remove X's. Will also perform quality
+    trim if fasta.screen.qual is found. The trimming algorithm is based on
+    finding the subarray that maximize the sum
     """
 
     from jcvi.algorithms.maxsum import max_sum
@@ -337,38 +370,44 @@ def trim(args):
     p = OptionParser(trim.__doc__)
     p.add_option("-c", dest="min_length", type="int", default=15,
             help="minimum sequence length after trimming")
+    p.add_option("-s", dest="score", default=QUAL,
+            help="quality trimming cutoff [default: %default]")
     opts, args = p.parse_args(args)
     
     if len(args) != 2:
         sys.exit(p.print_help())
 
     fastafile, newfastafile = args[0:2]
+    qual_suffix = ".qual"
+    qualfile = fastafile + qual_suffix
+    newqualfile = newfastafile + qual_suffix 
+
     print >>sys.stderr, "Trim bad sequence from fasta file `%s` to `%s`" % \
             (fastafile, newfastafile)
 
     fw = open(newfastafile, "w")
+    fw_qual = open(newqualfile, "w")
 
     dropped = trimmed = 0
     
     import string
-    quality_values = dict((x, -3) for x in string.ascii_uppercase)
-    quality_values['X'] = -10 # harsh penalty for trimmed vectors
-    for x in "ACGT": quality_values[x] = 1
 
-    for rec in SeqIO.parse(fastafile, "fasta"):
-        seq = str(rec.seq)
-        qv = [quality_values[x.upper()] for x in seq] 
-        score, trim_start, trim_end = max_sum(qv)
+    for rec in iter_fasta_qual(fastafile, qualfile):
+        qv = [x - opts.score for x in \
+                rec.letter_annotations["phred_quality"]]
+        msum, trim_start, trim_end = max_sum(qv)
+        score = trim_end - trim_start + 1
 
         if score < opts.min_length:
             dropped += 1
             continue
 
-        if score < len(seq):
+        if score < len(rec):
             trimmed += 1
-            rec.seq = rec.seq[trim_start:trim_end+1]
+            rec = rec[trim_start:trim_end+1]
         
         SeqIO.write([rec], fw, "fasta")
+        SeqIO.write([rec], fw_qual, "qual")
 
     print >>sys.stderr, "A total of %d sequences modified." % trimmed
     print >>sys.stderr, "A total of %d sequences dropped (length < %d)." % \

@@ -81,7 +81,7 @@ def size(args):
             total_numrecords)
 
 
-def is_low_complexity(seq, cutoff=20):
+def is_low_complexity(seq, cutoff_pct=95):
     # Here we remove seq with one dominant nucleotide
     a, c, g, t = 0, 0, 0, 0
     for s in seq:
@@ -91,7 +91,7 @@ def is_low_complexity(seq, cutoff=20):
         elif s=='T': t += 1
 
     for x in (a, c, g, t):
-        if x * 100 / len(seq) > 95: return True
+        if x * 100 / len(seq) > cutoff_pct: return True
 
     return False
 

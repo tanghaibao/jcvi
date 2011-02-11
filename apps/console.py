@@ -8,6 +8,15 @@ import threading
 import unicodedata
 
 """
+Print a tabular output, with horizontal separators
+"""
+def tabular(listOfStuff, rulersize=80):
+    table_edge = "=" * rulersize + "\n"
+    table_sep = "-" * rulersize + "\n"
+    contents = table_sep.join(str(x) + "\n" for x in listOfStuff)
+    return "".join((table_edge, contents, table_edge))
+
+"""
 An ASCII text progress bar. See __main__ for command line use (using \r to 
 move the cursor back to the start of the current line is the key, on
 terminals that do not support this functionality the progress bar will
@@ -132,6 +141,13 @@ class ColoredText:
         return ctext or self.text
 
     __repr__ = __str__
+
+
+def print_red(s):
+    print(ColoredText(s, "red"))
+
+def print_green(s):
+    print(ColoredText(s, "green"))
 
 
 if __name__ == '__main__':

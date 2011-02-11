@@ -33,13 +33,6 @@ class Fasta (BaseFile, dict):
             self.index = SeqIO.to_dict(SeqIO.parse(open(filename), "fasta"),
                     key_function=_key_function)
 
-    @property
-    def annotations(self):
-        for rec in SeqIO.parse(open(self.filename), "fasta"):
-
-            name, description = rec.name, rec.description
-            yield name, description
-    
     def _key_function(self, key):
         return self.key_function(key) if self.key_function else key
 
@@ -73,6 +66,12 @@ class Fasta (BaseFile, dict):
         for k in self.iterkeys():
             yield k, len(self[k])
 
+    def iter_annotations(self):
+        for rec in SeqIO.parse(open(self.filename), "fasta"):
+
+            name, description = rec.name, rec.description
+            yield name, description
+    
     @classmethod
     def subseq(cls, fasta, start=None, stop=None, strand=None):
         """
@@ -139,6 +138,7 @@ def main():
                     'in fasta format'),
         ('uniq', 'remove records that are the same'),
         ('random', 'random take some records'),
+        ('diff', 'check if two FASTA records contain same information'),
         ('trim', 'given a cross_match screened fasta, trim the sequence'),
         ('pair', 'sort paired reads to .pairs.fasta and remaining to .fragments.fasta'),
         ('fastq', 'combine fasta and qual to create fastq file'),
@@ -147,6 +147,69 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def diff(args):
+    """
+    %prog diff afasta bfasta
+
+    print out whether the records in two fasta files are the same
+    """
+    p = OptionParser(diff.__doc__)
+    p.add_option("-i", "--ignore_cases", dest="ignore_cases", default=False,
+            action="store_true",
+            help="ignore the cases when comparing sequences")
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(p.print_help())
+
+    afasta, bfasta = args
+    af = Fasta(afasta, index=False) 
+    bf = Fasta(bfasta, index=False) 
+
+    if len(af) > 1:
+        logging.debug("%d records found in %s, using the first one" % \
+                (len(arecs), afasta))
+    if len(bf) > 1:
+        logging.debug("%d records found in %s, using the first one" % \
+                (len(arecs), afasta))
+
+    arec = list(af.iteritems())[0][1]
+    brec = list(bf.iteritems())[0][1]
+
+    from jcvi.apps.console import tabular, print_red, print_green
+
+    print tabular((arec, brec))
+
+    aseq, bseq = arec.seq, brec.seq
+    asize, bsize = len(aseq), len(bseq)
+
+    if asize==bsize:
+        print_green("Two sequence size match (%d)" % asize)
+    else:
+        print_red("Two sequence size do not match (%d, %d)" % (asize, bsize))
+        return
+    
+    if str(aseq)==str(bseq):
+        print_green("Two sequences match")
+    else:
+        print_red("Two sequences do not match")
+        # print out the first place the two sequences diff
+        for i, (a, b) in enumerate(zip(aseq, bseq)):
+            if a != b: break
+
+        snippet_size = 20 # show the context of the difference
+
+        print_red("Sequence start to differ at position %d:" % (i+1))
+
+        begin = max(i-snippet_size, 0)
+        aend = min(i+snippet_size, asize)
+        bend = min(i+snippet_size, bsize)
+        
+        print_red(aseq[begin:i] + "|" + aseq[i:aend])
+        print_red(bseq[begin:i] + "|" + bseq[i:bend])
 
 
 def some(args):

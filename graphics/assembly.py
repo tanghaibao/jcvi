@@ -77,15 +77,16 @@ def A50 (args):
     p = OptionParser(A50.__doc__)
     p.add_option("--overwrite", default=False, action="store_true",
             help="overwrite `%s` file if exists" % rplot)
-    p.add_option("--cutoff", default=500, type="int",
-            dest="cutoff",
+    p.add_option("--cutoff", default=500, type="int", dest="cutoff",
             help="use only contigs larger than certain size [default: %default]")
+    p.add_option("--stepsize", default=10, type="int", dest="stepsize",
+            help="stepsize for the distribution [default: %default]")
     opts, args = p.parse_args(args)
 
     if not args:
         sys.exit(p.print_help())
 
-    stepsize = 10 # use stepsize to speed up drawing
+    stepsize = opts.stepsize # use stepsize to speed up drawing
     if not op.exists(rplot) or opts.overwrite:
         fw = open(rplot, "w")
         header = "\t".join(("index", "cumsize", "fasta"))

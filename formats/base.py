@@ -70,7 +70,7 @@ class FileSplitter (object):
         return handle 
 
     @property
-    def _num_records(self):
+    def num_records(self):
         handle = self._open(self.filename)
         return sum(1 for x in handle)
 
@@ -98,7 +98,7 @@ class FileSplitter (object):
         entries from the supplied iterator.  Each list will have
         batch_size entries, although the final list may be shorter.
         """
-        batch_size = math.ceil(self._num_records / float(N))
+        batch_size = math.ceil(self.num_records / float(N))
         handle = self._open(self.filename)
         while True:
             batch = list(itertools.islice(handle, batch_size))
@@ -202,22 +202,31 @@ def main():
 
 def split(args):
     """
-    %prog split file N 
+    %prog split file outdir
     
-    split file into N chunks
+    split file into records
     """
     p = OptionParser(split.__doc__)
+    p.add_option("-n", dest="N", type="int", default=1,
+            help="split into N chunks")
+    p.add_option("--all", default=False, action="store_true",
+            help="split all records")
 
     opts, args = p.parse_args(args)
 
-    try:
-        filename, N = args
-        N = int(N)
-    except Exception, e:
-        logging.error(str(e))
+    if len(args) != 2:
         sys.exit(p.print_help())
 
-    fs = FileSplitter(filename)
+    filename, outdir = args
+    fs = FileSplitter(filename, outputdir=outdir)
+
+    if opts.all:
+        logging.debug("option -all override -n")
+        N = fs.num_records 
+    else:
+        N = opts.N
+
+    logging.debug("split file into %d chunks" % N)
     fs.split(N)
 
 

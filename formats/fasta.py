@@ -92,7 +92,7 @@ class Fasta (BaseFile, dict):
 
         seq = fasta.seq[start:stop] 
         
-        if 'strand' in (-1, '-1', '-'):
+        if strand in (-1, '-1', '-'):
             seq = seq.reverse_complement() 
 
         return seq
@@ -165,7 +165,27 @@ def get_first_rec(fastafile):
     return f[0]
 
 
-def print_first_difference(arec, brec, ignore_case=False, ignore_N=False):
+
+def print_first_difference(arec, brec, ignore_case=False, ignore_N=False,
+        rc=False):
+    """
+    Returns the first different nucleotide in two sequence comparisons
+    runs both Plus and Minus strand
+    """
+    plus_match = _print_first_difference(arec, brec, ignore_case=ignore_case,
+            ignore_N=ignore_N)
+    if rc:
+        logging.debug("trying reverse complement of %s" % brec.id)
+        brec.seq = brec.seq.reverse_complement()
+        minus_match = _print_first_difference(arec, brec,
+                ignore_case=ignore_case, ignore_N=ignore_N)
+        return any((plus_match, minus_match))
+    
+    else:
+        return plus_match
+
+
+def _print_first_difference(arec, brec, ignore_case=False, ignore_N=False):
     """
     Returns the first different nucleotide in two sequence comparisons
     """
@@ -211,6 +231,8 @@ def diff(args):
             help="ignore case when comparing sequences")
     p.add_option("--ignore_N", dest="ignore_N", default=False, action="store_true",
             help="ignore N's when comparing sequences")
+    p.add_option("--rc", dest="rc", default=False, action="store_true",
+            help="also consider reverse complement")
 
     opts, args = p.parse_args(args)
 
@@ -232,7 +254,7 @@ def diff(args):
     
     # print out the first place the two sequences diff
     print_first_difference(arec, brec, ignore_case=opts.ignore_case,
-            ignore_N=opts.ignore_N)
+            ignore_N=opts.ignore_N, rc=opts.rc)
 
 
 def some(args):

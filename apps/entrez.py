@@ -98,7 +98,8 @@ def bisect(args):
         id, term, handle = query[0]
         brec = SeqIO.parse(handle, "fasta").next()
 
-        match = print_first_difference(arec, brec, ignore_case=True, ignore_N=True)
+        match = print_first_difference(arec, brec, ignore_case=True,
+                ignore_N=True, rc=True)
         if match: 
             valid = term
             break

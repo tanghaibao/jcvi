@@ -4,8 +4,8 @@ parses tabular BLAST -m8 (-format 6 in BLAST+) format
 
 import sys
 import logging
-import itertools
 
+from itertools import groupby
 from optparse import OptionParser
 
 from jcvi.formats.base import LineFile
@@ -43,6 +43,22 @@ class BlastLine(object):
                 [getattr(self, attr) for attr in BlastLine.__slots__[:-4]])
 
 
+class SortedBlast (LineFile):
+    """
+    Normally the BLAST file needs to be read through the `Blast` class, this is
+    however not very efficient for big files; when the BLAST file is generated
+    by BLAST or BLAT, the file is already sorted, with same query grouped
+    """
+    def __init__(self, filename):
+        super(SortedBlast, self).__init__(filename)
+        self.fp = open(filename)
+
+    def iter_best_hit(self):
+        for query, blines in groupby(self.fp, key=lambda x: BlastLine(x).query):
+            best_hit = max(blines, key=lambda x: BlastLine(x).score)
+            yield best_hit
+    
+
 class Blast (LineFile):
     """
     Collection of BlastLine
@@ -62,7 +78,7 @@ class Blast (LineFile):
         returns a dict with query => blastline
         """
         return dict((query, list(blines)) for (query, blines) in \
-                itertools.groupby(self, lambda x: x.query))
+                groupby(self, lambda x: x.query))
 
     @property
     def best_hits(self):
@@ -70,7 +86,7 @@ class Blast (LineFile):
         returns a dict with query => best blasthit
         """
         return dict((query, blines.next()) for (query, blines) in \
-                itertools.groupby(self, lambda x: x.query))
+                groupby(self, lambda x: x.query))
 
 
 def get_stats(blastfile):
@@ -139,9 +155,29 @@ def main():
     actions = (
         ('summary', 'provide summary on id% and cov%'),
         ('filter', 'filter BLAST file (based on e.g. score)'),
+        ('best', 'get best BLAST hit'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def best(args):
+    """
+    %prog best blastfile
+
+    print the best hit for each query in the blastfile
+    """
+    p = OptionParser(best.__doc__)
+
+    opts, args = p.parse_args(args)
+
+    if len(args)!=1:
+        sys.exit(p.print_help())
+
+    blastfile = args[0]
+    b = SortedBlast(blastfile)
+    for bline in b.iter_best_hit():
+        sys.stdout.write(bline)
 
 
 def summary(args):

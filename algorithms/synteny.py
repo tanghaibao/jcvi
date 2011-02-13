@@ -9,7 +9,7 @@ import numpy as np
 from optparse import OptionParser
 
 from jcvi.formats.bed import Bed
-from jcvi.formats.blast import Blast
+from jcvi.formats.blast import BlastLine
 from jcvi.utils.grouper import Grouper
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
@@ -36,10 +36,11 @@ def read_blast(blast_file, qorder, sorder, is_self=False):
     """
     read the blast and convert name into coordinates
     """
-    blast = Blast(blast_file)
+    fp = open(blast_file)
     filtered_blast = []
     seen = set()
-    for b in blast:
+    for row in fp:
+        b = BlastLine(row)
         query, subject = b.query, b.subject
         if query not in qorder or subject not in sorder: continue
 

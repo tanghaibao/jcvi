@@ -43,50 +43,43 @@ class BlastLine(object):
                 [getattr(self, attr) for attr in BlastLine.__slots__[:-4]])
 
 
-class SortedBlast (LineFile):
+class Blast (LineFile):
     """
-    Normally the BLAST file needs to be read through the `Blast` class, this is
-    however not very efficient for big files; when the BLAST file is generated
+    We can have a Blast class that loads entire file into memory, this is
+    not very efficient for big files; when the BLAST file is generated
     by BLAST or BLAT, the file is already sorted, with same query grouped
     """
     def __init__(self, filename):
-        super(SortedBlast, self).__init__(filename)
+        super(Blast, self).__init__(filename)
         self.fp = open(filename)
 
-    def iter_best_hit(self):
+    def iter_hits(self):
+        self.fp.seek(0)
         for query, blines in groupby(self.fp, key=lambda x: BlastLine(x).query):
-            best_hit = max(blines, key=lambda x: BlastLine(x).score)
-            yield best_hit
+            blines = [BlastLine(x) for x in blines]
+            blines.sort(key=lambda x: -x.score) # descending score
+            yield query, blines 
+
+    def iter_best_hit(self):
+        self.fp.seek(0)
+        for query, blines in groupby(self.fp, key=lambda x: BlastLine(x).query):
+            blines = [BlastLine(x) for x in blines]
+            best_hit = max(blines, key=lambda x: x.score)
+            yield query, best_hit 
     
-
-class Blast (LineFile):
-    """
-    Collection of BlastLine
-    """
-    def __init__(self, filename):
-        super(Blast, self).__init__(filename)
-
-        fp = open(filename)
-        for row in fp:
-            self.append(BlastLine(row))
-
-        self.sort(key=lambda x: (x.query, -x.score))
-
     @property
     def hits(self):
         """
         returns a dict with query => blastline
         """
-        return dict((query, list(blines)) for (query, blines) in \
-                groupby(self, lambda x: x.query))
+        return dict(self.iter_hits())
 
     @property
     def best_hits(self):
         """
         returns a dict with query => best blasthit
         """
-        return dict((query, blines.next()) for (query, blines) in \
-                groupby(self, lambda x: x.query))
+        return dict(self.iter_best_hit())
 
 
 def get_stats(blastfile):
@@ -175,9 +168,9 @@ def best(args):
         sys.exit(p.print_help())
 
     blastfile = args[0]
-    b = SortedBlast(blastfile)
-    for bline in b.iter_best_hit():
-        sys.stdout.write(bline)
+    b = Blast(blastfile)
+    for q, bline in b.iter_best_hit():
+        print bline
 
 
 def summary(args):

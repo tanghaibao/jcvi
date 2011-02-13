@@ -10,6 +10,7 @@ from optparse import OptionParser
 
 from jcvi.formats.base import LineFile
 from jcvi.formats.coords import print_stats
+from jcvi.utils.range import range_distance
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
@@ -148,12 +149,89 @@ def main():
     actions = (
         ('summary', 'provide summary on id% and cov%'),
         ('filter', 'filter BLAST file (based on e.g. score)'),
-        ('best', 'get best BLAST hit'),
+        ('best', 'get best BLAST hit per query'),
+        ('pairs', 'print paired-end reads of BLAST tabular output'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
 
+def report_pairs(data, cutoff=300000, dialect="blast", print_pairs=None):
+    """
+    This subroutine is used by the pairs function in blast.py and cas.py.
+    Reports number of fragments and pairs as well as linked pairs
+    """
+    dialect = dialect[0]
+    num_fragments, num_pairs = 0, 0
+    linked_dist = []
+
+    if dialect=="b":
+        key = lambda x: x.query.split("/")[0] 
+    else:
+        key = lambda x: x.readname.split("/")[0] 
+
+    for pe, lines in groupby(data, key=key):   
+        lines = list(lines)
+        if len(lines)==2: 
+            num_pairs += 1
+            a, b = lines
+
+            if dialect=="b":
+                asubject, astart, astop = a.subject, a.sstart, a.sstop
+                bsubject, bstart, bstop = b.subject, b.sstart, b.sstop
+            else:
+                asubject, astart, astop = a.refnum, a.refstart, a.refstop
+                bsubject, bstart, bstop = b.refnum, b.refstart, b.refstop
+                if -1 in (astart, bstart): continue
+
+            if astart > astop: astart, astop = astop, astart
+            if bstart > bstop: bstart, bstop = bstop, bstart
+
+            dist = range_distance((asubject, astart, astop), (bsubject,
+                bstart, bstop))
+            if 0 <= dist <= cutoff:
+                linked_dist.append(dist)
+                if print_pairs:
+                    for b in lines: print b
+        else:
+            num_fragments += 1
+    
+    import numpy as np
+    print >>sys.stderr, "%d fragments, %d pairs" % (num_fragments, num_pairs)
+    num_links = len(linked_dist)
+    print >>sys.stderr, "%d pairs are linked (cutoff=%d)" % (len(linked_dist), cutoff)
+    print >>sys.stderr, "median distance between PE: %d" % np.median(linked_dist) 
+
+
+def pairs(args):
+    """
+    %prog pairs blastfile 
+    
+    report summary of the cas tabular results, how many paired ends mapped, avg
+    distance between paired ends, etc. Reads have to be in the form of
+    `READNAME{/1,/2}`
+    """
+    p = OptionParser(pairs.__doc__)
+    p.add_option("--cutoff", dest="cutoff", default=300000, type="int",
+            help="distance to call valid links between PE [default: %default]")
+    p.add_option("--pairs", dest="pairs", default=False, action="store_true",
+            help="write valid pairs to stdout [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args)!=1:
+        sys.exit(p.print_help())
+
+    cutoff = opts.cutoff
+    print_pairs = opts.pairs
+
+    blastfile = args[0]
+    fp = open(blastfile)
+    data = [BlastLine(row) for row in fp]
+    data.sort(key=lambda x: x.query)
+
+    report_pairs(data, cutoff, dialect="blast", print_pairs=print_pairs)
+
+    
 def best(args):
     """
     %prog best blastfile

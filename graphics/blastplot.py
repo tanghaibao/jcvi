@@ -2,10 +2,9 @@
 # -*- coding: UTF-8 -*-
 
 """
-%prog anchorfile --qbed query.bed --sbed subject.bed
+%prog blastfile --qsizes query.sizes --sbed subject.sizes
 
-visualize the anchorfile in a dotplot. anchorfile contains two columns
-indicating gene pairs, followed by an optional column (e.g. Ks value)
+visualize the blastfile in a dotplot.
 """
 
 import os.path as op
@@ -15,11 +14,31 @@ from random import sample
 from itertools import groupby
 from optparse import OptionParser
 
+import numpy as np
+
 from jcvi.graphics.base import plt, ticker, Rectangle, cm, _
+from jcvi.formats.base import LineFile
+from jcvi.formats.blast import BlastLine
 from jcvi.formats.bed import Bed
 from jcvi.algorithms.synteny import batch_scan
 from jcvi.apps.base import debug
 debug()
+
+
+class Sizes (LineFile):
+    """
+    Two-column file,
+    contigID<tab>size
+    """
+    def __init__(self, filename):
+        super(Sizes, self).__init__(filename)
+        self.fp = open(filename)
+
+    def iter_sizes(self):
+        self.fp.seek(0)
+        for row in self.fp:
+            ctg, size = atoms.split()[:2]
+            yield ctg, int(size)
 
 
 def get_breaks(bed):
@@ -31,34 +50,9 @@ def get_breaks(bed):
         yield seqid, ranks[0][1], ranks[-1][1]
 
 
-def draw_box(clusters, ax, color="b"):
+def blastplot(blastfile, qsizes, ssizes, qbed, sbed, image_name):
 
-    for cluster in clusters:
-        xrect, yrect = zip(*cluster)
-        xmin, xmax, ymin, ymax = min(xrect), max(xrect), \
-                                min(yrect), max(yrect)
-        ax.add_patch(Rectangle((xmin, ymin), xmax-xmin, ymax-ymin,\
-                                ec=color, fc='y', alpha=.5))
-
-
-def draw_cmap(ax, cmap_text, vmin, vmax, cmap=None, reverse=False):
-    X = [1, 0] if reverse else [0, 1]
-    Y = np.array([X, X])
-    xmin, xmax = .5, .9
-    ymin, ymax = .02, .04
-    ax.imshow(Y, extent=(xmin,xmax,ymin,ymax), cmap=cmap)
-    ax.text(xmin-.01, (ymin + ymax)*.5, _(cmap_text), ha="right", va="center",
-            size=10)
-    vmiddle = (vmin + vmax) * .5
-    xmiddle = (xmin + xmax) * .5
-    for x, v in zip((xmin, xmiddle, xmax), (vmin, vmiddle, vmax)):
-        ax.text(x, ymin-.005, _("%.1f" % v), ha="center", va="top", size=10)
-
-
-def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, 
-        is_self=False, synteny=False, cmap_text=None):
-
-    fp = open(anchorfile)
+    fp = open(blastfile)
 
     qorder = qbed.order
     sorder = sbed.order
@@ -99,17 +93,9 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax,
     # last for aesthetics
     data.sort(key=lambda x: -x[2])
 
-    default_cm = cm.copper
     x, y, c = zip(*data)
     ax.scatter(x, y, c=c, s=2, lw=0, cmap=default_cm, 
             vmin=vmin, vmax=vmax)
-
-    if synteny:
-        clusters = batch_scan(data, qbed, sbed)
-        draw_box(clusters, ax)
-
-    if cmap_text:
-        draw_cmap(root, cmap_text, vmin, vmax, cmap=default_cm, reverse=True)
 
     xsize, ysize = len(qbed), len(sbed)
     xlim = (0, xsize)
@@ -190,41 +176,28 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax,
 if __name__ == "__main__":
 
     p = OptionParser(__doc__)
+    p.add_option("--qsizes", dest="qsizes", help="path to two column qsizes file")
+    p.add_option("--ssizes", dest="ssizes", help="path to two column ssizes file")
     p.add_option("--qbed", dest="qbed", help="path to qbed")
     p.add_option("--sbed", dest="sbed", help="path to sbed")
-    p.add_option("--synteny", dest="synteny", 
-            default=False, action="store_true",
-            help="run a fast synteny scan and display synteny blocks")
-    p.add_option("--cmap_text", dest="cmap_text", default="Synonymous substitutions (Ks)",
-            help="draw a colormap box on the bottom-left corner")
     p.add_option("--format", dest="format", default="png",
             help="generate image of format (png, pdf, ps, eps, svg, etc.)"
             "[default: %default]")
-    p.add_option("--vmin", dest="vmin", type="float", default=0,
-            help="minimum value (used in the colormap of dots) [default: %default]")
-    p.add_option("--vmax", dest="vmax", type="float", default=1,
-            help="minimum value (used in the colormap of dots) [default: %default]")
 
     opts, args = p.parse_args()
 
+    qsizes, ssizes = opts.qsizes, opts.ssizes
     qbed, sbed = opts.qbed, opts.sbed
-    if not (len(args) == 1 and qbed and sbed):
+    if not (len(args) == 1 and qsizes and ssizes):
         sys.exit(p.print_help())
 
-    is_self = False
-    if qbed==sbed:
-        print >>sys.stderr, "Looks like this is self-self comparison"
-        is_self = True
+    qsizes = dict(Sizes(qsizes))
+    ssizes = dict(Sizes(ssizes))
+    if qbed: qbed = Bed(qbed)
+    if sbed: sbed = Bed(sbed)
 
-    qbed = Bed(qbed)
-    sbed = Bed(sbed)
-    synteny = opts.synteny
-    vmin, vmax = opts.vmin, opts.vmax
-    cmap_text = opts.cmap_text
+    blastfile = args[0]
 
-    anchorfile = args[0]
-
-    image_name = op.splitext(anchorfile)[0] + "." + opts.format
-    dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, 
-            is_self=is_self, synteny=synteny, cmap_text=cmap_text)
+    image_name = op.splitext(blastfile)[0] + "." + opts.format
+    blastplot(blastfile, qsizes, ssizes, qbed, sbed, image_name)
 

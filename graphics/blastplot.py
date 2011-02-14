@@ -11,16 +11,15 @@ import os.path as op
 import sys
 import logging
 from random import sample
-from itertools import groupby
 from optparse import OptionParser
 
 import numpy as np
 
-from jcvi.graphics.base import plt, ticker, Rectangle, cm, _
+from jcvi.graphics.base import plt, ticker, Rectangle, cm, _, \
+    human_size_formatter
 from jcvi.formats.base import LineFile
 from jcvi.formats.blast import BlastLine
 from jcvi.formats.bed import Bed
-from jcvi.algorithms.synteny import batch_scan
 from jcvi.apps.base import debug
 debug()
 
@@ -33,80 +32,95 @@ class Sizes (LineFile):
     def __init__(self, filename):
         super(Sizes, self).__init__(filename)
         self.fp = open(filename)
+        sizes = list(self.iter_sizes())
+        ctgs, sizes = zip(*sizes)
+        sizes = np.cumsum([0] + list(sizes))
+        self.mapping = dict(zip(ctgs, sizes))
+        self.ctgs = ctgs
+        self.sizes = sizes
+
+    def __len__(self):
+        return len(self.mapping)
+
+    @property
+    def totalsize(self):
+        return np.max(self.sizes)
 
     def iter_sizes(self):
         self.fp.seek(0)
         for row in self.fp:
-            ctg, size = atoms.split()[:2]
+            ctg, size = row.split()[:2]
             yield ctg, int(size)
 
+    def get_position(self, ctg, pos):
+        return self.mapping[ctg] + pos
 
-def get_breaks(bed):
-    # get chromosome break positions
-    simple_bed = bed.simple_bed
-    for seqid, ranks in groupby(simple_bed, key=lambda x:x[0]):
-        ranks = list(ranks)
-        # chromosome, extent of the chromosome
-        yield seqid, ranks[0][1], ranks[-1][1]
+    def get_breaks(self):
+        for i in xrange(1, len(self)):
+            yield self.ctgs[i], self.sizes[i-1], self.sizes[i]
 
 
 def blastplot(blastfile, qsizes, ssizes, qbed, sbed, image_name):
 
     fp = open(blastfile)
 
-    qorder = qbed.order
-    sorder = sbed.order
+    qorder = qbed.order if qbed else None
+    sorder = sbed.order if sbed else None
 
     data = []
-    logging.debug("normalize the values to [%.1f, %.1f]" % (vmin, vmax))
 
     for row in fp:
-        atoms = row.split()
-        if len(atoms) < 3: continue
-        query, subject, value = row.split()[:3]
-        try: value = float(value)
-        except: value = vmin 
+        b = BlastLine(row)
+        query, subject = b.query, b.subject
 
-        if value < vmin: value = vmin
-        if value > vmax: value = vmax
+        if qorder:
+            if query not in qorder: continue
+            qi, q = qorder[query]
+            query = q.seqid
+            qi = (q.start + q.end) / 2
+        else:
+            qi = (b.qstart + b.qstop) / 2 
 
-        if query not in qorder: 
-            #logging.warning("ignore %s" % query)
-            continue
-        if subject not in sorder: 
-            #logging.warning("ignore %s" % subject)
-            continue
+        if sorder:
+            if subject not in sorder: continue
+            si, s = sorder[subject]
+            subject = s.seqid
+            si = (s.start + s.end) / 2
+        else:
+            si = (b.sstart + b.sstop) / 2
 
-        qi, q = qorder[query]
-        si, s = sorder[subject]
-        data.append((qi, si, vmax-value))
+        qi = qsizes.get_position(query, qi)
+        si = ssizes.get_position(subject, si)
+        data.append((qi, si))
 
     fig = plt.figure(1,(8,8))
     root = fig.add_axes([0,0,1,1]) # the whole canvas
     ax = fig.add_axes([.1,.1,.8,.8]) # the dot plot
 
+    """
     sample_number = 5000 # only show random subset
     if len(data) > sample_number:
         data = sample(data, sample_number)
+    """
 
-    # the data are plotted in this order, the least value are plotted
-    # last for aesthetics
-    data.sort(key=lambda x: -x[2])
+    x, y = zip(*data)
+    ax.scatter(x, y, s=2, lw=0)
 
-    x, y, c = zip(*data)
-    ax.scatter(x, y, c=c, s=2, lw=0, cmap=default_cm, 
-            vmin=vmin, vmax=vmax)
-
-    xsize, ysize = len(qbed), len(sbed)
+    xsize, ysize = qsizes.totalsize, ssizes.totalsize
+    logging.debug("xsize=%d ysize=%d" % (xsize, ysize))
     xlim = (0, xsize)
     ylim = (ysize, 0) # invert the y-axis
 
     xchr_labels, ychr_labels = [], []
     ignore = True # tag to mark whether to plot chromosome name (skip small ones)
-    ignore_size = 100
+    ignore_size_x = xsize * .005 
+    ignore_size_y = ysize * .005
+
     # plot the chromosome breaks
-    for (seqid, beg, end) in get_breaks(qbed):
-        ignore = abs(end-beg) < ignore_size 
+    logging.debug("adding query breaks (%d)" % len(qsizes))
+    for (seqid, beg, end) in qsizes.get_breaks():
+        ignore = abs(end-beg) < ignore_size_x
+        if ignore: continue
         seqid = seqid.split("_")[-1]
         try: 
             seqid = int(seqid)
@@ -117,8 +131,10 @@ def blastplot(blastfile, qsizes, ssizes, qbed, sbed, image_name):
         xchr_labels.append((seqid, (beg + end)/2, ignore))
         ax.plot([beg, beg], ylim, "g-", lw=1)
 
-    for (seqid, beg, end) in get_breaks(sbed):
-        ignore = abs(end-beg) < ignore_size 
+    logging.debug("adding subject breaks (%d)" % len(ssizes))
+    for (seqid, beg, end) in ssizes.get_breaks():
+        ignore = abs(end-beg) < ignore_size_y
+        if ignore: continue
         seqid = seqid.split("_")[-1]
         try: 
             seqid = int(seqid)
@@ -143,24 +159,20 @@ def blastplot(blastfile, qsizes, ssizes, qbed, sbed, image_name):
             root.text(.91, pos, _(label), color="b",
                 ha="left", va="center")
 
-    # create a diagonal to separate mirror image for self comparison
-    if is_self:
-        ax.plot(xlim, ylim, 'm-', alpha=.5, lw=2)
-
     ax.set_xlim(xlim)
     ax.set_ylim(ylim)
 
     to_ax_label = lambda fname: _(op.basename(fname).split(".")[0])
 
     # add genome names
-    ax.set_xlabel(to_ax_label(qbed.filename), size=15)
-    ax.set_ylabel(to_ax_label(sbed.filename), size=15)
+    ax.set_xlabel(to_ax_label(qsizes.filename), size=15)
+    ax.set_ylabel(to_ax_label(ssizes.filename), size=15)
 
     # beautify the numeric axis
     for tick in ax.get_xticklines() + ax.get_yticklines():
         tick.set_visible(False) 
 
-    formatter = ticker.FuncFormatter(lambda x, pos: _("%dK" % (int(x)/1000)))
+    formatter = human_size_formatter
     ax.xaxis.set_major_formatter(formatter)
     ax.yaxis.set_major_formatter(formatter)
 
@@ -170,7 +182,7 @@ def blastplot(blastfile, qsizes, ssizes, qbed, sbed, image_name):
     root.set_ylim(0, 1)
     root.set_axis_off()
     logging.debug("print image to %s" % image_name)
-    plt.savefig(image_name, dpi=1000)
+    plt.savefig(image_name, dpi=150)
 
 
 if __name__ == "__main__":
@@ -191,8 +203,8 @@ if __name__ == "__main__":
     if not (len(args) == 1 and qsizes and ssizes):
         sys.exit(p.print_help())
 
-    qsizes = dict(Sizes(qsizes))
-    ssizes = dict(Sizes(ssizes))
+    qsizes = Sizes(qsizes)
+    ssizes = Sizes(ssizes)
     if qbed: qbed = Bed(qbed)
     if sbed: sbed = Bed(sbed)
 

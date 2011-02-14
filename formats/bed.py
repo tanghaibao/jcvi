@@ -49,7 +49,6 @@ class Bed(LineFile):
 
         for line in open(filename):
             if line[0] == "#": continue
-            if line.startswith('track'): continue
             self.append(BedLine(line))
 
         self.sort(key=self.key)

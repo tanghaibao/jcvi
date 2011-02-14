@@ -15,7 +15,8 @@ from random import sample
 from itertools import groupby
 from optparse import OptionParser
 
-from jcvi.graphics.base import plt, ticker, Rectangle, cm, _
+from jcvi.graphics.base import plt, ticker, Rectangle, cm, _, \
+    human_size_formatter
 from jcvi.formats.bed import Bed
 from jcvi.algorithms.synteny import batch_scan
 from jcvi.apps.base import debug
@@ -68,8 +69,11 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax,
 
     for row in fp:
         atoms = row.split()
-        if len(atoms) < 3: continue
-        query, subject, value = row.split()[:3]
+        # first two columns are query and subject, and an optional third column
+        if len(atoms) < 2: continue
+        query, subject = atoms[:2]
+        value = atoms[3] if cmap_text else vmin 
+
         try: value = float(value)
         except: value = vmin 
 
@@ -112,15 +116,18 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax,
         draw_cmap(root, cmap_text, vmin, vmax, cmap=default_cm, reverse=True)
 
     xsize, ysize = len(qbed), len(sbed)
+    logging.debug("xsize=%d ysize=%d" % (xsize, ysize))
     xlim = (0, xsize)
     ylim = (ysize, 0) # invert the y-axis
 
     xchr_labels, ychr_labels = [], []
     ignore = True # tag to mark whether to plot chromosome name (skip small ones)
-    ignore_size = 100
+    ignore_size_x = xsize * .005
+    ignore_size_y = ysize * .005
+
     # plot the chromosome breaks
     for (seqid, beg, end) in get_breaks(qbed):
-        ignore = abs(end-beg) < ignore_size 
+        ignore = abs(end-beg) < ignore_size_x
         seqid = seqid.split("_")[-1]
         try: 
             seqid = int(seqid)
@@ -132,7 +139,7 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax,
         ax.plot([beg, beg], ylim, "g-", lw=1)
 
     for (seqid, beg, end) in get_breaks(sbed):
-        ignore = abs(end-beg) < ignore_size 
+        ignore = abs(end-beg) < ignore_size_y
         seqid = seqid.split("_")[-1]
         try: 
             seqid = int(seqid)
@@ -174,7 +181,7 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax,
     for tick in ax.get_xticklines() + ax.get_yticklines():
         tick.set_visible(False) 
 
-    formatter = ticker.FuncFormatter(lambda x, pos: _("%dK" % (int(x)/1000)))
+    formatter = human_size_formatter 
     ax.xaxis.set_major_formatter(formatter)
     ax.yaxis.set_major_formatter(formatter)
 
@@ -184,7 +191,7 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax,
     root.set_ylim(0, 1)
     root.set_axis_off()
     logging.debug("print image to %s" % image_name)
-    plt.savefig(image_name, dpi=1000)
+    plt.savefig(image_name, dpi=150)
 
 
 if __name__ == "__main__":
@@ -195,11 +202,11 @@ if __name__ == "__main__":
     p.add_option("--synteny", dest="synteny", 
             default=False, action="store_true",
             help="run a fast synteny scan and display synteny blocks")
-    p.add_option("--cmap_text", dest="cmap_text", default="Synonymous substitutions (Ks)",
-            help="draw a colormap box on the bottom-left corner")
     p.add_option("--format", dest="format", default="png",
             help="generate image of format (png, pdf, ps, eps, svg, etc.)"
             "[default: %default]")
+    p.add_option("--cmap", dest="cmap", default="Synonymous substitutions (Ks)",
+            help="draw a colormap box on the bottom-left corner")
     p.add_option("--vmin", dest="vmin", type="float", default=0,
             help="minimum value (used in the colormap of dots) [default: %default]")
     p.add_option("--vmax", dest="vmax", type="float", default=1,
@@ -220,7 +227,7 @@ if __name__ == "__main__":
     sbed = Bed(sbed)
     synteny = opts.synteny
     vmin, vmax = opts.vmin, opts.vmax
-    cmap_text = opts.cmap_text
+    cmap_text = opts.cmap
 
     anchorfile = args[0]
 

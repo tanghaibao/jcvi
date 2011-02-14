@@ -284,7 +284,7 @@ def commit(args):
 
     opts, args = p.parse_args(args)
     try:
-        assert all(opts.infile, opts.outfile), \
+        assert all((opts.infile, opts.outfile)), \
                 "need to set all options [-i, -o]"
         assert len(args)==1
         cmd, N = args[0], opts.N 

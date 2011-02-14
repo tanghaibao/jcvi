@@ -17,47 +17,11 @@ import numpy as np
 
 from jcvi.graphics.base import plt, ticker, Rectangle, cm, _, \
     human_size_formatter
-from jcvi.formats.base import LineFile
 from jcvi.formats.blast import BlastLine
+from jcvi.formats.sizes import Sizes
 from jcvi.formats.bed import Bed
 from jcvi.apps.base import debug
 debug()
-
-
-class Sizes (LineFile):
-    """
-    Two-column file,
-    contigID<tab>size
-    """
-    def __init__(self, filename):
-        super(Sizes, self).__init__(filename)
-        self.fp = open(filename)
-        sizes = list(self.iter_sizes())
-        ctgs, sizes = zip(*sizes)
-        sizes = np.cumsum([0] + list(sizes))
-        self.mapping = dict(zip(ctgs, sizes))
-        self.ctgs = ctgs
-        self.sizes = sizes
-
-    def __len__(self):
-        return len(self.mapping)
-
-    @property
-    def totalsize(self):
-        return np.max(self.sizes)
-
-    def iter_sizes(self):
-        self.fp.seek(0)
-        for row in self.fp:
-            ctg, size = row.split()[:2]
-            yield ctg, int(size)
-
-    def get_position(self, ctg, pos):
-        return self.mapping[ctg] + pos
-
-    def get_breaks(self):
-        for i in xrange(1, len(self)):
-            yield self.ctgs[i], self.sizes[i-1], self.sizes[i]
 
 
 def blastplot(blastfile, qsizes, ssizes, qbed, sbed, image_name):
@@ -91,6 +55,7 @@ def blastplot(blastfile, qsizes, ssizes, qbed, sbed, image_name):
 
         qi = qsizes.get_position(query, qi)
         si = ssizes.get_position(subject, si)
+        if None in (qi, si): continue
         data.append((qi, si))
 
     fig = plt.figure(1,(8,8))

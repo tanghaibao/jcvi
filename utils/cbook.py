@@ -38,8 +38,8 @@ class memoized(object):
       return functools.partial(self.__call__, obj)
 
 
-SUFFIXES = {1000: ['Kb', 'Mb', 'Gb', 'Tb', 'Pb', 'Eb', 'Zb', 'Yb'],
-            1024: ['KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB']}
+SUFFIXES = {1000: ['', 'Kb', 'Mb', 'Gb', 'Tb', 'Pb', 'Eb', 'Zb', 'Yb'],
+            1024: ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB']}
 
 
 def human_size(size, a_kilobyte_is_1024_bytes=True, precision=1):
@@ -58,9 +58,9 @@ def human_size(size, a_kilobyte_is_1024_bytes=True, precision=1):
 
     multiple = 1024 if a_kilobyte_is_1024_bytes else 1000
     for suffix in SUFFIXES[multiple]:
-        size /= multiple
         if size < multiple:
-            return '{0:.{1}f} {2}'.format(size, precision, suffix)
+            return '{0:.{1}f}{2}'.format(size, precision, suffix)
+        size /= multiple
 
     raise ValueError('number too large')
 
@@ -68,3 +68,4 @@ def human_size(size, a_kilobyte_is_1024_bytes=True, precision=1):
 if __name__ == '__main__':
     print(human_size(1000000000000, False))
     print(human_size(1000000000000))
+    print(human_size(300))

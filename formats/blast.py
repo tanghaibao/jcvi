@@ -156,7 +156,8 @@ def main():
     p.dispatch(globals())
 
 
-def report_pairs(data, cutoff=300000, dialect="blast", print_pairs=None):
+def report_pairs(data, cutoff=300000, dialect="blast", print_pairs=False,
+        print_inserts=False):
     """
     This subroutine is used by the pairs function in blast.py and cas.py.
     Reports number of fragments and pairs as well as linked pairs
@@ -202,6 +203,9 @@ def report_pairs(data, cutoff=300000, dialect="blast", print_pairs=None):
     print >>sys.stderr, "%d pairs are linked (cutoff=%d)" % (len(linked_dist), cutoff)
     print >>sys.stderr, "median distance between PE: %d" % np.median(linked_dist) 
 
+    if print_inserts:
+        print "\n".join(str(x) for x in linked_dist)
+
 
 def pairs(args):
     """
@@ -212,24 +216,29 @@ def pairs(args):
     `READNAME{/1,/2}`
     """
     p = OptionParser(pairs.__doc__)
-    p.add_option("--cutoff", dest="cutoff", default=300000, type="int",
+    p.add_option("--cutoff", dest="cutoff", default=0, type="int",
             help="distance to call valid links between PE [default: %default]")
     p.add_option("--pairs", dest="pairs", default=False, action="store_true",
             help="write valid pairs to stdout [default: %default]")
+    p.add_option("--inserts", dest="inserts", default=False, action="store_true",
+            help="write insert sizes to stdout [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args)!=1:
         sys.exit(p.print_help())
 
     cutoff = opts.cutoff
+    if cutoff <= 0: cutoff = 1e10
     print_pairs = opts.pairs
+    print_inserts = opts.inserts
 
     blastfile = args[0]
     fp = open(blastfile)
     data = [BlastLine(row) for row in fp]
     data.sort(key=lambda x: x.query)
 
-    report_pairs(data, cutoff, dialect="blast", print_pairs=print_pairs)
+    report_pairs(data, cutoff, dialect="blast", print_pairs=print_pairs,
+            print_inserts=print_inserts)
 
     
 def best(args):

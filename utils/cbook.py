@@ -5,6 +5,15 @@ mostly decorator patterns
 
 import logging
 
+def thousands(x):
+    """
+    >>> thousands(12345)
+    '12,345'
+    """
+    import locale
+    locale.setlocale(locale.LC_ALL, "")
+    return locale.format('%d', x, True)
+
 
 class memoized(object):
    """Decorator that caches a function's return value each time it is called.

@@ -71,3 +71,8 @@ class Bed(LineFile):
         return [(b.seqid, i) for (i, b) in enumerate(self)]
 
 
+    def sub_bed(self, seqid):
+        # get all the beds on one chromosome
+        for b in self:
+            if b.seqid==seqid:
+                yield b

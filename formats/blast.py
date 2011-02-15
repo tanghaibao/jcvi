@@ -61,12 +61,13 @@ class Blast (LineFile):
             blines.sort(key=lambda x: -x.score) # descending score
             yield query, blines 
 
-    def iter_best_hit(self):
+    def iter_best_hit(self, N=1):
         self.fp.seek(0)
         for query, blines in groupby(self.fp, key=lambda x: BlastLine(x).query):
             blines = [BlastLine(x) for x in blines]
-            best_hit = max(blines, key=lambda x: x.score)
-            yield query, best_hit 
+            blines.sort(key=lambda x: -x.score)
+            for x in blines[:N]:
+                yield query, x 
     
     @property
     def hits(self):
@@ -200,7 +201,8 @@ def report_pairs(data, cutoff=300000, dialect="blast", print_pairs=False,
     import numpy as np
     print >>sys.stderr, "%d fragments, %d pairs" % (num_fragments, num_pairs)
     num_links = len(linked_dist)
-    print >>sys.stderr, "%d pairs are linked (cutoff=%d)" % (len(linked_dist), cutoff)
+    print >>sys.stderr, "%d pairs (%.1f%%) are linked (cutoff=%d)" % \
+            (num_links, num_links*100./num_pairs, cutoff)
     print >>sys.stderr, "median distance between PE: %d" % np.median(linked_dist) 
 
     if print_inserts:
@@ -249,6 +251,8 @@ def best(args):
     """
     p = OptionParser(best.__doc__)
 
+    p.add_option("-N", dest="N", default=1, type="int",
+            help="get best N hits [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args)!=1:
@@ -256,7 +260,7 @@ def best(args):
 
     blastfile = args[0]
     b = Blast(blastfile)
-    for q, bline in b.iter_best_hit():
+    for q, bline in b.iter_best_hit(N=opts.N):
         print bline
 
 

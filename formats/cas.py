@@ -28,25 +28,25 @@ class CasTabLine (LineFile):
         args = line.split()
         self.readnum = args[0] # usually integer or `-`
         self.readname = args[1]
-        self.readlen = int(args[2])
+        self.readlen = int(args[-10])
         # 0-based indexing
-        self.readstart = int(args[3])
+        self.readstart = int(args[-9])
         if self.readstart >=0: self.readstart += 1
         
-        self.readstop = int(args[4])
-        self.refnum = int(args[5])
+        self.readstop = int(args[-8])
+        self.refnum = int(args[-7])
         
-        self.refstart = int(args[6])
+        self.refstart = int(args[-6])
         if self.refstart >=0: self.refstart += 1
 
-        self.refstop = int(args[7])
-        self.is_reversed = (int(args[8])==1)
+        self.refstop = int(args[-5])
+        self.is_reversed = (int(args[-4])==1)
         
         self.orientation = '-' if self.is_reversed else '+'
 
-        self.nummatches = int(args[9])
-        self.is_paired = (int(args[10])==1)
-        self.score = int(args[11])
+        self.nummatches = int(args[-3])
+        self.is_paired = (int(args[-2])==1)
+        self.score = int(args[-1])
 
     def __str__(self):
         return "\t".join(str(x) for x in (self.readname, self.refnum, 

@@ -12,7 +12,6 @@ from jcvi.utils.cbook import human_size
 _ = lambda x: r"$\mathsf{%s}$" % x.replace("_", " ").replace(" ", r"\ ")
 
 # human readable size (Kb, Mb, Gb)
-human_size_formatter = ticker.FuncFormatter(lambda x, pos: human_size(x, False,
-    precision=0))
-
+human_size_formatter = ticker.FuncFormatter(lambda x, pos: \
+        _(human_size(x, False, precision=0)))
 

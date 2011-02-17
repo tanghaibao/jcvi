@@ -53,6 +53,7 @@ def main():
     actions = (
         ('size', 'total base pairs in the fastq files'),
         ('pair', 'pair up two fastq files and combine pairs'),
+        ('unpair', 'unpair pairs.fastq files into 1.fastq and 2.fastq'),
         ('convert', 'convert between illumina and sanger offset'),
             )
     p = ActionDispatcher(actions)
@@ -148,6 +149,41 @@ def convert(args):
             "A total of %d low complexity region removed." % low_complexity
     sys.stdout.write("\n")
 
+
+def unpair(args):
+    """
+    %prog unpair pairs.fastq
+
+    The reverse operation of pair. The /1 will be placed in 1.fastq, and /2 will
+    be place in 2.fastq.
+    """
+    p = OptionParser(unpair.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(p.print_help())
+
+    pairsfastq = args[0]
+    fh = open(pairsfastq)
+
+    assert op.exists(pairsfastq)
+    base = op.basename(pairsfastq).split(".")[0]
+    afastq = base + ".1.fastq"
+    bfastq = base + ".2.fastq"
+    afw = open(afastq, "w")
+    bfw = open(bfastq, "w")
+
+    it = iter_fastq(fh)
+    rec = it.next()
+    while rec:
+        print >> afw, rec
+        rec = it.next()
+        print >> bfw, rec
+        rec = it.next()
+
+    logging.debug("reads unpaired into `%s` and `%s`" % (afastq, bfastq))
+    for f in (fh, afw, bfw): f.close()
+    
 
 def pair(args):
     """

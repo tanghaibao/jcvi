@@ -40,9 +40,9 @@ class CasTabLine (LineFile):
         if self.refstart >=0: self.refstart += 1
 
         self.refstop = int(args[-5])
+
         self.is_reversed = (int(args[-4])==1)
-        
-        self.orientation = '-' if self.is_reversed else '+'
+        self.strand = '-' if self.is_reversed else '+'
 
         self.nummatches = int(args[-3])
         self.is_paired = (int(args[-2])==1)

@@ -41,27 +41,39 @@ def range_distance(a, b, dist_mode='ss'):
     dist_mode is ss, se, es, ee and sets the place on read one and two to
           measure the distance (s = start, e = end)
 
-    >>> range_distance(("1", 30, 45), ("1", 45, 55))
-    0
-    >>> range_distance(("1", 30, 45), ("1", 57, 68))
-    39
-    >>> range_distance(("1", 30, 42), ("1", 45, 55))
-    26
-    >>> range_distance(("1", 30, 42), ("1", 45, 55), dist_mode='ee')
-    2
+    >>> range_distance(("1", 30, 45, '+'), ("1", 45, 55, '+'))
+    (0, '++')
+    >>> range_distance(("1", 30, 45, '-'), ("1", 57, 68, '-'))
+    (39, '--')
+    >>> range_distance(("1", 30, 42, '-'), ("1", 45, 55, '+'))
+    (26, '-+')
+    >>> range_distance(("1", 30, 42, '+'), ("1", 45, 55, '-'), dist_mode='ee')
+    (2, '+-')
     """
     assert dist_mode in ('ss', 'ee')
 
-    a_chr, a_min, a_max = a
-    b_chr, b_min, b_max = b
+    a_chr, a_min, a_max, a_strand = a
+    b_chr, b_min, b_max, b_strand = b
     # must be on the same chromosome
-    if a_chr!=b_chr: return -1
-    if range_overlap(a, b): return 0
+    if a_chr != b_chr: 
+        dist = -1
+    elif range_overlap(a[:3], b[:3]): 
+        dist = 0
+    else:
+        # If the two ranges do not overlap then check stranded ness and distance
+        if a_min > b_min: 
+            a_min, b_min = b_min, a_min
+            a_max, b_max = b_max, a_max
+            a_strand, b_strand = b_strand, a_strand
 
-    ends = [a_min, a_max, b_min, b_max]
-    a, b, c, d = sorted(ends)
-    if dist_mode=="ss": return d - a + 1
-    elif dist_mode=="ee": return c - b - 1
+        if dist_mode=="ss": 
+            dist = b_max - a_min + 1
+        elif dist_mode=="ee": 
+            dist = b_min - a_max - 1
+
+    orientation = a_strand + b_strand
+    
+    return dist, orientation
 
 
 def range_minmax(ranges):

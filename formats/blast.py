@@ -6,6 +6,7 @@ import sys
 import logging
 
 from itertools import groupby
+from collections import defaultdict
 from optparse import OptionParser
 
 from jcvi.formats.base import LineFile
@@ -18,7 +19,7 @@ debug()
 class BlastLine(object):
     __slots__ = ('query', 'subject', 'pctid', 'hitlen', 'nmismatch', 'ngaps', \
                  'qstart', 'qstop', 'sstart', 'sstop', 'evalue', 'score', \
-                 'qseqid', 'sseqid', 'qi', 'si')
+                 'qseqid', 'sseqid', 'qi', 'si', 'qstrand', 'sstrand')
  
     def __init__(self, sline):
         args = sline.split("\t")
@@ -34,6 +35,11 @@ class BlastLine(object):
         self.sstop = int(args[9])
         self.evalue = float(args[10])
         self.score = float(args[11])
+
+        self.qstrand = self.sstrand = '+'
+        if self.sstart > self.sstop:
+            self.sstrand = '-'
+            self.sstart, self.sstop = self.sstop, self.sstart
  
     def __repr__(self):
         return "BlastLine('%s' to '%s', eval=%.3f, score=%.1f)" % \
@@ -166,6 +172,8 @@ def report_pairs(data, cutoff=300000, dialect="blast", print_pairs=False,
     dialect = dialect[0]
     num_fragments, num_pairs = 0, 0
     linked_dist = []
+    # +- (forward-backward) is `innie`, -+ (backward-forward) is `outie`
+    orientations = defaultdict(int)
 
     if dialect=="b":
         key = lambda x: x.query.split("/")[0] 
@@ -181,20 +189,27 @@ def report_pairs(data, cutoff=300000, dialect="blast", print_pairs=False,
             if dialect=="b":
                 asubject, astart, astop = a.subject, a.sstart, a.sstop
                 bsubject, bstart, bstop = b.subject, b.sstart, b.sstop
+     
+                astrand = a.sstrand
+                bstrand = b.sstrand
+
             else:
                 asubject, astart, astop = a.refnum, a.refstart, a.refstop
                 bsubject, bstart, bstop = b.refnum, b.refstart, b.refstop
                 if -1 in (astart, bstart): continue
 
-            if astart > astop: astart, astop = astop, astart
-            if bstart > bstop: bstart, bstop = bstop, bstart
+                astrand = a.strand
+                bstrand = b.strand
 
-            dist = range_distance((asubject, astart, astop), (bsubject,
-                bstart, bstop))
+            dist, orientation = range_distance(\
+                    (asubject, astart, astop, astrand), 
+                    (bsubject, bstart, bstop, bstrand))
+
             if 0 <= dist <= cutoff:
                 linked_dist.append(dist)
                 if print_pairs:
                     for b in lines: print b
+                orientations[orientation] += 1
         else:
             num_fragments += 1
     
@@ -204,6 +219,9 @@ def report_pairs(data, cutoff=300000, dialect="blast", print_pairs=False,
     print >>sys.stderr, "%d pairs (%.1f%%) are linked (cutoff=%d)" % \
             (num_links, num_links*100./num_pairs, cutoff)
     print >>sys.stderr, "median distance between PE: %d" % np.median(linked_dist) 
+    print >>sys.stderr, "\nOrientations:"
+    for orientation, count in sorted(orientations.items()):
+        print >>sys.stderr, "{0}: {1}".format(orientation, count)
 
     if print_inserts:
         print "\n".join(str(x) for x in linked_dist)

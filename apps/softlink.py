@@ -20,6 +20,7 @@ def main():
     actions = (
         ('touch', 'touch all the symlinks'),
         ('cp', 'cp all the symlinks to current folder'),
+        ('clean', 'removes all the symlinks in current folder'),
         ('size', 'print the file sizes for the files pointed by symlinks'),
         )
     p = ActionDispatcher(actions)
@@ -42,6 +43,7 @@ def touch(args):
     Use find to pipe in all the symlinks.
     """
     p = OptionParser(touch.__doc__)
+    opts, args = p.parse_args(args)
     fp = sys.stdin
 
     for link_name in fp:
@@ -54,6 +56,21 @@ def touch(args):
         # re-link the symlinks (similar to `ln -sf`)
         os.unlink(link_name)
         os.symlink(source, link_name)
+
+
+def clean(args):
+    """
+    %prog clean
+
+    Removes all symlinks from current folder
+    """
+    p = OptionParser(clean.__doc__)
+    opts, args = p.parse_args(args)
+
+    for link_name in os.listdir(os.getcwd()):
+        if not op.islink(link_name): continue
+        logging.debug("remove symlink `{0}`".format(link_name))
+        os.unlink(link_name)
 
 
 def cp(args):

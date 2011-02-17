@@ -120,29 +120,30 @@ def pairs(args):
     distance between paired ends, etc
     """
     p = OptionParser(pairs.__doc__)
-    p.add_option("--cutoff", dest="cutoff", default=0, type="int",
+    p.add_option("--cutoff", dest="cutoff", default=1e9, type="int",
             help="distance to call valid links between PE [default: %default]")
-    p.add_option("--pairs", dest="pairs", default=False, action="store_true",
-            help="write valid pairs to stdout [default: %default]")
-    p.add_option("--inserts", dest="inserts", default=False, action="store_true",
-            help="write insert sizes to stdout [default: %default]")
+    p.add_option("--pairs", dest="pairsfile", 
+            help="write valid pairs to pairsfile")
+    p.add_option("--inserts", dest="insertsfile", 
+            help="write insert sizes to insertsfile and plot distribution " + \
+            "to insertsfile.pdf")
     opts, args = p.parse_args(args)
 
     if len(args)!=1:
         sys.exit(p.print_help())
 
     cutoff = opts.cutoff
-    if cutoff <= 0: cutoff = 1e10
-    print_pairs = opts.pairs
-    print_inserts = opts.inserts
-
+    if cutoff < 0: cutoff = 1e9
     castabfile = args[0]
+    pairsfile = opts.pairsfile
+    insertsfile = opts.insertsfile
+
     fp = open(castabfile)
     data = [CasTabLine(row) for row in fp]
     data.sort(key=lambda x: x.readname)
 
-    report_pairs(data, cutoff, dialect="cas", print_pairs=print_pairs,
-            print_inserts=print_inserts)
+    report_pairs(data, cutoff, dialect="cas", pairsfile=pairsfile,
+           insertsfile=insertsfile)
 
 
 if __name__ == '__main__':

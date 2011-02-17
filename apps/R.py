@@ -3,6 +3,7 @@ uses R for statistics and graphics
 """
 
 import os
+import os.path as op
 import tempfile
 
 from string import Template
@@ -36,6 +37,11 @@ class RTemplate (object):
         sh("Rscript %s" % path)
         if clean:
             os.remove(path)
+            # I have no idea why using ggsave, there is one extra image
+            # generated, but here I remove it
+            rplotspdf = "Rplots.pdf"
+            if op.exists(rplotspdf):
+                os.remove(rplotspdf)
 
 
 def main():

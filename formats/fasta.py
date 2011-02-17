@@ -140,6 +140,7 @@ def main():
         ('extract', 'given fasta file and an seq id, retrieve the sequence ' + \
                     'in fasta format'),
         ('uniq', 'remove records that are the same'),
+        ('format', 'trim accession id to the first space'),
         ('random', 'random take some records'),
         ('diff', 'check if two FASTA records contain same information'),
         ('trim', 'given a cross_match screened fasta, trim the sequence'),
@@ -150,6 +151,36 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def format(args):
+    """
+    %prog format infasta outfasta
+
+    Reformat FASTA file and also clean up names
+    """
+    p = OptionParser(format.__doc__)
+    p.add_option("--pairs", dest="pairs", default=False, action="store_true",
+            help="If input reads are pairs, add trailing /1 and /2 [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(p.print_help())
+
+    infasta, outfasta = args
+    pairs = opts.pairs
+
+    fw = sys.stdout if outfasta=="stdout" else open(outfasta, "w")
+    for i, rec in enumerate(SeqIO.parse(infasta, "fasta")):
+        rec.description = ""
+        if pairs:
+            id = "/1" if (i % 2 == 0) else "/2"
+            # split with `_` deals with 454 reads
+            rec.id = rec.id.split("_")[0] + id 
+            
+        SeqIO.write(rec, fw, "fasta")
+
+    fw.close()
 
 
 def get_first_rec(fastafile):

@@ -12,6 +12,7 @@ from optparse import OptionParser
 from jcvi.formats.base import LineFile
 from jcvi.formats.coords import print_stats
 from jcvi.utils.range import range_distance
+from jcvi.graphics.histogram import histogram
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
@@ -163,8 +164,8 @@ def main():
     p.dispatch(globals())
 
 
-def report_pairs(data, cutoff=300000, dialect="blast", print_pairs=False,
-        print_inserts=False):
+def report_pairs(data, cutoff=300000, dialect="blast", pairsfile=None,
+        insertsfile=None):
     """
     This subroutine is used by the pairs function in blast.py and cas.py.
     Reports number of fragments and pairs as well as linked pairs
@@ -179,6 +180,9 @@ def report_pairs(data, cutoff=300000, dialect="blast", print_pairs=False,
         key = lambda x: x.query.split("/")[0] 
     else:
         key = lambda x: x.readname.split("/")[0] 
+
+    if pairsfile: pairsfw = open(pairsfile, "w")
+    if insertsfile: insertsfw = open(insertsfile, "w")
 
     for pe, lines in groupby(data, key=key):   
         lines = list(lines)
@@ -207,8 +211,8 @@ def report_pairs(data, cutoff=300000, dialect="blast", print_pairs=False,
 
             if 0 <= dist <= cutoff:
                 linked_dist.append(dist)
-                if print_pairs:
-                    for b in lines: print b
+                if pairsfile:
+                    for b in lines: print >>pairsfw, b
                 orientations[orientation] += 1
         else:
             num_fragments += 1
@@ -220,11 +224,20 @@ def report_pairs(data, cutoff=300000, dialect="blast", print_pairs=False,
             (num_links, num_links*100./num_pairs, cutoff)
     print >>sys.stderr, "median distance between PE: %d" % np.median(linked_dist) 
     print >>sys.stderr, "\nOrientations:"
-    for orientation, count in sorted(orientations.items()):
-        print >>sys.stderr, "{0}: {1}".format(orientation, count)
 
-    if print_inserts:
-        print "\n".join(str(x) for x in linked_dist)
+    orientation_summary = []
+    for orientation, count in sorted(orientations.items()):
+        o = "{0}: {1}".format(orientation, count)
+        orientation_summary.append(o)
+        print >>sys.stderr, o 
+
+    if insertsfile:
+        print >>insertsfw, "\n".join(str(x) for x in linked_dist)
+        insertsfw.close()
+        prefix = insertsfile.split(".")[0]
+        histogram(insertsfile, vmin=0, vmax=cutoff, xlabel="insertsize", 
+                title="{0} PE lib ({1})".format(prefix, 
+                ", ".join(orientation_summary)))
 
 
 def pairs(args):
@@ -236,29 +249,30 @@ def pairs(args):
     `READNAME{/1,/2}`
     """
     p = OptionParser(pairs.__doc__)
-    p.add_option("--cutoff", dest="cutoff", default=0, type="int",
+    p.add_option("--cutoff", dest="cutoff", default=1e9, type="int",
             help="distance to call valid links between PE [default: %default]")
-    p.add_option("--pairs", dest="pairs", default=False, action="store_true",
-            help="write valid pairs to stdout [default: %default]")
-    p.add_option("--inserts", dest="inserts", default=False, action="store_true",
-            help="write insert sizes to stdout [default: %default]")
+    p.add_option("--pairs", dest="pairsfile", 
+            help="write valid pairs to pairsfile")
+    p.add_option("--inserts", dest="insertsfile", 
+            help="write insert sizes to insertsfile and plot distribution " + \
+            "to insertsfile.pdf")
     opts, args = p.parse_args(args)
 
     if len(args)!=1:
         sys.exit(p.print_help())
 
     cutoff = opts.cutoff
-    if cutoff <= 0: cutoff = 1e10
-    print_pairs = opts.pairs
-    print_inserts = opts.inserts
-
+    if cutoff < 0: cutoff = 1e9
     blastfile = args[0]
+    pairsfile = opts.pairsfile
+    insertsfile = opts.insertsfile
+
     fp = open(blastfile)
     data = [BlastLine(row) for row in fp]
     data.sort(key=lambda x: x.query)
 
-    report_pairs(data, cutoff, dialect="blast", print_pairs=print_pairs,
-            print_inserts=print_inserts)
+    report_pairs(data, cutoff, dialect="blast", pairsfile=pairsfile,
+           insertsfile=insertsfile)
 
     
 def best(args):

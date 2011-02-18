@@ -16,8 +16,8 @@ debug()
 histogram_template = """
 library(ggplot2)
 data <- read.table('$numbersfile')
-data <- data[data > $vmin]
-data <- data[data < $vmax]
+data <- data[data >= $vmin]
+data <- data[data <= $vmax]
 data <- data.frame($xlabel=data)
 qplot($xlabel, data=data, geom='histogram', main='$title')
 ggsave('$outfile')

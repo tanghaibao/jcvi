@@ -48,7 +48,7 @@ class BlastLine(object):
 
     def __str__(self):
         return "\t".join(str(x) for x in \
-                [getattr(self, attr) for attr in BlastLine.__slots__[:-4]])
+                [getattr(self, attr) for attr in BlastLine.__slots__[:-6]])
 
 
 class Blast (LineFile):
@@ -220,9 +220,17 @@ def report_pairs(data, cutoff=300000, dialect="blast", pairsfile=None,
     import numpy as np
     print >>sys.stderr, "%d fragments, %d pairs" % (num_fragments, num_pairs)
     num_links = len(linked_dist)
+    
+    linked_dist = np.array(linked_dist, dtype="int")
+    p0 = np.median(linked_dist)
+    linked_dist = np.sort(linked_dist)
+    p1, p2 = linked_dist[int(num_links * .05)], linked_dist[int(num_links * .95)]
+
     print >>sys.stderr, "%d pairs (%.1f%%) are linked (cutoff=%d)" % \
             (num_links, num_links*100./num_pairs, cutoff)
-    print >>sys.stderr, "median distance between PE: %d" % np.median(linked_dist) 
+
+    print >>sys.stderr, "median distance between PE: {0}".format(p0)
+    print >>sys.stderr, "90% distance range: {0} - {1}".format(p1, p2)
     print >>sys.stderr, "\nOrientations:"
 
     orientation_summary = []
@@ -236,8 +244,8 @@ def report_pairs(data, cutoff=300000, dialect="blast", pairsfile=None,
         insertsfw.close()
         prefix = insertsfile.split(".")[0]
         histogram(insertsfile, vmin=0, vmax=cutoff, xlabel="insertsize", 
-                title="{0} PE lib ({1})".format(prefix, 
-                ", ".join(orientation_summary)))
+                title="{0} PE lib ({1}; median insert {2})".format(prefix, 
+                    ", ".join(orientation_summary), p0))
 
 
 def pairs(args):
@@ -252,8 +260,9 @@ def pairs(args):
     p.add_option("--cutoff", dest="cutoff", default=1e9, type="int",
             help="distance to call valid links between PE [default: %default]")
     p.add_option("--pairs", dest="pairsfile", 
+            default=False, action="store_true",
             help="write valid pairs to pairsfile")
-    p.add_option("--inserts", dest="insertsfile", 
+    p.add_option("--inserts", dest="insertsfile", default=True, 
             help="write insert sizes to insertsfile and plot distribution " + \
             "to insertsfile.pdf")
     opts, args = p.parse_args(args)
@@ -264,8 +273,10 @@ def pairs(args):
     cutoff = opts.cutoff
     if cutoff < 0: cutoff = 1e9
     blastfile = args[0]
-    pairsfile = opts.pairsfile
-    insertsfile = opts.insertsfile
+
+    basename = blastfile.split(".")[0]
+    pairsfile = ".".join((basename, "pairs")) if opts.pairsfile else None
+    insertsfile = ".".join((basename, "inserts")) if opts.insertsfile else None
 
     fp = open(blastfile)
     data = [BlastLine(row) for row in fp]

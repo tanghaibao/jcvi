@@ -258,12 +258,21 @@ def run(args):
 
     for row in fp:
         filename = row.strip()
-        # simple command, no need to quote and no space in command
+        # For simple command (no space), there is no need to quote
+        # - here are the shortcuts we use
+        # `*` is the filename replacement
+        # `#` is the basename replace ment
+        # ls -1 test.trimmed.fastq | grid run "process * #.pdf"
+        # is equivalent to "process test.trimmed.fastq test.pdf"
+
+        basename = filename.split(".")[0]
         if " " not in cmd: 
-            newcmd = " ".join((cmd, filename))
+            cmd = " ".join((cmd, filename))
         else:
-            newcmd = cmd.replace("*", filename)
-        p = GridProcess(newcmd)
+            cmd = cmd.replace("*", filename)
+            cmd = cmd.replace("#", basename)
+
+        p = GridProcess(cmd)
         p.start(path=None) # current folder
 
 

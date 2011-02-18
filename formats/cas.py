@@ -123,8 +123,9 @@ def pairs(args):
     p.add_option("--cutoff", dest="cutoff", default=1e9, type="int",
             help="distance to call valid links between PE [default: %default]")
     p.add_option("--pairs", dest="pairsfile", 
+            default=False, action="store_true",
             help="write valid pairs to pairsfile")
-    p.add_option("--inserts", dest="insertsfile", 
+    p.add_option("--inserts", dest="insertsfile", default=True, 
             help="write insert sizes to insertsfile and plot distribution " + \
             "to insertsfile.pdf")
     opts, args = p.parse_args(args)
@@ -135,8 +136,10 @@ def pairs(args):
     cutoff = opts.cutoff
     if cutoff < 0: cutoff = 1e9
     castabfile = args[0]
-    pairsfile = opts.pairsfile
-    insertsfile = opts.insertsfile
+
+    basename = castabfile.split(".")[0]
+    pairsfile = ".".join((basename, "pairs")) if opts.pairsfile else None
+    insertsfile = ".".join((basename, "inserts")) if opts.insertsfile else None
 
     fp = open(castabfile)
     data = [CasTabLine(row) for row in fp]

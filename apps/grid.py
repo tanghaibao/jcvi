@@ -261,7 +261,7 @@ def run(args):
         # For simple command (no space), there is no need to quote
         # - here are the shortcuts we use
         # `*` is the filename replacement
-        # `#` is the basename replace ment
+        # `#` is the basename replacement
         # ls -1 test.trimmed.fastq | grid run "process * #.pdf"
         # is equivalent to "process test.trimmed.fastq test.pdf"
 

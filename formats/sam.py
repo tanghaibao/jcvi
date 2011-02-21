@@ -6,14 +6,14 @@ http://samtools.sourceforge.net/SAM1.pdf
 """
 
 import sys
+import logging
 
-from textwrap import wrap
 from optparse import OptionParser
 
 from pysam import Samfile
 from jcvi.formats.base import LineFile
 from jcvi.formats.fasta import Fasta
-from jcvi.formats.ace import Reads, Contig, ACEFileRecord
+from jcvi.utils.misc import fill 
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
@@ -149,10 +149,12 @@ def ace(args):
     bamfile, fastafile = args
     f = Fasta(fastafile)
     acefile = bamfile.split(".")[0] + ".ace"
+
+    logging.debug("Load {0}".format(bamfile))
     s = Samfile(bamfile, "rb")
+
     ncontigs = s.nreferences 
     qual = "20" # default qual
-    width = 80
     nreads = 0 
     fw = open(acefile, "w")
     print >> fw, "AS {0} {1}".format(ncontigs, nreads)
@@ -161,20 +163,22 @@ def ace(args):
     for contig in s.references:
         cseq = f[contig]
         nbases = len(cseq) 
+
         mapped_reads = [x for x in s.fetch(contig) if not x.is_unmapped]
         nreads = len(mapped_reads)
+
         nsegments = 0
         print >> fw, "CO {0} {1} {2} {3} U".format(contig, nbases, nreads,
                 nsegments)
-        print >> fw, "\n".join(wrap(str(cseq.seq), width=width)) 
+        print >> fw, fill(str(cseq.seq)) 
         print >> fw
 
-        text = " ".join([qual] * nbases)
-        text = "\n".join(wrap(text, width=width))
+        text = fill([qual] * nbases, delimiter=" ", width=30)
         print >> fw, "BQ\n{0}".format(text)
         print >> fw
 
         seen = set() 
+        rnames = []
         for a in mapped_reads:
             readname = a.qname
             if readname in seen:
@@ -183,6 +187,8 @@ def ace(args):
                 rname = readname + ".2"
                 seen.add(readname)
 
+            rnames.append(rname)
+
             strand = "C" if a.is_reverse else "U"
             paddedstart = a.pos + 1 # 0-based to 1-based
             af = "AF {0} {1} {2}".format(rname, strand, paddedstart)
@@ -190,15 +196,15 @@ def ace(args):
 
         print >> fw
 
-        for a in mapped_reads:
+        for a, rname in zip(mapped_reads, rnames):
             aseq, npadded = cigar_to_seq(a)
             if aseq is None: continue
 
             ninfos = 0
             ntags = 0
             alen = len(aseq)
-            aseq = "\n".join(wrap(aseq, width=width))
-            rd = "RD {0} {1} {2} {3}\n{4}".format(rname, alen, ninfos, ntags, aseq)
+            rd = "RD {0} {1} {2} {3}\n{4}".format(rname, alen, ninfos, ntags,
+                    fill(aseq))
             qs = "QA 1 {0} 1 {0}".format(alen)
         
             print >> fw, rd

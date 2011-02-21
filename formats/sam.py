@@ -7,10 +7,15 @@ http://samtools.sourceforge.net/SAM1.pdf
 
 import sys
 
+from textwrap import wrap
 from optparse import OptionParser
 
+from pysam import Samfile
 from jcvi.formats.base import LineFile
-from jcvi.apps.base import ActionDispatcher
+from jcvi.formats.fasta import Fasta
+from jcvi.formats.ace import Reads, Contig, ACEFileRecord
+from jcvi.apps.base import ActionDispatcher, debug
+debug()
 
 
 class SamLine (object):
@@ -51,6 +56,7 @@ def main():
 
     actions = (
         ('pair', 'parse sam file and get pairs'),
+        ('ace', 'convert sam file to ace'),
             )
 
     p = ActionDispatcher(actions)
@@ -58,21 +64,149 @@ def main():
 
 
 def pair(args):
-    '''
-    %prog pair sam_file [--options]
+    """
+    %prog pair samfile
 
     Parses the sam file and retrieve in pairs format,
     query:pos ref:pos
-    '''
+    """
     p = OptionParser(pair.__doc__)
 
     opts, args = p.parse_args(args)
-    if len(args)!=1:
+    if len(args) != 1:
         sys.exit(p.print_help())
 
     def callback(s):
         print s.pairline
     sam = Sam (args[0], callback=callback)
+
+
+def cigar_to_seq(a, gap='*'):
+    """
+    Accepts a pysam row.
+
+    cigar alignment is presented as a list of tuples (operation,length). For
+    example, the tuple [ (0,3), (1,5), (0,2) ] refers to an alignment with 3
+    matches, 5 insertions and another 2 matches.
+
+    Op BAM Description
+    M 0 alignment match (can be a sequence match or mismatch)
+    I 1 insertion to the reference
+    D 2 deletion from the reference
+    N 3 skipped region from the reference
+    S 4 soft clipping (clipped sequences present in SEQ)
+    H 5 hard clipping (clipped sequences NOT present in SEQ)
+    P 6 padding (silent deletion from padded reference)
+    = 7 sequence match
+    X 8 sequence mismatch
+
+    convert the sequence based on the cigar string. For example:
+    """
+    seq, cigar = a.seq, a.cigar
+    start = 0
+    subseqs = []
+    npadded = 0
+    if cigar is None: return None, npadded
+
+    for operation, length in cigar:
+        end = start if operation==2 else start + length
+
+        if operation==0: # match
+            subseq = seq[start:end]
+        elif operation==1: #insertion
+            subseq = ""
+        elif operation==2: # deletion
+            subseq = gap * length
+            npadded += length
+        elif operation==3: # skipped
+            subseq = 'N' * length
+        elif operation in (4, 5): # clip
+            subseq = ""
+        else:
+            raise NotImplementedError
+
+        subseqs.append(subseq)
+        start = end
+    
+    return "".join(subseqs), npadded
+
+
+def ace(args):
+    """
+    %prog ace bamfile fastafile
+
+    convert bam format to ace format. This often allows the remapping to be
+    assessed as a denovo assembly format. bam file needs to be indexed.
+    """
+    p = OptionParser(ace.__doc__)
+    p.add_option("--splitdir", dest="splitdir", default="outRoot",
+            help="split the ace per contig to dir [default: %default]")
+
+    opts, args = p.parse_args(args)
+    if len(args) != 2:
+        sys.exit(p.print_help())
+
+    bamfile, fastafile = args
+    f = Fasta(fastafile)
+    acefile = bamfile.split(".")[0] + ".ace"
+    s = Samfile(bamfile, "rb")
+    ncontigs = s.nreferences 
+    qual = "20" # default qual
+    width = 80
+    nreads = 0 
+    fw = open(acefile, "w")
+    print >> fw, "AS {0} {1}".format(ncontigs, nreads)
+    print >> fw
+
+    for contig in s.references:
+        cseq = f[contig]
+        nbases = len(cseq) 
+        mapped_reads = [x for x in s.fetch(contig) if not x.is_unmapped]
+        nreads = len(mapped_reads)
+        nsegments = 0
+        print >> fw, "CO {0} {1} {2} {3} U".format(contig, nbases, nreads,
+                nsegments)
+        print >> fw, "\n".join(wrap(str(cseq.seq), width=width)) 
+        print >> fw
+
+        text = " ".join([qual] * nbases)
+        text = "\n".join(wrap(text, width=width))
+        print >> fw, "BQ\n{0}".format(text)
+        print >> fw
+
+        seen = set() 
+        for a in mapped_reads:
+            readname = a.qname
+            if readname in seen:
+                rname = readname + ".1"
+            else:
+                rname = readname + ".2"
+                seen.add(readname)
+
+            strand = "C" if a.is_reverse else "U"
+            paddedstart = a.pos + 1 # 0-based to 1-based
+            af = "AF {0} {1} {2}".format(rname, strand, paddedstart)
+            print >> fw, af 
+
+        print >> fw
+
+        for a in mapped_reads:
+            aseq, npadded = cigar_to_seq(a)
+            if aseq is None: continue
+
+            ninfos = 0
+            ntags = 0
+            alen = len(aseq)
+            aseq = "\n".join(wrap(aseq, width=width))
+            rd = "RD {0} {1} {2} {3}\n{4}".format(rname, alen, ninfos, ntags, aseq)
+            qs = "QA 1 {0} 1 {0}".format(alen)
+        
+            print >> fw, rd
+            print >> fw
+            print >> fw, qs
+            print >> fw
+    
+    fw.close()
 
 
 if __name__ == '__main__':

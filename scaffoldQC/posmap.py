@@ -47,12 +47,13 @@ class Posmap (LineFile):
 
 
     def parse(self):
-        # this is essentially to dispatch data
+
         filename = self.filename
         suffix = filename.rsplit(".", 1)[-1]
         assert suffix in self.mapping, \
                 "`{0}` unknown format".format(filename)
 
+        # dispatch to the proper handler 
         klass = self.mapping[suffix]
         return klass(filename)
 

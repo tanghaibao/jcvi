@@ -147,7 +147,7 @@ def main():
         ('pair', 'sort paired reads to .pairs.fasta and remaining to .fragments.fasta'),
         ('fastq', 'combine fasta and qual to create fastq file'),
         ('some', 'include or exclude a list of records (also performs on' + \
-                 '.qual file'),
+                 '.qual file)'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())

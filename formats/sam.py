@@ -11,9 +11,11 @@ import logging
 from optparse import OptionParser
 
 from pysam import Samfile
+from jcvi.apps.console import ProgressBar
 from jcvi.formats.base import LineFile
 from jcvi.formats.fasta import Fasta
 from jcvi.utils.misc import fill 
+from jcvi.scaffoldQC.Astat import Astat
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
@@ -136,36 +138,62 @@ def ace(args):
     %prog ace bamfile fastafile
 
     convert bam format to ace format. This often allows the remapping to be
-    assessed as a denovo assembly format. bam file needs to be indexed.
+    assessed as a denovo assembly format. bam file needs to be indexed. also
+    creates a .mates file to be used in amos/bambus, and .astat file to indicate
+    whether the contig is unique or repetitive based on A-statistics in Celera
+    assembler.
     """
     p = OptionParser(ace.__doc__)
     p.add_option("--splitdir", dest="splitdir", default="outRoot",
             help="split the ace per contig to dir [default: %default]")
+    p.add_option("--unpaired", dest="unpaired", default=False,
+            help="remove read pairs on the same contig [default: %default]")
+    p.add_option("--minreadno", dest="minreadno", default=3,
+            help="minimum read numbers needed for reporting the contig [default: %default]")
 
     opts, args = p.parse_args(args)
+    unpaired = opts.unpaired
+    minreadno = opts.minreadno
+
     if len(args) != 2:
         sys.exit(p.print_help())
 
     bamfile, fastafile = args
     f = Fasta(fastafile)
-    acefile = bamfile.split(".")[0] + ".ace"
+    prefix = bamfile.split(".")[0]
+    acefile = prefix + ".ace"
+    readsfile = prefix + ".reads"
+    astatfile = prefix + ".astat"
 
     logging.debug("Load {0}".format(bamfile))
     s = Samfile(bamfile, "rb")
 
     ncontigs = s.nreferences 
+    genomesize = sum(x for a, x in f.itersizes())
+    logging.debug("Total {0} contigs with size {1} base".format(ncontigs,
+        genomesize))
     qual = "20" # default qual
-    nreads = 0 
+
+    totalreads = sum(s.count(x) for x in s.references)
+    logging.debug("Total {0} reads mapped".format(totalreads))
+
     fw = open(acefile, "w")
-    print >> fw, "AS {0} {1}".format(ncontigs, nreads)
+    readsfw = open(readsfile, "w")
+    astatfw = open(astatfile, "w")
+    print >> fw, "AS {0} {1}".format(ncontigs, totalreads)
     print >> fw
 
-    for contig in s.references:
+    # progress bar
+    pbar = ProgressBar(maxval=ncontigs).start()
+
+    for i, contig in enumerate(s.references):
+        pbar.update(i)
         cseq = f[contig]
         nbases = len(cseq) 
 
         mapped_reads = [x for x in s.fetch(contig) if not x.is_unmapped]
         nreads = len(mapped_reads)
+        if nreads < minreadno: continue
 
         nsegments = 0
         print >> fw, "CO {0} {1} {2} {3} U".format(contig, nbases, nreads,
@@ -173,20 +201,20 @@ def ace(args):
         print >> fw, fill(str(cseq.seq)) 
         print >> fw
 
+        astat = Astat(nbases, nreads, genomesize, totalreads)
+        print >> astatfw, "{0}\t{1:.1f}".format(contig, astat)
+
         text = fill([qual] * nbases, delimiter=" ", width=30)
         print >> fw, "BQ\n{0}".format(text)
         print >> fw
 
-        seen = set() 
         rnames = []
         for a in mapped_reads:
             readname = a.qname
-            if readname in seen:
-                rname = readname + ".1"
-            else:
-                rname = readname + ".2"
-                seen.add(readname)
+            suffix = ".1" if a.is_read1 else ".2"
+            rname = readname + suffix
 
+            print >> readsfw, readname
             rnames.append(rname)
 
             strand = "C" if a.is_reverse else "U"
@@ -213,6 +241,10 @@ def ace(args):
             print >> fw
     
     fw.close()
+    readsfw.close()
+    astatfw.close()
+
+    pbar.finish()
 
 
 if __name__ == '__main__':

@@ -2,7 +2,7 @@
 # -*- coding: UTF-8 -*-
 
 """
-POSMAP (POSitional MAPping) files are part of the  Celera Assembler output. 
+POSMAP (POSitional MAPping) files are part of the Celera Assembler output. 
 
 Specs:
 http://sourceforge.net/apps/mediawiki/wgs-assembler/index.php?title=POSMAP
@@ -17,6 +17,29 @@ from optparse import OptionParser
 from jcvi.formats.base import LineFile
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
+
+class Library (object):
+    
+    def __init__(self, library, minsize, maxsize):
+        self.library = library
+        self.minsize = minsize
+        self.maxsize = maxsize
+
+    def __str__(self):
+        return "\t".join(str(x) for x in \
+                (self.library, self.minsize, self.maxsize))
+
+
+class Mate (object):
+
+    def __init__(self, read1, read2, library):
+        self.read1 = read1
+        self.read2 = read2
+        self.library = library
+
+    def __str__(self):
+        return "\t".join((self.read1, self.read2, self.library))
+
 
 class PosmapFrags (object):
     pass

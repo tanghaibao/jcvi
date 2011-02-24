@@ -448,7 +448,7 @@ def extract(args):
     %prog extract fasta query 
     
     extract query out of fasta file, query needs to be in the form of
-    "seqname", or "seqname:start-stop"
+    "seqname", or "seqname:start-stop", or "seqname:start-stop:-"
     """
     p = OptionParser(extract.__doc__)
     p.add_option('--include', dest="include", default=False, action="store_true",
@@ -468,9 +468,17 @@ def extract(args):
     atoms = query.split(":")
     key = atoms[0]
 
+    assert len(atoms) <= 3, "cannot have more than two ':' in your query"
+
     pos = "" 
-    if len(atoms) >= 2:
+    if len(atoms) in (2, 3):
         pos = atoms[1]
+
+    strand = "+"
+    if len(atoms) == 3:
+        strand = atoms[2]
+
+    assert strand in ('+', '-'), "strand must be either '+' or '-'"
 
     feature = dict(chr=key)
 
@@ -487,12 +495,16 @@ def extract(args):
     else:
         start, stop = None, None
 
-    f = Fasta(fastafile)
+    assert start < stop, \
+            "start must be less than stop, you have ({0}, {1})".format(start, stop)
+    feature["strand"] = strand
 
     include, exclude = opts.include, opts.exclude
     # conflicting options, cannot be true at the same time
     assert not (include and exclude), "--include and --exclude cannot be "\
             "on at the same time"
+
+    f = Fasta(fastafile)
 
     if include or exclude:
         for k in f.keys():
@@ -500,10 +512,10 @@ def extract(args):
             if exclude and key in k: continue
             
             rec = f[k]
-            seq = Fasta.subseq(rec, start, stop)
+            seq = Fasta.subseq(rec, start, stop, strand)
             newid = rec.id
             if start is not None:
-                newid += ":%d-%d" % (start, stop)
+                newid += ":{0}-{1}:{2}".format(start, stop, strand)
 
             rec = SeqRecord(seq, id=newid, description="")
             SeqIO.write([rec], sys.stdout, "fasta")

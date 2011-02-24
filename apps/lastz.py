@@ -20,7 +20,7 @@ blast_fields = "query,subject,pctid,hitlen,nmismatch,ngaps,"\
         "qstart,qstop,sstart,sstop,evalue,score"
 
 lastz_fields = "name2,name1,identity,nmismatch,ngap,"\
-        "start2+,end2+,start1,end1,score"
+        "start2+,end2+,strand2,start1,end1,strand1,score"
 
 # conversion between blastz and ncbi is taken from Kent src
 # src/lib/blastOut.c
@@ -38,10 +38,13 @@ def lastz_to_blast(row):
     # conver the lastz tabular to the blast tabular, see headers above
     atoms = row.strip().split("\t")
     name1, name2, coverage, identity, nmismatch, ngap, \
-            start1, end1, start2, end2, score = atoms
+            start1, end1, strand1, start2, end2, strand2, score = atoms
     identity = identity.replace("%", "")
     hitlen = coverage.split("/")[1]
     score = float(score)
+    same_strand = (strand1 == strand2)
+    if not same_strand:
+        start2, end2 = end2, start2
 
     evalue = blastz_score_to_ncbi_expectation(score)
     score = blastz_score_to_ncbi_bits(score)
@@ -146,7 +149,6 @@ def run(args):
         assert op.exists(bfasta_fn), ("%s does not exist" % bfasta_fn)
         out_fh = file(opts.outfile, "w") if opts.outfile else sys.stdout
     except Exception, e:
-        logging.error(str(e))
         sys.exit(p.print_help())
 
     if not all((afasta_fn, bfasta_fn)):

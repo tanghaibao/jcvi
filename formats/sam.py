@@ -5,18 +5,20 @@ This script simply parses the lines in SAM into human readable fields.
 http://samtools.sourceforge.net/SAM1.pdf
 """
 
+import os.path as op
 import sys
 import logging
 
 from optparse import OptionParser
 
+from Bio import SeqIO
 from pysam import Samfile
 from jcvi.apps.console import ProgressBar
 from jcvi.formats.base import LineFile
 from jcvi.formats.fasta import Fasta
 from jcvi.utils.misc import fill 
 from jcvi.scaffoldQC.Astat import Astat
-from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.apps.base import ActionDispatcher, sh, debug
 debug()
 
 
@@ -59,10 +61,37 @@ def main():
     actions = (
         ('pair', 'parse sam file and get pairs'),
         ('ace', 'convert sam file to ace'),
+        ('index', 'convert to bam, sort and then index'),
             )
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def index(args):
+    """
+    %prog index samfile/bamfile
+
+    If SAM file, convert to BAM, sort and then index, using SAMTOOLS
+    """
+    p = OptionParser(index.__doc__)
+
+    opts, args = p.parse_args(args)
+    if len(args) != 1:
+        sys.exit(p.print_help())
+
+    samfile = args[0]
+    bamfile = samfile.replace(".sam", ".bam")
+    if samfile.endswith(".sam"):
+        sh("samtools view -bS {0} -F 4 -o {1}".format(samfile, bamfile))
+
+    prefix = bamfile.replace(".bam", "")
+    sortedbamfile = prefix + ".sorted.bam"
+    if op.exists(bamfile):
+        sh("samtools sort {0} {1}.sorted".format(bamfile, prefix))
+
+    if op.exists(sortedbamfile):
+        sh("samtools index {0}".format(sortedbamfile))
 
 
 def pair(args):
@@ -148,12 +177,15 @@ def ace(args):
             help="split the ace per contig to dir [default: %default]")
     p.add_option("--unpaired", dest="unpaired", default=False,
             help="remove read pairs on the same contig [default: %default]")
-    p.add_option("--minreadno", dest="minreadno", default=3,
-            help="minimum read numbers needed for reporting the contig [default: %default]")
+    p.add_option("--minreadno", dest="minreadno", default=3, type="int",
+            help="minimum read numbers per contig [default: %default]")
+    p.add_option("--minctgsize", dest="minctgsize", default=1000, type="int",
+            help="minimum contig size per contig [default: %default]")
 
     opts, args = p.parse_args(args)
     unpaired = opts.unpaired
     minreadno = opts.minreadno
+    minctgsize = opts.minctgsize
 
     if len(args) != 2:
         sys.exit(p.print_help())
@@ -164,6 +196,7 @@ def ace(args):
     acefile = prefix + ".ace"
     readsfile = prefix + ".reads"
     astatfile = prefix + ".astat"
+    leftoverfile = prefix + ".leftover.fasta"
 
     logging.debug("Load {0}".format(bamfile))
     s = Samfile(bamfile, "rb")
@@ -180,6 +213,8 @@ def ace(args):
     fw = open(acefile, "w")
     readsfw = open(readsfile, "w")
     astatfw = open(astatfile, "w")
+    leftoverfw = open(leftoverfile, "w")
+
     print >> fw, "AS {0} {1}".format(ncontigs, totalreads)
     print >> fw
 
@@ -193,7 +228,9 @@ def ace(args):
 
         mapped_reads = [x for x in s.fetch(contig) if not x.is_unmapped]
         nreads = len(mapped_reads)
-        if nreads < minreadno: continue
+        if nreads < minreadno or nbases < minctgsize: 
+            SeqIO.write(cseq, leftoverfw, "fasta")
+            continue
 
         nsegments = 0
         print >> fw, "CO {0} {1} {2} {3} U".format(contig, nbases, nreads,

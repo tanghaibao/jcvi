@@ -267,12 +267,12 @@ def run(args):
 
         basename = filename.split(".")[0]
         if " " not in cmd: 
-            cmd = " ".join((cmd, filename))
+            ncmd = " ".join((cmd, filename))
         else:
-            cmd = cmd.replace("*", filename)
-            cmd = cmd.replace("#", basename)
+            ncmd = cmd.replace("*", filename)
+            ncmd = ncmd.replace("#", basename)
 
-        p = GridProcess(cmd)
+        p = GridProcess(ncmd)
         p.start(path=None) # current folder
 
 

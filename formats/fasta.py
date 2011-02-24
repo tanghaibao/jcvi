@@ -162,17 +162,23 @@ def format(args):
     p = OptionParser(format.__doc__)
     p.add_option("--pairs", dest="pairs", default=False, action="store_true",
             help="If input reads are pairs, add trailing /1 and /2 [default: %default]")
+    p.add_option("--gb", dest="gb", default=False, action="store_true",
+            help="if Genbank ID, get the accession [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
         sys.exit(p.print_help())
 
     infasta, outfasta = args
+    gb = opts.gb
     pairs = opts.pairs
 
     fw = sys.stdout if outfasta=="stdout" else open(outfasta, "w")
     for i, rec in enumerate(SeqIO.parse(infasta, "fasta")):
         rec.description = ""
+        if gb:
+            # gi|262233616|gb|GU123895.1| Coffea arabica clone BAC
+            rec.id = rec.id.split("|")[3]
         if pairs:
             id = "/1" if (i % 2 == 0) else "/2"
             # split with `_` deals with 454 reads

@@ -15,6 +15,7 @@ from collections import namedtuple
 from optparse import OptionParser
 
 from jcvi.formats.base import LineFile
+from jcvi.formats.blast import report_pairs
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
@@ -41,28 +42,47 @@ class Mate (object):
         return "\t".join((self.read1, self.read2, self.library))
 
 
-class PosmapFrags (object):
+class Frags (object):
     pass
 
 
-PosmapMatesLine = namedtuple("PosmapMatesLine", 
+MatesLine = namedtuple("MatesLine", 
         "firstReadID secondReadID mateStatus")
 
-class PosmapMates (object):
+class Mates (object):
 
     def __init__(self, filename):
         fp = csv.reader(open(filename), delimiter='\t')
         for row in fp:
-            b = PosmapMatesLine._make(row)
-            print b
+            b = MatesLine._make(row)
+
+
+class FrgScfLine (object):
+
+    def __init__(self, row):
+        atoms = row.split()
+        self.fragmentID = atoms[0]
+        self.scaffoldID = atoms[1]
+        self.begin = int(atoms[2])
+        self.end = int(atoms[3])
+        self.orientation = '+' if atoms[4]=='f' else '-'
+
+
+class FrgScf (object):
+
+    def __init__(self, filename):
+        fp = csv.reader(open(filename), delimiter='\t')
+        for row in fp:
+            b = FrgScfLine(row)
 
 
 class Posmap (LineFile):
 
     # dispatch based on filename
     mapping = {
-            "frags": PosmapFrags,
-            "mates": PosmapMates,
+            "frags": Frags,
+            "mates": Mates,
+            "frgscf": FrgScf,
             }
 
     def __init__(self, filename):
@@ -85,6 +105,7 @@ def main():
 
     actions = (
         ('parse', 'parse posmap file'),
+        ('pairs', 'report insert statistics for read pairs')
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -105,6 +126,44 @@ def parse(args):
     p = Posmap(posmapfile)
 
     p.parse()
+
+
+def pairs(args):
+    """
+    %prog pairs frgscffile 
+    
+    report summary of the frgscf, how many paired ends mapped, avg
+    distance between paired ends, etc. Reads have to be in the form of
+    `READNAME{/1,/2}`
+    """
+    p = OptionParser(pairs.__doc__)
+    p.add_option("--cutoff", dest="cutoff", default=1e9, type="int",
+            help="distance to call valid links between PE [default: %default]")
+    p.add_option("--pairs", dest="pairsfile", 
+            default=True, action="store_true",
+            help="write valid pairs to pairsfile")
+    p.add_option("--inserts", dest="insertsfile", default=True, 
+            help="write insert sizes to insertsfile and plot distribution " + \
+            "to insertsfile.pdf")
+    opts, args = p.parse_args(args)
+
+    if len(args)!=1:
+        sys.exit(p.print_help())
+
+    cutoff = opts.cutoff
+    if cutoff < 0: cutoff = 1e9
+    frgscffile, = args
+
+    basename = frgscffile.split(".")[0]
+    pairsfile = ".".join((basename, "pairs")) if opts.pairsfile else None
+    insertsfile = ".".join((basename, "inserts")) if opts.insertsfile else None
+
+    fp = open(frgscffile)
+    data = [FrgScfLine(row) for row in fp]
+    data.sort(key=lambda x: x.fragmentID)
+
+    report_pairs(data, cutoff, dialect="frgscf", pairsfile=pairsfile,
+           insertsfile=insertsfile)
 
 
 if __name__ == '__main__':

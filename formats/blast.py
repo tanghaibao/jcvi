@@ -176,10 +176,13 @@ def report_pairs(data, cutoff=300000, dialect="blast", pairsfile=None,
     # +- (forward-backward) is `innie`, -+ (backward-forward) is `outie`
     orientations = defaultdict(int)
 
-    if dialect=="b":
-        key = lambda x: x.query.split("/")[0] 
-    else:
-        key = lambda x: x.readname.split("/")[0] 
+    rs = lambda x: x.rsplit("/", 1)[0]
+    if dialect=="b": # blast
+        key = lambda x: rs(x.query)
+    elif dialect=="c": # castab
+        key = lambda x: rs(x.readname)
+    else: # frgscf
+        key = lambda x: rs(x.fragmentID)
 
     if pairsfile: pairsfw = open(pairsfile, "w")
     if insertsfile: insertsfw = open(insertsfile, "w")
@@ -190,20 +193,27 @@ def report_pairs(data, cutoff=300000, dialect="blast", pairsfile=None,
             num_pairs += 1
             a, b = lines
 
-            if dialect=="b":
+            if dialect=="b": # blast
                 asubject, astart, astop = a.subject, a.sstart, a.sstop
                 bsubject, bstart, bstop = b.subject, b.sstart, b.sstop
-     
-                astrand = a.sstrand
-                bstrand = b.sstrand
 
-            else:
+                aquery, bquery = a.query, b.query
+                astrand, bstrand = a.sstrand, b.sstrand
+
+            elif dialect=='c': # castab
                 asubject, astart, astop = a.refnum, a.refstart, a.refstop
                 bsubject, bstart, bstop = b.refnum, b.refstart, b.refstop
                 if -1 in (astart, bstart): continue
+                
+                aquery, bquery = a.readname, b.readname
+                astrand, bstrand = a.strand, b.strand
 
-                astrand = a.strand
-                bstrand = b.strand
+            else: # frgscf
+                asubject, astart, astop = a.scaffoldID, a.begin, a.end
+                bsubject, bstart, bstop = b.scaffoldID, b.begin, b.end
+
+                aquery, bquery = a.fragmentID, b.fragmentID
+                astrand, bstrand = a.orientation, b.orientation
 
             dist, orientation = range_distance(\
                     (asubject, astart, astop, astrand), 
@@ -212,7 +222,8 @@ def report_pairs(data, cutoff=300000, dialect="blast", pairsfile=None,
             if 0 <= dist <= cutoff:
                 linked_dist.append(dist)
                 if pairsfile:
-                    for b in lines: print >>pairsfw, b
+                    #for b in lines: print >>pairsfw, b
+                    print >> pairsfw, "{0}\t{1}\t{2}".format(aquery, bquery, dist)
                 orientations[orientation] += 1
         else:
             num_fragments += 1
@@ -252,7 +263,7 @@ def pairs(args):
     """
     %prog pairs blastfile 
     
-    report summary of the cas tabular results, how many paired ends mapped, avg
+    report summary of blast tabular results, how many paired ends mapped, avg
     distance between paired ends, etc. Reads have to be in the form of
     `READNAME{/1,/2}`
     """
@@ -260,7 +271,7 @@ def pairs(args):
     p.add_option("--cutoff", dest="cutoff", default=1e9, type="int",
             help="distance to call valid links between PE [default: %default]")
     p.add_option("--pairs", dest="pairsfile", 
-            default=False, action="store_true",
+            default=True, action="store_true",
             help="write valid pairs to pairsfile")
     p.add_option("--inserts", dest="insertsfile", default=True, 
             help="write insert sizes to insertsfile and plot distribution " + \

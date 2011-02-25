@@ -60,7 +60,7 @@ def range_distance(a, b, dist_mode='ss'):
     elif range_overlap(a[:3], b[:3]): 
         dist = 0
     else:
-        # If the two ranges do not overlap then check stranded ness and distance
+        # If the two ranges do not overlap then check stranded-ness and distance
         if a_min > b_min: 
             a_min, b_min = b_min, a_min
             a_max, b_max = b_max, a_max

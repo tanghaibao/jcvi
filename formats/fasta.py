@@ -181,8 +181,7 @@ def format(args):
             rec.id = rec.id.split("|")[3]
         if pairs:
             id = "/1" if (i % 2 == 0) else "/2"
-            # split with `_` deals with 454 reads
-            rec.id = rec.id.split("_")[0] + id 
+            rec.id += id 
             
         SeqIO.write(rec, fw, "fasta")
 
@@ -495,7 +494,7 @@ def extract(args):
     else:
         start, stop = None, None
 
-    assert start < stop, \
+    assert start < stop or None in (start, stop), \
             "start must be less than stop, you have ({0}, {1})".format(start, stop)
     feature["strand"] = strand
 

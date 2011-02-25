@@ -14,8 +14,8 @@ from optparse import OptionParser
 from jcvi.formats.base import LineFile
 from jcvi.formats.blast import report_pairs
 from jcvi.apps.grid import GridProcess
-from jcvi.apps.base import ActionDispatcher, debug
 from jcvi.utils.range import range_distance
+from jcvi.apps.base import ActionDispatcher, sh, debug
 debug()
 
 
@@ -56,12 +56,30 @@ class CasTabLine (LineFile):
 def main():
     
     actions = (
+        ('txt', "convert binary CAS file to tabular output using assembly_table"),
         ('split', 'split the CAS file into smaller CAS using sub_assembly'),
         ('bed', 'convert cas tabular output to bed format'),
         ('pairs', 'print paired-end reads of cas tabular output'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def txt(args):
+    """
+    %prog txt casfile
+
+    convert binary CAS file to tabular output using CLC assembly_table
+    """
+    p = OptionParser(txt.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(p.print_help())
+
+    casfile, = args
+    txtfile = casfile.replace(".cas", ".txt")
+    sh("assembly_table -n -s -p {0} > {1}".format(casfile, txtfile))
 
 
 def split(args):

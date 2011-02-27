@@ -61,7 +61,7 @@ def sh(cmd, blog=None):
 
     from subprocess import call
     logging.debug(cmd)
-    call(cmd, shell=True)
+    return call(cmd, shell=True)
 
 
 def is_current_file(a, b):

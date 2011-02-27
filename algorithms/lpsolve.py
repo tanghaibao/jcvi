@@ -19,9 +19,7 @@ The input lp_data is assumed in .lp format, see below
 ...  x2
 ...  x3
 ... End'''
->>> print SCIPSolver(lp_data, clean=True).results
-[0, 1]
->>> print GLPKSolver(lp_data, clean=True).results
+>>> print GLPKSolver(lp_data).results
 [0, 1]
 """
 
@@ -30,19 +28,32 @@ import os.path as op
 import sys
 import shutil
 import logging
+import cStringIO
 
+from collections import defaultdict
+
+from jcvi.utils.misc import fill
 from jcvi.apps.base import sh, debug
 debug()
 
 
 Work_dir = "lpsolve_work"
 
+# CPLEX LP format
+# <http://lpsolve.sourceforge.net/5.0/CPLEX-format.htm>
+MAXIMIZE = "Maximize"
+MINIMIZE = "Minimize"
+SUBJECTTO = "Subject To"
+BOUNDS = "Bounds"
+BINARY = "Binary"
+END = "End"
+
 
 class AbstractMIPSolver(object):
     """
     Base class for LP solvers
     """
-    def __init__(self, lp_data, work_dir=Work_dir, clean=False, verbose=False):
+    def __init__(self, lp_data, work_dir=Work_dir, clean=True, verbose=False):
 
         self.work_dir = work_dir
         self.clean = clean
@@ -52,7 +63,7 @@ class AbstractMIPSolver(object):
             os.mkdir(work_dir)
 
         lpfile = op.join(work_dir, "data.lp") # problem instance
-        logging.error("write MIP instance to `{0}`".format(lpfile))
+        logging.debug("write MIP instance to `{0}`".format(lpfile))
 
         fw = file(lpfile, "w")
         fw.write(lp_data)
@@ -65,7 +76,7 @@ class AbstractMIPSolver(object):
             self.results = self.parse_output(outfile)
         
         if self.results:
-            print >>sys.stderr, "optimized objective value (%d)" % self.obj_val
+            logging.debug("optimized objective value ({0})".format(self.obj_val))
 
     def run(self, lp_data, work_dir):
         raise NotImplementedError
@@ -172,6 +183,108 @@ class SCIPSolver(AbstractMIPSolver):
         if self.clean: self.cleanup()
 
         return results
+
+
+def node_to_edge(edges):
+    """
+    From list of edges, record per node, incoming and outgoing edges
+    """
+    outgoing = defaultdict(set)
+    incoming = defaultdict(set)
+    nodes = set()
+    for i, edge in enumerate(edges):
+        a, b, w = edge
+        outgoing[a].add(i)
+        incoming[b].add(i)
+        nodes.add(a)
+        nodes.add(b)
+    return outgoing, incoming, nodes
+
+
+# CPLEX LP format commonly contains three blocks - objective, constraints, vars
+# spec <http://lpsolve.sourceforge.net/5.0/CPLEX-format.htm>
+def print_objective(lp_handle, edges, objective=MAXIMIZE):
+    print >> lp_handle, objective 
+    items = [" + {0}x{1}".format(w, i+1) for i, (a, b, w) in enumerate(edges)]
+    sums = fill(items, width=10)
+    print >> lp_handle, sums
+
+
+def print_constraints(lp_handle, constraints):
+    print >> lp_handle, SUBJECTTO
+    for cc in constraints:
+        print >> lp_handle, cc
+
+
+def print_vars(lp_handle, nedges, vars=BINARY):
+    print >> lp_handle, vars
+    for i in xrange(nedges):
+        print >> lp_handle, " x{0}".format(i+1)
+    
+    print >> lp_handle, END
+
+
+def lpsolve(lp_handle, clean=True):
+    lp_data = lp_handle.getvalue()
+    lp_handle.close()
+
+    g = GLPKSolver(lp_data, clean=clean)
+    selected = set(g.results)
+    return selected, g.obj_val
+
+
+def path(edges, source, sink, flavor="longest"):
+    """
+    Calculates shortest/longest path from list of edges in a graph
+    
+    >>> g = [(1,2,25), (2,3,10), (2,4,18), (3,4,10), (4,3,10), (3,6,20)]
+    >>> g += [(4,5,1), (5,6,3), (5,7,7), (6,7,8)]
+    >>> print path(g, 1, 7, flavor="shortest")
+    ([(1, 2, 25), (2, 4, 18), (4, 5, 1), (5, 7, 7)], 51)
+    >>> print path(g, 1, 7, flavor="longest")
+    ([(1, 2, 25), (2, 4, 18), (3, 6, 20), (4, 3, 10), (6, 7, 8)], 81)
+    """
+    outgoing, incoming, nodes = node_to_edge(edges)
+
+    nedges = len(edges)
+    lp_handle = cStringIO.StringIO()
+
+    assert flavor in ("longest", "shortest")
+
+    objective = MAXIMIZE if flavor=="longest" else MINIMIZE
+    print_objective(lp_handle, edges, objective=objective)
+
+    # Balancing constraint, incoming edges equal to outgoing edges except
+    # source and sink
+
+    constraints = []
+    for v in nodes:
+        incoming_edges = incoming[v]
+        outgoing_edges = outgoing[v]
+        icc = "".join(" + x{0}".format(i+1) for i in incoming_edges) 
+        occ = "".join(" + x{0}".format(i+1) for i in outgoing_edges) 
+
+        if v == source:
+            if len(outgoing_edges) == 0: return None
+            constraints.append("{0} = 1".format(occ))
+        elif v == sink:
+            if len(incoming_edges) == 0: return None
+            constraints.append("{0} = 1".format(icc))
+        else:
+            # Balancing
+            constraints.append("{0}{1} = 0".format(icc, occ.replace('+', '-')))
+            # Simple path
+            constraints.append("{0} <= 1".format(icc))
+            constraints.append("{0} <= 1".format(occ))
+
+    print_constraints(lp_handle, constraints)
+    print_vars(lp_handle, nedges, vars=BINARY)
+
+    selected, obj_val = lpsolve(lp_handle)
+    results = sorted(x for i, x in enumerate(edges) if i in selected)
+    if not results: results = None
+
+    return results, obj_val
 
 
 if __name__ == '__main__':

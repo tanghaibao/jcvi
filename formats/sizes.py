@@ -18,11 +18,11 @@ class Sizes (LineFile):
         # get sizes for individual contigs, both in list and dict
         # this is to preserve the input order in the sizes file
         sizes = list(self.iter_sizes())
-        self.sizes = sizes
         self.sizes_mapping = dict(sizes)
         
         # get cumulative sizes, both in list and dict
         ctgs, sizes = zip(*sizes)
+        self.sizes = sizes
         cumsizes = np.cumsum([0] + list(sizes)[:-1])
         self.ctgs = ctgs
         self.cumsizes = cumsizes
@@ -39,7 +39,7 @@ class Sizes (LineFile):
 
     @property
     def totalsize(self):
-        return np.sum(self.sizes)
+        return sum(self.sizes)
 
     def iter_sizes(self):
         self.fp.seek(0)

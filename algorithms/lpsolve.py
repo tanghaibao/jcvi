@@ -237,12 +237,12 @@ def path(edges, source, sink, flavor="longest"):
     """
     Calculates shortest/longest path from list of edges in a graph
     
-    >>> g = [(1,2,25), (2,3,10), (2,4,18), (3,4,10), (4,3,10), (3,6,20)]
-    >>> g += [(4,5,1), (5,6,3), (5,7,7), (6,7,8)]
-    >>> print path(g, 1, 7, flavor="shortest")
-    ([(1, 2, 25), (2, 4, 18), (4, 5, 1), (5, 7, 7)], 51)
-    >>> print path(g, 1, 7, flavor="longest")
-    ([(1, 2, 25), (2, 4, 18), (3, 6, 20), (4, 3, 10), (6, 7, 8)], 81)
+    >>> g = [(1,2,1),(2,3,9),(2,4,3),(2,5,2),(3,6,8),(4,6,10),(4,7,4)]
+    >>> g += [(6,8,7),(7,9,5),(8,9,6),(9,10,11)]
+    >>> print path(g, 1, 8, flavor="shortest")
+    ([(1, 2, 1), (2, 4, 3), (4, 6, 10), (6, 8, 7)], 21)
+    >>> print path(g, 1, 8, flavor="longest")
+    ([(1, 2, 1), (2, 3, 9), (3, 6, 8), (6, 8, 7)], 25)
     """
     outgoing, incoming, nodes = node_to_edge(edges)
 
@@ -265,17 +265,19 @@ def path(edges, source, sink, flavor="longest"):
         occ = "".join(" + x{0}".format(i+1) for i in outgoing_edges) 
 
         if v == source:
-            if len(outgoing_edges) == 0: return None
+            if not outgoing_edges: return None
             constraints.append("{0} = 1".format(occ))
         elif v == sink:
-            if len(incoming_edges) == 0: return None
+            if not incoming_edges: return None
             constraints.append("{0} = 1".format(icc))
         else:
             # Balancing
             constraints.append("{0}{1} = 0".format(icc, occ.replace('+', '-')))
             # Simple path
-            constraints.append("{0} <= 1".format(icc))
-            constraints.append("{0} <= 1".format(occ))
+            if incoming_edges:
+                constraints.append("{0} <= 1".format(icc))
+            if outgoing_edges:
+                constraints.append("{0} <= 1".format(occ))
 
     print_constraints(lp_handle, constraints)
     print_vars(lp_handle, nedges, vars=BINARY)

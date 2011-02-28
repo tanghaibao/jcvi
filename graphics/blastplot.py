@@ -2,7 +2,7 @@
 # -*- coding: UTF-8 -*-
 
 """
-%prog blastfile --qsizes query.sizes --sbed subject.sizes
+%prog blastfile --qsizes query.sizes --ssizes subject.sizes
 
 visualize the blastfile in a dotplot.
 """
@@ -24,7 +24,8 @@ from jcvi.apps.base import debug
 debug()
 
 
-def blastplot(blastfile, qsizes, ssizes, qbed, sbed, image_name):
+def blastplot(blastfile, qsizes, ssizes, qbed, sbed, image_name, 
+        lines=False, sampleN=5000):
 
     fp = open(blastfile)
 
@@ -41,38 +42,48 @@ def blastplot(blastfile, qsizes, ssizes, qbed, sbed, image_name):
             if query not in qorder: continue
             qi, q = qorder[query]
             query = q.seqid
-            qi = (q.start + q.end) / 2
+            qstart, qend = q.start, q.end
         else:
-            qi = (b.qstart + b.qstop) / 2 
+            qstart, qend = b.qstart, b.qstop
 
         if sorder:
             if subject not in sorder: continue
             si, s = sorder[subject]
             subject = s.seqid
-            si = (s.start + s.end) / 2
+            sstart, send = s.start, s.end
         else:
-            si = (b.sstart + b.sstop) / 2
+            sstart, send = b.sstart, b.sstop
 
-        qi = qsizes.get_position(query, qi)
-        si = ssizes.get_position(subject, si)
+        qi = qsizes.get_position(query, qstart)
+        qj = qsizes.get_position(query, qend)
+        si = ssizes.get_position(subject, sstart)
+        sj = ssizes.get_position(subject, send)
+
         if None in (qi, si): continue
-        data.append((qi, si))
+        data.append(((qi, qj), (si, sj)))
 
     fig = plt.figure(1,(8,8))
     root = fig.add_axes([0,0,1,1]) # the whole canvas
     ax = fig.add_axes([.1,.1,.8,.8]) # the dot plot
 
-    """
-    sample_number = 5000 # only show random subset
-    if len(data) > sample_number:
-        data = sample(data, sample_number)
-    """
-
-    x, y = zip(*data)
-    ax.scatter(x, y, s=2, lw=0)
+    if sampleN:
+        if len(data) > sampleN:
+            data = sample(dataN)
 
     xsize, ysize = qsizes.totalsize, ssizes.totalsize
     logging.debug("xsize=%d ysize=%d" % (xsize, ysize))
+
+    if not data:
+        return logging.error("no blast data imported")
+
+    if lines:
+        for a, b in data:
+            ax.plot(a, b, 'r-', mfc="w", mec="r")
+    else:
+        data = [(x[0], y[0]) for x, y in data]
+        x, y = zip(*data)
+        ax.scatter(x, y, s=2, lw=0)
+
     xlim = (0, xsize)
     ylim = (ysize, 0) # invert the y-axis
 
@@ -146,7 +157,7 @@ def blastplot(blastfile, qsizes, ssizes, qbed, sbed, image_name):
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
     root.set_axis_off()
-    logging.debug("print image to %s" % image_name)
+    logging.debug("print image to `{0}`".format(image_name))
     plt.savefig(image_name, dpi=150)
 
 
@@ -157,6 +168,8 @@ if __name__ == "__main__":
     p.add_option("--ssizes", dest="ssizes", help="path to two column ssizes file")
     p.add_option("--qbed", dest="qbed", help="path to qbed")
     p.add_option("--sbed", dest="sbed", help="path to sbed")
+    p.add_option("--lines", dest="lines", default=False, action="store_true",
+            help="plot lines for anchors instead of points [default: points]")
     p.add_option("--format", dest="format", default="png",
             help="generate image of format (png, pdf, ps, eps, svg, etc.)"
             "[default: %default]")
@@ -165,6 +178,8 @@ if __name__ == "__main__":
 
     qsizes, ssizes = opts.qsizes, opts.ssizes
     qbed, sbed = opts.qbed, opts.sbed
+    lines = opts.lines
+
     if not (len(args) == 1 and qsizes and ssizes):
         sys.exit(p.print_help())
 
@@ -176,5 +191,5 @@ if __name__ == "__main__":
     blastfile = args[0]
 
     image_name = op.splitext(blastfile)[0] + "." + opts.format
-    blastplot(blastfile, qsizes, ssizes, qbed, sbed, image_name)
+    blastplot(blastfile, qsizes, ssizes, qbed, sbed, image_name, lines=lines)
 

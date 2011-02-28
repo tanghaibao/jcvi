@@ -165,7 +165,7 @@ def main():
 
 
 def report_pairs(data, cutoff=300000, dialect="blast", pairsfile=None,
-        insertsfile=None):
+        insertsfile=None, delimiter="/"):
     """
     This subroutine is used by the pairs function in blast.py and cas.py.
     Reports number of fragments and pairs as well as linked pairs
@@ -176,7 +176,7 @@ def report_pairs(data, cutoff=300000, dialect="blast", pairsfile=None,
     # +- (forward-backward) is `innie`, -+ (backward-forward) is `outie`
     orientations = defaultdict(int)
 
-    rs = lambda x: x.rsplit("/", 1)[0]
+    rs = lambda x: x.rsplit(delimiter, 1)[0]
     if dialect=="b": # blast
         key = lambda x: rs(x.query)
     elif dialect=="c": # castab
@@ -246,16 +246,16 @@ def report_pairs(data, cutoff=300000, dialect="blast", pairsfile=None,
 
     orientation_summary = []
     for orientation, count in sorted(orientations.items()):
-        o = "{0}: {1}".format(orientation, count)
+        o = "{0}:{1}".format(orientation, count)
         orientation_summary.append(o)
         print >>sys.stderr, o 
 
     if insertsfile:
         print >>insertsfw, "\n".join(str(x) for x in linked_dist)
         insertsfw.close()
-        prefix = insertsfile.split(".")[0]
-        histogram(insertsfile, vmin=0, vmax=cutoff, xlabel="insertsize", 
-                title="{0} PE lib ({1}; median insert {2})".format(prefix, 
+        prefix = insertsfile.rsplit(".", 1)[0]
+        histogram(insertsfile, vmin=0, vmax=cutoff, xlabel="Insertsize", 
+                title="{0} PE ({1}; median ins {2})".format(prefix, 
                     ", ".join(orientation_summary), p0))
 
 

@@ -25,7 +25,7 @@ debug()
 
 
 def blastplot(blastfile, qsizes, ssizes, qbed, sbed, image_name, 
-        lines=False, sampleN=5000):
+        lines=False, proportional=False, sampleN=5000):
 
     fp = open(blastfile)
 
@@ -62,23 +62,28 @@ def blastplot(blastfile, qsizes, ssizes, qbed, sbed, image_name,
         if None in (qi, si): continue
         data.append(((qi, qj), (si, sj)))
 
-    fig = plt.figure(1,(8,8))
-    root = fig.add_axes([0,0,1,1]) # the whole canvas
-    ax = fig.add_axes([.1,.1,.8,.8]) # the dot plot
-
     if sampleN:
         if len(data) > sampleN:
             data = sample(dataN)
 
-    xsize, ysize = qsizes.totalsize, ssizes.totalsize
-    logging.debug("xsize=%d ysize=%d" % (xsize, ysize))
-
     if not data:
         return logging.error("no blast data imported")
 
+    xsize, ysize = qsizes.totalsize, ssizes.totalsize
+    logging.debug("xsize=%d ysize=%d" % (xsize, ysize))
+
+    # Fix the width
+    ratio = 1
+    if proportional: ratio = ysize * 1./ xsize
+    width = 8
+    height = width * ratio
+    fig = plt.figure(1, (width, height))
+    root = fig.add_axes([0,0,1,1]) # the whole canvas
+    ax = fig.add_axes([.1,.1,.8,.8]) # the dot plot
+
     if lines:
         for a, b in data:
-            ax.plot(a, b, 'r-', mfc="w", mec="r")
+            ax.plot(a, b, 'ro-', mfc="w", mec="r", ms=3)
     else:
         data = [(x[0], y[0]) for x, y in data]
         x, y = zip(*data)
@@ -170,6 +175,9 @@ if __name__ == "__main__":
     p.add_option("--sbed", dest="sbed", help="path to sbed")
     p.add_option("--lines", dest="lines", default=False, action="store_true",
             help="plot lines for anchors instead of points [default: points]")
+    p.add_option("--proportional", dest="proportional",
+            default=False, action="store_true", 
+            help="make the image width/height equal to seqlen ratio")
     p.add_option("--format", dest="format", default="png",
             help="generate image of format (png, pdf, ps, eps, svg, etc.)"
             "[default: %default]")
@@ -179,6 +187,7 @@ if __name__ == "__main__":
     qsizes, ssizes = opts.qsizes, opts.ssizes
     qbed, sbed = opts.qbed, opts.sbed
     lines = opts.lines
+    proportional = opts.proportional
 
     if not (len(args) == 1 and qsizes and ssizes):
         sys.exit(p.print_help())
@@ -191,5 +200,6 @@ if __name__ == "__main__":
     blastfile = args[0]
 
     image_name = op.splitext(blastfile)[0] + "." + opts.format
-    blastplot(blastfile, qsizes, ssizes, qbed, sbed, image_name, lines=lines)
+    blastplot(blastfile, qsizes, ssizes, qbed, sbed, image_name, 
+            lines=lines, proportional=proportional)
 

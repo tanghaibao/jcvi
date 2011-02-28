@@ -181,6 +181,7 @@ def format(args):
             rec.id = rec.id.split("|")[3]
         if pairs:
             id = "/1" if (i % 2 == 0) else "/2"
+            #rec.id = rec.id.rsplit("_", 1)[0]
             rec.id += id 
             
         SeqIO.write(rec, fw, "fasta")

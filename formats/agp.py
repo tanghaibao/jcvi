@@ -109,6 +109,19 @@ class AGP (LineFile):
         return dict((x.component_id, x) for x in self if not x.is_gap)
 
 
+    @classmethod
+    def print_header(cls, fw=sys.stdout, organism="Medicago trucatula", taxid=3880,
+            source="JCVI"):
+        # these comments are entirely optional, modeled after maize AGP
+        print >> fw, "# ORGANISM: {0}".format(organism)
+        print >> fw, "# TAX_ID: {0}".format(taxid)
+        print >> fw, "# GENOME CENTER: {0}".format(source)
+        header = "object object_beg object_end part_number component_type " +\
+                 "component_id/gap_length component_beg/gap_type " +\
+                 "component_end/linkage orientation".split()
+        print >> fw, "\t".join(header)
+
+
     def validate_one(self, object, lines):
         object_beg = lines[0].object_beg
         assert object_beg==1, \
@@ -176,9 +189,9 @@ def main():
     actions = (
         ('bed', 'print out the tiling paths in bed format'),
         ('gaps', 'print out the distribution of gap sizes'),
-        ('build', 'given agp file and component fasta file, build the' + \
+        ('build', 'given agp file and component fasta file, build the ' +\
                  'pseudomolecule fasta'),
-        ('validate', 'given agp file, component fasta and pseudomolecule fasta, ' + \
+        ('validate', 'given agp file, component fasta and pseudomolecule fasta, ' +\
                      'validate if the build is correct')
             )
 

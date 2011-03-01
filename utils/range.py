@@ -57,8 +57,8 @@ def range_distance(a, b, dist_mode='ss'):
     # must be on the same chromosome
     if a_chr != b_chr: 
         dist = -1
-    elif range_overlap(a[:3], b[:3]): 
-        dist = 0
+    #elif range_overlap(a[:3], b[:3]): 
+    #    dist = 0
     else:
         # If the two ranges do not overlap then check stranded-ness and distance
         if a_min > b_min: 

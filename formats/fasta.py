@@ -230,7 +230,7 @@ def _print_first_difference(arec, brec, ignore_case=False, ignore_N=False):
     asize, bsize = len(aseq), len(bseq)
 
     for i, (a, b) in enumerate(izip_longest(aseq, bseq)):
-        if ignore_case:
+        if ignore_case and None not in (a, b):
             a, b = a.upper(), b.upper()
 
         if (ignore_N and 'N' in (a, b)): continue

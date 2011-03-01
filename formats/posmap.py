@@ -11,8 +11,10 @@ http://sourceforge.net/apps/mediawiki/wgs-assembler/index.php?title=POSMAP
 import sys
 import csv
 
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 from optparse import OptionParser
+from itertools import groupby
+
 
 from jcvi.formats.base import LineFile
 from jcvi.formats.blast import report_pairs
@@ -63,7 +65,7 @@ class FrgScfLine (object):
         atoms = row.split()
         self.fragmentID = atoms[0]
         self.scaffoldID = atoms[1]
-        self.begin = int(atoms[2])
+        self.begin = int(atoms[2]) + 1 # convert to 1-based
         self.end = int(atoms[3])
         self.orientation = '+' if atoms[4]=='f' else '-'
 
@@ -104,28 +106,57 @@ class Posmap (LineFile):
 def main():
 
     actions = (
-        ('parse', 'parse posmap file'),
+        ('dup', 'quantify the level of redundancy based on position collision'),
         ('pairs', 'report insert statistics for read pairs')
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
 
-def parse(args):
+def dup(args):
     """
-    %prog parse posmap
+    %prog dup frgscffile
 
+    Use the frgscf posmap file as an indication of the coverage of the library.
+    Large insert libraries are frequently victims of high levels of redundancy.
     """
-    p = OptionParser(parse.__doc__)
+    p = OptionParser(dup.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(p.print_help())
 
-    posmapfile = args[0]
-    p = Posmap(posmapfile)
+    frgscffile, = args
 
-    p.parse()
+    fp = open(frgscffile)
+    data = [FrgScfLine(row) for row in fp] 
+    # we need to separate forward and reverse reads, because the position
+    # collisions are handled differently
+    forward_data = [x for x in data if x.orientation=='+']
+    reverse_data = [x for x in data if x.orientation=='-']
+
+    counts = defaultdict(int)
+    key = lambda x: (x.scaffoldID, x.begin)
+    forward_data.sort(key=key)
+    for k, data in groupby(forward_data, key=key):
+        data = list(data)
+        count = len(data)
+        counts[count] += 1
+
+    key = lambda x: (x.scaffoldID, x.end)
+    reverse_data.sort(key=key)
+    for k, data in groupby(forward_data, key=key):
+        data = list(data)
+        count = len(data)
+        counts[count] += 1
+
+    prefix = frgscffile.split(".")[0]
+    print >> sys.stderr, "Duplication level in `{0}`".format(prefix)
+    print >> sys.stderr, "=" * 40
+    for c, v in sorted(counts.items()):
+        if c > 10: break
+        label = "unique" if c==1 else "{0} copies".format(c)
+        print >> sys.stderr, "{0}: {1}".format(label, v) 
 
 
 def pairs(args):

@@ -235,11 +235,15 @@ def report_pairs(data, cutoff=300000, dialect="blast", pairsfile=None,
     linked_dist = np.array(linked_dist, dtype="int")
     p0 = np.median(linked_dist)
     linked_dist = np.sort(linked_dist)
+    meandist = np.mean(linked_dist)
+    stdev = np.std(linked_dist)
     p1, p2 = linked_dist[int(num_links * .05)], linked_dist[int(num_links * .95)]
 
     print >>sys.stderr, "%d pairs (%.1f%%) are linked (cutoff=%d)" % \
             (num_links, num_links*100./num_pairs, cutoff)
 
+    print >>sys.stderr, "mean distance between PE: {0} +/-{1}".\
+            format(meandist, stdev)
     print >>sys.stderr, "median distance between PE: {0}".format(p0)
     print >>sys.stderr, "90% distance range: {0} - {1}".format(p1, p2)
     print >>sys.stderr, "\nOrientations:"

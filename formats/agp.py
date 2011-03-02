@@ -30,6 +30,7 @@ class AGPLine (object):
     def __init__(self, row, validate=True):
 
         atoms = row.split('\t')
+        atoms[-1] = atoms[-1].strip()
         self.object = atoms[0]
         self.object_beg = int(atoms[1])
         self.object_end = int(atoms[2])
@@ -59,12 +60,27 @@ class AGPLine (object):
                         (b, row))
 
     def __str__(self):
+        
+        fields = [self.object, self.object_beg, self.object_end,
+                self.part_number, self.component_type]
+
+        if not self.is_gap:
+            fields += [self.component_id, self.component_beg,
+                    self.component_end, self.orientation]
+        else:
+            fields += [self.gap_length, self.gap_type, 
+                    self.linkage, self.empty]
+
+        return "\t".join(str(x) for x in fields)
+
+    __repr__ = __str__
+
+    @property
+    def bedline(self):
         # bed formatted line
         gid = self.component_id if not self.is_gap else "gap"
         return "\t".join((self.object, str(self.object_beg-1),
                 str(self.object_end), gid, '1000', self.orientation))
-
-    __repr__ = __str__
 
     def validate(self):
         assert self.component_type in Valid_component_type, \
@@ -110,16 +126,16 @@ class AGP (LineFile):
 
 
     @classmethod
-    def print_header(cls, fw=sys.stdout, organism="Medicago trucatula", taxid=3880,
-            source="JCVI"):
+    def print_header(cls, fw=sys.stdout, organism="Medicago truncatula", taxid=3880,
+            source="J. Craig Venter Institute"):
         # these comments are entirely optional, modeled after maize AGP
         print >> fw, "# ORGANISM: {0}".format(organism)
         print >> fw, "# TAX_ID: {0}".format(taxid)
         print >> fw, "# GENOME CENTER: {0}".format(source)
         header = "object object_beg object_end part_number component_type " +\
                  "component_id/gap_length component_beg/gap_type " +\
-                 "component_end/linkage orientation".split()
-        print >> fw, "\t".join(header)
+                 "component_end/linkage orientation"
+        print >> fw, "# FIELDS: {0}".format("\t".join(header.split()))
 
 
     def validate_one(self, object, lines):
@@ -217,7 +233,7 @@ def bed(args):
     agp = AGP(agpfile)
     for a in agp:
         if opts.nogaps and a.is_gap: continue
-        print a
+        print a.bedline
 
 
 def gaps(args):

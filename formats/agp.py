@@ -9,6 +9,7 @@ http://www.ncbi.nlm.nih.gov/projects/genome/assembly/agp/AGP_Specification.shtml
 import sys
 import logging
 
+from copy import deepcopy
 from optparse import OptionParser
 from collections import defaultdict
 from itertools import groupby
@@ -135,7 +136,7 @@ class AGP (LineFile):
         header = "object object_beg object_end part_number component_type " +\
                  "component_id/gap_length component_beg/gap_type " +\
                  "component_end/linkage orientation"
-        print >> fw, "# FIELDS: {0}".format("\t".join(header.split()))
+        print >> fw, "# FIELDS: {0}".format(", ".join(header.split()))
 
 
     def validate_one(self, object, lines):
@@ -242,26 +243,67 @@ def gaps(args):
 
     print out the distribution of gapsizes
     """
-    p = OptionParser(bed.__doc__)
+    p = OptionParser(gaps.__doc__)
+    p.add_option("--merge", dest="merge", default=False, action="store_true",
+            help="Merge adjacent gaps (to conform to AGP specification)")
+
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(p.print_help())
 
-    agpfile = args[0]
+    merge = opts.merge
+    agpfile, = args
+    
+    if merge:
+        merged_agpfile = agpfile.replace(".agp", ".merged.agp")
+        fw = open(merged_agpfile, "w")
+
     agp = AGP(agpfile)
     size_distribution = defaultdict(int)
+    data = [] # store merged AGPLine's
+
     for is_gap, alines in groupby(agp, key=lambda x: (x.object, x.is_gap)):
         alines = list(alines)
-        if not is_gap[1]: continue
-        gap_size = sum(x.gap_length for x in alines)
-        if "telomere" in set(x.gap_type for x in alines):
-            gap_size = "telomere"
-        size_distribution[gap_size] += 1
+        is_gap = is_gap[1]
+        if is_gap:
+            gap_size = sum(x.gap_length for x in alines)
+            if "telomere" in set(x.gap_type for x in alines):
+                gap_size = "telomere"
+            size_distribution[gap_size] += 1
+            b = deepcopy(alines[0])
+            b.object_beg = min(x.object_beg for x in alines)
+            b.object_end = max(x.object_end for x in alines)
+            b.gap_length = sum(x.gap_length for x in alines)
+        
+            assert b.gap_length == b.object_end - b.object_beg + 1
+            
+            gtypes = [x.gap_type for x in alines]
+            for gtype in ("telomere", "contig", "clone", "fragment"):
+                if gtype in gtypes:
+                    b.gap_type = gtype
+                    break
+
+            linkages = [x.linkage for x in alines]
+            for linkage in ("no", "yes"):
+                if linkage in linkages:
+                    b.linkage = linkage
+                    break
+
+            alines = [b]
+
+        data.extend(alines)
 
     for gap_size, counts in sorted(size_distribution.items()):
-        print gap_size, counts
+        print >> sys.stderr, gap_size, counts
 
+    if merge:
+        AGP.print_header(fw)
+        for ob, bb in groupby(data, lambda x: x.object):
+            for i, b in enumerate(bb):
+                b.part_number = i + 1
+                print >> fw, b
+    
 
 def build(args):
     """

@@ -69,9 +69,12 @@ class Fasta (BaseFile, dict):
         for k in self.iterkeys():
             yield k, len(self[k])
 
+    def itersizes_ordered(self):
+        for rec in SeqIO.parse(open(self.filename), "fasta"):
+            yield rec.name, len(rec)
+
     def iter_annotations(self):
         for rec in SeqIO.parse(open(self.filename), "fasta"):
-
             name, description = rec.name, rec.description
             yield name, description
     
@@ -178,7 +181,9 @@ def format(args):
         rec.description = ""
         if gb:
             # gi|262233616|gb|GU123895.1| Coffea arabica clone BAC
-            rec.id = rec.id.split("|")[3]
+            atoms = rec.id.split("|")
+            if len(atoms) >= 4:
+                rec.id = atoms[3]
         if pairs:
             id = "/1" if (i % 2 == 0) else "/2"
             #rec.id = rec.id.rsplit("_", 1)[0]
@@ -462,7 +467,6 @@ def extract(args):
     try:
         fastafile, query = args
     except Exception, e:
-        logging.error(str(e))
         sys.exit(p.print_help())
 
     atoms = query.split(":")

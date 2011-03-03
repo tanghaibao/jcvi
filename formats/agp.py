@@ -189,8 +189,6 @@ class AGP (LineFile):
 
     def build_all(self, componentfasta, targetfasta):
 
-        from jcvi.formats.fasta import Fasta
-
         f = Fasta(componentfasta, index=False)
         fw = open(targetfasta, "w")
 
@@ -204,8 +202,12 @@ class AGP (LineFile):
 def main():
 
     actions = (
+        ('summary', 'print out a table listing scaffold statistics'),
+        ('phase', 'given genbank file, get the phase for the HTG BAC record'),
         ('bed', 'print out the tiling paths in bed format'),
         ('gaps', 'print out the distribution of gap sizes'),
+        ('accessions', 'print out a list of accessions'),
+        ('chr0', 'build AGP file for unassembled sequences'),
         ('build', 'given agp file and component fasta file, build the ' +\
                  'pseudomolecule fasta'),
         ('validate', 'given agp file, component fasta and pseudomolecule fasta, ' +\
@@ -214,6 +216,103 @@ def main():
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def keywords_to_phase(keywords):
+    if "HTGS_PHASE1" in keywords:
+        phase = 1
+    elif "HTGS_PHASE2" in keywords:
+        phase = 2
+    elif len(keywords)==1 and "HTG" in keywords:
+        phase = 3
+    else:
+        phase = 0
+
+    return phase
+
+
+def phase(args):
+    """
+    %prog phase genbankfile
+
+    Input has to be gb file. Search the `KEYWORDS` section to look for PHASE.
+    """
+    p = OptionParser(phase.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(p.print_help())
+
+    from Bio import SeqIO
+    gbfile, = args
+    for rec in SeqIO.parse(gbfile, "gb"):
+        keywords = rec.annotations["keywords"]
+        bac_phase = keywords_to_phase(keywords)
+        print "{0}\t{1}\t{2}".format(rec.id, bac_phase, "; ".join(keywords))
+
+
+# phase 0 - (P)refinish; phase 1,2 - (D)raft; phase 3 - (F)inished
+Phases = "PDDF"
+
+def chr0(args):
+    """
+    %prog fastafile phaselist
+
+    build AGP file for unassembled sequences, and add gaps between. Phase list
+    contains two columns - BAC and phase (0, 1, 2, 3).
+    """
+    p = OptionParser(chr0.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(p.print_help())
+
+    fastafile, = args
+    agpfile = fastafile.rsplit(".", 1)[0] + ".agp"
+    f = Fasta(fastafile)
+    fw = open(agpfile, "w")
+    object = "chr0"
+    gap_length = 50000
+    gap_type = "clone"
+    linkage = "no"
+    object_beg = 1
+    part_number = 0
+    for component_id, size in f.itersizes_ordered():
+        if part_number > 0: # print gap except for the first one
+            object_end = object_beg + gap_length - 1
+            part_number += 1
+            print >> fw, "\t".join(str(x) for x in \
+                    (object, object_beg, object_end, part_number,
+                     'N', gap_length, gap_type, linkage, ""))
+
+            object_beg += gap_length
+
+        object_end = object_beg + size -1
+        part_number += 1
+        print >> fw, "\t".join(str(x) for x in \
+                (object, object_beg, object_end, part_number,
+                 'D', component_id, 1, size, '0'))
+
+        object_beg += size
+
+
+def accessions(args):
+    """
+    %prog accessions agpfile
+
+    print out a list of accessions, one per line
+    """
+    p = OptionParser(accessions.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(p.print_help())
+
+    agpfile, = args
+    agp = AGP(agpfile)
+    for a in agp:
+        if a.is_gap: continue
+        print a.component_id
 
 
 def bed(args):
@@ -230,7 +329,7 @@ def bed(args):
     if len(args) != 1:
         sys.exit(p.print_help())
 
-    agpfile = args[0]
+    agpfile, = args
     agp = AGP(agpfile)
     for a in agp:
         if opts.nogaps and a.is_gap: continue
@@ -319,7 +418,6 @@ def build(args):
     try:
         agpfile, componentfasta, targetfasta  = args
     except Exception, e:
-        logging.error(str(e))
         sys.exit(p.print_help())
 
     agp = AGP(agpfile)
@@ -340,11 +438,10 @@ def validate(args):
     try:
         agpfile, componentfasta, targetfasta  = args
     except Exception, e:
-        logging.error(str(e))
         sys.exit(p.print_help())
 
     agp = AGP(agpfile)
-    build = Fasta(targetfasta, key_function=lambda x: x[0], index=False)
+    build = Fasta(targetfasta)
     bacs = Fasta(componentfasta, index=False)
     
     # go through this line by line

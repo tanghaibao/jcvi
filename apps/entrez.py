@@ -127,20 +127,31 @@ def fetch(args):
     if len(args) != 1:
         sys.exit(p.print_help())
 
-    filename = args[0]
+    filename, = args
     if op.exists(filename):
         list_of_terms = [row.strip() for row in open(filename)]
     else:
         # the filename is the search term
         list_of_terms = [filename.strip()] 
 
+    format = opts.format
+
+    outfile = "{0}.{1}".format(filename.rsplit(".", 1)[0], format)
+    if op.exists(outfile):
+        logging.error("`{0}` found, overwrite (Y/N)?".format(outfile))
+        yesno = raw_input()
+        if yesno=='N': return
+
     outdir = opts.outdir
     if outdir and not op.exists(outdir):
         logging.debug("`%s` not found, creating new." % outdir)
         os.mkdir(outdir)
     
+    if not outdir:
+        fw = open(outfile, "w")
+
     seen = set()
-    for id, term, handle in batch_entrez(list_of_terms, rettype=opts.format):
+    for id, term, handle in batch_entrez(list_of_terms, rettype=format):
         rec = handle.read()
         if id in seen:
             logging.error("duplicate key (%s) found" % rec)
@@ -148,10 +159,8 @@ def fetch(args):
 
         if outdir:
             fw = open(op.join(outdir, term), "w")
-        else:
-            fw = sys.stdout
 
-        print >>fw, rec
+        print >> fw, rec
 
         seen.add(id)
 

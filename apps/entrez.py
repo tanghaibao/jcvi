@@ -9,6 +9,7 @@ import time
 import logging
 import urllib2
 
+from itertools import groupby
 from optparse import OptionParser
 from Bio import Entrez, SeqIO
 
@@ -65,6 +66,7 @@ def main():
     actions = (
         ('fetch', 'fetch records from a list of GenBank accessions'),
         ('bisect', 'determine the version of the accession'),
+        ('sequin', 'generated a gapped fasta file suitable for sequin submission'),
         )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -163,6 +165,58 @@ def fetch(args):
         print >> fw, rec
 
         seen.add(id)
+
+
+def sequin(args):
+    """
+    %prog sequin inputfasta
+
+    Generate a gapped fasta format with known gap sizes embedded. suitable for
+    Sequin submission.
+     
+    A gapped sequence represents a newer method for describing non-contiguous
+    sequences, but only requires a single sequence identifier. A gap is represented
+    by a line that starts with >? and is immediately followed by either a length
+    (for gaps of known length) or "unk100" for gaps of unknown length. For example,
+    ">?200". The next sequence segment continues on the next line, with no separate
+    definition line or identifier. The difference between a gapped sequence and a
+    segmented sequence is that the gapped sequence uses a single identifier and can
+    specify known length gaps. Gapped sequences are preferred over segmented
+    sequences. A sample gapped sequence file is shown here:
+
+        >m_gagei [organism=Mansonia gagei] Mansonia gagei NADH dehydrogenase ...
+        ATGGAGCATACATATCAATATTCATGGATCATACCGTTTGTGCCACTTCCAATTCCTATTTTAATAGGAA
+        TTGGACTCCTACTTTTTCCGACGGCAACAAAAAATCTTCGTCGTATGTGGGCTCTTCCCAATATTTTATT
+        >?200
+        GGTATAATAACAGTATTATTAGGGGCTACTTTAGCTCTTGC
+        TCAAAAAGATATTAAGAGGGGTTTAGCCTATTCTACAATGTCCCAACTGGGTTATATGATGTTAGCTCTA
+        >?unk100
+        TCAATAAAACTATGGGGTAAAGAAGAACAAAAAATAATTAACAGAAATTTTCGTTTATCTCCTTTATTAA
+        TATTAACGATGAATAATAATGAGAAGCCATATAGAATTGGTGATAATGTAAAAAAAGGGGCTCTTATTAC
+    """
+    p = OptionParser(sequin.__doc__)
+    p.add_option("--mingap", dest="mingap", default=20, type="int",
+            help="The minimum size of a gap to split [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(p.print_help())
+
+    inputfasta, = args
+    outputfasta = inputfasta.rsplit(".", 1)[0] + ".split"
+    rec = SeqIO.parse(inputfasta, "fasta").next()
+    seq = ""
+    for gap, gap_group in groupby(rec.seq, lambda x: x.upper()=='N'):
+        subseq = "".join(gap_group)
+        if gap:
+            gap_length = len(subseq)
+            if gap_length >= 20: 
+                subseq = "\n>?{0}\n".format(gap_length)
+        seq += subseq
+
+    fw = open(outputfasta, "w")
+    print >> fw, ">{0}".format(rec.id)
+    print >> fw, seq
 
 
 if __name__ == '__main__':

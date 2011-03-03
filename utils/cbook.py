@@ -51,7 +51,7 @@ SUFFIXES = {1000: ['', 'Kb', 'Mb', 'Gb', 'Tb', 'Pb', 'Eb', 'Zb', 'Yb'],
             1024: ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB']}
 
 
-def human_size(size, a_kilobyte_is_1024_bytes=True, precision=1):
+def human_size(size, a_kilobyte_is_1024_bytes=False, precision=1, target=None):
     '''Convert a file size to human-readable form.
 
     Keyword arguments:
@@ -67,9 +67,10 @@ def human_size(size, a_kilobyte_is_1024_bytes=True, precision=1):
 
     multiple = 1024 if a_kilobyte_is_1024_bytes else 1000
     for suffix in SUFFIXES[multiple]:
-        if size < multiple:
+        if size >= multiple or (target and suffix!=target):
+            size /= float(multiple)
+        else:
             return '{0:.{1}f}{2}'.format(size, precision, suffix)
-        size /= float(multiple)
 
     raise ValueError('number too large')
 

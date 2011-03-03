@@ -14,6 +14,7 @@ from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
 
 from jcvi.formats.base import BaseFile
+from jcvi.utils.cbook import human_size
 from jcvi.apps.base import ActionDispatcher, debug
 from jcvi.apps.console import tabular, print_red, print_green
 debug()
@@ -142,6 +143,7 @@ def main():
     actions = (
         ('extract', 'given fasta file and an seq id, retrieve the sequence ' + \
                     'in fasta format'),
+        ('summary', "report the real no of bases and N's in fastafiles"),
         ('uniq', 'remove records that are the same'),
         ('format', 'trim accession id to the first space'),
         ('random', 'random take some records'),
@@ -154,6 +156,53 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def summary(args):
+    """
+    %prog summary *.fasta
+
+    Report real bases and N's in fastafiles in a tabular report
+    """
+    p = OptionParser(summary.__doc__)
+    p.add_option("--suffix", dest="suffix", default="Mb",
+            help="make the base pair couns human readable [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) == 0:
+        sys.exit(p.print_help())
+
+    header = "Seqid|Real|N's|Total|% real"
+    print header.replace('|', '\t')
+    _human_size = lambda x: human_size(x, precision=2,
+            target=opts.suffix) 
+
+    total_nns = 0
+    total_reals = 0
+
+    data = []
+    for fastafile in args:
+        for rec in SeqIO.parse(fastafile, "fasta"):
+            seqlen = len(rec)
+            nns = rec.seq.count('n') + rec.seq.count('N')
+            reals = seqlen - nns
+
+            data.append((rec.id, reals, nns, seqlen))
+
+    idsx, total_reals, total_nns, total_seqlen = zip(*data)
+    total_reals = sum(total_reals)
+    total_nns = sum(total_nns)
+    total_seqlen = sum(total_seqlen)
+    data.append(("Total", total_reals, total_nns, total_seqlen))
+
+    for id, reals, nns, seqlen in data:
+        pctreal = reals * 100. / seqlen
+        seqlen = _human_size(seqlen)
+        nns = _human_size(nns)
+        reals = _human_size(reals)
+
+        print "{0}\t{1}\t{2}\t{3}\t{4:.2f}%".format(id, reals,
+                nns, seqlen, pctreal)
 
 
 def format(args):

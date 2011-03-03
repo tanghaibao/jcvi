@@ -144,6 +144,18 @@ class AGP (LineFile):
         print >> fw, "# FIELDS: {0}".format(", ".join(header.split()))
 
 
+    def report_stats(self, object, bacs, scaffold_sizes):
+        
+        from jcvi.utils.cbook import human_size
+
+        nbacs = len(bacs)
+        nscaffolds = len(scaffold_sizes)
+        a50, l50, n50, scaffold_sizes = A50(scaffold_sizes)
+
+        print "\t".join(str(x) for x in (object, nbacs, nscaffolds, l50,
+            human_size(n50, precision=2, target="Mb")))
+
+
     def summary_one(self, object, lines):
         bacs = set()
         scaffold_sizes = []
@@ -164,20 +176,22 @@ class AGP (LineFile):
 
             scaffold_sizes.append(scaffold_size)
 
-        a50, l50, n50, scaffold_sizes = A50(scaffold_sizes)
+        self.report_stats(object, bacs, scaffold_sizes)
 
-        return object, len(bacs), len(scaffold_sizes), l50, n50 
+        return bacs, scaffold_sizes
 
 
     def summary_all(self):
         
-        from jcvi.utils.cbook import human_size
-
+        all_bacs = set()
+        all_scaffold_sizes = []
         for ob, lines_with_same_ob in groupby(self, key=lambda x: x.object):
             lines = list(lines_with_same_ob)
-            object, nbacs, nscaffolds, l50, n50 = self.summary_one(ob, lines)
-            print "\t".join(str(x) for x in (object, nbacs, nscaffolds, l50,
-                human_size(n50, False, precision=2)))
+            bacs, scaffold_sizes = self.summary_one(ob, lines)
+            all_bacs |= bacs
+            all_scaffold_sizes.extend(scaffold_sizes)
+
+        self.report_stats("Total", all_bacs, all_scaffold_sizes)
 
 
     def validate_one(self, object, lines):
@@ -272,8 +286,7 @@ def summary(args):
         sys.exit(p.print_help())
 
     agpfile, = args
-    header = "Chromosome|Number of BACs|No of Scaffolds|Scaff N50|" +\
-             "Scaff L50|Actual Sequence|PSMOL NNNs|PSMOL-length|% of PSMOL seq'd"
+    header = "Chromosome|Number of BACs|No of Scaffolds|Scaff N50|Scaff L50"
     header = header.replace('|', '\t')
     print header
 
@@ -354,7 +367,7 @@ def chr0(args):
     f = Fasta(fastafile)
     fw = open(agpfile, "w")
     object = "chr0"
-    gap_length = 50000
+    gap_length = 100000
     gap_type = "clone"
     linkage = "no"
     object_beg = 1

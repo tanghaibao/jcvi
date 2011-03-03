@@ -119,7 +119,7 @@ def size(args):
 
     # sort by descending file size
     for filesize, link_name in sorted(results, reverse=True):
-        filesize = human_size(filesize) 
+        filesize = human_size(filesize, a_kilobyte_is_1024_bytes=True) 
         print >>sys.stderr, "%10s\t%s" % (filesize, link_name)
 
 

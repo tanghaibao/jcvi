@@ -15,7 +15,7 @@ from jcvi.formats.blast import BlastLine
 from jcvi.formats.fasta import Fasta
 from jcvi.formats.bed import Bed
 from jcvi.utils.grouper import Grouper
-from jcvi.utils.misc import gene_name
+from jcvi.utils.cbook import gene_name
 from jcvi.apps.base import debug
 debug()
 

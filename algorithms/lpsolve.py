@@ -32,7 +32,7 @@ import cStringIO
 
 from collections import defaultdict
 
-from jcvi.utils.misc import fill
+from jcvi.utils.cbook import fill
 from jcvi.apps.base import sh, debug
 debug()
 

@@ -14,8 +14,13 @@ from optparse import OptionParser
 from collections import defaultdict
 from itertools import groupby
 
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
+from Bio import SeqIO
+
 from jcvi.formats.base import LineFile
 from jcvi.formats.fasta import Fasta
+from jcvi.scaffold.base import A50 
 from jcvi.utils.iter import pairwise
 from jcvi.apps.base import ActionDispatcher, set_debug
 
@@ -139,6 +144,42 @@ class AGP (LineFile):
         print >> fw, "# FIELDS: {0}".format(", ".join(header.split()))
 
 
+    def summary_one(self, object, lines):
+        bacs = set()
+        scaffold_sizes = []
+        _scaffold_key = lambda x: x.is_gap and \
+                x.gap_type in ("clone", "contig") and x.linkage=="no"
+
+        for is_gap, scaffold in groupby(lines, key=_scaffold_key):
+            if is_gap: continue
+
+            scaffold = list(scaffold)
+            scaffold_size = 0
+            for b in scaffold:
+                if b.is_gap:
+                    scaffold_size += b.gap_length 
+                else:
+                    bacs.add(b.component_id)
+                    scaffold_size += b.component_span
+
+            scaffold_sizes.append(scaffold_size)
+
+        a50, l50, n50, scaffold_sizes = A50(scaffold_sizes)
+
+        return object, len(bacs), len(scaffold_sizes), l50, n50 
+
+
+    def summary_all(self):
+        
+        from jcvi.utils.cbook import human_size
+
+        for ob, lines_with_same_ob in groupby(self, key=lambda x: x.object):
+            lines = list(lines_with_same_ob)
+            object, nbacs, nscaffolds, l50, n50 = self.summary_one(ob, lines)
+            print "\t".join(str(x) for x in (object, nbacs, nscaffolds, l50,
+                human_size(n50, False, precision=2)))
+
+
     def validate_one(self, object, lines):
         object_beg = lines[0].object_beg
         assert object_beg==1, \
@@ -150,10 +191,8 @@ class AGP (LineFile):
                     "lines not continuous coords between:\n%s\n%s" % \
                     (a, b)
 
-
     def validate_all(self):
-        for ob, lines_with_same_ob in groupby(self, 
-                key=lambda x: x.object):
+        for ob, lines_with_same_ob in groupby(self, key=lambda x: x.object):
             lines = list(lines_with_same_ob)
             self.validate_one(ob, lines)
 
@@ -183,7 +222,8 @@ class AGP (LineFile):
                     (total_bp, line.object_end)
 
 
-        print >>fw, ">%s\n%s" % (object, ''.join(components))
+        rec = SeqRecord(Seq(''.join(components)), id=object, description="")
+        SeqIO.write([rec], fw, "fasta")
         logging.debug("Write object %s to fasta %s" % (object, fw.name))
 
 
@@ -192,8 +232,7 @@ class AGP (LineFile):
         f = Fasta(componentfasta, index=False)
         fw = open(targetfasta, "w")
 
-        for ob, lines_with_same_ob in groupby(self, 
-                key=lambda x: x.object):
+        for ob, lines_with_same_ob in groupby(self, key=lambda x: x.object):
 
             lines = list(lines_with_same_ob)
             self.build_one(ob, lines, f, fw)
@@ -202,7 +241,7 @@ class AGP (LineFile):
 def main():
 
     actions = (
-        ('summary', 'print out a table listing scaffold statistics'),
+        ('summary', 'print out a table of scaffold statistics'),
         ('phase', 'given genbank file, get the phase for the HTG BAC record'),
         ('bed', 'print out the tiling paths in bed format'),
         ('gaps', 'print out the distribution of gap sizes'),
@@ -218,17 +257,54 @@ def main():
     p.dispatch(globals())
 
 
-def keywords_to_phase(keywords):
+def summary(args):
+    """
+    %prog agpfile
+
+    print a table of scaffold statistics, number of BACs, no of scaffolds,
+    scaffold N50, scaffold L50, actual sequence, PSMOL NNNs, PSMOL-length, % of
+    PSMOL seq'd
+    """
+    p = OptionParser(summary.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(p.print_help())
+
+    agpfile, = args
+    header = "Chromosome|Number of BACs|No of Scaffolds|Scaff N50|" +\
+             "Scaff L50|Actual Sequence|PSMOL NNNs|PSMOL-length|% of PSMOL seq'd"
+    header = header.replace('|', '\t')
+    print header
+
+    agp = AGP(agpfile)
+    agp.summary_all()
+
+
+def get_phase(rec):
+    keywords = rec.annotations["keywords"]
+    description = rec.description.upper()
+
     if "HTGS_PHASE1" in keywords:
         phase = 1
     elif "HTGS_PHASE2" in keywords:
         phase = 2
     elif len(keywords)==1 and "HTG" in keywords:
         phase = 3
+    elif "PLN" in keywords: # EMBL BACs
+        if "DRAFT" in description:
+            if "UNORDERED" in description:
+                phase = 1
+            else:
+                phase = 2
+        else:
+            assert "COMPLETE" in description, description
+            phase = 3
     else:
-        phase = 0
+        logging.error(description)
+        phase = 4
 
-    return phase
+    return phase, keywords
 
 
 def phase(args):
@@ -243,20 +319,25 @@ def phase(args):
     if len(args) != 1:
         sys.exit(p.print_help())
 
-    from Bio import SeqIO
     gbfile, = args
     for rec in SeqIO.parse(gbfile, "gb"):
-        keywords = rec.annotations["keywords"]
-        bac_phase = keywords_to_phase(keywords)
+        bac_phase, keywords = get_phase(rec)
         print "{0}\t{1}\t{2}".format(rec.id, bac_phase, "; ".join(keywords))
 
 
-# phase 0 - (P)refinish; phase 1,2 - (D)raft; phase 3 - (F)inished
-Phases = "PDDF"
+# phase 0 - (P)refinish; phase 1,2 - (D)raft; phase 3 - (F)inished; 4 - (O)thers
+Phases = "PDDFO"
+
+def iter_phase(phasefile):
+    fp = open(phasefile)
+    for row in fp:
+        id, phase, keywords = row.split("\t")
+        yield id, Phases[int(phase)]
+
 
 def chr0(args):
     """
-    %prog fastafile phaselist
+    %prog fastafile phasefile
 
     build AGP file for unassembled sequences, and add gaps between. Phase list
     contains two columns - BAC and phase (0, 1, 2, 3).
@@ -264,10 +345,11 @@ def chr0(args):
     p = OptionParser(chr0.__doc__)
     opts, args = p.parse_args(args)
 
-    if len(args) != 1:
+    if len(args) != 2:
         sys.exit(p.print_help())
 
-    fastafile, = args
+    fastafile, phasefile = args
+    phases = dict(iter_phase(phasefile))
     agpfile = fastafile.rsplit(".", 1)[0] + ".agp"
     f = Fasta(fastafile)
     fw = open(agpfile, "w")
@@ -277,6 +359,7 @@ def chr0(args):
     linkage = "no"
     object_beg = 1
     part_number = 0
+
     for component_id, size in f.itersizes_ordered():
         if part_number > 0: # print gap except for the first one
             object_end = object_beg + gap_length - 1
@@ -291,7 +374,7 @@ def chr0(args):
         part_number += 1
         print >> fw, "\t".join(str(x) for x in \
                 (object, object_beg, object_end, part_number,
-                 'D', component_id, 1, size, '0'))
+                 phases[component_id], component_id, 1, size, '0'))
 
         object_beg += size
 
@@ -310,9 +393,13 @@ def accessions(args):
 
     agpfile, = args
     agp = AGP(agpfile)
+    seen = set()
     for a in agp:
         if a.is_gap: continue
-        print a.component_id
+        component_id = a.component_id
+        if component_id not in seen:
+            print component_id
+        seen.add(component_id)
 
 
 def bed(args):

@@ -10,10 +10,8 @@ import sys
 import logging
 import os.path as op
 
-from bisect import bisect
-import numpy as np
-
 from jcvi.formats.fasta import Fasta
+from jcvi.scaffold.base import A50
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
@@ -41,23 +39,6 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
-
-
-def get_a50(fastafile, cutoff=500):
-
-    f = Fasta(fastafile, index=False)
-    ctg_sizes = np.array([length for k, length in f.itersizes()])
-    ctg_sizes = np.sort(ctg_sizes)[::-1]
-    ctg_sizes = ctg_sizes[ctg_sizes >= cutoff]
-    logging.debug("`%s` ctg_sizes: %s" % (fastafile, ctg_sizes))
-
-    a50 = np.cumsum(ctg_sizes)
-
-    total = np.sum(ctg_sizes)
-    idx = bisect(a50, total / 2)
-    n50 = ctg_sizes[idx]
-
-    return a50, n50
 
 
 def generate_plot(filename, rplot=rplot, rpdf=rpdf):
@@ -91,8 +72,13 @@ def A50 (args):
         fw = open(rplot, "w")
         header = "\t".join(("index", "cumsize", "fasta"))
         print >>fw, header
-        for a in args:
-            a50, n50 = get_a50(a, cutoff=opts.cutoff)
+        for fastafile in args:
+            f = Fasta(fastafile, index=False)
+            ctgsizes = [length for k, length in f.itersizes()]
+
+            a50, l50, n50, ctgsizes = get_a50(ctgsizes, cutoff=opts.cutoff)
+
+            logging.debug("`%s` ctg_sizes: %s" % (fastafile, ctgsizes))
             logging.debug("`%s` N50: %d" % (a, n50))
 
             for i, s in zip(xrange(0, len(a50), stepsize), a50[::stepsize]):

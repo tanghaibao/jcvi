@@ -16,8 +16,8 @@ from pysam import Samfile
 from jcvi.apps.console import ProgressBar
 from jcvi.formats.base import LineFile
 from jcvi.formats.fasta import Fasta
-from jcvi.utils.misc import fill 
-from jcvi.scaffoldQC.Astat import Astat
+from jcvi.utils.cbook import fill 
+from jcvi.scaffold.base import Astat
 from jcvi.apps.base import ActionDispatcher, sh, debug
 debug()
 

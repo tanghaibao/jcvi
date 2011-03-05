@@ -238,7 +238,7 @@ class AGP (LineFile):
 
         rec = SeqRecord(Seq(''.join(components)), id=object, description="")
         SeqIO.write([rec], fw, "fasta")
-        logging.debug("Write object %s to fasta %s" % (object, fw.name))
+        logging.debug("Write object %s to `%s`" % (object, fw.name))
 
 
     def build_all(self, componentfasta, targetfasta):
@@ -399,6 +399,8 @@ def accessions(args):
     print out a list of accessions, one per line
     """
     p = OptionParser(accessions.__doc__)
+    p.add_option("--noversion", dest="noversion", default=False, action="store_true",
+            help="Remove trailing accession versions")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -410,6 +412,10 @@ def accessions(args):
     for a in agp:
         if a.is_gap: continue
         component_id = a.component_id
+
+        if opts.noversion:
+            component_id = component_id.rsplit(".", 1)[0]
+
         if component_id not in seen:
             print component_id
         seen.add(component_id)

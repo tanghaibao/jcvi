@@ -39,8 +39,17 @@ def batch_entrez(list_of_terms, db="nucleotide", retmax=1, rettype="fasta"):
     for term in list_of_terms:
 
         logging.debug("search term %s" % term)
-        search_handle = Entrez.esearch(db=db, retmax=retmax, term=term)
-        rec = Entrez.read(search_handle)
+        success = False 
+        while not success:
+            try:
+                search_handle = Entrez.esearch(db=db, retmax=retmax, term=term)
+                rec = Entrez.read(search_handle)
+                success = True
+            except (urllib2.HTTPError, urllib2.URLError, RuntimeError) as e:
+                logging.error(str(e))
+                logging.debug("wait 5 seconds to reconnect...")
+                time.sleep(5)
+
         ids = rec["IdList"]
 
         if not ids:
@@ -53,7 +62,7 @@ def batch_entrez(list_of_terms, db="nucleotide", retmax=1, rettype="fasta"):
                     fetch_handle = Entrez.efetch(db=db, id=id, rettype=rettype,
                             email=myEmail)
                     success = True
-                except (urllib2.HTTPError, urllib2.URLError) as e:
+                except (urllib2.HTTPError, urllib2.URLError, RuntimeError) as e:
                     logging.error(str(e))
                     logging.debug("wait 5 seconds to reconnect...")
                     time.sleep(5)
@@ -120,6 +129,8 @@ def fetch(args):
     p = OptionParser(fetch.__doc__)
 
     valid_formats = ("fasta", "gb")
+    p.add_option("--noversion", dest="noversion", default=False, action="store_true",
+            help="Remove trailing accession versions")
     p.add_option("--format", default="fasta", choices=valid_formats,
             help="download format [default: %default]")
     p.add_option("--outdir", default=None, 
@@ -132,6 +143,8 @@ def fetch(args):
     filename, = args
     if op.exists(filename):
         list_of_terms = [row.strip() for row in open(filename)]
+        if opts.noversion:
+            list_of_terms = [x.rsplit(".", 1)[0] for x in list_of_terms]
     else:
         # the filename is the search term
         list_of_terms = [filename.strip()] 
@@ -141,8 +154,13 @@ def fetch(args):
     outfile = "{0}.{1}".format(filename.rsplit(".", 1)[0], format)
     if op.exists(outfile):
         logging.error("`{0}` found, overwrite (Y/N)?".format(outfile))
-        yesno = raw_input()
-        if yesno=='N': return
+        while True:
+            yesno = raw_input()
+            if yesno=='N': return
+            elif yesno=='Y': break
+            else:
+                logging.error("You have to answer Y/N ..")
+                continue
 
     outdir = opts.outdir
     if outdir and not op.exists(outdir):

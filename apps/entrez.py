@@ -179,6 +179,7 @@ def fetch(args):
             fw = open(op.join(outdir, term), "w")
 
         print >> fw, rec
+        print >> fw
 
         seen.add(id)
 

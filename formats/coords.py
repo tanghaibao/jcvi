@@ -209,14 +209,17 @@ def filter(args):
     produce a new coords file and filter based on id% or cov%
     """
     p = OptionParser(filter.__doc__)
-    p.add_option("--id", dest="id", default=0, type="float",
-            help="id% cutoff [0-100]")
+    p.add_option("--pctid", dest="pctid", default=0., type="float",
+            help="pctid cutoff [default: %default]")
+    p.add_option("--hitlen", dest="hitlen", default=0., type="float",
+            help="pctid cutoff [default: %default]")
 
     opts, args = p.parse_args(args)
     if len(args) != 1:
         sys.exit(p.print_help())
 
-    id_cutoff = opts.id
+    id_cutoff = opts.pctid
+    hitlen = opts.hitlen
     assert 0 <= id_cutoff <= 100, "id% needs to be between [0, 100]"
 
     fp = open(args[0])
@@ -227,6 +230,7 @@ def filter(args):
             continue
 
         if c.identity < id_cutoff: continue
+        if c.len2 < hitlen: continue
 
         print row.rstrip()
 

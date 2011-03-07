@@ -11,6 +11,8 @@ import sys
 from itertools import groupby
 from optparse import OptionParser
 
+from Bio import SeqIO
+
 from jcvi.formats.base import LineFile
 from jcvi.formats.blast import report_pairs
 from jcvi.apps.grid import GridProcess
@@ -48,9 +50,11 @@ class CasTabLine (LineFile):
         self.is_paired = (int(args[-2])==1)
         self.score = int(args[-1])
 
-    def __str__(self):
-        return "\t".join(str(x) for x in (self.readname, self.refnum, 
-            self.refstart-1, self.refstop, self.score, self.orientation))
+    @property
+    def bedline(self):
+        return "\t".join(str(x) for x in (self.refnum, 
+            self.refstart-1, self.refstop, self.readname, 
+            self.score, self.strand))
 
 
 def main():
@@ -111,7 +115,7 @@ def split(args):
 
 def bed(args):
     """
-    %prog bed cas_tabbed
+    %prog bed castabfile fastafile
 
     convert the format into bed format
     """
@@ -119,15 +123,17 @@ def bed(args):
     p = OptionParser(bed.__doc__)
     opts, args = p.parse_args(args)
 
-    if len(args)!=1:
+    if len(args) != 2:
         sys.exit(p.print_help())
 
-    castabfile = args[0]
+    castabfile, fastafile = args
+    refnames = [rec.id for rec in SeqIO.parse(fastafile, "fasta")]
     fp = open(castabfile)
     for row in fp:
         b = CasTabLine(row)
-        if b.readstart!=-1:
-            print b
+        if b.readstart == -1: continue
+        b.refnum = refnames[b.refnum]
+        print b.bedline
 
 
 def pairs(args):

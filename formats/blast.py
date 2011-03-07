@@ -147,6 +147,7 @@ def filter(args):
 
     fp = open(args[0])
     for row in fp:
+        if row[0]=='#': continue
         c = BlastLine(row)
 
         if c.score < opts.score: continue

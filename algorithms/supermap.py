@@ -36,6 +36,7 @@ def BlastOrCoordsLine(filename, filter="ref", dialect="blast"):
     
     fp = open(filename)
     for i, row in enumerate(fp):
+        if row[0]=='#': continue
         if dialect=="b":
             b = BlastLine(row)
             if filter=="q":

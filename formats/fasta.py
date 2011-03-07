@@ -809,14 +809,21 @@ def gaps(args):
     fw = sys.stdout
     for rec in SeqIO.parse(inputfasta, "fasta"):
         allgaps = []
+        start = 0
         for gap, gap_group in groupby(rec.seq, lambda x: x.upper()=='N'):
+            current_length = len(list(gap_group))
             if gap:
-                gap_length = len(list(gap_group))
-                if gap_length >= opts.mingap:
-                    allgaps.append(gap_length)
-        gap_description = ",".join(str(x) for x in allgaps) \
-                if allgaps else "no gaps"
-        print >> fw, "{0}\t{1}".format(rec.id, gap_description)
+                if current_length >= opts.mingap:
+                    allgaps.append((current_length, start))
+            start += current_length
+        if allgaps:
+            lengths, starts = zip(*allgaps)
+            gap_description = ",".join(str(x) for x in lengths)
+            starts = ",".join(str(x) for x in starts)
+        else:
+            gap_description = starts = "no gaps"
+
+        print >> fw, "{0}\t{1}\t{2}".format(rec.id, gap_description, starts)
 
 
 if __name__ == '__main__':

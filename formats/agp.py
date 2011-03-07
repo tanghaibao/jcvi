@@ -133,11 +133,13 @@ class AGP (LineFile):
 
     @classmethod
     def print_header(cls, fw=sys.stdout, organism="Medicago truncatula", taxid=3880,
-            source="J. Craig Venter Institute"):
+            source="J. Craig Venter Institute", comment=None):
         # these comments are entirely optional, modeled after maize AGP
         print >> fw, "# ORGANISM: {0}".format(organism)
         print >> fw, "# TAX_ID: {0}".format(taxid)
         print >> fw, "# GENOME CENTER: {0}".format(source)
+        if comment:
+            print >> fw, "# COMMENT: {0}".format(comment)
         header = "object object_beg object_end part_number component_type " +\
                  "component_id/gap_length component_beg/gap_type " +\
                  "component_end/linkage orientation"
@@ -356,6 +358,9 @@ def chr0(args):
     contains two columns - BAC and phase (0, 1, 2, 3).
     """
     p = OptionParser(chr0.__doc__)
+    p.add_option("--gapsize", dest="gapsize", default=0, type="int",
+            help="create a new molecule chr0 with x N's inserted between " +\
+                 "[default: do not create new molecule]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -366,30 +371,48 @@ def chr0(args):
     agpfile = fastafile.rsplit(".", 1)[0] + ".agp"
     f = Fasta(fastafile)
     fw = open(agpfile, "w")
-    object = "chr0"
-    gap_length = 100000
-    gap_type = "clone"
-    linkage = "no"
-    object_beg = 1
-    part_number = 0
 
-    for component_id, size in f.itersizes_ordered():
-        if part_number > 0: # print gap except for the first one
-            object_end = object_beg + gap_length - 1
+    AGP.print_header(fw, 
+        comment="146 BACs with undetermined chromosomal locations")
+
+    gap_length = opts.gapsize
+    object_beg = 1
+
+    if gap_length:
+        object = "chr0"
+        gap_type = "clone"
+        linkage = "no"
+
+        part_number = 0
+        for component_id, size in f.itersizes_ordered():
+            if part_number > 0: # print gap except for the first one
+                object_end = object_beg + gap_length - 1
+                part_number += 1
+                print >> fw, "\t".join(str(x) for x in \
+                        (object, object_beg, object_end, part_number,
+                         'N', gap_length, gap_type, linkage, ""))
+
+                object_beg += gap_length
+
+            object_end = object_beg + size -1
             part_number += 1
             print >> fw, "\t".join(str(x) for x in \
                     (object, object_beg, object_end, part_number,
-                     'N', gap_length, gap_type, linkage, ""))
+                     phases[component_id], component_id, 1, size, '0'))
 
-            object_beg += gap_length
+            object_beg += size
+    else:
 
-        object_end = object_beg + size -1
-        part_number += 1
-        print >> fw, "\t".join(str(x) for x in \
-                (object, object_beg, object_end, part_number,
-                 phases[component_id], component_id, 1, size, '0'))
-
-        object_beg += size
+        part_number = 1
+        scaffold_number = 0
+        for component_id, size in f.itersizes_ordered():
+            #object_id = component_id.rsplit(".")[0]
+            scaffold_number += 1
+            object_id = "scaffold{0:03d}".format(scaffold_number)
+            object_end = size
+            print >> fw, "\t".join(str(x) for x in \
+                    (object_id, object_beg, object_end, part_number,
+                    phases[component_id], component_id, 1, size, '0'))
 
 
 def accessions(args):

@@ -50,6 +50,10 @@ class BlastLine(object):
         return "\t".join(str(x) for x in \
                 [getattr(self, attr) for attr in BlastLine.__slots__[:-6]])
 
+    @property
+    def bedline(self):
+        return "\t".join(str(x) for x in (self.query, self.qstart-1, self.qstop))
+
 
 class Blast (LineFile):
     """
@@ -159,9 +163,31 @@ def main():
         ('filter', 'filter BLAST file (based on e.g. score)'),
         ('best', 'get best BLAST hit per query'),
         ('pairs', 'print paired-end reads of BLAST tabular output'),
+        ('bed', 'get bed file from blast'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def bed(args):
+    """
+    %prog bed blastfile
+
+    print out a bed file based on the coordinates in blast
+    """
+    p = OptionParser(bed.__doc__)
+    
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(p.print_help())
+
+    blastfile, = args
+    fp = open(blastfile)
+    fw = sys.stdout
+    for row in fp:
+        b = BlastLine(row)
+        print >> fw, b.bedline 
 
 
 def report_pairs(data, cutoff=300000, dialect="blast", pairsfile=None,

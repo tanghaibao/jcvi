@@ -141,7 +141,7 @@ class Fasta (BaseFile, dict):
 def main():
     
     actions = (
-        ('extract', 'given fasta file and an seq id, retrieve the sequence ' + \
+        ('extract', 'given fasta file and seq id, retrieve the sequence ' + \
                     'in fasta format'),
         ('summary', "report the real no of bases and N's in fastafiles"),
         ('uniq', 'remove records that are the same'),
@@ -151,8 +151,10 @@ def main():
         ('trim', 'given a cross_match screened fasta, trim the sequence'),
         ('pair', 'sort paired reads to .pairs.fasta and remaining to .fragments.fasta'),
         ('fastq', 'combine fasta and qual to create fastq file'),
-        ('some', 'include or exclude a list of records (also performs on' + \
-                 '.qual file)'),
+        ('sequin', 'generated a gapped fasta file suitable for sequin submission'),
+        ('gaps', 'print out a list of gap sizes within sequences'),
+        ('some', 'include or exclude a list of records (also performs on ' + \
+                 '.qual file if available)'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -599,7 +601,7 @@ def _uniq_rec(fastafile):
 
 def uniq(args):
     """
-    %prog uniq fasta > uniq.fasta
+    %prog uniq fasta uniq.fasta
 
     remove fasta records that are the same
     """
@@ -609,17 +611,16 @@ def uniq(args):
             help="turn on the defline trim to first space [default: %default]")
 
     opts, args = p.parse_args(args)
-    try:
-        fastafile = args[0]
-    except Exception as e:
-        logging.error(str(e))
+    if len(args) != 2:
         sys.exit(p.print_help())
 
-    data = {}
+    fastafile, uniqfastafile = args
+    fw = open(uniqfastafile, "w")
+
     for rec in _uniq_rec(fastafile):
         if opts.trimname: 
             rec.description = ""
-        SeqIO.write([rec], sys.stdout, "fasta")
+        SeqIO.write([rec], fw, "fasta")
 
 
 def random(args):
@@ -737,6 +738,86 @@ def trim(args):
     print >>sys.stderr, "A total of %d sequences dropped (length < %d)." % \
         (dropped, opts.min_length)
             
+
+def sequin(args):
+    """
+    %prog sequin inputfasta
+
+    Generate a gapped fasta format with known gap sizes embedded. suitable for
+    Sequin submission.
+     
+    A gapped sequence represents a newer method for describing non-contiguous
+    sequences, but only requires a single sequence identifier. A gap is represented
+    by a line that starts with >? and is immediately followed by either a length
+    (for gaps of known length) or "unk100" for gaps of unknown length. For example,
+    ">?200". The next sequence segment continues on the next line, with no separate
+    definition line or identifier. The difference between a gapped sequence and a
+    segmented sequence is that the gapped sequence uses a single identifier and can
+    specify known length gaps. Gapped sequences are preferred over segmented
+    sequences. A sample gapped sequence file is shown here:
+
+        >m_gagei [organism=Mansonia gagei] Mansonia gagei NADH dehydrogenase ...
+        ATGGAGCATACATATCAATATTCATGGATCATACCGTTTGTGCCACTTCCAATTCCTATTTTAATAGGAA
+        TTGGACTCCTACTTTTTCCGACGGCAACAAAAAATCTTCGTCGTATGTGGGCTCTTCCCAATATTTTATT
+        >?200
+        GGTATAATAACAGTATTATTAGGGGCTACTTTAGCTCTTGC
+        TCAAAAAGATATTAAGAGGGGTTTAGCCTATTCTACAATGTCCCAACTGGGTTATATGATGTTAGCTCTA
+        >?unk100
+        TCAATAAAACTATGGGGTAAAGAAGAACAAAAAATAATTAACAGAAATTTTCGTTTATCTCCTTTATTAA
+        TATTAACGATGAATAATAATGAGAAGCCATATAGAATTGGTGATAATGTAAAAAAAGGGGCTCTTATTAC
+    """
+    p = OptionParser(sequin.__doc__)
+    p.add_option("--mingap", dest="mingap", default=10, type="int",
+            help="The minimum size of a gap to split [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(p.print_help())
+
+    inputfasta, = args
+    outputfasta = inputfasta.rsplit(".", 1)[0] + ".split"
+    rec = SeqIO.parse(inputfasta, "fasta").next()
+    seq = ""
+    for gap, gap_group in groupby(rec.seq, lambda x: x.upper()=='N'):
+        subseq = "".join(gap_group)
+        if gap:
+            gap_length = len(subseq)
+            if gap_length >= opts.mingap: 
+                subseq = "\n>?{0}\n".format(gap_length)
+        seq += subseq
+
+    fw = open(outputfasta, "w")
+    print >> fw, ">{0}".format(rec.id)
+    print >> fw, seq
+
+
+def gaps(args):
+    """
+    %prog gaps fastafile
+
+    print out a list of gaps per sequence record
+    """
+    p = OptionParser(gaps.__doc__)
+    p.add_option("--mingap", dest="mingap", default=10, type="int",
+            help="The minimum size of a gap to split [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(p.print_help())
+
+    inputfasta, = args
+    fw = sys.stdout
+    for rec in SeqIO.parse(inputfasta, "fasta"):
+        allgaps = []
+        for gap, gap_group in groupby(rec.seq, lambda x: x.upper()=='N'):
+            if gap:
+                gap_length = len(list(gap_group))
+                if gap_length >= opts.mingap:
+                    allgaps.append(gap_length)
+        gap_description = ",".join(str(x) for x in allgaps) \
+                if allgaps else "no gaps"
+        print >> fw, "{0}\t{1}".format(rec.id, gap_description)
+
 
 if __name__ == '__main__':
     main()

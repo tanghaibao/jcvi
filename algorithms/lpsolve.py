@@ -19,6 +19,8 @@ The input lp_data is assumed in .lp format, see below
 ...  x2
 ...  x3
 ... End'''
+>>> print SCIPSolver(lp_data).results
+[0, 1]
 >>> print GLPKSolver(lp_data).results
 [0, 1]
 """
@@ -224,11 +226,13 @@ def print_vars(lp_handle, nedges, vars=BINARY):
     print >> lp_handle, END
 
 
-def lpsolve(lp_handle, clean=True):
+def lpsolve(lp_handle, solver="scip", clean=True):
+
+    solver = SCIPSolver if solver=="scip" else GLPKSolver
     lp_data = lp_handle.getvalue()
     lp_handle.close()
 
-    g = GLPKSolver(lp_data, clean=clean)
+    g = solver(lp_data, clean=clean)
     selected = set(g.results)
     return selected, g.obj_val
 

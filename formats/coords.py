@@ -37,6 +37,11 @@ class CoordsLine (object):
         
         self.start2 = int(atoms[2])
         self.end2 = int(atoms[3])
+
+        self.strand1 = self.strand2 = '+'
+        if self.start2 > self.end2:
+            self.start2, self.end2 = self.end2, self.start2
+            self.strand2 = '-'
         
         self.len1 = int(atoms[4])
         self.len2 = int(atoms[5])
@@ -58,7 +63,8 @@ class CoordsLine (object):
         self.quality = self.identity * self.querycov
         self.score = self.identity * self.len1
 
-    def __str__(self):
+    @property
+    def bedline(self):
         # bed formatted line
         score = int(self.quality * 10)
         return '\t'.join((self.ref, str(self.start1-1), str(self.end1), 
@@ -237,30 +243,28 @@ def filter(args):
 
 def bed(args):
     """
-    %prog bed test.coords quality_cutoff
+    %prog bed coordsfile
 
     will produce a bed list of mapped position and orientation (needs to 
     be beyond quality cutoff, say 50) in bed format
     """
     p = OptionParser(bed.__doc__)
+    p.add_option("--cutoff", dest="cutoff", default=0, type="float",
+            help="get all the alignments with quality above threshold " +\
+                 "[default: %default]")
 
     opts, args = p.parse_args(args)
-
-    try:
-        coordsfile = args[0]
-        if len(args) > 1:
-            quality_cutoff = int(args[1])
-        else:
-            quality_cutoff = 50
-    except Exception, e:
-        logging.error(str(e))
+    if len(args) != 1:
         sys.exit(p.print_help())
+
+    coordsfile, = args
+    quality_cutoff = opts.cutoff
 
     coords = Coords(coordsfile)
 
     for c in coords:
         if c.quality < quality_cutoff: continue
-        print c
+        print c.bedline
 
 
 if __name__ == '__main__':

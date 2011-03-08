@@ -8,6 +8,7 @@ both on the 2D dotplot and 1D-projection
 `range_chain` implements the exon-chain algorithm
 """
 
+from itertools import groupby
 from collections import namedtuple
 
 from jcvi.utils.grouper import Grouper
@@ -42,7 +43,7 @@ def range_distance(a, b, dist_mode='ss'):
           measure the distance (s = start, e = end)
 
     >>> range_distance(("1", 30, 45, '+'), ("1", 45, 55, '+'))
-    (0, '++')
+    (26, '++')
     >>> range_distance(("1", 30, 45, '-'), ("1", 57, 68, '-'))
     (39, '--')
     >>> range_distance(("1", 30, 42, '-'), ("1", 45, 55, '+'))
@@ -129,6 +130,35 @@ def _make_endpoints(ranges):
         endpoints.append((seqid, end, RIGHT, i, score))
 
     return sorted(endpoints)
+
+
+def range_conflict(ranges, depth=1):
+    """
+    Find intervals that are overlapping in 1-dimension.
+    Return groups of block IDs that are in conflict.
+
+    >>> ranges = [Range("2", 0, 1, 3, 0), Range("2", 1, 4, 3, 1), Range("3", 5, 7, 3, 2)]
+    >>> list(range_conflict(ranges))
+    [[Range(seqid='2', start=0, end=1, score=3, id=0), Range(seqid='2', start=1, end=4, score=3, id=1)]]
+    """
+    overlap = set()
+    active = set()
+    endpoints = _make_endpoints(ranges)
+
+    for seqid, ends in groupby(endpoints, lambda x: x[0]):
+        ends = list(ends)
+        for seqid, pos, leftright, i, score in ends:
+            active.clear()
+            for seqid, pos, leftright, i, score in ends:
+                if leftright == LEFT: active.add(i)
+                else: active.remove(i)
+
+                if len(active) > depth:
+                    overlap.add(tuple(sorted(active)))
+
+    for ov in overlap:
+        selected = [ranges[x] for x in ov] 
+        yield selected
 
 
 def range_chain(ranges):

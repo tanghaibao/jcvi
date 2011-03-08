@@ -20,7 +20,7 @@ debug()
 class BlastLine(object):
     __slots__ = ('query', 'subject', 'pctid', 'hitlen', 'nmismatch', 'ngaps', \
                  'qstart', 'qstop', 'sstart', 'sstop', 'evalue', 'score', \
-                 'qseqid', 'sseqid', 'qi', 'si', 'qstrand', 'sstrand')
+                 'qseqid', 'sseqid', 'qi', 'si', 'orientation')
  
     def __init__(self, sline):
         args = sline.split("\t")
@@ -37,10 +37,12 @@ class BlastLine(object):
         self.evalue = float(args[10])
         self.score = float(args[11])
 
-        self.qstrand = self.sstrand = '+'
         if self.sstart > self.sstop:
-            self.sstrand = '-'
             self.sstart, self.sstop = self.sstop, self.sstart
+            self.orientation = '-'
+        else:
+            self.orientation = '+'
+
  
     def __repr__(self):
         return "BlastLine('%s' to '%s', eval=%.3f, score=%.1f)" % \
@@ -48,7 +50,7 @@ class BlastLine(object):
 
     def __str__(self):
         return "\t".join(str(x) for x in \
-                [getattr(self, attr) for attr in BlastLine.__slots__[:-6]])
+                [getattr(self, attr) for attr in BlastLine.__slots__[:12]])
 
     @property
     def bedline(self):
@@ -225,7 +227,7 @@ def report_pairs(data, cutoff=300000, dialect="blast", pairsfile=None,
                 bsubject, bstart, bstop = b.subject, b.sstart, b.sstop
 
                 aquery, bquery = a.query, b.query
-                astrand, bstrand = a.sstrand, b.sstrand
+                astrand, bstrand = a.orientation, b.orientation
 
             elif dialect=='c': # castab
                 asubject, astart, astop = a.refnum, a.refstart, a.refstop

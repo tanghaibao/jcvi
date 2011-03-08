@@ -258,7 +258,6 @@ def get_first_rec(fastafile):
     return f[0]
 
 
-
 def print_first_difference(arec, brec, ignore_case=False, ignore_N=False,
         rc=False):
     """

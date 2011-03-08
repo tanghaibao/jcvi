@@ -10,6 +10,7 @@ import sys
 import itertools
 import logging
 
+from itertools import groupby
 from optparse import OptionParser
 
 from jcvi.formats.base import LineFile
@@ -38,10 +39,11 @@ class CoordsLine (object):
         self.start2 = int(atoms[2])
         self.end2 = int(atoms[3])
 
-        self.strand1 = self.strand2 = '+'
         if self.start2 > self.end2:
             self.start2, self.end2 = self.end2, self.start2
-            self.strand2 = '-'
+            self.orientation = '-'
+        else:
+            self.orientation = '+'
         
         self.len1 = int(atoms[4])
         self.len2 = int(atoms[5])
@@ -71,12 +73,32 @@ class CoordsLine (object):
                 self.query, str(score), self.orientation))
 
     @property
-    def orientation(self):
+    def overlap(self, max_hang=100):
         """
-        the orientation of the alignment between query and ref (ref is always
-        plus strand)
+        Determine the type of overlap given the query, ref alignment coordinates
         """
-        return '+' if self.end2 >= self.start2 else '-'
+        aL, aR = 1, self.reflen
+        bL, bR = 1, self.querylen
+        aLhang, aRhang = self.start1 - aL, aR - self.end1
+        bLhang, bRhang = self.start2 - bL, bR - self.end2
+        #print aLhang, aRhang, bLhang, bRhang
+        
+        s1 = aLhang + bRhang
+        s2 = aRhang + bLhang
+        s3 = aLhang + aRhang
+        s4 = bLhang + bRhang
+        
+        # Dovetail (terminal) overlap
+        extra = min(s1, s2)
+        if extra <= max_hang:
+            return "terminal ({0})".format(extra)
+
+        # Containment overlap
+        extra = min(s3, s4)
+        if extra <= max_hang: 
+            return "contained ({0})".format(extra)
+        
+        return "none"
 
 
 class Coords (LineFile):
@@ -87,7 +109,7 @@ class Coords (LineFile):
 
     then each row would be composed as this
     """
-    def __init__(self, filename):
+    def __init__(self, filename, sorted=False):
         super(Coords, self).__init__(filename)
 
         fp = open(filename)
@@ -99,19 +121,28 @@ class Coords (LineFile):
             except AssertionError, e:
                 pass
 
+        if sorted:
+            self.ref_sort()
+
+    def ref_sort(self):
+        # sort by reference positions
+        self.sort(key=lambda x: (x.ref, x.start1))
+
+    def quality_sort(self):
+        # sort descending with score = identity * coverage
+        self.sort(key=lambda x: (x.query, -x.quality))
+
     @property
     def hits(self):
         """
         returns a dict with query => blastline
         """
-        # sort descending with score=identity * coverage
-        self.sort(key=lambda x: (x.query, -x.quality))
+        self.quality_sort()
 
         hits = dict((query, list(blines)) for (query, blines) in \
                 itertools.groupby(self, lambda x: x.query))
 
-        # sort back to order by reference positions
-        self.sort(key=lambda x: (x.ref, x.start1))
+        self.ref_sort()
 
         return hits
 
@@ -121,14 +152,12 @@ class Coords (LineFile):
         """
         returns a dict with query => best mapped position 
         """
-        # sort descending with score=identity * coverage
-        self.sort(key=lambda x: (x.query, -x.quality))
+        self.quality_sort()
 
         best_hits = dict((query, blines.next()) for (query, blines) in \
                 itertools.groupby(self, lambda x: x.query))
         
-        # sort back to order by reference positions
-        self.sort(key=lambda x: (x.ref, x.start1))
+        self.ref_sort()
 
         return best_hits
 
@@ -175,9 +204,48 @@ def main():
         ('summary', 'provide summary on id% and cov%'),
         ('filter', 'filter based on id% and cov%, write a new coords file'),
         ('bed', 'convert to bed format'),
+        ('agp', 'link contigs based on the coordsfile'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def agp(args):
+    """
+    %prog agp coordsfile
+
+    coordsfile has to be supermapped (or delta-filtered) to get non-overlapping
+    ranges for the reference. For example, non-overlapping in the first two
+    columns::
+
+    28926   31595   2663    1       2670    2663    99.70   139480  2663    1.91
+    100.00  contig_26068    AC229726.11_17  contained (0)
+    31816   35252   3438    1       3437    3438    99.83   139480  3438    2.46
+    100.00  contig_26068    AC229726.11_33  contained (0)
+    43009   46210   3205    1       3202    3205    99.78   139480  3205    2.30
+    100.00  contig_26068    AC229726.11_30  contained (0)
+
+    You can see that `contig_26068` can serve as linkage for the contigs in BAC
+    AC229726 various contigs. Therefore an AGP can be created.
+    """
+    p = OptionParser(agp.__doc__)
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(p.print_help())
+
+    coordsfile, = args
+    coords = Coords(coordsfile, sorted=True)
+
+    key = lambda x: (x.ref, x.overlap!='none', x.query.rsplit("_", 1)[0])
+    for criteria, data in groupby(coords, key=key):
+        contig, overlap, bacID = criteria
+        #print "*", criteria
+        if not overlap: continue
+        data = list(data)
+        if len(data) >= 2:
+            print "\n".join(x.bedline for x in data)
 
 
 def print_stats(qrycovered, refcovered, id_pct):
@@ -198,11 +266,10 @@ def summary(args):
 
     opts, args = p.parse_args(args)
 
-    if len(args)==1:
-        coordsfile = args[0]
-    else:
+    if len(args) != 1:
         sys.exit(p.print_help())
 
+    coordsfile, = args
     qrycovered, refcovered, id_pct = get_stats(coordsfile)
 
     print_stats(qrycovered, refcovered, id_pct)
@@ -219,6 +286,9 @@ def filter(args):
             help="pctid cutoff [default: %default]")
     p.add_option("--hitlen", dest="hitlen", default=0., type="float",
             help="pctid cutoff [default: %default]")
+    p.add_option("--overlap", dest="overlap", default=False,
+            action="store_true",
+            help="print overlap status (e.g. terminal, contained)")
 
     opts, args = p.parse_args(args)
     if len(args) != 1:
@@ -238,7 +308,10 @@ def filter(args):
         if c.identity < id_cutoff: continue
         if c.len2 < hitlen: continue
 
-        print row.rstrip()
+        outrow = row.rstrip()
+        if opts.overlap:
+            outrow += "\t" + c.overlap
+        print outrow
 
 
 def bed(args):

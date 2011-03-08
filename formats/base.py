@@ -162,6 +162,23 @@ class FileSplitter (object):
             fw.close()
 
 
+def must_open(filename, mode="r"):
+    if not op.exists(filename):
+        logging.error("File `{0}` not found.".format(filename))
+
+    if filename == "stdout":
+        fp = sys.stdout
+    elif filename == "stderr":
+        fp = sys.stderr
+    elif filename.endswith(".gz"):
+        import gzip
+        fp = gzip.open(filename, mode)
+    else:
+        fp = open(filename, mode)
+
+    return fp
+
+
 def read_until(handle, start):
     # read each line until it has a certain start, and then puts the start tag back
     while 1:

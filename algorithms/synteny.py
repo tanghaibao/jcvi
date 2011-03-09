@@ -153,27 +153,28 @@ def add_options(p, args):
     scan and liftover has similar interfaces, so share common options
     returns opts, files
     """
-    p.add_option("--qbed", dest="qbed", help="path to qbed")
-    p.add_option("--sbed", dest="sbed", help="path to sbed")
+    p.add_option("--qbed", dest="qbed", help="path to qbed (required)")
+    p.add_option("--sbed", dest="sbed", help="path to sbed (required)")
 
     p.add_option("--dist", dest="dist",
             default=10, type="int", 
             help="the extent of flanking regions to search [default: %default]")
 
-    opts, files = p.parse_args(args)
+    opts, args = p.parse_args(args)
 
-    if not (len(files) == 2 and opts.qbed and opts.sbed):
+    if not (len(args) == 2 and opts.qbed and opts.sbed):
         sys.exit(p.print_help())
 
-    blast_file, anchor_file = files
+    blast_file, anchor_file = args 
 
     qbed_file, sbed_file = opts.qbed, opts.sbed
     # is this a self-self blast?
     is_self = (qbed_file == sbed_file)
     if is_self:
-        logging.debug("... looks like a self-self BLAST to me")
+        logging.debug("Looks like self-self BLAST")
 
-    return blast_file, anchor_file, qbed_file, sbed_file, opts.dist, is_self
+    return blast_file, anchor_file, qbed_file, sbed_file, \
+            opts.dist, is_self, opts
 
 
 def main():
@@ -194,10 +195,12 @@ def scan(args):
     pull out syntenic anchors from blastfile based on single-linkage algorithm
     """
     p = OptionParser(scan.__doc__)
+    p.add_option("-N", dest="N", type="int", default=5,
+            help="minimum number of anchors in a cluster [default: %default]")
 
-    blast_file, anchor_file, qbed_file, sbed_file, dist, is_self = add_options(p, args)
+    blast_file, anchor_file, qbed_file, sbed_file, dist, is_self, opts = \
+            add_options(p, args)
 
-    logging.debug("read annotation files %s and %s" % (qbed_file, sbed_file))
     qbed = Bed(qbed_file)
     sbed = Bed(sbed_file)
     qorder = qbed.order
@@ -206,7 +209,7 @@ def scan(args):
     filtered_blast = read_blast(blast_file, qorder, sorder, is_self=is_self)
 
     fw = open(anchor_file, "w")
-    clusters = batch_scan(filtered_blast, xdist=dist, ydist=dist)
+    clusters = batch_scan(filtered_blast, xdist=dist, ydist=dist, N=opts.N)
     for cluster in clusters:
         print >>fw, "###"
         for qi, si in cluster:
@@ -218,21 +221,19 @@ def liftover(args):
     """
     %prog liftover blastfile anchorfile [options] 
 
-    typical use for this program is given an anchor list (for example, syntennic
-    genes), choose from the second blast_file for which the pairs are close to the anchors.
+    Typical use for this program is given a list of anchors (for example, syntennic
+    genes), choose from the blastfile the pairs that are close to the anchors.
 
-    Anchor list should have the following format, each row defines a pair:
+    Anchorfile has the following format, each row defines a pair.
 
         geneA geneB
         geneC geneD
-
-    Use KD-tree for processing distance query.
     """
     p = OptionParser(liftover.__doc__)
 
-    blast_file, anchor_file, qbed_file, sbed_file, dist, is_self = add_options(p, args)
+    blast_file, anchor_file, qbed_file, sbed_file, dist, is_self, opts = \
+            add_options(p, args)
 
-    logging.debug("read annotation files %s and %s" % (qbed_file, sbed_file))
     qbed = Bed(qbed_file)
     sbed = Bed(sbed_file)
     qorder = qbed.order

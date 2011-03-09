@@ -131,11 +131,9 @@ def synteny_liftover(points, anchors, dist):
     """
     try:
         from scipy.spatial import cKDTree
-    except ImportError, e:
-        logging.error(e)
-        logging.error("You must install python package `scipy` " + \
+    except ImportError:
+        raise ImportError("You must install python package `scipy` " + \
                 "(http://www.scipy.org)")
-        sys.exit(1)
 
     points = np.array(points)
     ppoints = points[:, :2] if points.shape[1] > 2 else points
@@ -145,7 +143,7 @@ def synteny_liftover(points, anchors, dist):
     #print [(d, idx) for (d, idx) in zip(dists, idxs) if idx!=tree.n]
 
     for point, dist, idx in zip(points, dists, idxs):
-        # nearest is self or out of range
+        # nearest is out of range
         if idx==tree.n: continue
         yield point
 

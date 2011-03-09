@@ -4,22 +4,26 @@
 """
 %prog blast_file --qbed query.bed --sbed subject.bed
 
-accepts .bed format: <http://genome.ucsc.edu/FAQ/FAQformat.html#format1>
-and a blast file.
+Accepts bed format and blast file, and run several BLAST filters below::
 
-local dup filter:
-if the input is query.bed and subject.bed, the script files query.localdups and subject.localdups are created containing the parent|offspring dups, as inferred by subjects hitting the same query or queries hitting the same subject.
+* Local dup filter:
+if the input is query.bed and subject.bed, the script files query.localdups 
+and subject.localdups are created containing the parent|offspring dups, as 
+inferred by subjects hitting the same query or queries hitting the same subject.
 
-repeat filter:
+* Repeat filter:
 adjust the evalues in a dagchainer/blast file by the number of times they occur.
 query/subjects that appear often will have the evalues raise (made less significant).
-adjusted_evalue(A, B) = evalue(A, B) ** ((counts_of_blast / counts_of_genes) / (counts(A) + counts(B)))
 
-cscore filter:
-see supplementary info for sea anemone genome paper <http://www.sciencemag.org/cgi/content/abstract/317/5834/86>, formula below
-cscore(A,B) = score(A,B) / max(best score for A, best score for B)
+    adjusted_evalue(A, B) = evalue(A, B) ** 
+        ((counts_of_blast / counts_of_genes) / (counts(A) + counts(B)))
 
-Finally a .raw file (which is the input for the quota-align pipeline <http://github.com/tanghaibao/quota-alignment/>) is created
+* C-score filter:
+see supplementary info for sea anemone genome paper, formula::
+    
+    cscore(A,B) = score(A,B) / max(best score for A, best score for B)
+
+Finally a blast.filtered file is created.
 """
 
 import sys
@@ -38,19 +42,18 @@ from jcvi.apps.base import debug
 debug()
 
 
-def main(blast_file, options):
+def main(blast_file, opts):
 
-    qbed_file, sbed_file = options.qbed, options.sbed
+    qbed_file, sbed_file = opts.qbed, opts.sbed
 
     # is this a self-self blast?
     is_self = (qbed_file == sbed_file)
     if is_self:
-        logging.debug("... looks like a self-self BLAST to me")
+        logging.debug("Looks like self-self BLAST (will non-redundify the pairs)")
     
-    global_density_ratio = options.global_density_ratio
-    tandem_Nmax = options.tandem_Nmax
-    filter_repeats = options.filter_repeats
-    cscore = options.cscore
+    tandem_Nmax = opts.tandem_Nmax
+    filter_repeats = opts.filter_repeats
+    cscore = opts.cscore
 
     logging.debug("read bed files %s and %s" % (qbed_file, sbed_file))
     qbed = Bed(qbed_file)
@@ -69,16 +72,27 @@ def main(blast_file, options):
 
     filtered_blasts = []
     seen = set() 
-    ostrip = options.strip_names
+    ostrip = opts.strip_names
+    nwarnings = 0
     for b in blasts:
         query, subject = b.query, b.subject
         if ostrip:
             query, subject = gene_name(query), gene_name(subject)
         if query not in qorder:
-            logging.debug("WARNING: %s not in %s" % (query, qbed.filename))
+            if nwarnings < 100:
+                logging.warning("{0} not in {1}".format(query, 
+                    qbed.filename))
+            elif nwarnings == 100:
+                logging.warning("too many warnings.. suppressed")
+            nwarnings += 1
             continue
         if subject not in sorder:
-            logging.debug("WARNING: %s not in %s" % (subject, sbed.filename))
+            if nwarnings < 100:
+                logging.warning("{0} not in {1}".format(subject, 
+                    sbed.filename))
+            elif nwarnings == 100:
+                logging.warning("too many warnings.. suppressed")
+            nwarnings += 1
             continue
 
         qi, q = qorder[query]
@@ -96,22 +110,11 @@ def main(blast_file, options):
         b.query, b.subject = key
 
         b.qi, b.si = qi, si
-        b.qseqid, b.sseqid = q['seqid'], s['seqid']
+        b.qseqid, b.sseqid = q.seqid, s.seqid
         
         filtered_blasts.append(b)
 
-
-    if global_density_ratio:
-        logging.debug("running the global_density filter" + \
-                "(global_density_ratio=%d)..." % options.global_density_ratio)
-        gene_count = len(qorder) + len(sorder)
-        before_filter = len(filtered_blasts)
-        filtered_blasts = filter_to_global_density(filtered_blasts, gene_count,
-                                                   global_density_ratio)
-        logging.debug("after filter (%d->%d)..." % (before_filter,
-            len(filtered_blasts)))
-
-    if tandem_Nmax:
+    if not tandem_Nmax is None:
         logging.debug("running the local dups filter (tandem_Nmax=%d)..." % \
                 tandem_Nmax)
 
@@ -120,25 +123,27 @@ def main(blast_file, options):
         standems = tandem_grouper(sbed, filtered_blasts, 
                 flip=False, tandem_Nmax=tandem_Nmax)
 
-        qdups_fh = open(op.splitext(qbed_file)[0] + ".localdups", "w")
+        qdups_fh = open(op.splitext(qbed_file)[0] + ".localdups", "w") \
+                if opts.tandems_only else None
 
         if is_self:
             for s in standems: qtandems.join(*s)
-            qdups_to_mother = write_localdups(qdups_fh, qtandems, qbed)
+            qdups_to_mother = write_localdups(qtandems, qbed, qdups_fh)
             sdups_to_mother = qdups_to_mother
         else:
-            qdups_to_mother = write_localdups(qdups_fh, qtandems, qbed)
-            sdups_fh = open(op.splitext(sbed_file)[0] + ".localdups", "w")
-            sdups_to_mother = write_localdups(sdups_fh, standems, sbed)
+            qdups_to_mother = write_localdups(qtandems, qbed, qdups_fh)
+            sdups_fh = open(op.splitext(sbed_file)[0] + ".localdups", "w") \
+                    if opts.tandems_only else None
+            sdups_to_mother = write_localdups(standems, sbed, sdups_fh)
 
-        if options.tandems_only:
+        if opts.tandems_only:
+            # write out new .bed after tandem removal
+            write_new_bed(qbed, qdups_to_mother)
+            if not is_self:
+                write_new_bed(sbed, sdups_to_mother)
+
             # just want to use this script as a tandem finder.
             sys.exit()
-
-        # write out new .bed after tandem removal
-        write_new_bed(qbed, qdups_to_mother)
-        if not is_self:
-            write_new_bed(sbed, sdups_to_mother)
         
         before_filter = len(filtered_blasts)
         filtered_blasts = list(filter_tandem(filtered_blasts, \
@@ -146,53 +151,42 @@ def main(blast_file, options):
         logging.debug("after filter (%d->%d)..." % \
                 (before_filter, len(filtered_blasts)))
 
-        qnew_name = "%s.nolocaldups%s" % op.splitext(qbed.filename)
-        snew_name = "%s.nolocaldups%s" % op.splitext(sbed.filename)
-
-        qbed_new = Bed(qnew_name)
-        sbed_new = Bed(snew_name)
-
-        qorder = qbed_new.order
-        sorder = sbed_new.order
-
-    if filter_repeats:
+    if not filter_repeats is None:
         before_filter = len(filtered_blasts)
         logging.debug("running the repeat filter")
         filtered_blasts = list(filter_repeat(filtered_blasts))
         logging.debug("after filter (%d->%d)..." % (before_filter,
             len(filtered_blasts)))
 
-    if cscore:
+    if not cscore is None:
         before_filter = len(filtered_blasts)
         logging.debug("running the cscore filter (cscore>=%.2f)..." % cscore)
         filtered_blasts = list(filter_cscore(filtered_blasts, cscore=cscore))
         logging.debug("after filter (%d->%d)..." % (before_filter,
             len(filtered_blasts)))
 
-    # this is the final output we will write to after BLAST filters
-    raw_name = "%s.raw" % op.splitext(blast_file)[0]
-    raw_fh = open(raw_name, "w")
-
-    write_raw(qorder, sorder, filtered_blasts, raw_fh)
-
-    if options.write_filtered_blast:
-        write_new_blast(filtered_blasts)
+    blastfilteredfile = blast_file + ".filtered"
+    fw = open(blastfilteredfile, "w")
+    write_new_blast(filtered_blasts, fh=fw)
+    fw.close()
 
 
-def write_localdups(dups_fh, tandems, bed):
-
-    logging.debug("write local dups to file %s" % dups_fh.name)
+def write_localdups(tandems, bed, dups_fh=None):
 
     tandem_groups = []
     for group in tandems:
         rows = [bed[i] for i in group]
         # within the tandem groups, genes are sorted with decreasing size
-        rows.sort(key=lambda a: (-abs(a['end'] - a['start']), a['accn']))
-        tandem_groups.append([row['accn'] for row in rows])
+        rows.sort(key=lambda a: (-abs(a.end - a.start), a.accn))
+        tandem_groups.append([x.accn for x in rows])
 
     dups_to_mother = {}
     for accns in sorted(tandem_groups):
-        print >>dups_fh, "\t".join(accns)
+        if dups_fh:
+            print >>dups_fh, "\t".join(accns)
+            logging.debug("write local dups to file %s" \
+                    % dups_fh.name)
+
         for dup in accns[1:]:
             dups_to_mother[dup] = accns[0]
 
@@ -224,7 +218,7 @@ def write_raw(qorder, sorder, filtered_blasts, raw_fh):
 
 def write_new_blast(filtered_blasts, fh=sys.stdout):
     for b in filtered_blasts:
-        print >>fh, b
+        print >> fh, b
 
 """
 All BLAST filters
@@ -313,39 +307,36 @@ def tandem_grouper(bed, blast_list, tandem_Nmax=10, flip=True):
 if __name__ == "__main__":
     import optparse
 
-    parser = optparse.OptionParser(__doc__)
-    parser.add_option("--qbed", dest="qbed", 
-            help="path to qbed")
-    parser.add_option("--sbed", dest="sbed", 
-            help="path to sbed")
-    parser.add_option("--no_strip_names", dest="strip_names", action="store_false", default=True,
+    p = optparse.OptionParser(__doc__)
+    p.add_option("--qbed", dest="qbed", help="path to qbed")
+    p.add_option("--sbed", dest="sbed", help="path to sbed")
+    p.add_option("--no_strip_names", dest="strip_names", 
+            action="store_false", default=True,
             help="do not strip alternative splicing (e.g. At5g06540.1 -> At5g06540)")
-    parser.add_option("--tandems-only", dest="tandems_only", action="store_true", default=False,
+    p.add_option("--tandems_only", dest="tandems_only", 
+            action="store_true", default=False,
             help="only calculate tandems, write .localdup file and exit.")
 
-    filter_group = optparse.OptionGroup(parser, "BLAST filters")
-    filter_group.add_option("--tandem_Nmax", dest="tandem_Nmax", type="int", default=None, 
+    filter_group = optparse.OptionGroup(p, "BLAST filters")
+    filter_group.add_option("--tandem_Nmax", dest="tandem_Nmax", 
+            type="int", default=None, 
             help="merge tandem genes within distance [default: %default]")
-    filter_group.add_option("--filter_repeats", dest="filter_repeats", action="store_true", default=False,
-            help="require higher e-value for repetitive matches BLAST.")
+    filter_group.add_option("--repeats", dest="filter_repeats", 
+            action="store_true", default=False,
+            help="require higher e-value for repetitive matches BLAST. " +\
+                 "[default: %default]")
     filter_group.add_option("--cscore", type="float", default=None,
             help="retain hits that have good bitscore. a value of 0.5 means "
                  "keep all values that are 50% or greater of the best hit. "
                  "higher is more stringent [default: %default]")
-    filter_group.add_option("--global_density_ratio", type="float", default=None,
-            help="maximum ratio of blast hits to genes a good value is 10. "
-                 "if there are more blasts, only the those with the lowest "
-                 "are kept. [default: %default]")
-    filter_group.add_option("--write-filtered-blast", dest="write_filtered_blast",
-                            action="store_true", default=False,
-                            help="write a new blast with localdups and reps filtered")
 
-    parser.add_option_group(filter_group)
+    p.add_option_group(filter_group)
 
-    (options, blast_files) = parser.parse_args()
+    opts, args = p.parse_args()
 
-    if not (len(blast_files) == 1 and options.qbed and options.sbed):
-        sys.exit(parser.print_help())
+    if not (len(args) == 1 and opts.qbed and opts.sbed):
+        sys.exit(p.print_help())
 
-    main(blast_files[0], options)
+    blastfile, = args
+    main(blastfile, opts)
 

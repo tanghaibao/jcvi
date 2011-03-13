@@ -349,6 +349,24 @@ def diff(args):
             ignore_N=opts.ignore_N, rc=opts.rc)
 
 
+QUALSUFFIX = ".qual"
+
+def get_qual(fastafile, suffix=QUALSUFFIX, check=True):
+    """
+    Check if current folder contains a qual file associated with the fastafile
+    """
+    qualfile = fastafile + suffix 
+
+    if check:
+        if op.exists(qualfile):
+            logging.debug("qual file `{0}` found".format(qualfile))
+        else:
+            logging.warning("qual file not found")
+            return None
+
+    return qualfile
+
+
 def some(args):
     """
     %prog some fastafile listfile outfastafile
@@ -366,11 +384,10 @@ def some(args):
 
     fastafile, listfile, outfastafile = args 
     outfastahandle = open(outfastafile, "w")
-    qualfile = fastafile + ".qual"
-    hasqual = op.exists(qualfile)
+    qualfile = get_qual(fastafile)
     
     names = set(x.strip() for x in open(listfile))
-    if hasqual:
+    if qualfile:
         outqualfile = outfastafile + ".qual"
         outqualhandle = open(outqualfile, "w")
 
@@ -386,7 +403,7 @@ def some(args):
         
         rec.description = ""
         SeqIO.write([rec], outfastahandle, "fasta")
-        if hasqual:
+        if qualfile:
             SeqIO.write([rec], outqualhandle, "qual")
 
         num_records += 1
@@ -408,8 +425,8 @@ def fastq(args):
     if len(args) != 1:
         sys.exit(p.print_help())
 
-    fastafile = args[0]
-    qualfile = fastafile + ".qual"
+    fastafile, = args
+    qualfile = get_qual(fastafile) 
     fastqfile = fastafile.rsplit(".", 1)[0] + ".fastq"
     fastqhandle = open(fastqfile, "w")
 
@@ -443,8 +460,7 @@ def pair(args):
         sys.exit(p.print_help())
 
     fastafile = args[0]
-    qualfile = fastafile + ".qual"
-    hasqual = op.exists(qualfile)
+    qualfile = get_qual(fastafile)
 
     prefix = fastafile.rsplit(".", 1)[0]
     pairsfile = prefix + ".pairs.fasta"
@@ -457,7 +473,7 @@ def pair(args):
         matepairsfile = prefix + ".matepairs"
         matepairsfw = open(matepairsfile, "w")
 
-    if hasqual:
+    if qualfile:
         pairsqualfile = pairsfile + ".qual"
         pairsqualhandle = open(pairsqualfile, "w")
         fragsqualfile = fragsfile + ".qual"
@@ -477,7 +493,7 @@ def pair(args):
             print >> matepairsfw, "\t".join(("%s/1" % key, "%s/2" % key))
 
         fw = pairsfw if paired else fragsfw
-        if hasqual:
+        if qualfile:
             qualfw = pairsqualhandle if paired else fragsqualhandle
 
         for i, var in enumerate(variants):
@@ -488,7 +504,7 @@ def pair(args):
             rec.id = newid
             rec.description = ""
             SeqIO.write([rec], fw, "fasta")
-            if hasqual:
+            if qualfile:
                 recqual.id = newid
                 recqual.description = ""
                 SeqIO.write([recqual], qualfw, "qual")
@@ -664,8 +680,7 @@ def iter_fasta_qual(fastafile, qualfile, defaultqual=OKQUAL, modify=False):
     """
     fastahandle = SeqIO.parse(fastafile, "fasta")
 
-    if op.exists(qualfile):
-        logging.debug("qual file `%s` found" % qualfile)
+    if qualfile:
         qualityhandle = SeqIO.parse(qualfile, "qual")
         for rec, rec_qual in zip(fastahandle, qualityhandle):
             assert len(rec) == len(rec_qual)
@@ -674,11 +689,17 @@ def iter_fasta_qual(fastafile, qualfile, defaultqual=OKQUAL, modify=False):
             yield rec if not modify else modify_qual(rec)
 
     else:
-        logging.warning("qual file `%s` not found, assume qual (%d)" % \
-                (qualfile, defaultqual))
+        logging.warning("assume qual ({0})".format(defaultqual))
         for rec in fastahandle:
             rec.letter_annotations['phred_quality'] = [defaultqual] * len(rec) 
             yield rec if not modify else modify_qual(rec)
+
+
+def write_fasta_qual(rec, fastahandle, qualhandle):
+    if fastahandle:
+        SeqIO.write([rec], fastahandle, "fasta")
+    if qualhandle:
+        SeqIO.write([rec], qualhandle, "qual")
 
 
 def trim(args):
@@ -703,10 +724,9 @@ def trim(args):
     if len(args) != 2:
         sys.exit(p.print_help())
 
-    fastafile, newfastafile = args[0:2]
-    qual_suffix = ".qual"
-    qualfile = fastafile + qual_suffix
-    newqualfile = newfastafile + qual_suffix 
+    fastafile, newfastafile = args
+    qualfile = get_qual(fastafile)
+    newqualfile = get_qual(newfastafile, check=False)
 
     logging.debug("Trim bad sequence from fasta file `%s` to `%s`" % \
             (fastafile, newfastafile))
@@ -730,12 +750,14 @@ def trim(args):
             trimmed += 1
             rec = rec[trim_start:trim_end+1]
         
-        SeqIO.write([rec], fw, "fasta")
-        SeqIO.write([rec], fw_qual, "qual")
+        write_fasta_qual(rec, fw, fw_qual)
 
     print >>sys.stderr, "A total of %d sequences modified." % trimmed
     print >>sys.stderr, "A total of %d sequences dropped (length < %d)." % \
         (dropped, opts.min_length)
+
+    fw.close()
+    fw_qual.close()
             
 
 def sequin(args):

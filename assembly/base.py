@@ -2,7 +2,7 @@
 # -*- coding: UTF-8 -*-
 
 """
-Base utilties for scaffold related calculations and manipulations
+Base utilties for genome assembly related calculations and manipulations
 """
 
 import sys

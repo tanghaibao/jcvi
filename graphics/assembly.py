@@ -11,7 +11,7 @@ import logging
 import os.path as op
 
 from jcvi.formats.fasta import Fasta
-from jcvi.scaffold.base import A50
+from jcvi.assembly.base import A50
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
 

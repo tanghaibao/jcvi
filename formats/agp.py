@@ -20,7 +20,7 @@ from Bio import SeqIO
 
 from jcvi.formats.base import LineFile
 from jcvi.formats.fasta import Fasta
-from jcvi.scaffold.base import A50 
+from jcvi.assembly.base import A50 
 from jcvi.utils.iter import pairwise
 from jcvi.apps.base import ActionDispatcher, set_debug
 

@@ -18,6 +18,7 @@ from optparse import OptionParser
 from Bio import SeqIO
 
 from jcvi.formats.fasta import get_qual, iter_fasta_qual, write_fasta_qual
+from jcvi.apps.softlink import get_abs_path 
 from jcvi.apps.base import ActionDispatcher, sh, debug
 debug()
 
@@ -90,6 +91,8 @@ def fasta(args):
 
     fastafile, = args
     libname = op.basename(fastafile).split(".")[0]
+    frgfile = libname + ".frg"
+
     mated = (opts.size != 0)
     mean = opts.size
     sv = mean / 4
@@ -103,7 +106,42 @@ def fasta(args):
     if mated:
         cmd += " -mean {0} -stddev {1} -m {2}".format(mean, sv, matefile)
 
-    frgfile = fastafile.rsplit(".", 1)[0] + ".frg"
+    cmd += " > {0}".format(frgfile)
+    sh(cmd)
+
+
+def fastq(args):
+    """
+    %prog fastq fastqfile
+
+    Convert reads formatted as FASTQ file, and convert to CA frg file. 
+    """
+    p = OptionParser(fastq.__doc__)
+    p.add_option("-s", dest="size", default=0, type="int",
+            help="insert has mean size of [default: %default] " + \
+                 "stddev is assumed to be 25% around mean size")
+
+    opts, args = p.parse_args(args)
+
+    if len(args) not in (1, 2):
+        sys.exit(p.print_help())
+
+    fastqfile = get_abs_path(args[0])
+    if len(args) == 2:
+        fastqfile2 = get_abs_path(args[1])
+
+    libname = op.basename(fastqfile).split(".")[0]
+    frgfile = libname + ".frg"
+
+    mated = (opts.size != 0)
+    mean = opts.size
+    sv = mean / 4
+
+    cmd = "fastqToCA -libraryname {0} -type sanger -fastq {1}".format(libname, fastqfile)
+    if mated:
+        assert len(args)==2, "you need two fastq file for mated library"
+        cmd += ",{0} -insertsize {1} {2}".format(fastqfile2, mean, sv)
+
     cmd += " > {0}".format(frgfile)
     sh(cmd)
 

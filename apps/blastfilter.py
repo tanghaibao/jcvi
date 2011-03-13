@@ -55,7 +55,6 @@ def main(blast_file, opts):
     filter_repeats = opts.filter_repeats
     cscore = opts.cscore
 
-    logging.debug("read bed files %s and %s" % (qbed_file, sbed_file))
     qbed = Bed(qbed_file)
     sbed = Bed(sbed_file)
 
@@ -64,7 +63,7 @@ def main(blast_file, opts):
 
     fp = file(blast_file)
     total_lines = sum(1 for line in fp)
-    logging.debug("read BLAST file %s (total %d lines)" % \
+    logging.debug("Load BLAST file %s (total %d lines)" % \
             (blast_file, total_lines))
     fp.seek(0)
     blasts = sorted([BlastLine(line) for line in fp], \
@@ -115,7 +114,7 @@ def main(blast_file, opts):
         filtered_blasts.append(b)
 
     if not tandem_Nmax is None:
-        logging.debug("running the local dups filter (tandem_Nmax=%d)..." % \
+        logging.debug("running the local dups filter (tandem_Nmax=%d) .." % \
                 tandem_Nmax)
 
         qtandems = tandem_grouper(qbed, filtered_blasts,
@@ -148,21 +147,21 @@ def main(blast_file, opts):
         before_filter = len(filtered_blasts)
         filtered_blasts = list(filter_tandem(filtered_blasts, \
                 qdups_to_mother, sdups_to_mother))
-        logging.debug("after filter (%d->%d)..." % \
+        logging.debug("after filter (%d->%d) .." % \
                 (before_filter, len(filtered_blasts)))
 
-    if not filter_repeats is None:
+    if filter_repeats:
         before_filter = len(filtered_blasts)
         logging.debug("running the repeat filter")
         filtered_blasts = list(filter_repeat(filtered_blasts))
-        logging.debug("after filter (%d->%d)..." % (before_filter,
+        logging.debug("after filter (%d->%d) .." % (before_filter,
             len(filtered_blasts)))
 
     if not cscore is None:
         before_filter = len(filtered_blasts)
-        logging.debug("running the cscore filter (cscore>=%.2f)..." % cscore)
+        logging.debug("running the cscore filter (cscore>=%.2f) .." % cscore)
         filtered_blasts = list(filter_cscore(filtered_blasts, cscore=cscore))
-        logging.debug("after filter (%d->%d)..." % (before_filter,
+        logging.debug("after filter (%d->%d) .." % (before_filter,
             len(filtered_blasts)))
 
     blastfilteredfile = blast_file + ".filtered"
@@ -256,7 +255,7 @@ def filter_repeat(blast_list, evalue_cutoff=.05):
         counts[b.subject] += 1
 
     expected_count = len(blast_list) * 1. / len(counts)
-    logging.debug("(expected_count=%d)..." % expected_count)
+    logging.debug("(expected_count=%d) .." % expected_count)
 
     for b in blast_list:
         count = counts[b.query] + counts[b.subject]
@@ -308,8 +307,8 @@ if __name__ == "__main__":
     import optparse
 
     p = optparse.OptionParser(__doc__)
-    p.add_option("--qbed", dest="qbed", help="path to qbed")
-    p.add_option("--sbed", dest="sbed", help="path to sbed")
+    p.add_option("--qbed", dest="qbed", help="path to qbed (required)")
+    p.add_option("--sbed", dest="sbed", help="path to sbed (required)")
     p.add_option("--no_strip_names", dest="strip_names", 
             action="store_false", default=True,
             help="do not strip alternative splicing (e.g. At5g06540.1 -> At5g06540)")

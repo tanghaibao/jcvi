@@ -39,10 +39,10 @@ def trim(args):
     """
     %prog trim fastqfile
 
-    CA6.1 cannot handle long fastq seq (>104bp) and requires trimming.
+    CA6.1 cannot handle long fastq seq and requires trimming.
     """
     p = OptionParser(trim.__doc__)
-    p.add_option("-l", dest="length", default=104, type="int",
+    p.add_option("-l", dest="length", default=103, type="int",
             help="keep first N bases [default: %default]")
 
     opts, args = p.parse_args(args)

@@ -12,7 +12,7 @@ assembly-related calculations. Documentations will be lagging behind.
 
 Contents
 ---------
-- ``algorithms/``
+- ``algorithms``
     Algorithms for math intensive stuff, including:
 
     * Linear programming solver with SCIP and GLPK.
@@ -25,7 +25,7 @@ Contents
     scaffolding, quality control, etc. In general, anything related to genome
     assembly and scaffolding.
 
-- ``apps/``
+- ``apps``
     Helper library to wrap command line programs and run jobs on JCVI grid
     engine (split jobs, check status, etc.). Driver scripts including:
 
@@ -34,7 +34,7 @@ Contents
     * LASTZ wrapper.
     * Low complexity sequence masker with NCBI WindowMasker.
 
-- ``formats/``
+- ``formats``
     File parsers for various files used in genome assembly and comparisons. 
     Currents supports ``.agp`` (goldenpath), ``.bed`` format, 
     ``.blast`` output, ``.btab`` format, ``.cas`` (CLC assembler output),
@@ -43,14 +43,14 @@ Contents
     ``.posmap`` format (Celera assembler output), ``.sam`` format (read
     mapping).
 
-- ``graphics/``
+- ``graphics``
     Graphics to visualize comparative genomics or assembly stuff. Including:
 
     * Genome assembly A50 plot.
     * BLAST or synteny dot plot.
     * Histogram using R.
 
-- ``utils/``
+- ``utils``
     Data structures to simplify programming tasks. Most of the scripts are
     derived from ideas in the public domain, and are commonly used by other
     modules.  For example:
@@ -79,7 +79,7 @@ For example::
     python -m jcvi.formats.fasta
 
 Or just copy ``jcvi`` to the current folder (since Python searches current
-folder for default)::
+folder by default)::
 
     python jcvi/formats/fasta.py   
 

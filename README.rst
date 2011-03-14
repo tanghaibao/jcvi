@@ -12,29 +12,29 @@ assembly-related calculations. Documentations will be lagging behind.
 
 Contents
 ---------
-``algorithms/``
-    Algorithms for math intensive stuff, including::
+- ``algorithms/``
+    Algorithms for math intensive stuff, including:
 
     * Linear programming solver with SCIP and GLPK.
     * Synteny scan (de-novo) and lift over (find nearby anchors).
     * Supermap: find set of non-overlapping anchors in BLAST or NUCMER output.
     * Tandem gene duplicates finder.
 
-``assembly``
+- ``assembly``
     Scripts to prepare input data to assembler, and also post-assembly
     scaffolding, quality control, etc. In general, anything related to genome
     assembly and scaffolding.
 
-``apps/``
+- ``apps/``
     Helper library to wrap command line programs and run jobs on JCVI grid
-    engine (split jobs, check status, etc.). Driver scripts including::
+    engine (split jobs, check status, etc.). Driver scripts including:
 
     * BLAST filter that selects subset of anchors.
     * GenBank entrez accession downloader.
     * LASTZ wrapper.
     * Low complexity sequence masker with NCBI WindowMasker.
 
-``formats/``
+- ``formats/``
     File parsers for various files used in genome assembly and comparisons. 
     Currents supports ``.agp`` (goldenpath), ``.bed`` format, 
     ``.blast`` output, ``.btab`` format, ``.cas`` (CLC assembler output),
@@ -43,21 +43,20 @@ Contents
     ``.posmap`` format (Celera assembler output), ``.sam`` format (read
     mapping).
 
-``graphics/``
-    Graphics to visualize comparative genomics or assembly stuff. Including::
+- ``graphics/``
+    Graphics to visualize comparative genomics or assembly stuff. Including:
 
-    * Genome assembly A50 plot
-    * BLAST or synteny dot plot
-    * Histogram using R
+    * Genome assembly A50 plot.
+    * BLAST or synteny dot plot.
+    * Histogram using R.
 
-``utils/``
+- ``utils/``
     Data structures to simplify programming tasks. Most of the scripts are
     derived from ideas in the public domain, and are commonly used by other
-    modules.  For example::
+    modules.  For example:
 
-    * Grouper can be used as disjoint set data structure
-    * range contains common range operations, like overlapping, distance and
-      chaining.
+    * Grouper can be used as disjoint set data structure.
+    * range contains common range operations, like overlapp and chaining.
     * Sybase connector.
     * Miscellaneous cookbook recipes.
 
@@ -107,5 +106,5 @@ Then you need to use one action, you can just do::
 
 This will tell you the options and arguments it expects. 
 
-*Feel free to check out other scripts in the package, it is not just for FASTA.*
+**Feel free to check out other scripts in the package, it is not just for FASTA.**
  

@@ -29,10 +29,34 @@ def main():
         ('fasta', 'convert fasta to frg file'),
         ('sff', 'convert 454 reads to frg file'),
         ('fastq', 'convert Illumina reads to frg file'),
+        ('trim', 'CA6.1 cannot handle long fastq seq and requires trimming'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
+
+def trim(args):
+    """
+    %prog trim fastqfile
+
+    CA6.1 cannot handle long fastq seq (>104bp) and requires trimming.
+    """
+    p = OptionParser(trim.__doc__)
+    p.add_option("-l", dest="length", default=104, type="int",
+            help="keep first N bases [default: %default]")
+
+    opts, args = p.parse_args(args)
+    if len(args) != 1:
+        sys.exit(p.print_help())
+
+    fastqfile, = args
+    length = opts.length
+    trimmedfastqfile = fastqfile.rsplit(".", 1)[0] + ".{0}.fastq".format(length)
+
+    cmd = "fastx_trimmer -f 1 -l {0} -Q33 ".format(length)
+    cmd += "< {0} > {1}".format(fastqfile, trimmedfastqfile)
+    sh(cmd)
+ 
 
 def make_qual(fastafile, defaultqual=20):
     """
@@ -71,6 +95,15 @@ def make_matepairs(fastafile):
     return matefile
 
 
+def add_size_option(p):
+    p.add_option("-s", dest="size", default=0, type="int",
+            help="insert has mean size of [default: %default] " + \
+                 "stddev is assumed to be 25% around mean size")
+
+
+get_mean_sv = lambda size: (size, size / 4)
+
+
 def fasta(args):
     """
     %prog fasta fastafile
@@ -80,9 +113,7 @@ def fasta(args):
     assumed as adjacent sequence records (i.e. /1, /2, /1, /2 ...).
     """
     p = OptionParser(fasta.__doc__)
-    p.add_option("-s", dest="size", default=0, type="int",
-            help="insert has mean size of [default: %default] " + \
-                 "stddev is assumed to be 25% around mean size")
+    add_size_option(p)
 
     opts, args = p.parse_args(args)
 
@@ -94,8 +125,7 @@ def fasta(args):
     frgfile = libname + ".frg"
 
     mated = (opts.size != 0)
-    mean = opts.size
-    sv = mean / 4
+    mean, sv = get_mean_sv(opts.size)
 
     qualfile = make_qual(fastafile)
     if mated:
@@ -110,6 +140,38 @@ def fasta(args):
     sh(cmd)
 
 
+def sff(args):
+    """
+    %prog sff sffiles
+
+    Convert reads formatted as FASTQ file, and convert to CA frg file. 
+    """
+    p = OptionParser(fastq.__doc__)
+    p.add_option("-o", dest="output", default="out",
+            help="output frg filename")
+    add_size_option(p)
+
+    opts, args = p.parse_args(args)
+
+    if len(args) == 0:
+        sys.exit(p.print_help())
+
+    sffiles = args
+    libname = opts.output
+
+    mated = (opts.size != 0)
+    mean, sv = get_mean_sv(opts.size)
+
+    cmd = "sffToCA -libraryname {0} -output {0}".format(libname)
+    cmd += " -clear 454 -trim chop"
+    if mated:
+        cmd += " -linker titanium -insertsize {0} {1}".format(mean, sv)
+
+    cmd += " " + " ".join(sffiles)
+
+    sh(cmd)
+    
+
 def fastq(args):
     """
     %prog fastq fastqfile
@@ -117,9 +179,7 @@ def fastq(args):
     Convert reads formatted as FASTQ file, and convert to CA frg file. 
     """
     p = OptionParser(fastq.__doc__)
-    p.add_option("-s", dest="size", default=0, type="int",
-            help="insert has mean size of [default: %default] " + \
-                 "stddev is assumed to be 25% around mean size")
+    add_size_option(p)
 
     opts, args = p.parse_args(args)
 
@@ -134,8 +194,7 @@ def fastq(args):
     frgfile = libname + ".frg"
 
     mated = (opts.size != 0)
-    mean = opts.size
-    sv = mean / 4
+    mean, sv = get_mean_sv(opts.size)
 
     cmd = "fastqToCA -libraryname {0} -type sanger -fastq {1}".format(libname, fastqfile)
     if mated:

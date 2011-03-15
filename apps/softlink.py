@@ -28,7 +28,10 @@ def main():
 
 
 def get_abs_path(link_name):
-    source = os.readlink(link_name) if op.islink(link_name) else link_name
+    source = link_name
+    if op.islink(source):
+        source = os.readlink(source)
+
     link_dir = op.dirname(link_name)
     source = op.normpath(op.join(link_dir, source))
     source = op.abspath(source)

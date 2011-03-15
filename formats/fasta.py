@@ -151,7 +151,7 @@ def main():
         ('trim', 'given a cross_match screened fasta, trim the sequence'),
         ('pair', 'sort paired reads to .pairs.fasta and remaining to .fragments.fasta'),
         ('fastq', 'combine fasta and qual to create fastq file'),
-        ('sequin', 'generated a gapped fasta file suitable for sequin submission'),
+        ('sequin', 'generate a gapped fasta file suitable for sequin submission'),
         ('gaps', 'print out a list of gap sizes within sequences'),
         ('some', 'include or exclude a list of records (also performs on ' + \
                  '.qual file if available)'),
@@ -715,7 +715,7 @@ def trim(args):
     from jcvi.algorithms.maxsum import max_sum
 
     p = OptionParser(trim.__doc__)
-    p.add_option("-c", dest="min_length", type="int", default=15,
+    p.add_option("-c", dest="min_length", type="int", default=64,
             help="minimum sequence length after trimming")
     p.add_option("-s", dest="score", default=QUAL,
             help="quality trimming cutoff [default: %default]")

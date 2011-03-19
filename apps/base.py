@@ -38,7 +38,9 @@ class ActionDispatcher (object):
 
 
 def set_debug(instance, args):
-
+    """
+    Add --debug options for command line programs
+    """
     assert isinstance(instance, OptionParser), \
             "only OptionParser can add debug option"
 
@@ -50,6 +52,20 @@ def set_debug(instance, args):
 
     if opts.debug:
         debug()
+
+
+def set_grid(instance, args):
+    """
+    Add --grid options for command line programs
+    """
+    assert isinstance(instance, OptionParser), \
+            "only OptionParser can add debug option"
+
+    instance.add_option("--grid", dest="grid",
+            default=False, action="store_true",
+            help="run on the grid [default: %default]")
+
+    opts, args = instance.parse_args(args)
 
 
 def sh(cmd, blog=None):

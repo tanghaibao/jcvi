@@ -109,8 +109,8 @@ def split(args):
 
     for i in range(start, end+1):
         cmd = split_cmd.format(casfile=casfile, i=i)
-        p = GridProcess(cmd)
-        p.start(path=None) # current dir
+        pr = GridProcess(cmd)
+        pr.start(path=None) # current dir
 
 
 def bed(args):

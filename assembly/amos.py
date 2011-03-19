@@ -83,20 +83,21 @@ def read_record(fp, first_line=None):
     message = Message(type)
     
     while True:
-        row = fp.next().strip()
+        row = fp.next()
         
         match = _MULTILINE_FIELD.match(row)
         if match:
-            name = match.group(1)
+            key = match.group(1)
             while True:
                 row = fp.next()
-                if row == '.': break
-                message.fields[name].append(row)
+                if row[0] == '.': break
+                message.fields[key] += row.strip()
             continue
 
         match = _FIELD.match(row)
         if match:
-            message.fields[match.group(1)] = match.group(2)
+            key, val = match.group(1), match.group(2)
+            message.fields[key] = val 
             continue
 
         if row[0] == '}':

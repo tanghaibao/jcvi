@@ -144,9 +144,9 @@ def sff(args):
     """
     %prog sff sffiles
 
-    Convert reads formatted as FASTQ file, and convert to CA frg file. 
+    Convert reads formatted as 454 SFF file, and convert to CA frg file. 
     """
-    p = OptionParser(fastq.__doc__)
+    p = OptionParser(sff.__doc__)
     p.add_option("-o", dest="output", default="out",
             help="output frg filename")
     add_size_option(p)
@@ -179,6 +179,8 @@ def fastq(args):
     Convert reads formatted as FASTQ file, and convert to CA frg file. 
     """
     p = OptionParser(fastq.__doc__)
+    p.add_option("--sanger", dest="sanger", default=False, action="store_true",
+            help="Are the qv sanger encodings [default: %default]?")
     add_size_option(p)
 
     opts, args = p.parse_args(args)
@@ -196,7 +198,9 @@ def fastq(args):
     mated = (opts.size != 0)
     mean, sv = get_mean_sv(opts.size)
 
-    cmd = "fastqToCA -libraryname {0} -type sanger -fastq {1}".format(libname, fastqfile)
+    cmd = "~/bin/Linux-amd64/bin/fastqToCA -libraryname {0} -fastq {1}".format(libname, fastqfile)
+    if opts.sanger:
+        cmd += "-type sanger "
     if mated:
         assert len(args)==2, "you need two fastq file for mated library"
         cmd += ",{0} -insertsize {1} {2}".format(fastqfile2, mean, sv)

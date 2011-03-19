@@ -149,6 +149,9 @@ def pairs(args):
     p.add_option("--pairs", dest="pairsfile", 
             default=False, action="store_true",
             help="write valid pairs to pairsfile")
+    p.add_option("-n", dest="nrows",
+            default=1e9, type="int",
+            help="only use the first n lines [default: %default]")
     p.add_option("--inserts", dest="insertsfile", default=True, 
             help="write insert sizes to insertsfile and plot distribution " + \
             "to insertsfile.pdf")
@@ -166,7 +169,7 @@ def pairs(args):
     insertsfile = ".".join((basename, "inserts")) if opts.insertsfile else None
 
     fp = open(castabfile)
-    data = [CasTabLine(row) for row in fp]
+    data = [CasTabLine(row) for i, row in enumerate(fp) if i < opts.nrows]
     data.sort(key=lambda x: x.readname)
 
     report_pairs(data, cutoff, dialect="cas", pairsfile=pairsfile,

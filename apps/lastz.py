@@ -12,7 +12,7 @@ from subprocess import Popen, PIPE
 from multiprocessing import Process, Lock
 
 from jcvi.apps.grid import Grid 
-from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.apps.base import ActionDispatcher, debug, set_grid
 debug()
 
 
@@ -137,10 +137,9 @@ def run(args):
             help="pass in LASTZ parameter string (please quote the string)")
     p.add_option("--mask", dest="mask", default=False, action="store_true",
             help="treat lower-case letters as mask info [default: %default]")
-    p.add_option("--grid", dest="grid", default=False,
-            action="store_true", help="use sun grid engine [default: %default]")
+    set_grid(p, args)
 
-    (opts, args) = p.parse_args(args)
+    opts, args = p.parse_args(args)
 
     try:
         afasta_fn = opts.query
@@ -148,7 +147,7 @@ def run(args):
         bfasta_fn = opts.target
         assert op.exists(bfasta_fn), ("%s does not exist" % bfasta_fn)
         out_fh = file(opts.outfile, "w") if opts.outfile else sys.stdout
-    except Exception, e:
+    except AssertionError as e:
         sys.exit(p.print_help())
 
     if not all((afasta_fn, bfasta_fn)):

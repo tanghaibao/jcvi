@@ -3,6 +3,7 @@ basic support for running library as script
 """
 
 import os
+import os.path as op
 import sys
 import logging
 
@@ -84,7 +85,7 @@ def is_current_file(a, b):
     """
     Check if the file a is newer than file b
     """
-    if not (os.path.exists(a) and os.path.exists(b)): return False
+    if not (op.exists(a) and op.exists(b)): return False
     am = os.stat(a).st_mtime
     bm = os.stat(b).st_mtime
     return am > bm

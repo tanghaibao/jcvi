@@ -15,11 +15,13 @@ debug()
 
 histogram_template = """
 library(ggplot2)
+vmin <- $vmin
+vmax <- $vmax
 data <- read.table('$numbersfile')
-data <- data[data >= $vmin]
-data <- data[data <= $vmax]
+data <- data[data >= vmin]
+data <- data[data <= vmax]
 data <- data.frame($xlabel=data)
-qplot($xlabel, data=data, geom='histogram', main='$title')
+qplot($xlabel, data=data, geom='histogram', main='$title', binwidth=(vmax-vmin)/50)
 ggsave('$outfile')
 """
 

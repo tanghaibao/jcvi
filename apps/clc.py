@@ -38,9 +38,11 @@ def trim(args):
     p.add_option("-c", "--cutoff", dest="cutoff", type="int", default=20,
             help="Set the minimum quality for a good nucleotide. " +\
                  "[default: %default]")
-    p.add_option("-m", "--minlength", dest="minlength", type="int", default=50,
+    p.add_option("-m", "--minlength", dest="minlength", type="int", default=30,
             help="Set the minimum length of output reads. " +\
                  "[default: %default]")
+    p.add_option("--fasta", dest="fasta", default=False, action="store_true",
+            help="Output fasta sequence? [default: fastq]")
     set_grid(p, args)
 
     opts, args = p.parse_args(args)
@@ -53,6 +55,8 @@ def trim(args):
     fastqfile1 = args[0]
     assert op.exists(fastqfile1)
 
+    suffix = "fasta" if opts.fasta else "fastq"
+
     if paired: 
         fastqfile2 = args[1]
         assert op.exists(fastqfile2)
@@ -61,11 +65,11 @@ def trim(args):
     cmd = "quality_trim -c {0.cutoff} -m {0.minlength} ".format(opts)
     if paired:
         cmd += "-r -i {0} {1} ".format(fastqfile1, fastqfile2)
-        cmd += "-p {0}.pairs.fastq ".format(prefix)
+        cmd += "-p {0}.pairs.{1} ".format(prefix, suffix)
     else:
         cmd += "-r {0} ".format(fastqfile1)
 
-    cmd += "-o {0}.fragments.fastq".format(prefix)
+    cmd += "-o {0}.fragments.{1}".format(prefix, suffix)
 
     if opts.grid:
         pr = GridProcess(cmd)

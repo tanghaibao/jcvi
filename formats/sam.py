@@ -249,7 +249,8 @@ def ace(args):
         for a in mapped_reads:
             readname = a.qname
             suffix = ".1" if a.is_read1 else ".2"
-            rname = readname + suffix
+            if readname[-2] != '/':
+                rname = readname + suffix
 
             print >> readsfw, readname
             rnames.append(rname)

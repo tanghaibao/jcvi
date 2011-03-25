@@ -16,7 +16,6 @@ from Bio import SeqIO
 from jcvi.formats.base import LineFile
 from jcvi.formats.blast import report_pairs
 from jcvi.apps.grid import GridProcess
-from jcvi.utils.range import range_distance
 from jcvi.apps.base import ActionDispatcher, sh, debug
 debug()
 

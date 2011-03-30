@@ -66,11 +66,10 @@ def read_record(fp, first_line=None):
     
     On success returns a Message object     
     On end of file raises EOFError  
-    On syntax error raises amos.Error
     """
 
     if first_line is None:
-        first_line = fp.next()
+        first_line = fp.readline()
     
     if not first_line:
         raise EOFError()
@@ -83,14 +82,21 @@ def read_record(fp, first_line=None):
     message = Message(type)
     
     while True:
-        row = fp.next()
+        row = fp.readline()
+        #print message
+        #print '[R]', row.strip()
         
         match = _MULTILINE_FIELD.match(row)
         if match:
             key = match.group(1)
-            while True:
-                row = fp.next()
-                if row[0] == '.': break
+            while row:
+                pos = fp.tell()
+                row = fp.readline()
+                if row[0] in '.': 
+                    break
+                elif row[0] in '{}':
+                    fp.seek(pos) # put the line back
+                    break
                 message.fields[key] += row.strip()
             continue
 
@@ -100,12 +106,13 @@ def read_record(fp, first_line=None):
             message.fields[key] = val 
             continue
 
-        if row[0] == '}':
-            break
-    
-        if row[0] == '{':
+        match = _START.match(row)
+        if match:
             message.append( read_record(fp, row) )
             continue
+
+        if row[0] == '}':
+            break
         
         raise Exception('Bad line', row)
 
@@ -126,6 +133,7 @@ def main():
 
     actions = (
         ('frg', 'extract FASTA sequences from frg'),
+        ('asm', 'extract FASTA sequences from asm'),
         ('count', 'count each type of messages'),
             )
     p = ActionDispatcher(actions)
@@ -136,8 +144,7 @@ def frg(args):
     """
     %prog frg frgfile
 
-    Example: pass a message stream from stdin to stdout
-             print count of each message type to stderr
+    Extract FASTA sequences from frg reads.
     """
     p = OptionParser(frg.__doc__)
     opts, args = p.parse_args(args)
@@ -156,6 +163,47 @@ def frg(args):
         seq = rec.fields["seq"]
         s = SeqRecord(Seq(seq), id=id, description="")
         SeqIO.write([s], fw, "fasta")
+
+    fw.close()
+
+
+def asm(args):
+    """
+    %prog asm asmfile
+
+    Extract FASTA sequences from asm reads.
+    """
+    p = OptionParser(asm.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(p.print_help())
+
+    asmfile, = args
+    prefix = asmfile.rsplit(".", 1)[0] 
+    ctgfastafile = prefix + ".ctg.fasta"
+    scffastafile = prefix + ".scf.fasta"
+    fp = open(asmfile)
+    ctgfw = open(ctgfastafile, "w")
+    scffw = open(scffastafile, "w")
+
+    for rec in iter_records(fp):
+        type = rec.type
+        if type == "CCO": 
+            fw = ctgfw
+            pp = "ctg"
+        elif type == "SCF":
+            fw = scffw
+            pp = "scf"
+        else:
+            continue
+
+        id = rec.fields["acc"]
+        id = id.translate(None, "()").split(",")[0]
+        seq = rec.fields["cns"].translate(None, "-")
+        s = SeqRecord(Seq(seq), id=pp+id, description="")
+        SeqIO.write([s], fw, "fasta")
+        fw.flush()
 
     fw.close()
 

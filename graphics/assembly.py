@@ -81,9 +81,10 @@ def A50 (args):
             logging.debug("`%s` ctg_sizes: %s" % (fastafile, ctgsizes))
             logging.debug("`%s` N50: %d" % (a, n50))
 
+            tag = "%s (N50=%d)" % (op.basename(a).rsplit(".", 1)[0], n50)
+
             for i, s in zip(xrange(0, len(a50), stepsize), a50[::stepsize]):
-                print >>fw, "\t".join((str(i), str(s/1000000.), 
-                    "%s (N50=%d)" % (op.basename(a).rsplit(".", 1)[0], n50)))
+                print >>fw, "\t".join((str(i), str(s/1000000.), tag))
         fw.close()
 
     generate_plot(rplot)

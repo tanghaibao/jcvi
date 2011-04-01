@@ -86,7 +86,7 @@ class AGPLine (object):
         # bed formatted line
         gid = self.component_id if not self.is_gap else "gap"
         return "\t".join((self.object, str(self.object_beg-1),
-                str(self.object_end), gid, '1000', self.orientation))
+                str(self.object_end), gid, self.component_type, self.orientation))
 
     def validate(self):
         assert self.component_type in Valid_component_type, \
@@ -451,7 +451,7 @@ def bed(args):
     print out the tiling paths in bed format
     """
     p = OptionParser(bed.__doc__)
-    p.add_option("--nogaps", dest="nogaps", default=False,
+    p.add_option("--nogaps", dest="nogaps", default=False, action="store_true",
             help="do not print bed lines for gaps")
     opts, args = p.parse_args(args)
     

@@ -23,7 +23,12 @@ Contents
 - ``assembly``
     Scripts to prepare input data to assembler, and also post-assembly
     scaffolding, quality control, etc. In general, anything related to genome
-    assembly and scaffolding.
+    assembly and scaffolding:
+
+    * K-mer histogram analysis
+    * Prepare frg for Celera Assembler (CA)
+    * Helper scripts for fixing unitig layout errors in CA
+    * QC of potential scaffolding errors
 
 - ``apps``
     Helper library to wrap command line programs and run jobs on JCVI grid

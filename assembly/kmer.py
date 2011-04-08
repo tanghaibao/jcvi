@@ -80,7 +80,7 @@ def histogram(args):
     ax.text(.5, .9, _(Total_Kmers_msg), ha="center", color='b', transform=ax.transAxes)
     ax.text(.5, .8, _(Kmer_coverage_msg), ha="center", color='b', transform=ax.transAxes)
     ax.text(.5, .7, _(Genome_size_msg), ha="center", color='b', transform=ax.transAxes)
-    
+
     title = "{0} genome {1}-mer histogram".format(species, N)
     ax.set_title(_(title), color='r')
     xlabel, ylabel = "Coverage (X)", "Counts"

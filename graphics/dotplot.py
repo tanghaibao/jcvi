@@ -15,8 +15,7 @@ from random import sample
 from itertools import groupby
 from optparse import OptionParser
 
-from jcvi.graphics.base import plt, ticker, Rectangle, cm, _, \
-    human_size_formatter
+from jcvi.graphics.base import plt, ticker, Rectangle, cm, _, set_human_axis
 from jcvi.formats.bed import Bed
 from jcvi.algorithms.synteny import batch_scan
 from jcvi.apps.base import debug
@@ -181,9 +180,7 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax,
     for tick in ax.get_xticklines() + ax.get_yticklines():
         tick.set_visible(False) 
 
-    formatter = human_size_formatter 
-    ax.xaxis.set_major_formatter(formatter)
-    ax.yaxis.set_major_formatter(formatter)
+    set_human_axis(ax)
 
     plt.setp(ax.get_xticklabels() + ax.get_yticklabels(), color='gray', size=10)
 

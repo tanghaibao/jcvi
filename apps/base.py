@@ -51,11 +51,10 @@ def set_debug(instance, args):
 
     opts, args = instance.parse_args(args)
 
-    if opts.debug:
-        debug()
+    if opts.debug: debug()
 
 
-def set_grid(instance, args):
+def set_grid(instance):
     """
     Add --grid options for command line programs
     """
@@ -65,8 +64,6 @@ def set_grid(instance, args):
     instance.add_option("--grid", dest="grid",
             default=False, action="store_true",
             help="run on the grid [default: %default]")
-
-    opts, args = instance.parse_args(args)
 
 
 def sh(cmd, blog=None):

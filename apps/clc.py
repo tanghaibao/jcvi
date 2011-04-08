@@ -43,7 +43,7 @@ def trim(args):
                  "[default: %default]")
     p.add_option("--fasta", dest="fasta", default=False, action="store_true",
             help="Output fasta sequence? [default: fastq]")
-    set_grid(p, args)
+    set_grid(p)
 
     opts, args = p.parse_args(args)
     

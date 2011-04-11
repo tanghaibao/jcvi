@@ -352,7 +352,7 @@ def iter_phase(phasefile):
 
 def chr0(args):
     """
-    %prog fastafile phasefile
+    %prog fastafile [phasefile]
 
     build AGP file for unassembled sequences, and add gaps between. Phase list
     contains two columns - BAC and phase (0, 1, 2, 3).
@@ -363,11 +363,18 @@ def chr0(args):
                  "[default: do not create new molecule]")
     opts, args = p.parse_args(args)
 
-    if len(args) != 2:
+    nargs = len(args)
+    if nargs not in (1, 2):
         sys.exit(p.print_help())
 
-    fastafile, phasefile = args
-    phases = dict(iter_phase(phasefile))
+    if nargs == 2:
+        fastafile, phasefile = args
+        phases = dict(iter_phase(phasefile))
+    else:
+        fastafile, = args
+        f = Fasta(fastafile)
+        phases = dict((x, 'W') for x in f.iterkeys())
+
     agpfile = fastafile.rsplit(".", 1)[0] + ".agp"
     f = Fasta(fastafile)
     fw = open(agpfile, "w")
@@ -496,8 +503,11 @@ def gaps(args):
         is_gap = is_gap[1]
         if is_gap:
             gap_size = sum(x.gap_length for x in alines)
-            if "telomere" in set(x.gap_type for x in alines):
-                gap_size = "telomere"
+            gap_types = set(x.gap_type for x in alines)
+            for gtype in ("centromere", "telomere"):
+                if gtype in gap_types:
+                    gap_size = gtype
+
             size_distribution[gap_size] += 1
             b = deepcopy(alines[0])
             b.object_beg = min(x.object_beg for x in alines)
@@ -507,7 +517,7 @@ def gaps(args):
             assert b.gap_length == b.object_end - b.object_beg + 1
             
             gtypes = [x.gap_type for x in alines]
-            for gtype in ("telomere", "contig", "clone", "fragment"):
+            for gtype in ("centromere", "telomere", "contig", "clone", "fragment"):
                 if gtype in gtypes:
                     b.gap_type = gtype
                     break

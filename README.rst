@@ -103,6 +103,7 @@ Most of the scripts in this package contains multiple actions. To use the
         `fastq`: combine fasta and qual to create fastq file
         `sequin`: generated a gapped fasta file suitable for sequin submission
         `gaps`: print out a list of gap sizes within sequences
+        `join`: concatenate a list of seqs and add gaps in between
         `some`: include or exclude a list of records (also performs on .qual file if available)
 
 Then you need to use one action, you can just do::

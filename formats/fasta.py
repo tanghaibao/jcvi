@@ -11,6 +11,7 @@ from optparse import OptionParser
 from itertools import groupby, izip_longest
 
 from Bio import SeqIO
+from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
 from jcvi.formats.base import BaseFile
@@ -153,11 +154,36 @@ def main():
         ('fastq', 'combine fasta and qual to create fastq file'),
         ('sequin', 'generate a gapped fasta file suitable for sequin submission'),
         ('gaps', 'print out a list of gap sizes within sequences'),
+        ('join', 'concatenate a list of seqs and add gaps in between'),
         ('some', 'include or exclude a list of records (also performs on ' + \
                  '.qual file if available)'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def join(args):
+    """
+    %prog join fastafile
+
+    Concatenate a list of seqs and add gaps in between
+    """
+    p = OptionParser(join.__doc__)
+    p.add_option("--gapsize", dest="gapsize", default=100, type="int",
+            help="number of N's in between the sequences [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(p.print_help())
+
+    fastafile, = args
+
+    gap = opts.gapsize * 'N'
+    seq = gap.join(str(x.seq) for x in SeqIO.parse(fastafile, "fasta"))
+    rec = SeqRecord(Seq(seq), id="chr0", description="")
+
+    fw = sys.stdout
+    SeqIO.write([rec], fw, "fasta")
 
 
 def summary(args):

@@ -244,6 +244,8 @@ def format(args):
             help="If input reads are pairs, add trailing /1 and /2 [default: %default]")
     p.add_option("--gb", dest="gb", default=False, action="store_true",
             help="if Genbank ID, get the accession [default: %default]")
+    p.add_option("--noversion", dest="noversion", default=False,
+            action="store_true", help="remove the gb trailing version [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -252,6 +254,7 @@ def format(args):
     infasta, outfasta = args
     gb = opts.gb
     pairs = opts.pairs
+    noversion = opts.noversion
 
     fw = sys.stdout if outfasta=="stdout" else open(outfasta, "w")
     for i, rec in enumerate(SeqIO.parse(infasta, "fasta")):
@@ -265,6 +268,8 @@ def format(args):
             id = "/1" if (i % 2 == 0) else "/2"
             #rec.id = rec.id.rsplit("_", 1)[0]
             rec.id += id 
+        if noversion:
+            rec.id = rec.id.rsplit(".", 1)[0]
             
         SeqIO.write(rec, fw, "fasta")
 

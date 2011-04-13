@@ -180,7 +180,9 @@ def fastq(args):
     """
     p = OptionParser(fastq.__doc__)
     p.add_option("--sanger", dest="sanger", default=False, action="store_true",
-            help="Are the qv sanger encodings [default: %default]?")
+            help="Are the qv sanger encodings? [default: %default]")
+    p.add_option("--outtie", dest="outtie", default=False, action="store_true",
+            help="Are these outie reads? [default: %default]")
     add_size_option(p)
 
     opts, args = p.parse_args(args)
@@ -201,6 +203,8 @@ def fastq(args):
     cmd = "~/bin/Linux-amd64/bin/fastqToCA -libraryname {0} -fastq {1}".format(libname, fastqfile)
     if opts.sanger:
         cmd += "-type sanger "
+    if opts.outtie:
+        cmd += "-outtie "
     if mated:
         assert len(args)==2, "you need two fastq file for mated library"
         cmd += ",{0} -insertsize {1} {2}".format(fastqfile2, mean, sv)

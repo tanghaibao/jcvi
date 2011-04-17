@@ -35,7 +35,10 @@ def blastz_score_to_ncbi_expectation(bz_score):
 
 
 def lastz_to_blast(row):
-    # conver the lastz tabular to the blast tabular, see headers above
+    """
+    Convert the lastz tabular to the blast tabular, see headers above
+    Obsolete after LASTZ version 1.02.40
+    """
     atoms = row.strip().split("\t")
     name1, name2, coverage, identity, nmismatch, ngap, \
             start1, end1, strand1, start2, end2, strand2, score = atoms
@@ -70,7 +73,10 @@ def lastz(k, n, bfasta_fn, afasta_fn, out_fh, lock, lastz_path, extra,
     lastz_cmd %= (lastz_bin, bfasta_fn, ref_tags, afasta_fn, qry_tags, extra)
 
     if blastline:
-        lastz_cmd += " --format=general-:%s" % lastz_fields
+        #lastz_cmd += " --format=general-:%s" % lastz_fields
+        # The above conversion is no longer necessary after LASTZ v1.02.40
+        # (of which I contributed a patch)
+        lastz_cmd += " --format=BLASTN-"
 
     if grid: # if run on SGE, only the comd is needed
         return lastz_cmd
@@ -79,8 +85,7 @@ def lastz(k, n, bfasta_fn, afasta_fn, out_fh, lock, lastz_path, extra,
 
     logging.debug("job <%d> started: %s" % (proc.pid, lastz_cmd))
     for row in proc.stdout:
-        if blastline:
-            row = lastz_to_blast(row)
+        #if blastline: row = lastz_to_blast(row)
         lock.acquire()
         print >>out_fh, row
         out_fh.flush()
@@ -89,42 +94,13 @@ def lastz(k, n, bfasta_fn, afasta_fn, out_fh, lock, lastz_path, extra,
 
 
 def main():
-    
-    actions = (
-        ('run', 'run lastz command'),
-        ('parse', 'parse lastz tabular outputs (often needed after SGE jobs)'),
-        )
-    p = ActionDispatcher(actions)
-    p.dispatch(globals())
-
-
-def parse(args):
     """
-    %prog parse files
+    %prog database.fa query.fa [options]
 
-    converts the lastz tabular outputs to blast m8 format
+    Run LASTZ similar to the BLAST interface, and generates -m8 tabular format
     """
-    p = OptionParser(parse.__doc__)
-    opts, args = p.parse_args(args)
+    p = OptionParser(main.__doc__)
 
-    import fileinput
-
-    for row in fileinput.input(args):
-        print lastz_to_blast(row)
-
-
-def run(args):
-    """
-    %prog run -i query.fa -d database.fa [options]
-
-    run LASTZ similar to the BLAST interface, and generates -m8 tabular format
-    """
-    p = OptionParser(run.__doc__)
-
-    p.add_option("-i", dest="query",
-            help="query sequence file in FASTA format")
-    p.add_option("-d", dest="target",
-            help="database sequence file in FASTA format")
     p.add_option("-o", dest="outfile",
             help="output [default: stdout]")
     p.add_option("-m", dest="blastline", default=True, action="store_false",
@@ -137,21 +113,18 @@ def run(args):
             help="pass in LASTZ parameter string (please quote the string)")
     p.add_option("--mask", dest="mask", default=False, action="store_true",
             help="treat lower-case letters as mask info [default: %default]")
-    set_grid(p, args)
+    set_grid(p)
 
-    opts, args = p.parse_args(args)
+    opts, args = p.parse_args()
 
-    try:
-        afasta_fn = opts.query
-        assert op.exists(afasta_fn), ("%s does not exist" % afasta_fn)
-        bfasta_fn = opts.target
-        assert op.exists(bfasta_fn), ("%s does not exist" % bfasta_fn)
-        out_fh = file(opts.outfile, "w") if opts.outfile else sys.stdout
-    except AssertionError as e:
+    if len(args) != 2:
         sys.exit(p.print_help())
 
-    if not all((afasta_fn, bfasta_fn)):
-        sys.exit(p.print_help())
+    bfasta_fn, afasta_fn = args
+    for fn in (afasta_fn, bfasta_fn):
+        assert op.exists(fn)
+
+    out_fh = file(opts.outfile, "w") if opts.outfile else sys.stdout
 
     grid = opts.grid
     if grid:

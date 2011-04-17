@@ -15,8 +15,7 @@ from optparse import OptionParser
 
 import numpy as np
 
-from jcvi.graphics.base import plt, ticker, Rectangle, cm, _, \
-    human_size_formatter
+from jcvi.graphics.base import plt, ticker, Rectangle, cm, _, set_human_axis
 from jcvi.formats.blast import BlastLine
 from jcvi.formats.sizes import Sizes
 from jcvi.formats.bed import Bed
@@ -153,9 +152,7 @@ def blastplot(blastfile, qsizes, ssizes, qbed, sbed, image_name,
     for tick in ax.get_xticklines() + ax.get_yticklines():
         tick.set_visible(False) 
 
-    formatter = human_size_formatter
-    ax.xaxis.set_major_formatter(formatter)
-    ax.yaxis.set_major_formatter(formatter)
+    set_human_axis(ax)
 
     plt.setp(ax.get_xticklabels() + ax.get_yticklabels(), color='gray', size=10)
 

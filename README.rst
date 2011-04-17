@@ -23,7 +23,12 @@ Contents
 - ``assembly``
     Scripts to prepare input data to assembler, and also post-assembly
     scaffolding, quality control, etc. In general, anything related to genome
-    assembly and scaffolding.
+    assembly and scaffolding:
+
+    * K-mer histogram analysis
+    * Prepare frg for Celera Assembler (CA)
+    * Helper scripts for fixing unitig layout errors in CA
+    * QC of potential scaffolding errors
 
 - ``apps``
     Helper library to wrap command line programs and run jobs on JCVI grid
@@ -98,6 +103,7 @@ Most of the scripts in this package contains multiple actions. To use the
         `fastq`: combine fasta and qual to create fastq file
         `sequin`: generated a gapped fasta file suitable for sequin submission
         `gaps`: print out a list of gap sizes within sequences
+        `join`: concatenate a list of seqs and add gaps in between
         `some`: include or exclude a list of records (also performs on .qual file if available)
 
 Then you need to use one action, you can just do::

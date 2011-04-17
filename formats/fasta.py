@@ -11,6 +11,7 @@ from optparse import OptionParser
 from itertools import groupby, izip_longest
 
 from Bio import SeqIO
+from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
 from jcvi.formats.base import BaseFile
@@ -153,11 +154,36 @@ def main():
         ('fastq', 'combine fasta and qual to create fastq file'),
         ('sequin', 'generate a gapped fasta file suitable for sequin submission'),
         ('gaps', 'print out a list of gap sizes within sequences'),
+        ('join', 'concatenate a list of seqs and add gaps in between'),
         ('some', 'include or exclude a list of records (also performs on ' + \
                  '.qual file if available)'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def join(args):
+    """
+    %prog join fastafile
+
+    Concatenate a list of seqs and add gaps in between
+    """
+    p = OptionParser(join.__doc__)
+    p.add_option("--gapsize", dest="gapsize", default=100, type="int",
+            help="number of N's in between the sequences [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(p.print_help())
+
+    fastafile, = args
+
+    gap = opts.gapsize * 'N'
+    seq = gap.join(str(x.seq) for x in SeqIO.parse(fastafile, "fasta"))
+    rec = SeqRecord(Seq(seq), id="chr0", description="")
+
+    fw = sys.stdout
+    SeqIO.write([rec], fw, "fasta")
 
 
 def summary(args):
@@ -218,6 +244,8 @@ def format(args):
             help="If input reads are pairs, add trailing /1 and /2 [default: %default]")
     p.add_option("--gb", dest="gb", default=False, action="store_true",
             help="if Genbank ID, get the accession [default: %default]")
+    p.add_option("--noversion", dest="noversion", default=False,
+            action="store_true", help="remove the gb trailing version [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -226,6 +254,7 @@ def format(args):
     infasta, outfasta = args
     gb = opts.gb
     pairs = opts.pairs
+    noversion = opts.noversion
 
     fw = sys.stdout if outfasta=="stdout" else open(outfasta, "w")
     for i, rec in enumerate(SeqIO.parse(infasta, "fasta")):
@@ -239,6 +268,8 @@ def format(args):
             id = "/1" if (i % 2 == 0) else "/2"
             #rec.id = rec.id.rsplit("_", 1)[0]
             rec.id += id 
+        if noversion:
+            rec.id = rec.id.rsplit(".", 1)[0]
             
         SeqIO.write(rec, fw, "fasta")
 

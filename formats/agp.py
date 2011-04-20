@@ -120,6 +120,7 @@ class AGP (LineFile):
 
         self.sort(key=lambda x: (x.object, x.object_beg))
         
+        self.validate = validate
         if validate:
             self.validate_all()
 
@@ -233,9 +234,10 @@ class AGP (LineFile):
             components.append(seq)
             total_bp += len(seq) 
 
-            assert total_bp == line.object_end, \
-                    "cumulative base pairs (%d) does not match (%d)" % \
-                    (total_bp, line.object_end)
+            if self.validate:
+                assert total_bp == line.object_end, \
+                        "cumulative base pairs (%d) does not match (%d)" % \
+                        (total_bp, line.object_end)
 
 
         rec = SeqRecord(Seq(''.join(components)), id=object, description="")
@@ -550,16 +552,21 @@ def build(args):
     build targetfasta based on info from agpfile
     """
     p = OptionParser(build.__doc__)
+    p.add_option("--novalidate", dest="novalidate", default=False,
+            action="store_true", 
+            help="don't validate the agpfile [default: %default]")
 
     set_debug(p, args)
     opts, args = p.parse_args(args)
+
+    validate = not (opts.novalidate)
 
     try:
         agpfile, componentfasta, targetfasta  = args
     except Exception, e:
         sys.exit(p.print_help())
 
-    agp = AGP(agpfile)
+    agp = AGP(agpfile, validate=validate)
     agp.build_all(componentfasta=componentfasta, targetfasta=targetfasta)
 
 

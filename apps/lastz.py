@@ -87,7 +87,7 @@ def lastz(k, n, bfasta_fn, afasta_fn, out_fh, lock, lastz_path, extra,
     for row in proc.stdout:
         #if blastline: row = lastz_to_blast(row)
         lock.acquire()
-        print >>out_fh, row
+        out_fh.write(row)
         out_fh.flush()
         lock.release()
     logging.debug("job <%d> finished" % proc.pid)

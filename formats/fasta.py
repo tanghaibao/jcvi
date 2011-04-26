@@ -264,6 +264,8 @@ def format(args):
             atoms = rec.id.split("|")
             if len(atoms) >= 4:
                 rec.id = atoms[3]
+            elif len(atoms)==2:
+                rec.id = atoms[1]
         if pairs:
             id = "/1" if (i % 2 == 0) else "/2"
             #rec.id = rec.id.rsplit("_", 1)[0]

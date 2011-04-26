@@ -23,7 +23,7 @@ def get_signs(M, validate=True):
     eigenvalue and associated eigenvector and return the signs for the
     eigenvector. This should correspond to the original orientations for the
     individual molecule. In the first example below, let's say 3 molecules A, B
-    and C, A-B:opposite direction, A-C:opposite direction, B-C: positive
+    and C, A-B:same direction, A-C:opposite direction, B-C:opposite 
     direction. The final solution is to flip C.
 
     >>> M = np.array([[0,1,-1],[1,0,-1],[-1,-1,0]])
@@ -46,7 +46,7 @@ def get_signs(M, validate=True):
         final = diag * M * diag
         # The final result should have all pairwise in the same direction
         assert (final>=0).all(), \
-                "result check fails:\n{0}\n{1}".format(final, target)
+                "result check fails:\n{0}".format(final)
 
     return sign_array
 

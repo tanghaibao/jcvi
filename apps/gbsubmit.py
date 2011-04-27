@@ -284,7 +284,7 @@ def gss(args):
 
         row = w384[0]
         column = int(w384[1:])
-        seq = fill(str(rec.seq), width=60)
+        seq = fill(str(rec.seq), width=70)
 
         cloneID = "{0}{1}".format(plate, w384)
         gssID = "{0}{1}".format(cloneID, d)
@@ -301,7 +301,7 @@ def gss(args):
 
         print >> fw, GSSTemplate.format(**vars)
 
-    logging.debug("A total of {0} seqs written to `{0}`".format(len(seen), fw.name))
+    logging.debug("A total of {0} seqs written to `{1}`".format(len(seen), fw.name))
         
 
 if __name__ == '__main__':

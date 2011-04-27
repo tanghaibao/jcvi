@@ -15,8 +15,7 @@ from Bio import SeqIO
 
 from jcvi.formats.base import LineFile
 from jcvi.formats.blast import report_pairs
-from jcvi.apps.grid import GridProcess
-from jcvi.apps.base import ActionDispatcher, sh, debug
+from jcvi.apps.base import ActionDispatcher, sh, set_grid, debug
 debug()
 
 
@@ -94,6 +93,8 @@ def split(args):
     one big assembly per contig
     """
     p = OptionParser(split.__doc__)
+    set_grid(p)
+
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -108,8 +109,7 @@ def split(args):
 
     for i in range(start, end+1):
         cmd = split_cmd.format(casfile=casfile, i=i)
-        pr = GridProcess(cmd)
-        pr.start(path=None) # current dir
+        sh(cmd, grid=opts.grid)
 
 
 def bed(args):
@@ -154,6 +154,7 @@ def pairs(args):
     p.add_option("--inserts", dest="insertsfile", default=True, 
             help="write insert sizes to insertsfile and plot distribution " + \
             "to insertsfile.pdf")
+
     opts, args = p.parse_args(args)
 
     if len(args)!=1:

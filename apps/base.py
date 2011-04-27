@@ -7,6 +7,7 @@ import os.path as op
 import sys
 import logging
 
+from subprocess import check_call
 from optparse import OptionParser
 
 
@@ -66,16 +67,21 @@ def set_grid(instance):
             help="run on the grid [default: %default]")
 
 
-def sh(cmd, blog=None):
+def sh(cmd, blog=None, grid=False):
     """
     simple wrapper for system calls
     """
     if not blog is None:
         cmd += " 2>%s" % blog
 
-    from subprocess import call
     logging.debug(cmd)
-    return call(cmd, shell=True)
+
+    if grid:
+        from jcvi.apps.grid import GridProcess
+        pr = GridProcess(cmd)
+        pr.start(path=None)
+    else:
+        check_call(cmd, shell=True)
 
 
 def is_current_file(a, b):

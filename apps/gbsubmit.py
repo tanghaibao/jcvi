@@ -199,7 +199,7 @@ def parse_description(s):
 
 def gss(args):
     """
-    %prog gss fastafile
+    %prog gss fastafile plateMapping
 
     Generate sequence files and metadata templates suited for gss submission.
     The FASTA file is assumed to be exported from the JCVI data delivery folder
@@ -215,16 +215,23 @@ def gss(args):
     AGCTTTAGTTTCAAGGATACCTTCATTGTCATTCCCGGTTATGATGATATCATCAAGATAAACAAGAATG
     ACAATGATACCTGTTTGGTTCTGAAGTGTAAAGAGGGTATGTTCAGCTTCAGATCTTCTAAACCCTTTGT
     CTAGTAAGCTGGCACTTAGCTTCCTATACCAAACCCTTTGTGATTGCTTCAGTCCATAAATTGCCTTTTT
+
+    Plate mapping file maps the JTC `sequencer_plate_barcode` to external IDs.
+    For example:
+    B906423 SIL-001
     """
     p = OptionParser(gss.__doc__)
+
     opts, args = p.parse_args(args)
 
-    if len(args) != 1:
+    if len(args) != 2:
         sys.exit(p.print_help())
 
-    fastafile, = args
+    fastafile, mappingfile = args
     seen = defaultdict(int)
     clone = defaultdict(set)
+
+    plateMapping = dict(row.split() for row in open(mappingfile)) 
 
     fw = open("MetaData.txt", "w")
     print >> fw, PublicationTemplate.format(**vars)
@@ -233,6 +240,7 @@ def gss(args):
     logging.debug("Meta data written to `{0}`".format(fw.name))
 
     fw = open("GSS.txt", "w")
+    fw_log = open("GSS.log", "w")
     for rec in SeqIO.parse(fastafile, "fasta"):
         # First pass just check well number matchings and populate sequences in
         # the same clone
@@ -253,8 +261,11 @@ def gss(args):
         w384 = sequencer_plate_well_coordinates
         assert convert_96_to_384(w96, w96quad)==w384
 
-        template_plate_barcode = a["template_plate_barcode"][0]
-        plate = template_plate_barcode
+        plate = sequencer_plate_barcode
+        assert plate in plateMapping, \
+            "{0} not found in `{1}` !".format(plate, mappingfile)
+
+        plate = plateMapping[plate]
         d = Directions[direction]
 
         cloneID = "{0}{1}".format(plate, w384)
@@ -278,8 +289,8 @@ def gss(args):
             a["sequencer_plate_well_coordinates"][0]
         w384 = sequencer_plate_well_coordinates
 
-        template_plate_barcode = a["template_plate_barcode"][0]
-        plate = template_plate_barcode
+        plate = sequencer_plate_barcode 
+        plate = plateMapping[plate]
         d = Directions[direction]
 
         row = w384[0]
@@ -301,7 +312,13 @@ def gss(args):
 
         print >> fw, GSSTemplate.format(**vars)
 
+        # Write conversion logs to log file
+        print >> fw_log, "{0}\t{1}".format(gssID, description)
+        print >> fw_log, "=" * 60
+
     logging.debug("A total of {0} seqs written to `{1}`".format(len(seen), fw.name))
+    fw.close()
+    fw_log.close()
         
 
 if __name__ == '__main__':

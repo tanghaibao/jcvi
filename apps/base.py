@@ -74,13 +74,12 @@ def sh(cmd, blog=None, grid=False):
     if not blog is None:
         cmd += " 2>%s" % blog
 
-    logging.debug(cmd)
-
     if grid:
         from jcvi.apps.grid import GridProcess
         pr = GridProcess(cmd)
         pr.start(path=None)
     else:
+        logging.debug(cmd)
         check_call(cmd, shell=True)
 
 

@@ -18,9 +18,9 @@ class ActionDispatcher (object):
         self.valid_actions, self.action_helps = zip(*actions)
 
     def print_help(self):
-        help = "available actions:\n"
+        help = "Available actions:\n"
         for action, action_help in self.actions:
-            help += "\t`%s`: %s\n" % (action, action_help)
+            help += "    `%s`: %s\n" % (action, action_help)
 
         print >>sys.stderr, help
         sys.exit(1)

@@ -7,6 +7,7 @@ Prepare the data for Genbank submission
 
 import sys
 import string
+import logging
 
 from urlparse import parse_qs
 from optparse import OptionParser
@@ -46,8 +47,7 @@ ISSUE:
 PAGES:
 YEAR: 2011 
 STATUS: 1
-||
-"""
+||"""
 
 LibraryTemplate = """TYPE: Lib
 NAME: {Libname}
@@ -61,8 +61,7 @@ VECTOR: pCC1BAC
 RE_1: HindIII
 DESCR:
 Transformed into Invitrogen DH10b phage resistant E. coli.
-||
-"""
+||"""
 
 ContactTemplate = """TYPE: Cont
 NAME: {Contact}
@@ -72,8 +71,7 @@ EMAIL: cdtown@jcvi.org
 LAB: Plant Genomics 
 INST: J. Craig Venter Institute 
 ADDR: 9704 Medical Center Dr., Rockville, MD 20850, USA 
-||
-"""
+||"""
 
 Directions = {"forward": "TR",
               "reverse": "TV"}
@@ -86,7 +84,7 @@ STATUS: New
 CONT_NAME: {Contact} 
 GSS#: {gssID} 
 CLONE: {cloneID} 
-SOURCE: Amplicon Express
+SOURCE: JCVI 
 OTHER_GSS: {othergss} 
 CITATION: 
 {Title}
@@ -103,8 +101,7 @@ PUT_ID:
 COMMENT:
 SEQUENCE:
 {seq}
-||
-"""
+||"""
 
 Nrows, Ncols = 16, 24
 vars = globals()
@@ -229,14 +226,11 @@ def gss(args):
     seen = defaultdict(int)
     clone = defaultdict(set)
 
-    fw = open("Publication.txt", "w")
+    fw = open("MetaData.txt", "w")
     print >> fw, PublicationTemplate.format(**vars)
-
-    fw = open("Library.txt", "w")
     print >> fw, LibraryTemplate.format(**vars)
-
-    fw = open("Contact.txt", "w")
     print >> fw, ContactTemplate.format(**vars)
+    logging.debug("Meta data written to `{0}`".format(fw.name))
 
     fw = open("GSS.txt", "w")
     for rec in SeqIO.parse(fastafile, "fasta"):
@@ -265,9 +259,12 @@ def gss(args):
 
         cloneID = "{0}{1}".format(plate, w384)
         gssID = "{0}{1}".format(cloneID, d)
+        seen[gssID] += 1
 
-        if gssID in seen:
-            gssID = "{0}{1}".format(gssID, seen[gssID]+1)
+        if seen[gssID] > 1:
+            gssID = "{0}{1}".format(gssID, seen[gssID])
+        
+        seen[gssID] += 1
         clone[cloneID].add(gssID)
         
     seen = defaultdict(int)
@@ -292,14 +289,19 @@ def gss(args):
         cloneID = "{0}{1}".format(plate, w384)
         gssID = "{0}{1}".format(cloneID, d)
         primer = Primers[d]
+        seen[gssID] += 1
 
-        if gssID in seen:
-            gssID = "{0}{1}".format(gssID, seen[gssID]+1)
+        if seen[gssID] > 1:
+            logging.error("duplicate key {0} found".format(gssID))
+            gssID = "{0}{1}".format(gssID, seen[gssID])
+
         othergss = clone[cloneID] - set([gssID])
         othergss = ", ".join(sorted(othergss))
         vars.update(locals())
 
         print >> fw, GSSTemplate.format(**vars)
+
+    logging.debug("A total of {0} seqs written to `{0}`".format(len(seen), fw.name))
         
 
 if __name__ == '__main__':

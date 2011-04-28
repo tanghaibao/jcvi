@@ -75,16 +75,22 @@ def set_params(instance):
             help="extra parameters to run")
 
 
-def sh(cmd, grid=False, outfile=None):
+def sh(cmd, grid=False, infile=None, outfile=None, errfile=None):
     """
     simple wrapper for system calls
     """
     if grid:
         from jcvi.apps.grid import GridProcess
-        pr = GridProcess(cmd, outfile=outfile)
+        pr = GridProcess(cmd, infile=infile, outfile=outfile, errfile=errfile)
         pr.start(path=None)
     else:
-        cmd += " > {0}".format(outfile)
+        if infile:
+            cmd += " < {0} ".format(infile)
+        if outfile:
+            cmd += " > {0} ".format(outfile)
+        if errfile:
+            cmd += " 2> {0} ".format(errfile)
+
         logging.debug(cmd)
         call(cmd, shell=True)
 

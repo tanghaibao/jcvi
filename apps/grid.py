@@ -99,9 +99,10 @@ class GridProcess (object):
 
     pat = re.compile(r"Your job (?P<id>[0-9]*) ")
 
-    def __init__(self, cmd, jobid="", outfile=None, errfile=None):
+    def __init__(self, cmd, jobid="", infile=None, outfile=None, errfile=None):
         self.cmd = cmd
         self.jobid = jobid
+        self.infile = infile
         self.outfile = outfile
         self.errfile = errfile
 
@@ -127,9 +128,10 @@ class GridProcess (object):
         # qsub command (the project code is specific to jcvi)
         qsub = "qsub -cwd -P {0} ".format(PCODE)
 
+        if self.infile:
+            qsub += "-i {0} ".format(self.infile)
         if self.outfile:
             qsub += "-o {0} ".format(self.outfile)
-
         if self.errfile:
             qsub += "-e {0} ".format(self.errfile)
 

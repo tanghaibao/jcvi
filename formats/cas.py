@@ -74,6 +74,8 @@ def txt(args):
     convert binary CAS file to tabular output using CLC assembly_table
     """
     p = OptionParser(txt.__doc__)
+    set_grid(p)
+
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -81,7 +83,8 @@ def txt(args):
 
     casfile, = args
     txtfile = casfile.replace(".cas", ".txt")
-    sh("assembly_table -n -s -p {0} > {1}".format(casfile, txtfile))
+    cmd = "assembly_table -n -s -p {0}".format(casfile)
+    sh(cmd, outfile=txtfile)
 
 
 def split(args):

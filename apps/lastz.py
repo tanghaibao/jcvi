@@ -12,7 +12,7 @@ from subprocess import Popen, PIPE
 from multiprocessing import Process, Lock
 
 from jcvi.apps.grid import Grid 
-from jcvi.apps.base import ActionDispatcher, debug, set_grid
+from jcvi.apps.base import ActionDispatcher, debug, set_params, set_grid
 debug()
 
 
@@ -109,10 +109,9 @@ def main():
             help="parallelize job to multiple cpus [default: %default]")
     p.add_option("--path", dest="lastz_path", default=None,
             help="specify LASTZ path")
-    p.add_option("--lastz-params", dest="extra", default="",
-            help="pass in LASTZ parameter string (please quote the string)")
     p.add_option("--mask", dest="mask", default=False, action="store_true",
             help="treat lower-case letters as mask info [default: %default]")
+    set_params(p)
     set_grid(p)
 
     opts, args = p.parse_args()

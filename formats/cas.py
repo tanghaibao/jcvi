@@ -148,7 +148,7 @@ def pairs(args):
     distance between paired ends, etc
     """
     p = OptionParser(pairs.__doc__)
-    p.add_option("--cutoff", dest="cutoff", default=1e9, type="int",
+    p.add_option("--cutoff", dest="cutoff", default=None,
             help="distance to call valid links between PE [default: %default]")
     p.add_option("--pairs", dest="pairsfile", 
             default=False, action="store_true",
@@ -166,7 +166,7 @@ def pairs(args):
         sys.exit(p.print_help())
 
     cutoff = opts.cutoff
-    if cutoff < 0: cutoff = 1e9
+    if cutoff: cutoff = int(cutoff)
     castabfile = args[0]
 
     basename = castabfile.split(".")[0]
@@ -177,7 +177,7 @@ def pairs(args):
     data = [CasTabLine(row) for i, row in enumerate(fp) if i < opts.nrows]
     data.sort(key=lambda x: x.readname)
 
-    report_pairs(data, cutoff, dialect="cas", pairsfile=pairsfile,
+    report_pairs(data, cutoff, dialect="castab", pairsfile=pairsfile,
            insertsfile=insertsfile)
 
 

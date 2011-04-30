@@ -11,6 +11,7 @@ from collections import defaultdict
 from optparse import OptionParser
 
 from jcvi.formats.bed import BedLine
+from jcvi.formats.sizes import Sizes
 from jcvi.utils.iter import pairwise
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
@@ -27,7 +28,7 @@ def main():
 
 def bed(args):
     """
-    %prog bed bedfile
+    prog bed bedfile fastafile
 
     Construct contig links based on bed file
     """
@@ -36,15 +37,20 @@ def bed(args):
             help="Minimum number of mate pairs to bundle [default: %default]")
     opts, args = p.parse_args(args)
 
-    if len(args) != 1:
+    if len(args) != 2:
         sys.exit(p.print_help())
 
-    bedfile, = args
+    bedfile, fastafile = args
+    links = opts.links
+
     linksfile = bedfile.rsplit(".", 1)[0] + ".links"
 
+    sizes = Sizes(fastafile)
+
     fp = open(bedfile)
+    tuplekey = lambda: [0, 0]
     
-    contigGraph = defaultdict(int)
+    contigGraph = defaultdict(tuplekey)
     for a, b in pairwise(fp):
         a, b = BedLine(a), BedLine(b)
         """
@@ -56,16 +62,18 @@ def bed(args):
         aseqid, bseqid = a.seqid, b.seqid
         if aseqid == bseqid: continue
 
-        adir = a.stuff[1] 
-        bdir = b.stuff[1]
+        astrand, bstrand = a.strand, b.strand
+        # the tuple counts the same-dir links and opposite-dir links
+        tidx = 0 if astrand==bstrand else 1
 
         if aseqid > bseqid:
             aseqid, bseqid = bseqid, aseqid
 
-        contigGraph[(aseqid, bseqid)] += 1 
+        contigGraph[(aseqid, bseqid)][tidx] += 1 
 
     for pair, mates in sorted(contigGraph.items()):
-        if mates < opts.links: continue 
+        same_dirs, opposite_dirs = mates
+        if same_dirs < links and opposite_dirs < links: continue 
         print pair, mates
 
 

@@ -11,8 +11,8 @@ from jcvi.formats.base import LineFile
 
 class BedLine(object):
     # the Bed format supports more columns. we only need
-    # the first 4, but keep the information in 'stuff'.
-    __slots__ = ("seqid", "start", "end", "accn", "stuff")
+    # the first 4, but keep the information in 'extra'.
+    __slots__ = ("seqid", "start", "end", "accn", "extra", "score", "strand")
 
     def __init__(self, sline):
         args = sline.strip().split("\t")
@@ -20,13 +20,18 @@ class BedLine(object):
         self.start = int(args[1]) + 1
         self.end = int(args[2])
         self.accn = args[3]
-        self.stuff = args[4:] if len(args) > 4 else None
+
+        if len(args) > 4:
+            self.extra = args[4:]
+            self.score = args[4]
+        if len(args) > 5:
+            self.strand = args[5]
 
     def __str__(self):
         s = "\t".join(str(x) for x in (self.seqid, self.start-1, self.end,
             self.accn))
 
-        if self.stuff:
+        if self.extra:
             s += "\t" + "\t".join(self.stuff)
         return s
 

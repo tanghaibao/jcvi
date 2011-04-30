@@ -168,7 +168,7 @@ def pairs(args):
     `READNAME{/1,/2}`
     """
     p = OptionParser(pairs.__doc__)
-    p.add_option("--cutoff", dest="cutoff", default=1e9, type="int",
+    p.add_option("--cutoff", dest="cutoff", default=None, 
             help="distance to call valid links between PE [default: %default]")
     p.add_option("--pairs", dest="pairsfile", 
             default=True, action="store_true",
@@ -182,7 +182,7 @@ def pairs(args):
         sys.exit(p.print_help())
 
     cutoff = opts.cutoff
-    if cutoff < 0: cutoff = 1e9
+    if cutoff: cutoff = int(cutoff)
     frgscffile, = args
 
     basename = frgscffile.split(".")[0]

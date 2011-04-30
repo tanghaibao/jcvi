@@ -81,10 +81,12 @@ def txt(args):
     if len(args) != 1:
         sys.exit(p.print_help())
 
+    grid = opts.grid
+
     casfile, = args
     txtfile = casfile.replace(".cas", ".txt")
     cmd = "assembly_table -n -s -p {0}".format(casfile)
-    sh(cmd, outfile=txtfile)
+    sh(cmd, grid=grid, outfile=txtfile)
 
 
 def split(args):

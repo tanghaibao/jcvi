@@ -29,10 +29,9 @@ GSS submission template files
 # TODO: make this generic and exist outside source code
 Title = """Comparative Genomics of Sisymbrium irio"""
 
-Authors = """Town,C.D., Monaghan,E.L., Kim,M., Viswanathan,L.D.,
-Tang,H., Paterson,A.H. and Pires,J.C."""
+Authors = """Town,C.D., Tang,H., Paterson,A.H. and Pires,J.C."""
 
-Libname = "Sisymbrium irio BAC library"
+Libname = "Sisymbrium irio BAC library SIL"
 Contact = "Chris Town"
 
 PublicationTemplate = """TYPE: Pub
@@ -52,7 +51,7 @@ STATUS: 1
 LibraryTemplate = """TYPE: Lib
 NAME: {Libname}
 ORGANISM: Sisymbrium irio
-STRAIN: Gomez/Campo1146-67 
+STRAIN: Gomez-Campo 1146-67 
 SEX: 
 STAGE: 
 TISSUE: 
@@ -60,12 +59,13 @@ CELL_TYPE:
 VECTOR: pCC1BAC
 RE_1: HindIII
 DESCR:
+Constructed by Amplicon Express; 
 Transformed into Invitrogen DH10b phage resistant E. coli.
 ||"""
 
 ContactTemplate = """TYPE: Cont
 NAME: {Contact}
-FAX: 301-838-0208 
+FAX: 301-795-7070
 TEL: 301-795-7523 
 EMAIL: cdtown@jcvi.org
 LAB: Plant Genomics 

@@ -19,24 +19,40 @@ class BedLine(object):
         self.seqid = args[0]
         self.start = int(args[1]) + 1
         self.end = int(args[2])
+        assert self.start <= self.end, \
+                "start={0} end={0}".format(self.start, self.end)
         self.accn = args[3]
+        self.extra = self.score = self.strand = None
 
         if len(args) > 4:
             self.extra = args[4:]
-            self.score = args[4]
+            self.score = self.extra[0] 
         if len(args) > 5:
-            self.strand = args[5]
+            self.strand = self.extra[1]
 
     def __str__(self):
         s = "\t".join(str(x) for x in (self.seqid, self.start-1, self.end,
             self.accn))
 
         if self.extra:
-            s += "\t" + "\t".join(self.stuff)
+            s += "\t" + "\t".join(self.extra)
         return s
 
     def __getitem__(self, key):
         return getattr(self, key)
+
+    def reverse_complement(self, sizes):
+        size = sizes.get_size(self.seqid)
+        self.seqid += '-'
+        start = size - self.end + 1
+        end = size - self.start + 1
+        self.start, self.end = start, end
+        assert self.start <= self.end, \
+                "start={0} end={0}".format(self.start, self.end)
+
+        if self.strand:
+            strand = {'+':'-', '-':'+'}[self.strand] 
+            self.strand = self.extra[1] = strand
 
 
 class Bed(LineFile):

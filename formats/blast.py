@@ -195,7 +195,7 @@ def bed(args):
         print >> fw, b.bedline 
 
 
-def report_pairs(data, cutoff=None, dialect="blast", pairsfile=None,
+def report_pairs(data, cutoff=0, dialect="blast", pairsfile=None,
         insertsfile=None):
     """
     This subroutine is used by the pairs function in blast.py and cas.py.
@@ -273,11 +273,12 @@ def report_pairs(data, cutoff=None, dialect="blast", pairsfile=None,
             all_dist.append((dist, orientation, aquery, bquery)) 
 
     # try to infer cutoff as twice the median until convergence
-    dists = np.array([x[0] for x in all_dist], dtype="int")
-    p0 = np.median(dists) 
-    cutoff = 2 * p0 # initial estimate
-    logging.debug("Insert size cutoff set to {0}, ".format(cutoff) + 
-        "use '--cutoff' to override")
+    if cutoff <= 0:
+        dists = np.array([x[0] for x in all_dist], dtype="int")
+        p0 = np.median(dists) 
+        cutoff = 2 * p0 # initial estimate
+        logging.debug("Insert size cutoff set to {0}, ".format(cutoff) + 
+            "use '--cutoff' to override")
 
     for dist, orientation, aquery, bquery in all_dist:
         if dist > cutoff: continue
@@ -332,7 +333,7 @@ def pairs(args):
     `READNAME{/1,/2}`
     """
     p = OptionParser(pairs.__doc__)
-    p.add_option("--cutoff", dest="cutoff", default=None, 
+    p.add_option("--cutoff", dest="cutoff", default=0, type="int",
             help="distance to call valid links between PE [default: %default]")
     p.add_option("--pairs", dest="pairsfile", 
             default=True, action="store_true",
@@ -346,7 +347,6 @@ def pairs(args):
         sys.exit(p.print_help())
 
     cutoff = opts.cutoff
-    if cutoff: cutoff = int(cutoff)
     blastfile = args[0]
 
     basename = blastfile.split(".")[0]

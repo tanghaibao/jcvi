@@ -12,7 +12,8 @@ from jcvi.formats.base import LineFile
 class BedLine(object):
     # the Bed format supports more columns. we only need
     # the first 4, but keep the information in 'extra'.
-    __slots__ = ("seqid", "start", "end", "accn", "extra", "score", "strand")
+    __slots__ = ("seqid", "start", "end", "accn", 
+                 "extra", "score", "strand")
 
     def __init__(self, sline):
         args = sline.strip().split("\t")
@@ -20,7 +21,7 @@ class BedLine(object):
         self.start = int(args[1]) + 1
         self.end = int(args[2])
         assert self.start <= self.end, \
-                "start={0} end={0}".format(self.start, self.end)
+                "start={0} end={1}".format(self.start, self.end)
         self.accn = args[3]
         self.extra = self.score = self.strand = None
 
@@ -42,13 +43,20 @@ class BedLine(object):
         return getattr(self, key)
 
     def reverse_complement(self, sizes):
-        size = sizes.get_size(self.seqid)
-        self.seqid += '-'
+        # this function is used in assembly.bundle
+        seqid = self.seqid[:-1] if self.seqid[-1]=='-' else self.seqid
+        size = sizes.get_size(seqid)
+
+        if self.seqid[-1] == '-': 
+            self.seqid = self.seqid[:-1]
+        else:
+            self.seqid += '-'
+
         start = size - self.end + 1
         end = size - self.start + 1
         self.start, self.end = start, end
         assert self.start <= self.end, \
-                "start={0} end={0}".format(self.start, self.end)
+                "start={0} end={1}".format(self.start, self.end)
 
         if self.strand:
             strand = {'+':'-', '-':'+'}[self.strand] 

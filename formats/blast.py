@@ -276,7 +276,7 @@ def report_pairs(data, cutoff=0, dialect="blast", pairsfile=None,
     if cutoff <= 0:
         dists = np.array([x[0] for x in all_dist], dtype="int")
         p0 = np.median(dists) 
-        cutoff = 2 * p0 # initial estimate
+        cutoff = int(2 * p0) # initial estimate
         logging.debug("Insert size cutoff set to {0}, ".format(cutoff) + 
             "use '--cutoff' to override")
 
@@ -321,7 +321,7 @@ def report_pairs(data, cutoff=0, dialect="blast", pairsfile=None,
                 title="{0} PE ({1}; median ins {2})".format(prefix, 
                     ", ".join(orientation_summary), p0))
 
-    return meandist, stdev
+    return meandist, stdev, p0, p1, p2
 
 
 def pairs(args):

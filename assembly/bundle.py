@@ -28,13 +28,6 @@ def main():
     p.dispatch(globals())
 
 
-def calculate_hang(match_start, match_end, strand, size):
-    if strand=='+':
-        return size - match_start
-    else:
-        return match_end
-
-
 def bed(args):
     """
     prog bed bedfile fastafile
@@ -65,9 +58,11 @@ def bed(args):
     logging.debug(\
         "Sample only the first {0} lines to estimate inserts".format(sample))
     beds = [BedLine(x) for i, x in enumerate(fp) if i < sample]
-    meandist, stdev = report_pairs(beds, cutoff=0, dialect="bed")
-    hangs_cutoff = int(meandist + 1.96 * stdev)
-    logging.debug("Size of hangs have to be <= {0} bases.".format(hangs_cutoff))
+
+    meandist, stdev, p0, p1, p2 = report_pairs(beds, cutoff=0, dialect="bed")
+    #maxcutoff = int(meandist + 1.96 * stdev)
+    maxcutoff = p2
+    logging.debug("Mate hangs must be <= {0}".format(maxcutoff))
 
     contigGraph = defaultdict(list)
     rs = lambda x: x.accn[:-1]
@@ -123,15 +118,23 @@ def bed(args):
 
         # Valid links need to be separated by the lib insert
         hangs = ahang + bhang
-        if hangs > meandist + 1.96 * stdev: 
+
+        if hangs > maxcutoff: 
             if debug:
                 print >> sys.stderr, "invalid link. skipped." 
             continue
+
+        # pair (1+, 2-) is the same as (2+, 1-), only do the canonical one
+        if a.seqid > b.seqid:
+            a.reverse_complement(sizes)
+            b.reverse_complement(sizes)
+            a, b = b, a
 
         # Ignore redundant mates, in this case if the size of the hangs is seen,
         # then it is probably redundant, since indepenet circularization event
         # will give slightly different value)
         if hangs in [x[1] for x in contigGraph[(a.seqid, b.seqid)]]: continue
+
         contigGraph[(a.seqid, b.seqid)].append((pe, hangs))
 
     for pair, mates in sorted(contigGraph.items()):

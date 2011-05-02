@@ -15,7 +15,15 @@ from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
 
-is_symmetric = lambda M: (M.transpose()==M).all()
+is_symmetric = lambda M: (M.T==M).all()
+
+def symmetrize(M):
+    """
+    If M only has a triangle filled with values, all the rest are zeroes,
+    this function will copy stuff to the other triangle
+    """
+    return M + M.T - np.diag(M.diagonal())
+
 
 def get_signs(M, validate=True):
     """

@@ -17,6 +17,26 @@ debug()
 
 is_symmetric = lambda M: (M.T==M).all()
 
+
+def determine_signs(nodes, edges):
+    """
+    Construct the orientation matrix for the pairs on N molecules. 
+    
+    >>> determine_signs(['A','B','C'],[('A','B','+'),('A','C','-'),('B','C','-')])
+    array([ 1,  1, -1])
+    """
+    N = len(nodes)
+    M = np.zeros((N, N), dtype=int)
+    for a, b, direction in edges:
+        ia, ib = nodes.index(a), nodes.index(b)
+        M[ia, ib] = 1 if direction=='+' else -1
+
+    M = symmetrize(M)
+    print M
+
+    return get_signs(M, validate=False)
+
+
 def symmetrize(M):
     """
     If M only has a triangle filled with values, all the rest are zeroes,
@@ -43,6 +63,7 @@ def get_signs(M, validate=True):
     """
     # Is this a symmetric matrix?
     assert is_symmetric(M), "the matrix is not symmetric:\n{0}".format(str(M))
+    N, x = M.shape
 
     w, v = np.linalg.eig(M)
     m = np.argmax(w)
@@ -50,7 +71,7 @@ def get_signs(M, validate=True):
     sign_array = np.array(np.sign(mv), dtype=int)
 
     if validate:
-        diag = np.matrix(np.eye(3, dtype=int) * sign_array)
+        diag = np.matrix(np.eye(N, dtype=int) * sign_array)
         final = diag * M * diag
         # The final result should have all pairwise in the same direction
         assert (final>=0).all(), \

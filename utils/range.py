@@ -48,6 +48,7 @@ def ranges_intersect(rset):
     a = rset[0]
     for b in rset[1:]:
         a = range_intersect(a, b)
+        if not a: return None
 
     return a
 

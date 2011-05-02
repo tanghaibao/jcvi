@@ -44,7 +44,7 @@ class BedLine(object):
 
     def reverse_complement(self, sizes):
         # this function is used in assembly.bundle
-        seqid = self.seqid[:-1] if self.seqid[-1]=='-' else self.seqid
+        seqid = self.seqid.rstrip('-')
         size = sizes.get_size(seqid)
 
         if self.seqid[-1] == '-': 

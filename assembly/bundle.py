@@ -15,6 +15,9 @@ from jcvi.formats.bed import BedLine
 from jcvi.formats.sizes import Sizes
 from jcvi.formats.blast import report_pairs
 from jcvi.utils.iter import pairwise
+from jcvi.utils.range import ranges_intersect
+from jcvi.algorithms.graph import nx
+from jcvi.algorithms.matrix import determine_signs
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
@@ -105,7 +108,7 @@ def bed(args):
         ------===----          -----====----
               |_ahang            bhang_| 
         """
-        aseqid = a.seqid[:-1] if a.seqid[-1]=='-' else a.seqid
+        aseqid = a.seqid.rstrip('-')
         size = sizes.get_size(aseqid)
         ahang = size - a.start + 1
         bhang = b.end
@@ -137,9 +140,36 @@ def bed(args):
 
         contigGraph[(a.seqid, b.seqid)].append((pe, hangs))
 
+    g = nx.Graph() # use this to get connected components
+
     for pair, mates in sorted(contigGraph.items()):
         if len(mates) < links: continue 
-        print pair, mates
+        gaps = []
+        for hang in [x[1] for x in mates]:
+            gmin = max(p1 - hang, 0)
+            gmax = p2 - hang
+            gaps.append((gmin, gmax))
+
+        aseqid, bseqid = pair
+        lastdigits = aseqid[-1] + bseqid[-1]
+
+        if '-' in lastdigits and lastdigits != '--':
+            orientation = '-'
+        else:
+            orientation = '+'
+
+        aseqid, bseqid = aseqid.rstrip('-'), bseqid.rstrip('-')
+        g.add_edge(aseqid, bseqid, orientation=orientation)
+
+        gapsize = ranges_intersect(gaps)
+        print pair, mates, "orientation:{0} gap:{1}".\
+                format(orientation, gapsize)
+
+    for h in nx.connected_component_subgraphs(g):
+        nodes, edges = h.nodes(), h.edges(data=True)
+        ledges = [(a, b, c["orientation"]) for (a, b, c) in edges]
+        print nodes, ledges
+        print determine_signs(nodes, ledges) 
 
 
 if __name__ == '__main__':

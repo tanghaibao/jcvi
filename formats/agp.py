@@ -84,7 +84,7 @@ class AGPLine (object):
     @property
     def bedline(self):
         # bed formatted line
-        gid = self.component_id if not self.is_gap else "gap"
+        gid = self.component_id if not self.is_gap else self.gap_type 
         return "\t".join((self.object, str(self.object_beg-1),
                 str(self.object_end), gid, self.component_type, self.orientation))
 
@@ -118,9 +118,9 @@ class AGP (LineFile):
             if row[0]=='#': continue
             self.append(AGPLine(row, validate=validate))
 
-        self.sort(key=lambda x: (x.object, x.object_beg))
-        
+        self.validate = validate
         if validate:
+            self.sort(key=lambda x: (x.object, x.object_beg))
             self.validate_all()
 
     @property
@@ -233,9 +233,10 @@ class AGP (LineFile):
             components.append(seq)
             total_bp += len(seq) 
 
-            assert total_bp == line.object_end, \
-                    "cumulative base pairs (%d) does not match (%d)" % \
-                    (total_bp, line.object_end)
+            if self.validate:
+                assert total_bp == line.object_end, \
+                        "cumulative base pairs (%d) does not match (%d)" % \
+                        (total_bp, line.object_end)
 
 
         rec = SeqRecord(Seq(''.join(components)), id=object, description="")
@@ -263,6 +264,7 @@ def main():
         ('gaps', 'print out the distribution of gap sizes'),
         ('accessions', 'print out a list of accessions'),
         ('chr0', 'build AGP file for unassembled sequences'),
+        ('reindex', 'assume the component line order is correct, modify coordinates'),
         ('build', 'given agp file and component fasta file, build the ' +\
                  'pseudomolecule fasta'),
         ('validate', 'given agp file, component fasta and pseudomolecule fasta, ' +\
@@ -271,6 +273,44 @@ def main():
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def reindex(args):
+    """
+    %prog agpfile newagpfile
+
+    assume the component line order is correct, modify coordinates, this is
+    necessary mostly due to manual edits (insert/delete component) that disrupts
+    the target coordinates
+    """
+    p = OptionParser(reindex.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(p.print_help())
+
+    argfile, newagpfile = args
+    agp = AGP(argfile, validate=False)
+    fw = open(newagpfile, "w")
+    for chr, chr_agp in groupby(agp, lambda x: x.object):
+        chr_agp = list(chr_agp)
+        object_beg = 1
+        for i, b in enumerate(chr_agp):
+            b.object_beg = object_beg
+            b.part_number = i + 1
+
+            if not b.is_gap:
+                b.object_end = object_beg + b.component_span - 1
+            else:
+                b.object_end = object_beg + b.gap_length - 1
+            
+            object_beg = b.object_end + 1
+
+            print >> fw, str(b)
+
+    # Last step: validate the new agpfile
+    fw.close()
+    agp = AGP(newagpfile, validate=True)
 
 
 def summary(args):
@@ -316,7 +356,7 @@ def get_phase(rec):
             assert "COMPLETE" in description, description
             phase = 3
     else:
-        logging.error(description)
+        logging.error("{0}: {1}".format(rec.name, description))
         phase = 4
 
     return phase, keywords
@@ -380,7 +420,7 @@ def chr0(args):
     fw = open(agpfile, "w")
 
     AGP.print_header(fw, 
-        comment="146 BACs with undetermined chromosomal locations")
+        comment="{} components with undetermined chromosomal locations".format(len(f)))
 
     gap_length = opts.gapsize
     object_beg = 1
@@ -550,16 +590,21 @@ def build(args):
     build targetfasta based on info from agpfile
     """
     p = OptionParser(build.__doc__)
+    p.add_option("--novalidate", dest="novalidate", default=False,
+            action="store_true", 
+            help="don't validate the agpfile [default: %default]")
 
     set_debug(p, args)
     opts, args = p.parse_args(args)
+
+    validate = not (opts.novalidate)
 
     try:
         agpfile, componentfasta, targetfasta  = args
     except Exception, e:
         sys.exit(p.print_help())
 
-    agp = AGP(agpfile)
+    agp = AGP(agpfile, validate=validate)
     agp.build_all(componentfasta=componentfasta, targetfasta=targetfasta)
 
 

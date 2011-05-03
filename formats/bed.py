@@ -11,27 +11,56 @@ from jcvi.formats.base import LineFile
 
 class BedLine(object):
     # the Bed format supports more columns. we only need
-    # the first 4, but keep the information in 'stuff'.
-    __slots__ = ("seqid", "start", "end", "accn", "stuff")
+    # the first 4, but keep the information in 'extra'.
+    __slots__ = ("seqid", "start", "end", "accn", 
+                 "extra", "score", "strand")
 
     def __init__(self, sline):
         args = sline.strip().split("\t")
         self.seqid = args[0]
         self.start = int(args[1]) + 1
         self.end = int(args[2])
+        assert self.start <= self.end, \
+                "start={0} end={1}".format(self.start, self.end)
         self.accn = args[3]
-        self.stuff = args[4:] if len(args) > 4 else None
+        self.extra = self.score = self.strand = None
+
+        if len(args) > 4:
+            self.extra = args[4:]
+            self.score = self.extra[0] 
+        if len(args) > 5:
+            self.strand = self.extra[1]
 
     def __str__(self):
         s = "\t".join(str(x) for x in (self.seqid, self.start-1, self.end,
             self.accn))
 
-        if self.stuff:
-            s += "\t" + "\t".join(self.stuff)
+        if self.extra:
+            s += "\t" + "\t".join(self.extra)
         return s
 
     def __getitem__(self, key):
         return getattr(self, key)
+
+    def reverse_complement(self, sizes):
+        # this function is used in assembly.bundle
+        seqid = self.seqid.rstrip('-')
+        size = sizes.get_size(seqid)
+
+        if self.seqid[-1] == '-': 
+            self.seqid = self.seqid[:-1]
+        else:
+            self.seqid += '-'
+
+        start = size - self.end + 1
+        end = size - self.start + 1
+        self.start, self.end = start, end
+        assert self.start <= self.end, \
+                "start={0} end={1}".format(self.start, self.end)
+
+        if self.strand:
+            strand = {'+':'-', '-':'+'}[self.strand] 
+            self.strand = self.extra[1] = strand
 
 
 class Bed(LineFile):
@@ -69,7 +98,6 @@ class Bed(LineFile):
     @property
     def simple_bed(self):
         return [(b.seqid, i) for (i, b) in enumerate(self)]
-
 
     def sub_bed(self, seqid):
         # get all the beds on one chromosome

@@ -18,6 +18,41 @@ LEFT, RIGHT = 0, 1
 Range = namedtuple("Range", "seqid start end score id")
 
 
+def range_intersect(a, b):
+    """
+    Returns the intersection between two reanges
+    >>> range_intersect((30, 45), (45, 55))
+    [45, 45]
+    >>> range_intersect((48, 65), (45, 55))
+    [48, 55]
+    """
+    a_min, a_max = a
+    if a_min > a_max: a_min, a_max = a_max, a_min
+    b_min, b_max = b
+    if b_min > b_max: b_min, b_max = b_max, b_min
+
+    if a_max < b_min or b_max < a_min: return None
+    i_min = max(a_min, b_min)
+    i_max = min(a_max, b_max)
+    return [i_min, i_max]
+
+
+def ranges_intersect(rset):
+    """
+    Recursively calls the range_intersect() - pairwise version
+    >>> ranges_intersect([(48, 65), (45, 55), (50, 56)])
+    [50, 55]
+    """
+    if not rset: return None
+
+    a = rset[0]
+    for b in rset[1:]:
+        a = range_intersect(a, b)
+        if not a: return None
+
+    return a
+
+
 def range_overlap(a, b):
     """
     Returns whether or not two ranges overlap

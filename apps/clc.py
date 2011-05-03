@@ -10,7 +10,6 @@ import os.path as op
 
 from optparse import OptionParser
 
-from jcvi.apps.grid import GridProcess
 from jcvi.apps.base import ActionDispatcher, debug, set_grid, sh
 debug()
 
@@ -70,12 +69,7 @@ def trim(args):
         cmd += "-r {0} ".format(fastqfile1)
 
     cmd += "-o {0}.fragments.{1}".format(prefix, suffix)
-
-    if opts.grid:
-        pr = GridProcess(cmd)
-        pr.start(path=None)
-    else:
-        sh(cmd)
+    sh(cmd, grid=opts.grid)
 
 
 if __name__ == '__main__':

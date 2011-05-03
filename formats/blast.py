@@ -9,6 +9,8 @@ from itertools import groupby
 from collections import defaultdict
 from optparse import OptionParser
 
+import numpy as np
+
 from jcvi.formats.base import LineFile
 from jcvi.formats.coords import print_stats
 from jcvi.utils.range import range_distance
@@ -193,88 +195,121 @@ def bed(args):
         print >> fw, b.bedline 
 
 
-def report_pairs(data, cutoff=300000, dialect="blast", pairsfile=None,
-        insertsfile=None, delimiter="/"):
+def report_pairs(data, cutoff=0, dialect="blast", pairsfile=None,
+        insertsfile=None):
     """
     This subroutine is used by the pairs function in blast.py and cas.py.
     Reports number of fragments and pairs as well as linked pairs
     """
-    dialect = dialect[0]
+    allowed_dialects = ("blast", "castab", "frgscf", "bed")
+    BLAST, CASTAB, FRGSCF, BED = range(len(allowed_dialects))
+
+    assert dialect in allowed_dialects
+    dialect = allowed_dialects.index(dialect)
+
     num_fragments, num_pairs = 0, 0
+
+    all_dist = []
     linked_dist = []
     # +- (forward-backward) is `innie`, -+ (backward-forward) is `outie`
     orientations = defaultdict(int)
 
-    rs = lambda x: x.rsplit(delimiter, 1)[0]
-    if dialect=="b": # blast
+    rs = lambda x: x[:-1]
+    if dialect==BLAST:
         key = lambda x: rs(x.query)
-    elif dialect=="c": # castab
+    elif dialect==CASTAB:
         key = lambda x: rs(x.readname)
-    else: # frgscf
+    elif dialect==FRGSCF:
         key = lambda x: rs(x.fragmentID)
+    elif dialect==BED:
+        key = lambda x: rs(x.accn)
 
     if pairsfile: pairsfw = open(pairsfile, "w")
     if insertsfile: insertsfw = open(insertsfile, "w")
 
     for pe, lines in groupby(data, key=key):   
         lines = list(lines)
-        if len(lines)==2: 
-            num_pairs += 1
-            a, b = lines
+        if len(lines) != 2:
+            num_fragments += len(lines) 
+            continue
 
-            if dialect=="b": # blast
-                asubject, astart, astop = a.subject, a.sstart, a.sstop
-                bsubject, bstart, bstop = b.subject, b.sstart, b.sstop
+        num_pairs += 1
+        a, b = lines
 
-                aquery, bquery = a.query, b.query
-                astrand, bstrand = a.orientation, b.orientation
+        if dialect==BLAST:
+            asubject, astart, astop = a.subject, a.sstart, a.sstop
+            bsubject, bstart, bstop = b.subject, b.sstart, b.sstop
 
-            elif dialect=='c': # castab
-                asubject, astart, astop = a.refnum, a.refstart, a.refstop
-                bsubject, bstart, bstop = b.refnum, b.refstart, b.refstop
-                if -1 in (astart, bstart): continue
-                
-                aquery, bquery = a.readname, b.readname
-                astrand, bstrand = a.strand, b.strand
+            aquery, bquery = a.query, b.query
+            astrand, bstrand = a.orientation, b.orientation
 
-            else: # frgscf
-                asubject, astart, astop = a.scaffoldID, a.begin, a.end
-                bsubject, bstart, bstop = b.scaffoldID, b.begin, b.end
+        elif dialect==CASTAB:
+            asubject, astart, astop = a.refnum, a.refstart, a.refstop
+            bsubject, bstart, bstop = b.refnum, b.refstart, b.refstop
+            if -1 in (astart, bstart): continue
+            
+            aquery, bquery = a.readname, b.readname
+            astrand, bstrand = a.strand, b.strand
 
-                aquery, bquery = a.fragmentID, b.fragmentID
-                astrand, bstrand = a.orientation, b.orientation
+        elif dialect==FRGSCF:
+            asubject, astart, astop = a.scaffoldID, a.begin, a.end
+            bsubject, bstart, bstop = b.scaffoldID, b.begin, b.end
 
-            dist, orientation = range_distance(\
-                    (asubject, astart, astop, astrand), 
-                    (bsubject, bstart, bstop, bstrand))
+            aquery, bquery = a.fragmentID, b.fragmentID
+            astrand, bstrand = a.orientation, b.orientation
 
-            if 0 <= dist <= cutoff:
-                linked_dist.append(dist)
-                if pairsfile:
-                    #for b in lines: print >>pairsfw, b
-                    print >> pairsfw, "{0}\t{1}\t{2}".format(aquery, bquery, dist)
-                orientations[orientation] += 1
-        else:
-            num_fragments += 1
+        elif dialect==BED:
+            asubject, astart, astop = a.seqid, a.start, a.end
+            bsubject, bstart, bstop = b.seqid, b.start, b.end
+
+            aquery, bquery = a.accn, b.accn
+            astrand, bstrand = a.strand, b.strand
+
+        dist, orientation = range_distance(\
+                (asubject, astart, astop, astrand), 
+                (bsubject, bstart, bstop, bstrand))
+
+        if dist >= 0:
+            all_dist.append((dist, orientation, aquery, bquery)) 
+
+    # try to infer cutoff as twice the median until convergence
+    if cutoff <= 0:
+        dists = np.array([x[0] for x in all_dist], dtype="int")
+        p0 = np.median(dists) 
+        cutoff = int(2 * p0) # initial estimate
+        logging.debug("Insert size cutoff set to {0}, ".format(cutoff) + 
+            "use '--cutoff' to override")
+
+    for dist, orientation, aquery, bquery in all_dist:
+        if dist > cutoff: continue
+
+        linked_dist.append(dist)
+        if pairsfile:
+            print >> pairsfw, "{0}\t{1}\t{2}".format(aquery, bquery, dist)
+        orientations[orientation] += 1
     
-    import numpy as np
     print >>sys.stderr, "%d fragments, %d pairs" % (num_fragments, num_pairs)
     num_links = len(linked_dist)
     
     linked_dist = np.array(linked_dist, dtype="int")
-    p0 = np.median(linked_dist)
     linked_dist = np.sort(linked_dist)
+
     meandist = np.mean(linked_dist)
     stdev = np.std(linked_dist)
-    p1, p2 = linked_dist[int(num_links * .05)], linked_dist[int(num_links * .95)]
+    
+    p0 = np.median(linked_dist)
+    p1, p2 = linked_dist[int(num_links * .025)], linked_dist[int(num_links * .975)]
+
+    meandist, stdev = int(meandist), int(stdev)
+    p0 = int(p0)
 
     print >>sys.stderr, "%d pairs (%.1f%%) are linked (cutoff=%d)" % \
             (num_links, num_links*100./num_pairs, cutoff)
 
-    print >>sys.stderr, "mean distance between PE: {0} +/-{1}".\
+    print >>sys.stderr, "mean distance between PE: {0} +/- {1}".\
             format(meandist, stdev)
     print >>sys.stderr, "median distance between PE: {0}".format(p0)
-    print >>sys.stderr, "90% distance range: {0} - {1}".format(p1, p2)
+    print >>sys.stderr, "95% distance range: {0} - {1}".format(p1, p2)
     print >>sys.stderr, "\nOrientations:"
 
     orientation_summary = []
@@ -291,6 +326,8 @@ def report_pairs(data, cutoff=300000, dialect="blast", pairsfile=None,
                 title="{0} PE ({1}; median ins {2})".format(prefix, 
                     ", ".join(orientation_summary), p0))
 
+    return meandist, stdev, p0, p1, p2
+
 
 def pairs(args):
     """
@@ -301,7 +338,7 @@ def pairs(args):
     `READNAME{/1,/2}`
     """
     p = OptionParser(pairs.__doc__)
-    p.add_option("--cutoff", dest="cutoff", default=1e9, type="int",
+    p.add_option("--cutoff", dest="cutoff", default=0, type="int",
             help="distance to call valid links between PE [default: %default]")
     p.add_option("--pairs", dest="pairsfile", 
             default=True, action="store_true",
@@ -315,7 +352,6 @@ def pairs(args):
         sys.exit(p.print_help())
 
     cutoff = opts.cutoff
-    if cutoff < 0: cutoff = 1e9
     blastfile = args[0]
 
     basename = blastfile.split(".")[0]

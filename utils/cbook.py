@@ -5,6 +5,10 @@ mostly decorator patterns
 
 import logging
 
+from texttable import Texttable
+table = Texttable()
+
+
 def thousands(x):
     """
     >>> thousands(12345)

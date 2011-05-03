@@ -28,18 +28,24 @@ debug()
 
 
 def BlastOrCoordsLine(filename, filter="ref", dialect="blast"):
-    assert filter in ("ref", "query")
-    assert dialect in ("blast", "coords")
+    allowed_filters = ("ref", "query")
+    REF, QUERY = range(len(allowed_filters))
 
-    filter = filter[0]
-    dialect = dialect[0]
+    allowed_dialects = ("blast", "coords")
+    BLAST, COORDS = range(len(allowed_dialects))
+
+    assert filter in allowed_filters
+    filter = allowed_filters.index(filter) 
+
+    assert dialect in allowed_dialects
+    dialect = allowed_dialects.index(dialect)
     
     fp = open(filename)
     for i, row in enumerate(fp):
         if row[0]=='#': continue
-        if dialect=="b":
+        if dialect==BLAST:
             b = BlastLine(row)
-            if filter=="q":
+            if filter==QUERY:
                 query, start, end = b.query, b.qstart, b.qstop
             else:
                 query, start, end = b.subject, b.sstart, b.sstop
@@ -49,7 +55,7 @@ def BlastOrCoordsLine(filename, filter="ref", dialect="blast"):
             except AssertionError:
                 continue
 
-            if filter=="q":
+            if filter==QUERY:
                 query, start, end = b.query, b.start2, b.end2
             else:
                 query, start, end = b.ref, b.start1, b.end1

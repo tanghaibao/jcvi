@@ -19,9 +19,10 @@ from Bio import SeqIO
 
 from jcvi.formats.fasta import get_qual, iter_fasta_qual, write_fasta_qual
 from jcvi.apps.softlink import get_abs_path 
-from jcvi.apps.base import ActionDispatcher, sh, debug
+from jcvi.apps.base import ActionDispatcher, sh, set_grid, debug
 debug()
 
+CAPATH = "~/bin/Linux-amd64/bin/"
 
 def main():
 
@@ -42,6 +43,8 @@ def trim(args):
     CA6.1 cannot handle long fastq seq and requires trimming.
     """
     p = OptionParser(trim.__doc__)
+    set_grid(p)
+
     p.add_option("-l", dest="length", default=103, type="int",
             help="keep first N bases [default: %default]")
 
@@ -49,13 +52,14 @@ def trim(args):
     if len(args) != 1:
         sys.exit(p.print_help())
 
+    grid = opts.grid
+
     fastqfile, = args
     length = opts.length
     trimmedfastqfile = fastqfile.rsplit(".", 1)[0] + ".{0}.fastq".format(length)
 
     cmd = "fastx_trimmer -f 1 -l {0} -Q33 ".format(length)
-    cmd += "< {0} > {1}".format(fastqfile, trimmedfastqfile)
-    sh(cmd)
+    sh(cmd, grid=grid, infile=fastqfile, outfile=trimmedfastqfile)
  
 
 def make_qual(fastafile, defaultqual=20):
@@ -113,12 +117,15 @@ def fasta(args):
     assumed as adjacent sequence records (i.e. /1, /2, /1, /2 ...).
     """
     p = OptionParser(fasta.__doc__)
+    set_grid(p)
     add_size_option(p)
 
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(p.print_help())
+
+    grid = opts.grid
 
     fastafile, = args
     libname = op.basename(fastafile).split(".")[0]
@@ -131,13 +138,12 @@ def fasta(args):
     if mated:
         matefile = make_matepairs(fastafile)
 
-    cmd = "convert-fasta-to-v2.pl -l {0} -s {1} -q {2}".format(libname,
+    cmd = CAPATH + "convert-fasta-to-v2.pl -l {0} -s {1} -q {2} ".format(libname,
             fastafile, qualfile)
     if mated:
-        cmd += " -mean {0} -stddev {1} -m {2}".format(mean, sv, matefile)
+        cmd += "-mean {0} -stddev {1} -m {2} ".format(mean, sv, matefile)
 
-    cmd += " > {0}".format(frgfile)
-    sh(cmd)
+    sh(cmd, grid=grid, outfile=frgfile)
 
 
 def sff(args):
@@ -149,6 +155,7 @@ def sff(args):
     p = OptionParser(sff.__doc__)
     p.add_option("-o", dest="output", default="out",
             help="output frg filename")
+    set_grid(p)
     add_size_option(p)
 
     opts, args = p.parse_args(args)
@@ -156,20 +163,22 @@ def sff(args):
     if len(args) == 0:
         sys.exit(p.print_help())
 
+    grid = opts.grid
+
     sffiles = args
     libname = opts.output
 
     mated = (opts.size != 0)
     mean, sv = get_mean_sv(opts.size)
 
-    cmd = "sffToCA -libraryname {0} -output {0}".format(libname)
-    cmd += " -clear 454 -trim chop"
+    cmd = CAPATH + "sffToCA -libraryname {0} -output {0} ".format(libname)
+    cmd += "-clear 454 -trim chop "
     if mated:
-        cmd += " -linker titanium -insertsize {0} {1}".format(mean, sv)
+        cmd += "-linker titanium -insertsize {0} {1} ".format(mean, sv)
 
-    cmd += " " + " ".join(sffiles)
+    cmd += " ".join(sffiles)
 
-    sh(cmd)
+    sh(cmd, grid=grid)
     
 
 def fastq(args):
@@ -200,7 +209,7 @@ def fastq(args):
     mated = (opts.size != 0)
     mean, sv = get_mean_sv(opts.size)
 
-    cmd = "~/bin/Linux-amd64/bin/fastqToCA -libraryname {0} -fastq {1}".format(libname, fastqfile)
+    cmd = CAPATH + "fastqToCA -libraryname {0} -fastq {1}".format(libname, fastqfile)
     if opts.sanger:
         cmd += "-type sanger "
     if opts.outtie:
@@ -209,8 +218,7 @@ def fastq(args):
         assert len(args)==2, "you need two fastq file for mated library"
         cmd += ",{0} -insertsize {1} {2}".format(fastqfile2, mean, sv)
 
-    cmd += " > {0}".format(frgfile)
-    sh(cmd)
+    sh(cmd, outfile=frgfile)
 
 
 if __name__ == '__main__':

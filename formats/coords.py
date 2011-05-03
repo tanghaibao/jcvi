@@ -219,9 +219,52 @@ def main():
         ('filter', 'filter based on id% and cov%, write a new coords file'),
         ('bed', 'convert to bed format'),
         ('agp', 'link contigs based on the coordsfile'),
+        ('coverage', 'report the coverage per query record'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def coverage(args):
+    """
+    %prog coverage coordsfile
+
+    Report the coverage per query record, useful to see which query matches
+    reference.  The coords file MUST be filtered with supermap::
+    
+    jcvi.algorithms.supermap -f query 
+    """
+    p = OptionParser(coverage.__doc__)
+    p.add_option("-c", dest="cutoff", default=0.5, type="float",
+            help="only report the query IDs with coverage larger than [default: %default]")
+    
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(p.print_help())
+    
+    coordsfile, = args
+    fp = open(coordsfile)
+    
+    coords = []
+    for row in fp:
+        try:
+            c = CoordsLine(row)
+        except AssertionError:
+            continue
+        coords.append(c)
+
+    coords.sort(key=lambda x: x.query)
+
+    coverages = []
+    for query, lines in groupby(coords, key=lambda x: x.query):
+        cumulative_cutoff = sum(x.querycov for x in lines)
+        coverages.append((query, cumulative_cutoff))
+
+    coverages.sort(key=lambda x:(-x[1], x[0]))
+    for query, cumulative_cutoff in coverages:
+        if cumulative_cutoff < opts.cutoff: break 
+        print "{0}\t{1:.2f}".format(query, cumulative_cutoff)
 
 
 def agp(args):

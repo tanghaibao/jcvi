@@ -7,6 +7,7 @@ import os.path as op
 import sys
 import logging
 
+from subprocess import call
 from optparse import OptionParser
 
 
@@ -18,9 +19,9 @@ class ActionDispatcher (object):
         self.valid_actions, self.action_helps = zip(*actions)
 
     def print_help(self):
-        help = "available actions:\n"
+        help = "Available actions:\n"
         for action, action_help in self.actions:
-            help += "\t`%s`: %s\n" % (action, action_help)
+            help += "    `%s`: %s\n" % (action, action_help)
 
         print >>sys.stderr, help
         sys.exit(1)
@@ -42,8 +43,7 @@ def set_debug(instance, args):
     """
     Add --debug options for command line programs
     """
-    assert isinstance(instance, OptionParser), \
-            "only OptionParser can add debug option"
+    assert isinstance(instance, OptionParser)
 
     instance.add_option("--debug", dest="debug",
             default=False, action="store_true",
@@ -58,24 +58,41 @@ def set_grid(instance):
     """
     Add --grid options for command line programs
     """
-    assert isinstance(instance, OptionParser), \
-            "only OptionParser can add debug option"
+    assert isinstance(instance, OptionParser)
 
     instance.add_option("--grid", dest="grid",
             default=False, action="store_true",
             help="run on the grid [default: %default]")
 
 
-def sh(cmd, blog=None):
+def set_params(instance):
+    """
+    Add --params options for given command line programs
+    """
+    assert isinstance(instance, OptionParser)
+
+    instance.add_option("--params", dest="extra", default="", 
+            help="extra parameters to run")
+
+
+def sh(cmd, grid=False, infile=None, outfile=None, errfile=None):
     """
     simple wrapper for system calls
     """
-    if not blog is None:
-        cmd += " 2>%s" % blog
+    if grid:
+        from jcvi.apps.grid import GridProcess
+        pr = GridProcess(cmd, infile=infile, outfile=outfile, errfile=errfile)
+        pr.start(path=None)
+    else:
+        if infile:
+            cmd += " < {0} ".format(infile)
+        if outfile:
+            cmd += " > {0} ".format(outfile)
+        if errfile:
+            cmd += " 2> {0} ".format(errfile)
 
-    from subprocess import call
-    logging.debug(cmd)
-    return call(cmd, shell=True)
+        logging.debug(cmd)
+        call(cmd, shell=True)
 
 
 def is_current_file(a, b):

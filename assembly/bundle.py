@@ -166,10 +166,16 @@ def bed(args):
                 format(orientation, gapsize)
 
     for h in nx.connected_component_subgraphs(g):
-        nodes, edges = h.nodes(), h.edges(data=True)
-        ledges = [(a, b, c["orientation"]) for (a, b, c) in edges]
-        print nodes, ledges
-        print determine_signs(nodes, ledges) 
+        solve_component(h)
+
+
+def solve_component(h):
+    nodes, edges = h.nodes(), h.edges(data=True)
+    ledges = [(a, b, c["orientation"]) for (a, b, c) in edges]
+    N = len(nodes)
+
+    print N, nodes, ledges
+    print determine_signs(nodes, ledges) 
 
 
 if __name__ == '__main__':

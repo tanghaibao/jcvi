@@ -32,7 +32,7 @@ Title = """Comparative Genomics of Sisymbrium irio"""
 Authors = """Town,C.D., Tang,H., Paterson,A.H. and Pires,J.C."""
 
 Libname = "Sisymbrium irio BAC library SIL"
-Contact = "Chris Town"
+Contact = "Chris D. Town"
 
 PublicationTemplate = """TYPE: Pub
 MEDUID:

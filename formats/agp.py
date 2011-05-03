@@ -84,7 +84,7 @@ class AGPLine (object):
     @property
     def bedline(self):
         # bed formatted line
-        gid = self.component_id if not self.is_gap else "gap"
+        gid = self.component_id if not self.is_gap else self.gap_type 
         return "\t".join((self.object, str(self.object_beg-1),
                 str(self.object_end), gid, self.component_type, self.orientation))
 
@@ -356,7 +356,7 @@ def get_phase(rec):
             assert "COMPLETE" in description, description
             phase = 3
     else:
-        logging.error(description)
+        logging.error("{0}: {1}".format(rec.name, description))
         phase = 4
 
     return phase, keywords

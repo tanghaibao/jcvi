@@ -44,12 +44,11 @@ def batch_entrez(list_of_terms, db="nucleotide", retmax=1, rettype="fasta"):
                 search_handle = Entrez.esearch(db=db, retmax=retmax, term=term)
                 rec = Entrez.read(search_handle)
                 success = True
-            except (urllib2.HTTPError, urllib2.URLError, RuntimeError) as e:
+                ids = rec["IdList"]
+            except (urllib2.HTTPError, urllib2.URLError, RuntimeError, KeyError) as e:
                 logging.error(str(e))
                 logging.debug("wait 5 seconds to reconnect...")
                 time.sleep(5)
-
-        ids = rec["IdList"]
 
         if not ids:
             logging.error("term %s not found in db %s" % (term, db))

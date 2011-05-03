@@ -65,10 +65,16 @@ def get_signs(M, validate=True):
     assert is_symmetric(M), "the matrix is not symmetric:\n{0}".format(str(M))
     N, x = M.shape
 
-    w, v = np.linalg.eig(M)
+    # eigh() works on symmetric matrix (Hermitian)
+    w, v = np.linalg.eigh(M)
     m = np.argmax(w)
     mv = v[:, m]
+
     sign_array = np.array(np.sign(mv), dtype=int)
+
+    # it does not really matter, but we prefer as few flippings as possible
+    if np.sum(sign_array) < 0:
+        sign_array = -sign_array
 
     if validate:
         diag = np.matrix(np.eye(N, dtype=int) * sign_array)

@@ -14,8 +14,11 @@ class Sizes (LineFile):
     contigID size
     """
     def __init__(self, filename):
+        assert op.exists(filename), "File `{0}` not found".format(filename)
+
         # filename can be both .sizes file or FASTA formatted file
         sizesname = filename
+
         if not filename.endswith(".sizes"):
             sizesname = filename + ".sizes"
             if not op.exists(sizesname):

@@ -8,6 +8,28 @@ import logging
 from texttable import Texttable
 table = Texttable()
 
+def tabulate(d, key_fun=str):
+    """
+    d is a dictionary, keyed by tuple(A, B).
+    Goal is to put A in rows, and B in columns, make a table to report these data.
+
+    >>> d = {(1,'a'):3, (1,'b'):4, (2,'a'):5, (2,'b'):0}
+    >>> print tabulate(d)
+    [['o', 'a', 'b'], ['1', '3', '4'], ['2', '5', '0']]
+    """
+    pairs = d.keys()
+    rows, cols = zip(*pairs)
+    rows = sorted(set(rows))
+    cols = sorted(set(cols))
+    out = [["o"] + list(cols)]
+    for r in rows:
+        combo = [(r, c) for c in cols]
+        data = [d[x] for x in combo]
+        data = [key_fun(x) for x in data]
+        out.append([str(r)] + data)
+
+    return out
+
 
 def thousands(x):
     """
@@ -65,6 +87,13 @@ def human_size(size, a_kilobyte_is_1024_bytes=False, precision=1, target=None):
 
     Returns: string
     Credit: <http://diveintopython3.org/your-first-python-program.html>
+
+    >>> print(human_size(1000000000000, True))
+    931.3GiB
+    >>> print(human_size(1000000000000))
+    1.0Tb
+    >>> print(human_size(300))
+    300.0
     '''
     if size < 0:
         raise ValueError('number must be non-negative')
@@ -110,6 +139,5 @@ def fill(text, delimiter="", width=70):
 
 
 if __name__ == '__main__':
-    print(human_size(1000000000000, False))
-    print(human_size(1000000000000))
-    print(human_size(300))
+    import doctest
+    doctest.testmod()

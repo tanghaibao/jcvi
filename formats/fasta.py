@@ -148,7 +148,7 @@ def main():
         ('uniq', 'remove records that are the same'),
         ('format', 'trim accession id to the first space'),
         ('random', 'random take some records'),
-        ('diff', 'check if two FASTA records contain same information'),
+        ('diff', 'check if two fasta records contain same information'),
         ('trim', 'given a cross_match screened fasta, trim the sequence'),
         ('pair', 'sort paired reads to .pairs.fasta and remaining to .fragments.fasta'),
         ('fastq', 'combine fasta and qual to create fastq file'),

@@ -13,6 +13,7 @@ from optparse import OptionParser
 from Bio import Entrez, SeqIO
 
 from jcvi.formats.fasta import get_first_rec, print_first_difference
+from jcvi.apps.console import print_green
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
@@ -115,7 +116,7 @@ def bisect(args):
 
     if valid:
         print
-        print "%s matches the sequence in `%s`" % (valid, fastafile)
+        print_green("%s matches the sequence in `%s`" % (valid, fastafile))
 
 
 def fetch(args):

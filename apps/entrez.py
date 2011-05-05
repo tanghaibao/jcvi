@@ -39,6 +39,7 @@ def batch_entrez(list_of_terms, db="nucleotide", retmax=1, rettype="fasta"):
 
         logging.debug("search term %s" % term)
         success = False 
+        ids = None
         while not success:
             try:
                 search_handle = Entrez.esearch(db=db, retmax=retmax, term=term)
@@ -50,8 +51,7 @@ def batch_entrez(list_of_terms, db="nucleotide", retmax=1, rettype="fasta"):
                 logging.debug("wait 5 seconds to reconnect...")
                 time.sleep(5)
 
-        if not ids:
-            logging.error("term %s not found in db %s" % (term, db))
+        assert ids
 
         for id in ids:
             success = False 
@@ -98,8 +98,9 @@ def bisect(args):
     valid = None
     for i in range(1, 100):
         term = "%s.%d" % (acc, i)
-        query = list(batch_entrez([term]))
-        if not query:
+        try:
+            query = list(batch_entrez([term]))
+        except AssertionError as e:
             logging.debug("no records found for %s. terminating." % term)
             return
 

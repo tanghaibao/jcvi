@@ -357,7 +357,7 @@ def get_phase(rec):
             phase = 3
     else:
         logging.error("{0}: {1}".format(rec.name, description))
-        phase = 4
+        phase = 3
 
     return phase, keywords
 

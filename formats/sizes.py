@@ -35,7 +35,7 @@ class Sizes (LineFile):
         # this is to preserve the input order in the sizes file
         sizes = list(self.iter_sizes())
         self.sizes_mapping = dict(sizes)
-        
+
         # get cumulative sizes, both in list and dict
         ctgs, sizes = zip(*sizes)
         self.sizes = sizes
@@ -64,9 +64,10 @@ class Sizes (LineFile):
             yield ctg, int(size)
 
     def get_position(self, ctg, pos):
-        if ctg not in self.cumsizes_mapping: return None
+        if ctg not in self.cumsizes_mapping:
+            return None
         return self.cumsizes_mapping[ctg] + pos
 
     def get_breaks(self):
         for i in xrange(1, len(self)):
-            yield self.ctgs[i], self.cumsizes[i-1], self.cumsizes[i]
+            yield self.ctgs[i], self.cumsizes[i - 1], self.cumsizes[i]

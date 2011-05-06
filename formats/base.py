@@ -14,7 +14,7 @@ debug()
 
 
 class BaseFile (object):
-    
+
     def __init__(self, filename):
 
         self.filename = filename
@@ -35,7 +35,7 @@ class FileMerger (object):
     same as cat * > filename
     """
     def __init__(self, filelist, outfile):
-        
+
         self.filelist = filelist
         self.outfile = outfile
 
@@ -63,11 +63,11 @@ class FileSplitter (object):
 
     def _open(self, filename):
 
-        if self.klass=="seqio":
+        if self.klass == "seqio":
             handle = SeqIO.parse(open(filename), self.format)
         else:
             handle = open(filename)
-        return handle 
+        return handle
 
     @property
     def num_records(self):
@@ -88,12 +88,12 @@ class FileSplitter (object):
 
     def _batch_iterator(self, N=1):
         """Returns N lists of records.
-     
+
         This can be used on any iterator, for example to batch up
         SeqRecord objects from Bio.SeqIO.parse(...), or to batch
         Alignment objects from Bio.AlignIO.parse(...), or simply
         lines from a file handle.
-     
+
         This is a generator function, and it returns lists of the
         entries from the supplied iterator.  Each list will have
         batch_size entries, although the final list may be shorter.
@@ -102,7 +102,8 @@ class FileSplitter (object):
         handle = self._open(self.filename)
         while True:
             batch = list(itertools.islice(handle, batch_size))
-            if not batch: break
+            if not batch:
+                break
             yield batch
 
     @classmethod
@@ -126,7 +127,7 @@ class FileSplitter (object):
         """
         assert mode in ("batch", "cycle")
         logging.debug("set split mode=%s" % mode)
-        
+
         self.names = self.__class__.get_names(self.filename, N)
         if self.outputdir:
             self.names = [op.join(self.outputdir, x) for x in self.names]
@@ -138,22 +139,24 @@ class FileSplitter (object):
 
         filehandles = [open(x, "w") for x in self.names]
 
-        if mode=="batch":
+        if mode == "batch":
             for batch, fw in zip(self._batch_iterator(N), filehandles):
 
-                if self.klass=="seqio":
+                if self.klass == "seqio":
                     count = SeqIO.write(batch, fw, self.format)
                 else:
-                    for line in batch: fw.write(line)
+                    for line in batch:
+                        fw.write(line)
                     count = len(batch)
 
                 logging.debug("write %d records to %s" % (count, fw.name))
 
-        elif mode=="cycle":
+        elif mode == "cycle":
             handle = self._open(self.filename)
-            for record, fw in itertools.izip(handle, itertools.cycle(filehandles)):
-                
-                if self.klass=="seqio":
+            for record, fw in itertools.izip(handle,
+                    itertools.cycle(filehandles)):
+
+                if self.klass == "seqio":
                     SeqIO.write(record, fw, self.format)
                 else:
                     fw.write(record)
@@ -180,7 +183,7 @@ def must_open(filename, mode="r"):
 
 
 def read_until(handle, start):
-    # read each line until it has a certain start, and then puts the start tag back
+    # read each line until a certain start, then puts the start tag back
     while 1:
         pos = handle.tell()
         line = handle.readline()
@@ -199,17 +202,18 @@ def read_block(handle, signal):
     record
     """
     signal_len = len(signal)
-    it = (x[1] for x in groupby(handle, 
-        key=lambda row: row.strip()[:signal_len]==signal))
+    it = (x[1] for x in groupby(handle,
+        key=lambda row: row.strip()[:signal_len] == signal))
     for header in it:
         header = header.next().strip()
-        if header[:signal_len]!=signal: continue
+        if header[:signal_len] != signal:
+            continue
         seq = list(s.strip() for s in it.next())
         yield header, seq
 
 
 def main():
-    
+
     actions = (
         ('split', 'split large file into N chunks'),
             )
@@ -220,7 +224,7 @@ def main():
 def split(args):
     """
     %prog split file outdir
-    
+
     split file into records
     """
     p = OptionParser(split.__doc__)
@@ -239,7 +243,7 @@ def split(args):
 
     if opts.all:
         logging.debug("option -all override -n")
-        N = fs.num_records 
+        N = fs.num_records
     else:
         N = opts.N
 

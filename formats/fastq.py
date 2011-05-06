@@ -15,12 +15,14 @@ from jcvi.apps.console import ProgressBar
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
-qual_offset = lambda x: 33 if x=="sanger" else 64 
+qual_offset = lambda x: 33 if x == "sanger" else 64
+
 
 class FastqRecord (object):
     def __init__(self, fh, offset=0, key=None):
         self.name = fh.readline().split()
-        if not self.name: return
+        if not self.name:
+            return
         self.name = self.name[0]
         self.seq = fh.readline().rstrip()
         self.l3 = fh.readline().rstrip()
@@ -29,7 +31,7 @@ class FastqRecord (object):
             self.qual = "".join(chr(ord(x) + offset) for x in self.qual)
         self.length = len(self.seq)
         assert self.length == len(self.qual), \
-                "length mismatch between seq(%s) and qual(%s)" % (self.seq, self.qual)
+                "length mismatch: seq(%s) and qual(%s)" % (self.seq, self.qual)
         self.id = key(self.name) if key else self.name
 
     def __str__(self):
@@ -37,15 +39,16 @@ class FastqRecord (object):
 
     def __len__(self):
         return self.length
-    
+
 
 def iter_fastq(fh, offset=0, key=None):
     logging.debug("reading file `%s`" % fh.name)
     while True:
         rec = FastqRecord(fh, offset=offset, key=key)
-        if not rec.name: break
+        if not rec.name:
+            break
         yield rec
-    yield None # guardian
+    yield None  # guardian
 
 
 def main():
@@ -74,7 +77,7 @@ def size(args):
     for f in args:
         fh = open(f)
         for rec in iter_fastq(fh):
-            if rec: 
+            if rec:
                 total_numrecords += 1
                 total_size += len(rec)
 
@@ -84,15 +87,13 @@ def size(args):
 
 def is_low_complexity(seq, cutoff_pct=95):
     # Here we remove seq with one dominant nucleotide
-    a, c, g, t = 0, 0, 0, 0
-    for s in seq:
-        if s=='A': a += 1
-        elif s=='C': c += 1
-        elif s=='G': g += 1
-        elif s=='T': t += 1
+    acgt = defaultdict(int)
+    for s in seqs:
+        acgt[s] += 1
 
-    for x in (a, c, g, t):
-        if x * 100 / len(seq) > cutoff_pct: return True
+    for x in acgt.values():
+        if x * 100 / len(seq) > cutoff_pct:
+            return True
 
     return False
 
@@ -105,7 +106,7 @@ def convert(args):
     script creates a new file with the correct encoding
     """
     p = OptionParser(convert.__doc__)
-    p.add_option("-Q", dest="infastq", default="sanger", 
+    p.add_option("-Q", dest="infastq", default="sanger",
             help="input fastq [default: %default]")
     p.add_option("-q", dest="outfastq", default="sanger",
             help="output fastq format [default: %default]")
@@ -113,7 +114,7 @@ def convert(args):
             action="store_true", help="remove poly-A/C/G/T")
 
     opts, args = p.parse_args(args)
-    
+
     if len(args) != 2:
         sys.exit(p.print_help())
 
@@ -125,16 +126,17 @@ def convert(args):
     logging.debug("convert from `%s (%s)` to `%s (%s)`" % (infastq,
         opts.infastq, outfastq, opts.outfastq))
 
-    totalsize = op.getsize(infastq) 
+    totalsize = op.getsize(infastq)
     bar = ProgressBar(maxval=totalsize).start()
     fw = open(outfastq, "w")
     ah = open(infastq)
 
     low_complexity = 0
     for a in iter_fastq(ah, offset=offset):
-        if a is None: continue
+        if a is None:
+            continue
         if opts.remove_lowcomplexity:
-            if is_low_complexity(a.seq): 
+            if is_low_complexity(a.seq):
                 low_complexity += 1
                 continue
 
@@ -154,8 +156,8 @@ def unpair(args):
     """
     %prog unpair pairs.fastq
 
-    The reverse operation of pair. The /1 will be placed in 1.fastq, and /2 will
-    be place in 2.fastq.
+    Reverse operation of `pair`:
+    The /1 will be placed in 1.fastq, and /2 will be place in 2.fastq.
     """
     p = OptionParser(unpair.__doc__)
     opts, args = p.parse_args(args)
@@ -182,8 +184,9 @@ def unpair(args):
         rec = it.next()
 
     logging.debug("reads unpaired into `%s` and `%s`" % (afastq, bfastq))
-    for f in (fh, afw, bfw): f.close()
-    
+    for f in (fh, afw, bfw):
+        f.close()
+
 
 def pair(args):
     """
@@ -191,13 +194,13 @@ def pair(args):
 
     pair up the records in 1.fastq and 2.fastq, pairs are indicated by trailing
     "/1" and "/2". If using raw sequences, this is trivial, since we can just
-    iterate one at a time for both files; however if two files are not matching,
+    iterate one at a time for both files; however if two files do not match,
     (e.g. due to trimming), we need a third fastq that provides the order. Two
     output files will be automatically written, one `fragments.fastq` and
     `pairs.fastq`
     """
     p = OptionParser(pair.__doc__)
-    p.add_option("-Q", dest="infastq", default="sanger", 
+    p.add_option("-Q", dest="infastq", default="sanger",
             help="input fastq [default: %default]")
     p.add_option("-q", dest="outfastq", default="sanger",
             help="output fastq format [default: %default]")
@@ -218,7 +221,7 @@ def pair(args):
     base = op.basename(afastq).split(".")[0]
     frags = base + ".fragments.fastq"
     pairs = base + ".pairs.fastq"
-    
+
     outputdir = opts.outputdir
     if outputdir:
         frags = op.join(outputdir, frags)
@@ -231,11 +234,11 @@ def pair(args):
     offset = out_offset - in_offset
     ref = opts.ref
 
-    if ref: 
-        rh = open(ref) 
-        totalsize = op.getsize(ref) 
+    if ref:
+        rh = open(ref)
+        totalsize = op.getsize(ref)
     else:
-        totalsize = op.getsize(afastq) 
+        totalsize = op.getsize(afastq)
 
     bar = ProgressBar(maxval=totalsize).start()
     strip_name = lambda x: x.rsplit("/", 1)[0]
@@ -271,7 +274,7 @@ def pair(args):
             # update progress
             pos = rh.tell()
             bar.update(pos)
-        
+
         # write all the leftovers to frags file
         while a:
             print >>fragsfw, a
@@ -281,10 +284,10 @@ def pair(args):
             print >>fragsfw, b
             b = bh_iter.next()
 
-    else: # easy case when afile and bfile records are in order
+    else:  # easy case when afile and bfile records are in order
         # TODO: unimplemented
         pass
-    
+
     bar.finish()
     sys.stdout.write("\n")
 

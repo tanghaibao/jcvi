@@ -3,9 +3,9 @@
 
 """
 Implement a few MIP solvers, based on benchmark found on <http://scip.zib.de/>
-SCIP solver is ~16x faster than GLPK solver.
-However, I found in rare cases it will segfault. 
-Therefore the default is SCIP, the program will switch to GLPK solver for crashed cases.
+SCIP solver is ~16x faster than GLPK solver.  However, I found in rare cases
+it will segfault. Therefore the default is SCIP, the program will switch to
+GLPK solver for crashed cases.
 
 The input lp_data is assumed in .lp format, see below
 
@@ -64,7 +64,7 @@ class AbstractMIPSolver(object):
         if not os.path.isdir(work_dir):
             os.mkdir(work_dir)
 
-        lpfile = op.join(work_dir, "data.lp") # problem instance
+        lpfile = op.join(work_dir, "data.lp")  # problem instance
         logging.debug("write MIP instance to `{0}`".format(lpfile))
 
         fw = file(lpfile, "w")
@@ -73,12 +73,13 @@ class AbstractMIPSolver(object):
 
         retcode, outfile = self.run(lpfile)
         if retcode < 0:
-            self.results = [] 
+            self.results = []
         else:
             self.results = self.parse_output(outfile)
-        
+
         if self.results:
-            logging.debug("optimized objective value ({0})".format(self.obj_val))
+            logging.debug("optimized objective value ({0})".\
+                    format(self.obj_val))
 
     def run(self, lp_data, work_dir):
         raise NotImplementedError
@@ -92,7 +93,7 @@ class AbstractMIPSolver(object):
 
 class GLPKSolver(AbstractMIPSolver):
     """
-    GNU Linear Programming Kit (GLPK) solver, wrapper for calling GLPSOL executable
+    GNU Linear Programming Kit (GLPK) solver, wrapper for calling GLPSOL
     """
     def run(self, lpfile):
 
@@ -100,16 +101,16 @@ class GLPKSolver(AbstractMIPSolver):
         listfile = op.join(self.work_dir, "data.lp.list")  # simple output
         # cleanup in case something wrong happens
         for f in (outfile, listfile):
-            if op.exists(f): 
+            if op.exists(f):
                 os.remove(f)
 
         cmd = "glpsol --cuts --fpump --lp {0} -o {1} -w {2}".format(lpfile,
                 outfile, listfile)
-        if not self.verbose: cmd += " >/dev/null"
 
-        retcode = sh(cmd)
+        outfile = None if self.verbose else "/dev/null"
+        retcode = sh(cmd, outfile=outfile)
 
-        if retcode==127:
+        if retcode == 127:
             logging.error("You need to install program `glpsol` " + \
                           "[http://www.gnu.org/software/glpk/]")
             return -1, None
@@ -128,11 +129,12 @@ class GLPKSolver(AbstractMIPSolver):
         self.obj_val = int(data[0].split()[-1])
         # the info are contained in the last several lines
         results = [int(x) for x in data[-rows:]]
-        results = [i for i, x in enumerate(results) if x==1]
+        results = [i for i, x in enumerate(results) if x == 1]
 
         fp.close()
 
-        if self.clean: self.cleanup()
+        if self.clean:
+            self.cleanup()
 
         return results
 
@@ -143,8 +145,8 @@ class SCIPSolver(AbstractMIPSolver):
     """
     def run(self, lpfile):
 
-        outfile = self.work_dir + "/data.lp.out" # verbose output
-        if op.exists(outfile): 
+        outfile = self.work_dir + "/data.lp.out"  # verbose output
+        if op.exists(outfile):
             os.remove(outfile)
 
         cmd = "scip -f {0} -l {1}".format(lpfile, outfile)
@@ -153,7 +155,7 @@ class SCIPSolver(AbstractMIPSolver):
 
         retcode = sh(cmd)
 
-        if retcode==127:
+        if retcode == 127:
             logging.error("You need to install program `scip` " +\
                           "[http://scip.zib.de/]")
             return -1, None
@@ -164,25 +166,29 @@ class SCIPSolver(AbstractMIPSolver):
 
         fp = open(outfile)
         for row in fp:
-            if row.startswith("objective value"): 
+            if row.startswith("objective value"):
                 obj_row = row
                 break
 
         results = []
         for row in fp:
-            #objective value:               8
-            #x1                             1   (obj:5)
-            #x2                             1   (obj:3)
-            if row.strip()=="": break # blank line ends the section
+            """
+            objective value:               8
+            x1                             1   (obj:5)
+            x2                             1   (obj:3)
+            """
+            if row.strip() == "":  # blank line ends the section
+                break
             x = row.split()[0]
-            results.append(int(x[1:])-1) # 0-based indexing
+            results.append(int(x[1:]) - 1)  # 0-based indexing
 
         if results:
             self.obj_val = int(obj_row.split(":")[1])
 
         fp.close()
 
-        if self.clean: self.cleanup()
+        if self.clean:
+            self.cleanup()
 
         return results
 
@@ -203,11 +209,15 @@ def node_to_edge(edges):
     return outgoing, incoming, nodes
 
 
-# CPLEX LP format commonly contains three blocks - objective, constraints, vars
-# spec <http://lpsolve.sourceforge.net/5.0/CPLEX-format.htm>
 def print_objective(lp_handle, edges, objective=MAXIMIZE):
-    print >> lp_handle, objective 
-    items = [" + {0}x{1}".format(w, i+1) for i, (a, b, w) in enumerate(edges)]
+    """
+    CPLEX LP format commonly contains three blocks:
+    objective, constraints, vars
+    spec <http://lpsolve.sourceforge.net/5.0/CPLEX-format.htm>
+    """
+    print >> lp_handle, objective
+    items = [" + {0}x{1}".format(w, i + 1) \
+            for i, (a, b, w) in enumerate(edges)]
     sums = fill(items, width=10)
     print >> lp_handle, sums
 
@@ -221,14 +231,14 @@ def print_constraints(lp_handle, constraints):
 def print_vars(lp_handle, nedges, vars=BINARY):
     print >> lp_handle, vars
     for i in xrange(nedges):
-        print >> lp_handle, " x{0}".format(i+1)
-    
+        print >> lp_handle, " x{0}".format(i + 1)
+
     print >> lp_handle, END
 
 
 def lpsolve(lp_handle, solver="scip", clean=True):
 
-    solver = SCIPSolver if solver=="scip" else GLPKSolver
+    solver = SCIPSolver if solver == "scip" else GLPKSolver
     lp_data = lp_handle.getvalue()
     lp_handle.close()
 
@@ -240,7 +250,7 @@ def lpsolve(lp_handle, solver="scip", clean=True):
 def path(edges, source, sink, flavor="longest"):
     """
     Calculates shortest/longest path from list of edges in a graph
-    
+
     >>> g = [(1,2,1),(2,3,9),(2,4,3),(2,5,2),(3,6,8),(4,6,10),(4,7,4)]
     >>> g += [(6,8,7),(7,9,5),(8,9,6),(9,10,11)]
     >>> print path(g, 1, 8, flavor="shortest")
@@ -255,7 +265,7 @@ def path(edges, source, sink, flavor="longest"):
 
     assert flavor in ("longest", "shortest")
 
-    objective = MAXIMIZE if flavor=="longest" else MINIMIZE
+    objective = MAXIMIZE if flavor == "longest" else MINIMIZE
     print_objective(lp_handle, edges, objective=objective)
 
     # Balancing constraint, incoming edges equal to outgoing edges except
@@ -265,14 +275,16 @@ def path(edges, source, sink, flavor="longest"):
     for v in nodes:
         incoming_edges = incoming[v]
         outgoing_edges = outgoing[v]
-        icc = "".join(" + x{0}".format(i+1) for i in incoming_edges) 
-        occ = "".join(" + x{0}".format(i+1) for i in outgoing_edges) 
+        icc = "".join(" + x{0}".format(i + 1) for i in incoming_edges)
+        occ = "".join(" + x{0}".format(i + 1) for i in outgoing_edges)
 
         if v == source:
-            if not outgoing_edges: return None
+            if not outgoing_edges:
+                return None
             constraints.append("{0} = 1".format(occ))
         elif v == sink:
-            if not incoming_edges: return None
+            if not incoming_edges:
+                return None
             constraints.append("{0} = 1".format(icc))
         else:
             # Balancing
@@ -288,7 +300,8 @@ def path(edges, source, sink, flavor="longest"):
 
     selected, obj_val = lpsolve(lp_handle)
     results = sorted(x for i, x in enumerate(edges) if i in selected)
-    if not results: results = None
+    if not results:
+        results = None
 
     return results, obj_val
 

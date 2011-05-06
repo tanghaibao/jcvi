@@ -48,6 +48,7 @@ if __name__ == '__main__':
     main()
 """
 
+
 def main():
     """
     %prog scriptname.py
@@ -59,7 +60,7 @@ def main():
     opts, args = p.parse_args()
     if len(args) != 1:
         sys.exit(p.print_help())
-    
+
     script = args[0]
 
     if op.exists(script):

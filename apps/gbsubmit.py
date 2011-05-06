@@ -36,41 +36,41 @@ Contact = "Chris D. Town"
 
 PublicationTemplate = """TYPE: Pub
 MEDUID:
-TITLE: 
+TITLE:
 {Title}
-AUTHORS: 
+AUTHORS:
 {Authors}
-JOURNAL: 
-VOLUME: 
+JOURNAL:
+VOLUME:
 ISSUE:
 PAGES:
-YEAR: 2011 
+YEAR: 2011
 STATUS: 1
 ||"""
 
 LibraryTemplate = """TYPE: Lib
 NAME: {Libname}
 ORGANISM: Sisymbrium irio
-STRAIN: Gomez-Campo 1146-67 
-SEX: 
-STAGE: 
-TISSUE: 
-CELL_TYPE: 
+STRAIN: Gomez-Campo 1146-67
+SEX:
+STAGE:
+TISSUE:
+CELL_TYPE:
 VECTOR: pCC1BAC
 RE_1: HindIII
 DESCR:
-Constructed by Amplicon Express; 
+Constructed by Amplicon Express;
 Transformed into Invitrogen DH10b phage resistant E. coli.
 ||"""
 
 ContactTemplate = """TYPE: Cont
 NAME: {Contact}
 FAX: 301-795-7070
-TEL: 301-795-7523 
+TEL: 301-795-7523
 EMAIL: cdtown@jcvi.org
-LAB: Plant Genomics 
-INST: J. Craig Venter Institute 
-ADDR: 9704 Medical Center Dr., Rockville, MD 20850, USA 
+LAB: Plant Genomics
+INST: J. Craig Venter Institute
+ADDR: 9704 Medical Center Dr., Rockville, MD 20850, USA
 ||"""
 
 Directions = {"forward": "TR",
@@ -81,23 +81,23 @@ Primers = {"TR": "M13 Universal For 18bp Primer (TGTAAAACGACGGCCAGT)",
 
 GSSTemplate = """TYPE: GSS
 STATUS: New
-CONT_NAME: {Contact} 
-GSS#: {gssID} 
-CLONE: {cloneID} 
-SOURCE: JCVI 
-OTHER_GSS: {othergss} 
-CITATION: 
+CONT_NAME: {Contact}
+GSS#: {gssID}
+CLONE: {cloneID}
+SOURCE: JCVI
+OTHER_GSS: {othergss}
+CITATION:
 {Title}
 INSERT: 120000
 PLATE: {plate}
 ROW: {row}
 COLUMN: {column}
-SEQ_PRIMER: {primer} 
+SEQ_PRIMER: {primer}
 DNA_TYPE: Genomic
 CLASS: BAC ends
-LIBRARY: {Libname} 
-PUBLIC: 
-PUT_ID: 
+LIBRARY: {Libname}
+PUBLIC:
+PUT_ID:
 COMMENT:
 SEQUENCE:
 {seq}
@@ -135,16 +135,16 @@ def get_plate(nrows=Nrows, ncols=Ncols):
             n += 1
             prefix = "{0:02d}".format(n)
             plate[i][j] = prefix + 'A'
-            plate[i][j+1] = prefix + 'B'
-            plate[i+1][j] = prefix + 'C'
-            plate[i+1][j+1] = prefix + 'D'
+            plate[i][j + 1] = prefix + 'B'
+            plate[i + 1][j] = prefix + 'C'
+            plate[i + 1][j + 1] = prefix + 'D'
 
     # (96+quadrant) to 384
     splate = {}
     for i in xrange(nrows):
         for j in xrange(ncols):
             c = plate[i][j]
-            splate[c] = "{0}{1}".format(rows[i], j+1)
+            splate[c] = "{0}{1}".format(rows[i], j + 1)
 
     return plate, splate
 
@@ -161,8 +161,8 @@ def convert_96_to_384(c96, quad, nrows=Nrows, ncols=Ncols):
     rows, cols = get_rows_cols()
     plate, splate = get_plate()
 
-    n96 = rows.index(c96[0]) * ncols/2 + int(c96[1:]) 
-    q = "{0:02d}{1}".format(n96, "ABCD"[quad-1])
+    n96 = rows.index(c96[0]) * ncols / 2 + int(c96[1:])
+    q = "{0:02d}{1}".format(n96, "ABCD"[quad - 1])
     return splate[q]
 
 
@@ -180,7 +180,8 @@ def t384(args):
     fw = sys.stdout
     for i in plate:
         for j, p in enumerate(i):
-            if j!=0: fw.write('|')
+            if j != 0:
+                fw.write('|')
             fw.write(p)
         fw.write('\n')
 
@@ -194,7 +195,7 @@ def parse_description(s):
     """
     s = "".join(s.split()[1:]).replace("/", ";")
     a = parse_qs(s)
-    return a 
+    return a
 
 
 def gss(args):
@@ -205,13 +206,13 @@ def gss(args):
     The FASTA file is assumed to be exported from the JCVI data delivery folder
     which looks like:
 
-    >1127963806024 /library_name=SIL1T054-B-01-120KB /clear_start=0 /clear_end=839
-    /primer_id=1049000104196 /trace_id=1064147620169 /trace_file_id=1127963805941
-    /clone_insert_id=1061064364776 /direction=reverse
-    /sequencer_run_id=1064147620155 /sequencer_plate_barcode=B906423
-    /sequencer_plate_well_coordinates=C3 /sequencer_plate_96well_quadrant=1
-    /sequencer_plate_96well_coordinates=B02 /template_plate_barcode=CC0251602AB
-    /growth_plate_barcode=BB0273005AB
+    >1127963806024 /library_name=SIL1T054-B-01-120KB /clear_start=0
+    /clear_end=839 /primer_id=1049000104196 /trace_id=1064147620169
+    /trace_file_id=1127963805941 /clone_insert_id=1061064364776
+    /direction=reverse /sequencer_run_id=1064147620155
+    /sequencer_plate_barcode=B906423 /sequencer_plate_well_coordinates=C3
+    /sequencer_plate_96well_quadrant=1 /sequencer_plate_96well_coordinates=B02
+    /template_plate_barcode=CC0251602AB /growth_plate_barcode=BB0273005AB
     AGCTTTAGTTTCAAGGATACCTTCATTGTCATTCCCGGTTATGATGATATCATCAAGATAAACAAGAATG
     ACAATGATACCTGTTTGGTTCTGAAGTGTAAAGAGGGTATGTTCAGCTTCAGATCTTCTAAACCCTTTGT
     CTAGTAAGCTGGCACTTAGCTTCCTATACCAAACCCTTTGTGATTGCTTCAGTCCATAAATTGCCTTTTT
@@ -231,7 +232,7 @@ def gss(args):
     seen = defaultdict(int)
     clone = defaultdict(set)
 
-    plateMapping = dict(row.split() for row in open(mappingfile)) 
+    plateMapping = dict(row.split() for row in open(mappingfile))
 
     fw = open("MetaData.txt", "w")
     print >> fw, PublicationTemplate.format(**vars)
@@ -259,7 +260,7 @@ def gss(args):
         w96 = sequencer_plate_96well_coordinates
         w96quad = int(sequencer_plate_96well_quadrant)
         w384 = sequencer_plate_well_coordinates
-        assert convert_96_to_384(w96, w96quad)==w384
+        assert convert_96_to_384(w96, w96quad) == w384
 
         plate = sequencer_plate_barcode
         assert plate in plateMapping, \
@@ -274,10 +275,10 @@ def gss(args):
 
         if seen[gssID] > 1:
             gssID = "{0}{1}".format(gssID, seen[gssID])
-        
+
         seen[gssID] += 1
         clone[cloneID].add(gssID)
-        
+
     seen = defaultdict(int)
     for rec in SeqIO.parse(fastafile, "fasta"):
         # need to populate gssID, mateID, cloneID, seq, plate, row, column
@@ -289,7 +290,7 @@ def gss(args):
             a["sequencer_plate_well_coordinates"][0]
         w384 = sequencer_plate_well_coordinates
 
-        plate = sequencer_plate_barcode 
+        plate = sequencer_plate_barcode
         plate = plateMapping[plate]
         d = Directions[direction]
 
@@ -316,10 +317,11 @@ def gss(args):
         print >> fw_log, "{0}\t{1}".format(gssID, description)
         print >> fw_log, "=" * 60
 
-    logging.debug("A total of {0} seqs written to `{1}`".format(len(seen), fw.name))
+    logging.debug("A total of {0} seqs written to `{1}`".\
+            format(len(seen), fw.name))
     fw.close()
     fw_log.close()
-        
+
 
 if __name__ == '__main__':
     import doctest

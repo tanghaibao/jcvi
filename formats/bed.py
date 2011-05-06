@@ -12,7 +12,7 @@ from jcvi.formats.base import LineFile
 class BedLine(object):
     # the Bed format supports more columns. we only need
     # the first 4, but keep the information in 'extra'.
-    __slots__ = ("seqid", "start", "end", "accn", 
+    __slots__ = ("seqid", "start", "end", "accn",
                  "extra", "score", "strand")
 
     def __init__(self, sline):
@@ -27,13 +27,13 @@ class BedLine(object):
 
         if len(args) > 4:
             self.extra = args[4:]
-            self.score = self.extra[0] 
+            self.score = self.extra[0]
         if len(args) > 5:
             self.strand = self.extra[1]
 
     def __str__(self):
-        s = "\t".join(str(x) for x in (self.seqid, self.start-1, self.end,
-            self.accn))
+        s = "\t".join(str(x) for x in (self.seqid, self.start - 1,
+            self.end, self.accn))
 
         if self.extra:
             s += "\t" + "\t".join(self.extra)
@@ -47,7 +47,7 @@ class BedLine(object):
         seqid = self.seqid.rstrip('-')
         size = sizes.get_size(seqid)
 
-        if self.seqid[-1] == '-': 
+        if self.seqid[-1] == '-':
             self.seqid = self.seqid[:-1]
         else:
             self.seqid += '-'
@@ -72,12 +72,13 @@ class Bed(LineFile):
         # for example, user might not like the lexico-order of seqid
         self.key = key or (lambda x: (x.seqid, x.start, x.accn))
 
-        if not filename: 
+        if not filename:
             logging.debug("Initiate bed structure without filename")
             return
 
         for line in open(filename):
-            if line[0] == "#": continue
+            if line[0] == "#":
+                continue
             self.append(BedLine(line))
 
         self.sort(key=self.key)
@@ -102,5 +103,5 @@ class Bed(LineFile):
     def sub_bed(self, seqid):
         # get all the beds on one chromosome
         for b in self:
-            if b.seqid==seqid:
+            if b.seqid == seqid:
                 yield b

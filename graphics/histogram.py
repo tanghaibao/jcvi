@@ -31,15 +31,16 @@ library(ggplot2)
 vmin <- $vmin
 vmax <- $vmax
 data <- read.table('$numberfile', header=T, sep="\t")
-m <- ggplot(data, aes(x=$xlabel, fill=group)) 
+m <- ggplot(data, aes(x=$xlabel, fill=group))
 m + geom_bar(binwidth=(vmax-vmin)/$bins, position="dodge") + xlim(vmin, vmax) +
 opts(title='$title')
 ggsave('$outfile')
 """
 
+
 def histogram(numberfile, vmin, vmax, xlabel, title, bins=50):
     """
-    Generate histogram using number from numberfile, and use only numbers in the
+    Generate histogram using number from numberfile, and only numbers in the
     range of (vmin, vmax)
     """
     outfile = numberfile + '.pdf'
@@ -50,10 +51,10 @@ def histogram(numberfile, vmin, vmax, xlabel, title, bins=50):
 
 def histogram_multiple(numberfiles, vmin, vmax, xlabel, title, bins=50):
     """
-    Generate histogram using number from numberfile, and use only numbers in the
+    Generate histogram using number from numberfile, and only numbers in the
     range of (vmin, vmax). First combining multiple files.
     """
-    newfile = "_".join(op.basename(x).split(".")[0] for x in numberfiles) 
+    newfile = "_".join(op.basename(x).split(".")[0] for x in numberfiles)
     suffix = op.basename(numberfiles[0]).split(".")[-1]
     newfile += "." + suffix
 
@@ -102,7 +103,7 @@ def main():
     xlabel, title = opts.xlabel, opts.title
 
     fileno = len(args)
-    if fileno == 1: 
+    if fileno == 1:
         histogram(args[0], vmin, vmax, xlabel, title, bins=bins)
     else:
         histogram_multiple(args, vmin, vmax, xlabel, title, bins=bins)

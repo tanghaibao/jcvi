@@ -37,7 +37,7 @@ def draw_box(clusters, ax, color="b"):
         xrect, yrect = zip(*cluster)
         xmin, xmax, ymin, ymax = min(xrect), max(xrect), \
                                 min(yrect), max(yrect)
-        ax.add_patch(Rectangle((xmin, ymin), xmax-xmin, ymax-ymin,\
+        ax.add_patch(Rectangle((xmin, ymin), xmax - xmin, ymax - ymin,\
                                 ec=color, fc='y', alpha=.5))
 
 
@@ -47,15 +47,15 @@ def draw_cmap(ax, cmap_text, vmin, vmax, cmap=None, reverse=False):
     xmin, xmax = .5, .9
     ymin, ymax = .02, .04
     ax.imshow(Y, extent=(xmin, xmax, ymin, ymax), cmap=cmap)
-    ax.text(xmin-.01, (ymin + ymax)*.5, _(cmap_text), ha="right", va="center",
-            size=10)
+    ax.text(xmin - .01, (ymin + ymax) * .5, _(cmap_text),
+            ha="right", va="center", size=10)
     vmiddle = (vmin + vmax) * .5
     xmiddle = (xmin + xmax) * .5
     for x, v in zip((xmin, xmiddle, xmax), (vmin, vmiddle, vmax)):
-        ax.text(x, ymin-.005, _("%.1f" % v), ha="center", va="top", size=10)
+        ax.text(x, ymin - .005, _("%.1f" % v), ha="center", va="top", size=10)
 
 
-def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, 
+def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax,
         is_self=False, synteny=False, cmap_text=None):
 
     fp = open(anchorfile)
@@ -69,32 +69,37 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax,
     for row in fp:
         atoms = row.split()
         # first two columns are query and subject, and an optional third column
-        if len(atoms) < 2: continue
+        if len(atoms) < 2:
+            continue
         query, subject = atoms[:2]
-        value = atoms[3] if cmap_text else vmin 
+        value = atoms[3] if cmap_text else vmin
 
-        try: value = float(value)
-        except: value = vmin 
+        try:
+            value = float(value)
+        except ValueError:
+            value = vmin
 
-        if value < vmin: value = vmin
-        if value > vmax: value = vmax
+        if value < vmin:
+            value = vmin
+        if value > vmax:
+            value = vmax
 
-        if query not in qorder: 
+        if query not in qorder:
             #logging.warning("ignore %s" % query)
             continue
-        if subject not in sorder: 
+        if subject not in sorder:
             #logging.warning("ignore %s" % subject)
             continue
 
         qi, q = qorder[query]
         si, s = sorder[subject]
-        data.append((qi, si, vmax-value))
+        data.append((qi, si, vmax - value))
 
     fig = plt.figure(1, (8, 8))
-    root = fig.add_axes([0, 0, 1, 1]) # the whole canvas
-    ax = fig.add_axes([.1, .1, .8, .8]) # the dot plot
+    root = fig.add_axes([0, 0, 1, 1])  # the whole canvas
+    ax = fig.add_axes([.1, .1, .8, .8])  # the dot plot
 
-    sample_number = 5000 # only show random subset
+    sample_number = 5000  # only show random subset
     if len(data) > sample_number:
         data = sample(data, sample_number)
 
@@ -104,7 +109,7 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax,
 
     default_cm = cm.copper
     x, y, c = zip(*data)
-    ax.scatter(x, y, c=c, s=2, lw=0, cmap=default_cm, 
+    ax.scatter(x, y, c=c, s=2, lw=0, cmap=default_cm,
             vmin=vmin, vmax=vmax)
 
     if synteny:
@@ -117,48 +122,48 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax,
     xsize, ysize = len(qbed), len(sbed)
     logging.debug("xsize=%d ysize=%d" % (xsize, ysize))
     xlim = (0, xsize)
-    ylim = (ysize, 0) # invert the y-axis
+    ylim = (ysize, 0)  # invert the y-axis
 
     xchr_labels, ychr_labels = [], []
-    ignore = True # tag to mark whether to plot chromosome name (skip small ones)
+    ignore = True  # tag to mark whether to plot chr name (skip small ones)
     ignore_size_x = xsize * .005
     ignore_size_y = ysize * .005
 
     # plot the chromosome breaks
     for (seqid, beg, end) in get_breaks(qbed):
-        ignore = abs(end-beg) < ignore_size_x
+        ignore = abs(end - beg) < ignore_size_x
         seqid = seqid.split("_")[-1]
-        try: 
-            seqid = int(seqid)
-            seqid = "c%d" % seqid
-        except: 
-            pass
-
-        xchr_labels.append((seqid, (beg + end)/2, ignore))
-        ax.plot([beg, beg], ylim, "g-", lw=1)
-
-    for (seqid, beg, end) in get_breaks(sbed):
-        ignore = abs(end-beg) < ignore_size_y
-        seqid = seqid.split("_")[-1]
-        try: 
+        try:
             seqid = int(seqid)
             seqid = "c%d" % seqid
         except:
             pass
 
-        ychr_labels.append((seqid, (beg + end)/2, ignore))
+        xchr_labels.append((seqid, (beg + end) / 2, ignore))
+        ax.plot([beg, beg], ylim, "g-", lw=1)
+
+    for (seqid, beg, end) in get_breaks(sbed):
+        ignore = abs(end - beg) < ignore_size_y
+        seqid = seqid.split("_")[-1]
+        try:
+            seqid = int(seqid)
+            seqid = "c%d" % seqid
+        except:
+            pass
+
+        ychr_labels.append((seqid, (beg + end) / 2, ignore))
         ax.plot(xlim, [beg, beg], "g-", lw=1)
 
     # plot the chromosome labels
     for label, pos, ignore in xchr_labels:
-        pos = .1 + pos * .8/ xsize
+        pos = .1 + pos * .8 / xsize
         if not ignore:
             root.text(pos, .91, _(label), color="b",
                 va="bottom", rotation=45)
 
     # remember y labels are inverted
     for label, pos, ignore in ychr_labels:
-        pos = .9 - pos * .8/ ysize
+        pos = .9 - pos * .8 / ysize
         if not ignore:
             root.text(.91, pos, _(label), color="b",
                 ha="left", va="center")
@@ -178,11 +183,12 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax,
 
     # beautify the numeric axis
     for tick in ax.get_xticklines() + ax.get_yticklines():
-        tick.set_visible(False) 
+        tick.set_visible(False)
 
     set_human_axis(ax)
 
-    plt.setp(ax.get_xticklabels() + ax.get_yticklabels(), color='gray', size=10)
+    plt.setp(ax.get_xticklabels() + ax.get_yticklabels(),
+            color='gray', size=10)
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
@@ -196,18 +202,19 @@ if __name__ == "__main__":
     p = OptionParser(__doc__)
     p.add_option("--qbed", dest="qbed", help="path to qbed")
     p.add_option("--sbed", dest="sbed", help="path to sbed")
-    p.add_option("--synteny", dest="synteny", 
+    p.add_option("--synteny", dest="synteny",
             default=False, action="store_true",
             help="run a fast synteny scan and display synteny blocks")
     p.add_option("--format", dest="format", default="png",
-            help="generate image of format (png, pdf, ps, eps, svg, etc.)"
+            help="image format (png, pdf, ps, eps, svg, etc.)"
             "[default: %default]")
-    p.add_option("--cmap", dest="cmap", default="Synonymous substitutions (Ks)",
+    p.add_option("--cmap", dest="cmap",
+            default="Synonymous substitutions (Ks)",
             help="draw a colormap box on the bottom-left corner")
     p.add_option("--vmin", dest="vmin", type="float", default=0,
-            help="minimum value (used in the colormap of dots) [default: %default]")
+            help="minimum value (in the colormap of dots) [default: %default]")
     p.add_option("--vmax", dest="vmax", type="float", default=1,
-            help="minimum value (used in the colormap of dots) [default: %default]")
+            help="maximum value (in the colormap of dots) [default: %default]")
 
     opts, args = p.parse_args()
 
@@ -216,7 +223,7 @@ if __name__ == "__main__":
         sys.exit(p.print_help())
 
     is_self = False
-    if qbed==sbed:
+    if qbed == sbed:
         print >>sys.stderr, "Looks like this is self-self comparison"
         is_self = True
 
@@ -229,5 +236,5 @@ if __name__ == "__main__":
     anchorfile = args[0]
 
     image_name = op.splitext(anchorfile)[0] + "." + opts.format
-    dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, 
+    dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax,
             is_self=is_self, synteny=synteny, cmap_text=cmap_text)

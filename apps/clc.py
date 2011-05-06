@@ -45,18 +45,18 @@ def trim(args):
     set_grid(p)
 
     opts, args = p.parse_args(args)
-    
+
     largs = len(args)
     if largs not in (1, 2):
         sys.exit(p.print_help())
 
-    paired = (largs==2)
+    paired = (largs == 2)
     fastqfile1 = args[0]
     assert op.exists(fastqfile1)
 
     suffix = "fasta" if opts.fasta else "fastq"
 
-    if paired: 
+    if paired:
         fastqfile2 = args[1]
         assert op.exists(fastqfile2)
 

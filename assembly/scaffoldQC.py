@@ -31,15 +31,16 @@ debug()
 
 
 def scaffolding(ax, scaffoldID, scafsize, bedf):
-    bed = list(bedf.sub_bed(scaffoldID)) 
+    bed = list(bedf.sub_bed(scaffoldID))
     # order of the seqids of query, reference is always scaffoldID
-    seen = set() 
+    seen = set()
     for b in bed:
         accn = b.accn
-        if accn in seen: continue
+        if accn in seen:
+            continue
         seen.add(accn)
 
-    ctgIDs = dict((x, i+1) for i, x in enumerate(seen))
+    ctgIDs = dict((x, i + 1) for i, x in enumerate(seen))
     data = []
     for b in bed:
         y = (b.start + b.end) / 2
@@ -55,10 +56,10 @@ def scaffolding(ax, scaffoldID, scafsize, bedf):
 
     # FPC_scf.bed => FPC
     fname = bedf.filename.split(".")[0].split("_")[0]
-    ctglabel = "contig" if fname=="FPC" else "scaffold"
+    ctglabel = "contig" if fname == "FPC" else "scaffold"
     xtitle = "Each vertical position is {0} {1}".format(fname, ctglabel)
     ax.set_xlabel(_(xtitle), color="g")
-    
+
 
 def plot_one_scaffold(scaffoldID, scafsize, beds, imagename):
     nbeds = len(beds)
@@ -66,7 +67,7 @@ def plot_one_scaffold(scaffoldID, scafsize, beds, imagename):
     plt.cla()
     plt.clf()
     root = fig.add_axes([0, 0, 1, 1])
-    axes = [fig.add_subplot(1, nbeds, x) for x in range(1, nbeds+1)] 
+    axes = [fig.add_subplot(1, nbeds, x) for x in range(1, nbeds + 1)]
 
     formatter = human_size_formatter
     for bed, ax in zip(beds, axes):
@@ -75,9 +76,11 @@ def plot_one_scaffold(scaffoldID, scafsize, beds, imagename):
         ax.yaxis.set_major_formatter(formatter)
         ax.set_xticklabels([])
 
-    root.text(.2, .95, _("{0}   (size={1})".format(scaffoldID, thousands(scafsize))), 
+    root.text(.2, .95, _("{0}   (size={1})".\
+            format(scaffoldID, thousands(scafsize))),
             size=18, color='b')
-    root.text(.5, .05, _("Look for vertical tracks"), color="gray", ha="center")
+    root.text(.5, .05, _("Look for vertical tracks"),
+            color="gray", ha="center")
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
     root.set_axis_off()
@@ -87,11 +90,10 @@ def plot_one_scaffold(scaffoldID, scafsize, beds, imagename):
 
 
 if __name__ == '__main__':
-    
-    p = OptionParser(__doc__)
 
-    p.add_option("--cutoff", dest="cutoff", default=5*1e6,
-            help="plot for contigs and scaffolds larger than [default: %default]")
+    p = OptionParser(__doc__)
+    p.add_option("--cutoff", dest="cutoff", default=5 * 1e6,
+            help="plot for contigs and scaffolds > [default: %default]")
     p.add_option("--format", dest="format", default="png",
             help="generate image of format (png, pdf, ps, eps, svg, etc.)"
             "[default: %default]")
@@ -107,6 +109,7 @@ if __name__ == '__main__':
     for scaffoldID, scafsize in scafsizes.iter_sizes():
         logging.debug("Loading {0} (size={1})".format(scaffoldID,
             thousands(scafsize)))
-        if scafsize < opts.cutoff: break
+        if scafsize < opts.cutoff:
+            break
         imagename = ".".join((scaffoldID, opts.format))
         plot_one_scaffold(scaffoldID, scafsize, beds, imagename)

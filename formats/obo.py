@@ -20,6 +20,7 @@ debug()
 
 typedef_tag, term_tag = "[Typedef]", "[Term]"
 
+
 def after_colon(line):
     # macro for getting anything after the :
     return line.split(":", 1)[1].strip()
@@ -39,9 +40,10 @@ class OBOReader (object):
 
         try:
             self._handle = open(obo_file)
-        except IOError:
-            logging.error("download obo first " +
-                "[http://geneontology.org/ontology/obo_format_1_2/gene_ontology.1_2.obo]")
+        except IOError as e:
+            logging.error(e)
+            logging.error("download obo first: " +
+                "http://geneontology.org/ontology/obo_format_1_2/")
             sys.exit(1)
 
     def __iter__(self):
@@ -61,10 +63,10 @@ class OBOReader (object):
 
         # read until the next tag and save everything in between
         while 1:
-            pos = self._handle.tell() # save current postion for roll-back
+            pos = self._handle.tell()  # save current postion for roll-back
             line = self._handle.readline()
             if line.startswith(typedef_tag) or line.startswith(term_tag):
-                self._handle.seek(pos) # roll-back
+                self._handle.seek(pos)  # roll-back
                 break
             lines.append(line)
 
@@ -80,7 +82,8 @@ class OBOReader (object):
                 rec.namespace = after_colon(line)
             elif line.startswith("is_a:"):
                 rec._parents.append(after_colon(line).split()[0])
-            elif line.startswith("is_obsolete:") and after_colon(line)=="true":
+            elif line.startswith("is_obsolete:") \
+                    and after_colon(line) == "true":
                 rec.is_obsolete = True
 
         return rec
@@ -92,15 +95,15 @@ class GOTerm (object):
     """
 
     def __init__(self):
-        self.id = ""             # GO:xxxxxx
-        self.name = ""           # description
-        self.namespace = ""      # BP, CC, MF
-        self._parents = []       # is_a basestring of parents
-        self.parents = []        # parent records
-        self.children = []       # children records
-        self.level = -1          # distance from root node
-        self.is_obsolete = False # is_obsolete
-        self.alt_ids = []        # alternative identifiers
+        self.id = ""              # GO:xxxxxx
+        self.name = ""            # description
+        self.namespace = ""       # BP, CC, MF
+        self._parents = []        # is_a basestring of parents
+        self.parents = []         # parent records
+        self.children = []        # children records
+        self.level = -1           # distance from root node
+        self.is_obsolete = False  # is_obsolete
+        self.alt_ids = []         # alternative identifiers
 
     def __str__(self):
         obsolete = "obsolete" if self.is_obsolete else ""
@@ -113,13 +116,13 @@ class GOTerm (object):
 
     def has_parent(self, term):
         for p in self.parents:
-            if p.id==term or p.has_parent(term):
+            if p.id == term or p.has_parent(term):
                 return True
         return False
 
     def has_child(self, term):
         for p in self.children:
-            if p.id==term or p.has_child(term):
+            if p.id == term or p.has_child(term):
                 return True
         return False
 
@@ -211,17 +214,19 @@ class GODag(dict):
         return rec
 
     def _label_wrap(self, label):
-        wrapped_label = r"%s\n%s" % (label, self[label].name.replace(",", r"\n"))
+        wrapped_label = r"%s\n%s" % (label,
+                self[label].name.replace(",", r"\n"))
         return wrapped_label
 
     def draw_lineage(self, recs, nodecolor="mediumseagreen",
-            edgecolor="lightslateblue", dpi=96, verbose=False, lineage_img="GO_lineage.png"):
+            edgecolor="lightslateblue", dpi=96, verbose=False,
+            lineage_img="GO_lineage.png"):
         # draw AMIGO style network, lineage containing one query record
         try:
             import pygraphviz as pgv
         except ImportError:
-            print >>sys.stderr, "pygraphviz not installed, lineage not drawn!"
-            print >>sys.stderr, "try `easy_install pygraphviz`"
+            logging.error("pygraphviz not installed, lineage not drawn!")
+            logging.error("try `easy_install pygraphviz`")
             return
 
         G = pgv.AGraph()
@@ -230,22 +235,28 @@ class GODag(dict):
             edgeset.update(rec.get_all_parent_edges())
             edgeset.update(rec.get_all_child_edges())
 
-        edgeset = [(self._label_wrap(a), self._label_wrap(b)) for (a, b) in edgeset]
+        edgeset = [(self._label_wrap(a), self._label_wrap(b)) \
+                for (a, b) in edgeset]
+
         for src, target in edgeset:
-            # default layout in graphviz is top->bottom, so we invert the direction
-            # and plot using dir="back"
+            """
+            Default layout in graphviz is top->bottom,
+            so we invert the direction and plot using `dir="back"`
+            """
             G.add_edge(target, src)
 
         G.graph_attr.update(dpi="%d" % dpi)
         G.node_attr.update(shape="box", style="rounded,filled",
                 fillcolor="beige", color=nodecolor)
-        G.edge_attr.update(shape="normal", color=edgecolor, dir="back", label="is_a")
+        G.edge_attr.update(shape="normal", color=edgecolor,
+                dir="back", label="is_a")
         # highlight the query terms
         for rec in recs:
             try:
                 q = G.get_node(self._label_wrap(rec.id))
                 q.attr.update(fillcolor="plum")
-            except: continue
+            except:
+                continue
 
         if verbose:
             print >>sys.stderr, G.to_string()
@@ -278,7 +289,7 @@ if __name__ == '__main__':
 
     opts, args = p.parse_args()
 
-    if len(args)!=1:
+    if len(args) != 1:
         sys.exit(p.print_help())
 
     obo_file = args[0]

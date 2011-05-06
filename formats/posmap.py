@@ -2,7 +2,7 @@
 # -*- coding: UTF-8 -*-
 
 """
-POSMAP (POSitional MAPping) files are part of the Celera Assembler output. 
+POSMAP (POSitional MAPping) files are part of the Celera Assembler output.
 
 Specs:
 http://sourceforge.net/apps/mediawiki/wgs-assembler/index.php?title=POSMAP
@@ -21,8 +21,9 @@ from jcvi.formats.blast import report_pairs
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
+
 class Library (object):
-    
+
     def __init__(self, library, minsize, maxsize):
         self.library = library
         self.minsize = minsize
@@ -48,8 +49,9 @@ class Frags (object):
     pass
 
 
-MatesLine = namedtuple("MatesLine", 
+MatesLine = namedtuple("MatesLine",
         "firstReadID secondReadID mateStatus")
+
 
 class Mates (object):
 
@@ -65,9 +67,9 @@ class FrgScfLine (object):
         atoms = row.split()
         self.fragmentID = atoms[0]
         self.scaffoldID = atoms[1]
-        self.begin = int(atoms[2]) + 1 # convert to 1-based
+        self.begin = int(atoms[2]) + 1  # convert to 1-based
         self.end = int(atoms[3])
-        self.orientation = '+' if atoms[4]=='f' else '-'
+        self.orientation = '+' if atoms[4] == 'f' else '-'
 
 
 class FrgScf (object):
@@ -96,7 +98,7 @@ class Posmap (LineFile):
         assert suffix in self.mapping, \
                 "`{0}` unknown format".format(filename)
 
-        # dispatch to the proper handler 
+        # dispatch to the proper handler
         klass = self.mapping[suffix]
         return klass(filename)
 
@@ -104,7 +106,7 @@ class Posmap (LineFile):
 def main():
 
     actions = (
-        ('dup', 'quantify the level of redundancy based on position collision'),
+        ('dup', 'estimate level of redundancy based on position collision'),
         ('pairs', 'report insert statistics for read pairs')
             )
     p = ActionDispatcher(actions)
@@ -127,11 +129,11 @@ def dup(args):
     frgscffile, = args
 
     fp = open(frgscffile)
-    data = [FrgScfLine(row) for row in fp] 
+    data = [FrgScfLine(row) for row in fp]
     # we need to separate forward and reverse reads, because the position
     # collisions are handled differently
-    forward_data = [x for x in data if x.orientation=='+']
-    reverse_data = [x for x in data if x.orientation=='-']
+    forward_data = [x for x in data if x.orientation == '+']
+    reverse_data = [x for x in data if x.orientation == '-']
 
     counts = defaultdict(int)
     key = lambda x: (x.scaffoldID, x.begin)
@@ -152,15 +154,16 @@ def dup(args):
     print >> sys.stderr, "Duplication level in `{0}`".format(prefix)
     print >> sys.stderr, "=" * 40
     for c, v in sorted(counts.items()):
-        if c > 10: break
-        label = "unique" if c==1 else "{0} copies".format(c)
-        print >> sys.stderr, "{0}: {1}".format(label, v) 
+        if c > 10:
+            break
+        label = "unique" if c == 1 else "{0} copies".format(c)
+        print >> sys.stderr, "{0}: {1}".format(label, v)
 
 
 def pairs(args):
     """
-    %prog pairs frgscffile 
-    
+    %prog pairs frgscffile
+
     report summary of the frgscf, how many paired ends mapped, avg
     distance between paired ends, etc. Reads have to be in the form of
     `READNAME{/1,/2}`
@@ -168,15 +171,15 @@ def pairs(args):
     p = OptionParser(pairs.__doc__)
     p.add_option("--cutoff", dest="cutoff", default=0, type="int",
             help="distance to call valid links between PE [default: %default]")
-    p.add_option("--pairs", dest="pairsfile", 
+    p.add_option("--pairs", dest="pairsfile",
             default=True, action="store_true",
             help="write valid pairs to pairsfile")
-    p.add_option("--inserts", dest="insertsfile", default=True, 
+    p.add_option("--inserts", dest="insertsfile", default=True,
             help="write insert sizes to insertsfile and plot distribution " + \
             "to insertsfile.pdf")
     opts, args = p.parse_args(args)
 
-    if len(args)!=1:
+    if len(args) != 1:
         sys.exit(p.print_help())
 
     cutoff = opts.cutoff

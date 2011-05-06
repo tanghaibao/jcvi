@@ -4,8 +4,8 @@
 """
 %prog infile [options]
 
-This script combines a series of pairwise alignments, sort and filter the alignments
-Infile expect BLAST tabular format (-m8). 
+This script combines pairwise alignments, sort and filter the alignments.
+Infile expect BLAST tabular format (-m8).
 
 In order to handle dups, we have to run two monotonous chains in both genomes,
 first chain using ref, and a second chain using query and we will have options
@@ -35,17 +35,18 @@ def BlastOrCoordsLine(filename, filter="ref", dialect="blast"):
     BLAST, COORDS = range(len(allowed_dialects))
 
     assert filter in allowed_filters
-    filter = allowed_filters.index(filter) 
+    filter = allowed_filters.index(filter)
 
     assert dialect in allowed_dialects
     dialect = allowed_dialects.index(dialect)
-    
+
     fp = open(filename)
     for i, row in enumerate(fp):
-        if row[0]=='#': continue
-        if dialect==BLAST:
+        if row[0] == '#':
+            continue
+        if dialect == BLAST:
             b = BlastLine(row)
-            if filter==QUERY:
+            if filter == QUERY:
                 query, start, end = b.query, b.qstart, b.qstop
             else:
                 query, start, end = b.subject, b.sstart, b.sstop
@@ -55,19 +56,20 @@ def BlastOrCoordsLine(filename, filter="ref", dialect="blast"):
             except AssertionError:
                 continue
 
-            if filter==QUERY:
+            if filter == QUERY:
                 query, start, end = b.query, b.start2, b.end2
             else:
                 query, start, end = b.ref, b.start1, b.end1
 
-        if start > end: start, end = end, start
+        if start > end:
+            start, end = end, start
 
         yield Range(query, start, end, b.score, i)
 
 
 def main(blast_file, filter="intersection", dialect="blast"):
     # filter by query
-    if opts.filter!="ref":
+    if opts.filter != "ref":
         logging.debug("filter by query")
         ranges = list(BlastOrCoordsLine(blast_file, filter="query",
             dialect=dialect))
@@ -76,7 +78,7 @@ def main(blast_file, filter="intersection", dialect="blast"):
         query_idx = set(x.id for x in query_selected)
 
     # filter by ref
-    if filter!="query":
+    if filter != "query":
         logging.debug("filter by ref")
         ranges = list(BlastOrCoordsLine(blast_file, filter="ref",
             dialect=dialect))
@@ -84,21 +86,21 @@ def main(blast_file, filter="intersection", dialect="blast"):
         ref_selected, ref_score = range_chain(ranges)
         ref_idx = set(x.id for x in ref_selected)
 
-    if filter=="ref":
+    if filter == "ref":
         selected_idx = ref_idx
 
-    elif filter=="query":
+    elif filter == "query":
         selected_idx = query_idx
 
-    elif filter=="intersection":
+    elif filter == "intersection":
         logging.debug("perform intersection")
         selected_idx = ref_idx & query_idx
 
-    elif filter=="union":
+    elif filter == "union":
         logging.debug("perform union")
         selected_idx = ref_idx | query_idx
 
-    assert len(selected_idx)!=0
+    assert len(selected_idx) != 0
 
     # selected_idx is in fact the lineno in the BLAST file
     fp = open(blast_file)
@@ -108,25 +110,25 @@ def main(blast_file, filter="intersection", dialect="blast"):
         if i < selected:
             continue
         print row.rstrip()
-        try: 
+        try:
             selected = selected_idx.next()
         except StopIteration:
             break
 
-    
+
 if __name__ == '__main__':
-    
+
     p = OptionParser(__doc__)
 
     filter_choices = ("ref", "query", "intersection", "union")
     dialect_choices = ("blast", "coords")
 
     p.add_option("-f", "--filter", choices=filter_choices,
-            dest="filter", default="intersection", 
-            help="filter choices: " + str(filter_choices) + " [default: %default]")
+            dest="filter", default="intersection",
+            help="filters: " + str(filter_choices) + " [default: %default]")
     p.add_option("-d", "--dialect", choices=dialect_choices,
             dest="dialect", default=None,
-            help="dialect choices: " + str(dialect_choices))
+            help="dialects: " + str(dialect_choices))
 
     opts, args = p.parse_args()
 
@@ -141,6 +143,6 @@ if __name__ == '__main__':
         dialect = "coords" if blast_file.endswith(".coords") else "blast"
         logging.debug("dialect is %s" % dialect)
 
-    filter = opts.filter 
+    filter = opts.filter
 
     main(blast_file, filter=filter, dialect=dialect)

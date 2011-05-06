@@ -7,17 +7,18 @@ import time
 import threading
 import unicodedata
 
-"""
-Print a tabular output, with horizontal separators
-"""
+
 def tabular(listOfStuff, rulersize=80):
+    """
+    Print a tabular output, with horizontal separators
+    """
     table_edge = "=" * rulersize + "\n"
     table_sep = "-" * rulersize + "\n"
     contents = table_sep.join(str(x) + "\n" for x in listOfStuff)
     return "".join((table_edge, contents, table_edge))
 
 """
-An ASCII text progress bar. See __main__ for command line use (using \r to 
+An ASCII text progress bar. See __main__ for command line use (using \r to
 move the cursor back to the start of the current line is the key, on
 terminals that do not support this functionality the progress bar will
 not work as well).
@@ -28,12 +29,12 @@ not work as well).
 from progressbar import ProgressBar, Percentage, Bar, ETA, FileTransferSpeed, \
          RotatingMarker, ReverseBar, SimpleProgress
 
-"""
-A console spin cursor class based on:
-<http://code.activestate.com/recipes/534142-spin-cursor/>
-"""
+
 class SpinCursor(threading.Thread):
-    
+    """
+    A console spin cursor class based on:
+    <http://code.activestate.com/recipes/534142-spin-cursor/>
+    """
     def __init__(self, msg='', maxspin=0, minspin=10, speed=5):
         # Count of a spin
         self.count = 0
@@ -47,7 +48,7 @@ class SpinCursor(threading.Thread):
         self.string = ''
         # Speed is given as number of spins a second
         # Use it to calculate spin wait time
-        self.waittime = 1.0/float(speed*4)
+        self.waittime = 1.0 / float(speed * 4)
         if os.name == 'posix':
             self.spinchars = (unicodedata.lookup('FIGURE DASH'), \
                     u'\\ ', u'| ', u'/ ')
@@ -56,7 +57,7 @@ class SpinCursor(threading.Thread):
             # up properly in Windows console.
             self.spinchars = (u'-', u'\\ ', u'| ', u'/ ')
         threading.Thread.__init__(self, None, None, "Spin Thread")
-        
+
     def spin(self):
         """ Perform a single spin """
 
@@ -68,19 +69,20 @@ class SpinCursor(threading.Thread):
 
     def run(self):
 
-        while (not self.flag) and ((self.count<self.min) or (self.count<self.max)):
+        while (not self.flag) and \
+              ((self.count < self.min) or (self.count < self.max)):
             self.spin()
             self.count += 1
 
         # Clean up display...
-        self.out.write(" "*(len(self.string) + 1))
-        
+        self.out.write(" " * (len(self.string) + 1))
+
     def stop(self):
         self.flag = True
-        
+
 
 """
-ANSI Color formatting for output in terminal based on termcolor 
+ANSI Color formatting for output in terminal based on termcolor
 <http://pypi.python.org/pypi/termcolor>
 
 Copyright (C) 2008-2009 Konstantin Lepa <konstantin.lepa@gmail.com>.
@@ -147,20 +149,23 @@ class ColoredText:
 def print_red(s):
     print(ColoredText(s, "red"))
 
+
 def print_green(s):
     print(ColoredText(s, "green"))
 
 
 if __name__ == '__main__':
 
-    # testing progress bar
-    # test cases taken from <http://python-progressbar.googlecode.com/hg/progressbar/examples.py>
+    """
+    test cases for progressbar taken from:
+    <http://python-progressbar.googlecode.com/hg/progressbar/examples.py>
+    """
 
     def example0():
         pbar = ProgressBar(widgets=[Percentage(), Bar()], maxval=300).start()
         for i in range(300):
             time.sleep(0.01)
-            pbar.update(i+1)
+            pbar.update(i + 1)
         pbar.finish()
         sys.stdout.write('\n')
 
@@ -170,7 +175,7 @@ if __name__ == '__main__':
         pbar = ProgressBar(widgets=widgets, maxval=10000000).start()
         for i in range(1000000):
             # do something
-            pbar.update(10*i+1)
+            pbar.update(10 * i + 1)
         pbar.finish()
         sys.stdout.write('\n')
 
@@ -190,7 +195,7 @@ if __name__ == '__main__':
         pbar.start()
         for i in range(2000000):
             # do something
-            pbar.update(5*i+1)
+            pbar.update(5 * i + 1)
         pbar.finish()
         sys.stdout.write('\n')
 
@@ -199,7 +204,7 @@ if __name__ == '__main__':
         pbar = ProgressBar(widgets=widgets, maxval=10000000).start()
         for i in range(1000000):
             # do something
-            pbar.update(10*i+1)
+            pbar.update(10 * i + 1)
         pbar.finish()
         sys.stdout.write('\n')
 
@@ -209,7 +214,7 @@ if __name__ == '__main__':
                    ' ', ETA(), ' ', FileTransferSpeed()]
         pbar = ProgressBar(widgets=widgets, maxval=500)
         pbar.start()
-        for i in range(100, 500+1, 50):
+        for i in range(100, 500 + 1, 50):
             time.sleep(0.2)
             pbar.update(i)
         pbar.finish()
@@ -263,14 +268,14 @@ if __name__ == '__main__':
     print(ColoredText('Blink yellow color', 'yellow|blink'))
     print(ColoredText('Reversed blue color', 'blue|reverse'))
     print(ColoredText('Concealed Magenta color', 'magenta|concealed'))
-    print(ColoredText('Bold underline reverse cyan color', 
+    print(ColoredText('Bold underline reverse cyan color',
         'cyan|bold|underline|reverse'))
-    print(ColoredText('Dark blink concealed white color', 
+    print(ColoredText('Dark blink concealed white color',
         'white|dark|blink|concealed'))
     print('-' * 78)
 
     print('Test mixing:')
-    print(ColoredText('Underline red on grey color', 
+    print(ColoredText('Underline red on grey color',
         'red|on_grey|underline'))
-    print(ColoredText('Reversed green on red color', 
+    print(ColoredText('Reversed green on red color',
         'green|on_red|reverse'))

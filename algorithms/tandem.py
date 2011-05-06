@@ -2,8 +2,8 @@
 %prog blast_file cds_file bed_file [options]
 
 Find tandem gene clusters that are separated by N genes, based on filtered
-blast_file by enforcing the alignments between any two genes are at least 50% of
-either genes.
+blast_file by enforcing alignments between any two genes at least 50% of
+either gene.
 """
 
 import sys
@@ -25,7 +25,7 @@ def main(blast_file, cds_file, bed_file, N=3):
     # get the sizes for the CDS first
     f = Fasta(cds_file)
     sizes = dict(f.itersizes())
-    
+
     # retrieve the locations
     bed = Bed(bed_file).order
 
@@ -38,12 +38,12 @@ def main(blast_file, cds_file, bed_file, N=3):
         subject_len = sizes[b.subject]
         if b.hitlen < min(query_len, subject_len) / 2:
             continue
-        
+
         query, subject = gene_name(b.query), gene_name(b.subject)
         qi, q = bed[query]
         si, s = bed[subject]
 
-        if q.seqid==s.seqid and abs(qi-si) <= N:
+        if q.seqid == s.seqid and abs(qi - si) <= N:
             g.join(query, subject)
 
     # dump the grouper
@@ -53,14 +53,14 @@ def main(blast_file, cds_file, bed_file, N=3):
         if len(group) >= 2:
             print ",".join(sorted(group))
             ngenes += len(group)
-            nfamilies += 1 
+            nfamilies += 1
             families.append(sorted(group))
 
     longest_family = max(families, key=lambda x: len(x))
-        
+
     # generate reports
     print >>sys.stderr, "Proximal paralogues (dist=%d):" % N
-    print >>sys.stderr, "Total of %d genes in %d families" % (ngenes, nfamilies)
+    print >>sys.stderr, "Total %d genes in %d families" % (ngenes, nfamilies)
     print >>sys.stderr, "Longest families (%d): %s" % (len(longest_family),
         ",".join(longest_family))
 
@@ -70,9 +70,9 @@ if __name__ == '__main__':
     p = OptionParser(__doc__)
     p.add_option("--tandem_Nmax", dest="tandem_Nmax", type="int", default=3,
                help="merge tandem genes within distance [default: %default]")
-    
+
     (opts, args) = p.parse_args()
-    
+
     if len(args) != 3:
         sys.exit(p.print_help())
 

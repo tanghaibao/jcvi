@@ -39,7 +39,7 @@ def check_index(dbfile, grid=False):
         cmd = "bwa index -a bwtsw {0}".format(dbfile)
         sh(cmd, grid=grid)
 
-    return safile 
+    return safile
 
 
 def check_aln(dbfile, readfile, grid=False):
@@ -51,7 +51,7 @@ def check_aln(dbfile, readfile, grid=False):
         cmd = "bwa aln {0} {1}".format(dbfile, readfile)
         sh(cmd, grid=grid, outfile=saifile)
 
-    return saifile 
+    return saifile
 
 
 def index(args):
@@ -102,7 +102,7 @@ def aln(args):
 
 def samse(args):
     """
-    %prog samse database.fasta short_read.fastq 
+    %prog samse database.fasta short_read.fastq
 
     Wrapper for `bwa samse`. Output will be short_read.sam.
     """
@@ -133,7 +133,7 @@ def samse(args):
 
 def sampe(args):
     """
-    %prog sampe database.fasta read1.fq read2.fq 
+    %prog sampe database.fasta read1.fq read2.fq
 
     Wrapper for `bwa sampe`. Output will be read1.sam.
     """
@@ -166,7 +166,7 @@ def sampe(args):
 
 def bwasw(args):
     """
-    %prog bwasw database.fasta long_read.fastq 
+    %prog bwasw database.fasta long_read.fastq
 
     Wrapper for `bwa bwasw`. Output will be long_read.sam.
     """

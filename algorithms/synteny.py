@@ -16,7 +16,7 @@ debug()
 
 
 def _score(cluster):
-    """ 
+    """
     score of the cluster, in this case, is the number of non-repetitive matches
     """
     x, y = zip(*cluster)
@@ -42,10 +42,12 @@ def read_blast(blast_file, qorder, sorder, is_self=False):
     for row in fp:
         b = BlastLine(row)
         query, subject = b.query, b.subject
-        if query not in qorder or subject not in sorder: continue
+        if query not in qorder or subject not in sorder:
+            continue
 
         key = query, subject
-        if key in seen: continue
+        if key in seen:
+            continue
         seen.add(key)
 
         qi, q = qorder[query]
@@ -72,9 +74,11 @@ def read_anchors(anchor_file, qorder, sorder):
     all_anchors = collections.defaultdict(list)
     fp = open(anchor_file)
     for row in fp:
-        if row[0]=='#': continue
+        if row[0] == '#':
+            continue
         a, b = row.split()
-        if a not in qorder or b not in sorder: continue
+        if a not in qorder or b not in sorder:
+            continue
         qi, q = qorder[a]
         si, s = sorder[b]
         all_anchors[(q.seqid, s.seqid)].append((qi, si))
@@ -84,27 +88,29 @@ def read_anchors(anchor_file, qorder, sorder):
 
 def synteny_scan(points, xdist, ydist, N):
     """
-    This is the core single linkage algorithm
-    this behaves in O(n) complexity: we iterate through the pairs, for each pair
-    we look back on the adjacent pairs to find links
+    This is the core single linkage algorithm which behaves in O(n):
+    iterate through the pairs, foreach pair we look back on the
+    adjacent pairs to find links
     """
     clusters = Grouper()
     n = len(points)
     points.sort()
     for i in xrange(n):
-        for j in xrange(i-1, -1, -1):
+        for j in xrange(i - 1, -1, -1):
             # x-axis distance
-            del_x = points[i][0]-points[j][0]
-            if del_x > xdist: break
+            del_x = points[i][0] - points[j][0]
+            if del_x > xdist:
+                break
             # y-axis distance
-            del_y = points[i][1]-points[j][1]
-            if abs(del_y) > ydist: continue
+            del_y = points[i][1] - points[j][1]
+            if abs(del_y) > ydist:
+                continue
             # otherwise join
             clusters.join(points[i], points[j])
 
     # select clusters that are at least >=N
     clusters = [sorted(cluster) for cluster in list(clusters) \
-            if _score(cluster)>=N]
+            if _score(cluster) >= N]
 
     return clusters
 
@@ -144,7 +150,8 @@ def synteny_liftover(points, anchors, dist):
 
     for point, dist, idx in zip(points, dists, idxs):
         # nearest is out of range
-        if idx==tree.n: continue
+        if idx == tree.n:
+            continue
         yield point
 
 
@@ -157,15 +164,15 @@ def add_options(p, args):
     p.add_option("--sbed", dest="sbed", help="path to sbed (required)")
 
     p.add_option("--dist", dest="dist",
-            default=10, type="int", 
-            help="the extent of flanking regions to search [default: %default]")
+            default=10, type="int",
+            help="extent of flanking regions to search [default: %default]")
 
     opts, args = p.parse_args(args)
 
     if not (len(args) == 2 and opts.qbed and opts.sbed):
         sys.exit(p.print_help())
 
-    blast_file, anchor_file = args 
+    blast_file, anchor_file = args
 
     qbed_file, sbed_file = opts.qbed, opts.sbed
     # is this a self-self blast?
@@ -219,9 +226,9 @@ def scan(args):
 
 def liftover(args):
     """
-    %prog liftover blastfile anchorfile [options] 
+    %prog liftover blastfile anchorfile [options]
 
-    Typical use for this program is given a list of anchors (for example, syntennic
+    Typical use for this program is given a list of anchors (syntennic
     genes), choose from the blastfile the pairs that are close to the anchors.
 
     Anchorfile has the following format, each row defines a pair.
@@ -251,14 +258,15 @@ def liftover(args):
         anchors = np.array(all_anchors[chr_pair])
 
         logging.debug("%s: %d" % (chr_pair, len(anchors)))
-        if not len(hits): continue
+        if not len(hits):
+            continue
 
         for point in synteny_liftover(hits, anchors, dist):
             qi, si = point[:2]
             query, subject = qbed[qi].accn, sbed[si].accn
             print >>fw, "\t".join((query, subject, "lifted"))
-            j+=1
-    
+            j += 1
+
     logging.debug("%d new pairs found" % j)
 
 

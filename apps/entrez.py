@@ -39,7 +39,7 @@ def batch_entrez(list_of_terms, db="nucleotide", retmax=1, rettype="fasta"):
     for term in list_of_terms:
 
         logging.debug("search term %s" % term)
-        success = False 
+        success = False
         ids = None
         while not success:
             try:
@@ -47,22 +47,24 @@ def batch_entrez(list_of_terms, db="nucleotide", retmax=1, rettype="fasta"):
                 rec = Entrez.read(search_handle)
                 success = True
                 ids = rec["IdList"]
-            except (urllib2.HTTPError, urllib2.URLError, RuntimeError, KeyError) as e:
-                logging.error(str(e))
+            except (urllib2.HTTPError, urllib2.URLError,
+                    RuntimeError, KeyError) as e:
+                logging.error(e)
                 logging.debug("wait 5 seconds to reconnect...")
                 time.sleep(5)
 
         assert ids
 
         for id in ids:
-            success = False 
+            success = False
             while not success:
                 try:
                     fetch_handle = Entrez.efetch(db=db, id=id, rettype=rettype,
                             email=myEmail)
                     success = True
-                except (urllib2.HTTPError, urllib2.URLError, RuntimeError) as e:
-                    logging.error(str(e))
+                except (urllib2.HTTPError, urllib2.URLError,
+                        RuntimeError) as e:
+                    logging.error(e)
                     logging.debug("wait 5 seconds to reconnect...")
                     time.sleep(5)
 
@@ -70,7 +72,7 @@ def batch_entrez(list_of_terms, db="nucleotide", retmax=1, rettype="fasta"):
 
 
 def main():
-    
+
     actions = (
         ('fetch', 'fetch records from a list of GenBank accessions'),
         ('bisect', 'determine the version of the accession'),
@@ -83,18 +85,18 @@ def bisect(args):
     """
     %prog bisect acc accession.fasta
 
-    determine the version of the accession, based on a fasta file. This proceeds
-    by a sequential search from ACxxxxxx.1 to the most updated record
+    determine the version of the accession, based on a fasta file.
+    This proceeds by a sequential search from xxxx.1 to the latest record.
     """
     p = OptionParser(bisect.__doc__)
-    
+
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
         sys.exit(p.print_help())
 
     acc, fastafile = args
-    arec = get_first_rec(fastafile) 
+    arec = get_first_rec(fastafile)
 
     valid = None
     for i in range(1, 100):
@@ -110,7 +112,7 @@ def bisect(args):
 
         match = print_first_difference(arec, brec, ignore_case=True,
                 ignore_N=True, rc=True)
-        if match: 
+        if match:
             valid = term
             break
 
@@ -123,16 +125,17 @@ def fetch(args):
     """
     %prog fetch filename
 
-    filename contains a list of terms to search 
+    filename contains a list of terms to search
     """
     p = OptionParser(fetch.__doc__)
 
     valid_formats = ("fasta", "gb")
-    p.add_option("--noversion", dest="noversion", default=False, action="store_true",
+    p.add_option("--noversion", dest="noversion",
+            default=False, action="store_true",
             help="Remove trailing accession versions")
     p.add_option("--format", default="fasta", choices=valid_formats,
             help="download format [default: %default]")
-    p.add_option("--outdir", default=None, 
+    p.add_option("--outdir", default=None,
             help="output directory, with accession number as filename")
     opts, args = p.parse_args(args)
 
@@ -146,7 +149,7 @@ def fetch(args):
             list_of_terms = [x.rsplit(".", 1)[0] for x in list_of_terms]
     else:
         # the filename is the search term
-        list_of_terms = [filename.strip()] 
+        list_of_terms = [filename.strip()]
 
     format = opts.format
 
@@ -155,8 +158,10 @@ def fetch(args):
         logging.error("`{0}` found, overwrite (Y/N)?".format(outfile))
         while True:
             yesno = raw_input()
-            if yesno=='N': return
-            elif yesno=='Y': break
+            if yesno == 'N':
+                return
+            elif yesno == 'Y':
+                break
             else:
                 logging.error("You have to answer Y/N ..")
                 continue
@@ -165,7 +170,7 @@ def fetch(args):
     if outdir and not op.exists(outdir):
         logging.debug("`%s` not found, creating new." % outdir)
         os.mkdir(outdir)
-    
+
     if not outdir:
         fw = open(outfile, "w")
 

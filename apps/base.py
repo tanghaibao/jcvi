@@ -29,7 +29,7 @@ class ActionDispatcher (object):
     def dispatch(self, globals):
         if len(sys.argv) == 1:
             self.print_help()
-        
+
         action = sys.argv[1]
 
         if not action in self.valid_actions:
@@ -51,7 +51,8 @@ def set_debug(instance, args):
 
     opts, args = instance.parse_args(args)
 
-    if opts.debug: debug()
+    if opts.debug:
+        debug()
 
 
 def set_grid(instance):
@@ -71,7 +72,7 @@ def set_params(instance):
     """
     assert isinstance(instance, OptionParser)
 
-    instance.add_option("--params", dest="extra", default="", 
+    instance.add_option("--params", dest="extra", default="",
             help="extra parameters to run")
 
 
@@ -99,7 +100,8 @@ def is_current_file(a, b):
     """
     Check if the file a is newer than file b
     """
-    if not (op.exists(a) and op.exists(b)): return False
+    if not (op.exists(a) and op.exists(b)):
+        return False
     am = os.stat(a).st_mtime
     bm = os.stat(b).st_mtime
     return am > bm
@@ -118,7 +120,7 @@ def debug():
     turn on the debugging
     """
     import logging
-    
+
     from jcvi.apps.console import ColoredText
 
     format = "%(asctime)s [%(module)s::%(levelname)s] %(message)s"

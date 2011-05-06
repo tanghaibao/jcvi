@@ -17,7 +17,8 @@ Wrapper for the common graph algorithms. Common usages are:
 import networkx as nx
 
 from networkx.algorithms.dag import topological_sort
-from networkx.algorithms.components.weakly_connected import weakly_connected_components
+from networkx.algorithms.components.weakly_connected import \
+        weakly_connected_components
 from networkx.algorithms.components.connected import connected_components
 
 if __name__ == '__main__':

@@ -27,7 +27,7 @@ z = 2
 
 def plot_cap(center, t, r):
     x, y = center
-    return zip(x + r*np.cos(t), y + r*np.sin(t))
+    return zip(x + r * np.cos(t), y + r * np.sin(t))
 
 
 def plot_chromosome(ax, x, y1, y2, y3, width=.015, cl="k", zorder=z):
@@ -35,28 +35,29 @@ def plot_chromosome(ax, x, y1, y2, y3, width=.015, cl="k", zorder=z):
     Chromosome with centromeres at y2 position
     """
     pts = []
-    r = width*.5
-    pts += plot_cap((x, y1-r), np.radians(range(180)), r)
-    pts += [[x-r, y1-r], [x-r, y2+r]]
-    pts += plot_cap((x, y2+r), np.radians(range(180, 360)), r)
-    pts += [[x+r, y2+r], [x+r, y1-r]]
+    r = width * .5
+    pts += plot_cap((x, y1 - r), np.radians(range(180)), r)
+    pts += [[x - r, y1 - r], [x - r, y2 + r]]
+    pts += plot_cap((x, y2 + r), np.radians(range(180, 360)), r)
+    pts += [[x + r, y2 + r], [x + r, y1 - r]]
     ax.add_patch(Polygon(pts, fc=cl, fill=False, zorder=z))
     pts = []
-    pts += plot_cap((x, y2-r), np.radians(range(180)), r)
-    pts += [[x-r, y2-r], [x-r, y3+r]]
-    pts += plot_cap((x, y3+r), np.radians(range(180, 360)), r)
-    pts += [[x+r, y3+r], [x+r, y2-r]]
+    pts += plot_cap((x, y2 - r), np.radians(range(180)), r)
+    pts += [[x - r, y2 - r], [x - r, y3 + r]]
+    pts += plot_cap((x, y3 + r), np.radians(range(180, 360)), r)
+    pts += [[x + r, y3 + r], [x + r, y2 - r]]
     ax.add_patch(Polygon(pts, fc=cl, fill=False, zorder=z))
-    ax.add_patch(CirclePolygon((x, y2), radius=r*.5, fc="k", ec="k", zorder=z))
+    ax.add_patch(CirclePolygon((x, y2), radius=r * .5,
+        fc="k", ec="k", zorder=z))
 
 
 def plot_c(ax, x, y1, y2, width=.015, cl="k", zorder=z):
     pts = []
-    r = width*.5
-    pts += plot_cap((x, y1-r), np.radians(range(180)), r)
-    pts += [[x-r, y1-r], [x-r, y2+r]]
-    pts += plot_cap((x, y2+r), np.radians(range(180, 360)), r)
-    pts += [[x+r, y2+r], [x+r, y1-r]]
+    r = width * .5
+    pts += plot_cap((x, y1 - r), np.radians(range(180)), r)
+    pts += [[x - r, y1 - r], [x - r, y2 + r]]
+    pts += plot_cap((x, y2 + r), np.radians(range(180, 360)), r)
+    pts += [[x + r, y2 + r], [x + r, y1 - r]]
     ax.add_patch(Polygon(pts, fc=cl, fill=False, zorder=z))
 
 
@@ -64,7 +65,7 @@ def main():
     """
     %prog bedfile idMappings
 
-    Takes a bedfile that contains the coordinates of the features to plot onto the
+    Takes a bedfile that contains the coordinates of features to plot on the
     chromosomes, and an idMappings file that map the ids to certain class. Each
     class will get assigned a unique color.
     """
@@ -112,19 +113,21 @@ def main():
     fig = plt.figure(1, (6, 6))
     root = fig.add_axes([0, 0, 1, 1])
 
-    r = .7 # width and height of the whole chromosome set
+    r = .7  # width and height of the whole chromosome set
     xstart, ystart = .15, .15
     xinterval = r / chr_number
-    xwidth = xinterval*.5 # chromosome width
+    xwidth = xinterval * .5  # chromosome width
     max_chr_len = max(chr_lens.values())
-    ratio = r / max_chr_len # canvas / base
+    ratio = r / max_chr_len  # canvas / base
 
     # first the chromosomes
     for a, (chr, cent_position) in enumerate(sorted(centromeres.items())):
         clen = chr_lens[chr]
-        xx, yy = xstart + a*xinterval + .5*xwidth, ystart + (clen-cent_position)*ratio
-        root.text(xx, ystart-.01, _(chr), va="top", ha="center")
-        plot_chromosome(root, xx, ystart + clen*ratio, yy, ystart, width=xwidth, zorder=z)
+        xx = xstart + a * xinterval + .5 * xwidth,
+        yy = ystart + (clen - cent_position) * ratio
+        root.text(xx, ystart - .01, _(chr), va="top", ha="center")
+        plot_chromosome(root, xx, ystart + clen * ratio, yy,
+                ystart, width=xwidth, zorder=z)
 
     chr_idxs = dict((a, i) for i, a in enumerate(sorted(chr_lens.keys())))
 
@@ -138,28 +141,29 @@ def main():
         start = b.start
         end = b.end
         klass = b.accn
-        yystart = ystart + (clen-end) * ratio
-        yyend = ystart + (clen-start) * ratio
-        root.add_patch(Rectangle((xx, yystart), xwidth, yyend-yystart,
+        yystart = ystart + (clen - end) * ratio
+        yyend = ystart + (clen - start) * ratio
+        root.add_patch(Rectangle((xx, yystart), xwidth, yyend - yystart,
             fc=class_colors[klass], lw=0, alpha=alpha))
 
     if opts.gauge:
-        tip = .008 # the ticks on the gauge bar
-        extra = .006 # the offset for the unit label
+        tip = .008  # the ticks on the gauge bar
+        extra = .006  # the offset for the unit label
         xstart, ystart = .9, .15
         yy = ystart
         gauge = int(ceil(max_chr_len / 1e6))
         mb = ratio * 1e6
         yinterval = 2 * mb
-        root.plot([xstart, xstart], [yy, yy+r], 'b-', lw=2)
+        root.plot([xstart, xstart], [yy, yy + r], 'b-', lw=2)
         for x in xrange(0, gauge, 2):
             if x % 10:
-                root.plot([xstart, xstart+tip], [yy, yy], "b-")
+                root.plot([xstart, xstart + tip], [yy, yy], "b-")
             else:
-                root.plot([xstart-tip, xstart+tip], [yy, yy], 'b-', lw=2)
-                root.text(xstart+tip+extra, yy, _(x), color="gray", va="center")
+                root.plot([xstart - tip, xstart + tip], [yy, yy], 'b-', lw=2)
+                root.text(xstart + tip + extra, yy, _(x),
+                        color="gray", va="center")
             yy += yinterval
-        root.text(xstart, ystart-.03, _("Mb"), color="gray", va="center")
+        root.text(xstart, ystart - .03, _("Mb"), color="gray", va="center")
 
     # class legends, four in a row
     xstart = .1
@@ -167,7 +171,8 @@ def main():
     xwidth = .04
     yy = .9
     for klass, cc in sorted(class_colors.items()):
-        if klass=='-': continue
+        if klass == '-':
+            continue
         root.add_patch(Rectangle((xstart, yy), xwidth, xwidth, fc=cc, lw=0,
             alpha=alpha))
         root.text(xstart + xwidth + .01, yy, _(klass), fontsize=9)

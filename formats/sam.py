@@ -16,7 +16,7 @@ from pysam import Samfile
 from jcvi.apps.console import ProgressBar
 from jcvi.formats.base import LineFile
 from jcvi.formats.fasta import Fasta
-from jcvi.utils.cbook import fill 
+from jcvi.utils.cbook import fill
 from jcvi.assembly.base import Astat
 from jcvi.apps.base import ActionDispatcher, sh, debug
 debug()
@@ -51,9 +51,11 @@ class Sam (LineFile):
 
         fp = open(filename)
         for row in fp:
-            if row[0]=='@': continue
+            if row[0] == '@':
+                continue
             s = SamLine(row)
-            if callback: callback(s)
+            if callback:
+                callback(s)
 
 
 def main():
@@ -137,28 +139,29 @@ def cigar_to_seq(a, gap='*'):
     start = 0
     subseqs = []
     npadded = 0
-    if cigar is None: return None, npadded
+    if cigar is None:
+        return None, npadded
 
     for operation, length in cigar:
-        end = start if operation==2 else start + length
+        end = start if operation == 2 else start + length
 
-        if operation==0: # match
+        if operation == 0:  # match
             subseq = seq[start:end]
-        elif operation==1: #insertion
+        elif operation == 1:  # insertion
             subseq = ""
-        elif operation==2: # deletion
+        elif operation == 2:  # deletion
             subseq = gap * length
             npadded += length
-        elif operation==3: # skipped
+        elif operation == 3:  # skipped
             subseq = 'N' * length
-        elif operation in (4, 5): # clip
+        elif operation in (4, 5):  # clip
             subseq = ""
         else:
             raise NotImplementedError
 
         subseqs.append(subseq)
         start = end
-    
+
     return "".join(subseqs), npadded
 
 
@@ -168,7 +171,7 @@ def ace(args):
 
     convert bam format to ace format. This often allows the remapping to be
     assessed as a denovo assembly format. bam file needs to be indexed. also
-    creates a .mates file to be used in amos/bambus, and .astat file to indicate
+    creates a .mates file to be used in amos/bambus, and .astat file to mark
     whether the contig is unique or repetitive based on A-statistics in Celera
     assembler.
     """
@@ -201,11 +204,11 @@ def ace(args):
     logging.debug("Load {0}".format(bamfile))
     s = Samfile(bamfile, "rb")
 
-    ncontigs = s.nreferences 
+    ncontigs = s.nreferences
     genomesize = sum(x for a, x in f.itersizes())
     logging.debug("Total {0} contigs with size {1} base".format(ncontigs,
         genomesize))
-    qual = "20" # default qual
+    qual = "20"  # default qual
 
     totalreads = sum(s.count(x) for x in s.references)
     logging.debug("Total {0} reads mapped".format(totalreads))
@@ -224,18 +227,18 @@ def ace(args):
     for i, contig in enumerate(s.references):
         pbar.update(i)
         cseq = f[contig]
-        nbases = len(cseq) 
+        nbases = len(cseq)
 
         mapped_reads = [x for x in s.fetch(contig) if not x.is_unmapped]
         nreads = len(mapped_reads)
-        if nreads < minreadno or nbases < minctgsize: 
+        if nreads < minreadno or nbases < minctgsize:
             SeqIO.write(cseq, leftoverfw, "fasta")
             continue
 
         nsegments = 0
         print >> fw, "CO {0} {1} {2} {3} U".format(contig, nbases, nreads,
                 nsegments)
-        print >> fw, fill(str(cseq.seq)) 
+        print >> fw, fill(str(cseq.seq))
         print >> fw
 
         astat = Astat(nbases, nreads, genomesize, totalreads)
@@ -256,15 +259,16 @@ def ace(args):
             rnames.append(rname)
 
             strand = "C" if a.is_reverse else "U"
-            paddedstart = a.pos + 1 # 0-based to 1-based
+            paddedstart = a.pos + 1  # 0-based to 1-based
             af = "AF {0} {1} {2}".format(rname, strand, paddedstart)
-            print >> fw, af 
+            print >> fw, af
 
         print >> fw
 
         for a, rname in zip(mapped_reads, rnames):
             aseq, npadded = cigar_to_seq(a)
-            if aseq is None: continue
+            if aseq is None:
+                continue
 
             ninfos = 0
             ntags = 0
@@ -272,12 +276,12 @@ def ace(args):
             rd = "RD {0} {1} {2} {3}\n{4}".format(rname, alen, ninfos, ntags,
                     fill(aseq))
             qs = "QA 1 {0} 1 {0}".format(alen)
-        
+
             print >> fw, rd
             print >> fw
             print >> fw, qs
             print >> fw
-    
+
     fw.close()
     readsfw.close()
     astatfw.close()

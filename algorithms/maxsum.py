@@ -9,10 +9,11 @@ Implements the max sum segment algorithm, using Kadane's algorithm, see
 
 Infinity = 1e10000
 
+
 def max_sum(a):
     """
     For an input array a, output the range that gives the largest sum
-    
+
     >>> max_sum([4, 4, 9, -5, -6, -1, 5, -6, -8, 9])
     (17, 0, 2)
     >>> max_sum([8, -10, 10, -9, -6, 9, -7, -4, -10, -8])
@@ -23,7 +24,7 @@ def max_sum(a):
 
     max_sum, max_start_index, max_end_index = -Infinity, 0, 0
     current_max_sum = 0
-    current_start_index = 0 
+    current_start_index = 0
     for current_end_index, x in enumerate(a):
         current_max_sum += x
         if current_max_sum > max_sum:

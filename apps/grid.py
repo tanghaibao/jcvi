@@ -11,7 +11,7 @@ import logging
 
 from glob import glob
 from itertools import izip_longest
-from subprocess import Popen, PIPE 
+from subprocess import Popen, PIPE
 from optparse import OptionParser
 
 from jcvi.formats.base import FileSplitter
@@ -20,7 +20,7 @@ debug()
 
 
 sge = "sge"
-PCODE = "04048" # Project code, JCVI specific
+PCODE = "04048"  # Project code, JCVI specific
 commitfile = op.join(sge, "COMMIT")
 statusfile = op.join(sge, "STATUS")
 
@@ -42,17 +42,17 @@ def check_sge(overwrite=False):
 
 class CmdReplacer (object):
     """
-    This creates parallelized version of cmd, but glob the input files (with the
+    Creates parallelized version of cmd, but glob the input files (with the
     same suffix) and produce output files (with another suffix). each command
     runs on one input file and generates corresponding output file
     """
     def __init__(self, cmd, infile, outfile, outputdir=sge):
-        
+
         split_inputs = glob(infile)
         infile_suffix = op.splitext(infile)[-1]
         outfile_suffix = op.splitext(outfile)[-1]
-        split_outputs = [op.basename(x).replace(infile_suffix, outfile_suffix) for x
-                in split_inputs]
+        split_outputs = [op.basename(x).replace(infile_suffix,
+            outfile_suffix) for x in split_inputs]
 
         self.cmds = []
         for sinput, soutput in zip(split_inputs, split_outputs):
@@ -61,9 +61,9 @@ class CmdReplacer (object):
             self.cmds.append(scmd)
 
         assert self.cmds, "no commands generated"
-        
+
         # cats to different files
-        self.outfiles = split_outputs 
+        self.outfiles = split_outputs
 
 
 class CmdSplitter (object):
@@ -107,7 +107,8 @@ class GridProcess (object):
         self.errfile = errfile
 
     def __str__(self):
-        return "\t".join((x for x in (self.jobid, self.cmd, self.outfile) if x))
+        return "\t".join((x for x in \
+                (self.jobid, self.cmd, self.outfile) if x))
 
     def make_defunct(self):
         if not self.is_defunct:
@@ -115,11 +116,12 @@ class GridProcess (object):
 
     @property
     def is_defunct(self):
-        return self.cmd[0]=='#'
+        return self.cmd[0] == '#'
 
     def start(self, path=sge):
 
-        if self.is_defunct: return
+        if self.is_defunct:
+            return
 
         cwd = os.getcwd()
         if path:
@@ -139,8 +141,8 @@ class GridProcess (object):
         # run the command and get the job-ID (important)
         p = Popen(cmd, stdout=PIPE, shell=True)
         output = p.communicate()[0]
-        
-        if output.strip()!="":
+
+        if output.strip() != "":
             self.jobid = re.search(self.pat, output).group("id")
         else:
             self.jobid = "-1"
@@ -169,12 +171,13 @@ class Grid (list):
                 logging.error("both COMMIT and STATUS not found")
                 sys.exit(1)
 
-        assert sum(1 for p in self if not p.is_defunct), "job list need to be non-empty"
+        assert sum(1 for p in self if not p.is_defunct), \
+                "job list need to be non-empty"
         self.cmdgroup = self[0].cmd.split()[0]
 
     def get_job(self, jobid):
         for p in self:
-            if p.jobid==jobid and not p.is_defunct:
+            if p.jobid == jobid and not p.is_defunct:
                 return p
 
         logging.error("job %s not found in STATUS or is a defunct job" % jobid)
@@ -188,7 +191,7 @@ class Grid (list):
             pi.start()
 
     def readcommit(self):
-        
+
         if not op.exists(commitfile):
             logging.error("you must run `commit` first")
             sys.exit(1)
@@ -220,8 +223,8 @@ class Grid (list):
         fw = open(commitfile, "w")
 
         for p in self:
-            print >>sys.stderr, p 
-            print >>fw, p 
+            print >>sys.stderr, p
+            print >>fw, p
 
         logging.debug("the above commands are written to %s" % commitfile)
         fw.close()
@@ -229,9 +232,9 @@ class Grid (list):
     def writestatus(self):
 
         fw = open(statusfile, "w")
-        
+
         for p in self:
-            print >>fw, p 
+            print >>fw, p
         fw.close()
 
 
@@ -259,7 +262,7 @@ def run(args):
     needs to be quoted.
     """
     p = OptionParser(run.__doc__)
-    
+
     if len(args) != 1:
         sys.exit(p.print_help())
 
@@ -276,43 +279,43 @@ def run(args):
         # is equivalent to "process test.trimmed.fastq test.pdf"
 
         basename = filename.split(".")[0]
-        if " " not in cmd: 
+        if " " not in cmd:
             ncmd = " ".join((cmd, filename))
         else:
             ncmd = cmd.replace("*", filename)
             ncmd = ncmd.replace("#", basename)
 
         p = GridProcess(ncmd)
-        p.start(path=None) # current folder
+        p.start(path=None)  # current folder
 
 
 def commit(args):
     """
-    %prog commit -i infile -o outfile -n N "command" 
+    %prog commit -i infile -o outfile -n N "command"
 
     split the command into N pieces, replacing the `infile` string with
     `infile_00` etc., also for `outfile`, write all the commands into
     sge/commit. Most often command needs to be quoted.
     """
     p = OptionParser(commit.__doc__)
-    
+
     p.add_option("-i", dest="infile", help="infile")
     p.add_option("-o", dest="outfile", help="outfile")
-    p.add_option("-n", dest="N", type="int", default=4, 
+    p.add_option("-n", dest="N", type="int", default=4,
             help="number of hosts to run on (1 < N < 100)")
 
     opts, args = p.parse_args(args)
     try:
         assert all((opts.infile, opts.outfile)), \
                 "need to set all options [-i, -o]"
-        assert len(args)==1
-        cmd, N = args[0], opts.N 
+        assert len(args) == 1
+        cmd, N = args[0], opts.N
         infile, outfile = opts.infile, opts.outfile
     except AssertionError as e:
-        logging.error(str(e))
+        logging.error(e)
         sys.exit(p.print_help())
 
-    try: # clean up first
+    try:  # clean up first
         os.remove(commitfile)
         os.remove(statusfile)
     except:
@@ -349,11 +352,11 @@ def rerun(args):
     """
     p = OptionParser(rerun.__doc__)
 
-    p.add_option("-j", dest="jobid", 
+    p.add_option("-j", dest="jobid",
             help="rerun job with id (once resubmitted, it will get a new id)")
 
     opts, args = p.parse_args(args)
-    
+
     if not opts.jobid:
         logging.error("you need to specify jobid (-j)")
         sys.exit(p.print_help())
@@ -362,7 +365,7 @@ def rerun(args):
     p = g.get_job(opts.jobid)
 
     newp = GridProcess(p.cmd, outfile=p.outfile)
-    newp.start() # start and acquire a job id
+    newp.start()  # start and acquire a job id
 
     p.make_defunct()
     g.append(newp)
@@ -370,8 +373,8 @@ def rerun(args):
 
 
 def filemerger(split_outputs, outfiles, dir=sge):
-    
-    assert len(outfiles)==1 or len(outfiles)==len(split_outputs), \
+
+    assert len(outfiles) == 1 or len(outfiles) == len(split_outputs), \
             "outfiles must be length 1 or same as split_outputs"
 
     os.chdir(sge)
@@ -381,7 +384,7 @@ def filemerger(split_outputs, outfiles, dir=sge):
 
 def merge(args):
     """
-    %prog merge output|stdout|stderr 
+    %prog merge output|stdout|stderr
 
     merge all outputfiles into single files, only choices are:
     - output, concatenate all the files that are successful runs in OUTPUT
@@ -395,27 +398,28 @@ def merge(args):
         filetype = args[0]
         assert filetype in ("output", "stdout", "stderr")
     except Exception, e:
-        logging.error(str(e))
+        logging.error(e)
         sys.exit(p.print_help())
 
     assert op.exists(statusfile), "STATUS file not found, cannot merge"
 
     g = Grid()
-    cmdgroup = g.cmdgroup # the actual command that was run
+    cmdgroup = g.cmdgroup  # the actual command that was run
     stdoutlist = []
     stderrlist = []
     outfiles = []
     for p in g:
-        if p.is_defunct: continue
+        if p.is_defunct:
+            continue
         stdoutlist.append("%s.o%s" % (cmdgroup, p.jobid))
         stderrlist.append("%s.e%s" % (cmdgroup, p.jobid))
         outfiles.append(p.outfile)
 
-    if filetype=="output":
+    if filetype == "output":
         filemerger(stdoutlist, outfiles)
-    elif filetype=="stdout":
+    elif filetype == "stdout":
         filemerger(stdoutlist, ["%s.stdout" % cmdgroup])
-    elif filetype=="stderr":
+    elif filetype == "stderr":
         filemerger(stderrlist, ["%s.stderr" % cmdgroup])
 
 

@@ -1,5 +1,5 @@
 """
-Useful recipes from various internet sources (thanks) 
+Useful recipes from various internet sources (thanks)
 mostly decorator patterns
 """
 
@@ -8,10 +8,11 @@ import logging
 from texttable import Texttable
 table = Texttable()
 
+
 def tabulate(d, key_fun=str):
     """
     d is a dictionary, keyed by tuple(A, B).
-    Goal is to put A in rows, and B in columns, make a table to report these data.
+    Goal is to put A in rows, B in columns, report data in table form.
 
     >>> d = {(1,'a'):3, (1,'b'):4, (2,'a'):5, (2,'b'):0}
     >>> print tabulate(d)
@@ -73,8 +74,8 @@ class memoized(object):
         return functools.partial(self.__call__, obj)
 
 
-SUFFIXES = {1000: ['', 'Kb', 'Mb', 'Gb', 'Tb', 'Pb', 'Eb', 'Zb', 'Yb'],
-            1024: ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB']}
+SUFFIXES = {1000: ['', 'Kb', 'Mb', 'Gb', 'Tb', 'Pb', 'Eb', 'Zb'],
+            1024: ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB']}
 
 
 def human_size(size, a_kilobyte_is_1024_bytes=False, precision=1, target=None):
@@ -100,7 +101,7 @@ def human_size(size, a_kilobyte_is_1024_bytes=False, precision=1, target=None):
 
     multiple = 1024 if a_kilobyte_is_1024_bytes else 1000
     for suffix in SUFFIXES[multiple]:
-        if size >= multiple or (target and suffix!=target):
+        if size >= multiple or (target and suffix != target):
             size /= float(multiple)
         else:
             return '{0:.{1}f}{2}'.format(size, precision, suffix)
@@ -112,9 +113,10 @@ def human_size(size, a_kilobyte_is_1024_bytes=False, precision=1, target=None):
 Random ad-hoc functions
 """
 
-# helper functions in the BLAST filtering to get rid alternative splicings
+
 def gene_name(st):
     """
+    Helper functions in the BLAST filtering to get rid alternative splicings
     this is ugly, but different annotation groups are inconsistent
     with how the alternative splicings are named;
     mostly it can be done by removing the suffix
@@ -133,7 +135,7 @@ def fill(text, delimiter="", width=70):
     """
     texts = []
     for i in xrange(0, len(text), width):
-        t = delimiter.join(text[i:i+width])
+        t = delimiter.join(text[i:i + width])
         texts.append(t)
     return "\n".join(texts)
 

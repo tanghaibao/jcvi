@@ -11,7 +11,7 @@ from optparse import OptionParser
 from subprocess import Popen, PIPE
 from multiprocessing import Process, Lock
 
-from jcvi.apps.grid import Grid 
+from jcvi.apps.grid import Grid
 from jcvi.apps.base import ActionDispatcher, debug, set_params, set_grid
 debug()
 
@@ -27,9 +27,10 @@ lastz_fields = "name2,name1,identity,nmismatch,ngap,"\
 # this is not rigorous definition of e-value (assumes human genome) !!
 blastz_score_to_ncbi_bits = lambda bz_score: bz_score * 0.0205
 
+
 def blastz_score_to_ncbi_expectation(bz_score):
     bits = blastz_score_to_ncbi_bits(bz_score)
-    log_prob = -bits * 0.693147181 
+    log_prob = -bits * 0.693147181
     # this number looks like.. human genome?
     return 3.0e9 * math.exp(log_prob)
 
@@ -58,7 +59,7 @@ def lastz_to_blast(row):
 
 def lastz(k, n, bfasta_fn, afasta_fn, out_fh, lock, lastz_path, extra,
         blastline=True, mask=False, grid=False):
-    lastz_bin = lastz_path or "lastz" 
+    lastz_bin = lastz_path or "lastz"
 
     ref_tags = ["multiple", "nameparse=darkspace"]
     qry_tags = ["nameparse=darkspace", "subsample=%d/%d" % (k, n)]
@@ -78,7 +79,7 @@ def lastz(k, n, bfasta_fn, afasta_fn, out_fh, lock, lastz_path, extra,
         # (of which I contributed a patch)
         lastz_cmd += " --format=BLASTN-"
 
-    if grid: # if run on SGE, only the comd is needed
+    if grid:  # if run on SGE, only the comd is needed
         return lastz_cmd
 
     proc = Popen(lastz_cmd, bufsize=1, stdout=PIPE, shell=True)
@@ -140,19 +141,20 @@ def main():
     if grid:
         cmds = []
         for k in xrange(cpus):
-            lastz_cmd = lastz(k+1, cpus, bfasta_fn, afasta_fn, out_fh, 
-                    lock, lastz_path, extra, blastline=opts.blastline, 
+            lastz_cmd = lastz(k + 1, cpus, bfasta_fn, afasta_fn, out_fh,
+                    lock, lastz_path, extra, blastline=opts.blastline,
                     mask=opts.mask, grid=grid)
             cmds.append(lastz_cmd)
 
-        g = Grid(cmds, outfiles=["lastz.out"]*len(cmds))
+        g = Grid(cmds, outfiles=["lastz.out"] * len(cmds))
         g.run()
         g.writestatus()
-    
+
     else:
         processes = []
         for k in xrange(cpus):
-            pi = Process(target=lastz, args=(k+1, cpus, bfasta_fn, afasta_fn, out_fh, 
+            pi = Process(target=lastz, args=(k + 1, cpus,
+                bfasta_fn, afasta_fn, out_fh,
                 lock, lastz_path, extra, opts.blastline, opts.mask))
             pi.start()
             processes.append(pi)

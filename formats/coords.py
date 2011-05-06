@@ -160,7 +160,6 @@ class Coords (LineFile):
 
         return hits
 
-
     @property
     def best_hits(self):
         """
@@ -261,7 +260,7 @@ def coverage(args):
         cumulative_cutoff = sum(x.querycov for x in lines)
         coverages.append((query, cumulative_cutoff))
 
-    coverages.sort(key=lambda x:(-x[1], x[0]))
+    coverages.sort(key=lambda x: (-x[1], x[0]))
     for query, cumulative_cutoff in coverages:
         if cumulative_cutoff < opts.cutoff: break 
         print "{0}\t{1:.2f}".format(query, cumulative_cutoff)
@@ -434,4 +433,3 @@ def bed(args):
 
 if __name__ == '__main__':
     main()
-

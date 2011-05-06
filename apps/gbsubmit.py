@@ -134,9 +134,9 @@ def get_plate(nrows=Nrows, ncols=Ncols):
         for j in xrange(0, ncols, 2):
             n += 1
             prefix = "{0:02d}".format(n)
-            plate[i  ][j  ] = prefix + 'A'
-            plate[i  ][j+1] = prefix + 'B'
-            plate[i+1][j  ] = prefix + 'C'
+            plate[i][j] = prefix + 'A'
+            plate[i][j+1] = prefix + 'B'
+            plate[i+1][j] = prefix + 'C'
             plate[i+1][j+1] = prefix + 'D'
 
     # (96+quadrant) to 384
@@ -192,7 +192,7 @@ def parse_description(s):
     """
     Returns a dictionary based on the FASTA header, assuming JCVI data
     """
-    s = "".join(s.split()[1:]).replace("/",";")
+    s = "".join(s.split()[1:]).replace("/", ";")
     a = parse_qs(s)
     return a 
 

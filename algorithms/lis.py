@@ -84,4 +84,3 @@ if __name__ == '__main__':
     print list(A)
     print "longest increasing:", longest_increasing_subsequence(A)
     print "longest decreasing:", longest_decreasing_subsequence(A)
-

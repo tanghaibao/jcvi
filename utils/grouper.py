@@ -55,7 +55,6 @@ class Grouper(object):
                 for elem in set_b:
                     mapping[elem] = set_a
 
-
     def joined(self, a, b):
         """
         Returns True if a and b are members of the same set.
@@ -65,7 +64,6 @@ class Grouper(object):
             return mapping[a] is mapping[b]
         except KeyError:
             return False
-
 
     def __iter__(self):
         """
@@ -77,27 +75,22 @@ class Grouper(object):
                 yield group
                 seen.update(group)
 
-
     def __getitem__(self, key):
         """
         Returns the set that a certain key belongs.
         """
         return tuple(self._mapping[key])
 
-
     def __contains__(self, key):
         return key in self._mapping
-
 
     def __len__(self):
         group = set()
         for v in self._mapping.values():
-           group.update([tuple(v)])
+            group.update([tuple(v)])
         return len(group)
 
 
 if __name__ == '__main__':
-
     import doctest
     doctest.testmod()
-

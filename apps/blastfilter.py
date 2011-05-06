@@ -291,7 +291,7 @@ def tandem_grouper(bed, blast_list, tandem_Nmax=10, flip=True):
     simple_blast.sort()
 
     standems = Grouper()
-    for name, hits in itertools.groupby(simple_blast, key=lambda x:x[0]):
+    for name, hits in itertools.groupby(simple_blast, key=lambda x: x[0]):
         # these are already sorted.
         hits = [x[1] for x in hits]
         for ia, a in enumerate(hits[:-1]):
@@ -338,4 +338,3 @@ if __name__ == "__main__":
 
     blastfile, = args
     main(blastfile, opts)
-

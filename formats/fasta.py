@@ -45,12 +45,10 @@ class Fasta (BaseFile, dict):
         return len(self.index)
 
     def __contains__(self, key):
-
         key = self._key_function(key)
         return key in self.index 
         
     def __getitem__(self, key):
-        
         key = self._key_function(key)
         if key in self.index:
             rec = self.index[key]
@@ -102,7 +100,6 @@ class Fasta (BaseFile, dict):
 
         return seq
         
-
     def sequence(self, f, asstring=True):
         """
         Emulate brentp's pyfasta/fasta.py sequence() methods

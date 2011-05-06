@@ -77,8 +77,8 @@ def blastplot(blastfile, qsizes, ssizes, qbed, sbed, image_name,
     width = 8
     height = width * ratio
     fig = plt.figure(1, (width, height))
-    root = fig.add_axes([0,0,1,1]) # the whole canvas
-    ax = fig.add_axes([.1,.1,.8,.8]) # the dot plot
+    root = fig.add_axes([0, 0, 1, 1])  # the whole canvas
+    ax = fig.add_axes([.1, .1, .8, .8])  # the dot plot
 
     if lines:
         for a, b in data:
@@ -199,4 +199,3 @@ if __name__ == "__main__":
     image_name = op.splitext(blastfile)[0] + "." + opts.format
     blastplot(blastfile, qsizes, ssizes, qbed, sbed, image_name, 
             lines=lines, proportional=proportional)
-

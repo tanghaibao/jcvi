@@ -86,7 +86,7 @@ class FileSplitter (object):
             format = "txt"
         return format
 
-    def _batch_iterator(self, N=1) :
+    def _batch_iterator(self, N=1):
         """Returns N lists of records.
      
         This can be used on any iterator, for example to batch up

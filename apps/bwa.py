@@ -195,6 +195,5 @@ def bwasw(args):
     sh(cmd, grid=grid, outfile=samfile)
 
 
-
 if __name__ == '__main__':
     main()

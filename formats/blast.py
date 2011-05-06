@@ -45,7 +45,6 @@ class BlastLine(object):
         else:
             self.orientation = '+'
 
- 
     def __repr__(self):
         return "BlastLine('%s' to '%s', eval=%.3f, score=%.1f)" % \
                 (self.query, self.subject, self.evalue, self.score)

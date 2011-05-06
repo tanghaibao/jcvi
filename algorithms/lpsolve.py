@@ -96,8 +96,8 @@ class GLPKSolver(AbstractMIPSolver):
     """
     def run(self, lpfile):
 
-        outfile = op.join(self.work_dir, "data.lp.out") # verbose output
-        listfile = op.join(self.work_dir,"data.lp.list") # simple output
+        outfile = op.join(self.work_dir, "data.lp.out")  # verbose output
+        listfile = op.join(self.work_dir, "data.lp.list")  # simple output
         # cleanup in case something wrong happens
         for f in (outfile, listfile):
             if op.exists(f): 
@@ -297,4 +297,3 @@ if __name__ == '__main__':
 
     import doctest
     doctest.testmod()
-

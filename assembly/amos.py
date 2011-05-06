@@ -108,7 +108,7 @@ def read_record(fp, first_line=None):
 
         match = _START.match(row)
         if match:
-            message.append( read_record(fp, row) )
+            message.append(read_record(fp, row))
             continue
 
         if row[0] == '}':

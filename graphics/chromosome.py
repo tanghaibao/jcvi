@@ -92,7 +92,7 @@ def main():
     bed = Bed(bedfile)
     chr_lens = {}
     centromeres = {}
-    for b, blines in groupby(bed, key=(lambda x:x.seqid)):
+    for b, blines in groupby(bed, key=(lambda x: x.seqid)):
         blines = list(blines)
         maxlen = max(x.end for x in blines)
         chr_lens[b] = maxlen
@@ -110,7 +110,7 @@ def main():
     assert chr_number == len(centromeres)
 
     fig = plt.figure(1, (6, 6))
-    root = fig.add_axes([0,0,1,1])
+    root = fig.add_axes([0, 0, 1, 1])
 
     r = .7 # width and height of the whole chromosome set
     xstart, ystart = .15, .15
@@ -174,7 +174,7 @@ def main():
         xstart += xinterval
 
     label = "Medicago truncatula v3.5"
-    root.text(.5,.05, label, fontstyle="italic", ha="center", va="center")
+    root.text(.5, .05, label, fontstyle="italic", ha="center", va="center")
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
@@ -186,4 +186,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

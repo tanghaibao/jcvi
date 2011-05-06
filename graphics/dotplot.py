@@ -25,7 +25,7 @@ debug()
 def get_breaks(bed):
     # get chromosome break positions
     simple_bed = bed.simple_bed
-    for seqid, ranks in groupby(simple_bed, key=lambda x:x[0]):
+    for seqid, ranks in groupby(simple_bed, key=lambda x: x[0]):
         ranks = list(ranks)
         # chromosome, extent of the chromosome
         yield seqid, ranks[0][1], ranks[-1][1]
@@ -46,7 +46,7 @@ def draw_cmap(ax, cmap_text, vmin, vmax, cmap=None, reverse=False):
     Y = np.array([X, X])
     xmin, xmax = .5, .9
     ymin, ymax = .02, .04
-    ax.imshow(Y, extent=(xmin,xmax,ymin,ymax), cmap=cmap)
+    ax.imshow(Y, extent=(xmin, xmax, ymin, ymax), cmap=cmap)
     ax.text(xmin-.01, (ymin + ymax)*.5, _(cmap_text), ha="right", va="center",
             size=10)
     vmiddle = (vmin + vmax) * .5
@@ -90,9 +90,9 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax,
         si, s = sorder[subject]
         data.append((qi, si, vmax-value))
 
-    fig = plt.figure(1,(8,8))
-    root = fig.add_axes([0,0,1,1]) # the whole canvas
-    ax = fig.add_axes([.1,.1,.8,.8]) # the dot plot
+    fig = plt.figure(1, (8, 8))
+    root = fig.add_axes([0, 0, 1, 1]) # the whole canvas
+    ax = fig.add_axes([.1, .1, .8, .8]) # the dot plot
 
     sample_number = 5000 # only show random subset
     if len(data) > sample_number:
@@ -231,4 +231,3 @@ if __name__ == "__main__":
     image_name = op.splitext(anchorfile)[0] + "." + opts.format
     dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, 
             is_self=is_self, synteny=synteny, cmap_text=cmap_text)
-

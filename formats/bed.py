@@ -59,7 +59,7 @@ class BedLine(object):
                 "start={0} end={1}".format(self.start, self.end)
 
         if self.strand:
-            strand = {'+':'-', '-':'+'}[self.strand] 
+            strand = {'+': '-', '-': '+'}[self.strand]
             self.strand = self.extra[1] = strand
 
 

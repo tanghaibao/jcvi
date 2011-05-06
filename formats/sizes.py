@@ -70,6 +70,3 @@ class Sizes (LineFile):
     def get_breaks(self):
         for i in xrange(1, len(self)):
             yield self.ctgs[i], self.cumsizes[i-1], self.cumsizes[i]
-
-
-

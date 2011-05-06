@@ -47,7 +47,7 @@ def generate_plot(filename, rplot=rplot, rpdf=rpdf):
     rtemplate.run()
 
 
-def A50 (args):
+def A50(args):
     """
     %prog A50 contigs_A.fasta contigs_B.fasta ...
     

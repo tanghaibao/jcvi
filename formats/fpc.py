@@ -121,6 +121,6 @@ if __name__ == '__main__':
     if len(args) != 1:
         sys.exit(p.print_help())
 
-    fpcfile = args[0]
+    fpcfile, = args
 
     main(fpcfile)

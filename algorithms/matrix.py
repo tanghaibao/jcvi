@@ -32,7 +32,6 @@ def determine_signs(nodes, edges):
         M[ia, ib] = 1 if direction == '+' else -1
 
     M = symmetrize(M)
-    print M
 
     return get_signs(M, validate=False)
 

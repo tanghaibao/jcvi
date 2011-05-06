@@ -29,6 +29,8 @@ import os.path as op
 import logging
 import bsddb
 
+from optparse import OptionParser
+
 from jcvi.apps.base import debug
 from jcvi.formats.base import read_until
 debug()
@@ -98,11 +100,25 @@ class FastaEntry (object):
         read_until(fh, ">")
 
 
-if __name__ == "__main__":
+def main():
+    """
+    %prog fastafile
 
-    f = sys.argv[1]
+    Index fasta file (experimental).
+    """
+    p = OptionParser(main.__doc__)
+    opts, args = p.parse_args()
+
+    if len(args) != 1:
+        sys.exit(p.print_help())
+
+    f, = args
     fi = FileIndex(f, FastaEntry)
     print fi
     print ','.join(fi.keys()[:4])
     print fi[2].id
     fi.close()
+
+
+if __name__ == "__main__":
+    main()

@@ -132,8 +132,8 @@ def iter_records(file):
 def main():
 
     actions = (
-        ('frg', 'extract FASTA sequences from frg'),
-        ('asm', 'extract FASTA sequences from asm'),
+        ('frg', 'extract fasta sequences from frg'),
+        ('asm', 'extract fasta sequences from asm'),
         ('count', 'count each type of messages'),
             )
     p = ActionDispatcher(actions)

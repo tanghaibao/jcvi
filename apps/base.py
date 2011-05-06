@@ -84,6 +84,7 @@ def sh(cmd, grid=False, infile=None, outfile=None, errfile=None):
         from jcvi.apps.grid import GridProcess
         pr = GridProcess(cmd, infile=infile, outfile=outfile, errfile=errfile)
         pr.start(path=None)
+        return 0  # A fake retcode
     else:
         if infile:
             cmd += " < {0} ".format(infile)
@@ -93,7 +94,7 @@ def sh(cmd, grid=False, infile=None, outfile=None, errfile=None):
             cmd += " 2> {0} ".format(errfile)
 
         logging.debug(cmd)
-        call(cmd, shell=True)
+        return call(cmd, shell=True)
 
 
 def is_current_file(a, b):

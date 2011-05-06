@@ -67,7 +67,7 @@ class AbstractMIPSolver(object):
         lpfile = op.join(work_dir, "data.lp")  # problem instance
         logging.debug("write MIP instance to `{0}`".format(lpfile))
 
-        fw = file(lpfile, "w")
+        fw = open(lpfile, "w")
         fw.write(lp_data)
         fw.close()
 
@@ -107,8 +107,8 @@ class GLPKSolver(AbstractMIPSolver):
         cmd = "glpsol --cuts --fpump --lp {0} -o {1} -w {2}".format(lpfile,
                 outfile, listfile)
 
-        outfile = None if self.verbose else "/dev/null"
-        retcode = sh(cmd, outfile=outfile)
+        outf = None if self.verbose else "/dev/null"
+        retcode = sh(cmd, outfile=outf)
 
         if retcode == 127:
             logging.error("You need to install program `glpsol` " + \
@@ -150,10 +150,9 @@ class SCIPSolver(AbstractMIPSolver):
             os.remove(outfile)
 
         cmd = "scip -f {0} -l {1}".format(lpfile, outfile)
-        if not self.verbose:
-            cmd += " >/dev/null"
 
-        retcode = sh(cmd)
+        outf = None if self.verbose else "/dev/null"
+        retcode = sh(cmd, outfile=outf)
 
         if retcode == 127:
             logging.error("You need to install program `scip` " +\

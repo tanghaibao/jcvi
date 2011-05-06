@@ -11,7 +11,7 @@ from matplotlib import cm
 from jcvi.utils.cbook import human_size
 
 # i always like the latex font
-_ = lambda x: r"$\mathsf{%s}$" % x.replace("_", " ").replace(" ", r"\ ")
+_ = lambda x: r"$\mathsf{%s}$" % str(x).replace("_", " ").replace(" ", r"\ ")
 
 # human readable size (Kb, Mb, Gb)
 human_size_formatter = ticker.FuncFormatter(lambda x, pos: \

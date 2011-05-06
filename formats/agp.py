@@ -130,7 +130,6 @@ class AGP (LineFile):
         """
         return dict((x.component_id, x) for x in self if not x.is_gap)
 
-
     @classmethod
     def print_header(cls, fw=sys.stdout, organism="Medicago truncatula", taxid=3880,
             source="J. Craig Venter Institute", comment=None):
@@ -145,9 +144,7 @@ class AGP (LineFile):
                  "component_end/linkage orientation"
         print >> fw, "# FIELDS: {0}".format(", ".join(header.split()))
 
-
     def report_stats(self, object, bacs, scaffold_sizes):
-        
         from jcvi.utils.cbook import human_size
 
         nbacs = len(bacs)
@@ -156,7 +153,6 @@ class AGP (LineFile):
 
         print "\t".join(str(x) for x in (object, nbacs, nscaffolds, l50,
             human_size(n50, precision=2, target="Mb")))
-
 
     def summary_one(self, object, lines):
         bacs = set()
@@ -182,7 +178,6 @@ class AGP (LineFile):
 
         return bacs, scaffold_sizes
 
-
     def summary_all(self):
         
         all_bacs = set()
@@ -194,7 +189,6 @@ class AGP (LineFile):
             all_scaffold_sizes.extend(scaffold_sizes)
 
         self.report_stats("Total", all_bacs, all_scaffold_sizes)
-
 
     def validate_one(self, object, lines):
         object_beg = lines[0].object_beg
@@ -211,7 +205,6 @@ class AGP (LineFile):
         for ob, lines_with_same_ob in groupby(self, key=lambda x: x.object):
             lines = list(lines_with_same_ob)
             self.validate_one(ob, lines)
-
 
     def build_one(self, object, lines, fasta, fw):
         """
@@ -238,14 +231,11 @@ class AGP (LineFile):
                         "cumulative base pairs (%d) does not match (%d)" % \
                         (total_bp, line.object_end)
 
-
         rec = SeqRecord(Seq(''.join(components)), id=object, description="")
         SeqIO.write([rec], fw, "fasta")
         logging.debug("Write object %s to `%s`" % (object, fw.name))
 
-
     def build_all(self, componentfasta, targetfasta):
-
         f = Fasta(componentfasta, index=False)
         fw = open(targetfasta, "w")
 
@@ -600,7 +590,7 @@ def build(args):
     validate = not (opts.novalidate)
 
     try:
-        agpfile, componentfasta, targetfasta  = args
+        agpfile, componentfasta, targetfasta = args
     except Exception, e:
         sys.exit(p.print_help())
 
@@ -620,7 +610,7 @@ def validate(args):
     opts, args = p.parse_args(args)
 
     try:
-        agpfile, componentfasta, targetfasta  = args
+        agpfile, componentfasta, targetfasta = args
     except Exception, e:
         sys.exit(p.print_help())
 

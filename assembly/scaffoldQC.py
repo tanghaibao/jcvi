@@ -110,5 +110,3 @@ if __name__ == '__main__':
         if scafsize < opts.cutoff: break
         imagename = ".".join((scaffoldID, opts.format))
         plot_one_scaffold(scaffoldID, scafsize, beds, imagename)
-
-

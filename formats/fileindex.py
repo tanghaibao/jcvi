@@ -103,4 +103,3 @@ if __name__ == "__main__":
     print ','.join(fi.keys()[:4])
     print fi[2].id
     fi.close()
-

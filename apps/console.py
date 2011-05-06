@@ -34,7 +34,7 @@ A console spin cursor class based on:
 """
 class SpinCursor(threading.Thread):
     
-    def __init__(self, msg='',maxspin=0,minspin=10,speed=5):
+    def __init__(self, msg='', maxspin=0, minspin=10, speed=5):
         # Count of a spin
         self.count = 0
         self.out = sys.stdout
@@ -49,11 +49,12 @@ class SpinCursor(threading.Thread):
         # Use it to calculate spin wait time
         self.waittime = 1.0/float(speed*4)
         if os.name == 'posix':
-            self.spinchars = (unicodedata.lookup('FIGURE DASH'),u'\\ ',u'| ',u'/ ')
+            self.spinchars = (unicodedata.lookup('FIGURE DASH'), \
+                    u'\\ ', u'| ', u'/ ')
         else:
             # The unicode dash character does not show
             # up properly in Windows console.
-            self.spinchars = (u'-',u'\\ ',u'| ',u'/ ')        
+            self.spinchars = (u'-', u'\\ ', u'| ', u'/ ')
         threading.Thread.__init__(self, None, None, "Spin Thread")
         
     def spin(self):
@@ -178,12 +179,12 @@ if __name__ == '__main__':
             "It's bigger between 45 and 80 percent"
             def update(self, pbar):
                 if 45 < pbar.percentage() < 80:
-                    return 'Bigger Now ' + FileTransferSpeed.update(self,pbar)
+                    return 'Bigger Now ' + FileTransferSpeed.update(self, pbar)
                 else:
-                    return FileTransferSpeed.update(self,pbar)
+                    return FileTransferSpeed.update(self, pbar)
 
-        widgets = [CrazyFileTransferSpeed(),' <<<', Bar(), '>>> ',
-                   Percentage(),' ', ETA()]
+        widgets = [CrazyFileTransferSpeed(), ' <<<', Bar(), '>>> ',
+                   Percentage(), ' ', ETA()]
         pbar = ProgressBar(widgets=widgets, maxval=10000000)
         # maybe do something
         pbar.start()
@@ -204,11 +205,11 @@ if __name__ == '__main__':
 
     def example4():
         widgets = ['Test: ', Percentage(), ' ',
-                   Bar(marker='0',left='[',right=']'),
+                   Bar(marker='0', left='[', right=']'),
                    ' ', ETA(), ' ', FileTransferSpeed()]
         pbar = ProgressBar(widgets=widgets, maxval=500)
         pbar.start()
-        for i in range(100,500+1,50):
+        for i in range(100, 500+1, 50):
             time.sleep(0.2)
             pbar.update(i)
         pbar.finish()
@@ -226,7 +227,7 @@ if __name__ == '__main__':
         f()
 
     # test spin cursor
-    spin = SpinCursor(msg="Spinning...",minspin=5,speed=5)
+    spin = SpinCursor(msg="Spinning...", minspin=5, speed=5)
     spin.start()
     spin.join()
     print
@@ -273,4 +274,3 @@ if __name__ == '__main__':
         'red|on_grey|underline'))
     print(ColoredText('Reversed green on red color', 
         'green|on_red|reverse'))
-

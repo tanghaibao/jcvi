@@ -54,4 +54,3 @@ def Astat(delta, k, G, n):
     n: total reads mapped to genome
     """
     return n * delta * 1. / G - k * ln2
-

@@ -45,12 +45,10 @@ class Fasta (BaseFile, dict):
         return len(self.index)
 
     def __contains__(self, key):
-
         key = self._key_function(key)
         return key in self.index 
         
     def __getitem__(self, key):
-        
         key = self._key_function(key)
         if key in self.index:
             rec = self.index[key]
@@ -102,7 +100,6 @@ class Fasta (BaseFile, dict):
 
         return seq
         
-
     def sequence(self, f, asstring=True):
         """
         Emulate brentp's pyfasta/fasta.py sequence() methods
@@ -148,7 +145,7 @@ def main():
         ('uniq', 'remove records that are the same'),
         ('format', 'trim accession id to the first space'),
         ('random', 'random take some records'),
-        ('diff', 'check if two FASTA records contain same information'),
+        ('diff', 'check if two fasta records contain same information'),
         ('trim', 'given a cross_match screened fasta, trim the sequence'),
         ('pair', 'sort paired reads to .pairs.fasta and remaining to .fragments.fasta'),
         ('fastq', 'combine fasta and qual to create fastq file'),

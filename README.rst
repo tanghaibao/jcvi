@@ -54,6 +54,7 @@ Contents
     * Genome assembly A50 plot.
     * BLAST or synteny dot plot.
     * Histogram using R.
+    * Painting regions on set of chromosomes.
 
 - ``utils``
     Data structures to simplify programming tasks. Most of the scripts are
@@ -61,7 +62,7 @@ Contents
     modules.  For example:
 
     * Grouper can be used as disjoint set data structure.
-    * range contains common range operations, like overlapp and chaining.
+    * range contains common range operations, like overlap and chaining.
     * Sybase connector.
     * Miscellaneous cookbook recipes.
 
@@ -69,9 +70,11 @@ Contents
 Dependencies
 -------------
 Following are a list of third-party python packages that are used by some
-routines in the library. 
+routines in the library. These dependencies are *not* mandatory since they are
+only used by a few modules.
 
 * `Biopython <http://www.biopython.org>`_
+* `numpy <http://numpy.scipy.org>`_
 * `scipy <http://www.scipy.org>`_
 
 

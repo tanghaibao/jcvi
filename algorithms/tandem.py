@@ -80,4 +80,3 @@ if __name__ == '__main__':
     N = opts.tandem_Nmax
 
     main(blast_file, cds_file, bed_file, N=N)
-

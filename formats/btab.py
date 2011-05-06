@@ -39,7 +39,7 @@ class BtabLine (object):
     @property
     def blastline(self):
         # some fields are not represented so ignore
-        return "\t".join( (self.query, self.subject, 
+        return "\t".join((self.query, self.subject,
                 "%.2f" % self.pctid, 
                 "0", "0", "0",
                 "%d" % self.qstart, "%d" % self.qstop,

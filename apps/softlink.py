@@ -88,7 +88,7 @@ def cp(args):
     fp = sys.stdin
 
     for link_name in fp:
-        link_name  = link_name.strip()
+        link_name = link_name.strip()
         if not op.islink(link_name): continue
         if not op.exists(link_name): continue
 
@@ -113,7 +113,7 @@ def size(args):
 
     results = []
     for link_name in fp:
-        link_name  = link_name.strip()
+        link_name = link_name.strip()
         if not op.islink(link_name): continue
 
         source = get_abs_path(link_name)
@@ -130,4 +130,3 @@ def size(args):
 
 if __name__ == '__main__':
     main()
-

@@ -96,7 +96,7 @@ class GOTerm (object):
         self.name = ""           # description
         self.namespace = ""      # BP, CC, MF
         self._parents = []       # is_a basestring of parents
-        self.parents  = []       # parent records
+        self.parents = []        # parent records
         self.children = []       # children records
         self.level = -1          # distance from root node
         self.is_obsolete = False # is_obsolete
@@ -289,4 +289,3 @@ if __name__ == '__main__':
     if opts.term:
         rec = g.query_term(opts.term, verbose=True)
         g.draw_lineage([rec], verbose=True)
-

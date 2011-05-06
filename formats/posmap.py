@@ -90,9 +90,7 @@ class Posmap (LineFile):
     def __init__(self, filename):
         super(Posmap, self).__init__(filename)
 
-
     def parse(self):
-
         filename = self.filename
         suffix = filename.rsplit(".", 1)[-1]
         assert suffix in self.mapping, \

@@ -34,7 +34,7 @@ def make_attributes(s, gff3=True):
         return parse_qs(s)
 
     attributes = s.split("; ")
-    d = defaultdict(list) 
+    d = defaultdict(list)
     for a in attributes:
         key, val = a.strip().split(' ', 1)
         val = val.replace('"', '')
@@ -64,7 +64,7 @@ class GffLine (object):
         self.attributes_text = args[8].strip()
         self.attributes = make_attributes(self.attributes_text, gff3=gff3)
         # key is not in the gff3 field, this indicates the conversion to accn
-        self.key = key # usually it's `ID=xxxxx;`
+        self.key = key  # usually it's `ID=xxxxx;`
 
     def __getitem__(self, key):
         return getattr(self, key)
@@ -77,9 +77,9 @@ class GffLine (object):
 
     @property
     def bedline(self):
-        score = "1000" if self.score=='.' else self.score
-        row = "\t".join((self.seqid, str(self.start-1), str(self.end),
-            self.accn, score, self.strand))
+        score = "1000" if self.score == '.' else self.score
+        row = "\t".join((self.seqid, str(self.start - 1),
+            str(self.end), self.accn, score, self.strand))
         return BedLine(row)
 
 
@@ -87,10 +87,11 @@ class Gff (LineFile):
 
     def __init__(self, filename, gff3=True):
         super(Gff, self).__init__(filename)
-        
+
         fp = open(filename)
         for row in fp:
-            if row[0]=='#': continue
+            if row[0] == '#':
+                continue
             self.append(GffLine(row, gff3=gff3))
 
 
@@ -119,23 +120,26 @@ def bed(args):
             help="the key in the attributes to extract [default: %default]")
 
     opts, args = p.parse_args(args)
-    if len(args)!=1:
+    if len(args) != 1:
         sys.exit(p.print_help())
 
     key = opts.key
-    if key=="None": key = None
+    if key == "None":
+        key = None
 
     fp = open(args[0])
-    b = Bed() 
+    b = Bed()
 
     seen = set()
-    for row in fp: 
+    for row in fp:
 
-        if row[0]=='#': continue
+        if row[0] == '#':
+            continue
 
         g = GffLine(row, key=key)
-        if g.type!=opts.type: continue
-        
+        if g.type != opts.type:
+            continue
+
         if g.seqid in seen:
             logging.error("duplicate name %s found" % g.seqid)
 
@@ -149,7 +153,7 @@ def load(args):
     '''
     %prog load gff_file fasta_file [--options]
 
-    Parses the selected features out of GFF, with subfeatures concatenated together.
+    Parses the selected features out of GFF, with subfeatures concatenated.
     For example, to get the CDS sequences, do this::
         %prog athaliana.gff athaliana.fa --parents mRNA --children CDS
     '''
@@ -165,11 +169,10 @@ def load(args):
 
     if len(args) != 2:
         sys.exit(p.print_help())
-    
+
     try:
         import GFFutils
-    except ImportError, e:
-        logging.error(str(e))
+    except ImportError as e:
         logging.error("You must install python library `GFFutils`")
 
     gff_file, fa_file = args
@@ -193,19 +196,21 @@ def load(args):
         children = []
         for c in g.children(feat.id, 1):
 
-            if c.featuretype not in children_list: continue
+            if c.featuretype not in children_list:
+                continue
             child = f.sequence(dict(chr=c.chrom, start=c.start, stop=c.stop,
                 strand=c.strand))
             children.append((child, c))
 
-        if not children: 
+        if not children:
             print >>sys.stderr, "[warning] %s has no children with type %s" \
                                     % (feat.id, ','.join(children_list))
             continue
         # sort children in incremental position
         children.sort(key=lambda x: x[1].start)
         # reverse children if negative strand
-        if feat.strand=='-': children.reverse()
+        if feat.strand == '-':
+            children.reverse()
         feat_seq = ''.join(x[0] for x in children)
 
         print ">%s" % feat.id

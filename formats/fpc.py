@@ -38,7 +38,7 @@ class FpcRecord (object):
         self.remark = []
 
     def __str__(self):
-        return '\t'.join((self.bac_name, self.ctg_name, 
+        return '\t'.join((self.bac_name, self.ctg_name,
             str(self.map_left), str(self.map_right),
             self.bands, ','.join(self.probes), ','.join(self.remark)))
 
@@ -46,7 +46,7 @@ class FpcRecord (object):
 class FpcReader (object):
     """
     parse fpc file, usage:
-    
+
     >>> reader = FpcReader()
     >>> for rec in reader:
             print rec
@@ -64,7 +64,7 @@ class FpcReader (object):
             rec = FpcRecord()
             assert header.startswith(bac_tag)
             rec.bac_name = header.split('\"')[1]
-            
+
             for line in seq:
                 if line.startswith("Map"):
                     rec.ctg_name = line.split('\"')[1]
@@ -93,11 +93,11 @@ class FpcReader (object):
                     rec.mod_date = line.split('_date')[1].strip()
 
             yield rec
-        
+
 
 def main(fpcfile):
 
-    fw = sys.stdout 
+    fw = sys.stdout
     f = FpcReader(fpcfile)
 
     # first several lines are comments
@@ -105,22 +105,22 @@ def main(fpcfile):
         'bands', 'probes', 'remark'))
     print >> fw, header
 
-    recs = list(f) 
+    recs = list(f)
     logging.debug("%d records parsed" % len(recs))
-        
+
     recs.sort(key=lambda x: (x.ctg_name, x.map_left, x.map_right))
     for rec in recs:
         print >> fw, rec
 
 
 if __name__ == '__main__':
-    
+
     p = OptionParser(__doc__)
     opts, args = p.parse_args()
 
-    if len(args)!=1:
+    if len(args) != 1:
         sys.exit(p.print_help())
 
-    fpcfile = args[0]
+    fpcfile, = args
 
     main(fpcfile)

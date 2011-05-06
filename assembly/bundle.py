@@ -41,7 +41,7 @@ def bed(args):
     p.add_option("-l", dest="links", type="int", default=2,
             help="Minimum number of mate pairs to bundle [default: %default]")
     p.add_option("--debug", dest="debug", default=False, action="store_true",
-            help="Print verbose debug infor about checking mates [default: %default]")
+            help="Print verbose info when checking mates [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -56,7 +56,7 @@ def bed(args):
     sizes = Sizes(fastafile)
 
     fp = open(bedfile)
-    
+
     sample = 100000
     logging.debug(\
         "Sample only the first {0} lines to estimate inserts".format(sample))
@@ -76,7 +76,7 @@ def bed(args):
         """
         Criteria for valid contig edge
         1. for/rev do not mapping to the same scaffold (useful for linking)
-        2. assuming innie (outie has to be flipped first), order the contig pair
+        2. assuming innie (outie must be flipped first), order the contig pair
         3. calculate sequence hangs, valid hangs are smaller than insert size
         """
         a, b = BedLine(a), BedLine(b)
@@ -84,10 +84,12 @@ def bed(args):
             print >> sys.stderr, a
             print >> sys.stderr, b
 
-        if rs(a) != rs(b): continue
+        if rs(a) != rs(b):
+            continue
         pe = rs(a)
 
-        if a.seqid == b.seqid: continue
+        if a.seqid == b.seqid:
+            continue
         """
         The algorithm that determines the oNo of this contig pair, the contig
         order is determined by +-, assuming that the matepairs are `innies`. In
@@ -95,18 +97,18 @@ def bed(args):
         bringing the strandness of two contigs to the expected +-.
         """
         if a.strand == b.strand:
-            if b.strand == "+": # case: "++", flip b
+            if b.strand == "+":  # case: "++", flip b
                 b.reverse_complement(sizes)
-            else: # case: "--", flip a
+            else:  # case: "--", flip a
                 a.reverse_complement(sizes)
 
-        if b.strand == "+": # case: "-+"
+        if b.strand == "+":  # case: "-+"
             a, b = b, a
 
         assert a.strand == "+" and b.strand == "-"
         """
         ------===----          -----====----
-              |_ahang            bhang_| 
+              |_ahang            bhang_|
         """
         aseqid = a.seqid.rstrip('-')
         size = sizes.get_size(aseqid)
@@ -122,9 +124,9 @@ def bed(args):
         # Valid links need to be separated by the lib insert
         hangs = ahang + bhang
 
-        if hangs > maxcutoff: 
+        if hangs > maxcutoff:
             if debug:
-                print >> sys.stderr, "invalid link. skipped." 
+                print >> sys.stderr, "invalid link. skipped."
             continue
 
         # pair (1+, 2-) is the same as (2+, 1-), only do the canonical one
@@ -133,17 +135,21 @@ def bed(args):
             b.reverse_complement(sizes)
             a, b = b, a
 
-        # Ignore redundant mates, in this case if the size of the hangs is seen,
-        # then it is probably redundant, since indepenet circularization event
-        # will give slightly different value)
-        if hangs in [x[1] for x in contigGraph[(a.seqid, b.seqid)]]: continue
+        """
+        Ignore redundant mates, in this case if the size of the hangs is seen,
+        then it is probably redundant, since indepenet circularization event
+        will give slightly different value)
+        """
+        if hangs in [x[1] for x in contigGraph[(a.seqid, b.seqid)]]:
+            continue
 
         contigGraph[(a.seqid, b.seqid)].append((pe, hangs))
 
-    g = nx.Graph() # use this to get connected components
+    g = nx.Graph()  # use this to get connected components
 
     for pair, mates in sorted(contigGraph.items()):
-        if len(mates) < links: continue 
+        if len(mates) < links:
+            continue
         gaps = []
         for hang in [x[1] for x in mates]:
             gmin = max(p1 - hang, 0)
@@ -175,7 +181,7 @@ def solve_component(h):
     N = len(nodes)
 
     print N, nodes, ledges
-    print determine_signs(nodes, ledges) 
+    print determine_signs(nodes, ledges)
 
 
 if __name__ == '__main__':

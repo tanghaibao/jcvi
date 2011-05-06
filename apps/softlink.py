@@ -15,8 +15,9 @@ from optparse import OptionParser
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
+
 def main():
-    
+
     actions = (
         ('touch', 'touch all the symlinks'),
         ('cp', 'cp all the symlinks to current folder'),
@@ -44,7 +45,7 @@ def touch(args):
     """
     find . -type l | %prog touch
 
-    Linux commands `touch` wouldn't modify the mtime for symlinks, this script can.
+    Linux commands `touch` wouldn't modify mtime for links, this script can.
     Use find to pipe in all the symlinks.
     """
     p = OptionParser(touch.__doc__)
@@ -53,8 +54,10 @@ def touch(args):
 
     for link_name in fp:
         link_name = link_name.strip()
-        if not op.islink(link_name): continue
-        if not op.exists(link_name): continue
+        if not op.islink(link_name):
+            continue
+        if not op.exists(link_name):
+            continue
 
         source = get_abs_path(link_name)
 
@@ -73,7 +76,8 @@ def clean(args):
     opts, args = p.parse_args(args)
 
     for link_name in os.listdir(os.getcwd()):
-        if not op.islink(link_name): continue
+        if not op.islink(link_name):
+            continue
         logging.debug("remove symlink `{0}`".format(link_name))
         os.unlink(link_name)
 
@@ -89,8 +93,10 @@ def cp(args):
 
     for link_name in fp:
         link_name = link_name.strip()
-        if not op.islink(link_name): continue
-        if not op.exists(link_name): continue
+        if not op.islink(link_name):
+            continue
+        if not op.exists(link_name):
+            continue
 
         source = get_abs_path(link_name)
 
@@ -102,11 +108,11 @@ def cp(args):
 
 def size(args):
     """
-    find folder -type l | %prog size 
+    find folder -type l | %prog size
 
     Get the size for all the paths that are pointed by the links
     """
-    from jcvi.utils.cbook import human_size 
+    from jcvi.utils.cbook import human_size
 
     p = OptionParser(size.__doc__)
     fp = sys.stdin
@@ -114,7 +120,8 @@ def size(args):
     results = []
     for link_name in fp:
         link_name = link_name.strip()
-        if not op.islink(link_name): continue
+        if not op.islink(link_name):
+            continue
 
         source = get_abs_path(link_name)
 
@@ -124,7 +131,7 @@ def size(args):
 
     # sort by descending file size
     for filesize, link_name in sorted(results, reverse=True):
-        filesize = human_size(filesize, a_kilobyte_is_1024_bytes=True) 
+        filesize = human_size(filesize, a_kilobyte_is_1024_bytes=True)
         print >>sys.stderr, "%10s\t%s" % (filesize, link_name)
 
 

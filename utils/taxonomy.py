@@ -28,7 +28,8 @@ from urllib2 import urlopen
 from ClientForm import ParseResponse
 from BeautifulSoup import BeautifulSoup
 
-URL="http://itol.embl.de/other_trees.shtml"
+URL = "http://itol.embl.de/other_trees.shtml"
+
 
 class TaxIDTree(object):
 
@@ -46,7 +47,7 @@ class TaxIDTree(object):
 
         for element in soup("textarea"):
 
-            if element["id"]=="nameCol":
+            if element["id"] == "nameCol":
                 self.newick = str(element.contents[0])
 
     def __str__(self):
@@ -92,6 +93,6 @@ def MRCA(list_of_taxids):
 
 
 if __name__ == '__main__':
-    
+
     import doctest
-    doctest.testmod()
+    #doctest.testmod()

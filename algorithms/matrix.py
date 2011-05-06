@@ -15,13 +15,13 @@ from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
 
-is_symmetric = lambda M: (M.T==M).all()
+is_symmetric = lambda M: (M.T == M).all()
 
 
 def determine_signs(nodes, edges):
     """
-    Construct the orientation matrix for the pairs on N molecules. 
-    
+    Construct the orientation matrix for the pairs on N molecules.
+
     >>> determine_signs(['A','B','C'],[('A','B','+'),('A','C','-'),('B','C','-')])
     array([ 1,  1, -1])
     """
@@ -29,10 +29,9 @@ def determine_signs(nodes, edges):
     M = np.zeros((N, N), dtype=int)
     for a, b, direction in edges:
         ia, ib = nodes.index(a), nodes.index(b)
-        M[ia, ib] = 1 if direction=='+' else -1
+        M[ia, ib] = 1 if direction == '+' else -1
 
     M = symmetrize(M)
-    print M
 
     return get_signs(M, validate=False)
 
@@ -51,7 +50,7 @@ def get_signs(M, validate=True):
     eigenvalue and associated eigenvector and return the signs for the
     eigenvector. This should correspond to the original orientations for the
     individual molecule. In the first example below, let's say 3 molecules A, B
-    and C, A-B:same direction, A-C:opposite direction, B-C:opposite 
+    and C, A-B:same direction, A-C:opposite direction, B-C:opposite
     direction. The final solution is to flip C.
 
     >>> M = np.array([[0,1,-1],[1,0,-1],[-1,-1,0]])
@@ -80,7 +79,7 @@ def get_signs(M, validate=True):
         diag = np.matrix(np.eye(N, dtype=int) * sign_array)
         final = diag * M * diag
         # The final result should have all pairwise in the same direction
-        assert (final>=0).all(), \
+        assert (final >= 0).all(), \
                 "result check fails:\n{0}".format(final)
 
     return sign_array

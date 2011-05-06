@@ -23,7 +23,7 @@ from jcvi.apps.base import debug
 debug()
 
 
-def blastplot(blastfile, qsizes, ssizes, qbed, sbed, image_name, 
+def blastplot(blastfile, qsizes, ssizes, qbed, sbed, image_name,
         lines=False, proportional=False, sampleN=5000):
 
     fp = open(blastfile)
@@ -38,7 +38,8 @@ def blastplot(blastfile, qsizes, ssizes, qbed, sbed, image_name,
         query, subject = b.query, b.subject
 
         if qorder:
-            if query not in qorder: continue
+            if query not in qorder:
+                continue
             qi, q = qorder[query]
             query = q.seqid
             qstart, qend = q.start, q.end
@@ -46,7 +47,8 @@ def blastplot(blastfile, qsizes, ssizes, qbed, sbed, image_name,
             qstart, qend = b.qstart, b.qstop
 
         if sorder:
-            if subject not in sorder: continue
+            if subject not in sorder:
+                continue
             si, s = sorder[subject]
             subject = s.seqid
             sstart, send = s.start, s.end
@@ -58,7 +60,8 @@ def blastplot(blastfile, qsizes, ssizes, qbed, sbed, image_name,
         si = ssizes.get_position(subject, sstart)
         sj = ssizes.get_position(subject, send)
 
-        if None in (qi, si): continue
+        if None in (qi, si):
+            continue
         data.append(((qi, qj), (si, sj)))
 
     if sampleN:
@@ -73,7 +76,8 @@ def blastplot(blastfile, qsizes, ssizes, qbed, sbed, image_name,
 
     # Fix the width
     ratio = 1
-    if proportional: ratio = ysize * 1./ xsize
+    if proportional:
+        ratio = ysize * 1. / xsize
     width = 8
     height = width * ratio
     fig = plt.figure(1, (width, height))
@@ -89,52 +93,54 @@ def blastplot(blastfile, qsizes, ssizes, qbed, sbed, image_name,
         ax.scatter(x, y, s=2, lw=0)
 
     xlim = (0, xsize)
-    ylim = (ysize, 0) # invert the y-axis
+    ylim = (ysize, 0)  # invert the y-axis
 
     xchr_labels, ychr_labels = [], []
-    ignore = True # tag to mark whether to plot chromosome name (skip small ones)
-    ignore_size_x = xsize * .005 
+    ignore = True  # tag to mark whether to plot chr name (skip small ones)
+    ignore_size_x = xsize * .005
     ignore_size_y = ysize * .005
 
     # plot the chromosome breaks
     logging.debug("adding query breaks (%d)" % len(qsizes))
     for (seqid, beg, end) in qsizes.get_breaks():
-        ignore = abs(end-beg) < ignore_size_x
-        if ignore: continue
+        ignore = abs(end - beg) < ignore_size_x
+        if ignore:
+            continue
         seqid = seqid.split("_")[-1]
-        try: 
-            seqid = int(seqid)
-            seqid = "c%d" % seqid
-        except: 
-            pass
-
-        xchr_labels.append((seqid, (beg + end)/2, ignore))
-        ax.plot([beg, beg], ylim, "g-", lw=1)
-
-    logging.debug("adding subject breaks (%d)" % len(ssizes))
-    for (seqid, beg, end) in ssizes.get_breaks():
-        ignore = abs(end-beg) < ignore_size_y
-        if ignore: continue
-        seqid = seqid.split("_")[-1]
-        try: 
+        try:
             seqid = int(seqid)
             seqid = "c%d" % seqid
         except:
             pass
 
-        ychr_labels.append((seqid, (beg + end)/2, ignore))
+        xchr_labels.append((seqid, (beg + end) / 2, ignore))
+        ax.plot([beg, beg], ylim, "g-", lw=1)
+
+    logging.debug("adding subject breaks (%d)" % len(ssizes))
+    for (seqid, beg, end) in ssizes.get_breaks():
+        ignore = abs(end - beg) < ignore_size_y
+        if ignore:
+            continue
+        seqid = seqid.split("_")[-1]
+        try:
+            seqid = int(seqid)
+            seqid = "c%d" % seqid
+        except:
+            pass
+
+        ychr_labels.append((seqid, (beg + end) / 2, ignore))
         ax.plot(xlim, [beg, beg], "g-", lw=1)
 
     # plot the chromosome labels
     for label, pos, ignore in xchr_labels:
-        pos = .1 + pos * .8/ xsize
+        pos = .1 + pos * .8 / xsize
         if not ignore:
             root.text(pos, .91, _(label), color="b",
                 va="bottom", rotation=45)
 
     # remember y labels are inverted
     for label, pos, ignore in ychr_labels:
-        pos = .9 - pos * .8/ ysize
+        pos = .9 - pos * .8 / ysize
         if not ignore:
             root.text(.91, pos, _(label), color="b",
                 ha="left", va="center")
@@ -150,11 +156,12 @@ def blastplot(blastfile, qsizes, ssizes, qbed, sbed, image_name,
 
     # beautify the numeric axis
     for tick in ax.get_xticklines() + ax.get_yticklines():
-        tick.set_visible(False) 
+        tick.set_visible(False)
 
     set_human_axis(ax)
 
-    plt.setp(ax.get_xticklabels() + ax.get_yticklabels(), color='gray', size=10)
+    plt.setp(ax.get_xticklabels() + ax.get_yticklabels(),
+            color='gray', size=10)
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
@@ -166,14 +173,16 @@ def blastplot(blastfile, qsizes, ssizes, qbed, sbed, image_name,
 if __name__ == "__main__":
 
     p = OptionParser(__doc__)
-    p.add_option("--qsizes", dest="qsizes", help="path to two column qsizes file")
-    p.add_option("--ssizes", dest="ssizes", help="path to two column ssizes file")
+    p.add_option("--qsizes", dest="qsizes",
+            help="path to two column qsizes file")
+    p.add_option("--ssizes", dest="ssizes",
+            help="path to two column ssizes file")
     p.add_option("--qbed", dest="qbed", help="path to qbed")
     p.add_option("--sbed", dest="sbed", help="path to sbed")
     p.add_option("--lines", dest="lines", default=False, action="store_true",
             help="plot lines for anchors instead of points [default: points]")
     p.add_option("--proportional", dest="proportional",
-            default=False, action="store_true", 
+            default=False, action="store_true",
             help="make the image width/height equal to seqlen ratio")
     p.add_option("--format", dest="format", default="png",
             help="generate image of format (png, pdf, ps, eps, svg, etc.)"
@@ -191,11 +200,13 @@ if __name__ == "__main__":
 
     qsizes = Sizes(qsizes)
     ssizes = Sizes(ssizes)
-    if qbed: qbed = Bed(qbed)
-    if sbed: sbed = Bed(sbed)
+    if qbed:
+        qbed = Bed(qbed)
+    if sbed:
+        sbed = Bed(sbed)
 
     blastfile = args[0]
 
     image_name = op.splitext(blastfile)[0] + "." + opts.format
-    blastplot(blastfile, qsizes, ssizes, qbed, sbed, image_name, 
+    blastplot(blastfile, qsizes, ssizes, qbed, sbed, image_name,
             lines=lines, proportional=proportional)

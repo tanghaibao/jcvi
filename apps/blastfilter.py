@@ -7,21 +7,23 @@
 Accepts bed format and blast file, and run several BLAST filters below::
 
 * Local dup filter:
-if the input is query.bed and subject.bed, the script files query.localdups 
-and subject.localdups are created containing the parent|offspring dups, as 
-inferred by subjects hitting the same query or queries hitting the same subject.
+if the input is query.bed and subject.bed, the script files query.localdups
+and subject.localdups are created containing the parent|offspring dups, as
+inferred by subjects hitting same query or queries hitting same subject.
 
 * Repeat filter:
-adjust the evalues in a dagchainer/blast file by the number of times they occur.
-query/subjects that appear often will have the evalues raise (made less significant).
+adjust evalues in a dagchainer/blast file by the number of times they occur.
+query/subjects that appear often will increase evalues (less significant).
 
-    adjusted_evalue(A, B) = evalue(A, B) ** 
-        ((counts_of_blast / counts_of_genes) / (counts(A) + counts(B)))
+    adjusted_evalue(A, B) = evalue(A, B) **
+        ((counts_of_blast / counts_of_genes) /
+         (counts(A) + counts(B)))
 
 * C-score filter:
 see supplementary info for sea anemone genome paper, formula::
-    
-    cscore(A,B) = score(A,B) / max(best score for A, best score for B)
+
+    cscore(A,B) = score(A,B) /
+         max(best score for A, best score for B)
 
 Finally a blast.filtered file is created.
 """
@@ -35,7 +37,7 @@ import itertools
 from math import log10
 
 from jcvi.formats.bed import Bed
-from jcvi.formats.blast import BlastLine 
+from jcvi.formats.blast import BlastLine
 from jcvi.utils.grouper import Grouper
 from jcvi.utils.cbook import gene_name
 from jcvi.apps.base import debug
@@ -49,8 +51,8 @@ def main(blast_file, opts):
     # is this a self-self blast?
     is_self = (qbed_file == sbed_file)
     if is_self:
-        logging.debug("Looks like self-self BLAST (will non-redundify the pairs)")
-    
+        logging.debug("Looks like self BLAST (will non-redundify pairs)")
+
     tandem_Nmax = opts.tandem_Nmax
     filter_repeats = opts.filter_repeats
     cscore = opts.cscore
@@ -70,7 +72,7 @@ def main(blast_file, opts):
             key=lambda b: b.score, reverse=True)
 
     filtered_blasts = []
-    seen = set() 
+    seen = set()
     ostrip = opts.strip_names
     nwarnings = 0
     for b in blasts:
@@ -79,7 +81,7 @@ def main(blast_file, opts):
             query, subject = gene_name(query), gene_name(subject)
         if query not in qorder:
             if nwarnings < 100:
-                logging.warning("{0} not in {1}".format(query, 
+                logging.warning("{0} not in {1}".format(query,
                     qbed.filename))
             elif nwarnings == 100:
                 logging.warning("too many warnings.. suppressed")
@@ -87,7 +89,7 @@ def main(blast_file, opts):
             continue
         if subject not in sorder:
             if nwarnings < 100:
-                logging.warning("{0} not in {1}".format(subject, 
+                logging.warning("{0} not in {1}".format(subject,
                     sbed.filename))
             elif nwarnings == 100:
                 logging.warning("too many warnings.. suppressed")
@@ -96,7 +98,7 @@ def main(blast_file, opts):
 
         qi, q = qorder[query]
         si, s = sorder[subject]
-        
+
         if is_self and qi > si:
             # move all hits to same side when doing self-self BLAST
             query, subject = subject, query
@@ -104,13 +106,14 @@ def main(blast_file, opts):
             q, s = s, q
 
         key = query, subject
-        if key in seen: continue
+        if key in seen:
+            continue
         seen.add(key)
         b.query, b.subject = key
 
         b.qi, b.si = qi, si
         b.qseqid, b.sseqid = q.seqid, s.seqid
-        
+
         filtered_blasts.append(b)
 
     if not tandem_Nmax is None:
@@ -119,14 +122,15 @@ def main(blast_file, opts):
 
         qtandems = tandem_grouper(qbed, filtered_blasts,
                 flip=True, tandem_Nmax=tandem_Nmax)
-        standems = tandem_grouper(sbed, filtered_blasts, 
+        standems = tandem_grouper(sbed, filtered_blasts,
                 flip=False, tandem_Nmax=tandem_Nmax)
 
         qdups_fh = open(op.splitext(qbed_file)[0] + ".localdups", "w") \
                 if opts.tandems_only else None
 
         if is_self:
-            for s in standems: qtandems.join(*s)
+            for s in standems:
+                qtandems.join(*s)
             qdups_to_mother = write_localdups(qtandems, qbed, qdups_fh)
             sdups_to_mother = qdups_to_mother
         else:
@@ -143,7 +147,7 @@ def main(blast_file, opts):
 
             # just want to use this script as a tandem finder.
             sys.exit()
-        
+
         before_filter = len(filtered_blasts)
         filtered_blasts = list(filter_tandem(filtered_blasts, \
                 qdups_to_mother, sdups_to_mother))
@@ -198,7 +202,8 @@ def write_new_bed(bed, children):
     logging.debug("write tandem-filtered bed file %s" % out_name)
     fh = open(out_name, "w")
     for i, row in enumerate(bed):
-        if row['accn'] in children: continue
+        if row['accn'] in children:
+            continue
         print >>fh, row
     fh.close()
 
@@ -206,7 +211,7 @@ def write_new_bed(bed, children):
 def write_raw(qorder, sorder, filtered_blasts, raw_fh):
 
     logging.debug("write raw file %s" % raw_fh.name)
-    for b in filtered_blasts: 
+    for b in filtered_blasts:
         qi, q = qorder[b.query]
         si, s = sorder[b.subject]
         qseqid, sseqid = q['seqid'], s['seqid']
@@ -223,10 +228,12 @@ def write_new_blast(filtered_blasts, fh=sys.stdout):
 All BLAST filters
 """
 
+
 def filter_to_global_density(blast_list, gene_count, global_density_ratio):
     max_hits = int(gene_count * global_density_ratio)
     loigging.debug("cutting at: %d" % max_hits)
     return blast_list[:max_hits]
+
 
 def filter_cscore(blast_list, cscore=.5):
 
@@ -245,7 +252,7 @@ def filter_cscore(blast_list, cscore=.5):
 
 def filter_repeat(blast_list, evalue_cutoff=.05):
     """
-    adjust the evalues in a dagchainer/blast file by the number of times they occur.
+    adjust evalues in a dagchainer/blast file by number of times they occur.
     query/subjects that appear often will have the evalues raise (made less
     significant).
     """
@@ -261,32 +268,39 @@ def filter_repeat(blast_list, evalue_cutoff=.05):
         count = counts[b.query] + counts[b.subject]
         adjusted_evalue = b.evalue ** (expected_count / count)
 
-        if adjusted_evalue < evalue_cutoff: yield b
+        if adjusted_evalue < evalue_cutoff:
+            yield b
 
 
 def filter_tandem(blast_list, qdups_to_mother, sdups_to_mother):
-    
+
     mother_blast = []
     for b in blast_list:
-        if b.query in qdups_to_mother: b.query = qdups_to_mother[b.query]
-        if b.subject in sdups_to_mother: b.subject = sdups_to_mother[b.subject]
+        if b.query in qdups_to_mother:
+            b.query = qdups_to_mother[b.query]
+        if b.subject in sdups_to_mother:
+            b.subject = sdups_to_mother[b.subject]
         mother_blast.append(b)
-    
+
     mother_blast.sort(key=lambda b: b.score, reverse=True)
     seen = {}
     for b in mother_blast:
-        if b.query==b.subject: continue
+        if b.query == b.subject:
+            continue
         key = b.query, b.subject
-        if key in seen: continue
+        if key in seen:
+            continue
         seen[key] = None
         yield b
 
 
 def tandem_grouper(bed, blast_list, tandem_Nmax=10, flip=True):
     if not flip:
-        simple_blast = [(b.query, (b.sseqid, b.si)) for b in blast_list if b.evalue < 1e-10] 
+        simple_blast = [(b.query, (b.sseqid, b.si)) \
+                for b in blast_list if b.evalue < 1e-10]
     else:
-        simple_blast = [(b.subject, (b.qseqid, b.qi)) for b in blast_list if b.evalue < 1e-10] 
+        simple_blast = [(b.subject, (b.qseqid, b.qi)) \
+                for b in blast_list if b.evalue < 1e-10]
 
     simple_blast.sort()
 
@@ -296,8 +310,8 @@ def tandem_grouper(bed, blast_list, tandem_Nmax=10, flip=True):
         hits = [x[1] for x in hits]
         for ia, a in enumerate(hits[:-1]):
             b = hits[ia + 1]
-            # on the same chromosome and rank difference no larger than tandem_Nmax
-            if b[1] - a[1] <= tandem_Nmax and b[0] == a[0]: 
+            # on the same chr and rank difference no larger than tandem_Nmax
+            if b[1] - a[1] <= tandem_Nmax and b[0] == a[0]:
                 standems.join(a[1], b[1])
 
     return standems
@@ -309,18 +323,19 @@ if __name__ == "__main__":
     p = optparse.OptionParser(__doc__)
     p.add_option("--qbed", dest="qbed", help="path to qbed (required)")
     p.add_option("--sbed", dest="sbed", help="path to sbed (required)")
-    p.add_option("--no_strip_names", dest="strip_names", 
+    p.add_option("--no_strip_names", dest="strip_names",
             action="store_false", default=True,
-            help="do not strip alternative splicing (e.g. At5g06540.1 -> At5g06540)")
-    p.add_option("--tandems_only", dest="tandems_only", 
+            help="do not strip alternative splicing "
+            "(e.g. At5g06540.1 -> At5g06540)")
+    p.add_option("--tandems_only", dest="tandems_only",
             action="store_true", default=False,
             help="only calculate tandems, write .localdup file and exit.")
 
     filter_group = optparse.OptionGroup(p, "BLAST filters")
-    filter_group.add_option("--tandem_Nmax", dest="tandem_Nmax", 
-            type="int", default=None, 
+    filter_group.add_option("--tandem_Nmax", dest="tandem_Nmax",
+            type="int", default=None,
             help="merge tandem genes within distance [default: %default]")
-    filter_group.add_option("--repeats", dest="filter_repeats", 
+    filter_group.add_option("--repeats", dest="filter_repeats",
             action="store_true", default=False,
             help="require higher e-value for repetitive matches BLAST. " +\
                  "[default: %default]")

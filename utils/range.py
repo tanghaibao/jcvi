@@ -2,7 +2,7 @@
 # -*- coding: UTF-8 -*-
 
 """
-This script implements algorithm for finding intersecting rectangles, 
+This script implements algorithm for finding intersecting rectangles,
 both on the 2D dotplot and 1D-projection
 
 `range_chain` implements the exon-chain algorithm
@@ -13,7 +13,7 @@ from collections import namedtuple
 
 from jcvi.utils.grouper import Grouper
 
-LEFT, RIGHT = 0, 1 
+LEFT, RIGHT = 0, 1
 
 Range = namedtuple("Range", "seqid start end score id")
 
@@ -27,11 +27,14 @@ def range_intersect(a, b):
     [48, 55]
     """
     a_min, a_max = a
-    if a_min > a_max: a_min, a_max = a_max, a_min
+    if a_min > a_max:
+        a_min, a_max = a_max, a_min
     b_min, b_max = b
-    if b_min > b_max: b_min, b_max = b_max, b_min
+    if b_min > b_max:
+        b_min, b_max = b_max, b_min
 
-    if a_max < b_min or b_max < a_min: return None
+    if a_max < b_min or b_max < a_min:
+        return None
     i_min = max(a_min, b_min)
     i_max = min(a_max, b_max)
     return [i_min, i_max]
@@ -43,12 +46,14 @@ def ranges_intersect(rset):
     >>> ranges_intersect([(48, 65), (45, 55), (50, 56)])
     [50, 55]
     """
-    if not rset: return None
+    if not rset:
+        return None
 
     a = rset[0]
     for b in rset[1:]:
         a = range_intersect(a, b)
-        if not a: return None
+        if not a:
+            return None
 
     return a
 
@@ -66,14 +71,15 @@ def range_overlap(a, b):
     a_chr, a_min, a_max = a
     b_chr, b_min, b_max = b
     # must be on the same chromosome
-    if a_chr!=b_chr: return False 
+    if a_chr != b_chr:
+        return False
     return (a_min <= b_max) and (b_min <= a_max)
 
 
 def range_distance(a, b, dist_mode='ss'):
     """
     Returns the distance between two ranges
-    
+
     dist_mode is ss, se, es, ee and sets the place on read one and two to
           measure the distance (s = start, e = end)
 
@@ -91,24 +97,24 @@ def range_distance(a, b, dist_mode='ss'):
     a_chr, a_min, a_max, a_strand = a
     b_chr, b_min, b_max, b_strand = b
     # must be on the same chromosome
-    if a_chr != b_chr: 
+    if a_chr != b_chr:
         dist = -1
-    #elif range_overlap(a[:3], b[:3]): 
+    #elif range_overlap(a[:3], b[:3]):
     #    dist = 0
     else:
-        # If the two ranges do not overlap then check stranded-ness and distance
-        if a_min > b_min: 
+        # If the two ranges do not overlap, check stranded-ness and distance
+        if a_min > b_min:
             a_min, b_min = b_min, a_min
             a_max, b_max = b_max, a_max
             a_strand, b_strand = b_strand, a_strand
 
-        if dist_mode=="ss": 
+        if dist_mode == "ss":
             dist = b_max - a_min + 1
-        elif dist_mode=="ee": 
+        elif dist_mode == "ee":
             dist = b_min - a_max - 1
 
     orientation = a_strand + b_strand
-    
+
     return dist, orientation
 
 
@@ -141,7 +147,7 @@ def range_union(ranges):
     ranges.sort()
 
     total_len = 0
-    cur_chr, cur_left, cur_right = ranges[0] # left-most range
+    cur_chr, cur_left, cur_right = ranges[0]  # left-most range
     for r in ranges:
         # open a new range if left > cur_right or chr != cur_chr
         if r[1] > cur_right or r[0] != cur_chr:
@@ -185,23 +191,25 @@ def range_conflict(ranges, depth=1):
         for seqid, pos, leftright, i, score in ends:
             active.clear()
             for seqid, pos, leftright, i, score in ends:
-                if leftright == LEFT: active.add(i)
-                else: active.remove(i)
+                if leftright == LEFT:
+                    active.add(i)
+                else:
+                    active.remove(i)
 
                 if len(active) > depth:
                     overlap.add(tuple(sorted(active)))
 
     for ov in overlap:
-        selected = [ranges[x] for x in ov] 
+        selected = [ranges[x] for x in ov]
         yield selected
 
 
 def range_chain(ranges):
     """
-    Take a list of weighted intervals, return a non-overlapping set with max weight
-    We proceed by looking at the each end point (sorted by their relative positions)
+    Take list of weighted intervals, find non-overlapping set with max weight.
+    We proceed with each end point (sorted by their relative positions).
 
-    The input are a list of ranges of the form (start, stop, score), output is a
+    The input are a list of ranges of the form (start, stop, score), output is
     subset of the non-overlapping ranges that give the highest score, score
 
     >>> ranges = [Range("1", 0, 9, 22, 0), Range("1", 3, 18, 24, 1), Range("1", 10, 28, 20, 2)]
@@ -216,30 +224,30 @@ def range_chain(ranges):
     endpoints = _make_endpoints(ranges)
 
     # stores the left end index for quick retrieval
-    left_index = {}   
+    left_index = {}
     # dynamic programming, each entry [score, from_index, which_chain]
     scores = []
 
     for i, (seqid, pos, leftright, j, score) in enumerate(endpoints):
 
-        cur_score = [0, -1, -1] if i==0 else scores[-1][:]
+        cur_score = [0, -1, -1] if i == 0 else scores[-1][:]
 
         if leftright == LEFT:
             left_index[j] = i
 
-        else: # this is right end of j-th interval
+        else:  # this is right end of j-th interval
             # update if chaining j-th interval gives a better score
             left_j = left_index[j]
-            chain_score = scores[left_j][0] + score 
-            if chain_score > cur_score[0]: 
+            chain_score = scores[left_j][0] + score
+            if chain_score > cur_score[0]:
                 cur_score = [chain_score, left_j, j]
 
         scores.append(cur_score)
 
     chains = []
-    score, last, chain_id = scores[-1] # start backtracking
-    while last!=-1:
-        if chain_id!=-1: 
+    score, last, chain_id = scores[-1]  # start backtracking
+    while last != -1:
+        if chain_id != -1:
             chains.append(chain_id)
         _, last, chain_id = scores[last]
 
@@ -251,6 +259,6 @@ def range_chain(ranges):
 
 
 if __name__ == '__main__':
-    
+
     import doctest
     doctest.testmod()

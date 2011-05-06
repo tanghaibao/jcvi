@@ -40,7 +40,7 @@ class BtabLine (object):
     def blastline(self):
         # some fields are not represented so ignore
         return "\t".join((self.query, self.subject,
-                "%.2f" % self.pctid, 
+                "%.2f" % self.pctid,
                 "0", "0", "0",
                 "%d" % self.qstart, "%d" % self.qstop,
                 "%d" % self.sstart, "%d" % self.sstop,
@@ -48,7 +48,7 @@ class BtabLine (object):
 
 
 def main():
-    
+
     actions = (
         ('blast', 'convert back to BLAST -m8 format'),
             )
@@ -58,15 +58,15 @@ def main():
 
 def blast(args):
     """
-    %prog blast btabfile 
-    
+    %prog blast btabfile
+
     convert back to BLAST -m8 format
     """
     p = OptionParser(blast.__doc__)
 
     opts, args = p.parse_args(args)
 
-    if len(args)==1:
+    if len(args) == 1:
         btabfile = args[0]
     else:
         sys.exit(p.print_help())

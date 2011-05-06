@@ -23,32 +23,32 @@ debug()
 
 
 class Message (list):
-    """ 
+    """
     AMOS Message object
-    
+
     Fields:
         type         - message type code
         fields       - dictionary of fields
         sub_messages - list of sub-messages
-        
+
     str(message) converts the message back to AMOS format
     """
 
     def __init__(self, type):
         self.type = type
-        self.fields = defaultdict(str) 
-    
+        self.fields = defaultdict(str)
+
     def __str__(self):
         result = '{' + self.type + '\n'
         for key, value in sorted(self.fields.items()):
             result += key + ':'
             if '\n' in value:
-                result += '\n' + value 
+                result += '\n' + value
                 if not value.endswith('\n'):
                     result += '\n'
                 result += '.\n'
             else:
-                result += value +'\n'        
+                result += value + '\n'
 
         result += ''.join(str(sub_message) for sub_message in self) + '}\n'
 
@@ -62,40 +62,40 @@ _FIELD = re.compile(r'^([a-z][a-z][a-z]):(.*)\n$')
 
 def read_record(fp, first_line=None):
     """
-    Read a record from a file of AMOS messages 
-    
-    On success returns a Message object     
-    On end of file raises EOFError  
+    Read a record from a file of AMOS messages
+
+    On success returns a Message object
+    On end of file raises EOFError
     """
 
     if first_line is None:
         first_line = fp.readline()
-    
+
     if not first_line:
         raise EOFError()
-    
+
     match = _START.match(first_line)
     if not match:
         raise Exception('Bad start of message', first_line)
-    
+
     type = match.group(1)
     message = Message(type)
-    
+
     while True:
         row = fp.readline()
         #print message
         #print '[R]', row.strip()
-        
+
         match = _MULTILINE_FIELD.match(row)
         if match:
             key = match.group(1)
             while row:
                 pos = fp.tell()
                 row = fp.readline()
-                if row[0] in '.': 
+                if row[0] in '.':
                     break
                 elif row[0] in '{}':
-                    fp.seek(pos) # put the line back
+                    fp.seek(pos)  # put the line back
                     break
                 message.fields[key] += row.strip()
             continue
@@ -103,7 +103,7 @@ def read_record(fp, first_line=None):
         match = _FIELD.match(row)
         if match:
             key, val = match.group(1), match.group(2)
-            message.fields[key] = val 
+            message.fields[key] = val
             continue
 
         match = _START.match(row)
@@ -113,7 +113,7 @@ def read_record(fp, first_line=None):
 
         if row[0] == '}':
             break
-        
+
         raise Exception('Bad line', row)
 
     return message
@@ -132,8 +132,8 @@ def iter_records(file):
 def main():
 
     actions = (
-        ('frg', 'extract FASTA sequences from frg'),
-        ('asm', 'extract FASTA sequences from asm'),
+        ('frg', 'extract fasta sequences from frg'),
+        ('asm', 'extract fasta sequences from asm'),
         ('count', 'count each type of messages'),
             )
     p = ActionDispatcher(actions)
@@ -158,7 +158,8 @@ def frg(args):
     fw = open(fastafile, "w")
 
     for rec in iter_records(fp):
-        if rec.type != "FRG": continue
+        if rec.type != "FRG":
+            continue
         id = rec.fields["acc"]
         seq = rec.fields["seq"]
         s = SeqRecord(Seq(seq), id=id, description="")
@@ -180,7 +181,7 @@ def asm(args):
         sys.exit(p.print_help())
 
     asmfile, = args
-    prefix = asmfile.rsplit(".", 1)[0] 
+    prefix = asmfile.rsplit(".", 1)[0]
     ctgfastafile = prefix + ".ctg.fasta"
     scffastafile = prefix + ".scf.fasta"
     fp = open(asmfile)
@@ -189,7 +190,7 @@ def asm(args):
 
     for rec in iter_records(fp):
         type = rec.type
-        if type == "CCO": 
+        if type == "CCO":
             fw = ctgfw
             pp = "ctg"
         elif type == "SCF":
@@ -201,7 +202,7 @@ def asm(args):
         id = rec.fields["acc"]
         id = id.translate(None, "()").split(",")[0]
         seq = rec.fields["cns"].translate(None, "-")
-        s = SeqRecord(Seq(seq), id=pp+id, description="")
+        s = SeqRecord(Seq(seq), id=pp + id, description="")
         SeqIO.write([s], fw, "fasta")
         fw.flush()
 
@@ -225,11 +226,11 @@ def count(args):
 
     counts = defaultdict(int)
     for rec in iter_records(fp):
-        counts[rec.type] += 1 
-    
+        counts[rec.type] += 1
+
     for type, cnt in sorted(counts.items()):
         print >> sys.stderr, '{0}: {1}'.format(type, cnt)
 
 
-if __name__ == '__main__':  
+if __name__ == '__main__':
     main()

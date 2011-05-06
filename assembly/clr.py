@@ -38,13 +38,13 @@ def main():
     seen = set()
     for query, hits in b.iter_hits():
         #if query not in sizes: continue
-        
+
         qsize = sizes[query]
         vectors = list((x.qstart, x.qstop) for x in hits)
         vmin, vmax = range_minmax(vectors)
 
         left_size = vmin - 1
-        right_size = qsize - vmax 
+        right_size = qsize - vmax
 
         if left_size > right_size:
             clr_start, clr_end = 0, vmin

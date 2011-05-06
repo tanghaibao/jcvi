@@ -23,12 +23,13 @@ plot(dots, type='l')
 dev.off()
 """
 
+
 def main():
 
     p = OptionParser(__doc__)
     opts, args = p.parse_args()
 
-    if len(args)!=1:
+    if len(args) != 1:
         sys.exit(p.print_help())
 
     rdotplotfile = args[0]

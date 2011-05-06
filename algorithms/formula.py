@@ -9,6 +9,7 @@ import sys
 
 from math import log, exp
 
+
 def jukesCantorD(p, L=100):
     """
     >>> jukesCantorD(.1)
@@ -18,9 +19,9 @@ def jukesCantorD(p, L=100):
     """
     assert 0 <= p < .75
 
-    rD = 1 - 4./3 * p
+    rD = 1 - 4. / 3 * p
     D = -.75 * log(rD)
-    varD = p*(1-p)/(rD**2*L)
+    varD = p * (1 - p) / (rD ** 2 * L)
 
     return D, varD
 
@@ -32,8 +33,8 @@ def jukesCantorP(D):
     >>> jukesCantorP(2)
     0.6978874115828988
     """
-    rD = exp(-4./3 * D)
-    p = .75 * (1-rD)
+    rD = exp(-4. / 3 * D)
+    p = .75 * (1 - rD)
     return p
 
 

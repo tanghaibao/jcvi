@@ -6,12 +6,13 @@ Disjoint set data structure <http://code.activestate.com/recipes/387776/>
 Author: Michael Droettboom
 """
 
+
 class Grouper(object):
     """
     This class provides a lightweight way to group arbitrary objects
     together into disjoint sets when a full-blown graph data structure
-    would be overkill. 
-    
+    would be overkill.
+
     Objects can be joined using .join(), tested for connectedness
     using .joined(), and all disjoint sets can be retrieved using list(g)
     The objects being joined must be hashable.
@@ -30,12 +31,12 @@ class Grouper(object):
     False
     >>> g.joined('a', 'd')
     False
-    """   
+    """
     def __init__(self, init=[]):
         mapping = self._mapping = {}
         for x in init:
             mapping[x] = [x]
-        
+
     def join(self, a, *args):
         """
         Join given arguments into the same set. Accepts one or more arguments.

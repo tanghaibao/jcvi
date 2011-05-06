@@ -2,9 +2,10 @@
 # -*- coding: UTF-8 -*-
 
 """
-Wrapper to call tigStore and utgcns, for debugging failed utgcns runs. 
+Wrapper to call tigStore and utgcns, for debugging failed utgcns runs.
+
 See full commands:
-http://sourceforge.net/apps/mediawiki/wgs-assembler/index.php?title=Unitig_Consensus_Failures_in_CA_6
+http://sf.net/apps/mediawiki/wgs-assembler/index.php?title=Unitig_Consensus_Failures_in_CA_6
 
 It is expected to be executed within 5-consensus/ folder.
 """
@@ -33,7 +34,7 @@ def pull(args):
     """
     %prog pull prefix partID unitigID
 
-    For example, 
+    For example,
     `%prog pull medicago 5 530` will pull the utg530 from partition 5
     The layout is written to `unitig530`
     """
@@ -55,8 +56,8 @@ def test(args):
     """
     %prog test prefix partID unitigID
 
-    For example, 
-    `%prog pull medicago 5 530` will test the modified `unitig530` 
+    For example,
+    `%prog pull medicago 5 530` will test the modified `unitig530`
     """
     p = OptionParser(test.__doc__)
     opts, args = p.parse_args(args)
@@ -67,7 +68,8 @@ def test(args):
     prefix, partID, unitigID = args
 
     cmd = "utgcns -g ../{0}.gkpStore -t ../{0}.tigStore 1 ".format(prefix)
-    cmd += "{0} -T unitig{0}.{1} -V -V -V -v 2> unitig{0}.{1}.log".format(partID, unitigID)
+    cmd += "{0} -T unitig{0}.{1} -V -V -V -v 2> unitig{0}.{1}.log".\
+            format(partID, unitigID)
 
     sh(cmd)
 
@@ -76,8 +78,8 @@ def push(args):
     """
     %prog push prefix partID unitigID
 
-    For example, 
-    `%prog push medicago 5 530` will push the modified `unitig530` 
+    For example,
+    `%prog push medicago 5 530` will push the modified `unitig530`
     and replace the one in the tigStore
     """
     p = OptionParser(push.__doc__)
@@ -98,8 +100,8 @@ def delete(args):
     """
     %prog delete prefix partID unitigID
 
-    For example, 
-    `%prog push medicago 5 530` will delete unitig 530 in partition 5 
+    For example,
+    `%prog push medicago 5 530` will delete unitig 530 in partition 5
     """
     p = OptionParser(delete.__doc__)
     opts, args = p.parse_args(args)

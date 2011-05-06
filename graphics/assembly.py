@@ -25,7 +25,7 @@ library(ggplot2)
 
 data <- read.table("$rplot", header=T, sep="\t")
 g <- ggplot(data, aes(x=index, y=cumsize, group=fasta))
-g + geom_line(aes(colour=fasta)) + 
+g + geom_line(aes(colour=fasta)) +
 xlab("Contigs") + ylab("Cumulative size (Mb)") +
 opts(title="A50 plot", legend.position="top")
 
@@ -50,16 +50,16 @@ def generate_plot(filename, rplot=rplot, rpdf=rpdf):
 def A50(args):
     """
     %prog A50 contigs_A.fasta contigs_B.fasta ...
-    
-    Plots the A50 graphics, see blog post (http://blog.malde.org/index.php/a50/)
+
+    Plots A50 graphics, see blog post (http://blog.malde.org/index.php/a50/)
     """
     from optparse import OptionParser
-    
+
     p = OptionParser(A50.__doc__)
     p.add_option("--overwrite", default=False, action="store_true",
             help="overwrite `%s` file if exists" % rplot)
     p.add_option("--cutoff", default=500, type="int", dest="cutoff",
-            help="use only contigs larger than certain size [default: %default]")
+            help="use contigs > certain size [default: %default]")
     p.add_option("--stepsize", default=10, type="int", dest="stepsize",
             help="stepsize for the distribution [default: %default]")
     opts, args = p.parse_args(args)
@@ -67,7 +67,7 @@ def A50(args):
     if not args:
         sys.exit(p.print_help())
 
-    stepsize = opts.stepsize # use stepsize to speed up drawing
+    stepsize = opts.stepsize  # use stepsize to speed up drawing
     if not op.exists(rplot) or opts.overwrite:
         fw = open(rplot, "w")
         header = "\t".join(("index", "cumsize", "fasta"))
@@ -84,7 +84,7 @@ def A50(args):
             tag = "%s (N50=%d)" % (op.basename(a).rsplit(".", 1)[0], n50)
 
             for i, s in zip(xrange(0, len(a50), stepsize), a50[::stepsize]):
-                print >>fw, "\t".join((str(i), str(s/1000000.), tag))
+                print >>fw, "\t".join((str(i), str(s / 1000000.), tag))
         fw.close()
 
     generate_plot(rplot)

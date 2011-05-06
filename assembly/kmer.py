@@ -28,8 +28,8 @@ def histogram(args):
     """
     %prog histogram meryl.histogram species N totalKmers
 
-    Plot the histogram based on meryl K-mer distribution, species and N are only
-    used to annotate the graphic
+    Plot the histogram based on meryl K-mer distribution, species and N are
+    only used to annotate the graphic
     """
     p = OptionParser(histogram.__doc__)
     opts, args = p.parse_args(args)
@@ -72,14 +72,17 @@ def histogram(args):
         print >> sys.stderr, msg
 
     fig = plt.figure(1, (6, 6))
-    counts = sorted((a, b) for a, b in hist.items() if a <=100)
+    counts = sorted((a, b) for a, b in hist.items() if a <= 100)
     x, y = zip(*counts)
     plt.plot(x, y, 'g-', lw=2, alpha=.5)
 
     ax = plt.gca()
-    ax.text(.5, .9, _(Total_Kmers_msg), ha="center", color='b', transform=ax.transAxes)
-    ax.text(.5, .8, _(Kmer_coverage_msg), ha="center", color='b', transform=ax.transAxes)
-    ax.text(.5, .7, _(Genome_size_msg), ha="center", color='b', transform=ax.transAxes)
+    ax.text(.5, .9, _(Total_Kmers_msg),
+            ha="center", color='b', transform=ax.transAxes)
+    ax.text(.5, .8, _(Kmer_coverage_msg),
+            ha="center", color='b', transform=ax.transAxes)
+    ax.text(.5, .7, _(Genome_size_msg),
+            ha="center", color='b', transform=ax.transAxes)
 
     title = "{0} genome {1}-mer histogram".format(species, N)
     ax.set_title(_(title), color='r')

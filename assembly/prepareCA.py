@@ -18,11 +18,12 @@ from optparse import OptionParser
 from Bio import SeqIO
 
 from jcvi.formats.fasta import get_qual, iter_fasta_qual, write_fasta_qual
-from jcvi.apps.softlink import get_abs_path 
+from jcvi.apps.softlink import get_abs_path
 from jcvi.apps.base import ActionDispatcher, sh, set_grid, debug
 debug()
 
 CAPATH = "~/bin/Linux-amd64/bin/"
+
 
 def main():
 
@@ -56,11 +57,12 @@ def trim(args):
 
     fastqfile, = args
     length = opts.length
-    trimmedfastqfile = fastqfile.rsplit(".", 1)[0] + ".{0}.fastq".format(length)
+    trimmedfastqfile = fastqfile.rsplit(".", 1)[0] + \
+            ".{0}.fastq".format(length)
 
     cmd = "fastx_trimmer -f 1 -l {0} -Q33 ".format(length)
     sh(cmd, grid=grid, infile=fastqfile, outfile=trimmedfastqfile)
- 
+
 
 def make_qual(fastafile, defaultqual=20):
     """
@@ -78,8 +80,8 @@ def make_qual(fastafile, defaultqual=20):
         qualhandle.close()
 
     return qualfile
-    
- 
+
+
 def make_matepairs(fastafile):
     """
     Assumes the mates are adjacent sequence records
@@ -138,8 +140,8 @@ def fasta(args):
     if mated:
         matefile = make_matepairs(fastafile)
 
-    cmd = CAPATH + "convert-fasta-to-v2.pl -l {0} -s {1} -q {2} ".format(libname,
-            fastafile, qualfile)
+    cmd = CAPATH + "convert-fasta-to-v2.pl -l {0} -s {1} -q {2} ".\
+            format(libname, fastafile, qualfile)
     if mated:
         cmd += "-mean {0} -stddev {1} -m {2} ".format(mean, sv, matefile)
 
@@ -150,7 +152,7 @@ def sff(args):
     """
     %prog sff sffiles
 
-    Convert reads formatted as 454 SFF file, and convert to CA frg file. 
+    Convert reads formatted as 454 SFF file, and convert to CA frg file.
     """
     p = OptionParser(sff.__doc__)
     p.add_option("-o", dest="output", default="out",
@@ -179,13 +181,13 @@ def sff(args):
     cmd += " ".join(sffiles)
 
     sh(cmd, grid=grid)
-    
+
 
 def fastq(args):
     """
     %prog fastq fastqfile
 
-    Convert reads formatted as FASTQ file, and convert to CA frg file. 
+    Convert reads formatted as FASTQ file, and convert to CA frg file.
     """
     p = OptionParser(fastq.__doc__)
     p.add_option("--sanger", dest="sanger", default=False, action="store_true",
@@ -209,13 +211,14 @@ def fastq(args):
     mated = (opts.size != 0)
     mean, sv = get_mean_sv(opts.size)
 
-    cmd = CAPATH + "fastqToCA -libraryname {0} -fastq {1}".format(libname, fastqfile)
+    cmd = CAPATH + "fastqToCA -libraryname {0} -fastq {1}".\
+            format(libname, fastqfile)
     if opts.sanger:
         cmd += "-type sanger "
     if opts.outtie:
         cmd += "-outtie "
     if mated:
-        assert len(args)==2, "you need two fastq file for mated library"
+        assert len(args) == 2, "you need two fastq file for mated library"
         cmd += ",{0} -insertsize {1} {2}".format(fastqfile2, mean, sv)
 
     sh(cmd, outfile=frgfile)

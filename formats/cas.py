@@ -23,45 +23,47 @@ debug()
 
 class CasTabLine (LineFile):
     """
-    The table generate by command `assembly_table -n -s -p` 
+    The table generate by command `assembly_table -n -s -p`
     from clcbio assembly cell
     """
     def __init__(self, line):
         args = line.split()
-        self.readnum = args[0] # usually integer or `-`
+        self.readnum = args[0]  # usually integer or `-`
         self.readname = args[1]
         self.readlen = int(args[-10])
         # 0-based indexing
         self.readstart = int(args[-9])
-        if self.readstart >=0: self.readstart += 1
-        
+        if self.readstart >= 0:
+            self.readstart += 1
+
         self.readstop = int(args[-8])
         self.refnum = int(args[-7])
-        
+
         self.refstart = int(args[-6])
-        if self.refstart >=0: self.refstart += 1
+        if self.refstart >= 0:
+            self.refstart += 1
 
         self.refstop = int(args[-5])
 
-        self.is_reversed = (int(args[-4])==1)
+        self.is_reversed = (int(args[-4]) == 1)
         self.strand = '-' if self.is_reversed else '+'
 
         self.nummatches = int(args[-3])
-        self.is_paired = (int(args[-2])==1)
+        self.is_paired = (int(args[-2]) == 1)
         self.score = int(args[-1])
 
     @property
     def bedline(self):
-        return "\t".join(str(x) for x in (self.refnum, 
-            self.refstart-1, self.refstop, self.readname, 
+        return "\t".join(str(x) for x in (self.refnum,
+            self.refstart - 1, self.refstop, self.readname,
             self.score, self.strand))
 
 
 def main():
-    
+
     actions = (
-        ('txt', "convert binary CAS file to tabular output using assembly_table"),
-        ('split', 'split the CAS file into smaller CAS using sub_assembly'),
+        ('txt', "convert CAS file to tabular output using assembly_table"),
+        ('split', 'split CAS file into smaller CAS using sub_assembly'),
         ('bed', 'convert cas tabular output to bed format'),
         ('pairs', 'print paired-end reads of cas tabular output'),
             )
@@ -87,7 +89,8 @@ def txt(args):
 
     casfile, = args
     txtfile = casfile.replace(".cas", ".txt")
-    if op.exists(txtfile): os.remove(txtfile)
+    if op.exists(txtfile):
+        os.remove(txtfile)
 
     cmd = "assembly_table -n -s -p {0}".format(casfile)
     sh(cmd, grid=grid, outfile=txtfile)
@@ -116,7 +119,7 @@ def split(args):
     split_cmd = "sub_assembly -a {casfile} -o sa.{i}.cas -s {i} " + \
         "-e sa.{i}.pairs.fasta -f sa.{i}.fragments.fasta -g sa.{i}.ref.fasta"
 
-    for i in range(start, end+1):
+    for i in range(start, end + 1):
         cmd = split_cmd.format(casfile=casfile, i=i)
         sh(cmd, grid=opts.grid)
 
@@ -127,7 +130,7 @@ def bed(args):
 
     convert the format into bed format
     """
-    
+
     p = OptionParser(bed.__doc__)
     opts, args = p.parse_args(args)
 
@@ -139,7 +142,8 @@ def bed(args):
     fp = open(castabfile)
     for row in fp:
         b = CasTabLine(row)
-        if b.readstart == -1: continue
+        if b.readstart == -1:
+            continue
         b.refnum = refnames[b.refnum]
         print b.bedline
 
@@ -147,30 +151,31 @@ def bed(args):
 def pairs(args):
     """
     %prog pairs cas_tabbed
-    
+
     report summary of the cas tabular results, how many paired ends mapped, avg
     distance between paired ends, etc
     """
     p = OptionParser(pairs.__doc__)
     p.add_option("--cutoff", dest="cutoff", default=0, type="int",
             help="distance to call valid links between PE [default: %default]")
-    p.add_option("--pairs", dest="pairsfile", 
+    p.add_option("--pairs", dest="pairsfile",
             default=False, action="store_true",
             help="write valid pairs to pairsfile")
     p.add_option("-n", dest="nrows",
             default=1e9, type="int",
             help="only use the first n lines [default: %default]")
-    p.add_option("--inserts", dest="insertsfile", default=True, 
+    p.add_option("--inserts", dest="insertsfile", default=True,
             help="write insert sizes to insertsfile and plot distribution " + \
             "to insertsfile.pdf")
 
     opts, args = p.parse_args(args)
 
-    if len(args)!=1:
+    if len(args) != 1:
         sys.exit(p.print_help())
 
     cutoff = opts.cutoff
-    if cutoff: cutoff = int(cutoff)
+    if cutoff:
+        cutoff = int(cutoff)
     castabfile = args[0]
 
     basename = castabfile.split(".")[0]

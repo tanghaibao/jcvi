@@ -224,13 +224,13 @@ def fastq(args):
 
     cmd = CAPATH + "fastqToCA -libraryname {0} -fastq {1}".\
             format(libname, fastqfile)
-    if opts.sanger:
-        cmd += "-type sanger "
-    if opts.outtie:
-        cmd += "-outtie "
     if mated:
         assert len(args) == 2, "you need two fastq file for mated library"
-        cmd += ",{0} -insertsize {1} {2}".format(fastqfile2, mean, sv)
+        cmd += ",{0} -insertsize {1} {2} ".format(fastqfile2, mean, sv)
+    if opts.sanger:
+        cmd += " -type sanger "
+    if opts.outtie:
+        cmd += " -outtie "
 
     sh(cmd, outfile=frgfile)
 

@@ -114,10 +114,41 @@ def main():
     actions = (
         ('bed', 'convert to bed format'),
         ('dup', 'estimate level of redundancy based on position collision'),
+        ('reads', 'report read counts per scaffold (based on frgscf)'),
         ('pairs', 'report insert statistics for read pairs')
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def reads(args):
+    """
+    %prog reads frgscffile
+
+    Report read counts per scaffold (based on frgscf).
+    """
+    p = OptionParser(reads.__doc__)
+    p.add_option("-p", dest="prefix_length", default=4, type="int",
+            help="group the reads based on the first N chars [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(p.print_help())
+
+    frgscffile, = args
+    prefix_length = opts.prefix_length
+
+    fp = open(frgscffile)
+    keyfn = lambda: defaultdict(int)
+    counts = defaultdict(keyfn)
+    for row in fp:
+        f = FrgScfLine(row)
+        fi = f.fragmentID[:prefix_length]
+        counts[f.scaffoldID][fi] += 1
+
+    for scf, count in sorted(counts.items()):
+        print "{0}\t{1}".format(scf,
+                ", ".join("{0}:{1}".format(*x) for x in sorted(count.items())))
 
 
 def bed(args):

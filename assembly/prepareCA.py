@@ -68,6 +68,8 @@ def make_qual(fastafile, defaultqual=20):
     """
     Make a qualfile with default qual value if not available
     """
+    assert op.exists(fastafile)
+
     qualfile = get_qual(fastafile)
     if qualfile is None:
         qualfile = get_qual(fastafile, check=False)
@@ -86,6 +88,8 @@ def make_matepairs(fastafile):
     """
     Assumes the mates are adjacent sequence records
     """
+    assert op.exists(fastafile)
+
     matefile = fastafile.rsplit(".", 1)[0] + ".mates"
     if op.exists(matefile):
         logging.debug("matepairs file `{0}` found".format(matefile))
@@ -116,9 +120,12 @@ def fasta(args):
 
     Convert reads formatted as FASTA file, and convert to CA frg file. If .qual
     file is found, then use it, otherwise just make a fake qual file. Mates are
-    assumed as adjacent sequence records (i.e. /1, /2, /1, /2 ...).
+    assumed as adjacent sequence records (i.e. /1, /2, /1, /2 ...) unless a
+    matefile is given.
     """
     p = OptionParser(fasta.__doc__)
+    p.add_option("-m", dest="matefile", default=None,
+            help="matepairs file")
     set_grid(p)
     add_size_option(p)
 
@@ -131,14 +138,18 @@ def fasta(args):
 
     fastafile, = args
     libname = op.basename(fastafile).split(".")[0]
-    frgfile = libname + ".frg"
+    frgfile = fastafile.rsplit(".", 1)[0] + ".frg"
 
     mated = (opts.size != 0)
     mean, sv = get_mean_sv(opts.size)
 
     qualfile = make_qual(fastafile)
     if mated:
-        matefile = make_matepairs(fastafile)
+        if opts.matefile:
+            matefile = opts.matefile
+            assert op.exists(matefile)
+        else:
+            matefile = make_matepairs(fastafile)
 
     cmd = CAPATH + "convert-fasta-to-v2.pl -l {0} -s {1} -q {2} ".\
             format(libname, fastafile, qualfile)
@@ -213,13 +224,13 @@ def fastq(args):
 
     cmd = CAPATH + "fastqToCA -libraryname {0} -fastq {1}".\
             format(libname, fastqfile)
-    if opts.sanger:
-        cmd += "-type sanger "
-    if opts.outtie:
-        cmd += "-outtie "
     if mated:
         assert len(args) == 2, "you need two fastq file for mated library"
-        cmd += ",{0} -insertsize {1} {2}".format(fastqfile2, mean, sv)
+        cmd += ",{0} -insertsize {1} {2} ".format(fastqfile2, mean, sv)
+    if opts.sanger:
+        cmd += " -type sanger "
+    if opts.outtie:
+        cmd += " -outtie "
 
     sh(cmd, outfile=frgfile)
 

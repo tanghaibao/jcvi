@@ -430,7 +430,9 @@ def clean(args):
     remove sge folder
     """
     p = OptionParser(clean.__doc__)
-    shutil.rmtree(sge)
+
+    if op.exists(sge):
+        shutil.rmtree(sge)
 
 
 if __name__ == '__main__':

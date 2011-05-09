@@ -393,11 +393,16 @@ def get_qual(fastafile, suffix=QUALSUFFIX, check=True):
     """
     Check if current folder contains a qual file associated with the fastafile
     """
-    qualfile = fastafile + suffix
+    qualfile1 = fastafile.rsplit(".", 1)[0] + suffix
+    qualfile2 = fastafile + suffix
 
     if check:
-        if op.exists(qualfile):
-            logging.debug("qual file `{0}` found".format(qualfile))
+        if op.exists(qualfile1):
+            logging.debug("qual file `{0}` found".format(qualfile1))
+            qualfile = qualfile1
+        elif op.exists(qualfile2):
+            logging.debug("qual file `{0}` found".format(qualfile2))
+            qualfile = qualfile2
         else:
             logging.warning("qual file not found")
             return None
@@ -486,12 +491,13 @@ def pair(args):
     %prog pair fastafile
 
     generate .pairs.fasta and .fragments.fasta by matching records with /1/2
-    into the pairs and the rest go to fragments
+    into the pairs and the rest go to fragments.
     """
     p = OptionParser(pair.__doc__)
-    p.add_option("-d", dest="separator",
+    p.add_option("-d", dest="separator", default=None,
             help="separater in the name field to reduce to the same clone " +\
-                 "[e.g. GFNQ33242/1 use /, BOT01-2453H.b1 use .]")
+                 "[e.g. GFNQ33242/1 use /, BOT01-2453H.b1 use .]" +\
+                 "[default: trim until last char]")
     p.add_option("-m", dest="matepairs", default=False, action="store_true",
             help="generate .matepairs file [often used for Celera Assembler]")
 
@@ -526,7 +532,13 @@ def pair(args):
     all_keys = list(f.iterkeys())
     all_keys.sort()
     sep = opts.separator
-    for key, variants in groupby(all_keys, key=lambda x: x.split(sep, 1)[0]):
+
+    if sep:
+        key_fun = lambda x: x.split(sep, 1)[0]
+    else:
+        key_fun = lambda x: x[:-1]
+
+    for key, variants in groupby(all_keys, key=key_fun):
         variants = list(variants)
         paired = (len(variants) == 2)
 

@@ -6,7 +6,11 @@ Classes to handle the .bed files
 import sys
 import logging
 
+from optparse import OptionParser
+
 from jcvi.formats.base import LineFile
+from jcvi.apps.base import ActionDispatcher, debug, sh
+debug()
 
 
 class BedLine(object):
@@ -105,3 +109,39 @@ class Bed(LineFile):
         for b in self:
             if b.seqid == seqid:
                 yield b
+
+
+def main():
+
+    actions = (
+        ('sort', 'sort bed file'),
+            )
+    p = ActionDispatcher(actions)
+    p.dispatch(globals())
+
+
+def sort(args):
+    """
+    %prog sort bedfile
+
+    Sort bed file to have ascending order of seqid, then start.
+    """
+    p = OptionParser(sort.__doc__)
+    p.add_option("--fast", dest="fast", default=False, action="store_true",
+            help="use shell `sort` [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(p.print_help())
+
+    bedfile, = args
+    if opts.fast:
+        cmd = "sort -k1,1 -k2,2n -k4,4 {0}".format(bedfile)
+        sh(cmd)
+    else:
+        bed = Bed(bedfile)
+        bed.print_to_file()
+
+
+if __name__ == '__main__':
+    main()

@@ -71,6 +71,12 @@ class FrgScfLine (object):
         self.end = int(atoms[3])
         self.orientation = '+' if atoms[4] == 'f' else '-'
 
+    @property
+    def bedline(self):
+        s = '\t'.join(str(x) for x in (self.scaffoldID, self.begin - 1, self.end,
+            self.fragmentID, "na", self.orientation))
+        return s
+
 
 class FrgScf (object):
 
@@ -106,11 +112,32 @@ class Posmap (LineFile):
 def main():
 
     actions = (
+        ('bed', 'convert to bed format'),
         ('dup', 'estimate level of redundancy based on position collision'),
         ('pairs', 'report insert statistics for read pairs')
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def bed(args):
+    """
+    %prog bed frgscffile
+
+    Convert the frgscf posmap file to bed format.
+    """
+    p = OptionParser(bed.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(p.print_help())
+
+    frgscffile, = args
+
+    fp = open(frgscffile)
+    for row in fp:
+        f = FrgScfLine(row)
+        print f.bedline
 
 
 def dup(args):

@@ -31,37 +31,9 @@ def main():
         ('fasta', 'convert fasta to frg file'),
         ('sff', 'convert 454 reads to frg file'),
         ('fastq', 'convert Illumina reads to frg file'),
-        ('trim', 'CA6.1 cannot handle long fastq seq and requires trimming'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
-
-
-def trim(args):
-    """
-    %prog trim fastqfile
-
-    CA6.1 cannot handle long fastq seq and requires trimming.
-    """
-    p = OptionParser(trim.__doc__)
-    set_grid(p)
-
-    p.add_option("-l", dest="length", default=103, type="int",
-            help="keep first N bases [default: %default]")
-
-    opts, args = p.parse_args(args)
-    if len(args) != 1:
-        sys.exit(p.print_help())
-
-    grid = opts.grid
-
-    fastqfile, = args
-    length = opts.length
-    trimmedfastqfile = fastqfile.rsplit(".", 1)[0] + \
-            ".{0}.fastq".format(length)
-
-    cmd = "fastx_trimmer -f 1 -l {0} -Q33 ".format(length)
-    sh(cmd, grid=grid, infile=fastqfile, outfile=trimmedfastqfile)
 
 
 def make_qual(fastafile, defaultqual=20):

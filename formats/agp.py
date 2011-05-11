@@ -256,7 +256,7 @@ def main():
         ('bed', 'print out the tiling paths in bed format'),
         ('gaps', 'print out the distribution of gap sizes'),
         ('accessions', 'print out a list of accessions'),
-        ('chr0', 'build AGP file for unassembled sequences'),
+        ('chr0', 'build AGP file for unplaced sequences'),
         ('reindex', 'assume accurate component order, reindex coordinates'),
         ('build', 'given agp file and component fasta file, build ' +\
                  'pseudomolecule fasta'),
@@ -274,7 +274,7 @@ def reindex(args):
 
     assume the component line order is correct, modify coordinates, this is
     necessary mostly due to manual edits (insert/delete) that disrupts
-    the target coordinates
+    the target coordinates.
     """
     p = OptionParser(reindex.__doc__)
     opts, args = p.parse_args(args)

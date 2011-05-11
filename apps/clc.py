@@ -40,6 +40,8 @@ def trim(args):
     p.add_option("-m", "--minlength", dest="minlength", type="int", default=30,
             help="Set the minimum length of output reads. " +\
                  "[default: %default]")
+    p.add_option("--offset", dest="offset", type="int", default=64,
+            help="Set the ascii offset value in fastq [default: %default]")
     p.add_option("--fasta", dest="fasta", default=False, action="store_true",
             help="Output fasta sequence? [default: fastq]")
     set_grid(p)
@@ -61,7 +63,7 @@ def trim(args):
         assert op.exists(fastqfile2)
 
     prefix = fastqfile1.split('.')[0]
-    cmd = "quality_trim -c {0.cutoff} -m {0.minlength} ".format(opts)
+    cmd = "quality_trim -c {0.cutoff} -m {0.minlength} -f {0.offset} ".format(opts)
     if paired:
         cmd += "-r -i {0} {1} ".format(fastqfile1, fastqfile2)
         cmd += "-p {0}.pairs.{1} ".format(prefix, suffix)

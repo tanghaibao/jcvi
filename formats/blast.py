@@ -204,7 +204,7 @@ def bed(args):
 
 
 def report_pairs(data, cutoff=0, dialect="blast", pairsfile=None,
-        insertsfile=None):
+        insertsfile=None, rclip=1):
     """
     This subroutine is used by the pairs function in blast.py and cas.py.
     Reports number of fragments and pairs as well as linked pairs
@@ -222,7 +222,12 @@ def report_pairs(data, cutoff=0, dialect="blast", pairsfile=None,
     # +- (forward-backward) is `innie`, -+ (backward-forward) is `outie`
     orientations = defaultdict(int)
 
-    rs = lambda x: x[:-1]
+    # clip how many chars from end of the read name to get pair name
+    if rclip:
+        rs = lambda x: x[:-rclip]
+    else:
+        rs = str
+
     if dialect == BLAST:
         key = lambda x: rs(x.query)
     elif dialect == CASTAB:

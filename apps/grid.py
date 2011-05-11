@@ -147,13 +147,13 @@ class GridProcess (object):
         else:
             self.jobid = "-1"
 
-        msg = "[{0}] {1} ".format(self.jobid, self.cmd)
+        msg = "[{0}] {1}".format(self.jobid, self.cmd)
         if self.infile:
-            msg += ":infile={0}: ".format(self.infile)
+            msg += " < {0} ".format(self.infile)
         if self.outfile:
-            msg += ":outfile={0}: ".format(self.outfile)
+            msg += " > {0} ".format(self.outfile)
         if self.errfile:
-            msg += ":errfile={0}: ".format(self.errfile)
+            msg += " 2> {0} ".format(self.errfile)
 
         logging.debug(msg)
 

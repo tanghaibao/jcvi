@@ -11,6 +11,7 @@ import logging
 
 from optparse import OptionParser
 
+from jcvi.utils.iter import pairwise
 from jcvi.apps.console import ProgressBar
 from jcvi.apps.base import ActionDispatcher, debug, set_grid, sh
 debug()
@@ -68,6 +69,8 @@ def main():
         ('splitread', 'split appended reads (from JGI)'),
         ('pair', 'pair up two fastq files and combine pairs'),
         ('unpair', 'unpair pairs.fastq files into 1.fastq and 2.fastq'),
+        ('pairinplace', 'starting from fragment.fasta, find if ' +\
+                "adjacent records can form pairs"),
         ('convert', 'convert between illumina and sanger offset'),
         ('trim', 'trim reads using fastx_trimmer'),
             )
@@ -247,6 +250,8 @@ def unpair(args):
     The /1 will be placed in 1.fastq, and /2 will be place in 2.fastq.
     """
     p = OptionParser(unpair.__doc__)
+    p.add_option("--tag", dest="tag", default=False, action="store_true",
+            help="add tag (/1, /2) to the read name")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -262,11 +267,17 @@ def unpair(args):
     afw = open(afastq, "w")
     bfw = open(bfastq, "w")
 
+    tag = opts.tag
+
     it = iter_fastq(fh)
     rec = it.next()
     while rec:
+        if tag:
+            rec.name += "/1"
         print >> afw, rec
         rec = it.next()
+        if tag:
+            rec.name += "/2"
         print >> bfw, rec
         rec = it.next()
 
@@ -275,11 +286,68 @@ def unpair(args):
         f.close()
 
 
+def pairinplace(args):
+    """
+    %prog pairinplace bulk.fastq
+
+    Pair up the records in bulk.fastq by comparing the names for adjancent
+    records. If they match, print to bulk.pairs.fastq, else print to
+    bulk.fragments.fastq.
+    """
+    p = OptionParser(pairinplace.__doc__)
+    p.add_option("-r", dest="rclip", default=0, type="int",
+            help="pair ID is derived from rstrip N chars [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(p.print_help())
+
+    fastqfile, = args
+    base = op.basename(fastqfile).split(".")[0]
+    frags = base + ".fragments.fastq"
+    pairs = base + ".pairs.fastq"
+
+    fragsfw = open(frags, "w")
+    pairsfw = open(pairs, "w")
+
+    N = opts.rclip
+    if N:
+        strip_name = lambda x: x[:-N]
+    else:
+        strip_name = str
+
+    fh = open(fastqfile)
+    fh_iter = iter_fastq(fh, key=strip_name)
+    skipflag = False  # controls the iterator skip
+    for a, b in pairwise(fh_iter):
+        if b is None:  # hit the eof
+            break
+
+        if skipflag:
+            skipflag = False
+            continue
+
+        if a.id == b.id:
+            print >> pairsfw, a
+            print >> pairsfw, b
+            skipflag = True
+        else:
+            print >> fragsfw, a
+
+    # don't forget the last one, when b is None
+    if not skipflag:
+        print >> fragsfw, a
+
+    logging.debug("reads paired into `%s` and `%s`" % (pairs, frags))
+    for f in (fh, pairsfw, fragsfw):
+        f.close()
+
+
 def pair(args):
     """
     %prog pair 1.fastq 2.fastq
 
-    pair up the records in 1.fastq and 2.fastq, pairs are indicated by trailing
+    Pair up the records in 1.fastq and 2.fastq, pairs are indicated by trailing
     "/1" and "/2". If using raw sequences, this is trivial, since we can just
     iterate one at a time for both files; however if two files do not match,
     (e.g. due to trimming), we need a third fastq that provides the order. Two

@@ -162,8 +162,10 @@ def pairs(args):
             default=False, action="store_true",
             help="write valid pairs to pairsfile")
     p.add_option("-n", dest="nrows",
-            default=1e9, type="int",
+            default=100000, type="int",
             help="only use the first n lines [default: %default]")
+    p.add_option("-r", dest="rclip", default=1, type="int",
+            help="pair ID is derived from rstrip N chars [default: %default]")
     p.add_option("--inserts", dest="insertsfile", default=True,
             help="write insert sizes to insertsfile and plot distribution " + \
             "to insertsfile.pdf")
@@ -173,6 +175,7 @@ def pairs(args):
     if len(args) != 1:
         sys.exit(p.print_help())
 
+    rclip = opts.rclip
     cutoff = opts.cutoff
     if cutoff:
         cutoff = int(cutoff)
@@ -187,7 +190,7 @@ def pairs(args):
     data.sort(key=lambda x: x.readname)
 
     report_pairs(data, cutoff, dialect="castab", pairsfile=pairsfile,
-           insertsfile=insertsfile)
+           insertsfile=insertsfile, rclip=rclip)
 
 
 if __name__ == '__main__':

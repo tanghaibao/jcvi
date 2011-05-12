@@ -193,8 +193,18 @@ def fastq(args):
 
     mated = (opts.size != 0)
     libname = op.basename(fastqfile).split(".")[0]
+
+    libname = libname.replace("_1_sequence", "")
+
+    if opts.outtie:
+        libname = "IlluminaMP_" + libname
+    else:
+        libname = "IlluminaPE_" + libname
+
     if mated:
         libname += "_Mated"
+    else:
+        libname += "_UnMated"
     frgfile = libname + ".frg"
 
     mean, sv = get_mean_sv(opts.size)

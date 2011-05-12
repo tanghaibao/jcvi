@@ -20,7 +20,7 @@ from Bio import SeqIO
 
 from jcvi.formats.base import LineFile
 from jcvi.formats.fasta import Fasta
-from jcvi.assembly.base import A50
+from jcvi.assembly.base import calculate_A50
 from jcvi.utils.iter import pairwise
 from jcvi.apps.base import ActionDispatcher, set_debug
 
@@ -151,7 +151,7 @@ class AGP (LineFile):
 
         nbacs = len(bacs)
         nscaffolds = len(scaffold_sizes)
-        a50, l50, n50, scaffold_sizes = A50(scaffold_sizes)
+        a50, l50, n50, scaffold_sizes = calculate_A50(scaffold_sizes)
 
         print "\t".join(str(x) for x in (object, nbacs, nscaffolds, l50,
             human_size(n50, precision=2, target="Mb")))

@@ -17,7 +17,7 @@ from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
 
-def A50(ctgsizes, cutoff=0):
+def calculate_A50(ctgsizes, cutoff=0):
     """
     Given an array of contig sizes, produce A50, N50, and L50 values
     """

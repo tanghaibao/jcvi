@@ -11,7 +11,7 @@ import logging
 import os.path as op
 
 from jcvi.formats.fasta import Fasta
-from jcvi.assembly.base import A50
+from jcvi.assembly.base import calculate_A50
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
@@ -76,12 +76,12 @@ def A50(args):
             f = Fasta(fastafile, index=False)
             ctgsizes = [length for k, length in f.itersizes()]
 
-            a50, l50, n50, ctgsizes = get_a50(ctgsizes, cutoff=opts.cutoff)
+            a50, l50, n50, ctgsizes = calculate_A50(ctgsizes, cutoff=opts.cutoff)
 
-            logging.debug("`%s` ctg_sizes: %s" % (fastafile, ctgsizes))
-            logging.debug("`%s` N50: %d" % (a, n50))
+            logging.debug("`{0}` ctg_sizes: {1}".format(fastafile, ctgsizes))
 
-            tag = "%s (N50=%d)" % (op.basename(a).rsplit(".", 1)[0], n50)
+            tag = "{0} (N50={1})".format(op.basename(fastafile).rsplit(".", 1)[0], n50)
+            logging.debug(tag)
 
             for i, s in zip(xrange(0, len(a50), stepsize), a50[::stepsize]):
                 print >>fw, "\t".join((str(i), str(s / 1000000.), tag))

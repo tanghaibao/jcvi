@@ -177,6 +177,9 @@ def fastq(args):
             help="Are the qv sanger encodings? [default: %default]")
     p.add_option("--outtie", dest="outtie", default=False, action="store_true",
             help="Are these outie reads? [default: %default]")
+    p.add_option("--deduplicate", dest="deduplicate", default=False,
+            action="store_true", help="set doRemoveDuplicateReads=0 "
+            "[default: %default]")
     add_size_option(p)
 
     opts, args = p.parse_args(args)
@@ -188,10 +191,12 @@ def fastq(args):
     if len(args) == 2:
         fastqfile2 = get_abs_path(args[1])
 
+    mated = (opts.size != 0)
     libname = op.basename(fastqfile).split(".")[0]
+    if mated:
+        libname += "_Mated"
     frgfile = libname + ".frg"
 
-    mated = (opts.size != 0)
     mean, sv = get_mean_sv(opts.size)
 
     cmd = CAPATH + "fastqToCA -libraryname {0} -fastq {1}".\
@@ -205,6 +210,10 @@ def fastq(args):
         cmd += " -outtie "
 
     sh(cmd, outfile=frgfile)
+    if opts.deduplicate:
+        cmd = "sed -i 's/^doRemoveDuplicateReads.*/doRemoveDuplicateReads=1/' "
+        cmd += frgfile
+        sh(cmd)
 
 
 if __name__ == '__main__':

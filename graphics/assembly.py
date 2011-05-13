@@ -76,7 +76,7 @@ def A50(args):
             f = Fasta(fastafile, index=False)
             ctgsizes = [length for k, length in f.itersizes()]
 
-            a50, l50, n50, ctgsizes = calculate_A50(ctgsizes, cutoff=opts.cutoff)
+            a50, l50, n50 = calculate_A50(ctgsizes, cutoff=opts.cutoff)
 
             logging.debug("`{0}` ctg_sizes: {1}".format(fastafile, ctgsizes))
 

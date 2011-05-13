@@ -33,7 +33,7 @@ def calculate_A50(ctgsizes, cutoff=0):
     n50 = ctgsizes[idx]
     l50 = idx + 1
 
-    return a50, l50, n50, ctgsizes
+    return a50, l50, n50
 
 
 """

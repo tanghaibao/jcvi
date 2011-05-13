@@ -151,7 +151,7 @@ class AGP (LineFile):
 
         nbacs = len(bacs)
         nscaffolds = len(scaffold_sizes)
-        a50, l50, n50, scaffold_sizes = calculate_A50(scaffold_sizes)
+        a50, l50, n50 = calculate_A50(scaffold_sizes)
 
         print "\t".join(str(x) for x in (object, nbacs, nscaffolds, l50,
             human_size(n50, precision=2, target="Mb")))
@@ -160,7 +160,8 @@ class AGP (LineFile):
         bacs = set()
         scaffold_sizes = []
         _scaffold_key = lambda x: x.is_gap and \
-                x.gap_type in ("clone", "contig") and x.linkage == "no"
+                x.gap_type in ("clone", "contig", "centromere") \
+                and x.linkage == "no"
 
         for is_gap, scaffold in groupby(lines, key=_scaffold_key):
             if is_gap:

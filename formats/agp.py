@@ -20,12 +20,14 @@ from Bio import SeqIO
 
 from jcvi.formats.base import LineFile
 from jcvi.formats.fasta import Fasta
+from jcvi.formats.bed import Bed
 from jcvi.assembly.base import calculate_A50
-from jcvi.utils.iter import pairwise
+from jcvi.utils.range import range_intersect
+from jcvi.utils.iter import pairwise, flatten
 from jcvi.apps.base import ActionDispatcher, set_debug
 
 
-Valid_component_type = "ADFGNOPUW"
+Valid_component_type = list("ADFGNOPUW")
 Valid_gap_type = ("fragment", "clone", "contig", "centromere", "short_arm",
         "heterochromatin", "telomere", "repeat")
 Valid_orientation = ("+", "-", "0", "na")
@@ -43,7 +45,7 @@ class AGPLine (object):
         self.object_span = self.object_end - self.object_beg + 1
         self.part_number = atoms[3]
         self.component_type = atoms[4]
-        self.is_gap = (self.component_type == 'N')
+        self.is_gap = (self.component_type in ('N', 'U'))
 
         if not self.is_gap:
             self.component_id = atoms[5]
@@ -160,8 +162,7 @@ class AGP (LineFile):
         bacs = set()
         scaffold_sizes = []
         _scaffold_key = lambda x: x.is_gap and \
-                x.gap_type in ("clone", "contig", "centromere") \
-                and x.linkage == "no"
+                x.linkage == "no"
 
         for is_gap, scaffold in groupby(lines, key=_scaffold_key):
             if is_gap:
@@ -258,6 +259,8 @@ def main():
         ('gaps', 'print out the distribution of gap sizes'),
         ('accessions', 'print out a list of accessions'),
         ('chr0', 'build AGP file for unplaced sequences'),
+        ('mask', 'mask given ranges in components to gaps'),
+        ('liftover', 'given ranges in components, get chromosome ranges'),
         ('reindex', 'assume accurate component order, reindex coordinates'),
         ('build', 'given agp file and component fasta file, build ' +\
                  'pseudomolecule fasta'),
@@ -267,6 +270,129 @@ def main():
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def mask(args):
+    """
+    %prog mask agpfile bedfile
+
+    Mask given ranges in componets to gaps.
+    """
+    p = OptionParser(mask.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(p.print_help())
+
+    agpfile, bedfile = args
+    agp = AGP(agpfile)
+    bed = Bed(bedfile)
+    simple_agp = agp.simple_agp
+    # agp lines to replace original ones, keyed by the component
+    agp_fixes = defaultdict(list)
+
+    newagpfile = agpfile.replace(".agp", ".masked.agp")
+    logfile = bedfile.replace(".bed", ".masklog")
+    fw = open(newagpfile, "w")
+    fwlog = open(logfile, "w")
+
+    for component, intervals in bed.sub_beds():
+        print >> fwlog, "\n".join(str(x) for x in intervals)
+        a = simple_agp[component]
+        object = a.object
+        component_type = a.component_type
+        component_span = a.component_span
+        orientation = a.orientation
+        print >> fwlog, a
+
+        assert a.component_beg, a.component_end
+        arange = a.component_beg, a.component_end
+
+        # Make sure `ivs` contain DISJOINT ranges, and located within `arange`
+        ivs = []
+        for i in intervals:
+            iv = range_intersect(arange, (i.start, i.end))
+            if iv is not None:
+                ivs.append(iv)
+
+        # Sort the ends of `ivs` as well as the arange
+        arange = a.component_beg - 1, a.component_end + 1
+        endpoints = sorted(flatten(ivs + [arange]))
+        # reverse if component on negative strand
+        if orientation == '-':
+            endpoints.reverse()
+
+        sum_of_spans = 0
+        # assign complements as sequence components
+        for i, (a, b) in enumerate(pairwise(endpoints)):
+            if orientation == '-':
+                a, b = b, a
+
+            aline = "\t".join(str(x) for x in (object, 0, 0, 0))
+            if i % 2 == 0:
+                cspan = b - a - 1
+                aline = "\t".join(str(x) for x in (aline,
+                        component_type, component, a + 1, b - 1, orientation))
+            else:
+                cspan = b - a + 1
+                aline = "\t".join(str(x) for x in (aline,
+                        "N", cspan, "fragment", "yes"))
+            if cspan <= 0:
+                continue
+
+            sum_of_spans += cspan
+            agp_fixes[component].append(aline)
+            print >> fwlog, aline
+
+        assert component_span == sum_of_spans
+        print >> fwlog
+
+    # Finally write the masked agp
+    for a in agp:
+        if not a.is_gap and a.component_id in agp_fixes:
+            print >> fw, "\n".join(agp_fixes[a.component_id])
+        else:
+            print >> fw, a
+
+
+def liftover(args):
+    """
+    %prog liftover agpfile bedfile
+
+    Given coordinates in components, convert to the coordinates in chromsome.
+    """
+    p = OptionParser(liftover.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(p.print_help())
+
+    agpfile, bedfile = args
+    agp = AGP(agpfile).simple_agp
+    bed = Bed(bedfile)
+    for b in bed:
+        component = b.seqid
+        a = agp[component]
+
+        assert a.component_beg < a.component_end
+        arange = a.component_beg, a.component_end
+        assert b.start < b.end
+        brange = b.start, b.end
+
+        st = range_intersect(arange, brange)
+        if not st:
+            continue
+        start, end = st
+        assert start <= end
+
+        if a.orientation == '-':
+            d = a.object_end + a.component_beg
+            s, t = d - end, d - start
+        else:
+            d = a.object_beg - a.component_beg
+            s, t = d + start, d + end
+
+        print "\t".join(str(x) for x in (a.object, s - 1, t, b.accn))
 
 
 def reindex(args):
@@ -283,8 +409,8 @@ def reindex(args):
     if len(args) != 2:
         sys.exit(p.print_help())
 
-    argfile, newagpfile = args
-    agp = AGP(argfile, validate=False)
+    agpfile, newagpfile = args
+    agp = AGP(agpfile, validate=False)
     fw = open(newagpfile, "w")
     for chr, chr_agp in groupby(agp, lambda x: x.object):
         chr_agp = list(chr_agp)
@@ -324,9 +450,9 @@ def summary(args):
     agpfile, = args
     header = "Chromosome|Number of BACs|No of Scaffolds|Scaff N50|Scaff L50"
     header = header.replace('|', '\t')
-    print header
 
     agp = AGP(agpfile)
+    print header
     agp.summary_all()
 
 

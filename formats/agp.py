@@ -20,7 +20,7 @@ from Bio import SeqIO
 
 from jcvi.formats.base import LineFile
 from jcvi.formats.fasta import Fasta
-from jcvi.formats.bed import Bed
+from jcvi.formats.bed import Bed, BedLine
 from jcvi.assembly.base import calculate_A50
 from jcvi.utils.range import range_intersect
 from jcvi.utils.iter import pairwise, flatten
@@ -300,7 +300,6 @@ def mask(args):
         print >> fwlog, "\n".join(str(x) for x in intervals)
         a = simple_agp[component]
         object = a.object
-        component_type = a.component_type
         component_span = a.component_span
         orientation = a.orientation
         print >> fwlog, a
@@ -327,12 +326,14 @@ def mask(args):
         for i, (a, b) in enumerate(pairwise(endpoints)):
             if orientation == '-':
                 a, b = b, a
+            if orientation not in ('+', '-'):
+                orientation = '+'
 
             aline = "\t".join(str(x) for x in (object, 0, 0, 0))
             if i % 2 == 0:
                 cspan = b - a - 1
                 aline = "\t".join(str(x) for x in (aline,
-                        component_type, component, a + 1, b - 1, orientation))
+                        'D', component, a + 1, b - 1, orientation))
             else:
                 cspan = b - a + 1
                 aline = "\t".join(str(x) for x in (aline,
@@ -370,6 +371,7 @@ def liftover(args):
     agpfile, bedfile = args
     agp = AGP(agpfile).simple_agp
     bed = Bed(bedfile)
+    newbed = Bed()
     for b in bed:
         component = b.seqid
         a = agp[component]
@@ -392,12 +394,17 @@ def liftover(args):
             d = a.object_beg - a.component_beg
             s, t = d + start, d + end
 
-        print "\t".join(str(x) for x in (a.object, s - 1, t, b.accn))
+        name = "{0}_{1}".format(component, b.accn.replace(" ", "_"))
+        bline = "\t".join(str(x) for x in (a.object, s - 1, t, name))
+        newbed.append(BedLine(bline))
+
+    newbed.sort(key=lambda x: (x.seqid, x.start))
+    newbed.print_to_file()
 
 
 def reindex(args):
     """
-    %prog agpfile newagpfile
+    %prog agpfile
 
     assume the component line order is correct, modify coordinates, this is
     necessary mostly due to manual edits (insert/delete) that disrupts
@@ -406,11 +413,13 @@ def reindex(args):
     p = OptionParser(reindex.__doc__)
     opts, args = p.parse_args(args)
 
-    if len(args) != 2:
+    if len(args) != 1:
         sys.exit(p.print_help())
 
-    agpfile, newagpfile = args
+    agpfile, = args
     agp = AGP(agpfile, validate=False)
+    newagpfile = agpfile.replace(".agp", ".reindexed.agp")
+
     fw = open(newagpfile, "w")
     for chr, chr_agp in groupby(agp, lambda x: x.object):
         chr_agp = list(chr_agp)
@@ -431,6 +440,7 @@ def reindex(args):
     # Last step: validate the new agpfile
     fw.close()
     agp = AGP(newagpfile, validate=True)
+    logging.error("File `{0}` written and verified.".format(newagpfile))
 
 
 def summary(args):

@@ -284,8 +284,8 @@ def get_first_rec(fastafile):
     f = list(SeqIO.parse(fastafile, "fasta"))
 
     if len(f) > 1:
-        logging.debug("%d records found in %s, using a random one" % \
-                (len(f), fastafile))
+        logging.debug("{0} records found in {1}, using the first one".\
+                format(len(f), fastafile))
 
     return f[0]
 
@@ -369,21 +369,37 @@ def diff(args):
         sys.exit(p.print_help())
 
     afasta, bfasta = args
-    arec = get_first_rec(afasta)
-    brec = get_first_rec(bfasta)
+    #arec = get_first_rec(afasta)
+    #brec = get_first_rec(bfasta)
 
-    print tabular((arec, brec))
+    afastan = len(Fasta(afasta))
+    bfastan = len(Fasta(bfasta))
 
-    asize, bsize = len(arec), len(brec)
-
-    if asize == bsize:
-        print_green("Two sequence size match (%d)" % asize)
+    if afastan == bfastan:
+        print_green("Two sets contain different number of sequences ({0}, {1})".\
+                format(afastan, bfastan))
     else:
-        print_red("Two sequence size do not match (%d, %d)" % (asize, bsize))
+        print_red("Two sets contain different number of sequences ({0}, {1})".\
+                format(afastan, bfastan))
 
-    # print out the first place the two sequences diff
-    print_first_difference(arec, brec, ignore_case=opts.ignore_case,
-            ignore_N=opts.ignore_N, rc=opts.rc)
+    ah = SeqIO.parse(afasta, "fasta")
+    bh = SeqIO.parse(bfasta, "fasta")
+
+    for arec, brec in zip(ah, bh):
+        print tabular((arec, brec))
+        asize, bsize = len(arec), len(brec)
+
+        if asize == bsize:
+            print_green("Two sequence size match (%d)" % asize)
+        else:
+            print_red("Two sequence size do not match (%d, %d)" % (asize, bsize))
+
+        # print out the first place the two sequences diff
+        fd = print_first_difference(arec, brec, ignore_case=opts.ignore_case,
+                ignore_N=opts.ignore_N, rc=opts.rc)
+        if not fd:
+            logging.error("Two sets of sequences differ at `{0}`".format(arec.id))
+            break
 
 
 QUALSUFFIX = ".qual"

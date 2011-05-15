@@ -31,37 +31,9 @@ def main():
         ('fasta', 'convert fasta to frg file'),
         ('sff', 'convert 454 reads to frg file'),
         ('fastq', 'convert Illumina reads to frg file'),
-        ('trim', 'CA6.1 cannot handle long fastq seq and requires trimming'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
-
-
-def trim(args):
-    """
-    %prog trim fastqfile
-
-    CA6.1 cannot handle long fastq seq and requires trimming.
-    """
-    p = OptionParser(trim.__doc__)
-    set_grid(p)
-
-    p.add_option("-l", dest="length", default=103, type="int",
-            help="keep first N bases [default: %default]")
-
-    opts, args = p.parse_args(args)
-    if len(args) != 1:
-        sys.exit(p.print_help())
-
-    grid = opts.grid
-
-    fastqfile, = args
-    length = opts.length
-    trimmedfastqfile = fastqfile.rsplit(".", 1)[0] + \
-            ".{0}.fastq".format(length)
-
-    cmd = "fastx_trimmer -f 1 -l {0} -Q33 ".format(length)
-    sh(cmd, grid=grid, infile=fastqfile, outfile=trimmedfastqfile)
 
 
 def make_qual(fastafile, defaultqual=20):
@@ -205,6 +177,9 @@ def fastq(args):
             help="Are the qv sanger encodings? [default: %default]")
     p.add_option("--outtie", dest="outtie", default=False, action="store_true",
             help="Are these outie reads? [default: %default]")
+    p.add_option("--deduplicate", dest="deduplicate", default=False,
+            action="store_true", help="set doRemoveDuplicateReads=0 "
+            "[default: %default]")
     add_size_option(p)
 
     opts, args = p.parse_args(args)
@@ -216,10 +191,22 @@ def fastq(args):
     if len(args) == 2:
         fastqfile2 = get_abs_path(args[1])
 
+    mated = (opts.size != 0)
     libname = op.basename(fastqfile).split(".")[0]
+
+    libname = libname.replace("_1_sequence", "")
+
+    if opts.outtie:
+        libname = "IlluminaMP_" + libname
+    else:
+        libname = "IlluminaPE_" + libname
+
+    if mated:
+        libname += "_Mated"
+    else:
+        libname += "_UnMated"
     frgfile = libname + ".frg"
 
-    mated = (opts.size != 0)
     mean, sv = get_mean_sv(opts.size)
 
     cmd = CAPATH + "fastqToCA -libraryname {0} -fastq {1}".\
@@ -233,6 +220,10 @@ def fastq(args):
         cmd += " -outtie "
 
     sh(cmd, outfile=frgfile)
+    if opts.deduplicate:
+        cmd = "sed -i 's/^doRemoveDuplicateReads.*/doRemoveDuplicateReads=1/' "
+        cmd += frgfile
+        sh(cmd)
 
 
 if __name__ == '__main__':

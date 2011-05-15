@@ -147,7 +147,15 @@ class GridProcess (object):
         else:
             self.jobid = "-1"
 
-        logging.debug("[%s] %s" % (self.jobid, self.cmd))
+        msg = "[{0}] {1}".format(self.jobid, self.cmd)
+        if self.infile:
+            msg += " < {0} ".format(self.infile)
+        if self.outfile:
+            msg += " > {0} ".format(self.outfile)
+        if self.errfile:
+            msg += " 2> {0} ".format(self.errfile)
+
+        logging.debug(msg)
 
         os.chdir(cwd)
 

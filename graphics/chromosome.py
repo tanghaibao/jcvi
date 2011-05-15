@@ -71,7 +71,7 @@ def main():
     """
     p = OptionParser(main.__doc__)
     p.add_option("--gauge", dest="gauge", default=False, action="store_true",
-            help="Draw a gauge with size label")
+            help="draw a gauge with size label [default: %default]")
     opts, args = p.parse_args()
 
     if len(args) != 2:

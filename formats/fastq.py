@@ -11,11 +11,22 @@ import logging
 
 from optparse import OptionParser
 
+from jcvi.utils.iter import pairwise
 from jcvi.apps.console import ProgressBar
-from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.apps.base import ActionDispatcher, debug, set_grid, sh
 debug()
 
 qual_offset = lambda x: 33 if x == "sanger" else 64
+
+
+class FastqLite (object):
+    def __init__(self, name, seq, qual):
+        self.name = name
+        self.seq = seq
+        self.qual = qual
+
+    def __str__(self):
+        return "\n".join((self.name, self.seq, "+", self.qual))
 
 
 class FastqRecord (object):
@@ -55,12 +66,91 @@ def main():
 
     actions = (
         ('size', 'total base pairs in the fastq files'),
+        ('splitread', 'split appended reads (from JGI)'),
         ('pair', 'pair up two fastq files and combine pairs'),
         ('unpair', 'unpair pairs.fastq files into 1.fastq and 2.fastq'),
+        ('pairinplace', 'starting from fragment.fasta, find if ' +\
+                "adjacent records can form pairs"),
         ('convert', 'convert between illumina and sanger offset'),
+        ('trim', 'trim reads using fastx_trimmer'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def trim(args):
+    """
+    %prog trim fastqfile
+
+    Wraps `fastx_trimmer` to trim from begin or end of reads.
+    """
+    p = OptionParser(trim.__doc__)
+    set_grid(p)
+
+    p.add_option("-f", dest="first", default=0, type="int",
+            help="First base to keep. Default is 1.")
+    p.add_option("-l", dest="last", default=0, type="int",
+            help="Last base to keep. Default is entire read.")
+
+    opts, args = p.parse_args(args)
+    if len(args) != 1:
+        sys.exit(p.print_help())
+
+    grid = opts.grid
+
+    fastqfile, = args
+    base = op.basename(fastqfile).split(".")[0]
+    fq = base + ".ntrimmed.fastq"
+
+    cmd = "fastx_trimmer -Q33 "
+    if opts.first:
+        cmd += "-f {0.first} ".format(opts)
+    if opts.last:
+        cmd += "-l {0.last} ".format(opts)
+
+    sh(cmd, grid=grid, infile=fastqfile, outfile=fq)
+
+
+def splitread(args):
+    """
+    %prog splitread fastqfile
+
+    Split fastqfile into two read fastqfiles, cut in the middle.
+    """
+    p = OptionParser(splitread.__doc__)
+    p.add_option("-n", dest="n", default=76, type="int",
+            help="split at N-th base position [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(p.print_help())
+
+    pairsfastq, = args
+    fh = open(pairsfastq)
+
+    assert op.exists(pairsfastq)
+    base = op.basename(pairsfastq).split(".")[0]
+    fq = base + ".splitted.fastq"
+    fw = open(fq, "w")
+
+    it = iter_fastq(fh)
+    rec = it.next()
+    n = opts.n
+    while rec:
+        name = rec.name
+        seq = rec.seq
+        qual = rec.qual
+
+        rec1 = FastqLite(name, seq[:n], qual[:n])
+        rec2 = FastqLite(name, seq[n:], qual[n:])
+
+        print >> fw, rec1
+        print >> fw, rec2
+        rec = it.next()
+
+    logging.debug("reads split into `{0}`".format(fq))
+    for f in (fh, fw):
+        f.close()
 
 
 def size(args):
@@ -160,12 +250,14 @@ def unpair(args):
     The /1 will be placed in 1.fastq, and /2 will be place in 2.fastq.
     """
     p = OptionParser(unpair.__doc__)
+    p.add_option("--tag", dest="tag", default=False, action="store_true",
+            help="add tag (/1, /2) to the read name")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(p.print_help())
 
-    pairsfastq = args[0]
+    pairsfastq, = args
     fh = open(pairsfastq)
 
     assert op.exists(pairsfastq)
@@ -175,11 +267,17 @@ def unpair(args):
     afw = open(afastq, "w")
     bfw = open(bfastq, "w")
 
+    tag = opts.tag
+
     it = iter_fastq(fh)
     rec = it.next()
     while rec:
+        if tag:
+            rec.name += "/1"
         print >> afw, rec
         rec = it.next()
+        if tag:
+            rec.name += "/2"
         print >> bfw, rec
         rec = it.next()
 
@@ -188,11 +286,68 @@ def unpair(args):
         f.close()
 
 
+def pairinplace(args):
+    """
+    %prog pairinplace bulk.fastq
+
+    Pair up the records in bulk.fastq by comparing the names for adjancent
+    records. If they match, print to bulk.pairs.fastq, else print to
+    bulk.fragments.fastq.
+    """
+    p = OptionParser(pairinplace.__doc__)
+    p.add_option("-r", dest="rclip", default=0, type="int",
+            help="pair ID is derived from rstrip N chars [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(p.print_help())
+
+    fastqfile, = args
+    base = op.basename(fastqfile).split(".")[0]
+    frags = base + ".fragments.fastq"
+    pairs = base + ".pairs.fastq"
+
+    fragsfw = open(frags, "w")
+    pairsfw = open(pairs, "w")
+
+    N = opts.rclip
+    if N:
+        strip_name = lambda x: x[:-N]
+    else:
+        strip_name = str
+
+    fh = open(fastqfile)
+    fh_iter = iter_fastq(fh, key=strip_name)
+    skipflag = False  # controls the iterator skip
+    for a, b in pairwise(fh_iter):
+        if b is None:  # hit the eof
+            break
+
+        if skipflag:
+            skipflag = False
+            continue
+
+        if a.id == b.id:
+            print >> pairsfw, a
+            print >> pairsfw, b
+            skipflag = True
+        else:
+            print >> fragsfw, a
+
+    # don't forget the last one, when b is None
+    if not skipflag:
+        print >> fragsfw, a
+
+    logging.debug("reads paired into `%s` and `%s`" % (pairs, frags))
+    for f in (fh, pairsfw, fragsfw):
+        f.close()
+
+
 def pair(args):
     """
     %prog pair 1.fastq 2.fastq
 
-    pair up the records in 1.fastq and 2.fastq, pairs are indicated by trailing
+    Pair up the records in 1.fastq and 2.fastq, pairs are indicated by trailing
     "/1" and "/2". If using raw sequences, this is trivial, since we can just
     iterate one at a time for both files; however if two files do not match,
     (e.g. due to trimming), we need a third fastq that provides the order. Two

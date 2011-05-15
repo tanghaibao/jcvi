@@ -9,6 +9,8 @@ import logging
 from optparse import OptionParser
 
 from jcvi.formats.base import LineFile
+from jcvi.utils.cbook import thousands
+from jcvi.utils.range import range_union
 from jcvi.apps.base import ActionDispatcher, debug, sh
 debug()
 
@@ -92,6 +94,11 @@ class Bed(LineFile):
             print >>fw, bedline
 
     @property
+    def sum(self):
+        ranges = [(x.seqid, x.start, x.end) for x in self]
+        return range_union(ranges)
+
+    @property
     def seqids(self):
         return sorted(set(b.seqid for b in self))
 
@@ -110,14 +117,37 @@ class Bed(LineFile):
             if b.seqid == seqid:
                 yield b
 
+    def sub_beds(self):
+        # get all the beds on all chromosomes, emitting one at a time
+        for bs in self.seqids:
+            yield bs, list(self.sub_bed(bs))
+
 
 def main():
 
     actions = (
         ('sort', 'sort bed file'),
+        ('sum', 'sum the total lengths of the intervals'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def sum(args):
+    """
+    %prog sum bedfile
+
+    Sum the total lengths of the intervals.
+    """
+    p = OptionParser(sum.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(p.print_help())
+
+    bedfile, = args
+    bed = Bed(bedfile)
+    print >> sys.stderr, "Total bases: {0}".format(thousands(bed.sum))
 
 
 def sort(args):

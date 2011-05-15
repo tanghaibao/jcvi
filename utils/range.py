@@ -21,8 +21,7 @@ Range = namedtuple("Range", "seqid start end score id")
 def range_intersect(a, b):
     """
     Returns the intersection between two reanges
-    >>> range_intersect((30, 45), (45, 55))
-    [45, 45]
+    >>> range_intersect((30, 45), (55, 65))
     >>> range_intersect((48, 65), (45, 55))
     [48, 55]
     """
@@ -37,6 +36,9 @@ def range_intersect(a, b):
         return None
     i_min = max(a_min, b_min)
     i_max = min(a_max, b_max)
+    if i_min > i_max:
+        return None
+
     return [i_min, i_max]
 
 
@@ -51,9 +53,9 @@ def ranges_intersect(rset):
 
     a = rset[0]
     for b in rset[1:]:
-        a = range_intersect(a, b)
         if not a:
             return None
+        a = range_intersect(a, b)
 
     return a
 

@@ -360,7 +360,7 @@ def liftover(args):
     """
     %prog liftover agpfile bedfile
 
-    Given coordinates in components, convert to the coordinates in chromsome.
+    Given coordinates in components, convert to the coordinates in chromosomes.
     """
     p = OptionParser(liftover.__doc__)
     opts, args = p.parse_args(args)

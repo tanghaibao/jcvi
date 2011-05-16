@@ -13,12 +13,14 @@ It is expected to be executed within 5-consensus/ folder.
 import os
 import os.path as op
 import sys
+import shutil
 import logging
 
 from glob import glob
 from optparse import OptionParser
 
 from jcvi.apps.base import ActionDispatcher, sh, debug
+from jcvi.assembly.base import CAPATH
 debug()
 
 
@@ -44,6 +46,13 @@ def get_prefix(dir="../"):
     prefix = op.basename(prefix).rsplit(".", 1)[0]
 
     return prefix
+
+
+def get_ID(s):
+    """
+    unitig3.16057 => (3, 16057)
+    """
+    return s.replace("unitig", "").split(".")
 
 
 def error(args):
@@ -88,7 +97,8 @@ def error(args):
 
             cmd = "{0} {1}".format(partID, unitigID)
             unitigfile = pull(cmd.split())
-            shutil.move(unitigfile, backup_folder)
+            cmd = "mv {0} {1}".format(unitigfile, backup_folder)
+            sh(cmd)
 
         fp.close()
 
@@ -105,9 +115,10 @@ def trace(args):
     if len(args) != 1:
         sys.exit(p.print_help())
 
-    unitigID, = args
+    s, = args
+    partID, unitigID = get_ID(s)
 
-    cmd = "grep 'unitig {0}\.' -C2 ../5-consensus/*.err".format(unitigID)
+    cmd = "grep '{0} FAILED\.' -m2 -C2 ../5-consensus/*.err".format(unitigID)
 
     sh(cmd)
 
@@ -116,8 +127,7 @@ def pull(args):
     """
     %prog pull partID unitigID
 
-    For example,
-    `%prog pull 5 530` will pull the utg530 from partition 5
+    For example, `%prog pull 5 530` will pull the utg530 from partition 5
     The layout is written to `unitig530`
     """
     p = OptionParser(pull.__doc__)
@@ -129,7 +139,7 @@ def pull(args):
     prefix = get_prefix()
     partID, unitigID = args
 
-    cmd = "tigStore -g ../{0}.gkpStore -t ../{0}.tigStore 1 ".format(prefix)
+    cmd = CAPATH + "tigStore -g ../{0}.gkpStore -t ../{0}.tigStore 1 ".format(prefix)
     cmd += "-up {0} -d layout -u {1} > unitig{0}.{1}".format(partID, unitigID)
 
     sh(cmd)
@@ -139,21 +149,21 @@ def pull(args):
 
 def test(args):
     """
-    %prog test partID unitigID
+    %prog test unitig{partID}.{unitigID}
 
-    For example,
-    `%prog pull 5 530` will test the modified `unitig530`
+    For example, `%prog test unitig5.530` will test the modified `unitig530`
     """
     p = OptionParser(test.__doc__)
     opts, args = p.parse_args(args)
 
-    if len(args) != 2:
+    if len(args) != 1:
         sys.exit(p.print_help())
 
     prefix = get_prefix()
-    partID, unitigID = args
+    s, = args
+    partID, unitigID = get_ID(s)
 
-    cmd = "utgcns -g ../{0}.gkpStore -t ../{0}.tigStore 1 ".format(prefix)
+    cmd = CAPATH + "utgcns -g ../{0}.gkpStore -t ../{0}.tigStore 1 ".format(prefix)
     cmd += "{0} -T unitig{0}.{1} -V -V -V -v 2> unitig{0}.{1}.log".\
             format(partID, unitigID)
 
@@ -162,22 +172,22 @@ def test(args):
 
 def push(args):
     """
-    %prog push partID unitigID
+    %prog push unitig{partID}.{unitigID}
 
-    For example,
-    `%prog push 5 530` will push the modified `unitig530`
+    For example, `%prog push unitig5.530` will push the modified `unitig530`
     and replace the one in the tigStore
     """
     p = OptionParser(push.__doc__)
     opts, args = p.parse_args(args)
 
-    if len(args) != 3:
+    if len(args) != 1:
         sys.exit(p.print_help())
 
     prefix = get_prefix()
-    partID, unitigID = args
+    s, = args
+    partID, unitigID = get_ID(s)
 
-    cmd = "tigStore -g ../{0}.gkpStore -t ../{0}.tigStore 1 ".format(prefix)
+    cmd = CAPATH + "tigStore -g ../{0}.gkpStore -t ../{0}.tigStore 1 ".format(prefix)
     cmd += "-up {0} -R unitig{0}.{1}".format(partID, unitigID)
 
     sh(cmd)
@@ -185,10 +195,10 @@ def push(args):
 
 def delete(args):
     """
-    %prog delete partID unitigID
+    %prog delete unitig{partID}.{unitigID}
 
-    For example,
-    `%prog push 5 530` will delete unitig 530 in partition 5
+    For example, `%prog delete unitig5.530` will delete unitig 530
+    NOTICE: DELETE DOES NOT WORK!!
     """
     p = OptionParser(delete.__doc__)
     opts, args = p.parse_args(args)
@@ -197,9 +207,10 @@ def delete(args):
         sys.exit(p.print_help())
 
     prefix = get_prefix()
-    partID, unitigID = args
+    s, = args
+    partID, unitigID = get_ID(s)
 
-    cmd = "tigStore -g ../{0}.gkpStore -t ../{0}.tigStore 1 ".format(prefix)
+    cmd = CAPATH + "tigStore -g ../{0}.gkpStore -t ../{0}.tigStore 1 ".format(prefix)
     cmd += "{0} -D -u {1}".format(partID, unitigID)
 
     sh(cmd)

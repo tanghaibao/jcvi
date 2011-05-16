@@ -20,9 +20,8 @@ from Bio import SeqIO
 from jcvi.formats.fasta import get_qual, iter_fasta_qual, write_fasta_qual
 from jcvi.apps.softlink import get_abs_path
 from jcvi.apps.base import ActionDispatcher, sh, set_grid, debug
+from jcvi.assembly.base import CAPATH
 debug()
-
-CAPATH = "~/bin/Linux-amd64/bin/"
 
 
 def main():

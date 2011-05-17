@@ -177,7 +177,7 @@ def fastq(args):
     p.add_option("--outtie", dest="outtie", default=False, action="store_true",
             help="Are these outie reads? [default: %default]")
     p.add_option("--deduplicate", dest="deduplicate", default=False,
-            action="store_true", help="set doRemoveDuplicateReads=0 "
+            action="store_true", help="set doRemoveDuplicateReads=1 "
             "[default: %default]")
     add_size_option(p)
 

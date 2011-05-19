@@ -929,9 +929,9 @@ def gaps(args):
         start = 0
         object = rec.id
         component_number = part_number = 0
-        for gap, gap_group in groupby(rec.seq, lambda x: x.upper() == 'N'):
-            gap_group = list(gap_group)
-            current_length = len(gap_group)
+        for gap, seq in groupby(rec.seq, lambda x: x.upper() == 'N'):
+            seq = "".join(seq)
+            current_length = len(seq)
             if agp:
                 object_beg = start + 1
                 object_end = start + current_length
@@ -960,7 +960,6 @@ def gaps(args):
                         object_end, part_number, component_type, component_id,
                         component_beg, component_end, orientation))
                 if opts.split:
-                    seq = "".join(gap_group)
                     splitrec = SeqRecord(Seq(seq), id=component_id,
                             description="")
                     SeqIO.write([splitrec], fwsplit, "fasta")

@@ -77,15 +77,30 @@ def index(args):
     If SAM file, convert to BAM, sort and then index, using SAMTOOLS
     """
     p = OptionParser(index.__doc__)
+    p.add_option("--fasta", dest="fasta", default=None,
+            help="add @SQ header to the BAM file [default: %default]")
 
     opts, args = p.parse_args(args)
     if len(args) != 1:
         sys.exit(p.print_help())
 
-    samfile = args[0]
+    samfile, = args
+    fastafile = opts.fasta
+    assert op.exists(fastafile)
+
+    faifile = fastafile + ".fai"
     bamfile = samfile.replace(".sam", ".bam")
+    if fastafile:
+        if not op.exists(faifile):
+            sh("samtools faidx {0}".format(fastafile))
+        cmd = "samtools view -bt {0} {1} -F 4 -o {2}".\
+                format(faifile, samfile, bamfile)
+    else:
+        cmd = "samtools view -bS {0} -F 4 -o {1}".\
+                format(samfile, bamfile)
+
     if samfile.endswith(".sam"):
-        sh("samtools view -bS {0} -F 4 -o {1}".format(samfile, bamfile))
+        sh(cmd)
 
     prefix = bamfile.replace(".bam", "")
     sortedbamfile = prefix + ".sorted.bam"

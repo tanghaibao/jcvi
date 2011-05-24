@@ -376,7 +376,7 @@ def diff(args):
     bfastan = len(Fasta(bfasta))
 
     if afastan == bfastan:
-        print_green("Two sets contain different number of sequences ({0}, {1})".\
+        print_green("Two sets contain the same number of sequences ({0}, {1})".\
                 format(afastan, bfastan))
     else:
         print_red("Two sets contain different number of sequences ({0}, {1})".\
@@ -899,22 +899,73 @@ def gaps(args):
     p = OptionParser(gaps.__doc__)
     p.add_option("--mingap", dest="mingap", default=10, type="int",
             help="The minimum size of a gap to split [default: %default]")
+    p.add_option("--agp", dest="agp", default=False, action="store_true",
+            help="Generate AGP file to show components [default: %default]")
+    p.add_option("--split", dest="split", default=False, action="store_true",
+            help="Generate .split.fasta for the non-gap sequences "
+            "[default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(p.print_help())
 
     inputfasta, = args
-    fw = sys.stdout
+    agp = opts.agp
+    prefix = inputfasta.rsplit(".", 1)[0]
+    logfile = prefix + ".log"
+    fwlog = open(logfile, "w")
+    logging.debug("Write gap locations to `{0}`.".format(logfile))
+    if agp:
+        agpfile = prefix + ".agp"
+        fwagp = open(agpfile, "w")
+        logging.debug("Write AGP to `{0}`.".format(agpfile))
+    if opts.split:
+        splitfile = prefix + ".split.fasta"
+        fwsplit = open(splitfile, "w")
+        logging.debug("Write splitted FASTA to `{0}`.".format(splitfile))
+
     for rec in SeqIO.parse(inputfasta, "fasta"):
         allgaps = []
         start = 0
-        for gap, gap_group in groupby(rec.seq, lambda x: x.upper() == 'N'):
-            current_length = len(list(gap_group))
+        object = rec.id
+        component_number = part_number = 0
+        for gap, seq in groupby(rec.seq, lambda x: x.upper() == 'N'):
+            seq = "".join(seq)
+            current_length = len(seq)
+            if agp:
+                object_beg = start + 1
+                object_end = start + current_length
+                part_number += 1
             if gap:
                 if current_length >= opts.mingap:
                     allgaps.append((current_length, start))
+                if agp:
+                    component_type = "N"
+                    gap_length = current_length
+                    gap_type = "fragment"
+                    linkage = "yes"
+                    empty = ""
+                    print >> fwagp, "\t".join(str(x) for x in (object, object_beg,
+                        object_end, part_number, component_type, gap_length,
+                        gap_type, linkage, empty))
+            else:
+                component_id = "{0}_{1}".format(object, component_number)
+                if agp:
+                    component_number += 1
+                    component_type = "W"
+                    component_beg = 1
+                    component_end = current_length
+                    orientation = "+"
+                    print >> fwagp, "\t".join(str(x) for x in (object, object_beg,
+                        object_end, part_number, component_type, component_id,
+                        component_beg, component_end, orientation))
+                if opts.split:
+                    splitrec = SeqRecord(Seq(seq), id=component_id,
+                            description="")
+                    SeqIO.write([splitrec], fwsplit, "fasta")
+
             start += current_length
+
         if allgaps:
             lengths, starts = zip(*allgaps)
             gap_description = ",".join(str(x) for x in lengths)
@@ -922,7 +973,7 @@ def gaps(args):
         else:
             gap_description = starts = "no gaps"
 
-        print >> fw, "{0}\t{1}\t{2}".format(rec.id, gap_description, starts)
+        print >> fwlog, "\t".join((rec.id, gap_description, starts))
 
 
 if __name__ == '__main__':

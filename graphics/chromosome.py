@@ -15,11 +15,9 @@ from itertools import groupby
 from optparse import OptionParser
 
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle, Polygon, CirclePolygon
 
 from jcvi.formats.bed import Bed
-from jcvi.graphics.base import _
+from jcvi.graphics.base import plt, Rectangle, Polygon, CirclePolygon, _
 
 al = .5
 z = 2

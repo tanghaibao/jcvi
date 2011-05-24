@@ -5,7 +5,7 @@ from functools import partial
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
-from matplotlib.patches import Rectangle
+from matplotlib.patches import Rectangle, Polygon, CirclePolygon
 from matplotlib import cm
 
 from jcvi.utils.cbook import human_size

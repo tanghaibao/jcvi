@@ -16,6 +16,8 @@ from optparse import OptionParser
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
+CAPATH = "~/bin/Linux-amd64/bin/"
+
 
 def calculate_A50(ctgsizes, cutoff=0):
     """

@@ -20,9 +20,8 @@ from Bio import SeqIO
 from jcvi.formats.fasta import get_qual, iter_fasta_qual, write_fasta_qual
 from jcvi.apps.softlink import get_abs_path
 from jcvi.apps.base import ActionDispatcher, sh, set_grid, debug
+from jcvi.assembly.base import CAPATH
 debug()
-
-CAPATH = "~/bin/Linux-amd64/bin/"
 
 
 def main():
@@ -178,7 +177,7 @@ def fastq(args):
     p.add_option("--outtie", dest="outtie", default=False, action="store_true",
             help="Are these outie reads? [default: %default]")
     p.add_option("--deduplicate", dest="deduplicate", default=False,
-            action="store_true", help="set doRemoveDuplicateReads=0 "
+            action="store_true", help="set doRemoveDuplicateReads=1 "
             "[default: %default]")
     add_size_option(p)
 

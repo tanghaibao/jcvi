@@ -102,6 +102,7 @@ Most of the scripts in this package contains multiple actions. To use the
         `random`: random take some records
         `diff`: check if two fasta records contain same information
         `trim`: given a cross_match screened fasta, trim the sequence
+        `sort`: sort the records by IDs, sizes, etc.
         `pair`: sort paired reads to .pairs, rest to .fragments
         `fastq`: combine fasta and qual to create fastq file
         `sequin`: generate a gapped fasta file for sequin submission

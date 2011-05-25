@@ -147,6 +147,7 @@ def main():
         ('random', 'random take some records'),
         ('diff', 'check if two fasta records contain same information'),
         ('trim', 'given a cross_match screened fasta, trim the sequence'),
+        ('sort', 'sort the records by IDs, sizes, etc.'),
         ('pair', 'sort paired reads to .pairs, rest to .fragments'),
         ('fastq', 'combine fasta and qual to create fastq file'),
         ('sequin', 'generate a gapped fasta file for sequin submission'),
@@ -157,6 +158,32 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def sort(args):
+    """
+    %prog sort fastafile
+
+    Sort a list of sequences and output with sorted IDs, etc.
+    """
+    p = OptionParser(sort.__doc__)
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(p.print_help())
+
+    fastafile, = args
+    sortedfastafile = fastafile.rsplit(".", 1)[0] + ".sorted.fasta"
+
+    f = Fasta(fastafile)
+    fw = must_open(sortedfastafile, "w")
+    for key in sorted(f.iterkeys()):
+        rec = f[key]
+        SeqIO.write([rec], fw, "fasta")
+
+    logging.debug("Sorted file written to `{0}`.".format(sortedfastafile))
+    fw.close()
 
 
 def join(args):
@@ -249,7 +276,9 @@ def format(args):
             action="store_true", help="remove the gb trailing version "
             "[default: %default]")
     p.add_option("--prefix", dest="prefix", default="",
-            help="prepend prefix to the sequence ID [default: '%default']")
+            help="Prepend prefix to the sequence ID [default: '%default']")
+    p.add_option("--index", dest="index", default=0, type="int",
+            help="Extract i-th field in the description [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -261,10 +290,10 @@ def format(args):
     prefix = opts.prefix
     noversion = opts.noversion
     sequential = opts.sequential
+    idx = opts.index
 
     fw = must_open(outfasta, "w")
     for i, rec in enumerate(SeqIO.parse(infasta, "fasta")):
-        rec.description = ""
         if gb:
             # gi|262233616|gb|GU123895.1| Coffea arabica clone BAC
             atoms = rec.id.split("|")
@@ -282,6 +311,9 @@ def format(args):
             rec.id = "{0:05d}".format(i+1)
         if prefix:
             rec.id = prefix + rec.id
+        if idx:
+            rec.id = rec.description.split()[idx]
+        rec.description = ""
 
         SeqIO.write(rec, fw, "fasta")
 
@@ -517,7 +549,7 @@ def pair(args):
     """
     %prog pair fastafile
 
-    generate .pairs.fasta and .fragments.fasta by matching records with /1/2
+    Generate .pairs.fasta and .fragments.fasta by matching records with /1/2
     into the pairs and the rest go to fragments.
     """
     p = OptionParser(pair.__doc__)
@@ -554,7 +586,8 @@ def pair(args):
         fragsqualhandle = open(fragsqualfile, "w")
 
     f = Fasta(args[0])
-    q = SeqIO.index(qualfile, "qual")
+    if qualfile:
+        q = SeqIO.index(qualfile, "qual")
 
     all_keys = list(f.iterkeys())
     all_keys.sort()
@@ -578,7 +611,8 @@ def pair(args):
 
         for i, var in enumerate(variants):
             rec = f[var]
-            recqual = q[var]
+            if qualfile:
+                recqual = q[var]
             newid = "%s/%d" % (key, i + 1)
 
             rec.id = newid

@@ -166,7 +166,7 @@ class FileSplitter (object):
 
 
 def must_open(filename, mode="r"):
-    if not op.exists(filename):
+    if not op.exists(filename) and mode=='r':
         logging.error("File `{0}` not found.".format(filename))
 
     if filename == "stdout":

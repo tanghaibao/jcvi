@@ -104,16 +104,21 @@ def main(blast_file, filter="intersection", dialect="blast"):
 
     # selected_idx is in fact the lineno in the BLAST file
     fp = open(blast_file)
+    supermapfile = blast_file + ".supermap"
+    fw = open(supermapfile, "w")
+
     selected_idx = iter(sorted(selected_idx))
     selected = selected_idx.next()
     for i, row in enumerate(fp):
         if i < selected:
             continue
-        print row.rstrip()
+        print >> fw, row.rstrip()
         try:
             selected = selected_idx.next()
         except StopIteration:
             break
+
+    logging.debug("Write output file to `{0}`".format(supermapfile))
 
 
 if __name__ == '__main__':

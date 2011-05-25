@@ -54,6 +54,10 @@ class Sizes (LineFile):
         return self.cumsizes_mapping[ctg]
 
     @property
+    def mapping(self):
+        return self.sizes_mapping
+
+    @property
     def totalsize(self):
         return sum(self.sizes)
 

@@ -144,7 +144,7 @@ def main():
         ('summary', "report the real no of bases and N's in fastafiles"),
         ('uniq', 'remove records that are the same'),
         ('format', 'trim accession id to the first space'),
-        ('random', 'random take some records'),
+        ('random', 'randomly take some records'),
         ('diff', 'check if two fasta records contain same information'),
         ('trim', 'given a cross_match screened fasta, trim the sequence'),
         ('sort', 'sort the records by IDs, sizes, etc.'),

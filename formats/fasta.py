@@ -240,11 +240,16 @@ def format(args):
     p.add_option("--pairs", dest="pairs", default=False, action="store_true",
             help="If input reads are pairs, add trailing /1 and /2 "
             "[default: %default]")
+    p.add_option("--sequential", dest="sequential", default=False,
+            action="store_true",
+            help="Add sequential IDs [default: %default]")
     p.add_option("--gb", dest="gb", default=False, action="store_true",
-            help="if Genbank ID, get the accession [default: %default]")
+            help="For Genbank ID, get the accession [default: %default]")
     p.add_option("--noversion", dest="noversion", default=False,
             action="store_true", help="remove the gb trailing version "
             "[default: %default]")
+    p.add_option("--prefix", dest="prefix", default="",
+            help="prepend prefix to the sequence ID [default: '%default']")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -253,7 +258,9 @@ def format(args):
     infasta, outfasta = args
     gb = opts.gb
     pairs = opts.pairs
+    prefix = opts.prefix
     noversion = opts.noversion
+    sequential = opts.sequential
 
     fw = must_open(outfasta, "w")
     for i, rec in enumerate(SeqIO.parse(infasta, "fasta")):
@@ -271,6 +278,10 @@ def format(args):
             rec.id += id
         if noversion:
             rec.id = rec.id.rsplit(".", 1)[0]
+        if sequential:
+            rec.id = "{0:05d}".format(i+1)
+        if prefix:
+            rec.id = prefix + rec.id
 
         SeqIO.write(rec, fw, "fasta")
 

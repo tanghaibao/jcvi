@@ -79,7 +79,7 @@ def lastz(k, n, bfasta_fn, afasta_fn, out_fh, lock, lastz_path, extra,
         # (of which I contributed a patch)
         lastz_cmd += " --format=BLASTN-"
 
-    if grid:  # if run on SGE, only the comd is needed
+    if grid:  # if run on SGE, only the cmd is needed
         return lastz_cmd
 
     proc = Popen(lastz_cmd, bufsize=1, stdout=PIPE, shell=True)
@@ -146,7 +146,8 @@ def main():
                     mask=opts.mask, grid=grid)
             cmds.append(lastz_cmd)
 
-        g = Grid(cmds, outfiles=["lastz.out"] * len(cmds))
+        g = Grid(cmds, outfiles=["lastz.out.{0}".\
+                format(i) for i in range(len(cmds))])
         g.run()
         g.writestatus()
 

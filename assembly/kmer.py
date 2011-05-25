@@ -11,17 +11,37 @@ from optparse import OptionParser
 
 from jcvi.utils.iter import pairwise
 from jcvi.graphics.base import plt, _
-from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.apps.base import ActionDispatcher, sh, debug
 debug()
 
 
 def main():
 
     actions = (
+        ('meryl', 'dump histogram using `meryl`'),
         ('histogram', 'plot the histogram based on meryl K-mer distribution'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def meryl(args):
+    """
+    %prog meryl merylfile
+
+    Run meryl to dump histogram to be used in kmer.histogram(). The merylfile
+    should be only the part without the suffix (.mcidx, .mcdat).
+    """
+    p = OptionParser(meryl.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(p.print_help())
+
+    merylfile, = args
+    outfile = merylfile + ".histogram"
+    cmd = "meryl -Dh -s {0}".format(merylfile)
+    sh(cmd, outfile=outfile)
 
 
 def histogram(args):

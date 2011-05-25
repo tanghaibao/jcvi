@@ -457,6 +457,8 @@ def estsummary(args):
             help="Cutoff to call mapping [default: %default%]")
     p.add_option("--cov", dest="cov", type="int", default=90,
             help="Cutoff to call mapping [default: %default%]")
+    p.add_option("--list", dest="list", default=False, action="store_true",
+            help="List the id% and cov% per gene [default: %default]")
 
     opts, args = p.parse_args(args)
 
@@ -495,8 +497,11 @@ def estsummary(args):
             this_mismatches += b.nmismatch
             this_gaps += b.ngaps
 
-        this_identity = (100. - (this_mismatches + this_gaps) *100./ this_alignlen)
-        this_coverage = this_covered *100. / sizes[query]
+        this_identity = (100 - (this_mismatches + this_gaps) * 100. / this_alignlen)
+        this_coverage = this_covered * 100. / sizes[query]
+        if opts.list:
+            print "{0}\t{1:.1f}\t{2:.1f}".format(query, this_identity, this_coverage)
+
         if this_identity > ident and this_coverage > cov:
             valid_count += 1
 
@@ -509,17 +514,17 @@ def estsummary(args):
     print >> sys.stderr, "Identity: {0} mismatches, {1} gaps, {2} alignlen".\
             format(mismatches, gaps, alignlen)
     print >> sys.stderr, "Total mapped: {0} ({1:.1f}% of {2})".\
-            format(mapped_count, mapped_count*100./total, total)
+            format(mapped_count, mapped_count * 100. / total, total)
     print >> sys.stderr, "Total valid: {0} ({1:.1f}% of {2})".\
-            format(valid_count, valid_count*100./total, total)
+            format(valid_count, valid_count * 100. / total, total)
     print >> sys.stderr, "Overal ident% = {0:.1f}%".\
-            format(100 - (mismatches+gaps) *100. /alignlen)
+            format(100 - (mismatches + gaps) * 100. / alignlen)
 
     queries_combined = sum(sizes[x] for x in queries)
     print >> sys.stderr, "Coverage: {0} covered, {1} total".\
             format(covered, queries_combined)
     print >> sys.stderr, "Coverage = {0:.1f}%".\
-            format(covered * 100./ queries_combined)
+            format(covered * 100. / queries_combined)
 
 
 if __name__ == '__main__':

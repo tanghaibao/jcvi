@@ -139,7 +139,7 @@ def posmap(args):
     # gaps.bed
     gapsbedfile = scf + ".gaps.bed"
     if not op.exists(gapsbedfile):
-        args = [scffastafile, "--bed"] 
+        args = [scffastafile, "--bed", "--mingap=100"]
         gaps(args)
 
     # reads frgscf posmap

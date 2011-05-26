@@ -959,6 +959,7 @@ def gaps(args):
         sys.exit(p.print_help())
 
     inputfasta, = args
+    mingap = opts.mingap
     agp = opts.agp
     bed = opts.bed
     log = opts.log
@@ -1003,7 +1004,7 @@ def gaps(args):
                     print >> fwagp, "\t".join(str(x) for x in (object, object_beg,
                         object_end, part_number, component_type, gap_length,
                         gap_type, linkage, empty))
-                if bed:
+                if bed and len(seq) >= mingap:
                     print >> fwbed, "\t".join(str(x) for x in (object,
                         object_beg, object_end, "gap"))
 

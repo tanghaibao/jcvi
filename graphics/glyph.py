@@ -15,7 +15,7 @@ from jcvi.apps.base import ActionDispatcher, debug
 from jcvi.graphics.base import plt, Rectangle, CirclePolygon, _
 debug()
 
-tstep = .02
+tstep = .05
 Timing = np.arange(0, 1 + tstep, tstep)
 
 class Bezier (object):
@@ -24,13 +24,13 @@ class Bezier (object):
     <http://www.moshplant.com/direct-or/bezier/math.html>
     p0 : origin, p1, p2 :control, p3: destination
     """
-    def __init__(self, ax, p0, p1, p2, p3, color='m'):
+    def __init__(self, ax, p0, p1, p2, p3, color='m', alpha=.1):
         pts = (p0, p1, p2, p3)
         px, py = zip(*pts)
         xt = self.get_array(px)
         yt = self.get_array(py)
 
-        ax.plot(xt, yt, "-", color=color)
+        ax.plot(xt, yt, "-", color=color, alpha=alpha)
 
     def get_array(self, pts, t=Timing):
         p0, p1, p2, p3 = pts

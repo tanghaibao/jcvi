@@ -14,7 +14,8 @@ from optparse import OptionParser
 
 from jcvi.formats.fasta import Fasta
 from jcvi.assembly.base import calculate_A50
-from jcvi.assembly.coverage import Sizes, Coverage
+from jcvi.assembly.coverage import BedLine, Sizes, Coverage
+from jcvi.algorithms.matrix import moving_average
 from jcvi.apps.R import RTemplate
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
@@ -99,11 +100,17 @@ def coverage(args):
     assert len(bases) == len(basecoverage)
     assert len(bases) == len(matecoverage)
 
+    window = size / 200  # smooth the curve
+    logging.debug("Coverage curve use window size of {0} bases.".format(window))
+    basecoverage = moving_average(basecoverage, window=window)
+    matecoverage = moving_average(matecoverage, window=window)
+
     baseline = ax.plot(bases, basecoverage, 'g-')
     mateline = ax.plot(bases, matecoverage, 'r-')
     legends = (_("Base coverage"), _("Mate coverage"))
     leg = ax.legend((baseline, mateline), legends, shadow=True, fancybox=True)
     leg.get_frame().set_alpha(.5)
+    ax.set_xlim(0, size)
 
     # draw the read pairs
     fp = open(bedpefile)
@@ -122,9 +129,13 @@ def coverage(args):
     ypos = .15 + .03
     for start, end in pairs:
         dist = end - start
+
+        if dist < 1000:
+            continue
+
         dist = min(dist, 10000)
-        # 10Kb == .2 canvas height
-        height = .4 * dist / 10000
+        # 10Kb == .25 canvas height
+        height = .25 * dist / 10000
         xstart = pos(start)
         xend = pos(end)
         p0 = (xstart, ypos)
@@ -132,6 +143,15 @@ def coverage(args):
         p2 = (xend, ypos + height)
         p3 = (xend, ypos)
         Bezier(root, p0, p1, p2, p3)
+
+    # gaps on the scaffold
+    fp = open(gapsbedfile)
+    for row in fp:
+        b = BedLine(row)
+        start, end = b.start, b.end
+        xstart = pos(start)
+        xend = pos(end)
+        root.add_patch(Rectangle((xstart, .15), xend - xstart, .03, fc='w'))
 
     # clean up and output
     set_tex_axis(ax)

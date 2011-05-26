@@ -11,6 +11,7 @@ http://sourceforge.net/apps/mediawiki/wgs-assembler/index.php?title=POSMAP
 import os.path as op
 import sys
 import csv
+import logging
 
 from collections import namedtuple, defaultdict
 from optparse import OptionParser
@@ -169,6 +170,7 @@ def query(args):
     frgscffile, region = args
     gzfile = frgscffile + ".gz"
     tbifile = gzfile + ".tbi"
+    outfile = region + ".posmap"
 
     if not (op.exists(gzfile) and op.exists(tbifile)):
         index(frgscffile)
@@ -176,7 +178,7 @@ def query(args):
     assert op.exists(gzfile) and op.exists(tbifile)
 
     cmd = "tabix {0} {1}".format(gzfile, region)
-    sh(cmd)
+    sh(cmd, outfile=outfile)
 
 
 def reads(args):
@@ -222,11 +224,15 @@ def bed(args):
         sys.exit(p.print_help())
 
     frgscffile, = args
+    bedfile = frgscffile.rsplit(".", 1)[0] + ".bed"
+    fw = open(bedfile, "w")
 
     fp = open(frgscffile)
     for row in fp:
         f = FrgScfLine(row)
-        print f.bedline
+        print >> fw, f.bedline
+
+    logging.debug("File written to {0}.".format(bedfile))
 
 
 def dup(args):

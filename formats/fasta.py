@@ -939,7 +939,7 @@ def gaps(args):
     """
     %prog gaps fastafile
 
-    print out a list of gaps per sequence record
+    Print out a list of gaps per sequence record
     """
     p = OptionParser(gaps.__doc__)
     p.add_option("--mingap", dest="mingap", default=10, type="int",
@@ -949,6 +949,10 @@ def gaps(args):
     p.add_option("--split", dest="split", default=False, action="store_true",
             help="Generate .split.fasta for the non-gap sequences "
             "[default: %default]")
+    p.add_option("--bed", dest="bed", default=False, action="store_true",
+            help="Generate .gaps.bed with gap positions [default: %default]")
+    p.add_option("--log", dest="log", default=False, action="store_true",
+            help="Generate .log with detailed gap positions [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -956,10 +960,10 @@ def gaps(args):
 
     inputfasta, = args
     agp = opts.agp
+    bed = opts.bed
+    log = opts.log
     prefix = inputfasta.rsplit(".", 1)[0]
     logfile = prefix + ".log"
-    fwlog = open(logfile, "w")
-    logging.debug("Write gap locations to `{0}`.".format(logfile))
     if agp:
         agpfile = prefix + ".agp"
         fwagp = open(agpfile, "w")
@@ -968,6 +972,13 @@ def gaps(args):
         splitfile = prefix + ".split.fasta"
         fwsplit = open(splitfile, "w")
         logging.debug("Write splitted FASTA to `{0}`.".format(splitfile))
+    if bed:
+        bedfile = prefix + ".gaps.bed"
+        fwbed = open(bedfile, "w")
+        logging.debug("Write gap locations to `{0}`.".format(bedfile))
+    if log:
+        fwlog = open(logfile, "w")
+        logging.debug("Write gap locations to `{0}`.".format(logfile))
 
     for rec in SeqIO.parse(inputfasta, "fasta"):
         allgaps = []
@@ -977,10 +988,9 @@ def gaps(args):
         for gap, seq in groupby(rec.seq, lambda x: x.upper() == 'N'):
             seq = "".join(seq)
             current_length = len(seq)
-            if agp:
-                object_beg = start + 1
-                object_end = start + current_length
-                part_number += 1
+            object_beg = start + 1
+            object_end = start + current_length
+            part_number += 1
             if gap:
                 if current_length >= opts.mingap:
                     allgaps.append((current_length, start))
@@ -993,6 +1003,10 @@ def gaps(args):
                     print >> fwagp, "\t".join(str(x) for x in (object, object_beg,
                         object_end, part_number, component_type, gap_length,
                         gap_type, linkage, empty))
+                if bed:
+                    print >> fwbed, "\t".join(str(x) for x in (object,
+                        object_beg, object_end, "gap"))
+
             else:
                 component_id = "{0}_{1}".format(object, component_number)
                 if agp:
@@ -1018,7 +1032,8 @@ def gaps(args):
         else:
             gap_description = starts = "no gaps"
 
-        print >> fwlog, "\t".join((rec.id, gap_description, starts))
+        if log:
+            print >> fwlog, "\t".join((rec.id, gap_description, starts))
 
 
 if __name__ == '__main__':

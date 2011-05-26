@@ -10,12 +10,15 @@ import sys
 import logging
 import os.path as op
 
+from optparse import OptionParser
+
 from jcvi.formats.fasta import Fasta
 from jcvi.assembly.base import calculate_A50
+from jcvi.assembly.coverage import Sizes, Coverage
+from jcvi.apps.R import RTemplate
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
-from jcvi.apps.R import RTemplate
 
 rplot = "A50.rplot"
 rpdf = "A50.pdf"
@@ -36,9 +39,109 @@ ggsave(file="$rpdf")
 def main():
     actions = (
         ('A50', 'compare A50 graphics for a set of FASTA files'),
+        ('coverage', 'performs QC graphics on given contig/scaffold'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def coverage(args):
+    """
+    %prog coverage prefix
+
+    Expects data files including:
+    1. `prefix.bedpe` draws Bezier curve between paired reads
+    2. `prefix.sizes` draws length of the contig/scaffold
+    3. `prefix.gaps.bed` mark the position of the gaps in sequence
+    4. `prefix.bed.coverage` plots the base coverage
+    5. `prefix.pairs.bed.coverage` plots the clone coverage
+
+    See assembly.coverage.posmap() for the generation of these files.
+    This function is also called by posmap().
+    """
+    p = OptionParser(coverage.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(p.print_help())
+
+    prefix, = args
+    scf = prefix
+
+    # All these files *must* be present in the current folder
+    bedpefile = prefix + ".bedpe"
+    fastafile = prefix + ".fasta"
+    sizesfile = prefix + ".sizes"
+    gapsbedfile = prefix + ".gaps.bed"
+    bedfile = prefix + ".bed"
+    bedpefile = prefix + ".bedpe"
+    pairsbedfile = prefix + ".pairs.bed"
+
+    sizes = Sizes(fastafile).mapping
+    size = sizes[scf]
+    basecoverage = Coverage(bedfile, sizesfile)
+    matecoverage = Coverage(pairsbedfile, sizesfile)
+
+    import numpy as np
+    from jcvi.graphics.base import plt, Rectangle, set_tex_axis, _
+    from jcvi.graphics.glyph import Bezier
+
+    fig = plt.figure(1, (8, 5))
+    root = fig.add_axes([0, 0, 1, 1])
+
+    # the scaffold
+    root.add_patch(Rectangle((.1, .15), .8, .03, fc='k'))
+
+    # basecoverage and matecoverage
+    ax = fig.add_axes([.1, .45, .8, .45])
+    bases = np.arange(1, size + 1)
+
+    assert len(bases) == len(basecoverage)
+    assert len(bases) == len(matecoverage)
+
+    baseline = ax.plot(bases, basecoverage, 'g-')
+    mateline = ax.plot(bases, matecoverage, 'r-')
+    legends = (_("Base coverage"), _("Mate coverage"))
+    leg = ax.legend((baseline, mateline), legends, shadow=True, fancybox=True)
+    leg.get_frame().set_alpha(.5)
+
+    # draw the read pairs
+    fp = open(bedpefile)
+    pairs = []
+    for row in fp:
+        scf, astart, aend, scf, bstart, bend, clonename = row.split()
+        astart, bstart = int(astart), int(bstart)
+        aend, bend = int(aend), int(bend)
+        start = min(astart, bstart) + 1
+        end = max(aend, bend)
+        pairs.append((start, end))
+
+    bpratio = .8 / size 
+    # this convert from base => x-coordinate
+    pos = lambda x: (.1 + x * bpratio)
+    ypos = .15 + .03
+    for start, end in pairs:
+        dist = end - start
+        dist = min(dist, 10000)
+        # 10Kb == .2 canvas height
+        height = .4 * dist / 10000
+        xstart = pos(start)
+        xend = pos(end)
+        p0 = (xstart, ypos)
+        p1 = (xstart, ypos + height)
+        p2 = (xend, ypos + height)
+        p3 = (xend, ypos)
+        Bezier(root, p0, p1, p2, p3)
+
+    # clean up and output
+    set_tex_axis(ax)
+    root.set_xlim(0, 1)
+    root.set_ylim(0, 1)
+    root.set_axis_off()
+
+    figname = prefix + ".pdf"
+    plt.savefig(figname, dpi=300)
+    logging.debug("Figure saved to `{0}`".format(figname))
 
 
 def generate_plot(filename, rplot=rplot, rpdf=rpdf):
@@ -53,8 +156,6 @@ def A50(args):
 
     Plots A50 graphics, see blog post (http://blog.malde.org/index.php/a50/)
     """
-    from optparse import OptionParser
-
     p = OptionParser(A50.__doc__)
     p.add_option("--overwrite", default=False, action="store_true",
             help="overwrite `%s` file if exists" % rplot)

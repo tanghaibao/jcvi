@@ -8,6 +8,7 @@ Specs:
 http://sourceforge.net/apps/mediawiki/wgs-assembler/index.php?title=POSMAP
 """
 
+import os.path as op
 import sys
 import csv
 
@@ -18,7 +19,7 @@ from itertools import groupby
 
 from jcvi.formats.base import LineFile
 from jcvi.formats.blast import report_pairs
-from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.apps.base import ActionDispatcher, sh, debug
 debug()
 
 
@@ -113,12 +114,69 @@ def main():
 
     actions = (
         ('bed', 'convert to bed format'),
+        ('index', 'index the frgscf.posmap.sorted file'),
+        ('query', 'query region from frgscf index'),
         ('dup', 'estimate level of redundancy based on position collision'),
         ('reads', 'report read counts per scaffold (based on frgscf)'),
         ('pairs', 'report insert statistics for read pairs')
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def index(args):
+    """
+    %prog index frgscf.sorted
+
+    Compress frgscffile.sorted and index it using `tabix`.
+    """
+    p = OptionParser(index.__doc__)
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(p.print_help())
+
+    frgscffile, = args
+    gzfile = frgscffile + ".gz"
+    cmd = "bgzip -c {0}".format(frgscffile)
+
+    if not op.exists(gzfile):
+        sh(cmd, outfile=gzfile)
+
+    tbifile = gzfile + ".tbi"
+    # Sequence, begin, end in 2, 3, 4-th column, respectively
+    cmd = "tabix -s 2 -b 3 -e 4 {0}".format(gzfile)
+
+    if not op.exists(tbifile):
+        sh(cmd)
+
+
+def query(args):
+    """
+    %prog query frgscf.sorted scfID:start-end
+
+    Query certain region to get frg placement, using random access. Build index
+    if not present.
+    """
+    p = OptionParser(query.__doc__)
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(p.print_help())
+
+    frgscffile, region = args
+    gzfile = frgscffile + ".gz"
+    tbifile = gzfile + ".tbi"
+
+    if not (op.exists(gzfile) and op.exists(tbifile)):
+        index(frgscffile)
+
+    assert op.exists(gzfile) and op.exists(tbifile)
+
+    cmd = "tabix {0} {1}".format(gzfile, region)
+    sh(cmd)
 
 
 def reads(args):

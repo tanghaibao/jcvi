@@ -2,6 +2,7 @@
 parses tabular BLAST -m8 (-format 6 in BLAST+) format
 """
 
+import os.path as op
 import sys
 import logging
 
@@ -14,6 +15,7 @@ import numpy as np
 from jcvi.formats.base import LineFile
 from jcvi.formats.coords import print_stats
 from jcvi.formats.sizes import Sizes
+import jcvi.algorithms.supermap  # prevent cyclic imports
 from jcvi.utils.range import range_distance
 from jcvi.graphics.histogram import histogram
 from jcvi.apps.base import ActionDispatcher, debug
@@ -191,6 +193,7 @@ def main():
     actions = (
         ('summary', 'provide summary on id% and cov%'),
         ('estsummary', 'provide summary of mapped ESTs with id%, cov% cutoffs'),
+        ('rnaseqbench', 'evaluate completeness, contiguity, and chimer of RNAseq'),
         ('filter', 'filter BLAST file (based on e.g. score)'),
         ('best', 'get best BLAST hit per query'),
         ('pairs', 'print paired-end reads of BLAST tabular output'),
@@ -525,6 +528,61 @@ def estsummary(args):
             format(covered, queries_combined)
     print >> sys.stderr, "Coverage = {0:.1f}%".\
             format(covered * 100. / queries_combined)
+
+
+def rnaseqbench(args):
+    """
+    %prog rnaseqbench blastfile ref.fasta
+
+    Evaluate de-novo RNA-seq assembly against a reference gene set (same of
+    closely related organism). Ideally blatfile needs to be supermap'd.
+
+    Following metric is used (Martin et al. 2010, Rnnotator paper):
+    Accuracy: % of contigs share >=95% identity with ref genome (TODO)
+    Completeness: % of ref genes covered by contigs to >=80% of their lengths
+    Contiguity: % of ref genes covered by a *single* contig >=80% of lengths
+    Chimer: % of contigs that contain two or more annotated genes >= 50bp
+    """
+    p = OptionParser(rnaseqbench.__doc__)
+    p.add_option("--cov", dest="cov", type="int", default=80,
+            help="Cutoff to call mapping [default: %default%]")
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(p.print_help())
+
+    blastfile, reffasta = args
+    cov = opts.cov
+    sizes = Sizes(reffasta).mapping
+    know_genes = len(sizes)
+
+    querysupermap = blastfile + ".query.supermap"
+    refsupermap = blastfile + ".ref.supermap"
+
+    # I use extra long names here to prevent cyclic imports
+    if not op.exists(querysupermap):
+        jcvi.algorithms.supermap.main(blastfile, filter="query")
+    if not op.exists(querysupermap):
+        jcvi.algorithsm.supermap.main(blastfile, filter="ref")
+
+    blast = Blast(querysupermap)
+    ctgs = 0
+    chimers = 0
+    for ctg, hits in blast.iter_hits():
+        bps = defaultdict(int)
+        for x in hits:
+            bps[x.subject] += abs(x.sstop - x.sstart) + 1
+
+        valid_hits = [x for (x, length) in bps.items() if length >= 100]
+        if len(valid_hits) > 1:
+            chimers += 1
+            print ctg
+        ctgs += 1
+
+    print >> sys.stderr, "Chimers: {0} out of {1} ({2:.1f}%).".\
+            format(chimers, ctgs, chimers * 100. / ctgs)
+
 
 
 if __name__ == '__main__':

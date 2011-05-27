@@ -69,7 +69,7 @@ def BlastOrCoordsLine(filename, filter="ref", dialect="blast"):
 
 def main(blast_file, filter="intersection", dialect="blast"):
     # filter by query
-    if opts.filter != "ref":
+    if filter != "ref":
         logging.debug("filter by query")
         ranges = list(BlastOrCoordsLine(blast_file, filter="query",
             dialect=dialect))
@@ -104,7 +104,12 @@ def main(blast_file, filter="intersection", dialect="blast"):
 
     # selected_idx is in fact the lineno in the BLAST file
     fp = open(blast_file)
-    supermapfile = blast_file + ".supermap"
+
+    if filter == "intersection":
+        tag = ""
+    else:
+        tag = "." + filter
+    supermapfile = blast_file + tag + ".supermap"
     fw = open(supermapfile, "w")
 
     selected_idx = iter(sorted(selected_idx))
@@ -140,7 +145,7 @@ if __name__ == '__main__':
     if len(args) != 1:
         sys.exit(p.print_help())
 
-    blast_file = args[0]
+    blast_file, = args
 
     dialect = opts.dialect
     if not dialect:

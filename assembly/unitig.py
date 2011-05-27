@@ -105,7 +105,7 @@ def error(args):
 
 def trace(args):
     """
-    %prog trace unitigID
+    %prog trace unitig{partID}.{unitigID}
 
     Call `grep` to get the erroneous fragment placement.
     """

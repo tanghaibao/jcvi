@@ -67,7 +67,7 @@ def BlastOrCoordsLine(filename, filter="ref", dialect="blast"):
         yield Range(query, start, end, b.score, i)
 
 
-def main(blast_file, filter="intersection", dialect="blast"):
+def supermap(blast_file, filter="intersection", dialect="blast"):
     # filter by query
     if filter != "ref":
         logging.debug("filter by query")
@@ -155,4 +155,4 @@ if __name__ == '__main__':
 
     filter = opts.filter
 
-    main(blast_file, filter=filter, dialect=dialect)
+    supermap(blast_file, filter=filter, dialect=dialect)

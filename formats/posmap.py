@@ -17,7 +17,6 @@ from collections import namedtuple, defaultdict
 from optparse import OptionParser
 from itertools import groupby
 
-
 from jcvi.formats.base import LineFile
 from jcvi.formats.blast import report_pairs
 from jcvi.apps.base import ActionDispatcher, sh, debug

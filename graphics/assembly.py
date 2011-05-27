@@ -124,13 +124,14 @@ def coverage(args):
         pairs.append((start, end))
 
     bpratio = .8 / size 
+    cutoff = 1000  # inserts smaller than this are not plotted
     # this convert from base => x-coordinate
     pos = lambda x: (.1 + x * bpratio)
     ypos = .15 + .03
     for start, end in pairs:
         dist = end - start
 
-        if dist < 1000:
+        if dist < cutoff:
             continue
 
         dist = min(dist, 10000)
@@ -153,6 +154,10 @@ def coverage(args):
         xend = pos(end)
         root.add_patch(Rectangle((xstart, .15), xend - xstart, .03, fc='w'))
 
+    root.text(.5, .1, _(scf), color='b', ha="center")
+    warn_msg = "Only the inserts > {0}bp are shown".format(cutoff)
+    root.text(.5, .1, _(scf), color='b', ha="center")
+    root.text(.5, .05, _(warn_msg), color='gray', ha="center")
     # clean up and output
     set_tex_axis(ax)
     root.set_xlim(0, 1)

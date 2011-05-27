@@ -24,7 +24,7 @@ class Bezier (object):
     <http://www.moshplant.com/direct-or/bezier/math.html>
     p0 : origin, p1, p2 :control, p3: destination
     """
-    def __init__(self, ax, p0, p1, p2, p3, color='m', alpha=.1):
+    def __init__(self, ax, p0, p1, p2, p3, color='m', alpha=.2):
         pts = (p0, p1, p2, p3)
         px, py = zip(*pts)
         xt = self.get_array(px)

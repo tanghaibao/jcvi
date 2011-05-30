@@ -121,7 +121,7 @@ def main():
     # first the chromosomes
     for a, (chr, cent_position) in enumerate(sorted(centromeres.items())):
         clen = chr_lens[chr]
-        xx = xstart + a * xinterval + .5 * xwidth,
+        xx = xstart + a * xinterval + .5 * xwidth
         yy = ystart + (clen - cent_position) * ratio
         root.text(xx, ystart - .01, _(chr), va="top", ha="center")
         plot_chromosome(root, xx, ystart + clen * ratio, yy,

@@ -52,8 +52,10 @@ class BlastLine(object):
                 (self.query, self.subject, self.evalue, self.score)
 
     def __str__(self):
-        return "\t".join(str(x) for x in \
-                [getattr(self, attr) for attr in BlastLine.__slots__[:12]])
+        args = [getattr(self, attr) for attr in BlastLine.__slots__[:12]]
+        if self.orientation == '-':
+            args[8], args[9] = args[9], args[8]
+        return "\t".join(str(x) for x in args)
 
     @property
     def bedline(self):

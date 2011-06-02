@@ -78,11 +78,11 @@ def range_overlap(a, b):
     return (a_min <= b_max) and (b_min <= a_max)
 
 
-def range_distance(a, b, dist_mode='ss'):
+def range_distance(a, b, distmode='ss'):
     """
     Returns the distance between two ranges
 
-    dist_mode is ss, se, es, ee and sets the place on read one and two to
+    distmode is ss, se, es, ee and sets the place on read one and two to
           measure the distance (s = start, e = end)
 
     >>> range_distance(("1", 30, 45, '+'), ("1", 45, 55, '+'))
@@ -91,10 +91,10 @@ def range_distance(a, b, dist_mode='ss'):
     (39, '--')
     >>> range_distance(("1", 30, 42, '-'), ("1", 45, 55, '+'))
     (26, '-+')
-    >>> range_distance(("1", 30, 42, '+'), ("1", 45, 55, '-'), dist_mode='ee')
+    >>> range_distance(("1", 30, 42, '+'), ("1", 45, 55, '-'), distmode='ee')
     (2, '+-')
     """
-    assert dist_mode in ('ss', 'ee')
+    assert distmode in ('ss', 'ee')
 
     a_chr, a_min, a_max, a_strand = a
     b_chr, b_min, b_max, b_strand = b
@@ -110,9 +110,9 @@ def range_distance(a, b, dist_mode='ss'):
             a_max, b_max = b_max, a_max
             a_strand, b_strand = b_strand, a_strand
 
-        if dist_mode == "ss":
+        if distmode == "ss":
             dist = b_max - a_min + 1
-        elif dist_mode == "ee":
+        elif distmode == "ee":
             dist = b_min - a_max - 1
 
     orientation = a_strand + b_strand

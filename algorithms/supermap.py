@@ -124,6 +124,7 @@ def supermap(blast_file, filter="intersection", dialect="blast"):
             break
 
     logging.debug("Write output file to `{0}`".format(supermapfile))
+    return supermapfile
 
 
 if __name__ == '__main__':

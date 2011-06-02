@@ -89,9 +89,11 @@ def backtracking(a, L, bestsofar):
 
 def heaviest_increasing_subsequence(a, debug=False):
     """
-    Returns the heaviest increasing subsequence for array a
+    Returns the heaviest increasing subsequence for array a. Elements are (key,
+    weight) pairs.
 
-    [(2, 5), (3, 5), (4, 7)]
+    >>> heaviest_increasing_subsequence([(3, 3), (2, 2), (1, 1), (0, 5)])
+    [(0, 5)]
     """
     # Stores the smallest idx of last element of a subsequence of weight w
     L = {0: -1}

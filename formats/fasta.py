@@ -50,8 +50,7 @@ class Fasta (BaseFile, dict):
 
     def __getitem__(self, key):
         key = self._key_function(key)
-        if key in self.index:
-            rec = self.index[key]
+        rec = self.index[key]
         return rec
 
     def keys(self):

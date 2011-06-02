@@ -77,13 +77,63 @@ def longest_decreasing_subsequence(xs):
     return list(reversed(longest_increasing_subsequence(reversed(xs))))
 
 
-if __name__ == '__main__':
+def backtracking(a, L, bestsofar):
+    """
+    Start with the heaviest weight and emit index
+    """
+    w, j = max(L.items())
+    while j != -1:
+        yield j
+        w, j = bestsofar[j]
 
+
+def heaviest_increasing_subsequence(a, debug=False):
+    """
+    Returns the heaviest increasing subsequence for array a
+
+    [(2, 5), (3, 5), (4, 7)]
+    """
+    # Stores the smallest idx of last element of a subsequence of weight w
+    L = {0: -1}
+    bestsofar = [(0, -1)] * len(a)  # (best weight, from_idx)
+    for i, (key, weight) in enumerate(a):
+
+        for w, j in L.items():
+            if j != -1 and a[j][0] >= key:
+                continue
+
+            new_weight = w + weight
+            if new_weight in L and a[L[new_weight]][0] <= key:
+                continue
+
+            L[new_weight] = i
+            newbest = (new_weight, j)
+            if newbest > bestsofar[i]:
+                bestsofar[i] = newbest
+
+        if debug:
+            #print (key, weight), L
+            print (key, weight), bestsofar
+
+    tb = reversed(list(backtracking(a, L, bestsofar)))
+    return [a[x] for x in tb]
+
+
+if __name__ == '__main__':
     import doctest
     doctest.testmod()
 
     import numpy as np
     A = np.random.random_integers(0, 100, 10)
-    print list(A)
-    print "longest increasing:", longest_increasing_subsequence(A)
-    print "longest decreasing:", longest_decreasing_subsequence(A)
+    A = list(A)
+    B = zip(A, [1] * 10)
+    print A
+    lis = longest_increasing_subsequence(A)
+    print "longest increasing:", lis
+    lds = longest_decreasing_subsequence(A)
+    print "longest decreasing:", lds
+    # this should be the same as longest_increasing_subsequence
+    his = heaviest_increasing_subsequence(B)
+    hlis, wts = zip(*his)
+    print "heaviest increasing (weight 1, compare with lis):", hlis
+    assert len(lis) == len(his)

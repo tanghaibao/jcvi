@@ -13,7 +13,6 @@ from optparse import OptionParser
 
 from Bio import SeqIO
 from pysam import Samfile
-from jcvi.apps.console import ProgressBar
 from jcvi.formats.base import LineFile
 from jcvi.formats.fasta import Fasta
 from jcvi.utils.cbook import fill
@@ -237,6 +236,7 @@ def ace(args):
     print >> fw
 
     # progress bar
+    from jcvi.apps.console import ProgressBar
     pbar = ProgressBar(maxval=ncontigs).start()
 
     for i, contig in enumerate(s.references):

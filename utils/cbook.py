@@ -5,8 +5,9 @@ mostly decorator patterns
 
 import logging
 
-from texttable import Texttable
-table = Texttable()
+def get_table():
+    from texttable import Texttable
+    table = Texttable()
 
 
 def tabulate(d, key_fun=str):

@@ -12,7 +12,6 @@ import logging
 from optparse import OptionParser
 
 from jcvi.utils.iter import pairwise
-from jcvi.apps.console import ProgressBar
 from jcvi.apps.base import ActionDispatcher, debug, set_grid, sh
 debug()
 
@@ -216,6 +215,7 @@ def convert(args):
     logging.debug("convert from `%s (%s)` to `%s (%s)`" % (infastq,
         opts.infastq, outfastq, opts.outfastq))
 
+    from jcvi.apps.console import ProgressBar
     totalsize = op.getsize(infastq)
     bar = ProgressBar(maxval=totalsize).start()
     fw = open(outfastq, "w")
@@ -395,6 +395,7 @@ def pair(args):
     else:
         totalsize = op.getsize(afastq)
 
+    from jcvi.apps.console import ProgressBar
     bar = ProgressBar(maxval=totalsize).start()
     strip_name = lambda x: x.rsplit("/", 1)[0]
 

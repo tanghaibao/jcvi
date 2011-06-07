@@ -6,8 +6,11 @@ mostly decorator patterns
 import logging
 
 def get_table():
+    # http://foutaise.org/code/texttable/
     from texttable import Texttable
     table = Texttable()
+
+    return table
 
 
 def tabulate(d, key_fun=str):

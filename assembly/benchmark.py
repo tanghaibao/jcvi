@@ -138,13 +138,10 @@ def rnaseqbench(args):
     know_genes = len(sizes)
 
     querysupermap = blastfile + ".query.supermap"
-    refsupermap = blastfile + ".ref.supermap"
 
     # I use extra long names here to prevent cyclic imports
     if not op.exists(querysupermap):
         supermap(blastfile, filter="query")
-    if not op.exists(querysupermap):
-        supermap(blastfile, filter="ref")
 
     blast = Blast(querysupermap)
     ctgs = 0

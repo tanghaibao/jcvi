@@ -137,23 +137,36 @@ def sff(args):
     Convert reads formatted as 454 SFF file, and convert to CA frg file.
     """
     p = OptionParser(sff.__doc__)
-    p.add_option("-o", dest="output", default="out",
-            help="output frg filename")
+    p.add_option("--prefix", dest="prefix", default=None,
+            help="output frg filename prefix")
     set_grid(p)
     add_size_option(p)
 
     opts, args = p.parse_args(args)
 
-    if len(args) == 0:
+    if len(args) < 1:
         sys.exit(p.print_help())
 
     grid = opts.grid
 
     sffiles = args
-    libname = opts.output
+    plates = [x.split(".")[0].split("_")[-1] for x in sffiles]
 
     mated = (opts.size != 0)
     mean, sv = get_mean_sv(opts.size)
+
+    if len(plates) > 1:
+        plate = plates[0][:-1] + 'X'
+    else:
+        plate = "_".join(plates)
+
+    if mated:
+        libname = "Titan{0}Kb-".format(opts.size / 1000) + plate
+    else:
+        libname = "TitanFrags-" + plate
+
+    if opts.prefix:
+        libname = opts.prefix + "-" + plate
 
     cmd = CAPATH + "sffToCA -libraryname {0} -output {0} ".format(libname)
     cmd += "-clear 454 -trim chop "
@@ -183,19 +196,17 @@ def fastq(args):
 
     opts, args = p.parse_args(args)
 
-    if len(args) not in (1, 2):
+    if len(args) < 1:
         sys.exit(p.print_help())
 
-    fastqfile = get_abs_path(args[0])
-    if len(args) == 2:
-        fastqfile2 = get_abs_path(args[1])
+    fastqfiles = [get_abs_path(x) for x in args]
 
     mated = (opts.size != 0)
-    libname = op.basename(fastqfile).split(".")[0]
-
+    outtie = opts.outtie
+    libname = op.basename(fastqfiles[0]).split(".")[0]
     libname = libname.replace("_1_sequence", "")
 
-    if opts.outtie:
+    if outtie:
         libname = "IlluminaMP_" + libname
     else:
         libname = "IlluminaPE_" + libname
@@ -203,19 +214,25 @@ def fastq(args):
     if mated:
         libname += "_Mated"
     else:
-        libname += "_UnMated"
+        if outtie:
+            libname = "IlluminaMP_UnMated"
+        else:
+            libname = "IlluminaPE_UnMated"
     frgfile = libname + ".frg"
 
     mean, sv = get_mean_sv(opts.size)
 
-    cmd = CAPATH + "fastqToCA -libraryname {0} -fastq {1}".\
-            format(libname, fastqfile)
+    cmd = CAPATH + "fastqToCA -libraryname {0} ".format(libname)
+    fastqs = " ".join("-fastq {0}".format(x) for x in fastqfiles)
     if mated:
         assert len(args) == 2, "you need two fastq file for mated library"
-        cmd += ",{0} -insertsize {1} {2} ".format(fastqfile2, mean, sv)
+        fastqs = "-fastq {0},{1}".format(*fastqfiles)
+        cmd += "-insertsize {0} {1} ".format(mean, sv)
+    cmd += fastqs
+
     if opts.sanger:
         cmd += " -type sanger "
-    if opts.outtie:
+    if outtie:
         cmd += " -outtie "
 
     sh(cmd, outfile=frgfile)

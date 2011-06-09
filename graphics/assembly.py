@@ -184,8 +184,8 @@ def A50(args):
     p = OptionParser(A50.__doc__)
     p.add_option("--overwrite", default=False, action="store_true",
             help="overwrite `%s` file if exists" % rplot)
-    p.add_option("--cutoff", default=500, type="int", dest="cutoff",
-            help="use contigs > certain size [default: %default]")
+    p.add_option("--cutoff", default=0, type="int", dest="cutoff",
+            help="use contigs above certain size [default: %default]")
     p.add_option("--stepsize", default=10, type="int", dest="stepsize",
             help="stepsize for the distribution [default: %default]")
     opts, args = p.parse_args(args)
@@ -193,25 +193,41 @@ def A50(args):
     if not args:
         sys.exit(p.print_help())
 
+    import numpy as np
+    from jcvi.utils.table import LoadTable
+
     stepsize = opts.stepsize  # use stepsize to speed up drawing
     if not op.exists(rplot) or opts.overwrite:
         fw = open(rplot, "w")
         header = "\t".join(("index", "cumsize", "fasta"))
+        statsheader = ("Fasta", "L50", "N50", "Min", "Max", "Average", "Sum",
+                "Counts")
+        statsrows = []
         print >>fw, header
         for fastafile in args:
             f = Fasta(fastafile, index=False)
             ctgsizes = [length for k, length in f.itersizes()]
+            ctgsizes = np.array(ctgsizes)
 
             a50, l50, n50 = calculate_A50(ctgsizes, cutoff=opts.cutoff)
+            cmin, cmax, cmean = min(ctgsizes), max(ctgsizes), np.mean(ctgsizes)
+            csum, counts = np.sum(ctgsizes), len(ctgsizes)
+            cmean = int(round(cmean))
+            statsrows.append((fastafile, l50, n50, cmin, cmax, cmean, csum,
+                counts))
 
-            logging.debug("`{0}` ctg_sizes: {1}".format(fastafile, ctgsizes))
+            logging.debug("`{0}` ctgsizes: {1}".format(fastafile, ctgsizes))
 
-            tag = "{0} (N50={1})".format(op.basename(fastafile).rsplit(".", 1)[0], n50)
+            tag = "{0} (L50={1})".format(\
+                    op.basename(fastafile).rsplit(".", 1)[0], l50)
             logging.debug(tag)
 
             for i, s in zip(xrange(0, len(a50), stepsize), a50[::stepsize]):
                 print >>fw, "\t".join((str(i), str(s / 1000000.), tag))
         fw.close()
+
+        table = LoadTable(header=statsheader, rows=statsrows)
+        print >> sys.stderr, table
 
     generate_plot(rplot)
 

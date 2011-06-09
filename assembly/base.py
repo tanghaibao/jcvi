@@ -32,8 +32,8 @@ def calculate_A50(ctgsizes, cutoff=0):
 
     total = np.sum(ctgsizes)
     idx = bisect(a50, total / 2)
-    n50 = ctgsizes[idx]
-    l50 = idx + 1
+    l50 = ctgsizes[idx]
+    n50 = idx + 1
 
     return a50, l50, n50
 

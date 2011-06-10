@@ -33,6 +33,7 @@ def main():
         ('test', 'test the modified unitig layout'),
         ('push', 'push the modified unitig into tigStore'),
         ('delete', 'delete specified unitig'),
+        ('shred', 'shred the unitig as a desperate way of forcing a fix'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -121,6 +122,47 @@ def trace(args):
     cmd = "grep '{0} FAILED\.' -m2 -C2 ../5-consensus/*.err".format(unitigID)
 
     sh(cmd)
+
+
+def shred(args):
+    """
+    %prog shred unitig
+
+    Shred the unitig into one fragment per unitig to fix. This is the last
+    resort as a desperate fix.
+    """
+    p = OptionParser(shred.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(p.print_help())
+
+    s, =  args
+    partID, unitigID = get_ID(s)
+
+    # Read the header
+    fixfile = s + ".fix"
+    header0 = "unitig -1\n"
+    fp = open(s)
+    fw = open(fixfile, "w")
+    lines = fp.readlines()
+    next10lines = lines[1:11]
+    for i, line in enumerate(next10lines):
+        if line.startswith("data.num_frags"):
+            next10lines[i] = "data.num_frags            1\n"
+    fraglines = lines[11:]
+    header = [header0] + next10lines
+    for frag in fraglines:
+        fw.write("".join(header))
+        fw.write(frag)
+    fw.close()
+    fp.close()
+
+    nfrags = len(fraglines)
+    nlines = sum(1 for x in open(fixfile))
+    assert nfrags * 12 == nlines
+
+    shutil.move(fixfile, s)
 
 
 def pull(args):

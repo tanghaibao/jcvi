@@ -76,7 +76,8 @@ def set_params(instance):
             help="extra parameters to run")
 
 
-def sh(cmd, grid=False, infile=None, outfile=None, errfile=None):
+def sh(cmd, grid=False, infile=None, outfile=None, errfile=None,
+        background=False):
     """
     simple wrapper for system calls
     """
@@ -92,6 +93,8 @@ def sh(cmd, grid=False, infile=None, outfile=None, errfile=None):
             cmd += " > {0} ".format(outfile)
         if errfile:
             cmd += " 2> {0} ".format(errfile)
+        if background:
+            cmd += " & "
 
         logging.debug(cmd)
         return call(cmd, shell=True)

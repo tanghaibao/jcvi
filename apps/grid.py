@@ -40,6 +40,22 @@ def check_sge(overwrite=False):
         logging.debug("%s folder not found, create one now" % sge)
 
 
+class MultiJobs (object):
+    """
+    Runs multiple processes on the SAME computer, using multiprocessing.
+    """
+    def __init__(self, target, args):
+        from multiprocessing import Process
+        self.processes = []
+        for arg in args:
+            pi = Process(target=target, args=arg)
+            pi.start()
+            self.processes.append(pi)
+
+        for pi in self.processes:
+            pi.join()
+
+
 class CmdReplacer (object):
     """
     Creates parallelized version of cmd, but glob the input files (with the

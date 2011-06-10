@@ -13,6 +13,7 @@ import os.path as op
 import sys
 import logging
 
+from glob import glob
 from optparse import OptionParser
 
 from Bio import SeqIO
@@ -27,12 +28,48 @@ debug()
 def main():
 
     actions = (
+        ('tracedb', 'convert trace archive files to frg file'),
         ('fasta', 'convert fasta to frg file'),
         ('sff', 'convert 454 reads to frg file'),
         ('fastq', 'convert Illumina reads to frg file'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def tracedb(args):
+    """
+    %prog tracedb action
+
+    Run `tracedb-to-frg.pl` within current folder. action must be on of (xml,
+    lib, frg)
+    """
+    p = OptionParser(tracedb.__doc__)
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(p.print_help())
+
+    action, = args
+    assert action in ("xml", "lib", "frg")
+
+    CMD = "perl {0}tracedb-to-frg.pl".format(CAPATH)
+    xmls = glob("xml*")
+
+    if action == "xml":
+        for xml in xmls:
+            cmd = CMD + " -xml {0}".format(xml)
+            sh(cmd, outfile="/dev/null", errfile="/dev/null", background=True)
+
+    elif action == "lib":
+        cmd = CMD + " -lib {0}".format(" ".join(xmls))
+        sh(cmd)
+
+    elif action == "frg":
+        for xml in xmls:
+            cmd = CMD + " -frg {0}".format(xml)
+            sh(cmd, background=True)
 
 
 def make_qual(fastafile, defaultqual=20):

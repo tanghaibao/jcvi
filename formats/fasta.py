@@ -465,7 +465,7 @@ def get_qual(fastafile, suffix=QUALSUFFIX, check=True):
             logging.warning("qual file not found")
             return None
 
-    return qualfile
+    return qualfile1
 
 
 def some(args):

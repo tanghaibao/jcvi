@@ -142,18 +142,23 @@ def shred(args):
 
     # Read the header
     fixfile = s + ".fix"
-    header0 = "unitig -1\n"
     fp = open(s)
     fw = open(fixfile, "w")
     lines = fp.readlines()
-    next10lines = lines[1:11]
-    for i, line in enumerate(next10lines):
+    for i, line in enumerate(lines[:11]):
         if line.startswith("data.num_frags"):
-            next10lines[i] = "data.num_frags            1\n"
+            lines[i] = "data.num_frags            1\n"
+    unitigline = lines[0]
+    newunitig = "unitig -1\n"
+    next10lines = lines[1:11]
     fraglines = lines[11:]
-    header = [header0] + next10lines
-    for frag in fraglines:
-        fw.write("".join(header))
+    unitigheader = "".join([unitigline] + next10lines)
+    altheader = "".join([newunitig] + next10lines)
+    frag = fraglines[0]
+    fw.write(unitigheader)
+    fw.write(frag)
+    for frag in fraglines[1:]:
+        fw.write(altheader)
         fw.write(frag)
     fw.close()
     fp.close()

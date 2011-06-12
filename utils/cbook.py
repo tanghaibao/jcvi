@@ -6,29 +6,6 @@ mostly decorator patterns
 import logging
 
 
-def tabulate(d, key_fun=str):
-    """
-    d is a dictionary, keyed by tuple(A, B).
-    Goal is to put A in rows, B in columns, report data in table form.
-
-    >>> d = {(1,'a'):3, (1,'b'):4, (2,'a'):5, (2,'b'):0}
-    >>> print tabulate(d)
-    [['o', 'a', 'b'], ['1', '3', '4'], ['2', '5', '0']]
-    """
-    pairs = d.keys()
-    rows, cols = zip(*pairs)
-    rows = sorted(set(rows))
-    cols = sorted(set(cols))
-    out = [["o"] + list(cols)]
-    for r in rows:
-        combo = [(r, c) for c in cols]
-        data = [d[x] for x in combo]
-        data = [key_fun(x) for x in data]
-        out.append([str(r)] + data)
-
-    return out
-
-
 def thousands(x):
     """
     >>> thousands(12345)

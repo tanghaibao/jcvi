@@ -185,7 +185,7 @@ if __name__ == "__main__":
             default=False, action="store_true",
             help="make the image width/height equal to seqlen ratio")
     p.add_option("--format", dest="format", default="png",
-            help="generate image of format (png, pdf, ps, eps, svg, etc.)"
+            help="generate image of format (png, pdf, ps, eps, svg, etc.) "
             "[default: %default]")
 
     opts, args = p.parse_args()
@@ -205,7 +205,7 @@ if __name__ == "__main__":
     if sbed:
         sbed = Bed(sbed)
 
-    blastfile = args[0]
+    blastfile, = args
 
     image_name = op.splitext(blastfile)[0] + "." + opts.format
     blastplot(blastfile, qsizes, ssizes, qbed, sbed, image_name,

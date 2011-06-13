@@ -67,9 +67,49 @@ def main():
         ('split', 'split CAS file into smaller CAS using sub_assembly'),
         ('bed', 'convert cas tabular output to bed format'),
         ('pairs', 'print paired-end reads of cas tabular output'),
+        ('fastpairs', 'print pair distance and orientation, assuming paired '\
+            'reads next to one another'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def fastpairs(args):
+    """
+    %prog fastpairs castabfile
+
+    Assuming paired reads are adjacent in the castabfile. Print pair distance
+    and orientations.
+    """
+    from jcvi.utils.range import range_distance
+
+    p = OptionParser(fastpairs.__doc__)
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(p.print_help())
+
+    castabfile, = args
+    fp = open(castabfile)
+    arow = fp.readline()
+    orientationlabels = {"++": "normal", "+-": "innie", "-+": "outie", "--": "antinormal"}
+    while arow:
+        brow = fp.readline()
+        a, b = CasTabLine(arow), CasTabLine(brow)
+        asubject, astart, astop = a.refnum, a.refstart, a.refstop
+        bsubject, bstart, bstop = b.refnum, b.refstart, b.refstop
+        if -1 not in (astart, bstart):
+            aquery, bquery = a.readname, b.readname
+            astrand, bstrand = a.strand, b.strand
+            dist, orientation = range_distance(\
+                (asubject, astart, astop, astrand),
+                (bsubject, bstart, bstop, bstrand)
+                    )
+            orientation = orientationlabels[orientation]
+            if dist != -1:
+                print "\t".join(str(x) for x in (aquery, bquery, dist, orientation))
+        arow = fp.readline()
 
 
 def txt(args):
@@ -90,6 +130,8 @@ def txt(args):
 
     casfile, = args
     txtfile = casfile.replace(".cas", ".txt")
+    assert op.exists(casfile)
+
     if op.exists(txtfile):
         os.remove(txtfile)
 
@@ -166,7 +208,7 @@ def bed(args):
 
 def pairs(args):
     """
-    %prog pairs cas_tabbed
+    %prog pairs castabfile
 
     report summary of the cas tabular results, how many paired ends mapped, avg
     distance between paired ends, etc
@@ -195,7 +237,7 @@ def pairs(args):
     cutoff = opts.cutoff
     if cutoff:
         cutoff = int(cutoff)
-    castabfile = args[0]
+    castabfile, = args
 
     basename = castabfile.split(".")[0]
     pairsfile = ".".join((basename, "pairs")) if opts.pairsfile else None

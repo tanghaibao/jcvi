@@ -3,9 +3,8 @@ import os.path as op
 import math
 import sys
 import logging
-import itertools
 
-from itertools import groupby
+from itertools import groupby, islice, cycle, izip
 from optparse import OptionParser
 
 from Bio import SeqIO
@@ -101,7 +100,7 @@ class FileSplitter (object):
         batch_size = math.ceil(self.num_records / float(N))
         handle = self._open(self.filename)
         while True:
-            batch = list(itertools.islice(handle, batch_size))
+            batch = list(islice(handle, batch_size))
             if not batch:
                 break
             yield batch
@@ -153,8 +152,7 @@ class FileSplitter (object):
 
         elif mode == "cycle":
             handle = self._open(self.filename)
-            for record, fw in itertools.izip(handle,
-                    itertools.cycle(filehandles)):
+            for record, fw in izip(handle, cycle(filehandles)):
 
                 if self.klass == "seqio":
                     SeqIO.write(record, fw, self.format)

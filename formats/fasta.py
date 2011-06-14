@@ -23,9 +23,12 @@ debug()
 
 class Fasta (BaseFile, dict):
 
-    def __init__(self, filename, index=True, key_function=None):
+    def __init__(self, filename, index=True, key_function=None, lazy=False):
         super(Fasta, self).__init__(filename)
         self.key_function = key_function
+
+        if lazy:  # do not incur the overhead
+            return
 
         if index:
             self.index = SeqIO.index(filename, "fasta",
@@ -67,6 +70,10 @@ class Fasta (BaseFile, dict):
     def itersizes(self):
         for k in self.iterkeys():
             yield k, len(self[k])
+
+    def iterkeys_ordered(self):
+        for rec in SeqIO.parse(open(self.filename), "fasta"):
+            yield rec.name
 
     def itersizes_ordered(self):
         for rec in SeqIO.parse(open(self.filename), "fasta"):

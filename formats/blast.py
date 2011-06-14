@@ -60,7 +60,7 @@ class BlastLine(object):
     @property
     def bedline(self):
         return "\t".join(str(x) for x in \
-                (self.query, self.qstart - 1, self.qstop))
+                (self.query, self.qstart - 1, self.qstop, self.subject))
 
 
 class BlastSlow (LineFile):

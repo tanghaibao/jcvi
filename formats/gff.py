@@ -99,11 +99,54 @@ def main():
 
     actions = (
         ('bed', 'parse gff and produce bed file for particular feature type'),
+        ('script', 'parse gmap gff and produce script for sim4db to refine'),
         ('load', 'extract the feature (e.g. CDS) sequences and concatenate'),
             )
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def script(args):
+    """
+    %prog script gffile cdna.fasta genome.fasta
+
+    Parse gmap gff and produce script for sim4db to refine.
+    """
+    p = OptionParser(script.__doc__)
+
+    opts, args = p.parse_args(args)
+    if len(args) != 3:
+        sys.exit(p.print_help())
+
+    gffile, cdnafasta, genomefasta = args
+    scriptfile = gffile + ".script"
+    fp = open(gffile)
+    fw = open(scriptfile, "w")
+    cdnas = Fasta(cdnafasta, lazy=True)
+    cdnas = dict((x, i) for (i, x) in enumerate(cdnas.iterkeys_ordered()))
+    genomes = Fasta(genomefasta, lazy=True)
+    genomes = dict((x, i) for (i, x) in enumerate(genomes.iterkeys_ordered()))
+    extra = 50000  # 50-kb region surrounding the locus
+    for row in fp:
+        if row[0] == '#':
+            continue
+
+        g = GffLine(row)
+        if g.type != "mRNA":
+            continue
+
+        cdna = g.attributes["Name"][0]
+        genome = g.seqid
+        ci = cdnas[cdna]
+        gi = genomes[genome]
+
+        strand = "-r" if g.strand == "-" else "-f"
+        start, end = g.start, g.end
+        start = max(0, start - extra)
+        end += extra
+        print >> fw, "{0} -e {1} -D {2} {3} {4}"\
+                .format(strand, ci, gi, start, end)
 
 
 def bed(args):

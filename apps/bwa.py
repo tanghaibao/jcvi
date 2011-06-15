@@ -48,7 +48,7 @@ def check_aln(dbfile, readfile, grid=False):
         logging.error("`{0}` exists. `bwa aln` already run.".format(saifile))
 
     else:
-        cmd = "bwa aln {0} {1}".format(dbfile, readfile)
+        cmd = "bwa aln -t 32 {0} {1}".format(dbfile, readfile)
         sh(cmd, grid=grid, outfile=saifile)
 
     return saifile
@@ -189,8 +189,9 @@ def bwasw(args):
     samfile = readfile.rsplit(".", 1)[0] + ".sam"
     if op.exists(samfile):
         logging.error("`{0}` exists. `bwa bwasw` already run.".format(samfile))
+        return
 
-    cmd = "bwa bwasw {0} {1} {2} ".format(dbfile, saifile, readfile)
+    cmd = "bwa bwasw -t 32 {0} {1} ".format(dbfile, readfile)
     cmd += "{0}".format(extra)
     sh(cmd, grid=grid, outfile=samfile)
 

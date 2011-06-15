@@ -119,6 +119,8 @@ def txt(args):
     convert binary CAS file to tabular output using CLC assembly_table
     """
     p = OptionParser(txt.__doc__)
+    p.add_option("-m", dest="multi", default=False, action="store_true",
+        help="report multi-matches [default: %default]")
     set_grid(p)
 
     opts, args = p.parse_args(args)
@@ -135,7 +137,10 @@ def txt(args):
     if op.exists(txtfile):
         os.remove(txtfile)
 
-    cmd = "assembly_table -n -s -p {0}".format(casfile)
+    cmd = "assembly_table -n -s -p "
+    if opts.multi:
+        cmd += "-m "
+    cmd += casfile
     sh(cmd, grid=grid, outfile=txtfile)
 
     return txtfile

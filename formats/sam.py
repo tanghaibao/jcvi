@@ -9,6 +9,7 @@ import os.path as op
 import sys
 import logging
 
+from itertools import groupby
 from optparse import OptionParser
 
 from Bio import SeqIO
@@ -61,12 +62,40 @@ def main():
 
     actions = (
         ('pair', 'parse sam file and get pairs'),
+        ('chimera', 'parse sam file from `bwasw` and list multi-hit reads'),
         ('ace', 'convert sam file to ace'),
         ('index', 'convert to bam, sort and then index'),
             )
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def chimera(args):
+    """
+    %prog index samfile
+
+    Parse SAM file from `bwasw` and list multi-hit reads.
+    """
+    p = OptionParser(chimera.__doc__)
+    opts, args = p.parse_args(args)
+    if len(args) != 1:
+        sys.exit(p.print_help())
+
+    samfile, = args
+    fp = open(samfile)
+
+    def key_fun(x):
+        if x[0] == '@':
+            return x[0]
+        s = SamLine(x)
+        return s.qname, s.rname
+
+    for read, samlines in groupby(fp, key=key_fun):
+        nlines = len(list(samlines))
+        if nlines == 1:
+            continue
+        print read
 
 
 def index(args):

@@ -147,7 +147,9 @@ def sum(args):
 
     bedfile, = args
     bed = Bed(bedfile)
-    print >> sys.stderr, "Total bases: {0}".format(thousands(bed.sum))
+    print >> sys.stderr, "Total seqids: {0}".format(len(bed.seqids))
+    print >> sys.stderr, "Total ranges: {0}".format(len(bed))
+    print >> sys.stderr, "Total bases: {0} bp".format(thousands(bed.sum))
 
 
 def sort(args):

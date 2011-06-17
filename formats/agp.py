@@ -155,8 +155,8 @@ class AGP (LineFile):
         nscaffolds = len(scaffold_sizes)
         a50, l50, n50 = calculate_A50(scaffold_sizes)
 
-        print "\t".join(str(x) for x in (object, nbacs, nscaffolds, l50,
-            human_size(n50, precision=2, target="Mb")))
+        print "\t".join(str(x) for x in (object, nbacs, nscaffolds, n50,
+            human_size(l50, precision=2, target="Mb")))
 
     def summary_one(self, object, lines):
         bacs = set()

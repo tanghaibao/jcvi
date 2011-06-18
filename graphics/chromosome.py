@@ -28,43 +28,48 @@ def plot_cap(center, t, r):
     return zip(x + r * np.cos(t), y + r * np.sin(t))
 
 
-def plot_chromosome(ax, x, y1, y2, y3, width=.015, cl="k", zorder=z):
-    """
-    Chromosome with centromeres at y2 position
-    """
-    pts = []
-    r = width * .5
-    pts += plot_cap((x, y1 - r), np.radians(range(180)), r)
-    pts += [[x - r, y1 - r], [x - r, y2 + r]]
-    pts += plot_cap((x, y2 + r), np.radians(range(180, 360)), r)
-    pts += [[x + r, y2 + r], [x + r, y1 - r]]
-    ax.add_patch(Polygon(pts, fc=cl, fill=False, zorder=z))
-    pts = []
-    pts += plot_cap((x, y2 - r), np.radians(range(180)), r)
-    pts += [[x - r, y2 - r], [x - r, y3 + r]]
-    pts += plot_cap((x, y3 + r), np.radians(range(180, 360)), r)
-    pts += [[x + r, y3 + r], [x + r, y2 - r]]
-    ax.add_patch(Polygon(pts, fc=cl, fill=False, zorder=z))
-    ax.add_patch(CirclePolygon((x, y2), radius=r * .5,
-        fc="k", ec="k", zorder=z))
+class Chromosome (object):
+    def __init__(self, ax, x, y1, y2, width=.015, cl="k", zorder=z):
+        """
+        Chromosome with positions given in (x, y1) => (x, y2)
+        """
+        pts = []
+        r = width * .5
+        pts += plot_cap((x, y1 - r), np.radians(range(180)), r)
+        pts += [[x - r, y1 - r], [x - r, y2 + r]]
+        pts += plot_cap((x, y2 + r), np.radians(range(180, 360)), r)
+        pts += [[x + r, y2 + r], [x + r, y1 - r]]
+        ax.add_patch(Polygon(pts, fc=cl, fill=False, zorder=z))
 
 
-def plot_c(ax, x, y1, y2, width=.015, cl="k", zorder=z):
-    pts = []
-    r = width * .5
-    pts += plot_cap((x, y1 - r), np.radians(range(180)), r)
-    pts += [[x - r, y1 - r], [x - r, y2 + r]]
-    pts += plot_cap((x, y2 + r), np.radians(range(180, 360)), r)
-    pts += [[x + r, y2 + r], [x + r, y1 - r]]
-    ax.add_patch(Polygon(pts, fc=cl, fill=False, zorder=z))
+class ChromsomeWithCentromere (object):
+    def __init__(self, ax, x, y1, y2, y3, width=.015, cl="k", zorder=z):
+        """
+        Chromosome with centromeres at y2 position
+        """
+        pts = []
+        r = width * .5
+        pts += plot_cap((x, y1 - r), np.radians(range(180)), r)
+        pts += [[x - r, y1 - r], [x - r, y2 + r]]
+        pts += plot_cap((x, y2 + r), np.radians(range(180, 360)), r)
+        pts += [[x + r, y2 + r], [x + r, y1 - r]]
+        ax.add_patch(Polygon(pts, fc=cl, fill=False, zorder=z))
+        pts = []
+        pts += plot_cap((x, y2 - r), np.radians(range(180)), r)
+        pts += [[x - r, y2 - r], [x - r, y3 + r]]
+        pts += plot_cap((x, y3 + r), np.radians(range(180, 360)), r)
+        pts += [[x + r, y3 + r], [x + r, y2 - r]]
+        ax.add_patch(Polygon(pts, fc=cl, fill=False, zorder=z))
+        ax.add_patch(CirclePolygon((x, y2), radius=r * .5,
+            fc="k", ec="k", zorder=z))
 
 
 def main():
     """
-    %prog bedfile idMappings
+    %prog bedfile id_mappings
 
     Takes a bedfile that contains the coordinates of features to plot on the
-    chromosomes, and an idMappings file that map the ids to certain class. Each
+    chromosomes, and `id_mappings` file that map the ids to certain class. Each
     class will get assigned a unique color.
     """
     p = OptionParser(main.__doc__)
@@ -124,7 +129,7 @@ def main():
         xx = xstart + a * xinterval + .5 * xwidth
         yy = ystart + (clen - cent_position) * ratio
         root.text(xx, ystart - .01, _(chr), va="top", ha="center")
-        plot_chromosome(root, xx, ystart + clen * ratio, yy,
+        ChromsomeWithCentromere(root, xx, ystart + clen * ratio, yy,
                 ystart, width=xwidth, zorder=z)
 
     chr_idxs = dict((a, i) for i, a in enumerate(sorted(chr_lens.keys())))

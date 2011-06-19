@@ -17,6 +17,8 @@ debug()
 
 tstep = .05
 Timing = np.arange(0, 1 + tstep, tstep)
+arrowprops = dict(arrowstyle="fancy", fc="k", alpha=.5,
+            connectionstyle="arc3,rad=-0.05")
 
 class Bezier (object):
     """
@@ -54,7 +56,7 @@ class RoundLabel (object):
             bbox=dict(boxstyle="round",fill=False))
 
 
-class DCircle:
+class DoubleCircle (object):
     """Circle with a double-line margin
     """
     def __init__(self, ax, x, y, radius=.01, **kwargs):
@@ -63,6 +65,15 @@ class DCircle:
           resolution=50, fc="w", ec="k"))
       ax.add_patch(CirclePolygon((x, y), radius,
           resolution=50, **kwargs))
+
+
+class TextCircle (object):
+    """Circle with a character wrapped in
+    """
+    def __init__(self, ax, x, y, label, radius=.02, fc="k", color="w"):
+        circle = CirclePolygon((x, y), radius, resolution=20, fc=fc, ec=fc)
+        ax.add_patch(circle)
+        ax.text(x, y, label, ha="center", va="center", color=color)
 
 
 class Glyph (object):
@@ -139,7 +150,7 @@ def main():
             if fc == 'w':
                 continue
 
-            DCircle(root, xx, yy, fc=fc)
+            DoubleCircle(root, xx, yy, fc=fc)
 
         rotation = 30
         tip = .02
@@ -154,8 +165,6 @@ def main():
     # Draw arrows between panels (center)
     arrow_dist = .08
     ar_xpos = .5
-    arrowprops = dict(arrowstyle="fancy", fc="k", alpha=.5, 
-            connectionstyle="arc3,rad=-0.05")
     for ar_ypos in (.3, .53, .76):
         root.annotate(" ", (ar_xpos, ar_ypos), 
                 (ar_xpos, ar_ypos + arrow_dist),

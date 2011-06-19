@@ -64,6 +64,8 @@ import logging
 from optparse import OptionParser
 
 from jcvi.graphics.base import plt, _
+from jcvi.apps.base import debug
+debug()
 
 
 def main():

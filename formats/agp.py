@@ -6,7 +6,9 @@ Genbank AGP file format, see spec here
 http://www.ncbi.nlm.nih.gov/projects/genome/assembly/agp
 """
 
+import os
 import sys
+import shutil
 import logging
 
 from copy import deepcopy
@@ -31,6 +33,53 @@ Valid_component_type = list("ADFGNOPUW")
 Valid_gap_type = ("fragment", "clone", "contig", "centromere", "short_arm",
         "heterochromatin", "telomere", "repeat")
 Valid_orientation = ("+", "-", "0", "na")
+
+
+def trimNs(seq, line, newagp):
+    """
+    Test if the sequences contain dangling N's on both sides. This component
+    needs to be adjusted to the 'actual' sequence range.
+    """
+    start, end = line.component_beg, line.component_end
+    size = end - start + 1
+    leftNs, rightNs = 0, 0
+    for s in seq:
+        if s in 'nN':
+            leftNs += 1
+        else:
+            break
+    for s in seq[::-1]:
+        if s in 'nN':
+            rightNs += 1
+        else:
+            break
+
+    if line.orientation == '-':
+        trimstart = start + rightNs
+        trimend = end - leftNs
+    else:
+        trimstart = start + leftNs
+        trimend = end - rightNs
+
+    trimrange = (trimstart, trimend)
+    oldrange = (start, end)
+
+    if trimrange != oldrange:
+        logging.error("Range trimmed of N's: {0} => {1}".format(oldrange,
+            trimrange))
+
+        if leftNs:
+            print >> newagp, "\t".join(str(x) for x in (line.object, 0, 0, 0,
+                    'N', leftNs, "fragment", "yes", ""))
+        if trimend > trimstart:
+            print >> newagp, "\t".join(str(x) for x in (line.object, 0, 0, 0,
+                    line.component_type, line.component_id, trimstart, trimend,
+                    line.orientation))
+        if rightNs and rightNs != size:
+            print >> newagp, "\t".join(str(x) for x in (line.object, 0, 0, 0,
+                    'N', rightNs, "fragment", "yes", ""))
+    else:
+        print >> newagp, line
 
 
 class AGPLine (object):
@@ -211,7 +260,7 @@ class AGP (LineFile):
             lines = list(lines_with_same_ob)
             self.validate_one(ob, lines)
 
-    def build_one(self, object, lines, fasta, fw):
+    def build_one(self, object, lines, fasta, fw, newagp=None):
         """
         Construct molecule using component fasta sequence
         """
@@ -222,11 +271,16 @@ class AGP (LineFile):
 
             if line.is_gap:
                 seq = 'N' * line.gap_length
+                if newagp:
+                    print >> newagp, line
             else:
                 seq = fasta.sequence(dict(chr=line.component_id,
                         start=line.component_beg,
                         stop=line.component_end,
                         strand=line.orientation))
+                # Check for dangling N's
+                if newagp:
+                    trimNs(seq, line, newagp)
 
             components.append(seq)
             total_bp += len(seq)
@@ -236,18 +290,20 @@ class AGP (LineFile):
                         "cumulative base pairs (%d) does not match (%d)" % \
                         (total_bp, line.object_end)
 
-        rec = SeqRecord(Seq(''.join(components)), id=object, description="")
-        SeqIO.write([rec], fw, "fasta")
-        logging.debug("Write object %s to `%s`" % (object, fw.name))
+        if not newagp:
+            rec = SeqRecord(Seq(''.join(components)), id=object, description="")
+            SeqIO.write([rec], fw, "fasta")
+            if len(rec) > 1000000:
+                logging.debug("Write object %s to `%s`" % (object, fw.name))
 
-    def build_all(self, componentfasta, targetfasta):
+    def build_all(self, componentfasta, targetfasta, newagp=None):
         f = Fasta(componentfasta, index=False)
         fw = open(targetfasta, "w")
 
         for ob, lines_with_same_ob in groupby(self, key=lambda x: x.object):
 
             lines = list(lines_with_same_ob)
-            self.build_one(ob, lines, f, fw)
+            self.build_one(ob, lines, f, fw, newagp=newagp)
 
 
 def main():
@@ -262,6 +318,7 @@ def main():
         ('mask', 'mask given ranges in components to gaps'),
         ('liftover', 'given ranges in components, get chromosome ranges'),
         ('reindex', 'assume accurate component order, reindex coordinates'),
+        ('tidy', 'run trim=>reindex=>merge sequentially'),
         ('build', 'given agp file and component fasta file, build ' +\
                  'pseudomolecule fasta'),
         ('validate', 'given agp file, component and pseudomolecule fasta, ' +\
@@ -722,13 +779,52 @@ def gaps(args):
                 print >> fw, b
 
 
+def tidy(args):
+    """
+    %prog tidy agpfile componentfasta
+
+    Given an agp file, run through the following steps:
+    o Trim components with dangling N's
+    o Reindex the agp
+    o Merge adjacent gaps
+
+    Final output is in `.tidy.agp`.
+    """
+    p = OptionParser(tidy.__doc__)
+
+    if len(args) != 2:
+        sys.exit(p.print_help())
+
+    agpfile, componentfasta = args
+    originalagpfile = agpfile
+    tmpfasta = "tmp.fasta"
+    build([agpfile, componentfasta, tmpfasta, "--newagp", "--novalidate"])
+    os.remove(tmpfasta)
+
+    agpfile = agpfile.replace(".agp", ".trimmed.agp")
+    reindex([agpfile])
+    os.remove(agpfile)
+
+    agpfile = agpfile.replace(".agp", ".reindexed.agp")
+    gaps([agpfile, "--merge"])
+    os.remove(agpfile)
+
+    agpfile = agpfile.replace(".agp", ".merged.agp")
+    tidyagpfile = originalagpfile.replace(".agp", ".tidy.agp")
+    shutil.move(agpfile, tidyagpfile)
+
+    logging.debug("File written to `{0}`.".format(tidyagpfile))
+
+
 def build(args):
     """
     %prog build agpfile componentfasta targetfasta
 
-    build targetfasta based on info from agpfile
+    Build targetfasta based on info from agpfile
     """
     p = OptionParser(build.__doc__)
+    p.add_option("--newagp", dest="newagp", default=False, action="store_true",
+            help="check components to trim dangling N's [default: %default]")
     p.add_option("--novalidate", dest="novalidate", default=False,
             action="store_true",
             help="don't validate the agpfile [default: %default]")
@@ -738,13 +834,20 @@ def build(args):
 
     validate = not (opts.novalidate)
 
-    try:
-        agpfile, componentfasta, targetfasta = args
-    except Exception, e:
+    if len(args) != 3:
         sys.exit(p.print_help())
 
+    agpfile, componentfasta, targetfasta = args
+    if opts.newagp:
+        assert agpfile.endswith(".agp")
+        newagpfile = agpfile.replace(".agp", ".trimmed.agp")
+        newagp = open(newagpfile, "w")
+    else:
+        newagp = None
+
     agp = AGP(agpfile, validate=validate)
-    agp.build_all(componentfasta=componentfasta, targetfasta=targetfasta)
+    agp.build_all(componentfasta=componentfasta, targetfasta=targetfasta,
+            newagp=newagp)
 
 
 def validate(args):

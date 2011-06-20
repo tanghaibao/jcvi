@@ -310,6 +310,7 @@ def main():
 
     actions = (
         ('summary', 'print out a table of scaffold statistics'),
+        ('stats', 'print out a report for length of gaps and components'),
         ('phase', 'given genbank file, get the phase for the HTG BAC record'),
         ('bed', 'print out the tiling paths in bed format'),
         ('gaps', 'print out the distribution of gap sizes'),
@@ -327,6 +328,50 @@ def main():
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def stats(args):
+    """
+    %prog stats agpfile
+
+    Print out a report for length of gaps and components.
+    """
+    p = OptionParser(stats.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(p.print_help())
+
+    agpfile, = args
+
+    agp = AGP(agpfile)
+    gap_lengths = []
+    component_lengths = []
+    for a in agp:
+        span = a.object_span
+        if a.is_gap:
+            label = a.gap_type
+            gap_lengths.append((span, label))
+        else:
+            label = "{0}:{1}-{2}".format(a.component_id, a.component_beg, \
+                   a.component_end)
+            component_lengths.append((span, label))
+            if span < 50:
+                logging.error("component span too small ({0}):\n{1}".\
+                    format(span, a))
+
+    table = dict()
+    for label, lengths in zip(("Gaps", "Components"),
+            (gap_lengths, component_lengths)):
+
+        table[(label, "Min")] = "{0} ({1})".format(*min(lengths))
+        table[(label, "Max")] = "{0} ({1})".format(*max(lengths))
+        table[(label, "Sum")] = sum(x[0] for x in lengths)
+
+    from jcvi.utils.table import tabulate
+
+    table = tabulate(table)
+    print >> sys.stderr, table
 
 
 def mask(args):

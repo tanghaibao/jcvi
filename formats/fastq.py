@@ -244,46 +244,52 @@ def convert(args):
 
 def unpair(args):
     """
-    %prog unpair pairs.fastq
+    %prog unpair *.pairs.fastq unpaired
 
     Reverse operation of `pair`:
-    The /1 will be placed in 1.fastq, and /2 will be place in 2.fastq.
+    /1 will be placed in unpaired.1.fastq,
+    /2 will be placed in unpaired.2.fastq.
     """
     p = OptionParser(unpair.__doc__)
     p.add_option("--tag", dest="tag", default=False, action="store_true",
             help="add tag (/1, /2) to the read name")
     opts, args = p.parse_args(args)
 
-    if len(args) != 1:
+    if len(args) < 2:
         sys.exit(p.print_help())
-
-    pairsfastq, = args
-    fh = open(pairsfastq)
-
-    assert op.exists(pairsfastq)
-    base = op.basename(pairsfastq).split(".")[0]
-    afastq = base + ".1.fastq"
-    bfastq = base + ".2.fastq"
-    afw = open(afastq, "w")
-    bfw = open(bfastq, "w")
 
     tag = opts.tag
 
-    it = iter_fastq(fh)
-    rec = it.next()
-    while rec:
-        if tag:
-            rec.name += "/1"
-        print >> afw, rec
-        rec = it.next()
-        if tag:
-            rec.name += "/2"
-        print >> bfw, rec
-        rec = it.next()
+    pairsfastqs = args[:-1]
+    base = args[-1]
+    afastq = base + ".1.fastq"
+    bfastq = base + ".2.fastq"
+    assert not op.exists(afastq)
 
-    logging.debug("reads unpaired into `%s` and `%s`" % (afastq, bfastq))
-    for f in (fh, afw, bfw):
+    afw = open(afastq, "w")
+    bfw = open(bfastq, "w")
+
+    for pairsfastq in pairsfastqs:
+        fh = open(pairsfastq)
+
+        assert op.exists(pairsfastq)
+        it = iter_fastq(fh)
+        rec = it.next()
+        while rec:
+            if tag:
+                rec.name += "/1"
+            print >> afw, rec
+            rec = it.next()
+            if tag:
+                rec.name += "/2"
+            print >> bfw, rec
+            rec = it.next()
+
+    for f in (afw, bfw):
         f.close()
+
+    logging.debug("reads unpaired into `{0}` and `{1}`".\
+            format(afastq, bfastq))
 
 
 def pairinplace(args):

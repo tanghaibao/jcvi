@@ -15,10 +15,12 @@ import logging
 
 from glob import glob
 from optparse import OptionParser
+from collections import defaultdict
 
 from Bio import SeqIO
 
 from jcvi.formats.fasta import get_qual, iter_fasta_qual, write_fasta_qual
+from jcvi.utils.table import tabulate
 from jcvi.apps.softlink import get_abs_path
 from jcvi.apps.base import ActionDispatcher, sh, set_grid, debug
 from jcvi.assembly.base import CAPATH
@@ -32,17 +34,74 @@ def main():
         ('fasta', 'convert fasta to frg file'),
         ('sff', 'convert 454 reads to frg file'),
         ('fastq', 'convert Illumina reads to frg file'),
+        ('script', 'create gatekeeper script file to remove or add mates'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
 
+def script(args):
+    """
+    %prog script bfs_rfs libs
+
+    `bfs_rfs` contains the joined results from Brian's `classifyMates`. We want
+    to keep the RFS result (but not in the BFS result) to retain actual MP. Libs
+    contain a list of lib iids, use comma to separate, e.g. "9,10,11".
+    """
+    p = OptionParser(script.__doc__)
+
+    opts, args = p.parse_args(args)
+    if len(args) != 2:
+        sys.exit(p.print_help())
+
+    fsfile, libs = args
+    libs = [int(x) for x in libs.split(",")]
+    fp = open(fsfile)
+    not_found = ("limited", "exhausted")
+    counts = defaultdict(int)
+    pe, mp = 0, 0
+    both, noidea = 0, 0
+    total = 0
+
+    for i in libs:
+        print "lib iid {0} allfragsunmated 1".format(i)
+
+    for row in fp:
+        frgiid, bfs, rfs = row.split()
+        bfs = (bfs not in not_found)
+        rfs = (rfs not in not_found)
+        if bfs and (not rfs):
+            pe += 1
+        if rfs and (not bfs):
+            mp += 1
+            frgiid = int(frgiid)
+            mateiid = frgiid + 1
+            print "frg iid {0} mateiid {1}".format(frgiid, mateiid)
+            print "frg iid {0} mateiid {1}".format(mateiid, frgiid)
+        if bfs and rfs:
+            both += 1
+        if (not bfs) and (not rfs):
+            noidea += 1
+        total += 1
+
+    assert pe + mp + both + noidea == total
+    counts[("PE", "N")] = pe
+    counts[("MP", "N")] = mp
+    counts[("Both", "N")] = both
+    counts[("No Idea", "N")] = noidea
+
+    table = tabulate(counts)
+    func = lambda a: a * 100. / total
+    table = table.withNewColumn("Percentage", callback=func,
+            columns=("N",), digits=2)
+    print >> sys.stderr, table
+
+
 def tracedb(args):
     """
-    %prog tracedb action
+    %prog tracedb <xml|lib|frg>
 
-    Run `tracedb-to-frg.pl` within current folder. action must be on of (xml,
-    lib, frg)
+    Run `tracedb-to-frg.pl` within current folder.
     """
     p = OptionParser(tracedb.__doc__)
 

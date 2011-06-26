@@ -51,9 +51,13 @@ def get_prefix(dir="../"):
 
 def get_ID(s):
     """
-    unitig3.16057 => (3, 16057)
+    unitig3.16057 => ('3', '16057')
     """
     return s.replace("unitig", "").split(".")
+
+
+working = "Working"
+failed = "failed"
 
 
 def error(args):
@@ -85,12 +89,15 @@ def error(args):
         fp = open(g)
         partID = op.basename(g).rsplit(".err", 1)[0]
         partID = int(partID.split("_")[-1])
+
         for row in fp:
-            if "ERROR" not in row:
+            if row.startswith(working):
+                unitigID = row.split("(")[0].split()[-1]
                 continue
 
-            unitigID = row.split()[-1]
-            unitigID = unitigID.replace(".", "")
+            if not failed in row:
+                continue
+
             print >> fw, "\t".join(str(x) for x in (partID, unitigID))
 
             if not backup:
@@ -119,9 +126,24 @@ def trace(args):
     s, = args
     partID, unitigID = get_ID(s)
 
-    cmd = "grep '{0} FAILED\.' -m2 -C2 ../5-consensus/*.err".format(unitigID)
+    flist = glob("../5-consensus/*_{0:03d}.err".format(int(partID)))
+    assert len(flist) == 1
+    fp = open(flist[0])
 
-    sh(cmd)
+    instate = False
+    for row in fp:
+        if working in row and unitigID in row:
+            rows = []
+            instate = True
+        if instate:
+            rows.append(row)
+        if failed in row:
+            instate = False
+            if len(rows) > 20:
+                ignore_line = "... ({0} lines skipped)\n".format(len(rows) - 20)
+                rows = rows[:10] + [ignore_line] + rows[-10:]
+
+    print >> sys.stderr, "".join(rows)
 
 
 def shred(args):

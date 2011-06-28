@@ -57,3 +57,45 @@ def Astat(delta, k, G, n):
     n: total reads mapped to genome
     """
     return n * delta * 1. / G - k * ln2
+
+
+
+def n50(args):
+    """
+    %prog n50 filename
+
+    Given a file with a list of numbers denoting contig lengths, calculate N50.
+    """
+    p = OptionParser(n50.__doc__)
+
+    opts, args = p.parse_args(args)
+
+    if len(args) > 1:
+        sys.exit(p.print_help())
+
+    filename, = args
+    ctgsizes = []
+    for row in open(filename):
+        try:
+            ctgsize = int(row.strip())
+        except ValueError:
+            continue
+        ctgsizes.append(ctgsize)
+
+    a50, l50, nn50 = calculate_A50(ctgsizes)
+    sumsize = sum(ctgsizes)
+    print >> sys.stderr, \
+            "`{0}`: Length={1} L50={2}".format(filename, sumsize, l50)
+
+
+def main():
+
+    actions = (
+            ('n50', "Given a list of numbers, calculate N50"),
+            )
+    p = ActionDispatcher(actions)
+    p.dispatch(globals())
+
+
+if __name__ == '__main__':
+    main()

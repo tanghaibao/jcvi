@@ -49,7 +49,7 @@ class memoized(object):
         return functools.partial(self.__call__, obj)
 
 
-def check_dependency(func):
+def depends(func):
     """
     Performs checks on infile= and outfile=. When infile is not present, issue
     warning, and when outfile is present, skip function calls.
@@ -62,12 +62,12 @@ def check_dependency(func):
         if infile in kwargs:
             infilename = kwargs[infile]
             assert op.exists(infilename), \
-                "Your specified infile `{0}` does not exist" \
+                "The specified infile `{0}` does not exist" \
                     .format(infilename)
 
         outfilename = kwargs[outfile]
         if op.exists(outfilename):
-            msg = "File {0} exists. Computation skipped." \
+            msg = "File `{0}` exists. Computation skipped." \
                 .format(outfilename)
             logging.error(msg)
         else:

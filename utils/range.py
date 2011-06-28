@@ -20,7 +20,8 @@ Range = namedtuple("Range", "seqid start end score id")
 
 def range_intersect(a, b):
     """
-    Returns the intersection between two reanges
+    Returns the intersection between two reanges.
+
     >>> range_intersect((30, 45), (55, 65))
     >>> range_intersect((48, 65), (45, 55))
     [48, 55]
@@ -44,7 +45,8 @@ def range_intersect(a, b):
 
 def ranges_intersect(rset):
     """
-    Recursively calls the range_intersect() - pairwise version
+    Recursively calls the range_intersect() - pairwise version.
+
     >>> ranges_intersect([(48, 65), (45, 55), (50, 56)])
     [50, 55]
     """
@@ -62,7 +64,8 @@ def ranges_intersect(rset):
 
 def range_overlap(a, b):
     """
-    Returns whether or not two ranges overlap
+    Returns whether or not two ranges overlap.
+
     >>> range_overlap(("1", 30, 45), ("1", 45, 55))
     True
     >>> range_overlap(("1", 30, 45), ("1", 57, 68))
@@ -80,7 +83,7 @@ def range_overlap(a, b):
 
 def range_distance(a, b, distmode='ss'):
     """
-    Returns the distance between two ranges
+    Returns the distance between two ranges.
 
     distmode is ss, se, es, ee and sets the place on read one and two to
           measure the distance (s = start, e = end)
@@ -123,7 +126,8 @@ def range_distance(a, b, distmode='ss'):
 def range_minmax(ranges):
     """
     Returns the span of a collection of ranges where start is the smallest of
-    all starts, and end is the largest of all ends
+    all starts, and end is the largest of all ends.
+
     >>> ranges = [(30, 45), (40, 50), (10, 100)]
     >>> range_minmax(ranges)
     (10, 100)
@@ -133,9 +137,44 @@ def range_minmax(ranges):
     return rmin, rmax
 
 
+def range_merge(ranges, dist=0):
+    """
+    Returns merged range. Similar to range_union, except this returns
+    new ranges.
+
+    >>> ranges = [("1", 30, 45), ("1", 40, 50), ("1", 10, 50)]
+    >>> range_merge(ranges)
+    [('1', 10, 50)]
+    >>> ranges = [("1", 30, 40), ("1", 45, 50)]
+    >>> range_merge(ranges)
+    [('1', 30, 40), ('1', 45, 50)]
+    >>> ranges = [("1", 30, 40), ("1", 45, 50)]
+    >>> range_merge(ranges, dist=5)
+    [('1', 30, 50)]
+    """
+    if not ranges:
+        return []
+
+    ranges.sort()
+
+    cur_range = list(ranges[0])
+    merged_ranges = []
+    for r in ranges[1:]:
+        # open new range if start > cur_end or seqid != cur_seqid
+        if r[1] - cur_range[2] > dist or r[0] != cur_range[0]:
+            merged_ranges.append(tuple(cur_range))
+            cur_range = list(r)
+        else:
+            cur_range[2] = max(cur_range[2], r[2])
+    merged_ranges.append(tuple(cur_range))
+
+    return merged_ranges
+
+
 def range_union(ranges):
     """
     Returns total size of ranges, expect range as (chr, left, right)
+
     >>> ranges = [("1", 30, 45), ("1", 40, 50), ("1", 10, 50)]
     >>> range_union(ranges)
     41
@@ -151,7 +190,7 @@ def range_union(ranges):
     total_len = 0
     cur_chr, cur_left, cur_right = ranges[0]  # left-most range
     for r in ranges:
-        # open a new range if left > cur_right or chr != cur_chr
+        # open new range if left > cur_right or chr != cur_chr
         if r[1] > cur_right or r[0] != cur_chr:
             total_len += cur_right - cur_left + 1
             cur_chr, cur_left, cur_right = r

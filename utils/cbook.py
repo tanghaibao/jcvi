@@ -3,6 +3,7 @@ Useful recipes from various internet sources (thanks)
 mostly decorator patterns
 """
 
+import os.path as op
 import logging
 
 
@@ -46,6 +47,37 @@ class memoized(object):
     def __get__(self, obj, objtype):
         """Support instance methods."""
         return functools.partial(self.__call__, obj)
+
+
+def check_dependency(func):
+    """
+    Performs checks on infile= and outfile=. When infile is not present, issue
+    warning, and when outfile is present, skip function calls.
+    """
+    infile = "infile"
+    outfile = "outfile"
+    def wrapper(*args, **kwargs):
+        assert outfile in kwargs, \
+            "You need to specify `outfile=` on function call"
+        if infile in kwargs:
+            infilename = kwargs[infile]
+            assert op.exists(infilename), \
+                "Your specified infile `{0}` does not exist" \
+                    .format(infilename)
+
+        outfilename = kwargs[outfile]
+        if op.exists(outfilename):
+            msg = "File {0} exists. Computation skipped." \
+                .format(outfilename)
+            logging.error(msg)
+        else:
+            func(*args, **kwargs)
+
+        assert op.exists(outfilename), \
+                "Something went wrong, `{0}` not found" \
+                .format(outfilename)
+
+    return wrapper
 
 
 SUFFIXES = {1000: ['', 'Kb', 'Mb', 'Gb', 'Tb', 'Pb', 'Eb', 'Zb'],

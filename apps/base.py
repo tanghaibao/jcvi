@@ -119,6 +119,22 @@ def get_today():
     return str(date.today())
 
 
+def download(url, filename=None):
+    from urlparse import urlsplit
+
+    scheme, netloc, path, query, fragment = urlsplit(url)
+    filename = filename or op.basename(path)
+
+    if op.exists(filename):
+        msg = "File `{0}` exists. Download skipped.".format(filename)
+        logging.error(msg)
+    else:
+        cmd = "wget {0} -O {1}".format(url, filename)
+        sh(cmd)
+
+    return filename
+
+
 def debug():
     """
     turn on the debugging

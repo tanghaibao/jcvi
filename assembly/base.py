@@ -70,7 +70,7 @@ def n50(args):
 
     opts, args = p.parse_args(args)
 
-    if len(args) > 1:
+    if len(args) < 1:
         sys.exit(p.print_help())
 
     filename, = args

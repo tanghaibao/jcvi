@@ -39,7 +39,7 @@ def run_blastall(infile=None, outfile=None):
     """
     cmd = 'blastall -p blastn -i {0}'.format(infile) 
     cmd += ' -d UniVec_Core -q -5 -G 3 -E 3 -F "m D"'
-    cmd += ' -e 700 -Y 1.75e12 -m 8 -o {0}'.format(outfile)
+    cmd += ' -e 0.01 -Y 1.75e12 -m 8 -o {0}'.format(outfile)
     sh(cmd)
 
 
@@ -47,7 +47,7 @@ def run_blastall(infile=None, outfile=None):
 def run_supermap(infile=None, outfile=None):
     from jcvi.algorithms.supermap import supermap
 
-    supermap(fastablast, filter="query")
+    supermap(infile, filter="query")
 
 
 def blast(args):

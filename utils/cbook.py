@@ -3,6 +3,7 @@ Useful recipes from various internet sources (thanks)
 mostly decorator patterns
 """
 
+import os
 import os.path as op
 import logging
 
@@ -54,6 +55,8 @@ def depends(func):
     Performs checks on infile= and outfile=. When infile is not present, issue
     warning, and when outfile is present, skip function calls.
     """
+    from jcvi.apps.base import is_newer_file
+
     infile = "infile"
     outfile = "outfile"
     def wrapper(*args, **kwargs):
@@ -66,12 +69,13 @@ def depends(func):
                     .format(infilename)
 
         outfilename = kwargs[outfile]
-        if op.exists(outfilename):
+        if not op.exists(outfilename) or \
+                is_newer_file(infilename, outfilename):
+            func(*args, **kwargs)
+        else:
             msg = "File `{0}` exists. Computation skipped." \
                 .format(outfilename)
             logging.error(msg)
-        else:
-            func(*args, **kwargs)
 
         assert op.exists(outfilename), \
                 "Something went wrong, `{0}` not found" \

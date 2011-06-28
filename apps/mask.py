@@ -13,7 +13,7 @@ import os
 import os.path as op
 import sys
 
-from jcvi.apps.base import sh, is_current_file, debug
+from jcvi.apps.base import sh, is_newer_file, debug
 debug()
 
 
@@ -22,7 +22,7 @@ def wm_mk_counts(genomefile):
     cmd = "windowmasker -in %(genomefile)s -mk_counts " \
           "-out %(outfile)s" % locals()
 
-    if not is_current_file(outfile, genomefile):
+    if not is_newer_file(outfile, genomefile):
         sh(cmd)
 
 
@@ -32,7 +32,7 @@ def wm_mk_masks(genomefile):
           "-outfmt fasta -dust T " \
           "-out %(outfile)s" % locals()
 
-    if not is_current_file(outfile, genomefile):
+    if not is_newer_file(outfile, genomefile):
         sh(cmd)
 
 

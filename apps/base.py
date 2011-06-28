@@ -100,7 +100,7 @@ def sh(cmd, grid=False, infile=None, outfile=None, errfile=None,
         return call(cmd, shell=True)
 
 
-def is_current_file(a, b):
+def is_newer_file(a, b):
     """
     Check if the file a is newer than file b
     """

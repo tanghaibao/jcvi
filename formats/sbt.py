@@ -47,11 +47,14 @@ def get_name_parts(au):
     parts = au.split()
     first = parts[0]
     middle = [x for x in parts if x[-1] == '.']
-    middle = middle[0] if middle else ""
+    middle = "".join(middle)
 
     last = [x for x in parts[1:] if x[-1] != '.']
     last = " ".join(last)
     initials = "{0}.{1}".format(first[0], middle)
+    if first[-1] == '.':  # Some people use full middle name
+        initials = "{0}.{1}.".format(first[0], last[0])
+        last = "".join(last.split()[1:])
 
     return last, first, initials
 
@@ -75,6 +78,7 @@ def parse_names(lstfile):
             if not au:
                 continue
             au = string.translate(au, None, string.digits)
+            au = au.replace("-", '')
             authors.append(au)
         all_authors.append(authors)
 

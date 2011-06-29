@@ -197,18 +197,20 @@ class AGP (LineFile):
                  "component_end/linkage orientation"
         print >> fw, "# FIELDS: {0}".format(", ".join(header.split()))
 
-    def report_stats(self, object, bacs, scaffold_sizes):
+    def report_stats(self, object, bacs, components, scaffold_sizes):
         from jcvi.utils.cbook import human_size
 
         nbacs = len(bacs)
         nscaffolds = len(scaffold_sizes)
         a50, l50, n50 = calculate_A50(scaffold_sizes)
 
-        print "\t".join(str(x) for x in (object, nbacs, nscaffolds, n50,
+        print "\t".join(str(x) for x in (object, nbacs,
+            components, nscaffolds, n50,
             human_size(l50, precision=2, target="Mb")))
 
     def summary_one(self, object, lines):
         bacs = set()
+        components = 0
         scaffold_sizes = []
         _scaffold_key = lambda x: x.is_gap and \
                 x.linkage == "no"
@@ -224,25 +226,28 @@ class AGP (LineFile):
                     scaffold_size += b.gap_length
                 else:
                     bacs.add(b.component_id)
+                    components += 1
                     scaffold_size += b.component_span
 
             scaffold_sizes.append(scaffold_size)
 
-        self.report_stats(object, bacs, scaffold_sizes)
+        self.report_stats(object, bacs, components, scaffold_sizes)
 
-        return bacs, scaffold_sizes
+        return bacs, components, scaffold_sizes
 
     def summary_all(self):
 
         all_bacs = set()
         all_scaffold_sizes = []
+        all_components = 0
         for ob, lines_with_same_ob in groupby(self, key=lambda x: x.object):
             lines = list(lines_with_same_ob)
-            bacs, scaffold_sizes = self.summary_one(ob, lines)
+            bacs, components, scaffold_sizes = self.summary_one(ob, lines)
+            all_components += components
             all_bacs |= bacs
             all_scaffold_sizes.extend(scaffold_sizes)
 
-        self.report_stats("Total", all_bacs, all_scaffold_sizes)
+        self.report_stats("Total", all_bacs, all_components, all_scaffold_sizes)
 
     def validate_one(self, object, lines):
         object_beg = lines[0].object_beg
@@ -547,11 +552,11 @@ def reindex(args):
 
 def summary(args):
     """
-    %prog agpfile
+    %prog summary agpfile
 
     print a table of scaffold statistics, number of BACs, no of scaffolds,
     scaffold N50, scaffold L50, actual sequence, PSMOL NNNs, PSMOL-length, % of
-    PSMOL seq'd
+    PSMOL sequenced.
     """
     p = OptionParser(summary.__doc__)
     opts, args = p.parse_args(args)
@@ -560,7 +565,8 @@ def summary(args):
         sys.exit(p.print_help())
 
     agpfile, = args
-    header = "Chromosome|Number of BACs|No of Scaffolds|Scaff N50|Scaff L50"
+    header = "Chromosome|# of BACs|# of Components|"
+    header += "# of Scaffolds|Scaff N50|Scaff L50"
     header = header.replace('|', '\t')
 
     agp = AGP(agpfile)
@@ -736,6 +742,8 @@ def bed(args):
     print out the tiling paths in bed format
     """
     p = OptionParser(bed.__doc__)
+    p.add_option("--gaps", dest="gaps", default=False, action="store_true",
+            help="only print bed lines for gaps")
     p.add_option("--nogaps", dest="nogaps", default=False, action="store_true",
             help="do not print bed lines for gaps")
     opts, args = p.parse_args(args)
@@ -747,6 +755,8 @@ def bed(args):
     agp = AGP(agpfile)
     for a in agp:
         if opts.nogaps and a.is_gap:
+            continue
+        if opts.gaps and not a.is_gap:
             continue
         print a.bedline
 

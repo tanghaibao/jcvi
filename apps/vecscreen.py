@@ -54,7 +54,7 @@ def blast(args):
     """
     %prog blast fastafile 
 
-    Run BLASTN against UniVec.
+    Run BLASTN against UniVec. Output .bed format on the vector ranges.
     """
     p = OptionParser(blast.__doc__)
     p.add_option("--dist", dest="dist", default=100,
@@ -78,7 +78,7 @@ def blast(args):
 
     merged_ranges = range_merge(ranges, dist=opts.dist)
     for seqid, start, end in merged_ranges:
-        print "\t".join(str(x) for x in (seqid, start, end, "vector"))
+        print "\t".join(str(x) for x in (seqid, start - 1, end, "vector"))
 
 
 if __name__ == '__main__':

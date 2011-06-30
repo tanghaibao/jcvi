@@ -16,8 +16,9 @@ from Bio.SeqRecord import SeqRecord
 
 from jcvi.formats.base import BaseFile, must_open
 from jcvi.utils.cbook import human_size
+from jcvi.utils.table import banner
 from jcvi.apps.base import ActionDispatcher, debug
-from jcvi.apps.console import tabular, print_red, print_green
+from jcvi.apps.console import print_red, print_green
 debug()
 
 
@@ -435,7 +436,7 @@ def diff(args):
     bh = SeqIO.parse(bfasta, "fasta")
 
     for arec, brec in zip(ah, bh):
-        print tabular((arec, brec))
+        print banner((arec, brec))
         asize, bsize = len(arec), len(brec)
 
         if asize == bsize:

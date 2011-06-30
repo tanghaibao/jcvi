@@ -8,15 +8,6 @@ import threading
 import unicodedata
 
 
-def tabular(listOfStuff, rulersize=80):
-    """
-    Print a tabular output, with horizontal separators
-    """
-    table_edge = "=" * rulersize + "\n"
-    table_sep = "-" * rulersize + "\n"
-    contents = table_sep.join(str(x) + "\n" for x in listOfStuff)
-    return "".join((table_edge, contents, table_edge))
-
 """
 An ASCII text progress bar. See __main__ for command line use (using \r to
 move the cursor back to the start of the current line is the key, on

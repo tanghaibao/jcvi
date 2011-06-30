@@ -17,7 +17,7 @@ class BaseFile (object):
     def __init__(self, filename):
 
         self.filename = filename
-        logging.debug("Load file %s" % filename)
+        logging.debug("Load file `{0}`".format(filename))
 
 
 class LineFile (BaseFile, list):
@@ -31,7 +31,7 @@ class LineFile (BaseFile, list):
 
 class FileMerger (object):
     """
-    same as cat * > filename
+    Same as cat * > filename
     """
     def __init__(self, filelist, outfile):
 
@@ -40,7 +40,7 @@ class FileMerger (object):
 
     def merge(self):
         files = " ".join(self.filelist)
-        sh("cat %s > %s" % (files, self.outfile))
+        sh("cat {0}".format(files), outfile=self.outfile)
 
 
 class FileSplitter (object):

@@ -2,15 +2,21 @@
 Routines to summarize and report tabular data.
 """
 
-from cogent import LoadTable
+
+def banner(listOfStuff, rulersize=80, major='=', minor='-'):
+    """
+    Print a tabular output, with horizontal separators
+    """
+    table_edge = major * rulersize + "\n"
+    table_sep = minor * rulersize + "\n"
+    contents = table_sep.join(str(x) + "\n" for x in listOfStuff)
+    return "".join((table_edge, contents, table_edge))
 
 
-def get_table():
-    # http://foutaise.org/code/texttable/
-    from texttable import Texttable
-    table = Texttable()
+def loadtable(header, rows):
 
-    return table
+    from cogent import LoadTable
+    return LoadTable(header=header, row=row)
 
 
 def tabulate(d, transpose=False, key_fun=None):
@@ -26,7 +32,6 @@ def tabulate(d, transpose=False, key_fun=None):
     1    3    4
     2    5    0
     -----------
-    >>> d = {(1,'a'):3, (1,'b'):4, (2,'a'):5, (2,'b'):0}
     >>> print tabulate(d, transpose=True)
     ===========
     o    1    2
@@ -35,6 +40,8 @@ def tabulate(d, transpose=False, key_fun=None):
     b    4    0
     -----------
     """
+    from cogent import LoadTable
+
     pairs = d.keys()
     rows, cols = zip(*pairs)
     if transpose:

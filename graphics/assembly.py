@@ -194,7 +194,7 @@ def A50(args):
         sys.exit(p.print_help())
 
     import numpy as np
-    from jcvi.utils.table import LoadTable
+    from jcvi.utils.table import loadtable
 
     stepsize = opts.stepsize  # use stepsize to speed up drawing
     if not op.exists(rplot) or opts.overwrite:
@@ -223,10 +223,10 @@ def A50(args):
             logging.debug(tag)
 
             for i, s in zip(xrange(0, len(a50), stepsize), a50[::stepsize]):
-                print >>fw, "\t".join((str(i), str(s / 1000000.), tag))
+                print >> fw, "\t".join((str(i), str(s / 1000000.), tag))
         fw.close()
 
-        table = LoadTable(header=statsheader, rows=statsrows)
+        table = loadtable(statsheader, statsrows)
         print >> sys.stderr, table
 
     generate_plot(rplot)

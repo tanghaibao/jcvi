@@ -42,7 +42,7 @@ def main():
 def get_name_parts(au):
     """
     Fares Z. Najar => last, first, initials
-    ('Fares', 'Z.', 'Najar')
+    ('Najar', 'Fares', 'N.Z.')
     """
     parts = au.split()
     first = parts[0]
@@ -78,7 +78,7 @@ def parse_names(lstfile):
             if not au:
                 continue
             au = string.translate(au, None, string.digits)
-            au = au.replace("-", '')
+            #au = au.replace("-", '')
             authors.append(au)
         all_authors.append(authors)
 

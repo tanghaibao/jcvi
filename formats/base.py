@@ -164,16 +164,35 @@ class FileSplitter (object):
 
 
 def must_open(filename, mode="r"):
-    if not op.exists(filename) and mode=='r':
-        logging.error("File `{0}` not found.".format(filename))
+    """
+    Accepts filename and returns filehandle.
 
-    if filename == "stdout":
+    Checks on multiple files, stdin/stdout/stderr, .gz or .bz2 file.
+    """
+    if isinstance(filename, list):
+        import fileinput
+        return fileinput.input(filename)
+
+    if filename in ("-", "stdin"):
+        assert "r" in mode
+        fp = sys.stdin
+
+    elif filename == "stdout":
+        assert "w" in mode
         fp = sys.stdout
+
     elif filename == "stderr":
+        assert "w" in mode
         fp = sys.stderr
+
     elif filename.endswith(".gz"):
         import gzip
         fp = gzip.open(filename, mode)
+
+    elif filename.endswith(".bz2"):
+        import bz2
+        fp = bz2.BZ2File(filename, mode)
+
     else:
         fp = open(filename, mode)
 

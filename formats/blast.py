@@ -12,7 +12,7 @@ from optparse import OptionParser
 
 import numpy as np
 
-from jcvi.formats.base import LineFile
+from jcvi.formats.base import LineFile, must_open
 from jcvi.formats.coords import print_stats
 from jcvi.formats.sizes import Sizes
 from jcvi.utils.range import range_distance
@@ -225,11 +225,11 @@ def swap(args):
 
     opts, args = p.parse_args(args)
 
-    if len(args) != 1:
+    if len(args) < 1:
         sys.exit(p.print_help())
 
-    blastfile, = args
-    fp = open(blastfile)
+    blastfile = args
+    fp = must_open(blastfile)
     fw = sys.stdout
     for row in fp:
         b = BlastLine(row)

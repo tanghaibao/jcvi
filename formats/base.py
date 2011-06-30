@@ -170,6 +170,8 @@ def must_open(filename, mode="r"):
     Checks on multiple files, stdin/stdout/stderr, .gz or .bz2 file.
     """
     if isinstance(filename, list):
+        assert "r" in mode
+
         import fileinput
         return fileinput.input(filename)
 

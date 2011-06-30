@@ -91,7 +91,7 @@ class Bed(LineFile):
 
     def print_to_file(self, fw=sys.stdout):
         for bedline in self:
-            print >>fw, bedline
+            print >> fw, bedline
 
     @property
     def sum(self):

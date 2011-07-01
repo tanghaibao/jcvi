@@ -6,6 +6,8 @@ Run through NCBI vecscreen on a local machine.
 """
 
 import sys
+import shutil
+import logging
 
 from optparse import OptionParser
 
@@ -47,8 +49,19 @@ def run_blastall(infile=None, outfile=None, db="UniVec_Core"):
 @depends
 def run_blat(infile=None, outfile=None, db="UniVec_Core"):
     cmd = 'blat {0} {1} -out=blast8 {2}'.format(db, infile, outfile)
-    cmd += ' -minIdentity=95 -minScore=50'
     sh(cmd)
+
+    blatfile = outfile
+    filtered_blatfile = outfile + ".P95L50"
+    run_blast_filter(infile=blatfile, outfile=filtered_blatfile)
+    shutil.move(filtered_blatfile, blatfile)
+
+
+def run_blast_filter(infile=None, outfile=None):
+    from jcvi.formats.blast import filter
+
+    logging.debug("Filter BLAST result (pctid=95, hitlen=50)")
+    filter([infile, "--pctid=95", "--hitlen=50"])
 
 
 @depends

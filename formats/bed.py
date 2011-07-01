@@ -4,11 +4,12 @@ Classes to handle the .bed files
 """
 
 import sys
+import shutil
 import logging
 
 from optparse import OptionParser
 
-from jcvi.formats.base import LineFile
+from jcvi.formats.base import LineFile, must_open
 from jcvi.utils.cbook import thousands
 from jcvi.utils.range import range_union
 from jcvi.apps.base import ActionDispatcher, debug, sh
@@ -159,20 +160,32 @@ def sort(args):
     Sort bed file to have ascending order of seqid, then start.
     """
     p = OptionParser(sort.__doc__)
+    p.add_option("-i", "--inplace", dest="inplace",
+            default=False, action="store_true",
+            help="Sort bed file in place [default: %default]")
     p.add_option("--fast", dest="fast", default=False, action="store_true",
-            help="use shell `sort` [default: %default]")
+            help="Use shell `sort` [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
     bedfile, = args
+    inplace = opts.inplace
     if opts.fast:
         cmd = "sort -k1,1 -k2,2n -k4,4 {0}".format(bedfile)
+        if inplace:
+            cmd += " -o {0}".format(bedfile)
         sh(cmd)
+
     else:
         bed = Bed(bedfile)
-        bed.print_to_file()
+        sortedbed = bedfile + ".sorted"
+        fw = must_open(sortedbed, "w") if inplace else sys.stdout
+        bed.print_to_file(fw=fw)
+
+        if inplace:
+            shutil.move(sortedbed, bedfile)
 
 
 if __name__ == '__main__':

@@ -169,36 +169,43 @@ def get_stats(blastfile):
 
 def filter(args):
     """
-    %prog filter test.blast > new.blast
+    %prog filter test.blast
 
-    produce a new blast file and filter based on score
+    Produce a new blast file and filter based on score.
     """
     p = OptionParser(filter.__doc__)
-    p.add_option("--score", dest="score", default=0., type="float",
-            help="score cutoff [default: %default]")
-    p.add_option("--pctid", dest="pctid", default=0., type="float",
-            help="pctid cutoff [default: %default]")
-    p.add_option("--hitlen", dest="hitlen", default=0., type="float",
-            help="pctid cutoff [default: %default]")
+    p.add_option("--score", dest="score", default=0, type="int",
+            help="Score cutoff [default: %default]")
+    p.add_option("--pctid", dest="pctid", default=0, type="int",
+            help="Percent identity cutoff [default: %default]")
+    p.add_option("--hitlen", dest="hitlen", default=0, type="int",
+            help="Hit length cutoff [default: %default]")
 
     opts, args = p.parse_args(args)
     if len(args) != 1:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
-    fp = open(args[0])
+    blastfile, = args
+    fp = must_open(blastfile)
+
+    score, pctid, hitlen = opts.score, opts.pctid, opts.hitlen
+    newblastfile = blastfile + ".P{0}L{1}".format(pctid, hitlen)
+    fw = must_open(newblastfile, "w")
     for row in fp:
         if row[0] == '#':
             continue
         c = BlastLine(row)
 
-        if c.score < opts.score:
+        if c.score < score:
             continue
-        if c.pctid < opts.pctid:
+        if c.pctid < pctid:
             continue
-        if c.hitlen < opts.hitlen:
+        if c.hitlen < hitlen:
             continue
 
-        print row.rstrip()
+        print >> fw, row.rstrip()
+
+    return newblastfile
 
 
 def main():

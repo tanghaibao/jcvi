@@ -150,6 +150,7 @@ def main():
                     'in fasta format'),
         ('summary', "report the real no of bases and N's in fastafiles"),
         ('uniq', 'remove records that are the same'),
+        ('ids', 'generate a list of header without the >'),
         ('format', 'trim accession id to the first space'),
         ('random', 'randomly take some records'),
         ('diff', 'check if two fasta records contain same information'),
@@ -157,6 +158,7 @@ def main():
         ('sort', 'sort the records by IDs, sizes, etc.'),
         ('pair', 'sort paired reads to .pairs, rest to .fragments'),
         ('fastq', 'combine fasta and qual to create fastq file'),
+        ('tidy', 'normalize gap sizes and remove small components in fasta'),
         ('sequin', 'generate a gapped fasta file for sequin submission'),
         ('gaps', 'print out a list of gap sizes within sequences'),
         ('join', 'concatenate a list of seqs and add gaps in between'),
@@ -165,6 +167,23 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def ids(args):
+    """
+    %prog ids fastafile
+
+    Generate the FASTA headers without the '>'.
+    """
+    p = OptionParser(ids.__doc__)
+
+    if len(args) < 1:
+        sys.exit(not p.print_help())
+
+    fastafile, = args
+    f = Fasta(fastafile, index=False)
+    for key in f.iterkeys_ordered():
+        print key
 
 
 def sort(args):
@@ -940,6 +959,58 @@ def sequin(args):
     fw = open(outputfasta, "w")
     print >> fw, ">{0}".format(rec.id)
     print >> fw, seq
+
+
+def tidy(args):
+    """
+    %prog tidy fastafile
+
+    Normalize gap sizes (default 100 N's) and remove small components (less than
+    100 nucleotides).
+    """
+    p = OptionParser(tidy.__doc__)
+    p.add_option("--gapsize", dest="gapsize", default=100, type="int",
+            help="Set all gaps to the same size [default: %default]")
+    p.add_option("--minlen", dest="minlen", default=100, type="int",
+            help="Minimum component size [default: %default]")
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    fastafile, = args
+    gapsize = opts.gapsize
+    minlen = opts.minlen
+    fw = sys.stdout
+
+    for rec in SeqIO.parse(fastafile, "fasta"):
+        newseq = ""
+        for gap, seq in groupby(rec.seq, lambda x: x.upper() == 'N'):
+            seq = "".join(seq)
+            seqlen = len(seq)
+            msg = None
+            if gap:
+                if seqlen != gapsize:
+                    msg = "Normalize gap size ({0}) to {1}"\
+                            .format(seqlen, gapsize)
+                newseq += "N" * gapsize
+
+            else:
+                if seqlen < minlen:
+                    msg = "Discard component ({0})".format(seqlen)
+                else:
+                    newseq += seq
+
+            if msg:
+                msg = rec.id + ": " + msg
+                logging.info(msg)
+
+        newseq = newseq.strip('N')
+        rec.seq = Seq(newseq)
+        assert rec.seq[0] != 'N' and rec.seq[-1] != 'N'
+
+        SeqIO.write([rec], fw, "fasta")
 
 
 def gaps(args):

@@ -98,6 +98,7 @@ Most of the scripts in this package contains multiple actions. To use the
         `extract`: given fasta file and seq id, retrieve the sequence in fasta format
         `summary`: report the real no of bases and N's in fastafiles
         `uniq`: remove records that are the same
+        `ids`: generate a list of header without the >
         `format`: trim accession id to the first space
         `random`: randomly take some records
         `diff`: check if two fasta records contain same information
@@ -105,10 +106,12 @@ Most of the scripts in this package contains multiple actions. To use the
         `sort`: sort the records by IDs, sizes, etc.
         `pair`: sort paired reads to .pairs, rest to .fragments
         `fastq`: combine fasta and qual to create fastq file
+        `tidy`: normalize gap sizes and remove small components in fasta
         `sequin`: generate a gapped fasta file for sequin submission
         `gaps`: print out a list of gap sizes within sequences
         `join`: concatenate a list of seqs and add gaps in between
         `some`: include or exclude a list of records (also performs on .qual file if available)
+
 
 Then you need to use one action, you can just do::
 

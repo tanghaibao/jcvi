@@ -31,7 +31,7 @@ def batch_taxonomy(list_of_taxids):
         yield records[0]["ScientificName"]
 
 
-def batch_entrez(list_of_terms, db="nucleotide", retmax=1, rettype="fasta"):
+def batch_entrez(list_of_terms, db="nuccore", retmax=1, rettype="fasta"):
     """
     Retrieve multiple rather than a single record
     """
@@ -129,12 +129,22 @@ def fetch(args):
     """
     p = OptionParser(fetch.__doc__)
 
-    valid_formats = ("fasta", "gb")
+    valid_formats     = ("fasta", "gb", "est", "gss")
+    valid_databases   = ("genome", "nuccore", "nucest", "nucgss", "protein")
+
+    allowed_databases = {"fasta" : ["genome", "nuccore", "nucgss", "protein"],
+                         "gb"    : ["genome", "nuccore", "nucgss"],
+                         "est"   : ["nucest"],
+                         "gss"   : ["nucgss"]
+                        }
+
     p.add_option("--noversion", dest="noversion",
             default=False, action="store_true",
             help="Remove trailing accession versions")
     p.add_option("--format", default="fasta", choices=valid_formats,
             help="download format [default: %default]")
+    p.add_option("--database", default="nuccore", choices=valid_databases,
+            help="search database [default: %default]")
     p.add_option("--outdir", default=None,
             help="output directory, with accession number as filename")
     opts, args = p.parse_args(args)
@@ -152,6 +162,13 @@ def fetch(args):
         list_of_terms = [filename.strip()]
 
     format = opts.format
+    database = opts.database
+    chosen_db = next((db for db in allowed_databases[format] if db == database), None)
+
+    if not chosen_db == database:
+        p.print_help()
+        error_msg = '\nerror: For the specified output format [' + format + '], the allowed database choices are: (\'' + "\', \'".join(allowed_databases[format]) + '\')'
+        sys.exit(error_msg)
 
     outfile = "{0}.{1}".format(filename.rsplit(".", 1)[0], format)
     if op.exists(outfile):
@@ -175,7 +192,7 @@ def fetch(args):
         fw = open(outfile, "w")
 
     seen = set()
-    for id, term, handle in batch_entrez(list_of_terms, rettype=format):
+    for id, term, handle in batch_entrez(list_of_terms, rettype=format, db=database):
         rec = handle.read()
         if id in seen:
             logging.error("duplicate key (%s) found" % rec)

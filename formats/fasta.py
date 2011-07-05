@@ -982,7 +982,9 @@ def tidy(args):
     fastafile, = args
     gapsize = opts.gapsize
     minlen = opts.minlen
-    fw = sys.stdout
+    tidyfastafile = fastafile.rsplit(".", 1)[0] + ".tidy.fasta"
+    fw = must_open(tidyfastafile, "w")
+    normalized_gap = "N" * gapsize
 
     for rec in SeqIO.parse(fastafile, "fasta"):
         newseq = ""
@@ -991,11 +993,13 @@ def tidy(args):
             seqlen = len(seq)
             msg = None
             if gap:
-                if seqlen != gapsize:
-                    msg = "Normalize gap size ({0}) to {1}"\
-                            .format(seqlen, gapsize)
-                newseq += "N" * gapsize
-
+                if seqlen < 10:
+                    newseq += seq
+                else:
+                    if seqlen != gapsize:
+                        msg = "Normalize gap size ({0}) to {1}" \
+                                .format(seqlen, gapsize)
+                    newseq += normalized_gap
             else:
                 if seqlen < minlen:
                     msg = "Discard component ({0})".format(seqlen)
@@ -1007,8 +1011,12 @@ def tidy(args):
                 logging.info(msg)
 
         newseq = newseq.strip('N')
+        ngaps = newseq.count(normalized_gap)
+        if ngaps == 0:
+            logging.debug("{0}: is now a Phase 3 sequence.".format(rec.id))
+            print "\t".join((rec.id, "3"))
+
         rec.seq = Seq(newseq)
-        assert rec.seq[0] != 'N' and rec.seq[-1] != 'N'
 
         SeqIO.write([rec], fw, "fasta")
 

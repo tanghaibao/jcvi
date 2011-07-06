@@ -5,8 +5,10 @@
 Benchmark de novo assemblies by mapping to known sequence set.
 """
 
+import os.path as op
 import sys
 
+from collections import defaultdict
 from optparse import OptionParser
 
 from jcvi.algorithms.supermap import supermap
@@ -114,7 +116,7 @@ def rnaseqbench(args):
     """
     %prog rnaseqbench blastfile ref.fasta
 
-    Evaluate de-novo RNA-seq assembly against a reference gene set (same of
+    Evaluate de-novo RNA-seq assembly against a reference gene set (same or
     closely related organism). Ideally blatfile needs to be supermap'd.
 
     Following metric is used (Martin et al. 2010, Rnnotator paper):
@@ -124,8 +126,6 @@ def rnaseqbench(args):
     Chimer: % of contigs that contain two or more annotated genes >= 50bp
     """
     p = OptionParser(rnaseqbench.__doc__)
-    p.add_option("--cov", dest="cov", type="int", default=80,
-            help="Cutoff to call mapping [default: %default%]")
 
     opts, args = p.parse_args(args)
 
@@ -133,31 +133,65 @@ def rnaseqbench(args):
         sys.exit(p.print_help())
 
     blastfile, reffasta = args
-    cov = opts.cov
     sizes = Sizes(reffasta).mapping
-    know_genes = len(sizes)
+    known_genes = len(sizes)
 
     querysupermap = blastfile + ".query.supermap"
+    refsupermap = blastfile + ".ref.supermap"
 
-    # I use extra long names here to prevent cyclic imports
     if not op.exists(querysupermap):
         supermap(blastfile, filter="query")
+    if not op.exists(refsupermap):
+        supermap(blastfile, filter="ref")
 
     blast = Blast(querysupermap)
-    ctgs = 0
     chimers = 0
+    goodctg80 = set()
+    goodctg50 = set()
     for ctg, hits in blast.iter_hits():
         bps = defaultdict(int)
         for x in hits:
             bps[x.subject] += abs(x.sstop - x.sstart) + 1
 
-        valid_hits = [x for (x, length) in bps.items() if length >= 100]
+        valid_hits = bps.items()
+        for vh, length in valid_hits:
+            rsize = sizes[vh]
+            ratio = length * 100. / rsize
+            if ratio >= 80:
+                goodctg80.add(ctg)
+            if ratio >= 50:
+                goodctg50.add(ctg)
+
+        # Chimer
         if len(valid_hits) > 1:
             chimers += 1
-        ctgs += 1
 
-    print >> sys.stderr, "Chimers: {0} out of {1} ({2:.1f}%).".\
-            format(chimers, ctgs, chimers * 100. / ctgs)
+    blast = Blast(refsupermap)
+    goodref80 = set()
+    goodref50 = set()
+    bps = defaultdict(int)
+    for x in blast.iter_line():
+        bps[x.subject] += abs(x.sstop - x.sstart) + 1
+
+    for vh, length in bps.items():
+        rsize = sizes[vh]
+        ratio = length * 100. / rsize
+        if ratio >= 80:
+            goodref80.add(vh)
+        if ratio >= 50:
+            goodref50.add(vh)
+
+    print >> sys.stderr, "Reference set: `{0}`,  # of transcripts {1}".\
+            format(reffasta, known_genes)
+    print >> sys.stderr, "A total of {0} contigs map to 80% of a reference"\
+            " transcript".format(len(goodctg80))
+    print >> sys.stderr, "A total of {0} contigs map to 50% of a reference"\
+            " transcript".format(len(goodctg50))
+    print >> sys.stderr, "A total of {0} reference transcripts ({1:.1f}%) have 80% covered" \
+            .format(len(goodref80), len(goodref80) * 100. / known_genes)
+    print >> sys.stderr, "A total of {0} reference transcripts ({1:.1f}%) have 50% covered" \
+            .format(len(goodref50), len(goodref50) * 100. / known_genes)
+    print >> sys.stderr, "Chimers: {0}.".format(chimers)
 
 
 if __name__ == '__main__':

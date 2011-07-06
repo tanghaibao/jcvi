@@ -53,6 +53,10 @@ def batch_entrez(list_of_terms, db="nuccore", retmax=1, rettype="fasta"):
                 logging.debug("wait 5 seconds to reconnect...")
                 time.sleep(5)
 
+        if not ids:
+            logging.error("term {0} not found".format(term))
+            continue
+
         assert ids
 
         for id in ids:
@@ -123,9 +127,9 @@ def bisect(args):
 
 def fetch(args):
     """
-    %prog fetch filename
+    %prog fetch <filename|term>
 
-    filename contains a list of terms to search
+    `filename` contains a list of terms to search. Or just one term.
     """
     p = OptionParser(fetch.__doc__)
 
@@ -161,16 +165,14 @@ def fetch(args):
         # the filename is the search term
         list_of_terms = [filename.strip()]
 
-    format = opts.format
+    fmt = opts.format
     database = opts.database
-    chosen_db = next((db for db in allowed_databases[format] if db == database), None)
 
-    if not chosen_db == database:
-        p.print_help()
-        error_msg = '\nerror: For the specified output format [' + format + '], the allowed database choices are: (\'' + "\', \'".join(allowed_databases[format]) + '\')'
-        sys.exit(error_msg)
+    assert database in allowed_databases[fmt], \
+        "For output format '{0}', allowed databases are: {1}".\
+        format(fmt, allowed_databases[fmt])
 
-    outfile = "{0}.{1}".format(filename.rsplit(".", 1)[0], format)
+    outfile = "{0}.{1}".format(filename.rsplit(".", 1)[0], fmt)
     if op.exists(outfile):
         logging.error("`{0}` found, overwrite (Y/N)?".format(outfile))
         while True:
@@ -192,7 +194,7 @@ def fetch(args):
         fw = open(outfile, "w")
 
     seen = set()
-    for id, term, handle in batch_entrez(list_of_terms, rettype=format, db=database):
+    for id, term, handle in batch_entrez(list_of_terms, rettype=fmt, db=database):
         rec = handle.read()
         if id in seen:
             logging.error("duplicate key (%s) found" % rec)

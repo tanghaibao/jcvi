@@ -101,6 +101,10 @@ class Blast (LineFile):
         super(Blast, self).__init__(filename)
         self.fp = open(filename)
 
+    def iter_line(self):
+        for row in self.fp:
+            yield BlastLine(row)
+
     def iter_hits(self):
         self.fp.seek(0)
         for query, blines in groupby(self.fp,
@@ -237,7 +241,8 @@ def swap(args):
 
     blastfile = args
     fp = must_open(blastfile)
-    fw = sys.stdout
+    swappedblastfile = blastfile + ".swapped"
+    fw = must_open(swappedblastfile)
     for row in fp:
         b = BlastLine(row)
         print >> fw, b.swapped

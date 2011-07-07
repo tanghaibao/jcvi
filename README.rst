@@ -4,7 +4,7 @@ JCVI utility libraries
 My own collection of Python libraries to parse files, or perform
 assembly-related calculations. Documentations will be lagging behind.
 
-:Author: Haibao Tang (`tanghaibao <http://github.com/tanghaibao>`_)
+:Author: Haibao Tang, Vivek Krishnakumar
 :Email: tanghaibao@gmail.com
 :License: `BSD <http://creativecommons.org/licenses/BSD/>`_
 

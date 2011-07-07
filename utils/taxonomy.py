@@ -23,6 +23,8 @@ Example:
 
                \-Populus_trichocarpa
 """
+import time
+import logging
 
 from urllib2 import urlopen
 from ClientForm import ParseResponse
@@ -47,7 +49,18 @@ class TaxIDTree(object):
 
         # the data to send in
         form_data = "\n".join(str(x) for x in list_of_taxids)
-        response = urlopen(URL)
+
+        success = False
+        while not success:
+            try:
+                response = urlopen(URL)
+                success = True
+            except (urllib2.URLError, urllib2.HTTPError,
+                    RuntimeError, KeyError) as e:
+                logging.error(e)
+                logging.debug("wait 5 seconds to reconnect...")
+                time.sleep(5)
+
         forms = ParseResponse(response, backwards_compat=False)
         form = forms[0]
 

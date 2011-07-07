@@ -34,8 +34,14 @@ URL = "http://itol.embl.de/other_trees.shtml"
 class TaxIDTree(object):
 
     def __init__(self, list_of_taxids):
-        # the data to send in
+        # If only one taxid provided, get full tree with nameExp
+        # else, get default tree
+        if(len(list_of_taxids) == 1):
+            form_element_id = "nameExp"
+        else:
+            form_element_id = "nameCol"
 
+        # the data to send in
         form_data = "\n".join(str(x) for x in list_of_taxids)
         response = urlopen(URL)
         forms = ParseResponse(response, backwards_compat=False)
@@ -47,7 +53,7 @@ class TaxIDTree(object):
 
         for element in soup("textarea"):
 
-            if element["id"] == "nameCol":
+            if element["id"] == form_element_id:
                 self.newick = str(element.contents[0])
 
     def __str__(self):
@@ -57,7 +63,6 @@ class TaxIDTree(object):
         from ete2 import Tree
         t = Tree(self.newick, format=8)
         print t
-
 
 def get_names(list_of_taxids):
     """
@@ -91,6 +96,23 @@ def MRCA(list_of_taxids):
 
     return ancestor.name
 
+def isPlantOrigin(taxid):
+    """
+    Given a taxid, this gets the expanded tree which can then be checked to
+    see if the organism is a plant or not
+
+    >>> taxid = [29760]
+    >>> isPlantOrigin(taxid)
+    True
+    """
+
+    from ete2 import Tree
+
+    t = TaxIDTree(taxid)
+    if 'Viridiplantae' in str(t):
+        return True
+    else:
+        return False
 
 if __name__ == '__main__':
 

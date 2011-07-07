@@ -16,8 +16,31 @@ from itertools import groupby
 from optparse import OptionParser
 
 from jcvi.formats.sizes import Sizes
+from jcvi.formats.base import BaseFile
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
+
+
+class BinFile (BaseFile):
+    """
+    The binfile contains per base count, fastafile provides the coordinate
+    system.
+    """
+    def __init__(self, binfile, fastafile=None, dtype=np.uint8):
+        super(BinFile, self).__init__(binfile)
+        assert op.exists(binfile), \
+            "Binary file `{0}` not found. Rerun depth.count().".format(binfile)
+        self.dtype = dtype
+
+    @property
+    def array(self):
+        binfile = self.filename
+        return np.fromfile(binfile, dtype=self.dtype)
+
+    @property
+    def mmarray(self):
+        binfile = self.filename
+        return np.memmap(binfile, dtype=self.dtype, mode="r")
 
 
 def main():
@@ -25,9 +48,95 @@ def main():
     actions = (
         ('count', 'initialize the count array'),
         ('query', 'query the count array to get depth at particular site'),
+        ('merge', 'merge several count arrays into one'),
+        ('bed', 'write bed files where the bases have at least certain depth',)
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def bed(args):
+    """
+    %prog bed binfile fastafile
+
+    Write bed files where the bases have at least certain depth.
+    """
+    p = OptionParser(bed.__doc__)
+    p.add_option("--cutoff", dest="cutoff", default=10, type="int",
+            help="Minimum read depth to report intervals [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    binfile, fastafile = args
+    cutoff = opts.cutoff
+    assert cutoff >= 0, "Need non-negative cutoff"
+
+    b = BinFile(binfile)
+    ar = b.array
+
+    fastasize, sizes, offsets = get_offsets(fastafile)
+    s = Sizes(fastafile)
+    for ctg, ctglen in s.iter_sizes():
+        offset = offsets[ctg]
+        subarray = ar[offset:offset + ctglen]
+        key = lambda x: x[1] >= cutoff
+        for tf, array_elements in groupby(enumerate(subarray), key=key):
+            array_elements = list(array_elements)
+            if not tf:
+                continue
+
+            # 0-based system => 1-based system
+            start = array_elements[0][0] + 1
+            end = array_elements[-1][0] + 1
+
+            mean_depth = sum([x[1] for x in array_elements]) / \
+                len(array_elements)
+            mean_depth = int(mean_depth)
+
+            name = "na"
+            print "\t".join(str(x) for x in (ctg, start - 1, end,\
+                    name, mean_depth))
+
+
+def merge(args):
+    """
+    %prog merge *.bin merged.bin
+
+    Merge several count arrays into one. Overflows will be capped at uint8_max
+    (255).
+    """
+    p = OptionParser(merge.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) < 2:
+        sys.exit(not p.print_help())
+
+    binfiles = args[:-1]
+    mergedbin = args[-1]
+    if op.exists(mergedbin):
+        logging.error("`{0}` file exists. Remove before proceed."\
+                .format(mergedbin))
+        return
+
+    b = BinFile(binfiles[0])
+    ar = b.mmarray
+    fastasize, = ar.shape
+    logging.debug("Initialize array of uint16 with size {0}".format(fastasize))
+
+    merged_ar = np.zeros(fastasize, dtype=np.uint16)
+    for binfile in binfiles:
+        b = BinFile(binfile)
+        merged_ar += b.array
+
+    logging.debug("Resetting the count max to 255.")
+    merged_ar[merged_ar > 255] = 255
+
+    logging.debug("Compact array back to uint8 with size {0}".format(fastasize))
+    merged_ar = np.array(merged_ar, dtype=np.uint8)
+    merged_ar.tofile(mergedbin)
+    logging.debug("Merged array written to `{0}`".format(mergedbin))
 
 
 def query(args):
@@ -42,14 +151,11 @@ def query(args):
     if len(args) != 4:
         sys.exit(not p.print_help())
 
-    countsfile, fastafile, ctgID, baseID = args
-    if not op.exists(countsfile):
-        logging.error("Binary file `{0}` not found. Rerun count()."\
-                        .format(countsfile))
-        return
+    binfile, fastafile, ctgID, baseID = args
+    b = BinFile(binfile, fastafile)
+    ar = b.mmarray
 
     fastasize, sizes, offsets = get_offsets(fastafile)
-    ar = np.memmap(countsfile, dtype=np.uint8, mode="r")
     oi = offsets[ctgID] + int(baseID) - 1
     print "\t".join((ctgID, baseID, str(ar[oi])))
 
@@ -60,11 +166,12 @@ def update_array(ar, coveragefile, sizes, offsets):
     for k, rows in groupby(fp, key=(lambda x: x.split()[0])):
         rows = list(rows)
         offset = offsets[k]
-        print k, offset
         ctglen = len(rows)
 
         if ctglen < 100000:
             sys.stdout.write(".")
+        else:
+            print k, offset
 
         #assert ctglen == sizes[k]
         for i, row in enumerate(rows):
@@ -102,7 +209,8 @@ def count(args):
 
     countsfile = coveragefile.split(".")[0] + ".bin"
     if op.exists(countsfile):
-        logging.error("`{0}` file exists. Remove before proceed.")
+        logging.error("`{0}` file exists. Remove before proceed."\
+                .format(countsfile))
         return
 
     fastasize, sizes, offsets = get_offsets(fastafile)

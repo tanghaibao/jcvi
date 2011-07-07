@@ -244,6 +244,14 @@ def pairs(args):
         cutoff = int(cutoff)
     castabfile, = args
 
+    if castabfile.endswith(".cas"):
+        txtfile = castabfile.replace(".cas", ".txt")
+        if op.exists(txtfile):
+            logging.debug("File `{0}` already exists.".format(txtfile))
+        else:
+            txt([castabfile])
+        castabfile = txtfile
+
     basename = castabfile.split(".")[0]
     pairsfile = ".".join((basename, "pairs")) if opts.pairsfile else None
     insertsfile = ".".join((basename, "inserts")) if opts.insertsfile else None

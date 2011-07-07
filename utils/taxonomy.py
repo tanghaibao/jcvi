@@ -28,6 +28,9 @@ from urllib2 import urlopen
 from ClientForm import ParseResponse
 from BeautifulSoup import BeautifulSoup
 
+from jcvi.utils.cbook import memoized
+
+
 URL = "http://itol.embl.de/other_trees.shtml"
 
 
@@ -36,7 +39,8 @@ class TaxIDTree(object):
     def __init__(self, list_of_taxids):
         # If only one taxid provided, get full tree with nameExp
         # else, get default tree
-        if(len(list_of_taxids) == 1):
+        if isinstance(list_of_taxids, int):  # single taxon
+            list_of_taxids = [list_of_taxids]
             form_element_id = "nameExp"
         else:
             form_element_id = "nameCol"
@@ -64,6 +68,7 @@ class TaxIDTree(object):
         t = Tree(self.newick, format=8)
         print t
 
+
 def get_names(list_of_taxids):
     """
     >>> mylist = [3702, 3649, 3694, 3880]
@@ -77,6 +82,7 @@ def get_names(list_of_taxids):
     return list(batch_taxonomy(list_of_taxids))
 
 
+@memoized
 def MRCA(list_of_taxids):
     """
     This gets the most recent common ancester (MRCA) for a list of taxids
@@ -96,25 +102,39 @@ def MRCA(list_of_taxids):
 
     return ancestor.name
 
+
+@memoized
 def isPlantOrigin(taxid):
     """
     Given a taxid, this gets the expanded tree which can then be checked to
     see if the organism is a plant or not
 
-    >>> taxid = [29760]
-    >>> isPlantOrigin(taxid)
+    >>> isPlantOrigin(29760)
     True
     """
 
-    from ete2 import Tree
+    assert isinstance(taxid, int)
 
     t = TaxIDTree(taxid)
-    if 'Viridiplantae' in str(t):
-        return True
-    else:
-        return False
+    try:
+        return "Viridiplantae" in str(t)
+    except AttributeError:
+        raise ValueError("{0} is not a valid ID".format(taxid))
+
 
 if __name__ == '__main__':
 
     import doctest
     #doctest.testmod()
+    print "Testing isPlantOrigin():"
+    print 3702, isPlantOrigin(3702)    # Arabidopsis thaliana
+    print 10090, isPlantOrigin(10090)  # Mus musculus
+
+    print "\nTest cache by 10K calls:"
+    for i in xrange(10000):
+        isPlantOrigin(3702)
+        isPlantOrigin(10090)
+    print "done"
+
+    print "\nTest invalid ID:"
+    print 10099, isPlantOrigin(10099)  # Wrong ID

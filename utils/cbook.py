@@ -8,18 +8,9 @@ import os.path as op
 import logging
 
 
-def thousands(x):
-    """
-    >>> thousands(12345)
-    '12,345'
-    """
-    import locale
-    locale.setlocale(locale.LC_ALL, "")
-    return locale.format('%d', x, True)
-
-
 class memoized(object):
-    """Decorator that caches a function's return value each time it is called.
+    """
+    Decorator that caches a function's return value each time it is called.
     If called later with the same arguments, the cached value is returned, and
     not re-evaluated.
 
@@ -52,7 +43,7 @@ class memoized(object):
 
 def depends(func):
     """
-    Performs checks on infile= and outfile=. When infile is not present, issue
+    Decorator to perform check on infile and outfile. When infile is not present, issue
     warning, and when outfile is present, skip function calls.
     """
     from jcvi.apps.base import is_newer_file
@@ -82,6 +73,28 @@ def depends(func):
                 .format(outfilename)
 
     return wrapper
+
+
+"""
+Functions that make text formatting easier.
+"""
+
+def percentage(a, b):
+    """
+    >>> percentage(100, 200)
+    '100 of 200 (50.0%)'
+    """
+    return "{0} of {1} ({2:.1f}%)".format(a, b, a * 100. / b)
+
+
+def thousands(x):
+    """
+    >>> thousands(12345)
+    '12,345'
+    """
+    import locale
+    locale.setlocale(locale.LC_ALL, "")
+    return locale.format('%d', x, True)
 
 
 SUFFIXES = {1000: ['', 'Kb', 'Mb', 'Gb', 'Tb', 'Pb', 'Eb', 'Zb'],

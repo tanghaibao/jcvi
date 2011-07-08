@@ -284,7 +284,7 @@ def covfilter(args):
         this_identity = 100. - (this_mismatches + this_gaps) * 100. / this_alignlen
         this_coverage = this_covered * 100. / sizes[query]
         #print query, this_identity, this_coverage
-        if this_identity > opts.pctid and this_coverage > opts.pctcov:
+        if this_identity >= opts.pctid and this_coverage >= opts.pctcov:
             valid.add(query)
 
         covered += this_covered
@@ -317,7 +317,8 @@ def covfilter(args):
         fw = must_open(filename, "w")
         for id in valid:
             print >> fw, id
-        logging.debug("Queries beyond cutoffs {0}.".format(cutoff_message))
+        logging.debug("Queries beyond cutoffs {0} written to `{1}`.".\
+                format(cutoff_message, filename))
 
 
 def swap(args):

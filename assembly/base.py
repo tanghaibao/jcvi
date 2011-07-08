@@ -59,7 +59,6 @@ def Astat(delta, k, G, n):
     return n * delta * 1. / G - k * ln2
 
 
-
 def n50(args):
     """
     %prog n50 filename

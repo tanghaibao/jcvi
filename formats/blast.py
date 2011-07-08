@@ -216,7 +216,8 @@ def main():
 
     actions = (
         ('summary', 'provide summary on id% and cov%'),
-        ('filter', 'filter BLAST file (based on e.g. score)'),
+        ('filter', 'filter BLAST file (based on score, id%, alignlen)'),
+        ('covfilter', 'filter BLAST file (based on id% and cov%)'),
         ('best', 'get best BLAST hit per query'),
         ('pairs', 'print paired-end reads of BLAST tabular output'),
         ('bed', 'get bed file from blast'),
@@ -224,6 +225,97 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def covfilter(args):
+    """
+    %prog covfilter blastfile fastafile
+
+    Fastafile is used to get the sizes of the queries. Two filters can be
+    applied, the id% and cov%.
+    """
+    p = OptionParser(covfilter.__doc__)
+    p.add_option("--pctid", dest="pctid", default=90, type="int",
+            help="Percentage identity cutoff [default: %default]")
+    p.add_option("--pctcov", dest="pctcov", default=50, type="int",
+            help="Percentage identity cutoff [default: %default]")
+    p.add_option("--ids", dest="ids", default=None,
+            help="Print out the ids that satisfy [default: %default]")
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    from jcvi.algorithms.supermap import supermap
+
+    blastfile, fastafile = args
+    sizes = Sizes(fastafile).mapping
+    querysupermap = blastfile + ".query.supermap"
+    if not op.exists(querysupermap):
+        supermap(blastfile, filter="query")
+
+    blastfile = querysupermap
+    assert op.exists(blastfile)
+
+    covered = 0
+    mismatches = 0
+    gaps = 0
+    alignlen = 0
+    queries = set()
+    valid = set()
+    blast = BlastSlow(querysupermap)
+    for query, blines in groupby(blast, key=lambda x: x.query):
+        blines = list(blines)
+        queries.add(query)
+
+        # per gene report
+        this_covered = 0
+        this_alignlen = 0
+        this_mismatches = 0
+        this_gaps = 0
+
+        for b in blines:
+            this_covered += abs(b.qstart - b.qstop + 1)
+            this_alignlen += b.hitlen
+            this_mismatches += b.nmismatch
+            this_gaps += b.ngaps
+
+        this_identity = 100. - (this_mismatches + this_gaps) * 100. / this_alignlen
+        this_coverage = this_covered * 100. / sizes[query]
+        #print query, this_identity, this_coverage
+        if this_identity > opts.pctid and this_coverage > opts.pctcov:
+            valid.add(query)
+
+        covered += this_covered
+        mismatches += this_mismatches
+        gaps += this_gaps
+        alignlen += this_alignlen
+
+    mapped_count = len(queries)
+    valid_count = len(valid)
+
+    print >> sys.stderr, "Identity: {0} mismatches, {1} gaps, {2} alignlen".\
+            format(mismatches, gaps, alignlen)
+    total = len(sizes.keys())
+    print >> sys.stderr, "Total mapped: {0} ({1:.1f}% of {2})".format(mapped_count,
+            mapped_count * 100. / total, total)
+    print >> sys.stderr, "Total valid: {0} ({1:.1f}% of {2})".format(valid_count,
+            valid_count * 100. / total, total)
+    print >> sys.stderr, "Id % = {0:.2f}%".\
+            format(100 - (mismatches + gaps) * 100. / alignlen)
+
+    queries_combined = sum(sizes[x] for x in queries)
+    print >> sys.stderr, "Coverage: {0} covered, {1} total".\
+            format(covered, queries_combined)
+    print >> sys.stderr, "Coverage = {0:.2f}%".\
+            format(covered * 100. / queries_combined)
+
+    if opts.ids:
+        filename = opts.ids
+        fw = must_open(filename)
+        for id in valid:
+            print >> fw, id
 
 
 def swap(args):

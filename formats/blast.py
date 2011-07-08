@@ -294,14 +294,15 @@ def covfilter(args):
 
     mapped_count = len(queries)
     valid_count = len(valid)
+    cutoff_message = "(id={0.pctid}% cov={0.pctcov}%)".format(opts)
 
     print >> sys.stderr, "Identity: {0} mismatches, {1} gaps, {2} alignlen".\
             format(mismatches, gaps, alignlen)
     total = len(sizes.keys())
-    print >> sys.stderr, "Total mapped: {0} ({1:.1f}% of {2})".format(mapped_count,
-            mapped_count * 100. / total, total)
-    print >> sys.stderr, "Total valid: {0} ({1:.1f}% of {2})".format(valid_count,
-            valid_count * 100. / total, total)
+    print >> sys.stderr, "Total mapped: {0} ({1:.1f}% of {2})".\
+            format(mapped_count, mapped_count * 100. / total, total)
+    print >> sys.stderr, "Total valid {0}: {1} ({2:.1f}% of {3})".\
+            format(cutoff_message, valid_count, valid_count * 100. / total, total)
     print >> sys.stderr, "Id % = {0:.2f}%".\
             format(100 - (mismatches + gaps) * 100. / alignlen)
 
@@ -313,9 +314,10 @@ def covfilter(args):
 
     if opts.ids:
         filename = opts.ids
-        fw = must_open(filename)
+        fw = must_open(filename, "w")
         for id in valid:
             print >> fw, id
+        logging.debug("Queries beyond cutoffs {0}.".format(cutoff_message))
 
 
 def swap(args):

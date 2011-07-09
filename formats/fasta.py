@@ -14,7 +14,7 @@ from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
-from jcvi.formats.base import BaseFile, must_open
+from jcvi.formats.base import BaseFile, DictFile, must_open
 from jcvi.utils.cbook import human_size
 from jcvi.utils.table import banner
 from jcvi.apps.base import ActionDispatcher, debug
@@ -307,7 +307,7 @@ def format(args):
     p.add_option("--index", dest="index", default=0, type="int",
             help="Extract i-th field in the description [default: %default]")
     p.add_option("--switch", dest="switch", default=None,
-            help="Switch sequence ID based on provided 2-column mapping file [default: %default]")
+            help="Switch sequence ID based on 2-column mapping file [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -322,20 +322,8 @@ def format(args):
     idx = opts.index
     mapfile = opts.switch
 
-    try:
-        mapdict = {}
-        map = open(mapfile, "r")
-        for row in map:
-            row.rstrip()
-            try:
-                (from_id, to_id) = row.split('\t')
-            except Exception as e:
-                logging.debug(e)
-                sys.exit('Error: Map file row is malformed. Please check input.')
-            mapdict[from_id] = to_id
-    except IOError as e:
-        logging.debug(e)
-        sys.exit('Error: Cannot read mapping file ' + mapfile)
+    if mapfile:
+        mapping = DictFile(mapfile, delimiter="\t")
 
     fw = must_open(outfasta, "w")
     for i, rec in enumerate(SeqIO.parse(infasta, "fasta")):
@@ -348,24 +336,21 @@ def format(args):
                 rec.id = atoms[1]
         if pairs:
             id = "/1" if (i % 2 == 0) else "/2"
-            #rec.id = rec.id.rsplit("_", 1)[0]
             rec.id += id
         if noversion:
             rec.id = rec.id.rsplit(".", 1)[0]
         if sequential:
-            rec.id = "{0:05d}".format(i+1)
+            rec.id = "{0:05d}".format(i + 1)
         if prefix:
             rec.id = prefix + rec.id
         if idx:
             rec.id = rec.description.split()[idx]
         if mapfile:
-            try:
-                if mapdict[rec.id]:
-                    rec.id = mapdict[rec.id]
-            except KeyError as e:
-                logging.debug(e)
-                sys.exit('Error: ID ' + rec.id +
-                         ' does not exist in mapping file')
+            if rec.id in mapping:
+                rec.id = mapping[rec.id]
+            else:
+                logging.error("{0} not found in `{1}`. ID unchanged.".\
+                        format(rec.id, mapfile))
         rec.description = ""
 
         SeqIO.write(rec, fw, "fasta")

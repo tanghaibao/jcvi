@@ -29,6 +29,28 @@ class LineFile (BaseFile, list):
         super(LineFile, self).__init__(filename)
 
 
+class DictFile (BaseFile, dict):
+    """
+    Generic file parser for multi-column files, keyed by a particular index.
+    """
+    def __init__(self, filename, keypos=0, valuepos=1, delimiter=None):
+
+        super(DictFile, self).__init__(filename)
+
+        fp = must_open(filename)
+        for lineno, row in enumerate(fp):
+            row = row.rstrip()
+            atoms = row.split(delimiter)
+            if len(atoms) < 2:
+                msg = "Line must contain >= 2 columns. Aborted.\n"
+                msg += "  --> Line {0}: {1}".format(lineno + 1, row)
+                logging.error(msg)
+                sys.exit(1)
+
+            key, value = atoms[keypos], atoms[valuepos]
+            self[key] = value
+
+
 class FileMerger (object):
     """
     Same as cat * > filename

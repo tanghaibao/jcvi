@@ -16,6 +16,7 @@ from collections import defaultdict
 from Bio import SeqIO
 
 from jcvi.utils.cbook import memoized, fill
+from jcvi.formats.base import DictFile
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
@@ -232,7 +233,7 @@ def gss(args):
     seen = defaultdict(int)
     clone = defaultdict(set)
 
-    plateMapping = dict(row.split() for row in open(mappingfile))
+    plateMapping = DictFile(mappingfile)
 
     fw = open("MetaData.txt", "w")
     print >> fw, PublicationTemplate.format(**vars)

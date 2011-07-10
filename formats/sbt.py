@@ -42,7 +42,9 @@ def main():
 def get_name_parts(au):
     """
     Fares Z. Najar => last, first, initials
-    ('Najar', 'Fares', 'N.Z.')
+
+    >>> get_name_parts("Fares Z. Najar")
+    ('Najar', 'Fares', 'F.Z.')
     """
     parts = au.split()
     first = parts[0]
@@ -53,8 +55,8 @@ def get_name_parts(au):
     last = " ".join(last)
     initials = "{0}.{1}".format(first[0], middle)
     if first[-1] == '.':  # Some people use full middle name
-        initials = "{0}.{1}.".format(first[0], last[0])
-        last = "".join(last.split()[1:])
+        middle, last = last.split(None, 1)
+        initials = "{0}.{1}.".format(first[0], middle)
 
     return last, first, initials
 
@@ -172,4 +174,7 @@ def names(args):
 
 
 if __name__ == '__main__':
+    import doctest
+    doctest.testmod()
+
     main()

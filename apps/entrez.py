@@ -12,6 +12,7 @@ import urllib2
 from optparse import OptionParser
 from Bio import Entrez, SeqIO
 
+from jcvi.formats.base import must_open
 from jcvi.formats.fasta import get_first_rec, print_first_difference
 from jcvi.apps.console import print_green
 from jcvi.apps.base import ActionDispatcher, debug
@@ -173,17 +174,6 @@ def fetch(args):
         format(fmt, allowed_databases[fmt])
 
     outfile = "{0}.{1}".format(filename.rsplit(".", 1)[0], fmt)
-    if op.exists(outfile):
-        logging.error("`{0}` found, overwrite (Y/N)?".format(outfile))
-        while True:
-            yesno = raw_input()
-            if yesno == 'N':
-                return
-            elif yesno == 'Y':
-                break
-            else:
-                logging.error("You have to answer Y/N ..")
-                continue
 
     outdir = opts.outdir
     if outdir and not op.exists(outdir):
@@ -191,7 +181,7 @@ def fetch(args):
         os.mkdir(outdir)
 
     if not outdir:
-        fw = open(outfile, "w")
+        fw = must_open(outfile, "w", checkexists=True)
 
     seen = set()
     for id, term, handle in batch_entrez(list_of_terms, rettype=fmt, db=database):

@@ -8,6 +8,7 @@ import logging
 
 from optparse import OptionParser
 
+from jcvi.formats.base import must_open
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
@@ -106,17 +107,14 @@ def main():
     script, = args
     template = graphic_template if opts.graphic else default_template
 
-    if op.exists(script):
-        logging.error("File `{0}` exists, remove it first".format(script))
-    else:
-        fw = open(script, "w")
-        fw.write(template)
-        fw.close()
-        message = "template writes to `{0}`".format(script)
-        if opts.graphic:
-            message = "graphic " + message
-        message = message.capitalize()
-        logging.debug(message)
+    fw = must_open(script, "w", checkexists=True)
+    fw.write(template)
+    fw.close()
+    message = "template writes to `{0}`".format(script)
+    if opts.graphic:
+        message = "graphic " + message
+    message = message.capitalize()
+    logging.debug(message)
 
 
 if __name__ == '__main__':

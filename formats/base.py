@@ -185,7 +185,20 @@ class FileSplitter (object):
             fw.close()
 
 
-def must_open(filename, mode="r"):
+def check_exists(filename):
+    """
+    Avoid overwriting some files accidentally.
+    """
+    if op.exists(filename):
+        logging.error("`{0}` found, overwrite (Y/N)?".format(filename))
+        overwrite = (raw_input() == 'Y')
+    else:
+        overwrite = True
+
+    return overwrite
+
+
+def must_open(filename, mode="r", checkexists=False):
     """
     Accepts filename and returns filehandle.
 
@@ -218,7 +231,18 @@ def must_open(filename, mode="r"):
         fp = bz2.BZ2File(filename, mode)
 
     else:
-        fp = open(filename, mode)
+        if checkexists:
+            assert mode == "w"
+            overwrite = check_exists(filename)
+            if overwrite:
+                fp = open(filename, "w")
+            else:
+                logging.debug("File `{0}` already exists. Skipped."\
+                        .format(filename))
+                sys.exit(1)
+
+        else:
+            fp = open(filename, mode)
 
     return fp
 

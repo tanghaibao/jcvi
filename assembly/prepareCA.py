@@ -19,7 +19,9 @@ from collections import defaultdict
 
 from Bio import SeqIO
 
-from jcvi.formats.fasta import get_qual, iter_fasta_qual, write_fasta_qual
+from jcvi.formats.base import must_open
+from jcvi.formats.fasta import Fasta, SeqRecord, SeqIO, \
+    get_qual, iter_fasta_qual, write_fasta_qual
 from jcvi.utils.table import tabulate
 from jcvi.apps.softlink import get_abs_path
 from jcvi.apps.base import ActionDispatcher, sh, set_grid, debug
@@ -34,10 +36,144 @@ def main():
         ('fasta', 'convert fasta to frg file'),
         ('sff', 'convert 454 reads to frg file'),
         ('fastq', 'convert Illumina reads to frg file'),
+        ('shred', 'shred contigs into pseudo-reads'),
         ('script', 'create gatekeeper script file to remove or add mates'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+frgTemplate = '''{{FRG
+act:A
+acc:{fragID}
+rnd:1
+sta:G
+lib:{libID}
+seq:
+{seq}
+.
+qlt:
+{qvs}
+.
+hps:
+.
+clr:0,{slen}
+}}'''
+
+headerTemplate = '''{{VER
+ver:2
+}}
+{{LIB
+act:A
+acc:{libID}
+ori:U
+mean:0.0
+std:0.0
+src:
+.
+nft:1
+fea:
+doNotOverlapTrim=1
+.
+}}'''
+
+
+def emitFragment(fw, fragID, libID, shredded_seq, fasta=False):
+    """
+    Print out the shredded sequence.
+    """
+    if fasta:
+        s = SeqRecord(shredded_seq, id=fragID, description="")
+        SeqIO.write([s], fw, "fasta")
+        return
+
+    seq = str(shredded_seq)
+    slen = len(seq)
+    qvs = "3" * slen  # shredded reads have default low qv
+
+    print >> fw, frgTemplate.format(fragID=fragID, libID=libID,
+        seq=seq, qvs=qvs, slen=slen)
+
+
+def shred(args):
+    """
+    %prog shred fastafile
+
+    Similar to the method of `shredContig` in runCA script. The contigs are
+    shredded into pseudo-reads with certain length and depth.
+    """
+    p = OptionParser(shred.__doc__)
+    p.add_option("--depth", default=10, type="int",
+            help="Desired depth of the reads [default: %default]")
+    p.add_option("--readlen", default=400, type="int",
+            help="Desired length of the reads [default: %default]")
+    p.add_option("--minctglen", default=200, type="int",
+            help="Ignore contig sequence less than [default: %default]")
+    p.add_option("--fasta", default=False, action="store_true",
+            help="Output shredded reads as FASTA sequences [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    fastafile, = args
+    libID = fastafile.split(".")[0]
+    outfile = libID + ".depth{0}".format(opts.depth)
+    if opts.fasta:
+        outfile += ".fasta"
+    else:
+        outfile += ".frg"
+    fw = must_open(outfile, "w", checkexists=True)
+    f = Fasta(fastafile, lazy=True)
+
+    if not opts.fasta:
+       print >> fw, headerTemplate.format(libID=libID)
+
+    """
+    Taken from runCA:
+
+                    |*********|
+                    |###################|
+    |--------------------------------------------------|
+     ---------------1---------------
+               ---------------2----------
+                         ---------------3---------------
+    *** - center_increments
+    ### - center_range_width
+    """
+    for ctgID, (name, rec) in enumerate(f.iteritems_ordered()):
+        seq = rec.seq
+        seqlen = len(seq)
+        if seqlen < opts.minctglen:
+            continue
+
+        shredlen = min(seqlen - 50, opts.readlen)
+        numreads = max(seqlen * opts.depth / shredlen, 1)
+        center_range_width = seqlen - shredlen
+
+        ranges = []
+        if numreads == 1:
+            ranges.append((0, shredlen))
+        else:
+            prev_begin = -1
+            center_increments = center_range_width * 1. / (numreads - 1)
+            for i in xrange(numreads):
+                begin = center_increments * i
+                end = begin + shredlen
+                begin, end = int(begin), int(end)
+
+                if begin == prev_begin:
+                    continue
+
+                ranges.append((begin, end))
+                prev_begin = begin
+
+        for shredID, (begin, end) in enumerate(ranges):
+            shredded_seq = seq[begin:end]
+            fragID = "{0}.{1}.frag{2}.{3}-{4}".format(libID, ctgID, shredID, begin, end)
+            emitFragment(fw, fragID, libID, shredded_seq, fasta=opts.fasta)
+
+    fw.close()
 
 
 def script(args):

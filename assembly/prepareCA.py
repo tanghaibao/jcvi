@@ -20,7 +20,7 @@ from collections import defaultdict
 from Bio import SeqIO
 
 from jcvi.formats.base import must_open
-from jcvi.formats.fasta import Fasta, SeqRecord, SeqIO, \
+from jcvi.formats.fasta import Fasta, SeqRecord, \
     get_qual, iter_fasta_qual, write_fasta_qual
 from jcvi.utils.table import tabulate
 from jcvi.apps.softlink import get_abs_path
@@ -136,7 +136,7 @@ def shred(args):
                     |###################|
     |--------------------------------------------------|
      ---------------1---------------
-               ---------------2----------
+               ---------------2---------------
                          ---------------3---------------
     *** - center_increments
     ### - center_range_width

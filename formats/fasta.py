@@ -156,7 +156,7 @@ def main():
         ('uniq', 'remove records that are the same'),
         ('ids', 'generate a list of header without the >'),
         ('format', 'trim accession id to the first space or switch id ' + \
-                   'based on provided 2-column mapping file'),
+                   'based on 2-column mapping file'),
         ('random', 'randomly take some records'),
         ('diff', 'check if two fasta records contain same information'),
         ('trim', 'given a cross_match screened fasta, trim the sequence'),

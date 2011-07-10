@@ -77,16 +77,19 @@ only used by a few modules.
 * `numpy <http://numpy.scipy.org>`_
 * `scipy <http://www.scipy.org>`_
 
+There are other Python modules here and there in various scripts. The best way
+is to install them via ``easy_install`` when you see ``ImportError``.
+
 
 Installation
 ------------
 Resolve dependencies first. Then place the whole folder ``jcvi/`` on your
-``PYTHONPATH``. Most scripts can both ``import`` or run as utility script. 
-For example::
+``PYTHONPATH``. Most scripts can both ``import`` or run as utility script. *This
+is the preferred method*, as you can run regardless of the dir you are in::
 
     python -m jcvi.formats.fasta
 
-Or just copy ``jcvi`` to the current folder (since Python searches current
+You can also copy ``jcvi`` to the current folder (since Python searches current
 folder by default)::
 
     python jcvi/formats/fasta.py   
@@ -99,7 +102,7 @@ Most of the scripts in this package contains multiple actions. To use the
         `summary`: report the real no of bases and N's in fastafiles
         `uniq`: remove records that are the same
         `ids`: generate a list of header without the >
-        `format`: trim accession id to the first space
+        `format`: trim accession id to the first space or switch id based on 2-column mapping file
         `random`: randomly take some records
         `diff`: check if two fasta records contain same information
         `trim`: given a cross_match screened fasta, trim the sequence
@@ -111,7 +114,6 @@ Most of the scripts in this package contains multiple actions. To use the
         `gaps`: print out a list of gap sizes within sequences
         `join`: concatenate a list of seqs and add gaps in between
         `some`: include or exclude a list of records (also performs on .qual file if available)
-
 
 Then you need to use one action, you can just do::
 

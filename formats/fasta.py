@@ -298,9 +298,10 @@ def format(args):
     p.add_option("--pairs", dest="pairs", default=False, action="store_true",
             help="If input reads are pairs, add trailing /1 and /2 "
             "[default: %default]")
-    p.add_option("--sequential", dest="sequential", default=False,
-            action="store_true",
+    p.add_option("--sequential", default=False, action="store_true",
             help="Add sequential IDs [default: %default]")
+    p.add_option("--pad0", default=6, type="int",
+            help="Pad a few zeros in front of sequential [default: %default]")
     p.add_option("--gb", dest="gb", default=False, action="store_true",
             help="For Genbank ID, get the accession [default: %default]")
     p.add_option("--noversion", dest="noversion", default=False,
@@ -344,7 +345,7 @@ def format(args):
         if noversion:
             rec.id = rec.id.rsplit(".", 1)[0]
         if sequential:
-            rec.id = "{0:05d}".format(i + 1)
+            rec.id = "{0:0{1}d}".format(i + 1, opts.pad0)
         if prefix:
             rec.id = prefix + rec.id
         if idx:

@@ -241,6 +241,8 @@ def covfilter(args):
             help="Percentage identity cutoff [default: %default]")
     p.add_option("--ids", dest="ids", default=None,
             help="Print out the ids that satisfy [default: %default]")
+    p.add_option("--list", dest="list", default=False, action="store_true",
+            help="List the id% and cov% per gene [default: %default]")
 
     opts, args = p.parse_args(args)
 
@@ -265,7 +267,7 @@ def covfilter(args):
     queries = set()
     valid = set()
     blast = BlastSlow(querysupermap)
-    for query, blines in groupby(blast, key=lambda x: x.query):
+    for query, blines in blast.iter_hits():
         blines = list(blines)
         queries.add(query)
 
@@ -283,7 +285,10 @@ def covfilter(args):
 
         this_identity = 100. - (this_mismatches + this_gaps) * 100. / this_alignlen
         this_coverage = this_covered * 100. / sizes[query]
-        #print query, this_identity, this_coverage
+
+        if opts.list:
+            print "{0}\t{1:.1f}\t{2:.1f}".format(query, this_identity, this_coverage)
+
         if this_identity >= opts.pctid and this_coverage >= opts.pctcov:
             valid.add(query)
 

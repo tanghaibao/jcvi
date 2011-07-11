@@ -39,7 +39,7 @@ class Fasta (BaseFile, dict):
             # the SeqRecord instead of the raw string
             _key_function = (lambda rec: key_function(rec.description)) if \
                     key_function else None
-            self.index = SeqIO.to_dict(SeqIO.parse(open(filename), "fasta"),
+            self.index = SeqIO.to_dict(SeqIO.parse(must_open(filename), "fasta"),
                     key_function=_key_function)
 
     def _key_function(self, key):
@@ -73,7 +73,7 @@ class Fasta (BaseFile, dict):
             yield k, len(self[k])
 
     def iteritems_ordered(self):
-        for rec in SeqIO.parse(open(self.filename), "fasta"):
+        for rec in SeqIO.parse(must_open(self.filename), "fasta"):
             yield rec.name, rec
 
     def iterkeys_ordered(self):
@@ -85,9 +85,9 @@ class Fasta (BaseFile, dict):
             yield k, len(rec)
 
     def iter_annotations(self):
-        for rec in SeqIO.parse(open(self.filename), "fasta"):
-            name, description = rec.name, rec.description
-            yield name, description
+        for k, rec in self.iteritems_ordered():
+            description = rec.description
+            yield k, description
 
     @classmethod
     def subseq(cls, fasta, start=None, stop=None, strand=None):
@@ -186,7 +186,7 @@ def ids(args):
         sys.exit(not p.print_help())
 
     fastafile, = args
-    f = Fasta(fastafile, index=False)
+    f = Fasta(fastafile, lazy=True)
     for key in f.iterkeys_ordered():
         print key
 
@@ -529,7 +529,7 @@ def some(args):
         sys.exit(p.print_help())
 
     fastafile, listfile, outfastafile = args
-    outfastahandle = open(outfastafile, "w")
+    outfastahandle = must_open(outfastafile, "w")
     qualfile = get_qual(fastafile)
 
     names = set(x.strip() for x in open(listfile))
@@ -792,7 +792,7 @@ def uniq(args):
         sys.exit(p.print_help())
 
     fastafile, uniqfastafile = args
-    fw = open(uniqfastafile, "w")
+    fw = must_open(uniqfastafile, "w")
 
     for rec in _uniq_rec(fastafile):
         if opts.trimname:
@@ -900,7 +900,7 @@ def trim(args):
     logging.debug("Trim bad sequence from fasta file `%s` to `%s`" % \
             (fastafile, newfastafile))
 
-    fw = open(newfastafile, "w")
+    fw = must_open(newfastafile, "w")
     fw_qual = open(newqualfile, "w")
 
     dropped = trimmed = 0
@@ -977,7 +977,7 @@ def sequin(args):
                 subseq = "\n>?{0}\n".format(gap_length)
         seq += subseq
 
-    fw = open(outputfasta, "w")
+    fw = must_open(outputfasta, "w")
     print >> fw, ">{0}".format(rec.id)
     print >> fw, seq
 
@@ -1142,6 +1142,7 @@ def gaps(args):
 
         if log:
             print >> fwlog, "\t".join((rec.id, gap_description, starts))
+
 
 if __name__ == '__main__':
     main()

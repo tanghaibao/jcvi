@@ -49,6 +49,10 @@ acc:{fragID}
 rnd:1
 sta:G
 lib:{libID}
+pla:0
+loc:0
+src:
+.
 seq:
 {seq}
 .
@@ -67,7 +71,7 @@ ver:2
 act:A
 acc:{libID}
 ori:U
-mean:0.0
+mea:0.0
 std:0.0
 src:
 .
@@ -76,6 +80,8 @@ fea:
 doNotOverlapTrim=1
 .
 }}'''
+
+DEFAULTQV = chr(ord('0') + 13)  # To pass initialTrim
 
 
 def emitFragment(fw, fragID, libID, shredded_seq, fasta=False):
@@ -89,7 +95,7 @@ def emitFragment(fw, fragID, libID, shredded_seq, fasta=False):
 
     seq = str(shredded_seq)
     slen = len(seq)
-    qvs = "3" * slen  # shredded reads have default low qv
+    qvs = DEFAULTQV * slen  # shredded reads have default low qv
 
     print >> fw, frgTemplate.format(fragID=fragID, libID=libID,
         seq=seq, qvs=qvs, slen=slen)
@@ -174,6 +180,7 @@ def shred(args):
             emitFragment(fw, fragID, libID, shredded_seq, fasta=opts.fasta)
 
     fw.close()
+    logging.debug("Shredded reads are written to `{0}`.".format(outfile))
 
 
 def script(args):

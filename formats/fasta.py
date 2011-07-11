@@ -803,23 +803,27 @@ def random(args):
     """
     %prog random fasta 100 > random100.fasta
 
-    take number of records randomly from fasta
+    Take number of records randomly from fasta
     """
     p = OptionParser(random.__doc__)
+    p.add_option("-N", default=1, type="int",
+        help="Number of random sequences to take [default: %default]")
     opts, args = p.parse_args(args)
-    try:
-        fastafile, N = args
-        N = int(N)
-    except Exception as e:
-        logging.error(e)
-        sys.exit(p.print_help())
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    fastafile, = args
+    N = opts.N
 
     f = Fasta(fastafile)
-    fw = sys.stdout
+    fw = must_open("stdout", "w")
 
     for key in sample(f.keys(), N):
         rec = f[key]
         SeqIO.write([rec], fw, "fasta")
+
+    fw.close()
 
 
 XQUAL = -1000  # default quality for X

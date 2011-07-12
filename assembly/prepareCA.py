@@ -111,7 +111,7 @@ def shred(args):
     p = OptionParser(shred.__doc__)
     p.add_option("--depth", default=10, type="int",
             help="Desired depth of the reads [default: %default]")
-    p.add_option("--readlen", default=400, type="int",
+    p.add_option("--readlen", default=500, type="int",
             help="Desired length of the reads [default: %default]")
     p.add_option("--minctglen", default=200, type="int",
             help="Ignore contig sequence less than [default: %default]")

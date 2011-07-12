@@ -79,12 +79,16 @@ def depends(func):
 Functions that make text formatting easier.
 """
 
-def percentage(a, b):
+def percentage(a, b, denominator=True):
     """
     >>> percentage(100, 200)
     '100 of 200 (50.0%)'
     """
-    return "{0} of {1} ({2:.1f}%)".format(a, b, a * 100. / b)
+    if denominator:
+        s = "{0} of {1} ({2:.1f}%)".format(a, b, a * 100. / b)
+    else:
+        s = "{0} ({1:.1f}%)".format(a, a * 100. / b)
+    return s
 
 
 def thousands(x):

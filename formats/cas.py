@@ -11,6 +11,7 @@ import os.path as op
 import sys
 import logging
 
+from collections import defaultdict
 from itertools import groupby
 from optparse import OptionParser
 
@@ -67,11 +68,79 @@ def main():
         ('split', 'split CAS file into smaller CAS using sub_assembly'),
         ('bed', 'convert cas tabular output to bed format'),
         ('pairs', 'print paired-end reads of cas tabular output'),
+        ('info', 'print the number of read mappig using `assembly_info`'),
         ('fastpairs', 'print pair distance and orientation, assuming paired '\
             'reads next to one another'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def info(args):
+    """
+    %prog info casfile
+
+    Wraps around `assembly_info` and get the following block.
+
+    General info:
+    Read info:
+    Coverage info:
+
+    In particular, the read info will be reorganized so that it shows the
+    percentage of unmapped, mapped, unique and multi-hit reads.
+    """
+    from jcvi.apps.base import popen
+    from jcvi.utils.cbook import percentage
+
+    p = OptionParser(info.__doc__)
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    casfile, = args
+    cmd = "assembly_info {0}".format(casfile)
+    fp = popen(cmd)
+    inreadblock = False
+    for row in fp:
+        if row.startswith("Contig info:"):
+            break
+
+        if row.startswith("Read info:"):
+            inreadblock = True
+
+        srow = row.strip()
+        atoms = row.split()
+        last = atoms[-1] if len(atoms) > 1 else ""
+
+        if srow.startswith("Reads"):
+            reads = int(last)
+        if srow.startswith("Unassembled"):
+            unmapped = int(last)
+        if srow.startswith("Assembled"):
+            mapped = int(last)
+        if srow.startswith("Multi"):
+            multihits = int(last)
+
+        if row.startswith("Coverage info:"):
+            # Print the Read info: block
+            print "Read info:"
+            assert mapped + unmapped == reads
+
+            unique = mapped - multihits
+            print
+            print "Total reads: {0}".format(reads)
+            print "Unmapped reads: {0}".format(percentage(unmapped, reads, False))
+            print "Mapped reads: {0}".format(percentage(mapped, reads, False))
+            print "Unique reads: {0}".format(percentage(unique, reads, False))
+            print "Multi hit reads: {0}".\
+                    format(percentage(multihits, reads, False))
+            print
+            inreadblock = False
+
+        if not inreadblock:
+            print row.rstrip()
 
 
 def fastpairs(args):

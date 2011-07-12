@@ -1009,23 +1009,33 @@ def tidy(args):
 
     for rec in SeqIO.parse(fastafile, "fasta"):
         newseq = ""
+        dangle_gaps = 0
         for gap, seq in groupby(rec.seq, lambda x: x.upper() == 'N'):
             seq = "".join(seq)
             seqlen = len(seq)
             msg = None
             if gap:
+                nsize = max(gapsize - dangle_gaps, 0)
                 if seqlen < 10:
-                    newseq += seq
+                    if nsize > seqlen:
+                        nsize = seqlen
+                    dangle_gaps += seqlen
                 else:
                     if seqlen != gapsize:
                         msg = "Normalize gap size ({0}) to {1}" \
-                                .format(seqlen, gapsize)
-                    newseq += normalized_gap
+                                .format(seqlen, nsize)
+                    dangle_gaps = gapsize
+
+                newseq += nsize * 'N'
             else:
                 if seqlen < minlen:
                     msg = "Discard component ({0})".format(seqlen)
                 else:
                     newseq += seq
+                    # Discarding components might cause flank gaps to merge
+                    # should be handled in dangle_gaps, which is only reset when
+                    # seeing an actual sequence
+                    dangle_gaps = 0
 
             if msg:
                 msg = rec.id + ": " + msg

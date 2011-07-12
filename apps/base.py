@@ -100,6 +100,16 @@ def sh(cmd, grid=False, infile=None, outfile=None, errfile=None,
         return call(cmd, shell=True)
 
 
+def popen(cmd):
+    """
+    Capture the cmd stdout output to a file handle.
+    """
+    from subprocess import Popen, PIPE
+    logging.debug(cmd)
+    proc = Popen(cmd, bufsize=1, stdout=PIPE, shell=True)
+    return proc.stdout
+
+
 def is_newer_file(a, b):
     """
     Check if the file a is newer than file b

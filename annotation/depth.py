@@ -16,7 +16,7 @@ from itertools import groupby
 from optparse import OptionParser
 
 from jcvi.formats.sizes import Sizes
-from jcvi.formats.base import BaseFile
+from jcvi.formats.base import BaseFile, must_open
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
@@ -62,6 +62,8 @@ def bed(args):
     Write bed files where the bases have at least certain depth.
     """
     p = OptionParser(bed.__doc__)
+    p.add_option("-o", dest="output", default="stdout",
+            help="Output file name [default: %default]")
     p.add_option("--cutoff", dest="cutoff", default=10, type="int",
             help="Minimum read depth to report intervals [default: %default]")
     opts, args = p.parse_args(args)
@@ -70,6 +72,7 @@ def bed(args):
         sys.exit(not p.print_help())
 
     binfile, fastafile = args
+    fw = must_open(opts.output, "w")
     cutoff = opts.cutoff
     assert cutoff >= 0, "Need non-negative cutoff"
 
@@ -96,8 +99,8 @@ def bed(args):
             mean_depth = int(mean_depth)
 
             name = "na"
-            print "\t".join(str(x) for x in (ctg, start - 1, end,\
-                    name, mean_depth))
+            print >> fw, "\t".join(str(x) for x in (ctg, \
+                    start - 1, end, name, mean_depth))
 
 
 def merge(args):

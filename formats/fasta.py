@@ -958,28 +958,42 @@ def sequin(args):
     TATTAACGATGAATAATAATGAGAAGCCATATAGAATTGGTGATAATGTAAAAAAAGGGGCTCTTATTAC
     """
     p = OptionParser(sequin.__doc__)
-    p.add_option("--mingap", dest="mingap", default=10, type="int",
+    p.add_option("--mingap", dest="mingap", default=100, type="int",
             help="The minimum size of a gap to split [default: %default]")
+    p.add_option("--unk", default=100, type="int",
+            help="The size for unknown gaps [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(p.print_help())
 
     inputfasta, = args
+    unk = opts.unk
+
     outputfasta = inputfasta.rsplit(".", 1)[0] + ".split"
-    rec = SeqIO.parse(inputfasta, "fasta").next()
+    rec = SeqIO.parse(must_open(inputfasta), "fasta").next()
     seq = ""
+    unknowns, knowns = 0, 0
     for gap, gap_group in groupby(rec.seq, lambda x: x.upper() == 'N'):
         subseq = "".join(gap_group)
         if gap:
             gap_length = len(subseq)
-            if gap_length >= opts.mingap:
+            if gap_length == unk:
+                subseq = "\n>?unk{0}\n".format(unk)
+                unknowns += 1
+            elif gap_length >= opts.mingap:
                 subseq = "\n>?{0}\n".format(gap_length)
+                knowns += 1
         seq += subseq
 
     fw = must_open(outputfasta, "w")
     print >> fw, ">{0}".format(rec.id)
     print >> fw, seq
+    fw.close()
+    logging.debug("Sequin FASTA written to `{0}` ({1} unknowns, {2} knowns).".\
+            format(outputfasta, unknowns, knowns))
+
+    return outputfasta
 
 
 def tidy(args):

@@ -19,7 +19,7 @@ import logging
 from glob import glob
 from optparse import OptionParser
 
-from jcvi.apps.base import ActionDispatcher, sh, debug
+from jcvi.apps.base import ActionDispatcher, sh, mkdir, debug
 from jcvi.assembly.base import CAPATH
 debug()
 
@@ -64,11 +64,10 @@ def error(args):
     """
     %prog error
 
-    Find all errors in ../5-consensus/*.err.
+    Find all errors in ../5-consensus/*.err and pull the error unitigs into
+    backup/ folder.
     """
     p = OptionParser(error.__doc__)
-    p.add_option("--backup", dest="backup", default=False, action="store_true",
-            help="pull all the error unitigs in backup/ [default:%default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 0:
@@ -76,9 +75,7 @@ def error(args):
 
     backup = opts.backup
     backup_folder = "backup"
-    if backup and not op.exists(backup_folder):
-        logging.debug("Create folder `{0}`".format(backup_folder))
-        os.mkdir(backup_folder)
+    mkdir(backup_folder)
 
     fw = open("errors.log", "w")
 

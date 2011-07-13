@@ -35,7 +35,7 @@ import cStringIO
 from collections import defaultdict
 
 from jcvi.utils.cbook import fill
-from jcvi.apps.base import sh, debug
+from jcvi.apps.base import sh, mkdir, debug
 debug()
 
 
@@ -61,8 +61,7 @@ class AbstractMIPSolver(object):
         self.clean = clean
         self.verbose = verbose
 
-        if not os.path.isdir(work_dir):
-            os.mkdir(work_dir)
+        mkdir(work_dir)
 
         lpfile = op.join(work_dir, "data.lp")  # problem instance
         logging.debug("write MIP instance to `{0}`".format(lpfile))

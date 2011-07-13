@@ -9,6 +9,7 @@ import sys
 import string
 import logging
 
+from glob import glob
 from urlparse import parse_qs
 from optparse import OptionParser
 from collections import defaultdict
@@ -17,7 +18,7 @@ from Bio import SeqIO
 
 from jcvi.utils.cbook import memoized, fill
 from jcvi.formats.base import DictFile
-from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.apps.base import ActionDispatcher, sh, mkdir, debug
 debug()
 
 """
@@ -112,10 +113,48 @@ def main():
 
     actions = (
         ('gss', 'prepare package for genbank gss submission'),
+        ('htg', 'prepare sqn for genbank htg submission'),
         ('t384', 'print out a table converting between 96 well to 384 well'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def htg(args):
+    """
+    %prog htg fastafile phasefile template.sbt
+
+    Prepare sqnfiles for Genbank HTG submission.
+
+    `fastafile` contains the records to update, multiple records are allowed
+    (with each one generating separate sqn file in the sqn/ folder). The record
+    defline has the accession ID. For example,
+    >AC148290.3
+
+    `phasefile` is a 2-column file containing the mappings. For example:
+    AC148290.3  2
+
+    which means this is a Phase-2 BAC. Record with only a single contig will be
+    labeled as Phase-3 regardless of the info in the `phasefile`. Template file
+    is the Genbank sbt template. See jcvi.formats.sbt for generation of such
+    files.
+    """
+    from jcvi.formats.fasta import Fasta, sequin
+
+    p = OptionParser(htg.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    fastafile, phasefile, sbtfile = args
+    fastadir = "fasta"
+    mkdir(fastadir, overwrite=True)
+
+    cmd = "faSplit byname {0} {1}/".format(fastafile, fastadir)
+    sh(cmd)
+    for fafile in glob(fastadir + "/*.fa"):
+        splitfile = sequin([fafile])
 
 
 @memoized
@@ -185,9 +224,6 @@ def t384(args):
                 fw.write('|')
             fw.write(p)
         fw.write('\n')
-
-    #for k, v in sorted(splate.items()):
-    #    print k, v
 
 
 def parse_description(s):

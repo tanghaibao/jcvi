@@ -15,7 +15,7 @@ from subprocess import Popen, PIPE
 from optparse import OptionParser
 
 from jcvi.formats.base import FileSplitter
-from jcvi.apps.base import ActionDispatcher, sh, debug
+from jcvi.apps.base import ActionDispatcher, sh, mkdir, debug
 debug()
 
 
@@ -23,21 +23,6 @@ sge = "sge"
 PCODE = "04048"  # Project code, JCVI specific
 commitfile = op.join(sge, "COMMIT")
 statusfile = op.join(sge, "STATUS")
-
-
-def check_sge(overwrite=False):
-    """
-    the `sge` folder contains all the jobs
-    make sure that this exists; if not create one
-    """
-    if op.isdir(sge):
-        if overwrite:
-            shutil.rmtree(sge)
-            os.mkdir(sge)
-            logging.debug("overwrite %s folder now" % sge)
-    else:
-        os.mkdir(sge)
-        logging.debug("%s folder not found, create one now" % sge)
 
 
 class MultiJobs (object):
@@ -180,7 +165,7 @@ class Grid (list):
 
     def __init__(self, cmds=None, outfiles=[]):
 
-        check_sge()
+        mkdir(sge)
 
         if cmds:
             for cmd, outfile in zip(cmds, outfiles):

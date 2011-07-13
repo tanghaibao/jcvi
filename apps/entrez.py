@@ -15,7 +15,7 @@ from Bio import Entrez, SeqIO
 from jcvi.formats.base import must_open
 from jcvi.formats.fasta import get_first_rec, print_first_difference
 from jcvi.apps.console import print_green
-from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.apps.base import ActionDispatcher, mkdir, debug
 debug()
 
 myEmail = "htang@jcvi.org"
@@ -176,9 +176,8 @@ def fetch(args):
     outfile = "{0}.{1}".format(filename.rsplit(".", 1)[0], fmt)
 
     outdir = opts.outdir
-    if outdir and not op.exists(outdir):
-        logging.debug("`%s` not found, creating new." % outdir)
-        os.mkdir(outdir)
+    if outdir:
+        mkdir(outdir)
 
     if not outdir:
         fw = must_open(outfile, "w", checkexists=True)

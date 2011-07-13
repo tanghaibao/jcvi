@@ -41,8 +41,9 @@ class DictFile (BaseFile, dict):
         for lineno, row in enumerate(fp):
             row = row.rstrip()
             atoms = row.split(delimiter)
-            if len(atoms) < 2:
-                msg = "Line must contain >= 2 columns. Aborted.\n"
+            ncols = max(keypos, valuepos) + 1
+            if len(atoms) < ncols:
+                msg = "Must contain >= {0} columns.  Aborted.\n".format(ncols)
                 msg += "  --> Line {0}: {1}".format(lineno + 1, row)
                 logging.error(msg)
                 sys.exit(1)

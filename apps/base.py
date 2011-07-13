@@ -5,6 +5,7 @@ basic support for running library as script
 import os
 import os.path as op
 import sys
+import shutil
 import logging
 
 from subprocess import call
@@ -110,6 +111,20 @@ def popen(cmd):
     return proc.stdout
 
 
+def mkdir(dirname, overwrite=False):
+    """
+    Wraps around os.mkdir(), but checks for existence first.
+    """
+    if op.isdir(dirname):
+        if overwrite:
+            shutil.rmtree(dirname)
+            os.mkdir(dirname)
+            logging.debug("Overwrite folder `{0}`.".format(dirname))
+    else:
+        os.mkdir(dirname)
+        logging.debug("`{0}` not found. Creating new.".format(dirname))
+
+
 def is_newer_file(a, b):
     """
     Check if the file a is newer than file b
@@ -147,7 +162,7 @@ def download(url, filename=None):
 
 def debug():
     """
-    turn on the debugging
+    Turn on the debugging
     """
     import logging
 

@@ -62,7 +62,7 @@ failed = "failed"
 
 def error(args):
     """
-    %prog error
+    %prog error backup_folder
 
     Find all errors in ../5-consensus/*.err and pull the error unitigs into
     backup/ folder.
@@ -70,11 +70,10 @@ def error(args):
     p = OptionParser(error.__doc__)
     opts, args = p.parse_args(args)
 
-    if len(args) != 0:
-        sys.exit(p.print_help())
+    if len(args) != 1:
+        sys.exit(not p.print_help())
 
-    backup = opts.backup
-    backup_folder = "backup"
+    backup_folder, = args
     mkdir(backup_folder)
 
     fw = open("errors.log", "w")
@@ -96,9 +95,6 @@ def error(args):
                 continue
 
             print >> fw, "\t".join(str(x) for x in (partID, unitigID))
-
-            if not backup:
-                continue
 
             cmd = "{0} {1}".format(partID, unitigID)
             unitigfile = pull(cmd.split())

@@ -18,7 +18,7 @@ histogram_template = """
 library(ggplot2)
 vmin <- $vmin
 vmax <- $vmax
-data <- read.table('$numberfile')
+data <- read.table('$numberfile', skip=$skip)
 data <- data[data >= vmin]
 data <- data[data <= vmax]
 data <- data.frame($xlabel=data)
@@ -30,7 +30,7 @@ histogram_multiple_template = """
 library(ggplot2)
 vmin <- $vmin
 vmax <- $vmax
-data <- read.table('$numberfile', header=T, sep="\t")
+data <- read.table('$numberfile', header=T, sep="\t", skip=$skip)
 m <- ggplot(data, aes(x=$xlabel, fill=group))
 m + geom_bar(binwidth=(vmax-vmin)/$bins, position="dodge") + xlim(vmin, vmax) +
 opts(title='$title')
@@ -38,7 +38,7 @@ ggsave('$outfile')
 """
 
 
-def histogram(numberfile, vmin, vmax, xlabel, title, bins=50):
+def histogram(numberfile, vmin, vmax, xlabel, title, bins=50, skip=0):
     """
     Generate histogram using number from numberfile, and only numbers in the
     range of (vmin, vmax)
@@ -49,7 +49,7 @@ def histogram(numberfile, vmin, vmax, xlabel, title, bins=50):
     rtemplate.run()
 
 
-def histogram_multiple(numberfiles, vmin, vmax, xlabel, title, bins=50):
+def histogram_multiple(numberfiles, vmin, vmax, xlabel, title, bins=50, skip=0):
     """
     Generate histogram using number from numberfile, and only numbers in the
     range of (vmin, vmax). First combining multiple files.
@@ -83,30 +83,33 @@ def main():
     histograms into the same plot.
     """
     p = OptionParser(main.__doc__)
-    p.add_option("--vmin", dest="vmin", default=-1e9, type="int",
+    p.add_option("--skip", default=0, type="int",
+            help="skip the first several lines [default: %default]")
+    p.add_option("--vmin", dest="vmin", default=0, type="int",
             help="numbers larger than this is ignored [default: %default]")
-    p.add_option("--vmax", dest="vmax", default=1e9, type="int",
+    p.add_option("--vmax", dest="vmax", default=100000, type="int",
             help="numbers larger than this is ignored [default: %default]")
     p.add_option("--bins", dest="bins", default=50, type="int",
             help="number of bins to plot in the histogram [default: %default]")
     p.add_option("--xlabel", dest="xlabel", default="value",
             help="label on the X-axis")
-    p.add_option("--title", dest="title", default="title",
-            help="title of the plot")
+    p.add_option("--title", dest="title", help="title of the plot")
     opts, args = p.parse_args()
 
     if len(args) < 1:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
+    skip = opts.skip
     vmin, vmax = opts.vmin, opts.vmax
     bins = opts.bins
     xlabel, title = opts.xlabel, opts.title
+    title = title or args[0]
 
     fileno = len(args)
     if fileno == 1:
-        histogram(args[0], vmin, vmax, xlabel, title, bins=bins)
+        histogram(args[0], vmin, vmax, xlabel, title, bins=bins, skip=skip)
     else:
-        histogram_multiple(args, vmin, vmax, xlabel, title, bins=bins)
+        histogram_multiple(args, vmin, vmax, xlabel, title, bins=bins, skip=skip)
 
 
 if __name__ == '__main__':

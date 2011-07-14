@@ -111,14 +111,18 @@ def info(args):
             inreadblock = True
 
         srow = row.strip()
-        atoms = row.split()
-        last = atoms[-1] if len(atoms) > 1 else ""
+
+        # Following looks like a hack, but to keep compatible between
+        # CLC 3.20 and CLC 4.0 beta
+        if inreadblock:
+            atoms = row.split('s')
+            last = atoms[-1].split()[0] if len(atoms) > 1 else "0"
 
         if srow.startswith("Reads"):
             reads = int(last)
-        if srow.startswith("Unassembled"):
+        if srow.startswith("Unmapped") or srow.startswith("Unassembled"):
             unmapped = int(last)
-        if srow.startswith("Assembled"):
+        if srow.startswith("Mapped") or srow.startswith("Assembled"):
             mapped = int(last)
         if srow.startswith("Multi"):
             multihits = int(last)

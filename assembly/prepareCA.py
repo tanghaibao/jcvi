@@ -374,10 +374,14 @@ def sff(args):
     %prog sff sffiles
 
     Convert reads formatted as 454 SFF file, and convert to CA frg file.
+    Turn --nodedup on if another deduplication mechanism is used (e.g.
+    CD-HIT-454). See assembly.sff.deduplicate().
     """
     p = OptionParser(sff.__doc__)
     p.add_option("--prefix", dest="prefix", default=None,
-            help="output frg filename prefix")
+            help="Output frg filename prefix")
+    p.add_option("--nodedup", default=False, action="store_true",
+            help="Do not remove duplicates [default: %default]")
     set_grid(p)
     add_size_option(p)
 
@@ -411,6 +415,8 @@ def sff(args):
     cmd += "-clear 454 -trim chop "
     if mated:
         cmd += "-linker titanium -insertsize {0} {1} ".format(mean, sv)
+    if opts.nodedup:
+        cmd += "-nodedup "
 
     cmd += " ".join(sffiles)
 
@@ -428,9 +434,6 @@ def fastq(args):
             help="Are the qv sanger encodings? [default: %default]")
     p.add_option("--outtie", dest="outtie", default=False, action="store_true",
             help="Are these outie reads? [default: %default]")
-    p.add_option("--deduplicate", dest="deduplicate", default=False,
-            action="store_true", help="set doRemoveDuplicateReads=1 "
-            "[default: %default]")
     add_size_option(p)
 
     opts, args = p.parse_args(args)
@@ -475,10 +478,6 @@ def fastq(args):
         cmd += " -outtie "
 
     sh(cmd, outfile=frgfile)
-    if opts.deduplicate:
-        cmd = "sed -i 's/^doRemoveDuplicateReads.*/doRemoveDuplicateReads=1/' "
-        cmd += frgfile
-        sh(cmd)
 
 
 if __name__ == '__main__':

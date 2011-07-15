@@ -6,11 +6,14 @@ Using CD-HIT (CD-HIT-454) in particular to remove duplicate reads.
 """
 
 import sys
+import logging
 
+from math import log
 from collections import defaultdict
 from optparse import OptionParser
 
 from jcvi.formats.base import read_block
+from jcvi.utils.cbook import percentage
 from jcvi.apps.base import ActionDispatcher, set_grid, debug, sh
 debug()
 
@@ -21,11 +24,43 @@ CDPATH="~/htang/export/cd-hit-v4.5.5-2011-03-31/"
 def main():
 
     actions = (
+        ('ids', 'get the representative ids from clstr file'),
         ('deduplicate', 'use `cd-hit-454` to remove duplicate reads'),
         ('summary', 'parse cdhit.clstr file to get distribution of cluster sizes'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def ids(args):
+    """
+    %prog ids cdhit.clstr
+
+    Get the representative ids from clstr file.
+    """
+    p = OptionParser(ids.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    clstrfile, = args
+    assert clstrfile.endswith(".clstr")
+
+    idsfile = clstrfile.replace(".clstr", ".ids")
+    fp = open(clstrfile)
+    fw = open(idsfile, "w")
+    nreads = 0
+    for row in fp:
+        if row[0] == '>':
+            continue
+        name = row.split('>', 1)[1].split("...")[0]
+        if row.rstrip()[-1] == '*':
+            print >> fw, name
+            nreads += 1
+
+    logging.debug("A total of {0} unique reads written to `{1}`.".\
+            format(nreads, idsfile))
 
 
 def summary(args):
@@ -40,9 +75,9 @@ def summary(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    from math import log
-
     clstrfile, = args
+    assert clstrfile.endswith(".clstr")
+
     bins = defaultdict(int)
     fp = open(clstrfile)
     unique = 0
@@ -55,7 +90,7 @@ def summary(args):
         bins[log2size] += 1
 
     # Print out a distribution
-    print >> sys.stderr, "Total: {0}, Unique: {1}".format(total, unique)
+    print >> sys.stderr, "Unique: {0}".format(percentage(unique, total))
     for size, number in sorted(bins.items()):
         lb, ub = 2 ** size, 2 ** (size + 1)
         print >> sys.stderr, "Counts in range [{0}, {1}): {2}".format(lb, ub, number)

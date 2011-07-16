@@ -7,7 +7,9 @@ Wrapper to call tigStore and utgcns, for debugging failed utgcns runs.
 See full commands:
 http://sf.net/apps/mediawiki/wgs-assembler/index.php?title=Unitig_Consensus_Failures_in_CA_6
 
-It is expected to be executed within 5-consensus/ folder.
+It is expected to be executed within 5-consensus/ folder, or (like me) executed
+in a fix_unitig folder in the assembly folder. In any case, from the current
+dir, it needs to get access to ../5-consensus.
 """
 
 import os
@@ -19,9 +21,94 @@ import logging
 from glob import glob
 from optparse import OptionParser
 
+from jcvi.formats.base import BaseFile
 from jcvi.apps.base import ActionDispatcher, sh, mkdir, debug
 from jcvi.assembly.base import CAPATH
 debug()
+
+
+class UnitigLayout (BaseFile):
+    """
+    Reads in a unitig layout file.
+    """
+    def __init__(self, filename):
+
+        super(UnitigLayout, self).__init__(filename)
+
+        fp = open(filename)
+        lines = fp.readlines()
+        unitigline = lines[0]
+        assert unitigline.startswith("unitig")
+
+        tag, self.unitig = unitigline.rsplit(None, 1)
+
+        next10lines = lines[1:11]
+        fraglines = lines[11:]
+        # Sanity check to make sure every line is frag
+        for fl in fraglines:
+            assert fl.startswith("FRG")
+
+        self.num_frags = len(fraglines)
+        self.fraglines = fraglines
+        self.header = [unitigline] + next10lines
+        self.parts = [self.fraglines]
+        fp.close()
+
+    def cut(self, fragID):
+
+        fraglines = self.fraglines
+        if fragID == "all":  # Shred all fragments
+            self.parts = [[x] for x in fraglines]
+            return
+
+        # The line looks like:
+        # FRG type R ident  41655818 container ...
+        found = False
+        for i, fline in enumerate(fraglines):
+            if fline.split()[4] == fragID:
+                found = True
+                break
+
+        assert i, "FragID {0} is the first fragment. Something is wrong.".\
+                format(fragID)
+        assert found, "FragID {0} not found.".format(fragID)
+
+        afrags = fraglines[:i]
+        bfrags = fraglines[i:]
+        self.parts = [afrags, bfrags]
+
+    def get_header(self, unitig=-1, num_frags=1):
+        header = self.header[:]
+        for i, line in enumerate(header):
+            if line.startswith("unitig"):
+                header[i] = "unitig {0}\n".format(unitig)
+            if line.startswith("data.num_frags"):
+                header[i] = "data.num_frags            {0}\n".format(num_frags)
+        return header
+
+    def print_to_file(self, inplace=False):
+        fixfile = self.filename + ".fix"
+        fw = open(fixfile, "w")
+
+        part = self.parts[0]
+        header = self.get_header(unitig=self.unitig, num_frags=len(part))
+        fw.write("".join(header))
+        fw.write("".join(part))
+        for part in self.parts[1:]:
+            header = self.get_header(unitig=-1, num_frags=len(part))
+            fw.write("".join(header))
+            fw.write("".join(part))
+        fw.close()
+
+        logging.debug("Writing {0} parts.".format(len(self.parts)))
+
+        nlines = sum(1 for x in open(fixfile))
+        expectlines = self.num_frags + 11 * len(self.parts)
+        assert expectlines == nlines, \
+                "Expecting {0} line, you have {1}.".format(expectlines, nlines)
+
+        if inplace:
+            shutil.move(fixfile, self.filename)
 
 
 def main():
@@ -154,52 +241,9 @@ def cut(args):
         sys.exit(not p.print_help())
 
     s, fragID = args
-    fixfile = s + ".fix"
-    fp = open(s)
-    fw = open(fixfile, "w")
-    lines = fp.readlines()
-    unitigline = lines[0]
-    newunitig = "unitig -1\n"
-    next10lines = lines[1:11]
-    fraglines = lines[11:]
-    unitigheader = [unitigline] + next10lines[:]
-    altheader = [newunitig] + next10lines[:]
-
-    # The line looks like:
-    # FRG type R ident  41655818 container ...
-    found = False
-    for i, fline in enumerate(fraglines):
-        if fline.split()[4] == fragID:
-            found = True
-            break
-
-    assert i != 0, "FragID {0} is the first fragment. Something is wrong.".\
-            format(fragID)
-    assert found, "FragID {0} not found.".format(fragID)
-
-    afrags = fraglines[:i]
-    bfrags = fraglines[i:]
-    for i, line in enumerate(unitigheader):
-        if line.startswith("data.num_frags"):
-            unitigheader[i] = "data.num_frags            {0}\n".\
-                    format(len(afrags))
-            altheader[i] = "data.num_frags            {0}\n".\
-                    format(len(bfrags))
-
-    unitigheader = "".join(unitigheader)
-    altheader = "".join(altheader)
-
-    fw.write(unitigheader)
-    fw.write("".join(afrags))
-    fw.write(altheader)
-    fw.write("".join(bfrags))
-    fw.close()
-
-    nfrags = len(fraglines)
-    nlines = sum(1 for x in open(fixfile))
-    assert nfrags + 11 * 2 == nlines
-
-    shutil.move(fixfile, s)
+    u = UnitigLayout(s)
+    u.cut(fragID)
+    u.print_to_file(inplace=True)
 
 
 def shred(args):
@@ -216,36 +260,9 @@ def shred(args):
         sys.exit(p.print_help())
 
     s, =  args
-    partID, unitigID = get_ID(s)
-
-    # Read the header
-    fixfile = s + ".fix"
-    fp = open(s)
-    fw = open(fixfile, "w")
-    lines = fp.readlines()
-    for i, line in enumerate(lines[:11]):
-        if line.startswith("data.num_frags"):
-            lines[i] = "data.num_frags            1\n"
-    unitigline = lines[0]
-    newunitig = "unitig -1\n"
-    next10lines = lines[1:11]
-    fraglines = lines[11:]
-    unitigheader = "".join([unitigline] + next10lines)
-    altheader = "".join([newunitig] + next10lines)
-    frag = fraglines[0]
-    fw.write(unitigheader)
-    fw.write(frag)
-    for frag in fraglines[1:]:
-        fw.write(altheader)
-        fw.write(frag)
-    fw.close()
-    fp.close()
-
-    nfrags = len(fraglines)
-    nlines = sum(1 for x in open(fixfile))
-    assert nfrags * 12 == nlines
-
-    shutil.move(fixfile, s)
+    u = UnitigLayout(s)
+    u.cut("all")
+    u.print_to_file(inplace=True)
 
 
 def pull(args):

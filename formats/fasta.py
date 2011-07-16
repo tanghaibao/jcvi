@@ -304,6 +304,8 @@ def format(args):
             help="Pad a few zeros in front of sequential [default: %default]")
     p.add_option("--gb", dest="gb", default=False, action="store_true",
             help="For Genbank ID, get the accession [default: %default]")
+    p.add_option("--until", default=None,
+            help="Get the names until certain symbol [default: %default]")
     p.add_option("--noversion", dest="noversion", default=False,
             action="store_true", help="remove the gb trailing version "
             "[default: %default]")
@@ -316,10 +318,11 @@ def format(args):
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
     infasta, outfasta = args
     gb = opts.gb
+    until = opts.until
     pairs = opts.pairs
     prefix = opts.prefix
     noversion = opts.noversion
@@ -332,6 +335,8 @@ def format(args):
 
     fw = must_open(outfasta, "w")
     for i, rec in enumerate(SeqIO.parse(infasta, "fasta")):
+        if until:
+            rec.id = rec.id.split(until, 1)[0]
         if gb:
             # gi|262233616|gb|GU123895.1| Coffea arabica clone BAC
             atoms = rec.id.split("|")

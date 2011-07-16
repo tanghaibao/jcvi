@@ -33,6 +33,7 @@ def main():
         ('test', 'test the modified unitig layout'),
         ('push', 'push the modified unitig into tigStore'),
         ('delete', 'delete specified unitig'),
+        ('cut', 'cut the unitig at a given fragment ID'),
         ('shred', 'shred the unitig as a desperate way of forcing a fix'),
             )
     p = ActionDispatcher(actions)
@@ -139,9 +140,71 @@ def trace(args):
     print >> sys.stderr, "".join(rows)
 
 
+def cut(args):
+    """
+    %prog cut unitigfile fragID
+
+    Cut the unitig at a given fragment. Run `%prog trace unitigfile` first to
+    see which fragment breaks the unitig.
+    """
+    p = OptionParser(cut.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    s, fragID = args
+    fixfile = s + ".fix"
+    fp = open(s)
+    fw = open(fixfile, "w")
+    lines = fp.readlines()
+    unitigline = lines[0]
+    newunitig = "unitig -1\n"
+    next10lines = lines[1:11]
+    fraglines = lines[11:]
+    unitigheader = [unitigline] + next10lines[:]
+    altheader = [newunitig] + next10lines[:]
+
+    # The line looks like:
+    # FRG type R ident  41655818 container ...
+    found = False
+    for i, fline in enumerate(fraglines):
+        if fline.split()[4] == fragID:
+            found = True
+            break
+
+    assert i != 0, "FragID {0} is the first fragment. Something is wrong.".\
+            format(fragID)
+    assert found, "FragID {0} not found.".format(fragID)
+
+    afrags = fraglines[:i]
+    bfrags = fraglines[i:]
+    for i, line in enumerate(unitigheader):
+        if line.startswith("data.num_frags"):
+            unitigheader[i] = "data.num_frags            {0}\n".\
+                    format(len(afrags))
+            altheader[i] = "data.num_frags            {0}\n".\
+                    format(len(bfrags))
+
+    unitigheader = "".join(unitigheader)
+    altheader = "".join(altheader)
+
+    fw.write(unitigheader)
+    fw.write("".join(afrags))
+    fw.write(altheader)
+    fw.write("".join(bfrags))
+    fw.close()
+
+    nfrags = len(fraglines)
+    nlines = sum(1 for x in open(fixfile))
+    assert nfrags + 11 * 2 == nlines
+
+    shutil.move(fixfile, s)
+
+
 def shred(args):
     """
-    %prog shred unitig
+    %prog shred unitigfile
 
     Shred the unitig into one fragment per unitig to fix. This is the last
     resort as a desperate fix.

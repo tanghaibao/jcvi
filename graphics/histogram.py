@@ -2,11 +2,13 @@
 # -*- coding: UTF-8 -*-
 
 """
-Use R ggplot2 library to plot histogram
+Use R ggplot2 library to plot histogram, also contains an ASCII histogram (use
+--text) when invoking histogram().
 """
 
 import os.path as op
 import sys
+import logging
 
 from optparse import OptionParser
 
@@ -36,6 +38,35 @@ m + geom_bar(binwidth=(vmax-vmin)/$bins, position="dodge") + xlim(vmin, vmax) +
 opts(title='$title')
 ggsave('$outfile')
 """
+
+def stem_leaf_plot(data, bins, char="="):
+    '''
+    Generate stem and leaf plot given a collection of numbers
+    '''
+    import numpy as np
+
+    assert bins > 0
+    ma, mb = min(data), max(data)
+    step = ((mb - ma) / bins) or 1
+
+    bins = np.arange(ma, mb + step, step)
+
+    hist, bin_edges = np.histogram(data, bins=bins)
+    width = 50  # the textwidth (height) of the distribution
+    hist = hist * width / hist.sum()
+    for b, h in zip(bin_edges, hist):
+        pct = "{0:.1f}".format(b)
+        print >> sys.stderr, "{0}|{1}".format(pct.rjust(5), char * h)
+
+
+def texthistogram(numberfiles, vmin, vmax, bins=50, skip=0):
+    for nf in numberfiles:
+        fp = open(nf)
+        logging.debug("Import `{0}`.".format(nf))
+        for s in xrange(skip):
+            fp.next()
+        data = [float(x) for x in fp]
+        stem_leaf_plot(data, bins)
 
 
 def histogram(numberfile, vmin, vmax, xlabel, title, bins=50, skip=0):
@@ -93,7 +124,9 @@ def main():
             help="number of bins to plot in the histogram [default: %default]")
     p.add_option("--xlabel", dest="xlabel", default="value",
             help="label on the X-axis")
-    p.add_option("--title", dest="title", help="title of the plot")
+    p.add_option("--title", help="title of the plot")
+    p.add_option("--text", default=False, action="store_true",
+        help="print ASCII text stem-leaf plot [default: %default]")
     opts, args = p.parse_args()
 
     if len(args) < 1:
@@ -104,6 +137,10 @@ def main():
     bins = opts.bins
     xlabel, title = opts.xlabel, opts.title
     title = title or args[0]
+
+    if opts.text:
+        texthistogram(args, vmin, vmax, bins=bins, skip=skip)
+        return
 
     fileno = len(args)
     if fileno == 1:

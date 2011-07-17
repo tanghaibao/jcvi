@@ -56,7 +56,7 @@ def stem_leaf_plot(data, bins, char="="):
     hist = hist * width / hist.sum()
     for b, h in zip(bin_edges, hist):
         pct = "{0:.1f}".format(b)
-        print >> sys.stderr, "{0}|{1}".format(pct.rjust(5), char * h)
+        print >> sys.stderr, "{0}|{1}".format(pct.rjust(10), char * h)
 
 
 def texthistogram(numberfiles, vmin, vmax, bins=50, skip=0):

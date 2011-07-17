@@ -369,6 +369,29 @@ def bed(args):
         print >> fw, b.bedline
 
 
+def set_options_pairs(instance):
+    """
+    Add pairs options for blast.pairs(), cas.pairs() and posmap.pairs().
+    """
+    assert isinstance(instance, OptionParser)
+    p = instance
+
+    p.add_option("--cutoff", dest="cutoff", default=0, type="int",
+            help="distance to call valid links between mates "\
+                 "[default: estimate from input]")
+    p.add_option("--pairs", dest="pairsfile",
+            default=False, action="store_true",
+            help="write valid pairs to pairsfile")
+    p.add_option("-n", dest="nrows",
+            default=100000, type="int",
+            help="only use the first n lines [default: %default]")
+    p.add_option("-r", dest="rclip", default=1, type="int",
+            help="pair ID is derived from rstrip N chars [default: %default]")
+    p.add_option("--inserts", dest="insertsfile", default=True,
+            help="write insert sizes to insertsfile and plot distribution " + \
+            "to insertsfile.pdf")
+
+
 def report_pairs(data, cutoff=0, dialect="blast", pairsfile=None,
         insertsfile=None, rclip=1):
     """
@@ -490,9 +513,9 @@ def report_pairs(data, cutoff=0, dialect="blast", pairsfile=None,
     print >>sys.stderr, "%d pairs (%.1f%%) are linked (cutoff=%d)" % \
             (num_links, num_links * 100. / num_pairs, cutoff)
 
-    print >>sys.stderr, "mean distance between PE: {0} +/- {1}".\
+    print >>sys.stderr, "mean distance between mates: {0} +/- {1}".\
             format(meandist, stdev)
-    print >>sys.stderr, "median distance between PE: {0}".format(p0)
+    print >>sys.stderr, "median distance between mates: {0}".format(p0)
     print >>sys.stderr, "95% distance range: {0} - {1}".format(p1, p2)
     print >>sys.stderr, "\nOrientations:"
 
@@ -507,7 +530,7 @@ def report_pairs(data, cutoff=0, dialect="blast", pairsfile=None,
         insertsfw.close()
         prefix = insertsfile.rsplit(".", 1)[0]
         histogram(insertsfile, vmin=0, vmax=cutoff, xlabel="Insertsize",
-                title="{0} PE ({1}; median ins {2})".format(prefix,
+                title="{0} ({1}; median ins {2})".format(prefix,
                     ", ".join(orientation_summary), p0))
 
     return meandist, stdev, p0, p1, p2
@@ -522,21 +545,15 @@ def pairs(args):
     `READNAME{/1,/2}`
     """
     p = OptionParser(pairs.__doc__)
-    p.add_option("--cutoff", dest="cutoff", default=0, type="int",
-            help="distance to call valid links between PE [default: %default]")
-    p.add_option("--pairs", dest="pairsfile",
-            default=True, action="store_true",
-            help="write valid pairs to pairsfile")
-    p.add_option("--inserts", dest="insertsfile", default=True,
-            help="write insert sizes to insertsfile and plot distribution " + \
-            "to insertsfile.pdf")
+    set_options_pairs(p)
+
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(p.print_help())
 
     cutoff = opts.cutoff
-    blastfile = args[0]
+    blastfile, = args
 
     basename = blastfile.split(".")[0]
     pairsfile = ".".join((basename, "pairs")) if opts.pairsfile else None

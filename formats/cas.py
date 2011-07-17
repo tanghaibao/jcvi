@@ -18,7 +18,7 @@ from optparse import OptionParser
 from Bio import SeqIO
 
 from jcvi.formats.base import LineFile
-from jcvi.formats.blast import report_pairs
+from jcvi.formats.blast import set_options_pairs, report_pairs
 from jcvi.apps.base import ActionDispatcher, sh, set_grid, debug
 debug()
 
@@ -292,19 +292,7 @@ def pairs(args):
     distance between paired ends, etc
     """
     p = OptionParser(pairs.__doc__)
-    p.add_option("--cutoff", dest="cutoff", default=0, type="int",
-            help="distance to call valid links between PE [default: %default]")
-    p.add_option("--pairs", dest="pairsfile",
-            default=False, action="store_true",
-            help="write valid pairs to pairsfile")
-    p.add_option("-n", dest="nrows",
-            default=100000, type="int",
-            help="only use the first n lines [default: %default]")
-    p.add_option("-r", dest="rclip", default=1, type="int",
-            help="pair ID is derived from rstrip N chars [default: %default]")
-    p.add_option("--inserts", dest="insertsfile", default=True,
-            help="write insert sizes to insertsfile and plot distribution " + \
-            "to insertsfile.pdf")
+    set_options_pairs(p)
 
     opts, args = p.parse_args(args)
 

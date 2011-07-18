@@ -13,6 +13,7 @@ import logging
 from optparse import OptionParser
 
 from jcvi.apps.R import RTemplate
+from jcvi.apps.console import ColoredText
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
@@ -49,14 +50,16 @@ def stem_leaf_plot(data, bins, char="="):
     ma, mb = min(data), max(data)
     step = ((mb - ma) / bins) or 1
 
-    bins = np.arange(ma, mb + step, step)
+    bins = np.arange(ma, mb + step * 1.00001, step)
 
     hist, bin_edges = np.histogram(data, bins=bins)
     width = 50  # the textwidth (height) of the distribution
-    hist = hist * width / hist.sum()
-    for b, h in zip(bin_edges, hist):
-        pct = "{0:.1f}".format(b)
-        print >> sys.stderr, "{0}|{1}".format(pct.rjust(10), char * h)
+    zhist = hist * width / hist.sum()
+    for iv, count, z in zip(bin_edges, hist, zhist):
+        iv = "{0:.1f}".format(iv).rjust(10)
+        z = ColoredText(char * z, "green")
+        count = count or ""
+        print >> sys.stderr, "{0} |{1} {2}".format(iv, z, count)
 
 
 def texthistogram(numberfiles, vmin, vmax, bins=50, skip=0):

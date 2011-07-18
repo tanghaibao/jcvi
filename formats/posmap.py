@@ -309,7 +309,7 @@ def pairs(args):
     data.sort(key=lambda x: x.fragmentID)
 
     report_pairs(data, cutoff, dialect="frgscf", pairsfile=pairsfile,
-           insertsfile=insertsfile)
+           insertsfile=insertsfile, ascii=opts.ascii, bins=opts.bins)
 
 
 if __name__ == '__main__':

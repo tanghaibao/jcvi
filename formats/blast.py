@@ -390,10 +390,14 @@ def set_options_pairs(instance):
     p.add_option("--inserts", dest="insertsfile", default=True,
             help="write insert sizes to insertsfile and plot distribution " + \
             "to insertsfile.pdf")
+    p.add_option("--ascii", default=False, action="store_true",
+            help="print ASCII histogram instead of PDF [default: %default]")
+    p.add_option("--bins", default=50, type="int",
+            help="number of bins in the histogram [default: %default]")
 
 
 def report_pairs(data, cutoff=0, dialect="blast", pairsfile=None,
-        insertsfile=None, rclip=1):
+        insertsfile=None, rclip=1, ascii=False, bins=50):
     """
     This subroutine is used by the pairs function in blast.py and cas.py.
     Reports number of fragments and pairs as well as linked pairs
@@ -529,9 +533,10 @@ def report_pairs(data, cutoff=0, dialect="blast", pairsfile=None,
         print >>insertsfw, "\n".join(str(x) for x in linked_dist)
         insertsfw.close()
         prefix = insertsfile.rsplit(".", 1)[0]
-        histogram(insertsfile, vmin=0, vmax=cutoff, xlabel="Insertsize",
-                title="{0} ({1}; median ins {2})".format(prefix,
-                    ", ".join(orientation_summary), p0))
+        osummary = " ".join(orientation_summary)
+        title="{0} ({1}; median dist:{2})".format(prefix, osummary, p0)
+        histogram(insertsfile, vmin=0, vmax=cutoff, bins=bins,
+                xlabel="Insertsize", title=title, ascii=ascii)
 
     return meandist, stdev, p0, p1, p2
 
@@ -564,7 +569,7 @@ def pairs(args):
     data.sort(key=lambda x: x.query)
 
     report_pairs(data, cutoff, dialect="blast", pairsfile=pairsfile,
-           insertsfile=insertsfile)
+           insertsfile=insertsfile, ascii=opts.ascii, bins=opts.bins)
 
 
 def best(args):

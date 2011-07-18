@@ -40,7 +40,7 @@ opts(title='$title')
 ggsave('$outfile')
 """
 
-def stem_leaf_plot(data, bins, vmin=None, vmax=None, char="="):
+def stem_leaf_plot(data, bins, title=None, vmin=None, vmax=None, char="="):
     '''
     Generate stem and leaf plot given a collection of numbers
     '''
@@ -52,6 +52,8 @@ def stem_leaf_plot(data, bins, vmin=None, vmax=None, char="="):
     step = ((mb - ma) / bins) or 1
 
     bins = np.arange(ma, mb + step * 1.00001, step)
+    if title:
+        print >> sys.stderr, ColoredText(title, "dark")
 
     hist, bin_edges = np.histogram(data, bins=bins)
     width = 50  # the textwidth (height) of the distribution
@@ -63,32 +65,42 @@ def stem_leaf_plot(data, bins, vmin=None, vmax=None, char="="):
         print >> sys.stderr, "{0} |{1} {2}".format(iv, z, count)
 
 
-def texthistogram(numberfiles, vmin, vmax, bins=50, skip=0):
+def texthistogram(numberfiles, vmin, vmax, title=None, bins=50, skip=0):
     for nf in numberfiles:
         fp = open(nf)
         logging.debug("Import `{0}`.".format(nf))
         for s in xrange(skip):
             fp.next()
         data = [float(x) for x in fp]
-        stem_leaf_plot(data, bins, vmin=vmin, vmax=vmax)
+        stem_leaf_plot(data, bins, vmin=vmin, vmax=vmax, title=title)
 
 
-def histogram(numberfile, vmin, vmax, xlabel, title, bins=50, skip=0):
+def histogram(numberfile, vmin, vmax, xlabel, title,
+        bins=50, skip=0, ascii=False):
     """
     Generate histogram using number from numberfile, and only numbers in the
     range of (vmin, vmax)
     """
+    if ascii:
+        return texthistogram([numberfile], vmin, vmax, title=title,
+                bins=bins, skip=skip)
+
     outfile = numberfile + '.pdf'
 
     rtemplate = RTemplate(histogram_template, locals())
     rtemplate.run()
 
 
-def histogram_multiple(numberfiles, vmin, vmax, xlabel, title, bins=50, skip=0):
+def histogram_multiple(numberfiles, vmin, vmax, xlabel, title,
+        bins=50, skip=0, ascii=False):
     """
     Generate histogram using number from numberfile, and only numbers in the
     range of (vmin, vmax). First combining multiple files.
     """
+    if ascii:
+        return texthistogram(numberfiles, vmin, vmax, title=title,
+                bins=bins, skip=skip)
+
     newfile = "_".join(op.basename(x).split(".")[0] for x in numberfiles)
     suffix = op.basename(numberfiles[0]).split(".")[-1]
     newfile += "." + suffix
@@ -129,7 +141,7 @@ def main():
     p.add_option("--xlabel", dest="xlabel", default="value",
             help="label on the X-axis")
     p.add_option("--title", help="title of the plot")
-    p.add_option("--text", default=False, action="store_true",
+    p.add_option("--ascii", default=False, action="store_true",
         help="print ASCII text stem-leaf plot [default: %default]")
     opts, args = p.parse_args()
 
@@ -142,15 +154,13 @@ def main():
     xlabel, title = opts.xlabel, opts.title
     title = title or args[0]
 
-    if opts.text:
-        texthistogram(args, vmin, vmax, bins=bins, skip=skip)
-        return
-
     fileno = len(args)
     if fileno == 1:
-        histogram(args[0], vmin, vmax, xlabel, title, bins=bins, skip=skip)
+        histogram(args[0], vmin, vmax, xlabel, title,
+                bins=bins, skip=skip, ascii=opts.ascii)
     else:
-        histogram_multiple(args, vmin, vmax, xlabel, title, bins=bins, skip=skip)
+        histogram_multiple(args, vmin, vmax, xlabel, title,
+                bins=bins, skip=skip, ascii=opts.ascii)
 
 
 if __name__ == '__main__':

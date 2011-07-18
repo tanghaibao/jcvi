@@ -322,7 +322,8 @@ def pairs(args):
     data.sort(key=lambda x: x.readname)
 
     report_pairs(data, cutoff, dialect="castab", pairsfile=pairsfile,
-           insertsfile=insertsfile, rclip=rclip)
+           insertsfile=insertsfile, rclip=rclip,
+           ascii=opts.ascii, bins=opts.bins)
 
 
 if __name__ == '__main__':

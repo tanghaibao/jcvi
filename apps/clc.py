@@ -17,10 +17,61 @@ debug()
 def main():
 
     actions = (
+        ('map', 'map the reads to the reference'),
         ('trim', 'wrapper around clc quality_trim'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def map(args):
+    """
+    %prog map reference fastqfiles
+
+    Use `clc_ref_assemble` to map the read files to a reference. Use a non-zero
+    -s option to turn on paired end mode.
+    """
+    p = OptionParser(map.__doc__)
+    p.add_option("-s", dest="size", default=0, type="int",
+            help="Use paired end mapping with insert [default: %default]")
+    p.add_option("--short", default=False, action="store_true",
+            help="Use `clc_ref_assemble_short` as the mapper [default: %default]")
+    p.add_option("--orientations", default="fb",
+            help="The reads have the orientations [default: %default]")
+    set_grid(p)
+
+    opts, args = p.parse_args(args)
+    if len(args) not in (2, 3):
+        sys.exit(not p.print_help())
+
+    license = "license.properties"
+    if not op.exists(license):
+        sh("cp ~/{0} .".format(license))
+
+    ref = args[0]
+    assert op.exists(ref)
+    fastqfiles = args[1:]
+    size = opts.size
+    orientations = opts.orientations
+    assert orientations in ("fb", "bf", "ff", "bb")
+
+    cmd = "clc_ref_assemble_short" if opts.short else "clc_ref_assemble_long"
+    readprefix = op.basename(fastqfiles[0]).split(".", 1)[0]
+    refprefix = op.basename(ref).split(".", 1)[0]
+    outfile = "{0}.{1}.cas".format(readprefix, refprefix)
+
+    cmd += " --cpus 16 "
+    cmd += " -d {0} -o {1} -q ".format(ref, outfile)
+    fastqs = " ".join(fastqfiles)
+    if size == 0:
+        cmd += fastqs
+    else:
+        assert len(fastqfiles) == 2
+        stddev = size / 4
+        lb, ub = size - stddev, size + stddev
+        cmd += " -p {0} ss {1} {2} -i {3} ".format(orientations, lb, ub, fastqs)
+
+    sh(cmd, grid=opts.grid)
 
 
 def trim(args):

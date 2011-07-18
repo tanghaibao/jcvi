@@ -10,7 +10,7 @@ import sys
 from optparse import OptionParser
 
 from jcvi.utils.iter import pairwise
-from jcvi.graphics.base import plt, _
+from jcvi.graphics.base import plt, asciiplot, _
 from jcvi.apps.base import ActionDispatcher, sh, debug
 debug()
 
@@ -46,12 +46,15 @@ def meryl(args):
 
 def histogram(args):
     """
-    %prog histogram meryl.histogram species N totalKmers
+    %prog histogram meryl.histogram species K totalKmers
 
     Plot the histogram based on meryl K-mer distribution, species and N are
-    only used to annotate the graphic
+    only used to annotate the graphic. Find out totalKmers when running
+    kmer.meryl().
     """
     p = OptionParser(histogram.__doc__)
+    p.add_option("--ascii", default=False, action="store_true",
+            help="Print out ASCII plot instead of PDF [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 4:
@@ -76,7 +79,6 @@ def histogram(args):
             status = "drop"
         if history[-1] != status:
             history.append(status)
-        #print Ka, ca, status
         if history == ["drop", "rise", "drop"]:
             break
 
@@ -91,9 +93,14 @@ def histogram(args):
     for msg in (Total_Kmers_msg, Kmer_coverage_msg, Genome_size_msg):
         print >> sys.stderr, msg
 
-    fig = plt.figure(1, (6, 6))
     counts = sorted((a, b) for a, b in hist.items() if a <= 100)
     x, y = zip(*counts)
+    title = "{0} genome {1}-mer histogram".format(species, N)
+
+    if opts.ascii:
+        return asciiplot(x, y, title=title)
+
+    fig = plt.figure(1, (6, 6))
     plt.plot(x, y, 'g-', lw=2, alpha=.5)
 
     ax = plt.gca()
@@ -104,7 +111,6 @@ def histogram(args):
     ax.text(.5, .7, _(Genome_size_msg),
             ha="center", color='b', transform=ax.transAxes)
 
-    title = "{0} genome {1}-mer histogram".format(species, N)
     ax.set_title(_(title), color='r')
     xlabel, ylabel = "Coverage (X)", "Counts"
     ax.set_xlabel(_(xlabel), color='r')

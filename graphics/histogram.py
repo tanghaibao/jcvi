@@ -12,8 +12,8 @@ import logging
 
 from optparse import OptionParser
 
+from jcvi.graphics.base import asciiplot
 from jcvi.apps.R import RTemplate
-from jcvi.apps.console import ColoredText
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
@@ -40,7 +40,7 @@ opts(title='$title')
 ggsave('$outfile')
 """
 
-def stem_leaf_plot(data, bins, title=None, vmin=None, vmax=None, char="="):
+def stem_leaf_plot(data, bins, title=None, vmin=None, vmax=None):
     '''
     Generate stem and leaf plot given a collection of numbers
     '''
@@ -52,17 +52,8 @@ def stem_leaf_plot(data, bins, title=None, vmin=None, vmax=None, char="="):
     step = ((mb - ma) / bins) or 1
 
     bins = np.arange(ma, mb + step * 1.00001, step)
-    if title:
-        print >> sys.stderr, ColoredText(title, "dark")
-
     hist, bin_edges = np.histogram(data, bins=bins)
-    width = 50  # the textwidth (height) of the distribution
-    zhist = hist * width / hist.sum()
-    for iv, count, z in zip(bin_edges, hist, zhist):
-        iv = "{0:.1f}".format(iv).rjust(10)
-        z = ColoredText(char * z, "green")
-        count = count or ""
-        print >> sys.stderr, "{0} |{1} {2}".format(iv, z, count)
+    asciiplot(bin_edges, hist, title=title)
 
 
 def texthistogram(numberfiles, vmin, vmax, title=None, bins=50, skip=0):

@@ -56,7 +56,7 @@ class TaxIDTree(object):
                 response = urlopen(URL)
                 success = True
             except (urllib2.URLError, urllib2.HTTPError,
-                    RuntimeError, KeyError) as e:
+                    RuntimeError) as e:
                 logging.error(e)
                 logging.debug("wait 5 seconds to reconnect...")
                 time.sleep(5)
@@ -95,7 +95,6 @@ def get_names(list_of_taxids):
     return list(batch_taxonomy(list_of_taxids))
 
 
-@memoized
 def MRCA(list_of_taxids):
     """
     This gets the most recent common ancester (MRCA) for a list of taxids

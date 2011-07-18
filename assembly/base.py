@@ -11,8 +11,10 @@ ln2 = log(2)
 
 import numpy as np
 from bisect import bisect
+from collections import defaultdict
 from optparse import OptionParser
 
+from jcvi.graphics.histogram import loghistogram
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
@@ -72,19 +74,25 @@ def n50(args):
     if len(args) < 1:
         sys.exit(p.print_help())
 
-    filename, = args
     ctgsizes = []
-    for row in open(filename):
-        try:
-            ctgsize = int(row.strip())
-        except ValueError:
-            continue
-        ctgsizes.append(ctgsize)
+    bins = defaultdict(int)
+    for filename in args:
+        for row in open(filename):
+            try:
+                ctgsize = int(row.strip())
+            except ValueError:
+                continue
+            log2ctgsize = int(log(ctgsize, 2))
+            bins[log2ctgsize] += 1
+            ctgsizes.append(ctgsize)
 
     a50, l50, nn50 = calculate_A50(ctgsizes)
     sumsize = sum(ctgsizes)
-    print >> sys.stderr, \
-            "`{0}`: Length={1} L50={2}".format(filename, sumsize, l50)
+    maxsize = max(ctgsizes)
+    print >> sys.stderr, ", ".join(args)
+    print >> sys.stderr, "Length={1} L50={2} Max={3}".\
+            format(filename, sumsize, l50, maxsize)
+    loghistogram(bins)
 
 
 def main():

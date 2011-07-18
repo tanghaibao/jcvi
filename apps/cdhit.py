@@ -89,11 +89,10 @@ def summary(args):
         log2size = int(log(size, 2))
         bins[log2size] += 1
 
+    from jcvi.graphics.histogram import loghistogram
     # Print out a distribution
     print >> sys.stderr, "Unique: {0}".format(percentage(unique, total))
-    for size, number in sorted(bins.items()):
-        lb, ub = 2 ** size, 2 ** (size + 1)
-        print >> sys.stderr, "Counts in range [{0}, {1}): {2}".format(lb, ub, number)
+    loghistogram(bins)
 
 
 def deduplicate(args):

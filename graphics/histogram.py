@@ -42,6 +42,19 @@ opts(title='$title')
 ggsave('$outfile')
 """
 
+def loghistogram(bins, base=2, ascii=True, title="Counts"):
+    """
+    bins is a dictionary with key: log(x, base), value: counts.
+    """
+    x, y = [], []
+    for size, number in sorted(bins.items()):
+        lb, ub = base ** size, base ** (size + 1)
+        x.append((lb, ub))
+        y.append(number)
+
+    asciiplot(x, y, title=title)
+
+
 def get_data(filename, vmin=None, vmax=None, skip=0):
     fp = open(filename)
     for s in xrange(skip):

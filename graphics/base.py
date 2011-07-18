@@ -43,7 +43,8 @@ def asciiplot(x, y, width=50, title=None, char="="):
 
     az = ay * width / ay.max()
     for x, y, z in zip(ax, ay, az):
-        x = "{0:.1f}".format(x).rjust(10)
+        x = str(x) if isinstance(x, int) else "{0:.1f}".format(x)
+        x = x.rjust(10)
         y = y or ""
         z = ColoredText(char * z, "green")
         print >> sys.stderr, "{0} |{1} {2}".format(x, z, y)

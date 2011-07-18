@@ -12,6 +12,8 @@ import logging
 
 from optparse import OptionParser
 
+import numpy as np
+
 from jcvi.graphics.base import asciiplot
 from jcvi.apps.R import RTemplate
 from jcvi.apps.base import ActionDispatcher, debug
@@ -40,30 +42,45 @@ opts(title='$title')
 ggsave('$outfile')
 """
 
-def stem_leaf_plot(data, bins, title=None, vmin=None, vmax=None):
+def get_data(filename, vmin=None, vmax=None, skip=0):
+    fp = open(filename)
+    for s in xrange(skip):
+        fp.next()
+    data = np.array([float(x) for x in fp])
+    vmin = min(data) if vmin is None else vmin
+    vmax = max(data) if vmax is None else vmax
+    data = data[(data >= vmin) & (data <= vmax)]
+
+    return data, vmin, vmax
+
+
+def stem_leaf_plot(data, vmin, vmax, bins, title=None):
     '''
     Generate stem and leaf plot given a collection of numbers
     '''
-    import numpy as np
-
     assert bins > 0
-    ma = min(data) if vmin is None else vmin
-    mb = max(data) if vmax is None else vmax
-    step = ((mb - ma) / bins) or 1
+    range = vmax - vmin
+    if range % bins == 0:
+        step = range / bins
+    else:
+        step = range * 1. / bins
+    step = step or 1
 
-    bins = np.arange(ma, mb + step * 1.00001, step)
+    vmax_plus_step = vmax + step
+    if not isinstance(step, int):
+        vmax_plus_step += 1e-10  # handles the inaccuracy of floats
+
+    bins = np.arange(vmin, vmax_plus_step, step)
+
     hist, bin_edges = np.histogram(data, bins=bins)
     asciiplot(bin_edges, hist, title=title)
 
 
 def texthistogram(numberfiles, vmin, vmax, title=None, bins=50, skip=0):
     for nf in numberfiles:
-        fp = open(nf)
         logging.debug("Import `{0}`.".format(nf))
-        for s in xrange(skip):
-            fp.next()
-        data = [float(x) for x in fp]
-        stem_leaf_plot(data, bins, vmin=vmin, vmax=vmax, title=title)
+        data, vmin, vmax = get_data(nf, vmin, vmax, skip=skip)
+        stem_leaf_plot(data, vmin, vmax, bins, title=title)
 
 
 def histogram(numberfile, vmin, vmax, xlabel, title,
@@ -77,6 +94,7 @@ def histogram(numberfile, vmin, vmax, xlabel, title,
                 bins=bins, skip=skip)
 
     outfile = numberfile + '.pdf'
+    data, vmin, vmax = get_data(numberfile, vmin, vmax, skip=skip)
 
     rtemplate = RTemplate(histogram_template, locals())
     rtemplate.run()
@@ -99,6 +117,10 @@ def histogram_multiple(numberfiles, vmin, vmax, xlabel, title,
     fw = open(newfile, "w")
     print >> fw, "{0}\tgroup".format(xlabel)
     for f in numberfiles:
+        data, va, vb = get_data(f, vmin, vmax, skip=skip)
+        vmin = min(vmin, va)
+        vmax = max(vmax, vb)
+
         fp = open(f)
         tag = op.basename(f).split(".")[0]
         for row in fp:
@@ -123,11 +145,11 @@ def main():
     p = OptionParser(main.__doc__)
     p.add_option("--skip", default=0, type="int",
             help="skip the first several lines [default: %default]")
-    p.add_option("--vmin", dest="vmin", default=0, type="int",
+    p.add_option("--vmin", dest="vmin", default=None, type="int",
             help="numbers larger than this is ignored [default: %default]")
-    p.add_option("--vmax", dest="vmax", default=100000, type="int",
+    p.add_option("--vmax", dest="vmax", default=None, type="int",
             help="numbers larger than this is ignored [default: %default]")
-    p.add_option("--bins", dest="bins", default=50, type="int",
+    p.add_option("--bins", dest="bins", default=20, type="int",
             help="number of bins to plot in the histogram [default: %default]")
     p.add_option("--xlabel", dest="xlabel", default="value",
             help="label on the X-axis")

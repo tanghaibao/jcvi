@@ -40,14 +40,15 @@ opts(title='$title')
 ggsave('$outfile')
 """
 
-def stem_leaf_plot(data, bins, char="="):
+def stem_leaf_plot(data, bins, vmin=None, vmax=None, char="="):
     '''
     Generate stem and leaf plot given a collection of numbers
     '''
     import numpy as np
 
     assert bins > 0
-    ma, mb = min(data), max(data)
+    ma = min(data) if vmin is None else vmin
+    mb = max(data) if vmax is None else vmax
     step = ((mb - ma) / bins) or 1
 
     bins = np.arange(ma, mb + step * 1.00001, step)
@@ -69,7 +70,7 @@ def texthistogram(numberfiles, vmin, vmax, bins=50, skip=0):
         for s in xrange(skip):
             fp.next()
         data = [float(x) for x in fp]
-        stem_leaf_plot(data, bins)
+        stem_leaf_plot(data, bins, vmin=vmin, vmax=vmax)
 
 
 def histogram(numberfile, vmin, vmax, xlabel, title, bins=50, skip=0):

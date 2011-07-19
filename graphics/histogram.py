@@ -79,12 +79,7 @@ def stem_leaf_plot(data, vmin, vmax, bins, title=None):
         step = range * 1. / bins
     step = step or 1
 
-    vmax_plus_step = vmax + step
-    if not isinstance(step, int):
-        vmax_plus_step += 1e-10  # handles the inaccuracy of floats
-
-    bins = np.arange(vmin, vmax_plus_step, step)
-
+    bins = np.arange(vmin, vmax + step, step)
     hist, bin_edges = np.histogram(data, bins=bins)
     asciiplot(bin_edges, hist, title=title)
 
@@ -159,9 +154,9 @@ def main():
     p.add_option("--skip", default=0, type="int",
             help="skip the first several lines [default: %default]")
     p.add_option("--vmin", dest="vmin", default=None, type="int",
-            help="numbers larger than this is ignored [default: %default]")
+            help="minimum value, inclusive [default: %default]")
     p.add_option("--vmax", dest="vmax", default=None, type="int",
-            help="numbers larger than this is ignored [default: %default]")
+            help="maximum value, inclusive [default: %default]")
     p.add_option("--bins", dest="bins", default=20, type="int",
             help="number of bins to plot in the histogram [default: %default]")
     p.add_option("--xlabel", dest="xlabel", default="value",

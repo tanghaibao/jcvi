@@ -5,6 +5,7 @@
 Prepare the data for Genbank submission
 """
 
+import os.path as op
 import sys
 import string
 import logging
@@ -18,6 +19,7 @@ from Bio import SeqIO
 
 from jcvi.utils.cbook import memoized, fill
 from jcvi.formats.base import DictFile
+from jcvi.apps.console import print_red
 from jcvi.apps.base import ActionDispatcher, sh, mkdir, debug
 debug()
 
@@ -142,19 +144,56 @@ def htg(args):
     from jcvi.formats.fasta import Fasta, sequin
 
     p = OptionParser(htg.__doc__)
+    p.add_option("--comment",
+            help="Comments for this update [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
         sys.exit(not p.print_help())
 
     fastafile, phasefile, sbtfile = args
+    comment = opts.comment
+
     fastadir = "fasta"
+    sqndir = "sqn"
     mkdir(fastadir, overwrite=True)
+    mkdir(sqndir, overwrite=True)
 
     cmd = "faSplit byname {0} {1}/".format(fastafile, fastadir)
     sh(cmd)
+
+    acmd = 'tbl2asn -a z -p fasta -r {sqndir}'
+    acmd += ' -i {splitfile} -t {sbtfile} -C tigr'
+    acmd += ' -j "[tech=htgs {phase}] [organism=Medicago truncatula] [strain=A17]"'
+    acmd += ' -A {accession_nv} -o {sqndir}/{accession_nv}.sqn -V Vbr'
+    acmd += ' -y "{comment}" -W T -T T'
     for fafile in glob(fastadir + "/*.fa"):
-        splitfile = sequin([fafile])
+        splitfile, gaps = sequin([fafile])
+        splitfile = op.basename(splitfile)
+        accession = op.basename(fafile).rsplit(".", 1)[0]
+        accession_nv = accession.split(".", 1)[0]
+        phase = 2
+
+        if gaps == 0 and phase != 3:
+            newphase = 3
+            logging.debug("Promote {0} from Phase {1} => {2}".\
+                    format(accession, phase, newphase))
+            phase = newphase
+
+        if gaps != 0 and phase == 3:
+            newphase = 2
+            logging.debug("Demote {0} from Phase {1} => {2}".\
+                    format(accession, phase, newphase))
+            phase = newphase
+
+        cmd = acmd.format(accession=accession, accession_nv=accession_nv,
+                sqndir=sqndir, sbtfile=sbtfile, splitfile=splitfile,
+                phase=phase, comment=comment)
+        sh(cmd)
+
+        valfile = "{0}/{1}.val".format(sqndir, accession)
+        contents = open(valfile).read().strip()
+        assert not contents, "Validation error:\n{0}".format(contents)
 
 
 @memoized

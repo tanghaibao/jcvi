@@ -970,7 +970,7 @@ def sequin(args):
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
     inputfasta, = args
     unk = opts.unk
@@ -995,10 +995,10 @@ def sequin(args):
     print >> fw, ">{0}".format(rec.id)
     print >> fw, seq
     fw.close()
-    logging.debug("Sequin FASTA written to `{0}` ({1} unknowns, {2} knowns).".\
+    logging.debug("Sequin FASTA written to `{0}` (gaps: {1} unknowns, {2} knowns).".\
             format(outputfasta, unknowns, knowns))
 
-    return outputfasta
+    return outputfasta, unknowns + knowns
 
 
 def tidy(args):

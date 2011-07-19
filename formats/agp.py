@@ -7,6 +7,7 @@ http://www.ncbi.nlm.nih.gov/projects/genome/assembly/agp
 """
 
 import os
+import re
 import sys
 import shutil
 import logging
@@ -574,6 +575,24 @@ def summary(args):
     agp.summary_all()
 
 
+chr_pat = re.compile("chromosome (\d)", re.I)
+clone_pat = re.compile("clone ([^, ]*\d)[ ,]", re.I)
+
+
+def get_clone(rec):
+    """
+    >>> get_clone("Medicago truncatula chromosome 2 clone mth2-48e18")
+    ('2', 'mth2-48e18')
+    """
+    s = rec.description
+    chr = re.search(chr_pat, s)
+    clone = re.search(clone_pat, s)
+    chr = chr.group(1) if chr else ""
+    clone = clone.group(1) if clone else ""
+
+    return chr, clone
+
+
 def get_phase(rec):
     keywords = rec.annotations["keywords"]
     description = rec.description.upper()
@@ -595,27 +614,31 @@ def get_phase(rec):
             phase = 3
     else:
         logging.error("{0}: {1}".format(rec.name, description))
-        phase = 4
+        phase = 3
 
     return phase, keywords
 
 
 def phase(args):
     """
-    %prog phase genbankfile
+    %prog phase genbankfiles
 
     Input has to be gb file. Search the `KEYWORDS` section to look for PHASE.
+    Also look for "chromosome" and "clone" in the definition line.
     """
     p = OptionParser(phase.__doc__)
     opts, args = p.parse_args(args)
 
-    if len(args) != 1:
-        sys.exit(p.print_help())
+    if len(args) < 1:
+        sys.exit(not p.print_help())
 
-    gbfile, = args
-    for rec in SeqIO.parse(gbfile, "gb"):
-        bac_phase, keywords = get_phase(rec)
-        print "{0}\t{1}\t{2}".format(rec.id, bac_phase, "; ".join(keywords))
+    for gbfile in args:
+        for rec in SeqIO.parse(gbfile, "gb"):
+            bac_phase, keywords = get_phase(rec)
+            chr, clone = get_clone(rec)
+            keyword_field = ";".join(keywords)
+            print "\t".join((rec.id, str(bac_phase), keyword_field,
+                    chr, clone))
 
 
 """

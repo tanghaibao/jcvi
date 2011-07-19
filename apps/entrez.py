@@ -197,6 +197,9 @@ def fetch(args):
 
         seen.add(id)
 
+    print >> sys.stderr, "A total of {0} {1} records downloaded.".\
+            format(len(seen), fmt.upper())
+
 
 if __name__ == '__main__':
     main()

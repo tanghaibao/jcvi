@@ -966,6 +966,10 @@ def sequin(args):
             help="The minimum size of a gap to split [default: %default]")
     p.add_option("--unk", default=100, type="int",
             help="The size for unknown gaps [default: %default]")
+    p.add_option("--chromosome", default=None,
+            help="Add [chromosome= ] to FASTA header [default: %default]")
+    p.add_option("--clone", default=None,
+            help="Add [clone= ] to FASTA header [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -991,7 +995,13 @@ def sequin(args):
         seq += subseq
 
     fw = must_open(outputfasta, "w")
-    print >> fw, ">{0}".format(rec.id)
+    fastaheader = ">{0}".format(rec.id)
+    if opts.chromosome:
+        fastaheader += " [chromosome={0}]".format(opts.chromosome)
+    if opts.clone:
+        fastaheader += " [clone={0}]".format(opts.clone)
+
+    print >> fw, fastaheader
     print >> fw, seq
     fw.close()
     logging.debug("Sequin FASTA written to `{0}` (gaps: {1} unknowns, {2} knowns).".\

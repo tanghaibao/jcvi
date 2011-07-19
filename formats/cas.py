@@ -288,8 +288,11 @@ def pairs(args):
     """
     %prog pairs castabfile
 
-    report summary of the cas tabular results, how many paired ends mapped, avg
-    distance between paired ends, etc
+    Report summary of the cas tabular results, how many paired ends mapped, avg
+    distance between paired ends, etc.
+
+    Reads have to be have the same prefix, use --rclip to remove trailing
+    part, e.g. /1, /2, or .f, .r.
     """
     p = OptionParser(pairs.__doc__)
     set_options_pairs(p)
@@ -297,12 +300,8 @@ def pairs(args):
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
-    rclip = opts.rclip
-    cutoff = opts.cutoff
-    if cutoff:
-        cutoff = int(cutoff)
     castabfile, = args
 
     if castabfile.endswith(".cas"):
@@ -319,11 +318,10 @@ def pairs(args):
 
     fp = open(castabfile)
     data = [CasTabLine(row) for i, row in enumerate(fp) if i < opts.nrows]
-    data.sort(key=lambda x: x.readname)
 
-    report_pairs(data, cutoff, dialect="castab", pairsfile=pairsfile,
-           insertsfile=insertsfile, rclip=rclip,
-           ascii=opts.ascii, bins=opts.bins)
+    report_pairs(data, opts.cutoff,
+           dialect="castab", pairsfile=pairsfile, insertsfile=insertsfile,
+           rclip=opts.rclip, ascii=opts.ascii, bins=opts.bins)
 
 
 if __name__ == '__main__':

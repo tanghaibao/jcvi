@@ -4,6 +4,7 @@ parses tabular BLAST -m8 (-format 6 in BLAST+) format
 
 import os.path as op
 import sys
+import math
 import logging
 
 from itertools import groupby
@@ -382,22 +383,21 @@ def set_options_pairs(instance):
     p.add_option("--pairs", dest="pairsfile",
             default=False, action="store_true",
             help="write valid pairs to pairsfile")
-    p.add_option("-n", dest="nrows",
-            default=100000, type="int",
+    p.add_option("--nrows", default=100000, type="int",
             help="only use the first n lines [default: %default]")
-    p.add_option("-r", dest="rclip", default=1, type="int",
+    p.add_option("--rclip", default=1, type="int",
             help="pair ID is derived from rstrip N chars [default: %default]")
     p.add_option("--inserts", dest="insertsfile", default=True,
             help="write insert sizes to insertsfile and plot distribution " + \
             "to insertsfile.pdf")
     p.add_option("--ascii", default=False, action="store_true",
             help="print ASCII histogram instead of PDF [default: %default]")
-    p.add_option("--bins", default=50, type="int",
+    p.add_option("--bins", default=20, type="int",
             help="number of bins in the histogram [default: %default]")
 
 
 def report_pairs(data, cutoff=0, dialect="blast", pairsfile=None,
-        insertsfile=None, rclip=1, ascii=False, bins=50):
+        insertsfile=None, rclip=1, ascii=False, bins=20):
     """
     This subroutine is used by the pairs function in blast.py and cas.py.
     Reports number of fragments and pairs as well as linked pairs
@@ -416,10 +416,7 @@ def report_pairs(data, cutoff=0, dialect="blast", pairsfile=None,
     orientations = defaultdict(int)
 
     # clip how many chars from end of the read name to get pair name
-    if rclip:
-        rs = lambda x: x[:-rclip]
-    else:
-        rs = str
+    rs = lambda x: x[:-rclip] if rclip else str
 
     if dialect == BLAST:
         key = lambda x: rs(x.query)
@@ -429,6 +426,8 @@ def report_pairs(data, cutoff=0, dialect="blast", pairsfile=None,
         key = lambda x: rs(x.fragmentID)
     elif dialect == BED:
         key = lambda x: rs(x.accn)
+
+    data.sort(key=key)
 
     if pairsfile:
         pairsfw = open(pairsfile, "w")
@@ -486,6 +485,7 @@ def report_pairs(data, cutoff=0, dialect="blast", pairsfile=None,
         dists = np.array([x[0] for x in all_dist], dtype="int")
         p0 = np.median(dists)
         cutoff = int(2 * p0)  # initial estimate
+        cutoff = int(math.ceil(cutoff / bins)) * bins
         logging.debug("Insert size cutoff set to {0}, ".format(cutoff) +
             "use '--cutoff' to override")
 
@@ -545,9 +545,11 @@ def pairs(args):
     """
     %prog pairs blastfile
 
-    report summary of blast tabular results, how many paired ends mapped, avg
-    distance between paired ends, etc. Reads have to be in the form of
-    `READNAME{/1,/2}`
+    Report summary of blast tabular results, how many paired ends mapped, avg
+    distance between paired ends, etc.
+
+    Reads have to be have the same prefix, use --rclip to remove trailing
+    part, e.g. /1, /2, or .f, .r.
     """
     p = OptionParser(pairs.__doc__)
     set_options_pairs(p)
@@ -555,9 +557,8 @@ def pairs(args):
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
-    cutoff = opts.cutoff
     blastfile, = args
 
     basename = blastfile.split(".")[0]
@@ -565,11 +566,11 @@ def pairs(args):
     insertsfile = ".".join((basename, "inserts")) if opts.insertsfile else None
 
     fp = open(blastfile)
-    data = [BlastLine(row) for row in fp]
-    data.sort(key=lambda x: x.query)
+    data = [BlastLine(row) for i, row in enumerate(fp) if i < opts.nrows]
 
-    report_pairs(data, cutoff, dialect="blast", pairsfile=pairsfile,
-           insertsfile=insertsfile, ascii=opts.ascii, bins=opts.bins)
+    report_pairs(data, opts.cutoff,
+           dialect="blast", pairsfile=pairsfile, insertsfile=insertsfile,
+           rclip=opts.rclip, ascii=opts.ascii, bins=opts.bins)
 
 
 def best(args):

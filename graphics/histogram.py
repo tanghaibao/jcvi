@@ -82,9 +82,10 @@ def stem_leaf_plot(data, vmin, vmax, bins, title=None):
     bins = np.arange(vmin, vmax + step, step)
     hist, bin_edges = np.histogram(data, bins=bins)
     asciiplot(bin_edges, hist, title=title)
+    print >> sys.stderr, "Last bin ends in {0}, inclusive.".format(vmax)
 
 
-def texthistogram(numberfiles, vmin, vmax, title=None, bins=50, skip=0):
+def texthistogram(numberfiles, vmin, vmax, title=None, bins=20, skip=0):
     for nf in numberfiles:
         logging.debug("Import `{0}`.".format(nf))
         data, vmin, vmax = get_data(nf, vmin, vmax, skip=skip)
@@ -109,7 +110,7 @@ def histogram(numberfile, vmin, vmax, xlabel, title,
 
 
 def histogram_multiple(numberfiles, vmin, vmax, xlabel, title,
-        bins=50, skip=0, ascii=False):
+        bins=20, skip=0, ascii=False):
     """
     Generate histogram using number from numberfile, and only numbers in the
     range of (vmin, vmax). First combining multiple files.

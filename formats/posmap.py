@@ -285,9 +285,11 @@ def pairs(args):
     """
     %prog pairs frgscffile
 
-    report summary of the frgscf, how many paired ends mapped, avg
-    distance between paired ends, etc. Reads have to be in the form of
-    `READNAME{/1,/2}`
+    Report summary of the frgscf, how many paired ends mapped, avg
+    distance between paired ends, etc.
+
+    Reads have to be have the same prefix, use --rclip to remove trailing
+    part, e.g. /1, /2, or .f, .r.
     """
     p = OptionParser(pairs.__doc__)
     set_options_pairs(p)
@@ -295,9 +297,8 @@ def pairs(args):
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
-    cutoff = opts.cutoff
     frgscffile, = args
 
     basename = frgscffile.split(".")[0]
@@ -305,11 +306,11 @@ def pairs(args):
     insertsfile = ".".join((basename, "inserts")) if opts.insertsfile else None
 
     fp = open(frgscffile)
-    data = [FrgScfLine(row) for row in fp]
-    data.sort(key=lambda x: x.fragmentID)
+    data = [FrgScfLine(row) for i, row in enumerate(fp) if i < opts.nrows]
 
-    report_pairs(data, cutoff, dialect="frgscf", pairsfile=pairsfile,
-           insertsfile=insertsfile, ascii=opts.ascii, bins=opts.bins)
+    report_pairs(data, opts.cutoff,
+           dialect="frgscf", pairsfile=pairsfile, insertsfile=insertsfile,
+           rclip=opts.rclip, ascii=opts.ascii, bins=opts.bins)
 
 
 if __name__ == '__main__':

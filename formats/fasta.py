@@ -812,15 +812,14 @@ def random(args):
     Take number of records randomly from fasta
     """
     p = OptionParser(random.__doc__)
-    p.add_option("-N", default=1, type="int",
-        help="Number of random sequences to take [default: %default]")
     opts, args = p.parse_args(args)
 
-    if len(args) != 1:
+    if len(args) != 2:
         sys.exit(not p.print_help())
 
-    fastafile, = args
-    N = opts.N
+    fastafile, N = args
+    N = int(N)
+    assert N > 0
 
     f = Fasta(fastafile)
     fw = must_open("stdout", "w")

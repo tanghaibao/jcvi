@@ -243,17 +243,20 @@ def join(args):
     Concatenate a list of seqs and add gaps in between
     """
     p = OptionParser(join.__doc__)
+    p.add_option("--minctgsize", default=0, type="int",
+            help="minimum contig size allowed [default: %default]")
     p.add_option("--gapsize", dest="gapsize", default=100, type="int",
             help="number of N's in between the sequences [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
     fastafile, = args
 
     gap = opts.gapsize * 'N'
-    seq = gap.join(str(x.seq) for x in SeqIO.parse(fastafile, "fasta"))
+    seq = gap.join(str(x.seq) for x in SeqIO.parse(fastafile, "fasta") \
+            if len(x.seq) >= opts.minctgsize)
     rec = SeqRecord(Seq(seq), id="chr0", description="")
 
     fw = sys.stdout
@@ -268,7 +271,7 @@ def summary(args):
     """
     p = OptionParser(summary.__doc__)
     p.add_option("--suffix", dest="suffix", default="Mb",
-            help="make the base pair couns human readable [default: %default]")
+            help="make the base pair counts human readable [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) == 0:
@@ -983,6 +986,8 @@ def sequin(args):
             help="The minimum size of a gap to split [default: %default]")
     p.add_option("--unk", default=100, type="int",
             help="The size for unknown gaps [default: %default]")
+    p.add_option("--newid", default=None,
+            help="Use this identifier instead [default: %default]")
     p.add_option("--chromosome", default=None,
             help="Add [chromosome= ] to FASTA header [default: %default]")
     p.add_option("--clone", default=None,
@@ -1012,7 +1017,8 @@ def sequin(args):
         seq += subseq
 
     fw = must_open(outputfasta, "w")
-    fastaheader = ">{0}".format(rec.id)
+    id = opts.newid or rec.id
+    fastaheader = ">{0}".format(id)
     if opts.chromosome:
         fastaheader += " [chromosome={0}]".format(opts.chromosome)
     if opts.clone:
@@ -1172,8 +1178,8 @@ def gaps(args):
 
             else:
                 component_id = "{0}_{1}".format(object, component_number)
+                component_number += 1
                 if agp:
-                    component_number += 1
                     component_type = "W"
                     component_beg = 1
                     component_end = current_length

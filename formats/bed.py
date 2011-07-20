@@ -104,6 +104,10 @@ class Bed(LineFile):
         return sorted(set(b.seqid for b in self))
 
     @property
+    def accns(self):
+        return sorted(set(b.accn for b in self))
+
+    @property
     def order(self):
         # get the gene order given a Bed object
         return dict((f.accn, (i, f)) for (i, f) in enumerate(self))

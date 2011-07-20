@@ -134,10 +134,11 @@ def fetch(args):
     """
     p = OptionParser(fetch.__doc__)
 
-    valid_formats     = ("fasta", "gb", "est", "gss")
+    valid_formats     = ("fasta", "gb", "est", "gss", "asn.1")
     valid_databases   = ("genome", "nuccore", "nucest", "nucgss", "protein")
 
     allowed_databases = {"fasta" : ["genome", "nuccore", "nucgss", "protein"],
+                         "asn.1" : ["genome", "nuccore", "nucgss", "protein"],
                          "gb"    : ["genome", "nuccore", "nucgss"],
                          "est"   : ["nucest"],
                          "gss"   : ["nucgss"]

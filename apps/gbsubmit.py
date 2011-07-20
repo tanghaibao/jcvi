@@ -116,15 +116,61 @@ def main():
     actions = (
         ('gss', 'prepare package for genbank gss submission'),
         ('htg', 'prepare sqn for genbank htg submission'),
+        ('asn', 'get the name tags from a bunch of asn.1 files'),
         ('t384', 'print out a table converting between 96 well to 384 well'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
 
+def asn(args):
+    """
+    %prog asn asnfiles
+    """
+    p = OptionParser(asn.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) < 1:
+        sys.exit(not p.print_help())
+
+    """
+    Mainly to get this block:
+
+        general {
+          db "TIGR" ,
+          tag
+            str "mtg2_12952" } ,
+        genbank {
+          accession "AC148996" ,
+    """
+    for asnfile in args:
+        fp = open(asnfile)
+        ingeneralblock = False
+        ingenbankblock = False
+        for row in fp:
+            if row.strip() == "":
+                continue
+
+            tag = row.split()[0]
+
+            if tag == "general":
+                ingeneralblock = True
+            if ingeneralblock and tag == "str":
+                name = row.split("\"")[1]
+                ingeneralblock = False
+
+            if tag == "genbank":
+                ingenbankblock = True
+            if ingenbankblock and tag == "accession":
+                gb = row.split("\"")[1]
+                ingenbankblock = False
+                print "{0}\t{1}".format(gb, name)
+                break
+
+
 def htg(args):
     """
-    %prog htg fastafile phasefile template.sbt
+    %prog htg fastafile phasefile namefile template.sbt
 
     Prepare sqnfiles for Genbank HTG submission.
 
@@ -143,6 +189,23 @@ def htg(args):
     labeled as Phase-3 regardless of the info in the `phasefile`. Template file
     is the Genbank sbt template. See jcvi.formats.sbt for generation of such
     files.
+
+    Another problem is that Genbank requires the name of the sequence to stay
+    the same when updating and will kick back with a table of name conflicts.
+    For example:
+
+    We are unable to process the updates for these entries
+    for the following reason:
+
+    Seqname has changed
+
+    Accession Old seq_name New seq_name
+    --------- ------------ ------------
+    AC239792 mtg2_29457 AC239792.1
+
+    So, to prepare a submission, you need to download genbank and asn.1 format,
+    and generate the phase file and the names file (use formats.agp.phase() and
+    apps.gbsubmit.asn(), respectively).
     """
     from jcvi.formats.fasta import Fasta, sequin
 
@@ -151,10 +214,10 @@ def htg(args):
             help="Comments for this update [default: %default]")
     opts, args = p.parse_args(args)
 
-    if len(args) != 3:
+    if len(args) != 4:
         sys.exit(not p.print_help())
 
-    fastafile, phasefile, sbtfile = args
+    fastafile, phasefile, namesfile, sbtfile = args
     newphasefile = phasefile + ".new"
     newphasefw = open(newphasefile, "w")
     comment = opts.comment
@@ -166,11 +229,13 @@ def htg(args):
 
     from jcvi.graphics.histogram import stem_leaf_plot
 
+    names = DictFile(namesfile)
     phases = DictFile(phasefile)
     ph = [int(x) for x in phases.values()]
     # vmin 1, vmax 4, bins 3
     stem_leaf_plot(ph, 1, 4, 3, title="Counts of phases before updates")
     logging.debug("Information loaded for {0} records.".format(len(phases)))
+    assert len(names) == len(phases)
 
     newph = []
 
@@ -191,8 +256,10 @@ def htg(args):
         fafile = op.join(fastadir, accession + ".fa")
         accession_nv = accession.split(".", 1)[0]
 
+        newid = names[accession_nv]
+        newidopt = "--newid={0}".format(newid)
         cloneopt = "--clone={0}".format(clone)
-        splitfile, gaps = sequin([fafile, cloneopt])
+        splitfile, gaps = sequin([fafile, newidopt, cloneopt])
         splitfile = op.basename(splitfile)
         phase = int(phase)
         assert phase in (1, 2, 3)

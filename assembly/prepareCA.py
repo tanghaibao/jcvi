@@ -351,11 +351,17 @@ def fasta(args):
     grid = opts.grid
 
     fastafile, = args
-    libname = op.basename(fastafile).split(".")[0]
-    frgfile = fastafile.rsplit(".", 1)[0] + ".frg"
+    plate = op.basename(fastafile).split(".")[0]
 
     mated = (opts.size != 0)
     mean, sv = get_mean_sv(opts.size)
+
+    if mated:
+        libname = "Sanger{0}Kb-".format(opts.size / 1000) + plate
+    else:
+        libname = "SangerFrags-" + plate
+
+    frgfile = libname + ".frg"
 
     qualfile = make_qual(fastafile)
     if mated:

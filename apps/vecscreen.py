@@ -42,7 +42,7 @@ def run_blastall(infile=None, outfile=None, db="UniVec_Core"):
     """
     cmd = 'blastall -p blastn -i {0}'.format(infile) 
     cmd += ' -d {0} -q -5 -G 3 -E 3 -F "m D"'.format(db)
-    cmd += ' -e 0.001 -Y 1.75e12 -m 8 -o {0} -a 8'.format(outfile)
+    cmd += ' -e 0.01 -Y 1.75e12 -m 8 -o {0} -a 8'.format(outfile)
     sh(cmd)
 
 
@@ -62,13 +62,6 @@ def run_blast_filter(infile=None, outfile=None):
 
     logging.debug("Filter BLAST result (pctid=95, hitlen=50)")
     filter([infile, "--pctid=95", "--hitlen=50"])
-
-
-@depends
-def run_supermap(infile=None, outfile=None):
-    from jcvi.algorithms.supermap import supermap
-
-    supermap(infile, filter="query")
 
 
 def blast(args):
@@ -103,10 +96,7 @@ def blast(args):
     prog = run_blat if opts.blat else run_blastall
     prog(infile=fastafile, outfile=fastablast, db=univec)
 
-    supermapblast = fastablast + ".query.supermap"
-    run_supermap(infile=fastablast, outfile=supermapblast)
-
-    fp = open(supermapblast)
+    fp = open(fastablast)
     ranges = []
     for row in fp:
         b = BlastLine(row)

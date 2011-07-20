@@ -238,28 +238,30 @@ def sort(args):
 
 def join(args):
     """
-    %prog join fastafile
+    %prog join fastafile newfastafile
 
     Concatenate a list of seqs and add gaps in between
     """
     p = OptionParser(join.__doc__)
+    p.add_option("--newid", default="chr0",
+            help="the new sequence ID [default: %default]")
     p.add_option("--minctgsize", default=0, type="int",
             help="minimum contig size allowed [default: %default]")
     p.add_option("--gapsize", dest="gapsize", default=100, type="int",
             help="number of N's in between the sequences [default: %default]")
     opts, args = p.parse_args(args)
 
-    if len(args) != 1:
+    if len(args) != 2:
         sys.exit(not p.print_help())
 
-    fastafile, = args
+    fastafile, newfastafile = args
 
     gap = opts.gapsize * 'N'
     seq = gap.join(str(x.seq) for x in SeqIO.parse(fastafile, "fasta") \
             if len(x.seq) >= opts.minctgsize)
-    rec = SeqRecord(Seq(seq), id="chr0", description="")
+    rec = SeqRecord(Seq(seq), id=opts.newid, description="")
 
-    fw = sys.stdout
+    fw = must_open(newfastafile, "w")
     SeqIO.write([rec], fw, "fasta")
 
 
@@ -526,10 +528,10 @@ def get_qual(fastafile, suffix=QUALSUFFIX, check=True):
     if check:
         if op.exists(qualfile1):
             logging.debug("qual file `{0}` found".format(qualfile1))
-            qualfile = qualfile1
+            return qualfile1
         elif op.exists(qualfile2):
             logging.debug("qual file `{0}` found".format(qualfile2))
-            qualfile = qualfile2
+            return qualfile2
         else:
             logging.warning("qual file not found")
             return None
@@ -617,7 +619,7 @@ def pair(args):
     """
     %prog pair fastafile
 
-    Generate .pairs.fasta and .fragments.fasta by matching records with /1/2
+    Generate .pairs.fasta and .fragments.fasta by matching records
     into the pairs and the rest go to fragments.
     """
     p = OptionParser(pair.__doc__)
@@ -1096,7 +1098,6 @@ def tidy(args):
         ngaps = newseq.count(normalized_gap)
         if ngaps == 0:
             logging.debug("{0}: is now a Phase 3 sequence.".format(rec.id))
-            print "\t".join((rec.id, "3"))
 
         rec.seq = Seq(newseq)
 
@@ -1202,7 +1203,8 @@ def gaps(args):
             gap_description = starts = "no gaps"
 
         if log:
-            print >> fwlog, "\t".join((rec.id, gap_description, starts))
+            print >> fwlog, "\t".join((rec.id, str(len(allgaps)),
+                    gap_description, starts))
 
 
 if __name__ == '__main__':

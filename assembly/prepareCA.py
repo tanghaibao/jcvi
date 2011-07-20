@@ -22,6 +22,8 @@ from Bio import SeqIO
 from jcvi.formats.base import must_open
 from jcvi.formats.fasta import Fasta, SeqRecord, \
     get_qual, iter_fasta_qual, write_fasta_qual
+from jcvi.formats.blast import Blast
+from jcvi.utils.range import range_minmax
 from jcvi.utils.table import tabulate
 from jcvi.apps.softlink import get_abs_path
 from jcvi.apps.base import ActionDispatcher, sh, set_grid, debug
@@ -33,6 +35,7 @@ def main():
 
     actions = (
         ('tracedb', 'convert trace archive files to frg file'),
+        ('clr', 'prepare vector clear range file based on BLAST to vectors'),
         ('fasta', 'convert fasta to frg file'),
         ('sff', 'convert 454 reads to frg file'),
         ('sffinfo', 'convert 454 sff format to FASTA format'),
@@ -502,6 +505,49 @@ def sffinfo(args):
         cmd = "sffinfo -seq {0}".format(sffile)
 
         sh(cmd, outfile=fastafile, grid=opts.grid)
+
+
+def clr(args):
+    """
+    %prog blastfile fastafiles
+
+    Calculate the vector clear range file based BLAST to the vectors.
+    """
+    p = OptionParser(clr.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) < 2:
+        sys.exit(not p.print_help())
+
+    blastfile = args[0]
+    fastafiles = args[1:]
+
+    sizes = {}
+    for fa in fastafiles:
+        f = Fasta(fa)
+        sizes.update(f.itersizes())
+
+    b = Blast(blastfile)
+    seen = set()
+    for query, hits in b.iter_hits():
+
+        qsize = sizes[query]
+        vectors = list((x.qstart, x.qstop) for x in hits)
+        vmin, vmax = range_minmax(vectors)
+
+        left_size = vmin - 1
+        right_size = qsize - vmax
+
+        if left_size > right_size:
+            clr_start, clr_end = 0, vmin
+        else:
+            clr_start, clr_end = vmax, qsize
+
+        print "\t".join(str(x) for x in (query, clr_start, clr_end))
+        del sizes[query]
+
+    for q, size in sorted(sizes.items()):
+        print "\t".join(str(x) for x in (q, 0, size))
 
 
 if __name__ == '__main__':

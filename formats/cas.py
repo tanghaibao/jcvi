@@ -253,12 +253,11 @@ def bed(args):
 
     convert the CAS or CASTAB format into bed format
     """
-
     p = OptionParser(bed.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
     casfile, fastafile = args
     if casfile.endswith(".cas"):

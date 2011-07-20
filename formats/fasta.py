@@ -157,6 +157,7 @@ def main():
         ('ids', 'generate a list of header without the >'),
         ('format', 'trim accession id to the first space or switch id ' + \
                    'based on 2-column mapping file'),
+        ('pool', 'pool a bunch of fastafiles together and add prefix'),
         ('random', 'randomly take some records'),
         ('diff', 'check if two fasta records contain same information'),
         ('trim', 'given a cross_match screened fasta, trim the sequence'),
@@ -174,9 +175,27 @@ def main():
     p.dispatch(globals())
 
 
+def pool(args):
+    """
+    %prog pool fastafiles
+
+    Pool a bunch of FASTA files, and add prefix to each record based on
+    filenames.
+    """
+    p = OptionParser(pool.__doc__)
+
+    if len(args) < 1:
+        sys.exit(not p.print_help())
+
+    for fastafile in args:
+        pf = op.basename(fastafile).split(".")[0].split("_")[0]
+        prefixopt = "--prefix={0}_".format(pf)
+        format([fastafile, "stdout", prefixopt])
+
+
 def ids(args):
     """
-    %prog ids fastafile
+    %prog ids fastafiles
 
     Generate the FASTA headers without the '>'.
     """
@@ -185,10 +204,10 @@ def ids(args):
     if len(args) < 1:
         sys.exit(not p.print_help())
 
-    fastafile, = args
-    f = Fasta(fastafile, lazy=True)
-    for key in f.iterkeys_ordered():
-        print key
+    for fastafile in args:
+        f = Fasta(fastafile, lazy=True)
+        for key in f.iterkeys_ordered():
+            print key
 
 
 def sort(args):
@@ -364,8 +383,6 @@ def format(args):
         rec.description = ""
 
         SeqIO.write(rec, fw, "fasta")
-
-    fw.close()
 
 
 def get_first_rec(fastafile):

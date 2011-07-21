@@ -247,6 +247,22 @@ def split(args):
         sh(cmd, grid=opts.grid)
 
 
+def check_txt(casfile):
+    """
+    Check to see if the casfile is already converted to txtfile with txt().
+    """
+    if casfile.endswith(".cas"):
+        castabfile = casfile.replace(".cas", ".txt")
+        if not op.exists(castabfile):
+            castabfile = txt([casfile])
+        else:
+            logging.debug("File `{0}` found.".format(castabfile))
+    else:
+        castabfile = casfile
+
+    return castabfile
+
+
 def bed(args):
     """
     %prog bed casfile fastafile
@@ -260,14 +276,7 @@ def bed(args):
         sys.exit(not p.print_help())
 
     casfile, fastafile = args
-    if casfile.endswith(".cas"):
-        castabfile = casfile.replace(".cas", ".txt")
-        if not op.exists(castabfile):
-            castabfile = txt([casfile])
-        else:
-            logging.debug("File `{0}` found.".format(castabfile))
-    else:
-        castabfile = casfile
+    castabfile = check_txt(casfile)
 
     refnames = [rec.id for rec in SeqIO.parse(fastafile, "fasta")]
     fp = open(castabfile)
@@ -285,31 +294,17 @@ def bed(args):
 
 def pairs(args):
     """
-    %prog pairs castabfile
-
-    Report summary of the cas tabular results, how many paired ends mapped, avg
-    distance between paired ends, etc.
-
-    Reads have to be have the same prefix, use --rclip to remove trailing
-    part, e.g. /1, /2, or .f, .r.
+    See __doc__ for set_options_pairs().
     """
-    p = OptionParser(pairs.__doc__)
-    set_options_pairs(p)
+    p = set_options_pairs()
 
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    castabfile, = args
-
-    if castabfile.endswith(".cas"):
-        txtfile = castabfile.replace(".cas", ".txt")
-        if op.exists(txtfile):
-            logging.debug("File `{0}` already exists.".format(txtfile))
-        else:
-            txt([castabfile])
-        castabfile = txtfile
+    casfile, = args
+    castabfile = check_txt(casfile)
 
     basename = castabfile.split(".")[0]
     pairsfile = ".".join((basename, "pairs")) if opts.pairsfile else None
@@ -318,9 +313,10 @@ def pairs(args):
     fp = open(castabfile)
     data = [CasTabLine(row) for i, row in enumerate(fp) if i < opts.nrows]
 
-    report_pairs(data, opts.cutoff,
+    ascii = not opts.pdf
+    return report_pairs(data, opts.cutoff,
            dialect="castab", pairsfile=pairsfile, insertsfile=insertsfile,
-           rclip=opts.rclip, ascii=opts.ascii, bins=opts.bins)
+           rclip=opts.rclip, ascii=ascii, bins=opts.bins)
 
 
 if __name__ == '__main__':

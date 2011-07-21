@@ -47,7 +47,9 @@ def mask(args):
     fastafile, = args
     outfastafile = fastafile.rsplit(".", 1)[0] + ".masked.fasta"
     vecbedfile = blast([fastafile])
-    ecolibedfile = blast([fastafile, "--db=Ecoli.fasta", "--blat"])
+    ecolifile = "Ecoli.fasta"
+    assert op.exists(ecolifile)
+    ecolibedfile = blast([fastafile, "--db={0}".format(ecolifile), "--blat"])
 
     cmd = "cat {0} {1}".format(vecbedfile, ecolibedfile)
     cmd += " | mergeBed -nms -d 100 -i stdin"

@@ -11,9 +11,8 @@ import logging
 from collections import defaultdict
 from optparse import OptionParser
 
-from jcvi.formats.bed import BedLine
+from jcvi.formats.bed import BedLine, pairs
 from jcvi.formats.sizes import Sizes
-from jcvi.formats.blast import report_pairs
 from jcvi.utils.iter import pairwise
 from jcvi.utils.range import ranges_intersect
 from jcvi.algorithms.graph import nx
@@ -55,15 +54,7 @@ def bed(args):
 
     sizes = Sizes(fastafile)
 
-    fp = open(bedfile)
-
-    sample = 100000
-    logging.debug(\
-        "Sample only the first {0} lines to estimate inserts".format(sample))
-    beds = [BedLine(x) for i, x in enumerate(fp) if i < sample]
-
-    meandist, stdev, p0, p1, p2 = report_pairs(beds, cutoff=0, dialect="bed")
-    #maxcutoff = int(meandist + 1.96 * stdev)
+    meandist, stdev, po, p1, p2 = pairs([bedfile])
     maxcutoff = p2
     logging.debug("Mate hangs must be <= {0}".format(maxcutoff))
 

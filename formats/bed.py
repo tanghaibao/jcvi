@@ -1,8 +1,8 @@
-
 """
 Classes to handle the .bed files
 """
 
+import os.path as op
 import sys
 import shutil
 import logging
@@ -133,9 +133,42 @@ def main():
     actions = (
         ('sort', 'sort bed file'),
         ('sum', 'sum the total lengths of the intervals'),
+        ('pairs', 'print paired-end reads from bedfile'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def pairs(args):
+    """
+    See __doc__ for set_options_pairs().
+    """
+    from jcvi.formats.blast import report_pairs, set_options_pairs
+    p = set_options_pairs()
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    bedfile, = args
+
+    basename = bedfile.split(".")[0]
+    pairsfile = ".".join((basename, "pairs")) if opts.pairsfile else None
+    insertsfile = ".".join((basename, "inserts")) if opts.insertsfile else None
+
+    sortedbedfile = op.basename(bedfile).rsplit(".", 1)[0] + ".sorted.bed"
+    if not op.exists(sortedbedfile):
+        sortedbedfile = sort([bedfile, "--accn"])
+    bedfile = sortedbedfile
+
+    fp = open(bedfile)
+    data = [BedLine(row) for i, row in enumerate(fp) if i < opts.nrows]
+
+    ascii = not opts.pdf
+    return report_pairs(data, opts.cutoff,
+           dialect="bed", pairsfile=pairsfile, insertsfile=insertsfile,
+           rclip=opts.rclip, ascii=ascii, bins=opts.bins)
 
 
 def sum(args):
@@ -161,14 +194,15 @@ def sort(args):
     """
     %prog sort bedfile
 
-    Sort bed file to have ascending order of seqid, then start.
+    Sort bed file to have ascending order of seqid, then start. It uses the
+    `sort` command.
     """
     p = OptionParser(sort.__doc__)
     p.add_option("-i", "--inplace", dest="inplace",
             default=False, action="store_true",
             help="Sort bed file in place [default: %default]")
-    p.add_option("--fast", dest="fast", default=False, action="store_true",
-            help="Use shell `sort` [default: %default]")
+    p.add_option("--accn", default=False, action="store_true",
+            help="Sort based on the accessions [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -176,20 +210,18 @@ def sort(args):
 
     bedfile, = args
     inplace = opts.inplace
-    if opts.fast:
-        cmd = "sort -k1,1 -k2,2n -k4,4 {0}".format(bedfile)
-        if inplace:
-            cmd += " -o {0}".format(bedfile)
-        sh(cmd)
 
-    else:
-        bed = Bed(bedfile)
-        sortedbed = bedfile + ".sorted"
-        fw = must_open(sortedbed, "w") if inplace else sys.stdout
-        bed.print_to_file(fw=fw)
+    sortedbed = op.basename(bedfile).rsplit(".", 1)[0] + ".sorted.bed"
+    if inplace:
+        sortedbed = bedfile
 
-        if inplace:
-            shutil.move(sortedbed, bedfile)
+    sortopt = "-k1,1 -k2,2n -k4,4" if not opts.accn else \
+              "-k4,4 -k1,1 -k2,2n"
+    cmd = "sort {0} {1}".format(sortopt, bedfile)
+    cmd += " -o {0}".format(sortedbed)
+    sh(cmd)
+
+    return sortedbed
 
 
 if __name__ == '__main__':

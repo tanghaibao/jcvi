@@ -390,19 +390,6 @@ def format(args):
         SeqIO.write(rec, fw, "fasta")
 
 
-def get_first_rec(fastafile):
-    """
-    Returns the first record in the fastafile
-    """
-    f = list(SeqIO.parse(fastafile, "fasta"))
-
-    if len(f) > 1:
-        logging.debug("{0} records found in {1}, using the first one".\
-                format(len(f), fastafile))
-
-    return f[0]
-
-
 def print_first_difference(arec, brec, ignore_case=False, ignore_N=False,
         rc=False):
     """
@@ -482,8 +469,6 @@ def diff(args):
         sys.exit(p.print_help())
 
     afasta, bfasta = args
-    #arec = get_first_rec(afasta)
-    #brec = get_first_rec(bfasta)
 
     afastan = len(Fasta(afasta))
     bfastan = len(Fasta(bfasta))
@@ -1121,11 +1106,12 @@ def gaps(args):
     p.add_option("--bed", dest="bed", default=False, action="store_true",
             help="Generate .gaps.bed with gap positions [default: %default]")
     p.add_option("--log", dest="log", default=False, action="store_true",
-            help="Generate .log with detailed gap positions [default: %default]")
+            help="Generate gap positions, the log is written to stdout " + \
+                 "[default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
     inputfasta, = args
     mingap = opts.mingap
@@ -1133,7 +1119,6 @@ def gaps(args):
     bed = opts.bed
     log = opts.log
     prefix = inputfasta.rsplit(".", 1)[0]
-    logfile = prefix + ".log"
     if agp:
         agpfile = prefix + ".agp"
         fwagp = open(agpfile, "w")
@@ -1147,7 +1132,8 @@ def gaps(args):
         fwbed = open(bedfile, "w")
         logging.debug("Write gap locations to `{0}`.".format(bedfile))
     if log:
-        fwlog = open(logfile, "w")
+        logfile = "stdout"
+        fwlog = must_open(logfile, "w")
         logging.debug("Write gap locations to `{0}`.".format(logfile))
 
     for rec in SeqIO.parse(inputfasta, "fasta"):

@@ -370,12 +370,16 @@ def bed(args):
         print >> fw, b.bedline
 
 
-def set_options_pairs(instance):
+def set_options_pairs():
     """
-    Add pairs options for blast.pairs(), cas.pairs() and posmap.pairs().
+    %prog pairs <blastfile|casfile|bedfile|posmapfile>
+
+    Report how many paired ends mapped, avg distance between paired ends, etc.
+
+    Reads have to be have the same prefix, use --rclip to remove trailing
+    part, e.g. /1, /2, or .f, .r.
     """
-    assert isinstance(instance, OptionParser)
-    p = instance
+    p = OptionParser(set_options_pairs.__doc__)
 
     p.add_option("--cutoff", dest="cutoff", default=0, type="int",
             help="distance to call valid links between mates "\
@@ -383,17 +387,19 @@ def set_options_pairs(instance):
     p.add_option("--pairs", dest="pairsfile",
             default=False, action="store_true",
             help="write valid pairs to pairsfile")
+    p.add_option("--inserts", dest="insertsfile", default=True,
+            help="write insert sizes to insertsfile and plot distribution " + \
+            "to insertsfile.pdf")
     p.add_option("--nrows", default=100000, type="int",
             help="only use the first n lines [default: %default]")
     p.add_option("--rclip", default=1, type="int",
             help="pair ID is derived from rstrip N chars [default: %default]")
-    p.add_option("--inserts", dest="insertsfile", default=True,
-            help="write insert sizes to insertsfile and plot distribution " + \
-            "to insertsfile.pdf")
-    p.add_option("--ascii", default=False, action="store_true",
-            help="print ASCII histogram instead of PDF [default: %default]")
+    p.add_option("--pdf", default=False, action="store_true",
+            help="print PDF instead ASCII histogram [default: %default]")
     p.add_option("--bins", default=20, type="int",
             help="number of bins in the histogram [default: %default]")
+
+    return p
 
 
 def report_pairs(data, cutoff=0, dialect="blast", pairsfile=None,
@@ -543,16 +549,9 @@ def report_pairs(data, cutoff=0, dialect="blast", pairsfile=None,
 
 def pairs(args):
     """
-    %prog pairs blastfile
-
-    Report summary of blast tabular results, how many paired ends mapped, avg
-    distance between paired ends, etc.
-
-    Reads have to be have the same prefix, use --rclip to remove trailing
-    part, e.g. /1, /2, or .f, .r.
+    See __doc__ for set_options_pairs().
     """
-    p = OptionParser(pairs.__doc__)
-    set_options_pairs(p)
+    p = set_options_pairs()
 
     opts, args = p.parse_args(args)
 
@@ -568,9 +567,10 @@ def pairs(args):
     fp = open(blastfile)
     data = [BlastLine(row) for i, row in enumerate(fp) if i < opts.nrows]
 
-    report_pairs(data, opts.cutoff,
+    ascii = not opts.pdf
+    return report_pairs(data, opts.cutoff,
            dialect="blast", pairsfile=pairsfile, insertsfile=insertsfile,
-           rclip=opts.rclip, ascii=opts.ascii, bins=opts.bins)
+           rclip=opts.rclip, ascii=ascii, bins=opts.bins)
 
 
 def best(args):

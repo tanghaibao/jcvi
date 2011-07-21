@@ -13,7 +13,7 @@ from optparse import OptionParser
 from Bio import Entrez, SeqIO
 
 from jcvi.formats.base import must_open
-from jcvi.formats.fasta import get_first_rec, print_first_difference
+from jcvi.formats.fasta import print_first_difference
 from jcvi.apps.console import print_green
 from jcvi.apps.base import ActionDispatcher, mkdir, debug
 debug()
@@ -84,6 +84,19 @@ def main():
         )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def get_first_rec(fastafile):
+    """
+    Returns the first record in the fastafile
+    """
+    f = list(SeqIO.parse(fastafile, "fasta"))
+
+    if len(f) > 1:
+        logging.debug("{0} records found in {1}, using the first one".\
+                format(len(f), fastafile))
+
+    return f[0]
 
 
 def bisect(args):

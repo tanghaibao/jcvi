@@ -283,16 +283,9 @@ def dup(args):
 
 def pairs(args):
     """
-    %prog pairs frgscffile
-
-    Report summary of the frgscf, how many paired ends mapped, avg
-    distance between paired ends, etc.
-
-    Reads have to be have the same prefix, use --rclip to remove trailing
-    part, e.g. /1, /2, or .f, .r.
+    See __doc__ for set_options_pairs().
     """
-    p = OptionParser(pairs.__doc__)
-    set_options_pairs(p)
+    p = set_options_pairs()
 
     opts, args = p.parse_args(args)
 
@@ -308,9 +301,10 @@ def pairs(args):
     fp = open(frgscffile)
     data = [FrgScfLine(row) for i, row in enumerate(fp) if i < opts.nrows]
 
-    report_pairs(data, opts.cutoff,
+    ascii = not opts.pdf
+    return report_pairs(data, opts.cutoff,
            dialect="frgscf", pairsfile=pairsfile, insertsfile=insertsfile,
-           rclip=opts.rclip, ascii=opts.ascii, bins=opts.bins)
+           rclip=opts.rclip, ascii=ascii, bins=opts.bins)
 
 
 if __name__ == '__main__':

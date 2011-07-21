@@ -37,8 +37,11 @@ def bed(args):
     Construct contig links based on bed file
     """
     p = OptionParser(bed.__doc__)
-    p.add_option("-l", dest="links", type="int", default=2,
+    p.add_option("--links", type="int", default=2,
             help="Minimum number of mate pairs to bundle [default: %default]")
+    p.add_option("--cutoff", type="int", default=0,
+            help="Largest distance expected for linkage " + \
+                 "[default: estimate from data]")
     p.add_option("--debug", dest="debug", default=False, action="store_true",
             help="Print verbose info when checking mates [default: %default]")
     opts, args = p.parse_args(args)
@@ -49,19 +52,24 @@ def bed(args):
     bedfile, fastafile = args
     links = opts.links
     debug = opts.debug
+    cutoff = opts.cutoff
 
     linksfile = bedfile.rsplit(".", 1)[0] + ".links"
 
     sizes = Sizes(fastafile)
 
-    meandist, stdev, po, p1, p2 = pairs([bedfile])
-    maxcutoff = p2
-    logging.debug("Mate hangs must be <= {0}".format(maxcutoff))
+    cutoffopt = "--cutoff={0}".format(cutoff)
+    bedfile, (meandist, stdev, p0, p1, p2) = \
+            pairs([bedfile, cutoffopt])
+
+    maxcutoff = cutoff or p2
+    logging.debug("Mate hangs must be <= {0}, --cutoff to override".\
+            format(maxcutoff))
 
     contigGraph = defaultdict(list)
     rs = lambda x: x.accn[:-1]
 
-    fp.seek(0)
+    fp = open(bedfile)
 
     for a, b in pairwise(fp):
         """
@@ -71,9 +79,6 @@ def bed(args):
         3. calculate sequence hangs, valid hangs are smaller than insert size
         """
         a, b = BedLine(a), BedLine(b)
-        if debug:
-            print >> sys.stderr, a
-            print >> sys.stderr, b
 
         if rs(a) != rs(b):
             continue
@@ -81,6 +86,7 @@ def bed(args):
 
         if a.seqid == b.seqid:
             continue
+
         """
         The algorithm that determines the oNo of this contig pair, the contig
         order is determined by +-, assuming that the matepairs are `innies`. In
@@ -117,7 +123,7 @@ def bed(args):
 
         if hangs > maxcutoff:
             if debug:
-                print >> sys.stderr, "invalid link. skipped."
+                print >> sys.stderr, "invalid link ({0}). skipped.".format(hangs)
             continue
 
         # pair (1+, 2-) is the same as (2+, 1-), only do the canonical one

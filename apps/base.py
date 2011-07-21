@@ -11,6 +11,11 @@ import logging
 from subprocess import call
 from optparse import OptionParser
 
+# Install locations of common binaries
+BDPATH = "~/bin/"
+CAPATH = "~/bin/Linux-amd64/bin/"
+CDPATH="~/htang/export/cd-hit-v4.5.5-2011-03-31/"
+
 
 class ActionDispatcher (object):
 

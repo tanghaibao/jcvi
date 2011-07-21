@@ -20,10 +20,9 @@ from jcvi.formats.fasta import gaps
 from jcvi.formats.sizes import Sizes
 from jcvi.formats.posmap import query, bed
 from jcvi.formats.bed import BedLine
-from jcvi.apps.base import ActionDispatcher, sh, debug
+from jcvi.apps.base import ActionDispatcher, sh, debug, BDPATH
 debug()
 
-BDPATH = "~/bin/"
 
 class Coverage (LineFile):
     """

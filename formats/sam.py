@@ -13,7 +13,6 @@ from itertools import groupby
 from optparse import OptionParser
 
 from Bio import SeqIO
-from pysam import Samfile
 from jcvi.formats.base import LineFile
 from jcvi.formats.fasta import Fasta
 from jcvi.utils.cbook import fill
@@ -114,11 +113,12 @@ def index(args):
 
     samfile, = args
     fastafile = opts.fasta
-    assert op.exists(fastafile)
+    if fastafile:
+        assert op.exists(fastafile)
 
-    faifile = fastafile + ".fai"
     bamfile = samfile.replace(".sam", ".bam")
     if fastafile:
+        faifile = fastafile + ".fai"
         if not op.exists(faifile):
             sh("samtools faidx {0}".format(fastafile))
         cmd = "samtools view -bt {0} {1} -F 4 -o {2}".\
@@ -225,8 +225,14 @@ def ace(args):
             help="remove read pairs on the same contig [default: %default]")
     p.add_option("--minreadno", dest="minreadno", default=3, type="int",
             help="minimum read numbers per contig [default: %default]")
-    p.add_option("--minctgsize", dest="minctgsize", default=1000, type="int",
+    p.add_option("--minctgsize", dest="minctgsize", default=100, type="int",
             help="minimum contig size per contig [default: %default]")
+    p.add_option("--astat", default=False, action="store_true",
+            help="create .astat to list repetitiveness [default: %default]")
+    p.add_option("--readids", default=False, action="store_true",
+            help="create file of mapped and unmapped ids [default: %default]")
+
+    from pysam import Samfile
 
     opts, args = p.parse_args(args)
     unpaired = opts.unpaired
@@ -234,15 +240,17 @@ def ace(args):
     minctgsize = opts.minctgsize
 
     if len(args) != 2:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
     bamfile, fastafile = args
+    astat = opts.astat
+    readids = opts.readids
+
     f = Fasta(fastafile)
     prefix = bamfile.split(".")[0]
     acefile = prefix + ".ace"
     readsfile = prefix + ".reads"
     astatfile = prefix + ".astat"
-    leftoverfile = prefix + ".leftover.fasta"
 
     logging.debug("Load {0}".format(bamfile))
     s = Samfile(bamfile, "rb")
@@ -257,9 +265,10 @@ def ace(args):
     logging.debug("Total {0} reads mapped".format(totalreads))
 
     fw = open(acefile, "w")
-    readsfw = open(readsfile, "w")
-    astatfw = open(astatfile, "w")
-    leftoverfw = open(leftoverfile, "w")
+    if astat:
+        astatfw = open(astatfile, "w")
+    if readids:
+        readsfw = open(readsfile, "w")
 
     print >> fw, "AS {0} {1}".format(ncontigs, totalreads)
     print >> fw
@@ -275,9 +284,6 @@ def ace(args):
 
         mapped_reads = [x for x in s.fetch(contig) if not x.is_unmapped]
         nreads = len(mapped_reads)
-        if nreads < minreadno or nbases < minctgsize:
-            SeqIO.write(cseq, leftoverfw, "fasta")
-            continue
 
         nsegments = 0
         print >> fw, "CO {0} {1} {2} {3} U".format(contig, nbases, nreads,
@@ -285,8 +291,9 @@ def ace(args):
         print >> fw, fill(str(cseq.seq))
         print >> fw
 
-        astat = Astat(nbases, nreads, genomesize, totalreads)
-        print >> astatfw, "{0}\t{1:.1f}".format(contig, astat)
+        if astat:
+            astat = Astat(nbases, nreads, genomesize, totalreads)
+            print >> astatfw, "{0}\t{1:.1f}".format(contig, astat)
 
         text = fill([qual] * nbases, delimiter=" ", width=30)
         print >> fw, "BQ\n{0}".format(text)
@@ -295,11 +302,10 @@ def ace(args):
         rnames = []
         for a in mapped_reads:
             readname = a.qname
-            suffix = ".1" if a.is_read1 else ".2"
-            if readname[-2] != '/':
-                rname = readname + suffix
+            rname = readname
 
-            print >> readsfw, readname
+            if readids:
+                print >> readsfw, readname
             rnames.append(rname)
 
             strand = "C" if a.is_reverse else "U"
@@ -325,10 +331,6 @@ def ace(args):
             print >> fw
             print >> fw, qs
             print >> fw
-
-    fw.close()
-    readsfw.close()
-    astatfw.close()
 
     pbar.finish()
 

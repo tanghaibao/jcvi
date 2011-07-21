@@ -15,10 +15,8 @@ from collections import defaultdict
 from optparse import OptionParser
 
 from jcvi.graphics.histogram import loghistogram
-from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.apps.base import ActionDispatcher, debug, CAPATH
 debug()
-
-CAPATH = "~/bin/Linux-amd64/bin/"
 
 
 def calculate_A50(ctgsizes, cutoff=0):

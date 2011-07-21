@@ -157,16 +157,16 @@ def pairs(args):
     pairsfile = ".".join((basename, "pairs")) if opts.pairsfile else None
     insertsfile = ".".join((basename, "inserts")) if opts.insertsfile else None
 
-    sortedbedfile = op.basename(bedfile).rsplit(".", 1)[0] + ".sorted.bed"
-    if not op.exists(sortedbedfile):
-        sortedbedfile = sort([bedfile, "--accn"])
-    bedfile = sortedbedfile
+    if not bedfile.endswith(".sorted.bed"):
+        sortedbedfile = op.basename(bedfile).rsplit(".", 1)[0] + ".sorted.bed"
+        if not op.exists(sortedbedfile):
+            bedfile = sort([bedfile, "--accn"])
 
     fp = open(bedfile)
     data = [BedLine(row) for i, row in enumerate(fp) if i < opts.nrows]
 
     ascii = not opts.pdf
-    return report_pairs(data, opts.cutoff,
+    return bedfile, report_pairs(data, opts.cutoff,
            dialect="bed", pairsfile=pairsfile, insertsfile=insertsfile,
            rclip=opts.rclip, ascii=ascii, bins=opts.bins)
 

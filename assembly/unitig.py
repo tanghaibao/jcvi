@@ -22,8 +22,7 @@ from glob import glob
 from optparse import OptionParser
 
 from jcvi.formats.base import BaseFile
-from jcvi.apps.base import ActionDispatcher, sh, mkdir, debug
-from jcvi.assembly.base import CAPATH
+from jcvi.apps.base import ActionDispatcher, sh, mkdir, debug, CAPATH
 debug()
 
 

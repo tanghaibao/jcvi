@@ -13,6 +13,7 @@ from optparse import OptionParser
 
 from jcvi.utils.cbook import depends 
 from jcvi.utils.range import range_merge
+from jcvi.formats.fasta import tidy
 from jcvi.formats.blast import BlastLine
 from jcvi.formats.base import must_open
 from jcvi.apps.base import ActionDispatcher, debug, download, sh
@@ -23,9 +24,38 @@ def main():
 
     actions = (
         ('blast', 'run BLASTN against UniVec'),
+        ('mask', 'mask the contaminants'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def mask(args):
+    """
+    %prog mask fastafile
+
+    Mask the contaminants. By default, this will compare against UniVec_Core and
+    Ecoli.fasta. Merge the contaminant results, and use `maskFastaFromBed`. Can
+    perform FASTA tidy if requested.
+    """
+    p = OptionParser(mask.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    fastafile, = args
+    outfastafile = fastafile.rsplit(".", 1)[0] + ".masked.fasta"
+    vecbedfile = blast([fastafile])
+    ecolibedfile = blast([fastafile, "--db=Ecoli.fasta", "--blat"])
+
+    cmd = "cat {0} {1}".format(vecbedfile, ecolibedfile)
+    cmd += " | mergeBed -nms -d 100 -i stdin"
+    cmd += " | maskFastaFromBed -fi {0} -bed stdin -fo {1}".\
+            format(fastafile, outfastafile)
+    sh(cmd)
+
+    tidy([outfastafile])
 
 
 @depends
@@ -107,6 +137,8 @@ def blast(args):
     fw = must_open(bedfile, "w")
     for seqid, start, end in merged_ranges:
         print >> fw, "\t".join(str(x) for x in (seqid, start - 1, end, uniprefix))
+
+    return bedfile
 
 
 if __name__ == '__main__':

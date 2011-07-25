@@ -90,6 +90,44 @@ def get_signs(M, validate=True):
     return sign_array
 
 
+def spring_system(A, K, L):
+    """
+    Solving the equilibrium positions of the objects, linked by springs of
+    length L, stiffness of K, and connectivity matrix A. Then solving:
+
+    F_nodes = -A'KAx - A'KL = 0
+
+    In the context of scaffolding, lengths (L) are inferred by mate inserts,
+    stiffness (K) is inferred via the number of links, connectivity (A) is the
+    contigs they connect. The mate pairs form the linkages between the contigs,
+    and can be considered as "springs" of certain lengths. The "springs" are
+    stretched or compressed if the distance deviates from the expected insert size.
+
+    See derivation from Dayarian et al. 2010. SOPRA paper.
+
+    o---------o--------------o
+    x0        x1             x2
+    |~~~~L1~~~|~~~~~~L2~~~~~~|
+    |~~~~~~~~~~L3~~~~~~~~~~~~|
+
+    >>> A = np.array([[1, -1, 0], [0, 1, -1], [1, 0, -1]])
+    >>> K = np.eye(3, dtype=int)
+    >>> L = np.array([1, 2, 3])
+    >>> print spring_system(A, K, L)
+    [ 1.  3.]
+    """
+    # Linear equation is A'KAx = -A'KL
+    C = np.dot(A.T, K)
+    left = np.dot(C, A)
+    right = - np.dot(C, L)
+
+    left = left[1:, 1:]
+    right = right[1:]
+    x = np.linalg.solve(left, right)
+
+    return x
+
+
 if __name__ == '__main__':
     import doctest
     doctest.testmod()

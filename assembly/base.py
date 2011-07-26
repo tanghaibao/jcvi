@@ -15,7 +15,8 @@ from collections import defaultdict
 from optparse import OptionParser
 
 from jcvi.graphics.histogram import loghistogram
-from jcvi.apps.base import ActionDispatcher, debug, CAPATH
+from jcvi.apps.command import CAPATH
+from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
 

@@ -20,7 +20,8 @@ from jcvi.formats.fasta import gaps
 from jcvi.formats.sizes import Sizes
 from jcvi.formats.posmap import query, bed
 from jcvi.formats.bed import BedLine
-from jcvi.apps.base import ActionDispatcher, sh, debug, BDPATH
+from jcvi.apps.command import BDPATH
+from jcvi.apps.base import ActionDispatcher, sh, debug
 debug()
 
 

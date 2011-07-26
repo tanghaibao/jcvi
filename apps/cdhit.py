@@ -14,7 +14,8 @@ from optparse import OptionParser
 
 from jcvi.formats.base import read_block
 from jcvi.utils.cbook import percentage
-from jcvi.apps.base import ActionDispatcher, set_grid, debug, sh, CDPATH
+from jcvi.apps.command import CDPATH
+from jcvi.apps.base import ActionDispatcher, set_grid, debug, sh
 debug()
 
 

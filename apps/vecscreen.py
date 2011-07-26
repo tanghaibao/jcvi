@@ -5,6 +5,7 @@
 Run through NCBI vecscreen on a local machine.
 """
 
+import os.path as op
 import sys
 import shutil
 import logging
@@ -16,7 +17,7 @@ from jcvi.utils.range import range_merge
 from jcvi.formats.fasta import tidy
 from jcvi.formats.blast import BlastLine
 from jcvi.formats.base import must_open
-from jcvi.apps.base import run_formatdb, run_blast_filter
+from jcvi.apps.command import run_formatdb, run_blast_filter
 from jcvi.apps.base import ActionDispatcher, debug, download, sh
 debug()
 

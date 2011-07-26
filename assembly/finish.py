@@ -20,7 +20,7 @@ from optparse import OptionParser
 
 from jcvi.formats.fasta import gaps
 from jcvi.utils.cbook import depends
-from jcvi.apps.base import run_formatdb, run_blast_filter
+from jcvi.apps.command import run_formatdb, run_blast_filter
 from jcvi.apps.base import ActionDispatcher, debug, sh
 debug()
 

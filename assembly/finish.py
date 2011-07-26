@@ -19,10 +19,10 @@ import logging
 from optparse import OptionParser
 
 from jcvi.formats.contig import ContigFile
-from jcvi.formats.fasta import Fasta, SeqIO, gaps
+from jcvi.formats.fasta import Fasta, SeqIO, gaps, format
 from jcvi.utils.cbook import depends
 from jcvi.assembly.base import n50
-from jcvi.apps.command import run_formatdb, run_megablast
+from jcvi.apps.command import run_megablast
 from jcvi.apps.base import ActionDispatcher, debug, sh, mkdir, is_newer_file
 debug()
 
@@ -30,7 +30,8 @@ debug()
 def main():
 
     actions = (
-        ('overlap', 'Build larger contig set by fishing additional seqs'),
+        ('overlap', 'build larger contig set by fishing additional seqs'),
+        ('overlapbatch', 'call overlap on a set of sequences'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -40,6 +41,29 @@ def main():
 def run_gapsplit(infile=None, outfile=None):
     gaps([infile, "--split"])
     return outfile
+
+
+def overlapbatch(args):
+    """
+    %prog overlapbatch ctgfasta poolfasta
+
+    Fish out the sequences in `poolfasta` that overlap with `ctgfasta`.
+    Mix and combine using `minimus2`.
+    """
+    p = OptionParser(overlap.__doc__)
+    opts, args = p.parse_args(args)
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    ctgfasta, poolfasta = args
+    f = Fasta(ctgfasta)
+    for k, rec in f.iteritems_ordered():
+        fastafile = k + ".fasta"
+        fw = open(fastafile, "w")
+        SeqIO.write([rec], fw, "fasta")
+        fw.close()
+
+        overlap([fastafile, poolfasta])
 
 
 def overlap(args):
@@ -57,13 +81,14 @@ def overlap(args):
 
     ctgfasta, poolfasta = args
     prefix = ctgfasta.split(".")[0]
+    rid = list(Fasta(ctgfasta).iterkeys())
+    assert len(rid) == 1, "Use overlapbatch() to improve multi-FASTA file"
+
+    rid = rid[0]
     splitctgfasta = ctgfasta.rsplit(".", 1)[0] + ".split.fasta"
     ctgfasta = run_gapsplit(infile=ctgfasta, outfile=splitctgfasta)
 
     # Run BLAST
-    poolfastadb = poolfasta + ".nin"
-    run_formatdb(infile=poolfasta, outfile=poolfastadb)
-
     blastfile = ctgfasta + ".blast"
     run_megablast(infile=ctgfasta, outfile=blastfile, db=poolfasta)
 
@@ -112,7 +137,7 @@ def overlap(args):
     logging.debug("Exclude contigs: {0}".\
             format(", ".join(sorted(excludecontigs))))
 
-    finalfasta = prefix + ".improved.fasta"
+    finalfasta = prefix + ".improved.fasta_"
     fw = open(finalfasta, "w")
     minimusfasta = op.join(closuredir, prefix + ".fasta")
     f = Fasta(minimusfasta)
@@ -135,10 +160,20 @@ def overlap(args):
         SeqIO.write([rec], fw, "fasta")
 
     fw.close()
+
+    fastafile = finalfasta
+    finalfasta = fastafile.rstrip("_")
+    format([fastafile, finalfasta, "--sequential", "--pad0=3",
+        "--prefix={0}_".format(rid)])
+
     logging.debug("Improved FASTA written to `{0}`.".format(finalfasta))
 
     n50([ctgfasta])
     n50([finalfasta])
+
+    os.remove(fastafile)
+    os.remove(blastfile)
+    os.remove("error.log")
 
 
 if __name__ == '__main__':

@@ -58,7 +58,8 @@ class ContigFile (BaseFile):
                 c = ContigLine(a)
             else:
                 c.reads.append(ReadLine(a))
-        yield c  # last one
+        if c:  # last one
+            yield c
 
 
 def main():

@@ -120,9 +120,13 @@ def mkdir(dirname, overwrite=False):
             shutil.rmtree(dirname)
             os.mkdir(dirname)
             logging.debug("Overwrite folder `{0}`.".format(dirname))
+        else:
+            return False  # Nothing is changed
     else:
         os.mkdir(dirname)
         logging.debug("`{0}` not found. Creating new.".format(dirname))
+
+    return True
 
 
 def is_newer_file(a, b):

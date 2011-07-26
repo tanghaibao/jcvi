@@ -15,6 +15,8 @@ from collections import defaultdict
 from optparse import OptionParser
 
 from jcvi.graphics.histogram import loghistogram
+from jcvi.formats.base import must_open
+from jcvi.formats.fasta import Fasta
 from jcvi.apps.command import CAPATH
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
@@ -65,32 +67,45 @@ def n50(args):
     %prog n50 filename
 
     Given a file with a list of numbers denoting contig lengths, calculate N50.
+    Input file can be both FASTA or a list of sizes.
     """
     p = OptionParser(n50.__doc__)
 
     opts, args = p.parse_args(args)
 
     if len(args) < 1:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
     ctgsizes = []
     bins = defaultdict(int)
-    for filename in args:
-        for row in open(filename):
+
+    # Guess file format
+    probe = open(args[0]).readline()[0]
+    isFasta = (probe == '>')
+    if isFasta:
+        for filename in args:
+            f = Fasta(filename)
+            ctgsizes += list(b for a, b in f.itersizes())
+
+    else:
+        for row in must_open(args):
             try:
                 ctgsize = int(row.strip())
             except ValueError:
                 continue
-            log2ctgsize = int(log(ctgsize, 2))
-            bins[log2ctgsize] += 1
             ctgsizes.append(ctgsize)
+
+    for ctgsize in ctgsizes:
+        log2ctgsize = int(log(ctgsize, 2))
+        bins[log2ctgsize] += 1
 
     a50, l50, nn50 = calculate_A50(ctgsizes)
     sumsize = sum(ctgsizes)
+    minsize = min(ctgsizes)
     maxsize = max(ctgsizes)
     print >> sys.stderr, ", ".join(args)
-    print >> sys.stderr, "Length={1} L50={2} Max={3}".\
-            format(filename, sumsize, l50, maxsize)
+    print >> sys.stderr, "Length={0} L50={1} Min={2} Max={3} N={4}".\
+            format(sumsize, l50, minsize, maxsize, len(ctgsizes))
     loghistogram(bins)
 
 

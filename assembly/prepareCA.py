@@ -38,7 +38,6 @@ def main():
         ('clr', 'prepare vector clear range file based on BLAST to vectors'),
         ('fasta', 'convert fasta to frg file'),
         ('sff', 'convert 454 reads to frg file'),
-        ('sffinfo', 'convert 454 sff format to FASTA format'),
         ('fastq', 'convert Illumina reads to frg file'),
         ('shred', 'shred contigs into pseudo-reads'),
         ('script', 'create gatekeeper script file to remove or add mates'),
@@ -488,29 +487,6 @@ def fastq(args):
         cmd += " -outtie "
 
     sh(cmd, outfile=frgfile)
-
-
-def sffinfo(args):
-    """
-    %prog sffinfo sffiles
-
-    Wraps `sffinfo` to convert sffile to fastafile, can run on grid.
-    """
-    p = OptionParser(sffinfo.__doc__)
-    set_grid(p)
-
-    opts, args = p.parse_args(args)
-
-    if len(args) < 1:
-        sys.exit(not p.print_help())
-
-    for sffile in args:
-        assert sffile.endswith(".sff")
-
-        fastafile = sffile.replace(".sff", ".fasta")
-        cmd = "sffinfo -seq {0}".format(sffile)
-
-        sh(cmd, outfile=fastafile, grid=opts.grid)
 
 
 def clr(args):

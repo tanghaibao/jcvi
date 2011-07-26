@@ -14,7 +14,6 @@ include the following components
 import os
 import os.path as op
 import sys
-import shutil
 import logging
 
 from optparse import OptionParser
@@ -23,7 +22,7 @@ from jcvi.formats.contig import ContigFile
 from jcvi.formats.fasta import Fasta, SeqIO, gaps
 from jcvi.utils.cbook import depends
 from jcvi.assembly.base import n50
-from jcvi.apps.command import run_formatdb, run_blast_filter
+from jcvi.apps.command import run_formatdb, run_megablast
 from jcvi.apps.base import ActionDispatcher, debug, sh, mkdir, is_newer_file
 debug()
 
@@ -41,19 +40,6 @@ def main():
 def run_gapsplit(infile=None, outfile=None):
     gaps([infile, "--split"])
     return outfile
-
-
-@depends
-def run_megablast(infile=None, outfile=None, db=None):
-    cmd = "megablast -i {0} -d {1}".format(infile, db)
-    cmd += " -e 0.001 -m 8 -o {0}".format(outfile)
-    sh(cmd)
-
-    blastfile = outfile
-    filtered_blastfile = outfile + ".P98L100"
-    run_blast_filter(infile=blastfile, outfile=filtered_blastfile,
-            pctid=98, hitlen=100)
-    shutil.move(filtered_blastfile, blastfile)
 
 
 def overlap(args):

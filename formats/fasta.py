@@ -147,6 +147,14 @@ class Fasta (BaseFile, dict):
         return seq
 
 
+def rc(s):
+    import string
+
+    _complement = string.maketrans('ATCGatcgNnXx', 'TAGCtagcNnXx')
+    cs = s.translate(_complement)
+    return cs[::-1]
+
+
 def main():
 
     actions = (

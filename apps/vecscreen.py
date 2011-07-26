@@ -17,7 +17,7 @@ from jcvi.utils.range import range_merge
 from jcvi.formats.fasta import tidy
 from jcvi.formats.blast import BlastLine
 from jcvi.formats.base import must_open
-from jcvi.apps.command import run_formatdb, run_blast_filter
+from jcvi.apps.command import run_vecscreen, run_megablast
 from jcvi.apps.base import ActionDispatcher, debug, download, sh
 debug()
 
@@ -51,7 +51,7 @@ def mask(args):
     vecbedfile = blast([fastafile])
     ecolifile = "Ecoli.fasta"
     assert op.exists(ecolifile)
-    ecolibedfile = blast([fastafile, "--db={0}".format(ecolifile), "--blat"])
+    ecolibedfile = blast([fastafile, "--db={0}".format(ecolifile)])
 
     cmd = "cat {0} {1}".format(vecbedfile, ecolibedfile)
     cmd += " | mergeBed -nms -d 100 -i stdin"
@@ -60,30 +60,6 @@ def mask(args):
     sh(cmd)
 
     tidy([outfastafile])
-
-
-@depends
-def run_blastall(infile=None, outfile=None, db="UniVec_Core"):
-    """
-    BLASTN parameters reference:
-    http://www.ncbi.nlm.nih.gov/VecScreen/VecScreen_docs.html
-    """
-    cmd = 'blastall -p blastn -i {0}'.format(infile) 
-    cmd += ' -d {0} -q -5 -G 3 -E 3 -F "m D"'.format(db)
-    cmd += ' -e 0.01 -Y 1.75e12 -m 8 -o {0} -a 8'.format(outfile)
-    sh(cmd)
-
-
-@depends
-def run_blat(infile=None, outfile=None, db="UniVec_Core"):
-    cmd = 'blat {0} {1} -out=blast8 {2}'.format(db, infile, outfile)
-    sh(cmd)
-
-    blatfile = outfile
-    filtered_blatfile = outfile + ".P95L50"
-    run_blast_filter(infile=blatfile, outfile=filtered_blatfile,
-            pctid=95, hitlen=50)
-    shutil.move(filtered_blatfile, blatfile)
 
 
 def blast(args):
@@ -98,8 +74,6 @@ def blast(args):
             help="Merge adjacent HSPs separated by [default: %default]")
     p.add_option("--db", dest="db", default=None,
             help="Use a different database rather than UniVec_Core")
-    p.add_option("--blat", dest="blat", default=False, action="store_true",
-            help="Use BLAT instead of BLAST [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -109,14 +83,12 @@ def blast(args):
     fastaprefix = fastafile.split(".", 1)[0]
 
     univec = opts.db or download("ftp://ftp.ncbi.nih.gov/pub/UniVec/UniVec_Core")
-    univecdb = univec + ".nin"
     uniprefix = univec.split(".", 1)[0]
-    run_formatdb(infile=univec, outfile=univecdb)
 
     fastablast = fastaprefix + ".{0}.blast".format(uniprefix)
 
-    prog = run_blat if opts.blat else run_blastall
-    prog(infile=fastafile, outfile=fastablast, db=univec)
+    prog = run_megablast if opts.db else run_vecscreen
+    prog(infile=fastafile, outfile=fastablast, db=univec, pctid=95, hitlen=50)
 
     fp = open(fastablast)
     ranges = []

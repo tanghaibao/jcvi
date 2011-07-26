@@ -2,6 +2,7 @@
 parses tabular BLAST -m8 (-format 6 in BLAST+) format
 """
 
+import os
 import os.path as op
 import sys
 import math
@@ -73,7 +74,8 @@ class BlastLine(object):
     @property
     def bedline(self):
         return "\t".join(str(x) for x in \
-                (self.query, self.qstart - 1, self.qstop, self.subject))
+                (self.subject, self.sstart - 1, self.sstop, self.query,
+                 self.score, self.orientation))
 
 
 class BlastSlow (LineFile):
@@ -100,14 +102,13 @@ class Blast (LineFile):
     """
     def __init__(self, filename):
         super(Blast, self).__init__(filename)
-        self.fp = open(filename)
+        self.fp = must_open(filename)
 
     def iter_line(self):
         for row in self.fp:
             yield BlastLine(row)
 
     def iter_hits(self):
-        self.fp.seek(0)
         for query, blines in groupby(self.fp,
                 key=lambda x: BlastLine(x).query):
             blines = [BlastLine(x) for x in blines]
@@ -115,7 +116,6 @@ class Blast (LineFile):
             yield query, blines
 
     def iter_best_hit(self, N=1):
-        self.fp.seek(0)
         for query, blines in groupby(self.fp,
                 key=lambda x: BlastLine(x).query):
             blines = [BlastLine(x) for x in blines]
@@ -181,9 +181,9 @@ def filter(args):
     p = OptionParser(filter.__doc__)
     p.add_option("--score", dest="score", default=0, type="int",
             help="Score cutoff [default: %default]")
-    p.add_option("--pctid", dest="pctid", default=0, type="int",
+    p.add_option("--pctid", dest="pctid", default=95, type="int",
             help="Percent identity cutoff [default: %default]")
-    p.add_option("--hitlen", dest="hitlen", default=0, type="int",
+    p.add_option("--hitlen", dest="hitlen", default=100, type="int",
             help="Hit length cutoff [default: %default]")
 
     opts, args = p.parse_args(args)
@@ -363,7 +363,7 @@ def bed(args):
         sys.exit(p.print_help())
 
     blastfile, = args
-    fp = open(blastfile)
+    fp = must_open(blastfile)
     fw = sys.stdout
     for row in fp:
         b = BlastLine(row)
@@ -543,6 +543,7 @@ def report_pairs(data, cutoff=0, dialect="blast", pairsfile=None,
         title="{0} ({1}; median dist:{2})".format(prefix, osummary, p0)
         histogram(insertsfile, vmin=0, vmax=cutoff, bins=bins,
                 xlabel="Insertsize", title=title, ascii=ascii)
+        os.remove(insertsfile)
 
     return meandist, stdev, p0, p1, p2
 

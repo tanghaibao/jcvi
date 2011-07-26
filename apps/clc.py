@@ -32,6 +32,8 @@ def map(args):
     -s option to turn on paired end mode.
     """
     p = OptionParser(map.__doc__)
+    p.add_option("-o", dest="outfile", default=None,
+            help="Output prefix.cas file [default: %default]")
     p.add_option("-s", dest="size", default=0, type="int",
             help="Use paired end mapping with insert [default: %default]")
     p.add_option("--short", default=False, action="store_true",
@@ -41,7 +43,7 @@ def map(args):
     set_grid(p)
 
     opts, args = p.parse_args(args)
-    if len(args) not in (2, 3):
+    if len(args) < 2:
         sys.exit(not p.print_help())
 
     license = "license.properties"
@@ -58,7 +60,9 @@ def map(args):
     cmd = "clc_ref_assemble_short" if opts.short else "clc_ref_assemble_long"
     readprefix = op.basename(fastqfiles[0]).split(".", 1)[0]
     refprefix = op.basename(ref).split(".", 1)[0]
-    outfile = "{0}.{1}.cas".format(readprefix, refprefix)
+    outfile = opts.outfile or "{0}.{1}".format(readprefix, refprefix)
+    if not outfile.endswith(".cas"):
+        outfile += ".cas"
 
     cmd += " --cpus 16 "
     cmd += " -d {0} -o {1} -q ".format(ref, outfile)

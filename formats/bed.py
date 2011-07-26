@@ -157,10 +157,11 @@ def pairs(args):
     pairsfile = ".".join((basename, "pairs")) if opts.pairsfile else None
     insertsfile = ".".join((basename, "inserts")) if opts.insertsfile else None
 
-    if not bedfile.endswith(".sorted.bed"):
-        sortedbedfile = op.basename(bedfile).rsplit(".", 1)[0] + ".sorted.bed"
-        if not op.exists(sortedbedfile):
-            bedfile = sort([bedfile, "--accn"])
+    sortedbedfile = op.basename(bedfile).rsplit(".", 1)[0] + ".sorted.bed"
+    if not op.exists(sortedbedfile):
+        bedfile = sort([bedfile, "--accn"])
+    else:
+        bedfile = sortedbedfile
 
     fp = open(bedfile)
     data = [BedLine(row) for i, row in enumerate(fp) if i < opts.nrows]

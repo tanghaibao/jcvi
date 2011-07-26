@@ -62,15 +62,17 @@ def depends(func):
         outfilename = kwargs[outfile]
         if not op.exists(outfilename) or \
                 is_newer_file(infilename, outfilename):
-            func(*args, **kwargs)
+            return func(*args, **kwargs)
         else:
             msg = "File `{0}` exists. Computation skipped." \
                 .format(outfilename)
-            logging.error(msg)
+            logging.debug(msg)
 
         assert op.exists(outfilename), \
                 "Something went wrong, `{0}` not found" \
                 .format(outfilename)
+
+        return outfilename
 
     return wrapper
 

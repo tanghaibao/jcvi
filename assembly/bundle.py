@@ -134,7 +134,7 @@ def bed(args):
 
         """
         Ignore redundant mates, in this case if the size of the hangs is seen,
-        then it is probably redundant, since indepenet circularization event
+        then it is probably redundant, since independent circularization event
         will give slightly different value)
         """
         if hangs in [x[1] for x in contigGraph[(a.seqid, b.seqid)]]:
@@ -148,7 +148,7 @@ def bed(args):
         if len(mates) < links:
             continue
         gaps = []
-        for hang in [x[1] for x in mates]:
+        for mid, hang in mates:
             gmin = max(p1 - hang, 0)
             gmax = p2 - hang
             gaps.append((gmin, gmax))

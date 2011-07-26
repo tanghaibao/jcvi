@@ -16,6 +16,7 @@ from jcvi.utils.range import range_merge
 from jcvi.formats.fasta import tidy
 from jcvi.formats.blast import BlastLine
 from jcvi.formats.base import must_open
+from jcvi.apps.base import run_formatdb, run_blast_filter
 from jcvi.apps.base import ActionDispatcher, debug, download, sh
 debug()
 
@@ -61,12 +62,6 @@ def mask(args):
 
 
 @depends
-def run_formatdb(infile=None, outfile=None):
-    cmd = "formatdb -i {0} -p F".format(infile)
-    sh(cmd)
-
-
-@depends
 def run_blastall(infile=None, outfile=None, db="UniVec_Core"):
     """
     BLASTN parameters reference:
@@ -85,15 +80,9 @@ def run_blat(infile=None, outfile=None, db="UniVec_Core"):
 
     blatfile = outfile
     filtered_blatfile = outfile + ".P95L50"
-    run_blast_filter(infile=blatfile, outfile=filtered_blatfile)
+    run_blast_filter(infile=blatfile, outfile=filtered_blatfile,
+            pctid=95, hitlen=50)
     shutil.move(filtered_blatfile, blatfile)
-
-
-def run_blast_filter(infile=None, outfile=None):
-    from jcvi.formats.blast import filter
-
-    logging.debug("Filter BLAST result (pctid=95, hitlen=50)")
-    filter([infile, "--pctid=95", "--hitlen=50"])
 
 
 def blast(args):

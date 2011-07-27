@@ -53,14 +53,15 @@ def histogram(args):
     kmer.meryl().
     """
     p = OptionParser(histogram.__doc__)
-    p.add_option("--ascii", default=False, action="store_true",
-            help="Print out ASCII plot instead of PDF [default: %default]")
+    p.add_option("--pdf", default=False, action="store_true",
+            help="Print PDF instead of ASCII plot [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 4:
         sys.exit(p.print_help())
 
     histfile, species, N, totalKmers = args
+    ascii = not opts.pdf
     fp = open(histfile)
     hist = {}
     for row in fp:
@@ -97,7 +98,7 @@ def histogram(args):
     x, y = zip(*counts)
     title = "{0} genome {1}-mer histogram".format(species, N)
 
-    if opts.ascii:
+    if ascii:
         return asciiplot(x, y, title=title)
 
     fig = plt.figure(1, (6, 6))

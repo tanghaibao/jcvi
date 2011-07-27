@@ -67,7 +67,7 @@ def assemble(args):
             continue
         outfile = op.join(fastadir, "{0}.fasta".format(pf))
         newidopt = "--newid={0}".format(pf)
-        minctgsizeopt = "--minctgsize=1000"
+        minctgsizeopt = "--minctgsize=200"
         join([ctgfile, outfile, newidopt, minctgsizeopt])
 
 

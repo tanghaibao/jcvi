@@ -42,6 +42,8 @@ def bed(args):
     p.add_option("--cutoff", type="int", default=0,
             help="Largest distance expected for linkage " + \
                  "[default: estimate from data]")
+    p.add_option("--prefix", default=False, action="store_true",
+            help="Only keep links between IDs with same prefix [default: %default]")
     p.add_option("--debug", dest="debug", default=False, action="store_true",
             help="Print verbose info when checking mates [default: %default]")
     opts, args = p.parse_args(args)
@@ -139,6 +141,12 @@ def bed(args):
         """
         if hangs in [x[1] for x in contigGraph[(a.seqid, b.seqid)]]:
             continue
+
+        if opts.prefix:
+            aprefix = a.seqid.split("_")[0]
+            bprefix = b.seqid.split("_")[0]
+            if aprefix != bprefix:
+                continue
 
         contigGraph[(a.seqid, b.seqid)].append((pe, hangs))
 

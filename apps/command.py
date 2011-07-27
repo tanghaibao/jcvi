@@ -2,6 +2,7 @@
 Commonly performed commands.
 """
 
+import os
 import shutil
 import logging
 
@@ -19,6 +20,7 @@ CDPATH="~/htang/export/cd-hit-v4.5.5-2011-03-31/"
 def run_formatdb(infile=None, outfile=None):
     cmd = "formatdb -i {0} -p F".format(infile)
     sh(cmd)
+    os.remove("formatdb.log")
 
 
 @depends

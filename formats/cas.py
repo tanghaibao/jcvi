@@ -155,6 +155,7 @@ def fastpairs(args):
     and orientations.
     """
     from jcvi.utils.range import range_distance
+    from jcvi.assembly.base import orientationlabels
 
     p = OptionParser(fastpairs.__doc__)
 
@@ -166,7 +167,6 @@ def fastpairs(args):
     castabfile, = args
     fp = open(castabfile)
     arow = fp.readline()
-    orientationlabels = {"++": "normal", "+-": "innie", "-+": "outie", "--": "antinormal"}
     while arow:
         brow = fp.readline()
         a, b = CasTabLine(arow), CasTabLine(brow)

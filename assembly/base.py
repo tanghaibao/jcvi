@@ -22,6 +22,9 @@ from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
 
+orientationlabels = {"++": "normal", "+-": "innie", "-+": "outie", "--": "antinormal"}
+
+
 def calculate_A50(ctgsizes, cutoff=0):
     """
     Given an array of contig sizes, produce A50, N50, and L50 values

@@ -418,7 +418,7 @@ def sff(args):
         libname = "TitanFrags-" + plate
 
     if opts.prefix:
-        libname = opts.prefix + "-" + plate
+        libname = opts.prefix
 
     cmd = CAPATH + "sffToCA -libraryname {0} -output {0} ".format(libname)
     cmd += "-clear 454 -trim chop "

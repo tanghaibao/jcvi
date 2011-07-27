@@ -14,87 +14,52 @@ from optparse import OptionParser
 from jcvi.formats.bed import BedLine, pairs
 from jcvi.formats.sizes import Sizes
 from jcvi.utils.iter import pairwise
-from jcvi.utils.range import ranges_intersect
-from jcvi.algorithms.graph import nx
-from jcvi.algorithms.matrix import determine_signs
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
 
-def main():
+class ContigLink (object):
 
-    actions = (
-        ('bed', 'construct links from bed file'),
-            )
-    p = ActionDispatcher(actions)
-    p.dispatch(globals())
+    def __init__(self, a, b, insert=3000, cutoff=6000):
+        assert isinstance(a, BedLine) and isinstance(b, BedLine)
+        self.a = a
+        self.b = b
+        self.insert = insert
+        assert self.insert > 0
 
+        self.cutoff = cutoff
+        assert self.cutoff > self.insert
 
-def bed(args):
-    """
-    prog bed bedfile fastafile
+    def __str__(self):
+        aseqid = self.a.seqid.rstrip("-")
+        bseqid = self.b.seqid.rstrip("-")
+        return "\t".join(str(x) for x in (aseqid, bseqid,
+            self.orientation, self.insert, self.distance))
 
-    Construct contig links based on bed file
-    """
-    p = OptionParser(bed.__doc__)
-    p.add_option("--links", type="int", default=2,
-            help="Minimum number of mate pairs to bundle [default: %default]")
-    p.add_option("--cutoff", type="int", default=0,
-            help="Largest distance expected for linkage " + \
-                 "[default: estimate from data]")
-    p.add_option("--prefix", default=False, action="store_true",
-            help="Only keep links between IDs with same prefix [default: %default]")
-    p.add_option("--debug", dest="debug", default=False, action="store_true",
-            help="Print verbose info when checking mates [default: %default]")
-    opts, args = p.parse_args(args)
-
-    if len(args) != 2:
-        sys.exit(p.print_help())
-
-    bedfile, fastafile = args
-    links = opts.links
-    debug = opts.debug
-    cutoff = opts.cutoff
-
-    linksfile = bedfile.rsplit(".", 1)[0] + ".links"
-
-    sizes = Sizes(fastafile)
-
-    cutoffopt = "--cutoff={0}".format(cutoff)
-    bedfile, (meandist, stdev, p0, p1, p2) = \
-            pairs([bedfile, cutoffopt])
-
-    maxcutoff = cutoff or p2
-    logging.debug("Mate hangs must be <= {0}, --cutoff to override".\
-            format(maxcutoff))
-
-    contigGraph = defaultdict(list)
-    rs = lambda x: x.accn[:-1]
-
-    fp = open(bedfile)
-
-    for a, b in pairwise(fp):
+    def get_orientation(self, aseqid, bseqid):
         """
-        Criteria for valid contig edge
-        1. for/rev do not mapping to the same scaffold (useful for linking)
-        2. assuming innie (outie must be flipped first), order the contig pair
-        3. calculate sequence hangs, valid hangs are smaller than insert size
+        Determine N/A/I/O from the names.
         """
-        a, b = BedLine(a), BedLine(b)
+        ta = '-' if aseqid[-1] == '-' else '+'
+        tb = '-' if bseqid[-1] == '-' else '+'
+        pair = ta + tb
+        assert pair in ('++', '--', '+-', '-+')
 
-        if rs(a) != rs(b):
-            continue
-        pe = rs(a)
+        return pair
 
-        if a.seqid == b.seqid:
-            continue
-
+    def flip_innie(self, sizes, debug=False):
         """
         The algorithm that determines the oNo of this contig pair, the contig
         order is determined by +-, assuming that the matepairs are `innies`. In
         below, we determine the order and orientation by flipping if necessary,
         bringing the strandness of two contigs to the expected +-.
+
+        sizes: the contig length dictionary Sizes().
         """
+        a, b = self.a, self.b
+        Pa, Pb = a.start - 1, b.start - 1
+        Ea, Eb = a.end, b.end
+
         if a.strand == b.strand:
             if b.strand == "+":  # case: "++", flip b
                 b.reverse_complement(sizes)
@@ -103,6 +68,8 @@ def bed(args):
 
         if b.strand == "+":  # case: "-+"
             a, b = b, a
+            Pa, Pb = Pb, Pa
+            Ea, Eb = Eb, Ea
 
         assert a.strand == "+" and b.strand == "-"
         """
@@ -122,71 +89,124 @@ def bed(args):
 
         # Valid links need to be separated by the lib insert
         hangs = ahang + bhang
-
-        if hangs > maxcutoff:
+        if hangs > self.cutoff:
             if debug:
-                print >> sys.stderr, "invalid link ({0}). skipped.".format(hangs)
-            continue
+                print >> sys.stderr, "invalid link ({0}).".format(hangs)
+            return False
 
-        # pair (1+, 2-) is the same as (2+, 1-), only do the canonical one
+        pair = self.get_orientation(a.seqid, b.seqid)
+
+        insert = self.insert
+        if pair == "++":    # Normal
+            distance = insert + Pa - Eb
+        elif pair == "--":  # Anti-normal
+            distance = insert - Ea + Pb
+        elif pair == "+-":  # Innie
+            distance = insert + Pa + Pb
+        elif pair == "-+":  # Outie
+            distance = insert - Ea - Eb
+
+        # Pair (1+, 2-) is the same as (2+, 1-), only do the canonical one
         if a.seqid > b.seqid:
             a.reverse_complement(sizes)
             b.reverse_complement(sizes)
             a, b = b, a
 
+        self.a, self.b = a, b
+        self.distance = distance
+        self.orientation = self.get_orientation(a.seqid, b.seqid)
+
+        return True
+
+
+def main():
+
+    actions = (
+        ('link', 'construct links from bed file'),
+        ('bundle', 'bundle multiple links into contig edges'),
+            )
+    p = ActionDispatcher(actions)
+    p.dispatch(globals())
+
+
+def link(args):
+    """
+    prog link bedfile fastafile
+
+    Construct contig links based on bed file.
+    """
+    p = OptionParser(link.__doc__)
+    p.add_option("--links", type="int", default=1,
+            help="Minimum number of mate pairs to bundle [default: %default]")
+    p.add_option("--cutoff", type="int", default=0,
+            help="Largest distance expected for linkage " + \
+                 "[default: estimate from data]")
+    p.add_option("--prefix", default=False, action="store_true",
+            help="Only keep links between IDs with same prefix [default: %default]")
+    p.add_option("--debug", dest="debug", default=False, action="store_true",
+            help="Print verbose info when checking mates [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(p.print_help())
+
+    bedfile, fastafile = args
+    links = opts.links
+    debug = opts.debug
+    cutoff = opts.cutoff
+
+    sizes = Sizes(fastafile)
+
+    cutoffopt = "--cutoff={0}".format(cutoff)
+    bedfile, (meandist, stdev, p0, p1, p2) = \
+            pairs([bedfile, cutoffopt])
+
+    maxcutoff = cutoff or p2
+    logging.debug("Mate hangs must be <= {0}, --cutoff to override".\
+            format(maxcutoff))
+
+    contigGraph = defaultdict(list)
+    rs = lambda x: x.accn[:-1]
+
+    fp = open(bedfile)
+    linksfile = bedfile.rsplit(".", 1)[0] + ".links"
+    fw = open(linksfile, "w")
+
+    for a, b in pairwise(fp):
         """
-        Ignore redundant mates, in this case if the size of the hangs is seen,
-        then it is probably redundant, since independent circularization event
-        will give slightly different value)
+        Criteria for valid contig edge
+        1. for/rev do not mapping to the same scaffold (useful for linking)
+        2. assuming innie (outie must be flipped first), order the contig pair
+        3. calculate sequence hangs, valid hangs are smaller than insert size
         """
-        if hangs in [x[1] for x in contigGraph[(a.seqid, b.seqid)]]:
+        a, b = BedLine(a), BedLine(b)
+
+        if rs(a) != rs(b):
+            continue
+        pe = rs(a)
+
+        # Intra-contig links
+        if a.seqid == b.seqid:
             continue
 
+        # Use --prefix to limit the links between seqids with the same prefix
+        # For example, contigs of the same BAC, mth2-23j10_001, mth-23j10_002
         if opts.prefix:
             aprefix = a.seqid.split("_")[0]
             bprefix = b.seqid.split("_")[0]
             if aprefix != bprefix:
                 continue
 
-        contigGraph[(a.seqid, b.seqid)].append((pe, hangs))
-
-    g = nx.Graph()  # use this to get connected components
+        cl = ContigLink(a, b, insert=p0, cutoff=maxcutoff)
+        if cl.flip_innie(sizes, debug=debug):
+            contigGraph[(cl.a.seqid, cl.b.seqid)].append((pe, cl))
 
     for pair, mates in sorted(contigGraph.items()):
         if len(mates) < links:
             continue
-        gaps = []
-        for mid, hang in mates:
-            gmin = max(p1 - hang, 0)
-            gmax = p2 - hang
-            gaps.append((gmin, gmax))
 
-        aseqid, bseqid = pair
-        lastdigits = aseqid[-1] + bseqid[-1]
-
-        if '-' in lastdigits and lastdigits != '--':
-            orientation = '-'
-        else:
-            orientation = '+'
-
-        aseqid, bseqid = aseqid.rstrip('-'), bseqid.rstrip('-')
-        g.add_edge(aseqid, bseqid, orientation=orientation)
-
-        gapsize = ranges_intersect(gaps)
-        print pair, mates, "orientation:{0} gap:{1}".\
-                format(orientation, gapsize)
-
-    for h in nx.connected_component_subgraphs(g):
-        solve_component(h)
-
-
-def solve_component(h):
-    nodes, edges = h.nodes(), h.edges(data=True)
-    ledges = [(a, b, c["orientation"]) for (a, b, c) in edges]
-    N = len(nodes)
-
-    print N, nodes, ledges
-    print determine_signs(nodes, ledges)
+        for pe, m in mates:
+            print >> fw, "\t".join((pe, str(m)))
 
 
 if __name__ == '__main__':

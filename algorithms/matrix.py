@@ -23,18 +23,49 @@ def moving_average(a, window=10):
     return np.convolve(a, kernel)[(window-1):]
 
 
+def determine_positions(nodes, edges):
+    """
+    Construct the problem instance to solve the positions of contigs.
+
+    The input for spring_system() is A, K, L, which looks like the following.
+    A = np.array([[1, -1, 0], [0, 1, -1], [1, 0, -1]])
+    K = np.eye(3, dtype=int)
+    L = np.array([1, 2, 3])
+
+    For example, A-B distance 1, B-C distance 2, A-C distance 3, solve positions
+
+    >>> determine_positions([0, 1, 2], [(0, 1, 1), (1, 2, 2), (0, 2, 3)])
+    array([0, 1, 3])
+    """
+    N = len(nodes)
+    E = len(edges)
+
+    A = np.zeros((E, N), dtype=int)
+    for i, (a, b, distance) in enumerate(edges):
+        A[i, a] = 1
+        A[i, b] = -1
+
+    K = np.eye(E, dtype=int)
+    L = np.array([x[-1] for x in edges])
+
+    s = spring_system(A, K, L)
+    return np.array([0] + [int(round(x, 0)) for x in s])
+
+
 def determine_signs(nodes, edges):
     """
     Construct the orientation matrix for the pairs on N molecules.
 
-    >>> determine_signs(['A','B','C'],[('A','B','+'),('A','C','-'),('B','C','-')])
+    >>> determine_signs([0, 1, 2], [(0, 1, '+'), (0, 2, '-'), (1, 2, '-')])
     array([ 1,  1, -1])
     """
     N = len(nodes)
     M = np.zeros((N, N), dtype=int)
     for a, b, direction in edges:
-        ia, ib = nodes.index(a), nodes.index(b)
-        M[ia, ib] = 1 if direction == '+' else -1
+        if direction == '+':
+            M[a, b] += 1
+        else:
+            M[a, b] -= 1
 
     M = symmetrize(M)
 

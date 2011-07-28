@@ -23,7 +23,7 @@ debug()
 
 
 orientationlabels = {"++": "normal", "+-": "innie", "-+": "outie", "--": "antinormal"}
-
+orientationflips = {"++": "--", "+-": "-+", "-+": "+-", "--": "++"}
 
 def calculate_A50(ctgsizes, cutoff=0):
     """

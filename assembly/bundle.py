@@ -11,11 +11,25 @@ import logging
 from collections import defaultdict
 from optparse import OptionParser
 
+from jcvi.formats.base import must_open
 from jcvi.formats.bed import BedLine, pairs
 from jcvi.formats.sizes import Sizes
 from jcvi.utils.iter import pairwise
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
+
+
+class LinkLine (object):
+
+    def __init__(self, row):
+        args = row.split()
+        # MKDU973T  mte1-26c10_002  mte1-26c10_011  +-  5066  23563
+        self.mate = args[0]
+        self.aseqid = args[1]
+        self.bseqid = args[2]
+        self.orientation = args[3]
+        self.insert = int(args[4])
+        self.distance = int(args[5])
 
 
 class ContigLink (object):
@@ -129,15 +143,47 @@ def main():
     p.dispatch(globals())
 
 
+def bundle(args):
+    """
+    %prog bundle linkfiles
+
+    Bundle contig links into high confidence contig edges. This is useful to
+    combine multiple linkfiles (from different libraries).
+    """
+    import numpy as np
+
+    p = OptionParser(bundle.__doc__)
+    p.add_option("--links", type="int", default=2,
+            help="Minimum number of mate pairs to bundle [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) < 1:
+        sys.exit(not p.print_help())
+
+    fp = must_open(args)
+    contigGraph = defaultdict(list)
+    for row in fp:
+        c = LinkLine(row)
+        contigGraph[(c.aseqid, c.bseqid, c.orientation)].append(c.distance)
+
+    for (aseqid, bseqid, orientation), distances in contigGraph.items():
+        mates = len(distances)
+        if mates < opts.links:
+            continue
+
+        distance = int(np.median(distances))
+        print "\t".join(str(x) for x in \
+                (mates, aseqid, bseqid, orientation, 0, distance))
+
+
 def link(args):
     """
-    prog link bedfile fastafile
+    %prog link bedfile fastafile
 
-    Construct contig links based on bed file.
+    Construct contig links based on bed file. Use --prefix to limit the links
+    between contigs that start with the same prefix_xxx.
     """
     p = OptionParser(link.__doc__)
-    p.add_option("--links", type="int", default=1,
-            help="Minimum number of mate pairs to bundle [default: %default]")
     p.add_option("--cutoff", type="int", default=0,
             help="Largest distance expected for linkage " + \
                  "[default: estimate from data]")
@@ -148,10 +194,9 @@ def link(args):
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
     bedfile, fastafile = args
-    links = opts.links
     debug = opts.debug
     cutoff = opts.cutoff
 
@@ -165,7 +210,6 @@ def link(args):
     logging.debug("Mate hangs must be <= {0}, --cutoff to override".\
             format(maxcutoff))
 
-    contigGraph = defaultdict(list)
     rs = lambda x: x.accn[:-1]
 
     fp = open(bedfile)
@@ -199,14 +243,7 @@ def link(args):
 
         cl = ContigLink(a, b, insert=p0, cutoff=maxcutoff)
         if cl.flip_innie(sizes, debug=debug):
-            contigGraph[(cl.a.seqid, cl.b.seqid)].append((pe, cl))
-
-    for pair, mates in sorted(contigGraph.items()):
-        if len(mates) < links:
-            continue
-
-        for pe, m in mates:
-            print >> fw, "\t".join((pe, str(m)))
+            print >> fw, "\t".join((pe, str(cl)))
 
 
 if __name__ == '__main__':

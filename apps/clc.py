@@ -10,7 +10,7 @@ import os.path as op
 
 from optparse import OptionParser
 
-from jcvi.apps.base import ActionDispatcher, debug, set_grid, sh
+from jcvi.apps.base import ActionDispatcher, debug, set_grid, set_params, sh
 debug()
 
 
@@ -40,6 +40,7 @@ def map(args):
             help="Use `clc_ref_assemble_short` as the mapper [default: %default]")
     p.add_option("--orientations", default="fb",
             help="The reads have the orientations [default: %default]")
+    set_params(p)
     set_grid(p)
 
     opts, args = p.parse_args(args)
@@ -74,6 +75,11 @@ def map(args):
         stddev = size / 4
         lb, ub = size - stddev, size + stddev
         cmd += " -p {0} ss {1} {2} -i {3} ".format(orientations, lb, ub, fastqs)
+
+    if opts.extra:
+        cmd += " " + opts.extra
+    else:
+        cmd += " -l 0.9 -s 0.9"
 
     sh(cmd, grid=opts.grid)
 

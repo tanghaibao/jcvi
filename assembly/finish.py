@@ -23,6 +23,7 @@ from jcvi.formats.fasta import Fasta, SeqIO, gaps, format
 from jcvi.formats.sizes import Sizes
 from jcvi.utils.cbook import depends
 from jcvi.assembly.base import n50
+from jcvi.assembly.bundle import LinkLine
 from jcvi.apps.command import run_megablast
 from jcvi.apps.base import ActionDispatcher, debug, sh, mkdir, is_newer_file
 debug()
@@ -61,10 +62,11 @@ def scaffold(args):
 
     fp = open(linksfile)
     for row in fp:
-        # MKDU973T  mte1-26c10_002  mte1-26c10_011  +-  5066  23563
-        mate, aseqid, bseqid, orientation, insert, distance = row.split()
-        distance = int(distance)
-        g.add_edge(aseqid, bseqid, orientation=orientation, distance=distance)
+        c = LinkLine(row)
+        distance = max(c.distance, 50)
+
+        g.add_edge(c.aseqid, c.bseqid,
+                orientation=c.orientation, distance=distance)
 
     for h in nx.connected_component_subgraphs(g):
         solve_component(h, sizes)
@@ -95,7 +97,6 @@ def solve_component(h, sizes):
     N = len(nodes)
     print N, ", ".join(nodes)
 
-    print ledges
     signs = determine_signs(nodes, ledges)
     print signs
 
@@ -114,9 +115,11 @@ def solve_component(h, sizes):
 
         if orientationflips[orientation] == pair:
             distance = - distance
+        elif orientation != pair:
+            continue
+
         dedges.append((a, b, distance))
 
-    print dedges
     positions = determine_positions(nodes, dedges)
     print positions
 
@@ -126,18 +129,21 @@ def solve_component(h, sizes):
         if sign < 0:
             start = position - size
             end = position
+            orientation = "-"
         else:
             start = position
             end = position + size
-        bed.append((node, start, end))
+            orientation = "+"
+        bed.append((node, start, end, orientation))
 
     key = lambda x: x[1]
     offset = key(min(bed, key=key))
     bed.sort(key=key)
-    for node, start, end in bed:
+    for node, start, end, orientation in bed:
         start -= offset
         end -= offset
-        print "\t".join(str(x) for x in (node, start, end))
+        print "\t".join(str(x) for x in \
+                (node, start, end, orientation))
 
 
 @depends
@@ -222,6 +228,7 @@ def overlap(args):
         cwd = os.getcwd()
         os.chdir(closuredir)
         cmd = "minimus2 {0} -D REFCOUNT=0".format(prefix)
+        cmd += " -D OVERLAP=100 -D MINID=98"
         sh(cmd)
         os.chdir(cwd)
 

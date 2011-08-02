@@ -47,9 +47,13 @@ def mask(args):
         sys.exit(not p.print_help())
 
     fastafile, = args
+    assert op.exists(fastafile)
+
     outfastafile = fastafile.rsplit(".", 1)[0] + ".masked.fasta"
     vecbedfile = blast([fastafile])
-    ecolifile = "Ecoli.fasta"
+    ecoliurl = \
+    "ftp://ftp.ncbi.nih.gov/genomes/Bacteria/Escherichia_coli_K_12_substr__MG1655_uid57779/NC_000913.fna"
+    ecolifile = download(ecoliurl, filename="Ecoli.fasta")
     assert op.exists(ecolifile)
     ecolibedfile = blast([fastafile, "--db={0}".format(ecolifile)])
 

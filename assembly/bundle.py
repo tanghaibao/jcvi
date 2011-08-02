@@ -199,9 +199,17 @@ def bundle(args):
     contigGraph = defaultdict(list)
     for row in fp:
         c = LinkLine(row)
-        contigGraph[(c.aseqid, c.bseqid, c.orientation)].append(c.distance)
+        contigGraph[(c.aseqid, c.bseqid)].append((c.orientation, c.distance))
 
-    for (aseqid, bseqid, orientation), distances in contigGraph.items():
+    for (aseqid, bseqid), distances in contigGraph.items():
+        # For the same pair of contigs, their might be conflicting orientations
+        # or distances. Only keep the one with the most pairs.
+        m = defaultdict(list)
+        for orientation, dist in distances:
+            m[orientation].append(dist)
+
+        orientation, distances = max(m.items(), key=lambda x: len(x[1]))
+
         mates = len(distances)
         if mates < opts.links:
             continue

@@ -384,6 +384,9 @@ def set_options_pairs():
     p.add_option("--cutoff", dest="cutoff", default=0, type="int",
             help="distance to call valid links between mates "\
                  "[default: estimate from input]")
+    p.add_option("--mateorientation", default=None,
+            choices=("++", "--", "+-", "-+"),
+            help="use only certain mate orientations [default: %default]")
     p.add_option("--pairs", dest="pairsfile",
             default=False, action="store_true",
             help="write valid pairs to pairsfile")
@@ -402,17 +405,22 @@ def set_options_pairs():
     return p
 
 
-def report_pairs(data, cutoff=0, dialect="blast", pairsfile=None,
+def report_pairs(data, cutoff=0, mateorientation=None,
+        dialect="blast", pairsfile=None,
         insertsfile=None, rclip=1, ascii=False, bins=20):
     """
     This subroutine is used by the pairs function in blast.py and cas.py.
     Reports number of fragments and pairs as well as linked pairs
     """
     allowed_dialects = ("blast", "castab", "frgscf", "bed")
+    allowed_mateorientations = ("++", "--", "+-", "-+")
     BLAST, CASTAB, FRGSCF, BED = range(len(allowed_dialects))
 
     assert dialect in allowed_dialects
     dialect = allowed_dialects.index(dialect)
+
+    if mateorientation:
+        assert mateorientation in allowed_mateorientations
 
     num_fragments, num_pairs = 0, 0
 
@@ -488,7 +496,12 @@ def report_pairs(data, cutoff=0, dialect="blast", pairsfile=None,
 
     # try to infer cutoff as twice the median until convergence
     if cutoff <= 0:
-        dists = np.array([x[0] for x in all_dist], dtype="int")
+        if mateorientation:
+            dists = np.array([x[0] for x in all_dist \
+                    if x[1] == mateorientation], dtype="int")
+        else:
+            dists = np.array([x[0] for x in all_dist], dtype="int")
+
         p0 = np.median(dists)
         cutoff = int(2 * p0)  # initial estimate
         cutoff = int(math.ceil(cutoff / bins)) * bins
@@ -569,7 +582,7 @@ def pairs(args):
     data = [BlastLine(row) for i, row in enumerate(fp) if i < opts.nrows]
 
     ascii = not opts.pdf
-    return report_pairs(data, opts.cutoff,
+    return report_pairs(data, opts.cutoff, opts.mateorientation,
            dialect="blast", pairsfile=pairsfile, insertsfile=insertsfile,
            rclip=opts.rclip, ascii=ascii, bins=opts.bins)
 

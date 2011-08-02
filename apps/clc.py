@@ -78,7 +78,8 @@ def map(args):
 
     if opts.extra:
         cmd += " " + opts.extra
-    else:
+
+    if not opts.short:
         cmd += " -l 0.9 -s 0.9"
 
     sh(cmd, grid=opts.grid)

@@ -72,9 +72,42 @@ def main():
                 "adjacent records can form pairs"),
         ('convert', 'convert between illumina and sanger offset'),
         ('trim', 'trim reads using fastx_trimmer'),
+        ('some', 'select a subset of fastq reads'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def some(args):
+    """
+    %prog some idsfile afastq bfastq
+
+    Select a subset of the reads with ids present in the idsfile.
+    """
+    p = OptionParser(some.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    idsfile, afastq, bfastq = args
+    fp = open(idsfile)
+
+    ai = iter_fastq(open(afastq))
+    arec = ai.next()
+    bi = iter_fastq(open(bfastq))
+    brec = bi.next()
+
+    for row in fp:
+        name = row.strip()
+        while arec:
+            if arec.name[1:] == name:
+                print arec
+                print brec
+                break
+            else:
+                arec = ai.next()
+                brec = bi.next()
 
 
 def trim(args):
@@ -93,7 +126,7 @@ def trim(args):
 
     opts, args = p.parse_args(args)
     if len(args) != 1:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
     grid = opts.grid
 
@@ -122,7 +155,7 @@ def splitread(args):
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
     pairsfastq, = args
     fh = open(pairsfastq)

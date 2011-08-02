@@ -234,7 +234,7 @@ def sort(args):
     fastafile, = args
     sortedfastafile = fastafile.rsplit(".", 1)[0] + ".sorted.fasta"
 
-    f = Fasta(fastafile)
+    f = Fasta(fastafile, index=False)
     fw = must_open(sortedfastafile, "w")
     for key in sorted(f.iterkeys()):
         rec = f[key]

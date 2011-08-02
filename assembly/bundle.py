@@ -138,9 +138,44 @@ def main():
     actions = (
         ('link', 'construct links from bed file'),
         ('bundle', 'bundle multiple links into contig edges'),
+        ('query', 'query the path between given contigs from the bundle'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def query(args):
+    """
+    %prog query bundlefile sourcectg targetctg
+
+    Query the path from sourcectg to targetctg using links in the bundlefile.
+    """
+    from jcvi.algorithms.graph import nx, shortest_path
+
+    p = OptionParser(query.__doc__)
+
+    opts, args = p.parse_args(args)
+
+    if len(args) < 3:
+        sys.exit(not p.print_help())
+
+    bundlefile, srcctg, targetctg = args
+
+    g = nx.MultiGraph()
+    fp = open(bundlefile)
+    for row in fp:
+        # 5  contig_12167  contig_43478  -+  0  -664
+        c = LinkLine(row)
+        g.add_edge(c.aseqid, c.bseqid)
+
+    ctgs = shortest_path(g, srcctg, targetctg)
+
+    ctgs = set(ctgs)
+    fp = open(bundlefile)
+    for row in fp:
+        c = LinkLine(row)
+        if c.aseqid in ctgs and c.bseqid in ctgs:
+            print row.rstrip()
 
 
 def bundle(args):
@@ -184,6 +219,8 @@ def link(args):
     between contigs that start with the same prefix_xxx.
     """
     p = OptionParser(link.__doc__)
+    p.add_option("--insert", type="int", default=0,
+            help="Mean insert size [default: estimate from data]")
     p.add_option("--cutoff", type="int", default=0,
             help="Largest distance expected for linkage " + \
                  "[default: estimate from data]")
@@ -203,10 +240,12 @@ def link(args):
     sizes = Sizes(fastafile)
 
     cutoffopt = "--cutoff={0}".format(cutoff)
+    mateorientationopt = '--mateorientation=+-'
     bedfile, (meandist, stdev, p0, p1, p2) = \
-            pairs([bedfile, cutoffopt])
+            pairs([bedfile, cutoffopt, mateorientationopt])
 
     maxcutoff = cutoff or p2
+    insert = opts.insert or p0
     logging.debug("Mate hangs must be <= {0}, --cutoff to override".\
             format(maxcutoff))
 
@@ -241,7 +280,7 @@ def link(args):
             if aprefix != bprefix:
                 continue
 
-        cl = ContigLink(a, b, insert=p0, cutoff=maxcutoff)
+        cl = ContigLink(a, b, insert=insert, cutoff=maxcutoff)
         if cl.flip_innie(sizes, debug=debug):
             print >> fw, "\t".join((pe, str(cl)))
 

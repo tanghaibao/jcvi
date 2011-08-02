@@ -20,6 +20,8 @@ from networkx.algorithms.dag import topological_sort
 from networkx.algorithms.components.weakly_connected import \
         weakly_connected_components
 from networkx.algorithms.components.connected import connected_components
+from networkx.algorithms.shortest_paths.generic import shortest_path
+
 
 if __name__ == '__main__':
     import doctest

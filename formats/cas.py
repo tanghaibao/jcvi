@@ -314,7 +314,7 @@ def pairs(args):
     data = [CasTabLine(row) for i, row in enumerate(fp) if i < opts.nrows]
 
     ascii = not opts.pdf
-    return report_pairs(data, opts.cutoff,
+    return report_pairs(data, opts.cutoff, opts.mateorientation,
            dialect="castab", pairsfile=pairsfile, insertsfile=insertsfile,
            rclip=opts.rclip, ascii=ascii, bins=opts.bins)
 

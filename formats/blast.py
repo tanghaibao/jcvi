@@ -223,9 +223,40 @@ def main():
         ('pairs', 'print paired-end reads of BLAST tabular output'),
         ('bed', 'get bed file from blast'),
         ('swap', 'swap query and subjects in the BLAST report'),
+        ('mismatches', 'print out histogram of mismatches of HSPs'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def mismatches(args):
+    """
+    %prog mismatches blastfile
+
+    Print out histogram of mismatches of HSPs, usually for evaluating SNP level.
+    """
+    from jcvi.utils.cbook import percentage
+    from jcvi.graphics.histogram import stem_leaf_plot
+
+    p = OptionParser(mismatches.__doc__)
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    blastfile, = args
+
+    data = []
+    b = Blast(blastfile)
+    for query, bline in b.iter_best_hit():
+        mm = bline.nmismatch + bline.ngaps
+        data.append(mm)
+
+    nonzeros = [x for x in data if x != 0]
+    title = "Polymorphic sites: {0}".\
+            format(percentage(len(nonzeros), len(data)))
+    stem_leaf_plot(data, 0, 20, 20, title=title)
 
 
 def covfilter(args):
@@ -600,12 +631,15 @@ def best(args):
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
-    blastfile = args[0]
+    blastfile, = args
+    bestblastfile = blastfile + ".best"
+    fw = open(bestblastfile, "w")
+
     b = Blast(blastfile)
     for q, bline in b.iter_best_hit(N=opts.N):
-        print bline
+        print >> fw, bline
 
 
 def summary(args):

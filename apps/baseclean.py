@@ -11,6 +11,7 @@ import sys
 
 from optparse import OptionParser
 
+from jcvi.formats.fastq import guessoffset, convert
 from jcvi.apps.base import ActionDispatcher, debug, set_grid, download, sh
 debug()
 
@@ -63,6 +64,14 @@ def trim(args):
 
     assert op.exists("adapters.fasta"), \
         "Please place the illumina adapter sequence in `adapters.fasta`"
+
+    # Trimmomatic only accepts offset-64, convert if needed
+    for i, fastqfile in enumerate(args):
+        offset = guessoffset([fastqfile])
+        if offset != 64:
+            newfastqfile = fastqfile.rsplit(".", 1)[0] + ".b64.fastq.gz"
+            convert([fastqfile, newfastqfile])
+            args[i] = newfastqfile
 
     cmd = "/usr/local/bin/java-1.6.0 -Xmx4g"
     cmd += " -cp {0} org.usadellab.trimmomatic".format(path)

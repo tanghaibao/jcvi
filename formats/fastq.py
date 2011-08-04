@@ -51,9 +51,18 @@ class FastqRecord (object):
     def __len__(self):
         return self.length
 
+    @property
+    def quality(self):
+        return [ord(x) for x in self.qual]
 
-def iter_fastq(fh, offset=0, key=None):
-    logging.debug("reading file `%s`" % fh.name)
+
+def iter_fastq(filename, offset=0, key=None):
+    if isinstance(filename, str):
+        logging.debug("Read file `{0}`".format(filename))
+        fh = must_open(filename)
+    else:
+        fh = filename
+
     while True:
         rec = FastqRecord(fh, offset=offset, key=key)
         if not rec.name:
@@ -74,9 +83,63 @@ def main():
         ('convert', 'convert between illumina and sanger offset'),
         ('trim', 'trim reads using fastx_trimmer'),
         ('some', 'select a subset of fastq reads'),
+        ('guessoffset', 'guess the quality offset of the fastq records'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def guessoffset(args):
+    """
+    %prog guessoffset fastqfile
+
+    Guess the quality offset of the fastqfile, whether 33 or 64.
+    See encoding schemes: <http://en.wikipedia.org/wiki/FASTQ_format>
+
+      SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS...............................
+      ..........................XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      ...............................IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII
+      .................................JJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJ
+      LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL...............................
+      !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefgh
+      |                         |    |        |                              |
+     33                        59   64       73                            104
+
+     S - Sanger        Phred+33,  raw reads typically (0, 40)
+     X - Solexa        Solexa+64, raw reads typically (-5, 40)
+     I - Illumina 1.3+ Phred+64,  raw reads typically (0, 40)
+     J - Illumina 1.5+ Phred+64,  raw reads typically (3, 40)
+     L - Illumina 1.8+ Phred+33,  raw reads typically (0, 40)
+        with 0=unused, 1=unused, 2=Read Segment Quality Control Indicator (bold)
+    """
+    p = OptionParser(guessoffset.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    fastqfile, = args
+    ai = iter_fastq(fastqfile)
+    rec = ai.next()
+    offset = 64
+    while rec:
+        quality = rec.quality
+        lowcounts = len([x for x in quality if x <= 58])
+        highcounts = len([x for x in quality if x >= 74])
+        diff = highcounts - lowcounts
+        if diff > 10:
+            break
+        elif diff < -10:
+            offset = 33
+            break
+        rec = ai.next()
+
+    if offset == 33:
+        print >> sys.stderr, "Sanger encoding (offset=33)"
+    elif offset == 64:
+        print >> sys.stderr, "Illumina encoding (offset=64)"
+
+    return offset
 
 
 def some(args):
@@ -159,14 +222,13 @@ def splitread(args):
         sys.exit(not p.print_help())
 
     pairsfastq, = args
-    fh = open(pairsfastq)
 
     assert op.exists(pairsfastq)
     base = op.basename(pairsfastq).split(".")[0]
     fq = base + ".splitted.fastq"
     fw = open(fq, "w")
 
-    it = iter_fastq(fh)
+    it = iter_fastq(pairsfastq)
     rec = it.next()
     n = opts.n
     while rec:
@@ -198,27 +260,13 @@ def size(args):
     total_size = 0
     total_numrecords = 0
     for f in args:
-        fh = open(f)
-        for rec in iter_fastq(fh):
+        for rec in iter_fastq(f):
             if rec:
                 total_numrecords += 1
                 total_size += len(rec)
 
     print >>sys.stderr, "A total %d bases in %s sequences" % (total_size,
             total_numrecords)
-
-
-def is_low_complexity(seq, cutoff_pct=95):
-    # Here we remove seq with one dominant nucleotide
-    acgt = defaultdict(int)
-    for s in seqs:
-        acgt[s] += 1
-
-    for x in acgt.values():
-        if x * 100 / len(seq) > cutoff_pct:
-            return True
-
-    return False
 
 
 def convert(args):
@@ -231,10 +279,8 @@ def convert(args):
     p = OptionParser(convert.__doc__)
     p.add_option("-Q", dest="infastq", default="sanger",
             help="input fastq [default: %default]")
-    p.add_option("-q", dest="outfastq", default="sanger",
+    p.add_option("-q", dest="outfastq", default="illumina",
             help="output fastq format [default: %default]")
-    p.add_option("-L", dest="remove_lowcomplexity", default=False,
-            action="store_true", help="remove poly-A/C/G/T")
 
     opts, args = p.parse_args(args)
 
@@ -246,34 +292,30 @@ def convert(args):
     out_offset = qual_offset(opts.outfastq)
     offset = out_offset - in_offset
 
-    logging.debug("convert from `%s (%s)` to `%s (%s)`" % (infastq,
-        opts.infastq, outfastq, opts.outfastq))
+    logging.debug("Convert from `{0} ({1})` to `{2} ({3})`".\
+            format(infastq, opts.infastq, outfastq, opts.outfastq))
 
     from jcvi.apps.console import ProgressBar
+
     totalsize = op.getsize(infastq)
     bar = ProgressBar(maxval=totalsize).start()
-    fw = open(outfastq, "w")
-    ah = open(infastq)
 
     low_complexity = 0
+    ah = must_open(infastq)
+    fw = must_open(outfastq, "w")
     for a in iter_fastq(ah, offset=offset):
         if a is None:
             continue
-        if opts.remove_lowcomplexity:
-            if is_low_complexity(a.seq):
-                low_complexity += 1
-                continue
 
-        print >>fw, a
+        print >> fw, a
 
         # update progress
         pos = ah.tell()
         bar.update(pos)
 
     bar.finish()
-    print >>sys.stderr, \
-            "A total of %d low complexity region removed." % low_complexity
-    sys.stdout.write("\n")
+
+    return outfastq
 
 
 def unpair(args):
@@ -304,10 +346,8 @@ def unpair(args):
     bfw = open(bfastq, "w")
 
     for pairsfastq in pairsfastqs:
-        fh = open(pairsfastq)
-
         assert op.exists(pairsfastq)
-        it = iter_fastq(fh)
+        it = iter_fastq(pairsfastq)
         rec = it.next()
         while rec:
             if tag:
@@ -356,8 +396,7 @@ def pairinplace(args):
     else:
         strip_name = str
 
-    fh = must_open(fastqfile)
-    fh_iter = iter_fastq(fh, key=strip_name)
+    fh_iter = iter_fastq(fastqfile, key=strip_name)
     skipflag = False  # controls the iterator skip
     for a, b in pairwise(fh_iter):
         if b is None:  # hit the eof
@@ -430,7 +469,6 @@ def pair(args):
     ref = opts.ref
 
     if ref:
-        rh = open(ref)
         totalsize = op.getsize(ref)
     else:
         totalsize = op.getsize(afastq)
@@ -439,10 +477,8 @@ def pair(args):
     bar = ProgressBar(maxval=totalsize).start()
     strip_name = lambda x: x.rsplit("/", 1)[0]
 
-    ah = open(afastq)
-    ah_iter = iter_fastq(ah, offset=offset, key=strip_name)
-    bh = open(bfastq)
-    bh_iter = iter_fastq(bh, offset=offset, key=strip_name)
+    ah_iter = iter_fastq(afastq, offset=offset, key=strip_name)
+    bh_iter = iter_fastq(bfastq, offset=offset, key=strip_name)
 
     a = ah_iter.next()
     b = bh_iter.next()
@@ -451,7 +487,7 @@ def pair(args):
     pairsfw = open(pairs, "w")
 
     if ref:
-        for r in iter_fastq(rh, offset=0, key=strip_name):
+        for r in iter_fastq(ref, offset=0, key=strip_name):
             if not a or not b or not r:
                 break
 

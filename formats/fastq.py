@@ -68,7 +68,7 @@ def iter_fastq(filename, offset=0, key=None):
         if not rec.name:
             break
         yield rec
-    yield None  # guardian
+    yield None  # sentinel
 
 
 def main():
@@ -372,10 +372,10 @@ def pairinplace(args):
 
     Pair up the records in bulk.fastq by comparing the names for adjancent
     records. If they match, print to bulk.pairs.fastq, else print to
-    bulk.fragments.fastq.
+    bulk.frags.fastq.
     """
     p = OptionParser(pairinplace.__doc__)
-    p.add_option("-r", dest="rclip", default=0, type="int",
+    p.add_option("-r", dest="rclip", default=1, type="int",
             help="pair ID is derived from rstrip N chars [default: %default]")
     opts, args = p.parse_args(args)
 
@@ -418,8 +418,6 @@ def pairinplace(args):
         print >> fragsfw, a
 
     logging.debug("reads paired into `%s` and `%s`" % (pairs, frags))
-    for f in (fh, pairsfw, fragsfw):
-        f.close()
 
 
 def pair(args):
@@ -430,7 +428,7 @@ def pair(args):
     "/1" and "/2". If using raw sequences, this is trivial, since we can just
     iterate one at a time for both files; however if two files do not match,
     (e.g. due to trimming), we need a third fastq that provides the order. Two
-    output files will be automatically written, one `fragments.fastq` and
+    output files will be automatically written, one `frags.fastq` and
     `pairs.fastq`
     """
     p = OptionParser(pair.__doc__)
@@ -453,7 +451,7 @@ def pair(args):
     logging.debug("pair up `%s` and `%s`" % (afastq, bfastq))
 
     base = op.basename(afastq).split(".")[0]
-    frags = base + ".fragments.fastq"
+    frags = base + ".frags.fastq"
     pairs = base + ".pairs.fastq"
 
     outputdir = opts.outputdir

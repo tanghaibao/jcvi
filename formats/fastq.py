@@ -11,6 +11,7 @@ import logging
 
 from optparse import OptionParser
 
+from jcvi.formats.fasta import must_open
 from jcvi.utils.iter import pairwise
 from jcvi.apps.base import ActionDispatcher, debug, set_grid, sh
 debug()
@@ -339,11 +340,11 @@ def pairinplace(args):
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
     fastqfile, = args
     base = op.basename(fastqfile).split(".")[0]
-    frags = base + ".fragments.fastq"
+    frags = base + ".frags.fastq"
     pairs = base + ".pairs.fastq"
 
     fragsfw = open(frags, "w")
@@ -355,7 +356,7 @@ def pairinplace(args):
     else:
         strip_name = str
 
-    fh = open(fastqfile)
+    fh = must_open(fastqfile)
     fh_iter = iter_fastq(fh, key=strip_name)
     skipflag = False  # controls the iterator skip
     for a, b in pairwise(fh_iter):

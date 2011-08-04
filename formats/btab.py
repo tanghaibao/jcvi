@@ -31,7 +31,7 @@ class BtabLine (object):
         self.sstop = int(args[9])
         self.pctid = float(args[10])
         self.score = float(args[13])
-        #self.description = args[14]
+        self.description = args[15]
         #self.strand = "-" if args[17]=="Minus" else "Plus"
         self.subjectlen = int(args[18])
         self.evalue = float(args[19])
@@ -39,7 +39,7 @@ class BtabLine (object):
     @property
     def blastline(self):
         # some fields are not represented so ignore
-        return "\t".join((self.query, self.subject,
+        return "\t".join((self.query, self.subject + " " + self.description,
                 "%.2f" % self.pctid,
                 "0", "0", "0",
                 "%d" % self.qstart, "%d" % self.qstop,
@@ -60,17 +60,16 @@ def blast(args):
     """
     %prog blast btabfile
 
-    convert back to BLAST -m8 format
+    Convert to BLAST -m8 format.
     """
     p = OptionParser(blast.__doc__)
 
     opts, args = p.parse_args(args)
 
-    if len(args) == 1:
-        btabfile = args[0]
-    else:
-        sys.exit(p.print_help())
+    if len(args) != 1:
+        sys.exit(not p.print_help())
 
+    btabfile, = args
     fp = open(btabfile)
     for row in fp:
         b = BtabLine(row)

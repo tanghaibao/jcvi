@@ -1089,8 +1089,6 @@ def tidy(args):
 
         newseq = newseq.strip('N')
         ngaps = newseq.count(normalized_gap)
-        if ngaps == 0:
-            logging.debug("{0}: is now a Phase 3 sequence.".format(rec.id))
 
         rec.seq = Seq(newseq)
 

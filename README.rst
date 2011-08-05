@@ -97,7 +97,7 @@ folder by default)::
 
 Please note: the first time you run this, it will likely ask for the locations
 of some utility programs. They are only required for certain functions - so you
-can just hit Enter through. For example, I went through these setups.
+can just hit Enter through. For example, I went through these setups::
 
     Set path for makeblastdb [Blank if it's on your PATH]:
     <ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/>

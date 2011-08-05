@@ -15,7 +15,7 @@ BDPATH = "~/bin/"
 CAPATH = "~/bin/Linux-amd64/bin/"
 CDPATH = "~/htang/export/cd-hit-v4.5.5-2011-03-31/"
 BLPATH = "~/scratch/bin/"
-
+JAVA = "/usr/local/bin/java-1.6.0 -Xmx4g"
 
 @depends
 def run_formatdb(infile=None, outfile=None):

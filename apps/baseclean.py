@@ -12,6 +12,7 @@ import sys
 from optparse import OptionParser
 
 from jcvi.formats.fastq import guessoffset, convert
+from jcvi.apps.command import JAVA
 from jcvi.apps.base import ActionDispatcher, debug, set_grid, download, sh
 debug()
 
@@ -69,12 +70,11 @@ def trim(args):
     for i, fastqfile in enumerate(args):
         offset = guessoffset([fastqfile])
         if offset != 64:
-            newfastqfile = fastqfile.rsplit(".", 1)[0] + ".b64.fastq.gz"
+            newfastqfile = fastqfile.rstrip(".gz").rsplit(".", 1)[0] + ".b64.fastq.gz"
             convert([fastqfile, newfastqfile])
             args[i] = newfastqfile
 
-    cmd = "/usr/local/bin/java-1.6.0 -Xmx4g"
-    cmd += " -cp {0} org.usadellab.trimmomatic".format(path)
+    cmd = JAVA + " -cp {0} org.usadellab.trimmomatic".format(path)
     frags = ".frags.fastq.gz"
     pairs = ".pairs.fastq.gz"
     if len(args) == 1:

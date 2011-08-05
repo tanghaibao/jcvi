@@ -13,6 +13,7 @@ from optparse import OptionParser
 
 from jcvi.formats.fasta import must_open
 from jcvi.utils.iter import pairwise
+from jcvi.apps.base import getfilesize
 from jcvi.apps.base import ActionDispatcher, debug, set_grid, sh
 debug()
 
@@ -276,6 +277,8 @@ def convert(args):
     illumina fastq quality encoding uses offset 64, and sanger uses 33. This
     script creates a new file with the correct encoding
     """
+    from jcvi.apps.console import ProgressBar
+
     p = OptionParser(convert.__doc__)
     p.add_option("-Q", dest="infastq", default="sanger",
             help="input fastq [default: %default]")
@@ -295,13 +298,11 @@ def convert(args):
     logging.debug("Convert from `{0} ({1})` to `{2} ({3})`".\
             format(infastq, opts.infastq, outfastq, opts.outfastq))
 
-    from jcvi.apps.console import ProgressBar
+    ah = must_open(infastq)
+    totalsize = getfilesize(infastq, ratio=0.3)
 
-    totalsize = op.getsize(infastq)
     bar = ProgressBar(maxval=totalsize).start()
 
-    low_complexity = 0
-    ah = must_open(infastq)
     fw = must_open(outfastq, "w")
     for a in iter_fastq(ah, offset=offset):
         if a is None:
@@ -311,6 +312,8 @@ def convert(args):
 
         # update progress
         pos = ah.tell()
+        if pos > totalsize:
+            pos -= 2 ** 32  # Wrong GZIP file estimate
         bar.update(pos)
 
     bar.finish()
@@ -384,11 +387,15 @@ def pairinplace(args):
 
     fastqfile, = args
     base = op.basename(fastqfile).split(".")[0]
+
     frags = base + ".frags.fastq"
     pairs = base + ".pairs.fastq"
+    if fastqfile.endswith(".gz"):
+        frags += ".gz"
+        pairs += ".gz"
 
-    fragsfw = open(frags, "w")
-    pairsfw = open(pairs, "w")
+    fragsfw = must_open(frags, "w")
+    pairsfw = must_open(pairs, "w")
 
     N = opts.rclip
     if N:
@@ -417,7 +424,7 @@ def pairinplace(args):
     if not skipflag:
         print >> fragsfw, a
 
-    logging.debug("reads paired into `%s` and `%s`" % (pairs, frags))
+    logging.debug("Reads paired into `%s` and `%s`" % (pairs, frags))
 
 
 def pair(args):
@@ -467,9 +474,9 @@ def pair(args):
     ref = opts.ref
 
     if ref:
-        totalsize = op.getsize(ref)
+        totalsize = getfilesize(ref)
     else:
-        totalsize = op.getsize(afastq)
+        totalsize = getfilesize(afastq)
 
     from jcvi.apps.console import ProgressBar
     bar = ProgressBar(maxval=totalsize).start()

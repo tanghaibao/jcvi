@@ -164,6 +164,33 @@ def download(url, filename=None):
     return filename
 
 
+def getfilesize(filename, ratio=None):
+    rawsize = op.getsize(filename)
+    if not filename.endswith(".gz"):
+        return rawsize
+
+    import struct
+
+    fo = open(filename, 'rb')
+    fo.seek(-4, 2)
+    r = fo.read()
+    fo.close()
+    size = struct.unpack('<I', r)[0]
+    # This is only ISIZE, which is the UNCOMPRESSED modulo 2 ** 32
+    if ratio is None:
+        return size
+
+    # Heuristic
+    heuristicsize = rawsize / ratio
+    while size < heuristicsize:
+        size += 2 ** 32
+    if size > 2 ** 32:
+        logging.warn(\
+            "Gzip file estimated uncompressed size: {0}.".format(size))
+
+    return size
+
+
 def debug():
     """
     Turn on the debugging

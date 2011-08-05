@@ -93,7 +93,28 @@ is the preferred method*, as you can run regardless of the dir you are in::
 You can also copy ``jcvi`` to the current folder (since Python searches current
 folder by default)::
 
-    python jcvi/formats/fasta.py   
+    python jcvi/formats/fasta.py
+
+Please note: the first time you run this, it will likely ask for the locations
+of some utility programs. They are only required for certain functions - so you
+can just hit Enter through. For example, I went through these setups.
+
+    Set path for makeblastdb [Blank if it's on your PATH]:
+    <ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/>
+    >>> ~/scratch/bin
+    17:16:52 [command::DEBUG] Configuration written to `/home/htang/.jcvirc`.
+    Set path for genomeCoverageBed [Blank if it's on your PATH]:
+    <http://code.google.com/p/bedtools/>
+    >>> ~/scratch/bin
+    17:17:02 [command::DEBUG] Configuration written to `/home/htang/.jcvirc`.
+    Set path for faSize [Blank if it's on your PATH]:
+    <http://hgdownload.cse.ucsc.edu/admin/jksrc.zip>
+    >>>
+    17:17:06 [command::DEBUG] Configuration written to `/home/htang/.jcvirc`.
+    Set path for seqret [Blank if it's on your PATH]:
+    <http://emboss.sourceforge.net/>
+
+The locations of these binaries can later be changed by modifying ``~/.jcvirc``.
 
 Most of the scripts in this package contains multiple actions. To use the
 ``fasta`` example::

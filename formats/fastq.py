@@ -13,6 +13,7 @@ from optparse import OptionParser
 
 from jcvi.formats.fasta import must_open
 from jcvi.utils.iter import pairwise
+from jcvi.apps.command import EMBOSSPATH
 from jcvi.apps.base import getfilesize
 from jcvi.apps.base import ActionDispatcher, debug, set_grid, sh
 debug()
@@ -277,8 +278,6 @@ def convert(args):
     illumina fastq quality encoding uses offset 64, and sanger uses 33. This
     script creates a new file with the correct encoding
     """
-    from jcvi.apps.console import ProgressBar
-
     p = OptionParser(convert.__doc__)
     p.add_option("-Q", dest="infastq", default="sanger",
             help="input fastq [default: %default]")
@@ -288,35 +287,21 @@ def convert(args):
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
     infastq, outfastq = args
-    in_offset = qual_offset(opts.infastq)
-    out_offset = qual_offset(opts.outfastq)
-    offset = out_offset - in_offset
 
-    logging.debug("Convert from `{0} ({1})` to `{2} ({3})`".\
-            format(infastq, opts.infastq, outfastq, opts.outfastq))
+    seqret = op.join(EMBOSSPATH, "seqret")
+    if infastq.endswith(".gz"):
+        cmd = "zcat {0} | ".format(infastq)
+        cmd += seqret + " fastq-{0}::stdin fastq-{1}::stdout".\
+                format(opts.infastq, opts.outfastq)
+        cmd += " | gzip > {0}".format(outfastq)
+    else:
+        cmd = seqret + " fastq-{0}::{1} fastq-{2}::{3}".\
+                format(opts.infastq, infastq, opts.outfastq, outfastq)
 
-    ah = must_open(infastq)
-    totalsize = getfilesize(infastq, ratio=0.3)
-
-    bar = ProgressBar(maxval=totalsize).start()
-
-    fw = must_open(outfastq, "w")
-    for a in iter_fastq(ah, offset=offset):
-        if a is None:
-            continue
-
-        print >> fw, a
-
-        # update progress
-        pos = ah.tell()
-        if pos > totalsize:
-            pos -= 2 ** 32  # Wrong GZIP file estimate
-        bar.update(pos)
-
-    bar.finish()
+    sh(cmd)
 
     return outfastq
 
@@ -479,6 +464,7 @@ def pair(args):
         totalsize = getfilesize(afastq)
 
     from jcvi.apps.console import ProgressBar
+
     bar = ProgressBar(maxval=totalsize).start()
     strip_name = lambda x: x.rsplit("/", 1)[0]
 

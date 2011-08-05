@@ -34,8 +34,8 @@ class Coverage (LineFile):
 
         coveragefile = bedfile + ".coverage"
         if not op.exists(coveragefile):
-            cmd = BDPATH + "genomeCoverageBed -d -i {0} -g {1}".format(bedfile,
-                sizesfile)
+            cmd = op.join(BDPATH, "genomeCoverageBed")
+            cmd += " -d -i {0} -g {1}".format(bedfile, sizesfile)
             sh(cmd, outfile=coveragefile)
 
         filename = coveragefile

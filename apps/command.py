@@ -3,19 +3,67 @@ Commonly performed commands.
 """
 
 import os
+import os.path as op
 import shutil
 import logging
 
-from jcvi.utils.cbook import depends
+from jcvi.utils.cbook import depends, memoized
 from jcvi.apps.base import sh
 
 
-# Install locations of common binaries
-BDPATH = "~/bin/"
-CAPATH = "~/bin/Linux-amd64/bin/"
-CDPATH = "~/htang/export/cd-hit-v4.5.5-2011-03-31/"
-BLPATH = "~/scratch/bin/"
-JAVA = "/usr/local/bin/java-1.6.0 -Xmx4g"
+@memoized
+def getpath(cmd, url=None, cfg="~/.jcvirc"):
+    """
+    Get install locations of common binaries
+    First, check ~/.jcvirc file to get the full path
+    If not present, ask on the console and and store
+    """
+    import ConfigParser
+
+    PATH = "Path"
+    config = ConfigParser.RawConfigParser()
+    cfg = op.expanduser(cfg)
+    changed = False
+    if op.exists(cfg):
+        config.read(cfg)
+
+    try:
+        fullpath = config.get(PATH, cmd)
+    except ConfigParser.NoSectionError:
+        config.add_section(PATH)
+        changed = True
+    except:
+        pass
+
+    try:
+        fullpath = config.get(PATH, cmd)
+    except ConfigParser.NoOptionError:
+        msg = "Set path for {0} [Blank if it's on your PATH]:\n".\
+                format(cmd, cfg)
+        if url:
+            msg += "<{0}>\n>>> ".format(url)
+        fullpath = raw_input(msg).strip()
+        config.set(PATH, cmd, fullpath)
+        changed = True
+
+    if changed:
+        configfile = open(cfg, "w")
+        config.write(configfile)
+        logging.debug("Configuration written to `{0}`.".format(cfg))
+
+    return fullpath
+
+
+BLPATH = getpath("makeblastdb", \
+        "ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/")
+BDPATH = getpath("genomeCoverageBed", \
+        "http://code.google.com/p/bedtools/")
+JKPATH = getpath("faSize", \
+        "http://hgdownload.cse.ucsc.edu/admin/jksrc.zip")
+EMBOSSPATH = getpath("seqret", \
+        "http://emboss.sourceforge.net/")
+JAVA = getpath("java-1.6.0", "http://www.java.com/")
+
 
 @depends
 def run_formatdb(infile=None, outfile=None):

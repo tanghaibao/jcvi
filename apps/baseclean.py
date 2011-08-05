@@ -74,7 +74,8 @@ def trim(args):
             convert([fastqfile, newfastqfile])
             args[i] = newfastqfile
 
-    cmd = JAVA + " -cp {0} org.usadellab.trimmomatic".format(path)
+    cmd = op.join(JAVA, "java-1.6.0 -Xmx4g")
+    cmd += " -cp {0} org.usadellab.trimmomatic".format(path)
     frags = ".frags.fastq.gz"
     pairs = ".pairs.fastq.gz"
     if len(args) == 1:

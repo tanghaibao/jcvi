@@ -17,13 +17,15 @@ from optparse import OptionParser
 from jcvi.graphics.histogram import loghistogram
 from jcvi.formats.base import must_open
 from jcvi.formats.fasta import Fasta
-from jcvi.apps.command import CAPATH
+from jcvi.apps.command import getpath
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
 
 orientationlabels = {"++": "normal", "+-": "innie", "-+": "outie", "--": "antinormal"}
 orientationflips = {"++": "--", "+-": "-+", "-+": "+-", "--": "++"}
+CAPATH = getpath("runCA", "http://wgs-assembler.sf.net")
+
 
 def calculate_A50(ctgsizes, cutoff=0):
     """

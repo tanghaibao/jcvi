@@ -26,8 +26,8 @@ from jcvi.formats.blast import Blast
 from jcvi.utils.range import range_minmax
 from jcvi.utils.table import tabulate
 from jcvi.apps.softlink import get_abs_path
-from jcvi.apps.base import ActionDispatcher, sh, set_grid, debug
 from jcvi.assembly.base import CAPATH
+from jcvi.apps.base import ActionDispatcher, sh, set_grid, debug
 debug()
 
 

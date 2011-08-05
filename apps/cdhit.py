@@ -14,9 +14,12 @@ from optparse import OptionParser
 
 from jcvi.formats.base import read_block
 from jcvi.utils.cbook import percentage
-from jcvi.apps.command import CDPATH
+from jcvi.apps.command import getpath
 from jcvi.apps.base import ActionDispatcher, set_grid, debug, sh
 debug()
+
+
+CDPATH = getpath("cd-hit-454", "http://weizhong-lab.ucsd.edu/cd-hit/")
 
 
 def main():
@@ -109,8 +112,8 @@ def deduplicate(args):
 
     fastafile, = args
 
-    cmd = CDPATH + "cd-hit-454 -M 0 -T 0 " + \
-            "-i {0} -o {0}.cdhit".format(fastafile)
+    cmd = op.join(CDPATH, "cd-hit-454")
+    cmd += "-M 0 -T 0 -i {0} -o {0}.cdhit".format(fastafile)
     sh(cmd, grid=opts.grid)
 
 

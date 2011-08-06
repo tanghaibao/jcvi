@@ -52,8 +52,6 @@ def getpath(cmd, name=None, url=None, cfg="~/.jcvirc"):
         logging.debug("Configuration written to `{0}`.".format(cfg))
 
     path = op.join(fullpath, cmd)
-    if not op.exists(path):
-        path = cmd
 
     return path
 

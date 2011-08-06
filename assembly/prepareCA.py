@@ -26,7 +26,7 @@ from jcvi.formats.blast import Blast
 from jcvi.utils.range import range_minmax
 from jcvi.utils.table import tabulate
 from jcvi.apps.softlink import get_abs_path
-from jcvi.assembly.base import CAPATH
+from jcvi.apps.command import CAPATH
 from jcvi.apps.base import ActionDispatcher, sh, set_grid, debug
 debug()
 
@@ -259,7 +259,7 @@ def tracedb(args):
     action, = args
     assert action in ("xml", "lib", "frg")
 
-    CMD = "perl {0}tracedb-to-frg.pl".format(CAPATH)
+    CMD = CAPATH("tracedb-to-frg.pl")
     xmls = glob("xml*")
 
     if action == "xml":
@@ -370,7 +370,8 @@ def fasta(args):
         else:
             matefile = make_matepairs(fastafile)
 
-    cmd = CAPATH + "convert-fasta-to-v2.pl -l {0} -s {1} -q {2} ".\
+    cmd = CAPATH("convert-fasta-to-v2.pl")
+    cmd += " -l {0} -s {1} -q {2} ".\
             format(libname, fastafile, qualfile)
     if mated:
         cmd += "-mean {0} -stddev {1} -m {2} ".format(mean, sv, matefile)
@@ -420,12 +421,13 @@ def sff(args):
     if opts.prefix:
         libname = opts.prefix
 
-    cmd = CAPATH + "sffToCA -libraryname {0} -output {0} ".format(libname)
-    cmd += "-clear 454 -trim chop "
+    cmd = CAPATH("sffToCA")
+    cmd += " -libraryname {0} -output {0} ".format(libname)
+    cmd += " -clear 454 -trim chop "
     if mated:
-        cmd += "-linker titanium -insertsize {0} {1} ".format(mean, sv)
+        cmd += " -linker titanium -insertsize {0} {1} ".format(mean, sv)
     if opts.nodedup:
-        cmd += "-nodedup "
+        cmd += " -nodedup "
 
     cmd += " ".join(sffiles)
 
@@ -473,7 +475,8 @@ def fastq(args):
 
     mean, sv = get_mean_sv(opts.size)
 
-    cmd = CAPATH + "fastqToCA -libraryname {0} ".format(libname)
+    cmd = CAPATH("fastqToCA")
+    cmd += " -libraryname {0} ".format(libname)
     fastqs = " ".join("-fastq {0}".format(x) for x in fastqfiles)
     if mated:
         assert len(args) == 2, "you need two fastq file for mated library"

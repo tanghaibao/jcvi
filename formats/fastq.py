@@ -13,7 +13,6 @@ from optparse import OptionParser
 
 from jcvi.formats.fasta import must_open
 from jcvi.utils.iter import pairwise
-from jcvi.apps.command import EMBOSSPATH
 from jcvi.apps.base import getfilesize
 from jcvi.apps.base import ActionDispatcher, debug, set_grid, sh
 debug()
@@ -291,7 +290,9 @@ def convert(args):
 
     infastq, outfastq = args
 
-    seqret = op.join(EMBOSSPATH, "seqret")
+    from jcvi.apps.command import EMBOSSPATH
+
+    seqret = EMBOSSPATH("seqret")
     if infastq.endswith(".gz"):
         cmd = "zcat {0} | ".format(infastq)
         cmd += seqret + " fastq-{0}::stdin fastq-{1}::stdout".\

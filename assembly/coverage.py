@@ -20,7 +20,6 @@ from jcvi.formats.fasta import gaps
 from jcvi.formats.sizes import Sizes
 from jcvi.formats.posmap import query, bed
 from jcvi.formats.bed import BedLine
-from jcvi.apps.command import BDPATH
 from jcvi.apps.base import ActionDispatcher, sh, debug
 debug()
 
@@ -31,10 +30,11 @@ class Coverage (LineFile):
     contigID baseID coverage
     """
     def __init__(self, bedfile, sizesfile):
+        from jcvi.apps.command import BDPATH
 
         coveragefile = bedfile + ".coverage"
         if not op.exists(coveragefile):
-            cmd = op.join(BDPATH, "genomeCoverageBed")
+            cmd = BDPATH("genomeCoverageBed")
             cmd += " -d -i {0} -g {1}".format(bedfile, sizesfile)
             sh(cmd, outfile=coveragefile)
 

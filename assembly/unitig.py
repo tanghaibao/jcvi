@@ -22,7 +22,7 @@ from glob import glob
 from optparse import OptionParser
 
 from jcvi.formats.base import BaseFile
-from jcvi.assembly.base import CAPATH
+from jcvi.apps.command import CAPATH
 from jcvi.apps.base import ActionDispatcher, sh, mkdir, debug
 debug()
 
@@ -281,8 +281,9 @@ def pull(args):
     prefix = get_prefix()
     partID, unitigID = args
 
-    cmd = CAPATH + "tigStore -g ../{0}.gkpStore -t ../{0}.tigStore 1 ".format(prefix)
-    cmd += "-up {0} -d layout -u {1} > unitig{0}.{1}".format(partID, unitigID)
+    cmd = CAPATH("tigStore")
+    cmd += " -g ../{0}.gkpStore -t ../{0}.tigStore 1".format(prefix)
+    cmd += " -up {0} -d layout -u {1} > unitig{0}.{1}".format(partID, unitigID)
 
     sh(cmd)
     unitigfile = "unitig{0}.{1}".format(partID, unitigID)
@@ -305,8 +306,9 @@ def test(args):
     s, = args
     partID, unitigID = get_ID(s)
 
-    cmd = CAPATH + "utgcns -g ../{0}.gkpStore -t ../{0}.tigStore 1 ".format(prefix)
-    cmd += "{0} -T unitig{0}.{1} -V -V -V -v 2> unitig{0}.{1}.log".\
+    cmd = CAPATH("utgcns")
+    cmd += " -g ../{0}.gkpStore -t ../{0}.tigStore 1".format(prefix)
+    cmd += " {0} -T unitig{0}.{1} -V -V -V -v 2> unitig{0}.{1}.log".\
             format(partID, unitigID)
 
     sh(cmd)
@@ -329,8 +331,9 @@ def push(args):
     s, = args
     partID, unitigID = get_ID(s)
 
-    cmd = CAPATH + "tigStore -g ../{0}.gkpStore -t ../{0}.tigStore 1 ".format(prefix)
-    cmd += "-up {0} -R unitig{0}.{1}".format(partID, unitigID)
+    cmd = CAPATH("tigStore")
+    cmd += " -g ../{0}.gkpStore -t ../{0}.tigStore 1".format(prefix)
+    cmd += " -up {0} -R unitig{0}.{1}".format(partID, unitigID)
 
     sh(cmd)
 
@@ -352,8 +355,9 @@ def delete(args):
     s, = args
     partID, unitigID = get_ID(s)
 
-    cmd = CAPATH + "tigStore -g ../{0}.gkpStore -t ../{0}.tigStore 1 ".format(prefix)
-    cmd += "{0} -D -u {1}".format(partID, unitigID)
+    cmd = CAPATH("tigStore")
+    cmd += " -g ../{0}.gkpStore -t ../{0}.tigStore 1 ".format(prefix)
+    cmd += " {0} -D -u {1}".format(partID, unitigID)
 
     sh(cmd)
 

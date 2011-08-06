@@ -88,6 +88,7 @@ Resolve dependencies first. Then place the whole folder ``jcvi/`` on your
 ``PYTHONPATH``. Most scripts can both ``import`` or run as utility script. *This
 is the preferred method*, as you can run regardless of the dir you are in::
 
+    export PYTHONPATH=/dir_contains_jcvi
     python -m jcvi.formats.fasta
 
 You can also copy ``jcvi`` to the current folder (since Python searches current
@@ -95,7 +96,7 @@ folder by default)::
 
     python jcvi/formats/fasta.py
 
-Please note: the first time you run this, it will likely ask for the locations
+Please note: the first time you run, certain module will likely ask for locations
 of some utility programs. They are only required for certain functions - so you
 can just hit Enter through. For example, I went through these setups::
 

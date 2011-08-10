@@ -41,10 +41,10 @@ Contents
     * Low complexity sequence masker with NCBI WindowMasker.
 
 - ``formats``
-    File parsers for various files used in genome assembly and comparisons. 
-    Currents supports ``.agp`` (goldenpath), ``.bed`` format, 
+    File parsers for various files used in genome assembly and comparisons.
+    Currents supports ``.agp`` (goldenpath), ``.bed`` format,
     ``.blast`` output, ``.btab`` format, ``.cas`` (CLC assembler output),
-    ``.coords`` format (``nucmer`` output), ``.fasta`` format, ``.fastq`` format, 
+    ``.coords`` format (``nucmer`` output), ``.fasta`` format, ``.fastq`` format,
     ``.fpc`` format, ``.gff`` format, ``obo`` format (ontology),
     ``.posmap`` format (Celera assembler output), ``.sam`` format (read
     mapping).
@@ -97,12 +97,11 @@ folder by default)::
     python jcvi/formats/fasta.py
 
 Please note: the first time you run, certain module will likely ask for locations
-of some utility programs. They are only required for certain functions - so you
-can just hit Enter through. For example, I went through these setups::
+of some utility programs.  For example::
 
-    Set path for EMBOSS [Blank if on your PATH]
+    === Configure path for EMBOSS ===
     URL: <http://emboss.sourceforge.net/>
-    >>> ~/scratch/bin
+    [Directory that contains `seqret`]: ~/scratch/bin
     23:53:57 [command::DEBUG] Configuration written to `/home/htang/.jcvirc`.
 
 The locations of these binaries can later be changed by modifying ``~/.jcvirc``.
@@ -133,7 +132,7 @@ Then you need to use one action, you can just do::
 
     python -m jcvi.formats.fasta extract
 
-This will tell you the options and arguments it expects. 
+This will tell you the options and arguments it expects.
 
 **Feel free to check out other scripts in the package, it is not just for FASTA.**
- 
+

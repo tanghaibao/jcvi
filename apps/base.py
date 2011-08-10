@@ -111,6 +111,30 @@ def popen(cmd):
     return proc.stdout
 
 
+def which(program):
+    """
+    Emulates the unix which command.
+
+    >>> which("cat")
+    "/bin/cat"
+    >>> which("nosuchprogram")
+    """
+    def is_exe(fpath):
+        return op.isfile(fpath) and os.access(fpath, os.X_OK)
+
+    fpath, fname = op.split(program)
+    if fpath:
+        if is_exe(program):
+            return program
+    else:
+        for path in os.environ["PATH"].split(os.pathsep):
+            exe_file = op.join(path, program)
+            if is_exe(exe_file):
+                return exe_file
+
+    return None
+
+
 def mkdir(dirname, overwrite=False):
     """
     Wraps around os.mkdir(), but checks for existence first.

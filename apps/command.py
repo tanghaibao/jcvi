@@ -11,7 +11,7 @@ import ConfigParser
 from functools import partial
 
 from jcvi.utils.cbook import depends
-from jcvi.apps.base import sh
+from jcvi.apps.base import sh, which
 
 
 def getpath(cmd, name=None, url=None, cfg="~/.jcvirc"):
@@ -20,12 +20,18 @@ def getpath(cmd, name=None, url=None, cfg="~/.jcvirc"):
     First, check ~/.jcvirc file to get the full path
     If not present, ask on the console and and store
     """
+    p = which(cmd)  # if in PATH, just returns it
+    if p:
+        return p
+
     PATH = "Path"
     config = ConfigParser.RawConfigParser()
     cfg = op.expanduser(cfg)
     changed = False
     if op.exists(cfg):
         config.read(cfg)
+
+    assert name is not None, "Need a program name"
 
     try:
         fullpath = config.get(PATH, name)
@@ -38,10 +44,10 @@ def getpath(cmd, name=None, url=None, cfg="~/.jcvirc"):
     try:
         fullpath = config.get(PATH, name)
     except ConfigParser.NoOptionError:
-        msg = "Set path for {0} [Blank if on your PATH]\n".\
-                format(name, cfg)
+        msg = "=== Configure path for {0} ===\n".format(name, cfg)
         if url:
-            msg += "URL: <{0}>\n>>> ".format(url)
+            msg += "URL: <{0}>\n".format(url)
+        msg += "[Directory that contains `{0}`]: ".format(cmd)
         fullpath = raw_input(msg).strip()
         config.set(PATH, name, fullpath)
         changed = True

@@ -11,7 +11,7 @@ import ConfigParser
 from functools import partial
 
 from jcvi.utils.cbook import depends
-from jcvi.apps.base import sh, which
+from jcvi.apps.base import sh, is_exe, which
 
 
 def getpath(cmd, name=None, url=None, cfg="~/.jcvirc"):
@@ -52,12 +52,14 @@ def getpath(cmd, name=None, url=None, cfg="~/.jcvirc"):
         config.set(PATH, name, fullpath)
         changed = True
 
+    path = op.join(fullpath, cmd)
+    assert is_exe(path), \
+            "Cannot execute binary `{0}`. Please verify and rerun.".format(path)
+
     if changed:
         configfile = open(cfg, "w")
         config.write(configfile)
         logging.debug("Configuration written to `{0}`.".format(cfg))
-
-    path = op.join(fullpath, cmd)
 
     return path
 

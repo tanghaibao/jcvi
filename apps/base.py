@@ -111,6 +111,10 @@ def popen(cmd):
     return proc.stdout
 
 
+def is_exe(fpath):
+    return op.isfile(fpath) and os.access(fpath, os.X_OK)
+
+
 def which(program):
     """
     Emulates the unix which command.
@@ -119,9 +123,6 @@ def which(program):
     "/bin/cat"
     >>> which("nosuchprogram")
     """
-    def is_exe(fpath):
-        return op.isfile(fpath) and os.access(fpath, os.X_OK)
-
     fpath, fname = op.split(program)
     if fpath:
         if is_exe(program):

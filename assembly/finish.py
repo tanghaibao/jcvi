@@ -114,14 +114,15 @@ def scaffold(args):
         singletons = sorted(ctgbuckets[bname] - scaffolded)
         nscaffolds = len(scaffolds)
         nsingletons = len(singletons)
-        msg = "{0}: Scaffolds={1} Singletons={2}".\
-            format(bname, nscaffolds, nsingletons)
-        if nsingletons == 0 and nscaffolds == 1:
+        if nsingletons == 1 and nscaffolds == 0:
+            phase = 3
+        elif nsingletons == 0 and nscaffolds == 1:
             phase = 2
-            msg += " (phase 2)"
         else:
             phase = 1
 
+        msg = "{0}: Scaffolds={1} Singletons={2} Phase={3}".\
+            format(bname, nscaffolds, nsingletons, phase)
         print >> sys.stderr, msg
         print >> fwphase, "\t".join((bname, str(phase)))
 

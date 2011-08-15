@@ -19,7 +19,7 @@ from Bio import SeqIO
 
 from jcvi.formats.base import LineFile
 from jcvi.formats.blast import set_options_pairs, report_pairs
-from jcvi.apps.base import ActionDispatcher, sh, set_grid, debug
+from jcvi.apps.base import ActionDispatcher, sh, set_grid, debug, is_newer_file
 debug()
 
 
@@ -207,9 +207,6 @@ def txt(args):
     txtfile = casfile.replace(".cas", ".txt")
     assert op.exists(casfile)
 
-    if op.exists(txtfile):
-        os.remove(txtfile)
-
     cmd = "assembly_table -n -s -p "
     if opts.multi:
         cmd += "-m "
@@ -253,7 +250,7 @@ def check_txt(casfile):
     """
     if casfile.endswith(".cas"):
         castabfile = casfile.replace(".cas", ".txt")
-        if not op.exists(castabfile):
+        if not is_newer_file(castabfile, casfile):
             castabfile = txt([casfile])
         else:
             logging.debug("File `{0}` found.".format(castabfile))

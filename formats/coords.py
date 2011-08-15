@@ -97,6 +97,8 @@ class CoordsLine (object):
         bL, bR = 1, self.querylen
         aLhang, aRhang = self.start1 - aL, aR - self.end1
         bLhang, bRhang = self.start2 - bL, bR - self.end2
+        if self.orientation == '-':
+            bLhang, bRhang = bRhang, bLhang
         #print aLhang, aRhang, bLhang, bRhang
 
         s1 = aLhang + bRhang

@@ -188,7 +188,7 @@ def bundle(args):
     import numpy as np
 
     p = OptionParser(bundle.__doc__)
-    p.add_option("--links", type="int", default=2,
+    p.add_option("--links", type="int", default=1,
             help="Minimum number of mate pairs to bundle [default: %default]")
     opts, args = p.parse_args(args)
 

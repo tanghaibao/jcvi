@@ -17,7 +17,7 @@ from Bio.SeqRecord import SeqRecord
 from jcvi.formats.base import BaseFile, DictFile, must_open
 from jcvi.utils.cbook import human_size
 from jcvi.utils.table import banner
-from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.apps.base import ActionDispatcher, debug, set_outfile
 from jcvi.apps.console import print_red, print_green
 debug()
 
@@ -208,14 +208,20 @@ def ids(args):
     Generate the FASTA headers without the '>'.
     """
     p = OptionParser(ids.__doc__)
+    set_outfile(p)
+
+    opts, args = p.parse_args(args)
 
     if len(args) < 1:
         sys.exit(not p.print_help())
 
+    fw = must_open(opts.outfile, "w")
     for fastafile in args:
         f = Fasta(fastafile, lazy=True)
         for key in f.iterkeys_ordered():
-            print key
+            print >> fw, key
+
+    fw.close()
 
 
 def sort(args):

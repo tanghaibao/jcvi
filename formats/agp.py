@@ -21,13 +21,13 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio import SeqIO
 
-from jcvi.formats.base import LineFile
+from jcvi.formats.base import LineFile, must_open
 from jcvi.formats.fasta import Fasta
 from jcvi.formats.bed import Bed, BedLine
 from jcvi.assembly.base import calculate_A50
 from jcvi.utils.range import range_intersect
 from jcvi.utils.iter import pairwise, flatten
-from jcvi.apps.base import ActionDispatcher, set_debug
+from jcvi.apps.base import ActionDispatcher, set_debug, set_outfile
 
 
 Valid_component_type = list("ADFGNOPUW")
@@ -627,17 +627,20 @@ def phase(args):
     Also look for "chromosome" and "clone" in the definition line.
     """
     p = OptionParser(phase.__doc__)
+    set_outfile(p)
+
     opts, args = p.parse_args(args)
 
     if len(args) < 1:
         sys.exit(not p.print_help())
 
+    fw = must_open(opts.outfile, "w")
     for gbfile in args:
         for rec in SeqIO.parse(gbfile, "gb"):
             bac_phase, keywords = get_phase(rec)
             chr, clone = get_clone(rec)
             keyword_field = ";".join(keywords)
-            print "\t".join((rec.id, str(bac_phase), keyword_field,
+            print >> fw, "\t".join((rec.id, str(bac_phase), keyword_field,
                     chr, clone))
 
 

@@ -77,6 +77,45 @@ class BlastLine(object):
                 (self.subject, self.sstart - 1, self.sstop, self.query,
                  self.score, self.orientation))
 
+    def overlap(self, qsize, ssize, max_hang=100):
+        """
+        Determine the type of overlap given query, ref alignment coordinates
+        Consider the following alignment between sequence a and b:
+
+        aLhang \              / aRhang
+                \------------/
+                /------------\
+        bLhang /              \ bRhang
+
+        Terminal overlap: a before b, b before a
+        Contain overlap: a in b, b in a
+        """
+        aLhang, aRhang = self.qstart - 1, qsize - self.qstop
+        bLhang, bRhang = self.sstart - 1, ssize - self.sstop
+        if self.orientation == '-':
+            bLhang, bRhang = bRhang, bLhang
+        #print aLhang, aRhang, bLhang, bRhang
+
+        s1 = aLhang + bRhang
+        s2 = aRhang + bLhang
+        s3 = aLhang + aRhang
+        s4 = bLhang + bRhang
+
+        # Dovetail (terminal) overlap
+        if s1 < max_hang:
+            type = 2  # b ~ a
+        elif s2 < max_hang:
+            type = 1  # a ~ b
+        # Containment overlap
+        elif s3 < max_hang:
+            type = 3  # a in b
+        elif s4 < max_hang:
+            type = 4  # b in a
+        else:
+            type = 0
+
+        return type
+
 
 class BlastSlow (LineFile):
     """

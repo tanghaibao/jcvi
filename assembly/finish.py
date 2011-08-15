@@ -19,8 +19,9 @@ import logging
 from collections import defaultdict
 from optparse import OptionParser
 
+from jcvi.formats.agp import build
 from jcvi.formats.contig import ContigFile
-from jcvi.formats.fasta import Fasta, SeqIO, gaps, format
+from jcvi.formats.fasta import Fasta, SeqIO, gaps, format, tidy
 from jcvi.formats.sizes import Sizes
 from jcvi.utils.cbook import depends
 from jcvi.assembly.base import n50
@@ -130,6 +131,11 @@ def scaffold(args):
             ctgorder.append((singleton, "+"))
 
         build_agp(bname, ctgorder, sizes, fwagp)
+
+    fwagp.close()
+    fastafile = "final.fasta"
+    build([agpfile, ctgfasta, fastafile])
+    tidy([fastafile])
 
 
 def build_agp(object, ctgorder, sizes, fwagp, gap_length=100):
@@ -309,8 +315,14 @@ def overlap(args):
         cmd = "faSomeRecords {0} {1} {2}".format(poolfasta, idsfile, idsfastafile)
         sh(cmd)
 
+        # This step is a hack to weight the bases from original sequences more
+        # than the pulled sequences, by literally adding another copy to be used
+        # in consensus calls.
+        redundantfastafile = op.join(closuredir, prefix + ".redundant.fasta")
+        format([ctgfasta, redundantfastafile, "--prefix=RED."])
+
         mergedfastafile = op.join(closuredir, prefix + ".merged.fasta")
-        cmd = "cat {0} {1}".format(ctgfasta, idsfastafile)
+        cmd = "cat {0} {1} {2}".format(ctgfasta, redundantfastafile, idsfastafile)
         sh(cmd, outfile=mergedfastafile)
 
         afgfile = op.join(closuredir, prefix + ".afg")

@@ -77,6 +77,16 @@ def set_params(instance):
             help="extra parameters to run")
 
 
+def set_outfile(instance):
+    """
+    Add --outfile options to print out to filename.
+    """
+    assert isinstance(instance, OptionParser)
+
+    instance.add_option("--outfile", default="stdout",
+            help="Outfile name [default: %default]")
+
+
 def sh(cmd, grid=False, infile=None, outfile=None, errfile=None,
         background=False):
     """

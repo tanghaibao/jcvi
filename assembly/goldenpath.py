@@ -7,6 +7,7 @@ heavily on formats.agp, and further includes several algorithms, e.g. overlap
 detection.
 """
 
+import os.path as op
 import sys
 
 from optparse import OptionParser
@@ -14,6 +15,7 @@ from optparse import OptionParser
 from jcvi.formats.fasta import Fasta
 from jcvi.formats.blast import BlastLine
 from jcvi.formats.coords import Overlap_types
+from jcvi.apps.entrez import fetch
 from jcvi.apps.base import ActionDispatcher, debug, popen, mkdir
 debug()
 
@@ -56,9 +58,11 @@ def main():
 
 def overlap(args):
     """
-    %prog overlap a.fasta b.fasta
+    %prog overlap <a|a.fasta> <b|b.fasta>
 
-    Check overlaps between two fasta records.
+    Check overlaps between two fasta records. The arguments can be genBank IDs
+    instead of FASTA files. In case of IDs, the sequences will be downloaded
+    first.
     """
     p = OptionParser(overlap.__doc__)
     opts, args = p.parse_args(args)
@@ -67,6 +71,14 @@ def overlap(args):
         sys.exit(not p.print_help())
 
     afasta, bfasta = args
+
+    if not op.exists(afasta):
+        fetch([afasta])
+        afasta += ".fasta"
+
+    if not op.exists(bfasta):
+        fetch([bfasta])
+        bfasta += ".fasta"
 
     cmd = "blastn"
     cmd += " -query {0} -subject {1}".format(afasta, bfasta)

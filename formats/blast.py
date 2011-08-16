@@ -77,7 +77,7 @@ class BlastLine(object):
                 (self.subject, self.sstart - 1, self.sstop, self.query,
                  self.score, self.orientation))
 
-    def overlap(self, qsize, ssize, max_hang=100):
+    def overlap(self, qsize, ssize, max_hang=100, graphic=True):
         """
         Determine the type of overlap given query, ref alignment coordinates
         Consider the following alignment between sequence a and b:
@@ -100,6 +100,39 @@ class BlastLine(object):
         s2 = aRhang + bLhang
         s3 = aLhang + aRhang
         s4 = bLhang + bRhang
+
+        # >>>>>>>>>>>>>>>>>>>            seqA
+        #           ||||||||
+        #          <<<<<<<<<<<<<<<<<<<<< seqB
+        if graphic:
+            width = 50  # Canvas
+            lmax = max(aLhang, bLhang)
+            rmax = max(aRhang, bRhang)
+            hitlen = self.hitlen
+            bpwidth = lmax + hitlen + rmax
+            ratio = width * 1. / bpwidth
+            aid = self.query
+            bid = self.subject
+
+            aspace = max(bLhang - aLhang, 0)
+            _ = lambda x: int(round(x * ratio))
+            msg = " " * _(aspace)
+            msg += ">" * _(qsize)
+            msg += " " * (width - len(msg) + 2)
+            msg += aid
+            print >> sys.stderr, msg
+
+            msg = " " * _(lmax)
+            msg += "|" * _(hitlen)
+            print >> sys.stderr, msg
+
+            bspace = max(aLhang - bLhang, 0)
+            msg = " " * _(bspace)
+            ch = "<" if self.orientation == '-' else ">"
+            msg += ch * _(ssize)
+            msg += " " * (width - len(msg) + 2)
+            msg += bid
+            print >> sys.stderr, msg
 
         # Dovetail (terminal) overlap
         if s1 < max_hang:

@@ -195,6 +195,8 @@ def fetch(args):
 
     if not outdir:
         fw = must_open(outfile, "w", checkexists=True)
+        if fw is None:
+            return
 
     seen = set()
     for id, term, handle in batch_entrez(list_of_terms, rettype=fmt, db=database):

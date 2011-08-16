@@ -240,8 +240,7 @@ def must_open(filename, mode="r", checkexists=False):
             else:
                 logging.debug("File `{0}` already exists. Skipped."\
                         .format(filename))
-                sys.exit(1)
-
+                return None
         else:
             fp = open(filename, mode)
 

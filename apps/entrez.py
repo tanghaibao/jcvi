@@ -173,10 +173,12 @@ def fetch(args):
 
     filename, = args
     if op.exists(filename):
+        pf = filename.rsplit(".", 1)[0]
         list_of_terms = [row.strip() for row in open(filename)]
         if opts.noversion:
             list_of_terms = [x.rsplit(".", 1)[0] for x in list_of_terms]
     else:
+        pf = filename
         # the filename is the search term
         list_of_terms = [filename.strip()]
 
@@ -187,7 +189,7 @@ def fetch(args):
         "For output format '{0}', allowed databases are: {1}".\
         format(fmt, allowed_databases[fmt])
 
-    outfile = "{0}.{1}".format(filename.rsplit(".", 1)[0], fmt)
+    outfile = "{0}.{1}".format(pf, fmt)
 
     outdir = opts.outdir
     if outdir:

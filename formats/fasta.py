@@ -412,12 +412,12 @@ def print_first_difference(arec, brec, ignore_case=False, ignore_N=False,
     """
     plus_match = _print_first_difference(arec, brec, ignore_case=ignore_case,
             ignore_N=ignore_N)
-    if rc:
+    if rc and not plus_match:
         logging.debug("trying reverse complement of %s" % brec.id)
         brec.seq = brec.seq.reverse_complement()
         minus_match = _print_first_difference(arec, brec,
                 ignore_case=ignore_case, ignore_N=ignore_N)
-        return any((plus_match, minus_match))
+        return minus_match
 
     else:
         return plus_match
@@ -430,16 +430,19 @@ def _print_first_difference(arec, brec, ignore_case=False, ignore_N=False):
     aseq, bseq = arec.seq, brec.seq
     asize, bsize = len(aseq), len(bseq)
 
+    matched = True
     for i, (a, b) in enumerate(izip_longest(aseq, bseq)):
         if ignore_case and None not in (a, b):
             a, b = a.upper(), b.upper()
 
-        if (ignore_N and 'N' in (a, b)):
+        if ignore_N and 'N' in (a, b):
             continue
+
         if a != b:
+            matched = False
             break
 
-    if i + 1 == asize and i + 1 == bsize:
+    if i + 1 == asize and matched:
         print_green("Two sequences match")
         match = True
     else:

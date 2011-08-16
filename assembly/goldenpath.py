@@ -7,12 +7,13 @@ heavily on formats.agp, and further includes several algorithms, e.g. overlap
 detection.
 """
 
+import os
 import os.path as op
 import sys
 
 from optparse import OptionParser
 
-from jcvi.formats.fasta import Fasta
+from jcvi.formats.fasta import Fasta, SeqIO
 from jcvi.formats.blast import BlastLine
 from jcvi.formats.coords import Overlap_types
 from jcvi.apps.entrez import fetch
@@ -49,11 +50,44 @@ class Overlap (object):
 def main():
 
     actions = (
+        ('flip', 'flip the FASTA sequences according to a set of references'),
         ('overlap', 'check terminal overlaps between two records'),
         ('overlapbatch', 'check overlaps between adjacent components in agpfile'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def flip(args):
+    """
+    %prog flip fastafile
+
+    Go through each FASTA record, check against Genbank file and determines
+    whether or not to flip the sequence. This is useful before updates of the
+    sequences to make sure the same orientation is used.
+    """
+    p = OptionParser(flip.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    fastafile, = args
+    outfastafile = fastafile.rsplit(".", 1)[0] + ".flipped.fasta"
+    fo = open(outfastafile, "w")
+    f = Fasta(fastafile, lazy=True)
+    for name, rec in f.iteritems_ordered():
+        tmpfasta = "a.fasta"
+        fw = open(tmpfasta, "w")
+        SeqIO.write([rec], fw, "fasta")
+        fw.close()
+
+        o = overlap([tmpfasta, name])
+        if o.orientation == '-':
+            rec.seq = rec.seq.reverse_complement()
+
+        SeqIO.write([rec], fo, "fasta")
+        os.remove(tmpfasta)
 
 
 def overlap(args):
@@ -85,7 +119,12 @@ def overlap(args):
     cmd += " -evalue 0.01 -outfmt 6"
 
     fp = popen(cmd)
-    besthsp = fp.readline()
+    hsps = fp.readlines()
+    if len(hsps) == 0:
+        print >> sys.stderr, "No match found."
+        return None
+
+    besthsp = hsps[0]
     b = BlastLine(besthsp)
     pctid = b.pctid
     hitlen = b.hitlen

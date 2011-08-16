@@ -93,7 +93,6 @@ class BlastLine(object):
         bLhang, bRhang = self.sstart - 1, ssize - self.sstop
         if self.orientation == '-':
             bLhang, bRhang = bRhang, bLhang
-        #print aLhang, aRhang, bLhang, bRhang
 
         s1 = aLhang + bRhang
         s2 = aRhang + bLhang
@@ -104,6 +103,7 @@ class BlastLine(object):
         #           ||||||||
         #          <<<<<<<<<<<<<<<<<<<<< seqB
         if graphic:
+            print >> sys.stderr, aLhang, aRhang, bLhang, bRhang
             width = 50  # Canvas
             lmax = max(aLhang, bLhang)
             rmax = max(aRhang, bRhang)
@@ -114,7 +114,7 @@ class BlastLine(object):
             bid = self.subject
 
             aspace = max(bLhang - aLhang, 0)
-            _ = lambda x: int(round(x * ratio))
+            _ = lambda x: int(x * ratio)
             msg = " " * _(aspace)
             msg += ">" * _(qsize)
             msg += " " * (width - len(msg) + 2)
@@ -122,7 +122,7 @@ class BlastLine(object):
             print >> sys.stderr, msg
 
             msg = " " * _(lmax)
-            msg += "|" * _(hitlen)
+            msg += "|" * max(_(hitlen), 1)
             print >> sys.stderr, msg
 
             bspace = max(aLhang - bLhang, 0)

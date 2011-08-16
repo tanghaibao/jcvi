@@ -19,6 +19,7 @@ from Bio import SeqIO
 
 from jcvi.formats.base import LineFile
 from jcvi.formats.blast import set_options_pairs, report_pairs
+from jcvi.formats.sizes import Sizes
 from jcvi.apps.base import ActionDispatcher, sh, set_grid, debug, is_newer_file
 debug()
 
@@ -78,7 +79,7 @@ def main():
 
 def info(args):
     """
-    %prog info casfile
+    %prog info casfile fastafile
 
     Wraps around `assembly_info` and get the following block.
 
@@ -88,63 +89,106 @@ def info(args):
 
     In particular, the read info will be reorganized so that it shows the
     percentage of unmapped, mapped, unique and multi-hit reads.
+
+    When --coverage is used, the program expects a second fastafile to replace
+    the contig IDs with real ones.
+
+    RPKM = 10^9 x C / NL, which is really just simply C/N
+
+    C = the number of mappable reads that felt onto the gene's exons
+    N = total number of mappable reads in the experiment
+    L = the sum of the exons in base pairs.
     """
-    from jcvi.apps.base import popen
     from jcvi.utils.cbook import percentage
 
     p = OptionParser(info.__doc__)
+    p.add_option("--coverage", default=False, action="store_true",
+            help="Generate coverage output, replacing IDs [default: %default]")
+    set_grid(p)
 
     opts, args = p.parse_args(args)
 
-    if len(args) != 1:
+    if len(args) not in (1, 2):
         sys.exit(not p.print_help())
 
-    casfile, = args
+    casfile = args[0]
     cmd = "assembly_info {0}".format(casfile)
-    fp = popen(cmd)
-    inreadblock = False
-    for row in fp:
-        if row.startswith("Contig info:"):
-            break
 
+    pf = casfile.rsplit(".", 1)[0]
+    infofile = pf + ".info"
+    if not op.exists(infofile):
+        sh(cmd, outfile=infofile, grid=opts.grid)
+
+    if opts.coverage:
+        coveragefile = pf + ".coverage"
+        fw = open(coveragefile, "w")
+
+    inreadblock = False
+    incontigblock = False
+
+    fp = open(infofile)
+    row = fp.readline()
+    while row:
         if row.startswith("Read info:"):
             inreadblock = True
-
-        srow = row.strip()
+        elif row.startswith("Contig info:"):
+            incontigblock = True
 
         # Following looks like a hack, but to keep compatible between
         # CLC 3.20 and CLC 4.0 beta
         if inreadblock:
             atoms = row.split('s')
+
             last = atoms[-1].split()[0] if len(atoms) > 1 else "0"
+            srow = row.strip()
 
-        if srow.startswith("Reads"):
-            reads = int(last)
-        if srow.startswith("Unmapped") or srow.startswith("Unassembled"):
-            unmapped = int(last)
-        if srow.startswith("Mapped") or srow.startswith("Assembled"):
-            mapped = int(last)
-        if srow.startswith("Multi"):
-            multihits = int(last)
+            if srow.startswith("Reads"):
+                reads = int(last)
+            if srow.startswith("Unmapped") or srow.startswith("Unassembled"):
+                unmapped = int(last)
+            if srow.startswith("Mapped") or srow.startswith("Assembled"):
+                mapped = int(last)
+            if srow.startswith("Multi"):
+                multihits = int(last)
 
-        if row.startswith("Coverage info:"):
-            # Print the Read info: block
-            print "Read info:"
-            assert mapped + unmapped == reads
+            if row.startswith("Coverage info:"):
+                # Print the Read info: block
+                print "Read info:"
+                assert mapped + unmapped == reads
 
-            unique = mapped - multihits
-            print
-            print "Total reads: {0}".format(reads)
-            print "Unmapped reads: {0}".format(percentage(unmapped, reads, False))
-            print "Mapped reads: {0}".format(percentage(mapped, reads, False))
-            print "Unique reads: {0}".format(percentage(unique, reads, False))
-            print "Multi hit reads: {0}".\
-                    format(percentage(multihits, reads, False))
-            print
-            inreadblock = False
+                unique = mapped - multihits
+                print
+                print "Total reads: {0}".format(reads)
+                print "Unmapped reads: {0}".format(percentage(unmapped, reads, False))
+                print "Mapped reads: {0}".format(percentage(mapped, reads, False))
+                print "Unique reads: {0}".format(percentage(unique, reads, False))
+                print "Multi hit reads: {0}".\
+                        format(percentage(multihits, reads, False))
+                print
+                inreadblock = False
 
-        if not inreadblock:
-            print row.rstrip()
+        if incontigblock and opts.coverage:
+
+            fastafile = args[1]
+            s = Sizes(fastafile)
+            while row:
+                atoms = row.split()
+                if len(atoms) == 4 and atoms[0][0] != "C":  # Contig
+                    # Contig       Sites       Reads     Coverage
+                    contig, sites, reads, coverage = atoms
+                    contig = int(contig) - 1
+                    size = s.sizes[contig]
+                    contig = s.ctgs[contig]
+                    assert size == int(sites)
+
+                    # See formula above
+                    rpkm = 1e9 * int(reads) / (size * mapped)
+                    print >> fw, "\t".join((contig, sites, reads,
+                        "{0:.1f}".format(rpkm)))
+
+                row = fp.readline()
+
+        row = fp.readline()
 
 
 def fastpairs(args):

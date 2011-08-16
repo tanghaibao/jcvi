@@ -18,7 +18,6 @@ from jcvi.formats.base import LineFile, must_open
 from jcvi.formats.coords import print_stats
 from jcvi.formats.sizes import Sizes
 from jcvi.utils.range import range_distance
-from jcvi.graphics.histogram import histogram
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
@@ -652,6 +651,8 @@ def report_pairs(data, cutoff=0, mateorientation=None,
         print >>sys.stderr, o
 
     if insertsfile:
+        from jcvi.graphics.histogram import histogram
+
         print >>insertsfw, "\n".join(str(x) for x in linked_dist)
         insertsfw.close()
         prefix = insertsfile.rsplit(".", 1)[0]

@@ -320,7 +320,7 @@ def main():
         ('phase', 'given genbank file, get the phase for the HTG BAC record'),
         ('bed', 'print out the tiling paths in bed format'),
         ('gaps', 'print out the distribution of gap sizes'),
-        ('accessions', 'print out a list of accessions'),
+        ('ids', 'print out a list of accessions'),
         ('chr0', 'build AGP file for unplaced sequences'),
         ('mask', 'mask given ranges in components to gaps'),
         ('liftover', 'given ranges in components, get chromosome ranges'),
@@ -730,13 +730,13 @@ def chr0(args):
                     phases[component_id], component_id, 1, size, '0'))
 
 
-def accessions(args):
+def ids(args):
     """
-    %prog accessions agpfile
+    %prog ids agpfile
 
-    print out a list of accessions, one per line
+    print out a list of ids, one per line
     """
-    p = OptionParser(accessions.__doc__)
+    p = OptionParser(ids.__doc__)
     p.add_option("--noversion", dest="noversion",
             default=False, action="store_true",
             help="Remove trailing accession versions")
@@ -757,7 +757,7 @@ def accessions(args):
             component_id = component_id.rsplit(".", 1)[0]
 
         if component_id not in seen:
-            print component_id
+            print "\t".join((component_id, a.object))
         seen.add(component_id)
 
 

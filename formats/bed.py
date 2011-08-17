@@ -168,7 +168,7 @@ def pairs(args):
 
     ascii = not opts.pdf
     return bedfile, report_pairs(data, opts.cutoff, opts.mateorientation,
-           dialect="bed", pairsfile=pairsfile, insertsfile=insertsfile,
+           pairsfile=pairsfile, insertsfile=insertsfile,
            rclip=opts.rclip, ascii=ascii, bins=opts.bins)
 
 

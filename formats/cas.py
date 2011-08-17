@@ -79,7 +79,7 @@ def main():
 
 def info(args):
     """
-    %prog info casfile fastafile
+    %prog info casfile <fastafile>
 
     Wraps around `assembly_info` and get the following block.
 
@@ -120,6 +120,7 @@ def info(args):
         sh(cmd, outfile=infofile, grid=opts.grid)
 
     if opts.coverage:
+        assert len(args) == 2, "You need a fastafile when using --coverage"
         coveragefile = pf + ".coverage"
         fw = open(coveragefile, "w")
 
@@ -306,20 +307,26 @@ def check_txt(casfile):
 
 def bed(args):
     """
-    %prog bed casfile fastafile
+    %prog bed casfile <fastafile>
 
-    convert the CAS or CASTAB format into bed format
+    Convert the CAS or CASTAB format into bed format. If fastafile given, the
+    sequential IDs in the casfile will be replaced by FASTA header.
     """
     p = OptionParser(bed.__doc__)
     opts, args = p.parse_args(args)
 
-    if len(args) != 2:
+    nargs = len(args)
+    if nargs not in (1, 2):
         sys.exit(not p.print_help())
 
-    casfile, fastafile = args
+    hasfastafile = (nargs == 2)
+    casfile = args[0]
     castabfile = check_txt(casfile)
 
-    refnames = [rec.id for rec in SeqIO.parse(fastafile, "fasta")]
+    if hasfastafile:
+        fastafile = args[1]
+        refnames = [rec.id for rec in SeqIO.parse(fastafile, "fasta")]
+
     fp = open(castabfile)
     bedfile = castabfile.rsplit(".", 1)[0] + ".bed"
     fw = open(bedfile, "w")
@@ -327,37 +334,33 @@ def bed(args):
         b = CasTabLine(row)
         if b.readstart == -1:
             continue
-        b.refnum = refnames[b.refnum]
+        if hasfastafile:
+            b.refnum = refnames[b.refnum]
         print >> fw, b.bedline
 
     logging.debug("File written to `{0}`.".format(bedfile))
+
+    return bedfile
 
 
 def pairs(args):
     """
     See __doc__ for set_options_pairs().
     """
+    import jcvi.formats.bed
+
     p = set_options_pairs()
 
-    opts, args = p.parse_args(args)
+    opts, targs = p.parse_args(args)
 
-    if len(args) != 1:
+    if len(targs) != 1:
         sys.exit(not p.print_help())
 
-    casfile, = args
-    castabfile = check_txt(casfile)
+    casfile, = targs
+    bedfile = bed([casfile])
+    args[args.index(casfile)] = bedfile
 
-    basename = castabfile.split(".")[0]
-    pairsfile = ".".join((basename, "pairs")) if opts.pairsfile else None
-    insertsfile = ".".join((basename, "inserts")) if opts.insertsfile else None
-
-    fp = open(castabfile)
-    data = [CasTabLine(row) for i, row in enumerate(fp) if i < opts.nrows]
-
-    ascii = not opts.pdf
-    return report_pairs(data, opts.cutoff, opts.mateorientation,
-           dialect="castab", pairsfile=pairsfile, insertsfile=insertsfile,
-           rclip=opts.rclip, ascii=ascii, bins=opts.bins)
+    return jcvi.formats.bed.pairs(args)
 
 
 if __name__ == '__main__':

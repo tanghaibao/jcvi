@@ -466,10 +466,15 @@ def bed(args):
 
     blastfile, = args
     fp = must_open(blastfile)
-    fw = sys.stdout
+    bedfile = blastfile.rsplit(".", 1)[0] + ".bed"
+    fw = open(bedfile, "w")
     for row in fp:
         b = BlastLine(row)
         print >> fw, b.bedline
+
+    logging.debug("File written to `{0}`.".format(bedfile))
+
+    return bedfile
 
 
 def set_options_pairs():
@@ -508,18 +513,12 @@ def set_options_pairs():
 
 
 def report_pairs(data, cutoff=0, mateorientation=None,
-        dialect="blast", pairsfile=None,
-        insertsfile=None, rclip=1, ascii=False, bins=20):
+        pairsfile=None, insertsfile=None, rclip=1, ascii=False, bins=20):
     """
     This subroutine is used by the pairs function in blast.py and cas.py.
     Reports number of fragments and pairs as well as linked pairs
     """
-    allowed_dialects = ("blast", "castab", "frgscf", "bed")
     allowed_mateorientations = ("++", "--", "+-", "-+")
-    BLAST, CASTAB, FRGSCF, BED = range(len(allowed_dialects))
-
-    assert dialect in allowed_dialects
-    dialect = allowed_dialects.index(dialect)
 
     if mateorientation:
         assert mateorientation in allowed_mateorientations
@@ -532,17 +531,7 @@ def report_pairs(data, cutoff=0, mateorientation=None,
     orientations = defaultdict(int)
 
     # clip how many chars from end of the read name to get pair name
-    rs = lambda x: x[:-rclip] if rclip else str
-
-    if dialect == BLAST:
-        key = lambda x: rs(x.query)
-    elif dialect == CASTAB:
-        key = lambda x: rs(x.readname)
-    elif dialect == FRGSCF:
-        key = lambda x: rs(x.fragmentID)
-    elif dialect == BED:
-        key = lambda x: rs(x.accn)
-
+    key = lambda x: x.accn[:-rclip] if rclip else x.accn
     data.sort(key=key)
 
     if pairsfile:
@@ -559,35 +548,11 @@ def report_pairs(data, cutoff=0, mateorientation=None,
         num_pairs += 1
         a, b = lines
 
-        if dialect == BLAST:
-            asubject, astart, astop = a.subject, a.sstart, a.sstop
-            bsubject, bstart, bstop = b.subject, b.sstart, b.sstop
+        asubject, astart, astop = a.seqid, a.start, a.end
+        bsubject, bstart, bstop = b.seqid, b.start, b.end
 
-            aquery, bquery = a.query, b.query
-            astrand, bstrand = a.orientation, b.orientation
-
-        elif dialect == CASTAB:
-            asubject, astart, astop = a.refnum, a.refstart, a.refstop
-            bsubject, bstart, bstop = b.refnum, b.refstart, b.refstop
-            if -1 in (astart, bstart):
-                continue
-
-            aquery, bquery = a.readname, b.readname
-            astrand, bstrand = a.strand, b.strand
-
-        elif dialect == FRGSCF:
-            asubject, astart, astop = a.scaffoldID, a.begin, a.end
-            bsubject, bstart, bstop = b.scaffoldID, b.begin, b.end
-
-            aquery, bquery = a.fragmentID, b.fragmentID
-            astrand, bstrand = a.orientation, b.orientation
-
-        elif dialect == BED:
-            asubject, astart, astop = a.seqid, a.start, a.end
-            bsubject, bstart, bstop = b.seqid, b.start, b.end
-
-            aquery, bquery = a.accn, b.accn
-            astrand, bstrand = a.strand, b.strand
+        aquery, bquery = a.accn, b.accn
+        astrand, bstrand = a.strand, b.strand
 
         dist, orientation = range_distance(\
                 (asubject, astart, astop, astrand),
@@ -669,26 +634,20 @@ def pairs(args):
     """
     See __doc__ for set_options_pairs().
     """
+    import jcvi.formats.bed
+
     p = set_options_pairs()
 
-    opts, args = p.parse_args(args)
+    opts, targs = p.parse_args(args)
 
-    if len(args) != 1:
+    if len(targs) != 1:
         sys.exit(not p.print_help())
 
-    blastfile, = args
+    blastfile, = targs
+    bedfile = bed([blastfile])
+    args[args.index(blastfile)] = bedfile
 
-    basename = blastfile.split(".")[0]
-    pairsfile = ".".join((basename, "pairs")) if opts.pairsfile else None
-    insertsfile = ".".join((basename, "inserts")) if opts.insertsfile else None
-
-    fp = open(blastfile)
-    data = [BlastLine(row) for i, row in enumerate(fp) if i < opts.nrows]
-
-    ascii = not opts.pdf
-    return report_pairs(data, opts.cutoff, opts.mateorientation,
-           dialect="blast", pairsfile=pairsfile, insertsfile=insertsfile,
-           rclip=opts.rclip, ascii=ascii, bins=opts.bins)
+    return jcvi.formats.bed.pairs(args)
 
 
 def best(args):

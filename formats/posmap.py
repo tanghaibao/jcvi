@@ -220,7 +220,7 @@ def bed(args):
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
     frgscffile, = args
     bedfile = frgscffile.rsplit(".", 1)[0] + ".bed"
@@ -231,7 +231,9 @@ def bed(args):
         f = FrgScfLine(row)
         print >> fw, f.bedline
 
-    logging.debug("File written to {0}.".format(bedfile))
+    logging.debug("File written to `{0}`.".format(bedfile))
+
+    return bedfile
 
 
 def dup(args):
@@ -285,26 +287,20 @@ def pairs(args):
     """
     See __doc__ for set_options_pairs().
     """
+    import jcvi.formats.bed
+
     p = set_options_pairs()
 
-    opts, args = p.parse_args(args)
+    opts, targs = p.parse_args(args)
 
-    if len(args) != 1:
+    if len(targs) != 1:
         sys.exit(not p.print_help())
 
-    frgscffile, = args
+    frgscffile, = targs
+    bedfile = bed([frgscffile])
+    args[args.index(frgscffile)] = bedfile
 
-    basename = frgscffile.split(".")[0]
-    pairsfile = ".".join((basename, "pairs")) if opts.pairsfile else None
-    insertsfile = ".".join((basename, "inserts")) if opts.insertsfile else None
-
-    fp = open(frgscffile)
-    data = [FrgScfLine(row) for i, row in enumerate(fp) if i < opts.nrows]
-
-    ascii = not opts.pdf
-    return report_pairs(data, opts.cutoff, opts.mateorientation,
-           dialect="frgscf", pairsfile=pairsfile, insertsfile=insertsfile,
-           rclip=opts.rclip, ascii=ascii, bins=opts.bins)
+    return jcvi.formats.bed(args)
 
 
 if __name__ == '__main__':

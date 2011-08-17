@@ -8,6 +8,7 @@ TIGR contig format, see spec:
 """
 
 import sys
+import logging
 
 from optparse import OptionParser
 
@@ -18,13 +19,28 @@ debug()
 
 class ReadLine (object):
 
-    def __init__(self, row):
+    def __init__(self, row, contig):
         # '#16(0) [RC] 3046 bases, 00000000 checksum. {3046 1} <1 3046>'
         assert row[0] == '#'
         self.id = row.strip("#").split('(')[0]
+        coords = row.split("<")[1].split(">")[0]
+        start, end = coords.split()
+        self.contig = contig
+        self.start = int(start)
+        self.end = int(end)
+        if self.start > self.end:
+            self.start, self.end = self.end, self.start
+
+        self.orientation = "-" if "[RC]" in row else "+"
 
     def __str__(self):
         return self.id
+
+    @property
+    def bedline(self):
+        return "\t".join(str(x) for x in \
+                (self.contig, self.start - 1, self.end,
+                 self.id, "0", self.orientation))
 
     __repr__ = __str__
 
@@ -57,27 +73,45 @@ class ContigFile (BaseFile):
                     yield c
                 c = ContigLine(a)
             else:
-                c.reads.append(ReadLine(a))
+                c.reads.append(ReadLine(a, c.id))
         if c:  # last one
             yield c
 
 
 def main():
+
+    actions = (
+        ('bed', 'convert read membership to bed format'),
+            )
+
+    p = ActionDispatcher(actions)
+    p.dispatch(globals())
+
+
+def bed(args):
     """
-    %prog contigfile
+    %prog bed contigfile
 
     Prints out the contigs and their associated reads.
     """
     p = OptionParser(main.__doc__)
-    opts, args = p.parse_args()
+    opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     contigfile, = args
+    bedfile = contigfile.rsplit(".", 1)[0] + ".bed"
+    fw = open(bedfile, "w")
     c = ContigFile(contigfile)
+
     for rec in c.iter_records():
-        print rec
+        for r in rec.reads:
+            print >> fw, r.bedline
+
+    logging.debug("File written to `{0}`.".format(bedfile))
+
+    return bedfile
 
 
 if __name__ == '__main__':

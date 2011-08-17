@@ -300,7 +300,7 @@ def pairs(args):
     bedfile = bed([frgscffile])
     args[args.index(frgscffile)] = bedfile
 
-    return jcvi.formats.bed(args)
+    return jcvi.formats.bed.pairs(args)
 
 
 if __name__ == '__main__':

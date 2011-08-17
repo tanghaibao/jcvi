@@ -151,6 +151,7 @@ def asn(args):
         fp = open(asnfile)
         ingeneralblock = False
         ingenbankblock = False
+        gb, name = None, None
         for row in fp:
             if row.strip() == "":
                 continue
@@ -160,16 +161,19 @@ def asn(args):
             if tag == "general":
                 ingeneralblock = True
             if ingeneralblock and tag == "str":
-                name = row.split("\"")[1]
+                if name is None:  # Only allow first assignment
+                    name = row.split("\"")[1]
                 ingeneralblock = False
 
             if tag == "genbank":
                 ingenbankblock = True
             if ingenbankblock and tag == "accession":
-                gb = row.split("\"")[1]
+                if gb is None:
+                    gb = row.split("\"")[1]
                 ingenbankblock = False
-                print >> fw, "{0}\t{1}".format(gb, name)
-                break
+
+        assert gb and name
+        print >> fw, "{0}\t{1}".format(gb, name)
 
 
 def verify_sqn(sqndir, accession):
@@ -335,6 +339,8 @@ def htg(args):
     from jcvi.graphics.histogram import stem_leaf_plot
 
     names = DictFile(namesfile)
+    assert len(set(names.keys())) == len(set(names.values()))
+
     phases = DictFile(phasefile)
     ph = [int(x) for x in phases.values()]
     # vmin 1, vmax 4, bins 3

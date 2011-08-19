@@ -56,6 +56,7 @@ def scaffold(args):
     p.add_option("--prefix", default=False, action="store_true",
             help="Keep IDs with same prefix together [default: %default]")
     opts, args = p.parse_args(args)
+
     if len(args) != 2:
         sys.exit(not p.print_help())
 

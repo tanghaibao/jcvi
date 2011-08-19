@@ -4,14 +4,18 @@ Commonly performed commands.
 
 import os
 import os.path as op
+import sys
 import shutil
 import logging
 import ConfigParser
 
 from functools import partial
+from optparse import OptionParser
 
 from jcvi.utils.cbook import depends
-from jcvi.apps.base import sh, is_exe, which
+
+from jcvi.apps.base import ActionDispatcher, debug, sh, is_exe, which
+debug()
 
 
 def getpath(cmd, name=None, url=None, cfg="~/.jcvirc"):
@@ -117,12 +121,14 @@ def run_vecscreen(infile=None, outfile=None, db="UniVec_Core",
 
 @depends
 def run_megablast(infile=None, outfile=None, db=None, pctid=98, hitlen=100):
+    assert db, "Need to specify database fasta file."
+
     nin = db + ".nin"
     run_formatdb(infile=db, outfile=nin)
 
     cmd = BLPATH("blastn")
     cmd += " -query {0} -db {1} -out {2}".format(infile, db, outfile)
-    cmd += " -evalue 0.01 -outfmt 6 -num_threads 8"
+    cmd += " -evalue 0.01 -outfmt 6 -num_threads 16"
     sh(cmd)
 
     blastfile = outfile
@@ -140,3 +146,36 @@ def run_blast_filter(infile=None, outfile=None, pctid=95, hitlen=50):
     pctidopt = "--pctid={0}".format(pctid)
     hitlenopt = "--hitlen={0}".format(hitlen)
     filter([infile, pctidopt, hitlenopt])
+
+
+def main():
+
+    actions = (
+        ('megablast', 'run megablast using query against reference'),
+            )
+    p = ActionDispatcher(actions)
+    p.dispatch(globals())
+
+
+def megablast(args):
+    """
+    %prog megablast ref.fasta query.fasta
+
+    Calls megablast and then filter the BLAST hits.
+    """
+    p = OptionParser(megablast.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    reffasta, queryfasta = args
+    q = queryfasta.split(".")[0]
+    r = reffasta.split(".")[0]
+    blastfile = "{0}.{1}.blast".format(q, r)
+
+    run_megablast(infile=queryfasta, outfile=blastfile, db=reffasta)
+
+
+if __name__ == '__main__':
+    main()

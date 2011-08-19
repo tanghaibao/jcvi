@@ -166,6 +166,10 @@ def fetch(args):
             help="search database [default: %default]")
     p.add_option("--outdir", default=None,
             help="output directory, with accession number as filename")
+    p.add_option("--retmax", default=10,
+            help="how many results to return [default: %default]")
+    p.add_option("--skipcheck", default=False, action="store_true",
+            help="turn off prompt to check file existence [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -195,13 +199,15 @@ def fetch(args):
     if outdir:
         mkdir(outdir)
 
+    # If noprompt, will not check file existence
     if not outdir:
-        fw = must_open(outfile, "w", checkexists=True)
+        fw = must_open(outfile, "w", checkexists=True, skipcheck=opts.skipcheck)
         if fw is None:
             return
 
     seen = set()
-    for id, term, handle in batch_entrez(list_of_terms, rettype=fmt, db=database):
+    for id, term, handle in batch_entrez(list_of_terms, retmax=opts.retmax, \
+                                         rettype=fmt, db=database):
         rec = handle.read()
         if id in seen:
             logging.error("duplicate key (%s) found" % rec)
@@ -217,6 +223,8 @@ def fetch(args):
 
     print >> sys.stderr, "A total of {0} {1} records downloaded.".\
             format(len(seen), fmt.upper())
+
+    return outfile
 
 
 if __name__ == '__main__':

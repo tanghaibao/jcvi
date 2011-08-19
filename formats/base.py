@@ -199,7 +199,7 @@ def check_exists(filename):
     return overwrite
 
 
-def must_open(filename, mode="r", checkexists=False):
+def must_open(filename, mode="r", checkexists=False, skipcheck=False):
     """
     Accepts filename and returns filehandle.
 
@@ -234,7 +234,7 @@ def must_open(filename, mode="r", checkexists=False):
     else:
         if checkexists:
             assert mode == "w"
-            overwrite = check_exists(filename)
+            overwrite = False if skipcheck else check_exists(filename)
             if overwrite:
                 fp = open(filename, "w")
             else:

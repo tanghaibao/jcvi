@@ -40,6 +40,16 @@ class ActionDispatcher (object):
         globals[action](sys.argv[2:])
 
 
+def gethostname():
+    import socket
+    return socket.gethostname()
+
+
+def getusername():
+    import getpass
+    return getpass.getuser()
+
+
 def set_debug(instance, args):
     """
     Add --debug options for command line programs

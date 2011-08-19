@@ -105,30 +105,30 @@ class BlastLine(object):
         if graphic:
             print >> sys.stderr, aLhang, aRhang, bLhang, bRhang
             width = 50  # Canvas
-            lmax = max(aLhang, bLhang)
-            rmax = max(aRhang, bRhang)
             hitlen = self.hitlen
             bpwidth = lmax + hitlen + rmax
             ratio = width * 1. / bpwidth
             aid = self.query
             bid = self.subject
 
-            aspace = max(bLhang - aLhang, 0)
-            _ = lambda x: int(x * ratio)
-            msg = " " * _(aspace)
-            msg += ">" * _(qsize)
+            _ = lambda x: int(round(x * ratio, 0))
+            a1, a2 = _(aLhang), _(aRhang)
+            b1, b2 = _(bLhang), _(bRhang)
+            hit = max(_(hitlen), 1)
+
+            msg = " " * max(b1 - a1, 0)
+            msg += ">" * (a1 + hit + a2)
             msg += " " * (width - len(msg) + 2)
             msg += aid
             print >> sys.stderr, msg
 
-            msg = " " * _(lmax)
-            msg += "|" * max(_(hitlen), 1)
+            msg = " " * max(a1, b1)
+            msg += "|" * hit
             print >> sys.stderr, msg
 
-            bspace = max(aLhang - bLhang, 0)
-            msg = " " * _(bspace)
+            msg = " " * max(a1 - b1, 0)
             ch = "<" if self.orientation == '-' else ">"
-            msg += ch * _(ssize)
+            msg += ch * (b1 + hit + b2)
             msg += " " * (width - len(msg) + 2)
             msg += bid
             print >> sys.stderr, msg

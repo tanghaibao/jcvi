@@ -10,7 +10,7 @@ import sys
 
 from optparse import OptionParser
 
-from jcvi.apps.base import mkdir
+from jcvi.apps.base import mkdir, gethostname, getusername
 from jcvi.apps.base import ActionDispatcher, sh, debug
 debug()
 
@@ -26,12 +26,11 @@ def get_profile(sqshrc="~/.sqshrc"):
         row = row.strip()
         if not row.startswith("\set"):
             continue
-        if "username" in row:
-            username = _(row)
-        elif "password" in row:
+        if "password" in row:
             password = _(row)
-        elif "hostname" in row:
-            hostname = _(row)
+
+    hostname = gethostname()
+    username = getusername()
 
     return hostname, username, password
 

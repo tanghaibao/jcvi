@@ -50,12 +50,61 @@ class Overlap (object):
 def main():
 
     actions = (
+        ('bes', 'confirm the BES mapping'),
         ('flip', 'flip the FASTA sequences according to a set of references'),
         ('overlap', 'check terminal overlaps between two records'),
         ('overlapbatch', 'check overlaps between adjacent components in agpfile'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def bes(args):
+    """
+    %prog bes bacfasta clonename
+
+    Use the clone name to download BES gss sequences from Genbank, map and then
+    visualize.
+    """
+    from jcvi.apps.command import run_blat
+
+    p = OptionParser(bes.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    bacfasta, clonename = args
+
+    fetch([clonename, "--database=nucgss", "--skipcheck"])
+    besfasta = clonename + ".fasta"
+    blatfile = clonename + ".bes.blat"
+    run_blat(infile=besfasta, outfile=blatfile, db=bacfasta, \
+             pctid=95, hitlen=100)
+
+    aid, asize = Fasta(bacfasta).itersizes().next()
+
+    width = 50
+    msg = "=" * width
+    msg += "  " + aid
+    print >> sys.stderr, msg
+
+    ratio = width * 1. / asize
+    _ = lambda x: int(round(x * ratio, 0))
+    blasts = [BlastLine(x) for x in open(blatfile)]
+    for b in blasts:
+        if b.orientation == '+':
+            msg = " " * _(b.sstart) + "->"
+        else:
+            msg = " " * (_(b.sstop) - 2) + "<-"
+        msg += " " * (width - len(msg) + 2)
+        msg += b.query
+        if b.orientation == '+':
+            msg += " (hang={0})".format(b.sstart - 1)
+        else:
+            msg += " (hang={0})".format(asize - b.sstop)
+
+        print >> sys.stderr, msg
 
 
 def flip(args):
@@ -107,11 +156,11 @@ def overlap(args):
     afasta, bfasta = args
 
     if not op.exists(afasta):
-        fetch([afasta])
+        fetch([afasta, "--skipcheck"])
         afasta += ".fasta"
 
     if not op.exists(bfasta):
-        fetch([bfasta])
+        fetch([bfasta, "--skipcheck"])
         bfasta += ".fasta"
 
     cmd = "blastn"

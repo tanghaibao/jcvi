@@ -13,19 +13,20 @@ import sys
 
 from optparse import OptionParser
 
+from jcvi.formats.agp import AGP
 from jcvi.formats.fasta import Fasta, SeqIO
 from jcvi.formats.blast import BlastLine
 from jcvi.formats.coords import Overlap_types
 from jcvi.apps.entrez import fetch
-from jcvi.apps.base import ActionDispatcher, debug, popen, mkdir
+from jcvi.apps.base import ActionDispatcher, debug, popen, mkdir, sh
 debug()
 
 
 class Overlap (object):
 
     def __init__(self, aid, bid, otype, pctid, hitlen, orientation):
-        self.aid = aid
-        self.bid = bid
+        self.aid = aid.split("|")[3] if aid.count("|") >= 3 else aid
+        self.bid = bid.split("|")[3] if bid.count("|") >= 3 else bid
         self.otype = otype
 
         self.pctid = pctid
@@ -53,7 +54,8 @@ def main():
         ('bes', 'confirm the BES mapping'),
         ('flip', 'flip the FASTA sequences according to a set of references'),
         ('overlap', 'check terminal overlaps between two records'),
-        ('overlapbatch', 'check overlaps between adjacent components in agpfile'),
+        ('overlapagp', 'check overlaps of a particular component in agpfile'),
+        ('overlapbatch', 'check all overlaps between adjacent components in agpfile'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -147,23 +149,33 @@ def overlap(args):
     instead of FASTA files. In case of IDs, the sequences will be downloaded
     first.
     """
+    from jcvi.apps.command import BLPATH
+
     p = OptionParser(overlap.__doc__)
+    p.add_option("--dir", default=os.getcwd(),
+            help="Download sequences to dir [default: %default]")
+    p.add_option("--qreverse", default=False, action="store_true",
+            help="Reverse seq a [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
         sys.exit(not p.print_help())
 
     afasta, bfasta = args
+    dir = opts.dir
 
     if not op.exists(afasta):
-        fetch([afasta, "--skipcheck"])
+        fetch([afasta, "--skipcheck", "--outdir=" + dir])
         afasta += ".fasta"
 
     if not op.exists(bfasta):
-        fetch([bfasta, "--skipcheck"])
+        fetch([bfasta, "--skipcheck", "--outdir=" + dir])
         bfasta += ".fasta"
 
-    cmd = "blastn"
+    afasta = op.join(dir, afasta)
+    bfasta = op.join(dir, bfasta)
+
+    cmd = BLPATH("blastn")
     cmd += " -query {0} -subject {1}".format(afasta, bfasta)
     cmd += " -evalue 0.01 -outfmt 6"
 
@@ -181,11 +193,48 @@ def overlap(args):
 
     aid, asize = Fasta(afasta).itersizes().next()
     bid, bsize = Fasta(bfasta).itersizes().next()
-    otype = b.overlap(asize, bsize)
+    otype = b.overlap(asize, bsize, qreverse=opts.qreverse)
     o = Overlap(aid, bid, otype, pctid, hitlen, orientation)
     print >> sys.stderr, str(o)
 
     return o
+
+
+def overlapagp(args):
+    """
+    %prog overlapagp agpfile componentID
+
+    Check overlaps of a particular component in agpfile.
+    """
+    p = OptionParser(overlapagp.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    agpfile, componentID = args
+    fastadir = "fasta"
+
+    cmd = "grep"
+    cmd += " --color -C2 {0} {1}".format(componentID, agpfile)
+    sh(cmd)
+
+    agp = AGP(agpfile)
+    aorder = agp.order
+    i, c = aorder[componentID]
+    north, south = agp.getNorthSouthClone(i)
+
+    if not north.isCloneGap:
+        ar = [north.component_id, componentID, "--dir=" + fastadir]
+        if north.orientation == '-':
+            ar += ["--qreverse"]
+        overlap(ar)
+
+    if not south.isCloneGap:
+        ar = [componentID, south.component_id, "--dir=" + fastadir]
+        if c.orientation == '-':
+            ar += ["--qreverse"]
+        overlap(ar)
 
 
 def overlapbatch(args):

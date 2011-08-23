@@ -36,53 +36,6 @@ Valid_gap_type = ("fragment", "clone", "contig", "centromere", "short_arm",
 Valid_orientation = ("+", "-", "0", "na")
 
 
-def trimNs(seq, line, newagp):
-    """
-    Test if the sequences contain dangling N's on both sides. This component
-    needs to be adjusted to the 'actual' sequence range.
-    """
-    start, end = line.component_beg, line.component_end
-    size = end - start + 1
-    leftNs, rightNs = 0, 0
-    for s in seq:
-        if s in 'nN':
-            leftNs += 1
-        else:
-            break
-    for s in seq[::-1]:
-        if s in 'nN':
-            rightNs += 1
-        else:
-            break
-
-    if line.orientation == '-':
-        trimstart = start + rightNs
-        trimend = end - leftNs
-    else:
-        trimstart = start + leftNs
-        trimend = end - rightNs
-
-    trimrange = (trimstart, trimend)
-    oldrange = (start, end)
-
-    if trimrange != oldrange:
-        logging.error("Range trimmed of N's: {0} => {1}".format(oldrange,
-            trimrange))
-
-        if leftNs:
-            print >> newagp, "\t".join(str(x) for x in (line.object, 0, 0, 0,
-                    'N', leftNs, "fragment", "yes", ""))
-        if trimend > trimstart:
-            print >> newagp, "\t".join(str(x) for x in (line.object, 0, 0, 0,
-                    line.component_type, line.component_id, trimstart, trimend,
-                    line.orientation))
-        if rightNs and rightNs != size:
-            print >> newagp, "\t".join(str(x) for x in (line.object, 0, 0, 0,
-                    'N', rightNs, "fragment", "yes", ""))
-    else:
-        print >> newagp, line
-
-
 class AGPLine (object):
 
     def __init__(self, row, validate=True):
@@ -141,6 +94,10 @@ class AGPLine (object):
                 str(self.object_end), gid,
                 self.component_type, self.orientation))
 
+    @property
+    def isCloneGap(self):
+        return (self.is_gap and self.gap_type != "fragment")
+
     def validate(self):
         assert self.component_type in Valid_component_type, \
                 "component_type has to be one of %s" % Valid_component_type
@@ -178,11 +135,44 @@ class AGP (LineFile):
             self.validate_all()
 
     @property
-    def simple_agp(self):
+    def order(self):
         """
-        returns a dict with component_id => agpline
+        Returns a dict with component_id => (i, agpline)
         """
-        return dict((x.component_id, x) for x in self if not x.is_gap)
+        d = {}
+        for (i, x) in enumerate(self):
+            if x.is_gap:
+                continue
+            xid = x.component_id
+            d[xid] = (i, x)
+
+            xid = xid.rsplit(".", 1)[0]  # Remove Genbank version
+            d[xid] = (i, x)
+
+        return d
+
+    def getAdjacentClone(self, i, south=True):
+        """
+        Returns the adjacent clone name.
+        """
+        rr = self[i + 1:] if south else self[i - 1::-1]
+        for x in rr:
+            if x.is_gap:
+                if x.isCloneGap:
+                    return x
+                else:
+                    continue
+            else:
+                return x
+        return None
+
+    def getNorthSouthClone(self, i):
+        """
+        Returns the adjacent clone name from both sides.
+        """
+        north = self.getAdjacentClone(i, south=False)
+        south = self.getAdjacentClone(i)
+        return north, south
 
     @classmethod
     def print_header(cls, fw=sys.stdout, organism="Medicago truncatula",
@@ -312,6 +302,53 @@ class AGP (LineFile):
             self.build_one(ob, lines, f, fw, newagp=newagp)
 
 
+def trimNs(seq, line, newagp):
+    """
+    Test if the sequences contain dangling N's on both sides. This component
+    needs to be adjusted to the 'actual' sequence range.
+    """
+    start, end = line.component_beg, line.component_end
+    size = end - start + 1
+    leftNs, rightNs = 0, 0
+    for s in seq:
+        if s in 'nN':
+            leftNs += 1
+        else:
+            break
+    for s in seq[::-1]:
+        if s in 'nN':
+            rightNs += 1
+        else:
+            break
+
+    if line.orientation == '-':
+        trimstart = start + rightNs
+        trimend = end - leftNs
+    else:
+        trimstart = start + leftNs
+        trimend = end - rightNs
+
+    trimrange = (trimstart, trimend)
+    oldrange = (start, end)
+
+    if trimrange != oldrange:
+        logging.error("Range trimmed of N's: {0} => {1}".format(oldrange,
+            trimrange))
+
+        if leftNs:
+            print >> newagp, "\t".join(str(x) for x in (line.object, 0, 0, 0,
+                    'N', leftNs, "fragment", "yes", ""))
+        if trimend > trimstart:
+            print >> newagp, "\t".join(str(x) for x in (line.object, 0, 0, 0,
+                    line.component_type, line.component_id, trimstart, trimend,
+                    line.orientation))
+        if rightNs and rightNs != size:
+            print >> newagp, "\t".join(str(x) for x in (line.object, 0, 0, 0,
+                    'N', rightNs, "fragment", "yes", ""))
+    else:
+        print >> newagp, line
+
+
 def main():
 
     actions = (
@@ -395,7 +432,7 @@ def mask(args):
     agpfile, bedfile = args
     agp = AGP(agpfile)
     bed = Bed(bedfile)
-    simple_agp = agp.simple_agp
+    simple_agp = agp.order
     # agp lines to replace original ones, keyed by the component
     agp_fixes = defaultdict(list)
 
@@ -406,7 +443,7 @@ def mask(args):
 
     for component, intervals in bed.sub_beds():
         print >> fwlog, "\n".join(str(x) for x in intervals)
-        a = simple_agp[component]
+        i, a = simple_agp[component]
         object = a.object
         component_span = a.component_span
         orientation = a.orientation
@@ -477,12 +514,12 @@ def liftover(args):
         sys.exit(p.print_help())
 
     agpfile, bedfile = args
-    agp = AGP(agpfile).simple_agp
+    agp = AGP(agpfile).order
     bed = Bed(bedfile)
     newbed = Bed()
     for b in bed:
         component = b.seqid
-        a = agp[component]
+        i, a = agp[component]
 
         assert a.component_beg < a.component_end
         arange = a.component_beg, a.component_end

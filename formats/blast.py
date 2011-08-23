@@ -76,7 +76,7 @@ class BlastLine(object):
                 (self.subject, self.sstart - 1, self.sstop, self.query,
                  self.score, self.orientation))
 
-    def overlap(self, qsize, ssize, max_hang=100, graphic=True):
+    def overlap(self, qsize, ssize, max_hang=100, graphic=True, qreverse=False):
         """
         Determine the type of overlap given query, ref alignment coordinates
         Consider the following alignment between sequence a and b:
@@ -94,22 +94,40 @@ class BlastLine(object):
         if self.orientation == '-':
             bLhang, bRhang = bRhang, bLhang
 
+        if qreverse:
+            aLhang, aRhang = aRhang, aLhang
+            bLhang, bRhang = bRhang, bLhang
+
         s1 = aLhang + bRhang
         s2 = aRhang + bLhang
         s3 = aLhang + aRhang
         s4 = bLhang + bRhang
 
-        # >>>>>>>>>>>>>>>>>>>            seqA
+        # >>>>>>>>>>>>>>>>>>>             seqA (alen)
         #           ||||||||
-        #          <<<<<<<<<<<<<<<<<<<<< seqB
+        #          <<<<<<<<<<<<<<<<<<<<<  seqB (blen)
         if graphic:
+            achar = ">"
+            bchar = "<" if self.orientation == '-' else ">"
+            if qreverse:
+                achar = "<"
+                bchar = {">" : "<", "<" : ">"}[bchar]
+
             print >> sys.stderr, aLhang, aRhang, bLhang, bRhang
             width = 50  # Canvas
             hitlen = self.hitlen
+            lmax = max(aLhang, bLhang)
+            rmax = max(aRhang, bRhang)
             bpwidth = lmax + hitlen + rmax
             ratio = width * 1. / bpwidth
             aid = self.query
             bid = self.subject
+
+            # Genbank IDs
+            if aid.count("|") >= 3:
+                aid = aid.split("|")[3]
+            if bid.count("|") >= 3:
+                bid = bid.split("|")[3]
 
             _ = lambda x: int(round(x * ratio, 0))
             a1, a2 = _(aLhang), _(aRhang)
@@ -117,9 +135,9 @@ class BlastLine(object):
             hit = max(_(hitlen), 1)
 
             msg = " " * max(b1 - a1, 0)
-            msg += ">" * (a1 + hit + a2)
+            msg += achar * (a1 + hit + a2)
             msg += " " * (width - len(msg) + 2)
-            msg += aid
+            msg += "{0} ({1})".format(aid, qsize)
             print >> sys.stderr, msg
 
             msg = " " * max(a1, b1)
@@ -127,10 +145,9 @@ class BlastLine(object):
             print >> sys.stderr, msg
 
             msg = " " * max(a1 - b1, 0)
-            ch = "<" if self.orientation == '-' else ">"
-            msg += ch * (b1 + hit + b2)
+            msg += bchar * (b1 + hit + b2)
             msg += " " * (width - len(msg) + 2)
-            msg += bid
+            msg += "{0} ({1})".format(bid, ssize)
             print >> sys.stderr, msg
 
         # Dovetail (terminal) overlap

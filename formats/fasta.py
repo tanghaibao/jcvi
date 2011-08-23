@@ -378,7 +378,7 @@ def format(args):
         if gb:
             # gi|262233616|gb|GU123895.1| Coffea arabica clone BAC
             atoms = rec.id.split("|")
-            if len(atoms) >= 4:
+            if len(atoms) >= 3:
                 rec.id = atoms[3]
             elif len(atoms) == 2:
                 rec.id = atoms[1]

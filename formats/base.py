@@ -234,7 +234,8 @@ def must_open(filename, mode="r", checkexists=False, skipcheck=False):
     else:
         if checkexists:
             assert mode == "w"
-            overwrite = False if skipcheck else check_exists(filename)
+            overwrite = (not op.exists(filename)) if skipcheck \
+                        else check_exists(filename)
             if overwrite:
                 fp = open(filename, "w")
             else:

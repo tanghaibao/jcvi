@@ -39,7 +39,7 @@ def batch_entrez(list_of_terms, db="nuccore", retmax=1, rettype="fasta"):
 
     for term in list_of_terms:
 
-        logging.debug("search term %s" % term)
+        logging.debug("Search term %s" % term)
         success = False
         ids = None
         while not success:
@@ -201,7 +201,8 @@ def fetch(args):
 
     # If noprompt, will not check file existence
     if not outdir:
-        fw = must_open(outfile, "w", checkexists=True, skipcheck=opts.skipcheck)
+        fw = must_open(outfile, "w", checkexists=True, \
+                skipcheck=opts.skipcheck)
         if fw is None:
             return
 
@@ -214,7 +215,11 @@ def fetch(args):
             continue
 
         if outdir:
-            fw = open(op.join(outdir, term), "w")
+            outfile = op.join(outdir, "{0}.{1}".format(term, fmt))
+            fw = must_open(outfile, "w", checkexists=True, \
+                    skipcheck=opts.skipcheck)
+            if fw is None:
+                continue
 
         print >> fw, rec
         print >> fw

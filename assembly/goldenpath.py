@@ -13,10 +13,12 @@ import sys
 
 from optparse import OptionParser
 
-from jcvi.formats.agp import AGP
+from jcvi.formats.agp import AGP, get_phase
 from jcvi.formats.fasta import Fasta, SeqIO
 from jcvi.formats.blast import BlastLine
 from jcvi.formats.coords import Overlap_types
+from jcvi.formats.base import must_open
+from jcvi.utils.cbook import memoized
 from jcvi.apps.entrez import fetch
 from jcvi.apps.base import ActionDispatcher, debug, popen, mkdir, sh
 debug()
@@ -24,14 +26,26 @@ debug()
 
 class Overlap (object):
 
-    def __init__(self, aid, bid, otype, pctid, hitlen, orientation):
+    def __init__(self, blastline, asize, bsize):
+        b = blastline
+        aid = b.query
+        bid = b.subject
+
         self.aid = aid.split("|")[3] if aid.count("|") >= 3 else aid
         self.bid = bid.split("|")[3] if bid.count("|") >= 3 else bid
-        self.otype = otype
+        self.asize = asize
+        self.bsize = bsize
 
-        self.pctid = pctid
-        self.hitlen = hitlen
-        self.orientation = orientation
+        self.qstart = b.qstart
+        self.qstop = b.qstop
+        self.sstart = b.sstart
+        self.sstop = b.sstop
+
+        self.pctid = b.pctid
+        self.hitlen = b.hitlen
+        self.orientation = b.orientation
+
+        self.otype = self.get_otype()
 
     def __str__(self):
         ov = Overlap_types[self.otype]
@@ -40,12 +54,111 @@ class Overlap (object):
             format(self.hitlen, self.pctid, self.orientation)
         return s
 
+    @property
+    def certificateline(self):
+        terminal_tag = "Terminal" if self.isTerminal() else "Non-terminal"
+        return "\t".join(str(x) for x in (self.bid, \
+                          self.asize, self.bsize, \
+                          self.qstart, self.qstop, \
+                          self.orientation, terminal_tag))
+
     def isTerminal(self, length_cutoff=2000, pctid_cutoff=99):
-        return self.otype in (1, 2)
+        return self.isGoodQuality(length_cutoff, pctid_cutoff) \
+               and self.otype in (1, 2)
 
     def isGoodQuality(self, length_cutoff=2000, pctid_cutoff=99):
         return self.hitlen >= length_cutoff and \
                self.pctid >= pctid_cutoff
+
+    def get_hangs(self):
+        """
+        Determine the type of overlap given query, ref alignment coordinates
+        Consider the following alignment between sequence a and b:
+
+        aLhang \              / aRhang
+                \------------/
+                /------------\
+        bLhang /              \ bRhang
+
+        Terminal overlap: a before b, b before a
+        Contain overlap: a in b, b in a
+        """
+        aLhang, aRhang = self.qstart - 1, self.asize - self.qstop
+        bLhang, bRhang = self.sstart - 1, self.bsize - self.sstop
+        if self.orientation == '-':
+            bLhang, bRhang = bRhang, bLhang
+
+        return aLhang, aRhang, bLhang, bRhang
+
+    def print_graphic(self, qreverse=False):
+        """
+        >>>>>>>>>>>>>>>>>>>             seqA (alen)
+                  ||||||||
+                 <<<<<<<<<<<<<<<<<<<<<  seqB (blen)
+        """
+        aLhang, aRhang, bLhang, bRhang = self.get_hangs()
+
+        if qreverse:
+            aLhang, aRhang = aRhang, aLhang
+            bLhang, bRhang = bRhang, bLhang
+
+        achar = ">"
+        bchar = "<" if self.orientation == '-' else ">"
+        if qreverse:
+            achar = "<"
+            bchar = {">" : "<", "<" : ">"}[bchar]
+
+        print >> sys.stderr, aLhang, aRhang, bLhang, bRhang
+        width = 50  # Canvas
+        hitlen = self.hitlen
+        lmax = max(aLhang, bLhang)
+        rmax = max(aRhang, bRhang)
+        bpwidth = lmax + hitlen + rmax
+        ratio = width * 1. / bpwidth
+
+        _ = lambda x: int(round(x * ratio, 0))
+        a1, a2 = _(aLhang), _(aRhang)
+        b1, b2 = _(bLhang), _(bRhang)
+        hit = max(_(hitlen), 1)
+
+        msg = " " * max(b1 - a1, 0)
+        msg += achar * (a1 + hit + a2)
+        msg += " " * (width - len(msg) + 2)
+        msg += "{0} ({1})".format(self.aid, self.asize)
+        print >> sys.stderr, msg
+
+        msg = " " * max(a1, b1)
+        msg += "|" * hit
+        print >> sys.stderr, msg
+
+        msg = " " * max(a1 - b1, 0)
+        msg += bchar * (b1 + hit + b2)
+        msg += " " * (width - len(msg) + 2)
+        msg += "{0} ({1})".format(self.bid, self.bsize)
+        print >> sys.stderr, msg
+
+    def get_otype(self, max_hang=2000):
+        aLhang, aRhang, bLhang, bRhang = self.get_hangs()
+
+        s1 = aLhang + bRhang
+        s2 = aRhang + bLhang
+        s3 = aLhang + aRhang
+        s4 = bLhang + bRhang
+
+        # Dovetail (terminal) overlap
+        if s1 < max_hang:
+            type = 2  # b ~ a
+        elif s2 < max_hang:
+            type = 1  # a ~ b
+        # Containment overlap
+        elif s3 < max_hang:
+            type = 3  # a in b
+        elif s4 < max_hang:
+            type = 4  # b in a
+        else:
+            type = 0
+
+        return type
 
 
 def main():
@@ -55,22 +168,23 @@ def main():
         ('flip', 'flip the FASTA sequences according to a set of references'),
         ('overlap', 'check terminal overlaps between two records'),
         ('neighbor', 'check neighbors of a component in agpfile'),
-        ('add', 'add a component into agpfile'),
+        ('blast', 'blast a component to componentpool'),
+        ('certificate', 'make certificates for all overlaps in agpfile'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
 
-def add(args):
+def blast(args):
     """
-    %prog add allfasta clonename
+    %prog blast allfasta clonename
 
     Insert a component into agpfile by aligning to the best hit in pool and see
     if they have good overlaps.
     """
     from jcvi.apps.command import run_megablast
 
-    p = OptionParser(add.__doc__)
+    p = OptionParser(blast.__doc__)
     p.add_option("-n", type="int", default=1,
             help="Take best N hits [default: %default]")
     opts, args = p.parse_args(args)
@@ -236,17 +350,74 @@ def overlap(args):
 
     besthsp = hsps[0]
     b = BlastLine(besthsp)
-    pctid = b.pctid
-    hitlen = b.hitlen
-    orientation = b.orientation
 
     aid, asize = Fasta(afasta).itersizes().next()
     bid, bsize = Fasta(bfasta).itersizes().next()
-    otype = b.overlap(asize, bsize, qreverse=opts.qreverse)
-    o = Overlap(aid, bid, otype, pctid, hitlen, orientation)
+    o = Overlap(b, asize, bsize)
+    o.print_graphic(qreverse=opts.qreverse)
     print >> sys.stderr, str(o)
 
     return o
+
+
+@memoized
+def phase(accession):
+    gbdir = "gb"
+    fetch([accession, "--skipcheck", "--outdir=" + gbdir, \
+           "--format=gb"])
+    gbfile = op.join(gbdir, accession + ".gb")
+    rec = SeqIO.parse(gbfile, "gb").next()
+    phase, keywords = get_phase(rec)
+    return str(phase)
+
+
+def certificate(args):
+    """
+    %prog certificate agpfile certificatefile
+
+    Generate certificate file for all overlaps in agpfile.
+
+    North  chr1  2  0  AC229737.8  telomere
+    South  chr1  2  1  AC229737.8  AC202463.29  58443  139934  37835  58443  +
+
+    Each line describes a relationship between the current BAC and the
+    north/south BAC. First, "North/South" tag, then the chromosome, phases of
+    the two BACs, ids of the two BACs, sizes of the two BACs, and the overlap
+    region start-stop of the CURRENT BAC, and orientation. Each BAC will have
+    two lines in the certificate file.
+    """
+    p = OptionParser(certificate.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    agpfile, certificatefile = args
+    fastadir = "fasta"
+
+    agp = AGP(agpfile)
+    fw = must_open(certificatefile, "w")
+    for i, a in enumerate(agp):
+        if a.is_gap:
+            continue
+
+        north, south = agp.getNorthSouthClone(i)
+        aid = a.component_id
+
+        aphase = phase(aid)
+
+        for tag, p in (("North", north), ("South", south)):
+            if p.isCloneGap:
+                bphase = "0"
+                ov = p.gap_type
+            else:
+                bid = p.component_id
+                bphase = phase(bid)
+                ar = [aid, bid, "--dir=" + fastadir]
+                ov = overlap(ar).certificateline
+
+            print >> fw, "\t".join((tag, a.object, aphase, bphase, aid, ov))
+            fw.flush()
 
 
 def neighbor(args):
@@ -270,6 +441,11 @@ def neighbor(args):
 
     agp = AGP(agpfile)
     aorder = agp.order
+    if not componentID in aorder:
+        print >> sys.stderr, "Record {0} not present in `{1}`."\
+                .format(componentID, agpfile)
+        return
+
     i, c = aorder[componentID]
     north, south = agp.getNorthSouthClone(i)
 

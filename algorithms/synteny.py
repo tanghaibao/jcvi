@@ -202,7 +202,7 @@ def scan(args):
     pull out syntenic anchors from blastfile based on single-linkage algorithm
     """
     p = OptionParser(scan.__doc__)
-    p.add_option("-N", dest="N", type="int", default=5,
+    p.add_option("-n", type="int", default=5,
             help="minimum number of anchors in a cluster [default: %default]")
 
     blast_file, anchor_file, qbed_file, sbed_file, dist, is_self, opts = \
@@ -216,7 +216,7 @@ def scan(args):
     filtered_blast = read_blast(blast_file, qorder, sorder, is_self=is_self)
 
     fw = open(anchor_file, "w")
-    clusters = batch_scan(filtered_blast, xdist=dist, ydist=dist, N=opts.N)
+    clusters = batch_scan(filtered_blast, xdist=dist, ydist=dist, N=opts.n)
     for cluster in clusters:
         print >>fw, "###"
         for qi, si in cluster:

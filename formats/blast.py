@@ -76,7 +76,7 @@ class BlastLine(object):
                 (self.subject, self.sstart - 1, self.sstop, self.query,
                  self.score, self.orientation))
 
-    def overlap(self, qsize, ssize, max_hang=100, graphic=True, qreverse=False):
+    def overlap(self, qsize, ssize, max_hang=1000, graphic=True, qreverse=False):
         """
         Determine the type of overlap given query, ref alignment coordinates
         Consider the following alignment between sequence a and b:
@@ -675,7 +675,7 @@ def best(args):
     """
     p = OptionParser(best.__doc__)
 
-    p.add_option("-N", dest="N", default=1, type="int",
+    p.add_option("-n", default=1, type="int",
             help="get best N hits [default: %default]")
     opts, args = p.parse_args(args)
 
@@ -687,7 +687,7 @@ def best(args):
     fw = open(bestblastfile, "w")
 
     b = Blast(blastfile)
-    for q, bline in b.iter_best_hit(N=opts.N):
+    for q, bline in b.iter_best_hit(N=opts.n):
         print >> fw, bline
 
 

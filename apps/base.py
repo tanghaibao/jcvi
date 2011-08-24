@@ -50,22 +50,6 @@ def getusername():
     return getpass.getuser()
 
 
-def set_debug(instance, args):
-    """
-    Add --debug options for command line programs
-    """
-    assert isinstance(instance, OptionParser)
-
-    instance.add_option("--debug", dest="debug",
-            default=False, action="store_true",
-            help="set to debug level")
-
-    opts, args = instance.parse_args(args)
-
-    if opts.debug:
-        debug()
-
-
 def set_grid(instance):
     """
     Add --grid options for command line programs

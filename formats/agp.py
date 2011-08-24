@@ -27,7 +27,7 @@ from jcvi.formats.bed import Bed, BedLine
 from jcvi.assembly.base import calculate_A50
 from jcvi.utils.range import range_intersect
 from jcvi.utils.iter import pairwise, flatten
-from jcvi.apps.base import ActionDispatcher, set_debug, set_outfile
+from jcvi.apps.base import ActionDispatcher, set_outfile
 
 
 Valid_component_type = list("ADFGNOPUW")
@@ -947,7 +947,6 @@ def build(args):
             action="store_true",
             help="don't validate the agpfile [default: %default]")
 
-    set_debug(p, args)
     opts, args = p.parse_args(args)
 
     validate = not (opts.novalidate)
@@ -976,7 +975,6 @@ def validate(args):
     """
     p = OptionParser(validate.__doc__)
 
-    set_debug(p, args)
     opts, args = p.parse_args(args)
 
     try:

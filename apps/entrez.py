@@ -226,8 +226,9 @@ def fetch(args):
 
         seen.add(id)
 
-    print >> sys.stderr, "A total of {0} {1} records downloaded.".\
-            format(len(seen), fmt.upper())
+    if seen:
+        print >> sys.stderr, "A total of {0} {1} records downloaded.".\
+                format(len(seen), fmt.upper())
 
     return outfile
 

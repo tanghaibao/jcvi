@@ -257,29 +257,29 @@ class CertificateFile (BaseFile):
             size = north.asize
             ar = [chr, 0, 0, 0]
 
-            # Most gaps, except telomeres occur twice, so only do the "North"
             northline = southline = None
             northrange = southrange = None
+            # Force terminal overlap when both are good sequences
+            if aphase == 3 and north.bphase == 3:
+                north.terminal = "Terminal"
+            # Most gaps, except telomeres occur twice, so only do the "North"
             if north.is_gap:
                 bar = ar + self.get_agp_gap(north.bid)
                 northline = "\t".join(str(x) for x in bar)
             else:
                 if north.isTerminal():
-                    # Override left-greedy (also see below)
-                    if north.bphase == 1 and north.bphase < aphase:
-                        pass
-                    else:
-                        northrange = north.astart, north.astop
+                    northrange = north.astart, north.astop
 
+            # Force terminal overlap when both are good sequences
+            if aphase == 3 and south.bphase == 3:
+                south.terminal = "Terminal"
             if south.is_gap:
                 if south.bid == "telomere":
                     bar = ar + self.get_agp_gap(south.bid)
                     southline = "\t".join(str(x) for x in bar)
             else:
                 if south.isTerminal():
-                    # Override left-greedy (also see above)
-                    if aphase == 1 and aphase < south.bphase:
-                        southrange = south.astart, south.astop
+                    southrange = south.astart, south.astop
                 else:
                     bar = ar + self.get_agp_gap("fragment")
                     southline = "\t".join(str(x) for x in bar)
@@ -291,23 +291,27 @@ class CertificateFile (BaseFile):
                 start, stop = northrange
                 Lhang = start - 1
                 Rhang = size - stop
-                if Lhang < Rhang:  # North overlap at 5`
-                    orientation = '+'
-                    clr[0] = stop + 1
-                else:
-                    orientation = '-'
-                    clr[1] = start - 1
+
+                orientation = '+' if Lhang < Rhang else '-'
+                # Override left-greedy (also see below)
+                if not (north.bphase == 1 and north.bphase < aphase):
+                    if Lhang < Rhang:  # North overlap at 5`
+                        clr[0] = stop + 1
+                    else:
+                        clr[1] = start - 1
 
             if southrange:
                 start, stop = southrange
                 Lhang = start - 1
                 Rhang = size - stop
-                if Lhang > Rhang:  # South overlap at 3`
-                    sorientation = '+'
-                    clr[1] = start - 1
-                else:
-                    sorientation = '-'
-                    clr[0] = stop + 1
+
+                sorientation = '+' if Lhang > Rhang else '-'
+                # Override left-greedy (also see above)
+                if aphase == 1 and aphase < south.bphase:
+                    if Lhang > Rhang:  # South overlap at 3`
+                        clr[1] = start - 1
+                    else:
+                        clr[0] = stop + 1
 
             if orientation:
                 if sorientation:

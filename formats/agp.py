@@ -305,6 +305,59 @@ class AGP (LineFile):
             self.build_one(ob, lines, f, fw, newagp=newagp)
 
 
+class TPFLine (object):
+
+    def __init__(self, line):
+        args = line.split()
+        self.component_id = args[0]
+        self.object = args[1]
+        if self.is_gap:
+            self.gap_type = self.component_id
+
+    def __str__(self):
+        return "\t".join((self.component_id, self.object_id))
+
+    @property
+    def is_gap(self):
+        return self.component_id in Valid_gap_type
+
+    @property
+    def isCloneGap(self):
+        return (self.is_gap and self.gap_type != "fragment")
+
+
+class TPF (LineFile):
+
+    def __init__(self, filename):
+        super(TPF, self).__init__(filename)
+        fp = open(filename)
+        for row in fp:
+            if row[0] == '#':
+                continue
+            self.append(TPFLine(row))
+
+    def getAdjacentClone(self, i, south=True):
+        """
+        Returns adjacent clone name, either the line before or after the current
+        line.
+        """
+        rr = self[i + 1:] if south else self[i - 1::-1]
+        a = self[i]
+        for x in rr:
+            if x.object != a.object:
+                break
+            return x
+        return None
+
+    def getNorthSouthClone(self, i):
+        """
+        Returns adjacent clone name on both sides.
+        """
+        north = self.getAdjacentClone(i, south=False)
+        south = self.getAdjacentClone(i)
+        return north, south
+
+
 def trimNs(seq, line, newagp):
     """
     Test if the sequences contain dangling N's on both sides. This component
@@ -360,7 +413,7 @@ def main():
         ('phase', 'given genbank file, get the phase for the HTG BAC record'),
         ('bed', 'print out the tiling paths in bed format'),
         ('gaps', 'print out the distribution of gap sizes'),
-        ('ids', 'print out a list of accessions'),
+        ('tpf', 'print out a list of accessions, aka Tiling Path File'),
         ('chr0', 'build AGP file for unplaced sequences'),
         ('mask', 'mask given ranges in components to gaps'),
         ('liftover', 'given ranges in components, get chromosome ranges'),
@@ -770,35 +823,41 @@ def chr0(args):
                     phases[component_id], component_id, 1, size, '0'))
 
 
-def ids(args):
+def tpf(args):
     """
-    %prog ids agpfile
+    %prog tpf agpfile
 
-    print out a list of ids, one per line
+    Print out a list of ids, one per line. Also known as the Tiling Path.
+
+    AC225490.9  chr6
+
+    Can optionally output scaffold gaps.
     """
-    p = OptionParser(ids.__doc__)
-    p.add_option("--noversion", dest="noversion",
-            default=False, action="store_true",
-            help="Remove trailing accession versions")
+    p = OptionParser(tpf.__doc__)
+    p.add_option("--noversion", default=False, action="store_true",
+            help="Remove trailing accession versions [default: %default]")
+    p.add_option("--gaps", default=False, action="store_true",
+            help="Include gaps in the output [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
     agpfile, = args
     agp = AGP(agpfile)
-    seen = set()
     for a in agp:
+        object = a.object
         if a.is_gap:
+            if opts.gaps and a.isCloneGap:
+                print "\t".join((a.gap_type, object))
             continue
+
         component_id = a.component_id
 
         if opts.noversion:
             component_id = component_id.rsplit(".", 1)[0]
 
-        if component_id not in seen:
-            print "\t".join((component_id, a.object))
-        seen.add(component_id)
+        print "\t".join((component_id, object))
 
 
 def bed(args):

@@ -156,7 +156,10 @@ class AGP (LineFile):
         Returns the adjacent clone name.
         """
         rr = self[i + 1:] if south else self[i - 1::-1]
+        a = self[i]
         for x in rr:
+            if x.object != a.object:
+                break
             if x.is_gap:
                 if x.isCloneGap:
                     return x

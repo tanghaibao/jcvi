@@ -209,17 +209,17 @@ def fetch(args):
     seen = set()
     for id, term, handle in batch_entrez(list_of_terms, retmax=opts.retmax, \
                                          rettype=fmt, db=database):
-        rec = handle.read()
-        if id in seen:
-            logging.error("duplicate key (%s) found" % rec)
-            continue
-
         if outdir:
             outfile = op.join(outdir, "{0}.{1}".format(term, fmt))
             fw = must_open(outfile, "w", checkexists=True, \
                     skipcheck=opts.skipcheck)
             if fw is None:
                 continue
+
+        rec = handle.read()
+        if id in seen:
+            logging.error("Duplicate key ({0}) found".format(rec))
+            continue
 
         print >> fw, rec
         print >> fw

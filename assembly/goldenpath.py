@@ -10,10 +10,13 @@ detection.
 import os
 import os.path as op
 import sys
+import shutil
 
 from optparse import OptionParser
+from itertools import groupby
 
 from jcvi.formats.agp import AGP, get_phase
+from jcvi.formats.base import BaseFile
 from jcvi.formats.fasta import Fasta, SeqIO
 from jcvi.formats.blast import BlastLine
 from jcvi.formats.coords import Overlap_types
@@ -58,15 +61,14 @@ class Overlap (object):
     def certificateline(self):
         terminal_tag = "Terminal" if self.isTerminal() else "Non-terminal"
         return "\t".join(str(x) for x in (self.bid, \
-                          self.asize, self.bsize, \
-                          self.qstart, self.qstop, \
+                          self.asize, self.qstart, self.qstop, \
                           self.orientation, terminal_tag))
 
-    def isTerminal(self, length_cutoff=2000, pctid_cutoff=99):
+    def isTerminal(self, length_cutoff=100, pctid_cutoff=99):
         return self.isGoodQuality(length_cutoff, pctid_cutoff) \
                and self.otype in (1, 2)
 
-    def isGoodQuality(self, length_cutoff=2000, pctid_cutoff=99):
+    def isGoodQuality(self, length_cutoff=100, pctid_cutoff=99):
         return self.hitlen >= length_cutoff and \
                self.pctid >= pctid_cutoff
 
@@ -161,6 +163,178 @@ class Overlap (object):
         return type
 
 
+class CertificateLine (object):
+
+    """
+    North  chr1  2  0  AC229737.8  telomere     58443
+    South  chr1  2  1  AC229737.8  AC202463.29  58443  37835  58443  + Non-terminal
+    """
+
+    def __init__(self, line):
+        args = line.split()
+        self.tag = args[0]
+        self.chr = args[1]
+        self.aphase = int(args[2])
+        self.bphase = int(args[3])
+        self.aid = args[4]
+        self.bid = args[5]
+        self.asize = int(args[6])
+
+        if len(args) == 7:
+            self.is_gap = True
+            return
+
+        self.is_gap = False
+        self.astart = int(args[7])
+        self.astop = int(args[8])
+        self.orientation = args[9]
+        self.terminal = args[10]
+
+    def isTerminal(self):
+        return self.terminal == "Terminal"
+
+    def __str__(self):
+        ar = [self.tag, self.chr, self.aphase, self.bphase, self.aid, self.bid]
+        if not self.is_gap:
+
+            ar += [self.asize, self.astart, self.astop,
+                   self.orientation, self.terminal]
+
+        return "\t".join(str(x) for x in ar)
+
+
+class CertificateFile (BaseFile):
+
+    gapsize = 100000
+    gaps = dict(telomere=gapsize, contig=gapsize, \
+                centromere=gapsize, clone=gapsize, \
+                fragment=5000)
+
+    def __init__(self, filename):
+
+        super(CertificateFile, self).__init__(filename)
+
+        fp = open(filename)
+        self.lines = [CertificateLine(x) for x in fp.readlines()]
+
+    def write(self, filename):
+        fw = must_open(filename, "w")
+        for b in self.lines:
+            print >> fw, b
+
+    def get_agp_gap(self, gap_type="contig"):
+        gap_length = CertificateFile.gaps[gap_type]
+        linkage = "no" if type == "fragment" else "yes"
+
+        return ["N", gap_length, gap_type, linkage, ""]
+
+    def write_AGP(self, filename, reindex=True):
+        """
+        For each component, we have two overlaps: North and South.
+
+        =======
+           ||||             South
+           ====(=================)  Current BAC
+           North             ||||
+                             ===============
+
+        For the case that says "Non-terminal", the overlap will not be
+        considered. North-South would suggest a '+' orientation, South-North
+        would suggest a '-' orientation. In most cases, unless the overlap
+        involves phase1 BAC, the selected range will be shown as the brackets
+        above - exclude North overlap, and include South overlap (aka the
+        "left-greedy" rule).
+        """
+        fw = must_open(filename, "w")
+        for aid, bb in groupby(self.lines, key=lambda x: x.aid):
+            bb = list(bb)
+            north, south = bb
+            aid = north.aid
+            assert aid == south.aid
+
+            aphase = north.aphase
+            chr = north.chr
+            size = north.asize
+            ar = [chr, 0, 0, 0]
+
+            # Most gaps, except telomeres occur twice, so only do the "North"
+            northline = southline = None
+            northrange = southrange = None
+            if north.is_gap:
+                bar = ar + self.get_agp_gap(north.bid)
+                northline = "\t".join(str(x) for x in bar)
+            else:
+                if north.isTerminal():
+                    # Override left-greedy (also see below)
+                    if north.bphase == 1 and north.bphase < aphase:
+                        pass
+                    else:
+                        northrange = north.astart, north.astop
+
+            if south.is_gap:
+                if south.bid == "telomere":
+                    bar = ar + self.get_agp_gap(south.bid)
+                    southline = "\t".join(str(x) for x in bar)
+            else:
+                if south.isTerminal():
+                    # Override left-greedy (also see above)
+                    if aphase == 1 and aphase < south.bphase:
+                        southrange = south.astart, south.astop
+                else:
+                    bar = ar + self.get_agp_gap("fragment")
+                    southline = "\t".join(str(x) for x in bar)
+
+            # Determine the orientation and clear range for the current BAC
+            clr = [1, size]
+            orientation = sorientation = None
+            if northrange:
+                start, stop = northrange
+                Lhang = start - 1
+                Rhang = size - stop
+                if Lhang < Rhang:  # North overlap at 5`
+                    orientation = '+'
+                    clr[0] = stop + 1
+                else:
+                    orientation = '-'
+                    clr[1] = start - 1
+
+            if southrange:
+                start, stop = southrange
+                Lhang = start - 1
+                Rhang = size - stop
+                if Lhang > Rhang:  # South overlap at 3`
+                    sorientation = '+'
+                    clr[1] = start - 1
+                else:
+                    sorientation = '-'
+                    clr[0] = stop + 1
+
+            if orientation:
+                if sorientation:
+                    assert orientation == sorientation, \
+                            "\n{0}\n{1}".format(north, south)
+            else:
+                orientation = sorientation if sorientation else "+"
+
+            component_type = "D" if aphase in (1, 2) else "F"
+            bar = ar + [component_type, aid, clr[0], clr[1], orientation]
+            cline = "\t".join(str(x) for x in bar)
+
+            if northline:
+                print >> fw, northline
+            print >> fw, cline
+            if southline:
+                print >> fw, southline
+
+        fw.close()
+
+        if reindex:
+            from jcvi.formats.agp import reindex
+            reindex([filename])
+            newagpfile = filename.replace(".agp", ".reindexed.agp")
+            shutil.move(newagpfile, filename)
+
+
 def main():
 
     actions = (
@@ -170,6 +344,7 @@ def main():
         ('neighbor', 'check neighbors of a component in agpfile'),
         ('blast', 'blast a component to componentpool'),
         ('certificate', 'make certificates for all overlaps in agpfile'),
+        ('agp', 'make agpfile based on certificates'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -363,12 +538,13 @@ def overlap(args):
 @memoized
 def phase(accession):
     gbdir = "gb"
-    fetch([accession, "--skipcheck", "--outdir=" + gbdir, \
-           "--format=gb"])
     gbfile = op.join(gbdir, accession + ".gb")
+    if not op.exists(gbfile):
+        fetch([accession, "--skipcheck", "--outdir=" + gbdir, \
+               "--format=gb"])
     rec = SeqIO.parse(gbfile, "gb").next()
-    phase, keywords = get_phase(rec)
-    return str(phase)
+    ph, keywords = get_phase(rec)
+    return ph, len(rec)
 
 
 def certificate(args):
@@ -377,14 +553,14 @@ def certificate(args):
 
     Generate certificate file for all overlaps in agpfile.
 
-    North  chr1  2  0  AC229737.8  telomere
-    South  chr1  2  1  AC229737.8  AC202463.29  58443  139934  37835  58443  +
+    North  chr1  2  0  AC229737.8  telomere     58443
+    South  chr1  2  1  AC229737.8  AC202463.29  58443  37835  58443  + Non-terminal
 
     Each line describes a relationship between the current BAC and the
     north/south BAC. First, "North/South" tag, then the chromosome, phases of
-    the two BACs, ids of the two BACs, sizes of the two BACs, and the overlap
-    region start-stop of the CURRENT BAC, and orientation. Each BAC will have
-    two lines in the certificate file.
+    the two BACs, ids of the two BACs, the size and the overlap start-stop of
+    the CURRENT BAC, and orientation. Each BAC will have two lines in the
+    certificate file.
     """
     p = OptionParser(certificate.__doc__)
     opts, args = p.parse_args(args)
@@ -396,6 +572,16 @@ def certificate(args):
     fastadir = "fasta"
 
     agp = AGP(agpfile)
+
+    # This will make certificatefile updates resume-able
+    data = {}
+    if op.exists(certificatefile):
+        fp = open(certificatefile)
+        for row in fp:
+            atoms = row.split()
+            tag, aid, bid = atoms[0], atoms[4], atoms[5]
+            data[(tag, aid, bid)] = row.strip()
+
     fw = must_open(certificatefile, "w")
     for i, a in enumerate(agp):
         if a.is_gap:
@@ -404,19 +590,27 @@ def certificate(args):
         north, south = agp.getNorthSouthClone(i)
         aid = a.component_id
 
-        aphase = phase(aid)
+        aphase, asize = phase(aid)
 
         for tag, p in (("North", north), ("South", south)):
-            if p.isCloneGap:
+            if not p:  # end of the chromosome
+                ov = "telomere\t{0}".format(asize)
+            elif p.isCloneGap:
                 bphase = "0"
-                ov = p.gap_type
+                ov = "{0}\t{1}".format(p.gap_type, asize)
             else:
                 bid = p.component_id
-                bphase = phase(bid)
+                bphase, bsize = phase(bid)
+                key = (tag, aid, bid)
+                if key in data:
+                    print >> fw,  data[key]
+                    continue
+
                 ar = [aid, bid, "--dir=" + fastadir]
                 ov = overlap(ar).certificateline
 
-            print >> fw, "\t".join((tag, a.object, aphase, bphase, aid, ov))
+            print >> fw, "\t".join(str(x) for x in \
+                    (tag, a.object, aphase, bphase, aid, ov))
             fw.flush()
 
 
@@ -462,19 +656,28 @@ def neighbor(args):
         overlap(ar)
 
 
-def overlapbatch(args):
+def agp(args):
     """
-    %prog overlapbatch agpfile componentfasta
+    %prog agp certificatefile agpfile
 
-    Check overlaps between adjacent components in an AGP file.
+    Build agpfile from overlap certificates.
+
+    See jcvi.assembly.goldenpath.certificate() which generates a list of
+    certificates based on agpfile. At first, it seems counter-productive to
+    convert first agp to certificates then certificates back to agp.
+
+    The certificates provide a way to edit the overlap information, so that the
+    agpfile can be corrected (without changing agpfile directly).
     """
-    p = OptionParser(overlapbatch.__doc__)
+    p = OptionParser(agp.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
         sys.exit(not p.print_help())
 
-    agpfile, componentfasta = args
+    certificatefile, agpfile = args
+    cert = CertificateFile(certificatefile)
+    cert.write_AGP(agpfile)
 
 
 if __name__ == '__main__':

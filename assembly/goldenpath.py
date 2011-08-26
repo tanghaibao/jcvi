@@ -207,8 +207,8 @@ class CertificateLine (object):
 class Certificate (BaseFile):
 
     gapsize = 100000
-    gaps = dict(telomere=gapsize, contig=gapsize, \
-                centromere=gapsize, clone=gapsize, \
+    gaps = dict(telomere=gapsize, centromere=gapsize, \
+                contig=gapsize, clone=50000, \
                 fragment=5000)
 
     def __init__(self, filename):
@@ -225,7 +225,7 @@ class Certificate (BaseFile):
 
     def get_agp_gap(self, gap_type="contig"):
         gap_length = Certificate.gaps[gap_type]
-        linkage = "no" if type == "fragment" else "yes"
+        linkage = "yes" if gap_type in ("fragment", "clone") else "no"
 
         return ["N", gap_length, gap_type, linkage, ""]
 
@@ -294,9 +294,14 @@ class Certificate (BaseFile):
                 Rhang = size - stop
 
                 orientation = '+' if Lhang < Rhang else '-'
-                # Override left-greedy (also see below)
-                if not (north.bphase == 1 and north.bphase < aphase):
+                if north.bphase == 1 and north.bphase < aphase:
                     if Lhang < Rhang:  # North overlap at 5`
+                        clr[0] = start
+                    else:
+                        clr[1] = stop
+                # Override left-greedy (also see below)
+                else:
+                    if Lhang < Rhang:
                         clr[0] = stop + 1
                     else:
                         clr[1] = start - 1
@@ -309,10 +314,15 @@ class Certificate (BaseFile):
                 sorientation = '+' if Lhang > Rhang else '-'
                 # Override left-greedy (also see above)
                 if aphase == 1 and aphase < south.bphase:
-                    if Lhang > Rhang:  # South overlap at 3`
-                        clr[1] = start - 1
-                    else:
+                    if Lhang < Rhang:  # South overlap at 5`
                         clr[0] = stop + 1
+                    else:
+                        clr[1] = start - 1
+                else:
+                    if Lhang < Rhang:
+                        clr[0] = start
+                    else:
+                        clr[1] = stop
 
             if orientation:
                 if sorientation:

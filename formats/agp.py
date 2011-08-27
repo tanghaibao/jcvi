@@ -313,9 +313,10 @@ class TPFLine (object):
         self.object = args[1]
         if self.is_gap:
             self.gap_type = self.component_id
+        self.orientation = args[2]
 
     def __str__(self):
-        return "\t".join((self.component_id, self.object_id))
+        return "\t".join((self.component_id, self.object_id, self.orientation))
 
     @property
     def is_gap(self):
@@ -323,7 +324,7 @@ class TPFLine (object):
 
     @property
     def isCloneGap(self):
-        return (self.is_gap and self.gap_type != "fragment")
+        return self.is_gap and self.gap_type != "fragment"
 
 
 class TPF (LineFile):
@@ -706,7 +707,7 @@ def get_phase(rec):
             assert "COMPLETE" in description, description
             phase = 3
     else:
-        logging.error("{0}: {1}".format(rec.name, description))
+        #logging.error("{0}: {1}".format(rec.name, description))
         phase = 3
 
     return phase, keywords
@@ -849,15 +850,16 @@ def tpf(args):
         object = a.object
         if a.is_gap:
             if opts.gaps and a.isCloneGap:
-                print "\t".join((a.gap_type, object))
+                print "\t".join((a.gap_type, object, "na"))
             continue
 
         component_id = a.component_id
+        orientation = a.orientation
 
         if opts.noversion:
             component_id = component_id.rsplit(".", 1)[0]
 
-        print "\t".join((component_id, object))
+        print "\t".join((component_id, object, orientation))
 
 
 def bed(args):

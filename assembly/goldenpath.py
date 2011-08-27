@@ -140,7 +140,7 @@ class Overlap (object):
         msg += "{0} ({1})".format(self.bid, self.bsize)
         print >> sys.stderr, msg
 
-    def get_otype(self, max_hang=2000):
+    def get_otype(self, max_hang=10000):
         aLhang, aRhang, bLhang, bRhang = self.get_hangs()
 
         s1 = aLhang + bRhang
@@ -229,7 +229,7 @@ class Certificate (BaseFile):
 
         return ["N", gap_length, gap_type, linkage, ""]
 
-    def write_AGP(self, filename, reindex=True):
+    def write_AGP(self, filename, orientationguide={}, reindex=True):
         """
         For each component, we have two overlaps: North and South.
 
@@ -260,9 +260,7 @@ class Certificate (BaseFile):
 
             northline = southline = None
             northrange = southrange = None
-            # Force terminal overlap when both are good sequences
-            if aphase == 3 and north.bphase == 3:
-                north.terminal = "Terminal"
+
             # Most gaps, except telomeres occur twice, so only do the "North"
             if north.is_gap:
                 bar = ar + self.get_agp_gap(north.bid)
@@ -271,9 +269,6 @@ class Certificate (BaseFile):
                 if north.isTerminal():
                     northrange = north.astart, north.astop
 
-            # Force terminal overlap when both are good sequences
-            if aphase == 3 and south.bphase == 3:
-                south.terminal = "Terminal"
             if south.is_gap:
                 if south.bid == "telomere":
                     bar = ar + self.get_agp_gap(south.bid)
@@ -332,7 +327,10 @@ class Certificate (BaseFile):
                     except AssertionError as e:
                         logging.debug(e)
             else:
-                orientation = sorientation if sorientation else "+"
+                if sorientation:
+                    orientation = sorientation
+                else:  # Both overlaps fail to define orientation
+                    orientation = orientationguide.get(aid, "+")
 
             component_type = "D" if aphase in (1, 2) else "F"
             bar = ar + [component_type, aid, clr[0], clr[1], orientation]
@@ -593,6 +591,10 @@ def certificate(args):
     tpf = TPF(tpffile)
 
     # This will make certificatefile updates resume-able
+    certificatefilebak = certificatefile + ".orig"
+    if op.exists(certificatefile):
+        shutil.copy2(certificatefile, certificatefilebak)
+
     data = {}
     if op.exists(certificatefile):
         fp = open(certificatefile)
@@ -677,9 +679,20 @@ def neighbor(args):
 
 def agp(args):
     """
-    %prog agp certificatefile agpfile
+    %prog agp tpffile certificatefile agpfile
 
     Build agpfile from overlap certificates.
+
+    Tiling Path File (tpf) is a file that lists the component and the gaps.
+    It is a three-column file similar to belwo, also see jcvi.formats.agp.tpf():
+
+    telomere        chr1
+    AC229737.8      chr1    +
+    AC202463.29     chr1    +
+
+    Note: the orientation of the component is only used as a guide. If the
+    orientation is derivable from a terminal overlap, it will use it regardless
+    of what the tpf says.
 
     See jcvi.assembly.goldenpath.certificate() which generates a list of
     certificates based on agpfile. At first, it seems counter-productive to
@@ -688,15 +701,18 @@ def agp(args):
     The certificates provide a way to edit the overlap information, so that the
     agpfile can be corrected (without changing agpfile directly).
     """
+    from jcvi.formats.base import DictFile
+
     p = OptionParser(agp.__doc__)
     opts, args = p.parse_args(args)
 
-    if len(args) != 2:
+    if len(args) != 3:
         sys.exit(not p.print_help())
 
-    certificatefile, agpfile = args
+    tpffile, certificatefile, agpfile = args
+    orientationguide = DictFile(tpffile, valuepos=2)
     cert = Certificate(certificatefile)
-    cert.write_AGP(agpfile)
+    cert.write_AGP(agpfile, orientationguide=orientationguide)
 
 
 if __name__ == '__main__':

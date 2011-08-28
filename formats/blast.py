@@ -83,7 +83,7 @@ class BlastSlow (LineFile):
     """
     def __init__(self, filename):
         super(BlastSlow, self).__init__(filename)
-        fp = open(filename)
+        fp = must_open(filename)
         for row in fp:
             self.append(BlastLine(row))
         self.sort(key=lambda x: x.query)
@@ -221,11 +221,115 @@ def main():
         ('best', 'get best BLAST hit per query'),
         ('pairs', 'print paired-end reads of BLAST tabular output'),
         ('bed', 'get bed file from blast'),
+        ('chain', 'chain adjacent HSPs together'),
         ('swap', 'swap query and subjects in the BLAST report'),
         ('mismatches', 'print out histogram of mismatches of HSPs'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def get_distance(a, b, xaxis=True):
+    """
+    Returns the distance between two blast HSPs.
+    """
+    if xaxis:
+        arange = ("0", a.qstart, a.qstop, a.orientation)  # 0 is the dummy chromosome
+        brange = ("0", b.qstart, b.qstop, b.orientation)
+    else:
+        arange = ("0", a.sstart, a.sstop, a.orientation)
+        brange = ("0", b.sstart, b.sstop, b.orientation)
+
+    dist, oo = range_distance(arange, brange, distmode="ee")
+    dist = abs(dist)
+
+    return dist
+
+
+def combine_HSPs(a):
+    """
+    Combine HSPs into a single BlastLine.
+    """
+    m = a[0]
+    if len(a) == 1:
+        return m
+
+    for b in a[1:]:
+        assert m.query == b.query
+        assert m.subject == b.subject
+        assert m.orientation == b.orientation
+        m.hitlen += b.hitlen
+        m.nmismatch += b.nmismatch
+        m.ngaps += b.ngaps
+        m.qstart = min(m.qstart, b.qstart)
+        m.qstop = max(m.qstop, b.qstop)
+        m.sstart = min(m.sstart, b.sstart)
+        m.sstop = max(m.sstop, b.sstop)
+        m.score += b.score
+
+    m.pctid = 100 - (m.nmismatch + m.ngaps) * 1. / m.hitlen
+    return m
+
+
+def chain(args):
+    """
+    %prog chain blastfile
+
+    Chain adjacent HSPs together to form larger HSP. The adjacent HSPs have to
+    share the same orientation.
+    """
+    from jcvi.utils.grouper import Grouper
+
+    p = OptionParser(chain.__doc__)
+    p.add_option("--dist", dest="dist",
+            default=100, type="int",
+            help="extent of flanking regions to search [default: %default]")
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    blastfile, = args
+    assert opts.dist > 0
+    xdist = ydist = opts.dist
+
+    b = BlastSlow(blastfile)
+    key = lambda x: (x.query, x.subject)
+    b.sort(key=key)
+
+    clusters = Grouper()
+    for qs, points in groupby(b, key=key):
+        points = sorted(list(points), \
+                key=lambda x: (x.qstart, x.qstop, x.sstart, x.sstop))
+
+        n = len(points)
+        for i in xrange(n):
+            a = points[i]
+            clusters.join(a)
+            for j in xrange(i - 1, -1, -1):
+                b = points[j]
+                if a.orientation != b.orientation:
+                    continue
+
+                # x-axis distance
+                del_x = get_distance(a, b)
+                if del_x > xdist:
+                    break
+                # y-axis distance
+                del_y = get_distance(a, b, xaxis=False)
+                if del_y > ydist:
+                    continue
+                # otherwise join
+                clusters.join(a, b)
+
+    chained_hsps = []
+    for c in clusters:
+        chained_hsps.append(combine_HSPs(c))
+    chained_hsps = sorted(chained_hsps, key=lambda x: -x.score)
+
+    for b in chained_hsps:
+        print b
 
 
 def mismatches(args):

@@ -48,7 +48,7 @@ def trim(args):
     if len(args) not in (1, 2):
         sys.exit(not p.print_help())
 
-    path = opts.path
+    path = op.expanduser(opts.path)
     url = \
     "http://www.usadellab.org/cms/uploads/supplementary/Trimmomatic/Trimmomatic-{0}.zip"\
     .format(tv)

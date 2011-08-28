@@ -186,6 +186,12 @@ class CertificateLine (object):
             return
 
         self.is_gap = False
+
+        if len(args) == 8:
+            assert args[7] == "None"
+            self.terminal = "Non-terminal"
+            return
+
         self.astart = int(args[7])
         self.astop = int(args[8])
         self.orientation = args[9]
@@ -510,6 +516,8 @@ def overlap(args):
             help="Download sequences to dir [default: %default]")
     p.add_option("--qreverse", default=False, action="store_true",
             help="Reverse seq a [default: %default]")
+    p.add_option("--chain", default=False, action="store_true",
+            help="Chain adjacent HSPs [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -518,20 +526,22 @@ def overlap(args):
     afasta, bfasta = args
     dir = opts.dir
 
+    # Check first whether it is file or accession name
     if not op.exists(afasta):
-        fetch([afasta, "--skipcheck", "--outdir=" + dir])
-        afasta += ".fasta"
+        afasta = op.join(dir, afasta + ".fasta")
+        if not op.exists(afasta):  # Check to avoid redownload
+            fetch([afasta, "--skipcheck", "--outdir=" + dir])
 
     if not op.exists(bfasta):
-        fetch([bfasta, "--skipcheck", "--outdir=" + dir])
-        bfasta += ".fasta"
-
-    afasta = op.join(dir, afasta)
-    bfasta = op.join(dir, bfasta)
+        bfasta = op.join(dir, bfasta + ".fasta")
+        if not op.exists(bfasta):
+            fetch([bfasta, "--skipcheck", "--outdir=" + dir])
 
     cmd = BLPATH("blastn")
     cmd += " -query {0} -subject {1}".format(afasta, bfasta)
     cmd += " -evalue 0.01 -outfmt 6 -perc_identity 99"
+    if opts.chain:
+        cmd += " | python -m jcvi.formats.blast chain stdin"
 
     fp = popen(cmd)
     hsps = fp.readlines()
@@ -590,13 +600,12 @@ def certificate(args):
 
     tpf = TPF(tpffile)
 
-    # This will make certificatefile updates resume-able
-    certificatefilebak = certificatefile + ".orig"
-    if op.exists(certificatefile):
-        shutil.copy2(certificatefile, certificatefilebak)
-
     data = {}
     if op.exists(certificatefile):
+        # This will make updates resume-able and backed-up
+        certificatefilebak = certificatefile + ".orig"
+        shutil.copy2(certificatefile, certificatefilebak)
+
         fp = open(certificatefile)
         for row in fp:
             atoms = row.split()
@@ -627,8 +636,10 @@ def certificate(args):
                     print >> fw,  data[key]
                     continue
 
-                ar = [aid, bid, "--dir=" + fastadir]
-                ov = overlap(ar).certificateline
+                ar = [aid, bid, "--dir=" + fastadir, "--chain"]
+                o = overlap(ar)
+                ov = o.certificateline if o \
+                        else "{0}\t{1}\tNone".format(bid, asize)
 
             print >> fw, "\t".join(str(x) for x in \
                     (tag, a.object, aphase, bphase, aid, ov))

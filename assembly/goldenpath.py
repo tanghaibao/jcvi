@@ -545,14 +545,16 @@ def overlap(args):
 
     fp = popen(cmd)
     hsps = fp.readlines()
-    if len(hsps) == 0:
-        print >> sys.stderr, "No match found."
-        return None
 
     hsps = [BlastLine(x) for x in hsps]
+    hsps = [x for x in hsps if x.hitlen >= 100]
     if chain:
         logging.debug("Chain HSPs in the Blast output.")
         hsps = chain_HSPs(hsps)
+
+    if len(hsps) == 0:
+        print >> sys.stderr, "No match found."
+        return None
 
     besthsp = hsps[0]
 

@@ -162,7 +162,7 @@ def main():
                     'in fasta format'),
         ('summary', "report the real no of bases and N's in fastafiles"),
         ('uniq', 'remove records that are the same'),
-        ('ids', 'generate a list of header without the >'),
+        ('ids', 'generate a list of headers'),
         ('format', 'trim accession id to the first space or switch id ' + \
                    'based on 2-column mapping file'),
         ('pool', 'pool a bunch of fastafiles together and add prefix'),

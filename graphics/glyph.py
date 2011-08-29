@@ -38,8 +38,8 @@ class Bezier (object):
         p0, p1, p2, p3 = pts
 
         # Get the coeffiencients
-        c = 3*(p1 - p0)
-        b = 3*(p2 - p1) -c
+        c = 3 * (p1 - p0)
+        b = 3 * (p2 - p1) - c
         a = p3 - p0 - c - b
 
         tsquared = t ** 2
@@ -79,13 +79,13 @@ class TextCircle (object):
 class Glyph (object):
     """Draws gradient rectangle
     """
-    def __init__(self, ax, x1, x2, y, height=.03, 
+    def __init__(self, ax, x1, x2, y, height=.03,
             fc="gray", **kwargs):
 
         width = x2 - x1
         # Frame around the gradient rectangle
         p1 = (x1, y - .5 * height)
-        ax.add_patch(Rectangle(p1, width, height, fc=fc, 
+        ax.add_patch(Rectangle(p1, width, height, fc=fc,
             lw=0, **kwargs))
         # Several overlaying patches
         for cascade in np.arange(.1, .55, .05):
@@ -114,13 +114,13 @@ def main():
             (.5, .9 - panel_space + dup_space), # identical copies
             (.5, .9 - panel_space - dup_space),
             (.5, .9 - 2 * panel_space + dup_space), # degenerate copies
-            (.5, .9 - 2 * panel_space - dup_space), 
+            (.5, .9 - 2 * panel_space - dup_space),
             (.2, .9 - 3 * panel_space + dup_space), # sub-functionalization
-            (.2, .9 - 3 * panel_space - dup_space), 
+            (.2, .9 - 3 * panel_space - dup_space),
             (.5, .9 - 3 * panel_space + dup_space), # neo-functionalization
-            (.5, .9 - 3 * panel_space - dup_space), 
+            (.5, .9 - 3 * panel_space - dup_space),
             (.8, .9 - 3 * panel_space + dup_space), # non-functionalization
-            (.8, .9 - 3 * panel_space - dup_space), 
+            (.8, .9 - 3 * panel_space - dup_space),
             ]
 
     default_regulator = "gm"
@@ -131,7 +131,7 @@ def main():
             "wb", default_regulator,
             "ww", default_regulator,
             ]
-    
+
     width = .24
     for i, (xx, yy) in enumerate(locs):
         regulator = regulators[i]
@@ -166,14 +166,14 @@ def main():
     arrow_dist = .08
     ar_xpos = .5
     for ar_ypos in (.3, .53, .76):
-        root.annotate(" ", (ar_xpos, ar_ypos), 
+        root.annotate(" ", (ar_xpos, ar_ypos),
                 (ar_xpos, ar_ypos + arrow_dist),
                 arrowprops=arrowprops)
 
     ar_ypos = .3
     for ar_xpos in (.2, .8):
         root.annotate(" ", (ar_xpos, ar_ypos),
-                (.5, ar_ypos + arrow_dist), 
+                (.5, ar_ypos + arrow_dist),
                 arrowprops=arrowprops)
 
     # Duplication, Degeneration

@@ -19,6 +19,7 @@ Contents
     * Linear programming solver with SCIP and GLPK.
     * Synteny scan (de-novo) and lift over (find nearby anchors).
     * Supermap: find set of non-overlapping anchors in BLAST or NUCMER output.
+    * Order and orientations of contigs (aka scaffolding) in de-novo assembly.
     * Tandem gene duplicates finder.
 
 - ``assembly``
@@ -26,10 +27,11 @@ Contents
     scaffolding, quality control, etc. In general, anything related to genome
     assembly and scaffolding:
 
-    * K-mer histogram analysis
-    * Prepare frg for Celera Assembler (CA)
-    * Helper scripts for fixing unitig layout errors in CA
-    * QC of potential scaffolding errors
+    * K-mer histogram analysis.
+    * Prepare frg for Celera Assembler (CA).
+    * Helper scripts for fixing unitig layout errors in CA.
+    * Preparation and validation of tiling path for clone-based assemblies.
+    * QC of potential scaffolding errors.
 
 - ``apps``
     Helper library to wrap command line programs and run jobs on JCVI grid
@@ -37,8 +39,9 @@ Contents
 
     * BLAST filter that selects subset of anchors.
     * GenBank entrez accession downloader.
-    * LASTZ wrapper.
+    * Wrapper for LASTZ, BWA, CLC, CDHIT, etc.
     * Low complexity sequence masker with NCBI WindowMasker.
+    * Genbank sequence data submission files.
 
 - ``formats``
     File parsers for various files used in genome assembly and comparisons.
@@ -47,7 +50,7 @@ Contents
     ``.coords`` format (``nucmer`` output), ``.fasta`` format, ``.fastq`` format,
     ``.fpc`` format, ``.gff`` format, ``obo`` format (ontology),
     ``.posmap`` format (Celera assembler output), ``.sam`` format (read
-    mapping).
+    mapping), ``.contig`` format (TIGR assembly format), etc.
 
 - ``graphics``
     Graphics to visualize comparative genomics or assembly stuff. Including:
@@ -56,6 +59,7 @@ Contents
     * BLAST or synteny dot plot.
     * Histogram using R.
     * Painting regions on set of chromosomes.
+    * ASCII histogram and line plot.
 
 - ``utils``
     Data structures to simplify programming tasks. Most of the scripts are
@@ -64,8 +68,9 @@ Contents
 
     * Grouper can be used as disjoint set data structure.
     * range contains common range operations, like overlap and chaining.
-    * Sybase connector.
-    * Miscellaneous cookbook recipes.
+    * Sybase connector to JCVI internal database.
+    * Table and string formatting functions.
+    * Miscellaneous cookbook recipes, like iterators and decorators.
 
 
 Dependencies
@@ -96,8 +101,8 @@ folder by default)::
 
     python jcvi/formats/fasta.py
 
-Please note: the first time you run, certain module will likely ask for locations
-of some utility programs.  For example::
+Please note: a few module might ask for locations of external programs, if the extended
+cannot be found in your ``PATH``. For example::
 
     === Configure path for EMBOSS ===
     URL: <http://emboss.sourceforge.net/>
@@ -113,7 +118,7 @@ Most of the scripts in this package contains multiple actions. To use the
         `extract`: given fasta file and seq id, retrieve the sequence in fasta format
         `summary`: report the real no of bases and N's in fastafiles
         `uniq`: remove records that are the same
-        `ids`: generate a list of header without the >
+        `ids`: generate a list of headers
         `format`: trim accession id to the first space or switch id based on 2-column mapping file
         `pool`: pool a bunch of fastafiles together and add prefix
         `random`: randomly take some records

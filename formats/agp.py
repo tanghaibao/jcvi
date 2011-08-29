@@ -155,9 +155,10 @@ class AGP (LineFile):
         """
         Returns the adjacent clone name.
         """
-        rr = self[i + 1:] if south else self[i - 1::-1]
+        rr = xrange(i + 1, len(self)) if south else xrange(i - 1, -1, -1)
         a = self[i]
-        for x in rr:
+        for ix in rr:
+            x = self[ix]
             if x.object != a.object:
                 break
             if x.is_gap:
@@ -342,9 +343,10 @@ class TPF (LineFile):
         Returns adjacent clone name, either the line before or after the current
         line.
         """
-        rr = self[i + 1:] if south else self[i - 1::-1]
+        rr = xrange(i + 1, len(self)) if south else xrange(i - 1, -1, -1)
         a = self[i]
-        for x in rr:
+        for ix in rr:
+            x = self[ix]
             if x.object != a.object:
                 break
             return x

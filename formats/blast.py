@@ -220,10 +220,10 @@ def main():
         ('filter', 'filter BLAST file (based on score, id%, alignlen)'),
         ('covfilter', 'filter BLAST file (based on id% and cov%)'),
         ('best', 'get best BLAST hit per query'),
-        ('pairs', 'print paired-end reads of BLAST tabular output'),
-        ('bed', 'get bed file from blast'),
+        ('pairs', 'print paired-end reads of BLAST tabular file'),
+        ('bed', 'get bed file from BLAST tabular file'),
         ('chain', 'chain adjacent HSPs together'),
-        ('swap', 'swap query and subjects in the BLAST report'),
+        ('swap', 'swap query and subjects in the BLAST tabular file'),
         ('mismatches', 'print out histogram of mismatches of HSPs'),
             )
     p = ActionDispatcher(actions)
@@ -485,7 +485,7 @@ def swap(args):
     blastfile = args
     fp = must_open(blastfile)
     swappedblastfile = blastfile + ".swapped"
-    fw = must_open(swappedblastfile)
+    fw = must_open(swappedblastfile, "w")
     for row in fp:
         b = BlastLine(row)
         print >> fw, b.swapped

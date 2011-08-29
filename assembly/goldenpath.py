@@ -510,14 +510,15 @@ def overlap(args):
     first.
     """
     from jcvi.apps.command import BLPATH
+    from jcvi.formats.blast import chain_HSPs
 
     p = OptionParser(overlap.__doc__)
     p.add_option("--dir", default=os.getcwd(),
             help="Download sequences to dir [default: %default]")
     p.add_option("--qreverse", default=False, action="store_true",
             help="Reverse seq a [default: %default]")
-    p.add_option("--chain", default=False, action="store_true",
-            help="Chain adjacent HSPs [default: %default]")
+    p.add_option("--nochain", default=False, action="store_true",
+            help="Do not chain adjacent HSPs [default: chain HSPs]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -525,6 +526,7 @@ def overlap(args):
 
     afasta, bfasta = args
     dir = opts.dir
+    chain = not opts.nochain
 
     # Check first whether it is file or accession name
     if not op.exists(afasta):
@@ -540,8 +542,6 @@ def overlap(args):
     cmd = BLPATH("blastn")
     cmd += " -query {0} -subject {1}".format(afasta, bfasta)
     cmd += " -evalue 0.01 -outfmt 6 -perc_identity 99"
-    if opts.chain:
-        cmd += " | python -m jcvi.formats.blast chain stdin"
 
     fp = popen(cmd)
     hsps = fp.readlines()
@@ -549,12 +549,16 @@ def overlap(args):
         print >> sys.stderr, "No match found."
         return None
 
+    hsps = [BlastLine(x) for x in hsps]
+    if chain:
+        logging.debug("Chain HSPs in the Blast output.")
+        hsps = chain_HSPs(hsps)
+
     besthsp = hsps[0]
-    b = BlastLine(besthsp)
 
     aid, asize = Fasta(afasta).itersizes().next()
     bid, bsize = Fasta(bfasta).itersizes().next()
-    o = Overlap(b, asize, bsize)
+    o = Overlap(besthsp, asize, bsize)
     o.print_graphic(qreverse=opts.qreverse)
     print >> sys.stderr, str(o)
 
@@ -636,7 +640,7 @@ def certificate(args):
                     print >> fw,  data[key]
                     continue
 
-                ar = [aid, bid, "--dir=" + fastadir, "--chain"]
+                ar = [aid, bid, "--dir=" + fastadir]
                 o = overlap(ar)
                 ov = o.certificateline if o \
                         else "{0}\t{1}\tNone".format(bid, asize)

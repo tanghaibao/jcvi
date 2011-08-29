@@ -17,6 +17,7 @@ import numpy as np
 from jcvi.formats.base import LineFile, must_open
 from jcvi.formats.coords import print_stats
 from jcvi.formats.sizes import Sizes
+from jcvi.utils.grouper import Grouper
 from jcvi.utils.range import range_distance
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
@@ -271,35 +272,16 @@ def combine_HSPs(a):
     return m
 
 
-def chain(args):
+def chain_HSPs(blastlines, xdist=100, ydist=100):
     """
-    %prog chain blastfile
-
-    Chain adjacent HSPs together to form larger HSP. The adjacent HSPs have to
-    share the same orientation.
+    Take a list of BlastLines (or a BlastSlow instance), and returns a list of
+    BlastLines.
     """
-    from jcvi.utils.grouper import Grouper
-
-    p = OptionParser(chain.__doc__)
-    p.add_option("--dist", dest="dist",
-            default=100, type="int",
-            help="extent of flanking regions to search [default: %default]")
-
-    opts, args = p.parse_args(args)
-
-    if len(args) != 1:
-        sys.exit(not p.print_help())
-
-    blastfile, = args
-    assert opts.dist > 0
-    xdist = ydist = opts.dist
-
-    b = BlastSlow(blastfile)
     key = lambda x: (x.query, x.subject)
-    b.sort(key=key)
+    blastlines.sort(key=key)
 
     clusters = Grouper()
-    for qs, points in groupby(b, key=key):
+    for qs, points in groupby(blastlines, key=key):
         points = sorted(list(points), \
                 key=lambda x: (x.qstart, x.qstop, x.sstart, x.sstop))
 
@@ -307,7 +289,7 @@ def chain(args):
         for i in xrange(n):
             a = points[i]
             clusters.join(a)
-            for j in xrange(i - 1, -1, -1):
+            for j in xrange(i + 1, n):
                 b = points[j]
                 if a.orientation != b.orientation:
                     continue
@@ -315,7 +297,7 @@ def chain(args):
                 # x-axis distance
                 del_x = get_distance(a, b)
                 if del_x > xdist:
-                    break
+                    continue
                 # y-axis distance
                 del_y = get_distance(a, b, xaxis=False)
                 if del_y > ydist:
@@ -328,6 +310,32 @@ def chain(args):
         chained_hsps.append(combine_HSPs(c))
     chained_hsps = sorted(chained_hsps, key=lambda x: -x.score)
 
+    return chained_hsps
+
+
+def chain(args):
+    """
+    %prog chain blastfile
+
+    Chain adjacent HSPs together to form larger HSP. The adjacent HSPs have to
+    share the same orientation.
+    """
+    p = OptionParser(chain.__doc__)
+    p.add_option("--dist", dest="dist",
+            default=100, type="int",
+            help="extent of flanking regions to search [default: %default]")
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    blastfile, = args
+    dist = opts.dist
+    assert dist > 0
+
+    blast = BlastSlow(blastfile)
+    chained_hsps = chain_HSPs(blast, xdist=dist, ydist=dist)
     for b in chained_hsps:
         print b
 

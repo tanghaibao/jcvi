@@ -185,6 +185,7 @@ class CertificateLine (object):
         self.aid = args[4]
         self.bid = args[5]
         self.asize = int(args[6])
+        self.is_no_overlap = False
 
         if len(args) == 7:
             self.is_gap = True
@@ -194,6 +195,7 @@ class CertificateLine (object):
 
         if len(args) == 8:
             assert args[7] == "None"
+            self.is_no_overlap = True
             self.terminal = "Non-terminal"
             return
 
@@ -206,10 +208,13 @@ class CertificateLine (object):
         return self.terminal == "Terminal"
 
     def __str__(self):
-        ar = [self.tag, self.chr, self.aphase, self.bphase, self.aid, self.bid]
-        if not self.is_gap:
+        ar = [self.tag, self.chr, self.aphase, self.bphase, \
+              self.aid, self.bid, self.asize]
 
-            ar += [self.asize, self.astart, self.astop,
+        if self.is_no_overlap:
+            ar += ["None"]
+        elif not self.is_gap:
+            ar += [self.astart, self.astop,
                    self.orientation, self.terminal]
 
         return "\t".join(str(x) for x in ar)
@@ -271,6 +276,10 @@ class Certificate (BaseFile):
 
             northline = southline = None
             northrange = southrange = None
+
+            # Warn if adjacent components do not have valid # overlaps
+            if south.is_no_overlap:
+                print >> sys.stderr, south
 
             # Most gaps, except telomeres occur twice, so only do the "North"
             if north.is_gap:
@@ -334,7 +343,7 @@ class Certificate (BaseFile):
                 if sorientation:
                     try:
                         assert orientation == sorientation, \
-                                "\n{0}\n{1}".format(north, south)
+                                "Orientation conflicts:\n{0}\n{1}".format(north, south)
                     except AssertionError as e:
                         logging.debug(e)
             else:
@@ -387,7 +396,7 @@ def blast(args):
     from jcvi.apps.command import run_megablast
 
     p = OptionParser(blast.__doc__)
-    p.add_option("-n", type="int", default=1,
+    p.add_option("-n", type="int", default=2,
             help="Take best N hits [default: %default]")
     opts, args = p.parse_args(args)
 
@@ -396,15 +405,16 @@ def blast(args):
 
     allfasta, clonename = args
     fastadir = "fasta"
-    fetch([clonename, "--skipcheck", "--outdir=" + fastadir])
-
     infile = op.join(fastadir, clonename + ".fasta")
+    if not op.exists(infile):
+        fetch([clonename, "--skipcheck", "--outdir=" + fastadir])
+
     outfile = "{0}.{1}.blast".format(clonename, allfasta.split(".")[0])
     run_megablast(infile=infile, outfile=outfile, db=allfasta, \
             pctid=GoodPct, hitlen=GoodOverlap)
 
     blasts = [BlastLine(x) for x in open(outfile)]
-    besthit = set()
+    besthits = []
     for b in blasts:
         if b.query.count("|") >= 3:
             b.query = b.query.split("|")[3]
@@ -418,11 +428,12 @@ def blast(args):
         if b.query == b.subject:
             continue
 
-        besthit.add(b.subject)
-        if len(besthit) == opts.n:
+        if b.subject not in besthits:
+            besthits.append(b.subject)
+        if len(besthits) == opts.n:
             break
 
-    for b in besthit:
+    for b in besthits:
         overlap([clonename, b, "--dir=" + fastadir])
 
 
@@ -535,14 +546,18 @@ def overlap(args):
 
     # Check first whether it is file or accession name
     if not op.exists(afasta):
-        afasta = op.join(dir, afasta + ".fasta")
-        if not op.exists(afasta):  # Check to avoid redownload
+        af = op.join(dir, afasta + ".fasta")
+        if not op.exists(af):  # Check to avoid redownload
             fetch([afasta, "--skipcheck", "--outdir=" + dir])
+        afasta = af
 
     if not op.exists(bfasta):
-        bfasta = op.join(dir, bfasta + ".fasta")
-        if not op.exists(bfasta):
+        bf = op.join(dir, bfasta + ".fasta")
+        if not op.exists(bf):
             fetch([bfasta, "--skipcheck", "--outdir=" + dir])
+        bfasta = bf
+
+    assert op.exists(afasta) and op.exists(bfasta)
 
     cmd = BLPATH("blastn")
     cmd += " -query {0} -subject {1}".format(afasta, bfasta)

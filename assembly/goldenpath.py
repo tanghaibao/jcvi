@@ -28,6 +28,11 @@ from jcvi.apps.base import ActionDispatcher, debug, popen, mkdir, sh
 debug()
 
 
+GoodPct = 99
+GoodOverlap = 500
+GoodOverhang = 10000
+
+
 class Overlap (object):
 
     def __init__(self, blastline, asize, bsize):
@@ -65,11 +70,11 @@ class Overlap (object):
                           self.asize, self.qstart, self.qstop, \
                           self.orientation, terminal_tag))
 
-    def isTerminal(self, length_cutoff=100, pctid_cutoff=99):
+    def isTerminal(self, length_cutoff=GoodOverlap, pctid_cutoff=GoodPct):
         return self.isGoodQuality(length_cutoff, pctid_cutoff) \
                and self.otype in (1, 2)
 
-    def isGoodQuality(self, length_cutoff=100, pctid_cutoff=99):
+    def isGoodQuality(self, length_cutoff=GoodOverlap, pctid_cutoff=GoodPct):
         return self.hitlen >= length_cutoff and \
                self.pctid >= pctid_cutoff
 
@@ -140,7 +145,7 @@ class Overlap (object):
         msg += "{0} ({1})".format(self.bid, self.bsize)
         print >> sys.stderr, msg
 
-    def get_otype(self, max_hang=10000):
+    def get_otype(self, max_hang=GoodOverhang):
         aLhang, aRhang, bLhang, bRhang = self.get_hangs()
 
         s1 = aLhang + bRhang
@@ -396,7 +401,7 @@ def blast(args):
     infile = op.join(fastadir, clonename + ".fasta")
     outfile = "{0}.{1}.blast".format(clonename, allfasta.split(".")[0])
     run_megablast(infile=infile, outfile=outfile, db=allfasta, \
-            pctid=99, hitlen=1000)
+            pctid=GoodPct, hitlen=GoodOverlap)
 
     blasts = [BlastLine(x) for x in open(outfile)]
     besthit = set()
@@ -541,16 +546,17 @@ def overlap(args):
 
     cmd = BLPATH("blastn")
     cmd += " -query {0} -subject {1}".format(afasta, bfasta)
-    cmd += " -evalue 0.01 -outfmt 6 -perc_identity 99"
+    cmd += " -evalue 0.01 -outfmt 6 -perc_identity {0}".format(GoodPct)
 
     fp = popen(cmd)
     hsps = fp.readlines()
 
     hsps = [BlastLine(x) for x in hsps]
-    hsps = [x for x in hsps if x.hitlen >= 100]
+    hsps = [x for x in hsps if x.hitlen >= GoodOverlap]
+    dist = GoodOverlap  # Distance to chain the HSPs
     if chain:
         logging.debug("Chain HSPs in the Blast output.")
-        hsps = chain_HSPs(hsps)
+        hsps = chain_HSPs(hsps, xdist=dist, ydist=dist)
 
     if len(hsps) == 0:
         print >> sys.stderr, "No match found."

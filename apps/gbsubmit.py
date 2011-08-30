@@ -217,8 +217,8 @@ def htgnew(args):
 
     fastadir = "fasta"
     sqndir = "sqn"
-    mkdir(fastadir, overwrite=True)
-    mkdir(sqndir, overwrite=True)
+    mkdir(fastadir)
+    mkdir(sqndir)
 
     cmd = "faSplit byname {0} {1}/".format(fastafile, fastadir)
     sh(cmd, outfile="/dev/null", errfile="/dev/null")
@@ -231,7 +231,7 @@ def htgnew(args):
 
     nupdated = 0
     for row in open(phasefile):
-        name, phase = row.split()
+        name, phase = row.split()[:2]
         fafile = op.join(fastadir, name + ".fa")
         cloneopt = "--clone={0}".format(name)
         splitfile, gaps = sequin([fafile, cloneopt])
@@ -314,8 +314,8 @@ def htg(args):
     ids([fastafile, "--outfile={0}".format(idsfile)])
     asndir = "asn.1"
     gbdir = "gb"
-    mkdir(asndir, overwrite=True)
-    mkdir(gbdir, overwrite=True)
+    mkdir(asndir)
+    mkdir(gbdir)
 
     fetch([idsfile, "--format=asn.1", "--outdir={0}".format(asndir)])
     asn(glob("{0}/*".format(asndir)) + \
@@ -333,8 +333,8 @@ def htg(args):
 
     fastadir = "fasta"
     sqndir = "sqn"
-    mkdir(fastadir, overwrite=True)
-    mkdir(sqndir, overwrite=True)
+    mkdir(fastadir)
+    mkdir(sqndir)
 
     from jcvi.graphics.histogram import stem_leaf_plot
 

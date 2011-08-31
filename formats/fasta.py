@@ -472,10 +472,13 @@ def diff(args):
     p = OptionParser(diff.__doc__)
     p.add_option("--ignore_case", dest="ignore_case",
             default=False, action="store_true",
-            help="ignore case when comparing sequences")
+            help="ignore case when comparing sequences [default: %default]")
     p.add_option("--ignore_N", dest="ignore_N",
             default=False, action="store_true",
-            help="ignore N's when comparing sequences")
+            help="ignore N's when comparing sequences [default: %default]")
+    p.add_option("--ignore_stop", dest="ignore_stop",
+            default=False, action="store_true",
+            help="ignore stop codon when comparing sequences [default: %default]")
     p.add_option("--rc", dest="rc",
             default=False, action="store_true",
             help="also consider reverse complement")
@@ -500,10 +503,15 @@ def diff(args):
     ah = SeqIO.parse(afasta, "fasta")
     bh = SeqIO.parse(bfasta, "fasta")
 
+    problem_ids = []
     for arec, brec in zip(ah, bh):
+
+        if opts.ignore_stop:
+            arec.seq = arec.seq.rstrip("*")
+            brec.seq = brec.seq.rstrip("*")
+
         print banner((arec, brec))
         asize, bsize = len(arec), len(brec)
-
         if asize == bsize:
             print_green("Two sequence size match (%d)" % asize)
         else:
@@ -514,7 +522,13 @@ def diff(args):
                 ignore_N=opts.ignore_N, rc=opts.rc)
         if not fd:
             logging.error("Two sets of sequences differ at `{0}`".format(arec.id))
-            break
+            problem_ids.append("\t".join(str(x) for x in (arec.id, asize, bsize,
+                    abs(asize - bsize))))
+
+    if problem_ids:
+        print_red("A total of {0} records mismatch.".format(len(problem_ids)))
+        fw = must_open("Problems.ids", "w")
+        print >> fw, "\n".join(problem_ids)
 
 
 QUALSUFFIX = ".qual"

@@ -124,6 +124,8 @@ def main():
     for fn in (afasta_fn, bfasta_fn):
         assert op.exists(fn)
 
+    afasta_fn = op.abspath(afasta_fn)
+    bfasta_fn = op.abspath(bfasta_fn)
     out_fh = file(opts.outfile, "w") if opts.outfile else sys.stdout
 
     grid = opts.grid

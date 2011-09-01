@@ -31,10 +31,10 @@ Finally a blast.filtered file is created.
 import sys
 import logging
 import os.path as op
-import collections
 import itertools
 
 from math import log10
+from collections import defaultdict
 
 from jcvi.formats.bed import Bed
 from jcvi.formats.blast import BlastLine
@@ -237,11 +237,11 @@ def filter_to_global_density(blast_list, gene_count, global_density_ratio):
 
 def filter_cscore(blast_list, cscore=.5):
 
-    best_score = {}
+    best_score = defaultdict(float)
     for b in blast_list:
-        if b.query not in best_score or b.score > best_score[b.query]:
+        if b.score > best_score[b.query]:
             best_score[b.query] = b.score
-        if b.subject not in best_score or b.score > best_score[b.subject]:
+        if b.score > best_score[b.subject]:
             best_score[b.subject] = b.score
 
     for b in blast_list:
@@ -256,7 +256,7 @@ def filter_repeat(blast_list, evalue_cutoff=.05):
     query/subjects that appear often will have the evalues raise (made less
     significant).
     """
-    counts = collections.defaultdict(int)
+    counts = defaultdict(int)
     for b in blast_list:
         counts[b.query] += 1
         counts[b.subject] += 1
@@ -337,7 +337,7 @@ if __name__ == "__main__":
             help="merge tandem genes within distance [default: %default]")
     filter_group.add_option("--repeats", dest="filter_repeats",
             action="store_true", default=False,
-            help="require higher e-value for repetitive matches BLAST. " +\
+            help="require higher e-value for repetitive matches " +\
                  "[default: %default]")
     filter_group.add_option("--cscore", type="float", default=None,
             help="retain hits that have good bitscore. a value of 0.5 means "

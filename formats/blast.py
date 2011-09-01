@@ -219,6 +219,7 @@ def main():
         ('summary', 'provide summary on id% and cov%'),
         ('filter', 'filter BLAST file (based on score, id%, alignlen)'),
         ('covfilter', 'filter BLAST file (based on id% and cov%)'),
+        ('cscore', 'calculate C-score for BLAST pairs'),
         ('best', 'get best BLAST hit per query'),
         ('pairs', 'print paired-end reads of BLAST tabular file'),
         ('bed', 'get bed file from BLAST tabular file'),
@@ -228,6 +229,53 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def cscore(args):
+    """
+    %prog cscore blastfile > cscoreOut
+
+    See supplementary info for sea anemone genome paper, C-score formula:
+
+        cscore(A,B) = score(A,B) /
+             max(best score for A, best score for B)
+
+    A C-score of one is the same as reciprocal best hit (RBH).
+
+    Output file will be 3-column (query, subject, cscore). Use --cutoff to
+    select a different cutoff.
+    """
+    p = OptionParser(cscore.__doc__)
+    p.add_option("--cutoff", default=.99, type="float",
+            help="Minimum C-score to report [default: %default]")
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    blastfile, = args
+
+    blast = Blast(blastfile)
+    logging.debug("Register best scores ..")
+    best_score = defaultdict(float)
+    for b in blast.iter_line():
+        if b.score > best_score[b.query]:
+            best_score[b.query] = b.score
+        if b.score > best_score[b.subject]:
+            best_score[b.subject] = b.score
+
+    blast = Blast(blastfile)
+    pairs = defaultdict(float)
+    for b in blast.iter_line():
+        s = b.score / max(best_score[b.query], best_score[b.subject])
+        if s > opts.cutoff:
+            pair = (b.query, b.subject)
+            if s > pairs[pair]:
+                pairs[pair] = s
+
+    for (query, subject), s in sorted(pairs.items()):
+        print "\t".join((query, subject, "{0:.2f}".format(s)))
 
 
 def get_distance(a, b, xaxis=True):

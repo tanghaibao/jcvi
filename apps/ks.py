@@ -19,8 +19,9 @@ from Bio import SeqIO
 from Bio import AlignIO
 from Bio.Align.Applications import ClustalwCommandline
 
+from jcvi.formats.base import must_open
 from jcvi.apps.command import getpath, partial
-from jcvi.apps.base import ActionDispatcher, debug, mkdir, sh
+from jcvi.apps.base import ActionDispatcher, debug, mkdir, set_outfile
 debug()
 
 
@@ -67,11 +68,41 @@ class MrTransCommandline(AbstractCommandline):
 def main():
 
     actions = (
+        ('prepare', 'prepare pairs of sequences'),
         ('calc', 'calculate Ks between pairs of sequences'),
         ('report', 'generate a distribution of Ks values'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def prepare(args):
+    """
+    %prog prepare pairsfile cdsfile > paired.cds.fasta
+
+    Pick sequences from cdsfile to form pairs, ready to be calculated. The
+    pairsfile can be generated from formats.blast.cscore(). The first two
+    columns contain the pair.
+    """
+    from jcvi.formats.fasta import Fasta, SeqIO
+
+    p = OptionParser(prepare.__doc__)
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    pairsfile, cdsfile = args
+
+    f = Fasta(cdsfile)
+    fp = open(pairsfile)
+    fw = sys.stdout
+    for row in fp:
+        a, b = row.split()[:2]
+        arec = f[a]
+        brec = f[b]
+        SeqIO.write((arec, brec), fw, "fasta")
 
 
 def calc(args):
@@ -94,6 +125,8 @@ def calc(args):
         5. Run PAML yn00 to calculate synonymous mutation rates.
     """
     p = OptionParser(calc.__doc__)
+    set_outfile(p)
+
     opts, args = p.parse_args(args)
 
     if len(args) == 1:
@@ -104,7 +137,7 @@ def calc(args):
         print >>sys.stderr, "Incorrect arguments"
         sys.exit(not p.print_help())
 
-    output_h = sys.stdout
+    output_h = must_open(opts.outfile, "w")
     output_h.write("name,dS-yn,dN-yn,dS-ng,dN-ng\n")
     work_dir = op.join(os.getcwd(), "syn_analysis")
     mkdir(work_dir)

@@ -67,7 +67,7 @@ def get_data(filename, vmin=None, vmax=None, skip=0):
     return data, vmin, vmax
 
 
-def stem_leaf_plot(data, vmin, vmax, bins, title=None):
+def stem_leaf_plot(data, vmin, vmax, bins, digit=1, title=None):
     '''
     Generate stem and leaf plot given a collection of numbers
     '''
@@ -81,7 +81,7 @@ def stem_leaf_plot(data, vmin, vmax, bins, title=None):
 
     bins = np.arange(vmin, vmax + step, step)
     hist, bin_edges = np.histogram(data, bins=bins)
-    asciiplot(bin_edges, hist, title=title)
+    asciiplot(bin_edges, hist, digit=digit, title=title)
     print >> sys.stderr, "Last bin ends in {0}, inclusive.".format(vmax)
 
 

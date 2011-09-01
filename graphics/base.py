@@ -30,11 +30,11 @@ def set_tex_axis(ax, formatter=tex_formatter):
 set_human_axis = partial(set_tex_axis, formatter=human_size_formatter)
 
 
-def asciiaxis(x):
+def asciiaxis(x, digit=1):
     if isinstance(x, int):
         x = str(x)
     elif isinstance(x, float):
-        x = "{0:.1f}".format(x)
+        x = "{0:.{1}f}".format(x, digit)
     elif isinstance(x, np.ndarray):
         assert len(x) == 2
         x = str(x).replace("]", ")")  # upper bound not inclusive
@@ -42,7 +42,7 @@ def asciiaxis(x):
     return x
 
 
-def asciiplot(x, y, width=50, title=None, char="="):
+def asciiplot(x, y, digit=1, width=50, title=None, char="="):
     """
     Print out a horizontal plot using ASCII chars.
     width is the textwidth (height) of the plot.
@@ -54,7 +54,7 @@ def asciiplot(x, y, width=50, title=None, char="="):
         print >> sys.stderr, ColoredText(title, "dark")
 
     az = ay * width / ay.max()
-    tx = [asciiaxis(x) for x in ax]
+    tx = [asciiaxis(x, digit=digit) for x in ax]
     rjust = max([len(x) for x in tx]) + 1
 
     for x, y, z in zip(tx, ay, az):

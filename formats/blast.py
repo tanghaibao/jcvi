@@ -19,7 +19,7 @@ from jcvi.formats.coords import print_stats
 from jcvi.formats.sizes import Sizes
 from jcvi.utils.grouper import Grouper
 from jcvi.utils.range import range_distance
-from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.apps.base import ActionDispatcher, debug, sh
 debug()
 
 
@@ -225,10 +225,30 @@ def main():
         ('bed', 'get bed file from BLAST tabular file'),
         ('chain', 'chain adjacent HSPs together'),
         ('swap', 'swap query and subjects in the BLAST tabular file'),
+        ('sort', 'sort lines so that query grouped together and scores desc'),
         ('mismatches', 'print out histogram of mismatches of HSPs'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def sort(args):
+    """
+    %prog sort blastfile
+
+    Sort lines so that same query grouped together with scores descending. The
+    sort is 'in-place'.
+    """
+    p = OptionParser(sort.__doc__)
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    blastfile, = args
+    cmd = "sort -k1,1 -k12,12nr {0} -o {0}".format(blastfile)
+    sh(cmd)
 
 
 def cscore(args):
@@ -246,7 +266,7 @@ def cscore(args):
     select a different cutoff.
     """
     p = OptionParser(cscore.__doc__)
-    p.add_option("--cutoff", default=.99, type="float",
+    p.add_option("--cutoff", default=.9999, type="float",
             help="Minimum C-score to report [default: %default]")
 
     opts, args = p.parse_args(args)
@@ -528,15 +548,18 @@ def swap(args):
     opts, args = p.parse_args(args)
 
     if len(args) < 1:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
-    blastfile = args
-    fp = must_open(blastfile)
+    blastfile, = args
     swappedblastfile = blastfile + ".swapped"
+    fp = must_open(blastfile)
     fw = must_open(swappedblastfile, "w")
     for row in fp:
         b = BlastLine(row)
         print >> fw, b.swapped
+
+    fw.close()
+    sort([swappedblastfile])
 
 
 def bed(args):

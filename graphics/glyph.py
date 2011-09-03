@@ -12,7 +12,7 @@ from optparse import OptionParser
 
 import numpy as np
 from jcvi.apps.base import ActionDispatcher, debug
-from jcvi.graphics.base import plt, Rectangle, CirclePolygon, _
+from jcvi.graphics.base import plt, Rectangle, CirclePolygon, Polygon, _
 debug()
 
 tstep = .05
@@ -92,6 +92,34 @@ class Glyph (object):
             p1 = (x1, y - height * cascade)
             ax.add_patch(Rectangle(p1, width, 2 * cascade * height,
                 fc='w', lw=0, alpha=.1))
+
+
+class GeneGlyph (object):
+    """Draws an oriented gene symbol, with color gradient, to represent genes
+    """
+    def __init__(self, ax, x1, x2, y, height, tip=.0025, **kwargs):
+        # Figure out the polygon vertices first
+        orientation = 1 if x1 < x2 else -1
+        level = 10
+        # Frame
+        p1 = (x1, y - height * .5)
+        p2 = (x2 - orientation * tip, y - height * .5)
+        p3 = (x2, y)
+        p4 = (x2 - orientation * tip, y + height * .5)
+        p5 = (x1, y + .5*height)
+        ax.add_patch(Polygon([p1, p2, p3, p4, p5], ec='k', **kwargs))
+
+        zz = kwargs.get("zorder", 1)
+        zz += 1
+        # Patch (apply white mask)
+        for cascade in np.arange(0, .5, .5 / level):
+            p1 = (x1, y - height * cascade)
+            p2 = (x2 - orientation * tip, y - height * cascade)
+            p3 = (x2, y)
+            p4 = (x2 - orientation * tip, y + height * cascade)
+            p5 = (x1, y + height * cascade)
+            ax.add_patch(Polygon([p1, p2, p3, p4, p5], fc='w', \
+                    lw=0, alpha=.2, zorder=zz))
 
 
 def main():

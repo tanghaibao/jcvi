@@ -22,27 +22,6 @@ Valid_strands = ('+', '-', '?', '.')
 Valid_phases = ('0', '1', '2', '.')
 
 
-def make_attributes(s, gff3=True):
-    """
-    In GFF3, the last column is typically:
-    ID=cds00002;Parent=mRNA00002;
-
-    In GFF2, the last column is typically:
-    Gene 22240.t000374; Note "Carbonic anhydrase"
-    """
-    if gff3:
-        return parse_qs(s)
-
-    attributes = s.split("; ")
-    d = defaultdict(list)
-    for a in attributes:
-        key, val = a.strip().split(' ', 1)
-        val = val.replace('"', '')
-        d[key].append(val)
-
-    return d
-
-
 class GffLine (object):
     """
     Specification here (http://www.sequenceontology.org/gff3.shtml)
@@ -95,16 +74,73 @@ class Gff (LineFile):
             self.append(GffLine(row, gff3=gff3))
 
 
+def make_attributes(s, gff3=True):
+    """
+    In GFF3, the last column is typically:
+    ID=cds00002;Parent=mRNA00002;
+
+    In GFF2, the last column is typically:
+    Gene 22240.t000374; Note "Carbonic anhydrase"
+    """
+    if gff3:
+        return parse_qs(s)
+
+    attributes = s.split("; ")
+    d = defaultdict(list)
+    for a in attributes:
+        key, val = a.strip().split(' ', 1)
+        val = val.replace('"', '')
+        d[key].append(val)
+
+    return d
+
+
 def main():
 
     actions = (
         ('bed', 'parse gff and produce bed file for particular feature type'),
         ('script', 'parse gmap gff and produce script for sim4db to refine'),
+        ('note', 'extract certain attribute field for each feature'),
         ('load', 'extract the feature (e.g. CDS) sequences and concatenate'),
             )
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def note(args):
+    """
+    %prog note gffile > tabfile
+
+    Extract certain attribute field for each feature.
+    """
+    p = OptionParser(note.__doc__)
+    p.add_option("--key", default="Parent",
+            help="The key field to extract [default: %default]")
+    p.add_option("--attribute", default="Note",
+            help="The attribute field to extract [default: %default]")
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    gffile, = args
+    key = opts.key
+    attrib = opts.attribute
+
+    fp = open(gffile)
+    seen = set()
+    for row in fp:
+        if row[0] == '#':
+            continue
+
+        g = GffLine(row)
+        if attrib in g.attributes:
+            keyval = (g.attributes[key][0], g.attributes[attrib][0])
+            if keyval not in seen:
+                print "\t".join(keyval)
+                seen.add(keyval)
 
 
 def script(args):

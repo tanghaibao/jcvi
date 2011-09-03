@@ -17,7 +17,8 @@ class BaseFile (object):
     def __init__(self, filename):
 
         self.filename = filename
-        logging.debug("Load file `{0}`".format(filename))
+        if filename:
+            logging.debug("Load file `{0}`".format(filename))
 
 
 class LineFile (BaseFile, list):

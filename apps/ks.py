@@ -21,7 +21,7 @@ from Bio.Align.Applications import ClustalwCommandline
 
 from jcvi.formats.base import must_open
 from jcvi.apps.command import getpath, partial
-from jcvi.apps.base import ActionDispatcher, debug, mkdir, set_outfile
+from jcvi.apps.base import ActionDispatcher, debug, mkdir, set_outfile, sh
 debug()
 
 
@@ -345,8 +345,13 @@ def report(args):
     for f in fields.split()[1:]:
         columndata = [getattr(x, f) for x in data]
         title = "{0}: {1:.2f}".format(descriptions[f], np.median(columndata))
+        title += " ({0:.2f} +/- {1:.2f})".\
+                format(np.mean(columndata), np.std(columndata))
         ks = ("ks" in f)
-        bins = (0, 2.2, 10) if ks else (0, .6, 10)
+        if not ks:
+            continue
+
+        bins = (0, 2., 20) if ks else (0, .6, 10)
         digit = 1 if ks else 2
         stem_leaf_plot(columndata, *bins, digit=digit, title=title)
 

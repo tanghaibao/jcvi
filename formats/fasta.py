@@ -435,7 +435,7 @@ def _print_first_difference(arec, brec, ignore_case=False, ignore_N=False):
         if ignore_case and None not in (a, b):
             a, b = a.upper(), b.upper()
 
-        if ignore_N and 'N' in (a, b):
+        if ignore_N and ('N' in (a, b) or 'X' in (a, b)):
             continue
 
         if a != b:
@@ -475,7 +475,7 @@ def diff(args):
             help="ignore case when comparing sequences [default: %default]")
     p.add_option("--ignore_N", dest="ignore_N",
             default=False, action="store_true",
-            help="ignore N's when comparing sequences [default: %default]")
+            help="ignore N and X's when comparing sequences [default: %default]")
     p.add_option("--ignore_stop", dest="ignore_stop",
             default=False, action="store_true",
             help="ignore stop codon when comparing sequences [default: %default]")
@@ -486,7 +486,7 @@ def diff(args):
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
     afasta, bfasta = args
 

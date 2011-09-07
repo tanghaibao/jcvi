@@ -131,11 +131,12 @@ def run_megablast(infile=None, outfile=None, db=None, pctid=98, hitlen=100):
     cmd += " -evalue 0.01 -outfmt 6 -num_threads 16"
     sh(cmd)
 
-    blastfile = outfile
-    filtered_blastfile = outfile + ".P{0}L{1}".format(pctid, hitlen)
-    run_blast_filter(infile=blastfile, outfile=filtered_blastfile,
-            pctid=pctid, hitlen=hitlen)
-    shutil.move(filtered_blastfile, blastfile)
+    if pctid and hitlen:
+        blastfile = outfile
+        filtered_blastfile = outfile + ".P{0}L{1}".format(pctid, hitlen)
+        run_blast_filter(infile=blastfile, outfile=filtered_blastfile,
+                pctid=pctid, hitlen=hitlen)
+        shutil.move(filtered_blastfile, blastfile)
 
 
 def run_blast_filter(infile=None, outfile=None, pctid=95, hitlen=50):
@@ -174,7 +175,8 @@ def megablast(args):
     r = reffasta.split(".")[0]
     blastfile = "{0}.{1}.blast".format(q, r)
 
-    run_megablast(infile=queryfasta, outfile=blastfile, db=reffasta)
+    run_megablast(infile=queryfasta, outfile=blastfile, db=reffasta, \
+                  pctid=None, hitlen=None)
 
 
 if __name__ == '__main__':

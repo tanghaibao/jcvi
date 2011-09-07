@@ -797,7 +797,7 @@ def summary(args):
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
     blastfile, = args
 

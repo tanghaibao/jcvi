@@ -349,9 +349,12 @@ def agp(args):
 
 
 def print_stats(qrycovered, refcovered, id_pct):
-    print >>sys.stderr, "Reference coverage: %d bp" % refcovered
-    print >>sys.stderr, "Query coverage: %d bp" % qrycovered
-    print >>sys.stderr, "ID%%: %.1f%%" % id_pct
+    from jcvi.utils.cbook import thousands
+
+    m1 = "Reference coverage: {0} bp".format(thousands(refcovered))
+    m2 = "Query coverage: {0} bp".format(thousands(qrycovered))
+    m3 = "Identity: {0:.1f}%".format(id_pct)
+    print >> sys.stderr, "\n".join((m1, m2, m3))
 
 
 def summary(args):

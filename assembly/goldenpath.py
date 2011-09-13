@@ -568,7 +568,7 @@ def overlap(args):
 
     hsps = [BlastLine(x) for x in hsps]
     hsps = [x for x in hsps if x.hitlen >= GoodOverlap]
-    dist = GoodOverlap  # Distance to chain the HSPs
+    dist = 2 * GoodOverlap  # Distance to chain the HSPs
     if chain:
         logging.debug("Chain HSPs in the Blast output.")
         hsps = chain_HSPs(hsps, xdist=dist, ydist=dist)
@@ -644,9 +644,13 @@ def certificate(args):
         if a.is_gap:
             continue
 
-        north, south = tpf.getNorthSouthClone(i)
         aid = a.component_id
 
+        af = op.join(fastadir, aid + ".fasta")
+        if not op.exists(af):  # Check to avoid redownload
+            fetch([aid, "--skipcheck", "--outdir=" + fastadir])
+
+        north, south = tpf.getNorthSouthClone(i)
         aphase, asize = phase(aid)
 
         for tag, p in (("North", north), ("South", south)):

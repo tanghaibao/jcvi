@@ -116,9 +116,9 @@ def fragment(args):
     fragfastafile = fastafile.split(".")[0] + \
         ".{0}.flank{1}.{2}.fasta".format(enzyme, flank, tag)
     enzyme = [x for x in AllEnzymes if str(x) == enzyme][0]
-    fw = open(fragfastafile, "w")
 
     f = Fasta(fastafile, lazy=True)
+    fw = open(fragfastafile, "w")
     for name, rec in f.iteritems_ordered():
         a = Analysis([enzyme], rec.seq)
         sites = a.full()[enzyme]

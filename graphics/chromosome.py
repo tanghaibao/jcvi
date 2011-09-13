@@ -70,24 +70,34 @@ def main():
 
     Takes a bedfile that contains the coordinates of features to plot on the
     chromosomes, and `id_mappings` file that map the ids to certain class. Each
-    class will get assigned a unique color.
+    class will get assigned a unique color. `id_mappings` file is optional (if
+    omitted, will not paint the chromosome features, except the centromere).
     """
     p = OptionParser(main.__doc__)
     p.add_option("--gauge", dest="gauge", default=False, action="store_true",
             help="draw a gauge with size label [default: %default]")
     opts, args = p.parse_args()
 
-    if len(args) != 2:
+    if len(args) not in (1, 2):
         sys.exit(p.print_help())
 
-    bedfile, mappingfile = args
+    bedfile = args[0]
+    mappingfile = None
+    if len(args) == 2:
+        mappingfile = args[1]
+
     prefix = bedfile.rsplit(".", 1)[0]
     figname = prefix + ".pdf"
 
-    mappings = dict(x.split() for x in open(mappingfile))
-    classes = sorted(set(mappings.values()))
-    logging.debug("A total of {0} classes found: {1}".format(len(classes),
-        ','.join(classes)))
+    if mappingfile:
+        mappings = dict(x.split() for x in open(mappingfile))
+        classes = sorted(set(mappings.values()))
+        logging.debug("A total of {0} classes found: {1}".format(len(classes),
+            ','.join(classes)))
+    else:
+        mappings = {}
+        classes = []
+        logging.debug("No classes registered (no id_mappings given).")
 
     #mycolors = "A6C953|2F7EC1|019D75|00B2EC|EA2790|F6AE26|EA2D2D".split("|")
     mycolors = "wrgbymc"
@@ -147,7 +157,7 @@ def main():
         yystart = ystart + (clen - end) * ratio
         yyend = ystart + (clen - start) * ratio
         root.add_patch(Rectangle((xx, yystart), xwidth, yyend - yystart,
-            fc=class_colors[klass], lw=0, alpha=alpha))
+            fc=class_colors.get(klass, "w"), lw=0, alpha=alpha))
 
     if opts.gauge:
         tip = .008  # the ticks on the gauge bar

@@ -34,7 +34,11 @@ Valid_component_type = list("ADFGNOPUW")
 Valid_gap_type = ("fragment", "clone", "contig", "centromere", "short_arm",
         "heterochromatin", "telomere", "repeat")
 Valid_orientation = ("+", "-", "0", "na")
-
+component_RGB = {"O" : "0,100,0",
+                 "F" : "0,100,0",
+                 "D" : "152,251,152",
+                 "N" : "255,250,250"
+                }
 
 class AGPLine (object):
 
@@ -93,6 +97,13 @@ class AGPLine (object):
         return "\t".join((self.object, str(self.object_beg - 1),
                 str(self.object_end), gid,
                 self.component_type, self.orientation))
+
+    @property
+    def bed12line(self):
+        # bed12 formatted line
+        return self.bedline + "\t" + "\t".join((str(self.object_beg - 1),
+               str(self.object_end), component_RGB[self.component_type], "1",
+               "".join((str(self.object_end - self.object_beg - 1), ",")), "0,"))
 
     @property
     def isCloneGap(self):
@@ -875,6 +886,8 @@ def bed(args):
             help="only print bed lines for gaps")
     p.add_option("--nogaps", dest="nogaps", default=False, action="store_true",
             help="do not print bed lines for gaps")
+    p.add_option("--bed12", dest="bed12", default=False, action="store_true",
+            help="produce bed12 formatted output")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -887,7 +900,10 @@ def bed(args):
             continue
         if opts.gaps and not a.is_gap:
             continue
-        print a.bedline
+        if opts.bed12:
+            print a.bed12line
+        else:
+            print a.bedline
 
 
 def gaps(args):

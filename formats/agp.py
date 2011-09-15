@@ -36,8 +36,8 @@ Valid_gap_type = ("fragment", "clone", "contig", "centromere", "short_arm",
 Valid_orientation = ("+", "-", "0", "na")
 component_RGB = {"O" : "0,100,0",
                  "F" : "0,100,0",
-                 "D" : "152,251,152",
-                 "N" : "255,250,250"
+                 "D" : "50,205,50",
+                 "N" : "255,255,255"
                 }
 
 class AGPLine (object):
@@ -103,7 +103,7 @@ class AGPLine (object):
         # bed12 formatted line
         return self.bedline + "\t" + "\t".join((str(self.object_beg - 1),
                str(self.object_end), component_RGB[self.component_type], "1",
-               "".join((str(self.object_end - self.object_beg - 1), ",")), "0,"))
+               "".join((str(self.object_end - self.object_beg + 1), ",")), "0,"))
 
     @property
     def isCloneGap(self):

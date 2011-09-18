@@ -14,6 +14,7 @@ from Bio import Entrez, SeqIO
 
 from jcvi.formats.base import must_open
 from jcvi.formats.fasta import print_first_difference
+from jcvi.utils.iter import grouper
 from jcvi.apps.console import print_green
 from jcvi.apps.base import ActionDispatcher, mkdir, debug
 debug()
@@ -32,7 +33,8 @@ def batch_taxonomy(list_of_taxids):
         yield records[0]["ScientificName"]
 
 
-def batch_entrez(list_of_terms, db="nuccore", retmax=1, rettype="fasta"):
+def batch_entrez(list_of_terms, db="nuccore", retmax=1, rettype="fasta",
+            batchsize=1):
     """
     Retrieve multiple rather than a single record
     """
@@ -59,8 +61,20 @@ def batch_entrez(list_of_terms, db="nuccore", retmax=1, rettype="fasta"):
             continue
 
         assert ids
+        nids = len(ids)
+        if nids > 1:
+            logging.debug("A total of {0} results found.".format(nids))
+
+        if batchsize != 1:
+            logging.debug("Use a batch size of {0}.".format(batchsize))
+
+        ids = list(grouper(batchsize, ids))
 
         for id in ids:
+            id = [x for x in id if x is not None]
+            size = len(id)
+            id = ",".join(id)
+
             success = False
             while not success:
                 try:
@@ -73,7 +87,7 @@ def batch_entrez(list_of_terms, db="nuccore", retmax=1, rettype="fasta"):
                     logging.debug("wait 5 seconds to reconnect...")
                     time.sleep(5)
 
-            yield id, term, fetch_handle
+            yield id, size, term, fetch_handle
 
 
 def main():
@@ -143,19 +157,22 @@ def fetch(args):
     """
     %prog fetch <filename|term>
 
-    `filename` contains a list of terms to search. Or just one term.
+    `filename` contains a list of terms to search. Or just one term. If the
+    results are small in size, e.g. "--format=acc", use "--batchsize=100" to speed
+    the download.
     """
     p = OptionParser(fetch.__doc__)
-
-    valid_formats     = ("fasta", "gb", "est", "gss", "asn.1")
-    valid_databases   = ("genome", "nuccore", "nucest", "nucgss", "protein")
 
     allowed_databases = {"fasta" : ["genome", "nuccore", "nucgss", "protein"],
                          "asn.1" : ["genome", "nuccore", "nucgss", "protein"],
                          "gb"    : ["genome", "nuccore", "nucgss"],
                          "est"   : ["nucest"],
-                         "gss"   : ["nucgss"]
+                         "gss"   : ["nucgss"],
+                         "acc"   : ["nuccore"],
                         }
+
+    valid_formats = tuple(allowed_databases.keys())
+    valid_databases = ("genome", "nuccore", "nucest", "nucgss", "protein")
 
     p.add_option("--noversion", dest="noversion",
             default=False, action="store_true",
@@ -170,6 +187,8 @@ def fetch(args):
             help="how many results to return [default: %default]")
     p.add_option("--skipcheck", default=False, action="store_true",
             help="turn off prompt to check file existence [default: %default]")
+    p.add_option("--batchsize", default=1, type="int",
+            help="download the results in batch for speed-up [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -188,10 +207,15 @@ def fetch(args):
 
     fmt = opts.format
     database = opts.database
+    batchsize = opts.batchsize
 
     assert database in allowed_databases[fmt], \
         "For output format '{0}', allowed databases are: {1}".\
         format(fmt, allowed_databases[fmt])
+    assert batchsize >= 1, "batchsize must >= 1"
+
+    if " " in pf:
+        pf = "out"
 
     outfile = "{0}.{1}".format(pf, fmt)
 
@@ -207,8 +231,9 @@ def fetch(args):
             return
 
     seen = set()
-    for id, term, handle in batch_entrez(list_of_terms, retmax=opts.retmax, \
-                                         rettype=fmt, db=database):
+    totalsize = 0
+    for id, size, term, handle in batch_entrez(list_of_terms, retmax=opts.retmax, \
+                                 rettype=fmt, db=database, batchsize=batchsize):
         if outdir:
             outfile = op.join(outdir, "{0}.{1}".format(term, fmt))
             fw = must_open(outfile, "w", checkexists=True, \
@@ -221,6 +246,7 @@ def fetch(args):
             logging.error("Duplicate key ({0}) found".format(rec))
             continue
 
+        totalsize += size
         print >> fw, rec
         print >> fw
 
@@ -228,7 +254,7 @@ def fetch(args):
 
     if seen:
         print >> sys.stderr, "A total of {0} {1} records downloaded.".\
-                format(len(seen), fmt.upper())
+                format(totalsize, fmt.upper())
 
     return outfile
 

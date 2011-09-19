@@ -15,11 +15,12 @@ from optparse import OptionParser
 
 import numpy as np
 
-from jcvi.graphics.base import plt, ticker, Rectangle, cm, _, set_human_axis
 from jcvi.formats.blast import BlastLine
 from jcvi.formats.sizes import Sizes
 from jcvi.formats.bed import Bed
 from jcvi.apps.base import debug
+from jcvi.graphics.base import plt, ticker, Rectangle, cm, _, \
+        set_human_axis, set_format
 debug()
 
 
@@ -184,9 +185,7 @@ if __name__ == "__main__":
     p.add_option("--proportional", dest="proportional",
             default=False, action="store_true",
             help="make the image width/height equal to seqlen ratio")
-    p.add_option("--format", dest="format", default="png",
-            help="generate image of format (png, pdf, ps, eps, svg, etc.) "
-            "[default: %default]")
+    set_format(p, default="png")
 
     opts, args = p.parse_args()
 

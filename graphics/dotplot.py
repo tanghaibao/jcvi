@@ -15,10 +15,11 @@ from random import sample
 from itertools import groupby
 from optparse import OptionParser
 
-from jcvi.graphics.base import plt, ticker, Rectangle, cm, _, set_human_axis
 from jcvi.formats.bed import Bed
 from jcvi.algorithms.synteny import batch_scan
 from jcvi.apps.base import debug
+from jcvi.graphics.base import plt, ticker, Rectangle, cm, _, \
+        set_human_axis, set_format
 debug()
 
 
@@ -205,9 +206,6 @@ if __name__ == "__main__":
     p.add_option("--synteny", dest="synteny",
             default=False, action="store_true",
             help="run a fast synteny scan and display synteny blocks")
-    p.add_option("--format", dest="format", default="png",
-            help="image format (png, pdf, ps, eps, svg, etc.)"
-            "[default: %default]")
     p.add_option("--cmap", dest="cmap",
             default="Synonymous substitutions (Ks)",
             help="draw a colormap box on the bottom-left corner")
@@ -215,6 +213,7 @@ if __name__ == "__main__":
             help="minimum value (in the colormap of dots) [default: %default]")
     p.add_option("--vmax", dest="vmax", type="float", default=1,
             help="maximum value (in the colormap of dots) [default: %default]")
+    set_format(p, default="png")
 
     opts, args = p.parse_args()
 

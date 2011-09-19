@@ -30,6 +30,21 @@ def set_tex_axis(ax, formatter=tex_formatter):
 set_human_axis = partial(set_tex_axis, formatter=human_size_formatter)
 
 
+def set_format(instance, default="pdf"):
+    """
+    Add image format options for given command line programs.
+    """
+    from optparse import OptionParser
+    assert isinstance(instance, OptionParser)
+
+    allowed_format = ("emf", "eps", "pdf", "png", "ps", \
+                      "raw", "rgba", "svg", "svgz")
+
+    instance.add_option("--format", default=default,
+            help="Generate image of format, must be one of {0}".\
+            format("|".join(allowed_format)) + " [default: %default]")
+
+
 def asciiaxis(x, digit=1):
     if isinstance(x, int):
         x = str(x)

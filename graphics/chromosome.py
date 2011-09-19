@@ -17,7 +17,8 @@ from optparse import OptionParser
 import numpy as np
 
 from jcvi.formats.bed import Bed
-from jcvi.graphics.base import plt, Rectangle, Polygon, CirclePolygon, _
+from jcvi.graphics.base import plt, Rectangle, Polygon, \
+        CirclePolygon, _, set_format
 
 al = .5
 z = 2
@@ -72,15 +73,11 @@ def main():
     chromosomes, and `id_mappings` file that map the ids to certain class. Each
     class will get assigned a unique color. `id_mappings` file is optional (if
     omitted, will not paint the chromosome features, except the centromere).
-    Output formats: emf, eps, pdf, png, ps, raw, rgba, svg, svgz
     """
-    allowed_out_fmt = ["emf", "eps", "pdf", "png", "ps", "raw", "rgba", "svg", "svgz"]
-
     p = OptionParser(main.__doc__)
     p.add_option("--gauge", dest="gauge", default=False, action="store_true",
             help="draw a gauge with size label [default: %default]")
-    p.add_option("--format=FORMAT", dest="format", default="pdf", choices=allowed_out_fmt,
-            help="choose the output file format [default: %default]")
+    set_format(p)
     opts, args = p.parse_args()
 
     if len(args) not in (1, 2):

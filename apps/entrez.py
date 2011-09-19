@@ -44,6 +44,9 @@ def batch_entrez(list_of_terms, db="nuccore", retmax=1, rettype="fasta",
         logging.debug("Search term %s" % term)
         success = False
         ids = None
+        if not term:
+            continue
+
         while not success:
             try:
                 search_handle = Entrez.esearch(db=db, retmax=retmax, term=term)
@@ -71,7 +74,7 @@ def batch_entrez(list_of_terms, db="nuccore", retmax=1, rettype="fasta",
         ids = list(grouper(batchsize, ids))
 
         for id in ids:
-            id = [x for x in id if x is not None]
+            id = [x for x in id if x]
             size = len(id)
             id = ",".join(id)
 

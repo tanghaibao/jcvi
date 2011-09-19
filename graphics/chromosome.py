@@ -72,10 +72,15 @@ def main():
     chromosomes, and `id_mappings` file that map the ids to certain class. Each
     class will get assigned a unique color. `id_mappings` file is optional (if
     omitted, will not paint the chromosome features, except the centromere).
+    Output formats: emf, eps, pdf, png, ps, raw, rgba, svg, svgz
     """
+    allowed_out_fmt = ["emf", "eps", "pdf", "png", "ps", "raw", "rgba", "svg", "svgz"]
+
     p = OptionParser(main.__doc__)
     p.add_option("--gauge", dest="gauge", default=False, action="store_true",
             help="draw a gauge with size label [default: %default]")
+    p.add_option("--format=FORMAT", dest="format", default="pdf", choices=allowed_out_fmt,
+            help="choose the output file format [default: %default]")
     opts, args = p.parse_args()
 
     if len(args) not in (1, 2):
@@ -85,9 +90,10 @@ def main():
     mappingfile = None
     if len(args) == 2:
         mappingfile = args[1]
+    out_fmt = opts.format
 
     prefix = bedfile.rsplit(".", 1)[0]
-    figname = prefix + ".pdf"
+    figname = prefix + "." + out_fmt
 
     if mappingfile:
         mappings = dict(x.split() for x in open(mappingfile))

@@ -40,7 +40,7 @@ def set_format(instance, default="pdf"):
     allowed_format = ("emf", "eps", "pdf", "png", "ps", \
                       "raw", "rgba", "svg", "svgz")
 
-    instance.add_option("--format", default=default,
+    instance.add_option("--format", default=default, choices=allowed_format,
             help="Generate image of format, must be one of {0}".\
             format("|".join(allowed_format)) + " [default: %default]")
 

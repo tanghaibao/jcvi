@@ -170,6 +170,7 @@ def main():
         ('diff', 'check if two fasta records contain same information'),
         ('trim', 'given a cross_match screened fasta, trim the sequence'),
         ('sort', 'sort the records by IDs, sizes, etc.'),
+        ('filter', 'filter the records by size'),
         ('pair', 'sort paired reads to .pairs, rest to .fragments'),
         ('fastq', 'combine fasta and qual to create fastq file'),
         ('tidy', 'normalize gap sizes and remove small components in fasta'),
@@ -181,6 +182,42 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def filter(args):
+    """
+    %prog filter fastafile 100
+
+    Filter the FASTA file to contain records with size >= or <= certain cutoff.
+    """
+    p = OptionParser(filter.__doc__)
+    p.add_option("--less", default=False, action="store_true",
+                 help="filter the sizes <= certain cutoff [default: >=]")
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    fastafile, cutoff = args
+    try:
+        cutoff = int(cutoff)
+    except ValueError:
+        sys.exit(not p.print_help())
+
+    f = Fasta(fastafile, lazy=True)
+
+    fw = sys.stdout
+    for name, rec in f.iteritems_ordered():
+
+        if opts.less and len(rec) > cutoff:
+            continue
+
+        if (not opts.less) and len(rec) < cutoff:
+            continue
+
+        SeqIO.write([rec], fw, "fasta")
+        fw.flush()
 
 
 def pool(args):

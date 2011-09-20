@@ -21,7 +21,6 @@ def main():
 
     actions = (
         ('trim', 'trim reads using TRIMMOMATIC'),
-        ('correct', 'correct reads with ALLPATHS-LG'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -98,7 +97,7 @@ def trim(args):
                 pairs1, frags1, pairs2, frags2)))
 
     cmd += " ILLUMINACLIP:adapters.fasta:2:40:15"
-    cmd += " LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 MINLEN:36"
+    cmd += " LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 MINLEN:30"
     sh(cmd, grid=opts.grid)
 
 

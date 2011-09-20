@@ -125,6 +125,7 @@ Most of the scripts in this package contains multiple actions. To use the
         `diff`: check if two fasta records contain same information
         `trim`: given a cross_match screened fasta, trim the sequence
         `sort`: sort the records by IDs, sizes, etc.
+        `filter`: filter the records by size
         `pair`: sort paired reads to .pairs, rest to .fragments
         `fastq`: combine fasta and qual to create fastq file
         `tidy`: normalize gap sizes and remove small components in fasta

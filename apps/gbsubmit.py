@@ -287,16 +287,21 @@ def htg(args):
     --------- ------------ ------------
     AC239792 mtg2_29457 AC239792.1
 
-    So, to prepare a submission, we need to download genbank and asn.1 format,
+    To prepare a submission, this script downloads genbank and asn.1 format,
     and generate the phase file and the names file (use formats.agp.phase() and
-    apps.gbsubmit.asn(), respectively). To download genbank files, use
-    apps.entrez.fetch().
+    apps.gbsubmit.asn(), respectively). These get automatically run.
+
+    However, use --phases if the genbank files contain outdated information.
+    For example, the clone name changes or phase upgrades. In this case, run
+    formats.agp.phase() manually, modify the phasefile and use --phases to override.
     """
     from jcvi.formats.fasta import Fasta, sequin, ids
     from jcvi.formats.agp import phase
     from jcvi.apps.entrez import fetch
 
     p = OptionParser(htg.__doc__)
+    p.add_option("--phases", default=None,
+            help="Use another phasefile to override [default: %default]")
     p.add_option("--comment", default="",
             help="Comments for this update [default: %default]")
     opts, args = p.parse_args(args)
@@ -312,18 +317,21 @@ def htg(args):
     namesfile = pf + ".names"
 
     ids([fastafile, "--outfile={0}".format(idsfile)])
-    asndir = "asn.1"
-    gbdir = "gb"
-    mkdir(asndir)
-    mkdir(gbdir)
 
+    asndir = "asn.1"
+    mkdir(asndir)
     fetch([idsfile, "--format=asn.1", "--outdir={0}".format(asndir)])
     asn(glob("{0}/*".format(asndir)) + \
             ["--outfile={0}".format(namesfile)])
 
-    fetch([idsfile, "--format=gb", "--outdir={0}".format(gbdir)])
-    phase(glob("{0}/*".format(gbdir)) + \
-            ["--outfile={0}".format(phasefile)])
+    if opts.phases is None:
+        gbdir = "gb"
+        mkdir(gbdir)
+        fetch([idsfile, "--format=gb", "--outdir={0}".format(gbdir)])
+        phase(glob("{0}/*".format(gbdir)) + \
+                ["--outfile={0}".format(phasefile)])
+    else:
+        phasefile = opts.phases
 
     assert op.exists(namesfile) and op.exists(phasefile)
 
@@ -355,9 +363,11 @@ def htg(args):
 
     acmd = 'tbl2asn -a z -p fasta -r {sqndir}'
     acmd += ' -i {splitfile} -t {sbtfile} -C tigr'
-    acmd += ' -j "[tech=htgs {phase}] [organism=Medicago truncatula] [strain=A17]"'
+    acmd += ' -j "{qualifiers}"'
     acmd += ' -A {accession_nv} -o {sqndir}/{accession_nv}.sqn -V Vbr'
     acmd += ' -y "{comment}" -W T -T T'
+
+    qq = "[tech=htgs {phase}] [organism=Medicago truncatula] [strain=A17]"
 
     nupdated = 0
     for row in open(phasefile):
@@ -386,9 +396,13 @@ def htg(args):
                 format(accession_nv, oldphase, phase)
         newph.append(phase)
 
+        qualifiers = qq.format(phase=phase)
+        if ";" in clone:
+            qualifiers += " [keyword=HTGS_POOLED_MULTICLONE]"
+
         cmd = acmd.format(accession=accession, accession_nv=accession_nv,
                 sqndir=sqndir, sbtfile=sbtfile, splitfile=splitfile,
-                phase=phase, comment=comment)
+                qualifiers=qualifiers, comment=comment)
         sh(cmd)
 
         verify_sqn(sqndir, accession)

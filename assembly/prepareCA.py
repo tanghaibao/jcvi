@@ -277,7 +277,7 @@ def tracedb(args):
             sh(cmd, background=True)
 
 
-def make_qual(fastafile, defaultqual=20):
+def make_qual(fastafile, defaultqual=21):
     """
     Make a qualfile with default qual value if not available
     """

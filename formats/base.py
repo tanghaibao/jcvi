@@ -69,9 +69,10 @@ class FileMerger (object):
 
 class FileSplitter (object):
 
-    def __init__(self, filename, outputdir=None):
+    def __init__(self, filename, outputdir=None, mode="cycle"):
         self.filename = filename
         self.outputdir = outputdir
+        self.mode = mode
 
         self.format = format = self._guess_format(filename)
         logging.debug("format is %s" % format)
@@ -140,7 +141,7 @@ class FileSplitter (object):
 
         return names
 
-    def split(self, N, force=False, mode="cycle"):
+    def split(self, N, force=False):
         """
         There are two modes of splitting the records
         - batch: splitting is sequentially to records/N chunks
@@ -148,6 +149,7 @@ class FileSplitter (object):
 
         use `cycle` if the len of the record is not evenly distributed
         """
+        mode = self.mode
         assert mode in ("batch", "cycle")
         logging.debug("set split mode=%s" % mode)
 
@@ -296,17 +298,20 @@ def split(args):
     """
     p = OptionParser(split.__doc__)
     p.add_option("-n", dest="N", type="int", default=1,
-            help="split into N chunks")
+            help="split into N chunks [default: %default]")
     p.add_option("--all", default=False, action="store_true",
-            help="split all records")
+            help="split all records [default: %default]")
+    p.add_option("--cycle", default=False, action="store_true",
+            help="splitted records in Round Robin fashion [default: %default]")
 
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
         sys.exit(p.print_help())
 
+    mode = "cycle" if opts.cycle else "batch"
     filename, outdir = args
-    fs = FileSplitter(filename, outputdir=outdir)
+    fs = FileSplitter(filename, outputdir=outdir, mode=mode)
 
     if opts.all:
         logging.debug("option -all override -n")

@@ -608,9 +608,6 @@ def set_options_pairs():
     p.add_option("--pairs", dest="pairsfile",
             default=False, action="store_true",
             help="write valid pairs to pairsfile")
-    p.add_option("--inserts", dest="insertsfile", default=True,
-            help="write insert sizes to insertsfile and plot distribution " + \
-            "to insertsfile.pdf")
     p.add_option("--nrows", default=100000, type="int",
             help="only use the first n lines [default: %default]")
     p.add_option("--rclip", default=1, type="int",
@@ -619,12 +616,16 @@ def set_options_pairs():
             help="print PDF instead ASCII histogram [default: %default]")
     p.add_option("--bins", default=20, type="int",
             help="number of bins in the histogram [default: %default]")
+    p.add_option("--distmode", default="ss", choices=("ss", "ee"),
+            help="distance mode between paired reads, ss is outer distance, " \
+                 "ee is inner distance [default: %default]")
 
     return p
 
 
 def report_pairs(data, cutoff=0, mateorientation=None,
-        pairsfile=None, insertsfile=None, rclip=1, ascii=False, bins=20):
+        pairsfile=None, insertsfile=None, rclip=1, ascii=False, bins=20,
+        distmode="ss"):
     """
     This subroutine is used by the pairs function in blast.py and cas.py.
     Reports number of fragments and pairs as well as linked pairs
@@ -667,7 +668,8 @@ def report_pairs(data, cutoff=0, mateorientation=None,
 
         dist, orientation = range_distance(\
                 (asubject, astart, astop, astrand),
-                (bsubject, bstart, bstop, bstrand))
+                (bsubject, bstart, bstop, bstrand),
+                distmode=distmode)
 
         if dist >= 0:
             all_dist.append((dist, orientation, aquery, bquery))

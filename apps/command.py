@@ -57,7 +57,7 @@ def getpath(cmd, name=None, url=None, cfg="~/.jcvirc"):
         config.set(PATH, name, fullpath)
         changed = True
 
-    path = op.join(fullpath, cmd)
+    path = op.join(op.expanduser(fullpath), cmd)
     assert is_exe(path), \
             "Cannot execute binary `{0}`. Please verify and rerun.".format(path)
 

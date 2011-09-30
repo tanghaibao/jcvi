@@ -155,7 +155,7 @@ def pairs(args):
 
     basename = bedfile.split(".")[0]
     pairsfile = ".".join((basename, "pairs")) if opts.pairsfile else None
-    insertsfile = ".".join((basename, "inserts")) if opts.insertsfile else None
+    insertsfile = ".".join((basename, "inserts"))
 
     sortedbedfile = op.basename(bedfile).rsplit(".", 1)[0] + ".sorted.bed"
     if not op.exists(sortedbedfile):
@@ -169,7 +169,8 @@ def pairs(args):
     ascii = not opts.pdf
     return bedfile, report_pairs(data, opts.cutoff, opts.mateorientation,
            pairsfile=pairsfile, insertsfile=insertsfile,
-           rclip=opts.rclip, ascii=ascii, bins=opts.bins)
+           rclip=opts.rclip, ascii=ascii, bins=opts.bins,
+           distmode=opts.distmode)
 
 
 def sum(args):

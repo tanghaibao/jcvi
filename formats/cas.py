@@ -18,7 +18,7 @@ from optparse import OptionParser
 from Bio import SeqIO
 
 from jcvi.formats.base import LineFile
-from jcvi.formats.blast import set_options_pairs, report_pairs
+from jcvi.formats.blast import set_options_pairs
 from jcvi.formats.sizes import Sizes
 from jcvi.apps.base import ActionDispatcher, sh, set_grid, debug, is_newer_file
 debug()

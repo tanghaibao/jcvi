@@ -125,8 +125,8 @@ def guessoffset(args):
     offset = 64
     while rec:
         quality = rec.quality
-        lowcounts = len([x for x in quality if x <= 58])
-        highcounts = len([x for x in quality if x >= 74])
+        lowcounts = len([x for x in quality if x < 59])
+        highcounts = len([x for x in quality if x > 74])
         diff = highcounts - lowcounts
         if diff > 10:
             break

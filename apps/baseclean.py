@@ -35,11 +35,13 @@ def trim(args):
 
     <http://www.usadellab.org/cms/index.php?page=trimmomatic>
     """
-    TrimVersion = tv = "0.14"
+    TrimVersion = tv = "0.15"
     TrimJar = "trimmomatic-{0}.jar".format(tv)
     p = OptionParser(trim.__doc__)
     p.add_option("--path", default=op.join("~/bin", TrimJar),
             help="Path to trimmomatic [default: %default]")
+    p.add_option("--phred", default=None, type="int",
+            help="Phred score offset [default: %default]")
     set_grid(p)
 
     opts, args = p.parse_args(args)
@@ -69,7 +71,11 @@ def trim(args):
     assert op.exists("adapters.fasta"), \
         "Please place the illumina adapter sequence in `adapters.fasta`"
 
-    offset = guessoffset([args[0]])
+    if opts.phred is None:
+        offset = guessoffset([args[0]])
+    else:
+        offset = opts.phred
+
     phredflag = " -phred{0}".format(offset)
 
     cmd = JAVAPATH("java-1.6.0")
@@ -80,7 +86,7 @@ def trim(args):
         cmd += ".TrimmomaticSE"
         cmd += phredflag
         fastqfile, = args
-        prefix = fastqfile.split(".")[0]
+        prefix = fastqfile.replace(".gz", "").rsplit(".", 1)[0]
         frags1 = prefix + frags
         cmd += " {0}".format(" ".join((fastqfile, frags1)))
     else:

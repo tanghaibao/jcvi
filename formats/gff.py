@@ -12,21 +12,23 @@ from collections import defaultdict
 from urlparse import parse_qs
 from optparse import OptionParser
 
-from jcvi.formats.base import LineFile
-from jcvi.formats.fasta import Fasta
+from jcvi.formats.base import LineFile, must_open
+from jcvi.formats.fasta import Fasta, SeqIO
 from jcvi.formats.bed import Bed, BedLine
-from jcvi.apps.base import ActionDispatcher
+from jcvi.apps.base import ActionDispatcher, set_outfile, mkdir, sh
 
 
 Valid_strands = ('+', '-', '?', '.')
 Valid_phases = ('0', '1', '2', '.')
+FastaTag = "##FASTA"
+RegionTag = "##sequence-region"
 
 
 class GffLine (object):
     """
     Specification here (http://www.sequenceontology.org/gff3.shtml)
     """
-    def __init__(self, sline, key="ID", gff3=True):
+    def __init__(self, sline, key="ID"):
         args = sline.strip().split("\t")
         self.seqid = args[0]
         self.source = args[1]
@@ -41,6 +43,7 @@ class GffLine (object):
         assert self.phase in Valid_phases, \
                 "phase must be one of %s" % Valid_phases
         self.attributes_text = args[8].strip()
+        gff3 = "=" in self.attributes_text and "; " not in self.attributes_text
         self.attributes = make_attributes(self.attributes_text, gff3=gff3)
         # key is not in the gff3 field, this indicates the conversion to accn
         self.key = key  # usually it's `ID=xxxxx;`
@@ -64,14 +67,20 @@ class GffLine (object):
 
 class Gff (LineFile):
 
-    def __init__(self, filename, gff3=True):
+    def __init__(self, filename):
         super(Gff, self).__init__(filename)
 
         fp = open(filename)
         for row in fp:
             if row[0] == '#':
+                if row.strip() == FastaTag:
+                    break
                 continue
-            self.append(GffLine(row, gff3=gff3))
+            self.append(GffLine(row))
+
+    @property
+    def seqids(self):
+        return set(x.seqid for x in self)
 
 
 def make_attributes(s, gff3=True):
@@ -102,10 +111,122 @@ def main():
         ('script', 'parse gmap gff and produce script for sim4db to refine'),
         ('note', 'extract certain attribute field for each feature'),
         ('load', 'extract the feature (e.g. CDS) sequences and concatenate'),
+        ('extract', 'extract a particular contig from the gff file'),
+        ('split', 'split the gff into one contig per file'),
+        ('merge', 'merge several gff files into one'),
             )
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def merge(args):
+    """
+    %prog merge gffiles
+
+    Merge several gff files into one.
+    """
+    p = OptionParser(merge.__doc__)
+    set_outfile(p)
+
+    opts, args = p.parse_args(args)
+
+    if len(args) < 2:
+        sys.exit(not p.print_help())
+
+    gffiles = args
+    outfile = opts.outfile
+
+    deflines = set()
+    fw = must_open(outfile, "w")
+    fastarecs = {}
+    for gffile in gffiles:
+        fp = open(gffile)
+        for row in fp:
+            row = row.rstrip()
+            if row[0] == '#':
+                if row == FastaTag:
+                    break
+                if row in deflines:
+                    continue
+                else:
+                    deflines.add(row)
+
+            print >> fw, row
+
+        f = Fasta(gffile, lazy=True)
+        for key, rec in f.iteritems_ordered():
+            if key in fastarecs.keys():
+                continue
+            fastarecs[key] = rec
+
+    print >> fw, FastaTag
+    SeqIO.write(fastarecs.values(), fw, "fasta")
+
+
+def extract(args):
+    """
+    %prog extract gffile contigID
+
+    Extract particular contig(s) from the gff file. If multiple contigs are
+    involved, use "," to separate, e.g. "contig_12,contig_150"
+    """
+    p = OptionParser(extract.__doc__)
+    set_outfile(p)
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    gffile, contigID = args
+    contigID = set(contigID.split(","))
+
+    outfile = opts.outfile
+    fp = open(gffile)
+    fw = must_open(outfile, "w")
+    for row in fp:
+        atoms = row.split()
+        tag = atoms[0]
+        if row[0] == "#":
+            if not (tag == RegionTag and atoms[1] not in contigID):
+                print >> fw, row.rstrip()
+            if tag == FastaTag:
+                break
+        if tag in contigID:
+            print >> fw, row.rstrip()
+
+    f = Fasta(gffile)
+    for s in contigID:
+        if s in f:
+            SeqIO.write([f[s]], fw, "fasta")
+
+    logging.debug("Write {0} to `{1}`.".format(",".join(contigID), outfile))
+
+
+def split(args):
+    """
+    %prog split gffile outdir
+
+    Split the gff into one contig per file. Will also take sequences if the file
+    contains FASTA sequences.
+    """
+    p = OptionParser(split.__doc__)
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    gffile, outdir = args
+    mkdir(outdir)
+
+    g = Gff(gffile)
+    seqids = g.seqids
+
+    for s in seqids:
+        outfile = op.join(outdir, s + ".gff")
+        extract([gffile, s, "--outfile=" + outfile])
 
 
 def note(args):

@@ -226,6 +226,10 @@ def must_open(filename, mode="r", checkexists=False, skipcheck=False):
         assert "w" in mode
         fp = sys.stderr
 
+    elif filename == "tmp" and mode == "w":
+        from tempfile import NamedTemporaryFile
+        fp = NamedTemporaryFile(delete=False)
+
     elif filename.endswith(".gz"):
         import gzip
         fp = gzip.open(filename, mode)

@@ -8,6 +8,7 @@ import tempfile
 
 from string import Template
 
+from jcvi.formats.base import must_open
 from jcvi.apps.base import sh, debug
 debug()
 
@@ -28,8 +29,8 @@ class RTemplate (object):
         template = self.template
         parameters = self.parameters
         # write to a temporary R script
-        fd, path = tempfile.mkstemp()
-        fw = os.fdopen(fd, "w")
+        fw = must_open("tmp", "w")
+        path = fw.name
 
         fw.write(template.safe_substitute(**parameters))
         fw.close()

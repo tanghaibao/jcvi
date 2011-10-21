@@ -278,9 +278,9 @@ def convert(args):
     script creates a new file with the correct encoding
     """
     p = OptionParser(convert.__doc__)
-    p.add_option("-Q", dest="infastq", default="sanger",
+    p.add_option("-Q", dest="infastq", default="illumina",
             help="input fastq [default: %default]")
-    p.add_option("-q", dest="outfastq", default="illumina",
+    p.add_option("-q", dest="outfastq", default="sanger",
             help="output fastq format [default: %default]")
 
     opts, args = p.parse_args(args)

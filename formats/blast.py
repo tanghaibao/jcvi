@@ -674,14 +674,13 @@ def report_pairs(data, cutoff=0, mateorientation=None,
         if dist >= 0:
             all_dist.append((dist, orientation, aquery, bquery))
 
+    # select only pairs with certain orientations - e.g. innies, outies, etc.
+    if mateorientation:
+        all_dist = [x for x in all_dist if x[1] == mateorientation]
+
     # try to infer cutoff as twice the median until convergence
     if cutoff <= 0:
-        if mateorientation:
-            dists = np.array([x[0] for x in all_dist \
-                    if x[1] == mateorientation], dtype="int")
-        else:
-            dists = np.array([x[0] for x in all_dist], dtype="int")
-
+        dists = np.array([x[0] for x in all_dist], dtype="int")
         p0 = np.median(dists)
         cutoff = int(2 * p0)  # initial estimate
         cutoff = int(math.ceil(cutoff / bins)) * bins

@@ -108,8 +108,8 @@ def n50(args):
     minsize = min(ctgsizes)
     maxsize = max(ctgsizes)
     print >> sys.stderr, ", ".join(args)
-    print >> sys.stderr, "Length={0} L50={1} Min={2} Max={3} N={4}".\
-            format(sumsize, l50, minsize, maxsize, len(ctgsizes))
+    print >> sys.stderr, "Length={0} L50={1} N50={2} Min={3} Max={4} N={5}".\
+            format(sumsize, l50, nn50, minsize, maxsize, len(ctgsizes))
     loghistogram(bins)
 
 

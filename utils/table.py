@@ -65,6 +65,38 @@ def tabulate(d, transpose=False, key_fun=None):
     return table
 
 
+def write_csv(header, contents, filename="stdout", tee=False):
+    """
+    Write csv that are aligned with the column headers.
+
+    >>> header = ["x_value", "y_value"]
+    >>> contents = [(1, 100), (2, 200)]
+    >>> write_csv(header, contents)
+    x_value, y_value
+          1,     100
+          2,     200
+    """
+    from jcvi.formats.base import must_open
+
+    fw = must_open(filename, "w")
+    allcontents = [header] + contents
+    cols = len(header)
+    for content in contents:
+        assert len(content) == cols
+
+    # Stringify the contents
+    for i, content in enumerate(allcontents):
+        allcontents[i] = [str(x) for x in content]
+
+    colwidths = [max(len(x[i]) for x in allcontents) for i in xrange(cols)]
+    for content in allcontents:
+        rjusted = [x.rjust(cw) for x, cw in zip(content, colwidths)]
+        formatted = ", ".join(rjusted)
+        print >> fw, formatted
+        if tee and filename != "stdout":
+            print formatted
+
+
 if __name__ == '__main__':
     import doctest
     doctest.testmod()

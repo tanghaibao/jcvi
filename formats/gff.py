@@ -108,6 +108,7 @@ def main():
 
     actions = (
         ('bed', 'parse gff and produce bed file for particular feature type'),
+        ('bed12', 'produce bed12 file for coding features'),
         ('script', 'parse gmap gff and produce script for sim4db to refine'),
         ('note', 'extract certain attribute field for each feature'),
         ('load', 'extract the feature (e.g. CDS) sequences and concatenate'),
@@ -357,6 +358,8 @@ def load(args):
     For example, to get the CDS sequences, do this::
         %prog athaliana.gff athaliana.fa --parents mRNA --children CDS
     '''
+    import GFFutils
+
     p = OptionParser(load.__doc__)
     p.add_option("--parents", dest="parents", default="mRNA",
             help="list of features to extract, use comma to separate (e.g."
@@ -369,11 +372,6 @@ def load(args):
 
     if len(args) != 2:
         sys.exit(p.print_help())
-
-    try:
-        import GFFutils
-    except ImportError as e:
-        logging.error("You must install python library `GFFutils`")
 
     gff_file, fa_file = args
     parents, children = opts.parents, opts.children
@@ -415,6 +413,91 @@ def load(args):
 
         print ">%s" % feat.id
         print feat_seq
+
+
+def bed12(args):
+    """
+    %prog bed12 gffile > bedfile
+
+    Produce bed12 file for coding features. The exons will be converted to blocks.
+    The CDS range will be shown between thickStart to thickEnd. For reference,
+    bed format consists of the following fields:
+
+    1. chrom
+    2. chromStart
+    3. chromEnd
+    4. name
+    5. score
+    6. strand
+    7. thickStart
+    8. thickEnd
+    9. itemRgb
+    10. blockCount
+    11. blockSizes
+    12. blockStarts
+    """
+    import GFFutils
+
+    p = OptionParser(bed12.__doc__)
+    p.add_option("--parent", default="mRNA",
+            help="Top feature type [default: %default]")
+    p.add_option("--block", default="exon",
+            help="Feature type for regular blocks [default: %default]")
+    p.add_option("--thick", default="CDS",
+            help="Feature type for thick blocks [default: %default]")
+    set_outfile(p)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    gffile, = args
+    parent, block, thick = opts.parent, opts.block, opts.thick
+    outfile = opts.outfile
+
+    dbfile = gffile + ".db"
+
+    if not op.exists(dbfile):
+        GFFutils.create_gffdb(gffile, dbfile)
+
+    g = GFFutils.GFFDB(dbfile)
+    fw = must_open(outfile, "w")
+
+    for f in g.features_of_type(parent):
+
+        chrom = f.chrom
+        chromStart = f.start - 1
+        chromEnd = f.stop
+        name = f.id
+        score = 0
+        strand = f.strand
+        thickStart = 1e15
+        thickEnd = 0
+        blocks = []
+
+        for c in g.children(name, 1):
+
+            cstart, cend = c.start - 1, c.stop
+
+            if c.featuretype == block:
+                blockStart = cstart - chromStart
+                blockSize = cend - cstart
+                blocks.append((blockStart, blockSize))
+
+            elif c.featuretype == thick:
+                thickStart = min(thickStart, cstart)
+                thickEnd = max(thickEnd, cend)
+
+        blocks.sort()
+        blockStarts, blockSizes = zip(*blocks)
+        blockCount = len(blocks)
+        blockSizes = ",".join(str(x) for x in blockSizes) + ","
+        blockStarts = ",".join(str(x) for x in blockStarts) + ","
+        itemRgb = 0
+
+        print >> fw, "\t".join(str(x) for x in (chrom, chromStart, chromEnd, \
+                name, score, strand, thickStart, thickEnd, itemRgb,
+                blockCount, blockSizes, blockStarts))
 
 
 if __name__ == '__main__':

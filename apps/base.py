@@ -228,8 +228,9 @@ def debug():
 
     from jcvi.apps.console import ColoredText
 
-    format = "%(asctime)s [%(module)s::%(levelname)s] %(message)s"
-    format = str(ColoredText(format, "yellow"))
+    format = str(ColoredText(\
+            "%(asctime)s [%(module)s::%(levelname)s]", "magenta"))
+    format += str(ColoredText(" %(message)s", "yellow"))
     logging.basicConfig(level=logging.DEBUG,
             format=format,
             datefmt="%H:%M:%S",

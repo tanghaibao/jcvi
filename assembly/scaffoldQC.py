@@ -42,13 +42,15 @@ def scaffolding(ax, scaffoldID, scafsize, bedf):
     # FPC_scf.bed => FPC
     fname = bedf.filename.split(".")[0].split("_")[0]
     ctglabel = "contig" if fname == "FPC" else "scaffold"
-    xtitle = "Each vertical position is {0} {1}".format(fname, ctglabel)
+    xtitle = "Each position is one {0} {1}".format(fname, ctglabel)
     ax.set_xlabel(_(xtitle), color="g")
+    for x in ax.get_xticklines():
+        x.set_visible(False)
 
 
 def plot_one_scaffold(scaffoldID, scafsize, beds, imagename):
     nbeds = len(beds)
-    fig = plt.figure(1, (10, 10))
+    fig = plt.figure(1, (9, 9))
     plt.cla()
     plt.clf()
     root = fig.add_axes([0, 0, 1, 1])
@@ -61,9 +63,9 @@ def plot_one_scaffold(scaffoldID, scafsize, beds, imagename):
         ax.yaxis.set_major_formatter(formatter)
         ax.set_xticklabels([])
 
-    root.text(.2, .95, _("{0}   (size={1})".\
+    root.text(.5, .95, _("{0}   (size={1})".\
             format(scaffoldID, thousands(scafsize))),
-            size=18, color='b')
+            size=18, ha="center", color='b')
     root.text(.5, .05, _("Look for vertical tracks"),
             color="gray", ha="center")
     root.set_xlim(0, 1)

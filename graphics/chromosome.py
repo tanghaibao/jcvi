@@ -75,7 +75,9 @@ def main():
     omitted, will not paint the chromosome features, except the centromere).
     """
     p = OptionParser(main.__doc__)
-    p.add_option("--gauge", dest="gauge", default=False, action="store_true",
+    p.add_option("--title", default="Medicago truncatula v3.5",
+            help="title of the image [default: `%default`]")
+    p.add_option("--gauge", default=False, action="store_true",
             help="draw a gauge with size label [default: %default]")
     set_format(p)
     opts, args = p.parse_args()
@@ -102,7 +104,6 @@ def main():
         classes = []
         logging.debug("No classes registered (no id_mappings given).")
 
-    #mycolors = "A6C953|2F7EC1|019D75|00B2EC|EA2790|F6AE26|EA2D2D".split("|")
     mycolors = "wrgbymc"
     class_colors = dict(zip(classes, mycolors))
 
@@ -130,7 +131,7 @@ def main():
     root = fig.add_axes([0, 0, 1, 1])
 
     r = .7  # width and height of the whole chromosome set
-    xstart, ystart = .15, .15
+    xstart, ystart = .15, .85
     xinterval = r / chr_number
     xwidth = xinterval * .5  # chromosome width
     max_chr_len = max(chr_lens.values())
@@ -140,10 +141,10 @@ def main():
     for a, (chr, cent_position) in enumerate(sorted(centromeres.items())):
         clen = chr_lens[chr]
         xx = xstart + a * xinterval + .5 * xwidth
-        yy = ystart + (clen - cent_position) * ratio
-        root.text(xx, ystart - .01, _(chr), va="top", ha="center")
-        ChromsomeWithCentromere(root, xx, ystart + clen * ratio, yy,
-                ystart, width=xwidth, zorder=z)
+        yy = ystart - cent_position * ratio
+        root.text(xx, ystart + .01, _(chr), ha="center")
+        ChromsomeWithCentromere(root, xx, ystart, yy,
+                ystart - clen * ratio, width=xwidth, zorder=z)
 
     chr_idxs = dict((a, i) for i, a in enumerate(sorted(chr_lens.keys())))
 
@@ -157,20 +158,20 @@ def main():
         start = b.start
         end = b.end
         klass = b.accn
-        yystart = ystart + (clen - end) * ratio
-        yyend = ystart + (clen - start) * ratio
+        yystart = ystart - end * ratio
+        yyend = ystart - start * ratio
         root.add_patch(Rectangle((xx, yystart), xwidth, yyend - yystart,
             fc=class_colors.get(klass, "w"), lw=0, alpha=alpha))
 
     if opts.gauge:
         tip = .008  # the ticks on the gauge bar
         extra = .006  # the offset for the unit label
-        xstart, ystart = .9, .15
+        xstart, ystart = .9, .85
         yy = ystart
         gauge = int(ceil(max_chr_len / 1e6))
         mb = ratio * 1e6
         yinterval = 2 * mb
-        root.plot([xstart, xstart], [yy, yy + r], 'b-', lw=2)
+        root.plot([xstart, xstart], [yy, yy - r], 'b-', lw=2)
         for x in xrange(0, gauge, 2):
             if x % 10:
                 root.plot([xstart, xstart + tip], [yy, yy], "b-")
@@ -178,14 +179,14 @@ def main():
                 root.plot([xstart - tip, xstart + tip], [yy, yy], 'b-', lw=2)
                 root.text(xstart + tip + extra, yy, _(x),
                         color="gray", va="center")
-            yy += yinterval
-        root.text(xstart, ystart - .03, _("Mb"), color="gray", va="center")
+            yy -= yinterval
+        root.text(xstart, yy - .03, _("Mb"), color="gray", va="center")
 
     # class legends, four in a row
     xstart = .1
     xinterval = .2
     xwidth = .04
-    yy = .9
+    yy = .08
     for klass, cc in sorted(class_colors.items()):
         if klass == '-':
             continue
@@ -194,8 +195,8 @@ def main():
         root.text(xstart + xwidth + .01, yy, _(klass), fontsize=9)
         xstart += xinterval
 
-    label = "Medicago truncatula v3.5"
-    root.text(.5, .05, label, fontstyle="italic", ha="center", va="center")
+    label = opts.title
+    root.text(.5, .95, label, fontstyle="italic", ha="center", va="center")
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)

@@ -519,13 +519,13 @@ def covfilter(args):
             format(mapped_count, mapped_count * 100. / total, total)
     print >> sys.stderr, "Total valid {0}: {1} ({2:.1f}% of {3})".\
             format(cutoff_message, valid_count, valid_count * 100. / total, total)
-    print >> sys.stderr, "Id % = {0:.2f}%".\
+    print >> sys.stderr, "Average id = {0:.2f}%".\
             format(100 - (mismatches + gaps) * 100. / alignlen)
 
     queries_combined = sum(sizes[x] for x in queries)
     print >> sys.stderr, "Coverage: {0} covered, {1} total".\
             format(covered, queries_combined)
-    print >> sys.stderr, "Coverage = {0:.2f}%".\
+    print >> sys.stderr, "Average coverage = {0:.2f}%".\
             format(covered * 100. / queries_combined)
 
     if opts.ids:

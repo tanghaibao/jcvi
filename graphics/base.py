@@ -18,8 +18,15 @@ from jcvi.apps.console import ColoredText
 _ = lambda x: r"$\mathsf{%s}$" % str(x).replace("_", " ").replace(" ", r"\ ")
 
 # human readable size (Kb, Mb, Gb)
-human_size_formatter = ticker.FuncFormatter(lambda x, pos: \
-        _(human_size(x, precision=0)))
+def human_readable(x, pos):
+    x = str(int(x))
+    if x.endswith("000000"):
+        x = x[:-6] + "Mb"
+    elif x.endswith("000"):
+        x = x[:-3] + "Kb"
+    return _(x)
+
+human_size_formatter = ticker.FuncFormatter(human_readable)
 tex_formatter = ticker.FuncFormatter(lambda x, pos: _(str(int(x))))
 
 

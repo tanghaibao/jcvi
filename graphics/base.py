@@ -12,7 +12,7 @@ from matplotlib.patches import Rectangle, Polygon, CirclePolygon
 from matplotlib import cm
 
 from jcvi.utils.cbook import human_size
-from jcvi.apps.console import ColoredText
+from jcvi.apps.console import dark, green
 
 # i always like the latex font
 _ = lambda x: r"$\mathsf{%s}$" % str(x).replace("_", " ").replace(" ", r"\ ")
@@ -73,7 +73,7 @@ def asciiplot(x, y, digit=1, width=50, title=None, char="="):
     ay = np.array(y)
 
     if title:
-        print >> sys.stderr, ColoredText(title, "dark")
+        print >> sys.stderr, dark(title)
 
     az = ay * width / ay.max()
     tx = [asciiaxis(x, digit=digit) for x in ax]
@@ -82,5 +82,5 @@ def asciiplot(x, y, digit=1, width=50, title=None, char="="):
     for x, y, z in zip(tx, ay, az):
         x = x.rjust(rjust)
         y = y or ""
-        z = ColoredText(char * z, "green")
+        z = green(char * z)
         print >> sys.stderr, "{0} |{1} {2}".format(x, z, y)

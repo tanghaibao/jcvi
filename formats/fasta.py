@@ -18,7 +18,7 @@ from jcvi.formats.base import BaseFile, DictFile, must_open
 from jcvi.utils.cbook import human_size
 from jcvi.utils.table import banner
 from jcvi.apps.base import ActionDispatcher, debug, set_outfile
-from jcvi.apps.console import print_red, print_green
+from jcvi.apps.console import red, green
 debug()
 
 
@@ -480,21 +480,21 @@ def _print_first_difference(arec, brec, ignore_case=False, ignore_N=False):
             break
 
     if i + 1 == asize and matched:
-        print_green("Two sequences match")
+        print green("Two sequences match")
         match = True
     else:
-        print_red("Two sequences do not match")
+        print red("Two sequences do not match")
 
         snippet_size = 20  # show the context of the difference
 
-        print_red("Sequence start to differ at position %d:" % (i + 1))
+        print red("Sequence start to differ at position %d:" % (i + 1))
 
         begin = max(i - snippet_size, 0)
         aend = min(i + snippet_size, asize)
         bend = min(i + snippet_size, bsize)
 
-        print_red(aseq[begin:i] + "|" + aseq[i:aend])
-        print_red(bseq[begin:i] + "|" + bseq[i:bend])
+        print red(aseq[begin:i] + "|" + aseq[i:aend])
+        print red(bseq[begin:i] + "|" + bseq[i:bend])
         match = False
 
     return match
@@ -531,10 +531,10 @@ def diff(args):
     bfastan = len(Fasta(bfasta))
 
     if afastan == bfastan:
-        print_green("Two sets contain the same number of sequences ({0}, {1})".\
+        print green("Two sets contain the same number of sequences ({0}, {1})".\
                 format(afastan, bfastan))
     else:
-        print_red("Two sets contain different number of sequences ({0}, {1})".\
+        print red("Two sets contain different number of sequences ({0}, {1})".\
                 format(afastan, bfastan))
 
     ah = SeqIO.parse(afasta, "fasta")
@@ -550,9 +550,9 @@ def diff(args):
         print banner((arec, brec))
         asize, bsize = len(arec), len(brec)
         if asize == bsize:
-            print_green("Two sequence size match (%d)" % asize)
+            print green("Two sequence size match (%d)" % asize)
         else:
-            print_red("Two sequence size do not match (%d, %d)" % (asize, bsize))
+            print red("Two sequence size do not match (%d, %d)" % (asize, bsize))
 
         # print out the first place the two sequences diff
         fd = print_first_difference(arec, brec, ignore_case=opts.ignore_case,
@@ -563,7 +563,7 @@ def diff(args):
                     abs(asize - bsize))))
 
     if problem_ids:
-        print_red("A total of {0} records mismatch.".format(len(problem_ids)))
+        print red("A total of {0} records mismatch.".format(len(problem_ids)))
         fw = must_open("Problems.ids", "w")
         print >> fw, "\n".join(problem_ids)
 

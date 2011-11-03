@@ -137,12 +137,14 @@ class ColoredText:
     __repr__ = __str__
 
 
-def print_red(s):
-    print(ColoredText(s, "red"))
-
-
-def print_green(s):
-    print(ColoredText(s, "green"))
+red = lambda s: str(ColoredText(s, "red"))
+green = lambda s: str(ColoredText(s, "green"))
+yellow = lambda s: str(ColoredText(s, "yellow"))
+blue = lambda s: str(ColoredText(s, "blue"))
+magenta = lambda s: str(ColoredText(s, "magenta"))
+cyan = lambda s: str(ColoredText(s, "cyan"))
+white = lambda s: str(ColoredText(s, "white"))
+dark = lambda s: str(ColoredText(s, "dark"))
 
 
 if __name__ == '__main__':

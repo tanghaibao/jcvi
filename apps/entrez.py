@@ -15,7 +15,7 @@ from Bio import Entrez, SeqIO
 from jcvi.formats.base import must_open
 from jcvi.formats.fasta import print_first_difference
 from jcvi.utils.iter import grouper
-from jcvi.apps.console import print_green
+from jcvi.apps.console import green
 from jcvi.apps.base import ActionDispatcher, mkdir, debug
 debug()
 
@@ -153,7 +153,7 @@ def bisect(args):
 
     if valid:
         print
-        print_green("%s matches the sequence in `%s`" % (valid, fastafile))
+        print green("%s matches the sequence in `%s`" % (valid, fastafile))
 
 
 def fetch(args):

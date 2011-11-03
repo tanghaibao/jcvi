@@ -19,7 +19,6 @@ from Bio import SeqIO
 
 from jcvi.utils.cbook import memoized, fill
 from jcvi.formats.base import DictFile
-from jcvi.apps.console import print_red
 from jcvi.apps.base import ActionDispatcher, sh, mkdir, debug, set_outfile
 debug()
 

@@ -99,11 +99,16 @@ class AGPLine (object):
                 self.component_type, self.orientation))
 
     @property
+    def bedextra(self):
+        # extra lines for bed12
+        return "\t".join(str(x) for x in (self.object_beg - 1,
+               self.object_end, component_RGB[self.component_type], 1,
+               str(self.object_end - self.object_beg + 1) + ",", "0,"))
+
+    @property
     def bed12line(self):
         # bed12 formatted line
-        return self.bedline + "\t" + "\t".join((str(self.object_beg - 1),
-               str(self.object_end), component_RGB[self.component_type], "1",
-               "".join((str(self.object_end - self.object_beg + 1), ",")), "0,"))
+        return self.bedline + "\t" + self.bedextra
 
     @property
     def isCloneGap(self):
@@ -930,8 +935,10 @@ def extendbed(args):
     agpfile, fastafile = args
     agp = AGP(agpfile)
     ranges = defaultdict(list)
+    thickCoords = []  # These are the coordinates before modify ranges
     # Make the first pass to record all the component ranges
     for a in agp:
+        thickCoords.append((a.object_beg, a.object_end))
         if a.is_gap:
             continue
         ranges[a.component_id].append(a)
@@ -955,9 +962,12 @@ def extendbed(args):
             hang = a.component_beg - 1
         a.object_end += hang
 
-    for a in agp:
+    for a, (ts, te) in zip(agp, thickCoords):
         if opts.bed12:
-            print a.bed12line
+            line = a.bedline
+            a.object_beg, a.object_end = ts, te
+            line += "\t" + a.bedextra
+            print line
         else:
             print a.bedline
 

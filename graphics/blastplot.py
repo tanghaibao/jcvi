@@ -4,7 +4,9 @@
 """
 %prog blastfile --qsizes query.sizes --ssizes subject.sizes
 
-visualize the blastfile in a dotplot.
+Visualize the blastfile in a dotplot. Options --qbed and --sbed are optional,
+but you need to specify them if the blastfile contains markers or gene IDs that
+need cross-ref to the scaffold positions.
 """
 
 import os.path as op
@@ -24,9 +26,11 @@ from jcvi.graphics.base import plt, ticker, Rectangle, cm, _, \
 debug()
 
 
-def blastplot(blastfile, qsizes, ssizes, qbed, sbed, image_name,
-        lines=False, proportional=False, sampleN=5000):
+def blastplot(ax, blastfile, qsizes, ssizes, qbed, sbed,
+        style="dot", proportional=False, sampleN=None,
+        baseticks=False, insetLabels=False):
 
+    assert style in ("line", "circle", "dot")
     fp = open(blastfile)
 
     qorder = qbed.order if qbed else None
@@ -67,7 +71,7 @@ def blastplot(blastfile, qsizes, ssizes, qbed, sbed, image_name,
 
     if sampleN:
         if len(data) > sampleN:
-            data = sample(dataN)
+            data = sample(data, sampleN)
 
     if not data:
         return logging.error("no blast data imported")
@@ -75,31 +79,35 @@ def blastplot(blastfile, qsizes, ssizes, qbed, sbed, image_name,
     xsize, ysize = qsizes.totalsize, ssizes.totalsize
     logging.debug("xsize=%d ysize=%d" % (xsize, ysize))
 
-    # Fix the width
-    ratio = 1
-    if proportional:
-        ratio = ysize * 1. / xsize
-    width = 8
-    height = width * ratio
-    fig = plt.figure(1, (width, height))
-    root = fig.add_axes([0, 0, 1, 1])  # the whole canvas
-    ax = fig.add_axes([.1, .1, .8, .8])  # the dot plot
-
-    if lines:
+    if style == "line":
         for a, b in data:
             ax.plot(a, b, 'ro-', mfc="w", mec="r", ms=3)
     else:
         data = [(x[0], y[0]) for x, y in data]
         x, y = zip(*data)
-        ax.scatter(x, y, s=2, lw=0)
+
+        if style == "circle":
+            ax.plot(x, y, 'ro', mfc="w", mec="r", ms=3)
+        elif style == "dot":
+            ax.scatter(x, y, s=3, lw=0)
 
     xlim = (0, xsize)
     ylim = (ysize, 0)  # invert the y-axis
 
     xchr_labels, ychr_labels = [], []
     ignore = True  # tag to mark whether to plot chr name (skip small ones)
-    ignore_size_x = xsize * .005
-    ignore_size_y = ysize * .005
+    ignore_size_x = xsize * .02
+    ignore_size_y = ysize * .02
+
+    def rename_seqid(seqid):
+        seqid = seqid.split("_")[-1]
+        seqid = seqid.replace("contig", "c").replace("scaffold", "s")
+        try:
+            seqid = int(seqid)
+            seqid = "c%d" % seqid
+        except:
+            pass
+        return seqid
 
     # plot the chromosome breaks
     logging.debug("adding query breaks (%d)" % len(qsizes))
@@ -107,53 +115,74 @@ def blastplot(blastfile, qsizes, ssizes, qbed, sbed, image_name,
         ignore = abs(end - beg) < ignore_size_x
         if ignore:
             continue
-        seqid = seqid.split("_")[-1]
-        try:
-            seqid = int(seqid)
-            seqid = "c%d" % seqid
-        except:
-            pass
+        seqid = rename_seqid(seqid)
 
         xchr_labels.append((seqid, (beg + end) / 2, ignore))
-        ax.plot([beg, beg], ylim, "g-", lw=1)
+        ax.plot([end, end], ylim, "k-", lw=1, alpha=.1)
 
     logging.debug("adding subject breaks (%d)" % len(ssizes))
     for (seqid, beg, end) in ssizes.get_breaks():
         ignore = abs(end - beg) < ignore_size_y
         if ignore:
             continue
-        seqid = seqid.split("_")[-1]
-        try:
-            seqid = int(seqid)
-            seqid = "c%d" % seqid
-        except:
-            pass
+        seqid = rename_seqid(seqid)
 
         ychr_labels.append((seqid, (beg + end) / 2, ignore))
-        ax.plot(xlim, [beg, beg], "g-", lw=1)
+        ax.plot(xlim, [end, end], "k-", lw=1, alpha=.1)
 
     # plot the chromosome labels
     for label, pos, ignore in xchr_labels:
-        pos = .1 + pos * .8 / xsize
         if not ignore:
-            root.text(pos, .91, _(label), color="b",
-                va="bottom", rotation=45)
+            if insetLabels:
+                ax.text(pos, 0, label, size=8, \
+                    ha="center", va="top", color="grey")
+            else:
+                pos = .1 + pos * .8 / xsize
+                root.text(pos, .03, label,
+                    ha="center", va="bottom", fontweight="semibold")
 
     # remember y labels are inverted
     for label, pos, ignore in ychr_labels:
-        pos = .9 - pos * .8 / ysize
         if not ignore:
-            root.text(.91, pos, _(label), color="b",
-                ha="left", va="center")
+            if insetLabels:
+                continue
+            pos = .9 - pos * .8 / ysize
+            root.text(.03, pos, label,
+                ha="left", va="center", rotation=90, fontweight="semibold")
+
+    if baseticks:
+
+        def increaseDensity(a, ratio=4):
+            assert len(a) > 1
+            stepsize = a[1] - a[0]
+            newstepsize = int(stepsize / ratio)
+            return np.arange(0, a[-1], newstepsize)
+
+        plt.rcParams["xtick.major.pad"] = 16
+        plt.rcParams["ytick.major.pad"] = 16
+        # Increase the density of the ticks
+        xticks = ax.get_xticks()
+        yticks = ax.get_yticks()
+        xticks = increaseDensity(xticks, ratio=2)
+        yticks = increaseDensity(yticks, ratio=2)
+        ax.set_xticks(xticks)
+        #ax.set_yticks(yticks)
+
+        # Plot outward ticklines
+        for pos in xticks[1:]:
+            if pos > xsize:
+                continue
+            pos = .1 + pos * .8 / xsize
+            root.plot((pos, pos), (.08, .1), '-', color="grey", lw=2)
+
+        for pos in yticks[1:]:
+            if pos > ysize:
+                continue
+            pos = .9 - pos * .8 / ysize
+            root.plot((.09, .1), (pos, pos), '-', color="grey", lw=2)
 
     ax.set_xlim(xlim)
     ax.set_ylim(ylim)
-
-    to_ax_label = lambda fname: _(op.basename(fname).split(".")[0])
-
-    # add genome names
-    ax.set_xlabel(to_ax_label(qsizes.filename), size=15)
-    ax.set_ylabel(to_ax_label(ssizes.filename), size=15)
 
     # beautify the numeric axis
     for tick in ax.get_xticklines() + ax.get_yticklines():
@@ -163,29 +192,27 @@ def blastplot(blastfile, qsizes, ssizes, qbed, sbed, image_name,
 
     plt.setp(ax.get_xticklabels() + ax.get_yticklabels(),
             color='gray', size=10)
-
-    root.set_xlim(0, 1)
-    root.set_ylim(0, 1)
-    root.set_axis_off()
-    logging.debug("print image to `{0}`".format(image_name))
-    plt.savefig(image_name, dpi=150)
+    plt.setp(ax.get_yticklabels(), rotation=90)
 
 
 if __name__ == "__main__":
 
     p = OptionParser(__doc__)
-    p.add_option("--qsizes", dest="qsizes",
-            help="path to two column qsizes file")
-    p.add_option("--ssizes", dest="ssizes",
-            help="path to two column ssizes file")
-    p.add_option("--qbed", dest="qbed", help="path to qbed")
-    p.add_option("--sbed", dest="sbed", help="path to sbed")
-    p.add_option("--lines", dest="lines", default=False, action="store_true",
+    p.add_option("--qsizes", help="path to two column qsizes file")
+    p.add_option("--ssizes", help="path to two column ssizes file")
+    p.add_option("--qbed", help="path to qbed")
+    p.add_option("--sbed", help="path to sbed")
+    p.add_option("--qselect", default=None, type="int",
+            help="minimum size of query contigs to select [default: default]")
+    p.add_option("--sselect", default=None, type="int",
+            help="minimum size of subject contigs to select [default: default]")
+    p.add_option("--lines", default=False, action="store_true",
             help="plot lines for anchors instead of points [default: points]")
-    p.add_option("--proportional", dest="proportional",
-            default=False, action="store_true",
+    p.add_option("--proportional", default=False, action="store_true",
             help="make the image width/height equal to seqlen ratio")
-    set_format(p, default="png")
+    p.add_option("--sample", default=None, type="int",
+            help="only plot a maximum of N dots [default: %default]")
+    set_format(p)
 
     opts, args = p.parse_args()
 
@@ -197,8 +224,8 @@ if __name__ == "__main__":
     if not (len(args) == 1 and qsizes and ssizes):
         sys.exit(p.print_help())
 
-    qsizes = Sizes(qsizes)
-    ssizes = Sizes(ssizes)
+    qsizes = Sizes(qsizes, select=opts.qselect)
+    ssizes = Sizes(ssizes, select=opts.sselect)
     if qbed:
         qbed = Bed(qbed)
     if sbed:
@@ -207,5 +234,32 @@ if __name__ == "__main__":
     blastfile, = args
 
     image_name = op.splitext(blastfile)[0] + "." + opts.format
-    blastplot(blastfile, qsizes, ssizes, qbed, sbed, image_name,
-            lines=lines, proportional=proportional)
+
+    # Fix the width
+    xsize, ysize = qsizes.totalsize, ssizes.totalsize
+
+    ratio = 1
+    if proportional:
+        ratio = ysize * 1. / xsize
+    width = 8
+    height = width * ratio
+    fig = plt.figure(1, (width, height))
+    root = fig.add_axes([0, 0, 1, 1])  # the whole canvas
+    ax = fig.add_axes([.1, .1, .8, .8])  # the dot plot
+
+    blastplot(ax, blastfile, qsizes, ssizes, qbed, sbed,
+            style="dot", proportional=proportional, sampleN=opts.sample,
+            baseticks=True)
+
+    # add genome names
+    to_ax_label = lambda fname: _(op.basename(fname).split(".")[0])
+    gx, gy = [to_ax_label(x.filename) for x in (qsizes, ssizes)]
+    root.text(.99, .01, gx, ha="right", color="grey")
+    root.text(.01, .99, gy, va="top", color="grey")
+
+    root.set_xlim(0, 1)
+    root.set_ylim(0, 1)
+    root.set_axis_off()
+    logging.debug("print image to `{0}`".format(image_name))
+    plt.savefig(image_name, dpi=150)
+    plt.rcdefaults()

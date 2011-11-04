@@ -134,9 +134,33 @@ def main():
         ('sort', 'sort bed file'),
         ('sum', 'sum the total lengths of the intervals'),
         ('pairs', 'print paired-end reads from bedfile'),
+        ('sizes', 'infer the sizes for each seqid'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def sizes(args):
+    """
+    %prog sizes bedfile
+
+    Infer the sizes for each seqid. Useful before dot plots.
+    """
+    p = OptionParser(sizes.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    bedfile, = args
+    sizesfile = bedfile.rsplit(".", 1)[0] + ".sizes"
+    fw = open(sizesfile, "w")
+
+    b = Bed(bedfile)
+    for s, sbeds in b.sub_beds():
+        print >> fw, "{0}\t{1}".format(s, max(x.end for x in sbeds))
+
+    logging.debug("Sizes file written to `{0}`.".format(sizesfile))
 
 
 def pairs(args):

@@ -15,59 +15,42 @@ from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
 
-def scaffolding(ax, scaffoldID, scafsize, bedf):
-    bed = list(bedf.sub_bed(scaffoldID))
-    # order of the seqids of query, reference is always scaffoldID
-    seen = set()
-    for b in bed:
-        accn = b.accn
-        if accn in seen:
-            continue
-        seen.add(accn)
+def scaffolding(ax, scaffoldID, blastf, qsizes, ssizes, qbed, sbed):
 
-    ctgIDs = dict((x, i + 1) for i, x in enumerate(seen))
-    data = []
-    for b in bed:
-        y = (b.start + b.end) / 2
-        x = ctgIDs[b.accn]
-        data.append((x, y))
+    from jcvi.graphics.blastplot import blastplot
 
-    x, y = zip(*data)
-    ax.plot(x, y, "k.", alpha=.75, ms=3)
-    xlim = len(ctgIDs) + 1
-    ylim = scafsize
-    ax.set_xlim(0, xlim)
-    ax.set_ylim(scafsize, 0)
+    # qsizes, qbed are properties for the evidences
+    # ssizes, sbed are properties for the current scaffoldID
+    blastplot(ax, blastf, qsizes, ssizes, qbed, sbed, \
+              style="circle", insetLabels=True)
 
     # FPC_scf.bed => FPC
-    fname = bedf.filename.split(".")[0].split("_")[0]
-    ctglabel = "contig" if fname == "FPC" else "scaffold"
-    xtitle = "Each position is one {0} {1}".format(fname, ctglabel)
+    fname = qbed.filename.split(".")[0].split("_")[0]
+    xtitle = fname
+    if xtitle == "FPC":
+        ax.set_xticklabels([""] * len(ax.get_xticklabels()))
     ax.set_xlabel(_(xtitle), color="g")
     for x in ax.get_xticklines():
         x.set_visible(False)
 
 
-def plot_one_scaffold(scaffoldID, scafsize, beds, imagename):
-    nbeds = len(beds)
-    fig = plt.figure(1, (9, 9))
+def plot_one_scaffold(scaffoldID, ssizes, sbed, trios, imagename):
+    ntrios = len(trios)
+    fig = plt.figure(1, (14, 8))
     plt.cla()
     plt.clf()
     root = fig.add_axes([0, 0, 1, 1])
-    axes = [fig.add_subplot(1, nbeds, x) for x in range(1, nbeds + 1)]
+    axes = [fig.add_subplot(1, ntrios, x) for x in range(1, ntrios + 1)]
+    scafsize = ssizes.get_size(scaffoldID)
 
     formatter = human_size_formatter
-    for bed, ax in zip(beds, axes):
-        bed = Bed(bed)
-        scaffolding(ax, scaffoldID, scafsize, bed)
-        ax.yaxis.set_major_formatter(formatter)
-        ax.set_xticklabels([])
+    for trio, ax in zip(trios, axes):
+        blastf, qsizes, qbed = trio
+        scaffolding(ax, scaffoldID, blastf, qsizes, ssizes, qbed, sbed)
 
     root.text(.5, .95, _("{0}   (size={1})".\
             format(scaffoldID, thousands(scafsize))),
             size=18, ha="center", color='b')
-    root.text(.5, .05, _("Look for vertical tracks"),
-            color="gray", ha="center")
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
     root.set_axis_off()
@@ -130,42 +113,54 @@ def bed(args):
 
 def plot(args):
     """
-    %prog plot scaffold.fasta synteny.bed physicalmap.bed
+    %prog plot scaffold.fasta synteny.blast synteny.sizes syteny.bed
+                         physicalmap.blast physicalmap.sizes physicalmap.bed
 
     As evaluation of scaffolding, visualize external line of evidences:
     * Plot synteny to an external genome
     * Plot alignments to physical map
     * Plot alignments to genetic map (TODO)
 
-    For example, `physicalmap.bed` can look like
-    scf7180014794474 104 104 ctg991
+    Each trio defines one panel to be plotted. blastfile defines the matchings
+    between the evidences vs scaffolds. Then the evidence sizes, and evidence
+    bed to plot dot plots.
 
-    and will plot a dot in the dot plot in the corresponding location
-    the plots are one contig/scaffold per plot, but descend down the list in
-    scaffolds.sizes, until the contig is smaller than the cutoff
+    This script will plot a dot in the dot plot in the corresponding location
+    the plots are one contig/scaffold per plot.
     """
     from jcvi.graphics.base import set_format
+    from jcvi.utils.iter import grouper
 
     p = OptionParser(plot.__doc__)
-    p.add_option("--cutoff", dest="cutoff", default=1000000,
+    p.add_option("--cutoff", type="int", default=1000000,
             help="plot for contigs and scaffolds > [default: %default]")
     set_format(p)
 
     opts, args = p.parse_args(args)
 
-    if len(args) < 3:
+    if len(args) < 4 or len(args) % 3 != 1:
         sys.exit(not p.print_help())
 
     scafsizes = Sizes(args[0])
-    beds = args[1:]
+    trios = list(grouper(3, args[1:]))
+    trios = [(a, Sizes(b), Bed(c)) for a, b, c in trios]
 
     for scaffoldID, scafsize in scafsizes.iter_sizes():
         if scafsize < opts.cutoff:
             continue
         logging.debug("Loading {0} (size={1})".format(scaffoldID,
             thousands(scafsize)))
+
+        tmpname = scaffoldID + ".sizes"
+        tmp = open(tmpname, "w")
+        tmp.write("{0}\t{1}".format(scaffoldID, scafsize))
+        tmp.close()
+
+        tmpsizes = Sizes(tmpname)
+        tmpsizes.close(clean=True)
+
         imagename = ".".join((scaffoldID, opts.format))
-        plot_one_scaffold(scaffoldID, scafsize, beds, imagename)
+        plot_one_scaffold(scaffoldID, tmpsizes, None, trios, imagename)
 
 
 if __name__ == '__main__':

@@ -426,6 +426,7 @@ def main():
         ('stats', 'print out a report for length of gaps and components'),
         ('phase', 'given genbank file, get the phase for the HTG BAC record'),
         ('bed', 'print out the tiling paths in bed format'),
+        ('extendbed', 'extend the components to fill the component range'),
         ('gaps', 'print out the distribution of gap sizes'),
         ('tpf', 'print out a list of accessions, aka Tiling Path File'),
         ('chr0', 'build AGP file for unplaced sequences'),
@@ -882,12 +883,12 @@ def bed(args):
     print out the tiling paths in bed format
     """
     p = OptionParser(bed.__doc__)
-    p.add_option("--gaps", dest="gaps", default=False, action="store_true",
-            help="only print bed lines for gaps")
-    p.add_option("--nogaps", dest="nogaps", default=False, action="store_true",
-            help="do not print bed lines for gaps")
-    p.add_option("--bed12", dest="bed12", default=False, action="store_true",
-            help="produce bed12 formatted output")
+    p.add_option("--gaps", default=False, action="store_true",
+            help="Only print bed lines for gaps [default: %default]")
+    p.add_option("--nogaps", default=False, action="store_true",
+            help="Do not print bed lines for gaps [default: %default]")
+    p.add_option("--bed12", default=False, action="store_true",
+            help="Produce bed12 formatted output [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -900,6 +901,61 @@ def bed(args):
             continue
         if opts.gaps and not a.is_gap:
             continue
+        if opts.bed12:
+            print a.bed12line
+        else:
+            print a.bedline
+
+
+def extendbed(args):
+    """
+    %prog extend agpfile componentfasta
+
+    Extend the components to fill the component range. For example, a bedfile
+    that was converted from the agp will contain only the BAC sequence intervals
+    that are 'represented' - sometimes leaving the 5` and 3` out (those that
+    overlap with adjacent sequences. This script fill up those ranges,
+    potentially to make graphics for tiling path.
+    """
+    from jcvi.formats.sizes import Sizes
+
+    p = OptionParser(extendbed.__doc__)
+    p.add_option("--bed12", default=False, action="store_true",
+            help="Produce bed12 formatted output [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    agpfile, fastafile = args
+    agp = AGP(agpfile)
+    ranges = defaultdict(list)
+    # Make the first pass to record all the component ranges
+    for a in agp:
+        if a.is_gap:
+            continue
+        ranges[a.component_id].append(a)
+
+    # Modify the ranges
+    sizes = Sizes(fastafile).mapping
+    for accn, rr in ranges.items():
+        alen = sizes[accn]
+
+        a = rr[0]
+        if a.orientation == "+":
+            hang = a.component_beg - 1
+        else:
+            hang = alen - a.component_end
+        a.object_beg -= hang
+
+        a = rr[-1]
+        if a.orientation == "+":
+            hang = alen - a.component_end
+        else:
+            hang = a.component_beg - 1
+        a.object_end += hang
+
+    for a in agp:
         if opts.bed12:
             print a.bed12line
         else:

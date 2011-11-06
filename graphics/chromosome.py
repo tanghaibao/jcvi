@@ -20,6 +20,7 @@ from jcvi.formats.bed import Bed
 from jcvi.graphics.base import plt, Rectangle, Polygon, \
         CirclePolygon, _, set_format
 
+
 al = .5
 z = 2
 
@@ -27,6 +28,29 @@ z = 2
 def plot_cap(center, t, r):
     x, y = center
     return zip(x + r * np.cos(t), y + r * np.sin(t))
+
+
+def canvas2px(coord, dmn, dpi):
+    """
+    Convert matplotlib canvas coordinate to pixels
+    """
+    return int(round(coord * dmn * dpi))
+
+
+def write_ImageMapLine(tlx, tly, brx, bry, w, h, dpi, chr, segment_start, segment_end):
+    """
+    Write out an image map area line with the coordinates passed to this
+    function
+    <area shape="rect" coords="tlx,tly,brx,bry" href="#chr7" title="chr7:100001..500001">
+    """
+    tlx, brx = [canvas2px(x, w, dpi) for x in (tlx, brx)]
+    tly, bry = [canvas2px(y, h, dpi) for y in (tly, bry)]
+    chr, bac_list = chr.split(':')
+    return '<area shape="rect" coords="' + \
+           ",".join(str(x) for x in (tlx, tly, brx, bry)) \
+           + '" href="#' + chr + '"' \
+           + ' title="' + chr + ':' + str(segment_start) + '..' + str(segment_end) + '"' \
+           + ' />'
 
 
 class Chromosome (object):
@@ -77,8 +101,17 @@ def main():
     p = OptionParser(main.__doc__)
     p.add_option("--title", default="Medicago truncatula v3.5",
             help="title of the image [default: `%default`]")
+    p.add_option("--dpi", default=300, type="int",
+            help="specify physical dot density (dots per inch) [default: %default]")
+    p.add_option("--figsize", default="6x6",
+            help="specify figure size `width`x`height` in inches [default: %default]")
     p.add_option("--gauge", default=False, action="store_true",
             help="draw a gauge with size label [default: %default]")
+    p.add_option("--imagemap", default=False, action="store_true",
+            help="generate an HTML image map associated with the image [default: %default]")
+    p.add_option("--winsize", default=50000, type="int",
+            help="if drawing an imagemap, specify the window size (bases) of each map element "
+                 "[default: %default bp]")
     set_format(p)
     opts, args = p.parse_args()
 
@@ -90,9 +123,16 @@ def main():
     if len(args) == 2:
         mappingfile = args[1]
     out_fmt = opts.format
+    w, h = [int(x) for x in opts.figsize.split('x')]
+    dpi = opts.dpi
+    winsize = opts.winsize
 
     prefix = bedfile.rsplit(".", 1)[0]
     figname = prefix + "." + out_fmt
+    if opts.imagemap:
+        imgmapfile = prefix + '.map'
+        mapfh = open(imgmapfile, "w")
+        print >> mapfh, '<map id="' + prefix + '">'
 
     if mappingfile:
         mappings = dict(x.split() for x in open(mappingfile))
@@ -127,7 +167,7 @@ def main():
     chr_number = len(chr_lens)
     assert chr_number == len(centromeres)
 
-    fig = plt.figure(1, (6, 6))
+    fig = plt.figure(1, (w, h))
     root = fig.add_axes([0, 0, 1, 1])
 
     r = .7  # width and height of the whole chromosome set
@@ -150,18 +190,57 @@ def main():
 
     alpha = .75
     # color the regions
-    for b in bed:
-        chr = b.seqid
-        clen = chr_lens[chr]
-        idx = chr_idxs[chr]
-        xx = xstart + idx * xinterval
-        start = b.start
-        end = b.end
-        klass = b.accn
-        yystart = ystart - end * ratio
-        yyend = ystart - start * ratio
-        root.add_patch(Rectangle((xx, yystart), xwidth, yyend - yystart,
-            fc=class_colors.get(klass, "w"), lw=0, alpha=alpha))
+    for chr in sorted(chr_lens.keys()):
+        segment_size, excess = 0, 0
+        bac_list = []
+        for b in bed.sub_bed(chr):
+            clen = chr_lens[chr]
+            idx = chr_idxs[chr]
+            klass = b.accn
+            start = b.start
+            end = b.end
+            xx = xstart + idx * xinterval
+            yystart = ystart - end * ratio
+            yyend = ystart - start * ratio
+            root.add_patch(Rectangle((xx, yystart), xwidth, yyend - yystart,
+                fc=class_colors.get(klass, "w"), lw=0, alpha=alpha))
+
+            if opts.imagemap:
+                """
+                `segment` : size of current BAC being investigated + `excess`
+                `excess`  : left-over bases from the previous BAC, as a result of
+                            iterating over `winsize` regions of `segment`
+                """
+                if excess == 0:
+                    segment_start = start
+                segment = (end - start + 1) + excess
+                while True:
+                    if segment < winsize:
+                        bac_list.append(b.accn)
+                        excess = segment
+                        break
+                    segment_end = segment_start + winsize - 1
+                    tlx, tly, brx, bry = xx, (1 - ystart) + segment_start * ratio, \
+                                  xx + xwidth, (1 - ystart) + segment_end * ratio
+                    print >> mapfh, '\t' + write_ImageMapLine(tlx, tly, brx, bry, \
+                            w, h, dpi, chr+":"+",".join(bac_list), segment_start, segment_end)
+
+                    segment_start += winsize
+                    segment -= winsize
+                    bac_list = []
+
+        if opts.imagemap and excess > 0:
+            bac_list.append(b.accn)
+            segment_end = end
+            tlx, tly, brx, bry = xx, (1 - ystart) + segment_start * ratio, \
+                          xx + xwidth, (1 - ystart) + segment_end * ratio
+            print >> mapfh, '\t' + write_ImageMapLine(tlx, tly, brx, bry, \
+                    w, h, dpi, chr+":"+",".join(bac_list), segment_start, segment_end)
+
+    if opts.imagemap:
+        print >> mapfh, '</map>'
+        mapfh.close()
+        logging.debug("Image map written to `{0}`".format(mapfh.name))
 
     if opts.gauge:
         tip = .008  # the ticks on the gauge bar
@@ -202,7 +281,7 @@ def main():
     root.set_ylim(0, 1)
     root.set_axis_off()
 
-    plt.savefig(figname, dpi=300)
+    plt.savefig(figname, dpi=dpi)
     logging.debug("Figure saved to `{0}`".format(figname))
 
 

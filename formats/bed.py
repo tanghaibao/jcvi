@@ -153,14 +153,19 @@ def sizes(args):
         sys.exit(not p.print_help())
 
     bedfile, = args
+    assert op.exists(bedfile)
+
     sizesfile = bedfile.rsplit(".", 1)[0] + ".sizes"
-    fw = open(sizesfile, "w")
 
-    b = Bed(bedfile)
-    for s, sbeds in b.sub_beds():
-        print >> fw, "{0}\t{1}".format(s, max(x.end for x in sbeds))
+    fw = must_open(sizesfile, "w", checkexists=True, skipcheck=True)
+    if fw:
+        b = Bed(bedfile)
+        for s, sbeds in b.sub_beds():
+            print >> fw, "{0}\t{1}".format(\
+                         s, max(x.end for x in sbeds))
+        logging.debug("Sizes file written to `{0}`.".format(sizesfile))
 
-    logging.debug("Sizes file written to `{0}`.".format(sizesfile))
+    return sizesfile
 
 
 def pairs(args):

@@ -159,15 +159,15 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax,
     for label, pos, ignore in xchr_labels:
         pos = .1 + pos * .8 / xsize
         if not ignore:
-            root.text(pos, .91, _(label), color="b",
-                va="bottom", rotation=45)
+            root.text(pos, .91, label,
+                ha="center", va="bottom", rotation=45, color="grey")
 
     # remember y labels are inverted
     for label, pos, ignore in ychr_labels:
         pos = .9 - pos * .8 / ysize
         if not ignore:
-            root.text(.91, pos, _(label), color="b",
-                ha="left", va="center")
+            root.text(.91, pos, label,
+                va="center", color="grey")
 
     # create a diagonal to separate mirror image for self comparison
     if is_self:
@@ -176,11 +176,11 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax,
     ax.set_xlim(xlim)
     ax.set_ylim(ylim)
 
-    to_ax_label = lambda fname: _(op.basename(fname).split(".")[0])
-
     # add genome names
-    ax.set_xlabel(to_ax_label(qbed.filename), size=15)
-    ax.set_ylabel(to_ax_label(sbed.filename), size=15)
+    to_ax_label = lambda fname: _(op.basename(fname).split(".")[0])
+    gx, gy = [to_ax_label(x.filename) for x in (qsizes, ssizes)]
+    ax.set_xlabel(gx, size=16)
+    ax.set_ylabel(gy, size=16)
 
     # beautify the numeric axis
     for tick in ax.get_xticklines() + ax.get_yticklines():

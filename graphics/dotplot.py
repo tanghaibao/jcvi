@@ -11,6 +11,8 @@ indicating gene pairs, followed by an optional column (e.g. Ks value)
 import os.path as op
 import sys
 import logging
+
+import numpy as np
 from random import sample
 from itertools import groupby
 from optparse import OptionParser
@@ -65,7 +67,7 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax,
     sorder = sbed.order
 
     data = []
-    logging.debug("normalize the values to [%.1f, %.1f]" % (vmin, vmax))
+    logging.debug("Normalize values to [%.1f, %.1f]" % (vmin, vmax))
 
     for row in fp:
         atoms = row.split()
@@ -73,7 +75,7 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax,
         if len(atoms) < 2:
             continue
         query, subject = atoms[:2]
-        value = atoms[3] if cmap_text else vmin
+        value = atoms[-1] if cmap_text else vmin
 
         try:
             value = float(value)
@@ -178,7 +180,7 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax,
 
     # add genome names
     to_ax_label = lambda fname: _(op.basename(fname).split(".")[0])
-    gx, gy = [to_ax_label(x.filename) for x in (qsizes, ssizes)]
+    gx, gy = [to_ax_label(x.filename) for x in (qbed, sbed)]
     ax.set_xlabel(gx, size=16)
     ax.set_ylabel(gy, size=16)
 
@@ -194,26 +196,25 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax,
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
     root.set_axis_off()
-    logging.debug("print image to %s" % image_name)
+    logging.debug("Print image to `%s`" % image_name)
     plt.savefig(image_name, dpi=150)
 
 
 if __name__ == "__main__":
 
     p = OptionParser(__doc__)
-    p.add_option("--qbed", dest="qbed", help="path to qbed")
-    p.add_option("--sbed", dest="sbed", help="path to sbed")
-    p.add_option("--synteny", dest="synteny",
-            default=False, action="store_true",
-            help="run a fast synteny scan and display synteny blocks")
-    p.add_option("--cmap", dest="cmap",
-            default="Synonymous substitutions (Ks)",
-            help="draw a colormap box on the bottom-left corner")
+    p.add_option("--qbed", help="Path to qbed")
+    p.add_option("--sbed", help="Path to sbed")
+    p.add_option("--synteny", default=False, action="store_true",
+            help="Run a fast synteny scan and display blocks [default: %default]")
+    p.add_option("--cmap", default="Synonymous substitutions (Ks)",
+            help="Draw colormap box on the bottom-left corner "
+                 "[default: `%default`]")
     p.add_option("--vmin", dest="vmin", type="float", default=0,
-            help="minimum value (in the colormap of dots) [default: %default]")
+            help="Minimum value in the colormap [default: %default]")
     p.add_option("--vmax", dest="vmax", type="float", default=1,
-            help="maximum value (in the colormap of dots) [default: %default]")
-    set_format(p, default="png")
+            help="Maximum value in the colormap [default: %default]")
+    set_format(p, default="pdf")
 
     opts, args = p.parse_args()
 

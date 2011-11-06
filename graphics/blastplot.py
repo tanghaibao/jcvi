@@ -25,7 +25,7 @@ from jcvi.formats.sizes import Sizes
 from jcvi.formats.bed import Bed
 from jcvi.apps.base import debug
 from jcvi.graphics.base import plt, ticker, Rectangle, cm, _, \
-        set_human_axis, set_format
+        set_human_base_axis, set_format
 debug()
 
 
@@ -195,7 +195,7 @@ def blastplot(ax, blastfile, qsizes, ssizes, qbed, sbed,
     for tick in ax.get_xticklines() + ax.get_yticklines():
         tick.set_visible(False)
 
-    set_human_axis(ax)
+    set_human_base_axis(ax)
 
     plt.setp(ax.get_xticklabels() + ax.get_yticklabels(),
             color='gray', size=10)

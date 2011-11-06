@@ -18,15 +18,20 @@ from jcvi.apps.console import dark, green
 _ = lambda x: r"$\mathsf{%s}$" % str(x).replace("_", " ").replace(" ", r"\ ")
 
 # human readable size (Kb, Mb, Gb)
-def human_readable(x, pos):
+def human_readable(x, pos, base=False):
     x = str(int(x))
     if x.endswith("000000"):
-        x = x[:-6] + "Mb"
+        x = x[:-6] + "M"
     elif x.endswith("000"):
-        x = x[:-3] + "Kb"
+        x = x[:-3] + "K"
+    if base:
+        x += "b"
     return _(x)
 
-human_size_formatter = ticker.FuncFormatter(human_readable)
+
+human_readable_base = partial(human_readable, base=True)
+human_formatter = ticker.FuncFormatter(human_readable)
+human_base_formatter = ticker.FuncFormatter(human_readable_base)
 tex_formatter = ticker.FuncFormatter(lambda x, pos: _(str(int(x))))
 
 
@@ -34,7 +39,9 @@ def set_tex_axis(ax, formatter=tex_formatter):
     ax.xaxis.set_major_formatter(formatter)
     ax.yaxis.set_major_formatter(formatter)
 
-set_human_axis = partial(set_tex_axis, formatter=human_size_formatter)
+
+set_human_axis = partial(set_tex_axis, formatter=human_formatter)
+set_human_base_axis = partial(set_tex_axis, formatter=human_base_formatter)
 
 
 def set_format(instance, default="pdf"):

@@ -264,37 +264,64 @@ def main():
 
 def run(args):
     """
-    find . -type f | %prog run "command *"
+    %prog run command ::: file1 file2
 
-    run a normal command on grid, the input file will be sent to command. This
-    is useful for commands that takes single input file. Most often command
-    needs to be quoted.
+    Parallelize a set of commands on grid. The syntax is modeled after GNU
+    parallel <http://www.gnu.org/s/parallel/man.html#options>
+
+    {}   - input line
+    {.}  - input line without extension
+    {/}  - basename of input line
+    {/.} - basename of input line without extension
+    {#}  - sequence number of job to run
+    :::  - Use arguments from the command line as input source instead of stdin
+    (standard input).
+
+    A few examples:
+    ls -1 *.fastq | %prog run process {} {.}.pdf  # use stdin
+    %prog run process {} {.}.pdf ::: *fastq  # use :::
+    %prog run "zcat {} >{.}" ::: *.gz  # quote redirection
     """
     p = OptionParser(run.__doc__)
 
-    if len(args) != 1:
-        sys.exit(p.print_help())
+    if len(args) == 0:
+        sys.exit(not p.print_help())
 
-    cmd = args[0]
-    fp = sys.stdin
+    sep = ":::"
+    if sep in args:
+        sepidx = args.index(sep)
+        filenames = args[sepidx + 1:]
+        args = args[:sepidx]
+        assert filenames, "No input files"
+    else:
+        filenames = sys.stdin
 
-    for row in fp:
-        filename = row.strip()
-        # For simple command (no space), there is no need to quote
-        # - here are the shortcuts we use
-        # `*` is the filename replacement
-        # `#` is the basename replacement
-        # ls -1 test.trimmed.fastq | grid run "process * #.pdf"
-        # is equivalent to "process test.trimmed.fastq test.pdf"
+    assert args, "Command empty"
+    cmd = " ".join(args)
 
-        basename = filename.split(".")[0]
-        if " " not in cmd:
-            ncmd = " ".join((cmd, filename))
+    for i, filename in enumerate(filenames):
+        filename = filename.strip()
+        noextname = filename.rsplit(".", 1)[0]
+        basename = op.basename(filename)
+        basenoextname = basename.rsplit(".", 1)[0]
+        ncmd = cmd
+
+        if "{}" in ncmd:
+            ncmd = ncmd.replace("{}", filename)
         else:
-            ncmd = cmd.replace("*", filename)
-            ncmd = ncmd.replace("#", basename)
+            ncmd += " " + filename
 
-        p = GridProcess(ncmd)
+        ncmd = ncmd.replace("{.}", noextname)
+        ncmd = ncmd.replace("{/}", basename)
+        ncmd = ncmd.replace("{/.}", basenoextname)
+        ncmd = ncmd.replace("{#}", str(i))
+
+        outfile = None
+        if ">" in ncmd:
+            ncmd, outfile = ncmd.split(">", 1)
+            ncmd, outfile = ncmd.strip(), outfile.strip()
+
+        p = GridProcess(ncmd, outfile=outfile)
         p.start(path=None)  # current folder
 
 

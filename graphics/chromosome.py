@@ -18,11 +18,7 @@ import numpy as np
 
 from jcvi.formats.bed import Bed
 from jcvi.graphics.base import plt, Rectangle, Polygon, \
-        CirclePolygon, _, set_format
-
-
-al = .5
-z = 2
+        CirclePolygon, _, set_image_options
 
 
 def plot_cap(center, t, r):
@@ -54,7 +50,7 @@ def write_ImageMapLine(tlx, tly, brx, bry, w, h, dpi, chr, segment_start, segmen
 
 
 class Chromosome (object):
-    def __init__(self, ax, x, y1, y2, width=.015, cl="k", zorder=z):
+    def __init__(self, ax, x, y1, y2, width=.015, cl="k", zorder=2):
         """
         Chromosome with positions given in (x, y1) => (x, y2)
         """
@@ -64,11 +60,11 @@ class Chromosome (object):
         pts += [[x - r, y1 - r], [x - r, y2 + r]]
         pts += plot_cap((x, y2 + r), np.radians(range(180, 360)), r)
         pts += [[x + r, y2 + r], [x + r, y1 - r]]
-        ax.add_patch(Polygon(pts, fc=cl, fill=False, zorder=z))
+        ax.add_patch(Polygon(pts, fc=cl, fill=False, zorder=zorder))
 
 
 class ChromsomeWithCentromere (object):
-    def __init__(self, ax, x, y1, y2, y3, width=.015, cl="k", zorder=z):
+    def __init__(self, ax, x, y1, y2, y3, width=.015, cl="k", zorder=2):
         """
         Chromosome with centromeres at y2 position
         """
@@ -78,15 +74,15 @@ class ChromsomeWithCentromere (object):
         pts += [[x - r, y1 - r], [x - r, y2 + r]]
         pts += plot_cap((x, y2 + r), np.radians(range(180, 360)), r)
         pts += [[x + r, y2 + r], [x + r, y1 - r]]
-        ax.add_patch(Polygon(pts, fc=cl, fill=False, zorder=z))
+        ax.add_patch(Polygon(pts, fc=cl, fill=False, zorder=zorder))
         pts = []
         pts += plot_cap((x, y2 - r), np.radians(range(180)), r)
         pts += [[x - r, y2 - r], [x - r, y3 + r]]
         pts += plot_cap((x, y3 + r), np.radians(range(180, 360)), r)
         pts += [[x + r, y3 + r], [x + r, y2 - r]]
-        ax.add_patch(Polygon(pts, fc=cl, fill=False, zorder=z))
+        ax.add_patch(Polygon(pts, fc=cl, fill=False, zorder=zorder))
         ax.add_patch(CirclePolygon((x, y2), radius=r * .5,
-            fc="k", ec="k", zorder=z))
+            fc="k", ec="k", zorder=zorder))
 
 
 def main():
@@ -101,10 +97,6 @@ def main():
     p = OptionParser(main.__doc__)
     p.add_option("--title", default="Medicago truncatula v3.5",
             help="title of the image [default: `%default`]")
-    p.add_option("--dpi", default=300, type="int",
-            help="specify physical dot density (dots per inch) [default: %default]")
-    p.add_option("--figsize", default="6x6",
-            help="specify figure size `width`x`height` in inches [default: %default]")
     p.add_option("--gauge", default=False, action="store_true",
             help="draw a gauge with size label [default: %default]")
     p.add_option("--imagemap", default=False, action="store_true",
@@ -112,8 +104,7 @@ def main():
     p.add_option("--winsize", default=50000, type="int",
             help="if drawing an imagemap, specify the window size (bases) of each map element "
                  "[default: %default bp]")
-    set_format(p)
-    opts, args = p.parse_args()
+    opts, args, iopts = set_image_options(p, figsize="6x6", dpi=300)
 
     if len(args) not in (1, 2):
         sys.exit(p.print_help())
@@ -122,14 +113,15 @@ def main():
     mappingfile = None
     if len(args) == 2:
         mappingfile = args[1]
-    out_fmt = opts.format
-    w, h = [int(x) for x in opts.figsize.split('x')]
-    dpi = opts.dpi
+
     winsize = opts.winsize
+    imagemap = opts.imagemap
+    w, h = iopts.w, iopts.h
+    dpi = iopts.dpi
 
     prefix = bedfile.rsplit(".", 1)[0]
-    figname = prefix + "." + out_fmt
-    if opts.imagemap:
+    figname = prefix + "." + opts.format
+    if imagemap:
         imgmapfile = prefix + '.map'
         mapfh = open(imgmapfile, "w")
         print >> mapfh, '<map id="' + prefix + '">'
@@ -184,7 +176,7 @@ def main():
         yy = ystart - cent_position * ratio
         root.text(xx, ystart + .01, _(chr), ha="center")
         ChromsomeWithCentromere(root, xx, ystart, yy,
-                ystart - clen * ratio, width=xwidth, zorder=z)
+                ystart - clen * ratio, width=xwidth)
 
     chr_idxs = dict((a, i) for i, a in enumerate(sorted(chr_lens.keys())))
 
@@ -205,7 +197,7 @@ def main():
             root.add_patch(Rectangle((xx, yystart), xwidth, yyend - yystart,
                 fc=class_colors.get(klass, "w"), lw=0, alpha=alpha))
 
-            if opts.imagemap:
+            if imagemap:
                 """
                 `segment` : size of current BAC being investigated + `excess`
                 `excess`  : left-over bases from the previous BAC, as a result of
@@ -229,7 +221,7 @@ def main():
                     segment -= winsize
                     bac_list = []
 
-        if opts.imagemap and excess > 0:
+        if imagemap and excess > 0:
             bac_list.append(b.accn)
             segment_end = end
             tlx, tly, brx, bry = xx, (1 - ystart) + segment_start * ratio, \
@@ -237,7 +229,7 @@ def main():
             print >> mapfh, '\t' + write_ImageMapLine(tlx, tly, brx, bry, \
                     w, h, dpi, chr+":"+",".join(bac_list), segment_start, segment_end)
 
-    if opts.imagemap:
+    if imagemap:
         print >> mapfh, '</map>'
         mapfh.close()
         logging.debug("Image map written to `{0}`".format(mapfh.name))
@@ -274,15 +266,14 @@ def main():
         root.text(xstart + xwidth + .01, yy, _(klass), fontsize=9)
         xstart += xinterval
 
-    label = opts.title
-    root.text(.5, .95, label, fontstyle="italic", ha="center", va="center")
+    root.text(.5, .95, opts.title, fontstyle="italic", ha="center", va="center")
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
     root.set_axis_off()
 
     plt.savefig(figname, dpi=dpi)
-    logging.debug("Figure saved to `{0}`".format(figname))
+    logging.debug("Figure saved to `{0}` {1}".format(figname, iopts))
 
 
 if __name__ == '__main__':

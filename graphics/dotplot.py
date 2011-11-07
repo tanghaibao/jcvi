@@ -21,7 +21,7 @@ from jcvi.formats.bed import Bed
 from jcvi.algorithms.synteny import batch_scan
 from jcvi.apps.base import debug
 from jcvi.graphics.base import plt, ticker, Rectangle, cm, _, \
-        set_human_axis, set_format
+        set_human_axis, set_image_options
 debug()
 
 
@@ -58,7 +58,7 @@ def draw_cmap(ax, cmap_text, vmin, vmax, cmap=None, reverse=False):
         ax.text(x, ymin - .005, _("%.1f" % v), ha="center", va="top", size=10)
 
 
-def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax,
+def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts,
         is_self=False, synteny=False, cmap_text=None):
 
     fp = open(anchorfile)
@@ -96,9 +96,13 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax,
 
         qi, q = qorder[query]
         si, s = sorder[subject]
-        data.append((qi, si, vmax - value))
 
-    fig = plt.figure(1, (8, 8))
+        nv = vmax - value
+        data.append((qi, si, nv))
+        if is_self:  # Mirror image
+            data.append((si, qi, nv))
+
+    fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])  # the whole canvas
     ax = fig.add_axes([.1, .1, .8, .8])  # the dot plot
 
@@ -173,7 +177,7 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax,
 
     # create a diagonal to separate mirror image for self comparison
     if is_self:
-        ax.plot(xlim, ylim, 'm-', alpha=.5, lw=2)
+        ax.plot(xlim, (0, ysize), 'm-', alpha=.5, lw=2)
 
     ax.set_xlim(xlim)
     ax.set_ylim(ylim)
@@ -196,8 +200,8 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax,
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
     root.set_axis_off()
-    logging.debug("Print image to `%s`" % image_name)
-    plt.savefig(image_name, dpi=150)
+    logging.debug("Print image to `{0}` {1}".format(image_name, iopts))
+    plt.savefig(image_name, dpi=iopts.dpi)
 
 
 if __name__ == "__main__":
@@ -214,18 +218,13 @@ if __name__ == "__main__":
             help="Minimum value in the colormap [default: %default]")
     p.add_option("--vmax", dest="vmax", type="float", default=1,
             help="Maximum value in the colormap [default: %default]")
-    set_format(p, default="pdf")
-
-    opts, args = p.parse_args()
+    opts, args, iopts = set_image_options(p, figsize="8x8", dpi=90)
 
     qbed, sbed = opts.qbed, opts.sbed
     if not (len(args) == 1 and qbed and sbed):
         sys.exit(p.print_help())
 
-    is_self = False
-    if qbed == sbed:
-        print >>sys.stderr, "Looks like this is self-self comparison"
-        is_self = True
+    is_self = (qbed == sbed)
 
     qbed = Bed(qbed)
     sbed = Bed(sbed)
@@ -236,5 +235,5 @@ if __name__ == "__main__":
     anchorfile = args[0]
 
     image_name = op.splitext(anchorfile)[0] + "." + opts.format
-    dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax,
+    dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts,
             is_self=is_self, synteny=synteny, cmap_text=cmap_text)

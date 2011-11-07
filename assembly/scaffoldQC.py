@@ -9,7 +9,7 @@ from optparse import OptionParser
 from jcvi.formats.blast import Blast
 from jcvi.formats.bed import Bed, BedLine
 from jcvi.formats.sizes import Sizes
-from jcvi.graphics.base import plt, Rectangle, _, human_size_formatter
+from jcvi.graphics.base import plt, Rectangle, _
 from jcvi.utils.cbook import thousands
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
@@ -34,7 +34,7 @@ def scaffolding(ax, scaffoldID, blastf, qsizes, ssizes, qbed, sbed):
         x.set_visible(False)
 
 
-def plot_one_scaffold(scaffoldID, ssizes, sbed, trios, imagename):
+def plot_one_scaffold(scaffoldID, ssizes, sbed, trios, imagename, iopts):
     ntrios = len(trios)
     fig = plt.figure(1, (14, 8))
     plt.cla()
@@ -43,7 +43,6 @@ def plot_one_scaffold(scaffoldID, ssizes, sbed, trios, imagename):
     axes = [fig.add_subplot(1, ntrios, x) for x in range(1, ntrios + 1)]
     scafsize = ssizes.get_size(scaffoldID)
 
-    formatter = human_size_formatter
     for trio, ax in zip(trios, axes):
         blastf, qsizes, qbed = trio
         scaffolding(ax, scaffoldID, blastf, qsizes, ssizes, qbed, sbed)
@@ -55,8 +54,8 @@ def plot_one_scaffold(scaffoldID, ssizes, sbed, trios, imagename):
     root.set_ylim(0, 1)
     root.set_axis_off()
 
-    plt.savefig(imagename, dpi=150)
-    logging.debug("saving image to `{0}`".format(imagename))
+    plt.savefig(imagename, dpi=iopts.dpi)
+    logging.debug("Print image to `{0}` {1}".format(imagename, iopts))
 
 
 def main():
@@ -128,15 +127,13 @@ def plot(args):
     This script will plot a dot in the dot plot in the corresponding location
     the plots are one contig/scaffold per plot.
     """
-    from jcvi.graphics.base import set_format
+    from jcvi.graphics.base import set_image_options
     from jcvi.utils.iter import grouper
 
     p = OptionParser(plot.__doc__)
     p.add_option("--cutoff", type="int", default=1000000,
-            help="plot for contigs and scaffolds > [default: %default]")
-    set_format(p)
-
-    opts, args = p.parse_args(args)
+            help="Plot scaffolds with size larger than [default: %default]")
+    opts, args, iopts = set_image_options(p, args, figsize="14x8", dpi=150)
 
     if len(args) < 4 or len(args) % 3 != 1:
         sys.exit(not p.print_help())
@@ -160,7 +157,7 @@ def plot(args):
         tmpsizes.close(clean=True)
 
         imagename = ".".join((scaffoldID, opts.format))
-        plot_one_scaffold(scaffoldID, tmpsizes, None, trios, imagename)
+        plot_one_scaffold(scaffoldID, tmpsizes, None, trios, imagename, iopts)
 
 
 if __name__ == '__main__':

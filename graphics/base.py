@@ -17,6 +17,18 @@ from jcvi.apps.console import dark, green
 # i always like the latex font
 _ = lambda x: r"$\mathsf{%s}$" % str(x).replace("_", " ").replace(" ", r"\ ")
 
+
+class ImageOptions (object):
+
+    def __init__(self, opts):
+        self.w, self.h = [int(x) for x in opts.figsize.split('x')]
+        self.dpi = opts.dpi
+        self.format = opts.format
+
+    def __str__(self):
+        return "({0}px x {1}px)".format(self.dpi * self.w, self.dpi * self.h)
+
+
 # human readable size (Kb, Mb, Gb)
 def human_readable(x, pos, base=False):
     x = str(int(x))
@@ -24,7 +36,7 @@ def human_readable(x, pos, base=False):
         x = x[:-6] + "M"
     elif x.endswith("000"):
         x = x[:-3] + "K"
-    if base:
+    if base and x[-1] in "MK":
         x += "b"
     return _(x)
 
@@ -44,19 +56,34 @@ set_human_axis = partial(set_tex_axis, formatter=human_formatter)
 set_human_base_axis = partial(set_tex_axis, formatter=human_base_formatter)
 
 
-def set_format(instance, default="pdf"):
+def set_image_options(instance, args=None, figsize="6x6", dpi=300, format="pdf"):
     """
     Add image format options for given command line programs.
     """
-    from optparse import OptionParser
+    from optparse import OptionParser, OptionGroup
     assert isinstance(instance, OptionParser)
 
     allowed_format = ("emf", "eps", "pdf", "png", "ps", \
                       "raw", "rgba", "svg", "svgz")
 
-    instance.add_option("--format", default=default, choices=allowed_format,
+    group = OptionGroup(instance, "Image options")
+    instance.add_option_group(group)
+
+    group.add_option("--figsize", default=figsize,
+            help="Figure size `width`x`height` in inches [default: %default]")
+    group.add_option("--dpi", default=dpi, type="int",
+            help="Physical dot density (dots per inch) [default: %default]")
+    group.add_option("--format", default=format, choices=allowed_format,
             help="Generate image of format, must be one of {0}".\
             format("|".join(allowed_format)) + " [default: %default]")
+
+    args = args or sys.argv[1:]
+    opts, args = instance.parse_args(args)
+
+    assert opts.dpi > 0
+    assert "x" in opts.figsize
+
+    return opts, args, ImageOptions(opts)
 
 
 def asciiaxis(x, digit=1):

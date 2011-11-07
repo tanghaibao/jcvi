@@ -25,7 +25,7 @@ from jcvi.formats.sizes import Sizes
 from jcvi.formats.bed import Bed
 from jcvi.apps.base import debug
 from jcvi.graphics.base import plt, ticker, Rectangle, cm, _, \
-        set_human_base_axis, set_format
+        set_human_base_axis, set_image_options
 debug()
 
 
@@ -120,7 +120,7 @@ def blastplot(ax, blastfile, qsizes, ssizes, qbed, sbed,
         return seqid
 
     # plot the chromosome breaks
-    logging.debug("Add query breaks ({0})".format(len(qsizes)))
+    logging.debug("xbreaks={0} ybreaks={1}".format(len(qsizes), len(ssizes)))
     for (seqid, beg, end) in qsizes.get_breaks():
         ignore = abs(end - beg) < ignore_size_x
         if ignore:
@@ -130,7 +130,6 @@ def blastplot(ax, blastfile, qsizes, ssizes, qbed, sbed,
         xchr_labels.append((seqid, (beg + end) / 2, ignore))
         ax.plot([end, end], ylim, "-", lw=1, color="grey")
 
-    logging.debug("Add subject breaks ({0})".format(len(ssizes)))
     for (seqid, beg, end) in ssizes.get_breaks():
         ignore = abs(end - beg) < ignore_size_y
         if ignore:
@@ -224,9 +223,7 @@ if __name__ == "__main__":
             help="Remove trailing .? from gene names [default: %default]")
     p.add_option("--sample", default=None, type="int",
             help="Only plot maximum of N dots [default: %default]")
-    set_format(p)
-
-    opts, args = p.parse_args()
+    opts, args, iopts = set_image_options(p, figsize="8x8", dpi=150)
 
     qsizes, ssizes = opts.qsizes, opts.ssizes
     qbed, sbed = opts.qbed, opts.sbed
@@ -258,8 +255,8 @@ if __name__ == "__main__":
     xsize, ysize = qsizes.totalsize, ssizes.totalsize
 
     ratio = ysize * 1. / xsize if proportional else 1
-    width = 8
-    height = width * ratio
+    width = iopts.w
+    height = iopts.h * ratio
     fig = plt.figure(1, (width, height))
     root = fig.add_axes([0, 0, 1, 1])  # the whole canvas
     ax = fig.add_axes([.1, .1, .8, .8])  # the dot plot
@@ -277,6 +274,6 @@ if __name__ == "__main__":
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
     root.set_axis_off()
-    logging.debug("Print image to `{0}`".format(image_name))
-    plt.savefig(image_name, dpi=150)
+    logging.debug("Print image to `{0}` {1}".format(image_name, iopts))
+    plt.savefig(image_name, dpi=iopts.dpi)
     plt.rcdefaults()

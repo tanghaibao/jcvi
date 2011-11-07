@@ -43,13 +43,18 @@ class GffLine (object):
         assert self.phase in Valid_phases, \
                 "phase must be one of %s" % Valid_phases
         self.attributes_text = args[8].strip()
-        gff3 = "=" in self.attributes_text and "; " not in self.attributes_text
+        gff3 = "=" in self.attributes_text
         self.attributes = make_attributes(self.attributes_text, gff3=gff3)
         # key is not in the gff3 field, this indicates the conversion to accn
         self.key = key  # usually it's `ID=xxxxx;`
 
     def __getitem__(self, key):
         return getattr(self, key)
+
+    def __str__(self):
+        return "\t".join(str(x) for x in (self.seqid, self.source, self.type,
+                self.start, self.end, self.score, self.strand, self.phase,
+                self.attributes_text))
 
     @property
     def accn(self):
@@ -72,9 +77,12 @@ class Gff (LineFile):
 
         fp = open(filename)
         for row in fp:
+            row = row.strip()
             if row[0] == '#':
-                if row.strip() == FastaTag:
+                if row == FastaTag:
                     break
+                continue
+            if row.strip() == "":
                 continue
             self.append(GffLine(row))
 
@@ -109,6 +117,7 @@ def main():
     actions = (
         ('bed', 'parse gff and produce bed file for particular feature type'),
         ('bed12', 'produce bed12 file for coding features'),
+        ('gtf', 'convert to gtf format'),
         ('script', 'parse gmap gff and produce script for sim4db to refine'),
         ('note', 'extract certain attribute field for each feature'),
         ('load', 'extract the feature (e.g. CDS) sequences and concatenate'),
@@ -119,6 +128,52 @@ def main():
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def gtf(args):
+    """
+    %prog gtf gffile
+
+    Convert gff to gtf file. In gtf, only exon/CDS features are important. The
+    first 8 columns are the same as gff, but in the attributes field, we need to
+    specify "gene_id" and "transcript_id".
+    """
+    p = OptionParser(gtf.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    gffile, = args
+    gff = Gff(gffile)
+    transcript_to_gene = {}
+    for g in gff:
+        if g.type == "mRNA":
+            try:
+                transcript_id = g.attributes["ID"][0]
+                gene_id = g.attributes["Parent"][0]
+            except IndexError:
+                transcript_id = g.attributes["mRNA"][0]
+                gene_id = g.attributes["Gene"][0]
+            transcript_to_gene[transcript_id] = gene_id
+            continue
+
+        if g.type not in ("CDS", "exon", "start_codon", "stop_codon"):
+            continue
+
+        try:
+            transcript_id = g.attributes["Parent"] [0]
+        except IndexError:
+            transcript_id = g.attributes["mRNA"][0]
+
+        transcript_id = transcript_id.split(",")  # Muliple parents
+        for tid in transcript_id:
+            gene_id = transcript_to_gene[tid]
+
+            g.attributes_text = "; ".join('{0} "{1}"'.format(a, b) for a, b in \
+                    zip(("gene_id", "transcript_id"), (gene_id, tid)))
+            g.attributes_text += ";"
+            print g
 
 
 def merge(args):
@@ -188,6 +243,8 @@ def extract(args):
     fw = must_open(outfile, "w")
     for row in fp:
         atoms = row.split()
+        if len(atoms) == 0:
+            continue
         tag = atoms[0]
         if row[0] == "#":
             if not (tag == RegionTag and atoms[1] not in contigID):

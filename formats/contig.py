@@ -11,6 +11,7 @@ import sys
 import logging
 
 from optparse import OptionParser
+from collections import defaultdict
 
 from jcvi.formats.base import BaseFile, read_block
 from jcvi.apps.base import ActionDispatcher, debug
@@ -82,10 +83,64 @@ def main():
 
     actions = (
         ('bed', 'convert read membership to bed format'),
+        ('frombed', 'convert read placement to contig format'),
             )
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def frombed(args):
+    """
+    %prog frombed bedfile contigfasta readfasta
+
+    Convert read placement to contig format. This is most useful before running
+    BAMBUS. In addition to .contig file, also generates .mates file.
+    """
+    from jcvi.formats.fasta import Fasta
+    from jcvi.formats.bed import Bed
+    from jcvi.utils.cbook import fill
+
+    p = OptionParser(frombed.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    bedfile, contigfasta, readfasta = args
+    prefix = bedfile.rsplit(".", 1)[0]
+    contigfile = prefix + ".contig"
+
+    contigfasta = Fasta(contigfasta)
+    readfasta = Fasta(readfasta)
+
+    bed = Bed(bedfile)
+    checksum = "00000000 checksum."
+    fw = open(contigfile, "w")
+    for ctg, reads in bed.sub_beds():
+        ctgseq = contigfasta[ctg]
+        ctgline = "##{0} {1} {2} bases, {3}".format(\
+                ctg, len(reads), len(ctgseq), checksum)
+        print >> fw, ctgline
+        print >> fw, fill(ctgseq.seq)
+        for b in reads:
+            read = b.accn
+            strand = b.strand
+            readseq = readfasta[read]
+            rc = " [RC]" if strand == "-" else ""
+            readlen = len(readseq)
+            rstart, rend = 1, readlen
+            if strand == "-":
+                rstart, rend = rend, rstart
+
+            readrange = "{{{0} {1}}}".format(rstart, rend)
+            conrange = "<{0} {1}>".format(b.start, b.end)
+            readline = "#{0}(0){1} {2} bases, {3} {4} {5}".format(\
+                    read, rc, readlen, checksum, readrange, conrange)
+            print >> fw, readline
+            print >> fw, fill(readseq.seq)
+
+    matesfile = prefix + ".mates"
 
 
 def bed(args):

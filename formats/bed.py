@@ -7,6 +7,7 @@ import sys
 import shutil
 import logging
 
+from itertools import groupby
 from optparse import OptionParser
 
 from jcvi.formats.base import LineFile, must_open
@@ -133,7 +134,8 @@ def main():
     actions = (
         ('sort', 'sort bed file'),
         ('sum', 'sum the total lengths of the intervals'),
-        ('pairs', 'print paired-end reads from bedfile'),
+        ('pairs', 'estimate insert size between paired reads from bedfile'),
+        ('mates', 'print paired reads from bedfile'),
         ('sizes', 'infer the sizes for each seqid'),
             )
     p = ActionDispatcher(actions)
@@ -253,6 +255,57 @@ def sort(args):
     sh(cmd)
 
     return sortedbed
+
+
+def mates(args):
+    """
+    %prog mates bedfile
+
+    Generate the mates file by inferring from the names.
+    """
+    p = OptionParser(mates.__doc__)
+    p.add_option("--lib", default=None,
+            help="Output library information along with pairs [default: %default]")
+    p.add_option("--rclip", default=1, type="int",
+            help="Pair ID is derived from rstrip N chars [default: %default]")
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    bedfile, = args
+    rclip = opts.rclip
+    lib = opts.lib
+
+    fp = open(bedfile)
+    data = [BedLine(x) for x in fp]
+    key = lambda x: x.accn[:-rclip] if rclip else x.accn
+    data.sort(key=key)
+
+    matesfile = bedfile.rsplit(".", 1)[0] + ".mates"
+    fw = open(matesfile, "w")
+    if lib:
+        bedfile, (meandist, stdev, p0, p1, p2) = pairs([bedfile])
+        print >> fw, "\t".join(str(x) for x in \
+                ("library", lib, meandist - stdev, meandist + stdev))
+
+    num_fragments = num_pairs = 0
+    for pe, lines in groupby(data, key=key):
+        lines = list(lines)
+        if len(lines) != 2:
+            num_fragments += len(lines)
+            continue
+
+        num_pairs += 1
+        a, b = lines
+        pair = [a.accn, b.accn]
+        if lib:
+            pair.append(lib)
+        print >> fw, "\t".join(pair)
+
+    logging.debug("Discard {0} fragments and write {1} pairs to `{2}`.".\
+            format(num_fragments, num_pairs, matesfile))
 
 
 if __name__ == '__main__':

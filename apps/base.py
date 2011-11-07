@@ -77,7 +77,7 @@ def set_outfile(instance):
     """
     assert isinstance(instance, OptionParser)
 
-    instance.add_option("--outfile", default="stdout",
+    instance.add_option("-o", "--outfile", default="stdout",
             help="Outfile name [default: %default]")
 
 

@@ -94,33 +94,43 @@ def frombed(args):
     """
     %prog frombed bedfile contigfasta readfasta
 
-    Convert read placement to contig format. This is most useful before running
-    BAMBUS. In addition to .contig file, also generates .mates file.
+    Convert read placement to contig format. This is useful before running BAMBUS.
     """
-    from jcvi.formats.fasta import Fasta
+    from jcvi.formats.fasta import Fasta, SeqIO
     from jcvi.formats.bed import Bed
     from jcvi.utils.cbook import fill
 
     p = OptionParser(frombed.__doc__)
+    p.add_option("--ids", default=False, action="store_true",
+                  help="Only generate ids file [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
         sys.exit(not p.print_help())
 
     bedfile, contigfasta, readfasta = args
+    ids = opts.ids
     prefix = bedfile.rsplit(".", 1)[0]
     contigfile = prefix + ".contig"
+    idsfile = prefix + ".ids"
 
     contigfasta = Fasta(contigfasta)
     readfasta = Fasta(readfasta)
 
     bed = Bed(bedfile)
     checksum = "00000000 checksum."
-    fw = open(contigfile, "w")
+    fw_ids = open(idsfile, "w")
+    if not ids:
+        fw = open(contigfile, "w")
+
     for ctg, reads in bed.sub_beds():
         ctgseq = contigfasta[ctg]
         ctgline = "##{0} {1} {2} bases, {3}".format(\
                 ctg, len(reads), len(ctgseq), checksum)
+        print >> fw_ids, ctg
+        if ids:
+            continue
+
         print >> fw, ctgline
         print >> fw, fill(ctgseq.seq)
         for b in reads:
@@ -140,7 +150,9 @@ def frombed(args):
             print >> fw, readline
             print >> fw, fill(readseq.seq)
 
-    matesfile = prefix + ".mates"
+    if not ids:
+        logging.debug("Mapped contigs written to `{0}`.".format(contigfile))
+    logging.debug("Contig IDs written to `{0}`.".format(idsfile))
 
 
 def bed(args):

@@ -287,8 +287,9 @@ def mates(args):
     fw = open(matesfile, "w")
     if lib:
         bedfile, (meandist, stdev, p0, p1, p2) = pairs([bedfile])
+        sv = int(1.97 * stdev)
         print >> fw, "\t".join(str(x) for x in \
-                ("library", lib, meandist - stdev, meandist + stdev))
+                ("library", lib, meandist -  sv, meandist + sv))
 
     num_fragments = num_pairs = 0
     for pe, lines in groupby(data, key=key):

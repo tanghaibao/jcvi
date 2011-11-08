@@ -15,7 +15,7 @@ from jcvi.utils.cbook import human_size
 from jcvi.apps.console import dark, green
 
 # i always like the latex font
-_ = lambda x: r"$\mathsf{%s}$" % str(x).replace("_", " ").replace(" ", r"\ ")
+_ = lambda x: r"$\mathsf{%s}$" % str(x).replace("_", "\_").replace(" ", r"\ ")
 
 
 class ImageOptions (object):

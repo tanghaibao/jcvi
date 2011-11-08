@@ -22,7 +22,7 @@ def scaffolding(ax, scaffoldID, blastf, qsizes, ssizes, qbed, sbed):
     # qsizes, qbed are properties for the evidences
     # ssizes, sbed are properties for the current scaffoldID
     blastplot(ax, blastf, qsizes, ssizes, qbed, sbed, \
-              style="circle", insetLabels=True)
+              style="circle", insetLabels=True, stripNames=True)
 
     # FPC_scf.bed => FPC
     fname = qbed.filename.split(".")[0].split("_")[0]
@@ -112,7 +112,7 @@ def bed(args):
 
 def plot(args):
     """
-    %prog plot scaffold.fasta synteny.blast synteny.sizes syteny.bed
+    %prog plot scaffold.fasta synteny.blast synteny.sizes synteny.bed
                          physicalmap.blast physicalmap.sizes physicalmap.bed
 
     As evaluation of scaffolding, visualize external line of evidences:

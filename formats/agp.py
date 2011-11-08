@@ -40,6 +40,13 @@ component_RGB = {"O" : "0,100,0",
                  "N" : "255,255,255"
                 }
 
+"""
+phase 0 - (P)refinish; phase 1,2 - (D)raft;
+phase 3 - (F)inished; 4 - (O)thers
+"""
+Phases = "PDDFO"
+
+
 class AGPLine (object):
 
     def __init__(self, row, validate=True):
@@ -136,7 +143,7 @@ class AGPLine (object):
 
 class AGP (LineFile):
 
-    def __init__(self, filename, validate=True):
+    def __init__(self, filename, validate=True, sorted=True):
         super(AGP, self).__init__(filename)
 
         fp = open(filename)
@@ -147,7 +154,8 @@ class AGP (LineFile):
 
         self.validate = validate
         if validate:
-            self.sort(key=lambda x: (x.object, x.object_beg))
+            if not sorted:
+                self.sort(key=lambda x: (x.object, x.object_beg))
             self.validate_all()
 
     @property
@@ -377,6 +385,75 @@ class TPF (LineFile):
         return north, south
 
 
+class OOLine (object):
+
+    def __init__(self, id, component_id, component_size, strand):
+        self.id = id
+        self.component_id = component_id
+        self.component_size = component_size
+        self.strand = strand
+
+
+class OO (LineFile):
+
+    def __init__(self, filename, ctgsizes):
+        super(OO, self).__init__(filename)
+
+        if filename is None:
+            return
+
+        from jcvi.formats.base import read_block
+
+        fp = open(filename)
+        prefix = "contig_"
+        for header, block in read_block(fp, ">"):
+            header = header[1:]  # Trim the '>'
+            header = header.split()[0]
+            for b in block:
+                ctg, orientation = b.split()
+                if ctg.startswith(prefix):
+                    ctg = ctg[len(prefix):]
+
+                assert orientation in ("BE", "EB")
+
+                strand = "+" if orientation == "BE" else "-"
+                ctgsize = ctgsizes[ctg]
+                self.append(OOLine(header, ctg, ctgsize, strand))
+
+    def sub_beds(self):
+        for scaffold, beds in groupby(self, key=lambda x: x.id):
+            yield scaffold, list(beds)
+
+    def write_AGP(self, fw=sys.stdout, gapsize=100, phases={}):
+
+        gap_type = "fragment"
+        linkage = "yes"
+
+        for object, beds in self.sub_beds():
+            object_beg = 1
+            part_number = 0
+            for b in beds:
+                component_id = b.component_id
+                size = b.component_size
+                if part_number > 0:  # Print gap except for the first one
+                    object_end = object_beg + gapsize - 1
+                    part_number += 1
+                    print >> fw, "\t".join(str(x) for x in \
+                            (object, object_beg, object_end, part_number,
+                             'N', gapsize, gap_type, linkage, ""))
+
+                    object_beg += gapsize
+
+                object_end = object_beg + size - 1
+                part_number += 1
+                print >> fw, "\t".join(str(x) for x in \
+                        (object, object_beg, object_end, part_number,
+                         phases.get(component_id, 'W'), component_id,
+                         1, size, b.strand))
+
+                object_beg += size
+
+
 def trimNs(seq, line, newagp):
     """
     Test if the sequences contain dangling N's on both sides. This component
@@ -434,7 +511,6 @@ def main():
         ('extendbed', 'extend the components to fill the component range'),
         ('gaps', 'print out the distribution of gap sizes'),
         ('tpf', 'print out a list of accessions, aka Tiling Path File'),
-        ('chr0', 'build AGP file for unplaced sequences'),
         ('mask', 'mask given ranges in components to gaps'),
         ('liftover', 'given ranges in components, get chromosome ranges'),
         ('reindex', 'assume accurate component order, reindex coordinates'),
@@ -757,92 +833,6 @@ def phase(args):
                     chr, clone))
 
 
-"""
-phase 0 - (P)refinish; phase 1,2 - (D)raft;
-phase 3 - (F)inished; 4 - (O)thers
-"""
-Phases = "PDDFO"
-
-
-def iter_phase(phasefile):
-    fp = open(phasefile)
-    for row in fp:
-        id, phase, keywords = row.split("\t")
-        yield id, Phases[int(phase)]
-
-
-def chr0(args):
-    """
-    %prog fastafile [phasefile]
-
-    build AGP file for unassembled sequences, and add gaps between. Phase list
-    contains two columns - BAC and phase (0, 1, 2, 3).
-    """
-    p = OptionParser(chr0.__doc__)
-    p.add_option("--gapsize", dest="gapsize", default=0, type="int",
-            help="create a new molecule chr0 with x N's inserted between " +\
-                 "[default: do not create new molecule]")
-    opts, args = p.parse_args(args)
-
-    nargs = len(args)
-    if nargs not in (1, 2):
-        sys.exit(p.print_help())
-
-    if nargs == 2:
-        fastafile, phasefile = args
-        phases = dict(iter_phase(phasefile))
-    else:
-        fastafile, = args
-        f = Fasta(fastafile)
-        phases = dict((x, 'W') for x in f.iterkeys())
-
-    agpfile = fastafile.rsplit(".", 1)[0] + ".agp"
-    f = Fasta(fastafile)
-    fw = open(agpfile, "w")
-
-    AGP.print_header(fw,
-        comment="{} components with unplaced chr locations".format(len(f)))
-
-    gap_length = opts.gapsize
-    object_beg = 1
-
-    if gap_length:
-        object = "chr0"
-        gap_type = "clone"
-        linkage = "no"
-
-        part_number = 0
-        for component_id, size in f.itersizes_ordered():
-            if part_number > 0:  # print gap except for the first one
-                object_end = object_beg + gap_length - 1
-                part_number += 1
-                print >> fw, "\t".join(str(x) for x in \
-                        (object, object_beg, object_end, part_number,
-                         'N', gap_length, gap_type, linkage, ""))
-
-                object_beg += gap_length
-
-            object_end = object_beg + size - 1
-            part_number += 1
-            print >> fw, "\t".join(str(x) for x in \
-                    (object, object_beg, object_end, part_number,
-                     phases[component_id], component_id, 1, size, '0'))
-
-            object_beg += size
-    else:
-
-        part_number = 1
-        scaffold_number = 0
-        for component_id, size in f.itersizes_ordered():
-            #object_id = component_id.rsplit(".")[0]
-            scaffold_number += 1
-            object_id = "scaffold{0:03d}".format(scaffold_number)
-            object_end = size
-            print >> fw, "\t".join(str(x) for x in \
-                    (object_id, object_beg, object_end, part_number,
-                    phases[component_id], component_id, 1, size, '0'))
-
-
 def tpf(args):
     """
     %prog tpf agpfile
@@ -1110,9 +1100,10 @@ def build(args):
     else:
         newagp = None
 
-    agp = AGP(agpfile, validate=validate)
+    agp = AGP(agpfile, validate=validate, sorted=True)
     agp.build_all(componentfasta=componentfasta, targetfasta=targetfasta,
             newagp=newagp)
+    logging.debug("Target fasta written to `{0}`.".format(targetfasta))
 
 
 def validate(args):

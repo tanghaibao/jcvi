@@ -38,6 +38,8 @@ def scaffold(args):
     from jcvi.utils.iter import grouper
 
     p = OptionParser(scaffold.__doc__)
+    p.add_option("--prefix", default=False, action="store_true",
+            help="Only keep links between IDs with same prefix [default: %default]")
     opts, args = p.parse_args(args)
 
     nargs = len(args)
@@ -52,7 +54,10 @@ def scaffold(args):
         matefile = prefix + ".mates"
         libname = prefix.split(".", 1)[0]
         if not is_newer_file(matefile, bedfile):
-            matefile = mates([bedfile, "--lib={0}".format(libname)])
+            matesopt = [bedfile, "--lib={0}".format(libname), "--nointra"]
+            if opts.prefix:
+                matesopt += ["--prefix"]
+            matefile = mates(matesopt)
         trios.append((fastafile, bedfile, matefile))
 
     # Merge the readfasta, bedfile and matefile

@@ -266,6 +266,10 @@ def mates(args):
     p = OptionParser(mates.__doc__)
     p.add_option("--lib", default=None,
             help="Output library information along with pairs [default: %default]")
+    p.add_option("--nointra", default=False, action="store_true",
+            help="Remove mates that are intra-scaffold [default: %default]")
+    p.add_option("--prefix", default=False, action="store_true",
+            help="Only keep links between IDs with same prefix [default: %default]")
     p.add_option("--rclip", default=1, type="int",
             help="Pair ID is derived from rstrip N chars [default: %default]")
 
@@ -299,8 +303,20 @@ def mates(args):
             num_fragments += len(lines)
             continue
 
-        num_pairs += 1
         a, b = lines
+
+        if opts.nointra and a.seqid == b.seqid:
+            continue
+
+        # Use --prefix to limit the links between seqids with the same prefix
+        # For example, contigs of the same BAC, mth2-23j10_001, mth-23j10_002
+        if opts.prefix:
+            aprefix = a.seqid.split("_")[0]
+            bprefix = b.seqid.split("_")[0]
+            if aprefix != bprefix:
+                continue
+
+        num_pairs += 1
         pair = [a.accn, b.accn]
         if lib:
             pair.append(lib)

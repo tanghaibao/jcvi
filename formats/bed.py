@@ -286,7 +286,8 @@ def mates(args):
     matesfile = bedfile.rsplit(".", 1)[0] + ".mates"
     fw = open(matesfile, "w")
     if lib:
-        bedfile, (meandist, stdev, p0, p1, p2) = pairs([bedfile])
+        bedfile, (meandist, stdev, p0, p1, p2) = pairs([bedfile, \
+                "--mateorientation=+-"])
         sv = int(1.97 * stdev)
         print >> fw, "\t".join(str(x) for x in \
                 ("library", lib, meandist -  sv, meandist + sv))
@@ -307,6 +308,8 @@ def mates(args):
 
     logging.debug("Discard {0} fragments and write {1} pairs to `{2}`.".\
             format(num_fragments, num_pairs, matesfile))
+
+    return matesfile
 
 
 if __name__ == '__main__':

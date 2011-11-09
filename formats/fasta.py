@@ -172,6 +172,8 @@ def main():
         ('sort', 'sort the records by IDs, sizes, etc.'),
         ('filter', 'filter the records by size'),
         ('pair', 'sort paired reads to .pairs, rest to .fragments'),
+        ('pairinplace', 'starting from fragment.fasta, find if ' +\
+                "adjacent records can form pairs"),
         ('fastq', 'combine fasta and qual to create fastq file'),
         ('tidy', 'normalize gap sizes and remove small components in fasta'),
         ('sequin', 'generate a gapped fasta file for sequin submission'),
@@ -785,6 +787,63 @@ def pair(args):
             (pairsfile, fragsfile))
     if opts.matepairs:
         logging.debug("mates written to `%s`" % matepairsfile)
+
+
+def pairinplace(args):
+    """
+    %prog pairinplace bulk.fasta
+
+    Pair up the records in bulk.fasta by comparing the names for adjancent
+    records. If they match, print to bulk.pairs.fasta, else print to
+    bulk.frags.fasta.
+    """
+    from jcvi.utils.iter import pairwise
+
+    p = OptionParser(pairinplace.__doc__)
+    p.add_option("-r", dest="rclip", default=1, type="int",
+            help="pair ID is derived from rstrip N chars [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    fastafile, = args
+    base = op.basename(fastafile).split(".")[0]
+
+    frags = base + ".frags.fasta"
+    pairs = base + ".pairs.fasta"
+    if fastafile.endswith(".gz"):
+        frags += ".gz"
+        pairs += ".gz"
+
+    fragsfw = must_open(frags, "w")
+    pairsfw = must_open(pairs, "w")
+
+    N = opts.rclip
+    strip_name = lambda x: x[:-N] if N else str
+
+    skipflag = False  # controls the iterator skip
+    fastaiter = SeqIO.parse(fastafile, "fasta")
+    for a, b in pairwise(fastaiter):
+
+        aid, bid = [strip_name(x) for x in (a.id, b.id)]
+
+        if skipflag:
+            skipflag = False
+            continue
+
+        if aid == bid:
+            SeqIO.write([a, b], pairsfw, "fasta")
+            skipflag = True
+        else:
+            SeqIO.write([a], fragsfw, "fasta")
+
+    # don't forget the last one, when b is None
+    if not skipflag:
+        SeqIO.write([a], fragsfw, "fasta")
+
+    logging.debug("Reads paired into `%s` and `%s`" % (pairs, frags))
+
 
 
 def extract(args):

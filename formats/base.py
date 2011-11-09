@@ -8,7 +8,7 @@ from itertools import groupby, islice, cycle, izip
 from optparse import OptionParser
 
 from Bio import SeqIO
-from jcvi.apps.base import ActionDispatcher, sh, debug
+from jcvi.apps.base import ActionDispatcher, sh, debug, is_newer_file
 debug()
 
 
@@ -62,9 +62,14 @@ class FileMerger (object):
         self.filelist = filelist
         self.outfile = outfile
 
-    def merge(self):
+    def merge(self, checkexists=False):
+        outfile = self.outfile
+        if checkexists and all(is_newer_file(outfile, x) for x in self.filelist):
+            logging.debug("File `{0}` exists. Merge skipped.".format(outfile))
+            return
+
         files = " ".join(self.filelist)
-        sh("cat {0}".format(files), outfile=self.outfile)
+        sh("cat {0}".format(files), outfile=outfile)
 
 
 class FileSplitter (object):

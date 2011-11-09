@@ -12,7 +12,6 @@ import logging
 from optparse import OptionParser
 
 from jcvi.formats.fasta import must_open
-from jcvi.utils.iter import pairwise
 from jcvi.apps.base import getfilesize
 from jcvi.apps.base import ActionDispatcher, debug, set_grid, sh
 debug()
@@ -363,6 +362,8 @@ def pairinplace(args):
     records. If they match, print to bulk.pairs.fastq, else print to
     bulk.frags.fastq.
     """
+    from jcvi.utils.iter import pairwise
+
     p = OptionParser(pairinplace.__doc__)
     p.add_option("-r", dest="rclip", default=1, type="int",
             help="pair ID is derived from rstrip N chars [default: %default]")
@@ -384,10 +385,7 @@ def pairinplace(args):
     pairsfw = must_open(pairs, "w")
 
     N = opts.rclip
-    if N:
-        strip_name = lambda x: x[:-N]
-    else:
-        strip_name = str
+    strip_name = lambda x: x[:-N] if N else str
 
     fh_iter = iter_fastq(fastqfile, key=strip_name)
     skipflag = False  # controls the iterator skip

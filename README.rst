@@ -127,6 +127,7 @@ Most of the scripts in this package contains multiple actions. To use the
         `sort`: sort the records by IDs, sizes, etc.
         `filter`: filter the records by size
         `pair`: sort paired reads to .pairs, rest to .fragments
+        `pairinplace`: starting from fragment.fasta, find if adjacent records can form pairs
         `fastq`: combine fasta and qual to create fastq file
         `tidy`: normalize gap sizes and remove small components in fasta
         `sequin`: generate a gapped fasta file for sequin submission

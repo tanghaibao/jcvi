@@ -139,34 +139,16 @@ def scaffold(args):
     tidy([fastafile])
 
 
-def build_agp(object, ctgorder, sizes, fwagp, gap_length=100):
-    object_beg = 1
-    part_number = 1
-    for i, (component_id, orientation) in enumerate(ctgorder):
-        if i:
-            component_type = "U"
-            gap_type = "fragment"
-            linkage = "yes"
-            object_end = object_beg + gap_length - 1
-            print >> fwagp, "\t".join(str(x) for x in \
-                (object, object_beg, object_end, \
-                 part_number, component_type, gap_length, \
-                 gap_type, linkage, ""))
+def build_agp(object, ctgorder, sizes, fwagp, gapsize=100):
 
-            object_beg = object_end + 1
-            part_number += 1
+    from jcvi.formats.agp import OO, OOLine
 
-        component_type = "W"
-        component_beg = 1
-        component_end = size = sizes[component_id]
-        object_end = object_beg + size - 1
-        print >> fwagp, "\t".join(str(x) for x in \
-            (object, object_beg, object_end, \
-             part_number, component_type, component_id,
-             component_beg, component_end, orientation))
+    o = OO(None, sizes)  # Without a filename
+    for scaffold_number, (ctg, strand) in enumerate(ctgorder):
+        size = sizes[ctg]
+        o.append(OOLine(object, ctg, size, strand))
 
-        object_beg = object_end + 1
-        part_number += 1
+    o.write_AGP(fwagp, gapsize=gapsize, phases={})
 
 
 def solve_component(h, sizes, fwlog):

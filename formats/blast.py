@@ -440,7 +440,7 @@ def mismatches(args):
 
 def covfilter(args):
     """
-    %prog covfilter blastfile fastafile
+    %prog covfilter blastfile fastafile > filteredblastfile
 
     Fastafile is used to get the sizes of the queries. Two filters can be
     applied, the id% and cov%.
@@ -535,6 +535,12 @@ def covfilter(args):
             print >> fw, id
         logging.debug("Queries beyond cutoffs {0} written to `{1}`.".\
                 format(cutoff_message, filename))
+
+    fp = open(blastfile)
+    blast = Blast(blastfile)
+    for b in blast.iter_line():
+        if b.query in valid:
+            print b
 
 
 def swap(args):

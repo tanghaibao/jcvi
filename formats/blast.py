@@ -19,7 +19,7 @@ from jcvi.formats.coords import print_stats
 from jcvi.formats.sizes import Sizes
 from jcvi.utils.grouper import Grouper
 from jcvi.utils.range import range_distance
-from jcvi.apps.base import ActionDispatcher, debug, sh
+from jcvi.apps.base import ActionDispatcher, debug, set_outfile, sh
 debug()
 
 
@@ -440,7 +440,7 @@ def mismatches(args):
 
 def covfilter(args):
     """
-    %prog covfilter blastfile fastafile > filteredblastfile
+    %prog covfilter blastfile fastafile
 
     Fastafile is used to get the sizes of the queries. Two filters can be
     applied, the id% and cov%.
@@ -454,6 +454,7 @@ def covfilter(args):
             help="Print out the ids that satisfy [default: %default]")
     p.add_option("--list", dest="list", default=False, action="store_true",
             help="List the id% and cov% per gene [default: %default]")
+    set_outfile(p, outfile=None)
 
     opts, args = p.parse_args(args)
 
@@ -536,11 +537,16 @@ def covfilter(args):
         logging.debug("Queries beyond cutoffs {0} written to `{1}`.".\
                 format(cutoff_message, filename))
 
+    outfile = opts.outfile
+    if not outfile:
+        return
+
     fp = open(blastfile)
+    fw = must_open(outfile, "w")
     blast = Blast(blastfile)
     for b in blast.iter_line():
         if b.query in valid:
-            print b
+            print >> fw, b
 
 
 def swap(args):

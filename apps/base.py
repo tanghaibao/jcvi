@@ -71,13 +71,13 @@ def set_params(instance):
             help="extra parameters to run")
 
 
-def set_outfile(instance):
+def set_outfile(instance, outfile="stdout"):
     """
     Add --outfile options to print out to filename.
     """
     assert isinstance(instance, OptionParser)
 
-    instance.add_option("-o", "--outfile", default="stdout",
+    instance.add_option("-o", "--outfile", default=outfile,
             help="Outfile name [default: %default]")
 
 

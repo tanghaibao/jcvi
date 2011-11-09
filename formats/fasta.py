@@ -297,7 +297,6 @@ def join(args):
 
     Phasefile is optional, but must contain two columns - BAC and phase (0, 1, 2, 3).
     """
-    from jcvi.formats.base import DictFile
     from jcvi.formats.agp import OO, OOLine, Phases, build
     from jcvi.formats.sizes import Sizes
 

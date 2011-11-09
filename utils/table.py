@@ -16,7 +16,7 @@ def banner(listOfStuff, rulersize=80, major='=', minor='-'):
 def loadtable(header, rows):
 
     from cogent import LoadTable
-    return LoadTable(header=header, row=row)
+    return LoadTable(header=header, rows=rows)
 
 
 def tabulate(d, transpose=False, key_fun=None):

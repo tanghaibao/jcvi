@@ -1,9 +1,9 @@
-"""
-Report assembly statistics, using idea from:
-    http://blog.malde.org/index.php/a50/
+#!/usr/bin/env python
+# -*- coding: UTF-8 -*-
 
-which plots the contig number versus the cumulative base pairs. useful for
-assembly QC.
+"""
+Assembly QC plots, including general statistics, base and mate coverages, and
+scaffolding consistencies.
 """
 
 import sys
@@ -13,37 +13,119 @@ import os.path as op
 from optparse import OptionParser
 
 from jcvi.formats.fasta import Fasta
+from jcvi.formats.blast import Blast
+from jcvi.formats.bed import Bed, BedLine
+from jcvi.formats.sizes import Sizes
 from jcvi.assembly.base import calculate_A50
 from jcvi.assembly.coverage import BedLine, Sizes, Coverage
 from jcvi.algorithms.matrix import moving_average
-from jcvi.apps.R import RTemplate
+from jcvi.graphics.base import plt, Rectangle, set_tex_axis, _
+from jcvi.utils.cbook import thousands
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
-
-
-rplot = "A50.rplot"
-rpdf = "A50.pdf"
-
-rplot_template = """
-library(ggplot2)
-
-data <- read.table("$rplot", header=T, sep="\t")
-g <- ggplot(data, aes(x=index, y=cumsize, group=fasta))
-g + geom_line(aes(colour=fasta)) +
-xlab("Contigs") + ylab("Cumulative size (Mb)") +
-opts(title="A50 plot", legend.position="top")
-
-ggsave(file="$rpdf")
-"""
 
 
 def main():
     actions = (
         ('A50', 'compare A50 graphics for a set of FASTA files'),
         ('coverage', 'performs QC graphics on given contig/scaffold'),
+        ('scaffold', 'plot the alignment of the scaffold to other evidences'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def scaffolding(ax, scaffoldID, blastf, qsizes, ssizes, qbed, sbed):
+
+    from jcvi.graphics.blastplot import blastplot
+
+    # qsizes, qbed are properties for the evidences
+    # ssizes, sbed are properties for the current scaffoldID
+    blastplot(ax, blastf, qsizes, ssizes, qbed, sbed, \
+              style="circle", insetLabels=True, stripNames=True)
+
+    # FPC_scf.bed => FPC
+    fname = qbed.filename.split(".")[0].split("_")[0]
+    xtitle = fname
+    if xtitle == "FPC":
+        ax.set_xticklabels([""] * len(ax.get_xticklabels()))
+    ax.set_xlabel(_(xtitle), color="g")
+    for x in ax.get_xticklines():
+        x.set_visible(False)
+
+
+def plot_one_scaffold(scaffoldID, ssizes, sbed, trios, imagename, iopts):
+    ntrios = len(trios)
+    fig = plt.figure(1, (14, 8))
+    plt.cla()
+    plt.clf()
+    root = fig.add_axes([0, 0, 1, 1])
+    axes = [fig.add_subplot(1, ntrios, x) for x in range(1, ntrios + 1)]
+    scafsize = ssizes.get_size(scaffoldID)
+
+    for trio, ax in zip(trios, axes):
+        blastf, qsizes, qbed = trio
+        scaffolding(ax, scaffoldID, blastf, qsizes, ssizes, qbed, sbed)
+
+    root.text(.5, .95, _("{0}   (size={1})".\
+            format(scaffoldID, thousands(scafsize))),
+            size=18, ha="center", color='b')
+    root.set_xlim(0, 1)
+    root.set_ylim(0, 1)
+    root.set_axis_off()
+
+    plt.savefig(imagename, dpi=iopts.dpi)
+    logging.debug("Print image to `{0}` {1}".format(imagename, iopts))
+
+
+def scaffold(args):
+    """
+    %prog scaffold scaffold.fasta synteny.blast synteny.sizes synteny.bed
+                         physicalmap.blast physicalmap.sizes physicalmap.bed
+
+    As evaluation of scaffolding, visualize external line of evidences:
+    * Plot synteny to an external genome
+    * Plot alignments to physical map
+    * Plot alignments to genetic map (TODO)
+
+    Each trio defines one panel to be plotted. blastfile defines the matchings
+    between the evidences vs scaffolds. Then the evidence sizes, and evidence
+    bed to plot dot plots.
+
+    This script will plot a dot in the dot plot in the corresponding location
+    the plots are one contig/scaffold per plot.
+    """
+    from jcvi.graphics.base import set_image_options
+    from jcvi.utils.iter import grouper
+
+    p = OptionParser(scaffold.__doc__)
+    p.add_option("--cutoff", type="int", default=1000000,
+            help="Plot scaffolds with size larger than [default: %default]")
+    opts, args, iopts = set_image_options(p, args, figsize="14x8", dpi=150)
+
+    if len(args) < 4 or len(args) % 3 != 1:
+        sys.exit(not p.print_help())
+
+    scafsizes = Sizes(args[0])
+    trios = list(grouper(3, args[1:]))
+    trios = [(a, Sizes(b), Bed(c)) for a, b, c in trios]
+
+    for scaffoldID, scafsize in scafsizes.iter_sizes():
+        if scafsize < opts.cutoff:
+            continue
+        logging.debug("Loading {0} (size={1})".format(scaffoldID,
+            thousands(scafsize)))
+
+        tmpname = scaffoldID + ".sizes"
+        tmp = open(tmpname, "w")
+        tmp.write("{0}\t{1}".format(scaffoldID, scafsize))
+        tmp.close()
+
+        tmpsizes = Sizes(tmpname)
+        tmpsizes.close(clean=True)
+
+        imagename = ".".join((scaffoldID, opts.format))
+        plot_one_scaffold(scaffoldID, tmpsizes, None, trios, imagename, iopts)
 
 
 def coverage(args):
@@ -58,7 +140,6 @@ def coverage(args):
     5. `prefix.pairs.bed.coverage` plots the clone coverage
 
     See assembly.coverage.posmap() for the generation of these files.
-    This function is also called by posmap().
     """
     p = OptionParser(coverage.__doc__)
     opts, args = p.parse_args(args)
@@ -84,7 +165,6 @@ def coverage(args):
     matecoverage = Coverage(pairsbedfile, sizesfile)
 
     import numpy as np
-    from jcvi.graphics.base import plt, Rectangle, set_tex_axis, _
     from jcvi.graphics.glyph import Bezier
 
     fig = plt.figure(1, (8, 5))
@@ -123,7 +203,7 @@ def coverage(args):
         end = max(aend, bend)
         pairs.append((start, end))
 
-    bpratio = .8 / size 
+    bpratio = .8 / size
     cutoff = 1000  # inserts smaller than this are not plotted
     # this convert from base => x-coordinate
     pos = lambda x: (.1 + x * bpratio)
@@ -169,7 +249,21 @@ def coverage(args):
     logging.debug("Figure saved to `{0}`".format(figname))
 
 
-def generate_plot(filename, rplot=rplot, rpdf=rpdf):
+def generate_plot(filename, rplot="A50.rplot", rpdf="A50.pdf"):
+
+    from jcvi.apps.R import RTemplate
+
+    rplot_template = """
+    library(ggplot2)
+
+    data <- read.table("$rplot", header=T, sep="\t")
+    g <- ggplot(data, aes(x=index, y=cumsize, group=fasta))
+    g + geom_line(aes(colour=fasta)) +
+    xlab("Contigs") + ylab("Cumulative size (Mb)") +
+    opts(title="A50 plot", legend.position="top")
+
+    ggsave(file="$rpdf")
+    """
 
     rtemplate = RTemplate(rplot_template, locals())
     rtemplate.run()
@@ -183,7 +277,7 @@ def A50(args):
     """
     p = OptionParser(A50.__doc__)
     p.add_option("--overwrite", default=False, action="store_true",
-            help="overwrite `%s` file if exists" % rplot)
+            help="overwrite .rplot file if exists [default: %default]")
     p.add_option("--cutoff", default=0, type="int", dest="cutoff",
             help="use contigs above certain size [default: %default]")
     p.add_option("--stepsize", default=10, type="int", dest="stepsize",
@@ -197,6 +291,7 @@ def A50(args):
     from jcvi.utils.table import loadtable
 
     stepsize = opts.stepsize  # use stepsize to speed up drawing
+    rplot = "A50.rplot"
     if not op.exists(rplot) or opts.overwrite:
         fw = open(rplot, "w")
         header = "\t".join(("index", "cumsize", "fasta"))

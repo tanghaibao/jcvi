@@ -124,9 +124,12 @@ class Bed(LineFile):
                 yield b
 
     def sub_beds(self):
+
+        self.sort(key=self.key)
+
         # get all the beds on all chromosomes, emitting one at a time
-        for bs in self.seqids:
-            yield bs, list(self.sub_bed(bs))
+        for bs, sb in groupby(self, key=lambda x: x.seqid):
+            yield bs, list(sb)
 
 
 def main():

@@ -121,7 +121,9 @@ def run_vecscreen(infile=None, outfile=None, db="UniVec_Core",
 
 
 @depends
-def run_megablast(infile=None, outfile=None, db=None, pctid=98, hitlen=100):
+def run_megablast(infile=None, outfile=None, db=None, \
+        pctid=98, hitlen=100, best=None):
+
     assert db, "Need to specify database fasta file."
 
     nin = db + ".nin"
@@ -130,6 +132,8 @@ def run_megablast(infile=None, outfile=None, db=None, pctid=98, hitlen=100):
     cmd = BLPATH("blastn")
     cmd += " -query {0} -db {1} -out {2}".format(infile, db, outfile)
     cmd += " -evalue 0.01 -outfmt 6 -num_threads 16"
+    if best:
+        cmd += " -num_alignments {0}".format(best)
     sh(cmd)
 
     if pctid and hitlen:
@@ -224,6 +228,8 @@ def megablast(args):
     Calls megablast and then filter the BLAST hits.
     """
     p = OptionParser(megablast.__doc__)
+    p.add_option("--best", default=1, type="int",
+            help="Only look for best N hits [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -235,7 +241,7 @@ def megablast(args):
     blastfile = "{0}.{1}.blast".format(q, r)
 
     run_megablast(infile=queryfasta, outfile=blastfile, db=reffasta, \
-                  pctid=None, hitlen=None)
+                  pctid=None, hitlen=None, best=opts.best)
 
 
 if __name__ == '__main__':

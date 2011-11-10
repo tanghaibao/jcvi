@@ -43,7 +43,7 @@ def scaffold(args):
     opts, args = p.parse_args(args)
 
     nargs = len(args)
-    if nargs < 3 or nargs % 3 != 1:
+    if nargs < 3 or nargs % 2 != 1:
         sys.exit(not p.print_help())
 
     ctgfasta = args[0]
@@ -69,8 +69,8 @@ def scaffold(args):
     ctgfile = "bambus.contig"
     idsfile = "bambus.ids"
     frombedInputs = [bbbed, ctgfasta, bbfasta]
-    if any(is_newer_file(x, ctgfile) for x in frombedInputs):
-        frombed(frombedInputs)
+    if not op.exists(ctgfile) or any(is_newer_file(x, ctgfile) for x in frombedInputs):
+        frombed(frombedInputs + ["--mates={0}".format(bbmate)])
 
     inputfasta = "bambus.contigs.fasta"
     singletonfasta = "bambus.singletons.fasta"

@@ -421,7 +421,7 @@ def format(args):
     p.add_option("--index", dest="index", default=0, type="int",
             help="Extract i-th field in the description [default: %default]")
     p.add_option("--template", default=False, action="store_true",
-            help="Extract `template=aaa dir=x` to `aaa/x` [default: %default]")
+            help="Extract `template=aaa dir=x library=m` to `m_aaa/x` [default: %default]")
     p.add_option("--switch", dest="switch", default=None,
             help="Switch sequence ID based on 2-column mapping file [default: %default]")
     opts, args = p.parse_args(args)
@@ -465,8 +465,9 @@ def format(args):
         if idx:
             rec.id = rec.description.split()[idx]
         if opts.template:
-            template, dir = [x.split("=")[-1] for x in rec.description.split()[1:3]]
-            rec.id = "{0}/{1}".format(template, dir)
+            template, dir, lib = [x.split("=")[-1] for x in
+                    rec.description.split()[1:4]]
+            rec.id = "{0}-{1}/{2}".format(lib, template, dir)
         if mapfile:
             if rec.id in mapping:
                 rec.id = mapping[rec.id]

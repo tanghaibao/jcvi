@@ -251,7 +251,7 @@ def coverage(args):
 
 def generate_plot(filename, rplot="A50.rplot", rpdf="A50.pdf"):
 
-    from jcvi.apps.R import RTemplate
+    from jcvi.apps.r import RTemplate
 
     rplot_template = """
     library(ggplot2)

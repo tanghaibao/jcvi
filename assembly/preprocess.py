@@ -104,56 +104,47 @@ def trim(args):
         cmd += " {0}".format(" ".join((fastqfile1, fastqfile2, \
                 pairs1, frags1, pairs2, frags2)))
 
-    cmd += " ILLUMINACLIP:adapters.fasta:2:40:15"
+    cmd += " ILLUMINACLIP:{0}:2:40:15".format(adaptersfile)
     cmd += " LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 MINLEN:30"
     sh(cmd, grid=opts.grid)
 
 
 def correct(args):
     """
-    %prog correct fastqfile
+    %prog correct *.fastq
 
-    Correct the fastqfile and generated corrected fastqfiles. If --paired is
-    used, then will write to `pairs.corr.fastq` and `frags.corr.fastq`. Remember
-    the pairs need to be in interleaved format.
+    Correct the fastqfile and generated corrected fastqfiles. This calls
+    assembly.allpaths.prepare() to generate input files for ALLPATHS-LG. The
+    naming convention for your fastqfiles are important, and are listed below.
 
-    Rename your fastqfile to look like the following:
-    PE-376.fastq (paired end)
-    MP-3000.fastq (mate pairs)
-    TT-3000.fastq (mate pairs, but from 454 data)
-
-    The insert size does NOT affect correction, but MP- reads will be removed of
-    duplicates.
+    By default, this will correct all PE reads, and remove duplicates of all MP
+    reads, and results will be placed in `frag_reads.corr.{pairs,frags}.fastq`
+    and `jump_reads.corr.{pairs,frags}.fastq`.
     """
-    from jcvi.assembly.allpaths import prepare
+    from jcvi.assembly.allpaths import prepare, FastqNamings
 
-    p = OptionParser(correct.__doc__)
-    p.add_option("--paired", default=False, action="store_true",
-                 help="Input is interleaved fastq file [default: %default]")
+    p = OptionParser(correct.__doc__ + FastqNamings)
     p.add_option("--cpus", default=32, type="int",
                  help="Number of threads to run [default: %default]")
     opts, args = p.parse_args(args)
 
-    if len(args) != 1:
+    if len(args) < 1:
         sys.exit(not p.print_help())
 
-    fastq, = args
-    prefix = op.basename(fastq).rsplit(".", 1)[0]
-    mplib = fastq.startswith("MP-")
-    tag = "jump" if mplib else "frag"
-    tag += "_reads"
+    fastq = args
+    tag, tagj = "frag_reads", "jump_reads"
 
-    prepare(["Unknown", fastq])
-    sh("ulimit -s 100000")
+    prepare(["Unknown"] + fastq)
 
     datadir = "data"
     mkdir(datadir)
     fullpath = op.join(os.getcwd(), datadir)
     nthreads = " NUM_THREADS={0}".format(opts.cpus)
 
-    assert op.exists(fastq)
     orig = datadir + "/{0}_orig".format(tag)
     origfastb = orig + ".fastb"
+    origj = datadir + "/{0}_orig".format(tagj)
+    origjfastb = origj + ".fastb"
     if need_update(fastq, origfastb):
         cmd = "PrepareAllPathsInputs.pl DATA_DIR={0}".format(fullpath)
         sh(cmd)
@@ -163,8 +154,6 @@ def correct(args):
     filtfastb = filt + ".fastb"
     if need_update(origfastb, filtfastb):
         cmd = "RemoveDodgyReads IN_HEAD={0} OUT_HEAD={1}".format(orig, filt)
-        if fastq.startswith("MP-"):
-            cmd += " REMOVE_DUPLICATES=True"
         cmd += nthreads
         sh(cmd)
 
@@ -190,6 +179,7 @@ def correct(args):
     if need_update(precfastb, corrfastb):
         cmd = "FindErrors DELETE=True IN_HEAD={0}".format(prec)
         cmd += " OUT_EDIT_HEAD={0} OUT_CORR_HEAD={1}".format(edit, corr)
+        cmd += nthreads
         sh(cmd)
 
     assert op.exists(corrfastb)
@@ -199,6 +189,16 @@ def correct(args):
         sh(cmd)
 
     assert op.exists(corrfastq)
+
+    # Pipeline for jump reads do not involve correction
+    if op.exists(origjfastb):
+        filt = datadir + "/{0}_filt".format(tagj)
+        filtfastb = filt + ".fastb"
+        if need_update(origfastb, filtfastb):
+            cmd = "RemoveDodgyReads IN_HEAD={0} OUT_HEAD={1}".format(orig, filt)
+            cmd += " REMOVE_DUPLICATES=True RC=True"
+            cmd += nthreads
+            sh(cmd)
 
 
 if __name__ == '__main__':

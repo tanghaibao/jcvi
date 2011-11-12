@@ -15,6 +15,18 @@ from optparse import OptionParser
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
+FastqNamings = """
+    The naming schemes for the fastq files are.
+
+    PE-376.fastq (paired end)
+    MP-3000.fastq (mate pairs)
+    TT-3000.fastq (mate pairs, but from 454 data, so expected to be +-)
+    LL-0.fastq (long reads)
+
+    The reads are assumed to be NOT paired if the number after the PE-, MP-,
+    etc. is 0. Otherwise, they are considered paired at the given distance.
+"""
+
 
 def main():
 
@@ -30,17 +42,12 @@ def prepare(args):
     """
     %prog prepare "B. oleracea" *.fastq
 
-    Scans the current folder looking for input fastq files that look like:
-    PE-376.fastq (paired end)
-    MP-3000.fastq (mate pairs)
-    TT-3000.fastq (mate pairs, but from 454 data)
-
-    Then create "in_groups.csv" and "in_libs.csv". Finally write a generic run
-    script.
+    Scans the current folder looking for input fastq files (see below) and then
+    create "in_groups.csv" and "in_libs.csv".
     """
     from jcvi.utils.table import write_csv
 
-    p = OptionParser(prepare.__doc__)
+    p = OptionParser(prepare.__doc__ + FastqNamings)
     opts, args = p.parse_args(args)
 
     if len(args) < 1:
@@ -64,18 +71,23 @@ def prepare(args):
             libs.append(library_name)
 
     libcontents = []
+    types = {"PE": "fragment", "MP": "jumping", "TT": "jumping", "LL": "long"}
     for library_name in libs:
         pf, size = library_name.split("-")
         size = int(size)
         stddev = size / 5
-        type = "fragment" if pf == "PE" else "jumping"
-        paired = 1
+        type = types[pf]
+        paired = 0 if size == 0 else 1
+        size = size or ""
+        stddev = stddev or ""
         frag_size = size if type == "fragment" else ""
         frag_stddev = stddev if type == "fragment" else ""
         insert_size = size if type != "fragment" else ""
         insert_stddev = stddev if type != "fragment" else ""
         read_orientation = "outward" if pf == "MP" else "inward"
-        genomic_start, genomic_end = 0, 0
+        if not paired:
+            read_orientation = ""
+        genomic_start, genomic_end = "", ""
         libcontents.append((library_name, project_name, organism_name, type, \
             paired, frag_size, frag_stddev, insert_size, insert_stddev, \
             read_orientation, genomic_start, genomic_end))

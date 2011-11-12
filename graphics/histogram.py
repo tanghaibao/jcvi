@@ -15,7 +15,7 @@ from optparse import OptionParser
 import numpy as np
 
 from jcvi.graphics.base import asciiplot
-from jcvi.apps.R import RTemplate
+from jcvi.apps.r import RTemplate
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
 

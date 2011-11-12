@@ -20,7 +20,7 @@ from Bio import SeqIO
 from jcvi.formats.base import LineFile
 from jcvi.formats.blast import set_options_pairs
 from jcvi.formats.sizes import Sizes
-from jcvi.apps.base import ActionDispatcher, sh, set_grid, debug, is_newer_file
+from jcvi.apps.base import ActionDispatcher, sh, set_grid, debug, need_update
 debug()
 
 
@@ -295,7 +295,7 @@ def check_txt(casfile):
     """
     if casfile.endswith(".cas"):
         castabfile = casfile.replace(".cas", ".txt")
-        if not is_newer_file(castabfile, casfile):
+        if need_update(casfile, castabfile):
             castabfile = txt([casfile])
         else:
             logging.debug("File `{0}` found.".format(castabfile))

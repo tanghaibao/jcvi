@@ -46,7 +46,7 @@ def depends(func):
     Decorator to perform check on infile and outfile. When infile is not present, issue
     warning, and when outfile is present, skip function calls.
     """
-    from jcvi.apps.base import is_newer_file
+    from jcvi.apps.base import need_update
 
     infile = "infile"
     outfile = "outfile"
@@ -60,8 +60,7 @@ def depends(func):
                     .format(infilename)
 
         outfilename = kwargs[outfile]
-        if not op.exists(outfilename) or \
-                is_newer_file(infilename, outfilename):
+        if need_update(infilename, outfilename):
             return func(*args, **kwargs)
         else:
             msg = "File `{0}` exists. Computation skipped." \

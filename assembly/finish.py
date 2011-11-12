@@ -27,7 +27,7 @@ from jcvi.utils.cbook import depends
 from jcvi.assembly.base import n50
 from jcvi.assembly.bundle import LinkLine
 from jcvi.apps.command import run_megablast
-from jcvi.apps.base import ActionDispatcher, debug, sh, mkdir, is_newer_file
+from jcvi.apps.base import ActionDispatcher, debug, sh, mkdir, need_update
 debug()
 
 
@@ -285,7 +285,7 @@ def overlap(args):
     # Extract contigs and merge using minimus2
     closuredir = prefix + ".closure"
     closure = False
-    if not op.exists(closuredir) or is_newer_file(blastfile, closuredir):
+    if need_update(blastfile, closuredir):
         mkdir(closuredir, overwrite=True)
         closure = True
 

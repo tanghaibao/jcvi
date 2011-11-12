@@ -7,7 +7,7 @@ import numpy as np
 
 from jcvi.formats.base import LineFile
 from jcvi.apps.softlink import get_abs_path
-from jcvi.apps.base import sh, is_newer_file
+from jcvi.apps.base import sh, need_update
 
 
 class Sizes (LineFile):
@@ -24,7 +24,7 @@ class Sizes (LineFile):
         if not filename.endswith(".sizes"):
             sizesname = filename + ".sizes"
             filename = get_abs_path(filename)
-            if not is_newer_file(sizesname, filename):
+            if need_update(filename, sizesname):
                 cmd = "faSize"
                 cmd += " -detailed {0} ".format(filename)
                 sh(cmd, outfile=sizesname)

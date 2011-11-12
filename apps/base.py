@@ -169,6 +169,20 @@ def is_newer_file(a, b):
     return am > bm
 
 
+def need_update(a, b):
+    """
+    Check if file a is newer than file b and decide whether or not to update
+    file b. Can generalize to two lists.
+    """
+    if isinstance(a, basestring):
+        a = [a]
+    if isinstance(b, basestring):
+        b = [b]
+
+    return any((not op.exists(x)) for x in b) or \
+           any(is_newer_file(x, y) for x in a for y in b)
+
+
 def get_today():
     """
     Returns the date in 2010-07-14 format

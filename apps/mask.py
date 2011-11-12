@@ -12,7 +12,7 @@ from optparse import OptionParser
 
 from jcvi.formats.fasta import Fasta
 from jcvi.utils.cbook import percentage
-from jcvi.apps.base import ActionDispatcher, debug, set_grid, sh, is_newer_file
+from jcvi.apps.base import ActionDispatcher, debug, set_grid, sh, need_update
 debug()
 
 
@@ -21,7 +21,7 @@ def wm_mk_counts(genomefile):
     cmd = "windowmasker -in %(genomefile)s -mk_counts " \
           "-out %(outfile)s" % locals()
 
-    if not is_newer_file(outfile, genomefile):
+    if need_update(genomefile, outfile):
         sh(cmd)
 
     return outfile

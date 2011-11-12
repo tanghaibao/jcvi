@@ -8,7 +8,7 @@ from itertools import groupby, islice, cycle, izip
 from optparse import OptionParser
 
 from Bio import SeqIO
-from jcvi.apps.base import ActionDispatcher, sh, debug, is_newer_file
+from jcvi.apps.base import ActionDispatcher, sh, debug, need_update
 debug()
 
 
@@ -64,7 +64,7 @@ class FileMerger (object):
 
     def merge(self, checkexists=False):
         outfile = self.outfile
-        if checkexists and all(is_newer_file(outfile, x) for x in self.filelist):
+        if checkexists and not need_update(self.filelist, outfile):
             logging.debug("File `{0}` exists. Merge skipped.".format(outfile))
             return
 

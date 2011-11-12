@@ -10,7 +10,7 @@ import sys
 
 from optparse import OptionParser
 
-from jcvi.apps.base import ActionDispatcher, debug, is_newer_file, sh
+from jcvi.apps.base import ActionDispatcher, debug, sh, need_update
 debug()
 
 
@@ -53,7 +53,7 @@ def scaffold(args):
         prefix = bedfile.rsplit(".", 1)[0]
         matefile = prefix + ".mates"
         libname = prefix.split(".", 1)[0]
-        if not is_newer_file(matefile, bedfile):
+        if need_update(bedfile, matefile):
             matesopt = [bedfile, "--lib={0}".format(libname), "--nointra"]
             if opts.prefix:
                 matesopt += ["--prefix"]
@@ -69,7 +69,7 @@ def scaffold(args):
     ctgfile = "bambus.contig"
     idsfile = "bambus.ids"
     frombedInputs = [bbbed, ctgfasta, bbfasta]
-    if not op.exists(ctgfile) or any(is_newer_file(x, ctgfile) for x in frombedInputs):
+    if need_update(frombedInputs, ctgfile):
         frombed(frombedInputs + ["--mates={0}".format(bbmate)])
 
     inputfasta = "bambus.contigs.fasta"

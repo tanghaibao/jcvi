@@ -28,7 +28,7 @@ def main():
 
 def prepare(args):
     """
-    %prog prepare "B. oleracea"
+    %prog prepare "B. oleracea" *.fastq
 
     Scans the current folder looking for input fastq files that look like:
     PE-376.fastq (paired end)
@@ -43,12 +43,12 @@ def prepare(args):
     p = OptionParser(prepare.__doc__)
     opts, args = p.parse_args(args)
 
-    if len(args) != 1:
+    if len(args) < 1:
         sys.exit(not p.print_help())
 
-    organism_name, = args
+    organism_name = args[0]
     project_name = "".join(x[0] for x in organism_name.split()).upper()
-    fnames = sorted(glob("*.fastq"))
+    fnames = sorted(glob("*.fastq") if len(args) == 1 else args[1:])
 
     groupheader = "group_name library_name file_name".split()
     libheader = "library_name project_name organism_name type paired "\

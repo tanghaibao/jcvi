@@ -8,6 +8,7 @@ Subroutines to aid ALLPATHS-LG assembly.
 import os.path as op
 import sys
 import logging
+import numpy as np
 
 from glob import glob
 from struct import unpack
@@ -59,17 +60,27 @@ class PairsFile (BaseFile):
             self.libnames.append(libname)
 
         npairs, = unpack("Q", fp.read(8))
-        self.r1 = unpack("{0}Q".format(npairs), fp.read(8 * npairs))
+        self.r1 = np.fromfile(fp, dtype=np.int64, count=npairs)
 
         npairs2, = unpack("Q", fp.read(8))
         assert npairs2 == npairs
-        self.r2 = unpack("{0}Q".format(npairs), fp.read(8 * npairs))
+        self.r2 = np.fromfile(fp, dtype=np.int64, count=npairs)
 
         npairsl, = unpack("Q", fp.read(8))
         assert npairsl == npairs
-        self.libs = unpack("{0}B".format(npairs), fp.read(npairs))
+        self.libs = np.fromfile(fp, dtype=np.int8, count=npairs)
 
         assert len(fp.read()) == 0  # EOF
+        self.npairs = npairs
+
+    @property
+    def header(self):
+        from jcvi.utils.cbook import percentage
+
+        s = "Number of paired reads: {0}\n".format(\
+                percentage(self.npairs * 2, self.nreads))
+        s += "Libraries: {0}".format(", ".join(self.libnames))
+        return s
 
 
 def main():
@@ -87,7 +98,9 @@ def pairs(args):
     """
     %prog pairs pairsfile
 
-    Parse ALLPATHS pairs file.
+    Parse ALLPATHS pairs file, and write pairs IDs and single read IDs in
+    respective ids files: e.g. `lib1.pairs.fastq`, `lib2.pairs.fastq`,
+    and single `frags.fastq` (with single reads from lib1/2).
     """
     p = OptionParser(pairs.__doc__)
     opts, args = p.parse_args(args)
@@ -97,12 +110,7 @@ def pairs(args):
 
     pairsfile, = args
     p = PairsFile(pairsfile)
-    print p.nreads
-    print p.libstats
-    print p.libnames
-    print p.r1[:50]
-    print p.r2[:50]
-    print p.libs[:50]
+    print >> sys.stderr, p.header
 
 
 def prepare(args):

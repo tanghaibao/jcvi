@@ -154,6 +154,7 @@ def correct(args):
     filtfastb = filt + ".fastb"
     if need_update(origfastb, filtfastb):
         cmd = "RemoveDodgyReads IN_HEAD={0} OUT_HEAD={1}".format(orig, filt)
+        cmd += " REMOVE_DUPLICATES=False"
         cmd += nthreads
         sh(cmd)
 
@@ -195,8 +196,8 @@ def correct(args):
         filt = datadir + "/{0}_filt".format(tagj)
         filtfastb = filt + ".fastb"
         if need_update(origfastb, filtfastb):
-            cmd = "RemoveDodgyReads IN_HEAD={0} OUT_HEAD={1}".format(orig, filt)
-            cmd += " REMOVE_DUPLICATES=True RC=True"
+            cmd = "RemoveDodgyReads IN_HEAD={0} OUT_HEAD={1}".format(origj, filt)
+            cmd += " RC=True"
             cmd += nthreads
             sh(cmd)
 

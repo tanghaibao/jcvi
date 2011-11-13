@@ -10,9 +10,11 @@ import sys
 import logging
 
 from glob import glob
+from struct import unpack
 from optparse import OptionParser
 
 from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.formats.base import BaseFile
 debug()
 
 FastqNamings = """
@@ -28,14 +30,79 @@ FastqNamings = """
 """
 
 
+class PairsFile (BaseFile):
+
+    def __init__(self, filename):
+        super(PairsFile, self).__init__(filename)
+
+        fp = open(filename, "rb")
+        binwrite, = unpack("8s", fp.read(8))
+        assert binwrite == "BINWRITE"
+
+        version, = unpack("i", fp.read(4))
+        assert version == 1
+
+        self.nreads, = unpack("Q", fp.read(8))
+        self.nlibs, = unpack("Q", fp.read(8))
+        self.libstats = []
+        self.libnames = []
+
+        for i in xrange(self.nlibs):
+            self.libstats.append(unpack("ii", fp.read(8)))
+
+        nlibs, = unpack("Q", fp.read(8))
+        assert nlibs == self.nlibs
+
+        for i in xrange(self.nlibs):
+            slen, = unpack("i", fp.read(4))
+            libname, nul = unpack("{0}sc".format(slen - 1), fp.read(slen))
+            self.libnames.append(libname)
+
+        npairs, = unpack("Q", fp.read(8))
+        self.r1 = unpack("{0}Q".format(npairs), fp.read(8 * npairs))
+
+        npairs2, = unpack("Q", fp.read(8))
+        assert npairs2 == npairs
+        self.r2 = unpack("{0}Q".format(npairs), fp.read(8 * npairs))
+
+        npairsl, = unpack("Q", fp.read(8))
+        assert npairsl == npairs
+        self.libs = unpack("{0}B".format(npairs), fp.read(npairs))
+
+        assert len(fp.read()) == 0  # EOF
+
+
 def main():
 
     actions = (
         ('prepare', 'prepare ALLPATHS csv files and run script'),
         ('log', 'prepare a log of created files'),
+        ('pairs', 'parse ALLPATHS pairs file'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def pairs(args):
+    """
+    %prog pairs pairsfile
+
+    Parse ALLPATHS pairs file.
+    """
+    p = OptionParser(pairs.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    pairsfile, = args
+    p = PairsFile(pairsfile)
+    print p.nreads
+    print p.libstats
+    print p.libnames
+    print p.r1[:50]
+    print p.r2[:50]
+    print p.libs[:50]
 
 
 def prepare(args):

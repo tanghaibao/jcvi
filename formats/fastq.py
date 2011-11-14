@@ -75,6 +75,8 @@ def main():
 
     actions = (
         ('size', 'total base pairs in the fastq files'),
+        ('shuffle', 'shuffle paired reads into the same file interleaved'),
+        ('split', 'split paired reads into two files'),
         ('splitread', 'split appended reads (from JGI)'),
         ('pair', 'pair up two fastq files and combine pairs'),
         ('unpair', 'unpair pairs.fastq files into 1.fastq and 2.fastq'),
@@ -87,6 +89,65 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def checkShuffleSizes(p1, p2, pairsfastq):
+    from jcvi.apps.base import getfilesize
+
+    pairssize = getfilesize(pairsfastq)
+    p1size = getfilesize(p1)
+    p2size = getfilesize(p2)
+    assert pairssize == p1size + p2size, \
+          "The sizes do not add up: {0} + {1} != {2}".\
+          format(p1size, p2size, pairssize)
+
+
+def shuffle(args):
+    """
+    %prog shuffle p1.fastq p2.fastq pairs.fastq
+
+    Shuffle pairs into interleaved format, using `shuffleSequences_fastq.pl`.
+    """
+    p = OptionParser(shuffle.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    p1, p2, pairsfastq = args
+    cmd = "shuffleSequences_fastq.pl {0} {1} {2}".format(*args)
+    sh(cmd)
+
+    checkShuffleSizes(p1, p2, pairsfastq)
+
+
+def split(args):
+    """
+    %prog split pairs.fastq
+
+    Split shuffled pairs into `.1.fastq` and `.2.fastq`, using `sed`.
+    <http://seqanswers.com/forums/showthread.php?t=13776>
+    """
+    from jcvi.apps.grid import Jobs
+
+    p = OptionParser(split.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    pairsfastq, = args
+    pf = pairsfastq.rsplit(".", 1)[0]
+    p1 = pf + ".1.fastq"
+    p2 = pf + ".2.fastq"
+    p1cmd = "sed -ne '1~8{{N;N;N;p}}' {0} > {1}".format(pairsfastq, p1)
+    p2cmd = "sed -ne '5~8{{N;N;N;p}}' {0} > {1}".format(pairsfastq, p2)
+
+    args = [(p1cmd, ), (p2cmd, )]
+    m = Jobs(target=sh, args=args)
+    m.run()
+
+    checkShuffleSizes(p1, p2, pairsfastq)
 
 
 def guessoffset(args):

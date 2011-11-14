@@ -28,7 +28,7 @@ statusfile = op.join(sge, "STATUS")
 
 class Jobs (list):
     """
-    Runs multiple processes on the SAME computer, using multiprocessing.
+    Runs multiple funcion calls on the SAME computer, using multiprocessing.
     """
     def __init__(self, target, args):
 

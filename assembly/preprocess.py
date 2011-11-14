@@ -44,7 +44,11 @@ def trim(args):
     p.add_option("--path", default=op.join("~/bin", TrimJar),
             help="Path to trimmomatic [default: %default]")
     p.add_option("--phred", default=None, type="int",
-            help="Phred score offset [default: %default]")
+            help="Phred score offset [default: guess]")
+    p.add_option("--nofrags", default=False, action="store_true",
+            help="Discard frags file in PE mode [default: %default]")
+    p.add_option("--gz", default=False, action="store_true",
+            help="Write to gzipped files [default: %default]")
     set_grid(p)
 
     opts, args = p.parse_args(args)
@@ -83,8 +87,12 @@ def trim(args):
 
     cmd = JAVAPATH("java-1.6.0")
     cmd += " -Xmx4g -cp {0} org.usadellab.trimmomatic".format(path)
-    frags = ".frags.fastq.gz"
-    pairs = ".pairs.fastq.gz"
+    frags = ".frags.fastq"
+    pairs = ".pairs.fastq"
+    if opts.gz:
+        frags += ".gz"
+        pairs += ".gz"
+
     if len(args) == 1:
         cmd += ".TrimmomaticSE"
         cmd += phredflag
@@ -102,11 +110,15 @@ def trim(args):
         pairs2 = prefix2 + pairs
         frags1 = prefix1 + frags
         frags2 = prefix2 + frags
+        if opts.nofrags:
+            frags1 = "/dev/null"
+            frags2 = "/dev/null"
         cmd += " {0}".format(" ".join((fastqfile1, fastqfile2, \
                 pairs1, frags1, pairs2, frags2)))
 
     cmd += " ILLUMINACLIP:{0}:2:40:15".format(adaptersfile)
     cmd += " LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 MINLEN:30"
+    cmd += " TOPHRED33"
     sh(cmd, grid=opts.grid)
 
 

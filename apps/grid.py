@@ -13,6 +13,7 @@ from glob import glob
 from itertools import izip_longest
 from subprocess import Popen, PIPE
 from optparse import OptionParser
+from multiprocessing import Process
 
 from jcvi.formats.base import FileSplitter
 from jcvi.apps.base import ActionDispatcher, sh, mkdir, debug
@@ -25,19 +26,20 @@ commitfile = op.join(sge, "COMMIT")
 statusfile = op.join(sge, "STATUS")
 
 
-class MultiJobs (object):
+class Jobs (list):
     """
     Runs multiple processes on the SAME computer, using multiprocessing.
     """
     def __init__(self, target, args):
-        from multiprocessing import Process
-        self.processes = []
-        for arg in args:
-            pi = Process(target=target, args=arg)
-            pi.start()
-            self.processes.append(pi)
 
-        for pi in self.processes:
+        for x in args:
+            self.append(Process(target=target, args=x))
+
+    def run(self):
+        for pi in self:
+            pi.start()
+
+        for pi in self:
             pi.join()
 
 

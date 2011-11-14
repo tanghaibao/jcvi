@@ -9,9 +9,9 @@ import logging
 
 from optparse import OptionParser
 from subprocess import Popen, PIPE
-from multiprocessing import Process, Lock
+from multiprocessing import Lock
 
-from jcvi.apps.grid import Grid
+from jcvi.apps.grid import Grid, Jobs
 from jcvi.apps.base import ActionDispatcher, debug, set_params, set_grid
 debug()
 
@@ -86,7 +86,6 @@ def lastz(k, n, bfasta_fn, afasta_fn, out_fh, lock, lastz_path, extra,
 
     logging.debug("job <%d> started: %s" % (proc.pid, lastz_cmd))
     for row in proc.stdout:
-        #if blastline: row = lastz_to_blast(row)
         lock.acquire()
         out_fh.write(row)
         out_fh.flush()
@@ -154,16 +153,11 @@ def main():
         g.writestatus()
 
     else:
-        processes = []
-        for k in xrange(cpus):
-            pi = Process(target=lastz, args=(k + 1, cpus,
-                bfasta_fn, afasta_fn, out_fh,
-                lock, lastz_path, extra, opts.blastline, opts.mask))
-            pi.start()
-            processes.append(pi)
-
-        for pi in processes:
-            pi.join()
+        args = [(k + 1, cpus, bfasta_fn, afasta_fn, out_fh,
+                lock, lastz_path, extra, opts.blastline, opts.mask) \
+                for k in xrange(cpus)]
+        g = Jobs(target=lastz, args=args)
+        g.run()
 
 
 if __name__ == '__main__':

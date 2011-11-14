@@ -55,9 +55,11 @@ def depends(func):
             "You need to specify `outfile=` on function call"
         if infile in kwargs:
             infilename = kwargs[infile]
-            assert op.exists(infilename), \
-                "The specified infile `{0}` does not exist" \
-                    .format(infilename)
+            if isinstance(infilename, basestring):
+                infilename = [infilename]
+            for x in infilename:
+                assert op.exists(x), \
+                    "The specified infile `{0}` does not exist".format(x)
 
         outfilename = kwargs[outfile]
         if need_update(infilename, outfilename):
@@ -67,9 +69,12 @@ def depends(func):
                 .format(outfilename)
             logging.debug(msg)
 
-        assert op.exists(outfilename), \
-                "Something went wrong, `{0}` not found" \
-                .format(outfilename)
+        if isinstance(outfilename, basestring):
+            outfilename = [outfilename]
+
+        for x in outfilename:
+            assert op.exists(x), \
+                    "Something went wrong, `{0}` not found".format(x)
 
         return outfilename
 

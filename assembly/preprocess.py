@@ -12,6 +12,7 @@ import sys
 from optparse import OptionParser
 
 from jcvi.formats.fastq import guessoffset
+from jcvi.utils.cbook import depends
 from jcvi.apps.command import JAVAPATH
 from jcvi.apps.base import ActionDispatcher, debug, set_grid, download, \
         sh, mkdir, need_update
@@ -109,6 +110,36 @@ def trim(args):
     sh(cmd, grid=opts.grid)
 
 
+@depends
+def run_RemoveDodgyReads(infile=None, outfile=None, workdir=None,
+        removeDuplicates=True, rc=False, nthreads=32):
+    # orig.fastb => filt.fastb
+    assert op.exists(infile)
+    orig = infile.rsplit(".", 1)[0]
+    filt = outfile.rsplit(".", 1)[0]
+
+    cmd = "RemoveDodgyReads IN_HEAD={0} OUT_HEAD={1}".format(orig, filt)
+    if not removeDuplicates:
+        cmd += " REMOVE_DUPLICATES=False"
+    if rc:
+        cmd += " RC=True"
+    cmd += nthreads
+    sh(cmd)
+
+
+@depends
+def run_FastbAndQualb2Fastq(infile=None, outfile=None):
+    corr = op.basename(infile).rsplit(".", 1)[0]
+    cmd = "FastbAndQualb2Fastq HEAD={0}".format(corr)
+    sh(cmd)
+
+
+@depends
+def run_pairs(infile=None, outfile=None):
+    from jcvi.assembly.allpaths import pairs
+    pairs(infile)
+
+
 def correct(args):
     """
     %prog correct *.fastq
@@ -143,22 +174,15 @@ def correct(args):
 
     orig = datadir + "/{0}_orig".format(tag)
     origfastb = orig + ".fastb"
-    origj = datadir + "/{0}_orig".format(tagj)
-    origjfastb = origj + ".fastb"
     if need_update(fastq, origfastb):
         cmd = "PrepareAllPathsInputs.pl DATA_DIR={0}".format(fullpath)
         sh(cmd)
 
-    assert op.exists(origfastb)
     filt = datadir + "/{0}_filt".format(tag)
     filtfastb = filt + ".fastb"
-    if need_update(origfastb, filtfastb):
-        cmd = "RemoveDodgyReads IN_HEAD={0} OUT_HEAD={1}".format(orig, filt)
-        cmd += " REMOVE_DUPLICATES=False"
-        cmd += nthreads
-        sh(cmd)
+    run_RemoveDodgyReads(infile=origfastb, outfile=filtfastb,
+                         removeDuplicates=False, rc=False, nthreads=nthreads)
 
-    assert op.exists(filtfastb)
     prec = datadir + "/{0}_prec".format(tag)
     precfastb = prec + ".fastb"
     if need_update(filtfastb, precfastb):
@@ -183,23 +207,41 @@ def correct(args):
         cmd += nthreads
         sh(cmd)
 
-    assert op.exists(corrfastb)
-    corrfastq = corr + ".fastq"
-    if need_update(corrfastb, corrfastq):
-        cmd = "FastbAndQualb2Fastq HEAD={0}".format(corr)
-        sh(cmd)
+    pf = op.basename(corr)
 
-    assert op.exists(corrfastq)
+    cwd = os.getcwd()
+    os.chdir(datadir)
+    corrfastq = pf + ".fastq"
+    run_FastbAndQualb2Fastq(infile=op.basename(corrfastb), outfile=corrfastq)
 
-    # Pipeline for jump reads do not involve correction
-    if op.exists(origjfastb):
-        filt = datadir + "/{0}_filt".format(tagj)
-        filtfastb = filt + ".fastb"
-        if need_update(origfastb, filtfastb):
-            cmd = "RemoveDodgyReads IN_HEAD={0} OUT_HEAD={1}".format(origj, filt)
-            cmd += " RC=True"
-            cmd += nthreads
-            sh(cmd)
+    pairsfile = pf + ".pairs"
+    fragsfastq = pf + ".frags.fastq"
+    run_pairs(infile=[pairsfile, corrfastq], outfile=fragsfastq)
+    os.chdir(cwd)
+
+    origj = datadir + "/{0}_orig".format(tagj)
+    origjfastb = origj + ".fastb"
+
+    if not op.exists(origjfastb):
+        return
+
+    # Pipeline for jump reads does not involve correction
+    filt = datadir + "/{0}_filt".format(tagj)
+    filtfastb = filt + ".fastb"
+    run_RemoveDodgyReads(infile=origjfastb, outfile=filtfastb, \
+                         removeDuplicates=True, rc=True, nthreads=nthreads)
+
+    pf = op.basename(filt)
+
+    cwd = os.getcwd()
+    os.chdir(datadir)
+    filtfastq = pf + ".fastq"
+    run_FastbAndQualb2Fastq(infile=op.basename(filtfastb), outfile=filtfastq)
+
+    pairsfile = pf + ".pairs"
+    fragsfastq = pf + ".frags.fastq"
+    run_pairs(infile=[pairsfile, filtfastq], outfile=fragsfastq)
+    os.chdir(cwd)
 
 
 if __name__ == '__main__':

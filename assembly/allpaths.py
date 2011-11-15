@@ -12,10 +12,9 @@ import numpy as np
 
 from glob import glob
 from struct import unpack
-from itertools import islice
+from itertools import islice, izip
 from optparse import OptionParser
 
-from jcvi.apps.grid import Jobs
 from jcvi.formats.base import BaseFile
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
@@ -96,67 +95,46 @@ def main():
     p.dispatch(globals())
 
 
-def extract_pairs(fastqfile, outfile, pairIDs):
+def extract_pairs(fastqfile, pairsfw, fragsfw, p):
     """
     Take fastqfile and array of pair ID, extract adjacent pairs to outfile.
-    Perform check on numbers when done.
+    Perform check on numbers when done. pairsfw is a list of file handles, each
+    for a different library. p is a Pairs instance.
     """
     fp = open(fastqfile)
-    fw = open(outfile, "w")
-    logging.debug("Extract paired reads into `{0}`".format(outfile))
-    currentID = nrecords = 0
-    for x in pairIDs:
+    currentID = 0
+    npairs = nfrags = 0
+    for x, lib in izip(p.r1, p.libs):
         while currentID != x:
-            list(islice(fp, 4))  # Exhauste the iterator
+            fragsfw.writelines(islice(fp, 4))  # Exhaust the iterator
             currentID += 1
+            nfrags += 1
+        fw = pairsfw[lib]
         fw.writelines(islice(fp, 4))
         fw.writelines(islice(fp, 4))
-        nrecords += 2
         currentID += 2
-
-    fp.close()
-    fw.close()
-    logging.debug("A total of {0} paired reads written to `{1}`".\
-                  format(nrecords, outfile))
-
-    expected = 2 * len(pairIDs)
-    assert nrecords == expected, "Expect {0} reads, got {1} instead".\
-              format(expected, nrecords)
-
-
-def extract_frags(fastqfile, outfile, pairIDs, expected):
-    """
-    Take fastqfile and array of pair ID, avoid pairs and extract single reads.
-    Perform check on numbers when done.
-    """
-    fp = open(fastqfile)
-    fw = open(outfile, "w")
-    logging.debug("Extract single reads into `{0}`".format(outfile))
-    currentID = nrecords = 0
-    for x in pairIDs:
-        while currentID != x:
-            fw.writelines(islice(fp, 4))
-            currentID += 1
-            nrecords += 1
-        list(islice(fp, 4))  # Exhaust the iterator
-        list(islice(fp, 4))
-        currentID += 2
+        npairs += 2
 
     # Write the remaining single reads
     while True:
         contents = list(islice(fp, 4))
         if not contents:
             break
-        fw.writelines(contents)
-        nrecords += 1
+        fragsfw.writelines(contents)
+        nfrags += 1
 
-    fp.close()
-    fw.close()
-    logging.debug("A total of {0} single reads written to `{1}`".\
-                  format(nrecords, outfile))
+    logging.debug("A total of {0} paired reads written to `{1}`.".\
+                  format(npairs, ",".join(x.name for x in pairsfw)))
+    logging.debug("A total of {0} single reads written to `{1}`.".\
+                  format(nfrags, fragsfw.name))
 
-    assert nrecords == expected, "Expect {0} reads, got {1} instead".\
-              format(expected, nrecords)
+    # Validate the numbers
+    expected_pairs = 2 * p.npairs
+    expected_frags = p.nreads - 2 * p.npairs
+    assert npairs == expected_pairs, "Expect {0} paired reads, got {1} instead".\
+              format(expected_pairs, npairs)
+    assert nfrags == expected_frags, "Expect {0} single reads, got {1} instead".\
+              format(expected_frags, nfrags)
 
 
 def pairs(args):
@@ -180,17 +158,11 @@ def pairs(args):
 
     pairsfile = "{0}.{1}.pairs.fastq"
     fragsfile = "{0}.frags.fastq"
-    args = [(fastqfile, pairsfile.format(pf, x), p.r1[p.libs == i]) \
-            for i, x in enumerate(p.libnames)]
+    pairsfw = [open(pairsfile.format(pf, x), "w") \
+               for i, x in enumerate(p.libnames)]
+    fragsfw = open(fragsfile.format(pf), "w")
 
-    for a, b, c in args:
-        print >> sys.stderr, b, c
-
-    m = Jobs(target=extract_pairs, args=args)
-    m.run()
-
-    singles = p.nreads - 2 * p.npairs
-    extract_frags(fastqfile, fragsfile.format(pf), p.r1, expected=singles)
+    extract_pairs(fastqfile, pairsfw, fragsfw, p)
 
 
 def prepare(args):

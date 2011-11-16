@@ -64,7 +64,10 @@ def prepare(args):
         rank += 1
         block = "[LIB]\n"
         block += "avg_ins={0}\n".format(size)
-        block += "reverse_seq={0}\n".format(lib.reverse_seq)
+        f = fs[0]
+        reverse_seq = 0 if ".corr." in f else lib.reverse_seq
+        block += "reverse_seq={0}\n".format(reverse_seq)
+        block += "asm_flags={0}\n".format(lib.asm_flags)
         block += "rank={0}\n".format(rank)
         if singletons:
             fs += singletons

@@ -229,7 +229,7 @@ def correct(args):
     run_FastbAndQualb2Fastq(infile=op.basename(corrfastb), outfile=corrfastq)
 
     pairsfile = pf + ".pairs"
-    fragsfastq = pf + ".frags.fastq"
+    fragsfastq = pf + ".frags.corr.fastq"
     run_pairs(infile=[pairsfile, corrfastq], outfile=fragsfastq)
     os.chdir(cwd)
 
@@ -253,7 +253,7 @@ def correct(args):
     run_FastbAndQualb2Fastq(infile=op.basename(filtfastb), outfile=filtfastq)
 
     pairsfile = pf + ".pairs"
-    fragsfastq = pf + ".frags.fastq"
+    fragsfastq = pf + ".frags.corr.fastq"
     run_pairs(infile=[pairsfile, filtfastq], outfile=fragsfastq)
     os.chdir(cwd)
 

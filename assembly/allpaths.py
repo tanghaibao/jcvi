@@ -16,20 +16,9 @@ from itertools import islice, izip
 from optparse import OptionParser
 
 from jcvi.formats.base import BaseFile
+from jcvi.assembly.base import FastqNamings, Library
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
-
-FastqNamings = """
-    The naming schemes for the fastq files are.
-
-    PE-376.fastq (paired end)
-    MP-3000.fastq (mate pairs)
-    TT-3000.fastq (mate pairs, but from 454 data, so expected to be +-)
-    LL-0.fastq (long reads)
-
-    The reads are assumed to be NOT paired if the number after the PE-, MP-,
-    etc. is 0. Otherwise, they are considered paired at the given distance.
-"""
 
 
 class PairsFile (BaseFile):
@@ -95,11 +84,11 @@ def main():
     p.dispatch(globals())
 
 
-def extract_pairs(fastqfile, pairsfw, fragsfw, p):
+def extract_pairs(fastqfile, p1fw, p2fw, fragsfw, p):
     """
     Take fastqfile and array of pair ID, extract adjacent pairs to outfile.
-    Perform check on numbers when done. pairsfw is a list of file handles, each
-    for a different library. p is a Pairs instance.
+    Perform check on numbers when done. p1fw, p2fw is a list of file handles,
+    each for one end. p is a Pairs instance.
     """
     fp = open(fastqfile)
     currentID = 0
@@ -109,9 +98,8 @@ def extract_pairs(fastqfile, pairsfw, fragsfw, p):
             fragsfw.writelines(islice(fp, 4))  # Exhaust the iterator
             currentID += 1
             nfrags += 1
-        fw = pairsfw[lib]
-        fw.writelines(islice(fp, 4))
-        fw.writelines(islice(fp, 4))
+        p1fw[lib].writelines(islice(fp, 4))
+        p2fw[lib].writelines(islice(fp, 4))
         currentID += 2
         npairs += 2
 
@@ -124,7 +112,7 @@ def extract_pairs(fastqfile, pairsfw, fragsfw, p):
         nfrags += 1
 
     logging.debug("A total of {0} paired reads written to `{1}`.".\
-                  format(npairs, ",".join(x.name for x in pairsfw)))
+                  format(npairs, ",".join(x.name for x in p1fw + p2fw)))
     logging.debug("A total of {0} single reads written to `{1}`.".\
                   format(nfrags, fragsfw.name))
 
@@ -156,21 +144,22 @@ def pairs(args):
     p = PairsFile(pairsfile)
     print >> sys.stderr, p.header
 
-    pairsfile = "{0}.{1}.pairs.fastq"
-    fragsfile = "{0}.frags.fastq"
-    pairsfw = [open(pairsfile.format(pf, x), "w") \
-               for i, x in enumerate(p.libnames)]
+    p1file = "{0}.1.corr.fastq"
+    p2file = "{0}.2.corr.fastq"
+    fragsfile = "{0}.frags.corr.fastq"
+    p1fw = [open(p1file.format(x), "w") for x in p.libnames]
+    p2fw = [open(p2file.format(x), "w") for x in p.libnames]
     fragsfw = open(fragsfile.format(pf), "w")
 
-    extract_pairs(fastqfile, pairsfw, fragsfw, p)
+    extract_pairs(fastqfile, p1fw, p2fw, fragsfw, p)
 
 
 def prepare(args):
     """
     %prog prepare "B. oleracea" *.fastq
 
-    Scans the current folder looking for input fastq files (see below) and then
-    create "in_groups.csv" and "in_libs.csv".
+    Scan input fastq files (see below) and create `in_groups.csv` and
+    `in_libs.csv`. The species name does not really matter.
     """
     from jcvi.utils.table import write_csv
 
@@ -182,7 +171,7 @@ def prepare(args):
 
     organism_name = args[0]
     project_name = "".join(x[0] for x in organism_name.split()).upper()
-    fnames = sorted(glob("*.fastq") if len(args) == 1 else args[1:])
+    fnames = sorted(glob("*.fastq*") if len(args) == 1 else args[1:])
     for x in fnames:
         assert op.exists(x), "File `{0}` not found.".format(x)
 
@@ -193,29 +182,27 @@ def prepare(args):
     groupcontents = []
     libs = []
     for file_name in fnames:
-        group_name, ext = op.splitext(file_name)
+        group_name = op.basename(file_name).split(".")[0]
         library_name = "-".join(group_name.split("-")[:2])
         groupcontents.append((group_name, library_name, file_name))
         if library_name not in libs:
             libs.append(library_name)
 
     libcontents = []
-    types = {"PE": "fragment", "MP": "jumping", "TT": "jumping", "LL": "long"}
     for library_name in libs:
-        pf, size = library_name.split("-")
-        size = int(size)
-        stddev = size / 5
-        type = types[pf]
-        paired = 0 if size == 0 else 1
+        L = Library(library_name)
+        size = L.size
+        stddev = L.stddev
+        type = L.type
+        paired = L.paired
+        read_orientation = L.read_orientation
+
         size = size or ""
         stddev = stddev or ""
         frag_size = size if type == "fragment" else ""
         frag_stddev = stddev if type == "fragment" else ""
         insert_size = size if type != "fragment" else ""
         insert_stddev = stddev if type != "fragment" else ""
-        read_orientation = "outward" if pf == "MP" else "inward"
-        if not paired:
-            read_orientation = ""
         genomic_start, genomic_end = "", ""
         libcontents.append((library_name, project_name, organism_name, type, \
             paired, frag_size, frag_stddev, insert_size, insert_stddev, \

@@ -5,6 +5,7 @@
 Base utilties for genome assembly related calculations and manipulations
 """
 
+import os.path as op
 import sys
 from math import log
 ln2 = log(2)
@@ -24,6 +25,41 @@ debug()
 
 orientationlabels = {"++": "normal", "+-": "innie", "-+": "outie", "--": "antinormal"}
 orientationflips = {"++": "--", "+-": "-+", "-+": "+-", "--": "++"}
+types = {"PE": "fragment", "MP": "jumping", "TT": "jumping", "LL": "long"}
+
+FastqNamings = """
+    The naming schemes for the fastq files are.
+
+    PE-376.fastq (paired end)
+    MP-3000.fastq (mate pairs)
+    TT-3000.fastq (mate pairs, but from 454 data, so expected to be +-)
+    LL-0.fastq (long reads)
+
+    The reads are assumed to be NOT paired if the number after the PE-, MP-,
+    etc. is 0. Otherwise, they are considered paired at the given distance.
+"""
+
+
+class Library (object):
+    """
+    The sequence files define a library.
+    """
+    def __init__(self, library_name):
+
+        self.library_name = library_name
+        pf, size = library_name.split("-")
+        assert pf in types, \
+            "Library prefix must be one of {0}".format(types.keys())
+
+        self.size = size = int(size)
+        self.stddev = size / 5
+        self.type = types[pf]
+        self.paired = 0 if size == 0 else 1
+        self.read_orientation = "outward" if pf == "MP" else "inward"
+        self.reverse_seq = 1 if pf == "MP" else 0
+        self.asm_flags = 3 if pf != "MP" else 2
+        if not self.paired:
+            self.read_orientation = ""
 
 
 def calculate_A50(ctgsizes, cutoff=0):

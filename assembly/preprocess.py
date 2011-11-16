@@ -165,7 +165,8 @@ def correct(args):
     reads, and results will be placed in `frag_reads.corr.{pairs,frags}.fastq`
     and `jump_reads.corr.{pairs,frags}.fastq`.
     """
-    from jcvi.assembly.allpaths import prepare, FastqNamings
+    from jcvi.assembly.allpaths import prepare
+    from jcvi.assembly.base import FastqNamings
 
     p = OptionParser(correct.__doc__ + FastqNamings)
     p.add_option("--cpus", default=32, type="int",

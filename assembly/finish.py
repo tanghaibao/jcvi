@@ -73,16 +73,15 @@ def scaffold(args):
     for s, partialorder in bb.sub_beds():
         name = partialorder[0].accn
         bname = name.rsplit("_", 1)[0] if opts.prefix else s
-        scaffoldbuckets[bname].append(partialorder)
+        scaffoldbuckets[bname].append([(b.accn, b.strand) for b in partialorder])
 
     # Now the buckets contain a mixture of singletons and partially resolved
     # scaffolds. Print the scaffolds first then remaining singletons.
     for bname, scaffolds in sorted(scaffoldbuckets.items()):
         ctgorder = []
         singletons = set()
-        for scaf in scaffolds:
-            for b in scaf:
-                node, orientation = b.accn, b.strand
+        for scaf in sorted(scaffolds):
+            for node, orientation in scaf:
                 ctgorder.append((node, orientation))
             if len(scaf) == 1:
                 singletons.add(node)

@@ -65,9 +65,6 @@ def scaffold(args):
     newagpfile = pf + ".new.agp"
     fwagp = open(newagpfile, "w")
 
-    def get_bname(sname, prefix=False):
-        return sname.rsplit("_", 1)[0] if prefix else "chr0"
-
     scaffoldbuckets = defaultdict(list)
     seqnames = sorted(sizes.keys())
 
@@ -75,18 +72,12 @@ def scaffold(args):
     bb = Bed(bedfile)
     for s, partialorder in bb.sub_beds():
         name = partialorder[0].accn
-        bname = get_bname(name, prefix=opts.prefix)
+        bname = name.rsplit("_", 1)[0] if opts.prefix else s
         scaffoldbuckets[bname].append(partialorder)
-
-    ctgbuckets = defaultdict(set)
-    for name in seqnames:
-        bname = get_bname(name, prefix=opts.prefix)
-        ctgbuckets[bname].add(name)
 
     # Now the buckets contain a mixture of singletons and partially resolved
     # scaffolds. Print the scaffolds first then remaining singletons.
-    for bname, ctgs in sorted(ctgbuckets.items()):
-        scaffolds = scaffoldbuckets[bname]
+    for bname, scaffolds in sorted(scaffoldbuckets.items()):
         ctgorder = []
         singletons = set()
         for scaf in scaffolds:
@@ -108,9 +99,6 @@ def scaffold(args):
             format(bname, nscaffolds, nsingletons, phase)
         print >> sys.stderr, msg
         print >> fwphase, "\t".join((bname, str(phase)))
-
-        for singleton in singletons:
-            ctgorder.append((singleton, "+"))
 
         order_to_agp(bname, ctgorder, sizes, fwagp)
 

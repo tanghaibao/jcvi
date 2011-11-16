@@ -454,6 +454,18 @@ class OO (LineFile):
                 object_beg += size
 
 
+def order_to_agp(object, ctgorder, sizes, fwagp, gapsize=100):
+
+    from jcvi.formats.agp import OO, OOLine
+
+    o = OO(None, sizes)  # Without a filename
+    for scaffold_number, (ctg, strand) in enumerate(ctgorder):
+        size = sizes[ctg]
+        o.append(OOLine(object, ctg, size, strand))
+
+    o.write_AGP(fwagp, gapsize=gapsize, phases={})
+
+
 def trimNs(seq, line, newagp):
     """
     Test if the sequences contain dangling N's on both sides. This component
@@ -884,22 +896,28 @@ def bed(args):
             help="Do not print bed lines for gaps [default: %default]")
     p.add_option("--bed12", default=False, action="store_true",
             help="Produce bed12 formatted output [default: %default]")
+    set_outfile(p)
+
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
     agpfile, = args
     agp = AGP(agpfile)
+    fw = must_open(opts.outfile, "w")
     for a in agp:
         if opts.nogaps and a.is_gap:
             continue
         if opts.gaps and not a.is_gap:
             continue
         if opts.bed12:
-            print a.bed12line
+            print >> fw, a.bed12line
         else:
-            print a.bedline
+            print >> fw, a.bedline
+    fw.close()
+
+    return fw.name
 
 
 def extendbed(args):

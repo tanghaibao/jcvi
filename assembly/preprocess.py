@@ -38,7 +38,7 @@ def trim(args):
 
     <http://www.usadellab.org/cms/index.php?page=trimmomatic>
     """
-    TrimVersion = tv = "0.15"
+    TrimVersion = tv = "0.17"
     TrimJar = "trimmomatic-{0}.jar".format(tv)
     p = OptionParser(trim.__doc__)
     p.add_option("--path", default=op.join("~/bin", TrimJar),
@@ -118,7 +118,8 @@ def trim(args):
 
     cmd += " ILLUMINACLIP:{0}:2:40:15".format(adaptersfile)
     cmd += " LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 MINLEN:30"
-    cmd += " TOPHRED33"
+    if offset != 33:
+        cmd += " TOPHRED33"
     sh(cmd, grid=opts.grid)
 
 

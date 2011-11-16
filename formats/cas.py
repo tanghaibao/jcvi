@@ -329,16 +329,21 @@ def bed(args):
 
     fp = open(castabfile)
     bedfile = castabfile.rsplit(".", 1)[0] + ".bed"
-    fw = open(bedfile, "w")
-    for row in fp:
-        b = CasTabLine(row)
-        if b.readstart == -1:
-            continue
-        if hasfastafile:
-            b.refnum = refnames[b.refnum]
-        print >> fw, b.bedline
 
-    logging.debug("File written to `{0}`.".format(bedfile))
+    if need_update(castabfile, bedfile):
+        fw = open(bedfile, "w")
+        for row in fp:
+            b = CasTabLine(row)
+            if b.readstart == -1:
+                continue
+            if hasfastafile:
+                b.refnum = refnames[b.refnum]
+            print >> fw, b.bedline
+
+        logging.debug("File written to `{0}`.".format(bedfile))
+    else:
+        logging.debug("File `{0}` up to date. Computation skipped.".\
+                      format(bedfile))
 
     return bedfile
 

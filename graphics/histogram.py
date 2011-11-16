@@ -120,8 +120,6 @@ def histogram_multiple(numberfiles, vmin, vmax, xlabel, title,
                 bins=bins, skip=skip)
 
     newfile = "_".join(op.basename(x).split(".")[0] for x in numberfiles)
-    suffix = op.basename(numberfiles[0]).split(".")[-1]
-    newfile += "." + suffix
 
     fw = open(newfile, "w")
     print >> fw, "{0}\tgroup".format(xlabel)

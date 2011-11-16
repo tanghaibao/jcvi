@@ -605,9 +605,9 @@ def set_options_pairs():
     %prog pairs <blastfile|casfile|bedfile|posmapfile>
 
     Report how many paired ends mapped, avg distance between paired ends, etc.
-
-    Reads have to be have the same prefix, use --rclip to remove trailing
-    part, e.g. /1, /2, or .f, .r.
+    Paired reads must have the same prefix, use --rclip to remove trailing
+    part, e.g. /1, /2, or .f, .r, default behavior is to truncate until last
+    char.
     """
     p = OptionParser(set_options_pairs.__doc__)
 
@@ -617,9 +617,8 @@ def set_options_pairs():
     p.add_option("--mateorientation", default=None,
             choices=("++", "--", "+-", "-+"),
             help="use only certain mate orientations [default: %default]")
-    p.add_option("--pairs", dest="pairsfile",
-            default=False, action="store_true",
-            help="write valid pairs to pairsfile")
+    p.add_option("--pairsfile", default=None,
+            help="write valid pairs to pairsfile [default: %default]")
     p.add_option("--nrows", default=100000, type="int",
             help="only use the first n lines [default: %default]")
     p.add_option("--rclip", default=1, type="int",
@@ -642,6 +641,8 @@ def report_pairs(data, cutoff=0, mateorientation=None,
     This subroutine is used by the pairs function in blast.py and cas.py.
     Reports number of fragments and pairs as well as linked pairs
     """
+    from jcvi.utils.cbook import percentage
+
     allowed_mateorientations = ("++", "--", "+-", "-+")
 
     if mateorientation:
@@ -735,8 +736,9 @@ def report_pairs(data, cutoff=0, mateorientation=None,
 
     orientation_summary = []
     for orientation, count in sorted(orientations.items()):
-        o = "{0}:{1}".format(orientation, count)
-        orientation_summary.append(o)
+        o = "{0}:{1}".format(orientation, \
+                percentage(count, num_links, denominator=False))
+        orientation_summary.append(o.split()[0])
         print >>sys.stderr, o
 
     if insertsfile:

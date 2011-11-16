@@ -188,7 +188,6 @@ def pairs(args):
     bedfile, = args
 
     basename = bedfile.split(".")[0]
-    pairsfile = ".".join((basename, "pairs")) if opts.pairsfile else None
     insertsfile = ".".join((basename, "inserts"))
 
     sortedbedfile = op.basename(bedfile).rsplit(".", 1)[0] + ".sorted.bed"
@@ -202,7 +201,7 @@ def pairs(args):
 
     ascii = not opts.pdf
     return bedfile, report_pairs(data, opts.cutoff, opts.mateorientation,
-           pairsfile=pairsfile, insertsfile=insertsfile,
+           pairsfile=opts.pairsfile, insertsfile=insertsfile,
            rclip=opts.rclip, ascii=ascii, bins=opts.bins,
            distmode=opts.distmode)
 

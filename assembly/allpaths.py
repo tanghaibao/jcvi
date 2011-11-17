@@ -69,7 +69,10 @@ class PairsFile (BaseFile):
 
         s = "Number of paired reads: {0}\n".format(\
                 percentage(self.npairs * 2, self.nreads))
-        s += "Libraries: {0}".format(", ".join(self.libnames))
+        s += "Libraries: {0}\n".format(", ".join(self.libnames))
+        s += "r1: {0}\n".format(self.r1)
+        s += "r2: {0}\n".format(self.r2)
+        s += "libs: {0}".format(self.libs)
         return s
 
 
@@ -134,19 +137,24 @@ def pairs(args):
     and single `frags.fastq` (with single reads from lib1/2).
     """
     p = OptionParser(pairs.__doc__)
+    p.add_option("--header", default=False, action="store_true",
+            help="Print header only [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
         sys.exit(not p.print_help())
 
     pairsfile, fastqfile = args
-    pf = fastqfile.split(".")[0]
+    pf = op.basename(fastqfile).split(".")[0]
     p = PairsFile(pairsfile)
     print >> sys.stderr, p.header
 
+    if opts.header:
+        return
+
     p1file = "{0}.1.corr.fastq"
     p2file = "{0}.2.corr.fastq"
-    fragsfile = "{0}.frags.corr.fastq"
+    fragsfile = "{0}.corr.fastq"
     p1fw = [open(p1file.format(x), "w") for x in p.libnames]
     p2fw = [open(p2file.format(x), "w") for x in p.libnames]
     fragsfw = open(fragsfile.format(pf), "w")
@@ -184,6 +192,13 @@ def prepare(args):
     for file_name in fnames:
         group_name = op.basename(file_name).split(".")[0]
         library_name = "-".join(group_name.split("-")[:2])
+
+        # Handle paired files and convert to wildcard
+        if ".1." in file_name:
+            file_name = file_name.replace(".1.", ".?.")
+        elif ".2." in file_name:
+            continue
+
         groupcontents.append((group_name, library_name, file_name))
         if library_name not in libs:
             libs.append(library_name)

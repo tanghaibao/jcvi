@@ -108,6 +108,8 @@ def shuffle(args):
 
     Shuffle pairs into interleaved format, using `shuffleSequences_fastq.pl`.
     """
+    from itertools import izip, islice
+
     p = OptionParser(shuffle.__doc__)
     opts, args = p.parse_args(args)
 
@@ -115,6 +117,21 @@ def shuffle(args):
         sys.exit(not p.print_help())
 
     p1, p2, pairsfastq = args
+
+    if p1.endswith(".gz") or p2.endswith(".gz"):
+        p1fp = must_open(p1)
+        p2fp = must_open(p2)
+        pairsfw = must_open(pairsfastq, "w")
+        while True:
+            a = list(islice(p1fp, 4))
+            if not a:
+                break
+
+            pairsfw.writelines(a)
+            pairsfw.writelines(islice(p2fp, 4))
+
+        return
+
     cmd = "shuffleSequences_fastq.pl {0} {1} {2}".format(*args)
     sh(cmd)
 

@@ -294,7 +294,8 @@ def run(args):
         sepidx = args.index(sep)
         filenames = args[sepidx + 1:]
         args = args[:sepidx]
-        assert filenames, "No input files"
+        if not filenames:
+            filenames = [""]
     else:
         filenames = sys.stdin
 

@@ -227,11 +227,12 @@ def correct(args):
     os.chdir(datadir)
     corrfastq = pf + ".fastq"
     run_FastbAndQualb2Fastq(infile=op.basename(corrfastb), outfile=corrfastq)
+    os.chdir(cwd)
 
     pairsfile = pf + ".pairs"
-    fragsfastq = pf + ".frags.corr.fastq"
-    run_pairs(infile=[pairsfile, corrfastq], outfile=fragsfastq)
-    os.chdir(cwd)
+    fragsfastq = pf + ".corr.fastq"
+    run_pairs(infile=[op.join(datadir, pairsfile), op.join(datadir, corrfastq)],
+                      outfile=fragsfastq)
 
     origj = datadir + "/{0}_orig".format(tagj)
     origjfastb = origj + ".fastb"
@@ -251,11 +252,12 @@ def correct(args):
     os.chdir(datadir)
     filtfastq = pf + ".fastq"
     run_FastbAndQualb2Fastq(infile=op.basename(filtfastb), outfile=filtfastq)
+    os.chdir(cwd)
 
     pairsfile = pf + ".pairs"
-    fragsfastq = pf + ".frags.corr.fastq"
-    run_pairs(infile=[pairsfile, filtfastq], outfile=fragsfastq)
-    os.chdir(cwd)
+    fragsfastq = pf + ".corr.fastq"
+    run_pairs(infile=[op.join(datadir, pairsfile), op.join(datadir + filtfastq)],
+                      outfile=fragsfastq)
 
 
 if __name__ == '__main__':

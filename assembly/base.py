@@ -35,6 +35,9 @@ FastqNamings = """
     TT-3000.fastq (mate pairs, but from 454 data, so expected to be +-)
     LL-0.fastq (long reads)
 
+    Paired reads in different files must be in the form of (note the .1. and .2.):
+    PE-376.1.fastq and PE-376.2.fastq to be considered
+
     The reads are assumed to be NOT paired if the number after the PE-, MP-,
     etc. is 0. Otherwise, they are considered paired at the given distance.
 """

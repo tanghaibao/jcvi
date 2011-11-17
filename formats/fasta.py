@@ -444,8 +444,13 @@ def format(args):
 
     fw = must_open(outfasta, "w")
     for i, rec in enumerate(SeqIO.parse(infasta, "fasta")):
+        description = rec.description
         if until:
-            rec.id = rec.id.split(until, 1)[0]
+            description = description.split(until, 1)[0]
+        if idx:
+            description = description.split()[idx]
+
+        rec.id = description
         if gb:
             # gi|262233616|gb|GU123895.1| Coffea arabica clone BAC
             atoms = rec.id.split("|")
@@ -462,8 +467,6 @@ def format(args):
             rec.id = "{0:0{1}d}".format(i + 1, opts.pad0)
         if prefix:
             rec.id = prefix + rec.id
-        if idx:
-            rec.id = rec.description.split()[idx]
         if opts.template:
             template, dir, lib = [x.split("=")[-1] for x in
                     rec.description.split()[1:4]]

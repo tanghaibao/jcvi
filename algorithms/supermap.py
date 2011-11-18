@@ -5,7 +5,7 @@
 %prog infile [options]
 
 This script combines pairwise alignments, sort and filter the alignments.
-Infile expect BLAST tabular format (-m8).
+Infile expect BLAST tabular format (-m8) or nucmer .coords file.
 
 In order to handle dups, we have to run two monotonous chains in both genomes,
 first chain using ref, and a second chain using query and we will have options
@@ -124,6 +124,11 @@ def supermap(blast_file, filter="intersection", dialect="blast"):
             break
 
     logging.debug("Write output file to `{0}`".format(supermapfile))
+
+    from jcvi.formats.blast import sort
+    if dialect == "blast" and filter in ("ref", "query"):
+        sort([supermapfile, "--" + filter])
+
     return supermapfile
 
 
@@ -134,12 +139,10 @@ if __name__ == '__main__':
     filter_choices = ("ref", "query", "intersection", "union")
     dialect_choices = ("blast", "coords")
 
-    p.add_option("-f", "--filter", choices=filter_choices,
-            dest="filter", default="intersection",
-            help="filters: " + str(filter_choices) + " [default: %default]")
-    p.add_option("-d", "--dialect", choices=dialect_choices,
-            dest="dialect", default=None,
-            help="dialects: " + str(dialect_choices))
+    p.add_option("--filter", choices=filter_choices, default="intersection",
+            help="Available filters: " + str(filter_choices) + " [default: %default]")
+    p.add_option("--dialect", choices=dialect_choices,
+            help="Input format: " + str(dialect_choices))
 
     opts, args = p.parse_args()
 

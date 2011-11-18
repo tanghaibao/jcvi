@@ -240,6 +240,10 @@ def sort(args):
     sort is 'in-place'.
     """
     p = OptionParser(sort.__doc__)
+    p.add_option("--query", default=False, action="store_true",
+            help="Sort by query position [default: %default]")
+    p.add_option("--ref", default=False, action="store_true",
+            help="Sort by reference position [default: %default]")
 
     opts, args = p.parse_args(args)
 
@@ -247,7 +251,15 @@ def sort(args):
         sys.exit(not p.print_help())
 
     blastfile, = args
-    cmd = "sort -k1,1 -k12,12nr {0} -o {0}".format(blastfile)
+
+    if opts.query:
+        key = "-k1,1 -k7,7n"
+    elif opts.ref:
+        key = "-k2,2 -k9,9n"
+    else:
+        key = "-k1,1 -k12,12nr"
+
+    cmd = "sort {0} {1} -o {1}".format(key, blastfile)
     sh(cmd)
 
 

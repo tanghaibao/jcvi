@@ -443,7 +443,7 @@ def format(args):
         mapping = DictFile(mapfile, delimiter="\t")
 
     fw = must_open(outfasta, "w")
-    for i, rec in enumerate(SeqIO.parse(infasta, "fasta")):
+    for i, rec in enumerate(SeqIO.parse(must_open(infasta), "fasta")):
         description = rec.description
         if until:
             description = description.split(until, 1)[0]

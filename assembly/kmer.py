@@ -46,7 +46,7 @@ def meryl(args):
 
 def histogram(args):
     """
-    %prog histogram meryl.histogram species K totalKmers
+    %prog histogram meryl.histogram species K
 
     Plot the histogram based on meryl K-mer distribution, species and N are
     only used to annotate the graphic. Find out totalKmers when running
@@ -55,20 +55,30 @@ def histogram(args):
     p = OptionParser(histogram.__doc__)
     p.add_option("--pdf", default=False, action="store_true",
             help="Print PDF instead of ASCII plot [default: %default]")
+    p.add_option("--soap", default=False, action="store_true",
+            help="Histogram is soap format [default: %default]")
     opts, args = p.parse_args(args)
 
-    if len(args) != 4:
-        sys.exit(p.print_help())
+    if len(args) != 3:
+        sys.exit(not p.print_help())
 
-    histfile, species, N, totalKmers = args
+    histfile, species, N = args
     ascii = not opts.pdf
     fp = open(histfile)
     hist = {}
-    for row in fp:
-        K, counts = row.split()[:2]
-        K, counts = int(K), int(counts)
+    totalKmers = 0
+
+    for rowno, row in enumerate(fp):
+        if opts.soap:
+            K = rowno + 1
+            counts = int(row.strip())
+        else:  # meryl histogram
+            K, counts = row.split()[:2]
+            K, counts = int(K), int(counts)
+
         Kcounts = K * counts
-        hist[K] = Kcounts
+        totalKmers += Kcounts
+        hist[K] = counts
 
     history = ["drop"]
     for a, b in pairwise(sorted(hist.items())):

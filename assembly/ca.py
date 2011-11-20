@@ -477,10 +477,10 @@ def fastq(args):
 
     cmd = CAPATH("fastqToCA")
     cmd += " -libraryname {0} ".format(libname)
-    fastqs = " ".join("-fastq {0}".format(x) for x in fastqfiles)
+    fastqs = " ".join("-reads {0}".format(x) for x in fastqfiles)
     if mated:
-        assert len(args) == 2, "you need two fastq file for mated library"
-        fastqs = "-fastq {0},{1}".format(*fastqfiles)
+        assert len(args) in (1, 2), "you need one or two fastq files for mated library"
+        fastqs = "-mates {0}".format(",".join(fastqfiles))
         cmd += "-insertsize {0} {1} ".format(mean, sv)
     cmd += fastqs
 

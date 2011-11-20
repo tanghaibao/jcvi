@@ -256,7 +256,7 @@ def correct(args):
 
     pairsfile = pf + ".pairs"
     fragsfastq = pf + ".corr.fastq"
-    run_pairs(infile=[op.join(datadir, pairsfile), op.join(datadir + filtfastq)],
+    run_pairs(infile=[op.join(datadir, pairsfile), op.join(datadir, filtfastq)],
                       outfile=fragsfastq)
 
 

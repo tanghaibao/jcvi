@@ -17,7 +17,7 @@ from optparse import OptionParser
 
 from jcvi.formats.base import BaseFile
 from jcvi.assembly.base import FastqNamings, Library
-from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.apps.base import ActionDispatcher, debug, need_update, sh
 debug()
 
 
@@ -82,9 +82,51 @@ def main():
         ('prepare', 'prepare ALLPATHS csv files and run script'),
         ('log', 'prepare a log of created files'),
         ('pairs', 'parse ALLPATHS pairs file'),
+        ('fill', 'run FillFragments on `frag_reads_corr.fastb`'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def fill(args):
+    """
+    %prog fill frag_reads_corr.fastb
+
+    Run FillFragments on `frag_reads_corr.fastb`.
+    """
+    p = OptionParser(fill.__doc__)
+    p.add_option("--stretch", default=3, type="int",
+                 help="MAX_STRETCH to pass to FillFragments [default: %default]")
+    p.add_option("--cpus", default=32, type="int",
+                 help="Number of threads to run [default: %default]")
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    fastb, = args
+    assert fastb == "frag_reads_corr.fastb"
+
+    pcfile = "frag_reads_corr.k28.pc.info"
+    nthreads = " NUM_THREADS={0}".format(opts.cpus)
+    maxstretch = " MAX_STRETCH={0}".format(opts.stretch)
+    if need_update(fastb, pcfile):
+        cmd = "PathReads READS_IN=frag_reads_corr"
+        cmd += nthreads
+        sh(cmd)
+
+    filledfastb = "filled_reads.fastb"
+    if need_update(pcfile, filledfastb):
+        cmd = "FillFragments PAIRS_OUT=frag_reads_corr_cpd"
+        cmd += maxstretch
+        cmd += nthreads
+        sh(cmd)
+
+    filledfasta = "filled_reads.fasta"
+    if need_update(filledfastb, filledfasta):
+        cmd = "Fastb2Fasta IN=filled_reads.fastb OUT=filled_reads.fasta"
+        sh(cmd)
 
 
 def extract_pairs(fastqfile, p1fw, p2fw, fragsfw, p):

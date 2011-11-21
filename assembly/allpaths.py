@@ -11,7 +11,7 @@ import logging
 import numpy as np
 
 from glob import glob
-from struct import unpack
+from struct import pack, unpack
 from itertools import islice, izip
 from optparse import OptionParser
 
@@ -30,8 +30,8 @@ class PairsFile (BaseFile):
         binwrite, = unpack("8s", fp.read(8))
         assert binwrite == "BINWRITE"
 
-        version, = unpack("i", fp.read(4))
-        assert version == 1
+        self.version, = unpack("i", fp.read(4))
+        assert self.version == 1
 
         self.nreads, = unpack("Q", fp.read(8))
         self.nlibs, = unpack("Q", fp.read(8))
@@ -70,10 +70,37 @@ class PairsFile (BaseFile):
         s = "Number of paired reads: {0}\n".format(\
                 percentage(self.npairs * 2, self.nreads))
         s += "Libraries: {0}\n".format(", ".join(self.libnames))
+        s += "LibraryStats: {0}\n".format(self.libstats)
         s += "r1: {0}\n".format(self.r1)
         s += "r2: {0}\n".format(self.r2)
         s += "libs: {0}".format(self.libs)
         return s
+
+    def fixLibraryStats(self, sep, sd):
+        libstat = (sep, sd)
+        logging.debug("New library stat: {0}".format(libstat))
+        self.libstats = [libstat] * self.nlibs
+
+    def write(self, filename):
+        fw = open(filename, "wb")
+        fw.write(pack("8s", "BINWRITE"))
+        fw.write(pack("i", self.version))
+        fw.write(pack("Q", self.nreads))
+        fw.write(pack("Q", self.nlibs))
+        for a, b in self.libstats:
+            fw.write(pack("ii", a, b))
+        fw.write(pack("Q", self.nlibs))
+        for name in self.libnames:
+            slen = len(name) + 1
+            fw.write(pack("i", slen))
+            fw.write(pack("{0}s".format(slen), name))
+        fw.write(pack("Q", self.npairs))
+        self.r1.tofile(fw)
+        fw.write(pack("Q", self.npairs))
+        self.r2.tofile(fw)
+        fw.write(pack("Q", self.npairs))
+        self.libs.tofile(fw)
+        logging.debug("New pairs file written to `{0}`.".format(filename))
 
 
 def main():
@@ -82,10 +109,34 @@ def main():
         ('prepare', 'prepare ALLPATHS csv files and run script'),
         ('log', 'prepare a log of created files'),
         ('pairs', 'parse ALLPATHS pairs file'),
+        ('fixpairs', 'fix pairs library stats'),
         ('fill', 'run FillFragments on `frag_reads_corr.fastb`'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def fixpairs(args):
+    """
+    %prog fixpairs pairsfile sep sd
+
+    Fix pairs library stats. This is sometime useful to modify library stats,
+    for example, the separation between paired reads after importing the data.
+    """
+    p = OptionParser(fixpairs.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    pairsfile, sep, sd = args
+    newpairsfile = pairsfile.rsplit(".", 1)[0] + ".new.pairs"
+    sep = int(sep)
+    sd = int(sd)
+
+    p = PairsFile(pairsfile)
+    p.fixLibraryStats(sep, sd)
+    p.write(newpairsfile)
 
 
 def fill(args):
@@ -119,6 +170,7 @@ def fill(args):
     filledfastb = "filled_reads.fastb"
     if need_update(pcfile, filledfastb):
         cmd = "FillFragments PAIRS_OUT=frag_reads_corr_cpd"
+        cmd += " PRECORRECT_LIBSTATS=True"
         cmd += maxstretch
         cmd += nthreads
         sh(cmd)

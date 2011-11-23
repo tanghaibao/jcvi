@@ -16,7 +16,7 @@ from optparse import OptionParser
 from multiprocessing import Process
 
 from jcvi.formats.base import FileSplitter
-from jcvi.apps.base import ActionDispatcher, sh, mkdir, debug
+from jcvi.apps.base import ActionDispatcher, sh, popen, mkdir, debug
 debug()
 
 
@@ -142,8 +142,7 @@ class GridProcess (object):
 
         cmd = qsub + self.cmd
         # run the command and get the job-ID (important)
-        p = Popen(cmd, stdout=PIPE, shell=True)
-        output = p.communicate()[0]
+        output = popen(cmd, debug=False).read()
 
         if output.strip() != "":
             self.jobid = re.search(self.pat, output).group("id")

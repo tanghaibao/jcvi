@@ -247,6 +247,8 @@ def ids(args):
     Generate the FASTA headers without the '>'.
     """
     p = OptionParser(ids.__doc__)
+    p.add_option("--description", default=False, action="store_true",
+             help="Generate a second column with description [default: %default]")
     set_outfile(p)
 
     opts, args = p.parse_args(args)
@@ -255,10 +257,15 @@ def ids(args):
         sys.exit(not p.print_help())
 
     fw = must_open(opts.outfile, "w")
-    for fastafile in args:
-        f = Fasta(fastafile, lazy=True)
-        for key in f.iterkeys_ordered():
-            print >> fw, key
+    for row in must_open(args):
+        if row[0] == ">":
+            row = row[1:].rstrip()
+            atoms = row.split(None, 1)
+            if opts.description:
+                outrow = "\t".join(atoms)
+            else:
+                outrow = atoms[0]
+            print >> fw, outrow
 
     fw.close()
 

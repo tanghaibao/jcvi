@@ -179,7 +179,7 @@ def error(args):
                 unitigID = row.split("(")[0].split()[-1]
                 continue
 
-            if not failed in row:
+            if not failed.upper() in row.upper():
                 continue
 
             print >> fw, "\t".join(str(x) for x in (partID, unitigID))

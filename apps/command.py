@@ -127,6 +127,8 @@ def run_megablast(infile=None, outfile=None, db=None, \
     assert db, "Need to specify database fasta file."
 
     nin = db + ".nin"
+    nin00 = db + ".00.nin"
+    nin = nin00 if op.exists(nin00) else (db + ".nin")
     run_formatdb(infile=db, outfile=nin)
 
     cmd = BLPATH("blastn")
@@ -236,8 +238,8 @@ def megablast(args):
         sys.exit(not p.print_help())
 
     reffasta, queryfasta = args
-    q = queryfasta.split(".")[0]
-    r = reffasta.split(".")[0]
+    q = op.basename(queryfasta).split(".")[0]
+    r = op.basename(reffasta).split(".")[0]
     blastfile = "{0}.{1}.blast".format(q, r)
 
     run_megablast(infile=queryfasta, outfile=blastfile, db=reffasta, \

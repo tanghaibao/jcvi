@@ -5,6 +5,7 @@
 Deals with K-mers and K-mer distribution from reads or genome
 """
 
+import os.path as op
 import sys
 
 from optparse import OptionParser
@@ -30,7 +31,7 @@ def meryl(args):
     %prog meryl merylfile
 
     Run meryl to dump histogram to be used in kmer.histogram(). The merylfile
-    should be only the part without the suffix (.mcidx, .mcdat).
+    are the files ending in .mcidx or .mcdat.
     """
     p = OptionParser(meryl.__doc__)
     opts, args = p.parse_args(args)
@@ -39,8 +40,9 @@ def meryl(args):
         sys.exit(p.print_help())
 
     merylfile, = args
-    outfile = merylfile + ".histogram"
-    cmd = "meryl -Dh -s {0}".format(merylfile)
+    pf, sf = op.splitext(merylfile)
+    outfile = pf + ".histogram"
+    cmd = "meryl -Dh -s {0}".format(pf)
     sh(cmd, outfile=outfile)
 
 
@@ -55,8 +57,6 @@ def histogram(args):
     p = OptionParser(histogram.__doc__)
     p.add_option("--pdf", default=False, action="store_true",
             help="Print PDF instead of ASCII plot [default: %default]")
-    p.add_option("--soap", default=False, action="store_true",
-            help="Histogram is soap format [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -68,8 +68,16 @@ def histogram(args):
     hist = {}
     totalKmers = 0
 
+    # Guess the format of the Kmer histogram
+    soap = False
+    for row in fp:
+        if len(row.split()) == 1:
+            soap = True
+            break
+    fp.seek(0)
+
     for rowno, row in enumerate(fp):
-        if opts.soap:
+        if soap:
             K = rowno + 1
             counts = int(row.strip())
         else:  # meryl histogram

@@ -113,7 +113,7 @@ def main():
     message = "template writes to `{0}`".format(script)
     if opts.graphic:
         message = "graphic " + message
-    message = message.capitalize()
+    message = message[0].upper() + message[1:]
     logging.debug(message)
 
 

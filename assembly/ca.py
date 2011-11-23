@@ -80,7 +80,8 @@ src:
 .
 nft:1
 fea:
-doNotOverlapTrim=1
+doRemoveSpurReads=1
+doRemoveChimericReads=1
 .
 }}'''
 

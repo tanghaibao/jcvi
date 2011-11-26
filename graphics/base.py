@@ -6,9 +6,11 @@ import sys
 from functools import partial
 
 import numpy as np
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 from matplotlib.patches import Rectangle, Polygon, CirclePolygon
+from matplotlib.colors import LogNorm
 from matplotlib import cm
 
 from jcvi.utils.cbook import human_size
@@ -118,3 +120,43 @@ def asciiplot(x, y, digit=1, width=50, title=None, char="="):
         y = y or ""
         z = green(char * z)
         print >> sys.stderr, "{0} |{1} {2}".format(x, z, y)
+
+
+def cmap_map(function, cmap):
+    """
+    Recipe taken from:
+    <http://www.scipy.org/Cookbook/Matplotlib/ColormapTransformations>
+
+    Applies function (which should operate on vectors of shape 3:
+    [r, g, b], on colormap cmap. This routine will break any discontinuous
+    points in a colormap.
+    """
+    cdict = cmap._segmentdata
+    step_dict = {}
+
+    # First get the list of points where the segments start or end
+    for key in ('red', 'green', 'blue'):
+        step_dict[key] = map(lambda x: x[0], cdict[key])
+    step_list = sum(step_dict.values(), [])
+    step_list = np.array(list(set(step_list)))
+
+    # Then compute the LUT, and apply the function to the LUT
+    reduced_cmap = lambda step: np.array(cmap(step)[0:3])
+    old_LUT = np.array(map(reduced_cmap, step_list))
+    new_LUT = np.array(map(function, old_LUT))
+
+    # Now try to make a minimal segment definition of the new LUT
+    cdict = {}
+    for i,key in enumerate(('red', 'green', 'blue')):
+        this_cdict = {}
+        for j,step in enumerate(step_list):
+            if step in step_dict[key]:
+                this_cdict[step] = new_LUT[j, i]
+            elif new_LUT[j, i] != old_LUT[j, i]:
+                this_cdict[step] = new_LUT[j, i]
+
+        colorvector=  map(lambda x: x + (x[1], ), this_cdict.items())
+        colorvector.sort()
+        cdict[key] = colorvector
+
+    return mpl.colors.LinearSegmentedColormap('colormap', cdict, 1024)

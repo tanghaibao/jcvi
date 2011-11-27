@@ -61,6 +61,8 @@ def main():
     p = OptionParser(__doc__)
     p.add_option("--groups", default=False, action="store_true",
                  help="The first row contains group info [default: %default]")
+    p.add_option("--cmap", default="jet",
+                 help="Use this color map [default: %default]")
     opts, args, iopts = set_image_options(p, figsize="8x8")
 
     if len(args) != 1:
@@ -72,11 +74,13 @@ def main():
     groups, rows, cols, data = parse_csv(datafile, vmin=1, groups=opts.groups)
     cols = [x.replace("ay ", "") for x in cols]
 
+    plt.rcParams["axes.linewidth"] = 0
+
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
     ax = fig.add_axes([.15, .15, .7, .7])
 
-    default_cm = cm.jet
+    default_cm = cm.get_cmap(opts.cmap)
     im = ax.matshow(data, cmap=default_cm, norm=LogNorm(vmin=1, vmax=10000))
     nrows, ncols = len(rows), len(cols)
 
@@ -95,7 +99,7 @@ def main():
     if groups:
         groups = [(key, len(list(nn))) for key, nn in groupby(groups)]
         xstart = .15
-        yy = .83
+        yy = min(.83, .5 + .5 * nrows / ncols * .7 + .06)
         xinterval = .7 / ncols
         e = .005
         sep = -.5
@@ -114,7 +118,7 @@ def main():
     root.set_ylim(0, 1)
     root.set_axis_off()
 
-    image_name = pf + "." + iopts.format
+    image_name = pf + "." + opts.cmap + "." + iopts.format
     logging.debug("Print image to `{0}` {1}".format(image_name, iopts))
     plt.savefig(image_name, dpi=iopts.dpi)
     plt.rcdefaults()

@@ -124,10 +124,31 @@ def main():
         ('extract', 'extract a particular contig from the gff file'),
         ('split', 'split the gff into one contig per file'),
         ('merge', 'merge several gff files into one'),
+        ('fromgb', 'convert from gb format to gff3'),
             )
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def fromgb(args):
+    """
+    %prog fromgb gbfile
+
+    Convert from gb format to gff3.
+    """
+    p = OptionParser(fromgb.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    gbfile, = args
+    outfile = op.basename(gbfile).rsplit(".", 1)[0] + ".bp.gff"
+
+    cmd = "bp_genbank2gff3.pl"
+    cmd += " -out stdout {0}".format(gbfile)
+    sh(cmd, outfile=outfile)
 
 
 def gtf(args):

@@ -2,6 +2,7 @@
 # -*- coding: UTF-8 -*-
 
 """
+Mask low complexity regions in the genome.
 """
 
 import os
@@ -11,31 +12,23 @@ import sys
 from optparse import OptionParser
 
 from jcvi.formats.fasta import Fasta
-from jcvi.utils.cbook import percentage
-from jcvi.apps.base import ActionDispatcher, debug, set_grid, sh, need_update
+from jcvi.utils.cbook import depends, percentage
+from jcvi.apps.base import ActionDispatcher, debug, set_grid, sh
 debug()
 
 
-def wm_mk_counts(genomefile):
-    outfile = "%s.counts" % genomefile
-    cmd = "windowmasker -in %(genomefile)s -mk_counts " \
-          "-out %(outfile)s" % locals()
-
-    if need_update(genomefile, outfile):
-        sh(cmd)
-
-    return outfile
-
-
-def wm_mk_masks(genomefile):
-    outfile = "%s.masked%s" % op.splitext(genomefile)
-    cmd = "windowmasker -in %(genomefile)s -ustat %(genomefile)s.counts " \
-          "-outfmt fasta -dust T " \
-          "-out %(outfile)s" % locals()
-
+@depends
+def wm_mk_counts(infile=None, outfile=None):
+    cmd = "windowmasker -in {0} -mk_counts".format(infile)
+    cmd += " -out {0}".format(outfile)
     sh(cmd)
 
-    return outfile
+
+@depends
+def wm_mk_masks(infile=None, outfile=None, genomefile=None):
+    cmd = "windowmasker -in {0} -ustat {1}".format(genomefile, infile)
+    cmd +=  " -outfmt fasta -dust T -out {0}".format(outfile)
+    sh(cmd)
 
 
 def hardmask(fastafile):
@@ -113,8 +106,11 @@ def mask(args):
     genomefile, = args
 
     # entire pipeline
-    wm_mk_counts(genomefile)
-    maskedfastafile = wm_mk_masks(genomefile)
+    countsfile = genomefile + ".counts"
+    wm_mk_counts(infile=genomefile, outfile=countsfile)
+
+    maskedfastafile = "%s.masked%s" % op.splitext(genomefile)
+    wm_mk_masks(infile=countsfile, outfile=maskedfastafile, genomefile=genomefile)
 
     if opts.hard:
         hardmask(maskedfastafile)

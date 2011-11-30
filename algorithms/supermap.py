@@ -124,10 +124,15 @@ def supermap(blast_file, filter="intersection", dialect="blast"):
             break
 
     logging.debug("Write output file to `{0}`".format(supermapfile))
+    fw.close()
 
     from jcvi.formats.blast import sort
-    if dialect == "blast" and filter in ("ref", "query"):
-        sort([supermapfile, "--" + filter])
+    ofilter = "ref" if filter == "ref" else "query"
+    args = [supermapfile, "--" + ofilter]
+    if dialect == "coords":
+        args += ["--coords"]
+
+    sort(args)
 
     return supermapfile
 

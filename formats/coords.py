@@ -79,7 +79,6 @@ class CoordsLine (object):
         return '\t'.join((self.ref, str(self.start1 - 1), str(self.end1),
                 self.query, str(score), self.orientation))
 
-    @property
     def overlap(self, max_hang=100):
         """
         Determine the type of overlap given query, ref alignment coordinates
@@ -223,14 +222,26 @@ def get_stats(coordsfile):
 def main():
 
     actions = (
+        ('annotate', 'annotate overlap types in coordsfile'),
         ('summary', 'provide summary on id% and cov%'),
         ('filter', 'filter based on id% and cov%, write a new coords file'),
         ('bed', 'convert to bed format'),
-        ('agp', 'link contigs based on the coordsfile'),
         ('coverage', 'report the coverage per query record'),
+        ('sort', 'sort coords file based on query or subject'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def sort(args):
+    """
+    %prog sort coordsfile
+
+    Sort coordsfile based on query or ref.
+    """
+    import jcvi.formats.blast
+
+    return jcvi.formats.blast.sort(args + ["--coords"])
 
 
 def coverage(args):
@@ -240,16 +251,16 @@ def coverage(args):
     Report the coverage per query record, useful to see which query matches
     reference.  The coords file MUST be filtered with supermap::
 
-    jcvi.algorithms.supermap -f query
+    jcvi.algorithms.supermap --filter query
     """
     p = OptionParser(coverage.__doc__)
     p.add_option("-c", dest="cutoff", default=0.5, type="float",
-            help="only report query with coverage > [default: %default]")
+            help="only report query with coverage greater than [default: %default]")
 
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
     coordsfile, = args
     fp = open(coordsfile)
@@ -276,30 +287,23 @@ def coverage(args):
         print "{0}\t{1:.2f}".format(query, cumulative_cutoff)
 
 
-def agp(args):
+def annotate(args):
     """
-    %prog agp coordsfile
+    %prog annotate coordsfile
 
-    coordsfile has to be supermapped (or delta-filtered) to get non-overlapping
-    ranges for the reference. For example, non-overlapping in the first two
-    columns::
-
-    28926   31595   2663    1       2670    2663    99.70   139480  2663
-    1.91 100.00  contig_26068    AC229726.11_17  contained (0)
-    31816   35252   3438    1       3437    3438    99.83   139480  3438
-    2.46 100.00  contig_26068    AC229726.11_33  contained (0)
-    43009   46210   3205    1       3202    3205    99.78   139480  3205
-    2.30 100.00  contig_26068    AC229726.11_30  contained (0)
-
-    You can see that `contig_26068` can serve as linkage for the contigs in BAC
-    AC229726 various contigs. Therefore an AGP can be created.
+    Annotate coordsfile to append an additional column, with the following
+    overlaps: {0}.
     """
-    p = OptionParser(agp.__doc__)
+    p = OptionParser(annotate.__doc__.format(", ".join(Overlap_types)))
+    p.add_option("--maxhang", default=100, type="int",
+                 help="Max hang to call dovetail overlap [default: %default]")
+    p.add_option("--all", default=False, action="store_true",
+                 help="Output all lines [default: terminal/containment]")
 
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
     coordsfile, = args
     fp = open(coordsfile)
@@ -313,39 +317,11 @@ def agp(args):
         except AssertionError:
             continue
 
-        ov = c.overlap
-        if ov == 0:  # none
+        ov = c.overlap(opts.maxhang)
+        if not opts.all and ov == 0:
             continue
-        forward, backward = False, False
-        if ov == 1:  # a ~ b
-            forward = True
-        elif ov == 2:  # b ~ a
-            backward = True
-        else:  # a in b, b in a
-            #forward = backward = True
-            pass
 
-        ref, query, score = c.ref, c.query, c.score
-        if forward and (query not in incoming or incoming[query][1] < score):
-            incoming[query] = (ref, score)
-        if backward and (query not in outgoing or outgoing[query][1] < score):
-            outgoing[query] = (ref, score)
-
-    from jcvi.algorithms.graph import nx, weakly_connected_components, \
-            topological_sort
-
-    g = nx.DiGraph()
-    for query, (ref, score) in incoming.items():
-        g.add_edge(ref, query, score=score)
-    for query, (ref, score) in outgoing.items():
-        g.add_edge(query, ref, score=score)
-
-    components = weakly_connected_components(g)
-    for c in components:
-        sub = g.subgraph(c)
-        print topological_sort(sub)
-
-    return
+        print "{0}\t{1}".format(row.strip(), Overlap_types[ov])
 
 
 def print_stats(qrycovered, refcovered, id_pct):

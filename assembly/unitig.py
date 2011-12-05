@@ -57,9 +57,6 @@ class UnitigLayout (BaseFile):
     def cut(self, fragID):
 
         fraglines = self.fraglines
-        if fragID == "all":  # Shred all fragments
-            self.parts = [[x] for x in fraglines]
-            return
 
         # The line looks like:
         # FRG type R ident  41655818 container ...
@@ -76,6 +73,13 @@ class UnitigLayout (BaseFile):
         afrags = fraglines[:i]
         bfrags = fraglines[i:]
         self.parts = [afrags, bfrags]
+
+    def shred(self):
+        self.parts = [[x] for x in self.fraglines]
+
+    def shredafter(self, fragID):
+        self.cut(fragID)
+        self.parts = [self.parts[0]] + [[x] for x in self.parts[1]]
 
     def get_header(self, unitig=-1, num_frags=1):
         header = self.header[:]
@@ -119,9 +123,11 @@ def main():
         ('trace', 'find the error messages with the unitig'),
         ('test', 'test the modified unitig layout'),
         ('push', 'push the modified unitig into tigStore'),
+        ('pushall', 'push all the modified unitigs into tigStore'),
         ('delete', 'delete specified unitig'),
         ('cut', 'cut the unitig at a given fragment ID'),
         ('shred', 'shred the unitig as a desperate way of forcing a fix'),
+        ('shredafter', 'shred the unitig after a given fragment ID'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -235,6 +241,10 @@ def cut(args):
     see which fragment breaks the unitig.
     """
     p = OptionParser(cut.__doc__)
+    p.add_option("-s", dest="shredafter", default=False, action="store_true",
+                 help="Shred fragments after the given fragID [default: %default]")
+    p.add_option("--notest", default=False, action="store_true",
+                 help="Do not test the unitigfile after edits [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -242,8 +252,14 @@ def cut(args):
 
     s, fragID = args
     u = UnitigLayout(s)
-    u.cut(fragID)
+    if opts.shredafter:
+        u.shredafter(fragID)
+    else:
+        u.cut(fragID)
     u.print_to_file(inplace=True)
+
+    if not opts.notest:
+        test([s])
 
 
 def shred(args):
@@ -261,7 +277,7 @@ def shred(args):
 
     s, =  args
     u = UnitigLayout(s)
-    u.cut("all")
+    u.shred()
     u.print_to_file(inplace=True)
 
 
@@ -297,6 +313,8 @@ def test(args):
     For example, `%prog test unitig5.530` will test the modified `unitig530`
     """
     p = OptionParser(test.__doc__)
+    p.add_option("--verbose", default=False, action="store_true",
+                 help="Turn on verbose debugging [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -308,9 +326,15 @@ def test(args):
 
     cmd = CAPATH("utgcns")
     cmd += " -g ../{0}.gkpStore -t ../{0}.tigStore 1".format(prefix)
-    cmd += " {0} -T unitig{0}.{1} -V -V -V -v 2> unitig{0}.{1}.log".\
-            format(partID, unitigID)
+    cmd += " {0} -T {1}".format(partID, s)
+    if opts.verbose:
+        cmd += " -V -V"
+    cmd += " -V -v 2> {0}.log".format(s)
 
+    sh(cmd)
+
+    # Show log
+    cmd = "tail {0}.log".format(s)
     sh(cmd)
 
 
@@ -336,6 +360,29 @@ def push(args):
     cmd += " -up {0} -R unitig{0}.{1}".format(partID, unitigID)
 
     sh(cmd)
+
+
+def pushall(args):
+    """
+    %prog pushall .
+
+    Push a bunch of unitig layout changes.
+    """
+    p = OptionParser(pushall.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    cwd, = args
+    assert cwd == ".", "Must execute the command in current folder"
+
+    flist = glob("unitig*")
+    for f in flist:
+        if f.endswith(".log"):
+            continue
+
+        push([f])
 
 
 def delete(args):

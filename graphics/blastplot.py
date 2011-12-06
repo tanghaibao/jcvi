@@ -106,12 +106,14 @@ def blastplot(ax, blastfile, qsizes, ssizes, qbed, sbed,
 
     xchr_labels, ychr_labels = [], []
     ignore = True  # tag to mark whether to plot chr name (skip small ones)
-    ignore_size_x = xsize * .02
-    ignore_size_y = ysize * .02
+    #ignore_size_x = xsize * .02
+    #ignore_size_y = ysize * .02
+    ignore_size_x = ignore_size_y = 0
 
     def rename_seqid(seqid):
         seqid = seqid.split("_")[-1]
         seqid = seqid.replace("contig", "c").replace("scaffold", "s")
+        seqid = seqid.replace("supercont", "s")
         try:
             seqid = int(seqid)
             seqid = "c%d" % seqid

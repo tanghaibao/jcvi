@@ -3,11 +3,17 @@
 
 import os
 import os.path as op
+import sys
+
 import numpy as np
+from optparse import OptionParser
 
 from jcvi.formats.base import LineFile
 from jcvi.apps.softlink import get_abs_path
 from jcvi.apps.base import sh, need_update
+
+from jcvi.apps.base import ActionDispatcher, debug
+debug()
 
 
 class Sizes (LineFile):
@@ -87,3 +93,37 @@ class Sizes (LineFile):
     def get_breaks(self):
         for i in xrange(len(self)):
             yield self.ctgs[i], self.cumsizes[i], self.cumsizes[i + 1]
+
+
+def main():
+
+    actions = (
+        ('extract', 'extract the lines containing only the given IDs'),
+            )
+    p = ActionDispatcher(actions)
+    p.dispatch(globals())
+
+
+def extract(args):
+    """
+    %prog extract idsfile sizesfile
+
+    Extract the lines containing only the given IDs.
+    """
+    p = OptionParser(extract.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    idsfile, sizesfile = args
+    sizes = Sizes(sizesfile).mapping
+    fp = open(idsfile)
+    for row in fp:
+        name = row.strip()
+        size = sizes[name]
+        print "\t".join(str(x) for x in (name, size))
+
+
+if __name__ == '__main__':
+    main()

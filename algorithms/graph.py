@@ -131,11 +131,9 @@ class BiGraph (object):
                 continue
 
             path = deque([vv])
-            #print "cur", vv
 
             prev, ptag = vv.get_next(tag=">")
             while prev:
-                #print "prev", prev, ptag
                 if prev.v in discovered:
                     break
                 path.appendleft(prev)
@@ -143,7 +141,6 @@ class BiGraph (object):
 
             next, ntag = vv.get_next(tag="<")
             while next:
-                #print "next", next, ntag
                 if next.v in discovered:
                     break
                 path.append(next)
@@ -156,8 +153,6 @@ class BiGraph (object):
         from jcvi.utils.iter import pairwise
 
         oo = []
-        isCurrentPlusOrientation = True
-        oo.append((path[0], isCurrentPlusOrientation))
         if len(path) == 1:
             m = "Singleton {0}".format(path[0])
             return m, oo
@@ -170,12 +165,16 @@ class BiGraph (object):
                 av, bv = bv, av
                 flip = True
             e = self.edges[(av, bv)]
-            if e.o1 != e.o2:
-                isCurrentPlusOrientation = not isCurrentPlusOrientation
-            oo.append((b.v, isCurrentPlusOrientation))
-
             if flip:
                 e.flip()
+
+            if not oo:  # First edge imports two nodes
+                oo.append((e.v1.v, e.o1 == ">"))
+            last = oo[-1]
+            assert last == (e.v1.v, e.o1 == ">")
+            oo.append((e.v2.v, e.o2 == ">"))
+
+            if flip:
                 se = str(e)
                 e.flip()
             else:

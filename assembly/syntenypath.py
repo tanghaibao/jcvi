@@ -39,6 +39,8 @@ def fromblast(args):
     The BLAST file MUST be filtered, chained, supermapped, and sorted by --query.
     """
     p = OptionParser(fromblast.__doc__)
+    p.add_option("--verbose", default=False, action="store_true",
+                 help="Print verbose reports to stdout [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -65,6 +67,9 @@ def fromblast(args):
         if len(oo) == 1:  # Singleton path
             continue
         paths.append(oo)
+        if opts.verbose:
+            print m
+            print oo
 
     npaths = len(paths)
     ntigs = sum(len(x) for x in paths)

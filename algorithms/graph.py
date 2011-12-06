@@ -37,6 +37,20 @@ class BiNode (object):
         self.outs = []
 
     def get_next(self, tag="<"):
+        """
+        This function is tricky and took me a while to figure out.
+
+        The tag specifies the direction where the current edge came from.
+
+         tag     ntag
+        ---> V >----> U
+             cur      next
+
+        This means the next vertex should follow the outs since this tag is
+        inward '<'. Check if there are multiple branches if len(L) == 1, and
+        also check if the next it finds has multiple incoming edges though if
+        len(B) == 1.
+        """
         next, ntag = None, None
 
         L = self.outs if tag == "<" else self.ins
@@ -45,7 +59,7 @@ class BiNode (object):
             e, = L
             if e.v1.v == self.v:
                 next, ntag = e.v2, e.o2
-                ntag = "<" if ntag == ">" else ">"
+                ntag = "<" if ntag == ">" else ">"  # Flip tag if on other end
             else:
                 next, ntag = e.v1, e.o1
 
@@ -141,18 +155,25 @@ class BiGraph (object):
     def path(self, path):
         from jcvi.utils.iter import pairwise
 
+        oo = []
+        isCurrentPlusOrientation = True
+        oo.append((path[0], isCurrentPlusOrientation))
         if len(path) == 1:
-            return "Singleton {0}".format(path[0])
+            m = "Singleton {0}".format(path[0])
+            return m, oo
 
         edges = []
-        print path
         for a, b in pairwise(path):
-            a, b = a.v, b.v
+            av, bv = a.v, b.v
             flip = False
-            if a > b:
-                a, b = b, a
+            if av > bv:
+                av, bv = bv, av
                 flip = True
-            e = self.edges[(a, b)]
+            e = self.edges[(av, bv)]
+            if e.o1 != e.o2:
+                isCurrentPlusOrientation = not isCurrentPlusOrientation
+            oo.append((b.v, isCurrentPlusOrientation))
+
             if flip:
                 e.flip()
                 se = str(e)
@@ -161,7 +182,7 @@ class BiGraph (object):
                 se = str(e)
             edges.append(se)
 
-        return "..".join(edges)
+        return "|".join(edges), oo
 
     def __str__(self):
         return "BiGraph with {0} nodes and {1} edges".\
@@ -177,12 +198,14 @@ def bigraph_test():
     g.add_edge(BiEdge(4, 6, ">", ">"))
     g.add_edge(BiEdge(7, 1, ">", ">"))
     g.add_edge(BiEdge(7, 5, "<", ">"))
-    g.add_edge(BiEdge(7, 3, "<", ">"))
+    g.add_edge(BiEdge(8, 6, ">", "<"))
     print g
     for e in g.edges.values():
         print e
     for path in g.iter_paths():
-        print g.path(path)
+        p, oo = g.path(path)
+        print p
+        print oo
 
 
 if __name__ == '__main__':

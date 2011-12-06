@@ -132,21 +132,27 @@ class BiGraph (object):
 
             path = deque([vv])
 
+            #print "cur", v
+            discovered.add(v)
             prev, ptag = vv.get_next(tag=">")
             while prev:
+                #print prev, ptag
                 if prev.v in discovered:
                     break
                 path.appendleft(prev)
+                discovered.add(prev.v)
                 prev, ptag = prev.get_next(tag=ptag)
 
             next, ntag = vv.get_next(tag="<")
             while next:
+                #print next, ntag
                 if next.v in discovered:
                     break
                 path.append(next)
+                discovered.add(next.v)
                 next, ntag = next.get_next(tag=ntag)
 
-            discovered |= set(x.v for x in path)
+            #discovered |= set(x.v for x in path)
             yield path
 
     def path(self, path):
@@ -155,6 +161,7 @@ class BiGraph (object):
         oo = []
         if len(path) == 1:
             m = "Singleton {0}".format(path[0])
+            oo.append((path[0].v, True))
             return m, oo
 
         edges = []

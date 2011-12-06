@@ -230,12 +230,40 @@ def main():
         ('pairs', 'print paired-end reads of BLAST tabular file'),
         ('bed', 'get bed file from BLAST tabular file'),
         ('chain', 'chain adjacent HSPs together'),
-        ('swap', 'swap query and subjects in the BLAST tabular file'),
+        ('swap', 'swap query and subjects in BLAST tabular file'),
         ('sort', 'sort lines so that query grouped together and scores desc'),
         ('mismatches', 'print out histogram of mismatches of HSPs'),
+        ('annotate', 'annotate overlap types in BLAST tabular file'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+
+def annotate(args):
+    """
+    %prog annotate blastfile query.fasta subject.fasta
+
+    Annotate overlap types (dovetail, contained, etc) in BLAST tabular file.
+    """
+    from jcvi.assembly.goldenpath import Overlap, Overlap_types
+
+    p = OptionParser(annotate.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    blastfile, afasta, bfasta = args
+    fp = open(blastfile)
+    asizes = Sizes(afasta).mapping
+    bsizes = Sizes(bfasta).mapping
+    for row in fp:
+        b = BlastLine(row)
+        asize = asizes[b.query]
+        bsize = bsizes[b.subject]
+        ov = Overlap(b, asize, bsize)
+        print "{0}\t{1}".format(b, Overlap_types[ov.get_otype()])
 
 
 def top10(args):

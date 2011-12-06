@@ -27,7 +27,7 @@ from jcvi.apps.base import debug
 debug()
 
 
-def BlastOrCoordsLine(filename, filter="ref", dialect="blast"):
+def BlastOrCoordsLine(filename, filter="ref", dialect="blast", clip=0):
     allowed_filters = ("ref", "query")
     REF, QUERY = range(len(allowed_filters))
 
@@ -64,15 +64,22 @@ def BlastOrCoordsLine(filename, filter="ref", dialect="blast"):
         if start > end:
             start, end = end, start
 
+        if clip:
+            # clip cannot be more than 5% of the range
+            r = end - start + 1
+            cc = min(.05 * r, clip)
+            start = start + cc
+            end = end - cc
+
         yield Range(query, start, end, b.score, i)
 
 
-def supermap(blast_file, filter="intersection", dialect="blast"):
+def supermap(blast_file, filter="intersection", dialect="blast", clip=0):
     # filter by query
     if filter != "ref":
         logging.debug("filter by query")
         ranges = list(BlastOrCoordsLine(blast_file, filter="query",
-            dialect=dialect))
+            dialect=dialect, clip=clip))
 
         query_selected, query_score = range_chain(ranges)
         query_idx = set(x.id for x in query_selected)
@@ -81,7 +88,7 @@ def supermap(blast_file, filter="intersection", dialect="blast"):
     if filter != "query":
         logging.debug("filter by ref")
         ranges = list(BlastOrCoordsLine(blast_file, filter="ref",
-            dialect=dialect))
+            dialect=dialect, clip=clip))
 
         ref_selected, ref_score = range_chain(ranges)
         ref_idx = set(x.id for x in ref_selected)
@@ -148,6 +155,8 @@ if __name__ == '__main__':
             help="Available filters: " + str(filter_choices) + " [default: %default]")
     p.add_option("--dialect", choices=dialect_choices,
             help="Input format: " + str(dialect_choices))
+    p.add_option("--clip", default=0, type="int",
+            help="Clip ranges so that to allow minor overlaps [default: %default]")
 
     opts, args = p.parse_args()
 
@@ -162,6 +171,4 @@ if __name__ == '__main__':
         dialect = "coords" if blast_file.endswith(".coords") else "blast"
         logging.debug("dialect is %s" % dialect)
 
-    filter = opts.filter
-
-    supermap(blast_file, filter=filter, dialect=dialect)
+    supermap(blast_file, filter=opts.filter, dialect=dialect, clip=opts.clip)

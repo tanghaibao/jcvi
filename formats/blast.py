@@ -82,12 +82,13 @@ class BlastSlow (LineFile):
     """
     Load entire blastfile into memory
     """
-    def __init__(self, filename):
+    def __init__(self, filename, sorted=False):
         super(BlastSlow, self).__init__(filename)
         fp = must_open(filename)
         for row in fp:
             self.append(BlastLine(row))
-        self.sort(key=lambda x: x.query)
+        if not sorted:
+            self.sort(key=lambda x: x.query)
 
     def iter_hits(self):
         for query, blines in groupby(self, key=lambda x: x.query):

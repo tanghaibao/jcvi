@@ -131,11 +131,11 @@ class BiGraph (object):
                 continue
 
             path = deque([vv])
-            print "cur", vv
+            #print "cur", vv
 
             prev, ptag = vv.get_next(tag=">")
             while prev:
-                print "prev", prev, ptag
+                #print "prev", prev, ptag
                 if prev.v in discovered:
                     break
                 path.appendleft(prev)
@@ -143,7 +143,7 @@ class BiGraph (object):
 
             next, ntag = vv.get_next(tag="<")
             while next:
-                print "next", next, ntag
+                #print "next", next, ntag
                 if next.v in discovered:
                     break
                 path.append(next)

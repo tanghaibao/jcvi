@@ -144,6 +144,9 @@ def frombed(args):
         ctgseq = contigfasta[ctg]
         nreads = len([x for x in reads if x.accn in validreads]) \
                     if mates else len(reads)
+        if nreads == 0:
+            continue
+
         ctgline = "##{0} {1} {2} bases, {3}".format(\
                 ctg, nreads, len(ctgseq), checksum)
         print >> fw_ids, ctg

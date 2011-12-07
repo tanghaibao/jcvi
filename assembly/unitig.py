@@ -172,6 +172,7 @@ def error(args):
 
     fw = open("errors.log", "w")
 
+    seen = set()
     for g in sorted(glob("../5-consensus/*.err")):
         if "partitioned" in g:
             continue
@@ -188,14 +189,22 @@ def error(args):
             if not failed.upper() in row.upper():
                 continue
 
+            uu = (partID, unitigID)
+            if uu in seen:
+                continue
+            seen.add(uu)
+
             print >> fw, "\t".join(str(x) for x in (partID, unitigID))
 
-            cmd = "{0} {1}".format(partID, unitigID)
+            cmd = "{0} {1}".format(*uu)
             unitigfile = pull(cmd.split())
             cmd = "mv {0} {1}".format(unitigfile, backup_folder)
             sh(cmd)
 
         fp.close()
+
+    logging.debug("A total of {0} unitigs saved to {1}.".\
+                 format(len(seen), backup_folder))
 
 
 def trace(args):

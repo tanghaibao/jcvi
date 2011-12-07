@@ -38,6 +38,7 @@ def scaffold(args):
     from jcvi.utils.iter import grouper
 
     p = OptionParser(scaffold.__doc__)
+    p.add_option("--conf", help="BAMBUS configuration file [default: %default]")
     p.add_option("--prefix", default=False, action="store_true",
             help="Only keep links between IDs with same prefix [default: %default]")
     opts, args = p.parse_args(args)
@@ -81,6 +82,8 @@ def scaffold(args):
     # Run bambus
     prefix = "bambus"
     cmd = "goBambus -c {0} -m {1} -o {2}".format(ctgfile, bbmate, prefix)
+    if opts.conf:
+        cmd += " -C {0}".format(opts.conf)
     sh(cmd)
 
     cmd = "untangle -e {0}.evidence.xml -s {0}.out.xml -o {0}.untangle.xml".\

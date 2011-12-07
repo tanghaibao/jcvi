@@ -881,6 +881,7 @@ def best(args):
         sys.exit(not p.print_help())
 
     blastfile, = args
+    sort([blastfile])
     bestblastfile = blastfile + ".best"
     fw = open(bestblastfile, "w")
 

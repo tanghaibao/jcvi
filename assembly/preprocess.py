@@ -208,27 +208,24 @@ def correct_frag(datadir, tag, origfastb, nthreads):
     run_RemoveDodgyReads(infile=origfastb, outfile=filtfastb,
                          removeDuplicates=False, rc=False, nthreads=nthreads)
 
-    prec = datadir + "/{0}_prec".format(tag)
-    precfastb = prec + ".fastb"
-    if need_update(filtfastb, precfastb):
-        cmd = "PreCorrect IN_HEAD={0} OUT_HEAD={1}".format(filt, prec)
+    filtpairs = filt + ".pairs"
+    edit = datadir + "/{0}_edit".format(tag)
+    editpairs = edit + ".pairs"
+    if need_update(filtpairs, editpairs):
+        cmd = "ln -sf {0} {1}.pairs".format(op.basename(filtpairs), edit)
+        sh(cmd)
+
+    editfastb = edit + ".fastb"
+    if need_update(filtfastb, editfastb):
+        cmd = "FindErrors HEAD_IN={0} HEAD_OUT={1}".format(filt, edit)
         cmd += nthreads
         sh(cmd)
 
-    filtpairs = filt + ".pairs"
-    precpairs = prec + ".pairs"
-    if need_update(filtpairs, precpairs):
-        cmd = "ln -sf {0}.pairs {1}.pairs".format(op.basename(filt), prec)
-        sh(cmd)
-
-    assert op.exists(precfastb)
-    edit = datadir + "/{0}_edit".format(tag)
-    editfastb = edit + ".fastb"
     corr = datadir + "/{0}_corr".format(tag)
     corrfastb = corr + ".fastb"
-    if need_update(precfastb, corrfastb):
-        cmd = "FindErrors DELETE=True IN_HEAD={0}".format(prec)
-        cmd += " OUT_EDIT_HEAD={0} OUT_CORR_HEAD={1}".format(edit, corr)
+    if need_update(editfastb, corrfastb):
+        cmd = "CleanCorrectedReads DELETE=True"
+        cmd += " HEAD_IN={0} HEAD_OUT={1}".format(edit, corr)
         cmd += nthreads
         sh(cmd)
 

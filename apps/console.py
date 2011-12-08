@@ -16,9 +16,11 @@ not work as well).
 
 <http://code.google.com/p/python-progressbar/>
 """
-
-from progressbar import ProgressBar, Percentage, Bar, ETA, FileTransferSpeed, \
-         RotatingMarker, ReverseBar, SimpleProgress
+try:
+    from progressbar import ProgressBar, Percentage, Bar, ETA, FileTransferSpeed, \
+             RotatingMarker, ReverseBar, SimpleProgress
+except ImportError:
+    pass
 
 
 class SpinCursor(threading.Thread):

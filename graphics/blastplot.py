@@ -97,7 +97,7 @@ def blastplot(ax, blastfile, qsizes, ssizes, qbed, sbed,
         x, y = zip(*data)
 
         if style == "circle":
-            ax.plot(x, y, 'ro', mfc="w", mec="r", ms=3)
+            ax.plot(x, y, 'mo', mfc="w", mec="m", ms=3)
         elif style == "dot":
             ax.scatter(x, y, s=3, lw=0)
 

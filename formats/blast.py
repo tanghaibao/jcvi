@@ -745,7 +745,7 @@ def report_pairs(data, cutoff=0, mateorientation=None,
     orientations = defaultdict(int)
 
     # clip how many chars from end of the read name to get pair name
-    key = lambda x: x.accn[:-rclip] if rclip else x.accn
+    key = (lambda x: x.accn[:-rclip]) if rclip else (lambda x: x.accn)
     data.sort(key=key)
 
     if pairsfile:

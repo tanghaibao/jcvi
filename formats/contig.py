@@ -103,8 +103,6 @@ def frombed(args):
     p = OptionParser(frombed.__doc__)
     p.add_option("--ids", default=False, action="store_true",
                   help="Only generate ids file [default: %default]")
-    p.add_option("--mates", help="Use only the read IDs in the mates file " \
-                 "[default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -112,7 +110,6 @@ def frombed(args):
 
     bedfile, contigfasta, readfasta = args
     ids = opts.ids
-    mates = opts.mates
     prefix = bedfile.rsplit(".", 1)[0]
     contigfile = prefix + ".contig"
     idsfile = prefix + ".ids"
@@ -126,29 +123,10 @@ def frombed(args):
     if not ids:
         fw = open(contigfile, "w")
 
-    if mates:
-        validreads = set()
-        fp = open(mates)
-        for row in fp:
-            atoms = row.split()
-            if atoms[0] == "library":
-                continue
-            a, b = atoms[:2]
-            validreads.add(a)
-            validreads.add(b)
-
-        logging.debug("A total of {0} reads imported from `{1}`.".\
-                format(len(validreads), mates))
-
     for ctg, reads in bed.sub_beds():
         ctgseq = contigfasta[ctg]
-        nreads = len([x for x in reads if x.accn in validreads]) \
-                    if mates else len(reads)
-        if nreads == 0:
-            continue
-
         ctgline = "##{0} {1} {2} bases, {3}".format(\
-                ctg, nreads, len(ctgseq), checksum)
+                ctg, len(reads), len(ctgseq), checksum)
         print >> fw_ids, ctg
         if ids:
             continue
@@ -157,9 +135,6 @@ def frombed(args):
         print >> fw, fill(ctgseq.seq)
         for b in reads:
             read = b.accn
-            if mates and read not in validreads:
-                continue
-
             strand = b.strand
             readseq = readfasta[read]
             rc = " [RC]" if strand == "-" else ""

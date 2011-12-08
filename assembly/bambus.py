@@ -53,13 +53,14 @@ def scaffold(args):
     for fastafile, bedfile in duos:
         prefix = bedfile.rsplit(".", 1)[0]
         matefile = prefix + ".mates"
+        matebedfile = matefile + ".bed"
         libname = prefix.split(".", 1)[0]
-        if need_update(bedfile, matefile):
+        if need_update(bedfile, [matefile, matebedfile]):
             matesopt = [bedfile, "--lib={0}".format(libname), "--nointra"]
             if opts.prefix:
                 matesopt += ["--prefix"]
-            matefile = mates(matesopt)
-        trios.append((fastafile, bedfile, matefile))
+            matefile, matebedfile = mates(matesopt)
+        trios.append((fastafile, matebedfile, matefile))
 
     # Merge the readfasta, bedfile and matefile
     bbfasta, bbbed, bbmate = "bambus.reads.fasta", "bambus.bed", "bambus.mates"
@@ -71,7 +72,7 @@ def scaffold(args):
     idsfile = "bambus.ids"
     frombedInputs = [bbbed, ctgfasta, bbfasta]
     if need_update(frombedInputs, ctgfile):
-        frombed(frombedInputs + ["--mates={0}".format(bbmate)])
+        frombed(frombedInputs)
 
     inputfasta = "bambus.contigs.fasta"
     singletonfasta = "bambus.singletons.fasta"

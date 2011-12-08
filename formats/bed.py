@@ -78,7 +78,8 @@ class Bed(LineFile):
 
         # the sorting key provides some flexibility in ordering the features
         # for example, user might not like the lexico-order of seqid
-        self.key = key or (lambda x: (x.seqid, x.start, x.accn))
+        self.nullkey = lambda x: (x.seqid, x.start, x.accn)
+        self.key = key or self.nullkey
 
         if not filename:
             logging.debug("Initiate bed structure without filename")
@@ -125,8 +126,7 @@ class Bed(LineFile):
 
     def sub_beds(self):
 
-        self.sort(key=self.key)
-
+        self.sort(key=self.nullkey)
         # get all the beds on all chromosomes, emitting one at a time
         for bs, sb in groupby(self, key=lambda x: x.seqid):
             yield bs, list(sb)
@@ -284,12 +284,11 @@ def mates(args):
     rclip = opts.rclip
     lib = opts.lib
 
-    fp = open(bedfile)
-    data = [BedLine(x) for x in fp]
-    key = lambda x: x.accn[:-rclip] if rclip else x.accn
-    data.sort(key=key)
+    key = (lambda x: x.accn[:-rclip]) if rclip else (lambda x: x.accn)
+    bed = Bed(bedfile, key=key)
 
-    matesfile = bedfile.rsplit(".", 1)[0] + ".mates"
+    pf = bedfile.rsplit(".", 1)[0]
+    matesfile = pf + ".mates"
     fw = open(matesfile, "w")
     if lib:
         bedfile, (meandist, stdev, p0, p1, p2) = pairs([bedfile, \
@@ -299,7 +298,9 @@ def mates(args):
                 ("library", lib, meandist -  sv, meandist + sv))
 
     num_fragments = num_pairs = 0
-    for pe, lines in groupby(data, key=key):
+    matesbedfile = matesfile + ".bed"
+    fwm = open(matesbedfile, "w")
+    for pe, lines in groupby(bed, key=key):
         lines = list(lines)
         if len(lines) != 2:
             num_fragments += len(lines)
@@ -324,10 +325,16 @@ def mates(args):
             pair.append(lib)
         print >> fw, "\t".join(pair)
 
-    logging.debug("Discard {0} fragments and write {1} pairs to `{2}`.".\
-            format(num_fragments, num_pairs, matesfile))
+        print >> fwm, a
+        print >> fwm, b
 
-    return matesfile
+    logging.debug("Discard {0} frags and write {1} pairs to `{2}` and `{3}`.".\
+            format(num_fragments, num_pairs, matesfile, matesbedfile))
+
+    fw.close()
+    fwm.close()
+
+    return matesfile, matesbedfile
 
 
 if __name__ == '__main__':

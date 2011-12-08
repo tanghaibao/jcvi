@@ -140,9 +140,36 @@ def main():
         ('pairs', 'estimate insert size between paired reads from bedfile'),
         ('mates', 'print paired reads from bedfile'),
         ('sizes', 'infer the sizes for each seqid'),
+        ('bedpe', 'convert to bedpe format'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def bedpe(args):
+    """
+    %prog bedpe bedfile
+
+    Convert to bedpe format. Use --span to write another bed file that contain
+    the span of the read pairs.
+    """
+    from jcvi.assembly.coverage import bed_to_bedpe
+
+    p = OptionParser(bedpe.__doc__)
+    p.add_option("--span", default=False, action="store_true",
+                 help="Write span bed file [default: %default]")
+    p.add_option("--mates", help="Check the library stats from .mates file")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    bedfile, = args
+    pf = bedfile.rsplit(".", 1)[0]
+    bedpefile = pf + ".bedpe"
+    bedspanfile = pf + ".spans.bed" if opts.span else None
+    bed_to_bedpe(bedfile, bedpefile, \
+                 pairsbedfile=bedspanfile, matesfile=opts.mates)
 
 
 def sizes(args):

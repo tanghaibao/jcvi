@@ -672,6 +672,8 @@ def liftover(args):
     Given coordinates in components, convert to the coordinates in chromosomes.
     """
     p = OptionParser(liftover.__doc__)
+    p.add_option("--prefix", default=False, action="store_true",
+                 help="Prepend prefix to accn names [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -683,6 +685,10 @@ def liftover(args):
     newbed = Bed()
     for b in bed:
         component = b.seqid
+        if component not in agp:
+            newbed.append(b)
+            continue
+
         i, a = agp[component]
 
         assert a.component_beg < a.component_end
@@ -703,11 +709,13 @@ def liftover(args):
             d = a.object_beg - a.component_beg
             s, t = d + start, d + end
 
-        name = "{0}_{1}".format(component, b.accn.replace(" ", "_"))
+        name = b.accn.replace(" ", "_")
+        if opts.prefix:
+            name = component + "_" + name
         bline = "\t".join(str(x) for x in (a.object, s - 1, t, name))
         newbed.append(BedLine(bline))
 
-    newbed.sort(key=lambda x: (x.seqid, x.start))
+    newbed.sort(key=newbed.nullkey)
     newbed.print_to_file()
 
 

@@ -145,8 +145,7 @@ def frombed(args):
             print >> fw, readline
             print >> fw, fill(readseq.seq)
 
-    if not ids:
-        logging.debug("Mapped contigs written to `{0}`.".format(contigfile))
+    logging.debug("Mapped contigs written to `{0}`.".format(contigfile))
     logging.debug("Contig IDs written to `{0}`.".format(idsfile))
 
 

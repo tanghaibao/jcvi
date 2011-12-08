@@ -101,15 +101,12 @@ def frombed(args):
     from jcvi.utils.cbook import fill
 
     p = OptionParser(frombed.__doc__)
-    p.add_option("--ids", default=False, action="store_true",
-                  help="Only generate ids file [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
         sys.exit(not p.print_help())
 
     bedfile, contigfasta, readfasta = args
-    ids = opts.ids
     prefix = bedfile.rsplit(".", 1)[0]
     contigfile = prefix + ".contig"
     idsfile = prefix + ".ids"
@@ -120,19 +117,17 @@ def frombed(args):
     bed = Bed(bedfile)
     checksum = "00000000 checksum."
     fw_ids = open(idsfile, "w")
-    if not ids:
-        fw = open(contigfile, "w")
+    fw = open(contigfile, "w")
 
     for ctg, reads in bed.sub_beds():
         ctgseq = contigfasta[ctg]
         ctgline = "##{0} {1} {2} bases, {3}".format(\
                 ctg, len(reads), len(ctgseq), checksum)
-        print >> fw_ids, ctg
-        if ids:
-            continue
 
+        print >> fw_ids, ctg
         print >> fw, ctgline
         print >> fw, fill(ctgseq.seq)
+
         for b in reads:
             read = b.accn
             strand = b.strand

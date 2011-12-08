@@ -40,13 +40,18 @@ def trim(args):
     """
     TrimVersion = tv = "0.17"
     TrimJar = "trimmomatic-{0}.jar".format(tv)
+    phdchoices = ("33", "64")
     p = OptionParser(trim.__doc__)
     p.add_option("--path", default=op.join("~/bin", TrimJar),
             help="Path to trimmomatic [default: %default]")
-    p.add_option("--phred", default=None, type="int",
-            help="Phred score offset [default: guess]")
+    p.add_option("--phred", default=None, choices=phdchoices,
+            help="Phred score offset {0} [default: guess]".format(phdchoices))
     p.add_option("--nofrags", default=False, action="store_true",
             help="Discard frags file in PE mode [default: %default]")
+    p.add_option("--minqv", default=15, type="int",
+            help="Average qv after trimming [default: %default]")
+    p.add_option("--minlen", default=30, type="int",
+            help="Minimum length after trimming [default: %default]")
     p.add_option("--gz", default=False, action="store_true",
             help="Write to gzipped files [default: %default]")
     set_grid(p)
@@ -81,7 +86,7 @@ def trim(args):
     if opts.phred is None:
         offset = guessoffset([args[0]])
     else:
-        offset = opts.phred
+        offset = int(opts.phred)
 
     phredflag = " -phred{0}".format(offset)
 
@@ -117,7 +122,8 @@ def trim(args):
                 pairs1, frags1, pairs2, frags2)))
 
     cmd += " ILLUMINACLIP:{0}:2:40:15".format(adaptersfile)
-    cmd += " LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 MINLEN:30"
+    cmd += " LEADING:3 TRAILING:3"
+    cmd += " SLIDINGWINDOW:4:{0} MINLEN:{1}".format(opts.minqv, opts.minlen)
     if offset != 33:
         cmd += " TOPHRED33"
     sh(cmd, grid=opts.grid)

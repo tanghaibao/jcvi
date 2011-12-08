@@ -97,15 +97,15 @@ def trim(args):
         cmd += ".TrimmomaticSE"
         cmd += phredflag
         fastqfile, = args
-        prefix = fastqfile.replace(".gz", "").rsplit(".", 1)[0]
+        prefix = op.basename(fastqfile).replace(".gz", "").rsplit(".", 1)[0]
         frags1 = prefix + frags
         cmd += " {0}".format(" ".join((fastqfile, frags1)))
     else:
         cmd += ".TrimmomaticPE"
         cmd += phredflag
         fastqfile1, fastqfile2 = args
-        prefix1 = fastqfile1.split(".")[0]
-        prefix2 = fastqfile2.split(".")[0]
+        prefix1 = op.basename(fastqfile1).split(".")[0]
+        prefix2 = op.basename(fastqfile2).split(".")[0]
         pairs1 = prefix1 + pairs
         pairs2 = prefix2 + pairs
         frags1 = prefix1 + frags
@@ -192,6 +192,17 @@ def correct(args):
         cmd = "PrepareAllPathsInputs.pl DATA_DIR={0}".format(fullpath)
         sh(cmd)
 
+    if op.exists(origfastb):
+        correct_frag(datadir, tag, origfastb, nthreads)
+
+    origj = datadir + "/{0}_orig".format(tagj)
+    origjfastb = origj + ".fastb"
+
+    if op.exists(origjfastb):
+        correct_jump(datadir, tagj, origjfastb, nthreads)
+
+
+def correct_frag(datadir, tag, origfastb, nthreads):
     filt = datadir + "/{0}_filt".format(tag)
     filtfastb = filt + ".fastb"
     run_RemoveDodgyReads(infile=origfastb, outfile=filtfastb,
@@ -234,12 +245,8 @@ def correct(args):
     run_pairs(infile=[op.join(datadir, pairsfile), op.join(datadir, corrfastq)],
                       outfile=fragsfastq)
 
-    origj = datadir + "/{0}_orig".format(tagj)
-    origjfastb = origj + ".fastb"
 
-    if not op.exists(origjfastb):
-        return
-
+def correct_jump(datadir, tagj, origjfastb, nthreads):
     # Pipeline for jump reads does not involve correction
     filt = datadir + "/{0}_filt".format(tagj)
     filtfastb = filt + ".fastb"

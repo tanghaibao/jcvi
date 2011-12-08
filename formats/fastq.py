@@ -80,8 +80,7 @@ def main():
         ('splitread', 'split appended reads (from JGI)'),
         ('pair', 'pair up two fastq files and combine pairs'),
         ('unpair', 'unpair pairs.fastq files into 1.fastq and 2.fastq'),
-        ('pairinplace', 'starting from fragment.fasta, find if ' +\
-                "adjacent records can form pairs"),
+        ('pairinplace', 'collect pairs by checking adjacent ids'),
         ('convert', 'convert between illumina and sanger offset'),
         ('trim', 'trim reads using fastx_trimmer'),
         ('some', 'select a subset of fastq reads'),

@@ -406,31 +406,28 @@ def format(args):
     """
     %prog format infasta outfasta
 
-    Reformat FASTA file and also clean up names
+    Reformat FASTA file and also clean up names.
     """
     p = OptionParser(format.__doc__)
-    p.add_option("--pairs", dest="pairs", default=False, action="store_true",
-            help="If input reads are pairs, add trailing /1 and /2 "
-            "[default: %default]")
+    p.add_option("--pairs", default=False, action="store_true",
+            help="Add trailing /1 and /2 for interleaved pairs [default: %default]")
     p.add_option("--sequential", default=False, action="store_true",
             help="Add sequential IDs [default: %default]")
     p.add_option("--pad0", default=6, type="int",
             help="Pad a few zeros in front of sequential [default: %default]")
-    p.add_option("--gb", dest="gb", default=False, action="store_true",
+    p.add_option("--gb", default=False, action="store_true",
             help="For Genbank ID, get the accession [default: %default]")
     p.add_option("--until", default=None,
             help="Get the names until certain symbol [default: %default]")
-    p.add_option("--noversion", dest="noversion", default=False,
-            action="store_true", help="remove the gb trailing version "
-            "[default: %default]")
-    p.add_option("--prefix", dest="prefix", default="",
-            help="Prepend prefix to the sequence ID [default: '%default']")
-    p.add_option("--index", dest="index", default=0, type="int",
+    p.add_option("--noversion", default=False, action="store_true",
+            help="Remove the gb trailing version [default: %default]")
+    p.add_option("--prefix", help="Prepend prefix to sequence ID")
+    p.add_option("--suffix", help="Append suffix to sequence ID")
+    p.add_option("--index", default=0, type="int",
             help="Extract i-th field in the description [default: %default]")
     p.add_option("--template", default=False, action="store_true",
-            help="Extract `template=aaa dir=x library=m` to `m_aaa/x` [default: %default]")
-    p.add_option("--switch", dest="switch", default=None,
-            help="Switch sequence ID based on 2-column mapping file [default: %default]")
+            help="Extract `template=aaa dir=x library=m` to `m-aaa/x` [default: %default]")
+    p.add_option("--switch", help="Switch ID from two-column file [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -441,6 +438,7 @@ def format(args):
     until = opts.until
     pairs = opts.pairs
     prefix = opts.prefix
+    suffix = opts.suffix
     noversion = opts.noversion
     sequential = opts.sequential
     idx = opts.index
@@ -450,7 +448,8 @@ def format(args):
         mapping = DictFile(mapfile, delimiter="\t")
 
     fw = must_open(outfasta, "w")
-    for i, rec in enumerate(SeqIO.parse(must_open(infasta), "fasta")):
+    fp = SeqIO.parse(must_open(infasta), "fasta")
+    for i, rec in enumerate(fp):
         description = rec.description
         if until:
             description = description.split(until, 1)[0]
@@ -474,6 +473,8 @@ def format(args):
             rec.id = "{0:0{1}d}".format(i + 1, opts.pad0)
         if prefix:
             rec.id = prefix + rec.id
+        if suffix:
+            rec.id += suffix
         if opts.template:
             template, dir, lib = [x.split("=")[-1] for x in
                     rec.description.split()[1:4]]

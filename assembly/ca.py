@@ -78,7 +78,7 @@ mea:0.0
 std:0.0
 src:
 .
-nft:1
+nft:2
 fea:
 doRemoveSpurReads=1
 doRemoveChimericReads=1

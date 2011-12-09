@@ -78,10 +78,12 @@ mea:0.0
 std:0.0
 src:
 .
-nft:2
+nft:4
 fea:
-doRemoveSpurReads=1
-doRemoveChimericReads=1
+doTrim_initialQualityBased=0
+doTrim_finalEvidenceBased=0
+doRemoveSpurReads=0
+doRemoveChimericReads=0
 .
 }}'''
 

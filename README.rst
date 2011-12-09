@@ -31,7 +31,7 @@ Contents
     * Prepare frg for Celera Assembler (CA).
     * Helper scripts for fixing unitig layout errors in CA.
     * Preparation and validation of tiling path for clone-based assemblies.
-    * QC of potential scaffolding errors.
+    * Read trimming and correction.
 
 - ``apps``
     Helper library to wrap command line programs and run jobs on JCVI grid
@@ -41,7 +41,7 @@ Contents
     * GenBank entrez accession downloader.
     * Wrapper for LASTZ, BWA, CLC, CDHIT, etc.
     * Low complexity sequence masker with NCBI WindowMasker.
-    * Genbank sequence data submission files.
+    * Prepare Genbank sequence data submission files.
 
 - ``formats``
     File parsers for various files used in genome assembly and comparisons.
@@ -55,11 +55,11 @@ Contents
 - ``graphics``
     Graphics to visualize comparative genomics or assembly stuff. Including:
 
-    * Genome assembly A50 plot.
     * BLAST or synteny dot plot.
     * Histogram using R.
     * Painting regions on set of chromosomes.
     * ASCII histogram and line plot.
+    * Heatmap from csv file.
 
 - ``utils``
     Data structures to simplify programming tasks. Most of the scripts are

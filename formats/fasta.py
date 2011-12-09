@@ -1308,12 +1308,13 @@ def gaps(args):
         fwlog = must_open(logfile, "w")
         logging.debug("Write gap locations to `{0}`.".format(logfile))
 
+    gapnum = 0
     for rec in SeqIO.parse(inputfasta, "fasta"):
         allgaps = []
         start = 0
         object = rec.id
         component_number = part_number = 0
-        for gap, seq in groupby(rec.seq, lambda x: x.upper() == 'N'):
+        for gap, seq in groupby(rec.seq.upper(), lambda x: x == 'N'):
             seq = "".join(seq)
             current_length = len(seq)
             object_beg = start + 1
@@ -1332,8 +1333,10 @@ def gaps(args):
                         object_end, part_number, component_type, gap_length,
                         gap_type, linkage, empty))
                 if bed and len(seq) >= mingap:
+                    gapnum += 1
+                    gapname = "gap.{0:05d}".format(gapnum)
                     print >> fwbed, "\t".join(str(x) for x in (object,
-                        object_beg, object_end, "gap"))
+                        object_beg - 1, object_end, gapname))
 
             else:
                 component_id = "{0}_{1}".format(object, component_number)

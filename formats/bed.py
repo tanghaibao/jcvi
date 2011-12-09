@@ -50,6 +50,10 @@ class BedLine(object):
     def __getitem__(self, key):
         return getattr(self, key)
 
+    @property
+    def span(self):
+        return self.end - self.start + 1
+
     def reverse_complement(self, sizes):
         # this function is used in assembly.bundle
         seqid = self.seqid.rstrip('-')
@@ -82,7 +86,6 @@ class Bed(LineFile):
         self.key = key or self.nullkey
 
         if not filename:
-            logging.debug("Initiate bed structure without filename")
             return
 
         for line in open(filename):
@@ -239,6 +242,8 @@ def sum(args):
 
     Sum the total lengths of the intervals.
     """
+    import numpy as np
+
     p = OptionParser(sum.__doc__)
     opts, args = p.parse_args(args)
 
@@ -247,9 +252,13 @@ def sum(args):
 
     bedfile, = args
     bed = Bed(bedfile)
+    spans = np.array([x.span for x in bed])
+    avg = int(np.average(spans))
+    std = int(np.std(spans))
     print >> sys.stderr, "Total seqids: {0}".format(len(bed.seqids))
     print >> sys.stderr, "Total ranges: {0}".format(len(bed))
     print >> sys.stderr, "Total bases: {0} bp".format(thousands(bed.sum))
+    print >> sys.stderr, "Average spans: {0}, stdev: {1}".format(avg, std)
 
 
 def sort(args):

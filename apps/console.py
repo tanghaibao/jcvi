@@ -139,6 +139,7 @@ class ColoredText:
     __repr__ = __str__
 
 
+grey = gray = lambda s: str(ColoredText(s, "grey"))
 red = lambda s: str(ColoredText(s, "red"))
 green = lambda s: str(ColoredText(s, "green"))
 yellow = lambda s: str(ColoredText(s, "yellow"))

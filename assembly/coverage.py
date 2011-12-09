@@ -120,7 +120,7 @@ def bed_to_bedpe(bedfile, bedpefile, pairsbedfile=None, matesfile=None, ca=False
             if aseqid != bseqid:
                 continue
 
-            span = end - start
+            span = end - start + 1
             if (not matesfile) or (smin <= span <= smax):
                 print >> fwpairs, "\t".join(str(x) for x in \
                         (aseqid, start - 1, end, clonename))

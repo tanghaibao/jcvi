@@ -27,7 +27,7 @@ from jcvi.formats.bed import Bed, BedLine
 from jcvi.assembly.base import calculate_A50
 from jcvi.utils.range import range_intersect
 from jcvi.utils.iter import pairwise, flatten
-from jcvi.apps.base import ActionDispatcher, set_outfile
+from jcvi.apps.base import ActionDispatcher, set_outfile, sh
 
 
 Valid_component_type = list("ADFGNOPUW")
@@ -396,7 +396,7 @@ class OOLine (object):
 
 class OO (LineFile):
 
-    def __init__(self, filename, ctgsizes):
+    def __init__(self, filename=None, ctgsizes=None):
         super(OO, self).__init__(filename)
 
         if filename is None:
@@ -418,7 +418,10 @@ class OO (LineFile):
 
                 strand = "+" if orientation == "BE" else "-"
                 ctgsize = ctgsizes[ctg]
-                self.append(OOLine(header, ctg, ctgsize, strand))
+                self.add(header, ctg, ctgsize, strand)
+
+    def add(self, scaffold, ctg, ctgsize, strand="0"):
+        self.append(OOLine(scaffold, ctg, ctgsize, strand))
 
     def sub_beds(self):
         for scaffold, beds in groupby(self, key=lambda x: x.id):
@@ -456,12 +459,10 @@ class OO (LineFile):
 
 def order_to_agp(object, ctgorder, sizes, fwagp, gapsize=100):
 
-    from jcvi.formats.agp import OO, OOLine
-
-    o = OO(None, sizes)  # Without a filename
+    o = OO()  # Without a filename
     for scaffold_number, (ctg, strand) in enumerate(ctgorder):
         size = sizes[ctg]
-        o.append(OOLine(object, ctg, size, strand))
+        o.add(object, ctg, size, strand)
 
     o.write_AGP(fwagp, gapsize=gapsize, phases={})
 
@@ -544,6 +545,8 @@ def stats(args):
     Print out a report for length of gaps and components.
     """
     p = OptionParser(stats.__doc__)
+    p.add_option("--warn", default=False, action="store_true",
+                 help="Warnings on small component spans [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -563,13 +566,18 @@ def stats(args):
             label = "{0}:{1}-{2}".format(a.component_id, a.component_beg, \
                    a.component_end)
             component_lengths.append((span, label))
-            if span < 50:
+            if opts.warn and span < 50:
                 logging.error("component span too small ({0}):\n{1}".\
                     format(span, a))
 
     table = dict()
     for label, lengths in zip(("Gaps", "Components"),
             (gap_lengths, component_lengths)):
+
+        if not lengths:
+            table[(label, "Min")] = table[(label, "Max")] \
+                                  = table[(label, "Sum")] = "n.a."
+            continue
 
         table[(label, "Min")] = "{0} ({1})".format(*min(lengths))
         table[(label, "Max")] = "{0} ({1})".format(*max(lengths))
@@ -588,6 +596,10 @@ def mask(args):
     Mask given ranges in componets to gaps.
     """
     p = OptionParser(mask.__doc__)
+    p.add_option("--split", default=False, action="store_true",
+                 help="Split object and create new names [default: %default]")
+    p.add_option("--log", default=False, action="store_true",
+                 help="Write verbose logs to .masklog file [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -603,15 +615,18 @@ def mask(args):
     newagpfile = agpfile.replace(".agp", ".masked.agp")
     logfile = bedfile.replace(".bed", ".masklog")
     fw = open(newagpfile, "w")
-    fwlog = open(logfile, "w")
+    if opts.log:
+        fwlog = open(logfile, "w")
 
     for component, intervals in bed.sub_beds():
-        print >> fwlog, "\n".join(str(x) for x in intervals)
+        if opts.log:
+            print >> fwlog, "\n".join(str(x) for x in intervals)
         i, a = simple_agp[component]
         object = a.object
         component_span = a.component_span
         orientation = a.orientation
-        print >> fwlog, a
+        if opts.log:
+            print >> fwlog, a
 
         assert a.component_beg, a.component_end
         arange = a.component_beg, a.component_end
@@ -638,24 +653,30 @@ def mask(args):
             if orientation not in ('+', '-'):
                 orientation = '+'
 
-            aline = "\t".join(str(x) for x in (object, 0, 0, 0))
+            oid = object + "_{0}".format(i / 2) if opts.split else object
+            aline = [oid, 0, 0, 0]
             if i % 2 == 0:
                 cspan = b - a - 1
-                aline = "\t".join(str(x) for x in (aline,
-                        'D', component, a + 1, b - 1, orientation))
+                aline += ['D', component, a + 1, b - 1, orientation]
+                is_gap = False
             else:
                 cspan = b - a + 1
-                aline = "\t".join(str(x) for x in (aline,
-                        "N", cspan, "fragment", "yes"))
+                aline += ["N", cspan, "fragment", "yes"]
+                is_gap = True
             if cspan <= 0:
                 continue
 
             sum_of_spans += cspan
-            agp_fixes[component].append(aline)
-            print >> fwlog, aline
+            aline = "\t".join(str(x) for x in aline)
+            if not (opts.split and is_gap):
+                agp_fixes[component].append(aline)
+
+            if opts.log:
+                print >> fwlog, aline
 
         assert component_span == sum_of_spans
-        print >> fwlog
+        if opts.log:
+            print >> fwlog
 
     # Finally write the masked agp
     for a in agp:
@@ -663,6 +684,13 @@ def mask(args):
             print >> fw, "\n".join(agp_fixes[a.component_id])
         else:
             print >> fw, a
+
+    fw.close()
+    # Reindex
+    idxagpfile = reindex([newagpfile])
+    shutil.move(idxagpfile, newagpfile)
+
+    return newagpfile
 
 
 def liftover(args):
@@ -758,6 +786,7 @@ def reindex(args):
     fw.close()
     agp = AGP(newagpfile, validate=True)
     logging.error("File `{0}` written and verified.".format(newagpfile))
+    return newagpfile
 
 
 def summary(args):

@@ -99,7 +99,7 @@ def main():
     if groups:
         groups = [(key, len(list(nn))) for key, nn in groupby(groups)]
         xstart = .15
-        yy = min(.83, .5 + .5 * nrows / ncols * .7 + .06)
+        yy = .5 + .5 * nrows / ncols * .7 + .06
         xinterval = .7 / ncols
         e = .005
         sep = -.5

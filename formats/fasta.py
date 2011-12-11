@@ -3,7 +3,9 @@ Wrapper for biopython Fasta, add option to parse sequence headers
 """
 
 import sys
+import os
 import os.path as op
+import shutil
 import logging
 
 from random import sample
@@ -17,7 +19,7 @@ from Bio.SeqRecord import SeqRecord
 from jcvi.formats.base import BaseFile, DictFile, must_open
 from jcvi.utils.cbook import human_size
 from jcvi.utils.table import banner
-from jcvi.apps.base import ActionDispatcher, debug, set_outfile
+from jcvi.apps.base import ActionDispatcher, debug, set_outfile, sh
 from jcvi.apps.console import red, green
 debug()
 
@@ -306,7 +308,7 @@ def join(args):
 
     Phasefile is optional, but must contain two columns - BAC and phase (0, 1, 2, 3).
     """
-    from jcvi.formats.agp import OO, OOLine, Phases, build
+    from jcvi.formats.agp import OO, Phases, build
     from jcvi.formats.sizes import Sizes
 
     p = OptionParser(join.__doc__)
@@ -338,14 +340,13 @@ def join(args):
     o = OO(oo, sizes.mapping)
 
     if oo is None:
-        nullstrand = "0"
         if newid:
             for ctg, size in sizes.iter_sizes():
-                o.append(OOLine(newid, ctg, size, nullstrand))
+                o.add(newid, ctg, size)
         else:
             for scaffold_number, (ctg, size) in enumerate(sizes.iter_sizes()):
                 object_id = "scaffold{0:03d}".format(scaffold_number + 1)
-                o.append(OOLine(object_id, ctg, size, nullstrand))
+                o.add(object_id, ctg, size)
 
     fw = open(agpfile, "w")
     o.write_AGP(fw, gapsize=opts.gapsize, phases=phases)
@@ -556,17 +557,13 @@ def diff(args):
     print out whether the records in two fasta files are the same
     """
     p = OptionParser(diff.__doc__)
-    p.add_option("--ignore_case", dest="ignore_case",
-            default=False, action="store_true",
+    p.add_option("--ignore_case", default=False, action="store_true",
             help="ignore case when comparing sequences [default: %default]")
-    p.add_option("--ignore_N", dest="ignore_N",
-            default=False, action="store_true",
+    p.add_option("--ignore_N", default=False, action="store_true",
             help="ignore N and X's when comparing sequences [default: %default]")
-    p.add_option("--ignore_stop", dest="ignore_stop",
-            default=False, action="store_true",
+    p.add_option("--ignore_stop", default=False, action="store_true",
             help="ignore stop codon when comparing sequences [default: %default]")
-    p.add_option("--rc", dest="rc",
-            default=False, action="store_true",
+    p.add_option("--rc", default=False, action="store_true",
             help="also consider reverse complement")
 
     opts, args = p.parse_args(args)
@@ -1265,21 +1262,17 @@ def gaps(args):
     """
     %prog gaps fastafile
 
-    Print out a list of gaps per sequence record
+    Print out a list of gaps in BED format (.gaps.bed).
     """
     p = OptionParser(gaps.__doc__)
-    p.add_option("--mingap", dest="mingap", default=10, type="int",
+    p.add_option("--mingap", default=10, type="int",
             help="The minimum size of a gap to split [default: %default]")
-    p.add_option("--agp", dest="agp", default=False, action="store_true",
+    p.add_option("--agp", default=False, action="store_true",
             help="Generate AGP file to show components [default: %default]")
-    p.add_option("--split", dest="split", default=False, action="store_true",
-            help="Generate .split.fasta for the non-gap sequences "
-            "[default: %default]")
-    p.add_option("--bed", dest="bed", default=False, action="store_true",
-            help="Generate .gaps.bed with gap positions [default: %default]")
-    p.add_option("--log", dest="log", default=False, action="store_true",
-            help="Generate gap positions, the log is written to stdout " + \
-                 "[default: %default]")
+    p.add_option("--split", default=False, action="store_true",
+            help="Generate .split.fasta [default: %default]")
+    p.add_option("--log", default=False, action="store_true",
+            help="Generate gap positions to .gaps.log [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -1287,24 +1280,13 @@ def gaps(args):
 
     inputfasta, = args
     mingap = opts.mingap
-    agp = opts.agp
-    bed = opts.bed
-    log = opts.log
     prefix = inputfasta.rsplit(".", 1)[0]
-    if agp:
-        agpfile = prefix + ".agp"
-        fwagp = open(agpfile, "w")
-        logging.debug("Write AGP to `{0}`.".format(agpfile))
-    if opts.split:
-        splitfile = prefix + ".split.fasta"
-        fwsplit = open(splitfile, "w")
-        logging.debug("Write splitted FASTA to `{0}`.".format(splitfile))
-    if bed:
-        bedfile = prefix + ".gaps.bed"
-        fwbed = open(bedfile, "w")
-        logging.debug("Write gap locations to `{0}`.".format(bedfile))
-    if log:
-        logfile = "stdout"
+    bedfile = prefix + ".gaps.bed"
+    fwbed = open(bedfile, "w")
+    logging.debug("Write gap locations to `{0}`.".format(bedfile))
+
+    if opts.log:
+        logfile = prefix + ".gaps.log"
         fwlog = must_open(logfile, "w")
         logging.debug("Write gap locations to `{0}`.".format(logfile))
 
@@ -1313,59 +1295,54 @@ def gaps(args):
         allgaps = []
         start = 0
         object = rec.id
-        component_number = part_number = 0
         for gap, seq in groupby(rec.seq.upper(), lambda x: x == 'N'):
             seq = "".join(seq)
             current_length = len(seq)
             object_beg = start + 1
             object_end = start + current_length
-            part_number += 1
-            if gap:
-                if current_length >= opts.mingap:
-                    allgaps.append((current_length, start))
-                if agp:
-                    component_type = "N"
-                    gap_length = current_length
-                    gap_type = "fragment"
-                    linkage = "yes"
-                    empty = ""
-                    print >> fwagp, "\t".join(str(x) for x in (object, object_beg,
-                        object_end, part_number, component_type, gap_length,
-                        gap_type, linkage, empty))
-                if bed and len(seq) >= mingap:
-                    gapnum += 1
-                    gapname = "gap.{0:05d}".format(gapnum)
-                    print >> fwbed, "\t".join(str(x) for x in (object,
-                        object_beg - 1, object_end, gapname))
-
-            else:
-                component_id = "{0}_{1}".format(object, component_number)
-                component_number += 1
-                if agp:
-                    component_type = "W"
-                    component_beg = 1
-                    component_end = current_length
-                    orientation = "+"
-                    print >> fwagp, "\t".join(str(x) for x in (object, object_beg,
-                        object_end, part_number, component_type, component_id,
-                        component_beg, component_end, orientation))
-                if opts.split:
-                    splitrec = SeqRecord(Seq(seq), id=component_id,
-                            description="")
-                    SeqIO.write([splitrec], fwsplit, "fasta")
+            if gap and current_length >= opts.mingap:
+                allgaps.append((current_length, start))
+                gapnum += 1
+                gapname = "gap.{0:05d}".format(gapnum)
+                print >> fwbed, "\t".join(str(x) for x in (object,
+                    object_beg - 1, object_end, gapname))
 
             start += current_length
 
-        if allgaps:
-            lengths, starts = zip(*allgaps)
-            gap_description = ",".join(str(x) for x in lengths)
-            starts = ",".join(str(x) for x in starts)
-        else:
-            gap_description = starts = "no gaps"
+        if opts.log:
+            if allgaps:
+                lengths, starts = zip(*allgaps)
+                gap_description = ",".join(str(x) for x in lengths)
+                starts = ",".join(str(x) for x in starts)
+            else:
+                gap_description = starts = "no gaps"
 
-        if log:
             print >> fwlog, "\t".join((rec.id, str(len(allgaps)),
                     gap_description, starts))
+
+    fwbed.close()
+
+    if opts.agp or opts.split:
+        from jcvi.formats.sizes import agp
+        from jcvi.formats.agp import mask
+
+        agpfile = prefix + ".gaps.agp"
+        sizesagpfile = agp([inputfasta])
+
+        maskopts = [sizesagpfile, bedfile]
+        if opts.split:
+            maskopts += ["--split"]
+        maskedagpfile = mask(maskopts)
+
+        shutil.move(maskedagpfile, agpfile)
+        os.remove(sizesagpfile)
+        logging.debug("AGP file written to `{0}`.".format(agpfile))
+
+    if opts.split:
+        from jcvi.formats.agp import build
+
+        splitfile = prefix + ".split.fasta"
+        build([agpfile, inputfasta, splitfile])
 
 
 if __name__ == '__main__':

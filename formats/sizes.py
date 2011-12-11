@@ -4,6 +4,7 @@
 import os
 import os.path as op
 import sys
+import logging
 
 import numpy as np
 from optparse import OptionParser
@@ -99,6 +100,7 @@ def main():
 
     actions = (
         ('extract', 'extract the lines containing only the given IDs'),
+        ('agp', 'write to AGP format from sizes file'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -123,6 +125,35 @@ def extract(args):
         name = row.strip()
         size = sizes[name]
         print "\t".join(str(x) for x in (name, size))
+
+
+def agp(args):
+    """
+    %prog agp <fastafile|sizesfile>
+
+    Convert the sizes file to a trivial AGP file.
+    """
+    from jcvi.formats.agp import OO
+
+    p = OptionParser(agp.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    sizesfile, = args
+    sizes = Sizes(sizesfile)
+    agpfile = sizes.filename.rsplit(".", 1)[0] + ".agp"
+    fw = open(agpfile, "w")
+    o = OO()  # Without a filename
+    for ctg, size in sizes.iter_sizes():
+        o.add(ctg, ctg, size)
+
+    o.write_AGP(fw)
+    fw.close()
+    logging.debug("AGP file written to `{0}`.".format(agpfile))
+
+    return agpfile
 
 
 if __name__ == '__main__':

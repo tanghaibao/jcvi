@@ -273,12 +273,7 @@ def ace(args):
     print >> fw, "AS {0} {1}".format(ncontigs, totalreads)
     print >> fw
 
-    # progress bar
-    from jcvi.apps.console import ProgressBar
-    pbar = ProgressBar(maxval=ncontigs).start()
-
     for i, contig in enumerate(s.references):
-        pbar.update(i)
         cseq = f[contig]
         nbases = len(cseq)
 
@@ -331,8 +326,6 @@ def ace(args):
             print >> fw
             print >> fw, qs
             print >> fw
-
-    pbar.finish()
 
 
 if __name__ == '__main__':

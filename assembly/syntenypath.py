@@ -60,6 +60,8 @@ def fromblast(args):
             btag = ">" if b.orientation == "+" else "<"
             g.add_edge(BiEdge(asub, bsub, atag, btag))
 
+    g.draw("graph.pdf")
+
     logging.debug(str(g))
     paths = []
     for path in g.iter_paths():

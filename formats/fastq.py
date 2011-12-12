@@ -12,7 +12,6 @@ import logging
 from optparse import OptionParser
 
 from jcvi.formats.fasta import must_open
-from jcvi.apps.base import getfilesize
 from jcvi.apps.base import ActionDispatcher, debug, set_grid, sh
 debug()
 
@@ -534,15 +533,7 @@ def pair(args):
     offset = out_offset - in_offset
     ref = opts.ref
 
-    if ref:
-        totalsize = getfilesize(ref)
-    else:
-        totalsize = getfilesize(afastq)
-
-    from jcvi.apps.console import ProgressBar
-
-    bar = ProgressBar(maxval=totalsize).start()
-    strip_name = lambda x: x.rsplit("/", 1)[0]
+    strip_name = lambda x: x[:-1]
 
     ah_iter = iter_fastq(afastq, offset=offset, key=strip_name)
     bh_iter = iter_fastq(bfastq, offset=offset, key=strip_name)
@@ -572,7 +563,6 @@ def pair(args):
 
             # update progress
             pos = rh.tell()
-            bar.update(pos)
 
         # write all the leftovers to frags file
         while a:
@@ -582,13 +572,6 @@ def pair(args):
         while b:
             print >>fragsfw, b
             b = bh_iter.next()
-
-    else:  # easy case when afile and bfile records are in order
-        # TODO: unimplemented
-        pass
-
-    bar.finish()
-    sys.stdout.write("\n")
 
 
 if __name__ == '__main__':

@@ -219,7 +219,6 @@ class BiGraph (object):
             G.add_edge(e.v1, e.v2,
                        arrowhead=arrowhead, arrowtail=arrowtail)
 
-        print G.string()
         G.graph_attr.update(dpi=str(dpi))
         G.draw(pngfile, prog="neato")
         logging.debug("Graph written to `{0}`.".format(pngfile))

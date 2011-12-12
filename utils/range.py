@@ -11,10 +11,8 @@ both on the 2D dotplot and 1D-projection
 from itertools import groupby
 from collections import namedtuple
 
-from jcvi.utils.grouper import Grouper
 
 LEFT, RIGHT = 0, 1
-
 Range = namedtuple("Range", "seqid start end score id")
 
 

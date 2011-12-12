@@ -135,11 +135,7 @@ def synteny_liftover(points, anchors, dist):
     This is to get the nearest anchors for all the points (useful for the
     `liftover` operation below).
     """
-    try:
-        from scipy.spatial import cKDTree
-    except ImportError:
-        raise ImportError("You must install python package `scipy` " + \
-                "(http://www.scipy.org)")
+    from scipy.spatial import cKDTree
 
     points = np.array(points)
     ppoints = points[:, :2] if points.shape[1] > 2 else points

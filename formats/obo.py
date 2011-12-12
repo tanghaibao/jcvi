@@ -222,12 +222,7 @@ class GODag(dict):
             edgecolor="lightslateblue", dpi=96, verbose=False,
             lineage_img="GO_lineage.png"):
         # draw AMIGO style network, lineage containing one query record
-        try:
-            import pygraphviz as pgv
-        except ImportError:
-            logging.error("pygraphviz not installed, lineage not drawn!")
-            logging.error("try `easy_install pygraphviz`")
-            return
+        import pygraphviz as pgv
 
         G = pgv.AGraph()
         edgeset = set()

@@ -200,12 +200,7 @@ class BiGraph (object):
                 format(len(self.nodes), len(self.edges))
 
     def draw(self, pngfile, dpi=96):
-        try:
-            import pygraphviz as pgv
-        except ImportError:
-            logging.error("pygraphviz not installed, lineage not drawn!")
-            logging.error("try `easy_install pygraphviz`")
-            return
+        import pygraphviz as pgv
 
         G = pgv.AGraph()
         for e in self.edges.values():

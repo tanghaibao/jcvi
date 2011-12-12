@@ -14,6 +14,8 @@ Wrapper for the common graph algorithms. Common usages are:
 [1, 2, 3]
 """
 
+import logging
+
 import networkx as nx
 from collections import deque
 
@@ -22,6 +24,9 @@ from networkx.algorithms.components.weakly_connected import \
         weakly_connected_components
 from networkx.algorithms.components.connected import connected_components
 from networkx.algorithms.shortest_paths.generic import shortest_path
+
+from jcvi.apps.base import debug
+debug()
 
 """
 Bidirectional graph.
@@ -194,6 +199,31 @@ class BiGraph (object):
         return "BiGraph with {0} nodes and {1} edges".\
                 format(len(self.nodes), len(self.edges))
 
+    def draw(self, pngfile, dpi=96):
+        try:
+            import pygraphviz as pgv
+        except ImportError:
+            logging.error("pygraphviz not installed, lineage not drawn!")
+            logging.error("try `easy_install pygraphviz`")
+            return
+
+        G = pgv.AGraph()
+        for e in self.edges.values():
+            arrowhead = (e.o1 == ">")
+            arrowtail = (e.o2 == "<")
+            if e.o1 != e.o2:  # Not sure why this is necessary
+                arrowhead = not arrowhead
+                arrowtail = not arrowtail
+            arrowhead = "normal" if arrowhead else "inv"
+            arrowtail = "normal" if arrowtail else "inv"
+            G.add_edge(e.v1, e.v2,
+                       arrowhead=arrowhead, arrowtail=arrowtail)
+
+        print G.string()
+        G.graph_attr.update(dpi=str(dpi))
+        G.draw(pngfile, prog="neato")
+        logging.debug("Graph written to `{0}`.".format(pngfile))
+
 
 def bigraph_test():
     g = BiGraph()
@@ -212,6 +242,8 @@ def bigraph_test():
         p, oo = g.path(path)
         print p
         print oo
+
+    g.draw("demo.png")
 
 
 if __name__ == '__main__':

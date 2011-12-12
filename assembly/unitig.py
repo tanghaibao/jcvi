@@ -394,29 +394,5 @@ def pushall(args):
         push([f])
 
 
-def delete(args):
-    """
-    %prog delete unitig{partID}.{unitigID}
-
-    For example, `%prog delete unitig5.530` will delete unitig 530
-    NOTICE: DELETE DOES NOT WORK!!
-    """
-    p = OptionParser(delete.__doc__)
-    opts, args = p.parse_args(args)
-
-    if len(args) != 2:
-        sys.exit(p.print_help())
-
-    prefix = get_prefix()
-    s, = args
-    partID, unitigID = get_ID(s)
-
-    cmd = CAPATH("tigStore")
-    cmd += " -g ../{0}.gkpStore -t ../{0}.tigStore 1 ".format(prefix)
-    cmd += " {0} -D -u {1}".format(partID, unitigID)
-
-    sh(cmd)
-
-
 if __name__ == '__main__':
     main()

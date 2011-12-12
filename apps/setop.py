@@ -9,8 +9,8 @@ import sys
 
 from optparse import OptionParser
 
-from jcvi.formats.base import BaseFile
-from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.formats.base import BaseFile, DictFile, must_open
+from jcvi.apps.base import ActionDispatcher, debug, set_outfile
 debug()
 
 
@@ -27,9 +27,51 @@ def main():
 
     actions = (
         ('setop', 'set operations on files'),
+        ('join', 'join tabular files based on common column'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def join(args):
+    """
+    %prog join file1.txt file2.txt ..
+
+    Join tabular files based on common column.
+    """
+    from jcvi.utils.iter import flatten
+
+    p = OptionParser(join.__doc__)
+    p.add_option("--column", default=0, type="int",
+                 help="The column to pivot on, 0-based [default: %default]")
+    set_outfile(p)
+
+    opts, args = p.parse_args(args)
+
+    if len(args) < 2:
+        sys.exit(not p.print_help())
+
+    c = opts.column
+
+    # Maintain the first file line order, and combine other files into it
+    pivotfile = args[0]
+    files = [DictFile(f, keypos=c, valuepos=None, delimiter="\t") \
+                        for f in args]
+    otherfiles = files[1:]
+    header = "\t".join(flatten([x.filename] * x.ncols for x in files))
+
+    fp = open(pivotfile)
+    fw = must_open(opts.outfile, "w")
+    print >> fw, header
+    for row in fp:
+        row = row.rstrip()
+        atoms = row.split("\t")
+        newrow = atoms
+        key = atoms[c]
+        for d in otherfiles:
+            drow = d.get(key, ["na"] * d.ncols)
+            newrow += drow
+        print >> fw, "\t".join(newrow)
 
 
 def setop(args):

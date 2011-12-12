@@ -39,18 +39,24 @@ class DictFile (BaseFile, dict):
         super(DictFile, self).__init__(filename)
 
         fp = must_open(filename)
+        ncols = max(keypos, valuepos) + 1
         for lineno, row in enumerate(fp):
             row = row.rstrip()
             atoms = row.split(delimiter)
-            ncols = max(keypos, valuepos) + 1
-            if len(atoms) < ncols:
+            thiscols = len(atoms)
+            if thiscols < ncols:
                 msg = "Must contain >= {0} columns.  Aborted.\n".format(ncols)
                 msg += "  --> Line {0}: {1}".format(lineno + 1, row)
                 logging.error(msg)
                 sys.exit(1)
 
-            key, value = atoms[keypos], atoms[valuepos]
+            key = atoms[keypos]
+            value = atoms[valuepos] if (valuepos is not None) else atoms
             self[key] = value
+
+        self.ncols = thiscols
+        logging.debug("Imported {0} records from `{1}`.".\
+                    format(len(self), filename))
 
 
 class FileMerger (object):

@@ -54,9 +54,8 @@ def scaffold(args):
         prefix = bedfile.rsplit(".", 1)[0]
         matefile = prefix + ".mates"
         matebedfile = matefile + ".bed"
-        libname = prefix.split(".", 1)[0]
         if need_update(bedfile, [matefile, matebedfile]):
-            matesopt = [bedfile, "--lib={0}".format(libname), "--nointra"]
+            matesopt = [bedfile, "--lib", "--nointra"]
             if opts.prefix:
                 matesopt += ["--prefix"]
             matefile, matebedfile = mates(matesopt)

@@ -18,21 +18,85 @@ from jcvi.formats.bed import Bed, BedLine
 from jcvi.formats.sizes import Sizes
 from jcvi.assembly.base import calculate_A50
 from jcvi.assembly.coverage import BedLine, Sizes, Coverage
-from jcvi.algorithms.matrix import moving_average
-from jcvi.graphics.base import plt, Rectangle, set_tex_axis, _
+from jcvi.graphics.base import plt, Rectangle, set_human_base_axis, \
+        _, set_image_options
 from jcvi.utils.cbook import thousands
-from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.apps.base import ActionDispatcher, debug, need_update
 debug()
 
 
 def main():
     actions = (
         ('A50', 'compare A50 graphics for a set of FASTA files'),
-        ('coverage', 'performs QC graphics on given contig/scaffold'),
+        ('coverage', 'plot coverage from a set of BED files'),
+        ('qc', 'performs QC graphics on given contig/scaffold'),
         ('scaffold', 'plot the alignment of the scaffold to other evidences'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def coverage(args):
+    """
+    %prog coverage fastafile ctg bedfile1 bedfile2 ..
+
+    Plot coverage from a set of BED files that contain the read mappings. The
+    paired read span will be converted to a new bedfile that contain the happy
+    mates. ctg is the chr/scf/ctg that you want to plot the histogram on.
+    """
+    from jcvi.formats.bed import mates, bedpe
+
+    p = OptionParser(coverage.__doc__)
+    p.add_option("--ymax", default=None, type="int",
+                 help="Limit ymax [default: %default]")
+    opts, args, iopts = set_image_options(p, args, figsize="8x5")
+
+    if len(args) < 3:
+        sys.exit(not p.print_help())
+
+    fastafile, ctg = args[0:2]
+    bedfiles = args[2:]
+
+    sizes = Sizes(fastafile)
+    size = sizes.mapping[ctg]
+
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    ax = plt.gca()
+
+    bins = 100  # smooth the curve
+    lines = []
+    legends = []
+    for bedfile, c in zip(bedfiles, "rgbcyk"):
+        pf = bedfile.rsplit(".", 1)[0]
+        matesfile = pf + ".mates"
+        if need_update(bedfile, matesfile):
+            matesfile, matesbedfile = mates([bedfile, "--lib"])
+
+        bedspanfile = pf + ".spans.bed"
+        if need_update(matesfile, bedspanfile):
+            bedpefile, bedspanfile = bedpe([bedfile, "--span",
+                "--mates={0}".format(matesfile)])
+        bedfile = bedspanfile
+
+        cov = Coverage(bedfile, sizes.filename)
+        x, y = cov.get_plot_data(ctg, bins=bins)
+        line, = ax.plot(x, y, '-', color=c, lw=2, alpha=.5)
+        lines.append(line)
+        legend = _(bedfile.split(".")[0])
+        legends.append(legend)
+
+    leg = ax.legend(lines, legends, shadow=True, fancybox=True)
+    leg.get_frame().set_alpha(.5)
+
+    ax.set_xlim(0, size)
+    ax.set_ylim(0, opts.ymax)
+    ax.set_xlabel(ctg)
+    ax.set_ylabel("Depth")
+    set_human_base_axis(ax)
+
+    figname = fastafile + ".pdf"
+    plt.savefig(figname, dpi=iopts.dpi)
+    logging.debug("Figure saved to `{0}` {1}.".format(figname, iopts))
 
 
 def scaffolding(ax, scaffoldID, blastf, qsizes, ssizes, qbed, sbed):
@@ -128,9 +192,9 @@ def scaffold(args):
         plot_one_scaffold(scaffoldID, tmpsizes, None, trios, imagename, iopts)
 
 
-def coverage(args):
+def qc(args):
     """
-    %prog coverage prefix
+    %prog qc prefix
 
     Expects data files including:
     1. `prefix.bedpe` draws Bezier curve between paired reads
@@ -141,7 +205,9 @@ def coverage(args):
 
     See assembly.coverage.posmap() for the generation of these files.
     """
-    p = OptionParser(coverage.__doc__)
+    from jcvi.graphics.glyph import Bezier
+
+    p = OptionParser(qc.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -161,11 +227,6 @@ def coverage(args):
 
     sizes = Sizes(fastafile).mapping
     size = sizes[scf]
-    basecoverage = Coverage(bedfile, sizesfile)
-    matecoverage = Coverage(pairsbedfile, sizesfile)
-
-    import numpy as np
-    from jcvi.graphics.glyph import Bezier
 
     fig = plt.figure(1, (8, 5))
     root = fig.add_axes([0, 0, 1, 1])
@@ -175,18 +236,16 @@ def coverage(args):
 
     # basecoverage and matecoverage
     ax = fig.add_axes([.1, .45, .8, .45])
-    bases = np.arange(1, size + 1)
 
-    assert len(bases) == len(basecoverage)
-    assert len(bases) == len(matecoverage)
-
-    window = size / 200  # smooth the curve
+    bins = 200  # Smooth the curve
     logging.debug("Coverage curve use window size of {0} bases.".format(window))
-    basecoverage = moving_average(basecoverage, window=window)
-    matecoverage = moving_average(matecoverage, window=window)
+    basecoverage = Coverage(bedfile, sizesfile)
+    matecoverage = Coverage(pairsbedfile, sizesfile)
 
-    baseline = ax.plot(bases, basecoverage, 'g-')
-    mateline = ax.plot(bases, matecoverage, 'r-')
+    x, y = basecoverage.get_plot_data(scf, bins=bins)
+    baseline, = ax.plot(x, y, 'g-')
+    x, y = matecoverage.get_plot_data(scf, bins=bins)
+    mateline, = ax.plot(x, y, 'r-')
     legends = (_("Base coverage"), _("Mate coverage"))
     leg = ax.legend((baseline, mateline), legends, shadow=True, fancybox=True)
     leg.get_frame().set_alpha(.5)
@@ -239,7 +298,7 @@ def coverage(args):
     root.text(.5, .1, _(scf), color='b', ha="center")
     root.text(.5, .05, _(warn_msg), color='gray', ha="center")
     # clean up and output
-    set_tex_axis(ax)
+    set_human_base_axis(ax)
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
     root.set_axis_off()

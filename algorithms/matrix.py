@@ -6,6 +6,7 @@ Matrix related subroutines
 """
 
 import sys
+import math
 
 import numpy as np
 
@@ -20,7 +21,18 @@ is_symmetric = lambda M: (M.T == M).all()
 
 def moving_average(a, window=10):
     kernel = np.repeat(1., window) / window
-    return np.convolve(a, kernel)[(window-1):]
+    return np.convolve(a, kernel)
+
+
+def chunk_average(a, window=10):
+    # Fixed size window, take average within the window
+    bins = int(math.ceil(a.size * 1. / window))
+    r = np.zeros((bins, ), dtype=np.float)
+    start = 0
+    for i in xrange(bins):
+        r[i] = np.average(a[start: start + window])
+        start += window
+    return r
 
 
 def determine_positions(nodes, edges):

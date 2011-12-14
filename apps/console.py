@@ -80,9 +80,16 @@ ATTRIBUTES.update(HIGHLIGHTS)
 
 COLORS = dict(zip(
     ('grey', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white', ),
-    range(30, 38))
+    ["0;{0}".format(x) for x in range(30, 38)])
 )
 ATTRIBUTES.update(COLORS)
+
+DARKCOLORS = dict(zip(
+    ('black', 'darkred', 'darkgreen', 'darkyellow', 'darkblue', 'darkmagenta', \
+     'darkcyan', 'silver'),
+    ["1;{0}".format(x) for x in range(30, 38)])
+)
+ATTRIBUTES.update(DARKCOLORS)
 
 RESET = '\033[0m'
 
@@ -112,11 +119,11 @@ class ColoredText:
         """
         ctext = None
         if os.getenv('ANSI_COLORS_DISABLED') is None:
-            fmt_str = '\033[%dm%s'
+            fmt_str = '\033[{0}m{1}'
 
             if self.attrs:
                 for attr in self.attrs:
-                    ctext = fmt_str % (ATTRIBUTES[attr], self.text)
+                    ctext = fmt_str.format(ATTRIBUTES[attr], self.text)
                 ctext += RESET
 
         return ctext or self.text
@@ -146,25 +153,17 @@ if __name__ == '__main__':
     # test ANSI colors and text
     print('Current terminal type: %s' % os.getenv('TERM'))
     print('Test basic colors:')
-    print(ColoredText('Grey color', 'grey'))
-    print(ColoredText('Red color', 'red'))
-    print(ColoredText('Green color', 'green'))
-    print(ColoredText('Yellow color', 'yellow'))
-    print(ColoredText('Blue color', 'blue'))
-    print(ColoredText('Magenta color', 'magenta'))
-    print(ColoredText('Cyan color', 'cyan'))
-    print(ColoredText('White color', 'white'))
+    for c in COLORS.keys():
+        print(ColoredText("{0} color".format(c.capitalize()), c))
+    print('-' * 78)
+
+    for c in DARKCOLORS.keys():
+        print(ColoredText("{0} color".format(c.capitalize()), c))
     print('-' * 78)
 
     print('Test highlights:')
-    print(ColoredText('On grey color', 'on_grey'))
-    print(ColoredText('On red color', 'on_red'))
-    print(ColoredText('On green color', 'on_green'))
-    print(ColoredText('On yellow color', 'on_yellow'))
-    print(ColoredText('On blue color', 'on_blue'))
-    print(ColoredText('On magenta color', 'on_magenta'))
-    print(ColoredText('On cyan color', 'on_cyan'))
-    print(ColoredText('On white color', 'grey|on_white'))
+    for c in HIGHLIGHTS.keys():
+        print(ColoredText("{0} color".format(c.capitalize()), c))
     print('-' * 78)
 
     print('Test attributes:')

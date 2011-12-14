@@ -139,7 +139,7 @@ def main():
 
     actions = (
         ('sort', 'sort bed file'),
-        ('sum', 'sum the total lengths of the intervals'),
+        ('summary', 'summarize the lengths of the intervals'),
         ('pairs', 'estimate insert size between paired reads from bedfile'),
         ('mates', 'print paired reads from bedfile'),
         ('sizes', 'infer the sizes for each seqid'),
@@ -173,6 +173,7 @@ def bedpe(args):
     bedspanfile = pf + ".spans.bed" if opts.span else None
     bed_to_bedpe(bedfile, bedpefile, \
                  pairsbedfile=bedspanfile, matesfile=opts.mates)
+    return bedpefile, bedspanfile
 
 
 def sizes(args):
@@ -236,15 +237,15 @@ def pairs(args):
            distmode=opts.distmode)
 
 
-def sum(args):
+def summary(args):
     """
-    %prog sum bedfile
+    %prog summary bedfile
 
     Sum the total lengths of the intervals.
     """
     import numpy as np
 
-    p = OptionParser(sum.__doc__)
+    p = OptionParser(summary.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -302,7 +303,7 @@ def mates(args):
     Generate the mates file by inferring from the names.
     """
     p = OptionParser(mates.__doc__)
-    p.add_option("--lib", default=None,
+    p.add_option("--lib", default=False, action="store_true",
             help="Output library information along with pairs [default: %default]")
     p.add_option("--nointra", default=False, action="store_true",
             help="Remove mates that are intra-scaffold [default: %default]")
@@ -318,20 +319,20 @@ def mates(args):
 
     bedfile, = args
     rclip = opts.rclip
-    lib = opts.lib
 
     key = (lambda x: x.accn[:-rclip]) if rclip else (lambda x: x.accn)
     bed = Bed(bedfile, key=key)
 
     pf = bedfile.rsplit(".", 1)[0]
     matesfile = pf + ".mates"
+    lib = pf if opts.lib else None
     fw = open(matesfile, "w")
     if lib:
         bedfile, (meandist, stdev, p0, p1, p2) = pairs([bedfile, \
                 "--mateorientation=+-"])
         sv = int(1.97 * stdev)
         print >> fw, "\t".join(str(x) for x in \
-                ("library", lib, meandist -  sv, meandist + sv))
+                ("library", pf, meandist -  sv, meandist + sv))
 
     num_fragments = num_pairs = 0
     matesbedfile = matesfile + ".bed"

@@ -863,13 +863,11 @@ def extract(args):
     "seqname", or "seqname:start-stop", or "seqname:start-stop:-"
     """
     p = OptionParser(extract.__doc__)
-    p.add_option('--include', dest="include",
-            default=False, action="store_true",
-            help="search description line for match, use 'all' for all " +\
-            "records [default: %default]")
-    p.add_option('--exclude', dest="exclude",
-            default=False, action="store_true",
+    p.add_option('--include', default=False, action="store_true",
+            help="search description line for match [default: %default]")
+    p.add_option('--exclude', default=False, action="store_true",
             help="exclude description that matches [default: %default]")
+    set_outfile(p)
 
     opts, args = p.parse_args(args)
 
@@ -916,25 +914,25 @@ def extract(args):
     # conflicting options, cannot be true at the same time
     assert not (include and exclude), "--include and --exclude cannot be "\
             "on at the same time"
-
-    f = Fasta(fastafile)
+    fw = must_open(opts.outfile, "w")
 
     if include or exclude:
-        for k in f.keys():
-            if include and key != "all" and key not in k:
+        f = Fasta(fastafile, lazy=True)
+        for k, rec in f.iteritems_ordered():
+            if include and key not in k:
                 continue
             if exclude and key in k:
                 continue
 
-            rec = f[k]
             seq = Fasta.subseq(rec, start, stop, strand)
             newid = rec.id
             if start is not None:
                 newid += ":{0}-{1}:{2}".format(start, stop, strand)
 
             rec = SeqRecord(seq, id=newid, description="")
-            SeqIO.write([rec], sys.stdout, "fasta")
+            SeqIO.write([rec], fw, "fasta")
     else:
+        f = Fasta(fastafile)
         try:
             seq = f.sequence(feature, asstring=False)
         except AssertionError as e:
@@ -942,7 +940,7 @@ def extract(args):
             return
 
         rec = SeqRecord(seq, id=query, description="")
-        SeqIO.write([rec], sys.stdout, "fasta")
+        SeqIO.write([rec], fw, "fasta")
 
 
 def _uniq_rec(fastafile):

@@ -50,7 +50,7 @@ def write_ImageMapLine(tlx, tly, brx, bry, w, h, dpi, chr, segment_start, segmen
 
 
 class Chromosome (object):
-    def __init__(self, ax, x, y1, y2, width=.015, cl="k", zorder=2):
+    def __init__(self, ax, x, y1, y2, width=.015, fc="k", fill=False, zorder=2):
         """
         Chromosome with positions given in (x, y1) => (x, y2)
         """
@@ -60,11 +60,25 @@ class Chromosome (object):
         pts += [[x - r, y1 - r], [x - r, y2 + r]]
         pts += plot_cap((x, y2 + r), np.radians(range(180, 360)), r)
         pts += [[x + r, y2 + r], [x + r, y1 - r]]
-        ax.add_patch(Polygon(pts, fc=cl, fill=False, zorder=zorder))
+        ax.add_patch(Polygon(pts, fc=fc, fill=fill, zorder=zorder))
 
 
-class ChromsomeWithCentromere (object):
-    def __init__(self, ax, x, y1, y2, y3, width=.015, cl="k", zorder=2):
+class HorizontalChromosome (object):
+    def __init__(self, ax, x1, x2, y, height=.015, fc="k", fill=False, zorder=2):
+        """
+        Chromosome with positions given in (x1, y) => (x2, y)
+        """
+        pts = []
+        r = height * .5
+        pts += plot_cap((x1, y), np.radians(range(90, 270)), r)
+        pts += [[x1, y - r], [x2, y - r]]
+        pts += plot_cap((x2, y), np.radians(range(270, 450)), r)
+        pts += [[x2, y + r], [x1, y + r]]
+        ax.add_patch(Polygon(pts, fc=fc, fill=fill, zorder=zorder))
+
+
+class ChromosomeWithCentromere (object):
+    def __init__(self, ax, x, y1, y2, y3, width=.015, fc="k", fill=False, zorder=2):
         """
         Chromosome with centromeres at y2 position
         """
@@ -74,13 +88,13 @@ class ChromsomeWithCentromere (object):
         pts += [[x - r, y1 - r], [x - r, y2 + r]]
         pts += plot_cap((x, y2 + r), np.radians(range(180, 360)), r)
         pts += [[x + r, y2 + r], [x + r, y1 - r]]
-        ax.add_patch(Polygon(pts, fc=cl, fill=False, zorder=zorder))
+        ax.add_patch(Polygon(pts, fc=fc, fill=fill, zorder=zorder))
         pts = []
         pts += plot_cap((x, y2 - r), np.radians(range(180)), r)
         pts += [[x - r, y2 - r], [x - r, y3 + r]]
         pts += plot_cap((x, y3 + r), np.radians(range(180, 360)), r)
         pts += [[x + r, y3 + r], [x + r, y2 - r]]
-        ax.add_patch(Polygon(pts, fc=cl, fill=False, zorder=zorder))
+        ax.add_patch(Polygon(pts, fc=fc, fill=fill, zorder=zorder))
         ax.add_patch(CirclePolygon((x, y2), radius=r * .5,
             fc="k", ec="k", zorder=zorder))
 
@@ -175,7 +189,7 @@ def main():
         xx = xstart + a * xinterval + .5 * xwidth
         yy = ystart - cent_position * ratio
         root.text(xx, ystart + .01, _(chr), ha="center")
-        ChromsomeWithCentromere(root, xx, ystart, yy,
+        ChromosomeWithCentromere(root, xx, ystart, yy,
                 ystart - clen * ratio, width=xwidth)
 
     chr_idxs = dict((a, i) for i, a in enumerate(sorted(chr_lens.keys())))

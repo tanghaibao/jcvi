@@ -166,12 +166,12 @@ def fetch(args):
     """
     p = OptionParser(fetch.__doc__)
 
-    allowed_databases = {"fasta" : ["genome", "nuccore", "nucgss", "protein"],
-                         "asn.1" : ["genome", "nuccore", "nucgss", "protein"],
-                         "gb"    : ["genome", "nuccore", "nucgss"],
-                         "est"   : ["nucest"],
-                         "gss"   : ["nucgss"],
-                         "acc"   : ["nuccore"],
+    allowed_databases = {"fasta": ["genome", "nuccore", "nucgss", "protein", "nucest"],
+                         "asn.1": ["genome", "nuccore", "nucgss", "protein"],
+                         "gb"   : ["genome", "nuccore", "nucgss"],
+                         "est"  : ["nucest"],
+                         "gss"  : ["nucgss"],
+                         "acc"  : ["nuccore"],
                         }
 
     valid_formats = tuple(allowed_databases.keys())

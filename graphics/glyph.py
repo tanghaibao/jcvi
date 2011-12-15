@@ -5,6 +5,7 @@
 Gradient gene features
 """
 
+import os.path as op
 import sys
 import logging
 
@@ -19,6 +20,7 @@ tstep = .05
 Timing = np.arange(0, 1 + tstep, tstep)
 arrowprops = dict(arrowstyle="fancy", fc="k", alpha=.5,
             connectionstyle="arc3,rad=-0.05")
+
 
 class Bezier (object):
     """
@@ -79,8 +81,7 @@ class TextCircle (object):
 class Glyph (object):
     """Draws gradient rectangle
     """
-    def __init__(self, ax, x1, x2, y, height=.03,
-            fc="gray", **kwargs):
+    def __init__(self, ax, x1, x2, y, height=.03, fc="gray", **kwargs):
 
         width = x2 - x1
         # Frame around the gradient rectangle
@@ -92,6 +93,23 @@ class Glyph (object):
             p1 = (x1, y - height * cascade)
             ax.add_patch(Rectangle(p1, width, 2 * cascade * height,
                 fc='w', lw=0, alpha=.1))
+
+
+class ExonGlyph (object):
+    """Multiple rectangles linked together.
+    """
+    def __init__(self, ax, x, y, mrnabed, exonbeds, height=.03, ratio=1,
+                 align="left", **kwargs):
+
+        start, end = mrnabed.start, mrnabed.end
+        xa = lambda a: x + (a - start) * ratio
+        xb = lambda a: x - (end - a) * ratio
+        xc = xa if align == "left" else xb
+
+        Glyph(ax, xc(start), xc(end), y, height=height / 3)
+        for b in exonbeds:
+            bstart, bend = b.start, b.end
+            Glyph(ax, xc(bstart), xc(bend), y, fc="orange")
 
 
 class GeneGlyph (object):
@@ -123,14 +141,106 @@ class GeneGlyph (object):
 
 
 def main():
+
+    actions = (
+        ('demo', 'run a demo to showcase some common usages of various glyphs'),
+        ('gff', 'draw exons for genes based on gff files'),
+            )
+    p = ActionDispatcher(actions)
+    p.dispatch(globals())
+
+
+def get_cds_beds(gffile, noUTR=False):
+    from jcvi.formats.gff import Gff
+
+    mrnabed = None
+    cdsbeds = []
+    gf = Gff(gffile)
+    for g in gf:
+        if g.type == "mRNA":
+            mrnabed = g.bedline
+        elif g.type == "CDS":
+            cdsbeds.append(g.bedline)
+
+    if noUTR:
+        mrnabed.start = min(x.start for x in cdsbeds)
+        mrnabed.end = max(x.end for x in cdsbeds)
+
+    return mrnabed, cdsbeds
+
+
+def get_setups(gffiles, canvas=.6, noUTR=False):
+    setups = []
+    for gffile in gffiles:
+        genename = op.basename(gffile).rsplit(".", 1)[0]
+        mrnabed, cdsbeds = get_cds_beds(gffile, noUTR=noUTR)
+        setups.append((genename, mrnabed, cdsbeds))
+
+    genenames, mrnabeds, cdsbedss = zip(*setups)
+    maxspan = max(x.span for x in mrnabeds)
+    ratio = canvas / maxspan
+    return setups, ratio
+
+
+def gff(args):
+    """
+    %prog gff *.gff
+
+    Draw exons for genes based on gff files. Each gff file should contain only
+    one gene, and only the "mRNA" and "CDS" feature will be drawn on the canvas.
+    """
+    align_choices = ("left", "center", "right")
+
+    p = OptionParser(gff.__doc__)
+    p.add_option("--align", default="left", choices=align_choices,
+                 help="Horizontal alignment {0} [default: %default]".\
+                    format("|".join(align_choices)))
+    p.add_option("--noUTR", default=False, action="store_true",
+                 help="Do not plot UTRs [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) < 1:
+        sys.exit(not p.print_help())
+
+    fig = plt.figure(1, (8, 5))
+    root = fig.add_axes([0, 0, 1, 1])
+
+    gffiles = args
+    ngenes = len(gffiles)
+
+    setups, ratio = get_setups(gffiles, canvas=.6, noUTR=opts.noUTR)
+    align = opts.align
+    xs = .2 if align == "left" else .8
+    yinterval = canvas / ngenes
+    ys = .8
+    tip = .01
+    for genename, mrnabed, cdsbeds in setups:
+        ex = ExonGlyph(root, xs, ys, mrnabed, cdsbeds, ratio=ratio, align=align)
+        genename = _(genename)
+        if align == "left":
+            root.text(xs - tip, ys, genename, ha="right", va="center")
+        elif align == "right":
+            root.text(xs + tip, ys, genename, ha="left", va="center")
+        ys -= yinterval
+
+    root.set_xlim(0, 1)
+    root.set_ylim(0, 1)
+    root.set_axis_off()
+
+    figname = "exons.pdf"
+    plt.savefig(figname, dpi=300)
+    logging.debug("Figure saved to `{0}`".format(figname))
+
+
+def demo(args):
     """
     %prog demo
 
     Draw sample gene features to illustrate the various fates of duplicate
     genes - to be used in a book chapter.
     """
-    p = OptionParser(main.__doc__)
-    opts, args = p.parse_args()
+    p = OptionParser(demo.__doc__)
+    opts, args = p.parse_args(args)
 
     fig = plt.figure(1, (8, 5))
     root = fig.add_axes([0, 0, 1, 1])

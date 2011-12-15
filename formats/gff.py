@@ -38,10 +38,10 @@ class GffLine (object):
         self.score = args[5]
         self.strand = args[6]
         assert self.strand in Valid_strands, \
-                "strand must be one of %s" % Valid_strands
+                "strand must be one of {0}".format(Valid_strands)
         self.phase = args[7]
         assert self.phase in Valid_phases, \
-                "phase must be one of %s" % Valid_phases
+                "phase must be one of {0}".format(Valid_phases)
         self.attributes_text = args[8].strip()
         gff3 = "=" in self.attributes_text
         self.attributes = make_attributes(self.attributes_text, gff3=gff3)
@@ -58,7 +58,7 @@ class GffLine (object):
 
     @property
     def accn(self):
-        if self.key:
+        if self.key and self.key in self.attributes:
             return self.attributes[self.key][0]
         return self.attributes_text.split()[0]
 

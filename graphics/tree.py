@@ -1,25 +1,21 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-"""
-%prog newicktree
-
-Plot Newick formatted tree.
-"""
-
-
 import sys
 import logging
 
+from glob import glob
 from optparse import OptionParser
 
 from ete2 import Tree
+from jcvi.formats.sizes import Sizes
 from jcvi.graphics.base import plt, _, set_image_options
+from jcvi.graphics.glyph import ExonGlyph, get_setups
 from jcvi.apps.base import debug
 debug()
 
 
-def draw_tree(ax, tx, rmargin=.2, outgroup=None):
+def draw_tree(ax, tx, rmargin=.3, outgroup=None, gffdir=None, sizes=None):
 
     t = Tree(tx)
     if outgroup:
@@ -42,6 +38,16 @@ def draw_tree(ax, tx, rmargin=.2, outgroup=None):
     num_leaves = len(t.get_leaf_names())
     yinterval = canvas / (num_leaves + 1)
 
+    # get exons structures, if any
+    structures = {}
+    if gffdir:
+        gffiles = glob("{0}/*.gff*".format(gffdir))
+        setups, ratio = get_setups(gffiles, canvas=rmargin / 2, noUTR=True)
+        structures = dict((a, (b, c)) for a, b, c in setups)
+
+    if sizes:
+        sizes = Sizes(sizes).mapping
+
     coords = {}
     i = 0
     for n in t.traverse("postorder"):
@@ -53,6 +59,17 @@ def draw_tree(ax, tx, rmargin=.2, outgroup=None):
             i += 1
             ax.text(xx + tip, yy, n.name, va="center",
                     fontstyle="italic", size=8)
+            gname = n.name.split("_")[0]
+            if gname in structures:
+                mrnabed, cdsbeds = structures[gname]
+                ExonGlyph(ax, 1 - rmargin / 2, yy, mrnabed, cdsbeds,
+                          align="right", ratio=ratio)
+            if sizes and gname in sizes:
+                size = sizes[gname]
+                size = size / 3 - 1  # base pair converted to amino acid
+                size = _("{0}aa".format(size))
+                ax.text(1 - rmargin / 2 + tip, yy, size)
+
         else:
             children = [coords[x] for x in n.get_children()]
             children_x, children_y = zip(*children)
@@ -82,12 +99,23 @@ def draw_tree(ax, tx, rmargin=.2, outgroup=None):
 
 
 def main(tx=None):
-    p = OptionParser(__doc__)
-    p.add_option("--outgroup",
-                 help="Root the tree using the outgroup. " + \
+    """
+    %prog newicktree
+
+    Plot Newick formatted tree. The gene structure can be plotted along if
+    --gffdir is given. The gff file needs to be `genename.gff`. If --sizes is
+    on, also show the number of amino acids.
+    """
+    p = OptionParser(main.__doc__)
+    p.add_option("--outgroup", help="Root the tree using the outgroup. " + \
                       "Use comma to separate multiple taxa.")
     p.add_option("--rmargin", default=.3, type="float",
                  help="Set blank rmargin to the right [default: %default]")
+    p.add_option("--gffdir", default=None,
+                 help="The directory that contain GFF files [default: %default]")
+    p.add_option("--sizes", default=None,
+                 help="The FASTA file or the sizes file [default: %default]")
+
     opts, args, iopts = set_image_options(p, figsize="8x6")
 
     if len(args) != 1:
@@ -107,7 +135,8 @@ def main(tx=None):
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
 
-    draw_tree(root, tx, rmargin=opts.rmargin, outgroup=outgroup)
+    draw_tree(root, tx, rmargin=opts.rmargin,
+              outgroup=outgroup, gffdir=opts.gffdir, sizes=opts.sizes)
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)

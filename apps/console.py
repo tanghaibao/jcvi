@@ -80,14 +80,14 @@ ATTRIBUTES.update(HIGHLIGHTS)
 
 COLORS = dict(zip(
     ('grey', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white', ),
-    ["0;{0}".format(x) for x in range(30, 38)])
+    ["0;%d" % x for x in range(30, 38)])
 )
 ATTRIBUTES.update(COLORS)
 
 DARKCOLORS = dict(zip(
     ('black', 'darkred', 'darkgreen', 'darkyellow', 'darkblue', 'darkmagenta', \
      'darkcyan', 'silver'),
-    ["1;{0}".format(x) for x in range(30, 38)])
+    ["1;%d" % x for x in range(30, 38)])
 )
 ATTRIBUTES.update(DARKCOLORS)
 
@@ -119,11 +119,11 @@ class ColoredText:
         """
         ctext = None
         if os.getenv('ANSI_COLORS_DISABLED') is None:
-            fmt_str = '\033[{0}m{1}'
+            fmt_str = '\033[%sm%s'
 
             if self.attrs:
                 for attr in self.attrs:
-                    ctext = fmt_str.format(ATTRIBUTES[attr], self.text)
+                    ctext = fmt_str % (ATTRIBUTES[attr], self.text)
                 ctext += RESET
 
         return ctext or self.text

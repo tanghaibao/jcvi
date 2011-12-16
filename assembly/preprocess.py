@@ -98,19 +98,20 @@ def trim(args):
         frags += ".gz"
         pairs += ".gz"
 
+    get_prefix = lambda x: op.basename(x).replace(".gz", "").rsplit(".", 1)[0]
     if len(args) == 1:
         cmd += ".TrimmomaticSE"
         cmd += phredflag
         fastqfile, = args
-        prefix = op.basename(fastqfile).replace(".gz", "").rsplit(".", 1)[0]
+        prefix = get_prefix(fastqfile)
         frags1 = prefix + frags
         cmd += " {0}".format(" ".join((fastqfile, frags1)))
     else:
         cmd += ".TrimmomaticPE"
         cmd += phredflag
         fastqfile1, fastqfile2 = args
-        prefix1 = op.basename(fastqfile1).split(".")[0]
-        prefix2 = op.basename(fastqfile2).split(".")[0]
+        prefix1 = get_prefix(fastqfile1)
+        prefix2 = get_prefix(fastqfile2)
         pairs1 = prefix1 + pairs
         pairs2 = prefix2 + pairs
         frags1 = prefix1 + frags

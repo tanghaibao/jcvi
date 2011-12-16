@@ -330,7 +330,7 @@ def mates(args):
     if lib:
         bedfile, (meandist, stdev, p0, p1, p2) = pairs([bedfile, \
                 "--mateorientation=+-"])
-        sv = int(1.97 * stdev)
+        sv = int(2 * stdev)
         print >> fw, "\t".join(str(x) for x in \
                 ("library", pf, meandist -  sv, meandist + sv))
 

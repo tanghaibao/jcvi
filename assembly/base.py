@@ -50,9 +50,12 @@ class Library (object):
     def __init__(self, library_name):
 
         self.library_name = library_name
-        pf, size = library_name.split("-")
-        assert pf in types, \
-            "Library prefix must be one of {0}".format(types.keys())
+        if "-" in library_name:
+            pf, size = library_name.split("-", 1)
+            assert pf in types, \
+                "Library prefix must be one of {0}".format(types.keys())
+        else:
+            pf, size = "PE", 0
 
         self.size = size = int(size)
         self.stddev = size / 5

@@ -66,7 +66,7 @@ def coverage(args):
     bins = 100  # smooth the curve
     lines = []
     legends = []
-    for bedfile, c in zip(bedfiles, "rgbcyk"):
+    for bedfile, c in zip(bedfiles, "rgbcky"):
         pf = bedfile.rsplit(".", 1)[0]
         matesfile = pf + ".mates"
         if need_update(bedfile, matesfile):
@@ -94,7 +94,7 @@ def coverage(args):
     ax.set_ylabel("Depth")
     set_human_base_axis(ax)
 
-    figname = fastafile + ".pdf"
+    figname ="{0}.{1}.pdf".format(fastafile, ctg)
     plt.savefig(figname, dpi=iopts.dpi)
     logging.debug("Figure saved to `{0}` {1}.".format(figname, iopts))
 

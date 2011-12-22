@@ -63,6 +63,10 @@ class GffLine (object):
         return self.attributes_text.split()[0]
 
     @property
+    def span(self):
+        return self.end - self.start + 1
+
+    @property
     def bedline(self):
         score = "1000" if self.score == '.' else self.score
         row = "\t".join((self.seqid, str(self.start - 1),
@@ -118,6 +122,9 @@ def main():
         ('bed', 'parse gff and produce bed file for particular feature type'),
         ('bed12', 'produce bed12 file for coding features'),
         ('gtf', 'convert to gtf format'),
+        ('sort', 'sort the gff file'),
+        ('uniq', 'remove the redundant gene models'),
+        ('liftover', 'adjust gff coordinates based on tile number'),
         ('script', 'parse gmap gff and produce script for sim4db to refine'),
         ('note', 'extract certain attribute field for each feature'),
         ('load', 'extract the feature (e.g. CDS) sequences and concatenate'),
@@ -129,6 +136,133 @@ def main():
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def liftover(args):
+    """
+    %prog liftover gffile > liftover.gff
+
+    Adjust gff coordinates based on tile number. For example,
+    "gannotation.asmbl.000095.7" is the 8-th tile on asmbl.000095.
+    """
+    p = OptionParser(liftover.__doc__)
+    p.add_option("--tilesize", default=50000, type="int",
+                 help="The size for each tile [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    gffile, = args
+    gff = Gff(gffile)
+    for g in gff:
+        seqid = g.seqid
+        seqid, tilenum = seqid.rsplit(".", 1)
+        tilenum = int(tilenum)
+        g.seqid = seqid
+        offset = tilenum * opts.tilesize
+        g.start += offset
+        g.end += offset
+        print g
+
+
+def uniq(args):
+    """
+    %prog uniq gffile > uniq.gff
+
+    Remove redundant gene models. For overlapping gene models, take the longest
+    gene. A second scan takes only the genes selected.
+    """
+    from jcvi.utils.iter import pairwise
+    from jcvi.utils.grouper import Grouper
+    from jcvi.utils.range import range_overlap
+
+    p = OptionParser(uniq.__doc__)
+    p.add_option("--type", default="gene",
+                 help="Types of features to non-redundify [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    gffile, = args
+    gff = Gff(gffile)
+    allgenes = []
+    for g in gff:
+        if g.type != opts.type:
+            continue
+        allgenes.append(g)
+
+    logging.debug("A total of {0} genes imported.".format(len(allgenes)))
+    allgenes.sort(key=lambda x: x.start)
+
+    g = Grouper()
+    for a, b in pairwise(allgenes):
+        arange = (a.seqid, a.start, a.end)
+        brange = (b.seqid, b.start, b.end)
+        g.join(a)
+        g.join(b)
+        if range_overlap(arange, brange):
+            g.join(a, b)
+
+    bestids = set()
+    for group in g:
+        bestgene = max(group, key=lambda x: x.span)
+        bestids.add(bestgene.accn)
+
+    logging.debug("A total of {0} genes selected.".format(len(bestids)))
+    logging.debug("Populate children. Iteration 1..")
+    gff = Gff(gffile)
+    children = set()
+    for g in gff:
+        if "Parent" not in g.attributes:
+            continue
+        parent = g.attributes["Parent"][0]
+        if parent in bestids:
+            children.add(g.accn)
+
+    logging.debug("Populate children. Iteration 2..")
+    gff = Gff(gffile)
+    for g in gff:
+        if "Parent" not in g.attributes:
+            continue
+        parent = g.attributes["Parent"][0]
+        if parent in children:
+            children.add(g.accn)
+
+    logging.debug("Filter gff file..")
+    gff = Gff(gffile)
+    seen = set()
+    for g in gff:
+        accn = g.accn
+        if accn in seen:
+            continue
+        if (g.type == opts.type and accn in bestids) or (accn in children):
+            seen.add(accn)
+            print g
+
+
+def sort(args):
+    """
+    %prog sort gffile
+
+    Sort gff file.
+    """
+    p = OptionParser(sort.__doc__)
+    p.add_option("-i", dest="inplace", default=False, action="store_true",
+                 help="Sort inplace [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    gffile, = args
+    sortedgff = op.basename(gffile).rsplit(".", 1)[0] + ".sorted.gff"
+    if opts.inplace:
+        sortedgff = gffile
+
+    cmd = "sort -k1,1 -k4,4n {0} -o {1}".format(gffile, sortedgff)
+    sh(cmd)
 
 
 def fromgb(args):
@@ -170,12 +304,15 @@ def gtf(args):
     transcript_to_gene = {}
     for g in gff:
         if g.type == "mRNA":
-            try:
+            if "ID" in g.attributes and "Parent" in g.attributes:
                 transcript_id = g.attributes["ID"][0]
                 gene_id = g.attributes["Parent"][0]
-            except IndexError:
+            elif "mRNA" in g.attributes and "Gene" in g.attributes:
                 transcript_id = g.attributes["mRNA"][0]
                 gene_id = g.attributes["Gene"][0]
+            else:
+                transcript_id = g.attributes["ID"][0]
+                gene_id = transcript_id
             transcript_to_gene[transcript_id] = gene_id
             continue
 

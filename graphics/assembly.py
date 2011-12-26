@@ -99,14 +99,16 @@ def coverage(args):
     logging.debug("Figure saved to `{0}` {1}.".format(figname, iopts))
 
 
-def scaffolding(ax, scaffoldID, blastf, qsizes, ssizes, qbed, sbed):
+def scaffolding(ax, scaffoldID, blastf, qsizes, ssizes, qbed, sbed,
+                highlights=None):
 
     from jcvi.graphics.blastplot import blastplot
 
     # qsizes, qbed are properties for the evidences
     # ssizes, sbed are properties for the current scaffoldID
     blastplot(ax, blastf, qsizes, ssizes, qbed, sbed, \
-              style="circle", insetLabels=True, stripNames=True)
+              style="circle", insetLabels=True, stripNames=True,
+              highlights=highlights)
 
     # FPC_scf.bed => FPC
     fname = qbed.filename.split(".")[0].split("_")[0]
@@ -118,7 +120,8 @@ def scaffolding(ax, scaffoldID, blastf, qsizes, ssizes, qbed, sbed):
         x.set_visible(False)
 
 
-def plot_one_scaffold(scaffoldID, ssizes, sbed, trios, imagename, iopts):
+def plot_one_scaffold(scaffoldID, ssizes, sbed, trios, imagename, iopts,
+                      highlights=None):
     ntrios = len(trios)
     fig = plt.figure(1, (14, 8))
     plt.cla()
@@ -129,7 +132,8 @@ def plot_one_scaffold(scaffoldID, ssizes, sbed, trios, imagename, iopts):
 
     for trio, ax in zip(trios, axes):
         blastf, qsizes, qbed = trio
-        scaffolding(ax, scaffoldID, blastf, qsizes, ssizes, qbed, sbed)
+        scaffolding(ax, scaffoldID, blastf, qsizes, ssizes, qbed, sbed,
+                    highlights=highlights)
 
     root.text(.5, .95, _("{0}   (size={1})".\
             format(scaffoldID, thousands(scafsize))),
@@ -165,14 +169,19 @@ def scaffold(args):
     p = OptionParser(scaffold.__doc__)
     p.add_option("--cutoff", type="int", default=1000000,
             help="Plot scaffolds with size larger than [default: %default]")
+    p.add_option("--highlights",
+            help="A set of regions in BED format to highlight [default: %default]")
     opts, args, iopts = set_image_options(p, args, figsize="14x8", dpi=150)
 
     if len(args) < 4 or len(args) % 3 != 1:
         sys.exit(not p.print_help())
 
+    highlights = opts.highlights
     scafsizes = Sizes(args[0])
     trios = list(grouper(3, args[1:]))
     trios = [(a, Sizes(b), Bed(c)) for a, b, c in trios]
+    if highlights:
+        hlbed = Bed(highlights)
 
     for scaffoldID, scafsize in scafsizes.iter_sizes():
         if scafsize < opts.cutoff:
@@ -188,8 +197,12 @@ def scaffold(args):
         tmpsizes = Sizes(tmpname)
         tmpsizes.close(clean=True)
 
+        if highlights:
+            subhighlights = list(hlbed.sub_bed(scaffoldID))
+
         imagename = ".".join((scaffoldID, opts.format))
-        plot_one_scaffold(scaffoldID, tmpsizes, None, trios, imagename, iopts)
+        plot_one_scaffold(scaffoldID, tmpsizes, None, trios, imagename, iopts,
+                          highlights=subhighlights)
 
 
 def qc(args):

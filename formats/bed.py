@@ -30,9 +30,10 @@ class BedLine(object):
         self.end = int(args[2])
         assert self.start <= self.end, \
                 "start={0} end={1}".format(self.start, self.end)
-        self.accn = args[3]
-        self.extra = self.score = self.strand = None
+        self.extra = self.accn = self.score = self.strand = None
 
+        if len(args) > 3:
+            self.accn = args[3]
         if len(args) > 4:
             self.extra = args[4:]
             self.score = self.extra[0]

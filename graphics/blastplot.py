@@ -32,9 +32,22 @@ debug()
 DotStyles = ("line", "circle", "dot")
 
 
+def rename_seqid(seqid):
+    seqid = seqid.split("_")[-1]
+    seqid = seqid.replace("contig", "c").replace("scaffold", "s")
+    seqid = seqid.replace("supercont", "s")
+    try:
+        seqid = int(seqid)
+        seqid = "c%d" % seqid
+    except:
+        pass
+    return seqid
+
+
 def blastplot(ax, blastfile, qsizes, ssizes, qbed, sbed,
         style="dot", proportional=False, sampleN=None,
-        baseticks=False, insetLabels=False, stripNames=False):
+        baseticks=False, insetLabels=False, stripNames=False,
+        highlights=None):
 
     assert style in DotStyles
     fp = open(blastfile)
@@ -110,17 +123,6 @@ def blastplot(ax, blastfile, qsizes, ssizes, qbed, sbed,
     #ignore_size_y = ysize * .02
     ignore_size_x = ignore_size_y = 0
 
-    def rename_seqid(seqid):
-        seqid = seqid.split("_")[-1]
-        seqid = seqid.replace("contig", "c").replace("scaffold", "s")
-        seqid = seqid.replace("supercont", "s")
-        try:
-            seqid = int(seqid)
-            seqid = "c%d" % seqid
-        except:
-            pass
-        return seqid
-
     # plot the chromosome breaks
     logging.debug("xbreaks={0} ybreaks={1}".format(len(qsizes), len(ssizes)))
     for (seqid, beg, end) in qsizes.get_breaks():
@@ -160,6 +162,12 @@ def blastplot(ax, blastfile, qsizes, ssizes, qbed, sbed,
             pos = .9 - pos * .8 / ysize
             root.text(.91, pos, label, size=10,
                     va="center", color="grey")
+
+    # Highlight regions based on a list of BedLine
+    if highlights:
+        for hl in highlights:
+            ax.add_patch(Rectangle((0, hl.start), xsize, hl.span, \
+                         fc="r", alpha=.2, lw=0))
 
     if baseticks:
         def increaseDensity(a, ratio=4):

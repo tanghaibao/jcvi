@@ -184,11 +184,68 @@ def main():
 
     actions = (
         ('scan', 'get anchor list using single-linkage algorithm'),
-        ('liftover', 'given anchor list, pull adjancent pairs from blast file')
+        ('liftover', 'given anchor list, pull adjancent pairs from blast file'),
+        ('breakpoint', 'identify breakpoints where collinearity ends'),
             )
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def get_blocks(scaffold, bs, order, xdist=20, ydist=20, N=6):
+    points = []
+    for b in bs:
+        accn = b.accn.rsplit(".", 1)[0]
+        if accn not in order:
+            continue
+        x, xx = order[accn]
+        y = (b.start + b.end) / 2
+        points.append((x, y))
+
+    #print scaffold, points
+    blocks = synteny_scan(points, xdist, ydist, N)
+    return blocks
+
+
+def breakpoint(args):
+    """
+    %prog breakpoint blastfile bedfile
+
+    Identify breakpoints where collinearity ends. `blastfile` contains mapping
+    from markers (query) to scaffolds (subject). `bedfile` contains marker
+    locations in the related species.
+    """
+    from jcvi.formats.blast import bed
+    from jcvi.utils.range import range_interleave
+
+    p = OptionParser(breakpoint.__doc__)
+    p.add_option("--xdist", type="int", default=20,
+                 help="xdist (in related genome) cutoff [default: %default]")
+    p.add_option("--ydist", type="int", default=200000,
+                 help="ydist (in current genome) cutoff [default: %default]")
+    p.add_option("-N", type="int", default=5,
+                 help="number of markers in a block [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    blastfile, bedfile = args
+    order = Bed(bedfile).order
+    blastbedfile = bed([blastfile])
+    bbed = Bed(blastbedfile)
+    key = lambda x: x[1]
+    for scaffold, bs in bbed.sub_beds():
+        blocks = get_blocks(scaffold, bs, order,
+                            xdist=opts.xdist, ydist=opts.ydist, N=opts.N)
+        sblocks = []
+        for block in blocks:
+            xx, yy = zip(*block)
+            sblocks.append((scaffold, min(yy), max(yy)))
+        iblocks = range_interleave(sblocks)
+        for ib in iblocks:
+            ch, start, end = ib
+            print "{0}\t{1}\t{2}".format(ch, start - 1, end)
 
 
 def scan(args):

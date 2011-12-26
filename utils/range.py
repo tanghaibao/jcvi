@@ -135,6 +135,30 @@ def range_minmax(ranges):
     return rmin, rmax
 
 
+def range_interleave(ranges):
+    """
+    Returns the ranges in between the given ranges.
+
+    >>> ranges = [("1", 30, 40), ("1", 45, 50), ("1", 10, 30)]
+    >>> range_interleave(ranges)
+    [('1', 41, 44)]
+    """
+    from jcvi.utils.iter import pairwise
+    ranges = range_merge(ranges)
+    interleaved_ranges = []
+
+    for ch, cranges in groupby(ranges, key=lambda x: x[0]):
+        for i, (a, b) in enumerate(pairwise(cranges)):
+            ch, astart, aend = a
+            ch, bstart, bend = b
+            istart, iend = aend + 1, bstart - 1
+            if istart >= iend:
+                continue
+            interleaved_ranges.append((ch, istart, iend))
+
+    return interleaved_ranges
+
+
 def range_merge(ranges, dist=0):
     """
     Returns merged range. Similar to range_union, except this returns

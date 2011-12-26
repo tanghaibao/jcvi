@@ -331,8 +331,10 @@ def mates(args):
         bedfile, (meandist, stdev, p0, p1, p2) = pairs([bedfile, \
                 "--mateorientation=+-"])
         sv = int(2 * stdev)
+        mindist = max(meandist - sv, 1)
+        maxdist = meandist + sv
         print >> fw, "\t".join(str(x) for x in \
-                ("library", pf, meandist -  sv, meandist + sv))
+                ("library", pf, mindist, maxdist))
 
     num_fragments = num_pairs = 0
     matesbedfile = matesfile + ".bed"

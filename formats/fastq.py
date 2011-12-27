@@ -9,10 +9,11 @@ import os.path as op
 import sys
 import logging
 
+from collections import namedtuple
 from optparse import OptionParser
 
 from jcvi.formats.fasta import must_open
-from jcvi.apps.base import ActionDispatcher, debug, set_grid, sh
+from jcvi.apps.base import ActionDispatcher, debug, set_grid, sh, mkdir
 debug()
 
 qual_offset = lambda x: 33 if x == "sanger" else 64
@@ -83,10 +84,70 @@ def main():
         ('convert', 'convert between illumina and sanger offset'),
         ('trim', 'trim reads using fastx_trimmer'),
         ('some', 'select a subset of fastq reads'),
+        ('deconvolute', 'split fastqfile into subsets'),
         ('guessoffset', 'guess the quality offset of the fastq records'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+BarcodeLine = namedtuple("BarcodeLine", ["id", "seq"])
+
+
+def split_barcode(t):
+
+    from Bio.SeqIO.QualityIO import FastqGeneralIterator
+    barcode, outdir, inputfile = t
+    trim = len(barcode.seq)
+
+    fp = must_open(inputfile)
+    outfastq = op.join(outdir, barcode.id + ".fastq")
+    fw = open(outfastq, "w")
+    for title, seq, qual in FastqGeneralIterator(fp):
+        if seq[:trim] != barcode.seq:
+            continue
+        print >> fw, "@{0}\n{1}\n+\n{2}".format(title, seq[trim:], qual[trim:])
+
+    fw.close()
+
+
+def deconvolute(args):
+    """
+    %prog deconvolute barcodefile fastqfile1 ..
+
+    Deconvolute fastq files into subsets of fastq reads, based on the barcodes
+    in the barcodefile, which is a two-column file like:
+    ID01	AGTCCAG
+
+    Input fastqfiles can be several files. Output files are ID01.fastq,
+    ID02.fastq, one file per line in barcodefile.
+    """
+    from multiprocessing import Pool, cpu_count
+
+    p = OptionParser(deconvolute.__doc__)
+    p.add_option("--cpus", default=24,
+                 help="Number of processes to run [default: %default]")
+    p.add_option("--outdir", default="deconv",
+                 help="Ourput directory [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) < 2:
+        sys.exit(not p.print_help())
+
+    barcodefile = args[0]
+    fastqfile = args[1:]
+    fp = open(barcodefile)
+    barcodes = [BarcodeLine._make(x.split()) for x in fp]
+
+    outdir = opts.outdir
+    mkdir(outdir)
+
+    cpus = min(opts.cpus, cpu_count())
+    logging.debug("Create a pool of {0} workers.".format(cpus))
+    nbc = len(barcodes)
+    pool = Pool(cpus)
+    pool.map(split_barcode, \
+             zip(barcodes, nbc * [outdir], nbc * [fastqfile]))
 
 
 def checkShuffleSizes(p1, p2, pairsfastq):

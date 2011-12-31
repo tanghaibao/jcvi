@@ -23,7 +23,7 @@ def main():
     p.dispatch(globals())
 
 
-def encode_genotype(s):
+def encode_genotype(s, noHeterozygotes=False):
     """
     >>> encode_genotype("1/1:128,18,0:6:18")  # homozygote B
     'B'
@@ -40,7 +40,7 @@ def encode_genotype(s):
     if inferred == '0/0':
         return 'A'
     if inferred == '0/1':
-        return 'X'
+        return '-' if noHeterozygotes else 'X'
     if inferred == '1/1':
         return 'B'
 
@@ -55,7 +55,9 @@ def mstmap(args):
 
     p = OptionParser(mstmap.__doc__)
     p.add_option("--freq", default=.25, type="float",
-                 help="alle must be above frequencey [default: %default]")
+                 help="Allele must be above frequency [default: %default]")
+    p.add_option("--dh", default=False, action="store_true",
+                 help="Double haploid population, no het [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -63,20 +65,22 @@ def mstmap(args):
 
     vcffile, = args
 
-    header = """population_type RIL6
+    header = """population_type {0}
 population_name LG
 distance_function kosambi
-cut_off_p_value 2.0
-no_map_dist 15.0
+cut_off_p_value 0.000001
+no_map_dist 10.0
 no_map_size 0
-missing_threshold 0.25
+missing_threshold 0.1
 estimation_before_clustering no
 detect_bad_data yes
-objective_function COUNT
-number_of_loci {0}
-number_of_individual {1}
+objective_function ML
+number_of_loci {1}
+number_of_individual {2}
     """
 
+    ptype = "DH" if opts.dh else "RIL6"
+    noHeterozygotes = ptype == "DH"
     fp = open(vcffile)
     genotypes = []
     for row in fp:
@@ -104,7 +108,7 @@ number_of_individual {1}
             continue
 
         geno = atoms[9:]
-        geno = [encode_genotype(x) for x in geno]
+        geno = [encode_genotype(x, noHeterozygotes) for x in geno]
         assert len(geno) == nind
 
         genotype = "\t".join([marker] + geno)
@@ -114,7 +118,7 @@ number_of_individual {1}
     logging.debug("Imported {0} markers and {1} individuals.".\
                   format(ngenotypes, nind))
 
-    print header.format(ngenotypes, nind)
+    print header.format(ptype, ngenotypes, nind)
     print mh
     print "\n".join(genotypes)
 

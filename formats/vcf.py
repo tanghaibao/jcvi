@@ -23,7 +23,7 @@ def main():
     p.dispatch(globals())
 
 
-def encode_genotype(s, noHeterozygotes=False):
+def encode_genotype(s, mindepth=3, nohet=False):
     """
     >>> encode_genotype("1/1:128,18,0:6:18")  # homozygote B
     'B'
@@ -35,12 +35,12 @@ def encode_genotype(s, noHeterozygotes=False):
     atoms = s.split(":")
     inferred, likelihood, depth = atoms[:3]
     depth = int(depth)
-    if depth == 0:
+    if depth < mindepth:
         return '-'
     if inferred == '0/0':
         return 'A'
     if inferred == '0/1':
-        return '-' if noHeterozygotes else 'X'
+        return '-' if nohet else 'X'
     if inferred == '1/1':
         return 'B'
 
@@ -51,19 +51,22 @@ def mstmap(args):
 
     Convert vcf format to mstmap input.
     """
-    from urlparse import parse_qs
-
     p = OptionParser(mstmap.__doc__)
-    p.add_option("--freq", default=.25, type="float",
+    p.add_option("--freq", default=.2, type="float",
                  help="Allele must be above frequency [default: %default]")
     p.add_option("--dh", default=False, action="store_true",
                  help="Double haploid population, no het [default: %default]")
+    p.add_option("--mindepth", default=1, type="int",
+                 help="Only trust genotype calls with depth [default: %default]")
+    p.add_option("--missingthreshold", default=.25, type="float",
+                 help="Missing threshold [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     vcffile, = args
+    freq = opts.freq
 
     header = """population_type {0}
 population_name LG
@@ -71,16 +74,16 @@ distance_function kosambi
 cut_off_p_value 0.000001
 no_map_dist 10.0
 no_map_size 0
-missing_threshold 0.1
+missing_threshold {1}
 estimation_before_clustering no
 detect_bad_data yes
 objective_function ML
-number_of_loci {1}
-number_of_individual {2}
+number_of_loci {2}
+number_of_individual {3}
     """
 
     ptype = "DH" if opts.dh else "RIL6"
-    noHeterozygotes = ptype == "DH"
+    nohet = ptype == "DH"
     fp = open(vcffile)
     genotypes = []
     for row in fp:
@@ -94,22 +97,15 @@ number_of_individual {2}
             continue
 
         marker = "{0}.{1}".format(*atoms[:2])
-        score = atoms[7]
-        score = parse_qs(score)
-        dp4= score["DP4"][0]
-
-        a, b, c, d = dp4.split(",")
-        ref = int(a) + int(b)
-        alt = int(c) + int(d)
-        total = ref + alt
-        if ref * 1. / total < opts.freq:
-            continue
-        if alt * 1. / total < opts.freq:
-            continue
 
         geno = atoms[9:]
-        geno = [encode_genotype(x, noHeterozygotes) for x in geno]
+        geno = [encode_genotype(x, mindepth=opts.mindepth, nohet=nohet) for x in geno]
         assert len(geno) == nind
+
+        if geno.count("A") * 1. / nind < freq:
+            continue
+        if geno.count("B") * 1. / nind < freq:
+            continue
 
         genotype = "\t".join([marker] + geno)
         genotypes.append(genotype)
@@ -118,7 +114,7 @@ number_of_individual {2}
     logging.debug("Imported {0} markers and {1} individuals.".\
                   format(ngenotypes, nind))
 
-    print header.format(ptype, ngenotypes, nind)
+    print header.format(ptype, opts.missingthreshold, ngenotypes, nind)
     print mh
     print "\n".join(genotypes)
 

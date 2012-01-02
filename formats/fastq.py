@@ -97,7 +97,7 @@ BarcodeLine = namedtuple("BarcodeLine", ["id", "seq"])
 def split_barcode(t):
 
     from Bio.SeqIO.QualityIO import FastqGeneralIterator
-    barcode, outdir, inputfile = t
+    barcode, excludebarcode, outdir, inputfile = t
     trim = len(barcode.seq)
 
     fp = must_open(inputfile)
@@ -105,6 +105,9 @@ def split_barcode(t):
     fw = open(outfastq, "w")
     for title, seq, qual in FastqGeneralIterator(fp):
         if seq[:trim] != barcode.seq:
+            continue
+        hasexclude = any(seq.startswith(x.seq) for x in excludebarcode)
+        if hasexclude:
             continue
         print >> fw, "@{0}\n{1}\n+\n{2}".format(title, seq[trim:], qual[trim:])
 
@@ -125,10 +128,10 @@ def deconvolute(args):
     from multiprocessing import Pool, cpu_count
 
     p = OptionParser(deconvolute.__doc__)
-    p.add_option("--cpus", default=24,
+    p.add_option("--cpus", default=32,
                  help="Number of processes to run [default: %default]")
     p.add_option("--outdir", default="deconv",
-                 help="Ourput directory [default: %default]")
+                 help="Output directory [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) < 2:
@@ -139,6 +142,20 @@ def deconvolute(args):
     fp = open(barcodefile)
     barcodes = [BarcodeLine._make(x.split()) for x in fp]
 
+    # Sanity check of shared prefix
+    excludebarcodes = []
+    for bc in barcodes:
+        exclude = []
+        for s in barcodes:
+            if bc.id == s.id:
+                continue
+
+            assert bc.seq != s.seq
+            if s.seq.startswith(bc.seq) and len(s.seq) > len(bc.seq):
+                logging.error("{0} shares same prefix as {1}.".format(s, bc))
+                exclude.append(s)
+        excludebarcodes.append(exclude)
+
     outdir = opts.outdir
     mkdir(outdir)
 
@@ -147,7 +164,7 @@ def deconvolute(args):
     nbc = len(barcodes)
     pool = Pool(cpus)
     pool.map(split_barcode, \
-             zip(barcodes, nbc * [outdir], nbc * [fastqfile]))
+             zip(barcodes, excludebarcodes, nbc * [outdir], nbc * [fastqfile]))
 
 
 def checkShuffleSizes(p1, p2, pairsfastq):

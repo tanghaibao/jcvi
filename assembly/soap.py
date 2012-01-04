@@ -7,6 +7,7 @@ Script to write and assist SOAPdenovo assembly.
 
 import os.path as op
 import sys
+import logging
 
 from itertools import groupby
 from optparse import OptionParser
@@ -25,6 +26,21 @@ def main():
     p.dispatch(globals())
 
 
+SOAPRUN="""#!/bin/bash
+
+P=32
+S=soap.config
+C=SOAPdenovo-63mer
+K=47
+A=asm${K}
+
+$C pregraph -s $S -K $K -o $A -a 300 -p $P -R
+$C contig -g $A -M 3 -R
+$C map -p $P -s $S -g $A
+$C scaff -F -g $A
+GapCloser -t $P -o ${A}.closed.scafSeq -a ${A}.scafSeq -p 31 -b $S"""
+
+
 def prepare(args):
     """
     %prog prepare *.fastq
@@ -33,6 +49,7 @@ def prepare(args):
     on inputfiles.
     """
     from jcvi.utils.iter import grouper
+    from jcvi.formats.base import check_exists
 
     p = OptionParser(prepare.__doc__ + FastqNamings)
     opts, args = p.parse_args(args)
@@ -83,6 +100,12 @@ def prepare(args):
             block += "{0}={1}\n".format(tag, f)
         print >> sys.stderr, block
         print >> fw, block
+
+    runfile = "run.sh"
+    if check_exists(runfile):
+        fw = open(runfile, "w")
+        print >> fw, SOAPRUN
+        logging.debug("Run script written to `{0}`.".format(runfile))
 
 
 if __name__ == '__main__':

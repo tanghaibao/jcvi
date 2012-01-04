@@ -99,6 +99,10 @@ def deduplicate(args):
     Wraps `cd-hit-454` to remove duplicate reads.
     """
     p = OptionParser(deduplicate.__doc__)
+    p.add_option("--identity", default=.98, type="float",
+                 help="Sequence identity threshold [default: %default]")
+    p.add_option("--cpus", default=0, type="int",
+                 help="Number of CPUs to use, 0=unlimited [default: %default]")
     set_grid(p)
 
     opts, args = p.parse_args(args)
@@ -111,7 +115,8 @@ def deduplicate(args):
     from jcvi.apps.command import CDPATH
 
     cmd = CDPATH("cd-hit-454")
-    cmd += " -M 0 -T 0 -i {0} -o {0}.cdhit".format(fastafile)
+    cmd += " -c {0}".format(opts.identity)
+    cmd += " -M 0 -T {0} -i {1} -o {1}.cdhit".format(opts.cpus, fastafile)
     sh(cmd, grid=opts.grid)
 
 

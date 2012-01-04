@@ -457,6 +457,7 @@ def format(args):
         if idx:
             description = description.split()[idx]
 
+        origid = rec.id
         rec.id = description
         if gb:
             # gi|262233616|gb|GU123895.1| Coffea arabica clone BAC
@@ -481,11 +482,11 @@ def format(args):
                     rec.description.split()[1:4]]
             rec.id = "{0}-{1}/{2}".format(lib, template, dir)
         if mapfile:
-            if rec.id in mapping:
-                rec.id = mapping[rec.id]
+            if origid in mapping:
+                rec.id = mapping[origid]
             else:
                 logging.error("{0} not found in `{1}`. ID unchanged.".\
-                        format(rec.id, mapfile))
+                        format(origid, mapfile))
         rec.description = ""
 
         SeqIO.write(rec, fw, "fasta")

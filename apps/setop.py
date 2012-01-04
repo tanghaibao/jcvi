@@ -16,11 +16,12 @@ debug()
 
 class SetFile (BaseFile, set):
 
-    def __init__(self, filename):
+    def __init__(self, filename, column=0):
         super(SetFile, self).__init__(filename)
         fp = open(filename)
         for x in fp:
-            self.add(x.split()[0])
+            key = x.split()[column] if column >= 0 else x.strip()
+            self.add(key)
 
 
 def main():
@@ -89,6 +90,8 @@ def setop(args):
     Please quote the argument to avoid shell interpreting | and &.
     """
     p = OptionParser(setop.__doc__)
+    p.add_option("--column", default=0, type="int",
+                 help="The column to extract, 0-based, -1 to disable [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -98,8 +101,9 @@ def setop(args):
     fa, op, fb = statement.split()
     assert op in ('|', '&', '-', '^')
 
-    fa = SetFile(fa)
-    fb = SetFile(fb)
+    column = opts.column
+    fa = SetFile(fa, column=column)
+    fb = SetFile(fb, column=column)
 
     if op == '|':
         t = fa | fb

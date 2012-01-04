@@ -12,6 +12,8 @@ import logging
 from collections import namedtuple
 from optparse import OptionParser
 
+from Bio.SeqIO.QualityIO import FastqGeneralIterator
+
 from jcvi.formats.fasta import must_open
 from jcvi.apps.base import ActionDispatcher, debug, set_grid, sh, mkdir
 debug()
@@ -96,7 +98,6 @@ BarcodeLine = namedtuple("BarcodeLine", ["id", "seq"])
 
 def split_barcode(t):
 
-    from Bio.SeqIO.QualityIO import FastqGeneralIterator
     barcode, excludebarcode, outdir, inputfile = t
     trim = len(barcode.seq)
 
@@ -379,27 +380,26 @@ def splitread(args):
 
     assert op.exists(pairsfastq)
     base = op.basename(pairsfastq).split(".")[0]
-    fq = base + ".splitted.fastq"
-    fw = open(fq, "w")
+    fq1 = base + ".1.fastq"
+    fq2 = base + ".2.fastq"
+    fw1 = open(fq1, "w")
+    fw2 = open(fq2, "w")
 
-    it = iter_fastq(pairsfastq)
-    rec = it.next()
+    fp = open(pairsfastq)
     n = opts.n
-    while rec:
-        name = rec.name
-        seq = rec.seq
-        qual = rec.qual
 
+    for name, seq, qual in FastqGeneralIterator(fp):
+
+        name = "@" + name
         rec1 = FastqLite(name, seq[:n], qual[:n])
         rec2 = FastqLite(name, seq[n:], qual[n:])
 
-        print >> fw, rec1
-        print >> fw, rec2
-        rec = it.next()
+        print >> fw1, rec1
+        print >> fw2, rec2
 
-    logging.debug("reads split into `{0}`".format(fq))
-    for f in (fh, fw):
-        f.close()
+    logging.debug("Reads split into `{0},{1}`".format(fq1, fq2))
+    fw1.close()
+    fw2.close()
 
 
 def size(args):
@@ -482,7 +482,7 @@ def unpair(args):
     base = args[-1]
     afastq = base + ".1.fastq"
     bfastq = base + ".2.fastq"
-    assert not op.exists(afastq)
+    assert not op.exists(afastq), "File `{0}` exists.".format(afastq)
 
     afw = open(afastq, "w")
     bfw = open(bfastq, "w")
@@ -501,10 +501,10 @@ def unpair(args):
             print >> bfw, rec
             rec = it.next()
 
-    for f in (afw, bfw):
-        f.close()
+    afw.close()
+    bfw.close()
 
-    logging.debug("reads unpaired into `{0}` and `{1}`".\
+    logging.debug("Reads unpaired into `{0},{1}`".\
             format(afastq, bfastq))
 
 

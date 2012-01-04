@@ -106,6 +106,8 @@ def index(args):
     p = OptionParser(index.__doc__)
     p.add_option("--fasta", dest="fasta", default=None,
             help="add @SQ header to the BAM file [default: %default]")
+    p.add_option("--unique", default=False, action="store_true",
+            help="only retain uniquely mapped reads [default: %default]")
 
     opts, args = p.parse_args(args)
     if len(args) != 1:
@@ -126,6 +128,9 @@ def index(args):
     else:
         cmd = "samtools view -bS {0} -F 4 -o {1}".\
                 format(samfile, bamfile)
+
+    if opts.unique:
+        cmd += " -q 1"
 
     if samfile.endswith(".sam"):
         sh(cmd)

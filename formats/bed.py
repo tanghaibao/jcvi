@@ -145,9 +145,46 @@ def main():
         ('mates', 'print paired reads from bedfile'),
         ('sizes', 'infer the sizes for each seqid'),
         ('bedpe', 'convert to bedpe format'),
+        ('sample', 'sample bed file and remove high-coverage regions'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def sample(args):
+    """
+    %prog sample bedfile sizesfile
+
+    Sample bed file and remove high-coverage regions.
+    """
+    from jcvi.assembly.coverage import Coverage
+
+    p = OptionParser(sample.__doc__)
+    p.add_option("--max", default=10, type="int",
+                 help="Max depth allowed [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    bedfile, sizesfile = args
+    pf = bedfile.rsplit(".", 1)[0]
+    c = Coverage(bedfile, sizesfile)
+    coveragefile = c.filename
+    samplecoveragefile = pf + ".sample.coverage"
+    fw = open(samplecoveragefile, "w")
+    fp = open(coveragefile)
+    for row in fp:
+        seqid, start, end, cov = row.split()
+        cov = int(cov)
+        if cov <= opts.max:
+            fw.write(row)
+    fw.close()
+
+    samplebedfile = pf + ".sample.bed"
+    cmd = "intersectBed -a {0} -b {1} -wa -u".format(bedfile, samplecoveragefile)
+    sh(cmd, outfile=samplebedfile)
+    logging.debug("Sampled bedfile written to `{0}`.".format(samplebedfile))
 
 
 def bedpe(args):

@@ -38,26 +38,35 @@ def join(args):
     """
     %prog join file1.txt file2.txt ..
 
-    Join tabular files based on common column.
+    Join tabular files based on common column. --column specifies the column
+    index to pivot on. Use comma to separate multiple values if the pivot column
+    is different in each file. Maintain the order in the first file.
     """
     from jcvi.utils.iter import flatten
 
     p = OptionParser(join.__doc__)
-    p.add_option("--column", default=0, type="int",
-                 help="The column to pivot on, 0-based [default: %default]")
+    p.add_option("--column", default="0",
+                 help="0-based column id, multiple values allowed [default: %default]")
     set_outfile(p)
 
     opts, args = p.parse_args(args)
+    nargs = len(args)
 
     if len(args) < 2:
         sys.exit(not p.print_help())
 
     c = opts.column
+    if "," in c:
+        cc = [int(x) for x in c.split(",")]
+    else:
+        cc = [int(c)] * nargs
+
+    assert len(cc) == nargs, "Column index number != File number"
 
     # Maintain the first file line order, and combine other files into it
     pivotfile = args[0]
     files = [DictFile(f, keypos=c, valuepos=None, delimiter="\t") \
-                        for f in args]
+                        for f, c in zip(args, cc)]
     otherfiles = files[1:]
     header = "\t".join(flatten([x.filename] * x.ncols for x in files))
 
@@ -68,7 +77,7 @@ def join(args):
         row = row.rstrip()
         atoms = row.split("\t")
         newrow = atoms
-        key = atoms[c]
+        key = atoms[cc[0]]
         for d in otherfiles:
             drow = d.get(key, ["na"] * d.ncols)
             newrow += drow

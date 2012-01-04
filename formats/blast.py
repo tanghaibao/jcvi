@@ -840,7 +840,8 @@ def report_pairs(data, cutoff=0, mateorientation=None,
         title="{0} ({1}; median dist:{2})".format(prefix, osummary, p0)
         histogram(insertsfile, vmin=0, vmax=cutoff, bins=bins,
                 xlabel="Insertsize", title=title, ascii=ascii)
-        os.remove(insertsfile)
+        if op.exists(insertsfile):
+            os.remove(insertsfile)
 
     return meandist, stdev, p0, p1, p2
 

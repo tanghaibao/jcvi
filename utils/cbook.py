@@ -85,6 +85,25 @@ def depends(func):
 Functions that make text formatting easier.
 """
 
+class SummaryStats (object):
+
+    def __init__(self, a):
+        import numpy as np
+
+        self.data = np.array(a)
+        self.min = a.min()
+        self.max = a.max()
+        self.size = a.size
+        self.mean = np.mean(a)
+        self.sd = np.std(a)
+        self.median = np.median(a)
+
+    def __str__(self):
+        return "Min={0} Max={1} N={2} Mean={3} SD={4} Median={5}".\
+                format(self.min, self.max, self.size,
+                       self.mean, self.sd, self.median)
+
+
 def percentage(a, b, denominator=True):
     """
     >>> percentage(100, 200)

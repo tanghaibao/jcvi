@@ -28,15 +28,16 @@ vmax <- $vmax
 data <- read.table('$numberfile', skip=$skip)
 data <- data[data >= vmin]
 data <- data[data <= vmax]
-data <- data.frame($xlabel=data)"""
+data <- data.frame($xlabel=data)
+m <- ggplot(data, aes(x=$xlabel))"""
 
 histogram_template = histogram_header + """
-qplot($xlabel, data=data, geom='histogram', main='$title', binwidth=(vmax-vmin)/$bins)
+m + geom_histogram(colour="darkgreen", fill="white", binwidth=(vmax-vmin)/$bins) +
+opts(title='$title')
 ggsave('$outfile')
 """
 
 histogram_log_template = histogram_header + """
-m <- ggplot(data, aes(x=$xlabel))
 m + geom_histogram(colour="darkgreen", fill="white", binwidth=0.33) +
 scale_x_log$base() + opts(title='$title')
 ggsave('$outfile')
@@ -82,6 +83,8 @@ def loghistogram(data, base=2, ascii=True, title="Counts", summary=True):
 
 
 def get_data(filename, vmin=None, vmax=None, skip=0):
+    from jcvi.utils.cbook import SummaryStats
+
     fp = open(filename)
     # Determine the data type
     for s in xrange(skip):
@@ -95,6 +98,9 @@ def get_data(filename, vmin=None, vmax=None, skip=0):
         fp.next()
 
     data = np.array([ntype(x) for x in fp])
+    s = SummaryStats(data)
+    print >> sys.stderr, s
+
     vmin = min(data) if vmin is None else vmin
     vmax = max(data) if vmax is None else vmax
     data = data[(data >= vmin) & (data <= vmax)]

@@ -13,7 +13,7 @@ from optparse import OptionParser
 from jcvi.formats.base import LineFile, must_open
 from jcvi.utils.cbook import thousands
 from jcvi.utils.range import range_union
-from jcvi.apps.base import ActionDispatcher, debug, sh
+from jcvi.apps.base import ActionDispatcher, debug, sh, need_update
 debug()
 
 
@@ -145,10 +145,50 @@ def main():
         ('mates', 'print paired reads from bedfile'),
         ('sizes', 'infer the sizes for each seqid'),
         ('bedpe', 'convert to bedpe format'),
+        ('distance', 'calculate distance between bed features'),
         ('sample', 'sample bed file and remove high-coverage regions'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def distance(args):
+    """
+    %prog distance bedfile
+
+    Calculate distance between bed features. The output file is a list of
+    distances, which can be used to plot histogram, etc.
+    """
+    from jcvi.utils.cbook import percentage
+    from jcvi.utils.iter import pairwise
+    from jcvi.utils.range import range_distance
+
+    p = OptionParser(distance.__doc__)
+    p.add_option("--distmode", default="ss", choices=("ss", "ee"),
+            help="distance mode between paired reads, ss is outer distance, " \
+                 "ee is inner distance [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    bedfile, = args
+    sortedbedfile = sort([bedfile])
+    valid = total = 0
+    fp = open(sortedbedfile)
+    for a, b in pairwise(fp):
+        a = BedLine(a)
+        b = BedLine(b)
+        ar = (a.seqid, a.start, a.end, "+")
+        br = (b.seqid, b.start, b.end, "+")
+        dist, oo = range_distance(ar, br, distmode=opts.distmode)
+        total += 1
+        if dist > 0:
+            print dist
+            valid += 1
+
+    logging.debug("Total valid (> 0) distances: {0}.".\
+                  format(percentage(valid, total)))
 
 
 def sample(args):
@@ -260,7 +300,7 @@ def pairs(args):
     insertsfile = ".".join((basename, "inserts"))
 
     sortedbedfile = op.basename(bedfile).rsplit(".", 1)[0] + ".sorted.bed"
-    if not op.exists(sortedbedfile):
+    if need_update(bedfile, sortedbedfile):
         bedfile = sort([bedfile, "--accn"])
     else:
         bedfile = sortedbedfile

@@ -21,15 +21,24 @@ from jcvi.apps.r import RTemplate
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
-histogram_template = """
+histogram_header = """
 library(ggplot2)
 vmin <- $vmin
 vmax <- $vmax
 data <- read.table('$numberfile', skip=$skip)
 data <- data[data >= vmin]
 data <- data[data <= vmax]
-data <- data.frame($xlabel=data)
+data <- data.frame($xlabel=data)"""
+
+histogram_template = histogram_header + """
 qplot($xlabel, data=data, geom='histogram', main='$title', binwidth=(vmax-vmin)/$bins)
+ggsave('$outfile')
+"""
+
+histogram_log_template = histogram_header + """
+m <- ggplot(data, aes(x=$xlabel))
+m + geom_histogram(colour="darkgreen", fill="white", binwidth=0.33) +
+scale_x_log$base() + opts(title='$title')
 ggsave('$outfile')
 """
 
@@ -39,8 +48,8 @@ vmin <- $vmin
 vmax <- $vmax
 data <- read.table('$numberfile', header=T, sep="\t", skip=$skip)
 m <- ggplot(data, aes(x=$xlabel, fill=group))
-m + geom_bar(binwidth=(vmax-vmin)/$bins, position="dodge") + xlim(vmin, vmax) +
-opts(title='$title')
+m + geom_bar(binwidth=(vmax-vmin)/$bins, position="dodge") +
+xlim(vmin, vmax) + opts(title='$title')
 ggsave('$outfile')
 """
 
@@ -60,8 +69,8 @@ def loghistogram(data, base=2, ascii=True, title="Counts", summary=True):
 
     bins = defaultdict(int)
     for d in data:
-        log2size = int(log(d, 2))
-        bins[log2size] += 1
+        logd = int(log(d, base))
+        bins[logd] += 1
 
     x, y = [], []
     for size, number in sorted(bins.items()):
@@ -112,20 +121,19 @@ def stem_leaf_plot(data, vmin, vmax, bins, digit=1, title=None):
 
 
 def texthistogram(numberfiles, vmin, vmax, title=None,
-                  bins=20, skip=0, log=False):
+                  bins=20, skip=0, log=0):
 
     for nf in numberfiles:
         logging.debug("Import `{0}`.".format(nf))
         data, vmin, vmax = get_data(nf, vmin, vmax, skip=skip)
         if log:
-            loghistogram(data, title=title)
+            loghistogram(data, base=log, title=title)
         else:
-            print data, vmin, vmax, bins, title
             stem_leaf_plot(data, vmin, vmax, bins, title=title)
 
 
 def histogram(numberfile, vmin, vmax, xlabel, title,
-              bins=50, skip=0, ascii=False, log=False):
+              bins=50, skip=0, ascii=False, log=0):
     """
     Generate histogram using number from numberfile, and only numbers in the
     range of (vmin, vmax)
@@ -136,13 +144,15 @@ def histogram(numberfile, vmin, vmax, xlabel, title,
 
     outfile = numberfile + '.pdf'
     data, vmin, vmax = get_data(numberfile, vmin, vmax, skip=skip)
+    base = log
 
-    rtemplate = RTemplate(histogram_template, locals())
+    template = histogram_log_template if log else histogram_template
+    rtemplate = RTemplate(template, locals())
     rtemplate.run()
 
 
 def histogram_multiple(numberfiles, vmin, vmax, xlabel, title,
-        bins=20, skip=0, ascii=False):
+                       bins=20, skip=0, ascii=False):
     """
     Generate histogram using number from numberfile, and only numbers in the
     range of (vmin, vmax). First combining multiple files.
@@ -195,8 +205,8 @@ def main():
     p.add_option("--title", help="title of the plot")
     p.add_option("--ascii", default=False, action="store_true",
             help="print ASCII text stem-leaf plot [default: %default]")
-    p.add_option("--log", default=False, action="store_true",
-            help="use logarithm axis [default: %default]")
+    p.add_option("--log", default="0", choices=("0", "2", "10"),
+            help="use logarithm axis with base, 0 to disable [default: %default]")
     opts, args = p.parse_args()
 
     if len(args) < 1:
@@ -207,14 +217,12 @@ def main():
     bins = opts.bins
     xlabel, title = opts.xlabel, opts.title
     title = title or args[0]
-
-    if opts.log:
-        assert opts.ascii, "Only --ascii mode supported when --log is on"
+    log = int(opts.log)
 
     fileno = len(args)
     if fileno == 1:
         histogram(args[0], vmin, vmax, xlabel, title,
-                bins=bins, skip=skip, ascii=opts.ascii, log=opts.log)
+                bins=bins, skip=skip, ascii=opts.ascii, log=log)
     else:
         histogram_multiple(args, vmin, vmax, xlabel, title,
                 bins=bins, skip=skip, ascii=opts.ascii)

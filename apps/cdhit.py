@@ -8,12 +8,9 @@ Using CD-HIT (CD-HIT-454) in particular to remove duplicate reads.
 import sys
 import logging
 
-from math import log
-from collections import defaultdict
 from optparse import OptionParser
 
 from jcvi.formats.base import read_block
-from jcvi.utils.cbook import percentage
 from jcvi.apps.base import ActionDispatcher, set_grid, debug, sh
 debug()
 
@@ -66,6 +63,8 @@ def summary(args):
 
     Parse cdhit.clstr file to get distribution of cluster sizes.
     """
+    from jcvi.graphics.histogram import loghistogram
+
     p = OptionParser(summary.__doc__)
     opts, args = p.parse_args(args)
 
@@ -75,21 +74,13 @@ def summary(args):
     clstrfile, = args
     assert clstrfile.endswith(".clstr")
 
-    bins = defaultdict(int)
     fp = open(clstrfile)
-    unique = 0
-    total = 0
+    data = []
     for clstr, members in read_block(fp, ">"):
         size = len(members)
-        unique += 1
-        total += size
-        log2size = int(log(size, 2))
-        bins[log2size] += 1
+        data.append(size)
 
-    from jcvi.graphics.histogram import loghistogram
-    # Print out a distribution
-    print >> sys.stderr, "Unique: {0}".format(percentage(unique, total))
-    loghistogram(bins)
+    loghistogram(data)
 
 
 def deduplicate(args):

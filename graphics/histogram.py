@@ -10,6 +10,8 @@ import os.path as op
 import sys
 import logging
 
+from math import log, ceil
+from collections import defaultdict
 from optparse import OptionParser
 
 import numpy as np
@@ -42,10 +44,25 @@ opts(title='$title')
 ggsave('$outfile')
 """
 
-def loghistogram(bins, base=2, ascii=True, title="Counts"):
+
+def loghistogram(data, base=2, ascii=True, title="Counts", summary=True):
     """
     bins is a dictionary with key: log(x, base), value: counts.
     """
+    from jcvi.utils.cbook import percentage
+
+    if summary:
+        unique = len(data)
+        total = sum(data)
+
+        # Print out a distribution
+        print >> sys.stderr, "Unique: {0}".format(percentage(unique, total))
+
+    bins = defaultdict(int)
+    for d in data:
+        log2size = int(log(d, 2))
+        bins[log2size] += 1
+
     x, y = [], []
     for size, number in sorted(bins.items()):
         lb, ub = base ** size, base ** (size + 1)
@@ -57,9 +74,18 @@ def loghistogram(bins, base=2, ascii=True, title="Counts"):
 
 def get_data(filename, vmin=None, vmax=None, skip=0):
     fp = open(filename)
+    # Determine the data type
     for s in xrange(skip):
         fp.next()
-    data = np.array([float(x) for x in fp])
+    for row in fp:
+        ntype = float if "." in row else int
+        break
+
+    fp = open(filename)
+    for s in xrange(skip):
+        fp.next()
+
+    data = np.array([ntype(x) for x in fp])
     vmin = min(data) if vmin is None else vmin
     vmax = max(data) if vmax is None else vmax
     data = data[(data >= vmin) & (data <= vmax)]
@@ -73,10 +99,10 @@ def stem_leaf_plot(data, vmin, vmax, bins, digit=1, title=None):
     '''
     assert bins > 0
     range = vmax - vmin
-    if range % bins == 0:
-        step = range / bins
-    else:
-        step = range * 1. / bins
+    step = range * 1. / bins
+    if isinstance(range, int):
+        step = int(ceil(step))
+
     step = step or 1
 
     bins = np.arange(vmin, vmax + step, step)
@@ -85,22 +111,28 @@ def stem_leaf_plot(data, vmin, vmax, bins, digit=1, title=None):
     print >> sys.stderr, "Last bin ends in {0}, inclusive.".format(vmax)
 
 
-def texthistogram(numberfiles, vmin, vmax, title=None, bins=20, skip=0):
+def texthistogram(numberfiles, vmin, vmax, title=None,
+                  bins=20, skip=0, log=False):
+
     for nf in numberfiles:
         logging.debug("Import `{0}`.".format(nf))
         data, vmin, vmax = get_data(nf, vmin, vmax, skip=skip)
-        stem_leaf_plot(data, vmin, vmax, bins, title=title)
+        if log:
+            loghistogram(data, title=title)
+        else:
+            print data, vmin, vmax, bins, title
+            stem_leaf_plot(data, vmin, vmax, bins, title=title)
 
 
 def histogram(numberfile, vmin, vmax, xlabel, title,
-        bins=50, skip=0, ascii=False):
+              bins=50, skip=0, ascii=False, log=False):
     """
     Generate histogram using number from numberfile, and only numbers in the
     range of (vmin, vmax)
     """
     if ascii:
         return texthistogram([numberfile], vmin, vmax, title=title,
-                bins=bins, skip=skip)
+                bins=bins, skip=skip, log=log)
 
     outfile = numberfile + '.pdf'
     data, vmin, vmax = get_data(numberfile, vmin, vmax, skip=skip)
@@ -162,7 +194,9 @@ def main():
             help="label on the X-axis")
     p.add_option("--title", help="title of the plot")
     p.add_option("--ascii", default=False, action="store_true",
-        help="print ASCII text stem-leaf plot [default: %default]")
+            help="print ASCII text stem-leaf plot [default: %default]")
+    p.add_option("--log", default=False, action="store_true",
+            help="use logarithm axis [default: %default]")
     opts, args = p.parse_args()
 
     if len(args) < 1:
@@ -174,10 +208,13 @@ def main():
     xlabel, title = opts.xlabel, opts.title
     title = title or args[0]
 
+    if opts.log:
+        assert opts.ascii, "Only --ascii mode supported when --log is on"
+
     fileno = len(args)
     if fileno == 1:
         histogram(args[0], vmin, vmax, xlabel, title,
-                bins=bins, skip=skip, ascii=opts.ascii)
+                bins=bins, skip=skip, ascii=opts.ascii, log=opts.log)
     else:
         histogram_multiple(args, vmin, vmax, xlabel, title,
                 bins=bins, skip=skip, ascii=opts.ascii)

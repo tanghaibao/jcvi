@@ -12,7 +12,6 @@ ln2 = log(2)
 
 import numpy as np
 from bisect import bisect
-from collections import defaultdict
 from optparse import OptionParser
 
 from jcvi.graphics.histogram import loghistogram
@@ -123,7 +122,6 @@ def n50(args):
         sys.exit(not p.print_help())
 
     ctgsizes = []
-    bins = defaultdict(int)
 
     # Guess file format
     probe = open(args[0]).readline()[0]
@@ -141,10 +139,6 @@ def n50(args):
                 continue
             ctgsizes.append(ctgsize)
 
-    for ctgsize in ctgsizes:
-        log2ctgsize = int(log(ctgsize, 2))
-        bins[log2ctgsize] += 1
-
     a50, l50, nn50 = calculate_A50(ctgsizes)
     sumsize = sum(ctgsizes)
     minsize = min(ctgsizes)
@@ -152,7 +146,7 @@ def n50(args):
     print >> sys.stderr, ", ".join(args)
     print >> sys.stderr, "Length={0} L50={1} N50={2} Min={3} Max={4} N={5}".\
             format(sumsize, l50, nn50, minsize, maxsize, len(ctgsizes))
-    loghistogram(bins)
+    loghistogram(ctgsizes, summary=False)
 
 
 def main():

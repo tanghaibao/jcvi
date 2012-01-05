@@ -6,13 +6,19 @@
 
 Draw heatmap based on the data in the csv file. In a microarray setting, the
 rows represent genes, and columns represent conditions. Some conditions can be
-grouped which the script expect to see on the first row when --groups is on.
-Something like::
+grouped which the script expect to see on the first row when --groups is on::
 
 ,WT+BL,,,,irx8+BL,,,,OE+BL,,,,WT,,,,irx8,,,,OE,,,
 , Day 0,Day 3,Day 6,Day 9, Day 0,Day 3,Day 6,Day 9, Day 0,Day 3,Day 6,Day 9, ...
 GAUT12,0.801069878,15.34822591,5.897076869,26.17286587,0,0,0,0,296.1121751, ...
 MYB46,0.812252396,31.12495832,11.39240156,44.63179732,4.469148552,57.28160454, ...
+
+Option --rowgroups requires an additional file that group the genes::
+
+I	MYB46,GUX1
+II	I14H/IRX14-L,IRX10
+III	I9H/IRX9-L,IRX14
+IV	IRX7,GUX2
 """
 
 
@@ -61,6 +67,7 @@ def main():
     p = OptionParser(__doc__)
     p.add_option("--groups", default=False, action="store_true",
                  help="The first row contains group info [default: %default]")
+    p.add_option("--rowgroups", help="Row groupings [default: %default]")
     p.add_option("--cmap", default="jet",
                  help="Use this color map [default: %default]")
     opts, args, iopts = set_image_options(p, figsize="8x8")
@@ -70,15 +77,25 @@ def main():
 
     datafile, = args
     pf = datafile.rsplit(".", 1)[0]
+    rowgroups = opts.rowgroups
 
     groups, rows, cols, data = parse_csv(datafile, vmin=1, groups=opts.groups)
     cols = [x.replace("ay ", "") for x in cols]
 
+    if rowgroups:
+        fp = open(rowgroups)
+        rgroups = []
+        for row in fp:
+            a, b = row.split()
+            irows = [rows.index(x) for x in b.split(",")]
+            rgroups.append((a, min(irows), max(irows)))
+
     plt.rcParams["axes.linewidth"] = 0
 
+    xstart = .18
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
-    ax = fig.add_axes([.15, .15, .7, .7])
+    ax = fig.add_axes([xstart, .15, .7, .7])
 
     default_cm = cm.get_cmap(opts.cmap)
     im = ax.matshow(data, cmap=default_cm, norm=LogNorm(vmin=1, vmax=10000))
@@ -98,7 +115,6 @@ def main():
 
     if groups:
         groups = [(key, len(list(nn))) for key, nn in groupby(groups)]
-        xstart = .15
         yy = .5 + .5 * nrows / ncols * .7 + .06
         xinterval = .7 / ncols
         e = .005
@@ -113,6 +129,26 @@ def main():
             root.plot([xstart + e, xstart + kl - e], [yy, yy], "-", color="gray", lw=2)
             root.text(xstart + .5 * kl, yy + e, k, ha="center", color="gray")
             xstart += kl
+
+    if rowgroups:
+        from jcvi.graphics.glyph import TextCircle
+
+        xpos = .04
+        tip = .015
+        assert rgroups
+        yinterval = .7 / max(nrows, ncols)
+        ystart = 1 - .5 * (1 - nrows * yinterval)
+        for gname, start, end in rgroups:
+            start = ystart - start * yinterval
+            end = ystart - (end + 1) * yinterval
+            start -= tip / 3
+            end += tip / 3
+
+            # Bracket the groups
+            root.plot((xpos, xpos + tip), (start, start), "k-", lw=2)
+            root.plot((xpos, xpos), (start, end), "k-", lw=2)
+            root.plot((xpos, xpos + tip), (end, end), "k-", lw=2)
+            TextCircle(root, xpos, .5 * (start + end), gname)
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)

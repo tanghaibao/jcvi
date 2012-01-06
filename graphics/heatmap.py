@@ -68,6 +68,8 @@ def main():
     p.add_option("--groups", default=False, action="store_true",
                  help="The first row contains group info [default: %default]")
     p.add_option("--rowgroups", help="Row groupings [default: %default]")
+    p.add_option("--horizontalbar", default=False, action="store_true",
+                 help="Horizontal color bar [default: vertical]")
     p.add_option("--cmap", default="jet",
                  help="Use this color map [default: %default]")
     opts, args, iopts = set_image_options(p, figsize="8x8")
@@ -101,6 +103,9 @@ def main():
     im = ax.matshow(data, cmap=default_cm, norm=LogNorm(vmin=1, vmax=10000))
     nrows, ncols = len(rows), len(cols)
 
+    xinterval = .7 / ncols
+    yinterval = .7 / max(nrows, ncols)
+
     plt.xticks(range(ncols), cols, rotation=45, size=10, ha="center")
     plt.yticks(range(nrows), rows, size=10)
 
@@ -110,13 +115,19 @@ def main():
     ax.set_xlim(-.5, ncols - .5)
 
     t = [1, 10, 100, 1000, 10000]
-    axcolor = fig.add_axes([.9, .3, .02, .4])
-    fig.colorbar(im, cax=axcolor, ticks=t, format=_("%d"))
+    pad = .06
+    if opts.horizontalbar:
+        ypos = .5 * (1 - nrows * yinterval) - pad
+        axcolor = fig.add_axes([.3, ypos, .4, .02])
+        orientation = "horizontal"
+    else:
+        axcolor = fig.add_axes([.9, .3, .02, .4])
+        orientation = "vertical"
+    fig.colorbar(im, cax=axcolor, ticks=t, format=_("%d"), orientation=orientation)
 
     if groups:
         groups = [(key, len(list(nn))) for key, nn in groupby(groups)]
         yy = .5 + .5 * nrows / ncols * .7 + .06
-        xinterval = .7 / ncols
         e = .005
         sep = -.5
 
@@ -136,7 +147,6 @@ def main():
         xpos = .04
         tip = .015
         assert rgroups
-        yinterval = .7 / max(nrows, ncols)
         ystart = 1 - .5 * (1 - nrows * yinterval)
         for gname, start, end in rgroups:
             start = ystart - start * yinterval

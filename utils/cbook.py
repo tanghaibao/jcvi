@@ -99,7 +99,7 @@ class SummaryStats (object):
         self.median = np.median(a)
 
     def __str__(self):
-        return "Min={0} Max={1} N={2} Mean={3} SD={4} Median={5}".\
+        return "Min={0} Max={1} N={2} Mean={3:.0f} SD={4:.0f} Median={5:.0f}".\
                 format(self.min, self.max, self.size,
                        self.mean, self.sd, self.median)
 

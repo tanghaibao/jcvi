@@ -176,6 +176,8 @@ def correct(args):
     from jcvi.assembly.base import FastqNamings
 
     p = OptionParser(correct.__doc__ + FastqNamings)
+    p.add_option("--fragdedup", default=False, action="store_true",
+                 help="Deduplicate the fragment reads [default: %default]")
     p.add_option("--cpus", default=32, type="int",
                  help="Number of threads to run [default: %default]")
     opts, args = p.parse_args(args)
@@ -200,7 +202,7 @@ def correct(args):
         sh(cmd)
 
     if op.exists(origfastb):
-        correct_frag(datadir, tag, origfastb, nthreads)
+        correct_frag(datadir, tag, origfastb, nthreads, dedup=opts.fragdedup)
 
     origj = datadir + "/{0}_orig".format(tagj)
     origjfastb = origj + ".fastb"
@@ -209,11 +211,11 @@ def correct(args):
         correct_jump(datadir, tagj, origjfastb, nthreads)
 
 
-def correct_frag(datadir, tag, origfastb, nthreads):
+def correct_frag(datadir, tag, origfastb, nthreads, dedup=False):
     filt = datadir + "/{0}_filt".format(tag)
     filtfastb = filt + ".fastb"
     run_RemoveDodgyReads(infile=origfastb, outfile=filtfastb,
-                         removeDuplicates=False, rc=False, nthreads=nthreads)
+                         removeDuplicates=dedup, rc=False, nthreads=nthreads)
 
     filtpairs = filt + ".pairs"
     edit = datadir + "/{0}_edit".format(tag)

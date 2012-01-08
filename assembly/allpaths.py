@@ -256,6 +256,20 @@ def pairs(args):
     extract_pairs(fastqfile, p1fw, p2fw, fragsfw, p)
 
 
+ALLPATHSRUN = r"""#!/bin/bash
+
+ulimit -s 100000
+ulimit -v 800000000
+
+PrepareAllPathsInputs.pl \
+    DATA_DIR=$PWD PLOIDY=1 \
+    PICARD_TOOLS_DIR=~/htang/export/picard-tools-1.47/
+
+RunAllPathsLG PRE=. REFERENCE_NAME=. \
+    DATA_SUBDIR=. RUN=allpaths SUBDIR=run THREADS=32 \
+    | tee run.log"""
+
+
 def prepare(args):
     """
     %prog prepare "B. oleracea" *.fastq
@@ -264,8 +278,11 @@ def prepare(args):
     `in_libs.csv`. The species name does not really matter.
     """
     from jcvi.utils.table import write_csv
+    from jcvi.formats.base import check_exists
 
     p = OptionParser(prepare.__doc__ + FastqNamings)
+    p.add_option("--norun", default=False, action="store_true",
+                 help="Don't write `run.sh` script [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) < 1:
@@ -324,6 +341,12 @@ def prepare(args):
     write_csv(libheader, libcontents, "in_libs.csv", tee=True)
     logging.debug("`in_libs.csv` created (# of libs = {0}).".\
         format(len(libcontents)))
+
+    runfile = "run.sh"
+    if not opts.norun and check_exists(runfile):
+        fw = open(runfile, "w")
+        print >> fw, ALLPATHSRUN
+        logging.debug("Run script written to `{0}`.".format(runfile))
 
 
 def log(args):

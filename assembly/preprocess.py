@@ -176,8 +176,8 @@ def correct(args):
     from jcvi.assembly.base import FastqNamings
 
     p = OptionParser(correct.__doc__ + FastqNamings)
-    p.add_option("--fragdedup", default=False, action="store_true",
-                 help="Deduplicate the fragment reads [default: %default]")
+    p.add_option("--nofragsdedup", default=False, action="store_true",
+                 help="Don't deduplicate the fragment reads [default: %default]")
     p.add_option("--cpus", default=32, type="int",
                  help="Number of threads to run [default: %default]")
     opts, args = p.parse_args(args)
@@ -188,7 +188,7 @@ def correct(args):
     fastq = args
     tag, tagj = "frag_reads", "jump_reads"
 
-    prepare(["Unknown"] + fastq)
+    prepare(["Unknown"] + fastq + ["--norun"])
 
     datadir = "data"
     mkdir(datadir)
@@ -202,7 +202,8 @@ def correct(args):
         sh(cmd)
 
     if op.exists(origfastb):
-        correct_frag(datadir, tag, origfastb, nthreads, dedup=opts.fragdedup)
+        dedup = not opts.nofragsdedup
+        correct_frag(datadir, tag, origfastb, nthreads, dedup=dedup)
 
     origj = datadir + "/{0}_orig".format(tagj)
     origjfastb = origj + ".fastb"

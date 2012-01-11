@@ -785,7 +785,7 @@ def reindex(args):
     # Last step: validate the new agpfile
     fw.close()
     agp = AGP(newagpfile, validate=True)
-    logging.error("File `{0}` written and verified.".format(newagpfile))
+    logging.debug("File `{0}` written and verified.".format(newagpfile))
     return newagpfile
 
 

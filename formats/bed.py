@@ -13,7 +13,7 @@ from optparse import OptionParser
 from jcvi.formats.base import LineFile, must_open
 from jcvi.utils.cbook import thousands
 from jcvi.utils.range import range_union
-from jcvi.apps.base import ActionDispatcher, debug, sh, need_update
+from jcvi.apps.base import ActionDispatcher, debug, sh, need_update, popen
 debug()
 
 
@@ -21,10 +21,11 @@ class BedLine(object):
     # the Bed format supports more columns. we only need
     # the first 4, but keep the information in 'extra'.
     __slots__ = ("seqid", "start", "end", "accn",
-                 "extra", "score", "strand")
+                 "extra", "score", "strand", "nargs")
 
     def __init__(self, sline):
         args = sline.strip().split("\t")
+        self.nargs = nargs = len(args)
         self.seqid = args[0]
         self.start = int(args[1]) + 1
         self.end = int(args[2])
@@ -32,20 +33,22 @@ class BedLine(object):
                 "start={0} end={1}".format(self.start, self.end)
         self.extra = self.accn = self.score = self.strand = None
 
-        if len(args) > 3:
+        if nargs > 3:
             self.accn = args[3]
-        if len(args) > 4:
+        if nargs > 4:
             self.extra = args[4:]
             self.score = self.extra[0]
-        if len(args) > 5:
+        if nargs > 5:
             self.strand = self.extra[1]
 
     def __str__(self):
-        s = "\t".join(str(x) for x in (self.seqid, self.start - 1,
-            self.end, self.accn))
-
+        args = [self.seqid, self.start - 1, self.end]
+        if self.accn:
+            args += [self.accn]
         if self.extra:
-            s += "\t" + "\t".join(self.extra)
+            args += self.extra
+
+        s = "\t".join(str(x) for x in args)
         return s
 
     def __getitem__(self, key):
@@ -147,9 +150,65 @@ def main():
         ('bedpe', 'convert to bedpe format'),
         ('distance', 'calculate distance between bed features'),
         ('sample', 'sample bed file and remove high-coverage regions'),
+        ('refine', 'refine bed file using a second bed file'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def refine(args):
+    """
+    %prog refine bedfile1 bedfile2 refinedbed
+
+    Refine bed file using a second bed file. The final bed is keeping all the
+    intervals in bedfile1, but refined by bedfile2 whenever they have
+    intersection.
+    """
+    from jcvi.utils.range import range_intersect
+
+    p = OptionParser(refine.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    abedfile, bbedfile, refinedbed = args
+    abed = Bed(abedfile)
+    bbed = Bed(bbedfile)
+    print >> sys.stderr, "`{0}` has {1} features.".format(abedfile, len(abed))
+    print >> sys.stderr, "`{0}` has {1} features.".format(bbedfile, len(bbed))
+
+    cmd = "intersectBed -wao -a {0} -b {1}".format(abedfile, bbedfile)
+    acols = abed[0].nargs
+    bcols = bbed[0].nargs
+    fp = popen(cmd)
+    fw = open(refinedbed, "w")
+    intersected = refined = 0
+    for row in fp:
+        atoms = row.split()
+        aline = "\t".join(atoms[:acols])
+        bline = "\t".join(atoms[acols:acols + bcols])
+        a = BedLine(aline)
+        try:
+            b = BedLine(bline)
+        except AssertionError:
+            print >> fw, a
+            continue
+
+        intersected += 1
+        aspan_before = a.span
+        arange = (a.start, a.end)
+        brange = (b.start, b.end)
+        irange = range_intersect(arange, brange)
+        a.start, a.end = irange
+        aspan_after = a.span
+        if aspan_before > aspan_after:
+            refined += 1
+        print >> fw, a
+
+    fw.close()
+    print >> sys.stderr, "Total intersected: {0}".format(intersected)
+    print >> sys.stderr, "Total refined: {0}".format(refined)
 
 
 def distance(args):

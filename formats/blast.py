@@ -425,7 +425,7 @@ def combine_HSPs(a):
         m.sstop = max(m.sstop, b.sstop)
         m.score += b.score
 
-    m.pctid = 100 - (m.nmismatch + m.ngaps) * 1. / m.hitlen
+    m.pctid = 100 - (m.nmismatch + m.ngaps) * 100. / m.hitlen
     return m
 
 

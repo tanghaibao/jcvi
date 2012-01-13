@@ -11,7 +11,7 @@ import sys
 from optparse import OptionParser
 
 from jcvi.utils.iter import pairwise
-from jcvi.graphics.base import plt, asciiplot, _
+from jcvi.graphics.base import plt, asciiplot, _, set_human_axis
 from jcvi.apps.base import ActionDispatcher, sh, debug
 debug()
 
@@ -134,10 +134,11 @@ def histogram(args):
     xlabel, ylabel = "Coverage (X)", "Counts"
     ax.set_xlabel(_(xlabel), color='r')
     ax.set_ylabel(_(ylabel), color='r')
+    set_human_axis(ax)
 
     imagename = histfile.split(".")[0] + ".pdf"
     plt.savefig(imagename, dpi=100)
-    print >>sys.stderr, "Image saved to {0}.".format(imagename)
+    print >> sys.stderr, "Image saved to `{0}`.".format(imagename)
 
 
 if __name__ == '__main__':

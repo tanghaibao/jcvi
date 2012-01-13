@@ -107,6 +107,9 @@ def samse(args):
     Wrapper for `bwa samse`. Output will be short_read.sam.
     """
     p = OptionParser(samse.__doc__)
+    p.add_option("--bam", default=False, action="store_true",
+                 help="write to bam file [default: %default]")
+    set_params(p)
     set_params(p)
     set_grid(p)
 
@@ -122,12 +125,16 @@ def samse(args):
     safile = check_index(dbfile, grid=grid)
     saifile = check_aln(dbfile, readfile, grid=grid)
 
-    samfile = readfile.rsplit(".", 1)[0] + ".sam"
+    prefix = read1file.rsplit(".", 1)[0]
+    samfile = (prefix + ".bam") if opts.bam else (prefix + ".sam")
     if op.exists(samfile):
         logging.error("`{0}` exists. `bwa samse` already run.".format(samfile))
+        return
 
     cmd = "bwa samse {0} {1} {2} ".format(dbfile, saifile, readfile)
     cmd += "{0}".format(extra)
+    if opts.bam:
+        cmd += " | samtools view -bS -F 4 - "
     sh(cmd, grid=grid, outfile=samfile)
 
 
@@ -138,6 +145,8 @@ def sampe(args):
     Wrapper for `bwa sampe`. Output will be read1.sam.
     """
     p = OptionParser(sampe.__doc__)
+    p.add_option("--bam", default=False, action="store_true",
+                 help="write to bam file [default: %default]")
     set_params(p)
     set_grid(p)
 
@@ -154,13 +163,17 @@ def sampe(args):
     sai1file = check_aln(dbfile, read1file, grid=grid)
     sai2file = check_aln(dbfile, read2file, grid=grid)
 
-    samfile = read1file.rsplit(".", 1)[0] + ".sam"
+    prefix = read1file.rsplit(".", 1)[0]
+    samfile = (prefix + ".bam") if opts.bam else (prefix + ".sam")
     if op.exists(samfile):
         logging.error("`{0}` exists. `bwa samse` already run.".format(samfile))
+        return
 
     cmd = "bwa sampe {0} {1} {2} {3} {4} ".format(dbfile, sai1file, sai2file,
             read1file, read2file)
     cmd += "{0}".format(extra)
+    if opts.bam:
+        cmd += " | samtools view -bS -F 4 - "
     sh(cmd, grid=grid, outfile=samfile)
 
 

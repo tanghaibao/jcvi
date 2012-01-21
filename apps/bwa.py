@@ -43,12 +43,19 @@ def check_index(dbfile, grid=False):
 
 
 def check_aln(dbfile, readfile, grid=False):
+    from jcvi.formats.fastq import guessoffset
+
     saifile = readfile.rsplit(".", 1)[0] + ".sai"
     if op.exists(saifile):
         logging.error("`{0}` exists. `bwa aln` already run.".format(saifile))
 
     else:
-        cmd = "bwa aln -t 32 {0} {1}".format(dbfile, readfile)
+        offset = guessoffset([readfile])
+        cmd = "bwa aln -t 32"
+        if offset == 64:
+            cmd += " -I"
+
+        cmd += " {0} {1}".format(dbfile, readfile)
         sh(cmd, grid=grid, outfile=saifile)
 
     return saifile
@@ -110,7 +117,6 @@ def samse(args):
     p.add_option("--bam", default=False, action="store_true",
                  help="write to bam file [default: %default]")
     set_params(p)
-    set_params(p)
     set_grid(p)
 
     opts, args = p.parse_args(args)
@@ -125,7 +131,7 @@ def samse(args):
     safile = check_index(dbfile, grid=grid)
     saifile = check_aln(dbfile, readfile, grid=grid)
 
-    prefix = read1file.rsplit(".", 1)[0]
+    prefix = readfile.rsplit(".", 1)[0]
     samfile = (prefix + ".bam") if opts.bam else (prefix + ".sam")
     if op.exists(samfile):
         logging.error("`{0}` exists. `bwa samse` already run.".format(samfile))

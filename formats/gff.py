@@ -588,7 +588,7 @@ def load(args):
     if len(args) != 2:
         sys.exit(p.print_help())
 
-    gff_file, fa_file = args
+    gff_file, fasta_file = args
     parents, children = opts.parents, opts.children
 
     db_file = gff_file + ".db"

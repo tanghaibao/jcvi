@@ -17,7 +17,7 @@ from jcvi.formats.base import LineFile
 from jcvi.formats.fasta import Fasta
 from jcvi.utils.cbook import fill
 from jcvi.assembly.base import Astat
-from jcvi.apps.base import ActionDispatcher, sh, debug
+from jcvi.apps.base import ActionDispatcher, sh, debug, set_outfile
 debug()
 
 
@@ -64,10 +64,32 @@ def main():
         ('chimera', 'parse sam file from `bwasw` and list multi-hit reads'),
         ('ace', 'convert sam file to ace'),
         ('index', 'convert to bam, sort and then index'),
+        ('bcf', 'run mpileup on a set of bam files'),
             )
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def bcf(args):
+    """
+    %prog bcf fastafile bamfiles > bcffile
+
+    Run mpileup on bam files.
+    """
+    p = OptionParser(bcf.__doc__)
+    set_outfile(p)
+    opts, args = p.parse_args(args)
+
+    if len(args) < 2:
+        sys.exit(not p.print_help())
+
+    fastafile = args[0]
+    bamfiles = args[1:]
+    cmd = "samtools mpileup -P ILLUMINA -E -ugDf"
+    cmd += " {0} {1}".format(fastafile, " ".join(bamfiles))
+    cmd += " | bcftools view -bcvg -"
+    sh(cmd, outfile=opts.outfile)
 
 
 def chimera(args):

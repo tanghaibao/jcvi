@@ -65,7 +65,7 @@ def main(blast_file, opts):
 
     fp = file(blast_file)
     total_lines = sum(1 for line in fp)
-    logging.debug("Load BLAST file %s (total %d lines)" % \
+    logging.debug("Load BLAST file `%s` (total %d lines)" % \
             (blast_file, total_lines))
     fp.seek(0)
     blasts = sorted([BlastLine(line) for line in fp], \

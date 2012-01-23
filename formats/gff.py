@@ -552,6 +552,9 @@ def bed(args):
         if row[0] == '#':
             continue
 
+        if row.strip() == "":
+            continue
+
         g = GffLine(row, key=key)
         if g.type != opts.type:
             continue

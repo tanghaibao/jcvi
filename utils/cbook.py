@@ -90,7 +90,7 @@ class SummaryStats (object):
     def __init__(self, a):
         import numpy as np
 
-        self.data = np.array(a)
+        self.data = a = np.array(a)
         self.min = a.min()
         self.max = a.max()
         self.size = a.size

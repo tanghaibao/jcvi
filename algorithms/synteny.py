@@ -10,9 +10,22 @@ from optparse import OptionParser
 
 from jcvi.formats.bed import Bed
 from jcvi.formats.blast import BlastLine
+from jcvi.formats.base import BaseFile, read_block
 from jcvi.utils.grouper import Grouper
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
+
+
+class AnchorFile (BaseFile):
+
+    def __init__(self, filename):
+        super(AnchorFile, self).__init__(filename)
+
+    def iter_blocks(self):
+        fp = open(self.filename)
+        for header, lines in read_block(fp, "#"):
+            lines = [x.split() for x in lines]
+            yield zip(*lines)
 
 
 def _score(cluster):
@@ -184,12 +197,55 @@ def main():
 
     actions = (
         ('scan', 'get anchor list using single-linkage algorithm'),
+        ('depth', 'calculate the depths in the two genomes in comparison'),
         ('liftover', 'given anchor list, pull adjancent pairs from blast file'),
         ('breakpoint', 'identify breakpoints where collinearity ends'),
             )
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def depth(args):
+    """
+    %prog depth anchorfile --qbed qbedfile --sbed sbedfile
+
+    Calculate the depths in the two genomes in comparison, given in --qbed and
+    --sbed. The synteny blocks will be layered on the genomes, and the
+    multiplicity will be summarized to stderr.
+    """
+    from jcvi.utils.range import range_depth
+
+    p = OptionParser(depth.__doc__)
+    p.add_option("--qbed", help="path to qbed (required)")
+    p.add_option("--sbed", help="path to sbed (required)")
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1 or not (opts.qbed and opts.sbed):
+        sys.exit(not p.print_help())
+
+    anchorfile, = args
+    qbed = Bed(opts.qbed)
+    sbed = Bed(opts.sbed)
+    qorder = qbed.order
+    sorder = sbed.order
+
+    ac = AnchorFile(anchorfile)
+    qranges = []
+    sranges = []
+    for q, s in ac.iter_blocks():
+        q = [qorder[x] for x in q]
+        s = [sorder[x] for x in s]
+        qrange = (min(q)[0], max(q)[0])
+        srange = (min(s)[0], max(s)[0])
+        qranges.append(qrange)
+        sranges.append(srange)
+
+    print >> sys.stderr, "Genome {0} depths:".format(qbed.filename)
+    range_depth(qranges, len(qbed))
+    print >> sys.stderr, "Genome {0} depths:".format(sbed.filename)
+    range_depth(sranges, len(sbed))
 
 
 def get_blocks(scaffold, bs, order, xdist=20, ydist=20, N=6):
@@ -254,6 +310,8 @@ def scan(args):
 
     pull out syntenic anchors from blastfile based on single-linkage algorithm
     """
+    from jcvi.utils.cbook import SummaryStats
+
     p = OptionParser(scan.__doc__)
     p.add_option("-n", type="int", default=5,
             help="minimum number of anchors in a cluster [default: %default]")
@@ -275,6 +333,12 @@ def scan(args):
         for qi, si in cluster:
             query, subject = qbed[qi].accn, sbed[si].accn
             print >>fw, "\t".join((query, subject))
+
+    nclusters = len(clusters)
+    nanchors = [len(c) for c in clusters]
+    print >> sys.stderr, "A total of {0} anchors found in {1} clusters.".\
+                  format(sum(nanchors), nclusters)
+    print >> sys.stderr, SummaryStats(nanchors)
 
 
 def liftover(args):

@@ -8,8 +8,10 @@ both on the 2D dotplot and 1D-projection
 `range_chain` implements the exon-chain algorithm
 """
 
+import sys
+
 from itertools import groupby
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 
 
 LEFT, RIGHT = 0, 1
@@ -319,6 +321,49 @@ def range_chain(ranges):
     selected = [ranges[x] for x in chains]
 
     return selected, score
+
+
+def range_depth(ranges, size, verbose=True):
+    """
+    Overlay ranges on [start, end], and summarize the ploidy of the intervals.
+    """
+    from jcvi.utils.iter import pairwise
+    from jcvi.utils.cbook import percentage
+
+    # Make endpoints
+    endpoints = []
+    for a, b in ranges:
+        endpoints.append((a, LEFT))
+        endpoints.append((b, RIGHT))
+    endpoints.sort()
+    vstart, vend = min(endpoints)[0], max(endpoints)[0]
+    assert 0 <= vstart < size
+    assert 0 <= vend < size
+
+    depth = 0
+    depthstore = defaultdict(int)
+    depthstore[depth] += vstart
+
+    for (a, atag), (b, btag) in pairwise(endpoints):
+        if atag == LEFT:
+            depth += 1
+        elif atag == RIGHT:
+            depth -= 1
+        depthstore[depth] += b - a
+
+    assert btag == RIGHT
+    depth -= 1
+
+    assert depth == 0
+    depthstore[depth] += size - vend
+
+    assert sum(depthstore.values()) == size
+    if verbose:
+        for depth, count in sorted(depthstore.items()):
+            print >> sys.stderr, "Depth {0}: {1}".\
+                    format(depth, percentage(count, size))
+
+    return depthstore
 
 
 if __name__ == '__main__':

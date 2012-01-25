@@ -205,9 +205,9 @@ def assemble(args):
                     opts.ovl_pct_id, opts.ovl_sim_score, opts.prefix)
             if opts.extra:
                 cmd += " {0}".format(opts.extra)
-            cmd += " > {0}.{1}.log".format(file, opts.prefix)
+            logfile = "{0}.{1}.log".format(file, opts.prefix)
 
-            sh(cmd, grid=opts.grid)
+            sh(cmd, outfile=logfile, grid=opts.grid)
 
 
 if __name__ == '__main__':

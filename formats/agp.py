@@ -74,10 +74,6 @@ class AGPLine (object):
             self.empty = ""
             self.orientation = "na"
 
-        ## AGP to GFF specific information
-        self.gff_source    = "MGSC"
-        self.gff_feat_type = "golden_path_fragment"
-
         if validate:
             try:
                 self.validate()
@@ -123,15 +119,18 @@ class AGPLine (object):
 
     @property
     def gffline(self):
-        #gff3 formatted line
+        # gff3 formatted line
+        gff_source    = "MGSC"
+        gff_feat_type = "golden_path_fragment"
+
         gff_feat_id = "".join(str(x) for x in (self.object, ".", \
                       format(int(self.part_number), '03d')))
-        attributes = ";".join(x for x in ("ID=" + gff_feat_id, \
+        attributes = ";".join(("ID=" + gff_feat_id, \
                               "Name=" + self.component_id, \
                               "phase=" + self.component_type))
 
-        return "\t".join(str(x) for x in (self.object, self.gff_source, \
-               self.gff_feat_type, str(self.object_beg), str(self.object_end),\
+        return "\t".join(str(x) for x in (self.object, gff_source, \
+               gff_feat_type, str(self.object_beg), str(self.object_end),\
                ".", self.orientation, ".", attributes))
 
     @property

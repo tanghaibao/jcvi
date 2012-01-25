@@ -265,7 +265,7 @@ PrepareAllPathsInputs.pl \
     DATA_DIR=$PWD PLOIDY=1 \
     PICARD_TOOLS_DIR=~/htang/export/picard-tools-1.47/
 
-RunAllPathsLG PRE=. REFERENCE_NAME=. \
+RunAllPathsLG PRE=. REFERENCE_NAME=. OVERWRITE=True \
     DATA_SUBDIR=. RUN=allpaths SUBDIR=run THREADS=32 \
     | tee run.log"""
 

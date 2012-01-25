@@ -14,6 +14,7 @@ Wrapper for the common graph algorithms. Common usages are:
 [1, 2, 3]
 """
 
+import sys
 import logging
 
 import networkx as nx
@@ -199,6 +200,10 @@ class BiGraph (object):
         return "BiGraph with {0} nodes and {1} edges".\
                 format(len(self.nodes), len(self.edges))
 
+    def write(self, fw=sys.stdout):
+        for e in self.edges.values():
+            print >> fw, e
+
     def draw(self, pngfile, dpi=96):
         import pygraphviz as pgv
 
@@ -230,8 +235,7 @@ def bigraph_test():
     g.add_edge(BiEdge(7, 5, "<", ">"))
     g.add_edge(BiEdge(8, 6, ">", "<"))
     print g
-    for e in g.edges.values():
-        print e
+    g.write()
     for path in g.iter_paths():
         p, oo = g.path(path)
         print p

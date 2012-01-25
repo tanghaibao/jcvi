@@ -74,6 +74,10 @@ class AGPLine (object):
             self.empty = ""
             self.orientation = "na"
 
+        ## AGP to GFF specific information
+        self.gff_source    = "MGSC"
+        self.gff_feat_type = "golden_path_fragment"
+
         if validate:
             try:
                 self.validate()
@@ -116,6 +120,19 @@ class AGPLine (object):
     def bed12line(self):
         # bed12 formatted line
         return self.bedline + "\t" + self.bedextra
+
+    @property
+    def gffline(self):
+        #gff3 formatted line
+        gff_feat_id = "".join(str(x) for x in (self.object, ".", \
+                      format(int(self.part_number), '03d')))
+        attributes = ";".join(x for x in ("ID=" + gff_feat_id, \
+                              "Name=" + self.component_id, \
+                              "phase=" + self.component_type))
+
+        return "\t".join(str(x) for x in (self.object, self.gff_source, \
+               self.gff_feat_type, str(self.object_beg), str(self.object_end),\
+               ".", self.orientation, ".", attributes))
 
     @property
     def isCloneGap(self):
@@ -520,8 +537,8 @@ def main():
         ('summary', 'print out a table of scaffold statistics'),
         ('stats', 'print out a report for length of gaps and components'),
         ('phase', 'given genbank file, get the phase for the HTG BAC record'),
-        ('bed', 'print out the tiling paths in bed format'),
-        ('extendbed', 'extend the components to fill the component range'),
+        ('bed', 'print out the tiling paths in bed/gff3 format'),
+        ('extendbed', 'extend the components to fill the component range and output bed/gff3 format file'),
         ('gaps', 'print out the distribution of gap sizes'),
         ('tpf', 'print out a list of accessions, aka Tiling Path File'),
         ('mask', 'mask given ranges in components to gaps'),
@@ -924,7 +941,7 @@ def bed(args):
     """
     %prog bed agpfile
 
-    print out the tiling paths in bed format
+    print out the tiling paths in bed/gff3 format
     """
     p = OptionParser(bed.__doc__)
     p.add_option("--gaps", default=False, action="store_true",
@@ -933,6 +950,9 @@ def bed(args):
             help="Do not print bed lines for gaps [default: %default]")
     p.add_option("--bed12", default=False, action="store_true",
             help="Produce bed12 formatted output [default: %default]")
+    p.add_option("--gff", default=False, action="store_true",
+            help="Produce gff3 formatted output. By default, ignores " +\
+                 "AGP gap lines. [default: %default]")
     set_outfile(p)
 
     opts, args = p.parse_args(args)
@@ -940,9 +960,16 @@ def bed(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
+    # If output format is GFF3, ignore AGP gap lines.
+    if opts.gff:
+        opts.nogaps = True
+
     agpfile, = args
     agp = AGP(agpfile)
     fw = must_open(opts.outfile, "w")
+    if opts.gff:
+        print >> fw, "##gff-version 3"
+
     for a in agp:
         if opts.nogaps and a.is_gap:
             continue
@@ -950,6 +977,8 @@ def bed(args):
             continue
         if opts.bed12:
             print >> fw, a.bed12line
+        elif opts.gff:
+            print >> fw, a.gffline
         else:
             print >> fw, a.bedline
     fw.close()
@@ -961,7 +990,7 @@ def extendbed(args):
     """
     %prog extend agpfile componentfasta
 
-    Extend the components to fill the component range. For example, a bedfile
+    Extend the components to fill the component range. For example, a bed/gff3 file
     that was converted from the agp will contain only the BAC sequence intervals
     that are 'represented' - sometimes leaving the 5` and 3` out (those that
     overlap with adjacent sequences. This script fill up those ranges,
@@ -970,15 +999,30 @@ def extendbed(args):
     from jcvi.formats.sizes import Sizes
 
     p = OptionParser(extendbed.__doc__)
+    p.add_option("--nogaps", default=False, action="store_true",
+            help="Do not print bed lines for gaps [default: %default]")
     p.add_option("--bed12", default=False, action="store_true",
             help="Produce bed12 formatted output [default: %default]")
+    p.add_option("--gff", default=False, action="store_true",
+            help="Produce gff3 formatted output. By default, ignores " +\
+                 " AGP gap lines. [default: %default]")
+    set_outfile(p)
+
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
         sys.exit(not p.print_help())
 
+    # If output format is GFF3, ignore AGP gap lines.
+    if opts.gff:
+        opts.nogaps = True
+
     agpfile, fastafile = args
     agp = AGP(agpfile)
+    fw = must_open(opts.outfile, "w")
+    if opts.gff:
+        print >> fw, "##gff-version 3"
+
     ranges = defaultdict(list)
     thickCoords = []  # These are the coordinates before modify ranges
     # Make the first pass to record all the component ranges
@@ -1008,13 +1052,17 @@ def extendbed(args):
         a.object_end += hang
 
     for a, (ts, te) in zip(agp, thickCoords):
+        if opts.nogaps and a.is_gap:
+            continue
         if opts.bed12:
             line = a.bedline
             a.object_beg, a.object_end = ts, te
             line += "\t" + a.bedextra
-            print line
+            print >> fw, line
+        elif opts.gff:
+            print >> fw, a.gffline
         else:
-            print a.bedline
+            print >> fw, a.bedline
 
 
 def gaps(args):

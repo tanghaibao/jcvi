@@ -162,6 +162,7 @@ def main():
     actions = (
         ('extract', 'given fasta file and seq id, retrieve the sequence ' + \
                     'in fasta format'),
+        ('translate', 'translate CDS to proteins'),
         ('summary', "report the real no of bases and N's in fastafiles"),
         ('uniq', 'remove records that are the same'),
         ('ids', 'generate a list of headers'),
@@ -186,6 +187,42 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def translate(args):
+    """
+    %prog translated cdsfasta
+
+    Translate CDS to proteins. The tricky thing is that sometimes the CDS
+    represents a partial gene, therefore disrupting the frame of the protein.
+    Check all three frames to get a valid translation.
+    """
+    p = OptionParser(translate.__doc__)
+    set_outfile(p)
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    cdsfasta, = args
+    f = Fasta(cdsfasta, lazy=True)
+    fw = open(opts.outfile, "w")
+    for name, rec in f.iteritems_ordered():
+        cds = rec.seq
+        cdslen = len(cds)
+        peplen = cdslen / 3
+        # Try all three frames
+        for i in xrange(3):
+            newcds = cds[i: i + peplen * 3]
+            pep = newcds.translate()
+            if "*" not in pep.rstrip("*"):
+                break
+
+        assert "*" not in pep.rstrip("*"), pep
+        peprec = SeqRecord(pep, id=name, description="")
+        SeqIO.write([peprec], fw, "fasta")
+        fw.flush()
 
 
 def filter(args):

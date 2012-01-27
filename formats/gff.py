@@ -578,6 +578,8 @@ def load(args):
     '''
     import GFFutils
 
+    from jcvi.formats.fasta import Seq, SeqRecord
+
     p = OptionParser(load.__doc__)
     p.add_option("--parents", dest="parents", default="mRNA",
             help="list of features to extract, use comma to separate (e.g."
@@ -585,6 +587,7 @@ def load(args):
     p.add_option("--children", dest="children", default="CDS",
             help="list of features to extract, use comma to separate (e.g."
             "'five_prime_UTR,CDS,three_prime_UTR') [default: %default]")
+    set_outfile(p)
 
     opts, args = p.parse_args(args)
 
@@ -601,6 +604,7 @@ def load(args):
 
     f = Fasta(fasta_file, index=False)
     g = GFFutils.GFFDB(db_file)
+    fw = must_open(opts.outfile, "w")
 
     parents = set(parents.split(','))
     parents_iter = [g.features_of_type(x) for x in parents]
@@ -629,8 +633,9 @@ def load(args):
             children.reverse()
         feat_seq = ''.join(x[0] for x in children)
 
-        print ">%s" % feat.id
-        print feat_seq
+        rec = SeqRecord(Seq(feat_seq), id=feat.id, description="")
+        SeqIO.write([rec], fw, "fasta")
+        fw.flush()
 
 
 def bed12(args):

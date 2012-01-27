@@ -197,6 +197,8 @@ def translate(args):
     represents a partial gene, therefore disrupting the frame of the protein.
     Check all three frames to get a valid translation.
     """
+    from jcvi.utils.cbook import percentage
+
     p = OptionParser(translate.__doc__)
     set_outfile(p)
 
@@ -207,11 +209,15 @@ def translate(args):
 
     cdsfasta, = args
     f = Fasta(cdsfasta, lazy=True)
-    fw = open(opts.outfile, "w")
+    fw = must_open(opts.outfile, "w")
+    five_prime_missing = three_prime_missing = 0
+    total = complete = 0
+
     for name, rec in f.iteritems_ordered():
         cds = rec.seq
         cdslen = len(cds)
         peplen = cdslen / 3
+        total += 1
         # Try all three frames
         for i in xrange(3):
             newcds = cds[i: i + peplen * 3]
@@ -219,10 +225,28 @@ def translate(args):
             if "*" not in pep.rstrip("*"):
                 break
 
-        assert "*" not in pep.rstrip("*"), pep
+        assert "*" not in pep.rstrip("*"), "{0} [{1}]".format(name, pep)
+
+        contains_start = pep.startswith("M")
+        contains_stop = pep.endswith("*")
+
+        if not contains_start:
+            five_prime_missing += 1
+        if not contains_stop:
+            three_prime_missing += 1
+        if contains_start and contains_stop:
+            complete += 1
+
         peprec = SeqRecord(pep, id=name, description="")
         SeqIO.write([peprec], fw, "fasta")
         fw.flush()
+
+    print >> sys.stderr, "Complete gene models: {0}".\
+                        format(percentage(complete, total))
+    print >> sys.stderr, "Missing 5`-end: {0}".\
+                        format(percentage(five_prime_missing, total))
+    print >> sys.stderr, "Missing 3`-end: {0}".\
+                        format(percentage(three_prime_missing, total))
 
 
 def filter(args):

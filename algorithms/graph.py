@@ -26,6 +26,7 @@ from networkx.algorithms.components.weakly_connected import \
 from networkx.algorithms.components.connected import connected_components
 from networkx.algorithms.shortest_paths.generic import shortest_path
 
+from jcvi.formats.base import must_open
 from jcvi.apps.base import debug
 debug()
 
@@ -200,9 +201,12 @@ class BiGraph (object):
         return "BiGraph with {0} nodes and {1} edges".\
                 format(len(self.nodes), len(self.edges))
 
-    def write(self, fw=sys.stdout):
+    def write(self, filename="stdout"):
+
+        fw = must_open(filename, "w")
         for e in self.edges.values():
             print >> fw, e
+        logging.debug("Graph written to `{0}`.".format(filename))
 
     def draw(self, pngfile, dpi=96):
         import pygraphviz as pgv

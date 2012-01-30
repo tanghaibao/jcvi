@@ -24,9 +24,81 @@ def main():
 
     actions = (
         ('fromblast', 'Generate path from BLAST file'),
+        ('happy', 'Make graph from happy mapping data'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def happy(args):
+    """
+    %prog happy happy.txt
+
+    Make bi-directed graph from HAPPY mapping data. JCVI encodes uncertainties
+    in the order of the contigs / scaffolds.
+
+    : separates scaffolds
+    + means telomere (though the telomere repeats may not show because the
+    telomere-adjacent sequence is missing)
+    - means that the scaffold is in reverse orientation to that shown in the 2003
+    TIGR scaffolds.
+
+    Ambiguities are represented as follows, using Paul Dear.s description:
+    [ ] means undetermined orientation. error quite possible (70% confidence?)
+    ( ) means uncertain orientation. small chance of error (90% confidence?)
+    { } means uncertain order.
+
+    Example:
+    +-8254707:8254647:-8254690:{[8254694]:[8254713]:[8254531]:[8254797]}:8254802:8254788+
+    """
+    from string import maketrans
+    from jcvi.utils.iter import pairwise
+
+    p = OptionParser(happy.__doc__)
+    p.add_option("--prefix", help="Add prefix to the name [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    happyfile, = args
+    prefix = opts.prefix
+
+    certain = "certain.graph"
+    uncertain = "uncertain.graph"
+    fw1 = open(certain, "w")
+    fw2 = open(uncertain, "w")
+    n_certain = n_uncertain = 0
+
+    fp = open(happyfile)
+    trans = maketrans("[](){}", "      ")
+    for row in fp:
+        row = row.strip().strip("+")
+        row = row.translate(trans)
+        scfs = [x.strip("+") for x in row.split(":")]
+        for a, b in pairwise(scfs):
+            oa = '<' if a.strip()[0] == '-' else '>'
+            ob = '<' if b.strip()[0] == '-' else '>'
+
+            is_uncertain = a[-1] == ' ' or b[0] == ' '
+            if is_uncertain:
+                n_uncertain += 1
+            else:
+                n_certain += 1
+
+            a = a.strip().strip('-')
+            b = b.strip().strip('-')
+
+            if prefix:
+                a = prefix + a
+                b = prefix + b
+
+            e = BiEdge(a, b, oa, ob)
+            fw = fw2 if is_uncertain else fw1
+            print >> fw, e
+
+    logging.debug("Certain edges: {0}, Uncertain edges: {1} written to `{2}`".\
+                  format(n_certain, n_uncertain, ",".join((certain, uncertain))))
 
 
 def fromblast(args):
@@ -60,6 +132,7 @@ def fromblast(args):
             btag = ">" if b.orientation == "+" else "<"
             g.add_edge(BiEdge(asub, bsub, atag, btag))
 
+    g.write("graph.txt")
     g.draw("graph.pdf")
 
     logging.debug(str(g))

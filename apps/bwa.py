@@ -42,7 +42,7 @@ def check_index(dbfile, grid=False):
     return safile
 
 
-def check_aln(dbfile, readfile, grid=False):
+def check_aln(dbfile, readfile, grid=False, cpus=32):
     from jcvi.formats.fastq import guessoffset
 
     saifile = readfile.rsplit(".", 1)[0] + ".sai"
@@ -51,7 +51,7 @@ def check_aln(dbfile, readfile, grid=False):
 
     else:
         offset = guessoffset([readfile])
-        cmd = "bwa aln -t 32"
+        cmd = "bwa aln -t {0}".format(cpus)
         if offset == 64:
             cmd += " -I"
 
@@ -90,6 +90,8 @@ def aln(args):
     Wrapper for `bwa aln` except this will run over a set of files.
     """
     p = OptionParser(aln.__doc__)
+    p.add_option("--cpus", default=32,
+                 help="Number of cpus to use [default: %default]")
     set_params(p)
     set_grid(p)
 
@@ -104,7 +106,7 @@ def aln(args):
     dbfile, readfiles = args[0], args[1:]
     safile = check_index(dbfile, grid=grid)
     for readfile in readfiles:
-        saifile = check_aln(dbfile, readfile, grid=grid)
+        saifile = check_aln(dbfile, readfile, grid=grid, cpus=opts.cpus)
 
 
 def samse(args):
@@ -116,6 +118,8 @@ def samse(args):
     p = OptionParser(samse.__doc__)
     p.add_option("--bam", default=False, action="store_true",
                  help="write to bam file [default: %default]")
+    p.add_option("--cpus", default=32,
+                 help="Number of cpus to use [default: %default]")
     set_params(p)
     set_grid(p)
 
@@ -129,7 +133,7 @@ def samse(args):
 
     dbfile, readfile = args
     safile = check_index(dbfile, grid=grid)
-    saifile = check_aln(dbfile, readfile, grid=grid)
+    saifile = check_aln(dbfile, readfile, grid=grid, cpus=opts.cpus)
 
     prefix = readfile.rsplit(".", 1)[0]
     samfile = (prefix + ".bam") if opts.bam else (prefix + ".sam")
@@ -153,6 +157,8 @@ def sampe(args):
     p = OptionParser(sampe.__doc__)
     p.add_option("--bam", default=False, action="store_true",
                  help="write to bam file [default: %default]")
+    p.add_option("--cpus", default=32,
+                 help="Number of cpus to use [default: %default]")
     set_params(p)
     set_grid(p)
 
@@ -166,8 +172,8 @@ def sampe(args):
 
     dbfile, read1file, read2file = args
     safile = check_index(dbfile, grid=grid)
-    sai1file = check_aln(dbfile, read1file, grid=grid)
-    sai2file = check_aln(dbfile, read2file, grid=grid)
+    sai1file = check_aln(dbfile, read1file, grid=grid, cpus=opts.cpus)
+    sai2file = check_aln(dbfile, read2file, grid=grid, cpus=opts.cpus)
 
     prefix = read1file.rsplit(".", 1)[0]
     samfile = (prefix + ".bam") if opts.bam else (prefix + ".sam")

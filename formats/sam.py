@@ -17,7 +17,7 @@ from jcvi.formats.base import LineFile
 from jcvi.formats.fasta import Fasta
 from jcvi.utils.cbook import fill
 from jcvi.assembly.base import Astat
-from jcvi.apps.base import ActionDispatcher, sh, debug, set_outfile
+from jcvi.apps.base import ActionDispatcher, need_update, sh, debug, set_outfile
 debug()
 
 
@@ -77,6 +77,8 @@ def bcf(args):
 
     Run mpileup on bam files.
     """
+    from jcvi.apps.grid import Jobs
+
     p = OptionParser(bcf.__doc__)
     set_outfile(p)
     opts, args = p.parse_args(args)
@@ -86,6 +88,14 @@ def bcf(args):
 
     fastafile = args[0]
     bamfiles = args[1:]
+
+    unsorted = [x for x in bamfiles if ".sorted." not in x]
+    jargs = [[[x, "--unique"]] for x in unsorted]
+    jobs = Jobs(index, args=jargs)
+    jobs.run()
+
+    bamfiles = [x.replace(".sorted.bam", ".bam") for x in bamfiles]
+    bamfiles = [x.replace(".bam", ".sorted.bam") for x in bamfiles]
     cmd = "samtools mpileup -P ILLUMINA -E -ugDf"
     cmd += " {0} {1}".format(fastafile, " ".join(bamfiles))
     cmd += " | bcftools view -bcvg -"
@@ -143,7 +153,7 @@ def index(args):
     bamfile = samfile.replace(".sam", ".bam")
     if fastafile:
         faifile = fastafile + ".fai"
-        if not op.exists(faifile):
+        if need_update(fastafile, faifile):
             sh("samtools faidx {0}".format(fastafile))
         cmd = "samtools view -bt {0} {1} -F 4 -o {2}".\
                 format(faifile, samfile, bamfile)
@@ -159,11 +169,14 @@ def index(args):
 
     prefix = bamfile.replace(".bam", "")
     sortedbamfile = prefix + ".sorted.bam"
-    if op.exists(bamfile):
+    if need_update(bamfile, sortedbamfile):
         sh("samtools sort {0} {1}.sorted".format(bamfile, prefix))
 
-    if op.exists(sortedbamfile):
+    baifile = sortedbamfile + ".bai"
+    if need_update(sortedbamfile, baifile):
         sh("samtools index {0}".format(sortedbamfile))
+
+    return sortedbamfile
 
 
 def pair(args):

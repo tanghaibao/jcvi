@@ -94,7 +94,7 @@ def sh(cmd, grid=False, infile=None, outfile=None, errfile=None,
     else:
         if infile:
             cmd += " < {0} ".format(infile)
-        if outfile:
+        if outfile and outfile != "stdout":
             cmd += " > {0} ".format(outfile)
         if errfile:
             cmd += " 2> {0} ".format(errfile)

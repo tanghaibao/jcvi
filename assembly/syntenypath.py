@@ -25,9 +25,34 @@ def main():
     actions = (
         ('fromblast', 'Generate path from BLAST file'),
         ('happy', 'Make graph from happy mapping data'),
+        ('merge', 'Merge multiple graphs together and visualize'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def merge(args):
+    """
+    %prog merge graphs
+
+    Merge multiple graphs together and visualize.
+    """
+    p = OptionParser(merge.__doc__)
+    p.add_option("--colorlist", default="black,red,pink,blue,green",
+                 help="The color palette [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) < 1:
+        sys.exit(not p.print_help())
+
+    colorlist = opts.colorlist.split(",")
+    assert len(colorlist) >= len(args), "Need more colors in --colorlist"
+
+    g = BiGraph()
+    for a, c in zip(args, colorlist):
+        g.read(a, color=c)
+
+    g.draw("merged.png")
 
 
 def happy(args):
@@ -108,8 +133,10 @@ def fromblast(args):
     Generate path from BLAST file. If multiple subjects map to the same query,
     an edge is constructed between them (with the link provided by the query).
 
-    The BLAST file MUST be filtered, chained, supermapped, and sorted by --query.
+    The BLAST file MUST be filtered, chained, supermapped.
     """
+    from jcvi.formats.blast import sort
+
     p = OptionParser(fromblast.__doc__)
     p.add_option("--verbose", default=False, action="store_true",
                  help="Print verbose reports to stdout [default: %default]")
@@ -119,6 +146,7 @@ def fromblast(args):
         sys.exit(not p.print_help())
 
     blastfile, subjectfasta = args
+    sort([blastfile, "--query"])
     blast = BlastSlow(blastfile, sorted=True)
     g = BiGraph()
     for query, blines in groupby(blast, key=lambda x: x.query):

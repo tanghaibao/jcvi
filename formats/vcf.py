@@ -43,6 +43,8 @@ def summary(args):
     from jcvi.utils.table import tabulate
 
     p = OptionParser(summary.__doc__)
+    p.add_option("--counts", default=False, action="store_true",
+                 help="Print SNP counts in `snpcounts.txt` [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -56,6 +58,8 @@ def summary(args):
     combinations = defaultdict(int)
     intraSNPs = interSNPs = 0
     distinctSet = set()  # set of genes that show A-B pattern
+    ref, alt = header[1:3]
+    snpcounts, goodsnpcounts = defaultdict(int), defaultdict(int)
     for row in fp:
         atoms = row.split()
         assert len(atoms) == 3, \
@@ -64,6 +68,7 @@ def summary(args):
         ctg, pos = locus.rsplit(".", 1)
         pos = int(pos)
         snps[ctg].append(pos)
+        snpcounts[ctg] += 1
 
         if intra == 'X':
             intraSNPs += 1
@@ -71,9 +76,10 @@ def summary(args):
             interSNPs += 1
         if intra == 'A' and inter == 'B':
             distinctSet.add(ctg)
+            goodsnpcounts[ctg] += 1
         # Tabulate all possible combinations
-        intra = "ref-" + intra
-        inter = "alt-" + inter
+        intra = ref + "-" + intra
+        inter = alt + "-" + inter
         combinations[(intra, inter)] += 1
 
     nsites = sum(len(x) for x in snps.values())
@@ -81,8 +87,8 @@ def summary(args):
     sizes = Sizes(fastafile)
     bpsize = sizes.totalsize
     snprate = lambda a: a * 1000. / bpsize
-    m = "Dataset contains {0} contigs ({1} bp).\n".\
-                format(len(sizes), thousands(bpsize))
+    m = "Dataset `{0}` contains {1} contigs ({2} bp).\n".\
+                format(fastafile, len(sizes), thousands(bpsize))
     m += "A total of {0} SNPs within {1} contigs ({2} bp).\n".\
                 format(nsites, len(snps),
                        thousands(sum(sizes.mapping[x] for x in snps.keys())))
@@ -92,9 +98,34 @@ def summary(args):
     print >> sys.stderr, m
     print >> sys.stderr, tabulate(combinations)
 
-    distinctSNPs = combinations[("ref-A", "alt-B")]
-    print >> sys.stderr, "A total of {0} disparate (ref-A, alt-B) SNPs in {1} contigs.".\
-                format(distinctSNPs, len(distinctSet))
+    leg = "Legend: A - homozygous same, B - homozygous different, X - heterozygous"
+    print >> sys.stderr, leg
+
+    tag = (ref + "-A", alt + "-B")
+    distinctSNPs = combinations[tag]
+    tag = str(tag).replace("'", "")
+    print >> sys.stderr, "A total of {0} disparate {1} SNPs in {2} contigs.".\
+                format(distinctSNPs, tag, len(distinctSet))
+
+    if not opts.counts:
+        return
+
+    snpcountsfile = "snpcounts.txt"
+    fw = open(snpcountsfile, "w")
+    header = "\t".join(("Contig", "#_SNPs", "#_AB_SNP"))
+    print >> fw, header
+
+    assert sum(snpcounts.values()) == nsites
+    assert sum(goodsnpcounts.values()) == distinctSNPs
+
+    for ctg in sorted(snps.keys()):
+        snpcount = snpcounts[ctg]
+        goodsnpcount = goodsnpcounts[ctg]
+        print >> fw, "\t".join(str(x) for x in (ctg, snpcount, goodsnpcount))
+
+    fw.close()
+    logging.debug("SNP counts per contig is written to `{0}`.".\
+                  format(snpcountsfile))
 
 
 def encode_genotype(s, mindepth=3, nohet=False):

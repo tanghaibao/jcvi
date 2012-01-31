@@ -85,7 +85,7 @@ class BiNode (object):
 
 class BiEdge (object):
 
-    def __init__(self, v1, v2, o1, o2):
+    def __init__(self, v1, v2, o1, o2, color="black"):
 
         self.v1 = v1
         self.v2 = v2
@@ -96,6 +96,8 @@ class BiEdge (object):
 
         if v1 > v2:
             self.flip()
+
+        self.color = color
 
     def __str__(self):
         return "".join(str(x) for x in \
@@ -201,6 +203,19 @@ class BiGraph (object):
         return "BiGraph with {0} nodes and {1} edges".\
                 format(len(self.nodes), len(self.edges))
 
+    def read(self, filename, color="black"):
+        fp = open(filename)
+        nedges = 0
+        for row in fp:
+            a, b = row.strip().split("--")
+            oa = a[-1]
+            ob = b[0]
+            a, b = a.strip("<>"), b.strip("<>")
+            self.add_edge(BiEdge(a, b, oa, ob, color=color))
+            nedges += 1
+        logging.debug("A total of {0} edges imported from `{1}` (color={2}).".
+                      format(nedges, filename, color))
+
     def write(self, filename="stdout"):
 
         fw = must_open(filename, "w")
@@ -208,7 +223,7 @@ class BiGraph (object):
             print >> fw, e
         logging.debug("Graph written to `{0}`.".format(filename))
 
-    def draw(self, pngfile, dpi=96):
+    def draw(self, pngfile, dpi=96, verbose=False):
         import pygraphviz as pgv
 
         G = pgv.AGraph()
@@ -220,10 +235,12 @@ class BiGraph (object):
                 arrowtail = not arrowtail
             arrowhead = "normal" if arrowhead else "inv"
             arrowtail = "normal" if arrowtail else "inv"
-            G.add_edge(e.v1, e.v2,
+            G.add_edge(e.v1, e.v2, color=e.color,
                        arrowhead=arrowhead, arrowtail=arrowtail)
 
         G.graph_attr.update(dpi=str(dpi))
+        if verbose:
+            G.write(sys.stderr)
         G.draw(pngfile, prog="neato")
         logging.debug("Graph written to `{0}`.".format(pngfile))
 
@@ -231,7 +248,8 @@ class BiGraph (object):
 def bigraph_test():
     g = BiGraph()
     g.add_edge(BiEdge(1, 2, ">", "<"))
-    g.add_edge(BiEdge(2, 3, "<", "<"))
+    g.add_edge(BiEdge(2, 3, "<", "<", color="red"))
+    g.add_edge(BiEdge(2, 3, ">", ">", color="blue"))
     g.add_edge(BiEdge(5, 3, ">", ">"))
     g.add_edge(BiEdge(4, 3, "<", ">"))
     g.add_edge(BiEdge(4, 6, ">", ">"))
@@ -245,7 +263,7 @@ def bigraph_test():
         print p
         print oo
 
-    g.draw("demo.png")
+    g.draw("demo.png", verbose=True)
 
 
 if __name__ == '__main__':

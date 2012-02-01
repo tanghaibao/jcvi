@@ -43,12 +43,16 @@ def coverage(args):
     Plot coverage from a set of BED files that contain the read mappings. The
     paired read span will be converted to a new bedfile that contain the happy
     mates. ctg is the chr/scf/ctg that you want to plot the histogram on.
+
+    If the bedfiles already contain the clone spans, turn on --spans.
     """
     from jcvi.formats.bed import mates, bedpe
 
     p = OptionParser(coverage.__doc__)
     p.add_option("--ymax", default=None, type="int",
                  help="Limit ymax [default: %default]")
+    p.add_option("--spans", default=False, action="store_true",
+                 help="BED files already contain clone spans [default: %default]")
     opts, args, iopts = set_image_options(p, args, figsize="8x5")
 
     if len(args) < 3:
@@ -66,32 +70,45 @@ def coverage(args):
     bins = 100  # smooth the curve
     lines = []
     legends = []
+    not_covered = []
+    yy = .9
     for bedfile, c in zip(bedfiles, "rgbcky"):
-        pf = bedfile.rsplit(".", 1)[0]
-        matesfile = pf + ".mates"
-        if need_update(bedfile, matesfile):
-            matesfile, matesbedfile = mates([bedfile, "--lib"])
+        if not opts.spans:
+            pf = bedfile.rsplit(".", 1)[0]
+            matesfile = pf + ".mates"
+            if need_update(bedfile, matesfile):
+                matesfile, matesbedfile = mates([bedfile, "--lib"])
 
-        bedspanfile = pf + ".spans.bed"
-        if need_update(matesfile, bedspanfile):
-            bedpefile, bedspanfile = bedpe([bedfile, "--span",
-                "--mates={0}".format(matesfile)])
-        bedfile = bedspanfile
+            bedspanfile = pf + ".spans.bed"
+            if need_update(matesfile, bedspanfile):
+                bedpefile, bedspanfile = bedpe([bedfile, "--span",
+                    "--mates={0}".format(matesfile)])
+            bedfile = bedspanfile
+
+        bedsum = Bed(bedfile).sum(seqid=ctg)
+        notcoveredbases = size - bedsum
+
+        legend = _(bedfile.split(".")[0])
+        msg = "{0}: {1} bp not covered".format(legend, thousands(notcoveredbases))
+        not_covered.append(msg)
+        print >> sys.stderr, msg
+        ax.text(.1, yy, msg, color=c, size=9, transform=ax.transAxes)
+        yy -= .08
 
         cov = Coverage(bedfile, sizes.filename)
         x, y = cov.get_plot_data(ctg, bins=bins)
         line, = ax.plot(x, y, '-', color=c, lw=2, alpha=.5)
         lines.append(line)
-        legend = _(bedfile.split(".")[0])
         legends.append(legend)
 
     leg = ax.legend(lines, legends, shadow=True, fancybox=True)
     leg.get_frame().set_alpha(.5)
 
+    ylabel = "Average depth per {0}Kb".format(size / bins / 1000)
     ax.set_xlim(0, size)
     ax.set_ylim(0, opts.ymax)
     ax.set_xlabel(ctg)
-    ax.set_ylabel("Depth")
+    ax.set_ylabel(ylabel)
     set_human_base_axis(ax)
 
     figname ="{0}.{1}.pdf".format(fastafile, ctg)

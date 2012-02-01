@@ -103,10 +103,16 @@ class Bed(LineFile):
         for bedline in self:
             print >> fw, bedline
 
-    @property
-    def sum(self):
-        ranges = [(x.seqid, x.start, x.end) for x in self]
-        return range_union(ranges)
+    def sum(self, seqid=None, unique=True):
+        if seqid:
+            ranges = [(x.seqid, x.start, x.end) for x in self \
+                        if x.seqid == seqid]
+        else:
+            ranges = [(x.seqid, x.start, x.end) for x in self]
+
+        unique_sum = range_union(ranges)
+        raw_sum = sum(x.span for x in self)
+        return unique_sum if unique else raw_sum
 
     @property
     def seqids(self):
@@ -255,12 +261,19 @@ def sample(args):
     %prog sample bedfile sizesfile
 
     Sample bed file and remove high-coverage regions.
+
+    When option --targetsize is used, this program uses a differnent mode. It
+    first calculates the current total bases from all ranges and then compare to
+    targetsize, if more, then sample down as close to targetsize as possible.
     """
+    import random
     from jcvi.assembly.coverage import Coverage
 
     p = OptionParser(sample.__doc__)
     p.add_option("--max", default=10, type="int",
                  help="Max depth allowed [default: %default]")
+    p.add_option("--targetsize", type="int",
+                 help="Sample bed file to get target base number [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -268,6 +281,22 @@ def sample(args):
 
     bedfile, sizesfile = args
     pf = bedfile.rsplit(".", 1)[0]
+
+    targetsize = opts.targetsize
+    if targetsize:
+        bed = Bed(bedfile)
+        samplebed = pf + ".sample.bed"
+        fw = open(samplebed, "w")
+        nfeats = len(bed)
+        nbases = bed.sum(unique=False)
+        targetfeats = int(round(nfeats * targetsize / nbases))
+        sub_bed = random.sample(bed, targetfeats)
+        for b in sub_bed:
+            print >> fw, b
+
+        logging.debug("File written to `{0}`.".format(samplebed))
+        return
+
     c = Coverage(bedfile, sizesfile)
     coveragefile = c.filename
     samplecoveragefile = pf + ".sample.coverage"
@@ -395,7 +424,15 @@ def summary(args):
     std = int(np.std(spans))
     print >> sys.stderr, "Total seqids: {0}".format(len(bed.seqids))
     print >> sys.stderr, "Total ranges: {0}".format(len(bed))
-    print >> sys.stderr, "Total bases: {0} bp".format(thousands(bed.sum))
+
+    total_bases = bed.sum(unique=False)
+    unique_bases = bed.sum()
+
+    print >> sys.stderr, "Total unique bases: {0} bp".format(thousands(unique_bases))
+    print >> sys.stderr, "Total bases: {0} bp".format(thousands(total_bases))
+    print >> sys.stderr, "Estimated coverage: {0:.1f}x".\
+                        format(total_bases * 1. / unique_bases)
+
     print >> sys.stderr, "Average spans: {0}, stdev: {1}".format(avg, std)
 
 

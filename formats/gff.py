@@ -9,7 +9,7 @@ import itertools
 import logging
 
 from collections import defaultdict
-from urlparse import parse_qs
+from urlparse import parse_qs, unquote
 from optparse import OptionParser
 
 from jcvi.formats.base import LineFile, must_open
@@ -176,6 +176,8 @@ def format(args):
             else:
                 logging.error("{0} not found in `{1}`. ID unchanged.".\
                         format(origid, mapfile))
+
+        g.attributes_text = unquote(g.attributes_text)
         print g
 
 
@@ -361,11 +363,10 @@ def gtf(args):
             continue
 
         try:
-            transcript_id = g.attributes["Parent"] [0]
+            transcript_id = g.attributes["Parent"]
         except IndexError:
-            transcript_id = g.attributes["mRNA"][0]
+            transcript_id = g.attributes["mRNA"]
 
-        transcript_id = transcript_id.split(",")  # Muliple parents
         for tid in transcript_id:
             gene_id = transcript_to_gene[tid]
 
@@ -641,7 +642,8 @@ def load(args):
     db_file = gff_file + ".db"
 
     if need_update(gff_file, db_file):
-        os.remove(db_file)
+        if op.exists(db_file):
+            os.remove(db_file)
         GFFutils.create_gffdb(gff_file, db_file)
 
     f = Fasta(fasta_file, index=False)

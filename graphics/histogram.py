@@ -200,7 +200,7 @@ def main():
     p = OptionParser(main.__doc__)
     p.add_option("--skip", default=0, type="int",
             help="skip the first several lines [default: %default]")
-    p.add_option("--vmin", dest="vmin", default=None, type="int",
+    p.add_option("--vmin", dest="vmin", default=0, type="int",
             help="minimum value, inclusive [default: %default]")
     p.add_option("--vmax", dest="vmax", default=None, type="int",
             help="maximum value, inclusive [default: %default]")

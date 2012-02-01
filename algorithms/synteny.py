@@ -242,9 +242,11 @@ def depth(args):
         qranges.append(qrange)
         sranges.append(srange)
 
-    print >> sys.stderr, "Genome {0} depths:".format(qbed.filename)
+    qgenome = qbed.filename.split(".")[0]
+    sgenome = sbed.filename.split(".")[0]
+    print >> sys.stderr, "Genome {0} depths:".format(qgenome)
     range_depth(qranges, len(qbed))
-    print >> sys.stderr, "Genome {0} depths:".format(sbed.filename)
+    print >> sys.stderr, "Genome {0} depths:".format(sgenome)
     range_depth(sranges, len(sbed))
 
 

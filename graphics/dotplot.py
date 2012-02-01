@@ -75,7 +75,7 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts,
         if len(atoms) < 2:
             continue
         query, subject = atoms[:2]
-        value = atoms[-1] if cmap_text else vmin
+        value = atoms[-1] if cmap_text else vmax
 
         try:
             value = float(value)

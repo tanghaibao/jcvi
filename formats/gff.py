@@ -15,7 +15,8 @@ from optparse import OptionParser
 from jcvi.formats.base import LineFile, must_open
 from jcvi.formats.fasta import Fasta, SeqIO
 from jcvi.formats.bed import Bed, BedLine
-from jcvi.apps.base import ActionDispatcher, set_outfile, mkdir, sh
+from jcvi.utils.iter import flatten
+from jcvi.apps.base import ActionDispatcher, set_outfile, mkdir, need_update, sh
 
 
 Valid_strands = ('+', '-', '?', '.')
@@ -104,14 +105,18 @@ def make_attributes(s, gff3=True):
     Gene 22240.t000374; Note "Carbonic anhydrase"
     """
     if gff3:
-        return parse_qs(s)
+        d = parse_qs(s)
 
-    attributes = s.split("; ")
-    d = defaultdict(list)
-    for a in attributes:
-        key, val = a.strip().split(' ', 1)
-        val = val.replace('"', '')
-        d[key].append(val)
+    else:
+        attributes = s.split("; ")
+        d = defaultdict(list)
+        for a in attributes:
+            key, val = a.strip().split(' ', 1)
+            val = val.replace('"', '')
+            d[key].append(val)
+
+    for key, val in d.items():
+        d[key] = list(flatten([v.split(",") for v in val]))
 
     return d
 
@@ -123,6 +128,7 @@ def main():
         ('bed12', 'produce bed12 file for coding features'),
         ('gtf', 'convert to gtf format'),
         ('sort', 'sort the gff file'),
+        ('format', 'format the gff file, change seqid, etc.'),
         ('uniq', 'remove the redundant gene models'),
         ('liftover', 'adjust gff coordinates based on tile number'),
         ('script', 'parse gmap gff and produce script for sim4db to refine'),
@@ -136,6 +142,41 @@ def main():
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def format(args):
+    """
+    %prog format gffile > formatted.gff
+
+    Read in the gff and print it out, changing seqid, etc.
+    """
+    from jcvi.formats.base import DictFile
+
+    p = OptionParser(format.__doc__)
+    p.add_option("--switch", help="Switch ID from two-column file [default: %default]")
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    gffile, = args
+    gff = Gff(gffile)
+
+    mapfile = opts.switch
+
+    if mapfile:
+        mapping = DictFile(mapfile, delimiter="\t")
+
+    for g in gff:
+        origid = g.seqid
+        if mapfile:
+            if origid in mapping:
+                g.seqid = mapping[origid]
+            else:
+                logging.error("{0} not found in `{1}`. ID unchanged.".\
+                        format(origid, mapfile))
+        print g
 
 
 def liftover(args):
@@ -217,18 +258,18 @@ def uniq(args):
     for g in gff:
         if "Parent" not in g.attributes:
             continue
-        parent = g.attributes["Parent"][0]
-        if parent in bestids:
-            children.add(g.accn)
+        for parent in g.attributes["Parent"]:
+            if parent in bestids:
+                children.add(g.accn)
 
     logging.debug("Populate children. Iteration 2..")
     gff = Gff(gffile)
     for g in gff:
         if "Parent" not in g.attributes:
             continue
-        parent = g.attributes["Parent"][0]
-        if parent in children:
-            children.add(g.accn)
+        for parent in g.attributes["Parent"]:
+            if parent in children:
+                children.add(g.accn)
 
     logging.debug("Filter gff file..")
     gff = Gff(gffile)
@@ -599,7 +640,8 @@ def load(args):
 
     db_file = gff_file + ".db"
 
-    if not op.exists(db_file):
+    if need_update(gff_file, db_file):
+        os.remove(db_file)
         GFFutils.create_gffdb(gff_file, db_file)
 
     f = Fasta(fasta_file, index=False)

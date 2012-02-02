@@ -168,6 +168,8 @@ def format(args):
 
     p = OptionParser(format.__doc__)
     p.add_option("--switch", help="Switch ID from two-column file [default: %default]")
+    p.add_option("--multiparents", default=False, action="store_true",
+                 help="Separate features with multiple parents [default: %default]")
 
     opts, args = p.parse_args(args)
 
@@ -192,8 +194,10 @@ def format(args):
                         format(origid, mapfile))
 
         pp = g.attributes.get("Parent", [])
-        if len(pp) > 1:  # separate multiple parents
-            for parent in pp:
+        if opts.multiparents and len(pp) > 1:  # separate multiple parents
+            id = g.attributes["ID"][0]
+            for i, parent in enumerate(pp):
+                g.attributes["ID"] = ["{0}-{1}".format(id, i + 1)]
                 g.attributes["Parent"] = [parent]
                 g.attributes_text = g._attributes_text()
                 print g

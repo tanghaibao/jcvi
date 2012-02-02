@@ -43,8 +43,8 @@ class GffLine (object):
         self.phase = args[7]
         assert self.phase in Valid_phases, \
                 "phase must be one of {0}".format(Valid_phases)
-        self.attributes_text = args[8].strip()
-        gff3 = "=" in self.attributes_text
+        self.attributes_text = unquote(args[8].strip())
+        self.gff3 = gff3 = "=" in self.attributes_text
         self.attributes = make_attributes(self.attributes_text, gff3=gff3)
         # key is not in the gff3 field, this indicates the conversion to accn
         self.key = key  # usually it's `ID=xxxxx;`
@@ -56,6 +56,20 @@ class GffLine (object):
         return "\t".join(str(x) for x in (self.seqid, self.source, self.type,
                 self.start, self.end, self.score, self.strand, self.phase,
                 self.attributes_text))
+
+    def _attributes_text(self, gff3=None):
+        attributes = []
+        if gff3 is None:
+            gff3 = self.gff3
+
+        sep = ";" if gff3 else "; "
+        for tag, val in sorted(self.attributes.items()):
+            val = ",".join(val)
+            val = "\"{0}\"".format(val) if " " in val or (not gff3) else val
+            equal = "=" if gff3 else " "
+            attributes.append(equal.join((tag, val)))
+
+        return sep.join(attributes) + ";"
 
     @property
     def accn(self):
@@ -177,8 +191,14 @@ def format(args):
                 logging.error("{0} not found in `{1}`. ID unchanged.".\
                         format(origid, mapfile))
 
-        g.attributes_text = unquote(g.attributes_text)
-        print g
+        pp = g.attributes.get("Parent", [])
+        if len(pp) > 1:  # separate multiple parents
+            for parent in pp:
+                g.attributes["Parent"] = [parent]
+                g.attributes_text = g._attributes_text()
+                print g
+        else:
+            print g
 
 
 def liftover(args):
@@ -369,10 +389,9 @@ def gtf(args):
 
         for tid in transcript_id:
             gene_id = transcript_to_gene[tid]
+            g.attributes = dict(gene_id=[gene_id], transcript_id=[tid])
+            g.attributes_text = g._attributes_text(gff3=False)
 
-            g.attributes_text = "; ".join('{0} "{1}"'.format(a, b) for a, b in \
-                    zip(("gene_id", "transcript_id"), (gene_id, tid)))
-            g.attributes_text += ";"
             print g
 
 

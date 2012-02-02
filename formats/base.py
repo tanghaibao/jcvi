@@ -300,9 +300,37 @@ def main():
 
     actions = (
         ('split', 'split large file into N chunks'),
+        ('reorder', 'reorder columns in tab-delimited files'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def reorder(args):
+    """
+    %prog reorder tabfile 1,2,4,3 > newtabfile
+
+    Reorder columns in tab-delimited files. The above syntax will print out a
+    new file with col-1,2,4,3 from the old file.
+    """
+    import csv
+
+    p = OptionParser(reorder.__doc__)
+    p.add_option("--sep", default="\t",
+                 help="Separater for the tabfile [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    tabfile, order = args
+    sep = opts.sep
+    order = [int(x) - 1 for x in order.split(",")]
+    reader = csv.reader(open(tabfile), delimiter=sep)
+    writer = csv.writer(sys.stdout, delimiter=sep)
+    for row in reader:
+        newrow = [row[x] for x in order]
+        writer.writerow(newrow)
 
 
 def split(args):

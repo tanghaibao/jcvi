@@ -91,6 +91,10 @@ class Fasta (BaseFile, dict):
             description = rec.description
             yield k, description
 
+    @property
+    def totalsize(self):
+        return sum(size for k, size in self.itersizes())
+
     @classmethod
     def subseq(cls, fasta, start=None, stop=None, strand=None):
         """
@@ -796,7 +800,7 @@ def pair(args):
     if len(args) != 1:
         sys.exit(p.print_help())
 
-    fastafile = args[0]
+    fastafile, = args
     qualfile = get_qual(fastafile)
 
     prefix = fastafile.rsplit(".", 1)[0]
@@ -816,7 +820,7 @@ def pair(args):
         fragsqualfile = fragsfile + ".qual"
         fragsqualhandle = open(fragsqualfile, "w")
 
-    f = Fasta(args[0])
+    f = Fasta(fastafile)
     if qualfile:
         q = SeqIO.index(qualfile, "qual")
 

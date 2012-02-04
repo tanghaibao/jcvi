@@ -40,6 +40,7 @@ class DictFile (BaseFile, dict):
 
         fp = must_open(filename)
         ncols = max(keypos, valuepos) + 1
+        thiscols = 0
         for lineno, row in enumerate(fp):
             row = row.rstrip()
             atoms = row.split(delimiter)
@@ -54,6 +55,7 @@ class DictFile (BaseFile, dict):
             value = atoms[valuepos] if (valuepos is not None) else atoms
             self[key] = value
 
+        assert thiscols, "File empty"
         self.ncols = thiscols
         logging.debug("Imported {0} records from `{1}`.".\
                     format(len(self), filename))

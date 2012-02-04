@@ -25,6 +25,7 @@ debug()
 orientationlabels = {"++": "normal", "+-": "innie", "-+": "outie", "--": "antinormal"}
 orientationflips = {"++": "--", "+-": "-+", "-+": "+-", "--": "++"}
 types = {"PE": "fragment", "MP": "jumping", "TT": "jumping", "LL": "long"}
+header = ("Length", "L50", "N50", "Min", "Max", "N")
 
 FastqNamings = """
     The naming schemes for the fastq files are.
@@ -143,19 +144,60 @@ def n50(args):
     sumsize = sum(ctgsizes)
     minsize = min(ctgsizes)
     maxsize = max(ctgsizes)
+    n = len(ctgsizes)
     print >> sys.stderr, ", ".join(args)
-    print >> sys.stderr, "Length={0} L50={1} N50={2} Min={3} Max={4} N={5}".\
-            format(sumsize, l50, nn50, minsize, maxsize, len(ctgsizes))
+
+    summary = (sumsize, l50, nn50, minsize, maxsize, n)
+    print >> sys.stderr, " ".join("{0}={1}".format(a, b) for a, b in \
+                        zip(header, summary))
     loghistogram(ctgsizes, summary=False)
+
+    return zip(header, summary)
 
 
 def main():
 
     actions = (
-            ('n50', "Given a list of numbers, calculate N50"),
+            ('n50', "Given FASTA or a list of contig sizes, calculate N50"),
+            ('allstats', "Summarize multiple FASTA in a table"),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def allstats(args):
+    """
+    %prog allstats fastafiles
+
+    Summarize multiple FASTA in a table.
+    """
+    from jcvi.utils.table import tabulate
+
+    p = OptionParser(allstats.__doc__)
+    p.add_option("--exclude", help="Exclude statistics, must be {0}, "
+                      "multiple separated by comma [default: %default]".\
+                      format("|".join(header))
+                 )
+
+    opts, args = p.parse_args(args)
+
+    if len(args) < 1:
+        sys.exit(not p.print_help())
+
+    fastafiles = args
+    exclude = opts.exclude.split(",")
+    assert all(x in header for x in exclude)
+
+    tabledict = {}
+    for fastafile in fastafiles:
+        pf = fastafile.rsplit(".", 1)[0]
+        for key, val in n50([fastafile]):
+            if key in exclude:
+                continue
+            tabledict[(pf, key)] = val
+
+    table = tabulate(tabledict)
+    print >> sys.stderr, table
 
 
 if __name__ == '__main__':

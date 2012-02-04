@@ -177,12 +177,12 @@ def format(args):
         sys.exit(not p.print_help())
 
     gffile, = args
-    gff = Gff(gffile)
-
     mapfile = opts.switch
 
     if mapfile:
         mapping = DictFile(mapfile, delimiter="\t")
+
+    gff = Gff(gffile)
 
     for g in gff:
         origid = g.seqid

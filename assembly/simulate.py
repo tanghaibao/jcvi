@@ -26,7 +26,7 @@ def main():
 
 def wgsim(args):
     """
-    %prog wgsim fastafile outprefix
+    %prog wgsim fastafile
 
     Run dwgsim on fastafile.
     """
@@ -41,10 +41,12 @@ def wgsim(args):
                  help="Length of the read [default: %default]")
     opts, args = p.parse_args(args)
 
-    if len(args) != 2:
+    if len(args) != 1:
         sys.exit(not p.print_help())
 
-    fastafile, outpf = args
+    fastafile, = args
+    pf = fastafile.split(".")[0]
+
     size = Fasta(fastafile).totalsize
     depth = opts.depth
     readlen = opts.readlen
@@ -52,6 +54,8 @@ def wgsim(args):
 
     distance = opts.distance
     stdev = distance / 5
+
+    outpf = "{0}.{1}bp.{2}x".format(pf, distance, depth)
     distance -= 2 * readlen  # Outer distance => Inner distance
 
     logging.debug("Total FASTA size: {0} bp".format(size))

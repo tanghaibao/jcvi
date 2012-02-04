@@ -494,6 +494,7 @@ def format(args):
     p.add_option("--template", default=False, action="store_true",
             help="Extract `template=aaa dir=x library=m` to `m-aaa/x` [default: %default]")
     p.add_option("--switch", help="Switch ID from two-column file [default: %default]")
+    p.add_option("--ids", help="Generate ID conversion table [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -509,6 +510,8 @@ def format(args):
     sequential = opts.sequential
     idx = opts.index
     mapfile = opts.switch
+    idsfile = opts.ids
+    idsfile = open(idsfile, "w") if idsfile else None
 
     if mapfile:
         mapping = DictFile(mapfile, delimiter="\t")
@@ -553,8 +556,15 @@ def format(args):
                 logging.error("{0} not found in `{1}`. ID unchanged.".\
                         format(origid, mapfile))
         rec.description = ""
+        if idsfile:
+            print >> idsfile, "\t".join((origid, rec.id))
 
         SeqIO.write(rec, fw, "fasta")
+
+    if idsfile:
+        logging.debug("Conversion table written to `{0}`.".\
+                      format(idsfile.name))
+        idsfile.close()
 
 
 def print_first_difference(arec, brec, ignore_case=False, ignore_N=False,

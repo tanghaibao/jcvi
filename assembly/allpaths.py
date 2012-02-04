@@ -195,8 +195,12 @@ def extract_pairs(fastqfile, p1fw, p2fw, fragsfw, p):
             fragsfw.writelines(islice(fp, 4))  # Exhaust the iterator
             currentID += 1
             nfrags += 1
-        p1fw[lib].writelines(islice(fp, 4))
-        p2fw[lib].writelines(islice(fp, 4))
+        a = list(islice(fp, 4))
+        b = list(islice(fp, 4))
+        b[0] = a[0]  # Keep same read ID for pairs
+
+        p1fw[lib].writelines(a)
+        p2fw[lib].writelines(b)
         currentID += 2
         npairs += 2
 

@@ -639,7 +639,8 @@ def load(args):
 
     Parses the selected features out of GFF, with subfeatures concatenated.
     For example, to get the CDS sequences, do this::
-        %prog athaliana.gff athaliana.fa --parents mRNA --children CDS
+
+    $ %prog load athaliana.gff athaliana.fa --parents mRNA --children CDS
     '''
     import GFFutils
 

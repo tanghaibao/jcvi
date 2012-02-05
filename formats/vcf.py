@@ -11,6 +11,7 @@ import logging
 from collections import defaultdict
 from optparse import OptionParser
 
+from jcvi.formats.sizes import Sizes
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
@@ -18,11 +19,57 @@ debug()
 def main():
 
     actions = (
+        ('location', 'given SNP locations characterize the locations'),
         ('mstmap', 'convert vcf format to mstmap input'),
         ('summary', 'summarize the genotype calls in table'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def location(args):
+    """
+    %prog location bedfile fastafile
+
+    Given SNP locations, summarize the locations in the sequences. For example,
+    find out if there are more 3`-SNPs than 5`-SNPs.
+    """
+    from jcvi.formats.bed import BedLine
+    from jcvi.graphics.histogram import stem_leaf_plot
+
+    p = OptionParser(location.__doc__)
+    p.add_option("--dist", default=100, type="int",
+                 help="Distance cutoff to call 5` and 3` [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    bedfile, fastafile = args
+    dist = opts.dist
+    sizes = Sizes(fastafile).mapping
+    fp = open(bedfile)
+    fiveprime = threeprime = total = 0
+    percentages = []
+    for row in fp:
+        b = BedLine(row)
+        pos = b.start
+        size = sizes[b.seqid]
+        if pos < dist:
+            fiveprime += 1
+        if size - pos < dist:
+            threeprime += 1
+        total += 1
+        percentages.append(100 * pos / size)
+
+    m = "Five prime (within {0}bp of start codon): {1}\n".format(dist, fiveprime)
+    m += "Three prime (within {0}bp of stop codon): {1}\n".format(dist, threeprime)
+    m += "Total: {0}".format(total)
+    print >> sys.stderr, m
+
+    bins = 10
+    title = "Locations within the gene [0=Five-prime, 100=Three-prime]"
+    stem_leaf_plot(percentages, 0, 100, bins, title=title)
 
 
 def summary(args):
@@ -38,19 +85,21 @@ def summary(args):
     Only three-column file is supported:
     locus_id    intra- genotype    inter- genotype
     """
-    from jcvi.formats.sizes import Sizes
     from jcvi.utils.cbook import thousands
     from jcvi.utils.table import tabulate
 
     p = OptionParser(summary.__doc__)
-    p.add_option("--counts", default=False, action="store_true",
-                 help="Print SNP counts in `snpcounts.txt` [default: %default]")
+    p.add_option("--counts",
+                 help="Print SNP counts in a txt file [default: %default]")
+    p.add_option("--bed",
+                 help="Print SNPs locations in a bed file [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
         sys.exit(not p.print_help())
 
     txtfile, fastafile = args
+    bedfw = open(opts.bed, "w") if opts.bed else None
 
     fp = open(txtfile)
     header = fp.next().split()  # Header
@@ -82,6 +131,14 @@ def summary(args):
         inter = alt + "-" + inter
         combinations[(intra, inter)] += 1
 
+        if bedfw:
+            print >> bedfw, "\t".join(str(x) for x in \
+                        (ctg, pos - 1, pos, locus))
+
+    if bedfw:
+        logging.debug("SNP locations written to `{0}`.".format(opts.bed))
+        bedfw.close()
+
     nsites = sum(len(x) for x in snps.values())
     ncontigs = len(snps)
     sizes = Sizes(fastafile)
@@ -110,7 +167,7 @@ def summary(args):
     if not opts.counts:
         return
 
-    snpcountsfile = "snpcounts.txt"
+    snpcountsfile = opts.counts
     fw = open(snpcountsfile, "w")
     header = "\t".join(("Contig", "#_SNPs", "#_AB_SNP"))
     print >> fw, header

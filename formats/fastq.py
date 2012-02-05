@@ -178,8 +178,6 @@ def checkShuffleSizes(p1, p2, pairsfastq, extra=0):
           "The sizes do not add up: {0} + {1} + {2} != {3}".\
           format(p1size, p2size, extra, pairssize)
 
-    logging.debug("File sizes verified.")
-
 
 def shuffle(args):
     """
@@ -220,7 +218,10 @@ def shuffle(args):
         nreads += 2
 
     pairsfw.close()
-    checkShuffleSizes(p1, p2, pairsfastq, extra=nreads * 2)
+    extra = nreads * 2 if tag else 0
+    checkShuffleSizes(p1, p2, pairsfastq, extra=extra)
+
+    logging.debug("File sizes verified after writing {0} reads.".format(nreads))
 
 
 def split(args):
@@ -593,8 +594,8 @@ def pair(args):
             help="deposit output files into specified directory")
     opts, args = p.parse_args(args)
 
-    if len(args) != 2:
-        sys.exit(p.print_help())
+    if len(args) != 3:
+        sys.exit(not p.print_help())
 
     afastq, bfastq, ref = args
 

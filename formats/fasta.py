@@ -215,7 +215,7 @@ def translate(args):
     f = Fasta(cdsfasta, lazy=True)
     fw = must_open(opts.outfile, "w")
     five_prime_missing = three_prime_missing = 0
-    total = complete = 0
+    contain_ns = total = complete = 0
 
     for name, rec in f.iteritems_ordered():
         cds = rec.seq
@@ -233,11 +233,14 @@ def translate(args):
 
         contains_start = pep.startswith("M")
         contains_stop = pep.endswith("*")
+        contains_ns = "X" in pep
 
         if not contains_start:
             five_prime_missing += 1
         if not contains_stop:
             three_prime_missing += 1
+        if contains_ns:
+            contain_ns += 1
         if contains_start and contains_stop:
             complete += 1
 
@@ -251,6 +254,8 @@ def translate(args):
                         format(percentage(five_prime_missing, total))
     print >> sys.stderr, "Missing 3`-end: {0}".\
                         format(percentage(three_prime_missing, total))
+    print >> sys.stderr, "Contain Ns: {0}".\
+                        format(percentage(contain_ns, total))
 
 
 def filter(args):

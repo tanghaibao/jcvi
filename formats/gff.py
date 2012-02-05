@@ -596,19 +596,22 @@ def bed(args):
     '''
     p = OptionParser(bed.__doc__)
     p.add_option("--type", dest="type", default="gene",
-            help="the feature type to extract [default: %default]")
+            help="Feature type to extract, use comma for multiple [default: %default]")
     p.add_option("--key", dest="key", default="ID",
-            help="the key in the attributes to extract [default: %default]")
+            help="Key in the attributes to extract [default: %default]")
 
     opts, args = p.parse_args(args)
     if len(args) != 1:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
+    gffile, = args
     key = opts.key
     if key == "None":
         key = None
 
-    fp = open(args[0])
+    type = set(x.strip() for x in opts.type.split(","))
+
+    fp = open(gffile)
     b = Bed()
 
     seen = set()
@@ -621,7 +624,7 @@ def bed(args):
             continue
 
         g = GffLine(row, key=key)
-        if g.type != opts.type:
+        if g.type not in type:
             continue
 
         if g.seqid in seen:

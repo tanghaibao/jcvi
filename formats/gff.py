@@ -636,6 +636,21 @@ def bed(args):
     b.print_to_file()
 
 
+def make_index(gff_file):
+    """
+    Make a sqlite database for fast retrieval of features.
+    """
+    import GFFutils
+    db_file = gff_file + ".db"
+
+    if need_update(gff_file, db_file):
+        if op.exists(db_file):
+            os.remove(db_file)
+        GFFutils.create_gffdb(gff_file, db_file)
+
+    return db_file
+
+
 def load(args):
     '''
     %prog load gff_file fasta_file [--options]
@@ -666,13 +681,7 @@ def load(args):
     gff_file, fasta_file = args
     parents, children = opts.parents, opts.children
 
-    db_file = gff_file + ".db"
-
-    if need_update(gff_file, db_file):
-        if op.exists(db_file):
-            os.remove(db_file)
-        GFFutils.create_gffdb(gff_file, db_file)
-
+    db_file = make_index(gff_file)
     f = Fasta(fasta_file, index=False)
     g = GFFutils.GFFDB(db_file)
     fw = must_open(opts.outfile, "w")

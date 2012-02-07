@@ -48,7 +48,7 @@ def trim(args):
             help="Phred score offset {0} [default: guess]".format(phdchoices))
     p.add_option("--nofrags", default=False, action="store_true",
             help="Discard frags file in PE mode [default: %default]")
-    p.add_option("--minqv", default=15, type="int",
+    p.add_option("--minqv", default=10, type="int",
             help="Average qv after trimming [default: %default]")
     p.add_option("--minlen", default=30, type="int",
             help="Minimum length after trimming [default: %default]")

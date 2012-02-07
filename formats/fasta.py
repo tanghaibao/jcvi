@@ -91,6 +91,10 @@ class Fasta (BaseFile, dict):
             description = rec.description
             yield k, description
 
+    @property
+    def totalsize(self):
+        return sum(size for k, size in self.itersizes())
+
     @classmethod
     def subseq(cls, fasta, start=None, stop=None, strand=None):
         """
@@ -211,7 +215,7 @@ def translate(args):
     f = Fasta(cdsfasta, lazy=True)
     fw = must_open(opts.outfile, "w")
     five_prime_missing = three_prime_missing = 0
-    total = complete = 0
+    contain_ns = total = complete = 0
 
     for name, rec in f.iteritems_ordered():
         cds = rec.seq
@@ -229,11 +233,14 @@ def translate(args):
 
         contains_start = pep.startswith("M")
         contains_stop = pep.endswith("*")
+        contains_ns = "X" in pep
 
         if not contains_start:
             five_prime_missing += 1
         if not contains_stop:
             three_prime_missing += 1
+        if contains_ns:
+            contain_ns += 1
         if contains_start and contains_stop:
             complete += 1
 
@@ -247,6 +254,8 @@ def translate(args):
                         format(percentage(five_prime_missing, total))
     print >> sys.stderr, "Missing 3`-end: {0}".\
                         format(percentage(three_prime_missing, total))
+    print >> sys.stderr, "Contain Ns: {0}".\
+                        format(percentage(contain_ns, total))
 
 
 def filter(args):
@@ -490,6 +499,7 @@ def format(args):
     p.add_option("--template", default=False, action="store_true",
             help="Extract `template=aaa dir=x library=m` to `m-aaa/x` [default: %default]")
     p.add_option("--switch", help="Switch ID from two-column file [default: %default]")
+    p.add_option("--ids", help="Generate ID conversion table [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -505,6 +515,8 @@ def format(args):
     sequential = opts.sequential
     idx = opts.index
     mapfile = opts.switch
+    idsfile = opts.ids
+    idsfile = open(idsfile, "w") if idsfile else None
 
     if mapfile:
         mapping = DictFile(mapfile, delimiter="\t")
@@ -549,8 +561,15 @@ def format(args):
                 logging.error("{0} not found in `{1}`. ID unchanged.".\
                         format(origid, mapfile))
         rec.description = ""
+        if idsfile:
+            print >> idsfile, "\t".join((origid, rec.id))
 
         SeqIO.write(rec, fw, "fasta")
+
+    if idsfile:
+        logging.debug("Conversion table written to `{0}`.".\
+                      format(idsfile.name))
+        idsfile.close()
 
 
 def print_first_difference(arec, brec, ignore_case=False, ignore_N=False,
@@ -796,7 +815,7 @@ def pair(args):
     if len(args) != 1:
         sys.exit(p.print_help())
 
-    fastafile = args[0]
+    fastafile, = args
     qualfile = get_qual(fastafile)
 
     prefix = fastafile.rsplit(".", 1)[0]
@@ -816,7 +835,7 @@ def pair(args):
         fragsqualfile = fragsfile + ".qual"
         fragsqualhandle = open(fragsqualfile, "w")
 
-    f = Fasta(args[0])
+    f = Fasta(fastafile)
     if qualfile:
         q = SeqIO.index(qualfile, "qual")
 

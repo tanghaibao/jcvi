@@ -168,15 +168,15 @@ def deconvolute(args):
              zip(barcodes, excludebarcodes, nbc * [outdir], nbc * [fastqfile]))
 
 
-def checkShuffleSizes(p1, p2, pairsfastq):
+def checkShuffleSizes(p1, p2, pairsfastq, extra=0):
     from jcvi.apps.base import getfilesize
 
     pairssize = getfilesize(pairsfastq)
     p1size = getfilesize(p1)
     p2size = getfilesize(p2)
-    assert pairssize == p1size + p2size, \
-          "The sizes do not add up: {0} + {1} != {2}".\
-          format(p1size, p2size, pairssize)
+    assert pairssize == p1size + p2size + extra, \
+          "The sizes do not add up: {0} + {1} + {2} != {3}".\
+          format(p1size, p2size, extra, pairssize)
 
 
 def shuffle(args):
@@ -188,31 +188,40 @@ def shuffle(args):
     from itertools import izip, islice
 
     p = OptionParser(shuffle.__doc__)
+    p.add_option("--tag", dest="tag", default=False, action="store_true",
+            help="add tag (/1, /2) to the read name")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
         sys.exit(not p.print_help())
 
     p1, p2, pairsfastq = args
+    tag = opts.tag
 
-    if p1.endswith(".gz") or p2.endswith(".gz"):
-        p1fp = must_open(p1)
-        p2fp = must_open(p2)
-        pairsfw = must_open(pairsfastq, "w")
-        while True:
-            a = list(islice(p1fp, 4))
-            if not a:
-                break
+    p1fp = must_open(p1)
+    p2fp = must_open(p2)
+    pairsfw = must_open(pairsfastq, "w")
+    nreads = 0
+    while True:
+        a = list(islice(p1fp, 4))
+        if not a:
+            break
 
-            pairsfw.writelines(a)
-            pairsfw.writelines(islice(p2fp, 4))
+        b = list(islice(p2fp, 4))
+        if tag:
+            name = a[0].rstrip()
+            a[0] = name + "/1\n"
+            b[0] = name + "/2\n"
 
-        return
+        pairsfw.writelines(a)
+        pairsfw.writelines(b)
+        nreads += 2
 
-    cmd = "shuffleSequences_fastq.pl {0} {1} {2}".format(*args)
-    sh(cmd)
+    pairsfw.close()
+    extra = nreads * 2 if tag else 0
+    checkShuffleSizes(p1, p2, pairsfastq, extra=extra)
 
-    checkShuffleSizes(p1, p2, pairsfastq)
+    logging.debug("File sizes verified after writing {0} reads.".format(nreads))
 
 
 def split(args):
@@ -567,7 +576,7 @@ def pairinplace(args):
 
 def pair(args):
     """
-    %prog pair 1.fastq 2.fastq
+    %prog pair 1.fastq 2.fastq ref.fastq
 
     Pair up the records in 1.fastq and 2.fastq, pairs are indicated by trailing
     "/1" and "/2". If using raw sequences, this is trivial, since we can just
@@ -581,16 +590,14 @@ def pair(args):
             help="input fastq [default: %default]")
     p.add_option("-q", dest="outfastq", default="sanger",
             help="output fastq format [default: %default]")
-    p.add_option("-r", dest="ref", default=None,
-            help="a reference fastq that provides order")
     p.add_option("-o", dest="outputdir", default=None,
             help="deposit output files into specified directory")
     opts, args = p.parse_args(args)
 
-    if len(args) != 2:
-        sys.exit(p.print_help())
+    if len(args) != 3:
+        sys.exit(not p.print_help())
 
-    afastq, bfastq = args
+    afastq, bfastq, ref = args
 
     assert op.exists(afastq) and op.exists(bfastq)
     logging.debug("pair up `%s` and `%s`" % (afastq, bfastq))
@@ -622,34 +629,33 @@ def pair(args):
     fragsfw = open(frags, "w")
     pairsfw = open(pairs, "w")
 
-    if ref:
-        for r in iter_fastq(ref, offset=0, key=strip_name):
-            if not a or not b or not r:
-                break
+    for r in iter_fastq(ref, offset=0, key=strip_name):
+        if not a or not b or not r:
+            break
 
-            if a.id == b.id:
-                print >>pairsfw, a
-                print >>pairsfw, b
-                a = ah_iter.next()
-                b = bh_iter.next()
-            elif a.id == r.id:
-                print >>fragsfw, a
-                a = ah_iter.next()
-            elif b.id == r.id:
-                print >>fragsfw, b
-                b = bh_iter.next()
-
-            # update progress
-            pos = rh.tell()
-
-        # write all the leftovers to frags file
-        while a:
+        if a.id == b.id:
+            print >>pairsfw, a
+            print >>pairsfw, b
+            a = ah_iter.next()
+            b = bh_iter.next()
+        elif a.id == r.id:
             print >>fragsfw, a
             a = ah_iter.next()
-
-        while b:
+        elif b.id == r.id:
             print >>fragsfw, b
             b = bh_iter.next()
+
+        # update progress
+        pos = rh.tell()
+
+    # write all the leftovers to frags file
+    while a:
+        print >>fragsfw, a
+        a = ah_iter.next()
+
+    while b:
+        print >>fragsfw, b
+        b = bh_iter.next()
 
 
 if __name__ == '__main__':

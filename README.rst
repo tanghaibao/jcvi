@@ -116,6 +116,7 @@ Most of the scripts in this package contains multiple actions. To use the
 
     Available actions:
         `extract`: given fasta file and seq id, retrieve the sequence in fasta format
+        `translate`: translate CDS to proteins
         `summary`: report the real no of bases and N's in fastafiles
         `uniq`: remove records that are the same
         `ids`: generate a list of headers

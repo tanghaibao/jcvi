@@ -102,9 +102,12 @@ class GridProcess (object):
 
     pat = re.compile(r"Your job (?P<id>[0-9]*) ")
 
-    def __init__(self, cmd, jobid="", infile=None, outfile=None, errfile=None):
+    def __init__(self, cmd, jobid="", queue="default",
+                       infile=None, outfile=None, errfile=None):
+
         self.cmd = cmd
         self.jobid = jobid
+        self.queue = queue
         self.infile = infile
         self.outfile = outfile
         self.errfile = errfile
@@ -131,16 +134,18 @@ class GridProcess (object):
             os.chdir(path)
 
         # qsub command (the project code is specific to jcvi)
-        qsub = "qsub -cwd -P {0} ".format(PCODE)
+        qsub = "qsub -cwd -P {0}".format(PCODE)
+        if self.queue != "default":
+            qsub += " -l {0}".format(self.queue)
 
         if self.infile:
-            qsub += "-i {0} ".format(self.infile)
+            qsub += " -i {0}".format(self.infile)
         if self.outfile:
-            qsub += "-o {0} ".format(self.outfile)
+            qsub += " -o {0}".format(self.outfile)
         if self.errfile:
-            qsub += "-e {0} ".format(self.errfile)
+            qsub += " -e {0}".format(self.errfile)
 
-        cmd = qsub + self.cmd
+        cmd = '{0} "{1}"'.format(qsub, self.cmd)
         # run the command and get the job-ID (important)
         output = popen(cmd, debug=False).read()
 
@@ -283,7 +288,12 @@ def run(args):
     %prog run process {} {.}.pdf ::: *fastq  # use :::
     %prog run "zcat {} >{.}" ::: *.gz  # quote redirection
     """
+    queue_choices = ("default", "fast", "medium", "himem")
     p = OptionParser(run.__doc__)
+    p.add_option("-l", dest="queue", default="default", choices=queue_choices,
+                 help="Name of the queue, one of {0} [default: %default]".\
+                      format("|".join(queue_choices)))
+    opts, args = p.parse_args(args)
 
     if len(args) == 0:
         sys.exit(not p.print_help())
@@ -323,7 +333,7 @@ def run(args):
             ncmd, outfile = ncmd.split(">", 1)
             ncmd, outfile = ncmd.strip(), outfile.strip()
 
-        p = GridProcess(ncmd, outfile=outfile)
+        p = GridProcess(ncmd, queue=opts.queue, outfile=outfile)
         p.start(path=None)  # current folder
 
 

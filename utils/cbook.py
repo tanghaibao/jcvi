@@ -87,7 +87,7 @@ Functions that make text formatting easier.
 
 class SummaryStats (object):
 
-    def __init__(self, a):
+    def __init__(self, a, title=None):
         import numpy as np
 
         self.data = a = np.array(a)
@@ -97,11 +97,14 @@ class SummaryStats (object):
         self.mean = np.mean(a)
         self.sd = np.std(a)
         self.median = np.median(a)
+        self.title = title
 
     def __str__(self):
-        return "Min={0} Max={1} N={2} Mean={3:.0f} SD={4:.0f} Median={5:.0f}".\
+        s = self.title + ": " or ""
+        s += "Min={0} Max={1} N={2} Mean={3:.0f} SD={4:.0f} Median={5:.0f}".\
                 format(self.min, self.max, self.size,
                        self.mean, self.sd, self.median)
+        return s
 
 
 def percentage(a, b, denominator=True):

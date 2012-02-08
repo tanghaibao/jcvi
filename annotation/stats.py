@@ -32,8 +32,6 @@ def stats(args):
     here and so normally we call "gene" are actually mRNA, and "exon" are actually
     CDS, but they are configurable.
     """
-    import GFFutils
-
     from jcvi.utils.cbook import SummaryStats
     from jcvi.utils.range import range_interleave
 
@@ -48,8 +46,7 @@ def stats(args):
         sys.exit(not p.print_help())
 
     gff_file, = args
-    db_file = make_index(gff_file)
-    g = GFFutils.GFFDB(db_file)
+    g = make_index(gff_file)
     exon_lengths = []
     intron_lengths = []
     gene_lengths = []
@@ -68,10 +65,12 @@ def stats(args):
         gene_lengths.append(sum(feat_exon_lengths))
         exon_counts.append(len(feat_exon_lengths))
 
-    print >> sys.stderr, SummaryStats(exon_lengths, title="Exon Length")
-    print >> sys.stderr, SummaryStats(intron_lengths, title="Intron Length")
-    print >> sys.stderr, SummaryStats(gene_lengths, title="Gene Length")
-    print >> sys.stderr, SummaryStats(exon_counts, title="Exon Count")
+    a = SummaryStats(exon_lengths, title="Exon Length")
+    b = SummaryStats(intron_lengths, title="Intron Length")
+    c = SummaryStats(gene_lengths, title="Gene Length")
+    d = SummaryStats(exon_counts, title="Exon Count")
+    for x in (a, b, c, d):
+        print >> sys.stderr, x
 
 
 if __name__ == '__main__':

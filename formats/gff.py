@@ -91,10 +91,12 @@ class GffLine (object):
 
 class Gff (LineFile):
 
-    def __init__(self, filename):
+    def __init__(self, filename, key="ID"):
         super(Gff, self).__init__(filename)
+        self.key = key
 
-        fp = open(filename)
+    def __iter__(self):
+        fp = open(self.filename)
         for row in fp:
             row = row.strip()
             if row[0] == '#':
@@ -103,7 +105,7 @@ class Gff (LineFile):
                 continue
             if row.strip() == "":
                 continue
-            self.append(GffLine(row))
+            yield GffLine(row, key=self.key)
 
     @property
     def seqids(self):
@@ -167,7 +169,7 @@ def format(args):
     from jcvi.formats.base import DictFile
 
     p = OptionParser(format.__doc__)
-    p.add_option("--switch", help="Switch ID from two-column file [default: %default]")
+    p.add_option("--switch", help="Switch seqid from two-column file [default: %default]")
     p.add_option("--multiparents", default=False, action="store_true",
                  help="Separate features with multiple parents [default: %default]")
 
@@ -261,16 +263,21 @@ def uniq(args):
         allgenes.append(g)
 
     logging.debug("A total of {0} genes imported.".format(len(allgenes)))
-    allgenes.sort(key=lambda x: x.start)
+    allgenes.sort(key=lambda x: (x.seqid, x.start))
 
     g = Grouper()
-    for a, b in pairwise(allgenes):
+    ngenes = len(allgenes)
+    for i, a in enumerate(allgenes):
         arange = (a.seqid, a.start, a.end)
-        brange = (b.seqid, b.start, b.end)
         g.join(a)
-        g.join(b)
-        if range_overlap(arange, brange):
-            g.join(a, b)
+        for j in xrange(i + 1, ngenes):
+            b = allgenes[j]
+            brange = (b.seqid, b.start, b.end)
+            g.join(b)
+            if range_overlap(arange, brange):
+                g.join(a, b)
+            else:
+                break
 
     bestids = set()
     for group in g:
@@ -531,13 +538,9 @@ def note(args):
     key = opts.key
     attrib = opts.attribute
 
-    fp = open(gffile)
+    gff = Gff(gffile)
     seen = set()
-    for row in fp:
-        if row[0] == '#':
-            continue
-
-        g = GffLine(row)
+    for g in gff:
         if attrib in g.attributes:
             keyval = (g.attributes[key][0], g.attributes[attrib][0])
             if keyval not in seen:
@@ -559,18 +562,14 @@ def script(args):
 
     gffile, cdnafasta, genomefasta = args
     scriptfile = gffile + ".script"
-    fp = open(gffile)
+    gff = Gff(gffile)
     fw = open(scriptfile, "w")
     cdnas = Fasta(cdnafasta, lazy=True)
     cdnas = dict((x, i) for (i, x) in enumerate(cdnas.iterkeys_ordered()))
     genomes = Fasta(genomefasta, lazy=True)
     genomes = dict((x, i) for (i, x) in enumerate(genomes.iterkeys_ordered()))
     extra = 50000  # 50-kb region surrounding the locus
-    for row in fp:
-        if row[0] == '#':
-            continue
-
-        g = GffLine(row)
+    for g in gff:
         if g.type != "mRNA":
             continue
 
@@ -611,19 +610,11 @@ def bed(args):
 
     type = set(x.strip() for x in opts.type.split(","))
 
-    fp = open(gffile)
+    gff = Gff(gffile, key=key)
     b = Bed()
 
     seen = set()
-    for row in fp:
-
-        if row[0] == '#':
-            continue
-
-        if row.strip() == "":
-            continue
-
-        g = GffLine(row, key=key)
+    for g in gff:
         if g.type not in type:
             continue
 
@@ -648,7 +639,7 @@ def make_index(gff_file):
             os.remove(db_file)
         GFFutils.create_gffdb(gff_file, db_file)
 
-    return db_file
+    return GFFutils.GFFDB(db_file)
 
 
 def load(args):
@@ -660,8 +651,6 @@ def load(args):
 
     $ %prog load athaliana.gff athaliana.fa --parents mRNA --children CDS
     '''
-    import GFFutils
-
     from jcvi.formats.fasta import Seq, SeqRecord
 
     p = OptionParser(load.__doc__)
@@ -681,9 +670,8 @@ def load(args):
     gff_file, fasta_file = args
     parents, children = opts.parents, opts.children
 
-    db_file = make_index(gff_file)
+    g = make_index(gff_file)
     f = Fasta(fasta_file, index=False)
-    g = GFFutils.GFFDB(db_file)
     fw = must_open(opts.outfile, "w")
 
     parents = set(parents.split(','))
@@ -739,8 +727,6 @@ def bed12(args):
     11. blockSizes
     12. blockStarts
     """
-    import GFFutils
-
     p = OptionParser(bed12.__doc__)
     p.add_option("--parent", default="mRNA",
             help="Top feature type [default: %default]")
@@ -758,12 +744,7 @@ def bed12(args):
     parent, block, thick = opts.parent, opts.block, opts.thick
     outfile = opts.outfile
 
-    dbfile = gffile + ".db"
-
-    if not op.exists(dbfile):
-        GFFutils.create_gffdb(gffile, dbfile)
-
-    g = GFFutils.GFFDB(dbfile)
+    g = make_index(gffile)
     fw = must_open(outfile, "w")
 
     for f in g.features_of_type(parent):

@@ -78,6 +78,10 @@ class Fasta (BaseFile, dict):
         for rec in SeqIO.parse(must_open(self.filename), "fasta"):
             yield rec.name, rec
 
+    def iterdescriptions_ordered(self):
+        for rec in SeqIO.parse(must_open(self.filename), "fasta"):
+            yield rec.description, rec
+
     def iterkeys_ordered(self):
         for k, rec in self.iteritems_ordered():
             yield k
@@ -999,7 +1003,7 @@ def extract(args):
 
     if include or exclude:
         f = Fasta(fastafile, lazy=True)
-        for k, rec in f.iteritems_ordered():
+        for k, rec in f.iterdescriptions_ordered():
             if include and key not in k:
                 continue
             if exclude and key in k:
@@ -1010,7 +1014,7 @@ def extract(args):
             if start is not None:
                 newid += ":{0}-{1}:{2}".format(start, stop, strand)
 
-            rec = SeqRecord(seq, id=newid, description="")
+            rec = SeqRecord(seq, id=newid, description=k)
             SeqIO.write([rec], fw, "fasta")
     else:
         f = Fasta(fastafile)

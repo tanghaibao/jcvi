@@ -410,17 +410,25 @@ def merge(args):
     """
     %prog merge gffiles
 
-    Merge several gff files into one.
+    Merge several gff files into one. When only one file is given, it is assumed
+    to be a file with a list of gff files.
     """
     p = OptionParser(merge.__doc__)
     set_outfile(p)
 
     opts, args = p.parse_args(args)
 
-    if len(args) < 2:
+    nargs = len(args)
+    if nargs < 1:
         sys.exit(not p.print_help())
 
-    gffiles = args
+    if nargs == 1:
+        listfile, = args
+        fp = open(listfile)
+        gffiles = [x.strip() for x in fp]
+    else:
+        gffiles = args
+
     outfile = opts.outfile
 
     deflines = set()

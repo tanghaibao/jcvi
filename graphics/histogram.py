@@ -32,13 +32,13 @@ data <- data.frame($xlabel=data)
 m <- ggplot(data, aes(x=$xlabel))"""
 
 histogram_template = histogram_header + """
-m + geom_histogram(colour="darkgreen", fill="white", binwidth=(vmax-vmin)/$bins) +
+m + geom_histogram(colour="darkgreen", fill="$fill", binwidth=(vmax-vmin)/$bins) +
 opts(title='$title')
 ggsave('$outfile')
 """
 
 histogram_log_template = histogram_header + """
-m + geom_histogram(colour="darkgreen", fill="white", binwidth=0.33) +
+m + geom_histogram(colour="darkgreen", fill="$fill", binwidth=0.33) +
 scale_x_log$base() + opts(title='$title')
 ggsave('$outfile')
 """
@@ -48,9 +48,19 @@ library(ggplot2)
 vmin <- $vmin
 vmax <- $vmax
 data <- read.table('$numberfile', header=T, sep="\t", skip=$skip)
-m <- ggplot(data, aes(x=$xlabel, fill=group))
+"""
+
+histogram_multiple_template_a = histogram_multiple_template + """
+m <- ggplot(data, aes(x=$xlabel, fill=grp))
 m + geom_bar(binwidth=(vmax-vmin)/$bins, position="dodge") +
 xlim(vmin, vmax) + opts(title='$title')
+ggsave('$outfile')
+"""
+
+histogram_multiple_template_b = histogram_multiple_template + """
+m <- ggplot(data, aes(x=$xlabel))
+m + geom_histogram(colour="darkgreen", fill="$fill", binwidth=(vmax-vmin)/$bins) +
+xlim(vmin, vmax) + opts(title='$title') + facet_wrap(~grp)
 ggsave('$outfile')
 """
 
@@ -139,7 +149,7 @@ def texthistogram(numberfiles, vmin, vmax, title=None,
 
 
 def histogram(numberfile, vmin, vmax, xlabel, title,
-              bins=50, skip=0, ascii=False, log=0):
+              bins=50, skip=0, ascii=False, log=0, fill="white"):
     """
     Generate histogram using number from numberfile, and only numbers in the
     range of (vmin, vmax)
@@ -158,7 +168,7 @@ def histogram(numberfile, vmin, vmax, xlabel, title,
 
 
 def histogram_multiple(numberfiles, vmin, vmax, xlabel, title,
-                       bins=20, skip=0, ascii=False):
+                       bins=20, skip=0, ascii=False, facet=False, fill="white"):
     """
     Generate histogram using number from numberfile, and only numbers in the
     range of (vmin, vmax). First combining multiple files.
@@ -170,7 +180,7 @@ def histogram_multiple(numberfiles, vmin, vmax, xlabel, title,
     newfile = "_".join(op.basename(x).split(".")[0] for x in numberfiles)
 
     fw = open(newfile, "w")
-    print >> fw, "{0}\tgroup".format(xlabel)
+    print >> fw, "{0}\tgrp".format(xlabel)
     for f in numberfiles:
         data, va, vb = get_data(f, vmin, vmax, skip=skip)
         vmin = min(vmin, va)
@@ -185,7 +195,9 @@ def histogram_multiple(numberfiles, vmin, vmax, xlabel, title,
 
     numberfile = newfile
     outfile = numberfile + '.pdf'
-    rtemplate = RTemplate(histogram_multiple_template, locals())
+    htemplate = histogram_multiple_template_b \
+                    if facet else histogram_multiple_template_a
+    rtemplate = RTemplate(htemplate, locals())
     rtemplate.run()
 
 
@@ -213,6 +225,10 @@ def main():
             help="print ASCII text stem-leaf plot [default: %default]")
     p.add_option("--log", default="0", choices=("0", "2", "10"),
             help="use logarithm axis with base, 0 to disable [default: %default]")
+    p.add_option("--facet", default=False, action="store_true",
+            help="place multiple histograms side-by-sdie [default: %default]")
+    p.add_option("--fill", default="white",
+            help="color of the bin [default: %default]")
     opts, args = p.parse_args()
 
     if len(args) < 1:
@@ -228,10 +244,12 @@ def main():
     fileno = len(args)
     if fileno == 1:
         histogram(args[0], vmin, vmax, xlabel, title,
-                bins=bins, skip=skip, ascii=opts.ascii, log=log)
+                bins=bins, skip=skip, ascii=opts.ascii,
+                log=log, fill=opts.fill)
     else:
         histogram_multiple(args, vmin, vmax, xlabel, title,
-                bins=bins, skip=skip, ascii=opts.ascii)
+                bins=bins, skip=skip, ascii=opts.ascii,
+                facet=opts.facet, fill=opts.fill)
 
 
 if __name__ == '__main__':

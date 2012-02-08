@@ -79,7 +79,7 @@ class Fasta (BaseFile, dict):
             yield rec.name, rec
 
     def iterdescriptions_ordered(self):
-        for rec in SeqIO.parse(must_open(self.filename), "fasta"):
+        for k, rec in self.iteritems_ordered():
             yield rec.description, rec
 
     def iterkeys_ordered(self):
@@ -89,11 +89,6 @@ class Fasta (BaseFile, dict):
     def itersizes_ordered(self):
         for k, rec in self.iteritems_ordered():
             yield k, len(rec)
-
-    def iter_annotations(self):
-        for k, rec in self.iteritems_ordered():
-            description = rec.description
-            yield k, description
 
     @property
     def totalsize(self):

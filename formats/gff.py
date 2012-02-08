@@ -235,6 +235,52 @@ def liftover(args):
         print g
 
 
+def get_piles(allgenes, mode="overlap"):
+    """
+    Before running uniq, we need to compute all the piles. The piles are a set
+    of redundant features we want to get rid of. There are a few different
+    modes, the default mode is the overlapping mode (everything overlapping will
+    be placed inside the same pile), a second mode is the name mode (everything
+    with the same Name attributes will be placed in the same pile.
+
+    Input are a list of GffLines features. Output is a Grouper object that
+    contain distinct "piles".
+    """
+    from jcvi.utils.grouper import Grouper
+    from jcvi.utils.range import range_overlap
+
+    g = Grouper()
+    ngenes = len(allgenes)
+
+    if mode == "overlap":
+        for i, a in enumerate(allgenes):
+            arange = (a.seqid, a.start, a.end)
+            g.join(a)
+            for j in xrange(i + 1, ngenes):
+                b = allgenes[j]
+                brange = (b.seqid, b.start, b.end)
+                g.join(b)
+                if range_overlap(arange, brange):
+                    g.join(a, b)
+                else:
+                    break
+
+    elif mode == "name":
+        for i, a in enumerate(allgenes):
+            arange = (a.seqid, a.start, a.end)
+            g.join(a)
+            for j in xrange(i + 1, ngenes):
+                b = allgenes[j]
+                brange = (b.seqid, b.start, b.end)
+                g.join(b)
+                if range_overlap(arange, brange):
+                    if a.attributes["Name"] == b.attributes["Name"]:
+                        g.join(a, b)
+                else:
+                    break
+    return g
+
+
 def uniq(args):
     """
     %prog uniq gffile > uniq.gff
@@ -242,13 +288,16 @@ def uniq(args):
     Remove redundant gene models. For overlapping gene models, take the longest
     gene. A second scan takes only the genes selected.
     """
-    from jcvi.utils.iter import pairwise
-    from jcvi.utils.grouper import Grouper
-    from jcvi.utils.range import range_overlap
-
+    supported_modes = ("overlap", "name")
     p = OptionParser(uniq.__doc__)
     p.add_option("--type", default="gene",
                  help="Types of features to non-redundify [default: %default]")
+    p.add_option("--mode", default="overlap", choices=supported_modes,
+                 help="Pile mode, one of {0} [default: %default]".\
+                      format("|".join(supported_modes)))
+    p.add_option("--best", default=1, type="int",
+                 help="Use best N hits [default: %default]")
+
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -256,6 +305,7 @@ def uniq(args):
 
     gffile, = args
     gff = Gff(gffile)
+    bestn = opts.best
     allgenes = []
     for g in gff:
         if g.type != opts.type:
@@ -265,24 +315,17 @@ def uniq(args):
     logging.debug("A total of {0} genes imported.".format(len(allgenes)))
     allgenes.sort(key=lambda x: (x.seqid, x.start))
 
-    g = Grouper()
-    ngenes = len(allgenes)
-    for i, a in enumerate(allgenes):
-        arange = (a.seqid, a.start, a.end)
-        g.join(a)
-        for j in xrange(i + 1, ngenes):
-            b = allgenes[j]
-            brange = (b.seqid, b.start, b.end)
-            g.join(b)
-            if range_overlap(arange, brange):
-                g.join(a, b)
-            else:
-                break
+    g = get_piles(allgenes, mode=opts.mode)
 
     bestids = set()
     for group in g:
-        bestgene = max(group, key=lambda x: x.span)
-        bestids.add(bestgene.accn)
+        if bestn == 1:
+            bestgene = [max(group, key=lambda x: x.span)]
+        else:
+            bestgene = sorted(group, key=lambda x: -float(x.score))[:bestn]
+
+        for b in bestgene:
+            bestids.add(b.accn)
 
     logging.debug("A total of {0} genes selected.".format(len(bestids)))
     logging.debug("Populate children. Iteration 1..")

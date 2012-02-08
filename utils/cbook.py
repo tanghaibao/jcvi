@@ -99,12 +99,24 @@ class SummaryStats (object):
         self.median = np.median(a)
         self.title = title
 
+        a.sort()
+        self.firstq = a[self.size / 4]
+        self.thirdq = a[self.size * 3 / 4]
+
     def __str__(self):
-        s = self.title + ": " or ""
+        s = self.title + ": " if self.title else ""
         s += "Min={0} Max={1} N={2} Mean={3:.0f} SD={4:.0f} Median={5:.0f}".\
                 format(self.min, self.max, self.size,
                        self.mean, self.sd, self.median)
         return s
+
+    @property
+    def dict(self):
+        return {
+            "Min": self.min, "Max": self.max,
+            "1st Quartile": self.firstq, "3rd Quartile": self.thirdq,
+            "Mean": self.mean, "Median": self.median
+            }
 
 
 def percentage(a, b, denominator=True):

@@ -186,11 +186,11 @@ def fetch(args):
             help="search database [default: %default]")
     p.add_option("--outdir", default=None,
             help="output directory, with accession number as filename")
-    p.add_option("--retmax", default=10,
+    p.add_option("--retmax", default=10000, type="int",
             help="how many results to return [default: %default]")
     p.add_option("--skipcheck", default=False, action="store_true",
             help="turn off prompt to check file existence [default: %default]")
-    p.add_option("--batchsize", default=1, type="int",
+    p.add_option("--batchsize", default=500, type="int",
             help="download the results in batch for speed-up [default: %default]")
     opts, args = p.parse_args(args)
 

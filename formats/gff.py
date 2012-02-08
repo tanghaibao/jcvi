@@ -235,16 +235,11 @@ def liftover(args):
         print g
 
 
-def get_piles(allgenes, mode="overlap"):
+def get_piles(allgenes):
     """
     Before running uniq, we need to compute all the piles. The piles are a set
-    of redundant features we want to get rid of. There are a few different
-    modes, the default mode is the overlapping mode (everything overlapping will
-    be placed inside the same pile), a second mode is the name mode (everything
-    with the same Name attributes will be placed in the same pile.
-
-    Input are a list of GffLines features. Output is a Grouper object that
-    contain distinct "piles".
+    of redundant features we want to get rid of. Input are a list of GffLines
+    features. Output is a Grouper object that contain distinct "piles".
     """
     from jcvi.utils.grouper import Grouper
     from jcvi.utils.range import range_overlap
@@ -252,32 +247,18 @@ def get_piles(allgenes, mode="overlap"):
     g = Grouper()
     ngenes = len(allgenes)
 
-    if mode == "overlap":
-        for i, a in enumerate(allgenes):
-            arange = (a.seqid, a.start, a.end)
-            g.join(a)
-            for j in xrange(i + 1, ngenes):
-                b = allgenes[j]
-                brange = (b.seqid, b.start, b.end)
-                g.join(b)
-                if range_overlap(arange, brange):
-                    g.join(a, b)
-                else:
-                    break
+    for i, a in enumerate(allgenes):
+        arange = (a.seqid, a.start, a.end)
+        g.join(a)
+        for j in xrange(i + 1, ngenes):
+            b = allgenes[j]
+            brange = (b.seqid, b.start, b.end)
+            g.join(b)
+            if range_overlap(arange, brange):
+                g.join(a, b)
+            else:
+                break
 
-    elif mode == "name":
-        for i, a in enumerate(allgenes):
-            arange = (a.seqid, a.start, a.end)
-            g.join(a)
-            for j in xrange(i + 1, ngenes):
-                b = allgenes[j]
-                brange = (b.seqid, b.start, b.end)
-                g.join(b)
-                if range_overlap(arange, brange):
-                    if a.attributes["Name"] == b.attributes["Name"]:
-                        g.join(a, b)
-                else:
-                    break
     return g
 
 
@@ -287,16 +268,21 @@ def uniq(args):
 
     Remove redundant gene models. For overlapping gene models, take the longest
     gene. A second scan takes only the genes selected.
+
+    --mode controls whether you want larger feature, or higher scoring feature.
+    --best controls how many redundant features to keep, e.g. 10 for est2genome.
     """
-    supported_modes = ("overlap", "name")
+    supported_modes = ("span", "score")
     p = OptionParser(uniq.__doc__)
     p.add_option("--type", default="gene",
                  help="Types of features to non-redundify [default: %default]")
-    p.add_option("--mode", default="overlap", choices=supported_modes,
+    p.add_option("--mode", default="span", choices=supported_modes,
                  help="Pile mode, one of {0} [default: %default]".\
                       format("|".join(supported_modes)))
     p.add_option("--best", default=1, type="int",
                  help="Use best N hits [default: %default]")
+    p.add_option("--name", default=False, action="store_true",
+                 help="Non-redundify Name attribute [default: %default]")
 
     opts, args = p.parse_args(args)
 
@@ -305,6 +291,7 @@ def uniq(args):
 
     gffile, = args
     gff = Gff(gffile)
+    mode = opts.mode
     bestn = opts.best
     allgenes = []
     for g in gff:
@@ -315,17 +302,27 @@ def uniq(args):
     logging.debug("A total of {0} genes imported.".format(len(allgenes)))
     allgenes.sort(key=lambda x: (x.seqid, x.start))
 
-    g = get_piles(allgenes, mode=opts.mode)
+    g = get_piles(allgenes)
 
     bestids = set()
     for group in g:
-        if bestn == 1:
-            bestgene = [max(group, key=lambda x: x.span)]
+        if mode == "span":
+            scores_group = [(- x.span, x) for x in group]
         else:
-            bestgene = sorted(group, key=lambda x: -float(x.score))[:bestn]
+            scores_group = [(- float(x.score), x) for x in group]
 
-        for b in bestgene:
-            bestids.add(b.accn)
+        scores_group.sort()
+        seen = set()
+        for score, x in scores_group:
+            if len(seen) >= bestn:
+                break
+
+            name, = x.attributes["Name"] if opts.name else x.attributes["ID"]
+            if name in seen:
+                continue
+
+            seen.add(name)
+            bestids.add(x.accn)
 
     logging.debug("A total of {0} genes selected.".format(len(bestids)))
     logging.debug("Populate children. Iteration 1..")

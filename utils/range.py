@@ -307,8 +307,6 @@ def range_chain(ranges):
     >>> range_chain(ranges)
     ([Range(seqid='2', start=0, end=1, score=3, id=0), Range(seqid='3', start=5, end=7, score=3, id=2)], 6)
     """
-    ranges.sort()
-
     endpoints = _make_endpoints(ranges)
 
     # stores the left end index for quick retrieval

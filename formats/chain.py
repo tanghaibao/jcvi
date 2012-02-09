@@ -7,6 +7,19 @@ system to another.
 
 File format:
 <http://genome.ucsc.edu/goldenPath/help/chain.html>
+
+chain 4900 chrY 58368225 + 25985403 25985638 chr5 151006098 - 43257292 43257528 1
+  9       1       0
+  10      0       5
+  48
+
+Header Line:
+ chain score tName tSize tStrand tStart tEnd qName qSize qStrand qStart qEnd id
+Alignment Data Lines
+ size dt dq
+
+NOTE: The last line of the alignment section contains only one number: the ungapped
+alignment size of the last block.
 """
 
 import os.path as op
@@ -24,9 +37,72 @@ def main():
     actions = (
         ('blat', 'generate PSL file using blat'),
         ('frompsl', 'generate chain file from PSL format'),
+        ('fromagp', 'generate chain file from AGP format'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def fromagp(args):
+    """
+    %prog fromagp agpfile componentfasta objectfasta
+
+    Generate chain file from AGP format. The components represent the old
+    genome (target) and the objects represent new genome (query).
+    """
+    from jcvi.formats.agp import AGP
+    from jcvi.formats.sizes import Sizes
+
+    p = OptionParser(fromagp.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    agpfile, componentfasta, objectfasta = args
+    chainfile = agpfile.rsplit(".", 1)[0] + ".chain"
+    fw = open(chainfile, "w")
+    agp = AGP(agpfile)
+    componentsizes = Sizes(componentfasta).mapping
+    objectsizes = Sizes(objectfasta).mapping
+    chain = "chain"
+    score = 1000
+    tStrand = "+"
+    id = 0
+    for a in agp:
+        if a.is_gap:
+            continue
+
+        tName = a.component_id
+        tSize = componentsizes[tName]
+        tStart = a.component_beg
+        tEnd = a.component_end
+        tStart -= 1
+
+        qName = a.object
+        qSize = objectsizes[qName]
+        qStrand = a.orientation
+        qStart = a.object_beg
+        qEnd = a.object_end
+        if qStrand == '-':
+            _qStart = qSize - qEnd + 1
+            _qEnd = qSize - qStart + 1
+            qStart, qEnd = _qStart, _qEnd
+        qStart -= 1
+
+        id += 1
+        size = a.object_span
+        headerline = "\t".join(str(x) for x in (
+             chain, score, tName, tSize, tStrand, tStart,
+             tEnd, qName, qSize, qStrand, qStart, qEnd, id
+        ))
+        alignmentline = size
+        print >> fw, headerline
+        print >> fw, alignmentline
+        print >> fw
+
+    fw.close()
+    logging.debug("File written to `{0}`.".format(chainfile))
 
 
 def faToTwoBit(fastafile):

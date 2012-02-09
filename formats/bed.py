@@ -59,7 +59,7 @@ class BedLine(object):
         return self.end - self.start + 1
 
     def reverse_complement(self, sizes):
-        # this function is used in assembly.bundle
+        # this function is used in assembly.sopra
         seqid = self.seqid.rstrip('-')
         size = sizes.get_size(seqid)
 

@@ -118,6 +118,14 @@ class SummaryStats (object):
             "Mean": self.mean, "Median": self.median
             }
 
+    def tofile(self, filename):
+        fw = open(filename, "w")
+        for x in self.data:
+            print >> fw, x
+        fw.close()
+        logging.debug("Array of size {0} written to file `{1}`.".\
+                        format(self.size, filename))
+
 
 def percentage(a, b, denominator=True):
     """

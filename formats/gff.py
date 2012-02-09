@@ -280,7 +280,7 @@ def uniq(args):
                  help="Pile mode, one of {0} [default: %default]".\
                       format("|".join(supported_modes)))
     p.add_option("--best", default=1, type="int",
-                 help="Use best N hits [default: %default]")
+                 help="Use best N features [default: %default]")
     p.add_option("--name", default=False, action="store_true",
                  help="Non-redundify Name attribute [default: %default]")
 
@@ -317,7 +317,7 @@ def uniq(args):
             if len(seen) >= bestn:
                 break
 
-            name, = x.attributes["Name"] if opts.name else x.attributes["ID"]
+            name, = x.attributes["Name"] if opts.name else x.accn
             if name in seen:
                 continue
 

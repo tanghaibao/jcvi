@@ -108,7 +108,7 @@ def get_data(filename, vmin=None, vmax=None, skip=0):
         fp.next()
 
     data = np.array([ntype(x) for x in fp])
-    s = SummaryStats(data)
+    s = SummaryStats(data, title=filename)
     print >> sys.stderr, s
 
     vmin = min(data) if vmin is None else vmin
@@ -168,7 +168,8 @@ def histogram(numberfile, vmin, vmax, xlabel, title,
 
 
 def histogram_multiple(numberfiles, vmin, vmax, xlabel, title,
-                       bins=20, skip=0, ascii=False, facet=False, fill="white"):
+                       bins=20, skip=0, ascii=False,
+                       facet=False, fill="white", prefix=""):
     """
     Generate histogram using number from numberfile, and only numbers in the
     range of (vmin, vmax). First combining multiple files.
@@ -195,6 +196,8 @@ def histogram_multiple(numberfiles, vmin, vmax, xlabel, title,
 
     numberfile = newfile
     outfile = numberfile + '.pdf'
+    if prefix:
+        outfile = prefix + outfile
     htemplate = histogram_multiple_template_b \
                     if facet else histogram_multiple_template_a
     rtemplate = RTemplate(htemplate, locals())

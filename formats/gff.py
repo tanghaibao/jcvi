@@ -239,27 +239,15 @@ def get_piles(allgenes):
     """
     Before running uniq, we need to compute all the piles. The piles are a set
     of redundant features we want to get rid of. Input are a list of GffLines
-    features. Output is a Grouper object that contain distinct "piles".
+    features. Output are list of list of features distinct "piles".
     """
-    from jcvi.utils.grouper import Grouper
-    from jcvi.utils.range import range_overlap
+    from jcvi.utils.range import Range, range_piles
 
-    g = Grouper()
-    ngenes = len(allgenes)
+    ranges = [Range(a.seqid, a.start, a.end, 0, i) \
+                    for i, a in enumerate(allgenes)]
 
-    for i, a in enumerate(allgenes):
-        arange = (a.seqid, a.start, a.end)
-        g.join(a)
-        for j in xrange(i + 1, ngenes):
-            b = allgenes[j]
-            brange = (b.seqid, b.start, b.end)
-            g.join(b)
-            if range_overlap(arange, brange):
-                g.join(a, b)
-            else:
-                break
-
-    return g
+    for pile in range_piles(ranges):
+        yield [allgenes[x] for x in pile]
 
 
 def uniq(args):

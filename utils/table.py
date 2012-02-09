@@ -56,6 +56,8 @@ def tabulate(d, transpose=False, key_fun=None):
         if transpose:
             combo = [(c, r) for (r, c) in combo]
         data = [d[x] for x in combo]
+        data = ["{0:.1f}".format(x) if isinstance(x, float) else x \
+                    for x in data]
         if key_fun:
             data = [key_fun(x) for x in data]
         table.append([str(r)] + data)

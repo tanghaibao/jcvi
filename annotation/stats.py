@@ -12,6 +12,7 @@ import logging
 
 from optparse import OptionParser
 
+from jcvi.utils.cbook import SummaryStats
 from jcvi.formats.gff import GffLine, make_index
 from jcvi.apps.base import ActionDispatcher, debug, mkdir
 debug()
@@ -25,9 +26,41 @@ def main():
     actions = (
         ('stats', 'collect gene statistics based on gff file'),
         ('histogram', 'plot gene statistcis based on output of stats'),
+        ('summary', 'print gene statistics table'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def summary(args):
+    """
+    %prog summary *.gff
+
+    Print gene statistics table.
+    """
+    from jcvi.utils.table import tabulate
+
+    p = OptionParser(summary.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) < 1:
+        sys.exit(not p.print_help())
+
+    gff_files = args
+    for metric in metrics:
+        logging.debug("Parsing files in `{0}`..".format(metric))
+
+        table = {}
+        for x in gff_files:
+            pf = op.basename(x).split(".")[0]
+            numberfile = op.join(metric, pf + ".txt")
+            ar = [int(x.strip()) for x in open(numberfile)]
+            sum = SummaryStats(ar).todict().items()
+            keys, vals = zip(*sum)
+            keys = [(pf, x) for x in keys]
+            table.update(dict(zip(keys, vals)))
+
+        print >> sys.stderr, tabulate(table)
 
 
 def histogram(args):
@@ -78,7 +111,6 @@ def stats(args):
 
     With data written to disk then you can run $prog histogram
     """
-    from jcvi.utils.cbook import SummaryStats
     from jcvi.utils.range import range_interleave
 
     p = OptionParser(stats.__doc__)

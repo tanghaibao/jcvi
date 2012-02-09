@@ -252,17 +252,15 @@ def range_conflict(ranges, depth=1):
     endpoints = _make_endpoints(ranges)
 
     for seqid, ends in groupby(endpoints, lambda x: x[0]):
-        ends = list(ends)
+        active.clear()
         for seqid, pos, leftright, i, score in ends:
-            active.clear()
-            for seqid, pos, leftright, i, score in ends:
-                if leftright == LEFT:
-                    active.add(i)
-                else:
-                    active.remove(i)
+            if leftright == LEFT:
+                active.add(i)
+            else:
+                active.remove(i)
 
-                if len(active) > depth:
-                    overlap.add(tuple(sorted(active)))
+            if len(active) > depth:
+                overlap.add(tuple(sorted(active)))
 
     for ov in overlap:
         selected = [ranges[x] for x in ov]

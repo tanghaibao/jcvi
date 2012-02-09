@@ -283,6 +283,9 @@ def uniq(args):
                  help="Use best N features [default: %default]")
     p.add_option("--name", default=False, action="store_true",
                  help="Non-redundify Name attribute [default: %default]")
+    p.add_option("--iter", default="2", choices=("1", "2"),
+                 help="Number of iterations to grab children, use 1 or 2 "\
+                      "[default: %default]")
 
     opts, args = p.parse_args(args)
 
@@ -317,7 +320,7 @@ def uniq(args):
             if len(seen) >= bestn:
                 break
 
-            name, = x.attributes["Name"] if opts.name else x.accn
+            name = x.attributes["Name"][0] if opts.name else x.accn
             if name in seen:
                 continue
 
@@ -335,14 +338,15 @@ def uniq(args):
             if parent in bestids:
                 children.add(g.accn)
 
-    logging.debug("Populate children. Iteration 2..")
-    gff = Gff(gffile)
-    for g in gff:
-        if "Parent" not in g.attributes:
-            continue
-        for parent in g.attributes["Parent"]:
-            if parent in children:
-                children.add(g.accn)
+    if opts.iter == "2":
+        logging.debug("Populate children. Iteration 2..")
+        gff = Gff(gffile)
+        for g in gff:
+            if "Parent" not in g.attributes:
+                continue
+            for parent in g.attributes["Parent"]:
+                if parent in children:
+                    children.add(g.accn)
 
     logging.debug("Filter gff file..")
     gff = Gff(gffile)

@@ -235,38 +235,18 @@ def liftover(args):
         print g
 
 
-def uniq(args):
+def get_piles(allgenes):
     """
-    %prog uniq gffile > uniq.gff
-
-    Remove redundant gene models. For overlapping gene models, take the longest
-    gene. A second scan takes only the genes selected.
+    Before running uniq, we need to compute all the piles. The piles are a set
+    of redundant features we want to get rid of. Input are a list of GffLines
+    features. Output is a Grouper object that contain distinct "piles".
     """
-    from jcvi.utils.iter import pairwise
     from jcvi.utils.grouper import Grouper
     from jcvi.utils.range import range_overlap
 
-    p = OptionParser(uniq.__doc__)
-    p.add_option("--type", default="gene",
-                 help="Types of features to non-redundify [default: %default]")
-    opts, args = p.parse_args(args)
-
-    if len(args) != 1:
-        sys.exit(not p.print_help())
-
-    gffile, = args
-    gff = Gff(gffile)
-    allgenes = []
-    for g in gff:
-        if g.type != opts.type:
-            continue
-        allgenes.append(g)
-
-    logging.debug("A total of {0} genes imported.".format(len(allgenes)))
-    allgenes.sort(key=lambda x: (x.seqid, x.start))
-
     g = Grouper()
     ngenes = len(allgenes)
+
     for i, a in enumerate(allgenes):
         arange = (a.seqid, a.start, a.end)
         g.join(a)
@@ -279,10 +259,70 @@ def uniq(args):
             else:
                 break
 
+    return g
+
+
+def uniq(args):
+    """
+    %prog uniq gffile > uniq.gff
+
+    Remove redundant gene models. For overlapping gene models, take the longest
+    gene. A second scan takes only the genes selected.
+
+    --mode controls whether you want larger feature, or higher scoring feature.
+    --best controls how many redundant features to keep, e.g. 10 for est2genome.
+    """
+    supported_modes = ("span", "score")
+    p = OptionParser(uniq.__doc__)
+    p.add_option("--type", default="gene",
+                 help="Types of features to non-redundify [default: %default]")
+    p.add_option("--mode", default="span", choices=supported_modes,
+                 help="Pile mode, one of {0} [default: %default]".\
+                      format("|".join(supported_modes)))
+    p.add_option("--best", default=1, type="int",
+                 help="Use best N features [default: %default]")
+    p.add_option("--name", default=False, action="store_true",
+                 help="Non-redundify Name attribute [default: %default]")
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    gffile, = args
+    gff = Gff(gffile)
+    mode = opts.mode
+    bestn = opts.best
+    allgenes = []
+    for g in gff:
+        if g.type != opts.type:
+            continue
+        allgenes.append(g)
+
+    logging.debug("A total of {0} genes imported.".format(len(allgenes)))
+    allgenes.sort(key=lambda x: (x.seqid, x.start))
+
+    g = get_piles(allgenes)
+
     bestids = set()
     for group in g:
-        bestgene = max(group, key=lambda x: x.span)
-        bestids.add(bestgene.accn)
+        if mode == "span":
+            scores_group = [(- x.span, x) for x in group]
+        else:
+            scores_group = [(- float(x.score), x) for x in group]
+
+        scores_group.sort()
+        seen = set()
+        for score, x in scores_group:
+            if len(seen) >= bestn:
+                break
+
+            name, = x.attributes["Name"] if opts.name else x.accn
+            if name in seen:
+                continue
+
+            seen.add(name)
+            bestids.add(x.accn)
 
     logging.debug("A total of {0} genes selected.".format(len(bestids)))
     logging.debug("Populate children. Iteration 1..")

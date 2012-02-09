@@ -41,12 +41,8 @@ def rename(args):
         sys.exit(not p.print_help())
 
     ingff3, = args
-    fp = open(ingff3)
-    for row in fp:
-        if row[0] == '#':
-            continue
-
-        g = GffLine(row)
+    gff = Gff(ingff3)
+    for g in gff:
         id, = g.attributes["ID"]
         prefix = "{0}.{1}.".format(g.source, g.seqid)
         g.attributes["ID"] = [prefix + id]
@@ -72,12 +68,8 @@ def augustus(args):
         sys.exit(not p.print_help())
 
     ingff3, = args
-    fp = open(ingff3)
-    for row in fp:
-        if row[0] == '#':
-            continue
-
-        g = GffLine(row)
+    gff = Gff(ingff3)
+    for g in gff:
         if g.type not in ("gene", "transcript", "CDS"):
             continue
 

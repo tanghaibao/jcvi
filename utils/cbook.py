@@ -110,13 +110,25 @@ class SummaryStats (object):
                        self.mean, self.sd, self.median)
         return s
 
-    @property
-    def dict(self):
-        return {
+    def todict(self, quartile=False):
+        d = {
             "Min": self.min, "Max": self.max,
-            "1st Quartile": self.firstq, "3rd Quartile": self.thirdq,
             "Mean": self.mean, "Median": self.median
             }
+        if quartile:
+            d.update({
+            "1st Quartile": self.firstq, "3rd Quartile": self.thirdq
+            })
+
+        return d
+
+    def tofile(self, filename):
+        fw = open(filename, "w")
+        for x in self.data:
+            print >> fw, x
+        fw.close()
+        logging.debug("Array of size {0} written to file `{1}`.".\
+                        format(self.size, filename))
 
 
 def percentage(a, b, denominator=True):

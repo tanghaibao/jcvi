@@ -223,7 +223,8 @@ class BiGraph (object):
             print >> fw, e
         logging.debug("Graph written to `{0}`.".format(filename))
 
-    def draw(self, pngfile, dpi=96, verbose=False):
+    def draw(self, pngfile, dpi=96, verbose=False, namestart=0,
+                nodehighlight=None, prog="circo"):
         import pygraphviz as pgv
 
         G = pgv.AGraph()
@@ -235,13 +236,21 @@ class BiGraph (object):
                 arrowtail = not arrowtail
             arrowhead = "normal" if arrowhead else "inv"
             arrowtail = "normal" if arrowtail else "inv"
-            G.add_edge(e.v1, e.v2, color=e.color,
+            v1, v2 = e.v1, e.v2
+            v1, v2 = str(v1)[namestart:], str(v2)[namestart:]
+            G.add_edge(v1, v2, color=e.color,
                        arrowhead=arrowhead, arrowtail=arrowtail)
+
+        if nodehighlight:
+            for n in nodehighlight:
+                n = n[namestart:]
+                n = G.get_node(n)
+                n.attr["shape"] = "box"
 
         G.graph_attr.update(dpi=str(dpi))
         if verbose:
             G.write(sys.stderr)
-        G.draw(pngfile, prog="neato")
+        G.draw(pngfile, prog=prog)
         logging.debug("Graph written to `{0}`.".format(pngfile))
 
 

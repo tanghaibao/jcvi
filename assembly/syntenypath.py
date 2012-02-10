@@ -73,8 +73,14 @@ def partition(args):
     Select edges from another graph and merge it with the certain edges built
     from the HAPPY mapping data.
     """
+    allowed_format = ("png", "ps")
     p = OptionParser(partition.__doc__)
     p.add_option("--prefix", help="Add prefix to the name [default: %default]")
+    p.add_option("--namestart", default=0, type="int",
+                 help="Use a shorter name, starting index [default: %default]")
+    p.add_option("--format", default="png", choices=allowed_format,
+            help="Generate image of format, must be one of {0}".\
+            format("|".join(allowed_format)) + " [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -86,20 +92,42 @@ def partition(args):
     prefix = opts.prefix
     fp = open(happyfile)
     for i, row in enumerate(fp):
-        nodes = happy_nodes(row, prefix=prefix)
-        nodes = set(nodes)
-        edges = [a for a, b in happy_edges(row, prefix=prefix) if not b]
-        for (u, v), e in bg.edges.items():  # Grab edge if both vertices are on the same line
-            if u in nodes and v in nodes:
-                edges.append(e)
+        nns = happy_nodes(row, prefix=prefix)
+        nodes = set(nns)
+        edges = happy_edges(row, prefix=prefix)
 
         small_graph = BiGraph()
-        for e in edges:
+        for e, is_uncertain in edges:
+            if is_uncertain:
+                e.color = "gray"
             small_graph.add_edge(e)
-        print small_graph
 
-        pngfile = "L{0:02d}.png".format(i)
-        small_graph.draw(pngfile)
+        for (u, v), e in bg.edges.items():
+            # Grab edge if both vertices are on the same line
+            if u in nodes and v in nodes:
+                uv = (str(u), str(v))
+                if uv in small_graph.edges:
+                    e = small_graph.edges[uv]
+                    e.color = "blue"  # supported by both evidences
+                else:
+                    small_graph.add_edge(e)
+
+        print >> sys.stderr, small_graph
+
+        pngfile = "A{0:02d}.{1}".format(i + 1, opts.format)
+        telomeres = (nns[0], nns[-1])
+        small_graph.draw(pngfile, namestart=opts.namestart,
+                         nodehighlight=telomeres, dpi=72)
+
+    from jcvi.utils.table import banner
+
+    legend = ["Edge colors:"]
+    legend.append("[BLUE] Experimental + Synteny")
+    legend.append("[BLACK] Experimental certain")
+    legend.append("[GRAY] Experimental uncertain")
+    legend.append("[RED] Synteny only")
+    legend.append("Rectangle nodes are telomeres.")
+    print >> sys.stderr, banner(legend)
 
 
 def merge(args):

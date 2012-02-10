@@ -239,27 +239,15 @@ def get_piles(allgenes):
     """
     Before running uniq, we need to compute all the piles. The piles are a set
     of redundant features we want to get rid of. Input are a list of GffLines
-    features. Output is a Grouper object that contain distinct "piles".
+    features. Output are list of list of features distinct "piles".
     """
-    from jcvi.utils.grouper import Grouper
-    from jcvi.utils.range import range_overlap
+    from jcvi.utils.range import Range, range_piles
 
-    g = Grouper()
-    ngenes = len(allgenes)
+    ranges = [Range(a.seqid, a.start, a.end, 0, i) \
+                    for i, a in enumerate(allgenes)]
 
-    for i, a in enumerate(allgenes):
-        arange = (a.seqid, a.start, a.end)
-        g.join(a)
-        for j in xrange(i + 1, ngenes):
-            b = allgenes[j]
-            brange = (b.seqid, b.start, b.end)
-            g.join(b)
-            if range_overlap(arange, brange):
-                g.join(a, b)
-            else:
-                break
-
-    return g
+    for pile in range_piles(ranges):
+        yield [allgenes[x] for x in pile]
 
 
 def uniq(args):
@@ -283,6 +271,9 @@ def uniq(args):
                  help="Use best N features [default: %default]")
     p.add_option("--name", default=False, action="store_true",
                  help="Non-redundify Name attribute [default: %default]")
+    p.add_option("--iter", default="2", choices=("1", "2"),
+                 help="Number of iterations to grab children, use 1 or 2 "\
+                      "[default: %default]")
 
     opts, args = p.parse_args(args)
 
@@ -317,7 +308,7 @@ def uniq(args):
             if len(seen) >= bestn:
                 break
 
-            name, = x.attributes["Name"] if opts.name else x.accn
+            name = x.attributes["Name"][0] if opts.name else x.accn
             if name in seen:
                 continue
 
@@ -335,14 +326,15 @@ def uniq(args):
             if parent in bestids:
                 children.add(g.accn)
 
-    logging.debug("Populate children. Iteration 2..")
-    gff = Gff(gffile)
-    for g in gff:
-        if "Parent" not in g.attributes:
-            continue
-        for parent in g.attributes["Parent"]:
-            if parent in children:
-                children.add(g.accn)
+    if opts.iter == "2":
+        logging.debug("Populate children. Iteration 2..")
+        gff = Gff(gffile)
+        for g in gff:
+            if "Parent" not in g.attributes:
+                continue
+            for parent in g.attributes["Parent"]:
+                if parent in children:
+                    children.add(g.accn)
 
     logging.debug("Filter gff file..")
     gff = Gff(gffile)

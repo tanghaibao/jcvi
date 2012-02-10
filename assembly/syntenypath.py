@@ -10,6 +10,7 @@ import logging
 
 from itertools import groupby
 from optparse import OptionParser
+from string import maketrans
 
 from jcvi.formats.agp import order_to_agp
 from jcvi.formats.blast import BlastSlow
@@ -25,10 +26,80 @@ def main():
     actions = (
         ('fromblast', 'Generate path from BLAST file'),
         ('happy', 'Make graph from happy mapping data'),
+        ('partition', 'Make individual graphs partitioned by happy mapping'),
         ('merge', 'Merge multiple graphs together and visualize'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def happy_nodes(row, prefix=None):
+    row = row.translate(None, "[](){}+-")
+    scfs = [x.strip() for x in row.split(":")]
+    if prefix:
+        scfs = [prefix + x for x in scfs]
+    return scfs
+
+
+def happy_edges(row, prefix=None):
+    """
+    Convert a row in HAPPY file and yield edges.
+    """
+    trans = maketrans("[](){}", "      ")
+    row = row.strip().strip("+")
+    row = row.translate(trans)
+    scfs = [x.strip("+") for x in row.split(":")]
+    for a, b in pairwise(scfs):
+        oa = '<' if a.strip()[0] == '-' else '>'
+        ob = '<' if b.strip()[0] == '-' else '>'
+
+        is_uncertain = a[-1] == ' ' or b[0] == ' '
+
+        a = a.strip().strip('-')
+        b = b.strip().strip('-')
+
+        if prefix:
+            a = prefix + a
+            b = prefix + b
+
+        e = BiEdge(a, b, oa, ob)
+        yield e, is_uncertain
+
+
+def partition(args):
+    """
+    %prog partition happy.txt synteny.graph
+
+    Select edges from another graph and merge it with the certain edges built
+    from the HAPPY mapping data.
+    """
+    p = OptionParser(partition.__doc__)
+    p.add_option("--prefix", help="Add prefix to the name [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    happyfile, graphfile = args
+    bg = BiGraph()
+    bg.read(graphfile, color="red")
+    prefix = opts.prefix
+    fp = open(happyfile)
+    for i, row in enumerate(fp):
+        nodes = happy_nodes(row, prefix=prefix)
+        nodes = set(nodes)
+        edges = [a for a, b in happy_edges(row, prefix=prefix) if not b]
+        for (u, v), e in bg.edges.items():  # Grab edge if both vertices are on the same line
+            if u in nodes and v in nodes:
+                edges.append(e)
+
+        small_graph = BiGraph()
+        for e in edges:
+            small_graph.add_edge(e)
+        print small_graph
+
+        pngfile = "L{0:02d}.png".format(i)
+        small_graph.draw(pngfile)
 
 
 def merge(args):
@@ -76,7 +147,6 @@ def happy(args):
     Example:
     +-8254707:8254647:-8254690:{[8254694]:[8254713]:[8254531]:[8254797]}:8254802:8254788+
     """
-    from string import maketrans
     from jcvi.utils.iter import pairwise
 
     p = OptionParser(happy.__doc__)
@@ -87,43 +157,19 @@ def happy(args):
         sys.exit(not p.print_help())
 
     happyfile, = args
-    prefix = opts.prefix
 
     certain = "certain.graph"
     uncertain = "uncertain.graph"
     fw1 = open(certain, "w")
     fw2 = open(uncertain, "w")
-    n_certain = n_uncertain = 0
 
     fp = open(happyfile)
-    trans = maketrans("[](){}", "      ")
     for row in fp:
-        row = row.strip().strip("+")
-        row = row.translate(trans)
-        scfs = [x.strip("+") for x in row.split(":")]
-        for a, b in pairwise(scfs):
-            oa = '<' if a.strip()[0] == '-' else '>'
-            ob = '<' if b.strip()[0] == '-' else '>'
-
-            is_uncertain = a[-1] == ' ' or b[0] == ' '
-            if is_uncertain:
-                n_uncertain += 1
-            else:
-                n_certain += 1
-
-            a = a.strip().strip('-')
-            b = b.strip().strip('-')
-
-            if prefix:
-                a = prefix + a
-                b = prefix + b
-
-            e = BiEdge(a, b, oa, ob)
+        for e, is_uncertain in happy_edges(row, prefix=opts.prefix):
             fw = fw2 if is_uncertain else fw1
             print >> fw, e
 
-    logging.debug("Certain edges: {0}, Uncertain edges: {1} written to `{2}`".\
-                  format(n_certain, n_uncertain, ",".join((certain, uncertain))))
+    logging.debug("Edges written to `{0}`".format(",".join((certain, uncertain))))
 
 
 def fromblast(args):

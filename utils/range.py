@@ -238,6 +238,32 @@ def _make_endpoints(ranges):
     return sorted(endpoints)
 
 
+def range_piles(ranges):
+    """
+    Return piles of intervals that overlap. The piles are only interrupted by
+    regions of zero coverage.
+
+    >>> ranges = [Range("2", 0, 1, 3, 0), Range("2", 1, 4, 3, 1), Range("3", 5, 7, 3, 2)]
+    >>> list(range_piles(ranges))
+    [[0, 1], [2]]
+    """
+    endpoints = _make_endpoints(ranges)
+
+    for seqid, ends in groupby(endpoints, lambda x: x[0]):
+        active = []
+        depth = 0
+        for seqid, pos, leftright, i, score in ends:
+            if leftright == LEFT:
+                active.append(i)
+                depth += 1
+            else:
+                depth -= 1
+
+            if depth == 0 and active:
+                yield active
+                active = []
+
+
 def range_conflict(ranges, depth=1):
     """
     Find intervals that are overlapping in 1-dimension.
@@ -245,28 +271,25 @@ def range_conflict(ranges, depth=1):
 
     >>> ranges = [Range("2", 0, 1, 3, 0), Range("2", 1, 4, 3, 1), Range("3", 5, 7, 3, 2)]
     >>> list(range_conflict(ranges))
-    [[Range(seqid='2', start=0, end=1, score=3, id=0), Range(seqid='2', start=1, end=4, score=3, id=1)]]
+    [(0, 1)]
     """
     overlap = set()
     active = set()
     endpoints = _make_endpoints(ranges)
 
     for seqid, ends in groupby(endpoints, lambda x: x[0]):
-        ends = list(ends)
+        active.clear()
         for seqid, pos, leftright, i, score in ends:
-            active.clear()
-            for seqid, pos, leftright, i, score in ends:
-                if leftright == LEFT:
-                    active.add(i)
-                else:
-                    active.remove(i)
+            if leftright == LEFT:
+                active.add(i)
+            else:
+                active.remove(i)
 
-                if len(active) > depth:
-                    overlap.add(tuple(sorted(active)))
+            if len(active) > depth:
+                overlap.add(tuple(sorted(active)))
 
     for ov in overlap:
-        selected = [ranges[x] for x in ov]
-        yield selected
+        yield ov
 
 
 def range_chain(ranges):
@@ -284,8 +307,6 @@ def range_chain(ranges):
     >>> range_chain(ranges)
     ([Range(seqid='2', start=0, end=1, score=3, id=0), Range(seqid='3', start=5, end=7, score=3, id=2)], 6)
     """
-    ranges.sort()
-
     endpoints = _make_endpoints(ranges)
 
     # stores the left end index for quick retrieval

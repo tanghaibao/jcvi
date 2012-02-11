@@ -232,16 +232,16 @@ class AGP (LineFile):
                  "component_end/linkage orientation"
         print >> fw, "# FIELDS: {0}".format(", ".join(header.split()))
 
-    def report_stats(self, object, bacs, components, scaffold_sizes):
+    def rstats(self, object, bacs, components, scaffold_sizes, length):
         from jcvi.utils.cbook import human_size
 
         nbacs = len(bacs)
         nscaffolds = len(scaffold_sizes)
         a50, l50, n50 = calculate_A50(scaffold_sizes)
+        l50 = human_size(l50)
+        length = human_size(length)
 
-        print "\t".join(str(x) for x in (object, nbacs,
-            components, nscaffolds, n50,
-            human_size(l50, precision=2, target="Mb")))
+        return (object, nbacs, components, nscaffolds, n50, l50, length)
 
     def summary_one(self, object, lines):
         bacs = set()
@@ -249,6 +249,7 @@ class AGP (LineFile):
         scaffold_sizes = []
         _scaffold_key = lambda x: x.is_gap and \
                 x.linkage == "no"
+        length = max(x.object_end for x in lines)
 
         for is_gap, scaffold in groupby(lines, key=_scaffold_key):
             if is_gap:
@@ -266,23 +267,28 @@ class AGP (LineFile):
 
             scaffold_sizes.append(scaffold_size)
 
-        self.report_stats(object, bacs, components, scaffold_sizes)
-
-        return bacs, components, scaffold_sizes
+        return self.rstats(object, bacs, components, scaffold_sizes, length), \
+                                  (bacs, components, scaffold_sizes, length)
 
     def summary_all(self):
 
         all_bacs = set()
         all_scaffold_sizes = []
         all_components = 0
+        all_length = 0
         for ob, lines_with_same_ob in groupby(self, key=lambda x: x.object):
             lines = list(lines_with_same_ob)
-            bacs, components, scaffold_sizes = self.summary_one(ob, lines)
+            s, bstats = self.summary_one(ob, lines)
+            yield s
+
+            bacs, components, scaffold_sizes, length = bstats
             all_components += components
             all_bacs |= bacs
             all_scaffold_sizes.extend(scaffold_sizes)
+            all_length += length
 
-        self.report_stats("Total", all_bacs, all_components, all_scaffold_sizes)
+        yield self.rstats("Total", all_bacs, all_components,
+                          all_scaffold_sizes, all_length)
 
     def validate_one(self, object, lines):
         object_beg = lines[0].object_beg
@@ -779,7 +785,8 @@ def reindex(args):
 
     agpfile, = args
     agp = AGP(agpfile, validate=False)
-    newagpfile = agpfile.replace(".agp", ".reindexed.agp")
+    pf = agpfile.rsplit(".", 1)[0]
+    newagpfile = pf + ".reindexed.agp"
 
     fw = open(newagpfile, "w")
     for chr, chr_agp in groupby(agp, lambda x: x.object):
@@ -813,6 +820,8 @@ def summary(args):
     scaffold N50, scaffold L50, actual sequence, PSMOL NNNs, PSMOL-length, % of
     PSMOL sequenced.
     """
+    from jcvi.utils.table import write_csv
+
     p = OptionParser(summary.__doc__)
     opts, args = p.parse_args(args)
 
@@ -820,13 +829,12 @@ def summary(args):
         sys.exit(p.print_help())
 
     agpfile, = args
-    header = "Chromosome|# of BACs|# of Components|"
-    header += "# of Scaffolds|Scaff N50|Scaff L50"
-    header = header.replace('|', '\t')
+    header = "Chromosome #_Distinct #_Components #_Scaffolds " \
+             "Scaff_N50 Scaff_L50 Length".split()
 
     agp = AGP(agpfile)
-    print header
-    agp.summary_all()
+    data = list(agp.summary_all())
+    write_csv(header, data, sep=" ")
 
 
 chr_pat = re.compile("chromosome (\d)", re.I)

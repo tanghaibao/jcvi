@@ -40,28 +40,18 @@ from jcvi.formats.bed import Bed
 from jcvi.formats.blast import BlastLine
 from jcvi.utils.grouper import Grouper
 from jcvi.utils.cbook import gene_name
+from jcvi.algorithms.synteny import add_beds, check_beds
 from jcvi.apps.base import debug
 debug()
 
 
 def main(blast_file, opts):
 
-    qbed_file, sbed_file = opts.qbed, opts.sbed
-
-    # is this a self-self blast?
-    is_self = (qbed_file == sbed_file)
-    if is_self:
-        logging.debug("Looks like self BLAST (will non-redundify pairs)")
+    qbed, sbed, qorder, sorder, is_self = check_beds(p, opts)
 
     tandem_Nmax = opts.tandem_Nmax
     filter_repeats = opts.filter_repeats
     cscore = opts.cscore
-
-    qbed = Bed(qbed_file)
-    sbed = Bed(sbed_file)
-
-    qorder = qbed.order
-    sorder = sbed.order
 
     fp = file(blast_file)
     total_lines = sum(1 for line in fp)
@@ -321,8 +311,7 @@ if __name__ == "__main__":
     import optparse
 
     p = optparse.OptionParser(__doc__)
-    p.add_option("--qbed", dest="qbed", help="path to qbed (required)")
-    p.add_option("--sbed", dest="sbed", help="path to sbed (required)")
+    add_beds(p)
     p.add_option("--no_strip_names", dest="strip_names",
             action="store_false", default=True,
             help="do not strip alternative splicing "
@@ -348,8 +337,8 @@ if __name__ == "__main__":
 
     opts, args = p.parse_args()
 
-    if not (len(args) == 1 and opts.qbed and opts.sbed):
-        sys.exit(p.print_help())
+    if len(args) != 1:
+        sys.exit(not p.print_help())
 
     blastfile, = args
     main(blastfile, opts)

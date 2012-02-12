@@ -137,7 +137,7 @@ def batch_scan(points, xdist=20, ydist=20, N=6):
     clusters = []
     for chr_pair in sorted(chr_pair_points.keys()):
         points = chr_pair_points[chr_pair]
-        logging.debug("%s: %d" % (chr_pair, len(points)))
+        #logging.debug("%s: %d" % (chr_pair, len(points)))
         clusters.extend(synteny_scan(points, xdist, ydist, N))
 
     return clusters
@@ -164,33 +164,50 @@ def synteny_liftover(points, anchors, dist):
         yield point
 
 
-def add_options(p, args):
-    """
-    scan and liftover has similar interfaces, so share common options
-    returns opts, files
-    """
-    p.add_option("--qbed", dest="qbed", help="path to qbed (required)")
-    p.add_option("--sbed", dest="sbed", help="path to sbed (required)")
+def add_beds(p):
 
-    p.add_option("--dist", dest="dist",
-            default=10, type="int",
-            help="extent of flanking regions to search [default: %default]")
+    p.add_option("--qbed", help="Path to qbed (required)")
+    p.add_option("--sbed", help="Path to sbed (required)")
 
-    opts, args = p.parse_args(args)
 
-    if not (len(args) == 2 and opts.qbed and opts.sbed):
-        sys.exit(p.print_help())
+def check_beds(p, opts):
+    from jcvi.formats.bed import Bed
 
-    blast_file, anchor_file = args
+    if not (opts.qbed and opts.sbed):
+        print >> sys.stderr, "Options --qbed and --sbed are required"
+        sys.exit(not p.print_help())
 
     qbed_file, sbed_file = opts.qbed, opts.sbed
     # is this a self-self blast?
     is_self = (qbed_file == sbed_file)
     if is_self:
-        logging.debug("Looks like self-self BLAST")
+        logging.debug("Looks like self-self comparison.")
 
-    return blast_file, anchor_file, qbed_file, sbed_file, \
-            opts.dist, is_self, opts
+    qbed = Bed(opts.qbed)
+    sbed = Bed(opts.sbed)
+    qorder = qbed.order
+    sorder = sbed.order
+
+    return qbed, sbed, qorder, sorder, is_self
+
+
+def add_options(p, args):
+    """
+    scan and liftover has similar interfaces, so share common options
+    returns opts, files
+    """
+    add_beds(p)
+    p.add_option("--dist", default=10, type="int",
+            help="Extent of flanking regions to search [default: %default]")
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    blast_file, anchor_file = args
+
+    return blast_file, anchor_file, opts.dist, opts
 
 
 def main():
@@ -200,10 +217,32 @@ def main():
         ('depth', 'calculate the depths in the two genomes in comparison'),
         ('liftover', 'given anchor list, pull adjancent pairs from blast file'),
         ('breakpoint', 'identify breakpoints where collinearity ends'),
+        ('cluster', 'cluster the segments and form PAD'),
             )
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def cluster(args):
+    """
+    %prog cluster anchorfile --qbed qbedfile --sbed sbedfile
+
+    Cluster the segments and form PAD. This is the method described in Tang et
+    al. (2010) PNAS paper. The anchorfile defines a list of synteny blocks,
+    based on which the genome on one or both axis can be chopped up into pieces
+    and clustered.
+    """
+    p = OptionParser(cluster.__doc__)
+    add_beds(p)
+
+    opts, args = p.parse_args(args)
+    qbed, sbed, qorder, sorder, is_self = check_beds(p)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    anchorfile, = args
 
 
 def depth(args):
@@ -217,20 +256,15 @@ def depth(args):
     from jcvi.utils.range import range_depth
 
     p = OptionParser(depth.__doc__)
-    p.add_option("--qbed", help="path to qbed (required)")
-    p.add_option("--sbed", help="path to sbed (required)")
+    add_beds(p)
 
     opts, args = p.parse_args(args)
+    qbed, sbed, qorder, sorder, is_self = check_beds(p, opts)
 
-    if len(args) != 1 or not (opts.qbed and opts.sbed):
+    if len(args) != 1:
         sys.exit(not p.print_help())
 
     anchorfile, = args
-    qbed = Bed(opts.qbed)
-    sbed = Bed(opts.sbed)
-    qorder = qbed.order
-    sorder = sbed.order
-
     ac = AnchorFile(anchorfile)
     qranges = []
     sranges = []
@@ -281,7 +315,7 @@ def breakpoint(args):
                  help="xdist (in related genome) cutoff [default: %default]")
     p.add_option("--ydist", type="int", default=200000,
                  help="ydist (in current genome) cutoff [default: %default]")
-    p.add_option("-N", type="int", default=5,
+    p.add_option("-n", type="int", default=5,
                  help="number of markers in a block [default: %default]")
     opts, args = p.parse_args(args)
 
@@ -295,7 +329,7 @@ def breakpoint(args):
     key = lambda x: x[1]
     for scaffold, bs in bbed.sub_beds():
         blocks = get_blocks(scaffold, bs, order,
-                            xdist=opts.xdist, ydist=opts.ydist, N=opts.N)
+                            xdist=opts.xdist, ydist=opts.ydist, N=opts.n)
         sblocks = []
         for block in blocks:
             xx, yy = zip(*block)
@@ -318,13 +352,8 @@ def scan(args):
     p.add_option("-n", type="int", default=5,
             help="minimum number of anchors in a cluster [default: %default]")
 
-    blast_file, anchor_file, qbed_file, sbed_file, dist, is_self, opts = \
-            add_options(p, args)
-
-    qbed = Bed(qbed_file)
-    sbed = Bed(sbed_file)
-    qorder = qbed.order
-    sorder = sbed.order
+    blast_file, anchor_file, dist, opts = add_options(p, args)
+    qbed, sbed, qorder, sorder, is_self = check_beds(p, opts)
 
     filtered_blast = read_blast(blast_file, qorder, sorder, is_self=is_self)
 
@@ -357,13 +386,8 @@ def liftover(args):
     """
     p = OptionParser(liftover.__doc__)
 
-    blast_file, anchor_file, qbed_file, sbed_file, dist, is_self, opts = \
-            add_options(p, args)
-
-    qbed = Bed(qbed_file)
-    sbed = Bed(sbed_file)
-    qorder = qbed.order
-    sorder = sbed.order
+    blast_file, anchor_file, dist, opts = add_options(p, args)
+    qbed, sbed, qorder, sorder, is_self = check_beds(p, opts)
 
     filtered_blast = read_blast(blast_file, qorder, sorder, is_self=is_self)
     all_hits = group_hits(filtered_blast)
@@ -376,7 +400,7 @@ def liftover(args):
         hits = np.array(all_hits[chr_pair])
         anchors = np.array(all_anchors[chr_pair])
 
-        logging.debug("%s: %d" % (chr_pair, len(anchors)))
+        #logging.debug("%s: %d" % (chr_pair, len(anchors)))
         if not len(hits):
             continue
 

@@ -167,8 +167,13 @@ def index(args):
     if samfile.endswith(".sam"):
         sh(cmd)
 
-    prefix = bamfile.replace(".bam", "")
-    sortedbamfile = prefix + ".sorted.bam"
+    # Already sorted?
+    if bamfile.endswith(".sorted.bam"):
+        sortedbamfile = bamfile
+    else:
+        prefix = bamfile.replace(".bam", "")
+        sortedbamfile = prefix + ".sorted.bam"
+
     if need_update(bamfile, sortedbamfile):
         sh("samtools sort {0} {1}.sorted".format(bamfile, prefix))
 

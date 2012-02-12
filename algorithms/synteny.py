@@ -8,7 +8,7 @@ import collections
 import numpy as np
 from optparse import OptionParser
 
-from jcvi.formats.bed import Bed
+from jcvi.formats.bed import Bed, BedLine
 from jcvi.formats.blast import BlastLine
 from jcvi.formats.base import BaseFile, read_block
 from jcvi.utils.grouper import Grouper
@@ -21,11 +21,12 @@ class AnchorFile (BaseFile):
     def __init__(self, filename):
         super(AnchorFile, self).__init__(filename)
 
-    def iter_blocks(self):
+    def iter_blocks(self, minsize=0):
         fp = open(self.filename)
         for header, lines in read_block(fp, "#"):
             lines = [x.split() for x in lines]
-            yield zip(*lines)
+            if len(lines) >= minsize:
+                yield zip(*lines)
 
 
 def _score(cluster):
@@ -171,7 +172,6 @@ def add_beds(p):
 
 
 def check_beds(p, opts):
-    from jcvi.formats.bed import Bed
 
     if not (opts.qbed and opts.sbed):
         print >> sys.stderr, "Options --qbed and --sbed are required"
@@ -224,6 +224,59 @@ def main():
     p.dispatch(globals())
 
 
+def get_segments(ranges, extra):
+    """
+    Given a list of Range, perform chaining on the ranges and select a highest
+    scoring subset and cut based on their boundaries. Let's say the projection
+    of the synteny blocks onto one axis look like the following.
+
+    1=====10......20====30....35====~~
+
+    Then the segmentation will yield a block [1, 20), [20, 35), using an
+    arbitrary right extension rule. Extra are additional end breaks for
+    chromosomes.
+    """
+    from jcvi.utils.iter import pairwise
+    from jcvi.utils.range import range_chain, LEFT, RIGHT
+
+    selected, score = range_chain(ranges)
+
+    endpoints = [(x.start, LEFT) for x in ranges if x.start != 0]
+    endpoints = sorted(endpoints)[1:]
+    endpoints += [(x[0], LEFT) for x in extra]
+    endpoints += [(x[1], RIGHT) for x in extra]
+    endpoints.sort()
+
+    for (a, ai), (b, bi) in pairwise(endpoints):
+        if (a, ai) == (b, bi):
+            continue
+
+        if ai == LEFT:
+            if bi == LEFT:
+                yield a, b
+            elif bi == RIGHT:
+                yield a, b + 1
+        elif ai == RIGHT:
+            continue
+
+
+def write_PAD_bed(bedfile, prefix, pads, bed):
+    fw = open(bedfile, "w")
+    padnames = ["{0}:{1:05d}-{2:05d}".format(prefix, a, b) for a, b in pads]
+    j = 0
+
+    # Assign all genes to new partitions
+    for i, x in enumerate(bed):
+        a, b = pads[j]
+        if i >= b:
+            j += 1
+            a, b = pads[j]
+        print >> fw, "\t".join((padnames[j], str(i), str(i + 1), x.accn))
+
+    fw.close()
+    logging.debug("{0} partition written in `{1}`.".format(len(pads), bedfile))
+
+
 def cluster(args):
     """
     %prog cluster anchorfile --qbed qbedfile --sbed sbedfile
@@ -233,16 +286,49 @@ def cluster(args):
     based on which the genome on one or both axis can be chopped up into pieces
     and clustered.
     """
+    from jcvi.utils.range import Range
+
     p = OptionParser(cluster.__doc__)
     add_beds(p)
+    p.add_option("--minsize", default=10, type="int",
+                 help="Only segment using blocks >= size [default: %default]")
 
     opts, args = p.parse_args(args)
-    qbed, sbed, qorder, sorder, is_self = check_beds(p)
+    qbed, sbed, qorder, sorder, is_self = check_beds(p, opts)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     anchorfile, = args
+    minsize = opts.minsize
+    ac = AnchorFile(anchorfile)
+    qranges, sranges = [], []
+    qextra = [x[1:] for x in qbed.get_breaks()]
+    sextra = [x[1:] for x in sbed.get_breaks()]
+
+    id = 0
+    for q, s in ac.iter_blocks(minsize=minsize):
+        q = [qorder[x][0] for x in q]
+        s = [sorder[x][0] for x in s]
+        minq, maxq = min(q), max(q)
+        mins, maxs = min(s), max(s)
+        id += 1
+
+        qr = Range("0", minq, maxq, maxq - minq, id)
+        sr = Range("0", mins, maxs, maxs - mins, id)
+        qranges.append(qr)
+        sranges.append(sr)
+
+    qpads = list(get_segments(qranges, qextra))
+    spads = list(get_segments(sranges, sextra))
+
+    suffix = ".pad.bed"
+    qpf = opts.qbed.split(".")[0]
+    spf = opts.sbed.split(".")[0]
+    qpadfile = qpf + suffix
+    spadfile = spf + suffix
+    write_PAD_bed(qpadfile, qpf, qpads, qbed)
+    write_PAD_bed(spadfile, spf, spads, sbed)
 
 
 def depth(args):

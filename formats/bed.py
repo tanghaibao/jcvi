@@ -144,6 +144,14 @@ class Bed(LineFile):
         for bs, sb in groupby(self, key=lambda x: x.seqid):
             yield bs, list(sb)
 
+    def get_breaks(self):
+        # get chromosome break positions
+        simple_bed = self.simple_bed
+        for seqid, ranks in groupby(simple_bed, key=lambda x: x[0]):
+            ranks = list(ranks)
+            # chromosome, extent of the chromosome
+            yield seqid, ranks[0][1], ranks[-1][1]
+
 
 def main():
 

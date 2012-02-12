@@ -25,15 +25,6 @@ from jcvi.graphics.base import plt, ticker, Rectangle, cm, _, \
 debug()
 
 
-def get_breaks(bed):
-    # get chromosome break positions
-    simple_bed = bed.simple_bed
-    for seqid, ranks in groupby(simple_bed, key=lambda x: x[0]):
-        ranks = list(ranks)
-        # chromosome, extent of the chromosome
-        yield seqid, ranks[0][1], ranks[-1][1]
-
-
 def draw_box(clusters, ax, color="b"):
 
     for cluster in clusters:
@@ -67,7 +58,8 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts,
     sorder = sbed.order
 
     data = []
-    logging.debug("Normalize values to [%.1f, %.1f]" % (vmin, vmax))
+    if cmap_text:
+        logging.debug("Normalize values to [%.1f, %.1f]" % (vmin, vmax))
 
     for row in fp:
         atoms = row.split()
@@ -137,7 +129,7 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts,
     ignore_size_y = ysize * .005
 
     # plot the chromosome breaks
-    for (seqid, beg, end) in get_breaks(qbed):
+    for (seqid, beg, end) in qbed.get_breaks():
         ignore = abs(end - beg) < ignore_size_x
         seqid = seqid.split("_")[-1]
         try:
@@ -149,7 +141,7 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts,
         xchr_labels.append((seqid, (beg + end) / 2, ignore))
         ax.plot([beg, beg], ylim, "g-", lw=1)
 
-    for (seqid, beg, end) in get_breaks(sbed):
+    for (seqid, beg, end) in sbed.get_breaks():
         ignore = abs(end - beg) < ignore_size_y
         seqid = seqid.split("_")[-1]
         try:

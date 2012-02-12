@@ -67,7 +67,7 @@ def tabulate(d, transpose=False, key_fun=None):
     return table
 
 
-def write_csv(header, contents, filename="stdout", tee=False):
+def write_csv(header, contents, sep=",", filename="stdout", tee=False):
     """
     Write csv that are aligned with the column headers.
 
@@ -91,9 +91,10 @@ def write_csv(header, contents, filename="stdout", tee=False):
         allcontents[i] = [str(x) for x in content]
 
     colwidths = [max(len(x[i]) for x in allcontents) for i in xrange(cols)]
+    sep += " "
     for content in allcontents:
         rjusted = [x.rjust(cw) for x, cw in zip(content, colwidths)]
-        formatted = ", ".join(rjusted)
+        formatted = sep.join(rjusted)
         print >> fw, formatted
         if tee and filename != "stdout":
             print formatted

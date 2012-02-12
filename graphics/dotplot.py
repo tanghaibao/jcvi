@@ -18,7 +18,7 @@ from itertools import groupby
 from optparse import OptionParser
 
 from jcvi.formats.bed import Bed
-from jcvi.algorithms.synteny import batch_scan
+from jcvi.algorithms.synteny import batch_scan, add_beds, check_beds
 from jcvi.apps.base import debug
 from jcvi.graphics.base import plt, ticker, Rectangle, cm, _, \
         set_human_axis, set_image_options
@@ -75,12 +75,12 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts,
         if len(atoms) < 2:
             continue
         query, subject = atoms[:2]
-        value = atoms[-1] if cmap_text else vmax
+        value = atoms[-1]
 
         try:
             value = float(value)
         except ValueError:
-            value = vmin
+            value = vmax
 
         if value < vmin:
             value = vmin
@@ -207,8 +207,7 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts,
 if __name__ == "__main__":
 
     p = OptionParser(__doc__)
-    p.add_option("--qbed", help="Path to qbed")
-    p.add_option("--sbed", help="Path to sbed")
+    add_beds(p)
     p.add_option("--synteny", default=False, action="store_true",
             help="Run a fast synteny scan and display blocks [default: %default]")
     p.add_option("--cmap", default="Synonymous substitutions (Ks)",
@@ -220,14 +219,11 @@ if __name__ == "__main__":
             help="Maximum value in the colormap [default: %default]")
     opts, args, iopts = set_image_options(p, figsize="8x8", dpi=90)
 
-    qbed, sbed = opts.qbed, opts.sbed
-    if not (len(args) == 1 and qbed and sbed):
-        sys.exit(p.print_help())
+    if len(args) != 1:
+        sys.exit(not p.print_help())
 
-    is_self = (qbed == sbed)
+    qbed, sbed, qorder, sorder, is_self = check_beds(p, opts)
 
-    qbed = Bed(qbed)
-    sbed = Bed(sbed)
     synteny = opts.synteny
     vmin, vmax = opts.vmin, opts.vmax
     cmap_text = opts.cmap

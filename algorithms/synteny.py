@@ -224,7 +224,7 @@ def main():
     p.dispatch(globals())
 
 
-def get_segments(ranges, extra):
+def get_segments(ranges, extra, minsegment=40):
     """
     Given a list of Range, perform chaining on the ranges and select a highest
     scoring subset and cut based on their boundaries. Let's say the projection
@@ -239,25 +239,26 @@ def get_segments(ranges, extra):
     from jcvi.utils.iter import pairwise
     from jcvi.utils.range import range_chain, LEFT, RIGHT
 
+    NUL = -1
     selected, score = range_chain(ranges)
 
-    endpoints = [(x.start, LEFT) for x in ranges if x.start != 0]
-    endpoints = sorted(endpoints)[1:]
+    endpoints = [(x.start, NUL) for x in selected]
     endpoints += [(x[0], LEFT) for x in extra]
     endpoints += [(x[1], RIGHT) for x in extra]
     endpoints.sort()
 
-    for (a, ai), (b, bi) in pairwise(endpoints):
-        if (a, ai) == (b, bi):
-            continue
+    current_left = 0
+    for a, ai in endpoints:
 
         if ai == LEFT:
-            if bi == LEFT:
-                yield a, b
-            elif bi == RIGHT:
-                yield a, b + 1
-        elif ai == RIGHT:
-            continue
+            current_left = a
+        if ai == RIGHT:
+            yield current_left, a
+        elif ai == NUL:
+            if a - current_left < minsegment:
+                continue
+            yield current_left, a - 1
+            current_left = a
 
 
 def write_PAD_bed(bedfile, prefix, pads, bed):
@@ -268,38 +269,46 @@ def write_PAD_bed(bedfile, prefix, pads, bed):
     # Assign all genes to new partitions
     for i, x in enumerate(bed):
         a, b = pads[j]
-        if i >= b:
+        if i > b:
             j += 1
             a, b = pads[j]
         print >> fw, "\t".join((padnames[j], str(i), str(i + 1), x.accn))
 
     fw.close()
-    logging.debug("{0} partition written in `{1}`.".format(len(pads), bedfile))
+
+    npads = len(pads)
+    logging.debug("{0} partition written in `{1}`.".format(npads, bedfile))
+    return npads, padnames
 
 
 def cluster(args):
     """
-    %prog cluster anchorfile --qbed qbedfile --sbed sbedfile
+    %prog cluster blastfile anchorfile --qbed qbedfile --sbed sbedfile
 
     Cluster the segments and form PAD. This is the method described in Tang et
     al. (2010) PNAS paper. The anchorfile defines a list of synteny blocks,
     based on which the genome on one or both axis can be chopped up into pieces
     and clustered.
     """
+    import numpy as np
+
+    from math import log
     from jcvi.utils.range import Range
 
     p = OptionParser(cluster.__doc__)
     add_beds(p)
     p.add_option("--minsize", default=10, type="int",
                  help="Only segment using blocks >= size [default: %default]")
+    p.add_option("--path", default="~/scratch/bin",
+                 help="Path to the CLUSTER 3.0 binary [default: %default]")
 
     opts, args = p.parse_args(args)
     qbed, sbed, qorder, sorder, is_self = check_beds(p, opts)
 
-    if len(args) != 1:
+    if len(args) != 2:
         sys.exit(not p.print_help())
 
-    anchorfile, = args
+    blastfile, anchorfile = args
     minsize = opts.minsize
     ac = AnchorFile(anchorfile)
     qranges, sranges = [], []
@@ -327,8 +336,61 @@ def cluster(args):
     spf = opts.sbed.split(".")[0]
     qpadfile = qpf + suffix
     spadfile = spf + suffix
-    write_PAD_bed(qpadfile, qpf, qpads, qbed)
-    write_PAD_bed(spadfile, spf, spads, sbed)
+    qnpads, qpadnames = write_PAD_bed(qpadfile, qpf, qpads, qbed)
+    snpads, spadnames = write_PAD_bed(spadfile, spf, spads, sbed)
+    m, n = qnpads, snpads
+
+    qpadbed, spadbed = Bed(qpadfile), Bed(spadfile)
+    qpadorder, spadorder = qpadbed.order, spadbed.order
+    qpadid = dict((a, i) for i, a in enumerate(qpadnames))
+    spadid = dict((a, i) for i, a in enumerate(spadnames))
+    qpadlen = dict((a, len(b)) for a, b in qpadbed.sub_beds())
+    spadlen = dict((a, len(b)) for a, b in spadbed.sub_beds())
+
+    # Populate arrays of observed counts and expected counts
+    logging.debug("Initialize array of size ({0} x {1})".format(m, n))
+    observed = np.zeros((m, n))
+    fp = open(blastfile)
+    all_dots = 0
+    for row in fp:
+        b = BlastLine(row)
+        qi, q = qpadorder[b.query]
+        si, s = spadorder[b.subject]
+        qseqid, sseqid = q.seqid, s.seqid
+        qsi, ssi = qpadid[qseqid], spadid[sseqid]
+        observed[qsi, ssi] += 1
+        all_dots += 1
+
+    assert int(round(observed.sum())) == all_dots
+
+    S = len(qbed) * len(sbed)
+    expected = np.zeros((m, n))
+    for i, a in enumerate(qpadnames):
+        alen = qpadlen[a]
+        for j, b in enumerate(spadnames):
+            blen = spadlen[b]
+            expected[i, j] = all_dots * alen * blen * 1. / S
+
+    assert int(round(expected.sum())) == all_dots
+
+    # Calculate the statistical significance for each cell
+    from scipy.stats.distributions import poisson
+    M = m * n  # multiple testing
+    logmp = np.zeros((m, n))
+    for i in xrange(m):
+        for j in xrange(n):
+            obs, exp = observed[i, j], expected[i, j]
+            logmp[i, j] = max(- log(M * poisson.pmf(obs, exp)), 0)
+
+    matrixfile = ".".join((qpf, spf, "logmp.txt"))
+    fw = open(matrixfile, "w")
+    header = ["o"] + spadnames
+    print >> fw, "\t".join(header)
+    for i in xrange(m):
+        row = [qpadnames[i]] + ["{0:.1f}".format(x) for x in logmp[i, :]]
+        print >> fw, "\t".join(row)
+
+    fw.close()
 
 
 def depth(args):

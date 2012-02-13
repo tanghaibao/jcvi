@@ -17,6 +17,8 @@ import os.path as op
 import sys
 import logging
 
+import numpy as np
+from math import log
 from optparse import OptionParser
 
 from jcvi.algorithms.synteny import AnchorFile, add_beds, check_beds
@@ -29,10 +31,131 @@ debug()
 def main():
 
     actions = (
-        ('cluster', 'cluster the segments and form PAD'),
+        ('cluster', 'cluster the segments'),
+        ('pad', 'test and reconstruct candidate PADs'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def make_arrays(blastfile, qpadbed, spadbed, qpadnames, spadnames):
+    """
+    This function makes three matrices: observed, expected and logmp. The logmp
+    contains the statistical significance for each comparison.
+    """
+    m, n = len(qpadnames), len(spadnames)
+    qpadorder, spadorder = qpadbed.order, spadbed.order
+    qpadid = dict((a, i) for i, a in enumerate(qpadnames))
+    spadid = dict((a, i) for i, a in enumerate(spadnames))
+    qpadlen = dict((a, len(b)) for a, b in qpadbed.sub_beds())
+    spadlen = dict((a, len(b)) for a, b in spadbed.sub_beds())
+
+    qsize, ssize = len(qpadbed), len(spadbed)
+
+    assert sum(qpadlen.values()) == qsize
+    assert sum(spadlen.values()) == ssize
+
+    # Populate arrays of observed counts and expected counts
+    logging.debug("Initialize array of size ({0} x {1})".format(m, n))
+    observed = np.zeros((m, n))
+    fp = open(blastfile)
+    all_dots = 0
+    for row in fp:
+        b = BlastLine(row)
+        qi, q = qpadorder[b.query]
+        si, s = spadorder[b.subject]
+        qseqid, sseqid = q.seqid, s.seqid
+        qsi, ssi = qpadid[qseqid], spadid[sseqid]
+        observed[qsi, ssi] += 1
+        all_dots += 1
+
+    assert int(round(observed.sum())) == all_dots
+
+    logging.debug("Total area: {0} x {1}".format(qsize, ssize))
+    S = qsize * ssize
+    expected = np.zeros((m, n))
+    qsum = 0
+    ssum = 0
+    for i, a in enumerate(qpadnames):
+        alen = qpadlen[a]
+        qsum += alen
+        for j, b in enumerate(spadnames):
+            blen = spadlen[b]
+            expected[i, j] = all_dots * alen * blen * 1. / S
+
+    assert int(round(expected.sum())) == all_dots
+
+    # Calculate the statistical significance for each cell
+    from scipy.stats.distributions import poisson
+    M = m * n  # multiple testing
+    logmp = np.zeros((m, n))
+    for i in xrange(m):
+        for j in xrange(n):
+            obs, exp = observed[i, j], expected[i, j]
+            pois = max(poisson.pmf(obs, exp), 1e-250)  # Underflow
+            logmp[i, j] = max(- log(pois), 0)
+
+    return logmp
+
+
+def pad(args):
+    """
+    %prog pad blastfile cdtfile --qbed q.pad.bed --sbed s.pad.bed
+
+    Test and reconstruct candidate PADs.
+    """
+    from jcvi.formats.cdt import CDT
+
+    p = OptionParser(pad.__doc__)
+    add_beds(p)
+    p.add_option("--cutoff", default=.3, type="float",
+                 help="The clustering cutoff to call similar [default: %default]")
+
+    opts, args = p.parse_args(args)
+    qbed, sbed, qorder, sorder, is_self = check_beds(p, opts)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    cutoff = opts.cutoff
+    blastfile, cdtfile = args
+    cdt = CDT(cdtfile)
+    qparts = list(cdt.iter_partitions(cutoff=cutoff))
+    sparts = list(cdt.iter_partitions(cutoff=cutoff, gtr=False))
+
+    qid, sid = {}, {}
+    for i, part in enumerate(qparts):
+        qid.update(dict((x, i) for x in part))
+    for i, part in enumerate(sparts):
+        sid.update(dict((x, i) for x in part))
+
+    # Without writing files, conversion from PAD to merged PAD is done in memory
+    for q in qbed:
+        q.seqid = qid[q.seqid]
+    for s in sbed:
+        s.seqid = sid[s.seqid]
+
+    qnames = range(len(qparts))
+    snames = range(len(sparts))
+
+    logmp = make_arrays(blastfile, qbed, sbed, qnames, snames)
+    m, n = logmp.shape
+    pvalue_cutoff = 1e-30
+    cutoff = - log(pvalue_cutoff)
+
+    significant = []
+    for i in xrange(m):
+        for j in xrange(n):
+            score = logmp[i, j]
+            if score < cutoff:
+                continue
+            significant.append((qparts[i], sparts[j], score))
+
+    for a, b, score in significant:
+        print "|".join(a), "|".join(b), score
+
+    logging.debug("Collected {0} PAR comparisons significant at (P < {1}).".\
+                    format(len(significant), pvalue_cutoff))
 
 
 def get_segments(ranges, extra, minsegment=40):
@@ -105,9 +228,6 @@ def cluster(args):
     based on which the genome on one or both axis can be chopped up into pieces
     and clustered.
     """
-    import numpy as np
-
-    from math import log
     from jcvi.utils.range import Range
 
     p = OptionParser(cluster.__doc__)
@@ -153,58 +273,11 @@ def cluster(args):
     spadfile = spf + suffix
     qnpads, qpadnames = write_PAD_bed(qpadfile, qpf, qpads, qbed)
     snpads, spadnames = write_PAD_bed(spadfile, spf, spads, sbed)
-    m, n = qnpads, snpads
 
     qpadbed, spadbed = Bed(qpadfile), Bed(spadfile)
-    qpadorder, spadorder = qpadbed.order, spadbed.order
-    qpadid = dict((a, i) for i, a in enumerate(qpadnames))
-    spadid = dict((a, i) for i, a in enumerate(spadnames))
-    qpadlen = dict((a, len(b)) for a, b in qpadbed.sub_beds())
-    spadlen = dict((a, len(b)) for a, b in spadbed.sub_beds())
 
-    qsize, ssize = len(qbed), len(sbed)
-
-    assert sum(qpadlen.values()) == qsize
-    assert sum(spadlen.values()) == ssize
-
-    # Populate arrays of observed counts and expected counts
-    logging.debug("Initialize array of size ({0} x {1})".format(m, n))
-    observed = np.zeros((m, n))
-    fp = open(blastfile)
-    all_dots = 0
-    for row in fp:
-        b = BlastLine(row)
-        qi, q = qpadorder[b.query]
-        si, s = spadorder[b.subject]
-        qseqid, sseqid = q.seqid, s.seqid
-        qsi, ssi = qpadid[qseqid], spadid[sseqid]
-        observed[qsi, ssi] += 1
-        all_dots += 1
-
-    assert int(round(observed.sum())) == all_dots
-
-    logging.debug("Total area: {0} x {1}".format(qsize, ssize))
-    S = qsize * ssize
-    expected = np.zeros((m, n))
-    qsum = 0
-    ssum = 0
-    for i, a in enumerate(qpadnames):
-        alen = qpadlen[a]
-        qsum += alen
-        for j, b in enumerate(spadnames):
-            blen = spadlen[b]
-            expected[i, j] = all_dots * alen * blen * 1. / S
-
-    assert int(round(expected.sum())) == all_dots
-
-    # Calculate the statistical significance for each cell
-    from scipy.stats.distributions import poisson
-    M = m * n  # multiple testing
-    logmp = np.zeros((m, n))
-    for i in xrange(m):
-        for j in xrange(n):
-            obs, exp = observed[i, j], expected[i, j]
-            logmp[i, j] = max(- log(M * poisson.pmf(obs, exp)), 0)
+    logmp = make_arrays(blastfile, qpadbed, spadbed, qpadnames, spadnames)
+    m, n = logmp.shape
 
     matrixfile = ".".join((qpf, spf, "logmp.txt"))
     fw = open(matrixfile, "w")

@@ -18,7 +18,7 @@ debug()
 def main():
 
     actions = (
-        ('csv', 'convert HTML tables to csv'),
+        ('table', 'convert HTML tables to csv'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -36,15 +36,17 @@ def unescape(s, unicode_action="replace"):
     return s
 
 
-def csv(args):
+def table(args):
     """
-    %prog csv page.html
+    %prog table page.html
 
     Convert HTML tables to csv.
     """
     import csv
 
     p = OptionParser(csv.__doc__)
+    p.add_option("--sep", default=",",
+                 help="Use separator [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -57,7 +59,7 @@ def csv(args):
     table = soup.find('table')
     rows = table.findAll('tr')
     csvfile = htmlfile.rsplit(".", 1)[0] + ".csv"
-    writer = csv.writer(open(csvfile, "w"))
+    writer = csv.writer(open(csvfile, "w"), delimiter=opts.sep)
 
     nrows = 0
     for tr in rows:

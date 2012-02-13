@@ -8,7 +8,7 @@ import collections
 import numpy as np
 from optparse import OptionParser
 
-from jcvi.formats.bed import Bed
+from jcvi.formats.bed import Bed, BedLine
 from jcvi.formats.blast import BlastLine
 from jcvi.formats.base import BaseFile, read_block
 from jcvi.utils.grouper import Grouper
@@ -21,11 +21,12 @@ class AnchorFile (BaseFile):
     def __init__(self, filename):
         super(AnchorFile, self).__init__(filename)
 
-    def iter_blocks(self):
+    def iter_blocks(self, minsize=0):
         fp = open(self.filename)
         for header, lines in read_block(fp, "#"):
             lines = [x.split() for x in lines]
-            yield zip(*lines)
+            if len(lines) >= minsize:
+                yield zip(*lines)
 
 
 def _score(cluster):
@@ -171,7 +172,6 @@ def add_beds(p):
 
 
 def check_beds(p, opts):
-    from jcvi.formats.bed import Bed
 
     if not (opts.qbed and opts.sbed):
         print >> sys.stderr, "Options --qbed and --sbed are required"
@@ -217,32 +217,10 @@ def main():
         ('depth', 'calculate the depths in the two genomes in comparison'),
         ('liftover', 'given anchor list, pull adjancent pairs from blast file'),
         ('breakpoint', 'identify breakpoints where collinearity ends'),
-        ('cluster', 'cluster the segments and form PAD'),
             )
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
-
-
-def cluster(args):
-    """
-    %prog cluster anchorfile --qbed qbedfile --sbed sbedfile
-
-    Cluster the segments and form PAD. This is the method described in Tang et
-    al. (2010) PNAS paper. The anchorfile defines a list of synteny blocks,
-    based on which the genome on one or both axis can be chopped up into pieces
-    and clustered.
-    """
-    p = OptionParser(cluster.__doc__)
-    add_beds(p)
-
-    opts, args = p.parse_args(args)
-    qbed, sbed, qorder, sorder, is_self = check_beds(p)
-
-    if len(args) != 1:
-        sys.exit(not p.print_help())
-
-    anchorfile, = args
 
 
 def depth(args):

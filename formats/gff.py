@@ -144,6 +144,7 @@ def main():
         ('bed12', 'produce bed12 file for coding features'),
         ('gtf', 'convert to gtf format'),
         ('sort', 'sort the gff file'),
+        ('filter', 'filter the gff file based on Identity and Coverage'),
         ('format', 'format the gff file, change seqid, etc.'),
         ('uniq', 'remove the redundant gene models'),
         ('liftover', 'adjust gff coordinates based on tile number'),
@@ -158,6 +159,56 @@ def main():
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def filter(args):
+    """
+    %prog filter gffile > filtered.gff
+
+    Filter the gff file based on Identity and coverage. You can get this type of
+    gff by using gmap:
+
+    $ gmap -f 2
+    """
+    p = OptionParser(filter.__doc__)
+    p.add_option("--id", default=95, type="float",
+                 help="Minimum identity [default: %default]")
+    p.add_option("--coverage", default=90, type="float",
+                 help="Minimum coverage [default: %default]")
+    p.add_option("--type", default="mRNA",
+                 help="The feature to scan for the attributes [default: %default]")
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    gffile, = args
+
+    gff = Gff(gffile)
+    bad = set()
+    relatives = set()
+    for g in gff:
+        if g.type != opts.type:
+            continue
+        identity = float(g.attributes["Identity"][0])
+        coverage = float(g.attributes["Coverage"][0])
+        if identity < opts.id or coverage < opts.coverage:
+            bad.add(g.accn)
+            relatives.add(g.attributes["Parent"][0])
+
+    logging.debug("{0} bad accns marked.".format(len(bad)))
+
+    for g in gff:
+        if "Parent" in g.attributes and g.attributes["Parent"][0] in bad:
+            relatives.add(g.accn)
+
+    logging.debug("{0} bad relatives marked.".format(len(relatives)))
+
+    for g in gff:
+        if g.accn in bad or g.accn in relatives:
+            continue
+        print g
 
 
 def format(args):

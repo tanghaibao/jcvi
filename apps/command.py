@@ -161,7 +161,7 @@ def main():
 
     actions = (
         ('less', 'enhance the unix `less` command'),
-        ('megablast', 'run megablast using query against reference'),
+        ('blast', 'run blastn using query against reference'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -224,15 +224,15 @@ def less(args):
         snapshot(fp, p, fsize, counts=counts)
 
 
-def megablast(args):
+def blast(args):
     """
-    %prog megablast ref.fasta query.fasta
+    %prog blast ref.fasta query.fasta
 
-    Calls megablast and then filter the BLAST hits.
+    Calls blast and then filter the BLAST hits. Default is megablast.
     """
     task_choices = ("blastn", "blastn-short", "dc-megablast", \
                     "megablast", "vecscreen")
-    p = OptionParser(megablast.__doc__)
+    p = OptionParser(blast.__doc__)
     p.add_option("--best", default=1, type="int",
             help="Only look for best N hits [default: %default]")
     p.add_option("--task", default="megablast", choices=task_choices,

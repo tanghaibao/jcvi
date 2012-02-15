@@ -137,7 +137,6 @@ class GridProcess (object):
         qsub = "qsub -cwd -P {0}".format(PCODE)
         if self.queue != "default":
             qsub += " -l {0}".format(self.queue)
-
         if self.infile:
             qsub += " -i {0}".format(self.infile)
         if self.outfile:
@@ -172,6 +171,8 @@ class Grid (list):
     def __init__(self, cmds=None, outfiles=[]):
 
         mkdir(sge)
+        if not outfiles:
+            outfiles = [None] * len(cmds)
 
         if cmds:
             for cmd, outfile in zip(cmds, outfiles):

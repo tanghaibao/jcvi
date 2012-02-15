@@ -8,7 +8,7 @@ from itertools import groupby, islice, cycle, izip
 from optparse import OptionParser
 
 from Bio import SeqIO
-from jcvi.apps.base import ActionDispatcher, sh, debug, need_update
+from jcvi.apps.base import ActionDispatcher, sh, debug, need_update, mkdir
 debug()
 
 
@@ -95,8 +95,7 @@ class FileSplitter (object):
         else:
             self.klass = "txt"
 
-        if not op.isdir(outputdir):
-            os.mkdir(outputdir)
+        mkdir(outputdir)
 
     def _open(self, filename):
 
@@ -145,7 +144,7 @@ class FileSplitter (object):
 
     @classmethod
     def get_names(cls, filename, N):
-        root, ext = op.splitext(filename)
+        root, ext = op.splitext(op.basename(filename))
 
         names = []
         for i in xrange(N):
@@ -170,7 +169,7 @@ class FileSplitter (object):
         if self.outputdir:
             self.names = [op.join(self.outputdir, x) for x in self.names]
 
-        if op.exists(self.names[0]) and not force:
+        if not need_update(self.filename, self.names) and not force:
             logging.error("file %s already existed, skip file splitting" % \
                     self.names[0])
             return
@@ -366,6 +365,8 @@ def split(args):
 
     logging.debug("split file into %d chunks" % N)
     fs.split(N)
+
+    return fs
 
 
 if __name__ == '__main__':

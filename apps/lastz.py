@@ -9,12 +9,21 @@ import logging
 
 from optparse import OptionParser
 from subprocess import Popen, PIPE
-from multiprocessing import Lock
+from multiprocessing import Lock, Pool
 
+from jcvi.formats.base import must_open
 from jcvi.apps.grid import Grid, Jobs
-from jcvi.apps.base import ActionDispatcher, debug, set_params, set_grid
+from jcvi.apps.base import ActionDispatcher, debug, set_params, \
+        set_grid, set_outfile, sh, mkdir
 debug()
 
+
+# LASTZ options
+Darkspace = "nameparse=darkspace"
+Unmask = "unmask"
+Multiple = "multiple"
+Subsample = "subsample={0}/{1}"
+Lastz_template = "{0} --ambiguous=iupac {1}[{2}] {3}[{4}]"
 
 blast_fields = "query,subject,pctid,hitlen,nmismatch,ngaps,"\
         "qstart,qstop,sstart,sstop,evalue,score"
@@ -57,27 +66,66 @@ def lastz_to_blast(row):
             start1, end1, start2, end2, evalue, score))
 
 
-def lastz(k, n, bfasta_fn, afasta_fn, out_fh, lock, lastz_path, extra,
-        blastline=True, mask=False, grid=False):
-    lastz_bin = lastz_path or "lastz"
-
-    ref_tags = ["multiple", "nameparse=darkspace"]
-    qry_tags = ["nameparse=darkspace", "subsample=%d/%d" % (k, n)]
+def add_mask(ref_tags, qry_tags, mask=False):
     if not mask:
-        ref_tags.append("unmask")
-        qry_tags.append("unmask")
+        ref_tags.append(Unmask)
+        qry_tags.append(Unmask)
 
     ref_tags = ",".join(ref_tags)
     qry_tags = ",".join(qry_tags)
 
-    lastz_cmd = "%s --ambiguous=iupac %s[%s] %s[%s] %s"
-    lastz_cmd %= (lastz_bin, bfasta_fn, ref_tags, afasta_fn, qry_tags, extra)
+    return ref_tags, qry_tags
 
-    if blastline:
-        #lastz_cmd += " --format=general-:%s" % lastz_fields
-        # The above conversion is no longer necessary after LASTZ v1.02.40
-        # (of which I contributed a patch)
-        lastz_cmd += " --format=BLASTN-"
+
+def lastz_2bit(t):
+    """
+    Used for formats other than BLAST, i.e. lav, maf, etc. which requires the
+    database file to contain a single FASTA record.
+    """
+    bfasta_fn, afasta_fn, outfile, lastz_bin, extra, mask, format, grid = t
+
+    ref_tags = [Darkspace]
+    qry_tags = [Darkspace]
+    ref_tags, qry_tags = add_mask(ref_tags, qry_tags, mask=mask)
+
+    lastz_cmd = Lastz_template.format(lastz_bin, bfasta_fn, ref_tags, \
+                                                 afasta_fn, qry_tags)
+    if extra:
+        lastz_cmd += " " + extra.strip()
+
+    lastz_cmd += " --format={0}".format(format)
+    if grid:  # if run on SGE, only the cmd is needed
+        return lastz_cmd
+
+    proc = Popen(lastz_cmd, bufsize=1, stdout=PIPE, shell=True)
+    out_fh = open(outfile, "w")
+
+    logging.debug("job <%d> started: %s" % (proc.pid, lastz_cmd))
+    for row in proc.stdout:
+        out_fh.write(row)
+        out_fh.flush()
+    logging.debug("job <%d> finished" % proc.pid)
+
+
+def lastz(k, n, bfasta_fn, afasta_fn, out_fh, lock, lastz_bin, extra,
+          mask=False, grid=False):
+
+    ref_tags = [Multiple, Darkspace]
+    qry_tags = [Darkspace]
+    if n != 1:
+        qry_tags.append(Subsample.format(k, n))
+
+    ref_tags, qry_tags = add_mask(ref_tags, qry_tags, mask=mask)
+
+    lastz_cmd = Lastz_template.format(lastz_bin, bfasta_fn, ref_tags, \
+                                                 afasta_fn, qry_tags)
+    if extra:
+        lastz_cmd += " " + extra.strip()
+
+    #lastz_cmd += " --format=general-:%s" % lastz_fields
+    # The above conversion is no longer necessary after LASTZ v1.02.40
+    # (of which I contributed a patch)
+    lastz_cmd += " --format=BLASTN-"
 
     if grid:  # if run on SGE, only the cmd is needed
         return lastz_cmd
@@ -101,17 +149,22 @@ def main():
     """
     p = OptionParser(main.__doc__)
 
-    p.add_option("-o", dest="outfile",
-            help="output [default: stdout]")
-    p.add_option("-m", dest="blastline", default=True, action="store_false",
-            help="don't generate BLAST tabular format (as -m8) [default: m8]")
+    supported_formats = tuple(x.strip() for x in \
+        "lav, lav+text, axt, axt+, maf, maf+, maf-, sam, softsam, "\
+        "sam-, softsam-, cigar, BLASTN, BLASTN-, differences, rdotplot, text".split(','))
+
     p.add_option("-a", "-A", dest="cpus", default=1, type="int",
             help="parallelize job to multiple cpus [default: %default]")
+    p.add_option("--format", default="BLASTN-", choices=supported_formats,
+            help="output format, one of {0} [default: %default]".\
+                 format("|".join(supported_formats)))
     p.add_option("--path", dest="lastz_path", default=None,
             help="specify LASTZ path")
     p.add_option("--mask", dest="mask", default=False, action="store_true",
             help="treat lower-case letters as mask info [default: %default]")
+
     set_params(p)
+    set_outfile(p)
     set_grid(p)
 
     opts, args = p.parse_args()
@@ -125,37 +178,69 @@ def main():
 
     afasta_fn = op.abspath(afasta_fn)
     bfasta_fn = op.abspath(bfasta_fn)
-    out_fh = file(opts.outfile, "w") if opts.outfile else sys.stdout
+    out_fh = must_open(opts.outfile, "w")
 
     grid = opts.grid
     if grid:
         print >>sys.stderr, "Running jobs on JCVI grid"
 
     extra = opts.extra
+    lastz_bin = opts.lastz_path or "lastz"
+    assert lastz_bin.endswith("lastz"), "You need to include lastz in your path"
 
-    lastz_path = opts.lastz_path
+    mask = opts.mask
     cpus = opts.cpus
     logging.debug("Dispatch job to %d cpus" % cpus)
+    format = opts.format
+    blastline = (format == "BLASTN-")
+
+    # The axt, maf, etc. format can only be run on splitted database (i.e. one
+    # FASTA record per file). The splitted files are then parallelized for the
+    # computation, as opposed to splitting queries through "subsample".
+    outdir = "outdir"
+    if not blastline:
+        from jcvi.formats.fasta import Fasta
+        from jcvi.formats.chain import faToTwoBit
+
+        mkdir(outdir)
+
+        bfasta_2bit = faToTwoBit(bfasta_fn)
+        bids = list(Fasta(bfasta_fn, lazy=True).iterkeys_ordered())
+
+        apf = op.basename(afasta_fn).split(".")[0]
+        args = []
+        # bfasta_fn, afasta_fn, outfile, lastz_bin, extra, mask, format
+        for id in bids:
+            bfasta = "/".join((bfasta_2bit, id))
+            outfile = op.join(outdir, "{0}.{1}.{2}".format(apf, id, format))
+            args.append((bfasta, afasta_fn, outfile, \
+                         lastz_bin, extra, mask, format, grid))
+
+        if grid:
+            cmds = [lastz_2bit(x) for x in args]
+            g = Grid(cmds)
+            g.run()
+            g.writestatus()
+
+        p = Pool(cpus)
+        p.map(lastz_2bit, args)
+
+        return
 
     lock = Lock()
 
     if grid:
-        cmds = []
-        for k in xrange(cpus):
-            lastz_cmd = lastz(k + 1, cpus, bfasta_fn, afasta_fn, out_fh,
-                    lock, lastz_path, extra, blastline=opts.blastline,
-                    mask=opts.mask, grid=grid)
-            cmds.append(lastz_cmd)
-
-        g = Grid(cmds, outfiles=["lastz.out.{0}".\
+        cmds = [lastz(k + 1, cpus, bfasta_fn, afasta_fn, out_fh, \
+                lock, lastz_bin, extra, mask, grid) for k in xrange(cpus)]
+        mkdir(outdir)
+        g = Grid(cmds, outfiles=[op.join(outdir, "out.{0}.lastz").\
                 format(i) for i in range(len(cmds))])
         g.run()
         g.writestatus()
 
     else:
         args = [(k + 1, cpus, bfasta_fn, afasta_fn, out_fh,
-                lock, lastz_path, extra, opts.blastline, opts.mask) \
-                for k in xrange(cpus)]
+                lock, lastz_bin, extra, mask) for k in xrange(cpus)]
         g = Jobs(target=lastz, args=args)
         g.run()
 

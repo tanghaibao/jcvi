@@ -145,6 +145,28 @@ def blat(args):
     sh(cmd)
 
 
+def lastz(args):
+    """
+    %prog lastz old.fasta new.fasta
+
+    Generate psl file using lastz. To generate psl between two distant
+    organisms, turn on --distant. Otherwise, lastz will run using the
+    parameters fit for assembly-assembly comparison.
+
+    Bob Harris recommended:
+    --seed=match12 --notransition --step=20
+    --exact=50 --mismatch=1,100
+    --identity=98 --matchcount=100
+    """
+    p = OptionParser(lastz.__doc__)
+    p.add_option("--distant", default=False, action="store_true",
+                 help="Assume distant relations")
+    p.add_option("--minscore", default=100, type="int",
+                 help="Filter alignments by how many bases match [default: %default]")
+    p.add_option("--minid", default=98, type="int",
+                 help="Minimum sequence identity [default: %default]")
+
+
 def frompsl(args):
     """
     %prog frompsl old.new.psl old.fasta new.fasta

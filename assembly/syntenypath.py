@@ -8,7 +8,7 @@ Syntenic path assembly.
 import sys
 import logging
 
-from itertools import groupby
+from itertools import groupby, combinations
 from optparse import OptionParser
 from string import maketrans
 
@@ -210,8 +210,13 @@ def fromblast(args):
     The BLAST file MUST be filtered, chained, supermapped.
     """
     from jcvi.formats.blast import sort
+    from jcvi.utils.range import range_distance
 
     p = OptionParser(fromblast.__doc__)
+    p.add_option("--clique", default=False, action="store_true",
+                 help="Populate clique instead of linear path [default: %default]")
+    p.add_option("--maxdist", default=100000, type="int",
+                 help="Create edge within certain distance [default: %default]")
     p.add_option("--verbose", default=False, action="store_true",
                  help="Print verbose reports to stdout [default: %default]")
     opts, args = p.parse_args(args)
@@ -220,14 +225,23 @@ def fromblast(args):
         sys.exit(not p.print_help())
 
     blastfile, subjectfasta = args
+    clique = opts.clique
+    maxdist = opts.maxdist
     sort([blastfile, "--query"])
     blast = BlastSlow(blastfile, sorted=True)
     g = BiGraph()
     for query, blines in groupby(blast, key=lambda x: x.query):
         blines = list(blines)
-        for a, b in pairwise(blines):
+        iterator = combinations(blines, 2) if clique else pairwise(blines)
+        for a, b in iterator:
             asub, bsub = a.subject, b.subject
             if asub == bsub:
+                continue
+
+            arange = (a.query, a.qstart, a.qstop, "+")
+            brange = (b.query, b.qstart, b.qstop, "+")
+            dist, oo = range_distance(arange, brange, distmode="ee")
+            if dist > maxdist:
                 continue
 
             atag = ">" if a.orientation == "+" else "<"
@@ -235,7 +249,7 @@ def fromblast(args):
             g.add_edge(BiEdge(asub, bsub, atag, btag))
 
     g.write("graph.txt")
-    g.draw("graph.pdf")
+    #g.draw("graph.pdf")
 
     logging.debug(str(g))
     paths = []

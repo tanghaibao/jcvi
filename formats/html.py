@@ -44,7 +44,7 @@ def table(args):
     """
     import csv
 
-    p = OptionParser(csv.__doc__)
+    p = OptionParser(table.__doc__)
     p.add_option("--sep", default=",",
                  help="Use separator [default: %default]")
     opts, args = p.parse_args(args)
@@ -56,8 +56,8 @@ def table(args):
     page = open(htmlfile).read()
 
     soup = BeautifulSoup(page)
-    table = soup.find('table')
-    rows = table.findAll('tr')
+    tabl = soup.find('table')
+    rows = tabl.findAll('tr')
     csvfile = htmlfile.rsplit(".", 1)[0] + ".csv"
     writer = csv.writer(open(csvfile, "w"), delimiter=opts.sep)
 

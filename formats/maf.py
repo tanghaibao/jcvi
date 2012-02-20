@@ -17,7 +17,7 @@ from bx import interval_index_file
 from bx.align import maf
 
 from jcvi.formats.base import BaseFile
-from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.apps.base import ActionDispatcher, debug, need_update
 from jcvi.apps.lastz import blastz_score_to_ncbi_expectation, \
     blastz_score_to_ncbi_bits, blast_fields
 debug()
@@ -30,10 +30,9 @@ class Maf (BaseFile, dict):
 
         indexfile = filename + ".idx"
         if index:
-            if not op.exists(indexfile):
+            if need_update(filename, indexfile):
                 self.build_index(indexfile)
 
-            assert op.exists(indexfile)
             self.index = maf.Index(filename, indexfile)
 
         fp = open(filename)
@@ -88,14 +87,13 @@ def bed(args):
 
     flist = args
     prefix = flist[0].split(".")[0]
-    logging.debug("Parsing {0} files".format(len(flist)))
 
     j = 0
     for f in flist:
         reader = Maf(f).reader
         for rec in reader:
             a, b = rec.components
-            length = len(a.text) 
+            length = len(a.text)
 
             for a, tag in zip((a, b), "ab"):
                 name = "{0}_{1:07d}{2}".format(prefix, j, tag)
@@ -149,7 +147,6 @@ def blast(args):
         sys.exit(p.print_help())
 
     flist = args
-    logging.debug("Parsing {0} files".format(len(flist)))
 
     for f in flist:
         maf_to_blast8(f)

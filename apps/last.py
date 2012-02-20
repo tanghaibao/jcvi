@@ -43,7 +43,7 @@ def last(args):
     supported_formats = ("tab", "maf")
 
     p = OptionParser(last.__doc__)
-    p.add_option("--format", default="tab", choices=supported_formats,
+    p.add_option("--format", default="maf", choices=supported_formats,
                  help="Output format, one of {0} [default: %default]".\
                       format("|".join(supported_formats)))
     opts, args = p.parse_args(args)
@@ -57,6 +57,10 @@ def last(args):
 
     run_lastdb(infile=subject, outfile=subjectdb + ".prj")
     run_lastdb(infile=query, outfile=querydb + ".prj")
+
+    if opts.format == "maf":
+        cmd = 'echo "##maf version=1"'
+        sh(cmd)
 
     cmd = "lastal"
     if opts.format == "tab":

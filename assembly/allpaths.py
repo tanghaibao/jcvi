@@ -267,6 +267,7 @@ ulimit -v 800000000
 
 PrepareAllPathsInputs.pl \
     DATA_DIR=$PWD PLOIDY=1 \
+    HOSTS='8' \
     PICARD_TOOLS_DIR=~/htang/export/picard-tools-1.47/
 
 RunAllPathsLG PRE=. REFERENCE_NAME=. OVERWRITE=True \

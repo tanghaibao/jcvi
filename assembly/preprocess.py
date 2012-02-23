@@ -204,7 +204,7 @@ def correct(args):
         cmd = "PrepareAllPathsInputs.pl DATA_DIR={0} HOSTS='{1}'".\
                 format(fullpath, opts.cpus)
         if opts.phred64:
-            cmd += " -PHRED_64=True"
+            cmd += " PHRED_64=True"
         sh(cmd)
 
     if op.exists(origfastb):

@@ -142,7 +142,8 @@ def main():
     actions = (
         ('bed', 'parse gff and produce bed file for particular feature type'),
         ('bed12', 'produce bed12 file for coding features'),
-        ('gtf', 'convert to gtf format'),
+        ('fromgtf', 'convert gtf to gff3 format'),
+        ('gtf', 'convert gff3 to gtf format'),
         ('sort', 'sort the gff file'),
         ('filter', 'filter the gff file based on Identity and Coverage'),
         ('format', 'format the gff file, change seqid, etc.'),
@@ -220,6 +221,8 @@ def format(args):
     from jcvi.formats.base import DictFile
 
     p = OptionParser(format.__doc__)
+    p.add_option("--gff3", default=False, action="store_true",
+                 help="Force to write gff3 attributes [default: %default]")
     p.add_option("--switch", help="Switch seqid from two-column file [default: %default]")
     p.add_option("--multiparents", default=False, action="store_true",
                  help="Separate features with multiple parents [default: %default]")
@@ -255,6 +258,8 @@ def format(args):
                 g.attributes_text = g._attributes_text()
                 print g
         else:
+            if opts.gff3:
+                g.attributes_text = g._attributes_text(gff3=True)
             print g
 
 
@@ -440,6 +445,40 @@ def fromgb(args):
     cmd = "bp_genbank2gff3.pl"
     cmd += " -out stdout {0}".format(gbfile)
     sh(cmd, outfile=outfile)
+
+
+def fromgtf(args):
+    """
+    %prog fromgtf gtffile
+
+    Convert gtf to gff file. In gtf, the "transcript_id" will convert to "ID=",
+    the "transcript_id" in exon/CDS feature will be converted to "Parent=".
+    """
+    p = OptionParser(fromgtf.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    gtffile, = args
+    gff = Gff(gtffile)
+    for g in gff:
+        if g.type == "transcript":
+            g.type = "mRNA"
+            g.attributes["ID"] = g.attributes["transcript_id"]
+            g.attributes["Parent"] = g.attributes["gene_id"]
+            del g.attributes["transcript_id"]
+            del g.attributes["gene_id"]
+        elif g.type in ("exon", "CDS"):
+            g.attributes["Parent"] = g.attributes["transcript_id"]
+            del g.attributes["transcript_id"]
+        elif g.type == "gene":
+            g.attributes["Parent"] = g.attributes["gene_id"]
+        else:
+            assert 0, "Doesn't know how to deal with {0}".format(g.type)
+
+        g.attributes_text = g._attributes_text(gff3=True)
+        print g
 
 
 def gtf(args):

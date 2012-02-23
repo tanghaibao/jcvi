@@ -116,12 +116,17 @@ class Blast (LineFile):
             blines.sort(key=lambda x: -x.score)  # descending score
             yield query, blines
 
-    def iter_best_hit(self, N=1):
+    def iter_best_hit(self, N=1, hsps=False):
         for query, blines in groupby(self.fp,
                 key=lambda x: BlastLine(x).query):
             blines = [BlastLine(x) for x in blines]
             blines.sort(key=lambda x: -x.score)
-            for x in blines[:N]:
+            xlines = blines[:N]
+            if hsps:
+                selected = set(x.subject for x in xlines)
+                xlines = [x for x in blines if x.subject in selected]
+
+            for x in xlines:
                 yield query, x
 
     @property
@@ -223,6 +228,7 @@ def main():
 
     actions = (
         ('summary', 'provide summary on id% and cov%'),
+        ('completeness', 'print completeness statistics for each query'),
         ('top10', 'count the most frequent 10 hits'),
         ('filter', 'filter BLAST file (based on score, id%, alignlen)'),
         ('covfilter', 'filter BLAST file (based on id% and cov%)'),
@@ -239,6 +245,39 @@ def main():
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
+
+def completeness(args):
+    """
+    %prog completeness blastfile query.fasta > outfile
+
+    Print statistics for each gene, the coverage of the alignment onto the best hit
+    in AllGroup.niaa, as an indicator for completeness of the gene model.
+    """
+    from jcvi.utils.range import range_minmax
+
+    p = OptionParser(completeness.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    blastfile, fastafile = args
+    f = Sizes(fastafile).mapping
+
+    b = BlastSlow(blastfile)
+    for query, blines in groupby(b, key=lambda x: x.query):
+        blines = list(blines)
+        ranges = [(x.sstart, x.sstop) for x in blines]
+        b = blines[0]
+        query, subject = b.query, b.subject
+
+        rmin, rmax = range_minmax(ranges)
+        subject_len = f[subject]
+
+        nterminal_dist = rmin - 1
+        cterminal_dist = subject_len - rmax + 1
+        print "\t".join(str(x) for x in (b.query, b.subject,
+            nterminal_dist, cterminal_dist))
 
 
 def annotate(args):
@@ -876,6 +915,8 @@ def best(args):
 
     p.add_option("-n", default=1, type="int",
             help="get best N hits [default: %default]")
+    p.add_option("--hsps", default=False, action="store_true",
+            help="get all HSPs for the best pair [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -887,7 +928,7 @@ def best(args):
     fw = open(bestblastfile, "w")
 
     b = Blast(blastfile)
-    for q, bline in b.iter_best_hit(N=opts.n):
+    for q, bline in b.iter_best_hit(N=opts.n, hsps=False):
         print >> fw, bline
 
 

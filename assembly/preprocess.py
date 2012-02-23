@@ -150,7 +150,8 @@ def run_RemoveDodgyReads(infile=None, outfile=None, workdir=None,
 @depends
 def run_FastbAndQualb2Fastq(infile=None, outfile=None):
     corr = op.basename(infile).rsplit(".", 1)[0]
-    cmd = "FastbAndQualb2Fastq HEAD={0}".format(corr)
+    cmd = "FastbQualbToFastq HEAD_IN={0} HEAD_OUT={0}".format(corr)
+    cmd += " PAIRED=False PHRED_OFFSET=33"
     sh(cmd)
 
 

@@ -338,11 +338,11 @@ def prepare(args):
             paired, frag_size, frag_stddev, insert_size, insert_stddev, \
             read_orientation, genomic_start, genomic_end))
 
-    write_csv(groupheader, groupcontents, "in_groups.csv", tee=True)
+    write_csv(groupheader, groupcontents, filename="in_groups.csv", tee=True)
     logging.debug("`in_group.csv` created (# of groups = {0}).".\
         format(len(groupcontents)))
 
-    write_csv(libheader, libcontents, "in_libs.csv", tee=True)
+    write_csv(libheader, libcontents, filename="in_libs.csv", tee=True)
     logging.debug("`in_libs.csv` created (# of libs = {0}).".\
         format(len(libcontents)))
 

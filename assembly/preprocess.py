@@ -150,7 +150,8 @@ def run_RemoveDodgyReads(infile=None, outfile=None, workdir=None,
 @depends
 def run_FastbAndQualb2Fastq(infile=None, outfile=None):
     corr = op.basename(infile).rsplit(".", 1)[0]
-    cmd = "FastbAndQualb2Fastq HEAD={0}".format(corr)
+    cmd = "FastbQualbToFastq HEAD_IN={0} HEAD_OUT={0}".format(corr)
+    cmd += " PAIRED=False PHRED_OFFSET=33"
     sh(cmd)
 
 
@@ -180,6 +181,8 @@ def correct(args):
                  help="Don't deduplicate the fragment reads [default: %default]")
     p.add_option("--cpus", default=32, type="int",
                  help="Number of threads to run [default: %default]")
+    p.add_option("--phred64", default=False, action="store_true",
+                 help="Reads are all phred 64 offset [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) < 1:
@@ -198,7 +201,10 @@ def correct(args):
     orig = datadir + "/{0}_orig".format(tag)
     origfastb = orig + ".fastb"
     if need_update(fastq, origfastb):
-        cmd = "PrepareAllPathsInputs.pl DATA_DIR={0}".format(fullpath)
+        cmd = "PrepareAllPathsInputs.pl DATA_DIR={0} HOSTS='{1}'".\
+                format(fullpath, opts.cpus)
+        if opts.phred64:
+            cmd += " PHRED_64=True"
         sh(cmd)
 
     if op.exists(origfastb):

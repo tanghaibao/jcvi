@@ -439,11 +439,14 @@ def convert(args):
     illumina fastq quality encoding uses offset 64, and sanger uses 33. This
     script creates a new file with the correct encoding
     """
+    supported_qvs = ("illumina", "sanger")
     p = OptionParser(convert.__doc__)
-    p.add_option("-Q", dest="infastq", default="illumina",
-            help="input fastq [default: %default]")
-    p.add_option("-q", dest="outfastq", default="sanger",
-            help="output fastq format [default: %default]")
+    p.add_option("-Q", dest="infastq", default="illumina", choices=supported_qvs,
+            help="input qv, one of {0} [default: %default]".\
+                format("|".join(supported_qvs)))
+    p.add_option("-q", dest="outfastq", default="sanger", choices=supported_qvs,
+            help="output qv, one of {0} [default: %default]".\
+                format("|".join(supported_qvs)))
 
     opts, args = p.parse_args(args)
 

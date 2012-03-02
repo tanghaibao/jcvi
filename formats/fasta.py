@@ -725,9 +725,10 @@ def some(args):
     generate a subset of fastafile, based on a list
     """
     p = OptionParser(some.__doc__)
-    p.add_option("--exclude", dest="exclude",
-            default=False, action="store_true",
-            help="output sequences not in the list file")
+    p.add_option("--exclude", default=False, action="store_true",
+            help="Output sequences not in the list file [default: %default]")
+    p.add_option("--uniprot", default=False, action="store_true",
+            help="Header is from uniprot [default: %default]")
 
     opts, args = p.parse_args(args)
 
@@ -742,12 +743,16 @@ def some(args):
     if qualfile:
         outqualfile = outfastafile + ".qual"
         outqualhandle = open(outqualfile, "w")
-
-    parser = iter_fasta_qual(fastafile, qualfile)
+        parser = iter_fasta_qual(fastafile, qualfile)
+    else:
+        parser = SeqIO.parse(fastafile, "fasta")
 
     num_records = 0
     for rec in parser:
         name = rec.id
+        if opts.uniprot:
+            name = name.split("|")[-1]
+
         if opts.exclude:
             if name in names:
                 continue
@@ -755,7 +760,6 @@ def some(args):
             if name not in names:
                 continue
 
-        rec.description = ""
         SeqIO.write([rec], outfastahandle, "fasta")
         if qualfile:
             SeqIO.write([rec], outqualhandle, "qual")

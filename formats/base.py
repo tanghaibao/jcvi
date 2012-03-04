@@ -114,7 +114,7 @@ class FileSplitter (object):
         root, ext = op.splitext(filename)
         ext = ext.strip(".")
 
-        if ext in ("fasta", "fa", "fna", "cds", "pep"):
+        if ext in ("fasta", "fa", "fna", "cds", "pep", "faa"):
             format = "fasta"
         elif ext in ("fastq",):
             format = "fastq"

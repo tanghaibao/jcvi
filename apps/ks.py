@@ -11,11 +11,13 @@ import os.path as op
 import csv
 import logging
 
+from math import log, sqrt, pi, exp
 from itertools import product, combinations
 from collections import namedtuple
 from optparse import OptionParser
 from subprocess import Popen
 
+import numpy as np
 from Bio import SeqIO
 from Bio import AlignIO
 from Bio.Align.Applications import ClustalwCommandline
@@ -430,6 +432,94 @@ def read_ks_file(ks_file):
     return header, data
 
 
+def my_hist(ax, l, interval, max_r, color='g'):
+    if not l:
+        return
+
+    from pylab import poly_between
+
+    n, p = [], []
+    total_len = len(l)
+    for i in np.arange(0, max_r, interval):
+        xmin, xmax = i - .5 * interval, i + .5 * interval
+        nx = [x for x in l if xmin <= x < xmax]
+        n.append(i)
+        p.append(len(nx) * 100. / total_len)
+
+    xs, ys = poly_between(n, 0, p)
+    return ax.fill(xs, ys, fc=color, alpha=.3)
+
+
+def lognormpdf(bins, mu, sigma):
+    return np.exp(-(np.log(bins) - mu) ** 2 / (2 * sigma ** 2)) / \
+            (bins * sigma * sqrt(2 * pi))
+
+
+def lognormpdf_mix(bins, probs, mus, sigmas, interval=.1):
+    y = 0
+    for prob, mu, sigma in zip(probs, mus, sigmas):
+        y += prob * lognormpdf(bins, mu, sigma)
+    y *= 100 * interval
+    return y
+
+
+def get_mixture(data, components):
+    """
+    probs = [.476, .509]
+    mus = [.69069, -.15038]
+    variances = [.468982e-1, .959052e-1]
+    """
+    from jcvi.apps.base import popen
+
+    probs, mus, sigmas = [], [], []
+    fw = must_open("tmp", "w")
+    log_data = [log(x) for x in data if x > .05]
+    data = "\n".join(["%.4f" % x for x in log_data]).replace("inf\n", "")
+    fw.write(data)
+    fw.close()
+
+    cmd = "gmm-bic {0} {1} {2}".format(components, len(log_data), fw.name)
+    pipe = popen(cmd)
+
+    for row in pipe:
+        if row[0] != '#':
+            continue
+
+        atoms = row.split(",")
+        a, b, c = atoms[1:4]
+        a = float(a)
+        b = float(b)
+        c = float(c)
+
+        mus.append(a)
+        sigmas.append(b)
+        probs.append(c)
+
+    os.remove(fw.name)
+    return probs, mus, sigmas
+
+
+def plot_ks_dist(ax, data, interval, components, ks_max, color='r'):
+    from jcvi.graphics.base import _
+
+    line, = my_hist(ax, data, interval, ks_max, color=color)
+    logging.debug("Total {0} pairs after filtering.".format(len(data)))
+
+    probs, mus, variances = get_mixture(data, components)
+
+    bins = np.arange(0.001, ks_max, .001)
+    y = lognormpdf_mix(bins, probs, mus, variances, interval)
+
+    line_mixture, = ax.plot(bins, y, ':', color=color, lw=3)
+    for i in xrange(components):
+        peak_val = exp(mus[i])
+        mixline = lognormpdf_mix(peak_val, probs, mus, variances, interval)
+        ax.text(peak_val, mixline, _("Ks=%.2f" % peak_val), \
+                color="w", size=10, bbox=dict(ec='w',fc=color, alpha=.6, boxstyle='round'))
+
+    return line, line_mixture
+
+
 def report(args):
     '''
     %prog report ksfile
@@ -437,8 +527,6 @@ def report(args):
     generate a report given a Ks result file (as produced by synonymous_calc.py).
     describe the median Ks, Ka values, as well as the distribution in stem-leaf plot
     '''
-    import numpy as np
-
     from jcvi.graphics.histogram import stem_leaf_plot
 
     p = OptionParser(report.__doc__)
@@ -446,6 +534,10 @@ def report(args):
             help="Maximum value, inclusive [default: %default]")
     p.add_option("--bins", default=20, type="int",
             help="Number of bins to plot in the histogram [default: %default]")
+    p.add_option("--pdf", default=False, action="store_true",
+            help="Generate graphic output for the histogram [default: %default]")
+    p.add_option("--components", default=1, type="int",
+            help="Number of components to decompose peaks [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) !=  1:
@@ -453,6 +545,7 @@ def report(args):
 
     ks_file, = args
     header, data = read_ks_file(ks_file)
+    ks_max = opts.vmax
 
     for f in fields.split()[1:]:
         columndata = [getattr(x, f) for x in data]
@@ -463,9 +556,40 @@ def report(args):
         if not ks:
             continue
 
-        bins = (0, opts.vmax, opts.bins) if ks else (0, .6, 10)
+        bins = (0, ks_max, opts.bins) if ks else (0, .6, 10)
         digit = 1 if ks else 2
         stem_leaf_plot(columndata, *bins, digit=digit, title=title)
+
+    if not opts.pdf:
+        return
+
+    from jcvi.graphics.base import mpl, _, tex_formatter, tex_1digit_formatter
+    from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+
+    fig = mpl.figure.Figure(figsize=(5, 5))
+
+    canvas = FigureCanvas(fig)
+    ax = fig.add_axes([.12, .1, .8, .8])
+    components = opts.components
+    data = [x.ng_ks for x in data]
+
+    interval = ks_max / opts.bins
+    line, line_mixture = plot_ks_dist(ax, data, interval, components, ks_max, color='r')
+    leg = ax.legend((line, line_mixture), ("Ks", "Ks (fitted)"),
+                    shadow=True, fancybox=True, prop={"size": 10})
+    leg.get_frame().set_alpha(.5)
+
+    ax.set_xlim((0, ks_max))
+    ax.set_title(_('Ks distribution'), fontweight="bold")
+    ax.set_xlabel(_('Synonymous substitutions per site (Ks)'))
+    ax.set_ylabel(_('Percentage of gene pairs'))
+
+    ax.xaxis.set_major_formatter(tex_1digit_formatter)
+    ax.yaxis.set_major_formatter(tex_formatter)
+
+    image_name = "Ks_plot.pdf"
+    canvas.print_figure(image_name, dpi=300)
+    logging.debug("Print image to `{0}`.".format(image_name))
 
 
 if __name__ == '__main__':

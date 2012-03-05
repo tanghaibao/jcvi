@@ -47,6 +47,7 @@ human_readable_base = partial(human_readable, base=True)
 human_formatter = ticker.FuncFormatter(human_readable)
 human_base_formatter = ticker.FuncFormatter(human_readable_base)
 tex_formatter = ticker.FuncFormatter(lambda x, pos: _(str(int(x))))
+tex_1digit_formatter = ticker.FuncFormatter(lambda x, pos: _("{0:.1f}".format(x)))
 
 
 def set_tex_axis(ax, formatter=tex_formatter):

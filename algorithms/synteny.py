@@ -28,6 +28,13 @@ class AnchorFile (BaseFile):
             if len(lines) >= minsize:
                 yield zip(*lines)
 
+    def iter_pairs(self):
+        fp = open(self.filename)
+        for row in fp:
+            if row[0] == '#':
+                continue
+            yield row.split()
+
 
 def _score(cluster):
     """
@@ -215,12 +222,41 @@ def main():
     actions = (
         ('scan', 'get anchor list using single-linkage algorithm'),
         ('depth', 'calculate the depths in the two genomes in comparison'),
+        ('group', 'cluster the anchors into ortho-groups'),
         ('liftover', 'given anchor list, pull adjancent pairs from blast file'),
         ('breakpoint', 'identify breakpoints where collinearity ends'),
             )
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def group(args):
+    """
+    %prog group anchorfiles
+
+    Group the anchors into ortho-groups. Can input multiple anchor files.
+    """
+    p = OptionParser(group.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) < 1:
+        sys.exit(not p.print_help())
+
+    anchorfiles = args
+    groups = Grouper()
+    for anchorfile in anchorfiles:
+        ac = AnchorFile(anchorfile)
+        for a, b in ac.iter_pairs():
+            groups.join(a, b)
+
+    ngroups = len(groups)
+    nmembers = sum(len(x) for x in groups)
+    logging.debug("Created {0} groups with {1} members.".\
+                  format(ngroups, nmembers))
+
+    for g in groups:
+        print ",".join(sorted(g))
 
 
 def depth(args):

@@ -11,6 +11,7 @@ import os.path as op
 import csv
 import logging
 
+from itertools import product, combinations
 from collections import namedtuple
 from optparse import OptionParser
 from subprocess import Popen
@@ -68,12 +69,118 @@ class MrTransCommandline(AbstractCommandline):
 def main():
 
     actions = (
+        ('fromgroups', 'flatten the gene families into pairs'),
         ('prepare', 'prepare pairs of sequences'),
         ('calc', 'calculate Ks between pairs of sequences'),
         ('report', 'generate a distribution of Ks values'),
+        ('gc3', 'filter the Ks results to remove high GC3 genes'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def get_GC3(cdsfile):
+    from jcvi.formats.fasta import Fasta
+
+    f = Fasta(cdsfile, lazy=True)
+    GC3 = {}
+    for name, rec in f.iteritems_ordered():
+        positions = rec.seq[2::3].upper()
+        gc_counts = sum(1 for x in positions if x in "GC")
+        gc_ratio = gc_counts * 1. / len(positions)
+        GC3[name] = gc_ratio
+
+    return GC3
+
+
+def gc3(args):
+    """
+    %prog gc3 ksfile cdsfile > newksfile
+
+    Filter the Ks results to remove high GC3 genes. High GC3 genes are
+    problematic in Ks calculation - see Tang et al. 2010 PNAS. Specifically, the
+    two calculation methods produce drastically different results for these
+    pairs. Therefore we advise to remoeve these high GC3 genes. This is often
+    the case for studying cereal genes.
+    """
+    import csv
+
+    p = OptionParser(gc3.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    ks_file, cdsfile = args
+    header, data = read_ks_file(ks_file)
+    noriginals = len(data)
+    GC3 = get_GC3(cdsfile)
+
+    writer = csv.writer(sys.stdout)
+    writer.writerow(header)
+    nlines = 0
+    cutoff = .75
+    for d in data:
+        a, b = d.pair.split(";")
+        aratio, bratio = GC3[a], GC3[b]
+        if (aratio + bratio) / 2 > cutoff:
+            continue
+        writer.writerow(d)
+        nlines += 1
+    logging.debug("{0} records written (from {1}).".format(nlines, noriginals))
+
+
+def extract_pairs(abed, bbed, groups):
+    """
+    Called by fromgroups(), extract pairs specific to a pair of species.
+    """
+    agenome = op.basename(abed.filename).split(".")[0]
+    bgenome = op.basename(bbed.filename).split(".")[0]
+    aorder = abed.order
+    border = bbed.order
+    pairsfile = "{0}.{1}.pairs".format(agenome, bgenome)
+    fw = open(pairsfile, "w")
+
+    is_self = abed.filename == bbed.filename
+    npairs = 0
+    for group in groups:
+        iter = combinations(group, 2) if is_self \
+                    else product(group, repeat=2)
+
+        for a, b in iter:
+            if a not in aorder or b not in border:
+                continue
+
+            print >> fw, "\t".join((a, b))
+            npairs += 1
+
+    logging.debug("File `{0}` written with {1} pairs.".format(pairsfile, npairs))
+
+
+def fromgroups(args):
+    """
+    %prog fromgroups groupsfile a.bed b.bed ...
+
+    Flatten the gene familes into pairs, the groupsfile is a file with each line
+    containing the members, separated by comma. The commands also require
+    several bed files in order to sort the pairs into different piles (e.g.
+    pairs of species in comparison.
+    """
+    from jcvi.formats.bed import Bed
+
+    p = OptionParser(fromgroups.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) < 2:
+        sys.exit(not p.print_help())
+
+    groupsfile = args[0]
+    bedfiles = args[1:]
+    beds = [Bed(x) for x in bedfiles]
+    fp = open(groupsfile)
+    groups = [row.strip().split(",") for row in fp]
+    for b1, b2 in product(beds, repeat=2):
+        extract_pairs(b1, b2, groups)
 
 
 def prepare(args):
@@ -309,14 +416,18 @@ KsLine = namedtuple("KsLine", fields)
 
 def read_ks_file(ks_file):
     reader = csv.reader(open(ks_file, "rb"))
-    reader.next() # header
+    header = reader.next() # header
     data = []
     for row in reader:
         for i, a in enumerate(row):
             if i==0: continue
             row[i] = float(row[i])
         data.append(KsLine._make(row))
-    return data
+
+    logging.debug('File `{0}` contains a total of {1} gene pairs'.\
+            format(ks_file, len(data)))
+
+    return header, data
 
 
 def report(args):
@@ -331,16 +442,17 @@ def report(args):
     from jcvi.graphics.histogram import stem_leaf_plot
 
     p = OptionParser(report.__doc__)
+    p.add_option("--vmax", default=2., type="float",
+            help="Maximum value, inclusive [default: %default]")
+    p.add_option("--bins", default=20, type="int",
+            help="Number of bins to plot in the histogram [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) !=  1:
         sys.exit(not p.print_help())
 
     ks_file, = args
-
-    data = read_ks_file(ks_file)
-    logging.debug('File `{0}` contains a total of {1} gene pairs'.\
-            format(ks_file, len(data)))
+    header, data = read_ks_file(ks_file)
 
     for f in fields.split()[1:]:
         columndata = [getattr(x, f) for x in data]
@@ -351,7 +463,7 @@ def report(args):
         if not ks:
             continue
 
-        bins = (0, 2., 20) if ks else (0, .6, 10)
+        bins = (0, opts.vmax, opts.bins) if ks else (0, .6, 10)
         digit = 1 if ks else 2
         stem_leaf_plot(columndata, *bins, digit=digit, title=title)
 

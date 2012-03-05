@@ -96,7 +96,7 @@ class Gff (LineFile):
         self.key = key
 
     def __iter__(self):
-        fp = open(self.filename)
+        fp = must_open(self.filename)
         for row in fp:
             row = row.strip()
             if row[0] == '#':

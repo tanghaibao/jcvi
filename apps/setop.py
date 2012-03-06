@@ -5,6 +5,7 @@
 Set operations on files.
 """
 
+import os.path as op
 import sys
 
 from optparse import OptionParser
@@ -68,7 +69,8 @@ def join(args):
     files = [DictFile(f, keypos=c, valuepos=None, delimiter="\t") \
                         for f, c in zip(args, cc)]
     otherfiles = files[1:]
-    header = "\t".join(flatten([x.filename] * x.ncols for x in files))
+    header = "\t".join(flatten([op.basename(x.filename)] * x.ncols \
+                        for x in files))
 
     fp = open(pivotfile)
     fw = must_open(opts.outfile, "w")

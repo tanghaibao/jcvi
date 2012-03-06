@@ -165,6 +165,7 @@ def main():
     actions = (
         ('sort', 'sort bed file'),
         ('summary', 'summarize the lengths of the intervals'),
+        ('evaluate', 'make truth table and calculate sensitivity and specificity'),
         ('pairs', 'estimate insert size between paired reads from bedfile'),
         ('mates', 'print paired reads from bedfile'),
         ('sizes', 'infer the sizes for each seqid'),
@@ -175,6 +176,94 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def mergeBed(bedfile):
+    cmd = "mergeBed -i {0}".format(bedfile)
+    mergebedfile = op.basename(bedfile).rsplit(".", 1)[0] + ".merge.bed"
+
+    if need_update(bedfile, mergebedfile):
+        sh(cmd, outfile=mergebedfile)
+    return mergebedfile
+
+
+def complementBed(bedfile, sizesfile):
+    from jcvi.formats.sizes import Sizes
+
+    sizes = Sizes(sizesfile)
+    cmd = "complementBed"
+    cmd += " -i {0} -g {1}".format(bedfile, sizes.filename)
+    complementbedfile = op.basename(bedfile).rsplit(".", 1)[0] + ".complement.bed"
+
+    if need_update([bedfile, sizesfile], complementbedfile):
+        sh(cmd, outfile=complementbedfile)
+    return complementbedfile
+
+
+def intersectBed(bedfile1, bedfile2):
+    cmd = "intersectBed"
+    cmd += " -a {0} -b {1}".format(bedfile1, bedfile2)
+    intersectbedfile = ".".join((op.basename(bedfile1).rsplit(".", 1)[0],
+            op.basename(bedfile2).rsplit(".", 1)[0])) + ".intersect.bed"
+
+    if need_update([bedfile1, bedfile2], intersectbedfile):
+        sh(cmd, outfile=intersectbedfile)
+    return intersectbedfile
+
+
+def evaluate(args):
+    """
+    %prog evaluate prediction.bed reality.bed fastafile
+
+    Make a truth table like:
+            True    False  --- Reality
+    True    TP      FP
+    False   FN      TN
+     |----Prediction
+
+    Sn = TP / (all true in reality) = TP / (TP + FN)
+    Sp = TP / (all true in prediction) = TP / (TP + FP)
+    Ac = (TP + TN) / (TP + FP + FN + TN)
+    """
+    from jcvi.utils.table import tabulate
+
+    p = OptionParser(evaluate.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    prediction, reality, fastafile = args
+    prediction = mergeBed(prediction)
+    reality = mergeBed(reality)
+
+    prediction_complement = complementBed(prediction, fastafile)
+    reality_complement = complementBed(reality, fastafile)
+
+    TPbed = intersectBed(prediction, reality)
+    FPbed = intersectBed(prediction, reality_complement)
+    FNbed = intersectBed(prediction_complement, reality)
+    TNbed = intersectBed(prediction_complement, reality_complement)
+
+    TP = Bed(TPbed).sum(unique=True)
+    FP = Bed(FPbed).sum(unique=True)
+    FN = Bed(FNbed).sum(unique=True)
+    TN = Bed(TNbed).sum(unique=True)
+
+    table = {}
+    table[("Prediction-True", "Reality-True")] = TP
+    table[("Prediction-True", "Reality-False")] = FP
+    table[("Prediction-False", "Reality-True")] = FN
+    table[("Prediction-False", "Reality-False")] = TN
+    print >> sys.stderr, tabulate(table)
+
+    sensitivity = TP * 100. / (TP + FN)
+    specificity = TP * 100. / (TP + FP)
+    accuracy = (TP + TN) * 100. / (TP + FP + FN + TN)
+    msg = "Sensitivity [TP / (TP + FN)]: {0:.1f} %\n".format(sensitivity)
+    msg += "Specificity [TP / (TP + FP)]: {0:.1f} %\n".format(specificity)
+    msg += "Accuracy [(TP + TN) / (TP + FP + FN + TN)]: {0:.1f} %".format(accuracy)
+    print >> sys.stderr, msg
 
 
 def refine(args):

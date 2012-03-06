@@ -38,6 +38,8 @@ def longest(args):
     from jcvi.formats.sizes import Sizes
 
     p = OptionParser(longest.__doc__)
+    p.add_option("--prefix", default="pasa",
+                 help="Replace asmbl_ with prefix [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -50,6 +52,8 @@ def longest(args):
     fw = open(idsfile, "w")
     sizes = Sizes(fastafile).mapping
 
+    name_convert = lambda x: x.replace("asmbl", opts.prefix)
+
     keep = set()  # List of IDs to write
     fp = open(subclusters)
     nrecs = 0
@@ -58,8 +62,8 @@ def longest(args):
             continue
         asmbls = row.split()[1:]
         longest_asmbl = max(asmbls, key=lambda x: sizes[x])
-        print >> fw, longest_asmbl
         longest_size = sizes[longest_asmbl]
+        print >> fw, name_convert(longest_asmbl)
         nrecs += 1
         cutoff = max(longest_size / 2, 200)
         keep.update(set(x for x in asmbls if sizes[x] >= cutoff))
@@ -75,6 +79,8 @@ def longest(args):
         if name not in keep:
             continue
 
+        rec.id = name_convert(name)
+        rec.description = ""
         SeqIO.write([rec], fw, "fasta")
         nrecs += 1
 

@@ -78,6 +78,13 @@ class BedLine(object):
             strand = {'+': '-', '-': '+'}[self.strand]
             self.strand = self.extra[1] = strand
 
+    def gffline(self, type='match', source='default'):
+        score = "1000" if self.score == '.' else self.score
+        row = "\t".join((self.seqid, source, type,
+            str(self.start + 1), str(self.end), score,
+            self.strand, '.', 'ID=' + self.accn))
+        return row
+
 
 class Bed(LineFile):
 

@@ -156,6 +156,7 @@ def main():
         ('split', 'split the gff into one contig per file'),
         ('merge', 'merge several gff files into one'),
         ('fromgb', 'convert from gb format to gff3'),
+        ('frombed', 'convert from bed format to gff3'),
             )
 
     p = ActionDispatcher(actions)
@@ -480,6 +481,29 @@ def fromgtf(args):
         g.attributes_text = g._attributes_text(gff3=True)
         print g
 
+
+def frombed(args):
+    """
+    %prog frombed bed_file [--options] > gff_file
+
+    Convert bed to gff file. In bed, the accn will convert to key='ID'
+    Default type will be `match` and default source will be `source`
+    """
+    p = OptionParser(frombed.__doc__)
+    p.add_option("--type", default="match",
+                 help="GFF feature type [default: %default]")
+    p.add_option("--source", default="default",
+                help="GFF source qualifier [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    bedfile, = args
+    bed = Bed(bedfile)
+
+    for b in bed:
+        print b.gffline(type=opts.type, source=opts.source)
 
 def gtf(args):
     """

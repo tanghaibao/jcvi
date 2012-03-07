@@ -99,11 +99,11 @@ class Gff (LineFile):
         fp = must_open(self.filename)
         for row in fp:
             row = row.strip()
+            if row.strip() == "":
+                continue
             if row[0] == '#':
                 if row == FastaTag:
                     break
-                continue
-            if row.strip() == "":
                 continue
             yield GffLine(row, key=self.key)
 

@@ -18,9 +18,30 @@ def main():
 
     actions = (
         ('datastore', 'generate a list of gff filenames to merge'),
+        ('split', 'split MAKER models by checking against evidences'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def split(args):
+    """
+    %prog split split.ids working.bed evidences.bed predictor1.gff predictor2.gff
+
+    Split MAKER models by checking against predictors (such as AUGUSTUS and
+    FGENESH). For each region covered by a working model. Find out the
+    combination of predictors that gives the best accuracy against evidences
+    (such as PASA).
+    """
+    from jcvi.formats.gff import make_index
+
+    p = OptionParser(split.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 5:
+        sys.exit(not p.print_help())
+
+    split_ids, working_bed, evidences_bed, predictor1_gff, predictor2_gff = args
 
 
 def datastore(args):

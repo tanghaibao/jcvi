@@ -31,8 +31,9 @@ import bsddb
 
 from optparse import OptionParser
 
-from jcvi.apps.base import debug
+from jcvi.formats.bed import BedLine
 from jcvi.formats.base import read_until
+from jcvi.apps.base import ActionDispatcher, need_update, debug
 debug()
 
 
@@ -40,22 +41,22 @@ class FileIndex(object):
     ext = ".fidx"
 
     def __init__(self, filename, call_class, key=lambda x: x.id,
-            mode='c', allow_multiple=False):
+                 allow_multiple=False):
         self.filename = filename
         self.allow_multiple = allow_multiple
         self.fh = open(self.filename)
         self.call_class = call_class
         self.key = key
         self.idxfile = filename + FileIndex.ext
-        # only create and read are supported
-        assert mode in ('c', 'r')
 
-        if op.exists(self.idxfile) and mode == 'c':
+        if need_update(filename, self.idxfile):
             self.clear()
-
-        self.db = bsddb.btopen(self.idxfile, mode)
-        if mode == 'c':
+            self.db = bsddb.btopen(self.idxfile, 'c')
             self.create()
+            self.db.close()
+
+        self.db = bsddb.btopen(self.idxfile, 'r')
+
 
     def __getitem__(self, key):
         # supports indexing of both integer and string
@@ -69,6 +70,7 @@ class FileIndex(object):
         return "FileIndex(filename=`%s`)" % self.filename
 
     def create(self):
+        logging.debug("Add index file `{0}`".format(self.idxfile))
         fh = self.fh
         fh.seek(0)
         pos = fh.tell()
@@ -77,7 +79,6 @@ class FileIndex(object):
             if not key:
                 break
             self.db[key] = str(pos)
-            #print "%s => %s" % (key, pos)
             # fh has been moved forward by get_next.
             pos = fh.tell()
 
@@ -86,7 +87,6 @@ class FileIndex(object):
         self.db.close()
 
     def clear(self):
-        logging.debug("drop index file `%s`" % self.idxfile)
         os.remove(self.idxfile)
 
     def keys(self):
@@ -100,17 +100,55 @@ class FastaEntry (object):
         read_until(fh, ">")
 
 
+class BedEntry (object):
+    def __init__(self, fh):
+        line = fh.readline().strip()
+        self.id = BedLine(line).accn if line else None
+
+
 def main():
+
+    actions = (
+        ('bed', 'index bed file'),
+        ('fasta', 'index fasta file'),
+            )
+
+    p = ActionDispatcher(actions)
+    p.dispatch(globals())
+
+
+def bed(args):
     """
-    %prog fastafile
+    %prog bed bedfile
+
+    Index bed file by ID.
+    """
+    p = OptionParser(bed.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    bedfile, = args
+    fi = FileIndex(bedfile, BedEntry)
+    print fi
+    print ','.join(fi.keys()[:4])
+    print fi[2].id
+    print fi[2]
+    fi.close()
+
+
+def fasta(args):
+    """
+    %prog fasta fastafile
 
     Index fasta file (experimental).
     """
-    p = OptionParser(main.__doc__)
+    p = OptionParser(fasta.__doc__)
     opts, args = p.parse_args()
 
     if len(args) != 1:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
     f, = args
     fi = FileIndex(f, FastaEntry)

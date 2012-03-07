@@ -188,11 +188,8 @@ def mergeBed(bedfile):
 
 
 def complementBed(bedfile, sizesfile):
-    from jcvi.formats.sizes import Sizes
-
-    sizes = Sizes(sizesfile)
     cmd = "complementBed"
-    cmd += " -i {0} -g {1}".format(bedfile, sizes.filename)
+    cmd += " -i {0} -g {1}".format(bedfile, sizesfile)
     complementbedfile = op.basename(bedfile).rsplit(".", 1)[0] + ".complement.bed"
 
     if need_update([bedfile, sizesfile], complementbedfile):
@@ -225,6 +222,7 @@ def evaluate(args):
     Sp = TP / (all true in prediction) = TP / (TP + FP)
     Ac = (TP + TN) / (TP + FP + FN + TN)
     """
+    from jcvi.formats.sizes import Sizes
     from jcvi.utils.table import tabulate
 
     p = OptionParser(evaluate.__doc__)
@@ -236,9 +234,10 @@ def evaluate(args):
     prediction, reality, fastafile = args
     prediction = mergeBed(prediction)
     reality = mergeBed(reality)
+    sizesfile = Sizes(fastafile).filename
 
-    prediction_complement = complementBed(prediction, fastafile)
-    reality_complement = complementBed(reality, fastafile)
+    prediction_complement = complementBed(prediction, sizesfile)
+    reality_complement = complementBed(reality, sizesfile)
 
     TPbed = intersectBed(prediction, reality)
     FPbed = intersectBed(prediction, reality_complement)

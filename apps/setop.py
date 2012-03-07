@@ -48,6 +48,8 @@ def join(args):
     p = OptionParser(join.__doc__)
     p.add_option("--column", default="0",
                  help="0-based column id, multiple values allowed [default: %default]")
+    p.add_option("--noheader", default=False, action="store_true",
+                 help="Do not print header [default: %default]")
     set_outfile(p)
 
     opts, args = p.parse_args(args)
@@ -74,7 +76,9 @@ def join(args):
 
     fp = open(pivotfile)
     fw = must_open(opts.outfile, "w")
-    print >> fw, header
+    if not opts.noheader:
+        print >> fw, header
+
     for row in fp:
         row = row.rstrip()
         atoms = row.split("\t")

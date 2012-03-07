@@ -106,9 +106,11 @@ class Bed(LineFile):
 
         self.sort(key=self.key)
 
-    def print_to_file(self, fw=sys.stdout):
+    def print_to_file(self, filename):
+        fw = must_open(filename, "w")
         for bedline in self:
             print >> fw, bedline
+        fw.close()
 
     def sum(self, seqid=None, unique=True):
         if seqid:
@@ -164,6 +166,7 @@ def main():
 
     actions = (
         ('sort', 'sort bed file'),
+        ('index', 'index bed file using tabix'),
         ('summary', 'summarize the lengths of the intervals'),
         ('evaluate', 'make truth table and calculate sensitivity and specificity'),
         ('pairs', 'estimate insert size between paired reads from bedfile'),
@@ -176,6 +179,43 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def index(args):
+    """
+    %prog index bedfile
+
+    Compress frgscffile.sorted and index it using `tabix`.
+    """
+    p = OptionParser(index.__doc__)
+    p.add_option("--query",
+                 help="Chromosome location [default: %default]")
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    bedfile, = args
+    gzfile = bedfile + ".gz"
+
+    if need_update(bedfile, gzfile):
+        bedfile = sort([bedfile])
+        cmd = "bgzip -c {0}".format(bedfile)
+        sh(cmd, outfile=gzfile)
+
+    tbifile = gzfile + ".tbi"
+
+    if need_update(gzfile, tbifile):
+        cmd = "tabix -p bed {0}".format(gzfile)
+        sh(cmd)
+
+    query = opts.query
+    if not query:
+        return
+
+    cmd = "tabix {0} {1}".format(gzfile, query)
+    sh(cmd)
 
 
 def mergeBed(bedfile):
@@ -263,6 +303,8 @@ def evaluate(args):
     msg += "Specificity [TP / (TP + FP)]: {0:.1f} %\n".format(specificity)
     msg += "Accuracy [(TP + TN) / (TP + FP + FN + TN)]: {0:.1f} %".format(accuracy)
     print >> sys.stderr, msg
+
+    return sensitivity, specificity, accuracy
 
 
 def refine(args):

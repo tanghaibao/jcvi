@@ -505,6 +505,7 @@ def frombed(args):
     for b in bed:
         print b.gffline(type=opts.type, source=opts.source)
 
+
 def gtf(args):
     """
     %prog gtf gffile
@@ -752,6 +753,7 @@ def bed(args):
             help="Feature type to extract, use comma for multiple [default: %default]")
     p.add_option("--key", dest="key", default="ID",
             help="Key in the attributes to extract [default: %default]")
+    set_outfile(p)
 
     opts, args = p.parse_args(args)
     if len(args) != 1:
@@ -778,7 +780,7 @@ def bed(args):
         b.append(g.bedline)
 
     b.sort(key=b.key)
-    b.print_to_file()
+    b.print_to_file(opts.outfile)
 
 
 def make_index(gff_file):

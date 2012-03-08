@@ -2,6 +2,7 @@
 Classes to handle the .bed files
 """
 
+import os
 import os.path as op
 import sys
 import shutil
@@ -11,9 +12,10 @@ from itertools import groupby
 from optparse import OptionParser
 
 from jcvi.formats.base import LineFile, must_open
-from jcvi.utils.cbook import thousands
+from jcvi.utils.cbook import depends, thousands
 from jcvi.utils.range import range_union
-from jcvi.apps.base import ActionDispatcher, debug, sh, need_update, popen
+from jcvi.apps.base import ActionDispatcher, debug, sh, \
+        need_update, popen, set_outfile
 debug()
 
 
@@ -162,6 +164,47 @@ class Bed(LineFile):
             yield seqid, ranks[0][1], ranks[-1][1]
 
 
+class BedEvaluate (object):
+
+    def __init__(self, TPbed, FPbed, FNbed, TNbed):
+
+        self.TP = Bed(TPbed).sum(unique=True)
+        self.FP = Bed(FPbed).sum(unique=True)
+        self.FN = Bed(FNbed).sum(unique=True)
+        self.TN = Bed(TNbed).sum(unique=True)
+
+    def __str__(self):
+        from jcvi.utils.table import tabulate
+
+        table = {}
+        table[("Prediction-True", "Reality-True")] = self.TP
+        table[("Prediction-True", "Reality-False")] = self.FP
+        table[("Prediction-False", "Reality-True")] = self.FN
+        table[("Prediction-False", "Reality-False")] = self.TN
+        msg = str(tabulate(table))
+
+        msg += "\nSensitivity [TP / (TP + FN)]: {0:.1f} %\n".\
+                format(self.sensitivity * 100)
+        msg += "Specificity [TP / (TP + FP)]: {0:.1f} %\n".\
+                format(self.specificity * 100)
+        msg += "Accuracy [(TP + TN) / (TP + FP + FN + TN)]: {0:.1f} %".\
+                format(self.accuracy * 100)
+        return msg
+
+    @property
+    def sensitivity(self):
+        return self.TP * 1. / (self.TP + self.FN)
+
+    @property
+    def specificity(self):
+        return self.TP * 1. / (self.TP + self.FP)
+
+    @property
+    def accuracy(self):
+        return (self.TP + self.TN) * 1. / \
+               (self.TP + self.FP + self.FN + self.TN)
+
+
 def main():
 
     actions = (
@@ -190,6 +233,7 @@ def index(args):
     p = OptionParser(index.__doc__)
     p.add_option("--query",
                  help="Chromosome location [default: %default]")
+    set_outfile(p)
 
     opts, args = p.parse_args(args)
 
@@ -215,7 +259,7 @@ def index(args):
         return
 
     cmd = "tabix {0} {1}".format(gzfile, query)
-    sh(cmd)
+    sh(cmd, outfile=opts.outfile)
 
 
 def mergeBed(bedfile):
@@ -230,7 +274,7 @@ def mergeBed(bedfile):
 def complementBed(bedfile, sizesfile):
     cmd = "complementBed"
     cmd += " -i {0} -g {1}".format(bedfile, sizesfile)
-    complementbedfile = op.basename(bedfile).rsplit(".", 1)[0] + ".complement.bed"
+    complementbedfile = "complement_" + op.basename(bedfile)
 
     if need_update([bedfile, sizesfile], complementbedfile):
         sh(cmd, outfile=complementbedfile)
@@ -240,12 +284,25 @@ def complementBed(bedfile, sizesfile):
 def intersectBed(bedfile1, bedfile2):
     cmd = "intersectBed"
     cmd += " -a {0} -b {1}".format(bedfile1, bedfile2)
-    intersectbedfile = ".".join((op.basename(bedfile1).rsplit(".", 1)[0],
-            op.basename(bedfile2).rsplit(".", 1)[0])) + ".intersect.bed"
+    intersectbedfile = ".".join((op.basename(bedfile1).split(".")[0],
+            op.basename(bedfile2).split(".")[0])) + ".intersect.bed"
 
     if need_update([bedfile1, bedfile2], intersectbedfile):
         sh(cmd, outfile=intersectbedfile)
     return intersectbedfile
+
+
+def query_to_range(query, sizes):
+    # chr1:1-10000 => (chr1, 0, 10000)
+    if ":" in query:
+        a, bc = query.split(":", 1)
+        b, c = [int(x) for x in bc.split("-", 1)]
+        b -= 1
+    else:
+        a = query
+        b, c = 0, sizes.mapping[a]
+
+    return a, b, c
 
 
 def evaluate(args):
@@ -263,18 +320,21 @@ def evaluate(args):
     Ac = (TP + TN) / (TP + FP + FN + TN)
     """
     from jcvi.formats.sizes import Sizes
-    from jcvi.utils.table import tabulate
 
     p = OptionParser(evaluate.__doc__)
+    p.add_option("--query",
+                 help="Chromosome location [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
         sys.exit(not p.print_help())
 
     prediction, reality, fastafile = args
+    query = opts.query
     prediction = mergeBed(prediction)
     reality = mergeBed(reality)
-    sizesfile = Sizes(fastafile).filename
+    sizes = Sizes(fastafile)
+    sizesfile = sizes.filename
 
     prediction_complement = complementBed(prediction, sizesfile)
     reality_complement = complementBed(reality, sizesfile)
@@ -283,28 +343,25 @@ def evaluate(args):
     FPbed = intersectBed(prediction, reality_complement)
     FNbed = intersectBed(prediction_complement, reality)
     TNbed = intersectBed(prediction_complement, reality_complement)
+    beds = (TPbed, FPbed, FNbed, TNbed)
 
-    TP = Bed(TPbed).sum(unique=True)
-    FP = Bed(FPbed).sum(unique=True)
-    FN = Bed(FNbed).sum(unique=True)
-    TN = Bed(TNbed).sum(unique=True)
+    if query:
+        subbeds = []
+        rr = query_to_range(query, sizes)
+        ce = 'echo "{0}"'.format("\t".join(str(x) for x in rr))
+        for b in beds:
+            subbed = ".".join((b, query))
+            cmd = ce + " | intersectBed -a stdin -b {0}".format(b)
+            sh(cmd, outfile=subbed)
+            subbeds.append(subbed)
+        beds = subbeds
 
-    table = {}
-    table[("Prediction-True", "Reality-True")] = TP
-    table[("Prediction-True", "Reality-False")] = FP
-    table[("Prediction-False", "Reality-True")] = FN
-    table[("Prediction-False", "Reality-False")] = TN
-    print >> sys.stderr, tabulate(table)
+    be = BedEvaluate(*beds)
+    print >> sys.stderr, be
 
-    sensitivity = TP * 100. / (TP + FN)
-    specificity = TP * 100. / (TP + FP)
-    accuracy = (TP + TN) * 100. / (TP + FP + FN + TN)
-    msg = "Sensitivity [TP / (TP + FN)]: {0:.1f} %\n".format(sensitivity)
-    msg += "Specificity [TP / (TP + FP)]: {0:.1f} %\n".format(specificity)
-    msg += "Accuracy [(TP + TN) / (TP + FP + FN + TN)]: {0:.1f} %".format(accuracy)
-    print >> sys.stderr, msg
-
-    return sensitivity, specificity, accuracy
+    if query:
+        for b in subbeds:
+            os.remove(b)
 
 
 def refine(args):

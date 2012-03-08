@@ -607,21 +607,32 @@ def merge(args):
 
 def extract(args):
     """
-    %prog extract gffile contigID
+    %prog extract gffile
 
-    Extract particular contig(s) from the gff file. If multiple contigs are
+    --contigs: Extract particular contig(s) from the gff file. If multiple contigs are
     involved, use "," to separate, e.g. "contig_12,contig_150"
+    --names: Provide a file with IDs, one each line
     """
     p = OptionParser(extract.__doc__)
+    p.add_option("--contigs",
+                help="Extract features from certain contigs [default: %default]")
+    p.add_option("--names",
+                help="Extract features with certain names [default: %default]")
+    p.add_option("--fasta", default=False, action="store_true",
+                help="Write FASTA if available [default: %default]")
     set_outfile(p)
 
     opts, args = p.parse_args(args)
 
-    if len(args) != 2:
+    if len(args) != 1:
         sys.exit(not p.print_help())
 
-    gffile, contigID = args
-    contigID = set(contigID.split(","))
+    gffile, = args
+    contigID = opts.contigs
+    namesfile = opts.names
+
+    contigID = set(contigID.split(",")) if contigID else None
+    names = set(x.strip() for x in open(namesfile)) if namesfile else None
 
     outfile = opts.outfile
     fp = open(gffile)
@@ -632,19 +643,26 @@ def extract(args):
             continue
         tag = atoms[0]
         if row[0] == "#":
-            if not (tag == RegionTag and atoms[1] not in contigID):
+            if not (tag == RegionTag and contigID and atoms[1] not in contigID):
                 print >> fw, row.rstrip()
             if tag == FastaTag:
                 break
-        if tag in contigID:
+
+        b = GffLine(row)
+        is_right_contig = (contigID and tag in contigID) or (not contigID)
+        is_right_names = (names and b.attributes["Name"][0] in names) or \
+                         (not names)
+
+        if is_right_contig and is_right_names:
             print >> fw, row.rstrip()
+
+    if not opts.fasta:
+        return
 
     f = Fasta(gffile)
     for s in contigID:
         if s in f:
             SeqIO.write([f[s]], fw, "fasta")
-
-    logging.debug("Write {0} to `{1}`.".format(",".join(contigID), outfile))
 
 
 def split(args):

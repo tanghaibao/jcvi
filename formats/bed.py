@@ -193,14 +193,20 @@ class BedEvaluate (object):
 
     @property
     def sensitivity(self):
+        if self.TP + self.FN == 0:
+            return 0
         return self.TP * 1. / (self.TP + self.FN)
 
     @property
     def specificity(self):
+        if self.TP + self.FP == 0:
+            return 0
         return self.TP * 1. / (self.TP + self.FP)
 
     @property
     def accuracy(self):
+        if self.TP + self.FP + self.FN + self.TN == 0:
+            return 0
         return (self.TP + self.TN) * 1. / \
                (self.TP + self.FP + self.FN + self.TN)
 
@@ -362,6 +368,8 @@ def evaluate(args):
     if query:
         for b in subbeds:
             os.remove(b)
+
+    return be
 
 
 def refine(args):

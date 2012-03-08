@@ -25,18 +25,26 @@ def main():
     p.dispatch(globals())
 
 
-def get_splits(split_bed, gff_file, parents, key):
+def get_bed_file(gff_file, stype, key):
+
+    from jcvi.formats.gff import bed
+
+    opr = stype.replace(",", "") + ".bed"
+    bed_opts = ["--type=" + stype, "--key=" + key]
+    bed_file = ".".join((gff_file.split(".")[0], opr))
+
+    if need_update(gff_file, bed_file):
+        bed([gff_file, "--outfile={0}".format(bed_file)] + bed_opts)
+
+    return bed_file
+
+
+def get_splits(split_bed, gff_file, stype, key):
     """
     Use intersectBed to find the fused gene => split genes mappings.
     """
-    opr = parents.replace(",", "") + ".bed"
-    bed_opts = ["--type=" + parents, "--key=" + key]
-    parents_bed = ".".join((gff_file.split(".")[0], opr))
-
-    if need_update(gff_file, parents_bed):
-        bed([gff_file, "--outfile={0}".format(parents_bed)] + bed_opts)
-
-    cmd = "intersectBed -a {0} -b {1} -wao".format(split_bed, parents_bed)
+    bed_file = get_bed_file(gff_file, stype, key)
+    cmd = "intersectBed -a {0} -b {1} -wao".format(split_bed, bed_file)
     cmd += " | cut -f4,10"
     p = popen(cmd)
     splits = defaultdict(set)
@@ -47,9 +55,22 @@ def get_splits(split_bed, gff_file, parents, key):
     return splits
 
 
+def get_accuracy(query, gff_file, evidences_bed, sizesfile, type, key):
+    """
+    Get sensitivity, specificity and accuracy given gff_file, and a query range
+    that look like "chr1:1-10000".
+    """
+    from jcvi.formats.bed import evaluate
+
+    bed_file = get_bed_file(gff_file, type, key)
+    b = evaluate([bed_file, evidences_bed, sizesfile, "--query={0}".format(query)])
+
+    return b
+
+
 def split(args):
     """
-    %prog split split.bed evidences.bed predictor1.gff predictor2.gff
+    %prog split split.bed evidences.bed predictor1.gff predictor2.gff fastafile
 
     Split MAKER models by checking against predictors (such as AUGUSTUS and
     FGENESH). For each region covered by a working model. Find out the
@@ -60,7 +81,6 @@ def split(args):
     $ python -m jcvi.apps.setop join list working.bed
         --column=0,3 --noheader | cut -f2-7 > split.bed
     """
-    from jcvi.formats.gff import make_index, bed
     from jcvi.formats.bed import Bed
 
     p = OptionParser(split.__doc__)
@@ -74,18 +94,35 @@ def split(args):
             "'five_prime_UTR,CDS,three_prime_UTR') [default: %default]")
     opts, args = p.parse_args(args)
 
-    if len(args) != 4:
+    if len(args) != 5:
         sys.exit(not p.print_help())
 
-    split_bed, evidences_bed, p1_gff, p2_gff = args
+    split_bed, evidences_bed, p1_gff, p2_gff, fastafile = args
     parents = opts.parents
     children = opts.children
     key = opts.key
 
-    splitmodels = Bed(split_bed).order
+    bed = Bed(split_bed)
 
     s1 = get_splits(split_bed, p1_gff, parents, key)
     s2 = get_splits(split_bed, p2_gff, parents, key)
+
+    for b in bed:
+        query = "{0}:{1}-{2}".format(b.seqid, b.start, b.end)
+        b1 = get_accuracy(query, p1_gff, evidences_bed, fastafile, children, key)
+        b2 = get_accuracy(query, p2_gff, evidences_bed, fastafile, children, key)
+        accn = b.accn
+        c1 = "|".join(s1[accn])
+        c2 = "|".join(s2[accn])
+        ac1 = b1.accuracy
+        ac2 = b2.accuracy
+        tag = p1_gff if ac1 >= ac2 else p2_gff
+        tag = tag.split(".")[0]
+
+        ac1 = "{0:.3f}".format(ac1)
+        ac2 = "{0:.3f}".format(ac2)
+
+        print "\t".join((accn, tag, ac1, ac2, c1, c2))
 
 
 def datastore(args):

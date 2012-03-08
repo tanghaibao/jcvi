@@ -208,7 +208,12 @@ def range_union(ranges):
     >>> ranges = [("1", 30, 45), ("1", 45, 50)]
     >>> range_union(ranges)
     21
+    >>> range_union([])
+    0
     """
+    if not ranges:
+        return 0
+
     ranges.sort()
 
     total_len = 0

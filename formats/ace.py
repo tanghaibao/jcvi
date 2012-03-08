@@ -33,7 +33,7 @@ def main():
 
 def extract(args):
     """
-    %prog extract [--options] ace_file > fasta_file
+    %prog extract [--options] ace_file
 
     Extract contigs from ace file and if necessary reformat header with
     a pipe(|) separated list of constituent reads
@@ -47,12 +47,13 @@ def extract(args):
 
     if len(args) != 1:
         sys.exit(not p.print_help())
-    fw = sys.stdout
 
     acefile, = args
     ace = Ace.read(must_open(acefile))
     logging.debug('Loaded ace file {0}'.format(acefile))
 
+    fastafile = acefile.rsplit(".", 1)[0] + ".fasta"
+    fw = open(fastafile, "w")
     for c in ace.contigs:
         id = c.name
         if opts.format:
@@ -60,7 +61,9 @@ def extract(args):
 
         seqrec = SeqRecord(Seq(c.sequence), id=id, description="")
         SeqIO.write([seqrec], fw, "fasta")
-        fw.flush()
+    fw.close()
+    logging.debug('Wrote contigs to fasta file {0}'.format(fastafile))
+
 
 def report(args):
     """
@@ -103,21 +106,18 @@ def report(args):
                 values = [str(x) for x in (read.padded_start, map[read.padded_start], read.coru)]
                 for i, label in enumerate(types[opts.type]):
                     table[(str(read.name), label)] = values[i]
-            print tabulate(table)
         elif opts.type == "consensus":
             for read in c.bs:
                 values = [str(x) for x in (read.padded_start, read.padded_end)]
                 for i, label in enumerate(types[opts.type]):
                     table[(str(read.name), label)] = values[i]
-            print tabulate(table)
         elif opts.type == "quality":
             for read in c.reads:
                 (r1, r2) = (read.rd, read.qa)
                 values = [str(x) for x in (r2.qual_clipping_start, r2.qual_clipping_end, r2.align_clipping_start, r2.align_clipping_end)]
                 for i, label in enumerate(types[opts.type]):
                     table[(str(r1.name), label)] = values[i]
-            print tabulate(table)
-        print
+        print tabulate(table), "\n"
     #logging.debug("Table with {0} rows written to `{1}`.".format(nrows, csvfile))
 
 

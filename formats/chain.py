@@ -81,7 +81,7 @@ def fromagp(args):
 
         qName = a.object
         qSize = objectsizes[qName]
-        qStrand = a.orientation
+        qStrand = "-" if a.orientation == "-" else "+"
         qStart = a.object_beg
         qEnd = a.object_end
         if qStrand == '-':

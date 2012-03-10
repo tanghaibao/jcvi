@@ -546,8 +546,10 @@ def main():
         ('extendbed', 'extend the components to fill the component range and output bed/gff3 format file'),
         ('gaps', 'print out the distribution of gap sizes'),
         ('tpf', 'print out a list of accessions, aka Tiling Path File'),
+        ('cut', 'cut at the boundaries of given ranges'),
         ('mask', 'mask given ranges in components to gaps'),
         ('liftover', 'given ranges in components, get chromosome ranges'),
+        ('swap', 'swap objects and components'),
         ('reindex', 'assume accurate component order, reindex coordinates'),
         ('tidy', 'run trim=>reindex=>merge sequentially'),
         ('build', 'given agp file and component fasta file, build ' +\
@@ -558,6 +560,57 @@ def main():
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def swap(args):
+    """
+    %prog swap agpfile
+
+    Swap objects and components. Will add gap lines. This is often used in
+    conjuction with formats.chain.fromagp() to convert between different
+    coordinate systems.
+    """
+    from itertools import izip_longest
+    from jcvi.utils.range import range_interleave
+
+    p = OptionParser(swap.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    agpfile, = args
+
+    agp = AGP(agpfile)
+    agp.sort(key=lambda x: (x.component_id, x.component_beg))
+
+    newagpfile = agpfile.rsplit(".", 1)[0] + ".swapped.agp"
+    fw = open(newagpfile, "w")
+    for cid, aa in groupby(agp, key=(lambda x: x.component_id)):
+        aa = list(aa)
+        aranges = [(x.component_id, x.component_beg, x.component_end) \
+                    for x in aa]
+        gaps = range_interleave(aranges)
+        for a, g in izip_longest(aa, gaps):
+            a.object, a.component_id = a.component_id, a.object
+            a.component_beg = a.object_beg
+            a.component_end = a.object_end
+            print >> fw, a
+            if not g:
+                continue
+
+            aline = [cid, 0, 0, 0]
+            gseq, ga, gb = g
+            cspan = gb - ga + 1
+            aline += ["N", cspan, "fragment", "yes"]
+            print >> fw, "\t".join(str(x) for x in aline)
+
+    fw.close()
+    # Reindex
+    idxagpfile = reindex([newagpfile])
+    shutil.move(idxagpfile, newagpfile)
+
+    return newagpfile
 
 
 def stats(args):
@@ -609,6 +662,77 @@ def stats(args):
 
     table = tabulate(table)
     print >> sys.stderr, table
+
+
+def cut(args):
+    """
+    %prog cut agpfile bedfile
+
+    Cut at the boundaries of the ranges in the bedfile. Use --shrink to control
+    the exact boundaries where you cut.
+    """
+    p = OptionParser(cut.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    agpfile, bedfile = args
+    agp = AGP(agpfile)
+    bed = Bed(bedfile)
+    simple_agp = agp.order
+    newagpfile = agpfile.replace(".agp", ".cut.agp")
+    fw = open(newagpfile, "w")
+
+    agp_fixes = defaultdict(list)
+    for component, intervals in bed.sub_beds():
+        i, a = simple_agp[component]
+        object = a.object
+        component_span = a.component_span
+        orientation = a.orientation
+
+        assert a.component_beg, a.component_end
+        arange = a.component_beg, a.component_end
+
+        cuts = set()
+        for i in intervals:
+            start, end = i.start, i.end
+            end -= 1
+
+            assert start <= end
+            cuts.add(start)
+            cuts.add(end)
+
+        cuts.add(0)
+        cuts.add(component_span)
+        cuts = list(sorted(cuts))
+
+        sum_of_spans = 0
+        for i, (a, b) in enumerate(pairwise(cuts)):
+            oid = object + "_{0}".format(i)
+            aline = [oid, 0, 0, 0]
+            cspan = b - a
+            aline += ['D', component, a + 1, b, orientation]
+            sum_of_spans += cspan
+
+            aline = "\t".join(str(x) for x in aline)
+            agp_fixes[component].append(aline)
+
+        assert component_span == sum_of_spans
+
+    # Finally write the masked agp
+    for a in agp:
+        if not a.is_gap and a.component_id in agp_fixes:
+            print >> fw, "\n".join(agp_fixes[a.component_id])
+        else:
+            print >> fw, a
+
+    fw.close()
+    # Reindex
+    idxagpfile = reindex([newagpfile])
+    shutil.move(idxagpfile, newagpfile)
+
+    return newagpfile
 
 
 def mask(args):

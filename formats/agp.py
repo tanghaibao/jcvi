@@ -519,7 +519,7 @@ def trimNs(seq, line, newagp):
     oldrange = (start, end)
 
     if trimrange != oldrange:
-        logging.error("Range trimmed of N's: {0} => {1}".format(oldrange,
+        logging.debug("Range trimmed of N's: {0} => {1}".format(oldrange,
             trimrange))
 
         if leftNs:
@@ -902,6 +902,8 @@ def reindex(args):
     the target coordinates.
     """
     p = OptionParser(reindex.__doc__)
+    p.add_option("--nogaps", default=False, action="store_true",
+                 help="Remove all gap lines [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -919,11 +921,13 @@ def reindex(args):
         for i, b in enumerate(chr_agp):
             b.object_beg = object_beg
             b.part_number = i + 1
+            if opts.nogaps and b.is_gap:
+                continue
 
-            if not b.is_gap:
-                b.object_end = object_beg + b.component_span - 1
-            else:
+            if b.is_gap:
                 b.object_end = object_beg + b.gap_length - 1
+            else:
+                b.object_end = object_beg + b.component_span - 1
 
             object_beg = b.object_end + 1
 
@@ -1205,6 +1209,8 @@ def gaps(args):
     p = OptionParser(gaps.__doc__)
     p.add_option("--merge", dest="merge", default=False, action="store_true",
             help="Merge adjacent gaps (to conform to AGP specification)")
+    p.add_option("--header", default=False, action="store_true",
+            help="Produce an AGP header [default: %default]")
 
     opts, args = p.parse_args(args)
 
@@ -1261,8 +1267,10 @@ def gaps(args):
     for gap_size, counts in sorted(size_distribution.items()):
         print >> sys.stderr, gap_size, counts
 
-    if merge:
+    if opts.header:
         AGP.print_header(fw)
+
+    if merge:
         for ob, bb in groupby(data, lambda x: x.object):
             for i, b in enumerate(bb):
                 b.part_number = i + 1
@@ -1281,6 +1289,9 @@ def tidy(args):
     Final output is in `.tidy.agp`.
     """
     p = OptionParser(tidy.__doc__)
+    p.add_option("--nogaps", default=False, action="store_true",
+                 help="Remove all gap lines [default: %default]")
+    opts, args = p.parse_args(args)
 
     if len(args) != 2:
         sys.exit(p.print_help())
@@ -1292,7 +1303,10 @@ def tidy(args):
     os.remove(tmpfasta)
 
     agpfile = agpfile.replace(".agp", ".trimmed.agp")
-    reindex([agpfile])
+    reindex_opts = [agpfile]
+    if opts.nogaps:
+        reindex_opts += ["--nogaps"]
+    reindex(reindex_opts)
     os.remove(agpfile)
 
     agpfile = agpfile.replace(".agp", ".reindexed.agp")

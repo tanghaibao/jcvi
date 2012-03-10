@@ -372,6 +372,29 @@ def evaluate(args):
     return be
 
 
+def intersectBed_wao(abedfile, bbedfile):
+    abed = Bed(abedfile)
+    bbed = Bed(bbedfile)
+    print >> sys.stderr, "`{0}` has {1} features.".format(abedfile, len(abed))
+    print >> sys.stderr, "`{0}` has {1} features.".format(bbedfile, len(bbed))
+
+    cmd = "intersectBed -wao -a {0} -b {1}".format(abedfile, bbedfile)
+    acols = abed[0].nargs
+    bcols = bbed[0].nargs
+    fp = popen(cmd)
+    for row in fp:
+        atoms = row.split()
+        aline = "\t".join(atoms[:acols])
+        bline = "\t".join(atoms[acols:acols + bcols])
+        a = BedLine(aline)
+        try:
+            b = BedLine(bline)
+        except AssertionError:
+            b = None
+
+        yield a, b
+
+
 def refine(args):
     """
     %prog refine bedfile1 bedfile2 refinedbed
@@ -389,25 +412,10 @@ def refine(args):
         sys.exit(not p.print_help())
 
     abedfile, bbedfile, refinedbed = args
-    abed = Bed(abedfile)
-    bbed = Bed(bbedfile)
-    print >> sys.stderr, "`{0}` has {1} features.".format(abedfile, len(abed))
-    print >> sys.stderr, "`{0}` has {1} features.".format(bbedfile, len(bbed))
-
-    cmd = "intersectBed -wao -a {0} -b {1}".format(abedfile, bbedfile)
-    acols = abed[0].nargs
-    bcols = bbed[0].nargs
-    fp = popen(cmd)
     fw = open(refinedbed, "w")
     intersected = refined = 0
-    for row in fp:
-        atoms = row.split()
-        aline = "\t".join(atoms[:acols])
-        bline = "\t".join(atoms[acols:acols + bcols])
-        a = BedLine(aline)
-        try:
-            b = BedLine(bline)
-        except AssertionError:
+    for a, b in intersected_wao(abedfile, bbedfile):
+        if b is None:
             print >> fw, a
             continue
 

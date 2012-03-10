@@ -52,8 +52,8 @@ def trim(args):
             help="Average qv after trimming [default: %default]")
     p.add_option("--minlen", default=30, type="int",
             help="Minimum length after trimming [default: %default]")
-    p.add_option("--gz", default=False, action="store_true",
-            help="Write to gzipped files [default: %default]")
+    p.add_option("--nogz", default=False, action="store_true",
+            help="Do not write to gzipped files [default: %default]")
     set_grid(p)
 
     opts, args = p.parse_args(args)
@@ -94,7 +94,7 @@ def trim(args):
     cmd += " -Xmx4g -cp {0} org.usadellab.trimmomatic".format(path)
     frags = ".frags.fastq"
     pairs = ".pairs.fastq"
-    if opts.gz:
+    if not opts.nogz:
         frags += ".gz"
         pairs += ".gz"
 

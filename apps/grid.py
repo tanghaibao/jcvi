@@ -134,7 +134,7 @@ class GridProcess (object):
             os.chdir(path)
 
         # qsub command (the project code is specific to jcvi)
-        qsub = "qsub -cwd -P {0}".format(PCODE)
+        qsub = "qsub -P {0} -cwd".format(PCODE)
         if self.queue != "default":
             qsub += " -l {0}".format(self.queue)
         if self.infile:
@@ -144,7 +144,7 @@ class GridProcess (object):
         if self.errfile:
             qsub += " -e {0}".format(self.errfile)
 
-        cmd = '{0} "{1}"'.format(qsub, self.cmd)
+        cmd = " ".join((qsub, self.cmd))
         # run the command and get the job-ID (important)
         output = popen(cmd, debug=False).read()
 

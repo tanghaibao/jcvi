@@ -144,6 +144,9 @@ def range_interleave(ranges):
     >>> ranges = [("1", 30, 40), ("1", 45, 50), ("1", 10, 30)]
     >>> range_interleave(ranges)
     [('1', 41, 44)]
+    >>> ranges = [("1", 30, 40), ("1", 42, 50)]
+    >>> range_interleave(ranges)
+    [('1', 41, 41)]
     """
     from jcvi.utils.iter import pairwise
     ranges = range_merge(ranges)
@@ -154,7 +157,7 @@ def range_interleave(ranges):
             ch, astart, aend = a
             ch, bstart, bend = b
             istart, iend = aend + 1, bstart - 1
-            if istart >= iend:
+            if istart > iend:
                 continue
             interleaved_ranges.append((ch, istart, iend))
 

@@ -35,7 +35,9 @@ def wgsim(args):
                  help="Base error rate of the read [default: %default]")
     p.add_option("--distance", default=500, type="int",
                  help="Outer distance between the two ends [default: %default]")
-    p.add_option("--depth", default=50, type="int",
+    p.add_option("--genomesize", type="int",
+                 help="Genome size in Mb [default: estimate from data]")
+    p.add_option("--depth", default=10, type="int",
                  help="Target depth (aka base coverage) [default: %default]")
     p.add_option("--readlen", default=100, type="int",
                  help="Length of the read [default: %default]")
@@ -49,7 +51,7 @@ def wgsim(args):
     fastafile, = args
     pf = fastafile.split(".")[0]
 
-    size = Fasta(fastafile).totalsize
+    size = opts.genomesize * 1000000 or Fasta(fastafile).totalsize
     depth = opts.depth
     readlen = opts.readlen
     readnum = size * depth / (2 * readlen)
@@ -61,7 +63,7 @@ def wgsim(args):
     distance -= 2 * readlen  # Outer distance => Inner distance
     assert distance >= 0, "Outer distance must be >= 2 * readlen"
 
-    logging.debug("Total FASTA size: {0} bp".format(size))
+    logging.debug("Total genome size: {0} bp".format(size))
     logging.debug("Target depth: {0}x".format(depth))
     logging.debug("Number of read pairs (2x{0}): {1}".format(readlen, readnum))
 

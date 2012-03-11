@@ -38,7 +38,7 @@ def trim(args):
 
     <http://www.usadellab.org/cms/index.php?page=trimmomatic>
     """
-    TrimVersion = tv = "0.17"
+    TrimVersion = tv = "0.20"
     TrimJar = "trimmomatic-{0}.jar".format(tv)
     phdchoices = ("33", "64")
     p = OptionParser(trim.__doc__)

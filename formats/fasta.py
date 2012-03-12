@@ -7,6 +7,7 @@ import os
 import os.path as op
 import shutil
 import logging
+import string
 
 from random import sample
 from optparse import OptionParser
@@ -153,8 +154,6 @@ class Fasta (BaseFile, dict):
 
 
 def rc(s):
-    import string
-
     _complement = string.maketrans('ATCGatcgNnXx', 'TAGCtagcNnXx')
     cs = s.translate(_complement)
     return cs[::-1]

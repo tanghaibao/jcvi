@@ -14,7 +14,7 @@ from optparse import OptionParser
 
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 
-from jcvi.formats.fasta import must_open
+from jcvi.formats.fasta import must_open, rc
 from jcvi.apps.base import ActionDispatcher, debug, set_grid, sh, mkdir
 debug()
 
@@ -29,6 +29,10 @@ class FastqLite (object):
 
     def __str__(self):
         return "\n".join((self.name, self.seq, "+", self.qual))
+
+    def rc(self):
+        self.seq = rc(self.seq)
+        self.qual = self.qual[::-1]
 
 
 class FastqRecord (object):
@@ -379,7 +383,9 @@ def splitread(args):
     """
     p = OptionParser(splitread.__doc__)
     p.add_option("-n", dest="n", default=76, type="int",
-            help="split at N-th base position [default: %default]")
+            help="Split at N-th base position [default: %default]")
+    p.add_option("--rc", default=False, action="store_true",
+            help="Reverse complement second read [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -387,14 +393,13 @@ def splitread(args):
 
     pairsfastq, = args
 
-    assert op.exists(pairsfastq)
     base = op.basename(pairsfastq).split(".")[0]
     fq1 = base + ".1.fastq"
     fq2 = base + ".2.fastq"
-    fw1 = open(fq1, "w")
-    fw2 = open(fq2, "w")
+    fw1 = must_open(fq1, "w")
+    fw2 = must_open(fq2, "w")
 
-    fp = open(pairsfastq)
+    fp = must_open(pairsfastq)
     n = opts.n
 
     for name, seq, qual in FastqGeneralIterator(fp):
@@ -402,6 +407,8 @@ def splitread(args):
         name = "@" + name
         rec1 = FastqLite(name, seq[:n], qual[:n])
         rec2 = FastqLite(name, seq[n:], qual[n:])
+        if opts.rc:
+            rec2.rc()
 
         print >> fw1, rec1
         print >> fw2, rec2

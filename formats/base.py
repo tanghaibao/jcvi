@@ -327,7 +327,7 @@ def reorder(args):
     tabfile, order = args
     sep = opts.sep
     order = [int(x) - 1 for x in order.split(",")]
-    reader = csv.reader(open(tabfile), delimiter=sep)
+    reader = csv.reader(must_open(tabfile), delimiter=sep)
     writer = csv.writer(sys.stdout, delimiter=sep)
     for row in reader:
         newrow = [row[x] for x in order]

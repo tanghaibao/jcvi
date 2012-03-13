@@ -57,7 +57,7 @@ class GffLine (object):
                 self.start, self.end, self.score, self.strand, self.phase,
                 self.attributes_text))
 
-    def _attributes_text(self, gff3=None):
+    def update_attributes(self, gff3=None):
         attributes = []
         if gff3 is None:
             gff3 = self.gff3
@@ -69,7 +69,7 @@ class GffLine (object):
             equal = "=" if gff3 else " "
             attributes.append(equal.join((tag, val)))
 
-        return sep.join(attributes) + ";"
+        self.attributes_text = sep.join(attributes) + ";"
 
     @property
     def accn(self):
@@ -222,6 +222,8 @@ def format(args):
     from jcvi.formats.base import DictFile
 
     p = OptionParser(format.__doc__)
+    p.add_option("--unique", default=False, action="store_true",
+                 help="Make IDs unique [default: %default]")
     p.add_option("--gff3", default=False, action="store_true",
                  help="Force to write gff3 attributes [default: %default]")
     p.add_option("--switch", help="Switch seqid from two-column file [default: %default]")
@@ -235,12 +237,20 @@ def format(args):
 
     gffile, = args
     mapfile = opts.switch
+    unique = opts.unique
 
     if mapfile:
         mapping = DictFile(mapfile, delimiter="\t")
 
-    gff = Gff(gffile)
+    if unique:
+        dupcounts = defaultdict(int)
+        gff = Gff(gffile)
+        for g in gff:
+            id = g.accn
+            dupcounts[id] += 1
+        seen = defaultdict(int)
 
+    gff = Gff(gffile)
     for g in gff:
         origid = g.seqid
         if mapfile:
@@ -250,17 +260,25 @@ def format(args):
                 logging.error("{0} not found in `{1}`. ID unchanged.".\
                         format(origid, mapfile))
 
+        if unique:
+            id = g.accn
+            if dupcounts[id] > 1:
+                seen[id] += 1
+                id = "{0}-{1}".format(id, seen[id])
+                g.attributes["ID"] = [id]
+                g.update_attributes(gff3=True)
+
         pp = g.attributes.get("Parent", [])
         if opts.multiparents and len(pp) > 1:  # separate multiple parents
             id = g.attributes["ID"][0]
             for i, parent in enumerate(pp):
                 g.attributes["ID"] = ["{0}-{1}".format(id, i + 1)]
                 g.attributes["Parent"] = [parent]
-                g.attributes_text = g._attributes_text()
+                g.update_attributes()
                 print g
         else:
             if opts.gff3:
-                g.attributes_text = g._attributes_text(gff3=True)
+                g.update_attributes(gff3=True)
             print g
 
 
@@ -478,7 +496,7 @@ def fromgtf(args):
         else:
             assert 0, "Doesn't know how to deal with {0}".format(g.type)
 
-        g.attributes_text = g._attributes_text(gff3=True)
+        g.update_attributes(gff3=True)
         print g
 
 
@@ -548,7 +566,7 @@ def gtf(args):
         for tid in transcript_id:
             gene_id = transcript_to_gene[tid]
             g.attributes = dict(gene_id=[gene_id], transcript_id=[tid])
-            g.attributes_text = g._attributes_text(gff3=False)
+            g.update_attributes()
 
             print g
 

@@ -227,7 +227,8 @@ def translate(args):
             if "*" not in pep.rstrip("*"):
                 break
 
-        assert "*" not in pep.rstrip("*"), "{0} [{1}]".format(name, pep)
+        if "*" in pep.rstrip("*"):
+            logging.error("{0} cannot translate".format(name))
 
         contains_start = pep.startswith("M")
         contains_stop = pep.endswith("*")

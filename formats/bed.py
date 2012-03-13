@@ -218,6 +218,7 @@ def main():
         ('index', 'index bed file using tabix'),
         ('summary', 'summarize the lengths of the intervals'),
         ('evaluate', 'make truth table and calculate sensitivity and specificity'),
+        ('pile', 'find the ids that intersect'),
         ('pairs', 'estimate insert size between paired reads from bedfile'),
         ('mates', 'print paired reads from bedfile'),
         ('sizes', 'infer the sizes for each seqid'),
@@ -228,6 +229,37 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def pile(args):
+    """
+    %prog pile abedfile bbedfile > piles
+
+    Call intersectBed on two bedfiles.
+    """
+    from jcvi.utils.grouper import Grouper
+
+    p = OptionParser(pile.__doc__)
+    p.add_option("--minOverlap", default=0, type="int",
+                 help="Minimum overlap required [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    abedfile, bbedfile = args
+    iw = intersectBed_wao(abedfile, bbedfile, minOverlap=opts.minOverlap)
+    groups = Grouper()
+    for a, b in iw:
+        groups.join(a.accn, b.accn)
+
+    ngroups = 0
+    for group in groups:
+        if len(group) > 1:
+            ngroups += 1
+            print ",".join(group)
+
+    logging.debug("A total of {0} piles (>= 2 members)".format(ngroups))
 
 
 def index(args):
@@ -372,7 +404,7 @@ def evaluate(args):
     return be
 
 
-def intersectBed_wao(abedfile, bbedfile):
+def intersectBed_wao(abedfile, bbedfile, minOverlap=0):
     abed = Bed(abedfile)
     bbed = Bed(bbedfile)
     print >> sys.stderr, "`{0}` has {1} features.".format(abedfile, len(abed))
@@ -386,6 +418,9 @@ def intersectBed_wao(abedfile, bbedfile):
         atoms = row.split()
         aline = "\t".join(atoms[:acols])
         bline = "\t".join(atoms[acols:acols + bcols])
+        c = int(atoms[-1])
+        if c < minOverlap:
+            continue
         a = BedLine(aline)
         try:
             b = BedLine(bline)

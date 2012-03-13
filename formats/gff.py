@@ -155,6 +155,7 @@ def main():
         ('extract', 'extract a particular contig from the gff file'),
         ('split', 'split the gff into one contig per file'),
         ('merge', 'merge several gff files into one'),
+        ('children', 'find all children that belongs to the same parent'),
         ('fromgb', 'convert from gb format to gff3'),
         ('frombed', 'convert from bed format to gff3'),
             )
@@ -834,6 +835,44 @@ def make_index(gff_file):
     return GFFutils.GFFDB(db_file)
 
 
+def get_parents(g, parents):
+    parents_iter = [g.features_of_type(x) for x in parents]
+    parents_list = itertools.chain(*parents_iter)
+
+    return parents_list
+
+
+def children(args):
+    """
+    %prog children gff_file
+
+    Get the children that have the same parent.
+    """
+    p = OptionParser(children.__doc__)
+    p.add_option("--parents", default="gene",
+            help="list of features to extract, use comma to separate (e.g."
+            "'gene,mRNA') [default: %default]")
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    gff_file, = args
+    g = make_index(gff_file)
+
+    parents = set(opts.parents.split(','))
+    parents_list = get_parents(g, parents)
+
+    for feat in parents_list:
+
+        cc = [c.id for c in g.children(feat.id, 1)]
+        if len(cc) <= 1:
+            continue
+
+        print ",".join(cc)
+
+
 def load(args):
     '''
     %prog load gff_file fasta_file [--options]
@@ -860,16 +899,14 @@ def load(args):
         sys.exit(p.print_help())
 
     gff_file, fasta_file = args
-    parents, children = opts.parents, opts.children
 
     g = make_index(gff_file)
     f = Fasta(fasta_file, index=False)
     fw = must_open(opts.outfile, "w")
 
-    parents = set(parents.split(','))
-    parents_iter = [g.features_of_type(x) for x in parents]
-    parents_list = itertools.chain(*parents_iter)
-    children_list = set(children.split(','))
+    parents = set(opts.parents.split(','))
+    parents_list = get_parents(g, parents)
+    children_list = set(opts.children.split(','))
 
     for feat in parents_list:
 

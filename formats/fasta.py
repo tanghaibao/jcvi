@@ -791,26 +791,39 @@ def fastq(args):
     """
     %prog fastq fastafile
 
-    generate fastqfile by combining fastafile and fastafile.qual
+    Generate fastqfile by combining fastafile and fastafile.qual.
+    Also check --qv option to use a default qv score.
     """
+    from jcvi.formats.fastq import FastqLite
+
     p = OptionParser(fastq.__doc__)
+    p.add_option("--qv",
+                 help="Use generic qv value [dafault: %default]")
 
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
     fastafile, = args
-    qualfile = get_qual(fastafile)
     fastqfile = fastafile.rsplit(".", 1)[0] + ".fastq"
     fastqhandle = open(fastqfile, "w")
-
     num_records = 0
-    for rec in iter_fasta_qual(fastafile, qualfile):
-        SeqIO.write([rec], fastqhandle, "fastq")
-        num_records += 1
-    fastqhandle.close()
 
+    if opts.qv:
+        f = Fasta(fastafile, lazy=True)
+        for name, rec in f.iteritems_ordered():
+            r = FastqLite("+" + name, str(rec.seq), opts.qv * len(rec.seq))
+            print >> fastqhandle, r
+            num_records += 1
+
+    else:
+        qualfile = get_qual(fastafile)
+        for rec in iter_fasta_qual(fastafile, qualfile):
+            SeqIO.write([rec], fastqhandle, "fastq")
+            num_records += 1
+
+    fastqhandle.close()
     logging.debug("A total of %d records written to `%s`" % \
             (num_records, fastqfile))
 

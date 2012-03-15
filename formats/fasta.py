@@ -797,7 +797,7 @@ def fastq(args):
     from jcvi.formats.fastq import FastqLite
 
     p = OptionParser(fastq.__doc__)
-    p.add_option("--qv",
+    p.add_option("--qv", type="int",
                  help="Use generic qv value [dafault: %default]")
 
     opts, args = p.parse_args(args)
@@ -810,10 +810,16 @@ def fastq(args):
     fastqhandle = open(fastqfile, "w")
     num_records = 0
 
-    if opts.qv:
+    if opts.qv is not None:
+        qv = chr(ord('!') + opts.qv)
+        logging.debug("QV char '{0}' ({1})".format(qv, opts.qv))
+    else:
+        qv = None
+
+    if qv:
         f = Fasta(fastafile, lazy=True)
         for name, rec in f.iteritems_ordered():
-            r = FastqLite("+" + name, str(rec.seq), opts.qv * len(rec.seq))
+            r = FastqLite("@" + name, str(rec.seq), qv * len(rec.seq))
             print >> fastqhandle, r
             num_records += 1
 

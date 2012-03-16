@@ -155,6 +155,7 @@ def main():
         ('extract', 'extract a particular contig from the gff file'),
         ('split', 'split the gff into one contig per file'),
         ('merge', 'merge several gff files into one'),
+        ('parents', 'find the parents given a list of IDs'),
         ('children', 'find all children that belongs to the same parent'),
         ('fromgb', 'convert from gb format to gff3'),
         ('frombed', 'convert from bed format to gff3'),
@@ -162,6 +163,28 @@ def main():
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def parents(args):
+    """
+    %prog parents gffile models.ids
+
+    Find the parents given a list of IDs in "models.ids".
+    """
+    p = OptionParser(parents.__doc__)
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    gff_file, idsfile = args
+    g = make_index(gff_file)
+    fp = open(idsfile)
+    for row in fp:
+        cid = row.strip()
+        b = g.parents(cid, 1).next()
+        print "\t".join((cid, b.id))
 
 
 def filter(args):

@@ -41,6 +41,9 @@ def longest(args):
     from jcvi.formats.sizes import Sizes
 
     p = OptionParser(longest.__doc__)
+    p.add_option("--samesize", default=False, action="store_true",
+                 help="Only report where the group has same size "\
+                      "[default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -56,6 +59,12 @@ def longest(args):
         all_models = models.split("|")
         all_lengths = [(x, sizes[x]) for x in all_models]
         max_model = max(all_lengths, key=lambda x: x[-1])[0]
+
+        if opts.samesize:
+            mms, lengths = zip(*all_lengths)
+            if len(set(lengths)) != 1:
+                continue
+
         modelmsg = "|".join("{0}({1})".format(a, b) for a, b in all_lengths)
         print "\t".join((max_model, modelmsg))
 

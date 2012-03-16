@@ -5,13 +5,14 @@
 Utility script for annotations based on MAKER.
 """
 
+import os
 import os.path as op
 import sys
 
 from collections import defaultdict
 from optparse import OptionParser
 
-from jcvi.apps.base import ActionDispatcher, need_update, popen, debug
+from jcvi.apps.base import ActionDispatcher, need_update, popen, debug, sh
 debug()
 
 
@@ -20,9 +21,59 @@ def main():
     actions = (
         ('datastore', 'generate a list of gff filenames to merge'),
         ('split', 'split MAKER models by checking against evidences'),
+        ('batcheval', 'calls bed.evaluate() in batch'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def batcheval(args):
+    """
+    %prog batcheval model.ids gff_file evidences.bed fastafile > models.scores
+
+    Get the accuracy for a list of models against evidences in the range of the
+    genes. For example:
+
+    $ %prog batcheval all.gff3 isoforms.ids proteins.bed scaffolds.fasta
+    """
+    from jcvi.formats.bed import evaluate
+    from jcvi.formats.gff import make_index
+
+    p = OptionParser(evaluate.__doc__)
+    p.add_option("--type", default="CDS",
+            help="list of features to extract, use comma to separate (e.g."
+            "'five_prime_UTR,CDS,three_prime_UTR') [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 4:
+        sys.exit(not p.print_help())
+
+    model_ids, gff_file, evidences_bed, fastafile = args
+    type = set(opts.type.split(","))
+
+    g = make_index(gff_file)
+    fp = open(model_ids)
+    for row in fp:
+        cid = row.strip()
+        b = g.parents(cid, 1).next()
+        query = "{0}:{1}-{2}".format(b.chrom, b.start, b.stop)
+        children = [c for c in g.children(cid, 1)]
+
+        cidbed = "tmp.bed"
+        fw = open(cidbed, "w")
+        for c in children:
+            if c.featuretype not in type:
+                continue
+
+            fw.write(c.to_bed())
+
+        fw.close()
+
+        b = evaluate([cidbed, evidences_bed, fastafile, "--query={0}".format(query)])
+        print >> sys.stderr, b
+        print "\t".join((cid, b.score))
+
+    sh("rm -f *tmp.*")
 
 
 def get_bed_file(gff_file, stype, key):

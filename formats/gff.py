@@ -806,13 +806,9 @@ def bed(args):
     gff = Gff(gffile, key=key)
     b = Bed()
 
-    seen = set()
     for g in gff:
         if g.type not in type:
             continue
-
-        if g.seqid in seen:
-            logging.error("duplicate name %s found" % g.seqid)
 
         b.append(g.bedline)
 

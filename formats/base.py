@@ -302,9 +302,31 @@ def main():
     actions = (
         ('split', 'split large file into N chunks'),
         ('reorder', 'reorder columns in tab-delimited files'),
+        ('flatten', 'convert a list of IDs into one per line'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def flatten(args):
+    """
+    %prog flatten filename > ids
+
+    Convert a list of IDs (say, multiple IDs per line) and move them into one
+    per line.
+    """
+    p = OptionParser(flatten.__doc__)
+    p.add_option("--sep", default=",",
+                 help="Separater for the tabfile [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    tabfile, = args
+    fp = open(tabfile)
+    for row in fp:
+        print row.strip().replace(opts.sep, "\n")
 
 
 def reorder(args):

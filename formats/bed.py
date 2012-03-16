@@ -210,6 +210,11 @@ class BedEvaluate (object):
         return (self.TP + self.TN) * 1. / \
                (self.TP + self.FP + self.FN + self.TN)
 
+    @property
+    def score(self):
+        return "|".join(("{0:.3f}".format(x) for x in \
+                    (self.sensitivity, self.specificity, self.accuracy)))
+
 
 def main():
 

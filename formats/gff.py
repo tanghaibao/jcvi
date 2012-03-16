@@ -866,7 +866,8 @@ def children(args):
         if len(cc) <= 1:
             continue
 
-        print ",".join(cc)
+        print "\t".join(str(x) for x in \
+                    (feat.id, feat.start, feat.stop, "|".join(cc)))
 
 
 def load(args):

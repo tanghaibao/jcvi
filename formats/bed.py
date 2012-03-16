@@ -262,7 +262,7 @@ def pile(args):
     for group in groups:
         if len(group) > 1:
             ngroups += 1
-            print ",".join(group)
+            print "|".join(group)
 
     logging.debug("A total of {0} piles (>= 2 members)".format(ngroups))
 

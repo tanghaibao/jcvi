@@ -29,12 +29,14 @@ def main():
 
 def batcheval(args):
     """
-    %prog batcheval model.ids gff_file evidences.bed fastafile > models.scores
+    %prog batcheval model.ids gff_file evidences.bed fastafile
 
     Get the accuracy for a list of models against evidences in the range of the
     genes. For example:
 
     $ %prog batcheval all.gff3 isoforms.ids proteins.bed scaffolds.fasta
+
+    Outfile contains the scores for the models can be found in models.scores
     """
     from jcvi.formats.bed import evaluate
     from jcvi.formats.gff import make_index
@@ -53,13 +55,16 @@ def batcheval(args):
 
     g = make_index(gff_file)
     fp = open(model_ids)
+    prefix = model_ids.rsplit(".", 1)[0]
+    fwscores = open(prefix + ".scores", "w")
+
     for row in fp:
         cid = row.strip()
         b = g.parents(cid, 1).next()
         query = "{0}:{1}-{2}".format(b.chrom, b.start, b.stop)
         children = [c for c in g.children(cid, 1)]
 
-        cidbed = "tmp.bed"
+        cidbed = prefix + ".bed"
         fw = open(cidbed, "w")
         for c in children:
             if c.featuretype not in type:
@@ -70,10 +75,8 @@ def batcheval(args):
         fw.close()
 
         b = evaluate([cidbed, evidences_bed, fastafile, "--query={0}".format(query)])
-        print >> sys.stderr, b
-        print "\t".join((cid, b.score))
-
-    sh("rm -f *tmp.*")
+        print >> fwscores, "\t".join((cid, b.score))
+        fwscores.flush()
 
 
 def get_bed_file(gff_file, stype, key):

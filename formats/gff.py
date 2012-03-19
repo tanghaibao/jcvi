@@ -71,11 +71,14 @@ class GffLine (object):
 
         self.attributes_text = sep.join(attributes) + ";"
 
+
     @property
     def accn(self):
         if self.key and self.key in self.attributes:
             return self.attributes[self.key][0]
         return self.attributes_text.split()[0]
+
+    id = accn
 
     @property
     def span(self):
@@ -854,11 +857,12 @@ def make_index(gff_file):
     return GFFutils.GFFDB(db_file)
 
 
-def get_parents(g, parents):
-    parents_iter = [g.features_of_type(x) for x in parents]
-    parents_list = itertools.chain(*parents_iter)
-
-    return parents_list
+def get_parents(gff_file, parents):
+    gff = Gff(gff_file)
+    for g in gff:
+        if g.type not in parents:
+            continue
+        yield g
 
 
 def children(args):
@@ -879,11 +883,9 @@ def children(args):
 
     gff_file, = args
     g = make_index(gff_file)
-
     parents = set(opts.parents.split(','))
-    parents_list = get_parents(g, parents)
 
-    for feat in parents_list:
+    for feat in get_parents(gff_file, parents):
 
         cc = [c.id for c in g.children(feat.id, 1)]
         if len(cc) <= 1:
@@ -925,10 +927,9 @@ def load(args):
     fw = must_open(opts.outfile, "w")
 
     parents = set(opts.parents.split(','))
-    parents_list = get_parents(g, parents)
     children_list = set(opts.children.split(','))
 
-    for feat in parents_list:
+    for feat in get_parents(gff_file, parents):
 
         children = []
         for c in g.children(feat.id, 1):

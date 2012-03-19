@@ -199,9 +199,13 @@ def translate(args):
     represents a partial gene, therefore disrupting the frame of the protein.
     Check all three frames to get a valid translation.
     """
+    from collections import defaultdict
     from jcvi.utils.cbook import percentage
 
     p = OptionParser(translate.__doc__)
+    p.add_option("--ids", default=False, action="store_true",
+                 help="Create .ids file with the complete/partial/gaps "
+                      "label [default: %default]")
     set_outfile(p)
 
     opts, args = p.parse_args(args)
@@ -212,8 +216,15 @@ def translate(args):
     cdsfasta, = args
     f = Fasta(cdsfasta, lazy=True)
     fw = must_open(opts.outfile, "w")
+
+    if opts.ids:
+        idsfile = cdsfasta.rsplit(".", 1)[0] + ".ids"
+        ids = open(idsfile, "w")
+    else:
+        ids = None
+
     five_prime_missing = three_prime_missing = 0
-    contain_ns = total = complete = 0
+    contain_ns = complete = total = 0
 
     for name, rec in f.iteritems_ordered():
         cds = rec.seq
@@ -233,15 +244,29 @@ def translate(args):
         contains_start = pep.startswith("M")
         contains_stop = pep.endswith("*")
         contains_ns = "X" in pep
+        start_ns = pep.startswith("X")
+        end_ns = pep.endswith("X")
 
+        labels = []
         if not contains_start:
             five_prime_missing += 1
+            labels.append("five_prime_missing")
         if not contains_stop:
             three_prime_missing += 1
+            labels.append("three_prime_missing")
         if contains_ns:
             contain_ns += 1
+            labels.append("contain_ns")
         if contains_start and contains_stop:
             complete += 1
+            labels.append("complete")
+        if start_ns:
+            labels.append("start_ns")
+        if end_ns:
+            labels.append("end_ns")
+
+        if ids:
+            print >> ids, "\t".join((name, ",".join(labels)))
 
         peprec = SeqRecord(pep, id=name, description="")
         SeqIO.write([peprec], fw, "fasta")

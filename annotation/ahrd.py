@@ -55,9 +55,43 @@ def main():
 
     actions = (
         ('batch', 'batch run AHRD'),
+        ('merge', 'merge AHRD run results'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def merge(args):
+    """
+    %prog merge output/*.csv > ahrd.csv
+
+    Merge AHRD results, remove redundant headers, empty lines, etc.
+    """
+    p = OptionParser(merge.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) < 1:
+        sys.exit(not p.print_help())
+
+    csvfiles = args
+    cf = csvfiles[0]
+    fp = open(cf)
+    for row in fp:
+        if row.startswith("Protein"):
+            break
+    header = row.rstrip()
+    print header
+
+    for cf in csvfiles:
+        fp = open(cf)
+        for row in fp:
+            if row[0] == '#':
+                continue
+            if row.strip() == "":
+                continue
+            if row.strip() == header:
+                continue
+            print row.strip()
 
 
 def batch(args):
@@ -69,7 +103,9 @@ def batch(args):
     Output csv files are in output/.
 
     Must have folders swissprot/, tair/, trembl/ that contains the respective
-    BLAST output.
+    BLAST output. Once finished, you can run, for example:
+
+    $ parallel java -Xmx2g -jar ~/code/AHRD/dist/ahrd.jar {} ::: output/*.yml
     """
     p = OptionParser(batch.__doc__)
     p.add_option("--path", default="~/code/AHRD/",

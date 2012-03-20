@@ -31,9 +31,18 @@ from jcvi.apps.base import ActionDispatcher, set_outfile, sh
 
 
 Valid_component_type = list("ADFGNOPUW")
-Valid_gap_type = ("fragment", "clone", "contig", "centromere", "short_arm",
-        "heterochromatin", "telomere", "repeat")
-Valid_orientation = ("+", "-", "0", "na")
+
+Valid_gap_type = ("fragment", "clone",           # in v1.1, obsolete in v2.0
+        "contig", "centromere", "short_arm",     # in both versions
+        "heterochromatin", "telomere", "repeat", # in both versions
+        "scaffold")                              # new in v2.0
+
+Valid_orientation = ("+", "-", "0", "?", "na")
+
+Valid_evidence = ("", "na", "paired-ends", "align_genus", "align_xgenus",
+                  "align_trnscpt", "within_clone", "clone_contig", "map",
+                  "strobe", "unspecified")
+
 component_RGB = {"O" : "0,100,0",
                  "F" : "0,100,0",
                  "D" : "50,205,50",
@@ -71,7 +80,7 @@ class AGPLine (object):
             self.gap_length = int(atoms[5])
             self.gap_type = atoms[6]
             self.linkage = atoms[7]
-            self.empty = ""
+            self.linkage_evidence = atoms[8].strip().split(";")
             self.orientation = "na"
 
         if validate:
@@ -91,7 +100,7 @@ class AGPLine (object):
                     self.component_end, self.orientation]
         else:
             fields += [self.gap_length, self.gap_type,
-                    self.linkage, self.empty]
+                    self.linkage, ";".join(self.linkage_evidence)]
 
         return "\t".join(str(x) for x in fields)
 
@@ -139,7 +148,8 @@ class AGPLine (object):
 
     def validate(self):
         assert self.component_type in Valid_component_type, \
-                "component_type has to be one of %s" % Valid_component_type
+                "component_type must be one of {0}"\
+                .format("|".join(Valid_component_type))
         assert self.object_beg <= self.object_end, \
                 "object_beg needs to be <= object_end"
 
@@ -155,6 +165,9 @@ class AGPLine (object):
             assert self.object_span == self.gap_length, \
                     "object span (%d) must be same as gap_length (%d)" % \
                     (self.object_span, self.gap_length)
+            assert all(x in Valid_evidence for x in self.linkage_evidence), \
+                    "linkage_evidence must be one of {0}, you have {1}"\
+                    .format("|".join(Valid_evidence), self.linkage_evidence)
 
 
 class AGP (LineFile):

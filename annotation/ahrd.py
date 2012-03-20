@@ -9,6 +9,7 @@ Utility to run Automated Human Readable Description (AHRD) pipeline.
 
 import os.path as op
 import sys
+import re
 
 from glob import glob
 from optparse import OptionParser
@@ -56,9 +57,98 @@ def main():
     actions = (
         ('batch', 'batch run AHRD'),
         ('merge', 'merge AHRD run results'),
+        ('fix', 'fix AHRD names'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+Unknown = "Unknown protein"
+Hypothetical = "hypothetical protein"
+
+
+def fix_text(s):
+
+    s = s.split(";")[0]
+
+    # Cellular locations
+    loc_pat = re.compile(r",\s*(chloroplastic|cytoplasmic|mitochondrial).*?\s$", re.I)
+    # Any word that matches e.g. AT5G54690
+    atg_pat = re.compile(r"\bAT[1-5M]G\d{5}.*?\s", re.I)
+    # Any word that matches e.g. Os02g0234800
+    osg_pat = re.compile(r"\bOs\d{2}g\d{7}.*?\s", re.I)
+    # (fragment)
+    frag_pat = re.compile(r"\(fragment[s]?\)", re.I)
+    # Trailing protein numeric copy (e.g. Myb 1)
+    trail_pat = re.compile(r"(?<!type)\s\d+\s*$", re.I)
+    # UPF
+    upf_pat = re.compile(r"^UPF.*$")
+
+    for pat in (loc_pat, atg_pat, osg_pat, frag_pat, trail_pat, upf_pat):
+        # below is a hack since word boundaries don't work on /
+        s = s.strip() + " "
+        s = re.sub(pat, "", s)
+
+    # &apos;? => '
+    apos_pat = re.compile(r"&apos;?")
+    s = re.sub(apos_pat, "'", s)
+    # &gt => none
+    gt_pat = re.compile(r"&gt")
+    s = re.sub(gt_pat, "", s)
+    # reduce runs such as -- '''
+    s = re.sub(r"[-]+", "-", s)
+    s = re.sub(r"[']+", "'", s)
+
+    s = s.strip()
+
+    # -like to -like protein
+    like_pat = re.compile(r"[-]like$", re.I)
+    s = re.sub(like_pat, "-like protein", s)
+
+    sl = s.lower()
+
+    # Any mention of `clone` or `contig` is not informative
+    if "clone" in sl or "contig" in sl:
+        s = Unknown
+
+    # All that's left is `protein` is not informative
+    if sl in ("protein", ""):
+        s = Unknown
+
+    if Unknown.lower() in sl:
+        s = Unknown
+
+    if "FUNCTIONS IN" in sl and "unknown" in sl:
+        s = Unknown
+
+    if s == Unknown:
+        s = Hypothetical
+
+    # Compact all spaces
+    s = ' '.join(s.split())
+
+    return s
+
+
+def fix(args):
+    """
+    %prog fix ahrd.csv > ahrd.fixed.csv
+
+    Fix ugly names from Uniprot.
+    """
+    p = OptionParser(fix.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) < 1:
+        sys.exit(not p.print_help())
+
+    csvfile, = args
+    fp = open(csvfile)
+    for row in fp:
+        atoms = row.rstrip("\r\n").split("\t")
+        name = atoms[3]
+        newname = fix_text(name)
+        print "\t".join(atoms[:4] + [newname])
 
 
 def merge(args):

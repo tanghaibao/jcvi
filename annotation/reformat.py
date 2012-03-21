@@ -22,41 +22,9 @@ def main():
 
     actions = (
         ('augustus', 'convert augustus output into gff3'),
-        ('rename', 'change the IDs within the gff3'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
-
-
-def rename(args):
-    """
-    %prog reindex in.gff3 switch.ids > reindexed.gff3
-
-    Change the IDs within the gff3.
-    """
-    from jcvi.formats.base import DictFile
-
-    p = OptionParser(rename.__doc__)
-    opts, args = p.parse_args(args)
-
-    if len(args) != 2:
-        sys.exit(not p.print_help())
-
-    ingff3, switch = args
-    switch = DictFile(switch)
-
-    gff = Gff(ingff3)
-    for g in gff:
-        id, = g.attributes["ID"]
-        newname = switch.get(id, id)
-        g.attributes["ID"] = [newname]
-
-        if "Parent" in g.attributes:
-            parents = g.attributes["Parent"]
-            g.attributes["Parent"] = [switch.get(x, x) for x in parents]
-
-        g.update_attributes()
-        print g
 
 
 def augustus(args):

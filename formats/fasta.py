@@ -268,7 +268,7 @@ def translate(args):
         if ids:
             print >> ids, "\t".join((name, ",".join(labels)))
 
-        peprec = SeqRecord(pep, id=name, description="")
+        peprec = SeqRecord(pep, id=name, description=rec.description)
         SeqIO.write([peprec], fw, "fasta")
         fw.flush()
 

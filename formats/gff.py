@@ -151,6 +151,7 @@ def main():
         ('sort', 'sort the gff file'),
         ('filter', 'filter the gff file based on Identity and Coverage'),
         ('format', 'format the gff file, change seqid, etc.'),
+        ('rename', 'change the IDs within the gff3'),
         ('uniq', 'remove the redundant gene models'),
         ('liftover', 'adjust gff coordinates based on tile number'),
         ('script', 'parse gmap gff and produce script for sim4db to refine'),
@@ -167,6 +168,37 @@ def main():
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def rename(args):
+    """
+    %prog rename in.gff3 switch.ids > reindexed.gff3
+
+    Change the IDs within the gff3.
+    """
+    from jcvi.formats.base import DictFile
+
+    p = OptionParser(rename.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    ingff3, switch = args
+    switch = DictFile(switch)
+
+    gff = Gff(ingff3)
+    for g in gff:
+        id, = g.attributes["ID"]
+        newname = switch.get(id, id)
+        g.attributes["ID"] = [newname]
+
+        if "Parent" in g.attributes:
+            parents = g.attributes["Parent"]
+            g.attributes["Parent"] = [switch.get(x, x) for x in parents]
+
+        g.update_attributes()
+        print g
 
 
 def parents(args):

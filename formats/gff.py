@@ -70,7 +70,7 @@ class GffLine (object):
             equal = "=" if gff3 else " "
             attributes.append(equal.join((tag, val)))
 
-        self.attributes_text = sep.join(attributes) + ";"
+        self.attributes_text = sep.join(attributes)
 
 
     @property
@@ -241,6 +241,22 @@ def filter(args):
         print g
 
 
+def fix_gsac(g, notes):
+    a = g.attributes
+
+    if g.type == "gene":
+        note = a["Name"]
+    elif g.type == "mRNA":
+        parent = a["Parent"][0]
+        note = notes[parent]
+    else:
+        return
+
+    a["Name"] = a["ID"]
+    a["Note"] = note
+    g.update_attributes()
+
+
 def format(args):
     """
     %prog format gffile > formatted.gff
@@ -257,6 +273,8 @@ def format(args):
     p.add_option("--switch", help="Switch seqid from two-column file [default: %default]")
     p.add_option("--multiparents", default=False, action="store_true",
                  help="Separate features with multiple parents [default: %default]")
+    p.add_option("--gsac", default=False, action="store_true",
+                 help="Fix GSAC attributes [default: %default]")
 
     opts, args = p.parse_args(args)
 
@@ -266,6 +284,9 @@ def format(args):
     gffile, = args
     mapfile = opts.switch
     unique = opts.unique
+    gsac = opts.gsac
+    if gsac:  # setting gsac will force IDs to be unique
+        unique = True
 
     if mapfile:
         mapping = DictFile(mapfile, delimiter="\t")
@@ -279,6 +300,7 @@ def format(args):
         seen = defaultdict(int)
 
     gff = Gff(gffile)
+    notes = {}
     for g in gff:
         origid = g.seqid
         if mapfile:
@@ -288,13 +310,16 @@ def format(args):
                 logging.error("{0} not found in `{1}`. ID unchanged.".\
                         format(origid, mapfile))
 
+        id = g.accn
         if unique:
-            id = g.accn
             if dupcounts[id] > 1:
                 seen[id] += 1
                 id = "{0}-{1}".format(id, seen[id])
                 g.attributes["ID"] = [id]
                 g.update_attributes(gff3=True)
+
+        if gsac and g.type == "gene":
+            notes[g.accn] = g.attributes["Name"]
 
         pp = g.attributes.get("Parent", [])
         if opts.multiparents and len(pp) > 1:  # separate multiple parents
@@ -303,10 +328,14 @@ def format(args):
                 g.attributes["ID"] = ["{0}-{1}".format(id, i + 1)]
                 g.attributes["Parent"] = [parent]
                 g.update_attributes()
+                if gsac:
+                    fix_gsac(g, notes)
                 print g
         else:
             if opts.gff3:
                 g.update_attributes(gff3=True)
+            if gsac:
+                fix_gsac(g, notes)
             print g
 
 
@@ -914,6 +943,8 @@ def load(args):
     p.add_option("--children", dest="children", default="CDS",
             help="list of features to extract, use comma to separate (e.g."
             "'five_prime_UTR,CDS,three_prime_UTR') [default: %default]")
+    p.add_option("--attribute",
+            help="The attribute field to extract [default: %default]")
     set_outfile(p)
 
     opts, args = p.parse_args(args)
@@ -929,6 +960,7 @@ def load(args):
 
     parents = set(opts.parents.split(','))
     children_list = set(opts.children.split(','))
+    attr = opts.attribute
 
     for feat in get_parents(gff_file, parents):
 
@@ -952,7 +984,11 @@ def load(args):
             children.reverse()
         feat_seq = ''.join(x[0] for x in children)
 
-        rec = SeqRecord(Seq(feat_seq), id=feat.id, description="")
+        description = feat.attributes[attr][0] \
+                if attr and attr in feat.attributes else ""
+        description = description.replace("\"", "")
+
+        rec = SeqRecord(Seq(feat_seq), id=feat.id, description=description)
         SeqIO.write([rec], fw, "fasta")
         fw.flush()
 

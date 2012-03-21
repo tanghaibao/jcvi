@@ -5,6 +5,7 @@
 Parse ace format files.
 """
 
+import os
 import sys
 import logging
 
@@ -36,13 +37,17 @@ def extract(args):
     %prog extract [--options] ace_file
 
     Extract contigs from ace file and if necessary reformat header with
-    a pipe(|) separated list of constituent reads
+    a pipe(|) separated list of constituent reads.
     """
     p = OptionParser(extract.__doc__)
     p.add_option("--format", default=False, action="store_true",
-            help="enable flag to reformat header into a symbol separated list of constituent reads [default: %default]")
+            help="enable flag to reformat header into a symbol separated list of constituent reads "+ \
+            "[default: %default]")
     p.add_option("--sep", default="|",
             help="choose a separator used to list the reads in the FASTA header [default: '%default']")
+    p.add_option("--singlets", default=False, action="store_true",
+            help="ask the program to look in the singlets file (should be in the same folder) for " +\
+            "unused reads and put them in the resultant fasta file [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -61,6 +66,14 @@ def extract(args):
 
         seqrec = SeqRecord(Seq(c.sequence), id=id, description="")
         SeqIO.write([seqrec], fw, "fasta")
+
+    if opts.singlets:
+        singletsfile = acefile.rsplit(".", 1)[0] + ".singlets"
+        if os.path.getsize(singletsfile) > 0:
+            fp = SeqIO.parse(must_open(singletsfile), "fasta")
+            for rec in fp:
+                SeqIO.write(rec, fw, "fasta")
+
     fw.close()
     logging.debug('Wrote contigs to fasta file {0}'.format(fastafile))
 

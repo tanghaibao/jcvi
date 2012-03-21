@@ -37,7 +37,7 @@ atg_pat = re.compile(r"\bAT[1-5M]G\d{5}-like protein", re.I)
 
 # remove 'arabidopsis thaliana'
 atg_id_pat = re.compile(r"[_]*AT\d{1}G\d+[/]*", re.I)
-athila_pat1 = re.compile(r"^Belongs|^Encodes|^Expression|^highly", re.I)
+athila_pat1 = re.compile(r"Belongs to|^Encodes|^Expression|^highly", re.I)
 athila_pat2 = re.compile(r"^Arabidopsis thaliana ", re.I)
 athila_pat3 = re.compile(r"^Arabidopsis ", re.I)
 athila_pat4 = re.compile(r"BEST Arabidopsis thaliana protein match is: ", re.I)
@@ -207,12 +207,14 @@ def fix_text(s):
     # '[0-9]+ homolog' to '-like protein'
     if re.search(homolog_pat1, s):
         s = re.sub(homolog_pat1, "-like protein", s)
+        if re.match(Protein_pat, s):
+            s = re.sub(Protein_pat, "", s)
 
     # 'Protein\s+(.*)\s+homolog' to '$1-like protein'
     match = re.search(homolog_pat2, s)
-    if match:
+    if match and not re.match(r"Protein kinase", s):
         ret = match.group(1)
-        s = re.sub(homolog_pat2, ret, s)
+        s = re.sub(homolog_pat2, ret + "-like protein", s)
         s = re.sub(r"^\s+", "", s)
         s = s.capitalize()
 

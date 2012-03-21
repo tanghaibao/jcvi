@@ -264,10 +264,11 @@ def fix_text(s):
         s = s.strip() + " "
         s = re.sub(pat, "", s)
 
+    s = s.strip()
+
     """
     case (qr/^Histone-lysine/) { $ahrd =~ s/,\s+H\d{1}\s+lysine\-\d+//gs; }
     """
-
     sl = s.lower()
 
     # Any mention of `clone` or `contig` is not informative
@@ -290,6 +291,8 @@ def fix_text(s):
     # Compact all spaces
     s = ' '.join(s.split())
 
+    assert s.strip()
+
     return s
 
 
@@ -309,9 +312,11 @@ def fix(args):
     fp = open(csvfile)
     for row in fp:
         atoms = row.rstrip("\r\n").split("\t")
-        name = atoms[3]
-        newname = fix_text(name)
-        print "\t".join(atoms[:4] + [newname])
+        name, hit, ahrd_code, desc = atoms[:4]
+        newdesc = fix_text(desc)
+        if hit.strip() != "" and newdesc == Hypothetical:
+            newdesc = "conserved " + newdesc
+        print "\t".join(atoms[:4] + [newdesc])
 
 
 def merge(args):

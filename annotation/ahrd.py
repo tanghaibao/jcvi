@@ -318,7 +318,9 @@ def merge(args):
     """
     %prog merge output/*.csv > ahrd.csv
 
-    Merge AHRD results, remove redundant headers, empty lines, etc.
+    Merge AHRD results, remove redundant headers, empty lines, etc. If there are
+    multiple lines containing the same ID (first column). Then whatever comes
+    the first will get retained.
     """
     p = OptionParser(merge.__doc__)
     opts, args = p.parse_args(args)
@@ -335,6 +337,7 @@ def merge(args):
     header = row.rstrip()
     print header
 
+    seen = set()
     for cf in csvfiles:
         fp = open(cf)
         for row in fp:
@@ -344,6 +347,14 @@ def merge(args):
                 continue
             if row.strip() == header:
                 continue
+
+            atoms = row.rstrip().split("\t")
+            id = atoms[0]
+            if id in seen:
+                logging.error("ID `{0}` ignored.".format(id))
+                continue
+
+            seen.add(id)
             print row.strip()
 
 

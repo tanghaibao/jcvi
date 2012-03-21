@@ -221,6 +221,7 @@ def main():
 
     actions = (
         ('scan', 'get anchor list using single-linkage algorithm'),
+        ('mcscan', 'stack synteny blocks on a reference bed'),
         ('depth', 'calculate the depths in the two genomes in comparison'),
         ('group', 'cluster the anchors into ortho-groups'),
         ('liftover', 'given anchor list, pull adjancent pairs from blast file'),
@@ -229,6 +230,21 @@ def main():
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def mcscan(args):
+    """
+    %prog mcscan bedfile anchorfile
+
+    Stack synteny blocks on a reference bed, MCSCAN style.
+    """
+    p = OptionParser(mcscan.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    bedfile, anchorfile = args
 
 
 def group(args):

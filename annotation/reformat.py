@@ -13,7 +13,7 @@ import logging
 
 from optparse import OptionParser
 
-from jcvi.formats.gff import GffLine
+from jcvi.formats.gff import GffLine, Gff
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
@@ -30,28 +30,32 @@ def main():
 
 def rename(args):
     """
-    %prog reindex in.gff3 > reindexed.gff3
+    %prog reindex in.gff3 switch.ids > reindexed.gff3
 
     Change the IDs within the gff3.
     """
+    from jcvi.formats.base import DictFile
+
     p = OptionParser(rename.__doc__)
     opts, args = p.parse_args(args)
 
-    if len(args) != 1:
+    if len(args) != 2:
         sys.exit(not p.print_help())
 
-    ingff3, = args
+    ingff3, switch = args
+    switch = DictFile(switch)
+
     gff = Gff(ingff3)
     for g in gff:
         id, = g.attributes["ID"]
-        prefix = "{0}.{1}.".format(g.source, g.seqid)
-        g.attributes["ID"] = [prefix + id]
+        newname = switch.get(id, id)
+        g.attributes["ID"] = [newname]
 
         if "Parent" in g.attributes:
             parents = g.attributes["Parent"]
-            g.attributes["Parent"] = [prefix + x for x in parents]
+            g.attributes["Parent"] = [switch.get(x, x) for x in parents]
 
-        g.attributes_text = g._attributes_text()
+        g.update_attributes()
         print g
 
 

@@ -169,6 +169,11 @@ class AGPLine (object):
                     "linkage_evidence must be one of {0}, you have {1}"\
                     .format("|".join(Valid_evidence), self.linkage_evidence)
 
+            if self.linkage == "no":
+                assert self.linkage_evidence in ("na", ""), \
+                    "linkage no is incompatible with evidence {0}" \
+                    .format(self.linkage_evidence)
+
 
 class AGP (LineFile):
 
@@ -441,6 +446,7 @@ class OO (LineFile):
 
         fp = open(filename)
         prefix = "contig_"
+        self.contigs = set()
         for header, block in read_block(fp, ">"):
             header = header[1:]  # Trim the '>'
             header = header.split()[0]
@@ -454,6 +460,7 @@ class OO (LineFile):
                 strand = "+" if orientation == "BE" else "-"
                 ctgsize = ctgsizes[ctg]
                 self.add(header, ctg, ctgsize, strand)
+                self.contigs.add(ctg)
 
     def add(self, scaffold, ctg, ctgsize, strand="0"):
         self.append(OOLine(scaffold, ctg, ctgsize, strand))
@@ -462,9 +469,9 @@ class OO (LineFile):
         for scaffold, beds in groupby(self, key=lambda x: x.id):
             yield scaffold, list(beds)
 
-    def write_AGP(self, fw=sys.stdout, gapsize=100, phases={}):
+    def write_AGP(self, fw=sys.stdout, gapsize=100, phases={},
+                        gaptype="fragment", evidence=""):
 
-        gap_type = "fragment"
         linkage = "yes"
 
         for object, beds in self.sub_beds():
@@ -478,7 +485,7 @@ class OO (LineFile):
                     part_number += 1
                     print >> fw, "\t".join(str(x) for x in \
                             (object, object_beg, object_end, part_number,
-                             'N', gapsize, gap_type, linkage, ""))
+                             'N', gapsize, gaptype, linkage, evidence))
 
                     object_beg += gapsize
 

@@ -9,13 +9,14 @@ import itertools
 import logging
 
 from collections import defaultdict
-from urlparse import parse_qs, unquote
+from urlparse import unquote
 from optparse import OptionParser
 
 from jcvi.formats.base import LineFile, must_open
 from jcvi.formats.fasta import Fasta, SeqIO
 from jcvi.formats.bed import Bed, BedLine
 from jcvi.utils.iter import flatten
+from jcvi.utils.ordereddict import DefaultOrderedDict, parse_qs
 from jcvi.apps.base import ActionDispatcher, set_outfile, mkdir, need_update, sh
 
 
@@ -63,7 +64,7 @@ class GffLine (object):
             gff3 = self.gff3
 
         sep = ";" if gff3 else "; "
-        for tag, val in sorted(self.attributes.items()):
+        for tag, val in self.attributes.items():
             val = ",".join(val)
             val = "\"{0}\"".format(val) if " " in val or (not gff3) else val
             equal = "=" if gff3 else " "
@@ -128,7 +129,7 @@ def make_attributes(s, gff3=True):
 
     else:
         attributes = s.split("; ")
-        d = defaultdict(list)
+        d = DefaultOrderedDict(list)
         for a in attributes:
             key, val = a.strip().split(' ', 1)
             val = val.replace('"', '')

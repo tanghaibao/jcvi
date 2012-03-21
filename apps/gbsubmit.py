@@ -11,13 +11,13 @@ import string
 import logging
 
 from glob import glob
-from urlparse import parse_qs
 from optparse import OptionParser
 from collections import defaultdict
 
 from Bio import SeqIO
 
 from jcvi.utils.cbook import memoized, fill
+from jcvi.utils.ordereddict import parse_qs
 from jcvi.formats.base import DictFile
 from jcvi.apps.base import ActionDispatcher, sh, mkdir, debug, set_outfile
 debug()

@@ -236,15 +236,77 @@ def mcscan(args):
     """
     %prog mcscan bedfile anchorfile
 
-    Stack synteny blocks on a reference bed, MCSCAN style.
+    Stack synteny blocks on a reference bed, MCSCAN style. The first column in
+    the output is the reference order, given in the bedfile. Then each column
+    next to it are separate 'tracks'.
     """
+    from jcvi.utils.range import Range, range_chain
+
     p = OptionParser(mcscan.__doc__)
+    p.add_option("--iter", default=100, type="int",
+                 help="Max number of chains to output [default: %default]")
+    p.add_option("--ascii", default=False, action="store_true",
+                 help="Output symbols rather than gene names [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
         sys.exit(not p.print_help())
 
     bedfile, anchorfile = args
+    ascii = opts.ascii
+    bed = Bed(bedfile)
+    order = bed.order
+
+    ac = AnchorFile(anchorfile)
+    ranges = []
+    block_pairs = {}
+    for i, (q, s) in enumerate(ac.iter_blocks()):
+        if q[0] not in order:
+            q, s = s, q
+
+        pairs = dict(zip(q, s))
+        block_pairs[i] = pairs
+
+        q = [order[x] for x in q]
+        q.sort()
+        ranges.append(Range("0", q[0], q[-1], score=len(q), id=i))
+
+    tracks = []
+    print >> sys.stderr, "Chain started: {0} blocks".format(len(ranges))
+    iteration = 0
+    while ranges:
+        if iteration >= opts.iter:
+            break
+
+        selected, score = range_chain(ranges)
+        tracks.append(selected)
+        selected = set(x.id for x in selected)
+        ranges = [x for x in ranges if x.id not in selected]
+        msg = "Chain {0}: score={1}".format(iteration, score)
+        if ranges:
+            msg += " {0} blocks remained..".format(len(ranges))
+        else:
+            msg += " done!"
+
+        print >> sys.stderr, msg
+        iteration += 1
+
+    for b in bed:
+        id = b.accn
+        atoms = []
+        for track in tracks:
+            track_ids = [x.id for x in track]
+            for tid in track_ids:
+                pairs = block_pairs[tid]
+                anchor = pairs.get(id, ".")
+                if anchor != ".":
+                    break
+            if ascii and anchor != ".":
+                anchor = "x"
+            atoms.append(anchor)
+
+        sep = "" if ascii else "\t"
+        print "\t".join((id, sep.join(atoms)))
 
 
 def group(args):

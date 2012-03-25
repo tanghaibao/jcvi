@@ -453,12 +453,13 @@ def join(args):
     oo = opts.oo
 
     o = OO(oo, sizes.mapping)
-    seen = o.contigs
-    # The leftover contigs not in the oo file
-    logging.debug("A total of {0} contigs ({1} in `{2}`)".\
-                format(len(sizes), len(seen), oo))
 
     if oo:
+        seen = o.contigs
+        # The leftover contigs not in the oo file
+        logging.debug("A total of {0} contigs ({1} in `{2}`)".\
+                    format(len(sizes), len(seen), oo))
+
         for ctg, size in sizes.iter_sizes():
             if ctg in seen:
                 continue

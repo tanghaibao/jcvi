@@ -28,7 +28,7 @@ debug()
 @depends
 def run_lastdb(infile=None, outfile=None, lastdb_bin="lastdb"):
     outfilebase = outfile.rsplit(".", 1)[0]
-    cmd = "{0} -c {1} {2}".format(lastdb_bin, outfilebase, infile)
+    cmd = "{0} {1} {2}".format(lastdb_bin, outfilebase, infile)
     sh(cmd)
 
 

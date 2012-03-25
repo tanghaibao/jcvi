@@ -122,10 +122,10 @@ def lastz(k, n, bfasta_fn, afasta_fn, out_fh, lock, lastz_bin, extra,
     if extra:
         lastz_cmd += " " + extra.strip()
 
-    #lastz_cmd += " --format=general-:%s" % lastz_fields
+    lastz_cmd += " --format=general-:%s" % lastz_fields
     # The above conversion is no longer necessary after LASTZ v1.02.40
     # (of which I contributed a patch)
-    lastz_cmd += " --format=BLASTN-"
+    #lastz_cmd += " --format=BLASTN-"
 
     if grid:  # if run on SGE, only the cmd is needed
         return lastz_cmd
@@ -134,8 +134,9 @@ def lastz(k, n, bfasta_fn, afasta_fn, out_fh, lock, lastz_bin, extra,
 
     logging.debug("job <%d> started: %s" % (proc.pid, lastz_cmd))
     for row in proc.stdout:
+        row = lastz_to_blast(row)
         lock.acquire()
-        out_fh.write(row)
+        print >> out_fh, row
         out_fh.flush()
         lock.release()
     logging.debug("job <%d> finished" % proc.pid)

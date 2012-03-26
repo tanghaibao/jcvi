@@ -18,7 +18,6 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
 from jcvi.formats.base import BaseFile, DictFile, must_open
-from jcvi.utils.cbook import human_size
 from jcvi.utils.table import banner
 from jcvi.apps.base import ActionDispatcher, debug, set_outfile, sh
 from jcvi.apps.console import red, green
@@ -489,21 +488,17 @@ def summary(args):
 
     Report real bases and N's in fastafiles in a tabular report
     """
+    from jcvi.utils.table import write_csv
+
     p = OptionParser(summary.__doc__)
     p.add_option("--suffix", dest="suffix", default="Mb",
             help="make the base pair counts human readable [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) == 0:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
-    header = "Seqid|Real|N's|Total|% real"
-    print header.replace('|', '\t')
-    _human_size = lambda x: human_size(x, precision=2,
-            target=opts.suffix)
-
-    total_nns = 0
-    total_reals = 0
+    header = "Seqid Real N's Total %_real".split()
 
     data = []
     for fastafile in args:
@@ -511,23 +506,17 @@ def summary(args):
             seqlen = len(rec)
             nns = rec.seq.count('n') + rec.seq.count('N')
             reals = seqlen - nns
+            pctreal = "{0:.1f} %".format(reals * 100. / seqlen)
+            data.append((rec.id, reals, nns, seqlen, pctreal))
 
-            data.append((rec.id, reals, nns, seqlen))
+    ids, reals, nns, seqlen, pctreal = zip(*data)
+    reals = sum(reals)
+    nns = sum(nns)
+    seqlen = sum(seqlen)
+    pctreal = "{0:.1f} %".format(reals * 100. / seqlen)
+    data.append(("Total", reals, nns, seqlen, pctreal))
 
-    idsx, total_reals, total_nns, total_seqlen = zip(*data)
-    total_reals = sum(total_reals)
-    total_nns = sum(total_nns)
-    total_seqlen = sum(total_seqlen)
-    data.append(("Total", total_reals, total_nns, total_seqlen))
-
-    for id, reals, nns, seqlen in data:
-        pctreal = reals * 100. / seqlen
-        seqlen = _human_size(seqlen)
-        nns = _human_size(nns)
-        reals = _human_size(reals)
-
-        print "{0}\t{1}\t{2}\t{3}\t{4:.2f}%".format(id, reals,
-                nns, seqlen, pctreal)
+    write_csv(header, data, sep=" ")
 
 
 def format(args):

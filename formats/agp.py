@@ -170,7 +170,7 @@ class AGPLine (object):
                     .format("|".join(Valid_evidence), self.linkage_evidence)
 
             if self.linkage == "no":
-                assert self.linkage_evidence in ("na", ""), \
+                assert self.linkage_evidence[0] in ("", "na"), \
                     "linkage no is incompatible with evidence {0}" \
                     .format(self.linkage_evidence)
 

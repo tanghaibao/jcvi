@@ -21,7 +21,7 @@ from multiprocessing import Lock
 from jcvi.utils.cbook import depends
 from jcvi.apps.grid import Jobs
 from jcvi.formats.base import must_open
-from jcvi.apps.base import debug, sh, set_outfile
+from jcvi.apps.base import debug, sh, set_outfile, set_params
 debug()
 
 
@@ -71,6 +71,8 @@ def main(args):
                       format("|".join(supported_formats)))
     p.add_option("--eval", default=False, action="store_true",
                  help="Use lastex to recalculate E-value [default: %default]")
+
+    set_params(p)
     set_outfile(p)
 
     opts, args = p.parse_args(args)
@@ -102,6 +104,10 @@ def main(args):
     f = supported_formats.index(opts.format)
     cmd += " -f {0}".format(f)
     cmd += " {0} -".format(subjectdb)
+
+    extra = opts.extra
+    if extra:
+        cmd += " " + extra
 
     if opts.eval:
         querydb = query.rsplit(".", 1)[0]

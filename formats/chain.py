@@ -28,19 +28,86 @@ import logging
 
 from optparse import OptionParser
 
-from jcvi.apps.base import ActionDispatcher, debug, sh, need_update
+from jcvi.formats.base import BaseFile, read_block
+from jcvi.apps.base import ActionDispatcher, debug, sh, need_update, set_outfile
 debug()
+
+
+class ChainLine (object):
+
+    def __init__(self, chain, lines):
+        self.chain = chain
+        self.blocks = []
+        for line in lines:
+            atoms = line.split()
+            if len(atoms) == 1:
+                atoms += [0, 0]
+            if len(atoms) == 0:
+                continue
+
+            self.blocks.append([int(x) for x in atoms])
+
+        self.ungapped, self.dt, self.dq = zip(*self.blocks)
+        self.ungapped = sum(self.ungapped)
+        self.dt = sum(self.dt)
+        self.dq = sum(self.dq)
+
+
+class Chain (BaseFile):
+
+    def __init__(self, filename):
+        super(Chain, self).__init__(filename)
+        self.chains = list(self.iter_chain())
+
+        self.ungapped = sum(x.ungapped for x in self.chains)
+        self.dt = sum(x.dt for x in self.chains)
+        self.dq = sum(x.dq for x in self.chains)
+
+    def __len__(self):
+        return len(self.chains)
+
+    def iter_chain(self):
+        fp = open(self.filename)
+        for row in fp:
+            if row[0] != '#':
+                break
+
+        for chain, lines in read_block(fp, "chain"):
+            lines = list(lines)
+            yield ChainLine(chain, lines)
 
 
 def main():
 
     actions = (
-        ('blat', 'generate PSL file using blat'),
+        ('blat', 'generate PSL file using BLAT'),
+        ('last', 'generate PSL file using LAST'),
         ('frompsl', 'generate chain file from PSL format'),
         ('fromagp', 'generate chain file from AGP format'),
+        ('summary', 'provide stats of the chain file'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def summary(args):
+    """
+    %prog summary old.new.chain
+
+    Provide stats of the chain file.
+    """
+    p = OptionParser(summary.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    chainfile, = args
+    chain = Chain(chainfile)
+    print >> sys.stderr, "File `{0}` contains {1} chains.".\
+                format(chainfile, len(chain))
+    print >> sys.stderr, "ungapped={0} dt={1} dq={2}".\
+                format(chain.ungapped, chain.dt, chain.dq)
 
 
 def fromagp(args):
@@ -145,6 +212,47 @@ def blat(args):
     sh(cmd)
 
 
+def last(args):
+    """
+    %prog last old.fasta new.fasta
+
+    Generate psl file using last. Calles apps.last() but with special
+    parameters: -r5 -q95 -a0 -b95 -e500, which only reports alignments larger
+    than 100 bp and >=95 % identity.
+    """
+    from jcvi.apps.last import main as lastapp
+
+    p = OptionParser(last.__doc__)
+    p.add_option("--distant", default=False, action="store_true",
+                 help="Assume distant relations")
+    p.add_option("--minscore", default=100, type="int",
+                 help="Filter alignments by how many bases match [default: %default]")
+    p.add_option("--minid", default=95, type="int",
+                 help="Minimum sequence identity [default: %default]")
+    set_outfile(p)
+
+    opts, args = p.parse_args(args)
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    oldfasta, newfasta = args
+    args = [oldfasta, newfasta, "--format=maf", \
+                "--outfile={0}".format(opts.outfile)]
+
+    minscore = opts.minscore
+    minid = opts.minid
+
+    r = 100 - minid
+    q = minid
+    e = minscore * r
+
+    extra = r'--params=-r{0} -q{1} -a0 -b{1} -e{2}'.format(r, q, e)
+    if not opts.distant:
+        args.append(extra)
+
+    lastapp(args)
+
+
 def lastz(args):
     """
     %prog lastz old.fasta new.fasta
@@ -163,7 +271,7 @@ def lastz(args):
                  help="Assume distant relations")
     p.add_option("--minscore", default=100, type="int",
                  help="Filter alignments by how many bases match [default: %default]")
-    p.add_option("--minid", default=98, type="int",
+    p.add_option("--minid", default=95, type="int",
                  help="Minimum sequence identity [default: %default]")
 
 

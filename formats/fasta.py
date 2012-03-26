@@ -493,6 +493,8 @@ def summary(args):
     p = OptionParser(summary.__doc__)
     p.add_option("--suffix", dest="suffix", default="Mb",
             help="make the base pair counts human readable [default: %default]")
+    set_outfile(p)
+
     opts, args = p.parse_args(args)
 
     if len(args) == 0:
@@ -516,7 +518,8 @@ def summary(args):
     pctreal = "{0:.1f} %".format(reals * 100. / seqlen)
     data.append(("Total", reals, nns, seqlen, pctreal))
 
-    write_csv(header, data, sep=" ")
+    write_csv(header, data, sep=" ", filename=opts.outfile)
+    return reals, nns, seqlen
 
 
 def format(args):

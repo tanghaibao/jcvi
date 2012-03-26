@@ -92,22 +92,34 @@ def main():
 
 def summary(args):
     """
-    %prog summary old.new.chain
+    %prog summary old.new.chain old.fasta new.fasta
 
     Provide stats of the chain file.
     """
+    from jcvi.formats.fasta import summary as fsummary
+    from jcvi.utils.cbook import percentage, human_size
+
     p = OptionParser(summary.__doc__)
     opts, args = p.parse_args(args)
 
-    if len(args) != 1:
+    if len(args) != 3:
         sys.exit(not p.print_help())
 
-    chainfile, = args
+    chainfile, oldfasta, newfasta = args
     chain = Chain(chainfile)
+    ungapped, dt, dq = chain.ungapped, chain.dt, chain.dq
     print >> sys.stderr, "File `{0}` contains {1} chains.".\
                 format(chainfile, len(chain))
     print >> sys.stderr, "ungapped={0} dt={1} dq={2}".\
-                format(chain.ungapped, chain.dt, chain.dq)
+                format(human_size(ungapped), human_size(dt), human_size(dq))
+
+    oldreal, oldnn, oldlen = fsummary([oldfasta, "--outfile=/dev/null"])
+    print >> sys.stderr, "Old fasta (`{0}`) mapped: {1}".\
+                format(oldfasta, percentage(ungapped, oldreal))
+
+    newreal, newnn, newlen = fsummary([newfasta, "--outfile=/dev/null"])
+    print >> sys.stderr, "New fasta (`{0}`) mapped: {1}".\
+                format(newfasta, percentage(ungapped, newreal))
 
 
 def fromagp(args):

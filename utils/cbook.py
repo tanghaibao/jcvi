@@ -41,6 +41,25 @@ class memoized(object):
         return functools.partial(self.__call__, obj)
 
 
+def timeit(func):
+    """
+    <http://www.zopyx.com/blog/a-python-decorator-for-measuring-the-execution-time-of-methods>
+    """
+    import time
+
+    def timed(*args, **kw):
+        ts = time.time()
+        result = func(*args, **kw)
+        te = time.time()
+
+        msg = "{0}{1} {2:.2f}s".format(func.__name__, args, te - ts)
+        logging.debug(msg)
+
+        return result
+
+    return timed
+
+
 def depends(func):
     """
     Decorator to perform check on infile and outfile. When infile is not present, issue

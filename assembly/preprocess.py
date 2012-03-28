@@ -122,7 +122,7 @@ def trim(args):
         cmd += " {0}".format(" ".join((fastqfile1, fastqfile2, \
                 pairs1, frags1, pairs2, frags2)))
 
-    cmd += " ILLUMINACLIP:{0}:2:40:15".format(adaptersfile)
+    cmd += " ILLUMINACLIP:{0}:2:40:12".format(adaptersfile)
     cmd += " LEADING:3 TRAILING:3"
     cmd += " SLIDINGWINDOW:4:{0} MINLEN:{1}".format(opts.minqv, opts.minlen)
     if offset != 33:

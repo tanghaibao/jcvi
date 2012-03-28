@@ -16,7 +16,7 @@ from optparse import OptionParser
 from multiprocessing import Process
 
 from jcvi.formats.base import FileSplitter
-from jcvi.apps.base import ActionDispatcher, sh, popen, mkdir, debug
+from jcvi.apps.base import ActionDispatcher, sh, popen, mkdir, backup, debug
 debug()
 
 
@@ -133,6 +133,10 @@ class GridProcess (object):
         if path:
             os.chdir(path)
 
+        # Shell commands
+        if "|" in self.cmd:
+            self.cmd = "sh -c '{0}'".format(self.cmd)
+
         # qsub command (the project code is specific to jcvi)
         qsub = "qsub -P {0} -cwd".format(PCODE)
         if self.queue != "default":
@@ -157,8 +161,10 @@ class GridProcess (object):
         if self.infile:
             msg += " < {0} ".format(self.infile)
         if self.outfile:
+            backup(self.outfile)
             msg += " > {0} ".format(self.outfile)
         if self.errfile:
+            backup(self.errfile)
             msg += " 2> {0} ".format(self.errfile)
 
         logging.debug(msg)

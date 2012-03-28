@@ -40,6 +40,14 @@ class ActionDispatcher (object):
         globals[action](sys.argv[2:])
 
 
+def backup(filename):
+    if op.exists(filename):
+        bakname = filename + ".bak"
+        logging.debug("Backup `{0}` to `{1}`".format(filename, bakname))
+        sh("mv {0} {1}".format(filename, bakname))
+        return bakname
+
+
 def gethostname():
     import socket
     return socket.gethostname()

@@ -232,29 +232,50 @@ def split(args):
     """
     %prog split pairs.fastq
 
-    Split shuffled pairs into `.1.fastq` and `.2.fastq`, using `sed`.
+    Split shuffled pairs into `.1.fastq` and `.2.fastq`, using `sed`. Can work
+    on gzipped file.
+
     <http://seqanswers.com/forums/showthread.php?t=13776>
     """
     from jcvi.apps.grid import Jobs
 
     p = OptionParser(split.__doc__)
+    set_grid(p)
+
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     pairsfastq, = args
-    pf = pairsfastq.rsplit(".", 1)[0]
+    gz = pairsfastq.endswith(".gz")
+    pf = pairsfastq.replace(".gz", "").rsplit(".", 1)[0]
     p1 = pf + ".1.fastq"
     p2 = pf + ".2.fastq"
-    p1cmd = "sed -ne '1~8{{N;N;N;p}}' {0} > {1}".format(pairsfastq, p1)
-    p2cmd = "sed -ne '5~8{{N;N;N;p}}' {0} > {1}".format(pairsfastq, p2)
 
-    args = [(p1cmd, ), (p2cmd, )]
-    m = Jobs(target=sh, args=args)
-    m.run()
+    cmd = "zcat" if gz else "cat"
+    p1cmd = cmd + " {0} | sed -ne '1~8{{N;N;N;p}}'".format(pairsfastq)
+    p2cmd = cmd + " {0} | sed -ne '5~8{{N;N;N;p}}'".format(pairsfastq)
 
-    checkShuffleSizes(p1, p2, pairsfastq)
+    if gz:
+        p1cmd += " | gzip"
+        p2cmd += " | gzip"
+        p1 += ".gz"
+        p2 += ".gz"
+
+    p1cmd += " > " + p1
+    p2cmd += " > " + p2
+
+    if opts.grid:
+        sh(p1cmd, grid=True)
+        sh(p2cmd, grid=True)
+
+    else:
+        args = [(p1cmd, ), (p2cmd, )]
+        m = Jobs(target=sh, args=args)
+        m.run()
+
+        checkShuffleSizes(p1, p2, pairsfastq)
 
 
 def guessoffset(args):

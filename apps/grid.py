@@ -135,7 +135,8 @@ class GridProcess (object):
 
         # Shell commands
         if "|" in self.cmd:
-            self.cmd = "sh -c '{0}'".format(self.cmd)
+            quote = "\"" if "'" in self.cmd else "'"
+            self.cmd = "sh -c {1}{0}{1}".format(self.cmd, quote)
 
         # qsub command (the project code is specific to jcvi)
         qsub = "qsub -P {0} -cwd".format(PCODE)

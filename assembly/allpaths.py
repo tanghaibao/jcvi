@@ -265,10 +265,16 @@ ALLPATHSRUN = r"""#!/bin/bash
 ulimit -s 100000
 ulimit -v 800000000
 
-PrepareAllPathsInputs.pl \
-    DATA_DIR=$PWD PLOIDY=1 \
-    HOSTS='16' \
-    PICARD_TOOLS_DIR=~/htang/export/picard-tools-1.47/
+if [ -f frag_reads_orig.fastb ]
+then
+    echo "'frag_reads_orig.fastb' exists. Skip loading reads."
+else
+    echo "Load reads ..."
+    PrepareAllPathsInputs.pl \
+        DATA_DIR=$PWD PLOIDY=1 \
+        HOSTS='16' \
+        PICARD_TOOLS_DIR=~/htang/export/picard-tools-1.47/
+fi
 
 RunAllPathsLG PRE=. REFERENCE_NAME=. OVERWRITE=True \
     DATA_SUBDIR=. RUN=allpaths SUBDIR=run THREADS=32 \

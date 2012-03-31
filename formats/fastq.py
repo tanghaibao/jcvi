@@ -475,6 +475,7 @@ def convert(args):
     p.add_option("-q", dest="outfastq", default="sanger", choices=supported_qvs,
             help="output qv, one of {0} [default: %default]".\
                 format("|".join(supported_qvs)))
+    set_grid(p)
 
     opts, args = p.parse_args(args)
 
@@ -495,7 +496,7 @@ def convert(args):
         cmd = seqret + " fastq-{0}::{1} fastq-{2}::{3}".\
                 format(opts.infastq, infastq, opts.outfastq, outfastq)
 
-    sh(cmd)
+    sh(cmd, grid=opts.grid)
 
     return outfastq
 

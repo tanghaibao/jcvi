@@ -80,7 +80,9 @@ class AGPLine (object):
             self.gap_length = int(atoms[5])
             self.gap_type = atoms[6]
             self.linkage = atoms[7]
-            self.linkage_evidence = atoms[8].strip().split(";")
+            self.linkage_evidence = ""
+            if len(atoms) > 8:
+                self.linkage_evidence = atoms[8].strip().split(";")
             self.orientation = "na"
 
         if validate:

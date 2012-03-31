@@ -102,12 +102,13 @@ class GridProcess (object):
 
     pat = re.compile(r"Your job (?P<id>[0-9]*) ")
 
-    def __init__(self, cmd, jobid="", queue="default",
+    def __init__(self, cmd, jobid="", queue="default", threaded=None,
                        infile=None, outfile=None, errfile=None):
 
         self.cmd = cmd
         self.jobid = jobid
         self.queue = queue
+        self.threaded = threaded
         self.infile = infile
         self.outfile = outfile
         self.errfile = errfile
@@ -142,6 +143,8 @@ class GridProcess (object):
         qsub = "qsub -P {0} -cwd".format(PCODE)
         if self.queue != "default":
             qsub += " -l {0}".format(self.queue)
+        if self.threaded:
+            qsub += " -pe threaded {0}".format(self.threaded)
         if self.infile:
             qsub += " -i {0}".format(self.infile)
         if self.outfile:
@@ -301,6 +304,8 @@ def run(args):
     p.add_option("-l", dest="queue", default="default", choices=queue_choices,
                  help="Name of the queue, one of {0} [default: %default]".\
                       format("|".join(queue_choices)))
+    p.add_option("-t", dest="threaded", type="int",
+                 help="Append '-pe threaded N' [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) == 0:
@@ -341,7 +346,8 @@ def run(args):
             ncmd, outfile = ncmd.split(">", 1)
             ncmd, outfile = ncmd.strip(), outfile.strip()
 
-        p = GridProcess(ncmd, queue=opts.queue, outfile=outfile)
+        p = GridProcess(ncmd, outfile=outfile,
+                        queue=opts.queue, threaded=opts.threaded)
         p.start(path=None)  # current folder
 
 

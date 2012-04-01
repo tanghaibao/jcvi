@@ -319,9 +319,47 @@ def main():
         ('flatten', 'convert a list of IDs into one per line'),
         ('setop', 'set operations on files'),
         ('join', 'join tabular files based on common column'),
+        ('truncate', 'remove lines from end of file'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def truncate(args):
+    """
+    %prog truncate linecount filename
+
+    Remove linecount lines from the end of the file in-place. Borrowed from:
+    <http://superuser.com/questions/127786/how-to-remove-the-last-2-lines-of-a-very-large-file>
+    """
+    p = OptionParser(truncate.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    number, filename = args
+    number = int(number)
+    count = 0
+
+    f = open(filename, "r+b")
+    f.seek(0, os.SEEK_END)
+    end = f.tell()
+    while f.tell() > 0:
+        f.seek(-1, os.SEEK_CUR)
+        char = f.read(1)
+        if char == '\n':
+            count += 1
+        if count == number + 1:
+            f.truncate()
+            print >> sys.stderr, "Removed {0} lines from end of file".format(number)
+            return number
+
+        f.seek(-1, os.SEEK_CUR)
+
+    if count < number + 1:
+        print >> sys.stderr, "No change: requested removal would leave empty file"
+        return -1
 
 
 def flatten(args):

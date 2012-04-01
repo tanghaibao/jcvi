@@ -135,7 +135,7 @@ class GridProcess (object):
             os.chdir(path)
 
         # Shell commands
-        if "|" in self.cmd:
+        if "|" in self.cmd or "&&" in self.cmd or "||" in self.cmd:
             quote = "\"" if "'" in self.cmd else "'"
             self.cmd = "sh -c {1}{0}{1}".format(self.cmd, quote)
 

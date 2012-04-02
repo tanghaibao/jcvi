@@ -12,6 +12,9 @@ from subprocess import call
 from optparse import OptionParser
 
 
+os.environ["LC_ALL"] = "C"
+
+
 class ActionDispatcher (object):
 
     def __init__(self, actions):

@@ -17,10 +17,29 @@ from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
 
+class FillLine (object):
+
+    def __init__(self, row):
+        args = row.split()
+        self.start = int(args[0])
+        self.end = int(args[1])
+        self.leftextend = int(args[2])
+        self.rightextend = int(args[3])
+        self.closed = (int(args[4]) == 1)
+        self.extendlength = int(args[5])
+        self.before = int(args[6])
+        self.after = int(args[7])
+        # Convert from unsigned to signed
+        # <http://stackoverflow.com/questions/1375897/how-to-get-the-signed-integer-value-of-a-long-in-python>
+        if (self.after & 0x80000000):
+            self.after += -0x100000000
+
+
 def main():
 
     actions = (
         ('prepare', 'prepare SOAP config files and run script'),
+        ('fillstats', 'build stats on .fill file from GapCloser'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -38,7 +57,44 @@ $C pregraph -s $S -K $K -o $A -a 300 -p $P -R
 $C contig -g $A -M 3 -R
 $C map -p $P -s $S -g $A
 $C scaff -F -g $A
-GapCloser -t $P -o ${A}.closed.scafSeq -a ${A}.scafSeq -p 31 -b $S"""
+GapCloser -t $P -o ${A}.closed.scafSeq -a ${A}.scafSeq -p 31 -b $Si -l 155"""
+
+
+def fillstats(args):
+    """
+    %prog fillstats genome.fill
+
+    Build stats on .fill file from GapCloser.
+    """
+    from jcvi.utils.cbook import SummaryStats
+
+    p = OptionParser(fillstats.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    fillfile, = args
+    fp = open(fillfile)
+    scaffolds = 0
+    gaps = []
+    for row in fp:
+        if row[0] == ">":
+            scaffolds += 1
+            continue
+        fl = FillLine(row)
+        gaps.append(fl)
+
+    print >> sys.stderr, "{0} scaffolds in total".format(scaffolds)
+    closed = [x for x in gaps if x.closed]
+    print >> sys.stderr, "Closed gaps: {0}".format(len(closed))
+    ss = SummaryStats([x.after for x in closed])
+    print >> sys.stderr, ss
+
+    notClosed = [x for x in gaps if not x.closed]
+    print >> sys.stderr, "Remaining gaps: {0}".format(len(notClosed))
+    ss = SummaryStats([x.after for x in notClosed])
+    print >> sys.stderr, ss
 
 
 def prepare(args):

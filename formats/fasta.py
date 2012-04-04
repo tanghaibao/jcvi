@@ -223,7 +223,7 @@ def translate(args):
         ids = None
 
     five_prime_missing = three_prime_missing = 0
-    contain_ns = complete = total = 0
+    contain_ns = complete = cannot_translate = total = 0
 
     for name, rec in f.iteritems_ordered():
         cds = rec.seq
@@ -237,8 +237,11 @@ def translate(args):
             if "*" not in pep.rstrip("*"):
                 break
 
+        labels = []
         if "*" in pep.rstrip("*"):
             logging.error("{0} cannot translate".format(name))
+            cannot_translate += 1
+            labels.append("cannot_translate")
 
         contains_start = pep.startswith("M")
         contains_stop = pep.endswith("*")
@@ -246,7 +249,6 @@ def translate(args):
         start_ns = pep.startswith("X")
         end_ns = pep.endswith("X")
 
-        labels = []
         if not contains_start:
             five_prime_missing += 1
             labels.append("five_prime_missing")
@@ -279,6 +281,10 @@ def translate(args):
                         format(percentage(three_prime_missing, total))
     print >> sys.stderr, "Contain Ns: {0}".\
                         format(percentage(contain_ns, total))
+
+    if cannot_translate:
+        print >> sys.stderr, "Cannot translate: {0}".\
+                        format(percentage(cannot_translate, total))
 
 
 def filter(args):

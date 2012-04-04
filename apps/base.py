@@ -266,10 +266,77 @@ def main():
 
     actions = (
         ('less', 'enhance the unix `less` command'),
+        ('timestamp', 'record timestamps for all files in the current folder'),
+        ('touch', 'recover timestamps for files in the current folder'),
         ('blast', 'run blastn using query against reference'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def get_times(filename):
+    st = os.stat(filename)
+    atime = st.st_atime
+    mtime = st.st_mtime
+    return (atime, mtime)
+
+
+def timestamp(args):
+    """
+    %prog timestamp path > timestamp.info
+
+    Record the timestamps for all files in the current folder.
+    filename	atime	mtime
+
+    This file can be used later to recover previous timestamps through touch().
+    """
+    p = OptionParser(timestamp.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    path, = args
+    for root, dirs, files in os.walk(path):
+        for f in files:
+            filename = op.join(root, f)
+            atime, mtime = get_times(filename)
+            print filename, atime, mtime
+
+
+def touch(args):
+    """
+    %prog touch timestamp.info
+
+    Recover timestamps for files in the current folder.
+    CAUTION: you must execute this in the same directory as timestamp().
+    """
+    from time import ctime
+
+    p = OptionParser(touch.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    info, = args
+    fp = open(info)
+    for row in fp:
+        path, atime, mtime = row.split()
+        atime = float(atime)
+        mtime = float(mtime)
+        current_atime, current_mtime = get_times(path)
+
+        # Check if the time has changed, with resolution up to 1 sec
+        if int(atime) == int(current_atime) and \
+           int(mtime) == int(current_mtime):
+            continue
+
+        times = [ctime(x) for x in (current_atime, current_mtime, atime, mtime)]
+        msg = "{0} : ".format(path)
+        msg += "({0}, {1}) => ({2}, {3})".format(*times)
+        print >> sys.stderr, msg
+        os.utime(path, (atime, mtime))
 
 
 def snapshot(fp, p, fsize, counts=None):

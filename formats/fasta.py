@@ -554,6 +554,7 @@ def format(args):
     p.add_option("--template", default=False, action="store_true",
             help="Extract `template=aaa dir=x library=m` to `m-aaa/x` [default: %default]")
     p.add_option("--switch", help="Switch ID from two-column file [default: %default]")
+    p.add_option("--annotation", help="Add functional annotation from two-column file ('ID <--> Annotation') [default: %default]")
     p.add_option("--ids", help="Generate ID conversion table [default: %default]")
     opts, args = p.parse_args(args)
 
@@ -570,11 +571,14 @@ def format(args):
     sequential = opts.sequential
     idx = opts.index
     mapfile = opts.switch
+    annotfile = opts.annotation
     idsfile = opts.ids
     idsfile = open(idsfile, "w") if idsfile else None
 
     if mapfile:
         mapping = DictFile(mapfile, delimiter="\t")
+    elif annotfile:
+        annotation = DictFile(annotfile, delimiter="\t")
 
     fw = must_open(outfasta, "w")
     fp = SeqIO.parse(must_open(infasta), "fasta")
@@ -616,6 +620,9 @@ def format(args):
                 logging.error("{0} not found in `{1}`. ID unchanged.".\
                         format(origid, mapfile))
         rec.description = ""
+        if annotfile:
+            if annotation.has_key(rec.id):
+                rec.description = annotation[rec.id]
         if idsfile:
             print >> idsfile, "\t".join((origid, rec.id))
 

@@ -584,14 +584,15 @@ def format(args):
     fw = must_open(outfasta, "w")
     fp = SeqIO.parse(must_open(infasta), "fasta")
     for i, rec in enumerate(fp):
+        origid = rec.id
         description = rec.description
         if until:
             description = description.split(until, 1)[0]
+            rec.id = description
         if idx:
             description = description.split()[idx]
+            rec.id = description
 
-        origid = rec.id
-        rec.id = description
         if gb:
             # gi|262233616|gb|GU123895.1| Coffea arabica clone BAC
             atoms = rec.id.split("|")

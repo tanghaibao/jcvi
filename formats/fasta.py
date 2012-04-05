@@ -554,7 +554,8 @@ def format(args):
     p.add_option("--template", default=False, action="store_true",
             help="Extract `template=aaa dir=x library=m` to `m-aaa/x` [default: %default]")
     p.add_option("--switch", help="Switch ID from two-column file [default: %default]")
-    p.add_option("--annotation", help="Add functional annotation from two-column file ('ID <--> Annotation') [default: %default]")
+    p.add_option("--annotation", help="Add functional annotation from "
+                        "two-column file ('ID <--> Annotation') [default: %default]")
     p.add_option("--ids", help="Generate ID conversion table [default: %default]")
     opts, args = p.parse_args(args)
 
@@ -577,7 +578,7 @@ def format(args):
 
     if mapfile:
         mapping = DictFile(mapfile, delimiter="\t")
-    elif annotfile:
+    if annotfile:
         annotation = DictFile(annotfile, delimiter="\t")
 
     fw = must_open(outfasta, "w")
@@ -621,8 +622,7 @@ def format(args):
                         format(origid, mapfile))
         rec.description = ""
         if annotfile:
-            if annotation.has_key(rec.id):
-                rec.description = annotation[rec.id]
+            rec.description = annotation.get(origid, "")
         if idsfile:
             print >> idsfile, "\t".join((origid, rec.id))
 

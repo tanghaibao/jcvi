@@ -79,8 +79,10 @@ def rename(args):
     genes.sort(key=genes.key)
     idsfile = prefix + ".ids"
     newbedfile = prefix + ".bed"
-    fw = open(idsfile, "w")
+    gap_increment -= gene_increment
+    assert gap_increment >= 0
 
+    fw = open(idsfile, "w")
     for chr, lines in groupby(genes, key=lambda x: x.seqid):
         lines = list(lines)
         pad0 = opts.pad0 if len(lines) > 1000 else 3
@@ -89,10 +91,13 @@ def rename(args):
         gs = "g" if isChr else "s"
         pp = prefix + digits + gs
         idx = 0
+        if isChr:
+            idx += gap_increment
+
         for r in lines:
             isGap = r.strand not in ("+", "-")
             if isGap:
-                idx += gap_increment - gene_increment
+                idx += gap_increment
                 continue
             else:
                 idx += gene_increment

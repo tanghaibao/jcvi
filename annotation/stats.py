@@ -25,7 +25,7 @@ def main():
 
     actions = (
         ('stats', 'collect gene statistics based on gff file'),
-        ('histogram', 'plot gene statistcis based on output of stats'),
+        ('histogram', 'plot gene statistics based on output of stats'),
         ('summary', 'print gene statistics table'),
             )
     p = ActionDispatcher(actions)
@@ -149,7 +149,7 @@ def stats(args):
     b = SummaryStats(intron_lengths)
     c = SummaryStats(gene_lengths)
     d = SummaryStats(exon_counts)
-    for x in zip((a, b, c, d), metrics):
+    for x, title in zip((a, b, c, d), metrics):
         x.title = title
         print >> sys.stderr, x
 

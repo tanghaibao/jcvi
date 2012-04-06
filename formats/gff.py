@@ -1016,7 +1016,7 @@ def load(args):
             children.reverse()
         feat_seq = ''.join(x[0] for x in children)
 
-        description = feat.attributes[attr][0] \
+        description = ",".join(feat.attributes[attr]) \
                 if attr and attr in feat.attributes else ""
         description = description.replace("\"", "")
 

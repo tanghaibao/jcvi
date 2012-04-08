@@ -24,14 +24,16 @@ def moving_average(a, window=10):
     return np.convolve(a, kernel)
 
 
-def chunk_average(a, window=10):
+def chunk_average(a, window=10, offset=None):
     # Fixed size window, take average within the window
-    bins = int(math.ceil(a.size * 1. / window))
+    offset = offset or window
+
+    bins = int(math.ceil((a.size - window) * 1. / offset)) + 1
     r = np.zeros((bins, ), dtype=np.float)
     start = 0
     for i in xrange(bins):
         r[i] = np.average(a[start: start + window])
-        start += window
+        start += offset
     return r
 
 

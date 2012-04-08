@@ -168,7 +168,7 @@ def thousands(x):
     '12,345'
     """
     import locale
-    locale.setlocale(locale.LC_ALL, "")
+    locale.setlocale(locale.LC_ALL, "en_AU.utf8")
     return locale.format('%d', x, True)
 
 

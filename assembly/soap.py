@@ -34,6 +34,10 @@ class FillLine (object):
         if (self.after & 0x80000000):
             self.after += -0x100000000
 
+    @property
+    def delta(self):
+        return self.after - self.before
+
 
 def main():
 
@@ -66,7 +70,7 @@ def fillstats(args):
 
     Build stats on .fill file from GapCloser.
     """
-    from jcvi.utils.cbook import SummaryStats
+    from jcvi.utils.cbook import SummaryStats, percentage, thousands
 
     p = OptionParser(fillstats.__doc__)
     opts, args = p.parse_args(args)
@@ -86,13 +90,25 @@ def fillstats(args):
         gaps.append(fl)
 
     print >> sys.stderr, "{0} scaffolds in total".format(scaffolds)
+
     closed = [x for x in gaps if x.closed]
-    print >> sys.stderr, "Closed gaps: {0}".format(len(closed))
+    closedbp = sum([x.before for x in closed])
+    notClosed = [x for x in gaps if not x.closed]
+    notClosedbp = sum([x.before for x in notClosed])
+
+    totalgaps = len(closed) + len(notClosed)
+    totalbp = closedbp + notClosedbp
+
+    print >> sys.stderr, "Closed gaps: {0} size: {1} bp".\
+                        format(percentage(len(closed), totalgaps), thousands(closedbp))
     ss = SummaryStats([x.after for x in closed])
     print >> sys.stderr, ss
 
-    notClosed = [x for x in gaps if not x.closed]
-    print >> sys.stderr, "Remaining gaps: {0}".format(len(notClosed))
+    ss = SummaryStats([x.delta for x in closed])
+    print >> sys.stderr, "Delta:", ss
+
+    print >> sys.stderr, "Remaining gaps: {0} size: {1} bp".\
+                        format(percentage(len(notClosed), totalgaps), thousands(notClosedbp))
     ss = SummaryStats([x.after for x in notClosed])
     print >> sys.stderr, ss
 

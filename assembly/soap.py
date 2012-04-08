@@ -92,9 +92,9 @@ def fillstats(args):
     print >> sys.stderr, "{0} scaffolds in total".format(scaffolds)
 
     closed = [x for x in gaps if x.closed]
-    closedbp = sum([x.before for x in closed])
+    closedbp = sum(x.before for x in closed)
     notClosed = [x for x in gaps if not x.closed]
-    notClosedbp = sum([x.before for x in notClosed])
+    notClosedbp = sum(x.before for x in notClosed)
 
     totalgaps = len(closed) + len(notClosed)
     totalbp = closedbp + notClosedbp

@@ -14,7 +14,7 @@ from itertools import groupby
 from optparse import OptionParser
 
 from jcvi.formats.base import LineFile
-from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.apps.base import ActionDispatcher, debug, sh, need_update
 debug()
 
 Overlap_types = ("none", "a ~ b", "b ~ a", "a in b", "b in a")
@@ -98,7 +98,6 @@ class CoordsLine (object):
         bLhang, bRhang = self.start2 - bL, bR - self.end2
         if self.orientation == '-':
             bLhang, bRhang = bRhang, bLhang
-        #print aLhang, aRhang, bLhang, bRhang
 
         s1 = aLhang + bRhang
         s2 = aRhang + bLhang
@@ -130,6 +129,13 @@ class Coords (LineFile):
     then each row would be composed as this
     """
     def __init__(self, filename, sorted=False):
+
+        if filename.endswith(".delta"):
+            coordsfile = filename.rsplit(".", 1)[0] + ".coords"
+            if need_update(filename, coordsfile):
+                fromdelta([filename])
+            filename = coordsfile
+
         super(Coords, self).__init__(filename)
 
         fp = open(filename)
@@ -224,6 +230,7 @@ def main():
     actions = (
         ('annotate', 'annotate overlap types in coordsfile'),
         ('summary', 'provide summary on id% and cov%'),
+        ('fromdelta', 'convert deltafile to coordsfile'),
         ('filter', 'filter based on id% and cov%, write a new coords file'),
         ('bed', 'convert to bed format'),
         ('coverage', 'report the coverage per query record'),
@@ -231,6 +238,26 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def fromdelta(args):
+    """
+    %prog fromdelta deltafile
+
+    Convert deltafile to coordsfile.
+    """
+    p = OptionParser(fromdelta.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    deltafile, = args
+    coordsfile = deltafile.rsplit(".", 1)[0] + ".coords"
+    cmd = "show-coords -rclH {0}".format(deltafile)
+    sh(cmd, outfile=coordsfile)
+
+    return coordsfile
 
 
 def sort(args):

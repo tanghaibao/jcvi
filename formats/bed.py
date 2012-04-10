@@ -221,6 +221,7 @@ def main():
     actions = (
         ('sort', 'sort bed file'),
         ('index', 'index bed file using tabix'),
+        ('bins', 'bin bed lengths into each window'),
         ('summary', 'summarize the lengths of the intervals'),
         ('evaluate', 'make truth table and calculate sensitivity and specificity'),
         ('pile', 'find the ids that intersect'),
@@ -234,6 +235,73 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def bins(args):
+    """
+    %prog bins bedfile fastafile
+
+    Bin bed lengths into each consecutive window.
+    """
+    import numpy as np
+
+    from jcvi.formats.sizes import Sizes
+
+    p = OptionParser(bins.__doc__)
+    p.add_option("--binsize", default=100000, type="int",
+                 help="Size of the bins [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    bedfile, fastafile = args
+    sizes = Sizes(fastafile).mapping
+
+    binsize = opts.binsize
+    binfile = bedfile + ".{0}.bins".format(binsize)
+    if not need_update(bedfile, binfile):
+        return binfile
+
+    fw = open(binfile, "w")
+    bedfile = mergeBed(bedfile)
+    bedfile = sort([bedfile, "-i"])
+
+    bed = Bed(bedfile)
+    for chr, subbeds in bed.sub_beds():
+        chr_len = sizes[chr]
+        nbins = chr_len / binsize
+        last_bin = chr_len % binsize
+        if last_bin:
+            nbins += 1
+
+        a = np.zeros(nbins, dtype="int")
+        b = np.zeros(nbins, dtype="int")
+        b[:-1] = binsize
+        b[-1] = last_bin
+
+        for bb in subbeds:
+
+            start, end = bb.start, bb.end
+            startbin = start / binsize
+            endbin = end / binsize
+
+            if startbin == endbin:
+                a[startbin] += end - start + 1
+
+            if startbin > endbin:
+                firstsize = (startbin + 1) * binsize - start + 1
+                lastsize = end - endbin * binsize
+                a[startbin] += firstsize
+                a[startbin + 1:end] += binsize
+                a[endbin] += lastsize
+
+        for xa, xb in zip(a, b):
+            print >> fw, "\t".join(str(x) for x in (chr, xa, xb))
+
+    fw.close()
+
+    return binfile
 
 
 def pile(args):

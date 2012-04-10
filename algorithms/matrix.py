@@ -19,6 +19,11 @@ debug()
 is_symmetric = lambda M: (M.T == M).all()
 
 
+def moving_sum(a, window=10):
+    kernel = np.repeat(1, window)
+    return np.convolve(a, kernel, mode="same")
+
+
 def moving_average(a, window=10):
     kernel = np.repeat(1., window) / window
     return np.convolve(a, kernel)

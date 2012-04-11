@@ -214,19 +214,15 @@ def autoscale(bp, optimal=7):
     """
     >>> autoscale(150000000)
     20000000
+    >>> autoscale(97352632)
+    10000000
     """
-    stride = 1
     slen = str(bp)
     tlen = slen[0:2] if len(slen) > 1 else slen[0]
     precision = len(slen) - 2  # how many zeros we need to pad?
     bp_len_scaled = int(tlen)  # scale bp_len to range (0, 100)
-    best_stride = 1
-    best_tick_diff = optimal
-    for stride in [1, 2, 5]:
-        tick_diff = abs(bp_len_scaled / stride - optimal)
-        if tick_diff < best_tick_diff:
-            best_stride = stride
-            best_tick_diff = tick_diff
+    tick_diffs = [(x, abs(bp_len_scaled / x - optimal)) for x in [1, 2, 5, 10]]
+    best_stride, best_tick_diff = min(tick_diffs, key=lambda x: x[1])
 
     while precision > 0:
         best_stride *= 10

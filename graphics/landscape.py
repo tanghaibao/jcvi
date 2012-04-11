@@ -154,8 +154,7 @@ def heatmap(args):
             s = Registration[s]
 
         yy -= yh
-        t = np.arange(nbins)
-        m = stackarray(p, t, chr, window, shift)
+        m = stackarray(p, chr, window, shift)
 
         Y = np.array([m, m])
         root.imshow(Y, extent=(xx, xx + xlen, yy, yy + yh - inner),
@@ -178,7 +177,7 @@ def draw_gauge(ax, margin, maxl, rightmargin=None, optimal=7):
     ax.plot([margin, 1 - rightmargin], [1 - margin, 1 - margin], "k-", lw=2)
 
     best_stride = autoscale(maxl)
-    nintervals = maxl / best_stride
+    nintervals = int(round(maxl * 1. / best_stride))
     newl = nintervals * best_stride
 
     xx, yy = margin, 1 - margin
@@ -209,7 +208,7 @@ def get_binfiles(bedfiles, fastafile, shift):
     return binfiles
 
 
-def stackarray(binfile, t, chr, window, shift):
+def stackarray(binfile, chr, window, shift):
     mn = binfile.mapping[chr]
     m, n = zip(*mn)
 
@@ -225,11 +224,11 @@ def stackarray(binfile, t, chr, window, shift):
 
 
 def stackplot(ax, binfiles, nbins, palette, chr, window, shift):
-    t = np.arange(nbins)
+    t = np.arange(nbins, dtype="float") + .5
     m = np.zeros(nbins, dtype="float")
     zorders = range(10)[::-1]
     for binfile, p, z in zip(binfiles, palette, zorders):
-        s = stackarray(binfile, t, chr, window, shift)
+        s = stackarray(binfile, chr, window, shift)
         m += s
         ax.fill_between(t, m, color=p, lw=0, zorder=z)
 

@@ -152,6 +152,93 @@ class Fasta (BaseFile, dict):
         return seq
 
 
+"""
+Class derived from https://gist.github.com/933737
+Original code written by David Winter (https://github.com/dwinter)
+
+Code writted to answer this challenge at Biostar:
+http://biostar.stackexchange.com/questions/5902/
+
+(Code includes improvements from Brad Chapman)
+"""
+class ORFFinder:
+    """Find the longest ORF in a given sequence
+    "seq" is a string, if "start" is not provided any codon can be the start of
+    and ORF. If muliple ORFs have the longest length the first one encountered
+    is printed
+    """
+    def __init__(self, seq, start=["ATG"], stop=["TAG", "TAA", "TGA"]):
+        self.seq = seq.tostring()
+        self.start = start
+        self.stop = stop
+        self.result = ("+",0,0,0,0)
+        self.longest = 0
+        self.sequence = ""
+
+    def _print_current(self):
+        print "frame %s%s position %s:%s (%s nucleotides)" % self.result
+
+    def reverse_comp(self, seq):
+        swap = {"A":"T", "T":"A", "C":"G", "G":"C", "N":"N"}
+        return "".join(swap[b] for b in seq)
+
+    def codons(self, frame):
+        """ A generator that yields DNA in one codon blocks
+        "frame" counts for 0. This function yelids a tuple (triplet, index) with
+        index relative to the original DNA sequence
+        """
+        start = frame
+        while start + 3 <= len(self.sequence):
+            yield (self.sequence[start:start+3], start)
+            start += 3
+
+    def scan_sequence(self, frame, direction):
+        """ Search in one reading frame """
+        orf_start = None
+        for c, index in self.codons(frame):
+            if (c not in self.stop and (c in self.start or not self.start)
+                and orf_start is None):
+                orf_start = index + 1       # return the result as 1-indexed
+            elif c in self.stop and orf_start:
+                self._update_longest(orf_start, index, direction, frame)
+                orf_start = None
+        if orf_start:
+            self._update_longest(orf_start, index, direction, frame)
+
+    def _update_longest(self, orf_start, index, direction, frame):
+        orf_end = index + 3                 # index is relative to start of codons
+        L = (orf_end - orf_start) + 1
+        if L > self.longest:
+            self.longest = L
+            self.result = (direction, frame, orf_start, orf_end, L)
+
+    def run_sixframe(self):
+        dirs = ["+", "-"]
+        for direction in dirs:
+            self.sequence = self.seq
+            if direction == "-":
+                self.sequence = self.reverse_comp(self.sequence)
+            for frame in xrange(3):
+                self.scan_sequence(frame, direction)
+
+    def get_longest_orf(self):
+        self.run_sixframe()                 # run six frame translation
+
+        self.sequence = self.seq
+        peplen = len(self.sequence) / 3
+        if(self.result[0] == "-"):
+            self.sequence = self.reverse_comp(self.seq)
+
+        orf = self.sequence[self.result[1] : self.result[1] + peplen * 3]
+        orf = orf[self.result[2] - self.result[1] - 1 : self.result[3]]
+        return orf
+
+
+def longest_orf(seq):
+    orf = ORFFinder(seq).get_longest_orf()
+    return orf
+
+
 def rc(s):
     _complement = string.maketrans('ATCGatcgNnXx', 'TAGCtagcNnXx')
     cs = s.translate(_complement)
@@ -205,6 +292,8 @@ def translate(args):
     p.add_option("--ids", default=False, action="store_true",
                  help="Create .ids file with the complete/partial/gaps "
                       "label [default: %default]")
+    p.add_option("--longest", default=False, action="store_true",
+                 help="Find the longest ORF from each input CDS [default: %default]")
     set_outfile(p)
 
     opts, args = p.parse_args(args)
@@ -230,12 +319,20 @@ def translate(args):
         cdslen = len(cds)
         peplen = cdslen / 3
         total += 1
-        # Try all three frames
-        for i in xrange(3):
-            newcds = cds[i: i + peplen * 3]
+
+        # if longest ORF is requested
+        # try all six frames
+        if opts.longest:
+            orf = longest_orf(cds)
+            newcds = Seq(orf)
             pep = newcds.translate()
-            if "*" not in pep.rstrip("*"):
-                break
+        else:
+            # Try all three frames
+            for i in xrange(3):
+                newcds = cds[i: i + peplen * 3]
+                pep = newcds.translate()
+                if "*" not in pep.rstrip("*"):
+                    break
 
         labels = []
         if "*" in pep.rstrip("*"):

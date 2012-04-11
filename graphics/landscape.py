@@ -127,8 +127,12 @@ def heatmap(args):
     if clen % shift:
         nbins += 1
 
+    owindow = clen / 100
+    if owindow > window:
+        window = owindow / shift * shift
+
     stackplot(ax, stackbins, nbins, palette, chr, window, shift)
-    root.text(xx + inner, yy + yinterval - 2 * inner, _(cc), va="top")
+    root.text(xx + inner, yy + yinterval - 2 * inner, cc, va="top")
 
     # Legends
     xx += xlen + .01
@@ -138,7 +142,7 @@ def heatmap(args):
         s = s.replace("_", " ")
         yy += yspace
         root.add_patch(Rectangle((xx, yy), inner, inner, color=p, lw=0))
-        root.text(xx + 2 * inner, yy, _(s))
+        root.text(xx + 1.5 * inner, yy, s, size=10)
 
     yh = .05  # Heatmap height
     # Heatmaps
@@ -147,7 +151,8 @@ def heatmap(args):
     Registration = {"Gypsy": "LTR-RT/Gypsy",
                     "Copia": "LTR-RT/Copia",
                     "hAT": "DNA-TE/hAT",
-                    "Tourist": "DNA-TE/Tourist"}
+                    "Tourist": "DNA-TE/Tourist",
+                    "Exons": "Genes (exons)"}
 
     for s, p in zip(heatmaps, heatmapbins):
         if s in Registration:
@@ -159,7 +164,7 @@ def heatmap(args):
         Y = np.array([m, m])
         root.imshow(Y, extent=(xx, xx + xlen, yy, yy + yh - inner),
                     interpolation="nearest", aspect="auto")
-        root.text(xx + xlen + .01, yy, _(s))
+        root.text(xx + xlen + .01, yy, s, size=10)
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
@@ -296,7 +301,7 @@ def stack(args):
             nbins += 1
 
         stackplot(ax, binfiles, nbins, palette, chr, window, shift)
-        root.text(xx - .03, yy + .5 * (yinterval - inner), _(cc), ha="center", va="center")
+        root.text(xx - .03, yy + .5 * (yinterval - inner), cc, ha="center", va="center")
 
         ax.set_xlim(0, nbins)
         ax.set_ylim(0, 1)

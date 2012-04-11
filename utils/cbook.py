@@ -210,7 +210,7 @@ def human_size(size, a_kilobyte_is_1024_bytes=False, precision=1, target=None):
     return '{0:.{1}f}{2}'.format(size, precision, suffix)
 
 
-def autoscale(bp, optimal=7):
+def autoscale(bp, optimal=6):
     """
     >>> autoscale(150000000)
     20000000

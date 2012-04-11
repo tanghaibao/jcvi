@@ -287,14 +287,17 @@ def bins(args):
             startbin = start / binsize
             endbin = end / binsize
 
+            assert startbin <= endbin
+
             if startbin == endbin:
                 a[startbin] += end - start + 1
 
-            if startbin > endbin:
+            if startbin < endbin:
                 firstsize = (startbin + 1) * binsize - start + 1
                 lastsize = end - endbin * binsize
                 a[startbin] += firstsize
-                a[startbin + 1:end] += binsize
+                if startbin + 1 < endbin:
+                    a[startbin + 1:endbin] += binsize
                 a[endbin] += lastsize
 
         for xa, xb in zip(a, b):

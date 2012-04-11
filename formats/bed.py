@@ -256,13 +256,14 @@ def bins(args):
         sys.exit(not p.print_help())
 
     bedfile, fastafile = args
-    sizes = Sizes(fastafile).mapping
+    assert op.exists(bedfile)
 
     binsize = opts.binsize
     binfile = bedfile + ".{0}.bins".format(binsize)
     if not need_update(bedfile, binfile):
         return binfile
 
+    sizes = Sizes(fastafile).mapping
     fw = open(binfile, "w")
     bedfile = mergeBed(bedfile)
     bedfile = sort([bedfile, "-i"])

@@ -199,13 +199,40 @@ def human_size(size, a_kilobyte_is_1024_bytes=False, precision=1, target=None):
 
     multiple = 1024 if a_kilobyte_is_1024_bytes else 1000
     for suffix in SUFFIXES[multiple]:
-        if size >= multiple or (target and suffix != target):
+
+        if target and suffix == target:
+            break
+        if size >= multiple:
             size /= float(multiple)
         else:
-            return '{0:.{1}f}{2}'.format(size, precision, suffix)
+            break
 
-    raise ValueError('number too large')
+    return '{0:.{1}f}{2}'.format(size, precision, suffix)
 
+
+def autoscale(bp, optimal=7):
+    """
+    >>> autoscale(150000000)
+    20000000
+    """
+    stride = 1
+    slen = str(bp)
+    tlen = slen[0:2] if len(slen) > 1 else slen[0]
+    precision = len(slen) - 2  # how many zeros we need to pad?
+    bp_len_scaled = int(tlen)  # scale bp_len to range (0, 100)
+    best_stride = 1
+    best_tick_diff = optimal
+    for stride in [1, 2, 5]:
+        tick_diff = abs(bp_len_scaled / stride - optimal)
+        if tick_diff < best_tick_diff:
+            best_stride = stride
+            best_tick_diff = tick_diff
+
+    while precision > 0:
+        best_stride *= 10
+        precision -= 1
+
+    return best_stride
 
 """
 Random ad-hoc functions

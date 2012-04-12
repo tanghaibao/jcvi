@@ -378,7 +378,7 @@ def batch(args):
     """
     p = OptionParser(batch.__doc__)
     p.add_option("--path", default="~/code/AHRD/",
-                 help="Path where AHRD is installed [default]")
+                 help="Path where AHRD is installed [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:

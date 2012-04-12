@@ -18,18 +18,26 @@ from optparse import OptionParser
 
 from jcvi.formats.sizes import Sizes
 from jcvi.formats.base import BaseFile
-from jcvi.formats.bed import bins
+from jcvi.formats.bed import Bed, bins
 from jcvi.algorithms.matrix import moving_sum
-from jcvi.graphics.base import plt, _, set_image_options, Rectangle
+from jcvi.graphics.base import plt, _, set_image_options, \
+        Rectangle, CirclePolygon
 from jcvi.utils.cbook import human_size, autoscale
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
 
 # Colors picked from Schmutz soybean genome paper using ColorPic
-palette = ["#ACABD5", "#3EA77A", "#FBF5AB", "#DBF0F5", "#C162A6"] + \
+palette = ["#ACABD5","#DBF0F5", "#3EA77A", "#FBF5AB", "#C162A6"] + \
           list("rgbymck")
 gray = "#CCCCCB"
+Registration = {"Gypsy": "LTR-RT/Gypsy",
+                "Copia": "LTR-RT/Copia",
+                "hAT": "DNA-TE/hAT",
+                "Helitron": "DNA-TE/Helitron",
+                "Tourist": "DNA-TE/Tourist",
+                "Introns": "Genes (introns)",
+                "Exons": "Genes (exons)"}
 
 
 class BinFile (BaseFile):
@@ -80,11 +88,13 @@ def heatmap(args):
     """
     p = OptionParser(heatmap.__doc__)
     p.add_option("--stacks",
-                 default="Genes,DNA_transposons,Retrotransposons",
+                 default="Exons,Introns,DNA_transposons,Retrotransposons",
                  help="Features to plot in stackplot [default: %default]")
     p.add_option("--heatmaps",
-                 default="Copia,Gypsy,hAT,Tourist,Exons",
+                 default="Copia,Gypsy,hAT,Helitron,Introns,Exons",
                  help="Features to plot in heatmaps [default: %default]")
+    p.add_option("--meres", default=None,
+                 help="Extra centromere / telomere features [default: %default]")
     add_window_options(p)
     opts, args, iopts = set_image_options(p, args, figsize="8x5")
 
@@ -140,6 +150,8 @@ def heatmap(args):
     yy = 1 - margin - yinterval
     for s, p in zip(stacks, palette):
         s = s.replace("_", " ")
+        s = Registration.get(s, s)
+
         yy += yspace
         root.add_patch(Rectangle((xx, yy), inner, inner, color=p, lw=0))
         root.text(xx + 1.5 * inner, yy, s, size=10)
@@ -148,15 +160,9 @@ def heatmap(args):
     # Heatmaps
     xx = margin
     yy = 1 - margin - yinterval - inner
-    Registration = {"Gypsy": "LTR-RT/Gypsy",
-                    "Copia": "LTR-RT/Copia",
-                    "hAT": "DNA-TE/hAT",
-                    "Tourist": "DNA-TE/Tourist",
-                    "Exons": "Genes (exons)"}
-
     for s, p in zip(heatmaps, heatmapbins):
-        if s in Registration:
-            s = Registration[s]
+        s = s.replace("_", " ")
+        s = Registration.get(s, s)
 
         yy -= yh
         m = stackarray(p, chr, window, shift)
@@ -165,6 +171,21 @@ def heatmap(args):
         root.imshow(Y, extent=(xx, xx + xlen, yy, yy + yh - inner),
                     interpolation="nearest", aspect="auto")
         root.text(xx + xlen + .01, yy, s, size=10)
+
+    yy -= yh
+
+    meres = opts.meres
+    if meres:
+        bed = Bed(meres)
+        for b in bed:
+            if b.seqid != chr:
+                continue
+            pos = (b.start + b.end) / 2
+            cpos = pos / ratio
+            xx = margin + cpos
+            accn = b.accn.capitalize()
+            root.add_patch(CirclePolygon((xx, yy), radius=.01, fc="m", ec="m"))
+            root.text(xx + .014, yy, _(accn), va="center", color="m")
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
@@ -244,7 +265,7 @@ def stackplot(ax, binfiles, nbins, palette, chr, window, shift):
 
 def stack(args):
     """
-    %prog fastafile
+    %prog stack fastafile
 
     Create landscape plots that show the amounts of genic sequences, and repetitive
     sequences along the chromosomes.
@@ -253,7 +274,7 @@ def stack(args):
     p.add_option("--top", default=17, type="int",
                  help="Draw the first N chromosomes [default: %default]")
     p.add_option("--stacks",
-                 default="Genes,DNA_transposons,Retrotransposons",
+                 default="Exons,Introns,DNA_transposons,Retrotransposons",
                  help="Features to plot in stackplot [default: %default]")
     add_window_options(p)
     opts, args, iopts = set_image_options(p, args, figsize="8x8")
@@ -312,6 +333,8 @@ def stack(args):
     xx = margin
     for b, p in zip(bedfiles, palette):
         b = b.rsplit(".", 1)[0].replace("_", " ")
+        b = Registration.get(b, b)
+
         root.add_patch(Rectangle((xx, yy), inner, inner, color=p, lw=0))
         xx += 2 * inner
         root.text(xx, yy, _(b))

@@ -80,7 +80,9 @@ def set_image_options(instance, args=None, figsize="6x6", dpi=300, format="pdf")
             help="Generate image of format, must be one of {0}".\
             format("|".join(allowed_format)) + " [default: %default]")
 
-    args = args or sys.argv[1:]
+    if args is None:
+        args = sys.argv[1]
+
     opts, args = instance.parse_args(args)
 
     assert opts.dpi > 0

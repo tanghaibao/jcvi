@@ -13,7 +13,7 @@ import shutil
 import logging
 
 from copy import deepcopy
-from optparse import OptionParser
+from optparse import OptionParser, OptionGroup
 from collections import defaultdict
 from itertools import groupby
 
@@ -128,12 +128,8 @@ class AGPLine (object):
         # bed12 formatted line
         return self.bedline + "\t" + self.bedextra
 
-    @property
-    def gffline(self):
+    def gffline(self, gff_source="MGSC", gff_feat_type="golden_path_fragment"):
         # gff3 formatted line
-        gff_source    = "MGSC"
-        gff_feat_type = "golden_path_fragment"
-
         gff_feat_id = "".join(str(x) for x in (self.object, ".", \
                       format(int(self.part_number), '03d')))
         attributes = ";".join(("ID=" + gff_feat_id, \
@@ -1094,6 +1090,26 @@ def tpf(args):
         print "\t".join((component_id, object, orientation))
 
 
+def validate_term(term):
+    """
+    Validate an SO term against so.obo
+    OBO file retrieved from 'http://obo.cvs.sourceforge.net/viewvc/obo/obo/ontology/genomic-proteomic/so.obo'
+    """
+    from jcvi.formats.obo import GODag
+    from jcvi.apps.base import download
+
+    so_file_url = "http://obo.cvs.sourceforge.net/viewvc/obo/obo/ontology/genomic-proteomic/so.obo"
+    so_file = download(so_file_url)
+
+    so = GODag(so_file)
+    valid_names = so.valid_names
+    if not term in valid_names:
+        logging.error("Term `{0}` does not exist. Please refer to `{1}`".format(term, so_file_url))
+        sys.exit()
+
+    return True
+
+
 def bed(args):
     """
     %prog bed agpfile
@@ -1107,19 +1123,33 @@ def bed(args):
             help="Do not print bed lines for gaps [default: %default]")
     p.add_option("--bed12", default=False, action="store_true",
             help="Produce bed12 formatted output [default: %default]")
-    p.add_option("--gff", default=False, action="store_true",
+    set_outfile(p)
+    g1 = OptionGroup(p, "GFF specific parameters",
+            "Note: If not specified, output will be in `bed` format")
+    g1.add_option("--gff", default=False, action="store_true",
             help="Produce gff3 formatted output. By default, ignores " +\
                  "AGP gap lines. [default: %default]")
-    set_outfile(p)
+    g1.add_option("--source", default="MGSC",
+            help="Specify a gff3 source [default: `%default`]")
+    g1.add_option("--feature", default="golden_path_fragment",
+            help="Specify a gff3 feature type [default: `%default`]")
+    g1.add_option("--verifySO", default=False, action="store_true",
+            help="Verify gff3 feature type againt SO for validity. " +\
+                  "Looks for `so.obo` in current folder. If not exists, " +\
+                  "it downloads the obo file. [default: %default]")
+    p.add_option_group(g1)
 
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    # If output format is GFF3, ignore AGP gap lines.
+    # If output format is gff3, ignore AGP gap lines.
     if opts.gff:
         opts.nogaps = True
+        # If 'verifySO' option is invoked, validate the SO term
+        if opts.verifySO:
+            validate_term(opts.feature)
 
     agpfile, = args
     agp = AGP(agpfile)
@@ -1135,7 +1165,7 @@ def bed(args):
         if opts.bed12:
             print >> fw, a.bed12line
         elif opts.gff:
-            print >> fw, a.gffline
+            print >> fw, a.gffline(gff_source=opts.source, gff_feat_type=opts.feature)
         else:
             print >> fw, a.bedline
     fw.close()
@@ -1217,7 +1247,7 @@ def extendbed(args):
             line += "\t" + a.bedextra
             print >> fw, line
         elif opts.gff:
-            print >> fw, a.gffline
+            print >> fw, a.gffline()
         else:
             print >> fw, a.bedline
 

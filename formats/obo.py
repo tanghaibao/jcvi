@@ -274,6 +274,10 @@ class GODag(dict):
         if bad_terms:
             print >>sys.stderr, "terms not found:", bad_terms
 
+    @property
+    def valid_names(self):
+        return set(x.name for x in self.values())
+
 
 if __name__ == '__main__':
 

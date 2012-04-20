@@ -167,7 +167,7 @@ class ORFFinder:
     and ORF. If muliple ORFs have the longest length the first one encountered
     is printed
     """
-    def __init__(self, seq, start=["ATG"], stop=["TAG", "TAA", "TGA"]):
+    def __init__(self, seq, start=[], stop=["TAG", "TAA", "TGA"]):
         self.seq = seq.tostring()
         self.start = start
         self.stop = stop
@@ -272,6 +272,7 @@ def main():
         ('join', 'concatenate a list of seqs and add gaps in between'),
         ('some', 'include or exclude a list of records (also performs on ' + \
                  '.qual file if available)'),
+        ('togff', 'generate GFF3 line for each FASTA sequence for use with GBrowse'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -324,6 +325,8 @@ def translate(args):
         # try all six frames
         if opts.longest:
             orf = longest_orf(cds)
+            if len(orf) == 0:
+                continue
             newcds = Seq(orf)
             pep = newcds.translate()
         else:
@@ -583,6 +586,40 @@ def join(args):
 
     joinedfastafile = prefix + ".joined.fasta"
     build([agpfile, fastafile, joinedfastafile])
+
+
+def togff(args):
+    """
+    %prog togff *.fasta > outfile.gff3
+
+    Write a GFF3 line for FASTA sequence (for use with GBrowse)
+    """
+    p = OptionParser(togff.__doc__)
+    p.add_option("--source", default="JCVI",
+            help="Specify GFF source [default: `%default`]")
+    p.add_option("--feature", default="region",
+            help="Specify GFF region [default: `%default`]")
+
+    opts, args = p.parse_args(args)
+
+    if len(args) == 0:
+        sys.exit(not p.print_help())
+
+    header = "##gff-version 3"
+    print header
+
+    source = opts.source
+    feature = opts.feature
+
+    ctr = 0
+    for fastafile in args:
+        for rec in SeqIO.parse(fastafile, "fasta"):
+            ctr += 1;
+            name = rec.id
+            seqlen = len(rec)
+            start, end = 1, seqlen
+            attributes = ["ID=" + str(ctr), "Name=" + name]
+            print "\t".join(str(x) for x in (name, source, feature, start, end, ".", ".", ".", ";".join(attributes)))
 
 
 def summary(args):

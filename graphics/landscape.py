@@ -17,7 +17,7 @@ from collections import defaultdict
 from optparse import OptionParser
 
 from jcvi.formats.sizes import Sizes
-from jcvi.formats.base import BaseFile
+from jcvi.formats.base import BaseFile, DictFile
 from jcvi.formats.bed import Bed, bins
 from jcvi.algorithms.matrix import moving_sum
 from jcvi.graphics.base import plt, _, set_image_options, \
@@ -128,7 +128,7 @@ def heatmap(args):
     xlen = clen / ratio
     if "_" in chr:
         ca, cb = chr.split("_")
-        cc = ca[0] + cb
+        cc = ca[0].upper() + cb
 
     root.add_patch(Rectangle((xx, yy), xlen, yinterval - inner, color=gray))
     ax = fig.add_axes([xx, yy, xlen, yinterval - inner])
@@ -219,7 +219,7 @@ def draw_gauge(ax, margin, maxl, rightmargin=None, optimal=7):
             l, suffix = l[:-2], l[-2:]
 
         ax.plot([xx, xx], [yy, yy + tip], "k-", lw=2)
-        ax.text(xx, yy + 2 * tip, _(l), ha="center")
+        ax.text(xx, yy + 2 * tip, _(l), ha="center", size=13)
         xx += xinterval
 
     xx += 4 * tip - xinterval
@@ -271,11 +271,13 @@ def stack(args):
     sequences along the chromosomes.
     """
     p = OptionParser(stack.__doc__)
-    p.add_option("--top", default=17, type="int",
+    p.add_option("--top", default=10, type="int",
                  help="Draw the first N chromosomes [default: %default]")
     p.add_option("--stacks",
                  default="Exons,Introns,DNA_transposons,Retrotransposons",
                  help="Features to plot in stackplot [default: %default]")
+    p.add_option("--switch",
+                 help="Change chr names based on two-column file [default: %default]")
     add_window_options(p)
     opts, args, iopts = set_image_options(p, args, figsize="8x8")
 
@@ -285,6 +287,9 @@ def stack(args):
     fastafile, = args
     top = opts.top
     window, shift = check_window_options(opts)
+    switch = opts.switch
+    if switch:
+        switch = DictFile(opts.switch)
 
     bedfiles = [x + ".bed" for x in opts.stacks.split(",")]
     binfiles = get_binfiles(bedfiles, fastafile, shift)
@@ -292,8 +297,8 @@ def stack(args):
     sizes = Sizes(fastafile)
     s = list(sizes.iter_sizes())[:top]
     maxl = max(x[1] for x in s)
-    margin = .06
-    inner = .015   # y distance between tracks
+    margin = .08
+    inner = .02   # y distance between tracks
 
     pf = fastafile.rsplit(".", 1)[0]
     fig = plt.figure(1, (iopts.w, iopts.h))
@@ -312,7 +317,10 @@ def stack(args):
         xlen = clen / ratio
         if "_" in chr:
             ca, cb = chr.split("_")
-            cc = ca[0] + cb
+            cc = ca[0].upper() + cb
+
+        if switch and cc in switch:
+            cc = "\n".join((cc, "({0})".format(switch[cc])))
 
         root.add_patch(Rectangle((xx, yy), xlen, yinterval - inner, color=gray))
         ax = fig.add_axes([xx, yy, xlen, yinterval - inner])
@@ -322,7 +330,7 @@ def stack(args):
             nbins += 1
 
         stackplot(ax, binfiles, nbins, palette, chr, window, shift)
-        root.text(xx - .03, yy + .5 * (yinterval - inner), cc, ha="center", va="center")
+        root.text(xx - .04, yy + .5 * (yinterval - inner), cc, ha="center", va="center")
 
         ax.set_xlim(0, nbins)
         ax.set_ylim(0, 1)
@@ -337,8 +345,8 @@ def stack(args):
 
         root.add_patch(Rectangle((xx, yy), inner, inner, color=p, lw=0))
         xx += 2 * inner
-        root.text(xx, yy, _(b))
-        xx += len(b) * .01 + inner
+        root.text(xx, yy, _(b), size=13)
+        xx += len(b) * .012 + inner
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)

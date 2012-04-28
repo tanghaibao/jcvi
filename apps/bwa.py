@@ -145,7 +145,7 @@ def samse(args):
     cmd += "{0}".format(extra)
     if opts.bam:
         cmd += " | samtools view -bS -F 4 - "
-    sh(cmd, grid=grid, outfile=samfile)
+    sh(cmd, grid=grid, outfile=samfile, threaded=opts.cpus)
 
 
 def sampe(args):

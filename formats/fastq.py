@@ -102,7 +102,7 @@ BarcodeLine = namedtuple("BarcodeLine", ["id", "seq"])
 
 def split_barcode(t):
 
-    barcode, excludebarcode, outdir, inputfile = t
+    barcode, excludebarcode, site, outdir, inputfile = t
     trim = len(barcode.seq)
 
     fp = must_open(inputfile)
@@ -114,7 +114,11 @@ def split_barcode(t):
         hasexclude = any(seq.startswith(x.seq) for x in excludebarcode)
         if hasexclude:
             continue
-        print >> fw, "@{0}\n{1}\n+\n{2}".format(title, seq[trim:], qual[trim:])
+        seq = seq[trim:]
+        hassite = any(seq.startswith(x) for x in site)
+        if not hassite:
+            continue
+        print >> fw, "@{0}\n{1}\n+\n{2}".format(title, seq, qual[trim:])
 
     fw.close()
 
@@ -133,10 +137,13 @@ def deconvolute(args):
     from multiprocessing import Pool, cpu_count
 
     p = OptionParser(deconvolute.__doc__)
-    p.add_option("--cpus", default=32,
+    p.add_option("--cpus", default=32, type="int",
                  help="Number of processes to run [default: %default]")
     p.add_option("--outdir", default="deconv",
                  help="Output directory [default: %default]")
+    p.add_option("--checkprefix", default=False, action="store_true",
+                 help="Check shared prefix [default: %default]")
+    p.add_option("--site", help="Keep reads start with RE site [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) < 2:
@@ -146,30 +153,39 @@ def deconvolute(args):
     fastqfile = args[1:]
     fp = open(barcodefile)
     barcodes = [BarcodeLine._make(x.split()) for x in fp]
+    nbc = len(barcodes)
 
-    # Sanity check of shared prefix
-    excludebarcodes = []
-    for bc in barcodes:
-        exclude = []
-        for s in barcodes:
-            if bc.id == s.id:
-                continue
+    if opts.checkprefix:
+        # Sanity check of shared prefix
+        excludebarcodes = []
+        for bc in barcodes:
+            exclude = []
+            for s in barcodes:
+                if bc.id == s.id:
+                    continue
 
-            assert bc.seq != s.seq
-            if s.seq.startswith(bc.seq) and len(s.seq) > len(bc.seq):
-                logging.error("{0} shares same prefix as {1}.".format(s, bc))
-                exclude.append(s)
-        excludebarcodes.append(exclude)
+                assert bc.seq != s.seq
+                if s.seq.startswith(bc.seq) and len(s.seq) > len(bc.seq):
+                    logging.error("{0} shares same prefix as {1}.".format(s, bc))
+                    exclude.append(s)
+            excludebarcodes.append(exclude)
+    else:
+        excludebarcodes = nbc * [[]]
 
     outdir = opts.outdir
+    site = opts.site
+    if site:
+        site = site.split(",")
+        logging.debug("Check against sites {0}".format(site))
+
     mkdir(outdir)
 
     cpus = min(opts.cpus, cpu_count())
     logging.debug("Create a pool of {0} workers.".format(cpus))
-    nbc = len(barcodes)
     pool = Pool(cpus)
     pool.map(split_barcode, \
-             zip(barcodes, excludebarcodes, nbc * [outdir], nbc * [fastqfile]))
+             zip(barcodes, excludebarcodes, nbc * [site],
+             nbc * [outdir], nbc * [fastqfile]))
 
 
 def checkShuffleSizes(p1, p2, pairsfastq, extra=0):

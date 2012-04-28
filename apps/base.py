@@ -93,13 +93,14 @@ def set_outfile(instance, outfile="stdout"):
 
 
 def sh(cmd, grid=False, infile=None, outfile=None, errfile=None,
-        background=False):
+        background=False, threaded=None):
     """
     simple wrapper for system calls
     """
     if grid:
         from jcvi.apps.grid import GridProcess
-        pr = GridProcess(cmd, infile=infile, outfile=outfile, errfile=errfile)
+        pr = GridProcess(cmd, infile=infile, outfile=outfile, errfile=errfile,
+                         threaded=threaded)
         pr.start(path=None)
         return 0  # A fake retcode
     else:

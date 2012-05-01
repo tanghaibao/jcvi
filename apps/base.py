@@ -51,6 +51,16 @@ def backup(filename):
         return bakname
 
 
+def write_file(filename, contents):
+    if op.exists(filename):
+        return
+
+    fw = open(filename, "w")
+    print >> fw, contents
+    fw.close()
+    logging.debug("File written to {0}.".format(filename))
+
+
 def gethostname():
     import socket
     return socket.gethostname()

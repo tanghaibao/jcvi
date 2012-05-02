@@ -271,8 +271,8 @@ then
 else
     echo "Load reads ..."
     PrepareAllPathsInputs.pl \
-        DATA_DIR=$PWD PLOIDY=1 \
-        HOSTS='16' \
+        DATA_DIR=$PWD PLOIDY=2 \
+        HOSTS='32' \
         PICARD_TOOLS_DIR=~/htang/export/picard-tools-1.47/
 fi
 

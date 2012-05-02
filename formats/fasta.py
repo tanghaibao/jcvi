@@ -965,7 +965,7 @@ def fastq(args):
     if qv:
         f = Fasta(fastafile, lazy=True)
         for name, rec in f.iteritems_ordered():
-            r = FastqLite("@" + name, str(rec.seq), qv * len(rec.seq))
+            r = FastqLite("@" + name, str(rec.seq).upper(), qv * len(rec.seq))
             print >> fastqhandle, r
             num_records += 1
 

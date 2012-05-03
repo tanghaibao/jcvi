@@ -130,7 +130,6 @@ def heatmap(args):
     stackbins = get_binfiles(stackbeds, fastafile, shift, subtract)
     heatmapbins = get_binfiles(heatmapbeds, fastafile, shift, subtract)
 
-    window, shift = check_window_options(opts)
     margin = .06
     inner = .015
     clen = Sizes(fastafile).mapping[chr]
@@ -247,9 +246,14 @@ def draw_gauge(ax, margin, maxl, rightmargin=None, optimal=7):
     return best_stride / xinterval
 
 
-def get_binfiles(bedfiles, fastafile, shift, subtract):
-    binfiles = [bins([x, fastafile, "--binsize={0}".format(shift), \
-                      "--subtract={0}".format(subtract)]) for x in bedfiles]
+def get_binfiles(bedfiles, fastafile, shift, subtract=None):
+    if subtract:
+        binfiles = [bins([x, fastafile, "--binsize={0}".format(shift), \
+                          "--subtract={0}".format(subtract)]) for x in bedfiles]
+    else:
+        binfiles = [bins([x, fastafile, "--binsize={0}".format(shift)]) \
+                                                              for x in bedfiles]
+
     binfiles = [BinFile(x) for x in binfiles]
     return binfiles
 

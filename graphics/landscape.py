@@ -17,7 +17,7 @@ from collections import defaultdict
 from optparse import OptionParser
 
 from jcvi.formats.sizes import Sizes
-from jcvi.formats.base import BaseFile, DictFile
+from jcvi.formats.base import LineFile, DictFile
 from jcvi.formats.bed import Bed, bins
 from jcvi.algorithms.matrix import moving_sum
 from jcvi.graphics.base import plt, _, set_image_options, \
@@ -40,7 +40,22 @@ Registration = {"Gypsy": "LTR-RT/Gypsy",
                 "Exons": "Genes (exons)"}
 
 
-class BinFile (BaseFile):
+class BinLine (object):
+
+    def __init__(self, row):
+        args = row.split()
+        self.chr = args[0]
+        self.len = int(args[1])
+        self.binlen = int(args[2])
+
+    def __str__(self):
+        return "\t".join(str(x) for x in (self.chr, self.len, self.binlen))
+
+    def subtract(self, o):
+        self.binlen -= o.len
+
+
+class BinFile (LineFile):
 
     def __init__(self, filename):
         super(BinFile, self).__init__(filename)
@@ -48,8 +63,9 @@ class BinFile (BaseFile):
 
         fp = open(filename)
         for row in fp:
-            chr, len, binlen = row.split()
-            len, binlen = int(len), int(binlen)
+            b = BinLine(row)
+            self.append(b)
+            chr, len, binlen = b.chr, b.len, b.binlen
             self.mapping[chr].append((len, binlen))
         fp.close()
 
@@ -69,14 +85,17 @@ def add_window_options(p):
                  help="Size of window [default: %default]")
     p.add_option("--shift", default=100000, type="int",
                  help="Size of shift [default: %default]")
+    p.add_option("--subtract",
+                 help="Subtract bases from window [default: %default]")
 
 
 def check_window_options(opts):
     window = opts.window
     shift = opts.shift
+    subtract = opts.subtract
     assert window % shift == 0, "--window must be divisible by --shift"
 
-    return window, shift
+    return window, shift, subtract
 
 
 def heatmap(args):
@@ -102,14 +121,14 @@ def heatmap(args):
         sys.exit(not p.print_help())
 
     fastafile, chr = args
-    window, shift = check_window_options(opts)
+    window, shift, subtract = check_window_options(opts)
 
     stacks = opts.stacks.split(",")
     heatmaps = opts.heatmaps.split(",")
     stackbeds = [x + ".bed" for x in stacks]
     heatmapbeds = [x + ".bed" for x in heatmaps]
-    stackbins = get_binfiles(stackbeds, fastafile, shift)
-    heatmapbins = get_binfiles(heatmapbeds, fastafile, shift)
+    stackbins = get_binfiles(stackbeds, fastafile, shift, subtract)
+    heatmapbins = get_binfiles(heatmapbeds, fastafile, shift, subtract)
 
     window, shift = check_window_options(opts)
     margin = .06
@@ -228,8 +247,9 @@ def draw_gauge(ax, margin, maxl, rightmargin=None, optimal=7):
     return best_stride / xinterval
 
 
-def get_binfiles(bedfiles, fastafile, shift):
-    binfiles = [bins([x, "--binsize={0}".format(shift), fastafile]) for x in bedfiles]
+def get_binfiles(bedfiles, fastafile, shift, subtract):
+    binfiles = [bins([x, fastafile, "--binsize={0}".format(shift), \
+                      "--subtract={0}".format(subtract)]) for x in bedfiles]
     binfiles = [BinFile(x) for x in binfiles]
     return binfiles
 
@@ -286,13 +306,13 @@ def stack(args):
 
     fastafile, = args
     top = opts.top
-    window, shift = check_window_options(opts)
+    window, shift, subtract = check_window_options(opts)
     switch = opts.switch
     if switch:
         switch = DictFile(opts.switch)
 
     bedfiles = [x + ".bed" for x in opts.stacks.split(",")]
-    binfiles = get_binfiles(bedfiles, fastafile, shift)
+    binfiles = get_binfiles(bedfiles, fastafile, shift, subtract)
 
     sizes = Sizes(fastafile)
     s = list(sizes.iter_sizes())[:top]

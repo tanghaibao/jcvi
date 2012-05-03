@@ -237,11 +237,35 @@ def main():
     p.dispatch(globals())
 
 
+def subtractbins(binfile1, binfile2):
+    from itertools import izip_longest
+    from jcvi.graphics.landscape import BinFile
+
+    abin = BinFile(binfile1)
+    bbin = BinFile(binfile2)
+
+    assert len(abin) == len(bbin)
+
+    fw = open(binfile1, "w")
+
+    for a, b in zip(abin, bbin):
+        assert a.chr == b.chr
+        assert a.binlen == b.binlen
+
+        a.subtract(b)
+        print >> fw, a
+
+    fw.close()
+
+    return binfile1
+
+
 def bins(args):
     """
     %prog bins bedfile fastafile
 
-    Bin bed lengths into each consecutive window.
+    Bin bed lengths into each consecutive window. Use --subtract to remove bases
+    from window, e.g. --subtract gaps.bed ignores the gap sequences.
     """
     import numpy as np
 
@@ -250,12 +274,15 @@ def bins(args):
     p = OptionParser(bins.__doc__)
     p.add_option("--binsize", default=100000, type="int",
                  help="Size of the bins [default: %default]")
+    p.add_option("--subtract",
+                 help="Subtract bases from window [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
         sys.exit(not p.print_help())
 
     bedfile, fastafile = args
+    subtract = opts.subtract
     assert op.exists(bedfile)
 
     binsize = opts.binsize
@@ -263,14 +290,23 @@ def bins(args):
     if not need_update(bedfile, binfile):
         return binfile
 
-    sizes = Sizes(fastafile).mapping
+    sz = Sizes(fastafile)
+    sizesfile = sz.filename
+    sizes = sz.mapping
     fw = open(binfile, "w")
     bedfile = mergeBed(bedfile)
+    if subtract:
+        subtractmerge = mergeBed(subtract)
+        subtract_complement = complementBed(subtractmerge, sizesfile)
+        bedfile = intersectBed(bedfile, subtract_complement)
+
     bedfile = sort([bedfile, "-i"])
 
     bed = Bed(bedfile)
-    for chr, subbeds in bed.sub_beds():
+    sbdict = dict(bed.sub_beds())
+    for chr, chr_len in sorted(sizes.items()):
         chr_len = sizes[chr]
+        subbeds = sbdict.get(chr, [])
         nbins = chr_len / binsize
         last_bin = chr_len % binsize
         if last_bin:
@@ -304,6 +340,10 @@ def bins(args):
             print >> fw, "\t".join(str(x) for x in (chr, xa, xb))
 
     fw.close()
+
+    if subtract:
+        subtractbinfile = bins([subtract, fastafile, "--binsize={0}".format(binsize)])
+        binfile = subtractbins(binfile, subtractbinfile)
 
     return binfile
 
@@ -399,8 +439,10 @@ def complementBed(bedfile, sizesfile):
 def intersectBed(bedfile1, bedfile2):
     cmd = "intersectBed"
     cmd += " -a {0} -b {1}".format(bedfile1, bedfile2)
+    suffix = ".intersect.bed"
+
     intersectbedfile = ".".join((op.basename(bedfile1).split(".")[0],
-            op.basename(bedfile2).split(".")[0])) + ".intersect.bed"
+            op.basename(bedfile2).split(".")[0])) + suffix
 
     if need_update([bedfile1, bedfile2], intersectbedfile):
         sh(cmd, outfile=intersectbedfile)

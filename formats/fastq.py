@@ -88,6 +88,7 @@ def main():
         ('unpair', 'unpair pairs.fastq files into 1.fastq and 2.fastq'),
         ('pairinplace', 'collect pairs by checking adjacent ids'),
         ('convert', 'convert between illumina and sanger offset'),
+        ('filter', 'filter to get high qv reads'),
         ('trim', 'trim reads using fastx_trimmer'),
         ('some', 'select a subset of fastq reads'),
         ('deconvolute', 'split fastqfile into subsets'),
@@ -95,6 +96,65 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def FastqPairedIterator(read1, read2):
+    if read1 == read2:
+        fp = must_open(read1)
+        it1 = it2 = FastqGeneralIterator(fp)
+    else:
+        fp1 = must_open(read1)
+        fp2 = must_open(read2)
+        it1 = FastqGeneralIterator(fp1)
+        it2 = FastqGeneralIterator(fp2)
+
+    return it1, it2
+
+
+def isHighQv(qs, qvchar, pct=90):
+    cutoff = len(qs) * pct / 100
+    highs = sum(1 for x in qs if x >= qvchar)
+    return highs >= cutoff
+
+
+def filter(args):
+    """
+    %prog filter paired.fastq
+
+    Filter to get high qv reads. Use interleaved format (one file) or paired
+    format (two files) to filter on paired reads.
+    """
+    p = OptionParser(filter.__doc__)
+    p.add_option("-q", dest="qv", default=30, type="int",
+                 help="Minimum quality score to keep [default: %default]")
+    p.add_option("-p", dest="pct", default=95, type="int",
+                 help="Minimum percent of bases that have [-q] quality "\
+                 "[default: %default]")
+
+    opts, args = p.parse_args(args)
+
+    if len(args) not in (1, 2):
+        sys.exit(not p.print_help())
+
+    if len(args) == 1:
+        r1 = r2 = args[0]
+    else:
+        r1, r2 = args
+
+    qv = opts.qv
+    pct = opts.pct
+
+    offset = guessoffset([r1])
+    qvchar = chr(offset + qv)
+    logging.debug("Call base qv >= {0} as good.".format(qvchar))
+    outfile = r1.split(".")[0] + ".q{0}.paired.fastq".format(qv)
+    fw = open(outfile, "w")
+
+    i1, i2 = FastqPairedIterator(r1, r2)
+    for (t1, s1, q1), (t2, s2, q2) in zip(i1, i2):
+        if isHighQv(q1, qvchar, pct=pct) and isHighQv(q2, qvchar, pct=pct):
+            print >> fw, "@{0}\n{1}\n+\n{2}".format(t1, s1, q1)
+            print >> fw, "@{0}\n{1}\n+\n{2}".format(t2, s2, q2)
 
 
 BarcodeLine = namedtuple("BarcodeLine", ["id", "seq"])

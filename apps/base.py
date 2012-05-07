@@ -265,7 +265,7 @@ def debug():
 
     from jcvi.apps.console import magenta, yellow
 
-    format = yellow("%(asctime)s [%(module)s::%(levelname)s]")
+    format = yellow("%(asctime)s [%(module)s]")
     format += magenta(" %(message)s")
     logging.basicConfig(level=logging.DEBUG,
             format=format,

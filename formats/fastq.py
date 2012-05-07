@@ -11,6 +11,7 @@ import logging
 
 from collections import namedtuple
 from optparse import OptionParser
+from itertools import islice
 
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 
@@ -100,15 +101,12 @@ def main():
 
 def FastqPairedIterator(read1, read2):
     if read1 == read2:
-        fp = must_open(read1)
-        it1 = it2 = FastqGeneralIterator(fp)
+        p1fp = p2fp = must_open(read1)
     else:
-        fp1 = must_open(read1)
-        fp2 = must_open(read2)
-        it1 = FastqGeneralIterator(fp1)
-        it2 = FastqGeneralIterator(fp2)
+        p1fp = must_open(read1)
+        p2fp = must_open(read2)
 
-    return it1, it2
+    return p1fp, p2fp
 
 
 def isHighQv(qs, qvchar, pct=90):
@@ -147,14 +145,22 @@ def filter(args):
     offset = guessoffset([r1])
     qvchar = chr(offset + qv)
     logging.debug("Call base qv >= {0} as good.".format(qvchar))
-    outfile = r1.split(".")[0] + ".q{0}.paired.fastq".format(qv)
+    outfile = r1.rsplit(".", 1)[0] + ".q{0}.paired.fastq".format(qv)
     fw = open(outfile, "w")
 
-    i1, i2 = FastqPairedIterator(r1, r2)
-    for (t1, s1, q1), (t2, s2, q2) in zip(i1, i2):
+    p1fp, p2fp = FastqPairedIterator(r1, r2)
+    while True:
+        a = list(islice(p1fp, 4))
+        if not a:
+            break
+
+        b = list(islice(p2fp, 4))
+        q1 = a[-1].rstrip()
+        q2 = b[-1].rstrip()
+
         if isHighQv(q1, qvchar, pct=pct) and isHighQv(q2, qvchar, pct=pct):
-            print >> fw, "@{0}\n{1}\n+\n{2}".format(t1, s1, q1)
-            print >> fw, "@{0}\n{1}\n+\n{2}".format(t2, s2, q2)
+            fw.writelines(a)
+            fw.writelines(b)
 
 
 BarcodeLine = namedtuple("BarcodeLine", ["id", "seq"])
@@ -265,7 +271,7 @@ def shuffle(args):
 
     Shuffle pairs into interleaved format, using `shuffleSequences_fastq.pl`.
     """
-    from itertools import izip, islice
+    from itertools import izip
 
     p = OptionParser(shuffle.__doc__)
     p.add_option("--tag", dest="tag", default=False, action="store_true",

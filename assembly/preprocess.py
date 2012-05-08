@@ -15,8 +15,18 @@ from jcvi.formats.fastq import guessoffset
 from jcvi.utils.cbook import depends
 from jcvi.apps.command import JAVAPATH
 from jcvi.apps.base import ActionDispatcher, debug, set_grid, download, \
-        sh, mkdir, need_update
+        sh, mkdir, write_file, need_update
 debug()
+
+
+Adapters = """
+>Illumina_PE-1rc
+AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGTAGATCTCGGTGGTCGCCGTATCATT
+>Illumina_PE-2rc
+AGATCGGAAGAGCGGTTCAGCAGGAATGCCGAGACCGATCTCGTATGCCGTCTTCTGCTTG
+>TruSeq
+GATCGGAAGAGCACACGTCTGAACTCCAGTCACATCACGATCTCGTATGCCGTCTTCTGCTTG
+"""
 
 
 def main():
@@ -78,10 +88,11 @@ def trim(args):
 
     adaptersfile = "adapters.fasta"
     if not op.exists(adaptersfile):
-        sh("cp ~/adapters.fasta .")
+        write_file(adaptersfile, Adapters)
 
-    assert op.exists("adapters.fasta"), \
-        "Please place the illumina adapter sequence in `adapters.fasta`"
+    assert op.exists(adaptersfile), \
+        "Please place the illumina adapter sequence in `{0}`".\
+        format(adaptersfile)
 
     if opts.phred is None:
         offset = guessoffset([args[0]])

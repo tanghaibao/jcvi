@@ -1120,7 +1120,6 @@ def pairinplace(args):
     logging.debug("Reads paired into `%s` and `%s`" % (pairs, frags))
 
 
-
 def extract(args):
     """
     %prog extract fasta query

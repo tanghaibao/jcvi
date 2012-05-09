@@ -18,6 +18,20 @@ LEFT, RIGHT = 0, 1
 Range = namedtuple("Range", "seqid start end score id")
 
 
+def range_parse(s):
+    """
+    >>> range_parse("chr1:1000-1")
+    Range(seqid='chr1', start=1, end=1000, score=0, id=0)
+    """
+    chr, se = s.split(":")
+    start, end = se.split("-")
+    start, end = int(start), int(end)
+    if start > end:
+        start, end = end, start
+
+    return Range(chr, start, end, 0, 0)
+
+
 def range_intersect(a, b):
     """
     Returns the intersection between two reanges.

@@ -459,7 +459,7 @@ def fastq(args):
 
     mated = (opts.size != 0)
     outtie = opts.outtie
-    libname = op.basename(fastqfiles[0]).split(".")[0]
+    libname = op.basename(args[0]).split(".")[0]
     libname = libname.replace("_1_sequence", "")
 
     frgfile = libname + ".frg"

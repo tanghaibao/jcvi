@@ -56,7 +56,7 @@ class OpticalMap (object):
             score = a.soma_score
             orientation = a.orientation
             for i, l, r in a.alignment:
-                start = aligned_blocks[i - 1] - 1
+                start = 0 if i == 0 else (aligned_blocks[i - 1] - 1)
                 end = aligned_blocks[i] - 1
                 accn = "{0}:{1}-{2}".format(aligned_map_name,
                         start, end)

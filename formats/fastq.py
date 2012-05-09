@@ -123,7 +123,7 @@ def filter(args):
     format (two files) to filter on paired reads.
     """
     p = OptionParser(filter.__doc__)
-    p.add_option("-q", dest="qv", default=30, type="int",
+    p.add_option("-q", dest="qv", default=20, type="int",
                  help="Minimum quality score to keep [default: %default]")
     p.add_option("-p", dest="pct", default=95, type="int",
                  help="Minimum percent of bases that have [-q] quality "\

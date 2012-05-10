@@ -754,6 +754,7 @@ def extract(args):
                 print >> fw, row.rstrip()
             if tag == FastaTag:
                 break
+            continue
 
         b = GffLine(row)
         is_right_contig = (contigID and tag in contigID) or (not contigID)

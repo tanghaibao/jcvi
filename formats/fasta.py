@@ -103,7 +103,7 @@ class Fasta (BaseFile, dict):
         start = start - 1 if start is not None else 0
         stop = stop if stop is not None else len(fasta)
 
-        assert start >= 0, "start (%d) must >= 0" % (start + 1)
+        assert start >= 0, "start (%d) must > 0" % (start + 1)
 
         assert stop <= len(fasta), \
                 ("stop (%d) must be <= " + \

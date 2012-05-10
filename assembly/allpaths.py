@@ -228,12 +228,14 @@ def extract_pairs(fastqfile, p1fw, p2fw, fragsfw, p):
 
 def pairs(args):
     """
-    %prog pairs pairsfile fastqfile
+    %prog pairs pairsfile <fastbfile|fastqfile>
 
     Parse ALLPATHS pairs file, and write pairs IDs and single read IDs in
     respective ids files: e.g. `lib1.pairs.fastq`, `lib2.pairs.fastq`,
     and single `frags.fastq` (with single reads from lib1/2).
     """
+    from jcvi.assembly.preprocess import run_FastbAndQualb2Fastq
+
     p = OptionParser(pairs.__doc__)
     p.add_option("--header", default=False, action="store_true",
             help="Print header only [default: %default]")
@@ -249,6 +251,11 @@ def pairs(args):
 
     if opts.header:
         return
+
+    if fastqfile.endswith(".fastb"):
+        fastbfile = fastqfile
+        fastqfile = fastbfile.replace(".fastb", ".fastq")
+        run_FastbAndQualb2Fastq(infile=fastbfile, outfile=fastqfile)
 
     p1file = "{0}.1.corr.fastq"
     p2file = "{0}.2.corr.fastq"

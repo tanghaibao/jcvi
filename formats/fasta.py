@@ -272,9 +272,54 @@ def main():
         ('join', 'concatenate a list of seqs and add gaps in between'),
         ('some', 'include or exclude a list of records (also performs on ' + \
                  '.qual file if available)'),
+        ('clean', 'remove irregular chars in FASTA seqs'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def parse_fasta(infile):
+    '''
+    parse a fasta-formatted file and returns header
+    can be a fasta file that contains multiple records.
+    '''
+    fp = open(infile)
+    # keep header
+    fa_iter = (x[1] for x in groupby(fp, lambda row: row[0] == '>'))
+    for header in fa_iter:
+        header = header.next()
+        if header[0] != '>':
+            continue
+        # drop '>'
+        header = header.strip()[1:]
+        # stitch the sequence lines together and make into upper case
+        seq = "".join(s.strip().upper() for s in fa_iter.next())
+        yield header, seq
+
+
+def clean(args):
+    """
+    %prog clean fastafile
+
+    Remove irregular chars in FASTA seqs.
+    """
+    import string
+
+    p = OptionParser(clean.__doc__)
+    set_outfile(p)
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    fastafile, = args
+    fw = must_open(opts.outfile, "w")
+    for header, seq in parse_fasta(fastafile):
+        seq = "".join(x for x in seq if x in string.letters or x == '*')
+        seq = Seq(seq)
+        s = SeqRecord(seq, id=header, description="")
+        SeqIO.write([s], fw, "fasta")
 
 
 def translate(args):

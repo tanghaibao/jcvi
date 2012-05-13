@@ -188,6 +188,7 @@ def prepare(args):
     tpf_fn = pf + ".tpf"
     bed_fw = open(bed_fn, "w")
     tpf_fw = open(tpf_fn, "w")
+    print >> tpf_fw, "\t".join(("telomere", pf, "na"))
 
     for k, sb in groupby(bed, key=key):
         sb = list(sb)

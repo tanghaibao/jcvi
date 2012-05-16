@@ -446,8 +446,11 @@ def fastq(args):
     from jcvi.formats.fastq import guessoffset
 
     p = OptionParser(fastq.__doc__)
+    phdchoices = ("33", "64")
     p.add_option("--outtie", dest="outtie", default=False, action="store_true",
             help="Are these outie reads? [default: %default]")
+    p.add_option("--phred", default=None, choices=phdchoices,
+            help="Phred score offset {0} [default: guess]".format(phdchoices))
     add_size_option(p)
 
     opts, args = p.parse_args(args)
@@ -474,7 +477,8 @@ def fastq(args):
         cmd += "-insertsize {0} {1} ".format(mean, sv)
     cmd += fastqs
 
-    illumina = (guessoffset([fastqfiles[0]]) == 64)
+    offset = int(opts.phred) if opts.phred else guessoffset([fastqfiles[0]])
+    illumina = (offset == 64)
     if illumina:
         cmd += " -type illumina"
     if outtie:

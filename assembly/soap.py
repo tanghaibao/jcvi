@@ -61,7 +61,7 @@ $C pregraph -s $S -K $K -o $A -a 300 -p $P -R
 $C contig -g $A -M 3 -R
 $C map -p $P -s $S -g $A
 $C scaff -F -g $A
-GapCloser -t $P -o ${A}.closed.scafSeq -a ${A}.scafSeq -p 31 -b $Si -l 155"""
+GapCloser -t $P -o ${A}.closed.scafSeq -a ${A}.scafSeq -p 31 -b $S -l 155"""
 
 
 def fillstats(args):

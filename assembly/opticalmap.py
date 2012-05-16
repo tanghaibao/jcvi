@@ -6,6 +6,7 @@ Optical map alignment parser.
 """
 
 import sys
+import logging
 
 import numpy as np
 
@@ -42,7 +43,7 @@ class OpticalMap (object):
             e = MapAlignment(e)
             yield e.reference_map_name, e.aligned_map_name, e
 
-    def write_bed(self, fw=sys.stdout):
+    def write_bed(self, fw=sys.stdout, blockonly=False):
         for a in self.alignments:
             reference_map_name = a.reference_map_name
             aligned_map_name = a.aligned_map_name
@@ -54,18 +55,35 @@ class OpticalMap (object):
             aligned_blocks = aligned_map.cumsizes
 
             score = a.soma_score
+            score = "{0:.1f}".format(score)
             orientation = a.orientation
+
+            endpoints = []
+            ref_endpoints = []
             for i, l, r in a.alignment:
                 start = 0 if i == 0 else (aligned_blocks[i - 1] - 1)
                 end = aligned_blocks[i] - 1
+                endpoints.extend([start, end])
                 accn = "{0}:{1}-{2}".format(aligned_map_name,
                         start, end)
 
                 start = ref_blocks[l - 1] - 1
                 end = ref_blocks[r] - 1
+                ref_endpoints.extend([start, end])
+
+                if not blockonly:
+                    print >> fw, "\t".join(str(x) for x in \
+                            (reference_map_name, start, end,
+                             accn, score, orientation))
+
+            if blockonly:
+                start, end = min(endpoints), max(endpoints)
+                accn = "{0}:{1}-{2}".format(aligned_map_name, start, end)
+
+                start, end = min(ref_endpoints), max(ref_endpoints)
                 print >> fw, "\t".join(str(x) for x in \
                         (reference_map_name, start, end,
-                         accn, "{0:.1f}".format(score), orientation))
+                         accn, score, orientation))
 
 
 class RestrictionMap (object):
@@ -127,9 +145,53 @@ def main():
 
     actions = (
         ('bed', 'convert xml format into bed format'),
+        ('fasta', 'use the OM bed to scaffold and create pseudomolecules'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def fasta(args):
+    """
+    %prog fasta bedfile scf.fasta pseudomolecules.fasta
+
+    Use OM bed to scaffold and create pseudomolecules. bedfile can be generated
+    by running jcvi.assembly.opticalmap bed --blockonly
+    """
+    from jcvi.formats.bed import Bed
+    from jcvi.formats.sizes import Sizes
+    from jcvi.formats.agp import OO, build
+    from jcvi.utils.range import range_chain, range_parse, Range
+
+    p = OptionParser(fasta.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    bedfile, scffasta, pmolfasta = args
+    pf = bedfile.rsplit(".", 1)[0]
+    bed = Bed(bedfile)
+    ranges = [Range(x.seqid, x.start, x.end, float(x.score), i) for i, x in enumerate(bed)]
+    selected, score = range_chain(ranges)
+    selected = [bed[x.id] for x in selected]
+    oo = OO()
+    seen = set()
+    sizes = Sizes(scffasta).mapping
+    agpfile = pf + ".agp"
+    agp = open(agpfile, "w")
+    for b in selected:
+        scf = range_parse(b.accn).seqid
+        chr = b.seqid
+        cs = (chr, scf)
+        if cs not in seen:
+            oo.add(chr, scf, sizes[scf], b.strand)
+            seen.add(cs)
+        else:
+            logging.debug("Seen {0}, ignored.".format(cs))
+
+    oo.write_AGP(agp, gaptype="contig")
+    build([agpfile, scffasta, pmolfasta])
 
 
 def bed(args):
@@ -141,6 +203,8 @@ def bed(args):
     from jcvi.formats.bed import sort
 
     p = OptionParser(bed.__doc__)
+    p.add_option("--blockonly", default=False, action="store_true",
+                 help="Only print out large blocks, not fragments [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -151,7 +215,7 @@ def bed(args):
     fw = open(bedfile, "w")
 
     om = OpticalMap(xmlfile)
-    om.write_bed(fw)
+    om.write_bed(fw, blockonly=opts.blockonly)
     fw.close()
 
     sort([bedfile, "--inplace"])

@@ -24,11 +24,138 @@ debug()
 def main():
 
     actions = (
+        ('mapbreaks', 'find scaffold breakpoints using genetic map'),
+        ('refine', 'find gaps within or near breakpoint regions'),
         ('prepare', 'given om alignment, prepare the patchers'),
         ('certificate', 'generate pairwise overlaps'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+OK, BREAK, END = range(3)
+
+def check_markers(a, b, maxdiff):
+    from jcvi.algorithms.matrix import hamming_distance
+
+    aid, ageno = a[0], a[1:]
+    bid, bgeno = b[0], b[1:]
+    ascf, apos = aid.split(".")
+    bscf, bpos = bid.split(".")
+    if ascf != bscf:
+        return END, None
+    diff = hamming_distance(ageno, bgeno, ignore="-")
+    max_allowed = len(ageno) * maxdiff
+    if diff <= max_allowed:
+        return OK, None
+
+    return BREAK, (ascf, apos, bpos)
+
+
+def mapbreaks(args):
+    """
+    %prog mapbreaks mstmap.input > breakpoints.bed
+
+    Find scaffold breakpoints using genetic map. Use formats.vcf.mstmap() to
+    generate the input for this routine.
+    """
+    from jcvi.utils.iter import pairwise
+
+    p = OptionParser(mapbreaks.__doc__)
+    p.add_option("--diff", default=.1, type="float",
+                 help="Maximum ratio of differences allowed [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    mstmap, = args
+    diff = opts.diff
+    fp = open(mstmap)
+    data = []
+    for row in fp:
+        if row.startswith("locus_name"):
+            break
+
+    for row in fp:
+        data.append(row.split())
+
+    # Remove singleton markers (avoid double cross-over)
+    good = []
+    nsingletons = 0
+    for i in xrange(1, len(data) - 1):
+        a = data[i]
+        left_label, left_rr = check_markers(data[i - 1], a, diff)
+        right_label, right_rr = check_markers(a, data[i + 1], diff)
+
+        if left_label == BREAK and right_label == BREAK:
+            nsingletons += 1
+            continue
+
+        good.append(a)
+
+    logging.debug("A total of {0} singleton markers removed.".format(nsingletons))
+
+    for a, b in pairwise(good):
+        label, rr = check_markers(a, b, diff)
+        if label == BREAK:
+            print "\t".join(rr)
+
+
+def refine(args):
+    """
+    %prog refine breakpoints.bed gaps.bed
+
+    Find gaps within or near breakpoint region.
+    """
+    from jcvi.formats.base import FileMerger
+
+    p = OptionParser(refine.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    breakpointsbed, gapsbed = args
+    cmd = "intersectBed -wao -a {0} -b {1}".format(breakpointsbed, gapsbed)
+
+    pf = "{0}.{1}".format(breakpointsbed.split(".")[0], gapsbed.split(".")[0])
+    ingapsbed = pf + ".bed"
+    sh(cmd, outfile=ingapsbed)
+
+    fp = open(ingapsbed)
+    data = [x.split() for x in fp]
+    nogapsbed = pf + ".nogaps.bed"
+    largestgapsbed = pf + ".largestgaps.bed"
+    nogapsfw = open(nogapsbed, "w")
+    largestgapsfw = open(largestgapsbed, "w")
+    for b, gaps in groupby(data, key=lambda x: x[:3]):
+        gaps = list(gaps)
+        if len(gaps) == 1 and gaps[0][3] == ".":
+            gap = gaps[0]
+            assert gap[4] == "-1"
+            print >> nogapsfw, "\t".join(b)
+            continue
+
+        gaps = [(int(x[-1]), x) for x in gaps]
+        maxgap = max(gaps)[1]
+        print >> largestgapsfw, "\t".join(maxgap[3:])
+
+    nogapsfw.close()
+    largestgapsfw.close()
+
+    closestgapsbed = pf + ".closestgaps.bed"
+    closestgapsfw = open(closestgapsbed, "w")
+    cmd = "closestBed -a {0} -b {1}".format(nogapsbed, gapsbed)
+    cmd += " | cut -f4-7"
+    sh(cmd, outfile=closestgapsbed)
+
+    refinedbed = pf + ".refined.bed"
+    FileMerger([largestgapsbed, closestgapsbed], outfile=refinedbed).merge()
+
+    # Clean-up
+    cmd = "rm -f " + " ".join([nogapsbed, largestgapsbed, closestgapsbed])
+    sh(cmd)
 
 
 def phase(aid, fastadir=None, backbone=None):

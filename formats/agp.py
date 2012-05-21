@@ -688,8 +688,7 @@ def cut(args):
     """
     %prog cut agpfile bedfile
 
-    Cut at the boundaries of the ranges in the bedfile. Use --shrink to control
-    the exact boundaries where you cut.
+    Cut at the boundaries of the ranges in the bedfile.
     """
     p = OptionParser(cut.__doc__)
     opts, args = p.parse_args(args)

@@ -568,7 +568,7 @@ def refine(args):
     abedfile, bbedfile, refinedbed = args
     fw = open(refinedbed, "w")
     intersected = refined = 0
-    for a, b in intersected_wao(abedfile, bbedfile):
+    for a, b in intersectBed_wao(abedfile, bbedfile):
         if b is None:
             print >> fw, a
             continue

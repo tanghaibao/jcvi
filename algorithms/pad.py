@@ -19,6 +19,7 @@ import logging
 
 import numpy as np
 from math import log
+from jcvi.utils.iter import pairwise
 from optparse import OptionParser
 
 from jcvi.algorithms.synteny import AnchorFile, add_beds, check_beds
@@ -170,7 +171,6 @@ def get_segments(ranges, extra, minsegment=40):
     arbitrary right extension rule. Extra are additional end breaks for
     chromosomes.
     """
-    from jcvi.utils.iter import pairwise
     from jcvi.utils.range import range_chain, LEFT, RIGHT
 
     NUL = 2
@@ -196,7 +196,6 @@ def get_segments(ranges, extra, minsegment=40):
 
 
 def write_PAD_bed(bedfile, prefix, pads, bed):
-    from jcvi.utils.iter import pairwise
 
     fw = open(bedfile, "w")
     padnames = ["{0}:{1:05d}-{2:05d}".format(prefix, a, b) for a, b in pads]

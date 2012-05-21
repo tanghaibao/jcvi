@@ -175,8 +175,6 @@ def happy(args):
     Example:
     +-8254707:8254647:-8254690:{[8254694]:[8254713]:[8254531]:[8254797]}:8254802:8254788+
     """
-    from jcvi.utils.iter import pairwise
-
     p = OptionParser(happy.__doc__)
     p.add_option("--prefix", help="Add prefix to the name [default: %default]")
     opts, args = p.parse_args(args)

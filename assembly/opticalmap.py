@@ -10,9 +10,13 @@ import logging
 
 import numpy as np
 
+from collections import defaultdict
+from jcvi.utils.iter import pairwise
 from optparse import OptionParser
 from xml.etree.ElementTree import ElementTree
 
+from jcvi.formats.bed import Bed
+from jcvi.utils.range import range_chain, range_parse, Range
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
@@ -146,9 +150,82 @@ def main():
     actions = (
         ('bed', 'convert xml format into bed format'),
         ('fasta', 'use the OM bed to scaffold and create pseudomolecules'),
+        ('chimera', 'scan the bed file to break scaffolds that multi-maps'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def chimera(args):
+    """
+    %prog chimera bedfile
+
+    Scan the bed file to break scaffolds that multi-maps.
+    """
+    p = OptionParser(chimera.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    bedfile, = args
+    bed = Bed(bedfile)
+    selected = select_bed(bed)
+    mapped = defaultdict(set)  # scaffold => chr
+    chimerabed = "chimera.bed"
+    fw = open(chimerabed, "w")
+    for b in selected:
+        scf = range_parse(b.accn).seqid
+        chr = b.seqid
+        mapped[scf].add(chr)
+
+    nchimera = 0
+    for s, chrs in sorted(mapped.items()):
+        if len(chrs) == 1:
+            continue
+
+        print >> sys.stderr, "=" * 80
+        print >> sys.stderr, "{0} mapped to multiple locations: {1}".\
+                format(s, ",".join(sorted(chrs)))
+        ranges = []
+        for b in selected:
+            rr = range_parse(b.accn)
+            scf = rr.seqid
+            if scf == s:
+                print >> sys.stderr, b
+                ranges.append(rr)
+
+        # Identify breakpoints
+        ranges.sort(key=lambda x: (x.seqid, x.start, x.end))
+        for a, b in pairwise(ranges):
+            seqid = a.seqid
+            if seqid != b.seqid:
+                continue
+
+            start, end = a.end, b.start
+            if start > end:
+                start, end = end, start
+
+            chimeraline = "\t".join(str(x) for x in (seqid, start, end))
+            print >> fw, chimeraline
+            print >> sys.stderr, chimeraline
+            nchimera += 1
+
+    fw.close()
+    logging.debug("A total of {0} junctions written to `{1}`.".\
+                  format(nchimera, chimerabed))
+
+
+def select_bed(bed):
+    """
+    Return non-overlapping set of ranges, choosing high scoring blocks over low
+    scoring alignments when there are conflicts.
+    """
+    ranges = [Range(x.seqid, x.start, x.end, float(x.score), i) for i, x in enumerate(bed)]
+    selected, score = range_chain(ranges)
+    selected = [bed[x.id] for x in selected]
+
+    return selected
 
 
 def fasta(args):
@@ -158,10 +235,8 @@ def fasta(args):
     Use OM bed to scaffold and create pseudomolecules. bedfile can be generated
     by running jcvi.assembly.opticalmap bed --blockonly
     """
-    from jcvi.formats.bed import Bed
     from jcvi.formats.sizes import Sizes
     from jcvi.formats.agp import OO, build
-    from jcvi.utils.range import range_chain, range_parse, Range
 
     p = OptionParser(fasta.__doc__)
     opts, args = p.parse_args(args)
@@ -172,9 +247,7 @@ def fasta(args):
     bedfile, scffasta, pmolfasta = args
     pf = bedfile.rsplit(".", 1)[0]
     bed = Bed(bedfile)
-    ranges = [Range(x.seqid, x.start, x.end, float(x.score), i) for i, x in enumerate(bed)]
-    selected, score = range_chain(ranges)
-    selected = [bed[x.id] for x in selected]
+    selected = select_bed(bed)
     oo = OO()
     seen = set()
     sizes = Sizes(scffasta).mapping

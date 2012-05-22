@@ -24,82 +24,12 @@ debug()
 def main():
 
     actions = (
-        ('mapbreaks', 'find scaffold breakpoints using genetic map'),
         ('refine', 'find gaps within or near breakpoint regions'),
         ('prepare', 'given om alignment, prepare the patchers'),
         ('certificate', 'generate pairwise overlaps'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
-
-
-OK, BREAK, END = range(3)
-
-def check_markers(a, b, maxdiff):
-    from jcvi.algorithms.matrix import hamming_distance
-
-    aid, ageno = a[0], a[1:]
-    bid, bgeno = b[0], b[1:]
-    ascf, apos = aid.split(".")
-    bscf, bpos = bid.split(".")
-    if ascf != bscf:
-        return END, None
-    diff = hamming_distance(ageno, bgeno, ignore="-")
-    max_allowed = len(ageno) * maxdiff
-    if diff <= max_allowed:
-        return OK, None
-
-    return BREAK, (ascf, apos, bpos)
-
-
-def mapbreaks(args):
-    """
-    %prog mapbreaks mstmap.input > breakpoints.bed
-
-    Find scaffold breakpoints using genetic map. Use formats.vcf.mstmap() to
-    generate the input for this routine.
-    """
-    from jcvi.utils.iter import pairwise
-
-    p = OptionParser(mapbreaks.__doc__)
-    p.add_option("--diff", default=.1, type="float",
-                 help="Maximum ratio of differences allowed [default: %default]")
-    opts, args = p.parse_args(args)
-
-    if len(args) != 1:
-        sys.exit(not p.print_help())
-
-    mstmap, = args
-    diff = opts.diff
-    fp = open(mstmap)
-    data = []
-    for row in fp:
-        if row.startswith("locus_name"):
-            break
-
-    for row in fp:
-        data.append(row.split())
-
-    # Remove singleton markers (avoid double cross-over)
-    good = []
-    nsingletons = 0
-    for i in xrange(1, len(data) - 1):
-        a = data[i]
-        left_label, left_rr = check_markers(data[i - 1], a, diff)
-        right_label, right_rr = check_markers(a, data[i + 1], diff)
-
-        if left_label == BREAK and right_label == BREAK:
-            nsingletons += 1
-            continue
-
-        good.append(a)
-
-    logging.debug("A total of {0} singleton markers removed.".format(nsingletons))
-
-    for a, b in pairwise(good):
-        label, rr = check_markers(a, b, diff)
-        if label == BREAK:
-            print "\t".join(rr)
 
 
 def refine(args):

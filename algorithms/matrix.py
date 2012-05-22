@@ -19,16 +19,6 @@ debug()
 is_symmetric = lambda M: (M.T == M).all()
 
 
-def hamming_distance(a, b, ignore=None):
-    dist = 0
-    for x, y in zip(a, b):
-        if ignore and ignore in (x, y):
-            continue
-        if x != y:
-            dist += 1
-    return dist
-
-
 def moving_sum(a, window=10):
     kernel = np.repeat(1, window)
     return np.convolve(a, kernel, mode="same")

@@ -10,6 +10,7 @@ import sys
 import itertools
 import logging
 
+from math import exp
 from itertools import groupby
 from optparse import OptionParser
 
@@ -64,7 +65,7 @@ class CoordsLine (object):
         # the coverage of the hit muliplied by percent seq identity
         # range from 0-100
         self.quality = self.identity * self.querycov
-        self.score = self.identity * self.len1
+        self.score = int(self.identity * self.len1 / 100)
 
     def __str__(self):
         slots = "ref start1 end1 reflen " +\
@@ -75,9 +76,21 @@ class CoordsLine (object):
     @property
     def bedline(self):
         # bed formatted line
-        score = int(self.quality * 10)
-        return '\t'.join((self.ref, str(self.start1 - 1), str(self.end1),
-                self.query, str(score), self.orientation))
+        return '\t'.join(str(x) for x in (self.ref, self.start1 - 1, self.end1,
+                self.query, self.score, self.orientation))
+
+    @property
+    def blastline(self):
+        hitlen = max(self.len1, self.len2)
+        score = self.score
+        mismatch = int(self.len1 * (1 - self.identity / 100))
+        log_prob = -score * 0.693147181
+        evalue = 3.0e9 * exp(log_prob)
+        evalue = "{0:.1g}".format(evalue)
+        return "\t".join(str(x) for x in (self.query, self.ref,
+                self.identity, hitlen, mismatch, 0, self.start2, self.end2,
+                self.start1, self.end1, evalue, score
+                ))
 
     def overlap(self, max_hang=100):
         """
@@ -229,6 +242,7 @@ def main():
 
     actions = (
         ('annotate', 'annotate overlap types in coordsfile'),
+        ('blast', 'convert to blast tabular output'),
         ('summary', 'provide summary on id% and cov%'),
         ('fromdelta', 'convert deltafile to coordsfile'),
         ('filter', 'filter based on id% and cov%, write a new coords file'),
@@ -238,6 +252,30 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def blast(args):
+    """
+    %prog blast <deltafile|coordsfile>
+
+    Covert delta or coordsfile to BLAST tabular output.
+    """
+    p = OptionParser(blast.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    deltafile, = args
+    blastfile = deltafile.rsplit(".", 1)[0] + ".blast"
+    if deltafile.endswith(".delta"):
+        deltafile = fromdelta([deltafile])
+
+    if need_update(deltafile, blastfile):
+        coords = Coords(deltafile)
+        fw = open(blastfile, "w")
+        for c in coords:
+            print >> fw, c.blastline
 
 
 def fromdelta(args):

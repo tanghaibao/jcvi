@@ -4,9 +4,9 @@
 import os
 import os.path as op
 import sys
-import math
 import logging
 
+from math import exp
 from optparse import OptionParser
 from subprocess import Popen, PIPE
 from multiprocessing import Lock, Pool
@@ -41,7 +41,7 @@ def blastz_score_to_ncbi_expectation(bz_score):
     bits = blastz_score_to_ncbi_bits(bz_score)
     log_prob = -bits * 0.693147181
     # this number looks like.. human genome?
-    return 3.0e9 * math.exp(log_prob)
+    return 3.0e9 * exp(log_prob)
 
 
 def lastz_to_blast(row):

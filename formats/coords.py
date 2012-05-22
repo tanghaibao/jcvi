@@ -268,8 +268,6 @@ def blast(args):
 
     deltafile, = args
     blastfile = deltafile.rsplit(".", 1)[0] + ".blast"
-    if deltafile.endswith(".delta"):
-        deltafile = fromdelta([deltafile])
 
     if need_update(deltafile, blastfile):
         coords = Coords(deltafile)

@@ -132,6 +132,7 @@ def run_megablast(infile=None, outfile=None, db=None, \
     cmd = BLPATH("blastn")
     cmd += " -query {0} -db {1} -out {2}".format(infile, db, outfile)
     cmd += " -evalue 0.01 -outfmt 6 -num_threads 16"
+    cmd += " -perc_identity {0}".format(pctid)
     cmd += " -task {0}".format(task)
     if best:
         cmd += " -num_alignments {0}".format(best)

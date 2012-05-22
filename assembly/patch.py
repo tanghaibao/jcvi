@@ -16,7 +16,7 @@ from optparse import OptionParser
 from jcvi.formats.bed import Bed
 from jcvi.formats.fasta import Fasta
 from jcvi.utils.range import range_parse
-from jcvi.formats.base import must_open
+from jcvi.formats.base import must_open, FileMerger
 from jcvi.apps.base import ActionDispatcher, debug, sh, mkdir
 debug()
 
@@ -26,10 +26,33 @@ def main():
     actions = (
         ('refine', 'find gaps within or near breakpoint regions'),
         ('prepare', 'given om alignment, prepare the patchers'),
-        ('certificate', 'generate pairwise overlaps'),
+        ('install', 'install patches into backbone'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def install(args):
+    """
+    %prog install patchers.fasta backbone.fasta
+
+    Install one patch into backbone
+    """
+    from jcvi.apps.command import run_megablast
+
+    p = OptionParser(install.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    patchfasta, bbfasta = args
+
+    blastfile = patchfasta + ".blast"
+    run_megablast(infile=patchfasta, outfile=blastfile, db=bbfasta,
+                  pctid=99, hitlen=1000)
+    #cmd = "blastn -query {0} -subject {1}".format(patchfasta, bbfasta)
+    #cmd += " -evalue 0.01 -outfmt 6 -perc_identity 99"
 
 
 def refine(args):
@@ -38,8 +61,6 @@ def refine(args):
 
     Find gaps within or near breakpoint region.
     """
-    from jcvi.formats.base import FileMerger
-
     p = OptionParser(refine.__doc__)
     opts, args = p.parse_args(args)
 
@@ -88,93 +109,6 @@ def refine(args):
     sh(cmd)
 
 
-def phase(aid, fastadir=None, backbone=None):
-    af = op.join(fastadir, aid + ".fasta")
-    f = Fasta(af)
-    k, fs = f.itersizes().next()
-    assert aid == k
-
-    ph = 2 if aid.startswith(backbone) else 1
-    return ph, fs
-
-
-def certificate(args):
-    """
-    %prog certificate tpffile certificatefile fastafile
-
-    North  chr1  2  0  AC229737.8  telomere     58443
-    South  chr1  2  1  AC229737.8  AC202463.29  58443  37835  58443  + Non-terminal
-
-    Each line describes a relationship between the current BAC and the
-    north/south BAC. First, "North/South" tag, then the chromosome, phases of
-    the two BACs, ids of the two BACs, the size and the overlap start-stop of
-    the CURRENT BAC, and orientation. Each BAC will have two lines in the
-    certificate file.
-
-    Here we use BAC to refer to sequence ranges. BAC phase are priority, and
-    determines how the overlaps are called.
-    """
-    from jcvi.assembly.goldenpath import TPF, check_certificate, overlap
-
-    p = OptionParser(certificate.__doc__)
-    p.add_option("--backbone", default="Scaffold",
-                 help="Prefix of the backbone assembly [default: %default]")
-    opts, args = p.parse_args(args)
-
-    if len(args) != 3:
-        sys.exit(not p.print_help())
-
-    tpffile, certificatefile, fastafile = args
-    bb = opts.backbone
-
-    fastadir = "fasta"
-    mkdir(fastadir)
-    cmd = "faSplit byname {0} {1}/".format(fastafile, fastadir)
-    sh(cmd)
-
-    cmd = "rename .fa .fasta {0}/*.fa".format(fastadir)
-    sh(cmd)
-
-    tpf = TPF(tpffile)
-
-    data = check_certificate(certificatefile)
-    fw = must_open(certificatefile, "w")
-    for i, a in enumerate(tpf):
-        if a.is_gap:
-            continue
-
-        aid = a.component_id
-
-        af = op.join(fastadir, aid + ".fasta")
-        assert op.exists(af), "ID `{0}` not found".format(aid)
-
-        north, south = tpf.getNorthSouthClone(i)
-        aphase, asize = phase(aid, fastadir=fastadir, backbone=bb)
-
-        for tag, p in (("North", north), ("South", south)):
-            if not p:  # end of the chromosome
-                ov = "telomere\t{0}".format(asize)
-            elif p.isCloneGap:
-                bphase = "0"
-                ov = "{0}\t{1}".format(p.gap_type, asize)
-            else:
-                bid = p.component_id
-                bphase, bsize = phase(bid, fastadir=fastadir, backbone=bb)
-                key = (tag, aid, bid)
-                if key in data:
-                    print >> fw,  data[key]
-                    continue
-
-                ar = [aid, bid, "--dir=" + fastadir]
-                o = overlap(ar)
-                ov = o.certificateline if o \
-                        else "{0}\t{1}\tNone".format(bid, asize)
-
-            print >> fw, "\t".join(str(x) for x in \
-                    (tag, a.object, aphase, bphase, aid, ov))
-            fw.flush()
-
-
 def merge_ranges(beds):
 
     m = [x.accn for x in beds]
@@ -209,6 +143,8 @@ def prepare(args):
     p = OptionParser(prepare.__doc__)
     p.add_option("--backbone", default="Scaffold",
                  help="Prefix of the backbone assembly [default: %default]")
+    p.add_option("--flank", default=50000, type="int",
+                 help="Extend flanks for patchers [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -222,30 +158,28 @@ def prepare(args):
     bed = Bed(bedfile)
     uniqbed = Bed()
     key = lambda x: (x.seqid, x.start, x.end)
-    is_bb = lambda x: x.accn.startswith(bb)
+    is_bb = lambda x: x.startswith(bb)
     for k, sb in groupby(bed, key=key):
         sb = list(sb)
-        backbone = [x for x in sb if is_bb(x)]
-        others = [x for x in sb if not is_bb(x)]
+        backbone = [x for x in sb if is_bb(x.accn)]
+        others = [x for x in sb if not is_bb(x.accn)]
         if backbone and others:
             uniqbed.extend(backbone)
         else:
             uniqbed.extend(sb)
 
-    uniqbedfile = bedfile.rsplit(".", 1)[0] + ".uniq.bed"
-    uniqbed.print_to_file(uniqbedfile)
+    if not bedfile.endswith(".uniq.bed"):
+        uniqbedfile = bedfile.rsplit(".", 1)[0] + ".uniq.bed"
+        uniqbed.print_to_file(uniqbedfile)
 
     # Condense adjacent intervals, allow some chaining
     bed = uniqbed
-    key = lambda x: (is_bb, range_parse(x.accn).seqid)
-    Flank = 10000
+    key = lambda x: range_parse(x.accn).seqid
+    Flank = opts.flank
     sizes = Sizes(fastafile).mapping
 
     bed_fn = pf + ".patchers.bed"
-    tpf_fn = pf + ".tpf"
     bed_fw = open(bed_fn, "w")
-    tpf_fw = open(tpf_fn, "w")
-    print >> tpf_fw, "\t".join(("telomere", pf, "na"))
 
     for k, sb in groupby(bed, key=key):
         sb = list(sb)
@@ -253,13 +187,13 @@ def prepare(args):
         size = sizes[chr]
         start = max(start - Flank, 0)
         end = min(end + Flank, size)
+        if is_bb(chr):
+            continue
 
         id = "{0}:{1}-{2}".format(chr, start, end)
         print >> bed_fw, "\t".join(str(x) for x in (chr, start, end))
-        print >> tpf_fw, "\t".join((id, pf, strand))
 
     bed_fw.close()
-    tpf_fw.close()
 
     fastafn = pf + ".patchers.fasta"
     cmd = "fastaFromBed -fi {0} -bed {1} -fo {2}".\

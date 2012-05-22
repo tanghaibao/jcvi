@@ -31,6 +31,10 @@ blast_fields = "query,subject,pctid,hitlen,nmismatch,ngaps,"\
 lastz_fields = "name2,name1,identity,nmismatch,ngap,"\
         "start2+,end2+,strand2,start1,end1,strand1,score"
 
+# For assembly-assembly comparison, Bob Harris recommended:
+similarOptions = " --seed=match12 --notransition --step=20 --exact=50 "\
+                 "--identity=99 --matchcount=1000"
+
 # conversion between blastz and ncbi is taken from Kent src
 # src/lib/blastOut.c
 # this is not rigorous definition of e-value (assumes human genome) !!
@@ -163,6 +167,8 @@ def main():
             help="specify LASTZ path")
     p.add_option("--mask", dest="mask", default=False, action="store_true",
             help="treat lower-case letters as mask info [default: %default]")
+    p.add_option("--similar", default=False, action="store_true",
+            help="Use options tuned for close comparison [default: %default]")
 
     set_params(p)
     set_outfile(p)
@@ -186,6 +192,9 @@ def main():
         print >>sys.stderr, "Running jobs on JCVI grid"
 
     extra = opts.extra
+    if opts.similar:
+        extra += similarOptions
+
     lastz_bin = opts.lastz_path or "lastz"
     assert lastz_bin.endswith("lastz"), "You need to include lastz in your path"
 

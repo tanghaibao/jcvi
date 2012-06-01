@@ -119,7 +119,7 @@ def run_vecscreen(infile=None, outfile=None, db="UniVec_Core",
 
 
 @depends
-def run_megablast(infile=None, outfile=None, db=None, \
+def run_megablast(infile=None, outfile=None, db=None, wordsize=None, \
         pctid=98, hitlen=100, best=None, task="megablast"):
 
     assert db, "Need to specify database fasta file."
@@ -132,8 +132,11 @@ def run_megablast(infile=None, outfile=None, db=None, \
     cmd = BLPATH("blastn")
     cmd += " -query {0} -db {1} -out {2}".format(infile, db, outfile)
     cmd += " -evalue 0.01 -outfmt 6 -num_threads 16"
-    cmd += " -perc_identity {0}".format(pctid)
     cmd += " -task {0}".format(task)
+    if wordsize:
+        cmd += " -word_size {0}".format(wordsize)
+    if pctid:
+        cmd += " -perc_identity {0}".format(pctid)
     if best:
         cmd += " -num_alignments {0}".format(best)
     sh(cmd)

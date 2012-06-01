@@ -419,6 +419,8 @@ def blast(args):
                     "megablast", "vecscreen")
 
     p = OptionParser(blast.__doc__)
+    p.add_option("--pctid", type="int", help="Percent identity [default: %default]")
+    p.add_option("--wordsize", type="int", help="Word size [default: %default]")
     p.add_option("--best", default=1, type="int",
             help="Only look for best N hits [default: %default]")
     p.add_option("--task", default="megablast", choices=task_choices,
@@ -435,7 +437,8 @@ def blast(args):
     blastfile = "{0}.{1}.blast".format(q, r)
 
     run_megablast(infile=queryfasta, outfile=blastfile, db=reffasta, \
-                  pctid=None, hitlen=None, best=opts.best, task=opts.task)
+                  wordsize=opts.wordsize, pctid=opts.pctid,
+                  hitlen=None, best=opts.best, task=opts.task)
 
 
 if __name__ == '__main__':

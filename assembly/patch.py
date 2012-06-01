@@ -15,6 +15,7 @@ from optparse import OptionParser
 
 from jcvi.formats.bed import Bed
 from jcvi.formats.fasta import Fasta
+from jcvi.formats.sizes import Sizes
 from jcvi.utils.range import range_parse
 from jcvi.formats.base import must_open, FileMerger
 from jcvi.apps.base import ActionDispatcher, debug, sh, mkdir
@@ -25,11 +26,49 @@ def main():
 
     actions = (
         ('refine', 'find gaps within or near breakpoint regions'),
+        ('fill', 'perform gap filling using one assembly vs the other'),
         ('prepare', 'given om alignment, prepare the patchers'),
         ('install', 'install patches into backbone'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def fill(args):
+    """
+    %prog fill gaps_in_bad.bed bad.fasta good.fasta
+
+    Perform gap filling of one assembly (bad) using sequences from another.
+    """
+    p = OptionParser(fill.__doc__)
+    p.add_option("--extend", default=2000, type="int",
+                 help="Extend seq flanking the gaps [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    gapsbed, badfasta, goodfasta = args
+    Ext = opts.extend
+    bed = Bed(gapsbed)
+    sizes = Sizes(badfasta).mapping
+    pf = gapsbed.rsplit(".", 1)[0]
+    extbed = pf + ".ext.bed"
+    fw = open(extbed, "w")
+    for b in bed:
+        gapname = b.accn
+        start, end = max(0, b.start - Ext - 1), b.start - 1
+        print >> fw, "\t".join(str(x) for x in \
+                             (b.seqid, start, end, gapname + "L"))
+        start, end = b.end, min(sizes[b.seqid], b.end + Ext)
+        print >> fw, "\t".join(str(x) for x in \
+                             (b.seqid, start, end, gapname + "R"))
+    fw.close()
+
+    extfasta = pf + ".ext.fasta"
+    cmd = "fastaFromBed -name -fi {0} -bed {1} -fo {2}".\
+            format(badfasta, extbed, extfasta)
+    sh(cmd)
 
 
 def install(args):
@@ -51,8 +90,6 @@ def install(args):
     blastfile = patchfasta + ".blast"
     run_megablast(infile=patchfasta, outfile=blastfile, db=bbfasta,
                   pctid=99, hitlen=1000)
-    #cmd = "blastn -query {0} -subject {1}".format(patchfasta, bbfasta)
-    #cmd += " -evalue 0.01 -outfmt 6 -perc_identity 99"
 
 
 def refine(args):
@@ -138,8 +175,6 @@ def prepare(args):
     which assembly is the major one, and the patchers will be extracted from
     another assembly.
     """
-    from jcvi.formats.sizes import Sizes
-
     p = OptionParser(prepare.__doc__)
     p.add_option("--backbone", default="Scaffold",
                  help="Prefix of the backbone assembly [default: %default]")

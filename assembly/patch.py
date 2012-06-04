@@ -13,7 +13,7 @@ import logging
 from itertools import groupby
 from optparse import OptionParser
 
-from jcvi.formats.bed import Bed
+from jcvi.formats.bed import Bed, mergeBed
 from jcvi.formats.fasta import Fasta
 from jcvi.formats.sizes import Sizes
 from jcvi.utils.range import range_parse
@@ -27,7 +27,7 @@ def main():
     actions = (
         ('refine', 'find gaps within or near breakpoint regions'),
         ('fill', 'perform gap filling using one assembly vs the other'),
-        ('prepare', 'given om alignment, prepare the patchers'),
+        ('patcher', 'given om alignment, prepare the patchers'),
         ('install', 'install patches into backbone'),
             )
     p = ActionDispatcher(actions)
@@ -36,7 +36,7 @@ def main():
 
 def fill(args):
     """
-    %prog fill gaps_in_bad.bed bad.fasta good.fasta
+    %prog fill gaps.bed bad.fasta
 
     Perform gap filling of one assembly (bad) using sequences from another.
     """
@@ -45,11 +45,14 @@ def fill(args):
                  help="Extend seq flanking the gaps [default: %default]")
     opts, args = p.parse_args(args)
 
-    if len(args) != 3:
+    if len(args) != 2:
         sys.exit(not p.print_help())
 
-    gapsbed, badfasta, goodfasta = args
+    gapsbed, badfasta = args
     Ext = opts.extend
+
+    gapsbed = mergeBed(gapsbed, d=Ext, nms=True)
+
     bed = Bed(gapsbed)
     sizes = Sizes(badfasta).mapping
     pf = gapsbed.rsplit(".", 1)[0]
@@ -65,31 +68,76 @@ def fill(args):
                              (b.seqid, start, end, gapname + "R"))
     fw.close()
 
-    extfasta = pf + ".ext.fasta"
-    cmd = "fastaFromBed -name -fi {0} -bed {1} -fo {2}".\
-            format(badfasta, extbed, extfasta)
-    sh(cmd)
+    fastaFromBed(extbed, badfasta, name=True)
 
 
 def install(args):
     """
-    %prog install patchers.fasta backbone.fasta
+    %prog install patch.blast.bed backbone.fasta alt.fasta
 
-    Install one patch into backbone
+    Install patches into backbone, using sequences from alternative assembly.
     """
-    from jcvi.apps.command import run_megablast
-
     p = OptionParser(install.__doc__)
+    p.add_option("--rclip", default=1, type="int",
+            help="pair ID is derived from rstrip N chars [default: %default]")
     opts, args = p.parse_args(args)
 
-    if len(args) != 2:
+    if len(args) != 3:
         sys.exit(not p.print_help())
 
-    patchfasta, bbfasta = args
+    bedfile, bbfasta, altfasta = args
+    rclip = opts.rclip
+    data = Bed(bedfile)
 
-    blastfile = patchfasta + ".blast"
-    run_megablast(infile=patchfasta, outfile=blastfile, db=bbfasta,
-                  pctid=99, hitlen=1000)
+    key1 = lambda x: x.accn
+    key2 = lambda x: x.accn[:-rclip] if rclip else key1
+    data.sort(key=key1)
+    Max = 200000  # Max DNA size to replace gap
+
+    for pe, lines in groupby(data, key=key2):
+        lines = list(lines)
+        if len(lines) != 2:
+            continue
+
+        a, b = lines
+
+        asubject, astart, astop = a.seqid, a.start, a.end
+        bsubject, bstart, bstop = b.seqid, b.start, b.end
+
+        if asubject != bsubject:
+            continue
+
+        aquery, bquery = a.accn, b.accn
+        astrand, bstrand = a.strand, b.strand
+        assert aquery[-1] == 'L' and bquery[-1] == 'R', str((aquery, bquery))
+
+        """
+        Case 1: L matches +, R matches +, L_stop < R_start
+        LLLLL.......RRRRR
+        >>>>>>>>>>>>>>>>>
+
+        Case 2: L matches -, R matches -, L_stop < R_start
+        LLLLL.......RRRRR
+        <<<<<<<<<<<<<<<<<
+        """
+        if astrand == '+' and bstrand == '+':
+            start, end = astop + 1, bstart - 1
+
+        elif astrand == '-' and bstrand == '-':
+            start, end = bstop + 1, astart - 1
+
+        else:
+            continue
+
+        if start > end:
+            continue
+
+        if end > start + Max:
+            continue
+
+        name = aquery[:-1] + "LR"
+        print "\t".join(str(x) for x in (asubject, start - 1, end, name, astrand))
+
 
 
 def refine(args):
@@ -167,15 +215,15 @@ def merge_ranges(beds):
     return mc, ms, me, strand
 
 
-def prepare(args):
+def patcher(args):
     """
-    %prog prepare om_alignment.bed seq.fasta
+    %prog patcher om_alignment.bed seq.fasta
 
     Given optical map alignment, prepare the patchers. Use --backbone to suggest
     which assembly is the major one, and the patchers will be extracted from
     another assembly.
     """
-    p = OptionParser(prepare.__doc__)
+    p = OptionParser(patcher.__doc__)
     p.add_option("--backbone", default="Scaffold",
                  help="Prefix of the backbone assembly [default: %default]")
     p.add_option("--flank", default=50000, type="int",
@@ -230,10 +278,7 @@ def prepare(args):
 
     bed_fw.close()
 
-    fastafn = pf + ".patchers.fasta"
-    cmd = "fastaFromBed -fi {0} -bed {1} -fo {2}".\
-            format(fastafile, bed_fn, fastafn)
-    sh(cmd)
+    fastaFromBed(bed_fn, fastafile)
 
 
 if __name__ == '__main__':

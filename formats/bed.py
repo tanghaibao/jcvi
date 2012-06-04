@@ -417,8 +417,28 @@ def index(args):
     sh(cmd, outfile=opts.outfile)
 
 
-def mergeBed(bedfile):
+def fastaFromBed(bedfile, fastafile, name=False, stranded=False):
+    outfile = op.basename(bedfile).rsplit(".", 1)[0] + ".fasta"
+    cmd = "fastaFromBed -fi {0} -bed {1} -fo {2}".\
+            format(fastafile, bedfile, outfile)
+    if name:
+        cmd += " -name"
+    if stranded:
+        cmd += " -s"
+
+    if need_update([bedfile, fasta], outfile):
+        sh(cmd, outfile=outfile)
+
+    return outfile
+
+
+def mergeBed(bedfile, d=0, nms=False):
     cmd = "mergeBed -i {0}".format(bedfile)
+    if d:
+        cmd += " -d {0}".format(d)
+    if nms:
+        cmd += " -nms"
+
     mergebedfile = op.basename(bedfile).rsplit(".", 1)[0] + ".merge.bed"
 
     if need_update(bedfile, mergebedfile):

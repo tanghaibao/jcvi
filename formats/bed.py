@@ -13,7 +13,8 @@ from optparse import OptionParser
 
 from jcvi.formats.base import LineFile, must_open
 from jcvi.utils.cbook import depends, thousands
-from jcvi.utils.range import range_union
+from jcvi.utils.range import Range, range_union, range_chain, \
+        range_distance, range_intersect
 from jcvi.apps.base import ActionDispatcher, debug, sh, \
         need_update, popen, set_outfile
 debug()
@@ -228,6 +229,7 @@ def main():
         ('pairs', 'estimate insert size between paired reads from bedfile'),
         ('mates', 'print paired reads from bedfile'),
         ('sizes', 'infer the sizes for each seqid'),
+        ('uniq', 'remove overlapping features with higher scores'),
         ('bedpe', 'convert to bedpe format'),
         ('distance', 'calculate distance between bed features'),
         ('sample', 'sample bed file and remove high-coverage regions'),
@@ -235,6 +237,38 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def uniq(args):
+    """
+    %prog uniq bedfile > newbedfile
+
+    Remove overlapping features with higher scores.
+    """
+    p = OptionParser(uniq.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    bedfile, = args
+    uniqbedfile = bedfile.split(".")[0] + ".uniq.bed"
+    bed = Bed(bedfile)
+    if not need_update(bedfile, uniqbedfile):
+        return uniqbedfile
+
+    ranges = [Range(x.seqid, x.start, x.end, float(x.score), i) \
+                for i, x in enumerate(bed)]
+    selected, score = range_chain(ranges)
+    selected = [bed[x.id] for x in selected]
+
+    newbed = Bed()
+    newbed.extend(selected)
+    newbed.sort(key=newbed.nullkey)
+    newbed.print_to_file(uniqbedfile)
+    logging.debug("Imported: {0}, Exported: {1}".format(len(bed), len(newbed)))
+
+    return uniqbedfile
 
 
 def subtractbins(binfile1, binfile2):
@@ -426,7 +460,7 @@ def fastaFromBed(bedfile, fastafile, name=False, stranded=False):
     if stranded:
         cmd += " -s"
 
-    if need_update([bedfile, fasta], outfile):
+    if need_update([bedfile, fastafile], outfile):
         sh(cmd, outfile=outfile)
 
     return outfile
@@ -577,8 +611,6 @@ def refine(args):
     intervals in bedfile1, but refined by bedfile2 whenever they have
     intersection.
     """
-    from jcvi.utils.range import range_intersect
-
     p = OptionParser(refine.__doc__)
     opts, args = p.parse_args(args)
 
@@ -618,7 +650,6 @@ def distance(args):
     """
     from jcvi.utils.cbook import percentage
     from jcvi.utils.iter import pairwise
-    from jcvi.utils.range import range_distance
 
     p = OptionParser(distance.__doc__)
     p.add_option("--distmode", default="ss", choices=("ss", "ee"),
@@ -801,7 +832,7 @@ def summary(args):
 
     Sum the total lengths of the intervals.
     """
-    import numpy as np
+    from jcvi.utils.cbook import SummaryStats
 
     p = OptionParser(summary.__doc__)
     opts, args = p.parse_args(args)
@@ -811,9 +842,7 @@ def summary(args):
 
     bedfile, = args
     bed = Bed(bedfile)
-    spans = np.array([x.span for x in bed])
-    avg = int(np.average(spans))
-    std = int(np.std(spans))
+    stats = SummaryStats([x.span for x in bed])
     print >> sys.stderr, "Total seqids: {0}".format(len(bed.seqids))
     print >> sys.stderr, "Total ranges: {0}".format(len(bed))
 
@@ -825,7 +854,7 @@ def summary(args):
     print >> sys.stderr, "Estimated coverage: {0:.1f}x".\
                         format(total_bases * 1. / unique_bases)
 
-    print >> sys.stderr, "Average spans: {0}, stdev: {1}".format(avg, std)
+    print >> sys.stderr, stats
 
 
 def sort(args):

@@ -13,7 +13,7 @@ import logging
 from itertools import groupby
 from optparse import OptionParser
 
-from jcvi.formats.bed import Bed, mergeBed
+from jcvi.formats.bed import Bed, mergeBed, fastaFromBed
 from jcvi.formats.fasta import Fasta
 from jcvi.formats.sizes import Sizes
 from jcvi.utils.range import range_parse
@@ -217,43 +217,45 @@ def merge_ranges(beds):
 
 def patcher(args):
     """
-    %prog patcher om_alignment.bed seq.fasta
+    %prog patcher backbone.bed other.bed other.fasta
 
     Given optical map alignment, prepare the patchers. Use --backbone to suggest
     which assembly is the major one, and the patchers will be extracted from
     another assembly.
     """
+    from jcvi.formats.bed import uniq
+
     p = OptionParser(patcher.__doc__)
-    p.add_option("--backbone", default="Scaffold",
+    p.add_option("--backbone", default="OM",
                  help="Prefix of the backbone assembly [default: %default]")
     p.add_option("--flank", default=50000, type="int",
                  help="Extend flanks for patchers [default: %default]")
     opts, args = p.parse_args(args)
 
-    if len(args) != 2:
+    if len(args) != 3:
         sys.exit(not p.print_help())
 
-    bedfile, fastafile = args
-    bb = opts.backbone
-    pf = bedfile.split(".")[0]
+    backbonebed, otherbed, fastafile = args
+    backbonebed = uniq([backbonebed])
+    otherbed = uniq([otherbed])
 
-    # Make a uniq bed keeping backbone at redundant intervals
-    bed = Bed(bedfile)
-    uniqbed = Bed()
+    bb = opts.backbone
+    pf = backbonebed.split(".")[0]
     key = lambda x: (x.seqid, x.start, x.end)
     is_bb = lambda x: x.startswith(bb)
-    for k, sb in groupby(bed, key=key):
-        sb = list(sb)
-        backbone = [x for x in sb if is_bb(x.accn)]
-        others = [x for x in sb if not is_bb(x.accn)]
-        if backbone and others:
-            uniqbed.extend(backbone)
-        else:
-            uniqbed.extend(sb)
 
-    if not bedfile.endswith(".uniq.bed"):
-        uniqbedfile = bedfile.rsplit(".", 1)[0] + ".uniq.bed"
-        uniqbed.print_to_file(uniqbedfile)
+    # Make a uniq bed keeping backbone at redundant intervals
+    cmd = "intersectBed -v"
+    cmd += " -a {0} -b {1}".format(otherbed, backbonebed)
+    outfile = otherbed.rsplit(".", 1)[0] + ".not." + backbonebed
+    sh(cmd, outfile=outfile)
+
+    uniqbed = Bed()
+    uniqbedfile = pf + ".merged.bed"
+    uniqbed.extend(Bed(backbonebed))
+    uniqbed.extend(Bed(outfile))
+    uniqbed.sort(key=uniqbed.nullkey)
+    uniqbed.print_to_file(uniqbedfile)
 
     # Condense adjacent intervals, allow some chaining
     bed = uniqbed
@@ -264,6 +266,7 @@ def patcher(args):
     bed_fn = pf + ".patchers.bed"
     bed_fw = open(bed_fn, "w")
 
+    Flank = 0
     for k, sb in groupby(bed, key=key):
         sb = list(sb)
         chr, start, end, strand = merge_ranges(sb)
@@ -278,7 +281,7 @@ def patcher(args):
 
     bed_fw.close()
 
-    fastaFromBed(bed_fn, fastafile)
+    #fastaFromBed(bed_fn, fastafile)
 
 
 if __name__ == '__main__':

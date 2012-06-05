@@ -217,7 +217,7 @@ def merge_ranges(beds):
 
 def patcher(args):
     """
-    %prog patcher backbone.bed other.bed other.fasta
+    %prog patcher backbone.bed other.bed
 
     Given optical map alignment, prepare the patchers. Use --backbone to suggest
     which assembly is the major one, and the patchers will be extracted from
@@ -228,14 +228,12 @@ def patcher(args):
     p = OptionParser(patcher.__doc__)
     p.add_option("--backbone", default="OM",
                  help="Prefix of the backbone assembly [default: %default]")
-    p.add_option("--flank", default=50000, type="int",
-                 help="Extend flanks for patchers [default: %default]")
     opts, args = p.parse_args(args)
 
-    if len(args) != 3:
+    if len(args) != 2:
         sys.exit(not p.print_help())
 
-    backbonebed, otherbed, fastafile = args
+    backbonebed, otherbed = args
     backbonebed = uniq([backbonebed])
     otherbed = uniq([otherbed])
 
@@ -245,7 +243,7 @@ def patcher(args):
     is_bb = lambda x: x.startswith(bb)
 
     # Make a uniq bed keeping backbone at redundant intervals
-    cmd = "intersectBed -v"
+    cmd = "intersectBed -v -wa"
     cmd += " -a {0} -b {1}".format(otherbed, backbonebed)
     outfile = otherbed.rsplit(".", 1)[0] + ".not." + backbonebed
     sh(cmd, outfile=outfile)
@@ -254,34 +252,24 @@ def patcher(args):
     uniqbedfile = pf + ".merged.bed"
     uniqbed.extend(Bed(backbonebed))
     uniqbed.extend(Bed(outfile))
-    uniqbed.sort(key=uniqbed.nullkey)
-    uniqbed.print_to_file(uniqbedfile)
+    uniqbed.print_to_file(uniqbedfile, sorted=True)
 
     # Condense adjacent intervals, allow some chaining
     bed = uniqbed
     key = lambda x: range_parse(x.accn).seqid
-    Flank = opts.flank
-    sizes = Sizes(fastafile).mapping
 
     bed_fn = pf + ".patchers.bed"
     bed_fw = open(bed_fn, "w")
 
-    Flank = 0
     for k, sb in groupby(bed, key=key):
         sb = list(sb)
         chr, start, end, strand = merge_ranges(sb)
-        size = sizes[chr]
-        start = max(start - Flank, 0)
-        end = min(end + Flank, size)
-        if is_bb(chr):
-            continue
 
         id = "{0}:{1}-{2}".format(chr, start, end)
-        print >> bed_fw, "\t".join(str(x) for x in (chr, start, end))
+        print >> bed_fw, "\t".join(str(x) for x in \
+                (chr, start, end, 1000, strand))
 
     bed_fw.close()
-
-    #fastaFromBed(bed_fn, fastafile)
 
 
 if __name__ == '__main__':

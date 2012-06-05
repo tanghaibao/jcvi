@@ -109,7 +109,10 @@ class Bed(LineFile):
 
         self.sort(key=self.key)
 
-    def print_to_file(self, filename):
+    def print_to_file(self, filename="stdout", sorted=False):
+        if sorted:
+            self.sort(key=self.key)
+
         fw = must_open(filename, "w")
         for bedline in self:
             print >> fw, bedline
@@ -264,8 +267,7 @@ def uniq(args):
 
     newbed = Bed()
     newbed.extend(selected)
-    newbed.sort(key=newbed.nullkey)
-    newbed.print_to_file(uniqbedfile)
+    newbed.print_to_file(uniqbedfile, sorted=True)
     logging.debug("Imported: {0}, Exported: {1}".format(len(bed), len(newbed)))
 
     return uniqbedfile

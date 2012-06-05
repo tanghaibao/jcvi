@@ -563,6 +563,7 @@ def main():
         ('stats', 'print out a report for length of gaps and components'),
         ('phase', 'given genbank file, get the phase for the HTG BAC record'),
         ('bed', 'print out the tiling paths in bed/gff3 format'),
+        ('frombed', 'generate AGP file based on bed file'),
         ('extendbed', 'extend the components to fill the component range and output bed/gff3 format file'),
         ('gaps', 'print out the distribution of gap sizes'),
         ('tpf', 'print out a list of accessions, aka Tiling Path File'),
@@ -580,6 +581,46 @@ def main():
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def frombed(args):
+    """
+    %prog frombed bedfile
+
+    Generate AGP file based on bed file. The bed file must have at least 6
+    columns. With the 4-th column indicating the new object.
+    """
+    p = OptionParser(frombed.__doc__)
+    p.add_option("--gapsize", default=100, type="int",
+                 help="Insert gaps of size [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    bedfile, = args
+    gapsize = opts.gapsize
+    agpfile = bedfile.replace(".bed", ".agp")
+    fw = open(agpfile, "w")
+
+    bed = [BedLine(x) for x in open(bedfile)]
+    for object, beds in groupby(bed, key=lambda x: x.accn):
+        beds = list(beds)
+        for i, b in enumerate(beds):
+            if i != 0:
+                print >> fw, "\t".join(str(x) for x in \
+                    (object, 0, 0, 0, "U", \
+                     gapsize, "contig", "no", "na"))
+
+            print >> fw, "\t".join(str(x) for x in \
+                    (object, 0, 0, 0, "W", \
+                     b.seqid, b.start, b.end, b.strand))
+
+    fw.close()
+
+    # Reindex
+    idxagpfile = reindex([agpfile])
+    shutil.move(idxagpfile, agpfile)
 
 
 def swap(args):
@@ -908,8 +949,7 @@ def liftover(args):
         bline = "\t".join(str(x) for x in (a.object, s - 1, t, name))
         newbed.append(BedLine(bline))
 
-    newbed.sort(key=newbed.nullkey)
-    newbed.print_to_file()
+    newbed.print_to_file(sorted=True)
 
 
 def reindex(args):

@@ -13,7 +13,7 @@ import logging
 from itertools import groupby
 from optparse import OptionParser
 
-from jcvi.formats.bed import Bed, mergeBed, fastaFromBed
+from jcvi.formats.bed import Bed, BedLine, complementBed, mergeBed, fastaFromBed
 from jcvi.formats.fasta import Fasta
 from jcvi.formats.sizes import Sizes
 from jcvi.utils.range import range_parse
@@ -26,8 +26,8 @@ def main():
 
     actions = (
         ('refine', 'find gaps within or near breakpoint regions'),
-        ('fill', 'perform gap filling using one assembly vs the other'),
         ('patcher', 'given om alignment, prepare the patchers'),
+        ('fill', 'perform gap filling using one assembly vs the other'),
         ('install', 'install patches into backbone'),
             )
     p = ActionDispatcher(actions)
@@ -51,7 +51,7 @@ def fill(args):
     gapsbed, badfasta = args
     Ext = opts.extend
 
-    gapsbed = mergeBed(gapsbed, d=Ext, nms=True)
+    gapsbed = mergeBed(gapsbed, d=2 * Ext, nms=True)
 
     bed = Bed(gapsbed)
     sizes = Sizes(badfasta).mapping
@@ -77,14 +77,18 @@ def install(args):
 
     Install patches into backbone, using sequences from alternative assembly.
     The patches sequences are generated via jcvi.assembly.patch.fill().
+
+    The output is a bedfile that can be converted to AGP using
+    jcvi.formats.agp.frombed().
     """
     from jcvi.apps.base import blast
     from jcvi.formats.blast import BlastSlow
+    from jcvi.formats.fasta import SeqIO
 
     p = OptionParser(install.__doc__)
     p.add_option("--rclip", default=1, type="int",
             help="Pair ID is derived from rstrip N chars [default: %default]")
-    p.add_option("--maxsize", default=250000, type="int",
+    p.add_option("--maxsize", default=1000000, type="int",
             help="Maximum size of patchers to be replaced [default: %default]")
     opts, args = p.parse_args(args)
 
@@ -97,6 +101,10 @@ def install(args):
 
     blastfile = blast([altfasta, pfasta,"--wordsize=100", "--pctid=99"])
     order = Bed(pbed).order
+
+    beforebed, afterbed = "before.bed", "after.bed"
+    fwa = open(beforebed, "w")
+    fwb = open(afterbed, "w")
 
     key1 = lambda x: x.query
     key2 = lambda x: x.query[:-rclip] if rclip else key1
@@ -137,9 +145,69 @@ def install(args):
             continue
 
         name = aquery[:-1] + "LR"
-        print "\t".join(str(x) for x in \
-                (name, qstart, qstop,
-                 asubject, sstart, sstop, astrand))
+        print >> fwa, "\t".join(str(x) for x in \
+                    (ax.seqid, qstart - 1, qstop, name, 1000, "+"))
+        print >> fwb, "\t".join(str(x) for x in \
+                    (asubject, sstart - 1, sstop, name, 1000, astrand))
+
+    fwa.close()
+    fwb.close()
+
+    beforefasta = fastaFromBed(beforebed, bbfasta, name=True, stranded=True)
+    afterfasta = fastaFromBed(afterbed, altfasta, name=True, stranded=True)
+
+    # Exclude the replacements that contain more Ns than before
+    ah = SeqIO.parse(beforefasta, "fasta")
+    bh = SeqIO.parse(afterfasta, "fasta")
+    count_Ns = lambda x: x.seq.count('n') + x.seq.count('N')
+    exclude = set()
+    for arec, brec in zip(ah, bh):
+        an = count_Ns(arec)
+        bn = count_Ns(brec)
+        if bn < an:
+            continue
+
+        id = arec.id
+        exclude.add(id)
+
+    logging.debug("Ignore {0} updates because of decreasing quality."\
+                    .format(len(exclude)))
+
+    abed = [BedLine(x) for x in open(beforebed)]
+    bbed = [BedLine(x) for x in open(afterbed)]
+    abed = [x for x in abed if x.accn not in exclude]
+    bbed = [x for x in bbed if x.accn not in exclude]
+
+    abedfile = "before.filtered.bed"
+    bbedfile = "after.filtered.bed"
+    afbed = Bed()
+    afbed.extend(abed)
+    bfbed = Bed()
+    bfbed.extend(bbed)
+
+    afbed.print_to_file(abedfile)
+    bfbed.print_to_file(bbedfile)
+
+    # Shuffle the two bedfiles together
+    sizesfile = Sizes(bbfasta).filename
+    shuffled = "shuffled.bed"
+
+    abedfile = complementBed(abedfile, sizesfile)
+    afbed = Bed(abedfile)
+    all = []
+    j = 0  # index in bfbed
+
+    for chr, beds in groupby(afbed, key=lambda x: x.seqid):
+        beds = list(beds)
+        all.append(beds[0])
+        for b in beds[1:]:
+            all.append(bfbed[j])
+            j += 1
+            all.append(b)
+
+    shuffledbed = Bed()
+    shuffledbed.extend(all)
+    shuffledbed.print_to_file(shuffled)
 
 
 def refine(args):

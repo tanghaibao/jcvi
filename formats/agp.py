@@ -612,9 +612,10 @@ def frombed(args):
                     (object, 0, 0, 0, "U", \
                      gapsize, "contig", "no", "na"))
 
+            bstrand = '-' if b.strand == '-' else '+'
             print >> fw, "\t".join(str(x) for x in \
                     (object, 0, 0, 0, "W", \
-                     b.seqid, b.start, b.end, b.strand))
+                     b.seqid, b.start, b.end, bstrand))
 
     fw.close()
 

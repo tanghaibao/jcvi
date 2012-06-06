@@ -440,6 +440,8 @@ def blast(args):
                   wordsize=opts.wordsize, pctid=opts.pctid,
                   hitlen=None, best=opts.best, task=opts.task)
 
+    return blastfile
+
 
 if __name__ == '__main__':
     main()

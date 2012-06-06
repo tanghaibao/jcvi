@@ -73,26 +73,34 @@ def fill(args):
 
 def install(args):
     """
-    %prog install patch.blast.bed backbone.fasta alt.fasta
+    %prog install patchers.bed patchers.fasta backbone.fasta alt.fasta
 
     Install patches into backbone, using sequences from alternative assembly.
+    The patches sequences are generated via jcvi.assembly.patch.fill().
     """
+    from jcvi.apps.base import blast
+    from jcvi.formats.blast import BlastSlow
+
     p = OptionParser(install.__doc__)
     p.add_option("--rclip", default=1, type="int",
-            help="pair ID is derived from rstrip N chars [default: %default]")
+            help="Pair ID is derived from rstrip N chars [default: %default]")
+    p.add_option("--maxsize", default=250000, type="int",
+            help="Maximum size of patchers to be replaced [default: %default]")
     opts, args = p.parse_args(args)
 
-    if len(args) != 3:
+    if len(args) != 4:
         sys.exit(not p.print_help())
 
-    bedfile, bbfasta, altfasta = args
+    pbed, pfasta, bbfasta, altfasta = args
+    Max = opts.maxsize  # Max DNA size to replace gap
     rclip = opts.rclip
-    data = Bed(bedfile)
 
-    key1 = lambda x: x.accn
-    key2 = lambda x: x.accn[:-rclip] if rclip else key1
-    data.sort(key=key1)
-    Max = 200000  # Max DNA size to replace gap
+    blastfile = blast([altfasta, pfasta,"--wordsize=100", "--pctid=99"])
+    order = Bed(pbed).order
+
+    key1 = lambda x: x.query
+    key2 = lambda x: x.query[:-rclip] if rclip else key1
+    data = BlastSlow(blastfile)
 
     for pe, lines in groupby(data, key=key2):
         lines = list(lines)
@@ -101,43 +109,37 @@ def install(args):
 
         a, b = lines
 
-        asubject, astart, astop = a.seqid, a.start, a.end
-        bsubject, bstart, bstop = b.seqid, b.start, b.end
-
+        aquery, bquery = a.query, b.query
+        asubject, bsubject = a.subject, b.subject
         if asubject != bsubject:
             continue
 
-        aquery, bquery = a.accn, b.accn
-        astrand, bstrand = a.strand, b.strand
+        astrand, bstrand = a.orientation, b.orientation
         assert aquery[-1] == 'L' and bquery[-1] == 'R', str((aquery, bquery))
 
-        """
-        Case 1: L matches +, R matches +, L_stop < R_start
-        LLLLL.......RRRRR
-        >>>>>>>>>>>>>>>>>
+        ai, ax = order[aquery]
+        bi, bx = order[bquery]
+        qstart, qstop = ax.start + a.qstart - 1, bx.start + b.qstop - 1
 
-        Case 2: L matches -, R matches -, L_stop < R_start
-        LLLLL.......RRRRR
-        <<<<<<<<<<<<<<<<<
-        """
         if astrand == '+' and bstrand == '+':
-            start, end = astop + 1, bstart - 1
+            sstart, sstop = a.sstart, b.sstop
 
         elif astrand == '-' and bstrand == '-':
-            start, end = bstop + 1, astart - 1
+            sstart, sstop = b.sstart, a.sstop
 
         else:
             continue
 
-        if start > end:
+        if sstart > sstop:
             continue
 
-        if end > start + Max:
+        if sstop > sstart + Max:
             continue
 
         name = aquery[:-1] + "LR"
-        print "\t".join(str(x) for x in (asubject, start - 1, end, name, astrand))
-
+        print "\t".join(str(x) for x in \
+                (name, qstart, qstop,
+                 asubject, sstart, sstop, astrand))
 
 
 def refine(args):

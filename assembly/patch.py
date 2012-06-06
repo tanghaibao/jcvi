@@ -29,9 +29,63 @@ def main():
         ('patcher', 'given om alignment, prepare the patchers'),
         ('fill', 'perform gap filling using one assembly vs the other'),
         ('install', 'install patches into backbone'),
+        ('tips', 'append telomeric sequences based on patchers and complements'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def tips(args):
+    """
+    %prog tips patchers.bed complements.bed original.fasta backbone.fasta
+
+    Append telomeric sequences based on patchers and complements.
+    """
+    p = OptionParser(tips.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 4:
+        sys.exit(not p.print_help())
+
+    pbedfile, cbedfile, sizesfile, bbfasta = args
+
+    pbed = Bed(pbedfile, sorted=False)
+    cbed = Bed(cbedfile, sorted=False)
+
+    complements = dict()
+    for object, beds in groupby(cbed, key=lambda x: x.seqid):
+        beds = list(beds)
+        complements[object] = beds
+
+    sizes = Sizes(sizesfile).mapping
+    bbsizes = Sizes(bbfasta).mapping
+    tbeds = []
+
+    for object, beds in groupby(pbed, key=lambda x: x.accn):
+        beds = list(beds)
+        startbed, endbed = beds[0], beds[-1]
+        start_id, end_id = startbed.seqid, endbed.seqid
+        if startbed.start == 1:
+            start_id = None
+        if endbed.end == sizes[end_id]:
+            end_id = None
+        print >> sys.stderr, object, start_id, end_id
+        if start_id:
+            b = complements[start_id][0]
+            b.accn = object
+            tbeds.append(b)
+        tbeds.append(BedLine("\t".join(str(x) for x in \
+                        (object, 0, bbsizes[object], object, 1000, "+"))))
+        if end_id:
+            b = complements[end_id][-1]
+            b.accn = object
+            tbeds.append(b)
+
+    tbed = Bed()
+    tbed.extend(tbeds)
+
+    tbedfile = "tips.bed"
+    tbed.print_to_file(tbedfile)
 
 
 def fill(args):
@@ -181,8 +235,8 @@ def install(args):
     logging.debug("Ignore {0} updates because of decreasing quality."\
                     .format(len(exclude)))
 
-    abed = [BedLine(x) for x in open(beforebed)]
-    bbed = [BedLine(x) for x in open(afterbed)]
+    abed = Bed(beforebed, sorted=False)
+    bbed = Bed(afterbed, sorted=False)
     abed = [x for x in abed if x.accn not in exclude]
     bbed = [x for x in bbed if x.accn not in exclude]
 
@@ -317,6 +371,8 @@ def patcher(args):
     p = OptionParser(patcher.__doc__)
     p.add_option("--backbone", default="OM",
                  help="Prefix of the backbone assembly [default: %default]")
+    p.add_option("--object", default="object",
+                 help="New object name [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -356,7 +412,7 @@ def patcher(args):
 
         id = "{0}:{1}-{2}".format(chr, start, end)
         print >> bed_fw, "\t".join(str(x) for x in \
-                (chr, start, end, 1000, strand))
+                (chr, start, end, opts.object, 1000, strand))
 
     bed_fw.close()
 

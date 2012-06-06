@@ -603,7 +603,7 @@ def frombed(args):
     agpfile = bedfile.replace(".bed", ".agp")
     fw = open(agpfile, "w")
 
-    bed = [BedLine(x) for x in open(bedfile)]
+    bed = Bed(bedfile, sorted=False)
     for object, beds in groupby(bed, key=lambda x: x.accn):
         beds = list(beds)
         for i, b in enumerate(beds):

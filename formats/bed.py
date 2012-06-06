@@ -91,7 +91,7 @@ class BedLine(object):
 
 class Bed(LineFile):
 
-    def __init__(self, filename=None, key=None):
+    def __init__(self, filename=None, key=None, sorted=True):
         super(Bed, self).__init__(filename)
 
         # the sorting key provides some flexibility in ordering the features
@@ -107,7 +107,8 @@ class Bed(LineFile):
                 continue
             self.append(BedLine(line))
 
-        self.sort(key=self.key)
+        if sorted:
+            self.sort(key=self.key)
 
     def print_to_file(self, filename="stdout", sorted=False):
         if sorted:

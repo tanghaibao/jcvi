@@ -90,6 +90,9 @@ def install(args):
             help="Pair ID is derived from rstrip N chars [default: %default]")
     p.add_option("--maxsize", default=1000000, type="int",
             help="Maximum size of patchers to be replaced [default: %default]")
+    p.add_option("--prefix", help="Prefix of the new object [default: %default]")
+    p.add_option("--strict", default=False, action="store_true",
+            help="Only update if replacement has no gaps [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 4:
@@ -98,6 +101,7 @@ def install(args):
     pbed, pfasta, bbfasta, altfasta = args
     Max = opts.maxsize  # Max DNA size to replace gap
     rclip = opts.rclip
+    prefix = opts.prefix
 
     blastfile = blast([altfasta, pfasta,"--wordsize=100", "--pctid=99"])
     order = Bed(pbed).order
@@ -164,7 +168,11 @@ def install(args):
     for arec, brec in zip(ah, bh):
         an = count_Ns(arec)
         bn = count_Ns(brec)
-        if bn < an:
+        if opts.strict:
+            if bn == 0:
+                continue
+
+        elif bn < an:
             continue
 
         id = arec.id
@@ -196,12 +204,23 @@ def install(args):
     afbed = Bed(abedfile)
     all = []
     j = 0  # index in bfbed
+    cj = 0  # index of new molecule
 
     for chr, beds in groupby(afbed, key=lambda x: x.seqid):
         beds = list(beds)
-        all.append(beds[0])
+        cj += 1
+        if prefix:
+            accn = prefix + str(cj)
+
+        b = beds[0]
+        if prefix:
+            b.accn = accn
+        all.append(b)
         for b in beds[1:]:
-            all.append(bfbed[j])
+            nb = bfbed[j]
+            if prefix:
+                b.accn = nb.accn = accn
+            all.append(nb)
             j += 1
             all.append(b)
 

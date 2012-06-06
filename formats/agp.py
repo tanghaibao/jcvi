@@ -607,7 +607,7 @@ def frombed(args):
     for object, beds in groupby(bed, key=lambda x: x.accn):
         beds = list(beds)
         for i, b in enumerate(beds):
-            if i != 0:
+            if gapsize and i != 0:
                 print >> fw, "\t".join(str(x) for x in \
                     (object, 0, 0, 0, "U", \
                      gapsize, "contig", "no", "na"))

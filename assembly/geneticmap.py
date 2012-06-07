@@ -11,9 +11,34 @@ import logging
 
 from optparse import OptionParser
 
-from jcvi.formats.base import LineFile
+from jcvi.formats.base import BaseFile, LineFile, must_open, read_block
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
+
+
+class BinMap (BaseFile, dict):
+
+    def __init__(self, filename):
+        super(BinMap, self).__init__(filename)
+
+        fp = open(filename)
+        for header, seq in read_block(fp, "group "):
+            lg = header.split()[-1]
+            self[lg] = []
+            for s in seq:
+                if s.strip() == '' or s[0] == ';':
+                    continue
+                marker, pos = s.split()
+                pos = int(float(pos) * 1000)
+                self[lg].append((marker, pos))
+
+    def print_to_bed(self, filename="stdout"):
+        fw = must_open(filename, "w")
+        for lg, markers in sorted(self.items()):
+            for marker, pos in markers:
+                print >> fw, "\t".join(str(x) for x in \
+                        (lg, pos, pos + 1, marker))
+        fw.close()
 
 
 class MSTMapLine (object):
@@ -64,10 +89,53 @@ def main():
 
     actions = (
         ('breakpoint', 'find scaffold breakpoints using genetic map'),
+        ('fasta', 'extract markers based on map'),
         ('placeone', 'attempt to place one scaffold'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def fasta(args):
+    """
+    %prog fasta map.out scaffolds.fasta markers.fasta
+
+    Extract marker sequences based on map.
+    """
+    from jcvi.formats.bed import Bed, fastaFromBed
+    from jcvi.formats.sizes import Sizes
+
+    p = OptionParser(fasta.__doc__)
+    p.add_option("--extend", default=1000, type="int",
+                 help="Extend seq flanking the gaps [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    mapout, sfasta = args
+    Flank = opts.extend
+    pf = mapout.split(".")[0]
+    mapbed = pf + ".bed"
+    bm = BinMap(mapout)
+    bm.print_to_bed(mapbed)
+
+    bed = Bed(mapbed, sorted=False)
+    markersbed = pf + ".markers.bed"
+    fw = open(markersbed, "w")
+    sizes = Sizes(sfasta).mapping
+    for b in bed:
+        accn = b.accn
+        scf, pos = accn.split(".")
+        pos = int(pos)
+        start = max(0, pos - Flank)
+        end = min(pos + Flank, sizes[scf])
+        print >> fw, "\t".join(str(x) for x in \
+                    (scf, start, end, accn))
+
+    fw.close()
+
+    fastaFromBed(markersbed, sfasta, name=True)
 
 
 def place(genotype, map, exclude):

@@ -641,8 +641,10 @@ def summary(args):
     from jcvi.utils.table import write_csv
 
     p = OptionParser(summary.__doc__)
-    p.add_option("--suffix", dest="suffix", default="Mb",
+    p.add_option("--suffix", default="Mb",
             help="make the base pair counts human readable [default: %default]")
+    p.add_option("--ids",
+            help="write the ids that have >= 50% N's [default: %default]")
     set_outfile(p)
 
     opts, args = p.parse_args(args)
@@ -650,7 +652,11 @@ def summary(args):
     if len(args) == 0:
         sys.exit(not p.print_help())
 
+    idsfile = opts.ids
     header = "Seqid Real N's Total %_real".split()
+    if idsfile:
+        idsfile = open(idsfile, "w")
+        nids = 0
 
     data = []
     for fastafile in args:
@@ -658,7 +664,12 @@ def summary(args):
             seqlen = len(rec)
             nns = rec.seq.count('n') + rec.seq.count('N')
             reals = seqlen - nns
-            pctreal = "{0:.1f} %".format(reals * 100. / seqlen)
+            pct = reals * 100. / seqlen
+            pctreal = "{0:.1f} %".format(pct)
+            if idsfile and pct < 50:
+                nids += 1
+                print >> idsfile, rec.id
+
             data.append((rec.id, reals, nns, seqlen, pctreal))
 
     ids, reals, nns, seqlen, pctreal = zip(*data)
@@ -669,6 +680,11 @@ def summary(args):
     data.append(("Total", reals, nns, seqlen, pctreal))
 
     write_csv(header, data, sep=" ", filename=opts.outfile)
+    if idsfile:
+        logging.debug("A total of {0} ids >= 50% N's written to {1}.".\
+                      format(nids, idsfile.name))
+        idsfile.close()
+
     return reals, nns, seqlen
 
 

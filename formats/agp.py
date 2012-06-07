@@ -800,7 +800,7 @@ def mask(args):
     """
     %prog mask agpfile bedfile
 
-    Mask given ranges in componets to gaps.
+    Mask given ranges in components to gaps.
     """
     p = OptionParser(mask.__doc__)
     p.add_option("--split", default=False, action="store_true",

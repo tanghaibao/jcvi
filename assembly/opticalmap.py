@@ -149,11 +149,40 @@ def main():
 
     actions = (
         ('bed', 'convert xml format into bed format'),
+        ('condense', 'condense split alignments in om bed'),
         ('fasta', 'use the OM bed to scaffold and create pseudomolecules'),
         ('chimera', 'scan the bed file to break scaffolds that multi-maps'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def condense(args):
+    """
+    %prog condense OM.bed
+
+    Merge split alignments in OM bed.
+    """
+    from itertools import groupby
+    from jcvi.assembly.patch import merge_ranges
+
+    p = OptionParser(condense.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    bedfile, = args
+    bed = Bed(bedfile, sorted=False)
+    key = lambda x: (x.seqid, x.start, x.end)
+    for k, sb in groupby(bed, key=key):
+        sb = list(sb)
+        b = sb[0]
+        chr, start, end, strand = merge_ranges(sb)
+
+        id = "{0}:{1}-{2}".format(chr, start, end)
+        b.accn = id
+        print b
 
 
 def chimera(args):
@@ -278,6 +307,8 @@ def bed(args):
     p = OptionParser(bed.__doc__)
     p.add_option("--blockonly", default=False, action="store_true",
                  help="Only print out large blocks, not fragments [default: %default]")
+    p.add_option("--nosort", default=False, action="store_true",
+                 help="Do not sort bed [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -291,7 +322,8 @@ def bed(args):
     om.write_bed(fw, blockonly=opts.blockonly)
     fw.close()
 
-    sort([bedfile, "--inplace"])
+    if not opts.nosort:
+        sort([bedfile, "--inplace"])
 
 
 if __name__ == '__main__':

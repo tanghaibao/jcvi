@@ -16,7 +16,7 @@ from optparse import OptionParser
 from jcvi.formats.bed import Bed, BedLine, complementBed, mergeBed, fastaFromBed
 from jcvi.formats.fasta import Fasta
 from jcvi.formats.sizes import Sizes
-from jcvi.utils.range import range_parse
+from jcvi.utils.range import range_parse, range_distance
 from jcvi.formats.base import must_open, FileMerger
 from jcvi.apps.base import ActionDispatcher, debug, sh, mkdir
 debug()
@@ -30,9 +30,48 @@ def main():
         ('fill', 'perform gap filling using one assembly vs the other'),
         ('install', 'install patches into backbone'),
         ('tips', 'append telomeric sequences based on patchers and complements'),
+        ('gaps', 'create patches around OM gaps'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def gaps(args):
+    """
+    %prog gaps OM.bed fastafile
+
+    Create patches around OM gaps.
+    """
+    from jcvi.formats.bed import uniq
+    from jcvi.utils.iter import pairwise
+
+    p = OptionParser(gaps.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    ombed, fastafile = args
+    ombed = uniq([ombed])
+    bed = Bed(ombed)
+
+    for a, b in pairwise(bed):
+        om_a = (a.seqid, a.start, a.end, "+")
+        om_b = (b.seqid, b.start, b.end, "+")
+        ch_a = range_parse(a.accn)
+        ch_b = range_parse(b.accn)
+        ch_a = (ch_a.seqid, ch_a.start, ch_a.end, "+")
+        ch_b = (ch_b.seqid, ch_b.start, ch_b.end, "+")
+
+        om_dist, x = range_distance(om_a, om_b, distmode="ee")
+        ch_dist, x = range_distance(ch_a, ch_b, distmode="ee")
+
+        if om_dist <= 0 and ch_dist <= 0:
+            continue
+
+        print a
+        print b
+        print om_dist, ch_dist
 
 
 def tips(args):

@@ -103,12 +103,9 @@ def bambus(args):
         unplaced[b.seqid].append((a, b))
         beds.extend([a, b])
 
-    pairsbed = Bed()
-    pairsbedfile = pf + ".pairs.bed"
-    pairsbed.extend(beds)
-    pairsbed.print_to_file(pairsbedfile)
-
     sizes = Sizes(fastafile)
+    candidatebed = Bed()
+    cbeds = []
     # For each unplaced scaffold, find most likely placement and orientation
     for scf, beds in sorted(unplaced.items()):
         if len(beds) < 2:
@@ -190,11 +187,19 @@ def bambus(args):
 
         fbstrand = '+' if nplus >= nminus else '-'
 
-        candidates = [(seqid, mmin, mmax, depth, fbstrand)]
+        candidate = (seqid, mmin, mmax, scf, depth, fbstrand)
+        bedline = BedLine("\t".join((str(x) for x in candidate)))
+        cbeds.append(bedline)
         print >> log, "Plus: {0}, Minus: {1}".format(nplus, nminus)
-        print >> log, candidates
+        print >> log, candidate
 
+    candidatebed.extend(cbeds)
+    logging.debug("A total of {0} scaffolds can be placed.".\
+                    format(len(candidatebed)))
     log.close()
+
+    candidatebedfile = pf + ".candidate.bed"
+    candidatebed.print_to_file(candidatebedfile)
 
 
 def gaps(args):

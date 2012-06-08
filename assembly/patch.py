@@ -4,6 +4,15 @@
 """
 Patch the sequences of one assembly using sequences from another assembly. This
 is tested on merging the medicago WGS assembly with the clone-by-clone assembly.
+
+There are a few techniques, used in curating medicago assembly.
+
+1. Split chimeric scaffolds based on genetic map and then refine breakpoints
+2. Create patchers by mix-and-max guided by optical map
+3. Find gaps and fill N's using alternative assembly
+4. Add telomeric sequences
+5. Find gaps in optical map
+6. Insert unplaced scaffolds using mates
 """
 
 import os.path as op
@@ -31,9 +40,52 @@ def main():
         ('install', 'install patches into backbone'),
         ('tips', 'append telomeric sequences based on patchers and complements'),
         ('gaps', 'create patches around OM gaps'),
+        ('bambus', 'insert unplaced scaffolds based on mates'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def bambus(args):
+    """
+    %prog bambus bambus.bed bambus.mates total.fasta
+
+    Insert unplaced scaffolds based on mates.
+    """
+    from jcvi.utils.iter import pairwise
+    from jcvi.formats.posmap import MatesFile
+
+    p = OptionParser(bambus.__doc__)
+    p.add_option("--prefix", default="unplaced",
+                 help="Prefix of the unplaced scaffolds [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    bedfile, matesfile, fastafile = args
+    mf = MatesFile(matesfile)
+    prefix = opts.prefix
+    is_unplaced = lambda x: x.startswith(prefix)
+    bed = Bed(bedfile, sorted=False)
+    for a, b in pairwise(bed):
+        aname, bname = a.accn, b.accn
+        aseqid, bseqid = a.seqid, b.seqid
+
+        pa, la = mf[aname]
+        if pa != bname:
+            continue
+
+        ia = is_unplaced(aseqid)
+        ib = is_unplaced(bseqid)
+        if ia == ib:
+            continue
+
+        if ia:
+            a, b = b, a
+
+        print a
+        print b
 
 
 def gaps(args):

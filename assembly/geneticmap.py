@@ -12,6 +12,7 @@ import logging
 from optparse import OptionParser
 
 from jcvi.formats.base import BaseFile, LineFile, must_open, read_block
+from jcvi.formats.bed import Bed, fastaFromBed
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
@@ -91,9 +92,41 @@ def main():
         ('breakpoint', 'find scaffold breakpoints using genetic map'),
         ('fasta', 'extract markers based on map'),
         ('placeone', 'attempt to place one scaffold'),
+        ('anchor', 'anchor scaffolds based on map'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def anchor(args):
+    """
+    %prog anchor map.bed markers.blast
+
+    Anchor scaffolds based on map.
+    """
+    from jcvi.formats.blast import bed
+
+    p = OptionParser(anchor.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    mapbed, blastfile = args
+    bedfile = bed([blastfile])
+    markersbed = Bed(bedfile)
+    markers = markersbed.order
+
+    mapbed = Bed(mapbed, sorted=False)
+    for b in mapbed:
+        m = b.accn
+        if m not in markers:
+            continue
+
+        i, mb = markers[m]
+        new_accn = "{0}:{1}-{2}".format(mb.seqid, mb.start, mb.end)
+        b.accn = new_accn
+        print b
 
 
 def fasta(args):
@@ -102,7 +135,6 @@ def fasta(args):
 
     Extract marker sequences based on map.
     """
-    from jcvi.formats.bed import Bed, fastaFromBed
     from jcvi.formats.sizes import Sizes
 
     p = OptionParser(fasta.__doc__)

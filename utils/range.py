@@ -366,6 +366,19 @@ def range_chain(ranges):
     return selected, score
 
 
+def ranges_depth(ranges, sizes, verbose=True):
+    """
+    Allow triple (seqid, start, end) rather than just tuple (start, end)
+    """
+    ranges.sort()
+    for seqid, rrs in groupby(ranges, key=lambda x: x[0]):
+        rrs = [(a, b) for (s, a, b) in rrs]
+        size = sizes[seqid]
+        ds, depthdetails = range_depth(rrs, size, verbose=verbose)
+        depthdetails = [(seqid, s, e, d) for s, e, d in depthdetails]
+        yield depthdetails
+
+
 def range_depth(ranges, size, verbose=True):
     """
     Overlay ranges on [start, end], and summarize the ploidy of the intervals.
@@ -380,12 +393,14 @@ def range_depth(ranges, size, verbose=True):
         endpoints.append((b, RIGHT))
     endpoints.sort()
     vstart, vend = min(endpoints)[0], max(endpoints)[0]
+
     assert 0 <= vstart < size
     assert 0 <= vend < size
 
     depth = 0
     depthstore = defaultdict(int)
     depthstore[depth] += vstart
+    depthdetails = [(0, vstart, depth)]
 
     for (a, atag), (b, btag) in pairwise(endpoints):
         if atag == LEFT:
@@ -393,12 +408,14 @@ def range_depth(ranges, size, verbose=True):
         elif atag == RIGHT:
             depth -= 1
         depthstore[depth] += b - a
+        depthdetails.append((a, b, depth))
 
     assert btag == RIGHT
     depth -= 1
 
     assert depth == 0
     depthstore[depth] += size - vend
+    depthdetails.append((vend, size, depth))
 
     assert sum(depthstore.values()) == size
     if verbose:
@@ -406,7 +423,7 @@ def range_depth(ranges, size, verbose=True):
             print >> sys.stderr, "Depth {0}: {1}".\
                     format(depth, percentage(count, size))
 
-    return depthstore
+    return depthstore, depthdetails
 
 
 if __name__ == '__main__':

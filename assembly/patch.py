@@ -21,11 +21,13 @@ import logging
 
 from itertools import groupby
 from optparse import OptionParser
+from collections import defaultdict
 
 from jcvi.formats.bed import Bed, BedLine, complementBed, mergeBed, fastaFromBed
 from jcvi.formats.fasta import Fasta
 from jcvi.formats.sizes import Sizes
-from jcvi.utils.range import range_parse, range_distance
+from jcvi.utils.range import range_parse, range_distance, ranges_depth, \
+            range_minmax, range_overlap
 from jcvi.formats.base import must_open, FileMerger
 from jcvi.apps.base import ActionDispatcher, debug, sh, mkdir
 debug()
@@ -58,16 +60,30 @@ def bambus(args):
     p = OptionParser(bambus.__doc__)
     p.add_option("--prefix", default="unplaced",
                  help="Prefix of the unplaced scaffolds [default: %default]")
+    p.add_option("--minlinks", default=3, type="int",
+                 help="Minimum number of links to place [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
         sys.exit(not p.print_help())
 
     bedfile, matesfile, fastafile = args
+    pf = matesfile.rsplit(".", 1)[0]
+    logfile = pf + ".log"
+    log = open(logfile, "w")
+
     mf = MatesFile(matesfile)
+    maxdist = max(x.max for x in mf.libraries.values())
+    logging.debug("Max separation: {0}".format(maxdist))
+
     prefix = opts.prefix
+    minlinks = opts.minlinks
+
     is_unplaced = lambda x: x.startswith(prefix)
     bed = Bed(bedfile, sorted=False)
+    beds = []
+    unplaced = defaultdict(list)
+
     for a, b in pairwise(bed):
         aname, bname = a.accn, b.accn
         aseqid, bseqid = a.seqid, b.seqid
@@ -84,8 +100,101 @@ def bambus(args):
         if ia:
             a, b = b, a
 
-        print a
-        print b
+        unplaced[b.seqid].append((a, b))
+        beds.extend([a, b])
+
+    pairsbed = Bed()
+    pairsbedfile = pf + ".pairs.bed"
+    pairsbed.extend(beds)
+    pairsbed.print_to_file(pairsbedfile)
+
+    sizes = Sizes(fastafile)
+    # For each unplaced scaffold, find most likely placement and orientation
+    for scf, beds in sorted(unplaced.items()):
+        if len(beds) < 2:
+            continue
+
+        print >> log
+        ranges = []
+        for a, b in beds:
+            aname, astrand = a.accn, a.strand
+            bname, bstrand = b.accn, b.strand
+            aseqid, bseqid = a.seqid, b.seqid
+            pa, lib = mf[aname]
+
+            print >> log, a
+            print >> log, b
+
+            flip_b = (astrand == bstrand)
+            fbstrand = '-' if flip_b else '+'
+            if flip_b:
+                b.reverse_complement(sizes)
+
+            lmin, lmax = lib.min, lib.max
+
+            assert astrand in ('+', '-')
+            if astrand == '+':
+                offset = a.start - b.end
+                sstart, sstop = offset + lmin, offset + lmax
+            else:
+                offset = a.end - b.start
+                sstart, sstop = offset - lmax, offset - lmin
+
+            # Prevent out of range error
+            size = sizes.get_size(aseqid)
+            sstart = max(0, sstart)
+            sstop = max(0, sstop)
+            sstart = min(size - 1, sstart)
+            sstop = min(size - 1, sstop)
+
+            start_range = (aseqid, sstart, sstop, fbstrand)
+            print >> log, start_range
+            ranges.append(start_range)
+
+        mranges = [x[:-1] for x in ranges]
+        # Determine placement by finding the interval with the most support
+        rd = ranges_depth(mranges, sizes.mapping, verbose=False)
+        alldepths = []
+        for depth in rd:
+            alldepths.extend(depth)
+        print >> log, alldepths
+
+        maxdepth = max(alldepths, key=lambda x: x[-1])[-1]
+        if maxdepth < minlinks:
+            print >> log, "Insufficient links ({0} < {1})".format(maxdepth, minlinks)
+            continue
+
+        candidates = [x for x in alldepths if x[-1] == maxdepth]
+        nseqids = len(set(x[0] for x in candidates))
+        msg = "Multiple conflicting candidates found"
+        if nseqids != 1:
+            print >> log, msg
+            continue
+
+        seqid, mmin, mmax, depth = candidates[0]
+        mmin, mmax = range_minmax([x[1:3] for x in candidates])
+        if (mmax - mmin) > maxdist:
+            print >> log, msg
+            continue
+
+        # Determine orientation by voting
+        nplus, nminus = 0, 0
+        arange = (seqid, mmin, mmax)
+        for sid, start, end, fbstrand in ranges:
+            brange = (sid, start, end)
+            if range_overlap(arange, brange):
+                if fbstrand == '+':
+                    nplus += 1
+                else:
+                    nminus += 1
+
+        fbstrand = '+' if nplus >= nminus else '-'
+
+        candidates = [(seqid, mmin, mmax, depth, fbstrand)]
+        print >> log, "Plus: {0}, Minus: {1}".format(nplus, nminus)
+        print >> log, candidates
+
+    log.close()
 
 
 def gaps(args):

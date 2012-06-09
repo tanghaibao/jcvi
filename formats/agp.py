@@ -881,7 +881,7 @@ def mask(args):
             if opts.log:
                 print >> fwlog, aline
 
-        assert component_span == sum_of_spans
+        #assert component_span == sum_of_spans
         if opts.log:
             print >> fwlog
 

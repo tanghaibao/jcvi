@@ -28,7 +28,7 @@ from jcvi.formats.fasta import Fasta
 from jcvi.formats.sizes import Sizes
 from jcvi.utils.range import range_parse, range_distance, ranges_depth, \
             range_minmax, range_overlap
-from jcvi.formats.base import must_open, FileMerger
+from jcvi.formats.base import must_open, FileMerger, FileShredder
 from jcvi.apps.base import ActionDispatcher, debug, sh, mkdir
 debug()
 
@@ -38,14 +38,98 @@ def main():
     actions = (
         ('refine', 'find gaps within or near breakpoint regions'),
         ('patcher', 'given om alignment, prepare the patchers'),
+
         ('fill', 'perform gap filling using one assembly vs the other'),
         ('install', 'install patches into backbone'),
+
         ('tips', 'append telomeric sequences based on patchers and complements'),
         ('gaps', 'create patches around OM gaps'),
-        ('bambus', 'insert unplaced scaffolds based on mates'),
+
+        ('bambus', 'find candidate scaffolds to insert based on mates'),
+        ('insert', 'insert scaffolds into assembly'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def insert(args):
+    """
+    %prog insert candidates.bed gaps.bed chrs.fasta unplaced.fasta
+
+    Insert scaffolds into assembly.
+    """
+    from jcvi.formats.agp import mask, bed
+    from jcvi.formats.sizes import agp
+
+    p = OptionParser(insert.__doc__)
+    p.add_option("--prefix", default="unplaced",
+                 help="Prefix of the unplaced scaffolds [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 4:
+        sys.exit(not p.print_help())
+
+    candidates, gapsbed, chrfasta, unplacedfasta = args
+    refinedbed = refine([candidates, gapsbed])
+    sizes = Sizes(unplacedfasta).mapping
+    cbed = Bed(candidates)
+    corder = cbed.order
+    gbed = Bed(gapsbed)
+    gorder = gbed.order
+
+    gpbed = Bed()
+    gappositions = {}  # (chr, start, end) => gapid
+
+    fp = open(refinedbed)
+    gap_to_scf = defaultdict(list)
+    seen = set()
+    for row in fp:
+        atoms = row.split()
+        unplaced = atoms[3]
+        strand = atoms[5]
+        gapid = atoms[9]
+        if gapid not in seen:
+            seen.add(gapid)
+            gi, gb = gorder[gapid]
+            gpbed.append(gb)
+            gappositions[(gb.seqid, gb.start, gb.end)] = gapid
+        gap_to_scf[gapid].append((unplaced, strand))
+
+    gpbedfile = "candidate.gaps.bed"
+    gpbed.print_to_file(gpbedfile, sorted=True)
+
+    agpfile = agp([chrfasta])
+    maskedagpfile = mask([agpfile, gpbedfile])
+    maskedbedfile = maskedagpfile.rsplit(".", 1)[0] + ".bed"
+    bed([maskedagpfile, "--outfile={0}".format(maskedbedfile)])
+
+    mbed = Bed(maskedbedfile)
+    beds = []
+    for b in mbed:
+        sid = b.seqid
+        key = (sid, b.start, b.end)
+        if key not in gappositions:
+            beds.append(b)
+            continue
+
+        gapid = gappositions[key]
+        scfs = gap_to_scf[gapid]
+
+        # For scaffolds placed in the same gap, sort according to positions
+        scfs.sort(key=lambda x: corder[x[0]][1].start + corder[x[0]][1].end)
+        for scf, strand in scfs:
+            size = sizes[scf]
+            beds.append(BedLine("\t".join(str(x) for x in \
+                    (scf, 0, size, sid, 1000, strand))))
+
+    finalbed = Bed()
+    finalbed.extend(beds)
+    finalbedfile = "final.bed"
+    finalbed.print_to_file(finalbedfile)
+
+    # Clean-up
+    toclean = [gpbedfile, agpfile, maskedagpfile, maskedbedfile]
+    FileShredder(toclean)
 
 
 def bambus(args):
@@ -108,9 +192,6 @@ def bambus(args):
     cbeds = []
     # For each unplaced scaffold, find most likely placement and orientation
     for scf, beds in sorted(unplaced.items()):
-        if len(beds) < 2:
-            continue
-
         print >> log
         ranges = []
         for a, b in beds:
@@ -145,11 +226,11 @@ def bambus(args):
             sstart = min(size - 1, sstart)
             sstop = min(size - 1, sstop)
 
-            start_range = (aseqid, sstart, sstop, fbstrand)
-            print >> log, start_range
+            start_range = (aseqid, sstart, sstop, scf, 1, fbstrand)
+            print >> log, "*" + "\t".join(str(x) for x in start_range)
             ranges.append(start_range)
 
-        mranges = [x[:-1] for x in ranges]
+        mranges = [x[:3] for x in ranges]
         # Determine placement by finding the interval with the most support
         rd = ranges_depth(mranges, sizes.mapping, verbose=False)
         alldepths = []
@@ -178,7 +259,7 @@ def bambus(args):
         # Determine orientation by voting
         nplus, nminus = 0, 0
         arange = (seqid, mmin, mmax)
-        for sid, start, end, fbstrand in ranges:
+        for sid, start, end, sf, sc, fbstrand in ranges:
             brange = (sid, start, end)
             if range_overlap(arange, brange):
                 if fbstrand == '+':
@@ -541,8 +622,10 @@ def refine(args):
     FileMerger([largestgapsbed, closestgapsbed], outfile=refinedbed).merge()
 
     # Clean-up
-    cmd = "rm -f " + " ".join([nogapsbed, largestgapsbed, closestgapsbed])
-    sh(cmd)
+    toclean = [nogapsbed, largestgapsbed, closestgapsbed]
+    FileShredder(toclean)
+
+    return refinedbed
 
 
 def merge_ranges(beds):

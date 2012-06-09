@@ -75,6 +75,16 @@ class SetFile (BaseFile, set):
             self.add(key)
 
 
+class FileShredder (object):
+    """
+    Same as rm -f *
+    """
+    def __init__(self, filelist):
+
+        cmd = "rm -f {0}".format(" ".join(filelist))
+        sh(cmd)
+
+
 class FileMerger (object):
     """
     Same as cat * > filename

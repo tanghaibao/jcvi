@@ -129,12 +129,13 @@ def bambus(args):
 
             lmin, lmax = lib.min, lib.max
 
+            L = sizes.get_size(scf)
             assert astrand in ('+', '-')
             if astrand == '+':
                 offset = a.start - b.end
                 sstart, sstop = offset + lmin, offset + lmax
             else:
-                offset = a.end - b.start
+                offset = a.end - b.start + L
                 sstart, sstop = offset - lmax, offset - lmin
 
             # Prevent out of range error
@@ -199,7 +200,7 @@ def bambus(args):
     log.close()
 
     candidatebedfile = pf + ".candidate.bed"
-    candidatebed.print_to_file(candidatebedfile)
+    candidatebed.print_to_file(candidatebedfile, sorted=True)
 
 
 def gaps(args):
@@ -501,6 +502,8 @@ def refine(args):
         sys.exit(not p.print_help())
 
     breakpointsbed, gapsbed = args
+    ncols = len(open(breakpointsbed).next().split())
+    logging.debug("File {0} contains {1} columns.".format(breakpointsbed, ncols))
     cmd = "intersectBed -wao -a {0} -b {1}".format(breakpointsbed, gapsbed)
 
     pf = "{0}.{1}".format(breakpointsbed.split(".")[0], gapsbed.split(".")[0])
@@ -509,29 +512,29 @@ def refine(args):
 
     fp = open(ingapsbed)
     data = [x.split() for x in fp]
+
     nogapsbed = pf + ".nogaps.bed"
     largestgapsbed = pf + ".largestgaps.bed"
     nogapsfw = open(nogapsbed, "w")
     largestgapsfw = open(largestgapsbed, "w")
-    for b, gaps in groupby(data, key=lambda x: x[:3]):
+    for b, gaps in groupby(data, key=lambda x: x[:ncols]):
         gaps = list(gaps)
-        if len(gaps) == 1 and gaps[0][3] == ".":
-            gap = gaps[0]
-            assert gap[4] == "-1"
+        gap = gaps[0]
+        if len(gaps) == 1 and gap[-1] == "0":
+            assert gap[-2] == "."
             print >> nogapsfw, "\t".join(b)
             continue
 
         gaps = [(int(x[-1]), x) for x in gaps]
         maxgap = max(gaps)[1]
-        print >> largestgapsfw, "\t".join(maxgap[3:])
+        print >> largestgapsfw, "\t".join(maxgap)
 
     nogapsfw.close()
     largestgapsfw.close()
 
     closestgapsbed = pf + ".closestgaps.bed"
     closestgapsfw = open(closestgapsbed, "w")
-    cmd = "closestBed -a {0} -b {1}".format(nogapsbed, gapsbed)
-    cmd += " | cut -f4-7"
+    cmd = "closestBed -a {0} -b {1} -d".format(nogapsbed, gapsbed)
     sh(cmd, outfile=closestgapsbed)
 
     refinedbed = pf + ".refined.bed"

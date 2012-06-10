@@ -27,7 +27,7 @@ from jcvi.formats.bed import Bed, BedLine, complementBed, mergeBed, fastaFromBed
 from jcvi.formats.fasta import Fasta
 from jcvi.formats.sizes import Sizes
 from jcvi.utils.range import range_parse, range_distance, ranges_depth, \
-            range_minmax, range_overlap
+            range_minmax, range_overlap, range_merge, range_closest
 from jcvi.formats.base import must_open, FileMerger, FileShredder
 from jcvi.apps.base import ActionDispatcher, debug, sh, mkdir
 debug()
@@ -36,20 +36,84 @@ debug()
 def main():
 
     actions = (
+        # OM guided approach
         ('refine', 'find gaps within or near breakpoint regions'),
         ('patcher', 'given om alignment, prepare the patchers'),
 
+        # Gap filling through sequence matching
         ('fill', 'perform gap filling using one assembly vs the other'),
         ('install', 'install patches into backbone'),
 
-        ('tips', 'append telomeric sequences based on patchers and complements'),
-        ('gaps', 'create patches around OM gaps'),
-
+        # Placement through mates and manual insertions and deletions
         ('bambus', 'find candidate scaffolds to insert based on mates'),
         ('insert', 'insert scaffolds into assembly'),
+        ('eject', 'eject scaffolds from assembly'),
+        ('closest', 'find the nearest gaps flanking suggested regions'),
+
+        # Misc
+        ('tips', 'append telomeric sequences based on patchers and complements'),
+        ('gaps', 'create patches around OM gaps'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def eject(args):
+    """
+    %prog eject candidates.bed chr.fasta
+
+    Eject scaffolds from assembly, using the range identified by closest().
+    """
+    p = OptionParser(eject.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    candidates, chrfasta = args
+    sizesfile = Sizes(chrfasta).filename
+    cbedfile = complementBed(candidates, sizesfile)
+
+    cbed = Bed(cbedfile)
+    for b in cbed:
+        b.accn = b.seqid
+        b.score = 1000
+        b.strand = '+'
+
+    cbed.print_to_file()
+
+
+def closest(args):
+    """
+    %prog closest om.blocks.bed gaps.bed
+
+    Identify the nearest gaps flanking suggested regions.
+    """
+    p = OptionParser(closest.__doc__)
+    p.add_option("--om", default=False, action="store_true",
+                 help="The bedfile is OM blocks [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    candidates, gapsbed = args
+    bed = Bed(candidates)
+    ranges = []
+    for b in bed:
+        r = range_parse(b.accn) if opts.om else b
+        ranges.append([r.seqid, r.start, r.end])
+
+    gapsbed = Bed(gapsbed)
+    granges = [(x.seqid, x.start, x.end) for x in gapsbed]
+
+    ranges = range_merge(ranges)
+    for r in ranges:
+        a = range_closest(granges, r)
+        b = range_closest(granges, r, left=False)
+        seqid = a[0]
+        mmin, mmax = range_minmax([a[1:], b[1:]])
+        print "\t".join(str(x) for x in (seqid, mmin - 1, mmax))
 
 
 def insert(args):
@@ -62,8 +126,6 @@ def insert(args):
     from jcvi.formats.sizes import agp
 
     p = OptionParser(insert.__doc__)
-    p.add_option("--prefix", default="unplaced",
-                 help="Prefix of the unplaced scaffolds [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 4:

@@ -16,7 +16,7 @@ from jcvi.formats.base import LineFile, must_open
 from jcvi.formats.fasta import Fasta, SeqIO
 from jcvi.formats.bed import Bed, BedLine
 from jcvi.utils.iter import flatten
-from jcvi.utils.ordereddict import DefaultOrderedDict, parse_qs
+from jcvi.utils.orderedcollections import DefaultOrderedDict, parse_qs
 from jcvi.apps.base import ActionDispatcher, set_outfile, mkdir, need_update, sh
 
 

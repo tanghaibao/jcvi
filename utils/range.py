@@ -151,6 +151,37 @@ def range_minmax(ranges):
     return rmin, rmax
 
 
+def range_closest(ranges, b, left=True):
+    """
+    Returns the range that's closest to the given position. Notice that the
+    behavior is to return ONE closest range to the left end (if left is True).
+    This is a SLOW method.
+
+    >>> ranges = [("1", 30, 40), ("1", 33, 35), ("1", 10, 20)]
+    >>> b = ("1", 22, 25)
+    >>> range_closest(ranges, b)
+    ('1', 10, 20)
+    >>> range_closest(ranges, b, left=False)
+    ('1', 33, 35)
+    >>> b = ("1", 2, 5)
+    >>> range_closest(ranges, b)
+    """
+    from jcvi.utils.orderedcollections import SortedCollection
+    key = (lambda x: x) if left else (lambda x: (x[0], x[2], x[1]))
+    rr = SortedCollection(ranges, key=key)
+    try:
+        if left:
+            s = rr.find_le(b)
+            assert key(s) <= key(b), (s, b)
+        else:
+            s = rr.find_ge(b)
+            assert key(s) >= key(b), (s, b)
+    except ValueError:
+        s = None
+
+    return s
+
+
 def range_interleave(ranges):
     """
     Returns the ranges in between the given ranges.

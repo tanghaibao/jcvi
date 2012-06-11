@@ -209,7 +209,7 @@ if __name__ == "__main__":
             help="Minimum value in the colormap [default: %default]")
     p.add_option("--vmax", dest="vmax", type="float", default=1,
             help="Maximum value in the colormap [default: %default]")
-    opts, args, iopts = set_image_options(p, figsize="8x8", dpi=90)
+    opts, args, iopts = set_image_options(p, sys.argv[1:], figsize="8x8", dpi=90)
 
     if len(args) != 1:
         sys.exit(not p.print_help())

@@ -85,7 +85,7 @@ def eject(args):
 
 def closest(args):
     """
-    %prog closest om.blocks.bed gaps.bed
+    %prog closest candidates.bed gaps.bed fastafile
 
     Identify the nearest gaps flanking suggested regions.
     """
@@ -94,10 +94,11 @@ def closest(args):
                  help="The bedfile is OM blocks [default: %default]")
     opts, args = p.parse_args(args)
 
-    if len(args) != 2:
+    if len(args) != 3:
         sys.exit(not p.print_help())
 
-    candidates, gapsbed = args
+    candidates, gapsbed, fastafile = args
+    sizes = Sizes(fastafile).mapping
     bed = Bed(candidates)
     ranges = []
     for b in bed:
@@ -111,8 +112,16 @@ def closest(args):
     for r in ranges:
         a = range_closest(granges, r)
         b = range_closest(granges, r, left=False)
-        seqid = a[0]
-        mmin, mmax = range_minmax([a[1:], b[1:]])
+        seqid = r[0]
+
+        if a is not None and a[0] != seqid:
+            a = None
+        if b is not None and b[0] != seqid:
+            b = None
+
+        mmin = 1 if a is None else a[1]
+        mmax = sizes[seqid] if b is None else b[2]
+
         print "\t".join(str(x) for x in (seqid, mmin - 1, mmax))
 
 

@@ -29,9 +29,9 @@ Contents
 
     * K-mer histogram analysis.
     * Prepare frg for Celera Assembler (CA).
-    * Helper scripts for fixing unitig layout errors in CA.
     * Preparation and validation of tiling path for clone-based assemblies.
     * Read trimming and correction.
+    * Scaffolding through BAMBUS, optical map and genetic map.
 
 - ``apps``
     Helper library to wrap command line programs and run jobs on JCVI grid
@@ -110,6 +110,11 @@ cannot be found in your ``PATH``. For example::
     23:53:57 [command::DEBUG] Configuration written to `/home/htang/.jcvirc`.
 
 The locations of these binaries can later be changed by modifying ``~/.jcvirc``.
+The external programs that are often used are:
+
+* `Kent tools <http://hgdownload.cse.ucsc.edu/admin/jksrc.zip>`_
+* `BEDTOOLS <http://code.google.com/p/bedtools/>`_
+* `EMBOSS <http://emboss.sourceforge.net/>`_
 
 Most of the scripts in this package contains multiple actions. To use the
 ``fasta`` example::

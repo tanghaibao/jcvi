@@ -134,7 +134,7 @@ def rename(args):
 
 def anchor(args):
     """
-    %prog anchor map.bed markers.blast anchored.bed
+    %prog anchor map.bed markers.blast > anchored.bed
 
     Anchor scaffolds based on map.
     """

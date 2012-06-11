@@ -13,6 +13,7 @@ from optparse import OptionParser
 
 from jcvi.formats.base import BaseFile, LineFile, must_open, read_block
 from jcvi.formats.bed import Bed, fastaFromBed
+from jcvi.formats.blast import bed
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
@@ -70,6 +71,7 @@ class MSTMap (LineFile):
         fp = open(filename)
         for row in fp:
             if row.startswith("locus_name"):
+                self.header = row.split()
                 break
 
         for row in fp:
@@ -93,19 +95,49 @@ def main():
         ('fasta', 'extract markers based on map'),
         ('placeone', 'attempt to place one scaffold'),
         ('anchor', 'anchor scaffolds based on map'),
+        ('rename', 'rename markers according to the new mapping locations'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
 
+def rename(args):
+    """
+    %prog rename map markers.blast > renamed.map
+
+    Rename markers according to the new mapping locations.
+    """
+    p = OptionParser(rename.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    mstmap, blastfile = args
+    bedfile = bed([blastfile])
+    markersbed = Bed(bedfile)
+    markers = markersbed.order
+
+    data = MSTMap(mstmap)
+    header = data.header
+    header = [header[0]] + ["seqid", "start"] + header[1:]
+    print "\t".join(header)
+    for b in data:
+        m, geno = b.id, b.genotype
+        if m not in markers:
+            continue
+
+        i, mb = markers[m]
+        print "\t".join(str(x) for x in \
+                (m, mb.seqid, mb.start, "\t".join(list(geno))))
+
+
 def anchor(args):
     """
-    %prog anchor map.bed markers.blast
+    %prog anchor map.bed markers.blast anchored.bed
 
     Anchor scaffolds based on map.
     """
-    from jcvi.formats.blast import bed
-
     p = OptionParser(anchor.__doc__)
     opts, args = p.parse_args(args)
 

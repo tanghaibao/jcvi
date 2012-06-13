@@ -182,7 +182,7 @@ def range_closest(ranges, b, left=True):
     return s
 
 
-def range_interleave(ranges):
+def range_interleave(ranges, sizes={}):
     """
     Returns the ranges in between the given ranges.
 
@@ -192,19 +192,33 @@ def range_interleave(ranges):
     >>> ranges = [("1", 30, 40), ("1", 42, 50)]
     >>> range_interleave(ranges)
     [('1', 41, 41)]
+    >>> range_interleave(ranges, sizes={"1": 70})
+    [('1', 1, 29), ('1', 41, 41), ('1', 51, 70)]
     """
     from jcvi.utils.iter import pairwise
     ranges = range_merge(ranges)
     interleaved_ranges = []
 
     for ch, cranges in groupby(ranges, key=lambda x: x[0]):
-        for i, (a, b) in enumerate(pairwise(cranges)):
+        cranges = list(cranges)
+        size = sizes.get(ch, None)
+        if size:
+            ch, astart, aend = cranges[0]
+            if astart > 1:
+                interleaved_ranges.append((ch, 1, astart - 1))
+
+        for a, b in pairwise(cranges):
             ch, astart, aend = a
             ch, bstart, bend = b
             istart, iend = aend + 1, bstart - 1
             if istart > iend:
                 continue
             interleaved_ranges.append((ch, istart, iend))
+
+        if size:
+            ch, astart, aend = cranges[-1]
+            if aend < size:
+                interleaved_ranges.append((ch, aend + 1, size))
 
     return interleaved_ranges
 

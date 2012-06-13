@@ -27,7 +27,8 @@ from jcvi.formats.bed import Bed, BedLine, complementBed, mergeBed, fastaFromBed
 from jcvi.formats.fasta import Fasta
 from jcvi.formats.sizes import Sizes
 from jcvi.utils.range import range_parse, range_distance, ranges_depth, \
-            range_minmax, range_overlap, range_merge, range_closest
+            range_minmax, range_overlap, range_merge, range_closest, \
+            range_interleave
 from jcvi.formats.base import must_open, FileMerger, FileShredder
 from jcvi.apps.base import ActionDispatcher, debug, sh, mkdir
 debug()
@@ -463,7 +464,8 @@ def fill(args):
     gapsbed, badfasta = args
     Ext = opts.extend
 
-    gapsbed = mergeBed(gapsbed, d=2 * Ext, nms=True)
+    gapdist = 2 * Ext + 1  # This is to prevent to replacement ranges intersect
+    gapsbed = mergeBed(gapsbed, d=gapdist, nms=True)
 
     bed = Bed(gapsbed)
     sizes = Sizes(badfasta).mapping
@@ -496,6 +498,7 @@ def install(args):
     from jcvi.apps.base import blast
     from jcvi.formats.blast import BlastSlow
     from jcvi.formats.fasta import SeqIO
+    from jcvi.utils.iter import roundrobin
 
     p = OptionParser(install.__doc__)
     p.add_option("--rclip", default=1, type="int",
@@ -609,32 +612,61 @@ def install(args):
     bfbed.print_to_file(bbedfile)
 
     # Shuffle the two bedfiles together
-    sizesfile = Sizes(bbfasta).filename
+    sz = Sizes(bbfasta)
+    sizes = sz.mapping
     shuffled = "shuffled.bed"
+    border = bfbed.order
 
-    abedfile = complementBed(abedfile, sizesfile)
-    afbed = Bed(abedfile)
     all = []
-    j = 0  # index in bfbed
-    cj = 0  # index of new molecule
+    afbed.sort(key=afbed.nullkey)
+    totalids = len(sizes)
+    import math
+    pad = int(math.log10(totalids)) + 1
+    cj = 0
+    seen = set()
+    accn = lambda x: "{0}{1:0{2}d}".format(prefix, x, pad)
 
-    for chr, beds in groupby(afbed, key=lambda x: x.seqid):
-        beds = list(beds)
+    for seqid, aa in afbed.sub_beds():
+        cj += 1
+        abeds, bbeds, beds = [], [], []
+        size = sizes[seqid]
+        ranges = [(x.seqid, x.start, x.end) for x in aa]
+        cranges = range_interleave(ranges, sizes={seqid: size})
+        for seqid, start, end in cranges:
+            bedline = "\t".join(str(x) for x in (seqid, start - 1, end))
+            abeds.append(BedLine(bedline))
+
+        for a in aa:
+            gapid = a.accn
+            bi, b = border[gapid]
+            bbeds.append(b)
+
+        a = abeds[0] if abeds else []
+        assert abs(len(abeds) - len(bbeds)) <= 1
+        if (not a) or a.start > 1:
+            abeds, bbeds = bbeds, abeds
+
+        beds = list(roundrobin(abeds, bbeds))
+        if prefix:
+            for b in beds:
+                b.accn = accn(cj)
+
+        all.extend(beds)
+        seen.add(seqid)
+
+    # Singletons
+    for seqid, size in sz.iter_sizes():
+        if seqid in seen:
+            continue
+
+        bedline = "\t".join(str(x) for x in (seqid, 0, size, accn(cj)))
+        b = BedLine(bedline)
+
         cj += 1
         if prefix:
-            accn = prefix + str(cj)
+            b.accn = accn(cj)
 
-        b = beds[0]
-        if prefix:
-            b.accn = accn
         all.append(b)
-        for b in beds[1:]:
-            nb = bfbed[j]
-            if prefix:
-                b.accn = nb.accn = accn
-            all.append(nb)
-            j += 1
-            all.append(b)
 
     shuffledbed = Bed()
     shuffledbed.extend(all)

@@ -1589,7 +1589,7 @@ def gaps(args):
     Print out a list of gaps in BED format (.gaps.bed).
     """
     p = OptionParser(gaps.__doc__)
-    p.add_option("--mingap", default=10, type="int",
+    p.add_option("--mingap", default=100, type="int",
             help="The minimum size of a gap to split [default: %default]")
     p.add_option("--agp", default=False, action="store_true",
             help="Generate AGP file to show components [default: %default]")

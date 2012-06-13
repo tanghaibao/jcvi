@@ -96,9 +96,38 @@ def main():
         ('placeone', 'attempt to place one scaffold'),
         ('anchor', 'anchor scaffolds based on map'),
         ('rename', 'rename markers according to the new mapping locations'),
+        ('header', 'rename lines in the map header'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def header(args):
+    """
+    %prog header map conversion_table
+
+    Rename lines in the map header. The mapping of old names to new names are
+    stored in two-column `conversion_table`.
+    """
+    from jcvi.formats.base import DictFile
+
+    p = OptionParser(header.__doc__)
+    p.add_option("--prefix",
+                 help="Prepend text to line number [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    mstmap, conversion_table = args
+    data = MSTMap(mstmap)
+    hd = data.header
+    conversion = DictFile(conversion_table)
+    newhd = [opts.prefix + conversion.get(x, x) for x in hd]
+
+    print "\t".join(hd)
+    print "--->"
+    print "\t".join(newhd)
 
 
 def rename(args):

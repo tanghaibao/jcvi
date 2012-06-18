@@ -273,9 +273,49 @@ def main():
         ('some', 'include or exclude a list of records (also performs on ' + \
                  '.qual file if available)'),
         ('clean', 'remove irregular chars in FASTA seqs'),
+        ('ispcr', 'reformat paired primers into isPcr query format'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def ispcr(args):
+    """
+    %prog ispcr fastafile
+
+    Reformat paired primers into isPcr query format, which is three column
+    format: name, forward, reverse
+    """
+    from jcvi.utils.iter import grouper
+
+    p = OptionParser(ispcr.__doc__)
+    p.add_option("-r", dest="rclip", default=1, type="int",
+            help="pair ID is derived from rstrip N chars [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    fastafile, = args
+    ispcrfile = fastafile + ".isPcr"
+    fw = open(ispcrfile, "w")
+
+    N = opts.rclip
+    strip_name = lambda x: x[:-N] if N else str
+
+    npairs = 0
+    fastaiter = SeqIO.parse(fastafile, "fasta")
+    for a, b in grouper(2, fastaiter):
+
+        aid, bid = [strip_name(x) for x in (a.id, b.id)]
+        assert aid == bid, "Name mismatch {0}".format((aid, bid))
+
+        print >> fw, "\t".join((aid, str(a.seq), str(b.seq)))
+        npairs += 1
+
+    fw.close()
+    logging.debug("A total of {0} pairs written to `{1}`.".\
+                  format(npairs, ispcrfile))
 
 
 def parse_fasta(infile):
@@ -1129,7 +1169,7 @@ def pairinplace(args):
     """
     %prog pairinplace bulk.fasta
 
-    Pair up the records in bulk.fasta by comparing the names for adjancent
+    Pair up the records in bulk.fasta by comparing the names for adjacent
     records. If they match, print to bulk.pairs.fasta, else print to
     bulk.frags.fasta.
     """

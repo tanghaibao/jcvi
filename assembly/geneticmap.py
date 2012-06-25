@@ -112,8 +112,9 @@ def header(args):
     from jcvi.formats.base import DictFile
 
     p = OptionParser(header.__doc__)
-    p.add_option("--prefix",
+    p.add_option("--prefix", default="",
                  help="Prepend text to line number [default: %default]")
+    p.add_option("--ids", help="Write ids to file [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -128,6 +129,12 @@ def header(args):
     print "\t".join(hd)
     print "--->"
     print "\t".join(newhd)
+
+    ids = opts.ids
+    if ids:
+        fw = open(ids, "w")
+        print >> fw, "\n".join(newhd)
+        fw.close()
 
 
 def rename(args):

@@ -340,6 +340,18 @@ def stats(args):
                 format(percentage(orthologous, matches))
 
 
+def get_best_pair(qs, ss, ts):
+    pairs = {}
+    for q, s, t in zip(qs, ss, ts):
+        t = long(t)
+        if q not in pairs or pairs[q][1] < t:
+            pairs[q] = (s, t)
+
+    # Discard score
+    spairs = dict((q, s) for q, (s, t) in pairs.items())
+    return spairs
+
+
 def mcscan(args):
     """
     %prog mcscan bedfile anchorfile
@@ -374,7 +386,7 @@ def mcscan(args):
         if q[0] not in order:
             q, s = s, q
 
-        pairs = dict(zip(q, s))
+        pairs = get_best_pair(q, s, t)
         block_pairs[i] = pairs
 
         q = [order[x] for x in q]

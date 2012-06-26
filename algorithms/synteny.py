@@ -91,11 +91,6 @@ def read_blast(blast_file, qorder, sorder, is_self=False, ostrip=True):
         if query not in qorder or subject not in sorder:
             continue
 
-        key = query, subject
-        if key in seen:
-            continue
-        seen.add(key)
-
         qi, q = qorder[query]
         si, s = sorder[subject]
 
@@ -104,6 +99,11 @@ def read_blast(blast_file, qorder, sorder, is_self=False, ostrip=True):
             query, subject = subject, query
             qi, si = si, qi
             q, s = s, q
+
+        key = query, subject
+        if key in seen:
+            continue
+        seen.add(key)
 
         b.qseqid, b.sseqid = q.seqid, s.seqid
         b.qi, b.si = qi, si

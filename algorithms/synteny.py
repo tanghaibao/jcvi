@@ -3,15 +3,16 @@
 
 import sys
 import logging
-import collections
 
 import numpy as np
+from collections import defaultdict
 from optparse import OptionParser
 
 from jcvi.formats.bed import Bed, BedLine
 from jcvi.formats.blast import BlastLine
 from jcvi.formats.base import BaseFile, read_block
 from jcvi.utils.grouper import Grouper
+from jcvi.utils.cbook import gene_name
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
@@ -26,7 +27,7 @@ class AnchorFile (BaseFile):
         for header, lines in read_block(fp, "#"):
             lines = [x.split() for x in lines]
             if len(lines) >= minsize:
-                yield zip(*lines)
+                yield lines
 
     def iter_pairs(self):
         fp = open(self.filename)
@@ -40,20 +41,20 @@ def _score(cluster):
     """
     score of the cluster, in this case, is the number of non-repetitive matches
     """
-    x, y = zip(*cluster)
+    x, y, scores = zip(*cluster)
     return min(len(set(x)), len(set(y)))
 
 
 def group_hits(blasts):
     # grouping the hits based on chromosome pair
-    all_hits = collections.defaultdict(list)
+    all_hits = defaultdict(list)
     for b in blasts:
-        all_hits[(b.qseqid, b.sseqid)].append((b.qi, b.si))
+        all_hits[(b.qseqid, b.sseqid)].append((b.qi, b.si, b.score))
 
     return all_hits
 
 
-def read_blast(blast_file, qorder, sorder, is_self=False):
+def read_blast(blast_file, qorder, sorder, is_self=False, ostrip=True):
     """
     read the blast and convert name into coordinates
     """
@@ -63,6 +64,8 @@ def read_blast(blast_file, qorder, sorder, is_self=False):
     for row in fp:
         b = BlastLine(row)
         query, subject = b.query, b.subject
+        if ostrip:
+            query, subject = gene_name(query), gene_name(subject)
         if query not in qorder or subject not in sorder:
             continue
 
@@ -85,6 +88,8 @@ def read_blast(blast_file, qorder, sorder, is_self=False):
 
         filtered_blast.append(b)
 
+    logging.debug("A total of {0} BLAST matches imported.".format(len(filtered_blast)))
+
     return filtered_blast
 
 
@@ -92,8 +97,9 @@ def read_anchors(anchor_file, qorder, sorder):
     """
     anchors file are just (geneA, geneB) pairs (with possible deflines)
     """
-    all_anchors = collections.defaultdict(list)
+    all_anchors = defaultdict(list)
     fp = open(anchor_file)
+    nanchors = 0
     for row in fp:
         if row[0] == '#':
             continue
@@ -103,6 +109,9 @@ def read_anchors(anchor_file, qorder, sorder):
         qi, q = qorder[a]
         si, s = sorder[b]
         all_anchors[(q.seqid, s.seqid)].append((qi, si))
+        nanchors += 1
+
+    logging.debug("A total of {0} anchors imported.".format(nanchors))
 
     return all_anchors
 
@@ -136,7 +145,7 @@ def synteny_scan(points, xdist, ydist, N):
     return clusters
 
 
-def batch_scan(points, xdist=20, ydist=20, N=6):
+def batch_scan(points, xdist=20, ydist=20, N=5):
     """
     runs synteny_scan() per chromosome pair
     """
@@ -145,7 +154,6 @@ def batch_scan(points, xdist=20, ydist=20, N=6):
     clusters = []
     for chr_pair in sorted(chr_pair_points.keys()):
         points = chr_pair_points[chr_pair]
-        #logging.debug("%s: %d" % (chr_pair, len(points)))
         clusters.extend(synteny_scan(points, xdist, ydist, N))
 
     return clusters
@@ -169,7 +177,7 @@ def synteny_liftover(points, anchors, dist):
         # nearest is out of range
         if idx == tree.n:
             continue
-        yield point
+        yield point, anchors[idx]
 
 
 def add_beds(p):
@@ -221,7 +229,9 @@ def main():
 
     actions = (
         ('scan', 'get anchor list using single-linkage algorithm'),
+        ('summary', 'provide statistics for pairwise blocks'),
         ('mcscan', 'stack synteny blocks on a reference bed'),
+        ('stats', 'provide statistics for mscan blocks'),
         ('depth', 'calculate the depths in the two genomes in comparison'),
         ('group', 'cluster the anchors into ortho-groups'),
         ('liftover', 'given anchor list, pull adjancent pairs from blast file'),
@@ -230,6 +240,78 @@ def main():
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def summary(args):
+    """
+    %prog summary anchorfile
+
+    Provide statistics for pairwise blocks.
+    """
+    from jcvi.utils.cbook import SummaryStats
+
+    p = OptionParser(summary.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    anchorfile, = args
+    ac = AnchorFile(anchorfile)
+    clusters = list(ac.iter_blocks())
+
+    nclusters = len(clusters)
+    nanchors = [len(c) for c in clusters]
+    print >> sys.stderr, "A total of {0} anchors found in {1} clusters.".\
+                  format(sum(nanchors), nclusters)
+    print >> sys.stderr, SummaryStats(nanchors)
+
+
+def stats(args):
+    """
+    %prog stats blocksfile
+
+    Provide statistics for MCscan-style blocks. The count of homologs in each
+    pivot gene is recorded.
+    """
+    from jcvi.utils.cbook import percentage
+
+    p = OptionParser(stats.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    blocksfile, = args
+    fp = open(blocksfile)
+    counts = defaultdict(int)
+    total = orthologous = 0
+    for row in fp:
+        atoms = row.rstrip().split("\t")
+        hits = [x for x in atoms[1:] if x != '.']
+        counts[len(hits)] += 1
+        total += 1
+        if atoms[1] != '.':
+            orthologous += 1
+
+    print >> sys.stderr, "Total lines: {0}".format(total)
+    for i, n in sorted(counts.items()):
+        print >> sys.stderr, "Count {0}: {1}".format(i, percentage(n, total))
+
+    print >> sys.stderr
+
+    matches = sum(n for i, n in counts.items() if i != 0)
+    print >> sys.stderr, "Total lines with matches: {0}".\
+                format(percentage(matches, total))
+    for i, n in sorted(counts.items()):
+        if i == 0:
+            continue
+
+        print >> sys.stderr, "Count {0}: {1}".format(i, percentage(n, matches))
+
+    print >> sys.stderr
+    print >> sys.stderr, "Orthologous matches: {0}".\
+                format(percentage(orthologous, matches))
 
 
 def mcscan(args):
@@ -260,7 +342,8 @@ def mcscan(args):
     ac = AnchorFile(anchorfile)
     ranges = []
     block_pairs = {}
-    for i, (q, s) in enumerate(ac.iter_blocks()):
+    for i, ib in enumerate(ac.iter_blocks()):
+        q, s, t = zip(*ib)
         if q[0] not in order:
             q, s = s, q
 
@@ -360,7 +443,8 @@ def depth(args):
     ac = AnchorFile(anchorfile)
     qranges = []
     sranges = []
-    for q, s in ac.iter_blocks():
+    for ib in ac.iter_blocks():
+        q, s, t = zip(*ib)
         q = [qorder[x] for x in q]
         s = [sorder[x] for x in s]
         qrange = (min(q)[0], max(q)[0])
@@ -438,8 +522,6 @@ def scan(args):
 
     pull out syntenic anchors from blastfile based on single-linkage algorithm
     """
-    from jcvi.utils.cbook import SummaryStats
-
     p = OptionParser(scan.__doc__)
     p.add_option("-n", type="int", default=5,
             help="minimum number of anchors in a cluster [default: %default]")
@@ -453,15 +535,12 @@ def scan(args):
     clusters = batch_scan(filtered_blast, xdist=dist, ydist=dist, N=opts.n)
     for cluster in clusters:
         print >>fw, "###"
-        for qi, si in cluster:
+        for qi, si, score in cluster:
             query, subject = qbed[qi].accn, sbed[si].accn
-            print >>fw, "\t".join((query, subject))
+            print >>fw, "\t".join((query, subject, str(int(score))))
 
-    nclusters = len(clusters)
-    nanchors = [len(c) for c in clusters]
-    print >> sys.stderr, "A total of {0} anchors found in {1} clusters.".\
-                  format(sum(nanchors), nclusters)
-    print >> sys.stderr, SummaryStats(nanchors)
+    fw.close()
+    summary([anchor_file])
 
 
 def liftover(args):
@@ -478,10 +557,16 @@ def liftover(args):
     """
     p = OptionParser(liftover.__doc__)
 
+    p.add_option("--no_strip_names", dest="strip_names",
+            action="store_false", default=True,
+            help="do not strip alternative splicing "
+            "(e.g. At5g06540.1 -> At5g06540)")
+
     blast_file, anchor_file, dist, opts = add_options(p, args)
     qbed, sbed, qorder, sorder, is_self = check_beds(p, opts)
 
-    filtered_blast = read_blast(blast_file, qorder, sorder, is_self=is_self)
+    filtered_blast = read_blast(blast_file, qorder, sorder,
+                            is_self=is_self, ostrip=opts.strip_names)
     all_hits = group_hits(filtered_blast)
     all_anchors = read_anchors(anchor_file, qorder, sorder)
 
@@ -496,10 +581,10 @@ def liftover(args):
         if not len(hits):
             continue
 
-        for point in synteny_liftover(hits, anchors, dist):
+        for point, nearest in synteny_liftover(hits, anchors, dist):
             qi, si = point[:2]
             query, subject = qbed[qi].accn, sbed[si].accn
-            print >>fw, "\t".join((query, subject, "lifted"))
+            print >>fw, "\t".join((query, subject, "lifted", str(nearest)))
             j += 1
 
     logging.debug("%d new pairs found" % j)

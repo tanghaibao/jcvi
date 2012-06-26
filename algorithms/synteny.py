@@ -13,14 +13,16 @@ from jcvi.formats.blast import BlastLine
 from jcvi.formats.base import BaseFile, read_block
 from jcvi.utils.grouper import Grouper
 from jcvi.utils.cbook import gene_name
+from jcvi.formats.base import must_open
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
 
 class AnchorFile (BaseFile):
 
-    def __init__(self, filename):
+    def __init__(self, filename, minsize=0):
         super(AnchorFile, self).__init__(filename)
+        self.blocks = list(self.iter_blocks(minsize=minsize))
 
     def iter_blocks(self, minsize=0):
         fp = open(self.filename)
@@ -31,10 +33,30 @@ class AnchorFile (BaseFile):
 
     def iter_pairs(self):
         fp = open(self.filename)
+        block_id = -1
         for row in fp:
             if row[0] == '#':
+                block_id += 1
                 continue
-            yield row.split()
+            a, b = row.split()[:2]
+            yield a, b, block_id
+
+    def print_to_file(self, filename="stdout", accepted=None):
+        fw = must_open(filename, "w")
+        blocks = self.blocks
+        nremoved = 0
+        for block in blocks:
+            print >> fw, "###"
+            for line in block:
+                a, b = line[:2]
+                if accepted and (a, b) not in accepted:
+                    nremoved += 1
+                    continue
+                print >> fw, "\t".join(str(x) for x in line)
+        fw.close()
+
+        logging.debug("Removed {0} existing anchors.".format(nremoved))
+        logging.debug("Anchors written to `{0}`.".format(filename))
 
 
 def _score(cluster):
@@ -85,6 +107,7 @@ def read_blast(blast_file, qorder, sorder, is_self=False, ostrip=True):
 
         b.qseqid, b.sseqid = q.seqid, s.seqid
         b.qi, b.si = qi, si
+        b.query, b.subject = query, subject
 
         filtered_blast.append(b)
 
@@ -93,27 +116,28 @@ def read_blast(blast_file, qorder, sorder, is_self=False, ostrip=True):
     return filtered_blast
 
 
-def read_anchors(anchor_file, qorder, sorder):
+def read_anchors(ac, qorder, sorder):
     """
     anchors file are just (geneA, geneB) pairs (with possible deflines)
     """
     all_anchors = defaultdict(list)
-    fp = open(anchor_file)
     nanchors = 0
-    for row in fp:
-        if row[0] == '#':
-            continue
-        a, b = row.split()
+    anchor_to_block = {}
+
+    for a, b, idx in ac.iter_pairs():
         if a not in qorder or b not in sorder:
             continue
         qi, q = qorder[a]
         si, s = sorder[b]
-        all_anchors[(q.seqid, s.seqid)].append((qi, si))
+        pair = (qi, si)
+        all_anchors[(q.seqid, s.seqid)].append(pair)
+        anchor_to_block[pair] = idx
         nanchors += 1
 
     logging.debug("A total of {0} anchors imported.".format(nanchors))
+    assert nanchors == len(anchor_to_block)
 
-    return all_anchors
+    return all_anchors, anchor_to_block
 
 
 def synteny_scan(points, xdist, ydist, N):
@@ -166,7 +190,7 @@ def synteny_liftover(points, anchors, dist):
     """
     from scipy.spatial import cKDTree
 
-    points = np.array(points)
+    points = np.array(points, dtype=int)
     ppoints = points[:, :2] if points.shape[1] > 2 else points
     tree = cKDTree(anchors, leafsize=16)
     #print tree.data
@@ -174,10 +198,12 @@ def synteny_liftover(points, anchors, dist):
     #print [(d, idx) for (d, idx) in zip(dists, idxs) if idx!=tree.n]
 
     for point, dist, idx in zip(points, dists, idxs):
-        # nearest is out of range
-        if idx == tree.n:
+        if idx == tree.n:  # nearest is out of range
             continue
-        yield point, anchors[idx]
+        if dist == 0:  # already in anchors
+            continue
+
+        yield point, tuple(anchors[idx])
 
 
 def add_beds(p):
@@ -258,7 +284,7 @@ def summary(args):
 
     anchorfile, = args
     ac = AnchorFile(anchorfile)
-    clusters = list(ac.iter_blocks())
+    clusters = ac.blocks
 
     nclusters = len(clusters)
     nanchors = [len(c) for c in clusters]
@@ -342,7 +368,8 @@ def mcscan(args):
     ac = AnchorFile(anchorfile)
     ranges = []
     block_pairs = {}
-    for i, ib in enumerate(ac.iter_blocks()):
+    blocks = ac.blocks
+    for i, ib in enumerate(blocks):
         q, s, t = zip(*ib)
         if q[0] not in order:
             q, s = s, q
@@ -443,7 +470,8 @@ def depth(args):
     ac = AnchorFile(anchorfile)
     qranges = []
     sranges = []
-    for ib in ac.iter_blocks():
+    blocks = ac.blocks
+    for ib in blocks:
         q, s, t = zip(*ib)
         q = [qorder[x] for x in q]
         s = [sorder[x] for x in s]
@@ -567,12 +595,16 @@ def liftover(args):
 
     filtered_blast = read_blast(blast_file, qorder, sorder,
                             is_self=is_self, ostrip=opts.strip_names)
+    blast_to_score = dict(((b.qi, b.si), int(b.score)) for b in filtered_blast)
+    accepted = set((b.query, b.subject) for b in filtered_blast)
+
+    ac = AnchorFile(anchor_file)
     all_hits = group_hits(filtered_blast)
-    all_anchors = read_anchors(anchor_file, qorder, sorder)
+    all_anchors, anchor_to_block = read_anchors(ac, qorder, sorder)
 
     # select hits that are close to the anchor list
-    j = 0
     fw = sys.stdout
+    lifted = 0
     for chr_pair in sorted(all_anchors.keys()):
         hits = np.array(all_hits[chr_pair])
         anchors = np.array(all_anchors[chr_pair])
@@ -583,11 +615,16 @@ def liftover(args):
 
         for point, nearest in synteny_liftover(hits, anchors, dist):
             qi, si = point[:2]
+            block_id = anchor_to_block[nearest]
             query, subject = qbed[qi].accn, sbed[si].accn
-            print >>fw, "\t".join((query, subject, "lifted", str(nearest)))
-            j += 1
+            score = blast_to_score[(qi, si)]
+            ac.blocks[block_id].append((query, subject, str(score) + "L"))
+            lifted += 1
 
-    logging.debug("%d new pairs found" % j)
+    logging.debug("{0} new pairs found.".format(lifted))
+    newanchorfile = anchor_file.rsplit(".", 1)[0] + ".lifted.anchors"
+    ac.print_to_file(filename=newanchorfile, accepted=accepted)
+    summary([newanchorfile])
 
 
 if __name__ == '__main__':

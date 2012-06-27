@@ -123,6 +123,7 @@ def read_anchors(ac, qorder, sorder):
     all_anchors = defaultdict(list)
     nanchors = 0
     anchor_to_block = {}
+    block_extent = defaultdict(list)
 
     for a, b, idx in ac.iter_pairs():
         if a not in qorder or b not in sorder:
@@ -130,6 +131,8 @@ def read_anchors(ac, qorder, sorder):
         qi, q = qorder[a]
         si, s = sorder[b]
         pair = (qi, si)
+        block_extent[idx].append(pair)
+
         all_anchors[(q.seqid, s.seqid)].append(pair)
         anchor_to_block[pair] = idx
         nanchors += 1
@@ -137,7 +140,11 @@ def read_anchors(ac, qorder, sorder):
     logging.debug("A total of {0} anchors imported.".format(nanchors))
     assert nanchors == len(anchor_to_block)
 
-    return all_anchors, anchor_to_block
+    for idx, dd in block_extent.items():
+        xs, ys = zip(*dd)
+        block_extent[idx] = (min(xs), max(xs), min(ys), max(ys))
+
+    return all_anchors, anchor_to_block, block_extent
 
 
 def synteny_scan(points, xdist, ydist, N):
@@ -195,7 +202,6 @@ def synteny_liftover(points, anchors, dist):
     tree = cKDTree(anchors, leafsize=16)
     #print tree.data
     dists, idxs = tree.query(ppoints, p=1, distance_upper_bound=dist)
-    #print [(d, idx) for (d, idx) in zip(dists, idxs) if idx!=tree.n]
 
     for point, dist, idx in zip(points, dists, idxs):
         if idx == tree.n:  # nearest is out of range
@@ -256,11 +262,11 @@ def main():
     actions = (
         ('scan', 'get anchor list using single-linkage algorithm'),
         ('summary', 'provide statistics for pairwise blocks'),
+        ('liftover', 'given anchor list, pull adjancent pairs from blast file'),
         ('mcscan', 'stack synteny blocks on a reference bed'),
         ('stats', 'provide statistics for mscan blocks'),
         ('depth', 'calculate the depths in the two genomes in comparison'),
         ('group', 'cluster the anchors into ortho-groups'),
-        ('liftover', 'given anchor list, pull adjancent pairs from blast file'),
         ('breakpoint', 'identify breakpoints where collinearity ends'),
             )
 
@@ -387,11 +393,12 @@ def mcscan(args):
             q, s = s, q
 
         pairs = get_best_pair(q, s, t)
+        score = len(pairs)
         block_pairs[i] = pairs
 
         q = [order[x] for x in q]
         q.sort()
-        ranges.append(Range("0", q[0], q[-1], score=len(q), id=i))
+        ranges.append(Range("0", q[0], q[-1], score=score, id=i))
 
     tracks = []
     print >> sys.stderr, "Chain started: {0} blocks".format(len(ranges))
@@ -565,6 +572,8 @@ def scan(args):
     p = OptionParser(scan.__doc__)
     p.add_option("-n", type="int", default=5,
             help="minimum number of anchors in a cluster [default: %default]")
+    p.add_option("--liftover",
+            help="Scan BLAST file to find extra anchors [default: %default]")
 
     blast_file, anchor_file, dist, opts = add_options(p, args)
     qbed, sbed, qorder, sorder, is_self = check_beds(p, opts)
@@ -581,6 +590,14 @@ def scan(args):
 
     fw.close()
     summary([anchor_file])
+
+    lo = opts.liftover
+    if not lo:
+        return anchor_file
+
+    bedopts = ["--qbed=" + opts.qbed, "--sbed=" + opts.sbed]
+    newanchorfile = liftover([lo, anchor_file] + bedopts)
+    return newanchorfile
 
 
 def liftover(args):
@@ -612,7 +629,7 @@ def liftover(args):
 
     ac = AnchorFile(anchor_file)
     all_hits = group_hits(filtered_blast)
-    all_anchors, anchor_to_block = read_anchors(ac, qorder, sorder)
+    all_anchors, anchor_to_block, block_extent = read_anchors(ac, qorder, sorder)
 
     # select hits that are close to the anchor list
     fw = sys.stdout
@@ -630,6 +647,12 @@ def liftover(args):
             block_id = anchor_to_block[nearest]
             query, subject = qbed[qi].accn, sbed[si].accn
             score = blast_to_score[(qi, si)]
+
+            xmin, xmax, ymin, ymax = block_extent[block_id]
+            # Lifted pairs cannot be outside the bounding box
+            if qi < xmin or qi > xmax or si < ymin or si > ymax:
+                continue
+
             ac.blocks[block_id].append((query, subject, str(score) + "L"))
             lifted += 1
 
@@ -637,6 +660,8 @@ def liftover(args):
     newanchorfile = anchor_file.rsplit(".", 1)[0] + ".lifted.anchors"
     ac.print_to_file(filename=newanchorfile, accepted=accepted)
     summary([newanchorfile])
+
+    return newanchorfile
 
 
 if __name__ == '__main__':

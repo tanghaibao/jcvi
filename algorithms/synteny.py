@@ -373,6 +373,8 @@ def mcscan(args):
                  help="Max number of chains to output [default: %default]")
     p.add_option("--ascii", default=False, action="store_true",
                  help="Output symbols rather than gene names [default: %default]")
+    p.add_option("--Nm", default=10, type="int",
+                 help="Clip block ends to allow slight overlaps [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -380,6 +382,7 @@ def mcscan(args):
 
     bedfile, anchorfile = args
     ascii = opts.ascii
+    clip = opts.Nm
     bed = Bed(bedfile)
     order = bed.order
 
@@ -396,9 +399,14 @@ def mcscan(args):
         score = len(pairs)
         block_pairs[i] = pairs
 
-        q = [order[x] for x in q]
+        q = [order[x][0] for x in q]
         q.sort()
-        ranges.append(Range("0", q[0], q[-1], score=score, id=i))
+        qmin = q[0]
+        qmax = q[-1]
+        if qmax - qmin >= 2 * clip:
+            qmin += clip / 2
+            qmax -= clip / 2
+        ranges.append(Range("0", qmin, qmax, score=score, id=i))
 
     tracks = []
     print >> sys.stderr, "Chain started: {0} blocks".format(len(ranges))

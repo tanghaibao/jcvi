@@ -45,6 +45,8 @@ def meryl(args):
     cmd = "meryl -Dh -s {0}".format(pf)
     sh(cmd, outfile=outfile)
 
+    return outfile
+
 
 def histogram(args):
     """
@@ -57,6 +59,8 @@ def histogram(args):
     p = OptionParser(histogram.__doc__)
     p.add_option("--pdf", default=False, action="store_true",
             help="Print PDF instead of ASCII plot [default: %default]")
+    p.add_option("--coverage", default=0, type="int",
+            help="Kmer coverage [default: auto]")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -102,8 +106,9 @@ def histogram(args):
             break
 
     Total_Kmers = int(totalKmers)
-    Kmer_coverage = Ka
-    Genome_size = Total_Kmers * 1. / Ka / 1e6
+    coverage = opts.coverage
+    Kmer_coverage = Ka if not coverage else coverage
+    Genome_size = Total_Kmers * 1. / Kmer_coverage / 1e6
 
     Total_Kmers_msg = "Total {0}-mers: {1}".format(N, Total_Kmers)
     Kmer_coverage_msg = "{0}-mer coverage: {1}".format(N, Kmer_coverage)

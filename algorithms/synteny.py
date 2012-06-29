@@ -520,11 +520,16 @@ def depth(args):
         srange = (min(s)[0], max(s)[0])
         qranges.append(qrange)
         sranges.append(srange)
+        if is_self:
+            qranges.append(srange)
 
     qgenome = qbed.filename.split(".")[0]
     sgenome = sbed.filename.split(".")[0]
     print >> sys.stderr, "Genome {0} depths:".format(qgenome)
     range_depth(qranges, len(qbed))
+    if is_self:
+        return
+
     print >> sys.stderr, "Genome {0} depths:".format(sgenome)
     range_depth(sranges, len(sbed))
 

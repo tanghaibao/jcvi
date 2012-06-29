@@ -13,6 +13,7 @@ from jcvi.formats.blast import BlastLine
 from jcvi.formats.base import BaseFile, read_block
 from jcvi.utils.grouper import Grouper
 from jcvi.utils.cbook import gene_name
+from jcvi.utils.range import Range, range_chain
 from jcvi.formats.base import must_open
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
@@ -358,6 +359,22 @@ def get_best_pair(qs, ss, ts):
     return spairs
 
 
+def get_range(q, s, t, i, order, block_pairs, clip=10):
+    pairs = get_best_pair(q, s, t)
+    score = len(pairs)
+    block_pairs[i].update(pairs)
+
+    q = [order[x][0] for x in q]
+    q.sort()
+    qmin = q[0]
+    qmax = q[-1]
+    if qmax - qmin >= 2 * clip:
+        qmin += clip / 2
+        qmax -= clip / 2
+
+    return Range("0", qmin, qmax, score=score, id=i)
+
+
 def mcscan(args):
     """
     %prog mcscan bedfile anchorfile
@@ -366,8 +383,6 @@ def mcscan(args):
     the output is the reference order, given in the bedfile. Then each column
     next to it are separate 'tracks'.
     """
-    from jcvi.utils.range import Range, range_chain
-
     p = OptionParser(mcscan.__doc__)
     p.add_option("--iter", default=100, type="int",
                  help="Max number of chains to output [default: %default]")
@@ -388,25 +403,24 @@ def mcscan(args):
 
     ac = AnchorFile(anchorfile)
     ranges = []
-    block_pairs = {}
+    block_pairs = defaultdict(dict)
     blocks = ac.blocks
     for i, ib in enumerate(blocks):
         q, s, t = zip(*ib)
         if q[0] not in order:
             q, s = s, q
 
-        pairs = get_best_pair(q, s, t)
-        score = len(pairs)
-        block_pairs[i] = pairs
+        r = get_range(q, s, t, i, order, block_pairs, clip=clip)
+        ranges.append(r)
 
-        q = [order[x][0] for x in q]
-        q.sort()
-        qmin = q[0]
-        qmax = q[-1]
-        if qmax - qmin >= 2 * clip:
-            qmin += clip / 2
-            qmax -= clip / 2
-        ranges.append(Range("0", qmin, qmax, score=score, id=i))
+        assert q[0] in order
+        if s[0] not in order:
+            continue
+
+        # is_self comparison
+        q, s = s, q
+        r = get_range(q, s, t, i, order, block_pairs, clip=clip)
+        ranges.append(r)
 
     tracks = []
     print >> sys.stderr, "Chain started: {0} blocks".format(len(ranges))

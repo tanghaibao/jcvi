@@ -81,7 +81,7 @@ def set_image_options(instance, args=None, figsize="6x6", dpi=300, format="pdf")
             format("|".join(allowed_format)) + " [default: %default]")
 
     if args is None:
-        args = sys.argv[1]
+        args = sys.argv[1:]
 
     opts, args = instance.parse_args(args)
 

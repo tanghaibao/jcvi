@@ -60,6 +60,37 @@ class AnchorFile (BaseFile):
         logging.debug("Anchors written to `{0}`.".format(filename))
 
 
+class BlockFile (BaseFile):
+
+    def __init__(self, filename):
+        super(BlockFile, self).__init__(filename)
+        fp = must_open(filename)
+        data = []
+        for row in fp:
+            atoms = row.rstrip().split("\t")
+            data.append(atoms)
+
+        self.columns = zip(*data)
+        self.ncols = len(self.columns)
+
+    def get_extent(self, i, order, debug=True):
+        col = self.columns[i]
+        ocol = [order[x] for x in col if x in order]
+        orientation = '+' if ocol[0][0] <= ocol[-1][0] else '-'
+        si, start = min(ocol)
+        ei, end = max(ocol)
+        same_chr = (start.seqid == end.seqid)
+        chr = start.seqid if same_chr else None
+        ngenes = ei - si + 1
+        if debug:
+            print >> sys.stderr, "Column {0}: {1} - {2}".\
+                    format(i, start.accn, end.accn)
+            print >> sys.stderr, "  {0} .. {1} ({2}) features .. {3}".\
+                    format(chr, ngenes, len(ocol), orientation)
+
+        return start, end, si, ei, chr, orientation
+
+
 def _score(cluster):
     """
     score of the cluster, in this case, is the number of non-repetitive matches

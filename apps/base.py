@@ -285,6 +285,10 @@ def main():
     p.dispatch(globals())
 
 
+def fname():
+    return sys._getframe().f_back.f_code.co_name
+
+
 def get_times(filename):
     st = os.stat(filename)
     atime = st.st_atime

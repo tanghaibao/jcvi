@@ -78,29 +78,49 @@ class TextCircle (object):
         ax.text(x, y, label, ha="center", va="center", color=color)
 
 
-class Glyph (object):
+class BaseGlyph (list):
+
+    def __init__(self, ax):
+        self.ax = ax
+
+    def add_patches(self):
+        for p in self:
+            self.ax.add_patch(p)
+
+    def set_transform(self, tr):
+        for p in self:
+            p.set_transform(tr)
+
+
+class Glyph (BaseGlyph):
     """Draws gradient rectangle
     """
-    def __init__(self, ax, x1, x2, y, height=.03, fc="gray", **kwargs):
+    def __init__(self, ax, x1, x2, y, height=.03, gradient=True, fc="gray", **kwargs):
 
+        super(Glyph, self).__init__(ax)
         width = x2 - x1
         # Frame around the gradient rectangle
         p1 = (x1, y - .5 * height)
-        ax.add_patch(Rectangle(p1, width, height, fc=fc,
+        self.append(Rectangle(p1, width, height, fc=fc,
             lw=0, **kwargs))
+
         # Several overlaying patches
-        for cascade in np.arange(.1, .55, .05):
-            p1 = (x1, y - height * cascade)
-            ax.add_patch(Rectangle(p1, width, 2 * cascade * height,
-                fc='w', lw=0, alpha=.1))
+        if gradient:
+            for cascade in np.arange(.1, .55, .05):
+                p1 = (x1, y - height * cascade)
+                self.append(Rectangle(p1, width, 2 * cascade * height,
+                    fc='w', lw=0, alpha=.1))
+
+        self.add_patches()
 
 
-class ExonGlyph (object):
+class ExonGlyph (BaseGlyph):
     """Multiple rectangles linked together.
     """
     def __init__(self, ax, x, y, mrnabed, exonbeds, height=.03, ratio=1,
                  align="left", **kwargs):
 
+        super(ExonGlyph, self).__init__(ax)
         start, end = mrnabed.start, mrnabed.end
         xa = lambda a: x + (a - start) * ratio
         xb = lambda a: x - (end - a) * ratio
@@ -112,10 +132,11 @@ class ExonGlyph (object):
             Glyph(ax, xc(bstart), xc(bend), y, fc="orange")
 
 
-class GeneGlyph (object):
+class GeneGlyph (BaseGlyph):
     """Draws an oriented gene symbol, with color gradient, to represent genes
     """
-    def __init__(self, ax, x1, x2, y, height, tip=.0025, **kwargs):
+    def __init__(self, ax, x1, x2, y, height, gradient=True, tip=.0025, **kwargs):
+        super(GeneGlyph, self).__init__(ax)
         # Figure out the polygon vertices first
         orientation = 1 if x1 < x2 else -1
         level = 10
@@ -125,19 +146,22 @@ class GeneGlyph (object):
         p3 = (x2, y)
         p4 = (x2 - orientation * tip, y + height * .5)
         p5 = (x1, y + .5*height)
-        ax.add_patch(Polygon([p1, p2, p3, p4, p5], ec='k', **kwargs))
+        self.append(Polygon([p1, p2, p3, p4, p5], ec='k', **kwargs))
 
-        zz = kwargs.get("zorder", 1)
-        zz += 1
-        # Patch (apply white mask)
-        for cascade in np.arange(0, .5, .5 / level):
-            p1 = (x1, y - height * cascade)
-            p2 = (x2 - orientation * tip, y - height * cascade)
-            p3 = (x2, y)
-            p4 = (x2 - orientation * tip, y + height * cascade)
-            p5 = (x1, y + height * cascade)
-            ax.add_patch(Polygon([p1, p2, p3, p4, p5], fc='w', \
-                    lw=0, alpha=.2, zorder=zz))
+        if gradient:
+            zz = kwargs.get("zorder", 1)
+            zz += 1
+            # Patch (apply white mask)
+            for cascade in np.arange(0, .5, .5 / level):
+                p1 = (x1, y - height * cascade)
+                p2 = (x2 - orientation * tip, y - height * cascade)
+                p3 = (x2, y)
+                p4 = (x2 - orientation * tip, y + height * cascade)
+                p5 = (x1, y + height * cascade)
+                self.append(Polygon([p1, p2, p3, p4, p5], fc='w', \
+                        lw=0, alpha=.2, zorder=zz))
+
+        self.add_patches()
 
 
 def main():

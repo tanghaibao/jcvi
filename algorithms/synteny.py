@@ -88,7 +88,9 @@ class BlockFile (BaseFile):
             print >> sys.stderr, "  {0} .. {1} ({2}) features .. {3}".\
                     format(chr, ngenes, len(ocol), orientation)
 
-        return start, end, si, ei, chr, orientation
+        span = abs(start.start - end.end)
+
+        return start, end, si, ei, chr, orientation, span
 
 
 def _score(cluster):

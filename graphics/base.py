@@ -9,9 +9,11 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
+
 from matplotlib.patches import Rectangle, Polygon, CirclePolygon
 from matplotlib.colors import LogNorm
 from matplotlib import cm
+from matplotlib.transforms import Affine2D
 
 from jcvi.utils.cbook import human_size
 from jcvi.apps.console import dark, green

@@ -70,6 +70,7 @@ class BlockFile (BaseFile):
             atoms = row.rstrip().split("\t")
             data.append(atoms)
 
+        self.data = data
         self.columns = zip(*data)
         self.ncols = len(self.columns)
 
@@ -91,6 +92,14 @@ class BlockFile (BaseFile):
         span = abs(start.start - end.end)
 
         return start, end, si, ei, chr, orientation, span
+
+    def iter_pairs(self, i, j):
+        for d in self.data:
+            a, b = d[i], d[j]
+            if "." in (a, b):
+                continue
+
+            yield a, b
 
 
 def _score(cluster):

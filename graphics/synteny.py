@@ -24,7 +24,8 @@ from optparse import OptionParser
 from jcvi.algorithms.synteny import BlockFile
 from jcvi.formats.bed import Bed
 from jcvi.formats.base import LineFile, DictFile
-from jcvi.graphics.base import plt, _, set_image_options, Affine2D
+from jcvi.graphics.base import plt, _, set_image_options, Affine2D, \
+        Path, PathPatch
 from jcvi.graphics.glyph import Glyph
 from jcvi.utils.cbook import human_size
 from jcvi.apps.base import debug
@@ -49,18 +50,56 @@ class Layout (LineFile):
     def __init__(self, filename, delimiter=','):
         super(Layout, self).__init__(filename)
         fp = open(filename)
+        self.edges = []
         for row in fp:
             if row[0] == '#':
                 continue
-            self.append(LayoutLine(row, delimiter=delimiter))
+            if row[0] == 'e':
+                args = row.rstrip().split(delimiter)
+                args = [x.strip() for x in args]
+                a, b = args[1:3]
+                a, b = int(a), int(b)
+                assert args[0] == 'e'
+                self.edges.append((a, b))
+            else:
+                self.append(LayoutLine(row, delimiter=delimiter))
+
+
+class Shade (object):
+
+    def __init__(self, ax, a, b, ymid):
+        a1, a2 = a
+        b1, b2 = b
+        ax1, ay1 = a1
+        ax2, ay2 = a2
+        bx1, by1 = b1
+        bx2, by2 = b2
+        M, C4, L, CP = Path.MOVETO, Path.CURVE4, Path.LINETO, Path.CLOSEPOLY
+        pathdata = \
+        [
+            (M, a1),
+            (C4, (ax1, ymid)),
+            (C4, (bx1, ymid)),
+            (C4, b1),
+            (L, b2),
+            (C4, (bx2, ymid)),
+            (C4, (ax2, ymid)),
+            (C4, a2),
+            (CP, a1)
+        ]
+        codes, verts = zip(*pathdata)
+        path = Path(verts, codes)
+        ax.add_patch(PathPatch(path, fc='k', alpha=.2))
 
 
 class Region (object):
 
     def __init__(self, ax, ext, layout, bed, scale, switch=None, pad=.04):
         x, y = layout.x, layout.y
+        self.y = y
         lr = layout.rotation
         tr = Affine2D().rotate_deg_around(x, y, lr) + ax.transAxes
+        inv = ax.transAxes.inverted()
 
         start, end, si, ei, chr, orientation, span = ext
         flank = span / scale / 2
@@ -82,6 +121,7 @@ class Region (object):
         label = "-".join((human_size(startbp)[:-2], human_size(endbp)))
 
         height = .012
+        self.gg = {}
         # Genes
         for g in genes:
             gstart, gend = g.start, g.end
@@ -92,6 +132,11 @@ class Region (object):
                 strand = "+" if strand == "-" else "-"
 
             x1, x2 = cv(gstart), cv(gend)
+            a, b = tr.transform((x1, y)), tr.transform((x2, y))
+            a, b = inv.transform(a), inv.transform(b)
+            self.gg[g.accn] = (a, b)
+            #ax.text(a[0], a[1], g.accn[-6:], size=6, rotation=lr + 90)
+
             color = "b" if strand == "+" else "g"
             gp = Glyph(ax, x1, x2, y, height, gradient=False, fc=color, zorder=2)
             gp.set_transform(tr)
@@ -99,10 +144,13 @@ class Region (object):
         ha, va = layout.ha, layout.va
         if ha == "left":
             xx = xstart
+            ha = "right"
         elif ha == "right":
             xx = xend
+            ha = "left"
         else:
             xx = x
+            ha = "center"
 
         if va == "top":
             yy = y + pad
@@ -115,11 +163,11 @@ class Region (object):
         trans_angle = ax.transAxes.transform_angles(np.array((lr, )),
                                                     l.reshape((1, 2)))[0]
         p3 = pad / 3
-        lx, ly = l[0], l[1]
+        lx, ly = l
         ax.text(lx, ly, chr + "\n ", color=layout.color,
-                    ha="center", va="center", size=8, rotation=trans_angle)
-        ax.text(lx, ly, _(" \n \n" + label), color="gray",
-                    ha="center", va="center", size=8, rotation=trans_angle)
+                    ha=ha, va="center", size=8, rotation=trans_angle)
+        ax.text(lx, ly, _(" \n \n" + label), color="k",
+                    ha=ha, va="center", size=8, rotation=trans_angle)
 
 
 
@@ -127,7 +175,7 @@ def main():
     p = OptionParser(__doc__)
     p.add_option("--switch",
                  help="Rename the seqid with two-column file [default: %default]")
-    opts, args, iopts = set_image_options(p, figsize="8x8")
+    opts, args, iopts = set_image_options(p, figsize="6x6")
 
     if len(args) != 3:
         sys.exit(not p.print_help())
@@ -152,9 +200,21 @@ def main():
     maxspan = max(exts, key=lambda x: x[-1])[-1]
     scale = maxspan / .65
 
+    gg = {}
+    ymids = []
     for i in xrange(bf.ncols):
         ext = exts[i]
-        Region(root, ext, lo[i], bed, scale, switch)
+        r = Region(root, ext, lo[i], bed, scale, switch)
+        gg.update(r.gg)
+        ymids.append(r.y)
+
+    for i, j in lo.edges:
+        for ga, gb in bf.iter_pairs(i, j):
+            #print ga, gb
+            a = gg[ga]
+            b = gg[gb]
+            ymid = (ymids[i] + ymids[j]) / 2
+            Shade(root, a, b, ymid)
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)

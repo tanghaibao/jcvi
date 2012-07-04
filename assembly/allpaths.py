@@ -284,7 +284,7 @@ else
 fi
 
 RunAllPathsLG PRE=. REFERENCE_NAME=. OVERWRITE=True \
-    DATA_SUBDIR=. RUN=allpaths SUBDIR=run THREADS=32 \
+    DATA_SUBDIR=. RUN=allpaths SUBDIR=run THREADS=32 MIN_CONTIG=300 \
     | tee run.log"""
 
 

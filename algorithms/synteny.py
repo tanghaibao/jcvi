@@ -66,11 +66,17 @@ class BlockFile (BaseFile):
         super(BlockFile, self).__init__(filename)
         fp = must_open(filename)
         data = []
+        highlight = []
         for row in fp:
+            hl = row[0] == "*"
+            if hl:
+                row = row[1:]
             atoms = row.rstrip().split("\t")
             data.append(atoms)
+            highlight.append(hl)
 
         self.data = data
+        self.highlight = highlight
         self.columns = zip(*data)
         self.ncols = len(self.columns)
 
@@ -93,8 +99,11 @@ class BlockFile (BaseFile):
 
         return start, end, si, ei, chr, orientation, span
 
-    def iter_pairs(self, i, j):
-        for d in self.data:
+    def iter_pairs(self, i, j, highlight=False):
+        for h, d in zip(self.highlight, self.data):
+            if highlight and not h:
+                continue
+
             a, b = d[i], d[j]
             if "." in (a, b):
                 continue

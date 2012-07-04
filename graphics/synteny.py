@@ -67,7 +67,7 @@ class Layout (LineFile):
 
 class Shade (object):
 
-    def __init__(self, ax, a, b, ymid):
+    def __init__(self, ax, a, b, ymid, highlight=False):
         a1, a2 = a
         b1, b2 = b
         ax1, ay1 = a1
@@ -89,7 +89,14 @@ class Shade (object):
         ]
         codes, verts = zip(*pathdata)
         path = Path(verts, codes)
-        ax.add_patch(PathPatch(path, fc='k', alpha=.2))
+        if highlight:
+            ec = fc = 'orange'
+            alpha = .8
+        else:
+            ec = fc = "k"
+            alpha = .2
+
+        ax.add_patch(PathPatch(path, fc=fc, ec=ec, alpha=alpha))
 
 
 class Region (object):
@@ -165,9 +172,9 @@ class Region (object):
         p3 = pad / 3
         lx, ly = l
         ax.text(lx, ly, chr + "\n ", color=layout.color,
-                    ha=ha, va="center", size=8, rotation=trans_angle)
+                    ha=ha, va="center", size=10, rotation=trans_angle)
         ax.text(lx, ly, _(" \n \n" + label), color="k",
-                    ha=ha, va="center", size=8, rotation=trans_angle)
+                    ha=ha, va="center", size=10, rotation=trans_angle)
 
 
 
@@ -210,11 +217,14 @@ def main():
 
     for i, j in lo.edges:
         for ga, gb in bf.iter_pairs(i, j):
-            #print ga, gb
-            a = gg[ga]
-            b = gg[gb]
+            a, b = gg[ga], gg[gb]
             ymid = (ymids[i] + ymids[j]) / 2
             Shade(root, a, b, ymid)
+
+        for ga, gb in bf.iter_pairs(i, j, highlight=True):
+            a, b = gg[ga], gg[gb]
+            ymid = (ymids[i] + ymids[j]) / 2
+            Shade(root, a, b, ymid, highlight=True)
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)

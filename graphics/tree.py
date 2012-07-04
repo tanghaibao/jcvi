@@ -24,7 +24,9 @@ def draw_tree(ax, tx, rmargin=.3, outgroup=None, gffdir=None, sizes=None):
         # Calculate the midpoint node
         R = t.get_midpoint_outgroup()
 
-    t.set_outgroup(R)
+    if R != t:
+        t.set_outgroup(R)
+
     farthest, max_dist = t.get_farthest_leaf()
 
     margin = .05
@@ -81,8 +83,9 @@ def draw_tree(ax, tx, rmargin=.3, outgroup=None, gffdir=None, sizes=None):
                 ax.plot((xx, cx), (cy, cy), "k-")
             yy = sum(children_y) * 1. / len(children_y)
             support = n.support
-            ax.text(xx, yy, _("{0:d}".format(int(abs(support * 100)))),
-                    ha="right", size=10)
+            if not n.is_root():
+                ax.text(xx, yy, _("{0:d}".format(int(abs(support * 100)))),
+                        ha="right", size=10)
 
         coords[n] = (xx, yy)
 
@@ -96,6 +99,10 @@ def draw_tree(ax, tx, rmargin=.3, outgroup=None, gffdir=None, sizes=None):
     ax.plot([x1, x2], [yy, yy], "k-")
     ax.text((x1 + x2) / 2, yy - tip, _("{0:g}".format(br)),
             va="top", ha="center", size=10)
+
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.set_axis_off()
 
 
 def main(tx=None):
@@ -137,10 +144,6 @@ def main(tx=None):
 
     draw_tree(root, tx, rmargin=opts.rmargin,
               outgroup=outgroup, gffdir=opts.gffdir, sizes=opts.sizes)
-
-    root.set_xlim(0, 1)
-    root.set_ylim(0, 1)
-    root.set_axis_off()
 
     image_name = pf + "." + iopts.format
     logging.debug("Print image to `{0}` {1}".format(image_name, iopts))

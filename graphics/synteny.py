@@ -23,10 +23,10 @@ from optparse import OptionParser
 
 from jcvi.algorithms.synteny import BlockFile
 from jcvi.formats.bed import Bed
-from jcvi.formats.base import LineFile, DictFile
+from jcvi.formats.base import LineFile, DictFile, read_block
 from jcvi.graphics.base import plt, _, set_image_options, Affine2D, \
         Path, PathPatch
-from jcvi.graphics.glyph import Glyph
+from jcvi.graphics.glyph import Glyph, RoundLabel
 from jcvi.utils.cbook import human_size
 from jcvi.apps.base import debug
 debug()
@@ -90,7 +90,7 @@ class Shade (object):
         codes, verts = zip(*pathdata)
         path = Path(verts, codes)
         if highlight:
-            ec = fc = 'orange'
+            ec = fc = 'r'
             alpha = .8
         else:
             ec = fc = "k"
@@ -172,9 +172,9 @@ class Region (object):
         p3 = pad / 3
         lx, ly = l
         ax.text(lx, ly, chr + "\n ", color=layout.color,
-                    ha=ha, va="center", size=10, rotation=trans_angle)
+                    ha=ha, va="center", rotation=trans_angle)
         ax.text(lx, ly, _(" \n \n" + label), color="k",
-                    ha=ha, va="center", size=10, rotation=trans_angle)
+                    ha=ha, va="center", rotation=trans_angle)
 
 
 
@@ -182,7 +182,9 @@ def main():
     p = OptionParser(__doc__)
     p.add_option("--switch",
                  help="Rename the seqid with two-column file [default: %default]")
-    opts, args, iopts = set_image_options(p, figsize="6x6")
+    p.add_option("--tree",
+                 help="Display trees on the bottom of the figure [default: %default]")
+    opts, args, iopts = set_image_options(p, figsize="8x7")
 
     if len(args) != 3:
         sys.exit(not p.print_help())
@@ -194,6 +196,7 @@ def main():
     lo = Layout(layoutfile)
     switch = opts.switch
     switch = DictFile(switch, delimiter="\t") if switch else None
+    tree = opts.tree
 
     pf = datafile.rsplit(".", 1)[0]
     fig = plt.figure(1, (iopts.w, iopts.h))
@@ -225,6 +228,32 @@ def main():
             a, b = gg[ga], gg[gb]
             ymid = (ymids[i] + ymids[j]) / 2
             Shade(root, a, b, ymid, highlight=True)
+
+    if tree:
+        from urlparse import parse_qs
+        from jcvi.graphics.tree import draw_tree
+        trees = []
+        fp = open(tree)
+        for header, tx in read_block(fp, "#"):
+            header = parse_qs(header[1:])
+            trees.append((header, "".join(tx)))
+
+        tree_axes = []
+        ntrees = len(trees)
+        logging.debug("A total of {0} trees imported.".format(ntrees))
+        xiv = 1. / ntrees
+        yiv = .3
+        xstart = 0
+        ystart = .1
+        for i in xrange(ntrees):
+            ax = fig.add_axes([xstart, ystart, xiv, yiv])
+            header, tx = trees[i]
+            label = header["label"][0].strip("\"")
+            outgroup = header["outgroup"]
+            draw_tree(ax, tx, outgroup=outgroup, rmargin=.4)
+            xstart += xiv
+            RoundLabel(ax, .5, .3, label, fill=True, fc="lavender", color="r", \
+                       fontstyle="italic")
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)

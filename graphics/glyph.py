@@ -52,10 +52,10 @@ class Bezier (object):
 class RoundLabel (object):
     """Round rectangle around the text label
     """
-    def __init__(self, ax, x1, x2, t, **kwargs):
+    def __init__(self, ax, x1, x2, t, lw=0, fill=False, fc="lavender", **kwargs):
 
-        ax.text(x1, x2, _(t), ha="center",
-            bbox=dict(boxstyle="round",fill=False))
+        ax.text(x1, x2, t, ha="center",
+            bbox=dict(boxstyle="round", fill=fill, fc=fc, lw=lw), **kwargs)
 
 
 class DoubleCircle (object):

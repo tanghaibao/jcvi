@@ -656,7 +656,8 @@ def scan(args):
     blast_file, anchor_file, dist, opts = add_options(p, args)
     qbed, sbed, qorder, sorder, is_self = check_beds(p, opts)
 
-    filtered_blast = read_blast(blast_file, qorder, sorder, is_self=is_self)
+    filtered_blast = read_blast(blast_file, qorder, sorder, \
+                                is_self=is_self, ostrip=False)
 
     fw = open(anchor_file, "w")
     clusters = batch_scan(filtered_blast, xdist=dist, ydist=dist, N=opts.n)

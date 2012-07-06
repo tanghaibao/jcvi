@@ -15,7 +15,7 @@ from jcvi.utils.grouper import Grouper
 from jcvi.utils.cbook import gene_name
 from jcvi.utils.range import Range, range_chain
 from jcvi.formats.base import must_open
-from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.apps.base import ActionDispatcher, debug, set_outfile
 debug()
 
 
@@ -441,6 +441,7 @@ def mcscan(args):
                  help="Output symbols rather than gene names [default: %default]")
     p.add_option("--Nm", default=10, type="int",
                  help="Clip block ends to allow slight overlaps [default: %default]")
+    set_outfile(p)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -473,6 +474,11 @@ def mcscan(args):
         r = get_range(q, s, t, i, order, block_pairs, clip=clip)
         ranges.append(r)
 
+    ofile = opts.outfile
+    olog = ofile + ".tracks"
+    fw = must_open(ofile, "w")
+    fwlog = must_open(olog, "w")
+
     tracks = []
     print >> sys.stderr, "Chain started: {0} blocks".format(len(ranges))
     iteration = 0
@@ -483,6 +489,8 @@ def mcscan(args):
         selected, score = range_chain(ranges)
         tracks.append(selected)
         selected = set(x.id for x in selected)
+        print >> fwlog, ",".join(str(x) for x in sorted(selected))
+
         ranges = [x for x in ranges if x.id not in selected]
         msg = "Chain {0}: score={1}".format(iteration, score)
         if ranges:
@@ -508,7 +516,10 @@ def mcscan(args):
             atoms.append(anchor)
 
         sep = "" if ascii else "\t"
-        print "\t".join((id, sep.join(atoms)))
+        print >> fw, "\t".join((id, sep.join(atoms)))
+
+    logging.debug("MCscan blocks written to `{0}`.".format(ofile))
+    logging.debug("Block IDs written to `{0}`.".format(olog))
 
 
 def group(args):

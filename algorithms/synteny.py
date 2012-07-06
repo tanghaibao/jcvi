@@ -340,7 +340,7 @@ def screen(args):
     Another option --simple, does not write new anchorfile, but only write the
     block ends.
 
-    GeneA-GeneB    GeneC-GeneD
+    GeneA    GeneB    GeneC    GeneD    +/-
     """
     from jcvi.formats.base import SetFile
 
@@ -383,6 +383,8 @@ def screen(args):
         b = [order[x] for x in b]
         ia, oa = zip(*a)
         ib, ob = zip(*b)
+        aspan = max(ia) - min(ia) + 1
+        bspan = max(ib) - min(ib) + 1
 
         if seqids:
             aseqid = oa[0].seqid
@@ -391,8 +393,6 @@ def screen(args):
                 continue
 
         if minspan:
-            aspan = max(ia) - min(ia) + 1
-            bspan = max(ib) - min(ib) + 1
             if aspan < minspan or bspan < minspan:
                 continue
 
@@ -402,7 +402,8 @@ def screen(args):
             bstart, bend = min(b)[1].accn, max(b)[1].accn
             slope, intercept = np.polyfit(ia, ib, 1)
             orientation = "+" if slope >= 0 else '-'
-            print >> fw, "\t".join((astart, aend, bstart, bend, orientation))
+            score = str(aspan * bspan)
+            print >> fw, "\t".join((astart, aend, bstart, bend, score, orientation))
 
         else:
             print >> fw, "###"

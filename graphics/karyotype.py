@@ -2,9 +2,9 @@
 # -*- coding: UTF-8 -*-
 
 """
-%prog datafile
+%prog anchorsfile tracksfile all.bed
 
-Illustrate blablabla...
+Illustrate macrosynteny between tracks which represent individual genomes.
 """
 
 
@@ -22,7 +22,7 @@ def main():
     p = OptionParser(__doc__)
     opts, args, iopts = set_image_options(p)
 
-    if len(args) != 1:
+    if len(args) != 3:
         sys.exit(not p.print_help())
 
     datafile, = args

@@ -316,6 +316,7 @@ def main():
         ('summary', 'provide statistics for pairwise blocks'),
         ('liftover', 'given anchor list, pull adjancent pairs from blast file'),
         ('mcscan', 'stack synteny blocks on a reference bed'),
+        ('screen', 'extract subset of blocks from anchorfile'),
         ('stats', 'provide statistics for mscan blocks'),
         ('depth', 'calculate the depths in the two genomes in comparison'),
         ('group', 'cluster the anchors into ortho-groups'),
@@ -324,6 +325,92 @@ def main():
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def screen(args):
+    """
+    %prog screen all.bed anchorfile newanchorfile
+
+    Extract subset of blocks from anchorfile. Provide several options:
+
+    1. Option --ids: a file with IDs, 0-based, comma separated, all in one line.
+    2. Option --seqids: only allow seqids in this file.
+    3. Option --minspan: remove blocks with less span than this.
+
+    Another option --simple, does not write new anchorfile, but only write the
+    block ends.
+
+    GeneA-GeneB    GeneC-GeneD
+    """
+    from jcvi.formats.base import SetFile
+
+    p = OptionParser(screen.__doc__)
+    p.add_option("--ids", help="File with block IDs (0-based) [default: %default]")
+    p.add_option("--seqids", help="File with seqids [default: %default]")
+    p.add_option("--minspan", default=50, type="int",
+                 help="Only blocks with span >= [default: %default]")
+    p.add_option("--simple", action="store_true",
+                 help="Write simple anchorfile with block ends [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    bedfile, anchorfile, newanchorfile = args
+    ac = AnchorFile(anchorfile)
+    idsfile = opts.ids
+    seqidsfile = opts.seqids
+    minspan = opts.minspan
+    simple = opts.simple
+    ids, seqids = None, None
+
+    if idsfile:
+        ids = SetFile(idsfile, delimiter=',')
+        ids = set(int(x) for x in ids)
+    if seqidsfile:
+        seqids = SetFile(seqidsfile, delimiter=',')
+
+    order = Bed(bedfile).order
+    blocks = ac.blocks
+    selected = 0
+    fw = open(newanchorfile, "w")
+    for i, block in enumerate(blocks):
+        if ids and i not in ids:
+            continue
+
+        a, b, scores = zip(*block)
+        a = [order[x] for x in a]
+        b = [order[x] for x in b]
+        ia, oa = zip(*a)
+        ib, ob = zip(*b)
+
+        if seqids:
+            aseqid = oa[0].seqid
+            bseqid = ob[0].seqid
+            if (aseqid not in seqids) or (bseqid not in seqids):
+                continue
+
+        if minspan:
+            aspan = max(ia) - min(ia) + 1
+            bspan = max(ib) - min(ib) + 1
+            if aspan < minspan or bspan < minspan:
+                continue
+
+        selected += 1
+        if simple:
+            astart, aend = min(a)[1].accn, max(a)[1].accn
+            bstart, bend = min(b)[1].accn, max(b)[1].accn
+            slope, intercept = np.polyfit(ia, ib, 1)
+            orientation = "+" if slope >= 0 else '-'
+            print >> fw, "\t".join((astart, aend, bstart, bend, orientation))
+
+        else:
+            print >> fw, "###"
+            for line in block:
+                print >> fw, "\t".join(line)
+
+    logging.debug("Before: {0} blocks, After: {1} blocks".\
+                  format(len(blocks), selected))
 
 
 def summary(args):

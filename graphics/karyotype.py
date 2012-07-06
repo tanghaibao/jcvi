@@ -2,7 +2,7 @@
 # -*- coding: UTF-8 -*-
 
 """
-%prog anchorsfile tracksfile all.bed
+%prog anchorsfile all.bed layout
 
 Illustrate macrosynteny between tracks which represent individual genomes.
 """
@@ -22,10 +22,10 @@ def main():
     p = OptionParser(__doc__)
     opts, args, iopts = set_image_options(p)
 
-    if len(args) != 3:
+    if len(args) != 2:
         sys.exit(not p.print_help())
 
-    datafile, = args
+    bedfile, layoutfile = args
     pf = datafile.rsplit(".", 1)[0]
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])

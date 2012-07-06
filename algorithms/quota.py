@@ -309,4 +309,5 @@ if __name__ == '__main__':
             Nmax=opts.Nmax, self_match=self_match, \
             solver=opts.solver, verbose=opts.verbose)
 
+    logging.debug("Selected {0} blocks.".format(len(selected_ids)))
     print ",".join(str(x) for x in selected_ids)

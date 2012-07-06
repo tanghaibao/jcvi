@@ -67,12 +67,14 @@ class DictFile (BaseFile, dict):
 
 class SetFile (BaseFile, set):
 
-    def __init__(self, filename, column=0):
+    def __init__(self, filename, column=-1, delimiter=None):
         super(SetFile, self).__init__(filename)
         fp = open(filename)
-        for x in fp:
-            key = x.split()[column] if column >= 0 else x.strip()
-            self.add(key)
+        for row in fp:
+            keys = [x.strip() for x in row.split(delimiter)]
+            if column >= 0:
+                keys = [keys[column]]
+            self.update(keys)
 
 
 class FileShredder (object):

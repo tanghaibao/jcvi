@@ -337,15 +337,38 @@ def parse_fasta(infile):
         yield header, seq
 
 
+def iter_clean_fasta(fastafile):
+    import string
+    for header, seq in parse_fasta(fastafile):
+        seq = "".join(x for x in seq if x in string.letters or x == '*')
+        yield header, seq
+
+
+def fancyprint(fw, seq, width=60, chunk=10):
+    from jcvi.utils.iter import grouper
+
+    assert width % chunk == 0
+    nchunks = width / chunk
+    seqlen = len(seq)
+    maxchar = len(str(seqlen))
+
+    s = ["".join(x) for x in grouper(chunk, seq, fillvalue="")]
+    s = [" ".join(x) for x in grouper(nchunks, s, fillvalue="")]
+    for a, b in zip(range(1, len(seq), width), s):
+        b = b.rstrip()
+        a = str(a).rjust(maxchar, " ")
+        print >> fw, "  ".join((a, b))
+
+
 def clean(args):
     """
     %prog clean fastafile
 
     Remove irregular chars in FASTA seqs.
     """
-    import string
-
     p = OptionParser(clean.__doc__)
+    p.add_option("--fancy", default=False, action="store_true",
+                 help="Pretty print the sequence [default: %default]")
     set_outfile(p)
 
     opts, args = p.parse_args(args)
@@ -355,8 +378,14 @@ def clean(args):
 
     fastafile, = args
     fw = must_open(opts.outfile, "w")
-    for header, seq in parse_fasta(fastafile):
-        seq = "".join(x for x in seq if x in string.letters or x == '*')
+    if opts.fancy:
+        for header, seq in iter_clean_fasta(fastafile):
+            print >> fw, ">" + header
+            fancyprint(fw, seq)
+
+        return 0
+
+    for header, seq in iter_clean_fasta(fastafile):
         seq = Seq(seq)
         s = SeqRecord(seq, id=header, description="")
         SeqIO.write([s], fw, "fasta")

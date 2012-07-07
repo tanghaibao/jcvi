@@ -10,7 +10,8 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 
-from matplotlib.patches import Rectangle, Polygon, CirclePolygon, PathPatch
+from matplotlib.patches import Rectangle, Polygon, CirclePolygon, \
+        PathPatch
 from matplotlib.path import Path
 from matplotlib.colors import LogNorm
 from matplotlib import cm

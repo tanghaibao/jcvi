@@ -71,7 +71,7 @@ class Track (object):
         assert len(seqids) == len(sizes)
 
         xstart = .05
-        gap = .04
+        gap = .01
         span = .9 - gap * (len(sizes) - 1)
         total = sum(sizes.values())
         ratio = span / total
@@ -79,7 +79,8 @@ class Track (object):
         for sid in seqids:
             size = sizes[sid]
             xend = xstart + ratio * size
-            hc = HorizontalChromosome(ax, xstart, xend, y, height=.02, fc=color)
+            hc = HorizontalChromosome(ax, xstart, xend, y, \
+                                      height=.02, fc=color)
             si = "".join(x for x in sid if x not in string.letters)
             si = str(int(si))
             xx = (xstart + xend) / 2

@@ -19,6 +19,7 @@ import numpy as np
 from jcvi.formats.bed import Bed
 from jcvi.graphics.base import plt, Rectangle, Polygon, \
         CirclePolygon, _, set_image_options
+from jcvi.graphics.glyph import BaseGlyph
 
 
 def plot_cap(center, t, r):
@@ -64,17 +65,26 @@ class Chromosome (object):
 
 
 class HorizontalChromosome (object):
-    def __init__(self, ax, x1, x2, y, height=.015, fc="k", fill=False, zorder=2):
+    def __init__(self, ax, x1, x2, y, height=.015, ec="k", fc=None,
+                       fill=False, zorder=2):
         """
         Chromosome with positions given in (x1, y) => (x2, y)
         """
+        pts = self.get_pts(x1, x2, y, height)
+        ax.add_patch(Polygon(pts, fill=False, ec=ec, zorder=zorder))
+        if fc:
+            pts = self.get_pts(x1, x2, y, height * .5)
+            ax.add_patch(Polygon(pts, fc=fc, lw=0, alpha=.7, zorder=zorder))
+
+    def get_pts(self, x1, x2, y, height):
         pts = []
-        r = height * .5
-        pts += plot_cap((x1, y), np.radians(range(90, 270)), r)
-        pts += [[x1, y - r], [x2, y - r]]
-        pts += plot_cap((x2, y), np.radians(range(270, 450)), r)
-        pts += [[x2, y + r], [x1, y + r]]
-        ax.add_patch(Polygon(pts, fc=fc, fill=fill, zorder=zorder))
+        r = height / (3 ** .5)
+        pts += plot_cap((x1 + r, y), np.radians(range(120, 240)), r)
+        pts += [[x1 + r / 2, y - r], [x2 - r / 2, y - r]]
+        pts += plot_cap((x2 - r, y), np.radians(range(-60, 60)), r)
+        pts += [[x2 - r / 2, y + r], [x1 + r / 2, y + r]]
+
+        return pts
 
 
 class ChromosomeWithCentromere (object):

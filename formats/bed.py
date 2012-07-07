@@ -144,6 +144,16 @@ class Bed(LineFile):
         return dict((f.accn, (i, f)) for (i, f) in enumerate(self))
 
     @property
+    def order_in_chr(self):
+        # get the gene order on a particular seqid
+        res = {}
+        self.sort(key = self.nullkey)
+        for seqid, beds in groupby(self, key=lambda x:x.seqid):
+            for i, f in enumerate(beds):
+                res[f.accn] = (seqid, i, f)
+        return res
+
+    @property
     def simple_bed(self):
         return [(b.seqid, i) for (i, b) in enumerate(self)]
 

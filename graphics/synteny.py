@@ -67,7 +67,8 @@ class Layout (LineFile):
 
 class Shade (object):
 
-    def __init__(self, ax, a, b, ymid, highlight=False):
+    def __init__(self, ax, a, b, ymid, highlight=False, ec="k", fc="k",
+                    alpha=.2, lw=1):
         a1, a2 = a
         b1, b2 = b
         ax1, ay1 = a1
@@ -92,11 +93,8 @@ class Shade (object):
         if highlight:
             ec = fc = 'r'
             alpha = .8
-        else:
-            ec = fc = "k"
-            alpha = .2
 
-        ax.add_patch(PathPatch(path, fc=fc, ec=ec, alpha=alpha))
+        ax.add_patch(PathPatch(path, ec=ec, fc=fc, alpha=alpha, lw=lw))
 
 
 class Region (object):

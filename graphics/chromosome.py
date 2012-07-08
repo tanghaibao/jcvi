@@ -74,7 +74,7 @@ class HorizontalChromosome (object):
         ax.add_patch(Polygon(pts, fill=False, ec=ec, zorder=zorder))
         if fc:
             pts = self.get_pts(x1, x2, y, height * .5)
-            ax.add_patch(Polygon(pts, fc=fc, lw=0, alpha=.7, zorder=zorder))
+            ax.add_patch(Polygon(pts, fc=fc, lw=0, zorder=zorder))
 
     def get_pts(self, x1, x2, y, height):
         pts = []

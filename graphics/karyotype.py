@@ -15,6 +15,7 @@ import sys
 import string
 import os.path as op
 import logging
+import random
 
 from collections import defaultdict
 from optparse import OptionParser
@@ -25,6 +26,7 @@ from jcvi.apps.base import debug
 from jcvi.utils.iter import pairwise
 
 from jcvi.graphics.chromosome import HorizontalChromosome
+from jcvi.graphics.glyph import TextCircle
 from jcvi.graphics.synteny import Shade
 from jcvi.graphics.base import plt, _, set_image_options
 debug()
@@ -38,7 +40,8 @@ class LayoutLine (object):
         self.y = float(args[0])
         self.color = args[1]
         self.label = args[2]
-        self.bed = Bed(args[3])
+        self.va = args[3]
+        self.bed = Bed(args[4])
         self.order = self.bed.order
         self.order_in_chr = self.bed.order_in_chr
 
@@ -87,6 +90,7 @@ class Track (object):
         self.y = t.y
         self.sizes = sizes = t.sizes
         self.label = t.label
+        self.va = t.va
         self.color = t.color
         self.seqids = t.seqids
         self.bed = t.bed
@@ -119,11 +123,15 @@ class Track (object):
         for sid in self.seqids:
             size = self.sizes[sid]
             xend = xstart + self.ratio * size
-            hc = HorizontalChromosome(ax, xstart, xend, y, height=.02, fc=color)
+            hc = HorizontalChromosome(ax, xstart, xend, y, height=.01, fc=color)
             si = "".join(x for x in sid if x not in string.letters)
             si = str(int(si))
             xx = (xstart + xend) / 2
-            ax.text(xx, y - .015, _(si), ha="center", va="top", color=color)
+            pad = .015
+            if self.va == "bottom":
+                pad = - pad
+            TextCircle(ax, xx, y + pad, _(si), radius=.01,
+                       fc="w", color=color, size=10)
             xstart = xend + gap
 
         ax.text(xs / 2, y + gap, self.label, ha="center", color=color)
@@ -157,7 +165,7 @@ class ShadeManager (object):
             q = btrack.get_coords(c), btrack.get_coords(d)
             ymid = (atrack.y + btrack.y) / 2
 
-            Shade(ax, p, q, ymid, highlight=False)
+            Shade(ax, p, q, ymid, highlight=False, alpha=1, fc="gray", lw=0)
 
 
 class PermutationSolver (object):
@@ -167,26 +175,52 @@ class PermutationSolver (object):
     as possible.
     """
     def __init__(self, tracks, layout):
+        self.tracks = tracks
         allblocks = {}
         for i, j, blocks in layout.edges:
             allblocks[(i, j)] = blocks
             a, b, c, d, score, orientation = zip(*blocks)
             blocks = zip(c, d, a, b, score, orientation)
             allblocks[(j, i)] = blocks
+        self.allblocks = allblocks
 
         logging.debug("Automatically resolve seqids ..")
         ntracks = len(tracks)
         # e.g. [2, 1, 0, 1, 2...], oscillating between 0 and ntracks
-        pecking = range(ntracks - 1, 0, -1) + range(ntracks)[:-1]
-        pecking *= 10  # How many cycles to go through
         score = 1e100  # Minimization problem
-        for i, j in pairwise(pecking):
-            blocks = allblocks[(i, j)]
-            # Assume seqids in i already sorted, then sort seqids in j
-            updated, score = self.sort_blocks(tracks[i], tracks[j],
-                                              blocks, initialscore=score)
+        ff = range(ntracks)
+        rr = ff[::-1]
+        peckings = [rr, ff] * 20  # Max 2 x 100 iterations in total
+        for pecking in peckings:
+            updated, score = self.forward(pecking, initialscore=score)
             if not updated:
                 break
+
+    def forward(self, pecking, initialscore=1e100):
+        # Save current seqids in case this run fails
+        backups = [x.seqids for x in self.tracks]
+        finalscore = 0
+        allblocks = self.allblocks
+        tracks = self.tracks
+        opecking = list(pairwise(pecking))
+        #random.shuffle(opecking)
+        for i, j in opecking:
+            blocks = allblocks[(i, j)]
+            # Assume seqids in i already sorted, then sort seqids in j
+            score = self.sort_blocks(tracks[i], tracks[j], blocks)
+            finalscore += score
+
+        updated = finalscore < initialscore
+        label = "updated" if updated else "rejected"
+        logging.debug("Initial score={0}, final score={1}, {2}".\
+                      format(initialscore, finalscore, label))
+        if finalscore < initialscore:
+            return True, finalscore
+
+        for backup, tr in zip(backups, self.tracks):
+            tr.seqids = backup
+            tr.update_offsets()
+        return False, initialscore
 
     def sort_blocks(self, atrack, btrack, blocks, initialscore=1e100):
         bseqids = set(btrack.seqids)
@@ -204,7 +238,8 @@ class PermutationSolver (object):
                 bseqid, c, f = order[c]
                 bseqid, d, f = order[d]
                 q = xstart + (c + d) / 2 * ratio
-                scores[bseqid] += int(abs(p - q) * score) * 1000
+                bscore = int(abs(p - q) * score * 1000)
+                scores[bseqid] += bscore
             # Normalize the score over size
             for bseqid, score in scores.items():
                 size = sizes[bseqid]
@@ -217,28 +252,29 @@ class PermutationSolver (object):
             size = sizes[mk]
             xstart += size * ratio + gap
 
-        logging.debug("Order {0} - {1}: initial score={2}, final score={3}".\
-                      format(atrack, btrack, initialscore, finalscore))
-        if finalscore < initialscore:
-            btrack.seqids = finalorder
-            btrack.update_offsets()
-            return True, finalscore
+        btrack.seqids = finalorder
+        btrack.update_offsets()
 
-        return False, -1
+        return finalscore
 
 
 def main():
     p = OptionParser(__doc__)
-    opts, args, iopts = set_image_options(p, figsize="8x4")
+    p.add_option("--auto", action="store_true",
+                 help="Automatically adjust seqids [default: %default]")
+    opts, args, iopts = set_image_options(p, figsize="8x7")
 
     if len(args) != 2:
         sys.exit(not p.print_help())
 
     seqidsfile, layoutfile = args
     layout = Layout(layoutfile)
+    auto = opts.auto
 
     fp = open(seqidsfile)
     for i, row in enumerate(fp):
+        if row[0] == '#':
+            continue
         t = layout[i]
         seqids = row.rstrip().split(",")
         bed = t.bed
@@ -255,7 +291,15 @@ def main():
         tr = Track(root, lo, draw=False)
         tracks.append(tr)
 
-    PermutationSolver(tracks, layout)
+    if auto:
+        PermutationSolver(tracks, layout)
+        autofile = seqidsfile + ".auto"
+        fw = open(autofile, "w")
+        for tr in tracks:
+            print >> fw, ",".join(tr.seqids)
+        fw.close()
+        logging.debug("Auto seqids written to `{0}`.".format(autofile))
+
     ShadeManager(root, tracks, layout)
 
     for tr in tracks:

@@ -402,7 +402,8 @@ def screen(args):
             bstart, bend = min(b)[1].accn, max(b)[1].accn
             slope, intercept = np.polyfit(ia, ib, 1)
             orientation = "+" if slope >= 0 else '-'
-            score = str(aspan * bspan)
+            score = int((aspan * bspan) ** .5)
+            score = str(score)
             print >> fw, "\t".join((astart, aend, bstart, bend, score, orientation))
 
         else:

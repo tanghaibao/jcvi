@@ -321,10 +321,59 @@ def main():
         ('depth', 'calculate the depths in the two genomes in comparison'),
         ('group', 'cluster the anchors into ortho-groups'),
         ('breakpoint', 'identify breakpoints where collinearity ends'),
+        ('matrix', 'make oxford grid based on anchors file'),
             )
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def matrix(args):
+    """
+    %prog matrix all.bed anchorfile matrixfile
+
+    Make oxford grid based on anchors file.
+    """
+    from jcvi.formats.base import SetFile
+
+    p = OptionParser(matrix.__doc__)
+    p.add_option("--seqids", help="File with seqids [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    bedfile, anchorfile, matrixfile = args
+    ac = AnchorFile(anchorfile)
+    seqidsfile = opts.seqids
+    if seqidsfile:
+        seqids = SetFile(seqidsfile, delimiter=',')
+
+    order = Bed(bedfile).order
+    blocks = ac.blocks
+    m = defaultdict(int)
+    fw = open(matrixfile, "w")
+    aseqids = set()
+    bseqids = set()
+    for block in blocks:
+        a, b, scores = zip(*block)
+        ai, af = order[a[0]]
+        bi, bf = order[b[0]]
+        aseqid = af.seqid
+        bseqid = bf.seqid
+        if seqidsfile:
+            if (aseqid not in seqids) or (bseqid not in seqids):
+                continue
+        m[(aseqid, bseqid)] += len(block)
+        aseqids.add(aseqid)
+        bseqids.add(bseqid)
+
+    aseqids = list(aseqids)
+    bseqids = list(bseqids)
+    print >> fw, "\t".join(["o"] + bseqids)
+    for aseqid in aseqids:
+        print >> fw, "\t".join([aseqid] + \
+                    [str(m[(aseqid, x)]) for x in bseqids])
 
 
 def screen(args):
@@ -374,6 +423,10 @@ def screen(args):
     blocks = ac.blocks
     selected = 0
     fw = open(newanchorfile, "w")
+    if simple:
+        simplefile = newanchorfile.rsplit(".", 1)[0] + ".simple"
+        fws = open(simplefile, "w")
+
     for i, block in enumerate(blocks):
         if ids and i not in ids:
             continue
@@ -404,12 +457,11 @@ def screen(args):
             orientation = "+" if slope >= 0 else '-'
             score = int((aspan * bspan) ** .5)
             score = str(score)
-            print >> fw, "\t".join((astart, aend, bstart, bend, score, orientation))
+            print >> fws, "\t".join((astart, aend, bstart, bend, score, orientation))
 
-        else:
-            print >> fw, "###"
-            for line in block:
-                print >> fw, "\t".join(line)
+        print >> fw, "###"
+        for line in block:
+            print >> fw, "\t".join(line)
 
     logging.debug("Before: {0} blocks, After: {1} blocks".\
                   format(len(blocks), selected))
@@ -530,6 +582,8 @@ def mcscan(args):
                  help="Output symbols rather than gene names [default: %default]")
     p.add_option("--Nm", default=10, type="int",
                  help="Clip block ends to allow slight overlaps [default: %default]")
+    p.add_option("--trackids", action="store_true",
+                 help="Track block IDs in separate file [default: %default]")
     set_outfile(p)
     opts, args = p.parse_args(args)
 
@@ -539,8 +593,13 @@ def mcscan(args):
     bedfile, anchorfile = args
     ascii = opts.ascii
     clip = opts.Nm
+    trackids = opts.trackids
     bed = Bed(bedfile)
     order = bed.order
+
+    if trackids:
+        olog = ofile + ".tracks"
+        fwlog = must_open(olog, "w")
 
     ac = AnchorFile(anchorfile)
     ranges = []
@@ -564,9 +623,7 @@ def mcscan(args):
         ranges.append(r)
 
     ofile = opts.outfile
-    olog = ofile + ".tracks"
     fw = must_open(ofile, "w")
-    fwlog = must_open(olog, "w")
 
     tracks = []
     print >> sys.stderr, "Chain started: {0} blocks".format(len(ranges))
@@ -578,7 +635,8 @@ def mcscan(args):
         selected, score = range_chain(ranges)
         tracks.append(selected)
         selected = set(x.id for x in selected)
-        print >> fwlog, ",".join(str(x) for x in sorted(selected))
+        if trackids:
+            print >> fwlog, ",".join(str(x) for x in sorted(selected))
 
         ranges = [x for x in ranges if x.id not in selected]
         msg = "Chain {0}: score={1}".format(iteration, score)
@@ -608,7 +666,8 @@ def mcscan(args):
         print >> fw, "\t".join((id, sep.join(atoms)))
 
     logging.debug("MCscan blocks written to `{0}`.".format(ofile))
-    logging.debug("Block IDs written to `{0}`.".format(olog))
+    if trackids:
+        logging.debug("Block IDs written to `{0}`.".format(olog))
 
 
 def group(args):

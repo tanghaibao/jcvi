@@ -165,7 +165,7 @@ class ShadeManager (object):
             q = btrack.get_coords(c), btrack.get_coords(d)
             ymid = (atrack.y + btrack.y) / 2
 
-            Shade(ax, p, q, ymid, highlight=False, alpha=1, fc="gray", lw=0)
+            Shade(ax, p, q, ymid, highlight=False, alpha=1, fc="gainsboro", lw=0)
 
 
 class PermutationSolver (object):

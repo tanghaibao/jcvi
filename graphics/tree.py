@@ -15,7 +15,8 @@ from jcvi.apps.base import debug
 debug()
 
 
-def draw_tree(ax, tx, rmargin=.3, outgroup=None, gffdir=None, sizes=None):
+def draw_tree(ax, tx, rmargin=.3, leafcolor="k",
+              outgroup=None, gffdir=None, sizes=None):
 
     t = Tree(tx)
     if outgroup:
@@ -60,7 +61,7 @@ def draw_tree(ax, tx, rmargin=.3, outgroup=None, gffdir=None, sizes=None):
             yy = ystart - i * yinterval
             i += 1
             ax.text(xx + tip, yy, n.name, va="center",
-                    fontstyle="italic", size=8)
+                    fontstyle="italic", size=8, color=leafcolor)
             gname = n.name.split("_")[0]
             if gname in structures:
                 mrnabed, cdsbeds = structures[gname]
@@ -105,6 +106,22 @@ def draw_tree(ax, tx, rmargin=.3, outgroup=None, gffdir=None, sizes=None):
     ax.set_axis_off()
 
 
+def read_trees(tree):
+    from urlparse import parse_qs
+    from jcvi.formats.base import read_block
+
+    trees = []
+
+    fp = open(tree)
+    for header, tx in read_block(fp, "#"):
+        header = parse_qs(header[1:])
+        label = header["label"][0].strip("\"")
+        outgroup = header["outgroup"]
+        trees.append((label, outgroup, "".join(tx)))
+
+    return trees
+
+
 def main(tx=None):
     """
     %prog newicktree
@@ -142,7 +159,7 @@ def main(tx=None):
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
 
-    draw_tree(root, tx, rmargin=opts.rmargin,
+    draw_tree(root, tx, rmargin=opts.rmargin, leafcolor=leafcolor,
               outgroup=outgroup, gffdir=opts.gffdir, sizes=opts.sizes)
 
     image_name = pf + "." + iopts.format

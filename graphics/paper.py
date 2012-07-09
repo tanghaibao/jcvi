@@ -43,8 +43,11 @@ def cotton(args):
     """
     from jcvi.graphics.karyotype import Karyotype
     from jcvi.graphics.synteny import Synteny
+    from jcvi.graphics.tree import draw_tree, read_trees
 
     p = OptionParser(cotton.__doc__)
+    p.add_option("--tree",
+                 help="Display trees on the bottom of the figure [default: %default]")
     p.add_option("--switch",
                  help="Rename the seqid with two-column file [default: %default]")
     opts, args, iopts = set_image_options(p, args, figsize="8x7")
@@ -54,6 +57,7 @@ def cotton(args):
 
     seqidsfile, klayout, datafile, bedfile, slayout = args
     switch = opts.switch
+    tree = opts.tree
 
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
@@ -69,6 +73,15 @@ def cotton(args):
     panel2.set_xlim(0, 1)
     panel2.set_ylim(0, .5)
     panel2.set_axis_off()
+
+    if tree:
+        panel3 = fig.add_axes([.65, .05, .35, .35])
+        trees = read_trees(tree)
+        label, outgroup, tx = trees[0]
+        draw_tree(panel3, tx, outgroup=outgroup, rmargin=.4, leafcolor="r")
+        panel3.set_xlim(0, 1)
+        panel3.set_ylim(0, 1)
+        panel3.set_axis_off()
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)

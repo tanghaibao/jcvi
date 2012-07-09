@@ -23,7 +23,7 @@ from optparse import OptionParser
 
 from jcvi.algorithms.synteny import BlockFile
 from jcvi.formats.bed import Bed
-from jcvi.formats.base import LineFile, DictFile, read_block
+from jcvi.formats.base import LineFile, DictFile
 from jcvi.utils.cbook import human_size
 from jcvi.apps.base import debug
 
@@ -225,13 +225,8 @@ class Synteny (object):
                 Shade(root, a, b, ymid, alpha=1, highlight=True, zorder=2)
 
         if tree:
-            from urlparse import parse_qs
-            from jcvi.graphics.tree import draw_tree
-            trees = []
-            fp = open(tree)
-            for header, tx in read_block(fp, "#"):
-                header = parse_qs(header[1:])
-                trees.append((header, "".join(tx)))
+            from jcvi.graphics.tree import draw_tree, read_trees
+            trees = read_trees(tree)
 
             tree_axes = []
             ntrees = len(trees)
@@ -242,9 +237,7 @@ class Synteny (object):
             ystart = .1
             for i in xrange(ntrees):
                 ax = fig.add_axes([xstart, ystart, xiv, yiv])
-                header, tx = trees[i]
-                label = header["label"][0].strip("\"")
-                outgroup = header["outgroup"]
+                label, outgroup, tx = trees[i]
                 draw_tree(ax, tx, outgroup=outgroup, rmargin=.4)
                 xstart += xiv
                 RoundLabel(ax, .5, .3, label, fill=True, fc="lavender", color="r")

@@ -72,13 +72,17 @@ class Layout (LineFile):
         fp = open(simplefile)
         blocks = []
         for row in fp:
+            highlight = False
+            if row[0] == '*':
+                highlight = True
+                row = row[1:]
             a, b, c, d, score, orientation = row.split()
             if a not in order:
                 a, b, c, d = c, d, a, b
             if orientation == '-':
                 c, d = d, c
             score = int(score)
-            blocks.append((a, b, c, d, score, orientation))
+            blocks.append((a, b, c, d, score, orientation, highlight))
         return blocks
 
 
@@ -160,12 +164,14 @@ class ShadeManager (object):
             self.draw_blocks(ax, blocks, tracks[i], tracks[j])
 
     def draw_blocks(self, ax, blocks, atrack, btrack):
-        for a, b, c, d, score, orientation in blocks:
+        for a, b, c, d, score, orientation, highlight in blocks:
             p = atrack.get_coords(a), atrack.get_coords(b)
             q = btrack.get_coords(c), btrack.get_coords(d)
             ymid = (atrack.y + btrack.y) / 2
 
-            Shade(ax, p, q, ymid, highlight=False, alpha=1, fc="gainsboro", lw=0)
+            zorder = 2 if highlight else 1
+            Shade(ax, p, q, ymid, highlight=highlight, alpha=1, fc="gainsboro",
+                        lw=0, zorder=zorder)
 
 
 class PermutationSolver (object):
@@ -179,8 +185,8 @@ class PermutationSolver (object):
         allblocks = {}
         for i, j, blocks in layout.edges:
             allblocks[(i, j)] = blocks
-            a, b, c, d, score, orientation = zip(*blocks)
-            blocks = zip(c, d, a, b, score, orientation)
+            a, b, c, d, score, orientation, highlight = zip(*blocks)
+            blocks = zip(c, d, a, b, score, orientation, highlight)
             allblocks[(j, i)] = blocks
         self.allblocks = allblocks
 
@@ -233,7 +239,7 @@ class PermutationSolver (object):
         sizes = btrack.sizes
         while bseqids:
             scores = defaultdict(int)
-            for a, b, c, d, score, orientation in blocks:
+            for a, b, c, d, score, orientation, highlight in blocks:
                 p = (atrack.get_coords(a)[0] + atrack.get_coords(b)[0]) / 2
                 bseqid, c, f = order[c]
                 bseqid, d, f = order[d]

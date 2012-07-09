@@ -24,11 +24,12 @@ from optparse import OptionParser
 from jcvi.algorithms.synteny import BlockFile
 from jcvi.formats.bed import Bed
 from jcvi.formats.base import LineFile, DictFile, read_block
-from jcvi.graphics.base import plt, _, set_image_options, Affine2D, \
-        Path, PathPatch
-from jcvi.graphics.glyph import Glyph, RoundLabel
 from jcvi.utils.cbook import human_size
 from jcvi.apps.base import debug
+
+from jcvi.graphics.glyph import Glyph, RoundLabel
+from jcvi.graphics.base import plt, _, set_image_options, Affine2D, \
+        Path, PathPatch
 debug()
 
 
@@ -177,9 +178,10 @@ class Region (object):
         trans_angle = ax.transAxes.transform_angles(np.array((lr, )),
                                                     l.reshape((1, 2)))[0]
         lx, ly = l
-        ax.text(lx, ly, chr + "\n ", color=layout.color,
+        p3 = pad / 3
+        ax.text(lx, ly + p3, chr, color=layout.color,
                     ha=ha, va="center", rotation=trans_angle)
-        ax.text(lx, ly, _(" \n \n" + label), color="k",
+        ax.text(lx, ly - p3, label, color="k",
                     ha=ha, va="center", rotation=trans_angle)
 
 

@@ -9,12 +9,15 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
+from matplotlib import cm, rc
+
+rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica']})
+rc('text', **{'usetex': True})
 
 from matplotlib.patches import Rectangle, Polygon, CirclePolygon, \
         PathPatch
 from matplotlib.path import Path
 from matplotlib.colors import LogNorm
-from matplotlib import cm
 from matplotlib.transforms import Affine2D
 
 from jcvi.utils.cbook import human_size

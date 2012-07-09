@@ -10,7 +10,8 @@ import logging
 
 from optparse import OptionParser
 
-from jcvi.graphics.base import plt, _, Rectangle, Polygon, CirclePolygon
+from jcvi.graphics.base import plt, _, Rectangle, Polygon, CirclePolygon, \
+        set_image_options
 from jcvi.graphics.glyph import GeneGlyph, RoundLabel, arrowprops, TextCircle
 from jcvi.graphics.chromosome import Chromosome
 from jcvi.utils.iter import pairwise
@@ -27,9 +28,57 @@ def main():
         ('scenario', 'show step-wise genome merger events in brapa'),
         # Epoch paper (Woodhouse et al., 2012 Plant Cell)
         ('epoch', 'show the methods used in epoch paper'),
+        # Unpublished
+        ('cotton', 'plot cotton macro- and micro-synteny (requires data)'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def cotton(args):
+    """
+    %prog cotton seqids karyotype.layout mcscan.out all.bed synteny.layout
+
+    Build a composite figure that calls graphics.karyotype and graphic.synteny.
+    """
+    from jcvi.graphics.karyotype import Karyotype
+    from jcvi.graphics.synteny import Synteny
+
+    p = OptionParser(cotton.__doc__)
+    p.add_option("--switch",
+                 help="Rename the seqid with two-column file [default: %default]")
+    opts, args, iopts = set_image_options(p, args, figsize="8x7")
+
+    if len(args) != 5:
+        sys.exit(p.print_help())
+
+    seqidsfile, klayout, datafile, bedfile, slayout = args
+    switch = opts.switch
+
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes([0, 0, 1, 1])
+
+    panel1 = fig.add_axes([0, .5, 1, .5])
+    Karyotype(fig, root, seqidsfile, klayout)
+    panel1.set_xlim(0, 1)
+    panel1.set_ylim(.5, 1)
+    panel1.set_axis_off()
+
+    panel2 = fig.add_axes([0, 0, .8, .5])
+    Synteny(fig, root, datafile, bedfile, slayout, switch=switch)
+    panel2.set_xlim(0, 1)
+    panel2.set_ylim(0, .5)
+    panel2.set_axis_off()
+
+    root.set_xlim(0, 1)
+    root.set_ylim(0, 1)
+    root.set_axis_off()
+
+    pf = "cotton"
+    image_name = pf + "." + iopts.format
+    logging.debug("Print image to `{0}` {1}".format(image_name, iopts))
+    plt.savefig(image_name, dpi=iopts.dpi)
+    plt.rcdefaults()
 
 
 def plot_diagram(ax, x, y, label="S", title="syntenic"):

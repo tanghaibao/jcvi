@@ -130,7 +130,8 @@ class Region (object):
 
         if switch:
             chr = switch.get(chr, chr)
-        label = "-".join((human_size(startbp)[:-2], human_size(endbp)))
+        label = "-".join((human_size(startbp, target="Mb")[:-2],
+                          human_size(endbp, target="Mb")))
 
         height = .012
         self.gg = {}

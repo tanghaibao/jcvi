@@ -200,12 +200,15 @@ def human_size(size, a_kilobyte_is_1024_bytes=False, precision=1, target=None):
     multiple = 1024 if a_kilobyte_is_1024_bytes else 1000
     for suffix in SUFFIXES[multiple]:
 
-        if target and suffix == target:
-            break
-        if size >= multiple:
+        if target:
+            if suffix == target:
+                break
             size /= float(multiple)
         else:
-            break
+            if size >= multiple:
+                size /= float(multiple)
+            else:
+                break
 
     return '{0:.{1}f}{2}'.format(size, precision, suffix)
 

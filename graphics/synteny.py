@@ -43,6 +43,9 @@ class LayoutLine (object):
         self.ha = args[3]
         self.va = args[4]
         self.color = args[5]
+        self.ratio = 1
+        if len(args) > 6:
+            self.ratio = float(args[6])
 
 
 class Layout (LineFile):
@@ -68,7 +71,7 @@ class Layout (LineFile):
 class Shade (object):
 
     def __init__(self, ax, a, b, ymid, highlight=False, ec="k", fc="k",
-                    alpha=.2, lw=1):
+                    alpha=.2, lw=1, zorder=1):
         a1, a2 = a
         b1, b2 = b
         ax1, ay1 = a1
@@ -94,13 +97,16 @@ class Shade (object):
             ec = fc = 'r'
             alpha = .8
 
-        ax.add_patch(PathPatch(path, ec=ec, fc=fc, alpha=alpha, lw=lw))
+        ax.add_patch(PathPatch(path, ec=ec, fc=fc, alpha=alpha,
+                     lw=lw, zorder=zorder))
 
 
 class Region (object):
 
     def __init__(self, ax, ext, layout, bed, scale, switch=None, pad=.04):
         x, y = layout.x, layout.y
+        ratio = layout.ratio
+        scale /= ratio
         self.y = y
         lr = layout.rotation
         tr = Affine2D().rotate_deg_around(x, y, lr) + ax.transAxes
@@ -140,13 +146,13 @@ class Region (object):
             a, b = tr.transform((x1, y)), tr.transform((x2, y))
             a, b = inv.transform(a), inv.transform(b)
             self.gg[g.accn] = (a, b)
-            #ax.text(a[0], a[1], g.accn[-6:], size=6, rotation=lr + 90)
 
             color = "b" if strand == "+" else "g"
-            gp = Glyph(ax, x1, x2, y, height, gradient=False, fc=color, zorder=2)
+            gp = Glyph(ax, x1, x2, y, height, gradient=False, fc=color, zorder=3)
             gp.set_transform(tr)
 
         ha, va = layout.ha, layout.va
+
         if ha == "left":
             xx = xstart
             ha = "right"
@@ -157,17 +163,19 @@ class Region (object):
             xx = x
             ha = "center"
 
+        # Tentative solution to labels stick into glyph
+        magic = 40.
+        cc = abs(lr) / magic  if abs(lr) > magic else 1
         if va == "top":
-            yy = y + pad
+            yy = y + cc * pad
         elif va == "bottom":
-            yy = y - pad
+            yy = y - cc * pad
         else:
             yy = y
 
         l = np.array((xx, yy))
         trans_angle = ax.transAxes.transform_angles(np.array((lr, )),
                                                     l.reshape((1, 2)))[0]
-        p3 = pad / 3
         lx, ly = l
         ax.text(lx, ly, chr + "\n ", color=layout.color,
                     ha=ha, va="center", rotation=trans_angle)
@@ -220,12 +228,12 @@ def main():
         for ga, gb in bf.iter_pairs(i, j):
             a, b = gg[ga], gg[gb]
             ymid = (ymids[i] + ymids[j]) / 2
-            Shade(root, a, b, ymid)
+            Shade(root, a, b, ymid, fc="gainsboro", lw=0, alpha=1)
 
         for ga, gb in bf.iter_pairs(i, j, highlight=True):
             a, b = gg[ga], gg[gb]
             ymid = (ymids[i] + ymids[j]) / 2
-            Shade(root, a, b, ymid, highlight=True)
+            Shade(root, a, b, ymid, alpha=1, highlight=True, zorder=2)
 
     if tree:
         from urlparse import parse_qs

@@ -264,6 +264,43 @@ class PermutationSolver (object):
         return finalscore
 
 
+class Karyotype (object):
+
+    def __init__(self, fig, root, seqidsfile, layoutfile, auto=False):
+
+        layout = Layout(layoutfile)
+
+        fp = open(seqidsfile)
+        for i, row in enumerate(fp):
+            if row[0] == '#':
+                continue
+            t = layout[i]
+            seqids = row.rstrip().split(",")
+            bed = t.bed
+            sizes = dict((x, len(list(bed.sub_bed(x)))) for x in seqids)
+            t.seqids = seqids
+            t.sizes = sizes
+
+        tracks = []
+        for lo in layout:
+            tr = Track(root, lo, draw=False)
+            tracks.append(tr)
+
+        if auto:
+            PermutationSolver(tracks, layout)
+            autofile = seqidsfile + ".auto"
+            fw = open(autofile, "w")
+            for tr in tracks:
+                print >> fw, ",".join(tr.seqids)
+            fw.close()
+            logging.debug("Auto seqids written to `{0}`.".format(autofile))
+
+        ShadeManager(root, tracks, layout)
+
+        for tr in tracks:
+            tr.draw()  # this time for real
+
+
 def main():
     p = OptionParser(__doc__)
     p.add_option("--auto", action="store_true",
@@ -274,42 +311,12 @@ def main():
         sys.exit(not p.print_help())
 
     seqidsfile, layoutfile = args
-    layout = Layout(layoutfile)
     auto = opts.auto
-
-    fp = open(seqidsfile)
-    for i, row in enumerate(fp):
-        if row[0] == '#':
-            continue
-        t = layout[i]
-        seqids = row.rstrip().split(",")
-        bed = t.bed
-        sizes = dict((x, len(list(bed.sub_bed(x)))) for x in seqids)
-        t.seqids = seqids
-        t.sizes = sizes
 
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
 
-    ntracks = len(layout)
-    tracks = []
-    for lo in layout:
-        tr = Track(root, lo, draw=False)
-        tracks.append(tr)
-
-    if auto:
-        PermutationSolver(tracks, layout)
-        autofile = seqidsfile + ".auto"
-        fw = open(autofile, "w")
-        for tr in tracks:
-            print >> fw, ",".join(tr.seqids)
-        fw.close()
-        logging.debug("Auto seqids written to `{0}`.".format(autofile))
-
-    ShadeManager(root, tracks, layout)
-
-    for tr in tracks:
-        tr.draw()  # this time for real
+    Karyotype(fig, root, seqidsfile, layoutfile, auto=auto)
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)

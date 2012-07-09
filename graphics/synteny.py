@@ -185,6 +185,69 @@ class Region (object):
                     ha=ha, va="center", rotation=trans_angle)
 
 
+class Synteny (object):
+
+    def __init__(self, fig, root, datafile, bedfile, layoutfile,
+                 switch=None, tree=None):
+
+        bed = Bed(bedfile)
+        order = bed.order
+        bf = BlockFile(datafile)
+        lo = Layout(layoutfile)
+        switch = DictFile(switch, delimiter="\t") if switch else None
+
+        exts = []
+        for i in xrange(bf.ncols):
+            ext = bf.get_extent(i, order)
+            exts.append(ext)
+
+        maxspan = max(exts, key=lambda x: x[-1])[-1]
+        scale = maxspan / .65
+
+        gg = {}
+        ymids = []
+        for i in xrange(bf.ncols):
+            ext = exts[i]
+            r = Region(root, ext, lo[i], bed, scale, switch)
+            gg.update(r.gg)
+            ymids.append(r.y)
+
+        for i, j in lo.edges:
+            for ga, gb in bf.iter_pairs(i, j):
+                a, b = gg[ga], gg[gb]
+                ymid = (ymids[i] + ymids[j]) / 2
+                Shade(root, a, b, ymid, fc="gainsboro", lw=0, alpha=1)
+
+            for ga, gb in bf.iter_pairs(i, j, highlight=True):
+                a, b = gg[ga], gg[gb]
+                ymid = (ymids[i] + ymids[j]) / 2
+                Shade(root, a, b, ymid, alpha=1, highlight=True, zorder=2)
+
+        if tree:
+            from urlparse import parse_qs
+            from jcvi.graphics.tree import draw_tree
+            trees = []
+            fp = open(tree)
+            for header, tx in read_block(fp, "#"):
+                header = parse_qs(header[1:])
+                trees.append((header, "".join(tx)))
+
+            tree_axes = []
+            ntrees = len(trees)
+            logging.debug("A total of {0} trees imported.".format(ntrees))
+            xiv = 1. / ntrees
+            yiv = .3
+            xstart = 0
+            ystart = .1
+            for i in xrange(ntrees):
+                ax = fig.add_axes([xstart, ystart, xiv, yiv])
+                header, tx = trees[i]
+                label = header["label"][0].strip("\"")
+                outgroup = header["outgroup"]
+                draw_tree(ax, tx, outgroup=outgroup, rmargin=.4)
+                xstart += xiv
+                RoundLabel(ax, .5, .3, label, fill=True, fc="lavender", color="r")
+
 
 def main():
     p = OptionParser(__doc__)
@@ -198,70 +261,15 @@ def main():
         sys.exit(not p.print_help())
 
     datafile, bedfile, layoutfile = args
-    bed = Bed(bedfile)
-    order = bed.order
-    bf = BlockFile(datafile)
-    lo = Layout(layoutfile)
     switch = opts.switch
-    switch = DictFile(switch, delimiter="\t") if switch else None
     tree = opts.tree
 
     pf = datafile.rsplit(".", 1)[0]
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
 
-    exts = []
-    for i in xrange(bf.ncols):
-        ext = bf.get_extent(i, order)
-        exts.append(ext)
-
-    maxspan = max(exts, key=lambda x: x[-1])[-1]
-    scale = maxspan / .65
-
-    gg = {}
-    ymids = []
-    for i in xrange(bf.ncols):
-        ext = exts[i]
-        r = Region(root, ext, lo[i], bed, scale, switch)
-        gg.update(r.gg)
-        ymids.append(r.y)
-
-    for i, j in lo.edges:
-        for ga, gb in bf.iter_pairs(i, j):
-            a, b = gg[ga], gg[gb]
-            ymid = (ymids[i] + ymids[j]) / 2
-            Shade(root, a, b, ymid, fc="gainsboro", lw=0, alpha=1)
-
-        for ga, gb in bf.iter_pairs(i, j, highlight=True):
-            a, b = gg[ga], gg[gb]
-            ymid = (ymids[i] + ymids[j]) / 2
-            Shade(root, a, b, ymid, alpha=1, highlight=True, zorder=2)
-
-    if tree:
-        from urlparse import parse_qs
-        from jcvi.graphics.tree import draw_tree
-        trees = []
-        fp = open(tree)
-        for header, tx in read_block(fp, "#"):
-            header = parse_qs(header[1:])
-            trees.append((header, "".join(tx)))
-
-        tree_axes = []
-        ntrees = len(trees)
-        logging.debug("A total of {0} trees imported.".format(ntrees))
-        xiv = 1. / ntrees
-        yiv = .3
-        xstart = 0
-        ystart = .1
-        for i in xrange(ntrees):
-            ax = fig.add_axes([xstart, ystart, xiv, yiv])
-            header, tx = trees[i]
-            label = header["label"][0].strip("\"")
-            outgroup = header["outgroup"]
-            draw_tree(ax, tx, outgroup=outgroup, rmargin=.4)
-            xstart += xiv
-            RoundLabel(ax, .5, .3, label, fill=True, fc="lavender", color="r", \
-                       fontstyle="italic")
+    Synteny(fig, root, datafile, bedfile, layoutfile,
+            switch=switch, tree=tree)
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)

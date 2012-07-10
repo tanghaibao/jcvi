@@ -185,6 +185,16 @@ def fromgroups(args):
         extract_pairs(b1, b2, groups)
 
 
+def find_first_isoform(a, f):
+    if a in f:
+        return a
+    for i in xrange(100):
+        ia = ".".join((a, str(i)))
+        if ia in f:
+            return ia
+    return a
+
+
 def prepare(args):
     """
     %prog prepare pairsfile cdsfile > paired.cds.fasta
@@ -196,6 +206,7 @@ def prepare(args):
     from jcvi.formats.fasta import Fasta, SeqIO
 
     p = OptionParser(prepare.__doc__)
+    set_outfile(p)
 
     opts, args = p.parse_args(args)
 
@@ -206,12 +217,22 @@ def prepare(args):
 
     f = Fasta(cdsfile)
     fp = open(pairsfile)
-    fw = sys.stdout
+    fw = must_open(opts.outfile, "w")
     for row in fp:
+        if row[0] == '#':
+            continue
         a, b = row.split()[:2]
+        if a not in f:
+            a = find_first_isoform(a, f)
+            assert a, a
+        if b not in f:
+            b = find_first_isoform(b, f)
+            assert b, b
+
         arec = f[a]
         brec = f[b]
         SeqIO.write((arec, brec), fw, "fasta")
+    fw.close()
 
 
 def calc(args):
@@ -549,6 +570,7 @@ def report(args):
 
     for f in fields.split()[1:]:
         columndata = [getattr(x, f) for x in data]
+        #columndata = [x for x in columndata if 0 <= x <= ks_max]
         title = "{0}: {1:.2f}".format(descriptions[f], np.median(columndata))
         title += " ({0:.2f} +/- {1:.2f})".\
                 format(np.mean(columndata), np.std(columndata))

@@ -487,9 +487,11 @@ def summary(args):
 
     nclusters = len(clusters)
     nanchors = [len(c) for c in clusters]
-    print >> sys.stderr, "A total of {0} anchors found in {1} clusters.".\
-                  format(sum(nanchors), nclusters)
-    print >> sys.stderr, SummaryStats(nanchors)
+    nranchors = [_score(c) for c in clusters]  # non-redundant anchors
+    print >> sys.stderr, "A total of {0} (NR:{1}) anchors found in {2} clusters.".\
+                  format(sum(nanchors), sum(nranchors), nclusters)
+    print >> sys.stderr, "Stats:", SummaryStats(nanchors)
+    print >> sys.stderr, "NR stats:", SummaryStats(nranchors)
 
 
 def stats(args):

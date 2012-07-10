@@ -234,7 +234,7 @@ class Synteny (object):
             xiv = 1. / ntrees
             yiv = .3
             xstart = 0
-            ystart = .1
+            ystart = min(ymids) - .4
             for i in xrange(ntrees):
                 ax = fig.add_axes([xstart, ystart, xiv, yiv])
                 label, outgroup, tx = trees[i]

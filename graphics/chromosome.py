@@ -77,8 +77,12 @@ class HorizontalChromosome (object):
             ax.add_patch(Polygon(pts, fc=fc, lw=0, zorder=zorder))
 
     def get_pts(self, x1, x2, y, height):
-        pts = []
         r = height / (3 ** .5)
+
+        if x2 - x1 < 2 * height:  # rectangle for small chromosomes
+            return [[x1, y + r], [x1, y - r], [x2, y - r], [x2, y + r]]
+
+        pts = []
         pts += plot_cap((x1 + r, y), np.radians(range(120, 240)), r)
         pts += [[x1 + r / 2, y - r], [x2 - r / 2, y - r]]
         pts += plot_cap((x2 - r, y), np.radians(range(-60, 60)), r)

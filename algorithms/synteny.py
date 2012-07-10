@@ -396,7 +396,7 @@ def screen(args):
     p = OptionParser(screen.__doc__)
     p.add_option("--ids", help="File with block IDs (0-based) [default: %default]")
     p.add_option("--seqids", help="File with seqids [default: %default]")
-    p.add_option("--minspan", default=50, type="int",
+    p.add_option("--minspan", default=30, type="int",
                  help="Only blocks with span >= [default: %default]")
     p.add_option("--simple", action="store_true",
                  help="Write simple anchorfile with block ends [default: %default]")

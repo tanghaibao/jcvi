@@ -103,7 +103,12 @@ class Track (object):
         self.ax = ax
 
         self.xstart = xstart = .1
-        self.gap = gap = .01
+        gap = .01
+        nseqids = len(self.seqids)
+        if nseqids > 40:
+            gap /= (nseqids / 40.)
+        self.gap = gap
+
         rpad = .05
         span = 1 - xstart - rpad - gap * (len(sizes) - 1)
         total = sum(sizes.values())
@@ -124,19 +129,26 @@ class Track (object):
         ax = self.ax
         xs = xstart = self.xstart
         gap = self.gap
-        for sid in self.seqids:
+        va = self.va
+        nseqids = len(self.seqids)
+        for i, sid in enumerate(self.seqids):
             size = self.sizes[sid]
             xend = xstart + self.ratio * size
             hc = HorizontalChromosome(ax, xstart, xend, y, height=.01, fc=color)
+            sid = sid.rsplit("_", 1)[-1]
             si = "".join(x for x in sid if x not in string.letters)
             si = str(int(si))
             xx = (xstart + xend) / 2
+            xstart = xend + gap
+
+            if nseqids > 40 and (i + 1) % 5 != 0:
+                continue
+
             pad = .015
-            if self.va == "bottom":
+            if va == "bottom":
                 pad = - pad
             TextCircle(ax, xx, y + pad, _(si), radius=.01,
                        fc="w", color=color, size=10)
-            xstart = xend + gap
 
         ax.text(xs / 2, y + gap, self.label, ha="center", color=color)
 
@@ -168,6 +180,8 @@ class ShadeManager (object):
             p = atrack.get_coords(a), atrack.get_coords(b)
             q = btrack.get_coords(c), btrack.get_coords(d)
             ymid = (atrack.y + btrack.y) / 2
+            if atrack.y == btrack.y:
+                ymid = atrack.y - .06
 
             zorder = 2 if highlight else 1
             Shade(ax, p, q, ymid, highlight=highlight, alpha=1, fc="gainsboro",
@@ -196,7 +210,7 @@ class PermutationSolver (object):
         score = 1e100  # Minimization problem
         ff = range(ntracks)
         rr = ff[::-1]
-        peckings = [rr, ff] * 20  # Max 2 x 100 iterations in total
+        peckings = [ff, rr] * 20  # Max 2 x 100 iterations in total
         for pecking in peckings:
             updated, score = self.forward(pecking, initialscore=score)
             if not updated:
@@ -251,7 +265,10 @@ class PermutationSolver (object):
                 size = sizes[bseqid]
                 scores[bseqid] /= size
             # Choose the best
-            mv, mk = min((v, k) for k, v in scores.items() if k in bseqids)
+            ss = [(v, k) for k, v in scores.items() if k in bseqids]
+            if not ss:
+                break
+            mv, mk = min(ss)
             finalscore += mv
             finalorder.append(mk)
             bseqids.remove(mk)

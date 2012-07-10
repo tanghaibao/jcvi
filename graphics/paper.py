@@ -29,10 +29,51 @@ def main():
         # Epoch paper (Woodhouse et al., 2012 Plant Cell)
         ('epoch', 'show the methods used in epoch paper'),
         # Unpublished
+        ('amborella', 'plot amborella macro- and micro-synteny (requires data)'),
         ('cotton', 'plot cotton macro- and micro-synteny (requires data)'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def amborella(args):
+    """
+    %prog amborella seqids karyotype.layout mcscan.out all.bed synteny.layout
+
+    Build a composite figure that calls graphics.karyotype and graphic.synteny.
+    """
+    from jcvi.graphics.karyotype import Karyotype
+    from jcvi.graphics.synteny import Synteny
+
+    p = OptionParser(amborella.__doc__)
+    p.add_option("--tree",
+                 help="Display trees on the bottom of the figure [default: %default]")
+    p.add_option("--switch",
+                 help="Rename the seqid with two-column file [default: %default]")
+    opts, args, iopts = set_image_options(p, args, figsize="8x7")
+
+    if len(args) != 5:
+        sys.exit(p.print_help())
+
+    seqidsfile, klayout, datafile, bedfile, slayout = args
+    switch = opts.switch
+    tree = opts.tree
+
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes([0, 0, 1, 1])
+
+    Karyotype(fig, root, seqidsfile, klayout)
+    Synteny(fig, root, datafile, bedfile, slayout, switch=switch, tree=tree)
+
+    root.set_xlim(0, 1)
+    root.set_ylim(0, 1)
+    root.set_axis_off()
+
+    pf = "amborella"
+    image_name = pf + "." + iopts.format
+    logging.debug("Print image to `{0}` {1}".format(image_name, iopts))
+    plt.savefig(image_name, dpi=iopts.dpi)
+    plt.rcdefaults()
 
 
 def cotton(args):
@@ -62,17 +103,8 @@ def cotton(args):
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
 
-    panel1 = fig.add_axes([0, .5, 1, .5])
     Karyotype(fig, root, seqidsfile, klayout)
-    panel1.set_xlim(0, 1)
-    panel1.set_ylim(.5, 1)
-    panel1.set_axis_off()
-
-    panel2 = fig.add_axes([0, 0, .8, .5])
     Synteny(fig, root, datafile, bedfile, slayout, switch=switch)
-    panel2.set_xlim(0, 1)
-    panel2.set_ylim(0, .5)
-    panel2.set_axis_off()
 
     if tree:
         panel3 = fig.add_axes([.65, .05, .35, .35])

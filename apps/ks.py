@@ -22,7 +22,7 @@ from Bio import SeqIO
 from Bio import AlignIO
 from Bio.Align.Applications import ClustalwCommandline
 
-from jcvi.formats.base import must_open
+from jcvi.formats.base import must_open, LineFile
 from jcvi.apps.command import getpath, partial
 from jcvi.apps.base import ActionDispatcher, debug, mkdir, set_outfile, sh
 debug()
@@ -74,11 +74,120 @@ def main():
         ('fromgroups', 'flatten the gene families into pairs'),
         ('prepare', 'prepare pairs of sequences'),
         ('calc', 'calculate Ks between pairs of sequences'),
-        ('report', 'generate a distribution of Ks values'),
         ('gc3', 'filter the Ks results to remove high GC3 genes'),
+        ('report', 'generate a distribution of Ks values'),
+        ('multireport', 'generate several Ks value distributions in same figure'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+class LayoutLine (object):
+
+    def __init__(self, row, delimiter=','):
+        args = row.rstrip().split(delimiter)
+        args = [x.strip() for x in args]
+        self.ksfile = args[0]
+        self.components = int(args[1])
+        self.label = args[2]
+        self.color = args[3]
+
+
+class Layout (LineFile):
+
+    def __init__(self, filename, delimiter=','):
+        super(Layout, self).__init__(filename)
+        fp = open(filename)
+        for row in fp:
+            if row[0] == '#':
+                continue
+            self.append(LayoutLine(row, delimiter=delimiter))
+
+
+class KsPlot (object):
+
+    def __init__(self, ax, ks_max, bins):
+
+        self.ax = ax
+        self.ks_max = ks_max
+        self.interval = ks_max / bins
+        self.lines = []
+        self.labels = []
+
+    def add_data(self, data, components=1, label="Ks", color='r'):
+
+        ax = self.ax
+        ks_max = self.ks_max
+        interval = self.interval
+
+        line, line_mixture = plot_ks_dist(ax, data, interval, components,
+                                          ks_max, color=color)
+        self.lines += [line, line_mixture]
+        self.labels += [label, label + " (fitted)"]
+
+    def draw(self):
+
+        from jcvi.graphics.base import plt, _, tex_formatter, tex_1digit_formatter
+
+        ax = self.ax
+        ks_max = self.ks_max
+        lines = self.lines
+        labels = self.labels
+        leg = ax.legend(lines, labels, 'upper left',
+                        shadow=True, fancybox=True, prop={"size": 10})
+        leg.get_frame().set_alpha(.5)
+
+        ax.set_xlim((0, ks_max - self.interval))
+        ax.set_title(_('Ks distribution'), fontweight="bold")
+        ax.set_xlabel(_('Synonymous substitutions per site (Ks)'))
+        ax.set_ylabel(_('Percentage of gene pairs'))
+
+        ax.xaxis.set_major_formatter(tex_1digit_formatter)
+        ax.yaxis.set_major_formatter(tex_formatter)
+
+        image_name = "Ks_plot.pdf"
+        logging.debug("Print image to `{0}`.".format(image_name))
+        plt.savefig(image_name, dpi=300)
+        plt.rcdefaults()
+
+
+def multireport(args):
+    """
+    %prog multireport layoutfile
+
+    Generate several Ks value distributions in the same figure. The layout file
+    contains the Ks file to plot, number of components, colors, labels.
+    """
+    from jcvi.graphics.base import plt
+
+    p = OptionParser(multireport.__doc__)
+    p.add_option("--vmin", default=0., type="float",
+                 help="Minimum value, inclusive [default: %default]")
+    p.add_option("--vmax", default=4., type="float",
+                 help="Maximum value, inclusive [default: %default]")
+    p.add_option("--bins", default=20, type="int",
+                 help="Number of bins to plot in the histogram [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    layoutfile, = args
+    ks_min = opts.vmin
+    ks_max = opts.vmax
+    bins = opts.bins
+    layout = Layout(layoutfile)
+
+    fig = plt.figure(1, (5, 5))
+    ax = fig.add_axes([.12, .1, .8, .8])
+    kp = KsPlot(ax, ks_max, bins)
+    for lo in layout:
+        header, data = read_ks_file(lo.ksfile)
+        data = [x.ng_ks for x in data]
+        data = [x for x in data if ks_min <= x <= ks_max]
+        kp.add_data(data, lo.components, label=lo.label, color=lo.color)
+
+    kp.draw()
 
 
 def get_GC3(cdsfile):
@@ -443,8 +552,13 @@ def read_ks_file(ks_file):
     data = []
     for row in reader:
         for i, a in enumerate(row):
-            if i==0: continue
-            row[i] = float(row[i])
+            if i==0:
+                continue
+            try:
+                row[i] = float(row[i])
+            except:
+                row[i] = -1
+
         data.append(KsLine._make(row))
 
     logging.debug('File `{0}` contains a total of {1} gene pairs'.\
@@ -567,10 +681,10 @@ def report(args):
     ks_file, = args
     header, data = read_ks_file(ks_file)
     ks_max = opts.vmax
+    bins = opts.bins
 
     for f in fields.split()[1:]:
         columndata = [getattr(x, f) for x in data]
-        #columndata = [x for x in columndata if 0 <= x <= ks_max]
         title = "{0}: {1:.2f}".format(descriptions[f], np.median(columndata))
         title += " ({0:.2f} +/- {1:.2f})".\
                 format(np.mean(columndata), np.std(columndata))
@@ -585,33 +699,17 @@ def report(args):
     if not opts.pdf:
         return
 
-    from jcvi.graphics.base import mpl, _, tex_formatter, tex_1digit_formatter
-    from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+    from jcvi.graphics.base import plt
 
-    fig = mpl.figure.Figure(figsize=(5, 5))
-
-    canvas = FigureCanvas(fig)
-    ax = fig.add_axes([.12, .1, .8, .8])
     components = opts.components
     data = [x.ng_ks for x in data]
+    data = [x for x in data if 0 <= x <= ks_max]
 
-    interval = ks_max / opts.bins
-    line, line_mixture = plot_ks_dist(ax, data, interval, components, ks_max, color='r')
-    leg = ax.legend((line, line_mixture), ("Ks", "Ks (fitted)"),
-                    shadow=True, fancybox=True, prop={"size": 10})
-    leg.get_frame().set_alpha(.5)
-
-    ax.set_xlim((0, ks_max))
-    ax.set_title(_('Ks distribution'), fontweight="bold")
-    ax.set_xlabel(_('Synonymous substitutions per site (Ks)'))
-    ax.set_ylabel(_('Percentage of gene pairs'))
-
-    ax.xaxis.set_major_formatter(tex_1digit_formatter)
-    ax.yaxis.set_major_formatter(tex_formatter)
-
-    image_name = "Ks_plot.pdf"
-    canvas.print_figure(image_name, dpi=300)
-    logging.debug("Print image to `{0}`.".format(image_name))
+    fig = plt.figure(1, (5, 5))
+    ax = fig.add_axes([.12, .1, .8, .8])
+    kp = KsPlot(ax, ks_max, bins)
+    kp.add_data(data, components)
+    kp.draw()
 
 
 if __name__ == '__main__':

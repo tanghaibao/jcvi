@@ -322,10 +322,50 @@ def main():
         ('group', 'cluster the anchors into ortho-groups'),
         ('breakpoint', 'identify breakpoints where collinearity ends'),
         ('matrix', 'make oxford grid based on anchors file'),
+        ('coge', 'convert CoGe file to anchors file'),
             )
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def coge(args):
+    """
+    %prog coge cogefile
+
+    Convert CoGe file to anchors file.
+    """
+    p = OptionParser(coge.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    cogefile, = args
+    fp = must_open(cogefile)
+    cogefile = cogefile.replace(".gz", "")
+    ksfile = cogefile + ".ks"
+    anchorsfile = cogefile + ".anchors"
+    fw_ks = must_open(ksfile, "w")
+    fw_ac = must_open(anchorsfile, "w")
+
+    tag = "###"
+    print >> fw_ks, tag
+    for header, lines in read_block(fp, tag):
+        print >> fw_ac, tag
+        lines = list(lines)
+        for line in lines:
+            if line[0] == '#':
+                continue
+            ks, ka, achr, a, astart, astop, bchr, \
+                    b, bstart, bstop, ev, ss = line.split()
+            a = a.split("||")[3]
+            b = b.split("||")[3]
+            print >> fw_ac, "\t".join((a, b, ev))
+            print >> fw_ks, ",".join((";".join((a, b)), ks, ka, ks, ka))
+
+    fw_ks.close()
+    fw_ac.close()
 
 
 def matrix(args):

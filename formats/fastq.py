@@ -269,7 +269,7 @@ def shuffle(args):
     """
     %prog shuffle p1.fastq p2.fastq pairs.fastq
 
-    Shuffle pairs into interleaved format, using `shuffleSequences_fastq.pl`.
+    Shuffle pairs into interleaved format.
     """
     from itertools import izip
 

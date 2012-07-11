@@ -10,10 +10,8 @@ import logging
 import ConfigParser
 
 from functools import partial
-from optparse import OptionParser
 
 from jcvi.utils.cbook import depends
-
 from jcvi.apps.base import ActionDispatcher, debug, sh, is_exe, \
         which, getfilesize
 debug()
@@ -121,15 +119,26 @@ def run_vecscreen(infile=None, outfile=None, db="UniVec_Core",
 
 
 @depends
-def run_megablast(infile=None, outfile=None, db=None, pctid=98, hitlen=100):
+def run_megablast(infile=None, outfile=None, db=None, wordsize=None, \
+        pctid=98, hitlen=100, best=None, task="megablast"):
+
     assert db, "Need to specify database fasta file."
 
     nin = db + ".nin"
+    nin00 = db + ".00.nin"
+    nin = nin00 if op.exists(nin00) else (db + ".nin")
     run_formatdb(infile=db, outfile=nin)
 
     cmd = BLPATH("blastn")
     cmd += " -query {0} -db {1} -out {2}".format(infile, db, outfile)
     cmd += " -evalue 0.01 -outfmt 6 -num_threads 16"
+    cmd += " -task {0}".format(task)
+    if wordsize:
+        cmd += " -word_size {0}".format(wordsize)
+    if pctid:
+        cmd += " -perc_identity {0}".format(pctid)
+    if best:
+        cmd += " -num_alignments {0}".format(best)
     sh(cmd)
 
     if pctid and hitlen:
@@ -149,94 +158,3 @@ def run_blast_filter(infile=None, outfile=None, pctid=95, hitlen=50):
     hitlenopt = "--hitlen={0}".format(hitlen)
     filter([infile, pctidopt, hitlenopt])
 
-
-def main():
-
-    actions = (
-        ('less', 'enhance the unix `less` command'),
-        ('megablast', 'run megablast using query against reference'),
-            )
-    p = ActionDispatcher(actions)
-    p.dispatch(globals())
-
-
-def snapshot(fp, p, fsize, counts=None):
-
-    pos = int(p * fsize)
-    print "==>> File `{0}`: {1} ({2}%)".format(fp.name, pos, int(p * 100))
-    fp.seek(pos)
-    fp.next()
-    for i, row in enumerate(fp):
-        if counts and i > counts:
-            break
-        try:
-            sys.stdout.write(row)
-        except IOError:
-            break
-
-
-def less(args):
-    """
-    %prog less filename position | less
-
-    Enhance the unix `less` command by seeking to a file location first. This is
-    useful to browse big files. Position is relative 0.00 - 1.00, or bytenumber.
-
-    $ %prog less myfile 0.1      # Go to 10% of the current file and streaming
-    $ %prog less myfile 0.1,0.2  # Stream at several positions
-    $ %prog less myfile 100      # Go to certain byte number and streaming
-    $ %prog less myfile 100,200  # Stream at several positions
-    $ %prog less myfile all      # Generate a snapshot every 10% (10%, 20%, ..)
-    """
-    from jcvi.formats.base import must_open
-
-    p = OptionParser(less.__doc__)
-    opts, args = p.parse_args(args)
-
-    if len(args) != 2:
-        sys.exit(not p.print_help())
-
-    filename, pos = args
-    fsize = getfilesize(filename)
-
-    if pos == "all":
-        pos = [x / 10. for x in range(0, 10)]
-    else:
-        pos = [float(x) for x in pos.split(",")]
-
-    if pos[0] > 1:
-        pos = [x / fsize for x in pos]
-
-    if len(pos) > 1:
-        counts = 20
-    else:
-        counts = None
-
-    fp = must_open(filename)
-    for p in pos:
-        snapshot(fp, p, fsize, counts=counts)
-
-
-def megablast(args):
-    """
-    %prog megablast ref.fasta query.fasta
-
-    Calls megablast and then filter the BLAST hits.
-    """
-    p = OptionParser(megablast.__doc__)
-    opts, args = p.parse_args(args)
-
-    if len(args) != 2:
-        sys.exit(not p.print_help())
-
-    reffasta, queryfasta = args
-    q = queryfasta.split(".")[0]
-    r = reffasta.split(".")[0]
-    blastfile = "{0}.{1}.blast".format(q, r)
-
-    run_megablast(infile=queryfasta, outfile=blastfile, db=reffasta, \
-                  pctid=None, hitlen=None)
-
-
-if __name__ == '__main__':
-    main()

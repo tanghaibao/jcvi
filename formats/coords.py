@@ -10,11 +10,12 @@ import sys
 import itertools
 import logging
 
+from math import exp
 from itertools import groupby
 from optparse import OptionParser
 
 from jcvi.formats.base import LineFile
-from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.apps.base import ActionDispatcher, debug, sh, need_update
 debug()
 
 Overlap_types = ("none", "a ~ b", "b ~ a", "a in b", "b in a")
@@ -64,7 +65,7 @@ class CoordsLine (object):
         # the coverage of the hit muliplied by percent seq identity
         # range from 0-100
         self.quality = self.identity * self.querycov
-        self.score = self.identity * self.len1
+        self.score = int(self.identity * self.len1 / 100)
 
     def __str__(self):
         slots = "ref start1 end1 reflen " +\
@@ -75,11 +76,22 @@ class CoordsLine (object):
     @property
     def bedline(self):
         # bed formatted line
-        score = int(self.quality * 10)
-        return '\t'.join((self.ref, str(self.start1 - 1), str(self.end1),
-                self.query, str(score), self.orientation))
+        return '\t'.join(str(x) for x in (self.ref, self.start1 - 1, self.end1,
+                self.query, self.score, self.orientation))
 
     @property
+    def blastline(self):
+        hitlen = max(self.len1, self.len2)
+        score = self.score
+        mismatch = int(self.len1 * (1 - self.identity / 100))
+        log_prob = -score * 0.693147181
+        evalue = 3.0e9 * exp(log_prob)
+        evalue = "{0:.1g}".format(evalue)
+        return "\t".join(str(x) for x in (self.query, self.ref,
+                self.identity, hitlen, mismatch, 0, self.start2, self.end2,
+                self.start1, self.end1, evalue, score
+                ))
+
     def overlap(self, max_hang=100):
         """
         Determine the type of overlap given query, ref alignment coordinates
@@ -99,7 +111,6 @@ class CoordsLine (object):
         bLhang, bRhang = self.start2 - bL, bR - self.end2
         if self.orientation == '-':
             bLhang, bRhang = bRhang, bLhang
-        #print aLhang, aRhang, bLhang, bRhang
 
         s1 = aLhang + bRhang
         s2 = aRhang + bLhang
@@ -131,6 +142,13 @@ class Coords (LineFile):
     then each row would be composed as this
     """
     def __init__(self, filename, sorted=False):
+
+        if filename.endswith(".delta"):
+            coordsfile = filename.rsplit(".", 1)[0] + ".coords"
+            if need_update(filename, coordsfile):
+                fromdelta([filename])
+            filename = coordsfile
+
         super(Coords, self).__init__(filename)
 
         fp = open(filename)
@@ -223,14 +241,70 @@ def get_stats(coordsfile):
 def main():
 
     actions = (
+        ('annotate', 'annotate overlap types in coordsfile'),
+        ('blast', 'convert to blast tabular output'),
         ('summary', 'provide summary on id% and cov%'),
+        ('fromdelta', 'convert deltafile to coordsfile'),
         ('filter', 'filter based on id% and cov%, write a new coords file'),
         ('bed', 'convert to bed format'),
-        ('agp', 'link contigs based on the coordsfile'),
         ('coverage', 'report the coverage per query record'),
+        ('sort', 'sort coords file based on query or subject'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def blast(args):
+    """
+    %prog blast <deltafile|coordsfile>
+
+    Covert delta or coordsfile to BLAST tabular output.
+    """
+    p = OptionParser(blast.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    deltafile, = args
+    blastfile = deltafile.rsplit(".", 1)[0] + ".blast"
+
+    if need_update(deltafile, blastfile):
+        coords = Coords(deltafile)
+        fw = open(blastfile, "w")
+        for c in coords:
+            print >> fw, c.blastline
+
+
+def fromdelta(args):
+    """
+    %prog fromdelta deltafile
+
+    Convert deltafile to coordsfile.
+    """
+    p = OptionParser(fromdelta.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    deltafile, = args
+    coordsfile = deltafile.rsplit(".", 1)[0] + ".coords"
+    cmd = "show-coords -rclH {0}".format(deltafile)
+    sh(cmd, outfile=coordsfile)
+
+    return coordsfile
+
+
+def sort(args):
+    """
+    %prog sort coordsfile
+
+    Sort coordsfile based on query or ref.
+    """
+    import jcvi.formats.blast
+
+    return jcvi.formats.blast.sort(args + ["--coords"])
 
 
 def coverage(args):
@@ -240,16 +314,16 @@ def coverage(args):
     Report the coverage per query record, useful to see which query matches
     reference.  The coords file MUST be filtered with supermap::
 
-    jcvi.algorithms.supermap -f query
+    jcvi.algorithms.supermap --filter query
     """
     p = OptionParser(coverage.__doc__)
     p.add_option("-c", dest="cutoff", default=0.5, type="float",
-            help="only report query with coverage > [default: %default]")
+            help="only report query with coverage greater than [default: %default]")
 
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
     coordsfile, = args
     fp = open(coordsfile)
@@ -276,30 +350,23 @@ def coverage(args):
         print "{0}\t{1:.2f}".format(query, cumulative_cutoff)
 
 
-def agp(args):
+def annotate(args):
     """
-    %prog agp coordsfile
+    %prog annotate coordsfile
 
-    coordsfile has to be supermapped (or delta-filtered) to get non-overlapping
-    ranges for the reference. For example, non-overlapping in the first two
-    columns::
-
-    28926   31595   2663    1       2670    2663    99.70   139480  2663
-    1.91 100.00  contig_26068    AC229726.11_17  contained (0)
-    31816   35252   3438    1       3437    3438    99.83   139480  3438
-    2.46 100.00  contig_26068    AC229726.11_33  contained (0)
-    43009   46210   3205    1       3202    3205    99.78   139480  3205
-    2.30 100.00  contig_26068    AC229726.11_30  contained (0)
-
-    You can see that `contig_26068` can serve as linkage for the contigs in BAC
-    AC229726 various contigs. Therefore an AGP can be created.
+    Annotate coordsfile to append an additional column, with the following
+    overlaps: {0}.
     """
-    p = OptionParser(agp.__doc__)
+    p = OptionParser(annotate.__doc__.format(", ".join(Overlap_types)))
+    p.add_option("--maxhang", default=100, type="int",
+                 help="Max hang to call dovetail overlap [default: %default]")
+    p.add_option("--all", default=False, action="store_true",
+                 help="Output all lines [default: terminal/containment]")
 
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
     coordsfile, = args
     fp = open(coordsfile)
@@ -313,39 +380,11 @@ def agp(args):
         except AssertionError:
             continue
 
-        ov = c.overlap
-        if ov == 0:  # none
+        ov = c.overlap(opts.maxhang)
+        if not opts.all and ov == 0:
             continue
-        forward, backward = False, False
-        if ov == 1:  # a ~ b
-            forward = True
-        elif ov == 2:  # b ~ a
-            backward = True
-        else:  # a in b, b in a
-            #forward = backward = True
-            pass
 
-        ref, query, score = c.ref, c.query, c.score
-        if forward and (query not in incoming or incoming[query][1] < score):
-            incoming[query] = (ref, score)
-        if backward and (query not in outgoing or outgoing[query][1] < score):
-            outgoing[query] = (ref, score)
-
-    from jcvi.algorithms.graph import nx, weakly_connected_components, \
-            topological_sort
-
-    g = nx.DiGraph()
-    for query, (ref, score) in incoming.items():
-        g.add_edge(ref, query, score=score)
-    for query, (ref, score) in outgoing.items():
-        g.add_edge(query, ref, score=score)
-
-    components = weakly_connected_components(g)
-    for c in components:
-        sub = g.subgraph(c)
-        print topological_sort(sub)
-
-    return
+        print "{0}\t{1}".format(row.strip(), Overlap_types[ov])
 
 
 def print_stats(qrycovered, refcovered, id_pct):

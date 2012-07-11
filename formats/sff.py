@@ -12,7 +12,7 @@ import logging
 from glob import glob
 from optparse import OptionParser
 
-from jcvi.apps.base import ActionDispatcher, debug, mkdir, sh, set_grid
+from jcvi.apps.base import ActionDispatcher, debug, mkdir, sh
 debug()
 
 
@@ -20,7 +20,6 @@ def main():
 
     actions = (
         ('mid', 'produce a MID configuration file from 2-column mapping'),
-        ('sffinfo', 'convert 454 sff format to FASTA format'),
         ('assemble', 'assemble each BAC separately using newbler'),
             )
     p = ActionDispatcher(actions)
@@ -125,29 +124,6 @@ def mid(args):
         fw.write(row)
 
     logging.debug("Barcodes written to `{0}`.".format(midfile))
-
-
-def sffinfo(args):
-    """
-    %prog sffinfo sffiles
-
-    Wraps `sffinfo` to convert sffile to fastafile, can run on grid.
-    """
-    p = OptionParser(sffinfo.__doc__)
-    set_grid(p)
-
-    opts, args = p.parse_args(args)
-
-    if len(args) < 1:
-        sys.exit(not p.print_help())
-
-    for sffile in args:
-        assert sffile.endswith(".sff")
-
-        fastafile = sffile.replace(".sff", ".fasta")
-        cmd = "sffinfo -seq {0}".format(sffile)
-
-        sh(cmd, outfile=fastafile, grid=opts.grid)
 
 
 if __name__ == '__main__':

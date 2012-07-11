@@ -15,7 +15,7 @@ from Bio import Entrez, SeqIO
 from jcvi.formats.base import must_open
 from jcvi.formats.fasta import print_first_difference
 from jcvi.utils.iter import grouper
-from jcvi.apps.console import print_green
+from jcvi.apps.console import green
 from jcvi.apps.base import ActionDispatcher, mkdir, debug
 debug()
 
@@ -153,7 +153,7 @@ def bisect(args):
 
     if valid:
         print
-        print_green("%s matches the sequence in `%s`" % (valid, fastafile))
+        print green("%s matches the sequence in `%s`" % (valid, fastafile))
 
 
 def fetch(args):
@@ -166,12 +166,12 @@ def fetch(args):
     """
     p = OptionParser(fetch.__doc__)
 
-    allowed_databases = {"fasta" : ["genome", "nuccore", "nucgss", "protein"],
-                         "asn.1" : ["genome", "nuccore", "nucgss", "protein"],
-                         "gb"    : ["genome", "nuccore", "nucgss"],
-                         "est"   : ["nucest"],
-                         "gss"   : ["nucgss"],
-                         "acc"   : ["nuccore"],
+    allowed_databases = {"fasta": ["genome", "nuccore", "nucgss", "protein", "nucest"],
+                         "asn.1": ["genome", "nuccore", "nucgss", "protein"],
+                         "gb"   : ["genome", "nuccore", "nucgss"],
+                         "est"  : ["nucest"],
+                         "gss"  : ["nucgss"],
+                         "acc"  : ["nuccore"],
                         }
 
     valid_formats = tuple(allowed_databases.keys())
@@ -186,11 +186,11 @@ def fetch(args):
             help="search database [default: %default]")
     p.add_option("--outdir", default=None,
             help="output directory, with accession number as filename")
-    p.add_option("--retmax", default=10,
+    p.add_option("--retmax", default=10000, type="int",
             help="how many results to return [default: %default]")
     p.add_option("--skipcheck", default=False, action="store_true",
             help="turn off prompt to check file existence [default: %default]")
-    p.add_option("--batchsize", default=1, type="int",
+    p.add_option("--batchsize", default=500, type="int",
             help="download the results in batch for speed-up [default: %default]")
     opts, args = p.parse_args(args)
 

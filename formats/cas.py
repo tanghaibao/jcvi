@@ -20,7 +20,7 @@ from Bio import SeqIO
 from jcvi.formats.base import LineFile
 from jcvi.formats.blast import set_options_pairs
 from jcvi.formats.sizes import Sizes
-from jcvi.apps.base import ActionDispatcher, sh, set_grid, debug, is_newer_file
+from jcvi.apps.base import ActionDispatcher, sh, set_grid, debug, need_update
 debug()
 
 
@@ -65,11 +65,11 @@ class CasTabLine (LineFile):
 def main():
 
     actions = (
-        ('txt', "convert CAS file to tabular output using assembly_table"),
-        ('split', 'split CAS file into smaller CAS using sub_assembly'),
+        ('txt', "convert CAS file to tabular output using `assembly_table`"),
+        ('split', 'split CAS file into smaller CAS using `sub_assembly`'),
         ('bed', 'convert cas tabular output to bed format'),
         ('pairs', 'print paired-end reads of cas tabular output'),
-        ('info', 'print the number of read mappig using `assembly_info`'),
+        ('info', 'print the number of read mapping using `assembly_info`'),
         ('fastpairs', 'print pair distance and orientation, assuming paired '\
             'reads next to one another'),
             )
@@ -112,17 +112,17 @@ def info(args):
         sys.exit(not p.print_help())
 
     casfile = args[0]
-    cmd = "assembly_info {0}".format(casfile)
-
     pf = casfile.rsplit(".", 1)[0]
-    infofile = pf + ".info"
-    if not op.exists(infofile):
-        sh(cmd, outfile=infofile, grid=opts.grid)
 
     if opts.coverage:
         assert len(args) == 2, "You need a fastafile when using --coverage"
         coveragefile = pf + ".coverage"
         fw = open(coveragefile, "w")
+
+    infofile = pf + ".info"
+    cmd = "assembly_info {0}".format(casfile)
+    if not op.exists(infofile):
+        sh(cmd, outfile=infofile, grid=opts.grid)
 
     inreadblock = False
     incontigblock = False
@@ -295,7 +295,7 @@ def check_txt(casfile):
     """
     if casfile.endswith(".cas"):
         castabfile = casfile.replace(".cas", ".txt")
-        if not is_newer_file(castabfile, casfile):
+        if need_update(casfile, castabfile):
             castabfile = txt([casfile])
         else:
             logging.debug("File `{0}` found.".format(castabfile))
@@ -329,16 +329,21 @@ def bed(args):
 
     fp = open(castabfile)
     bedfile = castabfile.rsplit(".", 1)[0] + ".bed"
-    fw = open(bedfile, "w")
-    for row in fp:
-        b = CasTabLine(row)
-        if b.readstart == -1:
-            continue
-        if hasfastafile:
-            b.refnum = refnames[b.refnum]
-        print >> fw, b.bedline
 
-    logging.debug("File written to `{0}`.".format(bedfile))
+    if need_update(castabfile, bedfile):
+        fw = open(bedfile, "w")
+        for row in fp:
+            b = CasTabLine(row)
+            if b.readstart == -1:
+                continue
+            if hasfastafile:
+                b.refnum = refnames[b.refnum]
+            print >> fw, b.bedline
+
+        logging.debug("File written to `{0}`.".format(bedfile))
+    else:
+        logging.debug("File `{0}` up to date. Computation skipped.".\
+                      format(bedfile))
 
     return bedfile
 

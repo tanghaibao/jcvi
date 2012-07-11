@@ -41,12 +41,31 @@ class memoized(object):
         return functools.partial(self.__call__, obj)
 
 
+def timeit(func):
+    """
+    <http://www.zopyx.com/blog/a-python-decorator-for-measuring-the-execution-time-of-methods>
+    """
+    import time
+
+    def timed(*args, **kw):
+        ts = time.time()
+        result = func(*args, **kw)
+        te = time.time()
+
+        msg = "{0}{1} {2:.2f}s".format(func.__name__, args, te - ts)
+        logging.debug(msg)
+
+        return result
+
+    return timed
+
+
 def depends(func):
     """
     Decorator to perform check on infile and outfile. When infile is not present, issue
     warning, and when outfile is present, skip function calls.
     """
-    from jcvi.apps.base import is_newer_file
+    from jcvi.apps.base import need_update
 
     infile = "infile"
     outfile = "outfile"
@@ -55,22 +74,26 @@ def depends(func):
             "You need to specify `outfile=` on function call"
         if infile in kwargs:
             infilename = kwargs[infile]
-            assert op.exists(infilename), \
-                "The specified infile `{0}` does not exist" \
-                    .format(infilename)
+            if isinstance(infilename, basestring):
+                infilename = [infilename]
+            for x in infilename:
+                assert op.exists(x), \
+                    "The specified infile `{0}` does not exist".format(x)
 
         outfilename = kwargs[outfile]
-        if not op.exists(outfilename) or \
-                is_newer_file(infilename, outfilename):
+        if need_update(infilename, outfilename):
             return func(*args, **kwargs)
         else:
             msg = "File `{0}` exists. Computation skipped." \
                 .format(outfilename)
             logging.debug(msg)
 
-        assert op.exists(outfilename), \
-                "Something went wrong, `{0}` not found" \
-                .format(outfilename)
+        if isinstance(outfilename, basestring):
+            outfilename = [outfilename]
+
+        for x in outfilename:
+            assert op.exists(x), \
+                    "Something went wrong, `{0}` not found".format(x)
 
         return outfilename
 
@@ -80,6 +103,52 @@ def depends(func):
 """
 Functions that make text formatting easier.
 """
+
+class SummaryStats (object):
+
+    def __init__(self, a, title=None):
+        import numpy as np
+
+        self.data = a = np.array(a)
+        self.min = a.min()
+        self.max = a.max()
+        self.size = a.size
+        self.mean = np.mean(a)
+        self.sd = np.std(a)
+        self.median = np.median(a)
+        self.title = title
+
+        a.sort()
+        self.firstq = a[self.size / 4]
+        self.thirdq = a[self.size * 3 / 4]
+
+    def __str__(self):
+        s = self.title + ": " if self.title else ""
+        s += "Min={0} Max={1} N={2} Mean={3:.0f} SD={4:.0f} Median={5:.0f}".\
+                format(self.min, self.max, self.size,
+                       self.mean, self.sd, self.median)
+        return s
+
+    def todict(self, quartile=False):
+        d = {
+            "Min": self.min, "Max": self.max,
+            "Mean": self.mean, "Median": self.median
+            }
+        if quartile:
+            d.update({
+            "1st Quartile": self.firstq, "3rd Quartile": self.thirdq
+            })
+
+        return d
+
+    def tofile(self, filename):
+        fw = open(filename, "w")
+        for x in self.data:
+            print >> fw, x
+        fw.close()
+        logging.debug("Array of size {0} written to file `{1}`.".\
+                        format(self.size, filename))
+
 
 def percentage(a, b, denominator=True):
     """
@@ -99,7 +168,7 @@ def thousands(x):
     '12,345'
     """
     import locale
-    locale.setlocale(locale.LC_ALL, "")
+    locale.setlocale(locale.LC_ALL, "en_AU.utf8")
     return locale.format('%d', x, True)
 
 
@@ -130,13 +199,39 @@ def human_size(size, a_kilobyte_is_1024_bytes=False, precision=1, target=None):
 
     multiple = 1024 if a_kilobyte_is_1024_bytes else 1000
     for suffix in SUFFIXES[multiple]:
-        if size >= multiple or (target and suffix != target):
+
+        if target:
+            if suffix == target:
+                break
             size /= float(multiple)
         else:
-            return '{0:.{1}f}{2}'.format(size, precision, suffix)
+            if size >= multiple:
+                size /= float(multiple)
+            else:
+                break
 
-    raise ValueError('number too large')
+    return '{0:.{1}f}{2}'.format(size, precision, suffix)
 
+
+def autoscale(bp, optimal=6):
+    """
+    >>> autoscale(150000000)
+    20000000
+    >>> autoscale(97352632)
+    10000000
+    """
+    slen = str(bp)
+    tlen = slen[0:2] if len(slen) > 1 else slen[0]
+    precision = len(slen) - 2  # how many zeros we need to pad?
+    bp_len_scaled = int(tlen)  # scale bp_len to range (0, 100)
+    tick_diffs = [(x, abs(bp_len_scaled / x - optimal)) for x in [1, 2, 5, 10]]
+    best_stride, best_tick_diff = min(tick_diffs, key=lambda x: x[1])
+
+    while precision > 0:
+        best_stride *= 10
+        precision -= 1
+
+    return best_stride
 
 """
 Random ad-hoc functions

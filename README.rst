@@ -29,9 +29,9 @@ Contents
 
     * K-mer histogram analysis.
     * Prepare frg for Celera Assembler (CA).
-    * Helper scripts for fixing unitig layout errors in CA.
     * Preparation and validation of tiling path for clone-based assemblies.
-    * QC of potential scaffolding errors.
+    * Read trimming and correction.
+    * Scaffolding through BAMBUS, optical map and genetic map.
 
 - ``apps``
     Helper library to wrap command line programs and run jobs on JCVI grid
@@ -41,7 +41,7 @@ Contents
     * GenBank entrez accession downloader.
     * Wrapper for LASTZ, BWA, CLC, CDHIT, etc.
     * Low complexity sequence masker with NCBI WindowMasker.
-    * Genbank sequence data submission files.
+    * Prepare Genbank sequence data submission files.
 
 - ``formats``
     File parsers for various files used in genome assembly and comparisons.
@@ -55,11 +55,11 @@ Contents
 - ``graphics``
     Graphics to visualize comparative genomics or assembly stuff. Including:
 
-    * Genome assembly A50 plot.
     * BLAST or synteny dot plot.
     * Histogram using R.
     * Painting regions on set of chromosomes.
     * ASCII histogram and line plot.
+    * Heatmap from csv file.
 
 - ``utils``
     Data structures to simplify programming tasks. Most of the scripts are
@@ -110,12 +110,18 @@ cannot be found in your ``PATH``. For example::
     23:53:57 [command::DEBUG] Configuration written to `/home/htang/.jcvirc`.
 
 The locations of these binaries can later be changed by modifying ``~/.jcvirc``.
+The external programs that are often used are:
+
+* `Kent tools <http://hgdownload.cse.ucsc.edu/admin/jksrc.zip>`_
+* `BEDTOOLS <http://code.google.com/p/bedtools/>`_
+* `EMBOSS <http://emboss.sourceforge.net/>`_
 
 Most of the scripts in this package contains multiple actions. To use the
 ``fasta`` example::
 
     Available actions:
         `extract`: given fasta file and seq id, retrieve the sequence in fasta format
+        `translate`: translate CDS to proteins
         `summary`: report the real no of bases and N's in fastafiles
         `uniq`: remove records that are the same
         `ids`: generate a list of headers
@@ -127,6 +133,7 @@ Most of the scripts in this package contains multiple actions. To use the
         `sort`: sort the records by IDs, sizes, etc.
         `filter`: filter the records by size
         `pair`: sort paired reads to .pairs, rest to .fragments
+        `pairinplace`: starting from fragment.fasta, find if adjacent records can form pairs
         `fastq`: combine fasta and qual to create fastq file
         `tidy`: normalize gap sizes and remove small components in fasta
         `sequin`: generate a gapped fasta file for sequin submission

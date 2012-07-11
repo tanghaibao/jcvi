@@ -19,7 +19,7 @@ from jcvi.formats.coords import print_stats
 from jcvi.formats.sizes import Sizes
 from jcvi.utils.grouper import Grouper
 from jcvi.utils.range import range_distance
-from jcvi.apps.base import ActionDispatcher, debug, sh
+from jcvi.apps.base import ActionDispatcher, debug, set_outfile, sh, popen
 debug()
 
 
@@ -82,12 +82,13 @@ class BlastSlow (LineFile):
     """
     Load entire blastfile into memory
     """
-    def __init__(self, filename):
+    def __init__(self, filename, sorted=False):
         super(BlastSlow, self).__init__(filename)
         fp = must_open(filename)
         for row in fp:
             self.append(BlastLine(row))
-        self.sort(key=lambda x: x.query)
+        if not sorted:
+            self.sort(key=lambda x: x.query)
 
     def iter_hits(self):
         for query, blines in groupby(self, key=lambda x: x.query):
@@ -115,12 +116,17 @@ class Blast (LineFile):
             blines.sort(key=lambda x: -x.score)  # descending score
             yield query, blines
 
-    def iter_best_hit(self, N=1):
+    def iter_best_hit(self, N=1, hsps=False):
         for query, blines in groupby(self.fp,
                 key=lambda x: BlastLine(x).query):
             blines = [BlastLine(x) for x in blines]
             blines.sort(key=lambda x: -x.score)
-            for x in blines[:N]:
+            xlines = blines[:N]
+            if hsps:
+                selected = set(x.subject for x in xlines)
+                xlines = [x for x in blines if x.subject in selected]
+
+            for x in xlines:
                 yield query, x
 
     @property
@@ -185,6 +191,8 @@ def filter(args):
             help="Percent identity cutoff [default: %default]")
     p.add_option("--hitlen", dest="hitlen", default=100, type="int",
             help="Hit length cutoff [default: %default]")
+    p.add_option("--evalue", default=.01, type="float",
+            help="E-value cutoff [default: %default]")
 
     opts, args = p.parse_args(args)
     if len(args) != 1:
@@ -193,7 +201,8 @@ def filter(args):
     blastfile, = args
     fp = must_open(blastfile)
 
-    score, pctid, hitlen = opts.score, opts.pctid, opts.hitlen
+    score, pctid, hitlen, evalue = \
+            opts.score, opts.pctid, opts.hitlen, opts.evalue
     newblastfile = blastfile + ".P{0}L{1}".format(pctid, hitlen)
     fw = must_open(newblastfile, "w")
     for row in fp:
@@ -207,6 +216,8 @@ def filter(args):
             continue
         if c.hitlen < hitlen:
             continue
+        if c.evalue > evalue:
+            continue
 
         print >> fw, row.rstrip()
 
@@ -217,6 +228,9 @@ def main():
 
     actions = (
         ('summary', 'provide summary on id% and cov%'),
+        ('completeness', 'print completeness statistics for each query'),
+        ('annotation', 'create tabular file with the annotations'),
+        ('top10', 'count the most frequent 10 hits'),
         ('filter', 'filter BLAST file (based on score, id%, alignlen)'),
         ('covfilter', 'filter BLAST file (based on id% and cov%)'),
         ('cscore', 'calculate C-score for BLAST pairs'),
@@ -224,22 +238,154 @@ def main():
         ('pairs', 'print paired-end reads of BLAST tabular file'),
         ('bed', 'get bed file from BLAST tabular file'),
         ('chain', 'chain adjacent HSPs together'),
-        ('swap', 'swap query and subjects in the BLAST tabular file'),
+        ('swap', 'swap query and subjects in BLAST tabular file'),
         ('sort', 'sort lines so that query grouped together and scores desc'),
         ('mismatches', 'print out histogram of mismatches of HSPs'),
+        ('annotate', 'annotate overlap types in BLAST tabular file'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
 
+def annotation(args):
+    """
+    %prog annotation blastfile > annotations
+
+    Create simple two column files from the first two coluns in blastfile. Use
+    --queryids and --subjectids to switch IDs or descriptions.
+    """
+    from jcvi.formats.base import DictFile
+
+    p = OptionParser(annotation.__doc__)
+    p.add_option("--queryids", help="Query IDS file to switch [default: %default]")
+    p.add_option("--subjectids", help="Subject IDS file to switch [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    blastfile, = args
+
+    d = "\t"
+    qids = DictFile(opts.queryids, delimiter=d) if opts.queryids else None
+    sids = DictFile(opts.subjectids, delimiter=d) if opts.subjectids else None
+    blast = Blast(blastfile)
+    for b in blast.iter_line():
+        query, subject = b.query, b.subject
+        if qids:
+            query = qids[query]
+        if sids:
+            subject = sids[subject]
+        print "\t".join((query, subject))
+
+
+def completeness(args):
+    """
+    %prog completeness blastfile query.fasta > outfile
+
+    Print statistics for each gene, the coverage of the alignment onto the best hit
+    in AllGroup.niaa, as an indicator for completeness of the gene model.
+    """
+    from jcvi.utils.range import range_minmax
+
+    p = OptionParser(completeness.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    blastfile, fastafile = args
+    f = Sizes(fastafile).mapping
+
+    b = BlastSlow(blastfile)
+    for query, blines in groupby(b, key=lambda x: x.query):
+        blines = list(blines)
+        ranges = [(x.sstart, x.sstop) for x in blines]
+        b = blines[0]
+        query, subject = b.query, b.subject
+
+        rmin, rmax = range_minmax(ranges)
+        subject_len = f[subject]
+
+        nterminal_dist = rmin - 1
+        cterminal_dist = subject_len - rmax + 1
+        print "\t".join(str(x) for x in (b.query, b.subject,
+            nterminal_dist, cterminal_dist))
+
+
+def annotate(args):
+    """
+    %prog annotate blastfile query.fasta subject.fasta
+
+    Annotate overlap types (dovetail, contained, etc) in BLAST tabular file.
+    """
+    from jcvi.assembly.goldenpath import Overlap, Overlap_types
+
+    p = OptionParser(annotate.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    blastfile, afasta, bfasta = args
+    fp = open(blastfile)
+    asizes = Sizes(afasta).mapping
+    bsizes = Sizes(bfasta).mapping
+    for row in fp:
+        b = BlastLine(row)
+        asize = asizes[b.query]
+        bsize = bsizes[b.subject]
+        ov = Overlap(b, asize, bsize)
+        print "{0}\t{1}".format(b, Overlap_types[ov.get_otype()])
+
+
+def top10(args):
+    """
+    %prog top10 blastfile.best
+
+    Count the most frequent 10 hits. Usually the BLASTFILE needs to be screened
+    the get the best match. You can also provide an .ids file to query the ids.
+    For example the ids file can contain the seqid to species mapping.
+
+    The ids file is two-column, and can sometimes be generated by
+    `jcvi.formats.fasta ids --description`.
+    """
+    from jcvi.formats.base import DictFile
+
+    p = OptionParser(top10.__doc__)
+    p.add_option("--ids", default=None,
+                help="Two column ids file to query seqid [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    blastfile, = args
+    mapping = DictFile(opts.ids, delimiter="\t") if opts.ids else {}
+
+    cmd = "cut -f2 {0}".format(blastfile)
+    cmd += " | sort | uniq -c | sort -k1,1nr | head"
+    fp = popen(cmd)
+    for row in fp:
+        count, seqid = row.split()
+        nseqid = mapping.get(seqid, seqid)
+        print "\t".join((count, nseqid))
+
+
 def sort(args):
     """
-    %prog sort blastfile
+    %prog sort <blastfile|coordsfile>
 
     Sort lines so that same query grouped together with scores descending. The
     sort is 'in-place'.
     """
     p = OptionParser(sort.__doc__)
+    p.add_option("--query", default=False, action="store_true",
+            help="Sort by query position [default: %default]")
+    p.add_option("--ref", default=False, action="store_true",
+            help="Sort by reference position [default: %default]")
+    p.add_option("--coords", default=False, action="store_true",
+            help="File is .coords generated by NUCMER [default: %default]")
 
     opts, args = p.parse_args(args)
 
@@ -247,7 +393,22 @@ def sort(args):
         sys.exit(not p.print_help())
 
     blastfile, = args
-    cmd = "sort -k1,1 -k12,12nr {0} -o {0}".format(blastfile)
+
+    if opts.coords:
+        if opts.query:
+            key = "-k13,13 -k3,3n"
+        elif opts.ref:
+            key = "-k12,12 -k1,1n"
+
+    else:
+        if opts.query:
+            key = "-k1,1 -k7,7n"
+        elif opts.ref:
+            key = "-k2,2 -k9,9n"
+        else:
+            key = "-k1,1 -k12,12nr"
+
+    cmd = "sort {0} {1} -o {1}".format(key, blastfile)
     sh(cmd)
 
 
@@ -336,7 +497,7 @@ def combine_HSPs(a):
         m.sstop = max(m.sstop, b.sstop)
         m.score += b.score
 
-    m.pctid = 100 - (m.nmismatch + m.ngaps) * 1. / m.hitlen
+    m.pctid = 100 - (m.nmismatch + m.ngaps) * 100. / m.hitlen
     return m
 
 
@@ -454,6 +615,7 @@ def covfilter(args):
             help="Print out the ids that satisfy [default: %default]")
     p.add_option("--list", dest="list", default=False, action="store_true",
             help="List the id% and cov% per gene [default: %default]")
+    set_outfile(p, outfile=None)
 
     opts, args = p.parse_args(args)
 
@@ -519,13 +681,13 @@ def covfilter(args):
             format(mapped_count, mapped_count * 100. / total, total)
     print >> sys.stderr, "Total valid {0}: {1} ({2:.1f}% of {3})".\
             format(cutoff_message, valid_count, valid_count * 100. / total, total)
-    print >> sys.stderr, "Id % = {0:.2f}%".\
+    print >> sys.stderr, "Average id = {0:.2f}%".\
             format(100 - (mismatches + gaps) * 100. / alignlen)
 
     queries_combined = sum(sizes[x] for x in queries)
     print >> sys.stderr, "Coverage: {0} covered, {1} total".\
             format(covered, queries_combined)
-    print >> sys.stderr, "Coverage = {0:.2f}%".\
+    print >> sys.stderr, "Average coverage = {0:.2f}%".\
             format(covered * 100. / queries_combined)
 
     if opts.ids:
@@ -535,6 +697,17 @@ def covfilter(args):
             print >> fw, id
         logging.debug("Queries beyond cutoffs {0} written to `{1}`.".\
                 format(cutoff_message, filename))
+
+    outfile = opts.outfile
+    if not outfile:
+        return
+
+    fp = open(blastfile)
+    fw = must_open(outfile, "w")
+    blast = Blast(blastfile)
+    for b in blast.iter_line():
+        if b.query in valid:
+            print >> fw, b
 
 
 def swap(args):
@@ -593,9 +766,9 @@ def set_options_pairs():
     %prog pairs <blastfile|casfile|bedfile|posmapfile>
 
     Report how many paired ends mapped, avg distance between paired ends, etc.
-
-    Reads have to be have the same prefix, use --rclip to remove trailing
-    part, e.g. /1, /2, or .f, .r.
+    Paired reads must have the same prefix, use --rclip to remove trailing
+    part, e.g. /1, /2, or .f, .r, default behavior is to truncate until last
+    char.
     """
     p = OptionParser(set_options_pairs.__doc__)
 
@@ -605,9 +778,8 @@ def set_options_pairs():
     p.add_option("--mateorientation", default=None,
             choices=("++", "--", "+-", "-+"),
             help="use only certain mate orientations [default: %default]")
-    p.add_option("--pairs", dest="pairsfile",
-            default=False, action="store_true",
-            help="write valid pairs to pairsfile")
+    p.add_option("--pairsfile", default=None,
+            help="write valid pairs to pairsfile [default: %default]")
     p.add_option("--nrows", default=100000, type="int",
             help="only use the first n lines [default: %default]")
     p.add_option("--rclip", default=1, type="int",
@@ -630,6 +802,8 @@ def report_pairs(data, cutoff=0, mateorientation=None,
     This subroutine is used by the pairs function in blast.py and cas.py.
     Reports number of fragments and pairs as well as linked pairs
     """
+    from jcvi.utils.cbook import percentage
+
     allowed_mateorientations = ("++", "--", "+-", "-+")
 
     if mateorientation:
@@ -643,7 +817,7 @@ def report_pairs(data, cutoff=0, mateorientation=None,
     orientations = defaultdict(int)
 
     # clip how many chars from end of the read name to get pair name
-    key = lambda x: x.accn[:-rclip] if rclip else x.accn
+    key = (lambda x: x.accn[:-rclip]) if rclip else (lambda x: x.accn)
     data.sort(key=key)
 
     if pairsfile:
@@ -674,14 +848,13 @@ def report_pairs(data, cutoff=0, mateorientation=None,
         if dist >= 0:
             all_dist.append((dist, orientation, aquery, bquery))
 
+    # select only pairs with certain orientations - e.g. innies, outies, etc.
+    if mateorientation:
+        all_dist = [x for x in all_dist if x[1] == mateorientation]
+
     # try to infer cutoff as twice the median until convergence
     if cutoff <= 0:
-        if mateorientation:
-            dists = np.array([x[0] for x in all_dist \
-                    if x[1] == mateorientation], dtype="int")
-        else:
-            dists = np.array([x[0] for x in all_dist], dtype="int")
-
+        dists = np.array([x[0] for x in all_dist], dtype="int")
         p0 = np.median(dists)
         cutoff = int(2 * p0)  # initial estimate
         cutoff = int(math.ceil(cutoff / bins)) * bins
@@ -724,8 +897,9 @@ def report_pairs(data, cutoff=0, mateorientation=None,
 
     orientation_summary = []
     for orientation, count in sorted(orientations.items()):
-        o = "{0}:{1}".format(orientation, count)
-        orientation_summary.append(o)
+        o = "{0}:{1}".format(orientation, \
+                percentage(count, num_links, denominator=False))
+        orientation_summary.append(o.split()[0])
         print >>sys.stderr, o
 
     if insertsfile:
@@ -738,7 +912,8 @@ def report_pairs(data, cutoff=0, mateorientation=None,
         title="{0} ({1}; median dist:{2})".format(prefix, osummary, p0)
         histogram(insertsfile, vmin=0, vmax=cutoff, bins=bins,
                 xlabel="Insertsize", title=title, ascii=ascii)
-        os.remove(insertsfile)
+        if op.exists(insertsfile):
+            os.remove(insertsfile)
 
     return meandist, stdev, p0, p1, p2
 
@@ -773,17 +948,20 @@ def best(args):
 
     p.add_option("-n", default=1, type="int",
             help="get best N hits [default: %default]")
+    p.add_option("--hsps", default=False, action="store_true",
+            help="get all HSPs for the best pair [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     blastfile, = args
+    sort([blastfile])
     bestblastfile = blastfile + ".best"
     fw = open(bestblastfile, "w")
 
     b = Blast(blastfile)
-    for q, bline in b.iter_best_hit(N=opts.n):
+    for q, bline in b.iter_best_hit(N=opts.n, hsps=False):
         print >> fw, bline
 
 

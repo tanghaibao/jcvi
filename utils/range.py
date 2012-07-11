@@ -8,14 +8,28 @@ both on the 2D dotplot and 1D-projection
 `range_chain` implements the exon-chain algorithm
 """
 
-from itertools import groupby
-from collections import namedtuple
+import sys
 
-from jcvi.utils.grouper import Grouper
+from itertools import groupby
+from collections import namedtuple, defaultdict
+
 
 LEFT, RIGHT = 0, 1
-
 Range = namedtuple("Range", "seqid start end score id")
+
+
+def range_parse(s):
+    """
+    >>> range_parse("chr1:1000-1")
+    Range(seqid='chr1', start=1, end=1000, score=0, id=0)
+    """
+    chr, se = s.split(":")
+    start, end = se.split("-")
+    start, end = int(start), int(end)
+    if start > end:
+        start, end = end, start
+
+    return Range(chr, start, end, 0, 0)
 
 
 def range_intersect(a, b):
@@ -137,6 +151,78 @@ def range_minmax(ranges):
     return rmin, rmax
 
 
+def range_closest(ranges, b, left=True):
+    """
+    Returns the range that's closest to the given position. Notice that the
+    behavior is to return ONE closest range to the left end (if left is True).
+    This is a SLOW method.
+
+    >>> ranges = [("1", 30, 40), ("1", 33, 35), ("1", 10, 20)]
+    >>> b = ("1", 22, 25)
+    >>> range_closest(ranges, b)
+    ('1', 10, 20)
+    >>> range_closest(ranges, b, left=False)
+    ('1', 33, 35)
+    >>> b = ("1", 2, 5)
+    >>> range_closest(ranges, b)
+    """
+    from jcvi.utils.orderedcollections import SortedCollection
+    key = (lambda x: x) if left else (lambda x: (x[0], x[2], x[1]))
+    rr = SortedCollection(ranges, key=key)
+    try:
+        if left:
+            s = rr.find_le(b)
+            assert key(s) <= key(b), (s, b)
+        else:
+            s = rr.find_ge(b)
+            assert key(s) >= key(b), (s, b)
+    except ValueError:
+        s = None
+
+    return s
+
+
+def range_interleave(ranges, sizes={}):
+    """
+    Returns the ranges in between the given ranges.
+
+    >>> ranges = [("1", 30, 40), ("1", 45, 50), ("1", 10, 30)]
+    >>> range_interleave(ranges)
+    [('1', 41, 44)]
+    >>> ranges = [("1", 30, 40), ("1", 42, 50)]
+    >>> range_interleave(ranges)
+    [('1', 41, 41)]
+    >>> range_interleave(ranges, sizes={"1": 70})
+    [('1', 1, 29), ('1', 41, 41), ('1', 51, 70)]
+    """
+    from jcvi.utils.iter import pairwise
+    ranges = range_merge(ranges)
+    interleaved_ranges = []
+
+    for ch, cranges in groupby(ranges, key=lambda x: x[0]):
+        cranges = list(cranges)
+        size = sizes.get(ch, None)
+        if size:
+            ch, astart, aend = cranges[0]
+            if astart > 1:
+                interleaved_ranges.append((ch, 1, astart - 1))
+
+        for a, b in pairwise(cranges):
+            ch, astart, aend = a
+            ch, bstart, bend = b
+            istart, iend = aend + 1, bstart - 1
+            if istart > iend:
+                continue
+            interleaved_ranges.append((ch, istart, iend))
+
+        if size:
+            ch, astart, aend = cranges[-1]
+            if aend < size:
+                interleaved_ranges.append((ch, aend + 1, size))
+
+    return interleaved_ranges
+
+
 def range_merge(ranges, dist=0):
     """
     Returns merged range. Similar to range_union, except this returns
@@ -184,7 +270,12 @@ def range_union(ranges):
     >>> ranges = [("1", 30, 45), ("1", 45, 50)]
     >>> range_union(ranges)
     21
+    >>> range_union([])
+    0
     """
+    if not ranges:
+        return 0
+
     ranges.sort()
 
     total_len = 0
@@ -214,6 +305,32 @@ def _make_endpoints(ranges):
     return sorted(endpoints)
 
 
+def range_piles(ranges):
+    """
+    Return piles of intervals that overlap. The piles are only interrupted by
+    regions of zero coverage.
+
+    >>> ranges = [Range("2", 0, 1, 3, 0), Range("2", 1, 4, 3, 1), Range("3", 5, 7, 3, 2)]
+    >>> list(range_piles(ranges))
+    [[0, 1], [2]]
+    """
+    endpoints = _make_endpoints(ranges)
+
+    for seqid, ends in groupby(endpoints, lambda x: x[0]):
+        active = []
+        depth = 0
+        for seqid, pos, leftright, i, score in ends:
+            if leftright == LEFT:
+                active.append(i)
+                depth += 1
+            else:
+                depth -= 1
+
+            if depth == 0 and active:
+                yield active
+                active = []
+
+
 def range_conflict(ranges, depth=1):
     """
     Find intervals that are overlapping in 1-dimension.
@@ -221,28 +338,25 @@ def range_conflict(ranges, depth=1):
 
     >>> ranges = [Range("2", 0, 1, 3, 0), Range("2", 1, 4, 3, 1), Range("3", 5, 7, 3, 2)]
     >>> list(range_conflict(ranges))
-    [[Range(seqid='2', start=0, end=1, score=3, id=0), Range(seqid='2', start=1, end=4, score=3, id=1)]]
+    [(0, 1)]
     """
     overlap = set()
     active = set()
     endpoints = _make_endpoints(ranges)
 
     for seqid, ends in groupby(endpoints, lambda x: x[0]):
-        ends = list(ends)
+        active.clear()
         for seqid, pos, leftright, i, score in ends:
-            active.clear()
-            for seqid, pos, leftright, i, score in ends:
-                if leftright == LEFT:
-                    active.add(i)
-                else:
-                    active.remove(i)
+            if leftright == LEFT:
+                active.add(i)
+            else:
+                active.remove(i)
 
-                if len(active) > depth:
-                    overlap.add(tuple(sorted(active)))
+            if len(active) > depth:
+                overlap.add(tuple(sorted(active)))
 
     for ov in overlap:
-        selected = [ranges[x] for x in ov]
-        yield selected
+        yield ov
 
 
 def range_chain(ranges):
@@ -260,8 +374,6 @@ def range_chain(ranges):
     >>> range_chain(ranges)
     ([Range(seqid='2', start=0, end=1, score=3, id=0), Range(seqid='3', start=5, end=7, score=3, id=2)], 6)
     """
-    ranges.sort()
-
     endpoints = _make_endpoints(ranges)
 
     # stores the left end index for quick retrieval
@@ -297,6 +409,66 @@ def range_chain(ranges):
     selected = [ranges[x] for x in chains]
 
     return selected, score
+
+
+def ranges_depth(ranges, sizes, verbose=True):
+    """
+    Allow triple (seqid, start, end) rather than just tuple (start, end)
+    """
+    ranges.sort()
+    for seqid, rrs in groupby(ranges, key=lambda x: x[0]):
+        rrs = [(a, b) for (s, a, b) in rrs]
+        size = sizes[seqid]
+        ds, depthdetails = range_depth(rrs, size, verbose=verbose)
+        depthdetails = [(seqid, s, e, d) for s, e, d in depthdetails]
+        yield depthdetails
+
+
+def range_depth(ranges, size, verbose=True):
+    """
+    Overlay ranges on [start, end], and summarize the ploidy of the intervals.
+    """
+    from jcvi.utils.iter import pairwise
+    from jcvi.utils.cbook import percentage
+
+    # Make endpoints
+    endpoints = []
+    for a, b in ranges:
+        endpoints.append((a, LEFT))
+        endpoints.append((b, RIGHT))
+    endpoints.sort()
+    vstart, vend = min(endpoints)[0], max(endpoints)[0]
+
+    assert 0 <= vstart < size
+    assert 0 <= vend < size
+
+    depth = 0
+    depthstore = defaultdict(int)
+    depthstore[depth] += vstart
+    depthdetails = [(0, vstart, depth)]
+
+    for (a, atag), (b, btag) in pairwise(endpoints):
+        if atag == LEFT:
+            depth += 1
+        elif atag == RIGHT:
+            depth -= 1
+        depthstore[depth] += b - a
+        depthdetails.append((a, b, depth))
+
+    assert btag == RIGHT
+    depth -= 1
+
+    assert depth == 0
+    depthstore[depth] += size - vend
+    depthdetails.append((vend, size, depth))
+
+    assert sum(depthstore.values()) == size
+    if verbose:
+        for depth, count in sorted(depthstore.items()):
+            print >> sys.stderr, "Depth {0}: {1}".\
+                    format(depth, percentage(count, size))
+
+    return depthstore, depthdetails
 
 
 if __name__ == '__main__':

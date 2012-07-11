@@ -13,7 +13,7 @@ import shutil
 import logging
 
 from copy import deepcopy
-from optparse import OptionParser
+from optparse import OptionParser, OptionGroup
 from collections import defaultdict
 from itertools import groupby
 
@@ -27,18 +27,34 @@ from jcvi.formats.bed import Bed, BedLine
 from jcvi.assembly.base import calculate_A50
 from jcvi.utils.range import range_intersect
 from jcvi.utils.iter import pairwise, flatten
-from jcvi.apps.base import ActionDispatcher, set_outfile
+from jcvi.apps.base import ActionDispatcher, set_outfile, sh
 
 
 Valid_component_type = list("ADFGNOPUW")
-Valid_gap_type = ("fragment", "clone", "contig", "centromere", "short_arm",
-        "heterochromatin", "telomere", "repeat")
-Valid_orientation = ("+", "-", "0", "na")
+
+Valid_gap_type = ("fragment", "clone",           # in v1.1, obsolete in v2.0
+        "contig", "centromere", "short_arm",     # in both versions
+        "heterochromatin", "telomere", "repeat", # in both versions
+        "scaffold")                              # new in v2.0
+
+Valid_orientation = ("+", "-", "0", "?", "na")
+
+Valid_evidence = ("", "na", "paired-ends", "align_genus", "align_xgenus",
+                  "align_trnscpt", "within_clone", "clone_contig", "map",
+                  "strobe", "unspecified")
+
 component_RGB = {"O" : "0,100,0",
                  "F" : "0,100,0",
                  "D" : "50,205,50",
                  "N" : "255,255,255"
                 }
+
+"""
+phase 0 - (P)refinish; phase 1,2 - (D)raft;
+phase 3 - (F)inished; 4 - (O)thers
+"""
+Phases = "PDDFO"
+
 
 class AGPLine (object):
 
@@ -64,7 +80,9 @@ class AGPLine (object):
             self.gap_length = int(atoms[5])
             self.gap_type = atoms[6]
             self.linkage = atoms[7]
-            self.empty = ""
+            self.linkage_evidence = ""
+            if len(atoms) > 8:
+                self.linkage_evidence = atoms[8].strip().split(";")
             self.orientation = "na"
 
         if validate:
@@ -84,7 +102,7 @@ class AGPLine (object):
                     self.component_end, self.orientation]
         else:
             fields += [self.gap_length, self.gap_type,
-                    self.linkage, self.empty]
+                    self.linkage, ";".join(self.linkage_evidence)]
 
         return "\t".join(str(x) for x in fields)
 
@@ -99,11 +117,28 @@ class AGPLine (object):
                 self.component_type, self.orientation))
 
     @property
+    def bedextra(self):
+        # extra lines for bed12
+        return "\t".join(str(x) for x in (self.object_beg - 1,
+               self.object_end, component_RGB[self.component_type], 1,
+               str(self.object_end - self.object_beg + 1) + ",", "0,"))
+
+    @property
     def bed12line(self):
         # bed12 formatted line
-        return self.bedline + "\t" + "\t".join((str(self.object_beg - 1),
-               str(self.object_end), component_RGB[self.component_type], "1",
-               "".join((str(self.object_end - self.object_beg + 1), ",")), "0,"))
+        return self.bedline + "\t" + self.bedextra
+
+    def gffline(self, gff_source="MGSC", gff_feat_type="golden_path_fragment"):
+        # gff3 formatted line
+        gff_feat_id = "".join(str(x) for x in (self.object, ".", \
+                      format(int(self.part_number), '03d')))
+        attributes = ";".join(("ID=" + gff_feat_id, \
+                              "Name=" + self.component_id, \
+                              "phase=" + self.component_type))
+
+        return "\t".join(str(x) for x in (self.object, gff_source, \
+               gff_feat_type, str(self.object_beg), str(self.object_end),\
+               ".", self.orientation, ".", attributes))
 
     @property
     def isCloneGap(self):
@@ -111,7 +146,8 @@ class AGPLine (object):
 
     def validate(self):
         assert self.component_type in Valid_component_type, \
-                "component_type has to be one of %s" % Valid_component_type
+                "component_type must be one of {0}"\
+                .format("|".join(Valid_component_type))
         assert self.object_beg <= self.object_end, \
                 "object_beg needs to be <= object_end"
 
@@ -127,11 +163,19 @@ class AGPLine (object):
             assert self.object_span == self.gap_length, \
                     "object span (%d) must be same as gap_length (%d)" % \
                     (self.object_span, self.gap_length)
+            assert all(x in Valid_evidence for x in self.linkage_evidence), \
+                    "linkage_evidence must be one of {0}, you have {1}"\
+                    .format("|".join(Valid_evidence), self.linkage_evidence)
+
+            if self.linkage == "no":
+                assert self.linkage_evidence[0] in ("", "na"), \
+                    "linkage no is incompatible with evidence {0}" \
+                    .format(self.linkage_evidence)
 
 
 class AGP (LineFile):
 
-    def __init__(self, filename, validate=True):
+    def __init__(self, filename, validate=True, sorted=True):
         super(AGP, self).__init__(filename)
 
         fp = open(filename)
@@ -142,7 +186,8 @@ class AGP (LineFile):
 
         self.validate = validate
         if validate:
-            self.sort(key=lambda x: (x.object, x.object_beg))
+            if not sorted:
+                self.sort(key=lambda x: (x.object, x.object_beg))
             self.validate_all()
 
     @property
@@ -203,16 +248,16 @@ class AGP (LineFile):
                  "component_end/linkage orientation"
         print >> fw, "# FIELDS: {0}".format(", ".join(header.split()))
 
-    def report_stats(self, object, bacs, components, scaffold_sizes):
+    def rstats(self, object, bacs, components, scaffold_sizes, length):
         from jcvi.utils.cbook import human_size
 
         nbacs = len(bacs)
         nscaffolds = len(scaffold_sizes)
         a50, l50, n50 = calculate_A50(scaffold_sizes)
+        l50 = human_size(l50)
+        length = human_size(length)
 
-        print "\t".join(str(x) for x in (object, nbacs,
-            components, nscaffolds, n50,
-            human_size(l50, precision=2, target="Mb")))
+        return (object, nbacs, components, nscaffolds, n50, l50, length)
 
     def summary_one(self, object, lines):
         bacs = set()
@@ -220,6 +265,7 @@ class AGP (LineFile):
         scaffold_sizes = []
         _scaffold_key = lambda x: x.is_gap and \
                 x.linkage == "no"
+        length = max(x.object_end for x in lines)
 
         for is_gap, scaffold in groupby(lines, key=_scaffold_key):
             if is_gap:
@@ -237,23 +283,28 @@ class AGP (LineFile):
 
             scaffold_sizes.append(scaffold_size)
 
-        self.report_stats(object, bacs, components, scaffold_sizes)
-
-        return bacs, components, scaffold_sizes
+        return self.rstats(object, bacs, components, scaffold_sizes, length), \
+                                  (bacs, components, scaffold_sizes, length)
 
     def summary_all(self):
 
         all_bacs = set()
         all_scaffold_sizes = []
         all_components = 0
+        all_length = 0
         for ob, lines_with_same_ob in groupby(self, key=lambda x: x.object):
             lines = list(lines_with_same_ob)
-            bacs, components, scaffold_sizes = self.summary_one(ob, lines)
+            s, bstats = self.summary_one(ob, lines)
+            yield s
+
+            bacs, components, scaffold_sizes, length = bstats
             all_components += components
             all_bacs |= bacs
             all_scaffold_sizes.extend(scaffold_sizes)
+            all_length += length
 
-        self.report_stats("Total", all_bacs, all_components, all_scaffold_sizes)
+        yield self.rstats("Total", all_bacs, all_components,
+                          all_scaffold_sizes, all_length)
 
     def validate_one(self, object, lines):
         object_beg = lines[0].object_beg
@@ -372,6 +423,92 @@ class TPF (LineFile):
         return north, south
 
 
+class OOLine (object):
+
+    def __init__(self, id, component_id, component_size, strand):
+        self.id = id
+        self.component_id = component_id
+        self.component_size = component_size
+        self.strand = strand
+
+
+class OO (LineFile):
+
+    def __init__(self, filename=None, ctgsizes=None):
+        super(OO, self).__init__(filename)
+
+        if filename is None:
+            return
+
+        from jcvi.formats.base import read_block
+
+        fp = open(filename)
+        prefix = "contig_"
+        self.contigs = set()
+        for header, block in read_block(fp, ">"):
+            header = header[1:]  # Trim the '>'
+            header = header.split()[0]
+            for b in block:
+                ctg, orientation = b.split()
+                if ctg.startswith(prefix):
+                    ctg = ctg[len(prefix):]
+
+                assert orientation in ("BE", "EB")
+
+                strand = "+" if orientation == "BE" else "-"
+                ctgsize = ctgsizes[ctg]
+                self.add(header, ctg, ctgsize, strand)
+                self.contigs.add(ctg)
+
+    def add(self, scaffold, ctg, ctgsize, strand="0"):
+        self.append(OOLine(scaffold, ctg, ctgsize, strand))
+
+    def sub_beds(self):
+        for scaffold, beds in groupby(self, key=lambda x: x.id):
+            yield scaffold, list(beds)
+
+    def write_AGP(self, fw=sys.stdout, gapsize=100, phases={},
+                        gaptype="fragment", evidence=""):
+
+        linkage = "yes"
+
+        for object, beds in self.sub_beds():
+            object_beg = 1
+            part_number = 0
+            for b in beds:
+                component_id = b.component_id
+                size = b.component_size
+                if part_number > 0:  # Print gap except for the first one
+                    object_end = object_beg + gapsize - 1
+                    part_number += 1
+                    print >> fw, "\t".join(str(x) for x in \
+                            (object, object_beg, object_end, part_number,
+                             'N', gapsize, gaptype, linkage, evidence))
+
+                    object_beg += gapsize
+
+                object_end = object_beg + size - 1
+                part_number += 1
+                print >> fw, "\t".join(str(x) for x in \
+                        (object, object_beg, object_end, part_number,
+                         phases.get(component_id, 'W'), component_id,
+                         1, size, b.strand))
+
+                object_beg += size
+
+        fw.close()
+
+
+def order_to_agp(object, ctgorder, sizes, fwagp, gapsize=100):
+
+    o = OO()  # Without a filename
+    for scaffold_number, (ctg, strand) in enumerate(ctgorder):
+        size = sizes[ctg]
+        o.add(object, ctg, size, strand)
+
+    o.write_AGP(fwagp, gapsize=gapsize, phases={})
+
+
 def trimNs(seq, line, newagp):
     """
     Test if the sequences contain dangling N's on both sides. This component
@@ -402,7 +539,7 @@ def trimNs(seq, line, newagp):
     oldrange = (start, end)
 
     if trimrange != oldrange:
-        logging.error("Range trimmed of N's: {0} => {1}".format(oldrange,
+        logging.debug("Range trimmed of N's: {0} => {1}".format(oldrange,
             trimrange))
 
         if leftNs:
@@ -425,12 +562,15 @@ def main():
         ('summary', 'print out a table of scaffold statistics'),
         ('stats', 'print out a report for length of gaps and components'),
         ('phase', 'given genbank file, get the phase for the HTG BAC record'),
-        ('bed', 'print out the tiling paths in bed format'),
+        ('bed', 'print out the tiling paths in bed/gff3 format'),
+        ('frombed', 'generate AGP file based on bed file'),
+        ('extendbed', 'extend the components to fill the component range and output bed/gff3 format file'),
         ('gaps', 'print out the distribution of gap sizes'),
         ('tpf', 'print out a list of accessions, aka Tiling Path File'),
-        ('chr0', 'build AGP file for unplaced sequences'),
+        ('cut', 'cut at the boundaries of given ranges'),
         ('mask', 'mask given ranges in components to gaps'),
         ('liftover', 'given ranges in components, get chromosome ranges'),
+        ('swap', 'swap objects and components'),
         ('reindex', 'assume accurate component order, reindex coordinates'),
         ('tidy', 'run trim=>reindex=>merge sequentially'),
         ('build', 'given agp file and component fasta file, build ' +\
@@ -443,6 +583,98 @@ def main():
     p.dispatch(globals())
 
 
+def frombed(args):
+    """
+    %prog frombed bedfile
+
+    Generate AGP file based on bed file. The bed file must have at least 6
+    columns. With the 4-th column indicating the new object.
+    """
+    p = OptionParser(frombed.__doc__)
+    p.add_option("--gapsize", default=100, type="int",
+                 help="Insert gaps of size [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    bedfile, = args
+    gapsize = opts.gapsize
+    agpfile = bedfile.replace(".bed", ".agp")
+    fw = open(agpfile, "w")
+
+    bed = Bed(bedfile, sorted=False)
+    for object, beds in groupby(bed, key=lambda x: x.accn):
+        beds = list(beds)
+        for i, b in enumerate(beds):
+            if gapsize and i != 0:
+                print >> fw, "\t".join(str(x) for x in \
+                    (object, 0, 0, 0, "U", \
+                     gapsize, "contig", "no", "na"))
+
+            bstrand = '-' if b.strand == '-' else '+'
+            print >> fw, "\t".join(str(x) for x in \
+                    (object, 0, 0, 0, "W", \
+                     b.seqid, b.start, b.end, bstrand))
+
+    fw.close()
+
+    # Reindex
+    idxagpfile = reindex([agpfile])
+    shutil.move(idxagpfile, agpfile)
+
+
+def swap(args):
+    """
+    %prog swap agpfile
+
+    Swap objects and components. Will add gap lines. This is often used in
+    conjuction with formats.chain.fromagp() to convert between different
+    coordinate systems.
+    """
+    from itertools import izip_longest
+    from jcvi.utils.range import range_interleave
+
+    p = OptionParser(swap.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    agpfile, = args
+
+    agp = AGP(agpfile)
+    agp.sort(key=lambda x: (x.component_id, x.component_beg))
+
+    newagpfile = agpfile.rsplit(".", 1)[0] + ".swapped.agp"
+    fw = open(newagpfile, "w")
+    for cid, aa in groupby(agp, key=(lambda x: x.component_id)):
+        aa = list(aa)
+        aranges = [(x.component_id, x.component_beg, x.component_end) \
+                    for x in aa]
+        gaps = range_interleave(aranges)
+        for a, g in izip_longest(aa, gaps):
+            a.object, a.component_id = a.component_id, a.object
+            a.component_beg = a.object_beg
+            a.component_end = a.object_end
+            print >> fw, a
+            if not g:
+                continue
+
+            aline = [cid, 0, 0, 0]
+            gseq, ga, gb = g
+            cspan = gb - ga + 1
+            aline += ["N", cspan, "fragment", "yes"]
+            print >> fw, "\t".join(str(x) for x in aline)
+
+    fw.close()
+    # Reindex
+    idxagpfile = reindex([newagpfile])
+    shutil.move(idxagpfile, newagpfile)
+
+    return newagpfile
+
+
 def stats(args):
     """
     %prog stats agpfile
@@ -450,6 +682,8 @@ def stats(args):
     Print out a report for length of gaps and components.
     """
     p = OptionParser(stats.__doc__)
+    p.add_option("--warn", default=False, action="store_true",
+                 help="Warnings on small component spans [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -469,13 +703,18 @@ def stats(args):
             label = "{0}:{1}-{2}".format(a.component_id, a.component_beg, \
                    a.component_end)
             component_lengths.append((span, label))
-            if span < 50:
+            if opts.warn and span < 50:
                 logging.error("component span too small ({0}):\n{1}".\
                     format(span, a))
 
     table = dict()
     for label, lengths in zip(("Gaps", "Components"),
             (gap_lengths, component_lengths)):
+
+        if not lengths:
+            table[(label, "Min")] = table[(label, "Max")] \
+                                  = table[(label, "Sum")] = "n.a."
+            continue
 
         table[(label, "Min")] = "{0} ({1})".format(*min(lengths))
         table[(label, "Max")] = "{0} ({1})".format(*max(lengths))
@@ -487,13 +726,87 @@ def stats(args):
     print >> sys.stderr, table
 
 
+def cut(args):
+    """
+    %prog cut agpfile bedfile
+
+    Cut at the boundaries of the ranges in the bedfile.
+    """
+    p = OptionParser(cut.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    agpfile, bedfile = args
+    agp = AGP(agpfile)
+    bed = Bed(bedfile)
+    simple_agp = agp.order
+    newagpfile = agpfile.replace(".agp", ".cut.agp")
+    fw = open(newagpfile, "w")
+
+    agp_fixes = defaultdict(list)
+    for component, intervals in bed.sub_beds():
+        i, a = simple_agp[component]
+        object = a.object
+        component_span = a.component_span
+        orientation = a.orientation
+
+        assert a.component_beg, a.component_end
+        arange = a.component_beg, a.component_end
+
+        cuts = set()
+        for i in intervals:
+            start, end = i.start, i.end
+            end -= 1
+
+            assert start <= end
+            cuts.add(start)
+            cuts.add(end)
+
+        cuts.add(0)
+        cuts.add(component_span)
+        cuts = list(sorted(cuts))
+
+        sum_of_spans = 0
+        for i, (a, b) in enumerate(pairwise(cuts)):
+            oid = object + "_{0}".format(i)
+            aline = [oid, 0, 0, 0]
+            cspan = b - a
+            aline += ['D', component, a + 1, b, orientation]
+            sum_of_spans += cspan
+
+            aline = "\t".join(str(x) for x in aline)
+            agp_fixes[component].append(aline)
+
+        assert component_span == sum_of_spans
+
+    # Finally write the masked agp
+    for a in agp:
+        if not a.is_gap and a.component_id in agp_fixes:
+            print >> fw, "\n".join(agp_fixes[a.component_id])
+        else:
+            print >> fw, a
+
+    fw.close()
+    # Reindex
+    idxagpfile = reindex([newagpfile])
+    shutil.move(idxagpfile, newagpfile)
+
+    return newagpfile
+
+
 def mask(args):
     """
     %prog mask agpfile bedfile
 
-    Mask given ranges in componets to gaps.
+    Mask given ranges in components to gaps.
     """
     p = OptionParser(mask.__doc__)
+    p.add_option("--split", default=False, action="store_true",
+                 help="Split object and create new names [default: %default]")
+    p.add_option("--log", default=False, action="store_true",
+                 help="Write verbose logs to .masklog file [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -509,15 +822,18 @@ def mask(args):
     newagpfile = agpfile.replace(".agp", ".masked.agp")
     logfile = bedfile.replace(".bed", ".masklog")
     fw = open(newagpfile, "w")
-    fwlog = open(logfile, "w")
+    if opts.log:
+        fwlog = open(logfile, "w")
 
     for component, intervals in bed.sub_beds():
-        print >> fwlog, "\n".join(str(x) for x in intervals)
+        if opts.log:
+            print >> fwlog, "\n".join(str(x) for x in intervals)
         i, a = simple_agp[component]
         object = a.object
         component_span = a.component_span
         orientation = a.orientation
-        print >> fwlog, a
+        if opts.log:
+            print >> fwlog, a
 
         assert a.component_beg, a.component_end
         arange = a.component_beg, a.component_end
@@ -544,24 +860,30 @@ def mask(args):
             if orientation not in ('+', '-'):
                 orientation = '+'
 
-            aline = "\t".join(str(x) for x in (object, 0, 0, 0))
+            oid = object + "_{0}".format(i / 2) if opts.split else object
+            aline = [oid, 0, 0, 0]
             if i % 2 == 0:
                 cspan = b - a - 1
-                aline = "\t".join(str(x) for x in (aline,
-                        'D', component, a + 1, b - 1, orientation))
+                aline += ['D', component, a + 1, b - 1, orientation]
+                is_gap = False
             else:
                 cspan = b - a + 1
-                aline = "\t".join(str(x) for x in (aline,
-                        "N", cspan, "fragment", "yes"))
+                aline += ["N", cspan, "fragment", "yes"]
+                is_gap = True
             if cspan <= 0:
                 continue
 
             sum_of_spans += cspan
-            agp_fixes[component].append(aline)
-            print >> fwlog, aline
+            aline = "\t".join(str(x) for x in aline)
+            if not (opts.split and is_gap):
+                agp_fixes[component].append(aline)
 
-        assert component_span == sum_of_spans
-        print >> fwlog
+            if opts.log:
+                print >> fwlog, aline
+
+        #assert component_span == sum_of_spans
+        if opts.log:
+            print >> fwlog
 
     # Finally write the masked agp
     for a in agp:
@@ -569,6 +891,13 @@ def mask(args):
             print >> fw, "\n".join(agp_fixes[a.component_id])
         else:
             print >> fw, a
+
+    fw.close()
+    # Reindex
+    idxagpfile = reindex([newagpfile])
+    shutil.move(idxagpfile, newagpfile)
+
+    return newagpfile
 
 
 def liftover(args):
@@ -578,6 +907,8 @@ def liftover(args):
     Given coordinates in components, convert to the coordinates in chromosomes.
     """
     p = OptionParser(liftover.__doc__)
+    p.add_option("--prefix", default=False, action="store_true",
+                 help="Prepend prefix to accn names [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -589,6 +920,10 @@ def liftover(args):
     newbed = Bed()
     for b in bed:
         component = b.seqid
+        if component not in agp:
+            newbed.append(b)
+            continue
+
         i, a = agp[component]
 
         assert a.component_beg < a.component_end
@@ -609,12 +944,13 @@ def liftover(args):
             d = a.object_beg - a.component_beg
             s, t = d + start, d + end
 
-        name = "{0}_{1}".format(component, b.accn.replace(" ", "_"))
+        name = b.accn.replace(" ", "_")
+        if opts.prefix:
+            name = component + "_" + name
         bline = "\t".join(str(x) for x in (a.object, s - 1, t, name))
         newbed.append(BedLine(bline))
 
-    newbed.sort(key=lambda x: (x.seqid, x.start))
-    newbed.print_to_file()
+    newbed.print_to_file(sorted=True)
 
 
 def reindex(args):
@@ -626,6 +962,8 @@ def reindex(args):
     the target coordinates.
     """
     p = OptionParser(reindex.__doc__)
+    p.add_option("--nogaps", default=False, action="store_true",
+                 help="Remove all gap lines [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -633,7 +971,8 @@ def reindex(args):
 
     agpfile, = args
     agp = AGP(agpfile, validate=False)
-    newagpfile = agpfile.replace(".agp", ".reindexed.agp")
+    pf = agpfile.rsplit(".", 1)[0]
+    newagpfile = pf + ".reindexed.agp"
 
     fw = open(newagpfile, "w")
     for chr, chr_agp in groupby(agp, lambda x: x.object):
@@ -642,11 +981,13 @@ def reindex(args):
         for i, b in enumerate(chr_agp):
             b.object_beg = object_beg
             b.part_number = i + 1
+            if opts.nogaps and b.is_gap:
+                continue
 
-            if not b.is_gap:
-                b.object_end = object_beg + b.component_span - 1
-            else:
+            if b.is_gap:
                 b.object_end = object_beg + b.gap_length - 1
+            else:
+                b.object_end = object_beg + b.component_span - 1
 
             object_beg = b.object_end + 1
 
@@ -655,7 +996,8 @@ def reindex(args):
     # Last step: validate the new agpfile
     fw.close()
     agp = AGP(newagpfile, validate=True)
-    logging.error("File `{0}` written and verified.".format(newagpfile))
+    logging.debug("File `{0}` written and verified.".format(newagpfile))
+    return newagpfile
 
 
 def summary(args):
@@ -666,6 +1008,8 @@ def summary(args):
     scaffold N50, scaffold L50, actual sequence, PSMOL NNNs, PSMOL-length, % of
     PSMOL sequenced.
     """
+    from jcvi.utils.table import write_csv
+
     p = OptionParser(summary.__doc__)
     opts, args = p.parse_args(args)
 
@@ -673,13 +1017,12 @@ def summary(args):
         sys.exit(p.print_help())
 
     agpfile, = args
-    header = "Chromosome|# of BACs|# of Components|"
-    header += "# of Scaffolds|Scaff N50|Scaff L50"
-    header = header.replace('|', '\t')
+    header = "Chromosome #_Distinct #_Components #_Scaffolds " \
+             "Scaff_N50 Scaff_L50 Length".split()
 
     agp = AGP(agpfile)
-    print header
-    agp.summary_all()
+    data = list(agp.summary_all())
+    write_csv(header, data, sep=" ")
 
 
 chr_pat = re.compile("chromosome (\d)", re.I)
@@ -751,92 +1094,6 @@ def phase(args):
                     chr, clone))
 
 
-"""
-phase 0 - (P)refinish; phase 1,2 - (D)raft;
-phase 3 - (F)inished; 4 - (O)thers
-"""
-Phases = "PDDFO"
-
-
-def iter_phase(phasefile):
-    fp = open(phasefile)
-    for row in fp:
-        id, phase, keywords = row.split("\t")
-        yield id, Phases[int(phase)]
-
-
-def chr0(args):
-    """
-    %prog fastafile [phasefile]
-
-    build AGP file for unassembled sequences, and add gaps between. Phase list
-    contains two columns - BAC and phase (0, 1, 2, 3).
-    """
-    p = OptionParser(chr0.__doc__)
-    p.add_option("--gapsize", dest="gapsize", default=0, type="int",
-            help="create a new molecule chr0 with x N's inserted between " +\
-                 "[default: do not create new molecule]")
-    opts, args = p.parse_args(args)
-
-    nargs = len(args)
-    if nargs not in (1, 2):
-        sys.exit(p.print_help())
-
-    if nargs == 2:
-        fastafile, phasefile = args
-        phases = dict(iter_phase(phasefile))
-    else:
-        fastafile, = args
-        f = Fasta(fastafile)
-        phases = dict((x, 'W') for x in f.iterkeys())
-
-    agpfile = fastafile.rsplit(".", 1)[0] + ".agp"
-    f = Fasta(fastafile)
-    fw = open(agpfile, "w")
-
-    AGP.print_header(fw,
-        comment="{} components with unplaced chr locations".format(len(f)))
-
-    gap_length = opts.gapsize
-    object_beg = 1
-
-    if gap_length:
-        object = "chr0"
-        gap_type = "clone"
-        linkage = "no"
-
-        part_number = 0
-        for component_id, size in f.itersizes_ordered():
-            if part_number > 0:  # print gap except for the first one
-                object_end = object_beg + gap_length - 1
-                part_number += 1
-                print >> fw, "\t".join(str(x) for x in \
-                        (object, object_beg, object_end, part_number,
-                         'N', gap_length, gap_type, linkage, ""))
-
-                object_beg += gap_length
-
-            object_end = object_beg + size - 1
-            part_number += 1
-            print >> fw, "\t".join(str(x) for x in \
-                    (object, object_beg, object_end, part_number,
-                     phases[component_id], component_id, 1, size, '0'))
-
-            object_beg += size
-    else:
-
-        part_number = 1
-        scaffold_number = 0
-        for component_id, size in f.itersizes_ordered():
-            #object_id = component_id.rsplit(".")[0]
-            scaffold_number += 1
-            object_id = "scaffold{0:03d}".format(scaffold_number)
-            object_end = size
-            print >> fw, "\t".join(str(x) for x in \
-                    (object_id, object_beg, object_end, part_number,
-                    phases[component_id], component_id, 1, size, '0'))
-
-
 def tpf(args):
     """
     %prog tpf agpfile
@@ -875,35 +1132,166 @@ def tpf(args):
         print "\t".join((component_id, object, orientation))
 
 
+def validate_term(term):
+    """
+    Validate an SO term against so.obo
+    OBO file retrieved from 'http://obo.cvs.sourceforge.net/viewvc/obo/obo/ontology/genomic-proteomic/so.obo'
+    """
+    from jcvi.formats.obo import GODag
+    from jcvi.apps.base import download
+
+    so_file_url = "http://obo.cvs.sourceforge.net/viewvc/obo/obo/ontology/genomic-proteomic/so.obo"
+    so_file = download(so_file_url)
+
+    so = GODag(so_file)
+    valid_names = so.valid_names
+    if not term in valid_names:
+        logging.error("Term `{0}` does not exist. Please refer to `{1}`".format(term, so_file_url))
+        sys.exit()
+
+    return True
+
+
 def bed(args):
     """
     %prog bed agpfile
 
-    print out the tiling paths in bed format
+    print out the tiling paths in bed/gff3 format
     """
     p = OptionParser(bed.__doc__)
-    p.add_option("--gaps", dest="gaps", default=False, action="store_true",
-            help="only print bed lines for gaps")
-    p.add_option("--nogaps", dest="nogaps", default=False, action="store_true",
-            help="do not print bed lines for gaps")
-    p.add_option("--bed12", dest="bed12", default=False, action="store_true",
-            help="produce bed12 formatted output")
+    p.add_option("--gaps", default=False, action="store_true",
+            help="Only print bed lines for gaps [default: %default]")
+    p.add_option("--nogaps", default=False, action="store_true",
+            help="Do not print bed lines for gaps [default: %default]")
+    p.add_option("--bed12", default=False, action="store_true",
+            help="Produce bed12 formatted output [default: %default]")
+    set_outfile(p)
+    g1 = OptionGroup(p, "GFF specific parameters",
+            "Note: If not specified, output will be in `bed` format")
+    g1.add_option("--gff", default=False, action="store_true",
+            help="Produce gff3 formatted output. By default, ignores " +\
+                 "AGP gap lines. [default: %default]")
+    g1.add_option("--source", default="MGSC",
+            help="Specify a gff3 source [default: `%default`]")
+    g1.add_option("--feature", default="golden_path_fragment",
+            help="Specify a gff3 feature type [default: `%default`]")
+    g1.add_option("--verifySO", default=False, action="store_true",
+            help="Verify gff3 feature type againt SO for validity. " +\
+                  "Looks for `so.obo` in current folder. If not exists, " +\
+                  "it downloads the obo file. [default: %default]")
+    p.add_option_group(g1)
+
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
+
+    # If output format is gff3, ignore AGP gap lines.
+    if opts.gff:
+        opts.nogaps = True
+        # If 'verifySO' option is invoked, validate the SO term
+        if opts.verifySO:
+            validate_term(opts.feature)
 
     agpfile, = args
     agp = AGP(agpfile)
+    fw = must_open(opts.outfile, "w")
+    if opts.gff:
+        print >> fw, "##gff-version 3"
+
     for a in agp:
         if opts.nogaps and a.is_gap:
             continue
         if opts.gaps and not a.is_gap:
             continue
         if opts.bed12:
-            print a.bed12line
+            print >> fw, a.bed12line
+        elif opts.gff:
+            print >> fw, a.gffline(gff_source=opts.source, gff_feat_type=opts.feature)
         else:
-            print a.bedline
+            print >> fw, a.bedline
+    fw.close()
+
+    return fw.name
+
+
+def extendbed(args):
+    """
+    %prog extend agpfile componentfasta
+
+    Extend the components to fill the component range. For example, a bed/gff3 file
+    that was converted from the agp will contain only the BAC sequence intervals
+    that are 'represented' - sometimes leaving the 5` and 3` out (those that
+    overlap with adjacent sequences. This script fill up those ranges,
+    potentially to make graphics for tiling path.
+    """
+    from jcvi.formats.sizes import Sizes
+
+    p = OptionParser(extendbed.__doc__)
+    p.add_option("--nogaps", default=False, action="store_true",
+            help="Do not print bed lines for gaps [default: %default]")
+    p.add_option("--bed12", default=False, action="store_true",
+            help="Produce bed12 formatted output [default: %default]")
+    p.add_option("--gff", default=False, action="store_true",
+            help="Produce gff3 formatted output. By default, ignores " +\
+                 " AGP gap lines. [default: %default]")
+    set_outfile(p)
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    # If output format is GFF3, ignore AGP gap lines.
+    if opts.gff:
+        opts.nogaps = True
+
+    agpfile, fastafile = args
+    agp = AGP(agpfile)
+    fw = must_open(opts.outfile, "w")
+    if opts.gff:
+        print >> fw, "##gff-version 3"
+
+    ranges = defaultdict(list)
+    thickCoords = []  # These are the coordinates before modify ranges
+    # Make the first pass to record all the component ranges
+    for a in agp:
+        thickCoords.append((a.object_beg, a.object_end))
+        if a.is_gap:
+            continue
+        ranges[a.component_id].append(a)
+
+    # Modify the ranges
+    sizes = Sizes(fastafile).mapping
+    for accn, rr in ranges.items():
+        alen = sizes[accn]
+
+        a = rr[0]
+        if a.orientation == "+":
+            hang = a.component_beg - 1
+        else:
+            hang = alen - a.component_end
+        a.object_beg -= hang
+
+        a = rr[-1]
+        if a.orientation == "+":
+            hang = alen - a.component_end
+        else:
+            hang = a.component_beg - 1
+        a.object_end += hang
+
+    for a, (ts, te) in zip(agp, thickCoords):
+        if opts.nogaps and a.is_gap:
+            continue
+        if opts.bed12:
+            line = a.bedline
+            a.object_beg, a.object_end = ts, te
+            line += "\t" + a.bedextra
+            print >> fw, line
+        elif opts.gff:
+            print >> fw, a.gffline()
+        else:
+            print >> fw, a.bedline
 
 
 def gaps(args):
@@ -915,6 +1303,8 @@ def gaps(args):
     p = OptionParser(gaps.__doc__)
     p.add_option("--merge", dest="merge", default=False, action="store_true",
             help="Merge adjacent gaps (to conform to AGP specification)")
+    p.add_option("--header", default=False, action="store_true",
+            help="Produce an AGP header [default: %default]")
 
     opts, args = p.parse_args(args)
 
@@ -971,8 +1361,10 @@ def gaps(args):
     for gap_size, counts in sorted(size_distribution.items()):
         print >> sys.stderr, gap_size, counts
 
-    if merge:
+    if opts.header:
         AGP.print_header(fw)
+
+    if merge:
         for ob, bb in groupby(data, lambda x: x.object):
             for i, b in enumerate(bb):
                 b.part_number = i + 1
@@ -991,6 +1383,9 @@ def tidy(args):
     Final output is in `.tidy.agp`.
     """
     p = OptionParser(tidy.__doc__)
+    p.add_option("--nogaps", default=False, action="store_true",
+                 help="Remove all gap lines [default: %default]")
+    opts, args = p.parse_args(args)
 
     if len(args) != 2:
         sys.exit(p.print_help())
@@ -1002,7 +1397,10 @@ def tidy(args):
     os.remove(tmpfasta)
 
     agpfile = agpfile.replace(".agp", ".trimmed.agp")
-    reindex([agpfile])
+    reindex_opts = [agpfile]
+    if opts.nogaps:
+        reindex_opts += ["--nogaps"]
+    reindex(reindex_opts)
     os.remove(agpfile)
 
     agpfile = agpfile.replace(".agp", ".reindexed.agp")
@@ -1044,9 +1442,10 @@ def build(args):
     else:
         newagp = None
 
-    agp = AGP(agpfile, validate=validate)
+    agp = AGP(agpfile, validate=validate, sorted=True)
     agp.build_all(componentfasta=componentfasta, targetfasta=targetfasta,
             newagp=newagp)
+    logging.debug("Target fasta written to `{0}`.".format(targetfasta))
 
 
 def validate(args):

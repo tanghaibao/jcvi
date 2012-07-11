@@ -17,7 +17,7 @@ from jcvi.formats.base import LineFile
 from jcvi.formats.fasta import Fasta
 from jcvi.utils.cbook import fill
 from jcvi.assembly.base import Astat
-from jcvi.apps.base import ActionDispatcher, sh, debug
+from jcvi.apps.base import ActionDispatcher, need_update, sh, debug, set_outfile
 debug()
 
 
@@ -64,10 +64,42 @@ def main():
         ('chimera', 'parse sam file from `bwasw` and list multi-hit reads'),
         ('ace', 'convert sam file to ace'),
         ('index', 'convert to bam, sort and then index'),
+        ('bcf', 'run mpileup on a set of bam files'),
             )
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def bcf(args):
+    """
+    %prog bcf fastafile bamfiles > bcffile
+
+    Run mpileup on bam files.
+    """
+    from jcvi.apps.grid import Jobs
+
+    p = OptionParser(bcf.__doc__)
+    set_outfile(p)
+    opts, args = p.parse_args(args)
+
+    if len(args) < 2:
+        sys.exit(not p.print_help())
+
+    fastafile = args[0]
+    bamfiles = args[1:]
+
+    unsorted = [x for x in bamfiles if ".sorted." not in x]
+    jargs = [[[x, "--unique"]] for x in unsorted]
+    jobs = Jobs(index, args=jargs)
+    jobs.run()
+
+    bamfiles = [x.replace(".sorted.bam", ".bam") for x in bamfiles]
+    bamfiles = [x.replace(".bam", ".sorted.bam") for x in bamfiles]
+    cmd = "samtools mpileup -P ILLUMINA -E -ugDf"
+    cmd += " {0} {1}".format(fastafile, " ".join(bamfiles))
+    cmd += " | bcftools view -bcvg -"
+    sh(cmd, outfile=opts.outfile)
 
 
 def chimera(args):
@@ -106,6 +138,8 @@ def index(args):
     p = OptionParser(index.__doc__)
     p.add_option("--fasta", dest="fasta", default=None,
             help="add @SQ header to the BAM file [default: %default]")
+    p.add_option("--unique", default=False, action="store_true",
+            help="only retain uniquely mapped reads [default: %default]")
 
     opts, args = p.parse_args(args)
     if len(args) != 1:
@@ -119,7 +153,7 @@ def index(args):
     bamfile = samfile.replace(".sam", ".bam")
     if fastafile:
         faifile = fastafile + ".fai"
-        if not op.exists(faifile):
+        if need_update(fastafile, faifile):
             sh("samtools faidx {0}".format(fastafile))
         cmd = "samtools view -bt {0} {1} -F 4 -o {2}".\
                 format(faifile, samfile, bamfile)
@@ -127,16 +161,27 @@ def index(args):
         cmd = "samtools view -bS {0} -F 4 -o {1}".\
                 format(samfile, bamfile)
 
+    if opts.unique:
+        cmd += " -q 1"
+
     if samfile.endswith(".sam"):
         sh(cmd)
 
-    prefix = bamfile.replace(".bam", "")
-    sortedbamfile = prefix + ".sorted.bam"
-    if op.exists(bamfile):
+    # Already sorted?
+    if bamfile.endswith(".sorted.bam"):
+        sortedbamfile = bamfile
+    else:
+        prefix = bamfile.replace(".bam", "")
+        sortedbamfile = prefix + ".sorted.bam"
+
+    if need_update(bamfile, sortedbamfile):
         sh("samtools sort {0} {1}.sorted".format(bamfile, prefix))
 
-    if op.exists(sortedbamfile):
+    baifile = sortedbamfile + ".bai"
+    if need_update(sortedbamfile, baifile):
         sh("samtools index {0}".format(sortedbamfile))
+
+    return sortedbamfile
 
 
 def pair(args):
@@ -273,12 +318,7 @@ def ace(args):
     print >> fw, "AS {0} {1}".format(ncontigs, totalreads)
     print >> fw
 
-    # progress bar
-    from jcvi.apps.console import ProgressBar
-    pbar = ProgressBar(maxval=ncontigs).start()
-
     for i, contig in enumerate(s.references):
-        pbar.update(i)
         cseq = f[contig]
         nbases = len(cseq)
 
@@ -331,8 +371,6 @@ def ace(args):
             print >> fw
             print >> fw, qs
             print >> fw
-
-    pbar.finish()
 
 
 if __name__ == '__main__':

@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: UTF-8 -*-
+
 import os
 import os.path as op
 import math
@@ -8,7 +11,8 @@ from itertools import groupby, islice, cycle, izip
 from optparse import OptionParser
 
 from Bio import SeqIO
-from jcvi.apps.base import ActionDispatcher, sh, debug
+from jcvi.apps.base import ActionDispatcher, sh, debug, need_update, \
+        mkdir, popen, set_outfile
 debug()
 
 
@@ -39,18 +43,48 @@ class DictFile (BaseFile, dict):
         super(DictFile, self).__init__(filename)
 
         fp = must_open(filename)
+        ncols = max(keypos, valuepos) + 1
+        thiscols = 0
         for lineno, row in enumerate(fp):
             row = row.rstrip()
             atoms = row.split(delimiter)
-            ncols = max(keypos, valuepos) + 1
-            if len(atoms) < ncols:
+            thiscols = len(atoms)
+            if thiscols < ncols:
                 msg = "Must contain >= {0} columns.  Aborted.\n".format(ncols)
                 msg += "  --> Line {0}: {1}".format(lineno + 1, row)
                 logging.error(msg)
                 sys.exit(1)
 
-            key, value = atoms[keypos], atoms[valuepos]
+            key = atoms[keypos]
+            value = atoms[valuepos] if (valuepos is not None) else atoms
             self[key] = value
+
+        assert thiscols, "File empty"
+        self.ncols = thiscols
+        logging.debug("Imported {0} records from `{1}`.".\
+                    format(len(self), filename))
+
+
+class SetFile (BaseFile, set):
+
+    def __init__(self, filename, column=-1, delimiter=None):
+        super(SetFile, self).__init__(filename)
+        fp = open(filename)
+        for row in fp:
+            keys = [x.strip() for x in row.split(delimiter)]
+            if column >= 0:
+                keys = [keys[column]]
+            self.update(keys)
+
+
+class FileShredder (object):
+    """
+    Same as rm -f *
+    """
+    def __init__(self, filelist):
+
+        cmd = "rm -f {0}".format(" ".join(filelist))
+        sh(cmd)
 
 
 class FileMerger (object):
@@ -62,9 +96,14 @@ class FileMerger (object):
         self.filelist = filelist
         self.outfile = outfile
 
-    def merge(self):
+    def merge(self, checkexists=False):
+        outfile = self.outfile
+        if checkexists and not need_update(self.filelist, outfile):
+            logging.debug("File `{0}` exists. Merge skipped.".format(outfile))
+            return
+
         files = " ".join(self.filelist)
-        sh("cat {0}".format(files), outfile=self.outfile)
+        sh("cat {0}".format(files), outfile=outfile)
 
 
 class FileSplitter (object):
@@ -82,8 +121,7 @@ class FileSplitter (object):
         else:
             self.klass = "txt"
 
-        if not op.isdir(outputdir):
-            os.mkdir(outputdir)
+        mkdir(outputdir)
 
     def _open(self, filename):
 
@@ -102,7 +140,7 @@ class FileSplitter (object):
         root, ext = op.splitext(filename)
         ext = ext.strip(".")
 
-        if ext in ("fasta", "fa", "fna", "cds", "pep"):
+        if ext in ("fasta", "fa", "fna", "cds", "pep", "faa"):
             format = "fasta"
         elif ext in ("fastq",):
             format = "fastq"
@@ -132,7 +170,7 @@ class FileSplitter (object):
 
     @classmethod
     def get_names(cls, filename, N):
-        root, ext = op.splitext(filename)
+        root, ext = op.splitext(op.basename(filename))
 
         names = []
         for i in xrange(N):
@@ -157,7 +195,7 @@ class FileSplitter (object):
         if self.outputdir:
             self.names = [op.join(self.outputdir, x) for x in self.names]
 
-        if op.exists(self.names[0]) and not force:
+        if not need_update(self.filename, self.names) and not force:
             logging.error("file %s already existed, skip file splitting" % \
                     self.names[0])
             return
@@ -226,13 +264,25 @@ def must_open(filename, mode="r", checkexists=False, skipcheck=False):
         assert "w" in mode
         fp = sys.stderr
 
+    elif filename == "tmp" and mode == "w":
+        from tempfile import NamedTemporaryFile
+        fp = NamedTemporaryFile(delete=False)
+
     elif filename.endswith(".gz"):
-        import gzip
-        fp = gzip.open(filename, mode)
+        if 'r' in mode:
+            cmd = "zcat {0}".format(filename)
+            fp = popen(cmd, debug=False)
+        elif 'w' in mode:
+            import gzip
+            fp = gzip.open(filename, mode)
 
     elif filename.endswith(".bz2"):
-        import bz2
-        fp = bz2.BZ2File(filename, mode)
+        if 'r' in mode:
+            cmd = "bzcat {0}".format(filename)
+            fp = popen(cmd, debug=False)
+        elif 'w' in mode:
+            import bz2
+            fp = bz2.BZ2File(filename, mode)
 
     else:
         if checkexists:
@@ -285,9 +335,99 @@ def main():
 
     actions = (
         ('split', 'split large file into N chunks'),
+        ('reorder', 'reorder columns in tab-delimited files'),
+        ('flatten', 'convert a list of IDs into one per line'),
+        ('setop', 'set operations on files'),
+        ('join', 'join tabular files based on common column'),
+        ('truncate', 'remove lines from end of file'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def truncate(args):
+    """
+    %prog truncate linecount filename
+
+    Remove linecount lines from the end of the file in-place. Borrowed from:
+    <http://superuser.com/questions/127786/how-to-remove-the-last-2-lines-of-a-very-large-file>
+    """
+    p = OptionParser(truncate.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    number, filename = args
+    number = int(number)
+    count = 0
+
+    f = open(filename, "r+b")
+    f.seek(0, os.SEEK_END)
+    end = f.tell()
+    while f.tell() > 0:
+        f.seek(-1, os.SEEK_CUR)
+        char = f.read(1)
+        if char == '\n':
+            count += 1
+        if count == number + 1:
+            f.truncate()
+            print >> sys.stderr, "Removed {0} lines from end of file".format(number)
+            return number
+
+        f.seek(-1, os.SEEK_CUR)
+
+    if count < number + 1:
+        print >> sys.stderr, "No change: requested removal would leave empty file"
+        return -1
+
+
+def flatten(args):
+    """
+    %prog flatten filename > ids
+
+    Convert a list of IDs (say, multiple IDs per line) and move them into one
+    per line.
+    """
+    p = OptionParser(flatten.__doc__)
+    p.add_option("--sep", default=",",
+                 help="Separater for the tabfile [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    tabfile, = args
+    fp = open(tabfile)
+    for row in fp:
+        print row.strip().replace(opts.sep, "\n")
+
+
+def reorder(args):
+    """
+    %prog reorder tabfile 1,2,4,3 > newtabfile
+
+    Reorder columns in tab-delimited files. The above syntax will print out a
+    new file with col-1,2,4,3 from the old file.
+    """
+    import csv
+
+    p = OptionParser(reorder.__doc__)
+    p.add_option("--sep", default="\t",
+                 help="Separater for the tabfile [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    tabfile, order = args
+    sep = opts.sep
+    order = [int(x) - 1 for x in order.split(",")]
+    reader = csv.reader(must_open(tabfile), delimiter=sep)
+    writer = csv.writer(sys.stdout, delimiter=sep)
+    for row in reader:
+        newrow = [row[x] for x in order]
+        writer.writerow(newrow)
 
 
 def split(args):
@@ -321,6 +461,106 @@ def split(args):
 
     logging.debug("split file into %d chunks" % N)
     fs.split(N)
+
+    return fs
+
+
+def join(args):
+    """
+    %prog join file1.txt file2.txt ..
+
+    Join tabular files based on common column. --column specifies the column
+    index to pivot on. Use comma to separate multiple values if the pivot column
+    is different in each file. Maintain the order in the first file.
+    """
+    from jcvi.utils.iter import flatten
+
+    p = OptionParser(join.__doc__)
+    p.add_option("--column", default="0",
+                 help="0-based column id, multiple values allowed [default: %default]")
+    p.add_option("--noheader", default=False, action="store_true",
+                 help="Do not print header [default: %default]")
+    set_outfile(p)
+
+    opts, args = p.parse_args(args)
+    nargs = len(args)
+
+    if len(args) < 2:
+        sys.exit(not p.print_help())
+
+    c = opts.column
+    if "," in c:
+        cc = [int(x) for x in c.split(",")]
+    else:
+        cc = [int(c)] * nargs
+
+    assert len(cc) == nargs, "Column index number != File number"
+
+    # Maintain the first file line order, and combine other files into it
+    pivotfile = args[0]
+    files = [DictFile(f, keypos=c, valuepos=None, delimiter="\t") \
+                        for f, c in zip(args, cc)]
+    otherfiles = files[1:]
+    header = "\t".join(flatten([op.basename(x.filename)] * x.ncols \
+                        for x in files))
+
+    fp = open(pivotfile)
+    fw = must_open(opts.outfile, "w")
+    if not opts.noheader:
+        print >> fw, header
+
+    for row in fp:
+        row = row.rstrip()
+        atoms = row.split("\t")
+        newrow = atoms
+        key = atoms[cc[0]]
+        for d in otherfiles:
+            drow = d.get(key, ["na"] * d.ncols)
+            newrow += drow
+        print >> fw, "\t".join(newrow)
+
+
+def setop(args):
+    """
+    %prog setop "fileA & fileB" > newfile
+
+    Perform set operations, except on files. The files (fileA and fileB) contain
+    list of ids. The operator is one of the four:
+
+    |: union (elements found in either file)
+    &: intersection (elements found in both)
+    -: difference (elements in fileA but not in fileB)
+    ^: symmetric difference (elementes found in either set but not both)
+
+    Please quote the argument to avoid shell interpreting | and &.
+    """
+    p = OptionParser(setop.__doc__)
+    p.add_option("--column", default=0, type="int",
+                 help="The column to extract, 0-based, -1 to disable [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    statement, = args
+    fa, op, fb = statement.split()
+    assert op in ('|', '&', '-', '^')
+
+    column = opts.column
+    fa = SetFile(fa, column=column)
+    fb = SetFile(fb, column=column)
+
+    if op == '|':
+        t = fa | fb
+    elif op == '&':
+        t = fa & fb
+    elif op == '-':
+        t = fa - fb
+    elif op == '^':
+        t = fa ^ fb
+
+    for x in sorted(t):
+        print x
 
 
 if __name__ == '__main__':

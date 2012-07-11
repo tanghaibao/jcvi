@@ -7,21 +7,102 @@ Wrapper script for some programs in clc-ngs-cell
 
 import sys
 import os.path as op
+import logging
 
 from optparse import OptionParser
 
-from jcvi.apps.base import ActionDispatcher, debug, set_grid, set_params, sh
+from jcvi.apps.base import ActionDispatcher, debug, set_grid, set_params, \
+    sh, write_file
 debug()
+
+
+CLCLICENSE = """
+# License Settings for the CLC NGS CELL or Bioinformatics CELL
+useserver=true
+serverip=clclicense.jcvi.org
+serverport=6200
+disableborrow=false
+autodiscover=false
+"""
 
 
 def main():
 
     actions = (
         ('map', 'map the reads to the reference'),
+        ('prepare', 'prepare to run clc_novo_assemble'),
         ('trim', 'wrapper around clc quality_trim'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def prepare(args):
+    """
+    %prog prepare *.fastq
+
+    Generate run.sh script to run clc_novo_assemble.
+    """
+    from itertools import groupby
+
+    from jcvi.utils.iter import grouper
+    from jcvi.formats.base import check_exists
+    from jcvi.assembly.base import FastqNamings, Library
+
+    p = OptionParser(prepare.__doc__ + FastqNamings)
+    opts, args = p.parse_args(args)
+
+    if len(args) < 1:
+        sys.exit(not p.print_help())
+
+    fnames = args
+    for x in fnames:
+        assert op.exists(x), "File `{0}` not found.".format(x)
+
+    library_name = lambda x: "-".join(\
+                op.basename(x).split(".")[0].split("-")[:2])
+    libs = [(Library(x), sorted(fs)) for x, fs in \
+                groupby(fnames, key=library_name)]
+
+    libs.sort(key=lambda x: x[0].size)
+    singletons = []
+    pairs = []
+
+    write_file("license.properties", CLCLICENSE)
+
+    for lib, fs in libs:
+        size = lib.size
+        stddev = lib.stddev
+
+        if size == 0:
+            singletons += fs
+            continue
+
+        for f in fs:
+
+            reverse_seq = 0 if ".corr." in f else lib.reverse_seq
+            fb = "bf" if reverse_seq else "fb"
+            minsize, maxsize = size - 2 * stddev, size + 2 * stddev
+            pair_opt = "-p {0} ss {1} {2} ".format(fb, minsize, maxsize)
+
+            if ".1." in f:
+                f = f.replace(".1.", ".?.")
+                pairs.append(pair_opt + "-i {0}".format(f))
+            elif ".2." in f:
+                continue
+            else:
+                pairs.append(pair_opt + f)
+
+    cmd = "clc_novo_assemble --cpus 32 -o contigs.fasta \\\n"
+    cmd += "\t-q {0} \\\n".format(" ".join(singletons))
+    cmd += "\n".join("\t{0} \\".format(x) for x in pairs)
+
+    runfile = "run.sh"
+    if check_exists(runfile):
+        fw = open(runfile, "w")
+        print >> fw, "#!/bin/bash\n"
+        print >> fw, cmd
+        logging.debug("Run script written to `{0}`.".format(runfile))
 
 
 def map(args):
@@ -47,9 +128,7 @@ def map(args):
     if len(args) < 2:
         sys.exit(not p.print_help())
 
-    license = "license.properties"
-    if not op.exists(license):
-        sh("cp ~/{0} .".format(license))
+    write_file("license.properties", CLCLICENSE)
 
     ref = args[0]
     assert op.exists(ref)
@@ -80,7 +159,7 @@ def map(args):
         cmd += " " + opts.extra
 
     if not opts.short:
-        cmd += " -l 0.9 -s 0.9"
+        cmd += " -l 0.8 -s 0.98"
 
     sh(cmd, grid=opts.grid)
 

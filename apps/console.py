@@ -8,19 +8,6 @@ import threading
 import unicodedata
 
 
-"""
-An ASCII text progress bar. See __main__ for command line use (using \r to
-move the cursor back to the start of the current line is the key, on
-terminals that do not support this functionality the progress bar will
-not work as well).
-
-<http://code.google.com/p/python-progressbar/>
-"""
-
-from progressbar import ProgressBar, Percentage, Bar, ETA, FileTransferSpeed, \
-         RotatingMarker, ReverseBar, SimpleProgress
-
-
 class SpinCursor(threading.Thread):
     """
     A console spin cursor class based on:
@@ -93,9 +80,16 @@ ATTRIBUTES.update(HIGHLIGHTS)
 
 COLORS = dict(zip(
     ('grey', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white', ),
-    range(30, 38))
+    ["0;%d" % x for x in range(30, 38)])
 )
 ATTRIBUTES.update(COLORS)
+
+DARKCOLORS = dict(zip(
+    ('black', 'darkred', 'darkgreen', 'darkyellow', 'darkblue', 'darkmagenta', \
+     'darkcyan', 'silver'),
+    ["1;%d" % x for x in range(30, 38)])
+)
+ATTRIBUTES.update(DARKCOLORS)
 
 RESET = '\033[0m'
 
@@ -125,7 +119,7 @@ class ColoredText:
         """
         ctext = None
         if os.getenv('ANSI_COLORS_DISABLED') is None:
-            fmt_str = '\033[%dm%s'
+            fmt_str = '\033[%sm%s'
 
             if self.attrs:
                 for attr in self.attrs:
@@ -137,90 +131,18 @@ class ColoredText:
     __repr__ = __str__
 
 
-def print_red(s):
-    print(ColoredText(s, "red"))
-
-
-def print_green(s):
-    print(ColoredText(s, "green"))
+grey = gray = lambda s: str(ColoredText(s, "grey"))
+red = lambda s: str(ColoredText(s, "red"))
+green = lambda s: str(ColoredText(s, "green"))
+yellow = lambda s: str(ColoredText(s, "yellow"))
+blue = lambda s: str(ColoredText(s, "blue"))
+magenta = lambda s: str(ColoredText(s, "magenta"))
+cyan = lambda s: str(ColoredText(s, "cyan"))
+white = lambda s: str(ColoredText(s, "white"))
+dark = lambda s: str(ColoredText(s, "dark"))
 
 
 if __name__ == '__main__':
-
-    """
-    test cases for progressbar taken from:
-    <http://python-progressbar.googlecode.com/hg/progressbar/examples.py>
-    """
-
-    def example0():
-        pbar = ProgressBar(widgets=[Percentage(), Bar()], maxval=300).start()
-        for i in range(300):
-            time.sleep(0.01)
-            pbar.update(i + 1)
-        pbar.finish()
-        sys.stdout.write('\n')
-
-    def example1():
-        widgets = ['Test: ', Percentage(), ' ', Bar(marker=RotatingMarker()),
-                   ' ', ETA(), ' ', FileTransferSpeed()]
-        pbar = ProgressBar(widgets=widgets, maxval=10000000).start()
-        for i in range(1000000):
-            # do something
-            pbar.update(10 * i + 1)
-        pbar.finish()
-        sys.stdout.write('\n')
-
-    def example2():
-        class CrazyFileTransferSpeed(FileTransferSpeed):
-            "It's bigger between 45 and 80 percent"
-            def update(self, pbar):
-                if 45 < pbar.percentage() < 80:
-                    return 'Bigger Now ' + FileTransferSpeed.update(self, pbar)
-                else:
-                    return FileTransferSpeed.update(self, pbar)
-
-        widgets = [CrazyFileTransferSpeed(), ' <<<', Bar(), '>>> ',
-                   Percentage(), ' ', ETA()]
-        pbar = ProgressBar(widgets=widgets, maxval=10000000)
-        # maybe do something
-        pbar.start()
-        for i in range(2000000):
-            # do something
-            pbar.update(5 * i + 1)
-        pbar.finish()
-        sys.stdout.write('\n')
-
-    def example3():
-        widgets = [Bar('>'), ' ', ETA(), ' ', ReverseBar('<')]
-        pbar = ProgressBar(widgets=widgets, maxval=10000000).start()
-        for i in range(1000000):
-            # do something
-            pbar.update(10 * i + 1)
-        pbar.finish()
-        sys.stdout.write('\n')
-
-    def example4():
-        widgets = ['Test: ', Percentage(), ' ',
-                   Bar(marker='0', left='[', right=']'),
-                   ' ', ETA(), ' ', FileTransferSpeed()]
-        pbar = ProgressBar(widgets=widgets, maxval=500)
-        pbar.start()
-        for i in range(100, 500 + 1, 50):
-            time.sleep(0.2)
-            pbar.update(i)
-        pbar.finish()
-        sys.stdout.write('\n')
-
-    def example5():
-        pbar = ProgressBar(widgets=[SimpleProgress()], maxval=17).start()
-        for i in range(17):
-            time.sleep(0.2)
-            pbar.update(i + 1)
-        pbar.finish()
-        sys.stdout.write('\n')
-
-    for f in (example0, example1, example2, example3, example4, example5):
-        f()
 
     # test spin cursor
     spin = SpinCursor(msg="Spinning...", minspin=5, speed=5)
@@ -228,28 +150,20 @@ if __name__ == '__main__':
     spin.join()
     print
 
-    # testing ANSI colors and text
+    # test ANSI colors and text
     print('Current terminal type: %s' % os.getenv('TERM'))
     print('Test basic colors:')
-    print(ColoredText('Grey color', 'grey'))
-    print(ColoredText('Red color', 'red'))
-    print(ColoredText('Green color', 'green'))
-    print(ColoredText('Yellow color', 'yellow'))
-    print(ColoredText('Blue color', 'blue'))
-    print(ColoredText('Magenta color', 'magenta'))
-    print(ColoredText('Cyan color', 'cyan'))
-    print(ColoredText('White color', 'white'))
+    for c in COLORS.keys():
+        print(ColoredText("{0} color".format(c.capitalize()), c))
+    print('-' * 78)
+
+    for c in DARKCOLORS.keys():
+        print(ColoredText("{0} color".format(c.capitalize()), c))
     print('-' * 78)
 
     print('Test highlights:')
-    print(ColoredText('On grey color', 'on_grey'))
-    print(ColoredText('On red color', 'on_red'))
-    print(ColoredText('On green color', 'on_green'))
-    print(ColoredText('On yellow color', 'on_yellow'))
-    print(ColoredText('On blue color', 'on_blue'))
-    print(ColoredText('On magenta color', 'on_magenta'))
-    print(ColoredText('On cyan color', 'on_cyan'))
-    print(ColoredText('On white color', 'grey|on_white'))
+    for c in HIGHLIGHTS.keys():
+        print(ColoredText("{0} color".format(c.capitalize()), c))
     print('-' * 78)
 
     print('Test attributes:')

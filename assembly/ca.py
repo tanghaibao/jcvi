@@ -78,9 +78,12 @@ mea:0.0
 std:0.0
 src:
 .
-nft:1
+nft:4
 fea:
-doNotOverlapTrim=1
+doTrim_initialQualityBased=0
+doTrim_finalEvidenceBased=0
+doRemoveSpurReads=0
+doRemoveChimericReads=0
 .
 }}'''
 
@@ -112,11 +115,11 @@ def shred(args):
     shredded into pseudo-reads with certain length and depth.
     """
     p = OptionParser(shred.__doc__)
-    p.add_option("--depth", default=10, type="int",
+    p.add_option("--depth", default=2, type="int",
             help="Desired depth of the reads [default: %default]")
-    p.add_option("--readlen", default=500, type="int",
+    p.add_option("--readlen", default=1000, type="int",
             help="Desired length of the reads [default: %default]")
-    p.add_option("--minctglen", default=200, type="int",
+    p.add_option("--minctglen", default=150, type="int",
             help="Ignore contig sequence less than [default: %default]")
     p.add_option("--fasta", default=False, action="store_true",
             help="Output shredded reads as FASTA sequences [default: %default]")
@@ -321,10 +324,10 @@ def make_matepairs(fastafile):
 def add_size_option(p):
     p.add_option("-s", dest="size", default=0, type="int",
             help="insert has mean size of [default: %default] " + \
-                 "stddev is assumed to be 25% around mean size")
+                 "stddev is assumed to be 20% around mean size")
 
 
-get_mean_sv = lambda size: (size, size / 4)
+get_mean_sv = lambda size: (size, size / 5)
 
 
 def fasta(args):
@@ -440,11 +443,14 @@ def fastq(args):
 
     Convert reads formatted as FASTQ file, and convert to CA frg file.
     """
+    from jcvi.formats.fastq import guessoffset
+
     p = OptionParser(fastq.__doc__)
-    p.add_option("--sanger", dest="sanger", default=False, action="store_true",
-            help="Are the qv sanger encodings? [default: %default]")
+    phdchoices = ("33", "64")
     p.add_option("--outtie", dest="outtie", default=False, action="store_true",
             help="Are these outie reads? [default: %default]")
+    p.add_option("--phred", default=None, choices=phdchoices,
+            help="Phred score offset {0} [default: guess]".format(phdchoices))
     add_size_option(p)
 
     opts, args = p.parse_args(args)
@@ -456,38 +462,27 @@ def fastq(args):
 
     mated = (opts.size != 0)
     outtie = opts.outtie
-    libname = op.basename(fastqfiles[0]).split(".")[0]
+    libname = op.basename(args[0]).split(".")[0]
     libname = libname.replace("_1_sequence", "")
 
-    if outtie:
-        libname = "IlluminaMP_" + libname
-    else:
-        libname = "IlluminaPE_" + libname
-
-    if mated:
-        libname += "_Mated"
-    else:
-        if outtie:
-            libname = "IlluminaMP_UnMated"
-        else:
-            libname = "IlluminaPE_UnMated"
     frgfile = libname + ".frg"
-
     mean, sv = get_mean_sv(opts.size)
 
     cmd = CAPATH("fastqToCA")
     cmd += " -libraryname {0} ".format(libname)
-    fastqs = " ".join("-fastq {0}".format(x) for x in fastqfiles)
+    fastqs = " ".join("-reads {0}".format(x) for x in fastqfiles)
     if mated:
-        assert len(args) == 2, "you need two fastq file for mated library"
-        fastqs = "-fastq {0},{1}".format(*fastqfiles)
+        assert len(args) in (1, 2), "you need one or two fastq files for mated library"
+        fastqs = "-mates {0}".format(",".join(fastqfiles))
         cmd += "-insertsize {0} {1} ".format(mean, sv)
     cmd += fastqs
 
-    if opts.sanger:
-        cmd += " -type sanger "
+    offset = int(opts.phred) if opts.phred else guessoffset([fastqfiles[0]])
+    illumina = (offset == 64)
+    if illumina:
+        cmd += " -type illumina"
     if outtie:
-        cmd += " -outtie "
+        cmd += " -outtie"
 
     sh(cmd, outfile=frgfile)
 

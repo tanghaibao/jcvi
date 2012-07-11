@@ -16,7 +16,7 @@ def banner(listOfStuff, rulersize=80, major='=', minor='-'):
 def loadtable(header, rows):
 
     from cogent import LoadTable
-    return LoadTable(header=header, row=row)
+    return LoadTable(header=header, rows=rows)
 
 
 def tabulate(d, transpose=False, key_fun=None):
@@ -56,6 +56,8 @@ def tabulate(d, transpose=False, key_fun=None):
         if transpose:
             combo = [(c, r) for (r, c) in combo]
         data = [d[x] for x in combo]
+        data = ["{0:.1f}".format(x) if isinstance(x, float) else x \
+                    for x in data]
         if key_fun:
             data = [key_fun(x) for x in data]
         table.append([str(r)] + data)
@@ -63,6 +65,39 @@ def tabulate(d, transpose=False, key_fun=None):
     table = LoadTable(header=header, rows=table)
 
     return table
+
+
+def write_csv(header, contents, sep=",", filename="stdout", tee=False):
+    """
+    Write csv that are aligned with the column headers.
+
+    >>> header = ["x_value", "y_value"]
+    >>> contents = [(1, 100), (2, 200)]
+    >>> write_csv(header, contents)
+    x_value, y_value
+          1,     100
+          2,     200
+    """
+    from jcvi.formats.base import must_open
+
+    fw = must_open(filename, "w")
+    allcontents = [header] + contents
+    cols = len(header)
+    for content in contents:
+        assert len(content) == cols
+
+    # Stringify the contents
+    for i, content in enumerate(allcontents):
+        allcontents[i] = [str(x) for x in content]
+
+    colwidths = [max(len(x[i]) for x in allcontents) for i in xrange(cols)]
+    sep += " "
+    for content in allcontents:
+        rjusted = [x.rjust(cw) for x, cw in zip(content, colwidths)]
+        formatted = sep.join(rjusted)
+        print >> fw, formatted
+        if tee and filename != "stdout":
+            print formatted
 
 
 if __name__ == '__main__':

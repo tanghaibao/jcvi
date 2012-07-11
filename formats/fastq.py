@@ -9,12 +9,14 @@ import os.path as op
 import sys
 import logging
 
+from collections import namedtuple
 from optparse import OptionParser
+from itertools import islice
 
-from jcvi.formats.fasta import must_open
-from jcvi.utils.iter import pairwise
-from jcvi.apps.base import getfilesize
-from jcvi.apps.base import ActionDispatcher, debug, set_grid, sh
+from Bio.SeqIO.QualityIO import FastqGeneralIterator
+
+from jcvi.formats.fasta import must_open, rc
+from jcvi.apps.base import ActionDispatcher, debug, set_grid, sh, mkdir
 debug()
 
 qual_offset = lambda x: 33 if x == "sanger" else 64
@@ -28,6 +30,10 @@ class FastqLite (object):
 
     def __str__(self):
         return "\n".join((self.name, self.seq, "+", self.qual))
+
+    def rc(self):
+        self.seq = rc(self.seq)
+        self.qual = self.qual[::-1]
 
 
 class FastqRecord (object):
@@ -76,18 +82,282 @@ def main():
 
     actions = (
         ('size', 'total base pairs in the fastq files'),
+        ('shuffle', 'shuffle paired reads into the same file interleaved'),
+        ('split', 'split paired reads into two files'),
         ('splitread', 'split appended reads (from JGI)'),
         ('pair', 'pair up two fastq files and combine pairs'),
         ('unpair', 'unpair pairs.fastq files into 1.fastq and 2.fastq'),
-        ('pairinplace', 'starting from fragment.fasta, find if ' +\
-                "adjacent records can form pairs"),
+        ('pairinplace', 'collect pairs by checking adjacent ids'),
         ('convert', 'convert between illumina and sanger offset'),
+        ('filter', 'filter to get high qv reads'),
         ('trim', 'trim reads using fastx_trimmer'),
         ('some', 'select a subset of fastq reads'),
+        ('deconvolute', 'split fastqfile into subsets'),
         ('guessoffset', 'guess the quality offset of the fastq records'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def FastqPairedIterator(read1, read2):
+    if read1 == read2:
+        p1fp = p2fp = must_open(read1)
+    else:
+        p1fp = must_open(read1)
+        p2fp = must_open(read2)
+
+    return p1fp, p2fp
+
+
+def isHighQv(qs, qvchar, pct=90):
+    cutoff = len(qs) * pct / 100
+    highs = sum(1 for x in qs if x >= qvchar)
+    return highs >= cutoff
+
+
+def filter(args):
+    """
+    %prog filter paired.fastq
+
+    Filter to get high qv reads. Use interleaved format (one file) or paired
+    format (two files) to filter on paired reads.
+    """
+    p = OptionParser(filter.__doc__)
+    p.add_option("-q", dest="qv", default=20, type="int",
+                 help="Minimum quality score to keep [default: %default]")
+    p.add_option("-p", dest="pct", default=95, type="int",
+                 help="Minimum percent of bases that have [-q] quality "\
+                 "[default: %default]")
+
+    opts, args = p.parse_args(args)
+
+    if len(args) not in (1, 2):
+        sys.exit(not p.print_help())
+
+    if len(args) == 1:
+        r1 = r2 = args[0]
+    else:
+        r1, r2 = args
+
+    qv = opts.qv
+    pct = opts.pct
+
+    offset = guessoffset([r1])
+    qvchar = chr(offset + qv)
+    logging.debug("Call base qv >= {0} as good.".format(qvchar))
+    outfile = r1.rsplit(".", 1)[0] + ".q{0}.paired.fastq".format(qv)
+    fw = open(outfile, "w")
+
+    p1fp, p2fp = FastqPairedIterator(r1, r2)
+    while True:
+        a = list(islice(p1fp, 4))
+        if not a:
+            break
+
+        b = list(islice(p2fp, 4))
+        q1 = a[-1].rstrip()
+        q2 = b[-1].rstrip()
+
+        if isHighQv(q1, qvchar, pct=pct) and isHighQv(q2, qvchar, pct=pct):
+            fw.writelines(a)
+            fw.writelines(b)
+
+
+BarcodeLine = namedtuple("BarcodeLine", ["id", "seq"])
+
+
+def split_barcode(t):
+
+    barcode, excludebarcode, site, outdir, inputfile = t
+    trim = len(barcode.seq)
+
+    fp = must_open(inputfile)
+    outfastq = op.join(outdir, barcode.id + ".fastq")
+    fw = open(outfastq, "w")
+    for title, seq, qual in FastqGeneralIterator(fp):
+        if seq[:trim] != barcode.seq:
+            continue
+        hasexclude = any(seq.startswith(x.seq) for x in excludebarcode)
+        if hasexclude:
+            continue
+        seq = seq[trim:]
+        hassite = any(seq.startswith(x) for x in site)
+        if not hassite:
+            continue
+        print >> fw, "@{0}\n{1}\n+\n{2}".format(title, seq, qual[trim:])
+
+    fw.close()
+
+
+def deconvolute(args):
+    """
+    %prog deconvolute barcodefile fastqfile1 ..
+
+    Deconvolute fastq files into subsets of fastq reads, based on the barcodes
+    in the barcodefile, which is a two-column file like:
+    ID01	AGTCCAG
+
+    Input fastqfiles can be several files. Output files are ID01.fastq,
+    ID02.fastq, one file per line in barcodefile.
+    """
+    from multiprocessing import Pool, cpu_count
+
+    p = OptionParser(deconvolute.__doc__)
+    p.add_option("--cpus", default=32, type="int",
+                 help="Number of processes to run [default: %default]")
+    p.add_option("--outdir", default="deconv",
+                 help="Output directory [default: %default]")
+    p.add_option("--checkprefix", default=False, action="store_true",
+                 help="Check shared prefix [default: %default]")
+    p.add_option("--site", help="Keep reads start with RE site [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) < 2:
+        sys.exit(not p.print_help())
+
+    barcodefile = args[0]
+    fastqfile = args[1:]
+    fp = open(barcodefile)
+    barcodes = [BarcodeLine._make(x.split()) for x in fp]
+    nbc = len(barcodes)
+
+    if opts.checkprefix:
+        # Sanity check of shared prefix
+        excludebarcodes = []
+        for bc in barcodes:
+            exclude = []
+            for s in barcodes:
+                if bc.id == s.id:
+                    continue
+
+                assert bc.seq != s.seq
+                if s.seq.startswith(bc.seq) and len(s.seq) > len(bc.seq):
+                    logging.error("{0} shares same prefix as {1}.".format(s, bc))
+                    exclude.append(s)
+            excludebarcodes.append(exclude)
+    else:
+        excludebarcodes = nbc * [[]]
+
+    outdir = opts.outdir
+    site = opts.site
+    if site:
+        site = site.split(",")
+        logging.debug("Check against sites {0}".format(site))
+
+    mkdir(outdir)
+
+    cpus = min(opts.cpus, cpu_count())
+    logging.debug("Create a pool of {0} workers.".format(cpus))
+    pool = Pool(cpus)
+    pool.map(split_barcode, \
+             zip(barcodes, excludebarcodes, nbc * [site],
+             nbc * [outdir], nbc * [fastqfile]))
+
+
+def checkShuffleSizes(p1, p2, pairsfastq, extra=0):
+    from jcvi.apps.base import getfilesize
+
+    pairssize = getfilesize(pairsfastq)
+    p1size = getfilesize(p1)
+    p2size = getfilesize(p2)
+    assert pairssize == p1size + p2size + extra, \
+          "The sizes do not add up: {0} + {1} + {2} != {3}".\
+          format(p1size, p2size, extra, pairssize)
+
+
+def shuffle(args):
+    """
+    %prog shuffle p1.fastq p2.fastq pairs.fastq
+
+    Shuffle pairs into interleaved format.
+    """
+    from itertools import izip
+
+    p = OptionParser(shuffle.__doc__)
+    p.add_option("--tag", dest="tag", default=False, action="store_true",
+            help="add tag (/1, /2) to the read name")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    p1, p2, pairsfastq = args
+    tag = opts.tag
+
+    p1fp = must_open(p1)
+    p2fp = must_open(p2)
+    pairsfw = must_open(pairsfastq, "w")
+    nreads = 0
+    while True:
+        a = list(islice(p1fp, 4))
+        if not a:
+            break
+
+        b = list(islice(p2fp, 4))
+        if tag:
+            name = a[0].rstrip()
+            a[0] = name + "/1\n"
+            b[0] = name + "/2\n"
+
+        pairsfw.writelines(a)
+        pairsfw.writelines(b)
+        nreads += 2
+
+    pairsfw.close()
+    extra = nreads * 2 if tag else 0
+    checkShuffleSizes(p1, p2, pairsfastq, extra=extra)
+
+    logging.debug("File sizes verified after writing {0} reads.".format(nreads))
+
+
+def split(args):
+    """
+    %prog split pairs.fastq
+
+    Split shuffled pairs into `.1.fastq` and `.2.fastq`, using `sed`. Can work
+    on gzipped file.
+
+    <http://seqanswers.com/forums/showthread.php?t=13776>
+    """
+    from jcvi.apps.grid import Jobs
+
+    p = OptionParser(split.__doc__)
+    set_grid(p)
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    pairsfastq, = args
+    gz = pairsfastq.endswith(".gz")
+    pf = pairsfastq.replace(".gz", "").rsplit(".", 1)[0]
+    p1 = pf + ".1.fastq"
+    p2 = pf + ".2.fastq"
+
+    cmd = "zcat" if gz else "cat"
+    p1cmd = cmd + " {0} | sed -ne '1~8{{N;N;N;p}}'".format(pairsfastq)
+    p2cmd = cmd + " {0} | sed -ne '5~8{{N;N;N;p}}'".format(pairsfastq)
+
+    if gz:
+        p1cmd += " | gzip"
+        p2cmd += " | gzip"
+        p1 += ".gz"
+        p2 += ".gz"
+
+    p1cmd += " > " + p1
+    p2cmd += " > " + p2
+
+    if opts.grid:
+        sh(p1cmd, grid=True)
+        sh(p2cmd, grid=True)
+
+    else:
+        args = [(p1cmd, ), (p2cmd, )]
+        m = Jobs(target=sh, args=args)
+        m.run()
+
+        checkShuffleSizes(p1, p2, pairsfastq)
 
 
 def guessoffset(args):
@@ -125,8 +395,8 @@ def guessoffset(args):
     offset = 64
     while rec:
         quality = rec.quality
-        lowcounts = len([x for x in quality if x <= 58])
-        highcounts = len([x for x in quality if x >= 74])
+        lowcounts = len([x for x in quality if x < 59])
+        highcounts = len([x for x in quality if x > 74])
         diff = highcounts - lowcounts
         if diff > 10:
             break
@@ -216,7 +486,9 @@ def splitread(args):
     """
     p = OptionParser(splitread.__doc__)
     p.add_option("-n", dest="n", default=76, type="int",
-            help="split at N-th base position [default: %default]")
+            help="Split at N-th base position [default: %default]")
+    p.add_option("--rc", default=False, action="store_true",
+            help="Reverse complement second read [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -224,29 +496,29 @@ def splitread(args):
 
     pairsfastq, = args
 
-    assert op.exists(pairsfastq)
     base = op.basename(pairsfastq).split(".")[0]
-    fq = base + ".splitted.fastq"
-    fw = open(fq, "w")
+    fq1 = base + ".1.fastq"
+    fq2 = base + ".2.fastq"
+    fw1 = must_open(fq1, "w")
+    fw2 = must_open(fq2, "w")
 
-    it = iter_fastq(pairsfastq)
-    rec = it.next()
+    fp = must_open(pairsfastq)
     n = opts.n
-    while rec:
-        name = rec.name
-        seq = rec.seq
-        qual = rec.qual
 
+    for name, seq, qual in FastqGeneralIterator(fp):
+
+        name = "@" + name
         rec1 = FastqLite(name, seq[:n], qual[:n])
         rec2 = FastqLite(name, seq[n:], qual[n:])
+        if opts.rc:
+            rec2.rc()
 
-        print >> fw, rec1
-        print >> fw, rec2
-        rec = it.next()
+        print >> fw1, rec1
+        print >> fw2, rec2
 
-    logging.debug("reads split into `{0}`".format(fq))
-    for f in (fh, fw):
-        f.close()
+    logging.debug("Reads split into `{0},{1}`".format(fq1, fq2))
+    fw1.close()
+    fw2.close()
 
 
 def size(args):
@@ -277,11 +549,15 @@ def convert(args):
     illumina fastq quality encoding uses offset 64, and sanger uses 33. This
     script creates a new file with the correct encoding
     """
+    supported_qvs = ("illumina", "sanger")
     p = OptionParser(convert.__doc__)
-    p.add_option("-Q", dest="infastq", default="sanger",
-            help="input fastq [default: %default]")
-    p.add_option("-q", dest="outfastq", default="illumina",
-            help="output fastq format [default: %default]")
+    p.add_option("-Q", dest="infastq", default="illumina", choices=supported_qvs,
+            help="input qv, one of {0} [default: %default]".\
+                format("|".join(supported_qvs)))
+    p.add_option("-q", dest="outfastq", default="sanger", choices=supported_qvs,
+            help="output qv, one of {0} [default: %default]".\
+                format("|".join(supported_qvs)))
+    set_grid(p)
 
     opts, args = p.parse_args(args)
 
@@ -302,7 +578,7 @@ def convert(args):
         cmd = seqret + " fastq-{0}::{1} fastq-{2}::{3}".\
                 format(opts.infastq, infastq, opts.outfastq, outfastq)
 
-    sh(cmd)
+    sh(cmd, grid=opts.grid)
 
     return outfastq
 
@@ -329,7 +605,7 @@ def unpair(args):
     base = args[-1]
     afastq = base + ".1.fastq"
     bfastq = base + ".2.fastq"
-    assert not op.exists(afastq)
+    assert not op.exists(afastq), "File `{0}` exists.".format(afastq)
 
     afw = open(afastq, "w")
     bfw = open(bfastq, "w")
@@ -348,10 +624,10 @@ def unpair(args):
             print >> bfw, rec
             rec = it.next()
 
-    for f in (afw, bfw):
-        f.close()
+    afw.close()
+    bfw.close()
 
-    logging.debug("reads unpaired into `{0}` and `{1}`".\
+    logging.debug("Reads unpaired into `{0},{1}`".\
             format(afastq, bfastq))
 
 
@@ -363,6 +639,8 @@ def pairinplace(args):
     records. If they match, print to bulk.pairs.fastq, else print to
     bulk.frags.fastq.
     """
+    from jcvi.utils.iter import pairwise
+
     p = OptionParser(pairinplace.__doc__)
     p.add_option("-r", dest="rclip", default=1, type="int",
             help="pair ID is derived from rstrip N chars [default: %default]")
@@ -384,10 +662,7 @@ def pairinplace(args):
     pairsfw = must_open(pairs, "w")
 
     N = opts.rclip
-    if N:
-        strip_name = lambda x: x[:-N]
-    else:
-        strip_name = str
+    strip_name = lambda x: x[:-N] if N else str
 
     fh_iter = iter_fastq(fastqfile, key=strip_name)
     skipflag = False  # controls the iterator skip
@@ -415,7 +690,7 @@ def pairinplace(args):
 
 def pair(args):
     """
-    %prog pair 1.fastq 2.fastq
+    %prog pair 1.fastq 2.fastq ref.fastq
 
     Pair up the records in 1.fastq and 2.fastq, pairs are indicated by trailing
     "/1" and "/2". If using raw sequences, this is trivial, since we can just
@@ -429,16 +704,14 @@ def pair(args):
             help="input fastq [default: %default]")
     p.add_option("-q", dest="outfastq", default="sanger",
             help="output fastq format [default: %default]")
-    p.add_option("-r", dest="ref", default=None,
-            help="a reference fastq that provides order")
     p.add_option("-o", dest="outputdir", default=None,
             help="deposit output files into specified directory")
     opts, args = p.parse_args(args)
 
-    if len(args) != 2:
-        sys.exit(p.print_help())
+    if len(args) != 3:
+        sys.exit(not p.print_help())
 
-    afastq, bfastq = args
+    afastq, bfastq, ref = args
 
     assert op.exists(afastq) and op.exists(bfastq)
     logging.debug("pair up `%s` and `%s`" % (afastq, bfastq))
@@ -459,15 +732,7 @@ def pair(args):
     offset = out_offset - in_offset
     ref = opts.ref
 
-    if ref:
-        totalsize = getfilesize(ref)
-    else:
-        totalsize = getfilesize(afastq)
-
-    from jcvi.apps.console import ProgressBar
-
-    bar = ProgressBar(maxval=totalsize).start()
-    strip_name = lambda x: x.rsplit("/", 1)[0]
+    strip_name = lambda x: x[:-1]
 
     ah_iter = iter_fastq(afastq, offset=offset, key=strip_name)
     bh_iter = iter_fastq(bfastq, offset=offset, key=strip_name)
@@ -478,42 +743,33 @@ def pair(args):
     fragsfw = open(frags, "w")
     pairsfw = open(pairs, "w")
 
-    if ref:
-        for r in iter_fastq(ref, offset=0, key=strip_name):
-            if not a or not b or not r:
-                break
+    for r in iter_fastq(ref, offset=0, key=strip_name):
+        if not a or not b or not r:
+            break
 
-            if a.id == b.id:
-                print >>pairsfw, a
-                print >>pairsfw, b
-                a = ah_iter.next()
-                b = bh_iter.next()
-            elif a.id == r.id:
-                print >>fragsfw, a
-                a = ah_iter.next()
-            elif b.id == r.id:
-                print >>fragsfw, b
-                b = bh_iter.next()
-
-            # update progress
-            pos = rh.tell()
-            bar.update(pos)
-
-        # write all the leftovers to frags file
-        while a:
+        if a.id == b.id:
+            print >>pairsfw, a
+            print >>pairsfw, b
+            a = ah_iter.next()
+            b = bh_iter.next()
+        elif a.id == r.id:
             print >>fragsfw, a
             a = ah_iter.next()
-
-        while b:
+        elif b.id == r.id:
             print >>fragsfw, b
             b = bh_iter.next()
 
-    else:  # easy case when afile and bfile records are in order
-        # TODO: unimplemented
-        pass
+        # update progress
+        pos = rh.tell()
 
-    bar.finish()
-    sys.stdout.write("\n")
+    # write all the leftovers to frags file
+    while a:
+        print >>fragsfw, a
+        a = ah_iter.next()
+
+    while b:
+        print >>fragsfw, b
+        b = bh_iter.next()
 
 
 if __name__ == '__main__':

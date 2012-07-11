@@ -600,6 +600,22 @@ def phase(accession):
     return ph, len(rec)
 
 
+def check_certificate(certificatefile):
+    data = {}
+    if op.exists(certificatefile):
+        # This will make updates resume-able and backed-up
+        certificatefilebak = certificatefile + ".orig"
+        shutil.copy2(certificatefile, certificatefilebak)
+
+        fp = open(certificatefile)
+        for row in fp:
+            atoms = row.split()
+            tag, aid, bid = atoms[0], atoms[4], atoms[5]
+            data[(tag, aid, bid)] = row.strip()
+
+    return data
+
+
 def certificate(args):
     """
     %prog certificate tpffile certificatefile
@@ -627,18 +643,7 @@ def certificate(args):
 
     tpf = TPF(tpffile)
 
-    data = {}
-    if op.exists(certificatefile):
-        # This will make updates resume-able and backed-up
-        certificatefilebak = certificatefile + ".orig"
-        shutil.copy2(certificatefile, certificatefilebak)
-
-        fp = open(certificatefile)
-        for row in fp:
-            atoms = row.split()
-            tag, aid, bid = atoms[0], atoms[4], atoms[5]
-            data[(tag, aid, bid)] = row.strip()
-
+    data = check_certificate(certificatefile)
     fw = must_open(certificatefile, "w")
     for i, a in enumerate(tpf):
         if a.is_gap:
@@ -726,9 +731,9 @@ def agp(args):
     Build agpfile from overlap certificates.
 
     Tiling Path File (tpf) is a file that lists the component and the gaps.
-    It is a three-column file similar to belwo, also see jcvi.formats.agp.tpf():
+    It is a three-column file similar to below, also see jcvi.formats.agp.tpf():
 
-    telomere        chr1
+    telomere        chr1	na
     AC229737.8      chr1    +
     AC202463.29     chr1    +
 

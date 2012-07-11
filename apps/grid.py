@@ -13,9 +13,10 @@ from glob import glob
 from itertools import izip_longest
 from subprocess import Popen, PIPE
 from optparse import OptionParser
+from multiprocessing import Process
 
 from jcvi.formats.base import FileSplitter
-from jcvi.apps.base import ActionDispatcher, sh, mkdir, debug
+from jcvi.apps.base import ActionDispatcher, sh, popen, mkdir, backup, debug
 debug()
 
 
@@ -25,19 +26,20 @@ commitfile = op.join(sge, "COMMIT")
 statusfile = op.join(sge, "STATUS")
 
 
-class MultiJobs (object):
+class Jobs (list):
     """
-    Runs multiple processes on the SAME computer, using multiprocessing.
+    Runs multiple funcion calls on the SAME computer, using multiprocessing.
     """
     def __init__(self, target, args):
-        from multiprocessing import Process
-        self.processes = []
-        for arg in args:
-            pi = Process(target=target, args=arg)
-            pi.start()
-            self.processes.append(pi)
 
-        for pi in self.processes:
+        for x in args:
+            self.append(Process(target=target, args=x))
+
+    def run(self):
+        for pi in self:
+            pi.start()
+
+        for pi in self:
             pi.join()
 
 
@@ -100,9 +102,13 @@ class GridProcess (object):
 
     pat = re.compile(r"Your job (?P<id>[0-9]*) ")
 
-    def __init__(self, cmd, jobid="", infile=None, outfile=None, errfile=None):
+    def __init__(self, cmd, jobid="", queue="default", threaded=None,
+                       infile=None, outfile=None, errfile=None):
+
         self.cmd = cmd
         self.jobid = jobid
+        self.queue = queue
+        self.threaded = threaded
         self.infile = infile
         self.outfile = outfile
         self.errfile = errfile
@@ -128,20 +134,27 @@ class GridProcess (object):
         if path:
             os.chdir(path)
 
+        # Shell commands
+        if "|" in self.cmd or "&&" in self.cmd or "||" in self.cmd:
+            quote = "\"" if "'" in self.cmd else "'"
+            self.cmd = "sh -c {1}{0}{1}".format(self.cmd, quote)
+
         # qsub command (the project code is specific to jcvi)
-        qsub = "qsub -cwd -P {0} ".format(PCODE)
-
+        qsub = "qsub -P {0} -cwd".format(PCODE)
+        if self.queue != "default":
+            qsub += " -l {0}".format(self.queue)
+        if self.threaded:
+            qsub += " -pe threaded {0}".format(self.threaded)
         if self.infile:
-            qsub += "-i {0} ".format(self.infile)
+            qsub += " -i {0}".format(self.infile)
         if self.outfile:
-            qsub += "-o {0} ".format(self.outfile)
+            qsub += " -o {0}".format(self.outfile)
         if self.errfile:
-            qsub += "-e {0} ".format(self.errfile)
+            qsub += " -e {0}".format(self.errfile)
 
-        cmd = qsub + self.cmd
+        cmd = " ".join((qsub, self.cmd))
         # run the command and get the job-ID (important)
-        p = Popen(cmd, stdout=PIPE, shell=True)
-        output = p.communicate()[0]
+        output = popen(cmd, debug=False).read()
 
         if output.strip() != "":
             self.jobid = re.search(self.pat, output).group("id")
@@ -152,8 +165,10 @@ class GridProcess (object):
         if self.infile:
             msg += " < {0} ".format(self.infile)
         if self.outfile:
+            backup(self.outfile)
             msg += " > {0} ".format(self.outfile)
         if self.errfile:
+            backup(self.errfile)
             msg += " 2> {0} ".format(self.errfile)
 
         logging.debug(msg)
@@ -166,6 +181,8 @@ class Grid (list):
     def __init__(self, cmds=None, outfiles=[]):
 
         mkdir(sge)
+        if not outfiles:
+            outfiles = [None] * len(cmds)
 
         if cmds:
             for cmd, outfile in zip(cmds, outfiles):
@@ -264,37 +281,73 @@ def main():
 
 def run(args):
     """
-    find . -type f | %prog run "command *"
+    %prog run command ::: file1 file2
 
-    run a normal command on grid, the input file will be sent to command. This
-    is useful for commands that takes single input file. Most often command
-    needs to be quoted.
+    Parallelize a set of commands on grid. The syntax is modeled after GNU
+    parallel <http://www.gnu.org/s/parallel/man.html#options>
+
+    {}   - input line
+    {.}  - input line without extension
+    {/}  - basename of input line
+    {/.} - basename of input line without extension
+    {#}  - sequence number of job to run
+    :::  - Use arguments from the command line as input source instead of stdin
+    (standard input).
+
+    A few examples:
+    ls -1 *.fastq | %prog run process {} {.}.pdf  # use stdin
+    %prog run process {} {.}.pdf ::: *fastq  # use :::
+    %prog run "zcat {} >{.}" ::: *.gz  # quote redirection
     """
+    queue_choices = ("default", "fast", "medium", "himem")
     p = OptionParser(run.__doc__)
+    p.add_option("-l", dest="queue", default="default", choices=queue_choices,
+                 help="Name of the queue, one of {0} [default: %default]".\
+                      format("|".join(queue_choices)))
+    p.add_option("-t", dest="threaded", type="int",
+                 help="Append '-pe threaded N' [default: %default]")
+    opts, args = p.parse_args(args)
 
-    if len(args) != 1:
-        sys.exit(p.print_help())
+    if len(args) == 0:
+        sys.exit(not p.print_help())
 
-    cmd = args[0]
-    fp = sys.stdin
+    sep = ":::"
+    if sep in args:
+        sepidx = args.index(sep)
+        filenames = args[sepidx + 1:]
+        args = args[:sepidx]
+        if not filenames:
+            filenames = [""]
+    else:
+        filenames = sys.stdin
 
-    for row in fp:
-        filename = row.strip()
-        # For simple command (no space), there is no need to quote
-        # - here are the shortcuts we use
-        # `*` is the filename replacement
-        # `#` is the basename replacement
-        # ls -1 test.trimmed.fastq | grid run "process * #.pdf"
-        # is equivalent to "process test.trimmed.fastq test.pdf"
+    assert args, "Command empty"
+    cmd = " ".join(args)
 
-        basename = filename.split(".")[0]
-        if " " not in cmd:
-            ncmd = " ".join((cmd, filename))
+    for i, filename in enumerate(filenames):
+        filename = filename.strip()
+        noextname = filename.rsplit(".", 1)[0]
+        basename = op.basename(filename)
+        basenoextname = basename.rsplit(".", 1)[0]
+        ncmd = cmd
+
+        if "{}" in ncmd:
+            ncmd = ncmd.replace("{}", filename)
         else:
-            ncmd = cmd.replace("*", filename)
-            ncmd = ncmd.replace("#", basename)
+            ncmd += " " + filename
 
-        p = GridProcess(ncmd)
+        ncmd = ncmd.replace("{.}", noextname)
+        ncmd = ncmd.replace("{/}", basename)
+        ncmd = ncmd.replace("{/.}", basenoextname)
+        ncmd = ncmd.replace("{#}", str(i))
+
+        outfile = None
+        if ">" in ncmd:
+            ncmd, outfile = ncmd.split(">", 1)
+            ncmd, outfile = ncmd.strip(), outfile.strip()
+
+        p = GridProcess(ncmd, outfile=outfile,
+                        queue=opts.queue, threaded=opts.threaded)
         p.start(path=None)  # current folder
 
 

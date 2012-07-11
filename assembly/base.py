@@ -5,13 +5,13 @@
 Base utilties for genome assembly related calculations and manipulations
 """
 
+import os.path as op
 import sys
 from math import log
 ln2 = log(2)
 
 import numpy as np
 from bisect import bisect
-from collections import defaultdict
 from optparse import OptionParser
 
 from jcvi.graphics.histogram import loghistogram
@@ -24,6 +24,48 @@ debug()
 
 orientationlabels = {"++": "normal", "+-": "innie", "-+": "outie", "--": "antinormal"}
 orientationflips = {"++": "--", "+-": "-+", "-+": "+-", "--": "++"}
+types = {"PE": "fragment", "MP": "jumping", "TT": "jumping", "LL": "long"}
+header = ("Length", "L50", "N50", "Min", "Max", "N")
+
+FastqNamings = """
+    The naming schemes for the fastq files are.
+
+    PE-376.fastq (paired end)
+    MP-3000.fastq (mate pairs)
+    TT-3000.fastq (mate pairs, but from 454 data, so expected to be +-)
+    LL-0.fastq (long reads)
+
+    Paired reads in different files must be in the form of (note the .1. and .2.):
+    PE-376.1.fastq and PE-376.2.fastq to be considered
+
+    The reads are assumed to be NOT paired if the number after the PE-, MP-,
+    etc. is 0. Otherwise, they are considered paired at the given distance.
+"""
+
+
+class Library (object):
+    """
+    The sequence files define a library.
+    """
+    def __init__(self, library_name):
+
+        self.library_name = library_name
+        if "-" in library_name:
+            pf, size = library_name.split("-", 1)
+            assert pf in types, \
+                "Library prefix must be one of {0}".format(types.keys())
+        else:
+            pf, size = "PE", 0
+
+        self.size = size = int(size)
+        self.stddev = size / 5
+        self.type = types[pf]
+        self.paired = 0 if size == 0 else 1
+        self.read_orientation = "outward" if pf == "MP" else "inward"
+        self.reverse_seq = 1 if pf == "MP" else 0
+        self.asm_flags = 3 if pf != "MP" else 2
+        if not self.paired:
+            self.read_orientation = ""
 
 
 def calculate_A50(ctgsizes, cutoff=0):
@@ -81,7 +123,6 @@ def n50(args):
         sys.exit(not p.print_help())
 
     ctgsizes = []
-    bins = defaultdict(int)
 
     # Guess file format
     probe = open(args[0]).readline()[0]
@@ -94,32 +135,69 @@ def n50(args):
     else:
         for row in must_open(args):
             try:
-                ctgsize = int(row.strip())
+                ctgsize = int(row.split()[-1])
             except ValueError:
                 continue
             ctgsizes.append(ctgsize)
-
-    for ctgsize in ctgsizes:
-        log2ctgsize = int(log(ctgsize, 2))
-        bins[log2ctgsize] += 1
 
     a50, l50, nn50 = calculate_A50(ctgsizes)
     sumsize = sum(ctgsizes)
     minsize = min(ctgsizes)
     maxsize = max(ctgsizes)
+    n = len(ctgsizes)
     print >> sys.stderr, ", ".join(args)
-    print >> sys.stderr, "Length={0} L50={1} Min={2} Max={3} N={4}".\
-            format(sumsize, l50, minsize, maxsize, len(ctgsizes))
-    loghistogram(bins)
+
+    summary = (sumsize, l50, nn50, minsize, maxsize, n)
+    print >> sys.stderr, " ".join("{0}={1}".format(a, b) for a, b in \
+                        zip(header, summary))
+    loghistogram(ctgsizes, summary=False)
+
+    return zip(header, summary)
 
 
 def main():
 
     actions = (
-            ('n50', "Given a list of numbers, calculate N50"),
+            ('n50', "Given FASTA or a list of contig sizes, calculate N50"),
+            ('allstats', "Summarize multiple FASTA in a table"),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def allstats(args):
+    """
+    %prog allstats fastafiles
+
+    Summarize multiple FASTA in a table.
+    """
+    from jcvi.utils.table import tabulate
+
+    p = OptionParser(allstats.__doc__)
+    p.add_option("--exclude", help="Exclude statistics, must be {0}, "
+                      "multiple separated by comma [default: %default]".\
+                      format("|".join(header))
+                 )
+
+    opts, args = p.parse_args(args)
+
+    if len(args) < 1:
+        sys.exit(not p.print_help())
+
+    fastafiles = args
+    exclude = opts.exclude.split(",")
+    assert all(x in header for x in exclude)
+
+    tabledict = {}
+    for fastafile in fastafiles:
+        pf = fastafile.rsplit(".", 1)[0]
+        for key, val in n50([fastafile]):
+            if key in exclude:
+                continue
+            tabledict[(pf, key)] = val
+
+    table = tabulate(tabledict)
+    print >> sys.stderr, table
 
 
 if __name__ == '__main__':

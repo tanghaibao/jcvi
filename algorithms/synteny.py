@@ -3,36 +3,132 @@
 
 import sys
 import logging
-import collections
 
 import numpy as np
+from collections import defaultdict
 from optparse import OptionParser
 
-from jcvi.formats.bed import Bed
+from jcvi.formats.bed import Bed, BedLine
 from jcvi.formats.blast import BlastLine
+from jcvi.formats.base import BaseFile, read_block
 from jcvi.utils.grouper import Grouper
-from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.utils.cbook import gene_name
+from jcvi.utils.range import Range, range_chain
+from jcvi.formats.base import must_open
+from jcvi.apps.base import ActionDispatcher, debug, set_outfile
 debug()
+
+
+class AnchorFile (BaseFile):
+
+    def __init__(self, filename, minsize=0):
+        super(AnchorFile, self).__init__(filename)
+        self.blocks = list(self.iter_blocks(minsize=minsize))
+
+    def iter_blocks(self, minsize=0):
+        fp = open(self.filename)
+        for header, lines in read_block(fp, "#"):
+            lines = [x.split() for x in lines]
+            if len(lines) >= minsize:
+                yield lines
+
+    def iter_pairs(self):
+        fp = open(self.filename)
+        block_id = -1
+        for row in fp:
+            if row[0] == '#':
+                block_id += 1
+                continue
+            a, b = row.split()[:2]
+            yield a, b, block_id
+
+    def print_to_file(self, filename="stdout", accepted=None):
+        fw = must_open(filename, "w")
+        blocks = self.blocks
+        nremoved = 0
+        for block in blocks:
+            print >> fw, "###"
+            for line in block:
+                a, b = line[:2]
+                if accepted and (a, b) not in accepted:
+                    nremoved += 1
+                    continue
+                print >> fw, "\t".join(str(x) for x in line)
+        fw.close()
+
+        logging.debug("Removed {0} existing anchors.".format(nremoved))
+        logging.debug("Anchors written to `{0}`.".format(filename))
+
+
+class BlockFile (BaseFile):
+
+    def __init__(self, filename):
+        super(BlockFile, self).__init__(filename)
+        fp = must_open(filename)
+        data = []
+        highlight = []
+        for row in fp:
+            hl = row[0] == "*"
+            if hl:
+                row = row[1:]
+            atoms = row.rstrip().split("\t")
+            data.append(atoms)
+            highlight.append(hl)
+
+        self.data = data
+        self.highlight = highlight
+        self.columns = zip(*data)
+        self.ncols = len(self.columns)
+
+    def get_extent(self, i, order, debug=True):
+        col = self.columns[i]
+        ocol = [order[x] for x in col if x in order]
+        orientation = '+' if ocol[0][0] <= ocol[-1][0] else '-'
+        si, start = min(ocol)
+        ei, end = max(ocol)
+        same_chr = (start.seqid == end.seqid)
+        chr = start.seqid if same_chr else None
+        ngenes = ei - si + 1
+        if debug:
+            print >> sys.stderr, "Column {0}: {1} - {2}".\
+                    format(i, start.accn, end.accn)
+            print >> sys.stderr, "  {0} .. {1} ({2}) features .. {3}".\
+                    format(chr, ngenes, len(ocol), orientation)
+
+        span = abs(start.start - end.end)
+
+        return start, end, si, ei, chr, orientation, span
+
+    def iter_pairs(self, i, j, highlight=False):
+        for h, d in zip(self.highlight, self.data):
+            if highlight and not h:
+                continue
+
+            a, b = d[i], d[j]
+            if "." in (a, b):
+                continue
+
+            yield a, b
 
 
 def _score(cluster):
     """
     score of the cluster, in this case, is the number of non-repetitive matches
     """
-    x, y = zip(*cluster)
+    x, y, scores = zip(*cluster)
     return min(len(set(x)), len(set(y)))
 
 
 def group_hits(blasts):
     # grouping the hits based on chromosome pair
-    all_hits = collections.defaultdict(list)
+    all_hits = defaultdict(list)
     for b in blasts:
-        all_hits[(b.qseqid, b.sseqid)].append((b.qi, b.si))
+        all_hits[(b.qseqid, b.sseqid)].append((b.qi, b.si, b.score))
 
     return all_hits
 
 
-def read_blast(blast_file, qorder, sorder, is_self=False):
+def read_blast(blast_file, qorder, sorder, is_self=False, ostrip=True):
     """
     read the blast and convert name into coordinates
     """
@@ -42,13 +138,10 @@ def read_blast(blast_file, qorder, sorder, is_self=False):
     for row in fp:
         b = BlastLine(row)
         query, subject = b.query, b.subject
+        if ostrip:
+            query, subject = gene_name(query), gene_name(subject)
         if query not in qorder or subject not in sorder:
             continue
-
-        key = query, subject
-        if key in seen:
-            continue
-        seen.add(key)
 
         qi, q = qorder[query]
         si, s = sorder[subject]
@@ -59,31 +152,51 @@ def read_blast(blast_file, qorder, sorder, is_self=False):
             qi, si = si, qi
             q, s = s, q
 
+        key = query, subject
+        if key in seen:
+            continue
+        seen.add(key)
+
         b.qseqid, b.sseqid = q.seqid, s.seqid
         b.qi, b.si = qi, si
+        b.query, b.subject = query, subject
 
         filtered_blast.append(b)
+
+    logging.debug("A total of {0} BLAST matches imported.".format(len(filtered_blast)))
 
     return filtered_blast
 
 
-def read_anchors(anchor_file, qorder, sorder):
+def read_anchors(ac, qorder, sorder):
     """
     anchors file are just (geneA, geneB) pairs (with possible deflines)
     """
-    all_anchors = collections.defaultdict(list)
-    fp = open(anchor_file)
-    for row in fp:
-        if row[0] == '#':
-            continue
-        a, b = row.split()
+    all_anchors = defaultdict(list)
+    nanchors = 0
+    anchor_to_block = {}
+    block_extent = defaultdict(list)
+
+    for a, b, idx in ac.iter_pairs():
         if a not in qorder or b not in sorder:
             continue
         qi, q = qorder[a]
         si, s = sorder[b]
-        all_anchors[(q.seqid, s.seqid)].append((qi, si))
+        pair = (qi, si)
+        block_extent[idx].append(pair)
 
-    return all_anchors
+        all_anchors[(q.seqid, s.seqid)].append(pair)
+        anchor_to_block[pair] = idx
+        nanchors += 1
+
+    logging.debug("A total of {0} anchors imported.".format(nanchors))
+    assert nanchors == len(anchor_to_block)
+
+    for idx, dd in block_extent.items():
+        xs, ys = zip(*dd)
+        block_extent[idx] = (min(xs), max(xs), min(ys), max(ys))
+
+    return all_anchors, anchor_to_block, block_extent
 
 
 def synteny_scan(points, xdist, ydist, N):
@@ -115,7 +228,7 @@ def synteny_scan(points, xdist, ydist, N):
     return clusters
 
 
-def batch_scan(points, xdist=20, ydist=20, N=6):
+def batch_scan(points, xdist=20, ydist=20, N=5):
     """
     runs synteny_scan() per chromosome pair
     """
@@ -124,7 +237,6 @@ def batch_scan(points, xdist=20, ydist=20, N=6):
     clusters = []
     for chr_pair in sorted(chr_pair_points.keys()):
         points = chr_pair_points[chr_pair]
-        logging.debug("%s: %d" % (chr_pair, len(points)))
         clusters.extend(synteny_scan(points, xdist, ydist, N))
 
     return clusters
@@ -135,24 +247,47 @@ def synteny_liftover(points, anchors, dist):
     This is to get the nearest anchors for all the points (useful for the
     `liftover` operation below).
     """
-    try:
-        from scipy.spatial import cKDTree
-    except ImportError:
-        raise ImportError("You must install python package `scipy` " + \
-                "(http://www.scipy.org)")
+    from scipy.spatial import cKDTree
 
-    points = np.array(points)
+    points = np.array(points, dtype=int)
     ppoints = points[:, :2] if points.shape[1] > 2 else points
     tree = cKDTree(anchors, leafsize=16)
     #print tree.data
     dists, idxs = tree.query(ppoints, p=1, distance_upper_bound=dist)
-    #print [(d, idx) for (d, idx) in zip(dists, idxs) if idx!=tree.n]
 
     for point, dist, idx in zip(points, dists, idxs):
-        # nearest is out of range
-        if idx == tree.n:
+        if idx == tree.n:  # nearest is out of range
             continue
-        yield point
+        if dist == 0:  # already in anchors
+            continue
+
+        yield point, tuple(anchors[idx])
+
+
+def add_beds(p):
+
+    p.add_option("--qbed", help="Path to qbed (required)")
+    p.add_option("--sbed", help="Path to sbed (required)")
+
+
+def check_beds(p, opts):
+
+    if not (opts.qbed and opts.sbed):
+        print >> sys.stderr, "Options --qbed and --sbed are required"
+        sys.exit(not p.print_help())
+
+    qbed_file, sbed_file = opts.qbed, opts.sbed
+    # is this a self-self blast?
+    is_self = (qbed_file == sbed_file)
+    if is_self:
+        logging.debug("Looks like self-self comparison.")
+
+    qbed = Bed(opts.qbed)
+    sbed = Bed(opts.sbed)
+    qorder = qbed.order
+    sorder = sbed.order
+
+    return qbed, sbed, qorder, sorder, is_self
 
 
 def add_options(p, args):
@@ -160,39 +295,551 @@ def add_options(p, args):
     scan and liftover has similar interfaces, so share common options
     returns opts, files
     """
-    p.add_option("--qbed", dest="qbed", help="path to qbed (required)")
-    p.add_option("--sbed", dest="sbed", help="path to sbed (required)")
-
-    p.add_option("--dist", dest="dist",
-            default=10, type="int",
-            help="extent of flanking regions to search [default: %default]")
+    add_beds(p)
+    p.add_option("--dist", default=10, type="int",
+            help="Extent of flanking regions to search [default: %default]")
 
     opts, args = p.parse_args(args)
 
-    if not (len(args) == 2 and opts.qbed and opts.sbed):
-        sys.exit(p.print_help())
+    if len(args) != 2:
+        sys.exit(not p.print_help())
 
     blast_file, anchor_file = args
 
-    qbed_file, sbed_file = opts.qbed, opts.sbed
-    # is this a self-self blast?
-    is_self = (qbed_file == sbed_file)
-    if is_self:
-        logging.debug("Looks like self-self BLAST")
-
-    return blast_file, anchor_file, qbed_file, sbed_file, \
-            opts.dist, is_self, opts
+    return blast_file, anchor_file, opts.dist, opts
 
 
 def main():
 
     actions = (
         ('scan', 'get anchor list using single-linkage algorithm'),
-        ('liftover', 'given anchor list, pull adjancent pairs from blast file')
+        ('summary', 'provide statistics for pairwise blocks'),
+        ('liftover', 'given anchor list, pull adjancent pairs from blast file'),
+        ('mcscan', 'stack synteny blocks on a reference bed'),
+        ('screen', 'extract subset of blocks from anchorfile'),
+        ('stats', 'provide statistics for mscan blocks'),
+        ('depth', 'calculate the depths in the two genomes in comparison'),
+        ('group', 'cluster the anchors into ortho-groups'),
+        ('breakpoint', 'identify breakpoints where collinearity ends'),
+        ('matrix', 'make oxford grid based on anchors file'),
+        ('coge', 'convert CoGe file to anchors file'),
             )
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def coge(args):
+    """
+    %prog coge cogefile
+
+    Convert CoGe file to anchors file.
+    """
+    p = OptionParser(coge.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    cogefile, = args
+    fp = must_open(cogefile)
+    cogefile = cogefile.replace(".gz", "")
+    ksfile = cogefile + ".ks"
+    anchorsfile = cogefile + ".anchors"
+    fw_ks = must_open(ksfile, "w")
+    fw_ac = must_open(anchorsfile, "w")
+
+    tag = "###"
+    print >> fw_ks, tag
+    for header, lines in read_block(fp, tag):
+        print >> fw_ac, tag
+        lines = list(lines)
+        for line in lines:
+            if line[0] == '#':
+                continue
+            ks, ka, achr, a, astart, astop, bchr, \
+                    b, bstart, bstop, ev, ss = line.split()
+            a = a.split("||")[3]
+            b = b.split("||")[3]
+            print >> fw_ac, "\t".join((a, b, ev))
+            print >> fw_ks, ",".join((";".join((a, b)), ks, ka, ks, ka))
+
+    fw_ks.close()
+    fw_ac.close()
+
+
+def matrix(args):
+    """
+    %prog matrix all.bed anchorfile matrixfile
+
+    Make oxford grid based on anchors file.
+    """
+    from jcvi.formats.base import SetFile
+
+    p = OptionParser(matrix.__doc__)
+    p.add_option("--seqids", help="File with seqids [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    bedfile, anchorfile, matrixfile = args
+    ac = AnchorFile(anchorfile)
+    seqidsfile = opts.seqids
+    if seqidsfile:
+        seqids = SetFile(seqidsfile, delimiter=',')
+
+    order = Bed(bedfile).order
+    blocks = ac.blocks
+    m = defaultdict(int)
+    fw = open(matrixfile, "w")
+    aseqids = set()
+    bseqids = set()
+    for block in blocks:
+        a, b, scores = zip(*block)
+        ai, af = order[a[0]]
+        bi, bf = order[b[0]]
+        aseqid = af.seqid
+        bseqid = bf.seqid
+        if seqidsfile:
+            if (aseqid not in seqids) or (bseqid not in seqids):
+                continue
+        m[(aseqid, bseqid)] += len(block)
+        aseqids.add(aseqid)
+        bseqids.add(bseqid)
+
+    aseqids = list(aseqids)
+    bseqids = list(bseqids)
+    print >> fw, "\t".join(["o"] + bseqids)
+    for aseqid in aseqids:
+        print >> fw, "\t".join([aseqid] + \
+                    [str(m[(aseqid, x)]) for x in bseqids])
+
+
+def screen(args):
+    """
+    %prog screen all.bed anchorfile newanchorfile
+
+    Extract subset of blocks from anchorfile. Provide several options:
+
+    1. Option --ids: a file with IDs, 0-based, comma separated, all in one line.
+    2. Option --seqids: only allow seqids in this file.
+    3. Option --minspan: remove blocks with less span than this.
+
+    Another option --simple, does not write new anchorfile, but only write the
+    block ends.
+
+    GeneA    GeneB    GeneC    GeneD    +/-
+    """
+    from jcvi.formats.base import SetFile
+
+    p = OptionParser(screen.__doc__)
+    p.add_option("--ids", help="File with block IDs (0-based) [default: %default]")
+    p.add_option("--seqids", help="File with seqids [default: %default]")
+    p.add_option("--minspan", default=30, type="int",
+                 help="Only blocks with span >= [default: %default]")
+    p.add_option("--simple", action="store_true",
+                 help="Write simple anchorfile with block ends [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    bedfile, anchorfile, newanchorfile = args
+    ac = AnchorFile(anchorfile)
+    idsfile = opts.ids
+    seqidsfile = opts.seqids
+    minspan = opts.minspan
+    simple = opts.simple
+    ids, seqids = None, None
+
+    if idsfile:
+        ids = SetFile(idsfile, delimiter=',')
+        ids = set(int(x) for x in ids)
+    if seqidsfile:
+        seqids = SetFile(seqidsfile, delimiter=',')
+
+    order = Bed(bedfile).order
+    blocks = ac.blocks
+    selected = 0
+    fw = open(newanchorfile, "w")
+    if simple:
+        simplefile = newanchorfile.rsplit(".", 1)[0] + ".simple"
+        fws = open(simplefile, "w")
+
+    for i, block in enumerate(blocks):
+        if ids and i not in ids:
+            continue
+
+        a, b, scores = zip(*block)
+        a = [order[x] for x in a]
+        b = [order[x] for x in b]
+        ia, oa = zip(*a)
+        ib, ob = zip(*b)
+        aspan = max(ia) - min(ia) + 1
+        bspan = max(ib) - min(ib) + 1
+
+        if seqids:
+            aseqid = oa[0].seqid
+            bseqid = ob[0].seqid
+            if (aseqid not in seqids) or (bseqid not in seqids):
+                continue
+
+        if minspan:
+            if aspan < minspan or bspan < minspan:
+                continue
+
+        selected += 1
+        if simple:
+            astart, aend = min(a)[1].accn, max(a)[1].accn
+            bstart, bend = min(b)[1].accn, max(b)[1].accn
+            slope, intercept = np.polyfit(ia, ib, 1)
+            orientation = "+" if slope >= 0 else '-'
+            score = int((aspan * bspan) ** .5)
+            score = str(score)
+            print >> fws, "\t".join((astart, aend, bstart, bend, score, orientation))
+
+        print >> fw, "###"
+        for line in block:
+            print >> fw, "\t".join(line)
+
+    logging.debug("Before: {0} blocks, After: {1} blocks".\
+                  format(len(blocks), selected))
+
+
+def summary(args):
+    """
+    %prog summary anchorfile
+
+    Provide statistics for pairwise blocks.
+    """
+    from jcvi.utils.cbook import SummaryStats
+
+    p = OptionParser(summary.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    anchorfile, = args
+    ac = AnchorFile(anchorfile)
+    clusters = ac.blocks
+
+    nclusters = len(clusters)
+    nanchors = [len(c) for c in clusters]
+    nranchors = [_score(c) for c in clusters]  # non-redundant anchors
+    print >> sys.stderr, "A total of {0} (NR:{1}) anchors found in {2} clusters.".\
+                  format(sum(nanchors), sum(nranchors), nclusters)
+    print >> sys.stderr, "Stats:", SummaryStats(nanchors)
+    print >> sys.stderr, "NR stats:", SummaryStats(nranchors)
+
+
+def stats(args):
+    """
+    %prog stats blocksfile
+
+    Provide statistics for MCscan-style blocks. The count of homologs in each
+    pivot gene is recorded.
+    """
+    from jcvi.utils.cbook import percentage
+
+    p = OptionParser(stats.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    blocksfile, = args
+    fp = open(blocksfile)
+    counts = defaultdict(int)
+    total = orthologous = 0
+    for row in fp:
+        atoms = row.rstrip().split("\t")
+        hits = [x for x in atoms[1:] if x != '.']
+        counts[len(hits)] += 1
+        total += 1
+        if atoms[1] != '.':
+            orthologous += 1
+
+    print >> sys.stderr, "Total lines: {0}".format(total)
+    for i, n in sorted(counts.items()):
+        print >> sys.stderr, "Count {0}: {1}".format(i, percentage(n, total))
+
+    print >> sys.stderr
+
+    matches = sum(n for i, n in counts.items() if i != 0)
+    print >> sys.stderr, "Total lines with matches: {0}".\
+                format(percentage(matches, total))
+    for i, n in sorted(counts.items()):
+        if i == 0:
+            continue
+
+        print >> sys.stderr, "Count {0}: {1}".format(i, percentage(n, matches))
+
+    print >> sys.stderr
+    print >> sys.stderr, "Orthologous matches: {0}".\
+                format(percentage(orthologous, matches))
+
+
+def get_best_pair(qs, ss, ts):
+    pairs = {}
+    for q, s, t in zip(qs, ss, ts):
+        t = long(t)
+        if q not in pairs or pairs[q][1] < t:
+            pairs[q] = (s, t)
+
+    # Discard score
+    spairs = dict((q, s) for q, (s, t) in pairs.items())
+    return spairs
+
+
+def get_range(q, s, t, i, order, block_pairs, clip=10):
+    pairs = get_best_pair(q, s, t)
+    score = len(pairs)
+    block_pairs[i].update(pairs)
+
+    q = [order[x][0] for x in q]
+    q.sort()
+    qmin = q[0]
+    qmax = q[-1]
+    if qmax - qmin >= 2 * clip:
+        qmin += clip / 2
+        qmax -= clip / 2
+
+    return Range("0", qmin, qmax, score=score, id=i)
+
+
+def mcscan(args):
+    """
+    %prog mcscan bedfile anchorfile
+
+    Stack synteny blocks on a reference bed, MCSCAN style. The first column in
+    the output is the reference order, given in the bedfile. Then each column
+    next to it are separate 'tracks'.
+    """
+    p = OptionParser(mcscan.__doc__)
+    p.add_option("--iter", default=100, type="int",
+                 help="Max number of chains to output [default: %default]")
+    p.add_option("--ascii", default=False, action="store_true",
+                 help="Output symbols rather than gene names [default: %default]")
+    p.add_option("--Nm", default=10, type="int",
+                 help="Clip block ends to allow slight overlaps [default: %default]")
+    p.add_option("--trackids", action="store_true",
+                 help="Track block IDs in separate file [default: %default]")
+    set_outfile(p)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    bedfile, anchorfile = args
+    ascii = opts.ascii
+    clip = opts.Nm
+    trackids = opts.trackids
+    bed = Bed(bedfile)
+    order = bed.order
+
+    if trackids:
+        olog = ofile + ".tracks"
+        fwlog = must_open(olog, "w")
+
+    ac = AnchorFile(anchorfile)
+    ranges = []
+    block_pairs = defaultdict(dict)
+    blocks = ac.blocks
+    for i, ib in enumerate(blocks):
+        q, s, t = zip(*ib)
+        if q[0] not in order:
+            q, s = s, q
+
+        r = get_range(q, s, t, i, order, block_pairs, clip=clip)
+        ranges.append(r)
+
+        assert q[0] in order
+        if s[0] not in order:
+            continue
+
+        # is_self comparison
+        q, s = s, q
+        r = get_range(q, s, t, i, order, block_pairs, clip=clip)
+        ranges.append(r)
+
+    ofile = opts.outfile
+    fw = must_open(ofile, "w")
+
+    tracks = []
+    print >> sys.stderr, "Chain started: {0} blocks".format(len(ranges))
+    iteration = 0
+    while ranges:
+        if iteration >= opts.iter:
+            break
+
+        selected, score = range_chain(ranges)
+        tracks.append(selected)
+        selected = set(x.id for x in selected)
+        if trackids:
+            print >> fwlog, ",".join(str(x) for x in sorted(selected))
+
+        ranges = [x for x in ranges if x.id not in selected]
+        msg = "Chain {0}: score={1}".format(iteration, score)
+        if ranges:
+            msg += " {0} blocks remained..".format(len(ranges))
+        else:
+            msg += " done!"
+
+        print >> sys.stderr, msg
+        iteration += 1
+
+    for b in bed:
+        id = b.accn
+        atoms = []
+        for track in tracks:
+            track_ids = [x.id for x in track]
+            for tid in track_ids:
+                pairs = block_pairs[tid]
+                anchor = pairs.get(id, ".")
+                if anchor != ".":
+                    break
+            if ascii and anchor != ".":
+                anchor = "x"
+            atoms.append(anchor)
+
+        sep = "" if ascii else "\t"
+        print >> fw, "\t".join((id, sep.join(atoms)))
+
+    logging.debug("MCscan blocks written to `{0}`.".format(ofile))
+    if trackids:
+        logging.debug("Block IDs written to `{0}`.".format(olog))
+
+
+def group(args):
+    """
+    %prog group anchorfiles
+
+    Group the anchors into ortho-groups. Can input multiple anchor files.
+    """
+    p = OptionParser(group.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) < 1:
+        sys.exit(not p.print_help())
+
+    anchorfiles = args
+    groups = Grouper()
+    for anchorfile in anchorfiles:
+        ac = AnchorFile(anchorfile)
+        for a, b in ac.iter_pairs():
+            groups.join(a, b)
+
+    ngroups = len(groups)
+    nmembers = sum(len(x) for x in groups)
+    logging.debug("Created {0} groups with {1} members.".\
+                  format(ngroups, nmembers))
+
+    for g in groups:
+        print ",".join(sorted(g))
+
+
+def depth(args):
+    """
+    %prog depth anchorfile --qbed qbedfile --sbed sbedfile
+
+    Calculate the depths in the two genomes in comparison, given in --qbed and
+    --sbed. The synteny blocks will be layered on the genomes, and the
+    multiplicity will be summarized to stderr.
+    """
+    from jcvi.utils.range import range_depth
+
+    p = OptionParser(depth.__doc__)
+    add_beds(p)
+
+    opts, args = p.parse_args(args)
+    qbed, sbed, qorder, sorder, is_self = check_beds(p, opts)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    anchorfile, = args
+    ac = AnchorFile(anchorfile)
+    qranges = []
+    sranges = []
+    blocks = ac.blocks
+    for ib in blocks:
+        q, s, t = zip(*ib)
+        q = [qorder[x] for x in q]
+        s = [sorder[x] for x in s]
+        qrange = (min(q)[0], max(q)[0])
+        srange = (min(s)[0], max(s)[0])
+        qranges.append(qrange)
+        sranges.append(srange)
+        if is_self:
+            qranges.append(srange)
+
+    qgenome = qbed.filename.split(".")[0]
+    sgenome = sbed.filename.split(".")[0]
+    print >> sys.stderr, "Genome {0} depths:".format(qgenome)
+    range_depth(qranges, len(qbed))
+    if is_self:
+        return
+
+    print >> sys.stderr, "Genome {0} depths:".format(sgenome)
+    range_depth(sranges, len(sbed))
+
+
+def get_blocks(scaffold, bs, order, xdist=20, ydist=20, N=6):
+    points = []
+    for b in bs:
+        accn = b.accn.rsplit(".", 1)[0]
+        if accn not in order:
+            continue
+        x, xx = order[accn]
+        y = (b.start + b.end) / 2
+        points.append((x, y))
+
+    #print scaffold, points
+    blocks = synteny_scan(points, xdist, ydist, N)
+    return blocks
+
+
+def breakpoint(args):
+    """
+    %prog breakpoint blastfile bedfile
+
+    Identify breakpoints where collinearity ends. `blastfile` contains mapping
+    from markers (query) to scaffolds (subject). `bedfile` contains marker
+    locations in the related species.
+    """
+    from jcvi.formats.blast import bed
+    from jcvi.utils.range import range_interleave
+
+    p = OptionParser(breakpoint.__doc__)
+    p.add_option("--xdist", type="int", default=20,
+                 help="xdist (in related genome) cutoff [default: %default]")
+    p.add_option("--ydist", type="int", default=200000,
+                 help="ydist (in current genome) cutoff [default: %default]")
+    p.add_option("-n", type="int", default=5,
+                 help="number of markers in a block [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    blastfile, bedfile = args
+    order = Bed(bedfile).order
+    blastbedfile = bed([blastfile])
+    bbed = Bed(blastbedfile)
+    key = lambda x: x[1]
+    for scaffold, bs in bbed.sub_beds():
+        blocks = get_blocks(scaffold, bs, order,
+                            xdist=opts.xdist, ydist=opts.ydist, N=opts.n)
+        sblocks = []
+        for block in blocks:
+            xx, yy = zip(*block)
+            sblocks.append((scaffold, min(yy), max(yy)))
+        iblocks = range_interleave(sblocks)
+        for ib in iblocks:
+            ch, start, end = ib
+            print "{0}\t{1}\t{2}".format(ch, start - 1, end)
 
 
 def scan(args):
@@ -204,24 +851,33 @@ def scan(args):
     p = OptionParser(scan.__doc__)
     p.add_option("-n", type="int", default=5,
             help="minimum number of anchors in a cluster [default: %default]")
+    p.add_option("--liftover",
+            help="Scan BLAST file to find extra anchors [default: %default]")
 
-    blast_file, anchor_file, qbed_file, sbed_file, dist, is_self, opts = \
-            add_options(p, args)
+    blast_file, anchor_file, dist, opts = add_options(p, args)
+    qbed, sbed, qorder, sorder, is_self = check_beds(p, opts)
 
-    qbed = Bed(qbed_file)
-    sbed = Bed(sbed_file)
-    qorder = qbed.order
-    sorder = sbed.order
-
-    filtered_blast = read_blast(blast_file, qorder, sorder, is_self=is_self)
+    filtered_blast = read_blast(blast_file, qorder, sorder, \
+                                is_self=is_self, ostrip=False)
 
     fw = open(anchor_file, "w")
     clusters = batch_scan(filtered_blast, xdist=dist, ydist=dist, N=opts.n)
     for cluster in clusters:
         print >>fw, "###"
-        for qi, si in cluster:
+        for qi, si, score in cluster:
             query, subject = qbed[qi].accn, sbed[si].accn
-            print >>fw, "\t".join((query, subject))
+            print >>fw, "\t".join((query, subject, str(int(score))))
+
+    fw.close()
+    summary([anchor_file])
+
+    lo = opts.liftover
+    if not lo:
+        return anchor_file
+
+    bedopts = ["--qbed=" + opts.qbed, "--sbed=" + opts.sbed]
+    newanchorfile = liftover([lo, anchor_file] + bedopts)
+    return newanchorfile
 
 
 def liftover(args):
@@ -238,36 +894,54 @@ def liftover(args):
     """
     p = OptionParser(liftover.__doc__)
 
-    blast_file, anchor_file, qbed_file, sbed_file, dist, is_self, opts = \
-            add_options(p, args)
+    p.add_option("--no_strip_names", dest="strip_names",
+            action="store_false", default=True,
+            help="do not strip alternative splicing "
+            "(e.g. At5g06540.1 -> At5g06540)")
 
-    qbed = Bed(qbed_file)
-    sbed = Bed(sbed_file)
-    qorder = qbed.order
-    sorder = sbed.order
+    blast_file, anchor_file, dist, opts = add_options(p, args)
+    qbed, sbed, qorder, sorder, is_self = check_beds(p, opts)
 
-    filtered_blast = read_blast(blast_file, qorder, sorder, is_self=is_self)
+    filtered_blast = read_blast(blast_file, qorder, sorder,
+                            is_self=is_self, ostrip=opts.strip_names)
+    blast_to_score = dict(((b.qi, b.si), int(b.score)) for b in filtered_blast)
+    accepted = set((b.query, b.subject) for b in filtered_blast)
+
+    ac = AnchorFile(anchor_file)
     all_hits = group_hits(filtered_blast)
-    all_anchors = read_anchors(anchor_file, qorder, sorder)
+    all_anchors, anchor_to_block, block_extent = read_anchors(ac, qorder, sorder)
 
     # select hits that are close to the anchor list
-    j = 0
     fw = sys.stdout
+    lifted = 0
     for chr_pair in sorted(all_anchors.keys()):
         hits = np.array(all_hits[chr_pair])
         anchors = np.array(all_anchors[chr_pair])
 
-        logging.debug("%s: %d" % (chr_pair, len(anchors)))
+        #logging.debug("%s: %d" % (chr_pair, len(anchors)))
         if not len(hits):
             continue
 
-        for point in synteny_liftover(hits, anchors, dist):
+        for point, nearest in synteny_liftover(hits, anchors, dist):
             qi, si = point[:2]
+            block_id = anchor_to_block[nearest]
             query, subject = qbed[qi].accn, sbed[si].accn
-            print >>fw, "\t".join((query, subject, "lifted"))
-            j += 1
+            score = blast_to_score[(qi, si)]
 
-    logging.debug("%d new pairs found" % j)
+            xmin, xmax, ymin, ymax = block_extent[block_id]
+            # Lifted pairs cannot be outside the bounding box
+            if qi < xmin or qi > xmax or si < ymin or si > ymax:
+                continue
+
+            ac.blocks[block_id].append((query, subject, str(score) + "L"))
+            lifted += 1
+
+    logging.debug("{0} new pairs found.".format(lifted))
+    newanchorfile = anchor_file.rsplit(".", 1)[0] + ".lifted.anchors"
+    ac.print_to_file(filename=newanchorfile, accepted=accepted)
+    summary([newanchorfile])
+
+    return newanchorfile
 
 
 if __name__ == '__main__':

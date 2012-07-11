@@ -42,13 +42,20 @@ def check_index(dbfile, grid=False):
     return safile
 
 
-def check_aln(dbfile, readfile, grid=False):
+def check_aln(dbfile, readfile, grid=False, cpus=32):
+    from jcvi.formats.fastq import guessoffset
+
     saifile = readfile.rsplit(".", 1)[0] + ".sai"
     if op.exists(saifile):
         logging.error("`{0}` exists. `bwa aln` already run.".format(saifile))
 
     else:
-        cmd = "bwa aln -t 32 {0} {1}".format(dbfile, readfile)
+        offset = guessoffset([readfile])
+        cmd = "bwa aln -t {0}".format(cpus)
+        if offset == 64:
+            cmd += " -I"
+
+        cmd += " {0} {1}".format(dbfile, readfile)
         sh(cmd, grid=grid, outfile=saifile)
 
     return saifile
@@ -83,6 +90,8 @@ def aln(args):
     Wrapper for `bwa aln` except this will run over a set of files.
     """
     p = OptionParser(aln.__doc__)
+    p.add_option("--cpus", default=32,
+                 help="Number of cpus to use [default: %default]")
     set_params(p)
     set_grid(p)
 
@@ -97,7 +106,7 @@ def aln(args):
     dbfile, readfiles = args[0], args[1:]
     safile = check_index(dbfile, grid=grid)
     for readfile in readfiles:
-        saifile = check_aln(dbfile, readfile, grid=grid)
+        saifile = check_aln(dbfile, readfile, grid=grid, cpus=opts.cpus)
 
 
 def samse(args):
@@ -107,6 +116,10 @@ def samse(args):
     Wrapper for `bwa samse`. Output will be short_read.sam.
     """
     p = OptionParser(samse.__doc__)
+    p.add_option("--bam", default=False, action="store_true",
+                 help="write to bam file [default: %default]")
+    p.add_option("--cpus", default=32,
+                 help="Number of cpus to use [default: %default]")
     set_params(p)
     set_grid(p)
 
@@ -120,15 +133,19 @@ def samse(args):
 
     dbfile, readfile = args
     safile = check_index(dbfile, grid=grid)
-    saifile = check_aln(dbfile, readfile, grid=grid)
+    saifile = check_aln(dbfile, readfile, grid=grid, cpus=opts.cpus)
 
-    samfile = readfile.rsplit(".", 1)[0] + ".sam"
+    prefix = readfile.rsplit(".", 1)[0]
+    samfile = (prefix + ".bam") if opts.bam else (prefix + ".sam")
     if op.exists(samfile):
         logging.error("`{0}` exists. `bwa samse` already run.".format(samfile))
+        return
 
     cmd = "bwa samse {0} {1} {2} ".format(dbfile, saifile, readfile)
     cmd += "{0}".format(extra)
-    sh(cmd, grid=grid, outfile=samfile)
+    if opts.bam:
+        cmd += " | samtools view -bS -F 4 - "
+    sh(cmd, grid=grid, outfile=samfile, threaded=opts.cpus)
 
 
 def sampe(args):
@@ -138,6 +155,10 @@ def sampe(args):
     Wrapper for `bwa sampe`. Output will be read1.sam.
     """
     p = OptionParser(sampe.__doc__)
+    p.add_option("--bam", default=False, action="store_true",
+                 help="write to bam file [default: %default]")
+    p.add_option("--cpus", default=32,
+                 help="Number of cpus to use [default: %default]")
     set_params(p)
     set_grid(p)
 
@@ -151,16 +172,20 @@ def sampe(args):
 
     dbfile, read1file, read2file = args
     safile = check_index(dbfile, grid=grid)
-    sai1file = check_aln(dbfile, read1file, grid=grid)
-    sai2file = check_aln(dbfile, read2file, grid=grid)
+    sai1file = check_aln(dbfile, read1file, grid=grid, cpus=opts.cpus)
+    sai2file = check_aln(dbfile, read2file, grid=grid, cpus=opts.cpus)
 
-    samfile = read1file.rsplit(".", 1)[0] + ".sam"
+    prefix = read1file.rsplit(".", 1)[0]
+    samfile = (prefix + ".bam") if opts.bam else (prefix + ".sam")
     if op.exists(samfile):
         logging.error("`{0}` exists. `bwa samse` already run.".format(samfile))
+        return
 
     cmd = "bwa sampe {0} {1} {2} {3} {4} ".format(dbfile, sai1file, sai2file,
             read1file, read2file)
     cmd += "{0}".format(extra)
+    if opts.bam:
+        cmd += " | samtools view -bS -F 4 - "
     sh(cmd, grid=grid, outfile=samfile)
 
 

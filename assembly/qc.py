@@ -1,17 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-"""
-Benchmark de novo assemblies by mapping to known sequence set.
-"""
-
 import os.path as op
 import sys
 
 from collections import defaultdict
 from optparse import OptionParser
 
-from jcvi.algorithms.supermap import supermap
 from jcvi.formats.blast import Blast
 from jcvi.formats.sizes import Sizes
 from jcvi.apps.base import ActionDispatcher, debug
@@ -40,6 +35,8 @@ def rnaseq(args):
     Contiguity: % of ref genes covered by a *single* contig >=80% of lengths
     Chimer: % of contigs that contain two or more annotated genes >= 50bp
     """
+    from jcvi.algorithms.supermap import supermap
+
     p = OptionParser(rnaseq.__doc__)
 
     opts, args = p.parse_args(args)
@@ -104,9 +101,6 @@ def rnaseq(args):
             " transcript".format(len(goodctg50))
     print >> sys.stderr, "A total of {0} reference transcripts ({1:.1f}%) have 80% covered" \
             .format(len(goodref80), len(goodref80) * 100. / known_genes)
-    print >> sys.stderr, "A total of {0} reference transcripts ({1:.1f}%) have 50% covered" \
-            .format(len(goodref50), len(goodref50) * 100. / known_genes)
-    print >> sys.stderr, "Chimers: {0}.".format(chimers)
 
 
 if __name__ == '__main__':

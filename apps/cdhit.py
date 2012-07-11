@@ -8,12 +8,9 @@ Using CD-HIT (CD-HIT-454) in particular to remove duplicate reads.
 import sys
 import logging
 
-from math import log
-from collections import defaultdict
 from optparse import OptionParser
 
 from jcvi.formats.base import read_block
-from jcvi.utils.cbook import percentage
 from jcvi.apps.base import ActionDispatcher, set_grid, debug, sh
 debug()
 
@@ -66,6 +63,8 @@ def summary(args):
 
     Parse cdhit.clstr file to get distribution of cluster sizes.
     """
+    from jcvi.graphics.histogram import loghistogram
+
     p = OptionParser(summary.__doc__)
     opts, args = p.parse_args(args)
 
@@ -75,21 +74,13 @@ def summary(args):
     clstrfile, = args
     assert clstrfile.endswith(".clstr")
 
-    bins = defaultdict(int)
     fp = open(clstrfile)
-    unique = 0
-    total = 0
+    data = []
     for clstr, members in read_block(fp, ">"):
         size = len(members)
-        unique += 1
-        total += size
-        log2size = int(log(size, 2))
-        bins[log2size] += 1
+        data.append(size)
 
-    from jcvi.graphics.histogram import loghistogram
-    # Print out a distribution
-    print >> sys.stderr, "Unique: {0}".format(percentage(unique, total))
-    loghistogram(bins)
+    loghistogram(data)
 
 
 def deduplicate(args):
@@ -99,6 +90,10 @@ def deduplicate(args):
     Wraps `cd-hit-454` to remove duplicate reads.
     """
     p = OptionParser(deduplicate.__doc__)
+    p.add_option("--identity", default=.98, type="float",
+                 help="Sequence identity threshold [default: %default]")
+    p.add_option("--cpus", default=0, type="int",
+                 help="Number of CPUs to use, 0=unlimited [default: %default]")
     set_grid(p)
 
     opts, args = p.parse_args(args)
@@ -111,7 +106,8 @@ def deduplicate(args):
     from jcvi.apps.command import CDPATH
 
     cmd = CDPATH("cd-hit-454")
-    cmd += " -M 0 -T 0 -i {0} -o {0}.cdhit".format(fastafile)
+    cmd += " -c {0}".format(opts.identity)
+    cmd += " -M 0 -T {0} -i {1} -o {1}.cdhit".format(opts.cpus, fastafile)
     sh(cmd, grid=opts.grid)
 
 

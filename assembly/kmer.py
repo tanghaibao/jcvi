@@ -5,12 +5,13 @@
 Deals with K-mers and K-mer distribution from reads or genome
 """
 
+import os.path as op
 import sys
 
 from optparse import OptionParser
 
 from jcvi.utils.iter import pairwise
-from jcvi.graphics.base import plt, asciiplot, _
+from jcvi.graphics.base import plt, asciiplot, _, set_human_axis
 from jcvi.apps.base import ActionDispatcher, sh, debug
 debug()
 
@@ -30,7 +31,7 @@ def meryl(args):
     %prog meryl merylfile
 
     Run meryl to dump histogram to be used in kmer.histogram(). The merylfile
-    should be only the part without the suffix (.mcidx, .mcdat).
+    are the files ending in .mcidx or .mcdat.
     """
     p = OptionParser(meryl.__doc__)
     opts, args = p.parse_args(args)
@@ -39,14 +40,17 @@ def meryl(args):
         sys.exit(p.print_help())
 
     merylfile, = args
-    outfile = merylfile + ".histogram"
-    cmd = "meryl -Dh -s {0}".format(merylfile)
+    pf, sf = op.splitext(merylfile)
+    outfile = pf + ".histogram"
+    cmd = "meryl -Dh -s {0}".format(pf)
     sh(cmd, outfile=outfile)
+
+    return outfile
 
 
 def histogram(args):
     """
-    %prog histogram meryl.histogram species K totalKmers
+    %prog histogram meryl.histogram species K
 
     Plot the histogram based on meryl K-mer distribution, species and N are
     only used to annotate the graphic. Find out totalKmers when running
@@ -55,20 +59,38 @@ def histogram(args):
     p = OptionParser(histogram.__doc__)
     p.add_option("--pdf", default=False, action="store_true",
             help="Print PDF instead of ASCII plot [default: %default]")
+    p.add_option("--coverage", default=0, type="int",
+            help="Kmer coverage [default: auto]")
     opts, args = p.parse_args(args)
 
-    if len(args) != 4:
-        sys.exit(p.print_help())
+    if len(args) != 3:
+        sys.exit(not p.print_help())
 
-    histfile, species, N, totalKmers = args
+    histfile, species, N = args
     ascii = not opts.pdf
     fp = open(histfile)
     hist = {}
+    totalKmers = 0
+
+    # Guess the format of the Kmer histogram
+    soap = False
     for row in fp:
-        K, counts = row.split()[:2]
-        K, counts = int(K), int(counts)
+        if len(row.split()) == 1:
+            soap = True
+            break
+    fp.seek(0)
+
+    for rowno, row in enumerate(fp):
+        if soap:
+            K = rowno + 1
+            counts = int(row.strip())
+        else:  # meryl histogram
+            K, counts = row.split()[:2]
+            K, counts = int(K), int(counts)
+
         Kcounts = K * counts
-        hist[K] = Kcounts
+        totalKmers += Kcounts
+        hist[K] = counts
 
     history = ["drop"]
     for a, b in pairwise(sorted(hist.items())):
@@ -84,8 +106,9 @@ def histogram(args):
             break
 
     Total_Kmers = int(totalKmers)
-    Kmer_coverage = Ka
-    Genome_size = Total_Kmers * 1. / Ka / 1e6
+    coverage = opts.coverage
+    Kmer_coverage = Ka if not coverage else coverage
+    Genome_size = Total_Kmers * 1. / Kmer_coverage / 1e6
 
     Total_Kmers_msg = "Total {0}-mers: {1}".format(N, Total_Kmers)
     Kmer_coverage_msg = "{0}-mer coverage: {1}".format(N, Kmer_coverage)
@@ -116,10 +139,11 @@ def histogram(args):
     xlabel, ylabel = "Coverage (X)", "Counts"
     ax.set_xlabel(_(xlabel), color='r')
     ax.set_ylabel(_(ylabel), color='r')
+    set_human_axis(ax)
 
     imagename = histfile.split(".")[0] + ".pdf"
     plt.savefig(imagename, dpi=100)
-    print >>sys.stderr, "Image saved to {0}.".format(imagename)
+    print >> sys.stderr, "Image saved to `{0}`.".format(imagename)
 
 
 if __name__ == '__main__':

@@ -17,37 +17,68 @@ from collections import namedtuple, defaultdict
 from optparse import OptionParser
 from itertools import groupby
 
-from jcvi.formats.base import LineFile
+from jcvi.formats.base import BaseFile, LineFile
 from jcvi.formats.blast import set_options_pairs
 from jcvi.apps.base import ActionDispatcher, sh, debug
 debug()
 
 
-class Library (object):
+class MateLine (object):
 
-    def __init__(self, library, minsize, maxsize):
-        self.library = library
-        self.minsize = minsize
-        self.maxsize = maxsize
-
-    def __str__(self):
-        return "\t".join(str(x) for x in \
-                (self.library, self.minsize, self.maxsize))
-
-
-class Mate (object):
-
-    def __init__(self, read1, read2, library):
-        self.read1 = read1
-        self.read2 = read2
-        self.library = library
+    def __init__(self, line):
+        args = line.split()
+        self.read1 = args[0]
+        self.read2 = args[1]
+        self.library = args[2]
 
     def __str__(self):
         return "\t".join((self.read1, self.read2, self.library))
 
 
-class Frags (object):
-    pass
+LibraryTag = "library"
+
+class LibraryLine (object):
+
+    def __init__(self, line):
+        args = line.split()
+        assert args[0] == LibraryTag
+
+        self.library = args[1]
+        self.min = int(args[2])
+        self.max = int(args[3])
+        assert self.min <= self.max
+
+        self.sd = (self.max - self.min) / 4
+        self.mean = (self.max + self.min) / 2
+
+    def zscore(self, distance):
+        return (distance - self.mean) / self.sd
+
+
+class MatesFile (BaseFile, dict):
+
+    def __init__(self, filename):
+        super(MatesFile, self).__init__(filename)
+
+        libraries = {}
+
+        fp = open(filename)
+        for row in fp:
+            atoms = row.split()
+            if atoms[0] == LibraryTag:
+                lib = LibraryLine(row)
+                libraries[lib.library] = lib
+            else:
+                mate = MateLine(row)
+                lib = libraries[mate.library]
+                r1, r2 = mate.read1, mate.read2
+                self[r1] = (r2, lib)
+                self[r2] = (r1, lib)
+
+        logging.debug("Libraries: {0}, Mates: {1}".\
+                    format(len(libraries), len(self)))
+
+        self.libraries = libraries
 
 
 MatesLine = namedtuple("MatesLine",
@@ -91,7 +122,6 @@ class Posmap (LineFile):
 
     # dispatch based on filename
     mapping = {
-            "frags": Frags,
             "mates": Mates,
             "frgscf": FrgScf,
             }

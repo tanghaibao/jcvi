@@ -106,11 +106,12 @@ class Layout (LineFile):
 
 class KsPlot (object):
 
-    def __init__(self, ax, ks_max, bins):
+    def __init__(self, ax, ks_max, bins, legendp='upper left'):
 
         self.ax = ax
         self.ks_max = ks_max
         self.interval = ks_max / bins
+        self.legendp = legendp
         self.lines = []
         self.labels = []
 
@@ -133,7 +134,8 @@ class KsPlot (object):
         ks_max = self.ks_max
         lines = self.lines
         labels = self.labels
-        leg = ax.legend(lines, labels, 'upper left',
+        legendp = self.legendp
+        leg = ax.legend(lines, labels, legendp,
                         shadow=True, fancybox=True, prop={"size": 10})
         leg.get_frame().set_alpha(.5)
 
@@ -161,12 +163,7 @@ def multireport(args):
     from jcvi.graphics.base import plt
 
     p = OptionParser(multireport.__doc__)
-    p.add_option("--vmin", default=0., type="float",
-                 help="Minimum value, inclusive [default: %default]")
-    p.add_option("--vmax", default=4., type="float",
-                 help="Maximum value, inclusive [default: %default]")
-    p.add_option("--bins", default=20, type="int",
-                 help="Number of bins to plot in the histogram [default: %default]")
+    add_plot_options(p)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -180,7 +177,7 @@ def multireport(args):
 
     fig = plt.figure(1, (5, 5))
     ax = fig.add_axes([.12, .1, .8, .8])
-    kp = KsPlot(ax, ks_max, bins)
+    kp = KsPlot(ax, ks_max, bins, legendp=opts.legendp)
     for lo in layout:
         header, data = read_ks_file(lo.ksfile)
         data = [x.ng_ks for x in data]
@@ -594,7 +591,8 @@ def lognormpdf_mix(bins, probs, mus, sigmas, interval=.1):
     y = 0
     for prob, mu, sigma in zip(probs, mus, sigmas):
         y += prob * lognormpdf(bins, mu, sigma)
-    y *= 100 * interval
+    y *= 100 * interval  # Percentage
+
     return y
 
 
@@ -642,7 +640,8 @@ def plot_ks_dist(ax, data, interval, components, ks_max, color='r'):
 
     probs, mus, variances = get_mixture(data, components)
 
-    bins = np.arange(0.001, ks_max, .001)
+    iv = .001
+    bins = np.arange(iv, ks_max, iv)
     y = lognormpdf_mix(bins, probs, mus, variances, interval)
 
     line_mixture, = ax.plot(bins, y, ':', color=color, lw=3)
@@ -655,6 +654,17 @@ def plot_ks_dist(ax, data, interval, components, ks_max, color='r'):
     return line, line_mixture
 
 
+def add_plot_options(p):
+    p.add_option("--vmin", default=0., type="float",
+                 help="Minimum value, inclusive [default: %default]")
+    p.add_option("--vmax", default=2., type="float",
+            help="Maximum value, inclusive [default: %default]")
+    p.add_option("--bins", default=20, type="int",
+            help="Number of bins to plot in the histogram [default: %default]")
+    p.add_option("--legendp", default="upper right",
+            help="Place of the legend [default: %default]")
+
+
 def report(args):
     '''
     %prog report ksfile
@@ -665,10 +675,8 @@ def report(args):
     from jcvi.graphics.histogram import stem_leaf_plot
 
     p = OptionParser(report.__doc__)
-    p.add_option("--vmax", default=2., type="float",
-            help="Maximum value, inclusive [default: %default]")
-    p.add_option("--bins", default=20, type="int",
-            help="Number of bins to plot in the histogram [default: %default]")
+    add_plot_options(p)
+
     p.add_option("--pdf", default=False, action="store_true",
             help="Generate graphic output for the histogram [default: %default]")
     p.add_option("--components", default=1, type="int",
@@ -680,6 +688,7 @@ def report(args):
 
     ks_file, = args
     header, data = read_ks_file(ks_file)
+    ks_min = opts.vmin
     ks_max = opts.vmax
     bins = opts.bins
 
@@ -703,11 +712,11 @@ def report(args):
 
     components = opts.components
     data = [x.ng_ks for x in data]
-    data = [x for x in data if 0 <= x <= ks_max]
+    data = [x for x in data if ks_min <= x <= ks_max]
 
     fig = plt.figure(1, (5, 5))
     ax = fig.add_axes([.12, .1, .8, .8])
-    kp = KsPlot(ax, ks_max, bins)
+    kp = KsPlot(ax, ks_max, opts.bins, legendp=opts.legendp)
     kp.add_data(data, components)
     kp.draw()
 

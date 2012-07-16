@@ -82,9 +82,9 @@ JAVAPATH = partial(getpath, name="Java1.6", url=\
 
 
 @depends
-def run_formatdb(infile=None, outfile=None):
+def run_formatdb(infile=None, outfile=None, dbtype="nucl"):
     cmd = BLPATH("makeblastdb")
-    cmd += " -dbtype nucl -in {0}".format(infile)
+    cmd += " -dbtype {0} -in {1}".format(dbtype, infile)
     sh(cmd)
 
 

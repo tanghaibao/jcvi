@@ -108,7 +108,7 @@ cannot be found in your ``PATH``. For example::
     === Configure path for EMBOSS ===
     URL: <http://emboss.sourceforge.net/>
     [Directory that contains `seqret`]: ~/scratch/bin
-    23:53:57 [command::DEBUG] Configuration written to `/home/htang/.jcvirc`.
+    23:53:57 [command] Configuration written to `/home/htang/.jcvirc`.
 
 The locations of these binaries can later be changed by modifying ``~/.jcvirc``.
 The external programs that are often used are:

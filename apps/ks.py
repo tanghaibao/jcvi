@@ -360,6 +360,8 @@ def calc(args):
         4. Use this alignment info to align gene sequences using PAL2NAL
         5. Run PAML yn00 to calculate synonymous mutation rates.
     """
+    from jcvi.formats.fasta import translate
+
     p = OptionParser(calc.__doc__)
     set_outfile(p)
 
@@ -379,7 +381,8 @@ def calc(args):
     mkdir(work_dir)
 
     if not protein_file:
-        protein_file = translate_dna(dna_file)
+        protein_file = dna_file + ".pep"
+        translate([dna_file, "--outfile=" + protein_file])
 
     prot_iterator = SeqIO.parse(open(protein_file), "fasta")
     dna_iterator = SeqIO.parse(open(dna_file), "fasta")
@@ -400,24 +403,6 @@ def calc(args):
 
     # Clean-up
     sh("rm -rf 2YN.t 2YN.dN 2YN.dS rst rub rst1 syn_analysis")
-
-
-def translate_dna(dna_file):
-    '''
-    Translate the seqs in dna_file and produce a protein_file
-    '''
-    protein_file = dna_file + ".pep"
-    translated = []
-    for rec in SeqIO.parse(open(dna_file), "fasta"):
-        rec.seq = rec.seq.translate()
-        translated.append(rec)
-
-    protein_h = open(protein_file, "w")
-    SeqIO.write(translated, protein_h, "fasta")
-
-    print >>sys.stderr, "%d records written to %s" % (len(translated),
-            protein_file)
-    return protein_file
 
 
 def find_synonymous(input_file, work_dir):

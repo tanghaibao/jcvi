@@ -14,7 +14,7 @@ from jcvi.formats.base import must_open
 from jcvi.apps.grid import Grid, Jobs
 from jcvi.apps.base import ActionDispatcher, debug, set_params, \
         set_grid, set_outfile, sh, mkdir
-from jcvi.apps.commands import run_formatdb
+from jcvi.apps.command import run_formatdb
 debug()
 
 
@@ -55,7 +55,7 @@ def main():
             help="parallelize job to multiple cpus [default: %default]")
     p.add_option("--format", default=" 6 qseqid sseqid pident length mismatch" \
     " gapopen qstart qend sstart send evalue bitscore", 
-            help="0-11, learn more using blastp -help."
+            help="0-11, learn more using blastp -help.")
     p.add_option("--path", dest="blast_path", default=None,
             help="specify BLAST+ path including the program name")
     p.add_option("--program", dest="blast_program", default=None,

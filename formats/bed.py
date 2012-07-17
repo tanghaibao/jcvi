@@ -147,7 +147,7 @@ class Bed(LineFile):
     def order_in_chr(self):
         # get the gene order on a particular seqid
         res = {}
-        self.sort(key = self.nullkey)
+        self.sort(key=self.nullkey)
         for seqid, beds in groupby(self, key=lambda x:x.seqid):
             for i, f in enumerate(beds):
                 res[f.accn] = (seqid, i, f)

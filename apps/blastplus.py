@@ -35,12 +35,13 @@ format, grid=False):
     format(blast_bin, afasta_fn, bfasta_fn, out_fh, format)
     if extra:
         blast_cmd += " " + extra.strip()
-
-    if grid:  # if run on SGE, only the cmd is needed
-        return blast_cmd
-
-    proc = Popen(blast_cmd, shell=True)
-    logging.debug("job <%d> started: %s" % (proc.pid, blast_cmd))
+    
+    if grid: # if run on SGE, only the cmd is needed
+        return blast_cmd    
+    
+    blast_cmd += " -num_threads %s " % n
+    sh(blast_cmd) 
+    logging.debug("job finished: %s" % blast_cmd)
 
 
 def main():
@@ -55,11 +56,11 @@ def main():
             help="parallelize job to multiple cpus [default: %default]")
     p.add_option("--format", default=" 6 qseqid sseqid pident length mismatch" \
     " gapopen qstart qend sstart send evalue bitscore", 
-            help="0-11, learn more using blastp -help.")
+            help="0-11, learn more with \"blastp -help\". [default: %default]")
     p.add_option("--path", dest="blast_path", default=None,
             help="specify BLAST+ path including the program name")
     p.add_option("--program", dest="blast_program", default=None,
-            help="specify BLAST+ program to use. See complete list here : " \
+            help="specify BLAST+ program to use. See complete list here: " \
             "http://www.ncbi.nlm.nih.gov/books/NBK52640/#chapter1.Installation")
     p.add_option("--recommend", default=False, action="store_true",
             help="Use recommended options tuned for comparing " \
@@ -112,10 +113,8 @@ def main():
         g.writestatus()
 
     else:
-        args = [(k + 1, cpus, bfasta_fn, afasta_fn, out_fh, \
-                lock, blast_bin, extra, format) for k in xrange(cpus)]
-        g = Jobs(target=blastplus, args=args)
-        g.run()
+        blastplus(k + 1, cpus, bfasta_fn, afasta_fn, out_fh, \
+                lock, blast_bin, extra, format)
 
 
 if __name__ == '__main__':

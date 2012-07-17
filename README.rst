@@ -5,7 +5,8 @@ My own collection of Python libraries to parse files, or perform
 assembly-related calculations. Documentations will be lagging behind.
 
 :Author: Haibao Tang (`tanghaibao <http://github.com/tanghaibao>`_),
-         Vivek Krishnakumar (`vivekkrish <https://github.com/vivekkrish>`_)
+         Vivek Krishnakumar (`vivekkrish <https://github.com/vivekkrish>`_),
+         Jingping Li (`Jingping jingpingli@gmail.com`_)
 :Email: tanghaibao@gmail.com
 :License: `BSD <http://creativecommons.org/licenses/BSD/>`_
 

@@ -141,7 +141,7 @@ class Coords (LineFile):
 
     then each row would be composed as this
     """
-    def __init__(self, filename, sorted=False):
+    def __init__(self, filename, sorted=False, header=False):
 
         if filename.endswith(".delta"):
             coordsfile = filename.rsplit(".", 1)[0] + ".coords"
@@ -152,7 +152,8 @@ class Coords (LineFile):
         super(Coords, self).__init__(filename)
 
         fp = open(filename)
-        self.cmd = fp.next()
+        if header:
+            self.cmd = fp.next()
 
         for row in fp:
             try:

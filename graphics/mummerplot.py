@@ -53,7 +53,8 @@ def main(args):
     if opts.all:
         for q in queries:
             pdffile = plot_some_queries([q], qsizes, rsizes, deltafile, querycov)
-            sh("mv {0} {1}.pdf".format(pdffile, q))
+            if pdffile:
+                sh("mv {0} {1}.pdf".format(pdffile, q))
     else:
         plot_some_queries(queries, qsizes, rsizes, deltafile, querycov)
 
@@ -69,6 +70,9 @@ def plot_some_queries(queries, qsizes, rsizes, deltafile, querycov):
         if c.query not in queries:
             continue
         refs.add(c.ref)
+
+    if not queries or not refs:
+        return None
 
     writeXfile(queries, qsizes, Qfile)
     writeXfile(refs, rsizes, Rfile)

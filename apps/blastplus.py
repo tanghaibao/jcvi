@@ -28,8 +28,7 @@ def blastplus(k, n, bfasta_fn, afasta_fn, out_fh, lock, blast_bin, extra, \
 format, grid=False):
     dbtype = "prot" if op.basename(blast_bin) in ["blastp", "blastx"] \
     else "nucl"
-    cmd = run_formatdb(infile=bfasta_fn, outfile=None, dbtype=dbtype)
-    sh(cmd)
+    run_formatdb(infile=bfasta_fn, outfile="t", dbtype=dbtype)
     
     blast_cmd = blastplus_template.\
     format(blast_bin, afasta_fn, bfasta_fn, out_fh, format)
@@ -54,8 +53,8 @@ def main():
 
     p.add_option("-a", "-A", dest="cpus", default=1, type="int",
             help="parallelize job to multiple cpus [default: %default]")
-    p.add_option("--format", default=" 6 qseqid sseqid pident length mismatch" \
-    " gapopen qstart qend sstart send evalue bitscore", 
+    p.add_option("--format", default=" \'6 qseqid sseqid pident length " \
+    "mismatch gapopen qstart qend sstart send evalue bitscore\' ", 
             help="0-11, learn more with \"blastp -help\". [default: %default]")
     p.add_option("--path", dest="blast_path", default=None,
             help="specify BLAST+ path including the program name")
@@ -113,8 +112,8 @@ def main():
         g.writestatus()
 
     else:
-        blastplus(k + 1, cpus, bfasta_fn, afasta_fn, out_fh, \
-                lock, blast_bin, extra, format)
+        blastplus(cpus, cpus, bfasta_fn, afasta_fn, out_fh.name, \
+        lock, blast_bin, extra, format)
 
 
 if __name__ == '__main__':

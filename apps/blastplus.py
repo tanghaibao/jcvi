@@ -9,6 +9,8 @@ import logging
 from optparse import OptionParser
 from subprocess import Popen, PIPE
 from multiprocessing import Lock, Pool
+from itertools import islice
+from Bio import SeqIO
 
 from jcvi.formats.base import must_open
 from jcvi.apps.grid import Grid, Jobs
@@ -26,10 +28,6 @@ recommendOptions = " -evalue 1e-5 -num_descriptions 20 -num_alignments 20 "
 
 def blastplus(k, n, bfasta_fn, afasta_fn, out_fh, lock, blast_bin, extra, \
 format, grid=False):
-    dbtype = "prot" if op.basename(blast_bin) in ["blastp", "blastx"] \
-    else "nucl"
-    run_formatdb(infile=bfasta_fn, outfile="t", dbtype=dbtype)
-    
     blast_cmd = blastplus_template.\
     format(blast_bin, afasta_fn, bfasta_fn, out_fh, format)
     if extra:
@@ -38,8 +36,11 @@ format, grid=False):
     if grid: # if run on SGE, only the cmd is needed
         return blast_cmd    
     
-    blast_cmd += " -num_threads %s " % n
-    sh(blast_cmd) 
+    proc = Popen(blast_cmd, stdin=PIPE, shell=True)
+    parser = SeqIO.parse(afasta_fn, "fasta")
+    for rec in islice(parser, k - 1, None, n):
+        SeqIO.write([rec], proc.stdin, "fasta")
+    proc.stdin.close()
     logging.debug("job finished: %s" % blast_cmd)
 
 
@@ -98,6 +99,10 @@ def main():
     cpus = opts.cpus
     logging.debug("Dispatch job to %d cpus" % cpus)
     format = opts.format
+    
+    dbtype = "prot" if op.basename(blast_bin) in ["blastp", "blastx"] \
+    else "nucl"
+    run_formatdb(infile=bfasta_fn, outfile="t", dbtype=dbtype)
 
     outdir = "outdir"
     lock = Lock()
@@ -112,8 +117,10 @@ def main():
         g.writestatus()
 
     else:
-        blastplus(cpus, cpus, bfasta_fn, afasta_fn, out_fh.name, \
-        lock, blast_bin, extra, format)
+        args = [(k + 1, cpus, bfasta_fn, afasta_fn, out_fh.name,
+                lock, blast_bin, extra, format) for k in xrange(cpus)]
+        g = Jobs(target=blastplus, args=args)
+        g.run()
 
 
 if __name__ == '__main__':

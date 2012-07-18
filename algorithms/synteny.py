@@ -314,7 +314,7 @@ def main():
     actions = (
         ('scan', 'get anchor list using single-linkage algorithm'),
         ('summary', 'provide statistics for pairwise blocks'),
-        ('liftover', 'given anchor list, pull adjancent pairs from blast file'),
+        ('liftover', 'given anchor list, pull adjacent pairs from blast file'),
         ('mcscan', 'stack synteny blocks on a reference bed'),
         ('screen', 'extract subset of blocks from anchorfile'),
         ('stats', 'provide statistics for mscan blocks'),
@@ -418,7 +418,7 @@ def matrix(args):
 
 def screen(args):
     """
-    %prog screen all.bed anchorfile newanchorfile
+    %prog screen anchorfile newanchorfile --qbed=qbedfile --sbed=sbedfile
 
     Extract subset of blocks from anchorfile. Provide several options:
 
@@ -434,6 +434,8 @@ def screen(args):
     from jcvi.formats.base import SetFile
 
     p = OptionParser(screen.__doc__)
+    add_beds(p)
+
     p.add_option("--ids", help="File with block IDs (0-based) [default: %default]")
     p.add_option("--seqids", help="File with seqids [default: %default]")
     p.add_option("--minspan", default=30, type="int",
@@ -442,10 +444,10 @@ def screen(args):
                  help="Write simple anchorfile with block ends [default: %default]")
     opts, args = p.parse_args(args)
 
-    if len(args) != 3:
+    if len(args) != 2:
         sys.exit(not p.print_help())
 
-    bedfile, anchorfile, newanchorfile = args
+    anchorfile, newanchorfile = args
     ac = AnchorFile(anchorfile)
     idsfile = opts.ids
     seqidsfile = opts.seqids
@@ -459,7 +461,7 @@ def screen(args):
     if seqidsfile:
         seqids = SetFile(seqidsfile, delimiter=',')
 
-    order = Bed(bedfile).order
+    qbed, sbed, qorder, sorder, is_self = check_beds(p, opts)
     blocks = ac.blocks
     selected = 0
     fw = open(newanchorfile, "w")
@@ -472,8 +474,8 @@ def screen(args):
             continue
 
         a, b, scores = zip(*block)
-        a = [order[x] for x in a]
-        b = [order[x] for x in b]
+        a = [qorder[x] for x in a]
+        b = [sorder[x] for x in b]
         ia, oa = zip(*a)
         ib, ob = zip(*b)
         aspan = max(ia) - min(ia) + 1

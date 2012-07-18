@@ -51,7 +51,8 @@ def wgsim(args):
     fastafile, = args
     pf = fastafile.split(".")[0]
 
-    size = opts.genomesize * 1000000 or Fasta(fastafile).totalsize
+    genomesize = opts.genomesize
+    size = genomesize * 1000000 if genomesize else Fasta(fastafile).totalsize
     depth = opts.depth
     readlen = opts.readlen
     readnum = size * depth / (2 * readlen)

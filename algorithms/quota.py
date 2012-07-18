@@ -4,7 +4,7 @@
 """
 Quota synteny alignment (QUOTA-ALIGN)
 
-%prog [options] anchorsfile bedfile
+%prog [options] anchorsfile --qbed=qbedfile --sbed=sbedfile
 
 This python program does the following:
 1. merge 2D-overlapping blocks (now skipped, but existed in original version)
@@ -27,7 +27,7 @@ from optparse import OptionParser
 
 from jcvi.utils.range import range_overlap
 from jcvi.utils.grouper import Grouper
-from jcvi.algorithms.synteny import AnchorFile, _score
+from jcvi.algorithms.synteny import AnchorFile, _score, add_beds, check_beds
 from jcvi.algorithms.lpsolve import GLPKSolver, SCIPSolver
 from jcvi.formats.bed import Bed
 from jcvi.apps.base import debug
@@ -229,15 +229,15 @@ def solve_lp(clusters, quota, work_dir="work", Nmax=0,
     return filtered_list
 
 
-def read_clusters(qa_file, order):
+def read_clusters(qa_file, qorder, sorder):
     af = AnchorFile(qa_file)
     blocks = af.blocks
     clusters = []
     for block in blocks:
         cluster = []
         for a, b, score in block:
-            ia, oa = order[a]
-            ib, ob = order[b]
+            ia, oa = qorder[a]
+            ib, ob = sorder[b]
             ca, cb = oa.seqid, ob.seqid
             cluster.append(((ca, ia), (cb, ib), score))
         clusters.append(cluster)
@@ -249,6 +249,7 @@ if __name__ == '__main__':
 
     p = OptionParser(__doc__)
 
+    add_beds(p)
     p.add_option("--quota", type="string", default=None,
             help="`quota mapping` procedure -- screen blocks to constrain mapping"\
                     " (useful for orthology), "\
@@ -273,12 +274,12 @@ if __name__ == '__main__':
 
     opts, args = p.parse_args()
 
-    if len(args) != 2:
+    if len(args) != 1:
         sys.exit(not p.print_help())
 
-    qa_file, bedfile = args
-    bed = Bed(bedfile)
-    order = bed.order
+    qa_file, = args
+    qbed, sbed, qorder, sorder, is_self = check_beds(p, opts)
+
     # sanity check for the quota
     if opts.quota:
         try:
@@ -298,7 +299,7 @@ if __name__ == '__main__':
 
     self_match = opts.self_match
 
-    clusters = read_clusters(qa_file, order)
+    clusters = read_clusters(qa_file, qorder, sorder)
     for cluster in clusters:
         assert len(cluster) > 0
 

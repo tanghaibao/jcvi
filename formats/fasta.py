@@ -9,7 +9,6 @@ import shutil
 import logging
 import string
 
-from random import sample
 from optparse import OptionParser
 from itertools import groupby, izip_longest
 
@@ -18,7 +17,6 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
 from jcvi.formats.base import BaseFile, DictFile, must_open
-from jcvi.utils.table import banner
 from jcvi.apps.base import ActionDispatcher, debug, set_outfile, sh
 from jcvi.apps.console import red, green
 debug()
@@ -499,6 +497,8 @@ def translate(args):
         print >> sys.stderr, "Cannot translate: {0}".\
                         format(percentage(cannot_translate, total))
 
+    fw.close()
+
 
 def filter(args):
     """
@@ -929,6 +929,8 @@ def diff(args):
 
     print out whether the records in two fasta files are the same
     """
+    from jcvi.utils.table import banner
+
     p = OptionParser(diff.__doc__)
     p.add_option("--ignore_case", default=False, action="store_true",
             help="ignore case when comparing sequences [default: %default]")
@@ -1382,6 +1384,8 @@ def random(args):
 
     Take number of records randomly from fasta
     """
+    from random import sample
+
     p = OptionParser(random.__doc__)
     opts, args = p.parse_args(args)
 

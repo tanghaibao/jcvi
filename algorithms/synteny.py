@@ -418,7 +418,7 @@ def matrix(args):
 
 def screen(args):
     """
-    %prog screen anchorfile newanchorfile --qbed=qbedfile --sbed=sbedfile
+    %prog screen anchorfile newanchorfile --qbed=qbedfile --sbed=sbedfile [options]
 
     Extract subset of blocks from anchorfile. Provide several options:
 
@@ -613,7 +613,7 @@ def get_range(q, s, t, i, order, block_pairs, clip=10):
 
 def mcscan(args):
     """
-    %prog mcscan bedfile anchorfile
+    %prog mcscan bedfile anchorfile [options]
 
     Stack synteny blocks on a reference bed, MCSCAN style. The first column in
     the output is the reference order, given in the bedfile. Then each column
@@ -805,7 +805,7 @@ def get_blocks(scaffold, bs, order, xdist=20, ydist=20, N=6):
 
 def breakpoint(args):
     """
-    %prog breakpoint blastfile bedfile
+    %prog breakpoint blastfile bedfile [options]
 
     Identify breakpoints where collinearity ends. `blastfile` contains mapping
     from markers (query) to scaffolds (subject). `bedfile` contains marker

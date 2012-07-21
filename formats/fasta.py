@@ -772,14 +772,14 @@ def format(args):
             help="Pad a few zeros in front of sequential [default: %default]")
     p.add_option("--gb", default=False, action="store_true",
             help="For Genbank ID, get the accession [default: %default]")
-    p.add_option("--until", default=None,
-            help="Get the names until certain symbol [default: %default]")
+    p.add_option("--sep", default=None,
+            help="Split description by certain symbol [default: %default]")
+    p.add_option("--index", default=0, type="int",
+            help="Extract i-th field after split with --sep [default: %default]")
     p.add_option("--noversion", default=False, action="store_true",
             help="Remove the gb trailing version [default: %default]")
     p.add_option("--prefix", help="Prepend prefix to sequence ID")
     p.add_option("--suffix", help="Append suffix to sequence ID")
-    p.add_option("--index", default=0, type="int",
-            help="Extract i-th field in the description [default: %default]")
     p.add_option("--template", default=False, action="store_true",
             help="Extract `template=aaa dir=x library=m` to `m-aaa/x` [default: %default]")
     p.add_option("--switch", help="Switch ID from two-column file [default: %default]")
@@ -793,12 +793,12 @@ def format(args):
 
     infasta, outfasta = args
     gb = opts.gb
-    until = opts.until
     pairs = opts.pairs
     prefix = opts.prefix
     suffix = opts.suffix
     noversion = opts.noversion
     sequential = opts.sequential
+    sep = opts.sep
     idx = opts.index
     mapfile = opts.switch
     annotfile = opts.annotation
@@ -815,13 +815,9 @@ def format(args):
     for i, rec in enumerate(fp):
         origid = rec.id
         description = rec.description
-        if until:
-            description = description.split(until, 1)[0]
+        if sep:
+            description = description.split(sep)[idx]
             rec.id = description
-        if idx:
-            description = description.split()[idx]
-            rec.id = description
-
         if gb:
             # gi|262233616|gb|GU123895.1| Coffea arabica clone BAC
             atoms = rec.id.split("|")

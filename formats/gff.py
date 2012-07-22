@@ -76,8 +76,10 @@ class GffLine (object):
     @property
     def accn(self):
         if self.key and self.key in self.attributes:
-            return self.attributes[self.key][0]
-        return self.attributes_text.split()[0]
+            a = self.attributes[self.key]
+        else:
+            a = self.attributes_text.split()
+        return ",".join(a)
 
     id = accn
 

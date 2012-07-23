@@ -50,7 +50,8 @@ def draw_cmap(ax, cmap_text, vmin, vmax, cmap=None, reverse=False):
 
 
 def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts,
-        is_self=False, synteny=False, cmap_text=None):
+        is_self=False, synteny=False, cmap_text=None, genomenames=None, 
+        sample_number=5000):
 
     fp = open(anchorfile)
 
@@ -64,7 +65,7 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts,
     for row in fp:
         atoms = row.split()
         # first two columns are query and subject, and an optional third column
-        if len(atoms) < 2:
+        if len(atoms) < 2 or row[0]=="#":
             continue
         query, subject = atoms[:2]
         value = atoms[-1]
@@ -93,14 +94,16 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts,
         data.append((qi, si, nv))
         if is_self:  # Mirror image
             data.append((si, qi, nv))
-
+    
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])  # the whole canvas
     ax = fig.add_axes([.1, .1, .8, .8])  # the dot plot
 
-    sample_number = 5000  # only show random subset
+    # only show random subset, default to sample_number = 5000
     if len(data) > sample_number:
         data = sample(data, sample_number)
+        logging.debug("Showing a random subset of %s data points (total %s) " \
+        "for clarity." % (sample_number, len(data)))
 
     # the data are plotted in this order, the least value are plotted
     # last for aesthetics
@@ -175,8 +178,11 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts,
     ax.set_ylim(ylim)
 
     # add genome names
-    to_ax_label = lambda fname: _(op.basename(fname).split(".")[0])
-    gx, gy = [to_ax_label(x.filename) for x in (qbed, sbed)]
+    if genomenames:
+        gx, gy = genomenames.split("_") 
+    else:
+        to_ax_label = lambda fname: _(op.basename(fname).split(".")[0])
+        gx, gy = [to_ax_label(x.filename) for x in (qbed, sbed)]
     ax.set_xlabel(gx, size=16)
     ax.set_ylabel(gy, size=16)
 
@@ -209,6 +215,11 @@ if __name__ == "__main__":
             help="Minimum value in the colormap [default: %default]")
     p.add_option("--vmax", dest="vmax", type="float", default=1,
             help="Maximum value in the colormap [default: %default]")
+    p.add_option("--genomenames", type="string", default=None,
+            help="genome names for labeling axes in the form of xname_yname, " \
+            "eg. \"Vitis vinifera_Oryza sativa\"")
+    p.add_option("--nmax", dest="sample_number", type="int", default=5000,
+            help="Maximum number of data points to plot [default: %default]")
     opts, args, iopts = set_image_options(p, sys.argv[1:], figsize="8x8", dpi=90)
 
     if len(args) != 1:
@@ -219,9 +230,12 @@ if __name__ == "__main__":
     synteny = opts.synteny
     vmin, vmax = opts.vmin, opts.vmax
     cmap_text = opts.cmap
+    genomenames = opts.genomenames
+    sample_number = opts.sample_number
 
     anchorfile = args[0]
 
     image_name = op.splitext(anchorfile)[0] + "." + opts.format
-    dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts,
-            is_self=is_self, synteny=synteny, cmap_text=cmap_text)
+    dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts, \
+    is_self=is_self, synteny=synteny, cmap_text=cmap_text, \
+    genomenames=genomenames, sample_number=sample_number)

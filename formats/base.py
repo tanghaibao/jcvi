@@ -588,10 +588,10 @@ def subset(args):
         ss = [s] * 2
 
     if nargs>2:
-        file2 = FileMerger(args[1:], "concatenatedFile2").merge()
+        file2 = FileMerger(args[1:], outfile="concatenatedFile2").merge()
     else:
         file2 = args[1]
-    newargs = [args[0], outfile=file2]
+    newargs = [args[0], file2]
 
     files = [DictFile(f, keypos=c, valuepos=None, delimiter=s) \
                         for f, c, s in zip(newargs, cc, ss)]

@@ -50,7 +50,7 @@ def draw_cmap(ax, cmap_text, vmin, vmax, cmap=None, reverse=False):
 
 
 def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts,
-        is_self=False, synteny=False, cmap_text=None, genomenames=None, 
+        is_self=False, synteny=False, cmap_text=None, genomenames=None,
         sample_number=5000):
 
     fp = open(anchorfile)
@@ -94,7 +94,7 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts,
         data.append((qi, si, nv))
         if is_self:  # Mirror image
             data.append((si, qi, nv))
-    
+
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])  # the whole canvas
     ax = fig.add_axes([.1, .1, .8, .8])  # the dot plot
@@ -103,7 +103,7 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts,
     if len(data) > sample_number:
         data = sample(data, sample_number)
         logging.debug("Showing a random subset of %s data points (total %s) " \
-        "for clarity." % (sample_number, len(data)))
+                      "for clarity." % (sample_number, len(data)))
 
     # the data are plotted in this order, the least value are plotted
     # last for aesthetics
@@ -179,7 +179,7 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts,
 
     # add genome names
     if genomenames:
-        gx, gy = genomenames.split("_") 
+        gx, gy = genomenames.split("_")
     else:
         to_ax_label = lambda fname: _(op.basename(fname).split(".")[0])
         gx, gy = [to_ax_label(x.filename) for x in (qbed, sbed)]
@@ -237,5 +237,5 @@ if __name__ == "__main__":
 
     image_name = op.splitext(anchorfile)[0] + "." + opts.format
     dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts, \
-    is_self=is_self, synteny=synteny, cmap_text=cmap_text, \
-    genomenames=genomenames, sample_number=sample_number)
+            is_self=is_self, synteny=synteny, cmap_text=cmap_text, \
+            genomenames=genomenames, sample_number=sample_number)

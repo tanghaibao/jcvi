@@ -27,21 +27,21 @@ recommendOptions = " -evalue 1e-5 -num_descriptions 20 -num_alignments 20 "
 
 
 def blastplus(k, n, bfasta_fn, afasta_fn, out_fh, lock, blast_bin, extra, \
-format, grid=False):
+    format, grid=False):
     blast_cmd = blastplus_template.\
-    format(blast_bin, afasta_fn, bfasta_fn, out_fh.name, format)
+        format(blast_bin, afasta_fn, bfasta_fn, out_fh.name, format)
     if extra:
         blast_cmd += " " + extra.strip()
-    
+
     if grid: # if run on SGE, only the cmd is needed
-        return blast_cmd    
-    
+        return blast_cmd
+
     proc = Popen(blast_cmd, stdin=PIPE, stdout=PIPE, shell=True)
     parser = SeqIO.parse(afasta_fn, "fasta")
     for rec in islice(parser, k - 1, None, n):
         SeqIO.write([rec], proc.stdin, "fasta")
     proc.stdin.close()
-    
+
     logging.debug("job <%d> started: %s" % (proc.pid, blast_cmd))
     for row in proc.stdout:
         lock.acquire()
@@ -62,7 +62,7 @@ def main():
     p.add_option("-a", "-A", dest="cpus", default=1, type="int",
             help="parallelize job to multiple cpus [default: %default]")
     p.add_option("--format", default=" \'6 qseqid sseqid pident length " \
-    "mismatch gapopen qstart qend sstart send evalue bitscore\' ", 
+            "mismatch gapopen qstart qend sstart send evalue bitscore\' ",
             help="0-11, learn more with \"blastp -help\". [default: %default]")
     p.add_option("--path", dest="blast_path", default=None,
             help="specify BLAST+ path including the program name")
@@ -106,9 +106,9 @@ def main():
     cpus = opts.cpus
     logging.debug("Dispatch job to %d cpus" % cpus)
     format = opts.format
-    
+
     dbtype = "prot" if op.basename(blast_bin) in ["blastp", "blastx"] \
-    else "nucl"
+        else "nucl"
     run_formatdb(infile=bfasta_fn, outfile="t", dbtype=dbtype)
 
     outdir = "outdir"
@@ -116,16 +116,16 @@ def main():
 
     if grid:
         cmds = [blastplus(k + 1, cpus, bfasta_fn, afasta_fn, out_fh, \
-                lock, blast_bin, extra, format, grid) for k in xrange(cpus)]
+            lock, blast_bin, extra, format, grid) for k in xrange(cpus)]
         mkdir(outdir)
         g = Grid(cmds, outfiles=[op.join(outdir, "out.{0}.blastplus").\
-                format(i) for i in range(len(cmds))])
+            format(i) for i in range(len(cmds))])
         g.run()
         g.writestatus()
 
     else:
-        args = [(k + 1, cpus, bfasta_fn, afasta_fn, out_fh,
-                lock, blast_bin, extra, format) for k in xrange(cpus)]
+        args = [(k + 1, cpus, bfasta_fn, afasta_fn, out_fh, \
+            lock, blast_bin, extra, format) for k in xrange(cpus)]
         g = Jobs(target=blastplus, args=args)
         g.run()
 

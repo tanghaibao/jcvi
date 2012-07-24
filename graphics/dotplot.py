@@ -6,6 +6,11 @@
 
 visualize the anchorfile in a dotplot. anchorfile contains two columns
 indicating gene pairs, followed by an optional column (e.g. Ks value)
+
+Before running this script it is recommended to check/install
+TeX Live (http://www.tug.org/texlive/) and
+Ghostscript (http://www.ghostscript.com/)
+see more here: http://matplotlib.sourceforge.net/users/usetex.html
 """
 
 import os.path as op
@@ -101,9 +106,9 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts,
 
     # only show random subset, default to sample_number = 5000
     if len(data) > sample_number:
-        data = sample(data, sample_number)
         logging.debug("Showing a random subset of %s data points (total %s) " \
                       "for clarity." % (sample_number, len(data)))
+        data = sample(data, sample_number)
 
     # the data are plotted in this order, the least value are plotted
     # last for aesthetics
@@ -216,7 +221,7 @@ if __name__ == "__main__":
     p.add_option("--vmax", dest="vmax", type="float", default=1,
             help="Maximum value in the colormap [default: %default]")
     p.add_option("--genomenames", type="string", default=None,
-            help="genome names for labeling axes in the form of xname_yname, " \
+            help="genome names for labeling axes in the form of qname_sname, " \
             "eg. \"Vitis vinifera_Oryza sativa\"")
     p.add_option("--nmax", dest="sample_number", type="int", default=5000,
             help="Maximum number of data points to plot [default: %default]")

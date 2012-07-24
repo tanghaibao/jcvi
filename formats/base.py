@@ -104,6 +104,7 @@ class FileMerger (object):
 
         files = " ".join(self.filelist)
         sh("cat {0}".format(files), outfile=outfile)
+        return outfile
 
 
 class FileSplitter (object):
@@ -338,7 +339,8 @@ def main():
         ('reorder', 'reorder columns in tab-delimited files'),
         ('flatten', 'convert a list of IDs into one per line'),
         ('setop', 'set operations on files'),
-        ('join', 'join tabular files based on common column'),
+        ('join', 'join tabular-like files based on common column'),
+        ('subset', 'subset tabular-like files based on common column'),
         ('truncate', 'remove lines from end of file'),
             )
     p = ActionDispatcher(actions)
@@ -467,17 +469,23 @@ def split(args):
 
 def join(args):
     """
-    %prog join file1.txt file2.txt ..
+    %prog join file1.txt(pivotfile) file2.txt ..
 
-    Join tabular files based on common column. --column specifies the column
-    index to pivot on. Use comma to separate multiple values if the pivot column
-    is different in each file. Maintain the order in the first file.
+    Join tabular-like files based on common column.
+    --column specifies the column index to pivot on.
+      Use comma to separate multiple values if the pivot column is different
+      in each file. Maintain the order in the first file.
+    --sep specifies the column separators, default to tab.
+      Use comma to separate multiple values if the column separator is different
+      in each file.
     """
     from jcvi.utils.iter import flatten
 
     p = OptionParser(join.__doc__)
     p.add_option("--column", default="0",
                  help="0-based column id, multiple values allowed [default: %default]")
+    p.add_option("--sep", default="\t",
+                 help="column separator, multiple values allowed [default: %default]")
     p.add_option("--noheader", default=False, action="store_true",
                  help="Do not print header [default: %default]")
     set_outfile(p)
@@ -496,10 +504,18 @@ def join(args):
 
     assert len(cc) == nargs, "Column index number != File number"
 
+    s = opts.sep
+    if "," in s:
+        ss = [x for x in s.split(",")]
+    else:
+        ss = [s] * nargs
+
+    assert len(ss) == nargs, "column separator number != File number"
+
     # Maintain the first file line order, and combine other files into it
     pivotfile = args[0]
-    files = [DictFile(f, keypos=c, valuepos=None, delimiter="\t") \
-                        for f, c in zip(args, cc)]
+    files = [DictFile(f, keypos=c, valuepos=None, delimiter=s) \
+                        for f, c, s in zip(args, cc, ss)]
     otherfiles = files[1:]
     header = "\t".join(flatten([op.basename(x.filename)] * x.ncols \
                         for x in files))
@@ -511,13 +527,89 @@ def join(args):
 
     for row in fp:
         row = row.rstrip()
-        atoms = row.split("\t")
+        atoms = row.split(ss[0])
         newrow = atoms
         key = atoms[cc[0]]
         for d in otherfiles:
             drow = d.get(key, ["na"] * d.ncols)
             newrow += drow
         print >> fw, "\t".join(newrow)
+
+
+def subset(args):
+    """
+    %prog subset file1.txt(pivotfile) file2.txt ..
+
+    subset tabular-like file1 based on common column with file 2.
+    Normally file1 should have unique row entries.
+    If more than one file2 are provided, they must have same column separators.
+    Multiple file2's will be concatenated in the output.
+
+    --column specifies the column index (0-based) to pivot on.
+      Use comma to separate multiple values if the pivot column is different
+      in each file. Maintain the order in the first file.
+    --sep specifies the column separators, default to tab.
+      Use comma to separate multiple values if the column separator is different
+      in each file.
+    """
+
+    p = OptionParser(subset.__doc__)
+    p.add_option("--column", default="0",
+                 help="0-based column id, multiple values allowed [default: %default]")
+    p.add_option("--sep", default="\t",
+                 help="column separator, multiple values allowed [default: %default]")
+    p.add_option("--pivot", default=1, type="int",
+                 help="1 for using order in file1, 2 for using order in \
+                 file2 [default: %default]")
+    set_outfile(p)
+
+    opts, args = p.parse_args(args)
+    nargs = len(args)
+
+    if len(args) < 2:
+        sys.exit(not p.print_help())
+
+    c = opts.column
+    if "," in c:
+        cc = [int(x) for x in c.split(",")]
+        assert len(set(cc[1:])) == 1, \
+        "Multiple file2's must have same column index."
+        cc = cc[0:2]
+    else:
+        cc = [int(c)] * 2
+
+    s = opts.sep
+    if "," in s:
+        ss = [x for x in s.split(",")]
+        assert len(set(cc[1:])) == 1, \
+        "Multiple file2's must have same column separator."
+        ss = ss[0:2]
+    else:
+        ss = [s] * 2
+
+    if nargs>2:
+        file2 = FileMerger(args[1:], "concatenatedFile2").merge()
+    else:
+        file2 = args[1]
+    newargs = [args[0], file2]
+
+    files = [DictFile(f, keypos=c, valuepos=None, delimiter=s) \
+                        for f, c, s in zip(newargs, cc, ss)]
+
+    pivot = 0 if opts.pivot==1 else 1
+    fp = open(newargs[pivot])
+    fw = must_open(opts.outfile, "w")
+
+    for row in fp:
+        row = row.rstrip()
+        atoms = row.split(ss[pivot])
+        key = atoms[cc[pivot]]
+        d = files[1-pivot]
+        if key in d:
+            print >> fw, "\t".join(files[0][key])
+
+    if nargs>2:
+        FileShredder([file2])
 
 
 def setop(args):

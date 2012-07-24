@@ -560,7 +560,7 @@ def subset(args):
                  help="column separator, multiple values allowed [default: %default]")
     p.add_option("--pivot", default=1, type="int",
                  help="1 for using order in file1, 2 for using order in \
-                 file2 [default: %default]")
+                    file2 [default: %default]")
     set_outfile(p)
 
     opts, args = p.parse_args(args)
@@ -573,7 +573,7 @@ def subset(args):
     if "," in c:
         cc = [int(x) for x in c.split(",")]
         assert len(set(cc[1:])) == 1, \
-        "Multiple file2's must have same column index."
+            "Multiple file2's must have same column index."
         cc = cc[0:2]
     else:
         cc = [int(c)] * 2
@@ -582,7 +582,7 @@ def subset(args):
     if "," in s:
         ss = [x for x in s.split(",")]
         assert len(set(cc[1:])) == 1, \
-        "Multiple file2's must have same column separator."
+            "Multiple file2's must have same column separator."
         ss = ss[0:2]
     else:
         ss = [s] * 2
@@ -591,7 +591,7 @@ def subset(args):
         file2 = FileMerger(args[1:], "concatenatedFile2").merge()
     else:
         file2 = args[1]
-    newargs = [args[0], file2]
+    newargs = [args[0], outfile=file2]
 
     files = [DictFile(f, keypos=c, valuepos=None, delimiter=s) \
                         for f, c, s in zip(newargs, cc, ss)]
@@ -606,7 +606,7 @@ def subset(args):
         key = atoms[cc[pivot]]
         d = files[1-pivot]
         if key in d:
-            print >> fw, "\t".join(files[0][key])
+            print >> fw, ss[0].join(files[0][key])
 
     if nargs>2:
         FileShredder([file2])

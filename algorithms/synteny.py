@@ -62,9 +62,16 @@ class AnchorFile (BaseFile):
 
 class BlockFile (BaseFile):
 
-    def __init__(self, filename):
+    def __init__(self, filename, header=False):
         super(BlockFile, self).__init__(filename)
         fp = must_open(filename)
+        hd = fp.next().rstrip().split("\t")
+        ncols = len(hd)
+        if header:
+            self.header = hd
+        else:
+            self.header = range(ncols)
+
         data = []
         highlight = []
         for row in fp:
@@ -72,13 +79,19 @@ class BlockFile (BaseFile):
             if hl:
                 row = row[1:]
             atoms = row.rstrip().split("\t")
+            atoms = [x.strip() for x in atoms]
+            atoms = ["." if x == "" else x for x in atoms]
+            if len(atoms) > ncols:
+                atoms = atoms[:ncols]
+            elif len(atoms) < ncols:
+                atoms = atoms + ["."] * (ncols - len(atoms))
             data.append(atoms)
             highlight.append(hl)
 
         self.data = data
         self.highlight = highlight
         self.columns = zip(*data)
-        self.ncols = len(self.columns)
+        self.ncols = ncols
 
     def get_extent(self, i, order, debug=True):
         col = self.columns[i]
@@ -105,10 +118,23 @@ class BlockFile (BaseFile):
                 continue
 
             a, b = d[i], d[j]
-            if "." in (a, b):
+            if "." in (a, b) or "" in (a, b):
                 continue
 
             yield a, b
+
+    def iter_all_pairs(self):
+        ncols = self.ncols
+        for i in xrange(ncols):
+            for j in xrange(i + 1, ncols):
+                for a, b in self.iter_pairs(i, j):
+                    yield a, b
+
+    def iter_gene_col(self):
+        for hd, col in zip(self.header, self.columns):
+            for g in col:
+                if g not in (".", ""):
+                    yield g, hd
 
 
 def _score(cluster):
@@ -323,10 +349,40 @@ def main():
         ('breakpoint', 'identify breakpoints where collinearity ends'),
         ('matrix', 'make oxford grid based on anchors file'),
         ('coge', 'convert CoGe file to anchors file'),
+        ('rebuild', 'rebuild anchors file from prebuilt blocks file'),
             )
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def rebuild(args):
+    """
+    %prog rebuild blocksfile blastfile
+
+    Rebuild anchors file from pre-built blocks file.
+    """
+    p = OptionParser(rebuild.__doc__)
+    p.add_option("--header", default=False, action="store_true",
+                 help="First line is header [default: %default]")
+    add_beds(p)
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    blocksfile, blastfile = args
+    bk = BlockFile(blocksfile, header=opts.header)
+    fw = open("pairs", "w")
+    for a, b in bk.iter_all_pairs():
+        print >> fw, "\t".join((a, b))
+    fw.close()
+
+    fw = open("tracks", "w")
+    for g, col in bk.iter_gene_col():
+        print >> fw, "\t".join(str(x) for x in (g, col))
+    fw.close()
 
 
 def coge(args):

@@ -38,7 +38,7 @@ class GenBank(dict):
                 self[k.split(".")[0]] = v
 
         elif idfile is not None:
-            gbdir = self.getrecords()
+            gbdir = self._get_records()
             d = dict(SeqIO.to_dict(SeqIO.parse(f, "gb")).items()[0] \
                 for f in glob(gbdir+"/*.gb"))
             for (k, v) in d.iteritems():
@@ -58,7 +58,7 @@ class GenBank(dict):
             recs.append([accession, self.__getitem__(accession)])
         return recs
 
-    def getrecords(self):
+    def _get_records(self):
         gbdir = "gb"
         dirmade = mkdir(gbdir)
         if not dirmade:
@@ -130,7 +130,7 @@ class GenBank(dict):
                     fwcds.write(">{0}\n{1}\n".format(accn, seq))
                     fwpep.write(">{0}\n{1}\n".format(accn, seq.translate()))
 
-    def writegenes(self, output="gbout", individual=False, pep=True):
+    def write_genes(self, output="gbout", individual=False, pep=True):
         if not individual:
             fwbed = must_open(output+".bed", "w")
             fwcds = must_open(output+".cds", "w")
@@ -213,7 +213,8 @@ def getgenes(args):
         idfile=None
 
     GenBank(filenames=filenames, accessions=accessions, idfile=idfile).\
-        writegenes(output=prefix, individual=opts.individual, pep=(not opts.nopep))
+        write_genes(output=prefix, individual=opts.individual, \
+        pep=(not opts.nopep))
 
     if opts.individual:
         logging.debug("Output written dir {}".format(prefix))

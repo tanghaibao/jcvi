@@ -71,7 +71,7 @@ class Layout (LineFile):
 
 class Shade (object):
 
-    def __init__(self, ax, a, b, ymid, highlight=False, ec="k", fc="k",
+    def __init__(self, ax, a, b, ymid, highlight="r", ec="k", fc="k",
                     alpha=.2, lw=1, zorder=1):
         a1, a2 = a
         b1, b2 = b
@@ -95,7 +95,7 @@ class Shade (object):
         codes, verts = zip(*pathdata)
         path = Path(verts, codes)
         if highlight:
-            ec = fc = 'r'
+            ec = fc = highlight
             alpha = .8
 
         ax.add_patch(PathPatch(path, ec=ec, fc=fc, alpha=alpha,
@@ -214,15 +214,15 @@ class Synteny (object):
             ymids.append(r.y)
 
         for i, j in lo.edges:
-            for ga, gb in bf.iter_pairs(i, j):
+            for ga, gb, h in bf.iter_pairs(i, j):
                 a, b = gg[ga], gg[gb]
                 ymid = (ymids[i] + ymids[j]) / 2
                 Shade(root, a, b, ymid, fc="gainsboro", lw=0, alpha=1)
 
-            for ga, gb in bf.iter_pairs(i, j, highlight=True):
+            for ga, gb, h in bf.iter_pairs(i, j, highlight=True):
                 a, b = gg[ga], gg[gb]
                 ymid = (ymids[i] + ymids[j]) / 2
-                Shade(root, a, b, ymid, alpha=1, highlight=True, zorder=2)
+                Shade(root, a, b, ymid, alpha=1, highlight=h, zorder=2)
 
         if tree:
             from jcvi.graphics.tree import draw_tree, read_trees

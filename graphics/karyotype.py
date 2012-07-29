@@ -72,17 +72,17 @@ class Layout (LineFile):
         fp = open(simplefile)
         blocks = []
         for row in fp:
-            highlight = False
-            if row[0] == '*':
-                highlight = True
-                row = row[1:]
+            hl = ("*" in row)
+            if hl:
+                hl, row = row.split("*", 1)
+                hl = hl or "r"
             a, b, c, d, score, orientation = row.split()
             if a not in order:
                 a, b, c, d = c, d, a, b
             if orientation == '-':
                 c, d = d, c
             score = int(score)
-            blocks.append((a, b, c, d, score, orientation, highlight))
+            blocks.append((a, b, c, d, score, orientation, hl))
         return blocks
 
 

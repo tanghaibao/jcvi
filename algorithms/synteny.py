@@ -75,9 +75,11 @@ class BlockFile (BaseFile):
         data = []
         highlight = []
         for row in fp:
-            hl = row[0] == "*"
+            hl = ("*" in row)
+            # r* highlights the block in red color
             if hl:
-                row = row[1:]
+                hl, row = row.split("*", 1)
+                hl = hl or "r"
             atoms = row.rstrip().split("\t")
             atoms = [x.strip() for x in atoms]
             atoms = ["." if x == "" else x for x in atoms]
@@ -121,7 +123,7 @@ class BlockFile (BaseFile):
             if "." in (a, b) or "" in (a, b):
                 continue
 
-            yield a, b
+            yield a, b, h
 
     def iter_all_pairs(self):
         ncols = self.ncols

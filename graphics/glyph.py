@@ -72,10 +72,14 @@ class DoubleCircle (object):
 class TextCircle (object):
     """Circle with a character wrapped in
     """
-    def __init__(self, ax, x, y, label, radius=.02, fc="k", color="w", size=12):
-        circle = CirclePolygon((x, y), radius, resolution=20, fc=fc, ec=fc)
+    def __init__(self, ax, x, y, label, radius=.02, fc="k", color="w",
+                size=12, zorder=4):
+
+        circle = CirclePolygon((x, y), radius, resolution=20, \
+                                fc=fc, ec=fc, zorder=zorder)
         ax.add_patch(circle)
-        ax.text(x, y, label, ha="center", va="center", color=color, size=size)
+        ax.text(x, y, label, ha="center", va="center", color=color,
+                size=size, zorder=zorder + 1)
 
 
 class BaseGlyph (list):

@@ -87,6 +87,8 @@ def cotton(args):
     from jcvi.graphics.tree import draw_tree, read_trees
 
     p = OptionParser(cotton.__doc__)
+    p.add_option("--depthfile",
+                 help="Use depth info in this file [default: %default]")
     p.add_option("--tree",
                  help="Display trees on the bottom of the figure [default: %default]")
     p.add_option("--switch",
@@ -99,12 +101,46 @@ def cotton(args):
     seqidsfile, klayout, datafile, bedfile, slayout = args
     switch = opts.switch
     tree = opts.tree
+    depthfile = opts.depthfile
 
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
 
-    Karyotype(fig, root, seqidsfile, klayout)
-    Synteny(fig, root, datafile, bedfile, slayout, switch=switch)
+    kt = Karyotype(fig, root, seqidsfile, klayout)
+    st = Synteny(fig, root, datafile, bedfile, slayout, switch=switch)
+
+    # Show the dup depth along the cotton chromosomes
+    if depthfile:
+        ymin, ymax = .9, .95
+        root.text(.11, .96, "Cotton duplication level", color="gray", size=10)
+        root.plot([.1, .95], [ymin, ymin], color="gray")
+        root.text(.96, .9, "1x", color="gray", va="center")
+        root.plot([.1, .95], [ymax, ymax], color="gray")
+        root.text(.96, .95, "6x", color="gray", va="center")
+
+        fp = open(depthfile)
+        track = kt.tracks[0]  # Cotton
+        depths = []
+        for row in fp:
+            a, b, depth = row.split()
+            depth = int(depth)
+            try:
+                p = track.get_coords(a)
+                depths.append((p, depth))
+            except KeyError:
+                pass
+
+        depths.sort(key=lambda x: (x[0], -x[1]))
+        xx, yy = zip(*depths)
+        yy = [ymin + .01 * (x - 1) for x in yy]
+        root.plot(xx, yy, "-", color="lightslategrey")
+
+    # legend showing the orientation of the genes
+    ytop = .125
+    root.plot([.5, .54], [ytop, ytop], "b:", lw=2)
+    root.plot([.54], [ytop], "b>", mec="g")
+    root.plot([.68,.72], [ytop, ytop], "g:", lw=2)
+    root.plot([.68], [ytop], "g<", mec="g")
 
     if tree:
         panel3 = fig.add_axes([.65, .05, .35, .35])

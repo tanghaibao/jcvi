@@ -71,7 +71,7 @@ class Layout (LineFile):
 
 class Shade (object):
 
-    def __init__(self, ax, a, b, ymid, highlight="r", ec="k", fc="k",
+    def __init__(self, ax, a, b, ymid, highlight=False, ec="k", fc="k",
                     alpha=.2, lw=1, zorder=1):
         a1, a2 = a
         b1, b2 = b
@@ -96,7 +96,6 @@ class Shade (object):
         path = Path(verts, codes)
         if highlight:
             ec = fc = highlight
-            alpha = .8
 
         ax.add_patch(PathPatch(path, ec=ec, fc=fc, alpha=alpha,
                      lw=lw, zorder=zorder))

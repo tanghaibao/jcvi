@@ -144,7 +144,7 @@ class Track (object):
             if nseqids > 40 and (i + 1) % 5 != 0:
                 continue
 
-            pad = .015
+            pad = .02
             if va == "bottom":
                 pad = - pad
             TextCircle(ax, xx, y + pad, _(si), radius=.01,
@@ -181,7 +181,7 @@ class ShadeManager (object):
             q = btrack.get_coords(c), btrack.get_coords(d)
             ymid = (atrack.y + btrack.y) / 2
             if atrack.y == btrack.y:
-                ymid = atrack.y - .06
+                ymid = atrack.y - .09
 
             zorder = 2 if highlight else 1
             Shade(ax, p, q, ymid, highlight=highlight, alpha=1, fc="gainsboro",
@@ -316,6 +316,8 @@ class Karyotype (object):
 
         for tr in tracks:
             tr.draw()  # this time for real
+
+        self.tracks = tracks
 
 
 def main():

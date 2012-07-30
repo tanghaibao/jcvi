@@ -800,6 +800,16 @@ def group(args):
         print ",".join(sorted(g))
 
 
+def write_details(fw, details, bed):
+    """
+    Write per gene depth to file
+    """
+    for a, b, depth in details:
+        for i in xrange(a, b):
+            gi = bed[i].accn
+            print >> fw, "\t".join((gi, str(depth)))
+
+
 def depth(args):
     """
     %prog depth anchorfile --qbed qbedfile --sbed sbedfile
@@ -811,6 +821,8 @@ def depth(args):
     from jcvi.utils.range import range_depth
 
     p = OptionParser(depth.__doc__)
+    p.add_option("--depthfile",
+                 help="Generate file with gene and depth [default: %default]")
     add_beds(p)
 
     opts, args = p.parse_args(args)
@@ -820,6 +832,7 @@ def depth(args):
         sys.exit(not p.print_help())
 
     anchorfile, = args
+    depthfile = opts.depthfile
     ac = AnchorFile(anchorfile)
     qranges = []
     sranges = []
@@ -837,13 +850,22 @@ def depth(args):
 
     qgenome = qbed.filename.split(".")[0]
     sgenome = sbed.filename.split(".")[0]
+    depthdetails = []
     print >> sys.stderr, "Genome {0} depths:".format(qgenome)
-    range_depth(qranges, len(qbed))
+    ds, details = range_depth(qranges, len(qbed))
+    if depthfile:
+        fw = open(depthfile, "w")
+        write_details(fw, details, qbed)
+
     if is_self:
         return
 
     print >> sys.stderr, "Genome {0} depths:".format(sgenome)
-    range_depth(sranges, len(sbed))
+    ds, details = range_depth(sranges, len(sbed))
+    if depthfile:
+        write_details(fw, details, sbed)
+        fw.close()
+        logging.debug("Depth written to `{0}`.".format(depthfile))
 
 
 def get_blocks(scaffold, bs, order, xdist=20, ydist=20, N=6):

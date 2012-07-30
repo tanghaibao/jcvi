@@ -12,7 +12,8 @@ from optparse import OptionParser
 
 from jcvi.graphics.base import plt, _, Rectangle, Polygon, CirclePolygon, \
         set_image_options
-from jcvi.graphics.glyph import GeneGlyph, RoundLabel, arrowprops, TextCircle
+from jcvi.graphics.glyph import GeneGlyph, RoundLabel, RoundRect, \
+        arrowprops, TextCircle
 from jcvi.graphics.chromosome import Chromosome
 from jcvi.utils.iter import pairwise
 from jcvi.apps.base import ActionDispatcher, fname, debug
@@ -109,6 +110,7 @@ def cotton(args):
     kt = Karyotype(fig, root, seqidsfile, klayout)
     st = Synteny(fig, root, datafile, bedfile, slayout, switch=switch)
 
+    light = "lightslategrey"
     # Show the dup depth along the cotton chromosomes
     if depthfile:
         ymin, ymax = .9, .95
@@ -133,14 +135,21 @@ def cotton(args):
         depths.sort(key=lambda x: (x[0], -x[1]))
         xx, yy = zip(*depths)
         yy = [ymin + .01 * (x - 1) for x in yy]
-        root.plot(xx, yy, "-", color="lightslategrey")
+        root.plot(xx, yy, "-", color=light)
 
     # legend showing the orientation of the genes
-    ytop = .125
+    ytop = .45
     root.plot([.5, .54], [ytop, ytop], "b:", lw=2)
     root.plot([.54], [ytop], "b>", mec="g")
     root.plot([.68,.72], [ytop, ytop], "g:", lw=2)
     root.plot([.68], [ytop], "g<", mec="g")
+
+    # Zoom
+    xpos = .84
+    ymin, ymax = .48, .52
+    root.plot((xpos, xpos), (ymin, ymax), "-o", lw=3, color=light,
+              mec=light, mfc="w")
+    RoundRect(root, (.06, .07), .92, .41, fill=False, lw=2, ec=light)
 
     if tree:
         panel3 = fig.add_axes([.65, .05, .35, .35])
@@ -281,7 +290,7 @@ def excision(args):
 
     arrow_dist = .07
     ar_xpos, ar_ypos = .5, .52
-    root.annotate(" ", (ar_xpos, ar_ypos),
+    root.annotate("local max", (ar_xpos, ar_ypos),
             (ar_xpos, ar_ypos + arrow_dist),
             arrowprops=arrowprops)
 

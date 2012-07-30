@@ -154,11 +154,12 @@ class Region (object):
 
         ha, va = layout.ha, layout.va
 
+        hpad = .02
         if ha == "left":
-            xx = xstart
+            xx = xstart - hpad
             ha = "right"
         elif ha == "right":
-            xx = xend
+            xx = xend + hpad
             ha = "left"
         else:
             xx = x

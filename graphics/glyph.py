@@ -58,15 +58,48 @@ class RoundLabel (object):
             bbox=dict(boxstyle="round", fill=fill, fc=fc, lw=lw), **kwargs)
 
 
+class RoundRect (object):
+    """Round rectangle directly
+    """
+    def __init__(self, ax, xy, width, height, shrink=.1, label=None, **kwargs):
+        shrink *= height
+        x, y= xy
+        pts = []
+        # plot the four rounded cap one by one
+        pts += self.plot_cap((x + width - shrink, y + height - shrink),
+                             [np.radians(j) for j in range(0, 90)], shrink)
+        pts += [[x + width - shrink, y + height], [x + shrink, y + height]]
+        pts += self.plot_cap((x + shrink, y + height - shrink),
+                             [np.radians(j) for j in range(90, 180)], shrink)
+        pts += [[x, y + height - shrink], [x, y + shrink]]
+        pts += self.plot_cap((x + shrink, y + shrink),
+                             [np.radians(j) for j in range(180, 270)], shrink)
+        pts += [[x + shrink, y], [x + width - shrink, y]]
+        pts += self.plot_cap((x + width - shrink, y + shrink),
+                             [np.radians(j) for j in range(270, 360)], shrink)
+        pts += [[x + width, y + shrink], [x + width, y + height - shrink]]
+        p1 = Polygon(pts, **kwargs)
+        ax.add_patch(p1)
+        # add a white transparency ellipse filter
+        if label:
+            root.text(x + width / 2,y + height / 2,label, size=10,
+                      ha="center", va="center", color="w")
+
+    def plot_cap(self, center, t, r):
+        x, y = center
+        t = np.array(t)
+        return zip(x + r * np.cos(t), y + r * np.sin(t))
+
+
 class DoubleCircle (object):
     """Circle with a double-line margin
     """
     def __init__(self, ax, x, y, radius=.01, **kwargs):
 
-      ax.add_patch(CirclePolygon((x, y), radius * 1.4,
-          resolution=50, fc="w", ec="k"))
-      ax.add_patch(CirclePolygon((x, y), radius,
-          resolution=50, **kwargs))
+        ax.add_patch(CirclePolygon((x, y), radius * 1.4,
+                     resolution=50, fc="w", ec="k"))
+        ax.add_patch(CirclePolygon((x, y), radius,
+                     resolution=50, **kwargs))
 
 
 class TextCircle (object):

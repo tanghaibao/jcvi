@@ -9,10 +9,59 @@ import sys
 import logging
 
 from optparse import OptionParser
+from collections import defaultdict
 
-from jcvi.formats.base import read_block
+from jcvi.formats.base import LineFile, read_block
 from jcvi.apps.base import ActionDispatcher, set_grid, debug, sh
 debug()
+
+
+class ClstrLine (object):
+    """
+    Lines like these:
+    0       12067nt, >LAP012517... at -/99.85%
+    1       15532nt, >MOL158919... *
+    2       15515nt, >SES069071... at +/99.85%
+    """
+    def __init__(self, row):
+        a, b = row.split('>', 1)
+        a = a.split("nt")[0]
+        sid, size = a.split()
+        self.size = int(size)
+        self.name = b.split("...")[0]
+        self.rep = (row.rstrip()[-1] == '*')
+
+
+class ClstrFile (LineFile):
+
+    def __init__(self, filename):
+        super(ClstrFile, self).__init__(filename)
+        assert filename.endswith(".clstr")
+
+        fp = open(filename)
+        for clstr, members in read_block(fp, ">"):
+            self.append([ClstrLine(x) for x in members])
+
+    def iter_sizes(self):
+        for members in self:
+            yield len(members)
+
+    def iter_reps(self):
+        for i, members in enumerate(self):
+            for b in members:
+                if b.rep:
+                    yield i, b.name
+
+    def iter_reps_prefix(self, prefix=3):
+        for i, members in enumerate(self):
+            d = defaultdict(list)
+            for b in members:
+                pp = b.name[:prefix]
+                d[pp].append(b)
+
+            for pp, members_with_same_pp in sorted(d.items()):
+                yield i, max(members_with_same_pp, \
+                             key=lambda x: x.size).name
 
 
 def main():
@@ -33,25 +82,26 @@ def ids(args):
     Get the representative ids from clstr file.
     """
     p = OptionParser(ids.__doc__)
+    p.add_option("--prefix", type="int",
+                 help="Find rep id for prefix of len [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     clstrfile, = args
-    assert clstrfile.endswith(".clstr")
+    cf = ClstrFile(clstrfile)
+    prefix = opts.prefix
+    if prefix:
+        reads = list(cf.iter_reps_prefix(prefix=prefix))
+    else:
+        reads = list(cf.iter_reps())
 
+    nreads = len(reads)
     idsfile = clstrfile.replace(".clstr", ".ids")
-    fp = open(clstrfile)
     fw = open(idsfile, "w")
-    nreads = 0
-    for row in fp:
-        if row[0] == '>':
-            continue
-        name = row.split('>', 1)[1].split("...")[0]
-        if row.rstrip()[-1] == '*':
-            print >> fw, name
-            nreads += 1
+    for i, name in reads:
+        print >> fw, "\t".join(str(x) for x in (i, name))
 
     logging.debug("A total of {0} unique reads written to `{1}`.".\
             format(nreads, idsfile))
@@ -72,14 +122,8 @@ def summary(args):
         sys.exit(not p.print_help())
 
     clstrfile, = args
-    assert clstrfile.endswith(".clstr")
-
-    fp = open(clstrfile)
-    data = []
-    for clstr, members in read_block(fp, ">"):
-        size = len(members)
-        data.append(size)
-
+    cf = ClstrFile(clstrfile)
+    data = list(cf.iter_sizes())
     loghistogram(data)
 
 

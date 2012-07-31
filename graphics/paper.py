@@ -138,18 +138,26 @@ def cotton(args):
         root.plot(xx, yy, "-", color=light)
 
     # legend showing the orientation of the genes
-    ytop = .45
+    ytop = .5
     root.plot([.5, .54], [ytop, ytop], "b:", lw=2)
     root.plot([.54], [ytop], "b>", mec="g")
     root.plot([.68,.72], [ytop, ytop], "g:", lw=2)
     root.plot([.68], [ytop], "g<", mec="g")
 
     # Zoom
-    xpos = .84
-    ymin, ymax = .48, .52
-    root.plot((xpos, xpos), (ymin, ymax), "-o", lw=3, color=light,
-              mec=light, mfc="w")
-    RoundRect(root, (.06, .07), .92, .41, fill=False, lw=2, ec=light)
+    xpos = .835
+    xmin, xmax = .18, .82
+    ymin, ymax = ytop, .55
+    lc = "k"
+    kwargs = dict(lw=3, color=lc, mec=lc, mfc="w", zorder=3)
+    root.plot((xpos, xpos), (ymax, .63), ":o", **kwargs)
+    root.plot((xpos, xmin), (ymax, ymin), ":o", **kwargs)
+    root.plot((xpos, xmax), (ymax, ymin), ":o", **kwargs)
+    RoundRect(root, (.06, .17), .92, .35, fill=False, lw=2, ec=light)
+
+    # Panels
+    root.text(.05, .95, "a", size=20, fontweight="bold")
+    root.text(.1, .45, "b", size=20, fontweight="bold")
 
     if tree:
         panel3 = fig.add_axes([.65, .05, .35, .35])
@@ -290,7 +298,7 @@ def excision(args):
 
     arrow_dist = .07
     ar_xpos, ar_ypos = .5, .52
-    root.annotate("local max", (ar_xpos, ar_ypos),
+    root.annotate(" ", (ar_xpos, ar_ypos),
             (ar_xpos, ar_ypos + arrow_dist),
             arrowprops=arrowprops)
 

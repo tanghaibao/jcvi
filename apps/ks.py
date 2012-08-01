@@ -363,6 +363,9 @@ def calc(args):
     from jcvi.formats.fasta import translate
 
     p = OptionParser(calc.__doc__)
+    p.add_option("--longest", action="store_true",
+                 help="Get longest ORF, only works if no pep file, "\
+                      "e.g. ESTs [default: %default]")
     set_outfile(p)
 
     opts, args = p.parse_args(args)
@@ -382,7 +385,10 @@ def calc(args):
 
     if not protein_file:
         protein_file = dna_file + ".pep"
-        translate([dna_file, "--outfile=" + protein_file])
+        translate_args = [dna_file, "--outfile=" + protein_file]
+        if opts.longest:
+            translate_args += ["--longest"]
+        translate(translate_args)
 
     prot_iterator = SeqIO.parse(open(protein_file), "fasta")
     dna_iterator = SeqIO.parse(open(dna_file), "fasta")

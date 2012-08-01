@@ -27,7 +27,7 @@ from jcvi.utils.range import range_minmax
 from jcvi.utils.table import tabulate
 from jcvi.apps.softlink import get_abs_path
 from jcvi.apps.command import CAPATH
-from jcvi.apps.base import ActionDispatcher, sh, set_grid, debug
+from jcvi.apps.base import ActionDispatcher, sh, set_grid, need_update, debug
 debug()
 
 
@@ -40,6 +40,7 @@ def main():
         ('sff', 'convert 454 reads to frg file'),
         ('fastq', 'convert Illumina reads to frg file'),
         ('shred', 'shred contigs into pseudo-reads'),
+        ('astat', 'generate the coverage-rho scatter plot'),
         ('script', 'create gatekeeper script file to remove or add mates'),
             )
     p = ActionDispatcher(actions)
@@ -88,6 +89,87 @@ doRemoveChimericReads=0
 }}'''
 
 DEFAULTQV = chr(ord('0') + 13)  # To pass initialTrim
+
+
+def astat(args):
+    """
+    %prog astat coverage.log
+
+    Create coverage-rho scatter plot.
+    """
+    p = OptionParser(astat.__doc__)
+    p.add_option("--cutoff", default=1000, type="int",
+                 help="Length cutoff [default: %default]")
+    p.add_option("--genome", default="",
+                 help="Genome name [default: %default]")
+    p.add_option("--arrDist", default=False, action="store_true",
+                 help="Use arrDist instead [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    covfile, = args
+    cutoff = opts.cutoff
+    genome = opts.genome
+    plot_arrDist = opts.arrDist
+
+    suffix = ".{0}".format(cutoff)
+    small_covfile = covfile + suffix
+    update_covfile = need_update(covfile, small_covfile)
+    if update_covfile:
+        fw = open(small_covfile, "w")
+    else:
+        logging.debug("Found `{0}`, will use this one".format(small_covfile))
+        covfile = small_covfile
+
+    fp = open(covfile)
+    header = fp.next()
+    if update_covfile:
+        fw.write(header)
+
+    data = []
+    msg = "{0} tigs scanned ..."
+    for row in fp:
+        tigID, rho, covStat, arrDist = row.split()
+        tigID = int(tigID)
+        if tigID % 1000000 == 0:
+            sys.stderr.write(msg.format(tigID) + "\r")
+
+        rho, covStat, arrDist = [float(x) for x in (rho, covStat, arrDist)]
+        if rho < cutoff:
+            continue
+
+        if update_covfile:
+            fw.write(row)
+        data.append((tigID, rho, covStat, arrDist))
+
+    print >> sys.stderr, msg.format(tigID)
+
+    from jcvi.graphics.base import plt
+
+    logging.debug("Plotting {0} data points.".format(len(data)))
+    tigID, rho, covStat, arrDist = zip(*data)
+
+    y = arrDist if plot_arrDist else covStat
+    ytag = "arrDist" if plot_arrDist else "covStat"
+
+    fig = plt.figure(1, (7, 7))
+    ax = fig.add_axes([.12, .1, .8, .8])
+    ax.plot(rho, y, ".", color="lightslategrey")
+
+    xtag = "rho"
+    info = (genome, xtag, ytag)
+    title = "{0} {1} vs. {2}".format(*info)
+    ax.set_title(title)
+    ax.set_xlabel(xtag)
+    ax.set_ylabel(ytag)
+
+    if plot_arrDist:
+        ax.set_yscale('log')
+
+    imagename = "{0}.png".format(".".join(info))
+    plt.savefig(imagename, dpi=150)
 
 
 def emitFragment(fw, fragID, libID, shredded_seq, fasta=False):

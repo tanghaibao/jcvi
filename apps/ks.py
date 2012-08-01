@@ -115,20 +115,25 @@ class KsPlot (object):
         self.lines = []
         self.labels = []
 
-    def add_data(self, data, components=1, label="Ks", color='r'):
+    def add_data(self, data, components=1, label="Ks", color='r', fitted=True):
 
         ax = self.ax
         ks_max = self.ks_max
         interval = self.interval
 
         line, line_mixture = plot_ks_dist(ax, data, interval, components,
-                                          ks_max, color=color)
-        self.lines += [line, line_mixture]
-        self.labels += [label, label + " (fitted)"]
+                                          ks_max, color=color, fitted=fitted)
+        self.lines.append(line)
+        self.labels.append(label)
+
+        if fitted:
+            self.lines.append(line_mixture)
+            self.labels.append(label + " (fitted)")
 
     def draw(self):
 
-        from jcvi.graphics.base import plt, _, tex_formatter, tex_1digit_formatter
+        from jcvi.graphics.base import plt, _, tex_formatter, \
+                    tex_1digit_formatter, tex_2digit_formatter
 
         ax = self.ax
         ks_max = self.ks_max
@@ -144,7 +149,9 @@ class KsPlot (object):
         ax.set_xlabel(_('Synonymous substitutions per site (Ks)'))
         ax.set_ylabel(_('Percentage of gene pairs'))
 
-        ax.xaxis.set_major_formatter(tex_1digit_formatter)
+        tf = tex_2digit_formatter if self.interval < .1 else \
+             tex_1digit_formatter
+        ax.xaxis.set_major_formatter(tf)
         ax.yaxis.set_major_formatter(tex_formatter)
 
         image_name = "Ks_plot.pdf"
@@ -163,6 +170,8 @@ def multireport(args):
     from jcvi.graphics.base import plt
 
     p = OptionParser(multireport.__doc__)
+    p.add_option("--nofit", default=False, action="store_true",
+                 help="Do not plot fitted lines [default: %default]")
     add_plot_options(p)
     opts, args = p.parse_args(args)
 
@@ -173,6 +182,7 @@ def multireport(args):
     ks_min = opts.vmin
     ks_max = opts.vmax
     bins = opts.bins
+    fitted = not opts.nofit
     layout = Layout(layoutfile)
 
     fig = plt.figure(1, (5, 5))
@@ -182,7 +192,8 @@ def multireport(args):
         header, data = read_ks_file(lo.ksfile)
         data = [x.ng_ks for x in data]
         data = [x for x in data if ks_min <= x <= ks_max]
-        kp.add_data(data, lo.components, label=lo.label, color=lo.color)
+        kp.add_data(data, lo.components, label=lo.label, \
+                    color=lo.color, fitted=fitted)
 
     kp.draw()
 
@@ -623,7 +634,7 @@ def get_mixture(data, components):
     return probs, mus, sigmas
 
 
-def plot_ks_dist(ax, data, interval, components, ks_max, color='r'):
+def plot_ks_dist(ax, data, interval, components, ks_max, color='r', fitted=True):
     from jcvi.graphics.base import _
 
     line, = my_hist(ax, data, interval, ks_max, color=color)
@@ -635,12 +646,16 @@ def plot_ks_dist(ax, data, interval, components, ks_max, color='r'):
     bins = np.arange(iv, ks_max, iv)
     y = lognormpdf_mix(bins, probs, mus, variances, interval)
 
-    line_mixture, = ax.plot(bins, y, ':', color=color, lw=3)
-    for i in xrange(components):
-        peak_val = exp(mus[i])
-        mixline = lognormpdf_mix(peak_val, probs, mus, variances, interval)
-        ax.text(peak_val, mixline, _("Ks=%.2f" % peak_val), \
-                color="w", size=10, bbox=dict(ec='w',fc=color, alpha=.6, boxstyle='round'))
+    line_mixture = None
+    if fitted:
+        line_mixture, = ax.plot(bins, y, ':', color=color, lw=3)
+
+        for i in xrange(components):
+            peak_val = exp(mus[i])
+            mixline = lognormpdf_mix(peak_val, probs, mus, variances, interval)
+            ax.text(peak_val, mixline, _("Ks=%.2f" % peak_val), \
+                    color="w", size=10, bbox=dict(ec='w',fc=color, \
+                    alpha=.6, boxstyle='round'))
 
     return line, line_mixture
 

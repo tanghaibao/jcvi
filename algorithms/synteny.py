@@ -166,6 +166,8 @@ def read_blast(blast_file, qorder, sorder, is_self=False, ostrip=True):
     for row in fp:
         b = BlastLine(row)
         query, subject = b.query, b.subject
+        if query==subject:
+            continue
         if ostrip:
             query, subject = gene_name(query), gene_name(subject)
         if query not in qorder or subject not in sorder:

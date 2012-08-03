@@ -248,6 +248,7 @@ def main():
         ('distance', 'calculate distance between bed features'),
         ('sample', 'sample bed file and remove high-coverage regions'),
         ('refine', 'refine bed file using a second bed file'),
+        ('flanking', 'get n flanking features for a given position'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -982,6 +983,63 @@ def mates(args):
     fwm.close()
 
     return matesfile, matesbedfile
+
+
+def flanking(args):
+    """
+    %prog flanking bedfile [options]
+
+    Get up to n features (upstream or downstream or both) flanking a given position.
+    """
+    from numpy import array, argsort
+
+    p = OptionParser(flanking.__doc__)
+    p.add_option("--chrom", default=None, type="string",
+            help="chrom name of the position in query. Make sure it matches bedfile.")
+    p.add_option("--coord", default=None, type="int",
+            help="coordinate of the position in query.")
+    p.add_option("-n", default=10, type="int",
+            help="number of flanking features to get [default: %default]")
+    p.add_option("--side", default="both", choices=("upstream", "downstream", "both"),
+            help="which side to get flanking features [default: %default]")
+    p.add_option("--max_d", default=None, type="int",
+            help="features <= max_d away from position [default: %default]")
+    set_outfile(p)
+
+    opts, args = p.parse_args(args)
+
+    if any([len(args) != 1, opts.chrom is None, opts.coord is None]):
+        sys.exit(not p.print_help())
+
+    bedfile, = args
+    position = (opts.chrom, opts.coord)
+    n, side, maxd = opts.n, opts.side, opts.max_d
+
+    chrombed = Bed(bedfile).sub_bed(position[0])
+
+    if side == "upstream":
+        data = [(abs(f.start-position[1]), f) for f in chrombed \
+            if f.start <= position[1]]
+    elif side == "downstream":
+        data = [(abs(f.start-position[1]), f) for f in chrombed \
+            if f.start >= position[1]]
+    else:
+        data = [(abs(f.start-position[1]), f) for f in chrombed]
+
+    if maxd:
+        data = [f for f in data if f[0]<=maxd]
+
+    n = min(n, len(data))
+    distances, subbed = zip(*data)
+    distances = array(distances)
+    idx = argsort(distances)[:n]
+    flankingbed = [f for (i, f) in enumerate(subbed) if i in idx]
+
+    fw = must_open(opts.outfile, "w")
+    for atom in flankingbed:
+        print >>fw, str(atom)
+
+    return (position, flankingbed)
 
 
 if __name__ == '__main__':

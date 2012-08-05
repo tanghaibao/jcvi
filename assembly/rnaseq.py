@@ -16,13 +16,13 @@ debug()
 def main():
 
     actions = (
-        ('rnaseq', 'evaluate completeness, contiguity, and chimer of RNAseq'),
+        ('qc', 'evaluate completeness, contiguity, and chimer of RNAseq'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
 
-def rnaseq(args):
+def qc(args):
     """
     %prog rnaseq blastfile ref.fasta
 
@@ -37,7 +37,7 @@ def rnaseq(args):
     """
     from jcvi.algorithms.supermap import supermap
 
-    p = OptionParser(rnaseq.__doc__)
+    p = OptionParser(qc.__doc__)
 
     opts, args = p.parse_args(args)
 

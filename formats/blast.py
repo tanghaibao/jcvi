@@ -237,6 +237,7 @@ def main():
         ('best', 'get best BLAST hit per query'),
         ('pairs', 'print paired-end reads of BLAST tabular file'),
         ('bed', 'get bed file from BLAST tabular file'),
+        ('condense', 'group HSPs together for same query-subject pair'),
         ('chain', 'chain adjacent HSPs together'),
         ('swap', 'swap query and subjects in BLAST tabular file'),
         ('sort', 'sort lines so that query grouped together and scores desc'),
@@ -281,23 +282,32 @@ def annotation(args):
 
 def completeness(args):
     """
-    %prog completeness blastfile query.fasta > outfile
+    %prog completeness blastfile ref.fasta > outfile
 
-    Print statistics for each gene, the coverage of the alignment onto the best hit
-    in AllGroup.niaa, as an indicator for completeness of the gene model.
+    Print statistics for each gene, the coverage of the alignment onto the best hit,
+    as an indicator for completeness of the gene model. For example, one might
+    BLAST sugarcane ESTs against sorghum annotations as reference, to find
+    full-length transcripts.
     """
     from jcvi.utils.range import range_minmax
+    from jcvi.utils.cbook import SummaryStats
 
     p = OptionParser(completeness.__doc__)
+    p.add_option("--ids",
+                 help="Save ids that are over 50% complete [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
         sys.exit(not p.print_help())
 
     blastfile, fastafile = args
+    idsfile = opts.ids
     f = Sizes(fastafile).mapping
 
     b = BlastSlow(blastfile)
+    valid = []
+    data = []
+    cutoff = 50
     for query, blines in groupby(b, key=lambda x: x.query):
         blines = list(blines)
         ranges = [(x.sstart, x.sstop) for x in blines]
@@ -308,9 +318,29 @@ def completeness(args):
         subject_len = f[subject]
 
         nterminal_dist = rmin - 1
-        cterminal_dist = subject_len - rmax + 1
-        print "\t".join(str(x) for x in (b.query, b.subject,
-            nterminal_dist, cterminal_dist))
+        cterminal_dist = subject_len - rmax
+        covered = (rmax - rmin + 1) * 100 / subject_len
+        if covered > cutoff:
+            valid.append(query)
+
+        data.append((nterminal_dist, cterminal_dist, covered))
+        print "\t".join(str(x) for x in (query, subject,
+            nterminal_dist, cterminal_dist, covered))
+
+    nd, cd, cv = zip(*data)
+    m = "Total: {0}, Coverage > {1}%: {2}\n".\
+           format(len(data), cutoff, len(valid))
+    m += "N-terminal: {0}\n".format(SummaryStats(nd))
+    m += "C-terminal: {0}\n".format(SummaryStats(cd))
+    m += "Coverage: {0}".format(SummaryStats(cv))
+    print >> sys.stderr, m
+
+    if idsfile:
+        fw = open(idsfile, "w")
+        print >> fw, "\n".join(valid)
+        logging.debug("A total of {0} ids (cov > {1} %) written to `{2}`.".\
+                      format(len(valid), cutoff, idsfile))
+        fw.close()
 
 
 def annotate(args):
@@ -501,16 +531,16 @@ def combine_HSPs(a):
     return m
 
 
-def chain_HSPs(blastlines, xdist=100, ydist=100):
+def chain_HSPs(blast, xdist=100, ydist=100):
     """
     Take a list of BlastLines (or a BlastSlow instance), and returns a list of
     BlastLines.
     """
     key = lambda x: (x.query, x.subject)
-    blastlines.sort(key=key)
+    blast.sort(key=key)
 
     clusters = Grouper()
-    for qs, points in groupby(blastlines, key=key):
+    for qs, points in groupby(blast, key=key):
         points = sorted(list(points), \
                 key=lambda x: (x.qstart, x.qstop, x.sstart, x.sstop))
 
@@ -534,12 +564,7 @@ def chain_HSPs(blastlines, xdist=100, ydist=100):
                 # otherwise join
                 clusters.join(a, b)
 
-    chained_hsps = []
-    for c in clusters:
-        chained_hsps.append(combine_HSPs(c))
-    chained_hsps = sorted(chained_hsps, key=lambda x: -x.score)
-
-    return chained_hsps
+    return clusters
 
 
 def chain(args):
@@ -564,7 +589,45 @@ def chain(args):
     assert dist > 0
 
     blast = BlastSlow(blastfile)
-    chained_hsps = chain_HSPs(blast, xdist=dist, ydist=dist)
+    clusters = chain_HSPs(blast, xdist=dist, ydist=dist)
+
+    chained_hsps = [combine_HSPs(x) for x in clusters]
+    chained_hsps = sorted(chained_hsps, key=lambda x: (x.query, -x.score))
+    for b in chained_hsps:
+        print b
+
+
+def condense(args):
+    """
+    %prog condense blastfile > blastfile.condensed
+
+    Condense HSPs that belong to the same query-subject pair into one.
+    """
+    p = OptionParser(condense.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    blastfile, = args
+    blast = BlastSlow(blastfile)
+    key = lambda x: x.query
+    blast.sort(key=key)
+
+    clusters = []
+    for q, lines in groupby(blast, key=key):
+        lines = list(lines)
+        condenser = defaultdict(list)
+        condensed_hsps = []
+
+        for b in lines:
+            condenser[(b.subject, b.orientation)].append(b)
+
+        for bs in condenser.values():
+            clusters.append(bs)
+
+    chained_hsps = [combine_HSPs(x) for x in clusters]
+    chained_hsps = sorted(chained_hsps, key=lambda x: (x.query, -x.score))
     for b in chained_hsps:
         print b
 

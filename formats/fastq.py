@@ -85,7 +85,6 @@ def main():
         ('shuffle', 'shuffle paired reads into the same file interleaved'),
         ('split', 'split paired reads into two files'),
         ('splitread', 'split appended reads (from JGI)'),
-        ('pair', 'pair up two fastq files and combine pairs'),
         ('unpair', 'unpair pairs.fastq files into 1.fastq and 2.fastq'),
         ('pairinplace', 'collect pairs by checking adjacent ids'),
         ('convert', 'convert between illumina and sanger offset'),
@@ -686,90 +685,6 @@ def pairinplace(args):
         print >> fragsfw, a
 
     logging.debug("Reads paired into `%s` and `%s`" % (pairs, frags))
-
-
-def pair(args):
-    """
-    %prog pair 1.fastq 2.fastq ref.fastq
-
-    Pair up the records in 1.fastq and 2.fastq, pairs are indicated by trailing
-    "/1" and "/2". If using raw sequences, this is trivial, since we can just
-    iterate one at a time for both files; however if two files do not match,
-    (e.g. due to trimming), we need a third fastq that provides the order. Two
-    output files will be automatically written, one `frags.fastq` and
-    `pairs.fastq`
-    """
-    p = OptionParser(pair.__doc__)
-    p.add_option("-Q", dest="infastq", default="sanger",
-            help="input fastq [default: %default]")
-    p.add_option("-q", dest="outfastq", default="sanger",
-            help="output fastq format [default: %default]")
-    p.add_option("-o", dest="outputdir", default=None,
-            help="deposit output files into specified directory")
-    opts, args = p.parse_args(args)
-
-    if len(args) != 3:
-        sys.exit(not p.print_help())
-
-    afastq, bfastq, ref = args
-
-    assert op.exists(afastq) and op.exists(bfastq)
-    logging.debug("pair up `%s` and `%s`" % (afastq, bfastq))
-
-    base = op.basename(afastq).split(".")[0]
-    frags = base + ".frags.fastq"
-    pairs = base + ".pairs.fastq"
-
-    outputdir = opts.outputdir
-    if outputdir:
-        frags = op.join(outputdir, frags)
-        pairs = op.join(outputdir, pairs)
-
-    logging.debug("output files are `%s` and `%s`" % (frags, pairs))
-
-    in_offset = qual_offset(opts.infastq)
-    out_offset = qual_offset(opts.outfastq)
-    offset = out_offset - in_offset
-    ref = opts.ref
-
-    strip_name = lambda x: x[:-1]
-
-    ah_iter = iter_fastq(afastq, offset=offset, key=strip_name)
-    bh_iter = iter_fastq(bfastq, offset=offset, key=strip_name)
-
-    a = ah_iter.next()
-    b = bh_iter.next()
-
-    fragsfw = open(frags, "w")
-    pairsfw = open(pairs, "w")
-
-    for r in iter_fastq(ref, offset=0, key=strip_name):
-        if not a or not b or not r:
-            break
-
-        if a.id == b.id:
-            print >>pairsfw, a
-            print >>pairsfw, b
-            a = ah_iter.next()
-            b = bh_iter.next()
-        elif a.id == r.id:
-            print >>fragsfw, a
-            a = ah_iter.next()
-        elif b.id == r.id:
-            print >>fragsfw, b
-            b = bh_iter.next()
-
-        # update progress
-        pos = rh.tell()
-
-    # write all the leftovers to frags file
-    while a:
-        print >>fragsfw, a
-        a = ah_iter.next()
-
-    while b:
-        print >>fragsfw, b
-        b = bh_iter.next()
 
 
 if __name__ == '__main__':

@@ -14,7 +14,7 @@ import logging
 from math import log, sqrt, pi, exp
 from itertools import product, combinations
 from collections import namedtuple
-from optparse import OptionParser
+from optparse import OptionParser, OptionGroup
 from subprocess import Popen
 
 import numpy as np
@@ -689,12 +689,15 @@ def add_plot_options(p):
                  help="Maximum value, inclusive [default: %default]")
     p.add_option("--bins", default=20, type="int",
                  help="Number of bins to plot in the histogram [default: %default]")
-    p.add_option("--legendp", default="upper right",
+
+    group = OptionGroup(p, "Image options")
+    group.add_option("--legendp", default="upper right",
                  help="Place of the legend [default: %default]")
-    p.add_option("--fill", default=False, action="store_true",
+    group.add_option("--fill", default=False, action="store_true",
                  help="Fill the histogram area [default: %default]")
-    p.add_option("--title", default="Ks distribution",
+    group.add_option("--title", default="Ks distribution",
                  help="Title of the plot [default: %default]")
+    p.add_option_group(group)
 
 
 def report(args):
@@ -704,6 +707,7 @@ def report(args):
     generate a report given a Ks result file (as produced by synonymous_calc.py).
     describe the median Ks, Ka values, as well as the distribution in stem-leaf plot
     '''
+    from jcvi.utils.cbook import SummaryStats
     from jcvi.graphics.histogram import stem_leaf_plot
 
     p = OptionParser(report.__doc__)
@@ -724,18 +728,22 @@ def report(args):
     ks_max = opts.vmax
     bins = opts.bins
 
-    for f in fields.split()[1:]:
+    for f in fields.split(",")[1:]:
         columndata = [getattr(x, f) for x in data]
-        title = "{0}: {1:.2f}".format(descriptions[f], np.median(columndata))
-        title += " ({0:.2f} +/- {1:.2f})".\
-                format(np.mean(columndata), np.std(columndata))
         ks = ("ks" in f)
         if not ks:
             continue
 
-        bins = (0, ks_max, opts.bins) if ks else (0, .6, 10)
-        digit = 1 if ks else 2
-        stem_leaf_plot(columndata, *bins, digit=digit, title=title)
+        columndata = [x for x in columndata if ks_min <= x <= ks_max]
+
+        st = SummaryStats(columndata)
+        title = "{0}: Mean:{1:.3f} (1Q:{2:.3f}|3Q:{3:.3f}||".\
+                format(descriptions[f], st.median, st.firstq, st.thirdq)
+        title += "Mean:{0:.3f}|Std:{1:.3f})".format(st.mean, st.sd)
+
+        tbins = (0, ks_max, bins) if ks else (0, .6, 10)
+        digit = 2 if (ks_max * 1. / bins) < .1 else 1
+        stem_leaf_plot(columndata, *tbins, digit=digit, title=title)
 
     if not opts.pdf:
         return

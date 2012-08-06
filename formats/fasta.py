@@ -391,7 +391,7 @@ def clean(args):
 
 def translate(args):
     """
-    %prog translated cdsfasta
+    %prog translate cdsfasta
 
     Translate CDS to proteins. The tricky thing is that sometimes the CDS
     represents a partial gene, therefore disrupting the frame of the protein.

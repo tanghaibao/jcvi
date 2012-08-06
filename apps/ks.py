@@ -91,6 +91,7 @@ class LayoutLine (object):
         self.components = int(args[1])
         self.label = args[2]
         self.color = args[3]
+        self.marker = args[4]
 
 
 class Layout (LineFile):
@@ -115,14 +116,16 @@ class KsPlot (object):
         self.lines = []
         self.labels = []
 
-    def add_data(self, data, components=1, label="Ks", color='r', fitted=True):
+    def add_data(self, data, components=1, label="Ks",
+                 color='r', marker='.', fill=False, fitted=True):
 
         ax = self.ax
         ks_max = self.ks_max
         interval = self.interval
 
-        line, line_mixture = plot_ks_dist(ax, data, interval, components,
-                                          ks_max, color=color, fitted=fitted)
+        line, line_mixture = plot_ks_dist(ax, data, interval, components, ks_max,
+                                          color=color, marker=marker,
+                                          fill=fill, fitted=fitted)
         self.lines.append(line)
         self.labels.append(label)
 
@@ -130,7 +133,7 @@ class KsPlot (object):
             self.lines.append(line_mixture)
             self.labels.append(label + " (fitted)")
 
-    def draw(self):
+    def draw(self, title="Ks distribution"):
 
         from jcvi.graphics.base import plt, _, tex_formatter, \
                     tex_1digit_formatter, tex_2digit_formatter
@@ -145,7 +148,7 @@ class KsPlot (object):
         leg.get_frame().set_alpha(.5)
 
         ax.set_xlim((0, ks_max - self.interval))
-        ax.set_title(_('Ks distribution'), fontweight="bold")
+        ax.set_title(_(title), fontweight="bold")
         ax.set_xlabel(_('Synonymous substitutions per site (Ks)'))
         ax.set_ylabel(_('Percentage of gene pairs'))
 
@@ -165,7 +168,12 @@ def multireport(args):
     %prog multireport layoutfile
 
     Generate several Ks value distributions in the same figure. The layout file
-    contains the Ks file to plot, number of components, colors, labels.
+    contains the Ks file to plot, number of components, colors, labels. For example:
+
+    # Ks file, ncomponents, label, color, marker
+    LAP.sorghum.ks, 1, LAP-sorghum, r, o
+    SES.sorghum.ks, 1, SES-sorghum, g, +
+    MOL.sorghum.ks, 1, MOL-sorghum, m, ^
     """
     from jcvi.graphics.base import plt
 
@@ -182,6 +190,7 @@ def multireport(args):
     ks_min = opts.vmin
     ks_max = opts.vmax
     bins = opts.bins
+    fill = opts.fill
     fitted = not opts.nofit
     layout = Layout(layoutfile)
 
@@ -189,13 +198,14 @@ def multireport(args):
     ax = fig.add_axes([.12, .1, .8, .8])
     kp = KsPlot(ax, ks_max, bins, legendp=opts.legendp)
     for lo in layout:
-        header, data = read_ks_file(lo.ksfile)
+        data = read_ks_file(lo.ksfile)
         data = [x.ng_ks for x in data]
         data = [x for x in data if ks_min <= x <= ks_max]
         kp.add_data(data, lo.components, label=lo.label, \
-                    color=lo.color, fitted=fitted)
+                    color=lo.color, marker=lo.marker,
+                    fill=fill, fitted=fitted)
 
-    kp.draw()
+    kp.draw(title=opts.title)
 
 
 def get_GC3(cdsfile):
@@ -231,7 +241,7 @@ def gc3(args):
         sys.exit(not p.print_help())
 
     ks_file, cdsfile = args
-    header, data = read_ks_file(ks_file)
+    data = read_ks_file(ks_file)
     noriginals = len(data)
     GC3 = get_GC3(cdsfile)
 
@@ -390,7 +400,7 @@ def calc(args):
         sys.exit(not p.print_help())
 
     output_h = must_open(opts.outfile, "w")
-    output_h.write("name,dS-yn,dN-yn,dS-ng,dN-ng\n")
+    print >> output_h, header
     work_dir = op.join(os.getcwd(), "syn_analysis")
     mkdir(work_dir)
 
@@ -534,9 +544,9 @@ def clustal_align_protein(rec_1, rec_2, work_dir):
     return alignment.format("fasta")
 
 
-fields = "pair yn_ks yn_ka ng_ks ng_ka"
+header = fields = "name,yn_ks,yn_ka,ng_ks,ng_ka"
 descriptions = {
-        'pair': 'Gene pair',
+        'name': 'Gene pair',
         'yn_ks': 'Yang-Nielson method of Ks estimate',
         'yn_ka': 'Yang-Nielson method of Ka estimate',
         'ng_ks': 'Nei-Gojobori method of Ks estimate',
@@ -547,11 +557,13 @@ KsLine = namedtuple("KsLine", fields)
 
 def read_ks_file(ks_file):
     reader = csv.reader(open(ks_file, "rb"))
-    header = reader.next() # header
     data = []
     for row in reader:
+        if row[0] == "name":  # header
+            continue
+
         for i, a in enumerate(row):
-            if i==0:
+            if i == 0:
                 continue
             try:
                 row[i] = float(row[i])
@@ -563,14 +575,12 @@ def read_ks_file(ks_file):
     logging.debug('File `{0}` contains a total of {1} gene pairs'.\
             format(ks_file, len(data)))
 
-    return header, data
+    return data
 
 
-def my_hist(ax, l, interval, max_r, color='g'):
+def my_hist(ax, l, interval, max_r, color='g', marker='.', fill=False):
     if not l:
         return
-
-    from pylab import poly_between
 
     n, p = [], []
     total_len = len(l)
@@ -580,8 +590,17 @@ def my_hist(ax, l, interval, max_r, color='g'):
         n.append(i)
         p.append(len(nx) * 100. / total_len)
 
-    xs, ys = poly_between(n, 0, p)
-    return ax.fill(xs, ys, fc=color, alpha=.3)
+    if fill:
+        from pylab import poly_between
+
+        xs, ys = poly_between(n, 0, p)
+        line = ax.fill(xs, ys, fc=color, alpha=.3)
+
+    else:
+        line = ax.plot(n, p, color=color, lw=2,
+                       marker=marker, mfc="w", mec=color, mew=2)
+
+    return line
 
 
 def lognormpdf(bins, mu, sigma):
@@ -634,10 +653,13 @@ def get_mixture(data, components):
     return probs, mus, sigmas
 
 
-def plot_ks_dist(ax, data, interval, components, ks_max, color='r', fitted=True):
+def plot_ks_dist(ax, data, interval, components, ks_max,
+                 color='r', marker='.', fill=False, fitted=True):
+
     from jcvi.graphics.base import _
 
-    line, = my_hist(ax, data, interval, ks_max, color=color)
+    line, = my_hist(ax, data, interval, ks_max,
+                    color=color, marker=marker, fill=fill)
     logging.debug("Total {0} pairs after filtering.".format(len(data)))
 
     probs, mus, variances = get_mixture(data, components)
@@ -664,11 +686,15 @@ def add_plot_options(p):
     p.add_option("--vmin", default=0., type="float",
                  help="Minimum value, inclusive [default: %default]")
     p.add_option("--vmax", default=2., type="float",
-            help="Maximum value, inclusive [default: %default]")
+                 help="Maximum value, inclusive [default: %default]")
     p.add_option("--bins", default=20, type="int",
-            help="Number of bins to plot in the histogram [default: %default]")
+                 help="Number of bins to plot in the histogram [default: %default]")
     p.add_option("--legendp", default="upper right",
-            help="Place of the legend [default: %default]")
+                 help="Place of the legend [default: %default]")
+    p.add_option("--fill", default=False, action="store_true",
+                 help="Fill the histogram area [default: %default]")
+    p.add_option("--title", default="Ks distribution",
+                 help="Title of the plot [default: %default]")
 
 
 def report(args):
@@ -693,7 +719,7 @@ def report(args):
         sys.exit(not p.print_help())
 
     ks_file, = args
-    header, data = read_ks_file(ks_file)
+    data = read_ks_file(ks_file)
     ks_min = opts.vmin
     ks_max = opts.vmax
     bins = opts.bins
@@ -723,8 +749,8 @@ def report(args):
     fig = plt.figure(1, (5, 5))
     ax = fig.add_axes([.12, .1, .8, .8])
     kp = KsPlot(ax, ks_max, opts.bins, legendp=opts.legendp)
-    kp.add_data(data, components)
-    kp.draw()
+    kp.add_data(data, components, fill=opts.fill)
+    kp.draw(title=opts.title)
 
 
 if __name__ == '__main__':

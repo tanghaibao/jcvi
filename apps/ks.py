@@ -547,10 +547,10 @@ def clustal_align_protein(rec_1, rec_2, work_dir):
 header = fields = "name,yn_ks,yn_ka,ng_ks,ng_ka"
 descriptions = {
         'name': 'Gene pair',
-        'yn_ks': 'Yang-Nielson method of Ks estimate',
-        'yn_ka': 'Yang-Nielson method of Ka estimate',
-        'ng_ks': 'Nei-Gojobori method of Ks estimate',
-        'ng_ka': 'Nei-Gojobori method of Ka estimate'}
+        'yn_ks': 'Yang-Nielson Ks estimate',
+        'yn_ka': 'Yang-Nielson Ka estimate',
+        'ng_ks': 'Nei-Gojobori Ks estimate',
+        'ng_ka': 'Nei-Gojobori Ka estimate'}
 
 KsLine = namedtuple("KsLine", fields)
 
@@ -737,9 +737,11 @@ def report(args):
         columndata = [x for x in columndata if ks_min <= x <= ks_max]
 
         st = SummaryStats(columndata)
-        title = "{0}: Mean:{1:.3f} (1Q:{2:.3f}|3Q:{3:.3f}||".\
-                format(descriptions[f], st.median, st.firstq, st.thirdq)
-        title += "Mean:{0:.3f}|Std:{1:.3f})".format(st.mean, st.sd)
+        title = "{0} ({1}): ".format(descriptions[f], ks_file)
+        title += "Median:{0:.3f} (1Q:{1:.3f}|3Q:{2:.3f}||".\
+                format(st.median, st.firstq, st.thirdq)
+        title += "Mean:{0:.3f}|Std:{1:.3f}||N:{2})".\
+                format(st.mean, st.sd, st.size)
 
         tbins = (0, ks_max, bins) if ks else (0, .6, 10)
         digit = 2 if (ks_max * 1. / bins) < .1 else 1

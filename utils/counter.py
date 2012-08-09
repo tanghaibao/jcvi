@@ -189,6 +189,18 @@ class Counter(dict):
                 result[elem] = newcount
         return result
 
+    def report(self, percentage=False):
+        total = sum(self.values())
+        items = []
+        for k, v in sorted(self.items(), key=lambda x: -x[-1]):
+            item = "{0}:{1}".format(k, v)
+            if percentage:
+                item += " ({0:.1f}%)".format(v * 100. / total)
+                #item += "({0}%)".format(int(round(v * 100. / total)))
+            items.append(item)
+
+        return ", ".join(items)
+
 
 if __name__ == '__main__':
     import doctest

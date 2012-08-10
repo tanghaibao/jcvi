@@ -669,11 +669,16 @@ def covfilter(args):
     Fastafile is used to get the sizes of the queries. Two filters can be
     applied, the id% and cov%.
     """
+    from jcvi.algorithms.supermap import supermap
+    from jcvi.utils.range import range_union
+
     p = OptionParser(covfilter.__doc__)
     p.add_option("--pctid", dest="pctid", default=90, type="int",
             help="Percentage identity cutoff [default: %default]")
     p.add_option("--pctcov", dest="pctcov", default=50, type="int",
             help="Percentage identity cutoff [default: %default]")
+    p.add_option("--union", action="store_true",
+            help="Use range union instead of supermap [default: %default]")
     p.add_option("--ids", dest="ids", default=None,
             help="Print out the ids that satisfy [default: %default]")
     p.add_option("--list", dest="list", default=False, action="store_true",
@@ -685,15 +690,17 @@ def covfilter(args):
     if len(args) != 2:
         sys.exit(not p.print_help())
 
-    from jcvi.algorithms.supermap import supermap
-
     blastfile, fastafile = args
+    union = opts.union
     sizes = Sizes(fastafile).mapping
-    querysupermap = blastfile + ".query.supermap"
-    if not op.exists(querysupermap):
-        supermap(blastfile, filter="query")
 
-    blastfile = querysupermap
+    if not union:
+        querysupermap = blastfile + ".query.supermap"
+        if not op.exists(querysupermap):
+            supermap(blastfile, filter="query")
+
+        blastfile = querysupermap
+
     assert op.exists(blastfile)
 
     covered = 0
@@ -702,7 +709,7 @@ def covfilter(args):
     alignlen = 0
     queries = set()
     valid = set()
-    blast = BlastSlow(querysupermap)
+    blast = BlastSlow(blastfile)
     for query, blines in blast.iter_hits():
         blines = list(blines)
         queries.add(query)
@@ -713,13 +720,18 @@ def covfilter(args):
         this_mismatches = 0
         this_gaps = 0
 
+        ranges = []
         for b in blines:
             this_covered += abs(b.qstart - b.qstop + 1)
             this_alignlen += b.hitlen
             this_mismatches += b.nmismatch
             this_gaps += b.ngaps
+            ranges.append(("1", b.qstart, b.qstop))
 
         this_identity = 100. - (this_mismatches + this_gaps) * 100. / this_alignlen
+        if union:
+            this_covered = range_union(ranges)
+
         this_coverage = this_covered * 100. / sizes[query]
 
         if opts.list:

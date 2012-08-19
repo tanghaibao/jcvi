@@ -1165,6 +1165,8 @@ def bed(args):
             help="Do not print bed lines for gaps [default: %default]")
     p.add_option("--bed12", default=False, action="store_true",
             help="Produce bed12 formatted output [default: %default]")
+    p.add_option("--component", default=False, action="store_true",
+            help="Generate bed file for components [default: %default]")
     set_outfile(p)
     g1 = OptionGroup(p, "GFF specific parameters",
             "Note: If not specified, output will be in `bed` format")
@@ -1208,6 +1210,12 @@ def bed(args):
             print >> fw, a.bed12line
         elif opts.gff:
             print >> fw, a.gffline(gff_source=opts.source, gff_feat_type=opts.feature)
+        elif opts.component:
+            name = "{0}:{1}-{2}".\
+                        format(a.component_id, a.component_beg, a.component_end)
+            print >> fw, "\t".join(str(x) for x in (a.component_id, a.component_beg - 1,
+                                a.component_end, name,
+                                a.component_type, a.orientation))
         else:
             print >> fw, a.bedline
     fw.close()

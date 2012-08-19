@@ -256,11 +256,13 @@ def main():
 
 def uniq(args):
     """
-    %prog uniq bedfile > newbedfile
+    %prog uniq bedfile
 
     Remove overlapping features with higher scores.
     """
     p = OptionParser(uniq.__doc__)
+    p.add_option("--slen", default=False, action="store_true",
+                 help="Use sequence length as score [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -268,18 +270,28 @@ def uniq(args):
 
     bedfile, = args
     uniqbedfile = bedfile.split(".")[0] + ".uniq.bed"
+    leftoverfile = bedfile.split(".")[0] + ".leftover.bed"
     bed = Bed(bedfile)
-    if not need_update(bedfile, uniqbedfile):
-        return uniqbedfile
 
-    ranges = [Range(x.seqid, x.start, x.end, float(x.score), i) \
-                for i, x in enumerate(bed)]
+    if opts.slen:
+        ranges = [Range(x.seqid, x.start, x.end, x.end - x.start, i) \
+                    for i, x in enumerate(bed)]
+    else:
+        ranges = [Range(x.seqid, x.start, x.end, float(x.score), i) \
+                    for i, x in enumerate(bed)]
     selected, score = range_chain(ranges)
-    selected = [bed[x.id] for x in selected]
+    selected = [x.id for x in selected]
+    selected_ids = set(selected)
+    selected = [bed[x] for x in selected]
+    notselected = [x for i, x in enumerate(bed) if i not in selected_ids]
 
     newbed = Bed()
     newbed.extend(selected)
     newbed.print_to_file(uniqbedfile, sorted=True)
+    leftoverbed = Bed()
+    leftoverbed.extend(notselected)
+    leftoverbed.print_to_file(leftoverfile, sorted=True)
+
     logging.debug("Imported: {0}, Exported: {1}".format(len(bed), len(newbed)))
 
     return uniqbedfile
@@ -653,6 +665,8 @@ def refine(args):
     fw.close()
     print >> sys.stderr, "Total intersected: {0}".format(intersected)
     print >> sys.stderr, "Total refined: {0}".format(refined)
+    summary([abedfile])
+    summary([refinedbed])
 
 
 def distance(args):

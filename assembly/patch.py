@@ -17,6 +17,7 @@ There are a few techniques, used in curating medicago assembly.
 
 import os.path as op
 import sys
+import math
 import logging
 
 from itertools import groupby
@@ -24,11 +25,13 @@ from optparse import OptionParser
 from collections import defaultdict
 
 from jcvi.formats.bed import Bed, BedLine, complementBed, mergeBed, fastaFromBed
+from jcvi.formats.blast import BlastSlow
 from jcvi.formats.fasta import Fasta
 from jcvi.formats.sizes import Sizes
 from jcvi.utils.range import range_parse, range_distance, ranges_depth, \
             range_minmax, range_overlap, range_merge, range_closest, \
             range_interleave
+from jcvi.utils.iter import roundrobin
 from jcvi.formats.base import must_open, FileMerger, FileShredder
 from jcvi.apps.base import ActionDispatcher, debug, sh, mkdir
 debug()
@@ -54,9 +57,78 @@ def main():
         # Misc
         ('tips', 'append telomeric sequences based on patchers and complements'),
         ('gaps', 'create patches around OM gaps'),
+
+        # Touch-up
+        ('pasteprepare', 'prepare sequences for paste'),
+        ('paste', 'paste in good sequences in the final assembly'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def pasteprepare(args):
+    """
+    %prog pasteprepare bacs.fasta assembly.fsata
+
+    Prepare sequences for paste.
+    """
+    p = OptionParser(pasteprepare.__doc__)
+    p.add_option("--flank", default=5000, type="int",
+                 help="Get the seq of size on two ends [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    goodfasta, asmfasta = args
+    flank = opts.flank
+    pf = goodfasta.rsplit(".", 1)[0]
+    extbed = pf + ".ext.bed"
+
+    sizes = Sizes(goodfasta)
+    fw = open(extbed, "w")
+    for bac, size in sizes.iter_sizes():
+        print >> fw, "\t".join(str(x) for x in \
+                               (bac, 0, min(flank, size), bac + "L"))
+        print >> fw, "\t".join(str(x) for x in \
+                               (bac, max(size - flank, 0), size, bac + "R"))
+    fw.close()
+
+    fastaFromBed(extbed, goodfasta, name=True)
+
+
+def paste(args):
+    """
+    %prog paste flanks.bed flanks_vs_assembly.blast backbone.fasta
+
+    Paste in good sequences in the final assembly.
+    """
+    from jcvi.formats.bed import uniq
+
+    p = OptionParser(paste.__doc__)
+    p.add_option("--maxsize", default=300000, type="int",
+            help="Maximum size of patchers to be replaced [default: %default]")
+    p.add_option("--rclip", default=1, type="int",
+            help="Pair ID is derived from rstrip N chars [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    pbed, blastfile, bbfasta = args
+    maxsize = opts.maxsize  # Max DNA size to replace gap
+    rclip = opts.rclip
+    order = Bed(pbed).order
+
+    beforebed, afterbed = blast_to_twobeds(blastfile, order, log=True,
+                                           rclip=opts.rclip, maxsize=maxsize)
+    beforebed, afterbed = afterbed, beforebed
+    beforebed = uniq([beforebed])
+
+    afbed = Bed(beforebed)
+    bfbed = Bed(afterbed)
+
+    shuffle_twobeds(afbed, bfbed, bbfasta, prefix=None)
 
 
 def eject(args):
@@ -243,6 +315,9 @@ def bambus(args):
     for a, b in pairwise(bed):
         aname, bname = a.accn, b.accn
         aseqid, bseqid = a.seqid, b.seqid
+
+        if aname not in mf:
+            continue
 
         pa, la = mf[aname]
         if pa != bname:
@@ -485,45 +560,16 @@ def fill(args):
     fastaFromBed(extbed, badfasta, name=True)
 
 
-def install(args):
-    """
-    %prog install patchers.bed patchers.fasta backbone.fasta alt.fasta
-
-    Install patches into backbone, using sequences from alternative assembly.
-    The patches sequences are generated via jcvi.assembly.patch.fill().
-
-    The output is a bedfile that can be converted to AGP using
-    jcvi.formats.agp.frombed().
-    """
-    from jcvi.apps.base import blast
-    from jcvi.formats.blast import BlastSlow
-    from jcvi.formats.fasta import SeqIO
-    from jcvi.utils.iter import roundrobin
-
-    p = OptionParser(install.__doc__)
-    p.add_option("--rclip", default=1, type="int",
-            help="Pair ID is derived from rstrip N chars [default: %default]")
-    p.add_option("--maxsize", default=1000000, type="int",
-            help="Maximum size of patchers to be replaced [default: %default]")
-    p.add_option("--prefix", help="Prefix of the new object [default: %default]")
-    p.add_option("--strict", default=False, action="store_true",
-            help="Only update if replacement has no gaps [default: %default]")
-    opts, args = p.parse_args(args)
-
-    if len(args) != 4:
-        sys.exit(not p.print_help())
-
-    pbed, pfasta, bbfasta, altfasta = args
-    Max = opts.maxsize  # Max DNA size to replace gap
-    rclip = opts.rclip
-    prefix = opts.prefix
-
-    blastfile = blast([altfasta, pfasta,"--wordsize=100", "--pctid=99"])
-    order = Bed(pbed).order
+def blast_to_twobeds(blastfile, order, log=False,
+                     rclip=1, maxsize=300000):
 
     beforebed, afterbed = "before.bed", "after.bed"
+
     fwa = open(beforebed, "w")
     fwb = open(afterbed, "w")
+    if log:
+        logfile = blastfile + ".log"
+        log = open(logfile, "w")
 
     key1 = lambda x: x.query
     key2 = lambda x: x.query[:-rclip] if rclip else key1
@@ -548,6 +594,8 @@ def install(args):
         bi, bx = order[bquery]
         qstart, qstop = ax.start + a.qstart - 1, bx.start + b.qstop - 1
 
+        OK = "OK"
+        label = OK
         if astrand == '+' and bstrand == '+':
             sstart, sstop = a.sstart, b.sstop
 
@@ -555,15 +603,21 @@ def install(args):
             sstart, sstop = b.sstart, a.sstop
 
         else:
-            continue
+            label = "Strand {0}|{1}".format(astrand, bstrand)
 
         if sstart > sstop:
-            continue
+            label = "Start beyond stop"
 
-        if sstop > sstart + Max:
-            continue
+        if sstop > sstart + maxsize:
+            label = "Stop beyond start plus {0}".format(maxsize)
 
         name = aquery[:-1] + "LR"
+
+        if label != OK:
+            if log:
+                print >> log, "\t".join((name, label))
+            continue
+
         print >> fwa, "\t".join(str(x) for x in \
                     (ax.seqid, qstart - 1, qstop, name, 1000, "+"))
         print >> fwb, "\t".join(str(x) for x in \
@@ -571,6 +625,113 @@ def install(args):
 
     fwa.close()
     fwb.close()
+
+    return beforebed, afterbed
+
+
+def shuffle_twobeds(afbed, bfbed, bbfasta, prefix=None):
+    # Shuffle the two bedfiles together
+    sz = Sizes(bbfasta)
+    sizes = sz.mapping
+    shuffled = "shuffled.bed"
+    border = bfbed.order
+
+    all = []
+    afbed.sort(key=afbed.nullkey)
+    totalids = len(sizes)
+    pad = int(math.log10(totalids)) + 1
+    cj = 0
+    seen = set()
+    accn = lambda x: "{0}{1:0{2}d}".format(prefix, x, pad)
+
+    for seqid, aa in afbed.sub_beds():
+        cj += 1
+        abeds, bbeds, beds = [], [], []
+        size = sizes[seqid]
+        ranges = [(x.seqid, x.start, x.end) for x in aa]
+        cranges = range_interleave(ranges, sizes={seqid: size}, empty=True)
+        for crange in cranges:
+            if crange:
+                seqid, start, end = crange
+                bedline = "\t".join(str(x) for x in (seqid, start - 1, end))
+                abeds.append(BedLine(bedline))
+            else:
+                abeds.append(None)
+
+        for a in aa:
+            gapid = a.accn
+            bi, b = border[gapid]
+            bbeds.append(b)
+
+        n_abeds = len(abeds)
+        n_bbeds = len(bbeds)
+        assert n_abeds - n_bbeds == 1, \
+            "abeds: {0}, bbeds: {1}".format(n_abeds, n_bbeds)
+
+        beds = [x for x in roundrobin(abeds, bbeds) if x]
+        if prefix:
+            for b in beds:
+                b.accn = accn(cj)
+
+        all.extend(beds)
+        seen.add(seqid)
+
+    # Singletons
+    for seqid, size in sz.iter_sizes():
+        if seqid in seen:
+            continue
+
+        bedline = "\t".join(str(x) for x in (seqid, 0, size, accn(cj)))
+        b = BedLine(bedline)
+
+        cj += 1
+        if prefix:
+            b.accn = accn(cj)
+
+        all.append(b)
+
+    shuffledbed = Bed()
+    shuffledbed.extend(all)
+    shuffledbed.print_to_file(shuffled)
+
+    return shuffledbed
+
+
+def install(args):
+    """
+    %prog install patchers.bed patchers.fasta backbone.fasta alt.fasta
+
+    Install patches into backbone, using sequences from alternative assembly.
+    The patches sequences are generated via jcvi.assembly.patch.fill().
+
+    The output is a bedfile that can be converted to AGP using
+    jcvi.formats.agp.frombed().
+    """
+    from jcvi.apps.base import blast
+    from jcvi.formats.fasta import SeqIO
+
+    p = OptionParser(install.__doc__)
+    p.add_option("--rclip", default=1, type="int",
+            help="Pair ID is derived from rstrip N chars [default: %default]")
+    p.add_option("--maxsize", default=300000, type="int",
+            help="Maximum size of patchers to be replaced [default: %default]")
+    p.add_option("--prefix", help="Prefix of the new object [default: %default]")
+    p.add_option("--strict", default=False, action="store_true",
+            help="Only update if replacement has no gaps [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 4:
+        sys.exit(not p.print_help())
+
+    pbed, pfasta, bbfasta, altfasta = args
+    maxsize = opts.maxsize  # Max DNA size to replace gap
+    rclip = opts.rclip
+    prefix = opts.prefix
+
+    blastfile = blast([altfasta, pfasta,"--wordsize=100", "--pctid=99"])
+    order = Bed(pbed).order
+    beforebed, afterbed = blast_to_twobeds(blastfile, order, rclip=rclip,
+                                           maxsize=maxsize)
 
     beforefasta = fastaFromBed(beforebed, bbfasta, name=True, stranded=True)
     afterfasta = fastaFromBed(afterbed, altfasta, name=True, stranded=True)
@@ -596,6 +757,7 @@ def install(args):
     logging.debug("Ignore {0} updates because of decreasing quality."\
                     .format(len(exclude)))
 
+
     abed = Bed(beforebed, sorted=False)
     bbed = Bed(afterbed, sorted=False)
     abed = [x for x in abed if x.accn not in exclude]
@@ -611,66 +773,7 @@ def install(args):
     afbed.print_to_file(abedfile)
     bfbed.print_to_file(bbedfile)
 
-    # Shuffle the two bedfiles together
-    sz = Sizes(bbfasta)
-    sizes = sz.mapping
-    shuffled = "shuffled.bed"
-    border = bfbed.order
-
-    all = []
-    afbed.sort(key=afbed.nullkey)
-    totalids = len(sizes)
-    import math
-    pad = int(math.log10(totalids)) + 1
-    cj = 0
-    seen = set()
-    accn = lambda x: "{0}{1:0{2}d}".format(prefix, x, pad)
-
-    for seqid, aa in afbed.sub_beds():
-        cj += 1
-        abeds, bbeds, beds = [], [], []
-        size = sizes[seqid]
-        ranges = [(x.seqid, x.start, x.end) for x in aa]
-        cranges = range_interleave(ranges, sizes={seqid: size})
-        for seqid, start, end in cranges:
-            bedline = "\t".join(str(x) for x in (seqid, start - 1, end))
-            abeds.append(BedLine(bedline))
-
-        for a in aa:
-            gapid = a.accn
-            bi, b = border[gapid]
-            bbeds.append(b)
-
-        a = abeds[0] if abeds else []
-        assert abs(len(abeds) - len(bbeds)) <= 1
-        if (not a) or a.start > 1:
-            abeds, bbeds = bbeds, abeds
-
-        beds = list(roundrobin(abeds, bbeds))
-        if prefix:
-            for b in beds:
-                b.accn = accn(cj)
-
-        all.extend(beds)
-        seen.add(seqid)
-
-    # Singletons
-    for seqid, size in sz.iter_sizes():
-        if seqid in seen:
-            continue
-
-        bedline = "\t".join(str(x) for x in (seqid, 0, size, accn(cj)))
-        b = BedLine(bedline)
-
-        cj += 1
-        if prefix:
-            b.accn = accn(cj)
-
-        all.append(b)
-
-    shuffledbed = Bed()
-    shuffledbed.extend(all)
-    shuffledbed.print_to_file(shuffled)
+    shuffle_twobeds(afbed, bfbed, bbfasta, prefix=opts.prefix)
 
 
 def refine(args):

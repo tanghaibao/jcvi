@@ -182,7 +182,7 @@ def range_closest(ranges, b, left=True):
     return s
 
 
-def range_interleave(ranges, sizes={}):
+def range_interleave(ranges, sizes={}, empty=False):
     """
     Returns the ranges in between the given ranges.
 
@@ -206,19 +206,24 @@ def range_interleave(ranges, sizes={}):
             ch, astart, aend = cranges[0]
             if astart > 1:
                 interleaved_ranges.append((ch, 1, astart - 1))
+            elif empty:
+                interleaved_ranges.append(None)
 
         for a, b in pairwise(cranges):
             ch, astart, aend = a
             ch, bstart, bend = b
             istart, iend = aend + 1, bstart - 1
-            if istart > iend:
-                continue
-            interleaved_ranges.append((ch, istart, iend))
+            if istart <= iend:
+                interleaved_ranges.append((ch, istart, iend))
+            elif empty:
+                interleaved_ranges.append(None)
 
         if size:
             ch, astart, aend = cranges[-1]
             if aend < size:
                 interleaved_ranges.append((ch, aend + 1, size))
+            elif empty:
+                interleaved_ranges.append(None)
 
     return interleaved_ranges
 

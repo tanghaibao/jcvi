@@ -108,6 +108,7 @@ def paste(args):
     p = OptionParser(paste.__doc__)
     p.add_option("--maxsize", default=300000, type="int",
             help="Maximum size of patchers to be replaced [default: %default]")
+    p.add_option("--prefix", help="Prefix of the new object [default: %default]")
     p.add_option("--rclip", default=1, type="int",
             help="Pair ID is derived from rstrip N chars [default: %default]")
     opts, args = p.parse_args(args)
@@ -121,14 +122,14 @@ def paste(args):
     order = Bed(pbed).order
 
     beforebed, afterbed = blast_to_twobeds(blastfile, order, log=True,
-                                           rclip=opts.rclip, maxsize=maxsize)
-    beforebed, afterbed = afterbed, beforebed
+                                           rclip=opts.rclip, maxsize=maxsize,
+                                           flipbeds=True)
     beforebed = uniq([beforebed])
 
     afbed = Bed(beforebed)
     bfbed = Bed(afterbed)
 
-    shuffle_twobeds(afbed, bfbed, bbfasta, prefix=None)
+    shuffle_twobeds(afbed, bfbed, bbfasta, prefix=opts.prefix)
 
 
 def eject(args):
@@ -561,9 +562,13 @@ def fill(args):
 
 
 def blast_to_twobeds(blastfile, order, log=False,
-                     rclip=1, maxsize=300000):
+                     rclip=1, maxsize=300000, flipbeds=False):
 
-    beforebed, afterbed = "before.bed", "after.bed"
+    abed, bbed = "before.bed", "after.bed"
+    beforebed, afterbed = abed, bbed
+    if flipbeds:
+        beforebed, afterbed = afterbed, beforebed
+
 
     fwa = open(beforebed, "w")
     fwb = open(afterbed, "w")
@@ -574,6 +579,7 @@ def blast_to_twobeds(blastfile, order, log=False,
     key1 = lambda x: x.query
     key2 = lambda x: x.query[:-rclip] if rclip else key1
     data = BlastSlow(blastfile)
+    OK = "OK"
 
     for pe, lines in groupby(data, key=key2):
         lines = list(lines)
@@ -581,35 +587,35 @@ def blast_to_twobeds(blastfile, order, log=False,
             continue
 
         a, b = lines
+        label = OK
 
         aquery, bquery = a.query, b.query
         asubject, bsubject = a.subject, b.subject
         if asubject != bsubject:
-            continue
-
-        astrand, bstrand = a.orientation, b.orientation
-        assert aquery[-1] == 'L' and bquery[-1] == 'R', str((aquery, bquery))
-
-        ai, ax = order[aquery]
-        bi, bx = order[bquery]
-        qstart, qstop = ax.start + a.qstart - 1, bx.start + b.qstop - 1
-
-        OK = "OK"
-        label = OK
-        if astrand == '+' and bstrand == '+':
-            sstart, sstop = a.sstart, b.sstop
-
-        elif astrand == '-' and bstrand == '-':
-            sstart, sstop = b.sstart, a.sstop
+            label = "Different chr {0}|{1}".format(asubject, bsubject)
 
         else:
-            label = "Strand {0}|{1}".format(astrand, bstrand)
+            astrand, bstrand = a.orientation, b.orientation
+            assert aquery[-1] == 'L' and bquery[-1] == 'R', str((aquery, bquery))
 
-        if sstart > sstop:
-            label = "Start beyond stop"
+            ai, ax = order[aquery]
+            bi, bx = order[bquery]
+            qstart, qstop = ax.start + a.qstart - 1, bx.start + b.qstop - 1
 
-        if sstop > sstart + maxsize:
-            label = "Stop beyond start plus {0}".format(maxsize)
+            if astrand == '+' and bstrand == '+':
+                sstart, sstop = a.sstart, b.sstop
+
+            elif astrand == '-' and bstrand == '-':
+                sstart, sstop = b.sstart, a.sstop
+
+            else:
+                label = "Strand {0}|{1}".format(astrand, bstrand)
+
+            if sstart > sstop:
+                label = "Start beyond stop"
+
+            if sstop > sstart + maxsize:
+                label = "Stop beyond start plus {0}".format(maxsize)
 
         name = aquery[:-1] + "LR"
 
@@ -626,7 +632,7 @@ def blast_to_twobeds(blastfile, order, log=False,
     fwa.close()
     fwb.close()
 
-    return beforebed, afterbed
+    return abed, bbed
 
 
 def shuffle_twobeds(afbed, bfbed, bbfasta, prefix=None):

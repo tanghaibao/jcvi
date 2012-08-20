@@ -301,6 +301,7 @@ def range_union(ranges):
 
 
 def _make_endpoints(ranges):
+    assert ranges, "Ranges cannot be empty"
     endpoints = []
 
     for i, (seqid, start, end, score, id) in enumerate(ranges):

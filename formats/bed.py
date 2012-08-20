@@ -270,7 +270,6 @@ def uniq(args):
 
     bedfile, = args
     uniqbedfile = bedfile.split(".")[0] + ".uniq.bed"
-    leftoverfile = bedfile.split(".")[0] + ".leftover.bed"
     bed = Bed(bedfile)
 
     if opts.slen:
@@ -288,9 +287,12 @@ def uniq(args):
     newbed = Bed()
     newbed.extend(selected)
     newbed.print_to_file(uniqbedfile, sorted=True)
-    leftoverbed = Bed()
-    leftoverbed.extend(notselected)
-    leftoverbed.print_to_file(leftoverfile, sorted=True)
+
+    if notselected:
+        leftoverfile = bedfile.split(".")[0] + ".leftover.bed"
+        leftoverbed = Bed()
+        leftoverbed.extend(notselected)
+        leftoverbed.print_to_file(leftoverfile, sorted=True)
 
     logging.debug("Imported: {0}, Exported: {1}".format(len(bed), len(newbed)))
 

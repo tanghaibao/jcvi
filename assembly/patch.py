@@ -573,7 +573,7 @@ def blast_to_twobeds(blastfile, order, log=False,
     fwa = open(beforebed, "w")
     fwb = open(afterbed, "w")
     if log:
-        logfile = blastfile + ".log"
+        logfile = "problems.log"
         log = open(logfile, "w")
 
     key1 = lambda x: x.query
@@ -582,41 +582,43 @@ def blast_to_twobeds(blastfile, order, log=False,
     OK = "OK"
 
     for pe, lines in groupby(data, key=key2):
+        label = OK
         lines = list(lines)
         if len(lines) != 2:
-            continue
-
-        a, b = lines
-        label = OK
-
-        aquery, bquery = a.query, b.query
-        asubject, bsubject = a.subject, b.subject
-        if asubject != bsubject:
-            label = "Different chr {0}|{1}".format(asubject, bsubject)
+            label = "Singleton"
 
         else:
-            astrand, bstrand = a.orientation, b.orientation
-            assert aquery[-1] == 'L' and bquery[-1] == 'R', str((aquery, bquery))
+            a, b = lines
 
-            ai, ax = order[aquery]
-            bi, bx = order[bquery]
-            qstart, qstop = ax.start + a.qstart - 1, bx.start + b.qstop - 1
-
-            if astrand == '+' and bstrand == '+':
-                sstart, sstop = a.sstart, b.sstop
-
-            elif astrand == '-' and bstrand == '-':
-                sstart, sstop = b.sstart, a.sstop
+            aquery, bquery = a.query, b.query
+            asubject, bsubject = a.subject, b.subject
+            if asubject != bsubject:
+                label = "Different chr {0}|{1}".format(asubject, bsubject)
 
             else:
-                label = "Strand {0}|{1}".format(astrand, bstrand)
+                astrand, bstrand = a.orientation, b.orientation
+                assert aquery[-1] == 'L' and bquery[-1] == 'R', str((aquery, bquery))
 
-            if sstart > sstop:
-                label = "Start beyond stop"
+                ai, ax = order[aquery]
+                bi, bx = order[bquery]
+                qstart, qstop = ax.start + a.qstart - 1, bx.start + b.qstop - 1
 
-            if sstop > sstart + maxsize:
-                label = "Stop beyond start plus {0}".format(maxsize)
+                if astrand == '+' and bstrand == '+':
+                    sstart, sstop = a.sstart, b.sstop
 
+                elif astrand == '-' and bstrand == '-':
+                    sstart, sstop = b.sstart, a.sstop
+
+                else:
+                    label = "Strand {0}|{1}".format(astrand, bstrand)
+
+                if sstart > sstop:
+                    label = "Start beyond stop"
+
+                if sstop > sstart + maxsize:
+                    label = "Stop beyond start plus {0}".format(maxsize)
+
+        aquery = lines[0].query
         name = aquery[:-1] + "LR"
 
         if label != OK:
@@ -667,6 +669,9 @@ def shuffle_twobeds(afbed, bfbed, bbfasta, prefix=None):
         for a in aa:
             gapid = a.accn
             bi, b = border[gapid]
+            if a.strand == '-':
+                b.extra[1] = b.strand = ('-' if b.strand == '+' else '+')
+
             bbeds.append(b)
 
         n_abeds = len(abeds)

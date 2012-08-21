@@ -229,7 +229,7 @@ def main():
     p.add_option("--log", default="0", choices=("0", "2", "10"),
             help="use logarithm axis with base, 0 to disable [default: %default]")
     p.add_option("--facet", default=False, action="store_true",
-            help="place multiple histograms side-by-sdie [default: %default]")
+            help="place multiple histograms side-by-side [default: %default]")
     p.add_option("--fill", default="white",
             help="color of the bin [default: %default]")
     opts, args = p.parse_args()

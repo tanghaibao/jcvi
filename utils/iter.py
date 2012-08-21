@@ -1,9 +1,11 @@
 """
 Itertools recipes
 (copied and pasted from http://docs.python.org/library/itertools.html)
+with some modifications.
 """
 
 from itertools import *
+from collections import Iterable
 
 
 def take(n, iterable):
@@ -54,9 +56,20 @@ def dotproduct(vec1, vec2):
     return sum(imap(operator.mul, vec1, vec2))
 
 
-def flatten(listOfLists):
-    "Flatten one level of nesting"
-    return chain.from_iterable(listOfLists)
+def flatten(listOfLists, level=1):
+    "Flatten one or multiple levels of nesting"
+    if level==1:
+        return chain.from_iterable(listOfLists)
+
+    elif level>1:
+        fl = []
+        for l in listOfLists:
+            if isinstance(l, Iterable) and not isinstance(l, basestring):
+                for sub in flatten(l, level=level):
+                    fl.append(sub)
+            else:
+                fl.append(l)
+        return fl
 
 
 def repeatfunc(func, times=None, *args):

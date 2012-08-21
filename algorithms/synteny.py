@@ -5,16 +5,16 @@ import sys
 import logging
 
 import numpy as np
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 from optparse import OptionParser
 
 from jcvi.formats.bed import Bed, BedLine
 from jcvi.formats.blast import BlastLine
-from jcvi.formats.base import BaseFile, read_block
+from jcvi.formats.base import BaseFile, read_block, must_open
 from jcvi.utils.grouper import Grouper
 from jcvi.utils.cbook import gene_name
 from jcvi.utils.range import Range, range_chain
-from jcvi.formats.base import must_open
+from jcvi.utils.iter import flatten
 from jcvi.apps.base import ActionDispatcher, debug, set_outfile
 debug()
 
@@ -137,6 +137,38 @@ class BlockFile (BaseFile):
             for g in col:
                 if g not in (".", ""):
                     yield g, hd
+
+
+class BoundaryFile (BaseFile):
+    from jcvi.algorithms import quota
+
+    def __init__(self, filename, qorder, sorder):
+        super(BoundaryFile, self).__init__(filename)
+        self.clusters = quota.read_clusters(filename, qorder, sorder)
+
+    @property
+    def boundaries(self):
+        ranges = quota.make_range(self.clusters, extend=0)
+        BoundaryLine = namedtuple('BoundaryLine', \
+            ['id','size','orientation','xseqid','xmin','xmax','yseqid','ymin','ymax','score'])
+        bs = []
+        for i,r in enumerate(ranges):
+            block_id = i+1
+            block_size = len(self.clusters[i])
+            ymin, ymax = r[1][1:3]
+            yis = [f[1][1] for f in self.clusters[i]]
+            orientation = yis.index(ymax) - yis.index(ymin)
+            orientation = "+" if orientation>=0 else "-"
+            bs.append(BoundaryLine._make([block_id, block_size, orientation] \
+                + list(flatten(r,level=2))))
+        return bs
+
+    def print_to_file(self, filename="stdout"):
+        fw = must_open(filename, "w")
+        for b in self.boundaries():
+            print >> fw, "\t".join(str(x) for x in b)
+        fw.close()
+        logging.debug("Boundaries written to `{0}`.".format(filename))
 
 
 def _score(cluster):

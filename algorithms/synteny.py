@@ -139,38 +139,6 @@ class BlockFile (BaseFile):
                     yield g, hd
 
 
-class BoundaryFile (BaseFile):
-    from jcvi.algorithms import quota
-
-    def __init__(self, filename, qorder, sorder):
-        super(BoundaryFile, self).__init__(filename)
-        self.clusters = quota.read_clusters(filename, qorder, sorder)
-
-    @property
-    def boundaries(self):
-        ranges = quota.make_range(self.clusters, extend=0)
-        BoundaryLine = namedtuple('BoundaryLine', \
-            ['id','size','orientation','xseqid','xmin','xmax','yseqid','ymin','ymax','score'])
-        bs = []
-        for i,r in enumerate(ranges):
-            block_id = i+1
-            block_size = len(self.clusters[i])
-            ymin, ymax = r[1][1:3]
-            yis = [f[1][1] for f in self.clusters[i]]
-            orientation = yis.index(ymax) - yis.index(ymin)
-            orientation = "+" if orientation>=0 else "-"
-            bs.append(BoundaryLine._make([block_id, block_size, orientation] \
-                + list(flatten(r,level=2))))
-        return bs
-
-    def print_to_file(self, filename="stdout"):
-        fw = must_open(filename, "w")
-        for b in self.boundaries():
-            print >> fw, "\t".join(str(x) for x in b)
-        fw.close()
-        logging.debug("Boundaries written to `{0}`.".format(filename))
-
-
 def _score(cluster):
     """
     score of the cluster, in this case, is the number of non-repetitive matches
@@ -379,6 +347,7 @@ def main():
         ('liftover', 'given anchor list, pull adjacent pairs from blast file'),
         ('mcscan', 'stack synteny blocks on a reference bed'),
         ('screen', 'extract subset of blocks from anchorfile'),
+        ('simple', 'convert anchorfile to simple block descriptions'),
         ('stats', 'provide statistics for mscan blocks'),
         ('depth', 'calculate the depths in the two genomes in comparison'),
         ('group', 'cluster the anchors into ortho-groups'),
@@ -508,6 +477,50 @@ def matrix(args):
                     [str(m[(aseqid, x)]) for x in bseqids])
 
 
+def simple(args):
+    """
+    %prog simple anchorfile --qbed=qbedfile --sbed=sbedfile [options]
+
+    Write the block ends for each block in the anchorfile.
+    GeneA    GeneB    GeneC    GeneD    +/-
+    """
+    p = OptionParser(simple.__doc__)
+    add_beds(p)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    anchorfile, = args
+    ac = AnchorFile(anchorfile)
+    simplefile = anchorfile.rsplit(".", 1)[0] + ".simple"
+
+    qbed, sbed, qorder, sorder, is_self = check_beds(p, opts)
+    blocks = ac.blocks
+
+    fws = open(simplefile, "w")
+    for i, block in enumerate(blocks):
+
+        a, b, scores = zip(*block)
+        a = [qorder[x] for x in a]
+        b = [sorder[x] for x in b]
+        ia, oa = zip(*a)
+        ib, ob = zip(*b)
+        aspan = max(ia) - min(ia) + 1
+        bspan = max(ib) - min(ib) + 1
+
+        astart, aend = min(a)[1].accn, max(a)[1].accn
+        bstart, bend = min(b)[1].accn, max(b)[1].accn
+        slope, intercept = np.polyfit(ia, ib, 1)
+        orientation = "+" if slope >= 0 else '-'
+        score = int((aspan * bspan) ** .5)
+        score = str(score)
+        print >> fws, "\t".join((astart, aend, bstart, bend, score, orientation))
+
+    fws.close()
+    logging.debug("A total of {0} blocks written to `{1}`.".format(i + 1, simplefile))
+
+
 def screen(args):
     """
     %prog screen anchorfile newanchorfile --qbed=qbedfile --sbed=sbedfile [options]
@@ -517,11 +530,6 @@ def screen(args):
     1. Option --ids: a file with IDs, 0-based, comma separated, all in one line.
     2. Option --seqids: only allow seqids in this file.
     3. Option --minspan: remove blocks with less span than this.
-
-    Another option --simple, does not write new anchorfile, but only write the
-    block ends.
-
-    GeneA    GeneB    GeneC    GeneD    +/-
     """
     from jcvi.formats.base import SetFile
 
@@ -544,7 +552,7 @@ def screen(args):
     idsfile = opts.ids
     seqidsfile = opts.seqids
     minspan = opts.minspan
-    simple = opts.simple
+    osimple = opts.simple
     ids, seqids = None, None
 
     if idsfile:
@@ -557,9 +565,6 @@ def screen(args):
     blocks = ac.blocks
     selected = 0
     fw = open(newanchorfile, "w")
-    if simple:
-        simplefile = newanchorfile.rsplit(".", 1)[0] + ".simple"
-        fws = open(simplefile, "w")
 
     for i, block in enumerate(blocks):
         if ids and i not in ids:
@@ -584,18 +589,15 @@ def screen(args):
                 continue
 
         selected += 1
-        if simple:
-            astart, aend = min(a)[1].accn, max(a)[1].accn
-            bstart, bend = min(b)[1].accn, max(b)[1].accn
-            slope, intercept = np.polyfit(ia, ib, 1)
-            orientation = "+" if slope >= 0 else '-'
-            score = int((aspan * bspan) ** .5)
-            score = str(score)
-            print >> fws, "\t".join((astart, aend, bstart, bend, score, orientation))
-
         print >> fw, "###"
         for line in block:
             print >> fw, "\t".join(line)
+
+    fw.close()
+
+    if osimple:
+        simple([newanchorfile, \
+                "--qbed=" + qbed.filename, "--sbed=" + sbed.filename])
 
     logging.debug("Before: {0} blocks, After: {1} blocks".\
                   format(len(blocks), selected))

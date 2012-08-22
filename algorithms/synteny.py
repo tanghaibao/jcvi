@@ -482,11 +482,16 @@ def simple(args):
     %prog simple anchorfile --qbed=qbedfile --sbed=sbedfile [options]
 
     Write the block ends for each block in the anchorfile.
-    GeneA    GeneB    GeneC    GeneD    +/-
+    GeneA1    GeneA2    GeneB1    GeneB2    +/-
+    optional additional columns:
+    orderA1    orderA2    orderB1    orderB2    size    block_id(0-based)
     """
     p = OptionParser(simple.__doc__)
+    p.add_option("--additional", default=False, action="store_true", \
+        help="output additional columns [default: %default]")
     add_beds(p)
     opts, args = p.parse_args(args)
+    additional = opts.additional
 
     if len(args) != 1:
         sys.exit(not p.print_help())
@@ -506,16 +511,23 @@ def simple(args):
         b = [sorder[x] for x in b]
         ia, oa = zip(*a)
         ib, ob = zip(*b)
-        aspan = max(ia) - min(ia) + 1
-        bspan = max(ib) - min(ib) + 1
 
+        astarti, aendi = min(ia), max(ia)
+        bstarti, bendi = min(ib), max(ib)
         astart, aend = min(a)[1].accn, max(a)[1].accn
         bstart, bend = min(b)[1].accn, max(b)[1].accn
         slope, intercept = np.polyfit(ia, ib, 1)
         orientation = "+" if slope >= 0 else '-'
+        aspan = aendi - astarti + 1
+        bspan = bendi - bstarti + 1
         score = int((aspan * bspan) ** .5)
         score = str(score)
-        print >> fws, "\t".join((astart, aend, bstart, bend, score, orientation))
+
+        if not additional:
+            print >> fws, "\t".join((astart, aend, bstart, bend, score, orientation))
+        else:
+            print >> fws, "\t".join(map(str, (astart, aend, bstart, bend, \
+                score, orientation, astarti, aendi, bstarti, bendi, len(block), i)))
 
     fws.close()
     logging.debug("A total of {0} blocks written to `{1}`.".format(i + 1, simplefile))

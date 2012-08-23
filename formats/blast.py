@@ -692,7 +692,8 @@ def covfilter(args):
 
     blastfile, fastafile = args
     union = opts.union
-    sizes = Sizes(fastafile).mapping
+    sz = Sizes(fastafile)
+    sizes = sz.mapping
 
     if not union:
         querysupermap = blastfile + ".query.supermap"
@@ -710,6 +711,7 @@ def covfilter(args):
     queries = set()
     valid = set()
     blast = BlastSlow(blastfile)
+    covidstore = {}
     for query, blines in blast.iter_hits():
         blines = list(blines)
         queries.add(query)
@@ -733,10 +735,7 @@ def covfilter(args):
             this_covered = range_union(ranges)
 
         this_coverage = this_covered * 100. / sizes[query]
-
-        if opts.list:
-            print "{0}\t{1:.1f}\t{2:.1f}".format(query, this_identity, this_coverage)
-
+        covidstore[query] = (this_identity, this_coverage)
         if this_identity >= opts.pctid and this_coverage >= opts.pctcov:
             valid.add(query)
 
@@ -744,6 +743,11 @@ def covfilter(args):
         mismatches += this_mismatches
         gaps += this_gaps
         alignlen += this_alignlen
+
+    if opts.list:
+        for query, size in sz.iter_sizes():
+            this_identity, this_coverage = covidstore.get(query, (0, 0))
+            print "{0}\t{1:.1f}\t{2:.1f}".format(query, this_identity, this_coverage)
 
     mapped_count = len(queries)
     valid_count = len(valid)

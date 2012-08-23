@@ -35,9 +35,9 @@ def main():
     p.add_option("--levels",
                 help="Reorder factors, comma-delimited [default: alphabetical]")
     p.add_option("--title", default=" ",
-                help="Title of the figure [default: $default]")
-    p.add_option("--xlabel", help="X-axis label [default: $default]")
-    p.add_option("--ylabel", help="Y-axis label [default: $default]")
+                help="Title of the figure [default: %default]")
+    p.add_option("--xlabel", help="X-axis label [default: %default]")
+    p.add_option("--ylabel", help="Y-axis label [default: %default]")
     opts, args = p.parse_args()
 
     if len(args) != 1:

@@ -72,7 +72,7 @@ class GenBank(dict):
         return gbdir
 
     @classmethod
-    def gb_to_bed(gbrec, outfile):
+    def write_genes_bed(gbrec, outfile):
         seqid = gbrec.id.split(".")[0]
 
         genecount = 0
@@ -89,6 +89,7 @@ class GenBank(dict):
                 consecutivecds = 1
                 start = feature.location.start
                 stop = feature.location.end
+                if start > stop: start, stop = stop, start
                 if feature.strand < 0:
                     strand = "-"
                 else:
@@ -96,12 +97,14 @@ class GenBank(dict):
                 score = "."
                 accn = "{0}_{1}".format(seqid, genecount)
 
+                start = str(start).lstrip("><")
+                stop = str(stop).lstrip("><")
                 bedline = "{0}\t{1}\t{2}\t{3}\t{4}\t{5}\n".\
                     format(seqid, start, stop, accn, score, strand)
                 outfile.write(bedline)
 
     @classmethod
-    def gb_to_fasta(gbrec, fwcds, fwpep):
+    def write_genes_fasta(gbrec, fwcds, fwpep):
         seqid = gbrec.id.split(".")[0]
 
         genecount = 0
@@ -143,16 +146,30 @@ class GenBank(dict):
                 fwcds = must_open(op.join(output, recid+".cds"), "w")
                 fwpep = must_open(op.join(output, recid+".pep"), "w")
 
-            self.gb_to_bed(rec, fwbed)
-            self.gb_to_fasta(rec, fwcds, fwpep)
+            self.write_genes_bed(rec, fwbed)
+            self.write_genes_fasta(rec, fwcds, fwpep)
 
         if not pep:
             FileShredder([fwpep.name])
+
+    def write_fasta(self, output="gbfasta", individual=False):
+        if not individual:
+            fw = must_open(output+".fasta", "w")
+
+        for recid, rec in self.iteritems():
+            if individual:
+                mkdir(output)
+                fw = must_open(op.join(output, recid+".fasta"), "w")
+
+            seqid = rec.id.split(".")[0]
+            seq = rec.seq
+            fw.write(">{0}\n{1}\n".format(seqid, seq))
 
 
 def main():
 
     actions = (
+        ('tofasta', 'generate fasta file for multiple gb records'),
         ('getgenes', 'extract protein coding genes from Genbank file'),
               )
 
@@ -160,15 +177,7 @@ def main():
     p.dispatch(globals())
 
 
-def getgenes(args):
-    """
-    %prog getgenes [--options]
-
-    Read GenBank file, or retrieve from web.
-    Output bed, cds files, and pep file (can turn off with --nopep).
-    Either --gb_dir or --id/--simple should be provided.
-    """
-    p = OptionParser(getgenes.__doc__)
+def preparegb(p, args):
     p.add_option("--gb_dir", default=None,
             help="path to dir containing GanBank files (.gb)")
     p.add_option("--id", default=None,
@@ -177,15 +186,10 @@ def getgenes(args):
     p.add_option("--simple", default=None, type="string",
             help="GenBank accession IDs comma separated " \
             "(for lots of IDs please use --id instead).")
-    p.add_option("--prefix", default="gbout",
-            help="prefix of output files [default: %default]")
-    p.add_option("--nopep", default=False, action="store_true",
-            help="Only get cds and bed, no pep [default: %default]")
     p.add_option("--individual", default=False, action="store_true",
             help="parse gb accessions individually [default: %default]")
     opts, args = p.parse_args(args)
     accessions = opts.id
-    prefix = opts.prefix
     filenames = opts.gb_dir
 
     if not (opts.gb_dir or opts.id or opts.simple):
@@ -211,6 +215,48 @@ def getgenes(args):
         idfile = fw.name
     else:
         idfile=None
+
+    return (filenames, accessions, idfile, opts, args)
+
+
+def tofasta(args):
+    """
+    %prog tofasta [--options]
+
+    Read GenBank file, or retrieve from web.
+    Output fasta file with one record per file
+    or all records in one file
+    """
+    p = OptionParser(tofasta.__doc__)
+    p.add_option("--prefix", default="gbfasta",
+            help="prefix of output files [default: %default]")
+    filenames, accessions, idfile, opts, args = preparegb(p, args)
+    prefix = opts.prefix
+
+    GenBank(filenames=filenames, accessions=accessions, idfile=idfile).\
+        write_fasta(output=prefix, individual=opts.individual)
+
+    if opts.individual:
+        logging.debug("Output written dir {}".format(prefix))
+    else:
+        logging.debug("Output written to {}.fasta".format(prefix))
+
+
+def getgenes(args):
+    """
+    %prog getgenes [--options]
+
+    Read GenBank file, or retrieve from web.
+    Output bed, cds files, and pep file (can turn off with --nopep).
+    Either --gb_dir or --id/--simple should be provided.
+    """
+    p = OptionParser(getgenes.__doc__)
+    p.add_option("--prefix", default="gbout",
+            help="prefix of output files [default: %default]")
+    p.add_option("--nopep", default=False, action="store_true",
+            help="Only get cds and bed, no pep [default: %default]")
+    filenames, accessions, idfile, opts, args = preparegb(p, args)
+    prefix = opts.prefix
 
     GenBank(filenames=filenames, accessions=accessions, idfile=idfile).\
         write_genes(output=prefix, individual=opts.individual, \

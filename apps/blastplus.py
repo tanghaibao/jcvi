@@ -27,9 +27,10 @@ recommendOptions = " -evalue 1e-5 -num_descriptions 20 -num_alignments 20 "
 
 
 def blastplus(k, n, bfasta_fn, afasta_fn, out_fh, lock, blast_bin, extra, \
-    format, grid=False):
+             format, grid=False):
+    fname = '-' if out_fh.name == '<stdout>' else out_fh.name
     blast_cmd = blastplus_template.\
-        format(blast_bin, afasta_fn, bfasta_fn, out_fh.name, format)
+        format(blast_bin, afasta_fn, bfasta_fn, fname, format)
     if extra:
         blast_cmd += " " + extra.strip()
 
@@ -66,9 +67,10 @@ def main():
             help="0-11, learn more with \"blastp -help\". [default: %default]")
     p.add_option("--path", dest="blast_path", default=None,
             help="specify BLAST+ path including the program name")
-    p.add_option("--program", dest="blast_program", default=None,
+    p.add_option("--program", dest="blast_program", default="blastp",
             help="specify BLAST+ program to use. See complete list here: " \
-            "http://www.ncbi.nlm.nih.gov/books/NBK52640/#chapter1.Installation")
+            "http://www.ncbi.nlm.nih.gov/books/NBK52640/#chapter1.Installation"
+            " [default: %default]")
     p.add_option("--recommend", default=False, action="store_true",
             help="Use recommended options tuned for comparing " \
             "whole genome annotations [default: %default]")
@@ -109,7 +111,15 @@ def main():
 
     dbtype = "prot" if op.basename(blast_bin) in ["blastp", "blastx"] \
         else "nucl"
-    run_formatdb(infile=bfasta_fn, outfile="t", dbtype=dbtype)
+
+    db = bfasta_fn
+    if dbtype == "prot":
+        nin = db + ".pin"
+    else:
+        nin = db + ".nin"
+        nin00 = db + ".00.nin"
+        nin = nin00 if op.exists(nin00) else (db + ".nin")
+    run_formatdb(infile=db, outfile=nin, dbtype=dbtype)
 
     outdir = "outdir"
     lock = Lock()

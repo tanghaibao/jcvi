@@ -1188,6 +1188,9 @@ def bed(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
+    if opts.component:
+        opts.nogaps = True
+
     # If output format is gff3, ignore AGP gap lines.
     if opts.gff:
         opts.nogaps = True

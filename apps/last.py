@@ -98,7 +98,7 @@ def main(args):
 
     if opts.format == "maf":
         cmd = 'echo "##maf version=1"'
-        sh(cmd)
+        sh(cmd, outfile=opts.outfile)
 
     cmd = "{0} -u 0".format(lastal_bin)
     f = supported_formats.index(opts.format)

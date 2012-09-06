@@ -385,7 +385,7 @@ def batch(args):
 
     p.add_option("--path", default="~/code/AHRD/",
                  help="Path where AHRD is installed [default: %default]")
-    p.add_options("--blastprog", default="blastp", choices=blast_progs,
+    p.add_option("--blastprog", default="blastp", choices=blast_progs,
                 help="Specify the blast program being run. Based on this option, " \
                    + " the AHRD parameters (score_weights) will be modified " \
                    + "[default: %default]")

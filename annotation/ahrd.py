@@ -128,9 +128,9 @@ blast_dbs:
     token_blacklist: {0}/blacklist_token.txt
     description_score_bit_score_weight: 0.4
 
-token_score_bit_score_weight: 0.5
-token_score_database_score_weight: 0.3
-token_score_overlap_score_weight: 0.2
+token_score_bit_score_weight: {4}
+token_score_database_score_weight: {5}
+token_score_overlap_score_weight: {6}
 description_score_relative_description_frequency_weight: 0.6
 output: {3}
 """
@@ -377,8 +377,18 @@ def batch(args):
     $ parallel java -Xmx2g -jar ~/code/AHRD/dist/ahrd.jar {} ::: output/*.yml
     """
     p = OptionParser(batch.__doc__)
+
+    ahrd_weights = { "blastp": [0.5, 0.3, 0.2],
+                     "blastx": [0.6, 0.4, 0.0]
+                   }
+    blast_progs = tuple(ahrd_weights.keys())
+
     p.add_option("--path", default="~/code/AHRD/",
                  help="Path where AHRD is installed [default: %default]")
+    p.add_options("--blastprog", default="blastp", choices=blast_progs,
+                help="Specify the blast program being run. Based on this option, " \
+                   + " the AHRD parameters (score_weights) will be modified " \
+                   + "[default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -387,6 +397,8 @@ def batch(args):
     splits, output = args
     mkdir(output)
 
+    bit_score, db_score, ovl_score = ahrd_weights[opts.blastprog]
+
     for f in glob("{0}/*.fasta".format(splits)):
         fb = op.basename(f).split(".")[0]
         fw = open(op.join(output, fb + ".yml"), "w")
@@ -394,7 +406,7 @@ def batch(args):
         path = op.expanduser(opts.path)
         dir = op.join(path, "test/resources")
         outfile = op.join(output, fb + ".csv")
-        print >> fw, Template.format(dir, fb, f, outfile)
+        print >> fw, Template.format(dir, fb, f, outfile, bit_score, db_score, ovl_score)
 
 
 if __name__ == '__main__':

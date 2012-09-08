@@ -900,7 +900,7 @@ def split(args):
 
     for s in seqids:
         outfile = op.join(outdir, s + ".gff")
-        extract([gffile, s, "--outfile=" + outfile])
+        extract([gffile, "--contigs=" + s, "--outfile=" + outfile])
 
 
 def note(args):

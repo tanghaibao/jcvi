@@ -807,7 +807,7 @@ def mcscan(args):
         iteration += 1
 
     mbed = []
-    seen = []
+    seen = set()
     for b in bed:
         id = b.accn
         if id in seen:
@@ -834,9 +834,9 @@ def mcscan(args):
                     anchor = "x"
                 atoms.append(anchor)
             atomss.append(atoms)
-            seen.append(id)
+            seen.add(id)
 
-        if len(ids)>1:
+        if len(ids) > 1:
             atomss = zip(*atomss)
             atoms = map(lambda x: ",".join(set(x)), atomss)
 

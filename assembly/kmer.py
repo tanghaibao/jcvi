@@ -7,6 +7,7 @@ Deals with K-mers and K-mer distribution from reads or genome
 
 import os.path as op
 import sys
+import logging
 
 from optparse import OptionParser
 
@@ -67,6 +68,10 @@ def histogram(args):
         sys.exit(not p.print_help())
 
     histfile, species, N = args
+    KMERYL, KSOAP, KALLPATHS = range(3)
+    kformats = ("Meryl", "Soap", "AllPaths")
+    kformat = KMERYL
+
     ascii = not opts.pdf
     fp = open(histfile)
     hist = {}
@@ -75,13 +80,20 @@ def histogram(args):
     # Guess the format of the Kmer histogram
     soap = False
     for row in fp:
+        if row.startswith("# 1:"):
+            kformat = KALLPATHS
+            break
         if len(row.split()) == 1:
-            soap = True
+            kformat = KSOAP
             break
     fp.seek(0)
 
+    logging.debug("Guessed format: {0}".format(kformats[kformat]))
+
     for rowno, row in enumerate(fp):
-        if soap:
+        if row[0] == '#':
+            continue
+        if kformat == KSOAP:
             K = rowno + 1
             counts = int(row.strip())
         else:  # meryl histogram
@@ -90,7 +102,7 @@ def histogram(args):
 
         Kcounts = K * counts
         totalKmers += Kcounts
-        hist[K] = counts
+        hist[K] = Kcounts
 
     history = ["drop"]
     for a, b in pairwise(sorted(hist.items())):

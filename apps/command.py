@@ -138,7 +138,7 @@ def run_megablast(infile=None, outfile=None, db=None, wordsize=None, \
     if pctid:
         cmd += " -perc_identity {0}".format(pctid)
     if best:
-        cmd += " -num_alignments {0}".format(best)
+        cmd += " -max_target_seqs {0}".format(best)
     sh(cmd)
 
     if pctid and hitlen:

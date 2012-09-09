@@ -13,7 +13,8 @@ from optparse import OptionParser
 
 import numpy as np
 from jcvi.apps.base import ActionDispatcher, debug
-from jcvi.graphics.base import plt, Rectangle, CirclePolygon, Polygon, _
+from jcvi.graphics.base import plt, Rectangle, CirclePolygon, Polygon, _, \
+        savefig
 debug()
 
 tstep = .05
@@ -289,8 +290,7 @@ def gff(args):
     root.set_axis_off()
 
     figname = "exons.pdf"
-    plt.savefig(figname, dpi=300)
-    logging.debug("Figure saved to `{0}`".format(figname))
+    savefig(figname, dpi=300)
 
 
 def demo(args):
@@ -395,8 +395,7 @@ def demo(args):
     root.set_axis_off()
 
     figname = "demo.pdf"
-    plt.savefig(figname, dpi=300)
-    logging.debug("Figure saved to `{0}`".format(figname))
+    savefig(figname, dpi=300)
 
 
 if __name__ == '__main__':

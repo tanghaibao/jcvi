@@ -29,7 +29,7 @@ import numpy as np
 from itertools import groupby
 from optparse import OptionParser
 
-from jcvi.graphics.base import plt, cm, _, set_image_options, LogNorm
+from jcvi.graphics.base import plt, cm, _, set_image_options, LogNorm, savefig
 from jcvi.apps.base import debug
 debug()
 
@@ -165,9 +165,7 @@ def main():
     root.set_axis_off()
 
     image_name = pf + "." + opts.cmap + "." + iopts.format
-    logging.debug("Print image to `{0}` {1}".format(image_name, iopts))
-    plt.savefig(image_name, dpi=iopts.dpi)
-    plt.rcdefaults()
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
 if __name__ == '__main__':

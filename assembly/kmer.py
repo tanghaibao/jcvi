@@ -12,7 +12,7 @@ import logging
 from optparse import OptionParser
 
 from jcvi.utils.iter import pairwise
-from jcvi.graphics.base import plt, asciiplot, _, set_human_axis
+from jcvi.graphics.base import plt, asciiplot, _, set_human_axis, savefig
 from jcvi.apps.base import ActionDispatcher, sh, debug
 debug()
 
@@ -154,8 +154,7 @@ def histogram(args):
     set_human_axis(ax)
 
     imagename = histfile.split(".")[0] + ".pdf"
-    plt.savefig(imagename, dpi=100)
-    print >> sys.stderr, "Image saved to `{0}`.".format(imagename)
+    savefig(imagename, dpi=100)
 
 
 if __name__ == '__main__':

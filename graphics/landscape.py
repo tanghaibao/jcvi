@@ -21,7 +21,7 @@ from jcvi.formats.base import LineFile, DictFile
 from jcvi.formats.bed import Bed, bins
 from jcvi.algorithms.matrix import moving_sum
 from jcvi.graphics.base import plt, _, set_image_options, \
-        Rectangle, CirclePolygon
+        Rectangle, CirclePolygon, savefig
 from jcvi.utils.cbook import human_size, autoscale
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
@@ -210,9 +210,7 @@ def heatmap(args):
     root.set_axis_off()
 
     image_name = chr + "." + iopts.format
-    logging.debug("Print image to `{0}` {1}".format(image_name, iopts))
-    plt.savefig(image_name, dpi=iopts.dpi)
-    plt.rcdefaults()
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
 def draw_gauge(ax, margin, maxl, rightmargin=None, optimal=7):
@@ -377,9 +375,7 @@ def stack(args):
     root.set_axis_off()
 
     image_name = pf + "." + iopts.format
-    logging.debug("Print image to `{0}` {1}".format(image_name, iopts))
-    plt.savefig(image_name, dpi=iopts.dpi)
-    plt.rcdefaults()
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
 if __name__ == '__main__':

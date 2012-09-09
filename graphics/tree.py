@@ -9,7 +9,7 @@ from optparse import OptionParser
 
 from ete2 import Tree
 from jcvi.formats.sizes import Sizes
-from jcvi.graphics.base import plt, _, set_image_options
+from jcvi.graphics.base import plt, _, set_image_options, savefig
 from jcvi.graphics.glyph import ExonGlyph, get_setups
 from jcvi.apps.base import debug
 debug()
@@ -122,7 +122,7 @@ def read_trees(tree):
     return trees
 
 
-def main(tx=None):
+def main():
     """
     %prog newicktree
 
@@ -139,6 +139,8 @@ def main(tx=None):
                  help="The directory that contain GFF files [default: %default]")
     p.add_option("--sizes", default=None,
                  help="The FASTA file or the sizes file [default: %default]")
+    p.add_option("--leafcolor", default="k",
+                 help="The font color for the OTUs [default: %default]")
 
     opts, args, iopts = set_image_options(p, figsize="8x6")
 
@@ -149,28 +151,27 @@ def main(tx=None):
     outgroup = None
     if opts.outgroup:
         outgroup = opts.outgroup.split(",")
-    pf = datafile.rsplit(".", 1)[0]
-    if tx:
-        pf = "demo"
+
+    if datafile == "demo":
+        tx = """(((Os02g0681100:0.1151,Sb04g031800:0.11220)1.0:0.0537,
+        (Os04g0578800:0.04318,Sb06g026210:0.04798)-1.0:0.08870)1.0:0.06985,
+        ((Os03g0124100:0.08845,Sb01g048930:0.09055)1.0:0.05332,
+        (Os10g0534700:0.06592,Sb01g030630:0.04824)-1.0:0.07886):0.09389);"""
     else:
-        tx = open(datafile).read()
         logging.debug("Load tree file `{0}`.".format(datafile))
+        tx = open(datafile).read()
+
+    pf = datafile.rsplit(".", 1)[0]
 
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
 
-    draw_tree(root, tx, rmargin=opts.rmargin, leafcolor=leafcolor,
+    draw_tree(root, tx, rmargin=opts.rmargin, leafcolor=opts.leafcolor,
               outgroup=outgroup, gffdir=opts.gffdir, sizes=opts.sizes)
 
     image_name = pf + "." + iopts.format
-    logging.debug("Print image to `{0}` {1}".format(image_name, iopts))
-    plt.savefig(image_name, dpi=iopts.dpi)
-    plt.rcdefaults()
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
 if __name__ == '__main__':
-    t1 = """(((Os02g0681100:0.1151,Sb04g031800:0.11220)1.0:0.0537,
-    (Os04g0578800:0.04318,Sb06g026210:0.04798)-1.0:0.08870)1.0:0.06985,
-    ((Os03g0124100:0.08845,Sb01g048930:0.09055)1.0:0.05332,
-    (Os10g0534700:0.06592,Sb01g030630:0.04824)-1.0:0.07886):0.09389);"""
     main()

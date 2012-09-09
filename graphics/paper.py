@@ -11,7 +11,7 @@ import logging
 from optparse import OptionParser
 
 from jcvi.graphics.base import plt, _, Rectangle, Polygon, CirclePolygon, \
-        set_image_options
+        set_image_options, savefig
 from jcvi.graphics.glyph import GeneGlyph, RoundLabel, RoundRect, \
         arrowprops, TextCircle
 from jcvi.graphics.chromosome import Chromosome
@@ -73,8 +73,7 @@ def amborella(args):
     pf = "amborella"
     image_name = pf + "." + iopts.format
     logging.debug("Print image to `{0}` {1}".format(image_name, iopts))
-    plt.savefig(image_name, dpi=iopts.dpi)
-    plt.rcdefaults()
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
 def cotton(args):
@@ -175,8 +174,7 @@ def cotton(args):
     pf = "cotton"
     image_name = pf + "." + iopts.format
     logging.debug("Print image to `{0}` {1}".format(image_name, iopts))
-    plt.savefig(image_name, dpi=iopts.dpi)
-    plt.rcdefaults()
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
 def plot_diagram(ax, x, y, label="S", title="syntenic"):
@@ -270,8 +268,7 @@ def epoch(args):
     root.set_axis_off()
 
     figname = fname() + ".pdf"
-    plt.savefig(figname, dpi=300)
-    logging.debug("Figure saved to `{0}`".format(figname))
+    savefig(figname, dpi=300)
 
 
 def excision(args):
@@ -310,8 +307,7 @@ def excision(args):
     root.set_axis_off()
 
     figname = fname() + ".pdf"
-    plt.savefig(figname, dpi=300)
-    logging.debug("Figure saved to `{0}`".format(figname))
+    savefig(figname, dpi=300)
 
 
 def bites(args):
@@ -405,8 +401,7 @@ def bites(args):
     root.set_axis_off()
 
     figname = fname() + ".pdf"
-    plt.savefig(figname, dpi=300)
-    logging.debug("Figure saved to `{0}`".format(figname))
+    savefig(figname, dpi=300)
 
 
 def scenario(args):
@@ -463,8 +458,7 @@ def scenario(args):
         plt.plot((xa, xb), (ya - tip, yb + 2 * tip), 'k-', lw=2, alpha=.5)
 
     figname = fname() + ".pdf"
-    plt.savefig(figname, dpi=300)
-    logging.debug("Figure saved to `{0}`".format(figname))
+    savefig(figname, dpi=300)
 
 
 if __name__ == '__main__':

@@ -19,7 +19,7 @@ from jcvi.formats.sizes import Sizes
 from jcvi.assembly.base import calculate_A50
 from jcvi.assembly.coverage import BedLine, Sizes, Coverage
 from jcvi.graphics.base import plt, Rectangle, set_human_base_axis, \
-        _, set_image_options
+        _, set_image_options, savefig
 from jcvi.utils.cbook import thousands
 from jcvi.apps.base import ActionDispatcher, debug, need_update
 debug()
@@ -112,8 +112,7 @@ def coverage(args):
     set_human_base_axis(ax)
 
     figname ="{0}.{1}.pdf".format(fastafile, ctg)
-    plt.savefig(figname, dpi=iopts.dpi)
-    logging.debug("Figure saved to `{0}` {1}.".format(figname, iopts))
+    savefig(figname, dpi=iopts.dpi, iopts=iopts)
 
 
 def scaffolding(ax, scaffoldID, blastf, qsizes, ssizes, qbed, sbed,
@@ -159,8 +158,7 @@ def plot_one_scaffold(scaffoldID, ssizes, sbed, trios, imagename, iopts,
     root.set_ylim(0, 1)
     root.set_axis_off()
 
-    plt.savefig(imagename, dpi=iopts.dpi)
-    logging.debug("Print image to `{0}` {1}".format(imagename, iopts))
+    savefig(imagename, dpi=iopts.dpi, iopts=iopts)
 
 
 def scaffold(args):
@@ -334,8 +332,7 @@ def qc(args):
     root.set_axis_off()
 
     figname = prefix + ".pdf"
-    plt.savefig(figname, dpi=300)
-    logging.debug("Figure saved to `{0}`".format(figname))
+    savefig(figname, dpi=300)
 
 
 def generate_plot(filename, rplot="A50.rplot", rpdf="A50.pdf"):

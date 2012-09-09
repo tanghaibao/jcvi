@@ -25,7 +25,7 @@ from jcvi.formats.sizes import Sizes
 from jcvi.formats.bed import Bed
 from jcvi.apps.base import debug
 from jcvi.graphics.base import plt, ticker, Rectangle, cm, _, \
-        set_human_base_axis, set_image_options
+        set_human_base_axis, set_image_options, savefig
 debug()
 
 
@@ -284,6 +284,4 @@ if __name__ == "__main__":
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
     root.set_axis_off()
-    logging.debug("Print image to `{0}` {1}".format(image_name, iopts))
-    plt.savefig(image_name, dpi=iopts.dpi)
-    plt.rcdefaults()
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)

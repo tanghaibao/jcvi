@@ -2,6 +2,7 @@
 # -*- coding: UTF-8 -*-
 
 import sys
+import logging
 
 from functools import partial
 
@@ -37,6 +38,22 @@ class ImageOptions (object):
 
     def __str__(self):
         return "({0}px x {1}px)".format(self.dpi * self.w, self.dpi * self.h)
+
+
+def savefig(figname, dpi=150, iopts=None):
+    try:
+        plt.savefig(*args)
+    except:
+        logging.error("savefig failed. Reset usetex to False.")
+        rc('text', **{'usetex': False})
+        plt.savefig(figname, dpi=dpi)
+
+    msg = "Figure saved to `{0}`".format(figname)
+    if iopts:
+        msg += " {0}".format(iopts)
+    logging.debug(msg)
+
+    plt.rcdefaults()
 
 
 # human readable size (Kb, Mb, Gb)

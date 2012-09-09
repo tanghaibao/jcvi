@@ -136,7 +136,7 @@ class KsPlot (object):
     def draw(self, title="Ks distribution"):
 
         from jcvi.graphics.base import plt, _, tex_formatter, \
-                    tex_1digit_formatter, tex_2digit_formatter
+                    tex_1digit_formatter, tex_2digit_formatter, savefig
 
         ax = self.ax
         ks_max = self.ks_max
@@ -158,9 +158,7 @@ class KsPlot (object):
         ax.yaxis.set_major_formatter(tex_formatter)
 
         image_name = "Ks_plot.pdf"
-        logging.debug("Print image to `{0}`.".format(image_name))
-        plt.savefig(image_name, dpi=300)
-        plt.rcdefaults()
+        savefig(image_name, dpi=300)
 
 
 def multireport(args):

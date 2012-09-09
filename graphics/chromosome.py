@@ -18,7 +18,7 @@ import numpy as np
 
 from jcvi.formats.bed import Bed
 from jcvi.graphics.base import plt, Rectangle, Polygon, \
-        CirclePolygon, _, set_image_options
+        CirclePolygon, _, set_image_options, savefig
 from jcvi.graphics.glyph import BaseGlyph
 
 
@@ -300,8 +300,7 @@ def main():
     root.set_ylim(0, 1)
     root.set_axis_off()
 
-    plt.savefig(figname, dpi=dpi)
-    logging.debug("Figure saved to `{0}` {1}".format(figname, iopts))
+    savefig(figname, dpi=dpi, iopts=iopts)
 
 
 if __name__ == '__main__':

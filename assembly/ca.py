@@ -146,7 +146,7 @@ def astat(args):
 
     print >> sys.stderr, msg.format(tigID)
 
-    from jcvi.graphics.base import plt
+    from jcvi.graphics.base import plt, savefig
 
     logging.debug("Plotting {0} data points.".format(len(data)))
     tigID, rho, covStat, arrDist = zip(*data)
@@ -169,7 +169,7 @@ def astat(args):
         ax.set_yscale('log')
 
     imagename = "{0}.png".format(".".join(info))
-    plt.savefig(imagename, dpi=150)
+    savefig(imagename, dpi=150)
 
 
 def emitFragment(fw, fragID, libID, shredded_seq, fasta=False):

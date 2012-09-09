@@ -26,7 +26,7 @@ from jcvi.formats.bed import Bed
 from jcvi.algorithms.synteny import batch_scan, add_beds, check_beds
 from jcvi.apps.base import debug
 from jcvi.graphics.base import plt, ticker, Rectangle, cm, _, \
-        set_human_axis, set_image_options
+        set_human_axis, set_image_options, savefig
 debug()
 
 
@@ -203,8 +203,7 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts,
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
     root.set_axis_off()
-    logging.debug("Print image to `{0}` {1}".format(image_name, iopts))
-    plt.savefig(image_name, dpi=iopts.dpi)
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
 if __name__ == "__main__":

@@ -238,7 +238,7 @@ Random ad-hoc functions
 """
 
 
-def gene_name(st):
+def gene_name(st, sep="."):
     """
     Helper functions in the BLAST filtering to get rid alternative splicings
     this is ugly, but different annotation groups are inconsistent
@@ -250,7 +250,8 @@ def gene_name(st):
         return st
     if st.startswith("Os"):
         return st.rsplit("-", 1)[0]
-    return st.rsplit(".", 1)[0]
+    if sep:
+        return st.rsplit(sep, 1)[0]
 
 
 def fill(text, delimiter="", width=70):

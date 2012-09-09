@@ -10,7 +10,7 @@ from optparse import OptionParser
 
 from jcvi.formats.bed import Bed, BedLine
 from jcvi.formats.blast import BlastLine
-from jcvi.formats.base import BaseFile, read_block, must_open
+from jcvi.formats.base import BaseFile, SetFile, read_block, must_open
 from jcvi.utils.grouper import Grouper
 from jcvi.utils.cbook import gene_name
 from jcvi.utils.range import Range, range_chain
@@ -435,7 +435,6 @@ def matrix(args):
 
     Make oxford grid based on anchors file.
     """
-    from jcvi.formats.base import SetFile
 
     p = OptionParser(matrix.__doc__)
     p.add_option("--seqids", help="File with seqids [default: %default]")
@@ -543,7 +542,6 @@ def screen(args):
     2. Option --seqids: only allow seqids in this file.
     3. Option --minspan: remove blocks with less span than this.
     """
-    from jcvi.formats.base import SetFile
 
     p = OptionParser(screen.__doc__)
     add_beds(p)
@@ -724,6 +722,9 @@ def mcscan(args):
     Stack synteny blocks on a reference bed, MCSCAN style. The first column in
     the output is the reference order, given in the bedfile. Then each column
     next to it are separate 'tracks'.
+
+    If --mergetandem=tandem_file is specified, tandem_file should have each
+    tandem cluster as one line, comma separated.
     """
     p = OptionParser(mcscan.__doc__)
     p.add_option("--iter", default=100, type="int",
@@ -734,6 +735,9 @@ def mcscan(args):
                  help="Clip block ends to allow slight overlaps [default: %default]")
     p.add_option("--trackids", action="store_true",
                  help="Track block IDs in separate file [default: %default]")
+    p.add_option("--mergetandem", default=None,
+                 help="merge tandems genes in output acoording to PATH-TO-TANDEM_FILE, "\
+                 "cannot be used with --ascii")
     set_outfile(p)
     opts, args = p.parse_args(args)
 
@@ -744,12 +748,16 @@ def mcscan(args):
     ascii = opts.ascii
     clip = opts.Nm
     trackids = opts.trackids
+    mergetandem = opts.mergetandem
     bed = Bed(bedfile)
     order = bed.order
 
     if trackids:
         olog = ofile + ".tracks"
         fwlog = must_open(olog, "w")
+
+    if mergetandem:
+        tandems = [f.strip().split(",") for f in file(mergetandem)]
 
     ac = AnchorFile(anchorfile)
     ranges = []
@@ -798,22 +806,45 @@ def mcscan(args):
         print >> sys.stderr, msg
         iteration += 1
 
+    mbed = []
+    seen = []
     for b in bed:
         id = b.accn
-        atoms = []
-        for track in tracks:
-            track_ids = [x.id for x in track]
-            for tid in track_ids:
-                pairs = block_pairs[tid]
-                anchor = pairs.get(id, ".")
-                if anchor != ".":
-                    break
-            if ascii and anchor != ".":
-                anchor = "x"
-            atoms.append(anchor)
+        if id in seen:
+            continue
 
+        ids = [id]
+        if mergetandem:
+            for t in tandems:
+                if id in t:
+                    ids = t
+                    break
+
+        atomss = []
+        for id in ids:
+            atoms = [id]
+            for track in tracks:
+                track_ids = [x.id for x in track]
+                for tid in track_ids:
+                    pairs = block_pairs[tid]
+                    anchor = pairs.get(id, ".")
+                    if anchor != ".":
+                        break
+                if ascii and anchor != ".":
+                    anchor = "x"
+                atoms.append(anchor)
+            atomss.append(atoms)
+            seen.append(id)
+
+        if len(ids)>1:
+            atomss = zip(*atomss)
+            atoms = map(lambda x: ",".join(set(x)), atomss)
+
+        mbed.append(atoms)
+
+    for atoms in mbed:
         sep = "" if ascii else "\t"
-        print >> fw, "\t".join((id, sep.join(atoms)))
+        print >> fw, sep.join(atoms)
 
     logging.debug("MCscan blocks written to `{0}`.".format(ofile))
     if trackids:
@@ -1033,7 +1064,7 @@ def liftover(args):
     qbed, sbed, qorder, sorder, is_self = check_beds(p, opts)
 
     filtered_blast = read_blast(blast_file, qorder, sorder,
-                            is_self=is_self, ostrip=opts.strip_names)
+                            is_self=is_self, ostrip=not opts.strip_names)
     blast_to_score = dict(((b.qi, b.si), int(b.score)) for b in filtered_blast)
     accepted = set((b.query, b.subject) for b in filtered_blast)
 

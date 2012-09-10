@@ -839,12 +839,13 @@ def mcscan(args):
         if len(ids) > 1:
             atomss = zip(*atomss)
             atoms = map(lambda x: ",".join(set(x)), atomss)
+            atoms = map(lambda x: x.replace(",.","").replace(".,",""), atoms)
 
         mbed.append(atoms)
 
     for atoms in mbed:
         sep = "" if ascii else "\t"
-        print >> fw, sep.join(atoms)
+        print >> fw, "\t".join(atoms[0], sep.join(atoms[1:]))
 
     logging.debug("MCscan blocks written to `{0}`.".format(ofile))
     if trackids:

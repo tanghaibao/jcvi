@@ -56,7 +56,6 @@ def main(args):
     """
     %prog database.fasta query.fasta
 
-
     Run LAST by calling LASTDB, LASTAL and LASTEX.
     """
 

@@ -456,11 +456,17 @@ def cscore(args):
     Output file will be 3-column (query, subject, cscore). Use --cutoff to
     select a different cutoff.
     """
+    from jcvi.apps.base import set_stripnames
+    from jcvi.utils.cbook import gene_name
+
     p = OptionParser(cscore.__doc__)
     p.add_option("--cutoff", default=.9999, type="float",
             help="Minimum C-score to report [default: %default]")
+    set_stripnames(p)
+    set_outfile(p)
 
     opts, args = p.parse_args(args)
+    ostrip = opts.strip_names
 
     if len(args) != 1:
         sys.exit(not p.print_help())
@@ -471,22 +477,33 @@ def cscore(args):
     logging.debug("Register best scores ..")
     best_score = defaultdict(float)
     for b in blast.iter_line():
-        if b.score > best_score[b.query]:
-            best_score[b.query] = b.score
-        if b.score > best_score[b.subject]:
-            best_score[b.subject] = b.score
+        query, subject = b.query, b.subject
+        if ostrip:
+            query, subject = gene_name(query), gene_name(subject)
+
+        score = b.score
+        if score > best_score[query]:
+            best_score[query] = score
+        if score > best_score[subject]:
+            best_score[subject] = score
 
     blast = Blast(blastfile)
     pairs = defaultdict(float)
     for b in blast.iter_line():
-        s = b.score / max(best_score[b.query], best_score[b.subject])
+        query, subject = b.query, b.subject
+        if ostrip:
+            query, subject = gene_name(query), gene_name(subject)
+
+        score = b.score
+        s = score / max(best_score[query], best_score[subject])
         if s > opts.cutoff:
-            pair = (b.query, b.subject)
+            pair = (query, subject)
             if s > pairs[pair]:
                 pairs[pair] = s
 
+    fw = must_open(opts.outfile, "w")
     for (query, subject), s in sorted(pairs.items()):
-        print "\t".join((query, subject, "{0:.2f}".format(s)))
+        print >> fw, "\t".join((query, subject, "{0:.2f}".format(s)))
 
 
 def get_distance(a, b, xaxis=True):

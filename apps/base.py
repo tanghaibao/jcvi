@@ -102,6 +102,15 @@ def set_outfile(instance, outfile="stdout"):
             help="Outfile name [default: %default]")
 
 
+def set_stripnames(instance):
+    assert isinstance(instance, OptionParser)
+
+    instance.add_option("--no_strip_names", dest="strip_names",
+            action="store_false", default=True,
+            help="do not strip alternative splicing "
+            "(e.g. At5g06540.1 -> At5g06540)")
+
+
 def sh(cmd, grid=False, infile=None, outfile=None, errfile=None,
         background=False, threaded=None):
     """

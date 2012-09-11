@@ -15,7 +15,7 @@ from jcvi.utils.grouper import Grouper
 from jcvi.utils.cbook import gene_name
 from jcvi.utils.range import Range, range_chain
 from jcvi.utils.iter import flatten
-from jcvi.apps.base import ActionDispatcher, debug, set_outfile
+from jcvi.apps.base import ActionDispatcher, debug, set_outfile, set_stripnames
 debug()
 
 
@@ -877,7 +877,7 @@ def group(args):
     groups = Grouper()
     for anchorfile in anchorfiles:
         ac = AnchorFile(anchorfile)
-        for a, b in ac.iter_pairs():
+        for a, b, idx in ac.iter_pairs():
             groups.join(a, b)
 
     ngroups = len(groups)
@@ -1064,11 +1064,7 @@ def liftover(args):
         geneC geneD
     """
     p = OptionParser(liftover.__doc__)
-
-    p.add_option("--no_strip_names", dest="strip_names",
-            action="store_false", default=True,
-            help="do not strip alternative splicing "
-            "(e.g. At5g06540.1 -> At5g06540)")
+    set_stripnames(p)
 
     blast_file, anchor_file, dist, opts = add_options(p, args)
     qbed, sbed, qorder, sorder, is_self = check_beds(p, opts)

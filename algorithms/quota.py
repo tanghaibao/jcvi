@@ -30,7 +30,8 @@ from jcvi.utils.grouper import Grouper
 from jcvi.algorithms.synteny import AnchorFile, _score, add_beds, check_beds
 from jcvi.algorithms.lpsolve import GLPKSolver, SCIPSolver
 from jcvi.formats.bed import Bed
-from jcvi.apps.base import debug
+from jcvi.formats.base import must_open
+from jcvi.apps.base import debug, set_outfile
 debug()
 
 
@@ -245,8 +246,7 @@ def read_clusters(qa_file, qorder, sorder):
     return clusters
 
 
-if __name__ == '__main__':
-
+def main(args):
     p = OptionParser(__doc__)
 
     add_beds(p)
@@ -271,8 +271,9 @@ if __name__ == '__main__':
                  "[default: %default]")
     p.add_option("--verbose", action="store_true",
             default=False, help="show verbose solver output")
+    set_outfile(p)
 
-    opts, args = p.parse_args()
+    opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
@@ -311,4 +312,9 @@ if __name__ == '__main__':
             solver=opts.solver, verbose=opts.verbose)
 
     logging.debug("Selected {0} blocks.".format(len(selected_ids)))
-    print ",".join(str(x) for x in selected_ids)
+    fw = must_open(opts.outfile, "w")
+    print >> fw, ",".join(str(x) for x in selected_ids)
+
+
+if __name__ == '__main__':
+    main(sys.argv[1:])

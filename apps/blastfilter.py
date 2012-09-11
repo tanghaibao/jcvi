@@ -35,17 +35,18 @@ import itertools
 
 from math import log10
 from collections import defaultdict
+from optparse import OptionParser, OptionGroup
 
 from jcvi.formats.bed import Bed
 from jcvi.formats.blast import BlastLine
 from jcvi.utils.grouper import Grouper
 from jcvi.utils.cbook import gene_name
 from jcvi.algorithms.synteny import add_beds, check_beds
-from jcvi.apps.base import debug
+from jcvi.apps.base import debug, set_stripnames
 debug()
 
 
-def main(blast_file, opts):
+def blastfilter_main(blast_file, p, opts):
 
     qbed, sbed, qorder, sorder, is_self = check_beds(p, opts)
 
@@ -307,20 +308,16 @@ def tandem_grouper(bed, blast_list, tandem_Nmax=10, flip=True):
     return standems
 
 
-if __name__ == "__main__":
-    import optparse
+def main(args):
 
-    p = optparse.OptionParser(__doc__)
+    p = OptionParser(__doc__)
     add_beds(p)
-    p.add_option("--no_strip_names", dest="strip_names",
-            action="store_false", default=True,
-            help="do not strip alternative splicing "
-            "(e.g. At5g06540.1 -> At5g06540)")
+    set_stripnames(p)
     p.add_option("--tandems_only", dest="tandems_only",
             action="store_true", default=False,
             help="only calculate tandems, write .localdup file and exit.")
 
-    filter_group = optparse.OptionGroup(p, "BLAST filters")
+    filter_group = OptionGroup(p, "BLAST filters")
     filter_group.add_option("--tandem_Nmax", dest="tandem_Nmax",
             type="int", default=None,
             help="merge tandem genes within distance [default: %default]")
@@ -335,10 +332,14 @@ if __name__ == "__main__":
 
     p.add_option_group(filter_group)
 
-    opts, args = p.parse_args()
+    opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     blastfile, = args
-    main(blastfile, opts)
+    blastfilter_main(blastfile, p, opts)
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])

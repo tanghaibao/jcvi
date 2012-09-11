@@ -72,7 +72,7 @@ class GenBank(dict):
         return gbdir
 
     @classmethod
-    def write_genes_bed(gbrec, outfile):
+    def write_genes_bed(cls, gbrec, outfile):
         seqid = gbrec.id.split(".")[0]
 
         genecount = 0
@@ -104,7 +104,7 @@ class GenBank(dict):
                 outfile.write(bedline)
 
     @classmethod
-    def write_genes_fasta(gbrec, fwcds, fwpep):
+    def write_genes_fasta(cls, gbrec, fwcds, fwpep):
         seqid = gbrec.id.split(".")[0]
 
         genecount = 0
@@ -130,6 +130,10 @@ class GenBank(dict):
                     for subf in sorted(feature.sub_features, \
                         key=lambda x: x.location.start.position*x.strand):
                         seq = seq + subf.extract(gbrec.seq)
+                    if seq.translate().count("*")>1:
+                        seq = ""
+                        for subf in feature.sub_features:
+                            seq = seq + subf.extract(gbrec.seq)
                     fwcds.write(">{0}\n{1}\n".format(accn, seq))
                     fwpep.write(">{0}\n{1}\n".format(accn, seq.translate()))
 
@@ -146,8 +150,8 @@ class GenBank(dict):
                 fwcds = must_open(op.join(output, recid+".cds"), "w")
                 fwpep = must_open(op.join(output, recid+".pep"), "w")
 
-            self.write_genes_bed(rec, fwbed)
-            self.write_genes_fasta(rec, fwcds, fwpep)
+            GenBank.write_genes_bed(rec, fwbed)
+            GenBank.write_genes_fasta(rec, fwcds, fwpep)
 
         if not pep:
             FileShredder([fwpep.name])

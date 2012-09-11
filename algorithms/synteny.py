@@ -1065,7 +1065,7 @@ def liftover(args):
     qbed, sbed, qorder, sorder, is_self = check_beds(p, opts)
 
     filtered_blast = read_blast(blast_file, qorder, sorder,
-                            is_self=is_self, ostrip=not opts.strip_names)
+                            is_self=is_self, ostrip=opts.strip_names)
     blast_to_score = dict(((b.qi, b.si), int(b.score)) for b in filtered_blast)
     accepted = set((b.query, b.subject) for b in filtered_blast)
 

@@ -46,17 +46,25 @@ class AnchorFile (BaseFile):
         fw = must_open(filename, "w")
         blocks = self.blocks
         nremoved = 0
+        ncorrected = 0
         for block in blocks:
             print >> fw, "###"
             for line in block:
-                a, b = line[:2]
-                if accepted and (a, b) not in accepted:
-                    nremoved += 1
-                    continue
-                print >> fw, "\t".join(str(x) for x in line)
+                a, b, score = line
+                pair = (a, b)
+                if accepted:
+                    if pair not in accepted:
+                        nremoved += 1
+                        continue
+                    av = accepted[pair]
+                    if score != av and score != av + 'L':
+                        score = av
+                        ncorrected += 1
+                print >> fw, "\t".join((a, b, score))
         fw.close()
 
         logging.debug("Removed {0} existing anchors.".format(nremoved))
+        logging.debug("Corrected scores for {0} anchors.".format(ncorrected))
         logging.debug("Anchors written to `{0}`.".format(filename))
 
 
@@ -166,7 +174,7 @@ def read_blast(blast_file, qorder, sorder, is_self=False, ostrip=True):
     for row in fp:
         b = BlastLine(row)
         query, subject = b.query, b.subject
-        if query==subject:
+        if query == subject:
             continue
         if ostrip:
             query, subject = gene_name(query), gene_name(subject)
@@ -193,7 +201,8 @@ def read_blast(blast_file, qorder, sorder, is_self=False, ostrip=True):
 
         filtered_blast.append(b)
 
-    logging.debug("A total of {0} BLAST matches imported.".format(len(filtered_blast)))
+    logging.debug("A total of {0} BLAST imported from `{1}`.".\
+                  format(len(filtered_blast), blast_file))
 
     return filtered_blast
 
@@ -1067,7 +1076,8 @@ def liftover(args):
     filtered_blast = read_blast(blast_file, qorder, sorder,
                             is_self=is_self, ostrip=opts.strip_names)
     blast_to_score = dict(((b.qi, b.si), int(b.score)) for b in filtered_blast)
-    accepted = set((b.query, b.subject) for b in filtered_blast)
+    accepted = dict(((b.query, b.subject), str(int(b.score))) \
+                     for b in filtered_blast)
 
     ac = AnchorFile(anchor_file)
     all_hits = group_hits(filtered_blast)

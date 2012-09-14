@@ -195,7 +195,7 @@ def tandem_main(blast_file, cds_file, bed_file, N=3, P=50, is_self=True, \
 
 def tandem(args):
     """
-    %prog blast_file cds_file bed_file [options]
+    %prog tandem blast_file cds_file bed_file [options]
 
     Find tandem gene clusters that are separated by N genes, based on filtered
     blast_file by enforcing alignments between any two genes at least 50%

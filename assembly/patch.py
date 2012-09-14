@@ -68,7 +68,7 @@ def main():
 
 def pasteprepare(args):
     """
-    %prog pasteprepare bacs.fasta assembly.fsata
+    %prog pasteprepare bacs.fasta
 
     Prepare sequences for paste.
     """
@@ -77,10 +77,10 @@ def pasteprepare(args):
                  help="Get the seq of size on two ends [default: %default]")
     opts, args = p.parse_args(args)
 
-    if len(args) != 2:
+    if len(args) != 1:
         sys.exit(not p.print_help())
 
-    goodfasta, asmfasta = args
+    goodfasta, = args
     flank = opts.flank
     pf = goodfasta.rsplit(".", 1)[0]
     extbed = pf + ".ext.bed"
@@ -581,6 +581,7 @@ def blast_to_twobeds(blastfile, order, log=False,
     data = BlastSlow(blastfile)
     OK = "OK"
 
+    seen = set()
     for pe, lines in groupby(data, key=key2):
         label = OK
         lines = list(lines)
@@ -619,7 +620,9 @@ def blast_to_twobeds(blastfile, order, log=False,
                     label = "Stop beyond start plus {0}".format(maxsize)
 
         aquery = lines[0].query
-        name = aquery[:-1] + "LR"
+        bac_name = aquery[:-1]
+        seen.add(bac_name)
+        name = bac_name + "LR"
 
         if label != OK:
             if log:
@@ -630,6 +633,17 @@ def blast_to_twobeds(blastfile, order, log=False,
                     (ax.seqid, qstart - 1, qstop, name, 1000, "+"))
         print >> fwb, "\t".join(str(x) for x in \
                     (asubject, sstart - 1, sstop, name, 1000, astrand))
+
+    # Missing
+    if log:
+        label = "Missing"
+        for k in order.keys():
+            k = k[:-1]
+            if k not in seen:
+                seen.add(k)
+                k += "LR"
+                print >> log, "\t".join((k, label))
+        log.close()
 
     fwa.close()
     fwb.close()

@@ -342,6 +342,18 @@ def iter_clean_fasta(fastafile):
         yield header, seq
 
 
+def iter_canonical_fasta(fastafile):
+    canonical = "acgtnACGTN"
+    totalbad = 0
+    for header, seq in parse_fasta(fastafile):
+        badcounts = sum(1 for x in seq if x not in canonical)
+        seq = "".join((x if x in canonical else 'N') for x in seq)
+        totalbad += badcounts
+        yield header, seq
+
+    logging.debug("Total bad char: {0}".format(totalbad))
+
+
 def fancyprint(fw, seq, width=60, chunk=10):
     from jcvi.utils.iter import grouper
 
@@ -367,6 +379,8 @@ def clean(args):
     p = OptionParser(clean.__doc__)
     p.add_option("--fancy", default=False, action="store_true",
                  help="Pretty print the sequence [default: %default]")
+    p.add_option("--canonical", default=False, action="store_true",
+                 help="Use only acgtnACGTN [defauult: %default]")
     set_outfile(p)
 
     opts, args = p.parse_args(args)
@@ -383,7 +397,9 @@ def clean(args):
 
         return 0
 
-    for header, seq in iter_clean_fasta(fastafile):
+    iterator = iter_canonical_fasta if opts.canonical else iter_clean_fasta
+
+    for header, seq in iterator(fastafile):
         seq = Seq(seq)
         s = SeqRecord(seq, id=header, description="")
         SeqIO.write([s], fw, "fasta")

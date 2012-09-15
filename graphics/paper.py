@@ -72,7 +72,6 @@ def amborella(args):
 
     pf = "amborella"
     image_name = pf + "." + iopts.format
-    logging.debug("Print image to `{0}` {1}".format(image_name, iopts))
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
@@ -173,7 +172,6 @@ def cotton(args):
 
     pf = "cotton"
     image_name = pf + "." + iopts.format
-    logging.debug("Print image to `{0}` {1}".format(image_name, iopts))
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 

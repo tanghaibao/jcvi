@@ -199,7 +199,7 @@ def anchor(args):
 
 def fasta(args):
     """
-    %prog fasta map.out scaffolds.fasta markers.fasta
+    %prog fasta map.out scaffolds.fasta
 
     Extract marker sequences based on map.
     """

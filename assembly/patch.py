@@ -396,7 +396,7 @@ def bambus(args):
     from jcvi.formats.posmap import MatesFile
 
     p = OptionParser(bambus.__doc__)
-    p.add_option("--prefix", default="unplaced",
+    p.add_option("--prefix", default="scaffold",
                  help="Prefix of the unplaced scaffolds [default: %default]")
     p.add_option("--minlinks", default=3, type="int",
                  help="Minimum number of links to place [default: %default]")

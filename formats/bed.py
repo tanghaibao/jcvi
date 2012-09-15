@@ -61,6 +61,11 @@ class BedLine(object):
     def span(self):
         return self.end - self.start + 1
 
+    @property
+    def range(self):
+        strand = self.strand or '+'
+        return (self.seqid, self.start, self.end, strand)
+
     def reverse_complement(self, sizes):
         # this function is used in assembly.sopra
         seqid = self.seqid.rstrip('-')

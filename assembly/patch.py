@@ -24,7 +24,8 @@ from itertools import groupby
 from optparse import OptionParser
 from collections import defaultdict
 
-from jcvi.formats.bed import Bed, BedLine, complementBed, mergeBed, fastaFromBed
+from jcvi.formats.bed import Bed, BedLine, complementBed, mergeBed, \
+        fastaFromBed, summary
 from jcvi.formats.blast import BlastSlow
 from jcvi.formats.fasta import Fasta
 from jcvi.formats.sizes import Sizes
@@ -61,9 +62,117 @@ def main():
         # Touch-up
         ('pasteprepare', 'prepare sequences for paste'),
         ('paste', 'paste in good sequences in the final assembly'),
+        ('pastegenes', 'paste in zero or low coverage genes'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def pastegenes(args):
+    """
+    %prog pastegenes coverage.list old.genes.bed new.genes.bed old.assembly
+
+    Paste in zero or low coverage genes.  For a set of neighboring genes
+    missing, add the whole cassette as unplaced scaffolds. For singletons the
+    program will try to make a patch.
+    """
+    from jcvi.formats.base import DictFile
+    from jcvi.utils.range import range_minmax, range_distance
+    from jcvi.utils.cbook import gene_name
+
+    p = OptionParser(pastegenes.__doc__)
+    p.add_option("--cutoff", default=90, type="int",
+                 help="Coverage cutoff to call gene missing [default: %default]")
+    p.add_option("--flank", default=2000, type="int",
+                 help="Get the seq of size on two ends [default: %default]")
+    p.add_option("--maxsize", default=50000, type="int",
+            help="Maximum size of patchers to be replaced [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 4:
+        sys.exit(not p.print_help())
+
+    coveragefile, oldbed, newbed, oldassembly = args
+    cutoff = opts.cutoff
+    flank = opts.flank
+    maxsize = opts.maxsize
+
+    coverage = DictFile(coveragefile, valuepos=2)
+
+    obed = Bed(oldbed)
+    order = obed.order
+    bed = [x for x in obed if x.accn in coverage]
+    key = lambda x: float(coverage[x.accn]) >= cutoff
+
+    extrabed = "extra.bed"
+    extendbed = "extend.bed"
+    pastebed = "paste.bed"
+
+    fw = open(extrabed, "w")
+    fwe = open(extendbed, "w")
+    fwp = open(pastebed, "w")
+    fw_ids = open(extendbed + ".ids", "w")
+
+    singletons, large, large_genes = 0, 0, 0
+    for chr, chrbed in groupby(bed, key=lambda x: x.seqid):
+        chrbed = list(chrbed)
+        for good, beds in groupby(chrbed, key=key):
+            if good:
+                continue
+
+            beds = list(beds)
+            blocksize = len(set([gene_name(x.accn) for x in beds]))
+            if blocksize == 1:
+                singletons += 1
+                accn = beds[0].accn
+                gi, gb = order[accn]
+                leftb = obed[gi - 1]
+                rightb = obed[gi + 1]
+                leftr = leftb.range
+                rightr = rightb.range
+                cur = gb.range
+                distance_to_left, oo = range_distance(leftr, cur)
+                distance_to_right, oo = range_distance(cur, rightr)
+                span, oo = range_distance(leftr, rightr)
+
+                if distance_to_left <= distance_to_right and \
+                   distance_to_left > 0:
+                    label = "LEFT"
+                else:
+                    label = "RIGHT"
+
+                if 0 < span <= maxsize:
+                    print >> fwp, "\t".join(str(x) for x in \
+                                    (chr, leftb.start, rightb.end, gb.accn))
+
+                print >> fwe, leftb
+                print >> fwe, gb
+                print >> fwe, rightb
+                print >> fwe, "L:{0} R:{1} [{2}]".format(distance_to_left, \
+                            distance_to_right, label)
+                print >> fw_ids, gb.accn
+                continue
+
+            large += 1
+            large_genes += blocksize
+
+            ranges = [(x.start, x.end) for x in beds]
+            rmin, rmax = range_minmax(ranges)
+            rmin -= flank
+            rmax += flank
+
+            name = "-".join((beds[0].accn, beds[-1].accn))
+            print >> fw, "\t".join(str(x) for x in (chr, rmin - 1, rmax, name))
+
+    fw.close()
+    fwe.close()
+
+    extrabed = mergeBed(extrabed, d=flank, nms=True)
+    fastaFromBed(extrabed, oldassembly, name=True)
+    summary([extrabed])
+
+    logging.debug("Singleton blocks : {0}".format(singletons))
+    logging.debug("Large blocks : {0} ({1} genes)".format(large, large_genes))
 
 
 def pasteprepare(args):

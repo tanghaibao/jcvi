@@ -40,18 +40,18 @@ Contents
 
     * BLAST filter that selects subset of anchors.
     * GenBank entrez accession downloader.
-    * Wrapper for LASTZ, BWA, CLC, CDHIT, etc.
+    * Wrapper for LASTZ, BWA, CLC, CDHIT, CAP3, etc.
     * Low complexity sequence masker with NCBI WindowMasker.
     * Prepare Genbank sequence data submission files.
 
 - ``formats``
     File parsers for various files used in genome assembly and comparisons.
-    Currents supports ``.agp`` (goldenpath), ``.bed`` format,
-    ``.blast`` output, ``.btab`` format, ``.cas`` (CLC assembler output),
+    Currently supports ``.ace`` format (phrap, cap3, etc.), ``.agp`` (goldenpath),
+    ``.bed`` format, ``.blast`` output, ``.btab`` format, ``.cas`` (CLC assembler output),
     ``.coords`` format (``nucmer`` output), ``.fasta`` format, ``.fastq`` format,
     ``.fpc`` format, ``.gff`` format, ``obo`` format (ontology),
-    ``.posmap`` format (Celera assembler output), ``.sam`` format (read
-    mapping), ``.contig`` format (TIGR assembly format), etc.
+    ``.psl`` format (UCSC blat, GMAP, etc.), ``.posmap`` format (Celera assembler output),
+    ``.sam`` format (read mapping), ``.contig`` format (TIGR assembly format), etc.
 
 - ``graphics``
     Graphics to visualize comparative genomics or assembly stuff. Including:

@@ -265,6 +265,21 @@ def fill(text, delimiter="", width=70):
     return "\n".join(texts)
 
 
+def uniqify(L):
+    """
+    Uniqify a list, maintains order (the first occurrence will be kept).
+    """
+    seen = set()
+    nL = []
+    for a in L:
+        if a in seen:
+            continue
+        nL.append(a)
+        seen.add(a)
+
+    return nL
+
+
 if __name__ == '__main__':
     import doctest
     doctest.testmod()

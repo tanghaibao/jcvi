@@ -363,11 +363,66 @@ def main():
         ('breakpoint', 'identify breakpoints where collinearity ends'),
         ('matrix', 'make oxford grid based on anchors file'),
         ('coge', 'convert CoGe file to anchors file'),
+        ('spa', 'convert chr ordering from SPA to simple lists'),
         ('rebuild', 'rebuild anchors file from prebuilt blocks file'),
             )
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def spa(args):
+    """
+    %prog spa spafiles
+
+    Convert chromosome ordering from SPA to simple lists. First column is the
+    reference order.
+    """
+    from jcvi.algorithms.graph import merge_paths
+    from jcvi.utils.cbook import uniqify
+
+    p = OptionParser(spa.__doc__)
+
+    if len(args) < 1:
+        sys.exit(not p.print_help())
+
+    spafiles = args
+    paths = []
+    mappings = []
+    missings = []
+    for spafile in spafiles:
+        fp = open(spafile)
+        path = []
+        mapping = []
+        missing = []
+        for row in fp:
+            if row[0] == '#' or not row.strip():
+                continue
+
+            atoms = row.rstrip().split('\t')
+            if len(atoms) == 2:
+                a, c2 = atoms
+                assert a == "unmapped"
+                missing.append(c2)
+                continue
+
+            c1, c2, orientation = atoms
+            path.append(c1)
+            mapping.append(c2)
+
+        paths.append(uniqify(path))
+        mappings.append(mapping)
+        missings.append(missing)
+
+    ref = merge_paths(paths)
+    print "ref", len(ref), ",".join(ref)
+    for spafile, mapping, missing in zip(spafiles, mappings, missings):
+        mapping = [x for x in mapping if "random" not in x]
+        mapping = uniqify(mapping)
+        if len(mapping) < 50:
+            mapping = uniqify(mapping + missing)
+
+        print spafile, len(mapping), ",".join(mapping)
 
 
 def rebuild(args):

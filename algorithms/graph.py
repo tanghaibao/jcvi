@@ -275,6 +275,24 @@ def bigraph_test():
     g.draw("demo.png", verbose=True)
 
 
+def merge_paths(paths):
+    """
+    Zip together sorted lists.
+
+    >>> paths = [[1, 2, 3], [1, 3, 4], [2, 4, 5]]
+    >>> merge_paths(paths)
+    [1, 2, 3, 4, 5]
+    """
+    from jcvi.utils.iter import pairwise
+
+    edges = []
+    for a in paths:
+        edges.extend(list(pairwise(a)))
+
+    g = nx.DiGraph(edges)
+    return topological_sort(g)
+
+
 if __name__ == '__main__':
     import doctest
     doctest.testmod()

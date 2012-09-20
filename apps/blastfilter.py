@@ -48,7 +48,7 @@ debug()
 
 def blastfilter_main(blast_file, p, opts):
 
-    qbed, sbed, qorder, sorder, is_self = check_beds(p, opts)
+    qbed, sbed, qorder, sorder, is_self = check_beds(blast_file, p, opts)
 
     tandem_Nmax = opts.tandem_Nmax
     filter_repeats = opts.filter_repeats

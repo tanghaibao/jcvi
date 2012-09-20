@@ -113,13 +113,14 @@ def pad(args):
                  help="The clustering cutoff to call similar [default: %default]")
 
     opts, args = p.parse_args(args)
-    qbed, sbed, qorder, sorder, is_self = check_beds(p, opts)
 
     if len(args) != 2:
         sys.exit(not p.print_help())
 
     cutoff = opts.cutoff
     blastfile, cdtfile = args
+    qbed, sbed, qorder, sorder, is_self = check_beds(blastfile, p, opts)
+
     cdt = CDT(cdtfile)
     qparts = list(cdt.iter_partitions(cutoff=cutoff))
     sparts = list(cdt.iter_partitions(cutoff=cutoff, gtr=False))
@@ -237,12 +238,13 @@ def cluster(args):
                  help="Path to the CLUSTER 3.0 binary [default: %default]")
 
     opts, args = p.parse_args(args)
-    qbed, sbed, qorder, sorder, is_self = check_beds(p, opts)
 
     if len(args) != 2:
         sys.exit(not p.print_help())
 
     blastfile, anchorfile = args
+    qbed, sbed, qorder, sorder, is_self = check_beds(blastfile, p, opts)
+
     minsize = opts.minsize
     ac = AnchorFile(anchorfile)
     qranges, sranges = [], []

@@ -229,7 +229,6 @@ if __name__ == "__main__":
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    qbed, sbed, qorder, sorder, is_self = check_beds(p, opts)
 
     synteny = opts.synteny
     vmin, vmax = opts.vmin, opts.vmax
@@ -237,7 +236,8 @@ if __name__ == "__main__":
     genomenames = opts.genomenames
     sample_number = opts.sample_number
 
-    anchorfile = args[0]
+    anchorfile, = args
+    qbed, sbed, qorder, sorder, is_self = check_beds(anchorfile, p, opts)
 
     image_name = op.splitext(anchorfile)[0] + "." + opts.format
     dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts, \

@@ -279,7 +279,7 @@ def main(args):
         sys.exit(not p.print_help())
 
     qa_file, = args
-    qbed, sbed, qorder, sorder, is_self = check_beds(p, opts)
+    qbed, sbed, qorder, sorder, is_self = check_beds(qa_file, p, opts)
 
     # sanity check for the quota
     if opts.quota:

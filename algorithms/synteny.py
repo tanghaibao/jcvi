@@ -306,15 +306,22 @@ def synteny_liftover(points, anchors, dist):
 
 def add_beds(p):
 
-    p.add_option("--qbed", help="Path to qbed (required)")
-    p.add_option("--sbed", help="Path to sbed (required)")
+    p.add_option("--qbed", help="Path to qbed")
+    p.add_option("--sbed", help="Path to sbed")
 
 
-def check_beds(p, opts):
+def check_beds(hintfile, p, opts):
 
     if not (opts.qbed and opts.sbed):
-        print >> sys.stderr, "Options --qbed and --sbed are required"
-        sys.exit(not p.print_help())
+        try:
+            q, s = hintfile.split(".", 2)[:2]
+            opts.qbed = q + ".bed"
+            opts.sbed = s + ".bed"
+            logging.debug("Assuming --qbed={0} --sbed={1}".\
+                         format(opts.qbed, opts.sbed))
+        except:
+            print >> sys.stderr, "Options --qbed and --sbed are required"
+            sys.exit(not p.print_help())
 
     qbed_file, sbed_file = opts.qbed, opts.sbed
     # is this a self-self blast?
@@ -564,7 +571,7 @@ def simple(args):
     ac = AnchorFile(anchorfile)
     simplefile = anchorfile.rsplit(".", 1)[0] + ".simple"
 
-    qbed, sbed, qorder, sorder, is_self = check_beds(p, opts)
+    qbed, sbed, qorder, sorder, is_self = check_beds(anchorfile, p, opts)
     blocks = ac.blocks
 
     fws = open(simplefile, "w")
@@ -636,7 +643,7 @@ def screen(args):
     if seqidsfile:
         seqids = SetFile(seqidsfile, delimiter=',')
 
-    qbed, sbed, qorder, sorder, is_self = check_beds(p, opts)
+    qbed, sbed, qorder, sorder, is_self = check_beds(anchorfile, p, opts)
     blocks = ac.blocks
     selected = 0
     fw = open(newanchorfile, "w")
@@ -971,12 +978,12 @@ def depth(args):
     add_beds(p)
 
     opts, args = p.parse_args(args)
-    qbed, sbed, qorder, sorder, is_self = check_beds(p, opts)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     anchorfile, = args
+    qbed, sbed, qorder, sorder, is_self = check_beds(anchorfile, p, opts)
     depthfile = opts.depthfile
     ac = AnchorFile(anchorfile)
     qranges = []
@@ -1082,7 +1089,7 @@ def scan(args):
             help="Scan BLAST file to find extra anchors [default: %default]")
 
     blast_file, anchor_file, dist, opts = add_options(p, args)
-    qbed, sbed, qorder, sorder, is_self = check_beds(p, opts)
+    qbed, sbed, qorder, sorder, is_self = check_beds(blast_file, p, opts)
 
     filtered_blast = read_blast(blast_file, qorder, sorder, \
                                 is_self=is_self, ostrip=False)
@@ -1123,7 +1130,7 @@ def liftover(args):
     set_stripnames(p)
 
     blast_file, anchor_file, dist, opts = add_options(p, args)
-    qbed, sbed, qorder, sorder, is_self = check_beds(p, opts)
+    qbed, sbed, qorder, sorder, is_self = check_beds(blast_file, p, opts)
 
     filtered_blast = read_blast(blast_file, qorder, sorder,
                             is_self=is_self, ostrip=opts.strip_names)

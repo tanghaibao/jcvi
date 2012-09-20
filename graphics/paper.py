@@ -8,12 +8,14 @@ Functions in this script produce figures in the various past manuscripts.
 import sys
 import logging
 
+import numpy as np
+
 from optparse import OptionParser
 
 from jcvi.graphics.base import plt, _, Rectangle, Polygon, CirclePolygon, \
         set_image_options, savefig
 from jcvi.graphics.glyph import GeneGlyph, RoundLabel, RoundRect, \
-        arrowprops, TextCircle
+        arrowprops, TextCircle, plot_cap
 from jcvi.graphics.chromosome import Chromosome
 from jcvi.utils.iter import pairwise
 from jcvi.apps.base import ActionDispatcher, fname, debug
@@ -44,7 +46,7 @@ def amborella(args):
     Build a composite figure that calls graphics.karyotype and graphic.synteny.
     """
     from jcvi.graphics.karyotype import Karyotype
-    from jcvi.graphics.synteny import Synteny
+    from jcvi.graphics.synteny import Synteny, draw_gene_legend
 
     p = OptionParser(amborella.__doc__)
     p.add_option("--tree",
@@ -66,6 +68,20 @@ def amborella(args):
     Karyotype(fig, root, seqidsfile, klayout)
     Synteny(fig, root, datafile, bedfile, slayout, switch=switch, tree=tree)
 
+    # legend showing the orientation of the genes
+    draw_gene_legend(root, .5, .68, .5)
+
+    # annotate the WGD events
+    fc = 'lightslategrey'
+    x = .05
+    radius = .012
+    TextCircle(root, x, .86, '$\gamma$', radius=radius)
+    TextCircle(root, x, .77, '$\epsilon$', radius=radius)
+    root.plot([x, x], [.83, .9], ":", color=fc, lw=2)
+    pts = plot_cap((x, .77), np.radians(range(110, 430)), .02)
+    x, y = zip(*pts)
+    root.plot(x, y, ":", color=fc, lw=2)
+
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
     root.set_axis_off()
@@ -82,7 +98,7 @@ def cotton(args):
     Build a composite figure that calls graphics.karyotype and graphic.synteny.
     """
     from jcvi.graphics.karyotype import Karyotype
-    from jcvi.graphics.synteny import Synteny
+    from jcvi.graphics.synteny import Synteny, draw_gene_legend
     from jcvi.graphics.tree import draw_tree, read_trees
 
     p = OptionParser(cotton.__doc__)
@@ -136,11 +152,7 @@ def cotton(args):
         root.plot(xx, yy, "-", color=light)
 
     # legend showing the orientation of the genes
-    ytop = .5
-    root.plot([.5, .54], [ytop, ytop], "b:", lw=2)
-    root.plot([.54], [ytop], "b>", mec="g")
-    root.plot([.68,.72], [ytop, ytop], "g:", lw=2)
-    root.plot([.68], [ytop], "g<", mec="g")
+    draw_gene_legend(root, .5, .68, .5)
 
     # Zoom
     xpos = .835

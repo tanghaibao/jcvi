@@ -243,6 +243,14 @@ class Synteny (object):
                 RoundLabel(ax, .5, .3, label, fill=True, fc="lavender", color="r")
 
 
+def draw_gene_legend(ax, x1, x2, ytop):
+    d = .04
+    ax.plot([x1, x1 + d], [ytop, ytop], "b:", lw=2)
+    ax.plot([x1 + d], [ytop], "b>", mec="b")
+    ax.plot([x2, x2 + d], [ytop, ytop], "g:", lw=2)
+    ax.plot([x2], [ytop], "g<", mec="g")
+
+
 def main():
     p = OptionParser(__doc__)
     p.add_option("--switch",

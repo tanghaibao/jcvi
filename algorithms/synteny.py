@@ -78,6 +78,7 @@ class BlockFile (BaseFile):
         if header:
             self.header = hd
         else:
+            fp.seek(0)
             self.header = range(ncols)
 
         data = []

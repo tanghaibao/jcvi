@@ -19,12 +19,7 @@ import numpy as np
 from jcvi.formats.bed import Bed
 from jcvi.graphics.base import plt, Rectangle, Polygon, \
         CirclePolygon, _, set_image_options, savefig
-from jcvi.graphics.glyph import BaseGlyph
-
-
-def plot_cap(center, t, r):
-    x, y = center
-    return zip(x + r * np.cos(t), y + r * np.sin(t))
+from jcvi.graphics.glyph import BaseGlyph, plot_cap
 
 
 def canvas2px(coord, dmn, dpi):

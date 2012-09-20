@@ -133,7 +133,8 @@ class Track (object):
         nseqids = len(self.seqids)
         for i, sid in enumerate(self.seqids):
             size = self.sizes[sid]
-            xend = xstart + self.ratio * size
+            rsize = self.ratio * size
+            xend = xstart + rsize
             hc = HorizontalChromosome(ax, xstart, xend, y, height=.01, fc=color)
             sid = sid.rsplit("_", 1)[-1]
             si = "".join(x for x in sid if x not in string.letters)
@@ -141,7 +142,7 @@ class Track (object):
             xx = (xstart + xend) / 2
             xstart = xend + gap
 
-            if nseqids > 40 and (i + 1) % 5 != 0:
+            if nseqids > 40:
                 continue
 
             pad = .02

@@ -42,7 +42,7 @@ class ImageOptions (object):
 
 def savefig(figname, dpi=150, iopts=None):
     try:
-        plt.savefig(*args)
+        plt.savefig(figname, dpi=dpi)
     except:
         logging.error("savefig failed. Reset usetex to False.")
         rc('text', **{'usetex': False})

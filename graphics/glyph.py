@@ -63,21 +63,22 @@ class RoundRect (object):
     """Round rectangle directly
     """
     def __init__(self, ax, xy, width, height, shrink=.1, label=None, **kwargs):
+
         shrink *= height
         x, y= xy
         pts = []
         # plot the four rounded cap one by one
-        pts += self.plot_cap((x + width - shrink, y + height - shrink),
-                             [np.radians(j) for j in range(0, 90)], shrink)
+        pts += plot_cap((x + width - shrink, y + height - shrink),
+                             np.radians(range(0, 90)), shrink)
         pts += [[x + width - shrink, y + height], [x + shrink, y + height]]
-        pts += self.plot_cap((x + shrink, y + height - shrink),
-                             [np.radians(j) for j in range(90, 180)], shrink)
+        pts += plot_cap((x + shrink, y + height - shrink),
+                             np.radians(range(90, 180)), shrink)
         pts += [[x, y + height - shrink], [x, y + shrink]]
-        pts += self.plot_cap((x + shrink, y + shrink),
-                             [np.radians(j) for j in range(180, 270)], shrink)
+        pts += plot_cap((x + shrink, y + shrink),
+                             np.radians(range(180, 270)), shrink)
         pts += [[x + shrink, y], [x + width - shrink, y]]
-        pts += self.plot_cap((x + width - shrink, y + shrink),
-                             [np.radians(j) for j in range(270, 360)], shrink)
+        pts += plot_cap((x + width - shrink, y + shrink),
+                             np.radians(range(270, 360)), shrink)
         pts += [[x + width, y + shrink], [x + width, y + height - shrink]]
         p1 = Polygon(pts, **kwargs)
         ax.add_patch(p1)
@@ -85,11 +86,6 @@ class RoundRect (object):
         if label:
             root.text(x + width / 2,y + height / 2,label, size=10,
                       ha="center", va="center", color="w")
-
-    def plot_cap(self, center, t, r):
-        x, y = center
-        t = np.array(t)
-        return zip(x + r * np.cos(t), y + r * np.sin(t))
 
 
 class DoubleCircle (object):
@@ -200,6 +196,11 @@ class GeneGlyph (BaseGlyph):
                         lw=0, alpha=.2, zorder=zz))
 
         self.add_patches()
+
+
+def plot_cap(center, t, r):
+    x, y = center
+    return zip(x + r * np.cos(t), y + r * np.sin(t))
 
 
 def main():

@@ -247,9 +247,12 @@ def gene_name(st, sep="."):
     except for papaya (evm...) and maize (somewhat complicated)
     """
     if st.startswith("ev"):
-        return st
-    if st.startswith("Os"):
-        return st.rsplit("-", 1)[0]
+        sep = None
+    elif st.startswith("Os"):
+        sep = "-"
+    elif st.startswith("GRM"):
+        sep = "_"
+
     if sep:
         return st.rsplit(sep, 1)[0]
 

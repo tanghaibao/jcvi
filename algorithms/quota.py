@@ -250,7 +250,7 @@ def main(args):
     p = OptionParser(__doc__)
 
     add_beds(p)
-    p.add_option("--quota", type="string", default=None,
+    p.add_option("--quota", default="1:1",
             help="`quota mapping` procedure -- screen blocks to constrain mapping"\
                     " (useful for orthology), "\
                     "put in the format like (#subgenomes expected for genome X):"\

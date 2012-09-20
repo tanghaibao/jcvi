@@ -38,10 +38,12 @@ class LayoutLine (object):
         args = row.rstrip().split(delimiter)
         args = [x.strip() for x in args]
         self.y = float(args[0])
-        self.color = args[1]
-        self.label = args[2]
-        self.va = args[3]
-        self.bed = Bed(args[4])
+        self.xstart = float(args[1])
+        self.xend = float(args[2])
+        self.color = args[3]
+        self.label = args[4]
+        self.va = args[5]
+        self.bed = Bed(args[6])
         self.order = self.bed.order
         self.order_in_chr = self.bed.order_in_chr
 
@@ -102,14 +104,15 @@ class Track (object):
         self.order_in_chr = t.order_in_chr
         self.ax = ax
 
-        self.xstart = xstart = .1
+        self.xstart = xstart = t.xstart
+        self.xend = t.xend
         gap = .01
         nseqids = len(self.seqids)
         if nseqids > 40:
             gap /= (nseqids / 40.)
         self.gap = gap
 
-        rpad = .05
+        rpad = 1 - t.xend
         span = 1 - xstart - rpad - gap * (len(sizes) - 1)
         total = sum(sizes.values())
         ratio = span / total
@@ -151,7 +154,8 @@ class Track (object):
             TextCircle(ax, xx, y + pad, _(si), radius=.01,
                        fc="w", color=color, size=10)
 
-        ax.text(xs / 2, y + gap, self.label, ha="center", color=color)
+        xp = self.xstart / 2 if self.xstart <= .5 else (1 + self.xend) / 2
+        ax.text(xp, y + gap, self.label, ha="center", color=color)
 
     def update_offsets(self):
         self.offsets = {}

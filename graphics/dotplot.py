@@ -212,8 +212,7 @@ if __name__ == "__main__":
     add_beds(p)
     p.add_option("--synteny", default=False, action="store_true",
             help="Run a fast synteny scan and display blocks [default: %default]")
-    p.add_option("--cmap", default="Synonymous substitutions (Ks)",
-            help="Draw colormap box on the bottom-left corner "
+    p.add_option("--cmap", help="Draw colormap box on the bottom-left corner "
                  "[default: `%default`]")
     p.add_option("--vmin", dest="vmin", type="float", default=0,
             help="Minimum value in the colormap [default: %default]")

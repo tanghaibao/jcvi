@@ -11,14 +11,6 @@ if the input is query.bed and subject.bed, the script files query.localdups
 and subject.localdups are created containing the parent|offspring dups, as
 inferred by subjects hitting same query or queries hitting same subject.
 
-* Repeat filter:
-adjust evalues in a dagchainer/blast file by the number of times they occur.
-query/subjects that appear often will increase evalues (less significant).
-
-    adjusted_evalue(A, B) = evalue(A, B) **
-        ((counts_of_blast / counts_of_genes) /
-         (counts(A) + counts(B)))
-
 * C-score filter:
 see supplementary info for sea anemone genome paper, formula::
 
@@ -51,7 +43,6 @@ def blastfilter_main(blast_file, p, opts):
     qbed, sbed, qorder, sorder, is_self = check_beds(blast_file, p, opts)
 
     tandem_Nmax = opts.tandem_Nmax
-    filter_repeats = opts.filter_repeats
     cscore = opts.cscore
 
     fp = file(blast_file)
@@ -68,6 +59,9 @@ def blastfilter_main(blast_file, p, opts):
     nwarnings = 0
     for b in blasts:
         query, subject = b.query, b.subject
+        if query == subject:
+            continue
+
         if ostrip:
             query, subject = gene_name(query), gene_name(subject)
         if query not in qorder:
@@ -145,13 +139,6 @@ def blastfilter_main(blast_file, p, opts):
         logging.debug("after filter (%d->%d) .." % \
                 (before_filter, len(filtered_blasts)))
 
-    if filter_repeats:
-        before_filter = len(filtered_blasts)
-        logging.debug("running the repeat filter")
-        filtered_blasts = list(filter_repeat(filtered_blasts))
-        logging.debug("after filter (%d->%d) .." % (before_filter,
-            len(filtered_blasts)))
-
     if not cscore is None:
         before_filter = len(filtered_blasts)
         logging.debug("running the cscore filter (cscore>=%.2f) .." % cscore)
@@ -199,31 +186,9 @@ def write_new_bed(bed, children):
     fh.close()
 
 
-def write_raw(qorder, sorder, filtered_blasts, raw_fh):
-
-    logging.debug("write raw file %s" % raw_fh.name)
-    for b in filtered_blasts:
-        qi, q = qorder[b.query]
-        si, s = sorder[b.subject]
-        qseqid, sseqid = q['seqid'], s['seqid']
-
-        score = 50 if b.evalue == 0 else min(int(-log10(b.evalue)), 50)
-        print >>raw_fh, "\t".join(map(str, (qseqid, qi, sseqid, si, score)))
-
-
 def write_new_blast(filtered_blasts, fh=sys.stdout):
     for b in filtered_blasts:
         print >> fh, b
-
-"""
-All BLAST filters
-"""
-
-
-def filter_to_global_density(blast_list, gene_count, global_density_ratio):
-    max_hits = int(gene_count * global_density_ratio)
-    loigging.debug("cutting at: %d" % max_hits)
-    return blast_list[:max_hits]
 
 
 def filter_cscore(blast_list, cscore=.5):
@@ -238,28 +203,6 @@ def filter_cscore(blast_list, cscore=.5):
     for b in blast_list:
         cur_cscore = b.score / max(best_score[b.query], best_score[b.subject])
         if cur_cscore > cscore:
-            yield b
-
-
-def filter_repeat(blast_list, evalue_cutoff=.05):
-    """
-    adjust evalues in a dagchainer/blast file by number of times they occur.
-    query/subjects that appear often will have the evalues raise (made less
-    significant).
-    """
-    counts = defaultdict(int)
-    for b in blast_list:
-        counts[b.query] += 1
-        counts[b.subject] += 1
-
-    expected_count = len(blast_list) * 1. / len(counts)
-    logging.debug("(expected_count=%d) .." % expected_count)
-
-    for b in blast_list:
-        count = counts[b.query] + counts[b.subject]
-        adjusted_evalue = b.evalue ** (expected_count / count)
-
-        if adjusted_evalue < evalue_cutoff:
             yield b
 
 
@@ -316,21 +259,12 @@ def main(args):
     p.add_option("--tandems_only", dest="tandems_only",
             action="store_true", default=False,
             help="only calculate tandems, write .localdup file and exit.")
-
-    filter_group = OptionGroup(p, "BLAST filters")
-    filter_group.add_option("--tandem_Nmax", dest="tandem_Nmax",
-            type="int", default=None,
+    p.add_option("--tandem_Nmax", type="int",
             help="merge tandem genes within distance [default: %default]")
-    filter_group.add_option("--repeats", dest="filter_repeats",
-            action="store_true", default=False,
-            help="require higher e-value for repetitive matches " +\
-                 "[default: %default]")
-    filter_group.add_option("--cscore", type="float", default=None,
+    p.add_option("--cscore", type="float",
             help="retain hits that have good bitscore. a value of 0.5 means "
                  "keep all values that are 50% or greater of the best hit. "
                  "higher is more stringent [default: %default]")
-
-    p.add_option_group(filter_group)
 
     opts, args = p.parse_args(args)
 

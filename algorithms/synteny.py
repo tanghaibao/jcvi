@@ -337,13 +337,13 @@ def check_beds(hintfile, p, opts):
     return qbed, sbed, qorder, sorder, is_self
 
 
-def add_options(p, args):
+def add_options(p, args, dist=10):
     """
     scan and liftover has similar interfaces, so share common options
     returns opts, files
     """
     add_beds(p)
-    p.add_option("--dist", default=10, type="int",
+    p.add_option("--dist", default=dist, type="int",
             help="Extent of flanking regions to search [default: %default]")
 
     opts, args = p.parse_args(args)
@@ -1088,13 +1088,15 @@ def scan(args):
     p.add_option("--liftover",
             help="Scan BLAST file to find extra anchors [default: %default]")
 
-    blast_file, anchor_file, dist, opts = add_options(p, args)
+    blast_file, anchor_file, dist, opts = add_options(p, args, dist=20)
     qbed, sbed, qorder, sorder, is_self = check_beds(blast_file, p, opts)
 
     filtered_blast = read_blast(blast_file, qorder, sorder, \
                                 is_self=is_self, ostrip=False)
 
     fw = open(anchor_file, "w")
+    logging.debug("Chaining distance = {0}".format(dist))
+
     clusters = batch_scan(filtered_blast, xdist=dist, ydist=dist, N=opts.n)
     for cluster in clusters:
         print >>fw, "###"

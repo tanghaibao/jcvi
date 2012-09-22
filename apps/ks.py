@@ -20,7 +20,7 @@ from subprocess import Popen
 import numpy as np
 from Bio import SeqIO
 from Bio import AlignIO
-from Bio.Align.Applications import ClustalwCommandline
+from Bio.Align.Applications import ClustalwCommandline, MuscleCommandline
 
 from jcvi.formats.base import must_open, LineFile
 from jcvi.apps.command import getpath, partial
@@ -29,6 +29,7 @@ debug()
 
 
 CLUSTALW_BIN = partial(getpath, name="CLUSTALW2")
+MUSCLE_BIN = partial(getpath, name="MUSCLE")
 PAL2NAL_BIN = partial(getpath, name="PAL2NAL")
 PAML_BIN = partial(getpath, name="PAML")
 
@@ -55,17 +56,19 @@ class YnCommandline(AbstractCommandline):
 class MrTransCommandline(AbstractCommandline):
     """Simple commandline faker.
     """
-    def __init__(self, prot_align_file, nuc_file, output_file,
+    def __init__(self, prot_align_file, nuc_file, output_file, outfmt="paml",
             command=PAL2NAL_BIN("pal2nal.pl")):
         self.prot_align_file = prot_align_file
         self.nuc_file = nuc_file
         self.output_file = output_file
+        self.outfmt = outfmt
         self.command = command
 
         self.parameters = []
 
     def __str__(self):
-        return self.command + " %s %s -output paml> %s" % (self.prot_align_file, self.nuc_file, self.output_file)
+        return self.command + " %s %s -output %s > %s" % \
+            (self.prot_align_file, self.nuc_file, self.outfmt, self.output_file)
 
 
 def main():
@@ -369,12 +372,12 @@ def calc(args):
     stdout. Both protein file and nucleotide file are assumed to be Fasta format,
     with adjacent records as the pairs to compare.
 
-    Author: Haibao Tang <bao@uga.edu>, Brad Chapman
+    Author: Haibao Tang <bao@uga.edu>, Brad Chapman, Jingping Li
     Calculate synonymous mutation rates for gene pairs
 
     This does the following:
         1. Fetches a protein pair.
-        2. Aligns the protein pair with clustalw
+        2. Aligns the protein pair with clustalw (default) or muscle.
         3. Convert the output to Fasta format.
         4. Use this alignment info to align gene sequences using PAL2NAL
         5. Run PAML yn00 to calculate synonymous mutation rates.
@@ -385,6 +388,8 @@ def calc(args):
     p.add_option("--longest", action="store_true",
                  help="Get longest ORF, only works if no pep file, "\
                       "e.g. ESTs [default: %default]")
+    p.add_option("--msa", default="clustalw", choices=("clustalw", "muscle"),
+                 help="software used to align the proteins [default: %default]")
     set_outfile(p)
 
     opts, args = p.parse_args(args)
@@ -415,8 +420,11 @@ def calc(args):
             zip(prot_iterator, prot_iterator, dna_iterator, dna_iterator):
 
         print >>sys.stderr, "--------", p_rec_1.name, p_rec_2.name
-        align_fasta = clustal_align_protein(p_rec_1, p_rec_2, work_dir)
-        mrtrans_fasta = run_mrtrans(align_fasta, n_rec_1, n_rec_2, work_dir)
+        if opts.msa == "clustalw":
+            align_fasta = clustal_align_protein((p_rec_1, p_rec_2), work_dir)
+        elif opts.msa == "muscle":
+            align_fasta = muscle_align_protein((p_rec_1, p_rec_2), work_dir)
+        mrtrans_fasta = run_mrtrans(align_fasta, (n_rec_1, n_rec_2), work_dir)
         if mrtrans_fasta:
             ds_subs_yn, dn_subs_yn, ds_subs_ng, dn_subs_ng = \
                     find_synonymous(mrtrans_fasta, work_dir)
@@ -499,8 +507,8 @@ def extract_subs_value(text):
     return value
 
 
-def run_mrtrans(align_fasta, rec_1, rec_2, work_dir):
-    """Align two nucleotide sequences with mrtrans and the protein alignment.
+def run_mrtrans(align_fasta, recs, work_dir):
+    """Align nucleotide sequences with mrtrans and the protein alignment.
     """
     align_file = op.join(work_dir, "prot-align.fasta")
     nuc_file = op.join(work_dir, "nuc.fasta")
@@ -511,7 +519,7 @@ def run_mrtrans(align_fasta, rec_1, rec_2, work_dir):
     align_h.write(str(align_fasta))
     align_h.close()
     # make the nucleotide file
-    SeqIO.write((rec_1, rec_2), file(nuc_file, "w"), "fasta")
+    SeqIO.write(recs, file(nuc_file, "w"), "fasta")
 
     # run the program
     cl = MrTransCommandline(align_file, nuc_file, output_file)
@@ -524,12 +532,14 @@ def run_mrtrans(align_fasta, rec_1, rec_2, work_dir):
         return None
 
 
-def clustal_align_protein(rec_1, rec_2, work_dir):
-    """Align the two given proteins with clustalw.
+def clustal_align_protein(recs, work_dir, outfmt="fasta"):
+    """
+    Align given proteins with clustalw.
+    recs are iterable of Biopython SeqIO objects
     """
     fasta_file = op.join(work_dir, "prot-start.fasta")
     align_file = op.join(work_dir, "prot.aln")
-    SeqIO.write((rec_1, rec_2), file(fasta_file, "w"), "fasta")
+    SeqIO.write(recs, file(fasta_file, "w"), "fasta")
 
     clustal_cl = ClustalwCommandline(CLUSTALW_BIN("clustalw2"),
             infile=fasta_file, outfile=align_file, outorder="INPUT",
@@ -539,7 +549,62 @@ def clustal_align_protein(rec_1, rec_2, work_dir):
     aln_file = file(clustal_cl.outfile)
     alignment = AlignIO.read(aln_file, "clustal")
     print >>sys.stderr, "\tDoing clustalw alignment: %s" % clustal_cl
-    return alignment.format("fasta")
+    if outfmt == "fasta":
+        return alignment.format("fasta")
+    if outfmt == "clustal":
+        return alignment
+
+
+def muscle_align_protein(recs, work_dir, outfmt="fasta", inputorder=True):
+    """
+    Align given proteins with muscle.
+    recs are iterable of Biopython SeqIO objects
+    """
+    fasta_file = op.join(work_dir, "prot-start.fasta")
+    align_file = op.join(work_dir, "prot.aln")
+    SeqIO.write(recs, file(fasta_file, "w"), "fasta")
+
+    muscle_cl = MuscleCommandline(MUSCLE_BIN("muscle"),
+            input=fasta_file, out=align_file, seqtype="protein",
+            clwstrict=True)
+    stdout, stderr = muscle_cl()
+    alignment = AlignIO.read(muscle_cl.out, "clustal")
+
+    if inputorder:
+        try:
+            muscle_inputorder(muscle_cl.input, muscle_cl.out)
+        except ValueError:
+            return 1
+        alignment = AlignIO.read(muscle_cl.out, "fasta")
+
+    print >>sys.stderr, "\tDoing muscle alignment: %s" % muscle_cl
+    if outfmt == "fasta":
+        return alignment.format("fasta")
+    if outfmt == "clustal":
+        return alignment.format("clustal")
+
+
+def muscle_inputorder(inputfastafile, alnfile, trunc_name=True):
+    """
+    Fix for muscle -stable option according to here:
+    http://drive5.com/muscle/stable.html
+    """
+    sh("cp {0} {0}.old".format(alnfile), log=False)
+    maxi = 30 if trunc_name else 1000
+
+    aa = AlignIO.read(alnfile, "clustal")
+    alignment = dict((a.id[:maxi], a) for a in aa)
+    if trunc_name and len(alignment) < len(aa):
+        raise ValueError\
+            ("ERROR: The first 30 chars of your seq names are not unique")
+
+    fw = must_open(alnfile, "w")
+    for rec in SeqIO.parse(inputfastafile, "fasta"):
+        a = alignment[rec.id[:maxi]]
+        fw.write(">{}\n{}\n".format(a.id[:maxi], a.seq))
+
+    fw.close()
+    sh("rm {}.old".format(alnfile), log=False)
 
 
 header = fields = "name,yn_ks,yn_ka,ng_ks,ng_ka"

@@ -112,7 +112,7 @@ def set_stripnames(instance):
 
 
 def sh(cmd, grid=False, infile=None, outfile=None, errfile=None,
-        background=False, threaded=None):
+        background=False, threaded=None, log=True):
     """
     simple wrapper for system calls
     """
@@ -132,7 +132,7 @@ def sh(cmd, grid=False, infile=None, outfile=None, errfile=None,
         if background:
             cmd += " & "
 
-        logging.debug(cmd)
+        if log: logging.debug(cmd)
         return call(cmd, shell=True)
 
 

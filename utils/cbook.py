@@ -253,8 +253,7 @@ def gene_name(st, sep="."):
     elif st.startswith("GRM"):
         sep = "_"
 
-    if sep:
-        return st.rsplit(sep, 1)[0]
+    return st.rsplit(sep, 1)[0]
 
 
 def fill(text, delimiter="", width=70):

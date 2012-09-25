@@ -24,6 +24,12 @@ Valid_strands = ('+', '-', '?', '.')
 Valid_phases = ('0', '1', '2', '.')
 FastaTag = "##FASTA"
 RegionTag = "##sequence-region"
+valid_gff_parent_child = {"match": "match_part",
+                          "cDNA_match": "match_part",
+                          "EST_match": "match_part",
+                          "mRNA": "exon"
+                         }
+valid_gff_type = tuple(valid_gff_parent_child.keys())
 
 
 class GffLine (object):
@@ -129,8 +135,15 @@ def make_attributes(s, gff3=True):
     Gene 22240.t000374; Note "Carbonic anhydrase"
     """
     if gff3:
+        """
+        hack: temporarily replace the '+' sign in the attributes column
+        with the string 'PlusSign' to prevent urlparse.parse_qsl() from
+        replacing the '+' sign with a space
+        """
+        s = s.replace('+', 'PlusSign')
         d = parse_qs(s)
-
+        for key in d.iterkeys():
+            d[key][0] = d[key][0].replace('PlusSign', '+')
     else:
         attributes = s.split("; ")
         d = DefaultOrderedDict(list)
@@ -401,6 +414,7 @@ def format(args):
     Read in the gff and print it out, changing seqid, etc.
     """
     from jcvi.formats.base import DictFile
+    from jcvi.utils.range import range_minmax
 
     p = OptionParser(format.__doc__)
     p.add_option("--unique", default=False, action="store_true",
@@ -412,6 +426,9 @@ def format(args):
                  help="Separate features with multiple parents [default: %default]")
     p.add_option("--gsac", default=False, action="store_true",
                  help="Fix GSAC attributes [default: %default]")
+    p.add_option("--pasa", default=False, action="store_true",
+                help="Fix PASA gff by chaining features by ID and creating a" +
+                " parent feature [default: %default]")
 
     opts, args = p.parse_args(args)
 
@@ -422,22 +439,26 @@ def format(args):
     mapfile = opts.switch
     unique = opts.unique
     gsac = opts.gsac
-    if gsac:  # setting gsac will force IDs to be unique
-        unique = True
+    pasa = opts.pasa
 
     if mapfile:
         mapping = DictFile(mapfile, delimiter="\t")
 
-    if unique:
-        dupcounts = defaultdict(int)
-        gff = Gff(gffile)
-        for g in gff:
-            id = g.accn
-            dupcounts[id] += 1
-        seen = defaultdict(int)
+    if pasa:
+        gffdict = {}
+    else:
+        if gsac:  # setting gsac will force IDs to be unique
+            unique = True
+            notes = {}
+        if unique:
+            dupcounts = defaultdict(int)
+            gff = Gff(gffile)
+            for g in gff:
+                id = g.accn
+                dupcounts[id] += 1
+            seen = defaultdict(int)
 
     gff = Gff(gffile)
-    notes = {}
     for g in gff:
         origid = g.seqid
         if mapfile:
@@ -447,8 +468,27 @@ def format(args):
                 logging.error("{0} not found in `{1}`. ID unchanged.".\
                         format(origid, mapfile))
 
-        id = g.accn
+        if pasa:
+            id = g.attributes["ID"][0]
+            if not gffdict.has_key(id):
+                gffdict[id] = { 'seqid': g.seqid,
+                                'source': g.source,
+                                'strand': g.strand,
+                                'type': g.type,
+                                'coords': [],
+                                'children': [],
+                              }
+
+            gffdict[id]['coords'].append((g.start, g.end))
+
+            g.type = valid_gff_parent_child[g.type]
+            g.attributes["Parent"] = g.attributes.pop("ID")
+            g.update_attributes()
+            gffdict[id]['children'].append(g)
+            continue
+
         if unique:
+            id = g.accn
             if dupcounts[id] > 1:
                 seen[id] += 1
                 id = "{0}-{1}".format(id, seen[id])
@@ -475,6 +515,17 @@ def format(args):
                 fix_gsac(g, notes)
             print g
 
+    if pasa:
+        for key in gffdict.iterkeys():
+            seqid = gffdict[key]['seqid']
+            source = gffdict[key]['source']
+            type = gffdict[key]['type']
+            strand = gffdict[key]['strand']
+            start, stop = range_minmax(gffdict[key]['coords'])
+            print "\t".join(str(x) for x in [seqid, source, type, start, stop,
+                ".", strand, ".", "ID=" + key])
+            for child in gffdict[key]['children']:
+                print child
 
 def liftover(args):
     """

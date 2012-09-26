@@ -504,6 +504,7 @@ def cscore(args):
     fw = must_open(opts.outfile, "w")
     for (query, subject), s in sorted(pairs.items()):
         print >> fw, "\t".join((query, subject, "{0:.2f}".format(s)))
+    fw.close()
 
 
 def get_distance(a, b, xaxis=True):

@@ -59,7 +59,7 @@ class OMGFile (BaseFile):
             if size > maxsize:
                 maxsize = size
                 maxcomponent = component
-        bb.add(component)
+        bb.add(maxcomponent)
         return bb
 
 
@@ -72,9 +72,38 @@ def main():
         ('omgprepare', 'prepare weights file to run Sankoff OMG algorithm'),
         ('omg', 'generate a series of Sankoff OMG algorithm inputs'),
         ('omgparse', 'parse the OMG outputs to get gene lists'),
+        ('layout', 'layout the gene lists'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def layout(args):
+    """
+    %prog layout omgfile taxa
+
+    Build column formatted gene lists after omgparse(). Use species list
+    separated by comma in place of taxa, e.g. "BR,BO,AN,CN"
+    """
+    p = OptionParser(layout.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    omgfile, taxa = args
+    taxa = taxa.split(",")
+    ntaxa = len(taxa)
+    fp = open(omgfile)
+    for row in fp:
+        genes, idxs = row.split()
+        row = ["."] * ntaxa
+        genes = genes.split(",")
+        ixs = [int(x) for x in idxs.split(",")]
+        for gene, idx in zip(genes, ixs):
+            row[idx] = gene
+        txs = ",".join(taxa[x] for x in ixs)
+        print "\t".join(("\t".join(row), txs))
 
 
 def omgparse(args):
@@ -271,10 +300,12 @@ def omgprepare(args):
     for row in fp:
         a, b, c = row.split()
         c = float(c)
-        if (a, b) not in pairs and c < .9:
-            continue
-
         c = int(c * 100)
+        if (a, b) not in pairs:
+            if c < 90:
+                continue
+            c /= 10  # This severely penalizes RBH against synteny
+
         qi, q = qorder[a]
         si, s = sorder[b]
 

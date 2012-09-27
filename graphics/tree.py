@@ -15,22 +15,23 @@ from jcvi.apps.base import debug
 debug()
 
 
-def draw_tree(ax, tx, rmargin=.3, leafcolor="k",
-              outgroup=None, gffdir=None, sizes=None):
+def draw_tree(ax, tx, rmargin=.3, leafcolor="k", supportcolor="k",
+              outgroup=None, reroot=True, gffdir=None, sizes=None):
 
     t = Tree(tx)
-    if outgroup:
-        R = t.get_common_ancestor(*outgroup)
-    else:
-        # Calculate the midpoint node
-        R = t.get_midpoint_outgroup()
+    if reroot:
+        if outgroup:
+            R = t.get_common_ancestor(*outgroup)
+        else:
+            # Calculate the midpoint node
+            R = t.get_midpoint_outgroup()
 
-    if R != t:
-        t.set_outgroup(R)
+        if R != t:
+            t.set_outgroup(R)
 
     farthest, max_dist = t.get_farthest_leaf()
 
-    margin = .05
+    margin = .05 if len(farthest.name)<10 else .1
     xstart = margin
     ystart = 1 - margin
     canvas = 1 - rmargin - 2 * margin
@@ -84,9 +85,11 @@ def draw_tree(ax, tx, rmargin=.3, leafcolor="k",
                 ax.plot((xx, cx), (cy, cy), "k-")
             yy = sum(children_y) * 1. / len(children_y)
             support = n.support
+            if support > 1:
+                support = support/100.
             if not n.is_root():
                 ax.text(xx, yy, _("{0:d}".format(int(abs(support * 100)))),
-                        ha="right", size=10)
+                        ha="right", size=10, color=supportcolor)
 
         coords[n] = (xx, yy)
 
@@ -131,8 +134,10 @@ def main():
     on, also show the number of amino acids.
     """
     p = OptionParser(main.__doc__)
-    p.add_option("--outgroup", help="Root the tree using the outgroup. " + \
-                      "Use comma to separate multiple taxa.")
+    p.add_option("--outgroup", help="Outgroup for rerooting the tree. " + \
+                 "Use comma to separate multiple taxa.")
+    p.add_option("--reroot", action="store_true", \
+                 help="Reroot the input tree [default: %default]")
     p.add_option("--rmargin", default=.3, type="float",
                  help="Set blank rmargin to the right [default: %default]")
     p.add_option("--gffdir", default=None,
@@ -166,8 +171,9 @@ def main():
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
 
-    draw_tree(root, tx, rmargin=opts.rmargin, leafcolor=opts.leafcolor,
-              outgroup=outgroup, gffdir=opts.gffdir, sizes=opts.sizes)
+    draw_tree(root, tx, rmargin=opts.rmargin, leafcolor=opts.leafcolor, \
+              outgroup=outgroup, reroot=opts.reroot, gffdir=opts.gffdir, \
+              sizes=opts.sizes)
 
     image_name = pf + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)

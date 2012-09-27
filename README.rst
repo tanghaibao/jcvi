@@ -40,9 +40,11 @@ Contents
 
     * BLAST filter that selects subset of anchors.
     * GenBank entrez accession downloader.
-    * Wrapper for LASTZ, BWA, CLC, CDHIT, CAP3, etc.
-    * Low complexity sequence masker with NCBI WindowMasker.
     * Prepare Genbank sequence data submission files.
+    * Wrapper for BLAST+, LASTZ, LAST, BWA, CLC, CDHIT, CAP3, etc.
+    * Low complexity sequence masker with NCBI WindowMasker.
+    * Calculate (non)synonymous substitution rate between gene pairs.
+    * Basic phylogenetic tree construction using PHYLIP, PhyML, or RAxML, and visualization.
 
 - ``formats``
     File parsers for various files used in genome assembly and comparisons.

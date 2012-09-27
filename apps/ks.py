@@ -507,7 +507,7 @@ def extract_subs_value(text):
     return value
 
 
-def run_mrtrans(align_fasta, recs, work_dir):
+def run_mrtrans(align_fasta, recs, work_dir, outfmt="paml"):
     """Align nucleotide sequences with mrtrans and the protein alignment.
     """
     align_file = op.join(work_dir, "prot-align.fasta")
@@ -522,7 +522,7 @@ def run_mrtrans(align_fasta, recs, work_dir):
     SeqIO.write(recs, file(nuc_file, "w"), "fasta")
 
     # run the program
-    cl = MrTransCommandline(align_file, nuc_file, output_file)
+    cl = MrTransCommandline(align_file, nuc_file, output_file, outfmt=outfmt)
     r, e = cl.run()
     if e is None:
         print >>sys.stderr, "\tpal2nal:", cl
@@ -541,7 +541,7 @@ def clustal_align_protein(recs, work_dir, outfmt="fasta"):
     align_file = op.join(work_dir, "prot.aln")
     SeqIO.write(recs, file(fasta_file, "w"), "fasta")
 
-    clustal_cl = ClustalwCommandline(CLUSTALW_BIN("clustalw2"),
+    clustal_cl = ClustalwCommandline(cmd=CLUSTALW_BIN("clustalw2"),
             infile=fasta_file, outfile=align_file, outorder="INPUT",
             type="PROTEIN")
     stdout, stderr = clustal_cl()
@@ -564,7 +564,7 @@ def muscle_align_protein(recs, work_dir, outfmt="fasta", inputorder=True):
     align_file = op.join(work_dir, "prot.aln")
     SeqIO.write(recs, file(fasta_file, "w"), "fasta")
 
-    muscle_cl = MuscleCommandline(MUSCLE_BIN("muscle"),
+    muscle_cl = MuscleCommandline(cmd=MUSCLE_BIN("muscle"),
             input=fasta_file, out=align_file, seqtype="protein",
             clwstrict=True)
     stdout, stderr = muscle_cl()
@@ -574,7 +574,7 @@ def muscle_align_protein(recs, work_dir, outfmt="fasta", inputorder=True):
         try:
             muscle_inputorder(muscle_cl.input, muscle_cl.out)
         except ValueError:
-            return 1
+            return ""
         alignment = AlignIO.read(muscle_cl.out, "fasta")
 
     print >>sys.stderr, "\tDoing muscle alignment: %s" % muscle_cl

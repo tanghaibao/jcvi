@@ -166,7 +166,7 @@ class ORFFinder:
     is printed
     """
     def __init__(self, seq, start=[], stop=["TAG", "TAA", "TGA"]):
-        self.seq = seq.tostring()
+        self.seq = seq.tostring().upper()
         self.start = start
         self.stop = stop
         self.result = ("+",0,0,0,0)
@@ -178,7 +178,7 @@ class ORFFinder:
 
     def reverse_comp(self, seq):
         swap = {"A":"T", "T":"A", "C":"G", "G":"C", "N":"N"}
-        return "".join(swap[b] for b in seq)
+        return "".join(swap[b] for b in seq.upper())
 
     def codons(self, frame):
         """ A generator that yields DNA in one codon blocks

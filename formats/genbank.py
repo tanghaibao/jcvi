@@ -241,9 +241,9 @@ def tofasta(args):
         write_fasta(output=prefix, individual=opts.individual)
 
     if opts.individual:
-        logging.debug("Output written dir {}".format(prefix))
+        logging.debug("Output written dir {0}".format(prefix))
     else:
-        logging.debug("Output written to {}.fasta".format(prefix))
+        logging.debug("Output written to {0}.fasta".format(prefix))
 
 
 def getgenes(args):
@@ -267,7 +267,7 @@ def getgenes(args):
         pep=(not opts.nopep))
 
     if opts.individual:
-        logging.debug("Output written dir {}".format(prefix))
+        logging.debug("Output written dir {0}".format(prefix))
     elif opts.nopep:
         logging.debug("Output written to {0}.bed, {0}.cds".format(prefix,))
     else:

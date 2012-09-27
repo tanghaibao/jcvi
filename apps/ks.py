@@ -28,10 +28,10 @@ from jcvi.apps.base import ActionDispatcher, debug, mkdir, set_outfile, sh
 debug()
 
 
-CLUSTALW_BIN = partial(getpath, name="CLUSTALW2")
-MUSCLE_BIN = partial(getpath, name="MUSCLE")
-PAL2NAL_BIN = partial(getpath, name="PAL2NAL")
-PAML_BIN = partial(getpath, name="PAML")
+CLUSTALW_BIN = partial(getpath, name="CLUSTALW2", warn="warn")
+MUSCLE_BIN = partial(getpath, name="MUSCLE", warn="warn")
+PAL2NAL_BIN = partial(getpath, name="PAL2NAL", warn="warn")
+PAML_BIN = partial(getpath, name="PAML", warn="warn")
 
 
 class AbstractCommandline:
@@ -601,10 +601,10 @@ def muscle_inputorder(inputfastafile, alnfile, trunc_name=True):
     fw = must_open(alnfile, "w")
     for rec in SeqIO.parse(inputfastafile, "fasta"):
         a = alignment[rec.id[:maxi]]
-        fw.write(">{}\n{}\n".format(a.id[:maxi], a.seq))
+        fw.write(">{0}\n{1}\n".format(a.id[:maxi], a.seq))
 
     fw.close()
-    sh("rm {}.old".format(alnfile), log=False)
+    sh("rm {0}.old".format(alnfile), log=False)
 
 
 header = fields = "name,yn_ks,yn_ka,ng_ks,ng_ka"

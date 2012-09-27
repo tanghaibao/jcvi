@@ -61,7 +61,7 @@ def draw_tree(ax, tx, rmargin=.3, leafcolor="k", supportcolor="k",
         if n.is_leaf():
             yy = ystart - i * yinterval
             i += 1
-            ax.text(xx + tip, yy, n.name, va="center",
+            ax.text(xx + tip, yy, n.name.replace("_","-"), va="center",
                     fontstyle="italic", size=8, color=leafcolor)
             gname = n.name.split("_")[0]
             if gname in structures:

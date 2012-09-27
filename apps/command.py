@@ -17,7 +17,7 @@ from jcvi.apps.base import ActionDispatcher, debug, sh, is_exe, \
 debug()
 
 
-def getpath(cmd, name=None, url=None, cfg="~/.jcvirc"):
+def getpath(cmd, name=None, url=None, cfg="~/.jcvirc", warn="exit"):
     """
     Get install locations of common binaries
     First, check ~/.jcvirc file to get the full path
@@ -56,8 +56,14 @@ def getpath(cmd, name=None, url=None, cfg="~/.jcvirc"):
         changed = True
 
     path = op.join(op.expanduser(fullpath), cmd)
-    assert is_exe(path), \
-            "Cannot execute binary `{0}`. Please verify and rerun.".format(path)
+    try:
+        assert is_exe(path), \
+            "***ERROR: Cannot execute binary `{0}`. ".format(path)
+    except AssertionError, e:
+        if warn == "exit":
+            sys.exit("{0!s}Please verify and rerun.".format(e))
+        elif warn == "warn":
+            logging.warning("{0!s}Some functions may not work.***".format(e))
 
     if changed:
         configfile = open(cfg, "w")

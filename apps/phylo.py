@@ -41,7 +41,8 @@ try:
 except:
     from Biopython_future import RaxmlCommandline
 
-from jcvi.apps.ks import *
+from jcvi.apps.ks import AbstractCommandline, find_first_isoform, \
+    run_mrtrans, clustal_align_protein, muscle_align_protein
 from jcvi.formats.base import must_open, LineFile
 from jcvi.formats.fasta import Fasta
 from jcvi.graphics.base import plt, _, set_image_options, savefig
@@ -50,10 +51,10 @@ from jcvi.apps.base import ActionDispatcher, debug, mkdir, set_outfile, sh
 debug()
 
 
-GBLOCKS_BIN = partial(getpath, name="GBLOCKS")
-PHYML_BIN = partial(getpath, name="PHYML")
-RAXML_BIN = partial(getpath, name="RAXML")
-FPHYLIP_BIN = partial(getpath, name="FPHYLIP")
+GBLOCKS_BIN = partial(getpath, name="GBLOCKS", warn="warn")
+PHYML_BIN = partial(getpath, name="PHYML", warn="warn")
+RAXML_BIN = partial(getpath, name="RAXML", warn="warn")
+FPHYLIP_BIN = partial(getpath, name="FPHYLIP", warn="warn")
 
 
 class GblocksCommandline(AbstractCommandline):
@@ -71,7 +72,7 @@ class GblocksCommandline(AbstractCommandline):
 
         params = {"b4":5, "b5":"h", "p":"n"}
         params.update(kwargs)
-        self.parameters = ["-{}={}".format(k,v) for k,v in params.items()]
+        self.parameters = ["-{0}={1}".format(k,v) for k,v in params.items()]
 
     def __str__(self):
         return self.command + " %s -t=%s " % (self.aln_file, self.aln_type) \
@@ -184,7 +185,7 @@ def smart_reroot(treefile, outgroupfile, outfile, format=0):
 
     if not outgroup:
         print >>sys.stderr, \
-            "Outgroup not found. Tree {} cannot be rerooted.".format(treefile)
+            "Outgroup not found. Tree {0} cannot be rerooted.".format(treefile)
         return treefile
 
     try:
@@ -195,7 +196,7 @@ def smart_reroot(treefile, outgroupfile, outfile, format=0):
         tree.set_outgroup(outgroup)
     tree.write(outfile=outfile, format=format)
 
-    logging.debug("Rerooted tree printed to {}".format(outfile))
+    logging.debug("Rerooted tree printed to {0}".format(outfile))
     return outfile
 
 
@@ -304,7 +305,7 @@ def build_ml_phyml(alignment, outfile, work_dir=".", **kwargs):
     if not op.exists(tree_file):
         print >>sys.stderr, "***PhyML failed."
         return None
-    sh("cp {} {}".format(tree_file, outfile), log=False)
+    sh("cp {0} {1}".format(tree_file, outfile), log=False)
 
     logging.debug("ML tree printed to %s" % outfile)
 
@@ -325,12 +326,12 @@ def build_ml_raxml(alignment, outfile, work_dir=".", **kwargs):
     logging.debug("Building ML tree using RAxML: %s" % raxml_cl)
     stdout, stderr = raxml_cl()
 
-    tree_file = "{}/work/RAxML_bipartitions.aln".format(work_dir)
+    tree_file = "{0}/work/RAxML_bipartitions.aln".format(work_dir)
     if not op.exists(tree_file):
         print >>sys.stderr, "***RAxML failed."
         sh("rm -rf %s/work" % work_dir, log=False)
         return None
-    sh("cp {} {}".format(tree_file, outfile), log=False)
+    sh("cp {0} {1}".format(tree_file, outfile), log=False)
 
     logging.debug("ML tree printed to %s" % outfile)
     sh("rm -rf %s/work" % work_dir)
@@ -404,10 +405,10 @@ def prepare(args):
         fw.close()
         mcscanfile = merge_rows_local(fw.name)
 
-        logging.debug("Tandems added to {}. Results in {}".\
+        logging.debug("Tandems added to {0}. Results in {1}".\
             format(fp.name, mcscanfile))
         fp.seek(0)
-        logging.debug("{} rows merged to {} rows".\
+        logging.debug("{0} rows merged to {1} rows".\
             format(len(fp.readlines()), len(file(mcscanfile).readlines())))
         sh("rm %s" % fw.name)
 
@@ -425,7 +426,7 @@ def prepare(args):
         except KeyError: pass
         if len(anchors) <= 3:
             print >>sys.stderr, \
-                "Not enough seqs to build trees for {}".format(anchors)
+                "Not enough seqs to build trees for {0}".format(anchors)
             continue
 
         pivot = row.split("\t")[0]
@@ -440,7 +441,8 @@ def prepare(args):
         fw.close()
         n+=1
 
-    logging.debug("cds of {} syntelog groups written to {}/".format(n, seqdir))
+    logging.debug("cds of {0} syntelog groups written to {1}/"\
+        .format(n, seqdir))
     return seqdir
 
 
@@ -526,7 +528,7 @@ def build(args):
 
     if not mrtrans_fasta:
         logging.debug("pal2nal aborted. " \
-            "Cannot reliably build tree for {}".format(dna_file))
+            "Cannot reliably build tree for {0}".format(dna_file))
         return
 
     codon_aln_fasta = mrtrans_fasta
@@ -566,7 +568,7 @@ def build(args):
                 sh("rm %s" % out_file)
 
 
-def _draw_trees(trees, nrow=1, ncol=1, iopts=None, outdir="."):
+def _draw_trees(trees, nrow=1, ncol=1, rmargin=.1, iopts=None, outdir="."):
     """
     Draw one or multiple trees on one plot.
     """
@@ -587,7 +589,7 @@ def _draw_trees(trees, nrow=1, ncol=1, iopts=None, outdir="."):
             if i == ntrees:
                 break
             ax = fig.add_axes([xstart[i%n], ystart[i%n], xiv, yiv])
-            draw_tree(ax, trees[i], rmargin=.05, reroot=False, supportcolor="r")
+            draw_tree(ax, trees[i], rmargin=.1, reroot=False, supportcolor="r")
 
         format = iopts.format if iopts else "pdf"
         dpi = iopts.dpi if iopts else 300
@@ -595,8 +597,8 @@ def _draw_trees(trees, nrow=1, ncol=1, iopts=None, outdir="."):
         image_name = op.join(outdir, image_name)
         savefig(image_name, dpi=dpi, iopts=iopts)
         plt.close(fig)
-#        plt.clf()
-#        plt.cla()
+        plt.clf()
+        plt.cla()
 
 
 def draw(args):
@@ -619,20 +621,21 @@ def draw(args):
     p = OptionParser(draw.__doc__)
     p.add_option("--input", help="path to input tree file or a dir containing"\
                  " ONLY the input trees")
-    p.add_option("--combine", type="string", default="4*2", \
-                 help="combine multiple trees into one plot in nrow*ncol")
+    p.add_option("--combine", type="string", default="1x1", \
+                 help="combine multiple trees into one plot in nrowxncol")
     p.add_option("--outdir", type="string", default=".", \
                  help="path to output dir. New dir is made if not existed [default: %default]")
     opts, args, iopts = set_image_options(p, figsize="8x6")
     input = opts.input
     outdir = opts.outdir
-    combine = opts.combine.split("*")
+    combine = opts.combine.split("x")
 
+    mkdir(outdir)
     if not input:
         sys.exit(not p.print_help())
     elif op.isdir(input):
         trees_file = op.join(outdir, "alltrees.dnd")
-        sh("cat {}/* > {}".format(input, trees_file))
+        sh("cat {0}/* > {1}".format(input, trees_file))
     elif op.isfile(input):
         trees_file=input
     else:
@@ -656,7 +659,8 @@ def draw(args):
             for t in ts:
                 if ";" in t:
                     tree += t
-                    trees.append(tree)
+                    if tree:
+                        trees.append(tree)
                     tree = ""
                 else:
                     tree += t
@@ -666,7 +670,7 @@ def draw(args):
     logging.debug("A total of {0} trees imported.".format(len(trees)))
 
     _draw_trees(trees, nrow=int(combine[0]), ncol=int(combine[1]), \
-        iopts=iopts, outdir=outdir)
+        rmargin=.1, iopts=iopts, outdir=outdir)
 
     sh("rm %s" % op.join(outdir, "alltrees.dnd"), log=False)
 

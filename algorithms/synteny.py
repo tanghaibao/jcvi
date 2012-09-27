@@ -611,7 +611,9 @@ def screen(args):
 
     1. Option --ids: a file with IDs, 0-based, comma separated, all in one line.
     2. Option --seqids: only allow seqids in this file.
-    3. Option --minspan: remove blocks with less span than this.
+    3. Option --seqpairs: only allow seqpairs in this file, one per line, e.g. "Chr01,Chr05".
+    4. Option --minspan: remove blocks with less span than this.
+    5. Option --minsize: remove blocks with less number of anchors than this.
     """
 
     p = OptionParser(screen.__doc__)
@@ -619,8 +621,11 @@ def screen(args):
 
     p.add_option("--ids", help="File with block IDs (0-based) [default: %default]")
     p.add_option("--seqids", help="File with seqids [default: %default]")
+    p.add_option("--seqpairs", help="File with seqpairs [default: %default]")
     p.add_option("--minspan", default=20, type="int",
                  help="Only blocks with span >= [default: %default]")
+    p.add_option("--minsize", default=5, type="int",
+                 help="Only blocks with anchors >= [default: %default]")
     p.add_option("--simple", action="store_true",
                  help="Write simple anchorfile with block ends [default: %default]")
     opts, args = p.parse_args(args)
@@ -632,7 +637,9 @@ def screen(args):
     ac = AnchorFile(anchorfile)
     idsfile = opts.ids
     seqidsfile = opts.seqids
+    seqpairsfile = opts.seqpairs
     minspan = opts.minspan
+    minsize = opts.minsize
     osimple = opts.simple
     ids, seqids = None, None
 
@@ -641,6 +648,13 @@ def screen(args):
         ids = set(int(x) for x in ids)
     if seqidsfile:
         seqids = SetFile(seqidsfile, delimiter=',')
+    if seqpairsfile:
+        fp = open(seqpairsfile)
+        seqpairs = set()
+        for row in fp:
+            a, b = row.strip().split(",")
+            seqpairs.add((a, b))
+            seqpairs.add((b, a))
 
     qbed, sbed, qorder, sorder, is_self = check_beds(anchorfile, p, opts)
     blocks = ac.blocks
@@ -658,11 +672,19 @@ def screen(args):
         ib, ob = zip(*b)
         aspan = max(ia) - min(ia) + 1
         bspan = max(ib) - min(ib) + 1
+        aseqid = oa[0].seqid
+        bseqid = ob[0].seqid
 
         if seqids:
-            aseqid = oa[0].seqid
-            bseqid = ob[0].seqid
             if (aseqid not in seqids) or (bseqid not in seqids):
+                continue
+
+        if seqpairs:
+            if (aseqid, bseqid) not in seqpairs:
+                continue
+
+        if minsize:
+            if len(block) < minsize:
                 continue
 
         if minspan:

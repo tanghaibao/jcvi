@@ -221,7 +221,7 @@ if __name__ == "__main__":
     p.add_option("--genomenames", type="string", default=None,
             help="genome names for labeling axes in the form of qname_sname, " \
             "eg. \"Vitis vinifera_Oryza sativa\"")
-    p.add_option("--nmax", dest="sample_number", type="int", default=5000,
+    p.add_option("--nmax", dest="sample_number", type="int", default=10000,
             help="Maximum number of data points to plot [default: %default]")
     opts, args, iopts = set_image_options(p, sys.argv[1:], figsize="8x8", dpi=90)
 

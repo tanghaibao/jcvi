@@ -21,7 +21,7 @@ def getpath(cmd, name=None, url=None, cfg="~/.jcvirc"):
     """
     Get install locations of common binaries
     First, check ~/.jcvirc file to get the full path
-    If not present, ask on the console and and store
+    If not present, ask on the console and store
     """
     p = which(cmd)  # if in PATH, just returns it
     if p:

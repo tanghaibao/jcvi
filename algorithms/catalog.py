@@ -1,19 +1,66 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
+import os.path as op
 import sys
 import logging
+import string
 
+from glob import glob
 from optparse import OptionParser
 
 from jcvi.formats.blast import BlastLine
 from jcvi.formats.fasta import Fasta
 from jcvi.formats.bed import Bed
-from jcvi.formats.base import must_open
+from jcvi.formats.base import must_open, BaseFile
 from jcvi.utils.grouper import Grouper
 from jcvi.utils.cbook import gene_name
-from jcvi.apps.base import debug, set_outfile, ActionDispatcher, need_update
+from jcvi.algorithms.synteny import AnchorFile, add_beds, check_beds
+from jcvi.apps.base import debug, set_outfile, set_stripnames, \
+        ActionDispatcher, need_update, sh, mkdir
 debug()
+
+
+class OMGFile (BaseFile):
+
+    def __init__(self, filename):
+        super(OMGFile, self).__init__(filename)
+        fp = open(filename)
+        inblock = False
+        components = []
+        for row in fp:
+            if inblock:
+                atoms = row.split()
+                natoms = len(atoms)
+                assert natoms in (0, 7)
+                if natoms:
+                    gene, taxa = atoms[0], atoms[5]
+                    component.append((gene, taxa))
+                else:
+                    inblock = False
+                    components.append(tuple(component))
+
+            if row.strip().startswith("---"):
+                inblock = True
+                component = []
+
+        if inblock:
+            components.append(tuple(component))
+        self.components = components
+
+    def best(self, ntaxa=None):
+        maxsize = 0
+        maxcomponent = []
+        bb = set()
+        for component in self.components:
+            size = len(component)
+            if ntaxa and size == ntaxa:
+                bb.add(component)
+            if size > maxsize:
+                maxsize = size
+                maxcomponent = component
+        bb.add(maxcomponent)
+        return bb
 
 
 def main():
@@ -21,9 +68,252 @@ def main():
     actions = (
         ('tandem', 'identify tandem gene groups within certain distance'),
         ('ortholog', 'run a combined synteny and RBH pipeline to call orthologs'),
+        ('group', 'cluster the anchors into ortho-groups'),
+        ('omgprepare', 'prepare weights file to run Sankoff OMG algorithm'),
+        ('omg', 'generate a series of Sankoff OMG algorithm inputs'),
+        ('omgparse', 'parse the OMG outputs to get gene lists'),
+        ('layout', 'layout the gene lists'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def layout(args):
+    """
+    %prog layout omgfile taxa
+
+    Build column formatted gene lists after omgparse(). Use species list
+    separated by comma in place of taxa, e.g. "BR,BO,AN,CN"
+    """
+    p = OptionParser(layout.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    omgfile, taxa = args
+    taxa = taxa.split(",")
+    ntaxa = len(taxa)
+    fp = open(omgfile)
+    for row in fp:
+        genes, idxs = row.split()
+        row = ["."] * ntaxa
+        genes = genes.split(",")
+        ixs = [int(x) for x in idxs.split(",")]
+        for gene, idx in zip(genes, ixs):
+            row[idx] = gene
+        txs = ",".join(taxa[x] for x in ixs)
+        print "\t".join(("\t".join(row), txs))
+
+
+def omgparse(args):
+    """
+    %prog omgparse work ntaxa
+
+    Parse the OMG outputs to get gene lists.
+    """
+    p = OptionParser(omgparse.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) < 2:
+        sys.exit(not p.print_help())
+
+    work, ntaxa = args
+    ntaxa = int(ntaxa)
+    omgfiles = glob(op.join(work, "gf*.out"))
+    for omgfile in omgfiles:
+        omg = OMGFile(omgfile)
+        best = omg.best(ntaxa=ntaxa)
+        for bb in best:
+            genes, taxa = zip(*bb)
+            print "\t".join((",".join(genes), ",".join(taxa)))
+
+
+def group(args):
+    """
+    %prog group anchorfiles
+
+    Group the anchors into ortho-groups. Can input multiple anchor files.
+    """
+    p = OptionParser(group.__doc__)
+    set_outfile(p)
+
+    opts, args = p.parse_args(args)
+
+    if len(args) < 1:
+        sys.exit(not p.print_help())
+
+    anchorfiles = args
+    groups = Grouper()
+    for anchorfile in anchorfiles:
+        ac = AnchorFile(anchorfile)
+        for a, b, idx in ac.iter_pairs():
+            groups.join(a, b)
+
+    ngroups = len(groups)
+    nmembers = sum(len(x) for x in groups)
+    logging.debug("Created {0} groups with {1} members.".\
+                  format(ngroups, nmembers))
+
+    outfile = opts.outfile
+    fw = must_open(outfile, "w")
+    for g in groups:
+        print >> fw, ",".join(sorted(g))
+    fw.close()
+
+    return outfile
+
+
+def omg(args):
+    """
+    %prog omg weightsfile
+
+    Run Sankoff's OMG algorithm to get orthologs. Download OMG code at:
+    <http://137.122.149.195/IsbraSoftware/OMGMec.html>
+
+    This script only writes the partitions, but not launch OMGMec. You may need to:
+
+    $ parallel "java -cp ~/code/OMGMec TestOMGMec {} 4 > {}.out" ::: work/gf?????
+
+    Then followed by omgparse() to get the gene lists.
+    """
+    from collections import defaultdict
+
+    p = OptionParser(omg.__doc__)
+
+    opts, args = p.parse_args(args)
+
+    if len(args) < 1:
+        sys.exit(not p.print_help())
+
+    weightsfiles = args
+    groupfile = group(weightsfiles + ["--outfile=groups"])
+
+    weights = defaultdict(list)
+    for row in must_open(weightsfiles):
+        a, b, c = row.split()
+        weights[a].append((a, b, c))
+
+    infofiles = glob("*.info")
+    info = {}
+    for row in must_open(infofiles):
+        a = row.split()[0]
+        info[a] = row.rstrip()
+
+    fp = open(groupfile)
+
+    work = "work"
+    mkdir(work)
+    for i, row in enumerate(fp):
+        gf = op.join(work, "gf{0:05d}".format(i))
+        genes = row.rstrip().split(",")
+        ngenes = len(genes)
+
+        fw = open(gf, "w")
+        contents = ""
+        npairs = 0
+        for gene in genes:
+            gene_pairs = weights[gene]
+            for a, b, c in gene_pairs:
+                if b not in genes:
+                    continue
+
+                contents += "weight {0}".format(c) + '\n'
+                contents += info[a] + '\n'
+                contents += info[b] + '\n\n'
+                npairs += 1
+
+        header = "a group of genes  :length ={0}".format(npairs)
+        print >> fw, header
+        print >> fw, contents
+
+        fw.close()
+
+
+def geneinfo(bed, order, genomeidx, ploidy):
+    bedfile = bed.filename
+    p = bedfile.split(".")[0]
+    idx = genomeidx[p]
+    pd = ploidy[p]
+    infofile = p + ".info"
+
+    if not need_update(bedfile, infofile):
+        return infofile
+
+    fwinfo = open(infofile, "w")
+
+    for s in bed:
+        chr = "".join(x for x in s.seqid if x in string.digits)
+        chr = int(chr)
+        print >> fwinfo, "\t".join(str(x) for x in \
+                    (s.accn, chr, s.start, s.end, s.strand, idx, pd))
+    fwinfo.close()
+
+    logging.debug("Update info file `{0}`.".format(infofile))
+
+    return infofile
+
+
+def omgprepare(args):
+    """
+    %prog omgprepare ploidy anchorsfile blastfile
+
+    Prepare to run Sankoff's OMG algorithm to get orthologs.
+    """
+    from jcvi.formats.blast import cscore
+    from jcvi.formats.base import DictFile
+
+    p = OptionParser(omgprepare.__doc__)
+    set_stripnames(p)
+    add_beds(p)
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    ploidy, anchorfile, blastfile = args
+    qbed, sbed, qorder, sorder, is_self = check_beds(anchorfile, p, opts)
+
+    fp = open(ploidy)
+    genomeidx = dict((x.split()[0], i) for i, x in enumerate(fp))
+    fp.close()
+
+    ploidy = DictFile(ploidy)
+    qp = qbed.filename.split(".")[0]
+    sp = sbed.filename.split(".")[0]
+
+    geneinfo(qbed, qorder, genomeidx, ploidy)
+    geneinfo(sbed, sorder, genomeidx, ploidy)
+
+    pf = blastfile.rsplit(".", 1)[0]
+    cscorefile = pf + ".cscore"
+    cscore([blastfile, "-o", cscorefile, "--cutoff=0"])
+    ac = AnchorFile(anchorfile)
+    pairs = set((a, b) for a, b, i in ac.iter_pairs())
+    logging.debug("Imported {0} pairs from `{1}`.".format(len(pairs), anchorfile))
+
+    weightsfile = pf + ".weights"
+    fp = open(cscorefile)
+    fw = open(weightsfile, "w")
+    npairs = 0
+    for row in fp:
+        a, b, c = row.split()
+        c = float(c)
+        c = int(c * 100)
+        if (a, b) not in pairs:
+            if c < 90:
+                continue
+            c /= 10  # This severely penalizes RBH against synteny
+
+        qi, q = qorder[a]
+        si, s = sorder[b]
+
+        print >> fw, "\t".join((a, b, str(c)))
+        npairs += 1
+    fw.close()
+
+    logging.debug("Write {0} pairs to `{1}`.".format(npairs, weightsfile))
 
 
 def make_ortholog(blocksfile, rbhfile, orthofile):

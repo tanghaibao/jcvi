@@ -367,7 +367,6 @@ def main():
         ('simple', 'convert anchorfile to simple block descriptions'),
         ('stats', 'provide statistics for mscan blocks'),
         ('depth', 'calculate the depths in the two genomes in comparison'),
-        ('group', 'cluster the anchors into ortho-groups'),
         ('breakpoint', 'identify breakpoints where collinearity ends'),
         ('matrix', 'make oxford grid based on anchors file'),
         ('coge', 'convert CoGe file to anchors file'),
@@ -922,34 +921,6 @@ def mcscan(args):
     logging.debug("MCscan blocks written to `{0}`.".format(ofile))
     if trackids:
         logging.debug("Block IDs written to `{0}`.".format(olog))
-
-
-def group(args):
-    """
-    %prog group anchorfiles
-
-    Group the anchors into ortho-groups. Can input multiple anchor files.
-    """
-    p = OptionParser(group.__doc__)
-    opts, args = p.parse_args(args)
-
-    if len(args) < 1:
-        sys.exit(not p.print_help())
-
-    anchorfiles = args
-    groups = Grouper()
-    for anchorfile in anchorfiles:
-        ac = AnchorFile(anchorfile)
-        for a, b, idx in ac.iter_pairs():
-            groups.join(a, b)
-
-    ngroups = len(groups)
-    nmembers = sum(len(x) for x in groups)
-    logging.debug("Created {0} groups with {1} members.".\
-                  format(ngroups, nmembers))
-
-    for g in groups:
-        print ",".join(sorted(g))
 
 
 def write_details(fw, details, bed):

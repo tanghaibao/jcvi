@@ -848,10 +848,6 @@ def format(args):
             rec.id = rec.id.rsplit(".", 1)[0]
         if sequential:
             rec.id = "{0:0{1}d}".format(i + 1, opts.pad0)
-        if prefix:
-            rec.id = prefix + rec.id
-        if suffix:
-            rec.id += suffix
         if opts.template:
             template, dir, lib = [x.split("=")[-1] for x in
                     rec.description.split()[1:4]]
@@ -862,6 +858,10 @@ def format(args):
             else:
                 logging.error("{0} not found in `{1}`. ID unchanged.".\
                         format(origid, mapfile))
+        if prefix:
+            rec.id = prefix + rec.id
+        if suffix:
+            rec.id += suffix
         rec.description = ""
         if annotfile:
             rec.description = annotation.get(origid, "")

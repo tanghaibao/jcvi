@@ -7,6 +7,7 @@ Processing fastq files
 
 import os.path as op
 import sys
+import re
 import logging
 
 from collections import namedtuple
@@ -38,10 +39,10 @@ class FastqLite (object):
 
 class FastqRecord (object):
     def __init__(self, fh, offset=0, key=None):
-        self.name = fh.readline().split()
+        self.name = self.header = fh.readline()
         if not self.name:
             return
-        self.name = self.name[0]
+        self.name = self.name.split()[0]
         self.seq = fh.readline().rstrip()
         self.l3 = fh.readline().rstrip()
         self.qual = fh.readline().rstrip()
@@ -61,6 +62,57 @@ class FastqRecord (object):
     @property
     def quality(self):
         return [ord(x) for x in self.qual]
+
+
+class FastqHeader(object):
+
+    def __init__(self, row):
+        header = row.strip().split(" ")
+        h = header[0].split(":")
+        self.instrument = h[0]
+        if len(header) == 2 and header[1].find(":"):
+            self.dialect = ">=1.8"  # Illumina Casava 1.8+ format
+
+            self.runId = int(h[1])
+            self.flowcellId = h[2]
+            self.laneNum = int(h[3])
+            self.tileNum = int(h[4])
+            self.xPos = int(h[5])
+            self.yPos = h[6]
+            if re.search("/", self.yPos):
+                self.paired = True
+                self.yPos, self.readNum = self.yPos.split("/")
+
+            a = header[1].split(":")
+            self.readNum = int(a[0])
+            self.isFiltered = a[1]
+            self.controlNum = int(a[2])
+            self.barcode = a[3] if a[3] else 0
+        else:
+            self.dialect = "<1.8"   # Old Illumina Casava format (< 1.8)
+            self.laneNum = int(h[1])
+            self.tileNum = int(h[2])
+            self.xPos = int(h[3])
+            self.yPos = h[4]
+            self.paired = False
+            m = re.search(r"(\d+)(#\S+)\/(\d+)", self.yPos)
+            if m:
+                self.paired = True
+                self.yPos, self.multiplexId, self.readNum = \
+                        m.group(1), m.group(2), m.group(3)
+
+
+    @property
+    def illumina_old(self):
+        header = ":".join(str(x) for x in [self.instrument, self.laneNum, self.tileNum, \
+                self.xPos, self.yPos + "#" + self.barcode])
+        header = header + "/" + str(self.readNum)
+
+        return header
+
+    @property
+    def is_new_fmt(self):
+        return True if self.dialect == ">=1.8" else None
 
 
 def iter_fastq(filename, offset=0, key=None):
@@ -93,6 +145,7 @@ def main():
         ('some', 'select a subset of fastq reads'),
         ('deconvolute', 'split fastqfile into subsets'),
         ('guessoffset', 'guess the quality offset of the fastq records'),
+        ('format', 'format fastq file, convert header from casava 1.8+ to older format'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -410,6 +463,39 @@ def guessoffset(args):
         print >> sys.stderr, "Illumina encoding (offset=64)"
 
     return offset
+
+
+def format(args):
+    """
+    %prog format fastqfile
+
+    Format FASTQ file. Currently provides option to convert FASTQ header from
+    Illumina Casava 1.8+ format to the older format
+    """
+    p = OptionParser(format.__doc__)
+
+    p.add_option("--old_header", default=False, action="store_true",
+                help="Convert header format from illumina new (1.8+) to older format" +
+                " [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    fastqfile, = args
+    ai = iter_fastq(fastqfile)
+    rec = ai.next()
+    while rec:
+        if opts.old_header:
+            h = FastqHeader(rec.header)
+            if h.is_new_fmt:
+                rec.name = h.illumina_old
+            else:
+                logging.error("Error: Input fastq header not in Illumina Casava" +
+                            " 1.8+ format")
+                sys.exit()
+        print rec
+        rec = ai.next()
 
 
 def some(args):

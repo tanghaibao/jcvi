@@ -193,12 +193,15 @@ def filter(args):
             help="Hit length cutoff [default: %default]")
     p.add_option("--evalue", default=.01, type="float",
             help="E-value cutoff [default: %default]")
+    p.add_option("--inverse", action="store_true",
+            help="Similar to grep -v, inverse [default: %default]")
 
     opts, args = p.parse_args(args)
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     blastfile, = args
+    inverse = opts.inverse
     fp = must_open(blastfile)
 
     score, pctid, hitlen, evalue = \
@@ -210,16 +213,16 @@ def filter(args):
             continue
         c = BlastLine(row)
 
-        if c.score < score:
-            continue
-        if c.pctid < pctid:
-            continue
-        if c.hitlen < hitlen:
-            continue
-        if c.evalue > evalue:
-            continue
+        remove = c.score < score or \
+            c.pctid < pctid or \
+            c.hitlen < hitlen or \
+            c.evalue > evalue
 
-        print >> fw, row.rstrip()
+        if inverse:
+            remove = not remove
+
+        if not remove:
+            print >> fw, row.rstrip()
 
     return newblastfile
 

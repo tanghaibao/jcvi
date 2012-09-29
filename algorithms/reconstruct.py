@@ -3,16 +3,20 @@
 
 """
 From synteny blocks, reconstruct ancestral order by interleaving the genes in
-between the anchors.
+between the anchors. This is the bottom-up method used first in Bowers (2003),
+and in Tang (2010), to reconstruct pre-alpha and pre-rho order, respectively.
 """
 
 import sys
+import logging
 
 from math import sqrt
+from itertools import izip_longest
 from optparse import OptionParser
 
 from jcvi.algorithms.synteny import AnchorFile, add_beds, check_beds
 from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.formats.bed import Bed
 debug()
 
 
@@ -20,9 +24,70 @@ def main():
 
     actions = (
         ('collinear', 'reduce synteny blocks to strictly collinear'),
+        ('zipbed', 'build ancestral contig from collinear blocks'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def interleave_pairs(pairs):
+    a, b = pairs[0]
+    yield a
+    yield b
+    for c, d in pairs[1:]:
+        assert a < c
+        xx = range(a + 1, c)
+        step = 1 if b < d else -1
+        yy = range(b + 1, d, step)
+        for x, y in izip_longest(xx, yy):
+            if x:
+                yield x
+            if y:
+                yield y
+        a, b = c, d
+        yield a
+        yield b
+
+
+def zipbed(args):
+    """
+    %prog zipbed species.bed collinear.anchors
+
+    Build ancestral contig from collinear blocks. For example, to build pre-rho
+    order, use `bedzip rice.bed rice.rice.1x1.collinear.anchors`. The algorithms
+    proceeds by interleaving the genes together.
+    """
+    p = OptionParser(zipbed.__doc__)
+    p.add_option("--prefix", default="b",
+                 help="Prefix for the new seqid [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    bedfile, anchorfile = args
+    prefix = opts.prefix
+    bed = Bed(bedfile)
+    order = bed.order
+    newbedfile = prefix + ".bed"
+    fw = open(newbedfile, "w")
+
+    af = AnchorFile(anchorfile)
+    blocks = af.blocks
+    pad = len(str(len(blocks)))
+    for i, block in enumerate(blocks):
+        block_id = "{0}{1:0{2}d}".format(prefix, i + 1, pad)
+        pairs = []
+        for q, s, score in block:
+            qi, q = order[q]
+            si, s = order[s]
+            pairs.append((qi, si))
+        newbed = list(interleave_pairs(pairs))
+        for i, b in enumerate(newbed):
+            accn = bed[b].accn
+            print >> fw, "\t".join(str(x) for x in (block_id, i, i + 1, accn))
+
+    logging.debug("Reconstructed bedfile written to `{0}`.".format(newbedfile))
 
 
 # Non-linear transformation of anchor scores

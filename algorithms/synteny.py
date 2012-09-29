@@ -622,6 +622,8 @@ def screen(args):
     p.add_option("--ids", help="File with block IDs (0-based) [default: %default]")
     p.add_option("--seqids", help="File with seqids [default: %default]")
     p.add_option("--seqpairs", help="File with seqpairs [default: %default]")
+    p.add_option("--nointra", action="store_true",
+                 help="Remove intra-chromosomal blocks [default: %default]")
     p.add_option("--minspan", default=20, type="int",
                  help="Only blocks with span >= [default: %default]")
     p.add_option("--minsize", default=5, type="int",
@@ -641,7 +643,8 @@ def screen(args):
     minspan = opts.minspan
     minsize = opts.minsize
     osimple = opts.simple
-    ids, seqids = None, None
+    nointra = opts.nointra
+    ids, seqids, seqpairs = None, None, None
 
     if idsfile:
         ids = SetFile(idsfile, delimiter=',')
@@ -682,6 +685,9 @@ def screen(args):
         if seqpairs:
             if (aseqid, bseqid) not in seqpairs:
                 continue
+
+        if nointra and aseqid == bseqid:
+            continue
 
         if minsize:
             if len(block) < minsize:

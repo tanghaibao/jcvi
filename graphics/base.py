@@ -7,9 +7,9 @@ import logging
 from functools import partial
 
 import numpy as np
-import matplotlib
-matplotlib.use('Agg')
 import matplotlib as mpl
+mpl.use('Agg')
+
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 from matplotlib import cm, rc

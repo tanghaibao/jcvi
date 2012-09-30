@@ -28,7 +28,6 @@ import logging
 
 from math import ceil
 from itertools import chain
-from collections import OrderedDict
 from optparse import OptionParser, OptionGroup
 
 import numpy as np
@@ -49,6 +48,7 @@ from jcvi.apps.ks import AbstractCommandline, find_first_isoform, \
     run_mrtrans, clustal_align_protein, muscle_align_protein
 from jcvi.formats.base import must_open, DictFile, LineFile
 from jcvi.formats.fasta import Fasta
+from jcvi.utils.orderedcollections import OrderedDict
 from jcvi.graphics.base import plt, _, set_image_options, savefig
 from jcvi.apps.command import getpath, partial
 from jcvi.apps.base import ActionDispatcher, debug, mkdir, set_outfile, sh

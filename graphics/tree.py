@@ -72,7 +72,7 @@ def draw_tree(ax, tx, rmargin=.3, leafcolor="k", supportcolor="k",
 
     farthest, max_dist = t.get_farthest_leaf()
 
-    margin = .05 if len(farthest.name)<10 else .1
+    margin = .05
     xstart = margin
     ystart = 1 - margin
     canvas = 1 - rmargin - 2 * margin
@@ -107,7 +107,9 @@ def draw_tree(ax, tx, rmargin=.3, leafcolor="k", supportcolor="k",
                 name = truncate_taxon_name(n.name, rule=trunc_name)
             else:
                 name = n.name
-            ax.text(xx + tip, yy, name.replace("_","-"), va="center",
+
+            sname = name.replace("_", "-")
+            ax.text(xx + tip, yy, sname, va="center",
                     fontstyle="italic", size=8, color=leafcolor)
 
             gname = n.name.split("_")[0]
@@ -189,8 +191,8 @@ def main():
     p = OptionParser(main.__doc__)
     p.add_option("--outgroup", help="Outgroup for rerooting the tree. " + \
                  "Use comma to separate multiple taxa.")
-    p.add_option("--reroot", action="store_true", \
-                 help="Reroot the input tree [default: %default]")
+    p.add_option("--noreroot", default=False, action="store_true", \
+                 help="Don't reroot the input tree [default: %default]")
     p.add_option("--rmargin", default=.3, type="float",
                  help="Set blank rmargin to the right [default: %default]")
     p.add_option("--gffdir", default=None,
@@ -209,6 +211,7 @@ def main():
 
     datafile, = args
     outgroup = None
+    reroot = not opts.noreroot
     if opts.outgroup:
         outgroup = opts.outgroup.split(",")
 
@@ -227,7 +230,7 @@ def main():
     root = fig.add_axes([0, 0, 1, 1])
 
     draw_tree(root, tx, rmargin=opts.rmargin, leafcolor=opts.leafcolor, \
-              outgroup=outgroup, reroot=opts.reroot, gffdir=opts.gffdir, \
+              outgroup=outgroup, reroot=reroot, gffdir=opts.gffdir, \
               sizes=opts.sizes, SH=opts.SH)
 
     image_name = pf + "." + iopts.format

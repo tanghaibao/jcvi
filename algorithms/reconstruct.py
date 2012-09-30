@@ -72,7 +72,6 @@ def interleave_pairs(pairs):
     for c, d in pairs[1:]:
         assert a < c
         xx = range(a + 1, c)
-        step = 1 if b < d else -1
         yy = range(b + 1, d) if b < d else range(b - 1, d, -1)
         for x, y in izip_longest(xx, yy):
             if x:
@@ -89,7 +88,7 @@ def zipbed(args):
     %prog zipbed species.bed collinear.anchors
 
     Build ancestral contig from collinear blocks. For example, to build pre-rho
-    order, use `bedzip rice.bed rice.rice.1x1.collinear.anchors`. The algorithms
+    order, use `zipbed rice.bed rice.rice.1x1.collinear.anchors`. The algorithms
     proceeds by interleaving the genes together.
     """
     p = OptionParser(zipbed.__doc__)

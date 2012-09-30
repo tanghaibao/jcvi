@@ -53,9 +53,12 @@ def pairs(args):
     npairs = 0
     for i, block in enumerate(blocks):
         block_id = "{0}{1:0{2}d}".format(prefix, i + 1, pad)
+        lines = []
         for q, s, score in block:
             npairs += 1
-            print >> fw, "\t".join((q, s, score, block_id))
+            score = score.replace('L', '')
+            lines.append("\t".join((q, s, score, block_id)))
+        print >> fw, "\n".join(sorted(lines))
 
     fw.close()
     logging.debug("A total of {0} pairs written to `{1}`.".\
@@ -70,7 +73,7 @@ def interleave_pairs(pairs):
         assert a < c
         xx = range(a + 1, c)
         step = 1 if b < d else -1
-        yy = range(b + 1, d, step)
+        yy = range(b + 1, d) if b < d else range(b - 1, d, -1)
         for x, y in izip_longest(xx, yy):
             if x:
                 yield x

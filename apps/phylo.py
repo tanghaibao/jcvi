@@ -568,7 +568,8 @@ def build(args):
                 sh("rm %s" % out_file)
 
 
-def _draw_trees(trees, nrow=1, ncol=1, rmargin=.1, iopts=None, outdir="."):
+def _draw_trees(trees, trunc_name=None, nrow=1, ncol=1, rmargin=.1, \
+    iopts=None, outdir="."):
     """
     Draw one or multiple trees on one plot.
     """
@@ -589,7 +590,8 @@ def _draw_trees(trees, nrow=1, ncol=1, rmargin=.1, iopts=None, outdir="."):
             if i == ntrees:
                 break
             ax = fig.add_axes([xstart[i%n], ystart[i%n], xiv, yiv])
-            draw_tree(ax, trees[i], rmargin=.1, reroot=False, supportcolor="r")
+            draw_tree(ax, trees[i], rmargin=.1, reroot=False, \
+                supportcolor="r", trunc_name=trunc_name)
 
         format = iopts.format if iopts else "pdf"
         dpi = iopts.dpi if iopts else 300
@@ -618,17 +620,25 @@ def draw(args):
     if possible). For drawing general Newick trees from external sources invoke
     jcvi.graphics.tree directly, which also gives more drawing options.
     """
+    trunc_name_options = ['headn', 'oheadn', 'tailn', 'otailn']
     p = OptionParser(draw.__doc__)
     p.add_option("--input", help="path to input tree file or a dir containing"\
                  " ONLY the input trees")
     p.add_option("--combine", type="string", default="1x1", \
                  help="combine multiple trees into one plot in nrowxncol")
+    p.add_option("--trunc_name", default=None, \
+                 choices = trunc_name_options,
+                 help="Options are: %s. " \
+                 "truncate first n chars, retains only first n chars, " \
+                 "truncate last n chars, retain only last chars. " \
+                 "n=1~99. [default: %default]" % trunc_name_options)
     p.add_option("--outdir", type="string", default=".", \
                  help="path to output dir. New dir is made if not existed [default: %default]")
     opts, args, iopts = set_image_options(p, figsize="8x6")
     input = opts.input
     outdir = opts.outdir
     combine = opts.combine.split("x")
+    trunc_name = opts.trunc_name
 
     mkdir(outdir)
     if not input:
@@ -669,8 +679,8 @@ def draw(args):
 
     logging.debug("A total of {0} trees imported.".format(len(trees)))
 
-    _draw_trees(trees, nrow=int(combine[0]), ncol=int(combine[1]), \
-        rmargin=.1, iopts=iopts, outdir=outdir)
+    _draw_trees(trees, trunc_name=trunc_name, nrow=int(combine[0]), \
+        ncol=int(combine[1]), rmargin=.1, iopts=iopts, outdir=outdir)
 
     sh("rm %s" % op.join(outdir, "alltrees.dnd"), log=False)
 

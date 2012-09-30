@@ -2,6 +2,7 @@
 # -*- coding: UTF-8 -*-
 
 import sys
+import re
 import logging
 
 from glob import glob
@@ -16,7 +17,18 @@ debug()
 
 
 def draw_tree(ax, tx, rmargin=.3, leafcolor="k", supportcolor="k",
-              outgroup=None, reroot=True, gffdir=None, sizes=None):
+              outgroup=None, reroot=True, gffdir=None, sizes=None,
+              trunc_name=None):
+    """
+    main function for drawing phylogenetic tree
+
+    Options for truncating seq names are below. This only affects display.
+    - headn (eg. head3 means truncating first 3 chars)
+    - oheadn (eg. ohead3 means only retain first 3 chars)
+    - tailn (eg. tail3 means truncating last 3 chars)
+    - otailn (eg. otail3 means only retain last 3 chars)
+    n = 1 ~ 99
+    """
 
     t = Tree(tx)
     if reroot:
@@ -61,8 +73,33 @@ def draw_tree(ax, tx, rmargin=.3, leafcolor="k", supportcolor="k",
         if n.is_leaf():
             yy = ystart - i * yinterval
             i += 1
-            ax.text(xx + tip, yy, n.name.replace("_","-"), va="center",
+
+            if trunc_name:
+                k = re.search("(?<=^head)[0-9]{1,2}$", trunc_name).group(0)
+                if k:
+                    name = n.name[int(k):]
+                else:
+                    k = re.search("(?<=^ohead)[0-9]{1,2}$", \
+                        trunc_name).group(0)
+                    if k:
+                        name = n.name[:int(k)]
+                    else:
+                        k = re.search("(?<=^tail)[0-9]{1,2}$", \
+                            trunc_name).group(0)
+                        if k:
+                            name = n.name[:-int(k)]
+                        else:
+                            k = re.search("(?<=^otail)[0-9]{1,2}$", \
+                                trunc_name).group(0)
+                            if k:
+                                name = n.name[-int(k):]
+                            else:
+                                raise ValueError('Wrong trunc_name option.')
+            else:
+                name = n.name
+            ax.text(xx + tip, yy, name.replace("_","-"), va="center",
                     fontstyle="italic", size=8, color=leafcolor)
+
             gname = n.name.split("_")[0]
             if gname in structures:
                 mrnabed, cdsbeds = structures[gname]
@@ -89,7 +126,7 @@ def draw_tree(ax, tx, rmargin=.3, leafcolor="k", supportcolor="k",
                 support = support/100.
             if not n.is_root():
                 ax.text(xx, yy, _("{0:d}".format(int(abs(support * 100)))),
-                        ha="right", size=10, color=supportcolor)
+                        ha="right", size=8, color=supportcolor)
 
         coords[n] = (xx, yy)
 

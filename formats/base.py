@@ -29,9 +29,15 @@ class LineFile (BaseFile, list):
     """
     Generic file parser for line-based files
     """
-    def __init__(self, filename):
+    def __init__(self, filename, comment=None, load=False):
 
         super(LineFile, self).__init__(filename)
+
+        if load:
+            fp = must_open(filename)
+            self.lines = [l.strip() for l in fp if l[0]!=comment]
+            logging.debug("Load {0} lines from `{1}`.".\
+                        format(len(self.lines), filename))
 
 
 class DictFile (BaseFile, dict):

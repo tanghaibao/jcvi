@@ -2,7 +2,6 @@
 # -*- coding: UTF-8 -*-
 
 import sys
-import re
 import logging
 
 from glob import glob
@@ -16,18 +15,48 @@ from jcvi.apps.base import debug
 debug()
 
 
+def truncate_taxon_name(name, rule=None):
+    """
+    shorten taxa names for tree display
+
+    Options of rule. This only affects tree display.
+    - headn (eg. head3 truncates first 3 chars)
+    - oheadn (eg. ohead3 retains only the first 3 chars)
+    - tailn (eg. tail3 truncates last 3 chars)
+    - otailn (eg. otail3 retains only the last 3 chars)
+    n = 1 ~ 99
+    """
+    import re
+
+    if rule is None:
+        return name
+
+    k = re.search("(?<=^head)[0-9]{1,2}$", rule).group(0)
+    if k:
+        tname = name[int(k):]
+    else:
+        k = re.search("(?<=^ohead)[0-9]{1,2}$", rule).group(0)
+        if k:
+            tname = name[:int(k)]
+        else:
+            k = re.search("(?<=^tail)[0-9]{1,2}$", rule).group(0)
+            if k:
+                tname = name[:-int(k)]
+            else:
+                k = re.search("(?<=^otail)[0-9]{1,2}$", rule).group(0)
+                if k:
+                    tname = name[-int(k):]
+                else:
+                    print >>sys.stderr, truncate_taxon_name.__doc__
+                    raise ValueError('Wrong rule for truncation!')
+    return tname
+
+
 def draw_tree(ax, tx, rmargin=.3, leafcolor="k", supportcolor="k",
               outgroup=None, reroot=True, gffdir=None, sizes=None,
-              trunc_name=None):
+              trunc_name=None, SH=None):
     """
     main function for drawing phylogenetic tree
-
-    Options for truncating seq names are below. This only affects display.
-    - headn (eg. head3 means truncating first 3 chars)
-    - oheadn (eg. ohead3 means only retain first 3 chars)
-    - tailn (eg. tail3 means truncating last 3 chars)
-    - otailn (eg. otail3 means only retain last 3 chars)
-    n = 1 ~ 99
     """
 
     t = Tree(tx)
@@ -75,26 +104,7 @@ def draw_tree(ax, tx, rmargin=.3, leafcolor="k", supportcolor="k",
             i += 1
 
             if trunc_name:
-                k = re.search("(?<=^head)[0-9]{1,2}$", trunc_name).group(0)
-                if k:
-                    name = n.name[int(k):]
-                else:
-                    k = re.search("(?<=^ohead)[0-9]{1,2}$", \
-                        trunc_name).group(0)
-                    if k:
-                        name = n.name[:int(k)]
-                    else:
-                        k = re.search("(?<=^tail)[0-9]{1,2}$", \
-                            trunc_name).group(0)
-                        if k:
-                            name = n.name[:-int(k)]
-                        else:
-                            k = re.search("(?<=^otail)[0-9]{1,2}$", \
-                                trunc_name).group(0)
-                            if k:
-                                name = n.name[-int(k):]
-                            else:
-                                raise ValueError('Wrong trunc_name option.')
+                name = truncate_taxon_name(n.name, rule=trunc_name)
             else:
                 name = n.name
             ax.text(xx + tip, yy, name.replace("_","-"), va="center",
@@ -125,7 +135,7 @@ def draw_tree(ax, tx, rmargin=.3, leafcolor="k", supportcolor="k",
             if support > 1:
                 support = support/100.
             if not n.is_root():
-                ax.text(xx, yy, _("{0:d}".format(int(abs(support * 100)))),
+                ax.text(xx, yy+.005, _("{0:d}".format(int(abs(support * 100)))),
                         ha="right", size=8, color=supportcolor)
 
         coords[n] = (xx, yy)
@@ -140,6 +150,12 @@ def draw_tree(ax, tx, rmargin=.3, leafcolor="k", supportcolor="k",
     ax.plot([x1, x2], [yy, yy], "k-")
     ax.text((x1 + x2) / 2, yy - tip, _("{0:g}".format(br)),
             va="top", ha="center", size=10)
+
+    if SH is not None:
+        xs = x1
+        ys = (margin + yy) / 2.
+        ax.text(xs, ys, _("SH test against ref tree: {0}"\
+                .format(SH)), ha="left", size=10, color="g")
 
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
@@ -181,6 +197,8 @@ def main():
                  help="The directory that contain GFF files [default: %default]")
     p.add_option("--sizes", default=None,
                  help="The FASTA file or the sizes file [default: %default]")
+    p.add_option("--SH", default=None, type="string",
+                 help="SH test p-value [default: %default]")
     p.add_option("--leafcolor", default="k",
                  help="The font color for the OTUs [default: %default]")
 
@@ -210,7 +228,7 @@ def main():
 
     draw_tree(root, tx, rmargin=opts.rmargin, leafcolor=opts.leafcolor, \
               outgroup=outgroup, reroot=opts.reroot, gffdir=opts.gffdir, \
-              sizes=opts.sizes)
+              sizes=opts.sizes, SH=opts.SH)
 
     image_name = pf + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)

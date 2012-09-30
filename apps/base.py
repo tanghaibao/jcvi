@@ -184,7 +184,10 @@ def mkdir(dirname, overwrite=False):
         else:
             return False  # Nothing is changed
     else:
-        os.mkdir(dirname)
+        try:
+            os.mkdir(dirname)
+        except:
+            os.makedirs(dirname)
         logging.debug("`{0}` not found. Creating new.".format(dirname))
 
     return True

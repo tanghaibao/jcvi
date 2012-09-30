@@ -14,6 +14,9 @@ Options are provided for each step:
 3.  build trees:
     NJ: PHYLIP
     ML: RAxML or PHYML
+4.  reroot tree (optional)
+5.  alternative topology test (SH test)
+    (optional)
 
 The external software needs be installed first.
 """
@@ -25,6 +28,7 @@ import logging
 
 from math import ceil
 from itertools import chain
+from collections import OrderedDict
 from optparse import OptionParser, OptionGroup
 
 import numpy as np
@@ -43,7 +47,7 @@ except:
 
 from jcvi.apps.ks import AbstractCommandline, find_first_isoform, \
     run_mrtrans, clustal_align_protein, muscle_align_protein
-from jcvi.formats.base import must_open, LineFile
+from jcvi.formats.base import must_open, DictFile, LineFile
 from jcvi.formats.fasta import Fasta
 from jcvi.graphics.base import plt, _, set_image_options, savefig
 from jcvi.apps.command import getpath, partial
@@ -94,11 +98,12 @@ class FfitchCommandline(AbstractCommandline):
         self.outfile = datafile.rsplit(".",1)[0] + ".ffitch"
         self.command = command
 
-        self.parameters = []
+        self.parameters = ["-{0} {1}".format(k,v) for k,v in kwargs.items()]
 
     def __str__(self):
         return self.command + " %s %s %s -outtreefile %s " % \
-            (self.datafile, self.intreefile, self.outfile, self.outtreefile)
+            (self.datafile, self.intreefile, self.outfile, self.outtreefile) \
+            + " ".join(self.parameters)
 
 
 def merge_rows_local(filename, ignore=".", sep="\t", local=10):
@@ -286,8 +291,10 @@ def build_nj_phylip(alignment, outfile, outgroup, work_dir="."):
         s = 0
     if s:
         logging.debug("NJ tree printed to %s" % outfile)
+        return outfile, phy_file
     else:
         logging.debug("Something was wrong. NJ tree was not built.")
+        return None
 
 
 def build_ml_phyml(alignment, outfile, work_dir=".", **kwargs):
@@ -309,6 +316,8 @@ def build_ml_phyml(alignment, outfile, work_dir=".", **kwargs):
 
     logging.debug("ML tree printed to %s" % outfile)
 
+    return outfile, phy_file
+
 
 def build_ml_raxml(alignment, outfile, work_dir=".", **kwargs):
     """
@@ -317,24 +326,60 @@ def build_ml_raxml(alignment, outfile, work_dir=".", **kwargs):
     phy_file = op.join(work_dir, "work", "aln.phy")
     AlignIO.write(alignment, file(phy_file, "w"), "phylip-relaxed")
 
+    raxml_work = op.abspath(op.join(op.dirname(phy_file), "raxml_work"))
+    mkdir(raxml_work)
     raxml_cl = RaxmlCommandline(cmd=RAXML_BIN("raxmlHPC"), \
         sequences=phy_file, algorithm="a", model="GTRGAMMA", \
         parsimony_seed=12345, rapid_bootstrap_seed=12345, \
         num_replicates=100, name="aln", \
-        working_dir=op.dirname(op.abspath(phy_file)), **kwargs)
+        working_dir=raxml_work, **kwargs)
 
     logging.debug("Building ML tree using RAxML: %s" % raxml_cl)
     stdout, stderr = raxml_cl()
 
-    tree_file = "{0}/work/RAxML_bipartitions.aln".format(work_dir)
+    tree_file = "{0}/RAxML_bipartitions.aln".format(raxml_work)
     if not op.exists(tree_file):
         print >>sys.stderr, "***RAxML failed."
-        sh("rm -rf %s/work" % work_dir, log=False)
+        sh("rm -rf %s" % raxml_work, log=False)
         return None
     sh("cp {0} {1}".format(tree_file, outfile), log=False)
 
     logging.debug("ML tree printed to %s" % outfile)
-    sh("rm -rf %s/work" % work_dir)
+    sh("rm -rf %s" % raxml_work)
+
+    return outfile, phy_file
+
+
+def SH_raxml(reftree, querytree, phy_file, shout="SH_out.txt"):
+    """
+    SH test using RAxML
+
+    querytree can be a single tree or a bunch of trees (eg. from bootstrapping)
+    """
+    assert op.isfile(reftree)
+    shout = must_open(shout, "a")
+
+    raxml_work = op.abspath(op.join(op.dirname(phy_file), "raxml_work"))
+    mkdir(raxml_work)
+    raxml_cl = RaxmlCommandline(cmd=RAXML_BIN("raxmlHPC"), \
+    sequences=phy_file, algorithm="h", model="GTRGAMMA", \
+    name="SH", starting_tree=reftree, bipartition_filename=querytree, \
+    working_dir=raxml_work)
+
+    logging.debug("Running SH test in RAxML: %s" % raxml_cl)
+    o, stderr = raxml_cl()
+    # hard coded
+    try:
+        pval = re.search('(Significantly.*:.*)', o).group(0)
+    except:
+        print >>sys.stderr, "SH test failed."
+    else:
+        pval = pval.strip().replace("\t"," ").replace("%","\%")
+        print >>shout, "{0}\t{1}".format(op.basename(querytree), pval)
+        logging.debug("SH p-value appended to %s" % shout.name)
+
+    shout.close()
+    return shout.name
 
 
 def main():
@@ -488,6 +533,9 @@ def build(args):
                  help="software used to build ML tree [default: %default]")
     p.add_option("--outgroup",
                  help="path to file containing outgroup orders [default: %default]")
+    p.add_option("--SH", help="path to reference Newick tree [default: %default]")
+    p.add_option("--shout", default="SH_out.txt", \
+                 help="SH output file name [default: %default]")
     p.add_option("--outdir", type="string", default=".", \
                  help="path to output dir. New dir is made if not existing [default: %default]")
 
@@ -542,23 +590,36 @@ def build(args):
 
     mkdir(op.join(treedir, "work"))
     if neighbor:
-        out_file = op.join\
-            (treedir, op.basename(dna_file).rsplit(".",1)[0]+".NJ.unrooted.dnd")
-        build_nj_phylip(alignment, outfile=out_file, outgroup=outgroup, \
-            work_dir=treedir)
+        out_file = op.join(treedir, op.basename(dna_file).rsplit(".", 1)[0] + \
+                ".NJ.unrooted.dnd")
+        try:
+            outfile, phy_file = build_nj_phylip(alignment, \
+                outfile=out_file, outgroup=outgroup, work_dir=treedir)
+        except:
+            print "NJ tree cannot be built for {0}".format(dna_file)
+
+        if opts.SH:
+            reftree = opts.SH
+            querytree = outfile
+            SH_raxml(reftree, querytree, phy_file, shout=opts.shout)
 
     if opts.ml:
-        if opts.ml == "phyml":
-            out_file = op.join\
-                (treedir, op.basename(dna_file).rsplit(".",1)[0]+\
+        out_file = op.join(treedir, op.basename(dna_file).rsplit(".", 1)[0] + \
                 ".ML.unrooted.dnd")
-            build_ml_phyml(alignment, outfile=out_file, work_dir=treedir)
+
+        if opts.ml == "phyml":
+            try:
+                outfile, phy_file = build_ml_phyml\
+                    (alignment, outfile=out_file, work_dir=treedir)
+            except:
+                print "ML tree cannot be built for {0}".format(dna_file)
 
         elif opts.ml == "raxml":
-            out_file = op.join\
-                (treedir, op.basename(dna_file).rsplit(".",1)[0]+\
-                ".ML.unrooted.dnd")
-            build_ml_raxml(alignment, outfile=out_file, work_dir=treedir)
+            try:
+                outfile, phy_file = build_ml_raxml\
+                    (alignment, outfile=out_file, work_dir=treedir)
+            except:
+                print "ML tree cannot be built for {0}".format(dna_file)
 
         if outgroup:
             new_out_file = out_file.replace(".unrooted", "")
@@ -566,14 +627,23 @@ def build(args):
                 outfile=new_out_file)
             if t == new_out_file:
                 sh("rm %s" % out_file)
+                outfile = new_out_file
+
+        if opts.SH:
+            reftree = opts.SH
+            querytree = outfile
+            SH_raxml(reftree, querytree, phy_file, shout=opts.shout)
 
 
-def _draw_trees(trees, trunc_name=None, nrow=1, ncol=1, rmargin=.1, \
-    iopts=None, outdir="."):
+def _draw_trees(trees, nrow=1, ncol=1, rmargin=.1, iopts=None, outdir=".",
+    shfile=None, **kwargs):
     """
     Draw one or multiple trees on one plot.
     """
     from jcvi.graphics.tree import draw_tree
+
+    if shfile:
+        SHs = DictFile(shfile, delimiter="\t")
 
     ntrees = len(trees)
     n = nrow*ncol
@@ -590,12 +660,18 @@ def _draw_trees(trees, trunc_name=None, nrow=1, ncol=1, rmargin=.1, \
             if i == ntrees:
                 break
             ax = fig.add_axes([xstart[i%n], ystart[i%n], xiv, yiv])
-            draw_tree(ax, trees[i], rmargin=.1, reroot=False, \
-                supportcolor="r", trunc_name=trunc_name)
+            f = trees.keys()[i]
+            tree = trees[f]
+            draw_tree(ax, tree, rmargin=.1, reroot=False, \
+                supportcolor="r", SH=SHs[f], **kwargs)
+
+        root.set_xlim(0, 1)
+        root.set_ylim(0, 1)
+        root.set_axis_off()
 
         format = iopts.format if iopts else "pdf"
         dpi = iopts.dpi if iopts else 300
-        image_name = "trees" + str(x+1) + "." + format
+        image_name = f.rsplit(".", 1)[0] + "." + format
         image_name = op.join(outdir, image_name)
         savefig(image_name, dpi=dpi, iopts=iopts)
         plt.close(fig)
@@ -609,7 +685,7 @@ def draw(args):
 
     Draw phylogenetic trees into single or combined plots.
     Input trees should be one of the following:
-    1.  (concatenated) Newick format trees in a single file
+    1.  single Newick format tree file
     2.  a dir containing *ONLY* the tree files to be drawn
 
     Newick format:
@@ -622,16 +698,18 @@ def draw(args):
     """
     trunc_name_options = ['headn', 'oheadn', 'tailn', 'otailn']
     p = OptionParser(draw.__doc__)
-    p.add_option("--input", help="path to input tree file or a dir containing"\
-                 " ONLY the input trees")
+    p.add_option("--input", help="path to single input tree file or a dir "\
+                 "containing ONLY the input tree files")
     p.add_option("--combine", type="string", default="1x1", \
                  help="combine multiple trees into one plot in nrowxncol")
-    p.add_option("--trunc_name", default=None, \
-                 choices = trunc_name_options,
-                 help="Options are: %s. " \
+    p.add_option("--trunc_name", default=None, help="Options are: {0}. " \
                  "truncate first n chars, retains only first n chars, " \
                  "truncate last n chars, retain only last chars. " \
-                 "n=1~99. [default: %default]" % trunc_name_options)
+                 "n=1~99. [default: %default]".format(trunc_name_options))
+    p.add_option("--SH", default=None,
+                 help="path to a file containing SH test p-values in format:" \
+                 "tree_file_name<tab>p-values " \
+                 "This file can be generated with jcvi.apps.phylo build [default: %default]")
     p.add_option("--outdir", type="string", default=".", \
                  help="path to output dir. New dir is made if not existed [default: %default]")
     opts, args, iopts = set_image_options(p, figsize="8x6")
@@ -639,22 +717,27 @@ def draw(args):
     outdir = opts.outdir
     combine = opts.combine.split("x")
     trunc_name = opts.trunc_name
+    SH = opts.SH
 
     mkdir(outdir)
     if not input:
         sys.exit(not p.print_help())
+    elif op.isfile(input):
+        trees_file = input
+        treenames = [op.basename(input)]
     elif op.isdir(input):
         trees_file = op.join(outdir, "alltrees.dnd")
-        sh("cat {0}/* > {1}".format(input, trees_file))
-    elif op.isfile(input):
-        trees_file=input
+        treenames = []
+        for f in sorted(os.listdir(input)):
+            sh("cat {0}/{1} >> {2}".format(input, f, trees_file), log=False)
+            treenames.append(f)
     else:
         sys.exit(not p.print_help())
 
-    trees = []
+    trees = OrderedDict()
     tree = ""
-    for row in file(trees_file):
-        row = row.strip()
+    i = 0
+    for row in LineFile(trees_file, comment="#", load=True).lines:
         if not len(row):
             continue
 
@@ -670,19 +753,19 @@ def draw(args):
                 if ";" in t:
                     tree += t
                     if tree:
-                        trees.append(tree)
-                    tree = ""
+                        trees[treenames[i]] = tree
+                        tree = ""
+                        i+=1
                 else:
                     tree += t
         else:
             tree += row
+    assert i == len(treenames)
 
     logging.debug("A total of {0} trees imported.".format(len(trees)))
 
-    _draw_trees(trees, trunc_name=trunc_name, nrow=int(combine[0]), \
-        ncol=int(combine[1]), rmargin=.1, iopts=iopts, outdir=outdir)
-
-    sh("rm %s" % op.join(outdir, "alltrees.dnd"), log=False)
+    _draw_trees(trees, nrow=int(combine[0]), ncol=int(combine[1]), rmargin=.1,\
+         iopts=iopts, outdir=outdir, shfile=SH, trunc_name=trunc_name)
 
 
 if __name__ == '__main__':

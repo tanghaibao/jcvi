@@ -25,9 +25,41 @@ def main():
     actions = (
         ('collinear', 'reduce synteny blocks to strictly collinear'),
         ('zipbed', 'build ancestral contig from collinear blocks'),
+        ('pairs', 'convert anchorsfile to pairsfile'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def pairs(args):
+    """
+    %prog pairs anchorsfile prefix
+
+    Convert anchorsfile to pairsfile.
+    """
+    p = OptionParser(pairs.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    anchorfile, prefix = args
+    outfile = prefix + ".pairs"
+    fw = open(outfile, "w")
+
+    af = AnchorFile(anchorfile)
+    blocks = af.blocks
+    pad = len(str(len(blocks)))
+    npairs = 0
+    for i, block in enumerate(blocks):
+        block_id = "{0}{1:0{2}d}".format(prefix, i + 1, pad)
+        for q, s, score in block:
+            npairs += 1
+            print >> fw, "\t".join((q, s, score, block_id))
+
+    fw.close()
+    logging.debug("A total of {0} pairs written to `{1}`.".\
+                    format(npairs, outfile))
 
 
 def interleave_pairs(pairs):

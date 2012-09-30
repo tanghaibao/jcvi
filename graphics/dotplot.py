@@ -56,7 +56,7 @@ def draw_cmap(ax, cmap_text, vmin, vmax, cmap=None, reverse=False):
 
 def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts,
         is_self=False, synteny=False, cmap_text=None, genomenames=None,
-        sample_number=5000):
+        sample_number=10000, ignore=.005):
 
     fp = open(anchorfile)
 
@@ -132,9 +132,11 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts,
     ylim = (ysize, 0)  # invert the y-axis
 
     xchr_labels, ychr_labels = [], []
-    ignore = True  # tag to mark whether to plot chr name (skip small ones)
-    ignore_size_x = xsize * .005
-    ignore_size_y = ysize * .005
+    # Tag to mark whether to plot chr name (skip small ones)
+    ignore_size_x = ignore_size_y = 0
+    if ignore:
+        ignore_size_x = xsize * ignore
+        ignore_size_y = ysize * ignore
 
     # plot the chromosome breaks
     for (seqid, beg, end) in qbed.get_breaks():
@@ -223,6 +225,8 @@ if __name__ == "__main__":
             "eg. \"Vitis vinifera_Oryza sativa\"")
     p.add_option("--nmax", dest="sample_number", type="int", default=10000,
             help="Maximum number of data points to plot [default: %default]")
+    p.add_option("--ignore", type="float", default=.005,
+            help="Do not render labels for chr less than portion of genome [default: %default]")
     opts, args, iopts = set_image_options(p, sys.argv[1:], figsize="8x8", dpi=90)
 
     if len(args) != 1:
@@ -241,4 +245,5 @@ if __name__ == "__main__":
     image_name = op.splitext(anchorfile)[0] + "." + opts.format
     dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts, \
             is_self=is_self, synteny=synteny, cmap_text=cmap_text, \
-            genomenames=genomenames, sample_number=sample_number)
+            genomenames=genomenames, sample_number=sample_number,
+            ignore=opts.ignore)

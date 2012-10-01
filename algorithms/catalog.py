@@ -264,6 +264,8 @@ def omgprepare(args):
     from jcvi.formats.base import DictFile
 
     p = OptionParser(omgprepare.__doc__)
+    p.add_option("--norbh", action="store_true",
+                 help="Disable RBH hits [default: %default]")
     set_stripnames(p)
     add_beds(p)
 
@@ -273,6 +275,7 @@ def omgprepare(args):
         sys.exit(not p.print_help())
 
     ploidy, anchorfile, blastfile = args
+    norbh = opts.norbh
     qbed, sbed, qorder, sorder, is_self = check_beds(anchorfile, p, opts)
 
     fp = open(ploidy)
@@ -302,6 +305,8 @@ def omgprepare(args):
         c = float(c)
         c = int(c * 100)
         if (a, b) not in pairs:
+            if norbh:
+                continue
             if c < 90:
                 continue
             c /= 10  # This severely penalizes RBH against synteny

@@ -356,6 +356,8 @@ def SH_raxml(reftree, querytree, phy_file, shout="SH_out.txt"):
 
     querytree can be a single tree or a bunch of trees (eg. from bootstrapping)
     """
+    import re
+
     assert op.isfile(reftree)
     shout = must_open(shout, "a")
 
@@ -635,7 +637,7 @@ def build(args):
             SH_raxml(reftree, querytree, phy_file, shout=opts.shout)
 
 
-def _draw_trees(trees, nrow=1, ncol=1, rmargin=.1, iopts=None, outdir=".",
+def _draw_trees(trees, nrow=1, ncol=1, rmargin=.3, iopts=None, outdir=".",
     shfile=None, **kwargs):
     """
     Draw one or multiple trees on one plot.
@@ -646,23 +648,23 @@ def _draw_trees(trees, nrow=1, ncol=1, rmargin=.1, iopts=None, outdir=".",
         SHs = DictFile(shfile, delimiter="\t")
 
     ntrees = len(trees)
-    n = nrow*ncol
+    n = nrow * ncol
     for x in xrange(int(ceil(float(ntrees)/n))):
         fig = plt.figure(1, (iopts.w, iopts.h)) if iopts \
               else plt.figure(1, (5, 5))
         root = fig.add_axes([0, 0, 1, 1])
 
-        xiv = .95 / ncol
-        yiv = .95 / nrow
-        xstart = list(np.arange(0, 1-xiv, xiv)) * nrow
-        ystart = list(chain(*zip(*[list(np.arange(1-yiv, 0, -yiv))]*ncol)))
+        xiv = 1. / ncol
+        yiv = 1. / nrow
+        xstart = list(np.arange(0, 1, xiv)) * nrow
+        ystart = list(chain(*zip(*[list(np.arange(1, 0, -yiv))] * ncol)))
         for i in xrange(n*x, n*(x+1)):
             if i == ntrees:
                 break
             ax = fig.add_axes([xstart[i%n], ystart[i%n], xiv, yiv])
             f = trees.keys()[i]
             tree = trees[f]
-            draw_tree(ax, tree, rmargin=.1, reroot=False, \
+            draw_tree(ax, tree, rmargin=rmargin, reroot=False, \
                 supportcolor="r", SH=SHs[f], **kwargs)
 
         root.set_xlim(0, 1)
@@ -764,7 +766,7 @@ def draw(args):
 
     logging.debug("A total of {0} trees imported.".format(len(trees)))
 
-    _draw_trees(trees, nrow=int(combine[0]), ncol=int(combine[1]), rmargin=.1,\
+    _draw_trees(trees, nrow=int(combine[0]), ncol=int(combine[1]), rmargin=.3,\
          iopts=iopts, outdir=outdir, shfile=SH, trunc_name=trunc_name)
 
 

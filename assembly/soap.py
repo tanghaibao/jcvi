@@ -13,7 +13,7 @@ from itertools import groupby
 from optparse import OptionParser
 
 from jcvi.assembly.base import FastqNamings, Library
-from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.apps.base import ActionDispatcher, debug, need_update, sh
 debug()
 
 
@@ -42,6 +42,8 @@ class FillLine (object):
 def main():
 
     actions = (
+        ('clean', 'clean and dedup paired FASTQ files'),
+        ('correct', 'correct reads using ErrorCorrection'),
         ('prepare', 'prepare SOAP config files and run script'),
         ('fillstats', 'build stats on .fill file from GapCloser'),
             )
@@ -54,14 +56,94 @@ SOAPRUN="""#!/bin/bash
 P=32
 S=soap.config
 C=SOAPdenovo-63mer
-K=47
+K=29
 A=asm${K}
 
-$C pregraph -s $S -K $K -o $A -a 300 -p $P -R
-$C contig -g $A -M 3 -R
-$C map -p $P -s $S -g $A
-$C scaff -F -g $A
-GapCloser -t $P -o ${A}.closed.scafSeq -a ${A}.scafSeq -p 31 -b $S -l 155"""
+$C pregraph -s $S -d 1 -p $P -K $K -o $A -p $P
+$C contig -g $A -M 3
+$C map -s $S -g $A -p $P
+$C scaff -g $A -b 1.2 -F -p $P
+GapCloser -a ${A}.scafSeq -b $S -l 155 -o ${A}.closed.scafSeq -p 29 -t $P"""
+
+
+def correct(args):
+    """
+    %prog correct *.dedup
+
+    Correct reads using ErrorCorrection. Only PE will be used to build the K-mer
+    table, but both PE and MP will be corrected. Final command needs to be run:
+
+    $ parallel ErrorCorrection correct output.freq.gz output.sfreq.gz {} ::: xa?
+    """
+    p = OptionParser(correct.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) < 3:
+        sys.exit(not p.print_help())
+
+    lstfile = "reads2cor.lst"
+    fw = open(lstfile, "w")
+    print >> fw, "\n".join(x for x in args if x[:2] == "PE")
+    fw.close()
+
+    if need_update(args, "output.freq.gz"):
+        cmd = "ErrorCorrection kmerfreq reads2cor.lst"
+        sh(cmd)
+
+    fw = open(lstfile, "w")
+    print >> fw, "\n".join(args)
+    fw.close()
+
+    sh("split -l2 {0}".format(lstfile))
+
+
+def clean(args):
+    """
+    %prog clean 1.fastq 2.fastq insertsize
+
+    Clean and dedup paired FASTQ files.
+    """
+    from jcvi.formats.fastq import guessoffset, convert
+
+    p = OptionParser(clean.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    p1, p2, size = args
+    size = int(size)
+    pf = p1.split(".")[0]
+
+    offset = guessoffset([p1])
+    p1_q64 = p1.replace(".gz", "") + ".q64.gz"
+    p2_q64 = p2.replace(".gz", "") + ".q64.gz"
+
+    if offset == 33 and need_update([p1, p2], [p1_q64, p2_q64]):
+        logging.debug("Converting offset from 33 to 64 ...")
+        convert([p1, p1_q64, "-Q", "sanger", "-q", "illumina"])
+        convert([p2, p2_q64, "-Q", "sanger", "-q", "illumina"])
+
+    p1, p2 = p1_q64, p2_q64
+
+    p1_clean = p1 + ".clean"
+    p2_clean = p2 + ".clean"
+    if need_update([p1, p2], [p1_clean, p2_clean]):
+        logging.debug("Runing low quality filtering ...")
+        cmd  = "filter_data_gz -y -z -w 10 -B 40"
+        cmd += " -l {0} -a 0 -b 0 -c 0 -d 0".format(size)
+        cmd += " {0} {1} {2}.clean.stat {3} {4}".\
+                    format(p1, p2, pf, p1_clean, p2_clean)
+        sh(cmd)
+
+    p1, p2 = p1_clean, p2_clean
+    p1_dedup = p1 + ".dedup"
+    p2_dedup = p2 + ".dedup"
+    if need_update([p1, p2], [p1_dedup, p2_dedup]):
+        logging.debug("Runing duplicate filtering ...")
+        cmd  = "duplication {0} {1} {2} {3} {4}.dedup.stat".\
+                    format(p1, p2, p1_dedup, p2_dedup, pf)
+        sh(cmd)
 
 
 def fillstats(args):
@@ -155,9 +237,14 @@ def prepare(args):
         block += "avg_ins={0}\n".format(size)
         f = fs[0]
         reverse_seq = 0 if ".corr." in f else lib.reverse_seq
+        pair_num_cutoff = 5 if lib.reverse_seq else 3
         block += "reverse_seq={0}\n".format(reverse_seq)
         block += "asm_flags={0}\n".format(lib.asm_flags)
         block += "rank={0}\n".format(rank)
+        block += "pair_num_cutoff={0}\n".format(pair_num_cutoff)
+        if lib.reverse_seq:
+            block += "map_len=35\n"
+
         if singletons:
             fs += singletons
             singletons = []

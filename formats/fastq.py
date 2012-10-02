@@ -658,10 +658,11 @@ def convert(args):
         cmd = "zcat {0} | ".format(infastq)
         cmd += seqret + " fastq-{0}::stdin fastq-{1}::stdout".\
                 format(opts.infastq, opts.outfastq)
-        cmd += " | gzip > {0}".format(outfastq)
     else:
-        cmd = seqret + " fastq-{0}::{1} fastq-{2}::{3}".\
-                format(opts.infastq, infastq, opts.outfastq, outfastq)
+        cmd = seqret + " fastq-{0}::{1} fastq-{2}::stdout".\
+                format(opts.infastq, infastq, opts.outfastq)
+
+    cmd += " | gzip > {0}".format(outfastq)
 
     sh(cmd, grid=opts.grid)
 

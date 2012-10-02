@@ -657,15 +657,19 @@ def _draw_trees(trees, nrow=1, ncol=1, rmargin=.3, iopts=None, outdir=".",
         xiv = 1. / ncol
         yiv = 1. / nrow
         xstart = list(np.arange(0, 1, xiv)) * nrow
-        ystart = list(chain(*zip(*[list(np.arange(1, 0, -yiv))] * ncol)))
+        ystart = list(chain(*zip(*[list(np.arange(0, 1, yiv))[::-1]] * ncol)))
         for i in xrange(n*x, n*(x+1)):
             if i == ntrees:
                 break
             ax = fig.add_axes([xstart[i%n], ystart[i%n], xiv, yiv])
             f = trees.keys()[i]
             tree = trees[f]
+            try:
+                SH = SHs[f]
+            except:
+                SH = None
             draw_tree(ax, tree, rmargin=rmargin, reroot=False, \
-                supportcolor="r", SH=SHs[f], **kwargs)
+                supportcolor="r", SH=SH, **kwargs)
 
         root.set_xlim(0, 1)
         root.set_ylim(0, 1)
@@ -673,12 +677,14 @@ def _draw_trees(trees, nrow=1, ncol=1, rmargin=.3, iopts=None, outdir=".",
 
         format = iopts.format if iopts else "pdf"
         dpi = iopts.dpi if iopts else 300
-        image_name = f.rsplit(".", 1)[0] + "." + format
+        if n == 1:
+            image_name = f.rsplit(".", 1)[0] + "." + format
+        else:
+            image_name = "trees{0}.{1}".format(x, format)
         image_name = op.join(outdir, image_name)
         savefig(image_name, dpi=dpi, iopts=iopts)
         plt.close(fig)
         plt.clf()
-        plt.cla()
 
 
 def draw(args):
@@ -712,6 +718,8 @@ def draw(args):
                  help="path to a file containing SH test p-values in format:" \
                  "tree_file_name<tab>p-values " \
                  "This file can be generated with jcvi.apps.phylo build [default: %default]")
+    p.add_option("--scutoff", default=50, type="int",
+                 help="cutoff for displaying node support, 0-100 [default: %default]")
     p.add_option("--outdir", type="string", default=".", \
                  help="path to output dir. New dir is made if not existed [default: %default]")
     opts, args, iopts = set_image_options(p, figsize="8x6")
@@ -740,6 +748,8 @@ def draw(args):
     tree = ""
     i = 0
     for row in LineFile(trees_file, comment="#", load=True).lines:
+        if i == len(treenames):
+            break
         if not len(row):
             continue
 
@@ -762,12 +772,13 @@ def draw(args):
                     tree += t
         else:
             tree += row
-    assert i == len(treenames)
 
     logging.debug("A total of {0} trees imported.".format(len(trees)))
+    sh("rm {0}".format(op.join(outdir, "alltrees.dnd")))
 
     _draw_trees(trees, nrow=int(combine[0]), ncol=int(combine[1]), rmargin=.3,\
-         iopts=iopts, outdir=outdir, shfile=SH, trunc_name=trunc_name)
+         iopts=iopts, outdir=outdir, shfile=SH, trunc_name=trunc_name, \
+         scutoff=opts.scutoff)
 
 
 if __name__ == '__main__':

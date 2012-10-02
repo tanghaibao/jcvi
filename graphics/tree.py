@@ -54,7 +54,7 @@ def truncate_taxon_name(name, rule=None):
 
 def draw_tree(ax, tx, rmargin=.3, leafcolor="k", supportcolor="k",
               outgroup=None, reroot=True, gffdir=None, sizes=None,
-              trunc_name=None, SH=None):
+              trunc_name=None, SH=None, scutoff=0):
     """
     main function for drawing phylogenetic tree
     """
@@ -135,9 +135,10 @@ def draw_tree(ax, tx, rmargin=.3, leafcolor="k", supportcolor="k",
             yy = sum(children_y) * 1. / len(children_y)
             support = n.support
             if support > 1:
-                support = support/100.
+                support = support / 100.
             if not n.is_root():
-                ax.text(xx, yy+.005, _("{0:d}".format(int(abs(support * 100)))),
+                if support > scutoff / 100.:
+                    ax.text(xx, yy+.005, _("{0:d}".format(int(abs(support * 100)))),
                         ha="right", size=8, color=supportcolor)
 
         coords[n] = (xx, yy)
@@ -201,6 +202,8 @@ def main():
                  help="The FASTA file or the sizes file [default: %default]")
     p.add_option("--SH", default=None, type="string",
                  help="SH test p-value [default: %default]")
+    p.add_option("--scutoff", default=0, type="int",
+                 help="cutoff for displaying node support, 0-100 [default: %default]")
     p.add_option("--leafcolor", default="k",
                  help="The font color for the OTUs [default: %default]")
 
@@ -231,7 +234,7 @@ def main():
 
     draw_tree(root, tx, rmargin=opts.rmargin, leafcolor=opts.leafcolor, \
               outgroup=outgroup, reroot=reroot, gffdir=opts.gffdir, \
-              sizes=opts.sizes, SH=opts.SH)
+              sizes=opts.sizes, SH=opts.SH, scutoff=opts.scutoff)
 
     image_name = pf + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)

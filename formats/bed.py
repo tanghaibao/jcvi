@@ -107,7 +107,7 @@ class Bed(LineFile):
         if not filename:
             return
 
-        for line in open(filename):
+        for line in must_open(filename):
             if line[0] == "#":
                 continue
             self.append(BedLine(line))

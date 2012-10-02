@@ -26,6 +26,8 @@ from jcvi.utils.cbook import human_size, autoscale
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
+_ = str
+
 
 # Colors picked from Schmutz soybean genome paper using ColorPic
 palette = ["#ACABD5","#DBF0F5", "#3EA77A", "#FBF5AB", "#C162A6"] + \
@@ -144,6 +146,7 @@ def heatmap(args):
     yy = 1 - margin
     yy -= yinterval
     xlen = clen / ratio
+    cc = chr
     if "_" in chr:
         ca, cb = chr.split("_")
         cc = ca[0].upper() + cb
@@ -160,7 +163,8 @@ def heatmap(args):
         window = owindow / shift * shift
 
     stackplot(ax, stackbins, nbins, palette, chr, window, shift)
-    root.text(xx + inner, yy + yinterval - 2 * inner, cc, va="top")
+    ax.text(.1, .9, cc, va="top", zorder=100, transform=ax.transAxes,
+              bbox=dict(boxstyle="round", fc="w", alpha=.5))
 
     # Legends
     xx += xlen + .01
@@ -239,7 +243,7 @@ def draw_gauge(ax, margin, maxl, rightmargin=None, optimal=7):
         xx += xinterval
 
     xx += 4 * tip - xinterval
-    ax.text(xx, yy + 2 * tip, _(suffix))
+    ax.text(xx + tip, yy + 2 * tip, _(suffix))
 
     return best_stride / xinterval
 
@@ -337,6 +341,7 @@ def stack(args):
     for chr, clen in s:
         yy -= yinterval
         xlen = clen / ratio
+        cc = chr
         if "_" in chr:
             ca, cb = chr.split("_")
             cc = ca[0].upper() + cb

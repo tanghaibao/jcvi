@@ -338,6 +338,21 @@ def read_block(handle, signal):
         yield header, seq
 
 
+def is_number(s):
+    """
+    check if a string is a number
+    """
+    try:
+        float(s) # for int, long and float
+    except ValueError:
+        try:
+            complex(s) # for complex
+        except ValueError:
+            return False
+
+    return True
+
+
 def main():
 
     actions = (

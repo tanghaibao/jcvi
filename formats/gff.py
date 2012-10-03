@@ -1081,11 +1081,23 @@ def load(args):
     %prog load gff_file fasta_file [--options]
 
     Parses the selected features out of GFF, with subfeatures concatenated.
-    For example, to get the CDS sequences, do this::
-
+    For example, to get the CDS sequences, do this:
     $ %prog load athaliana.gff athaliana.fa --parents mRNA --children CDS
+
+    To get 500bp upstream of a genes Transcription Start Site (TSS), do this:
+    $ %prog load athaliana.gff athaliana.fa --feature=upstream:TSS:500
+
+    Switch TSS with TrSS for Translation Start Site.
     '''
+    import re
+    from jcvi.utils.range import range_minmax
+    from jcvi.formats.base import is_number
     from jcvi.formats.fasta import Seq, SeqRecord
+
+    # can request output fasta sequence id to be picked from following attributes
+    valid_id_attributes = ["ID", "Name", "Parent", "Alias", "Target"]
+    # can request upstream sequence only from the following valid sites
+    valid_upstream_sites = ["TSS", "TrSS"]
 
     p = OptionParser(load.__doc__)
     p.add_option("--parents", dest="parents", default="mRNA",
@@ -1094,8 +1106,16 @@ def load(args):
     p.add_option("--children", dest="children", default="CDS",
             help="list of features to extract, use comma to separate (e.g."
             "'five_prime_UTR,CDS,three_prime_UTR') [default: %default]")
+    p.add_option("--feature", dest="feature", default="CDS",
+            help="feature type to extract. e.g. `--feature=CDS` or "
+            " `--feature=upstream:TSS:500`"
+            "[default: %default]")
     p.add_option("--attribute",
-            help="The attribute field to extract [default: %default]")
+            help="The attribute field to extract and use as FASTA sequence "
+            " description [default: %default]")
+    p.add_option("--id_attribute", choices=valid_id_attributes,
+            help="The attribute field to extract and use as FASTA sequence ID"
+            " [default: %default]")
     set_outfile(p)
 
     opts, args = p.parse_args(args)
@@ -1105,41 +1125,124 @@ def load(args):
 
     gff_file, fasta_file = args
 
-    g = make_index(gff_file)
-    f = Fasta(fasta_file, index=False)
-    fw = must_open(opts.outfile, "w")
+    if re.match(r'upstream', opts.feature):
+        opts.parents, opts.children = "mRNA", "CDS"
+        opts.feature, upstream_site, upstream_len = re.search(r'([A-z]+):([A-z]+):([A-z0-9]+)', opts.feature).groups()
+        if not is_number(upstream_len):
+            logging.debug("Error: upstream sequence length `" + upstream_len + "` should be" +
+                    " a positive integer")
+            sys.exit()
+        elif not upstream_site in valid_upstream_sites:
+            logging.debug("Error: upstream sequence site `" + upstream_site + "` is not a valid choice." +
+                    " Please choose from " + valid_upstream_site)
+            sys.exit()
+        upstream_len = int(upstream_len)
+    elif opts.feature == "CDS":
+        opts.parents, opts.children = "mRNA", "CDS"
 
     parents = set(opts.parents.split(','))
     children_list = set(opts.children.split(','))
     attr = opts.attribute
+    id_attr = opts.id_attribute
+
+    g = make_index(gff_file)
+    f = Fasta(fasta_file, index=False)
+    seqlen = {}
+    for seqid, size in f.itersizes():
+        seqlen[seqid] = size
+
+    fw = must_open(opts.outfile, "w")
 
     for feat in get_parents(gff_file, parents):
-
-        children = []
-        for c in g.children(feat.id, 1):
-
-            if c.featuretype not in children_list:
-                continue
-            child = f.sequence(dict(chr=c.chrom, start=c.start, stop=c.stop,
-                strand=c.strand))
-            children.append((child, c))
-
-        if not children:
-            print >>sys.stderr, "[warning] %s has no children with type %s" \
-                                    % (feat.id, ','.join(children_list))
-            continue
-        # sort children in incremental position
-        children.sort(key=lambda x: x[1].start)
-        # reverse children if negative strand
-        if feat.strand == '-':
-            children.reverse()
-        feat_seq = ''.join(x[0] for x in children)
-
-        description = ",".join(feat.attributes[attr]) \
+        desc = ",".join(feat.attributes[attr]) \
                 if attr and attr in feat.attributes else ""
-        description = description.replace("\"", "")
 
-        rec = SeqRecord(Seq(feat_seq), id=feat.id, description=description)
+        if opts.feature == "upstream":
+            strand = feat.strand
+            if upstream_site == "TrSS":
+                """
+                Upstream sequence requested from Translation Start Site (TrSS)
+                """
+                children = []
+                for c in g.children(feat.id, 1):
+
+                    if c.featuretype not in children_list:
+                        continue
+                    children.append((c.start, c.stop))
+
+                if not children:
+                    print >>sys.stderr, "[warning] %s has no children with type %s" \
+                                            % (feat.id, ','.join(children_list))
+                    continue
+
+                cds_start, cds_stop = range_minmax(children)
+                (upstream_start, upstream_stop) = \
+                        (cds_start - upstream_len, cds_start - 1) \
+                        if strand == "+" else \
+                        (cds_stop + 1, cds_stop + upstream_len)
+            elif upstream_site == "TSS":
+                """
+                Upstream sequence requested from Transcription Start Site (TSS)
+                """
+                (upstream_start, upstream_stop) = \
+                        (feat.start - upstream_len, feat.start - 1) \
+                        if feat.strand == "+" else \
+                        (feat.end + 1, feat.end + upstream_len)
+
+            if feat.strand == "+" and upstream_start < 1:
+                """
+                set upstream_start = 1 if feature is on the '+' strand
+                and distance between sequence start and feature start is less
+                than upstream length requested
+                """
+                upstream_start = 1
+            elif feat.strand == "-" and upstream_stop > seqlen[feat.seqid]:
+                """
+                set upstream_stop = len(reference sequence) when feature is
+                on the '-' strand and distance between feature stop and sequence end
+                is less than upstream length requested
+                """
+                upstream_stop = seqlen[feat.seqid]
+
+            if upstream_stop - upstream_start + 1 < upstream_len:
+                continue
+
+            feat_seq = f.sequence(dict(chr=feat.seqid, start=upstream_start,
+                stop=upstream_stop, strand=feat.strand))
+
+            (s, e) = (upstream_start, upstream_stop) \
+                    if feat.strand == "+" else \
+                     (upstream_stop, upstream_start)
+            upstream_seq_loc = str(feat.seqid) + ":" + str(s) + "-" + str(e)
+            desc = " ".join(str(x) for x in (desc, upstream_seq_loc, \
+                    "LENGTH=" + str(upstream_len)))
+        else:
+            children = []
+            for c in g.children(feat.id, 1):
+
+                if c.featuretype not in children_list:
+                    continue
+                child = f.sequence(dict(chr=c.chrom, start=c.start, stop=c.stop,
+                    strand=c.strand))
+                children.append((child, c))
+
+            if not children:
+                print >>sys.stderr, "[warning] %s has no children with type %s" \
+                                        % (feat.id, ','.join(children_list))
+                continue
+            # sort children in incremental position
+            children.sort(key=lambda x: x[1].start)
+            # reverse children if negative strand
+            if feat.strand == '-':
+                children.reverse()
+            feat_seq = ''.join(x[0] for x in children)
+
+        desc = desc.replace("\"", "")
+        id = ",".join(feat.attributes[id_attr]) if id_attr \
+                and feat.attributes[id_attr] else \
+                feat.id
+
+        rec = SeqRecord(Seq(feat_seq), id=id, description=desc)
         SeqIO.write([rec], fw, "fasta")
         fw.flush()
 

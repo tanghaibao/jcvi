@@ -1089,15 +1089,10 @@ def load(args):
 
     Switch TSS with TrSS for Translation Start Site.
     '''
-    import re
-    from jcvi.utils.range import range_minmax
-    from jcvi.formats.base import is_number
     from jcvi.formats.fasta import Seq, SeqRecord
 
     # can request output fasta sequence id to be picked from following attributes
     valid_id_attributes = ["ID", "Name", "Parent", "Alias", "Target"]
-    # can request upstream sequence only from the following valid sites
-    valid_upstream_sites = ["TSS", "TrSS"]
 
     p = OptionParser(load.__doc__)
     p.add_option("--parents", dest="parents", default="mRNA",
@@ -1106,7 +1101,7 @@ def load(args):
     p.add_option("--children", dest="children", default="CDS",
             help="list of features to extract, use comma to separate (e.g."
             "'five_prime_UTR,CDS,three_prime_UTR') [default: %default]")
-    p.add_option("--feature", dest="feature", default="CDS",
+    p.add_option("--feature", dest="feature",
             help="feature type to extract. e.g. `--feature=CDS` or "
             " `--feature=upstream:TSS:500`"
             "[default: %default]")
@@ -1125,20 +1120,11 @@ def load(args):
 
     gff_file, fasta_file = args
 
-    if re.match(r'upstream', opts.feature):
-        opts.parents, opts.children = "mRNA", "CDS"
-        opts.feature, upstream_site, upstream_len = re.search(r'([A-z]+):([A-z]+):([A-z0-9]+)', opts.feature).groups()
-        if not is_number(upstream_len):
-            logging.debug("Error: upstream sequence length `" + upstream_len + "` should be" +
-                    " a positive integer")
-            sys.exit()
-        elif not upstream_site in valid_upstream_sites:
-            logging.debug("Error: upstream sequence site `" + upstream_site + "` is not a valid choice." +
-                    " Please choose from " + valid_upstream_site)
-            sys.exit()
-        upstream_len = int(upstream_len)
-    elif opts.feature == "CDS":
-        opts.parents, opts.children = "mRNA", "CDS"
+    if opts.feature:
+        opts.feature, opts.parent, opts.children, upstream_site, upstream_len, \
+                flag, error_msg = parse_feature_param(opts.feature)
+        if flag:
+            sys.exit(error_msg)
 
     parents = set(opts.parents.split(','))
     children_list = set(opts.children.split(','))
@@ -1158,53 +1144,10 @@ def load(args):
                 if attr and attr in feat.attributes else ""
 
         if opts.feature == "upstream":
-            strand = feat.strand
-            if upstream_site == "TrSS":
-                """
-                Upstream sequence requested from Translation Start Site (TrSS)
-                """
-                children = []
-                for c in g.children(feat.id, 1):
+            upstream_start, upstream_stop = get_upstream_coords(upstream_site, upstream_len, \
+                     seqlen[feat.seqid], feat, children_list, g)
 
-                    if c.featuretype not in children_list:
-                        continue
-                    children.append((c.start, c.stop))
-
-                if not children:
-                    print >>sys.stderr, "[warning] %s has no children with type %s" \
-                                            % (feat.id, ','.join(children_list))
-                    continue
-
-                cds_start, cds_stop = range_minmax(children)
-                (upstream_start, upstream_stop) = \
-                        (cds_start - upstream_len, cds_start - 1) \
-                        if strand == "+" else \
-                        (cds_stop + 1, cds_stop + upstream_len)
-            elif upstream_site == "TSS":
-                """
-                Upstream sequence requested from Transcription Start Site (TSS)
-                """
-                (upstream_start, upstream_stop) = \
-                        (feat.start - upstream_len, feat.start - 1) \
-                        if feat.strand == "+" else \
-                        (feat.end + 1, feat.end + upstream_len)
-
-            if feat.strand == "+" and upstream_start < 1:
-                """
-                set upstream_start = 1 if feature is on the '+' strand
-                and distance between sequence start and feature start is less
-                than upstream length requested
-                """
-                upstream_start = 1
-            elif feat.strand == "-" and upstream_stop > seqlen[feat.seqid]:
-                """
-                set upstream_stop = len(reference sequence) when feature is
-                on the '-' strand and distance between feature stop and sequence end
-                is less than upstream length requested
-                """
-                upstream_stop = seqlen[feat.seqid]
-
-            if upstream_stop - upstream_start + 1 < upstream_len:
+            if not upstream_start or not upstream_stop:
                 continue
 
             feat_seq = f.sequence(dict(chr=feat.seqid, start=upstream_start,
@@ -1245,6 +1188,101 @@ def load(args):
         rec = SeqRecord(Seq(feat_seq), id=id, description=desc)
         SeqIO.write([rec], fw, "fasta")
         fw.flush()
+
+
+def parse_feature_param(feature):
+    """
+    Take the --feature param (coming from gff.load() and parse it.
+    Returns feature, parents and children terms.
+
+    Also returns length of upstream sequence (and start site) requested
+
+    If erroneous, returns a flag and error message to be displayed on exit
+    """
+    import re
+    from jcvi.formats.base import is_number
+
+    # can request upstream sequence only from the following valid sites
+    valid_upstream_sites = ["TSS", "TrSS"]
+
+    flag, error_msg = None, None
+    if re.match(r'upstream', feature):
+        parents, children = "mRNA", "CDS"
+        feature, upstream_site, upstream_len = re.search(r'([A-z]+):([A-z]+):(\S+)', \
+                feature).groups()
+
+        if not is_number(upstream_len):
+            flag, error_msg = 1, "Error: upstream len `" + upstream_len + "` should be an integer"
+
+        upstream_len = int(upstream_len)
+        if(upstream_len < 0):
+            flag, error_msg = 1, "Error: upstream len `" + str(upstream_len) + "` should be > 0"
+
+        if not upstream_site in valid_upstream_sites:
+            flag, error_msg = 1, "Error: upstream site `" + upstream_site + "` not valid." + \
+                    " Please choose from " + valid_upstream_site
+    elif feature == "CDS":
+        parents, children = "mRNA", "CDS"
+    else:
+        flag, error_msg = 1, "Error: unrecognized option --feature=" + feature
+
+    return feature, parents, children, upstream_site, upstream_len, flag, error_msg
+
+
+def get_upstream_coords(uSite, uLen, seqlen, feat, children_list, gffdb):
+    """
+    Subroutine takes upstream site, length, reference sequence length,
+    parent mRNA feature (GffLine object), list of child feature types
+    and a GFFutils.GFFDB object as the input
+
+    If upstream of TSS is requested, use the parent feature coords
+    to extract the upstream sequence
+
+    If upstream of TrSS is requested,  iterates through all the
+    children (CDS features stored in the sqlite GFFDB) and use child
+    feature coords to extract the upstream sequence
+
+    If success, returns the upstream start and stop coordinates
+    else, returns None
+    """
+    from jcvi.utils.range import range_minmax
+
+    if uSite == "TSS":
+        (upstream_start, upstream_stop) = \
+                (feat.start - uLen, feat.start - 1) \
+                if feat.strand == "+" else \
+                (feat.end + 1, feat.end + uLen)
+    elif uSite == "TrSS":
+        children = []
+        for c in gffdb.children(feat.id, 1):
+
+            if c.featuretype not in children_list:
+                continue
+            children.append((c.start, c.stop))
+
+        if not children:
+            print >>sys.stderr, "[warning] %s has no children with type %s" \
+                                    % (feat.id, ','.join(children_list))
+            return None, None
+
+        cds_start, cds_stop = range_minmax(children)
+        (upstream_start, upstream_stop) = \
+                (cds_start - uLen, cds_start - 1) \
+                if feat.strand == "+" else \
+                (cds_stop + 1, cds_stop + uLen)
+
+    if feat.strand == "+" and upstream_start < 1:
+        upstream_start = 1
+    elif feat.strand == "-" and upstream_stop > seqlen:
+        upstream_stop = seqlen
+
+    actual_uLen = upstream_stop - upstream_start + 1
+    if actual_uLen < uLen:
+        print >>sys.stderr, "[warning] sequence upstream of {0} ({1} bp) is less than upstream length {2}" \
+                .format(feat.id, actual_uLen, uLen)
+        return None, None
+
+    return upstream_start, upstream_stop
 
 
 def bed12(args):

@@ -205,18 +205,14 @@ def get_stats(coordsfile):
 
     from jcvi.utils.range import range_union
 
-    logging.debug("report stats on `%s`" % coordsfile)
-    fp = open(coordsfile)
+    logging.debug("Report stats on `%s`" % coordsfile)
+    coords = Coords(coordsfile)
     ref_ivs = []
     qry_ivs = []
     identicals = 0
     alignlen = 0
 
-    for row in fp:
-        try:
-            c = CoordsLine(row)
-        except AssertionError:
-            continue
+    for c in coords:
 
         qstart, qstop = c.start2, c.end2
         if qstart > qstop:

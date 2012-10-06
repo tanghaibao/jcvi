@@ -11,7 +11,7 @@ import logging
 
 from optparse import OptionParser
 
-from jcvi.formats.coords import Coords, fromdelta
+from jcvi.formats.coords import Coords
 from jcvi.formats.sizes import Sizes
 from jcvi.formats.base import SetFile
 from jcvi.apps.base import debug, sh, need_update

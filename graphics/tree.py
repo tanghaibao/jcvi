@@ -9,13 +9,14 @@ from optparse import OptionParser
 
 from ete2 import Tree
 from jcvi.formats.sizes import Sizes
+from jcvi.formats.base import DictFile
 from jcvi.graphics.base import plt, _, set_image_options, savefig
 from jcvi.graphics.glyph import ExonGlyph, get_setups
 from jcvi.apps.base import debug
 debug()
 
 
-def truncate_taxon_name(name, rule=None):
+def truncate_name(name, rule=None):
     """
     shorten taxa names for tree display
 
@@ -47,14 +48,28 @@ def truncate_taxon_name(name, rule=None):
                 if k:
                     tname = name[-int(k):]
                 else:
-                    print >>sys.stderr, truncate_taxon_name.__doc__
+                    print >>sys.stderr, truncate_name.__doc__
                     raise ValueError('Wrong rule for truncation!')
     return tname
 
 
+def decode_name(name, barcodemap):
+    """
+    rename seq/taxon name, typically for a tree display,
+    according to a barcode map given in a dictionary
+
+    By definition barcodes should be distinctive.
+    """
+    for barcode in barcodemap:
+        if barcode in name:
+            return barcodemap[barcode]
+
+    return name
+
+
 def draw_tree(ax, tx, rmargin=.3, leafcolor="k", supportcolor="k",
               outgroup=None, reroot=True, gffdir=None, sizes=None,
-              trunc_name=None, SH=None, scutoff=0):
+              trunc_name=None, SH=None, scutoff=0, barcodefile=None):
     """
     main function for drawing phylogenetic tree
     """
@@ -93,6 +108,9 @@ def draw_tree(ax, tx, rmargin=.3, leafcolor="k", supportcolor="k",
     if sizes:
         sizes = Sizes(sizes).mapping
 
+    if barcodefile:
+        barcodemap = DictFile(barcodefile, delimiter="\t")
+
     coords = {}
     i = 0
     for n in t.traverse("postorder"):
@@ -104,9 +122,12 @@ def draw_tree(ax, tx, rmargin=.3, leafcolor="k", supportcolor="k",
             i += 1
 
             if trunc_name:
-                name = truncate_taxon_name(n.name, rule=trunc_name)
+                name = truncate_name(n.name, rule=trunc_name)
             else:
                 name = n.name
+
+            if barcodefile:
+                name = decode_name(name, barcodemap)
 
             sname = name.replace("_", "-")
             ax.text(xx + tip, yy, sname, va="center",
@@ -188,6 +209,10 @@ def main():
     Plot Newick formatted tree. The gene structure can be plotted along if
     --gffdir is given. The gff file needs to be `genename.gff`. If --sizes is
     on, also show the number of amino acids.
+
+    With --barcode a mapping file can be provided to convert seq names to
+    eg. species names, useful in unified tree display. This file should have
+    distinctive barcodes in column1 and new names in column2, tab delimited.
     """
     p = OptionParser(main.__doc__)
     p.add_option("--outgroup", help="Outgroup for rerooting the tree. " + \
@@ -204,6 +229,9 @@ def main():
                  help="SH test p-value [default: %default]")
     p.add_option("--scutoff", default=0, type="int",
                  help="cutoff for displaying node support, 0-100 [default: %default]")
+    p.add_option("--barcode", default=None,
+                 help="path to seq names barcode mapping file: " \
+                 "barcode<tab>new_name [default: %default]")
     p.add_option("--leafcolor", default="k",
                  help="The font color for the OTUs [default: %default]")
 
@@ -234,7 +262,8 @@ def main():
 
     draw_tree(root, tx, rmargin=opts.rmargin, leafcolor=opts.leafcolor, \
               outgroup=outgroup, reroot=reroot, gffdir=opts.gffdir, \
-              sizes=opts.sizes, SH=opts.SH, scutoff=opts.scutoff)
+              sizes=opts.sizes, SH=opts.SH, scutoff=opts.scutoff, \
+              barcodefile=opts.barcode)
 
     image_name = pf + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)

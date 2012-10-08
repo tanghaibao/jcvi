@@ -720,6 +720,10 @@ def draw(args):
                  "This file can be generated with jcvi.apps.phylo build [default: %default]")
     p.add_option("--scutoff", default=50, type="int",
                  help="cutoff for displaying node support, 0-100 [default: %default]")
+    p.add_option("--barcode", default=None,
+                 help="path to seq/taxon name barcode mapping file: " \
+                 "barcode<tab>new_name " \
+                 "This option is downstream of `--trunc_name` [default: %default]")
     p.add_option("--outdir", type="string", default=".", \
                  help="path to output dir. New dir is made if not existed [default: %default]")
     opts, args, iopts = set_image_options(p, figsize="8x6")
@@ -778,7 +782,7 @@ def draw(args):
 
     _draw_trees(trees, nrow=int(combine[0]), ncol=int(combine[1]), rmargin=.3,\
          iopts=iopts, outdir=outdir, shfile=SH, trunc_name=trunc_name, \
-         scutoff=opts.scutoff)
+         scutoff=opts.scutoff, barcode = opts.barcode)
 
 
 if __name__ == '__main__':

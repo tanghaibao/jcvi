@@ -464,6 +464,10 @@ def tandem_main(blast_file, cds_file, bed_file, N=3, P=50, is_self=True, \
             for x in range(1, N+1):
                 if all([i-x >= 0, bed[i-x].seqid == atom.seqid, \
                     homologs.joined(bed[i-x].accn, atom.accn)]):
+                    leni = sizes[bed[i].accn]
+                    lenx = sizes[bed[i-x].accn]
+                    if abs(leni - lenx) > max(leni, lenx)*(1-P/100.):
+                        continue
                     g.join(bed[i-x].accn, atom.accn)
 
     # dump the grouper

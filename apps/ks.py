@@ -412,7 +412,7 @@ def calc(args):
         translate_args = [dna_file, "--outfile=" + protein_file]
         if opts.longest:
             translate_args += ["--longest"]
-        translate(translate_args)
+        dna_file, protein_file = translate(translate_args)
 
     prot_iterator = SeqIO.parse(open(protein_file), "fasta")
     dna_iterator = SeqIO.parse(open(dna_file), "fasta")

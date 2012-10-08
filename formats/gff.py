@@ -200,7 +200,8 @@ def orient(args):
     $ %prog load --parents=EST_match --children=match_part clc.JCVIv4a.gff
     JCVI.Medtr.v4.fasta -o features.fasta
     """
-    from jcvi.formats.fasta import ORFFinder
+    from jcvi.formats.base import DictFile
+    from jcvi.formats.fasta import longestorf
 
     p = OptionParser(orient.__doc__)
     opts, args = p.parse_args(args)
@@ -209,12 +210,25 @@ def orient(args):
         sys.exit(not p.print_help())
 
     ingff3, fastafile = args
-    f = Fasta(fastafile, lazy=True)
-    for key, rec in f.iteritems_ordered():
-        seq = rec.seq
-        orf = ORFFinder(seq)
-        lorf = orf.get_longest_orf()
-        print key, orf
+    idsfile = fastafile.rsplit(".", 1)[0] + ".orf.ids"
+    if need_update(fastafile, idsfile):
+        longestorf([fastafile, "--ids"])
+
+    orientations = DictFile(idsfile)
+    gff = Gff(ingff3)
+    for g in gff:
+        id = None
+        for tag in ("ID", "Parent"):
+            if tag in g.attributes:
+                id, = g.attributes[tag]
+                break
+        assert id
+
+        orientation = orientations.get(id, "+")
+        if orientation == '-':
+            g.strand = {"+": "-", "-": "+"}[g.strand]
+
+        print g
 
 
 def rename(args):

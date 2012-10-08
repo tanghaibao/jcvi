@@ -182,6 +182,11 @@ class ORFFinder:
             start, end = end, start
         return "[{0} - {1}]".format(start, end)
 
+    @property
+    def info(self):
+        strand, frame, start, end, length = self.result
+        return "\t".join(str(x) for x in (strand, frame, start, end))
+
     def codons(self, frame):
         """ A generator that yields DNA in one codon blocks
         "frame" counts for 0. This function yields a tuple (triplet, index) with
@@ -199,11 +204,11 @@ class ORFFinder:
             if (c not in self.stop and (c in self.start or not self.start)
                 and orf_start is None):
                 orf_start = index
-            elif c in self.stop and orf_start:
+            elif c in self.stop and orf_start is not None:
                 self._update_longest(orf_start, index + 3, direction, frame)
                 orf_start = None
 
-        if orf_start:
+        if orf_start is not None:
             self._update_longest(orf_start, index + 3, direction, frame)
 
     def _update_longest(self, orf_start, index, direction, frame):
@@ -250,6 +255,7 @@ def main():
     actions = (
         ('extract', 'given fasta file and seq id, retrieve the sequence ' + \
                     'in fasta format'),
+        ('longestorf', 'find longest orf for CDS fasta'),
         ('translate', 'translate CDS to proteins'),
         ('summary', "report the real no of bases and N's in fastafiles"),
         ('uniq', 'remove records that are the same'),
@@ -277,6 +283,56 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def longestorf(args):
+    """
+    %prog longestorf fastafile
+
+    Find longest ORF for each sequence in fastafile.
+    """
+    from jcvi.utils.cbook import percentage
+
+    p = OptionParser(longestorf.__doc__)
+    p.add_option("--ids", action="store_true",
+                 help="Generate table with ORF info [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    fastafile, = args
+    pf = fastafile.rsplit(".", 1)[0]
+    orffile = pf + ".orf.fasta"
+    idsfile = None
+    if opts.ids:
+        idsfile = pf + ".orf.ids"
+        fwids = open(idsfile, "w")
+
+    f = Fasta(fastafile, lazy=True)
+    fw = must_open(orffile, "w")
+    before, after = 0, 0
+    for name, rec in f.iteritems_ordered():
+        cds = rec.seq
+        before += len(cds)
+        # Try all six frames
+        orf = ORFFinder(cds)
+        lorf = orf.get_longest_orf()
+        newcds = Seq(lorf)
+        after += len(newcds)
+        newrec = SeqRecord(newcds, id=name, description=rec.description)
+        SeqIO.write([newrec], fw, "fasta")
+        if idsfile:
+            print >> fwids, "\t".join((name, orf.info))
+
+    fw.close()
+    if idsfile:
+        fwids.close()
+
+    logging.debug("Longest ORFs written to `{0}` ({1}).".\
+                    format(orffile, percentage(after, before)))
+
+    return orffile
 
 
 def ispcr(args):
@@ -432,8 +488,12 @@ def translate(args):
         sys.exit(not p.print_help())
 
     cdsfasta, = args
+    if opts.longest:
+        cdsfasta = longestorf([cdsfasta])
+
     f = Fasta(cdsfasta, lazy=True)
-    fw = must_open(opts.outfile, "w")
+    outfile = opts.outfile
+    fw = must_open(outfile, "w")
 
     if opts.ids:
         idsfile = cdsfasta.rsplit(".", 1)[0] + ".ids"
@@ -450,19 +510,12 @@ def translate(args):
         peplen = cdslen / 3
         total += 1
 
-        if opts.longest:
-            # Try all six frames
-            orf = ORFFinder(cds)
-            lorf = orf.get_longest_orf()
-            newcds = Seq(lorf)
+        # Try all three frames
+        for i in xrange(3):
+            newcds = cds[i: i + peplen * 3]
             pep = newcds.translate()
-        else:
-            # Try all three frames
-            for i in xrange(3):
-                newcds = cds[i: i + peplen * 3]
-                pep = newcds.translate()
-                if "*" not in pep.rstrip("*"):
-                    break
+            if "*" not in pep.rstrip("*"):
+                break
 
         labels = []
         if "*" in pep.rstrip("*"):
@@ -514,6 +567,8 @@ def translate(args):
                         format(percentage(cannot_translate, total))
 
     fw.close()
+
+    return cdsfasta, outfile
 
 
 def filter(args):

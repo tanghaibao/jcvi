@@ -181,10 +181,40 @@ def main():
         ('fromgb', 'convert from gb format to gff3'),
         ('frombed', 'convert from bed format to gff3'),
         ('gapsplit', 'split alignment GFF3 at gaps based on CIGAR string'),
+        ('orient', 'orient the coding features based on translation'),
             )
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def orient(args):
+    """
+    %prog orient in.gff3 features.fasta > out.gff3
+
+    Change the feature orientations based on translation. This script is often
+    needed in fixing the strand information after mapping RNA-seq transcripts.
+
+    You can generate the features.fasta similar to this command:
+
+    $ %prog load --parents=EST_match --children=match_part clc.JCVIv4a.gff
+    JCVI.Medtr.v4.fasta -o features.fasta
+    """
+    from jcvi.formats.fasta import ORFFinder
+
+    p = OptionParser(orient.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    ingff3, fastafile = args
+    f = Fasta(fastafile, lazy=True)
+    for key, rec in f.iteritems_ordered():
+        seq = rec.seq
+        orf = ORFFinder(seq)
+        lorf = orf.get_longest_orf()
+        print key, orf
 
 
 def rename(args):

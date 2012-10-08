@@ -169,25 +169,27 @@ class ORFFinder:
         self.seq = seq.tostring().upper()
         self.start = start
         self.stop = stop
-        self.result = ("+",0,0,0,0)
+        # strand, frame, start, end, length; coordinates are 1-based
+        self.result = ["+", 0, 0, 0, 0]
         self.longest = 0
-        self.sequence = ""
+        self.size = len(seq)
 
-    def _print_current(self):
-        print "frame %s%s position %s:%s (%s nucleotides)" % self.result
-
-    def reverse_comp(self, seq):
-        swap = {"A":"T", "T":"A", "C":"G", "G":"C", "N":"N"}
-        return "".join(swap[b] for b in seq.upper())
+    def __str__(self):
+        # Format similar to getorf
+        strand, frame, start, end, length = self.result
+        start += 1    # 1-based coordinates
+        if strand == '-':
+            start, end = end, start
+        return "[{0} - {1}]".format(start, end)
 
     def codons(self, frame):
         """ A generator that yields DNA in one codon blocks
-        "frame" counts for 0. This function yelids a tuple (triplet, index) with
+        "frame" counts for 0. This function yields a tuple (triplet, index) with
         index relative to the original DNA sequence
         """
         start = frame
-        while start + 3 <= len(self.sequence):
-            yield (self.sequence[start:start+3], start)
+        while start + 3 <= self.size:
+            yield self.sequence[start : start + 3], start
             start += 3
 
     def scan_sequence(self, frame, direction):
@@ -196,45 +198,45 @@ class ORFFinder:
         for c, index in self.codons(frame):
             if (c not in self.stop and (c in self.start or not self.start)
                 and orf_start is None):
-                orf_start = index + 1       # return the result as 1-indexed
+                orf_start = index
             elif c in self.stop and orf_start:
-                self._update_longest(orf_start, index, direction, frame)
+                self._update_longest(orf_start, index + 3, direction, frame)
                 orf_start = None
+
         if orf_start:
-            self._update_longest(orf_start, index, direction, frame)
+            self._update_longest(orf_start, index + 3, direction, frame)
 
     def _update_longest(self, orf_start, index, direction, frame):
-        orf_end = index + 3                 # index is relative to start of codons
-        L = (orf_end - orf_start) + 1
+        orf_end = index
+        L = orf_end - orf_start
         if L > self.longest:
             self.longest = L
-            self.result = (direction, frame, orf_start, orf_end, L)
+            self.result = [direction, frame, orf_start, orf_end, L]
 
-    def run_sixframe(self):
-        dirs = ["+", "-"]
+    def get_longest_orf(self):
+        dirs = ("+", "-")
         for direction in dirs:
             self.sequence = self.seq
             if direction == "-":
-                self.sequence = self.reverse_comp(self.sequence)
+                self.sequence = rc(self.sequence)
             for frame in xrange(3):
                 self.scan_sequence(frame, direction)
 
-    def get_longest_orf(self):
-        self.run_sixframe()                 # run six frame translation
+        strand, frame, start, end, length = self.result
+        size = self.size
+        if strand == '-':
+            start, end = size - end, size - start
+            self.result[2 : 4] = start, end
 
-        self.sequence = self.seq
-        peplen = len(self.sequence) / 3
-        if(self.result[0] == "-"):
-            self.sequence = self.reverse_comp(self.seq)
+        assert start < end, self.result
 
-        orf = self.sequence[self.result[1] : self.result[1] + peplen * 3]
-        orf = orf[self.result[2] - self.result[1] - 1 : self.result[3]]
+        orf = self.seq[start : end]
+        if strand == '-':
+            orf = rc(orf)
+
+        assert len(orf) % 3 == 0
+
         return orf
-
-
-def longest_orf(seq):
-    orf = ORFFinder(seq).get_longest_orf()
-    return orf
 
 
 def rc(s):
@@ -448,13 +450,11 @@ def translate(args):
         peplen = cdslen / 3
         total += 1
 
-        # if longest ORF is requested
-        # try all six frames
         if opts.longest:
-            orf = longest_orf(cds)
-            if len(orf) == 0:
-                continue
-            newcds = Seq(orf)
+            # Try all six frames
+            orf = ORFFinder(cds)
+            lorf = orf.get_longest_orf()
+            newcds = Seq(lorf)
             pep = newcds.translate()
         else:
             # Try all three frames

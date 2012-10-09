@@ -123,8 +123,7 @@ def clean(args):
         logging.debug("Converting offset from 33 to 64 ...")
         convert([p1, p1_q64, "-Q", "sanger", "-q", "illumina"])
         convert([p2, p2_q64, "-Q", "sanger", "-q", "illumina"])
-
-    p1, p2 = p1_q64, p2_q64
+        p1, p2 = p1_q64, p2_q64
 
     p1_clean = p1 + ".clean"
     p2_clean = p2 + ".clean"

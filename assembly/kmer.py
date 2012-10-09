@@ -13,18 +13,69 @@ from optparse import OptionParser
 
 from jcvi.utils.iter import pairwise
 from jcvi.graphics.base import plt, asciiplot, _, set_human_axis, savefig
-from jcvi.apps.base import ActionDispatcher, sh, debug
+from jcvi.apps.base import ActionDispatcher, sh, debug, need_update
 debug()
 
 
 def main():
 
     actions = (
+        ('jellyfish', 'dump histogram using `jellyfish`'),
         ('meryl', 'dump histogram using `meryl`'),
         ('histogram', 'plot the histogram based on meryl K-mer distribution'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def jellyfish(args):
+    """
+    %prog jellyfish *.fastq
+
+    Run jellyfish to dump histogram to be used in kmer.histogram().
+    """
+    from jcvi.apps.base import getfilesize
+    from jcvi.utils.cbook import human_size
+    from jcvi.formats.fastq import guessoffset
+
+    p = OptionParser(jellyfish.__doc__)
+    p.add_option("-K", default=23, type="int",
+                 help="K-mer size [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) < 1:
+        sys.exit(not p.print_help())
+
+    fastqfiles = args
+    K = opts.K
+
+    totalfilesize = sum(getfilesize(x) for x in fastqfiles)
+    hashsize = int(totalfilesize / 46)
+    #hashsize = max(hashsize, 4000000000)  # based on msr-ca
+
+    logging.debug("Total file size: {0}, hashsize (-s): {1}".\
+                    format(human_size(totalfilesize,
+                           a_kilobyte_is_1024_bytes=True), hashsize))
+
+    offset = guessoffset([fastqfiles[0]])
+    assert all(guessoffset([x]) == offset for x in fastqfiles[1:])
+
+    jfpf = "jf-{0}".format(K)
+    jfdb = jfpf + "_0"
+
+    cmd = "jellyfish count -t 32 -p 126 -C -r -o {0}".format(jfpf)
+    cmd += " -s {0} -m {1} --min-quality 5".format(hashsize, K)
+    cmd += " --quality-start {0}".format(offset)
+    cmd += " " + " ".join(fastqfiles)
+
+    if need_update(fastqfiles, jfdb):
+        sh(cmd)
+
+    jfhisto = jfpf + ".histogram"
+    cmd = "jellyfish histo -t 3 {0} -o {1}".format(jfdb, jfhisto)
+
+    if need_update(jfdb, jfhisto):
+        sh(cmd)
 
 
 def meryl(args):
@@ -58,6 +109,8 @@ def histogram(args):
     kmer.meryl().
     """
     p = OptionParser(histogram.__doc__)
+    p.add_option("--maskone", default=False, action="store_true",
+            help="Reduce the error peak [default: %default]")
     p.add_option("--pdf", default=False, action="store_true",
             help="Print PDF instead of ASCII plot [default: %default]")
     p.add_option("--coverage", default=0, type="int",
@@ -103,6 +156,9 @@ def histogram(args):
         Kcounts = K * counts
         totalKmers += Kcounts
         hist[K] = Kcounts
+
+    if opts.maskone:
+        hist[1] = 0
 
     history = ["drop"]
     for a, b in pairwise(sorted(hist.items())):

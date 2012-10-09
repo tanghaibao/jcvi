@@ -34,9 +34,48 @@ def main():
     actions = (
         ('trim', 'trim reads using TRIMMOMATIC'),
         ('correct', 'correct reads using ALLPATHS-LG'),
+        ('hetsmooth', 'reduce K-mer diversity using het-smooth')
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def hetsmooth(args):
+    """
+    %prog hetsmooth reads_1.fq reads_2.fq jf-23_0
+
+    Wrapper against het-smooth. Below is the command used in het-smooth manual.
+
+    $ het-smooth --kmer-len=23 --bottom-threshold=38 --top-threshold=220
+           --no-multibase-replacements --jellyfish-hash-file=23-mers.jf
+               reads_1.fq reads_2.fq
+    """
+    p = OptionParser(hetsmooth.__doc__)
+    p.add_option("-K", default=23, type="int",
+                 help="K-mer size [default: %default]")
+    p.add_option("-L", type="int",
+                 help="Bottom threshold, first min [default: %default]")
+    p.add_option("-U", type="int",
+                 help="Top threshold, second min [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    reads1fq, reads2fq, jfdb = args
+    K = opts.K
+    L = opts.L
+    U = opts.U
+
+    assert L is not None and U is not None, "Please specify -L and -U"
+
+    cmd = "het-smooth --kmer-len={0}".format(K)
+    cmd += " --bottom-threshold={0} --top-threshold={1}".format(L, U)
+    cmd += " --no-multibase-replacements --jellyfish-hash-file={0}".format(jfdb)
+    cmd += " --no-reads-log"
+    cmd += " " + " ".join((reads1fq, reads2fq))
+
+    sh(cmd)
 
 
 def trim(args):

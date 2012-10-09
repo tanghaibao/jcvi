@@ -63,7 +63,7 @@ def jellyfish(args):
     jfpf = "jf-{0}".format(K)
     jfdb = jfpf + "_0"
 
-    cmd = "jellyfish count -t 32 -p 126 -C -r -o {0}".format(jfpf)
+    cmd = "jellyfish count -t 32 -p 126 -C -o {0}".format(jfpf)
     cmd += " -s {0} -m {1} --min-quality 5".format(hashsize, K)
     cmd += " --quality-start {0}".format(offset)
     cmd += " " + " ".join(fastqfiles)

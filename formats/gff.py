@@ -1249,6 +1249,7 @@ def parse_feature_param(feature):
     # can request upstream sequence only from the following valid sites
     valid_upstream_sites = ["TSS", "TrSS"]
 
+    upstream_site, upstream_len = None, None
     flag, error_msg = None, None
     if re.match(r'upstream', feature):
         parents, children = "mRNA", "CDS"

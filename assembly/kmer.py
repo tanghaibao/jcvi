@@ -50,7 +50,7 @@ def jellyfish(args):
     K = opts.K
 
     totalfilesize = sum(getfilesize(x) for x in fastqfiles)
-    hashsize = int(totalfilesize / 46)
+    hashsize = totalfilesize / 46
     #hashsize = max(hashsize, 4000000000)  # based on msr-ca
 
     logging.debug("Total file size: {0}, hashsize (-s): {1}".\
@@ -63,7 +63,7 @@ def jellyfish(args):
     jfpf = "jf-{0}".format(K)
     jfdb = jfpf + "_0"
 
-    cmd = "jellyfish count -t 32 -p 126 -C -o {0}".format(jfpf)
+    cmd = "jellyfish count -t 64 -p 126 -C -o {0}".format(jfpf)
     cmd += " -s {0} -m {1} --min-quality 5".format(hashsize, K)
     cmd += " --quality-start {0}".format(offset)
     cmd += " " + " ".join(fastqfiles)
@@ -72,7 +72,7 @@ def jellyfish(args):
         sh(cmd)
 
     jfhisto = jfpf + ".histogram"
-    cmd = "jellyfish histo -t 3 {0} -o {1}".format(jfdb, jfhisto)
+    cmd = "jellyfish histo -t 64 {0} -o {1}".format(jfdb, jfhisto)
 
     if need_update(jfdb, jfhisto):
         sh(cmd)
@@ -109,8 +109,10 @@ def histogram(args):
     kmer.meryl().
     """
     p = OptionParser(histogram.__doc__)
-    p.add_option("--maskone", default=False, action="store_true",
-            help="Reduce the error peak [default: %default]")
+    p.add_option("--vmin", dest="vmin", default=1, type="int",
+            help="minimum value, inclusive [default: %default]")
+    p.add_option("--vmax", dest="vmax", default=100, type="int",
+            help="maximum value, inclusive [default: %default]")
     p.add_option("--pdf", default=False, action="store_true",
             help="Print PDF instead of ASCII plot [default: %default]")
     p.add_option("--coverage", default=0, type="int",
@@ -157,9 +159,6 @@ def histogram(args):
         totalKmers += Kcounts
         hist[K] = Kcounts
 
-    if opts.maskone:
-        hist[1] = 0
-
     history = ["drop"]
     for a, b in pairwise(sorted(hist.items())):
         Ka, ca = a
@@ -185,7 +184,8 @@ def histogram(args):
     for msg in (Total_Kmers_msg, Kmer_coverage_msg, Genome_size_msg):
         print >> sys.stderr, msg
 
-    counts = sorted((a, b) for a, b in hist.items() if a <= 100)
+    counts = sorted((a, b) for a, b in hist.items() \
+                    if opts.vmin <= a <= opts.vmax)
     x, y = zip(*counts)
     title = "{0} genome {1}-mer histogram".format(species, N)
 

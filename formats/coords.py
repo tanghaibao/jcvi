@@ -80,6 +80,11 @@ class CoordsLine (object):
                 self.query, self.score, self.orientation))
 
     @property
+    def qbedline(self):
+        return '\t'.join(str(x) for x in (self.query, self.start2 - 1,
+                self.end2, self.ref, self.score, self.orientation))
+
+    @property
     def blastline(self):
         hitlen = max(self.len1, self.len2)
         score = self.score
@@ -466,6 +471,8 @@ def bed(args):
     be beyond quality cutoff, say 50) in bed format
     """
     p = OptionParser(bed.__doc__)
+    p.add_option("--query", default=False, action="store_true",
+            help="print out query intervals rather than ref [default: %default]")
     p.add_option("--cutoff", dest="cutoff", default=0, type="float",
             help="get all the alignments with quality above threshold " +\
                  "[default: %default]")
@@ -475,6 +482,7 @@ def bed(args):
         sys.exit(p.print_help())
 
     coordsfile, = args
+    query = opts.query
     quality_cutoff = opts.cutoff
 
     coords = Coords(coordsfile)
@@ -482,7 +490,8 @@ def bed(args):
     for c in coords:
         if c.quality < quality_cutoff:
             continue
-        print c.bedline
+        line = c.qbedline if query else c.bedline
+        print line
 
 
 if __name__ == '__main__':

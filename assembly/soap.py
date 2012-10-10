@@ -106,6 +106,12 @@ def clean(args):
     from jcvi.formats.fastq import guessoffset, convert
 
     p = OptionParser(clean.__doc__)
+    p.add_option("-a", default=0, type="int",
+                 help="Trim length at 5' end [default: %default]")
+    p.add_option("-b", default=0, type="int",
+                 help="Trim length at 5' end [default: %default]")
+    p.add_option("--nofragsdedup", default=False, action="store_true",
+                 help="Don't deduplicate the fragment reads [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -118,6 +124,7 @@ def clean(args):
     offset = guessoffset([p1])
     p1_q64 = p1.replace(".gz", "") + ".q64.gz"
     p2_q64 = p2.replace(".gz", "") + ".q64.gz"
+    a, b = opts.a, opts.b
 
     if offset == 33 and need_update([p1, p2], [p1_q64, p2_q64]):
         logging.debug("Converting offset from 33 to 64 ...")
@@ -128,18 +135,21 @@ def clean(args):
     p1_clean = p1 + ".clean"
     p2_clean = p2 + ".clean"
     if need_update([p1, p2], [p1_clean, p2_clean]):
-        logging.debug("Runing low quality filtering ...")
+        logging.debug("Running low quality filtering ...")
         cmd  = "filter_data_gz -y -z -w 10 -B 40"
-        cmd += " -l {0} -a 0 -b 0 -c 0 -d 0".format(size)
+        cmd += " -l {0} -a {1} -b {2} -c {1} -d {2}".format(size, a, b, a, b)
         cmd += " {0} {1} {2}.clean.stat {3} {4}".\
                     format(p1, p2, pf, p1_clean, p2_clean)
         sh(cmd)
+
+    if opts.nofragsdedup:
+        return
 
     p1, p2 = p1_clean, p2_clean
     p1_dedup = p1 + ".dedup"
     p2_dedup = p2 + ".dedup"
     if need_update([p1, p2], [p1_dedup, p2_dedup]):
-        logging.debug("Runing duplicate filtering ...")
+        logging.debug("Running duplicate filtering ...")
         cmd  = "duplication {0} {1} {2} {3} {4}.dedup.stat".\
                     format(p1, p2, p1_dedup, p2_dedup, pf)
         sh(cmd)

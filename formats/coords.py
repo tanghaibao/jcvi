@@ -73,16 +73,15 @@ class CoordsLine (object):
         return "\t".join(str(x) for x in \
                 [getattr(self, attr) for attr in slots.split()])
 
-    @property
-    def bedline(self):
-        # bed formatted line
+    def bedline(self, pctid=False):
+        score = self.identity if pctid else self.score
         return '\t'.join(str(x) for x in (self.ref, self.start1 - 1, self.end1,
-                self.query, self.score, self.orientation))
+                self.query, score, self.orientation))
 
-    @property
-    def qbedline(self):
+    def qbedline(self, pctid=False):
+        score = self.identity if pctid else self.score
         return '\t'.join(str(x) for x in (self.query, self.start2 - 1,
-                self.end2, self.ref, self.score, self.orientation))
+                self.end2, self.ref, score, self.orientation))
 
     @property
     def blastline(self):
@@ -473,6 +472,8 @@ def bed(args):
     p = OptionParser(bed.__doc__)
     p.add_option("--query", default=False, action="store_true",
             help="print out query intervals rather than ref [default: %default]")
+    p.add_option("--pctid", default=False, action="store_true",
+            help="use pctid in score [default: %default]")
     p.add_option("--cutoff", dest="cutoff", default=0, type="float",
             help="get all the alignments with quality above threshold " +\
                  "[default: %default]")
@@ -483,6 +484,7 @@ def bed(args):
 
     coordsfile, = args
     query = opts.query
+    pctid = opts.pctid
     quality_cutoff = opts.cutoff
 
     coords = Coords(coordsfile)
@@ -490,7 +492,7 @@ def bed(args):
     for c in coords:
         if c.quality < quality_cutoff:
             continue
-        line = c.qbedline if query else c.bedline
+        line = c.qbedline(pctid=pctid) if query else c.bedline(pctid=pctid)
         print line
 
 

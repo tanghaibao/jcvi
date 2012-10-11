@@ -79,7 +79,7 @@ def correct(args):
     p = OptionParser(correct.__doc__)
     opts, args = p.parse_args(args)
 
-    if len(args) < 3:
+    if len(args) < 1:
         sys.exit(not p.print_help())
 
     lstfile = "reads2cor.lst"

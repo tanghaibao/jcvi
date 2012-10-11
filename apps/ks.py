@@ -15,7 +15,7 @@ from math import log, sqrt, pi, exp
 from itertools import product, combinations
 from collections import namedtuple
 from optparse import OptionParser, OptionGroup
-from subprocess import Popen
+from subprocess import Popen, PIPE
 
 import numpy as np
 from Bio import SeqIO
@@ -37,7 +37,7 @@ PAML_BIN = partial(getpath, name="PAML", warn="warn")
 class AbstractCommandline:
 
     def run(self):
-        r = Popen(str(self), shell=True)
+        r = Popen(str(self), shell=True, stdout=PIPE)
         return r.communicate()
 
 

@@ -25,6 +25,7 @@ import sys
 import os
 import os.path as op
 import logging
+import re
 
 from math import ceil
 from itertools import chain
@@ -146,12 +147,23 @@ def run_gblocks(align_fasta_file, **kwargs):
     cl = GblocksCommandline(aln_file=align_fasta_file, **kwargs)
     r, e = cl.run()
 
+    print >>sys.stderr, "Gblocks:", cl
+
     if e:
         print >>sys.stderr, "***Gblocks could not run"
         return None
     else:
-        print >>sys.stderr, "Gblocks:", cl
-        return align_fasta_file+"-gb"
+        print >>sys.stderr, r
+        alignp = re.sub(r'.*Gblocks alignment:.*\(([0-9]{1,3}) %\).*', \
+            r'\1', r, flags=re.DOTALL)
+        alignp = int(alignp)
+        if alignp <= 10:
+            print >>sys.stderr, \
+                "** WARNING ** Only %s %% positions retained by Gblocks. " \
+                "Results aborted. Using original alignment instead.\n" % alignp
+            return None
+        else:
+            return align_fasta_file+"-gb"
 
 
 def run_ffitch(distfile, treefile, outtreefile, **kwargs):
@@ -356,8 +368,6 @@ def SH_raxml(reftree, querytree, phy_file, shout="SH_out.txt"):
 
     querytree can be a single tree or a bunch of trees (eg. from bootstrapping)
     """
-    import re
-
     assert op.isfile(reftree)
     shout = must_open(shout, "a")
 
@@ -563,7 +573,7 @@ def build(args):
         translate_args = [dna_file, "--outfile=" + protein_file]
         if opts.longest:
             translate_args += ["--longest"]
-        translate(translate_args)
+        dna_file, protein_file = translate(translate_args)
 
     work_dir = op.join(outdir, "alignment")
     mkdir(work_dir)
@@ -782,7 +792,7 @@ def draw(args):
 
     _draw_trees(trees, nrow=int(combine[0]), ncol=int(combine[1]), rmargin=.3,\
          iopts=iopts, outdir=outdir, shfile=SH, trunc_name=trunc_name, \
-         scutoff=opts.scutoff, barcode = opts.barcode)
+         scutoff=opts.scutoff, barcodefile = opts.barcode)
 
 
 if __name__ == '__main__':

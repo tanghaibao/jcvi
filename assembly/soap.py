@@ -13,6 +13,7 @@ from itertools import groupby
 from optparse import OptionParser
 
 from jcvi.assembly.base import FastqNamings, Library
+from jcvi.apps.grid import Jobs
 from jcvi.apps.base import ActionDispatcher, debug, need_update, sh
 debug()
 
@@ -128,8 +129,12 @@ def clean(args):
 
     if offset == 33 and need_update([p1, p2], [p1_q64, p2_q64]):
         logging.debug("Converting offset from 33 to 64 ...")
-        convert([p1, p1_q64, "-Q", "sanger", "-q", "illumina"])
-        convert([p2, p2_q64, "-Q", "sanger", "-q", "illumina"])
+        p1cmd = [p1, p1_q64, "-Q", "sanger", "-q", "illumina"]
+        p2cmd = [p2, p2_q64, "-Q", "sanger", "-q", "illumina"]
+        args = [(p1cmd, ), (p2cmd, )]
+        m = Jobs(target=convert, args=args)
+        m.run()
+
         p1, p2 = p1_q64, p2_q64
 
     p1_clean = p1 + ".clean"

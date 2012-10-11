@@ -137,7 +137,6 @@ def main():
         ('shuffle', 'shuffle paired reads into the same file interleaved'),
         ('split', 'split paired reads into two files'),
         ('splitread', 'split appended reads (from JGI)'),
-        ('unpair', 'unpair pairs.fastq files into 1.fastq and 2.fastq'),
         ('pairinplace', 'collect pairs by checking adjacent ids'),
         ('convert', 'convert between illumina and sanger offset'),
         ('filter', 'filter to get high qv reads'),
@@ -667,54 +666,6 @@ def convert(args):
     sh(cmd, grid=opts.grid)
 
     return outfastq
-
-
-def unpair(args):
-    """
-    %prog unpair *.pairs.fastq unpaired
-
-    Reverse operation of `pair`:
-    /1 will be placed in unpaired.1.fastq,
-    /2 will be placed in unpaired.2.fastq.
-    """
-    p = OptionParser(unpair.__doc__)
-    p.add_option("--tag", dest="tag", default=False, action="store_true",
-            help="add tag (/1, /2) to the read name")
-    opts, args = p.parse_args(args)
-
-    if len(args) < 2:
-        sys.exit(p.print_help())
-
-    tag = opts.tag
-
-    pairsfastqs = args[:-1]
-    base = args[-1]
-    afastq = base + ".1.fastq"
-    bfastq = base + ".2.fastq"
-    assert not op.exists(afastq), "File `{0}` exists.".format(afastq)
-
-    afw = open(afastq, "w")
-    bfw = open(bfastq, "w")
-
-    for pairsfastq in pairsfastqs:
-        assert op.exists(pairsfastq)
-        it = iter_fastq(pairsfastq)
-        rec = it.next()
-        while rec:
-            if tag:
-                rec.name += "/1"
-            print >> afw, rec
-            rec = it.next()
-            if tag:
-                rec.name += "/2"
-            print >> bfw, rec
-            rec = it.next()
-
-    afw.close()
-    bfw.close()
-
-    logging.debug("Reads unpaired into `{0},{1}`".\
-            format(afastq, bfastq))
 
 
 def pairinplace(args):

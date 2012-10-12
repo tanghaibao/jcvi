@@ -69,7 +69,8 @@ def decode_name(name, barcodemap):
 
 def draw_tree(ax, tx, rmargin=.3, leafcolor="k", supportcolor="k",
               outgroup=None, reroot=True, gffdir=None, sizes=None,
-              trunc_name=None, SH=None, scutoff=0, barcodefile=None):
+              trunc_name=None, SH=None, scutoff=0, barcodefile=None,
+              leafcolorfile=None):
     """
     main function for drawing phylogenetic tree
     """
@@ -111,6 +112,9 @@ def draw_tree(ax, tx, rmargin=.3, leafcolor="k", supportcolor="k",
     if barcodefile:
         barcodemap = DictFile(barcodefile, delimiter="\t")
 
+    if leafcolorfile:
+        leafcolors = DictFile(leafcolorfile, delimiter="\t")
+
     coords = {}
     i = 0
     for n in t.traverse("postorder"):
@@ -130,6 +134,12 @@ def draw_tree(ax, tx, rmargin=.3, leafcolor="k", supportcolor="k",
                 name = decode_name(name, barcodemap)
 
             sname = name.replace("_", "-")
+
+            try:
+                leafcolor = leafcolors[n.name]
+            except Exception:
+                sys.exc_clear()
+
             ax.text(xx + tip, yy, sname, va="center",
                     fontstyle="italic", size=8, color=leafcolor)
 
@@ -233,7 +243,8 @@ def main():
                  help="path to seq names barcode mapping file: " \
                  "barcode<tab>new_name [default: %default]")
     p.add_option("--leafcolor", default="k",
-                 help="The font color for the OTUs [default: %default]")
+                 help="The font color for the OTUs, or path to a file " \
+                 "containing color mappings: leafname<tab>color [default: %default]")
 
     opts, args, iopts = set_image_options(p, figsize="8x6")
 
@@ -260,10 +271,17 @@ def main():
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
 
-    draw_tree(root, tx, rmargin=opts.rmargin, leafcolor=opts.leafcolor, \
+    if op.isfile(opts.leafcolor):
+        leafcolor = "k"
+        leafcolorfile = opts.leafcolor
+    else:
+        leafcolor = opts.leafcolor
+        leafcolorfile = None
+
+    draw_tree(root, tx, rmargin=opts.rmargin, leafcolor=leafcolor, \
               outgroup=outgroup, reroot=reroot, gffdir=opts.gffdir, \
               sizes=opts.sizes, SH=opts.SH, scutoff=opts.scutoff, \
-              barcodefile=opts.barcode)
+              barcodefile=opts.barcode, leafcolorfile=leafcolorfile)
 
     image_name = pf + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)

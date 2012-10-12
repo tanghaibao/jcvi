@@ -734,6 +734,9 @@ def draw(args):
                  help="path to seq/taxon name barcode mapping file: " \
                  "barcode<tab>new_name " \
                  "This option is downstream of `--trunc_name` [default: %default]")
+    p.add_option("--leafcolorfile", default=None,
+                 help="path to a mapping file containing font colors " \
+                 "for the OTUs: leafname<tab>color [default: %default]")
     p.add_option("--outdir", type="string", default=".", \
                  help="path to output dir. New dir is made if not existed [default: %default]")
     opts, args, iopts = set_image_options(p, figsize="8x6")
@@ -792,7 +795,8 @@ def draw(args):
 
     _draw_trees(trees, nrow=int(combine[0]), ncol=int(combine[1]), rmargin=.3,\
          iopts=iopts, outdir=outdir, shfile=SH, trunc_name=trunc_name, \
-         scutoff=opts.scutoff, barcodefile = opts.barcode)
+         scutoff=opts.scutoff, barcodefile = opts.barcode,
+         leafcolorfile=opts.leafcolorfile)
 
 
 if __name__ == '__main__':

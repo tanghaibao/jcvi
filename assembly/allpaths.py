@@ -279,7 +279,7 @@ else
     echo "Load reads ..."
     PrepareAllPathsInputs.pl \
         DATA_DIR=$PWD PLOIDY=2 \
-        HOSTS='32' \
+        HOSTS='32' PHRED_64={0} \
         PICARD_TOOLS_DIR=~/htang/export/picard-tools-1.47/
 fi
 
@@ -297,6 +297,7 @@ def prepare(args):
     """
     from jcvi.utils.table import write_csv
     from jcvi.formats.base import check_exists
+    from jcvi.formats.fastq import guessoffset
 
     p = OptionParser(prepare.__doc__ + FastqNamings)
     p.add_option("--norun", default=False, action="store_true",
@@ -311,6 +312,11 @@ def prepare(args):
     fnames = sorted(glob("*.fastq*") if len(args) == 1 else args[1:])
     for x in fnames:
         assert op.exists(x), "File `{0}` not found.".format(x)
+
+    offset = guessoffset([fnames[0]])
+    phred64 = offset == 64
+
+    assert all(guessoffset([x]) == offset for x in fnames[1:])
 
     groupheader = "group_name library_name file_name".split()
     libheader = "library_name project_name organism_name type paired "\
@@ -363,7 +369,7 @@ def prepare(args):
     runfile = "run.sh"
     if not opts.norun and check_exists(runfile):
         fw = open(runfile, "w")
-        print >> fw, ALLPATHSRUN
+        print >> fw, ALLPATHSRUN.format(phred64)
         logging.debug("Run script written to `{0}`.".format(runfile))
 
 

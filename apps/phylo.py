@@ -417,8 +417,13 @@ def prepare(args):
     The tandemfile must be provided with *ALL* genomes involved, otherwise
     result will be incomplete and redundant.
     """
+    from jcvi.graphics.base import discrete_rainbow
+
     p = OptionParser(prepare.__doc__)
     p.add_option("--addtandem", help="path to tandemfile [default: %default]")
+    p.add_option("--writecolors", action="store_true", \
+        help="generate a gene_name to color mapping file which will be taken " \
+        "by jcvi.apps.phylo.draw [default: %default]")
     p.add_option("--outdir", type="string", default="sequences", \
         help="path to output dir. New dir is made if not existing [default: %default]")
 
@@ -473,20 +478,36 @@ def prepare(args):
     mkdir(seqdir)
     f = Fasta(cdsfile)
     fp = must_open(mcscanfile)
+    if opts.writecolors:
+        fc = must_open("leafcolors.txt", "w")
+
     n = 0
     for i, row in enumerate(fp):
         if row[0] == '#':
             continue
-        anchors = set(row.strip().replace(",", "\t").split("\t"))
-        try:
-            anchors.remove(".")
-        except KeyError: pass
+        row = row.strip().split("\t")
+        colors = discrete_rainbow(len(row), shuffle=False)[1]
+
+        anchors = set()
+        for j, atom in enumerate(row):
+            color = "%s,%s,%s" % colors[j]
+            if atom == ".":
+                continue
+            elif "," in atom:
+                atom = atom.split(",")
+                for a in atom:
+                    fc.write("{0}\t{1}\n".format(a, color))
+                    anchors.add(a)
+            else:
+                fc.write("{0}\t{1}\n".format(atom, color))
+                anchors.add(atom)
+
         if len(anchors) <= 3:
             print >>sys.stderr, \
                 "Not enough seqs to build trees for {0}".format(anchors)
             continue
 
-        pivot = row.split("\t")[0]
+        pivot = row[0]
         fw = must_open("%s/%s.cds" % (seqdir, pivot), "w")
         for a in anchors:
             if a not in f:
@@ -498,8 +519,12 @@ def prepare(args):
         fw.close()
         n+=1
 
-    logging.debug("cds of {0} syntelog groups written to {1}/"\
-        .format(n, seqdir))
+    if opts.writecolors:
+        fc.close()
+        logging.debug("leaf colors written to `{0}`".format(fc.name))
+
+    logging.debug("cds of {0} syntelog groups written to {1}/".format(n, seqdir))
+
     return seqdir
 
 
@@ -693,7 +718,6 @@ def _draw_trees(trees, nrow=1, ncol=1, rmargin=.3, iopts=None, outdir=".",
             image_name = "trees{0}.{1}".format(x, format)
         image_name = op.join(outdir, image_name)
         savefig(image_name, dpi=dpi, iopts=iopts)
-        plt.close(fig)
         plt.clf()
 
 

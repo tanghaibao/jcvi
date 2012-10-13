@@ -153,6 +153,26 @@ def asciiplot(x, y, digit=1, width=50, title=None, char="="):
         print >> sys.stderr, "{0} |{1} {2}".format(x, z, y)
 
 
+def print_colors(palette, outfile="Palette.png"):
+    """
+    print color palette (a tuple) to a PNG file for quick check
+    """
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+
+    xmax = 20 * (len(palette) + 1)
+    x1s = np.arange(0, xmax, 20)
+    xintervals = [10] * len(palette)
+    xx = zip(x1s, xintervals)
+    ax.broken_barh(xx, (5, 10), facecolors=palette)
+
+    ax.set_ylim(0, 20)
+    ax.set_xlim(0, xmax)
+    ax.set_axis_off()
+
+    savefig(outfile)
+
+
 def cmap_map(function, cmap):
     """
     Recipe taken from:
@@ -191,3 +211,73 @@ def cmap_map(function, cmap):
         cdict[key] = colorvector
 
     return mpl.colors.LinearSegmentedColormap('colormap', cdict, 1024)
+
+
+def discrete_rainbow(N=7, cmap=cm.jet_r, usepreset=True, shuffle=False, \
+    plot=False):
+    """
+    Return a discrete colormap and the set of colors.
+
+    modified from
+    <http://www.scipy.org/Cookbook/Matplotlib/ColormapTransformations>
+
+    cmap: colormap instance, eg. cm.jet.
+    N: Number of colors.
+
+    Example
+    >>> x = resize(arange(100), (5,100))
+    >>> djet = cmap_discretize(cm.jet, 5)
+    >>> imshow(x, cmap=djet)
+
+    See available matplotlib colormaps at:
+    <http://dept.astro.lsa.umich.edu/~msshin/science/code/matplotlib_cm/>
+
+    If N>20 the sampled colors might not be very distinctive.
+    If you want to error and try anyway, set usepreset=False
+    """
+    import random
+    from scipy import interpolate
+
+    if usepreset:
+        if 0 < N <= 10:
+            cmap = cm.jet_r
+        elif N <= 15:
+            cmap = cm.Dark2
+        elif N <= 20:
+            cmap = cm.Paired
+        else:
+            sys.exit(discrete_rainbow.__doc__)
+
+    cdict = cmap._segmentdata.copy()
+    # N colors
+    colors_i = np.linspace(0,1.,N)
+    # N+1 indices
+    indices = np.linspace(0,1.,N+1)
+    rgbs = []
+    for key in ('red','green','blue'):
+       # Find the N colors
+       D = np.array(cdict[key])
+       I = interpolate.interp1d(D[:,0], D[:,1])
+       colors = I(colors_i)
+       rgbs.append(colors)
+       # Place these colors at the correct indices.
+       A = np.zeros((N+1,3), float)
+       A[:,0] = indices
+       A[1:,1] = colors
+       A[:-1,2] = colors
+       # Create a tuple for the dictionary.
+       L = []
+       for l in A:
+           L.append(tuple(l))
+       cdict[key] = tuple(L)
+
+    palette = zip(*rgbs)
+
+    if shuffle:
+        random.shuffle(palette)
+
+    if plot:
+        print_colors(palette)
+
+    # Return (colormap object, RGB tuples)
+    return mpl.colors.LinearSegmentedColormap('colormap',cdict,1024), palette

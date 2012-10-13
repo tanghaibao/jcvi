@@ -2,6 +2,7 @@
 # -*- coding: UTF-8 -*-
 
 import sys
+import os.path as op
 import logging
 
 from glob import glob
@@ -139,6 +140,10 @@ def draw_tree(ax, tx, rmargin=.3, leafcolor="k", supportcolor="k",
                 leafcolor = leafcolors[n.name]
             except Exception:
                 sys.exc_clear()
+            else:
+                # if color is given as "R,G,B"
+                if "," in leafcolor:
+                    leafcolor = map(float, leafcolor.split(","))
 
             ax.text(xx + tip, yy, sname, va="center",
                     fontstyle="italic", size=8, color=leafcolor)

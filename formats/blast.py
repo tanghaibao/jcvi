@@ -712,6 +712,8 @@ def covfilter(args):
         sys.exit(not p.print_help())
 
     blastfile, fastafile = args
+    pctid = opts.pctid
+    pctcov = opts.pctcov
     union = opts.union
     sz = Sizes(fastafile)
     sizes = sz.mapping
@@ -742,22 +744,28 @@ def covfilter(args):
         this_alignlen = 0
         this_mismatches = 0
         this_gaps = 0
+        this_identity = 0
 
         ranges = []
         for b in blines:
+            if b.pctid < pctid:
+                continue
+
             this_covered += abs(b.qstart - b.qstop + 1)
             this_alignlen += b.hitlen
             this_mismatches += b.nmismatch
             this_gaps += b.ngaps
             ranges.append(("1", b.qstart, b.qstop))
 
-        this_identity = 100. - (this_mismatches + this_gaps) * 100. / this_alignlen
+        if ranges:
+            this_identity = 100. - (this_mismatches + this_gaps) * 100. / this_alignlen
+
         if union:
             this_covered = range_union(ranges)
 
         this_coverage = this_covered * 100. / sizes[query]
         covidstore[query] = (this_identity, this_coverage)
-        if this_identity >= opts.pctid and this_coverage >= opts.pctcov:
+        if this_identity >= pctid and this_coverage >= pctcov:
             valid.add(query)
 
         covered += this_covered

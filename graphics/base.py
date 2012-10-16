@@ -213,7 +213,7 @@ def cmap_map(function, cmap):
     return mpl.colors.LinearSegmentedColormap('colormap', cdict, 1024)
 
 
-def discrete_rainbow(N=7, cmap=cm.jet_r, usepreset=True, shuffle=False, \
+def discrete_rainbow(N=7, cmap=cm.Set1, usepreset=True, shuffle=False, \
     plot=False):
     """
     Return a discrete colormap and the set of colors.
@@ -239,12 +239,10 @@ def discrete_rainbow(N=7, cmap=cm.jet_r, usepreset=True, shuffle=False, \
     from scipy import interpolate
 
     if usepreset:
-        if 0 < N <= 10:
-            cmap = cm.jet_r
-        elif N <= 15:
-            cmap = cm.Dark2
+        if 0 < N <= 5:
+            cmap = cm.gist_rainbow
         elif N <= 20:
-            cmap = cm.Paired
+            cmap = cm.Set1
         else:
             sys.exit(discrete_rainbow.__doc__)
 

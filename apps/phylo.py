@@ -26,6 +26,7 @@ import os
 import os.path as op
 import logging
 import re
+import warnings
 
 from math import ceil
 from itertools import chain
@@ -105,39 +106,6 @@ class FfitchCommandline(AbstractCommandline):
         return self.command + " %s %s %s -outtreefile %s " % \
             (self.datafile, self.intreefile, self.outfile, self.outtreefile) \
             + " ".join(self.parameters)
-
-
-def merge_rows_local(filename, ignore=".", sep="\t", local=10):
-    """
-    merge overlapping rows within given row count distance
-    """
-    fw = must_open(filename+".merged", "w")
-    rows = file(filename).readlines()
-    rows = [row.strip().split(sep) for row in rows]
-    l = len(rows[0])
-
-    for rowi, row in enumerate(rows):
-        n = len(rows)
-        for i in range(rowi+1, min(rowi+local, n)):
-            merge = 1
-            row2 = rows[i]
-            for j in range(l):
-                a = row[j].replace(ignore, "")
-                b = row2[j].replace(ignore, "")
-                if all([a!=ignore, b!=ignore, a!=b]):
-                    merge = 0
-                    break
-
-            if merge:
-                for x in range(l):
-                    rows[rowi][x] = row[x] if row[x]!=ignore else row2[x]
-                row = rows[rowi]
-                rows.remove(row2)
-
-        print >>fw, sep.join(row)
-    fw.close()
-
-    return fw.name
 
 
 def run_gblocks(align_fasta_file, **kwargs):
@@ -394,6 +362,84 @@ def SH_raxml(reftree, querytree, phy_file, shout="SH_out.txt"):
     return shout.name
 
 
+def merge_rows_local(filename, ignore=".", sep="\t", local=10):
+    """
+    merge overlapping rows within given row count distance
+    """
+    fw = must_open(filename+".merged", "w")
+    rows = file(filename).readlines()
+    rows = [row.strip().split(sep) for row in rows]
+    l = len(rows[0])
+
+    for rowi, row in enumerate(rows):
+        n = len(rows)
+        for i in range(rowi+1, min(rowi+local, n)):
+            merge = 1
+            row2 = rows[i]
+            for j in range(l):
+                a = row[j].replace(ignore, "")
+                b = row2[j].replace(ignore, "")
+                if all([a!=ignore, b!=ignore, a!=b]):
+                    merge = 0
+                    break
+
+            if merge:
+                for x in range(l):
+                    rows[rowi][x] = row[x] if row[x]!=ignore else row2[x]
+                row = rows[rowi]
+                rows.remove(row2)
+
+        print >>fw, sep.join(row)
+    fw.close()
+
+    return fw.name
+
+
+def add_tandems(mcscanfile, tandemfile):
+    """
+    add tandem genes to anchor genes in mcscan file
+    """
+    tandems = [f.strip().split(",") for f in file(tandemfile)]
+    fw = must_open(mcscanfile+".withtandems", "w")
+    fp = must_open(mcscanfile)
+    seen =set()
+    for i, row in enumerate(fp):
+        if row[0] == '#':
+            continue
+        anchorslist = row.strip().split("\t")
+        anchors = set([a.split(",")[0] for a in anchorslist])
+        anchors.remove(".")
+        if anchors & seen == anchors:
+            continue
+
+        newanchors = []
+        for a in anchorslist:
+            if a == ".":
+                newanchors.append(a)
+                continue
+            for t in tandems:
+                if a in t:
+                    newanchors.append(",".join(t))
+                    seen.update(t)
+                    break
+            else:
+                newanchors.append(a)
+                seen.add(a)
+        print >>fw, "\t".join(newanchors)
+
+    fw.close()
+    newmcscanfile = merge_rows_local(fw.name)
+
+    logging.debug("Tandems added to `{0}`. Results in `{1}`".\
+        format(mcscanfile, newmcscanfile))
+    fp.seek(0)
+    logging.debug("{0} rows merged to {1} rows".\
+        format(len(fp.readlines()), len(file(newmcscanfile).readlines())))
+    sh("rm %s" % fw.name)
+
+    return newmcscanfile
+
+
 def main():
 
     actions = (
@@ -421,7 +467,7 @@ def prepare(args):
 
     p = OptionParser(prepare.__doc__)
     p.add_option("--addtandem", help="path to tandemfile [default: %default]")
-    p.add_option("--writecolors", action="store_true", \
+    p.add_option("--writecolors", default=False, action="store_true", \
         help="generate a gene_name to color mapping file which will be taken " \
         "by jcvi.apps.phylo.draw [default: %default]")
     p.add_option("--outdir", type="string", default="sequences", \
@@ -436,43 +482,8 @@ def prepare(args):
 
     if opts.addtandem:
         tandemfile = opts.addtandem
-        tandems = [f.strip().split(",") for f in file(tandemfile)]
-        fw = must_open(mcscanfile+".withtandems", "w")
-        fp = must_open(mcscanfile)
-        seen =set()
-        for i, row in enumerate(fp):
-            if row[0] == '#':
-                continue
-            anchorslist = row.strip().split("\t")
-            anchors = set([a.split(",")[0] for a in anchorslist])
-            anchors.remove(".")
-            if anchors & seen == anchors:
-                continue
-
-            newanchors = []
-            for a in anchorslist:
-                if a == ".":
-                    newanchors.append(a)
-                    continue
-                for t in tandems:
-                    if a in t:
-                        newanchors.append(",".join(t))
-                        seen.update(t)
-                        break
-                else:
-                    newanchors.append(a)
-                    seen.add(a)
-            print >>fw, "\t".join(newanchors)
-
-        fw.close()
-        mcscanfile = merge_rows_local(fw.name)
-
-        logging.debug("Tandems added to {0}. Results in {1}".\
-            format(fp.name, mcscanfile))
-        fp.seek(0)
-        logging.debug("{0} rows merged to {1} rows".\
-            format(len(fp.readlines()), len(file(mcscanfile).readlines())))
-        sh("rm %s" % fw.name)
+        mcscanfile_with_tandems = add_tandems(mcscanfile, tandemfile)
+        mcscanfile = mcscanfile_with_tandems
 
     seqdir = opts.outdir
     mkdir(seqdir)
@@ -483,10 +494,17 @@ def prepare(args):
 
     n = 0
     for i, row in enumerate(fp):
-        if row[0] == '#':
-            continue
         row = row.strip().split("\t")
-        colors = discrete_rainbow(len(row), shuffle=False)[1]
+        if i == 0:
+            l = len(row)
+            if l <= 20:
+                colors = discrete_rainbow(l, shuffle=False)[1]
+            else:
+                colors = discrete_rainbow(l, usepreset=False, shuffle=False)[1]
+                warnings.warn("*** WARNING ***\n" \
+                    "Too many columns. Colors may not be all distinctive.")
+
+        assert len(row)==l, "All rows should have same number of fields."
 
         anchors = set()
         for j, atom in enumerate(row):

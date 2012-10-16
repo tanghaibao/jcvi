@@ -33,20 +33,24 @@ def truncate_name(name, rule=None):
     if rule is None:
         return name
 
-    k = re.search("(?<=^head)[0-9]{1,2}$", rule).group(0)
+    k = re.search("(?<=^head)[0-9]{1,2}$", rule)
     if k:
+        k = k.group(0)
         tname = name[int(k):]
     else:
-        k = re.search("(?<=^ohead)[0-9]{1,2}$", rule).group(0)
+        k = re.search("(?<=^ohead)[0-9]{1,2}$", rule)
         if k:
+            k = k.group(0)
             tname = name[:int(k)]
         else:
-            k = re.search("(?<=^tail)[0-9]{1,2}$", rule).group(0)
+            k = re.search("(?<=^tail)[0-9]{1,2}$", rule)
             if k:
+                k = k.group(0)
                 tname = name[:-int(k)]
             else:
-                k = re.search("(?<=^otail)[0-9]{1,2}$", rule).group(0)
+                k = re.search("(?<=^otail)[0-9]{1,2}$", rule)
                 if k:
+                    k = k.group(0)
                     tname = name[-int(k):]
                 else:
                     print >>sys.stderr, truncate_name.__doc__
@@ -137,16 +141,16 @@ def draw_tree(ax, tx, rmargin=.3, leafcolor="k", supportcolor="k",
             sname = name.replace("_", "-")
 
             try:
-                leafcolor = leafcolors[n.name]
+                lc = leafcolors[n.name]
             except Exception:
-                sys.exc_clear()
+                lc = leafcolor
             else:
                 # if color is given as "R,G,B"
-                if "," in leafcolor:
-                    leafcolor = map(float, leafcolor.split(","))
+                if "," in lc:
+                    lc = map(float, lc.split(","))
 
             ax.text(xx + tip, yy, sname, va="center",
-                    fontstyle="italic", size=8, color=leafcolor)
+                    fontstyle="italic", size=8, color=lc)
 
             gname = n.name.split("_")[0]
             if gname in structures:

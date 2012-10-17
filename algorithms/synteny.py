@@ -67,6 +67,39 @@ class AnchorFile (BaseFile):
         logging.debug("Corrected scores for {0} anchors.".format(ncorrected))
         logging.debug("Anchors written to `{0}`.".format(filename))
 
+    @property
+    def blast(self, blastfile=None, outfile=None):
+        """
+        convert anchor file to 12 col blast file
+        """
+        from jcvi.formats.blast import BlastSlow, BlastLineByConversion
+
+        if not outfile:
+            outfile = self.filename + ".blast"
+
+        if blastfile is not None:
+            blasts = BlastSlow(blastfile).to_dict()
+        else:
+            blasts = None
+
+        fw = must_open(outfile, "w", checkexists=True)
+        for a, b, id in self.iter_pairs():
+            try:
+                bline = blasts[(a,b)]
+            except:
+                try:
+                    bline = blasts[(b,a)]
+                except:
+                    line = "\t".join((a, b))
+                    bline = BlastLineByConversion(line, mode="110000000000")
+                else:
+                    bline = bline.swapped()
+            print >> fw, bline
+        fw.close()
+        logging.debug("blast lines written to `{0}`.".format(outfile))
+
+        return outfile
+
 
 class BlockFile (BaseFile):
 

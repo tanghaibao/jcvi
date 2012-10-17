@@ -18,6 +18,7 @@ from jcvi.formats.base import LineFile, must_open
 from jcvi.formats.coords import print_stats
 from jcvi.formats.sizes import Sizes
 from jcvi.utils.grouper import Grouper
+from jcvi.utils.orderedcollections import OrderedDict
 from jcvi.utils.range import range_distance
 from jcvi.apps.base import ActionDispatcher, debug, set_outfile, sh, popen
 debug()
@@ -94,6 +95,12 @@ class BlastSlow (LineFile):
         for query, blines in groupby(self, key=lambda x: x.query):
             yield query, blines
 
+    def to_dict(self):
+        d = OrderedDict()
+        for line in self:
+            d[(line.query, line.subject)] = line
+        return d
+
 
 class Blast (LineFile):
     """
@@ -142,6 +149,39 @@ class Blast (LineFile):
         returns a dict with query => best blasthit
         """
         return dict(self.iter_best_hit())
+
+
+class BlastLineByConversion (BlastLine):
+    """
+    make BlastLine object from tab delimited line objects with
+    BlastLine-like up to 12 fields formats
+    """
+    def __init__(self, sline, mode="1"*12):
+
+        if int(mode, 2) == 4095:
+            super(BlastLineByConversion, self).__init__(sline)
+        elif 3072 <= int(mode, 2) < 4095:
+            args = sline.split("\t")
+            atoms = args[:2]
+            mode = list(mode)
+            if len(args) == 12:
+                for i in range(2, 12):
+                    if mode[i] == "1":
+                        atoms.append(args[i])
+                    else:
+                        atoms.append("-1")
+            if len(args) < 12:
+                for i in range(2, 12):
+                    if mode[i] == "1":
+                        atoms.append(args[i-mode[:i].count("0")])
+                    else:
+                        atoms.append("-1")
+            sline = "\t".join(atoms)
+            super(BlastLineByConversion, self).__init__(sline)
+        else:
+            m = "mode can only contain 0 or 1 \n"
+            m += "first two fields (query, subject) cannot be empty"
+            sys.exit(m)
 
 
 def get_stats(blastfile):
@@ -1091,6 +1131,38 @@ def summary(args):
 
     qrycovered, refcovered, id_pct = get_stats(blastfile)
     print_stats(qrycovered, refcovered, id_pct)
+
+
+def guess_blast_mode(blast_file):
+    fp = must_open(blast_file)
+    sample = fp.readline()
+    while sample[0] == "#":
+        sample = fp.readline()
+    fp.close()
+    atoms = sample.split("\t")
+
+    if len(atoms) == 12:
+        return "1" * 12
+    elif len(atoms) == 2:
+        return "110000000000"
+    elif len(atoms) == 3:
+        try:
+            x = float(atoms[2])
+        except:
+            m = "cannot guess the mode"
+        else:
+            if x < 1:
+                # guess eval
+                return "110000000010"
+            if x >= 1:
+                # guess score
+                return "110000000001"
+    else:
+        m = "cannot guess the mode"
+
+    if m:
+        print >> sys.stderr, m
+    return None
 
 
 if __name__ == '__main__':

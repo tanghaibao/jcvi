@@ -362,34 +362,48 @@ def SH_raxml(reftree, querytree, phy_file, shout="SH_out.txt"):
     return shout.name
 
 
-def merge_rows_local(filename, ignore=".", sep="\t", local=10):
+def merge_rows_local(filename, ignore=".", colsep="\t", local=10, \
+    fieldcheck=True, fsep=","):
     """
     merge overlapping rows within given row count distance
     """
     fw = must_open(filename+".merged", "w")
     rows = file(filename).readlines()
-    rows = [row.strip().split(sep) for row in rows]
+    rows = [row.strip().split(colsep) for row in rows]
     l = len(rows[0])
 
     for rowi, row in enumerate(rows):
         n = len(rows)
-        for i in range(rowi+1, min(rowi+local, n)):
+        i = rowi+1
+        while i <= min(rowi+local, n-1):
             merge = 1
             row2 = rows[i]
             for j in range(l):
-                a = row[j].replace(ignore, "")
-                b = row2[j].replace(ignore, "")
-                if all([a!=ignore, b!=ignore, a!=b]):
+                a = row[j]
+                b = row2[j]
+                if fieldcheck:
+                    a = set(a.split(fsep))
+                    a = fsep.join(sorted(list(a)))
+                    b = set(b.split(fsep))
+                    b = fsep.join(sorted(list(b)))
+
+                if all([a!=ignore, b!=ignore, a not in b, b not in a]):
                     merge = 0
+                    i += 1
                     break
 
             if merge:
                 for x in range(l):
-                    rows[rowi][x] = row[x] if row[x]!=ignore else row2[x]
+                    if row[x] == ignore:
+                        rows[rowi][x] = row2[x]
+                    elif row[x] in row2[x]:
+                        rows[rowi][x] = row2[x]
+                    else:
+                        rows[rowi][x] = row[x]
                 row = rows[rowi]
                 rows.remove(row2)
 
-        print >>fw, sep.join(row)
+        print >>fw, colsep.join(row)
     fw.close()
 
     return fw.name

@@ -283,7 +283,7 @@ else
         PICARD_TOOLS_DIR=~/htang/export/picard-tools-1.47/
 fi
 
-RunAllPathsLG PRE=. REFERENCE_NAME=. OVERWRITE=True \
+RunAllPathsLG PRE=. REFERENCE_NAME=. OVERWRITE=True HAPLOIDIFY=True \
     DATA_SUBDIR=. RUN=allpaths SUBDIR=run THREADS=32 MIN_CONTIG=300 \
     | tee run.log"""
 

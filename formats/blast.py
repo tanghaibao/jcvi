@@ -96,9 +96,15 @@ class BlastSlow (LineFile):
             yield query, blines
 
     def to_dict(self):
+        # for multiple HSPs pick the one with highest score
         d = OrderedDict()
         for line in self:
-            d[(line.query, line.subject)] = line
+            if (line.query, line.subject) not in d:
+                d[(line.query, line.subject)] = line
+            else:
+                cur_score = d[(line.query, line.subject)].score
+                if line.score > cur_score:
+                    d[(line.query, line.subject)] = line
         return d
 
 

@@ -1406,6 +1406,8 @@ def extract(args):
         rec = SeqRecord(seq, id=query, description="")
         SeqIO.write([rec], fw, "fasta")
 
+    return fw.name
+
 
 def _uniq_rec(fastafile):
     """

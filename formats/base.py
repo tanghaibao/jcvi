@@ -234,11 +234,13 @@ class FileSplitter (object):
             fw.close()
 
 
-def check_exists(filename):
+def check_exists(filename, oappend=False):
     """
     Avoid overwriting some files accidentally.
     """
     if op.exists(filename):
+        if oappend:
+            return oappend
         logging.error("`{0}` found, overwrite (Y/N)?".format(filename))
         overwrite = (raw_input() == 'Y')
     else:
@@ -247,7 +249,8 @@ def check_exists(filename):
     return overwrite
 
 
-def must_open(filename, mode="r", checkexists=False, skipcheck=False):
+def must_open(filename, mode="r", checkexists=False, skipcheck=False, \
+            oappend=False):
     """
     Accepts filename and returns filehandle.
 
@@ -295,9 +298,12 @@ def must_open(filename, mode="r", checkexists=False, skipcheck=False):
         if checkexists:
             assert mode == "w"
             overwrite = (not op.exists(filename)) if skipcheck \
-                        else check_exists(filename)
+                        else check_exists(filename, oappend)
             if overwrite:
-                fp = open(filename, "w")
+                if oappend:
+                    fp = open(filename, "a")
+                else:
+                    fp = open(filename, "w")
             else:
                 logging.debug("File `{0}` already exists. Skipped."\
                         .format(filename))

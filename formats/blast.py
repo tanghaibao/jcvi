@@ -78,6 +78,25 @@ class BlastLine(object):
                 (self.subject, self.sstart - 1, self.sstop, self.query,
                  self.score, self.orientation))
 
+    def is_self_hit(self, selfrule):
+        """
+        selfrule:
+        "strict": return True if query and subject have matched names, start
+                  and stop positions
+        "loose": return True if query and subject have matched names
+        None: always return False
+        """
+        if selfrule is None:
+            return False
+        elif selfrule == "strict":
+            return all([self.query==self.subject, \
+                        self.qstart==self.sstart, \
+                        self.qstop==self.sstop])
+        elif selfrule == "loose":
+            return self.query==self.subject
+        else:
+            sys.exit(is_self_hit.__doc__)
+
 
 class BlastSlow (LineFile):
     """
@@ -239,6 +258,10 @@ def filter(args):
             help="Hit length cutoff [default: %default]")
     p.add_option("--evalue", default=.01, type="float",
             help="E-value cutoff [default: %default]")
+    p.add_option("--self", default=None, choices=("strict", "loose"),
+            help="remove self hits, choices:\n " \
+            "`strict`: matched names and spans;\n" \
+            "`loose`: matched names [default: %default]")
     p.add_option("--inverse", action="store_true",
             help="Similar to grep -v, inverse [default: %default]")
 
@@ -250,8 +273,8 @@ def filter(args):
     inverse = opts.inverse
     fp = must_open(blastfile)
 
-    score, pctid, hitlen, evalue = \
-            opts.score, opts.pctid, opts.hitlen, opts.evalue
+    score, pctid, hitlen, evalue, selfrule = \
+            opts.score, opts.pctid, opts.hitlen, opts.evalue, opts.self
     newblastfile = blastfile + ".P{0}L{1}".format(pctid, hitlen)
     fw = must_open(newblastfile, "w")
     for row in fp:
@@ -262,7 +285,8 @@ def filter(args):
         remove = c.score < score or \
             c.pctid < pctid or \
             c.hitlen < hitlen or \
-            c.evalue > evalue
+            c.evalue > evalue or \
+            c.is_self_hit(selfrule)
 
         if inverse:
             remove = not remove

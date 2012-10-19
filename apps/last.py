@@ -95,9 +95,11 @@ def main(args):
     cpus = opts.cpus
     logging.debug("Dispatch job to {0} cpus".format(cpus))
 
+    oappend = False
     if opts.format == "maf":
         cmd = 'echo "##maf version=1"'
         sh(cmd, outfile=opts.outfile)
+        oappend = True
 
     cmd = "{0} -u 0".format(lastal_bin)
     f = supported_formats.index(opts.format)
@@ -114,7 +116,7 @@ def main(args):
 
         cmd += " | {0} {1}.prj {2}.prj -".format(lastex_bin, subjectdb, querydb)
 
-    out_fh = must_open(opts.outfile, "w")
+    out_fh = must_open(opts.outfile, "w", checkexists=True, oappend=oappend)
     lock = Lock()
 
     args = [(k + 1, cpus, out_fh, cmd, query, lock) \

@@ -32,7 +32,7 @@ class FillLine (object):
         self.after = int(args[7])
         # Convert from unsigned to signed
         # <http://stackoverflow.com/questions/1375897/how-to-get-the-signed-integer-value-of-a-long-in-python>
-        if (self.after & 0x80000000):
+        if self.after > 0 and (self.after & 0x80000000):
             self.after += -0x100000000
 
     @property

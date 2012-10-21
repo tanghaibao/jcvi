@@ -12,23 +12,15 @@ mpl.use('Agg')
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
+
 from matplotlib import cm, rc
-
-rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica']})
-rc('text', **{'usetex': True})
-
-from matplotlib.patches import Rectangle, Polygon, CirclePolygon, \
-        PathPatch
+from matplotlib.patches import Rectangle, Polygon, CirclePolygon, PathPatch
 from matplotlib.path import Path
 from matplotlib.colors import LogNorm
 from matplotlib.transforms import Affine2D
 
 from jcvi.utils.cbook import human_size
 from jcvi.apps.console import dark, green
-
-# i always like the latex font
-_ = lambda m: "\n".join(r"$\mathsf{%s}$" % str(x).\
-              replace("_", "\_").replace(" ", r"\ ") for x in m.split("\n"))
 
 
 class ImageOptions (object):
@@ -87,7 +79,33 @@ set_human_axis = partial(set_tex_axis, formatter=human_formatter)
 set_human_base_axis = partial(set_tex_axis, formatter=human_base_formatter)
 
 
-def set_image_options(instance, args=None, figsize="6x6", dpi=300, format="pdf"):
+def setup_theme(theme="helvetica"):
+
+    plt.rcdefaults()
+    # i always like the latex font
+    _ = lambda m: "\n".join(r"$\mathsf{%s}$" % str(x).\
+              replace("_", "\_").replace(" ", r"\ ") for x in m.split("\n"))
+
+    if theme == "mpl":
+        return _
+
+    rc('text', **{'usetex': True})
+
+    if theme == "helvetica":
+        rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica']})
+    elif theme == "palatino":
+        rc('font', **{'family':'serif','serif': ['Palatino']})
+    elif theme == "schoolbook":
+        rc('font', **{'family':'serif','serif': ['Century Schoolbook L']})
+
+    return str
+
+
+_ = setup_theme()
+
+
+def set_image_options(instance, args=None, figsize="6x6", dpi=300,
+                      format="pdf", theme="helvetica"):
     """
     Add image format options for given command line programs.
     """
@@ -96,6 +114,7 @@ def set_image_options(instance, args=None, figsize="6x6", dpi=300, format="pdf")
 
     allowed_format = ("emf", "eps", "pdf", "png", "ps", \
                       "raw", "rgba", "svg", "svgz")
+    allowed_themes = ("helvetica", "palatino", "schoolbook", "mpl")
 
     group = OptionGroup(instance, "Image options")
     instance.add_option_group(group)
@@ -107,6 +126,9 @@ def set_image_options(instance, args=None, figsize="6x6", dpi=300, format="pdf")
     group.add_option("--format", default=format, choices=allowed_format,
             help="Generate image of format, must be one of {0}".\
             format("|".join(allowed_format)) + " [default: %default]")
+    group.add_option("--theme", default=theme, choices=allowed_themes,
+            help="Font theme, must be one of {0}".format("|".join(allowed_themes)) + \
+                 " [default: %default]")
 
     if args is None:
         args = sys.argv[1:]
@@ -115,6 +137,8 @@ def set_image_options(instance, args=None, figsize="6x6", dpi=300, format="pdf")
 
     assert opts.dpi > 0
     assert "x" in opts.figsize
+
+    setup_theme(opts.theme)
 
     return opts, args, ImageOptions(opts)
 

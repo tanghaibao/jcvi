@@ -26,8 +26,6 @@ from jcvi.utils.cbook import human_size, autoscale
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
-_ = str
-
 
 # Colors picked from Schmutz soybean genome paper using ColorPic
 palette = ["#ACABD5","#DBF0F5", "#3EA77A", "#FBF5AB", "#C162A6"] + \

@@ -196,12 +196,12 @@ def histogram(args):
     plt.plot(x, y, 'g-', lw=2, alpha=.5)
 
     ax = plt.gca()
-    ax.text(.5, .9, _(Total_Kmers_msg),
-            ha="center", color='b', transform=ax.transAxes)
-    ax.text(.5, .8, _(Kmer_coverage_msg),
-            ha="center", color='b', transform=ax.transAxes)
-    ax.text(.5, .7, _(Genome_size_msg),
-            ha="center", color='b', transform=ax.transAxes)
+
+    tc = "gray"
+    axt = ax.transAxes
+    ax.text(.05, .95, _(Total_Kmers_msg), color=tc, transform=axt)
+    ax.text(.05, .9, _(Kmer_coverage_msg), color=tc, transform=axt)
+    ax.text(.05, .85, _(Genome_size_msg), color=tc, transform=axt)
 
     ax.set_title(_(title), color='r')
     xlabel, ylabel = "Coverage (X)", "Counts"

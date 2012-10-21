@@ -6,6 +6,7 @@ Subroutines to aid ALLPATHS-LG assembly.
 """
 
 import os.path as op
+import os
 import sys
 import logging
 import numpy as np
@@ -17,6 +18,7 @@ from optparse import OptionParser
 
 from jcvi.formats.base import BaseFile
 from jcvi.assembly.base import FastqNamings, Library
+from jcvi.apps.grid import Jobs
 from jcvi.apps.base import ActionDispatcher, debug, need_update, sh
 debug()
 
@@ -109,11 +111,70 @@ def main():
         ('prepare', 'prepare ALLPATHS csv files and run script'),
         ('log', 'prepare a log of created files'),
         ('pairs', 'parse ALLPATHS pairs file'),
+        ('fastq', 'export ALLPATHS fastb file to fastq'),
         ('fixpairs', 'fix pairs library stats'),
         ('fill', 'run FillFragments on `frag_reads_corr.fastb`'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def fastq(args):
+    """
+    %prog fastq fastbfile
+
+    Export ALLPATHS fastb file to fastq file.
+    """
+    p = OptionParser(fastq.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    fastbfile, = args
+    pf = "j" if "jump" in fastbfile else "f"
+
+    statsfile = "{0}.lib_stats".format(pf)
+    if op.exists(statsfile):
+        os.remove(statsfile)
+
+    cmd = "SplitReadsByLibrary READS_IN={0}".format(fastbfile)
+    cmd += " READS_OUT={0} QUALS=True".format(pf)
+    sh(cmd)
+
+    libs = []
+    fp = open(statsfile)
+    fp.next(); fp.next()  # skip two rows
+    for row in fp:
+        if row.strip() == "":
+            continue
+
+        libname = row.split()[0]
+        if libname == "Unpaired":
+            continue
+
+        libs.append(libname)
+
+    logging.debug("Found libraries: {0}".format(",".join(libs)))
+
+    cmds = []
+    for libname in libs:
+        cmd = "FastbQualbToFastq"
+        cmd += " HEAD_IN={0}.{1}.AB HEAD_OUT={1}".format(pf, libname)
+        cmd += " PAIRED=True PHRED_OFFSET=33 SIMULATE_QUALS=True"
+        if pf == 'j':
+            cmd += " FLIP=True"
+
+        cmds.append((cmd, ))
+
+    m = Jobs(target=sh, args=cmds)
+    m.run()
+
+    for libname in libs:
+        cmd = "mv {0}.A.fastq {0}.1.fastq".format(libname)
+        sh(cmd)
+        cmd = "mv {0}.B.fastq {0}.2.fastq".format(libname)
+        sh(cmd)
 
 
 def fixpairs(args):

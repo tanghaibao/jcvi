@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
+import os.path as op
 import sys
 import logging
 
@@ -77,6 +78,12 @@ def set_tex_axis(ax, formatter=tex_formatter):
 
 set_human_axis = partial(set_tex_axis, formatter=human_formatter)
 set_human_base_axis = partial(set_tex_axis, formatter=human_base_formatter)
+
+
+def fontpath(name):
+    font_path = op.join(op.dirname(__file__), "fonts")
+    font_path = op.join(font_path, name)
+    return font_path
 
 
 def setup_theme(theme="helvetica"):

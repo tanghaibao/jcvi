@@ -72,6 +72,7 @@ def plot_some_queries(refs, qsizes, rsizes, deltafile, refcov):
         queries.add(c.query)
 
     if not queries or not refs:
+        logging.debug("Empty - {0} vs. {1}".format(queries, refs))
         return None
 
     writeXfile(queries, qsizes, Qfile)

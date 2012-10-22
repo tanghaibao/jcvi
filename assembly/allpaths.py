@@ -346,7 +346,7 @@ fi
 
 RunAllPathsLG PRE=. REFERENCE_NAME=. OVERWRITE=True HAPLOIDIFY=True \
     DATA_SUBDIR=. RUN=allpaths SUBDIR=run THREADS=32 MIN_CONTIG=300 \
-    | tee run.log"""
+    {1} | tee run.log"""
 
 
 def prepare(args):
@@ -361,6 +361,8 @@ def prepare(args):
     from jcvi.formats.fastq import guessoffset
 
     p = OptionParser(prepare.__doc__ + FastqNamings)
+    p.add_option("--corr", default=False, action="store_true",
+                 help="Extra parameters for corrected data [default: %default]")
     p.add_option("--norun", default=False, action="store_true",
                  help="Don't write `run.sh` script [default: %default]")
     opts, args = p.parse_args(args)
@@ -428,9 +430,15 @@ def prepare(args):
         format(len(libcontents)))
 
     runfile = "run.sh"
+
+    extra = ""
+    if opts.corr:
+        extra += " FE_NUM_CYCLES=1 EC_K=28 FE_QUAL_CEIL_RADIUS=0"
+        extra += " REMOVE_DODGY_READS_FRAG=False FE_MAX_KMER_FREQ_TO_MARK=1"
+
     if not opts.norun and check_exists(runfile):
         fw = open(runfile, "w")
-        print >> fw, ALLPATHSRUN.format(phred64)
+        print >> fw, ALLPATHSRUN.format(phred64, extra)
         logging.debug("Run script written to `{0}`.".format(runfile))
 
 

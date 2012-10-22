@@ -862,7 +862,7 @@ def covfilter(args):
     print >> sys.stderr, "Average id = {0:.2f}%".\
             format(100 - (mismatches + gaps) * 100. / alignlen)
 
-    queries_combined = sum(sizes[x] for x in queries)
+    queries_combined = sz.totalsize
     print >> sys.stderr, "Coverage: {0} covered, {1} total".\
             format(covered, queries_combined)
     print >> sys.stderr, "Average coverage = {0:.2f}%".\

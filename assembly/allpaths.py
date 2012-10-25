@@ -344,7 +344,7 @@ else
         PICARD_TOOLS_DIR=~/htang/export/picard-tools-1.47/
 fi
 
-RunAllPathsLG PRE=. REFERENCE_NAME=. OVERWRITE=True HAPLOIDIFY=True \
+RunAllPathsLG PRE=. REFERENCE_NAME=. OVERWRITE=True HAPLOIDIFY=False \
     DATA_SUBDIR=. RUN=allpaths SUBDIR=run THREADS=32 MIN_CONTIG=300 \
     {1} | tee run.log"""
 
@@ -433,7 +433,7 @@ def prepare(args):
 
     extra = ""
     if opts.corr:
-        extra += " FE_NUM_CYCLES=1 EC_K=28 FE_QUAL_CEIL_RADIUS=0"
+        extra += "FE_NUM_CYCLES=1 EC_K=28 FE_QUAL_CEIL_RADIUS=0"
         extra += " REMOVE_DODGY_READS_FRAG=False FE_MAX_KMER_FREQ_TO_MARK=1"
 
     if not opts.norun and check_exists(runfile):

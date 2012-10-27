@@ -169,7 +169,9 @@ class ExonGlyph (BaseGlyph):
 class GeneGlyph (BaseGlyph):
     """Draws an oriented gene symbol, with color gradient, to represent genes
     """
-    def __init__(self, ax, x1, x2, y, height, gradient=True, tip=.0025, **kwargs):
+    def __init__(self, ax, x1, x2, y, height, gradient=True, tip=.0025, \
+                 color="k", **kwargs):
+
         super(GeneGlyph, self).__init__(ax)
         # Figure out the polygon vertices first
         orientation = 1 if x1 < x2 else -1
@@ -180,7 +182,7 @@ class GeneGlyph (BaseGlyph):
         p3 = (x2, y)
         p4 = (x2 - orientation * tip, y + height * .5)
         p5 = (x1, y + .5*height)
-        self.append(Polygon([p1, p2, p3, p4, p5], ec='k', **kwargs))
+        self.append(Polygon([p1, p2, p3, p4, p5], ec=color, **kwargs))
 
         if gradient:
             zz = kwargs.get("zorder", 1)

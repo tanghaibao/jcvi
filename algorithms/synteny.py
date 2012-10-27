@@ -474,6 +474,8 @@ def rebuild(args):
     p = OptionParser(rebuild.__doc__)
     p.add_option("--header", default=False, action="store_true",
                  help="First line is header [default: %default]")
+    p.add_option("--write_blast", default=False, action="store_true",
+                 help="Get blast records of rebuilt anchors [default: %default]")
     add_beds(p)
 
     opts, args = p.parse_args(args)
@@ -487,6 +489,9 @@ def rebuild(args):
     for a, b in bk.iter_all_pairs():
         print >> fw, "\t".join((a, b))
     fw.close()
+
+    if opts.write_blast:
+        AnchorFile("pairs").blast(blastfile, "pairs.blast")
 
     fw = open("tracks", "w")
     for g, col in bk.iter_gene_col():
@@ -1119,6 +1124,7 @@ def scan(args):
             help="minimum number of anchors in a cluster [default: %default]")
     p.add_option("--liftover",
             help="Scan BLAST file to find extra anchors [default: %default]")
+    set_stripnames(p)
 
     blast_file, anchor_file, dist, opts = add_options(p, args, dist=20)
     qbed, sbed, qorder, sorder, is_self = check_beds(blast_file, p, opts)
@@ -1144,7 +1150,8 @@ def scan(args):
         return anchor_file
 
     bedopts = ["--qbed=" + opts.qbed, "--sbed=" + opts.sbed]
-    newanchorfile = liftover([lo, anchor_file] + bedopts)
+    ostrip = [] if opts.strip_names else ["--no_strip_names"]
+    newanchorfile = liftover([lo, anchor_file] + bedopts + ostrip)
     return newanchorfile
 
 

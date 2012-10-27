@@ -514,11 +514,22 @@ def run_mrtrans(align_fasta, recs, work_dir, outfmt="paml"):
     nuc_file = op.join(work_dir, "nuc.fasta")
     output_file = op.join(work_dir, "nuc-align.mrtrans")
 
-    # make the protein alignment file
+    # make the prot_align file and nucleotide file
+    align_h0 = open(align_file + "0", "w")
+    align_h0.write(str(align_fasta))
+    align_h0.close()
+    prot_seqs = {}
+    i = 0
+    for rec in SeqIO.parse(align_h0.name, "fasta"):
+        prot_seqs[i] = rec.seq
+        i += 1
     align_h = open(align_file, "w")
-    align_h.write(str(align_fasta))
+    for i, rec in enumerate(recs):
+        if len(rec.id) > 30:
+            rec.id = rec.id[:28] + "_" + str(i)
+            rec.description = ""
+        print >> align_h, ">{0}\n{1}".format(rec.id, prot_seqs[i])
     align_h.close()
-    # make the nucleotide file
     SeqIO.write(recs, file(nuc_file, "w"), "fasta")
 
     # run the program

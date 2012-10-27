@@ -247,7 +247,15 @@ def filter(args):
     """
     %prog filter test.blast
 
-    Produce a new blast file and filter based on score.
+    Produce a new blast file and filter based on:
+    - score: >= cutoff
+    - pctid: >= cutoff
+    - hitlen: >= cutoff
+    - evalue: <= cutoff
+    - self: non-self
+    - ids: valid ids
+
+    use --inverse to obtain the complementary records
     """
     p = OptionParser(filter.__doc__)
     p.add_option("--score", dest="score", default=0, type="int",
@@ -262,12 +270,25 @@ def filter(args):
             help="remove self hits, choices:\n " \
             "`strict`: matched names and spans;\n" \
             "`loose`: matched names [default: %default]")
+    p.add_option("--ids", default=None,
+            help="path to tab or comma delimited file containing ids to " \
+            "retain [default: %default]")
     p.add_option("--inverse", action="store_true",
             help="Similar to grep -v, inverse [default: %default]")
 
     opts, args = p.parse_args(args)
     if len(args) != 1:
         sys.exit(not p.print_help())
+
+    if opts.ids:
+        ids = set()
+        for row in must_open(opts.ids):
+            if row[0] == "#":
+                continue
+            row = row.replace(",", "\t")
+            ids.update(row.split())
+    else:
+        ids = None
 
     blastfile, = args
     inverse = opts.inverse
@@ -282,11 +303,20 @@ def filter(args):
             continue
         c = BlastLine(row)
 
+        if ids:
+            if c.query in ids and c.subject in ids:
+                noids = False
+            else:
+                noids = True
+        else:
+            noids = None
+
         remove = c.score < score or \
             c.pctid < pctid or \
             c.hitlen < hitlen or \
             c.evalue > evalue or \
-            c.is_self_hit(selfrule)
+            c.is_self_hit(selfrule) or \
+            noids
 
         if inverse:
             remove = not remove

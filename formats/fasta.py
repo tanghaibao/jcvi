@@ -17,6 +17,7 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
 from jcvi.formats.base import BaseFile, DictFile, must_open
+from jcvi.formats.bed import Bed
 from jcvi.apps.base import ActionDispatcher, debug, set_outfile, sh
 from jcvi.apps.console import red, green
 debug()
@@ -1331,14 +1332,31 @@ def extract(args):
             help="search description line for match [default: %default]")
     p.add_option('--exclude', default=False, action="store_true",
             help="exclude description that matches [default: %default]")
+    p.add_option('--bed', default=None,
+            help="path to bed file to guide extraction by matching seqname")
     set_outfile(p)
 
     opts, args = p.parse_args(args)
 
-    if len(args) != 2:
+    if len(args) == 2:
+        fastafile, query = args
+    elif len(args) == 1 and opts.bed:
+        fastafile, = args
+        bedaccns = Bed(opts.bed).accns
+    else:
         sys.exit(p.print_help())
 
-    fastafile, query = args
+    if opts.bed:
+        fw = must_open(opts.outfile, "w")
+        f = Fasta(fastafile)
+        for accn in bedaccns:
+            try:
+                rec = f[accn]
+            except:
+                logging.error("{0} not found in {1}".format(accn, fastafile))
+                continue
+            SeqIO.write([rec], fw, "fasta")
+        return fw.name
 
     atoms = query.split(":")
     key = atoms[0]

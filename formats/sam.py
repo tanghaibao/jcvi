@@ -64,11 +64,33 @@ def main():
         ('chimera', 'parse sam file from `bwasw` and list multi-hit reads'),
         ('ace', 'convert sam file to ace'),
         ('index', 'convert to bam, sort and then index'),
+        ('consensus', 'convert bam alignments to consensus FASTA'),
         ('bcf', 'run mpileup on a set of bam files'),
             )
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def consensus(args):
+    """
+    %prog consensus fastafile bamfile
+
+    Convert bam alignments to consensus FASTA.
+    """
+    p = OptionParser(consensus.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) < 2:
+        sys.exit(not p.print_help())
+
+    fastafile, bamfile = args
+    cnsfile = bamfile.rsplit(".", 1)[0] + ".cns.fasta"
+    cmd = "samtools mpileup -uf {0} {1}".format(fastafile, bamfile)
+    cmd += " | bcftools view -cg -"
+    cmd += " | vcfutils.pl vcf2fq"
+    cmd += " | seqtk fq2fa - 20"
+    sh(cmd, outfile=cnsfile)
 
 
 def bcf(args):

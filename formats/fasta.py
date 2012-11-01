@@ -1683,6 +1683,8 @@ def tidy(args):
     100 nucleotides).
     """
     p = OptionParser(tidy.__doc__)
+    p.add_option("--justtrim", default=False, action="store_true",
+            help="Just trim end Ns, disable other options [default: %default]")
     p.add_option("--gapsize", dest="gapsize", default=100, type="int",
             help="Set all gaps to the same size [default: %default]")
     p.add_option("--minlen", dest="minlen", default=100, type="int",
@@ -1704,6 +1706,10 @@ def tidy(args):
         newseq = ""
         dangle_gaps = 0
         for gap, seq in groupby(rec.seq, lambda x: x.upper() == 'N'):
+            if opts.justtrim:
+                newseq = str(rec.seq)
+                break
+
             seq = "".join(seq)
             seqlen = len(seq)
             msg = None
@@ -1734,7 +1740,7 @@ def tidy(args):
                 msg = rec.id + ": " + msg
                 logging.info(msg)
 
-        newseq = newseq.strip('N')
+        newseq = newseq.strip('nN')
         ngaps = newseq.count(normalized_gap)
 
         rec.seq = Seq(newseq)

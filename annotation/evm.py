@@ -32,15 +32,56 @@ $EVM/EvmUtils/write_EVM_commands.pl --genome genome.fasta --weights $W \
 
 $EGC_SCRIPTS/run_cmds_on_grid.pl commands.list 04048"""
 
+EVMLOAD = r"""
+#!/bin/bash
+
+$EVM/EvmUtils/recombine_EVM_partial_outputs.pl  \
+    --partitions partitions_list.out \
+    --output_file_name evm.out
+
+$EVM/TIGR-only/TIGR_EVM_loader.pl --db {0} \
+    --partitions partitions_list.out \
+    --output_file_name evm.out \
+    --ev_type {1}
+
+#$EVM/EvmUtils/convert_EVM_outputs_to_GFF3.pl \
+#    --partitions partitions_list.out \
+#    --output evm.out
+"""
+
 
 def main():
 
     actions = (
         ('pasa', 'extract terminal exons'),
         ('tigrprepare', 'run EVM in TIGR-only mode'),
+        ('tigrload', 'load EVM results into TIGR db'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def tigrload(args):
+    """
+    %prog tigrload db ev_type
+
+    Load EVM results into TIGR db. Actually, just write a load.sh script. The
+    ev_type should be set, e.g. "EVM1", "EVM2", etc.
+    """
+    p = OptionParser(tigrload.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    db, ev_type = args
+
+    runfile = "load.sh"
+    if check_exists(runfile):
+        fw = open(runfile, "w")
+        print >> fw, EVMLOAD.format(db, ev_type)
+        logging.debug("Run script written to `{0}`.".format(runfile))
+        fw.close()
 
 
 def pasa(args):
@@ -124,7 +165,7 @@ def tigrprepare(args):
     weightsfile = "weights.txt"
     if need_update(idsfile, weightsfile):
         cmd = "$EVM/TIGR-only/create_sample_weights_file.dbi"
-        cmd += " mta4 {0} | tee weights.txt".format(oneid)
+        cmd += " {0} {1} | tee weights.txt".format(db, oneid)
         sh(cmd)
 
     evs = ["gene_predictions.gff3", "transcript_alignments.gff3",

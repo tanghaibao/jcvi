@@ -19,7 +19,11 @@ debug()
 uniprot_url = "http://www.uniprot.org/uniprot/"
 
 valid_formats = ["html", "tab", "xls", "fasta", "gff", "txt", "xml", "rdf", "list", "rss"]
-valid_columns = ["citation", "clusters", "comments", "database", "domains", "domain", "ec", "id", "entry name", "existence", "families", "features", "genes", "go", "go-id", "interpro", "interactor", "keywords", "keyword-id", "last-modified", "length", "organism", "organism-id", "pathway", "protein names", "reviewed", "score", "sequence", "3d", "subcellular locations", "taxon", "tools", "version", "virus hosts"]
+valid_columns = ["citation", "clusters", "comments", "database", "domains", "domain", "ec",
+                "id", "entry name", "existence", "families", "features", "genes", "go", "go-id",
+                "interpro", "interactor", "keywords", "keyword-id", "last-modified", "length",
+                "organism", "organism-id", "pathway", "protein names", "reviewed", "score",
+                "sequence", "3d", "subcellular locations", "taxon", "tools", "version", "virus hosts"]
 
 valid_column_formats = ["tab", "xls"]
 valid_include_formats = ["fasta", "rdf"]

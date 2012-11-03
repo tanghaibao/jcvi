@@ -275,6 +275,7 @@ def filter(args):
             "retain [default: %default]")
     p.add_option("--inverse", action="store_true",
             help="Similar to grep -v, inverse [default: %default]")
+    set_outfile(p, outfile=None)
 
     opts, args = p.parse_args(args)
     if len(args) != 1:
@@ -292,11 +293,13 @@ def filter(args):
 
     blastfile, = args
     inverse = opts.inverse
+    outfile = opts.outfile
     fp = must_open(blastfile)
 
     score, pctid, hitlen, evalue, selfrule = \
             opts.score, opts.pctid, opts.hitlen, opts.evalue, opts.self
-    newblastfile = blastfile + ".P{0}L{1}".format(pctid, hitlen)
+    newblastfile = blastfile + ".P{0}L{1}".format(pctid, hitlen) if \
+                    outfile is None else outfile
     fw = must_open(newblastfile, "w")
     for row in fp:
         if row[0] == '#':

@@ -5,7 +5,14 @@
 %prog anchorfile --qbed query.bed --sbed subject.bed
 
 visualize the anchorfile in a dotplot. anchorfile contains two columns
-indicating gene pairs, followed by an optional column (e.g. Ks value)
+indicating gene pairs, followed by an optional column (e.g. Ks value).
+
+The option --palette specifies the block color to highlight certain blocks in
+a file.  Block ids are 1-based (non-digit chars will be removed). For example, below
+requests that the 7th blocks to be colored red.
+
+rice-sigma07    sigma
+rice-sigma10    tau
 
 Before running this script it is recommended to check/install
 TeX Live (http://www.tug.org/texlive/) and
@@ -16,6 +23,7 @@ see more here: http://matplotlib.sourceforge.net/users/usetex.html
 import os.path as op
 import sys
 import logging
+import string
 
 import numpy as np
 from random import sample
@@ -28,6 +36,30 @@ from jcvi.apps.base import debug
 from jcvi.graphics.base import plt, ticker, Rectangle, cm, _, \
         set_human_axis, set_image_options, savefig
 debug()
+
+
+class Palette (dict):
+
+    def __init__(self, palettefile):
+
+        pal = "rbcygmk"
+
+        fp = open(palettefile)
+        for row in fp:
+            a, b = row.split()
+            a = "".join(x for x in a if x in string.digits)
+            a = int(a)
+            self[a] = b
+
+        self.categories = sorted(set(self.values()))
+        self.colors = dict(zip(self.categories, pal))
+
+        logging.debug("Color info ({0} categories) imported for {1} blocks.".\
+                        format(len(self.colors), len(self)))
+        logging.debug(str(self.colors))
+
+        for k, v in self.items():  # Update from categories to colors
+            self[k] = self.colors[v]
 
 
 def draw_box(clusters, ax, color="b"):
@@ -56,7 +88,7 @@ def draw_cmap(ax, cmap_text, vmin, vmax, cmap=None, reverse=False):
 
 def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts,
         is_self=False, synteny=False, cmap_text=None, genomenames=None,
-        sample_number=10000, ignore=.005):
+        sample_number=10000, ignore=.005, palette=None):
 
     fp = open(anchorfile)
 
@@ -67,11 +99,18 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts,
     if cmap_text:
         logging.debug("Normalize values to [%.1f, %.1f]" % (vmin, vmax))
 
+    block_id = 0
     for row in fp:
         atoms = row.split()
-        # first two columns are query and subject, and an optional third column
-        if len(atoms) < 2 or row[0]=="#":
+        if row[0] == "#":
+            block_id += 1
+            block_color = palette.get(block_id, "k") if palette else None
             continue
+
+        # first two columns are query and subject, and an optional third column
+        if len(atoms) < 2:
+            continue
+
         query, subject = atoms[:2]
         value = atoms[-1]
 
@@ -95,7 +134,7 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts,
         qi, q = qorder[query]
         si, s = sorder[subject]
 
-        nv = vmax - value
+        nv = vmax - value if block_color is None else block_color
         data.append((qi, si, nv))
         if is_self:  # Mirror image
             data.append((si, qi, nv))
@@ -112,12 +151,18 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts,
 
     # the data are plotted in this order, the least value are plotted
     # last for aesthetics
-    data.sort(key=lambda x: -x[2])
+    if not palette:
+        data.sort(key=lambda x: -x[2])
 
     default_cm = cm.copper
     x, y, c = zip(*data)
-    ax.scatter(x, y, c=c, s=2, lw=0, cmap=default_cm,
-            vmin=vmin, vmax=vmax)
+
+    if palette:
+        ax.scatter(x, y, c=c, s=2, lw=0)
+
+    else:
+        ax.scatter(x, y, c=c, s=2, lw=0, cmap=default_cm,
+                vmin=vmin, vmax=vmax)
 
     if synteny:
         clusters = batch_scan(data, qbed, sbed)
@@ -202,6 +247,14 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts,
     plt.setp(ax.get_xticklabels() + ax.get_yticklabels(),
             color='gray', size=10)
 
+    if palette:  # bottom-left has the palette, if available
+        colors = palette.colors
+        xstart, ystart = .1, .05
+        for category, c in sorted(colors.items()):
+            root.add_patch(Rectangle((xstart, ystart), .03, .02, lw=0, fc=c))
+            root.text(xstart + .04, ystart, category, color=c)
+            xstart += .1
+
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
     root.set_axis_off()
@@ -227,17 +280,21 @@ if __name__ == "__main__":
             help="Maximum number of data points to plot [default: %default]")
     p.add_option("--ignore", type="float", default=.005,
             help="Do not render labels for chr less than portion of genome [default: %default]")
+    p.add_option("--palette",
+            help="Two column file, block id to color mapping [default: %default]")
     opts, args, iopts = set_image_options(p, sys.argv[1:], figsize="8x8", dpi=90)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
-
 
     synteny = opts.synteny
     vmin, vmax = opts.vmin, opts.vmax
     cmap_text = opts.cmap
     genomenames = opts.genomenames
     sample_number = opts.sample_number
+    palette = opts.palette
+    if palette:
+        palette = Palette(palette)
 
     anchorfile, = args
     qbed, sbed, qorder, sorder, is_self = check_beds(anchorfile, p, opts)
@@ -246,4 +303,4 @@ if __name__ == "__main__":
     dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts, \
             is_self=is_self, synteny=synteny, cmap_text=cmap_text, \
             genomenames=genomenames, sample_number=sample_number,
-            ignore=opts.ignore)
+            ignore=opts.ignore, palette=palette)

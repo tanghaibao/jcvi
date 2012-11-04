@@ -759,6 +759,7 @@ def summary(args):
     from jcvi.utils.cbook import SummaryStats
 
     p = OptionParser(summary.__doc__)
+    p.add_option("--prefix", help="Generate per block stats [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -775,6 +776,13 @@ def summary(args):
                   format(sum(nanchors), sum(nranchors), nclusters)
     print >> sys.stderr, "Stats:", SummaryStats(nanchors)
     print >> sys.stderr, "NR stats:", SummaryStats(nranchors)
+
+    prefix = opts.prefix
+    if prefix:
+        pad = len(str(nclusters))
+        for i, c in enumerate(clusters):
+            block_id = "{0}{1:0{2}d}".format(prefix, i + 1, pad)
+            print "\t".join((block_id, str(len(c))))
 
 
 def stats(args):

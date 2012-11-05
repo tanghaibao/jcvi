@@ -24,9 +24,62 @@ def main():
     actions = (
         ('flanks', 'create sequences flanking the gaps'),
         ('sizes', 'compile gap sizes'),
+        ('estimate', 'estimate gap sizes based on mates'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def estimate(args):
+    """
+    %prog estimate gaps.bed all.spans.bed all.mates
+
+    Estimate gap sizes based on mate positions and library insert sizes.
+    """
+    from collections import defaultdict
+    from jcvi.formats.bed import intersectBed_wao
+    from jcvi.formats.posmap import MatesFile
+
+    p = OptionParser(estimate.__doc__)
+    p.add_option("--minlinks", default=3, type="int",
+                 help="Minimum number of links to place [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    gapsbed, spansbed, matesfile = args
+    mf = MatesFile(matesfile)
+    bed = Bed(gapsbed)
+    order = bed.order
+
+    gap2mate = defaultdict(set)
+    mate2gap = defaultdict(set)
+
+    for a, b in intersectBed_wao(gapsbed, spansbed):
+        gapsize = a.span
+        if gapsize != 100:
+            continue
+
+        gapname = a.accn
+
+        if b is None:
+            gap2mate[gapname] = set()
+            continue
+
+        matename = b.accn
+        gap2mate[gapname].add(matename)
+        mate2gap[matename].add(gapname)
+
+    omgapsbed = "om.gaps.bed"
+    fw = open(omgapsbed, "w")
+    for gapname, mates in gap2mate.items():
+        i, b = order[gapname]
+        nmates = len(mates)
+        if nmates < opts.minlinks:
+            print >> fw, "{0}\t{1}".format(b, nmates)
+
+    fw.close()
 
 
 def blast_to_twobeds(blastfile, log=False,

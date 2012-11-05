@@ -192,3 +192,111 @@ def random_combination_with_replacement(iterable, r):
     n = len(pool)
     indices = sorted(random.randrange(n) for i in xrange(r))
     return tuple(pool[i] for i in indices)
+
+
+"""
+Following code is stolen from Erik Rose:
+<https://github.com/erikrose/more-itertools>
+"""
+_marker = object()
+
+
+def chunked(iterable, n):
+    """Break an iterable into lists of a given length::
+
+        >>> list(chunked([1, 2, 3, 4, 5, 6, 7], 3))
+        [[1, 2, 3], [4, 5, 6], [7]]
+
+    If the length of ``iterable`` is not evenly divisible by ``n``, the last
+    returned list will be shorter.
+
+    This is useful for splitting up a computation on a large number of keys
+    into batches, to be pickled and sent off to worker processes. One example
+    is operations on rows in MySQL, which does not implement server-side
+    cursors properly and would otherwise load the entire dataset into RAM on
+    the client.
+
+    """
+    # Doesn't seem to run into any number-of-args limits.
+    for group in (list(g) for g in izip_longest(*[iter(iterable)] * n,
+                                                fillvalue=_marker)):
+        if group[-1] is _marker:
+            # If this is the last group, shuck off the padding:
+            del group[group.index(_marker):]
+        yield group
+
+
+class peekable(object):
+    """Wrapper for an iterator to allow 1-item lookahead
+
+    Call ``peek()`` on the result to get the value that will next pop out of
+    ``next()``, without advancing the iterator:
+
+        >>> p = peekable(xrange(2))
+        >>> p.peek()
+        0
+        >>> p.next()
+        0
+        >>> p.peek()
+        1
+        >>> p.next()
+        1
+
+    Pass ``peek()`` a default value, and it will be returned in the case where
+    the iterator is exhausted:
+
+        >>> p = peekable([])
+        >>> p.peek('hi')
+        'hi'
+
+    If no default is provided, ``peek()`` raises ``StopIteration`` when there
+    are no items left.
+
+    To test whether there are more items in the iterator, examine the
+    peekable's truth value. If it is truthy, there are more items.
+
+        >>> assert peekable(xrange(1))
+        >>> assert not peekable([])
+
+    """
+    # Lowercase to blend in with itertools. The fact that it's a class is an
+    # implementation detail.
+
+    def __init__(self, iterable):
+        self._it = iter(iterable)
+
+    def __iter__(self):
+        return self
+
+    def __nonzero__(self):
+        try:
+            self.peek()
+        except StopIteration:
+            return False
+        return True
+
+    def peek(self, default=_marker):
+        """Return the item that will be next returned from ``next()``.
+
+        Return ``default`` if there are no items left. If ``default`` is not
+        provided, raise ``StopIteration``.
+
+        """
+        if not hasattr(self, '_peek'):
+            try:
+                self._peek = self._it.next()
+            except StopIteration:
+                if default is _marker:
+                    raise
+                return default
+        return self._peek
+
+    def next(self):
+        ret = self.peek()
+        del self._peek
+        return ret
+
+
+if __name__ == '__main__':
+    import doctest
+    doctest.testmod()

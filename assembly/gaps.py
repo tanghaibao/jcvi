@@ -73,11 +73,14 @@ def estimate(args):
 
     omgapsbed = "om.gaps.bed"
     fw = open(omgapsbed, "w")
-    for gapname, mates in gap2mate.items():
+    for gapname, mates in sorted(gap2mate.items()):
         i, b = order[gapname]
         nmates = len(mates)
         if nmates < opts.minlinks:
             print >> fw, "{0}\t{1}".format(b, nmates)
+            continue
+
+        print gapname, mates
 
     fw.close()
 

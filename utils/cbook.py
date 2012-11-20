@@ -238,6 +238,16 @@ Random ad-hoc functions
 """
 
 
+def number(st):
+    import string
+
+    st = "".join(x for x in st if x in string.digits)
+    try:
+        return int(st)
+    except ValueError:
+        return None
+
+
 def gene_name(st, sep="."):
     """
     Helper functions in the BLAST filtering to get rid alternative splicings

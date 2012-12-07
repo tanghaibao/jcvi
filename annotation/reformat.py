@@ -21,33 +21,119 @@ from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
 
+NEW, FRAME, RETAIN = "NEW", "FRAME", "RETAIN"
+
+
 def main():
 
     actions = (
         ('rename', 'rename genes for annotation release'),
         ('renumber', 'renumber genes for annotation updates'),
+        ('instantiate', 'instantiate NEW genes tagged by renumber'),
         ('augustus', 'convert augustus output into gff3'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
 
+def instantiate(args):
+    """
+    %prog instantiate tagged.bed blacklist.ids
+
+    instantiate NEW genes tagged by renumber.
+    """
+    from jcvi.formats.base import SetFile
+
+    p = OptionParser(instantiate.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    taggedbed, blacklist = args
+    black = SetFile(blacklist)
+    black = set(atg_name(x) for x in black)
+
+    # Run through the bed, identify stretch of NEW ids to instantiate,
+    # identify the flanking FRAMEs, interpolate!
+    bed = Bed(taggedbed)
+    errorslog = open("errors.log", "w")
+    tagkey = lambda x: x.rsplit("|", 1)[-1]
+    for chr, sbed in bed.sub_beds():
+        if "chr" not in chr:
+            continue
+
+        current_chr = number(chr)
+
+        ranks = []
+        for i, s in enumerate(sbed):
+            nametag = s.extra[2]
+            tag = tagkey(nametag)
+
+            if tag in (NEW, FRAME):
+                ranks.append((i, nametag))
+
+        blocks = []
+        for tag, names in groupby(ranks, key=lambda x: tagkey(x[-1])):
+            names = list(names)
+            if tag == NEW:
+                blocks.append((tag, [x[0] for x in names]))
+            else:
+                start, end = names[0][-1], names[-1][-1]
+                start, end = atg_name(start)[-1], atg_name(end)[-1]
+                blocks.append((tag, [start, end]))
+
+        for i, (tag, info) in enumerate(blocks):
+            if tag != NEW:
+                continue
+
+            needed = len(info)
+            start_id = 0 if i == 0 else blocks[i - 1][1][-1]
+            end_id = start_id + 10000 if i == len(blocks) -1 \
+                        else blocks[i + 1][1][0]
+
+            assert end_id > start_id
+            spots = end_id - start_id - 1
+            available = len([x for x in xrange(start_id + 1, end_id) if
+                                (current_chr, x) not in black])
+            message = "chr{0} need {1} ids, has {2} spots ({3} available)".\
+                    format(current_chr, needed, spots, available)
+
+            start_gene = gene_name(current_chr, start_id)
+            end_gene = gene_name(current_chr, end_id)
+            message += " between {0} - {1}".format(start_gene, end_gene)
+
+            if available < needed:
+                print >> errorslog, message
+            else:
+                print message
+
+    errorslog.close()
+
+
 def atg_name(name):
 
     name = name.upper().rsplit(".", 1)[0]
-    if "G" not in name:
+    if "G" in name:
+        first, second = name.rsplit("G", 1)
+    elif "TE" in name:
+        first, second = name.rsplit("TE", 1)
+    else:
         return None, None
 
-    first, second = name.rsplit("G", 1)
     chr = number(first)
     rank = number(second)
 
     return chr, rank
 
 
+def gene_name(current_chr, x, prefix="Medtr", pad0=6):
+    return "{0}{1}g{2:0{3}}".format(prefix, current_chr, x, pad0)
+
+
 def renumber(args):
     """
-    %prog renumber Mt35.liftover.bed
+    %prog renumber Mt35.liftover.bed > tagged.bed
 
     Renumber genes for annotation updates.
     """
@@ -89,19 +175,18 @@ def renumber(args):
         print >> sys.stderr, current_chr, len(sbed), "==>", len(ranks), \
                     "==>", len(lranks)
 
-        gene_name = lambda x: "{0}{1}g{2:0{3}}".format(prefix, current_chr, x, pad0)
-        granks = set(gene_name(x) for x in lranks)
+        granks = set(gene_name(current_chr, x) for x in lranks)
 
         for s in sbed:
             achr, arank = atg_name(s.accn)
             accn = s.accn
             if accn in granks:
-                tag = "FRAME"
+                tag = FRAME
             elif accn in gg:
-                tag = "RETAIN"
+                tag = RETAIN
             else:
                 accn = "."
-                tag = "NEW"
+                tag = NEW
 
             print "\t".join((str(s), "|".join((accn, tag))))
 

@@ -310,3 +310,12 @@ def discrete_rainbow(N=7, cmap=cm.Set1, usepreset=True, shuffle=False, \
 
     # Return (colormap object, RGB tuples)
     return mpl.colors.LinearSegmentedColormap('colormap',cdict,1024), palette
+
+
+def get_intensity(octal):
+    from math import sqrt
+
+    r, g, b = octal[1:3], octal[3:5], octal[5:]
+    r, g, b = int(r, 16), int(g, 16), int(b, 16)
+    intensity = sqrt((r * r + g * g + b * b) / 3)
+    return intensity

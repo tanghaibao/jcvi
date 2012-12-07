@@ -19,7 +19,7 @@ debug()
 
 tstep = .05
 Timing = np.arange(0, 1 + tstep, tstep)
-arrowprops = dict(arrowstyle="fancy", fc="k", alpha=.5,
+arrowprops = dict(arrowstyle="fancy", fc="lightslategray", ec="lightslategray",
             connectionstyle="arc3,rad=-0.05")
 
 

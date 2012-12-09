@@ -21,7 +21,8 @@ from jcvi.apps.base import ActionDispatcher, debug
 debug()
 
 
-NEW, FRAME, RETAIN = "NEW", "FRAME", "RETAIN"
+FRAME, RETAIN, OVERLAP, NEW = "FRAME", "RETAIN", "OVERLAP", "NEW"
+PRIORITY = (FRAME, RETAIN, OVERLAP, NEW)
 
 
 def main():
@@ -138,6 +139,8 @@ def renumber(args):
     Renumber genes for annotation updates.
     """
     from jcvi.algorithms.lis import longest_increasing_subsequence
+    from jcvi.formats.bed import mergeBed
+    from jcvi.utils.grouper import Grouper
 
     p = OptionParser(renumber.__doc__)
     p.add_option("--pad0", default=6, type="int",
@@ -153,6 +156,13 @@ def renumber(args):
     bedfile, = args
     pad0 = opts.pad0
     prefix = opts.prefix
+
+    mergedbedfile = mergeBed(bedfile, nms=True)
+    mbed = Bed(mergedbedfile)
+    g = Grouper()
+    for s in mbed:
+        accn = s.accn
+        g.join(*accn.split(";"))
 
     bed = Bed(bedfile)
     for chr, sbed in bed.sub_beds():
@@ -177,18 +187,32 @@ def renumber(args):
 
         granks = set(gene_name(current_chr, x) for x in lranks)
 
+        tagstore = {}
         for s in sbed:
             achr, arank = atg_name(s.accn)
             accn = s.accn
             if accn in granks:
-                tag = FRAME
+                tag = (accn, FRAME)
             elif accn in gg:
-                tag = RETAIN
+                tag = (accn, RETAIN)
             else:
-                accn = "."
-                tag = NEW
+                tag = (".", NEW)
 
-            print "\t".join((str(s), "|".join((accn, tag))))
+            tagstore[accn] = tag
+
+        # Find cases where genes overlap
+        for s in sbed:
+            accn = s.accn
+            gaccn = g[accn]
+            group = [(PRIORITY.index(tagstore[x][-1]), x) for x in gaccn]
+            best = min(group)[-1]
+
+            if accn != best:
+                tag = (best, OVERLAP)
+            else:
+                tag = tagstore[accn]
+
+            print "\t".join((str(s), "|".join(tag)))
 
 
 def rename(args):

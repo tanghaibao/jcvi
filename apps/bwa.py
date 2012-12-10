@@ -13,7 +13,8 @@ import os.path as op
 
 from optparse import OptionParser
 
-from jcvi.apps.base import ActionDispatcher, set_grid, set_params, sh, debug
+from jcvi.apps.base import ActionDispatcher, set_grid, set_params, need_update, \
+                sh, debug
 debug()
 
 
@@ -32,12 +33,11 @@ def main():
 
 def check_index(dbfile, grid=False):
     safile = dbfile + ".sa"
-    if op.exists(safile):
-        logging.error("`{0}` exists. `bwa index` already run.".format(safile))
-
-    else:
+    if need_update(dbfile, safile):
         cmd = "bwa index -a bwtsw {0}".format(dbfile)
         sh(cmd, grid=grid)
+    else:
+        logging.error("`{0}` exists. `bwa index` already run.".format(safile))
 
     return safile
 
@@ -46,10 +46,7 @@ def check_aln(dbfile, readfile, grid=False, cpus=32):
     from jcvi.formats.fastq import guessoffset
 
     saifile = readfile.rsplit(".", 1)[0] + ".sai"
-    if op.exists(saifile):
-        logging.error("`{0}` exists. `bwa aln` already run.".format(saifile))
-
-    else:
+    if need_update((dbfile, readfile), saifile):
         offset = guessoffset([readfile])
         cmd = "bwa aln -t {0}".format(cpus)
         if offset == 64:
@@ -57,6 +54,8 @@ def check_aln(dbfile, readfile, grid=False, cpus=32):
 
         cmd += " {0} {1}".format(dbfile, readfile)
         sh(cmd, grid=grid, outfile=saifile)
+    else:
+        logging.error("`{0}` exists. `bwa aln` already run.".format(saifile))
 
     return saifile
 
@@ -137,7 +136,7 @@ def samse(args):
 
     prefix = readfile.rsplit(".", 1)[0]
     samfile = (prefix + ".bam") if opts.bam else (prefix + ".sam")
-    if op.exists(samfile):
+    if not need_update((safile, saifile), samfile):
         logging.error("`{0}` exists. `bwa samse` already run.".format(samfile))
         return
 
@@ -177,7 +176,7 @@ def sampe(args):
 
     prefix = read1file.rsplit(".", 1)[0]
     samfile = (prefix + ".bam") if opts.bam else (prefix + ".sam")
-    if op.exists(samfile):
+    if not need_update((safile, sai1file, sai2file), samfile):
         logging.error("`{0}` exists. `bwa samse` already run.".format(samfile))
         return
 
@@ -212,7 +211,7 @@ def bwasw(args):
     saifile = check_aln(dbfile, readfile, grid=grid)
 
     samfile = readfile.rsplit(".", 1)[0] + ".sam"
-    if op.exists(samfile):
+    if not need_update((safile, saifile), samfile):
         logging.error("`{0}` exists. `bwa bwasw` already run.".format(samfile))
         return
 

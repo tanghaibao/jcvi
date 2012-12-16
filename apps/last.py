@@ -67,7 +67,7 @@ def main(args):
             help="parallelize job to multiple cpus [default: %default]")
     p.add_option("--path", help="specify LAST path")
     p.add_option("--mask", default=False, action="store_true",
-                 help="soft mask repeats in lastdb [default: %default]")
+                 help="invoke -c in lastdb [default: %default]")
     p.add_option("--format", default="blast", choices=supported_formats,
                  help="Output format, one of {0} [default: %default]".\
                       format("|".join(supported_formats)))

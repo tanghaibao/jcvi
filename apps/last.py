@@ -26,9 +26,10 @@ debug()
 
 
 @depends
-def run_lastdb(infile=None, outfile=None, lastdb_bin="lastdb"):
+def run_lastdb(infile=None, outfile=None, mask=False, lastdb_bin="lastdb"):
     outfilebase = outfile.rsplit(".", 1)[0]
-    cmd = "{0} {1} {2}".format(lastdb_bin, outfilebase, infile)
+    mask = "-c" if mask else ""
+    cmd = "{0} {1} {2} {3}".format(lastdb_bin, mask, outfilebase, infile)
     sh(cmd)
 
 
@@ -65,6 +66,8 @@ def main(args):
     p.add_option("-a", "-A", dest="cpus", default=1, type="int",
             help="parallelize job to multiple cpus [default: %default]")
     p.add_option("--path", help="specify LAST path")
+    p.add_option("--mask", default=False, action="store_true",
+                 help="soft mask repeats in lastdb [default: %default]")
     p.add_option("--format", default="blast", choices=supported_formats,
                  help="Output format, one of {0} [default: %default]".\
                       format("|".join(supported_formats)))
@@ -90,7 +93,8 @@ def main(args):
     lastex_bin = getpath("lastex")
 
     subjectdb = subject.rsplit(".", 1)[0]
-    run_lastdb(infile=subject, outfile=subjectdb + ".prj", lastdb_bin=lastdb_bin)
+    run_lastdb(infile=subject, outfile=subjectdb + ".prj", mask=opts.mask, \
+              lastdb_bin=lastdb_bin)
 
     cpus = opts.cpus
     logging.debug("Dispatch job to {0} cpus".format(cpus))

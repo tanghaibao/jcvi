@@ -74,6 +74,8 @@ class GenBank(dict):
     @classmethod
     def write_genes_bed(cls, gbrec, outfile):
         seqid = gbrec.id.split(".")[0]
+        if not seqid:
+            seqid = gbrec.name.split(".")[0]
 
         genecount = 0
         consecutivecds = 0
@@ -106,6 +108,8 @@ class GenBank(dict):
     @classmethod
     def write_genes_fasta(cls, gbrec, fwcds, fwpep):
         seqid = gbrec.id.split(".")[0]
+        if not seqid:
+            seqid = gbrec.name.split(".")[0]
 
         genecount = 0
         consecutivecds = 0
@@ -126,14 +130,15 @@ class GenBank(dict):
                     fwcds.write(">{0}\n{1}\n".format(accn, seq))
                     fwpep.write(">{0}\n{1}\n".format(accn, seq.translate()))
                 else:
-                    seq = ""
+                    seq = []
                     for subf in sorted(feature.sub_features, \
                         key=lambda x: x.location.start.position*x.strand):
-                        seq = seq + subf.extract(gbrec.seq)
+                        seq.append(subf.extract(gbrec.seq))
                     if seq.translate().count("*")>1:
-                        seq = ""
+                        seq = []
                         for subf in feature.sub_features:
-                            seq = seq + subf.extract(gbrec.seq)
+                            seq.append(subf.extract(gbrec.seq))
+                    seq = "".join(seq)
                     fwcds.write(">{0}\n{1}\n".format(accn, seq))
                     fwpep.write(">{0}\n{1}\n".format(accn, seq.translate()))
 
@@ -166,6 +171,8 @@ class GenBank(dict):
                 fw = must_open(op.join(output, recid+".fasta"), "w")
 
             seqid = rec.id.split(".")[0]
+            if not seqid:
+                seqid = gbrec.name.split(".")[0]
             seq = rec.seq
             fw.write(">{0}\n{1}\n".format(seqid, seq))
 

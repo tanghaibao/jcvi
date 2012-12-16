@@ -416,7 +416,10 @@ def ortholog(args):
 
 
 def tandem_main(blast_file, cds_file, bed_file, N=3, P=50, is_self=True, \
-    strip_name=".", ofile=sys.stderr):
+    evalue=.01, strip_name=".", ofile=sys.stderr, genefam=False):
+
+    if genefam:
+        N = 1e5
 
     # get the sizes for the CDS first
     f = Fasta(cds_file)
@@ -442,8 +445,11 @@ def tandem_main(blast_file, cds_file, bed_file, N=3, P=50, is_self=True, \
             qi, q = order[query]
             si, s = order[subject]
 
-            if q.seqid == s.seqid and abs(qi - si) <= N:
-                g.join(query, subject)
+            if abs(qi - si) <= N and b.evalue <= evalue:
+                if genefam:
+                    g.join(query, subject)
+                elif q.seqid == s.seqid:
+                    g.join(query, subject)
 
     else:
         homologs = Grouper()
@@ -454,21 +460,26 @@ def tandem_main(blast_file, cds_file, bed_file, N=3, P=50, is_self=True, \
             subject_len = sizes[b.subject]
             if b.hitlen < min(query_len, subject_len)*P/100.:
                 continue
+            if b.evalue > evalue:
+                continue
 
             query = gene_name(b.query, strip_name)
             subject = gene_name(b.subject, strip_name)
             homologs.join(query, subject)
 
-        g = Grouper()
-        for i, atom in enumerate(bed):
-            for x in range(1, N+1):
-                if all([i-x >= 0, bed[i-x].seqid == atom.seqid, \
-                    homologs.joined(bed[i-x].accn, atom.accn)]):
-                    leni = sizes[bed[i].accn]
-                    lenx = sizes[bed[i-x].accn]
-                    if abs(leni - lenx) > max(leni, lenx)*(1-P/100.):
-                        continue
-                    g.join(bed[i-x].accn, atom.accn)
+        if genefam:
+            g = homologs
+        else:
+            g = Grouper()
+            for i, atom in enumerate(bed):
+                for x in range(1, N+1):
+                    if all([i-x >= 0, bed[i-x].seqid == atom.seqid, \
+                        homologs.joined(bed[i-x].accn, atom.accn)]):
+                        leni = sizes[bed[i].accn]
+                        lenx = sizes[bed[i-x].accn]
+                        if abs(leni - lenx) > max(leni, lenx)*(1-P/100.):
+                            continue
+                        g.join(bed[i-x].accn, atom.accn)
 
     # dump the grouper
     fw = must_open(ofile, "w")
@@ -508,11 +519,15 @@ def tandem(args):
     p.add_option("--percent_overlap", type="int", default=50,
                help="tandem genes have >=x% aligned sequence, x=0-100 \
                [default: %default]")
+    p.add_option("--evalue", default=.01, type="float",
+               help="E-value cutoff [default: %default]")
     p.add_option("--not_self", default=False, action="store_true",
                  help="provided is not self blast file [default: %default]")
     p.add_option("--strip_gene_name", dest="sep", type="string", default=".",
                help="strip alternative splicing. Use None for no stripping. \
                [default: %default]")
+    p.add_option("--genefamily", dest="genefam", action="store_true",
+                 help="compile gene families based on similarity [default: %default]")
     set_outfile(p)
 
     opts, args = p.parse_args(args)
@@ -528,7 +543,7 @@ def tandem(args):
     ofile = opts.outfile
 
     tandem_main(blast_file, cds_file, bed_file, N=N, P=P, is_self=is_self, \
-        strip_name=sep, ofile=ofile)
+        evalue=opts.evalue, strip_name=sep, ofile=ofile, genefam=opts.genefam)
 
 
 if __name__ == '__main__':

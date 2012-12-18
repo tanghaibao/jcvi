@@ -167,7 +167,7 @@ def blastplot(ax, blastfile, qsizes, ssizes, qbed, sbed,
     qhighlights = shighlights = None
     if highlights:
         if len(highlights) == 1:
-            qhighlight, = highlights
+            shighlight, = highlights
         if len(highlights) == 2:
             qhighlight, shighlights = highlights
 

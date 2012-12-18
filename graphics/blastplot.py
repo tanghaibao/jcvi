@@ -164,9 +164,22 @@ def blastplot(ax, blastfile, qsizes, ssizes, qbed, sbed,
                     va="center", color="grey")
 
     # Highlight regions based on a list of BedLine
+    qhighlights = shighlights = None
     if highlights:
-        for hl in highlights:
-            ax.add_patch(Rectangle((0, hl.start), xsize, hl.span, \
+        if len(highlights) == 1:
+            qhighlight, = highlights
+        if len(highlights) == 2:
+            qhighlight, shighlights = highlights
+
+    if qhighlights:
+        for hl in qhighlights:
+            hls = qsizes.get_position(hl.seqid, hl.start)
+            ax.add_patch(Rectangle((hls, 0), hl.span, ysize,\
+                         fc="r", alpha=.2, lw=0))
+    if shighlights:
+        for hl in shighlights:
+            hls = ssizes.get_position(hl.seqid, hl.start)
+            ax.add_patch(Rectangle((0, hls), xsize, hl.span, \
                          fc="r", alpha=.2, lw=0))
 
     if baseticks:
@@ -224,6 +237,8 @@ if __name__ == "__main__":
             help="Minimum size of query contigs to select [default: %default]")
     p.add_option("--sselect", default=0, type="int",
             help="Minimum size of subject contigs to select [default: %default]")
+    p.add_option("--qh", help="Path to highlight bed for query")
+    p.add_option("--sh", help="Path to highlight bed for subject")
     p.add_option("--style", default="dot", choices=DotStyles,
             help="Style of the dots, one of {0} [default: %default]".\
                 format("|".join(DotStyles)))
@@ -264,6 +279,12 @@ if __name__ == "__main__":
     # Fix the width
     xsize, ysize = qsizes.totalsize, ssizes.totalsize
 
+    # get highlight beds
+    qh, sh = opts.qh, opts.sh
+    qh = Bed(qh) if qh else None
+    sh = Bed(sh) if sh else None
+    highlights = (qh, sh) if qh or sh else None
+
     ratio = ysize * 1. / xsize if proportional else 1
     width = iopts.w
     height = iopts.h * ratio
@@ -273,7 +294,7 @@ if __name__ == "__main__":
 
     blastplot(ax, blastfile, qsizes, ssizes, qbed, sbed,
             style=opts.style, proportional=proportional, sampleN=opts.sample,
-            baseticks=True, stripNames=opts.stripNames)
+            baseticks=True, stripNames=opts.stripNames, highlights=highlights)
 
     # add genome names
     to_ax_label = lambda fname: _(op.basename(fname).split(".")[0])

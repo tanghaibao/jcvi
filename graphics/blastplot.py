@@ -22,7 +22,7 @@ import numpy as np
 
 from jcvi.formats.blast import BlastLine
 from jcvi.formats.sizes import Sizes
-from jcvi.formats.bed import Bed
+from jcvi.formats.bed import Bed, BedLine
 from jcvi.apps.base import debug
 from jcvi.graphics.base import plt, ticker, Rectangle, cm, _, \
         set_human_base_axis, set_image_options, savefig
@@ -166,10 +166,10 @@ def blastplot(ax, blastfile, qsizes, ssizes, qbed, sbed,
     # Highlight regions based on a list of BedLine
     qhighlights = shighlights = None
     if highlights:
-        if len(highlights) == 1:
-            shighlight, = highlights
-        if len(highlights) == 2:
-            qhighlight, shighlights = highlights
+        if isinstance(highlights[0], BedLine):
+            shighlights = highlights
+        elif len(highlights) == 2:
+            qhighlights, shighlights = highlights
 
     if qhighlights:
         for hl in qhighlights:

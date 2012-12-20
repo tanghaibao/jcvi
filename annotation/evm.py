@@ -138,7 +138,7 @@ def fix_transcript():
 
 def tigrprepare(args):
     """
-    %prog tigrprepare asmbl.fasta [all|asmbl_id] db pasa.terminal_exons.gff3
+    %prog tigrprepare asmbl.fasta asmbl.ids db pasa.terminal_exons.gff3
 
     Run EVM in TIGR-only mode.
     """
@@ -154,11 +154,7 @@ def tigrprepare(args):
         if need_update(fastafile, idsfile):
             ids([fastafile, "-o", idsfile])
     else:
-        idsfile = asmbl_id + ".ids"
-        if need_update(fastafile, idsfile):
-            fw = open(idsfile, "w")
-            print >> fw, asmbl_id
-            fw.close()
+        idsfile = asmbl_id
 
     oneid = open(idsfile).next().strip()
 

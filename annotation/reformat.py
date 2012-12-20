@@ -31,7 +31,9 @@ def main():
         ('rename', 'rename genes for annotation release'),
         ('renumber', 'renumber genes for annotation updates'),
         ('instantiate', 'instantiate NEW genes tagged by renumber'),
+        # External gene prediction programs
         ('augustus', 'convert augustus output into gff3'),
+        ('tRNAscan', 'convert tRNAscan-SE output into gff3'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -318,6 +320,65 @@ def augustus(args):
             g.type = "mRNA"
 
         print g
+
+
+def tRNAscan(args):
+    """
+    %prog tRNAscan all.trna > all.trna.gff3
+
+    Convert tRNAscan-SE output into gff3 format.
+
+    Sequence                tRNA            Bounds          tRNA    Anti    Intron Bounds   Cove
+    Name            tRNA #  Begin           End             Type    Codon   Begin   End     Score
+    --------        ------  ----            ------          ----    -----   -----   ----    ------
+    23231           1       335355          335440          Tyr     GTA     335392  335404  69.21
+    23231           2       1076190         1076270         Leu     AAG     0       0       66.33
+
+    Conversion based on PERL one-liner in:
+    <https://github.com/sujaikumar/assemblage/blob/master/README-annotation.md>
+    """
+    from jcvi.formats.gff import sort
+
+    p = OptionParser(tRNAscan.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    trnaout, = args
+    gffout = trnaout + ".gff3"
+    fp = open(trnaout)
+    fw = open(gffout, "w")
+
+    fp.next()
+    fp.next()
+    row = fp.next()
+    assert row.startswith("--------")
+
+    for row in fp:
+        atoms = [x.strip() for x in row.split("\t")]
+        contig, trnanum, start, end, aa, codon, \
+                intron_start, intron_end, score = atoms
+
+        start, end = int(start), int(end)
+        orientation = '+'
+        if start > end:
+            start, end = end, start
+            orientation = '-'
+
+        source = "tRNAscan"
+        type = "tRNA"
+        if codon == "???":
+            codon = "XXX"
+
+        comment = "ID={0}.tRNA.{1};Name=tRNA-{2} (anticodon: {3})".\
+                format(contig, trnanum, aa, codon)
+
+        print >> fw, "\t".join(str(x) for x in (contig, source, type, start,\
+                            end, score, orientation, ".", comment))
+
+    fw.close()
+    sort([gffout, "-i"])
 
 
 if __name__ == '__main__':

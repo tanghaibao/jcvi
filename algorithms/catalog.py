@@ -244,7 +244,11 @@ def geneinfo(bed, order, genomeidx, ploidy):
 
     for s in bed:
         chr = "".join(x for x in s.seqid if x in string.digits)
-        chr = int(chr)
+        try:
+            chr = int(chr)
+        except ValueError:
+            chr = "0"
+
         print >> fwinfo, "\t".join(str(x) for x in \
                     (s.accn, chr, s.start, s.end, s.strand, idx, pd))
     fwinfo.close()

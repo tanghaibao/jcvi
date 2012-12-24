@@ -28,8 +28,8 @@ debug()
 @depends
 def run_lastdb(infile=None, outfile=None, mask=False, lastdb_bin="lastdb"):
     outfilebase = outfile.rsplit(".", 1)[0]
-    mask = "-c" if mask else ""
-    cmd = "{0} {1} {2} {3}".format(lastdb_bin, mask, outfilebase, infile)
+    mask = "-c " if mask else ""
+    cmd = "{0} {1}{2} {3}".format(lastdb_bin, mask, outfilebase, infile)
     sh(cmd)
 
 

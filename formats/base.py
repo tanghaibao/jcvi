@@ -259,8 +259,11 @@ def must_open(filename, mode="r", checkexists=False, skipcheck=False, \
     if isinstance(filename, list):
         assert "r" in mode
 
-        import fileinput
-        return fileinput.input(filename)
+        if len(filename) == 1:
+            filename = filename[0]
+        else:
+            import fileinput
+            return fileinput.input(filename)
 
     if filename in ("-", "stdin"):
         assert "r" in mode

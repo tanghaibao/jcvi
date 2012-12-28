@@ -55,9 +55,18 @@ class MultiGenBank (BaseFile):
             for f in rf:
                 type = f.type
                 fsf = f.sub_features
-                if not fsf:
-                    self.print_gffline(gff_fw, f, seqid)
-                    nfeats += 1
+                if type == "gene":
+                    continue
+
+                if type == "CDS":
+                    f.type = "mRNA"
+
+                self.print_gffline(gff_fw, f, seqid)
+                nfeats += 1
+
+                if type == "CDS" and not fsf:
+                    f.type = "CDS"
+                    fsf = [f]
 
                 for sf in fsf:
                     self.print_gffline(gff_fw, sf, seqid, parent=f)
@@ -79,8 +88,6 @@ class MultiGenBank (BaseFile):
         type = f.type
         if type == "source":
             type = "contig"
-        if type == "gene":
-            type = "mRNA"
 
         attr = "ID=tmp"
         source = self.source
@@ -95,15 +102,17 @@ class MultiGenBank (BaseFile):
         id = "tmp"
         if MT in qual:
             id = seqid
-
-        if LT in qual:
+        elif LT in qual:
+            id, = qual[LT]
+        else:
+            qual[LT] = [self.current_id]
             id, = qual[LT]
 
+        id = id.split()[0]
+
         if parent:
-            if LT not in parent.qualifiers:
-                parent.qualifiers[LT] = [self.current_id]
-            parent_id, = parent.qualifiers[LT]
-            id = parent_id
+            id, = parent.qualifiers[LT]
+            id = id.split()[0]
 
         if type == 'CDS':
             parent_id = id
@@ -112,16 +121,18 @@ class MultiGenBank (BaseFile):
             id = parent_id + suffix
             g.attributes["Parent"] = [parent_id]
 
-        assert id != "tmp"
+        assert id != "tmp", f
         g.attributes["ID"] = [id]
 
-        if "product" in qual:
-            note, = qual["product"]
-            g.attributes["Note"] = [note]
+        if type == "mRNA":
+            g.attributes["Name"] = g.attributes["ID"]
+            if "product" in qual:
+                note, = qual["product"]
+                g.attributes["Note"] = [note]
 
-        if "pseudo" in qual:
-            note = "Pseudogene"
-            g.attributes["Note"] = [note]
+            if "pseudo" in qual:
+                note = "Pseudogene"
+                g.attributes["Note"] = [note]
 
         g.update_attributes()
         print >> fw, g

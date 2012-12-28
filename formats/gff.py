@@ -465,6 +465,7 @@ def format(args):
                  help="Make IDs unique [default: %default]")
     p.add_option("--gff3", default=False, action="store_true",
                  help="Force to write gff3 attributes [default: %default]")
+    p.add_option("--note", help="Two-column tsv file to add NOTE [default: %default]")
     p.add_option("--switch", help="Switch seqid from two-column file [default: %default]")
     p.add_option("--multiparents", default=False, action="store_true",
                  help="Separate features with multiple parents [default: %default]")
@@ -482,11 +483,14 @@ def format(args):
     gffile, = args
     mapfile = opts.switch
     unique = opts.unique
+    note = opts.note
     gsac = opts.gsac
     pasa = opts.pasa
 
     if mapfile:
         mapping = DictFile(mapfile, delimiter="\t")
+    if note:
+        note = DictFile(note, delimiter="\t")
 
     if pasa:
         gffdict = {}
@@ -512,9 +516,24 @@ def format(args):
                 logging.error("{0} not found in `{1}`. ID unchanged.".\
                         format(origid, mapfile))
 
+        if note:
+            id = g.attributes["ID"]
+            id = id[0] if id else None
+            name = g.attributes["Name"]
+            name = name[0] if name else None
+            tag = None
+            if id in note:
+                tag = note[id]
+            elif name in note:
+                tag = note[name]
+
+            if tag:
+                g.attributes["Note"] = [tag]
+                g.update_attributes()
+
         if pasa:
             id = g.attributes["ID"][0]
-            if not gffdict.has_key(id):
+            if id not in gffdict:
                 gffdict[id] = { 'seqid': g.seqid,
                                 'source': g.source,
                                 'strand': g.strand,

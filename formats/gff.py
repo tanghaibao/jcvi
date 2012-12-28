@@ -177,7 +177,6 @@ def main():
         ('merge', 'merge several gff files into one'),
         ('parents', 'find the parents given a list of IDs'),
         ('children', 'find all children that belongs to the same parent'),
-        ('fromgb', 'convert from gb format to gff3'),
         ('frombed', 'convert from bed format to gff3'),
         ('gapsplit', 'split alignment GFF3 at gaps based on CIGAR string'),
         ('orient', 'orient the coding features based on translation'),
@@ -751,26 +750,6 @@ def sort(args):
 
     cmd = "sort -k1,1 -k4,4n {0} -o {1}".format(gffile, sortedgff)
     sh(cmd)
-
-
-def fromgb(args):
-    """
-    %prog fromgb gbfile
-
-    Convert from gb format to gff3.
-    """
-    p = OptionParser(fromgb.__doc__)
-    opts, args = p.parse_args(args)
-
-    if len(args) != 1:
-        sys.exit(not p.print_help())
-
-    gbfile, = args
-    outfile = op.basename(gbfile).rsplit(".", 1)[0] + ".bp.gff"
-
-    cmd = "bp_genbank2gff3.pl"
-    cmd += " -out stdout {0}".format(gbfile)
-    sh(cmd, outfile=outfile)
 
 
 def fromgtf(args):

@@ -45,7 +45,6 @@ class MultiGenBank (BaseFile):
 
         self.source = source
         self.counter = defaultdict(int)
-        self.counter["unnamed"] = 0
 
         nrecs, nfeats = 0, 0
         for rec in SeqIO.parse(filename, "gb"):
@@ -110,15 +109,10 @@ class MultiGenBank (BaseFile):
             parent_id = id
             self.counter[id] += 1
             suffix = ".cds.{0}".format(self.counter[id])
-
             id = parent_id + suffix
             g.attributes["Parent"] = [parent_id]
 
-        if id == "tmp":
-            self.counter["unnamed"] += 1
-            id = "Unnamed{0:05d}".format(self.counter["unnamed"])
-            f.qualifiers[LT] = [id]
-
+        assert id != "tmp"
         g.attributes["ID"] = [id]
 
         if "product" in qual:

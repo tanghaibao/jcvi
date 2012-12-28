@@ -80,7 +80,6 @@ class GffLine (object):
 
         self.attributes_text = sep.join(attributes)
 
-
     @property
     def accn(self):
         if self.key and self.key in self.attributes:

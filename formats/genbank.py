@@ -13,13 +13,126 @@ import logging
 
 from optparse import OptionParser
 from glob import glob
+from collections import defaultdict
 
 from Bio import SeqIO
 from Bio.SeqFeature import SeqFeature
 
-from jcvi.formats.base import must_open, FileShredder
-from jcvi.apps.base import ActionDispatcher, sh, mkdir
+from jcvi.utils.orderedcollections import DefaultOrderedDict
+from jcvi.formats.base import must_open, FileShredder, BaseFile
+from jcvi.formats.gff import GffLine
+from jcvi.apps.base import ActionDispatcher, sh, mkdir, debug
 from jcvi.apps.entrez import fetch
+debug()
+
+
+MT = "mol_type"
+LT = "locus_tag"
+
+
+class MultiGenBank (BaseFile):
+    """
+    Wrapper for parsing concatenated GenBank records.
+    """
+    def __init__(self, filename, source="JCVI"):
+        super(MultiGenBank, self).__init__(filename)
+        assert op.exists(filename)
+
+        pf = filename.rsplit(".", 1)[0]
+        fastafile, gfffile = pf + ".fasta", pf + ".gff"
+        fasta_fw = must_open(fastafile, "w")
+        gff_fw = must_open(gfffile, "w")
+
+        self.source = source
+        self.counter = defaultdict(int)
+        self.counter["unnamed"] = 0
+
+        nrecs, nfeats = 0, 0
+        for rec in SeqIO.parse(filename, "gb"):
+            seqid = rec.name
+            rec.id = seqid
+            SeqIO.write([rec], fasta_fw, "fasta")
+            rf = rec.features
+            for f in rf:
+                type = f.type
+                fsf = f.sub_features
+                if not fsf:
+                    self.print_gffline(gff_fw, f, seqid)
+                    nfeats += 1
+
+                for sf in fsf:
+                    self.print_gffline(gff_fw, sf, seqid, parent=f)
+                    nfeats += 1
+
+            nrecs += 1
+
+        logging.debug("A total of {0} records written to `{1}`.".\
+                        format(nrecs, fastafile))
+        fasta_fw.close()
+
+        logging.debug("A total of {0} features written to `{1}`.".\
+                        format(nfeats, gfffile))
+        gff_fw.close()
+
+    def print_gffline(self, fw, f, seqid, parent=None):
+
+        score = phase = "."
+        type = f.type
+        if type == "source":
+            type = "contig"
+        if type == "gene":
+            type = "mRNA"
+
+        attr = "ID=tmp"
+        source = self.source
+
+        start, end = f.location.start + 1, f.location.end
+        strand = '-' if f.strand < 0 else '+'
+        g = "\t".join(str(x) for x in \
+            (seqid, source, type, start, end, score, strand, phase, attr))
+        g = GffLine(g)
+
+        qual = f.qualifiers
+        id = "tmp"
+        if MT in qual:
+            id = seqid
+
+        if LT in qual:
+            id, = qual[LT]
+
+        if parent:
+            if LT not in parent.qualifiers:
+                parent.qualifiers[LT] = [self.current_id]
+            parent_id, = parent.qualifiers[LT]
+            id = parent_id
+
+        if type == 'CDS':
+            parent_id = id
+            self.counter[id] += 1
+            suffix = ".cds.{0}".format(self.counter[id])
+
+            id = parent_id + suffix
+            g.attributes["Parent"] = [parent_id]
+
+        if id == "tmp":
+            self.counter["unnamed"] += 1
+            id = "Unnamed{0:05d}".format(self.counter["unnamed"])
+            f.qualifiers[LT] = [id]
+
+        g.attributes["ID"] = [id]
+
+        if "product" in qual:
+            note, = qual["product"]
+            g.attributes["Note"] = [note]
+
+        if "pseudo" in qual:
+            note = "Pseudogene"
+            g.attributes["Note"] = [note]
+
+        g.update_attributes()
+        print >> fw, g
+
+        self.current_id = id
 
 
 class GenBank(dict):
@@ -182,10 +295,28 @@ def main():
     actions = (
         ('tofasta', 'generate fasta file for multiple gb records'),
         ('getgenes', 'extract protein coding genes from Genbank file'),
+        ('gff', 'convert Genbank file to GFF file'),
               )
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def gff(args):
+    """
+    %prog gff seq.gbk
+
+    Convert Genbank file to GFF and FASTA file.
+    The Genbank file can contain multiple records.
+    """
+    p = OptionParser(gff.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    gbkfile, = args
+    g = MultiGenBank(gbkfile)
 
 
 def preparegb(p, args):

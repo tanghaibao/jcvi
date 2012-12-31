@@ -67,7 +67,6 @@ class AnchorFile (BaseFile):
         logging.debug("Corrected scores for {0} anchors.".format(ncorrected))
         logging.debug("Anchors written to `{0}`.".format(filename))
 
-    @property
     def blast(self, blastfile=None, outfile=None):
         """
         convert anchor file to 12 col blast file
@@ -83,20 +82,22 @@ class AnchorFile (BaseFile):
             blasts = None
 
         fw = must_open(outfile, "w", checkexists=True)
+        nlines = 0
         for a, b, id in self.iter_pairs():
-            try:
-                bline = blasts[(a,b)]
-            except:
-                try:
-                    bline = blasts[(b,a)]
-                except:
-                    line = "\t".join((a, b))
-                    bline = BlastLineByConversion(line, mode="110000000000")
-                else:
-                    bline = bline.swapped()
+            if (a, b) in blasts:
+                bline = blasts[(a, b)]
+            elif (b, a) in blasts:
+                bline = blasts[(b, a)]
+            else:
+                line = "\t".join((a, b))
+                bline = BlastLineByConversion(line, mode="110000000000")
+
             print >> fw, bline
+            nlines += 1
         fw.close()
-        logging.debug("blast lines written to `{0}`.".format(outfile))
+
+        logging.debug("A total of {0} BLAST lines written to `{1}`."\
+                        .format(nlines, outfile))
 
         return outfile
 
@@ -171,8 +172,8 @@ class BlockFile (BaseFile):
         ncols = self.ncols
         for i in xrange(ncols):
             for j in xrange(i + 1, ncols):
-                for a, b in self.iter_pairs(i, j):
-                    yield a, b
+                for a, b, h in self.iter_pairs(i, j):
+                    yield a, b, h
 
     def iter_gene_col(self):
         for hd, col in zip(self.header, self.columns):
@@ -486,7 +487,7 @@ def rebuild(args):
     blocksfile, blastfile = args
     bk = BlockFile(blocksfile, header=opts.header)
     fw = open("pairs", "w")
-    for a, b in bk.iter_all_pairs():
+    for a, b, h in bk.iter_all_pairs():
         print >> fw, "\t".join((a, b))
     fw.close()
 

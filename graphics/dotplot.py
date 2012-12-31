@@ -102,9 +102,11 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts,
     block_id = 0
     for row in fp:
         atoms = row.split()
+        block_color = None
         if row[0] == "#":
             block_id += 1
-            block_color = palette.get(block_id, "k") if palette else None
+            if palette:
+                block_color = palette.get(block_id, "k")
             continue
 
         # first two columns are query and subject, and an optional third column

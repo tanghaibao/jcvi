@@ -94,6 +94,8 @@ def layout(args):
     omgfile, taxa = args
     taxa = taxa.split(",")
     ntaxa = len(taxa)
+
+    data = []
     fp = open(omgfile)
     for row in fp:
         genes, idxs = row.split()
@@ -104,6 +106,19 @@ def layout(args):
             row[idx] = gene
         txs = ",".join(taxa[x] for x in ixs)
         print "\t".join(("\t".join(row), txs))
+        data.append(row)
+
+    coldata = zip(*data)
+    ngenes = []
+    for i, tx in enumerate(taxa):
+        genes = [x for x in coldata[i] if x != '.']
+        ngenes.append((len(genes), tx))
+
+    details = ", ".join("{0} {1}".format(a, b) for a, b in ngenes)
+    total = sum(a for a, b in ngenes)
+    s = "A list of {0} orthologous families that collectively".format(len(data))
+    s += " contain a total of {0} genes ({1})".format(total, details)
+    print >> sys.stderr, s
 
 
 def omgparse(args):

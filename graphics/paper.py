@@ -31,12 +31,88 @@ def main():
         ('scenario', 'show step-wise genome merger events in brapa'),
         # Epoch paper (Woodhouse et al., 2012 Plant Cell)
         ('epoch', 'show the methods used in epoch paper'),
+        # Cotton paper (Paterson et al., 2012 Nature)
+        ('cotton', 'plot cotton macro- and micro-synteny (requires data)'),
         # Unpublished
         ('amborella', 'plot amborella macro- and micro-synteny (requires data)'),
-        ('cotton', 'plot cotton macro- and micro-synteny (requires data)'),
+        ('napusretention', 'plot retention rate along chr (requires data)'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def napusretention(args):
+    """
+    %prog napusretention final.index scaffold.bed genes.bed chrX
+
+    Plot retention rate along specified chromosome. File `final.index` contains
+    three column with first (query), second (ortholog), third (homeolog).
+    """
+    from jcvi.algorithms.matrix import moving_sum
+    from jcvi.formats.bed import Bed
+    from jcvi.graphics.chromosome import HorizontalChromosome
+
+    p = OptionParser(napusretention.__doc__)
+    opts, args, iopts = set_image_options(p, args, figsize="8x7")
+
+    if len(args) != 4:
+        sys.exit(not p.print_help())
+
+    finalist, scaffoldbed, genesbed, chr = args
+    bed = Bed(scaffoldbed)
+    scaffolds = list(bed.sub_bed(chr))
+    logging.debug("Imported {0} scaffolds from {1}.".format(len(scaffolds), chr))
+
+    bed = Bed(genesbed)
+    genes = list(x for x in bed.sub_bed(chr))
+    logging.debug("Imported {0} genes from {1}.".format(len(genes), chr))
+
+    ortho, homeo = {}, {}
+    fp = open(finalist)
+    for row in fp:
+        query, ortholog, homeolog = row.split()
+        ortho[query] = int(ortholog != '.')
+        homeo[query] = int(homeolog != '.')
+
+    ortholist, homeolist = [], []
+    for x in genes:
+        accn = x.accn
+        ortholist.append(ortho.get(accn, 0))
+        homeolist.append(homeo.get(accn, 0))
+
+    window = 100
+    ortholist = moving_sum(ortholist, window=window)
+    homeolist = moving_sum(homeolist, window=window)
+
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes([0, 0, 1, 1])
+
+    xstart, xend = .2, .8
+    y = .5
+    chrlen = max(x.end for x in scaffolds)
+    ratio = (xend - xstart) / chrlen
+    patchstart = [(xstart + x.start * ratio) for x in scaffolds]
+    hc = HorizontalChromosome(root, xstart, xend, y, patch=patchstart, height=.03)
+
+    ystart = y + .02
+    width, height = xend - xstart, .3
+
+    root.add_patch(Rectangle((xstart, ystart), width, height, fc="gainsboro"))
+    ax = fig.add_axes([xstart, ystart, width, height])
+    starts = [x.start for x in genes]
+
+    ax.plot(starts, ortholist, "r-")
+    ax.plot(starts, homeolist, "g-")
+    ax.set_xlim(0, chrlen)
+    ax.set_ylim(0, 100)
+    ax.set_axis_off()
+
+    root.set_xlim(0, 1)
+    root.set_ylim(0, 1)
+    root.set_axis_off()
+
+    image_name = "retention." + iopts.format
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
 def amborella(args):

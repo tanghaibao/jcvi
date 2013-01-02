@@ -60,19 +60,30 @@ class Chromosome (object):
 
 
 class HorizontalChromosome (object):
-    def __init__(self, ax, x1, x2, y, height=.015, ec="k", fc=None,
-                       fill=False, zorder=2):
+    def __init__(self, ax, x1, x2, y, height=.015, ec="k", patch=None,
+                    fc=None, fill=False, zorder=2):
         """
         Chromosome with positions given in (x1, y) => (x2, y)
+
+        The chromosome can also be patched, e.g. to show scaffold composition in
+        alternating shades. Use a list of starting locations to segment.
         """
         pts = self.get_pts(x1, x2, y, height)
+        r = self.r
         ax.add_patch(Polygon(pts, fill=False, ec=ec, zorder=zorder))
         if fc:
             pts = self.get_pts(x1, x2, y, height * .5)
             ax.add_patch(Polygon(pts, fc=fc, lw=0, zorder=zorder))
+        if patch:
+            for i in xrange(0, len(patch), 2):
+                if i + 1 > len(patch) - 1:
+                    continue
+                p1, p2 = patch[i], patch[i + 1]
+                ax.add_patch(Rectangle((p1, y - r), p2 - p1, 2 * r, lw=0,
+                             fc="lightgrey"))
 
     def get_pts(self, x1, x2, y, height):
-        r = height / (3 ** .5)
+        self.r = r = height / (3 ** .5)
 
         if x2 - x1 < 2 * height:  # rectangle for small chromosomes
             return [[x1, y + r], [x1, y - r], [x2, y - r], [x2, y + r]]

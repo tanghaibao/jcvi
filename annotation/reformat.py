@@ -17,7 +17,7 @@ from optparse import OptionParser
 from jcvi.formats.bed import Bed, BedLine
 from jcvi.formats.gff import GffLine, Gff
 from jcvi.utils.cbook import number
-from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.apps.base import ActionDispatcher, debug, need_update
 debug()
 
 
@@ -130,8 +130,8 @@ def atg_name(name):
     return chr, rank
 
 
-def gene_name(current_chr, x, prefix="Medtr", pad0=6):
-    return "{0}{1}g{2:0{3}}".format(prefix, current_chr, x, pad0)
+def gene_name(current_chr, x, prefix="Medtr", sep="g", pad0=6):
+    return "{0}{1}{2}{3:0{4}}".format(prefix, current_chr, sep, x, pad0)
 
 
 def renumber(args):
@@ -149,6 +149,8 @@ def renumber(args):
                  help="Pad gene identifiers with 0 [default: %default]")
     p.add_option("--prefix", default="Medtr",
                  help="Genome prefix [default: %default]")
+    p.add_option("--detag", default=False, action="store_true",
+                 help="Retrieve gene names after the colon [default: %default]")
 
     opts, args = p.parse_args(args)
 
@@ -158,6 +160,22 @@ def renumber(args):
     bedfile, = args
     pad0 = opts.pad0
     prefix = opts.prefix
+
+    if opts.detag:
+        bed = Bed(bedfile)
+        newbedfile = bedfile.rsplit(".", 1)[0] + ".detag.bed"
+        if need_update(bedfile, newbedfile):
+            fw = open(newbedfile, "w")
+            for b in bed:
+                accns = b.accn.split(";")
+                for a in accns:
+                    if ":" in a:
+                        method, accn = a.split(":", 1)
+                    if method in ("liftOver", "GMAP"):
+                        b.accn = accn
+                    print >> fw, b
+            fw.close()
+        bedfile = newbedfile
 
     mergedbedfile = mergeBed(bedfile, nms=True)
     mbed = Bed(mergedbedfile)
@@ -187,7 +205,8 @@ def renumber(args):
         print >> sys.stderr, current_chr, len(sbed), "==>", len(ranks), \
                     "==>", len(lranks)
 
-        granks = set(gene_name(current_chr, x) for x in lranks)
+        granks = set(gene_name(current_chr, x) for x in lranks) | \
+                 set(gene_name(current_chr, x, sep="te") for x in lranks)
 
         tagstore = {}
         for s in sbed:
@@ -206,7 +225,8 @@ def renumber(args):
         for s in sbed:
             accn = s.accn
             gaccn = g[accn]
-            group = [(PRIORITY.index(tagstore[x][-1]), x) for x in gaccn]
+            tags = [((tagstore[x][-1] if x in tagstore else NEW), x) for x in gaccn]
+            group = [(PRIORITY.index(tag), x) for tag, x in tags]
             best = min(group)[-1]
 
             if accn != best:

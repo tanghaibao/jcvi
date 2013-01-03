@@ -53,7 +53,7 @@ def napusretention(args):
     from jcvi.graphics.chromosome import HorizontalChromosome
 
     p = OptionParser(napusretention.__doc__)
-    opts, args, iopts = set_image_options(p, args, figsize="8x7")
+    opts, args, iopts = set_image_options(p, args, figsize="6x4")
 
     if len(args) != 4:
         sys.exit(not p.print_help())
@@ -81,28 +81,50 @@ def napusretention(args):
         homeolist.append(homeo.get(accn, 0))
 
     window = 100
-    ortholist = moving_sum(ortholist, window=window)
-    homeolist = moving_sum(homeolist, window=window)
+    halfw = window / 2
+    ortholist = moving_sum(ortholist, window=window)[halfw : -halfw]
+    homeolist = moving_sum(homeolist, window=window)[halfw : -halfw]
 
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
 
     xstart, xend = .2, .8
-    y = .5
+    ystart, yend = .2, .8
+    pad = .02
+    width, height = xend - xstart, yend - ystart
+
+    y = ystart - pad
     chrlen = max(x.end for x in scaffolds)
     ratio = (xend - xstart) / chrlen
     patchstart = [(xstart + x.start * ratio) for x in scaffolds]
     hc = HorizontalChromosome(root, xstart, xend, y, patch=patchstart, height=.03)
 
-    ystart = y + .02
-    width, height = xend - xstart, .3
+    # Gauge
+    lsg = "lightslategrey"
+    root.plot([xstart - pad, xstart - pad], [ystart, ystart + height],
+                lw=2, color=lsg)
+    root.text(xstart - pad, ystart + height + pad,
+                "Homolog retention in {0}-gene window (max={0})".format(window),
+                va="center", color=lsg)
 
-    root.add_patch(Rectangle((xstart, ystart), width, height, fc="gainsboro"))
+    txt = "{0} scaffolds, {1} genes".format(len(scaffolds), len(genes))
+    root.text(xstart - .05, y, chr, ha="center", va="center", color=lsg)
+    root.text((xstart + xend) / 2, y - .05, txt, ha="center", va="center", color=lsg)
+
+    # Legends
+    y = ystart + pad * 4
+    root.plot([.3, .33], [y, y], "r-", lw=2)
+    root.text(.33 + pad, y, "Ortholog", va="center")
+    y = ystart + pad * 2
+    root.plot([.3, .33], [y, y], "g-", lw=2)
+    root.text(.33 + pad, y, "Homeolog", va="center")
+
     ax = fig.add_axes([xstart, ystart, width, height])
-    starts = [x.start for x in genes]
+    starts = [x.start for x in genes][halfw : -halfw]
 
     ax.plot(starts, ortholist, "r-")
     ax.plot(starts, homeolist, "g-")
+
     ax.set_xlim(0, chrlen)
     ax.set_ylim(0, 100)
     ax.set_axis_off()
@@ -111,7 +133,7 @@ def napusretention(args):
     root.set_ylim(0, 1)
     root.set_axis_off()
 
-    image_name = "retention." + iopts.format
+    image_name = chr + ".retention." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 

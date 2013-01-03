@@ -48,18 +48,14 @@ class OMGFile (BaseFile):
             components.append(tuple(component))
         self.components = components
 
-    def best(self, ntaxa=None):
+    def best(self):
         maxsize = 0
         maxcomponent = []
         bb = set()
         for component in self.components:
             size = len(component)
-            if ntaxa and size == ntaxa:
+            if size > 1:
                 bb.add(component)
-            if size > maxsize:
-                maxsize = size
-                maxcomponent = component
-        bb.add(maxcomponent)
         return bb
 
 
@@ -130,15 +126,15 @@ def omgparse(args):
     p = OptionParser(omgparse.__doc__)
     opts, args = p.parse_args(args)
 
-    if len(args) < 2:
+    if len(args) != 1:
         sys.exit(not p.print_help())
 
-    work, ntaxa = args
+    work = args
     ntaxa = int(ntaxa)
     omgfiles = glob(op.join(work, "gf*.out"))
     for omgfile in omgfiles:
         omg = OMGFile(omgfile)
-        best = omg.best(ntaxa=ntaxa)
+        best = omg.best()
         for bb in best:
             genes, taxa = zip(*bb)
             print "\t".join((",".join(genes), ",".join(taxa)))

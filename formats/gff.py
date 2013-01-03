@@ -665,9 +665,10 @@ def uniq(args):
     gff = Gff(gffile)
     mode = opts.mode
     bestn = opts.best
+    type = opts.type
     allgenes = []
     for g in gff:
-        if g.type != opts.type:
+        if g.type != type:
             continue
         allgenes.append(g)
 

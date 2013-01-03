@@ -16,6 +16,7 @@ from glob import glob
 from collections import defaultdict
 
 from Bio import SeqIO
+from Bio.Seq import Seq
 from Bio.SeqFeature import SeqFeature
 
 from jcvi.utils.orderedcollections import DefaultOrderedDict
@@ -245,20 +246,21 @@ class GenBank(dict):
 
                 if len(feature.sub_features) == 0:
                     seq = feature.extract(gbrec.seq)
-                    fwcds.write(">{0}\n{1}\n".format(accn, seq))
-                    fwpep.write(">{0}\n{1}\n".format(accn, seq.translate()))
                 else:
                     seq = []
                     for subf in sorted(feature.sub_features, \
                         key=lambda x: x.location.start.position*x.strand):
-                        seq.append(subf.extract(gbrec.seq))
-                    if seq.translate().count("*")>1:
+                        seq.append(str(subf.extract(gbrec.seq)))
+                    seq = "".join(seq)
+                    if Seq(seq).translate().count("*")>1:
                         seq = []
                         for subf in feature.sub_features:
-                            seq.append(subf.extract(gbrec.seq))
-                    seq = "".join(seq)
-                    fwcds.write(">{0}\n{1}\n".format(accn, seq))
-                    fwpep.write(">{0}\n{1}\n".format(accn, seq.translate()))
+                            seq.append(str(subf.extract(gbrec.seq)))
+                        seq = "".join(seq)
+                    seq = Seq(seq)
+
+                fwcds.write(">{0}\n{1}\n".format(accn, seq))
+                fwpep.write(">{0}\n{1}\n".format(accn, seq.translate()))
 
     def write_genes(self, output="gbout", individual=False, pep=True):
         if not individual:

@@ -430,7 +430,7 @@ def flatten(args):
         sys.exit(not p.print_help())
 
     tabfile, = args
-    fp = open(tabfile)
+    fp = must_open(tabfile)
     for row in fp:
         print row.strip().replace(opts.sep, "\n")
 

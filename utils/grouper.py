@@ -31,6 +31,9 @@ class Grouper(object):
     False
     >>> g.joined('a', 'd')
     False
+    >>> del g['b']
+    >>> list(g)
+    [['a', 'c'], ['d', 'e']]
     """
     def __init__(self, init=[]):
         mapping = self._mapping = {}
@@ -90,6 +93,15 @@ class Grouper(object):
         for v in self._mapping.values():
             group.update([tuple(v)])
         return len(group)
+
+    def __delitem__(self, key):
+        group = self._mapping[key]
+        group.remove(key)
+        del self._mapping[key]
+
+    @property
+    def num_members(self):
+        return sum(len(x) for x in self)
 
 
 if __name__ == '__main__':

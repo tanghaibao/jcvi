@@ -8,6 +8,8 @@ import string
 
 from glob import glob
 from optparse import OptionParser
+from collections import defaultdict
+from itertools import product, combinations
 
 from jcvi.formats.blast import BlastLine
 from jcvi.formats.fasta import Fasta
@@ -68,10 +70,159 @@ def main():
         ('omgprepare', 'prepare weights file to run Sankoff OMG algorithm'),
         ('omg', 'generate a series of Sankoff OMG algorithm inputs'),
         ('omgparse', 'parse the OMG outputs to get gene lists'),
+        ('enrich', 'enrich OMG output by pulling genes missed by OMG'),
         ('layout', 'layout the gene lists'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def get_weights(weightsfiles=None):
+    if weightsfiles is None:
+        weightsfiles = glob("*.weights")
+
+    weights = defaultdict(list)
+    for row in must_open(weightsfiles):
+        a, b, c = row.split()
+        weights[a].append((a, b, c))
+    return weights
+
+
+def get_edges(weightsfiles=None):
+    if weightsfiles is None:
+        weightsfiles = glob("*.weights")
+
+    edges = {}
+    for row in must_open(weightsfiles):
+        a, b, c = row.split()
+        c = int(c)
+        edges[(a, b)] = c
+        edges[(b, a)] = c
+    return edges
+
+
+def get_info():
+    infofiles = glob("*.info")
+    info = {}
+    for row in must_open(infofiles):
+        a = row.split()[0]
+        info[a] = row.rstrip()
+    return info
+
+
+def enrich(args):
+    """
+    %prog enrich omgfile groups ntaxa > enriched.omg
+
+    Enrich OMG output by pulling genes misses by OMG.
+    """
+    p = OptionParser(enrich.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    omgfile, groupsfile, ntaxa = args
+    ntaxa = int(ntaxa)
+
+    # Get gene pair => weight mapping
+    weights = get_edges()
+    info = get_info()
+    # Get gene => taxon mapping
+    info = dict((k, v.split()[5]) for k, v in info.items())
+
+    groups = Grouper()
+
+    fp = open(groupsfile)
+    for row in fp:
+        members = row.strip().split(",")
+        groups.join(*members)
+
+    logging.debug("Imported {0} families with {1} members.".\
+                    format(len(groups), groups.num_members))
+
+    omggroups = Grouper()
+    fp = open(omgfile)
+    for row in fp:
+        genes, idxs = row.split()
+        genes = genes.split(",")
+        omggroups.join(*genes)
+
+    logging.debug("Imported {0} OMG families with {1} members.".\
+                    format(len(omggroups), omggroups.num_members))
+
+    leftgroups = Grouper()
+    fp = open(omgfile)
+    alltaxa = set(str(x) for x in range(4))
+    gene_to_leftover = {}
+    for row in fp:
+        genes, idxs = row.split()
+        genes = genes.split(",")
+        a = genes[0]
+
+        omgfam = set(omggroups[a])
+        initfam = set(groups[a])
+        leftover = initfam - omgfam
+        leftover = set(x for x in leftover if x not in omggroups)
+        if not leftover:
+            continue
+        leftgroups.join(*leftover)
+        gene_to_leftover[a] = leftgroups[list(leftover)[0]]
+
+    logging.debug("Imported {0} leftover families with {1} members.".\
+                    format(len(leftgroups), leftgroups.num_members))
+
+    logging.debug("Start processing ..")
+    seen = set()
+    fp = open(omgfile)
+    for row in fp:
+        genes, idxs = row.split()
+        genes = genes.split(",")
+        a = genes[0]
+
+        idxs = set(idxs.split(","))
+        missing_taxa = alltaxa - idxs
+        if not missing_taxa:
+            print row.rstrip()
+            continue
+
+        leftover = gene_to_leftover.get(a, None)
+        if leftover:
+            leftover = set(leftover) - seen
+
+        if not leftover:
+            print row.rstrip()
+            continue
+
+        leftover_sorted_by_taxa = dict((k, \
+                             [x for x in leftover if info[x] == k]) \
+                                for k in missing_taxa)
+
+        #print genes, leftover
+        #print leftover_sorted_by_taxa
+        solutions = []
+        for solution in product(*leftover_sorted_by_taxa.values()):
+            score = sum(weights.get((a, b), 0) for a in solution for b in genes)
+            if score == 0:
+                continue
+            score += sum(weights.get((a, b), 0) for a, b in combinations(solution, 2))
+            solutions.append((score, solution))
+            #print solution, score
+
+        best_solution = max(solutions) if solutions else None
+        if best_solution is None:
+            print row.rstrip()
+            continue
+
+        #print "best ==>", best_solution
+        best_score, best_addition = best_solution
+        genes += best_addition
+        seen.update(best_addition)
+        genes = sorted([(info[x], x) for x in genes])
+        idxs, genes = zip(*genes)
+        print "\t".join((",".join(genes), ",".join(idxs)))
+
+    logging.debug("Recruited {0} new genes.".format(len(seen)))
 
 
 def layout(args):
@@ -160,10 +311,8 @@ def group(args):
         for a, b, idx in ac.iter_pairs():
             groups.join(a, b)
 
-    ngroups = len(groups)
-    nmembers = sum(len(x) for x in groups)
     logging.debug("Created {0} groups with {1} members.".\
-                  format(ngroups, nmembers))
+                  format(len(groups), groups.num_members))
 
     outfile = opts.outfile
     fw = must_open(outfile, "w")
@@ -187,8 +336,6 @@ def omg(args):
 
     Then followed by omgparse() to get the gene lists.
     """
-    from collections import defaultdict
-
     p = OptionParser(omg.__doc__)
 
     opts, args = p.parse_args(args)
@@ -199,16 +346,8 @@ def omg(args):
     weightsfiles = args
     groupfile = group(weightsfiles + ["--outfile=groups"])
 
-    weights = defaultdict(list)
-    for row in must_open(weightsfiles):
-        a, b, c = row.split()
-        weights[a].append((a, b, c))
-
-    infofiles = glob("*.info")
-    info = {}
-    for row in must_open(infofiles):
-        a = row.split()[0]
-        info[a] = row.rstrip()
+    weights = get_weights(weightsfiles)
+    info = get_info()
 
     fp = open(groupfile)
 

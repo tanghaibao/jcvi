@@ -119,7 +119,7 @@ def layout(args):
 
 def omgparse(args):
     """
-    %prog omgparse work ntaxa
+    %prog omgparse work
 
     Parse the OMG outputs to get gene lists.
     """
@@ -129,8 +129,7 @@ def omgparse(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    work = args
-    ntaxa = int(ntaxa)
+    work, = args
     omgfiles = glob(op.join(work, "gf*.out"))
     for omgfile in omgfiles:
         omg = OMGFile(omgfile)
@@ -281,6 +280,8 @@ def omgprepare(args):
     p = OptionParser(omgprepare.__doc__)
     p.add_option("--norbh", action="store_true",
                  help="Disable RBH hits [default: %default]")
+    p.add_option("--pctid", default=0, type="int",
+                 help="Pencent id cutoff for RBH hits [default: %default]")
     set_stripnames(p)
     add_beds(p)
 
@@ -291,6 +292,7 @@ def omgprepare(args):
 
     ploidy, anchorfile, blastfile = args
     norbh = opts.norbh
+    pctid = opts.pctid
     qbed, sbed, qorder, sorder, is_self = check_beds(anchorfile, p, opts)
 
     fp = open(ploidy)
@@ -306,7 +308,7 @@ def omgprepare(args):
 
     pf = blastfile.rsplit(".", 1)[0]
     cscorefile = pf + ".cscore"
-    cscore([blastfile, "-o", cscorefile, "--cutoff=0"])
+    cscore([blastfile, "-o", cscorefile, "--cutoff=0", "--pct"])
     ac = AnchorFile(anchorfile)
     pairs = set((a, b) for a, b, i in ac.iter_pairs())
     logging.debug("Imported {0} pairs from `{1}`.".format(len(pairs), anchorfile))
@@ -316,13 +318,15 @@ def omgprepare(args):
     fw = open(weightsfile, "w")
     npairs = 0
     for row in fp:
-        a, b, c = row.split()
-        c = float(c)
+        a, b, c, pct = row.split()
+        c, pct = float(c), float(pct)
         c = int(c * 100)
         if (a, b) not in pairs:
             if norbh:
                 continue
             if c < 90:
+                continue
+            if pct < pctid:
                 continue
             c /= 10  # This severely penalizes RBH against synteny
 

@@ -568,6 +568,8 @@ def cscore(args):
     p = OptionParser(cscore.__doc__)
     p.add_option("--cutoff", default=.9999, type="float",
             help="Minimum C-score to report [default: %default]")
+    p.add_option("--pct", default=False, action="store_true",
+            help="Also include pct as last column [default: %default]")
     set_stripnames(p)
     set_outfile(p)
 
@@ -594,22 +596,28 @@ def cscore(args):
             best_score[subject] = score
 
     blast = Blast(blastfile)
-    pairs = defaultdict(float)
+    pairs = {}
+    cutoff = opts.cutoff
     for b in blast.iter_line():
         query, subject = b.query, b.subject
         if ostrip:
             query, subject = gene_name(query), gene_name(subject)
 
         score = b.score
+        pctid = b.pctid
         s = score / max(best_score[query], best_score[subject])
-        if s > opts.cutoff:
+        if s > cutoff:
             pair = (query, subject)
-            if s > pairs[pair]:
-                pairs[pair] = s
+            if pair not in pairs or s > pairs[pair][0]:
+                pairs[pair] = (s, pctid)
 
     fw = must_open(opts.outfile, "w")
-    for (query, subject), s in sorted(pairs.items()):
-        print >> fw, "\t".join((query, subject, "{0:.2f}".format(s)))
+    pct = opts.pct
+    for (query, subject), (s, pctid) in sorted(pairs.items()):
+        args = [query, subject, "{0:.2f}".format(s)]
+        if pct:
+            args.append("{0:.1f}".format(pctid))
+        print >> fw, "\t".join(args)
     fw.close()
 
 

@@ -117,6 +117,8 @@ def enrich(args):
     Enrich OMG output by pulling genes misses by OMG.
     """
     p = OptionParser(enrich.__doc__)
+    p.add_option("--ghost", default=False, action="store_true",
+                 help="Add ghost homologs already used [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -124,6 +126,7 @@ def enrich(args):
 
     omgfile, groupsfile, ntaxa = args
     ntaxa = int(ntaxa)
+    ghost = opts.ghost
 
     # Get gene pair => weight mapping
     weights = get_edges()
@@ -141,39 +144,22 @@ def enrich(args):
     logging.debug("Imported {0} families with {1} members.".\
                     format(len(groups), groups.num_members))
 
+    seen = set()
     omggroups = Grouper()
     fp = open(omgfile)
     for row in fp:
         genes, idxs = row.split()
         genes = genes.split(",")
+        seen.update(genes)
         omggroups.join(*genes)
 
+    nmembers = omggroups.num_members
     logging.debug("Imported {0} OMG families with {1} members.".\
-                    format(len(omggroups), omggroups.num_members))
+                    format(len(omggroups), nmembers))
+    assert nmembers == len(seen)
 
-    leftgroups = Grouper()
-    fp = open(omgfile)
-    alltaxa = set(str(x) for x in range(4))
-    gene_to_leftover = {}
-    for row in fp:
-        genes, idxs = row.split()
-        genes = genes.split(",")
-        a = genes[0]
-
-        omgfam = set(omggroups[a])
-        initfam = set(groups[a])
-        leftover = initfam - omgfam
-        leftover = set(x for x in leftover if x not in omggroups)
-        if not leftover:
-            continue
-        leftgroups.join(*leftover)
-        gene_to_leftover[a] = leftgroups[list(leftover)[0]]
-
-    logging.debug("Imported {0} leftover families with {1} members.".\
-                    format(len(leftgroups), leftgroups.num_members))
-
-    logging.debug("Start processing ..")
-    seen = set()
+    alltaxa = set(str(x) for x in range(ntaxa))
+    recruited = []
     fp = open(omgfile)
     for row in fp:
         genes, idxs = row.split()
@@ -186,8 +172,8 @@ def enrich(args):
             print row.rstrip()
             continue
 
-        leftover = gene_to_leftover.get(a, None)
-        if leftover:
+        leftover = groups[a]
+        if not ghost:
             leftover = set(leftover) - seen
 
         if not leftover:
@@ -216,13 +202,26 @@ def enrich(args):
 
         #print "best ==>", best_solution
         best_score, best_addition = best_solution
-        genes += best_addition
-        seen.update(best_addition)
+        genes.extend(best_addition)
+        recruited.extend(best_addition)
+
         genes = sorted([(info[x], x) for x in genes])
         idxs, genes = zip(*genes)
-        print "\t".join((",".join(genes), ",".join(idxs)))
 
-    logging.debug("Recruited {0} new genes.".format(len(seen)))
+        if ghost:  # decorate additions so it's clear that they were added
+            pgenes = []
+            for g in genes:
+                if g in recruited and g in seen:
+                    pgenes.append("|{0}|".format(g))
+                else:
+                    pgenes.append(g)
+            genes = pgenes
+
+        print "\t".join((",".join(genes), ",".join(idxs)))
+        if not ghost:
+            seen.update(best_addition)
+
+    logging.debug("Recruited {0} new genes.".format(len(recruited)))
 
 
 def layout(args):
@@ -239,8 +238,10 @@ def layout(args):
         sys.exit(not p.print_help())
 
     omgfile, taxa = args
+    listfile = omgfile.rsplit(".", 1)[0] + ".list"
     taxa = taxa.split(",")
     ntaxa = len(taxa)
+    fw = open(listfile, "w")
 
     data = []
     fp = open(omgfile)
@@ -252,13 +253,14 @@ def layout(args):
         for gene, idx in zip(genes, ixs):
             row[idx] = gene
         txs = ",".join(taxa[x] for x in ixs)
-        print "\t".join(("\t".join(row), txs))
+        print >> fw, "\t".join(("\t".join(row), txs))
         data.append(row)
 
     coldata = zip(*data)
     ngenes = []
     for i, tx in enumerate(taxa):
         genes = [x for x in coldata[i] if x != '.']
+        genes = set(x.strip("|") for x in genes)
         ngenes.append((len(genes), tx))
 
     details = ", ".join("{0} {1}".format(a, b) for a, b in ngenes)
@@ -266,6 +268,13 @@ def layout(args):
     s = "A list of {0} orthologous families that collectively".format(len(data))
     s += " contain a total of {0} genes ({1})".format(total, details)
     print >> sys.stderr, s
+
+    fw.close()
+    lastcolumn = ntaxa + 1
+    cmd = "sort -k{0},{0} {1} -o {1}".format(lastcolumn, listfile)
+    sh(cmd)
+
+    logging.debug("List file written to `{0}`.".format(listfile))
 
 
 def omgparse(args):

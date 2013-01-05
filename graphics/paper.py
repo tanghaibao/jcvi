@@ -65,7 +65,8 @@ def napusretention(args):
 
     bed = Bed(genesbed)
     genes = list(x for x in bed.sub_bed(chr))
-    logging.debug("Imported {0} genes from {1}.".format(len(genes), chr))
+    ngenes = len(genes)
+    logging.debug("Imported {0} genes from {1}.".format(ngenes, chr))
 
     ortho, homeo = {}, {}
     fp = open(finalist)
@@ -74,11 +75,12 @@ def napusretention(args):
         ortho[query] = int(ortholog != '.')
         homeo[query] = int(homeolog != '.')
 
+    genes = [x for x in genes if x.accn in ortho]
     ortholist, homeolist = [], []
     for x in genes:
         accn = x.accn
-        ortholist.append(ortho.get(accn, 0))
-        homeolist.append(homeo.get(accn, 0))
+        ortholist.append(ortho[accn])
+        homeolist.append(homeo[accn])
 
     window = 100
     halfw = window / 2
@@ -107,7 +109,7 @@ def napusretention(args):
                 "Homolog retention in {0}-gene window (max={0})".format(window),
                 va="center", color=lsg)
 
-    txt = "{0} scaffolds, {1} genes".format(len(scaffolds), len(genes))
+    txt = "{0} scaffolds, {1} genes".format(len(scaffolds), ngenes)
     root.text(xstart - .05, y, chr, ha="center", va="center", color=lsg)
     root.text((xstart + xend) / 2, y - .05, txt, ha="center", va="center", color=lsg)
 

@@ -105,12 +105,16 @@ def napusretention(args):
     lsg = "lightslategrey"
     root.plot([xstart - pad, xstart - pad], [ystart, ystart + height],
                 lw=2, color=lsg)
-    root.text(xstart - pad, ystart + height + pad,
-                "Homolog retention in {0}-gene window (max={0})".format(window),
-                va="center", color=lsg)
+    root.plot([xend + pad, xend + pad], [ystart, ystart + height],
+                lw=2, color=lsg)
+    root.text((xstart + xend) / 2, ystart + height + 2 * pad,
+                "Homolog retention in {0}-gene windows".format(window),
+                ha="center", va="center", color=lsg)
+    root.text(xstart - 2 * pad, ystart, "0", ha="right", va="center", size=10)
+    root.text(xstart - 2 * pad, ystart + height / 2, "50", ha="right", va="center", size=10)
+    root.text(xstart - 2 * pad, ystart + height, "100", ha="right", va="center", size=10)
 
-    txt = "{0} scaffolds, {1} genes".format(len(scaffolds), ngenes)
-    root.text(xstart - .05, y, chr, ha="center", va="center", color=lsg)
+    txt = "{0}, {1} scaffolds, {2} genes".format(chr, len(scaffolds), ngenes)
     root.text((xstart + xend) / 2, y - .05, txt, ha="center", va="center", color=lsg)
 
     # Legends

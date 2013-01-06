@@ -29,6 +29,7 @@ def main():
 
     actions = (
         ('rename', 'rename genes for annotation release'),
+        # Medicago gene renumbering
         ('renumber', 'renumber genes for annotation updates'),
         ('instantiate', 'instantiate NEW genes tagged by renumber'),
         # External gene prediction programs
@@ -95,7 +96,9 @@ def instantiate(args):
             end_id = start_id + 10000 if i == len(blocks) -1 \
                         else blocks[i + 1][1][0]
 
-            assert end_id > start_id
+            assert end_id > start_id, \
+                "end ({0}) > start ({1})".format(end_id, start_id)
+
             spots = end_id - start_id - 1
             available = len([x for x in xrange(start_id + 1, end_id) if
                                 (current_chr, x) not in black])
@@ -134,9 +137,44 @@ def gene_name(current_chr, x, prefix="Medtr", sep="g", pad0=6):
     return "{0}{1}{2}{3:0{4}}".format(prefix, current_chr, sep, x, pad0)
 
 
+def prepare(bedfile):
+    """
+    Remove prepended tags in gene names.
+    """
+    pf = bedfile.rsplit(".", 1)[0]
+    abedfile = pf + ".a.bed"
+    bbedfile = pf + ".b.bed"
+    fwa = open(abedfile, "w")
+    fwb = open(bbedfile, "w")
+
+    bed = Bed(bedfile)
+    seen = set()
+    for b in bed:
+        accns = b.accn.split(";")
+        new_accns = []
+        for accn in accns:
+            if ":" in accn:
+                method, a = accn.split(":", 1)
+                if method in ("liftOver", "GMAP", ""):
+                    accn = a
+            if accn in seen:
+                logging.error("Duplicate id {0} found. Ignored.".format(accn))
+                continue
+
+            new_accns.append(accn)
+            b.accn = accn
+            print >> fwa, b
+            seen.add(accn)
+
+        b.accn = ";".join(new_accns)
+        print >> fwb, b
+    fwa.close()
+    fwb.close()
+
+
 def renumber(args):
     """
-    %prog renumber Mt35.liftover.bed > tagged.bed
+    %prog renumber Mt35.consolidated.bed > tagged.bed
 
     Renumber genes for annotation updates.
     """
@@ -149,8 +187,6 @@ def renumber(args):
                  help="Pad gene identifiers with 0 [default: %default]")
     p.add_option("--prefix", default="Medtr",
                  help="Genome prefix [default: %default]")
-    p.add_option("--detag", default=False, action="store_true",
-                 help="Retrieve gene names after the colon [default: %default]")
 
     opts, args = p.parse_args(args)
 
@@ -161,30 +197,19 @@ def renumber(args):
     pad0 = opts.pad0
     prefix = opts.prefix
 
-    if opts.detag:
-        bed = Bed(bedfile)
-        newbedfile = bedfile.rsplit(".", 1)[0] + ".detag.bed"
-        if need_update(bedfile, newbedfile):
-            fw = open(newbedfile, "w")
-            for b in bed:
-                accns = b.accn.split(";")
-                for a in accns:
-                    if ":" in a:
-                        method, accn = a.split(":", 1)
-                    if method in ("liftOver", "GMAP"):
-                        b.accn = accn
-                    print >> fw, b
-            fw.close()
-        bedfile = newbedfile
+    pf = bedfile.rsplit(".", 1)[0]
+    abedfile = pf + ".a.bed"
+    bbedfile = pf + ".b.bed"
+    if need_update(bedfile, (abedfile, bbedfile)):
+        prepare(bedfile)
 
-    mergedbedfile = mergeBed(bedfile, nms=True)
-    mbed = Bed(mergedbedfile)
+    mbed = Bed(bbedfile)
     g = Grouper()
     for s in mbed:
         accn = s.accn
         g.join(*accn.split(";"))
 
-    bed = Bed(bedfile)
+    bed = Bed(abedfile)
     for chr, sbed in bed.sub_beds():
         if "chr" not in chr:
             continue

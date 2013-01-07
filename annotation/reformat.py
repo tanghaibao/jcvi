@@ -16,6 +16,7 @@ from optparse import OptionParser
 
 from jcvi.formats.bed import Bed, BedLine
 from jcvi.formats.gff import GffLine, Gff
+from jcvi.formats.base import SetFile
 from jcvi.utils.cbook import number
 from jcvi.apps.base import ActionDispatcher, debug, need_update
 debug()
@@ -23,6 +24,36 @@ debug()
 
 FRAME, RETAIN, OVERLAP, NEW = "FRAME", "RETAIN", "OVERLAP", "NEW"
 PRIORITY = (FRAME, RETAIN, OVERLAP, NEW)
+
+
+class NameRegister (object):
+
+    def __init__(self, filename=None):
+        self.black = set()
+        if filename:
+            black = SetFile(filename)
+            black = set(atg_name(x) for x in black)
+            self.black.update(black)
+
+    def allocate(self, info, current_chr, start_id, end_id):
+
+        needed = len(info)
+        assert end_id > start_id, \
+            "end ({0}) > start ({1})".format(end_id, start_id)
+
+        spots = end_id - start_id - 1
+        available = len([x for x in xrange(start_id + 1, end_id) if
+                            (current_chr, x) not in self.black])
+        message = "chr{0} need {1} ids, has {2} spots ({3} available)".\
+                format(current_chr, needed, spots, available)
+
+        start_gene = gene_name(current_chr, start_id)
+        end_gene = gene_name(current_chr, end_id)
+        message += " between {0} - {1}".format(start_gene, end_gene)
+
+        if available < needed:
+            message = "***" + message
+        print message
 
 
 def main():
@@ -46,8 +77,6 @@ def instantiate(args):
 
     instantiate NEW genes tagged by renumber.
     """
-    from jcvi.formats.base import SetFile
-
     p = OptionParser(instantiate.__doc__)
     opts, args = p.parse_args(args)
 
@@ -55,13 +84,11 @@ def instantiate(args):
         sys.exit(not p.print_help())
 
     taggedbed, blacklist = args
-    black = SetFile(blacklist)
-    black = set(atg_name(x) for x in black)
+    r = NameRegister(filename=blacklist)
 
     # Run through the bed, identify stretch of NEW ids to instantiate,
     # identify the flanking FRAMEs, interpolate!
     bed = Bed(taggedbed)
-    errorslog = open("errors.log", "w")
     tagkey = lambda x: x.rsplit("|", 1)[-1]
     for chr, sbed in bed.sub_beds():
         if "chr" not in chr:
@@ -91,30 +118,11 @@ def instantiate(args):
             if tag != NEW:
                 continue
 
-            needed = len(info)
             start_id = 0 if i == 0 else blocks[i - 1][1][-1]
             end_id = start_id + 10000 if i == len(blocks) -1 \
                         else blocks[i + 1][1][0]
 
-            assert end_id > start_id, \
-                "end ({0}) > start ({1})".format(end_id, start_id)
-
-            spots = end_id - start_id - 1
-            available = len([x for x in xrange(start_id + 1, end_id) if
-                                (current_chr, x) not in black])
-            message = "chr{0} need {1} ids, has {2} spots ({3} available)".\
-                    format(current_chr, needed, spots, available)
-
-            start_gene = gene_name(current_chr, start_id)
-            end_gene = gene_name(current_chr, end_id)
-            message += " between {0} - {1}".format(start_gene, end_gene)
-
-            if available < needed:
-                print >> errorslog, message
-            else:
-                print message
-
-    errorslog.close()
+            r.allocate(info, current_chr, start_id, end_id)
 
 
 def atg_name(name):

@@ -32,14 +32,14 @@ class Stride (object):
 
         0 10
        0 5 10
-      0 3 6 10
+      0 3 7 10
      0 2 5 8 10
 
     We have main parameters, # we need, # available go through all possible
     numbers excluding everything in black.
     """
     def __init__(self, needed, available):
-        configurations = ("0", "05", "036", "0258")
+        configurations = ("0", "05", "037", "0258")
         nneeded = len(needed)
         self.conf = None
         self.available = None
@@ -65,7 +65,7 @@ class NameRegister (object):
     def get_gaps(self, filename):
         self.gapfile = filename
 
-    def allocate(self, info, chr, start_id, end_id):
+    def allocate(self, info, chr, start_id, end_id, id_table):
 
         start_bp = info[0].start
         end_bp = info[-1].end
@@ -84,9 +84,7 @@ class NameRegister (object):
 
         start_gene = gene_name(current_chr, start_id)
         end_gene = gene_name(current_chr, end_id)
-        message += " between {0} - {1}".format(start_gene, end_gene)
-
-        print message
+        message += " between {0} - {1}\n".format(start_gene, end_gene)
 
         assert end_bp > start_bp
 
@@ -105,22 +103,42 @@ class NameRegister (object):
 
         lines = sorted(info + gapsexpanded, key=lambda x: x.start)
 
-        message = "between bp: {0} - {1}, there are {2} gaps (total {3} ids)".\
+        message += "between bp: {0} - {1}, there are {2} gaps (total {3} ids)".\
                 format(start_bp, end_bp, ngaps, len(lines))
 
         needed = lines
         stride = Stride(needed, available)
         conf = stride.conf
         message += " stride: {0}".format(conf)
-        print message
+        print >> sys.stderr, message
 
-        if conf is None:
-            return
+        nneeded = len(needed)
+        if conf is None: # prefix rule - prepend version number for spills
+            magic = 400000  # version 4
+            step = 10  # stride for the prefixed ids
+            rank = start_id + magic
+            available = []
+            while len(available) != nneeded:
+                rank += step
+                if (current_chr, rank) in self.black:  # avoid blacklisted ids
+                    continue
+                available.append(rank)
+
+        else: # follow the best stride
+            available = stride.available
+            if start_id == 0:  # follow right flank at start of chr
+                available = available[- nneeded:]
+            else:  # follow left flank otherwise
+                available = available[:nneeded]
 
         # Finally assign the ids
-        for b, name in zip(needed, stride.available):
-            print "\t".join((str(b), gene_name(current_chr, name)))
-        print
+        assert len(needed) == len(available)
+        for b, rank in zip(needed, available):
+            name = gene_name(current_chr, rank)
+            print >> sys.stderr, "\t".join((str(b), name))
+            id_table[b.accn] = name
+            self.black.add((current_chr, rank))
+        print >> sys.stderr
 
 
 def main():
@@ -158,6 +176,9 @@ def instantiate(args):
     # Run through the bed, identify stretch of NEW ids to instantiate,
     # identify the flanking FRAMEs, interpolate!
     bed = Bed(taggedbed)
+    outputbed = taggedbed.rsplit(".", 1)[0] + ".new.bed"
+    fw = open(outputbed, "w")
+
     tagkey = lambda x: x.rsplit("|", 1)[-1]
     for chr, sbed in bed.sub_beds():
         if "chr" not in chr:
@@ -183,6 +204,7 @@ def instantiate(args):
                 start, end = atg_name(start)[-1], atg_name(end)[-1]
                 blocks.append((tag, [start, end]))
 
+        id_table = {}  # old to new name conversion
         for i, (tag, info) in enumerate(blocks):
             if tag != NEW:
                 continue
@@ -191,7 +213,24 @@ def instantiate(args):
             end_id = start_id + 10000 if i == len(blocks) -1 \
                         else blocks[i + 1][1][0]
 
-            r.allocate(info, chr, start_id, end_id)
+            r.allocate(info, chr, start_id, end_id, id_table)
+
+        # Output new names
+        for i, s in enumerate(sbed):
+            nametag = s.extra[2]
+            name, tag = nametag.split("|")
+
+            if tag == NEW:
+                assert name == '.'
+                name = id_table[s.accn]
+            elif tag == OVERLAP:
+                if name in id_table:
+                    name = id_table[name]
+
+            s.extra[2] = "|".join((name, tag))
+            print >> fw, s
+
+    fw.close()
 
 
 def atg_name(name):

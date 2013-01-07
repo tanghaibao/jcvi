@@ -18,7 +18,7 @@ from jcvi.formats.bed import Bed, BedLine
 from jcvi.formats.gff import GffLine, Gff
 from jcvi.formats.base import SetFile
 from jcvi.utils.cbook import number
-from jcvi.apps.base import ActionDispatcher, debug, need_update
+from jcvi.apps.base import ActionDispatcher, debug, need_update, popen
 debug()
 
 
@@ -26,34 +26,101 @@ FRAME, RETAIN, OVERLAP, NEW = "FRAME", "RETAIN", "OVERLAP", "NEW"
 PRIORITY = (FRAME, RETAIN, OVERLAP, NEW)
 
 
+class Stride (object):
+    """
+    Allows four basic strides:
+
+        0 10
+       0 5 10
+      0 3 6 10
+     0 2 5 8 10
+
+    We have main parameters, # we need, # available go through all possible
+    numbers excluding everything in black.
+    """
+    def __init__(self, needed, available):
+        configurations = ("0", "05", "036", "0258")
+        nneeded = len(needed)
+        self.conf = None
+        self.available = None
+        for c in configurations:
+            a = [x for x in available if str(x)[-1] in c]
+            if len(a) >= nneeded:
+                self.conf = c
+                self.available = a
+                break
+
+
 class NameRegister (object):
 
-    def __init__(self, filename=None):
+    def __init__(self):
         self.black = set()
-        if filename:
-            black = SetFile(filename)
-            black = set(atg_name(x) for x in black)
-            self.black.update(black)
+        self.gaps = []
 
-    def allocate(self, info, current_chr, start_id, end_id):
+    def get_blacklist(self, filename):
+        black = SetFile(filename)
+        black = set(atg_name(x) for x in black)
+        self.black.update(black)
 
-        needed = len(info)
+    def get_gaps(self, filename):
+        self.gapfile = filename
+
+    def allocate(self, info, chr, start_id, end_id):
+
+        start_bp = info[0].start
+        end_bp = info[-1].end
+
+        current_chr = number(chr)
+        needed = info
         assert end_id > start_id, \
             "end ({0}) > start ({1})".format(end_id, start_id)
 
         spots = end_id - start_id - 1
-        available = len([x for x in xrange(start_id + 1, end_id) if
-                            (current_chr, x) not in self.black])
+        available = [x for x in xrange(start_id + 1, end_id) if
+                            (current_chr, x) not in self.black]
+
         message = "chr{0} need {1} ids, has {2} spots ({3} available)".\
-                format(current_chr, needed, spots, available)
+                format(current_chr, len(needed), spots, len(available))
 
         start_gene = gene_name(current_chr, start_id)
         end_gene = gene_name(current_chr, end_id)
         message += " between {0} - {1}".format(start_gene, end_gene)
 
-        if available < needed:
-            message = "***" + message
         print message
+
+        assert end_bp > start_bp
+
+        b = "\t".join(str(x) for x in (chr, start_bp - 1, end_bp))
+        cmd = "echo '{0}' |".format(b)
+        cmd += " intersectBed -a {0} -b stdin".format(self.gapfile)
+        gaps = list(BedLine(x) for x in popen(cmd, debug=False))
+        ngaps = len(gaps)
+
+        gapsexpanded = []
+        GeneDensity = 10000.  # assume 10Kb per gene
+        for gap in gaps:
+            gap_bp = int(gap.score)
+            gap_ids = int(round(gap_bp / GeneDensity))
+            gapsexpanded += [gap] * gap_ids
+
+        lines = sorted(info + gapsexpanded, key=lambda x: x.start)
+
+        message = "between bp: {0} - {1}, there are {2} gaps (total {3} ids)".\
+                format(start_bp, end_bp, ngaps, len(lines))
+
+        needed = lines
+        stride = Stride(needed, available)
+        conf = stride.conf
+        message += " stride: {0}".format(conf)
+        print message
+
+        if conf is None:
+            return
+
+        # Finally assign the ids
+        for b, name in zip(needed, stride.available):
+            print "\t".join((str(b), gene_name(current_chr, name)))
+        print
 
 
 def main():
@@ -73,18 +140,20 @@ def main():
 
 def instantiate(args):
     """
-    %prog instantiate tagged.bed blacklist.ids
+    %prog instantiate tagged.bed blacklist.ids big_gaps.bed
 
     instantiate NEW genes tagged by renumber.
     """
     p = OptionParser(instantiate.__doc__)
     opts, args = p.parse_args(args)
 
-    if len(args) != 2:
+    if len(args) != 3:
         sys.exit(not p.print_help())
 
-    taggedbed, blacklist = args
-    r = NameRegister(filename=blacklist)
+    taggedbed, blacklist, gapsbed = args
+    r = NameRegister()
+    r.get_blacklist(blacklist)
+    r.get_gaps(gapsbed)
 
     # Run through the bed, identify stretch of NEW ids to instantiate,
     # identify the flanking FRAMEs, interpolate!
@@ -94,7 +163,7 @@ def instantiate(args):
         if "chr" not in chr:
             continue
 
-        current_chr = number(chr)
+        sbed = list(sbed)
 
         ranks = []
         for i, s in enumerate(sbed):
@@ -108,7 +177,7 @@ def instantiate(args):
         for tag, names in groupby(ranks, key=lambda x: tagkey(x[-1])):
             names = list(names)
             if tag == NEW:
-                blocks.append((tag, [x[0] for x in names]))
+                blocks.append((tag, [sbed[x[0]] for x in names]))
             else:
                 start, end = names[0][-1], names[-1][-1]
                 start, end = atg_name(start)[-1], atg_name(end)[-1]
@@ -122,7 +191,7 @@ def instantiate(args):
             end_id = start_id + 10000 if i == len(blocks) -1 \
                         else blocks[i + 1][1][0]
 
-            r.allocate(info, current_chr, start_id, end_id)
+            r.allocate(info, chr, start_id, end_id)
 
 
 def atg_name(name):

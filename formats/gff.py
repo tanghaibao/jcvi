@@ -890,7 +890,7 @@ def merge(args):
         fp = open(gffile)
         for row in fp:
             row = row.rstrip()
-            if row[0] == '#':
+            if not row or row[0] == '#':
                 if row == FastaTag:
                     break
                 if row in deflines:

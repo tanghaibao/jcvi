@@ -185,6 +185,9 @@ def plot(args):
     i = 0
     for b in beds:
         accn = b.extra[2]
+        if "te" in accn:
+            continue
+
         accn, tag = accn.split("|")
         if tag == "OVERLAP":
             continue
@@ -212,9 +215,9 @@ def plot(args):
 
     title = "Assignment of Medtr identifiers"
     if opts.ymax:
-        subtitle = "{0}, first {1} genes + TEs".format(chr, ngenes)
+        subtitle = "{0}, first {1} genes".format(chr, ngenes)
     else:
-        subtitle = "{0}, {1} genes + TEs ({2} new)".format(chr, ngenes, len(new))
+        subtitle = "{0}, {1} genes ({2} new)".format(chr, ngenes, len(new))
 
     chr_map = ChromosomeMap(fig, root, xstart, xend, ystart, yend, pad, 0,
                         ymax, 5, title, subtitle)
@@ -225,6 +228,15 @@ def plot(args):
     ax.plot(x, y, "b,")
     x, y = zip(*old)
     ax.plot(x, y, "r,")
+
+    # Legends
+    ymid = (ystart + yend) / 2
+    y = ymid + pad
+    root.plot([.2], [y], "r.", lw=2)
+    root.text(.2 + pad, y, "Existing Medtr ids", va="center", size=10)
+    y = ymid - pad
+    root.plot([.2], [y], "b.", lw=2)
+    root.text(.2 + pad, y, "Newly instantiated ids", va="center", size=10)
 
     ax.set_xlim(0, ngenes)
     ax.set_ylim(0, ymax)

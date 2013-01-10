@@ -115,8 +115,11 @@ class NameRegister (object):
         nneeded = len(needed)
         if conf is None: # prefix rule - prepend version number for spills
             magic = 400000  # version 4
+            firstdigit = 100000
             step = 10  # stride for the prefixed ids
             rank = start_id + magic
+            if rank > magic + firstdigit:
+                rank -= firstdigit
             available = []
             while len(available) != nneeded:
                 rank += step
@@ -148,12 +151,91 @@ def main():
         # Medicago gene renumbering
         ('renumber', 'renumber genes for annotation updates'),
         ('instantiate', 'instantiate NEW genes tagged by renumber'),
+        ('plot', 'plot gene identifiers along certain chromosome'),
         # External gene prediction programs
         ('augustus', 'convert augustus output into gff3'),
         ('tRNAscan', 'convert tRNAscan-SE output into gff3'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def plot(args):
+    """
+    %prog plot tagged.new.bed chr1
+
+    Plot gene identifiers along a particular chromosome, often to illustrate the
+    gene id assignment procedure.
+    """
+    from jcvi.graphics.base import plt, set_image_options, savefig
+    from jcvi.graphics.chromosome import ChromosomeMap
+
+    p = OptionParser(plot.__doc__)
+    p.add_option("--firstn", type="int", help="Only plot the first N genes")
+    p.add_option("--ymax", type="int", help="Y-axis max value")
+    opts, args, iopts = set_image_options(p, args, figsize="6x4")
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    taggedbed, chr = args
+    bed = Bed(taggedbed)
+    beds = list(bed.sub_bed(chr))
+    old, new = [], []
+    i = 0
+    for b in beds:
+        accn = b.extra[2]
+        accn, tag = accn.split("|")
+        if tag == "OVERLAP":
+            continue
+
+        c, r = atg_name(accn)
+        if tag == "NEW":
+            new.append((i, r))
+        else:
+            old.append((i, r))
+        i += 1
+
+    ngenes = i
+    assert ngenes == len(new) + len(old)
+
+    logging.debug("Imported {0} ranks on {1}.".format(ngenes, chr))
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes([0, 0, 1, 1])
+
+    xstart, xend = .2, .8
+    ystart, yend = .2, .8
+    pad = .02
+
+    ngenes = opts.firstn or ngenes
+    ymax = opts.ymax or 500000
+
+    title = "Assignment of Medtr identifiers"
+    if opts.ymax:
+        subtitle = "{0}, first {1} genes + TEs".format(chr, ngenes)
+    else:
+        subtitle = "{0}, {1} genes + TEs ({2} new)".format(chr, ngenes, len(new))
+
+    chr_map = ChromosomeMap(fig, root, xstart, xend, ystart, yend, pad, 0,
+                        ymax, 5, title, subtitle)
+
+    ax = chr_map.axes
+
+    x, y = zip(*new)
+    ax.plot(x, y, "b,")
+    x, y = zip(*old)
+    ax.plot(x, y, "r,")
+
+    ax.set_xlim(0, ngenes)
+    ax.set_ylim(0, ymax)
+    ax.set_axis_off()
+
+    root.set_xlim(0, 1)
+    root.set_ylim(0, 1)
+    root.set_axis_off()
+
+    image_name = chr + ".identifiers." + iopts.format
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
 def instantiate(args):

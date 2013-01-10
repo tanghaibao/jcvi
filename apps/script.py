@@ -67,7 +67,7 @@ import logging
 
 from optparse import OptionParser
 
-from jcvi.graphics.base import plt, _, set_image_options, savefig
+from jcvi.graphics.base import plt, set_image_options, savefig
 from jcvi.apps.base import debug
 debug()
 

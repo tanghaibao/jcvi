@@ -50,7 +50,7 @@ def napusretention(args):
     """
     from jcvi.algorithms.matrix import moving_sum
     from jcvi.formats.bed import Bed
-    from jcvi.graphics.chromosome import HorizontalChromosome
+    from jcvi.graphics.chromosome import ChromosomeMap
 
     p = OptionParser(napusretention.__doc__)
     opts, args, iopts = set_image_options(p, args, figsize="6x4")
@@ -93,29 +93,16 @@ def napusretention(args):
     xstart, xend = .2, .8
     ystart, yend = .2, .8
     pad = .02
-    width, height = xend - xstart, yend - ystart
 
-    y = ystart - pad
     chrlen = max(x.end for x in scaffolds)
     ratio = (xend - xstart) / chrlen
     patchstart = [(xstart + x.start * ratio) for x in scaffolds]
-    hc = HorizontalChromosome(root, xstart, xend, y, patch=patchstart, height=.03)
 
-    # Gauge
-    lsg = "lightslategrey"
-    root.plot([xstart - pad, xstart - pad], [ystart, ystart + height],
-                lw=2, color=lsg)
-    root.plot([xend + pad, xend + pad], [ystart, ystart + height],
-                lw=2, color=lsg)
-    root.text((xstart + xend) / 2, ystart + height + 2 * pad,
-                "Homolog retention in {0}-gene windows".format(window),
-                ha="center", va="center", color=lsg)
-    root.text(xstart - 2 * pad, ystart, "0", ha="right", va="center", size=10)
-    root.text(xstart - 2 * pad, ystart + height / 2, "50", ha="right", va="center", size=10)
-    root.text(xstart - 2 * pad, ystart + height, "100", ha="right", va="center", size=10)
+    title = "Homolog retention in {0}-gene windows".format(window)
+    subtitle = "{0}, {1} scaffolds, {2} genes".format(chr, len(scaffolds), ngenes)
 
-    txt = "{0}, {1} scaffolds, {2} genes".format(chr, len(scaffolds), ngenes)
-    root.text((xstart + xend) / 2, y - .05, txt, ha="center", va="center", color=lsg)
+    chr_map = ChromosomeMap(fig, root, xstart, xend, ystart, yend, pad, 0, 100, 2,
+                    title, subtitle, patchstart=patchstart)
 
     # Legends
     y = ystart + pad * 4
@@ -125,7 +112,7 @@ def napusretention(args):
     root.plot([.3, .33], [y, y], "g-", lw=2)
     root.text(.33 + pad, y, "Homeolog", va="center")
 
-    ax = fig.add_axes([xstart, ystart, width, height])
+    ax = chr_map.axes
     starts = [x.start for x in genes][halfw : -halfw]
 
     ax.plot(starts, ortholist, "r-")

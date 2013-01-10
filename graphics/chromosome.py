@@ -98,6 +98,7 @@ class HorizontalChromosome (object):
 
 
 class ChromosomeWithCentromere (object):
+
     def __init__(self, ax, x, y1, y2, y3, width=.015, fc="k", fill=False, zorder=2):
         """
         Chromosome with centromeres at y2 position
@@ -117,6 +118,41 @@ class ChromosomeWithCentromere (object):
         ax.add_patch(Polygon(pts, fc=fc, fill=fill, zorder=zorder))
         ax.add_patch(CirclePolygon((x, y2), radius=r * .5,
             fc="k", ec="k", zorder=zorder))
+
+
+class ChromosomeMap (object):
+    """
+    Line plots along the chromosome.
+    """
+    def __init__(self, fig, root, xstart, xend, ystart, yend, pad, ymin, ymax, bins,
+                    title, subtitle, patchstart=None):
+
+        width, height = xend - xstart, yend - ystart
+
+        y = ystart - pad
+        hc = HorizontalChromosome(root, xstart, xend, y, patch=patchstart, height=.03)
+
+        # Gauge
+        lsg = "lightslategrey"
+        root.plot([xstart - pad, xstart - pad], [ystart, ystart + height],
+                    lw=2, color=lsg)
+        root.plot([xend + pad, xend + pad], [ystart, ystart + height],
+                    lw=2, color=lsg)
+        root.text((xstart + xend) / 2, ystart + height + 2 * pad, title,
+                    ha="center", va="center", color=lsg)
+
+        iv = (ymax - ymin) / bins
+        iv_height = height / bins
+        val = ymin
+        yy = ystart
+        while val <= ymax:
+            root.text(xstart - 2 * pad, yy, str(val), ha="right", va="center", size=10)
+            val += iv
+            yy += iv_height
+
+        root.text((xstart + xend) / 2, y - .05, subtitle, ha="center", va="center", color=lsg)
+
+        self.axes = fig.add_axes([xstart, ystart, width, height])
 
 
 def main():

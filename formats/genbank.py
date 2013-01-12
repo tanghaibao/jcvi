@@ -13,13 +13,132 @@ import logging
 
 from optparse import OptionParser
 from glob import glob
+from collections import defaultdict
 
 from Bio import SeqIO
+from Bio.Seq import Seq
 from Bio.SeqFeature import SeqFeature
 
-from jcvi.formats.base import must_open, FileShredder
-from jcvi.apps.base import ActionDispatcher, sh, mkdir
+from jcvi.utils.orderedcollections import DefaultOrderedDict
+from jcvi.formats.base import must_open, FileShredder, BaseFile
+from jcvi.formats.gff import GffLine
+from jcvi.apps.base import ActionDispatcher, sh, mkdir, debug
 from jcvi.apps.entrez import fetch
+debug()
+
+
+MT = "mol_type"
+LT = "locus_tag"
+
+
+class MultiGenBank (BaseFile):
+    """
+    Wrapper for parsing concatenated GenBank records.
+    """
+    def __init__(self, filename, source="JCVI"):
+        super(MultiGenBank, self).__init__(filename)
+        assert op.exists(filename)
+
+        pf = filename.rsplit(".", 1)[0]
+        fastafile, gfffile = pf + ".fasta", pf + ".gff"
+        fasta_fw = must_open(fastafile, "w")
+        gff_fw = must_open(gfffile, "w")
+
+        self.source = source
+        self.counter = defaultdict(int)
+
+        nrecs, nfeats = 0, 0
+        for rec in SeqIO.parse(filename, "gb"):
+            seqid = rec.name
+            rec.id = seqid
+            SeqIO.write([rec], fasta_fw, "fasta")
+            rf = rec.features
+            for f in rf:
+                type = f.type
+                fsf = f.sub_features
+                if type == "gene":
+                    continue
+
+                if type == "CDS":
+                    f.type = "mRNA"
+
+                self.print_gffline(gff_fw, f, seqid)
+                nfeats += 1
+
+                if type == "CDS" and not fsf:
+                    f.type = "CDS"
+                    fsf = [f]
+
+                for sf in fsf:
+                    self.print_gffline(gff_fw, sf, seqid, parent=f)
+                    nfeats += 1
+
+            nrecs += 1
+
+        logging.debug("A total of {0} records written to `{1}`.".\
+                        format(nrecs, fastafile))
+        fasta_fw.close()
+
+        logging.debug("A total of {0} features written to `{1}`.".\
+                        format(nfeats, gfffile))
+        gff_fw.close()
+
+    def print_gffline(self, fw, f, seqid, parent=None):
+
+        score = phase = "."
+        type = f.type
+        if type == "source":
+            type = "contig"
+
+        attr = "ID=tmp"
+        source = self.source
+
+        start, end = f.location.start + 1, f.location.end
+        strand = '-' if f.strand < 0 else '+'
+        g = "\t".join(str(x) for x in \
+            (seqid, source, type, start, end, score, strand, phase, attr))
+        g = GffLine(g)
+
+        qual = f.qualifiers
+        id = "tmp"
+        if MT in qual:
+            id = seqid
+        elif LT in qual:
+            id, = qual[LT]
+        else:
+            qual[LT] = [self.current_id]
+            id, = qual[LT]
+
+        id = id.split()[0]
+
+        if parent:
+            id, = parent.qualifiers[LT]
+            id = id.split()[0]
+
+        if type == 'CDS':
+            parent_id = id
+            self.counter[id] += 1
+            suffix = ".cds.{0}".format(self.counter[id])
+            id = parent_id + suffix
+            g.attributes["Parent"] = [parent_id]
+
+        assert id != "tmp", f
+        g.attributes["ID"] = [id]
+
+        if type == "mRNA":
+            g.attributes["Name"] = g.attributes["ID"]
+            if "product" in qual:
+                note, = qual["product"]
+                g.attributes["Note"] = [note]
+
+            if "pseudo" in qual:
+                note = "Pseudogene"
+                g.attributes["Note"] = [note]
+
+        g.update_attributes()
+        print >> fw, g
+
+        self.current_id = id
 
 
 class GenBank(dict):
@@ -127,20 +246,21 @@ class GenBank(dict):
 
                 if len(feature.sub_features) == 0:
                     seq = feature.extract(gbrec.seq)
-                    fwcds.write(">{0}\n{1}\n".format(accn, seq))
-                    fwpep.write(">{0}\n{1}\n".format(accn, seq.translate()))
                 else:
                     seq = []
                     for subf in sorted(feature.sub_features, \
                         key=lambda x: x.location.start.position*x.strand):
-                        seq.append(subf.extract(gbrec.seq))
-                    if seq.translate().count("*")>1:
+                        seq.append(str(subf.extract(gbrec.seq)))
+                    seq = "".join(seq)
+                    if Seq(seq).translate().count("*")>1:
                         seq = []
                         for subf in feature.sub_features:
-                            seq.append(subf.extract(gbrec.seq))
-                    seq = "".join(seq)
-                    fwcds.write(">{0}\n{1}\n".format(accn, seq))
-                    fwpep.write(">{0}\n{1}\n".format(accn, seq.translate()))
+                            seq.append(str(subf.extract(gbrec.seq)))
+                        seq = "".join(seq)
+                    seq = Seq(seq)
+
+                fwcds.write(">{0}\n{1}\n".format(accn, seq))
+                fwpep.write(">{0}\n{1}\n".format(accn, seq.translate()))
 
     def write_genes(self, output="gbout", individual=False, pep=True):
         if not individual:
@@ -182,10 +302,28 @@ def main():
     actions = (
         ('tofasta', 'generate fasta file for multiple gb records'),
         ('getgenes', 'extract protein coding genes from Genbank file'),
+        ('gff', 'convert Genbank file to GFF file'),
               )
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def gff(args):
+    """
+    %prog gff seq.gbk
+
+    Convert Genbank file to GFF and FASTA file.
+    The Genbank file can contain multiple records.
+    """
+    p = OptionParser(gff.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    gbkfile, = args
+    g = MultiGenBank(gbkfile)
 
 
 def preparegb(p, args):

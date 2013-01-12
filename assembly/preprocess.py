@@ -8,11 +8,13 @@ Wrapper to trim and correct sequence data.
 import os
 import os.path as op
 import sys
+import logging
 
 from optparse import OptionParser
 
+from jcvi.formats.base import BaseFile
 from jcvi.formats.fastq import guessoffset
-from jcvi.utils.cbook import depends
+from jcvi.utils.cbook import depends, human_size
 from jcvi.apps.command import JAVAPATH
 from jcvi.apps.base import ActionDispatcher, debug, set_grid, download, \
         sh, mkdir, write_file, need_update
@@ -29,15 +31,77 @@ GATCGGAAGAGCACACGTCTGAACTCCAGTCACATCACGATCTCGTATGCCGTCTTCTGCTTG
 """
 
 
+class FastQCdata (BaseFile, dict):
+
+    def __init__(self, filename):
+        super(FastQCdata, self).__init__(filename)
+        fp = open(filename)
+        for row in fp:
+            atoms = row.rstrip().split("\t")
+            if atoms[0] in ("#", ">"):
+                continue
+            if len(atoms) != 2:
+                continue
+
+            a, b = atoms
+            self[a] = b
+
+        ts = self["Total Sequences"]
+        sl = self["Sequence length"]
+        if "-" in sl:
+            a, b = sl.split("-")
+            sl = (int(a) + int(b)) / 2
+            if a == "30":
+                sl = int(b)
+
+        ts, sl = int(ts), int(sl)
+
+        self["Total Sequences"] = human_size(ts).rstrip("b")
+        self["Total Bases"] = human_size(ts * sl).rstrip("b")
+
+
 def main():
 
     actions = (
+        ('count', 'count reads based on FASTQC results'),
         ('trim', 'trim reads using TRIMMOMATIC'),
         ('correct', 'correct reads using ALLPATHS-LG'),
         ('hetsmooth', 'reduce K-mer diversity using het-smooth')
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def count(args):
+    """
+    %prog count *.gz
+
+    Count reads based on FASTQC results. FASTQC needs to be run on all the input
+    data given before running this command.
+    """
+    from jcvi.utils.table import loadtable
+
+    p = OptionParser(count.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) < 1:
+        sys.exit(not p.print_help())
+
+    filenames = args
+    header = "Filename|Total Sequences|Sequence length|Total Bases".split("|")
+    rows = []
+    for f in filenames:
+        folder = f.replace(".gz", "").rsplit(".", 1)[0] + "_fastqc"
+        summaryfile = op.join(folder, "fastqc_data.txt")
+        if not op.exists(summaryfile):
+            logging.debug("File `{0}` not found.".format(summaryfile))
+            continue
+
+        fqcdata = FastQCdata(summaryfile)
+        row = [fqcdata[x] for x in header]
+        rows.append(row)
+
+    print loadtable(header, rows)
 
 
 def hetsmooth(args):

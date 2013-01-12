@@ -23,7 +23,7 @@ debug()
 blastplus_template = "{0} -query {1} -db {2} -out {3} -outfmt {4} "
 
 # recommanded params for comparing annotations of two genomes, or a self-blast
-recommendOptions = " -evalue 1e-5 -num_descriptions 20 -num_alignments 20 "
+recommendOptions = " -evalue 1e-5 -max_target_seqs 20 "
 
 
 def blastplus(k, n, bfasta_fn, afasta_fn, out_fh, lock, blast_bin, extra, \

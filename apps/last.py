@@ -105,7 +105,8 @@ def main(args):
         sh(cmd, outfile=opts.outfile)
         oappend = True
 
-    cmd = "{0} -u 0".format(lastal_bin)
+    u = 2 if opts.mask else 0
+    cmd = "{0} -u {1}".format(lastal_bin, u)
     f = supported_formats.index(opts.format)
     cmd += " -f {0}".format(f)
     cmd += " {0} -".format(subjectdb)

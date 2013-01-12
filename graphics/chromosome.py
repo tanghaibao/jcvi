@@ -60,19 +60,30 @@ class Chromosome (object):
 
 
 class HorizontalChromosome (object):
-    def __init__(self, ax, x1, x2, y, height=.015, ec="k", fc=None,
-                       fill=False, zorder=2):
+    def __init__(self, ax, x1, x2, y, height=.015, ec="k", patch=None,
+                    fc=None, fill=False, zorder=2):
         """
         Chromosome with positions given in (x1, y) => (x2, y)
+
+        The chromosome can also be patched, e.g. to show scaffold composition in
+        alternating shades. Use a list of starting locations to segment.
         """
         pts = self.get_pts(x1, x2, y, height)
+        r = self.r
         ax.add_patch(Polygon(pts, fill=False, ec=ec, zorder=zorder))
         if fc:
             pts = self.get_pts(x1, x2, y, height * .5)
             ax.add_patch(Polygon(pts, fc=fc, lw=0, zorder=zorder))
+        if patch:
+            for i in xrange(0, len(patch), 2):
+                if i + 1 > len(patch) - 1:
+                    continue
+                p1, p2 = patch[i], patch[i + 1]
+                ax.add_patch(Rectangle((p1, y - r), p2 - p1, 2 * r, lw=0,
+                             fc="lightgrey"))
 
     def get_pts(self, x1, x2, y, height):
-        r = height / (3 ** .5)
+        self.r = r = height / (3 ** .5)
 
         if x2 - x1 < 2 * height:  # rectangle for small chromosomes
             return [[x1, y + r], [x1, y - r], [x2, y - r], [x2, y + r]]
@@ -87,6 +98,7 @@ class HorizontalChromosome (object):
 
 
 class ChromosomeWithCentromere (object):
+
     def __init__(self, ax, x, y1, y2, y3, width=.015, fc="k", fill=False, zorder=2):
         """
         Chromosome with centromeres at y2 position
@@ -106,6 +118,41 @@ class ChromosomeWithCentromere (object):
         ax.add_patch(Polygon(pts, fc=fc, fill=fill, zorder=zorder))
         ax.add_patch(CirclePolygon((x, y2), radius=r * .5,
             fc="k", ec="k", zorder=zorder))
+
+
+class ChromosomeMap (object):
+    """
+    Line plots along the chromosome.
+    """
+    def __init__(self, fig, root, xstart, xend, ystart, yend, pad, ymin, ymax, bins,
+                    title, subtitle, patchstart=None):
+
+        width, height = xend - xstart, yend - ystart
+
+        y = ystart - pad
+        hc = HorizontalChromosome(root, xstart, xend, y, patch=patchstart, height=.03)
+
+        # Gauge
+        lsg = "lightslategrey"
+        root.plot([xstart - pad, xstart - pad], [ystart, ystart + height],
+                    lw=2, color=lsg)
+        root.plot([xend + pad, xend + pad], [ystart, ystart + height],
+                    lw=2, color=lsg)
+        root.text((xstart + xend) / 2, ystart + height + 2 * pad, title,
+                    ha="center", va="center", color=lsg)
+
+        iv = (ymax - ymin) / bins
+        iv_height = height / bins
+        val = ymin
+        yy = ystart
+        while val <= ymax:
+            root.text(xstart - 2 * pad, yy, str(val), ha="right", va="center", size=10)
+            val += iv
+            yy += iv_height
+
+        root.text((xstart + xend) / 2, y - .05, subtitle, ha="center", va="center", color=lsg)
+
+        self.axes = fig.add_axes([xstart, ystart, width, height])
 
 
 def main():

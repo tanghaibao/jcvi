@@ -12,7 +12,7 @@ from collections import defaultdict
 from urlparse import unquote
 from optparse import OptionParser
 
-from jcvi.formats.base import LineFile, must_open
+from jcvi.formats.base import LineFile, must_open, is_number
 from jcvi.formats.fasta import Fasta, SeqIO
 from jcvi.formats.bed import Bed, BedLine
 from jcvi.utils.iter import flatten
@@ -36,7 +36,7 @@ class GffLine (object):
     """
     Specification here (http://www.sequenceontology.org/gff3.shtml)
     """
-    def __init__(self, sline, key="ID"):
+    def __init__(self, sline, key="ID", append_source=False):
         args = sline.strip().split("\t")
         self.seqid = args[0]
         self.source = args[1]
@@ -55,6 +55,13 @@ class GffLine (object):
         self.attributes = make_attributes(self.attributes_text, gff3=gff3)
         # key is not in the gff3 field, this indicates the conversion to accn
         self.key = key  # usually it's `ID=xxxxx;`
+
+        if append_source and self.key in self.attributes:
+            # if append_source is True, append the gff `self.source`
+            # to `self.key`. use this option to enhance the `self.accn`
+            # column in bed file
+            self.attributes[self.key][0] = ":".join((self.source, \
+                    self.attributes[self.key][0]))
 
     def __getitem__(self, key):
         return getattr(self, key)
@@ -105,9 +112,10 @@ class GffLine (object):
 
 class Gff (LineFile):
 
-    def __init__(self, filename, key="ID"):
+    def __init__(self, filename, key="ID", append_source=False):
         super(Gff, self).__init__(filename)
         self.key = key
+        self.append_source = append_source
 
     def __iter__(self):
         fp = must_open(self.filename)
@@ -119,7 +127,7 @@ class Gff (LineFile):
                 if row == FastaTag:
                     break
                 continue
-            yield GffLine(row, key=self.key)
+            yield GffLine(row, key=self.key, append_source=self.append_source)
 
     @property
     def seqids(self):
@@ -1060,6 +1068,8 @@ def bed(args):
             help="Feature type to extract, use comma for multiple [default: %default]")
     p.add_option("--key", dest="key", default="ID",
             help="Key in the attributes to extract [default: %default]")
+    p.add_option("--append_source", default=False, action="store_true",
+            help="Append GFF source name to extracted key value")
     set_outfile(p)
 
     opts, args = p.parse_args(args)
@@ -1073,7 +1083,7 @@ def bed(args):
 
     type = set(x.strip() for x in opts.type.split(","))
 
-    gff = Gff(gffile, key=key)
+    gff = Gff(gffile, key=key, append_source=opts.append_source)
     b = Bed()
 
     for g in gff:
@@ -1263,7 +1273,6 @@ def parse_feature_param(feature):
     If erroneous, returns a flag and error message to be displayed on exit
     """
     import re
-    from jcvi.formats.base import is_number
 
     # can request upstream sequence only from the following valid sites
     valid_upstream_sites = ["TSS", "TrSS"]

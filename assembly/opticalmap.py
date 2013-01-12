@@ -47,7 +47,9 @@ class OpticalMap (object):
             e = MapAlignment(e)
             yield e.reference_map_name, e.aligned_map_name, e
 
-    def write_bed(self, fw=sys.stdout, blockonly=False):
+    def write_bed(self, fw=sys.stdout, blockonly=False, switch=False):
+        # when switching ref_map and aligned_map elements, disable `blockOnly`
+        if switch: blockonly = False
         for a in self.alignments:
             reference_map_name = a.reference_map_name
             aligned_map_name = a.aligned_map_name
@@ -68,26 +70,34 @@ class OpticalMap (object):
                 start = 0 if i == 0 else (aligned_blocks[i - 1] - 1)
                 end = aligned_blocks[i] - 1
                 endpoints.extend([start, end])
-                accn = "{0}:{1}-{2}".format(aligned_map_name,
-                        start, end)
+                if not switch:
+                    accn = "{0}:{1}-{2}".format(aligned_map_name,
+                            start, end)
 
-                start = ref_blocks[l - 1] - 1
-                end = ref_blocks[r] - 1
-                ref_endpoints.extend([start, end])
+                ref_start = ref_blocks[l - 1] - 1
+                ref_end = ref_blocks[r] - 1
+                ref_endpoints.extend([ref_start, ref_end])
+                if switch:
+                    accn = "{0}:{1}-{2}".format(reference_map_name,
+                            ref_start, ref_end)
 
                 if not blockonly:
+                    bed_elems = [reference_map_name, ref_start, ref_end,
+                                accn, score, orientation] if not switch \
+                                else [aligned_map_name, start, end,
+                                accn, score, orientation]
                     print >> fw, "\t".join(str(x) for x in \
-                            (reference_map_name, start, end,
-                             accn, score, orientation))
+                                bed_elems)
 
             if blockonly:
                 start, end = min(endpoints), max(endpoints)
-                accn = "{0}:{1}-{2}".format(aligned_map_name, start, end)
+                accn = "{0}:{1}-{2}".format(aligned_map_name,
+                        start, end)
 
                 start, end = min(ref_endpoints), max(ref_endpoints)
                 print >> fw, "\t".join(str(x) for x in \
-                        (reference_map_name, start, end,
-                         accn, score, orientation))
+                            (reference_map_name, start, end,
+                             accn, score, orientation))
 
 
 class RestrictionMap (object):
@@ -307,6 +317,8 @@ def bed(args):
     p = OptionParser(bed.__doc__)
     p.add_option("--blockonly", default=False, action="store_true",
                  help="Only print out large blocks, not fragments [default: %default]")
+    p.add_option("--switch", default=False, action="store_true",
+                 help="Switch reference and aligned map elements [default: %default]")
     p.add_option("--nosort", default=False, action="store_true",
                  help="Do not sort bed [default: %default]")
     opts, args = p.parse_args(args)
@@ -319,7 +331,7 @@ def bed(args):
     fw = open(bedfile, "w")
 
     om = OpticalMap(xmlfile)
-    om.write_bed(fw, blockonly=opts.blockonly)
+    om.write_bed(fw, blockonly=opts.blockonly, switch=opts.switch)
     fw.close()
 
     if not opts.nosort:

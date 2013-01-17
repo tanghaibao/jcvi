@@ -104,10 +104,22 @@ def bed(args):
 
 
 def alignment_details(a, b):
-    # TODO: not yet implemented
     pctid = 0
     nmismatch = 0
     ngaps = 0
+
+    assert len(a) == len(b)
+    l = len(a)
+
+    ismatch = [1 if a[i] == b[i] else 0 for i in range(l)]
+    nmatch = sum(ismatch)
+    pctid = 100. * sum(ismatch) / l
+
+    isgap = [1 if a[i] == "-" or b[i] == "-" else 0 for i in range(l)]
+    ngaps = sum(isgap)
+
+    nmismatch = l - nmatch - ngaps
+
     return pctid, nmismatch, ngaps
 
 

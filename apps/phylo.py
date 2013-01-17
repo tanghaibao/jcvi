@@ -14,9 +14,11 @@ Options are provided for each step:
 3.  build trees:
     NJ: PHYLIP
     ML: RAxML or PHYML
-4.  reroot tree (optional)
-5.  alternative topology test (SH test)
-    (optional)
+
+Optional steps:
+- reroot tree
+- alternative topology test (SH test)
+- TreeFix
 
 The external software needs be installed first.
 """
@@ -61,6 +63,7 @@ GBLOCKS_BIN = partial(getpath, name="GBLOCKS", warn="warn")
 PHYML_BIN = partial(getpath, name="PHYML", warn="warn")
 RAXML_BIN = partial(getpath, name="RAXML", warn="warn")
 FPHYLIP_BIN = partial(getpath, name="FPHYLIP", warn="warn")
+TREEFIX_BIN = partial(getpath, name="TREEFIX", warn="warn")
 
 
 class GblocksCommandline(AbstractCommandline):
@@ -106,6 +109,51 @@ class FfitchCommandline(AbstractCommandline):
         return self.command + " %s %s %s -outtreefile %s " % \
             (self.datafile, self.intreefile, self.outfile, self.outtreefile) \
             + " ".join(self.parameters)
+
+
+class TreeFixCommandline(AbstractCommandline):
+    """Little commandline for TreeFix
+    (http://compbio.mit.edu/treefix/).
+    """
+    def __init__(self, input, stree_file, smap_file, a_ext, \
+        command=TREEFIX_BIN("treefix"), r=False, **kwargs):
+
+        self.input = input
+        self.s = stree_file
+        self.S = smap_file
+        self.A = a_ext
+        self.command = command
+
+        params = {"V":1, \
+                  "l":input.rsplit(".", 1)[0] + ".treefix.log"}
+        params.update(kwargs)
+        self.parameters = ["-{0} {1}".format(k,v) for k,v in params.items()]
+        if r:
+            self.parameters.append("-r")
+
+    def __str__(self):
+        return self.command + " -s %s -S %s -A %s " % (self.s, self.S, self.A) \
+            + " ".join(self.parameters) + " %s" % self.input
+
+
+def run_treefix(input, stree_file, smap_file, a_ext=".fasta", \
+                o_ext=".dnd", n_ext = ".treefix.dnd", **kwargs):
+    """
+    get the ML tree closest to the species tree
+    """
+    cl = TreeFixCommandline(input=input, \
+            stree_file=stree_file, smap_file=smap_file, a_ext=a_ext, \
+            o=o_ext, n=n_ext, **kwargs)
+    outtreefile = input.rsplit(o_ext, 1)[0] + n_ext
+    print >>sys.stderr, "TreeFix:", cl
+    r, e = cl.run()
+
+    if e:
+        print >>sys.stderr, "***TreeFix could not run"
+        return None
+    else:
+        logging.debug("new tree written to {0}".format(outtreefile))
+        return outtreefile
 
 
 def run_gblocks(align_fasta_file, **kwargs):
@@ -581,6 +629,8 @@ def build(args):
     first moss sequence encountered by the program, unless they are monophylic,
      in which case the root will be their common ancestor.
 
+    --stree and --smap are required if --treefix is set.
+
     Trees can be edited again using an editor such as Dendroscope. This
     is the recommended way to get highly customized trees.
 
@@ -605,6 +655,11 @@ def build(args):
     p.add_option("--SH", help="path to reference Newick tree [default: %default]")
     p.add_option("--shout", default="SH_out.txt", \
                  help="SH output file name [default: %default]")
+    p.add_option("--treefix", action="store_true",
+                 help="use TreeFix to rearrange ML tree [default: %default]")
+    p.add_option("--stree", help="path to species Newick tree [default: %default]")
+    p.add_option("--smap", help="path to smap file: " \
+                    "gene_name_pattern<tab>species_name [default: %default]")
     p.add_option("--outdir", type="string", default=".", \
                  help="path to output dir. New dir is made if not existing [default: %default]")
 
@@ -621,6 +676,12 @@ def build(args):
     else:
         print >>sys.stderr, "Incorrect arguments"
         sys.exit(not p.print_help())
+
+    if opts.treefix:
+        stree = opts.stree
+        smap = opts.smap
+        assert stree and smap, "TreeFix requires stree and smap files."
+        opts.ml = "raxml"
 
     treedir = op.join(outdir, "tree")
     mkdir(treedir)
@@ -702,6 +763,18 @@ def build(args):
             reftree = opts.SH
             querytree = outfile
             SH_raxml(reftree, querytree, phy_file, shout=opts.shout)
+
+        if opts.treefix:
+            treefix_dir = op.join(treedir, "treefix")
+            assert mkdir(treefix_dir, overwrite=True)
+
+            sh("cp {0} {1}/".format(outfile, treefix_dir))
+            input = op.join(treefix_dir, op.basename(outfile))
+            aln_file = input.rsplit(".", 1)[0] + ".fasta"
+            SeqIO.write(alignment, aln_file, "fasta")
+
+            run_treefix(input=input, stree_file=stree, smap_file=smap, \
+                        a_ext=".fasta", o_ext=".dnd", n_ext = ".treefix.dnd")
 
 
 def _draw_trees(trees, nrow=1, ncol=1, rmargin=.3, iopts=None, outdir=".",

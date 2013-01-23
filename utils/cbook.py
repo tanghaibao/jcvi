@@ -256,6 +256,9 @@ def gene_name(st, sep="."):
     mostly it can be done by removing the suffix
     except for papaya (evm...) and maize (somewhat complicated)
     """
+    if st.endswith("mRNA1"):
+        return st
+
     if st.startswith("ev"):
         sep = None
     elif st.startswith("Os"):

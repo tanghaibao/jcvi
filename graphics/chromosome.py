@@ -206,7 +206,7 @@ def main():
         classes = []
         logging.debug("No classes registered (no id_mappings given).")
 
-    mycolors = "wrgbymc"
+    mycolors = "rgbymc"
     class_colors = dict(zip(classes, mycolors))
 
     bed = Bed(bedfile)
@@ -333,7 +333,7 @@ def main():
             continue
         root.add_patch(Rectangle((xstart, yy), xwidth, xwidth, fc=cc, lw=0,
             alpha=alpha))
-        root.text(xstart + xwidth + .01, yy, _(klass), fontsize=9)
+        root.text(xstart + xwidth + .01, yy, klass, fontsize=10)
         xstart += xinterval
 
     root.text(.5, .95, opts.title, fontstyle="italic", ha="center", va="center")

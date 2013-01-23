@@ -37,6 +37,11 @@ class LayoutLine (object):
     def __init__(self, row, delimiter=','):
         args = row.rstrip().split(delimiter)
         args = [x.strip() for x in args]
+
+        self.empty = False
+        if len(args) < 7:
+            self.empty = True
+            return
         self.y = float(args[0])
         self.xstart = float(args[1])
         self.xend = float(args[2])
@@ -92,6 +97,10 @@ class Track (object):
 
     def __init__(self, ax, t, draw=True):
 
+        self.empty = t.empty
+        if t.empty:
+            return
+
         # Copy the data from LayoutLine
         self.y = t.y
         self.sizes = sizes = t.sizes
@@ -127,6 +136,9 @@ class Track (object):
         return self.label
 
     def draw(self):
+        if self.empty:
+            return
+
         y = self.y
         color = self.color
         ax = self.ax
@@ -228,7 +240,6 @@ class PermutationSolver (object):
         allblocks = self.allblocks
         tracks = self.tracks
         opecking = list(pairwise(pecking))
-        #random.shuffle(opecking)
         for i, j in opecking:
             blocks = allblocks[(i, j)]
             # Assume seqids in i already sorted, then sort seqids in j
@@ -298,6 +309,9 @@ class Karyotype (object):
                 continue
             t = layout[i]
             seqids = row.rstrip().split(",")
+            if t.empty:
+                continue
+
             bed = t.bed
             sizes = dict((x, len(list(bed.sub_bed(x)))) for x in seqids)
             t.seqids = seqids

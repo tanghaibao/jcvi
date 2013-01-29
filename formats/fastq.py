@@ -217,13 +217,24 @@ def filter(args):
 BarcodeLine = namedtuple("BarcodeLine", ["id", "seq"])
 
 
+def unpack_ambiguous(s):
+    """
+    List sequences with ambiguous characters in all possibilities.
+    """
+    from itertools import product
+    from Bio.Data.IUPACData import ambiguous_dna_values
+
+    sd = [ambiguous_dna_values[x] for x in s]
+    return ["".join(x) for x in list(product(*sd))]
+
+
 def split_barcode(t):
 
-    barcode, excludebarcode, site, outdir, inputfile = t
+    barcode, excludebarcode, outdir, inputfile = t
     trim = len(barcode.seq)
 
     fp = must_open(inputfile)
-    outfastq = op.join(outdir, barcode.id + ".fastq")
+    outfastq = op.join(outdir, "{0}.{1}.fastq".format(barcode.id, barcode.seq))
     fw = open(outfastq, "w")
     for title, seq, qual in FastqGeneralIterator(fp):
         if seq[:trim] != barcode.seq:
@@ -232,9 +243,6 @@ def split_barcode(t):
         if hasexclude:
             continue
         seq = seq[trim:]
-        hassite = any(seq.startswith(x) for x in site)
-        if not hassite:
-            continue
         print >> fw, "@{0}\n{1}\n+\n{2}".format(title, seq, qual[trim:])
 
     fw.close()
@@ -258,9 +266,8 @@ def deconvolute(args):
                  help="Number of processes to run [default: %default]")
     p.add_option("--outdir", default="deconv",
                  help="Output directory [default: %default]")
-    p.add_option("--checkprefix", default=False, action="store_true",
+    p.add_option("--nocheckprefix", default=False, action="store_true",
                  help="Check shared prefix [default: %default]")
-    p.add_option("--site", help="Keep reads start with RE site [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) < 2:
@@ -268,11 +275,19 @@ def deconvolute(args):
 
     barcodefile = args[0]
     fastqfile = args[1:]
-    fp = open(barcodefile)
-    barcodes = [BarcodeLine._make(x.split()) for x in fp]
-    nbc = len(barcodes)
 
-    if opts.checkprefix:
+    barcodes = []
+    fp = open(barcodefile)
+    for row in fp:
+        id, seq = row.split()
+        for s in unpack_ambiguous(seq):
+            barcodes.append(BarcodeLine._make((id, s)))
+
+    nbc = len(barcodes)
+    logging.debug("Imported {0} barcodes (ambiguous codes expanded).".format(nbc))
+    checkprefix = not opts.nocheckprefix
+
+    if checkprefix:
         # Sanity check of shared prefix
         excludebarcodes = []
         for bc in barcodes:
@@ -290,18 +305,13 @@ def deconvolute(args):
         excludebarcodes = nbc * [[]]
 
     outdir = opts.outdir
-    site = opts.site
-    if site:
-        site = site.split(",")
-        logging.debug("Check against sites {0}".format(site))
-
     mkdir(outdir)
 
     cpus = min(opts.cpus, cpu_count())
     logging.debug("Create a pool of {0} workers.".format(cpus))
     pool = Pool(cpus)
     pool.map(split_barcode, \
-             zip(barcodes, excludebarcodes, nbc * [site],
+             zip(barcodes, excludebarcodes,
              nbc * [outdir], nbc * [fastqfile]))
 
 

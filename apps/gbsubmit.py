@@ -113,6 +113,7 @@ vars = globals()
 def main():
 
     actions = (
+        ('assembly', 'prepare Genbank assembly submission'),
         ('gss', 'prepare package for genbank gss submission'),
         ('htg', 'prepare sqn to update existing genbank htg records'),
         ('htgnew', 'prepare sqn to submit new genbank htg records'),
@@ -121,6 +122,22 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def assembly(args):
+    """
+    %prog assembly fastafile
+
+    Prepare Genbank assembly submission. Fastafile will be broken at gaps >=
+    10bp.
+    """
+    p = OptionParser(assembly.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    fastafile, = args
 
 
 def asn(args):

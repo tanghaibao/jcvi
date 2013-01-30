@@ -142,7 +142,6 @@ def main():
         ('filter', 'filter to get high qv reads'),
         ('trim', 'trim reads using fastx_trimmer'),
         ('some', 'select a subset of fastq reads'),
-        ('deconvolute', 'split fastqfile into subsets'),
         ('guessoffset', 'guess the quality offset of the fastq records'),
         ('format', 'format fastq file, convert header from casava 1.8+ to older format'),
             )
@@ -212,107 +211,6 @@ def filter(args):
         if isHighQv(q1, qvchar, pct=pct) and isHighQv(q2, qvchar, pct=pct):
             fw.writelines(a)
             fw.writelines(b)
-
-
-BarcodeLine = namedtuple("BarcodeLine", ["id", "seq"])
-
-
-def unpack_ambiguous(s):
-    """
-    List sequences with ambiguous characters in all possibilities.
-    """
-    from itertools import product
-    from Bio.Data.IUPACData import ambiguous_dna_values
-
-    sd = [ambiguous_dna_values[x] for x in s]
-    return ["".join(x) for x in list(product(*sd))]
-
-
-def split_barcode(t):
-
-    barcode, excludebarcode, outdir, inputfile = t
-    trim = len(barcode.seq)
-
-    fp = must_open(inputfile)
-    outfastq = op.join(outdir, "{0}.{1}.fastq".format(barcode.id, barcode.seq))
-    fw = open(outfastq, "w")
-    for title, seq, qual in FastqGeneralIterator(fp):
-        if seq[:trim] != barcode.seq:
-            continue
-        hasexclude = any(seq.startswith(x.seq) for x in excludebarcode)
-        if hasexclude:
-            continue
-        seq = seq[trim:]
-        print >> fw, "@{0}\n{1}\n+\n{2}".format(title, seq, qual[trim:])
-
-    fw.close()
-
-
-def deconvolute(args):
-    """
-    %prog deconvolute barcodefile fastqfile1 ..
-
-    Deconvolute fastq files into subsets of fastq reads, based on the barcodes
-    in the barcodefile, which is a two-column file like:
-    ID01	AGTCCAG
-
-    Input fastqfiles can be several files. Output files are ID01.fastq,
-    ID02.fastq, one file per line in barcodefile.
-    """
-    from multiprocessing import Pool, cpu_count
-
-    p = OptionParser(deconvolute.__doc__)
-    p.add_option("--cpus", default=32, type="int",
-                 help="Number of processes to run [default: %default]")
-    p.add_option("--outdir", default="deconv",
-                 help="Output directory [default: %default]")
-    p.add_option("--nocheckprefix", default=False, action="store_true",
-                 help="Check shared prefix [default: %default]")
-    opts, args = p.parse_args(args)
-
-    if len(args) < 2:
-        sys.exit(not p.print_help())
-
-    barcodefile = args[0]
-    fastqfile = args[1:]
-
-    barcodes = []
-    fp = open(barcodefile)
-    for row in fp:
-        id, seq = row.split()
-        for s in unpack_ambiguous(seq):
-            barcodes.append(BarcodeLine._make((id, s)))
-
-    nbc = len(barcodes)
-    logging.debug("Imported {0} barcodes (ambiguous codes expanded).".format(nbc))
-    checkprefix = not opts.nocheckprefix
-
-    if checkprefix:
-        # Sanity check of shared prefix
-        excludebarcodes = []
-        for bc in barcodes:
-            exclude = []
-            for s in barcodes:
-                if bc.id == s.id:
-                    continue
-
-                assert bc.seq != s.seq
-                if s.seq.startswith(bc.seq) and len(s.seq) > len(bc.seq):
-                    logging.error("{0} shares same prefix as {1}.".format(s, bc))
-                    exclude.append(s)
-            excludebarcodes.append(exclude)
-    else:
-        excludebarcodes = nbc * [[]]
-
-    outdir = opts.outdir
-    mkdir(outdir)
-
-    cpus = min(opts.cpus, cpu_count())
-    logging.debug("Create a pool of {0} workers.".format(cpus))
-    pool = Pool(cpus)
-    pool.map(split_barcode, \
-             zip(barcodes, excludebarcodes,
-             nbc * [outdir], nbc * [fastqfile]))
 
 
 def checkShuffleSizes(p1, p2, pairsfastq, extra=0):

@@ -12,7 +12,7 @@ from collections import defaultdict
 from optparse import OptionParser
 
 from jcvi.formats.sizes import Sizes
-from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.apps.base import ActionDispatcher, debug, need_update, sh
 debug()
 
 
@@ -209,9 +209,9 @@ def encode_genotype(s, mindepth=3, nohet=False):
 
 def mstmap(args):
     """
-    %prog mstmap vcffile
+    %prog mstmap bcffile/vcffile > matrixfile
 
-    Convert vcf format to mstmap input.
+    Convert bcf/vcf format to mstmap input.
     """
     p = OptionParser(mstmap.__doc__)
     p.add_option("--freq", default=.2, type="float",
@@ -230,6 +230,14 @@ def mstmap(args):
         sys.exit(not p.print_help())
 
     vcffile, = args
+    if vcffile.endswith(".bcf"):
+        bcffile = vcffile
+        vcffile = bcffile.rsplit(".", 1)[0] + ".vcf"
+        cmd = "bcftools view {0}".format(bcffile)
+        cmd += " | vcfutils.pl varFilter"
+        if need_update(bcffile, vcffile):
+            sh(cmd, outfile=vcffile)
+
     freq = opts.freq
 
     header = """population_type {0}

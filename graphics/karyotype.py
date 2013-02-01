@@ -32,6 +32,9 @@ from jcvi.graphics.base import plt, _, set_image_options, savefig
 debug()
 
 
+MaxSeqids = 20
+
+
 class LayoutLine (object):
 
     def __init__(self, row, delimiter=','):
@@ -115,10 +118,10 @@ class Track (object):
 
         self.xstart = xstart = t.xstart
         self.xend = t.xend
-        gap = .01
+        gap = .007
         nseqids = len(self.seqids)
-        if nseqids > 40:
-            gap /= (nseqids / 40.)
+        if nseqids > MaxSeqids:
+            gap = min(gap, gap / (nseqids * 1. / MaxSeqids))
         self.gap = gap
 
         rpad = 1 - t.xend
@@ -157,7 +160,7 @@ class Track (object):
             xx = (xstart + xend) / 2
             xstart = xend + gap
 
-            if nseqids > 40:
+            if nseqids > MaxSeqids:
                 continue
 
             pad = .02
@@ -181,6 +184,8 @@ class Track (object):
     def get_coords(self, gene):
         order_in_chr = self.order_in_chr
         seqid, i, f = order_in_chr[gene]
+        if seqid not in self.offsets:
+            return None, None
         x = self.offsets[seqid] + self.ratio * i
         y = self.y
         return x, y
@@ -196,6 +201,9 @@ class ShadeManager (object):
         for a, b, c, d, score, orientation, highlight in blocks:
             p = atrack.get_coords(a), atrack.get_coords(b)
             q = btrack.get_coords(c), btrack.get_coords(d)
+            if p[0] is None or q[0] is None:
+                continue
+
             ymid = (atrack.y + btrack.y) / 2
             if atrack.y == btrack.y:
                 ymid = atrack.y - .09

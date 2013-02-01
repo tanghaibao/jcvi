@@ -423,6 +423,9 @@ def spa(args):
     from jcvi.utils.cbook import uniqify
 
     p = OptionParser(spa.__doc__)
+    p.add_option("--unmapped", default=False, action="store_true",
+                 help="Include unmapped scaffolds in the list [default: %default]")
+    opts, args = p.parse_args(args)
 
     if len(args) < 1:
         sys.exit(not p.print_help())
@@ -460,7 +463,7 @@ def spa(args):
     for spafile, mapping, missing in zip(spafiles, mappings, missings):
         mapping = [x for x in mapping if "random" not in x]
         mapping = uniqify(mapping)
-        if len(mapping) < 50:
+        if len(mapping) < 50 and opts.unmapped:
             mapping = uniqify(mapping + missing)
 
         print spafile, len(mapping), ",".join(mapping)

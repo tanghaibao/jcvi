@@ -218,7 +218,7 @@ def mstmap(args):
                  help="Allele must be above frequency [default: %default]")
     p.add_option("--dh", default=False, action="store_true",
                  help="Double haploid population, no het [default: %default]")
-    p.add_option("--mindepth", default=1, type="int",
+    p.add_option("--mindepth", default=3, type="int",
                  help="Only trust genotype calls with depth [default: %default]")
     p.add_option("--missingthreshold", default=.25, type="float",
                  help="Missing threshold [default: %default]")

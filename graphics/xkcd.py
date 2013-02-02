@@ -14,8 +14,7 @@ The idea for this comes from work by Damon McDougall
 import numpy as np
 from scipy import interpolate, signal
 
-import matplotlib.font_manager as fm
-from jcvi.graphics.base import fontpath, savefig
+from jcvi.graphics.base import fontprop, savefig
 import pylab as pl
 
 from jcvi.apps.base import debug
@@ -225,9 +224,7 @@ def XKCDify(ax, mag=1.0,
                 color='k', lw=2)
 
     # Change all the fonts to humor-sans.
-    prop = fm.FontProperties(fname=fontpath('Humor-Sans.ttf'), size=16)
-    for text in ax.texts:
-        text.set_fontproperties(prop)
+    prop = fontprop(ax, 'Humor-Sans.ttf', size=16)
 
     # modify legend
     leg = ax.get_legend()

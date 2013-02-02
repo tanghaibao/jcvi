@@ -6,6 +6,7 @@ import sys
 import logging
 
 from functools import partial
+from glob import glob
 
 import numpy as np
 import matplotlib as mpl
@@ -79,11 +80,25 @@ def set_tex_axis(ax, formatter=tex_formatter):
 set_human_axis = partial(set_tex_axis, formatter=human_formatter)
 set_human_base_axis = partial(set_tex_axis, formatter=human_base_formatter)
 
+font_dir = op.join(op.dirname(__file__), "fonts")
+available_fonts = [op.basename(x) for x in glob(font_dir + "/*")]
 
-def fontpath(name):
-    font_path = op.join(op.dirname(__file__), "fonts")
-    font_path = op.join(font_path, name)
-    return font_path
+
+def fontprop(ax, name, size=12):
+
+    assert name in available_fonts, "Font must be one of {0}.".\
+            format(available_fonts)
+
+    import matplotlib.font_manager as fm
+
+    fname = op.join(font_dir, name)
+    prop = fm.FontProperties(fname=fname, size=size)
+
+    logging.debug("Set font to `{0}` (`{1}`).".format(name, prop.get_file()))
+    for text in ax.texts:
+        text.set_fontproperties(prop)
+
+    return prop
 
 
 def setup_theme(theme="helvetica"):

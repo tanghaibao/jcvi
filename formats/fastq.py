@@ -139,6 +139,7 @@ def main():
         ('splitread', 'split appended reads (from JGI)'),
         ('pairinplace', 'collect pairs by checking adjacent ids'),
         ('convert', 'convert between illumina and sanger offset'),
+        ('first', 'get first N reads from file'),
         ('filter', 'filter to get high qv reads'),
         ('trim', 'trim reads using fastx_trimmer'),
         ('some', 'select a subset of fastq reads'),
@@ -147,6 +148,35 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def first(args):
+    """
+    %prog first fastqfile N
+
+    Get first N reads from file. Output will be written to *.firstN.fastq.
+    """
+    p = OptionParser(first.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    fastqfile, N = args
+    N = int(N)
+    nlines = N * 4
+    gz = fastqfile.endswith(".gz")
+    sf = ".first{0}.fastq".format(N)
+    if gz:
+        cmd = "zcat {0} | head -n {1} | gzip".format(fastqfile, nlines)
+        pf = fastqfile.rsplit(".", 2)[0]
+        outfile = pf + sf + ".gz"
+    else:
+        cmd = "head -n {0} {1}".format(nlines, fastqfile)
+        pf = fastqfile.rsplit(".", 1)[0]
+        outfile = pf + sf + ".gz"
+
+    sh(cmd, outfile=outfile)
 
 
 def FastqPairedIterator(read1, read2):

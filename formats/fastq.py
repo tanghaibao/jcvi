@@ -174,7 +174,7 @@ def first(args):
     else:
         cmd = "head -n {0} {1}".format(nlines, fastqfile)
         pf = fastqfile.rsplit(".", 1)[0]
-        outfile = pf + sf + ".gz"
+        outfile = pf + sf
 
     sh(cmd, outfile=outfile)
 

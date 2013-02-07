@@ -939,7 +939,7 @@ def mates(args):
             help="Remove mates that are intra-scaffold [default: %default]")
     p.add_option("--prefix", default=False, action="store_true",
             help="Only keep links between IDs with same prefix [default: %default]")
-    p.add_option("--rclip", default=1, type="int",
+    p.add_option("--rclip", default=0, type="int",
             help="Pair ID is derived from rstrip N chars [default: %default]")
 
     opts, args = p.parse_args(args)

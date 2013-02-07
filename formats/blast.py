@@ -1001,7 +1001,7 @@ def set_options_pairs():
             help="write valid pairs to pairsfile [default: %default]")
     p.add_option("--nrows", default=100000, type="int",
             help="only use the first n lines [default: %default]")
-    p.add_option("--rclip", default=1, type="int",
+    p.add_option("--rclip", default=0, type="int",
             help="pair ID is derived from rstrip N chars [default: %default]")
     p.add_option("--pdf", default=False, action="store_true",
             help="print PDF instead ASCII histogram [default: %default]")

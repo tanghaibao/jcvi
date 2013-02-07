@@ -173,6 +173,8 @@ def plot(args):
     p = OptionParser(plot.__doc__)
     p.add_option("--firstn", type="int", help="Only plot the first N genes")
     p.add_option("--ymax", type="int", help="Y-axis max value")
+    p.add_option("--log", action="store_true",
+                help="Write plotting data [default: %default]")
     opts, args, iopts = set_image_options(p, args, figsize="6x4")
 
     if len(args) != 2:
@@ -223,6 +225,12 @@ def plot(args):
                         ymax, 5, title, subtitle)
 
     ax = chr_map.axes
+
+    if opts.log:
+        from jcvi.utils.table import write_csv
+        header = ["x", "y"]
+        write_csv(header, new, filename=chr + ".new")
+        write_csv(header, old, filename=chr + ".old")
 
     x, y = zip(*new)
     ax.plot(x, y, "b,")

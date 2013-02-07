@@ -121,6 +121,10 @@ def map(args):
             help="Use `clc_ref_assemble_short` as the mapper [default: %default]")
     p.add_option("--orientations", default="fb",
             help="The reads have the orientations [default: %default]")
+    p.add_option("--fraction", default=0.5,
+            help="Fraction of the read that must match [default: %default]")
+    p.add_option("--similarity", default=0.95,
+            help="Similarity of the matching region [default: %default]")
     set_params(p)
     set_grid(p)
 
@@ -159,7 +163,8 @@ def map(args):
         cmd += " " + opts.extra
 
     if not opts.short:
-        cmd += " -l 0.8 -s 0.98"
+
+        cmd += " -l {0} -s {1}".format(opts.fraction, opts.similarity)
 
     sh(cmd, grid=opts.grid)
 

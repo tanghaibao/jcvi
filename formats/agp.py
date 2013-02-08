@@ -80,9 +80,11 @@ class AGPLine (object):
             self.gap_length = int(atoms[5])
             self.gap_type = atoms[6]
             self.linkage = atoms[7]
-            self.linkage_evidence = [""]
+            self.linkage_evidence = []
             if len(atoms) > 8:
-                self.linkage_evidence = atoms[8].strip().split(";")
+                linkage_evidence = atoms[8].strip()
+                if linkage_evidence:
+                    self.linkage_evidence = linkage_evidence.split(";")
             self.orientation = "na"
 
         if validate:
@@ -168,7 +170,7 @@ class AGPLine (object):
                     .format("|".join(Valid_evidence), self.linkage_evidence)
 
             if self.linkage == "no":
-                assert self.linkage_evidence[0] in ("", "na"), \
+                assert not self.linkage_evidence or self.linkage_evidence[0] in ("", "na"), \
                     "linkage no is incompatible with evidence {0}" \
                     .format(self.linkage_evidence)
 
@@ -468,7 +470,7 @@ class OO (LineFile):
             yield scaffold, list(beds)
 
     def write_AGP(self, fw=sys.stdout, gapsize=100, phases={},
-                        gaptype="fragment", evidence=""):
+                        gaptype="scaffold", evidence=""):
 
         linkage = "yes"
 
@@ -489,10 +491,11 @@ class OO (LineFile):
 
                 object_end = object_beg + size - 1
                 part_number += 1
+                strand = '?' if b.strand == '0' else b.strand
                 print >> fw, "\t".join(str(x) for x in \
                         (object, object_beg, object_end, part_number,
                          phases.get(component_id, 'W'), component_id,
-                         1, size, b.strand))
+                         1, size, strand))
 
                 object_beg += size
 
@@ -807,12 +810,15 @@ def mask(args):
                  help="Split object and create new names [default: %default]")
     p.add_option("--log", default=False, action="store_true",
                  help="Write verbose logs to .masklog file [default: %default]")
+    p.add_option("--gaptype", default="scaffold",
+                 help="Masked region has gap type of [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
         sys.exit(p.print_help())
 
     agpfile, bedfile = args
+    gaptype = opts.gaptype
     agp = AGP(agpfile)
     bed = Bed(bedfile)
     simple_agp = agp.order
@@ -868,7 +874,7 @@ def mask(args):
                 is_gap = False
             else:
                 cspan = b - a + 1
-                aline += ["N", cspan, "fragment", "yes"]
+                aline += ["N", cspan, gaptype, "yes"]
                 is_gap = True
             if cspan <= 0:
                 continue
@@ -1332,6 +1338,8 @@ def gaps(args):
     agp = AGP(agpfile)
     size_distribution = defaultdict(int)
     data = []  # store merged AGPLine's
+    priorities = ("centromere", "telomere", "scaffold", "contig", \
+            "clone", "fragment")
 
     for is_gap, alines in groupby(agp, key=lambda x: (x.object, x.is_gap)):
         alines = list(alines)
@@ -1350,10 +1358,9 @@ def gaps(args):
             b.gap_length = sum(x.gap_length for x in alines)
 
             assert b.gap_length == b.object_end - b.object_beg + 1
+            b.component_type = 'N'
 
             gtypes = [x.gap_type for x in alines]
-            priorities = ("centromere", "telomere", "contig", \
-                    "clone", "fragment")
             for gtype in priorities:
                 if gtype in gtypes:
                     b.gap_type = gtype
@@ -1380,6 +1387,7 @@ def gaps(args):
             for i, b in enumerate(bb):
                 b.part_number = i + 1
                 print >> fw, b
+        return merged_agpfile
 
 
 def tidy(args):
@@ -1388,8 +1396,9 @@ def tidy(args):
 
     Given an agp file, run through the following steps:
     o Trim components with dangling N's
-    o Reindex the agp
     o Merge adjacent gaps
+    o Trim gaps at the end of an object
+    o Reindex the agp
 
     Final output is in `.tidy.agp`.
     """
@@ -1408,6 +1417,26 @@ def tidy(args):
     os.remove(tmpfasta)
 
     agpfile = agpfile.replace(".agp", ".trimmed.agp")
+    gaps([agpfile, "--merge"])
+    os.remove(agpfile)
+
+    agpfile = agpfile.replace(".agp", ".merged.agp")
+    agp = AGP(agpfile)
+    newagpfile = agpfile.replace(".agp", ".fixed.agp")
+    fw = open(newagpfile, "w")
+    for object, a in groupby(agp, key=lambda x: x.object):
+        a = list(a)
+        if a[0].is_gap:
+            a = a[1:]
+            logging.debug("Trim beginning Ns at object {0}.".format(object))
+        if a[-1].is_gap:
+            a = a[:-1]
+            logging.debug("Trim trailing Ns at object {0}.".format(object))
+        print >> fw, "\n".join(str(x) for x in a)
+    fw.close()
+    os.remove(agpfile)
+
+    agpfile = newagpfile
     reindex_opts = [agpfile]
     if opts.nogaps:
         reindex_opts += ["--nogaps"]
@@ -1415,10 +1444,6 @@ def tidy(args):
     os.remove(agpfile)
 
     agpfile = agpfile.replace(".agp", ".reindexed.agp")
-    gaps([agpfile, "--merge"])
-    os.remove(agpfile)
-
-    agpfile = agpfile.replace(".agp", ".merged.agp")
     tidyagpfile = originalagpfile.replace(".agp", ".tidy.agp")
     shutil.move(agpfile, tidyagpfile)
 

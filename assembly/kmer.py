@@ -18,11 +18,11 @@ debug()
 
 
 class KmerSpectrum (object):
-    
+
     def __init__(self, data):
         self.data = data
 
-    def analyze(self, nkf=1000, ploidy=2, K=23):
+    def analyze(self, ploidy=2, K=23):
         """
         Analyze Kmer spectrum, calculations derived from
         allpathslg/src/kmers/KmerSpectra.cc
@@ -31,13 +31,12 @@ class KmerSpectrum (object):
         from jcvi.utils.cbook import thousands, percentage
 
         data = self.data
-        kf_ceil = nkf - 1
+        kf_ceil = max(K for (K, c) in data)
+        nkf = kf_ceil + 1
         a = [0] * nkf
         for kf, c in data:
-            if kf > kf_ceil:
-                break
             a[kf] = c
-            
+
         ndk = a  # number of distinct kmers
         nk = [k * c for k, c in enumerate(a)]  # number of kmers
         cndk = [0] * nkf  # cumulative number of distinct kmers
@@ -52,7 +51,7 @@ class KmerSpectrum (object):
         # kf_min2  ... kf_min3    : good kmers CN = 1
         # kf_min3  ... kf_hi      : good kmers CN > 1 (repetitive)
         # kf_hi    ... inf        : bad kmers with high frequency
-        
+
         # min1: find first minimum
         _kf_min1 = 10
         while (_kf_min1 - 1 >= 2 and nk[_kf_min1 - 1] < nk[_kf_min1]):
@@ -84,7 +83,7 @@ class KmerSpectrum (object):
         for kf in xrange(_kf_min1 + 1, _kf_max1):
             if (nk[kf] < nk[_kf_min1]):
                 _kf_min1 = kf
-        
+
         # min3: not a minimum, really. upper edge of main peak
         _kf_min3 = _kf_max2 * 3 / 2
 
@@ -100,6 +99,7 @@ class KmerSpectrum (object):
         _kf_hi = _kf_max2 * sqrt(4 * ndk[2 * _kf_max2] * _kf_max2) \
                     if 2 * _kf_max2 < len(ndk) else \
                  _kf_max2 * sqrt(4 * ndk[len(ndk) - 1] * _kf_max2)
+        _kf_hi = int(_kf_hi)
 
         if _kf_hi > kf_ceil:
             _kf_hi = kf_ceil

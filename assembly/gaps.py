@@ -69,7 +69,7 @@ def annotate(args):
                 a.is_gap = True
                 a.component_type = "N"
                 a.gap_length = cs
-                a.gap_type = "fragment"
+                a.gap_type = "scaffold"
                 a.linkage = "yes"
                 a.linkage_evidence = []
             else:

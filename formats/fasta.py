@@ -512,11 +512,12 @@ def translate(args):
         total += 1
 
         # Try all three frames
+        pep = ""
         for i in xrange(3):
             newcds = cds[i: i + peplen * 3]
-            pep = newcds.translate()
-            if "*" not in pep.rstrip("*"):
-                break
+            newpep = newcds.translate()
+            if len(newpep.split("*")[0]) > len(pep.split("*")[0]):
+                pep = newpep
 
         labels = []
         if "*" in pep.rstrip("*"):
@@ -933,25 +934,27 @@ def format(args):
 
 
 def print_first_difference(arec, brec, ignore_case=False, ignore_N=False,
-        rc=False):
+        rc=False, report_match=True):
     """
     Returns the first different nucleotide in two sequence comparisons
     runs both Plus and Minus strand
     """
     plus_match = _print_first_difference(arec, brec, ignore_case=ignore_case,
-            ignore_N=ignore_N)
+            ignore_N=ignore_N, report_match=report_match)
     if rc and not plus_match:
         logging.debug("trying reverse complement of %s" % brec.id)
         brec.seq = brec.seq.reverse_complement()
         minus_match = _print_first_difference(arec, brec,
-                ignore_case=ignore_case, ignore_N=ignore_N)
+                ignore_case=ignore_case, ignore_N=ignore_N,
+                report_match=report_match)
         return minus_match
 
     else:
         return plus_match
 
 
-def _print_first_difference(arec, brec, ignore_case=False, ignore_N=False):
+def _print_first_difference(arec, brec, ignore_case=False, ignore_N=False,
+         report_match=True):
     """
     Returns the first different nucleotide in two sequence comparisons
     """
@@ -971,7 +974,8 @@ def _print_first_difference(arec, brec, ignore_case=False, ignore_N=False):
             break
 
     if i + 1 == asize and matched:
-        print green("Two sequences match")
+        if report_match:
+            print green("Two sequences match")
         match = True
     else:
         print red("Two sequences do not match")
@@ -1007,7 +1011,9 @@ def diff(args):
     p.add_option("--ignore_stop", default=False, action="store_true",
             help="ignore stop codon when comparing sequences [default: %default]")
     p.add_option("--rc", default=False, action="store_true",
-            help="also consider reverse complement")
+            help="also consider reverse complement [default: %default]")
+    p.add_option("--quiet", default=False, action="store_true",
+            help="don't output comparison details [default: %default]")
 
     opts, args = p.parse_args(args)
 
@@ -1036,16 +1042,18 @@ def diff(args):
             arec.seq = arec.seq.rstrip("*")
             brec.seq = brec.seq.rstrip("*")
 
-        print banner((arec, brec))
         asize, bsize = len(arec), len(brec)
-        if asize == bsize:
-            print green("Two sequence size match (%d)" % asize)
-        else:
-            print red("Two sequence size do not match (%d, %d)" % (asize, bsize))
+
+        if not opts.quiet:
+            print banner((arec, brec))
+            if asize == bsize:
+                print green("Two sequence size match (%d)" % asize)
+            else:
+                print red("Two sequence size do not match (%d, %d)" % (asize, bsize))
 
         # print out the first place the two sequences diff
         fd = print_first_difference(arec, brec, ignore_case=opts.ignore_case,
-                ignore_N=opts.ignore_N, rc=opts.rc)
+                ignore_N=opts.ignore_N, rc=opts.rc, report_match=not opts.quiet)
         if not fd:
             logging.error("Two sets of sequences differ at `{0}`".format(arec.id))
             problem_ids.append("\t".join(str(x) for x in (arec.id, asize, bsize,

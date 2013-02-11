@@ -223,35 +223,70 @@ def get_GC3(cdsfile):
     return GC3
 
 
+def plot_GC3(GC3, cdsfile, fill="white"):
+    from jcvi.graphics.histogram import histogram
+
+    numberfile = "{0}.gc3".format(cdsfile)
+    fw = must_open(numberfile, "w")
+    fw.write("\n".join(map(str, GC3.values())))
+    fw.close()
+    histogram(numberfile, vmin=0, vmax=1, xlabel="GC3", title=cdsfile,
+          bins=50, skip=0, ascii=False, log=0, fill=fill)
+
+    logging.debug("{0} GC3 values plotted to {1}.pdf".\
+            format(len(GC3), numberfile))
+
+
 def gc3(args):
     """
-    %prog gc3 ksfile cdsfile > newksfile
+    %prog gc3 ksfile cdsfile [cdsfile2] -o newksfile
 
     Filter the Ks results to remove high GC3 genes. High GC3 genes are
     problematic in Ks calculation - see Tang et al. 2010 PNAS. Specifically, the
     two calculation methods produce drastically different results for these
     pairs. Therefore we advise to remoeve these high GC3 genes. This is often
     the case for studying cereal genes.
+
+    If 2 genomes are involved, the cdsfile of the 2nd genome can be provided
+    concatenated or separated.
     """
     import csv
 
     p = OptionParser(gc3.__doc__)
+    p.add_option("--plot", default=False, action="store_true",
+                 help="Also plot the GC3 histogram [default: %default]")
+    set_outfile(p)
+
     opts, args = p.parse_args(args)
 
-    if len(args) != 2:
+    outfile = opts.outfile
+    plot = opts.plot
+
+    if not 1 < len(args) < 4:
         sys.exit(not p.print_help())
 
-    ks_file, cdsfile = args
+    ks_file, cdsfile = args[:2]
+    GC3 = get_GC3(cdsfile)
+    if plot:
+        plot_GC3(GC3, cdsfile, fill="green")
+
+    if len(args) == 3:
+        cdsfile2 = args[2]
+        GC3_2 = get_GC3(cdsfile2)
+        GC3.update(GC3_2)
+        if plot:
+            plot_GC3(GC3_2, cdsfile2, fill="lightgreen")
+
     data = read_ks_file(ks_file)
     noriginals = len(data)
-    GC3 = get_GC3(cdsfile)
 
-    writer = csv.writer(sys.stdout)
-    writer.writerow(header)
+    fw = must_open(outfile, "w")
+    writer = csv.writer(fw)
+    writer.writerow(header.split(","))
     nlines = 0
     cutoff = .75
     for d in data:
-        a, b = d.pair.split(";")
+        a, b = d.name.split(";")
         aratio, bratio = GC3[a], GC3[b]
         if (aratio + bratio) / 2 > cutoff:
             continue

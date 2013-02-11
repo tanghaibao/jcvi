@@ -159,6 +159,8 @@ def pad(args):
     logging.debug("Collected {0} PAR comparisons significant at (P < {1}).".\
                     format(len(significant), pvalue_cutoff))
 
+    return significant
+
 
 def get_segments(ranges, extra, minsegment=40):
     """
@@ -252,7 +254,8 @@ def cluster(args):
     sextra = [x[1:] for x in sbed.get_breaks()]
 
     id = 0
-    for q, s in ac.iter_blocks(minsize=minsize):
+    for block in ac.iter_blocks(minsize=minsize):
+        q, s = zip(*block)[:2]
         q = [qorder[x][0] for x in q]
         s = [sorder[x][0] for x in s]
         minq, maxq = min(q), max(q)

@@ -110,7 +110,7 @@ def blastfilter_main(blast_file, p, opts):
         standems = tandem_grouper(sbed, filtered_blasts,
                 flip=False, tandem_Nmax=tandem_Nmax)
 
-        qdups_fh = open(op.splitext(qbed_file)[0] + ".localdups", "w") \
+        qdups_fh = open(op.splitext(opts.qbed)[0] + ".localdups", "w") \
                 if opts.tandems_only else None
 
         if is_self:
@@ -120,7 +120,7 @@ def blastfilter_main(blast_file, p, opts):
             sdups_to_mother = qdups_to_mother
         else:
             qdups_to_mother = write_localdups(qtandems, qbed, qdups_fh)
-            sdups_fh = open(op.splitext(sbed_file)[0] + ".localdups", "w") \
+            sdups_fh = open(op.splitext(opts.sbed)[0] + ".localdups", "w") \
                     if opts.tandems_only else None
             sdups_to_mother = write_localdups(standems, sbed, sdups_fh)
 
@@ -162,11 +162,14 @@ def write_localdups(tandems, bed, dups_fh=None):
         tandem_groups.append([x.accn for x in rows])
 
     dups_to_mother = {}
+    n = 1
     for accns in sorted(tandem_groups):
         if dups_fh:
             print >>dups_fh, "\t".join(accns)
-            logging.debug("write local dups to file %s" \
-                    % dups_fh.name)
+            if n:
+                n -= 1
+                logging.debug("write local dups to file %s" \
+                        % dups_fh.name)
 
         for dup in accns[1:]:
             dups_to_mother[dup] = accns[0]

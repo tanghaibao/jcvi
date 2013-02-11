@@ -43,10 +43,7 @@ from Bio.Emboss.Applications import FDNADistCommandline
 from Bio.Emboss.Applications import FNeighborCommandline
 from Bio.Emboss.Applications import FConsenseCommandline
 from Bio.Phylo.Applications import PhymlCommandline
-try:
-    from Bio.Phylo.Applications import RaxmlCommandline
-except:
-    from Biopython_future import RaxmlCommandline
+from Bio.Phylo.Applications import RaxmlCommandline
 
 from jcvi.apps.ks import AbstractCommandline, find_first_isoform, \
     run_mrtrans, clustal_align_protein, muscle_align_protein

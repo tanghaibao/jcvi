@@ -124,7 +124,7 @@ class SummaryStats (object):
 
     def __str__(self):
         s = self.title + ": " if self.title else ""
-        s += "Min={0} Max={1} N={2} Mean={3:.0f} SD={4:.0f} Median={5:.0f}".\
+        s += "Min={0} Max={1} N={2} Mean={3:.5g} SD={4:.5g} Median={5:.5g}".\
                 format(self.min, self.max, self.size,
                        self.mean, self.sd, self.median)
         return s

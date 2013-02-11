@@ -88,7 +88,7 @@ def draw_cmap(ax, cmap_text, vmin, vmax, cmap=None, reverse=False):
 
 def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts,
         is_self=False, synteny=False, cmap_text=None, genomenames=None,
-        sample_number=10000, ignore=.005, palette=None):
+        sample_number=10000, ignore=.005, palette=None, chrlw=1):
 
     fp = open(anchorfile)
 
@@ -196,7 +196,7 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts,
             pass
 
         xchr_labels.append((seqid, (beg + end) / 2, ignore))
-        ax.plot([beg, beg], ylim, "g-", lw=1)
+        ax.plot([beg, beg], ylim, "g-", lw=chrlw)
 
     for (seqid, beg, end) in sbed.get_breaks():
         ignore = abs(end - beg) < ignore_size_y
@@ -208,7 +208,7 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts,
             pass
 
         ychr_labels.append((seqid, (beg + end) / 2, ignore))
-        ax.plot(xlim, [beg, beg], "g-", lw=1)
+        ax.plot(xlim, [beg, beg], "g-", lw=chrlw)
 
     # plot the chromosome labels
     for label, pos, ignore in xchr_labels:

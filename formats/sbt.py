@@ -112,16 +112,27 @@ def names(args):
     %prog names namelist templatefile
 
     Generate name blocks from the `namelist` file. The `namelist` file is
-    tab-delimited that contains >=4 columns of data. 
-    
-    Three columns are mandatory. First name, middle initial and last name.
-    First row is table header.
+    tab-delimited that contains >=4 columns of data. Three columns are mandatory.
+    First name, middle initial and last name. First row is table header. For the
+    extra columns, the first column will go in the `$N0` field in the template
+    file, second to the `$N1` field, etc.
 
-    For the extra columns, the first column will go in the `$N0` field
-    in the template file, second to the `$N1` field, etc.
-
-    In the alternative format, the namelist just contains two sections. First
+    In the alternative mode, the namelist just contains several sections. First
     row will go in the `$N0` in the template file, second to the `$N1` field.
+
+    The namelist may look like:
+    [Sequence]
+    Bruce A. Roe,  Frederic Debelle, Giles Oldroyd, Rene Geurts
+    [Manuscript]
+    Haibao Tang1, Vivek Krishnakumar1, Shelby Bidwell1, Benjamin Rosen1
+
+    Then in this example Sequence section goes into N0, Manuscript goes into N1.
+
+    Useful hints for constructing the template file can be found in:
+    <http://www.ncbi.nlm.nih.gov/IEB/ToolBox/CPP_DOC/asn_spec/seq.asn.html>
+
+    Often the template file can be retrieved from web form:
+    <http://www.ncbi.nlm.nih.gov/WebSub/template.cgi>
     """
     p = OptionParser(names.__doc__)
     opts, args = p.parse_args(args)

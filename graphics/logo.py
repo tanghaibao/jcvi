@@ -27,7 +27,7 @@ def main():
     p = OptionParser(__doc__)
     p.add_option("--font", default="Airswing.ttf", choices=available_fonts,
                  help="Font name [default: `%default`]")
-    p.add_option("--color", default="slateblue",
+    p.add_option("--color", default="limegreen",
                  help="Font color [default: %default]")
     p.add_option("--size", default=36, type="int",
                  help="Font size [default: %default]")

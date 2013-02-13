@@ -82,16 +82,21 @@ def count(args):
     from jcvi.utils.table import loadtable
 
     p = OptionParser(count.__doc__)
+    p.add_option("--dir",
+                help="Sub-directory where FASTQC was run [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) < 1:
         sys.exit(not p.print_help())
 
     filenames = args
+    subdir = opts.dir
     header = "Filename|Total Sequences|Sequence length|Total Bases".split("|")
     rows = []
     for f in filenames:
         folder = f.replace(".gz", "").rsplit(".", 1)[0] + "_fastqc"
+        if subdir:
+            folder = op.join(subdir, folder)
         summaryfile = op.join(folder, "fastqc_data.txt")
         if not op.exists(summaryfile):
             logging.debug("File `{0}` not found.".format(summaryfile))

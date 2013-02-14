@@ -290,11 +290,38 @@ def main():
     actions = (
         ('less', 'enhance the unix `less` command'),
         ('timestamp', 'record timestamps for all files in the current folder'),
+        ('expand', 'move files in subfolders into the current folder'),
         ('touch', 'recover timestamps for files in the current folder'),
         ('blast', 'run blastn using query against reference'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def expand(args):
+    """
+    %prog expand */*
+
+    Move files in subfolders into the current folder.
+    """
+    debug()
+
+    p = OptionParser(expand.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) < 1:
+        sys.exit(not p.print_help())
+
+    seen = set()
+    for a in args:
+        oa = a.replace("/", "_")
+        if oa in seen:
+            logging.debug("Name collision `{0}`, ignored.".format(oa))
+            continue
+
+        cmd = "mv {0} {1}".format(a, oa)
+        sh(cmd)
+        seen.add(oa)
 
 
 def fname():

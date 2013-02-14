@@ -288,11 +288,17 @@ def run(args):
 
     {}   - input line
     {.}  - input line without extension
+    {_}  - input line first part
     {/}  - basename of input line
     {/.} - basename of input line without extension
+    {/_} - basename of input line first part
     {#}  - sequence number of job to run
     :::  - Use arguments from the command line as input source instead of stdin
     (standard input).
+
+    If file name is `t/example.tar.gz`, then,
+    {} is "t/example.tar.gz", {.} is "t/example.tar", {_} is "t/example"
+    {/} is "example.tar.gz", {/.} is "example.tar", {/_} is "example"
 
     A few examples:
     ls -1 *.fastq | %prog run process {} {.}.pdf  # use stdin
@@ -327,18 +333,22 @@ def run(args):
     for i, filename in enumerate(filenames):
         filename = filename.strip()
         noextname = filename.rsplit(".", 1)[0]
-        basename = op.basename(filename)
+        prefix, basename = op.split(filename)
         basenoextname = basename.rsplit(".", 1)[0]
+        basefirstname = basename.split(".")[0]
+        firstname = op.join(prefix, basefirstname)
         ncmd = cmd
 
-        if "{}" in ncmd:
+        if "{" in ncmd:
             ncmd = ncmd.replace("{}", filename)
         else:
             ncmd += " " + filename
 
         ncmd = ncmd.replace("{.}", noextname)
+        ncmd = ncmd.replace("{_}", firstname)
         ncmd = ncmd.replace("{/}", basename)
         ncmd = ncmd.replace("{/.}", basenoextname)
+        ncmd = ncmd.replace("{/_}", basefirstname)
         ncmd = ncmd.replace("{#}", str(i))
 
         outfile = None

@@ -91,21 +91,21 @@ class FfitchCommandline(AbstractCommandline):
 
     Infer branch lengths of tree.
     """
-    def __init__(self, datafile, intreefile, outtreefile, \
-        command=FPHYLIP_BIN("ffitch"), **kwargs):
+    def __init__(self, datafile, outtreefile, command=FPHYLIP_BIN("ffitch"), \
+            intreefile=None, **kwargs):
 
         self.datafile = datafile
-        self.intreefile = intreefile
         self.outtreefile = outtreefile
         self.outfile = datafile.rsplit(".",1)[0] + ".ffitch"
         self.command = command
+        self.intreefile = intreefile if intreefile else '""'
 
         self.parameters = ["-{0} {1}".format(k,v) for k,v in kwargs.items()]
 
     def __str__(self):
-        return self.command + " %s %s %s -outtreefile %s " % \
-            (self.datafile, self.intreefile, self.outfile, self.outtreefile) \
-            + " ".join(self.parameters)
+        return self.command + " -datafile %s -intreefile %s -outfile %s " \
+                "-outtreefile %s " % (self.datafile, self.intreefile, \
+                self.outfile, self.outtreefile) + " ".join(self.parameters)
 
 
 class TreeFixCommandline(AbstractCommandline):
@@ -179,12 +179,12 @@ def run_gblocks(align_fasta_file, **kwargs):
             return align_fasta_file+"-gb"
 
 
-def run_ffitch(distfile, treefile, outtreefile, **kwargs):
+def run_ffitch(distfile, outtreefile, intreefile=None, **kwargs):
     """
     Infer tree branch lengths using ffitch in EMBOSS PHYLIP
     """
-    cl = FfitchCommandline\
-        (datafile=distfile, intreefile=treefile, outtreefile=outtreefile, **kwargs)
+    cl = FfitchCommandline(datafile=distfile, outtreefile=outtreefile, \
+            intreefile=intreefile, **kwargs)
     r, e = cl.run()
 
     if e:
@@ -284,8 +284,8 @@ def build_nj_phylip(alignment, outfile, outgroup, work_dir="."):
 
     # infer branch length on consensus tree
     consensustree1 = phy_file.rsplit(".",1)[0] + ".consensustree.branchlength"
-    run_ffitch(distfile=dnadist_out0, treefile=consense_out, \
-        outtreefile=consensustree1)
+    run_ffitch(distfile=dnadist_out0, outtreefile=consensustree1, \
+            intreefile=consense_out)
 
     # write final tree
     ct_s = Tree(consense_out)

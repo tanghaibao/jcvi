@@ -32,15 +32,13 @@ class AnchorFile (BaseFile):
             if len(lines) >= minsize:
                 yield lines
 
-    def iter_pairs(self):
-        fp = open(self.filename)
+    def iter_pairs(self, minsize=0):
         block_id = -1
-        for row in fp:
-            if row[0] == '#':
-                block_id += 1
-                continue
-            a, b = row.split()[:2]
-            yield a, b, block_id
+        for rows in self.iter_blocks(minsize=minsize):
+            block_id += 1
+            for row in rows:
+                a, b = row[:2]
+                yield a, b, block_id
 
     def print_to_file(self, filename="stdout", accepted=None):
         fw = must_open(filename, "w")
@@ -242,7 +240,7 @@ def read_blast(blast_file, qorder, sorder, is_self=False, ostrip=True):
     return filtered_blast
 
 
-def read_anchors(ac, qorder, sorder):
+def read_anchors(ac, qorder, sorder, minsize=0):
     """
     anchors file are just (geneA, geneB) pairs (with possible deflines)
     """
@@ -251,7 +249,7 @@ def read_anchors(ac, qorder, sorder):
     anchor_to_block = {}
     block_extent = defaultdict(list)
 
-    for a, b, idx in ac.iter_pairs():
+    for a, b, idx in ac.iter_pairs(minsize=minsize):
         if a not in qorder or b not in sorder:
             continue
         qi, q = qorder[a]

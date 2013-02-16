@@ -870,11 +870,11 @@ def mask(args):
             aline = [oid, 0, 0, 0]
             if i % 2 == 0:
                 cspan = b - a - 1
-                aline += ['D', component, a + 1, b - 1, orientation]
+                aline += ['W', component, a + 1, b - 1, orientation]
                 is_gap = False
             else:
                 cspan = b - a + 1
-                aline += ["N", cspan, gaptype, "yes"]
+                aline += ["N", cspan, gaptype, "yes", "paired-ends"]
                 is_gap = True
             if cspan <= 0:
                 continue

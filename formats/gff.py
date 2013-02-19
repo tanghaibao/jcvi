@@ -313,16 +313,17 @@ def filter(args):
         sys.exit(not p.print_help())
 
     gffile, = args
+    otype, oid, ocov = opts.type, opts.id, opts.coverage
 
     gff = Gff(gffile)
     bad = set()
     relatives = set()
     for g in gff:
-        if g.type != opts.type:
+        if g.type != otype:
             continue
         identity = float(g.attributes["Identity"][0])
         coverage = float(g.attributes["Coverage"][0])
-        if identity < opts.id or coverage < opts.coverage:
+        if identity < oid or coverage < ocov:
             bad.add(g.accn)
             relatives.add(g.attributes["Parent"][0])
 
@@ -1048,7 +1049,9 @@ def bed(args):
     p.add_option("--key", dest="key", default="ID",
             help="Key in the attributes to extract [default: %default]")
     p.add_option("--append_source", default=False, action="store_true",
-            help="Append GFF source name to extracted key value")
+            help="Append GFF source name to key value [default: %default]")
+    p.add_option("--nosort", default=False, action="store_true",
+            help="Do not sort the output bed file [default: %default]")
     set_outfile(p)
 
     opts, args = p.parse_args(args)
@@ -1071,8 +1074,8 @@ def bed(args):
 
         b.append(g.bedline)
 
-    b.sort(key=b.key)
-    b.print_to_file(opts.outfile)
+    sorted = not opts.nosort
+    b.print_to_file(opts.outfile, sorted=sorted)
 
 
 def make_index(gff_file):

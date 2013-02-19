@@ -4,6 +4,7 @@
 import os
 import os.path as op
 import math
+import re
 import sys
 import logging
 
@@ -360,6 +361,67 @@ def is_number(s):
             return False
 
     return True
+
+
+def seqid_parse(seqid, sep=["-", "_"], stdpf=True):
+    """
+    This function tries to parse seqid (1st col in bed files)
+    return prefix, numeric id, and suffix, for example:
+
+    >>> seqid_parse('chr1_random')
+    ('Chr', '1', '_random')
+    >>> seqid_parse('AmTr_v1.0_scaffold00001', '', stdpf=False)
+    ('AmTr_v1.0_scaffold', '00001', '')
+    >>> seqid_parse('AmTr_v1.0_scaffold00001')
+    ('Sca', '00001', '')
+    >>> seqid_parse('PDK_30s1055861')
+    ('C', '1055861', '')
+    >>> seqid_parse('PDK_30s1055861', stdpf=False)
+    ('PDK', '1055861', '')
+    >>> seqid_parse("AC235758.1", stdpf=False)
+    ('AC', '235758.1', '')
+    """
+    if "mito" in seqid or "chloro" in seqid:
+        return (seqid, "", "")
+
+    numbers = re.findall(r'\d+\.*\d*', seqid)
+
+    if not numbers:
+        return (seqid, "", "")
+
+    id = numbers[-1]
+    lastnumi = seqid.rfind(id)
+    suffixi = lastnumi + len(id)
+    suffix = seqid[suffixi:]
+
+    if sep is None:
+        sep = [""]
+    elif type(sep) == str:
+        sep = [sep]
+
+    prefix = seqid[: lastnumi]
+    if not stdpf:
+        sep = "|".join(sep)
+        atoms = re.split(sep, prefix)
+        if len(atoms) == 1:
+            prefix = atoms[0]
+        else:
+            prefix = atoms[-2]
+    else: # use standard prefix
+        if re.findall("chr", prefix, re.I):
+            prefix = "Chr"
+        elif re.findall("sca", prefix, re.I):
+            prefix = "Sca"
+        elif re.findall("supercontig", prefix, re.I):
+            prefix = "SCg"
+        elif re.findall("ctg|contig", prefix, re.I):
+            prefix = "Ctg"
+        elif re.findall("BAC", prefix, re.I):
+            prefix = "BAC"
+        else:
+            prefix = "C"
+
+    return (prefix, id, suffix)
 
 
 def main():

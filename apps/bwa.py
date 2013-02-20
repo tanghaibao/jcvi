@@ -195,6 +195,8 @@ def bwasw(args):
     Wrapper for `bwa bwasw`. Output will be long_read.sam.
     """
     p = OptionParser(bwasw.__doc__)
+    p.add_option("--bam", default=False, action="store_true",
+                 help="write to bam file [default: %default]")
     set_params(p)
     set_grid(p)
 
@@ -210,13 +212,16 @@ def bwasw(args):
     safile = check_index(dbfile, grid=grid)
     saifile = check_aln(dbfile, readfile, grid=grid)
 
-    samfile = readfile.rsplit(".", 1)[0] + ".sam"
+    prefix = readfile.split(".", 1)[0]
+    samfile = (prefix + ".bam") if opts.bam else (prefix + ".sam")
     if not need_update((safile, saifile), samfile):
         logging.error("`{0}` exists. `bwa bwasw` already run.".format(samfile))
         return
 
     cmd = "bwa bwasw -t 32 {0} {1} ".format(dbfile, readfile)
     cmd += "{0}".format(extra)
+    if opts.bam:
+        cmd += " | samtools view -bS -F 4 - "
     sh(cmd, grid=grid, outfile=samfile)
 
 

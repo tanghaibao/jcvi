@@ -89,9 +89,11 @@ def napus(args):
         antag, anrange = get_tag(an, order)
         cntag, cnrange = get_tag(cn, order)
 
-        if (antag, cntag) in ((None, "NS"), ("NS", None)) and \
-                range_overlap(anrange, cnrange):
-            row = "*" + row
+        if range_overlap(anrange, cnrange):
+            if (antag, cntag) == ("NS", None):
+                row = row + "\tAN LOST"
+            if (antag, cntag) == (None, "NS"):
+                row = row + "\tCN LOST"
 
         print row
 

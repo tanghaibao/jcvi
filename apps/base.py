@@ -231,6 +231,10 @@ def download(url, filename=None):
 
     scheme, netloc, path, query, fragment = urlsplit(url)
     filename = filename or op.basename(path)
+    filename = filename.strip()
+
+    if not filename:
+        filename = "index.html"
 
     if op.exists(filename):
         msg = "File `{0}` exists. Download skipped.".format(filename)
@@ -293,9 +297,31 @@ def main():
         ('expand', 'move files in subfolders into the current folder'),
         ('touch', 'recover timestamps for files in the current folder'),
         ('blast', 'run blastn using query against reference'),
+        ('mdownload', 'multiple download a list of files'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def mdownload(args):
+    """
+    %prog mdownload links.txt
+
+    Multiple download a list of files. Use formats.html.links() to extract the
+    links file.
+    """
+    from jcvi.apps.grid import Jobs
+
+    p = OptionParser(mdownload.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    linksfile, = args
+    links = [(x.strip(),) for x in open(linksfile)]
+    j = Jobs(download, links)
+    j.run()
 
 
 def expand(args):

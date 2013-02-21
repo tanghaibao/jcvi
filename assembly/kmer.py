@@ -181,6 +181,8 @@ def jellyfish(args):
     p = OptionParser(jellyfish.__doc__)
     p.add_option("-K", default=23, type="int",
                  help="K-mer size [default: %default]")
+    p.add_option("--coverage", default=46, type="int",
+            help="Expected sequence coverage [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) < 1:
@@ -188,9 +190,10 @@ def jellyfish(args):
 
     fastqfiles = args
     K = opts.K
+    coverage = opts.coverage
 
     totalfilesize = sum(getfilesize(x) for x in fastqfiles)
-    hashsize = totalfilesize / 46
+    hashsize = totalfilesize / coverage
     #hashsize = max(hashsize, 4000000000)  # based on msr-ca
 
     logging.debug("Total file size: {0}, hashsize (-s): {1}".\

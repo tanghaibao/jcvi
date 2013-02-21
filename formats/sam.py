@@ -61,6 +61,7 @@ def main():
 
     actions = (
         ('pair', 'parse sam file and get pairs'),
+        ('pairs', 'print paired-end reads from BAM file'),
         ('chimera', 'parse sam file from `bwasw` and list multi-hit reads'),
         ('ace', 'convert sam file to ace'),
         ('index', 'convert to bam, sort and then index'),
@@ -70,6 +71,31 @@ def main():
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def pairs(args):
+    """
+    See __doc__ for set_options_pairs().
+    """
+    import jcvi.formats.bed
+    from jcvi.formats.blast import set_options_pairs
+
+    p = set_options_pairs()
+
+    opts, targs = p.parse_args(args)
+
+    if len(targs) != 1:
+        sys.exit(not p.print_help())
+
+    samfile, = targs
+    bedfile = samfile.rsplit(".", 1)[0] + ".bed"
+    if need_update(samfile, bedfile):
+        cmd = "bamToBed -i {0}".format(samfile)
+        sh(cmd, outfile=bedfile)
+
+    args[args.index(samfile)] = bedfile
+
+    return jcvi.formats.bed.pairs(args)
 
 
 def consensus(args):

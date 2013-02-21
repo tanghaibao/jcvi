@@ -15,20 +15,11 @@ from optparse import OptionParser
 from jcvi.formats.base import BaseFile
 from jcvi.formats.fastq import guessoffset
 from jcvi.utils.cbook import depends, human_size
+from jcvi.utils.data import Adapters
 from jcvi.apps.command import JAVAPATH
 from jcvi.apps.base import ActionDispatcher, debug, set_grid, download, \
         sh, mkdir, write_file, need_update
 debug()
-
-
-Adapters = """
->Illumina_PE-1rc
-AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGTAGATCTCGGTGGTCGCCGTATCATT
->Illumina_PE-2rc
-AGATCGGAAGAGCGGTTCAGCAGGAATGCCGAGACCGATCTCGTATGCCGTCTTCTGCTTG
->TruSeq
-GATCGGAAGAGCACACGTCTGAACTCCAGTCACATCACGATCTCGTATGCCGTCTTCTGCTTG
-"""
 
 
 class FastQCdata (BaseFile, dict):
@@ -156,7 +147,7 @@ def trim(args):
 
     <http://www.usadellab.org/cms/index.php?page=trimmomatic>
     """
-    TrimVersion = tv = "0.22"
+    TrimVersion = tv = "0.25"
     TrimJar = "trimmomatic-{0}.jar".format(tv)
     phdchoices = ("33", "64")
     p = OptionParser(trim.__doc__)
@@ -170,6 +161,8 @@ def trim(args):
             help="Average qv after trimming [default: %default]")
     p.add_option("--minlen", default=30, type="int",
             help="Minimum length after trimming [default: %default]")
+    p.add_option("--adapteronly", default=False, action="store_true",
+            help="Only trim adapters with no qv trimming [default: %default]")
     p.add_option("--nogz", default=False, action="store_true",
             help="Do not write to gzipped files [default: %default]")
     set_grid(p)
@@ -208,6 +201,7 @@ def trim(args):
         offset = int(opts.phred)
 
     phredflag = " -phred{0}".format(offset)
+    threadsflag = " -threads 4"
 
     cmd = JAVAPATH("java-1.6.0")
     cmd += " -Xmx4g -cp {0} org.usadellab.trimmomatic".format(path)
@@ -221,6 +215,7 @@ def trim(args):
     if len(args) == 1:
         cmd += ".TrimmomaticSE"
         cmd += phredflag
+        cmd += threadsflag
         fastqfile, = args
         prefix = get_prefix(fastqfile)
         frags1 = prefix + frags
@@ -228,6 +223,7 @@ def trim(args):
     else:
         cmd += ".TrimmomaticPE"
         cmd += phredflag
+        cmd += threadsflag
         fastqfile1, fastqfile2 = args
         prefix1 = get_prefix(fastqfile1)
         prefix2 = get_prefix(fastqfile2)
@@ -242,8 +238,13 @@ def trim(args):
                 pairs1, frags1, pairs2, frags2)))
 
     cmd += " ILLUMINACLIP:{0}:2:40:12".format(adaptersfile)
-    cmd += " LEADING:3 TRAILING:3"
-    cmd += " SLIDINGWINDOW:4:{0} MINLEN:{1}".format(opts.minqv, opts.minlen)
+
+    if not opts.adapteronly:
+        cmd += " LEADING:3 TRAILING:3"
+        cmd += " SLIDINGWINDOW:4:{0}".format(opts.minqv)
+
+    cmd += " MINLEN:{0}".format(opts.minlen)
+
     if offset != 33:
         cmd += " TOPHRED33"
     sh(cmd, grid=opts.grid)

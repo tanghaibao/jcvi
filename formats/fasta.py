@@ -281,9 +281,49 @@ def main():
                  '.qual file if available)'),
         ('clean', 'remove irregular chars in FASTA seqs'),
         ('ispcr', 'reformat paired primers into isPcr query format'),
+        ('fromtab', 'convert 2-column sequence file to FASTA format'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def fromtab(args):
+    """
+    %prog fromtab tabfile fastafile
+
+    Convert 2-column sequence file to FASTA format. One usage for this is to
+    generatea `adapters.fasta` for TRIMMOMATIC.
+    """
+    p = OptionParser(fromtab.__doc__)
+    p.add_option("--sep",
+                 help="Separator in the tabfile [default: %default]")
+    p.add_option("--replace",
+                 help="Replace spaces in name to char [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    tabfile, fastafile = args
+    sep = opts.sep
+    replace = opts.replace
+    fp = must_open(tabfile)
+    fw = must_open(fastafile, "w")
+    nseq = 0
+    for row in fp:
+        row = row.strip()
+        if not row or row[0] == '#':
+            continue
+
+        name, seq = row.rsplit(sep, 1)
+        if replace:
+            name = name.replace(" ", replace)
+        print >> fw, ">{0}\n{1}".format(name, seq)
+        nseq += 1
+    fw.close()
+
+    logging.debug("A total of {0} sequences written to `{1}`.".\
+                   format(nseq, fastafile))
 
 
 def longestorf(args):
@@ -1435,13 +1475,13 @@ def extract(args):
     return fw.name
 
 
-def _uniq_rec(fastafile):
+def _uniq_rec(fastafile, seq=False):
     """
     Returns unique records
     """
     seen = set()
     for rec in SeqIO.parse(fastafile, "fasta"):
-        name = rec.id
+        name = str(rec.seq) if seq else rec.id
         if name in seen:
             logging.debug("ignore %s" % name)
             continue
@@ -1456,6 +1496,8 @@ def uniq(args):
     remove fasta records that are the same
     """
     p = OptionParser(uniq.__doc__)
+    p.add_option("--seq", default=False, action="store_true",
+            help="Uniqify the sequences [default: %default]")
     p.add_option("-t", "--trimname", dest="trimname",
             action="store_true", default=False,
             help="turn on the defline trim to first space [default: %default]")
@@ -1466,8 +1508,9 @@ def uniq(args):
 
     fastafile, uniqfastafile = args
     fw = must_open(uniqfastafile, "w")
+    seq = opts.seq
 
-    for rec in _uniq_rec(fastafile):
+    for rec in _uniq_rec(fastafile, seq=seq):
         if opts.trimname:
             rec.description = ""
         SeqIO.write([rec], fw, "fasta")

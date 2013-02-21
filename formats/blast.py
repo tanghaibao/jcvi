@@ -542,7 +542,7 @@ def sort(args):
         elif opts.ref:
             key = "-k2,2 -k9,9n"
         else:
-            key = "-k1,1 -k12,12nr"
+            key = "-k1,1 -k12,12gr"
 
     cmd = "sort {0} {1} -o {1}".format(key, blastfile)
     sh(cmd)

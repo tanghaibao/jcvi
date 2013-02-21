@@ -27,6 +27,8 @@ RegionTag = "##sequence-region"
 valid_gff_parent_child = {"match": "match_part",
                           "cDNA_match": "match_part",
                           "EST_match": "match_part",
+                          "nucleotide_to_protein_match": "match_part",
+                          "protein_match": "match_part",
                           "mRNA": "exon"
                          }
 valid_gff_type = tuple(valid_gff_parent_child.keys())
@@ -36,7 +38,7 @@ class GffLine (object):
     """
     Specification here (http://www.sequenceontology.org/gff3.shtml)
     """
-    def __init__(self, sline, key="ID", append_source=False):
+    def __init__(self, sline, key="ID", append_source=False, score_attrib=False):
         args = sline.strip().split("\t")
         self.seqid = args[0]
         self.source = args[1]
@@ -57,11 +59,17 @@ class GffLine (object):
         self.key = key  # usually it's `ID=xxxxx;`
 
         if append_source and self.key in self.attributes:
-            # if append_source is True, append the gff `self.source`
+            # if `append_source` is True, append the gff `self.source`
             # to `self.key`. use this option to enhance the `self.accn`
             # column in bed file
             self.attributes[self.key][0] = ":".join((self.source, \
                     self.attributes[self.key][0]))
+
+        if score_attrib and score_attrib in self.attributes and is_number(self.attributes[score_attrib][0]):
+            # if `score_attrib` is specified, check if it is indeed an
+            # attribute or not. If yes, check if the value of attribute
+            # is numeric or not. If not, keep original GFF score value
+            self.score = self.attributes[score_attrib][0]
 
     def __getitem__(self, key):
         return getattr(self, key)
@@ -111,10 +119,11 @@ class GffLine (object):
 
 class Gff (LineFile):
 
-    def __init__(self, filename, key="ID", append_source=False):
+    def __init__(self, filename, key="ID", append_source=False, score_attrib=False):
         super(Gff, self).__init__(filename)
         self.key = key
         self.append_source = append_source
+        self.score_attrib = score_attrib
 
     def __iter__(self):
         fp = must_open(self.filename)
@@ -126,7 +135,8 @@ class Gff (LineFile):
                 if row == FastaTag:
                     break
                 continue
-            yield GffLine(row, key=self.key, append_source=self.append_source)
+            yield GffLine(row, key=self.key, append_source=self.append_source, \
+                    score_attrib=self.score_attrib)
 
     @property
     def seqids(self):
@@ -308,12 +318,12 @@ def filter(args):
                  help="The feature to scan for the attributes [default: %default]")
 
     opts, args = p.parse_args(args)
+    otype, oid, ocov = opts.type, opts.id, opts.coverage
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     gffile, = args
-    otype, oid, ocov = opts.type, opts.id, opts.coverage
 
     gff = Gff(gffile)
     bad = set()
@@ -1049,9 +1059,11 @@ def bed(args):
     p.add_option("--key", dest="key", default="ID",
             help="Key in the attributes to extract [default: %default]")
     p.add_option("--append_source", default=False, action="store_true",
-            help="Append GFF source name to key value [default: %default]")
+            help="Append GFF source name to extracted key value")
     p.add_option("--nosort", default=False, action="store_true",
             help="Do not sort the output bed file [default: %default]")
+    p.add_option("--score_attrib", default=False,
+            help="Attribute whose value is to be used as score in bedline [default: %default]")
     set_outfile(p)
 
     opts, args = p.parse_args(args)
@@ -1065,7 +1077,7 @@ def bed(args):
 
     type = set(x.strip() for x in opts.type.split(","))
 
-    gff = Gff(gffile, key=key, append_source=opts.append_source)
+    gff = Gff(gffile, key=key, append_source=opts.append_source, score_attrib=opts.score_attrib)
     b = Bed()
 
     for g in gff:
@@ -1075,7 +1087,7 @@ def bed(args):
         b.append(g.bedline)
 
     sorted = not opts.nosort
-    b.print_to_file(opts.outfile, sorted=sorted)
+    b.print_to_file(opts.outfile,sorted=sorted)
 
 
 def make_index(gff_file):

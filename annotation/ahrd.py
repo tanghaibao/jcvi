@@ -8,6 +8,7 @@ Utility to run Automated Human Readable Description (AHRD) pipeline.
 """
 
 import os.path as op
+from os import symlink
 import sys
 import re
 import logging
@@ -127,13 +128,22 @@ blast_dbs:
     filter: {0}/filter_descline_trembl.txt
     token_blacklist: {0}/blacklist_token.txt
     description_score_bit_score_weight: 0.4
-
+{7}
 token_score_bit_score_weight: {4}
 token_score_database_score_weight: {5}
 token_score_overlap_score_weight: {6}
 description_score_relative_description_frequency_weight: 0.6
 output: {3}
 """
+
+iprscanTemplate = """
+interpro_database: ./interpro.xml
+interpro_result: {0}
+"""
+
+# Necessary for the script to know the location of `interpro.xml` and `interpro.dtd`
+iprscan_datadir = "/usr/local/devel/ANNOTATION/iprscan/iprscan_v4.7/data"
+
 
 def main():
 
@@ -386,9 +396,14 @@ def batch(args):
     p.add_option("--path", default="~/code/AHRD/",
                  help="Path where AHRD is installed [default: %default]")
     p.add_option("--blastprog", default="blastp", choices=blast_progs,
-                help="Specify the blast program being run. Based on this option, " \
-                   + " the AHRD parameters (score_weights) will be modified " \
-                   + "[default: %default]")
+                help="Specify the blast program being run. Based on this option," \
+                   + " the AHRD parameters (score_weights) will be modified." \
+                   + " [default: %default]")
+    p.add_option("--iprscan", default=None,
+                help="Specify path to InterProScan results file if available." \
+                   + " If specified, the yml conf file will be modified" \
+                   + " appropriately. [default: %default]")
+
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -400,14 +415,22 @@ def batch(args):
     bit_score, db_score, ovl_score = ahrd_weights[opts.blastprog]
 
     for f in glob("{0}/*.fasta".format(splits)):
-        fb = op.basename(f).split(".")[0]
+        fb = op.basename(f).rsplit(".", 1)[0]
         fw = open(op.join(output, fb + ".yml"), "w")
 
         path = op.expanduser(opts.path)
         dir = op.join(path, "test/resources")
         outfile = op.join(output, fb + ".csv")
-        print >> fw, Template.format(dir, fb, f, outfile, bit_score, db_score, ovl_score)
+        interpro = iprscanTemplate.format(opts.iprscan) if opts.iprscan else ""
 
+        print >> fw, Template.format(dir, fb, f, outfile, bit_score, db_score, ovl_score, interpro)
+
+    if opts.iprscan:
+        if not op.lexists("interpro.xml"):
+            symlink(op.join(iprscan_datadir, "interpro.xml"), "interpro.xml")
+
+        if not op.lexists("interpro.dtd"):
+            symlink(op.join(iprscan_datadir, "interpro.dtd"), "interpro.dtd")
 
 if __name__ == '__main__':
     main()

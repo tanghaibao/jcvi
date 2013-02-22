@@ -128,7 +128,7 @@ def clean(args):
     p = OptionParser(clean.__doc__)
     p.add_option("-a", default=0, type="int",
                  help="Trim length at 5' end [default: %default]")
-    p.add_option("-b", default=0, type="int",
+    p.add_option("-b", default=50, type="int",
                  help="Trim length at 3' end [default: %default]")
     p.add_option("--cpus", default=32,
                  help="Number of cpus to use [default: %default]")
@@ -154,7 +154,7 @@ def clean(args):
     p2_clean = p2 + ".clean"
     p2_cleangz = p2_clean + ".gz"
     if need_update([p1, p2], [p1_cleangz, p2_cleangz]):
-        cmd = "SOAPfilter_v2.0 -t {0} -m 2000000 -p".format(cpus)
+        cmd = "SOAPfilter_v2.0 -t {0} -m 2000000 -p -y -z -g".format(cpus)
         cmd += " -q {0} -w 10 -B 50 -f 0".format(offset)
         cmd += " -l {0} -a {1} -b {2} -c {1} -d {2}".format(size, a, b, a, b)
         cmd += " {0} {1} {2}.clean.stat {3} {4}".\

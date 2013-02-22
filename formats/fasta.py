@@ -881,6 +881,8 @@ def format(args):
             help="Add trailing /1 and /2 for interleaved pairs [default: %default]")
     p.add_option("--sequential", default=False, action="store_true",
             help="Add sequential IDs [default: %default]")
+    p.add_option("--sequentialoffset", default=1, type="int",
+            help="Sequential IDs start at [default: %default]")
     p.add_option("--pad0", default=6, type="int",
             help="Pad a few zeros in front of sequential [default: %default]")
     p.add_option("--gb", default=False, action="store_true",
@@ -911,6 +913,7 @@ def format(args):
     suffix = opts.suffix
     noversion = opts.noversion
     sequential = opts.sequential
+    sequentialoffset = opts.sequentialoffset
     sep = opts.sep
     idx = opts.index
     mapfile = opts.switch
@@ -944,7 +947,8 @@ def format(args):
         if noversion:
             rec.id = rec.id.rsplit(".", 1)[0]
         if sequential:
-            rec.id = "{0:0{1}d}".format(i + 1, opts.pad0)
+            rec.id = "{0:0{1}d}".format(sequentialoffset, opts.pad0)
+            sequentialoffset += 1
         if opts.template:
             template, dir, lib = [x.split("=")[-1] for x in
                     rec.description.split()[1:4]]

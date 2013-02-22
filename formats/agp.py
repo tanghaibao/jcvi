@@ -574,6 +574,7 @@ def main():
         ('mask', 'mask given ranges in components to gaps'),
         ('liftover', 'given ranges in components, get chromosome ranges'),
         ('swap', 'swap objects and components'),
+        ('format', 'reformat AGP file'),
         ('reindex', 'assume accurate component order, reindex coordinates'),
         ('tidy', 'run trim=>reindex=>merge sequentially'),
         ('build', 'given agp file and component fasta file, build ' +\
@@ -584,6 +585,43 @@ def main():
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def format(args):
+    """
+    %prog format oldagpfile newagpfile
+
+    Reformat AGP file. --switch will replace the ids in the AGP file.
+    """
+    from jcvi.formats.base import DictFile
+
+    p = OptionParser(format.__doc__)
+    p.add_option("--switchcomponent",
+                 help="Switch component id based on [%default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    oldagpfile, newagpfile = args
+    switchcomponent = opts.switchcomponent
+    if switchcomponent:
+        switchcomponent = DictFile(switchcomponent)
+
+    agp = AGP(oldagpfile)
+    fw = open(newagpfile, "w")
+    nconverts = 0
+    for i, a in enumerate(agp):
+        if not a.is_gap and a.component_id in switchcomponent:
+            oldid = a.component_id
+            newid = switchcomponent[a.component_id]
+            a.component_id = newid
+            logging.debug("Covert {0} to {1} on line {2}".\
+                        format(oldid, newid, i+1))
+            nconverts += 1
+        print >> fw, a
+
+    logging.debug("Total converted records: {0}".format(nconverts))
 
 
 def frombed(args):
@@ -806,8 +844,10 @@ def mask(args):
     Mask given ranges in components to gaps.
     """
     p = OptionParser(mask.__doc__)
-    p.add_option("--split", default=False, action="store_true",
-                 help="Split object and create new names [default: %default]")
+    p.add_option("--splitobject", default=False, action="store_true",
+                 help="Create new names for object [default: %default]")
+    p.add_option("--splitcomponent", default=False, action="store_true",
+                 help="Create new names for component [default: %default]")
     p.add_option("--log", default=False, action="store_true",
                  help="Write verbose logs to .masklog file [default: %default]")
     p.add_option("--gaptype", default="scaffold",
@@ -819,6 +859,9 @@ def mask(args):
 
     agpfile, bedfile = args
     gaptype = opts.gaptype
+    splitobject = opts.splitobject
+    splitcomponent = opts.splitcomponent
+
     agp = AGP(agpfile)
     bed = Bed(bedfile)
     simple_agp = agp.order
@@ -830,6 +873,10 @@ def mask(args):
     fw = open(newagpfile, "w")
     if opts.log:
         fwlog = open(logfile, "w")
+
+    if splitcomponent:
+        componentindex = defaultdict(int)
+        fwsplit = open("split.bed", "w")
 
     for component, intervals in bed.sub_beds():
         if opts.log:
@@ -866,11 +913,19 @@ def mask(args):
             if orientation not in ('+', '-'):
                 orientation = '+'
 
-            oid = object + "_{0}".format(i / 2) if opts.split else object
+            oid = object + "_{0}".format(i / 2) if splitobject else object
             aline = [oid, 0, 0, 0]
             if i % 2 == 0:
                 cspan = b - a - 1
-                aline += ['W', component, a + 1, b - 1, orientation]
+                if splitcomponent:
+                    cid = component + "_{0}".format(componentindex[component])
+                    componentindex[component] += 1
+                    if cspan > 0:
+                        print >> fwsplit, "\t".join(str(x) for x in \
+                                (component, a, b - 1, cid))
+                    aline += ['W', cid, 1, cspan, orientation]
+                else:
+                    aline += ['W', component, a + 1, b - 1, orientation]
                 is_gap = False
             else:
                 cspan = b - a + 1
@@ -881,7 +936,7 @@ def mask(args):
 
             sum_of_spans += cspan
             aline = "\t".join(str(x) for x in aline)
-            if not (opts.split and is_gap):
+            if not (splitobject and is_gap):
                 agp_fixes[component].append(aline)
 
             if opts.log:
@@ -899,6 +954,11 @@ def mask(args):
             print >> fw, a
 
     fw.close()
+
+    if splitcomponent:
+        fwsplit.close()
+        logging.debug("Split components written to `{0}`.".format(fwsplit.name))
+
     # Reindex
     idxagpfile = reindex([newagpfile])
     shutil.move(idxagpfile, newagpfile)

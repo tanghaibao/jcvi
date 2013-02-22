@@ -299,6 +299,10 @@ def correct(args):
     p = OptionParser(correct.__doc__ + FastqNamings)
     p.add_option("--nofragsdedup", default=False, action="store_true",
                  help="Don't deduplicate the fragment reads [default: %default]")
+    p.add_option("--ploidy", default="2", choices=("1", "2"),
+                 help="Ploidy = [default: %default]")
+    p.add_option("--haploidify", default=False, action="store_true",
+                 help="Set HAPLOIDIFY=True [default: %default]")
     p.add_option("--cpus", default=32, type="int",
                  help="Number of threads to run [default: %default]")
     opts, args = p.parse_args(args)
@@ -308,6 +312,10 @@ def correct(args):
 
     fastq = args
     tag, tagj = "frag_reads", "jump_reads"
+
+    ploidy = opts.ploidy
+    haploidify = opts.haploidify
+    assert (not haploidify) or (haploidify and ploidy == '2')
 
     prepare(["Unknown"] + fastq + ["--norun"])
 
@@ -320,15 +328,16 @@ def correct(args):
     orig = datadir + "/{0}_orig".format(tag)
     origfastb = orig + ".fastb"
     if need_update(fastq, origfastb):
-        cmd = "PrepareAllPathsInputs.pl DATA_DIR={0} HOSTS='{1}'".\
-                format(fullpath, opts.cpus)
+        cmd = "PrepareAllPathsInputs.pl DATA_DIR={0} HOSTS='{1}' PLOIDY={2}".\
+                format(fullpath, opts.cpus, ploidy)
         if phred64:
             cmd += " PHRED_64=True"
         sh(cmd)
 
     if op.exists(origfastb):
         dedup = not opts.nofragsdedup
-        correct_frag(datadir, tag, origfastb, nthreads, dedup=dedup)
+        correct_frag(datadir, tag, origfastb, nthreads, dedup=dedup,
+                     haploidify=haploidify)
 
     origj = datadir + "/{0}_orig".format(tagj)
     origjfastb = origj + ".fastb"
@@ -337,7 +346,8 @@ def correct(args):
         correct_jump(datadir, tagj, origjfastb, nthreads)
 
 
-def correct_frag(datadir, tag, origfastb, nthreads, dedup=False):
+def correct_frag(datadir, tag, origfastb, nthreads,
+                 dedup=False, haploidify=False):
     filt = datadir + "/{0}_filt".format(tag)
     filtfastb = filt + ".fastb"
     run_RemoveDodgyReads(infile=origfastb, outfile=filtfastb,
@@ -353,6 +363,7 @@ def correct_frag(datadir, tag, origfastb, nthreads, dedup=False):
     editfastb = edit + ".fastb"
     if need_update(filtfastb, editfastb):
         cmd = "FindErrors HEAD_IN={0} HEAD_OUT={1}".format(filt, edit)
+        cmd += " PLOIDY_FILE=data/ploidy"
         cmd += nthreads
         sh(cmd)
 
@@ -361,6 +372,9 @@ def correct_frag(datadir, tag, origfastb, nthreads, dedup=False):
     if need_update(editfastb, corrfastb):
         cmd = "CleanCorrectedReads DELETE=True"
         cmd += " HEAD_IN={0} HEAD_OUT={1}".format(edit, corr)
+        cmd += " PLOIDY_FILE=data/ploidy"
+        if haploidify:
+            cmd += " HAPLOIDIFY=True"
         cmd += nthreads
         sh(cmd)
 

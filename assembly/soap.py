@@ -12,6 +12,7 @@ import logging
 from itertools import groupby
 from optparse import OptionParser
 
+from jcvi.formats.fastq import guessoffset
 from jcvi.assembly.base import FastqNamings, Library
 from jcvi.apps.grid import Jobs
 from jcvi.apps.base import ActionDispatcher, debug, need_update, sh
@@ -56,27 +57,36 @@ SOAPRUN="""#!/bin/bash
 
 P=32
 S=soap.config
-C=SOAPdenovo-63mer
-K=29
+C=SOAPdenovo-63mer_v2.0
+K=45
 A=asm${K}
 
-$C pregraph -s $S -d 1 -p $P -K $K -o $A -p $P
-$C contig -g $A -M 3
+$C pregraph -s $S -d 1 -p $P -K $K -o $A -R -p $P
+$C contig -s $S -g $A -M 1 -R -p $P
 $C map -s $S -g $A -p $P
-$C scaff -g $A -b 1.2 -F -p $P
-GapCloser -a ${A}.scafSeq -b $S -l 155 -o ${A}.closed.scafSeq -p 29 -t $P"""
+$C scaff -g $A -F -p $P
+GapCloser_v1.12 -a ${A}.scafSeq -b $S -l 100 -o ${A}.closed.scafSeq -p 31 -t $P"""
+
+
+def get_size(filename):
+
+    library_name = lambda x: "-".join(\
+                op.basename(x).split(".")[0].split("-")[:2])
+
+    lib = Library(library_name(filename))
+    return lib.size
 
 
 def correct(args):
     """
-    %prog correct *.dedup
+    %prog correct *.fastq
 
     Correct reads using ErrorCorrection. Only PE will be used to build the K-mer
-    table, but both PE and MP will be corrected. Final command needs to be run:
-
-    $ parallel ErrorCorrection correct output.freq.gz output.sfreq.gz {} ::: xa?
+    table.
     """
     p = OptionParser(correct.__doc__)
+    p.add_option("--cpus", default=32,
+                 help="Number of cpus to use [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) < 1:
@@ -87,76 +97,68 @@ def correct(args):
     print >> fw, "\n".join(x for x in args if x[:2] == "PE")
     fw.close()
 
-    if need_update(args, "output.freq.gz"):
-        cmd = "ErrorCorrection kmerfreq reads2cor.lst"
+    p1 = args[0]
+    offset = guessoffset([p1])
+    cpus = opts.cpus
+
+    freq = "output.freq.cz"
+    freqlen = freq + ".len"
+    if need_update(args, (freq, freqlen)):
+        cmd = "KmerFreq_AR_v2.0 -k 17 -c -1 -q {0}".format(offset)
+        cmd += " -m 1 -t {0}".format(cpus)
+        cmd += " -p output {0}".format(lstfile)
         sh(cmd)
 
     fw = open(lstfile, "w")
     print >> fw, "\n".join(args)
     fw.close()
 
-    sh("split -l2 {0}".format(lstfile))
+    cmd = "Corrector_AR_v2.0 -k 17 -l 3 -m 5 -c 5 -a 0 -e 1 -w 0 -r 45"
+    cmd += " -Q {0} -q 30 -x 8 -t {1} -o 1 ".format(offset, cpus)
+    cmd += " {0} {1} {2}".format(freq, freqlen, lstfile)
+    sh(cmd)
 
 
 def clean(args):
     """
-    %prog clean 1.fastq 2.fastq insertsize
+    %prog clean 1.fastq 2.fastq [insertsize]
 
     Clean and dedup paired FASTQ files.
     """
-    from jcvi.formats.fastq import guessoffset, convert
-
     p = OptionParser(clean.__doc__)
     p.add_option("-a", default=0, type="int",
                  help="Trim length at 5' end [default: %default]")
     p.add_option("-b", default=0, type="int",
-                 help="Trim length at 5' end [default: %default]")
-    p.add_option("--nofragsdedup", default=False, action="store_true",
-                 help="Don't deduplicate the fragment reads [default: %default]")
+                 help="Trim length at 3' end [default: %default]")
+    p.add_option("--cpus", default=32,
+                 help="Number of cpus to use [default: %default]")
     opts, args = p.parse_args(args)
 
-    if len(args) != 3:
+    if len(args) == 2:
+        p1, p2 = args
+        size = get_size(p1)
+    elif len(args) == 3:
+        p1, p2, size = args
+        size = int(size)
+    else:
         sys.exit(not p.print_help())
 
-    p1, p2, size = args
-    size = int(size)
     pf = p1.split(".")[0]
+    cpus = opts.cpus
 
     offset = guessoffset([p1])
-    p1_q64 = p1.replace(".gz", "") + ".q64.gz"
-    p2_q64 = p2.replace(".gz", "") + ".q64.gz"
     a, b = opts.a, opts.b
 
-    if offset == 33 and need_update([p1, p2], [p1_q64, p2_q64]):
-        logging.debug("Converting offset from 33 to 64 ...")
-        p1cmd = [p1, p1_q64, "-Q", "sanger", "-q", "illumina"]
-        p2cmd = [p2, p2_q64, "-Q", "sanger", "-q", "illumina"]
-        args = [(p1cmd, ), (p2cmd, )]
-        m = Jobs(target=convert, args=args)
-        m.run()
-
-        p1, p2 = p1_q64, p2_q64
-
     p1_clean = p1 + ".clean"
+    p1_cleangz = p1_clean + ".gz"
     p2_clean = p2 + ".clean"
-    if need_update([p1, p2], [p1_clean, p2_clean]):
-        logging.debug("Running low quality filtering ...")
-        cmd  = "filter_data_gz -y -z -w 10 -B 40"
+    p2_cleangz = p2_clean + ".gz"
+    if need_update([p1, p2], [p1_cleangz, p2_cleangz]):
+        cmd = "SOAPfilter_v2.0 -t {0} -m 2000000 -p".format(cpus)
+        cmd += " -q {0} -w 10 -B 50 -f 0".format(offset)
         cmd += " -l {0} -a {1} -b {2} -c {1} -d {2}".format(size, a, b, a, b)
         cmd += " {0} {1} {2}.clean.stat {3} {4}".\
                     format(p1, p2, pf, p1_clean, p2_clean)
-        sh(cmd)
-
-    if opts.nofragsdedup:
-        return
-
-    p1, p2 = p1_clean, p2_clean
-    p1_dedup = p1 + ".dedup"
-    p2_dedup = p2 + ".dedup"
-    if need_update([p1, p2], [p1_dedup, p2_dedup]):
-        logging.debug("Running duplicate filtering ...")
-        cmd  = "duplication {0} {1} {2} {3} {4}.dedup.stat".\
-                    format(p1, p2, p1_dedup, p2_dedup, pf)
         sh(cmd)
 
 
@@ -251,11 +253,12 @@ def prepare(args):
         block += "avg_ins={0}\n".format(size)
         f = fs[0]
         reverse_seq = 0 if ".corr." in f else lib.reverse_seq
-        pair_num_cutoff = 5 if lib.reverse_seq else 3
         block += "reverse_seq={0}\n".format(reverse_seq)
         block += "asm_flags={0}\n".format(lib.asm_flags)
         block += "rank={0}\n".format(rank)
-        block += "pair_num_cutoff={0}\n".format(pair_num_cutoff)
+        if lib.reverse_seq:
+            pair_num_cutoff = 5
+            block += "pair_num_cutoff={0}\n".format(pair_num_cutoff)
         if lib.reverse_seq:
             block += "map_len=35\n"
 

@@ -14,7 +14,6 @@ from optparse import OptionParser
 
 from jcvi.formats.fastq import guessoffset
 from jcvi.assembly.base import FastqNamings, Library
-from jcvi.apps.grid import Jobs
 from jcvi.apps.base import ActionDispatcher, debug, need_update, sh
 debug()
 
@@ -61,7 +60,7 @@ C=SOAPdenovo-63mer_v2.0
 K=45
 A=asm${K}
 
-$C pregraph -s $S -d 1 -p $P -K $K -o $A -R -p $P
+$C pregraph -s $S -d 1 -K $K -o $A -R -p $P
 $C contig -s $S -g $A -M 1 -R -p $P
 $C map -s $S -g $A -p $P
 $C scaff -g $A -F -p $P
@@ -195,7 +194,6 @@ def fillstats(args):
     notClosedbp = sum(x.before for x in notClosed)
 
     totalgaps = len(closed) + len(notClosed)
-    totalbp = closedbp + notClosedbp
 
     print >> sys.stderr, "Closed gaps: {0} size: {1} bp".\
                         format(percentage(len(closed), totalgaps), thousands(closedbp))
@@ -218,7 +216,6 @@ def prepare(args):
     Scan input fastq files (see below) and write SOAP config files based
     on inputfiles.
     """
-    from jcvi.utils.iter import grouper
     from jcvi.formats.base import check_exists
 
     p = OptionParser(prepare.__doc__ + FastqNamings)

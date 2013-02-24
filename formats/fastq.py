@@ -488,8 +488,11 @@ def trim(args):
     grid = opts.grid
 
     fastqfile, = args
-    base = op.basename(fastqfile).split(".")[0]
-    fq = base + ".ntrimmed.fastq"
+
+    obfastqfile = op.basename(fastqfile)
+    fq = obfastqfile.rsplit(".", 1)[0] + ".ntrimmed.fastq"
+    if fastqfile.endswith(".gz"):
+        fq = obfastqfile.rsplit(".", 2)[0] + ".ntrimmed.fastq.gz"
 
     cmd = "fastx_trimmer -Q33 "
     if opts.first:

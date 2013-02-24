@@ -124,15 +124,19 @@ def sh(cmd, grid=False, infile=None, outfile=None, errfile=None,
         return 0  # A fake retcode
     else:
         if infile:
-            cmd += " < {0} ".format(infile)
+            cat = "zcat" if infile.endswith(".gz") else "cat"
+            cmd = "{0} {1} | ".format(cat, infile) + cmd
         if outfile and outfile != "stdout":
+            if outfile.endswith(".gz"):
+                cmd += " | gzip"
             cmd += " > {0} ".format(outfile)
         if errfile:
             cmd += " 2> {0} ".format(errfile)
         if background:
             cmd += " & "
 
-        if log: logging.debug(cmd)
+        if log:
+            logging.debug(cmd)
         return call(cmd, shell=True)
 
 

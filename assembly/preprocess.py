@@ -268,10 +268,12 @@ def run_RemoveDodgyReads(infile=None, outfile=None, workdir=None,
 
 
 @depends
-def run_FastbAndQualb2Fastq(infile=None, outfile=None):
+def run_FastbAndQualb2Fastq(infile=None, outfile=None, rc=False):
     corr = op.basename(infile).rsplit(".", 1)[0]
     cmd = "FastbQualbToFastq HEAD_IN={0} HEAD_OUT={0}".format(corr)
     cmd += " PAIRED=False PHRED_OFFSET=33"
+    if rc:
+        cmd += " FLIP=True"
     sh(cmd)
 
 
@@ -404,7 +406,7 @@ def correct_jump(datadir, tagj, origjfastb, nthreads):
     cwd = os.getcwd()
     os.chdir(datadir)
     filtfastq = pf + ".fastq"
-    run_FastbAndQualb2Fastq(infile=op.basename(filtfastb), outfile=filtfastq)
+    run_FastbAndQualb2Fastq(infile=op.basename(filtfastb), outfile=filtfastq, rc=True)
     os.chdir(cwd)
 
     pairsfile = pf + ".pairs"

@@ -124,7 +124,9 @@ def sh(cmd, grid=False, infile=None, outfile=None, errfile=None,
         return 0  # A fake retcode
     else:
         if infile:
-            cat = "zcat" if infile.endswith(".gz") else "cat"
+            cat = "cat"
+            if infile.endswith(".gz"):
+                cat = "zcat"
             cmd = "{0} {1} | ".format(cat, infile) + cmd
         if outfile and outfile != "stdout":
             if outfile.endswith(".gz"):

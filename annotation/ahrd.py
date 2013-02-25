@@ -101,6 +101,9 @@ put_pat = re.compile(r"Candidate|Hypothetical|Novel|Predicted|Possible", re.I)
 # 'dimerisation' to 'dimerization'
 dimer_pat = re.compile(r"dimerisation", re.I)
 
+# '\s+LENGTH=\d+' to ''
+length_pat = re.compile(r"\s+LENGTH\=\d+", re.I)
+
 
 Template = """
 proteins_fasta: {2}
@@ -273,6 +276,10 @@ def fix_text(s):
         # below is a hack since word boundaries don't work on /
         s = s.strip() + " "
         s = re.sub(pat, "", s)
+
+    # remove "\s+LENGTH=\d+" from TAIR deflines
+    if re.search(length_pat, s):
+        s = re.sub(length_pat, "", s)
 
     s = s.strip()
 

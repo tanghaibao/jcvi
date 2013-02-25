@@ -517,6 +517,7 @@ def format(args):
             notes = {}
         if unique:
             dupcounts = defaultdict(int)
+            newparentid = {}
             gff = Gff(gffile)
             for g in gff:
                 id = g.accn
@@ -571,9 +572,17 @@ def format(args):
             id = g.accn
             if dupcounts[id] > 1:
                 seen[id] += 1
-                id = "{0}-{1}".format(id, seen[id])
+                old_id = id
+                id = "{0}-{1}".format(old_id, seen[old_id])
+                newparentid[old_id] = id
                 g.attributes["ID"] = [id]
                 g.update_attributes(gff3=True)
+
+            if g.attributes["Parent"]:
+                parent = g.attributes["Parent"][0]
+                if dupcounts[parent] > 1:
+                    g.attributes["Parent"] = [newparentid[parent]]
+                    g.update_attributes(gff3=True)
 
         if gsac and g.type == "gene":
             notes[g.accn] = g.attributes["Name"]

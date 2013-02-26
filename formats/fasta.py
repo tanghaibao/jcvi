@@ -1487,7 +1487,7 @@ def _uniq_rec(fastafile, seq=False):
     for rec in SeqIO.parse(fastafile, "fasta"):
         name = str(rec.seq) if seq else rec.id
         if name in seen:
-            logging.debug("ignore %s" % name)
+            logging.debug("ignore {0}".format(rec.id))
             continue
         seen.add(name)
         yield rec

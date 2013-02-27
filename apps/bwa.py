@@ -31,6 +31,13 @@ def main():
     p.dispatch(globals())
 
 
+def output_bam(cmd, bam=False):
+    tcmd = cmd
+    if bam:
+        tcmd += " | samtools view -bS -F 4 - "
+    return tcmd
+
+
 def check_index(dbfile, grid=False):
     safile = dbfile + ".sa"
     if need_update(dbfile, safile):
@@ -140,10 +147,10 @@ def samse(args):
         logging.error("`{0}` exists. `bwa samse` already run.".format(samfile))
         return
 
-    cmd = "bwa samse {0} {1} {2} ".format(dbfile, saifile, readfile)
+    cmd = "bwa samse -n 1 {0} {1} {2} ".format(dbfile, saifile, readfile)
     cmd += "{0}".format(extra)
-    if opts.bam:
-        cmd += " | samtools view -bS -F 4 - "
+
+    cmd = output_bam(cmd, bam=opts.bam)
     sh(cmd, grid=grid, outfile=samfile, threaded=opts.cpus)
 
 
@@ -180,11 +187,10 @@ def sampe(args):
         logging.error("`{0}` exists. `bwa samse` already run.".format(samfile))
         return
 
-    cmd = "bwa sampe {0} {1} {2} {3} {4} ".format(dbfile, sai1file, sai2file,
+    cmd = "bwa sampe -n 1 {0} {1} {2} {3} {4} ".format(dbfile, sai1file, sai2file,
             read1file, read2file)
     cmd += "{0}".format(extra)
-    if opts.bam:
-        cmd += " | samtools view -bS -F 4 - "
+    cmd = output_bam(cmd, bam=opts.bam)
     sh(cmd, grid=grid, outfile=samfile)
 
 
@@ -220,8 +226,7 @@ def bwasw(args):
 
     cmd = "bwa bwasw -t 32 {0} {1} ".format(dbfile, readfile)
     cmd += "{0}".format(extra)
-    if opts.bam:
-        cmd += " | samtools view -bS -F 4 - "
+    cmd = output_bam(cmd, bam=opts.bam)
     sh(cmd, grid=grid, outfile=samfile)
 
 

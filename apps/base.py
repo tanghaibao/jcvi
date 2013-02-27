@@ -496,6 +496,8 @@ def blast(args):
     p = OptionParser(blast.__doc__)
     p.add_option("--pctid", type="int", help="Percent identity [default: %default]")
     p.add_option("--wordsize", type="int", help="Word size [default: %default]")
+    p.add_option("--evalue", type="float", default=0.01,
+                 help="E-value cutoff [default: %default]")
     p.add_option("--best", default=1, type="int",
             help="Only look for best N hits [default: %default]")
     p.add_option("--task", default="megablast", choices=task_choices,
@@ -511,8 +513,8 @@ def blast(args):
     r = op.basename(reffasta).split(".")[0]
     blastfile = "{0}.{1}.blast".format(q, r)
 
-    run_megablast(infile=queryfasta, outfile=blastfile, db=reffasta, \
-                  wordsize=opts.wordsize, pctid=opts.pctid,
+    run_megablast(infile=queryfasta, outfile=blastfile, db=reffasta,
+                  wordsize=opts.wordsize, pctid=opts.pctid, evalue=opts.evalue,
                   hitlen=None, best=opts.best, task=opts.task)
 
     return blastfile

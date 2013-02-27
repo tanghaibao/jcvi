@@ -2,7 +2,6 @@
 Commonly performed commands.
 """
 
-import os
 import os.path as op
 import sys
 import shutil
@@ -12,8 +11,7 @@ import ConfigParser
 from functools import partial
 
 from jcvi.utils.cbook import depends
-from jcvi.apps.base import ActionDispatcher, debug, sh, is_exe, \
-        which, getfilesize
+from jcvi.apps.base import debug, sh, is_exe, which
 debug()
 
 
@@ -126,7 +124,7 @@ def run_vecscreen(infile=None, outfile=None, db="UniVec_Core",
 
 @depends
 def run_megablast(infile=None, outfile=None, db=None, wordsize=None, \
-        pctid=98, hitlen=100, best=None, task="megablast"):
+        pctid=98, hitlen=100, best=None, evalue=0.01, task="megablast"):
 
     assert db, "Need to specify database fasta file."
 
@@ -137,7 +135,7 @@ def run_megablast(infile=None, outfile=None, db=None, wordsize=None, \
 
     cmd = BLPATH("blastn")
     cmd += " -query {0} -db {1} -out {2}".format(infile, db, outfile)
-    cmd += " -evalue 0.01 -outfmt 6 -num_threads 16"
+    cmd += " -evalue {0} -outfmt 6 -num_threads 16".format(evalue)
     cmd += " -task {0}".format(task)
     if wordsize:
         cmd += " -word_size {0}".format(wordsize)

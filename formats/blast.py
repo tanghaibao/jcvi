@@ -999,7 +999,7 @@ def set_options_pairs():
             help="use only certain mate orientations [default: %default]")
     p.add_option("--pairsfile", default=None,
             help="write valid pairs to pairsfile [default: %default]")
-    p.add_option("--nrows", default=100000, type="int",
+    p.add_option("--nrows", default=200000, type="int",
             help="only use the first n lines [default: %default]")
     p.add_option("--rclip", default=0, type="int",
             help="pair ID is derived from rstrip N chars [default: %default]")
@@ -1089,7 +1089,8 @@ def report_pairs(data, cutoff=0, mateorientation=None,
             print >> pairsfw, "{0}\t{1}\t{2}".format(aquery, bquery, dist)
         orientations[orientation] += 1
 
-    print >>sys.stderr, "%d fragments, %d pairs" % (num_fragments, num_pairs)
+    print >>sys.stderr, "{0} fragments, {1} pairs ({2} total)".\
+                format(num_fragments, num_pairs, num_fragments + num_pairs * 2)
     num_links = len(linked_dist)
 
     linked_dist = np.array(linked_dist, dtype="int")

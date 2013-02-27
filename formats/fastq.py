@@ -17,7 +17,8 @@ from itertools import islice
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 
 from jcvi.formats.fasta import must_open, rc
-from jcvi.apps.base import ActionDispatcher, debug, set_grid, sh, mkdir
+from jcvi.apps.base import ActionDispatcher, debug, set_grid, sh, \
+        mkdir, set_outfile
 debug()
 
 qual_offset = lambda x: 33 if x == "sanger" else 64
@@ -152,31 +153,30 @@ def main():
 
 def first(args):
     """
-    %prog first fastqfile N
+    %prog first N fastqfile(s)
 
     Get first N reads from file. Output will be written to *.firstN.fastq.
     """
     p = OptionParser(first.__doc__)
+    set_outfile(p)
     opts, args = p.parse_args(args)
 
-    if len(args) != 2:
+    if len(args) < 2:
         sys.exit(not p.print_help())
 
-    fastqfile, N = args
-    N = int(N)
+    N = int(args[0])
     nlines = N * 4
-    gz = fastqfile.endswith(".gz")
-    sf = ".first{0}.fastq".format(N)
-    if gz:
-        cmd = "zcat {0} | head -n {1} | gzip".format(fastqfile, nlines)
-        pf = fastqfile.rsplit(".", 2)[0]
-        outfile = pf + sf + ".gz"
-    else:
-        cmd = "head -n {0} {1}".format(nlines, fastqfile)
-        pf = fastqfile.rsplit(".", 1)[0]
-        outfile = pf + sf
+    fastqfiles = args[1:]
+    fastqfile = fastqfiles[0]
 
-    sh(cmd, outfile=outfile)
+    gz = fastqfile.endswith(".gz")
+    for fastqfile in fastqfiles:
+        if gz:
+            cmd = "zcat {0} | head -n {1}".format(fastqfile, nlines)
+        else:
+            cmd = "head -n {0} {1}".format(nlines, fastqfile)
+
+        sh(cmd, outfile=opts.outfile, append=True)
 
 
 def FastqPairedIterator(read1, read2):

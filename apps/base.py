@@ -112,7 +112,7 @@ def set_stripnames(instance):
 
 
 def sh(cmd, grid=False, infile=None, outfile=None, errfile=None,
-        background=False, threaded=None, log=True):
+        append=False, background=False, threaded=None, log=True):
     """
     simple wrapper for system calls
     """
@@ -131,7 +131,8 @@ def sh(cmd, grid=False, infile=None, outfile=None, errfile=None,
         if outfile and outfile != "stdout":
             if outfile.endswith(".gz"):
                 cmd += " | gzip"
-            cmd += " > {0} ".format(outfile)
+            tag = '>>' if append else '>'
+            cmd += " {0} {1} ".format(tag, outfile)
         if errfile:
             cmd += " 2> {0} ".format(errfile)
         if background:

@@ -131,7 +131,9 @@ def sh(cmd, grid=False, infile=None, outfile=None, errfile=None,
         if outfile and outfile != "stdout":
             if outfile.endswith(".gz"):
                 cmd += " | gzip"
-            tag = '>>' if append else '>'
+            tag = ">"
+            if append:
+                tag = ">>"
             cmd += " {0} {1} ".format(tag, outfile)
         if errfile:
             cmd += " 2> {0} ".format(errfile)

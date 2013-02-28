@@ -340,12 +340,20 @@ def read_block(handle, signal):
     signal_len = len(signal)
     it = (x[1] for x in groupby(handle,
         key=lambda row: row.strip()[:signal_len] == signal))
+    found_signal = False
     for header in it:
         header = header.next().strip()
         if header[:signal_len] != signal:
             continue
+        found_signal = True
         seq = list(s.strip() for s in it.next())
         yield header, seq
+
+    if not found_signal:
+        logging.debug("Signal '{0}' not found. Read entire file.".format(signal))
+        handle.seek(0)
+        seq = list(s.strip() for s in handle)
+        yield None, seq
 
 
 def is_number(s):

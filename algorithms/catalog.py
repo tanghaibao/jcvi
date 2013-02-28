@@ -529,12 +529,15 @@ def ortholog(args):
     from jcvi.formats.blast import cscore
 
     p = OptionParser(ortholog.__doc__)
+    p.add_option("--cscore", default=0.9, type="float",
+                 help="C-score cutoff [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 4:
         sys.exit(not p.print_help())
 
     afasta, abed, bfasta, bbed = args
+    ccscore = opts.cscore
     aprefix = afasta.split(".")[0]
     bprefix = bfasta.split(".")[0]
     pprefix = ".".join((aprefix, bprefix))
@@ -546,7 +549,7 @@ def ortholog(args):
     filtered_last = last + ".filtered"
     bstring = ["--qbed=" + abed, "--sbed=" + bbed]
     if need_update(last, filtered_last):
-        blastfilter_main([last, "--cscore=.7",
+        blastfilter_main([last, "--cscore={0}".format(ccscore),
                           "--tandem_Nmax=10"] + bstring)
 
     anchors = pprefix + ".anchors"

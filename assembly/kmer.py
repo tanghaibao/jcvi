@@ -310,7 +310,7 @@ def histogram(args):
 
     Total_Kmers = int(totalKmers)
     coverage = opts.coverage
-    Kmer_coverage = Ks.max2 if not coverage else coverage
+    Kmer_coverage = ks.max2 if not coverage else coverage
     Genome_size = Total_Kmers * 1. / Kmer_coverage / 1e6
 
     Total_Kmers_msg = "Total {0}-mers: {1}".format(N, Total_Kmers)

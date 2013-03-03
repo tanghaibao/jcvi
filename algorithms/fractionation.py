@@ -23,11 +23,118 @@ def main():
 
     actions = (
         ('loss', 'extract likely gene loss candidates'),
+        ('genestatus', 'tag genes based on translation from GMAP models'),
+        ('summary', 'provide summary of fractionation'),
         # Specific study (requires specific datasets)
         ('napus', 'extract napus gene loss vs diploid ancestors'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def genestatus(args):
+    """
+    %prog genestatus diploid.gff3.exon.ids
+
+    Tag genes based on translation from GMAP models, using fasta.translate()
+    --ids.
+    """
+    from itertools import groupby
+    p = OptionParser(genestatus.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    idsfile, = args
+    fp = open(idsfile)
+    data = []
+    for row in fp:
+        mRNA, label = row.split()
+        labelatoms = label.split(",")
+        if label == "complete" or label == "contain_ns,complete":
+            tag = "complete"
+        if "cannot_translate" in labelatoms:
+            tag = "pseudogene"
+        elif "five_prime_missing" in labelatoms or \
+             "three_prime_missing" in labelatoms:
+            tag = "partial"
+        data.append((mRNA, label, tag))
+
+    key = lambda x: x[0].split(".")[0]
+    for gene, cc in groupby(data, key=key):
+        cc = list(cc)
+        tags = [x[-1] for x in cc]
+        if "complete" in tags:
+            tag = "complete"
+        elif "partial" in tags:
+            tag = "partial"
+        else:
+            tag = "pseudogene"
+        print "\t".join((gene, tag))
+
+
+def summary(args):
+    """
+    %prog summary diploid.napus.fractionation gmap.status
+
+    Provide summary of fractionation. `fractionation` file is generated with
+    loss(). `gmap.status` is generated with genestatus().
+    """
+    from jcvi.formats.base import DictFile
+    from jcvi.utils.cbook import percentage
+
+    p = OptionParser(summary.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    frfile, statusfile = args
+    status = DictFile(statusfile)
+    fp = open(frfile)
+    inside, outside = 0, 0
+    syntenic, non_syntenic = 0, 0
+    s, ns, nf = 0, 0, 0
+    complete, pseudogene, partial, gmap_fail = 0, 0, 0, 0
+    for row in fp:
+        seqid, gene, tag = row.split()
+        if tag == '.':
+            outside += 1
+        else:
+            inside += 1
+            if tag[0] == '[':
+                non_syntenic += 1
+                if tag.startswith("[S]"):
+                    s += 1
+                    gstatus = status.get(gene, None)
+                    if gstatus == 'complete':
+                        complete += 1
+                    elif gstatus == 'pseudogene':
+                        pseudogene += 1
+                    elif gstatus == 'partial':
+                        partial += 1
+                    else:
+                        gmap_fail += 1
+                elif tag.startswith("[NS]"):
+                    ns += 1
+                elif tag.startswith("[NF]"):
+                    nf += 1
+            else:
+                syntenic += 1
+
+    m = "{0} inside synteny blocks\n".format(inside)
+    m += "{0} outside synteny blocks\n".format(outside)
+    m += "{0} has syntenic gene\n".format(syntenic)
+    m += "{0} lack syntenic gene\n".format(non_syntenic)
+    m += "{0} has sequence match in syntenic location\n".format(s)
+    m += "{0} has sequence match in non-syntenic location\n".format(ns)
+    m += "{0} has no sequence match\n".format(nf)
+    m += "{0} syntenic sequence - complete model\n".format(percentage(complete, s))
+    m += "{0} syntenic sequence - partial model\n".format(percentage(partial, s))
+    m += "{0} syntenic sequence - pseudogene\n".format(percentage(pseudogene, s))
+    m += "{0} syntenic sequence - gmap fail\n".format(percentage(gmap_fail, s))
+    print >> sys.stderr, m
 
 
 def get_tag(name, order):
@@ -80,10 +187,10 @@ def napus(args):
         if '.' in (br, bo):
             continue
         an, cn = retention[br], retention[bo]
-        if '.' in (an, cn):
-            continue
-
         row = "\t".join((br, bo, an, cn))
+        if '.' in (an, cn):
+            #print row
+            continue
 
         # label loss candidates
         antag, anrange = get_tag(an, order)

@@ -529,7 +529,7 @@ def ortholog(args):
     from jcvi.formats.blast import cscore
 
     p = OptionParser(ortholog.__doc__)
-    p.add_option("--cscore", default=0.9, type="float",
+    p.add_option("--cscore", default=0.99, type="float",
                  help="C-score cutoff [default: %default]")
     opts, args = p.parse_args(args)
 
@@ -555,7 +555,7 @@ def ortholog(args):
     anchors = pprefix + ".anchors"
     lifted_anchors = pprefix + ".lifted.anchors"
     if need_update(filtered_last, lifted_anchors):
-        scan([filtered_last, anchors, "--dist=20"] + bstring)
+        scan([filtered_last, anchors, "--dist=20", "--min_size=4"] + bstring)
 
     ooanchors = pprefix + ".1x1.anchors"
     if need_update(anchors, ooanchors):

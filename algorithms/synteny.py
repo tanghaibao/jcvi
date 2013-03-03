@@ -664,9 +664,9 @@ def screen(args):
     p.add_option("--seqpairs", help="File with seqpairs [default: %default]")
     p.add_option("--nointra", action="store_true",
                  help="Remove intra-chromosomal blocks [default: %default]")
-    p.add_option("--minspan", default=5, type="int",
+    p.add_option("--minspan", default=0, type="int",
                  help="Only blocks with span >= [default: %default]")
-    p.add_option("--minsize", default=5, type="int",
+    p.add_option("--minsize", default=0, type="int",
                  help="Only blocks with anchors >= [default: %default]")
     p.add_option("--simple", action="store_true",
                  help="Write simple anchorfile with block ends [default: %default]")

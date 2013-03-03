@@ -525,7 +525,7 @@ def ortholog(args):
     from jcvi.apps.last import main as last_main
     from jcvi.apps.blastfilter import main as blastfilter_main
     from jcvi.algorithms.quota import main as quota_main
-    from jcvi.algorithms.synteny import scan, screen, mcscan
+    from jcvi.algorithms.synteny import scan, screen, mcscan, liftover
     from jcvi.formats.blast import cscore
 
     p = OptionParser(ortholog.__doc__)
@@ -555,24 +555,21 @@ def ortholog(args):
     anchors = pprefix + ".anchors"
     lifted_anchors = pprefix + ".lifted.anchors"
     if need_update(filtered_last, lifted_anchors):
-        scan([filtered_last, anchors, "--dist=20",
-              "--liftover=" + last] + bstring)
+        scan([filtered_last, anchors, "--dist=20"] + bstring)
 
-    blockids = pprefix + ".1x1.ids"
-    if need_update(lifted_anchors, blockids):
-        quota_main([lifted_anchors, "--quota=1:1",
-                   "-o", blockids] + bstring)
+    ooanchors = pprefix + ".1x1.anchors"
+    if need_update(anchors, ooanchors):
+        quota_main([anchors, "--quota=1:1", "--screen"] + bstring)
 
-    ooanchors = lifted_anchors + ".1x1"
-    if need_update(blockids, ooanchors):
-        screen([lifted_anchors, ooanchors, "--ids=" + blockids,
-                "--minspan=0"] + bstring)
+    lifted_anchors = pprefix + ".1x1.lifted.anchors"
+    if need_update((last, ooanchors), lifted_anchors):
+        liftover([last, ooanchors] + bstring)
 
     pblocks = pprefix + ".1x1.blocks"
     qblocks = qprefix + ".1x1.blocks"
-    if need_update(ooanchors, [pblocks, qblocks]):
-        mcscan([abed, ooanchors, "--iter=1", "-o", pblocks])
-        mcscan([bbed, ooanchors, "--iter=1", "-o", qblocks])
+    if need_update(lifted_anchors, [pblocks, qblocks]):
+        mcscan([abed, lifted_anchors, "--iter=1", "-o", pblocks])
+        mcscan([bbed, lifted_anchors, "--iter=1", "-o", qblocks])
 
     rbh = pprefix + ".rbh"
     if need_update(last, rbh):

@@ -31,7 +31,7 @@ from jcvi.algorithms.synteny import AnchorFile, _score, add_beds, check_beds
 from jcvi.algorithms.lpsolve import GLPKSolver, SCIPSolver
 from jcvi.formats.bed import Bed
 from jcvi.formats.base import must_open
-from jcvi.apps.base import debug, set_outfile
+from jcvi.apps.base import debug
 debug()
 
 
@@ -271,7 +271,9 @@ def main(args):
                  "[default: %default]")
     p.add_option("--verbose", action="store_true",
             default=False, help="show verbose solver output")
-    set_outfile(p)
+
+    p.add_option("--screen", default=False, action="store_true",
+            help="generate new anchors file [default: %default]")
 
     opts, args = p.parse_args(args)
 
@@ -290,12 +292,10 @@ def main(args):
             print >> sys.stderr, "quota string should be the form x:x (2:4, 1:3, etc.)"
             sys.exit(1)
 
-        if opts.self_match and qa!=qb:
+        if opts.self_match and qa != qb:
             raise Exception, "when comparing genome to itself, " \
                     "quota must be the same number " \
                     "(like 1:1, 2:2) you have %s" % opts.quota
-        if qa > 12 or qb > 12:
-            raise Exception, "quota %s too loose, make it <=12 each" % opts.quota
         quota = (qa, qb)
 
     self_match = opts.self_match
@@ -312,8 +312,19 @@ def main(args):
             solver=opts.solver, verbose=opts.verbose)
 
     logging.debug("Selected {0} blocks.".format(len(selected_ids)))
-    fw = must_open(opts.outfile, "w")
+    prefix = qa_file.rsplit(".", 1)[0]
+    suffix = "{0}x{1}".format(qa, qb)
+    outfile = ".".join((prefix, suffix))
+    fw = must_open(outfile, "w")
     print >> fw, ",".join(str(x) for x in selected_ids)
+    fw.close()
+    logging.debug("Screened blocks ids written to `{0}`.".format(outfile))
+
+    if opts.screen:
+        from jcvi.algorithms.synteny import screen
+
+        new_qa_file = ".".join((prefix, suffix, "anchors"))
+        screen([qa_file, new_qa_file, "--ids", outfile])
 
 
 if __name__ == '__main__':

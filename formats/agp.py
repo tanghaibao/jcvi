@@ -1418,7 +1418,7 @@ def gaps(args):
             b.gap_length = sum(x.gap_length for x in alines)
 
             assert b.gap_length == b.object_end - b.object_beg + 1
-            b.component_type = 'N'
+            b.component_type = 'U' if b.gap_length == 100 else 'N'
 
             gtypes = [x.gap_type for x in alines]
             for gtype in priorities:

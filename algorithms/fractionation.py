@@ -143,6 +143,7 @@ def summary(args):
     syntenic, non_syntenic = 0, 0
     s, ns, nf = 0, 0, 0
     complete, pseudogene, partial, gmap_fail = 0, 0, 0, 0
+    random, real_ns = 0, 0
     partial_deletions = []
     for row in fp:
         seqid, gene, tag = row.split()
@@ -166,6 +167,10 @@ def summary(args):
                         gmap_fail += 1
                 elif tag.startswith("[NS]"):
                     ns += 1
+                    if "random" in tag or "Scaffold" in tag:
+                        random += 1
+                    else:
+                        real_ns += 1
                 elif tag.startswith("[NF]"):
                     nf += 1
             else:
@@ -177,6 +182,8 @@ def summary(args):
     m += "{0} lack syntenic gene\n".format(non_syntenic)
     m += "{0} has sequence match in syntenic location\n".format(s)
     m += "{0} has sequence match in non-syntenic location\n".format(ns)
+    m += "{0} has sequence match in un-ordered scaffolds\n".format(random)
+    m += "{0} has sequence match in real non-syntenic location\n".format(real_ns)
     m += "{0} has no sequence match\n".format(nf)
     m += "{0} syntenic sequence - complete model\n".format(percentage(complete, s))
     m += "{0} syntenic sequence - partial model\n".format(percentage(partial, s))

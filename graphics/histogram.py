@@ -29,7 +29,9 @@ data <- read.table('$numberfile', skip=$skip)
 data <- data[data >= vmin]
 data <- data[data <= vmax]
 data <- data.frame($xlabel=data)
-m <- ggplot(data, aes(x=$xlabel))"""
+m <- ggplot(data, aes(x=$xlabel)) +
+     opts(plot.title=theme_text(size=12, colour="darkblue"))
+"""
 
 histogram_template = histogram_header + """
 m + geom_histogram(colour="darkgreen", fill="$fill", binwidth=(vmax-vmin)/$bins) +

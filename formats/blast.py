@@ -1129,7 +1129,7 @@ def report_pairs(data, cutoff=0, mateorientation=None,
         insertsfw.close()
         prefix = insertsfile.rsplit(".", 1)[0]
         osummary = " ".join(orientation_summary)
-        title="{0} ({1}; median dist:{2})".format(prefix, osummary, p0)
+        title="{0} ({1}; median:{2} bp)".format(prefix, osummary, p0)
         histogram(insertsfile, vmin=0, vmax=cutoff, bins=bins,
                 xlabel="Insertsize", title=title, ascii=ascii)
         if op.exists(insertsfile):

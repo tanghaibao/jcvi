@@ -25,11 +25,57 @@ def main():
         ('loss', 'extract likely gene loss candidates'),
         ('genestatus', 'tag genes based on translation from GMAP models'),
         ('summary', 'provide summary of fractionation'),
+        ('gaps', 'check gene locations against gaps'),
         # Specific study (requires specific datasets)
         ('napus', 'extract napus gene loss vs diploid ancestors'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def gaps(args):
+    """
+    %prog gaps idsfile fractionationfile gapsbed
+
+    Check gene locations against gaps. `idsfile` contains a list of IDs to query
+    into `fractionationfile` in order to get expected locations.
+    """
+    from jcvi.formats.base import DictFile
+    from jcvi.apps.base import popen
+    from jcvi.utils.cbook import percentage
+
+    p = OptionParser(gaps.__doc__)
+    p.add_option("--bdist", default=0, type="int",
+                 help="Base pair distance [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    idsfile, frfile, gapsbed = args
+    bdist = opts.bdist
+    d =  DictFile(frfile, keypos=1, valuepos=2)
+    bedfile = idsfile + ".bed"
+    fw = open(bedfile, "w")
+    fp = open(idsfile)
+    total = 0
+    for row in fp:
+        id = row.strip()
+        hit = d[id]
+        tag, pos = get_tag(hit, None)
+        seqid, start, end = pos
+        start -= bdist
+        end += bdist
+        print >> fw, "\t".join(str(x) for x in (seqid, start - 1, end, id))
+        total += 1
+    fw.close()
+
+    cmd = "intersectBed -a {0} -b {1} -v | wc -l".format(bedfile, gapsbed)
+    not_in_gaps = popen(cmd).read()
+    not_in_gaps = int(not_in_gaps)
+    in_gaps = total - not_in_gaps
+    print >> sys.stderr, "Ids in gaps: {1}".\
+            format(total, percentage(in_gaps, total))
 
 
 def genestatus(args):
@@ -97,6 +143,7 @@ def summary(args):
     syntenic, non_syntenic = 0, 0
     s, ns, nf = 0, 0, 0
     complete, pseudogene, partial, gmap_fail = 0, 0, 0, 0
+    partial_deletions = []
     for row in fp:
         seqid, gene, tag = row.split()
         if tag == '.':
@@ -113,6 +160,7 @@ def summary(args):
                     elif gstatus == 'pseudogene':
                         pseudogene += 1
                     elif gstatus == 'partial':
+                        partial_deletions.append(gene)
                         partial += 1
                     else:
                         gmap_fail += 1
@@ -135,6 +183,10 @@ def summary(args):
     m += "{0} syntenic sequence - pseudogene\n".format(percentage(pseudogene, s))
     m += "{0} syntenic sequence - gmap fail\n".format(percentage(gmap_fail, s))
     print >> sys.stderr, m
+
+    fw = open("partial_deletions", "w")
+    print >> fw, "\n".join(partial_deletions)
+    fw.close()
 
 
 def get_tag(name, order):
@@ -198,9 +250,9 @@ def napus(args):
 
         if range_overlap(anrange, cnrange):
             if (antag, cntag) == ("NS", None):
-                row = row + "\tAN LOST"
+                row = row + "\tAN LOST|{0}".format(br)
             if (antag, cntag) == (None, "NS"):
-                row = row + "\tCN LOST"
+                row = row + "\tCN LOST|{0}".format(bo)
 
         print row
 
@@ -218,9 +270,9 @@ def loss(args):
     p = OptionParser(loss.__doc__)
     p.add_option("--bed", default=False, action="store_true",
                  help="Genomic BLAST is in bed format [default: %default]")
-    p.add_option("--gdist", default=20,
+    p.add_option("--gdist", default=20, type="int",
                  help="Gene distance [default: %default]")
-    p.add_option("--bdist", default=20000,
+    p.add_option("--bdist", default=20000, type="int",
                  help="Base pair distance [default: %default]")
     add_beds(p)
     opts, args = p.parse_args(args)

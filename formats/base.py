@@ -350,7 +350,6 @@ def read_block(handle, signal):
         yield header, seq
 
     if not found_signal:
-        logging.debug("Signal '{0}' not found. Read entire file.".format(signal))
         handle.seek(0)
         seq = list(s.strip() for s in handle)
         yield None, seq

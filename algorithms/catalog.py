@@ -224,6 +224,77 @@ def enrich(args):
     logging.debug("Recruited {0} new genes.".format(len(recruited)))
 
 
+def pairwise_distance(a, b, threadorder):
+    d = 0
+    for x, y in zip(a, b)[:-1]:  # Last column not used
+        x, y = x.strip("|"), y.strip("|")
+        if "." in (x, y):
+            dd = 50
+        else:
+            xi, x = threadorder[x]
+            yi, y = threadorder[y]
+            dd = min(abs(xi - yi), 50)
+        d += dd
+    return d
+
+
+def insert_into_threaded(atoms, threaded, threadorder):
+    min_idx, min_d = 0, 1000
+    for i, t in enumerate(threaded):
+        # calculate distance
+        d = pairwise_distance(atoms, t, threadorder)
+        if d < min_d:
+            min_idx = i
+            min_d = d
+
+    i = min_idx
+    t = threaded[i]
+    threaded.insert(i, atoms)
+    logging.debug("Insert {0} before {1} (d={2})".format(atoms, t, min_d))
+
+
+def sort_layout(thread, listfile, column=0):
+    """
+    Sort the syntelog table according to chromomomal positions. First orient the
+    contents against threadbed, then for contents not in threadbed, insert to
+    the nearest neighbor.
+    """
+    from jcvi.formats.base import DictFile
+
+    outfile = listfile.rsplit(".", 1)[0] + ".sorted.list"
+    threadorder = thread.order
+    fw = open(outfile, "w")
+    lt = DictFile(listfile, keypos=column, valuepos=None)
+    threaded = []
+    imported = set()
+    for t in thread:
+        accn = t.accn
+        if accn not in lt:
+            continue
+
+        imported.add(accn)
+        atoms = lt[accn]
+        threaded.append(atoms)
+
+    assert len(threaded) == len(imported)
+
+    total = sum(1 for x in open(listfile))
+    logging.debug("Total: {0}, currently threaded: {1}".format(total, len(threaded)))
+    fp = open(listfile)
+    for row in fp:
+        atoms = row.split()
+        accn = atoms[0]
+        if accn in imported:
+            continue
+        insert_into_threaded(atoms, threaded, threadorder)
+
+    for atoms in threaded:
+        print >> fw, "\t".join(atoms)
+
+    fw.close()
+    logging.debug("File `{0}` sorted to `{1}`.".format(outfile, thread.filename))
+
+
 def layout(args):
     """
     %prog layout omgfile taxa
@@ -232,6 +303,8 @@ def layout(args):
     separated by comma in place of taxa, e.g. "BR,BO,AN,CN"
     """
     p = OptionParser(layout.__doc__)
+    p.add_option("--sort",
+                 help="Sort layout file based on bedfile [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -275,6 +348,10 @@ def layout(args):
     sh(cmd)
 
     logging.debug("List file written to `{0}`.".format(listfile))
+    sort = opts.sort
+    if sort:
+        thread = Bed(sort)
+        sort_layout(thread, listfile)
 
 
 def omgparse(args):

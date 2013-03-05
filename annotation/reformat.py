@@ -700,7 +700,7 @@ def consolidate(nbedfile, obedfile, cbedfile):
 
 def rename(args):
     """
-    %prog rename genes.bed gaps.bed
+    %prog rename genes.bed [gaps.bed]
 
     Rename genes for annotation release.
 
@@ -717,6 +717,8 @@ def rename(args):
 
     When we encounter gaps, we would like the increment to be larger. For example,
     Bo1g00120, <gap>, Bo1g01120...
+
+    Gaps bed file is optional.
     """
     import string
 
@@ -727,22 +729,26 @@ def rename(args):
                  help="Increment for gaps [default: %default]")
     p.add_option("--pad0", default=6, type="int",
                  help="Pad gene identifiers with 0 [default: %default]")
+    p.add_option("--spad0", default=4, type="int",
+                 help="Pad gene identifiers on small scaffolds [default: %default]")
     p.add_option("--prefix", default="Bo",
                  help="Genome prefix [default: %default]")
     opts, args = p.parse_args(args)
 
-    if len(args) != 2:
+    if len(args) not in (1, 2):
         sys.exit(not p.print_help())
 
-    genebed, gapbed = args
+    genebed = args[0]
+    gapbed = args[1] if len(args) == 2 else None
     prefix = opts.prefix
     gene_increment = opts.gene_increment
     gap_increment = opts.gap_increment
 
     genes = Bed(genebed)
-    fp = open(gapbed)
-    for row in fp:
-        genes.append(BedLine(row))
+    if gapbed:
+        fp = open(gapbed)
+        for row in fp:
+            genes.append(BedLine(row))
 
     genes.sort(key=genes.key)
     idsfile = prefix + ".ids"
@@ -753,7 +759,7 @@ def rename(args):
     fw = open(idsfile, "w")
     for chr, lines in groupby(genes, key=lambda x: x.seqid):
         lines = list(lines)
-        pad0 = opts.pad0 if len(lines) > 1000 else 3
+        pad0 = opts.pad0 if len(lines) > 1000 else opts.spad0
         isChr = chr[0].upper() == 'C'
         digits = "".join(x for x in chr if x in string.digits)
         gs = "g" if isChr else "s"

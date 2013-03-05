@@ -591,7 +591,7 @@ def annotate_chr(chr, chrbed, g, scores, nbedline, abedline):
                 print >> sys.stderr, "\t" + ", ".join([str(x)\
                         for x in elem[1:]])
                 achr, arank = atg_name(elem[1])
-                if not achr and achr != current_chr:
+                if not achr or achr != current_chr:
                     continue
 
                 if len(tigrs) > 1:

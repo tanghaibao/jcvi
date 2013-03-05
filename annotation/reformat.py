@@ -8,17 +8,20 @@ Similar to the utilities in DAWGPAWS.
 <http://dawgpaws.sourceforge.net/man.html>
 """
 
+import os
 import sys
 import logging
+import re
 
 from itertools import groupby
 from optparse import OptionParser
+from pybedtools import BedTool
 
-from jcvi.formats.bed import Bed, BedLine
+from jcvi.formats.bed import Bed, BedLine, sort
 from jcvi.formats.gff import GffLine, Gff
-from jcvi.formats.base import SetFile
+from jcvi.formats.base import SetFile, must_open
 from jcvi.utils.cbook import number
-from jcvi.apps.base import ActionDispatcher, debug, need_update, popen
+from jcvi.apps.base import ActionDispatcher, debug, need_update, popen, sh
 debug()
 
 
@@ -149,6 +152,7 @@ def main():
     actions = (
         ('rename', 'rename genes for annotation release'),
         # Medicago gene renumbering
+        ('annotate', 'annotation new bed file with features from old'),
         ('renumber', 'renumber genes for annotation updates'),
         ('instantiate', 'instantiate NEW genes tagged by renumber'),
         ('plot', 'plot gene identifiers along certain chromosome'),
@@ -478,6 +482,220 @@ def renumber(args):
                 tag = tagstore[accn]
 
             print "\t".join((str(s), "|".join(tag)))
+
+
+def annotate(args):
+    """
+    %prog annotate new.bed old.bed
+
+    Annotate the `new.bed` with features from `old.bed` for the purpose of
+    gene numbering. Make use of needle global alignment results to resolve
+    multiple IDs in a certain locus.
+
+    Transfer over as many identifiers as possible while following guidelines:
+    http://www.arabidopsis.org/portals/nomenclature/guidelines.jsp#editing
+    """
+    from jcvi.utils.grouper import Grouper
+    from jcvi.formats.base import DictFile
+    import pprint
+
+    p = OptionParser(annotate.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    nbedfile, obedfile = args
+    npf, opf = nbedfile.rsplit(".", 1)[0], obedfile.rsplit(".", 1)[0]
+
+    # Make consolidated.bed
+    cbedfile = "consolidated.bed"
+    if not os.path.isfile(cbedfile):
+        consolidate(nbedfile, obedfile, cbedfile)
+    else:
+        logging.warning("`{0}` already exists. Skipping step".format(cbedfile))
+
+    # Get pairs and prompt to run needle
+    pairsfile = "nw.pairs"
+    scoresfile = "nw.scores"
+    if not os.path.isfile(pairsfile):
+        get_pairs(cbedfile, pairsfile)
+    else:
+        logging.warning("`{0}` already exists. Checking for needle output".\
+                format(pairsfile))
+
+    # If needle scores exist, proceed with annotation
+    if not os.path.isfile(scoresfile):
+        logging.error("`{0}` does not exist. Please process {1} using `needle`".\
+                format(scoresfile, pairsfile))
+        sys.exit()
+
+    logging.warning("`{0}' exists. Storing scores in memory".\
+            format(scoresfile))
+    scores = {}
+    fp = must_open(scoresfile)
+    for row in fp:
+        (tigr, legacy, identity, score) = row.strip().split("\t")
+        match = re.search("\d+\/\d+\s+\(\s*(\d+\.\d+)%\)", identity)
+        legacy = re.sub('\.\d+$', '', legacy)
+        if tigr not in scores:
+            scores[tigr] = []
+        scores[tigr].append((tigr, legacy, match.group(1), score))
+
+    # Iterate through consolidated bed and
+    # filter piles based on score
+    abedline = {}
+
+    cbed = Bed(cbedfile)
+    g = Grouper()
+    for c in cbed:
+        accn = c.accn
+        g.join(*accn.split(";"))
+
+    nbedline = {}
+    nbed = Bed(nbedfile)
+    for line in nbed: nbedline[line.accn] = line
+
+    for chr, chrbed in nbed.sub_beds():
+        abedline = annotate_chr(chr, chrbed, g, scores, nbedline, abedline)
+
+    abedfile = npf + ".annotated.bed"
+    afh = open(abedfile, "w")
+    for accn in abedline:
+        print >> afh, abedline[accn]
+    afh.close()
+
+    sort([abedfile, "-i"])
+
+
+def annotate_chr(chr, chrbed, g, scores, nbedline, abedline):
+    splits = set()
+    current_chr = number(chr)
+
+    for line in chrbed:
+        accn = line.accn
+        if accn not in g or "chr" not in chr:
+            abedline[accn] = line
+            continue
+
+        gaccns = g[accn]
+        tigrs = [a for a in gaccns if ".m" in a]
+        tigrgrp = ";".join(tigrs)
+
+        if accn in scores:
+            scores[accn] = sorted(scores[accn], key=lambda x: float(x[3]),\
+                    reverse=True)
+
+            print >> sys.stderr, accn
+            for elem in scores[accn]:
+                print >> sys.stderr, "\t" + ", ".join([str(x)\
+                        for x in elem[1:]])
+                achr, arank = atg_name(elem[1])
+                if not achr and achr != current_chr:
+                    continue
+
+                if len(tigrs) > 1:
+                    if tigrgrp not in scores: scores[tigrgrp] = []
+                    scores[tigrgrp].append(elem)
+                else:
+                    line.accn = ";".join([str(x) for x in accn, elem[1]])
+                    line.extra[0] = elem[3]
+                if len(scores[accn]) > 1: break
+
+        if len(tigrs) > 1:
+            splits.add(tigrgrp)
+        else:
+            abedline[line.accn] = line
+
+    abedline = process_splits(splits, scores, nbedline, abedline)
+    return abedline
+
+
+def process_splits(splits, scores, nbedline, abedline):
+    for tigrgrp in splits:
+        tigrs = tigrgrp.split(";")
+        print >> sys.stderr, tigrs
+        if tigrgrp in scores:
+            best = {}
+            scores[tigrgrp] = sorted(scores[tigrgrp],\
+                    key=lambda x: float(x[3]),\
+                    reverse=True)
+            for elem in scores[tigrgrp]:
+                if elem[1] not in best:
+                    best[elem[1]] = elem[0]
+
+            for tigr in tigrs:
+                line = nbedline[tigr]
+                if tigr in scores:
+                    for elem in scores[tigr]:
+                        if elem[1] in best and tigr == best[elem[1]]:
+                            print >> sys.stderr, "\t" + elem[0]
+                            print >> sys.stderr, "\t\t" + ", ".join([str(x)\
+                                    for x in elem[1:]])
+                            line.accn = ";".join([str(x) for x in line.accn, elem[1]])
+                            line.extra[0] = elem[3]
+                            break
+                abedline[line.accn] = line
+        else:
+            for tigr in tigrs:
+                abedline[tigr] = nbedline[tigr]
+
+    return abedline
+
+
+def get_pairs(cbedfile, pairsfile):
+    from itertools import product
+
+    fp = open(pairsfile, "w")
+    bed = Bed(cbedfile)
+    for b in bed:
+        if ";" in b.accn:
+            genes = b.accn.split(";")
+            tigrs = [x for x in genes if '.m' in x]
+            legacy = [x for x in genes if '.m' not in x]
+            for a, b in product(tigrs, legacy):
+                print >> fp, "\t".join((a, b))
+
+    fp.close()
+
+
+def consolidate(nbedfile, obedfile, cbedfile):
+    nbedtool = BedTool(nbedfile)
+    obedtool = BedTool(obedfile)
+
+    ab = nbedtool.intersect(obedtool, s=True, u=True)
+    ba = obedtool.intersect(nbedtool, s=True, u=True)
+
+    cmd = "cat {0} {1} | sort -k1,1 -k2,2n".format(ab.fn, ba.fn)
+    fp = popen(cmd, debug=True)
+    ovl = BedTool(fp.readlines())
+
+    abmerge = ovl.merge(s=True, nms=True, scores="mean").sort()
+    cmd = "cat {0}".format(abmerge.fn)
+    fp = popen(cmd, debug=False)
+    ovl = BedTool(fp.readlines())
+
+    notovl = nbedtool.intersect(ovl.sort(), s=True, v=True)
+
+    infile = "{0} {1}".format(notovl.fn, ovl.fn)
+    tmpfile = "/tmp/reformat.{0}.bed".format(os.getpid())
+    cmd = "sort -k1,1 -k2,2n"
+    sh(cmd, infile=infile, outfile=tmpfile)
+
+    fp = open(cbedfile, "w")
+    bed = Bed(tmpfile)
+    for b in bed:
+        if ";" in b.accn:
+            accns = set()
+            for accn in b.accn.split(";"):
+                #accn = re.sub('\.\d+$', '', accn)
+                accns.add(accn)
+            b.accn = ";".join(accns)
+        print >> fp, b
+    fp.close()
+    os.remove(tmpfile)
+
+    sort([cbedfile, "-i"])
 
 
 def rename(args):

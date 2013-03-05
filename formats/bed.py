@@ -499,12 +499,20 @@ def fastaFromBed(bedfile, fastafile, name=False, stranded=False):
     return outfile
 
 
-def mergeBed(bedfile, d=0, nms=False):
+def mergeBed(bedfile, d=0, nms=False, s=False, scores=None):
     cmd = "mergeBed -i {0}".format(bedfile)
     if d:
         cmd += " -d {0}".format(d)
     if nms:
         cmd += " -nms"
+    if s:
+        cmd += " -s"
+    if scores:
+        valid_opts = ["sum", "min", "max", "mean", "median",
+                "mode", "antimode", "collapse"]
+        if not scores in valid_opts:
+            scores = "mean"
+        cmd += " -scores {0}".format(scores)
 
     mergebedfile = op.basename(bedfile).rsplit(".", 1)[0] + ".merge.bed"
 

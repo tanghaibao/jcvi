@@ -16,9 +16,10 @@ from multiprocessing import Pool, cpu_count
 from collections import namedtuple
 
 from Bio.Data.IUPACData import ambiguous_dna_values
+from Bio.SeqIO.QualityIO import FastqGeneralIterator
 
 from jcvi.utils.iter import flatten
-from jcvi.formats.base import FileMerger
+from jcvi.formats.base import FileMerger, must_open
 from jcvi.apps.base import ActionDispatcher, debug, mkdir
 debug()
 

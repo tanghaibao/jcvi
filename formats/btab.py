@@ -69,7 +69,7 @@ class BtabLine (object):
         else:
             self.score = float(args[13])
             self.evalue = float(args[19])
-            self.pvalue = float(args[20])
+            self.pvalue = float(args[20]) if args[20] else None
 
     def __getitem__(self, key):
         return getattr(self, key)

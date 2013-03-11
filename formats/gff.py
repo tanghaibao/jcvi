@@ -537,12 +537,12 @@ def format(args):
         if note:
             id = g.attributes["ID"]
             id = id[0] if id else None
-            name = g.attributes["Name"]
-            name = name[0] if name else None
+            name = g.attributes["Name"][0] \
+                    if "Name" in g.attributes.keys() else None
             tag = None
             if id in note:
                 tag = note[id]
-            elif name in note:
+            elif name and name in note:
                 tag = note[name]
 
             if tag:

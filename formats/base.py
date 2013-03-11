@@ -181,8 +181,9 @@ class FileSplitter (object):
         root, ext = op.splitext(op.basename(filename))
 
         names = []
+        pad0 = len(str(int(N - 1)))
         for i in xrange(N):
-            name = "%s_%02d%s" % (root, i, ext)
+            name = "{0}_{1:0{2}d}{3}".format(root, i, pad0, ext)
             names.append(name)
 
         return names

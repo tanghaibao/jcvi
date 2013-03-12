@@ -555,9 +555,6 @@ def omgprepare(args):
                 continue
             c /= 10  # This severely penalizes RBH against synteny
 
-        qi, q = qorder[a]
-        si, s = sorder[b]
-
         print >> fw, "\t".join((a, b, str(c)))
         npairs += 1
     fw.close()

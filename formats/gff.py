@@ -190,7 +190,7 @@ def main():
         ('liftover', 'adjust gff coordinates based on tile number'),
         ('note', 'extract certain attribute field for each feature'),
         ('load', 'extract the feature (e.g. CDS) sequences and concatenate'),
-        ('extract', 'extract a particular contig from the gff file'),
+        ('extract', 'extract contig or features from gff file'),
         ('split', 'split the gff into one contig per file'),
         ('merge', 'merge several gff files into one'),
         ('parents', 'find the parents given a list of IDs'),
@@ -951,6 +951,8 @@ def extract(args):
                 help="Extract features from certain contigs [default: %default]")
     p.add_option("--names",
                 help="Extract features with certain names [default: %default]")
+    p.add_option("--tag", default="ID",
+                help="Scan the tags for the names [default: %default]")
     p.add_option("--fasta", default=False, action="store_true",
                 help="Write FASTA if available [default: %default]")
     set_outfile(p)
@@ -963,6 +965,7 @@ def extract(args):
     gffile, = args
     contigID = opts.contigs
     namesfile = opts.names
+    nametag = opts.tag
 
     contigID = set(contigID.split(",")) if contigID else None
     names = set(x.strip() for x in open(namesfile)) if namesfile else None
@@ -983,12 +986,16 @@ def extract(args):
             continue
 
         b = GffLine(row)
-        is_right_contig = (contigID and tag in contigID) or (not contigID)
-        is_right_names = (names and b.attributes["Name"][0] in names) or \
-                         (not names)
+        attrib = b.attributes
+        if contigID and tag not in contigID:
+            continue
+        if names:
+            if nametag not in attrib:
+                continue
+            if attrib[nametag][0] not in names:
+                continue
 
-        if is_right_contig and is_right_names:
-            print >> fw, row.rstrip()
+        print >> fw, row.rstrip()
 
     if not opts.fasta:
         return
@@ -1179,14 +1186,13 @@ def load(args):
             "'five_prime_UTR,CDS,three_prime_UTR') [default: %default]")
     p.add_option("--feature", dest="feature",
             help="feature type to extract. e.g. `--feature=CDS` or "
-            " `--feature=upstream:TSS:500`"
-            "[default: %default]")
+            "`--feature=upstream:TSS:500` [default: %default]")
     p.add_option("--attribute",
             help="The attribute field to extract and use as FASTA sequence "
-            " description [default: %default]")
+            "description [default: %default]")
     p.add_option("--id_attribute", choices=valid_id_attributes,
-            help="The attribute field to extract and use as FASTA sequence ID"
-            " [default: %default]")
+            help="The attribute field to extract and use as FASTA sequence ID "
+            "[default: %default]")
     set_outfile(p)
 
     opts, args = p.parse_args(args)

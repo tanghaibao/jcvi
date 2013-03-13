@@ -333,7 +333,7 @@ def fix(args):
         newdesc = fix_text(desc)
         if hit.strip() != "" and newdesc == Hypothetical:
             newdesc = "conserved " + newdesc
-        print "\t".join(atoms[:4] + [newdesc])
+        print "\t".join(atoms[:4] + [newdesc] + atoms[4:])
 
 
 def merge(args):

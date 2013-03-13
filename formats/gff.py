@@ -489,8 +489,10 @@ def format(args):
     p.add_option("--gsac", default=False, action="store_true",
                  help="Fix GSAC attributes [default: %default]")
     p.add_option("--pasa", default=False, action="store_true",
-                help="Fix PASA gff by chaining features by ID and creating a" +
-                " parent feature [default: %default]")
+                help="Fix PASA gff by chaining features by ID and creating a " +
+                "parent feature [default: %default]")
+    p.add_option("--source", help="Two-column file tsv to modify GFF source " +
+                "[default: %default]")
 
     opts, args = p.parse_args(args)
 
@@ -503,11 +505,14 @@ def format(args):
     note = opts.note
     gsac = opts.gsac
     pasa = opts.pasa
+    source = opts.source
 
     if mapfile:
         mapping = DictFile(mapfile, delimiter="\t")
     if note:
         note = DictFile(note, delimiter="\t")
+    if source:
+        source = DictFile(source, delimiter="\t")
 
     if pasa:
         gffdict = {}
@@ -530,9 +535,15 @@ def format(args):
         if mapfile:
             if origid in mapping:
                 g.seqid = mapping[origid]
+                g.update_attributes()
             else:
                 logging.error("{0} not found in `{1}`. ID unchanged.".\
                         format(origid, mapfile))
+
+        if source:
+            if g.source in source:
+                g.source = source[g.source]
+                g.update_attributes()
 
         if note:
             id = g.attributes["ID"]
@@ -564,6 +575,8 @@ def format(args):
 
             g.type = valid_gff_parent_child[g.type]
             g.attributes["Parent"] = g.attributes.pop("ID")
+            g.attributes["ID"] = ["{0}-{1}".\
+                    format(id, len(gffdict[id]['children']) + 1)]
             g.update_attributes()
             gffdict[id]['children'].append(g)
             continue

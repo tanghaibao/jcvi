@@ -31,6 +31,7 @@ debug()
 def main():
 
     actions = (
+        ('screen', 'screen sequences against library'),
         ('overlap', 'build larger contig set by fishing additional seqs'),
         ('overlapbatch', 'call overlap on a set of sequences'),
         ('scaffold', 'build scaffolds based on the ordering in the AGP file'),
@@ -39,13 +40,41 @@ def main():
     p.dispatch(globals())
 
 
+def screen(args):
+    """
+    %prog screen scaffolds.fasta library.fasta
+
+    Screen sequences against FASTA library. Sequences that have 95% id and 50%
+    cov will be removed by default.
+    """
+    from jcvi.apps.base import blast
+    from jcvi.formats.blast import covfilter
+
+    p = OptionParser(screen.__doc__)
+    p.add_option("--pctid", dest="pctid", default=95, type="int",
+            help="Percentage identity cutoff [default: %default]")
+    p.add_option("--pctcov", dest="pctcov", default=50, type="int",
+            help="Percentage identity cutoff [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    scaffolds, library, outputfile = args
+    blastfile = blast([library, scaffolds, "--best=0"])
+
+    idsfile = blastfile.rsplit(".", 1)[0] + ".ids"
+    covfilter([blastfile, scaffolds, "--union", "--ids=" + idsfile,
+               "--pctid={0}".format(opts.pctid), "--pctcov={0}".format(opts.pctcov)])
+
+
 def scaffold(args):
     """
     %prog scaffold ctgfasta agpfile
 
     Build scaffolds based on ordering in the AGP file.
     """
-    from jcvi.formats.agp import AGP, bed, order_to_agp, build
+    from jcvi.formats.agp import bed, order_to_agp, build
     from jcvi.formats.bed import Bed
 
     p = OptionParser(scaffold.__doc__)
@@ -66,7 +95,6 @@ def scaffold(args):
     fwagp = open(newagpfile, "w")
 
     scaffoldbuckets = defaultdict(list)
-    seqnames = sorted(sizes.keys())
 
     bedfile = bed([agpfile, "--nogaps", "--outfile=tmp"])
     bb = Bed(bedfile)

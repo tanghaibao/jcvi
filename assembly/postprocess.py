@@ -55,17 +55,24 @@ def screen(args):
             help="Percentage identity cutoff [default: %default]")
     p.add_option("--pctcov", dest="pctcov", default=50, type="int",
             help="Percentage identity cutoff [default: %default]")
+    p.add_option("--newfasta",
+            help="Generate new FASTA file [default: %default]")
     opts, args = p.parse_args(args)
 
-    if len(args) != 3:
+    if len(args) != 2:
         sys.exit(not p.print_help())
 
-    scaffolds, library, outputfile = args
+    scaffolds, library = args
     blastfile = blast([library, scaffolds, "--best=0"])
 
     idsfile = blastfile.rsplit(".", 1)[0] + ".ids"
     covfilter([blastfile, scaffolds, "--union", "--ids=" + idsfile,
                "--pctid={0}".format(opts.pctid), "--pctcov={0}".format(opts.pctcov)])
+
+    nf = opts.newfasta
+    if nf:
+        cmd = "faSomeRecords {0} -exclude {1} {2}".format(scaffolds, idsfile, nf)
+        sh(cmd)
 
 
 def scaffold(args):

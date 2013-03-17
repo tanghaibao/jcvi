@@ -122,8 +122,11 @@ def main(args):
         cmd += " | {0} {1}.prj {2}.prj -".format(lastex_bin, subjectdb, querydb)
 
     out_fh = must_open(opts.outfile, "w", checkexists=True, oappend=oappend)
-    lock = Lock()
 
+    if out_fh is None:
+        return
+
+    lock = Lock()
     args = [(k + 1, cpus, out_fh, cmd, query, lock) \
                     for k in xrange(cpus)]
     g = Jobs(target=last, args=args)

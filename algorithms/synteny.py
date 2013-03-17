@@ -247,7 +247,6 @@ def read_anchors(ac, qorder, sorder, minsize=0):
     all_anchors = defaultdict(list)
     nanchors = 0
     anchor_to_block = {}
-    block_extent = defaultdict(list)
 
     for a, b, idx in ac.iter_pairs(minsize=minsize):
         if a not in qorder or b not in sorder:
@@ -255,7 +254,6 @@ def read_anchors(ac, qorder, sorder, minsize=0):
         qi, q = qorder[a]
         si, s = sorder[b]
         pair = (qi, si)
-        block_extent[idx].append(pair)
 
         all_anchors[(q.seqid, s.seqid)].append(pair)
         anchor_to_block[pair] = idx
@@ -264,11 +262,7 @@ def read_anchors(ac, qorder, sorder, minsize=0):
     logging.debug("A total of {0} anchors imported.".format(nanchors))
     assert nanchors == len(anchor_to_block)
 
-    for idx, dd in block_extent.items():
-        xs, ys = zip(*dd)
-        block_extent[idx] = (min(xs), max(xs), min(ys), max(ys))
-
-    return all_anchors, anchor_to_block, block_extent
+    return all_anchors, anchor_to_block
 
 
 def synteny_scan(points, xdist, ydist, N):
@@ -1191,7 +1185,7 @@ def liftover(args):
 
     ac = AnchorFile(anchor_file)
     all_hits = group_hits(filtered_blast)
-    all_anchors, anchor_to_block, block_extent = read_anchors(ac, qorder, sorder)
+    all_anchors, anchor_to_block = read_anchors(ac, qorder, sorder)
 
     # select hits that are close to the anchor list
     fw = sys.stdout
@@ -1200,7 +1194,6 @@ def liftover(args):
         hits = np.array(all_hits[chr_pair])
         anchors = np.array(all_anchors[chr_pair])
 
-        #logging.debug("%s: %d" % (chr_pair, len(anchors)))
         if not len(hits):
             continue
 
@@ -1209,11 +1202,6 @@ def liftover(args):
             block_id = anchor_to_block[nearest]
             query, subject = qbed[qi].accn, sbed[si].accn
             score = blast_to_score[(qi, si)]
-
-            xmin, xmax, ymin, ymax = block_extent[block_id]
-            # Lifted pairs cannot be outside the bounding box
-            if qi < xmin or qi > xmax or si < ymin or si > ymax:
-                continue
 
             ac.blocks[block_id].append((query, subject, str(score) + "L"))
             lifted += 1

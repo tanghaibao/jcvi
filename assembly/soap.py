@@ -52,19 +52,29 @@ def main():
     p.dispatch(globals())
 
 
-SOAPRUN="""#!/bin/bash
+SOAPHEADER = """#!/bin/bash
 
 P=32
 S=soap.config
 C=SOAPdenovo-63mer_v2.0
 K=45
 A=asm${K}
+"""
 
+GCRUN = "#GapCloser_v1.12 -a ${A}.scafSeq -b $S -l 100 -o ${A}.closed.scafSeq -p 31 -t $P"
+
+SOAPRUN = SOAPHEADER + """
 $C pregraph -s $S -d 1 -K $K -o $A -R -p $P
 $C contig -s $S -g $A -M 1 -R -p $P
 $C map -s $S -g $A -p $P
 $C scaff -g $A -F -p $P
-GapCloser_v1.12 -a ${A}.scafSeq -b $S -l 100 -o ${A}.closed.scafSeq -p 31 -t $P"""
+""" + GCRUN
+
+SCFRUN = SOAPHEADER + """
+prepare -K $K -c %s -g $A
+SOAPdenovo-63mer map -s $S -g $A -p $P
+SOAPdenovo-63mer_v2.0 scaff -z -g $A -F -p $P
+""" + GCRUN
 
 
 def get_size(filename):
@@ -214,11 +224,13 @@ def prepare(args):
     %prog prepare *.fastq
 
     Scan input fastq files (see below) and write SOAP config files based
-    on inputfiles.
+    on inputfiles. Use "--scaffold contigs.fasta" to perform scaffolding.
     """
     from jcvi.formats.base import check_exists
 
     p = OptionParser(prepare.__doc__ + FastqNamings)
+    p.add_option("--scaffold",
+                 help="Only perform scaffolding [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) < 1:
@@ -255,8 +267,7 @@ def prepare(args):
         if lib.reverse_seq:
             pair_num_cutoff = 5
             block += "pair_num_cutoff={0}\n".format(pair_num_cutoff)
-        if lib.reverse_seq:
-            block += "map_len=35\n"
+        block += "map_len=35\n"
 
         if singletons:
             fs += singletons
@@ -274,9 +285,11 @@ def prepare(args):
         print >> fw, block
 
     runfile = "run.sh"
+    scaffold = opts.scaffold
+    template = SCFRUN % scaffold if scaffold else SOAPRUN
     if check_exists(runfile):
         fw = open(runfile, "w")
-        print >> fw, SOAPRUN
+        print >> fw, template
         logging.debug("Run script written to `{0}`.".format(runfile))
 
 

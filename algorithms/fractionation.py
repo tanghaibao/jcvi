@@ -15,7 +15,7 @@ from jcvi.formats.bed import Bed
 from jcvi.utils.range import range_minmax, range_overlap
 from jcvi.utils.cbook import gene_name
 from jcvi.algorithms.synteny import add_beds, check_beds
-from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.apps.base import ActionDispatcher, debug, sh
 debug()
 
 
@@ -270,7 +270,7 @@ def region_str(region):
 
 def loss(args):
     """
-    %prog loss a.b.i1.blocks a.b-genomic.blast
+    %prog loss a.b.i1.blocks [a.b-genomic.blast]
 
     Extract likely gene loss candidates between genome a and b.
     """
@@ -284,10 +284,17 @@ def loss(args):
     add_beds(p)
     opts, args = p.parse_args(args)
 
-    if len(args) != 2:
+    if len(args) not in (1, 2):
         sys.exit(not p.print_help())
 
-    blocksfile, genomicblast = args
+    blocksfile = args[0]
+    emptyblast = (len(args) == 1)
+    if emptyblast:
+        genomicblast = "empty.blast"
+        sh("touch {0}".format(genomicblast))
+    else:
+        genomicblast = args[1]
+
     gdist, bdist = opts.gdist, opts.bdist
     qbed, sbed, qorder, sorder, is_self = check_beds(blocksfile, p, opts)
     blocks = []
@@ -381,6 +388,9 @@ def loss(args):
             target_region = ptag + target_region
 
         print "\t".join((b.seqid, accn, target_region))
+
+    if emptyblast:
+        sh("rm -f {0}".format(genomicblast))
 
 
 if __name__ == '__main__':

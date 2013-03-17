@@ -101,6 +101,13 @@ def blastfilter_main(blast_file, p, opts):
 
         filtered_blasts.append(b)
 
+    if not cscore is None:
+        before_filter = len(filtered_blasts)
+        logging.debug("running the cscore filter (cscore>=%.2f) .." % cscore)
+        filtered_blasts = list(filter_cscore(filtered_blasts, cscore=cscore))
+        logging.debug("after filter (%d->%d) .." % (before_filter,
+            len(filtered_blasts)))
+
     if not tandem_Nmax is None:
         logging.debug("running the local dups filter (tandem_Nmax=%d) .." % \
                 tandem_Nmax)
@@ -138,13 +145,6 @@ def blastfilter_main(blast_file, p, opts):
                 qdups_to_mother, sdups_to_mother))
         logging.debug("after filter (%d->%d) .." % \
                 (before_filter, len(filtered_blasts)))
-
-    if not cscore is None:
-        before_filter = len(filtered_blasts)
-        logging.debug("running the cscore filter (cscore>=%.2f) .." % cscore)
-        filtered_blasts = list(filter_cscore(filtered_blasts, cscore=cscore))
-        logging.debug("after filter (%d->%d) .." % (before_filter,
-            len(filtered_blasts)))
 
     blastfilteredfile = blast_file + ".filtered"
     fw = open(blastfilteredfile, "w")

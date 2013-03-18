@@ -901,6 +901,8 @@ def format(args):
     p.add_option("--annotation", help="Add functional annotation from "
                         "two-column file ('ID <--> Annotation') [default: %default]")
     p.add_option("--ids", help="Generate ID conversion table [default: %default]")
+    p.add_option("--upper", default=False, action="store_true",
+            help="Convert sequence to upper case [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -920,6 +922,7 @@ def format(args):
     annotfile = opts.annotation
     idsfile = opts.ids
     idsfile = open(idsfile, "w") if idsfile else None
+    upper = opts.upper
 
     if mapfile:
         mapping = DictFile(mapfile, delimiter="\t")
@@ -968,6 +971,8 @@ def format(args):
             rec.description = annotation.get(origid, "")
         if idsfile:
             print >> idsfile, "\t".join((origid, rec.id))
+        if upper:
+            rec.seq = rec.seq.upper()
 
         SeqIO.write(rec, fw, "fasta")
 

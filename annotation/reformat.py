@@ -14,7 +14,7 @@ import logging
 import re
 
 from itertools import groupby
-from optparse import OptionParser
+from optparse import OptionParser, OptionGroup
 from pybedtools import BedTool
 
 from jcvi.formats.bed import Bed, BedLine, sort
@@ -489,17 +489,46 @@ def annotate(args):
     %prog annotate new.bed old.bed
 
     Annotate the `new.bed` with features from `old.bed` for the purpose of
-    gene numbering. Make use of needle global alignment results to resolve
-    multiple IDs in a certain locus.
+    gene numbering.
+
+    Ambiguity in ID assignment can be resolved by either of the following 2 methods:
+    - `alignment`: make use of global sequence alignment score (calculated by `needle`)
+    - `overlap`: make use of overlap length (calculated by `intersectBed`)
 
     Transfer over as many identifiers as possible while following guidelines:
     http://www.arabidopsis.org/portals/nomenclature/guidelines.jsp#editing
+
+    Note: Following RegExp pattern describes the structure of the identifier
+    assigned to features in the `new.bed` file.
+
+    new_id_pat = re.compile(r"^\d+\.[cemtx]\S+")
+
+    Adjust the value of `new_id_pat` manually as per your ID naming conventions.
     """
     from jcvi.utils.grouper import Grouper
     from jcvi.formats.base import DictFile
     import pprint
 
+    global new_id_pat
+    new_id_pat = re.compile(r"^\d+\.[cemtx]\S+")
+    valid_resolve_choices = ["alignment", "overlap"]
+
     p = OptionParser(annotate.__doc__)
+    p.add_option("--resolve", default="alignment", choices=valid_resolve_choices,
+                 help="Resolve ID assignment based on a certain metric" \
+                        + " [default: %default]")
+
+    g = OptionGroup(p, "Optional parameters:\n" \
+            + "Use if resolving ambiguities based on `overlap` length\n" \
+            + "Parameters equivalent to `intersectBed`")
+    g.add_option("-f", default="0.50", type="float",
+            help="Minimum overlap fraction (0.0 - 1.0) [default: %default]")
+    g.add_option("-r", default=False, action="store_true",
+            help="Require fraction overlap to be reciprocal [default: %default]")
+    g.add_option("-s", default=True, action="store_true",
+            help="Require same strandedness [default: %default]")
+    p.add_option_group(g)
+
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -515,32 +544,32 @@ def annotate(args):
     else:
         logging.warning("`{0}` already exists. Skipping step".format(cbedfile))
 
-    # Get pairs and prompt to run needle
-    pairsfile = "nw.pairs"
-    scoresfile = "nw.scores"
-    if not os.path.isfile(pairsfile):
-        get_pairs(cbedfile, pairsfile)
-    else:
-        logging.warning("`{0}` already exists. Checking for needle output".\
-                format(pairsfile))
+    logging.warning("Resolving ID assignment ambiguity based on `{0}`".\
+            format(opts.resolve))
 
-    # If needle scores exist, proceed with annotation
-    if not os.path.isfile(scoresfile):
-        logging.error("`{0}` does not exist. Please process {1} using `needle`".\
-                format(scoresfile, pairsfile))
-        sys.exit()
+    if opts.resolve == "alignment":
+        # Get pairs and prompt to run needle
+        pairsfile = "nw.pairs"
+        scoresfile = "nw.scores"
+        if not os.path.isfile(pairsfile):
+            get_pairs(cbedfile, pairsfile)
+        else:
+            logging.warning("`{0}` already exists. Checking for needle output".\
+                    format(pairsfile))
+
+        # If needle scores do not exist, prompt user to run needle
+        if not os.path.isfile(scoresfile):
+            logging.error("`{0}` does not exist. Please process {1} using `needle`".\
+                    format(scoresfile, pairsfile))
+            sys.exit()
+    else:
+        scoresfile = "ovl.scores"
+        # Calculate overlap length using intersectBed
+        calculate_ovl(nbedfile, obedfile, opts, scoresfile)
 
     logging.warning("`{0}' exists. Storing scores in memory".\
             format(scoresfile))
-    scores = {}
-    fp = must_open(scoresfile)
-    for row in fp:
-        (tigr, legacy, identity, score) = row.strip().split("\t")
-        match = re.search("\d+\/\d+\s+\(\s*(\d+\.\d+)%\)", identity)
-        legacy = re.sub('\.\d+$', '', legacy)
-        if tigr not in scores:
-            scores[tigr] = []
-        scores[tigr].append((tigr, legacy, match.group(1), score))
+    scores = read_scores(scoresfile, opts.resolve)
 
     # Iterate through consolidated bed and
     # filter piles based on score
@@ -568,6 +597,34 @@ def annotate(args):
     sort([abedfile, "-i"])
 
 
+def calculate_ovl(nbedfile, obedfile, opts, scoresfile):
+    nbedtool = BedTool(nbedfile)
+    obedtool = BedTool(obedfile)
+
+    ab = nbedtool.intersect(obedtool, wao=True, f=opts.f, r=opts.r, s=opts.s)
+    cmd = """cut -f4,5,10,13 | \
+        awk -F $'\t' 'BEGIN { OFS = FS } ($3 != "."){ print $1,$3,$2,$4; }'"""
+    sh(cmd, infile=ab.fn, outfile=scoresfile)
+
+
+def read_scores(scoresfile, method):
+    scores = {}
+    fp = must_open(scoresfile)
+    for row in fp:
+        (new, old, identity, score) = row.strip().split("\t")
+        old = re.sub('\.\d+$', '', old)
+        if method == "alignment":
+            match = re.search("\d+\/\d+\s+\(\s*(\d+\.\d+)%\)", identity)
+            id = match.group(1)
+        else:
+            id = identity
+
+        if new not in scores:
+            scores[new] = []
+        scores[new].append((new, old, id, score))
+
+    return scores
+
 def annotate_chr(chr, chrbed, g, scores, nbedline, abedline):
     splits = set()
     current_chr = number(chr)
@@ -579,8 +636,8 @@ def annotate_chr(chr, chrbed, g, scores, nbedline, abedline):
             continue
 
         gaccns = g[accn]
-        tigrs = [a for a in gaccns if ".m" in a]
-        tigrgrp = ";".join(tigrs)
+        new = [a for a in gaccns if re.search(new_id_pat, a)]
+        newgrp = ";".join(new)
 
         if accn in scores:
             scores[accn] = sorted(scores[accn], key=lambda x: float(x[3]),\
@@ -594,16 +651,16 @@ def annotate_chr(chr, chrbed, g, scores, nbedline, abedline):
                 if not achr or achr != current_chr:
                     continue
 
-                if len(tigrs) > 1:
-                    if tigrgrp not in scores: scores[tigrgrp] = []
-                    scores[tigrgrp].append(elem)
+                if len(new) > 1:
+                    if newgrp not in scores: scores[newgrp] = []
+                    scores[newgrp].append(elem)
                 else:
                     line.accn = ";".join([str(x) for x in accn, elem[1]])
                     line.extra[0] = elem[3]
                 if len(scores[accn]) > 1: break
 
-        if len(tigrs) > 1:
-            splits.add(tigrgrp)
+        if len(new) > 1:
+            splits.add(newgrp)
         else:
             abedline[line.accn] = line
 
@@ -612,23 +669,22 @@ def annotate_chr(chr, chrbed, g, scores, nbedline, abedline):
 
 
 def process_splits(splits, scores, nbedline, abedline):
-    for tigrgrp in splits:
-        tigrs = tigrgrp.split(";")
-        print >> sys.stderr, tigrs
-        if tigrgrp in scores:
+    for newgrp in splits:
+        new = newgrp.split(";")
+        print >> sys.stderr, new
+        if newgrp in scores:
             best = {}
-            scores[tigrgrp] = sorted(scores[tigrgrp],\
-                    key=lambda x: float(x[3]),\
-                    reverse=True)
-            for elem in scores[tigrgrp]:
+            scores[newgrp] = sorted(scores[newgrp], reverse=True,\
+                    key=lambda x: float(x[3]))
+            for elem in scores[newgrp]:
                 if elem[1] not in best:
                     best[elem[1]] = elem[0]
 
-            for tigr in tigrs:
-                line = nbedline[tigr]
-                if tigr in scores:
-                    for elem in scores[tigr]:
-                        if elem[1] in best and tigr == best[elem[1]]:
+            for n in new:
+                line = nbedline[n]
+                if n in scores:
+                    for elem in scores[n]:
+                        if elem[1] in best and n == best[elem[1]]:
                             print >> sys.stderr, "\t" + elem[0]
                             print >> sys.stderr, "\t\t" + ", ".join([str(x)\
                                     for x in elem[1:]])
@@ -637,8 +693,8 @@ def process_splits(splits, scores, nbedline, abedline):
                             break
                 abedline[line.accn] = line
         else:
-            for tigr in tigrs:
-                abedline[tigr] = nbedline[tigr]
+            for n in new:
+                abedline[new] = nbedline[new]
 
     return abedline
 
@@ -651,9 +707,9 @@ def get_pairs(cbedfile, pairsfile):
     for b in bed:
         if ";" in b.accn:
             genes = b.accn.split(";")
-            tigrs = [x for x in genes if '.m' in x]
-            legacy = [x for x in genes if '.m' not in x]
-            for a, b in product(tigrs, legacy):
+            new = [x for x in genes if re.search(new_id_pat, x)]
+            old = [x for x in genes if not re.search(new_id_pat, x)]
+            for a, b in product(new, old):
                 print >> fp, "\t".join((a, b))
 
     fp.close()

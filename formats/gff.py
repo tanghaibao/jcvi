@@ -491,7 +491,7 @@ def format(args):
     p.add_option("--pasa", default=False, action="store_true",
                 help="Fix PASA gff by chaining features by ID and creating a " +
                 "parent feature [default: %default]")
-    p.add_option("--source", help="Two-column file tsv to modify GFF source " +
+    p.add_option("--source", help="Two-column (tsv) file to modify GFF source " +
                 "[default: %default]")
 
     opts, args = p.parse_args(args)

@@ -1103,7 +1103,7 @@ def bed(args):
             help="Feature type to extract, use comma for multiple [default: %default]")
     p.add_option("--key", dest="key", default="ID",
             help="Key in the attributes to extract [default: %default]")
-    p.add_option("--source", dest="source", default=False,
+    p.add_option("--source",
             help="Source to extract from, use comma for multiple [default: %default]")
     p.add_option("--score_attrib", dest="score_attrib", default=False,
             help="Attribute whose value is to be used as score in `bedline` [default: %default]")
@@ -1131,7 +1131,7 @@ def bed(args):
     b = Bed()
 
     for g in gff:
-        if g.type not in type or g.source not in source:
+        if g.type not in type or (source and g.source not in source):
             continue
 
         b.append(g.bedline)

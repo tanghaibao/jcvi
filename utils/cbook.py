@@ -5,6 +5,7 @@ mostly decorator patterns
 
 import os
 import os.path as op
+import re
 import logging
 
 

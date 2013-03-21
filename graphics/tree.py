@@ -221,7 +221,7 @@ def read_trees(tree):
     return trees
 
 
-def main():
+def main(args):
     """
     %prog newicktree
 
@@ -255,7 +255,7 @@ def main():
                  help="The font color for the OTUs, or path to a file " \
                  "containing color mappings: leafname<tab>color [default: %default]")
 
-    opts, args, iopts = set_image_options(p, figsize="8x6")
+    opts, args, iopts = set_image_options(p, args, figsize="8x6")
 
     if len(args) != 1:
         sys.exit(not p.print_help())

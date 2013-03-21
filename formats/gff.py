@@ -698,6 +698,7 @@ def uniq(args):
     p.add_option("--iter", default="2", choices=("1", "2"),
                  help="Number of iterations to grab children, use 1 or 2 "\
                       "[default: %default]")
+    set_outfile(p)
 
     opts, args = p.parse_args(args)
 
@@ -740,7 +741,12 @@ def uniq(args):
             seen.add(name)
             bestids.add(x.accn)
 
-    logging.debug("A total of {0} genes selected.".format(len(bestids)))
+    populate_children(opts.outfile, bestids, gffile, opts.type, iter=opts.iter)
+
+
+def populate_children(outfile, ids, gffile, otype, iter="2"):
+    fw = must_open(outfile, "w")
+    logging.debug("A total of {0} genes selected.".format(len(ids)))
     logging.debug("Populate children. Iteration 1..")
     gff = Gff(gffile)
     children = set()
@@ -748,10 +754,10 @@ def uniq(args):
         if "Parent" not in g.attributes:
             continue
         for parent in g.attributes["Parent"]:
-            if parent in bestids:
+            if parent in ids:
                 children.add(g.accn)
 
-    if opts.iter == "2":
+    if iter == "2":
         logging.debug("Populate children. Iteration 2..")
         gff = Gff(gffile)
         for g in gff:
@@ -768,9 +774,10 @@ def uniq(args):
         accn = g.accn
         if accn in seen:
             continue
-        if (g.type == opts.type and accn in bestids) or (accn in children):
+        if (g.type == otype and accn in ids) or (accn in children):
             seen.add(accn)
-            print g
+            print >> fw, g
+    fw.close()
 
 
 def sort(args):
@@ -966,6 +973,8 @@ def extract(args):
                 help="Extract features from certain contigs [default: %default]")
     p.add_option("--names",
                 help="Extract features with certain names [default: %default]")
+    p.add_option("--children", default=False, action="store_true",
+                help="Grab children and grand children [default: %default]")
     p.add_option("--tag", default="ID",
                 help="Scan the tags for the names [default: %default]")
     p.add_option("--fasta", default=False, action="store_true",
@@ -984,16 +993,21 @@ def extract(args):
 
     contigID = set(contigID.split(",")) if contigID else None
     names = set(x.strip() for x in open(namesfile)) if namesfile else None
-
     outfile = opts.outfile
+    if opts.children:
+        assert names is not None, "Must set --names"
+        populate_children(outfile, names, gffile, "gene")
+        return
+
     fp = open(gffile)
-    fw = must_open(outfile, "w")
     for row in fp:
         atoms = row.split()
         if len(atoms) == 0:
             continue
         tag = atoms[0]
         if row[0] == "#":
+            if row.strip() == "###":
+                continue
             if not (tag == RegionTag and contigID and atoms[1] not in contigID):
                 print >> fw, row.rstrip()
             if tag == FastaTag:

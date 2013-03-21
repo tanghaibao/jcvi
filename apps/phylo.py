@@ -38,6 +38,7 @@ import numpy as np
 from ete2 import Tree
 from Bio import SeqIO
 from Bio import AlignIO
+from Bio.Data import CodonTable
 from Bio.Emboss.Applications import FSeqBootCommandline
 from Bio.Emboss.Applications import FDNADistCommandline
 from Bio.Emboss.Applications import FNeighborCommandline
@@ -348,7 +349,9 @@ def build_ml_raxml(alignment, outfile, work_dir=".", **kwargs):
     """
     build maximum likelihood tree of DNA seqs with RAxML
     """
-    phy_file = op.join(work_dir, "work", "aln.phy")
+    work_dir = op.join(work_dir, "work")
+    mkdir(work_dir)
+    phy_file = op.join(work_dir, "aln.phy")
     AlignIO.write(alignment, file(phy_file, "w"), "phylip-relaxed")
 
     raxml_work = op.abspath(op.join(op.dirname(phy_file), "raxml_work"))
@@ -405,6 +408,64 @@ def SH_raxml(reftree, querytree, phy_file, shout="SH_out.txt"):
 
     shout.close()
     return shout.name
+
+
+CODON_TRANSLATION = CodonTable.standard_dna_table.forward_table
+FOURFOLD = {"CTT": "L", "ACA": "T", "ACG": "T", "CCT": "P", "CTG": "L",
+            "CTA": "L", "ACT": "T", "CCG": "P", "CCA": "P", "CCC": "P",
+            "GGT": "G", "CGA": "R", "CGC": "R", "CGG": "R", "GGG": "G",
+            "GGA": "G", "GGC": "G", "CGT": "R", "GTA": "V", "GTC": "V",
+            "GTG": "V", "GTT": "V", "CTC": "L", "TCT": "S", "TCG": "S",
+            "TCC": "S", "ACC": "T", "TCA": "S", "GCA": "A", "GCC": "A",
+            "GCG": "A", "GCT": "A"}
+
+def subalignment(alnfle, subtype, alntype="fasta"):
+    """
+    Subset synonymous or fourfold degenerate sites from an alignment
+
+    input should be a codon alignment
+    """
+    aln = AlignIO.read(alnfle, alntype)
+    alnlen = aln.get_alignment_length()
+    nseq = len(aln)
+    subaln = None
+    subalnfile = alnfle.rsplit(".", 1)[0] + "_{0}.{1}".format(subtype, alntype)
+
+    if subtype == "synonymous":
+        for j in range( 0, alnlen, 3 ):
+            aa = None
+            for i in range(nseq):
+                codon = str(aln[i, j: j + 3].seq)
+                if codon not in CODON_TRANSLATION:
+                    break
+                if aa and CODON_TRANSLATION[codon] != aa:
+                    break
+                else:
+                    aa = CODON_TRANSLATION[codon]
+            else:
+                if subaln is None:
+                    subaln = aln[:, j: j + 3]
+                else:
+                    subaln += aln[:, j: j + 3]
+
+    if subtype == "fourfold":
+        for j in range( 0, alnlen, 3 ):
+            for i in range(nseq):
+                codon = str(aln[i, j: j + 3].seq)
+                if codon not in FOURFOLD:
+                    break
+            else:
+                if subaln is None:
+                    subaln = aln[:, j: j + 3]
+                else:
+                    subaln += aln[:, j: j + 3]
+
+    if subaln:
+        AlignIO.write(subaln, subalnfile, alntype)
+        return subalnfile
+    else:
+        print >>sys.stderr, "No sites {0} selected.".format(subtype)
+        return None
 
 
 def merge_rows_local(filename, ignore=".", colsep="\t", local=10, \
@@ -641,6 +702,10 @@ def build(args):
                       "e.g. ESTs [default: %default]")
     p.add_option("--nogblocks", action="store_true",
                  help="don't use Gblocks to edit alignment [default: %default]")
+    p.add_option("--synonymous", action="store_true",
+                 help="extract synonymous sites of the alignment [default: %default]")
+    p.add_option("--fourfold", action="store_true",
+                 help="extract fourfold degenerate sites of the alignment [default: %default]")
     p.add_option("--msa", default="muscle", choices=("clustalw", "muscle"),
                  help="software used to align the proteins [default: %default]")
     p.add_option("--noneighbor", action="store_true",
@@ -662,6 +727,8 @@ def build(args):
 
     opts, args = p.parse_args(args)
     gblocks = not opts.nogblocks
+    synonymous = opts.synonymous
+    fourfold = opts.fourfold
     neighbor = not opts.noneighbor
     outgroup = opts.outgroup
     outdir = opts.outdir
@@ -710,6 +777,16 @@ def build(args):
     if gblocks:
         gb_fasta = run_gblocks(mrtrans_fasta)
         codon_aln_fasta = gb_fasta if gb_fasta else codon_aln_fasta
+
+    else:
+        if synonymous:
+            codon_aln_fasta = subalignment(mrtrans_fasta, "synonymous")
+
+        if fourfold:
+            codon_aln_fasta = subalignment(mrtrans_fasta, "fourfold")
+
+    if not neighbor and not opts.ml:
+        return codon_aln_fasta
 
     alignment = AlignIO.read(codon_aln_fasta, "fasta")
     if len(alignment) <= 3:
@@ -770,8 +847,10 @@ def build(args):
             aln_file = input.rsplit(".", 1)[0] + ".fasta"
             SeqIO.write(alignment, aln_file, "fasta")
 
-            run_treefix(input=input, stree_file=stree, smap_file=smap, \
+            outfile = run_treefix(input=input, stree_file=stree, smap_file=smap, \
                         a_ext=".fasta", o_ext=".dnd", n_ext = ".treefix.dnd")
+
+    return outfile
 
 
 def _draw_trees(trees, nrow=1, ncol=1, rmargin=.3, iopts=None, outdir=".",

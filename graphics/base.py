@@ -38,7 +38,11 @@ class ImageOptions (object):
 
 def savefig(figname, dpi=150, iopts=None):
     try:
-        plt.savefig(figname, dpi=dpi)
+        format = figname.rsplit(".", 1)[-1].lower()
+    except:
+        format = "pdf"
+    try:
+        plt.savefig(figname, dpi=dpi, format=format)
     except:
         logging.error("savefig failed. Reset usetex to False.")
         rc('text', **{'usetex': False})

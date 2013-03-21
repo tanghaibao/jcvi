@@ -885,7 +885,10 @@ def summary(args):
 
     bedfile, = args
     bed = Bed(bedfile)
-    stats = SummaryStats([x.span for x in bed])
+    mspans = None
+    mspans = [(x.span, x.accn) for x in bed]
+    spans, accns = zip(*mspans)
+    stats = SummaryStats(spans)
     print >> sys.stderr, "Total seqids: {0}".format(len(bed.seqids))
     print >> sys.stderr, "Total ranges: {0}".format(len(bed))
 
@@ -898,6 +901,10 @@ def summary(args):
                         format(total_bases * 1. / unique_bases)
 
     print >> sys.stderr, stats
+    maxspan, maxaccn = max(mspans)
+    minspan, minaccn = min(mspans)
+    print >> sys.stderr, "Longest: {0} ({1})".format(maxaccn, maxspan)
+    print >> sys.stderr, "Shortest: {0} ({1})".format(minaccn, minspan)
 
 
 def sort(args):

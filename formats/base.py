@@ -559,7 +559,7 @@ def join(args):
     header = "\t".join(flatten([op.basename(x.filename)] * x.ncols \
                         for x in files))
 
-    fp = open(pivotfile)
+    fp = must_open(pivotfile)
     fw = must_open(opts.outfile, "w")
     if not opts.noheader:
         print >> fw, header

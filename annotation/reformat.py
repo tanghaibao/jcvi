@@ -602,8 +602,7 @@ def calculate_ovl(nbedfile, obedfile, opts, scoresfile):
     obedtool = BedTool(obedfile)
 
     ab = nbedtool.intersect(obedtool, wao=True, f=opts.f, r=opts.r, s=opts.s)
-    cmd = """cut -f4,5,10,13 | \
-        awk -F $'\t' 'BEGIN { OFS = FS } ($3 != "."){ print $1,$3,$2,$4; }'"""
+    cmd = """cut -f4,5,10,13 | awk -F $'\t' 'BEGIN { OFS = FS } ($3 != "."){ print $1,$3,$2,$4; }'"""
     sh(cmd, infile=ab.fn, outfile=scoresfile)
 
 

@@ -482,17 +482,17 @@ def format(args):
                  help="Make IDs unique [default: %default]")
     p.add_option("--gff3", default=False, action="store_true",
                  help="Force to write gff3 attributes [default: %default]")
-    p.add_option("--note", help="Two-column tsv file to add NOTE [default: %default]")
+    p.add_option("--note", help="Add NOTE from two-column file [default: %default]")
     p.add_option("--switch", help="Switch seqid from two-column file [default: %default]")
+    p.add_option("--source", help="Switch GFF source from two-column file. If not" +
+                " a file, value will globally replace GFF source [default: %default]")
     p.add_option("--multiparents", default=False, action="store_true",
                  help="Separate features with multiple parents [default: %default]")
+    p.add_option("--chain", default=False, action="store_true",
+                help="Generate parent features by chaining child features by ID" +
+                " [default: %default]")
     p.add_option("--gsac", default=False, action="store_true",
-                 help="Fix GSAC attributes [default: %default]")
-    p.add_option("--pasa", default=False, action="store_true",
-                help="Fix PASA gff by chaining features by ID and creating a " +
-                "parent feature [default: %default]")
-    p.add_option("--source", help="Two-column (tsv) file to modify GFF source " +
-                "[default: %default]")
+                 help="Fix GSAC GFF3 file attributes [default: %default]")
 
     opts, args = p.parse_args(args)
 
@@ -504,17 +504,17 @@ def format(args):
     unique = opts.unique
     note = opts.note
     gsac = opts.gsac
-    pasa = opts.pasa
+    chain = opts.chain
     source = opts.source
 
     if mapfile:
         mapping = DictFile(mapfile, delimiter="\t")
     if note:
         note = DictFile(note, delimiter="\t")
-    if source:
+    if source and op.isfile(source):
         source = DictFile(source, delimiter="\t")
 
-    if pasa:
+    if chain:
         gffdict = {}
     else:
         if gsac:  # setting gsac will force IDs to be unique
@@ -541,9 +541,11 @@ def format(args):
                         format(origid, mapfile))
 
         if source:
-            if g.source in source:
+            if isinstance(source, dict) and g.source in source:
                 g.source = source[g.source]
-                g.update_attributes()
+            else:
+                g.source = source
+            g.update_attributes()
 
         if note:
             id = g.attributes["ID"]
@@ -560,7 +562,7 @@ def format(args):
                 g.attributes["Note"] = [tag]
                 g.update_attributes()
 
-        if pasa:
+        if chain:
             id = g.attributes["ID"][0]
             if id not in gffdict:
                 gffdict[id] = { 'seqid': g.seqid,
@@ -617,7 +619,7 @@ def format(args):
                 fix_gsac(g, notes)
             print g
 
-    if pasa:
+    if chain:
         for key in gffdict.iterkeys():
             seqid = gffdict[key]['seqid']
             source = gffdict[key]['source']
@@ -1087,12 +1089,14 @@ def bed(args):
             help="Feature type to extract, use comma for multiple [default: %default]")
     p.add_option("--key", dest="key", default="ID",
             help="Key in the attributes to extract [default: %default]")
+    p.add_option("--source", dest="source", default=False,
+            help="Source to extract from, use comma for multiple [default: %default]")
+    p.add_option("--score_attrib", dest="score_attrib", default=False,
+            help="Attribute whose value is to be used as score in `bedline` [default: %default]")
     p.add_option("--append_source", default=False, action="store_true",
             help="Append GFF source name to extracted key value")
     p.add_option("--nosort", default=False, action="store_true",
             help="Do not sort the output bed file [default: %default]")
-    p.add_option("--score_attrib", default=False,
-            help="Attribute whose value is to be used as score in bedline [default: %default]")
     set_outfile(p)
 
     opts, args = p.parse_args(args)
@@ -1105,18 +1109,21 @@ def bed(args):
         key = None
 
     type = set(x.strip() for x in opts.type.split(","))
+    source = set()
+    if opts.source:
+        source = set(x.strip() for x in opts.source.split(","))
 
     gff = Gff(gffile, key=key, append_source=opts.append_source, score_attrib=opts.score_attrib)
     b = Bed()
 
     for g in gff:
-        if g.type not in type:
+        if g.type not in type or g.source not in source:
             continue
 
         b.append(g.bedline)
 
     sorted = not opts.nosort
-    b.print_to_file(opts.outfile,sorted=sorted)
+    b.print_to_file(opts.outfile, sorted=sorted)
 
 
 def make_index(gff_file):

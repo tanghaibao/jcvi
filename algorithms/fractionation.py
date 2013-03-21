@@ -6,6 +6,7 @@ Catalog gene losses, and bites within genes.
 """
 
 import sys
+import logging
 
 from optparse import OptionParser
 from itertools import groupby
@@ -23,6 +24,7 @@ def main():
 
     actions = (
         ('loss', 'extract likely gene loss candidates'),
+        ('validate', 'confirm synteny loss against CDS bed overlaps'),
         ('genestatus', 'tag genes based on translation from GMAP models'),
         ('summary', 'provide summary of fractionation'),
         ('gaps', 'check gene locations against gaps'),
@@ -64,8 +66,7 @@ def gaps(args):
         hit = d[id]
         tag, pos = get_tag(hit, None)
         seqid, start, end = pos
-        start -= bdist
-        end += bdist
+        start, end = max(start - bdist, 1), end + bdist
         print >> fw, "\t".join(str(x) for x in (seqid, start - 1, end, id))
         total += 1
     fw.close()
@@ -327,7 +328,8 @@ def loss(args):
             continue
 
         start, end = range_minmax(((bx.start, bx.end), (ax.start, ax.end)))
-        proxy = (bx.seqid, start - bdist, end + bdist)
+        start, end = max(start - bdist, 1), end + bdist
+        proxy = (bx.seqid, start, end)
         for a, b in rows:
             proxytrack[a] = proxy
 
@@ -391,6 +393,58 @@ def loss(args):
 
     if emptyblast:
         sh("rm -f {0}".format(genomicblast))
+
+
+def validate(args):
+    """
+    %prog validate diploid.napus.fractionation cds.bed
+
+    Check whether [S] intervals overlap with CDS.
+    """
+    from jcvi.formats.bed import intersectBed_wao
+
+    p = OptionParser(validate.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    fractionation, cdsbed = args
+    fp = open(fractionation)
+
+    sbed = "S.bed"
+    fw = open(sbed, "w")
+    for row in fp:
+        a, b, c = row.split()
+        if not c.startswith("[S]"):
+            continue
+
+        tag, (seqid, start, end) = get_tag(c, None)
+        print >> fw, "\t".join(str(x) for x in (seqid, start - 1, end, b))
+
+    fw.close()
+
+    pairs = {}
+    for a, b in intersectBed_wao(sbed, cdsbed):
+        if a is None or b is None:
+            continue
+        pairs[a.accn] = b.accn
+
+    validated = fractionation + ".validated"
+    fw = open(validated, "w")
+    fp.seek(0)
+    fixed = 0
+    for row in fp:
+        a, b, c = row.split()
+        if b in pairs:
+            assert c.startswith("[S]")
+            c = pairs[b]
+            fixed += 1
+
+        print >> fw, "\t".join((a, b, c))
+
+    logging.debug("Fixed {0} [S] cases in `{1}`.".format(fixed, validated))
+    fw.close()
 
 
 if __name__ == '__main__':

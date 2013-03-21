@@ -88,7 +88,7 @@ def draw_cmap(ax, cmap_text, vmin, vmax, cmap=None, reverse=False):
 
 def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts,
         is_self=False, synteny=False, cmap_text=None, genomenames=None,
-        sample_number=10000, ignore=.005, palette=None, chrlw=1):
+        sample_number=10000, ignore=.005, palette=None, chrlw=.01, title=None):
 
     fp = open(anchorfile)
 
@@ -160,10 +160,10 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts,
     x, y, c = zip(*data)
 
     if palette:
-        ax.scatter(x, y, c=c, s=2, lw=0)
+        ax.scatter(x, y, c=c, edgecolors="none", s=2, lw=0)
 
     else:
-        ax.scatter(x, y, c=c, s=2, lw=0, cmap=default_cm,
+        ax.scatter(x, y, c=c, edgecolors="none", s=2, lw=0, cmap=default_cm,
                 vmin=vmin, vmax=vmax)
 
     if synteny:
@@ -256,6 +256,9 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts,
             root.add_patch(Rectangle((xstart, ystart), .03, .02, lw=0, fc=c))
             root.text(xstart + .04, ystart, category, color=c)
             xstart += .1
+
+    if title:
+        fig.suptitle(title, x=.05, y=.98, color="k")
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)

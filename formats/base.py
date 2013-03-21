@@ -4,7 +4,6 @@
 import os
 import os.path as op
 import math
-import re
 import sys
 import logging
 

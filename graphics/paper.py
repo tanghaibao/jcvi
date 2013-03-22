@@ -167,9 +167,9 @@ def amborella(args):
     x = .05
     radius = .012
     TextCircle(root, x, .86, '$\gamma$', radius=radius)
-    TextCircle(root, x, .77, '$\epsilon$', radius=radius)
+    TextCircle(root, x, .95, '$\epsilon$', radius=radius)
     root.plot([x, x], [.83, .9], ":", color=fc, lw=2)
-    pts = plot_cap((x, .77), np.radians(range(110, 430)), .02)
+    pts = plot_cap((x, .95), np.radians(range(-70, 250)), .02)
     x, y = zip(*pts)
     root.plot(x, y, ":", color=fc, lw=2)
 

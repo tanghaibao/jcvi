@@ -28,11 +28,8 @@ from jcvi.utils.iter import pairwise
 from jcvi.graphics.chromosome import HorizontalChromosome
 from jcvi.graphics.glyph import TextCircle
 from jcvi.graphics.synteny import Shade
-from jcvi.graphics.base import plt, _, set_image_options, savefig
+from jcvi.graphics.base import plt, _, set_image_options, savefig, markup
 debug()
-
-
-MaxSeqids = 20
 
 
 class LayoutLine (object):
@@ -96,6 +93,9 @@ class Layout (LineFile):
         return blocks
 
 
+MaxSeqids = 20   # above which no labels are written
+
+
 class Track (object):
 
     def __init__(self, ax, t, draw=True):
@@ -118,10 +118,10 @@ class Track (object):
 
         self.xstart = xstart = t.xstart
         self.xend = t.xend
-        gap = .007
+        gap = .01
         nseqids = len(self.seqids)
         if nseqids > MaxSeqids:
-            gap = min(gap, gap / (nseqids * 1. / MaxSeqids))
+            gap = min(gap, gap * MaxSeqids / nseqids + .001)
         self.gap = gap
 
         rpad = 1 - t.xend
@@ -170,7 +170,8 @@ class Track (object):
                        fc="w", color=color, size=10)
 
         xp = self.xstart / 2 if self.xstart <= .5 else (1 + self.xend) / 2
-        ax.text(xp, y + gap, self.label, ha="center", color=color)
+        label = markup(self.label)
+        ax.text(xp, y + gap, label, ha="center", color=color)
 
     def update_offsets(self):
         self.offsets = {}
@@ -195,9 +196,11 @@ class ShadeManager (object):
 
     def __init__(self, ax, tracks, layout):
         for i, j, blocks in layout.edges:
-            self.draw_blocks(ax, blocks, tracks[i], tracks[j])
+            # if same track (duplication shades), shall we draw above or below?
+            samearc = "above" if i == j and i == 0 else "below"
+            self.draw_blocks(ax, blocks, tracks[i], tracks[j], samearc=samearc)
 
-    def draw_blocks(self, ax, blocks, atrack, btrack):
+    def draw_blocks(self, ax, blocks, atrack, btrack, samearc="below"):
         for a, b, c, d, score, orientation, highlight in blocks:
             p = atrack.get_coords(a), atrack.get_coords(b)
             q = btrack.get_coords(c), btrack.get_coords(d)
@@ -205,8 +208,12 @@ class ShadeManager (object):
                 continue
 
             ymid = (atrack.y + btrack.y) / 2
+            pad = .09
             if atrack.y == btrack.y:
-                ymid = atrack.y - .09
+                if samearc == "below":
+                    ymid = atrack.y - pad
+                else:
+                    ymid = atrack.y + pad
 
             zorder = 2 if highlight else 1
             Shade(ax, p, q, ymid, highlight=highlight, alpha=1, fc="gainsboro",

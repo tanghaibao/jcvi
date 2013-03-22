@@ -29,7 +29,7 @@ from jcvi.apps.base import debug
 
 from jcvi.graphics.glyph import Glyph, RoundLabel
 from jcvi.graphics.base import plt, _, set_image_options, Affine2D, \
-        Path, PathPatch, savefig
+        Path, PathPatch, savefig, markup
 debug()
 
 
@@ -180,7 +180,7 @@ class Region (object):
                                                     l.reshape((1, 2)))[0]
         lx, ly = l
         p3 = pad / 3
-        ax.text(lx, ly + p3, chr, color=layout.color,
+        ax.text(lx, ly + p3, markup(chr), color=layout.color,
                     ha=ha, va="center", rotation=trans_angle)
         ax.text(lx, ly - p3, label, color="k",
                     ha=ha, va="center", rotation=trans_angle)

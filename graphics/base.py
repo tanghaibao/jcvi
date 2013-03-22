@@ -105,6 +105,12 @@ def fontprop(ax, name, size=12):
     return prop
 
 
+def markup(s):
+    import re
+    s = re.sub("\*(.*)\*", r"\\textit{\1}", s)
+    return s
+
+
 def setup_theme(theme="helvetica"):
 
     plt.rcdefaults()

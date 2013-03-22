@@ -178,9 +178,10 @@ def summary(args):
     loss(). `gmap.status` is generated with genestatus().
     """
     from jcvi.formats.base import DictFile
-    from jcvi.utils.cbook import percentage
+    from jcvi.utils.cbook import percentage, Registry
 
     p = OptionParser(summary.__doc__)
+    p.add_option("--extra", help="Cross with extra tsv file [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -189,46 +190,54 @@ def summary(args):
     frfile, statusfile = args
     status = DictFile(statusfile)
     fp = open(frfile)
-    inside, outside = 0, 0
-    syntenic, non_syntenic = 0, 0
-    s, ns, nf = 0, 0, 0
-    complete, pseudogene, partial, gmap_fail = 0, 0, 0, 0
-    random, real_ns = 0, 0
-    complete_models = []
-    pseudogenes = []
-    partial_deletions = []
+    registry = Registry()  # keeps all the tags for any given gene
     for row in fp:
         seqid, gene, tag = row.split()
         if tag == '.':
-            outside += 1
+            registry[gene].append("outside")
         else:
-            inside += 1
+            registry[gene].append("inside")
             if tag[0] == '[':
-                non_syntenic += 1
+                registry[gene].append("no_syntenic_model")
                 if tag.startswith("[S]"):
-                    s += 1
+                    registry[gene].append("[S]")
                     gstatus = status.get(gene, None)
                     if gstatus == 'complete':
-                        complete_models.append(gene)
-                        complete += 1
+                        registry[gene].append("complete")
                     elif gstatus == 'pseudogene':
-                        pseudogenes.append(gene)
-                        pseudogene += 1
+                        registry[gene].append("pseudogene")
                     elif gstatus == 'partial':
-                        partial_deletions.append(gene)
-                        partial += 1
+                        registry[gene].append("partial")
                     else:
-                        gmap_fail += 1
+                        registry[gene].append("gmap_fail")
                 elif tag.startswith("[NS]"):
-                    ns += 1
+                    registry[gene].append("[NS]")
                     if "random" in tag or "Scaffold" in tag:
-                        random += 1
+                        registry[gene].append("random")
                     else:
-                        real_ns += 1
+                        registry[gene].append("real_ns")
                 elif tag.startswith("[NF]"):
-                    nf += 1
+                    registry[gene].append("[NF]")
             else:
-                syntenic += 1
+                registry[gene].append("syntenic_model")
+
+    inside = registry.count("inside")
+    outside = registry.count("outside")
+    syntenic = registry.count("syntenic_model")
+    non_syntenic = registry.count("no_syntenic_model")
+    s = registry.count("[S]")
+    ns = registry.count("[NS]")
+    nf = registry.count("[NF]")
+    complete = registry.count("complete")
+    pseudogene = registry.count("pseudogene")
+    partial = registry.count("partial")
+    gmap_fail = registry.count("gmap_fail")
+    random = registry.count("random")
+    real_ns = registry.count("real_ns")
+
+    complete_models = registry.get_tag("complete")
+    pseudogenes = registry.get_tag("pseudogene")
+    partial_deletions = registry.get_tag("partial")
 
     m = "{0} inside synteny blocks\n".format(inside)
     m += "{0} outside synteny blocks\n".format(outside)
@@ -251,6 +260,20 @@ def summary(args):
         fw = open(a, "w")
         print >> fw, "\n".join(b)
         fw.close()
+
+    extra = opts.extra
+    if extra:
+        registry.update_from(extra)
+
+    fp.seek(0)
+    fw = open("registry", "w")
+    for row in fp:
+        seqid, gene, tag = row.split()
+        ts = registry[gene]
+        print >> fw, "\t".join((seqid, gene, tag, "-".join(ts)))
+    fw.close()
+
+    logging.debug("Registry written.")
 
 
 def get_tag(name, order):

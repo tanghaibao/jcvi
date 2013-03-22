@@ -380,9 +380,37 @@ def main():
         ('join', 'join tabular-like files based on common column'),
         ('subset', 'subset tabular-like files based on common column'),
         ('truncate', 'remove lines from end of file'),
+        ('append', 'append a column with fixed value'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def append(args):
+    """
+    %prog append csvfile [tag]
+
+    Append a column with fixed value. If tag is missing then just append the
+    filename.
+    """
+    p = OptionParser(append.__doc__)
+    p.add_option("--sep", default="\t",
+                help="Separator for the added column [default: %default]")
+    set_outfile(p)
+    opts, args = p.parse_args(args)
+
+    nargs = len(args)
+    if nargs not in (1, 2):
+        sys.exit(not p.print_help())
+
+    csvfile = args[0]
+    tag = args[1] if nargs == 2 else csvfile
+    fp = must_open(csvfile)
+    fw = must_open(opts.outfile, "w")
+    for row in fp:
+        row = row.rstrip("\r\n")
+        row = opts.sep.join((row, tag))
+        print >> fw, row
 
 
 def truncate(args):
@@ -526,6 +554,8 @@ def join(args):
                  help="column separator, multiple values allowed [default: %default]")
     p.add_option("--noheader", default=False, action="store_true",
                  help="Do not print header [default: %default]")
+    p.add_option("--na", default="na",
+                 help="Value for unjoined data [default: %default]")
     set_outfile(p)
 
     opts, args = p.parse_args(args)
@@ -534,6 +564,7 @@ def join(args):
     if len(args) < 2:
         sys.exit(not p.print_help())
 
+    na = opts.na
     c = opts.column
     if "," in c:
         cc = [int(x) for x in c.split(",")]
@@ -569,7 +600,7 @@ def join(args):
         newrow = atoms
         key = atoms[cc[0]]
         for d in otherfiles:
-            drow = d.get(key, ["na"] * d.ncols)
+            drow = d.get(key, [na] * d.ncols)
             newrow += drow
         print >> fw, "\t".join(newrow)
 

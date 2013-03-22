@@ -8,6 +8,8 @@ import os.path as op
 import re
 import logging
 
+from collections import defaultdict
+
 
 class memoized(object):
     """
@@ -104,6 +106,29 @@ def depends(func):
 """
 Functions that make text formatting easier.
 """
+
+class Registry (defaultdict):
+
+    def __init__(self, *args, **kwargs):
+        super(Registry, self).__init__(list, *args, **kwargs)
+
+    def iter_tag(self, tag):
+        for key, ts in self.items():
+            if tag in ts:
+                yield key
+
+    def get_tag(self, tag):
+        return list(self.iter_tag(tag))
+
+    def count(self, tag):
+        return sum(1 for x in self.iter_tag(tag))
+
+    def update_from(self, filename):
+        from jcvi.formats.base import DictFile
+        d = DictFile(filename)
+        for k, v in d.items():
+            self[k].append(v)
+
 
 class SummaryStats (object):
 

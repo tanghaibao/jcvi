@@ -493,6 +493,7 @@ def format(args):
                 " [default: %default]")
     p.add_option("--gsac", default=False, action="store_true",
                  help="Fix GSAC GFF3 file attributes [default: %default]")
+    set_outfile(p)
 
     opts, args = p.parse_args(args)
 
@@ -506,6 +507,8 @@ def format(args):
     gsac = opts.gsac
     chain = opts.chain
     source = opts.source
+
+    outfile = opts.outfile
 
     if mapfile:
         mapping = DictFile(mapfile, delimiter="\t")
@@ -529,6 +532,7 @@ def format(args):
                 dupcounts[id] += 1
             seen = defaultdict(int)
 
+    fw = must_open(outfile, "w")
     gff = Gff(gffile)
     for g in gff:
         origid = g.seqid
@@ -611,13 +615,13 @@ def format(args):
                 g.update_attributes()
                 if gsac:
                     fix_gsac(g, notes)
-                print g
+                print >> fw, g
         else:
             if opts.gff3:
                 g.update_attributes(gff3=True)
             if gsac:
                 fix_gsac(g, notes)
-            print g
+            print >> fw, g
 
     if chain:
         for key in gffdict.iterkeys():
@@ -626,10 +630,12 @@ def format(args):
             type = gffdict[key]['type']
             strand = gffdict[key]['strand']
             start, stop = range_minmax(gffdict[key]['coords'])
-            print "\t".join(str(x) for x in [seqid, source, type, start, stop,
+            print >> fw, "\t".join(str(x) for x in [seqid, source, type, start, stop,
                 ".", strand, ".", "ID=" + key])
             for child in gffdict[key]['children']:
-                print child
+                print >> fw, child
+    fw.close()
+
 
 def liftover(args):
     """

@@ -486,7 +486,7 @@ def renumber(args):
 
 def annotate(args):
     """
-    %prog annotate new.bed old.bed
+    %prog annotate new.bed old.bed 2> log
 
     Annotate the `new.bed` with features from `old.bed` for the purpose of
     gene numbering.
@@ -503,11 +503,11 @@ def annotate(args):
 
     new_id_pat = re.compile(r"^\d+\.[cemtx]\S+")
 
+    Examples: 23231.m312389, 23231.t004898, 23231.tRNA.144
     Adjust the value of `new_id_pat` manually as per your ID naming conventions.
     """
     from jcvi.utils.grouper import Grouper
     from jcvi.formats.base import DictFile
-    import pprint
 
     global new_id_pat
     new_id_pat = re.compile(r"^\d+\.[cemtx]\S+")
@@ -518,16 +518,24 @@ def annotate(args):
                  help="Resolve ID assignment based on a certain metric" \
                         + " [default: %default]")
 
-    g = OptionGroup(p, "Optional parameters:\n" \
+    g1 = OptionGroup(p, "Optional parameters (alignment):\n" \
+            + "Use if resolving ambiguities based on sequence `alignment`")
+    g1.add_option("--pid", dest="pid", default=35., type="float",
+            help="Percent identity cutoff [default: %default]")
+    g1.add_option("--score", dest="score", default=250., type="float",
+            help="Alignment score cutoff [default: %default]")
+    p.add_option_group(g1)
+
+    g2 = OptionGroup(p, "Optional parameters (overlap):\n" \
             + "Use if resolving ambiguities based on `overlap` length\n" \
             + "Parameters equivalent to `intersectBed`")
-    g.add_option("-f", default="0.50", type="float",
+    g2.add_option("-f", dest="f", default=0.5, type="float",
             help="Minimum overlap fraction (0.0 - 1.0) [default: %default]")
-    g.add_option("-r", default=False, action="store_true",
+    g2.add_option("-r", dest="r", default=False, action="store_true",
             help="Require fraction overlap to be reciprocal [default: %default]")
-    g.add_option("-s", default=True, action="store_true",
+    g2.add_option("-s", dest="s", default=True, action="store_true",
             help="Require same strandedness [default: %default]")
-    p.add_option_group(g)
+    p.add_option_group(g2)
 
     opts, args = p.parse_args(args)
 
@@ -569,7 +577,7 @@ def annotate(args):
 
     logging.warning("`{0}' exists. Storing scores in memory".\
             format(scoresfile))
-    scores = read_scores(scoresfile, opts.resolve)
+    scores = read_scores(scoresfile, opts)
 
     # Iterate through consolidated bed and
     # filter piles based on score
@@ -585,8 +593,11 @@ def annotate(args):
     nbed = Bed(nbedfile)
     for line in nbed: nbedline[line.accn] = line
 
+    splits = set()
     for chr, chrbed in nbed.sub_beds():
-        abedline = annotate_chr(chr, chrbed, g, scores, nbedline, abedline)
+        abedline, splits = annotate_chr(chr, chrbed, g, scores, nbedline, abedline, splits)
+
+    abedline = process_splits(splits, scores, nbedline, abedline)
 
     abedfile = npf + ".annotated.bed"
     afh = open(abedfile, "w")
@@ -606,26 +617,28 @@ def calculate_ovl(nbedfile, obedfile, opts, scoresfile):
     sh(cmd, infile=ab.fn, outfile=scoresfile)
 
 
-def read_scores(scoresfile, method):
+def read_scores(scoresfile, opts):
     scores = {}
     fp = must_open(scoresfile)
     for row in fp:
         (new, old, identity, score) = row.strip().split("\t")
         old = re.sub('\.\d+$', '', old)
-        if method == "alignment":
+        if opts.resolve == "alignment":
             match = re.search("\d+\/\d+\s+\(\s*(\d+\.\d+)%\)", identity)
-            id = match.group(1)
+            pid = match.group(1)
+            if float(pid) < opts.pid or float(score) < opts.score:
+                continue
         else:
-            id = identity
+            pid = identity
 
         if new not in scores:
             scores[new] = []
-        scores[new].append((new, old, id, score))
+
+        scores[new].append((new, old, pid, score))
 
     return scores
 
-def annotate_chr(chr, chrbed, g, scores, nbedline, abedline):
-    splits = set()
+def annotate_chr(chr, chrbed, g, scores, nbedline, abedline, splits):
     current_chr = number(chr)
 
     for line in chrbed:
@@ -636,14 +649,16 @@ def annotate_chr(chr, chrbed, g, scores, nbedline, abedline):
 
         gaccns = g[accn]
         new = [a for a in gaccns if re.search(new_id_pat, a)]
-        newgrp = ";".join(new)
+        newgrp = ";".join(sorted(new))
 
         if accn in scores:
-            scores[accn] = sorted(scores[accn], key=lambda x: float(x[3]),\
-                    reverse=True)
+            scores[accn] = sorted(scores[accn], key=lambda x: x[1])
+            scores[accn] = sorted(scores[accn], key=lambda x: float(x[3]), reverse=True)
 
+            accns = []
             print >> sys.stderr, accn
             for elem in scores[accn]:
+                accns.append(elem[1])
                 print >> sys.stderr, "\t" + ", ".join([str(x)\
                         for x in elem[1:]])
                 achr, arank = atg_name(elem[1])
@@ -654,8 +669,9 @@ def annotate_chr(chr, chrbed, g, scores, nbedline, abedline):
                     if newgrp not in scores: scores[newgrp] = []
                     scores[newgrp].append(elem)
                 else:
-                    line.accn = ";".join([str(x) for x in accn, elem[1]])
-                    line.extra[0] = elem[3]
+                    accns[0:0] = [accn]
+                    line.accn = ";".join([str(x) for x in accns])
+                    #line.extra[0] = elem[3]
                 if len(scores[accn]) > 1: break
 
         if len(new) > 1:
@@ -663,8 +679,7 @@ def annotate_chr(chr, chrbed, g, scores, nbedline, abedline):
         else:
             abedline[line.accn] = line
 
-    abedline = process_splits(splits, scores, nbedline, abedline)
-    return abedline
+    return abedline, splits
 
 
 def process_splits(splits, scores, nbedline, abedline):
@@ -673,8 +688,9 @@ def process_splits(splits, scores, nbedline, abedline):
         print >> sys.stderr, new
         if newgrp in scores:
             best = {}
-            scores[newgrp] = sorted(scores[newgrp], reverse=True,\
-                    key=lambda x: float(x[3]))
+            scores[newgrp] = sorted(scores[newgrp], key=lambda x: (x[0], x[1]))
+            scores[newgrp] = sorted(scores[newgrp], key=lambda x: float(x[3]), reverse=True)
+
             for elem in scores[newgrp]:
                 if elem[1] not in best:
                     best[elem[1]] = elem[0]
@@ -682,18 +698,26 @@ def process_splits(splits, scores, nbedline, abedline):
             for n in new:
                 line = nbedline[n]
                 if n in scores:
+                    accns = set()
+                    scores[n] = sorted(scores[n], key=lambda x: x[1])
+                    scores[n] = sorted(scores[n], key=lambda x: float(x[3]), reverse=True)
+                    accns.add(n)
+                    print >> sys.stderr, "\t" + n
                     for elem in scores[n]:
+                        if not elem[0] == n:
+                            continue
+                        print >> sys.stderr, "\t\t" + ", ".join([str(x)\
+                                for x in elem[1:]])
                         if elem[1] in best and n == best[elem[1]]:
-                            print >> sys.stderr, "\t" + elem[0]
-                            print >> sys.stderr, "\t\t" + ", ".join([str(x)\
-                                    for x in elem[1:]])
-                            line.accn = ";".join([str(x) for x in line.accn, elem[1]])
-                            line.extra[0] = elem[3]
+                            accns.add(elem[1])
+                            accns = sorted(accns)
+                            line.accn = ";".join([str(x) for x in accns])
+                            #line.extra[0] = elem[3]
                             break
                 abedline[line.accn] = line
         else:
             for n in new:
-                abedline[new] = nbedline[new]
+                abedline[n] = nbedline[n]
 
     return abedline
 
@@ -743,7 +767,6 @@ def consolidate(nbedfile, obedfile, cbedfile):
         if ";" in b.accn:
             accns = set()
             for accn in b.accn.split(";"):
-                #accn = re.sub('\.\d+$', '', accn)
                 accns.add(accn)
             b.accn = ";".join(accns)
         print >> fp, b

@@ -10,7 +10,7 @@ import logging
 
 from collections import defaultdict
 from urlparse import unquote
-from optparse import OptionParser
+from optparse import OptionParser, OptionGroup
 
 from jcvi.formats.base import LineFile, must_open, is_number
 from jcvi.formats.fasta import Fasta, SeqIO
@@ -89,7 +89,7 @@ class GffLine (object):
             if not val and skipEmpty:
                 continue
             val = ",".join(val)
-            val = "\"{0}\"".format(val) if " " in val or (not gff3) else val
+            val = "\"{0}\"".format(val) if " " in val and (not gff3) else val
             equal = "=" if gff3 else " "
             attributes.append(equal.join((tag, val)))
 
@@ -482,8 +482,9 @@ def format(args):
                  help="Make IDs unique [default: %default]")
     p.add_option("--gff3", default=False, action="store_true",
                  help="Force to write gff3 attributes [default: %default]")
-    p.add_option("--note", help="Add NOTE from two-column file [default: %default]")
-    p.add_option("--switch", help="Switch seqid from two-column file [default: %default]")
+    p.add_option("--note", help="Add Note from two-column file [default: %default]")
+    p.add_option("--name", help="Add Name from two-column file [default: %default]")
+    p.add_option("--seqid", help="Switch seqid from two-column file [default: %default]")
     p.add_option("--source", help="Switch GFF source from two-column file. If not" +
                 " a file, value will globally replace GFF source [default: %default]")
     p.add_option("--multiparents", default=False, action="store_true",
@@ -501,12 +502,13 @@ def format(args):
         sys.exit(not p.print_help())
 
     gffile, = args
-    mapfile = opts.switch
-    unique = opts.unique
+    mapfile = opts.seqid
+    names = opts.name
     note = opts.note
-    gsac = opts.gsac
-    chain = opts.chain
     source = opts.source
+    gsac = opts.gsac
+    unique = opts.unique
+    chain = opts.chain
 
     outfile = opts.outfile
 
@@ -516,6 +518,8 @@ def format(args):
         note = DictFile(note, delimiter="\t")
     if source and op.isfile(source):
         source = DictFile(source, delimiter="\t")
+    if names:
+        names = DictFile(names, delimiter="\t")
 
     if chain:
         gffdict = {}
@@ -550,6 +554,14 @@ def format(args):
             else:
                 g.source = source
             g.update_attributes()
+
+        if names:
+            id = g.attributes["ID"]
+            id = id[0] if id else None
+
+            if id in names:
+                g.attributes["Name"] = [names[id]]
+                g.update_attributes()
 
         if note:
             id = g.attributes["ID"]
@@ -1212,6 +1224,7 @@ def load(args):
 
     Switch TSS with TrSS for Translation Start Site.
     '''
+    from datetime import datetime as dt
     from jcvi.formats.fasta import Seq, SeqRecord
 
     # can request output fasta sequence id to be picked from following attributes
@@ -1219,20 +1232,32 @@ def load(args):
 
     p = OptionParser(load.__doc__)
     p.add_option("--parents", dest="parents", default="mRNA",
-            help="list of features to extract, use comma to separate (e.g."
+            help="list of features to extract, use comma to separate (e.g." + \
             "'gene,mRNA') [default: %default]")
     p.add_option("--children", dest="children", default="CDS",
-            help="list of features to extract, use comma to separate (e.g."
+            help="list of features to extract, use comma to separate (e.g." + \
             "'five_prime_UTR,CDS,three_prime_UTR') [default: %default]")
     p.add_option("--feature", dest="feature",
-            help="feature type to extract. e.g. `--feature=CDS` or "
+            help="feature type to extract. e.g. `--feature=CDS` or " + \
             "`--feature=upstream:TSS:500` [default: %default]")
     p.add_option("--attribute",
-            help="The attribute field to extract and use as FASTA sequence "
+            help="The attribute field to extract and use as FASTA sequence " + \
             "description [default: %default]")
     p.add_option("--id_attribute", choices=valid_id_attributes,
-            help="The attribute field to extract and use as FASTA sequence ID "
+            help="The attribute field to extract and use as FASTA sequence ID " + \
             "[default: %default]")
+    p.add_option("--full_header", dest="full_header", default=False, action="store_true",
+            help="Specify if full FASTA header (with seqid, coordinates and datestamp)" + \
+                    " should be generated [default: %default]")
+
+    g1 = OptionGroup(p, "Optional parameters (if generating full header)")
+    g1.add_option("--sep", dest="sep", default=" ", \
+            help="Specify separator used to delimiter header elements [default: \"%default\"]")
+    g1.add_option("--datestamp", dest="datestamp", \
+            help="Specify a datestamp in the format YYYYMMDD or automatically pick `today`" + \
+            " [default: %default]")
+    p.add_option_group(g1)
+
     set_outfile(p)
 
     opts, args = p.parse_args(args)
@@ -1252,6 +1277,7 @@ def load(args):
     children_list = set(opts.children.split(','))
     attr = opts.attribute
     id_attr = opts.id_attribute
+    sep = opts.sep
 
     g = make_index(gff_file)
     f = Fasta(fasta_file, index=False)
@@ -1264,6 +1290,17 @@ def load(args):
     for feat in get_parents(gff_file, parents):
         desc = ",".join(feat.attributes[attr]) \
                 if attr and attr in feat.attributes else ""
+
+        if opts.full_header:
+            (s, e) = (feat.start, feat.end) if (feat.strand == "+") \
+                    else (feat.end, feat.start)
+            feat_coords = "{0}:{1}-{2}".format(feat.seqid, s, e)
+            datestamp = opts.datestamp if opts.datestamp else \
+                    "{0}{1}{2}".format(dt.now().year, dt.now().month, dt.now().day)
+
+            desc_parts = [desc, feat_coords, datestamp]
+            desc = sep.join(str(x) for x in desc_parts)
+            desc = "".join(str(x) for x in (sep, desc)).strip()
 
         if opts.feature == "upstream":
             upstream_start, upstream_stop = get_upstream_coords(upstream_site, upstream_len, \
@@ -1279,7 +1316,7 @@ def load(args):
                     if feat.strand == "+" else \
                      (upstream_stop, upstream_start)
             upstream_seq_loc = str(feat.seqid) + ":" + str(s) + "-" + str(e)
-            desc = " ".join(str(x) for x in (desc, upstream_seq_loc, \
+            desc = sep.join(str(x) for x in (desc, upstream_seq_loc, \
                     "LENGTH=" + str(upstream_len)))
         else:
             children = []
@@ -1303,6 +1340,7 @@ def load(args):
             feat_seq = ''.join(x[0] for x in children)
 
         desc = desc.replace("\"", "")
+
         id = ",".join(feat.attributes[id_attr]) if id_attr \
                 and feat.attributes[id_attr] else \
                 feat.id

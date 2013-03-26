@@ -517,6 +517,9 @@ def annotate(args):
     p.add_option("--resolve", default="alignment", choices=valid_resolve_choices,
                  help="Resolve ID assignment based on a certain metric" \
                         + " [default: %default]")
+    p.add_option("--atg_name", default=False, action="store_true",
+                help="Specify is locus IDs in `new.bed` file follow ATG nomenclature" \
+                        + " [default: %default]")
 
     g1 = OptionGroup(p, "Optional parameters (alignment):\n" \
             + "Use if resolving ambiguities based on sequence `alignment`")
@@ -595,7 +598,7 @@ def annotate(args):
 
     splits = set()
     for chr, chrbed in nbed.sub_beds():
-        abedline, splits = annotate_chr(chr, chrbed, g, scores, nbedline, abedline, splits)
+        abedline, splits = annotate_chr(chr, chrbed, g, scores, nbedline, abedline, opts, splits)
 
     abedline = process_splits(splits, scores, nbedline, abedline)
 
@@ -638,12 +641,12 @@ def read_scores(scoresfile, opts):
 
     return scores
 
-def annotate_chr(chr, chrbed, g, scores, nbedline, abedline, splits):
+def annotate_chr(chr, chrbed, g, scores, nbedline, abedline, opts, splits):
     current_chr = number(chr)
 
     for line in chrbed:
         accn = line.accn
-        if accn not in g or "chr" not in chr:
+        if accn not in g or (opts.atg_name and "chr" not in chr):
             abedline[accn] = line
             continue
 
@@ -661,9 +664,11 @@ def annotate_chr(chr, chrbed, g, scores, nbedline, abedline, splits):
                 accns.append(elem[1])
                 print >> sys.stderr, "\t" + ", ".join([str(x)\
                         for x in elem[1:]])
-                achr, arank = atg_name(elem[1])
-                if not achr or achr != current_chr:
-                    continue
+
+                if opts.atg_name:
+                    achr, arank = atg_name(elem[1])
+                    if not achr or achr != current_chr:
+                        continue
 
                 if len(new) > 1:
                     if newgrp not in scores: scores[newgrp] = []
@@ -671,7 +676,6 @@ def annotate_chr(chr, chrbed, g, scores, nbedline, abedline, splits):
                 else:
                     accns[0:0] = [accn]
                     line.accn = ";".join([str(x) for x in accns])
-                    #line.extra[0] = elem[3]
                 if len(scores[accn]) > 1: break
 
         if len(new) > 1:
@@ -712,7 +716,6 @@ def process_splits(splits, scores, nbedline, abedline):
                             accns.add(elem[1])
                             accns = sorted(accns)
                             line.accn = ";".join([str(x) for x in accns])
-                            #line.extra[0] = elem[3]
                             break
                 abedline[line.accn] = line
         else:

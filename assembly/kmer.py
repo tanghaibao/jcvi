@@ -198,9 +198,8 @@ def logodds(args):
         scf, c1 = row.split()
         c2 = d[scf]
         c1, c2 = int(c1), int(c2)
-        if 0 in (c1, c2):
-            c1 += 1
-            c2 += 1
+        c1 += 1
+        c2 += 1
         score = int(100 * (log(c1) - log(c2)))
         print "{0}\t{1}".format(scf, score)
 

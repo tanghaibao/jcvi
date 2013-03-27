@@ -16,6 +16,10 @@ from jcvi.apps.base import ActionDispatcher, sh, debug, need_update, \
 debug()
 
 
+FastaExt = ("fasta", "fa", "fna", "cds", "pep", "faa")
+FastqExt = ("fastq", "fq")
+
+
 class BaseFile (object):
 
     def __init__(self, filename):
@@ -147,9 +151,9 @@ class FileSplitter (object):
         root, ext = op.splitext(filename)
         ext = ext.strip(".")
 
-        if ext in ("fasta", "fa", "fna", "cds", "pep", "faa"):
+        if ext in FastaExt:
             format = "fasta"
-        elif ext in ("fastq",):
+        elif ext in FastqExt:
             format = "fastq"
         else:
             format = "txt"

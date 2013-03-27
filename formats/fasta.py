@@ -479,7 +479,7 @@ def clean(args):
     p.add_option("--fancy", default=False, action="store_true",
                  help="Pretty print the sequence [default: %default]")
     p.add_option("--canonical", default=False, action="store_true",
-                 help="Use only acgtnACGTN [defauult: %default]")
+                 help="Use only acgtnACGTN [default: %default]")
     set_outfile(p)
 
     opts, args = p.parse_args(args)

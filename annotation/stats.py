@@ -109,7 +109,7 @@ def stats(args):
 
     Exon length, Intron length, Gene length, Exon count
 
-    With data written to disk then you can run $prog histogram
+    With data written to disk then you can run %prog histogram
     """
     from jcvi.utils.range import range_interleave
 

@@ -13,7 +13,9 @@ from optparse import OptionParser
 
 from jcvi.utils.iter import pairwise
 from jcvi.graphics.base import plt, asciiplot, _, set_human_axis, savefig
-from jcvi.apps.base import ActionDispatcher, sh, debug, need_update
+from jcvi.formats.fasta import Fasta
+from jcvi.formats.base import must_open
+from jcvi.apps.base import ActionDispatcher, sh, debug, need_update, set_outfile
 debug()
 
 
@@ -163,26 +165,215 @@ def main():
         ('jellyfish', 'dump histogram using `jellyfish`'),
         ('meryl', 'dump histogram using `meryl`'),
         ('histogram', 'plot the histogram based on meryl K-mer distribution'),
+        # These forms a pipeline to count K-mers for given FASTA seq
+        ('dump', 'convert FASTA sequences to list of K-mers'),
+        ('bin', 'serialize counts to bitarrays'),
+        ('bincount', 'count K-mers in the bin'),
+        ('count', 'run dump - jellyfish - bin - bincount in serial'),
+        ('logodds', 'compute log likelihood between two db'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
 
+def logodds(args):
+    """
+    %prog logodds cnt1 cnt2
+
+    Compute log likelihood between two db.
+    """
+    from math import log
+    from jcvi.formats.base import DictFile
+
+    p = OptionParser(logodds.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    cnt1, cnt2 = args
+    d = DictFile(cnt2)
+    fp = open(cnt1)
+    for row in fp:
+        scf, c1 = row.split()
+        c2 = d[scf]
+        c1, c2 = int(c1), int(c2)
+        if 0 in (c1, c2):
+            c1 += 1
+            c2 += 1
+        score = int(100 * (log(c1) - log(c2)))
+        print "{0}\t{1}".format(scf, score)
+
+
+def get_K(jfdb):
+    """
+    Infer K from jellyfish db.
+    """
+    j = jfdb.rsplit('_', 1)[0].rsplit('-', 1)[-1]
+    assert j[0] == 'K'
+    return int(j[1:])
+
+
+def count(args):
+    """
+    %prog count fastafile jf.db
+
+    Run dump - jellyfish - bin - bincount in serial.
+    """
+    from subprocess import Popen, PIPE
+    from bitarray import bitarray
+
+    p = OptionParser(count.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    fastafile, jfdb = args
+    K = get_K(jfdb)
+    cmd = "jellyfish query {0} -C | cut -d' ' -f 2".format(jfdb)
+    t = must_open("tmp", "w")
+    proc = Popen(cmd, stdin=PIPE, stdout=t, shell=True)
+    t.flush()
+
+    f = Fasta(fastafile, lazy=True)
+    for name, rec in f.iteritems_ordered():
+        kmers = list(make_kmers(rec.seq, K))
+        print >> proc.stdin, "\n".join(kmers)
+    proc.stdin.close()
+    logging.debug(cmd)
+    proc.wait()
+
+    a = bitarray()
+    binfile = ".".join((fastafile, jfdb, "bin"))
+    fw = open(binfile, "w")
+    t.seek(0)
+    for row in t:
+        c = row.strip()
+        a.append(int(c))
+    a.tofile(fw)
+    logging.debug("Serialize {0} bits to `{1}`.".format(len(a), binfile))
+    fw.close()
+    sh("rm {0}".format(t.name))
+
+    logging.debug("Shared K-mers (K={0}) between `{1}` and `{2}` written to `{3}`.".\
+                    format(K, fastafile, jfdb, binfile))
+    cntfile = ".".join((fastafile, jfdb, "cnt"))
+    bincount([fastafile, binfile, "-o", cntfile, "-K {0}".format(K)])
+    logging.debug("Shared K-mer counts written to `{0}`.".format(cntfile))
+
+
+def bincount(args):
+    """
+    %prog bincount fastafile binfile
+
+    Count K-mers in the bin.
+    """
+    from bitarray import bitarray
+    from jcvi.formats.sizes import Sizes
+
+    p = OptionParser(bincount.__doc__)
+    p.add_option("-K", default=23, type="int",
+                 help="K-mer size [default: %default]")
+    set_outfile(p)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    fastafile, binfile = args
+    K = opts.K
+
+    fp = open(binfile)
+    a = bitarray()
+    a.fromfile(fp)
+    f = Sizes(fastafile)
+    tsize = 0
+    fw = must_open(opts.outfile, "w")
+    for name, seqlen in f.iter_sizes():
+        ksize = seqlen - K + 1
+        b = a[tsize: tsize + ksize]
+        bcount = b.count()
+        print >> fw, "\t".join(str(x) for x in (name, bcount))
+        tsize += ksize
+
+
+def bin(args):
+    """
+    %prog bin filename filename.bin
+
+    Serialize counts to bitarrays.
+    """
+    from bitarray import bitarray
+    p = OptionParser(bin.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    inp, outp = args
+    fp = must_open(inp)
+    fw = must_open(outp, "w")
+    a = bitarray()
+    for row in fp:
+        c = row.split()[-1]
+        a.append(int(c))
+    a.tofile(fw)
+    fw.close()
+
+
+def make_kmers(seq, K):
+    seq = str(seq).upper().replace("N", "A")
+    seqlen = len(seq)
+    for i in xrange(seqlen - K + 1):
+        yield seq[i: i + K]
+
+
+def dump(args):
+    """
+    %prog dump fastafile
+
+    Convert FASTA sequences to list of K-mers.
+    """
+    p = OptionParser(dump.__doc__)
+    p.add_option("-K", default=23, type="int",
+                 help="K-mer size [default: %default]")
+    set_outfile(p)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    fastafile, = args
+    K = opts.K
+    fw = must_open(opts.outfile, "w")
+    f = Fasta(fastafile, lazy=True)
+    for name, rec in f.iteritems_ordered():
+        kmers = list(make_kmers(rec.seq, K))
+        print >> fw, "\n".join(kmers)
+    fw.close()
+
+
 def jellyfish(args):
     """
-    %prog jellyfish *.fastq
+    %prog jellyfish [*.fastq|*.fasta]
 
     Run jellyfish to dump histogram to be used in kmer.histogram().
     """
     from jcvi.apps.base import getfilesize
     from jcvi.utils.cbook import human_size
     from jcvi.formats.fastq import guessoffset
+    from jcvi.formats.base import FastaExt
 
     p = OptionParser(jellyfish.__doc__)
     p.add_option("-K", default=23, type="int",
                  help="K-mer size [default: %default]")
     p.add_option("--coverage", default=46, type="int",
             help="Expected sequence coverage [default: %default]")
+    p.add_option("--prefix", default="jf",
+            help="Database prefix [default: %default]")
+    p.add_option("--nohist", default=False, action="store_true",
+            help="Do not print histogram [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) < 1:
@@ -191,8 +382,14 @@ def jellyfish(args):
     fastqfiles = args
     K = opts.K
     coverage = opts.coverage
+    pf = opts.prefix
 
     totalfilesize = sum(getfilesize(x) for x in fastqfiles)
+    fq = fastqfiles[0]
+    fasta = fq.rsplit(".", 1)[-1] in FastaExt
+    if fasta:
+        coverage = 1
+
     hashsize = totalfilesize / coverage
     #hashsize = max(hashsize, 4000000000)  # based on msr-ca
 
@@ -200,19 +397,27 @@ def jellyfish(args):
                     format(human_size(totalfilesize,
                            a_kilobyte_is_1024_bytes=True), hashsize))
 
-    offset = guessoffset([fastqfiles[0]])
-    assert all(guessoffset([x]) == offset for x in fastqfiles[1:])
+    if fasta:
+        pf = fq.split(".")[0]
+    else:
+        offset = guessoffset([fq])
+        assert all(guessoffset([x]) == offset for x in fastqfiles[1:])
 
-    jfpf = "jf-{0}".format(K)
+    jfpf = "{0}-K{1}".format(pf, K)
     jfdb = jfpf + "_0"
 
-    cmd = "jellyfish count -t 64 -p 126 -C -o {0}".format(jfpf)
-    cmd += " -s {0} -m {1} --min-quality 5".format(hashsize, K)
-    cmd += " --quality-start {0}".format(offset)
+    cmd = "jellyfish count -t 64 -C -o {0}".format(jfpf)
+    cmd += " -s {0} -m {1}".format(hashsize, K)
+    if not fasta:
+        cmd += " -p 126 --min-quality 5".format(hashsize, K)
+        cmd += " --quality-start {0}".format(offset)
     cmd += " " + " ".join(fastqfiles)
 
     if need_update(fastqfiles, jfdb):
         sh(cmd)
+
+    if opts.nohist:
+        return
 
     jfhisto = jfpf + ".histogram"
     cmd = "jellyfish histo -t 64 {0} -o {1}".format(jfdb, jfhisto)

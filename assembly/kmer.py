@@ -197,7 +197,7 @@ def logodds(args):
     for row in fp:
         scf, c1 = row.split()
         c2 = d[scf]
-        c1, c2 = int(c1), int(c2)
+        c1, c2 = float(c1), float(c2)
         c1 += 1
         c2 += 1
         score = int(100 * (log(c1) - log(c2)))

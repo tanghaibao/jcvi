@@ -349,9 +349,47 @@ def main():
         ('sort', 'sort lines so that query grouped together and scores desc'),
         ('mismatches', 'print out histogram of mismatches of HSPs'),
         ('annotate', 'annotate overlap types in BLAST tabular file'),
+        ('score', 'add up the scores for each query seq'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def score(args):
+    """
+    %prog score blastfile query.fasta A.ids
+
+    Add up the scores for each query seq. Go through the lines and for each
+    query sequence, add up the scores when subject is in each pile by A.ids.
+    """
+    from collections import defaultdict
+    from jcvi.formats.base import SetFile
+    from jcvi.formats.fasta import Fasta
+
+    p = OptionParser(score.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    blastfile, fastafile, idsfile = args
+    ids = SetFile(idsfile)
+
+    blast = Blast(blastfile)
+    scores = defaultdict(int)
+    for b in blast.iter_line():
+        query = b.query
+        subject = b.subject
+        if subject not in ids:
+            continue
+        scores[query] += b.score
+
+    logging.debug("A total of {0} ids loaded.".format(len(ids)))
+
+    f = Fasta(fastafile)
+    for s in f.iterkeys_ordered():
+        sc = scores.get(s, 0)
+        print "\t".join((s, str(sc)))
 
 
 def annotation(args):

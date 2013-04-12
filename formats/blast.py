@@ -350,9 +350,46 @@ def main():
         ('mismatches', 'print out histogram of mismatches of HSPs'),
         ('annotate', 'annotate overlap types in BLAST tabular file'),
         ('score', 'add up the scores for each query seq'),
+        ('rbbh', 'find reciprocal-best blast hits'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def rbbh(args):
+    """
+    %prog rbbh A_vs_B.blast B_vs_A.blast
+
+    Identify the reciprocal best blast hit for each query sequence in set A
+    when compared to set B.
+
+    This program assumes that the BLAST results have already been filtered
+    based on a combination of %id, %cov, e-value cutoffs. BLAST output should
+    be in tabular `-m 8` format.
+    """
+    p = OptionParser(rbbh.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    abfile, bafile, = args
+    ab = Blast(abfile)
+    ba = Blast(bafile)
+
+    ab_hits = ab.best_hits
+    ba_hits = ba.best_hits
+
+    for aquery in ab_hits:
+        ab_bline = ab_hits[aquery]
+        ahit= ab_bline.subject
+
+        ba_bline = ba_hits.get(ahit)
+        if ba_bline:
+            bhit = ba_bline.subject
+
+            if bhit == aquery:
+                print "\t".join(str(x) for x in (aquery, ahit))
 
 
 def score(args):

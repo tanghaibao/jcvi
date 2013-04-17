@@ -266,6 +266,7 @@ def main():
         ('pool', 'pool a bunch of fastafiles together and add prefix'),
         ('random', 'randomly take some records'),
         ('diff', 'check if two fasta records contain same information'),
+        ('identical', 'given 2 fasta files, find all exactly identical records'),
         ('trim', 'given a cross_match screened fasta, trim the sequence'),
         ('sort', 'sort the records by IDs, sizes, etc.'),
         ('filter', 'filter the records by size'),
@@ -515,7 +516,7 @@ def translate(args):
     from collections import defaultdict
     from jcvi.utils.cbook import percentage
 
-    transl_tables = list(xrange(1,25))
+    transl_tables = [str(x) for x in xrange(1,25)]
     p = OptionParser(translate.__doc__)
     p.add_option("--ids", default=False, action="store_true",
                  help="Create .ids file with the complete/partial/gaps "
@@ -1115,6 +1116,82 @@ def diff(args):
         print red("A total of {0} records mismatch.".format(len(problem_ids)))
         fw = must_open("Problems.ids", "w")
         print >> fw, "\n".join(problem_ids)
+
+
+def hash_fasta(fastafile, ignore_case=False, ignore_N=False, ignore_stop=False):
+    """
+    Generates MD5 hash of each fasta sequence
+    Returns a dictionary with the sequence hashes as keys and sequence IDs as values
+    """
+    import re
+    import hashlib
+
+    f = Fasta(fastafile)
+
+    hash_dict = {}
+    for name, rec in f.iteritems_ordered():
+        seq = re.sub(' ', '', rec.seq.tostring())
+
+        if ignore_stop:
+            seq = seq.rstrip("*")
+        if ignore_case:
+            seq = seq.upper()
+        if ignore_N:
+            if not all(c.upper() in 'ATGCN' for c in seq):
+                seq = re.sub('X', '', seq)
+            else:
+                seq = re.sub('N', '', seq)
+
+        md5_hex = hashlib.md5(seq).hexdigest()
+
+        if md5_hex not in hash_dict: hash_dict[md5_hex] = set()
+        hash_dict[md5_hex].add(name)
+
+    return hash_dict
+
+
+def identical(args):
+    """
+    %prog identical afasta bfasta
+
+    Given 2 fasta files, find all the exactly identical records
+
+    Output is a 2 column file where first column is ID(s) from `afasta` and
+    second column is ID(s) from `bfasta` (duplicate sequences within a set
+    are separated by comma)
+
+    Example output:
+    703     301
+    704     281
+    705     3841, 3830
+    706     359
+    707     560
+    708     3837, 3826
+    709     477
+    710     3797
+    """
+    p = OptionParser(identical.__doc__)
+    p.add_option("--ignore_case", default=False, action="store_true",
+            help="ignore case when comparing sequences [default: %default]")
+    p.add_option("--ignore_N", default=False, action="store_true",
+            help="ignore N and X's when comparing sequences [default: %default]")
+    p.add_option("--ignore_stop", default=False, action="store_true",
+            help="ignore stop codon when comparing sequences [default: %default]")
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    afasta, bfasta = args
+    adict = hash_fasta(afasta, ignore_case=opts.ignore_case, ignore_N=opts.ignore_N, \
+            ignore_stop=opts.ignore_stop)
+    bdict = hash_fasta(bfasta, ignore_case=opts.ignore_case, ignore_N=opts.ignore_N, \
+            ignore_stop=opts.ignore_stop)
+
+    aset, bset = set(adict.keys()), set(bdict.keys())
+    for hash in aset.intersection(bset):
+        print "\t".join(str(x) for x in (",".join(adict[hash]), ",".join(bdict[hash])))
 
 
 QUALSUFFIX = ".qual"

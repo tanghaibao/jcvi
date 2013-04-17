@@ -381,13 +381,10 @@ def rbbh(args):
     ba_hits = ba.best_hits
 
     for aquery in ab_hits:
-        ab_bline = ab_hits[aquery]
-        ahit= ab_bline.subject
-
+        ahit = ab_hits[aquery].subject
         ba_bline = ba_hits.get(ahit)
         if ba_bline:
             bhit = ba_bline.subject
-
             if bhit == aquery:
                 print "\t".join(str(x) for x in (aquery, ahit))
 

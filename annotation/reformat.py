@@ -501,7 +501,7 @@ def annotate(args):
     Note: Following RegExp pattern describes the structure of the identifier
     assigned to features in the `new.bed` file.
 
-    new_id_pat = re.compile(r"^\d+\.[cemtx]\S+")
+    new_id_pat = re.compile(r"^\d+\.[cemtx]+\S+")
 
     Examples: 23231.m312389, 23231.t004898, 23231.tRNA.144
     Adjust the value of `new_id_pat` manually as per your ID naming conventions.
@@ -510,7 +510,7 @@ def annotate(args):
     from jcvi.formats.base import DictFile
 
     global new_id_pat
-    new_id_pat = re.compile(r"^\d+\.[cemtx]\S+")
+    new_id_pat = re.compile(r"^\d+\.[cemtx]+\S+")
     valid_resolve_choices = ["alignment", "overlap"]
 
     p = OptionParser(annotate.__doc__)

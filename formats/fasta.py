@@ -515,12 +515,15 @@ def translate(args):
     from collections import defaultdict
     from jcvi.utils.cbook import percentage
 
+    transl_tables = list(xrange(1,25))
     p = OptionParser(translate.__doc__)
     p.add_option("--ids", default=False, action="store_true",
                  help="Create .ids file with the complete/partial/gaps "
                       "label [default: %default]")
     p.add_option("--longest", default=False, action="store_true",
                  help="Find the longest ORF from each input CDS [default: %default]")
+    p.add_option("--table", default=1, choices=transl_tables,
+            help="Specify translation table to use [default: %default]")
     set_outfile(p)
 
     opts, args = p.parse_args(args)
@@ -555,7 +558,7 @@ def translate(args):
         pep = ""
         for i in xrange(3):
             newcds = cds[i: i + peplen * 3]
-            newpep = newcds.translate()
+            newpep = newcds.translate(table=opts.table)
             if len(newpep.split("*")[0]) > len(pep.split("*")[0]):
                 pep = newpep
 

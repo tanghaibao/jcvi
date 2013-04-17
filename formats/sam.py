@@ -66,11 +66,43 @@ def main():
         ('ace', 'convert sam file to ace'),
         ('index', 'convert to bam, sort and then index'),
         ('consensus', 'convert bam alignments to consensus FASTA'),
+        ('fpkm', 'calculate FPKM values from BAM file'),
         ('bcf', 'run mpileup on a set of bam files'),
             )
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def fpkm(args):
+    """
+    %prog fpkm fastafile *.bam
+
+    Calculate FPKM values from BAM file.
+    """
+    from jcvi.formats.fasta import Fasta
+
+    p = OptionParser(fpkm.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) < 2:
+        sys.exit(not p.print_help())
+
+    fastafile = args[0]
+    bamfiles = args[1:]
+    # Create a DUMMY gff file for cufdiff
+    gffile = fastafile.rsplit(".", 1)[0] + ".gff"
+    if need_update(fastafile, gffile):
+        fw = open(gffile, "w")
+        f = Fasta(fastafile)
+        for key, size in f.itersizes_ordered():
+            print >> fw, "\t".join(str(x) for x in (key, "dummy", "transcript",\
+                1, size, ".", ".", ".", "ID=" + key))
+        fw.close()
+        logging.debug("Dummy GFF created: {0}".format(gffile))
+
+    cmd = "cuffdiff {0} {1}".format(gffile, " ".join(bamfiles))
+    sh(cmd)
 
 
 def pairs(args):

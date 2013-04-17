@@ -18,14 +18,14 @@ from Bio.SeqRecord import SeqRecord
 
 from jcvi.formats.base import BaseFile, DictFile, must_open
 from jcvi.formats.bed import Bed
-from jcvi.apps.base import ActionDispatcher, debug, set_outfile, sh
+from jcvi.apps.base import ActionDispatcher, debug, set_outfile
 from jcvi.apps.console import red, green
 debug()
 
 
 class Fasta (BaseFile, dict):
 
-    def __init__(self, filename, index=True, key_function=None, lazy=False):
+    def __init__(self, filename, index=False, key_function=None, lazy=False):
         super(Fasta, self).__init__(filename)
         self.key_function = key_function
 

@@ -1120,7 +1120,7 @@ def diff(args):
 
 def hash_fasta(fastafile, ignore_case=False, ignore_N=False, ignore_stop=False):
     """
-    Generates MD5 hash of each fasta sequence
+    Generates MD5 hash of each element within the input multifasta file
     Returns a dictionary with the sequence hashes as keys and sequence IDs as values
     """
     import re
@@ -1152,24 +1152,29 @@ def hash_fasta(fastafile, ignore_case=False, ignore_N=False, ignore_stop=False):
 
 def identical(args):
     """
-    %prog identical afasta bfasta
+    %prog identical *.fasta
 
-    Given 2 fasta files, find all the exactly identical records
+    Given multiple fasta files, find all the exactly identical records
+    based on the computed md5 hexdigest of each sequence.
 
-    Output is a 2 column file where first column is ID(s) from `afasta` and
-    second column is ID(s) from `bfasta` (duplicate sequences within a set
-    are separated by comma)
+    Output is a N column file (where N = number of input fasta files).
+    If there are duplicates within a given fasta file, they will all be
+    listed out in the same row separated by a comma.
 
     Example output:
-    703     301
-    704     281
-    705     3841, 3830
-    706     359
-    707     560
-    708     3837, 3826
-    709     477
-    710     3797
+    ---------------------
+     tta1.fsa    tta2.fsa
+         2131          na
+         3420          na
+    3836,3847         852
+          148         890
+          584         614
+          623         684
+         1281         470
+         3367          na
     """
+    from jcvi.utils.table import write_csv
+
     p = OptionParser(identical.__doc__)
     p.add_option("--ignore_case", default=False, action="store_true",
             help="ignore case when comparing sequences [default: %default]")
@@ -1177,21 +1182,33 @@ def identical(args):
             help="ignore N and X's when comparing sequences [default: %default]")
     p.add_option("--ignore_stop", default=False, action="store_true",
             help="ignore stop codon when comparing sequences [default: %default]")
+    set_outfile(p)
 
     opts, args = p.parse_args(args)
 
-    if len(args) != 2:
+    if len(args) == 0:
         sys.exit(not p.print_help())
 
-    afasta, bfasta = args
-    adict = hash_fasta(afasta, ignore_case=opts.ignore_case, ignore_N=opts.ignore_N, \
+    dict, setlist = {}, []
+    for fastafile in args:
+        dict[fastafile] = hash_fasta(fastafile, ignore_case=opts.ignore_case, ignore_N=opts.ignore_N, \
             ignore_stop=opts.ignore_stop)
-    bdict = hash_fasta(bfasta, ignore_case=opts.ignore_case, ignore_N=opts.ignore_N, \
-            ignore_stop=opts.ignore_stop)
+        setlist.append(set(dict[fastafile].keys()))
 
-    aset, bset = set(adict.keys()), set(bdict.keys())
-    for hash in aset.intersection(bset):
-        print "\t".join(str(x) for x in (",".join(adict[hash]), ",".join(bdict[hash])))
+    hashes = set.union(*setlist)
+
+    data = []
+    header = [str(x) for x in args]
+    for hash in hashes:
+        line = []
+        for fastafile in args:
+            if hash in dict[fastafile].keys():
+                line.append(",".join(dict[fastafile][hash]))
+            else:
+                line.append("na")
+        data.append(line)
+
+    write_csv(header, data, sep="\t", filename=opts.outfile)
 
 
 QUALSUFFIX = ".qual"

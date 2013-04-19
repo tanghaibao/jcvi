@@ -115,6 +115,17 @@ def aln(args):
         saifile = check_aln(dbfile, readfile, grid=grid, cpus=opts.cpus)
 
 
+def add_sam_options(p):
+    p.add_option("--bam", default=False, action="store_true",
+                 help="write to bam file [default: %default]")
+    p.add_option("--uniq", default=False, action="store_true",
+                 help="Keep only uniquely mapped [default: %default]")
+    p.add_option("--cpus", default=32,
+                 help="Number of cpus to use [default: %default]")
+    set_params(p)
+    set_grid(p)
+
+
 def samse(args):
     """
     %prog samse database.fasta short_read.fastq
@@ -122,12 +133,7 @@ def samse(args):
     Wrapper for `bwa samse`. Output will be short_read.sam.
     """
     p = OptionParser(samse.__doc__)
-    p.add_option("--bam", default=False, action="store_true",
-                 help="write to bam file [default: %default]")
-    p.add_option("--cpus", default=32,
-                 help="Number of cpus to use [default: %default]")
-    set_params(p)
-    set_grid(p)
+    add_sam_options(p)
 
     opts, args = p.parse_args(args)
 
@@ -147,8 +153,10 @@ def samse(args):
         logging.error("`{0}` exists. `bwa samse` already run.".format(samfile))
         return
 
-    cmd = "bwa samse -n 1 {0} {1} {2} ".format(dbfile, saifile, readfile)
-    cmd += "{0}".format(extra)
+    cmd = "bwa samse {0} {1} {2}".format(dbfile, saifile, readfile)
+    cmd += " {0}".format(extra)
+    if opts.uniq:
+        cmd += " -n 1"
 
     cmd = output_bam(cmd, bam=opts.bam)
     sh(cmd, grid=grid, outfile=samfile, threaded=opts.cpus)
@@ -161,12 +169,7 @@ def sampe(args):
     Wrapper for `bwa sampe`. Output will be read1.sam.
     """
     p = OptionParser(sampe.__doc__)
-    p.add_option("--bam", default=False, action="store_true",
-                 help="write to bam file [default: %default]")
-    p.add_option("--cpus", default=32,
-                 help="Number of cpus to use [default: %default]")
-    set_params(p)
-    set_grid(p)
+    add_sam_options(p)
 
     opts, args = p.parse_args(args)
 
@@ -187,9 +190,12 @@ def sampe(args):
         logging.error("`{0}` exists. `bwa samse` already run.".format(samfile))
         return
 
-    cmd = "bwa sampe -n 1 {0} {1} {2} {3} {4} ".format(dbfile, sai1file, sai2file,
+    cmd = "bwa sampe {0} {1} {2} {3} {4}".format(dbfile, sai1file, sai2file,
             read1file, read2file)
-    cmd += "{0}".format(extra)
+    cmd += " {0}".format(extra)
+    if opts.uniq:
+        cmd += " -n 1"
+
     cmd = output_bam(cmd, bam=opts.bam)
     sh(cmd, grid=grid, outfile=samfile)
 
@@ -201,10 +207,7 @@ def bwasw(args):
     Wrapper for `bwa bwasw`. Output will be long_read.sam.
     """
     p = OptionParser(bwasw.__doc__)
-    p.add_option("--bam", default=False, action="store_true",
-                 help="write to bam file [default: %default]")
-    set_params(p)
-    set_grid(p)
+    add_sam_options(p)
 
     opts, args = p.parse_args(args)
 

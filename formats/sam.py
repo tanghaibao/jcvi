@@ -101,8 +101,9 @@ def fpkm(args):
         fw.close()
         logging.debug("Dummy GFF created: {0}".format(gffile))
 
-    cmd = "cuffdiff {0} {1}".format(gffile, " ".join(bamfiles))
-    sh(cmd)
+    # Sort the BAM files first
+    #cmd = "cuffdiff {0} {1}".format(gffile, " ".join(bamfiles))
+    #sh(cmd)
 
 
 def pairs(args):

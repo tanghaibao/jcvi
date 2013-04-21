@@ -56,6 +56,7 @@ class GffLine (object):
         self.attributes = make_attributes(self.attributes_text, gff3=gff3)
         # key is not in the gff3 field, this indicates the conversion to accn
         self.key = key  # usually it's `ID=xxxxx;`
+        self.gff3 = gff3
 
         if append_source and self.key in self.attributes:
             # if `append_source` is True, append the gff `self.source`
@@ -594,7 +595,7 @@ def format(args):
                 g.update_attributes()
 
         if chain:
-            id = g.attributes["ID"][0]
+            id = g.accn
             if id not in gffdict:
                 gffdict[id] = { 'seqid': g.seqid,
                                 'source': g.source,
@@ -651,11 +652,11 @@ def format(args):
             print >> fw, g
 
     if chain:
-        for key in gffdict.iterkeys():
-            seqid = gffdict[key]['seqid']
-            source = gffdict[key]['source']
-            type = gffdict[key]['type']
-            strand = gffdict[key]['strand']
+        for key, v in sorted(gffdict.items()):
+            seqid = v['seqid']
+            source = v['source']
+            type = v['type']
+            strand = v['strand']
             start, stop = range_minmax(gffdict[key]['coords'])
             print >> fw, "\t".join(str(x) for x in [seqid, source, type, start, stop,
                 ".", strand, ".", "ID=" + key])

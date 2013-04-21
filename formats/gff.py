@@ -5,7 +5,6 @@
 import sys
 import os
 import os.path as op
-import itertools
 import logging
 
 from collections import defaultdict
@@ -38,7 +37,8 @@ class GffLine (object):
     """
     Specification here (http://www.sequenceontology.org/gff3.shtml)
     """
-    def __init__(self, sline, key="ID", append_source=False, score_attrib=False):
+    def __init__(self, sline, key="ID", gff3=True,
+                 append_source=False, score_attrib=False):
         args = sline.strip().split("\t")
         self.seqid = args[0]
         self.source = args[1]
@@ -53,7 +53,6 @@ class GffLine (object):
         assert self.phase in Valid_phases, \
                 "phase must be one of {0}".format(Valid_phases)
         self.attributes_text = unquote(args[8].strip())
-        self.gff3 = gff3 = "=" in self.attributes_text
         self.attributes = make_attributes(self.attributes_text, gff3=gff3)
         # key is not in the gff3 field, this indicates the conversion to accn
         self.key = key  # usually it's `ID=xxxxx;`
@@ -124,10 +123,22 @@ class Gff (LineFile):
         self.key = key
         self.append_source = append_source
         self.score_attrib = score_attrib
+        self.gff3 = self.get_gff_type()
+        self.fp.seek(0)
+
+    def get_gff_type(self):
+        self.gff3 = True
+        # Determine file type
+        for row in self:
+            break
+        gff3 = "=" in row.attributes_text
+        if not gff3:
+            logging.debug("File is not gff3 standard.")
+        return gff3
 
     def __iter__(self):
-        fp = must_open(self.filename)
-        for row in fp:
+        self.fp = must_open(self.filename)
+        for row in self.fp:
             row = row.strip()
             if row.strip() == "":
                 continue
@@ -136,7 +147,7 @@ class Gff (LineFile):
                     break
                 continue
             yield GffLine(row, key=self.key, append_source=self.append_source, \
-                    score_attrib=self.score_attrib)
+                    score_attrib=self.score_attrib, gff3=self.gff3)
 
     @property
     def seqids(self):
@@ -162,11 +173,14 @@ def make_attributes(s, gff3=True):
         for key in d.iterkeys():
             d[key][0] = d[key][0].replace('PlusSign', '+')
     else:
-        attributes = s.split("; ")
+        attributes = s.split(";")
         d = DefaultOrderedDict(list)
         for a in attributes:
-            key, val = a.strip().split(' ', 1)
-            val = val.replace('"', '')
+            a = a.strip()
+            if ' ' not in a:
+                continue
+            key, val = a.split(' ', 1)
+            val = val.replace('"', '').replace('=', ' ').strip()
             d[key].append(val)
 
     for key, val in d.items():
@@ -527,14 +541,15 @@ def format(args):
         if gsac:  # setting gsac will force IDs to be unique
             unique = True
             notes = {}
-        if unique:
-            dupcounts = defaultdict(int)
-            newparentid = {}
-            gff = Gff(gffile)
-            for g in gff:
-                id = g.accn
-                dupcounts[id] += 1
-            seen = defaultdict(int)
+
+    if unique:
+        dupcounts = defaultdict(int)
+        newparentid = {}
+        gff = Gff(gffile)
+        for g in gff:
+            id = g.accn
+            dupcounts[id] += 1
+        seen = defaultdict(int)
 
     fw = must_open(outfile, "w")
     gff = Gff(gffile)
@@ -829,6 +844,10 @@ def fromgtf(args):
     the "transcript_id" in exon/CDS feature will be converted to "Parent=".
     """
     p = OptionParser(fromgtf.__doc__)
+    p.add_option("--transcript_id", default="transcript_id",
+                 help="Field name for transcript [default: %default]")
+    p.add_option("--gene_id", default="gene_id",
+                 help="Field name for gene [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -836,23 +855,34 @@ def fromgtf(args):
 
     gtffile, = args
     gff = Gff(gtffile)
+    gffile = gtffile.rsplit(".", 1)[0] + ".gff"
+    fw = open(gffile, "w")
+    transcript_id = opts.transcript_id
+    gene_id = opts.gene_id
+    nfeats = 0
     for g in gff:
-        if g.type == "transcript":
+        if g.type in ("transcript", "mRNA"):
             g.type = "mRNA"
-            g.attributes["ID"] = g.attributes["transcript_id"]
-            g.attributes["Parent"] = g.attributes["gene_id"]
-            del g.attributes["transcript_id"]
-            del g.attributes["gene_id"]
-        elif g.type in ("exon", "CDS"):
-            g.attributes["Parent"] = g.attributes["transcript_id"]
-            del g.attributes["transcript_id"]
+            g.attributes["ID"] = g.attributes[transcript_id]
+            g.attributes["Parent"] = g.attributes[gene_id]
+        elif g.type in ("exon", "CDS") or "UTR" in g.type:
+            g.attributes["Parent"] = g.attributes[transcript_id]
         elif g.type == "gene":
-            g.attributes["Parent"] = g.attributes["gene_id"]
+            g.attributes["ID"] = g.attributes[gene_id]
         else:
-            assert 0, "Doesn't know how to deal with {0}".format(g.type)
+            assert 0, "Don't know how to deal with {0}".format(g.type)
+
+        if transcript_id in g.attributes:
+            del g.attributes[transcript_id]
+        if gene_id in g.attributes:
+            del g.attributes[gene_id]
 
         g.update_attributes(gff3=True)
-        print g
+        print >> fw, g
+        nfeats += 1
+
+    logging.debug("A total of {0} features written to `{1}`.".\
+                format(nfeats, gffile))
 
 
 def frombed(args):
@@ -1162,15 +1192,15 @@ def make_index(gff_file):
     """
     Make a sqlite database for fast retrieval of features.
     """
-    import GFFutils
+    import gffutils
     db_file = gff_file + ".db"
 
     if need_update(gff_file, db_file):
         if op.exists(db_file):
             os.remove(db_file)
-        GFFutils.create_gffdb(gff_file, db_file)
+        gffutils.create_db(gff_file, db_file)
 
-    return GFFutils.GFFDB(db_file)
+    return gffutils.FeatureDB(db_file)
 
 
 def get_parents(gff_file, parents):

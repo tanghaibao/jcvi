@@ -39,10 +39,16 @@ def frommaf(args):
         sys.exit(not p.print_help())
 
     maf, = args
-    snpfile = maf.rsplit(".", 1)[0] + ".snp"
+    snpfile = maf.rsplit(".", 1)[0] + ".vcf"
     fp = open(maf)
     fw = open(snpfile, "w")
     total = 0
+    id = "."
+    qual = 20
+    filter = "PASS"
+    info = "DP=20"
+    print >> fw, "##fileformat=VCFv4.0"
+    print >> fw, "#CHROM POS ID REF ALT QUAL FILTER INFO".replace(" ", "\t")
     for row in fp:
         atoms = row.split()
         c, pos, ref, alt = atoms[:4]
@@ -52,7 +58,8 @@ def frommaf(args):
             continue
         c = "chr{0:02d}".format(c)
         pos = int(pos)
-        print >> fw, "\t".join(str(x) for x in (c, pos, ref, alt))
+        print >> fw, "\t".join(str(x) for x in \
+                (c, pos, id, ref, alt, qual, filter, info))
         total += 1
     fw.close()
 
@@ -66,7 +73,10 @@ def frommaf(args):
     fp = open(snpfile)
     nsnps = 0
     for row in fp:
-        c, pos, ref, alt = row.split()
+        if row[0] == '#':
+            continue
+
+        c, pos, id, ref, alt, qual, filter, info = row.split("\t")
         pos = int(pos)
         feat = dict(chr=c, start=pos, stop=pos)
         s = f.sequence(feat)

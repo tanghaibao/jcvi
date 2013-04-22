@@ -200,6 +200,7 @@ def main():
         ('sort', 'sort the gff file'),
         ('filter', 'filter the gff file based on Identity and Coverage'),
         ('format', 'format the gff file, change seqid, etc.'),
+        ('chain', 'fill in parent features by chaining children'),
         ('rename', 'change the IDs within the gff3'),
         ('uniq', 'remove the redundant gene models'),
         ('liftover', 'adjust gff coordinates based on tile number'),
@@ -483,6 +484,60 @@ def gapsplit(args):
             print g
 
 
+def chain(args):
+    """
+    %prog chain gffile > chained.gff
+
+    Fill in parent features by chaining child features and return extent of the
+    child coordinates.
+    """
+    from jcvi.utils.range import range_minmax
+    p = OptionParser(chain.__doc__)
+    set_outfile(p)
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    gffile, = args
+    gffdict = {}
+    fw = must_open(opts.outfile, "w")
+    gff = Gff(gffile)
+    for g in gff:
+        id = g.accn
+        if id not in gffdict:
+            gffdict[id] = { 'seqid': g.seqid,
+                            'source': g.source,
+                            'strand': g.strand,
+                            'type': g.type,
+                            'coords': [],
+                            'children': [],
+                          }
+
+        gffdict[id]['coords'].append((g.start, g.end))
+
+        g.type = valid_gff_parent_child[g.type]
+        g.attributes["Parent"] = g.attributes.pop("ID")
+        g.attributes["ID"] = ["{0}-{1}".\
+                format(id, len(gffdict[id]['children']) + 1)]
+        g.update_attributes()
+        gffdict[id]['children'].append(g)
+
+    for key, v in sorted(gffdict.items()):
+        seqid = v['seqid']
+        source = v['source']
+        type = v['type']
+        strand = v['strand']
+        start, stop = range_minmax(gffdict[key]['coords'])
+        print >> fw, "\t".join(str(x) for x in [seqid, source, type, start, stop,
+            ".", strand, ".", "ID=" + key])
+        for child in gffdict[key]['children']:
+            print >> fw, child
+
+    fw.close()
+
+
 def format(args):
     """
     %prog format gffile > formatted.gff
@@ -490,7 +545,6 @@ def format(args):
     Read in the gff and print it out, changing seqid, etc.
     """
     from jcvi.formats.base import DictFile
-    from jcvi.utils.range import range_minmax
 
     p = OptionParser(format.__doc__)
     p.add_option("--unique", default=False, action="store_true",
@@ -504,11 +558,10 @@ def format(args):
                 " a file, value will globally replace GFF source [default: %default]")
     p.add_option("--multiparents", default=False, action="store_true",
                  help="Separate features with multiple parents [default: %default]")
-    p.add_option("--chain", default=False, action="store_true",
-                help="Generate parent features by chaining child features by ID" +
-                " [default: %default]")
     p.add_option("--gsac", default=False, action="store_true",
                  help="Fix GSAC GFF3 file attributes [default: %default]")
+    p.add_option("--fixphase", default=False, action="store_true",
+                 help="Change phase 1<->2, 2<->1 [default: %default]")
     set_outfile(p)
 
     opts, args = p.parse_args(args)
@@ -523,7 +576,8 @@ def format(args):
     source = opts.source
     gsac = opts.gsac
     unique = opts.unique
-    chain = opts.chain
+    fixphase = opts.fixphase
+    phaseT = {"1":"2", "2":"1"}
 
     outfile = opts.outfile
 
@@ -536,12 +590,9 @@ def format(args):
     if names:
         names = DictFile(names, delimiter="\t")
 
-    if chain:
-        gffdict = {}
-    else:
-        if gsac:  # setting gsac will force IDs to be unique
-            unique = True
-            notes = {}
+    if gsac:  # setting gsac will force IDs to be unique
+        unique = True
+        notes = {}
 
     if unique:
         dupcounts = defaultdict(int)
@@ -556,6 +607,10 @@ def format(args):
     gff = Gff(gffile)
     for g in gff:
         origid = g.seqid
+        if fixphase:
+            phase = g.phase
+            g.phase = phaseT.get(phase, phase)
+
         if mapfile:
             if origid in mapping:
                 g.seqid = mapping[origid]
@@ -594,27 +649,6 @@ def format(args):
                 g.attributes["Note"] = [tag]
                 g.update_attributes()
 
-        if chain:
-            id = g.accn
-            if id not in gffdict:
-                gffdict[id] = { 'seqid': g.seqid,
-                                'source': g.source,
-                                'strand': g.strand,
-                                'type': g.type,
-                                'coords': [],
-                                'children': [],
-                              }
-
-            gffdict[id]['coords'].append((g.start, g.end))
-
-            g.type = valid_gff_parent_child[g.type]
-            g.attributes["Parent"] = g.attributes.pop("ID")
-            g.attributes["ID"] = ["{0}-{1}".\
-                    format(id, len(gffdict[id]['children']) + 1)]
-            g.update_attributes()
-            gffdict[id]['children'].append(g)
-            continue
-
         if unique:
             id = g.accn
             if dupcounts[id] > 1:
@@ -651,17 +685,6 @@ def format(args):
                 fix_gsac(g, notes)
             print >> fw, g
 
-    if chain:
-        for key, v in sorted(gffdict.items()):
-            seqid = v['seqid']
-            source = v['source']
-            type = v['type']
-            strand = v['strand']
-            start, stop = range_minmax(gffdict[key]['coords'])
-            print >> fw, "\t".join(str(x) for x in [seqid, source, type, start, stop,
-                ".", strand, ".", "ID=" + key])
-            for child in gffdict[key]['children']:
-                print >> fw, child
     fw.close()
 
 

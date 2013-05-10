@@ -254,9 +254,53 @@ def main():
         ('sample', 'sample bed file and remove high-coverage regions'),
         ('refine', 'refine bed file using a second bed file'),
         ('flanking', 'get n flanking features for a given position'),
+        ('some', 'get a subset of bed features given a list'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def some(args):
+    """
+    %prog some bedfile idsfile > newbedfile
+
+    Retrieve a subset of bed features given a list of ids.
+    """
+    from jcvi.apps.base import set_stripnames
+    from jcvi.formats.base import SetFile
+    from jcvi.utils.cbook import percentage, gene_name
+
+    p = OptionParser(some.__doc__)
+    p.add_option("-v", dest="inverse", default=False, action="store_true",
+                 help="Get the inverse, like grep -v [default: %default]")
+    set_stripnames(p)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    bedfile, idsfile = args
+    inverse = opts.inverse
+    ostrip = opts.strip_names
+
+    ids = SetFile(idsfile)
+    if ostrip:
+        ids = set(gene_name(x) for x in ids)
+    bed = Bed(bedfile)
+    ntotal = nkeep = 0
+    for b in bed:
+        ntotal += 1
+        id = b.accn
+        keep = b.accn in ids
+        if inverse:
+            keep = not keep
+
+        if keep:
+            nkeep += 1
+            print b
+
+    logging.debug("Stats: {0} features kept.".\
+                    format(percentage(nkeep, ntotal)))
 
 
 def uniq(args):

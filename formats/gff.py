@@ -332,9 +332,15 @@ def filter(args):
                  help="Minimum coverage [default: %default]")
     p.add_option("--type", default="mRNA",
                  help="The feature to scan for the attributes [default: %default]")
+    p.add_option("--nocase", default=False, action="store_true",
+                 help="Perform case insensitive lookup of attribute names [default: %default]")
 
     opts, args = p.parse_args(args)
     otype, oid, ocov = opts.type, opts.id, opts.coverage
+
+    id_attr, cov_attr = "Identity", "Coverage"
+    if opts.nocase:
+        id_attr, cov_attr = id_attr.lower(), cov_attr.lower()
 
     if len(args) != 1:
         sys.exit(not p.print_help())
@@ -347,8 +353,8 @@ def filter(args):
     for g in gff:
         if g.type != otype:
             continue
-        identity = float(g.attributes["Identity"][0])
-        coverage = float(g.attributes["Coverage"][0])
+        identity = float(g.attributes[id_attr][0])
+        coverage = float(g.attributes[cov_attr][0])
         if identity < oid or coverage < ocov:
             bad.add(g.accn)
             relatives.add(g.attributes["Parent"][0])

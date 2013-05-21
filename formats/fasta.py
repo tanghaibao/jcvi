@@ -972,7 +972,8 @@ def format(args):
             rec.id += suffix
         rec.description = ""
         if annotfile:
-            rec.description = annotation.get(origid, "")
+            rec.description = annotation.get(origid, "") if not mapfile \
+                    else annotation.get(rec.id, "")
         if idsfile:
             print >> idsfile, "\t".join((origid, rec.id))
         if upper:
@@ -1128,6 +1129,7 @@ def hash_fasta(fastafile, ignore_case=False, ignore_N=False, ignore_stop=False):
 
     f = Fasta(fastafile)
 
+    logging.debug("Hashing individual elements of {0}".format(fastafile))
     hash_dict = {}
     for name, rec in f.iteritems_ordered():
         seq = re.sub(' ', '', rec.seq.tostring())
@@ -1173,8 +1175,6 @@ def identical(args):
          1281         470
          3367          na
     """
-    from jcvi.utils.table import write_csv
-
     p = OptionParser(identical.__doc__)
     p.add_option("--ignore_case", default=False, action="store_true",
             help="ignore case when comparing sequences [default: %default]")
@@ -1197,8 +1197,9 @@ def identical(args):
 
     hashes = set.union(*setlist)
 
-    data = []
     header = [str(x) for x in args]
+    fw = must_open(opts.outfile, "w")
+    print >> fw, "\t".join(header)
     for hash in hashes:
         line = []
         for fastafile in args:
@@ -1206,9 +1207,9 @@ def identical(args):
                 line.append(",".join(dict[fastafile][hash]))
             else:
                 line.append("na")
-        data.append(line)
+        print >> fw, "\t".join(line)
 
-    write_csv(header, data, sep="\t", filename=opts.outfile)
+    fw.close()
 
 
 QUALSUFFIX = ".qual"

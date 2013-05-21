@@ -147,12 +147,12 @@ def trim(args):
 
     <http://www.usadellab.org/cms/index.php?page=trimmomatic>
     """
-    TrimVersion = tv = "0.25"
+    TrimVersion = tv = "0.30"
     TrimJar = "trimmomatic-{0}.jar".format(tv)
     phdchoices = ("33", "64")
     p = OptionParser(trim.__doc__)
     p.add_option("--path", default=op.join("~/bin", TrimJar),
-            help="Path to trimmomatic [default: %default]")
+            help="Path to trimmomatic jar file [default: %default]")
     p.add_option("--phred", default=None, choices=phdchoices,
             help="Phred score offset {0} [default: guess]".format(phdchoices))
     p.add_option("--nofrags", default=False, action="store_true",
@@ -203,8 +203,8 @@ def trim(args):
     phredflag = " -phred{0}".format(offset)
     threadsflag = " -threads 4"
 
-    cmd = JAVAPATH("java-1.6.0")
-    cmd += " -Xmx4g -cp {0} org.usadellab.trimmomatic".format(path)
+    cmd = JAVAPATH("java")
+    cmd += " -Xmx4g -jar {0}".format(path)
     frags = ".frags.fastq"
     pairs = ".pairs.fastq"
     if not opts.nogz:
@@ -213,7 +213,7 @@ def trim(args):
 
     get_prefix = lambda x: op.basename(x).replace(".gz", "").rsplit(".", 1)[0]
     if len(args) == 1:
-        cmd += ".TrimmomaticSE"
+        cmd += " SE"
         cmd += phredflag
         cmd += threadsflag
         fastqfile, = args
@@ -221,7 +221,7 @@ def trim(args):
         frags1 = prefix + frags
         cmd += " {0}".format(" ".join((fastqfile, frags1)))
     else:
-        cmd += ".TrimmomaticPE"
+        cmd += " PE"
         cmd += phredflag
         cmd += threadsflag
         fastqfile1, fastqfile2 = args
@@ -247,7 +247,7 @@ def trim(args):
 
     if offset != 33:
         cmd += " TOPHRED33"
-    sh(cmd, grid=opts.grid)
+    sh(cmd, grid=opts.grid, threaded=4)
 
 
 @depends

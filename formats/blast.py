@@ -153,13 +153,21 @@ class Blast (LineFile):
                 key=lambda x: BlastLine(x).query):
             blines = [BlastLine(x) for x in blines]
             blines.sort(key=lambda x: -x.score)
-            xlines = blines[:N]
-            if hsps:
-                selected = set(x.subject for x in xlines)
-                xlines = [x for x in blines if x.subject in selected]
+            counter = 0
+            selected = set()
+            for b in blines:
+                if hsps:
+                    selected.add(b.subject)
+                    counter = len(selected)
+                    if counter > N:
+                        selected.remove(b.subject)
+                        continue
+                else:
+                    counter += 1
+                    if counter > N:
+                        break
 
-            for x in xlines:
-                yield query, x
+                yield query, b
 
     @property
     def hits(self):
@@ -1240,6 +1248,8 @@ def best(args):
 
     p.add_option("-n", default=1, type="int",
             help="get best N hits [default: %default]")
+    p.add_option("--nosort", default=False, action="store_true",
+            help="assume BLAST is already sorted [default: %default]")
     p.add_option("--hsps", default=False, action="store_true",
             help="get all HSPs for the best pair [default: %default]")
     opts, args = p.parse_args(args)
@@ -1248,12 +1258,18 @@ def best(args):
         sys.exit(not p.print_help())
 
     blastfile, = args
-    sort([blastfile])
+    n = opts.n
+    hsps = opts.hsps
+    if not opts.nosort:
+        sort([blastfile])
+    else:
+        logging.debug("Assuming sorted BLAST")
+
     bestblastfile = blastfile + ".best"
     fw = open(bestblastfile, "w")
 
     b = Blast(blastfile)
-    for q, bline in b.iter_best_hit(N=opts.n, hsps=False):
+    for q, bline in b.iter_best_hit(N=n, hsps=hsps):
         print >> fw, bline
 
 

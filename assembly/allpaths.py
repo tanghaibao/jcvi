@@ -114,9 +114,33 @@ def main():
         ('fastq', 'export ALLPATHS fastb file to fastq'),
         ('fixpairs', 'fix pairs library stats'),
         ('fill', 'run FillFragments on `frag_reads_corr.fastb`'),
+        ('automaton', 'run assembly on a folder of paired reads'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def automaton(args):
+    """
+    %prog automaton folder tag
+
+    Run assembly on a folder of paired reads and apply tag (PE-200, PE-500).
+    """
+    from glob import glob
+    from jcvi.utils.iter import grouper
+    
+    p = OptionParser(automaton.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    folder, tag = args
+    os.chdir(folder)
+    filelist = glob("*.*")
+    print filelist
+    for p in grouper(filelist, 2):
+        print op.commonprefix(p)
 
 
 def fastq(args):

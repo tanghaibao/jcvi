@@ -507,6 +507,8 @@ def omgprepare(args):
                  help="Disable RBH hits [default: %default]")
     p.add_option("--pctid", default=0, type="int",
                  help="Pencent id cutoff for RBH hits [default: %default]")
+    p.add_option("--cscore", default=90, type="int",
+                 help="C-score cutoff for RBH hits [default: %default]")
     set_stripnames(p)
     add_beds(p)
 
@@ -518,6 +520,7 @@ def omgprepare(args):
     ploidy, anchorfile, blastfile = args
     norbh = opts.norbh
     pctid = opts.pctid
+    cs = opts.cscore
     qbed, sbed, qorder, sorder, is_self = check_beds(anchorfile, p, opts)
 
     fp = open(ploidy)
@@ -549,7 +552,7 @@ def omgprepare(args):
         if (a, b) not in pairs:
             if norbh:
                 continue
-            if c < 90:
+            if c < cs:
                 continue
             if pct < pctid:
                 continue

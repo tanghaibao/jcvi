@@ -16,7 +16,7 @@ from jcvi.utils.cbook import depends, thousands
 from jcvi.utils.range import Range, range_union, range_chain, \
         range_distance, range_intersect
 from jcvi.apps.base import ActionDispatcher, debug, sh, \
-        need_update, popen, set_outfile
+        need_update, popen, set_outfile, set_sort_tmpdir
 debug()
 
 
@@ -964,6 +964,7 @@ def sort(args):
             help="Sort bed file in place [default: %default]")
     p.add_option("--accn", default=False, action="store_true",
             help="Sort based on the accessions [default: %default]")
+    set_sort_tmpdir(p)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -978,7 +979,7 @@ def sort(args):
 
     sortopt = "-k1,1 -k2,2n -k4,4" if not opts.accn else \
               "-k4,4 -k1,1 -k2,2n"
-    cmd = "sort {0} {1}".format(sortopt, bedfile)
+    cmd = "sort -T {2} {0} {1}".format(sortopt, bedfile, opts.tmpdir)
     cmd += " -o {0}".format(sortedbed)
     sh(cmd)
 

@@ -102,6 +102,16 @@ def set_outfile(instance, outfile="stdout"):
             help="Outfile name [default: %default]")
 
 
+def set_sort_tmpdir(instance, tmpdir="/tmp"):
+    """
+    Add --temporary_directory option to specify unix `sort` tmpdir
+    """
+    assert isinstance(instance, OptionParser)
+
+    instance.add_option("-T", "--temporary_directory", dest="tmpdir", default=tmpdir,
+            help="use directory for `sort` temporaries [default: %default]")
+
+
 def set_stripnames(instance):
     assert isinstance(instance, OptionParser)
 

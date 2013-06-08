@@ -180,12 +180,15 @@ def fastq(args):
     Export ALLPATHS fastb file to fastq file.
     """
     p = OptionParser(fastq.__doc__)
+    p.add_option("--nosim", default=False, action="store_true",
+                 help="Do not simulate qual to 50 [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     fastbfile, = args
+    sim = not opts.nosim
     pf = "j" if "jump" in fastbfile else "f"
 
     statsfile = "{0}.lib_stats".format(pf)
@@ -215,7 +218,9 @@ def fastq(args):
     for libname in libs:
         cmd = "FastbQualbToFastq"
         cmd += " HEAD_IN={0}.{1}.AB HEAD_OUT={1}".format(pf, libname)
-        cmd += " PAIRED=True PHRED_OFFSET=33 SIMULATE_QUALS=True"
+        cmd += " PAIRED=True PHRED_OFFSET=33"
+        if sim:
+            cmd += " SIMULATE_QUALS=True"
         if pf == 'j':
             cmd += " FLIP=True"
 

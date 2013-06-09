@@ -197,6 +197,7 @@ def main():
         ('bed12', 'produce bed12 file for coding features'),
         ('fromgtf', 'convert gtf to gff3 format'),
         ('gtf', 'convert gff3 to gtf format'),
+        ('gb', 'convert gff3 to genbank format'),
         ('sort', 'sort the gff file'),
         ('filter', 'filter the gff file based on Identity and Coverage'),
         ('format', 'format the gff file, change seqid, etc.'),
@@ -218,6 +219,34 @@ def main():
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def gb(args):
+    """
+    %prog gb gffile fastafile
+
+    Convert GFF3 to Genbank format. Recipe taken from:
+    <http://www.biostars.org/p/2492/>
+    """
+    from Bio import SeqIO
+    from Bio.Alphabet import generic_dna
+    try:
+        from BCBio import GFF
+    except ImportError:
+        print >> sys.stderr, "You need to install dep first: $ easy_install bcbio-gff"
+
+    p = OptionParser(gb.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    gff_file, fasta_file = args
+    pf = op.splitext(gff_file)[0]
+    out_file = pf + ".gb"
+    fasta_input = SeqIO.to_dict(SeqIO.parse(fasta_file, "fasta", generic_dna))
+    gff_iter = GFF.parse(gff_file, fasta_input)
+    SeqIO.write(gff_iter, out_file, "genbank")
 
 
 def orient(args):

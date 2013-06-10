@@ -30,7 +30,7 @@ valid_gff_type = tuple(valid_gff_parent_child.keys())
 
 class BtabLine (object):
 
-    def __init__(self, row, dialect):
+    def __init__(self, row, aat_dialect=False):
         args = row.strip().split("\t")
         self.nargs = len(args)  # number of columns
         # query attributes
@@ -59,7 +59,7 @@ class BtabLine (object):
         self.method = args[3]
         self.database = args[4]
 
-        if dialect == "aat":
+        if aat_dialect:
             self.score = float(args[12]) # domain score
             self.chainNum = int(args[13])   # index of subject in btab file
             self.segmentNum = int(args[14])  # match_part index of query
@@ -104,16 +104,13 @@ class BtabLine (object):
 
 class Btab(LineFile):
 
-    def __init__(self, filename=None, dialect=None):
+    def __init__(self, filename, aat_dialect=False):
         super(Btab, self).__init__(filename)
-
-        if not filename:
-            return
 
         for line in must_open(filename):
             if line[0] == "#":
                 continue
-            self.append(BtabLine(line, dialect))
+            self.append(BtabLine(line, aat_dialect=aat_dialect))
 
 
 def main():
@@ -188,36 +185,39 @@ def gff(args):
 
     btabfile, = args
     btabdict = {}
-    btab = Btab(btabfile, dialect="aat")
+    btab = Btab(btabfile, aat_dialect=True)
+    osource = opts.source or "aat"
+    otype = opts.type
+    octype = valid_gff_parent_child[otype]
     for b in btab:
         nargs = b.nargs
-        type = opts.type
-        id = type + "{0:05d}".format(b.chainNum)
-        if not btabdict.has_key(b.key):
-            btabdict[b.key] = { 'id': id,
-                                'method': b.method,
-                                'query': b.query,
-                                'subject': b.subject,
-                                'strand': b.qStrand,
-                                'sDesc': b.sDesc,
-                                'coords': [],
-                                'children': []
-                              }
+        id = b.query + "-" + otype + "{0:05d}".format(b.chainNum)
+        key = b.key
+        if key not in btabdict:
+            btabdict[key] = { 'id': id,
+                              'method': b.method,
+                              'query': b.query,
+                              'subject': b.subject,
+                              'strand': b.qStrand,
+                              'sDesc': b.sDesc,
+                              'coords': [],
+                              'children': []
+                            }
 
-        btabdict[b.key]['coords'].append((b.qStart, b.qStop))
-        btabdict[b.key]['children'].append(b.gffline(source=opts.source, type=valid_gff_parent_child[type], id=id))
+        btabdict[key]['coords'].append((b.qStart, b.qStop))
+        btabdict[key]['children'].append(b.gffline(source=osource, type=octype, id=id))
 
-    for key in btabdict.iterkeys():
-        b = BtabLine("\t".join(str(x) for x in [0] * nargs), dialect="aat")
-        id = btabdict[key]['id']
-        b.query = btabdict[key]['query']
-        b.method = btabdict[key]['method']
-        b.subject = btabdict[key]['subject']
-        b.qStrand = btabdict[key]['strand']
-        b.sDesc = btabdict[key]['sDesc']
-        b.qStart, b.qStop = range_minmax(btabdict[key]['coords'])
-        print b.gffline(source=opts.source, type=type, primary_tag="ID", id=id)
-        print "\n".join(btabdict[key]['children'])
+    for v in btabdict.itervalues():
+        b = BtabLine("\t".join(str(x) for x in [0] * nargs), aat_dialect=True)
+        id = v['id']
+        b.query = v['query']
+        b.method = v['method']
+        b.subject = v['subject']
+        b.qStrand = v['strand']
+        b.sDesc = v['sDesc']
+        b.qStart, b.qStop = range_minmax(v['coords'])
+        print b.gffline(source=osource, type=otype, primary_tag="ID", id=id)
+        print "\n".join(v['children'])
 
 
 if __name__ == '__main__':

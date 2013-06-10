@@ -1133,6 +1133,7 @@ def hash_fasta(fastafile, ignore_case=False, ignore_N=False, ignore_stop=False):
     hash_dict = {}
     for name, rec in f.iteritems_ordered():
         seq = re.sub(' ', '', rec.seq.tostring())
+        orig_seq = seq
 
         if ignore_stop:
             seq = seq.rstrip("*")
@@ -1146,8 +1147,11 @@ def hash_fasta(fastafile, ignore_case=False, ignore_N=False, ignore_stop=False):
 
         md5_hex = hashlib.md5(seq).hexdigest()
 
-        if md5_hex not in hash_dict: hash_dict[md5_hex] = set()
-        hash_dict[md5_hex].add(name)
+        if md5_hex not in hash_dict.keys():
+            hash_dict[md5_hex] = {}
+            hash_dict[md5_hex]['names'] = set()
+        hash_dict[md5_hex]['names'].add(name)
+        hash_dict[md5_hex]['seq'] = orig_seq
 
     return hash_dict
 
@@ -1159,21 +1163,21 @@ def identical(args):
     Given multiple fasta files, find all the exactly identical records
     based on the computed md5 hexdigest of each sequence.
 
-    Output is a N column file (where N = number of input fasta files).
+    Output is an N + 1 column file (where N = number of input fasta files).
     If there are duplicates within a given fasta file, they will all be
     listed out in the same row separated by a comma.
 
     Example output:
-    ---------------------
-     tta1.fsa    tta2.fsa
-         2131          na
-         3420          na
-    3836,3847         852
-          148         890
-          584         614
-          623         684
-         1281         470
-         3367          na
+    ---------------------------
+	       tta1.fsa    tta2.fsa
+	t0         2131          na
+	t1         3420          na
+	t2    3836,3847         852
+	t3          148         890
+	t4          584         614
+	t5          623         684
+	t6         1281         470
+	t7         3367          na
     """
     p = OptionParser(identical.__doc__)
     p.add_option("--ignore_case", default=False, action="store_true",
@@ -1182,6 +1186,9 @@ def identical(args):
             help="ignore N and X's when comparing sequences [default: %default]")
     p.add_option("--ignore_stop", default=False, action="store_true",
             help="ignore stop codon when comparing sequences [default: %default]")
+    p.add_option("--output_uniq", default=False, action="store_true",
+            help="output uniq sequences in FASTA format" + \
+                 " [default: %default]")
     set_outfile(p)
 
     opts, args = p.parse_args(args)
@@ -1189,27 +1196,48 @@ def identical(args):
     if len(args) == 0:
         sys.exit(not p.print_help())
 
-    dict, setlist = {}, []
+    d, setlist, uniq = {}, [], {}
     for fastafile in args:
-        dict[fastafile] = hash_fasta(fastafile, ignore_case=opts.ignore_case, ignore_N=opts.ignore_N, \
+        pf = fastafile.rsplit(".", 1)[0]
+        d[pf] = hash_fasta(fastafile, ignore_case=opts.ignore_case, ignore_N=opts.ignore_N, \
             ignore_stop=opts.ignore_stop)
-        setlist.append(set(dict[fastafile].keys()))
+        setlist.append(set(d[pf].keys()))
 
     hashes = set.union(*setlist)
 
-    header = [str(x) for x in args]
     fw = must_open(opts.outfile, "w")
-    print >> fw, "\t".join(header)
-    for hash in hashes:
+    if opts.output_uniq:
+        uniqfile = "_".join(d.keys()) + ".uniq.fasta"
+        uniqfw = must_open(uniqfile, "w")
+
+    header = "\t".join(str(x) for x in (args))
+    print >> fw, "\t".join(str(x) for x in ("", header))
+    for idx, md5_hex in enumerate(hashes):
+        if opts.output_uniq and md5_hex not in uniq.keys():
+                uniq[md5_hex] = {}
+                uniq[md5_hex]['count'] = 0
+
         line = []
-        for fastafile in args:
-            if hash in dict[fastafile].keys():
-                line.append(",".join(dict[fastafile][hash]))
+        line.append("t{0}".format(idx))
+        for fastafile in d.keys():
+            if md5_hex in d[fastafile].keys():
+                line.append(",".join(d[fastafile][md5_hex]['names']))
+                if opts.output_uniq:
+                    uniq[md5_hex]['count'] += len(d[fastafile][md5_hex]['names'])
+                    uniq[md5_hex]['seq'] = d[fastafile][md5_hex]['seq']
             else:
                 line.append("na")
         print >> fw, "\t".join(line)
 
+        if opts.output_uniq:
+            seqid = "\t".join(str(x) for x in ("t{0}".format(idx), uniq[md5_hex]['count']))
+            rec = SeqRecord(Seq(uniq[md5_hex]['seq']), id=seqid, description="")
+            SeqIO.write([rec], uniqfw, "fasta")
+
     fw.close()
+    if opts.output_uniq:
+        logging.debug("Uniq sequences written to `{0}`".format(uniqfile))
+        uniqfw.close()
 
 
 QUALSUFFIX = ".qual"

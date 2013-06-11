@@ -24,6 +24,8 @@ debug()
 valid_gff_parent_child = {"match": "match_part",
                           "cDNA_match": "match_part",
                           "EST_match": "match_part",
+                          "protein_match": "match_part",
+                          "expressed_sequence_match": "match_part",
                           "mRNA": "exon"
                          }
 valid_gff_type = tuple(valid_gff_parent_child.keys())
@@ -175,7 +177,7 @@ def gff(args):
     p.add_option("--source", default=None, help="Specify GFF source." +
                 " By default, it picks algorithm used to generate btab file." +
                 " [default: %default]")
-    p.add_option("--type", default="match", choices=valid_gff_type,
+    p.add_option("--type", default="protein_match", choices=valid_gff_type,
                 help="GFF feature type [default: %default]")
 
     opts, args = p.parse_args(args)

@@ -27,6 +27,7 @@ valid_gff_parent_child = {"match": "match_part",
                           "cDNA_match": "match_part",
                           "EST_match": "match_part",
                           "nucleotide_to_protein_match": "match_part",
+                          "expressed_sequence_match": "match_part",
                           "protein_match": "match_part",
                           "mRNA": "exon"
                          }

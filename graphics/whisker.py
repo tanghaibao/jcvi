@@ -25,7 +25,8 @@ data <- read.table('$datafile', header=T, sep='\t')
 data$$$x <- factor(data$$$x, c($levels))
 m <- ggplot(data, aes($x, $y))
 m + geom_boxplot(colour="darkgreen") + opts(title='$title') +
-scale_x_discrete('$lx') + scale_y_continuous('$ly')
+scale_x_discrete('$lx') + scale_y_continuous('$ly') +
+theme(text=element_text(size=$fontsize))
 ggsave('$outfile')
 """
 
@@ -38,6 +39,8 @@ def main():
                 help="Title of the figure [default: %default]")
     p.add_option("--xlabel", help="X-axis label [default: %default]")
     p.add_option("--ylabel", help="Y-axis label [default: %default]")
+    p.add_option("--fontsize", default=16,
+                 help="Font size [default: %default]")
     opts, args = p.parse_args()
 
     if len(args) != 1:
@@ -50,6 +53,7 @@ def main():
     title = opts.title
     xlabel = opts.xlabel
     ylabel = opts.ylabel
+    fontsize = opts.fontsize
 
     lx, ly = header.next().rstrip().split('\t')
 

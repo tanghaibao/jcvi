@@ -75,7 +75,7 @@ def decode_name(name, barcodemap):
 def draw_tree(ax, tx, rmargin=.3, leafcolor="k", supportcolor="k",
               outgroup=None, reroot=True, gffdir=None, sizes=None,
               trunc_name=None, SH=None, scutoff=0, barcodefile=None,
-              leafcolorfile=None):
+              leafcolorfile=None, leaffont=12):
     """
     main function for drawing phylogenetic tree
     """
@@ -150,7 +150,7 @@ def draw_tree(ax, tx, rmargin=.3, leafcolor="k", supportcolor="k",
                     lc = map(float, lc.split(","))
 
             ax.text(xx + tip, yy, sname, va="center",
-                    fontstyle="italic", size=8, color=lc)
+                    fontstyle="italic", size=leaffont, color=lc)
 
             gname = n.name.split("_")[0]
             if gname in structures:
@@ -161,7 +161,7 @@ def draw_tree(ax, tx, rmargin=.3, leafcolor="k", supportcolor="k",
                 size = sizes[gname]
                 size = size / 3 - 1  # base pair converted to amino acid
                 size = _("{0}aa".format(size))
-                ax.text(1 - rmargin / 2 + tip, yy, size)
+                ax.text(1 - rmargin / 2 + tip, yy, size, size=leaffont)
 
         else:
             children = [coords[x] for x in n.get_children()]
@@ -179,7 +179,7 @@ def draw_tree(ax, tx, rmargin=.3, leafcolor="k", supportcolor="k",
             if not n.is_root():
                 if support > scutoff / 100.:
                     ax.text(xx, yy+.005, _("{0:d}".format(int(abs(support * 100)))),
-                        ha="right", size=8, color=supportcolor)
+                        ha="right", size=leaffont, color=supportcolor)
 
         coords[n] = (xx, yy)
 
@@ -192,13 +192,13 @@ def draw_tree(ax, tx, rmargin=.3, leafcolor="k", supportcolor="k",
     ax.plot([x2, x2], [yy - tip, yy + tip], "k-")
     ax.plot([x1, x2], [yy, yy], "k-")
     ax.text((x1 + x2) / 2, yy - tip, _("{0:g}".format(br)),
-            va="top", ha="center", size=10)
+            va="top", ha="center", size=leaffont)
 
     if SH is not None:
         xs = x1
         ys = (margin + yy) / 2.
         ax.text(xs, ys, _("SH test against ref tree: {0}"\
-                .format(SH)), ha="left", size=10, color="g")
+                .format(SH)), ha="left", size=leaffont, color="g")
 
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
@@ -252,8 +252,10 @@ def main(args):
                  help="path to seq names barcode mapping file: " \
                  "barcode<tab>new_name [default: %default]")
     p.add_option("--leafcolor", default="k",
-                 help="The font color for the OTUs, or path to a file " \
+                 help="Font color for the OTUs, or path to a file " \
                  "containing color mappings: leafname<tab>color [default: %default]")
+    p.add_option("--leaffont", default=12,
+                 help="Font size for the OTUs")
 
     opts, args, iopts = set_image_options(p, args, figsize="8x6")
 
@@ -290,11 +292,12 @@ def main(args):
     draw_tree(root, tx, rmargin=opts.rmargin, leafcolor=leafcolor, \
               outgroup=outgroup, reroot=reroot, gffdir=opts.gffdir, \
               sizes=opts.sizes, SH=opts.SH, scutoff=opts.scutoff, \
-              barcodefile=opts.barcode, leafcolorfile=leafcolorfile)
+              barcodefile=opts.barcode, leafcolorfile=leafcolorfile,
+              leaffont=opts.leaffont)
 
     image_name = pf + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
 if __name__ == '__main__':
-    main()
+    main(sys.argv[1:])

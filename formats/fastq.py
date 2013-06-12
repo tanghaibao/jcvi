@@ -17,6 +17,7 @@ from itertools import islice
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 
 from jcvi.formats.fasta import must_open, rc
+from jcvi.formats.base import DictFile
 from jcvi.apps.base import ActionDispatcher, debug, set_grid, sh, \
         mkdir, set_outfile
 debug()
@@ -437,34 +438,37 @@ def format(args):
 
 def some(args):
     """
-    %prog some idsfile afastq bfastq
+    %prog some idsfile afastq [bfastq]
 
     Select a subset of the reads with ids present in the idsfile.
+    `bfastq` is optional (only if reads are paired)
     """
     p = OptionParser(some.__doc__)
     opts, args = p.parse_args(args)
 
-    if len(args) != 3:
+    if len(args) not in (2, 3):
         sys.exit(not p.print_help())
 
-    idsfile, afastq, bfastq = args
-    fp = open(idsfile)
+    idsfile, afastq, = args[:2]
+    bfastq = args[2] if len(args) == 3 else None
+
+    ids = DictFile(idsfile, valuepos=None)
 
     ai = iter_fastq(open(afastq))
     arec = ai.next()
-    bi = iter_fastq(open(bfastq))
-    brec = bi.next()
+    if bfastq:
+        bi = iter_fastq(open(bfastq))
+        brec = bi.next()
 
-    for row in fp:
-        name = row.strip()
-        while arec:
-            if arec.name[1:] == name:
-                print arec
+    while arec:
+        if arec.name[1:] in ids:
+            print arec
+            if bfastq:
                 print brec
-                break
-            else:
-                arec = ai.next()
-                brec = bi.next()
+
+        arec = ai.next()
+        if bfastq:
+            brec = bi.next()
 
 
 def trim(args):

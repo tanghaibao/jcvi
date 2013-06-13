@@ -63,11 +63,12 @@ def screen(args):
         sys.exit(not p.print_help())
 
     scaffolds, library = args
-    blastfile = blast([library, scaffolds, "--best=0"])
+    pctidflag = "--pctid={0}".format(opts.pctid)
+    blastfile = blast([library, scaffolds, pctidflag, "--best=0"])
 
     idsfile = blastfile.rsplit(".", 1)[0] + ".ids"
     covfilter([blastfile, scaffolds, "--union", "--ids=" + idsfile,
-               "--pctid={0}".format(opts.pctid), "--pctcov={0}".format(opts.pctcov)])
+               pctidflag, "--pctcov={0}".format(opts.pctcov)])
 
     nf = opts.newfasta
     if nf:

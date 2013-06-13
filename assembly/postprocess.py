@@ -51,10 +51,12 @@ def screen(args):
     from jcvi.formats.blast import covfilter
 
     p = OptionParser(screen.__doc__)
-    p.add_option("--pctid", dest="pctid", default=95, type="int",
+    p.add_option("--pctid", default=95, type="int",
             help="Percentage identity cutoff [default: %default]")
-    p.add_option("--pctcov", dest="pctcov", default=50, type="int",
+    p.add_option("--pctcov", default=50, type="int",
             help="Percentage identity cutoff [default: %default]")
+    p.add_option("--best", default=1, type="int",
+            help="Get the best N hit [default: %default]")
     p.add_option("--newfasta",
             help="Generate new FASTA file [default: %default]")
     opts, args = p.parse_args(args)
@@ -64,7 +66,8 @@ def screen(args):
 
     scaffolds, library = args
     pctidflag = "--pctid={0}".format(opts.pctid)
-    blastfile = blast([library, scaffolds, pctidflag, "--best=0"])
+    blastfile = blast([library, scaffolds, pctidflag,
+               "--best={0}".format(opts.best)])
 
     idsfile = blastfile.rsplit(".", 1)[0] + ".ids"
     covfilter([blastfile, scaffolds, "--union", "--ids=" + idsfile,

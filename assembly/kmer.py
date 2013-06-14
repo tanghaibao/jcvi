@@ -24,7 +24,7 @@ class KmerSpectrum (object):
     def __init__(self, data):
         self.data = data
 
-    def analyze(self, ploidy=2, K=23):
+    def analyze(self, ploidy=2, K=23, covmax=1000000):
         """
         Analyze Kmer spectrum, calculations derived from
         allpathslg/src/kmers/KmerSpectra.cc
@@ -34,9 +34,17 @@ class KmerSpectrum (object):
 
         data = self.data
         kf_ceil = max(K for (K, c) in data)
+        if kf_ceil > covmax:
+            exceeds = sum(1 for (K, c) in data if K > covmax)
+            logging.debug("A total of {0} distinct K-mers appear > "
+                          "{1} times. Ignored ...".format(exceeds, covmax))
+            kf_ceil = covmax
+
         nkf = kf_ceil + 1
         a = [0] * nkf
         for kf, c in data:
+            if kf > kf_ceil:
+                continue
             a[kf] = c
 
         ndk = a  # number of distinct kmers
@@ -509,8 +517,9 @@ def histogram(args):
         hist[K] = Kcounts
         data.append((K, counts))
 
+    covmax = 1000000
     ks = KmerSpectrum(data)
-    ks.analyze(K=N)
+    ks.analyze(K=N, covmax=covmax)
 
     Total_Kmers = int(totalKmers)
     coverage = opts.coverage

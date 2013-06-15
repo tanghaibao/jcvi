@@ -14,7 +14,8 @@ from optparse import OptionParser
 from jcvi.formats.base import BaseFile, LineFile, must_open, read_block
 from jcvi.formats.bed import Bed, fastaFromBed
 from jcvi.formats.blast import bed
-from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.utils.counter import Counter
+from jcvi.apps.base import ActionDispatcher, debug, need_update
 debug()
 
 
@@ -77,6 +78,11 @@ class MSTMap (LineFile):
         for row in fp:
             self.append(MSTMapLine(row))
 
+        self.nmarkers = len(self)
+        self.nind = len(self[0].genotype)
+        logging.debug("Map contains {0} markers in {1} individuals".\
+                      format(self.nmarkers, self.nind))
+
 
 def hamming_distance(a, b, ignore=None):
     dist = 0
@@ -92,6 +98,7 @@ def main():
 
     actions = (
         ('breakpoint', 'find scaffold breakpoints using genetic map'),
+        ('ld', 'calculate pairwise linkage disequilibrium'),
         ('fasta', 'extract markers based on map'),
         ('placeone', 'attempt to place one scaffold'),
         ('anchor', 'anchor scaffolds based on map'),
@@ -100,6 +107,146 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def calc_ldscore(a, b):
+    assert len(a) == len(b)
+    # Assumes markers as A/B
+    c = Counter(zip(a, b))
+    c_aa = c[('A', 'A')]
+    c_ab = c[('A', 'B')]
+    c_ba = c[('B', 'A')]
+    c_bb = c[('B', 'B')]
+    n = c_aa + c_ab + c_ba + c_bb
+    f = 1. / n
+    x_aa = c_aa * f
+    x_ab = c_ab * f
+    x_ba = c_ba * f
+    x_bb = c_bb * f
+    p_a = x_aa + x_ab
+    p_b = x_ba + x_bb
+    q_a = x_aa + x_ba
+    q_b = x_ab + x_bb
+    D = x_aa - p_a * q_a
+    denominator = p_a * p_b * q_a * q_b
+    if denominator == 0:
+        return 0
+
+    r2 = D * D / denominator
+    return r2
+
+
+def ld(args):
+    """
+    %prog ld map
+
+    Calculate pairwise linkage disequilibrium given MSTmap.
+    """
+    import numpy as np
+    from random import sample
+    from itertools import combinations
+
+    from jcvi.formats.bed import Bed
+    from jcvi.algorithms.matrix import symmetrize
+    from jcvi.graphics.base import plt, savefig, cm, \
+                set_image_options, Rectangle
+
+    p = OptionParser(ld.__doc__)
+    p.add_option("--subsample", default=500, type="int",
+                 help="Subsample markers to speed up [default: %default]")
+    p.add_option("--plot", default=False, action="store_true",
+                 help="Plot the map as heatmap [default: %default]")
+    p.add_option("--cmap", default="jet",
+                 help="Use this color map [default: %default]")
+    opts, args, iopts = set_image_options(p, args, figsize="8x8")
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    mstmap, = args
+    subsample = opts.subsample
+    data = MSTMap(mstmap)
+    # Take random subsample while keeping marker order
+    if subsample < data.nmarkers:
+        data = [data[x] for x in \
+                sorted(sample(xrange(len(data)), subsample))]
+
+    markerbedfile = mstmap + ".subsample.bed"
+    ldmatrix = mstmap + ".subsample.matrix"
+
+    if need_update(mstmap, (markerbedfile, ldmatrix)):
+        nmarkers = len(data)
+        fw = open(markerbedfile, "w")
+        print >> fw, "\n".join(x.bedline for x in data)
+        logging.debug("Write marker set of size {0} to file `{1}`."\
+                        .format(nmarkers, markerbedfile))
+
+        M = np.zeros((nmarkers, nmarkers), dtype=float)
+        for i, j in combinations(range(nmarkers), 2):
+            a = data[i]
+            b = data[j]
+            M[i, j] = calc_ldscore(a.genotype, b.genotype)
+
+        M = symmetrize(M)
+
+        logging.debug("Write LD matrix to file `{0}`.".format(ldmatrix))
+        M.tofile(ldmatrix)
+    else:
+        nmarkers = len(Bed(markerbedfile))
+        M = np.fromfile(ldmatrix, dtype="float").reshape(nmarkers, nmarkers)
+        logging.debug("LD matrix `{0}` exists ({1}x{1})."\
+                        .format(ldmatrix, nmarkers))
+
+    if not opts.plot:
+        return
+
+    plt.rcParams["axes.linewidth"] = 0
+
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes([0, 0, 1, 1])
+    ax = fig.add_axes([.1, .1, .8, .8])  # the heatmap
+
+    default_cm = cm.get_cmap(opts.cmap)
+    im = ax.matshow(M, cmap=default_cm)
+
+    # Plot chromosomes breaks
+    bed = Bed(markerbedfile)
+    xsize = ysize = len(bed)
+    extent = (0, nmarkers)
+    chr_labels = []
+    ignore_size = 20
+
+    for (seqid, beg, end) in bed.get_breaks():
+        ignore = abs(end - beg) < ignore_size
+        pos = (beg + end) / 2
+        chr_labels.append((seqid, pos, ignore))
+        if ignore:
+            continue
+        ax.plot((beg, beg), extent, "w-", lw=1)
+        ax.plot(extent, (beg, beg), "w-", lw=1)
+
+    # Plot chromosome labels
+    for label, pos, ignore in chr_labels:
+        pos = .1 + pos * .8 / xsize
+        if not ignore:
+            root.text(pos, .91, label,
+                ha="center", va="bottom", rotation=45, color="grey")
+            root.text(.09, pos, label,
+                ha="right", va="center", color="grey")
+
+    ax.set_xlim(extent)
+    ax.set_ylim(extent)
+    ax.set_axis_off()
+
+    root.add_patch(Rectangle((.1, .1), .8, .8, fill=False, ec="k", lw=2))
+    root.text(.5, .05, mstmap, ha="center")
+
+    root.set_xlim(0, 1)
+    root.set_ylim(0, 1)
+    root.set_axis_off()
+
+    image_name = mstmap + ".subsample" + "." + iopts.format
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
 def header(args):

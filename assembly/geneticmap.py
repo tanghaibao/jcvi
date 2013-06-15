@@ -222,8 +222,8 @@ def ld(args):
         chr_labels.append((seqid, pos, ignore))
         if ignore:
             continue
-        ax.plot((beg, beg), extent, "w-", lw=1)
-        ax.plot(extent, (beg, beg), "w-", lw=1)
+        ax.plot((end, end), extent, "w-", lw=1)
+        ax.plot(extent, (end, end), "w-", lw=1)
 
     # Plot chromosome labels
     for label, pos, ignore in chr_labels:

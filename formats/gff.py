@@ -129,9 +129,9 @@ class Gff (LineFile):
         self.fp.seek(0)
 
     def get_gff_type(self):
-        gff3 = True
+        self.gff3 = True
         if self.filename in ("-", "stdin"):
-            return gff3
+            return True
 
         # Determine file type
         for row in self:

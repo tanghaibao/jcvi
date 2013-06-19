@@ -25,12 +25,24 @@ Entrez.email = myEmail
 
 def batch_taxonomy(list_of_taxids):
     """
-    Retrieve list of taxids, and generate latin names
+    Convert list of taxids to Latin names
     """
     for taxid in list_of_taxids:
         handle = Entrez.efetch(db='Taxonomy', id=taxid, retmode="xml")
         records = Entrez.read(handle)
         yield records[0]["ScientificName"]
+
+
+def batch_taxids(list_of_names):
+    """
+    Opposite of batch_taxonomy():
+
+    Convert list of Latin names to taxids
+    """
+    for name in list_of_names:
+        handle = Entrez.esearch(db='Taxonomy', term=name, retmode="xml")
+        records = Entrez.read(handle)
+        yield records["IdList"][0]
 
 
 def batch_entrez(list_of_terms, db="nuccore", retmax=1, rettype="fasta",

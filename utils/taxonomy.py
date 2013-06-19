@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: UTF-8 -*-
+
 """
 From my blog post:
 <http://tanghaibao.blogspot.com/2010/02/getting-phylogeny-from-list-of.html>
@@ -23,14 +26,18 @@ Example:
 
                \-Populus_trichocarpa
 """
+import sys
 import time
 import logging
 
 from urllib2 import urlopen
+from optparse import OptionParser
 from ClientForm import ParseResponse
 from BeautifulSoup import BeautifulSoup
 
 from jcvi.utils.cbook import memoized
+from jcvi.apps.base import ActionDispatcher, debug
+debug()
 
 
 URL = "http://itol.embl.de/other_trees.shtml"
@@ -68,10 +75,14 @@ class TaxIDTree(object):
         page = urlopen(form.click()).read()
         soup = BeautifulSoup(page)
 
+        self.newick = ""
         for element in soup("textarea"):
 
             if element["id"] == form_element_id:
                 self.newick = str(element.contents[0])
+
+        if self.newick == "":
+            print soup
 
     def __str__(self):
         return self.newick
@@ -88,11 +99,19 @@ def get_names(list_of_taxids):
     >>> get_names(mylist)
     ['Arabidopsis thaliana', 'Carica papaya', 'Populus trichocarpa', 'Medicago truncatula']
     """
-
-    list_of_taxids = [str(x) for x in list_of_taxids]
     from jcvi.apps.entrez import batch_taxonomy
-
+    list_of_taxids = [str(x) for x in list_of_taxids]
     return list(batch_taxonomy(list_of_taxids))
+
+
+def get_taxids(list_of_names):
+    """
+    >>> mylist = ['Arabidopsis thaliana', 'Carica papaya']
+    >>> get_taxids(mylist)
+    [1, 2]
+    """
+    from jcvi.apps.entrez import batch_taxids
+    return [int(x) for x in batch_taxids(list_of_names)]
 
 
 def MRCA(list_of_taxids):
@@ -134,10 +153,17 @@ def isPlantOrigin(taxid):
         raise ValueError("{0} is not a valid ID".format(taxid))
 
 
-if __name__ == '__main__':
+def main():
 
-    import doctest
-    #doctest.testmod()
+    actions = (
+        ('newick', 'query a list of IDs to newick'),
+        ('test', 'test taxonomy module'),
+            )
+    p = ActionDispatcher(actions)
+    p.dispatch(globals())
+
+
+def test(args):
     print "Testing isPlantOrigin():"
     print 3702, isPlantOrigin(3702)    # Arabidopsis thaliana
     print 10090, isPlantOrigin(10090)  # Mus musculus
@@ -150,3 +176,29 @@ if __name__ == '__main__':
 
     print "\nTest invalid ID:"
     print 10099, isPlantOrigin(10099)  # Wrong ID
+
+
+def newick(args):
+    """
+    %prog newick idslist
+
+    Query a list of IDs to retrieve phylogeny.
+    """
+    from jcvi.formats.base import SetFile
+
+    p = OptionParser(newick.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    idsfile, = args
+    mylist = [x.strip() for x in open(idsfile) if x.strip()]
+    print get_taxids(mylist)
+
+    t = TaxIDTree(mylist)
+    print t
+
+
+if __name__ == '__main__':
+    main()

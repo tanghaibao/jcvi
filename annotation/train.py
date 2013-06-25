@@ -11,7 +11,7 @@ import logging
 
 from optparse import OptionParser
 
-from jcvi.apps.base import ActionDispatcher, debug, mkdir, sh
+from jcvi.apps.base import ActionDispatcher, debug, mkdir, sh, need_update
 debug()
 
 
@@ -28,10 +28,13 @@ def main():
 
 def pasa(args):
     """
-    %prog pasa.gffile pasa.fastafile
+    %prog ${pasadb}.assemblies.fasta ${pasadb}.pasa_assemblies.gff3
 
     Wraps `pasa_asmbls_to_training_set.dbi`.
     """
+    from jcvi.formats.base import SetFile
+    from jcvi.formats.gff import Gff
+
     p = OptionParser(pasa.__doc__)
     p.add_option("--pasa_home", default="~/htang/export/PASA2-r20130605p1",
                  help="Home directory for PASA [default: %default]")
@@ -40,11 +43,41 @@ def pasa(args):
     if len(args) != 2:
         sys.exit(not p.print_help())
 
-    gffile, fastafile = args
-    cmd = "{0}/scripts/pasa_asmbls_to_training_set.dbi".format(opts.pasa_home)
-    cmd += " --pasa_transcripts_fasta {0} --pasa_transcripts_gff3 {1}".\
-            format(gffile, fastafile)
-    sh(cmd)
+    fastafile, gffile = args
+    transcodergff = fastafile + ".transdecoder.gff3"
+    transcodergenomegff = fastafile + ".transdecoder.genome.gff3"
+    if need_update((fastafile, gffile), (transcodergff, transcodergenomegff)):
+        cmd = "{0}/scripts/pasa_asmbls_to_training_set.dbi".format(opts.pasa_home)
+        cmd += " --pasa_transcripts_fasta {0} --pasa_transcripts_gff3 {1}".\
+                format(gffile, fastafile)
+        sh(cmd)
+
+    completeids = fastafile.rsplit(".", 1)[0] + ".complete.ids"
+    if need_update(transcodergff, completeids):
+        cmd = "grep complete {0} | cut -f1 | sort -u".format(transcodergff)
+        sh(cmd, outfile=completeids)
+
+    complete = SetFile(completeids)
+    seen = set()
+    completegff = transcodergenomegff.rsplit(".", 1)[0] + ".complete.gff3"
+    fw = open(completegff, "w")
+    gff = Gff(transcodergenomegff)
+    for g in gff:
+        a = g.attributes
+        if "Parent" in a:
+            id = a["Parent"][0]
+        else:
+            id = a["ID"][0]
+        asmbl_id = id.split("|")[0]
+        if asmbl_id not in complete:
+            continue
+        print >> fw, g
+        if g.type == "gene":
+            seen.add(id)
+
+    fw.close()
+    logging.debug("A total of {0} complete models extracted to `{1}`.".\
+                    format(len(seen), completegff))
 
 
 def snap(args):

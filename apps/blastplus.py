@@ -14,42 +14,27 @@ from Bio import SeqIO
 
 from jcvi.formats.base import must_open
 from jcvi.apps.grid import Grid, Jobs
+from jcvi.formats.base import split
 from jcvi.apps.base import ActionDispatcher, debug, set_params, \
         set_grid, set_outfile, sh, mkdir
 from jcvi.apps.command import run_formatdb
 debug()
 
 
-blastplus_template = "{0} -query {1} -db {2} -out {3} -outfmt {4} "
+def blastplus(k, n, out_fh, cmd, query, lock):
 
-# recommanded params for comparing annotations of two genomes, or a self-blast
-recommendOptions = " -evalue 1e-5 -max_target_seqs 20 "
+    cmd += " -query {0}".format(query)
+    proc = Popen(cmd, stdin=PIPE, stdout=PIPE, shell=True)
 
-
-def blastplus(k, n, bfasta_fn, afasta_fn, out_fh, lock, blast_bin, extra, \
-             format, grid=False):
-    fname = '-' if out_fh.name == '<stdout>' else out_fh.name
-    blast_cmd = blastplus_template.\
-        format(blast_bin, afasta_fn, bfasta_fn, fname, format)
-    if extra:
-        blast_cmd += " " + extra.strip()
-
-    if grid: # if run on SGE, only the cmd is needed
-        return blast_cmd
-
-    proc = Popen(blast_cmd, stdin=PIPE, stdout=PIPE, shell=True)
-    parser = SeqIO.parse(afasta_fn, "fasta")
-    for rec in islice(parser, k - 1, None, n):
-        SeqIO.write([rec], proc.stdin, "fasta")
-    proc.stdin.close()
-
-    logging.debug("job <%d> started: %s" % (proc.pid, blast_cmd))
+    logging.debug("job <%d> started: %s" % (proc.pid, cmd))
     for row in proc.stdout:
+        if row[0] == '#':
+            continue
         lock.acquire()
         out_fh.write(row)
         out_fh.flush()
         lock.release()
-    logging.debug("job <%d> finished: %s" % (proc.pid, blast_cmd))
+    logging.debug("job <%d> finished" % proc.pid)
 
 
 def main():
@@ -67,22 +52,21 @@ def main():
             help="0-11, learn more with \"blastp -help\". [default: %default]")
     p.add_option("--path", dest="blast_path", default=None,
             help="specify BLAST+ path including the program name")
-    p.add_option("--program", dest="blast_program", default="blastp",
+    p.add_option("--prog", dest="blast_program", default="blastp",
             help="specify BLAST+ program to use. See complete list here: " \
             "http://www.ncbi.nlm.nih.gov/books/NBK52640/#chapter1.Installation"
             " [default: %default]")
-    p.add_option("--recommend", default=False, action="store_true",
-            help="Use recommended options tuned for comparing " \
-            "whole genome annotations [default: %default]")
+    p.add_option("--evalue", type="float", default=0.01,
+             help="E-value cutoff [default: %default]")
+    p.add_option("--best", default=1, type="int",
+            help="Only look for best N hits [default: %default]")
 
     set_params(p)
     set_outfile(p)
-    set_grid(p)
-
     opts, args = p.parse_args()
 
     if len(args) != 2 or opts.blast_program is None:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
     bfasta_fn, afasta_fn = args
     for fn in (afasta_fn, bfasta_fn):
@@ -92,22 +76,19 @@ def main():
     bfasta_fn = op.abspath(bfasta_fn)
     out_fh = must_open(opts.outfile, "w")
 
-    grid = opts.grid
-    if grid:
-        print >>sys.stderr, "Running jobs on JCVI grid"
-
     extra = opts.extra
-    if opts.recommend:
-        extra += recommendOptions
-
-    blast_bin = opts.blast_path or opts.blast_program
-    if op.basename(blast_bin)!=opts.blast_program:
-        blast_bin = "".join([blast_bin, "/", opts.blast_program])
-
+    blast_path = opts.blast_path
     blast_program = opts.blast_program
+
+    blast_bin = blast_path or blast_program
+    if op.basename(blast_bin) != blast_program:
+        blast_bin = "".join([blast_bin, "/", blast_program])
+
     cpus = opts.cpus
     logging.debug("Dispatch job to %d cpus" % cpus)
-    format = opts.format
+    outdir = "outdir"
+    fs = split([afasta_fn, outdir, "-n {0}".format(cpus), "--cycle"])
+    queries = fs.names
 
     dbtype = "prot" if op.basename(blast_bin) in ["blastp", "blastx"] \
         else "nucl"
@@ -119,25 +100,22 @@ def main():
         nin = db + ".nin"
         nin00 = db + ".00.nin"
         nin = nin00 if op.exists(nin00) else (db + ".nin")
+
     run_formatdb(infile=db, outfile=nin, dbtype=dbtype)
 
-    outdir = "outdir"
     lock = Lock()
 
-    if grid:
-        cmds = [blastplus(k + 1, cpus, bfasta_fn, afasta_fn, out_fh, \
-            lock, blast_bin, extra, format, grid) for k in xrange(cpus)]
-        mkdir(outdir)
-        g = Grid(cmds, outfiles=[op.join(outdir, "out.{0}.blastplus").\
-            format(i) for i in range(len(cmds))])
-        g.run()
-        g.writestatus()
+    blastplus_template = "{0} -db {1} -outfmt {2}"
+    blast_cmd = blastplus_template.format(blast_bin, bfasta_fn, opts.format)
+    blast_cmd += " -evalue {0} -max_target_seqs {1}".\
+        format(opts.evalue, opts.best)
+    if extra:
+        blast_cmd += " " + extra.strip()
 
-    else:
-        args = [(k + 1, cpus, bfasta_fn, afasta_fn, out_fh, \
-            lock, blast_bin, extra, format) for k in xrange(cpus)]
-        g = Jobs(target=blastplus, args=args)
-        g.run()
+    args = [(k + 1, cpus, out_fh, blast_cmd, query, lock) \
+                for k, query in zip(range(cpus), queries)]
+    g = Jobs(target=blastplus, args=args)
+    g.run()
 
 
 if __name__ == '__main__':

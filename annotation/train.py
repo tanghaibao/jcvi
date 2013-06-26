@@ -49,7 +49,7 @@ def pasa(args):
     if need_update((fastafile, gffile), (transcodergff, transcodergenomegff)):
         cmd = "{0}/scripts/pasa_asmbls_to_training_set.dbi".format(opts.pasa_home)
         cmd += " --pasa_transcripts_fasta {0} --pasa_transcripts_gff3 {1}".\
-                format(gffile, fastafile)
+                format(fastafile, gffile)
         sh(cmd)
 
     completeids = fastafile.rsplit(".", 1)[0] + ".complete.ids"

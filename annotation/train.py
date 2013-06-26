@@ -6,6 +6,7 @@ Train ab initio gene predictors.
 """
 
 import os
+import os.path as op
 import sys
 import logging
 
@@ -21,6 +22,7 @@ def main():
         ('pasa', 'extract pasa training models'),
         ('snap', 'train snap model'),
         ('augustus', 'train augustus model'),
+        ('genemark', 'train genemark model'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -80,9 +82,43 @@ def pasa(args):
                     format(len(seen), completegff))
 
 
+def genemark(args):
+    """
+    %prog genemark species fastafile
+
+    Train GENEMARK model given fastafile. GENEMARK self-trains so no trainig
+    model gff file is needed.
+    """
+    p = OptionParser(genemark.__doc__)
+    p.add_option("--gmes_home", default="~/htang/export/gmes",
+                 help="Home directory for MAKER [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    species, fastafile = args
+    mhome = opts.gmes_home
+    gmdir = "genemark"
+    mkdir(gmdir)
+
+    cwd = os.getcwd()
+    os.chdir(gmdir)
+    cmd = "ln -sf ../{0}".format(fastafile)
+    sh(cmd)
+
+    license = op.expanduser("~/.gm_key")
+    assert op.exists(license), "License key ({0}) not found!".format(license)
+    cmd = "{0}/gm_es.pl {1}".format(mhome, fastafile)
+    sh(cmd)
+
+    os.chdir(cwd)
+    logging.debug("GENEMARK matrix written to `{0}/{1}.mod`".format(gmdir, species))
+
+
 def snap(args):
     """
-    %prog species gffile fastafile
+    %prog snap species gffile fastafile
 
     Train SNAP model given gffile and fastafile. Whole procedure taken from:
     <http://gmod.org/wiki/MAKER_Tutorial_2012>
@@ -122,7 +158,7 @@ def snap(args):
 
 def augustus(args):
     """
-    %prog species gffile fastafile
+    %prog augustus species gffile fastafile
 
     Train AUGUSTUS model given gffile and fastafile. Whole procedure taken from:
     <http://www.molecularevolution.org/molevolfiles/exercises/augustus/training.html>

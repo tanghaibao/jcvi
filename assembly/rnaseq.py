@@ -82,7 +82,7 @@ def qc(args):
     goodref80 = set()
     goodref50 = set()
     bps = defaultdict(int)
-    for x in blast.iter_line():
+    for x in blast:
         bps[x.subject] += abs(x.sstop - x.sstart) + 1
 
     for vh, length in bps.items():

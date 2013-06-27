@@ -303,6 +303,7 @@ def fasta(args):
             logging.debug("Seen {0}, ignored.".format(cs))
 
     oo.write_AGP(agp, gaptype="contig")
+    agp.close()
     build([agpfile, scffasta, pmolfasta])
 
 

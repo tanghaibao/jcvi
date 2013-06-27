@@ -272,7 +272,7 @@ def bigraph_test():
         print p
         print oo
 
-    g.draw("demo.png", verbose=True)
+    #g.draw("demo.png", verbose=True)
 
 
 def merge_paths(paths):

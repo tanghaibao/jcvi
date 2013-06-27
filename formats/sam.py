@@ -102,8 +102,8 @@ def fpkm(args):
         logging.debug("Dummy GFF created: {0}".format(gffile))
 
     # Sort the BAM files first
-    #cmd = "cuffdiff {0} {1}".format(gffile, " ".join(bamfiles))
-    #sh(cmd)
+    cmd = "cuffdiff {0} {1}".format(gffile, " ".join(bamfiles))
+    sh(cmd)
 
 
 def pairs(args):
@@ -201,13 +201,16 @@ def chimera(args):
         if x[0] == '@':
             return x[0]
         s = SamLine(x)
-        return s.qname, s.rname
+        return s.qname
 
     for read, samlines in groupby(fp, key=key_fun):
-        nlines = len(list(samlines))
-        if nlines == 1:
+        if read == '@':
             continue
-        print read
+
+        samlines = [SamLine(x) for x in samlines]
+        if len(samlines) == 1:
+            continue
+        print read, [x.rname for x in samlines]
 
 
 def index(args):

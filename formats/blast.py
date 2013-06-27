@@ -14,7 +14,7 @@ from optparse import OptionParser
 
 import numpy as np
 
-from jcvi.formats.base import LineFile, must_open
+from jcvi.formats.base import LineFile, BaseFile, must_open
 from jcvi.formats.coords import print_stats
 from jcvi.formats.sizes import Sizes
 from jcvi.utils.grouper import Grouper
@@ -128,7 +128,7 @@ class BlastSlow (LineFile):
         return d
 
 
-class Blast (LineFile):
+class Blast (BaseFile):
     """
     We can have a Blast class that loads entire file into memory, this is
     not very efficient for big files (BlastSlow); when the BLAST file is
@@ -138,7 +138,8 @@ class Blast (LineFile):
         super(Blast, self).__init__(filename)
         self.fp = must_open(filename)
 
-    def iter_line(self):
+    def __iter__(self):
+        self.fp.seek(0)
         for row in self.fp:
             yield BlastLine(row)
 
@@ -420,7 +421,7 @@ def score(args):
 
     blast = Blast(blastfile)
     scores = defaultdict(int)
-    for b in blast.iter_line():
+    for b in blast:
         query = b.query
         subject = b.subject
         if subject not in ids:
@@ -458,7 +459,7 @@ def annotation(args):
     qids = DictFile(opts.queryids, delimiter=d) if opts.queryids else None
     sids = DictFile(opts.subjectids, delimiter=d) if opts.subjectids else None
     blast = Blast(blastfile)
-    for b in blast.iter_line():
+    for b in blast:
         query, subject = b.query, b.subject
         if qids:
             query = qids[query]
@@ -666,7 +667,7 @@ def cscore(args):
     blast = Blast(blastfile)
     logging.debug("Register best scores ..")
     best_score = defaultdict(float)
-    for b in blast.iter_line():
+    for b in blast:
         query, subject = b.query, b.subject
         if ostrip:
             query, subject = gene_name(query), gene_name(subject)
@@ -680,7 +681,7 @@ def cscore(args):
     blast = Blast(blastfile)
     pairs = {}
     cutoff = opts.cutoff
-    for b in blast.iter_line():
+    for b in blast:
         query, subject = b.query, b.subject
         if ostrip:
             query, subject = gene_name(query), gene_name(subject)
@@ -1014,7 +1015,7 @@ def covfilter(args):
     fp = open(blastfile)
     fw = must_open(outfile, "w")
     blast = Blast(blastfile)
-    for b in blast.iter_line():
+    for b in blast:
         if b.query in valid:
             print >> fw, b
 

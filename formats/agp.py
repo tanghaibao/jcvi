@@ -499,8 +499,6 @@ class OO (LineFile):
 
                 object_beg += size
 
-        fw.close()
-
 
 def order_to_agp(object, ctgorder, sizes, fwagp, gapsize=100):
 

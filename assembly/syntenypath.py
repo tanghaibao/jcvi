@@ -12,7 +12,6 @@ from itertools import groupby, combinations
 from optparse import OptionParser
 from string import maketrans
 
-from jcvi.formats.agp import order_to_agp
 from jcvi.formats.blast import BlastSlow
 from jcvi.formats.sizes import Sizes
 from jcvi.utils.iter import pairwise
@@ -246,17 +245,24 @@ def fromblast(args):
             btag = ">" if b.orientation == "+" else "<"
             g.add_edge(BiEdge(asub, bsub, atag, btag))
 
+    graph_to_agp(g, blastfile, subjectfasta, verbose=opts.verbose)
+
+
+def graph_to_agp(g, blastfile, subjectfasta, verbose=False):
+
+    from jcvi.formats.agp import order_to_agp
+
+    logging.debug(str(g))
     g.write("graph.txt")
     #g.draw("graph.pdf")
 
-    logging.debug(str(g))
     paths = []
     for path in g.iter_paths():
         m, oo = g.path(path)
         if len(oo) == 1:  # Singleton path
             continue
         paths.append(oo)
-        if opts.verbose:
+        if verbose:
             print m
             print oo
 

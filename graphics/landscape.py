@@ -21,7 +21,8 @@ from jcvi.formats.base import LineFile, DictFile
 from jcvi.formats.bed import Bed, bins
 from jcvi.algorithms.matrix import moving_sum
 from jcvi.graphics.base import plt, _, set_image_options, \
-        Rectangle, CirclePolygon, savefig
+        Rectangle, CirclePolygon, savefig, \
+        ticker, human_readable_base, tex_formatter
 from jcvi.utils.cbook import human_size, autoscale
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
@@ -75,6 +76,7 @@ def main():
     actions = (
         ('stack', 'create landscape plote with genic/te composition'),
         ('heatmap', 'similar to stack but adding heatmap'),
+        ('composite', 'combine line plots, feature bars and alt-bars'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -96,6 +98,167 @@ def check_window_options(opts):
     assert window % shift == 0, "--window must be divisible by --shift"
 
     return window, shift, subtract
+
+
+def get_beds(s):
+    return [x + ".bed" for x in s]
+
+
+def get_nbins(clen, shift):
+    nbins = clen / shift
+    if clen % shift:
+        nbins += 1
+    return nbins
+
+
+def linearray(binfile, chr, window, shift):
+    mn = binfile.mapping[chr]
+    m, n = zip(*mn)
+
+    m = np.array(m, dtype="float")
+    w = window / shift
+    m = moving_sum(m, window=w)
+    return m
+
+
+def lineplot(ax, binfiles, nbins, chr, window, shift):
+    from jcvi.utils.cbook import human_size
+
+    assert len(binfiles) <= 2, "A max of two line plots are supported"
+
+    t = np.arange(nbins)
+    bf = binfiles[0]
+    m = linearray(bf, chr, window, shift)
+    ax.plot(t, m, "b-", lw=2)
+    xticklabels = ax.get_xticklabels()
+
+    formatter = ticker.FuncFormatter(lambda x, pos: \
+                    human_readable_base(int(x) * shift, pos))
+    ax.xaxis.set_major_formatter(formatter)
+    ax.yaxis.set_major_formatter(tex_formatter)
+    for tl in ax.get_xticklabels():
+        tl.set_color('lightslategray')
+
+    label = bf.filename.split(".")[0]
+    perw = "per {0}".format(human_size(window, precision=0))
+    ax.set_ylabel(label + " " + perw, color='b')
+
+    if len(binfiles) == 2:
+        ax2 = ax.twinx()
+        bf = binfiles[1]
+        m = linearray(bf, chr, window, shift)
+        ax2.plot(t, m, "r-", lw=2)
+        # Differentiate tick labels through colors
+        for tl in ax.get_yticklabels():
+            tl.set_color('b')
+        for tl in ax2.get_yticklabels():
+            tl.set_color('r')
+
+        label = bf.filename.split(".")[0]
+        ax2.set_ylabel(label + " " + perw, color='r')
+        ax2.yaxis.set_major_formatter(tex_formatter)
+
+    ax.set_xlim(0, nbins)
+
+
+def composite(args):
+    """
+    %prog composite fastafile chr1
+
+    Combine line plots, feature bars and alt-bars, different data types
+    specified in options. Inputs must be BED-formatted. Three types of viz are
+    currently supported:
+
+    --lines: traditional line plots, useful for plotting feature freq
+    --bars: show where the extent of features are
+    --altbars: similar to bars, yet in two alternating tracks, e.g. scaffolds
+    """
+    from jcvi.graphics.chromosome import HorizontalChromosome
+
+    p = OptionParser(composite.__doc__)
+    p.add_option("--lines",
+                 help="Features to plot in lineplot [default: %default]")
+    p.add_option("--bars",
+                 help="Features to plot in bars [default: %default]")
+    p.add_option("--altbars",
+                 help="Features to plot in alt-bars [default: %default]")
+    add_window_options(p)
+    opts, args, iopts = set_image_options(p, args, figsize="8x5")
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    fastafile, chr = args
+    window, shift, subtract = check_window_options(opts)
+    linebeds, barbeds, altbarbeds = [], [], []
+    if opts.lines:
+        lines = opts.lines.split(",")
+        linebeds = get_beds(lines)
+    if opts.bars:
+        bars = opts.bars.split(",")
+        barbeds = get_beds(bars)
+    if opts.altbars:
+        altbars = opts.altbars.split(",")
+        altbarbeds = get_beds(altbars)
+
+    linebins = get_binfiles(linebeds, fastafile, shift, counts=True)
+
+    margin = .12
+    inner = .015
+    clen = Sizes(fastafile).mapping[chr]
+    nbins = get_nbins(clen, shift)
+
+    plt.rcParams["xtick.major.size"] = 0
+    plt.rcParams["ytick.major.size"] = 0
+
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes([0, 0, 1, 1])
+
+    root.text(.5, .95, chr, ha="center", color="darkslategray")
+
+    xstart, xend = margin, 1 - margin
+    xlen = xend - xstart
+    ratio = xlen / clen
+    # Line plots
+    ax = fig.add_axes([xstart, .6, xlen, .3])
+    lineplot(ax, linebins, nbins, chr, window, shift)
+
+    # Bar plots
+    yy = .5
+    yinterval = .08
+    xs = lambda x: xstart + ratio * x
+    r = .01
+    for bb in barbeds:
+        root.text(xend + .01, yy, bb.split(".")[0], va="center")
+        hc = HorizontalChromosome(root, xstart, xend, yy, height=.02)
+        bb = Bed(bb)
+        for b in bb:
+            start, end = xs(b.start), xs(b.end)
+            root.add_patch(Rectangle((start, yy - r), end - start, 2 * r, \
+                            lw=0, fc="lightslategray"))
+        yy -= yinterval
+
+    # Alternative bar plots
+    offset = r / 2
+    for bb in altbarbeds:
+        root.text(xend + .01, yy, bb.split(".")[0], va="center")
+        bb = Bed(bb)
+        for i, b in enumerate(bb):
+            start, end = xs(b.start), xs(b.end)
+            span = end - start
+            if span < .0001:
+                continue
+            offset = -offset
+            root.add_patch(Rectangle((start, yy + offset), end - start, .003, \
+                            lw=0, fc="lightslategray"))
+        yy -= yinterval
+
+    root.set_xlim(0, 1)
+    root.set_ylim(0, 1)
+    root.set_axis_off()
+
+    image_name = chr + "." + iopts.format
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
 def heatmap(args):
@@ -125,8 +288,8 @@ def heatmap(args):
 
     stacks = opts.stacks.split(",")
     heatmaps = opts.heatmaps.split(",")
-    stackbeds = [x + ".bed" for x in stacks]
-    heatmapbeds = [x + ".bed" for x in heatmaps]
+    stackbeds = get_beds(stacks)
+    heatmapbeds = get_beds(heatmaps)
     stackbins = get_binfiles(stackbeds, fastafile, shift, subtract)
     heatmapbins = get_binfiles(heatmapbeds, fastafile, shift, subtract)
 
@@ -152,9 +315,7 @@ def heatmap(args):
     root.add_patch(Rectangle((xx, yy), xlen, yinterval - inner, color=gray))
     ax = fig.add_axes([xx, yy, xlen, yinterval - inner])
 
-    nbins = clen / shift
-    if clen % shift:
-        nbins += 1
+    nbins = get_nbins(clen, shift)
 
     owindow = clen / 100
     if owindow > window:
@@ -246,15 +407,16 @@ def draw_gauge(ax, margin, maxl, rightmargin=None, optimal=7):
     return best_stride / xinterval
 
 
-def get_binfiles(bedfiles, fastafile, shift, subtract=None):
+def get_binfiles(bedfiles, fastafile, shift, counts=False, subtract=None):
+    binopts = ["--binsize={0}".format(shift)]
     if subtract:
-        binfiles = [bins([x, fastafile, "--binsize={0}".format(shift), \
-                          "--subtract={0}".format(subtract)]) for x in bedfiles]
-    else:
-        binfiles = [bins([x, fastafile, "--binsize={0}".format(shift)]) \
-                                                              for x in bedfiles]
+        binopts.append("--subtract={0}".format(subtract))
+    if counts:
+        binopts.append("--counts")
 
+    binfiles = [bins([x, fastafile] + binopts) for x in bedfiles]
     binfiles = [BinFile(x) for x in binfiles]
+
     return binfiles
 
 
@@ -315,7 +477,8 @@ def stack(args):
     if switch:
         switch = DictFile(opts.switch)
 
-    bedfiles = [x + ".bed" for x in opts.stacks.split(",")]
+    stacks = opts.stacks.split(",")
+    bedfiles = get_beds(stacks)
     binfiles = get_binfiles(bedfiles, fastafile, shift, subtract)
 
     sizes = Sizes(fastafile)

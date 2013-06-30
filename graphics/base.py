@@ -65,7 +65,7 @@ def human_readable(x, pos, base=False):
         x = x[:-3] + "K"
     if base and x[-1] in "MK":
         x += "b"
-    return _(x)
+    return x
 
 
 human_readable_base = partial(human_readable, base=True)

@@ -387,6 +387,8 @@ def bins(args):
                  help="Size of the bins [default: %default]")
     p.add_option("--subtract",
                  help="Subtract bases from window [default: %default]")
+    p.add_option("--counts", default=False, action="store_true",
+                 help="Count feature numbers instead of bases [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -394,10 +396,15 @@ def bins(args):
 
     bedfile, fastafile = args
     subtract = opts.subtract
+    counts = opts.counts
     assert op.exists(bedfile)
 
     binsize = opts.binsize
-    binfile = bedfile + ".{0}.bins".format(binsize)
+    binfile = bedfile + ".{0}".format(binsize)
+    if counts:
+        binfile += ".counts"
+    binfile += ".bins"
+
     if not need_update(bedfile, binfile):
         return binfile
 
@@ -436,16 +443,20 @@ def bins(args):
 
             assert startbin <= endbin
 
-            if startbin == endbin:
-                a[startbin] += end - start + 1
+            if counts:
+                a[startbin:endbin + 1] += 1
 
-            if startbin < endbin:
-                firstsize = (startbin + 1) * binsize - start + 1
-                lastsize = end - endbin * binsize
-                a[startbin] += firstsize
-                if startbin + 1 < endbin:
-                    a[startbin + 1:endbin] += binsize
-                a[endbin] += lastsize
+            else:
+                if startbin == endbin:
+                    a[startbin] += end - start + 1
+
+                if startbin < endbin:
+                    firstsize = (startbin + 1) * binsize - start + 1
+                    lastsize = end - endbin * binsize
+                    a[startbin] += firstsize
+                    if startbin + 1 < endbin:
+                        a[startbin + 1:endbin] += binsize
+                    a[endbin] += lastsize
 
         for xa, xb in zip(a, b):
             print >> fw, "\t".join(str(x) for x in (chr, xa, xb))

@@ -12,7 +12,7 @@ from itertools import groupby
 from optparse import OptionParser
 
 from jcvi.formats.base import LineFile, must_open
-from jcvi.utils.cbook import depends, thousands
+from jcvi.utils.cbook import depends, thousands, percentage
 from jcvi.utils.range import Range, range_union, range_chain, \
         range_distance, range_intersect
 from jcvi.apps.base import ActionDispatcher, debug, sh, \
@@ -255,9 +255,48 @@ def main():
         ('refine', 'refine bed file using a second bed file'),
         ('flanking', 'get n flanking features for a given position'),
         ('some', 'get a subset of bed features given a list'),
+        ('fix', 'fix non-standard bed files'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def fix(args):
+    """
+    %prog fix bedfile > newbedfile
+
+    Fix non-standard bed files. One typical problem is start > end.
+    """
+    p = OptionParser(fix.__doc__)
+    set_outfile(p)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    bedfile, = args
+    fp = open(bedfile)
+    fw = must_open(opts.outfile, "w")
+    nfixed = ntotal = 0
+    for row in fp:
+        atoms = row.strip().split("\t")
+        assert len(atoms) >= 3, "Must be at least 3 columns"
+        seqid, start, end = atoms[:3]
+        start, end = int(start), int(end)
+        orientation = '+'
+        if start > end:
+            start, end = end, start
+            orientation = '-'
+            nfixed += 1
+
+        atoms[1:3] = [str(start), str(end)]
+        if len(atoms) > 6:
+            atoms[6] = orientation
+        print >> fw, "\t".join(atoms)
+
+        ntotal += 1
+
+    logging.debug("Total fixed: {0}".format(percentage(nfixed, ntotal)))
 
 
 def some(args):
@@ -268,7 +307,7 @@ def some(args):
     """
     from jcvi.apps.base import set_stripnames
     from jcvi.formats.base import SetFile
-    from jcvi.utils.cbook import percentage, gene_name
+    from jcvi.utils.cbook import gene_name
 
     p = OptionParser(some.__doc__)
     p.add_option("-v", dest="inverse", default=False, action="store_true",
@@ -746,7 +785,6 @@ def distance(args):
     Calculate distance between bed features. The output file is a list of
     distances, which can be used to plot histogram, etc.
     """
-    from jcvi.utils.cbook import percentage
     from jcvi.utils.iter import pairwise
 
     p = OptionParser(distance.__doc__)

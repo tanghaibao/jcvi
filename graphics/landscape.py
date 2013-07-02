@@ -137,7 +137,7 @@ def lineplot(ax, binfiles, nbins, chr, window, shift):
     ax.xaxis.set_major_formatter(formatter)
     ax.yaxis.set_major_formatter(tex_formatter)
     for tl in ax.get_xticklabels():
-        tl.set_color('lightslategray')
+        tl.set_color('darkslategray')
 
     label = bf.filename.split(".")[0]
     perw = "per {0}".format(human_size(window, precision=0))
@@ -182,6 +182,8 @@ def composite(args):
                  help="Features to plot in bars [default: %default]")
     p.add_option("--altbars",
                  help="Features to plot in alt-bars [default: %default]")
+    p.add_option("--fatten", default=False, action="store_true",
+                 help="Help visualize certain narrow features [default: %default]")
     add_window_options(p)
     opts, args, iopts = set_image_options(p, args, figsize="8x5")
 
@@ -191,6 +193,7 @@ def composite(args):
     fastafile, chr = args
     window, shift, subtract = check_window_options(opts)
     linebeds, barbeds, altbarbeds = [], [], []
+    fatten = opts.fatten
     if opts.lines:
         lines = opts.lines.split(",")
         linebeds = get_beds(lines)
@@ -228,14 +231,19 @@ def composite(args):
     yinterval = .08
     xs = lambda x: xstart + ratio * x
     r = .01
+    fattend = .0025
     for bb in barbeds:
         root.text(xend + .01, yy, bb.split(".")[0], va="center")
         hc = HorizontalChromosome(root, xstart, xend, yy, height=.02)
         bb = Bed(bb)
         for b in bb:
             start, end = xs(b.start), xs(b.end)
-            root.add_patch(Rectangle((start, yy - r), end - start, 2 * r, \
-                            lw=0, fc="lightslategray"))
+            span = end - start
+            if fatten and span < fattend:
+                span = fattend
+
+            root.add_patch(Rectangle((start, yy - r), span, 2 * r, \
+                            lw=0, fc="darkslategray"))
         yy -= yinterval
 
     # Alternative bar plots
@@ -250,7 +258,7 @@ def composite(args):
                 continue
             offset = -offset
             root.add_patch(Rectangle((start, yy + offset), end - start, .003, \
-                            lw=0, fc="lightslategray"))
+                            lw=0, fc="darkslategray"))
         yy -= yinterval
 
     root.set_xlim(0, 1)

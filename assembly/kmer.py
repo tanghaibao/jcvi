@@ -370,17 +370,18 @@ def jellyfish(args):
     from jcvi.apps.base import getfilesize
     from jcvi.utils.cbook import human_size
     from jcvi.formats.fastq import guessoffset
-    from jcvi.formats.base import FastaExt
 
     p = OptionParser(jellyfish.__doc__)
     p.add_option("-K", default=23, type="int",
                  help="K-mer size [default: %default]")
-    p.add_option("--coverage", default=46, type="int",
+    p.add_option("--coverage", default=40, type="int",
             help="Expected sequence coverage [default: %default]")
     p.add_option("--prefix", default="jf",
             help="Database prefix [default: %default]")
     p.add_option("--nohist", default=False, action="store_true",
             help="Do not print histogram [default: %default]")
+    p.add_option("--fasta", default=False, action="store_true",
+            help="Inputs are FASTA [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) < 1:
@@ -393,9 +394,10 @@ def jellyfish(args):
 
     totalfilesize = sum(getfilesize(x) for x in fastqfiles)
     fq = fastqfiles[0]
-    fasta = fq.rsplit(".", 1)[-1] in FastaExt
+
+    fasta = opts.fasta
     if fasta:
-        coverage = 1
+        coverage /= 2
 
     hashsize = totalfilesize / coverage
     #hashsize = max(hashsize, 4000000000)  # based on msr-ca

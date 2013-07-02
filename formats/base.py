@@ -16,7 +16,7 @@ from jcvi.apps.base import ActionDispatcher, sh, debug, need_update, \
 debug()
 
 
-FastaExt = ("fasta", "fa", "fna", "cds", "pep", "faa")
+FastaExt = ("fasta", "fa", "fna", "cds", "pep", "faa", "fsa", "seq", "nt", "aa")
 FastqExt = ("fastq", "fq")
 
 
@@ -119,13 +119,18 @@ class FileMerger (object):
 
 class FileSplitter (object):
 
-    def __init__(self, filename, outputdir=None, mode="cycle"):
+    def __init__(self, filename, outputdir=None, format="fasta", mode="cycle"):
         self.filename = filename
         self.outputdir = outputdir
         self.mode = mode
 
-        self.format = format = self._guess_format(filename)
+        self.format = format
         logging.debug("format is %s" % format)
+
+        guessedformat = self._guess_format(filename)
+        if format != guessedformat:
+            logging.warn("warn: format guessed from suffix - {0}"\
+                          .format(guessedformat))
 
         if format in ("fasta", "fastq"):
             self.klass = "seqio"
@@ -515,6 +520,8 @@ def split(args):
             help="split all records [default: %default]")
     p.add_option("--cycle", default=False, action="store_true",
             help="splitted records in Round Robin fashion [default: %default]")
+    p.add_option("--format", default="fasta", choices=("fasta", "fastq", "txt"),
+            help="input file format [default: %default]")
 
     opts, args = p.parse_args(args)
 
@@ -523,7 +530,7 @@ def split(args):
 
     mode = "cycle" if opts.cycle else "batch"
     filename, outdir = args
-    fs = FileSplitter(filename, outputdir=outdir, mode=mode)
+    fs = FileSplitter(filename, outputdir=outdir, format=opts.format, mode=mode)
 
     if opts.all:
         logging.debug("option -all override -n")

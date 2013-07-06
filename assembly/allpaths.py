@@ -416,7 +416,7 @@ def prepare(args):
     `in_libs.csv`. The species name does not really matter.
     """
     from jcvi.utils.table import write_csv
-    from jcvi.formats.base import check_exists
+    from jcvi.formats.base import write_file
     from jcvi.formats.fastq import guessoffset
 
     p = OptionParser(prepare.__doc__ + FastqNamings)
@@ -495,10 +495,9 @@ def prepare(args):
         extra += "FE_NUM_CYCLES=1 EC_K=28 FE_QUAL_CEIL_RADIUS=0"
         extra += " REMOVE_DODGY_READS_FRAG=False FE_MAX_KMER_FREQ_TO_MARK=1"
 
-    if not opts.norun and check_exists(runfile):
-        fw = open(runfile, "w")
-        print >> fw, ALLPATHSRUN.format(phred64, extra)
-        logging.debug("Run script written to `{0}`.".format(runfile))
+    if not opts.norun:
+        contents = ALLPATHSRUN.format(phred64, extra)
+        write_file(runfile, contents, meta="run script")
 
 
 def log(args):

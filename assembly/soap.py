@@ -226,7 +226,7 @@ def prepare(args):
     Scan input fastq files (see below) and write SOAP config files based
     on inputfiles. Use "--scaffold contigs.fasta" to perform scaffolding.
     """
-    from jcvi.formats.base import check_exists
+    from jcvi.formats.base import write_file
 
     p = OptionParser(prepare.__doc__ + FastqNamings)
     p.add_option("--scaffold",
@@ -287,10 +287,7 @@ def prepare(args):
     runfile = "run.sh"
     scaffold = opts.scaffold
     template = SCFRUN % scaffold if scaffold else SOAPRUN
-    if check_exists(runfile):
-        fw = open(runfile, "w")
-        print >> fw, template
-        logging.debug("Run script written to `{0}`.".format(runfile))
+    write_file(runfile, template, meta="run script")
 
 
 if __name__ == '__main__':

@@ -329,8 +329,9 @@ def must_open(filename, mode="r", checkexists=False, skipcheck=False, \
 
 def write_file(filename, contents, meta="file", skipcheck=False):
     fw = must_open(filename, "w", checkexists=True, skipcheck=skipcheck)
-    print >> fw, contents
-    fw.close()
+    if fw:
+        print >> fw, contents
+        fw.close()
 
     message = "{0} written to `{1}`.".format(meta, filename)
     logging.debug(message.capitalize())

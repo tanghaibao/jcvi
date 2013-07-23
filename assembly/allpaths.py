@@ -120,59 +120,6 @@ def main():
     p.dispatch(globals())
 
 
-def assemble_pairs(p, pf, tag):
-    """
-    Taken one pair of reads and assemble to contigs.fasta.
-    """
-    from jcvi.apps.base import mkdir
-
-    logging.debug("Work on {0} ({1})".format(pf, ','.join(p)))
-    asm = "{0}.contigs.fasta".format(pf)
-    if not need_update(p, asm):
-        logging.debug("Assembly found: {0}. Skipped.".format(asm))
-        return
-
-    mkdir(pf, overwrite=True)
-    cwd = os.getcwd()
-    os.chdir(pf)
-    # Create sym-links for the input files
-    for i, f in enumerate(p):
-        for t in tag:
-            sh("ln -sf ../{0} {1}.{2}.fastq".format(f, t, i + 1))
-
-    prepare([pf] + glob("*.fastq"))
-    sh("chmod u+x run.sh")
-    sh("./run.sh")
-    sh("cp allpaths/ASSEMBLIES/run/final.contigs.fasta ../{0}".format(asm))
-    os.chdir(cwd)
-
-    logging.debug("Assembly finished: {0}".format(asm))
-
-
-def automaton(args):
-    """
-    %prog automaton folder tag
-
-    Run assembly on a folder of paired reads and apply tag (PE-200, PE-500).
-    Allow multiple tags separated by comma, e.g. PE-350,TT-1050
-    """
-    from jcvi.utils.iter import grouper
-
-    p = OptionParser(automaton.__doc__)
-    opts, args = p.parse_args(args)
-
-    if len(args) != 2:
-        sys.exit(not p.print_help())
-
-    folder, tag = args
-    tag = tag.split(",")
-    filelist = glob(folder + "/*.*")
-    for p in grouper(2, filelist):
-        pp = [op.basename(x) for x in p]
-        pf = op.commonprefix(pp).strip("._-")
-        assemble_pairs(p, pf, tag)
-
-
 def fastq(args):
     """
     %prog fastq fastbfile

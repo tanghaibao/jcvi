@@ -90,7 +90,7 @@ def maker(args):
 
     Prepare EVM inputs by separating tracks from MAKER.
     """
-    from jcvi.formats.base import SetFile
+    from jcvi.formats.base import SetFile, FileShredder
 
     A, T, P = "ABINITIO_PREDICTION", "TRANSCRIPT", "PROTEIN"
     # Stores default weights and types
@@ -134,12 +134,14 @@ def maker(args):
     contents = "\n".join(sorted(contents))
     write_file(weightsfile, contents, meta="weights file")
 
+    evs = [x + ".gff" for x in (A, T, P)]
+    FileShredder(evs)
+
     for type, tracks in reg.items():
         for t in tracks:
-            cmd = "grep '\t{0}' {1} >> {2}.gff".format(t, gffile, type)
+            cmd = "grep '\t{0}' {1} | grep -v '_match\t' >> {2}.gff".format(t, gffile, type)
             sh(cmd)
 
-    evs = [x + ".gff" for x in (A, T, P)]
     partition(evs)
     runfile = "run.sh"
     contents = EVMRUN.format(*evs)

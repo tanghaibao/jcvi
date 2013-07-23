@@ -258,7 +258,8 @@ def prepare(args):
             continue
 
         rank += 1
-        block = "[LIB]\n"
+        block = "max_rd_len=150\n"
+        block += "[LIB]\n"
         block += "avg_ins={0}\n".format(size)
         f = fs[0]
         block += "reverse_seq={0}\n".format(lib.reverse_seq)

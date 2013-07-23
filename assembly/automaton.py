@@ -76,7 +76,8 @@ def correct_pairs(p, pf, tag):
     logging.debug("Work on {0} ({1})".format(pf, ','.join(p)))
     itag = tag[0]
     cm = ".".join((pf, itag))
-    targets = (cm + ".1.corr.fastq", cm + ".2.corr.fastq")
+    targets = (cm + ".1.corr.fastq", cm + ".2.corr.fastq", \
+                pf + ".PE-0.corr.fastq")
     if not need_update(p, targets):
         logging.debug("Corrected reads found: {0}. Skipped.".format(targets))
         return
@@ -85,9 +86,10 @@ def correct_pairs(p, pf, tag):
 
     cwd = os.getcwd()
     os.chdir(pf)
-    cr(glob("*.fastq") + glob("*.fastq.gz"))
+    cr(glob("*.fastq") + glob("*.fastq.gz") + ["--nofragsdedup", "--cpus=64"])
     sh("mv {0}.1.corr.fastq ../{1}".format(itag, targets[0]))
     sh("mv {0}.2.corr.fastq ../{1}".format(itag, targets[1]))
+    sh("mv frag_reads_corr.corr.fastq ../{0}".format(targets[2]))
 
     logging.debug("Correction finished: {0}".format(targets))
     os.chdir(cwd)

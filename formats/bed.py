@@ -11,7 +11,7 @@ import logging
 from itertools import groupby
 from optparse import OptionParser
 
-from jcvi.formats.base import LineFile, must_open
+from jcvi.formats.base import LineFile, must_open, is_number
 from jcvi.utils.cbook import depends, thousands, percentage
 from jcvi.utils.range import Range, range_union, range_chain, \
         range_distance, range_intersect
@@ -87,10 +87,13 @@ class BedLine(object):
             self.strand = self.extra[1] = strand
 
     def gffline(self, type='match', source='default'):
-        score = "1000" if self.score == '.' else self.score
+        score = "." if not self.score or \
+                (self.score and not is_number(self.score)) \
+                else self.score
+        strand = "." if not self.strand else self.strand
         row = "\t".join((self.seqid, source, type,
             str(self.start + 1), str(self.end), score,
-            self.strand, '.', 'ID=' + self.accn))
+            strand, '.', 'ID=' + self.accn))
         return row
 
 

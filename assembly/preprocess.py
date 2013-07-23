@@ -165,6 +165,8 @@ def trim(args):
             help="Only trim adapters with no qv trimming [default: %default]")
     p.add_option("--nogz", default=False, action="store_true",
             help="Do not write to gzipped files [default: %default]")
+    p.add_option("--log", default=None, dest="trimlog",
+            help="Specify a `trimlog` file [default: %default]")
     set_grid(p)
 
     opts, args = p.parse_args(args)
@@ -202,6 +204,8 @@ def trim(args):
 
     phredflag = " -phred{0}".format(offset)
     threadsflag = " -threads 4"
+    if opts.trimlog:
+        trimlog = " -trimlog {0}".format(opts.trimlog)
 
     cmd = JAVAPATH("java")
     cmd += " -Xmx4g -jar {0}".format(path)
@@ -216,6 +220,8 @@ def trim(args):
         cmd += " SE"
         cmd += phredflag
         cmd += threadsflag
+        if opts.trimlog:
+            cmd += trimlog
         fastqfile, = args
         prefix = get_prefix(fastqfile)
         frags1 = prefix + frags
@@ -224,6 +230,8 @@ def trim(args):
         cmd += " PE"
         cmd += phredflag
         cmd += threadsflag
+        if opts.trimlog:
+            cmd += trimlog
         fastqfile1, fastqfile2 = args
         prefix1 = get_prefix(fastqfile1)
         prefix2 = get_prefix(fastqfile2)

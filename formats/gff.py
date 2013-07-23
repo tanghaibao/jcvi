@@ -601,6 +601,9 @@ def format(args):
                  help="Fix GSAC GFF3 file attributes [default: %default]")
     p.add_option("--fixphase", default=False, action="store_true",
                  help="Change phase 1<->2, 2<->1 [default: %default]")
+    p.add_option("--add_attribute", dest="attribute", help="Add a new attribute; " +
+                "attribute value comes from two-column file; attribute key comes " +
+                "from filename [default: %default]")
     set_outfile(p)
 
     opts, args = p.parse_args(args)
@@ -613,6 +616,7 @@ def format(args):
     names = opts.name
     note = opts.note
     source = opts.source
+    add_attribute = opts.attribute
     gsac = opts.gsac
     unique = opts.unique
     fixphase = opts.fixphase
@@ -628,6 +632,9 @@ def format(args):
         source = DictFile(source, delimiter="\t")
     if names:
         names = DictFile(names, delimiter="\t")
+    if add_attribute:
+        attr_values = DictFile(add_attribute, delimiter="\t")
+        attr_name = op.basename(add_attribute).rsplit(".", 1)[0].lower()
 
     if gsac:  # setting gsac will force IDs to be unique
         unique = True
@@ -686,6 +693,12 @@ def format(args):
 
             if tag:
                 g.attributes["Note"] = [tag]
+                g.update_attributes()
+
+        if add_attribute:
+            id = g.attributes["ID"][0]
+            if id in attr_values.keys():
+                g.attributes[attr_name] = [attr_values[id]]
                 g.update_attributes()
 
         if unique:

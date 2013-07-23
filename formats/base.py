@@ -327,6 +327,16 @@ def must_open(filename, mode="r", checkexists=False, skipcheck=False, \
     return fp
 
 
+def write_file(filename, contents, meta="file", skipcheck=False):
+    fw = must_open(filename, "w", checkexists=True, skipcheck=skipcheck)
+    if fw:
+        print >> fw, contents
+        fw.close()
+
+    message = "{0} written to `{1}`.".format(meta, filename)
+    logging.debug(message.capitalize())
+
+
 def read_until(handle, start):
     # read each line until a certain start, then puts the start tag back
     while 1:
@@ -441,7 +451,6 @@ def truncate(args):
 
     f = open(filename, "r+b")
     f.seek(0, os.SEEK_END)
-    end = f.tell()
     while f.tell() > 0:
         f.seek(-1, os.SEEK_CUR)
         char = f.read(1)

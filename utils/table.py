@@ -81,9 +81,9 @@ def write_csv(header, contents, sep=",", filename="stdout", tee=False):
     from jcvi.formats.base import must_open
 
     fw = must_open(filename, "w")
-    allcontents = [header] + contents
-    cols = len(header)
-    for content in contents:
+    allcontents = [header] + contents if header else contents
+    cols = len(contents[0])
+    for content in allcontents:
         assert len(content) == cols
 
     # Stringify the contents

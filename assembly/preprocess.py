@@ -12,13 +12,13 @@ import logging
 
 from optparse import OptionParser
 
-from jcvi.formats.base import BaseFile
+from jcvi.formats.base import BaseFile, write_file
 from jcvi.formats.fastq import guessoffset
 from jcvi.utils.cbook import depends, human_size
 from jcvi.utils.data import Adapters
 from jcvi.apps.command import JAVAPATH
 from jcvi.apps.base import ActionDispatcher, debug, set_grid, download, \
-        sh, mkdir, write_file, need_update
+        sh, mkdir, need_update
 debug()
 
 
@@ -190,8 +190,7 @@ def trim(args):
     assert op.exists(path)
 
     adaptersfile = "adapters.fasta"
-    if not op.exists(adaptersfile):
-        write_file(adaptersfile, Adapters)
+    write_file(adaptersfile, Adapters, skipcheck=True)
 
     assert op.exists(adaptersfile), \
         "Please place the illumina adapter sequence in `{0}`".\

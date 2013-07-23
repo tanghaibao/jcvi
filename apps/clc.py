@@ -7,12 +7,11 @@ Wrapper script for some programs in clc-ngs-cell
 
 import sys
 import os.path as op
-import logging
 
 from optparse import OptionParser
 
-from jcvi.apps.base import ActionDispatcher, debug, set_grid, set_params, \
-    sh, write_file
+from jcvi.formats.base import write_file
+from jcvi.apps.base import ActionDispatcher, debug, set_grid, set_params, sh
 debug()
 
 
@@ -45,8 +44,6 @@ def prepare(args):
     """
     from itertools import groupby
 
-    from jcvi.utils.iter import grouper
-    from jcvi.formats.base import check_exists
     from jcvi.assembly.base import FastqNamings, Library
 
     p = OptionParser(prepare.__doc__ + FastqNamings)
@@ -68,7 +65,7 @@ def prepare(args):
     singletons = []
     pairs = []
 
-    write_file("license.properties", CLCLICENSE)
+    write_file("license.properties", CLCLICENSE, skipcheck=True)
 
     for lib, fs in libs:
         size = lib.size
@@ -98,11 +95,8 @@ def prepare(args):
     cmd += "\n".join("\t{0} \\".format(x) for x in pairs)
 
     runfile = "run.sh"
-    if check_exists(runfile):
-        fw = open(runfile, "w")
-        print >> fw, "#!/bin/bash\n"
-        print >> fw, cmd
-        logging.debug("Run script written to `{0}`.".format(runfile))
+    contents = "\n".join(("#!/bin/bash\n", cmd))
+    write_file(runfile, contents, meta="run script")
 
 
 def map(args):
@@ -132,7 +126,7 @@ def map(args):
     if len(args) < 2:
         sys.exit(not p.print_help())
 
-    write_file("license.properties", CLCLICENSE)
+    write_file("license.properties", CLCLICENSE, skipcheck=True)
 
     ref = args[0]
     assert op.exists(ref)

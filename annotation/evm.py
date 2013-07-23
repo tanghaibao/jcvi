@@ -7,33 +7,35 @@ EVM - TIGR only mode which communicates with the Sybase db; evm mode which
 communicates with GFF file.
 """
 
+import os.path as op
 import sys
-import logging
 
+from collections import defaultdict
 from optparse import OptionParser
 
 from jcvi.formats.fasta import ids
-from jcvi.formats.base import check_exists
+from jcvi.formats.base import write_file
 from jcvi.apps.base import ActionDispatcher, need_update, debug, sh
 debug()
 
 
-EVMRUN = r"""
-#!/bin/bash
+EVMRUN = r"""#!/bin/bash
 
 W=`pwd`/weights.txt
 
 $EVM/EvmUtils/write_EVM_commands.pl --genome genome.fasta --weights $W \
-    --gene_predictions gene_predictions.gff3 \
-    --protein_alignments protein_alignments.gff3 \
-    --transcript_alignments transcript_alignments.fixed.gff3 \
+    --gene_predictions {0} \
+    --transcript_alignments {1} \
+    --protein_alignments {2} \
     --terminalExons pasa.terminal_exons.gff3 \
     --output_file_name evm.out --partitions partitions_list.out > commands.list
 
-$EGC_SCRIPTS/run_cmds_on_grid.pl commands.list 04048"""
+$EGC_SCRIPTS/run_cmds_on_grid.pl commands.list 04048
 
-EVMLOAD = r"""
-#!/bin/bash
+#$EVM/EvmUtils/execute_EVM_commands.pl commands.list
+"""
+
+EVMLOAD = r"""#!/bin/bash
 
 $EVM/EvmUtils/recombine_EVM_partial_outputs.pl  \
     --partitions partitions_list.out \
@@ -56,9 +58,92 @@ def main():
         ('pasa', 'extract terminal exons'),
         ('tigrprepare', 'run EVM in TIGR-only mode'),
         ('tigrload', 'load EVM results into TIGR db'),
+        ('maker', 'run EVM based on MAKER output'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def partition(evs):
+    partition_list = "partitions_list.out"
+    A, T, P = evs
+    if not need_update(evs, partition_list):
+        return
+
+    cmd = "$EVM/EvmUtils/partition_EVM_inputs.pl --genome genome.fasta"
+    cmd += " --gene_predictions {0}".format(A)
+    cmd += " --transcript_alignments {0}".format(T)
+    cmd += " --protein_alignments {0}".format(P)
+    cmd += " --segmentSize 500000 --overlapSize 10000 "
+    cmd += " --partition_listing partitions_list.out"
+
+    termexons = "pasa.terminal_exons.gff3"
+    if op.exists(termexons):
+        cmd += " --pasaTerminalExons {0}".format(termexons)
+
+    sh(cmd)
+
+
+def maker(args):
+    """
+    %prog maker maker.gff3 genome.fasta
+
+    Prepare EVM inputs by separating tracks from MAKER.
+    """
+    from jcvi.formats.base import SetFile
+
+    A, T, P = "ABINITIO_PREDICTION", "TRANSCRIPT", "PROTEIN"
+    # Stores default weights and types
+    Registry = {\
+        "maker": (A, 5),
+        "augustus_masked": (A, 1),
+        "snap_masked": (A, 1),
+        "genemark": (A, 1),
+        "est2genome": (T, 5),
+        "est_gff": (T, 5),
+        "protein2genome": (P, 5),
+        "blastx": (P, 1)
+    }
+
+    p = OptionParser(maker.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    gffile, fastafile = args
+
+    types = "type.ids"
+    if need_update(gffile, types):
+        cmd = "cut -f2 -s {0} | sort -u".format(gffile)
+        sh(cmd, outfile=types)
+
+    types = SetFile(types)
+    reg = defaultdict(list)
+    weightsfile = "weights.txt"
+    contents = []
+    for s in types:
+        rs = s.split(":")[0]
+        if rs not in Registry:
+            continue
+
+        type, weight = Registry[rs]
+        reg[type].append(s)
+        contents.append("\t".join(str(x) for x in (type, s, weight)))
+
+    contents = "\n".join(sorted(contents))
+    write_file(weightsfile, contents, meta="weights file")
+
+    for type, tracks in reg.items():
+        for t in tracks:
+            cmd = "grep '\t{0}' {1} >> {2}.gff".format(t, gffile, type)
+            sh(cmd)
+
+    evs = [x + ".gff" for x in (A, T, P)]
+    partition(evs)
+    runfile = "run.sh"
+    contents = EVMRUN.format(*evs)
+    write_file(runfile, contents, meta="run script")
 
 
 def tigrload(args):
@@ -77,29 +162,26 @@ def tigrload(args):
     db, ev_type = args
 
     runfile = "load.sh"
-    if check_exists(runfile):
-        fw = open(runfile, "w")
-        print >> fw, EVMLOAD.format(db, ev_type)
-        logging.debug("Run script written to `{0}`.".format(runfile))
-        fw.close()
+    contents = EVMLOAD.format(db, ev_type)
+    write_file(runfile, contents, meta="run script")
 
 
 def pasa(args):
     """
-    %prog pasa pasa_db
+    %prog pasa pasa_db fastafile
 
     Run EVM in TIGR-only mode.
     """
     p = OptionParser(pasa.__doc__)
     opts, args = p.parse_args(args)
 
-    if len(args) != 1:
+    if len(args) != 2:
         sys.exit(not p.print_help())
 
-    pasa_db, = args
+    pasa_db, fastafile = args
 
     termexons = "pasa.terminal_exons.gff3"
-    if need_update(weightsfile, termexons):
+    if need_update(fastafile, termexons):
         cmd = "$ANNOT_DEVEL/PASA2/scripts/pasa_asmbls_to_training_set.dbi"
         cmd += ' -M "{0}:mysql.tigr.org" -p "access:access"'.format(pasa_db)
         cmd += ' -g {0}'.format(fastafile)
@@ -172,26 +254,12 @@ def tigrprepare(args):
                 format(db, idsfile, weightsfile)
         sh(cmd)
 
-    transcript = fix_transcript()
-    partition_list = "partitions_list.out"
-    evs[1] = transcript
-    evs += ["pasa.terminal_exons.gff3"]
-    if need_update(evs, partition_list):
-        cmd = "$EVM/EvmUtils/partition_EVM_inputs.pl --genome genome.fasta"
-        cmd += " --gene_predictions gene_predictions.gff3"
-        cmd += " --protein_alignments protein_alignments.gff3"
-        cmd += " --transcript_alignments transcript_alignments.fixed.gff3"
-        cmd += " --pasaTerminalExons pasa.terminal_exons.gff3"
-        cmd += " --segmentSize 500000 --overlapSize 10000 "
-        cmd += " --partition_listing partitions_list.out"
-        sh(cmd)
+    evs[1] = fix_transcript()
 
+    partition(evs)
     runfile = "run.sh"
-    if check_exists(runfile):
-        fw = open(runfile, "w")
-        print >> fw, EVMRUN
-        logging.debug("Run script written to `{0}`.".format(runfile))
-        fw.close()
+    contents = EVMRUN.format(*evs)
+    write_file(runfile, contents, meta="run script")
 
 
 if __name__ == '__main__':

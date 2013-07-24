@@ -54,23 +54,24 @@ def main():
 
 SOAPHEADER = """#!/bin/bash
 
-P=32
+P={0}
+K={1}
 S=soap.config
+G=soap.gc.config
 C=SOAPdenovo-63mer_v2.0
-K=45
-A=asm${K}
+A=asm{1}
 """
 
-GCRUN = "#GapCloser_v1.12 -a ${A}.scafSeq -b $S -l 100 -o ${A}.closed.scafSeq -p 31 -t $P"
+GCRUN = "GapCloser_v1.12 -a ${A}.scafSeq -b $G -l 150 -o ${A}.closed.scafSeq -p 31 -t $P"
 
-SOAPRUN = SOAPHEADER + """
+SOAPRUN = """
 $C pregraph -s $S -d 1 -K $K -o $A -R -p $P
 $C contig -s $S -g $A -M 1 -R -p $P
 $C map -s $S -g $A -p $P
 $C scaff -g $A -F -p $P
 """ + GCRUN
 
-SCFRUN = SOAPHEADER + """
+SCFRUN = """
 prepare -K $K -c %s -g $A
 SOAPdenovo-63mer map -s $S -g $A -p $P
 SOAPdenovo-63mer_v2.0 scaff -z -g $A -F -p $P
@@ -229,6 +230,12 @@ def prepare(args):
     from jcvi.formats.base import write_file
 
     p = OptionParser(prepare.__doc__ + FastqNamings)
+    p.add_option("-K", default=45, type="int",
+                 help="K-mer size [default: %default]")
+    p.add_option("--cpus", default=32, type="int",
+                 help="Number of cpus to use [default: %default]")
+    p.add_option("--assemble_1st_rank_only", default=False, action="store_true",
+                 help="Assemble the first rank only, other libs asm_flags=2 [default: %default]")
     p.add_option("--scaffold",
                  help="Only perform scaffolding [default: %default]")
     opts, args = p.parse_args(args)
@@ -240,8 +247,12 @@ def prepare(args):
     for x in fnames:
         assert op.exists(x), "File `{0}` not found.".format(x)
 
+    a1st = opts.assemble_1st_rank_only
+
     cfgfile = "soap.config"
+    gc_cfgfile = "soap.gc.config"
     fw = open(cfgfile, "w")
+    fw_gc = open(gc_cfgfile, "w")
 
     library_name = lambda x: "-".join(\
                 op.basename(x).split(".")[0].split("-")[:2])
@@ -251,6 +262,11 @@ def prepare(args):
     libs.sort(key=lambda x: x[0].size)
     rank = 0
     singletons = []
+
+    block = "max_rd_len=150\n"
+    for stream in (sys.stderr, fw, fw_gc):
+        print >> stream, block
+
     for lib, fs in libs:
         size = lib.size
         if size == 0:
@@ -258,15 +274,15 @@ def prepare(args):
             continue
 
         rank += 1
-        block = "max_rd_len=150\n"
-        block += "[LIB]\n"
+        block = "[LIB]\n"
         block += "avg_ins={0}\n".format(size)
         f = fs[0]
         block += "reverse_seq={0}\n".format(lib.reverse_seq)
-        block += "asm_flags={0}\n".format(lib.asm_flags)
+        asm_flags = 2 if (rank > 1 and a1st) else lib.asm_flags
+        block += "asm_flags={0}\n".format(asm_flags)
         block += "rank={0}\n".format(rank)
         if lib.reverse_seq:
-            pair_num_cutoff = 5
+            pair_num_cutoff = 3
             block += "pair_num_cutoff={0}\n".format(pair_num_cutoff)
         block += "map_len=35\n"
 
@@ -285,10 +301,16 @@ def prepare(args):
         print >> sys.stderr, block
         print >> fw, block
 
+        if asm_flags > 2:
+            print >> fw_gc, block
+
     runfile = "run.sh"
     scaffold = opts.scaffold
-    template = SCFRUN % scaffold if scaffold else SOAPRUN
+    template = SOAPHEADER.format(opts.cpus, opts.K)
+    template += SCFRUN % scaffold if scaffold else SOAPRUN
     write_file(runfile, template, meta="run script")
+    fw.close()
+    fw_gc.close()
 
 
 if __name__ == '__main__':

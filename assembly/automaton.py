@@ -24,21 +24,33 @@ def main():
     actions = (
         ('correct', 'run automated ALLPATHS correction'),
         ('allpaths', 'run automated ALLPATHS'),
+        ('soap', 'run automated SOAP'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
 
-def slink(p, pf, tag):
+def slink(p, pf, tag, extra=None):
+
     mkdir(pf, overwrite=True)
     cwd = os.getcwd()
     os.chdir(pf)
-    gz = ".gz" if p[0].endswith(".gz") else ""
 
     # Create sym-links for the input files
-    for i, f in enumerate(sorted(p)):
+    i = 1
+    for f in sorted(p):
+        gz = ".gz" if f.endswith(".gz") else ""
+        if "PE-0" in f:
+            sh("ln -sf ../{0} PE-0.fastq{1}".format(f, gz))
+            continue
         for t in tag:
-            sh("ln -sf ../{0} {1}.{2}.fastq{3}".format(f, t, i + 1, gz))
+            sh("ln -sf ../{0} {1}.{2}.fastq{3}".format(f, t, i, gz))
+        i += 1
+
+    if extra:
+        for e in extra:
+            sh("ln -sf {0}".format(e))
+
     os.chdir(cwd)
 
 
@@ -95,16 +107,66 @@ def correct_pairs(p, pf, tag):
     os.chdir(cwd)
 
 
-def iter_project(folder):
+def soap_trios(p, pf, tag, extra):
+    """
+    Take one pair of reads and 'widow' reads after correction and run SOAP.
+    """
+    from jcvi.assembly.soap import prepare
+
+    logging.debug("Work on {0} ({1})".format(pf, ','.join(p)))
+    asm = "{0}.closed.scafSeq".format(pf)
+    if not need_update(p, asm):
+        logging.debug("Assembly found: {0}. Skipped.".format(asm))
+        return
+
+    slink(p, pf, tag, extra)
+
+    cwd = os.getcwd()
+    os.chdir(pf)
+    prepare(glob("*.fastq") + glob("*.fastq.gz") + \
+            ["--assemble_1st_rank_only", "-K 31", "--cpus=48"])
+    sh("chmod u+x run.sh")
+    sh("./run.sh")
+    sh("cp asm31.closed.scafSeq ../{0}".format(asm))
+
+    logging.debug("Assembly finished: {0}".format(asm))
+    os.chdir(cwd)
+
+
+def iter_project(folder, n=2):
     # Check for paired reads and extract project id
     filelist = sorted(glob(folder + "/*.*"))
-    for p in grouper(2, filelist):
-        if len(p) != 2:
+    for p in grouper(n, filelist):
+        if len(p) != n:
             continue
 
         pp = [op.basename(x) for x in p]
         pf = op.commonprefix(pp).strip("._-")
         yield p, pf
+
+
+def soap(args):
+    """
+    %prog soap folder tag [*.fastq]
+
+    Run SOAP on a folder of paired reads and apply tag before assembly.
+    Optional *.fastq in the argument list will be symlinked in each folder and
+    co-assembled.
+    """
+    from jcvi.apps.softlink import get_abs_path
+
+    p = OptionParser(soap.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) < 2:
+        sys.exit(not p.print_help())
+
+    folder, tag = args[:2]
+    extra = args[2:]
+    extra = [get_abs_path(x) for x in extra]
+    tag = tag.split(",")
+    for p, pf in iter_project(folder, n=3):
+        soap_trios(p, pf, tag, extra)
 
 
 def correct(args):

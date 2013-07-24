@@ -154,20 +154,26 @@ def consensus(args):
     """
     %prog consensus fastafile bamfile
 
-    Convert bam alignments to consensus FASTA.
+    Convert bam alignments to consensus FASTQ/FASTA.
     """
     p = OptionParser(consensus.__doc__)
+    p.add_option("--fasta", default=False, action="store_true",
+            help="Generate consensus FASTA sequences [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) < 2:
         sys.exit(not p.print_help())
 
     fastafile, bamfile = args
-    cnsfile = bamfile.rsplit(".", 1)[0] + ".cns.fasta"
+    fasta = opts.fasta
+    suffix = "fasta" if fasta else "fastq"
+    cnsfile = bamfile.rsplit(".", 1)[0] + ".cns.{0}".format(suffix)
     cmd = "samtools mpileup -uf {0} {1}".format(fastafile, bamfile)
     cmd += " | bcftools view -cg -"
     cmd += " | vcfutils.pl vcf2fq"
-    cmd += " | seqtk fq2fa - 20"
+    if fasta:
+        cmd += " | seqtk fq2fa - 20"
+
     sh(cmd, outfile=cnsfile)
 
 

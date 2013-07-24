@@ -13,6 +13,7 @@ import os.path as op
 
 from optparse import OptionParser
 
+from jcvi.formats.sam import output_bam, add_sam_options
 from jcvi.apps.base import ActionDispatcher, set_grid, set_params, need_update, \
                 sh, debug
 debug()
@@ -22,20 +23,11 @@ def main():
 
     actions = (
         ('index', 'wraps bwa index'),
-        ('aln', 'wraps bwa aln'),
-        ('samse', 'wraps bwa samse'),
-        ('sampe', 'wraps bwa sampe'),
+        ('align', 'wraps bwa samse or sampe'),
         ('bwasw', 'wraps bwa bwasw'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
-
-
-def output_bam(cmd, bam=False):
-    tcmd = cmd
-    if bam:
-        tcmd += " | samtools view -bS -F 4 - "
-    return tcmd
 
 
 def check_index(dbfile, grid=False):
@@ -80,7 +72,7 @@ def index(args):
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
     extra = opts.extra
     grid = opts.grid
@@ -89,57 +81,35 @@ def index(args):
     safile = check_index(dbfile, grid=grid)
 
 
-def aln(args):
+def align(args):
     """
-    %prog aln database.fasta *.fastq
+    %prog align database.fasta read1.fq [read2.fq]
 
-    Wrapper for `bwa aln` except this will run over a set of files.
+    Wrapper for `bwa samse` or `bwa sampe`, depending on the number of args.
     """
-    p = OptionParser(aln.__doc__)
-    p.add_option("--cpus", default=32,
-                 help="Number of cpus to use [default: %default]")
-    set_params(p)
-    set_grid(p)
+    p = OptionParser(align.__doc__)
+    add_sam_options(p)
 
     opts, args = p.parse_args(args)
-
-    if len(args) < 2:
-        sys.exit(p.print_help())
-
     extra = opts.extra
     grid = opts.grid
 
-    dbfile, readfiles = args[0], args[1:]
-    safile = check_index(dbfile, grid=grid)
-    for readfile in readfiles:
-        saifile = check_aln(dbfile, readfile, grid=grid, cpus=opts.cpus)
+    if len(args) == 2:
+        logging.debug("Single-end alignment")
+        samse(args, opts)
+    elif len(args) == 3:
+        logging.debug("Paired-end alignment")
+        sampe(args, opts)
+    else:
+        sys.exit(not p.print_help())
 
 
-def add_sam_options(p):
-    p.add_option("--bam", default=False, action="store_true",
-                 help="write to bam file [default: %default]")
-    p.add_option("--uniq", default=False, action="store_true",
-                 help="Keep only uniquely mapped [default: %default]")
-    p.add_option("--cpus", default=32,
-                 help="Number of cpus to use [default: %default]")
-    set_params(p)
-    set_grid(p)
-
-
-def samse(args):
+def samse(args, opts):
     """
     %prog samse database.fasta short_read.fastq
 
     Wrapper for `bwa samse`. Output will be short_read.sam.
     """
-    p = OptionParser(samse.__doc__)
-    add_sam_options(p)
-
-    opts, args = p.parse_args(args)
-
-    if len(args) != 2:
-        sys.exit(p.print_help())
-
     extra = opts.extra
     grid = opts.grid
 
@@ -162,20 +132,12 @@ def samse(args):
     sh(cmd, grid=grid, outfile=samfile, threaded=opts.cpus)
 
 
-def sampe(args):
+def sampe(args, opts):
     """
     %prog sampe database.fasta read1.fq read2.fq
 
     Wrapper for `bwa sampe`. Output will be read1.sam.
     """
-    p = OptionParser(sampe.__doc__)
-    add_sam_options(p)
-
-    opts, args = p.parse_args(args)
-
-    if len(args) != 3:
-        sys.exit(p.print_help())
-
     extra = opts.extra
     grid = opts.grid
 

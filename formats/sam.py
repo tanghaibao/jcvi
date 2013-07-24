@@ -17,7 +17,8 @@ from jcvi.formats.base import LineFile
 from jcvi.formats.fasta import Fasta
 from jcvi.utils.cbook import fill
 from jcvi.assembly.base import Astat
-from jcvi.apps.base import ActionDispatcher, need_update, sh, debug, set_outfile
+from jcvi.apps.base import ActionDispatcher, need_update, sh, debug, \
+            set_outfile, set_params, set_grid
 debug()
 
 
@@ -55,6 +56,24 @@ class Sam (LineFile):
             s = SamLine(row)
             if callback:
                 callback(s)
+
+
+def output_bam(cmd, bam=False):
+    tcmd = cmd
+    if bam:
+        tcmd += " | samtools view -bS -F 4 - "
+    return tcmd
+
+
+def add_sam_options(p):
+    p.add_option("--bam", default=False, action="store_true",
+                 help="write to bam file [default: %default]")
+    p.add_option("--uniq", default=False, action="store_true",
+                 help="Keep only uniquely mapped [default: %default]")
+    p.add_option("--cpus", default=32,
+                 help="Number of cpus to use [default: %default]")
+    set_params(p)
+    set_grid(p)
 
 
 def main():

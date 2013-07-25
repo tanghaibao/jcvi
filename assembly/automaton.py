@@ -70,7 +70,7 @@ def assemble_pairs(p, pf, tag):
 
     cwd = os.getcwd()
     os.chdir(pf)
-    prepare([pf] + glob("*.fastq") + glob("*.fastq.gz"))
+    prepare([pf] + sorted(glob("*.fastq") + glob("*.fastq.gz")))
     sh("chmod u+x run.sh")
     sh("./run.sh")
     sh("cp allpaths/ASSEMBLIES/run/final.contigs.fasta ../{0}".format(asm))
@@ -98,7 +98,7 @@ def correct_pairs(p, pf, tag):
 
     cwd = os.getcwd()
     os.chdir(pf)
-    cr(glob("*.fastq") + glob("*.fastq.gz") + ["--nofragsdedup", "--cpus=64"])
+    cr(sorted(glob("*.fastq") + glob("*.fastq.gz")) + ["--nofragsdedup", "--cpus=64"])
     sh("mv {0}.1.corr.fastq ../{1}".format(itag, targets[0]))
     sh("mv {0}.2.corr.fastq ../{1}".format(itag, targets[1]))
     sh("mv frag_reads_corr.corr.fastq ../{0}".format(targets[2]))
@@ -123,7 +123,7 @@ def soap_trios(p, pf, tag, extra):
 
     cwd = os.getcwd()
     os.chdir(pf)
-    prepare(glob("*.fastq") + glob("*.fastq.gz") + \
+    prepare(sorted(glob("*.fastq") + glob("*.fastq.gz")) + \
             ["--assemble_1st_rank_only", "-K 31", "--cpus=48"])
     sh("chmod u+x run.sh")
     sh("./run.sh")

@@ -22,7 +22,6 @@ from glob import glob
 from optparse import OptionParser
 
 from jcvi.formats.base import BaseFile
-from jcvi.apps.command import CAPATH
 from jcvi.apps.base import ActionDispatcher, sh, mkdir, debug
 debug()
 
@@ -306,7 +305,7 @@ def pull(args):
     prefix = get_prefix()
     partID, unitigID = args
 
-    cmd = CAPATH("tigStore")
+    cmd = "tigStore"
     cmd += " -g ../{0}.gkpStore -t ../{0}.tigStore 1".format(prefix)
     cmd += " -up {0} -d layout -u {1} > unitig{0}.{1}".format(partID, unitigID)
 
@@ -333,7 +332,7 @@ def test(args):
     s, = args
     partID, unitigID = get_ID(s)
 
-    cmd = CAPATH("utgcns")
+    cmd = "utgcns"
     cmd += " -g ../{0}.gkpStore -t ../{0}.tigStore 1".format(prefix)
     cmd += " {0} -T {1}".format(partID, s)
     if opts.verbose:
@@ -364,7 +363,7 @@ def push(args):
     s, = args
     partID, unitigID = get_ID(s)
 
-    cmd = CAPATH("tigStore")
+    cmd = "tigStore"
     cmd += " -g ../{0}.gkpStore -t ../{0}.tigStore 1".format(prefix)
     cmd += " -up {0} -R unitig{0}.{1}".format(partID, unitigID)
 

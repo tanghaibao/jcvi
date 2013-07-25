@@ -17,7 +17,6 @@ from optparse import OptionParser
 from jcvi.graphics.histogram import loghistogram
 from jcvi.formats.base import must_open
 from jcvi.formats.fasta import Fasta
-from jcvi.apps.command import CAPATH
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
 

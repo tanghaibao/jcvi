@@ -21,12 +21,11 @@ from Bio import SeqIO
 
 from jcvi.formats.base import must_open
 from jcvi.formats.fasta import Fasta, SeqRecord, \
-    get_qual, iter_fasta_qual, write_fasta_qual
+        get_qual, iter_fasta_qual, write_fasta_qual
 from jcvi.formats.blast import Blast
 from jcvi.utils.range import range_minmax
 from jcvi.utils.table import tabulate
 from jcvi.apps.softlink import get_abs_path
-from jcvi.apps.command import CAPATH
 from jcvi.apps.base import ActionDispatcher, sh, set_grid, need_update, debug
 debug()
 
@@ -344,7 +343,7 @@ def tracedb(args):
     action, = args
     assert action in ("xml", "lib", "frg")
 
-    CMD = CAPATH("tracedb-to-frg.pl")
+    CMD = "tracedb-to-frg.pl"
     xmls = glob("xml*")
 
     if action == "xml":
@@ -421,6 +420,8 @@ def fasta(args):
     assumed as adjacent sequence records (i.e. /1, /2, /1, /2 ...) unless a
     matefile is given.
     """
+    from jcvi.formats.fasta import clean
+
     p = OptionParser(fasta.__doc__)
     p.add_option("-m", dest="matefile", default=None,
             help="matepairs file")
@@ -430,7 +431,7 @@ def fasta(args):
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
     grid = opts.grid
 
@@ -447,6 +448,10 @@ def fasta(args):
 
     frgfile = libname + ".frg"
 
+    cleanfasta = fastafile.rsplit(".", 1)[0] + ".clean.fasta"
+    clean([fastafile, "--canonical", "-o", cleanfasta])
+    fastafile = cleanfasta
+
     qualfile = make_qual(fastafile)
     if mated:
         if opts.matefile:
@@ -455,7 +460,7 @@ def fasta(args):
         else:
             matefile = make_matepairs(fastafile)
 
-    cmd = CAPATH("convert-fasta-to-v2.pl")
+    cmd = "convert-fasta-to-v2.pl"
     cmd += " -l {0} -s {1} -q {2} ".\
             format(libname, fastafile, qualfile)
     if mated:
@@ -506,7 +511,7 @@ def sff(args):
     if opts.prefix:
         libname = opts.prefix
 
-    cmd = CAPATH("sffToCA")
+    cmd = "sffToCA"
     cmd += " -libraryname {0} -output {0} ".format(libname)
     cmd += " -clear 454 -trim chop "
     if mated:
@@ -541,16 +546,19 @@ def fastq(args):
         sys.exit(p.print_help())
 
     fastqfiles = [get_abs_path(x) for x in args]
-
-    mated = (opts.size != 0)
+    size = opts.size
     outtie = opts.outtie
+    if size > 1000 and (not outtie):
+        logging.debug("[warn] long insert size {0} but not outtie".format(size))
+
+    mated = (size != 0)
     libname = op.basename(args[0]).split(".")[0]
     libname = libname.replace("_1_sequence", "")
 
     frgfile = libname + ".frg"
     mean, sv = get_mean_sv(opts.size)
 
-    cmd = CAPATH("fastqToCA")
+    cmd = "fastqToCA"
     cmd += " -libraryname {0} ".format(libname)
     fastqs = " ".join("-reads {0}".format(x) for x in fastqfiles)
     if mated:

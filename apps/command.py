@@ -75,8 +75,6 @@ BLPATH = partial(getpath, name="BLAST", url=\
         "ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/")
 BDPATH = partial(getpath, name="BEDTOOLS", url=\
         "http://code.google.com/p/bedtools/")
-CAPATH = partial(getpath, name="Celera-Assembler", url=\
-        "http://wgs-assembler.sf.net")
 CDPATH = partial(getpath, name="CD-HIT", url=\
         "http://weizhong-lab.ucsd.edu/cd-hit/")
 EMBOSSPATH = partial(getpath, name="EMBOSS", url=\

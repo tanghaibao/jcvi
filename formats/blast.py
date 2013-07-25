@@ -943,6 +943,7 @@ def covfilter(args):
         this_gaps = 0
         this_identity = 0
 
+        cov_id = query
         ranges = []
         for b in blines:
             if b.pctid < pctid:
@@ -950,6 +951,7 @@ def covfilter(args):
 
             if scov:
                 s, start, stop = b.subject, b.sstart, b.sstop
+                cov_id = s
             else:
                 s, start, stop = b.query, b.qstart, b.qstop
 
@@ -965,7 +967,7 @@ def covfilter(args):
         if union:
             this_covered = range_union(ranges)
 
-        this_coverage = this_covered * 100. / sizes[s]
+        this_coverage = this_covered * 100. / sizes[cov_id]
         covidstore[query] = (this_identity, this_coverage)
         if this_identity >= pctid and this_coverage >= pctcov:
             valid.add(query)

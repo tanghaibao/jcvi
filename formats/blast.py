@@ -108,12 +108,20 @@ class BlastSlow (LineFile):
         fp = must_open(filename)
         for row in fp:
             self.append(BlastLine(row))
+        self.sorted = sorted
         if not sorted:
             self.sort(key=lambda x: x.query)
 
     def iter_hits(self):
         for query, blines in groupby(self, key=lambda x: x.query):
             yield query, blines
+
+    def iter_hits_pair(self):
+        key = lambda x: (x.query, x.subject)
+        if not self.sorted:
+            self.sort(key=key)
+        for qs, blines in groupby(self, key=key):
+            yield qs, blines
 
     def to_dict(self):
         # for multiple HSPs pick the one with highest score
@@ -887,6 +895,8 @@ def covfilter(args):
     from jcvi.algorithms.supermap import supermap
     from jcvi.utils.range import range_union
 
+    allowed_iterby = ("query", "query_sbjct")
+
     p = OptionParser(covfilter.__doc__)
     p.add_option("--pctid", dest="pctid", default=95, type="int",
             help="Percentage identity cutoff [default: %default]")
@@ -900,6 +910,9 @@ def covfilter(args):
             help="Print out the ids that satisfy [default: %default]")
     p.add_option("--list", dest="list", default=False, action="store_true",
             help="List the id% and cov% per gene [default: %default]")
+    p.add_option("--iterby", dest="iterby", default="query", choices=allowed_iterby,
+            help="Choose how to iterate through BLAST output [default: %default]" +
+            " [choices: ('{0}')]".format("', '".join(allowed_iterby)))
     set_outfile(p, outfile=None)
 
     opts, args = p.parse_args(args)
@@ -914,6 +927,8 @@ def covfilter(args):
     scov = opts.scov
     sz = Sizes(fastafile)
     sizes = sz.mapping
+    iterby = opts.iterby
+    qspair = iterby == "query_sbjct"
 
     if not union:
         querysupermap = blastfile + ".query.supermap"
@@ -931,8 +946,10 @@ def covfilter(args):
     queries = set()
     valid = set()
     blast = BlastSlow(blastfile)
+    iterator = blast.iter_hits_pair if qspair else blast.iter_hits
+
     covidstore = {}
-    for query, blines in blast.iter_hits():
+    for query, blines in iterator():
         blines = list(blines)
         queries.add(query)
 
@@ -943,17 +960,16 @@ def covfilter(args):
         this_gaps = 0
         this_identity = 0
 
-        cov_id = query
         ranges = []
         for b in blines:
-            if b.pctid < pctid:
-                continue
-
             if scov:
                 s, start, stop = b.subject, b.sstart, b.sstop
-                cov_id = s
             else:
                 s, start, stop = b.query, b.qstart, b.qstop
+            cov_id = s
+
+            if b.pctid < pctid:
+                continue
 
             this_covered += abs(start - stop + 1)
             this_alignlen += b.hitlen
@@ -978,9 +994,23 @@ def covfilter(args):
         alignlen += this_alignlen
 
     if opts.list:
-        for query, size in sz.iter_sizes():
-            this_identity, this_coverage = covidstore.get(query, (0, 0))
-            print "{0}\t{1:.1f}\t{2:.1f}".format(query, this_identity, this_coverage)
+        if qspair:
+            allpairs = defaultdict(list)
+            for (q, s) in covidstore:
+                allpairs[q].append((q, s))
+                allpairs[s].append((q, s))
+
+            for id, size in sz.iter_sizes():
+                if id not in allpairs:
+                    print "\t".join((id, "na", "0", "0"))
+                else:
+                    for qs in allpairs[id]:
+                        this_identity, this_coverage = covidstore[qs]
+                        print "{0}\t{1:.1f}\t{2:.1f}".format("\t".join(qs), this_identity, this_coverage)
+        else:
+            for query, size in sz.iter_sizes():
+                this_identity, this_coverage = covidstore.get(query, (0, 0))
+                print "{0}\t{1:.1f}\t{2:.1f}".format(query, this_identity, this_coverage)
 
     mapped_count = len(queries)
     valid_count = len(valid)

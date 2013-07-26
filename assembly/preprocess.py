@@ -187,7 +187,9 @@ def trim(args):
         os.remove(path)
         path = op.join(TrimUnzipped, TrimJar)
 
-    assert op.exists(path)
+    assert op.exists(path), \
+        "Couldn't find Trimmomatic jar file at `{0}`".\
+        format(path)
 
     adaptersfile = "adapters.fasta"
     write_file(adaptersfile, Adapters, skipcheck=True)

@@ -12,7 +12,7 @@ import logging
 
 from optparse import OptionParser
 
-from jcvi.utils.cbook import depends 
+from jcvi.utils.cbook import depends
 from jcvi.utils.range import range_merge
 from jcvi.formats.fasta import tidy
 from jcvi.formats.blast import BlastLine
@@ -25,7 +25,6 @@ debug()
 def main():
 
     actions = (
-        ('blast', 'run BLASTN against UniVec'),
         ('mask', 'mask the contaminants'),
             )
     p = ActionDispatcher(actions)
@@ -41,6 +40,8 @@ def mask(args):
     perform FASTA tidy if requested.
     """
     p = OptionParser(mask.__doc__)
+    p.add_option("--tidy", default=False, action="store_true",
+                 help="Normalize the gaps [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -63,12 +64,13 @@ def mask(args):
             format(fastafile, outfastafile)
     sh(cmd)
 
-    tidy([outfastafile])
+    if opts.tidy:
+        tidy([outfastafile])
 
 
 def blast(args):
     """
-    %prog blast fastafile 
+    %prog blast fastafile
 
     Run BLASTN against database (default is UniVec_Core).  Output .bed format
     on the vector/contaminant ranges.

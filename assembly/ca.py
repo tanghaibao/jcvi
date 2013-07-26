@@ -449,7 +449,8 @@ def fasta(args):
     frgfile = libname + ".frg"
 
     cleanfasta = fastafile.rsplit(".", 1)[0] + ".clean.fasta"
-    clean([fastafile, "--canonical", "-o", cleanfasta])
+    if need_update(fastafile, cleanfasta):
+        clean([fastafile, "--canonical", "-o", cleanfasta])
     fastafile = cleanfasta
 
     qualfile = make_qual(fastafile)

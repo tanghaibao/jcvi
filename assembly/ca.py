@@ -218,9 +218,9 @@ def shred(args):
         outfile += ".fasta"
     else:
         outfile += ".frg"
-    fw = must_open(outfile, "w", checkexists=True)
     f = Fasta(fastafile, lazy=True)
 
+    fw = must_open(outfile, "w", checkexists=True)
     if not opts.fasta:
        print >> fw, headerTemplate.format(libID=libID)
 
@@ -278,6 +278,7 @@ def shred(args):
 
     fw.close()
     logging.debug("Shredded reads are written to `{0}`.".format(outfile))
+    return outfile
 
 
 def script(args):
@@ -421,6 +422,21 @@ def add_size_option(p):
 get_mean_sv = lambda size: (size, size / 5)
 
 
+def split_fastafile(fastafile, maxreadlen=32000):
+    from jcvi.formats.fasta import filter
+
+    pf = fastafile.split(".")[0]
+    smallfastafile = pf + "-small.fasta"
+    bigfastafile = pf + "-big.fasta"
+
+    maxreadlen = str(maxreadlen)
+    filter([fastafile, maxreadlen, "--less", "-o", smallfastafile])
+    filter([fastafile, maxreadlen, "-o", bigfastafile])
+    shredfastafile = shred(["--depth=1", "--readlen={0}".format(maxreadlen), \
+            "--fasta", bigfastafile])
+    return smallfastafile, shredfastafile
+
+
 def fasta(args):
     """
     %prog fasta fastafile
@@ -435,6 +451,8 @@ def fasta(args):
     p = OptionParser(fasta.__doc__)
     p.add_option("-m", dest="matefile", default=None,
             help="matepairs file")
+    p.add_option("--maxreadlen", default=32000, type="int",
+            help="Maximum read length allowed [default: %default]")
     set_grid(p)
     add_size_option(p)
 
@@ -444,8 +462,24 @@ def fasta(args):
         sys.exit(not p.print_help())
 
     grid = opts.grid
+    maxreadlen = opts.maxreadlen
 
     fastafile, = args
+    f = Fasta(fastafile)
+    if maxreadlen > 0:
+        split = False
+        for id, size in f.itersizes():
+            if size > maxreadlen:
+                logging.debug("Sequence {0} (size={1}) longer than max read len {2}".\
+                                format(id, size, maxreadlen))
+                split  = True
+                break
+
+        if split:
+            for f in split_fastafile(fastafile, maxreadlen=maxreadlen):
+                fasta([f, "--maxreadlen=0"])
+            return
+
     plate = op.basename(fastafile).split(".")[0]
 
     mated = (opts.size != 0)

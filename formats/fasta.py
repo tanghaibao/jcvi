@@ -626,6 +626,7 @@ def filter(args):
     p = OptionParser(filter.__doc__)
     p.add_option("--less", default=False, action="store_true",
                  help="filter the sizes < certain cutoff [default: >=]")
+    set_outfile(p)
 
     opts, args = p.parse_args(args)
 
@@ -640,7 +641,7 @@ def filter(args):
 
     f = Fasta(fastafile, lazy=True)
 
-    fw = sys.stdout
+    fw = must_open(opts.outfile, "w")
     for name, rec in f.iteritems_ordered():
 
         if opts.less and len(rec) >= cutoff:
@@ -651,6 +652,8 @@ def filter(args):
 
         SeqIO.write([rec], fw, "fasta")
         fw.flush()
+
+    return fw.name
 
 
 def pool(args):

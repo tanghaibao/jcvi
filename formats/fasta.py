@@ -625,7 +625,7 @@ def filter(args):
     """
     p = OptionParser(filter.__doc__)
     p.add_option("--less", default=False, action="store_true",
-                 help="filter the sizes <= certain cutoff [default: >=]")
+                 help="filter the sizes < certain cutoff [default: >=]")
 
     opts, args = p.parse_args(args)
 
@@ -643,7 +643,7 @@ def filter(args):
     fw = sys.stdout
     for name, rec in f.iteritems_ordered():
 
-        if opts.less and len(rec) > cutoff:
+        if opts.less and len(rec) >= cutoff:
             continue
 
         if (not opts.less) and len(rec) < cutoff:

@@ -92,7 +92,7 @@ def alignextend(args):
         cmd += " -noindex"
     cmd += " -threads {0}".format(opts.cpus)
     offset = guessoffset([r1])
-    if offset == 33:
+    if offset == 64:
         cmd += " -I"
     cmd += " ".join(("", pf, ref, r1, r2))
     sh(cmd)

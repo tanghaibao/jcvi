@@ -57,10 +57,45 @@ def main():
         ('count', 'count reads based on FASTQC results'),
         ('trim', 'trim reads using TRIMMOMATIC'),
         ('correct', 'correct reads using ALLPATHS-LG'),
-        ('hetsmooth', 'reduce K-mer diversity using het-smooth')
+        ('hetsmooth', 'reduce K-mer diversity using het-smooth'),
+        ('alignextend', 'increase read length by extending based on alignments'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def alignextend(args):
+    """
+    %prog alignextend ref.fasta read.1.fastq read.2.fastq
+
+    Wrapper around AMOS alignextend.
+    """
+    p = OptionParser(alignextend.__doc__)
+    p.add_option("--nosuffix", default=False, action="store_true",
+                 help="Do not add /1/2 suffix to the read [default: %default]")
+    p.add_option("--amos_home", default="~/code/amos-code/",
+                 help="Home directory for AMOS [default: %default]")
+    p.add_option("--cpus", default=32, type="int",
+                 help="Number of threads to run [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    ref, r1, r2 = args
+    pf = op.basename(r1).split(".")[0]
+    cmd = op.join(opts.amos_home, "src/Experimental/alignextend.pl")
+    if not opts.nosuffix:
+        cmd += " -suffix"
+    bwa_idx = "{0}.ref.fa.sa".format(pf)
+    if not need_update(ref, bwa_idx):
+        cmd += " -noindex"
+    cmd += " -threads {0}".format(opts.cpus)
+    offset = guessoffset([r1])
+    if offset == 33:
+        cmd += " -I"
+    cmd += " ".join(("", pf, ref, r1, r2))
+    sh(cmd)
 
 
 def count(args):

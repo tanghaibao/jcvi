@@ -211,7 +211,9 @@ def shred(args):
 
     fastafile, = args
     libID = fastafile.split(".")[0]
-    outfile = libID + ".depth{0}".format(opts.depth)
+    depth = opts.depth
+    readlen = opts.readlen
+    outfile = libID + ".depth{0}".format(depth)
     if opts.fasta:
         outfile += ".fasta"
     else:
@@ -240,26 +242,34 @@ def shred(args):
         if seqlen < opts.minctglen:
             continue
 
-        shredlen = min(seqlen - 50, opts.readlen)
-        numreads = max(seqlen * opts.depth / shredlen, 1)
+        shredlen = min(seqlen - 50, readlen)
+        numreads = max(seqlen * depth / shredlen, 1)
         center_range_width = seqlen - shredlen
 
         ranges = []
-        if numreads == 1:
-            ranges.append((0, shredlen))
+        if depth == 1:
+            if seqlen < readlen:
+                ranges.append((0, seqlen))
+            else:
+                for begin in xrange(0, seqlen, readlen - 50):
+                    end = min(seqlen, begin + readlen)
+                    ranges.append((begin, end))
         else:
-            prev_begin = -1
-            center_increments = center_range_width * 1. / (numreads - 1)
-            for i in xrange(numreads):
-                begin = center_increments * i
-                end = begin + shredlen
-                begin, end = int(begin), int(end)
+            if numreads == 1:
+                ranges.append((0, shredlen))
+            else:
+                prev_begin = -1
+                center_increments = center_range_width * 1. / (numreads - 1)
+                for i in xrange(numreads):
+                    begin = center_increments * i
+                    end = begin + shredlen
+                    begin, end = int(begin), int(end)
 
-                if begin == prev_begin:
-                    continue
+                    if begin == prev_begin:
+                        continue
 
-                ranges.append((begin, end))
-                prev_begin = begin
+                    ranges.append((begin, end))
+                    prev_begin = begin
 
         for shredID, (begin, end) in enumerate(ranges):
             shredded_seq = seq[begin:end]

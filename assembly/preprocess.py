@@ -59,9 +59,28 @@ def main():
         ('correct', 'correct reads using ALLPATHS-LG'),
         ('hetsmooth', 'reduce K-mer diversity using het-smooth'),
         ('alignextend', 'increase read length by extending based on alignments'),
+        ('contamination', 'check reads contamination against Ecoli'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def contamination(args):
+    """
+    %prog contamination read.fastq Ecoli.fasta genome.fasta
+
+    Check read contamination on a folder of paired reads. Use bowtie2 to compare
+    the reads against:
+    1. Ecoli.fsata - this will tell us the lower bound of contamination
+    2. genome.fasta - this will tell us the upper bound of contamination
+    """
+    p = OptionParser(contamination.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    fq, ecoli, genome = args
 
 
 def alignextend(args):

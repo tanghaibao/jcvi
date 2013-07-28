@@ -71,6 +71,8 @@ def align(args):
     from jcvi.formats.fastq import guessoffset
 
     p = OptionParser(align.__doc__)
+    p.add_option("--firstN", default=0, type="int",
+                 help="Use only the first N reads [default: all]")
     add_sam_options(p)
 
     opts, args = p.parse_args(args)
@@ -88,6 +90,7 @@ def align(args):
 
     extra = opts.extra
     grid = opts.grid
+    firstN = opts.firstN
 
     dbfile, readfile = args[0:2]
     safile = check_index(dbfile, grid=grid)
@@ -106,6 +109,8 @@ def align(args):
         cmd += " -1 {0} -2 {1}".format(r1, r2)
     else:
         cmd += " -U {0}".format(readfile)
+    if firstN:
+        cmd += " --upto {0}".format(firstN)
     cmd += " -p {0}".format(opts.cpus)
     cmd += " --phred{0}".format(offset)
     cmd += " {0}".format(extra)

@@ -74,13 +74,37 @@ def contamination(args):
     1. Ecoli.fsata - this will tell us the lower bound of contamination
     2. genome.fasta - this will tell us the upper bound of contamination
     """
+    from jcvi.apps.bowtie import BowtieLogFile, align
+
     p = OptionParser(contamination.__doc__)
+    p.add_option("--firstN", default=100000, type="int",
+                 help="Use only the first N reads [default: all]")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
         sys.exit(not p.print_help())
 
     fq, ecoli, genome = args
+    firstN_opt = "--firstN={0}".format(opts.firstN)
+    samfile, logfile = align([ecoli, fq, firstN_opt])
+    bl = BowtieLogFile(logfile)
+    lowerbound = bl.rate
+    samfile, logfile = align([genome, fq, firstN_opt])
+    bl = BowtieLogFile(logfile)
+    upperbound = 100 - bl.rate
+
+    median = (lowerbound + upperbound) / 2
+
+    clogfile = fq + ".Ecoli"
+    fw = open(clogfile, "w")
+    lowerbound = "{0:.1f}".format(lowerbound)
+    upperbound = "{0:.1f}".format(upperbound)
+    median = "{0:.1f}".format(median)
+
+    print >> fw, "\t".join((fq, lowerbound, median, upperbound))
+    print >> sys.stderr, "{0}: Ecoli contamination rate {1}-{2}".\
+                        format(fq, lowerbound, upperbound)
+    fw.close()
 
 
 def alignextend(args):

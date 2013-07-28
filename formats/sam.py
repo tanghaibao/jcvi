@@ -76,6 +76,12 @@ def add_sam_options(p):
     set_grid(p)
 
 
+def get_prefix(readfile, dbfile):
+    rdpf = readfile.replace(".gz", "").rsplit(".", 1)[0]
+    dbpf = dbfile.split(".")[0]
+    return ".".join((rdpf, dbpf))
+
+
 def main():
 
     actions = (

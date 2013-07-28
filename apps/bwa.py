@@ -13,7 +13,7 @@ import os.path as op
 
 from optparse import OptionParser
 
-from jcvi.formats.sam import output_bam, add_sam_options
+from jcvi.formats.sam import output_bam, add_sam_options, get_prefix
 from jcvi.apps.base import ActionDispatcher, set_grid, set_params, need_update, \
                 sh, debug
 debug()
@@ -117,7 +117,7 @@ def samse(args, opts):
     safile = check_index(dbfile, grid=grid)
     saifile = check_aln(dbfile, readfile, grid=grid, cpus=opts.cpus)
 
-    prefix = readfile.rsplit(".", 1)[0]
+    prefix = get_prefix(readfile, dbfile)
     samfile = (prefix + ".bam") if opts.bam else (prefix + ".sam")
     if not need_update((safile, saifile), samfile):
         logging.error("`{0}` exists. `bwa samse` already run.".format(samfile))
@@ -146,7 +146,7 @@ def sampe(args, opts):
     sai1file = check_aln(dbfile, read1file, grid=grid, cpus=opts.cpus)
     sai2file = check_aln(dbfile, read2file, grid=grid, cpus=opts.cpus)
 
-    prefix = read1file.rsplit(".", 1)[0]
+    prefix = get_prefix(read1file, dbfile)
     samfile = (prefix + ".bam") if opts.bam else (prefix + ".sam")
     if not need_update((safile, sai1file, sai2file), samfile):
         logging.error("`{0}` exists. `bwa samse` already run.".format(samfile))
@@ -183,7 +183,7 @@ def bwasw(args):
     safile = check_index(dbfile, grid=grid)
     saifile = check_aln(dbfile, readfile, grid=grid)
 
-    prefix = readfile.split(".", 1)[0]
+    prefix = get_prefix(readfile, dbfile)
     samfile = (prefix + ".bam") if opts.bam else (prefix + ".sam")
     if not need_update((safile, saifile), samfile):
         logging.error("`{0}` exists. `bwa bwasw` already run.".format(samfile))

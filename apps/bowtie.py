@@ -13,10 +13,46 @@ import os.path as op
 
 from optparse import OptionParser
 
-from jcvi.formats.sam import output_bam, add_sam_options
+from jcvi.formats.base import BaseFile
+from jcvi.utils.cbook import percentage
+from jcvi.formats.sam import output_bam, add_sam_options, get_prefix
 from jcvi.apps.base import ActionDispatcher, set_grid, set_params, need_update, \
                 sh, debug
 debug()
+
+
+first_tag = lambda fp: fp.next().split()[0]
+
+
+class BowtieLogFile (BaseFile):
+    """
+    Simple file that contains mapping rate:
+
+    100000 reads; of these:
+      100000 (100.00%) were unpaired; of these:
+        88453 (88.45%) aligned 0 times
+        9772 (9.77%) aligned exactly 1 time
+        1775 (1.77%) aligned >1 times
+    11.55% overall alignment rate
+    """
+    def __init__(self, filename):
+
+        super(BowtieLogFile, self).__init__(filename)
+        fp = open(filename)
+        self.total = int(first_tag(fp))
+        self.unpaired = int(first_tag(fp))
+        self.unmapped = int(first_tag(fp))
+        self.unique = int(first_tag(fp))
+        self.multiple = int(first_tag(fp))
+        self.mapped = self.unique + self.multiple
+        self.rate = float(first_tag(fp).rstrip("%"))
+        fp.close()
+
+    def __str__(self):
+        return "Total mapped: {0}".format(\
+                percentage(self.mapped, self.total))
+
+    __repr__ = __str__
 
 
 def main():
@@ -94,14 +130,15 @@ def align(args):
 
     dbfile, readfile = args[0:2]
     safile = check_index(dbfile, grid=grid)
+    prefix = get_prefix(readfile, dbfile)
 
-    prefix = readfile.rsplit(".", 1)[0]
     samfile = (prefix + ".bam") if opts.bam else (prefix + ".sam")
+    logfile = prefix + ".log"
     offset = guessoffset([readfile])
 
     if not need_update(safile, samfile):
         logging.error("`{0}` exists. `bowtie2` already run.".format(samfile))
-        return
+        return samfile, logfile
 
     cmd = "bowtie2 -x {0}".format(dbfile)
     if PE:
@@ -116,7 +153,8 @@ def align(args):
     cmd += " {0}".format(extra)
 
     cmd = output_bam(cmd, bam=opts.bam)
-    sh(cmd, grid=grid, outfile=samfile, threaded=opts.cpus)
+    sh(cmd, grid=grid, outfile=samfile, errfile=logfile, threaded=opts.cpus)
+    return samfile, logfile
 
 
 if __name__ == '__main__':

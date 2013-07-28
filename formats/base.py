@@ -335,6 +335,8 @@ def write_file(filename, contents, meta="file", skipcheck=False):
 
     message = "{0} written to `{1}`.".format(meta, filename)
     logging.debug(message.capitalize())
+    if meta == "run script":
+        sh("chmod u+x {0}".format(filename))
 
 
 def read_until(handle, start):

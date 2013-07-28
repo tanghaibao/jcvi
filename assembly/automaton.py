@@ -71,7 +71,6 @@ def assemble_pairs(p, pf, tag):
     cwd = os.getcwd()
     os.chdir(pf)
     prepare([pf] + sorted(glob("*.fastq") + glob("*.fastq.gz")))
-    sh("chmod u+x run.sh")
     sh("./run.sh")
     sh("cp allpaths/ASSEMBLIES/run/final.contigs.fasta ../{0}".format(asm))
 
@@ -125,7 +124,6 @@ def soap_trios(p, pf, tag, extra):
     os.chdir(pf)
     prepare(sorted(glob("*.fastq") + glob("*.fastq.gz")) + \
             ["--assemble_1st_rank_only", "-K 31", "--cpus=48"])
-    sh("chmod u+x run.sh")
     sh("./run.sh")
     sh("cp asm31.closed.scafSeq ../{0}".format(asm))
 

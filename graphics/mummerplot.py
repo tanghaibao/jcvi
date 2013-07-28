@@ -38,7 +38,7 @@ def main(args):
     p.add_option("--refcov", default=.01, type="float",
                  help="Minimum reference coverage [default: %default]")
     p.add_option("--all", default=False, action="store_true",
-                 help="Plot one pdf file per query [default: %default]")
+                 help="Plot one pdf file per ref in refidsfile [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 4:

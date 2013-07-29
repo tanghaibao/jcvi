@@ -1050,7 +1050,8 @@ def covfilter(args):
     fw = must_open(outfile, "w")
     blast = Blast(blastfile)
     for b in blast:
-        if b.query in valid:
+        query = (b.query, b.subject) if qspair else b.query
+        if query in valid:
             print >> fw, b
 
 

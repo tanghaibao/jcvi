@@ -579,6 +579,8 @@ def top10(args):
     from jcvi.formats.base import DictFile
 
     p = OptionParser(top10.__doc__)
+    p.add_option("--top", default=10, type="int",
+                help="Top N taxa to extract [default: %default]")
     p.add_option("--ids", default=None,
                 help="Two column ids file to query seqid [default: %default]")
     opts, args = p.parse_args(args)
@@ -590,7 +592,7 @@ def top10(args):
     mapping = DictFile(opts.ids, delimiter="\t") if opts.ids else {}
 
     cmd = "cut -f2 {0}".format(blastfile)
-    cmd += " | sort | uniq -c | sort -k1,1nr | head"
+    cmd += " | sort | uniq -c | sort -k1,1nr | head -n {0}".format(opts.top)
     fp = popen(cmd)
     for row in fp:
         count, seqid = row.split()

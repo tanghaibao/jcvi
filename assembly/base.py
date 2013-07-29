@@ -115,6 +115,8 @@ def n50(args):
     Input file can be both FASTA or a list of sizes.
     """
     p = OptionParser(n50.__doc__)
+    p.add_option("--print0", default=False, action="store_true",
+                 help="Print size and L50 to stdout [default: %default]")
 
     opts, args = p.parse_args(args)
 
@@ -150,6 +152,9 @@ def n50(args):
     print >> sys.stderr, " ".join("{0}={1}".format(a, b) for a, b in \
                         zip(header, summary))
     loghistogram(ctgsizes, summary=False)
+
+    if opts.print0:
+        print "\t".join(str(x) for x in (",".join(args), sumsize, l50))
 
     return zip(header, summary)
 

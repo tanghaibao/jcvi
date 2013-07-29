@@ -2,9 +2,10 @@
 # -*- coding: UTF-8 -*-
 
 """
-Run bwa command and skips the manual run of naming intermediate output files
-The whole pipeline is following bwa documentation at
-<http://bio-bwa.sf.net/bwa.shtml>
+Run bowtie2 command and skips the manual run of naming intermediate output
+files. Bowtie2 help:
+
+<http://bowtie-bio.sourceforge.net/bowtie2/index.shtml>
 """
 
 import sys

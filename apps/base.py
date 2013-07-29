@@ -21,7 +21,7 @@ class ActionDispatcher (object):
     a) when either a directory is run via __main__, listing all SCRIPTs
     b) when a script is run directly, listing all ACTIONs
 
-    This is controlled trough the meta variable, which is automatically
+    This is controlled through the meta variable, which is automatically
     determined in get_meta().
     """
     def __init__(self, actions):

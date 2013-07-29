@@ -1,5 +1,8 @@
+#!/usr/bin/env python
+# -*- coding: UTF-8 -*-
+
 """
-Programmatically accessing UniprotKB to get data from a list of queries
+Programatically accessing UniprotKB to get data from a list of queries
 """
 
 import os

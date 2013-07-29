@@ -16,31 +16,94 @@ os.environ["LC_ALL"] = "C"
 
 
 class ActionDispatcher (object):
+    """
+    This class will be invoked
+    a) when either a directory is run via __main__, listing all SCRIPTs
+    b) when a script is run directly, listing all ACTIONs
 
+    This is controlled trough the meta variable, which is automatically
+    determined in get_meta().
+    """
     def __init__(self, actions):
 
         self.actions = actions
+        if not actions:
+            actions = [(None, None)]
         self.valid_actions, self.action_helps = zip(*actions)
 
+    def get_meta(self):
+        args = splitall(sys.argv[0])[-3:]
+        args[-1] = args[-1].replace(".py", "")
+        meta = "SCRIPT" if args[-1] == "__main__" else "ACTION"
+        return meta, args
+
     def print_help(self):
-        help = "Available actions:\n"
+        meta, args = self.get_meta()
+        if meta == "SCRIPT":
+            args[-1] = meta
+        else:
+            args[-1] += " " + meta
+
+        help = "Usage:\n    python -m {0}\n\n".format(".".join(args))
+        help += "Available {0}s:\n".format(meta)
         for action, action_help in self.actions:
             help += "    `%s`: %s\n" % (action, action_help)
 
-        print >>sys.stderr, help
+        print >> sys.stderr, help
         sys.exit(1)
 
     def dispatch(self, globals):
+        meta = "ACTION"  # function is only invoked for listing ACTIONs
         if len(sys.argv) == 1:
             self.print_help()
 
         action = sys.argv[1]
 
         if not action in self.valid_actions:
-            print >>sys.stderr, "%s not a valid action" % action
+            print >> sys.stderr, "[error] {0} not a valid {1}\n".format(action, meta)
             self.print_help()
 
         globals[action](sys.argv[2:])
+
+
+def splitall(path):
+    allparts = []
+    while True:
+        path, p1 = op.split(path)
+        if not p1:
+            break
+        allparts.append(p1)
+    allparts = allparts[::-1]
+    return allparts
+
+
+def get_module_docstring(filepath):
+    "Get module-level docstring of Python module at filepath, e.g. 'path/to/file.py'."
+    import code
+    co = compile(open(filepath).read(), filepath, 'exec')
+    if co.co_consts and isinstance(co.co_consts[0], basestring):
+        docstring = co.co_consts[0]
+    else:
+        docstring = None
+    return docstring
+
+
+def dmain(cwd):
+    from glob import glob
+
+    pyscripts = glob(op.join(cwd, "*.py"))
+    actions = []
+    for ps in sorted(pyscripts):
+        action = op.basename(ps).replace(".py", "")
+        if action[0] == "_":  # hidden namespace
+            continue
+        pd = get_module_docstring(ps)
+        action_help = [x.rstrip(":.,\n") for x in pd.splitlines(True) \
+                if len(x.strip()) > 10][0] if pd else "no docstring found"
+        actions.append((action, action_help))
+
+    a = ActionDispatcher(actions)
+    a.print_help()
 
 
 def backup(filename):

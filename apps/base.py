@@ -132,7 +132,7 @@ def set_grid(instance):
 
     instance.add_option("--grid", dest="grid",
             default=False, action="store_true",
-            help="run on the grid [default: %default]")
+            help="Run on the grid [default: %default]")
 
 
 def set_params(instance):
@@ -142,7 +142,7 @@ def set_params(instance):
     assert isinstance(instance, OptionParser)
 
     instance.add_option("--params", dest="extra", default="",
-            help="extra parameters to run")
+            help="Extra parameters to run [default: %default]")
 
 
 def set_outfile(instance, outfile="stdout"):

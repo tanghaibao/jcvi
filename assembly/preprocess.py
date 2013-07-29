@@ -67,7 +67,7 @@ def main():
 
 def contamination(args):
     """
-    %prog contamination read.fastq Ecoli.fasta genome.fasta
+    %prog contamination Ecoli.fasta genome.fasta read.fastq
 
     Check read contamination on a folder of paired reads. Use bowtie2 to compare
     the reads against:
@@ -84,12 +84,12 @@ def contamination(args):
     if len(args) != 3:
         sys.exit(not p.print_help())
 
-    fq, ecoli, genome = args
+    ecoli, genome, fq = args
     firstN_opt = "--firstN={0}".format(opts.firstN)
-    samfile, logfile = align([ecoli, fq, firstN_opt])
+    samfile, logfile = align([ecoli, fq, firstN_opt, "--log"])
     bl = BowtieLogFile(logfile)
     lowerbound = bl.rate
-    samfile, logfile = align([genome, fq, firstN_opt])
+    samfile, logfile = align([genome, fq, firstN_opt, "--log"])
     bl = BowtieLogFile(logfile)
     upperbound = 100 - bl.rate
 

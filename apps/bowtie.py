@@ -108,9 +108,13 @@ def align(args):
     from jcvi.formats.fastq import guessoffset
 
     p = OptionParser(align.__doc__)
+    add_sam_options(p)
     p.add_option("--firstN", default=0, type="int",
                  help="Use only the first N reads [default: all]")
-    add_sam_options(p)
+    p.add_option("--unmapped", default=None,
+                 help="Write unmapped reads to file [default: %default]")
+    p.add_option("--log", default=False, action="store_true",
+                 help="Write log file [default: %default]")
 
     opts, args = p.parse_args(args)
     extra = opts.extra
@@ -128,13 +132,14 @@ def align(args):
     extra = opts.extra
     grid = opts.grid
     firstN = opts.firstN
+    unmapped = opts.unmapped
 
     dbfile, readfile = args[0:2]
     safile = check_index(dbfile, grid=grid)
     prefix = get_prefix(readfile, dbfile)
 
     samfile = (prefix + ".bam") if opts.bam else (prefix + ".sam")
-    logfile = prefix + ".log"
+    logfile = prefix + ".log" if opts.log else None
     offset = guessoffset([readfile])
 
     if not need_update(safile, samfile):
@@ -145,8 +150,11 @@ def align(args):
     if PE:
         r1, r2 = args[1:3]
         cmd += " -1 {0} -2 {1}".format(r1, r2)
+        cmd += " --un-conc {0}".format(unmapped)
     else:
         cmd += " -U {0}".format(readfile)
+        cmd += " --un {0}".format(unmapped)
+
     if firstN:
         cmd += " --upto {0}".format(firstN)
     cmd += " -p {0}".format(opts.cpus)

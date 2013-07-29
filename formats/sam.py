@@ -77,8 +77,8 @@ def add_sam_options(p):
 
 
 def get_prefix(readfile, dbfile):
-    rdpf = readfile.replace(".gz", "").rsplit(".", 1)[0]
-    dbpf = dbfile.split(".")[0]
+    rdpf = op.basename(readfile).replace(".gz", "").rsplit(".", 1)[0]
+    dbpf = op.basename(dbfile).split(".")[0]
     return ".".join((rdpf, dbpf))
 
 

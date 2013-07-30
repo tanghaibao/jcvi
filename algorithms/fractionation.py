@@ -360,7 +360,7 @@ def napus(args):
     fp = open(quartetsfile)
     fw = open(quartetsfile + ".summary", "w")
     data = [x.rstrip().split("\t") for x in fp]
-    skip = 4  # max distance between losses
+    skip = 1  # max distance between losses
 
     g = Grouper()
     losses = [(len(x) == 5) for x in data]
@@ -400,7 +400,7 @@ def napus(args):
     print >> sys.stderr, SummaryStats([len(x) for x in losses])
 
     for x in singletons + segments:
-        print >> fw, "###", len(x)
+        print >> fw, "### LENGTH =", len(x)
         for i in x:
             print >> fw, "\t".join(data[i])
     fw.close()

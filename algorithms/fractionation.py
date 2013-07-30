@@ -304,7 +304,12 @@ def napus(args):
     Step 2: get diploid gene retention patterns from BR or BO as query
     Step 3: look for if AN or CN is NS(non-syntenic) or NF(not found) and
     specifically with NS, the NS location is actually the homeologous site.
+    Step 4: categorize gene losses into singleton, or segmental (defined as
+    consecutive losses with a maximum skip of 1
     """
+    from jcvi.utils.grouper import Grouper
+    from jcvi.utils.cbook import SummaryStats
+
     p = OptionParser(napus.__doc__)
     opts, args = p.parse_args(args)
 
@@ -320,7 +325,11 @@ def napus(args):
 
     order = Bed(napusbed).order
 
+    quartetsfile = "quartets"
     fp = open(brbo)
+    fw = open(quartetsfile, "w")
+    AL = "AN LOST"
+    CL = "CN LOST"
     for row in fp:
         br, bo = row.split()
         if '.' in (br, bo):
@@ -337,11 +346,64 @@ def napus(args):
 
         if range_overlap(anrange, cnrange):
             if (antag, cntag) == ("NS", None):
-                row = row + "\tAN LOST|{0}".format(br)
+                row = row + "\t{0}|{1}".format(AL, br)
             if (antag, cntag) == (None, "NS"):
-                row = row + "\tCN LOST|{0}".format(bo)
+                row = row + "\t{0}|{1}".format(CL, bo)
 
-        print row
+        print >> fw, row
+    fw.close()
+
+    logging.debug("Quartets and gene losses written to `{0}`.".\
+                    format(quartetsfile))
+
+    # Parse the quartets file to extract singletons vs.segmental losses
+    fp = open(quartetsfile)
+    fw = open(quartetsfile + ".summary", "w")
+    data = [x.rstrip().split("\t") for x in fp]
+    skip = 4  # max distance between losses
+
+    g = Grouper()
+    losses = [(len(x) == 5) for x in data]
+    for i, d in enumerate(losses):
+        if not d:
+            continue
+        g.join(i, i)
+        itag = data[i][-1].split("|")[0]
+        for j in xrange(i + 1, i + skip + 1):
+            jtag = data[j][-1].split("|")[0]
+            if j < len(losses) and losses[j] and itag == jtag:
+                g.join(i, j)
+
+    losses = list(g)
+    singletons = [x for x in losses if len(x) == 1]
+    segments = [x for x in losses if len(x) > 1]
+    ns, nm = len(singletons), len(segments)
+    assert len(losses) == ns + nm
+
+    grab_tag = lambda pool, tag: \
+            [x for x in pool if all(data[z][-1].startswith(tag) for z in x)]
+
+    an_loss_singletons = grab_tag(singletons, AL)
+    cn_loss_singletons = grab_tag(singletons, CL)
+    als, cls = len(an_loss_singletons), len(cn_loss_singletons)
+
+    an_loss_segments = grab_tag(segments, AL)
+    cn_loss_segments = grab_tag(segments, CL)
+    alm, clm = len(an_loss_segments), len(cn_loss_segments)
+    mixed = len(segments) - alm - clm
+    assert mixed == 0
+
+    logging.debug("Singletons: {0} (AN LOSS: {1}, CN LOSS: {2})".\
+                        format(ns, als, cls))
+    logging.debug("Segments: {0} (AN LOSS: {1}, CN LOSS: {2})".\
+                        format(nm, alm, clm))
+    print >> sys.stderr, SummaryStats([len(x) for x in losses])
+
+    for x in singletons + segments:
+        print >> fw, "###", len(x)
+        for i in x:
+            print >> fw, "\t".join(data[i])
+    fw.close()
 
 
 def region_str(region):

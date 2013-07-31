@@ -2010,7 +2010,7 @@ def gaps(args):
 
         maskopts = [sizesagpfile, bedfile]
         if opts.split:
-            maskopts += ["--split"]
+            maskopts += ["--splitobject"]
         maskedagpfile = mask(maskopts)
 
         shutil.move(maskedagpfile, agpfile)

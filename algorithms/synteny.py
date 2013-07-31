@@ -588,7 +588,7 @@ def simple(args):
     Write the block ends for each block in the anchorfile.
     GeneA1    GeneA2    GeneB1    GeneB2    +/-
     optional additional columns:
-    orderA1    orderA2    orderB1    orderB2    size    block_id(0-based)
+    orderA1    orderA2    orderB1    orderB2    sizeA   sizeB   size    block_id(0-based)
     """
     p = OptionParser(simple.__doc__)
     p.add_option("--additional", default=False, action="store_true", \
@@ -620,6 +620,11 @@ def simple(args):
         bstarti, bendi = min(ib), max(ib)
         astart, aend = min(a)[1].accn, max(a)[1].accn
         bstart, bend = min(b)[1].accn, max(b)[1].accn
+
+        sizeA = len(set(ia))
+        sizeB = len(set(ib))
+        size = len(block)
+
         slope, intercept = np.polyfit(ia, ib, 1)
         orientation = "+" if slope >= 0 else '-'
         aspan = aendi - astarti + 1
@@ -630,8 +635,8 @@ def simple(args):
         if not additional:
             print >> fws, "\t".join((astart, aend, bstart, bend, score, orientation))
         else:
-            print >> fws, "\t".join(map(str, (astart, aend, bstart, bend, \
-                score, orientation, astarti, aendi, bstarti, bendi, len(block), i)))
+            print >> fws, "\t".join(map(str, (astart, aend, bstart, bend, score, \
+                    orientation, astarti, aendi, bstarti, bendi, sizeA, sizeB, size, i)))
 
     fws.close()
     logging.debug("A total of {0} blocks written to `{1}`.".format(i + 1, simplefile))
@@ -865,7 +870,7 @@ def mcscan(args):
     next to it are separate 'tracks'.
 
     If --mergetandem=tandem_file is specified, tandem_file should have each
-    tandem cluster as one line, comma separated.
+    tandem cluster as one line, tab separated.
     """
     p = OptionParser(mcscan.__doc__)
     p.add_option("--iter", default=100, type="int",
@@ -889,6 +894,7 @@ def mcscan(args):
     ascii = opts.ascii
     clip = opts.Nm
     trackids = opts.trackids
+    ofile = opts.outfile
     mergetandem = opts.mergetandem
     bed = Bed(bedfile)
     order = bed.order
@@ -898,7 +904,13 @@ def mcscan(args):
         fwlog = must_open(olog, "w")
 
     if mergetandem:
-        tandems = [f.strip().split(",") for f in file(mergetandem)]
+        assert not ascii
+        tandems = {}
+        for row in file(mergetandem):
+            row = row.split()
+            s = ";".join(row)
+            for atom in row:
+                tandems[atom] = s
 
     ac = AnchorFile(anchorfile)
     ranges = []
@@ -921,7 +933,6 @@ def mcscan(args):
         r = get_range(q, s, t, i, order, block_pairs, clip=clip)
         ranges.append(r)
 
-    ofile = opts.outfile
     fw = must_open(ofile, "w")
 
     tracks = []
@@ -948,45 +959,27 @@ def mcscan(args):
         iteration += 1
 
     mbed = []
-    seen = set()
     for b in bed:
         id = b.accn
-        if id in seen:
-            continue
-
-        ids = [id]
-        if mergetandem:
-            for t in tandems:
-                if id in t:
-                    ids = t
+        atoms = []
+        for track in tracks:
+            track_ids = [x.id for x in track]
+            for tid in track_ids:
+                pairs = block_pairs[tid]
+                anchor = pairs.get(id, ".")
+                if anchor != ".":
                     break
+            if ascii and anchor != ".":
+                anchor = "x"
+            atoms.append(anchor)
+        mbed.append((id, atoms))
 
-        atomss = []
-        for id in ids:
-            atoms = [id]
-            for track in tracks:
-                track_ids = [x.id for x in track]
-                for tid in track_ids:
-                    pairs = block_pairs[tid]
-                    anchor = pairs.get(id, ".")
-                    if anchor != ".":
-                        break
-                if ascii and anchor != ".":
-                    anchor = "x"
-                atoms.append(anchor)
-            atomss.append(atoms)
-            seen.add(id)
-
-        if len(ids) > 1:
-            atomss = zip(*atomss)
-            atoms = map(lambda x: ",".join(set(x)), atomss)
-            atoms = map(lambda x: x.replace(",.","").replace(".,",""), atoms)
-
-        mbed.append(atoms)
-
-    for atoms in mbed:
+    for id, atoms in mbed:
         sep = "" if ascii else "\t"
-        print >> fw, "\t".join((atoms[0], sep.join(atoms[1:])))
+        if mergetandem:
+            for i, atom in enumerate(atoms):
+                atoms[i] = tandems.get(atom, atom)
+        print >> fw, "\t".join((id, sep.join(atoms)))
 
     logging.debug("MCscan blocks written to `{0}`.".format(ofile))
     if trackids:

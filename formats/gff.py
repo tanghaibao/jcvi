@@ -8,7 +8,7 @@ import os.path as op
 import logging
 
 from collections import defaultdict
-from urlparse import unquote
+from urllib import quote, unquote
 from optparse import OptionParser, OptionGroup
 
 from jcvi.formats.base import LineFile, must_open, is_number
@@ -53,8 +53,8 @@ class GffLine (object):
         self.phase = args[7]
         assert self.phase in Valid_phases, \
                 "phase must be one of {0}".format(Valid_phases)
-        self.attributes_text = unquote(args[8].strip())
-        self.attributes = make_attributes(self.attributes_text, gff3=gff3)
+        self.attributes_text = args[8].strip()
+        self.attributes = make_attributes(unquote(self.attributes_text), gff3=gff3)
         # key is not in the gff3 field, this indicates the conversion to accn
         self.key = key  # usually it's `ID=xxxxx;`
         self.gff3 = gff3
@@ -92,15 +92,15 @@ class GffLine (object):
             val = ",".join(val)
             val = "\"{0}\"".format(val) if " " in val and (not gff3) else val
             equal = "=" if gff3 else " "
-            attributes.append(equal.join((tag, val)))
+            attributes.append(equal.join((tag, quote(val, safe="%/:?~#+!$'@()*[]| "))))
 
         self.attributes_text = sep.join(attributes)
 
     @property
     def accn(self):
-        if self.key and self.key in self.attributes:
+        if self.key and self.key in self.attributes:    # GFF3 format
             a = self.attributes[self.key]
-        else:
+        else:   # GFF2 format
             a = self.attributes_text.split()
         return ",".join(a)
 
@@ -134,9 +134,10 @@ class Gff (LineFile):
             return True
 
         # Determine file type
+        row = None
         for row in self:
             break
-        gff3 = "=" in row.attributes_text
+        gff3 = False if not row else "=" in row.attributes_text
         if not gff3:
             logging.debug("File is not gff3 standard.")
         return gff3
@@ -1349,21 +1350,24 @@ def load(args):
     p.add_option("--feature", dest="feature",
             help="feature type to extract. e.g. `--feature=CDS` or " + \
             "`--feature=upstream:TSS:500` [default: %default]")
-    p.add_option("--attribute",
-            help="The attribute field to extract and use as FASTA sequence " + \
-            "description [default: %default]")
     p.add_option("--id_attribute", choices=valid_id_attributes,
             help="The attribute field to extract and use as FASTA sequence ID " + \
             "[default: %default]")
+    p.add_option("--desc_attribute",
+            help="The attribute field to extract and use as FASTA sequence " + \
+            "description [default: %default]")
     p.add_option("--full_header", dest="full_header", default=False, action="store_true",
             help="Specify if full FASTA header (with seqid, coordinates and datestamp)" + \
-                    " should be generated [default: %default]")
+            " should be generated [default: %default]")
 
     g1 = OptionGroup(p, "Optional parameters (if generating full header)")
     g1.add_option("--sep", dest="sep", default=" ", \
             help="Specify separator used to delimiter header elements [default: \"%default\"]")
     g1.add_option("--datestamp", dest="datestamp", \
             help="Specify a datestamp in the format YYYYMMDD or automatically pick `today`" + \
+            " [default: %default]")
+    g1.add_option("--conf_class", dest="conf_class", default=False, action="store_true",
+            help="Specify if `conf_class` attribute should be parsed and placed in the header" + \
             " [default: %default]")
     p.add_option_group(g1)
 
@@ -1384,8 +1388,8 @@ def load(args):
 
     parents = set(opts.parents.split(','))
     children_list = set(opts.children.split(','))
-    attr = opts.attribute
     id_attr = opts.id_attribute
+    desc_attr = opts.desc_attribute
     sep = opts.sep
 
     g = make_index(gff_file)
@@ -1397,17 +1401,25 @@ def load(args):
     fw = must_open(opts.outfile, "w")
 
     for feat in get_parents(gff_file, parents):
-        desc = ",".join(feat.attributes[attr]) \
-                if attr and attr in feat.attributes else ""
+        desc = ",".join(feat.attributes[desc_attr]) \
+                if desc_attr and desc_attr in feat.attributes else ""
 
         if opts.full_header:
+            desc_parts = []
+            desc_parts.append(desc)
+
+            if opts.conf_class and 'conf_class' in feat.attributes:
+                desc_parts.append(feat.attributes['conf_class'][0])
+
             (s, e) = (feat.start, feat.end) if (feat.strand == "+") \
                     else (feat.end, feat.start)
             feat_coords = "{0}:{1}-{2}".format(feat.seqid, s, e)
+            desc_parts.append(feat_coords)
+
             datestamp = opts.datestamp if opts.datestamp else \
                     "{0}{1}{2}".format(dt.now().year, dt.now().month, dt.now().day)
+            desc_parts.append(datestamp)
 
-            desc_parts = [desc, feat_coords, datestamp]
             desc = sep.join(str(x) for x in desc_parts)
             desc = "".join(str(x) for x in (sep, desc)).strip()
 

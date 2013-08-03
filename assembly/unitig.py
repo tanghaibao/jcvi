@@ -123,10 +123,9 @@ def main():
         ('test', 'test the modified unitig layout'),
         ('push', 'push the modified unitig into tigStore'),
         ('pushall', 'push all the modified unitigs into tigStore'),
-        ('delete', 'delete specified unitig'),
         ('cut', 'cut the unitig at a given fragment ID'),
         ('shred', 'shred the unitig as a desperate way of forcing a fix'),
-        ('shredafter', 'shred the unitig after a given fragment ID'),
+        ('cnsfix', 'parse consensus-fix.out to fix unitigs'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -144,9 +143,34 @@ def get_prefix(dir="../"):
 
 def get_ID(s):
     """
-    unitig3.16057 => ('3', '16057')
+    unitig1.3.16057 => ('1', '3', '16057')
     """
     return s.replace("unitig", "").split(".")
+
+
+def cnsfix(args):
+    """
+    %prog cnsfix consensus-fix.out.FAILED
+
+    Parse consensus-fix.out to extract layouts for fixed unitigs. This will run
+    utgcnsfix up to a failure point.
+    """
+    from jcvi.formats.base import read_block
+
+    p = OptionParser(cnsfix.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    cnsfixout, = args
+    prefix = get_prefix()
+    fp = open(cnsfixout)
+    utgs = []
+    for header, contents in read_block(fp, "Evaluating"):
+        utg = header.split()[2]
+        utgs.append(utg)
+    print "\n".join(utgs)
 
 
 working = "Working"
@@ -155,7 +179,7 @@ failed = "failed"
 
 def error(args):
     """
-    %prog error backup_folder
+    %prog error version backup_folder
 
     Find all errors in ../5-consensus/*.err and pull the error unitigs into
     backup/ folder.
@@ -163,10 +187,10 @@ def error(args):
     p = OptionParser(error.__doc__)
     opts, args = p.parse_args(args)
 
-    if len(args) != 1:
+    if len(args) != 2:
         sys.exit(not p.print_help())
 
-    backup_folder, = args
+    version, backup_folder = args
     mkdir(backup_folder)
 
     fw = open("errors.log", "w")
@@ -188,15 +212,15 @@ def error(args):
             if not failed.upper() in row.upper():
                 continue
 
-            uu = (partID, unitigID)
+            uu = (version, partID, unitigID)
             if uu in seen:
                 continue
             seen.add(uu)
 
             print >> fw, "\t".join(str(x) for x in (partID, unitigID))
 
-            cmd = "{0} {1}".format(*uu)
-            unitigfile = pull(cmd.split())
+            s = [str(x) for x in uu]
+            unitigfile = pull(s)
             cmd = "mv {0} {1}".format(unitigfile, backup_folder)
             sh(cmd)
 
@@ -208,7 +232,7 @@ def error(args):
 
 def trace(args):
     """
-    %prog trace unitig{partID}.{unitigID}
+    %prog trace unitig{version}.{partID}.{unitigID}
 
     Call `grep` to get the erroneous fragment placement.
     """
@@ -219,7 +243,7 @@ def trace(args):
         sys.exit(p.print_help())
 
     s, = args
-    partID, unitigID = get_ID(s)
+    version, partID, unitigID = get_ID(s)
 
     flist = glob("../5-consensus/*_{0:03d}.err".format(int(partID)))
     assert len(flist) == 1
@@ -281,9 +305,9 @@ def shred(args):
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
-    s, =  args
+    s, = args
     u = UnitigLayout(s)
     u.shred()
     u.print_to_file(inplace=True)
@@ -291,7 +315,7 @@ def shred(args):
 
 def pull(args):
     """
-    %prog pull partID unitigID
+    %prog pull version partID unitigID
 
     For example, `%prog pull 5 530` will pull the utg530 from partition 5
     The layout is written to `unitig530`
@@ -299,26 +323,28 @@ def pull(args):
     p = OptionParser(pull.__doc__)
     opts, args = p.parse_args(args)
 
-    if len(args) != 2:
-        sys.exit(p.print_help())
+    if len(args) != 3:
+        sys.exit(not p.print_help())
 
     prefix = get_prefix()
-    partID, unitigID = args
+    version, partID, unitigID = args
+    s = ".".join(args)
 
     cmd = "tigStore"
-    cmd += " -g ../{0}.gkpStore -t ../{0}.tigStore 1".format(prefix)
-    cmd += " -up {0} -d layout -u {1} > unitig{0}.{1}".format(partID, unitigID)
+    cmd += " -g ../{0}.gkpStore -t ../{0}.tigStore".format(prefix)
+    cmd += " {0} -up {1} -d layout -u {2}".format(version, partID, unitigID)
 
-    sh(cmd)
-    unitigfile = "unitig{0}.{1}".format(partID, unitigID)
+    unitigfile = "unitig" + s
+    sh(cmd, outfile=unitigfile)
+
     return unitigfile
 
 
 def test(args):
     """
-    %prog test unitig{partID}.{unitigID}
+    %prog test unitig{version}.{partID}.{unitigID}
 
-    For example, `%prog test unitig5.530` will test the modified `unitig530`
+    For example, `%prog test unitig1.5.530` will test the modified `unitig530`
     """
     p = OptionParser(test.__doc__)
     p.add_option("--verbose", default=False, action="store_true",
@@ -326,15 +352,15 @@ def test(args):
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
     prefix = get_prefix()
     s, = args
-    partID, unitigID = get_ID(s)
+    version, partID, unitigID = get_ID(s)
 
     cmd = "utgcns"
-    cmd += " -g ../{0}.gkpStore -t ../{0}.tigStore 1".format(prefix)
-    cmd += " {0} -T {1}".format(partID, s)
+    cmd += " -g ../{0}.gkpStore -t ../{0}.tigStore".format(prefix)
+    cmd += " {0} {1} -T {2}".format(version, partID, s)
     if opts.verbose:
         cmd += " -V -V"
     cmd += " -V -v 2> {0}.log".format(s)
@@ -348,7 +374,7 @@ def test(args):
 
 def push(args):
     """
-    %prog push unitig{partID}.{unitigID}
+    %prog push unitig{version}.{partID}.{unitigID}
 
     For example, `%prog push unitig5.530` will push the modified `unitig530`
     and replace the one in the tigStore
@@ -357,15 +383,15 @@ def push(args):
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
-    prefix = get_prefix()
     s, = args
-    partID, unitigID = get_ID(s)
+    prefix = get_prefix()
+    version, partID, unitigID = get_ID(s)
 
     cmd = "tigStore"
-    cmd += " -g ../{0}.gkpStore -t ../{0}.tigStore 1".format(prefix)
-    cmd += " -up {0} -R unitig{0}.{1}".format(partID, unitigID)
+    cmd += " -g ../{0}.gkpStore -t ../{0}.tigStore".format(prefix)
+    cmd += " {0} -up {1} -R {2}".format(version, partID, s)
 
     sh(cmd)
 

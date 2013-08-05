@@ -61,7 +61,8 @@ class UnitigLayout (BaseFile):
         # FRG type R ident  41655818 container ...
         found = False
         for i, fline in enumerate(fraglines):
-            if fline.split()[4] == fragID:
+            fid = fline.split()[4]
+            if fid == fragID:
                 found = True
                 break
 
@@ -72,6 +73,19 @@ class UnitigLayout (BaseFile):
         afrags = fraglines[:i]
         bfrags = fraglines[i:]
         self.parts = [afrags, bfrags]
+
+    def pop(self, black):
+        fraglines = self.fraglines
+        good, save = [], []
+        for fline in fraglines:
+            fid = fline.split()[4]
+            if fid in black:
+                save.append(fline)
+            else:
+                good.append(fline)
+        assert good, "good empty"
+        assert save, "save empty"
+        self.parts = [good, save]
 
     def shred(self):
         self.parts = [[x] for x in self.fraglines]
@@ -150,10 +164,11 @@ def get_ID(s):
 
 def cnsfix(args):
     """
-    %prog cnsfix consensus-fix.out.FAILED
+    %prog cnsfix consensus-fix.out.FAILED > blacklist.ids
 
-    Parse consensus-fix.out to extract layouts for fixed unitigs. This will run
-    utgcnsfix up to a failure point.
+    Parse consensus-fix.out to extract layouts for fixed unitigs. This will
+    mark all the failed fragments detected by utgcnsfix and pop them out of the
+    existing unitigs.
     """
     from jcvi.formats.base import read_block
 
@@ -167,10 +182,19 @@ def cnsfix(args):
     prefix = get_prefix()
     fp = open(cnsfixout)
     utgs = []
+    saves = []
     for header, contents in read_block(fp, "Evaluating"):
+        contents = list(contents)
         utg = header.split()[2]
         utgs.append(utg)
-    print "\n".join(utgs)
+        # Look for this line:
+        #   save fragment idx=388 ident=206054426 for next pass
+        for c in contents:
+            if not c.startswith("save"):
+                continue
+            ident = c.split()[3].split("=")[-1]
+            saves.append(ident)
+    print "\n".join(saves)
 
 
 working = "Working"
@@ -272,11 +296,16 @@ def cut(args):
     Cut the unitig at a given fragment. Run `%prog trace unitigfile` first to
     see which fragment breaks the unitig.
     """
+    from jcvi.formats.base import SetFile
+
     p = OptionParser(cut.__doc__)
     p.add_option("-s", dest="shredafter", default=False, action="store_true",
                  help="Shred fragments after the given fragID [default: %default]")
     p.add_option("--notest", default=False, action="store_true",
                  help="Do not test the unitigfile after edits [default: %default]")
+    p.add_option("--blacklist",
+                 help="File that contains blacklisted fragments to be popped "
+                      "[default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -284,8 +313,14 @@ def cut(args):
 
     s, fragID = args
     u = UnitigLayout(s)
+    blacklist = opts.blacklist
+    black = SetFile(blacklist) if blacklist else None
+
     if opts.shredafter:
         u.shredafter(fragID)
+    elif black:
+        assert fragID == "0", "Must set fragID to 0 when --blacklist is on"
+        u.pop(black)
     else:
         u.cut(fragID)
     u.print_to_file(inplace=True)
@@ -398,20 +433,17 @@ def push(args):
 
 def pushall(args):
     """
-    %prog pushall .
+    %prog pushall unitig1.*
 
     Push a bunch of unitig layout changes.
     """
     p = OptionParser(pushall.__doc__)
     opts, args = p.parse_args(args)
 
-    if len(args) != 1:
+    if len(args) < 1:
         sys.exit(not p.print_help())
 
-    cwd, = args
-    assert cwd == ".", "Must execute the command in current folder"
-
-    flist = glob("unitig*")
+    flist = args
     for f in flist:
         if f.endswith(".log"):
             continue

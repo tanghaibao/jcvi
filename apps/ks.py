@@ -77,6 +77,7 @@ def main():
         ('fromgroups', 'flatten the gene families into pairs'),
         ('prepare', 'prepare pairs of sequences'),
         ('calc', 'calculate Ks between pairs of sequences'),
+        ('subset', 'subset pre-calculated Ks according to pairs file'),
         ('gc3', 'filter the Ks results to remove high GC3 genes'),
         ('report', 'generate a distribution of Ks values'),
         ('multireport', 'generate several Ks value distributions in same figure'),
@@ -360,7 +361,7 @@ def find_first_isoform(a, f):
 
 def prepare(args):
     """
-    %prog prepare pairsfile cdsfile > paired.cds.fasta
+    %prog prepare pairsfile cdsfile [pepfile] -o paired.cds.fasta
 
     Pick sequences from cdsfile to form pairs, ready to be calculated. The
     pairsfile can be generated from formats.blast.cscore(). The first two
@@ -372,15 +373,23 @@ def prepare(args):
     set_outfile(p)
 
     opts, args = p.parse_args(args)
+    outfile = opts.outfile
 
-    if len(args) != 2:
+    if len(args) == 2:
+        pairsfile, cdsfile = args
+        pepfile = None
+    elif len(args) == 3:
+        pairsfile, cdsfile, pepfile = args
+    else:
         sys.exit(not p.print_help())
-
-    pairsfile, cdsfile = args
 
     f = Fasta(cdsfile)
     fp = open(pairsfile)
-    fw = must_open(opts.outfile, "w")
+    fw = must_open(outfile, "w")
+    if pepfile:
+        assert outfile != "stdout", "Please specify outfile name."
+        f2 = Fasta(pepfile)
+        fw2 = must_open(outfile + ".pep", "w")
     for row in fp:
         if row[0] == '#':
             continue
@@ -392,10 +401,16 @@ def prepare(args):
             b = find_first_isoform(b, f)
             assert b, b
 
-        arec = f[a]
-        brec = f[b]
-        SeqIO.write((arec, brec), fw, "fasta")
+        acds = f[a]
+        bcds = f[b]
+        SeqIO.write((acds, bcds), fw, "fasta")
+        if pepfile:
+            apep = f2[a]
+            bpep = f2[b]
+            SeqIO.write((apep, bpep), fw2, "fasta")
     fw.close()
+    if pepfile:
+        fw2.close()
 
 
 def calc(args):
@@ -651,6 +666,70 @@ def muscle_inputorder(inputfastafile, alnfile, trunc_name=True):
 
     fw.close()
     sh("rm {0}.old".format(alnfile), log=False)
+
+
+def subset(args):
+    """
+    %prog subset pairsfile ksfile1 ksfile2 ... -o pairs.ks
+
+    Subset some pre-calculated ks ka values (in ksfile) according to pairs
+    in tab delimited pairsfile/anchorfile.
+    """
+    p = OptionParser(subset.__doc__)
+    p.add_option("--noheader", action="store_true",
+                 help="don't write ksfile header line [default: %default]")
+    p.add_option("--block", action="store_true",
+                 help="preserve block structure in input [default: %default]")
+    set_outfile(p)
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    pairsfile, ksfiles = args[0], args[1:]
+    noheader = opts.noheader
+    block = opts.block
+    if block:
+        noheader = True
+    outfile = opts.outfile
+
+    ksvals = {}
+    for ksfile in ksfiles:
+        ksvals.update(dict((line.name, line) for line in read_ks_file(ksfile)))
+
+    fp = open(pairsfile)
+    fw = must_open(outfile, "w")
+
+    if not noheader:
+        print >>fw, fields
+
+    i = j = 0
+    for row in fp:
+        if row[0] == '#':
+            if block:
+                print >>fw, row.strip()
+            continue
+        a, b = row.split()[:2]
+        name = ";".join((a, b))
+        if name not in ksvals:
+            name = ";".join((b, a))
+            if name not in ksvals:
+                j += 1
+                print >>fw, "\t".join((a, b, ".", "."))
+                continue
+        ksline = ksvals[name]
+        if block:
+            print >>fw, "\t".join(map(str, (a, b, ksline.ng_ks, ksline.ng_ka)))
+        else:
+            ksline = ksline._replace(name = ";".join((a, b)))
+            print >>fw, ",".join(map(str, ksline))
+        i += 1
+    fw.close()
+
+    logging.debug("{0} pairs not found in ksfiles".format(j))
+    logging.debug("{0} ks records written to `{1}`".format(i, outfile))
+    return outfile
 
 
 header = fields = "name,yn_ks,yn_ka,ng_ks,ng_ka"

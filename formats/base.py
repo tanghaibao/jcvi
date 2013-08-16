@@ -526,8 +526,8 @@ def group(args):
         sys.exit(not p.print_help())
 
     tabfile, = args
-    groupby = opts.groupby
     sep = opts.sep
+    groupby = opts.groupby
     groupsep = opts.groupsep
 
     cols = []
@@ -547,9 +547,9 @@ def group(args):
             if col == groupby:
                 continue
             if not grouper[key][col]:
-                grouper[key][col] = []
+                grouper[key][col] = set()
             if col < len(atoms):
-                grouper[key][col].append(atoms[col])
+                grouper[key][col].add(atoms[col])
 
     for key in grouper:
         line = []
@@ -558,6 +558,8 @@ def group(args):
                 line.append(key)
             elif col in grouper[key].keys():
                 line.append(groupsep.join(grouper[key][col]))
+            else:
+                line.append("na")
         print sep.join(line)
 
 

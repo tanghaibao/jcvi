@@ -54,7 +54,7 @@ class GffLine (object):
         assert self.phase in Valid_phases, \
                 "phase must be one of {0}".format(Valid_phases)
         self.attributes_text = args[8].strip()
-        self.attributes = make_attributes(unquote(self.attributes_text), gff3=gff3)
+        self.attributes = make_attributes(self.attributes_text, gff3=gff3)
         # key is not in the gff3 field, this indicates the conversion to accn
         self.key = key  # usually it's `ID=xxxxx;`
         self.gff3 = gff3
@@ -177,7 +177,7 @@ def make_attributes(s, gff3=True):
         s = s.replace('+', 'PlusSign')
         d = parse_qs(s)
         for key in d.iterkeys():
-            d[key][0] = d[key][0].replace('PlusSign', '+')
+            d[key][0] = unquote(d[key][0].replace('PlusSign', '+'))
     else:
         attributes = s.split(";")
         d = DefaultOrderedDict(list)
@@ -186,7 +186,7 @@ def make_attributes(s, gff3=True):
             if ' ' not in a:
                 continue
             key, val = a.split(' ', 1)
-            val = val.replace('"', '').replace('=', ' ').strip()
+            val = unquote(val.replace('"', '').replace('=', ' ').strip())
             d[key].append(val)
 
     for key, val in d.items():

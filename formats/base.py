@@ -11,6 +11,7 @@ from itertools import groupby, islice, cycle, izip
 from optparse import OptionParser
 
 from Bio import SeqIO
+from jcvi.utils.cbook import AutoVivification
 from jcvi.apps.base import ActionDispatcher, sh, debug, need_update, \
         mkdir, popen, set_outfile
 debug()
@@ -397,6 +398,7 @@ def main():
         ('split', 'split large file into N chunks'),
         ('reorder', 'reorder columns in tab-delimited files'),
         ('flatten', 'convert a list of IDs into one per line'),
+        ('group', 'group elements in a table based on key (groupby) column'),
         ('setop', 'set operations on files'),
         ('join', 'join tabular-like files based on common column'),
         ('subset', 'subset tabular-like files based on common column'),
@@ -479,7 +481,7 @@ def flatten(args):
     """
     p = OptionParser(flatten.__doc__)
     p.add_option("--sep", default=",",
-                 help="Separater for the tabfile [default: %default]")
+                 help="Separator for the tabfile [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -489,6 +491,74 @@ def flatten(args):
     fp = must_open(tabfile)
     for row in fp:
         print row.strip().replace(opts.sep, "\n")
+
+
+def group(args):
+    """
+    %prog group tabfile > tabfile.grouped
+
+    Given a tab-delimited file, based on the element in the key (groupby) column,
+    group the elements in all the other value column(s)
+
+    For example, convert this:
+    a	2    3    4
+    a	5    6
+    b	7    8
+    c	9
+    c 	10   11
+
+    into this:
+
+    a	2,5   3,6   4
+    b	7     8
+    c	9,10  11
+    """
+    p = OptionParser(group.__doc__)
+    p.add_option("--sep", default="\t",
+                 help="Input file separator [default: `%default`]")
+    p.add_option("--groupby", default=0, type='int',
+                 help="Default column to groupby [default: %default]")
+    p.add_option("--groupsep", default=',',
+                 help="Separator to join the grouped elements [default: `%default`]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    tabfile, = args
+    groupby = opts.groupby
+    sep = opts.sep
+    groupsep = opts.groupsep
+
+    cols = []
+    grouper = AutoVivification()
+    fp = must_open(tabfile)
+    for row in fp:
+        row = row.rstrip()
+        atoms = row.split(sep)
+        if len(cols) < len(atoms):
+            cols = [x for x in xrange(len(atoms))]
+        if groupby not in cols:
+            logging.error("groupby col index `{0}` is out of range".format(groupby))
+            sys.exit()
+
+        key = atoms[groupby]
+        for col in cols:
+            if col == groupby:
+                continue
+            if not grouper[key][col]:
+                grouper[key][col] = []
+            if col < len(atoms):
+                grouper[key][col].append(atoms[col])
+
+    for key in grouper:
+        line = []
+        for col in cols:
+            if col == groupby:
+                line.append(key)
+            elif col in grouper[key].keys():
+                line.append(groupsep.join(grouper[key][col]))
+        print sep.join(line)
 
 
 def reorder(args):
@@ -502,7 +572,7 @@ def reorder(args):
 
     p = OptionParser(reorder.__doc__)
     p.add_option("--sep", default="\t",
-                 help="Separater for the tabfile [default: %default]")
+                 help="Separator for the tabfile [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:

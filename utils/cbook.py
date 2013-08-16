@@ -175,6 +175,20 @@ class SummaryStats (object):
                         format(self.size, filename))
 
 
+class AutoVivification(dict):
+    """
+    Implementation of perl's autovivification feature.
+
+    Thanks to <http://stackoverflow.com/questions/651794/whats-the-best-way-to-initialize-a-dict-of-dicts-in-python>
+    """
+    def __getitem__(self, item):
+        try:
+            return dict.__getitem__(self, item)
+        except KeyError:
+            value = self[item] = type(self)()
+            return value
+
+
 def percentage(a, b, denominator=True):
     """
     >>> percentage(100, 200)

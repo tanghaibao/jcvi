@@ -181,7 +181,6 @@ def bwasw(args):
 
     dbfile, readfile = args
     safile = check_index(dbfile, grid=grid)
-    saifile = check_aln(dbfile, readfile, grid=grid)
 
     prefix = get_prefix(readfile, dbfile)
     samfile = (prefix + ".bam") if opts.bam else (prefix + ".sam")

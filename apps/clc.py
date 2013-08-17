@@ -142,7 +142,7 @@ def map(args):
     if not outfile.endswith(".cas"):
         outfile += ".cas"
 
-    cmd += " --cpus 16"
+    cmd += " --cpus 32"
     cmd += " -d {0} -o {1} -q ".format(ref, outfile)
     fastqs = " ".join(fastqfiles)
     if size == 0:

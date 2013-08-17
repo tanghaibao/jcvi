@@ -38,6 +38,8 @@ def scaffold(args):
     from jcvi.utils.iter import grouper
 
     p = OptionParser(scaffold.__doc__)
+    p.add_option("--rclip", default=1, type="int",
+            help="Pair ID is derived from rstrip N chars [default: %default]")
     p.add_option("--conf", help="BAMBUS configuration file [default: %default]")
     p.add_option("--prefix", default=False, action="store_true",
             help="Only keep links between IDs with same prefix [default: %default]")
@@ -47,6 +49,7 @@ def scaffold(args):
     if nargs < 3 or nargs % 2 != 1:
         sys.exit(not p.print_help())
 
+    rclip = opts.rclip
     ctgfasta = args[0]
     duos = list(grouper(2, args[1:]))
     trios = []
@@ -55,7 +58,7 @@ def scaffold(args):
         matefile = prefix + ".mates"
         matebedfile = matefile + ".bed"
         if need_update(bedfile, [matefile, matebedfile]):
-            matesopt = [bedfile, "--lib", "--nointra"]
+            matesopt = [bedfile, "--lib", "--nointra", "--rclip={0}".format(rclip)]
             if opts.prefix:
                 matesopt += ["--prefix"]
             matefile, matebedfile = mates(matesopt)

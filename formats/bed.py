@@ -1071,7 +1071,7 @@ def mates(args):
     fw = open(matesfile, "w")
     if lib:
         bedfile, (meandist, stdev, p0, p1, p2) = pairs([bedfile, \
-                "--mateorientation=+-"])
+                "--mateorientation=+-", "--rclip={0}".format(rclip)])
         sv = int(2 * stdev)
         mindist = max(meandist - sv, 1)
         maxdist = meandist + sv

@@ -184,7 +184,7 @@ def bwasw(args):
 
     prefix = get_prefix(readfile, dbfile)
     samfile = (prefix + ".bam") if opts.bam else (prefix + ".sam")
-    if not need_update((safile, saifile), samfile):
+    if not need_update(safile, samfile):
         logging.error("`{0}` exists. `bwa bwasw` already run.".format(samfile))
         return
 

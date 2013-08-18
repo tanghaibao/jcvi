@@ -14,6 +14,7 @@ from collections import namedtuple
 from optparse import OptionParser
 from itertools import islice
 
+from Bio import SeqIO
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 
 from jcvi.formats.fasta import must_open, rc
@@ -147,9 +148,28 @@ def main():
         ('some', 'select a subset of fastq reads'),
         ('guessoffset', 'guess the quality offset of the fastq records'),
         ('format', 'format fastq file, convert header from casava 1.8+ to older format'),
+        ('fasta', 'convert fastq to fasta and qual file'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def fasta(args):
+    """
+    %prog fasta fastqfile
+
+    Convert fastq to fasta and qual file.
+    """
+    p = OptionParser(fasta.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    fastqfile, = args
+    pf = fastqfile.rsplit(".", 1)[0]
+    SeqIO.convert(fastqfile, "fastq", pf + ".fasta", "fasta")
+    SeqIO.convert(fastqfile, "fastq", pf + ".qual", "qual")
 
 
 def first(args):

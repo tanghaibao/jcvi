@@ -663,10 +663,15 @@ def join(args):
                  help="Do not print header [default: %default]")
     p.add_option("--na", default="na",
                  help="Value for unjoined data [default: %default]")
+    p.add_option("--keysep", default=",",
+                 help="specify separator joining multiple elements in the key column"
+                 + " of the pivot file [default: %default]")
     set_outfile(p)
 
     opts, args = p.parse_args(args)
     nargs = len(args)
+
+    keysep = opts.keysep
 
     if len(args) < 2:
         sys.exit(not p.print_help())
@@ -706,8 +711,12 @@ def join(args):
         atoms = row.split(ss[0])
         newrow = atoms
         key = atoms[cc[0]]
+        keys = key.split(keysep) if keysep in key else [key]
         for d in otherfiles:
-            drow = d.get(key, [na] * d.ncols)
+            drows = list()
+            for key in keys:
+                drows.append(d.get(key, [na] * d.ncols))
+            drow = [keysep.join(x) for x in list(zip(*drows))]
             newrow += drow
         print >> fw, "\t".join(newrow)
 

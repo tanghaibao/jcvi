@@ -477,19 +477,50 @@ def flatten(args):
 
     Convert a list of IDs (say, multiple IDs per line) and move them into one
     per line.
+
+    For example, convert this, to this:
+    A,B,C                    | A
+    1                        | B
+    a,4                      | C
+                             | 1
+                             | a
+                             | 4
+
+    If multi-column file with multiple elements per column, zip then flatten like so:
+    A,B,C    2,10,gg         | A,2
+    1,3      4               | B,10
+                             | C,gg
+                             | 1,4
+                             | 3,na
     """
+    from itertools import izip_longest
+
     p = OptionParser(flatten.__doc__)
     p.add_option("--sep", default=",",
                  help="Separator for the tabfile [default: %default]")
+    p.add_option("--zipflatten", default=None, dest="zipsep",
+                 help="Specify if columns of the file should be zipped before" +
+                 " flattening. If so, specify delimiter separating column elements" +
+                 " [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     tabfile, = args
+    zipsep = opts.zipsep
+
     fp = must_open(tabfile)
     for row in fp:
-        print row.strip().replace(opts.sep, "\n")
+        if zipsep:
+            row = row.rstrip()
+            atoms = row.split(opts.sep)
+            frows = []
+            for atom in atoms:
+                frows.append(atom.split(zipsep))
+            print "\n".join([zipsep.join(x) for x in list(izip_longest(*frows, fillvalue="na"))])
+        else:
+            print row.strip().replace(opts.sep, "\n")
 
 
 def group(args):

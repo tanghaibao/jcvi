@@ -11,7 +11,6 @@ from itertools import groupby, islice, cycle, izip
 from optparse import OptionParser
 
 from Bio import SeqIO
-from jcvi.utils.cbook import AutoVivification
 from jcvi.apps.base import ActionDispatcher, sh, debug, need_update, \
         mkdir, popen, set_outfile
 debug()
@@ -497,26 +496,34 @@ def group(args):
     """
     %prog group tabfile > tabfile.grouped
 
-    Given a tab-delimited file, based on the element in the key (groupby) column,
-    group the elements in all the other value column(s)
+    Given a tab-delimited file, either group all elements within the file or
+    group the elements in the value column(s) based on the key (groupby) column
 
-    For example, convert this:
-    a	2    3    4
-    a	5    6
-    b	7    8
-    c	9
-    c 	10   11
+    For example, convert this | into this
+    ---------------------------------------
+    a	2    3    4           | a,2,3,4,5,6
+    a	5    6                | b,7,8
+    b	7    8                | c,9,10,11
+    c	9                     |
+    c 	10   11               |
 
-    into this:
+    If grouping by a particular column,
+    convert this              | into this:
+    ---------------------------------------------
+    a	2    3    4           | a	2,5   3,6   4
+    a	5    6                | b	7     8
+    b	7    8                | c	9,10  11
+    c	9                     |
+    c 	10   11               |
 
-    a	2,5   3,6   4
-    b	7     8
-    c	9,10  11
     """
+    from jcvi.utils.cbook import AutoVivification
+    from jcvi.utils.grouper import Grouper
+
     p = OptionParser(group.__doc__)
     p.add_option("--sep", default="\t",
                  help="Input file separator [default: `%default`]")
-    p.add_option("--groupby", default=0, type='int',
+    p.add_option("--groupby", default=None, type='int',
                  help="Default column to groupby [default: %default]")
     p.add_option("--groupsep", default=',',
                  help="Separator to join the grouped elements [default: `%default`]")
@@ -531,36 +538,42 @@ def group(args):
     groupsep = opts.groupsep
 
     cols = []
-    grouper = AutoVivification()
+    grouper = AutoVivification() if groupby is not None else Grouper()
     fp = must_open(tabfile)
     for row in fp:
         row = row.rstrip()
         atoms = row.split(sep)
-        if len(cols) < len(atoms):
-            cols = [x for x in xrange(len(atoms))]
-        if groupby not in cols:
-            logging.error("groupby col index `{0}` is out of range".format(groupby))
-            sys.exit()
+        if groupby is not None:
+            if len(cols) < len(atoms):
+                cols = [x for x in xrange(len(atoms))]
+            if groupby not in cols:
+                logging.error("groupby col index `{0}` is out of range".format(groupby))
+                sys.exit()
 
-        key = atoms[groupby]
-        for col in cols:
-            if col == groupby:
-                continue
-            if not grouper[key][col]:
-                grouper[key][col] = set()
-            if col < len(atoms):
-                grouper[key][col].add(atoms[col])
+            key = atoms[groupby]
+            for col in cols:
+                if col == groupby:
+                    continue
+                if not grouper[key][col]:
+                    grouper[key][col] = set()
+                if col < len(atoms):
+                    grouper[key][col].add(atoms[col])
+        else:
+            grouper.join(*atoms)
 
     for key in grouper:
-        line = []
-        for col in cols:
-            if col == groupby:
-                line.append(key)
-            elif col in grouper[key].keys():
-                line.append(groupsep.join(grouper[key][col]))
-            else:
-                line.append("na")
-        print sep.join(line)
+        if groupby is not None:
+            line = []
+            for col in cols:
+                if col == groupby:
+                    line.append(key)
+                elif col in grouper[key].keys():
+                    line.append(groupsep.join(grouper[key][col]))
+                else:
+                    line.append("na")
+            print sep.join(line)
+        else:
+            print groupsep.join(key)
 
 
 def reorder(args):

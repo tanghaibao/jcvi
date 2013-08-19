@@ -928,15 +928,25 @@ def fromgtf(args):
                  help="Field name for transcript [default: %default]")
     p.add_option("--gene_id", default="gene_id",
                  help="Field name for gene [default: %default]")
+    p.add_option("--augustus", default=False, action="store_true",
+                 help="Input is AUGUSTUS gtf [default: %default]")
+    set_outfile(p)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     gtffile, = args
+    outfile = opts.outfile
+    if opts.augustus:
+        ahome = op.split(os.environ["AUGUSTUS_CONFIG_PATH"])[0]
+        s = op.join(ahome, "scripts/gtf2gff.pl")
+        cmd = "{0} --gff3 < {1} --out={2}".format(s, gtffile, outfile)
+        sh(cmd)
+        return
+
     gff = Gff(gtffile)
-    gffile = gtffile.rsplit(".", 1)[0] + ".gff"
-    fw = open(gffile, "w")
+    fw = must_open(outfile, "w")
     transcript_id = opts.transcript_id
     gene_id = opts.gene_id
     nfeats = 0

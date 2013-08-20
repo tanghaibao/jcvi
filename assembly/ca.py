@@ -372,26 +372,6 @@ def tracedb(args):
             sh(cmd, background=True)
 
 
-def make_qual(fastafile, defaultqual=21):
-    """
-    Make a qualfile with default qual value if not available
-    """
-    assert op.exists(fastafile)
-
-    qualfile = get_qual(fastafile)
-    if qualfile is None:
-        qualfile = get_qual(fastafile, check=False)
-        qualhandle = open(qualfile, "w")
-
-        for rec in iter_fasta_qual(fastafile, None, defaultqual=defaultqual):
-            write_fasta_qual(rec, None, qualhandle)
-
-        logging.debug("write qual values to file `{0}`".format(qualfile))
-        qualhandle.close()
-
-    return qualfile
-
-
 def make_matepairs(fastafile):
     """
     Assumes the mates are adjacent sequence records
@@ -428,12 +408,15 @@ def split_fastafile(fastafile, maxreadlen=32000):
     pf = fastafile.split(".")[0]
     smallfastafile = pf + "-small.fasta"
     bigfastafile = pf + "-big.fasta"
+    shredfastafile = pf + "-big.depth1.fasta"
 
     maxreadlen = str(maxreadlen)
-    filter([fastafile, maxreadlen, "--less", "-o", smallfastafile])
-    filter([fastafile, maxreadlen, "-o", bigfastafile])
-    shredfastafile = shred(["--depth=1", "--readlen={0}".format(maxreadlen), \
-            "--fasta", bigfastafile])
+    if need_update(fastafile, (smallfastafile, shredfastafile)):
+        filter([fastafile, maxreadlen, "--less", "-o", smallfastafile])
+        filter([fastafile, maxreadlen, "-o", bigfastafile])
+        shred(["--depth=1", "--readlen={0}".format(maxreadlen), \
+                "--fasta", bigfastafile])
+
     return smallfastafile, shredfastafile
 
 
@@ -446,7 +429,7 @@ def fasta(args):
     assumed as adjacent sequence records (i.e. /1, /2, /1, /2 ...) unless a
     matefile is given.
     """
-    from jcvi.formats.fasta import clean
+    from jcvi.formats.fasta import clean, make_qual
 
     p = OptionParser(fasta.__doc__)
     p.add_option("-m", dest="matefile", default=None,
@@ -465,10 +448,10 @@ def fasta(args):
     maxreadlen = opts.maxreadlen
 
     fastafile, = args
-    f = Fasta(fastafile)
+    f = Fasta(fastafile, lazy=True)
     if maxreadlen > 0:
         split = False
-        for id, size in f.itersizes():
+        for id, size in f.itersizes_ordered():
             if size > maxreadlen:
                 logging.debug("Sequence {0} (size={1}) longer than max read len {2}".\
                                 format(id, size, maxreadlen))
@@ -497,7 +480,7 @@ def fasta(args):
         clean([fastafile, "--canonical", "-o", cleanfasta])
     fastafile = cleanfasta
 
-    qualfile = make_qual(fastafile)
+    qualfile = make_qual(fastafile, score=21)
     if mated:
         if opts.matefile:
             matefile = opts.matefile

@@ -150,10 +150,12 @@ def align(args):
     if PE:
         r1, r2 = args[1:3]
         cmd += " -1 {0} -2 {1}".format(r1, r2)
-        cmd += " --un-conc {0}".format(unmapped)
+        if unmapped:
+            cmd += " --un-conc {0}".format(unmapped)
     else:
         cmd += " -U {0}".format(readfile)
-        cmd += " --un {0}".format(unmapped)
+        if unmapped:
+            cmd += " --un {0}".format(unmapped)
 
     if firstN:
         cmd += " --upto {0}".format(firstN)

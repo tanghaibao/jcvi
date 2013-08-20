@@ -443,9 +443,10 @@ def iter_clean_fasta(fastafile):
 
 
 def iter_canonical_fasta(fastafile):
-    canonical = "acgtnACGTN"
+    canonical = "ACGTN"
     totalbad = 0
     for header, seq in parse_fasta(fastafile):
+        seq = seq.upper()
         badcounts = sum(1 for x in seq if x not in canonical)
         seq = "".join((x if x in canonical else 'N') for x in seq)
         totalbad += badcounts
@@ -1698,25 +1699,30 @@ def modify_qual(rec):
     return rec
 
 
+def make_qual(fastafile, score=OKQUAL):
+    logging.warning("assume qual ({0})".format(score))
+    qualfile = fastafile.rsplit(".", 1)[0] + ".qual"
+    fw = open(qualfile, "w")
+    fasta = Fasta(fastafile, lazy=True)
+    score = str(score)
+    for entry, size in fasta.itersizes_ordered():
+        print >> fw, ">" + entry
+        print >> fw, (score + " ") * size
+    fw.close()
+    return qualfile
+
+
 def iter_fasta_qual(fastafile, qualfile, defaultqual=OKQUAL, modify=False):
     """
     used by trim, emits one SeqRecord with quality values in it
     """
-    fastahandle = SeqIO.parse(fastafile, "fasta")
+    from Bio.SeqIO.QualityIO import PairedFastaQualIterator
+    if not qualfile:
+        qualfile = make_qual(fastafile, score=defaultqual)
 
-    if qualfile:
-        qualityhandle = SeqIO.parse(qualfile, "qual")
-        for rec, rec_qual in zip(fastahandle, qualityhandle):
-            assert len(rec) == len(rec_qual)
-            rec.letter_annotations['phred_quality'] = \
-                rec_qual.letter_annotations['phred_quality']
-            yield rec if not modify else modify_qual(rec)
-
-    else:
-        logging.warning("assume qual ({0})".format(defaultqual))
-        for rec in fastahandle:
-            rec.letter_annotations['phred_quality'] = [defaultqual] * len(rec)
-            yield rec if not modify else modify_qual(rec)
+    rec_iter = PairedFastaQualIterator(open(fastafile), open(qualfile))
+    for rec in rec_iter:
+        yield rec if not modify else modify_qual(rec)
 
 
 def write_fasta_qual(rec, fastahandle, qualhandle):

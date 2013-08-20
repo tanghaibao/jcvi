@@ -15,6 +15,7 @@ from optparse import OptionParser
 from Bio import SeqIO
 from jcvi.formats.base import LineFile
 from jcvi.formats.fasta import Fasta
+from jcvi.formats.sizes import Sizes
 from jcvi.utils.cbook import fill
 from jcvi.assembly.base import Astat
 from jcvi.apps.base import ActionDispatcher, need_update, sh, debug, \
@@ -65,6 +66,35 @@ def output_bam(cmd, bam=False):
     return tcmd
 
 
+class GenomeCoverageLine (object):
+
+    def __init__(self, row):
+        args = row.split()
+        self.seqid = args[0]
+        self.depth = int(args[1])
+        self.positions = int(args[2])
+        self.length = int(args[3])
+        self.freq = float(args[4])
+
+
+class GenomeCoverageFile (LineFile):
+
+    def __init__(self, filename):
+        super(GenomeCoverageFile, self).__init__(filename)
+        fp = open(filename)
+        for row in fp:
+            self.append(GenomeCoverageLine(row))
+
+    def iter_coverage_seqid(self):
+        for seqid, lines in groupby(self, key=lambda x: x.seqid):
+            lines = list(lines)
+            length = lines[0].length
+            counts = 0
+            for r in lines:
+                counts += r.depth * r.positions
+            yield seqid, counts * 1. / length
+
+
 def add_sam_options(p):
     p.add_option("--bam", default=False, action="store_true",
                  help="write to bam file [default: %default]")
@@ -92,11 +122,37 @@ def main():
         ('index', 'convert to bam, sort and then index'),
         ('consensus', 'convert bam alignments to consensus FASTA'),
         ('fpkm', 'calculate FPKM values from BAM file'),
+        ('coverage', 'calculate depth for BAM file'),
         ('bcf', 'run mpileup on a set of bam files'),
             )
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def coverage(args):
+    """
+    %prog coverage fastafile bamfile
+
+    Calculate coverage for BAM file. BAM file must be sorted.
+    """
+    p = OptionParser(coverage.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    fastafile, bamfile = args
+    sizesfile = Sizes(fastafile).filename
+    cmd = "genomeCoverageBed -ibam {0} -g {1}".format(bamfile, sizesfile)
+
+    coveragefile = fastafile + ".coverage"
+    if need_update(fastafile, coveragefile):
+        sh(cmd, outfile=coveragefile)
+
+    gcf = GenomeCoverageFile(coveragefile)
+    for seqid, cov in gcf.iter_coverage_seqid():
+        print "\t".join((seqid, "{0:.1f}".format(cov)))
 
 
 def fpkm(args):
@@ -105,8 +161,6 @@ def fpkm(args):
 
     Calculate FPKM values from BAM file.
     """
-    from jcvi.formats.fasta import Fasta
-
     p = OptionParser(fpkm.__doc__)
     opts, args = p.parse_args(args)
 
@@ -115,18 +169,17 @@ def fpkm(args):
 
     fastafile = args[0]
     bamfiles = args[1:]
-    # Create a DUMMY gff file for cufdiff
+    # Create a DUMMY gff file for cuffdiff
     gffile = fastafile.rsplit(".", 1)[0] + ".gff"
     if need_update(fastafile, gffile):
         fw = open(gffile, "w")
-        f = Fasta(fastafile)
+        f = Fasta(fastafile, lazy=True)
         for key, size in f.itersizes_ordered():
             print >> fw, "\t".join(str(x) for x in (key, "dummy", "transcript",\
                 1, size, ".", ".", ".", "ID=" + key))
         fw.close()
         logging.debug("Dummy GFF created: {0}".format(gffile))
 
-    # Sort the BAM files first
     cmd = "cuffdiff {0} {1}".format(gffile, " ".join(bamfiles))
     sh(cmd)
 

@@ -41,6 +41,7 @@ class Sizes (LineFile):
 
         super(Sizes, self).__init__(filename)
         self.fp = open(filename)
+        self.filename = filename
 
         # get sizes for individual contigs, both in list and dict
         # this is to preserve the input order in the sizes file

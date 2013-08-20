@@ -22,6 +22,7 @@ debug()
 def main():
 
     actions = (
+        ('parallel', 'partition the genome into parts and run separately'),
         ('datastore', 'generate a list of gff filenames to merge'),
         ('split', 'split MAKER models by checking against evidences'),
         ('batcheval', 'calls bed.evaluate() in batch'),
@@ -29,6 +30,24 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def parallel(args):
+    """
+    %prog parallel genome.fasta N
+
+    Partition the genome into parts and run separately. This is useful if MAKER
+    is to be run on the grid.
+    """
+    p = OptionParser(parallel.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    genome, N = args
+    N = int(N)
+    assert 1 < N < 1000, "Required: 1 < N < 1000!"
 
 
 def longest(args):

@@ -13,7 +13,7 @@ from itertools import islice
 from Bio import SeqIO
 
 from jcvi.formats.base import must_open
-from jcvi.apps.grid import Grid, Jobs
+from jcvi.apps.grid import Jobs
 from jcvi.formats.base import split
 from jcvi.apps.base import ActionDispatcher, debug, set_params, \
         set_grid, set_outfile, sh, mkdir

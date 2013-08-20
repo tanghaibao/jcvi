@@ -135,6 +135,17 @@ def set_grid(instance):
             help="Run on the grid [default: %default]")
 
 
+def set_grid_opts(instance):
+    assert isinstance(instance, OptionParser)
+
+    queue_choices = ("default", "fast", "medium", "himem")
+    instance.add_option("-l", dest="queue", default="default", choices=queue_choices,
+                 help="Name of the queue, one of {0} [default: %default]".\
+                      format("|".join(queue_choices)))
+    instance.add_option("-t", dest="threaded", type="int",
+                 help="Append '-pe threaded N' [default: %default]")
+
+
 def set_params(instance):
     """
     Add --params options for given command line programs

@@ -60,7 +60,7 @@ class GridProcess (object):
         return "\t".join((x for x in \
                 (self.jobid, self.cmd, self.outfile) if x))
 
-    def start(self):
+    def build(self):
         # Shell commands
         if "|" in self.cmd or "&&" in self.cmd or "||" in self.cmd:
             quote = "\"" if "'" in self.cmd else "'"
@@ -92,6 +92,10 @@ class GridProcess (object):
             qsub += " -e {0}".format(errfile)
 
         cmd = " ".join((qsub, self.cmd))
+        return cmd
+
+    def start(self):
+        cmd = self.build()
         # run the command and get the job-ID (important)
         output = popen(cmd, debug=False).read()
 

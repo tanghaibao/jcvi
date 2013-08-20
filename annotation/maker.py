@@ -11,12 +11,79 @@ models, either through accuracy (batcheval) or simply the length (longest).
 import os
 import os.path as op
 import sys
+import logging
 
 from collections import defaultdict
 from optparse import OptionParser
 
-from jcvi.apps.base import ActionDispatcher, need_update, popen, debug, sh
+from jcvi.formats.base import LineFile, write_file
+from jcvi.apps.softlink import get_abs_path
+from jcvi.apps.grid import GridProcess
+from jcvi.apps.base import ActionDispatcher, need_update, popen, debug, sh, \
+        mkdir, set_grid_opts
 debug()
+
+
+class CTLine (object):
+
+    def __init__(self, row):
+        row = row.strip()
+        tag = value = real = comment = ""
+        if "#" in row:
+            real, comment = row.split("#", 1)
+        if "=" in real:
+            tag, value = real.split("=", 1)
+
+        self.tag = tag.strip()
+        self.value = value.strip()
+        self.comment = comment.strip()
+
+    def __str__(self):
+        tag = self.tag
+        value = self.value
+        comment = self.comment
+
+        s = "=".join((tag, value)) if tag else ""
+        if s:
+            if comment:
+                s += "  # " + comment
+        else:
+            if comment:
+                s += "# " + comment
+        return s
+
+
+class CTLFile (LineFile):
+
+    def __init__(self, filename):
+        super(CTLFile, self).__init__(filename)
+        fp = open(filename)
+        for row in fp:
+            self.append(CTLine(row))
+        fp.close()
+
+    def update_abs_path(self):
+        for r in self:
+            path = r.value
+            if path and op.exists(path):
+                npath = get_abs_path(path)
+                logging.debug("{0} => {1}".format(path, npath))
+                r.value = npath
+
+    def update_genome(self, value):
+        for r in self:
+            tag = r.tag
+            if tag == "genome":
+                logging.debug("{0} => {1}".format(r.value, value))
+                r.value = value
+                break
+
+    def write_file(self, filename):
+        fw = open(filename, "w")
+        for r in self:
+            print >> fw, r
+        fw.close()
+        logging.debug("File written to `{0}`".format(filename))
 
 
 def main():
@@ -32,6 +99,13 @@ def main():
     p.dispatch(globals())
 
 
+arraysh = """#!/bin/bash
+
+DIR=`awk "NR==$SGE_TASK_ID" {0}`
+cd $DIR
+{1} --ignore_nfs_tmp"""
+
+
 def parallel(args):
     """
     %prog parallel genome.fasta N
@@ -39,15 +113,58 @@ def parallel(args):
     Partition the genome into parts and run separately. This is useful if MAKER
     is to be run on the grid.
     """
+    from jcvi.formats.base import split
+
     p = OptionParser(parallel.__doc__)
+    p.add_option("--maker_home", default="~/htang/export/maker",
+                 help="Home directory for MAKER [default: %default]")
+    set_grid_opts(p)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
         sys.exit(not p.print_help())
 
-    genome, N = args
-    N = int(N)
+    genome, NN = args
+    N = int(NN)
     assert 1 < N < 1000, "Required: 1 < N < 1000!"
+
+    outdir = "outdir"
+    fs = split([genome, outdir, "--cycle", "-n", NN])
+
+    c = CTLFile("maker_opts.ctl")
+    c.update_abs_path()
+
+    cwd = os.getcwd()
+    dirs = []
+    for name in fs.names:
+        fn = get_abs_path(name)
+        bn = op.basename(name)
+        dirs.append(bn)
+        c.update_genome(fn)
+        mkdir(bn)
+        sh("cp *.ctl {0}".format(bn))
+
+        os.chdir(bn)
+        c.write_file("maker_opts.ctl")
+        os.chdir(cwd)
+
+    jobs = "jobs"
+    fw = open(jobs, "w")
+    print >> fw, "\n".join(dirs)
+    fw.close()
+
+    # Submit to grid
+    ncmds = len(dirs)
+    runfile = "array.sh"
+    cmd = op.join(opts.maker_home, "bin/maker")
+    contents = arraysh.format(jobs, cmd)
+    write_file(runfile, contents, meta="run script")
+
+    outfile = "maker.\$TASK_ID.out"
+    p = GridProcess(runfile, outfile=outfile, errfile=outfile,
+                    queue=opts.queue, threaded=opts.threaded,
+                    arr=ncmds)
+    print >> sys.stderr, p.build()
 
 
 def longest(args):

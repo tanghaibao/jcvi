@@ -91,7 +91,7 @@ def genemark(args):
     """
     p = OptionParser(genemark.__doc__)
     p.add_option("--gmes_home", default="~/htang/export/gmes",
-                 help="Home directory for MAKER [default: %default]")
+                 help="Home directory for GENEMARK [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:

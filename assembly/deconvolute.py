@@ -11,7 +11,7 @@ import logging
 
 from glob import glob
 from optparse import OptionParser
-from itertools import product, groupby
+from itertools import product, groupby, islice
 from multiprocessing import Pool, cpu_count
 from collections import namedtuple
 
@@ -20,6 +20,7 @@ from Bio.SeqIO.QualityIO import FastqGeneralIterator
 
 from jcvi.utils.iter import flatten
 from jcvi.formats.base import FileMerger, must_open
+from jcvi.formats.fastq import FastqPairedIterator
 from jcvi.apps.base import ActionDispatcher, debug, mkdir
 debug()
 
@@ -45,22 +46,53 @@ def unpack_ambiguous(s):
     return ["".join(x) for x in list(product(*sd))]
 
 
+def is_barcode_sample(seq, barcode, excludebarcode, trim):
+    if seq[:trim] != barcode.seq:
+        return False
+    hasexclude = any(seq.startswith(x.seq) for x in excludebarcode)
+    if hasexclude:
+        return False
+    return True
+
+
+def split_barcode_paired(t):
+
+    barcode, excludebarcode, outdir, inputfile = t
+    trim = len(barcode.seq)
+    outfastq = op.join(outdir, "{0}.{1}.fastq".format(barcode.id, barcode.seq))
+
+    r1, r2 = inputfile
+    p1fp, p2fp = FastqPairedIterator(r1, r2)
+    fw = open(outfastq, "w")
+    while True:
+        a = list(islice(p1fp, 4))
+        if not a:
+            break
+
+        b = list(islice(p2fp, 4))
+        title, seq, plus, qual = a
+        title, seq, qual = title.strip(), seq.strip(), qual.strip()
+        if not is_barcode_sample(seq, barcode, excludebarcode, trim):
+            continue
+
+        print >> fw, "@{0}\n{1}\n+\n{2}".format(title, seq[trim:], qual[trim:])
+        fw.writelines(b)
+
+    fw.close()
+
+
 def split_barcode(t):
 
     barcode, excludebarcode, outdir, inputfile = t
     trim = len(barcode.seq)
+    outfastq = op.join(outdir, "{0}.{1}.fastq".format(barcode.id, barcode.seq))
 
     fp = must_open(inputfile)
-    outfastq = op.join(outdir, "{0}.{1}.fastq".format(barcode.id, barcode.seq))
     fw = open(outfastq, "w")
     for title, seq, qual in FastqGeneralIterator(fp):
-        if seq[:trim] != barcode.seq:
+        if not is_barcode_sample(seq, barcode, excludebarcode, trim):
             continue
-        hasexclude = any(seq.startswith(x.seq) for x in excludebarcode)
-        if hasexclude:
-            continue
-        seq = seq[trim:]
-        print >> fw, "@{0}\n{1}\n+\n{2}".format(title, seq, qual[trim:])
+        print >> fw, "@{0}\n{1}\n+\n{2}".format(title, seq[trim:], qual[trim:])
 
     fw.close()
 
@@ -75,6 +107,9 @@ def split(args):
 
     Input fastqfiles can be several files. Output files are ID01.fastq,
     ID02.fastq, one file per line in barcodefile.
+
+    When --paired is set, the number of input fastqfiles must be two. Output
+    file (the deconvoluted reads) will be in interleaved format.
     """
     p = OptionParser(split.__doc__)
     p.add_option("--cpus", default=32, type="int",
@@ -83,6 +118,8 @@ def split(args):
                  help="Output directory [default: %default]")
     p.add_option("--nocheckprefix", default=False, action="store_true",
                  help="Check shared prefix [default: %default]")
+    p.add_option("--paired", default=False, action="store_true",
+                 help="Paired-end data [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) < 2:
@@ -90,6 +127,7 @@ def split(args):
 
     barcodefile = args[0]
     fastqfile = args[1:]
+    nfiles = len(fastqfile)
 
     barcodes = []
     fp = open(barcodefile)
@@ -125,7 +163,20 @@ def split(args):
     cpus = min(opts.cpus, cpu_count())
     logging.debug("Create a pool of {0} workers.".format(cpus))
     pool = Pool(cpus)
-    pool.map(split_barcode, \
+
+    paired = opts.paired
+    if paired:
+        assert nfiles == 2, "You asked for --paired, but sent in {0} files".\
+                            format(nfiles)
+        split_fun = split_barcode_paired
+        mode = "paired"
+    else:
+        split_fun = split_barcode
+        mode = "single"
+
+    logging.debug("Mode: {0}".format(mode))
+
+    pool.map(split_fun, \
              zip(barcodes, excludebarcodes,
              nbc * [outdir], nbc * [fastqfile]))
 

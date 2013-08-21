@@ -87,7 +87,7 @@ class BiNode (object):
 
 class BiEdge (object):
 
-    def __init__(self, v1, v2, o1, o2, color="black"):
+    def __init__(self, v1, v2, o1, o2, color="black", length=None):
 
         self.v1 = v1
         self.v2 = v2
@@ -121,6 +121,10 @@ class BiGraph (object):
         self.nodes = {}
         self.edges = {}
 
+    def __str__(self):
+        return "BiGraph with {0} nodes and {1} edges".\
+                format(len(self.nodes), len(self.edges))
+
     def add_node(self, v):
         if v not in self.nodes:
             self.nodes[v] = BiNode(v)
@@ -139,6 +143,19 @@ class BiGraph (object):
         r.append(e)
         e.v1, e.v2 = n1, n2
         self.edges[(v1, v2)] = e
+
+    def get_node(self, v):
+        return self.nodes[v]
+
+    def get_edge(self, av, bv):
+        flip = False
+        if av > bv:
+            av, bv = bv, av
+            flip = True
+        e = self.edges[(av, bv)]
+        if flip:
+            e.flip()
+        return e
 
     def iter_paths(self):
 
@@ -184,13 +201,7 @@ class BiGraph (object):
         edges = []
         for a, b in pairwise(path):
             av, bv = a.v, b.v
-            flip = False
-            if av > bv:
-                av, bv = bv, av
-                flip = True
-            e = self.edges[(av, bv)]
-            if flip:
-                e.flip()
+            e = self.get_edge((av, bv))
 
             if not oo:  # First edge imports two nodes
                 oo.append((e.v1.v, e.o1 == ">"))
@@ -206,10 +217,6 @@ class BiGraph (object):
             edges.append(se)
 
         return "|".join(edges), oo
-
-    def __str__(self):
-        return "BiGraph with {0} nodes and {1} edges".\
-                format(len(self.nodes), len(self.edges))
 
     def read(self, filename, color="black"):
         fp = open(filename)
@@ -262,10 +269,11 @@ class BiGraph (object):
         logging.debug("Graph written to `{0}`.".format(pngfile))
 
     def get_next(self, node, tag="<"):
-        return self.nodes[node].get_next(tag)
+        return self.get_node(node).get_next(tag)
 
     def get_path(self, n1, n2, tag="<"):
-        path = []
+        # return all intermediate nodes on path n1 -> n2
+        path = deque()
         next, ntag = self.get_next(n1, tag=tag)
         while next:
             if next.v == n2:

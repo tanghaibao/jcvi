@@ -381,7 +381,7 @@ class AGP (LineFile):
             for i, (a, b) in enumerate(pairwise(components)):
                 e = BiEdge(a.component_id, b.component_id,
                            a.orientation, b.orientation,
-                           color=gaps[i].gap_length)
+                           length=gaps[i].gap_length)
                 g.add_edge(e)
             if len(components) == 1:  # Singleton object
                 a = components[0]

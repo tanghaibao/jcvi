@@ -9,11 +9,12 @@ import sys
 import logging
 
 from optparse import OptionParser
+from collections import deque
 
 from jcvi.formats.fasta import gaps
 from jcvi.formats.sizes import Sizes
 from jcvi.formats.base import BaseFile, read_block
-from jcvi.formats.agp import AGP
+from jcvi.formats.agp import AGP, AGPLine
 from jcvi.utils.iter import pairwise
 from jcvi.algorithms.graph import BiGraph, BiEdge
 from jcvi.apps.base import ActionDispatcher, debug
@@ -66,7 +67,7 @@ class EvidenceFile (BaseFile):
             lines = [EvidenceLine(x, sizes) for x in lines if x.strip()]
 
             for a, b in pairwise(lines):
-                e = BiEdge(a.tig, b.tig, a.o, b.o, color=a.gaps)
+                e = BiEdge(a.tig, b.tig, a.o, b.o, length=a.gaps)
                 g.add_edge(e)
 
             if len(lines) == 1:  # Singleton scaffold
@@ -105,7 +106,7 @@ def anchor(args):
     directly to scaffold.
 
     Rules:
-    1. Only update existing structure by anchoring contigs in
+    1. Only update existing structure by anchoring contigs (<=3 contigs)
     2. Promote singleton contigs only if they are >= 10Kb.
     """
     p = OptionParser(anchor.__doc__)
@@ -129,6 +130,9 @@ def anchor(args):
     logging.debug("Patch graph: {0}".format(q))
 
     newagp = list(agp)
+    NO_UPDATE, INSERT_BEFORE, INSERT_AFTER, INSERT_BETWEEN = \
+        "NO_UPDATE", "INSERT_BEFORE", "INSERT_AFTER", "INSERT_BETWEEN"
+
     for a in agp:
         if a.is_gap:
             continue
@@ -136,13 +140,25 @@ def anchor(args):
         name = a.component_id
         target_name, tag = get_target(p, name)
         path = q.get_path(name, target_name, tag=tag)
-        if tag == ">":
-            path.reverse()
+        status = NO_UPDATE
 
         if path and len(path) > 3:  # Heuristic, the patch must not be too long
             path = None
 
-        print name, target_name, path
+        if path:
+            vv = q.get_node(name)
+            path.appendleft(vv)
+            if tag == ">":
+                path.reverse()
+                status = INSERT_BEFORE
+            elif target_name is None:
+                status = INSERT_AFTER
+            else:
+                target = q.get_node(target_name)
+                path.append(target)
+                status = INSERT_BETWEEN
+
+        print name, target_name, path, status
 
 
 if __name__ == '__main__':

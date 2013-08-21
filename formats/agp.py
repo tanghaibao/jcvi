@@ -846,8 +846,6 @@ def mask(args):
                  help="Create new names for object [default: %default]")
     p.add_option("--splitcomponent", default=False, action="store_true",
                  help="Create new names for component [default: %default]")
-    p.add_option("--log", default=False, action="store_true",
-                 help="Write verbose logs to .masklog file [default: %default]")
     p.add_option("--gaptype", default="scaffold",
                  help="Masked region has gap type of [default: %default]")
     opts, args = p.parse_args(args)
@@ -860,6 +858,9 @@ def mask(args):
     splitobject = opts.splitobject
     splitcomponent = opts.splitcomponent
 
+    assert not (splitobject and splitcomponent), \
+                "Options --splitobject and --splitcomponent conflict"
+
     agp = AGP(agpfile)
     bed = Bed(bedfile)
     simple_agp = agp.order
@@ -867,24 +868,16 @@ def mask(args):
     agp_fixes = defaultdict(list)
 
     newagpfile = agpfile.replace(".agp", ".masked.agp")
-    logfile = bedfile.replace(".bed", ".masklog")
     fw = open(newagpfile, "w")
-    if opts.log:
-        fwlog = open(logfile, "w")
 
     if splitcomponent:
         componentindex = defaultdict(int)
-        fwsplit = open("split.bed", "w")
 
     for component, intervals in bed.sub_beds():
-        if opts.log:
-            print >> fwlog, "\n".join(str(x) for x in intervals)
         i, a = simple_agp[component]
         object = a.object
         component_span = a.component_span
         orientation = a.orientation
-        if opts.log:
-            print >> fwlog, a
 
         assert a.component_beg, a.component_end
         arange = a.component_beg, a.component_end
@@ -918,9 +911,6 @@ def mask(args):
                 if splitcomponent:
                     cid = component + "_{0}".format(componentindex[component])
                     componentindex[component] += 1
-                    if cspan > 0:
-                        print >> fwsplit, "\t".join(str(x) for x in \
-                                (component, a, b - 1, cid))
                     aline += ['W', cid, 1, cspan, orientation]
                 else:
                     aline += ['W', component, a + 1, b - 1, orientation]
@@ -937,25 +927,20 @@ def mask(args):
             if not (splitobject and is_gap):
                 agp_fixes[component].append(aline)
 
-            if opts.log:
-                print >> fwlog, aline
-
-        #assert component_span == sum_of_spans
-        if opts.log:
-            print >> fwlog
-
     # Finally write the masked agp
     for a in agp:
-        if not a.is_gap and a.component_id in agp_fixes:
+        if a.is_gap:
+            print >> fw, a
+        elif a.component_id in agp_fixes:
             print >> fw, "\n".join(agp_fixes[a.component_id])
         else:
+            if splitobject:
+                a.object += "_0"
+            elif splitcomponent:
+                a.component_id += "_0"
             print >> fw, a
 
     fw.close()
-
-    if splitcomponent:
-        fwsplit.close()
-        logging.debug("Split components written to `{0}`.".format(fwsplit.name))
 
     # Reindex
     idxagpfile = reindex([newagpfile])

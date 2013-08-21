@@ -18,8 +18,8 @@ from Bio.SeqRecord import SeqRecord
 
 from jcvi.formats.base import BaseFile, DictFile, must_open
 from jcvi.formats.bed import Bed
-from jcvi.apps.base import ActionDispatcher, debug, set_outfile
 from jcvi.apps.console import red, green
+from jcvi.apps.base import ActionDispatcher, debug, set_outfile, need_update
 debug()
 
 
@@ -1943,49 +1943,22 @@ def tidy(args):
         SeqIO.write([rec], fw, "fasta")
 
 
-def gaps(args):
-    """
-    %prog gaps fastafile
-
-    Print out a list of gaps in BED format (.gaps.bed).
-    """
-    p = OptionParser(gaps.__doc__)
-    p.add_option("--mingap", default=100, type="int",
-            help="The minimum size of a gap to split [default: %default]")
-    p.add_option("--agp", default=False, action="store_true",
-            help="Generate AGP file to show components [default: %default]")
-    p.add_option("--split", default=False, action="store_true",
-            help="Generate .split.fasta [default: %default]")
-    p.add_option("--log", default=False, action="store_true",
-            help="Generate gap positions to .gaps.log [default: %default]")
-    opts, args = p.parse_args(args)
-
-    if len(args) != 1:
-        sys.exit(not p.print_help())
-
-    inputfasta, = args
-    mingap = opts.mingap
-    prefix = inputfasta.rsplit(".", 1)[0]
-    bedfile = prefix + ".gaps.bed"
+def write_gaps_bed(inputfasta, bedfile, mingap):
     fwbed = open(bedfile, "w")
     logging.debug("Write gap locations to `{0}`.".format(bedfile))
-
-    if opts.log:
-        logfile = prefix + ".gaps.log"
-        fwlog = must_open(logfile, "w")
-        logging.debug("Write gap locations to `{0}`.".format(logfile))
 
     gapnum = 0
     for rec in SeqIO.parse(inputfasta, "fasta"):
         allgaps = []
         start = 0
         object = rec.id
-        for gap, seq in groupby(rec.seq.upper(), lambda x: x == 'N'):
+        seq = rec.seq.upper()
+        for gap, seq in groupby(seq, lambda x: x == 'N'):
             seq = "".join(seq)
             current_length = len(seq)
             object_beg = start + 1
             object_end = start + current_length
-            if gap and current_length >= opts.mingap:
+            if gap and current_length >= mingap:
                 allgaps.append((current_length, start))
                 gapnum += 1
                 gapname = "gap.{0:05d}".format(gapnum)
@@ -1994,40 +1967,67 @@ def gaps(args):
 
             start += current_length
 
-        if opts.log:
-            if allgaps:
-                lengths, starts = zip(*allgaps)
-                gap_description = ",".join(str(x) for x in lengths)
-                starts = ",".join(str(x) for x in starts)
-            else:
-                gap_description = starts = "no gaps"
-
-            print >> fwlog, "\t".join((rec.id, str(len(allgaps)),
-                    gap_description, starts))
-
     fwbed.close()
 
-    if opts.agp or opts.split:
-        from jcvi.formats.sizes import agp
-        from jcvi.formats.agp import mask
 
-        agpfile = prefix + ".gaps.agp"
+def gaps(args):
+    """
+    %prog gaps fastafile
+
+    Print out a list of gaps in BED format (.gaps.bed).
+    """
+    from jcvi.formats.sizes import agp
+    from jcvi.formats.agp import mask, build
+
+    p = OptionParser(gaps.__doc__)
+    p.add_option("--mingap", default=100, type="int",
+            help="The minimum size of a gap to split [default: %default]")
+    p.add_option("--agp", default=False, action="store_true",
+            help="Generate AGP file to show components [default: %default]")
+    p.add_option("--split", default=False, action="store_true",
+            help="Generate .split.fasta [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    inputfasta, = args
+    mingap = opts.mingap
+    split = opts.split
+    prefix = inputfasta.rsplit(".", 1)[0]
+    bedfile = prefix + ".gaps.bed"
+
+    if need_update(inputfasta, bedfile):
+        write_gaps_bed(inputfasta, bedfile, mingap)
+
+    if opts.agp:
+
         sizesagpfile = agp([inputfasta])
 
-        maskopts = [sizesagpfile, bedfile]
-        if opts.split:
-            maskopts += ["--splitobject"]
-        maskedagpfile = mask(maskopts)
-
+        agpfile = prefix + ".gaps.agp"
+        maskedagpfile = mask([sizesagpfile, bedfile])
         shutil.move(maskedagpfile, agpfile)
-        os.remove(sizesagpfile)
         logging.debug("AGP file written to `{0}`.".format(agpfile))
 
-    if opts.split:
-        from jcvi.formats.agp import build
+        os.remove(sizesagpfile)
+
+    if split:
+
+        sizesagpfile = agp([inputfasta])
+
+        oagpfile = prefix + ".splitobject.agp"
+        maskedagpfile = mask([sizesagpfile, bedfile, "--splitobject"])
+        shutil.move(maskedagpfile, oagpfile)
+        logging.debug("AGP file written to `{0}`.".format(oagpfile))
+
+        cagpfile = prefix + ".splitcomponent.agp"
+        maskedagpfile = mask([sizesagpfile, bedfile, "--splitcomponent"])
+        shutil.move(maskedagpfile, cagpfile)
+        logging.debug("AGP file written to `{0}`.".format(cagpfile))
 
         splitfile = prefix + ".split.fasta"
-        build([agpfile, inputfasta, splitfile])
+        build([oagpfile, inputfasta, splitfile])
+        os.remove(sizesagpfile)
 
 
 if __name__ == '__main__':

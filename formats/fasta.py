@@ -1982,8 +1982,6 @@ def gaps(args):
     p = OptionParser(gaps.__doc__)
     p.add_option("--mingap", default=100, type="int",
             help="The minimum size of a gap to split [default: %default]")
-    p.add_option("--agp", default=False, action="store_true",
-            help="Generate AGP file to show components [default: %default]")
     p.add_option("--split", default=False, action="store_true",
             help="Generate .split.fasta [default: %default]")
     opts, args = p.parse_args(args)
@@ -2000,34 +1998,27 @@ def gaps(args):
     if need_update(inputfasta, bedfile):
         write_gaps_bed(inputfasta, bedfile, mingap)
 
-    if opts.agp:
-
-        sizesagpfile = agp([inputfasta])
-
-        agpfile = prefix + ".gaps.agp"
-        maskedagpfile = mask([sizesagpfile, bedfile])
-        shutil.move(maskedagpfile, agpfile)
-        logging.debug("AGP file written to `{0}`.".format(agpfile))
-
-        os.remove(sizesagpfile)
-
     if split:
-
-        sizesagpfile = agp([inputfasta])
-
-        oagpfile = prefix + ".splitobject.agp"
-        maskedagpfile = mask([sizesagpfile, bedfile, "--splitobject"])
-        shutil.move(maskedagpfile, oagpfile)
-        logging.debug("AGP file written to `{0}`.".format(oagpfile))
-
-        cagpfile = prefix + ".splitcomponent.agp"
-        maskedagpfile = mask([sizesagpfile, bedfile, "--splitcomponent"])
-        shutil.move(maskedagpfile, cagpfile)
-        logging.debug("AGP file written to `{0}`.".format(cagpfile))
-
         splitfile = prefix + ".split.fasta"
-        build([oagpfile, inputfasta, splitfile])
-        os.remove(sizesagpfile)
+        oagpfile = prefix + ".splitobject.agp"
+        cagpfile = prefix + ".splitcomponent.agp"
+
+        if need_update(inputfasta, splitfile):
+
+            sizesagpfile = agp([inputfasta])
+
+            maskedagpfile = mask([sizesagpfile, bedfile, "--splitobject"])
+            shutil.move(maskedagpfile, oagpfile)
+            logging.debug("AGP file written to `{0}`.".format(oagpfile))
+
+            maskedagpfile = mask([sizesagpfile, bedfile, "--splitcomponent"])
+            shutil.move(maskedagpfile, cagpfile)
+            logging.debug("AGP file written to `{0}`.".format(cagpfile))
+
+            build([oagpfile, inputfasta, splitfile])
+            os.remove(sizesagpfile)
+
+        return splitfile, oagpfile, cagpfile
 
 
 if __name__ == '__main__':

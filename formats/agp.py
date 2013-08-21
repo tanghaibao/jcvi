@@ -205,7 +205,8 @@ class AGP (LineFile):
             d[xid] = (i, x)
 
             xid = xid.rsplit(".", 1)[0]  # Remove Genbank version
-            d[xid] = (i, x)
+            if xid not in d:
+                d[xid] = (i, x)
 
         return d
 
@@ -261,6 +262,10 @@ class AGP (LineFile):
 
         return (object, nbacs, components, nscaffolds, n50, l50, length)
 
+    def iter_object(self):
+        for ob, lines_with_same_ob in groupby(self, key=lambda x: x.object):
+            yield ob, list(lines_with_same_ob)
+
     def summary_one(self, object, lines):
         bacs = set()
         components = 0
@@ -294,8 +299,7 @@ class AGP (LineFile):
         all_scaffold_sizes = []
         all_components = 0
         all_length = 0
-        for ob, lines_with_same_ob in groupby(self, key=lambda x: x.object):
-            lines = list(lines_with_same_ob)
+        for ob, lines in self.iter_object():
             s, bstats = self.summary_one(ob, lines)
             yield s
 
@@ -320,8 +324,7 @@ class AGP (LineFile):
                     (a, b)
 
     def validate_all(self):
-        for ob, lines_with_same_ob in groupby(self, key=lambda x: x.object):
-            lines = list(lines_with_same_ob)
+        for ob, lines in self.iter_object():
             self.validate_one(ob, lines)
 
     def build_one(self, object, lines, fasta, fw, newagp=None):
@@ -364,10 +367,50 @@ class AGP (LineFile):
         f = Fasta(componentfasta, index=False)
         fw = open(targetfasta, "w")
 
-        for ob, lines_with_same_ob in groupby(self, key=lambda x: x.object):
-
-            lines = list(lines_with_same_ob)
+        for ob, lines in self.iter_object():
             self.build_one(ob, lines, f, fw, newagp=newagp)
+
+    @property
+    def graph(self):
+        from jcvi.algorithms.graph import BiGraph, BiEdge
+
+        g = BiGraph()
+        for ob, lines in self.iter_object():
+            components = [x for x in lines if not x.is_gap]
+            gaps = [x for x in lines if x.is_gap]
+            for i, (a, b) in enumerate(pairwise(components)):
+                e = BiEdge(a.component_id, b.component_id,
+                           a.orientation, b.orientation,
+                           color=gaps[i].gap_length)
+                g.add_edge(e)
+            if len(components) == 1:  # Singleton object
+                a = components[0]
+                g.add_node(a.component_id)
+
+        return g
+
+    # Update AGP on the fly
+    def insert(self, a, lines, before=False):
+        order = self.order
+        ai, ax = order[a]
+        if before:
+            ai -= 1
+        for i, x in enumerate(lines):
+            self.insert(ai + i - 1, x)
+
+    def delete(self, a):
+        order = self.order
+        ai, ax = order[a]
+        del self[a]
+
+    def update_between(self, a, b, lines, delete=False):
+        order = self.order
+        ai, ax = order[a]
+        bi, bx = order[b]
+        self[ai + 1: bi] = lines
+        if delete:
+            for r in lines:
+                self.delete(r.component_id)
 
 
 class TPFLine (object):

@@ -117,7 +117,7 @@ def split(args):
     p.add_option("--outdir", default="deconv",
                  help="Output directory [default: %default]")
     p.add_option("--nocheckprefix", default=False, action="store_true",
-                 help="Check shared prefix [default: %default]")
+                 help="Don't check shared prefix [default: %default]")
     p.add_option("--paired", default=False, action="store_true",
                  help="Paired-end data [default: %default]")
     opts, args = p.parse_args(args)

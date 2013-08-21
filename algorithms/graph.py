@@ -19,6 +19,7 @@ import logging
 
 import networkx as nx
 from collections import deque
+from string import maketrans
 
 from networkx.algorithms.dag import topological_sort
 from networkx.algorithms.components.weakly_connected import \
@@ -34,6 +35,7 @@ debug()
 Bidirectional graph.
 """
 dirs = (">", "<")
+trans = maketrans("+?-", ">><")
 
 
 class BiNode (object):
@@ -90,6 +92,9 @@ class BiEdge (object):
         self.v1 = v1
         self.v2 = v2
 
+        o1 = o1.translate(trans)
+        o2 = o2.translate(trans)
+
         assert o1 in dirs and o2 in dirs
         self.o1 = o1
         self.o2 = o2
@@ -116,13 +121,16 @@ class BiGraph (object):
         self.nodes = {}
         self.edges = {}
 
+    def add_node(self, v):
+        if v not in self.nodes:
+            self.nodes[v] = BiNode(v)
+
     def add_edge(self, e):
         v1, v2 = e.v1, e.v2
 
         assert isinstance(e, BiEdge)
         for v in (v1, v2):
-            if v not in self.nodes:
-                self.nodes[v] = BiNode(v)
+            self.add_node(v)
         n1 = self.nodes.get(v1)
         n2 = self.nodes.get(v2)
         l = n1.outs if e.o1 == ">" else n1.ins
@@ -252,6 +260,19 @@ class BiGraph (object):
             G.write(sys.stderr)
         G.draw(pngfile, prog=prog)
         logging.debug("Graph written to `{0}`.".format(pngfile))
+
+    def get_next(self, node, tag="<"):
+        return self.nodes[node].get_next(tag)
+
+    def get_path(self, n1, n2, tag="<"):
+        path = []
+        next, ntag = self.get_next(n1, tag=tag)
+        while next:
+            if next.v == n2:
+                return path
+            path.append(next)
+            next, ntag = next.get_next(tag=ntag)
+        return path if n2 is None else None
 
 
 def bigraph_test():

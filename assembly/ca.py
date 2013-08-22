@@ -200,8 +200,10 @@ def shred(args):
             help="Desired depth of the reads [default: %default]")
     p.add_option("--readlen", default=1000, type="int",
             help="Desired length of the reads [default: %default]")
-    p.add_option("--minctglen", default=150, type="int",
+    p.add_option("--minctglen", default=0, type="int",
             help="Ignore contig sequence less than [default: %default]")
+    p.add_option("--shift", default=50, type="int",
+            help="Overlap between reads must be at least [default: %default]")
     p.add_option("--fasta", default=False, action="store_true",
             help="Output shredded reads as FASTA sequences [default: %default]")
     opts, args = p.parse_args(args)
@@ -213,6 +215,8 @@ def shred(args):
     libID = fastafile.split(".")[0]
     depth = opts.depth
     readlen = opts.readlen
+    shift = opts.shift
+
     outfile = libID + ".depth{0}".format(depth)
     if opts.fasta:
         outfile += ".fasta"
@@ -242,7 +246,7 @@ def shred(args):
         if seqlen < opts.minctglen:
             continue
 
-        shredlen = min(seqlen - 50, readlen)
+        shredlen = min(seqlen - shift, readlen)
         numreads = max(seqlen * depth / shredlen, 1)
         center_range_width = seqlen - shredlen
 
@@ -251,7 +255,7 @@ def shred(args):
             if seqlen < readlen:
                 ranges.append((0, seqlen))
             else:
-                for begin in xrange(0, seqlen, readlen - 50):
+                for begin in xrange(0, seqlen, readlen - shift):
                     end = min(seqlen, begin + readlen)
                     ranges.append((begin, end))
         else:

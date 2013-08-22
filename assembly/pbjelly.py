@@ -78,6 +78,7 @@ def patch(args):
     Run PBJelly with reference and reads.
     """
     from jcvi.formats.base import write_file
+    from jcvi.formats.fasta import format
 
     p = OptionParser(patch.__doc__)
     p.add_option("--highqual", default=False, action="store_true",
@@ -89,6 +90,14 @@ def patch(args):
 
     ref, reads = args
     pf = ref.rsplit(".", 1)[0]
+    pr = reads.rsplit(".", 1)[0]
+    # Remove description line
+    oref = pf + ".f.fasta"
+    oreads = pr + ".f.fasta"
+    format([ref, oref])
+    format([reads, oreads])
+    ref, reads = oref, oreads
+
     # Check if the FASTA has qual
     ref, refq = fake_quals(ref)
     reads, readsq = fake_quals(reads)
@@ -97,8 +106,8 @@ def patch(args):
     dref, dreads = "data/reference", "data/reads"
     sh("mkdir -p {0}".format(dref))
     sh("mkdir -p {0}".format(dreads))
-    sh("cp {0} {1}/".format(" ".join((ref, refq)), dref))
-    sh("cp {0} {1}/".format(" ".join((reads, readsq)), dreads))
+    sh("mv {0} {1}/".format(" ".join((ref, refq)), dref))
+    sh("mv {0} {1}/".format(" ".join((reads, readsq)), dreads))
     cwd = os.getcwd()
 
     outputDir = cwd

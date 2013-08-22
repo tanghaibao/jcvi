@@ -789,7 +789,10 @@ def chain_HSPs(blast, xdist=100, ydist=100):
                 # otherwise join
                 clusters.join(a, b)
 
-    return clusters
+    chained_hsps = [combine_HSPs(x) for x in clusters]
+    chained_hsps = sorted(chained_hsps, key=lambda x: (x.query, -x.score))
+
+    return chained_hsps
 
 
 def chain(args):
@@ -814,10 +817,8 @@ def chain(args):
     assert dist > 0
 
     blast = BlastSlow(blastfile)
-    clusters = chain_HSPs(blast, xdist=dist, ydist=dist)
+    chained_hsps = chain_HSPs(blast, xdist=dist, ydist=dist)
 
-    chained_hsps = [combine_HSPs(x) for x in clusters]
-    chained_hsps = sorted(chained_hsps, key=lambda x: (x.query, -x.score))
     for b in chained_hsps:
         print b
 

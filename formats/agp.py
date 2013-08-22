@@ -188,6 +188,8 @@ class AGP (LineFile):
         for row in fp:
             if row[0] == '#':
                 continue
+            if row.strip() == "":
+                continue
             self.append(AGPLine(row, validate=validate))
 
         self.validate = validate
@@ -1561,11 +1563,13 @@ def tidy(args):
     for object, a in groupby(agp, key=lambda x: x.object):
         a = list(a)
         if a[0].is_gap:
-            a = a[1:]
-            logging.debug("Trim beginning Ns at object {0}.".format(object))
-        if a[-1].is_gap:
-            a = a[:-1]
-            logging.debug("Trim trailing Ns at object {0}.".format(object))
+            g, a = a[0], a[1:]
+            logging.debug("Trim beginning Ns({0}) of {1}".\
+                          format(g.gap_length, object))
+        if a and a[-1].is_gap:
+            a, g = a[:-1], a[-1]
+            logging.debug("Trim trailing Ns({0}) of {1}".\
+                          format(g.gap_length, object))
         print >> fw, "\n".join(str(x) for x in a)
     fw.close()
     os.remove(agpfile)

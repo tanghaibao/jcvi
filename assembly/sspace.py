@@ -15,7 +15,7 @@ from collections import deque
 from jcvi.formats.fasta import gaps
 from jcvi.formats.sizes import Sizes
 from jcvi.formats.base import BaseFile, read_block
-from jcvi.formats.agp import AGP, AGPLine
+from jcvi.formats.agp import AGP, AGPLine, reindex, tidy
 from jcvi.utils.iter import pairwise
 from jcvi.algorithms.graph import BiGraph, BiEdge
 from jcvi.apps.base import ActionDispatcher, debug
@@ -116,12 +116,12 @@ def get_cline(object, cid, sizes, o):
     return AGPLine.make_agpline(cline)
 
 
-def get_gline(object, gap):
+def get_gline(object, gap, unknown=100):
     line = [object, 0, 0, 0]
     gtype = 'N'
-    if gap < 0:
+    if gap < unknown:
         gtype = 'U'
-        gap = 100  # Reset it to 100
+        gap = unknown  # Reset it to 100
     gline = line + [gtype, gap, "scaffold", "yes", "paired-ends"]
     return AGPLine.make_agpline(gline)
 
@@ -179,6 +179,7 @@ def anchor(args):
 
     newagp = deepcopy(agp)
 
+    seen = set()
     deleted = set()
     for a in agp:
         if a.is_gap:
@@ -187,8 +188,10 @@ def anchor(args):
         name = a.component_id
         object = a.object
         if name in deleted:
-            print >> sys.stderr, "Skipped {0}, already anchored".format(name)
+            print >> sys.stderr, "* Skip {0}, already anchored".format(name)
             continue
+
+        seen.add(name)
 
         target_name, tag = get_target(p, name)
         path = q.get_path(name, target_name, tag=tag)
@@ -199,6 +202,17 @@ def anchor(args):
 
         if not path:
             print >> sys.stderr, name, target_name, path, status
+            continue
+
+        backward = False
+        for x, t in path:
+            if x.v in seen:
+                print >> sys.stderr, "* Does not allow backward" \
+                                     " patch on {0}".format(x.v)
+                backward = True
+                break
+
+        if backward:
             continue
 
         # Build the path plus the ends
@@ -231,9 +245,22 @@ def anchor(args):
             td = newagp.update_between(name, target_name, lines, \
                                  delete=True, verbose=True)
         deleted |= td
+        seen |= td
+
+    # Recruite big singleton contigs
+    CUTOFF = 10000
+    for ctg, size in sizes.items():
+        if ctg in seen:
+            continue
+        if size < CUTOFF:
+            continue
+        newagp.append(get_cline(ctg, ctg, sizes, "?"))
 
     # Write a new AGP file
-    newagp.print_to_file("new.agp")
+    newagpfile = "new.agp"
+    newagp.print_to_file(newagpfile)
+    reindexed = reindex([newagpfile])
+    tidied = tidy([reindexed, contigs])
 
 
 if __name__ == '__main__':

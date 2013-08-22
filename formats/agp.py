@@ -429,10 +429,10 @@ class AGP (LineFile):
         return deleted
 
     def insert_lines(self, a, lines, after=False, delete=False, verbose=False):
-        ai, ax = self.get_line(a)
         if delete:
             deleted = self.delete_lines(lines, verbose=verbose)
 
+        ai, ax = self.get_line(a)
         if after:
             ai += 1
         for i, x in enumerate(lines):
@@ -446,11 +446,11 @@ class AGP (LineFile):
         return deleted
 
     def update_between(self, a, b, lines, delete=False, verbose=False):
-        ai, ax = self.get_line(a)
-        bi, bx = self.get_line(b)
         if delete:
             deleted = self.delete_lines(lines, verbose=verbose)
 
+        ai, ax = self.get_line(a)
+        bi, bx = self.get_line(b)
         # Update
         self[ai + 1: bi] = lines
         if verbose:

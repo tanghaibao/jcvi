@@ -95,8 +95,7 @@ def prepare(args):
     cmd += "\n".join("\t{0} \\".format(x) for x in pairs)
 
     runfile = "run.sh"
-    contents = "\n".join(("#!/bin/bash\n", cmd))
-    write_file(runfile, contents, meta="run script")
+    write_file(runfile, cmd, meta="run script")
 
 
 def map(args):

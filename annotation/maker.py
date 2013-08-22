@@ -67,14 +67,13 @@ class CTLFile (LineFile):
             path = r.value
             if path and op.exists(path):
                 npath = get_abs_path(path)
-                logging.debug("{0} => {1}".format(path, npath))
+                logging.debug("{0}={1} => {2}".format(r.tag, path, npath))
                 r.value = npath
 
-    def update_genome(self, value):
+    def update_tag(self, key, value):
         for r in self:
-            tag = r.tag
-            if tag == "genome":
-                logging.debug("{0} => {1}".format(r.value, value))
+            if r.tag == key:
+                logging.debug("{0}={1} => {2}".format(r.tag, r.value, value))
                 r.value = value
                 break
 
@@ -99,8 +98,7 @@ def main():
     p.dispatch(globals())
 
 
-arraysh = """#!/bin/bash
-
+arraysh = """
 DIR=`awk "NR==$SGE_TASK_ID" {0}`
 cd $DIR
 {1} --ignore_nfs_tmp"""
@@ -125,6 +123,7 @@ def parallel(args):
         sys.exit(not p.print_help())
 
     genome, NN = args
+    threaded = opts.threaded
     N = int(NN)
     assert 1 < N < 1000, "Required: 1 < N < 1000!"
 
@@ -133,6 +132,8 @@ def parallel(args):
 
     c = CTLFile("maker_opts.ctl")
     c.update_abs_path()
+    if threaded > 1:
+        c.update_tag("cpus", threaded)
 
     cwd = os.getcwd()
     dirs = []
@@ -140,7 +141,7 @@ def parallel(args):
         fn = get_abs_path(name)
         bn = op.basename(name)
         dirs.append(bn)
-        c.update_genome(fn)
+        c.update_tag("genome", fn)
         mkdir(bn)
         sh("cp *.ctl {0}".format(bn))
 
@@ -160,11 +161,14 @@ def parallel(args):
     contents = arraysh.format(jobs, cmd)
     write_file(runfile, contents, meta="run script")
 
+    # qsub script
     outfile = "maker.\$TASK_ID.out"
     p = GridProcess(runfile, outfile=outfile, errfile=outfile,
-                    queue=opts.queue, threaded=opts.threaded,
+                    queue=opts.queue, threaded=threaded,
                     arr=ncmds)
-    print >> sys.stderr, p.build()
+    qsubfile = "qsub.sh"
+    qsub = p.build()
+    write_file(qsubfile, qsub, meta="run script")
 
 
 def longest(args):

@@ -328,6 +328,13 @@ def must_open(filename, mode="r", checkexists=False, skipcheck=False, \
 
 
 def write_file(filename, contents, meta="file", skipcheck=False):
+    meta_choices = ("file", "run script")
+    assert meta in meta_choices, "meta must be one of {0}".\
+                    format("|".join(meta_choices))
+
+    if meta == "run script":
+        contents = "#!/bin/bash\n\n" + contents.strip()
+
     fw = must_open(filename, "w", checkexists=True, skipcheck=skipcheck)
     if fw:
         print >> fw, contents

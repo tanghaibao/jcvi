@@ -19,8 +19,7 @@ from jcvi.apps.base import ActionDispatcher, need_update, debug, sh
 debug()
 
 
-EVMRUN = r"""#!/bin/bash
-
+EVMRUN = r"""
 W=`pwd`/weights.txt
 
 $EVM/EvmUtils/write_EVM_commands.pl --genome genome.fasta --weights $W \
@@ -35,8 +34,7 @@ $EGC_SCRIPTS/run_cmds_on_grid.pl commands.list 04048
 #$EVM/EvmUtils/execute_EVM_commands.pl commands.list
 """
 
-EVMLOAD = r"""#!/bin/bash
-
+EVMLOAD = r"""
 $EVM/EvmUtils/recombine_EVM_partial_outputs.pl  \
     --partitions partitions_list.out \
     --output_file_name evm.out

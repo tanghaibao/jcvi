@@ -136,8 +136,7 @@ class Grid (list):
             pi.start()
 
 
-arraysh = """#!/bin/bash
-
+arraysh = """
 CMD=`awk "NR==$SGE_TASK_ID" {0}`
 $CMD"""
 

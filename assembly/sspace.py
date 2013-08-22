@@ -8,6 +8,7 @@ SSPACE scaffolding-related operations.
 import sys
 import logging
 
+from copy import deepcopy
 from optparse import OptionParser
 from collections import deque
 
@@ -19,6 +20,10 @@ from jcvi.utils.iter import pairwise
 from jcvi.algorithms.graph import BiGraph, BiEdge
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
+
+
+NO_UPDATE, INSERT_BEFORE, INSERT_AFTER, INSERT_BETWEEN = \
+    "NO_UPDATE", "INSERT_BEFORE", "INSERT_AFTER", "INSERT_BETWEEN"
 
 
 class EvidenceLine (object):
@@ -56,6 +61,7 @@ class EvidenceFile (BaseFile):
         for name, size in sz.iter_sizes():
             sizes.append((name, size))
         self.sizes = sizes
+        self.sz = sz.mapping
 
     @property
     def graph(self):
@@ -97,6 +103,47 @@ def get_target(p, name):
     return (next.v, "<")
 
 
+def get_orientation(o, status):
+    o = '+' if o == '<' else '-'
+    if status == INSERT_BEFORE:  # Flip orientation for backward traversal
+        o = '+' if o == '-' else '-'
+    return o
+
+
+def get_cline(object, cid, sizes, o):
+    line = [object, 0, 0, 0]
+    cline = line + ['W', cid, 1, sizes[cid], o]
+    return AGPLine.make_agpline(cline)
+
+
+def get_gline(object, gap):
+    line = [object, 0, 0, 0]
+    gtype = 'N'
+    if gap < 0:
+        gtype = 'U'
+        gap = 100  # Reset it to 100
+    gline = line + [gtype, gap, "scaffold", "yes", "paired-ends"]
+    return AGPLine.make_agpline(gline)
+
+
+def path_to_agp(g, path, object, sizes, status):
+    lines = []
+    for (a, ao), (b, bo) in pairwise(path):
+        ao = get_orientation(ao, status)
+        e = g.get_edge(a.v, b.v)
+        cline = get_cline(object, a.v, sizes, ao)
+        gline = get_gline(object, e.length)
+        lines.append(cline)
+        lines.append(gline)
+    # Do not forget the last one
+    z, zo = path[-1]
+    zo = get_orientation(zo, status)
+    cline = get_cline(object, z.v, sizes, zo)
+    lines.append(cline)
+
+    return lines
+
+
 def anchor(args):
     """
     %prog anchor evidencefile scaffolds.fasta contigs.fasta
@@ -124,20 +171,25 @@ def anchor(args):
     p = agp.graph
 
     ef = EvidenceFile(evidencefile, contigs)
+    sizes = ef.sz
     q = ef.graph
 
     logging.debug("Reference graph: {0}".format(p))
     logging.debug("Patch graph: {0}".format(q))
 
-    newagp = list(agp)
-    NO_UPDATE, INSERT_BEFORE, INSERT_AFTER, INSERT_BETWEEN = \
-        "NO_UPDATE", "INSERT_BEFORE", "INSERT_AFTER", "INSERT_BETWEEN"
+    newagp = deepcopy(agp)
 
+    deleted = set()
     for a in agp:
         if a.is_gap:
             continue
 
         name = a.component_id
+        object = a.object
+        if name in deleted:
+            print >> sys.stderr, "Skipped {0}, already anchored".format(name)
+            continue
+
         target_name, tag = get_target(p, name)
         path = q.get_path(name, target_name, tag=tag)
         status = NO_UPDATE
@@ -145,20 +197,43 @@ def anchor(args):
         if path and len(path) > 3:  # Heuristic, the patch must not be too long
             path = None
 
-        if path:
-            vv = q.get_node(name)
-            path.appendleft(vv)
-            if tag == ">":
-                path.reverse()
-                status = INSERT_BEFORE
-            elif target_name is None:
-                status = INSERT_AFTER
-            else:
-                target = q.get_node(target_name)
-                path.append(target)
-                status = INSERT_BETWEEN
+        if not path:
+            print >> sys.stderr, name, target_name, path, status
+            continue
 
-        print name, target_name, path, status
+        # Build the path plus the ends
+        vv = q.get_node(name)
+        path.appendleft((vv, tag))
+        if tag == ">":
+            path.reverse()
+            status = INSERT_BEFORE
+        elif target_name is None:
+            status = INSERT_AFTER
+        else:
+            target = q.get_node(target_name)
+            path.append((target, tag))
+            status = INSERT_BETWEEN
+
+        print >> sys.stderr, name, target_name, path, status
+
+        # Trim the ends off from the constructed AGPLines
+        lines = path_to_agp(q, path, object, sizes, status)
+        if status == INSERT_BEFORE:
+            lines = lines[:-1]
+            td = newagp.insert_lines(name, lines, \
+                                 delete=True, verbose=True)
+        elif status == INSERT_AFTER:
+            lines = lines[1:]
+            td = newagp.insert_lines(name, lines, after=True, \
+                                 delete=True, verbose=True)
+        else:
+            lines = lines[1:-1]
+            td = newagp.update_between(name, target_name, lines, \
+                                 delete=True, verbose=True)
+        deleted |= td
+
+    # Write a new AGP file
+    newagp.print_to_file("new.agp")
 
 
 if __name__ == '__main__':

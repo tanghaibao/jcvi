@@ -52,8 +52,7 @@ def main():
     p.dispatch(globals())
 
 
-SOAPHEADER = """#!/bin/bash
-
+SOAPHEADER = """
 P={0}
 K={1}
 S=soap.config

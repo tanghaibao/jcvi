@@ -334,8 +334,7 @@ def pairs(args):
     extract_pairs(fastqfile, p1fw, p2fw, fragsfw, p)
 
 
-ALLPATHSRUN = r"""#!/bin/bash
-
+ALLPATHSRUN = r"""
 ulimit -s 100000
 ulimit -v 800000000
 

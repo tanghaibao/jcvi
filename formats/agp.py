@@ -174,6 +174,10 @@ class AGPLine (object):
                     "linkage no is incompatible with evidence {0}" \
                     .format(self.linkage_evidence)
 
+    @classmethod
+    def make_agpline(cls, tuple):
+        return AGPLine("\t".join(str(x) for x in tuple), validate=False)
+
 
 class AGP (LineFile):
 
@@ -265,6 +269,13 @@ class AGP (LineFile):
     def iter_object(self):
         for ob, lines_with_same_ob in groupby(self, key=lambda x: x.object):
             yield ob, list(lines_with_same_ob)
+
+    def print_to_file(self, filename):
+        fw = open(filename, "w")
+        for a in self:
+            print >> fw, a
+        fw.close()
+        logging.debug("AGP file written to `{0}`.".format(filename))
 
     def summary_one(self, object, lines):
         bacs = set()
@@ -389,28 +400,65 @@ class AGP (LineFile):
 
         return g
 
+    def get_line(self, cid):
+        for i, a in enumerate(self):
+            if not a.is_gap and a.component_id == cid:
+                return i, a
+        return None, None
+
     # Update AGP on the fly
-    def insert(self, a, lines, before=False):
-        order = self.order
-        ai, ax = order[a]
-        if before:
-            ai -= 1
-        for i, x in enumerate(lines):
-            self.insert(ai + i - 1, x)
+    def delete_line(self, a, verbose=False):
+        ai, ax = self.get_line(a)
+        if ai is None:
+            return
 
-    def delete(self, a):
-        order = self.order
-        ai, ax = order[a]
-        del self[a]
+        if verbose:
+            msg = "* Delete line:\n{0}".format(ax)
+            print >> sys.stderr, msg
 
-    def update_between(self, a, b, lines, delete=False):
-        order = self.order
-        ai, ax = order[a]
-        bi, bx = order[b]
-        self[ai + 1: bi] = lines
+        del self[ai]
+
+    def delete_lines(self, lines, verbose=False):
+        deleted = set()
+        for r in lines:
+            if r.is_gap:
+                continue
+            cid = r.component_id
+            self.delete_line(cid, verbose=verbose)
+            deleted.add(cid)
+        return deleted
+
+    def insert_lines(self, a, lines, after=False, delete=False, verbose=False):
+        ai, ax = self.get_line(a)
         if delete:
-            for r in lines:
-                self.delete(r.component_id)
+            deleted = self.delete_lines(lines, verbose=verbose)
+
+        if after:
+            ai += 1
+        for i, x in enumerate(lines):
+            self.insert(ai + i, x)
+        if verbose:
+            tag = "after" if after else "before"
+            msg = "* Insert {0} line:\n".format(tag)
+            msg += "\n".join([str(ax), "-" * 60]) + "\n"
+            msg += "\n".join(str(x) for x in lines)
+            print >> sys.stderr, msg
+        return deleted
+
+    def update_between(self, a, b, lines, delete=False, verbose=False):
+        ai, ax = self.get_line(a)
+        bi, bx = self.get_line(b)
+        if delete:
+            deleted = self.delete_lines(lines, verbose=verbose)
+
+        # Update
+        self[ai + 1: bi] = lines
+        if verbose:
+            msg = "* Update between:\n"
+            msg += "\n".join([str(ax), str(bx), "-" * 60]) + "\n"
+            msg += "\n".join(str(x) for x in lines)
+            print >> sys.stderr, msg
+        return deleted
 
 
 class TPFLine (object):

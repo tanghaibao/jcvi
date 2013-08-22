@@ -103,6 +103,7 @@ class BiEdge (object):
             self.flip()
 
         self.color = color
+        self.length = length
 
     def __str__(self):
         return "".join(str(x) for x in \
@@ -278,7 +279,7 @@ class BiGraph (object):
         while next:
             if next.v == n2:
                 return path
-            path.append(next)
+            path.append((next, ntag))
             next, ntag = next.get_next(tag=ntag)
         return path if n2 is None else None
 

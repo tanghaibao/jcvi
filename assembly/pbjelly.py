@@ -115,7 +115,7 @@ def patch(args):
     assert patchline.split()[0] == "return"
 
     # Build the pipeline
-    runsh = ["#!/bin/bash\n"]
+    runsh = []
     for action in "setup|mapping|support|extraction".split("|"):
         runsh.append("Jelly.py {0} Protocol.xml".format(action))
 

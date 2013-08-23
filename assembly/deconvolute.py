@@ -75,7 +75,7 @@ def split_barcode_paired(t):
         if not is_barcode_sample(seq, barcode, excludebarcode, trim):
             continue
 
-        print >> fw, "@{0}\n{1}\n+\n{2}".format(title, seq[trim:], qual[trim:])
+        print >> fw, "{0}\n{1}\n+\n{2}".format(title, seq[trim:], qual[trim:])
         fw.writelines(b)
 
     fw.close()

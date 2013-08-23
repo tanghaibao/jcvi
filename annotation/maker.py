@@ -89,6 +89,7 @@ def main():
 
     actions = (
         ('parallel', 'partition the genome into parts and run separately'),
+        ('merge', 'generate the gff files after parallel'),
         ('datastore', 'generate a list of gff filenames to merge'),
         ('split', 'split MAKER models by checking against evidences'),
         ('batcheval', 'calls bed.evaluate() in batch'),
@@ -169,6 +170,50 @@ def parallel(args):
     qsubfile = "qsub.sh"
     qsub = p.build()
     write_file(qsubfile, qsub, meta="run script")
+
+
+mergesh = """
+BASE=$1
+cd $1.fa/$1.maker.output
+{0} -n -d $1_master_datastore_index.log
+mv $1.all.gff ../../
+"""
+
+
+def merge(args):
+    """
+    %prog merge outdir output.gff
+
+    Follow-up command after grid jobs are completed after parallel().
+    """
+    from glob import glob
+
+    p = OptionParser(merge.__doc__)
+    p.add_option("--maker_home", default="~/htang/export/maker",
+                 help="Home directory for MAKER [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    outdir, outputgff = args
+    fsnames = [op.basename(x).replace(".fa", "") for x in glob(op.join(outdir, "*.fa"))]
+    cmd = op.join(opts.maker_home, "bin/gff3_merge")
+
+    outfile = "merge.sh"
+    write_file(outfile, mergesh.format(cmd), meta="run script")
+
+    # Generate per split directory
+    # Note that gff3_merge write to /tmp, so I limit processes here to avoid
+    # filling up disk space
+    sh("parallel -j 8 merge.sh {} ::: " + " ".join(fsnames))
+
+    # One final output
+    gffnames = glob("*.all.gff")
+    assert len(gffnames) == len(fsnames)
+    # Again, DO NOT USE gff3_merge to merge with a smallist /tmp/ area
+    print >> sys.stderr, "Use the following command to merge:\n" \
+                         "$ python -m jcvi.formats.gff merge gfflist"
 
 
 def longest(args):

@@ -16,7 +16,7 @@ import logging
 from optparse import OptionParser
 from itertools import groupby
 
-from jcvi.formats.agp import AGP, TPF, get_phase
+from jcvi.formats.agp import AGP, TPF, get_phase, reindex
 from jcvi.formats.base import BaseFile
 from jcvi.formats.fasta import Fasta, SeqIO
 from jcvi.formats.blast import BlastSlow, BlastLine
@@ -33,9 +33,22 @@ GoodOverlap = 500
 GoodOverhang = 10000
 
 
+class CLR (object):
+
+    def __init__(self, size, orientation='+'):
+        self.start = 1
+        self.end = size
+        self.orientation = orientation
+
+    def __str__(self):
+        return "{0}-{1}({2})".format(self.start, self.end, self.orientation)
+
+
 class Overlap (object):
 
-    def __init__(self, blastline, asize, bsize):
+    def __init__(self, blastline, asize, bsize,
+                 max_hang=GoodOverhang, qreverse=False):
+
         b = blastline
         aid = b.query
         bid = b.subject
@@ -54,7 +67,8 @@ class Overlap (object):
         self.hitlen = b.hitlen
         self.orientation = b.orientation
 
-        self.otype = self.get_otype()
+        self.qreverse = qreverse
+        self.otype = self.get_otype(max_hang=max_hang)
         self.blastline = b
 
     def __str__(self):
@@ -79,7 +93,7 @@ class Overlap (object):
         return self.hitlen >= length_cutoff and \
                self.pctid >= pctid_cutoff
 
-    def get_hangs(self, qreverse=False):
+    def get_hangs(self):
         """
         Determine the type of overlap given query, ref alignment coordinates
         Consider the following alignment between sequence a and b:
@@ -96,23 +110,55 @@ class Overlap (object):
         bLhang, bRhang = self.sstart - 1, self.bsize - self.sstop
         if self.orientation == '-':
             bLhang, bRhang = bRhang, bLhang
-        if qreverse:
+        if self.qreverse:
             aLhang, aRhang = aRhang, aLhang
             bLhang, bRhang = bRhang, bLhang
 
         return aLhang, aRhang, bLhang, bRhang
 
-    def print_graphic(self, qreverse=False):
+    def update_clr(self, aclr, bclr):
+        """
+        Zip the two sequences together, using "left-greedy" rule
+
+        =============                   seqA
+                 ||||
+                 ====(===============)  seqB
+        """
+        print >> sys.stderr, "seqA:", aclr, "seqB:", bclr
+        if aclr.orientation == '+':
+            aclr.end = self.qstop
+        else:
+            aclr.start = self.qstart
+
+        if bclr.orientation == '+':
+            bclr.start = self.sstop + 1
+        else:
+            bclr.end = self.sstart - 1
+        print >> sys.stderr, "seqA:", aclr, "seqB:", bclr
+
+    def anneal(self):
+        if self.otype != 1:
+            print >> sys.stderr, "Cannot anneal!"
+            return
+
+        ao = '-' if self.qreverse else '+'
+        bo = ao if self.orientation == '+' else {'+':'-', '-':'+'}[ao]
+
+        aclr = CLR(self.asize, orientation=ao)
+        bclr = CLR(self.bsize, orientation=bo)
+        self.update_clr(aclr, bclr)
+
+    def print_graphic(self):
         """
         >>>>>>>>>>>>>>>>>>>             seqA (alen)
                   ||||||||
                  <<<<<<<<<<<<<<<<<<<<<  seqB (blen)
         """
-        aLhang, aRhang, bLhang, bRhang = self.get_hangs(qreverse=qreverse)
+        aLhang, aRhang, bLhang, bRhang = self.get_hangs()
 
         achar = ">"
         bchar = "<" if self.orientation == '-' else ">"
-        if qreverse:
+        if self.qreverse:
             achar = "<"
             bchar = {">" : "<", "<" : ">"}[bchar]
 
@@ -144,6 +190,7 @@ class Overlap (object):
         msg += " " * (width - len(msg) + 2)
         msg += "{0} ({1})".format(self.bid, self.bsize)
         print >> sys.stderr, msg
+        print >> sys.stderr, self
 
     def get_otype(self, max_hang=GoodOverhang):
         aLhang, aRhang, bLhang, bRhang = self.get_hangs()
@@ -154,14 +201,14 @@ class Overlap (object):
         s4 = bLhang + bRhang
 
         # Dovetail (terminal) overlap
-        if s1 < max_hang:
+        if s1 < s2 and s1 < max_hang:
             type = 2  # b ~ a
-        elif s2 < max_hang:
+        elif s2 < s1 and s2 < max_hang:
             type = 1  # a ~ b
         # Containment overlap
-        elif s3 < max_hang:
+        elif s3 < s4 and s3 < max_hang:
             type = 3  # a in b
-        elif s4 < max_hang:
+        elif s4 < s3 and s4 < max_hang:
             type = 4  # b in a
         else:
             type = 0
@@ -245,7 +292,7 @@ class Certificate (BaseFile):
 
         return ["N", gap_length, gap_type, linkage, ""]
 
-    def write_AGP(self, filename, orientationguide={}, reindex=True):
+    def write_AGP(self, filename, orientationguide={}):
         """
         For each component, we have two overlaps: North and South.
 
@@ -277,7 +324,7 @@ class Certificate (BaseFile):
             northline = southline = None
             northrange = southrange = None
 
-            # Warn if adjacent components do not have valid # overlaps
+            # Warn if adjacent components do not have valid overlaps
             if south.is_no_overlap:
                 print >> sys.stderr, south
 
@@ -364,9 +411,7 @@ class Certificate (BaseFile):
 
         fw.close()
 
-        if reindex:
-            from jcvi.formats.agp import reindex
-            reindex([filename, "--inplace"])
+        reindex([filename, "--inplace"])
 
 
 def main():
@@ -400,6 +445,8 @@ def anneal(args):
                  help="Overlap length [default: %default]")
     p.add_option("--pctid", default=98, type="int",
                  help="Overlap identity [default: %default]")
+    p.add_option("--hang", default=5000, type="int",
+                 help="Maximum overhang length [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -407,6 +454,8 @@ def anneal(args):
 
     agpfile, outdir = args
     pctid = opts.pctid
+    hang = opts.hang
+
     agp = AGP(agpfile)
     blastfile = agpfile.replace(".agp", ".blast")
     save = not op.exists(blastfile)
@@ -421,10 +470,11 @@ def anneal(args):
         for a, b in pairwise(lines):
             aid = a.component_id
             bid = b.component_id
+            qreverse = a.orientation == '-'
             if save:
                 oopts = [aid, bid, "--nochain", "--suffix", \
                         "fa", "--dir", outdir, "--pctid", str(pctid)]
-                if a.orientation == '-':
+                if qreverse:
                     oopts += ["--qreverse"]
                 o = overlap(oopts)
                 if o:
@@ -435,8 +485,11 @@ def anneal(args):
             if pair not in blast:
                 continue
 
-            b = blast[pair]
-            o = Overlap(b, a.component_span, b.component_span)
+            bl = blast[pair]
+            o = Overlap(bl, a.component_span, b.component_span,
+                            max_hang=hang, qreverse=qreverse)
+            o.print_graphic()
+            o.anneal()
 
     if save:
         fw.close()
@@ -593,7 +646,7 @@ def overlap(args):
             help="Reverse seq a [default: %default]")
     p.add_option("--nochain", default=False, action="store_true",
             help="Do not chain adjacent HSPs [default: chain HSPs]")
-    p.add_option("--evalue", default=1e-5, type="float",
+    p.add_option("--evalue", default=.01, type="float",
             help="E-value cutoff [default: %default]")
     p.add_option("--pctid", default=99, type="int",
             help="Percent identity [default: %default]")
@@ -648,7 +701,6 @@ def overlap(args):
     bid, bsize = Fasta(bfasta).itersizes().next()
     o = Overlap(besthsp, asize, bsize)
     o.print_graphic(qreverse=opts.qreverse)
-    print >> sys.stderr, str(o)
 
     return o
 

@@ -19,7 +19,7 @@ from itertools import groupby
 from jcvi.formats.agp import AGP, TPF, get_phase
 from jcvi.formats.base import BaseFile
 from jcvi.formats.fasta import Fasta, SeqIO
-from jcvi.formats.blast import BlastLine
+from jcvi.formats.blast import BlastSlow, BlastLine
 from jcvi.formats.coords import Overlap_types
 from jcvi.formats.base import must_open
 from jcvi.utils.cbook import memoized
@@ -55,6 +55,7 @@ class Overlap (object):
         self.orientation = b.orientation
 
         self.otype = self.get_otype()
+        self.blastline = b
 
     def __str__(self):
         ov = Overlap_types[self.otype]
@@ -78,7 +79,7 @@ class Overlap (object):
         return self.hitlen >= length_cutoff and \
                self.pctid >= pctid_cutoff
 
-    def get_hangs(self):
+    def get_hangs(self, qreverse=False):
         """
         Determine the type of overlap given query, ref alignment coordinates
         Consider the following alignment between sequence a and b:
@@ -95,6 +96,9 @@ class Overlap (object):
         bLhang, bRhang = self.sstart - 1, self.bsize - self.sstop
         if self.orientation == '-':
             bLhang, bRhang = bRhang, bLhang
+        if qreverse:
+            aLhang, aRhang = aRhang, aLhang
+            bLhang, bRhang = bRhang, bLhang
 
         return aLhang, aRhang, bLhang, bRhang
 
@@ -104,11 +108,7 @@ class Overlap (object):
                   ||||||||
                  <<<<<<<<<<<<<<<<<<<<<  seqB (blen)
         """
-        aLhang, aRhang, bLhang, bRhang = self.get_hangs()
-
-        if qreverse:
-            aLhang, aRhang = aRhang, aLhang
-            bLhang, bRhang = bRhang, bLhang
+        aLhang, aRhang, bLhang, bRhang = self.get_hangs(qreverse=qreverse)
 
         achar = ">"
         bchar = "<" if self.orientation == '-' else ">"
@@ -379,9 +379,67 @@ def main():
         ('blast', 'blast a component to componentpool'),
         ('certificate', 'make certificates for all overlaps in agpfile'),
         ('agp', 'make agpfile based on certificates'),
+        ('anneal', 'merge adjacent contigs and make new agpfile'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def anneal(args):
+    """
+    %prog anneal agpfile outdir annealed.agp
+
+    Merge adjacent overlapping contigs and make new AGP file.
+    outdir contains a folder of FASTA sequences, made by:
+    $ faSplit byname contigs.fasta outdir/
+    """
+    from jcvi.utils.iter import pairwise
+
+    p = OptionParser(anneal.__doc__)
+    p.add_option("--length", default=100, type="int",
+                 help="Overlap length [default: %default]")
+    p.add_option("--pctid", default=98, type="int",
+                 help="Overlap identity [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    agpfile, outdir = args
+    pctid = opts.pctid
+    agp = AGP(agpfile)
+    blastfile = agpfile.replace(".agp", ".blast")
+    save = not op.exists(blastfile)
+    if save:
+        fw = open(blastfile, "w")
+    else:
+        logging.debug("File `{0}` found. Start loading.".format(blastfile))
+        blast = BlastSlow(blastfile).to_dict()
+
+    for object, lines in agp.iter_object():
+        lines = [x for x in lines if not x.is_gap]
+        for a, b in pairwise(lines):
+            aid = a.component_id
+            bid = b.component_id
+            if save:
+                oopts = [aid, bid, "--nochain", "--suffix", \
+                        "fa", "--dir", outdir, "--pctid", str(pctid)]
+                if a.orientation == '-':
+                    oopts += ["--qreverse"]
+                o = overlap(oopts)
+                if o:
+                    print >> fw, o.blastline
+                continue
+
+            pair = (aid, bid)
+            if pair not in blast:
+                continue
+
+            b = blast[pair]
+            o = Overlap(b, a.component_span, b.component_span)
+
+    if save:
+        fw.close()
 
 
 def blast(args):
@@ -529,10 +587,16 @@ def overlap(args):
     p = OptionParser(overlap.__doc__)
     p.add_option("--dir", default=os.getcwd(),
             help="Download sequences to dir [default: %default]")
+    p.add_option("--suffix", default="fasta",
+            help="Suffix of the sequence file in dir [default: %default]")
     p.add_option("--qreverse", default=False, action="store_true",
             help="Reverse seq a [default: %default]")
     p.add_option("--nochain", default=False, action="store_true",
             help="Do not chain adjacent HSPs [default: chain HSPs]")
+    p.add_option("--evalue", default=1e-5, type="float",
+            help="E-value cutoff [default: %default]")
+    p.add_option("--pctid", default=99, type="int",
+            help="Percent identity [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -541,16 +605,19 @@ def overlap(args):
     afasta, bfasta = args
     dir = opts.dir
     chain = not opts.nochain
+    suffix = opts.suffix
+    evalue = opts.evalue
+    pctid = opts.pctid
 
     # Check first whether it is file or accession name
     if not op.exists(afasta):
-        af = op.join(dir, afasta + ".fasta")
+        af = op.join(dir, ".".join((afasta, suffix)))
         if not op.exists(af):  # Check to avoid redownload
             fetch([afasta, "--skipcheck", "--outdir=" + dir])
         afasta = af
 
     if not op.exists(bfasta):
-        bf = op.join(dir, bfasta + ".fasta")
+        bf = op.join(dir, ".".join((bfasta, suffix)))
         if not op.exists(bf):
             fetch([bfasta, "--skipcheck", "--outdir=" + dir])
         bfasta = bf
@@ -559,7 +626,7 @@ def overlap(args):
 
     cmd = BLPATH("blastn")
     cmd += " -query {0} -subject {1}".format(afasta, bfasta)
-    cmd += " -evalue 0.01 -outfmt 6 -perc_identity {0}".format(GoodPct)
+    cmd += " -evalue {0} -outfmt 6 -perc_identity {1}".format(evalue, pctid)
 
     fp = popen(cmd)
     hsps = fp.readlines()

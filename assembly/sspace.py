@@ -10,9 +10,9 @@ import logging
 
 from copy import deepcopy
 from optparse import OptionParser
-from collections import deque
+from collections import deque, defaultdict
 
-from jcvi.formats.fasta import gaps
+from jcvi.formats.fasta import Fasta, gaps
 from jcvi.formats.sizes import Sizes
 from jcvi.formats.base import BaseFile, read_block
 from jcvi.formats.agp import AGP, AGPLine, reindex, tidy
@@ -37,7 +37,8 @@ class EvidenceLine (object):
         o, mtig = tig.split("_")
         tig = int(mtig.replace("tig", ""))
         assert o in ('f', 'r')
-        self.o = ">" if o == 'f' else '<'
+        self.o = '>' if o == 'f' else '<'
+        self.oo = '+' if o == 'f' else '-'
 
         name, size = sizes[tig]
         self.tig = name
@@ -62,15 +63,22 @@ class EvidenceFile (BaseFile):
             sizes.append((name, size))
         self.sizes = sizes
         self.sz = sz.mapping
+        self.scf = {}
+
+    def iter_scaffold(self):
+        filename = self.filename
+        sizes = self.sizes
+        fp = open(filename)
+        for header, lines in read_block(fp, ">"):
+            scaffold, size, tigs = header[1:].split("|")
+            lines = [EvidenceLine(x, sizes) for x in lines if x.strip()]
+            yield scaffold, lines
 
     @property
     def graph(self):
-        filename = self.filename
-        sizes = self.sizes
         g = BiGraph()
-        fp = open(filename)
-        for header, lines in read_block(fp, ">"):
-            lines = [EvidenceLine(x, sizes) for x in lines if x.strip()]
+        for scaffold, lines in self.iter_scaffold():
+            self.scf[scaffold] = [x.tig for x in lines]
 
             for a, b in pairwise(lines):
                 e = BiEdge(a.tig, b.tig, a.o, b.o, length=a.gaps)
@@ -82,14 +90,80 @@ class EvidenceFile (BaseFile):
 
         return g
 
+    def write_agp(self, filename):
+        sizes = self.sz
+        agp = []
+        for scaffold, lines in self.iter_scaffold():
+            for a, b in pairwise(lines):
+                cline = get_cline(scaffold, a.tig, sizes, a.oo)
+                gline = get_gline(scaffold, a.gaps)
+                agp.append(cline)
+                agp.append(gline)
+            a = lines[-1]
+            cline = get_cline(scaffold, a.tig, sizes, a.oo)
+            agp.append(cline)
+
+        fw = open(filename, "w")
+        for a in agp:
+            print >> fw, a
+        fw.close()
+
+        reindexed = reindex([filename, "--inplace"])
+        return filename
+
 
 def main():
 
     actions = (
+        ('agp', 'convert SSPACE scaffold structure to AGP format'),
         ('anchor', 'anchor contigs to upgrade existing structure'),
+        ('partition', 'partition contigs based on their inter-connectedness'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def agp(args):
+    """
+    %prog agp evidencefile contigs.fasta
+
+    Convert SSPACE scaffold structure to AGP format.
+    """
+    p = OptionParser(agp.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    evidencefile, contigs = args
+    ef = EvidenceFile(evidencefile, contigs)
+
+    agpfile = evidencefile.replace(".evidence", ".agp")
+    ef.write_agp(agpfile)
+
+
+def partition(args):
+    """
+    %prog partition evidencefile A.fasta B.fasta contigs.fasta
+
+    Partition contigs based on their inter-connectedness.
+    1. A-A scaffolds
+    2. A-B scaffolds
+    3. B-B scaffolds
+
+    contigs.fasta is the input to SSPACE, which could be A.fasta + B.fasta.
+    """
+    p = OptionParser(partition.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    ev, afasta, bfasta, contigs = args
+    aids = set(Fasta(afasta, lazy=True).iterkeys_ordered())
+    bids = set(Fasta(bfasta, lazy=True).iterkeys_ordered())
+
+    ef = EvidenceFile(evidencefile, contigs)
 
 
 def get_target(p, name):

@@ -366,9 +366,7 @@ class Certificate (BaseFile):
 
         if reindex:
             from jcvi.formats.agp import reindex
-            reindex([filename])
-            newagpfile = filename.replace(".agp", ".reindexed.agp")
-            shutil.move(newagpfile, filename)
+            reindex([filename, "--inplace"])
 
 
 def main():

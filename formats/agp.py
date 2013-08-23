@@ -752,8 +752,7 @@ def frombed(args):
     fw.close()
 
     # Reindex
-    idxagpfile = reindex([agpfile])
-    shutil.move(idxagpfile, agpfile)
+    idxagpfile = reindex([agpfile, "--inplace"])
 
 
 def swap(args):
@@ -801,8 +800,7 @@ def swap(args):
 
     fw.close()
     # Reindex
-    idxagpfile = reindex([newagpfile])
-    shutil.move(idxagpfile, newagpfile)
+    idxagpfile = reindex([newagpfile, "--inplace"])
 
     return newagpfile
 
@@ -922,8 +920,7 @@ def cut(args):
 
     fw.close()
     # Reindex
-    idxagpfile = reindex([newagpfile])
-    shutil.move(idxagpfile, newagpfile)
+    idxagpfile = reindex([newagpfile, "--inplace"])
 
     return newagpfile
 
@@ -1036,8 +1033,7 @@ def mask(args):
     fw.close()
 
     # Reindex
-    idxagpfile = reindex([newagpfile])
-    shutil.move(idxagpfile, newagpfile)
+    idxagpfile = reindex([newagpfile, "--inplace"])
 
     return newagpfile
 
@@ -1106,12 +1102,15 @@ def reindex(args):
     p = OptionParser(reindex.__doc__)
     p.add_option("--nogaps", default=False, action="store_true",
                  help="Remove all gap lines [default: %default]")
+    p.add_option("--inplace", default=False, action="store_true",
+                 help="Replace input file [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(p.print_help())
 
     agpfile, = args
+    inplace = opts.inplace
     agp = AGP(agpfile, validate=False)
     pf = agpfile.rsplit(".", 1)[0]
     newagpfile = pf + ".reindexed.agp"
@@ -1138,7 +1137,12 @@ def reindex(args):
     # Last step: validate the new agpfile
     fw.close()
     agp = AGP(newagpfile, validate=True)
-    logging.debug("File `{0}` written and verified.".format(newagpfile))
+
+    if inplace:
+        shutil.move(newagpfile, agpfile)
+        logging.debug("Rename file `{0}` to `{1}`".format(newagpfile, agpfile))
+        newagpfile = agpfile
+
     return newagpfile
 
 

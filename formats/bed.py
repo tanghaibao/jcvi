@@ -5,7 +5,6 @@ Classes to handle the .bed files
 import os
 import os.path as op
 import sys
-import shutil
 import logging
 
 from itertools import groupby

@@ -20,7 +20,7 @@ from jcvi.formats.base import LineFile, write_file
 from jcvi.apps.softlink import get_abs_path
 from jcvi.apps.grid import GridProcess
 from jcvi.apps.base import ActionDispatcher, need_update, popen, debug, sh, \
-        mkdir, set_grid_opts
+        mkdir, set_grid_opts, set_tmpdir
 debug()
 
 
@@ -117,6 +117,7 @@ def parallel(args):
     p = OptionParser(parallel.__doc__)
     p.add_option("--maker_home", default="~/htang/export/maker",
                  help="Home directory for MAKER [default: %default]")
+    set_tmpdir(p, tmpdir=None)
     set_grid_opts(p)
     opts, args = p.parse_args(args)
 
@@ -125,6 +126,7 @@ def parallel(args):
 
     genome, NN = args
     threaded = opts.threaded
+    tmpdir = opts.tmpdir
     N = int(NN)
     assert 1 < N < 1000, "Required: 1 < N < 1000!"
 
@@ -159,6 +161,9 @@ def parallel(args):
     ncmds = len(dirs)
     runfile = "array.sh"
     cmd = op.join(opts.maker_home, "bin/maker")
+    if tmpdir:
+        cmd += " -TMP {0}".format(tmpdir)
+
     contents = arraysh.format(jobs, cmd)
     write_file(runfile, contents, meta="run script")
 

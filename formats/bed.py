@@ -15,7 +15,7 @@ from jcvi.utils.cbook import depends, thousands, percentage
 from jcvi.utils.range import Range, range_union, range_chain, \
         range_distance, range_intersect
 from jcvi.apps.base import ActionDispatcher, debug, sh, \
-        need_update, popen, set_outfile, set_sort_tmpdir
+        need_update, popen, set_outfile, set_tmpdir
 debug()
 
 
@@ -1015,7 +1015,7 @@ def sort(args):
             help="Sort bed file in place [default: %default]")
     p.add_option("--accn", default=False, action="store_true",
             help="Sort based on the accessions [default: %default]")
-    set_sort_tmpdir(p)
+    set_tmpdir(p)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:

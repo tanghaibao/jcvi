@@ -16,7 +16,7 @@ from jcvi.formats.fasta import Fasta, SeqIO
 from jcvi.formats.bed import Bed, BedLine
 from jcvi.utils.iter import flatten
 from jcvi.utils.orderedcollections import DefaultOrderedDict, parse_qs
-from jcvi.apps.base import ActionDispatcher, set_outfile, mkdir, need_update, sh, set_sort_tmpdir
+from jcvi.apps.base import ActionDispatcher, set_outfile, mkdir, need_update, sh, set_tmpdir
 
 
 Valid_strands = ('+', '-', '?', '.')
@@ -901,7 +901,7 @@ def sort(args):
     p = OptionParser(sort.__doc__)
     p.add_option("-i", dest="inplace", default=False, action="store_true",
                  help="Sort inplace [default: %default]")
-    set_sort_tmpdir(p)
+    set_tmpdir(p)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:

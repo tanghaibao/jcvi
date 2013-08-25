@@ -440,6 +440,35 @@ def main():
     p.dispatch(globals())
 
 
+def get_shred_id(id):
+    """
+    >>> get_shred_id("ca-bacs.5638.frag11.22000-23608")
+    ("ca-bacs.5638", 11)
+    """
+    try:
+        parts = id.split(".")
+        aid = ".".join(parts[:2])
+        fid = int(parts[2].replace("frag", ""))
+    except:
+        aid, fid = None, None
+    return aid, fid
+
+
+def is_adjacent_shreds(a, b):
+    aid, bid = a.component_id, b.component_id
+    ao, bo = a.orientation, b.orientation
+    if ao != bo:
+        return False
+
+    ai, af = get_shred_id(aid)
+    bi, bf = get_shred_id(bid)
+    if ai is None or bi is None:
+        return False
+
+    # Same sequence, with fragment id offset by one
+    return ai == bi and abs(af - bf) == 1
+
+
 def anneal(args):
     """
     %prog anneal agpfile outdir annealed.agp
@@ -447,6 +476,13 @@ def anneal(args):
     Merge adjacent overlapping contigs and make new AGP file.
     outdir contains a folder of FASTA sequences, made by:
     $ faSplit byname contigs.fasta outdir/
+
+    By default it will also anneal lines like these together (unless --nozipshreds):
+    scaffold4       1       1608    1       W       ca-bacs.5638.frag11.22000-23608 1       1608    -
+    scaffold4       1609    1771    2       N       163     scaffold        yes     paired-ends
+    scaffold4       1772    3771    3       W       ca-bacs.5638.frag10.20000-22000 1       2000    -
+
+    These are most likely shreds, which we look for based on names.
     """
     from jcvi.utils.iter import pairwise
 
@@ -457,6 +493,8 @@ def anneal(args):
                  help="Overlap identity [default: %default]")
     p.add_option("--hang", default=5000, type="int",
                  help="Maximum overhang length [default: %default]")
+    p.add_option("--nozipshreds", default=False, action="store_true",
+                 help="Don't zip shred lines [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -465,6 +503,7 @@ def anneal(args):
     agpfile, outdir = args
     pctid = opts.pctid
     hang = opts.hang
+    zipshreds = not opts.nozipshreds
 
     agp = AGP(agpfile)
     blastfile = agpfile.replace(".agp", ".blast")
@@ -493,6 +532,11 @@ def anneal(args):
                     print >> fw, o.blastline
                 continue
 
+            if zipshreds and is_adjacent_shreds(a, b):
+                print >> sys.stderr, "Adjacent shreds: {0} - {1}".format(aid, bid)
+                newagp.delete_between(aid, bid, verbose=True)
+                continue
+
             pair = (aid, bid)
             if pair not in blast:
                 continue
@@ -509,9 +553,9 @@ def anneal(args):
             aclr, bclr = clrstore[aid], clrstore[bid]
 
             o.print_graphic()
-            lines = o.anneal(aclr, bclr)
+            o.anneal(aclr, bclr)
 
-            newagp.update_between(aid, bid, [], delete=True, verbose=True)
+            newagp.delete_between(aid, bid, verbose=True)
 
     logging.debug("A total of {0} components with modified CLR.".\
                     format(len(clrstore)))
@@ -525,7 +569,7 @@ def anneal(args):
             a.component_beg = c.start
             a.component_end = c.end
 
-    newagp.print_to_file("annealed.agp")
+    newagp.print_to_file("annealed.agp", index=False)
 
     if save:
         fw.close()

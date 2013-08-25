@@ -288,12 +288,14 @@ class AGP (LineFile):
         for ob, lines_with_same_ob in groupby(self, key=lambda x: x.object):
             yield ob, list(lines_with_same_ob)
 
-    def print_to_file(self, filename):
+    def print_to_file(self, filename, index=True):
         fw = open(filename, "w")
         for a in self:
             print >> fw, a
         fw.close()
         logging.debug("AGP file written to `{0}`.".format(filename))
+        if index:
+             reindex([filename])
 
     def summary_one(self, object, lines):
         bacs = set()
@@ -477,6 +479,9 @@ class AGP (LineFile):
             msg += "\n".join(str(x) for x in lines)
             print >> sys.stderr, msg
         return deleted
+
+    def delete_between(self, a, b, verbose=True):
+        return self.update_between(a, b, [], verbose=verbose)
 
 
 class TPFLine (object):

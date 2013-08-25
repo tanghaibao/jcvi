@@ -316,8 +316,7 @@ def anchor(args):
 
     # Write a new AGP file
     newagpfile = "new.agp"
-    newagp.print_to_file(newagpfile)
-    reindexed = reindex([newagpfile])
+    newagp.print_to_file(newagpfile, index=True)
     tidied = tidy([reindexed, contigs])
 
 

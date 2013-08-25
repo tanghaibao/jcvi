@@ -5,6 +5,7 @@
 Using CD-HIT (CD-HIT-454) in particular to remove duplicate reads.
 """
 
+import os.path as op
 import sys
 import logging
 
@@ -136,8 +137,13 @@ def deduplicate(args):
     p = OptionParser(deduplicate.__doc__)
     p.add_option("--identity", default=.98, type="float",
                  help="Sequence identity threshold [default: %default]")
+    p.add_option("--est", default=False, action="store_true",
+                 help="Use `cd-hit-est` to cluster [default: %default]")
     p.add_option("--cpus", default=0, type="int",
                  help="Number of CPUs to use, 0=unlimited [default: %default]")
+    p.add_option("--cdhit_home",
+                 default="~/htang/export/cd-hit-v4.6.1-2012-08-27",
+                 help="Directory that contains cd-hit [default: %default]")
     set_grid(p)
 
     opts, args = p.parse_args(args)
@@ -147,9 +153,8 @@ def deduplicate(args):
 
     fastafile, = args
 
-    from jcvi.apps.command import CDPATH
-
-    cmd = CDPATH("cd-hit-454")
+    cmd = "cd-hit-est" if opts.est else "cd-hit-454"
+    cmd = op.join(opts.cdhit_home, cmd)
     cmd += " -c {0}".format(opts.identity)
     cmd += " -M 0 -T {0} -i {1} -o {1}.cdhit".format(opts.cpus, fastafile)
     sh(cmd, grid=opts.grid)

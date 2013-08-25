@@ -43,7 +43,7 @@ class CTLine (object):
         value = self.value
         comment = self.comment
 
-        s = "=".join((tag, value)) if tag else ""
+        s = "=".join(str(x) for x in (tag, value)) if tag else ""
         if s:
             if comment:
                 s += "  # " + comment

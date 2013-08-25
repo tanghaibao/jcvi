@@ -95,12 +95,12 @@ class EvidenceFile (BaseFile):
         agp = []
         for scaffold, lines in self.iter_scaffold():
             for a, b in pairwise(lines):
-                cline = get_cline(scaffold, a.tig, sizes, a.oo)
-                gline = get_gline(scaffold, a.gaps)
+                cline = AGPLine.cline(scaffold, a.tig, sizes, a.oo)
+                gline = AGPLine.gline(scaffold, a.gaps)
                 agp.append(cline)
                 agp.append(gline)
             a = lines[-1]
-            cline = get_cline(scaffold, a.tig, sizes, a.oo)
+            cline = AGPLine.cline(scaffold, a.tig, sizes, a.oo)
             agp.append(cline)
 
         fw = open(filename, "w")
@@ -184,35 +184,19 @@ def get_orientation(o, status):
     return o
 
 
-def get_cline(object, cid, sizes, o):
-    line = [object, 0, 0, 0]
-    cline = line + ['W', cid, 1, sizes[cid], o]
-    return AGPLine.make_agpline(cline)
-
-
-def get_gline(object, gap, unknown=100):
-    line = [object, 0, 0, 0]
-    gtype = 'N'
-    if gap < unknown:
-        gtype = 'U'
-        gap = unknown  # Reset it to 100
-    gline = line + [gtype, gap, "scaffold", "yes", "paired-ends"]
-    return AGPLine.make_agpline(gline)
-
-
 def path_to_agp(g, path, object, sizes, status):
     lines = []
     for (a, ao), (b, bo) in pairwise(path):
         ao = get_orientation(ao, status)
         e = g.get_edge(a.v, b.v)
-        cline = get_cline(object, a.v, sizes, ao)
-        gline = get_gline(object, e.length)
+        cline = AGPLine.cline(object, a.v, sizes, ao)
+        gline = AGPLine.gline(object, e.length)
         lines.append(cline)
         lines.append(gline)
     # Do not forget the last one
     z, zo = path[-1]
     zo = get_orientation(zo, status)
-    cline = get_cline(object, z.v, sizes, zo)
+    cline = AGPLine.cline(object, z.v, sizes, zo)
     lines.append(cline)
 
     return lines
@@ -328,7 +312,7 @@ def anchor(args):
             continue
         if size < CUTOFF:
             continue
-        newagp.append(get_cline(ctg, ctg, sizes, "?"))
+        newagp.append(AGPLine.cline(ctg, ctg, sizes, "?"))
 
     # Write a new AGP file
     newagpfile = "new.agp"

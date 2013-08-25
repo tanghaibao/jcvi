@@ -175,8 +175,24 @@ class AGPLine (object):
                     .format(self.linkage_evidence)
 
     @classmethod
-    def make_agpline(cls, tuple):
+    def agpline(cls, tuple):
         return AGPLine("\t".join(str(x) for x in tuple), validate=False)
+
+    @classmethod
+    def cline(cls, object, cid, sizes, o):
+        line = [object, 0, 0, 0]
+        line += ['W', cid, 1, sizes[cid], o]
+        return cls.make_agpline(cline)
+
+    @classmethod
+    def gline(cls, object, gap, unknown=100):
+        line = [object, 0, 0, 0]
+        gtype = 'N'
+        if gap < unknown:
+            gtype = 'U'
+            gap = unknown  # Reset it to 100
+        line += [gtype, gap, "scaffold", "yes", "paired-ends"]
+        return cls.make_agpline(gline)
 
 
 class AGP (LineFile):
@@ -447,7 +463,7 @@ class AGP (LineFile):
             print >> sys.stderr, msg
         return deleted
 
-    def update_between(self, a, b, lines, delete=False, verbose=False):
+    def update_between(self, a, b, lines, delete=True, verbose=False):
         if delete:
             deleted = self.delete_lines(lines, verbose=verbose)
 

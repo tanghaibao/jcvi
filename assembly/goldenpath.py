@@ -13,6 +13,7 @@ import sys
 import shutil
 import logging
 
+from copy import deepcopy
 from optparse import OptionParser
 from itertools import groupby
 
@@ -35,13 +36,21 @@ GoodOverhang = 10000
 
 class CLR (object):
 
-    def __init__(self, size, orientation='+'):
+    def __init__(self, id, size, orientation='+'):
+        self.id = id
         self.start = 1
         self.end = size
         self.orientation = orientation
 
     def __str__(self):
-        return "{0}-{1}({2})".format(self.start, self.end, self.orientation)
+        return "{0}: {1}-{2}({3})".format(self.id, self.start, self.end,
+                                         self.orientation)
+    @classmethod
+    def from_agpline(cls, a):
+        c = CLR(a.component_id, 0, a.orientation)
+        c.start = a.component_beg
+        c.end = a.component_end
+        return c
 
 
 class Overlap (object):
@@ -124,7 +133,7 @@ class Overlap (object):
                  ||||
                  ====(===============)  seqB
         """
-        print >> sys.stderr, "seqA:", aclr, "seqB:", bclr
+        print >> sys.stderr, aclr, bclr
         if aclr.orientation == '+':
             aclr.end = self.qstop
         else:
@@ -134,18 +143,19 @@ class Overlap (object):
             bclr.start = self.sstop + 1
         else:
             bclr.end = self.sstart - 1
-        print >> sys.stderr, "seqA:", aclr, "seqB:", bclr
+        print >> sys.stderr, aclr, bclr
 
-    def anneal(self):
-        if self.otype != 1:
-            print >> sys.stderr, "Cannot anneal!"
-            return
-
+    def anneal(self, aclr, bclr):
         ao = '-' if self.qreverse else '+'
         bo = ao if self.orientation == '+' else {'+':'-', '-':'+'}[ao]
 
-        aclr = CLR(self.asize, orientation=ao)
-        bclr = CLR(self.bsize, orientation=bo)
+        # Requirement: end-to-end join in correct order and orientation
+        can_anneal = self.otype == 1 and \
+                     (ao, bo) == (aclr.orientation, bclr.orientation)
+        if not can_anneal:
+            print >> sys.stderr, "Cannot anneal!"
+            return
+
         self.update_clr(aclr, bclr)
 
     def print_graphic(self):
@@ -465,6 +475,8 @@ def anneal(args):
         logging.debug("File `{0}` found. Start loading.".format(blastfile))
         blast = BlastSlow(blastfile).to_dict()
 
+    newagp = deepcopy(agp)
+    clrstore = {}
     for object, lines in agp.iter_object():
         lines = [x for x in lines if not x.is_gap]
         for a, b in pairwise(lines):
@@ -488,8 +500,32 @@ def anneal(args):
             bl = blast[pair]
             o = Overlap(bl, a.component_span, b.component_span,
                             max_hang=hang, qreverse=qreverse)
+
+            if aid not in clrstore:
+                clrstore[aid] = CLR.from_agpline(a)
+            if bid not in clrstore:
+                clrstore[bid] = CLR.from_agpline(b)
+
+            aclr, bclr = clrstore[aid], clrstore[bid]
+
             o.print_graphic()
-            o.anneal()
+            lines = o.anneal(aclr, bclr)
+
+            newagp.update_between(aid, bid, [], delete=True, verbose=True)
+
+    logging.debug("A total of {0} components with modified CLR.".\
+                    format(len(clrstore)))
+    # Update all ranges that has modified clr
+    for a in newagp:
+        if a.is_gap:
+            continue
+        aid = a.component_id
+        if aid in clrstore:
+            c = clrstore[aid]
+            a.component_beg = c.start
+            a.component_end = c.end
+
+    newagp.print_to_file("annealed.agp")
 
     if save:
         fw.close()

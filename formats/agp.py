@@ -295,7 +295,7 @@ class AGP (LineFile):
         fw.close()
         logging.debug("AGP file written to `{0}`.".format(filename))
         if index:
-             reindex([filename])
+             reindex([filename, "--inplace"])
 
     def summary_one(self, object, lines):
         bacs = set()
@@ -632,6 +632,7 @@ def trimNs(seq, line, newagp):
     start, end = line.component_beg, line.component_end
     size = end - start + 1
     leftNs, rightNs = 0, 0
+    lid, lo = line.component_id, line.orientation
     for s in seq:
         if s in 'nN':
             leftNs += 1
@@ -643,7 +644,7 @@ def trimNs(seq, line, newagp):
         else:
             break
 
-    if line.orientation == '-':
+    if lo == '-':
         trimstart = start + rightNs
         trimend = end - leftNs
     else:
@@ -654,16 +655,15 @@ def trimNs(seq, line, newagp):
     oldrange = (start, end)
 
     if trimrange != oldrange:
-        logging.debug("Range trimmed of N's: {0} => {1}".format(oldrange,
-            trimrange))
+        logging.debug("{0} trimmed of N's: {1} => {2}".\
+                        format(lid, oldrange, trimrange))
 
         if leftNs:
             print >> newagp, "\t".join(str(x) for x in (line.object, 0, 0, 0,
                     'N', leftNs, "fragment", "yes", ""))
         if trimend > trimstart:
             print >> newagp, "\t".join(str(x) for x in (line.object, 0, 0, 0,
-                    line.component_type, line.component_id, trimstart, trimend,
-                    line.orientation))
+                    line.component_type, lid, trimstart, trimend, lo))
         if rightNs and rightNs != size:
             print >> newagp, "\t".join(str(x) for x in (line.object, 0, 0, 0,
                     'N', rightNs, "fragment", "yes", ""))
@@ -1556,10 +1556,10 @@ def tidy(args):
     %prog tidy agpfile componentfasta
 
     Given an agp file, run through the following steps:
-    o Trim components with dangling N's
-    o Merge adjacent gaps
-    o Trim gaps at the end of an object
-    o Reindex the agp
+    1. Trim components with dangling N's
+    2. Merge adjacent gaps
+    3. Trim gaps at the end of an object
+    4. Reindex the agp
 
     Final output is in `.tidy.agp`.
     """
@@ -1573,15 +1573,21 @@ def tidy(args):
 
     agpfile, componentfasta = args
     originalagpfile = agpfile
-    tmpfasta = "tmp.fasta"
-    build([agpfile, componentfasta, tmpfasta, "--newagp", "--novalidate"])
-    os.remove(tmpfasta)
 
-    agpfile = agpfile.replace(".agp", ".trimmed.agp")
-    gaps([agpfile, "--merge"])
+    # Step 1: Trim terminal Ns
+    tmpfasta = "tmp.fasta"
+    trimmed_agpfile = build([agpfile, componentfasta, tmpfasta,
+                             "--newagp", "--novalidate"])
+    os.remove(tmpfasta)
+    agpfile = trimmed_agpfile
+    agpfile = reindex([agpfile, "--inplace"])
+
+    # Step 2: Merge adjacent gaps
+    merged_agpfile = gaps([agpfile, "--merge"])
     os.remove(agpfile)
 
-    agpfile = agpfile.replace(".agp", ".merged.agp")
+    # Step 3: Trim gaps at the end of object
+    agpfile = merged_agpfile
     agp = AGP(agpfile)
     newagpfile = agpfile.replace(".agp", ".fixed.agp")
     fw = open(newagpfile, "w")
@@ -1599,14 +1605,13 @@ def tidy(args):
     fw.close()
     os.remove(agpfile)
 
+    # Step 4: Final reindex
     agpfile = newagpfile
-    reindex_opts = [agpfile]
+    reindex_opts = [agpfile, "--inplace"]
     if opts.nogaps:
         reindex_opts += ["--nogaps"]
-    reindex(reindex_opts)
-    os.remove(agpfile)
+    agpfile = reindex(reindex_opts)
 
-    agpfile = agpfile.replace(".agp", ".reindexed.agp")
     tidyagpfile = originalagpfile.replace(".agp", ".tidy.agp")
     shutil.move(agpfile, tidyagpfile)
 
@@ -1639,12 +1644,15 @@ def build(args):
         newagpfile = agpfile.replace(".agp", ".trimmed.agp")
         newagp = open(newagpfile, "w")
     else:
+        newagpfile = None
         newagp = None
 
     agp = AGP(agpfile, validate=validate, sorted=True)
     agp.build_all(componentfasta=componentfasta, targetfasta=targetfasta,
             newagp=newagp)
     logging.debug("Target fasta written to `{0}`.".format(targetfasta))
+
+    return newagpfile
 
 
 def validate(args):

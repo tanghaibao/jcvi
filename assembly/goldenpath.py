@@ -45,6 +45,10 @@ class CLR (object):
     def __str__(self):
         return "{0}: {1}-{2}({3})".format(self.id, self.start, self.end,
                                          self.orientation)
+    @property
+    def is_valid(self):
+        return self.start < self.end
+
     @classmethod
     def from_agpline(cls, a):
         c = CLR(a.component_id, 0, a.orientation)
@@ -559,6 +563,12 @@ def anneal(args):
 
     logging.debug("A total of {0} components with modified CLR.".\
                     format(len(clrstore)))
+
+    for cid, c in clrstore.items():
+        if not c.is_valid:
+            print >> sys.stderr, "Remove {0}".format(c)
+            newagp.delete_line(cid, verbose=True)
+
     # Update all ranges that has modified clr
     for a in newagp:
         if a.is_gap:
@@ -569,7 +579,7 @@ def anneal(args):
             a.component_beg = c.start
             a.component_end = c.end
 
-    newagp.print_to_file("annealed.agp", index=False)
+    newagp.print_to_file("annealed.agp")
 
     if save:
         fw.close()

@@ -81,6 +81,8 @@ def patch(args):
     from jcvi.formats.fasta import format
 
     p = OptionParser(patch.__doc__)
+    p.add_option("--cleanfasta", default=False, action="store_true",
+                 help="Clean FASTAto remove description [default: %default]")
     p.add_option("--highqual", default=False, action="store_true",
                  help="Reads are of high quality [default: %default]")
     opts, args = p.parse_args(args)
@@ -92,11 +94,12 @@ def patch(args):
     pf = ref.rsplit(".", 1)[0]
     pr = reads.rsplit(".", 1)[0]
     # Remove description line
-    oref = pf + ".f.fasta"
-    oreads = pr + ".f.fasta"
-    format([ref, oref])
-    format([reads, oreads])
-    ref, reads = oref, oreads
+    if opts.cleanfasta:
+        oref = pf + ".f.fasta"
+        oreads = pr + ".f.fasta"
+        format([ref, oref])
+        format([reads, oreads])
+        ref, reads = oref, oreads
 
     # Check if the FASTA has qual
     ref, refq = fake_quals(ref)

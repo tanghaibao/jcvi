@@ -789,8 +789,8 @@ def overlap(args):
 
     aid, asize = Fasta(afasta).itersizes().next()
     bid, bsize = Fasta(bfasta).itersizes().next()
-    o = Overlap(besthsp, asize, bsize)
-    o.print_graphic(qreverse=opts.qreverse)
+    o = Overlap(besthsp, asize, bsize, qreverse=opts.qreverse)
+    o.print_graphic()
 
     return o
 

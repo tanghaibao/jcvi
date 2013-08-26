@@ -1945,7 +1945,8 @@ def tidy(args):
 
 def write_gaps_bed(inputfasta, bedfile, mingap):
     fwbed = open(bedfile, "w")
-    logging.debug("Write gap locations to `{0}`.".format(bedfile))
+    logging.debug("Write gap (>={0}bp) locations to `{1}`.".\
+                  format(mingap, bedfile))
 
     gapnum = 0
     for rec in SeqIO.parse(inputfasta, "fasta"):
@@ -2003,7 +2004,7 @@ def gaps(args):
         oagpfile = prefix + ".splitobject.agp"
         cagpfile = prefix + ".splitcomponent.agp"
 
-        if need_update(inputfasta, splitfile):
+        if need_update((inputfasta, bedfile), splitfile):
 
             sizesagpfile = agp([inputfasta])
 

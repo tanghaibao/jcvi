@@ -230,7 +230,8 @@ def anchor(args):
         sys.exit(not p.print_help())
 
     evidencefile, scaffolds, contigs = args
-    splitfasta, oagp, cagp = gaps([scaffolds, "--split"])
+    splitfasta, oagp, cagp = gaps([scaffolds, "--split",
+                                   "--mingap={0}".format(opts.mingap)])
 
     agp = AGP(cagp)
     p = agp.graph
@@ -324,7 +325,7 @@ def anchor(args):
     # Write a new AGP file
     newagpfile = "new.agp"
     newagp.print_to_file(newagpfile, index=True)
-    tidied = tidy([reindexed, contigs])
+    tidied = tidy([newagpfile, contigs])
 
 
 if __name__ == '__main__':

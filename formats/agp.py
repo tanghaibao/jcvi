@@ -182,7 +182,7 @@ class AGPLine (object):
     def cline(cls, object, cid, sizes, o):
         line = [object, 0, 0, 0]
         line += ['W', cid, 1, sizes[cid], o]
-        return cls.make_agpline(cline)
+        return AGPLine.agpline(line)
 
     @classmethod
     def gline(cls, object, gap, unknown=100):
@@ -192,7 +192,7 @@ class AGPLine (object):
             gtype = 'U'
             gap = unknown  # Reset it to 100
         line += [gtype, gap, "scaffold", "yes", "paired-ends"]
-        return cls.make_agpline(gline)
+        return AGPLine.agpline(line)
 
 
 class AGP (LineFile):

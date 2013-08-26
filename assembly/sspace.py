@@ -144,26 +144,33 @@ def agp(args):
 
 def partition(args):
     """
-    %prog partition evidencefile A.fasta B.fasta contigs.fasta
+    %prog partition agpfile contigs.fasta newagpfile
 
-    Partition contigs based on their inter-connectedness.
-    1. A-A scaffolds
-    2. A-B scaffolds
-    3. B-B scaffolds
-
-    contigs.fasta is the input to SSPACE, which could be A.fasta + B.fasta.
+    Partition contigs to remove subset.
     """
     p = OptionParser(partition.__doc__)
+    p.add_option("--min_length", default=20000, type="int",
+                 help="Minimum object length to consider [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
         sys.exit(not p.print_help())
 
-    ev, afasta, bfasta, contigs = args
-    aids = set(Fasta(afasta, lazy=True).iterkeys_ordered())
-    bids = set(Fasta(bfasta, lazy=True).iterkeys_ordered())
+    agpfile, contigs, newagpfile = args
+    min_length = opts.min_length
 
-    ef = EvidenceFile(evidencefile, contigs)
+    ids = set(Fasta(contigs, lazy=True).iterkeys_ordered())
+    agp = AGP(agpfile)
+    fw = open(newagpfile, "w")
+    for object, lines in agp.iter_object():
+        length = max(x.object_end for x in lines)
+        oids = set(x.component_id for x in lines if not x.is_gap)
+        if oids <= ids and length < min_length:
+            continue
+        for r in lines:
+            print >> fw, r
+    fw.close()
+    logging.debug("Partitioned AGP written to `{0}`".format(newagpfile))
 
 
 def get_target(p, name):

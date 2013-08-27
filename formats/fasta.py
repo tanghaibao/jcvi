@@ -1870,17 +1870,49 @@ def sequin(args):
     return outputfasta, unknowns + knowns
 
 
+def remove_small_components(rec, minlen):
+    newseq = []
+    removed = 0
+    for gap, seq in groupby(rec.seq, lambda x: x.upper() == 'N'):
+        seq = "".join(seq)
+        seqlen = len(seq)
+        if not gap and seqlen < minlen:
+            seq = seqlen * "N"  # Mask small components
+            logging.debug("Discard component ({0}) in {1}".\
+                            format(seqlen, rec.name))
+            removed += seqlen
+        newseq.append(seq)
+    rec.seq = Seq("".join(newseq))
+    return removed
+
+
+def trim_terminal_Ns(rec):
+    rec.seq = rec.seq.strip("N")
+
+
+def normalize_gaps(rec, gapsize):
+    newseq = []
+    normalized = 0
+    NN = gapsize * "N"
+    for gap, seq in groupby(rec.seq, lambda x: x.upper() == 'N'):
+        seq = "".join(seq)
+        seqlen = len(seq)
+        if gap:
+            seq = NN
+            normalized += 1
+        newseq.append(seq)
+    rec.seq = Seq("".join(newseq))
+    return normalized
+
+
 def tidy(args):
     """
     %prog tidy fastafile
 
-    Normalize gap sizes (default 100 N's) and remove small components (less than
-    100 nucleotides).
+    Trim terminal Ns, normalize gap sizes and remove small components.
     """
     p = OptionParser(tidy.__doc__)
-    p.add_option("--justtrim", default=False, action="store_true",
-            help="Just trim end Ns, disable other options [default: %default]")
-    p.add_option("--gapsize", dest="gapsize", default=100, type="int",
+    p.add_option("--gapsize", dest="gapsize", default=0, type="int",
             help="Set all gaps to the same size [default: %default]")
     p.add_option("--minlen", dest="minlen", default=100, type="int",
             help="Minimum component size [default: %default]")
@@ -1893,54 +1925,31 @@ def tidy(args):
     fastafile, = args
     gapsize = opts.gapsize
     minlen = opts.minlen
+
     tidyfastafile = fastafile.rsplit(".", 1)[0] + ".tidy.fasta"
     fw = must_open(tidyfastafile, "w")
     normalized_gap = "N" * gapsize
 
-    for rec in SeqIO.parse(fastafile, "fasta"):
-        newseq = ""
-        dangle_gaps = 0
-        for gap, seq in groupby(rec.seq, lambda x: x.upper() == 'N'):
-            if opts.justtrim:
-                newseq = str(rec.seq)
-                break
-
-            seq = "".join(seq)
-            seqlen = len(seq)
-            msg = None
-            if gap:
-                nsize = max(gapsize - dangle_gaps, 0)
-                if seqlen < 10:
-                    if nsize > seqlen:
-                        nsize = seqlen
-                    dangle_gaps += seqlen
-                else:
-                    if seqlen != gapsize:
-                        msg = "Normalize gap size ({0}) to {1}" \
-                                .format(seqlen, nsize)
-                    dangle_gaps = gapsize
-
-                newseq += nsize * 'N'
-            else:
-                if seqlen < minlen:
-                    msg = "Discard component ({0})".format(seqlen)
-                else:
-                    newseq += seq
-                    # Discarding components might cause flank gaps to merge
-                    # should be handled in dangle_gaps, which is only reset when
-                    # seeing an actual sequence
-                    dangle_gaps = 0
-
-            if msg:
-                msg = rec.id + ": " + msg
-                logging.info(msg)
-
-        newseq = newseq.strip('nN')
-        ngaps = newseq.count(normalized_gap)
-
-        rec.seq = Seq(newseq)
+    removed = normalized = 0
+    fasta = Fasta(fastafile, lazy=True)
+    for name, rec in fasta.iteritems_ordered():
+        rec.seq = rec.seq.upper()
+        if minlen:
+            removed += remove_small_components(rec, minlen)
+        trim_terminal_Ns(rec)
+        if gapsize:
+            normalized += normalize_gaps(rec, gapsize)
 
         SeqIO.write([rec], fw, "fasta")
+
+    # Print statistics
+    if removed:
+        logging.debug("Total discarded bases: {0}".format(removed))
+    if normalized:
+        logging.debug("Gaps normalized: {0}".format(normalized))
+
+    logging.debug("Tidy FASTA written to `{0}`.".format(tidyfastafile))
+    fw.close()
 
 
 def write_gaps_bed(inputfasta, bedfile, mingap):

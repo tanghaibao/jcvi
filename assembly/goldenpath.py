@@ -25,7 +25,8 @@ from jcvi.formats.coords import Overlap_types
 from jcvi.formats.base import must_open
 from jcvi.utils.cbook import memoized
 from jcvi.apps.entrez import fetch
-from jcvi.apps.base import ActionDispatcher, debug, popen, mkdir, sh
+from jcvi.apps.base import ActionDispatcher, debug, popen, mkdir, sh, \
+        need_update
 debug()
 
 
@@ -138,15 +139,24 @@ class Overlap (object):
                  ====(===============)  seqB
         """
         print >> sys.stderr, aclr, bclr
-        if aclr.orientation == '+':
-            aclr.end = self.qstop
-        else:
-            aclr.start = self.qstart
+        otype = self.otype
 
-        if bclr.orientation == '+':
-            bclr.start = self.sstop + 1
-        else:
-            bclr.end = self.sstart - 1
+        if otype == 1:
+            if aclr.orientation == '+':
+                aclr.end = self.qstop
+            else:
+                aclr.start = self.qstart
+            if bclr.orientation == '+':
+                bclr.start = self.sstop + 1
+            else:
+                bclr.end = self.sstart - 1
+
+        elif otype == 3:
+            aclr.start = aclr.end
+
+        elif otype == 4:
+            bclr.start = bclr.end
+
         print >> sys.stderr, aclr, bclr
 
     def anneal(self, aclr, bclr):
@@ -154,10 +164,10 @@ class Overlap (object):
         bo = ao if self.orientation == '+' else {'+':'-', '-':'+'}[ao]
 
         # Requirement: end-to-end join in correct order and orientation
-        can_anneal = self.otype == 1 and \
+        can_anneal = self.otype in (1, 3, 4) and \
                      (ao, bo) == (aclr.orientation, bclr.orientation)
         if not can_anneal:
-            print >> sys.stderr, "Cannot anneal!"
+            print >> sys.stderr, "* Cannot anneal!"
             return
 
         self.update_clr(aclr, bclr)
@@ -209,23 +219,23 @@ class Overlap (object):
     def get_otype(self, max_hang=GoodOverhang):
         aLhang, aRhang, bLhang, bRhang = self.get_hangs()
 
-        s1 = aLhang + bRhang
-        s2 = aRhang + bLhang
+        s1 = aRhang + bLhang
+        s2 = aLhang + bRhang
         s3 = aLhang + aRhang
         s4 = bLhang + bRhang
-
-        # Dovetail (terminal) overlap
-        if s1 < s2 and s1 < max_hang:
-            type = 2  # b ~ a
-        elif s2 < s1 and s2 < max_hang:
+        ms = min(s1, s2, s3, s4)
+        if ms > max_hang:
+            type = 0
+        elif ms == s1:
             type = 1  # a ~ b
-        # Containment overlap
-        elif s3 < s4 and s3 < max_hang:
+        elif ms == s2:
+            type = 2  # b ~ a
+        elif ms == s3:
             type = 3  # a in b
-        elif s4 < s3 and s4 < max_hang:
+        elif ms == s4:
             type = 4  # b in a
         else:
-            type = 0
+            assert 0
 
         return type
 
@@ -439,9 +449,69 @@ def main():
         ('certificate', 'make certificates for all overlaps in agpfile'),
         ('agp', 'make agpfile based on certificates'),
         ('anneal', 'merge adjacent contigs and make new agpfile'),
+        ('dedup', 'remove redundant contigs with cdhit'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def dedup(args):
+    """
+    %prog dedup scaffolds.fasta
+
+    Remove redundant contigs with CD-HIT. This is run prior to
+    assembly.sspace.embed().
+    """
+    from jcvi.formats.agp import tidy
+    from jcvi.formats.fasta import gaps
+    from jcvi.formats.base import SetFile
+    from jcvi.apps.cdhit import deduplicate, ids
+
+    p = OptionParser(dedup.__doc__)
+    p.add_option("--mingap", default=10, type="int",
+            help="The minimum size of a gap to split [default: %default]")
+    p.add_option("--pctid", default=99, type="int",
+                 help="Sequence identity threshold [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    scaffolds, = args
+    mingap = opts.mingap
+    splitfile, oagpfile, cagpfile = gaps([scaffolds, "--split", "--mingap={0}".format(mingap)])
+
+    clstrfile = splitfile + ".cdhit.clstr"
+    if need_update(splitfile, clstrfile):
+        deduplicate([splitfile, "--pctid={0}".format(opts.pctid), "--est"])
+
+    idsfile = splitfile + ".cdhit.ids"
+    if need_update(clstrfile, idsfile):
+        ids([clstrfile])
+
+    agp = AGP(cagpfile)
+    reps = SetFile(idsfile)
+    dedupagp = scaffolds.rsplit(".", 1)[0] + ".dedup.agp"
+    fw = open(dedupagp, "w")
+
+    ndropped = ndroppedbases = 0
+    for a in agp:
+        if not a.is_gap and a.component_id not in reps:
+            span = a.component_span
+            logging.debug("Drop component {0} ({1})".\
+                          format(a.component_id, span))
+            ndropped += 1
+            ndroppedbases += span
+            continue
+        print >> fw, a
+    fw.close()
+
+    logging.debug("Dropped components: {0}, Dropped bases: {1}".\
+                  format(ndropped, ndroppedbases))
+    logging.debug("Deduplicated file written to `{0}`.".format(dedupagp))
+
+    tidyagp = tidy([dedupagp, splitfasta])
+    return tidyagp
 
 
 def get_shred_id(id):
@@ -561,6 +631,10 @@ def anneal(args):
 
             newagp.delete_between(aid, bid, verbose=True)
 
+    if save:
+        fw.close()
+        anneal(args)
+
     logging.debug("A total of {0} components with modified CLR.".\
                     format(len(clrstore)))
 
@@ -580,9 +654,6 @@ def anneal(args):
             a.component_end = c.end
 
     newagp.print_to_file("annealed.agp")
-
-    if save:
-        fw.close()
 
 
 def blast(args):

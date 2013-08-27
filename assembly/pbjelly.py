@@ -24,7 +24,7 @@ class Protocol (object):
         self.outputDir = outputDir
         self.reference = reference
         self.reads = reads
-        oblasr = (20, 96) if highqual else (8, 70)
+        oblasr = (20, 98) if highqual else (8, 70)
         self.blasr = "-minMatch {0} -minPctIdentity {1}".format(*oblasr)
         self.blasr += " -bestn 8 -nCandidates 30 -maxScore -500 -nproc 64 -noSplitSubreads"
 
@@ -82,7 +82,7 @@ def patch(args):
 
     p = OptionParser(patch.__doc__)
     p.add_option("--cleanfasta", default=False, action="store_true",
-                 help="Clean FASTAto remove description [default: %default]")
+                 help="Clean FASTA to remove description [default: %default]")
     p.add_option("--highqual", default=False, action="store_true",
                  help="Reads are of high quality [default: %default]")
     opts, args = p.parse_args(args)

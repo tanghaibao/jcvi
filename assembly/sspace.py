@@ -116,7 +116,7 @@ def main():
 
     actions = (
         ('agp', 'convert SSPACE scaffold structure to AGP format'),
-        ('anchor', 'anchor contigs to upgrade existing structure'),
+        ('embed', 'embed contigs to upgrade existing structure'),
         ('partition', 'partition contigs based on their inter-connectedness'),
             )
     p = ActionDispatcher(actions)
@@ -209,19 +209,19 @@ def path_to_agp(g, path, object, sizes, status):
     return lines
 
 
-def anchor(args):
+def embed(args):
     """
-    %prog anchor evidencefile scaffolds.fasta contigs.fasta
+    %prog embed evidencefile scaffolds.fasta contigs.fasta
 
     Use SSPACE evidencefile to scaffold contigs into existing scaffold
     structure, as in `scaffolds.fasta`. Contigs.fasta were used by SSPACE
     directly to scaffold.
 
     Rules:
-    1. Only update existing structure by anchoring contigs (<=3 contigs)
+    1. Only update existing structure by embedding contigs (<=3 contigs)
     2. Promote singleton contigs only if they are >= 10Kb.
     """
-    p = OptionParser(anchor.__doc__)
+    p = OptionParser(embed.__doc__)
     p.add_option("--mingap", default=10, type="int",
                  help="Option -minGap used with gapSplit [default: %default]")
     opts, args = p.parse_args(args)
@@ -254,7 +254,7 @@ def anchor(args):
         name = a.component_id
         object = a.object
         if name in deleted:
-            print >> sys.stderr, "* Skip {0}, already anchored".format(name)
+            print >> sys.stderr, "* Skip {0}, already embedded".format(name)
             continue
 
         seen.add(name)

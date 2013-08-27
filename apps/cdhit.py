@@ -106,6 +106,9 @@ def ids(args):
 
     logging.debug("A total of {0} unique reads written to `{1}`.".\
             format(nreads, idsfile))
+    fw.close()
+
+    return idsfile
 
 
 def summary(args):
@@ -135,7 +138,7 @@ def deduplicate(args):
     Wraps `cd-hit-454` to remove duplicate reads.
     """
     p = OptionParser(deduplicate.__doc__)
-    p.add_option("--identity", default=.98, type="float",
+    p.add_option("--pctid", default=98, type="int",
                  help="Sequence identity threshold [default: %default]")
     p.add_option("--est", default=False, action="store_true",
                  help="Use `cd-hit-est` to cluster [default: %default]")
@@ -152,12 +155,16 @@ def deduplicate(args):
         sys.exit(not p.print_help())
 
     fastafile, = args
+    identity = opts.pctid / 100.
 
     cmd = "cd-hit-est" if opts.est else "cd-hit-454"
     cmd = op.join(opts.cdhit_home, cmd)
-    cmd += " -c {0}".format(opts.identity)
+    cmd += " -c {0}".format(identity)
     cmd += " -M 0 -T {0} -i {1} -o {1}.cdhit".format(opts.cpus, fastafile)
     sh(cmd, grid=opts.grid)
+
+    clstrfile = fastafile + ".cdhit.clstr"
+    return clstrfile
 
 
 if __name__ == '__main__':

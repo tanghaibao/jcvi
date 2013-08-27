@@ -7,11 +7,13 @@ Connect to JCVI sybase account
 
 import os.path as op
 import sys
+import logging
 
 from optparse import OptionParser
 
+from jcvi.formats.base import must_open
 from jcvi.apps.base import mkdir, gethostname, getusername
-from jcvi.apps.base import ActionDispatcher, sh, debug
+from jcvi.apps.base import ActionDispatcher, sh, debug, set_outfile
 debug()
 
 
@@ -24,24 +26,39 @@ def get_profile(sqshrc="~/.sqshrc"):
     sqshrc = op.expanduser(sqshrc)
     for row in open(sqshrc):
         row = row.strip()
-        if not row.startswith("\set"):
+        if not row.startswith("\\set") or "prompt" in row:
             continue
         if "password" in row:
             password = _(row)
+        if "hostname" in row:
+            hostname = _(row)
+        if "username" in row:
+            username = _(row)
 
-    hostname = gethostname()
-    username = getusername()
+    if not username:
+        username = getusername()
+    if not hostname:
+        hostname = gethostname()
 
     return hostname, username, password
 
 
-def connect(db, sql):
+def connect(db):
     import Sybase
 
-    db = Sybase.connect(hostname, username, password, db)
+    hostname, username, password = get_profile()
+    db = Sybase.connect(hostname, username, password, database=db)
     c = db.cursor()
-    c.execute(sql)
-    return c.fetchall()
+    return c
+
+
+def fetchall(cur, sql):
+    cur.execute(sql)
+    return cur.fetchall()
+
+
+def runsql(cur, sql):
+    return cur.execute(sql)
 
 
 def main():
@@ -49,6 +66,7 @@ def main():
     actions = (
         ('libs', 'get list of lib_ids to to run by pull'),
         ('pull', 'pull the sequences from the TIGR database'),
+        ('query', 'run query using input from datafile'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -76,7 +94,8 @@ def libs(args):
     db = "track"
     sqlcmd = "select library.lib_id, library.name, bac.gb# from library join bac on " + \
              "library.bac_id=bac.id where bac.lib_name='Medicago'"
-    results = connect(db, sqlcmd)
+    cur = connect(db)
+    results = fetchall(cur, sqlcmd)
 
     fw = open(libfile, "w")
     for lib_id, name, gb in results:
@@ -124,6 +143,79 @@ def pull(args):
         else:
             cmd = "pullseq -D mtg2 -n {0}.sql -o {0} -q".format(lib_id)
         sh(cmd)
+
+
+def query(args):
+    """
+    %prog query "SELECT feat_name FROM asm_feature
+        WHERE feat_type = \\"{0}\\"
+        AND end5 <= \\"{1}\\"
+        AND end3 >= \\"{2}\\"" ::: datafile(s)
+
+    Script takes the data from tab-delimited `datafile` and replaces the placeholders
+    in the query which is then executed. Depending upon the type of query, results are
+    either printed out (when running select) or not (when running insert, update, delete)
+
+    If the query contains quotes around field values, then these need to be to be escaped with \\
+    """
+    import re
+
+    valid_qtypes = ["select", "insert", "update", "delete"]
+
+    p = OptionParser(query.__doc__)
+    p.add_option("--db", default="mta4",
+                 help="Specify name of database to query [default: %default]")
+    p.add_option("--qtype", default="select", choices=valid_qtypes,
+                 help="Specify type of query being run [default: %default]")
+    set_outfile(p)
+    opts, args = p.parse_args(args)
+
+    if len(args) == 0:
+        sys.exit(not p.print_help())
+
+    sep = ":::"
+    files = None
+    if sep in args:
+        sepidx = args.index(sep)
+        files = args[sepidx + 1:]
+        args = args[:sepidx]
+        if not files:
+            files = [""]
+
+    qry = " ".join(args)
+    queries = set()
+    if files:
+        m = re.findall(r"\{\d+\}", qry)
+        if not m:
+            logging.error("Error: query `{0}` does not contain placeholders".format(qry))
+            sys.exit()
+        for datafile in files:
+            datafile = datafile.strip()
+            fp = must_open(datafile)
+            for row in fp:
+                atoms = row.split()
+                assert len(atoms) == len(m), \
+                        "Number of columns in `datafile`({0})".format(len(atoms)) + \
+                        " != number of `placeholders`({0})".format(len(m))
+                mi = [int(x.strip("{}")) for x in m]
+                natoms = [x for (mi,x) in sorted(zip(mi,atoms))]
+                for idx, (match, atom) in enumerate(zip(m, natoms)):
+                    nqry = qry.replace(match, atom)
+                    queries.add(nqry)
+    else:
+        queries.add(qry)
+
+    fw = must_open(opts.outfile, "w")
+    cur = connect(opts.db)
+    for qry in queries:
+        if opts.qtype == "select":
+            results = fetchall(cur, qry)
+            for result in results:
+                print >> fw, "\t".join([str(x) for x in result])
+        else:
+            status = runsql(cur, qry)
+            if status is not None:
+                logging.debug("Error in query {0}".format(qry))
 
 
 if __name__ == '__main__':

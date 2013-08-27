@@ -151,6 +151,9 @@ def main():
 
     actions = (
         ('rename', 'rename genes for annotation release'),
+        # perform following actions on list files
+        ('reindex', 'reindex isoforms per gene locus'),
+        ('publocus', 'create pub_locus identifiers according to GenBank specs'),
         # Medicago gene renumbering
         ('annotate', 'annotation new bed file with features from old'),
         ('renumber', 'renumber genes for annotation updates'),
@@ -339,20 +342,29 @@ def instantiate(args):
     fw.close()
 
 
-def atg_name(name):
+def atg_name(name, retval="chr,rank", trimpad0=True):
+    atg_name_pat = re.compile(r"""
+            ^(?P<locus>
+                (?P<prefix>\D+)(?P<chr>\d+)(?P<sep>\D+)(?P<rank>\d+)
+            )
+            \.?(?P<iso>\d+)?
+            """, re.VERBOSE)
 
-    name = name.upper().rsplit(".", 1)[0]
-    if "G" in name:
-        first, second = name.rsplit("G", 1)
-    elif "TE" in name:
-        first, second = name.rsplit("TE", 1)
+    seps = ["g", "te", "trna", "s"]
+    pad0s = ["chr", "rank"]
+
+    m = re.match(atg_name_pat, name)
+    if m is not None and m.group('sep') in seps:
+        retvals = []
+        for grp in retval.split(","):
+            val = number(m.group(grp)) \
+                    if trimpad0 and grp in pad0s \
+                    else m.group(grp)
+            retvals.append(val)
+
+        return (x for x in retvals)
     else:
-        return None, None
-
-    chr = number(first)
-    rank = number(second)
-
-    return chr, rank
+        return (None for x in retval.split(","))
 
 
 def gene_name(current_chr, x, prefix="Medtr", sep="g", pad0=6):
@@ -864,6 +876,112 @@ def rename(args):
     genes.print_to_file(newbedfile)
     logging.debug("Converted IDs written to `{0}`.".format(idsfile))
     logging.debug("Converted bed written to `{0}`.".format(newbedfile))
+
+
+def reindex(args):
+    """
+    %prog reindex idsfile > idsfiles.reindex
+
+    Given a list of gene model identifier(following ATG naming conventions), reindex
+    all the model IDs with new isoform indices
+
+    Example output:
+	Medtr2g100130.1         Medtr2g100130.1		SAME
+	Medtr2g100130.3         Medtr2g100130.2		CHANGED
+	Medtr2g100130.4         Medtr2g100130.3		CHANGED
+	Medtr2g100130.5         Medtr2g100130.4		CHANGED
+	Medtr2g100130.9         Medtr2g100130.5		CHANGED
+	Medtr2g100130.11        Medtr2g100130.6		CHANGED
+	Medtr2g100130.12        Medtr2g100130.7		CHANGED
+	Medtr2g100130.13        Medtr2g100130.8		CHANGED
+
+    Last column has 3-flags: "SAME" (Isoform index remains the same),
+                             "CHANGED" (Isoform index has changed),
+                         and "CHECK" (Isoform index for primary isoform is missing).
+    """
+    p = OptionParser(reindex.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    index = {}
+    idsfile, = args
+    fp = must_open(idsfile)
+    for row in fp:
+        locus, iso = atg_name(row, retval="locus,iso")
+        if None in (locus, iso):
+            logging.warning("{0} is not a valid gene model identifier".format(row))
+            continue
+        if locus not in index:
+            index[locus] = []
+
+        index[locus].append(int(iso))
+
+    for locus in index:
+        index[locus].sort()
+        l = len(index[locus])
+        new = range(1,l+1)
+        for idx, (i, ni) in enumerate(zip(index[locus], new)):
+            flag = "SAME" if i == ni else "CHANGED"
+            if idx == 0 and i != 1:
+                flag = "CHECK"
+            print "\t".join(x for x in ("{0}.{1}".format(locus, i), \
+                                        "{0}.{1}".format(locus, ni), \
+                                        flag))
+
+
+def publocus(args):
+    """
+    %prog publocus idsfile > idsfiles.publocus
+
+    Given a list of model identifiers, convert each into a GenBank approved
+    pub_locus.
+
+    Example output:
+    Medtr1g007020.1		MTR_1g007020
+    Medtr1g007030.1		MTR_1g007030
+    Medtr1g007060.1		MTR_1g007060A
+    Medtr1g007060.2		MTR_1g007060B
+    """
+    from jcvi.utils.cbook import AutoVivification
+
+    p = OptionParser(publocus.__doc__)
+    p.add_option("--locus_tag", default="MTR_",
+                 help="GenBank locus tag [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    locus_tag = opts.locus_tag
+
+    index = AutoVivification()
+    idsfile, = args
+    fp = must_open(idsfile)
+    for row in fp:
+        locus, chrom, sep, rank, iso = atg_name(row, retval="locus,chr,sep,rank,iso")
+        if None in (locus, chrom, sep, rank, iso):
+            logging.warning("{0} is not a valid gene model identifier".format(row))
+            continue
+        if locus not in index.keys():
+            pub_locus = gene_name(chrom, rank, prefix=locus_tag, sep=sep)
+            index[locus]['pub_locus'] = pub_locus
+            index[locus]['isos'] = []
+
+        index[locus]['isos'].append(int(iso))
+
+    for locus in index:
+        pub_locus = index[locus]['pub_locus']
+        index[locus]['isos'].sort()
+        if len(index[locus]['isos']) > 1:
+            new = [chr(n+64) for n in index[locus]['isos'] if n < 27]
+            for i, ni in zip(index[locus]['isos'], new):
+                print "\t".join(x for x in ("{0}.{1}".format(locus, i), \
+                                            "{0}{1}".format(pub_locus, ni)))
+        else:
+            print "\t".join(x for x in ("{0}.{1}".format(locus, index[locus]['isos'][0]), \
+                                        pub_locus))
 
 
 def augustus(args):

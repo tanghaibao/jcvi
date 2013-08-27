@@ -163,8 +163,8 @@ def deduplicate(args):
     cmd += " -M 0 -T {0} -i {1} -o {1}.cdhit".format(opts.cpus, fastafile)
     sh(cmd, grid=opts.grid)
 
-    clstrfile = fastafile + ".cdhit.clstr"
-    return clstrfile
+    dd = fastafile + ".cdhit"
+    return dd
 
 
 if __name__ == '__main__':

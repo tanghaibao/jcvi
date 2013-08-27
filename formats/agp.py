@@ -1616,6 +1616,7 @@ def tidy(args):
     shutil.move(agpfile, tidyagpfile)
 
     logging.debug("File written to `{0}`.".format(tidyagpfile))
+    return tidyagpfile
 
 
 def build(args):
@@ -1626,19 +1627,18 @@ def build(args):
     """
     p = OptionParser(build.__doc__)
     p.add_option("--newagp", dest="newagp", default=False, action="store_true",
-            help="check components to trim dangling N's [default: %default]")
+            help="Check components to trim dangling N's [default: %default]")
     p.add_option("--novalidate", dest="novalidate", default=False,
             action="store_true",
-            help="don't validate the agpfile [default: %default]")
-
+            help="Don't validate the agpfile [default: %default]")
     opts, args = p.parse_args(args)
 
-    validate = not (opts.novalidate)
-
     if len(args) != 3:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
     agpfile, componentfasta, targetfasta = args
+    validate = not opts.novalidate
+
     if opts.newagp:
         assert agpfile.endswith(".agp")
         newagpfile = agpfile.replace(".agp", ".trimmed.agp")

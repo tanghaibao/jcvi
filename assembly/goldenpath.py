@@ -462,9 +462,8 @@ def dedup(args):
     Remove redundant contigs with CD-HIT. This is run prior to
     assembly.sspace.embed().
     """
-    from jcvi.formats.agp import tidy
+    from jcvi.formats.agp import tidy, build
     from jcvi.formats.fasta import gaps
-    from jcvi.formats.base import SetFile
     from jcvi.apps.cdhit import deduplicate, ids
 
     p = OptionParser(dedup.__doc__)
@@ -481,17 +480,18 @@ def dedup(args):
     mingap = opts.mingap
     splitfile, oagpfile, cagpfile = gaps([scaffolds, "--split", "--mingap={0}".format(mingap)])
 
-    clstrfile = splitfile + ".cdhit.clstr"
+    dd = splitfile + ".cdhit"
+    clstrfile = dd + ".clstr"
+    idsfile = dd + ".ids"
     if need_update(splitfile, clstrfile):
         deduplicate([splitfile, "--pctid={0}".format(opts.pctid), "--est"])
-
-    idsfile = splitfile + ".cdhit.ids"
     if need_update(clstrfile, idsfile):
         ids([clstrfile])
 
     agp = AGP(cagpfile)
-    reps = SetFile(idsfile)
-    dedupagp = scaffolds.rsplit(".", 1)[0] + ".dedup.agp"
+    reps = set(x.split()[-1] for x in open(idsfile))
+    pf = scaffolds.rsplit(".", 1)[0]
+    dedupagp = pf + ".dedup.agp"
     fw = open(dedupagp, "w")
 
     ndropped = ndroppedbases = 0
@@ -510,8 +510,11 @@ def dedup(args):
                   format(ndropped, ndroppedbases))
     logging.debug("Deduplicated file written to `{0}`.".format(dedupagp))
 
-    tidyagp = tidy([dedupagp, splitfasta])
-    return tidyagp
+    tidyagp = tidy([dedupagp, splitfile])
+    dedupfasta = pf + ".dedup.fasta"
+    build([tidyagp, dd, dedupfasta])
+
+    return dedupfasta
 
 
 def get_shred_id(id):

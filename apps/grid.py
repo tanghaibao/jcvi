@@ -212,6 +212,9 @@ def run(args):
     set_grid_opts(p)
     opts, args = p.parse_args(args)
 
+    if len(args) == 0:
+        sys.exit(not p.print_help())
+
     sep = ":::"
     if sep in args:
         sepidx = args.index(sep)

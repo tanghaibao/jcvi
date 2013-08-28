@@ -914,12 +914,12 @@ def reindex(args):
             logging.warning("{0} is not a valid gene model identifier".format(row))
             continue
         if locus not in index:
-            index[locus] = []
+            index[locus] = set()
 
-        index[locus].append(int(iso))
+        index[locus].add(int(iso))
 
     for locus in index:
-        index[locus].sort()
+        index[locus] = sorted(index[locus])
         l = len(index[locus])
         new = range(1,l+1)
         for idx, (i, ni) in enumerate(zip(index[locus], new)):
@@ -967,13 +967,13 @@ def publocus(args):
         if locus not in index.keys():
             pub_locus = gene_name(chrom, rank, prefix=locus_tag, sep=sep)
             index[locus]['pub_locus'] = pub_locus
-            index[locus]['isos'] = []
+            index[locus]['isos'] = set()
 
-        index[locus]['isos'].append(int(iso))
+        index[locus]['isos'].add(int(iso))
 
     for locus in index:
         pub_locus = index[locus]['pub_locus']
-        index[locus]['isos'].sort()
+        Index[locus]['isos'] = sorted(index[locus]['isos'])
         if len(index[locus]['isos']) > 1:
             new = [chr(n+64) for n in index[locus]['isos'] if n < 27]
             for i, ni in zip(index[locus]['isos'], new):

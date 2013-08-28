@@ -167,11 +167,17 @@ def query(args):
                  help="Specify name of database to query [default: %default]")
     p.add_option("--qtype", default="select", choices=valid_qtypes,
                  help="Specify type of query being run [default: %default]")
+    p.add_option("--fieldsep", default="\t",
+                 help="Specify output field separator [default: '%default']")
     set_outfile(p)
     opts, args = p.parse_args(args)
 
     if len(args) == 0:
         sys.exit(not p.print_help())
+
+    dbname = opts.db
+    qtype = opts.qtype
+    fieldsep = opts.fieldsep
 
     sep = ":::"
     files = None
@@ -206,12 +212,12 @@ def query(args):
         queries.add(qry)
 
     fw = must_open(opts.outfile, "w")
-    cur = connect(opts.db)
+    cur = connect(dbname)
     for qry in queries:
-        if opts.qtype == "select":
+        if qtype == "select":
             results = fetchall(cur, qry)
             for result in results:
-                print >> fw, "\t".join([str(x) for x in result])
+                print >> fw, fieldsep.join([str(x) for x in result])
         else:
             status = runsql(cur, qry)
             if status is not None:

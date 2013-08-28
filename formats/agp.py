@@ -1493,8 +1493,11 @@ def gaps(args):
     """
     %prog gaps agpfile
 
-    print out the distribution of gapsizes
+    Print out the distribution of gapsizes. Option --merge allows merging of
+    adjacent gaps which is used by tidy().
     """
+    from jcvi.graphics.histogram import loghistogram
+
     p = OptionParser(gaps.__doc__)
     p.add_option("--merge", dest="merge", default=False, action="store_true",
             help="Merge adjacent gaps (to conform to AGP specification)")
@@ -1504,7 +1507,7 @@ def gaps(args):
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
     merge = opts.merge
     agpfile, = args
@@ -1514,7 +1517,7 @@ def gaps(args):
         fw = open(merged_agpfile, "w")
 
     agp = AGP(agpfile)
-    size_distribution = defaultdict(int)
+    sizes = []
     data = []  # store merged AGPLine's
     priorities = ("centromere", "telomere", "scaffold", "contig", \
             "clone", "fragment")
@@ -1529,7 +1532,7 @@ def gaps(args):
                 if gtype in gap_types:
                     gap_size = gtype
 
-            size_distribution[gap_size] += 1
+            sizes.append(gap_size)
             b = deepcopy(alines[0])
             b.object_beg = min(x.object_beg for x in alines)
             b.object_end = max(x.object_end for x in alines)
@@ -1554,8 +1557,7 @@ def gaps(args):
 
         data.extend(alines)
 
-    for gap_size, counts in sorted(size_distribution.items()):
-        print >> sys.stderr, gap_size, counts
+    loghistogram(sizes)
 
     if opts.header:
         AGP.print_header(fw)

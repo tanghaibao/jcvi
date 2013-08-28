@@ -67,7 +67,7 @@ ggsave('$outfile')
 """
 
 
-def loghistogram(data, base=2, ascii=True, title="Counts", summary=True):
+def loghistogram(data, base=2, ascii=True, title="Counts", summary=False):
     """
     bins is a dictionary with key: log(x, base), value: counts.
     """

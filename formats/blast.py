@@ -1084,9 +1084,12 @@ def bed(args):
     """
     %prog bed blastfile
 
-    Print out a bed file based on the coordinates in BLAST report.
+    Print out bed file based on coordinates in BLAST report. By default, write
+    out subject positions. Use --swap to write query positions.
     """
     p = OptionParser(bed.__doc__)
+    p.add_option("--swap", default=False, action="store_true",
+                 help="Write query positions [default: %default]")
 
     opts, args = p.parse_args(args)
 
@@ -1094,11 +1097,15 @@ def bed(args):
         sys.exit(p.print_help())
 
     blastfile, = args
+    swap = opts.swap
+
     fp = must_open(blastfile)
     bedfile = blastfile.rsplit(".", 1)[0] + ".bed"
     fw = open(bedfile, "w")
     for row in fp:
         b = BlastLine(row)
+        if swap:
+            b = b.swapped
         print >> fw, b.bedline
 
     logging.debug("File written to `{0}`.".format(bedfile))

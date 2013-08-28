@@ -14,7 +14,6 @@ import numpy as np
 from bisect import bisect
 from jcvi.apps.base import OptionParser
 
-from jcvi.graphics.histogram import loghistogram
 from jcvi.formats.base import must_open
 from jcvi.formats.fasta import Fasta
 from jcvi.apps.base import ActionDispatcher, debug
@@ -114,6 +113,8 @@ def n50(args):
     Given a file with a list of numbers denoting contig lengths, calculate N50.
     Input file can be both FASTA or a list of sizes.
     """
+    from jcvi.graphics.histogram import loghistogram
+
     p = OptionParser(n50.__doc__)
     p.add_option("--print0", default=False, action="store_true",
                  help="Print size and L50 to stdout [default: %default]")
@@ -151,7 +152,7 @@ def n50(args):
     summary = (sumsize, l50, nn50, minsize, maxsize, n)
     print >> sys.stderr, " ".join("{0}={1}".format(a, b) for a, b in \
                         zip(header, summary))
-    loghistogram(ctgsizes, summary=False)
+    loghistogram(ctgsizes)
 
     if opts.print0:
         print "\t".join(str(x) for x in (",".join(args), sumsize, l50))

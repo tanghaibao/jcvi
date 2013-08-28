@@ -128,7 +128,7 @@ def summary(args):
     clstrfile, = args
     cf = ClstrFile(clstrfile)
     data = list(cf.iter_sizes())
-    loghistogram(data)
+    loghistogram(data, summary=True)
 
 
 def deduplicate(args):

@@ -9,7 +9,7 @@ import os.path as op
 import sys
 import logging
 
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 
 from jcvi.formats.base import must_open
 from jcvi.apps.base import mkdir, gethostname, getusername
@@ -83,7 +83,7 @@ def libs(args):
     select seq_name from sequence where seq_name like 'MBE%'
         and trash is null;
     """
-    p = MOptionParser(libs.__doc__)
+    p = OptionParser(libs.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -113,7 +113,7 @@ def pull(args):
 
     Pull the sequences using the first column in the libfile.
     """
-    p = MOptionParser(pull.__doc__)
+    p = OptionParser(pull.__doc__)
     p.add_option("--frag", default=False, action="store_true",
             help="The command to pull sequences from db [default: %default]")
     opts, args = p.parse_args(args)
@@ -162,7 +162,7 @@ def query(args):
 
     valid_qtypes = ["select", "insert", "update", "delete"]
 
-    p = MOptionParser(query.__doc__)
+    p = OptionParser(query.__doc__)
     p.add_option("--db", default="mta4",
                  help="Specify name of database to query [default: %default]")
     p.add_option("--qtype", default="select", choices=valid_qtypes,

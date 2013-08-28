@@ -27,7 +27,7 @@ import itertools
 
 from math import log10
 from collections import defaultdict
-from jcvi.apps.base import MOptionParser, OptionGroup
+from jcvi.apps.base import OptionParser, OptionGroup
 
 from jcvi.formats.bed import Bed
 from jcvi.formats.blast import BlastLine
@@ -256,7 +256,7 @@ def tandem_grouper(bed, blast_list, tandem_Nmax=10, flip=True):
 
 def main(args):
 
-    p = MOptionParser(__doc__)
+    p = OptionParser(__doc__)
     p.set_beds()
     p.set_stripnames()
     p.add_option("--tandems_only", dest="tandems_only",

@@ -8,7 +8,7 @@ Wrapper script for some programs in clc-ngs-cell
 import sys
 import os.path as op
 
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 
 from jcvi.formats.base import write_file
 from jcvi.apps.base import ActionDispatcher, debug, sh
@@ -46,7 +46,7 @@ def prepare(args):
 
     from jcvi.assembly.base import FastqNamings, Library
 
-    p = MOptionParser(prepare.__doc__ + FastqNamings)
+    p = OptionParser(prepare.__doc__ + FastqNamings)
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -106,7 +106,7 @@ def map(args):
     Use `clc_ref_assemble` to map the read files to a reference. Use a non-zero
     -s option to turn on paired end mode.
     """
-    p = MOptionParser(map.__doc__)
+    p = OptionParser(map.__doc__)
     p.add_option("-o", dest="outfile", default=None,
             help="Output prefix.cas file [default: %default]")
     p.add_option("-s", dest="size", default=0, type="int",
@@ -171,7 +171,7 @@ def trim(args):
     Use `quality_trim` to trim fastq files. If there are two fastqfiles
     inputted, it is assumed as pairs of fastqs.
     """
-    p = MOptionParser(trim.__doc__)
+    p = OptionParser(trim.__doc__)
 
     # There are many more options from `quality_trim`, but most useful twos are
     # quality cutoff (-c) and length cutoff (-m)

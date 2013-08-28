@@ -14,7 +14,7 @@ import shutil
 import logging
 
 from copy import deepcopy
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 from itertools import groupby
 
 from jcvi.formats.agp import AGP, TPF, get_phase, reindex, tidy, build
@@ -486,7 +486,7 @@ def dedup(args):
     from jcvi.formats.fasta import gaps
     from jcvi.apps.cdhit import deduplicate, ids
 
-    p = MOptionParser(dedup.__doc__)
+    p = OptionParser(dedup.__doc__)
     p.add_option("--mingap", default=10, type="int",
             help="The minimum size of a gap to split [default: %default]")
     p.add_option("--pctid", default=98, type="int",
@@ -587,7 +587,7 @@ def anneal(args):
     """
     from jcvi.utils.iter import pairwise
 
-    p = MOptionParser(anneal.__doc__)
+    p = OptionParser(anneal.__doc__)
     p.add_option("--length", default=100, type="int",
                  help="Overlap length [default: %default]")
     p.add_option("--pctid", default=98, type="int",
@@ -712,7 +712,7 @@ def blast(args):
     """
     from jcvi.apps.command import run_megablast
 
-    p = MOptionParser(blast.__doc__)
+    p = OptionParser(blast.__doc__)
     p.add_option("-n", type="int", default=2,
             help="Take best N hits [default: %default]")
     opts, args = p.parse_args(args)
@@ -763,7 +763,7 @@ def bes(args):
     """
     from jcvi.apps.command import run_blat
 
-    p = MOptionParser(bes.__doc__)
+    p = OptionParser(bes.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -810,7 +810,7 @@ def flip(args):
     whether or not to flip the sequence. This is useful before updates of the
     sequences to make sure the same orientation is used.
     """
-    p = MOptionParser(flip.__doc__)
+    p = OptionParser(flip.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -845,7 +845,7 @@ def overlap(args):
     from jcvi.apps.command import BLPATH
     from jcvi.formats.blast import chain_HSPs
 
-    p = MOptionParser(overlap.__doc__)
+    p = OptionParser(overlap.__doc__)
     p.add_option("--dir", default=os.getcwd(),
             help="Download sequences to dir [default: %default]")
     p.add_option("--suffix", default="fasta",
@@ -960,7 +960,7 @@ def certificate(args):
     the CURRENT BAC, and orientation. Each BAC will have two lines in the
     certificate file.
     """
-    p = MOptionParser(certificate.__doc__)
+    p = OptionParser(certificate.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -1016,7 +1016,7 @@ def neighbor(args):
 
     Check overlaps of a particular component in agpfile.
     """
-    p = MOptionParser(neighbor.__doc__)
+    p = OptionParser(neighbor.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -1078,7 +1078,7 @@ def agp(args):
     """
     from jcvi.formats.base import DictFile
 
-    p = MOptionParser(agp.__doc__)
+    p = OptionParser(agp.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 3:

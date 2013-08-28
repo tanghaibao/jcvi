@@ -10,7 +10,7 @@ import os.path as op
 import sys
 import logging
 
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 
 from jcvi.formats.base import BaseFile, write_file
 from jcvi.formats.fastq import guessoffset
@@ -76,7 +76,7 @@ def contamination(args):
     """
     from jcvi.apps.bowtie import BowtieLogFile, align
 
-    p = MOptionParser(contamination.__doc__)
+    p = OptionParser(contamination.__doc__)
     p.add_option("--firstN", default=100000, type="int",
                  help="Use only the first N reads [default: all]")
     opts, args = p.parse_args(args)
@@ -113,7 +113,7 @@ def alignextend(args):
 
     Wrapper around AMOS alignextend.
     """
-    p = MOptionParser(alignextend.__doc__)
+    p = OptionParser(alignextend.__doc__)
     p.add_option("--nosuffix", default=False, action="store_true",
                  help="Do not add /1/2 suffix to the read [default: %default]")
     p.add_option("--amos_home", default="~/code/amos-code/",
@@ -149,7 +149,7 @@ def count(args):
     """
     from jcvi.utils.table import loadtable
 
-    p = MOptionParser(count.__doc__)
+    p = OptionParser(count.__doc__)
     p.add_option("--dir",
                 help="Sub-directory where FASTQC was run [default: %default]")
     opts, args = p.parse_args(args)
@@ -187,7 +187,7 @@ def hetsmooth(args):
            --no-multibase-replacements --jellyfish-hash-file=23-mers.jf
                reads_1.fq reads_2.fq
     """
-    p = MOptionParser(hetsmooth.__doc__)
+    p = OptionParser(hetsmooth.__doc__)
     p.add_option("-K", default=23, type="int",
                  help="K-mer size [default: %default]")
     p.add_option("-L", type="int",
@@ -227,7 +227,7 @@ def trim(args):
     TrimVersion = tv = "0.30"
     TrimJar = "trimmomatic-{0}.jar".format(tv)
     phdchoices = ("33", "64")
-    p = MOptionParser(trim.__doc__)
+    p = OptionParser(trim.__doc__)
     p.add_option("--path", default=op.join("~/bin", TrimJar),
             help="Path to trimmomatic jar file [default: %default]")
     p.add_option("--phred", default=None, choices=phdchoices,
@@ -384,7 +384,7 @@ def correct(args):
     from jcvi.assembly.allpaths import prepare
     from jcvi.assembly.base import FastqNamings
 
-    p = MOptionParser(correct.__doc__ + FastqNamings)
+    p = OptionParser(correct.__doc__ + FastqNamings)
     p.add_option("--nofragsdedup", default=False, action="store_true",
                  help="Don't deduplicate the fragment reads [default: %default]")
     p.add_option("--ploidy", default="2", choices=("1", "2"),

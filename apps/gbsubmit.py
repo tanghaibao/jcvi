@@ -11,7 +11,7 @@ import string
 import logging
 
 from glob import glob
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 from collections import defaultdict
 
 from Bio import SeqIO
@@ -136,7 +136,7 @@ def fcs(args):
     contig0751      14226   13476..14226    vector
     contig0800      124133  30512..30559    primer/adapter
     """
-    p = MOptionParser(fcs.__doc__)
+    p = OptionParser(fcs.__doc__)
     p.add_option("--cutoff", default=200,
                  help="Skip small components less than [default: %default]")
     opts, args = p.parse_args(args)
@@ -192,7 +192,7 @@ def asn(args):
     """
     from jcvi.formats.base import must_open
 
-    p = MOptionParser(asn.__doc__)
+    p = OptionParser(asn.__doc__)
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -257,7 +257,7 @@ def htgnew(args):
     """
     from jcvi.formats.fasta import Fasta, sequin
 
-    p = MOptionParser(htgnew.__doc__)
+    p = OptionParser(htgnew.__doc__)
     p.add_option("--comment", default="",
             help="Comments for this submission [default: %default]")
     opts, args = p.parse_args(args)
@@ -352,7 +352,7 @@ def htg(args):
     from jcvi.formats.agp import phase
     from jcvi.apps.entrez import fetch
 
-    p = MOptionParser(htg.__doc__)
+    p = OptionParser(htg.__doc__)
     p.add_option("--phases", default=None,
             help="Use another phasefile to override [default: %default]")
     p.add_option("--comment", default="",
@@ -520,7 +520,7 @@ def t384(args):
 
     Print out a table converting between 96 well to 384 well
     """
-    p = MOptionParser(t384.__doc__)
+    p = OptionParser(t384.__doc__)
     opts, args = p.parse_args(args)
 
     plate, splate = get_plate()
@@ -566,7 +566,7 @@ def gss(args):
     For example:
     B906423 SIL-001
     """
-    p = MOptionParser(gss.__doc__)
+    p = OptionParser(gss.__doc__)
 
     opts, args = p.parse_args(args)
 

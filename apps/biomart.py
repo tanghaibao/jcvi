@@ -7,7 +7,7 @@ import sys
 import urllib
 import logging
 
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 from xml.etree.ElementTree import ElementTree, Element, SubElement, tostring
 
 from jcvi.apps.base import ActionDispatcher, debug
@@ -285,7 +285,7 @@ def bed(args):
     Get gene bed from phytozome. `genes.ids` contains the list of gene you want
     to pull from Phytozome. Write output to .bed file.
     """
-    p = MOptionParser(bed.__doc__)
+    p = OptionParser(bed.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:

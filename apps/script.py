@@ -6,7 +6,7 @@ import sys
 import os.path as op
 import logging
 
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 
 from jcvi.formats.base import must_open
 from jcvi.apps.base import ActionDispatcher, debug
@@ -21,7 +21,7 @@ default_template = """#!/usr/bin/env python
 
 import sys
 
-from jcvi.apps.base import MOptionParser, ActionDispatcher, debug
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug
 debug()
 
 
@@ -39,7 +39,7 @@ def app(args):
     %prog app
 
     \"\"\"
-    p = MOptionParser(app.__doc__)
+    p = OptionParser(app.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -63,7 +63,7 @@ Illustrate blablabla...
 import sys
 import logging
 
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 
 from jcvi.graphics.base import plt, set_image_options, savefig
 from jcvi.apps.base import debug
@@ -71,7 +71,7 @@ debug()
 
 
 def main():
-    p = MOptionParser(__doc__)
+    p = OptionParser(__doc__)
     opts, args, iopts = set_image_options(p)
 
     if len(args) != 1:
@@ -101,7 +101,7 @@ def main():
 
     create a minimal boilerplate for a new script
     """
-    p = MOptionParser(main.__doc__)
+    p = OptionParser(main.__doc__)
     p.add_option("-g", dest="graphic", default=False, action="store_true",
             help="create boilerplate for a graphic script")
 

@@ -14,7 +14,7 @@ import numpy as np
 from glob import glob
 from struct import pack, unpack
 from itertools import islice, izip
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 
 from jcvi.formats.base import BaseFile
 from jcvi.assembly.base import FastqNamings, Library
@@ -126,7 +126,7 @@ def fastq(args):
 
     Export ALLPATHS fastb file to fastq file.
     """
-    p = MOptionParser(fastq.__doc__)
+    p = OptionParser(fastq.__doc__)
     p.add_option("--nosim", default=False, action="store_true",
                  help="Do not simulate qual to 50 [default: %default]")
     opts, args = p.parse_args(args)
@@ -190,7 +190,7 @@ def fixpairs(args):
     Fix pairs library stats. This is sometime useful to modify library stats,
     for example, the separation between paired reads after importing the data.
     """
-    p = MOptionParser(fixpairs.__doc__)
+    p = OptionParser(fixpairs.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -212,7 +212,7 @@ def fill(args):
 
     Run FillFragments on `frag_reads_corr.fastb`.
     """
-    p = MOptionParser(fill.__doc__)
+    p = OptionParser(fill.__doc__)
     p.add_option("--stretch", default=3, type="int",
                  help="MAX_STRETCH to pass to FillFragments [default: %default]")
     p.set_cpus()
@@ -302,7 +302,7 @@ def pairs(args):
     """
     from jcvi.assembly.preprocess import run_FastbAndQualb2Fastq
 
-    p = MOptionParser(pairs.__doc__)
+    p = OptionParser(pairs.__doc__)
     p.add_option("--header", default=False, action="store_true",
             help="Print header only [default: %default]")
     opts, args = p.parse_args(args)
@@ -364,7 +364,7 @@ def prepare(args):
     from jcvi.formats.base import write_file
     from jcvi.formats.fastq import guessoffset
 
-    p = MOptionParser(prepare.__doc__ + FastqNamings)
+    p = OptionParser(prepare.__doc__ + FastqNamings)
     p.add_option("--corr", default=False, action="store_true",
                  help="Extra parameters for corrected data [default: %default]")
     p.add_option("--norun", default=False, action="store_true",
@@ -468,7 +468,7 @@ def log(args):
     """
     from jcvi.algorithms.graph import nx, topological_sort
 
-    p = MOptionParser(log.__doc__)
+    p = OptionParser(log.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:

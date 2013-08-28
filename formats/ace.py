@@ -9,7 +9,7 @@ import os
 import sys
 import logging
 
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 from Bio.Sequencing import Ace
 from Bio import SeqIO
 from Bio.Seq import Seq
@@ -39,7 +39,7 @@ def extract(args):
     Extract contigs from ace file and if necessary reformat header with
     a pipe(|) separated list of constituent reads.
     """
-    p = MOptionParser(extract.__doc__)
+    p = OptionParser(extract.__doc__)
     p.add_option("--format", default=False, action="store_true",
             help="enable flag to reformat header into a symbol separated list of constituent reads "+ \
             "[default: %default]")
@@ -86,7 +86,7 @@ def report(args):
     """
     from jcvi.utils.table import tabulate
 
-    p = MOptionParser(report.__doc__)
+    p = OptionParser(report.__doc__)
 
     types = {"read":      ["padded_start", "padded_end", "orient"],
              "consensus": ["padded_consensus_start", "padded_consensus_end"],

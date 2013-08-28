@@ -10,7 +10,7 @@ import sys
 import logging
 
 from glob import glob
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 from itertools import product, groupby, islice
 from multiprocessing import Pool
 from collections import namedtuple
@@ -111,7 +111,7 @@ def split(args):
     When --paired is set, the number of input fastqfiles must be two. Output
     file (the deconvoluted reads) will be in interleaved format.
     """
-    p = MOptionParser(split.__doc__)
+    p = OptionParser(split.__doc__)
     p.add_option("--outdir", default="deconv",
                  help="Output directory [default: %default]")
     p.add_option("--nocheckprefix", default=False, action="store_true",
@@ -188,7 +188,7 @@ def merge(args):
     the split() process and several samples may be in separate fastq files. This
     program merges them.
     """
-    p = MOptionParser(merge.__doc__)
+    p = OptionParser(merge.__doc__)
     p.add_option("--outdir", default="outdir",
                  help="Output final reads in [default: %default]")
     opts, args = p.parse_args(args)

@@ -9,7 +9,7 @@ import shutil
 import logging
 
 from subprocess import call
-from optparse import OptionParser, OptionGroup
+from optparse import OptionParser as OptionP, OptionGroup
 
 os.environ["LC_ALL"] = "C"
 
@@ -65,11 +65,11 @@ class ActionDispatcher (object):
         globals[action](sys.argv[2:])
 
 
-class MOptionParser (OptionParser):
+class OptionParser (OptionP):
 
     def __init__(self, doc):
 
-        OptionParser.__init__(self, doc)
+        OptionP.__init__(self, doc)
 
     def set_grid(self):
         """
@@ -408,7 +408,7 @@ def mdownload(args):
     """
     from jcvi.apps.grid import Jobs
 
-    p = MOptionParser(mdownload.__doc__)
+    p = OptionParser(mdownload.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -428,7 +428,7 @@ def expand(args):
     """
     debug()
 
-    p = MOptionParser(expand.__doc__)
+    p = OptionParser(expand.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) < 1:
@@ -466,7 +466,7 @@ def timestamp(args):
 
     This file can be used later to recover previous timestamps through touch().
     """
-    p = MOptionParser(timestamp.__doc__)
+    p = OptionParser(timestamp.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -489,7 +489,7 @@ def touch(args):
     """
     from time import ctime
 
-    p = MOptionParser(touch.__doc__)
+    p = OptionParser(touch.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -545,7 +545,7 @@ def less(args):
     """
     from jcvi.formats.base import must_open
 
-    p = MOptionParser(less.__doc__)
+    p = OptionParser(less.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -583,7 +583,7 @@ def blast(args):
     task_choices = ("blastn", "blastn-short", "dc-megablast", \
                     "megablast", "vecscreen")
 
-    p = MOptionParser(blast.__doc__)
+    p = OptionParser(blast.__doc__)
     p.add_option("--pctid", type="int", help="Percent identity [default: %default]")
     p.add_option("--wordsize", type="int", help="Word size [default: %default]")
     p.add_option("--evalue", type="float", default=0.01,
@@ -593,6 +593,7 @@ def blast(args):
     p.add_option("--task", default="megablast", choices=task_choices,
             help="Task of the blastn, one of {0}".\
                  format("|".join(task_choices)) + " [default: %default]")
+    p.set_cpus()
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -605,7 +606,7 @@ def blast(args):
 
     run_megablast(infile=queryfasta, outfile=blastfile, db=reffasta,
                   wordsize=opts.wordsize, pctid=opts.pctid, evalue=opts.evalue,
-                  hitlen=None, best=opts.best, task=opts.task)
+                  hitlen=None, best=opts.best, task=opts.task, cpus=opts.cpus)
 
     return blastfile
 

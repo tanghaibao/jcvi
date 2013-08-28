@@ -7,7 +7,7 @@ import sys
 import logging
 
 import numpy as np
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 
 from jcvi.formats.base import LineFile
 from jcvi.apps.softlink import get_abs_path
@@ -114,7 +114,7 @@ def extract(args):
 
     Extract the lines containing only the given IDs.
     """
-    p = MOptionParser(extract.__doc__)
+    p = OptionParser(extract.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -135,7 +135,7 @@ def lft(args):
 
     Convert the sizes file to a trivial lft file.
     """
-    p = MOptionParser(lft.__doc__)
+    p = OptionParser(lft.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -163,7 +163,7 @@ def agp(args):
     """
     from jcvi.formats.agp import OO
 
-    p = MOptionParser(agp.__doc__)
+    p = OptionParser(agp.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:

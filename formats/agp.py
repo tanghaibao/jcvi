@@ -13,7 +13,7 @@ import shutil
 import logging
 
 from copy import deepcopy
-from jcvi.apps.base import MOptionParser, OptionGroup
+from jcvi.apps.base import OptionParser, OptionGroup
 from collections import defaultdict
 from itertools import groupby
 
@@ -717,7 +717,7 @@ def format(args):
     """
     from jcvi.formats.base import DictFile
 
-    p = MOptionParser(format.__doc__)
+    p = OptionParser(format.__doc__)
     p.add_option("--switchcomponent",
                  help="Switch component id based on [%default: %default]")
     opts, args = p.parse_args(args)
@@ -753,7 +753,7 @@ def frombed(args):
     Generate AGP file based on bed file. The bed file must have at least 6
     columns. With the 4-th column indicating the new object.
     """
-    p = MOptionParser(frombed.__doc__)
+    p = OptionParser(frombed.__doc__)
     p.add_option("--gapsize", default=100, type="int",
                  help="Insert gaps of size [default: %default]")
     opts, args = p.parse_args(args)
@@ -797,7 +797,7 @@ def swap(args):
     from itertools import izip_longest
     from jcvi.utils.range import range_interleave
 
-    p = MOptionParser(swap.__doc__)
+    p = OptionParser(swap.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -842,7 +842,7 @@ def stats(args):
 
     Print out a report for length of gaps and components.
     """
-    p = MOptionParser(stats.__doc__)
+    p = OptionParser(stats.__doc__)
     p.add_option("--warn", default=False, action="store_true",
                  help="Warnings on small component spans [default: %default]")
     opts, args = p.parse_args(args)
@@ -893,7 +893,7 @@ def cut(args):
 
     Cut at the boundaries of the ranges in the bedfile.
     """
-    p = MOptionParser(cut.__doc__)
+    p = OptionParser(cut.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -962,7 +962,7 @@ def mask(args):
 
     Mask given ranges in components to gaps.
     """
-    p = MOptionParser(mask.__doc__)
+    p = OptionParser(mask.__doc__)
     p.add_option("--splitobject", default=False, action="store_true",
                  help="Create new names for object [default: %default]")
     p.add_option("--splitcomponent", default=False, action="store_true",
@@ -1075,7 +1075,7 @@ def liftover(args):
 
     Given coordinates in components, convert to the coordinates in chromosomes.
     """
-    p = MOptionParser(liftover.__doc__)
+    p = OptionParser(liftover.__doc__)
     p.add_option("--prefix", default=False, action="store_true",
                  help="Prepend prefix to accn names [default: %default]")
     opts, args = p.parse_args(args)
@@ -1130,7 +1130,7 @@ def reindex(args):
     necessary mostly due to manual edits (insert/delete) that disrupts
     the target coordinates.
     """
-    p = MOptionParser(reindex.__doc__)
+    p = OptionParser(reindex.__doc__)
     p.add_option("--nogaps", default=False, action="store_true",
                  help="Remove all gap lines [default: %default]")
     p.add_option("--inplace", default=False, action="store_true",
@@ -1187,7 +1187,7 @@ def summary(args):
     """
     from jcvi.utils.table import write_csv
 
-    p = MOptionParser(summary.__doc__)
+    p = OptionParser(summary.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -1253,7 +1253,7 @@ def phase(args):
     Input has to be gb file. Search the `KEYWORDS` section to look for PHASE.
     Also look for "chromosome" and "clone" in the definition line.
     """
-    p = MOptionParser(phase.__doc__)
+    p = OptionParser(phase.__doc__)
     p.set_outfile()
 
     opts, args = p.parse_args(args)
@@ -1281,7 +1281,7 @@ def tpf(args):
 
     Can optionally output scaffold gaps.
     """
-    p = MOptionParser(tpf.__doc__)
+    p = OptionParser(tpf.__doc__)
     p.add_option("--noversion", default=False, action="store_true",
             help="Remove trailing accession versions [default: %default]")
     p.add_option("--gaps", default=False, action="store_true",
@@ -1335,7 +1335,7 @@ def bed(args):
 
     print out the tiling paths in bed/gff3 format
     """
-    p = MOptionParser(bed.__doc__)
+    p = OptionParser(bed.__doc__)
     p.add_option("--gaps", default=False, action="store_true",
             help="Only print bed lines for gaps [default: %default]")
     p.add_option("--nogaps", default=False, action="store_true",
@@ -1415,7 +1415,7 @@ def extendbed(args):
     """
     from jcvi.formats.sizes import Sizes
 
-    p = MOptionParser(extendbed.__doc__)
+    p = OptionParser(extendbed.__doc__)
     p.add_option("--nogaps", default=False, action="store_true",
             help="Do not print bed lines for gaps [default: %default]")
     p.add_option("--bed12", default=False, action="store_true",
@@ -1488,7 +1488,7 @@ def gaps(args):
 
     print out the distribution of gapsizes
     """
-    p = MOptionParser(gaps.__doc__)
+    p = OptionParser(gaps.__doc__)
     p.add_option("--merge", dest="merge", default=False, action="store_true",
             help="Merge adjacent gaps (to conform to AGP specification)")
     p.add_option("--header", default=False, action="store_true",
@@ -1573,7 +1573,7 @@ def tidy(args):
 
     Final output is in `.tidy.agp`.
     """
-    p = MOptionParser(tidy.__doc__)
+    p = OptionParser(tidy.__doc__)
     p.add_option("--nogaps", default=False, action="store_true",
                  help="Remove all gap lines [default: %default]")
     opts, args = p.parse_args(args)
@@ -1635,7 +1635,7 @@ def build(args):
 
     Build targetfasta based on info from agpfile
     """
-    p = MOptionParser(build.__doc__)
+    p = OptionParser(build.__doc__)
     p.add_option("--newagp", dest="newagp", default=False, action="store_true",
             help="Check components to trim dangling N's [default: %default]")
     p.add_option("--novalidate", dest="novalidate", default=False,
@@ -1671,7 +1671,7 @@ def validate(args):
 
     validate consistency between agpfile and targetfasta
     """
-    p = MOptionParser(validate.__doc__)
+    p = OptionParser(validate.__doc__)
 
     opts, args = p.parse_args(args)
 

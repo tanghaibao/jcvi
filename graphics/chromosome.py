@@ -12,7 +12,7 @@ import logging
 
 from math import radians, ceil
 from itertools import groupby
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 
 import numpy as np
 
@@ -164,7 +164,7 @@ def main():
     class will get assigned a unique color. `id_mappings` file is optional (if
     omitted, will not paint the chromosome features, except the centromere).
     """
-    p = MOptionParser(main.__doc__)
+    p = OptionParser(main.__doc__)
     p.add_option("--title", default="Medicago truncatula v3.5",
             help="title of the image [default: `%default`]")
     p.add_option("--gauge", default=False, action="store_true",

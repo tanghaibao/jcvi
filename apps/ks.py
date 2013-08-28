@@ -14,7 +14,7 @@ import logging
 from math import log, sqrt, pi, exp
 from itertools import product, combinations
 from collections import namedtuple
-from jcvi.apps.base import MOptionParser, OptionGroup
+from jcvi.apps.base import OptionParser, OptionGroup
 from subprocess import Popen, PIPE
 
 import numpy as np
@@ -179,7 +179,7 @@ def multireport(args):
     """
     from jcvi.graphics.base import plt
 
-    p = MOptionParser(multireport.__doc__)
+    p = OptionParser(multireport.__doc__)
     p.add_option("--nofit", default=False, action="store_true",
                  help="Do not plot fitted lines [default: %default]")
     add_plot_options(p)
@@ -253,7 +253,7 @@ def gc3(args):
     """
     import csv
 
-    p = MOptionParser(gc3.__doc__)
+    p = OptionParser(gc3.__doc__)
     p.add_option("--plot", default=False, action="store_true",
                  help="Also plot the GC3 histogram [default: %default]")
     p.set_outfile()
@@ -334,7 +334,7 @@ def fromgroups(args):
     """
     from jcvi.formats.bed import Bed
 
-    p = MOptionParser(fromgroups.__doc__)
+    p = OptionParser(fromgroups.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) < 2:
@@ -369,7 +369,7 @@ def prepare(args):
     """
     from jcvi.formats.fasta import Fasta, SeqIO
 
-    p = MOptionParser(prepare.__doc__)
+    p = OptionParser(prepare.__doc__)
     p.set_outfile()
 
     opts, args = p.parse_args(args)
@@ -434,7 +434,7 @@ def calc(args):
     """
     from jcvi.formats.fasta import translate
 
-    p = MOptionParser(calc.__doc__)
+    p = OptionParser(calc.__doc__)
     p.add_option("--longest", action="store_true",
                  help="Get longest ORF, only works if no pep file, "\
                       "e.g. ESTs [default: %default]")
@@ -675,7 +675,7 @@ def subset(args):
     Subset some pre-calculated ks ka values (in ksfile) according to pairs
     in tab delimited pairsfile/anchorfile.
     """
-    p = MOptionParser(subset.__doc__)
+    p = OptionParser(subset.__doc__)
     p.add_option("--noheader", action="store_true",
                  help="don't write ksfile header line [default: %default]")
     p.add_option("--block", action="store_true",
@@ -898,7 +898,7 @@ def report(args):
     from jcvi.utils.cbook import SummaryStats
     from jcvi.graphics.histogram import stem_leaf_plot
 
-    p = MOptionParser(report.__doc__)
+    p = OptionParser(report.__doc__)
     add_plot_options(p)
 
     p.add_option("--pdf", default=False, action="store_true",

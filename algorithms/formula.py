@@ -8,7 +8,7 @@ Some math formula for various calculations
 import sys
 
 from math import log, exp
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 
 from jcvi.utils.cbook import human_size
 from jcvi.apps.base import ActionDispatcher, debug
@@ -67,7 +67,7 @@ def velvet(args):
     Number of reads is in millions
     K is the kmer hash value used in velveth
     """
-    p = MOptionParser(velvet.__doc__)
+    p = OptionParser(velvet.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 4:

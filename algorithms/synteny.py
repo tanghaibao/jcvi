@@ -6,7 +6,7 @@ import logging
 
 import numpy as np
 from collections import defaultdict, namedtuple
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 
 from jcvi.formats.bed import Bed, BedLine
 from jcvi.formats.blast import BlastLine
@@ -408,7 +408,7 @@ def spa(args):
     from jcvi.algorithms.graph import merge_paths
     from jcvi.utils.cbook import uniqify
 
-    p = MOptionParser(spa.__doc__)
+    p = OptionParser(spa.__doc__)
     p.add_option("--unmapped", default=False, action="store_true",
                  help="Include unmapped scaffolds in the list [default: %default]")
     opts, args = p.parse_args(args)
@@ -461,7 +461,7 @@ def rebuild(args):
 
     Rebuild anchors file from pre-built blocks file.
     """
-    p = MOptionParser(rebuild.__doc__)
+    p = OptionParser(rebuild.__doc__)
     p.add_option("--header", default=False, action="store_true",
                  help="First line is header [default: %default]")
     p.add_option("--write_blast", default=False, action="store_true",
@@ -495,7 +495,7 @@ def coge(args):
 
     Convert CoGe file to anchors file.
     """
-    p = MOptionParser(coge.__doc__)
+    p = OptionParser(coge.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -535,7 +535,7 @@ def matrix(args):
     Make oxford grid based on anchors file.
     """
 
-    p = MOptionParser(matrix.__doc__)
+    p = OptionParser(matrix.__doc__)
     p.add_option("--seqids", help="File with seqids [default: %default]")
     opts, args = p.parse_args(args)
 
@@ -584,7 +584,7 @@ def simple(args):
     optional additional columns:
     orderA1    orderA2    orderB1    orderB2    sizeA   sizeB   size    block_id(0-based)
     """
-    p = MOptionParser(simple.__doc__)
+    p = OptionParser(simple.__doc__)
     p.add_option("--additional", default=False, action="store_true", \
         help="output additional columns [default: %default]")
     p.set_beds()
@@ -649,7 +649,7 @@ def screen(args):
     5. Option --minsize: remove blocks with less number of anchors than this.
     """
 
-    p = MOptionParser(screen.__doc__)
+    p = OptionParser(screen.__doc__)
     p.set_beds()
 
     p.add_option("--ids", help="File with block IDs (0-based) [default: %default]")
@@ -753,7 +753,7 @@ def summary(args):
     """
     from jcvi.utils.cbook import SummaryStats
 
-    p = MOptionParser(summary.__doc__)
+    p = OptionParser(summary.__doc__)
     p.add_option("--prefix", help="Generate per block stats [default: %default]")
     opts, args = p.parse_args(args)
 
@@ -789,7 +789,7 @@ def stats(args):
     """
     from jcvi.utils.cbook import percentage
 
-    p = MOptionParser(stats.__doc__)
+    p = OptionParser(stats.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -866,7 +866,7 @@ def mcscan(args):
     If --mergetandem=tandem_file is specified, tandem_file should have each
     tandem cluster as one line, tab separated.
     """
-    p = MOptionParser(mcscan.__doc__)
+    p = OptionParser(mcscan.__doc__)
     p.add_option("--iter", default=100, type="int",
                  help="Max number of chains to output [default: %default]")
     p.add_option("--ascii", default=False, action="store_true",
@@ -1000,7 +1000,7 @@ def depth(args):
     """
     from jcvi.utils.range import range_depth
 
-    p = MOptionParser(depth.__doc__)
+    p = OptionParser(depth.__doc__)
     p.add_option("--depthfile",
                  help="Generate file with gene and depth [default: %default]")
     p.set_beds()
@@ -1074,7 +1074,7 @@ def breakpoint(args):
     from jcvi.formats.blast import bed
     from jcvi.utils.range import range_interleave
 
-    p = MOptionParser(breakpoint.__doc__)
+    p = OptionParser(breakpoint.__doc__)
     p.add_option("--xdist", type="int", default=20,
                  help="xdist (in related genome) cutoff [default: %default]")
     p.add_option("--ydist", type="int", default=200000,
@@ -1110,7 +1110,7 @@ def scan(args):
 
     pull out syntenic anchors from blastfile based on single-linkage algorithm
     """
-    p = MOptionParser(scan.__doc__)
+    p = OptionParser(scan.__doc__)
     p.add_option("-n", "--min_size", dest="n", type="int", default=5,
             help="minimum number of anchors in a cluster [default: %default]")
     p.add_option("--liftover",
@@ -1158,7 +1158,7 @@ def liftover(args):
         geneA geneB
         geneC geneD
     """
-    p = MOptionParser(liftover.__doc__)
+    p = OptionParser(liftover.__doc__)
     p.set_stripnames()
 
     blast_file, anchor_file, dist, opts = add_options(p, args)

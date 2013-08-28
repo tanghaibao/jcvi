@@ -11,7 +11,7 @@ import sys
 import math
 import logging
 
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 
 from jcvi.formats.base import LineFile, must_open
 from jcvi.apps.base import ActionDispatcher, debug, sh, \
@@ -181,7 +181,7 @@ def gff(args):
 
     Convert to gff format.
     """
-    p = MOptionParser(gff.__doc__)
+    p = OptionParser(gff.__doc__)
     p.add_option("--source", default="GMAP",
                  help="specify GFF source [default: %default]")
     p.add_option("--type", default="EST_match",

@@ -11,7 +11,7 @@ import os.path as op
 import sys
 
 from collections import defaultdict
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 
 from jcvi.formats.fasta import ids
 from jcvi.formats.base import write_file
@@ -103,7 +103,7 @@ def maker(args):
         "blastx": (P, 1)
     }
 
-    p = MOptionParser(maker.__doc__)
+    p = OptionParser(maker.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -153,7 +153,7 @@ def tigrload(args):
     Load EVM results into TIGR db. Actually, just write a load.sh script. The
     ev_type should be set, e.g. "EVM1", "EVM2", etc.
     """
-    p = MOptionParser(tigrload.__doc__)
+    p = OptionParser(tigrload.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -172,7 +172,7 @@ def pasa(args):
 
     Run EVM in TIGR-only mode.
     """
-    p = MOptionParser(pasa.__doc__)
+    p = OptionParser(pasa.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -224,7 +224,7 @@ def tigrprepare(args):
 
     Run EVM in TIGR-only mode.
     """
-    p = MOptionParser(tigrprepare.__doc__)
+    p = OptionParser(tigrprepare.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 4:

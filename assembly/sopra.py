@@ -9,7 +9,7 @@ import sys
 import logging
 
 from collections import defaultdict
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 
 from jcvi.formats.base import must_open
 from jcvi.formats.bed import BedLine, pairs
@@ -153,7 +153,7 @@ def query(args):
     """
     from jcvi.algorithms.graph import nx, shortest_path
 
-    p = MOptionParser(query.__doc__)
+    p = OptionParser(query.__doc__)
 
     opts, args = p.parse_args(args)
 
@@ -188,7 +188,7 @@ def bundle(args):
     """
     import numpy as np
 
-    p = MOptionParser(bundle.__doc__)
+    p = OptionParser(bundle.__doc__)
     p.add_option("--links", type="int", default=1,
             help="Minimum number of mate pairs to bundle [default: %default]")
     opts, args = p.parse_args(args)
@@ -227,7 +227,7 @@ def link(args):
     Construct contig links based on bed file. Use --prefix to limit the links
     between contigs that start with the same prefix_xxx.
     """
-    p = MOptionParser(link.__doc__)
+    p = OptionParser(link.__doc__)
     p.add_option("--insert", type="int", default=0,
             help="Mean insert size [default: estimate from data]")
     p.add_option("--cutoff", type="int", default=0,
@@ -306,7 +306,7 @@ def scaffold(args):
     from jcvi.algorithms.graph import nx
     from jcvi.formats.agp import order_to_agp
 
-    p = MOptionParser(scaffold.__doc__)
+    p = OptionParser(scaffold.__doc__)
     p.add_option("--prefix", default=False, action="store_true",
             help="Keep IDs with same prefix together [default: %default]")
     opts, args = p.parse_args(args)

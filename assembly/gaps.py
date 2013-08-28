@@ -10,7 +10,7 @@ import sys
 import logging
 
 from itertools import groupby
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 
 from jcvi.formats.sizes import Sizes
 from jcvi.formats.bed import Bed, fastaFromBed
@@ -41,7 +41,7 @@ def annotate(args):
     from jcvi.formats.agp import AGP, bed, gaps, tidy
     from jcvi.formats.bed import fastaFromBed
 
-    p = MOptionParser(annotate.__doc__)
+    p = OptionParser(annotate.__doc__)
     p.add_option("--minsize", default=200,
                  help="Smallest component size [default: %default]")
     opts, args = p.parse_args(args)
@@ -115,7 +115,7 @@ def estimate(args):
     from jcvi.formats.bed import intersectBed_wao
     from jcvi.formats.posmap import MatesFile
 
-    p = MOptionParser(estimate.__doc__)
+    p = OptionParser(estimate.__doc__)
     p.add_option("--minlinks", default=3, type="int",
                  help="Minimum number of links to place [default: %default]")
     opts, args = p.parse_args(args)
@@ -251,7 +251,7 @@ def sizes(args):
     """
     from jcvi.formats.base import DictFile
 
-    p = MOptionParser(sizes.__doc__)
+    p = OptionParser(sizes.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -288,7 +288,7 @@ def flanks(args):
 
     Create sequences flanking the gaps.
     """
-    p = MOptionParser(flanks.__doc__)
+    p = OptionParser(flanks.__doc__)
     p.add_option("--extend", default=2000, type="int",
                  help="Extend seq flanking the gaps [default: %default]")
     opts, args = p.parse_args(args)

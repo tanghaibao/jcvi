@@ -12,7 +12,7 @@ import time
 import logging
 import urllib, urllib2
 
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 
 from jcvi.formats.base import must_open
 from jcvi.apps.base import ActionDispatcher, mkdir, debug
@@ -58,7 +58,7 @@ def fetch(args):
     """
     import re
     import csv
-    p = MOptionParser(fetch.__doc__)
+    p = OptionParser(fetch.__doc__)
 
     p.add_option("--format", default="tab", choices=valid_formats,
             help="download format [default: %default]")

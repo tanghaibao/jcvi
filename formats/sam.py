@@ -10,7 +10,7 @@ import sys
 import logging
 
 from itertools import groupby
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 
 from Bio import SeqIO
 from jcvi.formats.base import LineFile
@@ -124,7 +124,7 @@ def coverage(args):
 
     Calculate coverage for BAM file. BAM file must be sorted.
     """
-    p = MOptionParser(coverage.__doc__)
+    p = OptionParser(coverage.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -149,7 +149,7 @@ def fpkm(args):
 
     Calculate FPKM values from BAM file.
     """
-    p = MOptionParser(fpkm.__doc__)
+    p = OptionParser(fpkm.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) < 2:
@@ -203,7 +203,7 @@ def consensus(args):
 
     Convert bam alignments to consensus FASTQ/FASTA.
     """
-    p = MOptionParser(consensus.__doc__)
+    p = OptionParser(consensus.__doc__)
     p.add_option("--fasta", default=False, action="store_true",
             help="Generate consensus FASTA sequences [default: %default]")
     opts, args = p.parse_args(args)
@@ -232,7 +232,7 @@ def bcf(args):
     """
     from jcvi.apps.grid import Jobs
 
-    p = MOptionParser(bcf.__doc__)
+    p = OptionParser(bcf.__doc__)
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -261,7 +261,7 @@ def chimera(args):
 
     Parse SAM file from `bwasw` and list multi-hit reads.
     """
-    p = MOptionParser(chimera.__doc__)
+    p = OptionParser(chimera.__doc__)
     opts, args = p.parse_args(args)
     if len(args) != 1:
         sys.exit(p.print_help())
@@ -291,7 +291,7 @@ def index(args):
 
     If SAM file, convert to BAM, sort and then index, using SAMTOOLS
     """
-    p = MOptionParser(index.__doc__)
+    p = OptionParser(index.__doc__)
     p.add_option("--fasta", dest="fasta", default=None,
             help="add @SQ header to the BAM file [default: %default]")
     p.add_option("--unique", default=False, action="store_true",
@@ -347,7 +347,7 @@ def pair(args):
     Parses the sam file and retrieve in pairs format,
     query:pos ref:pos
     """
-    p = MOptionParser(pair.__doc__)
+    p = OptionParser(pair.__doc__)
 
     opts, args = p.parse_args(args)
     if len(args) != 1:
@@ -419,7 +419,7 @@ def ace(args):
     whether the contig is unique or repetitive based on A-statistics in Celera
     assembler.
     """
-    p = MOptionParser(ace.__doc__)
+    p = OptionParser(ace.__doc__)
     p.add_option("--splitdir", dest="splitdir", default="outRoot",
             help="split the ace per contig to dir [default: %default]")
     p.add_option("--unpaired", dest="unpaired", default=False,

@@ -8,7 +8,7 @@ Parse html pages.
 import sys
 import logging
 
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 from BeautifulSoup import BeautifulSoup
 from urlparse import urlsplit, urljoin
 
@@ -32,7 +32,7 @@ def links(args):
 
     Extract all the links "<a href=''>" from web page.
     """
-    p = MOptionParser(links.__doc__)
+    p = OptionParser(links.__doc__)
     p.add_option("--img", default=False, action="store_true",
                  help="Extract <img> tags [default: %default]")
     opts, args = p.parse_args(args)
@@ -76,7 +76,7 @@ def table(args):
     """
     import csv
 
-    p = MOptionParser(table.__doc__)
+    p = OptionParser(table.__doc__)
     p.add_option("--sep", default=",",
                  help="Use separator [default: %default]")
     opts, args = p.parse_args(args)

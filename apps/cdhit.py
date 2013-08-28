@@ -9,7 +9,7 @@ import os.path as op
 import sys
 import logging
 
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 from collections import defaultdict
 
 from jcvi.formats.base import LineFile, read_block
@@ -82,7 +82,7 @@ def ids(args):
 
     Get the representative ids from clstr file.
     """
-    p = MOptionParser(ids.__doc__)
+    p = OptionParser(ids.__doc__)
     p.add_option("--prefix", type="int",
                  help="Find rep id for prefix of len [default: %default]")
     opts, args = p.parse_args(args)
@@ -119,7 +119,7 @@ def summary(args):
     """
     from jcvi.graphics.histogram import loghistogram
 
-    p = MOptionParser(summary.__doc__)
+    p = OptionParser(summary.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -137,7 +137,7 @@ def deduplicate(args):
 
     Wraps `cd-hit-454` to remove duplicate reads.
     """
-    p = MOptionParser(deduplicate.__doc__)
+    p = OptionParser(deduplicate.__doc__)
     p.add_option("--pctid", default=98, type="int",
                  help="Sequence identity threshold [default: %default]")
     p.add_option("--est", default=False, action="store_true",

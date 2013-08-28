@@ -10,7 +10,7 @@ import sys
 import string
 import logging
 
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
@@ -134,7 +134,7 @@ def names(args):
     Often the template file can be retrieved from web form:
     <http://www.ncbi.nlm.nih.gov/WebSub/template.cgi>
     """
-    p = MOptionParser(names.__doc__)
+    p = OptionParser(names.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:

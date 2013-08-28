@@ -23,7 +23,7 @@ import cStringIO
 import itertools
 import logging
 
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 
 from jcvi.utils.range import range_overlap
 from jcvi.utils.grouper import Grouper
@@ -247,7 +247,7 @@ def read_clusters(qa_file, qorder, sorder):
 
 
 def main(args):
-    p = MOptionParser(__doc__)
+    p = OptionParser(__doc__)
 
     p.set_beds()
     p.add_option("--quota", default="1:1",

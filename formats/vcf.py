@@ -9,7 +9,7 @@ import sys
 import logging
 
 from collections import defaultdict
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 
 from jcvi.formats.sizes import Sizes
 from jcvi.apps.base import ActionDispatcher, debug, need_update, sh
@@ -37,7 +37,7 @@ def location(args):
     from jcvi.formats.bed import BedLine
     from jcvi.graphics.histogram import stem_leaf_plot
 
-    p = MOptionParser(location.__doc__)
+    p = OptionParser(location.__doc__)
     p.add_option("--dist", default=100, type="int",
                  help="Distance cutoff to call 5` and 3` [default: %default]")
     opts, args = p.parse_args(args)
@@ -88,7 +88,7 @@ def summary(args):
     from jcvi.utils.cbook import thousands
     from jcvi.utils.table import tabulate
 
-    p = MOptionParser(summary.__doc__)
+    p = OptionParser(summary.__doc__)
     p.add_option("--counts",
                  help="Print SNP counts in a txt file [default: %default]")
     p.add_option("--bed",
@@ -213,7 +213,7 @@ def mstmap(args):
 
     Convert bcf/vcf format to mstmap input.
     """
-    p = MOptionParser(mstmap.__doc__)
+    p = OptionParser(mstmap.__doc__)
     p.add_option("--freq", default=.2, type="float",
                  help="Allele must be above frequency [default: %default]")
     p.add_option("--dh", default=False, action="store_true",

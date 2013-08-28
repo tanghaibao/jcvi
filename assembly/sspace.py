@@ -9,7 +9,7 @@ import sys
 import logging
 
 from copy import deepcopy
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 from collections import deque, defaultdict
 
 from jcvi.formats.fasta import Fasta, gaps
@@ -129,7 +129,7 @@ def agp(args):
 
     Convert SSPACE scaffold structure to AGP format.
     """
-    p = MOptionParser(agp.__doc__)
+    p = OptionParser(agp.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -148,7 +148,7 @@ def partition(args):
 
     Partition contigs to remove subset.
     """
-    p = MOptionParser(partition.__doc__)
+    p = OptionParser(partition.__doc__)
     p.add_option("--min_length", default=20000, type="int",
                  help="Minimum object length to consider [default: %default]")
     opts, args = p.parse_args(args)
@@ -221,7 +221,7 @@ def embed(args):
     1. Only update existing structure by embedding contigs (<=3 contigs)
     2. Promote singleton contigs only if they are >= 10Kb.
     """
-    p = MOptionParser(embed.__doc__)
+    p = OptionParser(embed.__doc__)
     p.add_option("--mingap", default=10, type="int",
                  help="Option -minGap used with gapSplit [default: %default]")
     opts, args = p.parse_args(args)

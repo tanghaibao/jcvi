@@ -12,7 +12,7 @@ import logging
 
 from math import log, ceil
 from collections import defaultdict
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 
 import numpy as np
 
@@ -214,7 +214,7 @@ def main():
     line. If more than one file is inputted, the program will combine the
     histograms into the same plot.
     """
-    p = MOptionParser(main.__doc__)
+    p = OptionParser(main.__doc__)
     p.add_option("--skip", default=0, type="int",
             help="skip the first several lines [default: %default]")
     p.add_option("--vmin", dest="vmin", default=0, type="int",

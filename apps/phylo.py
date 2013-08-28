@@ -32,7 +32,7 @@ import warnings
 
 from math import ceil
 from itertools import chain
-from jcvi.apps.base import MOptionParser, OptionGroup
+from jcvi.apps.base import OptionParser, OptionGroup
 
 import numpy as np
 from ete2 import Tree
@@ -585,7 +585,7 @@ def prepare(args):
     """
     from jcvi.graphics.base import discrete_rainbow
 
-    p = MOptionParser(prepare.__doc__)
+    p = OptionParser(prepare.__doc__)
     p.add_option("--addtandem", help="path to tandemfile [default: %default]")
     p.add_option("--writecolors", default=False, action="store_true", \
         help="generate a gene_name to color mapping file which will be taken " \
@@ -696,7 +696,7 @@ def build(args):
     """
     from jcvi.formats.fasta import translate
 
-    p = MOptionParser(build.__doc__)
+    p = OptionParser(build.__doc__)
     p.add_option("--longest", action="store_true",
                  help="Get longest ORF, only works if no pep file, "\
                       "e.g. ESTs [default: %default]")
@@ -920,7 +920,7 @@ def draw(args):
     jcvi.graphics.tree directly, which also gives more drawing options.
     """
     trunc_name_options = ['headn', 'oheadn', 'tailn', 'otailn']
-    p = MOptionParser(draw.__doc__)
+    p = OptionParser(draw.__doc__)
     p.add_option("--input", help="path to single input tree file or a dir "\
                  "containing ONLY the input tree files")
     p.add_option("--combine", type="string", default="1x1", \

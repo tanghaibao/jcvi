@@ -13,7 +13,7 @@ import numpy as np
 import logging
 
 from itertools import groupby
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 
 from jcvi.formats.sizes import Sizes
 from jcvi.formats.base import BaseFile, must_open
@@ -61,7 +61,7 @@ def bed(args):
 
     Write bed files where the bases have at least certain depth.
     """
-    p = MOptionParser(bed.__doc__)
+    p = OptionParser(bed.__doc__)
     p.add_option("-o", dest="output", default="stdout",
             help="Output file name [default: %default]")
     p.add_option("--cutoff", dest="cutoff", default=10, type="int",
@@ -110,7 +110,7 @@ def merge(args):
     Merge several count arrays into one. Overflows will be capped at uint8_max
     (255).
     """
-    p = MOptionParser(merge.__doc__)
+    p = OptionParser(merge.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) < 2:
@@ -148,7 +148,7 @@ def query(args):
 
     Get the depth at a particular base.
     """
-    p = MOptionParser(query.__doc__)
+    p = OptionParser(query.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 4:
@@ -202,7 +202,7 @@ def count(args):
     Serialize the genomeCoverage results. The coordinate system of the count array
     will be based on the fastafile.
     """
-    p = MOptionParser(count.__doc__)
+    p = OptionParser(count.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:

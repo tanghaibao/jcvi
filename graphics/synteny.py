@@ -19,7 +19,7 @@ import sys
 import logging
 import numpy as np
 
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 
 from jcvi.algorithms.synteny import BlockFile
 from jcvi.formats.bed import Bed
@@ -252,7 +252,7 @@ def draw_gene_legend(ax, x1, x2, ytop):
 
 
 def main():
-    p = MOptionParser(__doc__)
+    p = OptionParser(__doc__)
     p.add_option("--switch",
                  help="Rename the seqid with two-column file [default: %default]")
     p.add_option("--tree",

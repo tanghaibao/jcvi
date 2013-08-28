@@ -10,7 +10,7 @@ import sys
 import logging
 
 from itertools import groupby
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 
 from jcvi.formats.fastq import guessoffset
 from jcvi.assembly.base import FastqNamings, Library
@@ -93,7 +93,7 @@ def correct(args):
     Correct reads using ErrorCorrection. Only PE will be used to build the K-mer
     table.
     """
-    p = MOptionParser(correct.__doc__)
+    p = OptionParser(correct.__doc__)
     p.add_cpus()
     opts, args = p.parse_args(args)
 
@@ -133,7 +133,7 @@ def clean(args):
 
     Clean and dedup paired FASTQ files.
     """
-    p = MOptionParser(clean.__doc__)
+    p = OptionParser(clean.__doc__)
     p.add_option("-a", default=0, type="int",
                  help="Trim length at 5' end [default: %default]")
     p.add_option("-b", default=50, type="int",
@@ -177,7 +177,7 @@ def fillstats(args):
     """
     from jcvi.utils.cbook import SummaryStats, percentage, thousands
 
-    p = MOptionParser(fillstats.__doc__)
+    p = OptionParser(fillstats.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -226,7 +226,7 @@ def prepare(args):
     """
     from jcvi.formats.base import write_file
 
-    p = MOptionParser(prepare.__doc__ + FastqNamings)
+    p = OptionParser(prepare.__doc__ + FastqNamings)
     p.add_option("-K", default=45, type="int",
                  help="K-mer size [default: %default]")
     p.add_option("--assemble_1st_rank_only", default=False, action="store_true",

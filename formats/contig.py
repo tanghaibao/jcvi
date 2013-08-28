@@ -10,7 +10,7 @@ TIGR contig format, see spec:
 import sys
 import logging
 
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 from collections import defaultdict
 
 from jcvi.formats.base import BaseFile, read_block
@@ -100,7 +100,7 @@ def frombed(args):
     from jcvi.formats.bed import Bed
     from jcvi.utils.cbook import fill
 
-    p = MOptionParser(frombed.__doc__)
+    p = OptionParser(frombed.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -155,7 +155,7 @@ def bed(args):
 
     Prints out the contigs and their associated reads.
     """
-    p = MOptionParser(main.__doc__)
+    p = OptionParser(main.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:

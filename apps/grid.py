@@ -9,7 +9,7 @@ import re
 import logging
 
 from subprocess import Popen, PIPE
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 from multiprocessing import Process
 
 from jcvi.formats.base import write_file
@@ -157,7 +157,7 @@ def array(args):
 
     Parallelize a set of commands on grid using array jobs.
     """
-    p = MOptionParser(array.__doc__)
+    p = OptionParser(array.__doc__)
     p.set_grid_opts()
     opts, args = p.parse_args(args)
 
@@ -207,7 +207,7 @@ def run(args):
     %prog run "zcat {} > {.}" ::: *.gz  # quote redirection
     %prog run < commands.list  # run a list of commands
     """
-    p = MOptionParser(run.__doc__)
+    p = OptionParser(run.__doc__)
     p.set_grid_opts()
     opts, args = p.parse_args(args)
 

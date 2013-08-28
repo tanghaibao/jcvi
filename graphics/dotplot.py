@@ -28,7 +28,7 @@ import string
 import numpy as np
 from random import sample
 from itertools import groupby
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 
 from jcvi.formats.bed import Bed
 from jcvi.algorithms.synteny import batch_scan, check_beds
@@ -268,7 +268,7 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts,
 
 if __name__ == "__main__":
 
-    p = MOptionParser(__doc__)
+    p = OptionParser(__doc__)
     p.set_beds()
     p.add_option("--synteny", default=False, action="store_true",
             help="Run a fast synteny scan and display blocks [default: %default]")

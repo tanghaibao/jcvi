@@ -8,7 +8,7 @@ Procedure to cut genome using restriction enzymes.
 import sys
 import logging
 
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 
 from Bio.Restriction.Restriction import AllEnzymes, Analysis
 
@@ -96,7 +96,7 @@ def fragment(args):
     In this case, the second fragment is longer than 800bp, therefore the two
     ends are NOT extracted, as in the first fragment.
     """
-    p = MOptionParser(fragment.__doc__)
+    p = OptionParser(fragment.__doc__)
     p.add_option("--flank", default=150, type="int",
             help="Extract flanking bases of the cut sites [default: %default]")
     p.add_option("--full", default=False, action="store_true",

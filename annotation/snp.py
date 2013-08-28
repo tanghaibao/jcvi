@@ -8,7 +8,7 @@ Analyze SNPs in resequencing panels.
 import sys
 import logging
 
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 
 from jcvi.formats.fasta import Fasta
 from jcvi.apps.base import ActionDispatcher, debug
@@ -30,7 +30,7 @@ def frommaf(args):
 
     Convert to four-column tabular format from MAF.
     """
-    p = MOptionParser(frommaf.__doc__)
+    p = OptionParser(frommaf.__doc__)
     p.add_option("--validate",
                  help="Validate coordinates against FASTA [default: %default]")
     opts, args = p.parse_args(args)

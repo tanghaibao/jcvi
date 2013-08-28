@@ -11,7 +11,7 @@ import os
 import sys
 import logging
 
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 
 from jcvi.formats.base import read_until, read_block
 from jcvi.apps.base import debug
@@ -115,7 +115,7 @@ def main(fpcfile):
 
 if __name__ == '__main__':
 
-    p = MOptionParser(__doc__)
+    p = OptionParser(__doc__)
     opts, args = p.parse_args()
 
     if len(args) != 1:

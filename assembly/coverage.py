@@ -13,7 +13,7 @@ import sys
 import logging
 
 from collections import defaultdict
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 
 from jcvi.formats.base import BaseFile, must_open
 from jcvi.formats.fasta import gaps
@@ -168,7 +168,7 @@ def posmap(args):
 
     Perform QC on the selected scfID, generate multiple BED files for plotting.
     """
-    p = MOptionParser(posmap.__doc__)
+    p = OptionParser(posmap.__doc__)
 
     opts, args = p.parse_args(args)
 

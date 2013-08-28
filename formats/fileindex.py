@@ -29,7 +29,7 @@ import os.path as op
 import logging
 import bsddb
 
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 
 from jcvi.formats.bed import BedLine
 from jcvi.formats.base import read_until
@@ -123,7 +123,7 @@ def bed(args):
 
     Index bed file by ID.
     """
-    p = MOptionParser(bed.__doc__)
+    p = OptionParser(bed.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -144,7 +144,7 @@ def fasta(args):
 
     Index fasta file (experimental).
     """
-    p = MOptionParser(fasta.__doc__)
+    p = OptionParser(fasta.__doc__)
     opts, args = p.parse_args()
 
     if len(args) != 1:

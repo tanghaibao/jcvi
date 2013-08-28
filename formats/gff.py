@@ -9,7 +9,7 @@ import logging
 
 from collections import defaultdict
 from urllib import quote, unquote
-from jcvi.apps.base import MOptionParser, OptionGroup
+from jcvi.apps.base import OptionParser, OptionGroup
 
 from jcvi.formats.base import LineFile, must_open, is_number
 from jcvi.formats.fasta import Fasta, SeqIO
@@ -240,7 +240,7 @@ def gb(args):
     except ImportError:
         print >> sys.stderr, "You need to install dep first: $ easy_install bcbio-gff"
 
-    p = MOptionParser(gb.__doc__)
+    p = OptionParser(gb.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -269,7 +269,7 @@ def orient(args):
     from jcvi.formats.base import DictFile
     from jcvi.formats.fasta import longestorf
 
-    p = MOptionParser(orient.__doc__)
+    p = OptionParser(orient.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -305,7 +305,7 @@ def rename(args):
     """
     from jcvi.formats.base import DictFile
 
-    p = MOptionParser(rename.__doc__)
+    p = OptionParser(rename.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -334,7 +334,7 @@ def parents(args):
 
     Find the parents given a list of IDs in "models.ids".
     """
-    p = MOptionParser(parents.__doc__)
+    p = OptionParser(parents.__doc__)
 
     opts, args = p.parse_args(args)
 
@@ -359,7 +359,7 @@ def filter(args):
 
     $ gmap -f 2
     """
-    p = MOptionParser(filter.__doc__)
+    p = OptionParser(filter.__doc__)
     p.add_option("--id", default=95, type="float",
                  help="Minimum identity [default: %default]")
     p.add_option("--coverage", default=90, type="float",
@@ -433,7 +433,7 @@ def gapsplit(args):
     """
     import re
 
-    p = MOptionParser(gapsplit.__doc__)
+    p = OptionParser(gapsplit.__doc__)
 
     opts, args = p.parse_args(args)
 
@@ -532,7 +532,7 @@ def chain(args):
     child coordinates.
     """
     from jcvi.utils.range import range_minmax
-    p = MOptionParser(chain.__doc__)
+    p = OptionParser(chain.__doc__)
     p.set_outfile()
 
     opts, args = p.parse_args(args)
@@ -586,7 +586,7 @@ def format(args):
     """
     from jcvi.formats.base import DictFile
 
-    p = MOptionParser(format.__doc__)
+    p = OptionParser(format.__doc__)
     p.add_option("--unique", default=False, action="store_true",
                  help="Make IDs unique [default: %default]")
     p.add_option("--gff3", default=False, action="store_true",
@@ -750,7 +750,7 @@ def liftover(args):
     Adjust gff coordinates based on tile number. For example,
     "gannotation.asmbl.000095.7" is the 8-th tile on asmbl.000095.
     """
-    p = MOptionParser(liftover.__doc__)
+    p = OptionParser(liftover.__doc__)
     p.add_option("--tilesize", default=50000, type="int",
                  help="The size for each tile [default: %default]")
     opts, args = p.parse_args(args)
@@ -797,7 +797,7 @@ def uniq(args):
     --best controls how many redundant features to keep, e.g. 10 for est2genome.
     """
     supported_modes = ("span", "score")
-    p = MOptionParser(uniq.__doc__)
+    p = OptionParser(uniq.__doc__)
     p.add_option("--type", default="gene",
                  help="Types of features to non-redundify [default: %default]")
     p.add_option("--mode", default="span", choices=supported_modes,
@@ -898,7 +898,7 @@ def sort(args):
 
     Sort gff file.
     """
-    p = MOptionParser(sort.__doc__)
+    p = OptionParser(sort.__doc__)
     p.add_option("-i", dest="inplace", default=False, action="store_true",
                  help="Sort inplace [default: %default]")
     p.set_tmpdir()
@@ -923,7 +923,7 @@ def fromgtf(args):
     Convert gtf to gff file. In gtf, the "transcript_id" will convert to "ID=",
     the "transcript_id" in exon/CDS feature will be converted to "Parent=".
     """
-    p = MOptionParser(fromgtf.__doc__)
+    p = OptionParser(fromgtf.__doc__)
     p.add_option("--transcript_id", default="transcript_id",
                  help="Field name for transcript [default: %default]")
     p.add_option("--gene_id", default="gene_id",
@@ -982,7 +982,7 @@ def frombed(args):
     Convert bed to gff file. In bed, the accn will convert to key='ID'
     Default type will be `match` and default source will be `source`
     """
-    p = MOptionParser(frombed.__doc__)
+    p = OptionParser(frombed.__doc__)
     p.add_option("--type", default="match",
                  help="GFF feature type [default: %default]")
     p.add_option("--source", default="default",
@@ -1007,7 +1007,7 @@ def gtf(args):
     first 8 columns are the same as gff, but in the attributes field, we need to
     specify "gene_id" and "transcript_id".
     """
-    p = MOptionParser(gtf.__doc__)
+    p = OptionParser(gtf.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -1053,7 +1053,7 @@ def merge(args):
     Merge several gff files into one. When only one file is given, it is assumed
     to be a file with a list of gff files.
     """
-    p = MOptionParser(merge.__doc__)
+    p = OptionParser(merge.__doc__)
     p.set_outfile()
 
     opts, args = p.parse_args(args)
@@ -1106,7 +1106,7 @@ def extract(args):
     involved, use "," to separate, e.g. "contig_12,contig_150"
     --names: Provide a file with IDs, one each line
     """
-    p = MOptionParser(extract.__doc__)
+    p = OptionParser(extract.__doc__)
     p.add_option("--contigs",
                 help="Extract features from certain contigs [default: %default]")
     p.add_option("--names",
@@ -1180,7 +1180,7 @@ def split(args):
     Split the gff into one contig per file. Will also take sequences if the file
     contains FASTA sequences.
     """
-    p = MOptionParser(split.__doc__)
+    p = OptionParser(split.__doc__)
 
     opts, args = p.parse_args(args)
 
@@ -1204,7 +1204,7 @@ def note(args):
 
     Extract certain attribute field for each feature.
     """
-    p = MOptionParser(note.__doc__)
+    p = OptionParser(note.__doc__)
     p.add_option("--key", default="Parent",
             help="The key field to extract [default: %default]")
     p.add_option("--attribute", default="Note",
@@ -1236,7 +1236,7 @@ def bed(args):
     Parses the start, stop locations of the selected features out of GFF and
     generate a bed file
     '''
-    p = MOptionParser(bed.__doc__)
+    p = OptionParser(bed.__doc__)
     p.add_option("--type", dest="type", default="gene",
             help="Feature type to extract, use comma for multiple [default: %default]")
     p.add_option("--key", dest="key", default="ID",
@@ -1307,7 +1307,7 @@ def children(args):
 
     Get the children that have the same parent.
     """
-    p = MOptionParser(children.__doc__)
+    p = OptionParser(children.__doc__)
     p.add_option("--parents", default="gene",
             help="list of features to extract, use comma to separate (e.g."
             "'gene,mRNA') [default: %default]")
@@ -1350,7 +1350,7 @@ def load(args):
     # can request output fasta sequence id to be picked from following attributes
     valid_id_attributes = ["ID", "Name", "Parent", "Alias", "Target"]
 
-    p = MOptionParser(load.__doc__)
+    p = OptionParser(load.__doc__)
     p.add_option("--parents", dest="parents", default="mRNA",
             help="list of features to extract, use comma to separate (e.g." + \
             "'gene,mRNA') [default: %default]")
@@ -1597,7 +1597,7 @@ def bed12(args):
     11. blockSizes
     12. blockStarts
     """
-    p = MOptionParser(bed12.__doc__)
+    p = OptionParser(bed12.__doc__)
     p.add_option("--parent", default="mRNA",
             help="Top feature type [default: %default]")
     p.add_option("--block", default="exon",

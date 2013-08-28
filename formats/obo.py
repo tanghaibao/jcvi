@@ -282,7 +282,7 @@ class GODag(dict):
 if __name__ == '__main__':
 
     import optparse
-    p = optparse.MOptionParser(__doc__)
+    p = optparse.OptionParser(__doc__)
     p.add_option("--term", dest="term", help="write the parents and children" \
             "of the query term", default=None)
 

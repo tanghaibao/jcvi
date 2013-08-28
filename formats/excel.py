@@ -11,7 +11,7 @@ Library dependency: xlutils
 
 import sys
 
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 
 from xlrd import open_workbook
 from jcvi.apps.base import ActionDispatcher, debug
@@ -33,7 +33,7 @@ def csv(args):
 
     Convert EXCEL to csv file.
     """
-    p = MOptionParser(csv.__doc__)
+    p = OptionParser(csv.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:

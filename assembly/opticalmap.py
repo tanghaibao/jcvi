@@ -12,7 +12,7 @@ import numpy as np
 
 from collections import defaultdict
 from jcvi.utils.iter import pairwise
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 from xml.etree.ElementTree import ElementTree
 
 from jcvi.formats.bed import Bed
@@ -176,7 +176,7 @@ def condense(args):
     from itertools import groupby
     from jcvi.assembly.patch import merge_ranges
 
-    p = MOptionParser(condense.__doc__)
+    p = OptionParser(condense.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -201,7 +201,7 @@ def chimera(args):
 
     Scan the bed file to break scaffolds that multi-maps.
     """
-    p = MOptionParser(chimera.__doc__)
+    p = OptionParser(chimera.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -277,7 +277,7 @@ def fasta(args):
     from jcvi.formats.sizes import Sizes
     from jcvi.formats.agp import OO, build
 
-    p = MOptionParser(fasta.__doc__)
+    p = OptionParser(fasta.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -315,7 +315,7 @@ def bed(args):
     """
     from jcvi.formats.bed import sort
 
-    p = MOptionParser(bed.__doc__)
+    p = OptionParser(bed.__doc__)
     p.add_option("--blockonly", default=False, action="store_true",
                  help="Only print out large blocks, not fragments [default: %default]")
     p.add_option("--switch", default=False, action="store_true",

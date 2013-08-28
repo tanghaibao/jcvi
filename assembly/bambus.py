@@ -8,7 +8,7 @@ Driver script to run BAMBUS to scaffold contigs.
 import os.path as op
 import sys
 
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 
 from jcvi.apps.base import ActionDispatcher, debug, sh, need_update
 debug()
@@ -37,7 +37,7 @@ def scaffold(args):
     from jcvi.formats.fasta import join
     from jcvi.utils.iter import grouper
 
-    p = MOptionParser(scaffold.__doc__)
+    p = OptionParser(scaffold.__doc__)
     p.add_option("--rclip", default=1, type="int",
             help="Pair ID is derived from rstrip N chars [default: %default]")
     p.add_option("--conf", help="BAMBUS configuration file [default: %default]")

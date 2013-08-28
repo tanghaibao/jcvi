@@ -12,7 +12,7 @@ import sys
 import logging
 
 from glob import glob
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 
 from jcvi.utils.iter import grouper
 from jcvi.apps.base import ActionDispatcher, debug, need_update, mkdir, sh
@@ -153,7 +153,7 @@ def soap(args):
     """
     from jcvi.apps.softlink import get_abs_path
 
-    p = MOptionParser(soap.__doc__)
+    p = OptionParser(soap.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) < 2:
@@ -173,7 +173,7 @@ def correct(args):
 
     Run ALLPATHS correction on a folder of paired reads and apply tag.
     """
-    p = MOptionParser(correct.__doc__)
+    p = OptionParser(correct.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -192,7 +192,7 @@ def allpaths(args):
     Run assembly on a folder of paired reads and apply tag (PE-200, PE-500).
     Allow multiple tags separated by comma, e.g. PE-350,TT-1050
     """
-    p = MOptionParser(allpaths.__doc__)
+    p = OptionParser(allpaths.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:

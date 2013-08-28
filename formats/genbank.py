@@ -11,7 +11,7 @@ import os.path as op
 import sys
 import logging
 
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 from glob import glob
 from collections import defaultdict
 
@@ -316,7 +316,7 @@ def gff(args):
     Convert Genbank file to GFF and FASTA file.
     The Genbank file can contain multiple records.
     """
-    p = MOptionParser(gff.__doc__)
+    p = OptionParser(gff.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -376,7 +376,7 @@ def tofasta(args):
     Output fasta file with one record per file
     or all records in one file
     """
-    p = MOptionParser(tofasta.__doc__)
+    p = OptionParser(tofasta.__doc__)
     p.add_option("--prefix", default="gbfasta",
             help="prefix of output files [default: %default]")
     filenames, accessions, idfile, opts, args = preparegb(p, args)
@@ -399,7 +399,7 @@ def getgenes(args):
     Output bed, cds files, and pep file (can turn off with --nopep).
     Either --gb_dir or --id/--simple should be provided.
     """
-    p = MOptionParser(getgenes.__doc__)
+    p = OptionParser(getgenes.__doc__)
     p.add_option("--prefix", default="gbout",
             help="prefix of output files [default: %default]")
     p.add_option("--nopep", default=False, action="store_true",

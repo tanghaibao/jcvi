@@ -10,7 +10,7 @@ import sys
 import logging
 import os.path as op
 
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 
 from jcvi.formats.fasta import Fasta
 from jcvi.formats.blast import Blast
@@ -48,7 +48,7 @@ def coverage(args):
     """
     from jcvi.formats.bed import mates, bedpe
 
-    p = MOptionParser(coverage.__doc__)
+    p = OptionParser(coverage.__doc__)
     p.add_option("--ymax", default=None, type="int",
                  help="Limit ymax [default: %default]")
     p.add_option("--spans", default=False, action="store_true",
@@ -181,7 +181,7 @@ def scaffold(args):
     from jcvi.graphics.base import set_image_options
     from jcvi.utils.iter import grouper
 
-    p = MOptionParser(scaffold.__doc__)
+    p = OptionParser(scaffold.__doc__)
     p.add_option("--cutoff", type="int", default=1000000,
             help="Plot scaffolds with size larger than [default: %default]")
     p.add_option("--highlights",
@@ -235,7 +235,7 @@ def qc(args):
     """
     from jcvi.graphics.glyph import Bezier
 
-    p = MOptionParser(qc.__doc__)
+    p = OptionParser(qc.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -361,7 +361,7 @@ def A50(args):
 
     Plots A50 graphics, see blog post (http://blog.malde.org/index.php/a50/)
     """
-    p = MOptionParser(A50.__doc__)
+    p = OptionParser(A50.__doc__)
     p.add_option("--overwrite", default=False, action="store_true",
             help="overwrite .rplot file if exists [default: %default]")
     p.add_option("--cutoff", default=0, type="int", dest="cutoff",

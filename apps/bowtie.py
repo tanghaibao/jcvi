@@ -12,7 +12,7 @@ import sys
 import logging
 import os.path as op
 
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 
 from jcvi.formats.base import BaseFile
 from jcvi.utils.cbook import percentage
@@ -83,7 +83,7 @@ def index(args):
 
     Wrapper for `bowtie2-build`. Same interface, only adds grid submission.
     """
-    p = MOptionParser(index.__doc__)
+    p = OptionParser(index.__doc__)
     p.set_params()
     p.set_grid()
 
@@ -107,7 +107,7 @@ def align(args):
     """
     from jcvi.formats.fastq import guessoffset
 
-    p = MOptionParser(align.__doc__)
+    p = OptionParser(align.__doc__)
     p.add_option("--firstN", default=0, type="int",
                  help="Use only the first N reads [default: all]")
     p.add_option("--unmapped", default=None,

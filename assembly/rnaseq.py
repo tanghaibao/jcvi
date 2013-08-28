@@ -5,7 +5,7 @@ import os.path as op
 import sys
 
 from collections import defaultdict
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 
 from jcvi.formats.blast import Blast
 from jcvi.formats.sizes import Sizes
@@ -37,7 +37,7 @@ def qc(args):
     """
     from jcvi.algorithms.supermap import supermap
 
-    p = MOptionParser(qc.__doc__)
+    p = OptionParser(qc.__doc__)
 
     opts, args = p.parse_args(args)
 

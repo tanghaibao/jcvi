@@ -14,7 +14,7 @@ import logging
 import re
 
 from itertools import groupby
-from jcvi.apps.base import MOptionParser, OptionGroup
+from jcvi.apps.base import OptionParser, OptionGroup
 from pybedtools import BedTool
 
 from jcvi.formats.bed import Bed, BedLine, sort
@@ -177,7 +177,7 @@ def plot(args):
     from jcvi.graphics.base import plt, set_image_options, savefig
     from jcvi.graphics.chromosome import ChromosomeMap
 
-    p = MOptionParser(plot.__doc__)
+    p = OptionParser(plot.__doc__)
     p.add_option("--firstn", type="int", help="Only plot the first N genes")
     p.add_option("--ymax", type="int", help="Y-axis max value")
     p.add_option("--log", action="store_true",
@@ -271,7 +271,7 @@ def instantiate(args):
 
     instantiate NEW genes tagged by renumber.
     """
-    p = MOptionParser(instantiate.__doc__)
+    p = OptionParser(instantiate.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -416,7 +416,7 @@ def renumber(args):
     from jcvi.formats.bed import mergeBed
     from jcvi.utils.grouper import Grouper
 
-    p = MOptionParser(renumber.__doc__)
+    p = OptionParser(renumber.__doc__)
     p.add_option("--pad0", default=6, type="int",
                  help="Pad gene identifiers with 0 [default: %default]")
     p.add_option("--prefix", default="Medtr",
@@ -525,7 +525,7 @@ def annotate(args):
     new_id_pat = re.compile(r"^\d+\.[cemtx]+\S+")
     valid_resolve_choices = ["alignment", "overlap"]
 
-    p = MOptionParser(annotate.__doc__)
+    p = OptionParser(annotate.__doc__)
     p.add_option("--resolve", default="alignment", choices=valid_resolve_choices,
                  help="Resolve ID assignment based on a certain metric" \
                         + " [default: %default]")
@@ -815,7 +815,7 @@ def rename(args):
     """
     import string
 
-    p = MOptionParser(rename.__doc__)
+    p = OptionParser(rename.__doc__)
     p.add_option("-a", dest="gene_increment", default=10, type="int",
                  help="Increment for continuous genes [default: %default]")
     p.add_option("-b", dest="gap_increment", default=1000, type="int",
@@ -899,7 +899,7 @@ def reindex(args):
                              "CHANGED" (Isoform index has changed),
                          and "CHECK" (Isoform index for primary isoform is missing).
     """
-    p = MOptionParser(reindex.__doc__)
+    p = OptionParser(reindex.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -946,7 +946,7 @@ def publocus(args):
     """
     from jcvi.utils.cbook import AutoVivification
 
-    p = MOptionParser(publocus.__doc__)
+    p = OptionParser(publocus.__doc__)
     p.add_option("--locus_tag", default="MTR_",
                  help="GenBank locus tag [default: %default]")
     opts, args = p.parse_args(args)
@@ -990,7 +990,7 @@ def augustus(args):
 
     AUGUSTUS does generate a gff3 (--gff3=on) but need some refinement.
     """
-    p = MOptionParser(augustus.__doc__)
+    p = OptionParser(augustus.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -1025,7 +1025,7 @@ def tRNAscan(args):
     """
     from jcvi.formats.gff import sort
 
-    p = MOptionParser(tRNAscan.__doc__)
+    p = OptionParser(tRNAscan.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:

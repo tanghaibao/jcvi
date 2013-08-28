@@ -9,7 +9,7 @@ import os.path as op
 import sys
 import logging
 
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 
 from jcvi.utils.iter import pairwise
 from jcvi.graphics.base import plt, asciiplot, _, set_human_axis, savefig
@@ -193,7 +193,7 @@ def logodds(args):
     from math import log
     from jcvi.formats.base import DictFile
 
-    p = MOptionParser(logodds.__doc__)
+    p = OptionParser(logodds.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -230,7 +230,7 @@ def count(args):
     from subprocess import Popen, PIPE
     from bitarray import bitarray
 
-    p = MOptionParser(count.__doc__)
+    p = OptionParser(count.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -279,7 +279,7 @@ def bincount(args):
     from bitarray import bitarray
     from jcvi.formats.sizes import Sizes
 
-    p = MOptionParser(bincount.__doc__)
+    p = OptionParser(bincount.__doc__)
     p.add_option("-K", default=23, type="int",
                  help="K-mer size [default: %default]")
     p.set_outfile()
@@ -312,7 +312,7 @@ def bin(args):
     Serialize counts to bitarrays.
     """
     from bitarray import bitarray
-    p = MOptionParser(bin.__doc__)
+    p = OptionParser(bin.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -342,7 +342,7 @@ def dump(args):
 
     Convert FASTA sequences to list of K-mers.
     """
-    p = MOptionParser(dump.__doc__)
+    p = OptionParser(dump.__doc__)
     p.add_option("-K", default=23, type="int",
                  help="K-mer size [default: %default]")
     p.set_outfile()
@@ -371,7 +371,7 @@ def jellyfish(args):
     from jcvi.utils.cbook import human_size
     from jcvi.formats.fastq import guessoffset
 
-    p = MOptionParser(jellyfish.__doc__)
+    p = OptionParser(jellyfish.__doc__)
     p.add_option("-K", default=23, type="int",
                  help="K-mer size [default: %default]")
     p.add_option("--coverage", default=40, type="int",
@@ -442,7 +442,7 @@ def meryl(args):
     Run meryl to dump histogram to be used in kmer.histogram(). The merylfile
     are the files ending in .mcidx or .mcdat.
     """
-    p = MOptionParser(meryl.__doc__)
+    p = OptionParser(meryl.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -465,7 +465,7 @@ def histogram(args):
     only used to annotate the graphic. Find out totalKmers when running
     kmer.meryl().
     """
-    p = MOptionParser(histogram.__doc__)
+    p = OptionParser(histogram.__doc__)
     p.add_option("--vmin", dest="vmin", default=1, type="int",
             help="minimum value, inclusive [default: %default]")
     p.add_option("--vmax", dest="vmax", default=100, type="int",

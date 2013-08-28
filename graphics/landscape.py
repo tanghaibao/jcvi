@@ -14,7 +14,7 @@ import numpy as np
 
 from math import ceil
 from collections import defaultdict
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 
 from jcvi.formats.sizes import Sizes
 from jcvi.formats.base import LineFile, DictFile
@@ -175,7 +175,7 @@ def composite(args):
     """
     from jcvi.graphics.chromosome import HorizontalChromosome
 
-    p = MOptionParser(composite.__doc__)
+    p = OptionParser(composite.__doc__)
     p.add_option("--lines",
                  help="Features to plot in lineplot [default: %default]")
     p.add_option("--bars",
@@ -276,7 +276,7 @@ def heatmap(args):
     Combine stack plot with heatmap to show abundance of various tracks along
     given chromosome. Need to give multiple beds to --stacks and --heatmaps
     """
-    p = MOptionParser(heatmap.__doc__)
+    p = OptionParser(heatmap.__doc__)
     p.add_option("--stacks",
                  default="Exons,Introns,DNA_transposons,Retrotransposons",
                  help="Features to plot in stackplot [default: %default]")
@@ -464,7 +464,7 @@ def stack(args):
     Create landscape plots that show the amounts of genic sequences, and repetitive
     sequences along the chromosomes.
     """
-    p = MOptionParser(stack.__doc__)
+    p = OptionParser(stack.__doc__)
     p.add_option("--top", default=10, type="int",
                  help="Draw the first N chromosomes [default: %default]")
     p.add_option("--stacks",

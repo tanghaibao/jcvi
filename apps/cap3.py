@@ -15,7 +15,7 @@ import logging
 import os
 import os.path as op
 
-from jcvi.apps.base import MOptionParser, OptionGroup
+from jcvi.apps.base import OptionParser, OptionGroup
 
 from jcvi.apps.base import ActionDispatcher, sh, debug
 debug()
@@ -53,7 +53,7 @@ def prepare(args):
     from operator import itemgetter
     from jcvi.formats.fasta import Fasta, SeqIO
 
-    p = MOptionParser(prepare.__doc__)
+    p = OptionParser(prepare.__doc__)
     p.add_option("--rearray_lib", default=None,
             help="name of the rearrayed library [default: %default]")
     p.add_option("--orig_lib_file",
@@ -128,7 +128,7 @@ def assemble(args):
     Run `cap3` on a single multi FASTA file containing reads or a folder containing several
     multi FASTA files. Allows for tweaking of `cap3` parameters max_gap_len, ovl_pct_id, etc.
     """
-    p = MOptionParser(assemble.__doc__)
+    p = OptionParser(assemble.__doc__)
     g1 = OptionGroup(p, "Input file options (required)",
             "Note: Please choose from and provide values for one of the following parameters")
     g1.add_option("--input_file", default=None,

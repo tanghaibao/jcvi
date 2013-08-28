@@ -14,7 +14,7 @@ import os.path as op
 import sys
 import logging
 
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 
 from jcvi.formats.base import LineFile, must_open
 from jcvi.apps.base import ActionDispatcher, debug
@@ -123,7 +123,7 @@ def blast(args):
 
     Convert to BLAST -m8 format.
     """
-    p = MOptionParser(blast.__doc__)
+    p = OptionParser(blast.__doc__)
 
     opts, args = p.parse_args(args)
 
@@ -143,7 +143,7 @@ def bed(args):
     Convert btab to bed format.
     """
     from jcvi.formats.blast import BlastLine
-    p = MOptionParser(bed.__doc__)
+    p = OptionParser(bed.__doc__)
 
     opts, args = p.parse_args(args)
 
@@ -166,7 +166,7 @@ def gff(args):
     from jcvi.utils.range import range_minmax
     from jcvi.formats.gff import valid_gff_parent_child, valid_gff_type
 
-    p = MOptionParser(gff.__doc__)
+    p = OptionParser(gff.__doc__)
     p.add_option("--source", default=None, help="Specify GFF source." +
                 " By default, it picks algorithm used to generate btab file." +
                 " [default: %default]")

@@ -7,7 +7,7 @@ import sys
 import logging
 
 from math import exp
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 from subprocess import Popen, PIPE
 from multiprocessing import Lock, Pool
 
@@ -152,7 +152,7 @@ def main():
 
     Run LASTZ similar to the BLAST interface, and generates -m8 tabular format
     """
-    p = MOptionParser(main.__doc__)
+    p = OptionParser(main.__doc__)
 
     supported_formats = tuple(x.strip() for x in \
         "lav, lav+text, axt, axt+, maf, maf+, maf-, sam, softsam, "\

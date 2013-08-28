@@ -10,7 +10,7 @@ import logging
 
 from itertools import groupby
 from collections import defaultdict
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 
 import numpy as np
 
@@ -275,7 +275,7 @@ def filter(args):
 
     use --inverse to obtain the complementary records
     """
-    p = MOptionParser(filter.__doc__)
+    p = OptionParser(filter.__doc__)
     p.add_option("--score", dest="score", default=0, type="int",
             help="Score cutoff [default: %default]")
     p.add_option("--pctid", dest="pctid", default=95, type="int",
@@ -385,7 +385,7 @@ def rbbh(args):
     based on a combination of %id, %cov, e-value cutoffs. BLAST output should
     be in tabular `-m 8` format.
     """
-    p = MOptionParser(rbbh.__doc__)
+    p = OptionParser(rbbh.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -418,7 +418,7 @@ def score(args):
     from jcvi.formats.base import SetFile
     from jcvi.formats.fasta import Fasta
 
-    p = MOptionParser(score.__doc__)
+    p = OptionParser(score.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -453,7 +453,7 @@ def annotation(args):
     """
     from jcvi.formats.base import DictFile
 
-    p = MOptionParser(annotation.__doc__)
+    p = OptionParser(annotation.__doc__)
     p.add_option("--queryids", help="Query IDS file to switch [default: %default]")
     p.add_option("--subjectids", help="Subject IDS file to switch [default: %default]")
     opts, args = p.parse_args(args)
@@ -488,7 +488,7 @@ def completeness(args):
     from jcvi.utils.range import range_minmax
     from jcvi.utils.cbook import SummaryStats
 
-    p = MOptionParser(completeness.__doc__)
+    p = OptionParser(completeness.__doc__)
     p.add_option("--ids",
                  help="Save ids that are over 50% complete [default: %default]")
     opts, args = p.parse_args(args)
@@ -547,7 +547,7 @@ def annotate(args):
     """
     from jcvi.assembly.goldenpath import Overlap, Overlap_types
 
-    p = MOptionParser(annotate.__doc__)
+    p = OptionParser(annotate.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -578,7 +578,7 @@ def top10(args):
     """
     from jcvi.formats.base import DictFile
 
-    p = MOptionParser(top10.__doc__)
+    p = OptionParser(top10.__doc__)
     p.add_option("--top", default=10, type="int",
                 help="Top N taxa to extract [default: %default]")
     p.add_option("--ids", default=None,
@@ -607,7 +607,7 @@ def sort(args):
     Sort lines so that same query grouped together with scores descending. The
     sort is 'in-place'.
     """
-    p = MOptionParser(sort.__doc__)
+    p = OptionParser(sort.__doc__)
     p.add_option("--query", default=False, action="store_true",
             help="Sort by query position [default: %default]")
     p.add_option("--ref", default=False, action="store_true",
@@ -657,7 +657,7 @@ def cscore(args):
     """
     from jcvi.utils.cbook import gene_name
 
-    p = MOptionParser(cscore.__doc__)
+    p = OptionParser(cscore.__doc__)
     p.add_option("--cutoff", default=.9999, type="float",
             help="Minimum C-score to report [default: %default]")
     p.add_option("--pct", default=False, action="store_true",
@@ -801,7 +801,7 @@ def chain(args):
     Chain adjacent HSPs together to form larger HSP. The adjacent HSPs have to
     share the same orientation.
     """
-    p = MOptionParser(chain.__doc__)
+    p = OptionParser(chain.__doc__)
     p.add_option("--dist", dest="dist",
             default=100, type="int",
             help="extent of flanking regions to search [default: %default]")
@@ -828,7 +828,7 @@ def condense(args):
 
     Condense HSPs that belong to the same query-subject pair into one.
     """
-    p = MOptionParser(condense.__doc__)
+    p = OptionParser(condense.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -866,7 +866,7 @@ def mismatches(args):
     from jcvi.utils.cbook import percentage
     from jcvi.graphics.histogram import stem_leaf_plot
 
-    p = MOptionParser(mismatches.__doc__)
+    p = OptionParser(mismatches.__doc__)
 
     opts, args = p.parse_args(args)
 
@@ -899,7 +899,7 @@ def covfilter(args):
 
     allowed_iterby = ("query", "query_sbjct")
 
-    p = MOptionParser(covfilter.__doc__)
+    p = OptionParser(covfilter.__doc__)
     p.add_option("--pctid", dest="pctid", default=95, type="int",
             help="Percentage identity cutoff [default: %default]")
     p.add_option("--pctcov", dest="pctcov", default=50, type="int",
@@ -1061,7 +1061,7 @@ def swap(args):
 
     Print out a new blast file with query and subject swapped.
     """
-    p = MOptionParser(swap.__doc__)
+    p = OptionParser(swap.__doc__)
 
     opts, args = p.parse_args(args)
 
@@ -1086,7 +1086,7 @@ def bed(args):
 
     Print out a bed file based on the coordinates in BLAST report.
     """
-    p = MOptionParser(bed.__doc__)
+    p = OptionParser(bed.__doc__)
 
     opts, args = p.parse_args(args)
 
@@ -1115,7 +1115,7 @@ def set_options_pairs():
     part, e.g. /1, /2, or .f, .r, default behavior is to truncate until last
     char.
     """
-    p = MOptionParser(set_options_pairs.__doc__)
+    p = OptionParser(set_options_pairs.__doc__)
 
     p.add_option("--cutoff", dest="cutoff", default=0, type="int",
             help="distance to call valid links between mates "\
@@ -1290,7 +1290,7 @@ def best(args):
 
     print the best hit for each query in the blastfile
     """
-    p = MOptionParser(best.__doc__)
+    p = OptionParser(best.__doc__)
 
     p.add_option("-n", default=1, type="int",
             help="get best N hits [default: %default]")
@@ -1327,7 +1327,7 @@ def summary(args):
     Provide summary on id% and cov%, for both query and reference. Often used in
     comparing genomes (based on NUCMER results).
     """
-    p = MOptionParser(summary.__doc__)
+    p = OptionParser(summary.__doc__)
 
     opts, args = p.parse_args(args)
 

@@ -10,7 +10,7 @@ import math
 
 import numpy as np
 
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 
 from jcvi.apps.base import ActionDispatcher, debug
 debug()

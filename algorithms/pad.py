@@ -20,7 +20,7 @@ import logging
 import numpy as np
 from math import log
 from jcvi.utils.iter import pairwise
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 
 from jcvi.algorithms.synteny import AnchorFile, check_beds
 from jcvi.formats.bed import Bed
@@ -107,7 +107,7 @@ def pad(args):
     """
     from jcvi.formats.cdt import CDT
 
-    p = MOptionParser(pad.__doc__)
+    p = OptionParser(pad.__doc__)
     p.set_beds()
     p.add_option("--cutoff", default=.3, type="float",
                  help="The clustering cutoff to call similar [default: %default]")
@@ -232,7 +232,7 @@ def cluster(args):
     """
     from jcvi.utils.range import Range
 
-    p = MOptionParser(cluster.__doc__)
+    p = OptionParser(cluster.__doc__)
     p.set_beds()
     p.add_option("--minsize", default=10, type="int",
                  help="Only segment using blocks >= size [default: %default]")

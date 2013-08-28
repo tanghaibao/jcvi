@@ -10,7 +10,7 @@ import logging
 
 import numpy as np
 
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 
 from jcvi.graphics.base import plt, _, Rectangle, Polygon, CirclePolygon, \
         set_image_options, savefig
@@ -52,7 +52,7 @@ def napusretention(args):
     from jcvi.formats.bed import Bed
     from jcvi.graphics.chromosome import ChromosomeMap
 
-    p = MOptionParser(napusretention.__doc__)
+    p = OptionParser(napusretention.__doc__)
     opts, args, iopts = set_image_options(p, args, figsize="6x4")
 
     if len(args) != 4:
@@ -139,7 +139,7 @@ def amborella(args):
     from jcvi.graphics.karyotype import Karyotype
     from jcvi.graphics.synteny import Synteny, draw_gene_legend
 
-    p = MOptionParser(amborella.__doc__)
+    p = OptionParser(amborella.__doc__)
     p.add_option("--tree",
                  help="Display trees on the bottom of the figure [default: %default]")
     p.add_option("--switch",
@@ -192,7 +192,7 @@ def cotton(args):
     from jcvi.graphics.synteny import Synteny, draw_gene_legend
     from jcvi.graphics.tree import draw_tree, read_trees
 
-    p = MOptionParser(cotton.__doc__)
+    p = OptionParser(cotton.__doc__)
     p.add_option("--depthfile",
                  help="Use depth info in this file [default: %default]")
     p.add_option("--tree",
@@ -343,7 +343,7 @@ def epoch(args):
     Illustrate the methods used in Maggie's epoch paper, in particular, how to
     classifiy S/G/F/FB/FN for the genes.
     """
-    p = MOptionParser(__doc__)
+    p = OptionParser(__doc__)
     opts, args = p.parse_args()
 
     fig = plt.figure(1, (6, 4))
@@ -378,7 +378,7 @@ def excision(args):
 
     Illustrate the mechanism of illegitimate recombination.
     """
-    p = MOptionParser(__doc__)
+    p = OptionParser(__doc__)
     opts, args = p.parse_args(args)
 
     fig = plt.figure(1, (5, 5))
@@ -418,7 +418,7 @@ def bites(args):
     Illustrate the pipeline for automated bite discovery.
     """
 
-    p = MOptionParser(__doc__)
+    p = OptionParser(__doc__)
     opts, args = p.parse_args()
 
     fig = plt.figure(1, (6, 6))
@@ -511,7 +511,7 @@ def scenario(args):
 
     Illustration of the two-step genome merger process for B. rapa companion paper.
     """
-    p = MOptionParser(__doc__)
+    p = OptionParser(__doc__)
     opts, args = p.parse_args()
 
     fig = plt.figure(1, (5, 5))

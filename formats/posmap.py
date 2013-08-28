@@ -14,7 +14,7 @@ import csv
 import logging
 
 from collections import namedtuple, defaultdict
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 from itertools import groupby
 
 from jcvi.formats.base import BaseFile, LineFile
@@ -160,7 +160,7 @@ def index(args):
 
     Compress frgscffile.sorted and index it using `tabix`.
     """
-    p = MOptionParser(index.__doc__)
+    p = OptionParser(index.__doc__)
 
     opts, args = p.parse_args(args)
 
@@ -189,7 +189,7 @@ def query(args):
     Query certain region to get frg placement, using random access. Build index
     if not present.
     """
-    p = MOptionParser(query.__doc__)
+    p = OptionParser(query.__doc__)
 
     opts, args = p.parse_args(args)
 
@@ -216,7 +216,7 @@ def reads(args):
 
     Report read counts per scaffold (based on frgscf).
     """
-    p = MOptionParser(reads.__doc__)
+    p = OptionParser(reads.__doc__)
     p.add_option("-p", dest="prefix_length", default=4, type="int",
             help="group the reads based on the first N chars [default: %default]")
     opts, args = p.parse_args(args)
@@ -246,7 +246,7 @@ def bed(args):
 
     Convert the frgscf posmap file to bed format.
     """
-    p = MOptionParser(bed.__doc__)
+    p = OptionParser(bed.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -273,7 +273,7 @@ def dup(args):
     Use the frgscf posmap file as an indication of the coverage of the library.
     Large insert libraries are frequently victims of high levels of redundancy.
     """
-    p = MOptionParser(dup.__doc__)
+    p = OptionParser(dup.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:

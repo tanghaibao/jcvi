@@ -18,7 +18,7 @@ import logging
 import random
 
 from collections import defaultdict
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 
 from jcvi.formats.bed import Bed
 from jcvi.formats.base import LineFile
@@ -355,7 +355,7 @@ class Karyotype (object):
 
 
 def main():
-    p = MOptionParser(__doc__)
+    p = OptionParser(__doc__)
     p.add_option("--auto", action="store_true",
                  help="Automatically adjust seqids [default: %default]")
     opts, args, iopts = set_image_options(p, figsize="8x7")

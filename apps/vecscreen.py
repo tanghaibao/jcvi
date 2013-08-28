@@ -9,7 +9,7 @@ import os.path as op
 import sys
 import logging
 
-from jcvi.apps.base import MOptionParser
+from jcvi.apps.base import OptionParser
 
 from jcvi.utils.cbook import depends
 from jcvi.utils.range import range_merge
@@ -38,7 +38,7 @@ def mask(args):
     Ecoli.fasta. Merge the contaminant results, and use `maskFastaFromBed`. Can
     perform FASTA tidy if requested.
     """
-    p = MOptionParser(mask.__doc__)
+    p = OptionParser(mask.__doc__)
     p.add_option("--tidy", default=False, action="store_true",
                  help="Normalize the gaps [default: %default]")
     opts, args = p.parse_args(args)
@@ -74,7 +74,7 @@ def blast(args):
     Run BLASTN against database (default is UniVec_Core).  Output .bed format
     on the vector/contaminant ranges.
     """
-    p = MOptionParser(blast.__doc__)
+    p = OptionParser(blast.__doc__)
     p.add_option("--dist", dest="dist", default=100, type="int",
             help="Merge adjacent HSPs separated by [default: %default]")
     p.add_option("--db", dest="db", default=None,

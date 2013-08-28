@@ -562,7 +562,7 @@ def annotate(args):
         asize = asizes[b.query]
         bsize = bsizes[b.subject]
         ov = Overlap(b, asize, bsize)
-        print "{0}\t{1}".format(b, Overlap_types[ov.get_otype()])
+        print "{0}\t{1}".format(b, Overlap_types[ov.otype])
 
 
 def top10(args):

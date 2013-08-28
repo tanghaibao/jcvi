@@ -63,7 +63,6 @@ class WriteJobs (object):
         self.worker = Jobs(work, args=[(workerq, writerq, target)] * cpus)
         logging.debug("Worker queue initialized ({0})".format(len(self.worker)))
         self.writer = Process(target=write, args=(writerq, filename))
-        logging.debug("Writer queue initialized")
 
     def run(self):
         self.worker.start()
@@ -79,7 +78,7 @@ def work(queue_in, queue_out, target):
             break
         res = target(a)
         queue_out.put(res)
-        logging.debug("Worker: {0} items to compute".\
+        logging.debug("Worker: {0} items left to compute".\
                         format(queue_in.qsize()))
     queue_out.put(None)
 

@@ -32,7 +32,19 @@ debug()
 
 GoodPct = 98
 GoodOverlap = 200
-GoodOverhang = 5000
+GoodOverhang = 2000
+
+
+class Cutoff (object):
+
+    def __init__(self, pctid=GoodPct, overlap=GoodOverlap, hang=GoodOverhang):
+        self.pctid = pctid
+        self.overlap = overlap
+        self.hang = hang
+
+    def __str__(self):
+        return "Configuration: PCTID={0} OVERLAP={1} HANG={2}".\
+                format(self.pctid, self.overlap, self.hang)
 
 
 class CLR (object):
@@ -63,8 +75,7 @@ class CLR (object):
 
 class Overlap (object):
 
-    def __init__(self, blastline, asize, bsize,
-                 max_hang=GoodOverhang, qreverse=False):
+    def __init__(self, blastline, asize, bsize, cutoff, qreverse=False):
 
         b = blastline
         aid = b.query
@@ -84,10 +95,9 @@ class Overlap (object):
         self.hitlen = b.hitlen
         self.orientation = b.orientation
 
+        self.cutoff = cutoff
         self.qreverse = qreverse
-        self.otype = self.get_otype(max_hang=max_hang)
         self.blastline = b
-        self.max_hang = max_hang
 
     def __str__(self):
         ov = Overlap_types[self.otype]
@@ -103,23 +113,24 @@ class Overlap (object):
         bsize = self.bsize
         ao, bo = self.get_ao_bo()
         qreverse = bo == '-'
-        return Overlap(blastline, bsize, asize, \
-                       max_hang=self.max_hang, qreverse=qreverse)
+        return Overlap(blastline, bsize, asize, self.cutoff, qreverse=qreverse)
 
     @property
     def certificateline(self):
-        terminal_tag = "Terminal" if self.isTerminal() else "Non-terminal"
+        terminal_tag = "Terminal" if self.isTerminal else "Non-terminal"
         return "\t".join(str(x) for x in (self.bid, \
                           self.asize, self.qstart, self.qstop, \
                           self.orientation, terminal_tag))
 
-    def isTerminal(self, length_cutoff=GoodOverlap, pctid_cutoff=GoodPct):
-        return self.isGoodQuality(length_cutoff, pctid_cutoff) \
-               and self.otype in (1, 2)
+    @property
+    def isTerminal(self):
+        return self.isGoodQuality and self.otype in (1, 2)
 
-    def isGoodQuality(self, length_cutoff=GoodOverlap, pctid_cutoff=GoodPct):
-        return self.hitlen >= length_cutoff and \
-               self.pctid >= pctid_cutoff
+    @property
+    def isGoodQuality(self):
+        cutoff = self.cutoff
+        return self.hitlen >= cutoff.overlap and \
+               self.pctid >= cutoff.pctid
 
     def get_hangs(self):
         """
@@ -237,7 +248,11 @@ class Overlap (object):
         print >> sys.stderr, msg
         print >> sys.stderr, self
 
-    def get_otype(self, max_hang=GoodOverhang):
+    @property
+    def otype(self):
+        if not self.isGoodQuality:
+            return 0
+
         aLhang, aRhang, bLhang, bRhang = self.get_hangs()
 
         s1 = aRhang + bLhang
@@ -245,7 +260,7 @@ class Overlap (object):
         s3 = aLhang + aRhang
         s4 = bLhang + bRhang
         ms = min(s1, s2, s3, s4)
-        if ms > max_hang:
+        if ms > self.cutoff.hang:
             type = 0
         elif ms == s1:
             type = 1  # a ~ b
@@ -296,6 +311,7 @@ class CertificateLine (object):
         self.orientation = args[9]
         self.terminal = args[10]
 
+    @property
     def isTerminal(self):
         return self.terminal == "Terminal"
 
@@ -378,7 +394,7 @@ class Certificate (BaseFile):
                 bar = ar + self.get_agp_gap(north.bid)
                 northline = "\t".join(str(x) for x in bar)
             else:
-                if north.isTerminal():
+                if north.isTerminal:
                     northrange = north.astart, north.astop
 
             if south.is_gap:
@@ -386,7 +402,7 @@ class Certificate (BaseFile):
                     bar = ar + self.get_agp_gap(south.bid)
                     southline = "\t".join(str(x) for x in bar)
             else:
-                if south.isTerminal():
+                if south.isTerminal:
                     southrange = south.astart, south.astop
                 else:
                     bar = ar + self.get_agp_gap("fragment")
@@ -579,7 +595,9 @@ def populate_blastfile(blastfile, agp, outdir, opts):
 
     assert not op.exists(blastfile)
     all_oopts = []
-    for aid, bid, qreverse in agp.iter_paired_components():
+    for a, b, qreverse in agp.iter_paired_components():
+        aid = a.component_id
+        bid = b.component_id
         oopts = [aid, bid, "--nochain", "--suffix", \
                 "fa", "--dir", outdir, \
                 "--pctid={0}".format(opts.pctid), \
@@ -613,11 +631,11 @@ def anneal(args):
     p = OptionParser(anneal.__doc__)
     p.add_option("--length", default=100, type="int",
                  help="Overlap length [default: %default]")
-    p.add_option("--pctid", default=98, type="int",
+    p.add_option("--pctid", default=GoodPct, type="int",
                  help="Overlap identity [default: %default]")
     p.add_option("--hitlen", default=GoodOverlap, type="int",
             help="Minimum overlap length [default: %default]")
-    p.add_option("--hang", default=5000, type="int",
+    p.add_option("--hang", default=GoodOverhang, type="int",
                  help="Maximum overhang length [default: %default]")
     p.add_option("--nozipshreds", default=False, action="store_true",
                  help="Don't zip shred lines [default: %default]")
@@ -628,8 +646,9 @@ def anneal(args):
         sys.exit(not p.print_help())
 
     agpfile, outdir, contigs = args
-    hang = opts.hang
     zipshreds = not opts.nozipshreds
+    cutoff = Cutoff(opts.pctid, opts.hitlen, opts.hang)
+    logging.debug(str(cutoff))
 
     agp = AGP(agpfile)
     blastfile = agpfile.replace(".agp", ".blast")
@@ -645,7 +664,9 @@ def anneal(args):
 
     newagp = deepcopy(agp)
     clrstore = {}
-    for aid, bid, qreverse in agp.iter_paired_components():
+    for a, b, qreverse in agp.iter_paired_components():
+        aid = a.component_id
+        bid = b.component_id
         if zipshreds and is_adjacent_shreds(a, b):
             print >> sys.stderr, "Adjacent shreds: {0} - {1}".format(aid, bid)
             newagp.delete_between(aid, bid, verbose=True)
@@ -657,7 +678,7 @@ def anneal(args):
 
         bl = blast[pair]
         o = Overlap(bl, a.component_span, b.component_span,
-                        max_hang=hang, qreverse=qreverse)
+                        cutoff, qreverse=qreverse)
 
         if aid not in clrstore:
             clrstore[aid] = CLR.from_agpline(a)

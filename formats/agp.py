@@ -292,10 +292,8 @@ class AGP (LineFile):
         for object, lines in self.iter_object():
             lines = [x for x in lines if not x.is_gap]
             for a, b in pairwise(lines):
-                aid = a.component_id
-                bid = b.component_id
                 qreverse = a.orientation == '-'
-                yield aid, bid, qreverse
+                yield a, b, qreverse
 
     def print_to_file(self, filename, index=True):
         fw = open(filename, "w")

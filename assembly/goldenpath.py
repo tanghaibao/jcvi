@@ -567,7 +567,30 @@ def is_adjacent_shreds(a, b):
 
 
 def overlap_blastline_writer(oopts):
-    pass
+    o = overlap(oopts)
+    if not o:
+        return ""
+
+    return str(o.blastline)
+
+
+def populate_blastfile(blastfile, agp, outdir, opts):
+    from jcvi.apps.grid import WriteJobs
+
+    assert not op.exists(blastfile)
+    all_oopts = []
+    for aid, bid, qreverse in agp.iter_paired_components():
+        oopts = [aid, bid, "--nochain", "--suffix", \
+                "fa", "--dir", outdir, \
+                "--pctid={0}".format(opts.pctid), \
+                "--hitlen={0}".format(opts.hitlen)]
+        if qreverse:
+            oopts += ["--qreverse"]
+        all_oopts.append(oopts)
+
+    pool = WriteJobs(overlap_blastline_writer, all_oopts, \
+                     blastfile, cpus=opts.cpus)
+    pool.run()
 
 
 def anneal(args):
@@ -605,78 +628,54 @@ def anneal(args):
         sys.exit(not p.print_help())
 
     agpfile, outdir, contigs = args
-    pctid = opts.pctid
-    hitlen = opts.hitlen
     hang = opts.hang
     zipshreds = not opts.nozipshreds
 
     agp = AGP(agpfile)
     blastfile = agpfile.replace(".agp", ".blast")
-    save = not op.exists(blastfile)
-    if save:
-        fw = open(blastfile, "w")
-    else:
-        logging.debug("File `{0}` found. Start loading.".format(blastfile))
-        blast = BlastSlow(blastfile).to_dict()
+    if not op.exists(blastfile):
+        populate_blastfile(blastfile, agp, outdir, opts)
+
+    assert op.exists(blastfile)
+    logging.debug("File `{0}` found. Start loading.".format(blastfile))
+    blast = BlastSlow(blastfile).to_dict()
 
     annealedagp = "annealed.agp"
     annealedfasta = "annealed.fasta"
 
     newagp = deepcopy(agp)
     clrstore = {}
-    for object, lines in agp.iter_object():
-        lines = [x for x in lines if not x.is_gap]
-        for a, b in pairwise(lines):
-            aid = a.component_id
-            bid = b.component_id
-            qreverse = a.orientation == '-'
-            if save:
-                oopts = [aid, bid, "--nochain", "--suffix", \
-                        "fa", "--dir", outdir, \
-                        "--pctid={0}".format(pctid), \
-                        "--hitlen={0}".format(hitlen)]
-                if qreverse:
-                    oopts += ["--qreverse"]
-                o = overlap(oopts)
-                if o:
-                    print >> fw, o.blastline
-                continue
+    for aid, bid, qreverse in agp.iter_paired_components():
+        if zipshreds and is_adjacent_shreds(a, b):
+            print >> sys.stderr, "Adjacent shreds: {0} - {1}".format(aid, bid)
+            newagp.delete_between(aid, bid, verbose=True)
+            continue
 
-            if zipshreds and is_adjacent_shreds(a, b):
-                print >> sys.stderr, "Adjacent shreds: {0} - {1}".format(aid, bid)
-                newagp.delete_between(aid, bid, verbose=True)
-                continue
+        pair = (aid, bid)
+        if pair not in blast:
+            continue
 
-            pair = (aid, bid)
-            if pair not in blast:
-                continue
+        bl = blast[pair]
+        o = Overlap(bl, a.component_span, b.component_span,
+                        max_hang=hang, qreverse=qreverse)
 
-            bl = blast[pair]
-            o = Overlap(bl, a.component_span, b.component_span,
-                            max_hang=hang, qreverse=qreverse)
+        if aid not in clrstore:
+            clrstore[aid] = CLR.from_agpline(a)
+        if bid not in clrstore:
+            clrstore[bid] = CLR.from_agpline(b)
 
-            if aid not in clrstore:
-                clrstore[aid] = CLR.from_agpline(a)
-            if bid not in clrstore:
-                clrstore[bid] = CLR.from_agpline(b)
+        aclr, bclr = clrstore[aid], clrstore[bid]
 
-            aclr, bclr = clrstore[aid], clrstore[bid]
+        o.print_graphic()
+        if o.anneal(aclr, bclr):
+            newagp.delete_between(aid, bid, verbose=True)
 
+        if o.otype == 2:  # b ~ a
+            o = o.swapped
             o.print_graphic()
-            if o.anneal(aclr, bclr):
-                newagp.delete_between(aid, bid, verbose=True)
-
-            if o.otype == 2:  # b ~ a
-                o = o.swapped
-                o.print_graphic()
-                if o.anneal(bclr, aclr):
-                    newagp.switch_between(bid, aid, verbose=True)
-                    newagp.delete_between(bid, aid, verbose=True)
-
-    if save:
-        fw.close()
-        anneal(args)
-        return annealedfasta
+            if o.anneal(bclr, aclr):
+                newagp.switch_between(bid, aid, verbose=True)
+                newagp.delete_between(bid, aid, verbose=True)
 
     logging.debug("A total of {0} components with modified CLR.".\
                     format(len(clrstore)))

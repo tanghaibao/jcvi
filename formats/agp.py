@@ -288,6 +288,15 @@ class AGP (LineFile):
         for ob, lines_with_same_ob in groupby(self, key=lambda x: x.object):
             yield ob, list(lines_with_same_ob)
 
+    def iter_paired_components(self):
+        for object, lines in self.iter_object():
+            lines = [x for x in lines if not x.is_gap]
+            for a, b in pairwise(lines):
+                aid = a.component_id
+                bid = b.component_id
+                qreverse = a.orientation == '-'
+                yield aid, bid, qreverse
+
     def print_to_file(self, filename, index=True):
         fw = open(filename, "w")
         for a in self:

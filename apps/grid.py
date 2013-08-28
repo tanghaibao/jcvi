@@ -5,14 +5,15 @@ Codes to submit multiple jobs to JCVI grid engine
 import os
 import os.path as op
 import sys
+import time
 import re
 import logging
 
 from subprocess import Popen, PIPE
 from jcvi.apps.base import OptionParser
-from multiprocessing import Process
+from multiprocessing import Process, Queue, cpu_count
 
-from jcvi.formats.base import write_file
+from jcvi.formats.base import write_file, must_open
 from jcvi.apps.base import ActionDispatcher, sh, popen, backup, debug
 debug()
 
@@ -29,12 +30,70 @@ class Jobs (list):
         for x in args:
             self.append(Process(target=target, args=x))
 
-    def run(self):
+    def start(self):
         for pi in self:
             pi.start()
 
+    def join(self):
         for pi in self:
             pi.join()
+
+    def run(self):
+        self.start()
+        self.join()
+
+
+class WriteJobs (object):
+    """
+    Runs multiple function calls, but write to the same file.
+
+    Producer-consumer model.
+    """
+    def __init__(self, target, args, filename, cpus=cpu_count()):
+        workerq = Queue()
+        writerq = Queue()
+
+        for a in args:
+            workerq.put(a)
+        logging.debug("A total of {0} items to compute.".format(workerq.qsize()))
+
+        for i in xrange(cpus):
+            workerq.put(None)
+
+        self.worker = Jobs(work, args=[(workerq, writerq, target)] * cpus)
+        logging.debug("Worker queue initialized ({0})".format(len(self.worker)))
+        self.writer = Process(target=write, args=(writerq, filename))
+        logging.debug("Writer queue initialized")
+
+    def run(self):
+        self.worker.start()
+        self.writer.start()
+        self.worker.join()
+        self.writer.join()
+
+
+def work(queue_in, queue_out, target):
+    while True:
+        a = queue_in.get()
+        if a is None:  # poison pill
+            break
+        res = target(a)
+        queue_out.put(res)
+        logging.debug("Worker: {0} items to compute".\
+                        format(queue_in.qsize()))
+    queue_out.put(None)
+
+
+def write(queue, filename):
+    fw = must_open(filename, "w")
+    while True:
+        res = queue.get()
+        if res is None:
+            break
+        if res:
+            print >> fw, res
+            fw.flush()
+    fw.close()
 
 
 class GridProcess (object):

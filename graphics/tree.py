@@ -6,7 +6,7 @@ import os.path as op
 import logging
 
 from glob import glob
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 
 from ete2 import Tree
 from jcvi.formats.sizes import Sizes
@@ -233,7 +233,7 @@ def main(args):
     eg. species names, useful in unified tree display. This file should have
     distinctive barcodes in column1 and new names in column2, tab delimited.
     """
-    p = OptionParser(main.__doc__)
+    p = MOptionParser(main.__doc__)
     p.add_option("--outgroup", help="Outgroup for rerooting the tree. " + \
                  "Use comma to separate multiple taxa.")
     p.add_option("--noreroot", default=False, action="store_true", \

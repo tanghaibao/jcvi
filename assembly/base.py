@@ -12,7 +12,7 @@ ln2 = log(2)
 
 import numpy as np
 from bisect import bisect
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 
 from jcvi.graphics.histogram import loghistogram
 from jcvi.formats.base import must_open
@@ -114,7 +114,7 @@ def n50(args):
     Given a file with a list of numbers denoting contig lengths, calculate N50.
     Input file can be both FASTA or a list of sizes.
     """
-    p = OptionParser(n50.__doc__)
+    p = MOptionParser(n50.__doc__)
     p.add_option("--print0", default=False, action="store_true",
                  help="Print size and L50 to stdout [default: %default]")
 
@@ -177,7 +177,7 @@ def allstats(args):
     """
     from jcvi.utils.table import tabulate
 
-    p = OptionParser(allstats.__doc__)
+    p = MOptionParser(allstats.__doc__)
     p.add_option("--exclude", help="Exclude statistics, must be {0}, "
                       "multiple separated by comma [default: %default]".\
                       format("|".join(header))

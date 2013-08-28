@@ -10,7 +10,7 @@ import sys
 import logging
 
 from itertools import groupby
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 
 from Bio import SeqIO
 from jcvi.formats.base import LineFile
@@ -18,8 +18,7 @@ from jcvi.formats.fasta import Fasta
 from jcvi.formats.sizes import Sizes
 from jcvi.utils.cbook import fill
 from jcvi.assembly.base import Astat
-from jcvi.apps.base import ActionDispatcher, need_update, sh, debug, \
-            set_outfile, set_params, set_grid
+from jcvi.apps.base import ActionDispatcher, need_update, sh, debug
 debug()
 
 
@@ -95,17 +94,6 @@ class GenomeCoverageFile (LineFile):
             yield seqid, counts * 1. / length
 
 
-def add_sam_options(p):
-    p.add_option("--bam", default=False, action="store_true",
-                 help="write to bam file [default: %default]")
-    p.add_option("--uniq", default=False, action="store_true",
-                 help="Keep only uniquely mapped [default: %default]")
-    p.add_option("--cpus", default=32,
-                 help="Number of cpus to use [default: %default]")
-    set_params(p)
-    set_grid(p)
-
-
 def get_prefix(readfile, dbfile):
     rdpf = op.basename(readfile).replace(".gz", "").rsplit(".", 1)[0]
     dbpf = op.basename(dbfile).split(".")[0]
@@ -136,7 +124,7 @@ def coverage(args):
 
     Calculate coverage for BAM file. BAM file must be sorted.
     """
-    p = OptionParser(coverage.__doc__)
+    p = MOptionParser(coverage.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -161,7 +149,7 @@ def fpkm(args):
 
     Calculate FPKM values from BAM file.
     """
-    p = OptionParser(fpkm.__doc__)
+    p = MOptionParser(fpkm.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) < 2:
@@ -215,7 +203,7 @@ def consensus(args):
 
     Convert bam alignments to consensus FASTQ/FASTA.
     """
-    p = OptionParser(consensus.__doc__)
+    p = MOptionParser(consensus.__doc__)
     p.add_option("--fasta", default=False, action="store_true",
             help="Generate consensus FASTA sequences [default: %default]")
     opts, args = p.parse_args(args)
@@ -244,8 +232,8 @@ def bcf(args):
     """
     from jcvi.apps.grid import Jobs
 
-    p = OptionParser(bcf.__doc__)
-    set_outfile(p)
+    p = MOptionParser(bcf.__doc__)
+    p.set_outfile()
     opts, args = p.parse_args(args)
 
     if len(args) < 2:
@@ -273,7 +261,7 @@ def chimera(args):
 
     Parse SAM file from `bwasw` and list multi-hit reads.
     """
-    p = OptionParser(chimera.__doc__)
+    p = MOptionParser(chimera.__doc__)
     opts, args = p.parse_args(args)
     if len(args) != 1:
         sys.exit(p.print_help())
@@ -303,7 +291,7 @@ def index(args):
 
     If SAM file, convert to BAM, sort and then index, using SAMTOOLS
     """
-    p = OptionParser(index.__doc__)
+    p = MOptionParser(index.__doc__)
     p.add_option("--fasta", dest="fasta", default=None,
             help="add @SQ header to the BAM file [default: %default]")
     p.add_option("--unique", default=False, action="store_true",
@@ -359,7 +347,7 @@ def pair(args):
     Parses the sam file and retrieve in pairs format,
     query:pos ref:pos
     """
-    p = OptionParser(pair.__doc__)
+    p = MOptionParser(pair.__doc__)
 
     opts, args = p.parse_args(args)
     if len(args) != 1:
@@ -431,7 +419,7 @@ def ace(args):
     whether the contig is unique or repetitive based on A-statistics in Celera
     assembler.
     """
-    p = OptionParser(ace.__doc__)
+    p = MOptionParser(ace.__doc__)
     p.add_option("--splitdir", dest="splitdir", default="outRoot",
             help="split the ace per contig to dir [default: %default]")
     p.add_option("--unpaired", dest="unpaired", default=False,

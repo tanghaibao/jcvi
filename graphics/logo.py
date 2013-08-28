@@ -15,7 +15,7 @@ You can download a number of free TTF fonts from:
 import sys
 import logging
 
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 
 from jcvi.graphics.base import plt, set_image_options, savefig, fontprop, \
         available_fonts
@@ -24,7 +24,7 @@ debug()
 
 
 def main():
-    p = OptionParser(__doc__)
+    p = MOptionParser(__doc__)
     p.add_option("--font", default="Airswing.ttf", choices=available_fonts,
                  help="Font name [default: `%default`]")
     p.add_option("--color", default="limegreen",

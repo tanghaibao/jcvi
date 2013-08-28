@@ -27,14 +27,14 @@ import itertools
 
 from math import log10
 from collections import defaultdict
-from optparse import OptionParser, OptionGroup
+from jcvi.apps.base import MOptionParser, OptionGroup
 
 from jcvi.formats.bed import Bed
 from jcvi.formats.blast import BlastLine
 from jcvi.utils.grouper import Grouper
 from jcvi.utils.cbook import gene_name
-from jcvi.algorithms.synteny import add_beds, check_beds
-from jcvi.apps.base import debug, set_stripnames
+from jcvi.algorithms.synteny import check_beds
+from jcvi.apps.base import debug
 debug()
 
 
@@ -256,9 +256,9 @@ def tandem_grouper(bed, blast_list, tandem_Nmax=10, flip=True):
 
 def main(args):
 
-    p = OptionParser(__doc__)
-    add_beds(p)
-    set_stripnames(p)
+    p = MOptionParser(__doc__)
+    p.set_beds()
+    p.set_stripnames()
     p.add_option("--tandems_only", dest="tandems_only",
             action="store_true", default=False,
             help="only calculate tandems, write .localdup file and exit.")

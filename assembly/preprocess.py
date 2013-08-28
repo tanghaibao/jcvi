@@ -10,14 +10,14 @@ import os.path as op
 import sys
 import logging
 
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 
 from jcvi.formats.base import BaseFile, write_file
 from jcvi.formats.fastq import guessoffset
 from jcvi.utils.cbook import depends, human_size
 from jcvi.utils.data import Adapters
 from jcvi.apps.command import JAVAPATH
-from jcvi.apps.base import ActionDispatcher, debug, set_grid, download, \
+from jcvi.apps.base import ActionDispatcher, debug, download, \
         sh, mkdir, need_update
 debug()
 
@@ -76,7 +76,7 @@ def contamination(args):
     """
     from jcvi.apps.bowtie import BowtieLogFile, align
 
-    p = OptionParser(contamination.__doc__)
+    p = MOptionParser(contamination.__doc__)
     p.add_option("--firstN", default=100000, type="int",
                  help="Use only the first N reads [default: all]")
     opts, args = p.parse_args(args)
@@ -113,13 +113,12 @@ def alignextend(args):
 
     Wrapper around AMOS alignextend.
     """
-    p = OptionParser(alignextend.__doc__)
+    p = MOptionParser(alignextend.__doc__)
     p.add_option("--nosuffix", default=False, action="store_true",
                  help="Do not add /1/2 suffix to the read [default: %default]")
     p.add_option("--amos_home", default="~/code/amos-code/",
                  help="Home directory for AMOS [default: %default]")
-    p.add_option("--cpus", default=32, type="int",
-                 help="Number of threads to run [default: %default]")
+    p.set_cpus()
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -150,7 +149,7 @@ def count(args):
     """
     from jcvi.utils.table import loadtable
 
-    p = OptionParser(count.__doc__)
+    p = MOptionParser(count.__doc__)
     p.add_option("--dir",
                 help="Sub-directory where FASTQC was run [default: %default]")
     opts, args = p.parse_args(args)
@@ -188,7 +187,7 @@ def hetsmooth(args):
            --no-multibase-replacements --jellyfish-hash-file=23-mers.jf
                reads_1.fq reads_2.fq
     """
-    p = OptionParser(hetsmooth.__doc__)
+    p = MOptionParser(hetsmooth.__doc__)
     p.add_option("-K", default=23, type="int",
                  help="K-mer size [default: %default]")
     p.add_option("-L", type="int",
@@ -228,7 +227,7 @@ def trim(args):
     TrimVersion = tv = "0.30"
     TrimJar = "trimmomatic-{0}.jar".format(tv)
     phdchoices = ("33", "64")
-    p = OptionParser(trim.__doc__)
+    p = MOptionParser(trim.__doc__)
     p.add_option("--path", default=op.join("~/bin", TrimJar),
             help="Path to trimmomatic jar file [default: %default]")
     p.add_option("--phred", default=None, choices=phdchoices,
@@ -245,7 +244,7 @@ def trim(args):
             help="Do not write to gzipped files [default: %default]")
     p.add_option("--log", default=None, dest="trimlog",
             help="Specify a `trimlog` file [default: %default]")
-    set_grid(p)
+    p.set_grid()
 
     opts, args = p.parse_args(args)
 
@@ -385,15 +384,14 @@ def correct(args):
     from jcvi.assembly.allpaths import prepare
     from jcvi.assembly.base import FastqNamings
 
-    p = OptionParser(correct.__doc__ + FastqNamings)
+    p = MOptionParser(correct.__doc__ + FastqNamings)
     p.add_option("--nofragsdedup", default=False, action="store_true",
                  help="Don't deduplicate the fragment reads [default: %default]")
     p.add_option("--ploidy", default="2", choices=("1", "2"),
                  help="Ploidy = [default: %default]")
     p.add_option("--haploidify", default=False, action="store_true",
                  help="Set HAPLOIDIFY=True [default: %default]")
-    p.add_option("--cpus", default=32, type="int",
-                 help="Number of threads to run [default: %default]")
+    p.set_cpus()
     opts, args = p.parse_args(args)
 
     if len(args) < 1:

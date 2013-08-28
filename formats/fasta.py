@@ -9,7 +9,7 @@ import shutil
 import logging
 import string
 
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 from itertools import groupby, izip_longest
 
 from Bio import SeqIO
@@ -19,7 +19,7 @@ from Bio.SeqRecord import SeqRecord
 from jcvi.formats.base import BaseFile, DictFile, must_open
 from jcvi.formats.bed import Bed
 from jcvi.apps.console import red, green
-from jcvi.apps.base import ActionDispatcher, debug, set_outfile, need_update
+from jcvi.apps.base import ActionDispatcher, debug, need_update
 debug()
 
 
@@ -295,7 +295,7 @@ def fromtab(args):
     Convert 2-column sequence file to FASTA format. One usage for this is to
     generatea `adapters.fasta` for TRIMMOMATIC.
     """
-    p = OptionParser(fromtab.__doc__)
+    p = MOptionParser(fromtab.__doc__)
     p.add_option("--sep",
                  help="Separator in the tabfile [default: %default]")
     p.add_option("--replace",
@@ -335,7 +335,7 @@ def longestorf(args):
     """
     from jcvi.utils.cbook import percentage
 
-    p = OptionParser(longestorf.__doc__)
+    p = MOptionParser(longestorf.__doc__)
     p.add_option("--ids", action="store_true",
                  help="Generate table with ORF info [default: %default]")
     opts, args = p.parse_args(args)
@@ -386,7 +386,7 @@ def ispcr(args):
     """
     from jcvi.utils.iter import grouper
 
-    p = OptionParser(ispcr.__doc__)
+    p = MOptionParser(ispcr.__doc__)
     p.add_option("-r", dest="rclip", default=1, type="int",
             help="pair ID is derived from rstrip N chars [default: %default]")
     opts, args = p.parse_args(args)
@@ -477,12 +477,12 @@ def clean(args):
 
     Remove irregular chars in FASTA seqs.
     """
-    p = OptionParser(clean.__doc__)
+    p = MOptionParser(clean.__doc__)
     p.add_option("--fancy", default=False, action="store_true",
                  help="Pretty print the sequence [default: %default]")
     p.add_option("--canonical", default=False, action="store_true",
                  help="Use only acgtnACGTN [default: %default]")
-    set_outfile(p)
+    p.set_outfile()
 
     opts, args = p.parse_args(args)
 
@@ -518,7 +518,7 @@ def translate(args):
     from jcvi.utils.cbook import percentage
 
     transl_tables = [str(x) for x in xrange(1,25)]
-    p = OptionParser(translate.__doc__)
+    p = MOptionParser(translate.__doc__)
     p.add_option("--ids", default=False, action="store_true",
                  help="Create .ids file with the complete/partial/gaps "
                       "label [default: %default]")
@@ -526,7 +526,7 @@ def translate(args):
                  help="Find the longest ORF from each input CDS [default: %default]")
     p.add_option("--table", default=1, choices=transl_tables,
             help="Specify translation table to use [default: %default]")
-    set_outfile(p)
+    p.set_outfile()
 
     opts, args = p.parse_args(args)
 
@@ -624,10 +624,10 @@ def filter(args):
 
     Filter the FASTA file to contain records with size >= or <= certain cutoff.
     """
-    p = OptionParser(filter.__doc__)
+    p = MOptionParser(filter.__doc__)
     p.add_option("--less", default=False, action="store_true",
                  help="filter the sizes < certain cutoff [default: >=]")
-    set_outfile(p)
+    p.set_outfile()
 
     opts, args = p.parse_args(args)
 
@@ -664,7 +664,7 @@ def pool(args):
     Pool a bunch of FASTA files, and add prefix to each record based on
     filenames.
     """
-    p = OptionParser(pool.__doc__)
+    p = MOptionParser(pool.__doc__)
 
     if len(args) < 1:
         sys.exit(not p.print_help())
@@ -681,12 +681,12 @@ def ids(args):
 
     Generate the FASTA headers without the '>'.
     """
-    p = OptionParser(ids.__doc__)
+    p = MOptionParser(ids.__doc__)
     p.add_option("--until", default=None,
              help="Truncate the name and description at words [default: %default]")
     p.add_option("--description", default=False, action="store_true",
              help="Generate a second column with description [default: %default]")
-    set_outfile(p)
+    p.set_outfile()
 
     opts, args = p.parse_args(args)
 
@@ -717,7 +717,7 @@ def sort(args):
 
     Sort a list of sequences and output with sorted IDs, etc.
     """
-    p = OptionParser(sort.__doc__)
+    p = MOptionParser(sort.__doc__)
     p.add_option("--sizes", default=False, action="store_true",
                  help="Sort by decreasing size [default: %default]")
 
@@ -761,7 +761,7 @@ def join(args):
     from jcvi.formats.agp import OO, Phases, build
     from jcvi.formats.sizes import Sizes
 
-    p = OptionParser(join.__doc__)
+    p = MOptionParser(join.__doc__)
     p.add_option("--newid", default=None,
             help="New sequence ID [default: `%default`]")
     p.add_option("--gapsize", default=100, type="int",
@@ -830,12 +830,12 @@ def summary(args):
     """
     from jcvi.utils.table import write_csv
 
-    p = OptionParser(summary.__doc__)
+    p = MOptionParser(summary.__doc__)
     p.add_option("--suffix", default="Mb",
             help="make the base pair counts human readable [default: %default]")
     p.add_option("--ids",
             help="write the ids that have >= 50% N's [default: %default]")
-    set_outfile(p)
+    p.set_outfile()
 
     opts, args = p.parse_args(args)
 
@@ -884,7 +884,7 @@ def format(args):
 
     Reformat FASTA file and also clean up names.
     """
-    p = OptionParser(format.__doc__)
+    p = MOptionParser(format.__doc__)
     p.add_option("--pairs", default=False, action="store_true",
             help="Add trailing /1 and /2 for interleaved pairs [default: %default]")
     p.add_option("--sequential", default=False, action="store_true",
@@ -1061,7 +1061,7 @@ def diff(args):
     """
     from jcvi.utils.table import banner
 
-    p = OptionParser(diff.__doc__)
+    p = MOptionParser(diff.__doc__)
     p.add_option("--ignore_case", default=False, action="store_true",
             help="ignore case when comparing sequences [default: %default]")
     p.add_option("--ignore_N", default=False, action="store_true",
@@ -1183,7 +1183,7 @@ def identical(args):
 	t6         1281         470
 	t7         3367          na
     """
-    p = OptionParser(identical.__doc__)
+    p = MOptionParser(identical.__doc__)
     p.add_option("--ignore_case", default=False, action="store_true",
             help="ignore case when comparing sequences [default: %default]")
     p.add_option("--ignore_N", default=False, action="store_true",
@@ -1193,7 +1193,7 @@ def identical(args):
     p.add_option("--output_uniq", default=False, action="store_true",
             help="output uniq sequences in FASTA format" + \
                  " [default: %default]")
-    set_outfile(p)
+    p.set_outfile()
 
     opts, args = p.parse_args(args)
 
@@ -1274,7 +1274,7 @@ def some(args):
 
     generate a subset of fastafile, based on a list
     """
-    p = OptionParser(some.__doc__)
+    p = MOptionParser(some.__doc__)
     p.add_option("--exclude", default=False, action="store_true",
             help="Output sequences not in the list file [default: %default]")
     p.add_option("--uniprot", default=False, action="store_true",
@@ -1329,7 +1329,7 @@ def fastq(args):
     """
     from jcvi.formats.fastq import FastqLite
 
-    p = OptionParser(fastq.__doc__)
+    p = MOptionParser(fastq.__doc__)
     p.add_option("--qv", type="int",
                  help="Use generic qv value [dafault: %default]")
 
@@ -1374,7 +1374,7 @@ def pair(args):
     Generate .pairs.fasta and .fragments.fasta by matching records
     into the pairs and the rest go to fragments.
     """
-    p = OptionParser(pair.__doc__)
+    p = MOptionParser(pair.__doc__)
     p.add_option("-d", dest="separator", default=None,
             help="separater in the name field to reduce to the same clone " +\
                  "[e.g. GFNQ33242/1 use /, BOT01-2453H.b1 use .]" +\
@@ -1461,7 +1461,7 @@ def pairinplace(args):
     """
     from jcvi.utils.iter import pairwise
 
-    p = OptionParser(pairinplace.__doc__)
+    p = MOptionParser(pairinplace.__doc__)
     p.add_option("-r", dest="rclip", default=1, type="int",
             help="pair ID is derived from rstrip N chars [default: %default]")
     opts, args = p.parse_args(args)
@@ -1514,14 +1514,14 @@ def extract(args):
     extract query out of fasta file, query needs to be in the form of
     "seqname", or "seqname:start-stop", or "seqname:start-stop:-"
     """
-    p = OptionParser(extract.__doc__)
+    p = MOptionParser(extract.__doc__)
     p.add_option('--include', default=False, action="store_true",
             help="search description line for match [default: %default]")
     p.add_option('--exclude', default=False, action="store_true",
             help="exclude description that matches [default: %default]")
     p.add_option('--bed', default=None,
             help="path to bed file to guide extraction by matching seqname")
-    set_outfile(p)
+    p.set_outfile()
 
     opts, args = p.parse_args(args)
 
@@ -1634,7 +1634,7 @@ def uniq(args):
 
     remove fasta records that are the same
     """
-    p = OptionParser(uniq.__doc__)
+    p = MOptionParser(uniq.__doc__)
     p.add_option("--seq", default=False, action="store_true",
             help="Uniqify the sequences [default: %default]")
     p.add_option("-t", "--trimname", dest="trimname",
@@ -1663,7 +1663,7 @@ def random(args):
     """
     from random import sample
 
-    p = OptionParser(random.__doc__)
+    p = MOptionParser(random.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -1744,7 +1744,7 @@ def trim(args):
 
     from jcvi.algorithms.maxsum import max_sum
 
-    p = OptionParser(trim.__doc__)
+    p = MOptionParser(trim.__doc__)
     p.add_option("-c", dest="min_length", type="int", default=64,
             help="minimum sequence length after trimming")
     p.add_option("-s", dest="score", default=QUAL,
@@ -1818,7 +1818,7 @@ def sequin(args):
     TCAATAAAACTATGGGGTAAAGAAGAACAAAAAATAATTAACAGAAATTTTCGTTTATCTCCTTTATTAA
     TATTAACGATGAATAATAATGAGAAGCCATATAGAATTGGTGATAATGTAAAAAAAGGGGCTCTTATTAC
     """
-    p = OptionParser(sequin.__doc__)
+    p = MOptionParser(sequin.__doc__)
     p.add_option("--mingap", dest="mingap", default=100, type="int",
             help="The minimum size of a gap to split [default: %default]")
     p.add_option("--unk", default=100, type="int",
@@ -1911,7 +1911,7 @@ def tidy(args):
 
     Trim terminal Ns, normalize gap sizes and remove small components.
     """
-    p = OptionParser(tidy.__doc__)
+    p = MOptionParser(tidy.__doc__)
     p.add_option("--gapsize", dest="gapsize", default=0, type="int",
             help="Set all gaps to the same size [default: %default]")
     p.add_option("--minlen", dest="minlen", default=100, type="int",
@@ -1989,7 +1989,7 @@ def gaps(args):
     from jcvi.formats.sizes import agp
     from jcvi.formats.agp import mask, build
 
-    p = OptionParser(gaps.__doc__)
+    p = MOptionParser(gaps.__doc__)
     p.add_option("--mingap", default=100, type="int",
             help="The minimum size of a gap to split [default: %default]")
     p.add_option("--split", default=False, action="store_true",

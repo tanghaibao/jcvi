@@ -11,7 +11,7 @@ import re
 import logging
 
 from collections import namedtuple
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 from itertools import islice
 
 from Bio import SeqIO
@@ -19,8 +19,8 @@ from Bio.SeqIO.QualityIO import FastqGeneralIterator
 
 from jcvi.formats.fasta import must_open, rc
 from jcvi.formats.base import DictFile
-from jcvi.apps.base import ActionDispatcher, debug, set_grid, sh, \
-        mkdir, set_outfile
+from jcvi.apps.base import ActionDispatcher, debug, sh, \
+        mkdir
 debug()
 
 qual_offset = lambda x: 33 if x == "sanger" else 64
@@ -160,7 +160,7 @@ def fasta(args):
 
     Convert fastq to fasta and qual file.
     """
-    p = OptionParser(fasta.__doc__)
+    p = MOptionParser(fasta.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -178,8 +178,8 @@ def first(args):
 
     Get first N reads from file. Output will be written to *.firstN.fastq.
     """
-    p = OptionParser(first.__doc__)
-    set_outfile(p)
+    p = MOptionParser(first.__doc__)
+    p.set_outfile()
     opts, args = p.parse_args(args)
 
     if len(args) < 2:
@@ -223,7 +223,7 @@ def filter(args):
     Filter to get high qv reads. Use interleaved format (one file) or paired
     format (two files) to filter on paired reads.
     """
-    p = OptionParser(filter.__doc__)
+    p = MOptionParser(filter.__doc__)
     p.add_option("-q", dest="qv", default=20, type="int",
                  help="Minimum quality score to keep [default: %default]")
     p.add_option("-p", dest="pct", default=95, type="int",
@@ -283,7 +283,7 @@ def shuffle(args):
     """
     from itertools import izip
 
-    p = OptionParser(shuffle.__doc__)
+    p = MOptionParser(shuffle.__doc__)
     p.add_option("--tag", dest="tag", default=False, action="store_true",
             help="add tag (/1, /2) to the read name")
     opts, args = p.parse_args(args)
@@ -331,8 +331,8 @@ def split(args):
     """
     from jcvi.apps.grid import Jobs
 
-    p = OptionParser(split.__doc__)
-    set_grid(p)
+    p = MOptionParser(split.__doc__)
+    p.set_grid()
 
     opts, args = p.parse_args(args)
 
@@ -393,7 +393,7 @@ def guessoffset(args):
      L - Illumina 1.8+ Phred+33,  raw reads typically (0, 40)
         with 0=unused, 1=unused, 2=Read Segment Quality Control Indicator (bold)
     """
-    p = OptionParser(guessoffset.__doc__)
+    p = MOptionParser(guessoffset.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -430,7 +430,7 @@ def format(args):
     Format FASTQ file. Currently provides option to convert FASTQ header from
     Illumina Casava 1.8+ format to the older format
     """
-    p = OptionParser(format.__doc__)
+    p = MOptionParser(format.__doc__)
 
     p.add_option("--old_header", default=False, action="store_true",
                 help="Convert header format from illumina new (1.8+) to older format" +
@@ -463,7 +463,7 @@ def some(args):
     Select a subset of the reads with ids present in the idsfile.
     `bfastq` is optional (only if reads are paired)
     """
-    p = OptionParser(some.__doc__)
+    p = MOptionParser(some.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) not in (2, 3):
@@ -497,8 +497,8 @@ def trim(args):
 
     Wraps `fastx_trimmer` to trim from begin or end of reads.
     """
-    p = OptionParser(trim.__doc__)
-    set_grid(p)
+    p = MOptionParser(trim.__doc__)
+    p.set_grid()
 
     p.add_option("-f", dest="first", default=0, type="int",
             help="First base to keep. Default is 1.")
@@ -533,7 +533,7 @@ def splitread(args):
 
     Split fastqfile into two read fastqfiles, cut in the middle.
     """
-    p = OptionParser(splitread.__doc__)
+    p = MOptionParser(splitread.__doc__)
     p.add_option("-n", dest="n", default=76, type="int",
             help="Split at N-th base position [default: %default]")
     p.add_option("--rc", default=False, action="store_true",
@@ -576,7 +576,7 @@ def size(args):
 
     Find the total base pairs in a list of fastq files
     """
-    p = OptionParser(size.__doc__)
+    p = MOptionParser(size.__doc__)
     opts, args = p.parse_args(args)
 
     total_size = 0
@@ -599,14 +599,14 @@ def convert(args):
     script creates a new file with the correct encoding
     """
     supported_qvs = ("illumina", "sanger")
-    p = OptionParser(convert.__doc__)
+    p = MOptionParser(convert.__doc__)
     p.add_option("-Q", dest="infastq", default="illumina", choices=supported_qvs,
             help="input qv, one of {0} [default: %default]".\
                 format("|".join(supported_qvs)))
     p.add_option("-q", dest="outfastq", default="sanger", choices=supported_qvs,
             help="output qv, one of {0} [default: %default]".\
                 format("|".join(supported_qvs)))
-    set_grid(p)
+    p.set_grid()
 
     opts, args = p.parse_args(args)
 
@@ -643,7 +643,7 @@ def pairinplace(args):
     """
     from jcvi.utils.iter import pairwise
 
-    p = OptionParser(pairinplace.__doc__)
+    p = MOptionParser(pairinplace.__doc__)
     p.add_option("-r", dest="rclip", default=1, type="int",
             help="pair ID is derived from rstrip N chars [default: %default]")
     opts, args = p.parse_args(args)

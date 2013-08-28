@@ -8,14 +8,14 @@ import sys
 import logging
 
 from itertools import groupby
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 
 from jcvi.formats.base import LineFile, must_open, is_number
 from jcvi.utils.cbook import depends, thousands, percentage
 from jcvi.utils.range import Range, range_union, range_chain, \
         range_distance, range_intersect
 from jcvi.apps.base import ActionDispatcher, debug, sh, \
-        need_update, popen, set_outfile, set_tmpdir
+        need_update, popen
 debug()
 
 
@@ -269,8 +269,8 @@ def fix(args):
 
     Fix non-standard bed files. One typical problem is start > end.
     """
-    p = OptionParser(fix.__doc__)
-    set_outfile(p)
+    p = MOptionParser(fix.__doc__)
+    p.set_outfile()
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -307,14 +307,13 @@ def some(args):
 
     Retrieve a subset of bed features given a list of ids.
     """
-    from jcvi.apps.base import set_stripnames
     from jcvi.formats.base import SetFile
     from jcvi.utils.cbook import gene_name
 
-    p = OptionParser(some.__doc__)
+    p = MOptionParser(some.__doc__)
     p.add_option("-v", dest="inverse", default=False, action="store_true",
                  help="Get the inverse, like grep -v [default: %default]")
-    set_stripnames(p)
+    p.set_stripnames()
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -350,7 +349,7 @@ def uniq(args):
 
     Remove overlapping features with higher scores.
     """
-    p = OptionParser(uniq.__doc__)
+    p = MOptionParser(uniq.__doc__)
     p.add_option("--slen", default=False, action="store_true",
                  help="Use sequence length as score [default: %default]")
     opts, args = p.parse_args(args)
@@ -423,7 +422,7 @@ def bins(args):
 
     from jcvi.formats.sizes import Sizes
 
-    p = OptionParser(bins.__doc__)
+    p = MOptionParser(bins.__doc__)
     p.add_option("--binsize", default=100000, type="int",
                  help="Size of the bins [default: %default]")
     p.add_option("--subtract",
@@ -519,7 +518,7 @@ def pile(args):
     """
     from jcvi.utils.grouper import Grouper
 
-    p = OptionParser(pile.__doc__)
+    p = MOptionParser(pile.__doc__)
     p.add_option("--minOverlap", default=0, type="int",
                  help="Minimum overlap required [default: %default]")
     opts, args = p.parse_args(args)
@@ -548,10 +547,10 @@ def index(args):
 
     Compress frgscffile.sorted and index it using `tabix`.
     """
-    p = OptionParser(index.__doc__)
+    p = MOptionParser(index.__doc__)
     p.add_option("--query",
                  help="Chromosome location [default: %default]")
-    set_outfile(p)
+    p.set_outfile()
 
     opts, args = p.parse_args(args)
 
@@ -669,7 +668,7 @@ def evaluate(args):
     """
     from jcvi.formats.sizes import Sizes
 
-    p = OptionParser(evaluate.__doc__)
+    p = MOptionParser(evaluate.__doc__)
     p.add_option("--query",
                  help="Chromosome location [default: %default]")
     opts, args = p.parse_args(args)
@@ -748,7 +747,7 @@ def refine(args):
     intervals in bedfile1, but refined by bedfile2 whenever they have
     intersection.
     """
-    p = OptionParser(refine.__doc__)
+    p = MOptionParser(refine.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -789,7 +788,7 @@ def distance(args):
     """
     from jcvi.utils.iter import pairwise
 
-    p = OptionParser(distance.__doc__)
+    p = MOptionParser(distance.__doc__)
     p.add_option("--distmode", default="ss", choices=("ss", "ee"),
             help="distance mode between paired reads, ss is outer distance, " \
                  "ee is inner distance [default: %default]")
@@ -830,7 +829,7 @@ def sample(args):
     import random
     from jcvi.assembly.coverage import Coverage
 
-    p = OptionParser(sample.__doc__)
+    p = MOptionParser(sample.__doc__)
     p.add_option("--max", default=10, type="int",
                  help="Max depth allowed [default: %default]")
     p.add_option("--targetsize", type="int",
@@ -885,7 +884,7 @@ def bedpe(args):
     """
     from jcvi.assembly.coverage import bed_to_bedpe
 
-    p = OptionParser(bedpe.__doc__)
+    p = MOptionParser(bedpe.__doc__)
     p.add_option("--span", default=False, action="store_true",
                  help="Write span bed file [default: %default]")
     p.add_option("--mates", help="Check the library stats from .mates file")
@@ -909,7 +908,7 @@ def sizes(args):
 
     Infer the sizes for each seqid. Useful before dot plots.
     """
-    p = OptionParser(sizes.__doc__)
+    p = MOptionParser(sizes.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -972,7 +971,7 @@ def summary(args):
     """
     from jcvi.utils.cbook import SummaryStats
 
-    p = OptionParser(summary.__doc__)
+    p = MOptionParser(summary.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -1009,13 +1008,13 @@ def sort(args):
     Sort bed file to have ascending order of seqid, then start. It uses the
     `sort` command.
     """
-    p = OptionParser(sort.__doc__)
+    p = MOptionParser(sort.__doc__)
     p.add_option("-i", "--inplace", dest="inplace",
             default=False, action="store_true",
             help="Sort bed file in place [default: %default]")
     p.add_option("--accn", default=False, action="store_true",
             help="Sort based on the accessions [default: %default]")
-    set_tmpdir(p)
+    p.set_tmpdir()
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -1043,7 +1042,7 @@ def mates(args):
 
     Generate the mates file by inferring from the names.
     """
-    p = OptionParser(mates.__doc__)
+    p = MOptionParser(mates.__doc__)
     p.add_option("--lib", default=False, action="store_true",
             help="Output library information along with pairs [default: %default]")
     p.add_option("--nointra", default=False, action="store_true",
@@ -1125,7 +1124,7 @@ def flanking(args):
     """
     from numpy import array, argsort
 
-    p = OptionParser(flanking.__doc__)
+    p = MOptionParser(flanking.__doc__)
     p.add_option("--chrom", default=None, type="string",
             help="chrom name of the position in query. Make sure it matches bedfile.")
     p.add_option("--coord", default=None, type="int",
@@ -1136,7 +1135,7 @@ def flanking(args):
             help="which side to get flanking features [default: %default]")
     p.add_option("--max_d", default=None, type="int",
             help="features <= max_d away from position [default: %default]")
-    set_outfile(p)
+    p.set_outfile()
 
     opts, args = p.parse_args(args)
 

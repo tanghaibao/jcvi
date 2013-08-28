@@ -7,14 +7,14 @@ import sys
 import logging
 
 from math import exp
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 from subprocess import Popen, PIPE
 from multiprocessing import Lock, Pool
 
 from jcvi.formats.base import must_open
 from jcvi.apps.grid import Grid, Jobs
-from jcvi.apps.base import ActionDispatcher, debug, set_params, \
-        set_grid, set_outfile, sh, mkdir
+from jcvi.apps.base import ActionDispatcher, debug, \
+        sh, mkdir
 debug()
 
 
@@ -152,7 +152,7 @@ def main():
 
     Run LASTZ similar to the BLAST interface, and generates -m8 tabular format
     """
-    p = OptionParser(main.__doc__)
+    p = MOptionParser(main.__doc__)
 
     supported_formats = tuple(x.strip() for x in \
         "lav, lav+text, axt, axt+, maf, maf+, maf-, sam, softsam, "\
@@ -170,9 +170,9 @@ def main():
     p.add_option("--similar", default=False, action="store_true",
             help="Use options tuned for close comparison [default: %default]")
 
-    set_params(p)
-    set_outfile(p)
-    set_grid(p)
+    p.set_params()
+    p.set_outfile()
+    p.set_grid()
 
     opts, args = p.parse_args()
 

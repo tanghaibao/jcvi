@@ -19,7 +19,7 @@ import shutil
 import logging
 
 from glob import glob
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 
 from jcvi.formats.base import BaseFile
 from jcvi.apps.base import ActionDispatcher, sh, mkdir, debug
@@ -172,7 +172,7 @@ def cnsfix(args):
     """
     from jcvi.formats.base import read_block
 
-    p = OptionParser(cnsfix.__doc__)
+    p = MOptionParser(cnsfix.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -208,7 +208,7 @@ def error(args):
     Find all errors in ../5-consensus/*.err and pull the error unitigs into
     backup/ folder.
     """
-    p = OptionParser(error.__doc__)
+    p = MOptionParser(error.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -260,7 +260,7 @@ def trace(args):
 
     Call `grep` to get the erroneous fragment placement.
     """
-    p = OptionParser(trace.__doc__)
+    p = MOptionParser(trace.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -298,7 +298,7 @@ def cut(args):
     """
     from jcvi.formats.base import SetFile
 
-    p = OptionParser(cut.__doc__)
+    p = MOptionParser(cut.__doc__)
     p.add_option("-s", dest="shredafter", default=False, action="store_true",
                  help="Shred fragments after the given fragID [default: %default]")
     p.add_option("--notest", default=False, action="store_true",
@@ -336,7 +336,7 @@ def shred(args):
     Shred the unitig into one fragment per unitig to fix. This is the last
     resort as a desperate fix.
     """
-    p = OptionParser(shred.__doc__)
+    p = MOptionParser(shred.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -355,7 +355,7 @@ def pull(args):
     For example, `%prog pull 5 530` will pull the utg530 from partition 5
     The layout is written to `unitig530`
     """
-    p = OptionParser(pull.__doc__)
+    p = MOptionParser(pull.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -381,7 +381,7 @@ def test(args):
 
     For example, `%prog test unitig1.5.530` will test the modified `unitig530`
     """
-    p = OptionParser(test.__doc__)
+    p = MOptionParser(test.__doc__)
     p.add_option("--verbose", default=False, action="store_true",
                  help="Turn on verbose debugging [default: %default]")
     opts, args = p.parse_args(args)
@@ -414,7 +414,7 @@ def push(args):
     For example, `%prog push unitig5.530` will push the modified `unitig530`
     and replace the one in the tigStore
     """
-    p = OptionParser(push.__doc__)
+    p = MOptionParser(push.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -437,7 +437,7 @@ def pushall(args):
 
     Push a bunch of unitig layout changes.
     """
-    p = OptionParser(pushall.__doc__)
+    p = MOptionParser(pushall.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) < 1:

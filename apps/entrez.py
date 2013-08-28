@@ -9,7 +9,7 @@ import time
 import logging
 import urllib2
 
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 from Bio import Entrez, SeqIO
 
 from jcvi.formats.base import must_open
@@ -135,7 +135,7 @@ def bisect(args):
     determine the version of the accession, based on a fasta file.
     This proceeds by a sequential search from xxxx.1 to the latest record.
     """
-    p = OptionParser(bisect.__doc__)
+    p = MOptionParser(bisect.__doc__)
 
     opts, args = p.parse_args(args)
 
@@ -176,7 +176,7 @@ def fetch(args):
     results are small in size, e.g. "--format=acc", use "--batchsize=100" to speed
     the download.
     """
-    p = OptionParser(fetch.__doc__)
+    p = MOptionParser(fetch.__doc__)
 
     allowed_databases = {"fasta": ["genome", "nuccore", "nucgss", "protein", "nucest"],
                          "asn.1": ["genome", "nuccore", "nucgss", "protein"],

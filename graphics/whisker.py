@@ -12,7 +12,7 @@ second column is values.
 import sys
 import logging
 
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 
 from jcvi.apps.r import RTemplate
 from jcvi.apps.base import debug
@@ -32,7 +32,7 @@ ggsave('$outfile')
 
 
 def main():
-    p = OptionParser(__doc__)
+    p = MOptionParser(__doc__)
     p.add_option("--levels",
                 help="Reorder factors, comma-delimited [default: alphabetical]")
     p.add_option("--title", default=" ",

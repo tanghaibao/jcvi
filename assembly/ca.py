@@ -14,7 +14,7 @@ import sys
 import logging
 
 from glob import glob
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 from collections import defaultdict
 
 from Bio import SeqIO
@@ -26,7 +26,7 @@ from jcvi.formats.blast import Blast
 from jcvi.utils.range import range_minmax
 from jcvi.utils.table import tabulate
 from jcvi.apps.softlink import get_abs_path
-from jcvi.apps.base import ActionDispatcher, sh, set_grid, need_update, debug
+from jcvi.apps.base import ActionDispatcher, sh, need_update, debug
 debug()
 
 
@@ -96,7 +96,7 @@ def astat(args):
 
     Create coverage-rho scatter plot.
     """
-    p = OptionParser(astat.__doc__)
+    p = MOptionParser(astat.__doc__)
     p.add_option("--cutoff", default=1000, type="int",
                  help="Length cutoff [default: %default]")
     p.add_option("--genome", default="",
@@ -195,7 +195,7 @@ def shred(args):
     Similar to the method of `shredContig` in runCA script. The contigs are
     shredded into pseudo-reads with certain length and depth.
     """
-    p = OptionParser(shred.__doc__)
+    p = MOptionParser(shred.__doc__)
     p.add_option("--depth", default=2, type="int",
             help="Desired depth of the reads [default: %default]")
     p.add_option("--readlen", default=1000, type="int",
@@ -293,7 +293,7 @@ def script(args):
     to keep the RFS result (but not in the BFS result) to retain actual MP. Libs
     contain a list of lib iids, use comma to separate, e.g. "9,10,11".
     """
-    p = OptionParser(script.__doc__)
+    p = MOptionParser(script.__doc__)
 
     opts, args = p.parse_args(args)
     if len(args) != 2:
@@ -348,7 +348,7 @@ def tracedb(args):
 
     Run `tracedb-to-frg.pl` within current folder.
     """
-    p = OptionParser(tracedb.__doc__)
+    p = MOptionParser(tracedb.__doc__)
 
     opts, args = p.parse_args(args)
 
@@ -435,12 +435,12 @@ def fasta(args):
     """
     from jcvi.formats.fasta import clean, make_qual
 
-    p = OptionParser(fasta.__doc__)
+    p = MOptionParser(fasta.__doc__)
     p.add_option("-m", dest="matefile", default=None,
             help="matepairs file")
     p.add_option("--maxreadlen", default=32000, type="int",
             help="Maximum read length allowed [default: %default]")
-    set_grid(p)
+    p.set_grid()
     add_size_option(p)
 
     opts, args = p.parse_args(args)
@@ -509,12 +509,12 @@ def sff(args):
     Turn --nodedup on if another deduplication mechanism is used (e.g.
     CD-HIT-454). See assembly.sff.deduplicate().
     """
-    p = OptionParser(sff.__doc__)
+    p = MOptionParser(sff.__doc__)
     p.add_option("--prefix", dest="prefix", default=None,
             help="Output frg filename prefix")
     p.add_option("--nodedup", default=False, action="store_true",
             help="Do not remove duplicates [default: %default]")
-    set_grid(p)
+    p.set_grid()
     add_size_option(p)
 
     opts, args = p.parse_args(args)
@@ -564,7 +564,7 @@ def fastq(args):
     """
     from jcvi.formats.fastq import guessoffset
 
-    p = OptionParser(fastq.__doc__)
+    p = MOptionParser(fastq.__doc__)
     phdchoices = ("33", "64")
     p.add_option("--outtie", dest="outtie", default=False, action="store_true",
             help="Are these outie reads? [default: %default]")
@@ -615,7 +615,7 @@ def clr(args):
 
     Calculate the vector clear range file based BLAST to the vectors.
     """
-    p = OptionParser(clr.__doc__)
+    p = MOptionParser(clr.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) < 2:

@@ -14,7 +14,7 @@ import logging
 from math import log, sqrt, pi, exp
 from itertools import product, combinations
 from collections import namedtuple
-from optparse import OptionParser, OptionGroup
+from jcvi.apps.base import MOptionParser, OptionGroup
 from subprocess import Popen, PIPE
 
 import numpy as np
@@ -24,7 +24,7 @@ from Bio.Align.Applications import ClustalwCommandline, MuscleCommandline
 
 from jcvi.formats.base import must_open, LineFile
 from jcvi.apps.command import getpath, partial
-from jcvi.apps.base import ActionDispatcher, debug, mkdir, set_outfile, sh
+from jcvi.apps.base import ActionDispatcher, debug, mkdir, sh
 debug()
 
 
@@ -179,7 +179,7 @@ def multireport(args):
     """
     from jcvi.graphics.base import plt
 
-    p = OptionParser(multireport.__doc__)
+    p = MOptionParser(multireport.__doc__)
     p.add_option("--nofit", default=False, action="store_true",
                  help="Do not plot fitted lines [default: %default]")
     add_plot_options(p)
@@ -253,10 +253,10 @@ def gc3(args):
     """
     import csv
 
-    p = OptionParser(gc3.__doc__)
+    p = MOptionParser(gc3.__doc__)
     p.add_option("--plot", default=False, action="store_true",
                  help="Also plot the GC3 histogram [default: %default]")
-    set_outfile(p)
+    p.set_outfile()
 
     opts, args = p.parse_args(args)
 
@@ -334,7 +334,7 @@ def fromgroups(args):
     """
     from jcvi.formats.bed import Bed
 
-    p = OptionParser(fromgroups.__doc__)
+    p = MOptionParser(fromgroups.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) < 2:
@@ -369,8 +369,8 @@ def prepare(args):
     """
     from jcvi.formats.fasta import Fasta, SeqIO
 
-    p = OptionParser(prepare.__doc__)
-    set_outfile(p)
+    p = MOptionParser(prepare.__doc__)
+    p.set_outfile()
 
     opts, args = p.parse_args(args)
     outfile = opts.outfile
@@ -434,13 +434,13 @@ def calc(args):
     """
     from jcvi.formats.fasta import translate
 
-    p = OptionParser(calc.__doc__)
+    p = MOptionParser(calc.__doc__)
     p.add_option("--longest", action="store_true",
                  help="Get longest ORF, only works if no pep file, "\
                       "e.g. ESTs [default: %default]")
     p.add_option("--msa", default="clustalw", choices=("clustalw", "muscle"),
                  help="software used to align the proteins [default: %default]")
-    set_outfile(p)
+    p.set_outfile()
 
     opts, args = p.parse_args(args)
 
@@ -675,12 +675,12 @@ def subset(args):
     Subset some pre-calculated ks ka values (in ksfile) according to pairs
     in tab delimited pairsfile/anchorfile.
     """
-    p = OptionParser(subset.__doc__)
+    p = MOptionParser(subset.__doc__)
     p.add_option("--noheader", action="store_true",
                  help="don't write ksfile header line [default: %default]")
     p.add_option("--block", action="store_true",
                  help="preserve block structure in input [default: %default]")
-    set_outfile(p)
+    p.set_outfile()
 
     opts, args = p.parse_args(args)
 
@@ -898,7 +898,7 @@ def report(args):
     from jcvi.utils.cbook import SummaryStats
     from jcvi.graphics.histogram import stem_leaf_plot
 
-    p = OptionParser(report.__doc__)
+    p = MOptionParser(report.__doc__)
     add_plot_options(p)
 
     p.add_option("--pdf", default=False, action="store_true",

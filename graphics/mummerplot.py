@@ -9,7 +9,7 @@ main features in the dot plot.
 import sys
 import logging
 
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 
 from jcvi.formats.coords import Coords
 from jcvi.formats.sizes import Sizes
@@ -34,7 +34,7 @@ def main(args):
     Plot one query. Extract the references that have major matches to this
     query. Control "major" by option --refcov.
     """
-    p = OptionParser(main.__doc__)
+    p = MOptionParser(main.__doc__)
     p.add_option("--refcov", default=.01, type="float",
                  help="Minimum reference coverage [default: %default]")
     p.add_option("--all", default=False, action="store_true",

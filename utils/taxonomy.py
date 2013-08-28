@@ -31,7 +31,7 @@ import time
 import logging
 
 from urllib2 import urlopen
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 from ClientForm import ParseResponse
 from BeautifulSoup import BeautifulSoup
 
@@ -186,7 +186,7 @@ def newick(args):
     """
     from jcvi.formats.base import SetFile
 
-    p = OptionParser(newick.__doc__)
+    p = MOptionParser(newick.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:

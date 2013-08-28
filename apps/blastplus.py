@@ -6,7 +6,7 @@ import os.path as op
 import sys
 import logging
 
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 from subprocess import Popen, PIPE
 from multiprocessing import Lock, Pool
 from itertools import islice
@@ -15,8 +15,8 @@ from Bio import SeqIO
 from jcvi.formats.base import must_open
 from jcvi.apps.grid import Jobs
 from jcvi.formats.base import split
-from jcvi.apps.base import ActionDispatcher, debug, set_params, \
-        set_grid, set_outfile, sh, mkdir
+from jcvi.apps.base import ActionDispatcher, debug, \
+        sh, mkdir
 from jcvi.apps.command import run_formatdb
 debug()
 
@@ -43,7 +43,7 @@ def main():
 
     Wrapper for NCBI BLAST+.
     """
-    p = OptionParser(main.__doc__)
+    p = MOptionParser(main.__doc__)
 
     p.add_option("-a", "-A", dest="cpus", default=1, type="int",
             help="parallelize job to multiple cpus [default: %default]")
@@ -61,8 +61,8 @@ def main():
     p.add_option("--best", default=1, type="int",
             help="Only look for best N hits [default: %default]")
 
-    set_params(p)
-    set_outfile(p)
+    p.set_params()
+    p.set_outfile()
     opts, args = p.parse_args()
 
     if len(args) != 2 or opts.blast_program is None:

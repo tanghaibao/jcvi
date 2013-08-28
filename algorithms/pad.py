@@ -20,9 +20,9 @@ import logging
 import numpy as np
 from math import log
 from jcvi.utils.iter import pairwise
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 
-from jcvi.algorithms.synteny import AnchorFile, add_beds, check_beds
+from jcvi.algorithms.synteny import AnchorFile, check_beds
 from jcvi.formats.bed import Bed
 from jcvi.formats.blast import BlastLine
 from jcvi.apps.base import ActionDispatcher, debug, need_update, sh
@@ -107,8 +107,8 @@ def pad(args):
     """
     from jcvi.formats.cdt import CDT
 
-    p = OptionParser(pad.__doc__)
-    add_beds(p)
+    p = MOptionParser(pad.__doc__)
+    p.set_beds()
     p.add_option("--cutoff", default=.3, type="float",
                  help="The clustering cutoff to call similar [default: %default]")
 
@@ -232,8 +232,8 @@ def cluster(args):
     """
     from jcvi.utils.range import Range
 
-    p = OptionParser(cluster.__doc__)
-    add_beds(p)
+    p = MOptionParser(cluster.__doc__)
+    p.set_beds()
     p.add_option("--minsize", default=10, type="int",
                  help="Only segment using blocks >= size [default: %default]")
     p.add_option("--path", default="~/scratch/bin",

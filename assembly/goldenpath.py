@@ -14,7 +14,7 @@ import shutil
 import logging
 
 from copy import deepcopy
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 from itertools import groupby
 
 from jcvi.formats.agp import AGP, TPF, get_phase, reindex, tidy, build
@@ -30,9 +30,9 @@ from jcvi.apps.base import ActionDispatcher, debug, popen, mkdir, sh, \
 debug()
 
 
-GoodPct = 99
-GoodOverlap = 500
-GoodOverhang = 10000
+GoodPct = 98
+GoodOverlap = 200
+GoodOverhang = 5000
 
 
 class CLR (object):
@@ -486,7 +486,7 @@ def dedup(args):
     from jcvi.formats.fasta import gaps
     from jcvi.apps.cdhit import deduplicate, ids
 
-    p = OptionParser(dedup.__doc__)
+    p = MOptionParser(dedup.__doc__)
     p.add_option("--mingap", default=10, type="int",
             help="The minimum size of a gap to split [default: %default]")
     p.add_option("--pctid", default=98, type="int",
@@ -566,6 +566,10 @@ def is_adjacent_shreds(a, b):
     return ai == bi and abs(af - bf) == 1
 
 
+def overlap_blastline_writer(oopts):
+    pass
+
+
 def anneal(args):
     """
     %prog anneal agpfile outdir contigs.fasta
@@ -583,15 +587,18 @@ def anneal(args):
     """
     from jcvi.utils.iter import pairwise
 
-    p = OptionParser(anneal.__doc__)
+    p = MOptionParser(anneal.__doc__)
     p.add_option("--length", default=100, type="int",
                  help="Overlap length [default: %default]")
     p.add_option("--pctid", default=98, type="int",
                  help="Overlap identity [default: %default]")
+    p.add_option("--hitlen", default=GoodOverlap, type="int",
+            help="Minimum overlap length [default: %default]")
     p.add_option("--hang", default=5000, type="int",
                  help="Maximum overhang length [default: %default]")
     p.add_option("--nozipshreds", default=False, action="store_true",
                  help="Don't zip shred lines [default: %default]")
+    p.set_cpus()
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -599,6 +606,7 @@ def anneal(args):
 
     agpfile, outdir, contigs = args
     pctid = opts.pctid
+    hitlen = opts.hitlen
     hang = opts.hang
     zipshreds = not opts.nozipshreds
 
@@ -611,6 +619,9 @@ def anneal(args):
         logging.debug("File `{0}` found. Start loading.".format(blastfile))
         blast = BlastSlow(blastfile).to_dict()
 
+    annealedagp = "annealed.agp"
+    annealedfasta = "annealed.fasta"
+
     newagp = deepcopy(agp)
     clrstore = {}
     for object, lines in agp.iter_object():
@@ -621,7 +632,9 @@ def anneal(args):
             qreverse = a.orientation == '-'
             if save:
                 oopts = [aid, bid, "--nochain", "--suffix", \
-                        "fa", "--dir", outdir, "--pctid", str(pctid)]
+                        "fa", "--dir", outdir, \
+                        "--pctid={0}".format(pctid), \
+                        "--hitlen={0}".format(hitlen)]
                 if qreverse:
                     oopts += ["--qreverse"]
                 o = overlap(oopts)
@@ -663,6 +676,7 @@ def anneal(args):
     if save:
         fw.close()
         anneal(args)
+        return annealedfasta
 
     logging.debug("A total of {0} components with modified CLR.".\
                     format(len(clrstore)))
@@ -682,11 +696,9 @@ def anneal(args):
             a.component_beg = c.start
             a.component_end = c.end
 
-    annealedagp = "annealed.agp"
     newagp.print_to_file(annealedagp)
     tidyagp = tidy([annealedagp, contigs])
 
-    annealedfasta = "annealed.fasta"
     build([tidyagp, contigs, annealedfasta])
     return annealedfasta
 
@@ -700,7 +712,7 @@ def blast(args):
     """
     from jcvi.apps.command import run_megablast
 
-    p = OptionParser(blast.__doc__)
+    p = MOptionParser(blast.__doc__)
     p.add_option("-n", type="int", default=2,
             help="Take best N hits [default: %default]")
     opts, args = p.parse_args(args)
@@ -751,7 +763,7 @@ def bes(args):
     """
     from jcvi.apps.command import run_blat
 
-    p = OptionParser(bes.__doc__)
+    p = MOptionParser(bes.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -798,7 +810,7 @@ def flip(args):
     whether or not to flip the sequence. This is useful before updates of the
     sequences to make sure the same orientation is used.
     """
-    p = OptionParser(flip.__doc__)
+    p = MOptionParser(flip.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -833,7 +845,7 @@ def overlap(args):
     from jcvi.apps.command import BLPATH
     from jcvi.formats.blast import chain_HSPs
 
-    p = OptionParser(overlap.__doc__)
+    p = MOptionParser(overlap.__doc__)
     p.add_option("--dir", default=os.getcwd(),
             help="Download sequences to dir [default: %default]")
     p.add_option("--suffix", default="fasta",
@@ -844,8 +856,10 @@ def overlap(args):
             help="Do not chain adjacent HSPs [default: chain HSPs]")
     p.add_option("--evalue", default=.01, type="float",
             help="E-value cutoff [default: %default]")
-    p.add_option("--pctid", default=99, type="int",
+    p.add_option("--pctid", default=GoodPct, type="int",
             help="Percent identity [default: %default]")
+    p.add_option("--hitlen", default=GoodOverlap, type="int",
+            help="Minimum overlap length [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -857,6 +871,7 @@ def overlap(args):
     suffix = opts.suffix
     evalue = opts.evalue
     pctid = opts.pctid
+    hitlen = opts.hitlen
 
     # Check first whether it is file or accession name
     if not op.exists(afasta):
@@ -881,10 +896,10 @@ def overlap(args):
     hsps = fp.readlines()
 
     hsps = [BlastLine(x) for x in hsps]
-    hsps = [x for x in hsps if x.hitlen >= GoodOverlap]
-    dist = 2 * GoodOverlap  # Distance to chain the HSPs
+    hsps = [x for x in hsps if x.hitlen >= hitlen]
     if chain:
         logging.debug("Chain HSPs in the Blast output.")
+        dist = 2 * GoodOverlap  # Distance to chain the HSPs
         hsps = chain_HSPs(hsps, xdist=dist, ydist=dist)
 
     if len(hsps) == 0:
@@ -945,7 +960,7 @@ def certificate(args):
     the CURRENT BAC, and orientation. Each BAC will have two lines in the
     certificate file.
     """
-    p = OptionParser(certificate.__doc__)
+    p = MOptionParser(certificate.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -1001,7 +1016,7 @@ def neighbor(args):
 
     Check overlaps of a particular component in agpfile.
     """
-    p = OptionParser(neighbor.__doc__)
+    p = MOptionParser(neighbor.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -1063,7 +1078,7 @@ def agp(args):
     """
     from jcvi.formats.base import DictFile
 
-    p = OptionParser(agp.__doc__)
+    p = MOptionParser(agp.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 3:

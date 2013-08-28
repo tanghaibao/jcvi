@@ -10,7 +10,7 @@ import sys
 import logging
 
 from itertools import groupby
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 
 from jcvi.formats.fastq import guessoffset
 from jcvi.assembly.base import FastqNamings, Library
@@ -93,9 +93,8 @@ def correct(args):
     Correct reads using ErrorCorrection. Only PE will be used to build the K-mer
     table.
     """
-    p = OptionParser(correct.__doc__)
-    p.add_option("--cpus", default=32,
-                 help="Number of cpus to use [default: %default]")
+    p = MOptionParser(correct.__doc__)
+    p.add_cpus()
     opts, args = p.parse_args(args)
 
     if len(args) < 1:
@@ -134,13 +133,12 @@ def clean(args):
 
     Clean and dedup paired FASTQ files.
     """
-    p = OptionParser(clean.__doc__)
+    p = MOptionParser(clean.__doc__)
     p.add_option("-a", default=0, type="int",
                  help="Trim length at 5' end [default: %default]")
     p.add_option("-b", default=50, type="int",
                  help="Trim length at 3' end [default: %default]")
-    p.add_option("--cpus", default=32,
-                 help="Number of cpus to use [default: %default]")
+    p.set_cpus()
     opts, args = p.parse_args(args)
 
     if len(args) == 2:
@@ -179,7 +177,7 @@ def fillstats(args):
     """
     from jcvi.utils.cbook import SummaryStats, percentage, thousands
 
-    p = OptionParser(fillstats.__doc__)
+    p = MOptionParser(fillstats.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -228,15 +226,14 @@ def prepare(args):
     """
     from jcvi.formats.base import write_file
 
-    p = OptionParser(prepare.__doc__ + FastqNamings)
+    p = MOptionParser(prepare.__doc__ + FastqNamings)
     p.add_option("-K", default=45, type="int",
                  help="K-mer size [default: %default]")
-    p.add_option("--cpus", default=32, type="int",
-                 help="Number of cpus to use [default: %default]")
     p.add_option("--assemble_1st_rank_only", default=False, action="store_true",
                  help="Assemble the first rank only, other libs asm_flags=2 [default: %default]")
     p.add_option("--scaffold",
                  help="Only perform scaffolding [default: %default]")
+    p.set_cpus()
     opts, args = p.parse_args(args)
 
     if len(args) < 1:

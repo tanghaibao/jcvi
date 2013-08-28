@@ -11,7 +11,7 @@ import os.path as op
 import sys
 import logging
 
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 from subprocess import Popen, PIPE
 
 from Bio import SeqIO
@@ -21,7 +21,7 @@ from multiprocessing import Lock
 from jcvi.utils.cbook import depends
 from jcvi.apps.grid import Jobs
 from jcvi.formats.base import must_open
-from jcvi.apps.base import debug, sh, set_outfile, set_params
+from jcvi.apps.base import debug, sh
 debug()
 
 
@@ -62,7 +62,7 @@ def main(args):
 
     supported_formats = ("tab", "maf", "blast")
 
-    p = OptionParser(main.__doc__)
+    p = MOptionParser(main.__doc__)
     p.add_option("-a", "-A", dest="cpus", default=1, type="int",
             help="parallelize job to multiple cpus [default: %default]")
     p.add_option("--path", help="specify LAST path")
@@ -74,8 +74,8 @@ def main(args):
     p.add_option("--eval", default=False, action="store_true",
                  help="Use lastex to recalculate E-value [default: %default]")
 
-    set_params(p)
-    set_outfile(p)
+    p.set_params()
+    p.set_outfile()
 
     opts, args = p.parse_args(args)
 

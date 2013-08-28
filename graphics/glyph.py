@@ -9,7 +9,7 @@ import os.path as op
 import sys
 import logging
 
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 
 import numpy as np
 from jcvi.apps.base import ActionDispatcher, debug
@@ -256,7 +256,7 @@ def gff(args):
     """
     align_choices = ("left", "center", "right")
 
-    p = OptionParser(gff.__doc__)
+    p = MOptionParser(gff.__doc__)
     p.add_option("--align", default="left", choices=align_choices,
                  help="Horizontal alignment {0} [default: %default]".\
                     format("|".join(align_choices)))
@@ -303,7 +303,7 @@ def demo(args):
     Draw sample gene features to illustrate the various fates of duplicate
     genes - to be used in a book chapter.
     """
-    p = OptionParser(demo.__doc__)
+    p = MOptionParser(demo.__doc__)
     opts, args = p.parse_args(args)
 
     fig = plt.figure(1, (8, 5))

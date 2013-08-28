@@ -12,9 +12,9 @@ import logging
 
 from math import sqrt
 from itertools import izip_longest
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 
-from jcvi.algorithms.synteny import AnchorFile, add_beds, check_beds
+from jcvi.algorithms.synteny import AnchorFile, check_beds
 from jcvi.apps.base import ActionDispatcher, debug
 from jcvi.formats.bed import Bed
 debug()
@@ -50,7 +50,7 @@ def adjgraph(args):
     from jcvi.utils.iter import pairwise
     from jcvi.formats.base import SetFile
 
-    p = OptionParser(adjgraph.__doc__)
+    p = MOptionParser(adjgraph.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -117,7 +117,7 @@ def pairs(args):
 
     Convert anchorsfile to pairsfile.
     """
-    p = OptionParser(pairs.__doc__)
+    p = MOptionParser(pairs.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -171,7 +171,7 @@ def zipbed(args):
     order, use `zipbed rice.bed rice.rice.1x1.collinear.anchors`. The algorithms
     proceeds by interleaving the genes together.
     """
-    p = OptionParser(zipbed.__doc__)
+    p = MOptionParser(zipbed.__doc__)
     p.add_option("--prefix", default="b",
                  help="Prefix for the new seqid [default: %default]")
     opts, args = p.parse_args(args)
@@ -268,8 +268,8 @@ def collinear(args):
     Reduce synteny blocks to strictly collinear, use dynamic programming in a
     procedure similar to DAGchainer.
     """
-    p = OptionParser(collinear.__doc__)
-    add_beds(p)
+    p = MOptionParser(collinear.__doc__)
+    p.set_beds()
 
     opts, args = p.parse_args(args)
 

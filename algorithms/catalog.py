@@ -7,7 +7,7 @@ import logging
 import string
 
 from glob import glob
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 from collections import defaultdict
 from itertools import product, combinations
 
@@ -17,8 +17,8 @@ from jcvi.formats.bed import Bed
 from jcvi.formats.base import must_open, BaseFile
 from jcvi.utils.grouper import Grouper
 from jcvi.utils.cbook import gene_name
-from jcvi.algorithms.synteny import AnchorFile, add_beds, check_beds
-from jcvi.apps.base import debug, set_outfile, set_stripnames, \
+from jcvi.algorithms.synteny import AnchorFile, check_beds
+from jcvi.apps.base import debug, \
         ActionDispatcher, need_update, sh, mkdir
 debug()
 
@@ -116,7 +116,7 @@ def enrich(args):
 
     Enrich OMG output by pulling genes misses by OMG.
     """
-    p = OptionParser(enrich.__doc__)
+    p = MOptionParser(enrich.__doc__)
     p.add_option("--ghost", default=False, action="store_true",
                  help="Add ghost homologs already used [default: %default]")
     opts, args = p.parse_args(args)
@@ -302,7 +302,7 @@ def layout(args):
     Build column formatted gene lists after omgparse(). Use species list
     separated by comma in place of taxa, e.g. "BR,BO,AN,CN"
     """
-    p = OptionParser(layout.__doc__)
+    p = MOptionParser(layout.__doc__)
     p.add_option("--sort",
                  help="Sort layout file based on bedfile [default: %default]")
     opts, args = p.parse_args(args)
@@ -360,7 +360,7 @@ def omgparse(args):
 
     Parse the OMG outputs to get gene lists.
     """
-    p = OptionParser(omgparse.__doc__)
+    p = MOptionParser(omgparse.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -382,8 +382,8 @@ def group(args):
 
     Group the anchors into ortho-groups. Can input multiple anchor files.
     """
-    p = OptionParser(group.__doc__)
-    set_outfile(p)
+    p = MOptionParser(group.__doc__)
+    p.set_outfile()
 
     opts, args = p.parse_args(args)
 
@@ -422,7 +422,7 @@ def omg(args):
 
     Then followed by omgparse() to get the gene lists.
     """
-    p = OptionParser(omg.__doc__)
+    p = MOptionParser(omg.__doc__)
 
     opts, args = p.parse_args(args)
 
@@ -502,15 +502,15 @@ def omgprepare(args):
     from jcvi.formats.blast import cscore
     from jcvi.formats.base import DictFile
 
-    p = OptionParser(omgprepare.__doc__)
+    p = MOptionParser(omgprepare.__doc__)
     p.add_option("--norbh", action="store_true",
                  help="Disable RBH hits [default: %default]")
     p.add_option("--pctid", default=0, type="int",
                  help="Pencent id cutoff for RBH hits [default: %default]")
     p.add_option("--cscore", default=90, type="int",
                  help="C-score cutoff for RBH hits [default: %default]")
-    set_stripnames(p)
-    add_beds(p)
+    p.set_stripnames()
+    p.set_beds()
 
     opts, args = p.parse_args(args)
 
@@ -605,7 +605,7 @@ def ortholog(args):
     from jcvi.algorithms.synteny import scan, screen, mcscan, liftover
     from jcvi.formats.blast import cscore
 
-    p = OptionParser(ortholog.__doc__)
+    p = MOptionParser(ortholog.__doc__)
     p.add_option("--cscore", default=0.99, type="float",
                  help="C-score cutoff [default: %default]")
     opts, args = p.parse_args(args)
@@ -757,7 +757,7 @@ def tandem(args):
 
     pep_file can also be used in same manner.
     """
-    p = OptionParser(tandem.__doc__)
+    p = MOptionParser(tandem.__doc__)
     p.add_option("--tandem_Nmax", dest="tandem_Nmax", type="int", default=3,
                help="merge tandem genes within distance [default: %default]")
     p.add_option("--percent_overlap", type="int", default=50,
@@ -772,7 +772,7 @@ def tandem(args):
                [default: %default]")
     p.add_option("--genefamily", dest="genefam", action="store_true",
                  help="compile gene families based on similarity [default: %default]")
-    set_outfile(p)
+    p.set_outfile()
 
     opts, args = p.parse_args(args)
 

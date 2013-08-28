@@ -8,11 +8,11 @@ import sys
 import logging
 
 from itertools import groupby, islice, cycle, izip
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 
 from Bio import SeqIO
 from jcvi.apps.base import ActionDispatcher, sh, debug, need_update, \
-        mkdir, popen, set_outfile
+        mkdir, popen
 debug()
 
 
@@ -422,10 +422,10 @@ def append(args):
     Append a column with fixed value. If tag is missing then just append the
     filename.
     """
-    p = OptionParser(append.__doc__)
+    p = MOptionParser(append.__doc__)
     p.add_option("--sep", default="\t",
                 help="Separator for the added column [default: %default]")
-    set_outfile(p)
+    p.set_outfile()
     opts, args = p.parse_args(args)
 
     nargs = len(args)
@@ -449,7 +449,7 @@ def truncate(args):
     Remove linecount lines from the end of the file in-place. Borrowed from:
     <http://superuser.com/questions/127786/how-to-remove-the-last-2-lines-of-a-very-large-file>
     """
-    p = OptionParser(truncate.__doc__)
+    p = MOptionParser(truncate.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -502,7 +502,7 @@ def flatten(args):
     """
     from itertools import izip_longest
 
-    p = OptionParser(flatten.__doc__)
+    p = MOptionParser(flatten.__doc__)
     p.add_option("--sep", default=",",
                  help="Separator for the tabfile [default: %default]")
     p.add_option("--zipflatten", default=None, dest="zipsep",
@@ -558,7 +558,7 @@ def group(args):
     from jcvi.utils.cbook import AutoVivification
     from jcvi.utils.grouper import Grouper
 
-    p = OptionParser(group.__doc__)
+    p = MOptionParser(group.__doc__)
     p.add_option("--sep", default="\t",
                  help="Input file separator [default: `%default`]")
     p.add_option("--groupby", default=None, type='int',
@@ -623,7 +623,7 @@ def reorder(args):
     """
     import csv
 
-    p = OptionParser(reorder.__doc__)
+    p = MOptionParser(reorder.__doc__)
     p.add_option("--sep", default="\t",
                  help="Separator for the tabfile [default: %default]")
     opts, args = p.parse_args(args)
@@ -647,7 +647,7 @@ def split(args):
 
     split file into records
     """
-    p = OptionParser(split.__doc__)
+    p = MOptionParser(split.__doc__)
     p.add_option("-n", dest="N", type="int", default=1,
             help="split into N chunks [default: %default]")
     p.add_option("--all", default=False, action="store_true",
@@ -692,7 +692,7 @@ def join(args):
     """
     from jcvi.utils.iter import flatten
 
-    p = OptionParser(join.__doc__)
+    p = MOptionParser(join.__doc__)
     p.add_option("--column", default="0",
                  help="0-based column id, multiple values allowed [default: %default]")
     p.add_option("--sep", default="\t",
@@ -704,7 +704,7 @@ def join(args):
     p.add_option("--keysep", default=",",
                  help="specify separator joining multiple elements in the key column"
                  + " of the pivot file [default: %default]")
-    set_outfile(p)
+    p.set_outfile()
 
     opts, args = p.parse_args(args)
     nargs = len(args)
@@ -776,7 +776,7 @@ def subset(args):
       in each file.
     """
 
-    p = OptionParser(subset.__doc__)
+    p = MOptionParser(subset.__doc__)
     p.add_option("--column", default="0",
                  help="0-based column id, multiple values allowed [default: %default]")
     p.add_option("--sep", default="\t",
@@ -784,7 +784,7 @@ def subset(args):
     p.add_option("--pivot", default=1, type="int",
                  help="1 for using order in file1, 2 for using order in \
                     file2 [default: %default]")
-    set_outfile(p)
+    p.set_outfile()
 
     opts, args = p.parse_args(args)
     nargs = len(args)
@@ -849,7 +849,7 @@ def setop(args):
 
     Please quote the argument to avoid shell interpreting | and &.
     """
-    p = OptionParser(setop.__doc__)
+    p = MOptionParser(setop.__doc__)
     p.add_option("--column", default=0, type="int",
                  help="The column to extract, 0-based, -1 to disable [default: %default]")
     opts, args = p.parse_args(args)

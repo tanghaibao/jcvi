@@ -23,11 +23,11 @@ import cStringIO
 import itertools
 import logging
 
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 
 from jcvi.utils.range import range_overlap
 from jcvi.utils.grouper import Grouper
-from jcvi.algorithms.synteny import AnchorFile, _score, add_beds, check_beds
+from jcvi.algorithms.synteny import AnchorFile, _score, check_beds
 from jcvi.algorithms.lpsolve import GLPKSolver, SCIPSolver
 from jcvi.formats.bed import Bed
 from jcvi.formats.base import must_open
@@ -247,9 +247,9 @@ def read_clusters(qa_file, qorder, sorder):
 
 
 def main(args):
-    p = OptionParser(__doc__)
+    p = MOptionParser(__doc__)
 
-    add_beds(p)
+    p.set_beds()
     p.add_option("--quota", default="1:1",
             help="`quota mapping` procedure -- screen blocks to constrain mapping"\
                     " (useful for orthology), "\

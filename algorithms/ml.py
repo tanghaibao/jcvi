@@ -7,7 +7,7 @@ Machine learning algorithms.
 
 import sys
 
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
@@ -37,7 +37,7 @@ def libsvm(args):
     """
     from jcvi.formats.base import DictFile
 
-    p = OptionParser(libsvm.__doc__)
+    p = MOptionParser(libsvm.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:

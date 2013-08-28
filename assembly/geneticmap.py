@@ -9,7 +9,7 @@ chromosomes.
 import sys
 import logging
 
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 
 from jcvi.formats.base import BaseFile, LineFile, must_open, read_block
 from jcvi.formats.bed import Bed, fastaFromBed
@@ -151,7 +151,7 @@ def ld(args):
     from jcvi.graphics.base import plt, savefig, cm, \
                 set_image_options, Rectangle
 
-    p = OptionParser(ld.__doc__)
+    p = MOptionParser(ld.__doc__)
     p.add_option("--subsample", default=500, type="int",
                  help="Subsample markers to speed up [default: %default]")
     p.add_option("--plot", default=False, action="store_true",
@@ -258,7 +258,7 @@ def header(args):
     """
     from jcvi.formats.base import DictFile
 
-    p = OptionParser(header.__doc__)
+    p = MOptionParser(header.__doc__)
     p.add_option("--prefix", default="",
                  help="Prepend text to line number [default: %default]")
     p.add_option("--ids", help="Write ids to file [default: %default]")
@@ -290,7 +290,7 @@ def rename(args):
 
     Rename markers according to the new mapping locations.
     """
-    p = OptionParser(rename.__doc__)
+    p = MOptionParser(rename.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -321,7 +321,7 @@ def anchor(args):
 
     Anchor scaffolds based on map.
     """
-    p = OptionParser(anchor.__doc__)
+    p = MOptionParser(anchor.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -352,7 +352,7 @@ def fasta(args):
     """
     from jcvi.formats.sizes import Sizes
 
-    p = OptionParser(fasta.__doc__)
+    p = MOptionParser(fasta.__doc__)
     p.add_option("--extend", default=1000, type="int",
                  help="Extend seq flanking the gaps [default: %default]")
     opts, args = p.parse_args(args)
@@ -397,7 +397,7 @@ def placeone(args):
 
     Attempt to place one scaffold.
     """
-    p = OptionParser(placeone.__doc__)
+    p = MOptionParser(placeone.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -440,7 +440,7 @@ def breakpoint(args):
     """
     from jcvi.utils.iter import pairwise
 
-    p = OptionParser(breakpoint.__doc__)
+    p = MOptionParser(breakpoint.__doc__)
     p.add_option("--diff", default=.1, type="float",
                  help="Maximum ratio of differences allowed [default: %default]")
     opts, args = p.parse_args(args)

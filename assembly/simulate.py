@@ -8,7 +8,7 @@ Simulate fake reads from genome for benchmarking.
 import sys
 import logging
 
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 
 from jcvi.formats.fasta import Fasta
 from jcvi.apps.base import ActionDispatcher, debug, sh
@@ -30,7 +30,7 @@ def wgsim(args):
 
     Run dwgsim on fastafile.
     """
-    p = OptionParser(wgsim.__doc__)
+    p = MOptionParser(wgsim.__doc__)
     p.add_option("--erate", default=.02, type="float",
                  help="Base error rate of the read [default: %default]")
     p.add_option("--distance", default=500, type="int",

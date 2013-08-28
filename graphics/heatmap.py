@@ -27,7 +27,7 @@ import logging
 
 import numpy as np
 from itertools import groupby
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 
 from jcvi.graphics.base import plt, cm, _, set_image_options, LogNorm, savefig
 from jcvi.apps.base import debug
@@ -64,7 +64,7 @@ def parse_csv(csvfile, vmin=0, groups=False):
 
 
 def main():
-    p = OptionParser(__doc__)
+    p = MOptionParser(__doc__)
     p.add_option("--groups", default=False, action="store_true",
                  help="The first row contains group info [default: %default]")
     p.add_option("--rowgroups", help="Row groupings [default: %default]")

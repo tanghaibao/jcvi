@@ -14,7 +14,7 @@ import logging
 
 from collections import namedtuple
 from itertools import groupby
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 
 from jcvi.formats.base import BaseFile
 from jcvi.apps.base import debug
@@ -117,7 +117,7 @@ def main(args):
 
 if __name__ == '__main__':
 
-    p = OptionParser(__doc__)
+    p = MOptionParser(__doc__)
     opts, args = p.parse_args()
 
     if len(args) != 2:

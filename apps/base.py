@@ -9,8 +9,7 @@ import shutil
 import logging
 
 from subprocess import call
-from optparse import OptionParser
-
+from optparse import OptionParser, OptionGroup
 
 os.environ["LC_ALL"] = "C"
 
@@ -64,6 +63,81 @@ class ActionDispatcher (object):
             self.print_help()
 
         globals[action](sys.argv[2:])
+
+
+class MOptionParser (OptionParser):
+
+    def __init__(self, doc):
+
+        OptionParser.__init__(self, doc)
+
+    def set_grid(self):
+        """
+        Add --grid options for command line programs
+        """
+        self.add_option("--grid", dest="grid",
+                default=False, action="store_true",
+                help="Run on the grid [default: %default]")
+
+    def set_grid_opts(self):
+        queue_choices = ("default", "fast", "medium", "himem")
+        self.add_option("-l", dest="queue", default="default", choices=queue_choices,
+                     help="Name of the queue, one of {0} [default: %default]".\
+                          format("|".join(queue_choices)))
+        self.add_option("-t", dest="threaded", type="int",
+                     help="Append '-pe threaded N' [default: %default]")
+
+    def set_params(self):
+        """
+        Add --params options for given command line programs
+        """
+        self.add_option("--params", dest="extra", default="",
+                help="Extra parameters to run [default: %default]")
+
+    def set_outfile(self, outfile="stdout"):
+        """
+        Add --outfile options to print out to filename.
+        """
+        self.add_option("-o", "--outfile", default=outfile,
+                help="Outfile name [default: %default]")
+
+    def set_tmpdir(self, tmpdir="/tmp"):
+        """
+        Add --temporary_directory option to specify unix `sort` tmpdir
+        """
+        self.add_option("-T", "--tmpdir", default=tmpdir,
+                help="Use temp directory instead of $TMP [default: %default]")
+
+    def set_cpus(self, cpus=0):
+        """
+        Add --cpus options to specify how many threads to use.
+        """
+        from multiprocessing import cpu_count
+
+        max_cpus = cpu_count()
+        if not 0 < cpus < max_cpus:
+            cpus = max_cpus
+        self.add_option("--cpus", default=cpus, type="int",
+                     help="Number of CPUs to use, 0=unlimited [default: %default]")
+
+    def set_stripnames(self):
+        self.add_option("--no_strip_names", dest="strip_names",
+                action="store_false", default=True,
+                help="do not strip alternative splicing "
+                "(e.g. At5g06540.1 -> At5g06540)")
+
+    def set_beds(self):
+        self.add_option("--qbed", help="Path to qbed")
+        self.add_option("--sbed", help="Path to sbed")
+
+    def set_sam_options(self):
+        self.add_option("--bam", default=False, action="store_true",
+                     help="write to bam file [default: %default]")
+        self.add_option("--uniq", default=False, action="store_true",
+                     help="Keep only uniquely mapped [default: %default]")
+        self.set_cpus()
+        self.set_params()
+        self.set_grid()
 
 
 def splitall(path):
@@ -122,67 +196,6 @@ def gethostname():
 def getusername():
     import getpass
     return getpass.getuser()
-
-
-def set_grid(instance):
-    """
-    Add --grid options for command line programs
-    """
-    assert isinstance(instance, OptionParser)
-
-    instance.add_option("--grid", dest="grid",
-            default=False, action="store_true",
-            help="Run on the grid [default: %default]")
-
-
-def set_grid_opts(instance):
-    assert isinstance(instance, OptionParser)
-
-    queue_choices = ("default", "fast", "medium", "himem")
-    instance.add_option("-l", dest="queue", default="default", choices=queue_choices,
-                 help="Name of the queue, one of {0} [default: %default]".\
-                      format("|".join(queue_choices)))
-    instance.add_option("-t", dest="threaded", type="int",
-                 help="Append '-pe threaded N' [default: %default]")
-
-
-def set_params(instance):
-    """
-    Add --params options for given command line programs
-    """
-    assert isinstance(instance, OptionParser)
-
-    instance.add_option("--params", dest="extra", default="",
-            help="Extra parameters to run [default: %default]")
-
-
-def set_outfile(instance, outfile="stdout"):
-    """
-    Add --outfile options to print out to filename.
-    """
-    assert isinstance(instance, OptionParser)
-
-    instance.add_option("-o", "--outfile", default=outfile,
-            help="Outfile name [default: %default]")
-
-
-def set_tmpdir(instance, tmpdir="/tmp"):
-    """
-    Add --temporary_directory option to specify unix `sort` tmpdir
-    """
-    assert isinstance(instance, OptionParser)
-
-    instance.add_option("-T", "--tmpdir", default=tmpdir,
-            help="Use temp directory instead of $TMP [default: %default]")
-
-
-def set_stripnames(instance):
-    assert isinstance(instance, OptionParser)
-
-    instance.add_option("--no_strip_names", dest="strip_names",
-            action="store_false", default=True,
-            help="do not strip alternative splicing "
-            "(e.g. At5g06540.1 -> At5g06540)")
 
 
 def sh(cmd, grid=False, infile=None, outfile=None, errfile=None,
@@ -395,7 +408,7 @@ def mdownload(args):
     """
     from jcvi.apps.grid import Jobs
 
-    p = OptionParser(mdownload.__doc__)
+    p = MOptionParser(mdownload.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -415,7 +428,7 @@ def expand(args):
     """
     debug()
 
-    p = OptionParser(expand.__doc__)
+    p = MOptionParser(expand.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) < 1:
@@ -453,7 +466,7 @@ def timestamp(args):
 
     This file can be used later to recover previous timestamps through touch().
     """
-    p = OptionParser(timestamp.__doc__)
+    p = MOptionParser(timestamp.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -476,7 +489,7 @@ def touch(args):
     """
     from time import ctime
 
-    p = OptionParser(touch.__doc__)
+    p = MOptionParser(touch.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -532,7 +545,7 @@ def less(args):
     """
     from jcvi.formats.base import must_open
 
-    p = OptionParser(less.__doc__)
+    p = MOptionParser(less.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -570,7 +583,7 @@ def blast(args):
     task_choices = ("blastn", "blastn-short", "dc-megablast", \
                     "megablast", "vecscreen")
 
-    p = OptionParser(blast.__doc__)
+    p = MOptionParser(blast.__doc__)
     p.add_option("--pctid", type="int", help="Percent identity [default: %default]")
     p.add_option("--wordsize", type="int", help="Word size [default: %default]")
     p.add_option("--evalue", type="float", default=0.01,

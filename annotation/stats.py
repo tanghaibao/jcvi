@@ -10,7 +10,7 @@ import os.path as op
 import sys
 import logging
 
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 
 from jcvi.utils.cbook import SummaryStats
 from jcvi.formats.gff import GffLine, make_index
@@ -40,7 +40,7 @@ def summary(args):
     """
     from jcvi.utils.table import tabulate
 
-    p = OptionParser(summary.__doc__)
+    p = MOptionParser(summary.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) < 1:
@@ -73,7 +73,7 @@ def histogram(args):
     """
     from jcvi.graphics.histogram import histogram_multiple
 
-    p = OptionParser(histogram.__doc__)
+    p = MOptionParser(histogram.__doc__)
     p.add_option("--bins", dest="bins", default=40, type="int",
             help="number of bins to plot in the histogram [default: %default]")
     opts, args = p.parse_args(args)
@@ -113,7 +113,7 @@ def stats(args):
     """
     from jcvi.utils.range import range_interleave
 
-    p = OptionParser(stats.__doc__)
+    p = MOptionParser(stats.__doc__)
     p.add_option("--gene", default="mRNA",
                  help="The gene type [default: %default]")
     p.add_option("--exon", default="CDS",

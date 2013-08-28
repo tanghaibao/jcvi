@@ -9,11 +9,11 @@ import os
 import os.path as op
 import sys
 
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 
 from jcvi.formats.fasta import Fasta
 from jcvi.utils.cbook import depends, percentage
-from jcvi.apps.base import ActionDispatcher, debug, set_grid, sh
+from jcvi.apps.base import ActionDispatcher, debug, sh
 debug()
 
 
@@ -52,7 +52,7 @@ def summary(args):
 
     Report the number of bases and sequences masked.
     """
-    p = OptionParser(summary.__doc__)
+    p = MOptionParser(summary.__doc__)
 
     opts, args = p.parse_args(args)
 
@@ -95,7 +95,7 @@ def mask(args):
     will have an appended suffix of .mask with all the low-complexity bases masked
     (default to lower case, set --hard for hardmasking).
     """
-    p = OptionParser(mask.__doc__)
+    p = MOptionParser(mask.__doc__)
     p.add_option("--hard", dest="hard", default=False, action="store_true",
             help="Hard mask the low-complexity bases [default: %default]")
     opts, args = p.parse_args(args)

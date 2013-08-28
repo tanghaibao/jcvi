@@ -141,7 +141,7 @@ def set_image_options(instance, args=None, figsize="6x6", dpi=300,
     """
     Add image format options for given command line programs.
     """
-    from optparse import OptionParser, OptionGroup
+    from jcvi.apps.base import MOptionParser, OptionGroup
     assert isinstance(instance, OptionParser)
 
     allowed_format = ("emf", "eps", "pdf", "png", "ps", \

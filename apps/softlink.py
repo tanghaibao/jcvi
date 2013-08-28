@@ -10,7 +10,7 @@ import os.path as op
 import logging
 import sys
 
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
@@ -48,7 +48,7 @@ def touch(args):
     Linux commands `touch` wouldn't modify mtime for links, this script can.
     Use find to pipe in all the symlinks.
     """
-    p = OptionParser(touch.__doc__)
+    p = MOptionParser(touch.__doc__)
     opts, args = p.parse_args(args)
     fp = sys.stdin
 
@@ -72,7 +72,7 @@ def clean(args):
 
     Removes all symlinks from current folder
     """
-    p = OptionParser(clean.__doc__)
+    p = MOptionParser(clean.__doc__)
     opts, args = p.parse_args(args)
 
     for link_name in os.listdir(os.getcwd()):
@@ -88,7 +88,7 @@ def cp(args):
 
     Copy all the softlinks to the current folder, using absolute paths
     """
-    p = OptionParser(cp.__doc__)
+    p = MOptionParser(cp.__doc__)
     fp = sys.stdin
 
     for link_name in fp:
@@ -114,7 +114,7 @@ def size(args):
     """
     from jcvi.utils.cbook import human_size
 
-    p = OptionParser(size.__doc__)
+    p = MOptionParser(size.__doc__)
     fp = sys.stdin
 
     results = []

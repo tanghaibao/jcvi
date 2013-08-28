@@ -21,7 +21,7 @@ import math
 import logging
 
 from itertools import groupby
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 from collections import defaultdict
 
 from jcvi.formats.bed import Bed, BedLine, complementBed, mergeBed, \
@@ -80,7 +80,7 @@ def pastegenes(args):
     from jcvi.utils.range import range_minmax, range_distance
     from jcvi.utils.cbook import gene_name
 
-    p = OptionParser(pastegenes.__doc__)
+    p = MOptionParser(pastegenes.__doc__)
     p.add_option("--cutoff", default=90, type="int",
                  help="Coverage cutoff to call gene missing [default: %default]")
     p.add_option("--flank", default=2000, type="int",
@@ -181,7 +181,7 @@ def pasteprepare(args):
 
     Prepare sequences for paste.
     """
-    p = OptionParser(pasteprepare.__doc__)
+    p = MOptionParser(pasteprepare.__doc__)
     p.add_option("--flank", default=5000, type="int",
                  help="Get the seq of size on two ends [default: %default]")
     opts, args = p.parse_args(args)
@@ -214,7 +214,7 @@ def paste(args):
     """
     from jcvi.formats.bed import uniq
 
-    p = OptionParser(paste.__doc__)
+    p = MOptionParser(paste.__doc__)
     p.add_option("--maxsize", default=300000, type="int",
             help="Maximum size of patchers to be replaced [default: %default]")
     p.add_option("--prefix", help="Prefix of the new object [default: %default]")
@@ -247,7 +247,7 @@ def eject(args):
 
     Eject scaffolds from assembly, using the range identified by closest().
     """
-    p = OptionParser(eject.__doc__)
+    p = MOptionParser(eject.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -272,7 +272,7 @@ def closest(args):
 
     Identify the nearest gaps flanking suggested regions.
     """
-    p = OptionParser(closest.__doc__)
+    p = MOptionParser(closest.__doc__)
     p.add_option("--om", default=False, action="store_true",
                  help="The bedfile is OM blocks [default: %default]")
     opts, args = p.parse_args(args)
@@ -317,7 +317,7 @@ def insert(args):
     from jcvi.formats.agp import mask, bed
     from jcvi.formats.sizes import agp
 
-    p = OptionParser(insert.__doc__)
+    p = MOptionParser(insert.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 4:
@@ -395,7 +395,7 @@ def bambus(args):
     from jcvi.utils.iter import pairwise
     from jcvi.formats.posmap import MatesFile
 
-    p = OptionParser(bambus.__doc__)
+    p = MOptionParser(bambus.__doc__)
     p.add_option("--prefix", default="scaffold",
                  help="Prefix of the unplaced scaffolds [default: %default]")
     p.add_option("--minlinks", default=3, type="int",
@@ -550,7 +550,7 @@ def gaps(args):
     from jcvi.formats.bed import uniq
     from jcvi.utils.iter import pairwise
 
-    p = OptionParser(gaps.__doc__)
+    p = MOptionParser(gaps.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -585,7 +585,7 @@ def tips(args):
 
     Append telomeric sequences based on patchers and complements.
     """
-    p = OptionParser(tips.__doc__)
+    p = MOptionParser(tips.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 4:
@@ -638,7 +638,7 @@ def fill(args):
 
     Perform gap filling of one assembly (bad) using sequences from another.
     """
-    p = OptionParser(fill.__doc__)
+    p = MOptionParser(fill.__doc__)
     p.add_option("--extend", default=2000, type="int",
                  help="Extend seq flanking the gaps [default: %default]")
     opts, args = p.parse_args(args)
@@ -844,7 +844,7 @@ def install(args):
     from jcvi.apps.base import blast
     from jcvi.formats.fasta import SeqIO
 
-    p = OptionParser(install.__doc__)
+    p = MOptionParser(install.__doc__)
     p.add_option("--rclip", default=1, type="int",
             help="Pair ID is derived from rstrip N chars [default: %default]")
     p.add_option("--maxsize", default=300000, type="int",
@@ -916,7 +916,7 @@ def refine(args):
 
     Find gaps within or near breakpoint region.
     """
-    p = OptionParser(refine.__doc__)
+    p = MOptionParser(refine.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -999,7 +999,7 @@ def patcher(args):
     """
     from jcvi.formats.bed import uniq
 
-    p = OptionParser(patcher.__doc__)
+    p = MOptionParser(patcher.__doc__)
     p.add_option("--backbone", default="OM",
                  help="Prefix of the backbone assembly [default: %default]")
     p.add_option("--object", default="object",

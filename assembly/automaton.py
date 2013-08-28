@@ -12,7 +12,7 @@ import sys
 import logging
 
 from glob import glob
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 
 from jcvi.utils.iter import grouper
 from jcvi.apps.base import ActionDispatcher, debug, need_update, mkdir, sh
@@ -97,7 +97,7 @@ def correct_pairs(p, pf, tag):
 
     cwd = os.getcwd()
     os.chdir(pf)
-    cr(sorted(glob("*.fastq") + glob("*.fastq.gz")) + ["--nofragsdedup", "--cpus=64"])
+    cr(sorted(glob("*.fastq") + glob("*.fastq.gz")) + ["--nofragsdedup"])
     sh("mv {0}.1.corr.fastq ../{1}".format(itag, targets[0]))
     sh("mv {0}.2.corr.fastq ../{1}".format(itag, targets[1]))
     sh("mv frag_reads_corr.corr.fastq ../{0}".format(targets[2]))
@@ -123,7 +123,7 @@ def soap_trios(p, pf, tag, extra):
     cwd = os.getcwd()
     os.chdir(pf)
     prepare(sorted(glob("*.fastq") + glob("*.fastq.gz")) + \
-            ["--assemble_1st_rank_only", "-K 31", "--cpus=48"])
+            ["--assemble_1st_rank_only", "-K 31"])
     sh("./run.sh")
     sh("cp asm31.closed.scafSeq ../{0}".format(asm))
 
@@ -153,7 +153,7 @@ def soap(args):
     """
     from jcvi.apps.softlink import get_abs_path
 
-    p = OptionParser(soap.__doc__)
+    p = MOptionParser(soap.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) < 2:
@@ -173,7 +173,7 @@ def correct(args):
 
     Run ALLPATHS correction on a folder of paired reads and apply tag.
     """
-    p = OptionParser(correct.__doc__)
+    p = MOptionParser(correct.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -192,7 +192,7 @@ def allpaths(args):
     Run assembly on a folder of paired reads and apply tag (PE-200, PE-500).
     Allow multiple tags separated by comma, e.g. PE-350,TT-1050
     """
-    p = OptionParser(allpaths.__doc__)
+    p = MOptionParser(allpaths.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:

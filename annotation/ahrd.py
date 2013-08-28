@@ -14,7 +14,7 @@ import re
 import logging
 
 from glob import glob
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 
 from jcvi.apps.base import ActionDispatcher, debug, mkdir
 debug()
@@ -319,7 +319,7 @@ def fix(args):
 
     Fix ugly names from Uniprot.
     """
-    p = OptionParser(fix.__doc__)
+    p = MOptionParser(fix.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) < 1:
@@ -344,7 +344,7 @@ def merge(args):
     multiple lines containing the same ID (first column). Then whatever comes
     the first will get retained.
     """
-    p = OptionParser(merge.__doc__)
+    p = MOptionParser(merge.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) < 1:
@@ -393,7 +393,7 @@ def batch(args):
 
     $ parallel java -Xmx2g -jar ~/code/AHRD/dist/ahrd.jar {} ::: output/*.yml
     """
-    p = OptionParser(batch.__doc__)
+    p = MOptionParser(batch.__doc__)
 
     ahrd_weights = { "blastp": [0.5, 0.3, 0.2],
                      "blastx": [0.6, 0.4, 0.0]

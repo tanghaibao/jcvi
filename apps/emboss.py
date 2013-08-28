@@ -7,7 +7,7 @@ Run EMBOSS programs.
 
 import sys
 
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
@@ -48,7 +48,7 @@ def needle(args):
     from jcvi.formats.fasta import Fasta, SeqIO
     from jcvi.formats.base import FileShredder
 
-    p = OptionParser(needle.__doc__)
+    p = MOptionParser(needle.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 3:

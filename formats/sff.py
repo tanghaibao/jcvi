@@ -10,7 +10,7 @@ import sys
 import logging
 
 from glob import glob
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 
 from jcvi.apps.base import ActionDispatcher, debug, mkdir, sh
 debug()
@@ -34,7 +34,7 @@ def assemble(args):
     """
     from jcvi.formats.fasta import join
 
-    p = OptionParser(assemble.__doc__)
+    p = MOptionParser(assemble.__doc__)
     p.add_option("--overwrite", default=False, action="store_true",
             help="Overwrite the separate BAC assembly [default: %default]")
     opts, args = p.parse_args(args)
@@ -79,7 +79,7 @@ def mid(args):
     """
     from jcvi.formats.fasta import rc
 
-    p = OptionParser(mid.__doc__)
+    p = MOptionParser(mid.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:

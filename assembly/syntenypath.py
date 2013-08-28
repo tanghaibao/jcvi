@@ -9,7 +9,7 @@ import sys
 import logging
 
 from itertools import groupby, combinations
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 from string import maketrans
 
 from jcvi.formats.blast import BlastSlow
@@ -73,7 +73,7 @@ def partition(args):
     from the HAPPY mapping data.
     """
     allowed_format = ("png", "ps")
-    p = OptionParser(partition.__doc__)
+    p = MOptionParser(partition.__doc__)
     p.add_option("--prefix", help="Add prefix to the name [default: %default]")
     p.add_option("--namestart", default=0, type="int",
                  help="Use a shorter name, starting index [default: %default]")
@@ -135,7 +135,7 @@ def merge(args):
 
     Merge multiple graphs together and visualize.
     """
-    p = OptionParser(merge.__doc__)
+    p = MOptionParser(merge.__doc__)
     p.add_option("--colorlist", default="black,red,pink,blue,green",
                  help="The color palette [default: %default]")
     opts, args = p.parse_args(args)
@@ -174,7 +174,7 @@ def happy(args):
     Example:
     +-8254707:8254647:-8254690:{[8254694]:[8254713]:[8254531]:[8254797]}:8254802:8254788+
     """
-    p = OptionParser(happy.__doc__)
+    p = MOptionParser(happy.__doc__)
     p.add_option("--prefix", help="Add prefix to the name [default: %default]")
     opts, args = p.parse_args(args)
 
@@ -209,7 +209,7 @@ def fromblast(args):
     from jcvi.formats.blast import sort
     from jcvi.utils.range import range_distance
 
-    p = OptionParser(fromblast.__doc__)
+    p = MOptionParser(fromblast.__doc__)
     p.add_option("--clique", default=False, action="store_true",
                  help="Populate clique instead of linear path [default: %default]")
     p.add_option("--maxdist", default=100000, type="int",

@@ -11,7 +11,7 @@ import string
 import logging
 
 from glob import glob
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 from collections import defaultdict
 
 from Bio import SeqIO
@@ -19,7 +19,7 @@ from Bio import SeqIO
 from jcvi.utils.cbook import memoized, fill
 from jcvi.utils.orderedcollections import parse_qs
 from jcvi.formats.base import DictFile
-from jcvi.apps.base import ActionDispatcher, sh, mkdir, debug, set_outfile
+from jcvi.apps.base import ActionDispatcher, sh, mkdir, debug
 debug()
 
 """
@@ -136,7 +136,7 @@ def fcs(args):
     contig0751      14226   13476..14226    vector
     contig0800      124133  30512..30559    primer/adapter
     """
-    p = OptionParser(fcs.__doc__)
+    p = MOptionParser(fcs.__doc__)
     p.add_option("--cutoff", default=200,
                  help="Skip small components less than [default: %default]")
     opts, args = p.parse_args(args)
@@ -192,8 +192,8 @@ def asn(args):
     """
     from jcvi.formats.base import must_open
 
-    p = OptionParser(asn.__doc__)
-    set_outfile(p)
+    p = MOptionParser(asn.__doc__)
+    p.set_outfile()
     opts, args = p.parse_args(args)
 
     if len(args) < 1:
@@ -257,7 +257,7 @@ def htgnew(args):
     """
     from jcvi.formats.fasta import Fasta, sequin
 
-    p = OptionParser(htgnew.__doc__)
+    p = MOptionParser(htgnew.__doc__)
     p.add_option("--comment", default="",
             help="Comments for this submission [default: %default]")
     opts, args = p.parse_args(args)
@@ -352,7 +352,7 @@ def htg(args):
     from jcvi.formats.agp import phase
     from jcvi.apps.entrez import fetch
 
-    p = OptionParser(htg.__doc__)
+    p = MOptionParser(htg.__doc__)
     p.add_option("--phases", default=None,
             help="Use another phasefile to override [default: %default]")
     p.add_option("--comment", default="",
@@ -520,7 +520,7 @@ def t384(args):
 
     Print out a table converting between 96 well to 384 well
     """
-    p = OptionParser(t384.__doc__)
+    p = MOptionParser(t384.__doc__)
     opts, args = p.parse_args(args)
 
     plate, splate = get_plate()
@@ -566,7 +566,7 @@ def gss(args):
     For example:
     B906423 SIL-001
     """
-    p = OptionParser(gss.__doc__)
+    p = MOptionParser(gss.__doc__)
 
     opts, args = p.parse_args(args)
 

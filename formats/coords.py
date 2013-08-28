@@ -12,7 +12,7 @@ import logging
 
 from math import exp
 from itertools import groupby
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 
 from jcvi.formats.base import LineFile
 from jcvi.apps.base import ActionDispatcher, debug, sh, need_update
@@ -261,7 +261,7 @@ def blast(args):
 
     Covert delta or coordsfile to BLAST tabular output.
     """
-    p = OptionParser(blast.__doc__)
+    p = MOptionParser(blast.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -283,7 +283,7 @@ def fromdelta(args):
 
     Convert deltafile to coordsfile.
     """
-    p = OptionParser(fromdelta.__doc__)
+    p = MOptionParser(fromdelta.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -317,7 +317,7 @@ def coverage(args):
 
     jcvi.algorithms.supermap --filter query
     """
-    p = OptionParser(coverage.__doc__)
+    p = MOptionParser(coverage.__doc__)
     p.add_option("-c", dest="cutoff", default=0.5, type="float",
             help="only report query with coverage greater than [default: %default]")
 
@@ -358,7 +358,7 @@ def annotate(args):
     Annotate coordsfile to append an additional column, with the following
     overlaps: {0}.
     """
-    p = OptionParser(annotate.__doc__.format(", ".join(Overlap_types)))
+    p = MOptionParser(annotate.__doc__.format(", ".join(Overlap_types)))
     p.add_option("--maxhang", default=100, type="int",
                  help="Max hang to call dovetail overlap [default: %default]")
     p.add_option("--all", default=False, action="store_true",
@@ -403,7 +403,7 @@ def summary(args):
 
     provide summary on id% and cov%, for both query and reference
     """
-    p = OptionParser(summary.__doc__)
+    p = MOptionParser(summary.__doc__)
     p.add_option("-s", dest="single", default=False, action="store_true",
             help="provide stats per reference seq")
 
@@ -424,7 +424,7 @@ def filter(args):
 
     produce a new coords file and filter based on id% or cov%
     """
-    p = OptionParser(filter.__doc__)
+    p = MOptionParser(filter.__doc__)
     p.add_option("--pctid", dest="pctid", default=0., type="float",
             help="pctid cutoff [default: %default]")
     p.add_option("--hitlen", dest="hitlen", default=0., type="float",
@@ -469,7 +469,7 @@ def bed(args):
     will produce a bed list of mapped position and orientation (needs to
     be beyond quality cutoff, say 50) in bed format
     """
-    p = OptionParser(bed.__doc__)
+    p = MOptionParser(bed.__doc__)
     p.add_option("--query", default=False, action="store_true",
             help="print out query intervals rather than ref [default: %default]")
     p.add_option("--pctid", default=False, action="store_true",

@@ -8,14 +8,14 @@ Catalog gene losses, and bites within genes.
 import sys
 import logging
 
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 from itertools import groupby
 
 from jcvi.formats.blast import Blast
 from jcvi.formats.bed import Bed
 from jcvi.utils.range import range_minmax, range_overlap
 from jcvi.utils.cbook import gene_name
-from jcvi.algorithms.synteny import add_beds, check_beds
+from jcvi.algorithms.synteny import check_beds
 from jcvi.apps.base import ActionDispatcher, debug, sh
 debug()
 
@@ -47,7 +47,7 @@ def gffselect(args):
     """
     from jcvi.formats.bed import intersectBed_wao
 
-    p = OptionParser(gffselect.__doc__)
+    p = MOptionParser(gffselect.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 4:
@@ -91,7 +91,7 @@ def gaps(args):
     from jcvi.apps.base import popen
     from jcvi.utils.cbook import percentage
 
-    p = OptionParser(gaps.__doc__)
+    p = MOptionParser(gaps.__doc__)
     p.add_option("--bdist", default=0, type="int",
                  help="Base pair distance [default: %default]")
     opts, args = p.parse_args(args)
@@ -149,7 +149,7 @@ def genestatus(args):
     --ids.
     """
     from itertools import groupby
-    p = OptionParser(genestatus.__doc__)
+    p = MOptionParser(genestatus.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -180,7 +180,7 @@ def summary(args):
     from jcvi.formats.base import DictFile
     from jcvi.utils.cbook import percentage, Registry
 
-    p = OptionParser(summary.__doc__)
+    p = MOptionParser(summary.__doc__)
     p.add_option("--extra", help="Cross with extra tsv file [default: %default]")
     opts, args = p.parse_args(args)
 
@@ -310,7 +310,7 @@ def napus(args):
     from jcvi.utils.grouper import Grouper
     from jcvi.utils.cbook import SummaryStats
 
-    p = OptionParser(napus.__doc__)
+    p = MOptionParser(napus.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -416,14 +416,14 @@ def loss(args):
 
     Extract likely gene loss candidates between genome a and b.
     """
-    p = OptionParser(loss.__doc__)
+    p = MOptionParser(loss.__doc__)
     p.add_option("--bed", default=False, action="store_true",
                  help="Genomic BLAST is in bed format [default: %default]")
     p.add_option("--gdist", default=20, type="int",
                  help="Gene distance [default: %default]")
     p.add_option("--bdist", default=20000, type="int",
                  help="Base pair distance [default: %default]")
-    add_beds(p)
+    p.set_beds()
     opts, args = p.parse_args(args)
 
     if len(args) not in (1, 2):
@@ -544,7 +544,7 @@ def validate(args):
     """
     from jcvi.formats.bed import intersectBed_wao
 
-    p = OptionParser(validate.__doc__)
+    p = MOptionParser(validate.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:

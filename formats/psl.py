@@ -11,11 +11,11 @@ import sys
 import math
 import logging
 
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 
 from jcvi.formats.base import LineFile, must_open
 from jcvi.apps.base import ActionDispatcher, debug, sh, \
-        need_update, popen, set_outfile
+        need_update, popen
 debug()
 
 
@@ -181,7 +181,7 @@ def gff(args):
 
     Convert to gff format.
     """
-    p = OptionParser(gff.__doc__)
+    p = MOptionParser(gff.__doc__)
     p.add_option("--source", default="GMAP",
                  help="specify GFF source [default: %default]")
     p.add_option("--type", default="EST_match",
@@ -192,7 +192,7 @@ def gff(args):
                  help="swap query and target features [default: %default]")
     p.add_option("--simple_score", default=False, action="store_true",
                  help="calculate a simple percent score [default: %default]")
-    set_outfile(p)
+    p.set_outfile()
 
     opts, args = p.parse_args(args)
 

@@ -9,12 +9,11 @@ import re
 import logging
 
 from subprocess import Popen, PIPE
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 from multiprocessing import Process
 
 from jcvi.formats.base import write_file
-from jcvi.apps.base import ActionDispatcher, sh, popen, backup, debug, \
-        set_grid_opts
+from jcvi.apps.base import ActionDispatcher, sh, popen, backup, debug
 debug()
 
 
@@ -158,8 +157,8 @@ def array(args):
 
     Parallelize a set of commands on grid using array jobs.
     """
-    p = OptionParser(array.__doc__)
-    set_grid_opts(p)
+    p = MOptionParser(array.__doc__)
+    p.set_grid_opts()
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -208,8 +207,8 @@ def run(args):
     %prog run "zcat {} > {.}" ::: *.gz  # quote redirection
     %prog run < commands.list  # run a list of commands
     """
-    p = OptionParser(run.__doc__)
-    set_grid_opts(p)
+    p = MOptionParser(run.__doc__)
+    p.set_grid_opts()
     opts, args = p.parse_args(args)
 
     if len(args) == 0:

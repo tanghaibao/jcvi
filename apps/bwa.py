@@ -11,10 +11,10 @@ import sys
 import logging
 import os.path as op
 
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 
-from jcvi.formats.sam import output_bam, add_sam_options, get_prefix
-from jcvi.apps.base import ActionDispatcher, set_grid, set_params, need_update, \
+from jcvi.formats.sam import output_bam, get_prefix
+from jcvi.apps.base import ActionDispatcher, need_update, \
                 sh, debug
 debug()
 
@@ -65,9 +65,9 @@ def index(args):
 
     Wrapper for `bwa index`. Same interface, only adds grid submission.
     """
-    p = OptionParser(index.__doc__)
-    set_params(p)
-    set_grid(p)
+    p = MOptionParser(index.__doc__)
+    p.set_params()
+    p.set_grid()
 
     opts, args = p.parse_args(args)
 
@@ -87,8 +87,8 @@ def align(args):
 
     Wrapper for `bwa samse` or `bwa sampe`, depending on the number of args.
     """
-    p = OptionParser(align.__doc__)
-    add_sam_options(p)
+    p = MOptionParser(align.__doc__)
+    p.set_sam_options()
 
     opts, args = p.parse_args(args)
     extra = opts.extra
@@ -168,8 +168,8 @@ def bwasw(args):
 
     Wrapper for `bwa bwasw`. Output will be long_read.sam.
     """
-    p = OptionParser(bwasw.__doc__)
-    add_sam_options(p)
+    p = MOptionParser(bwasw.__doc__)
+    p.set_sam_options()
 
     opts, args = p.parse_args(args)
 

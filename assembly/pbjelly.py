@@ -12,7 +12,7 @@ import os.path as op
 import sys
 import logging
 
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 
 from jcvi.apps.base import ActionDispatcher, debug, sh, which
 debug()
@@ -80,7 +80,7 @@ def patch(args):
     from jcvi.formats.base import write_file
     from jcvi.formats.fasta import format
 
-    p = OptionParser(patch.__doc__)
+    p = MOptionParser(patch.__doc__)
     p.add_option("--cleanfasta", default=False, action="store_true",
                  help="Clean FASTA to remove description [default: %default]")
     p.add_option("--highqual", default=False, action="store_true",

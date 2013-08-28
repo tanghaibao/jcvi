@@ -26,10 +26,10 @@ import os.path as op
 import sys
 import logging
 
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 
 from jcvi.formats.base import BaseFile, read_block
-from jcvi.apps.base import ActionDispatcher, debug, sh, need_update, set_outfile
+from jcvi.apps.base import ActionDispatcher, debug, sh, need_update
 debug()
 
 
@@ -99,7 +99,7 @@ def summary(args):
     from jcvi.formats.fasta import summary as fsummary
     from jcvi.utils.cbook import percentage, human_size
 
-    p = OptionParser(summary.__doc__)
+    p = MOptionParser(summary.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -132,7 +132,7 @@ def fromagp(args):
     from jcvi.formats.agp import AGP
     from jcvi.formats.sizes import Sizes
 
-    p = OptionParser(fromagp.__doc__)
+    p = MOptionParser(fromagp.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -198,7 +198,7 @@ def blat(args):
 
     Generate psl file using blat.
     """
-    p = OptionParser(blat.__doc__)
+    p = MOptionParser(blat.__doc__)
     p.add_option("--minscore", default=100, type="int",
                  help="Matches minus mismatches gap penalty [default: %default]")
     p.add_option("--minid", default=98, type="int",
@@ -234,14 +234,14 @@ def last(args):
     """
     from jcvi.apps.last import main as lastapp
 
-    p = OptionParser(last.__doc__)
+    p = MOptionParser(last.__doc__)
     p.add_option("--distant", default=False, action="store_true",
                  help="Assume distant relations")
     p.add_option("--minscore", default=100, type="int",
                  help="Filter alignments by how many bases match [default: %default]")
     p.add_option("--minid", default=95, type="int",
                  help="Minimum sequence identity [default: %default]")
-    set_outfile(p)
+    p.set_outfile()
 
     opts, args = p.parse_args(args)
     if len(args) != 2:
@@ -274,7 +274,7 @@ def frompsl(args):
     """
     from jcvi.formats.sizes import Sizes
 
-    p = OptionParser(frompsl.__doc__)
+    p = MOptionParser(frompsl.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 3:

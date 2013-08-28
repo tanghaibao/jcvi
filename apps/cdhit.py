@@ -9,11 +9,11 @@ import os.path as op
 import sys
 import logging
 
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 from collections import defaultdict
 
 from jcvi.formats.base import LineFile, read_block
-from jcvi.apps.base import ActionDispatcher, set_grid, debug, sh
+from jcvi.apps.base import ActionDispatcher, debug, sh
 debug()
 
 
@@ -82,7 +82,7 @@ def ids(args):
 
     Get the representative ids from clstr file.
     """
-    p = OptionParser(ids.__doc__)
+    p = MOptionParser(ids.__doc__)
     p.add_option("--prefix", type="int",
                  help="Find rep id for prefix of len [default: %default]")
     opts, args = p.parse_args(args)
@@ -119,7 +119,7 @@ def summary(args):
     """
     from jcvi.graphics.histogram import loghistogram
 
-    p = OptionParser(summary.__doc__)
+    p = MOptionParser(summary.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -137,17 +137,16 @@ def deduplicate(args):
 
     Wraps `cd-hit-454` to remove duplicate reads.
     """
-    p = OptionParser(deduplicate.__doc__)
+    p = MOptionParser(deduplicate.__doc__)
     p.add_option("--pctid", default=98, type="int",
                  help="Sequence identity threshold [default: %default]")
     p.add_option("--est", default=False, action="store_true",
                  help="Use `cd-hit-est` to cluster [default: %default]")
-    p.add_option("--cpus", default=0, type="int",
-                 help="Number of CPUs to use, 0=unlimited [default: %default]")
     p.add_option("--cdhit_home",
                  default="~/htang/export/cd-hit-v4.6.1-2012-08-27",
                  help="Directory that contains cd-hit [default: %default]")
-    set_grid(p)
+    p.set_cpus()
+    p.set_grid()
 
     opts, args = p.parse_args(args)
 

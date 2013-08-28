@@ -10,7 +10,7 @@ import os.path as op
 import sys
 import logging
 
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 
 from jcvi.apps.base import ActionDispatcher, debug, mkdir, sh, need_update
 debug()
@@ -37,7 +37,7 @@ def pasa(args):
     from jcvi.formats.base import SetFile
     from jcvi.formats.gff import Gff
 
-    p = OptionParser(pasa.__doc__)
+    p = MOptionParser(pasa.__doc__)
     p.add_option("--pasa_home", default="~/htang/export/PASA2-r20130605p1",
                  help="Home directory for PASA [default: %default]")
     opts, args = p.parse_args(args)
@@ -89,7 +89,7 @@ def genemark(args):
     Train GENEMARK model given fastafile. GENEMARK self-trains so no trainig
     model gff file is needed.
     """
-    p = OptionParser(genemark.__doc__)
+    p = MOptionParser(genemark.__doc__)
     p.add_option("--gmes_home", default="~/htang/export/gmes",
                  help="Home directory for GENEMARK [default: %default]")
     opts, args = p.parse_args(args)
@@ -123,7 +123,7 @@ def snap(args):
     Train SNAP model given gffile and fastafile. Whole procedure taken from:
     <http://gmod.org/wiki/MAKER_Tutorial_2012>
     """
-    p = OptionParser(snap.__doc__)
+    p = MOptionParser(snap.__doc__)
     p.add_option("--maker_home", default="~/htang/export/maker",
                  help="Home directory for MAKER [default: %default]")
     opts, args = p.parse_args(args)
@@ -163,7 +163,7 @@ def augustus(args):
     Train AUGUSTUS model given gffile and fastafile. Whole procedure taken from:
     <http://www.molecularevolution.org/molevolfiles/exercises/augustus/training.html>
     """
-    p = OptionParser(snap.__doc__)
+    p = MOptionParser(snap.__doc__)
     p.add_option("--augustus_home", default="~/htang/export/augustus.2.5.5",
                  help="Home directory for AUGUSTUS [default: %default]")
     opts, args = p.parse_args(args)

@@ -14,13 +14,13 @@ import sys
 import logging
 
 from collections import defaultdict
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 
 from jcvi.formats.base import LineFile, write_file
 from jcvi.apps.softlink import get_abs_path
 from jcvi.apps.grid import GridProcess
 from jcvi.apps.base import ActionDispatcher, need_update, popen, debug, sh, \
-        mkdir, set_grid_opts, set_tmpdir
+        mkdir
 debug()
 
 
@@ -114,11 +114,11 @@ def parallel(args):
     """
     from jcvi.formats.base import split
 
-    p = OptionParser(parallel.__doc__)
+    p = MOptionParser(parallel.__doc__)
     p.add_option("--maker_home", default="~/htang/export/maker",
                  help="Home directory for MAKER [default: %default]")
     set_tmpdir(p, tmpdir=None)
-    set_grid_opts(p)
+    p.set_grid_opts()
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -193,7 +193,7 @@ def merge(args):
     """
     from glob import glob
 
-    p = OptionParser(merge.__doc__)
+    p = MOptionParser(merge.__doc__)
     p.add_option("--maker_home", default="~/htang/export/maker",
                  help="Home directory for MAKER [default: %default]")
     opts, args = p.parse_args(args)
@@ -241,7 +241,7 @@ def longest(args):
     """
     from jcvi.formats.sizes import Sizes
 
-    p = OptionParser(longest.__doc__)
+    p = MOptionParser(longest.__doc__)
     p.add_option("--samesize", default=False, action="store_true",
                  help="Only report where the group has same size "\
                       "[default: %default]")
@@ -289,7 +289,7 @@ def batcheval(args):
     from jcvi.formats.bed import evaluate
     from jcvi.formats.gff import make_index
 
-    p = OptionParser(evaluate.__doc__)
+    p = MOptionParser(evaluate.__doc__)
     p.add_option("--type", default="CDS",
             help="list of features to extract, use comma to separate (e.g."
             "'five_prime_UTR,CDS,three_prime_UTR') [default: %default]")
@@ -385,7 +385,7 @@ def split(args):
     """
     from jcvi.formats.bed import Bed
 
-    p = OptionParser(split.__doc__)
+    p = MOptionParser(split.__doc__)
     p.add_option("--key", default="Name",
             help="Key in the attributes to extract predictor.gff [default: %default]")
     p.add_option("--parents", default="match",
@@ -438,7 +438,7 @@ def datastore(args):
     /usr/local/scratch/htang/EVM_test/gannotation/maker/1132350111853_default/i1/
     -maxdepth 4 -name "*datastore*.log" > datastore.log
     """
-    p = OptionParser(datastore.__doc__)
+    p = MOptionParser(datastore.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:

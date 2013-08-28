@@ -16,7 +16,7 @@ import os.path as op
 import sys
 import logging
 from random import sample
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 
 import numpy as np
 
@@ -228,7 +228,7 @@ if __name__ == "__main__":
 
     from jcvi.formats.bed import sizes
 
-    p = OptionParser(__doc__)
+    p = MOptionParser(__doc__)
     p.add_option("--qsizes", help="Path to two column qsizes file")
     p.add_option("--ssizes", help="Path to two column ssizes file")
     p.add_option("--qbed", help="Path to qbed")

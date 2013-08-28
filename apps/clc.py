@@ -8,10 +8,10 @@ Wrapper script for some programs in clc-ngs-cell
 import sys
 import os.path as op
 
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 
 from jcvi.formats.base import write_file
-from jcvi.apps.base import ActionDispatcher, debug, set_grid, set_params, sh
+from jcvi.apps.base import ActionDispatcher, debug, sh
 debug()
 
 
@@ -46,7 +46,8 @@ def prepare(args):
 
     from jcvi.assembly.base import FastqNamings, Library
 
-    p = OptionParser(prepare.__doc__ + FastqNamings)
+    p = MOptionParser(prepare.__doc__ + FastqNamings)
+    p.set_cpus()
     opts, args = p.parse_args(args)
 
     if len(args) < 1:
@@ -90,7 +91,7 @@ def prepare(args):
             else:
                 pairs.append(pair_opt + f)
 
-    cmd = "clc_novo_assemble --cpus 32 -o contigs.fasta \\\n"
+    cmd = "clc_novo_assemble --cpus {0} -o contigs.fasta \\\n".format(opts.cpus)
     cmd += "\t-q {0} \\\n".format(" ".join(singletons))
     cmd += "\n".join("\t{0} \\".format(x) for x in pairs)
 
@@ -105,7 +106,7 @@ def map(args):
     Use `clc_ref_assemble` to map the read files to a reference. Use a non-zero
     -s option to turn on paired end mode.
     """
-    p = OptionParser(map.__doc__)
+    p = MOptionParser(map.__doc__)
     p.add_option("-o", dest="outfile", default=None,
             help="Output prefix.cas file [default: %default]")
     p.add_option("-s", dest="size", default=0, type="int",
@@ -118,8 +119,9 @@ def map(args):
             help="Fraction of the read that must match [default: %default]")
     p.add_option("--similarity", default=0.95,
             help="Similarity of the matching region [default: %default]")
-    set_params(p)
-    set_grid(p)
+    p.set_params()
+    p.set_cpus()
+    p.set_grid()
 
     opts, args = p.parse_args(args)
     if len(args) < 2:
@@ -141,7 +143,7 @@ def map(args):
     if not outfile.endswith(".cas"):
         outfile += ".cas"
 
-    cmd += " --cpus 32"
+    cmd += " --cpus {0}".format(cpus)
     cmd += " -d {0} -o {1} -q ".format(ref, outfile)
     fastqs = " ".join(fastqfiles)
     if size == 0:
@@ -169,7 +171,7 @@ def trim(args):
     Use `quality_trim` to trim fastq files. If there are two fastqfiles
     inputted, it is assumed as pairs of fastqs.
     """
-    p = OptionParser(trim.__doc__)
+    p = MOptionParser(trim.__doc__)
 
     # There are many more options from `quality_trim`, but most useful twos are
     # quality cutoff (-c) and length cutoff (-m)
@@ -183,7 +185,7 @@ def trim(args):
             help="Set the ascii offset value in fastq [default: %default]")
     p.add_option("--fasta", dest="fasta", default=False, action="store_true",
             help="Output fasta sequence? [default: fastq]")
-    set_grid(p)
+    p.set_grid()
 
     opts, args = p.parse_args(args)
 

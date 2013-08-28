@@ -16,7 +16,7 @@ import sys
 import logging
 
 from collections import defaultdict
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 
 from jcvi.formats.contig import ContigFile
 from jcvi.formats.fasta import Fasta, SeqIO, gaps, format, tidy
@@ -50,7 +50,7 @@ def screen(args):
     from jcvi.apps.base import blast
     from jcvi.formats.blast import covfilter
 
-    p = OptionParser(screen.__doc__)
+    p = MOptionParser(screen.__doc__)
     p.add_option("--pctid", default=95, type="int",
             help="Percentage identity cutoff [default: %default]")
     p.add_option("--pctcov", default=50, type="int",
@@ -88,7 +88,7 @@ def scaffold(args):
     from jcvi.formats.agp import bed, order_to_agp, build
     from jcvi.formats.bed import Bed
 
-    p = OptionParser(scaffold.__doc__)
+    p = MOptionParser(scaffold.__doc__)
     p.add_option("--prefix", default=False, action="store_true",
             help="Keep IDs with same prefix together [default: %default]")
     opts, args = p.parse_args(args)
@@ -161,7 +161,7 @@ def overlapbatch(args):
     Fish out the sequences in `poolfasta` that overlap with `ctgfasta`.
     Mix and combine using `minimus2`.
     """
-    p = OptionParser(overlap.__doc__)
+    p = MOptionParser(overlap.__doc__)
     opts, args = p.parse_args(args)
     if len(args) != 2:
         sys.exit(not p.print_help())
@@ -184,7 +184,7 @@ def overlap(args):
     Fish out the sequences in `poolfasta` that overlap with `ctgfasta`.
     Mix and combine using `minimus2`.
     """
-    p = OptionParser(overlap.__doc__)
+    p = MOptionParser(overlap.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:

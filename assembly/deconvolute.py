@@ -10,9 +10,9 @@ import sys
 import logging
 
 from glob import glob
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 from itertools import product, groupby, islice
-from multiprocessing import Pool, cpu_count
+from multiprocessing import Pool
 from collections import namedtuple
 
 from Bio.Data.IUPACData import ambiguous_dna_values
@@ -111,15 +111,14 @@ def split(args):
     When --paired is set, the number of input fastqfiles must be two. Output
     file (the deconvoluted reads) will be in interleaved format.
     """
-    p = OptionParser(split.__doc__)
-    p.add_option("--cpus", default=32, type="int",
-                 help="Number of processes to run [default: %default]")
+    p = MOptionParser(split.__doc__)
     p.add_option("--outdir", default="deconv",
                  help="Output directory [default: %default]")
     p.add_option("--nocheckprefix", default=False, action="store_true",
                  help="Don't check shared prefix [default: %default]")
     p.add_option("--paired", default=False, action="store_true",
                  help="Paired-end data [default: %default]")
+    p.set_cpus()
     opts, args = p.parse_args(args)
 
     if len(args) < 2:
@@ -160,7 +159,7 @@ def split(args):
     outdir = opts.outdir
     mkdir(outdir)
 
-    cpus = min(opts.cpus, cpu_count())
+    cpus = opts.cpus
     logging.debug("Create a pool of {0} workers.".format(cpus))
     pool = Pool(cpus)
 
@@ -189,7 +188,7 @@ def merge(args):
     the split() process and several samples may be in separate fastq files. This
     program merges them.
     """
-    p = OptionParser(merge.__doc__)
+    p = MOptionParser(merge.__doc__)
     p.add_option("--outdir", default="outdir",
                  help="Output final reads in [default: %default]")
     opts, args = p.parse_args(args)

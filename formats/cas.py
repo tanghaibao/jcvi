@@ -13,14 +13,14 @@ import logging
 
 from collections import defaultdict
 from itertools import groupby
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 
 from Bio import SeqIO
 
 from jcvi.formats.base import LineFile
 from jcvi.formats.blast import set_options_pairs
 from jcvi.formats.sizes import Sizes
-from jcvi.apps.base import ActionDispatcher, sh, set_grid, debug, need_update
+from jcvi.apps.base import ActionDispatcher, sh, debug, need_update
 debug()
 
 
@@ -101,10 +101,10 @@ def info(args):
     """
     from jcvi.utils.cbook import percentage
 
-    p = OptionParser(info.__doc__)
+    p = MOptionParser(info.__doc__)
     p.add_option("--coverage", default=False, action="store_true",
             help="Generate coverage output, replacing IDs [default: %default]")
-    set_grid(p)
+    p.set_grid()
 
     opts, args = p.parse_args(args)
 
@@ -202,7 +202,7 @@ def fastpairs(args):
     from jcvi.utils.range import range_distance
     from jcvi.assembly.base import orientationlabels
 
-    p = OptionParser(fastpairs.__doc__)
+    p = MOptionParser(fastpairs.__doc__)
 
     opts, args = p.parse_args(args)
 
@@ -236,10 +236,10 @@ def txt(args):
 
     convert binary CAS file to tabular output using CLC assembly_table
     """
-    p = OptionParser(txt.__doc__)
+    p = MOptionParser(txt.__doc__)
     p.add_option("-m", dest="multi", default=False, action="store_true",
         help="report multi-matches [default: %default]")
-    set_grid(p)
+    p.set_grid()
 
     opts, args = p.parse_args(args)
 
@@ -269,8 +269,8 @@ def split(args):
     numbers are starting and ending index for the `reference`; useful to split
     one big assembly per contig
     """
-    p = OptionParser(split.__doc__)
-    set_grid(p)
+    p = MOptionParser(split.__doc__)
+    p.set_grid()
 
     opts, args = p.parse_args(args)
 
@@ -312,7 +312,7 @@ def bed(args):
     Convert the CAS or CASTAB format into bed format. If fastafile given, the
     sequential IDs in the casfile will be replaced by FASTA header.
     """
-    p = OptionParser(bed.__doc__)
+    p = MOptionParser(bed.__doc__)
     opts, args = p.parse_args(args)
 
     nargs = len(args)

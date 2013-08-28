@@ -8,7 +8,7 @@ Utilities when processing PASA results.
 import sys
 import logging
 
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 
 from jcvi.apps.base import ActionDispatcher, debug
 debug()
@@ -37,7 +37,7 @@ def longest(args):
     from jcvi.formats.fasta import Fasta, SeqIO
     from jcvi.formats.sizes import Sizes
 
-    p = OptionParser(longest.__doc__)
+    p = MOptionParser(longest.__doc__)
     p.add_option("--prefix", default="pasa",
                  help="Replace asmbl_ with prefix [default: %default]")
     opts, args = p.parse_args(args)

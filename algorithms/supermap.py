@@ -18,7 +18,7 @@ import sys
 import collections
 import logging
 
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 
 from jcvi.formats.blast import BlastLine
 from jcvi.formats.coords import CoordsLine
@@ -146,7 +146,7 @@ def supermap(blast_file, filter="intersection", dialect="blast", clip=0):
 
 if __name__ == '__main__':
 
-    p = OptionParser(__doc__)
+    p = MOptionParser(__doc__)
 
     filter_choices = ("ref", "query", "intersection", "union")
     dialect_choices = ("blast", "coords")

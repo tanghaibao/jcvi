@@ -11,7 +11,7 @@ import os.path as op
 import sys
 import logging
 
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 
 from bx import interval_index_file
 from bx.align import maf
@@ -78,7 +78,7 @@ def bed(args):
     Convert a folder of maf alignments to the bed features
     then useful to check coverage, etc.
     """
-    p = OptionParser(bed.__doc__)
+    p = MOptionParser(bed.__doc__)
 
     opts, args = p.parse_args(args)
 
@@ -152,7 +152,7 @@ def blast(args):
 
     From a folder of .maf files, generate .blast file with tabular format.
     '''
-    p = OptionParser(blast.__doc__)
+    p = MOptionParser(blast.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) == 0:

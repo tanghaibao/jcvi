@@ -12,7 +12,7 @@ import sys
 import logging
 
 from itertools import groupby
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 
 from jcvi.formats.base import must_open
 from jcvi.apps.base import ActionDispatcher, debug
@@ -41,7 +41,7 @@ def connect(args):
     from jcvi.algorithms.graph import BiGraph, BiEdge
     from jcvi.assembly.syntenypath import graph_to_agp
 
-    p = OptionParser(connect.__doc__)
+    p = MOptionParser(connect.__doc__)
     p.add_option("--clip", default=2000, type="int",
             help="Only consider end of contigs [default: %default]")
     opts, args = p.parse_args(args)

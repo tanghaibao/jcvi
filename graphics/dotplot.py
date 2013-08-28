@@ -28,10 +28,10 @@ import string
 import numpy as np
 from random import sample
 from itertools import groupby
-from optparse import OptionParser
+from jcvi.apps.base import MOptionParser
 
 from jcvi.formats.bed import Bed
-from jcvi.algorithms.synteny import batch_scan, add_beds, check_beds
+from jcvi.algorithms.synteny import batch_scan, check_beds
 from jcvi.apps.base import debug
 from jcvi.graphics.base import plt, ticker, Rectangle, cm, _, \
         set_human_axis, set_image_options, savefig
@@ -268,8 +268,8 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts,
 
 if __name__ == "__main__":
 
-    p = OptionParser(__doc__)
-    add_beds(p)
+    p = MOptionParser(__doc__)
+    p.set_beds()
     p.add_option("--synteny", default=False, action="store_true",
             help="Run a fast synteny scan and display blocks [default: %default]")
     p.add_option("--cmap", help="Draw colormap box on the bottom-left corner "

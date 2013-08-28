@@ -17,7 +17,7 @@ from copy import deepcopy
 from optparse import OptionParser
 from itertools import groupby
 
-from jcvi.formats.agp import AGP, TPF, get_phase, reindex
+from jcvi.formats.agp import AGP, TPF, get_phase, reindex, tidy, build
 from jcvi.formats.base import BaseFile
 from jcvi.formats.fasta import Fasta, SeqIO
 from jcvi.formats.blast import BlastSlow, BlastLine
@@ -41,6 +41,9 @@ class CLR (object):
         self.id = id
         self.start = 1
         self.end = size
+        if orientation == '?':
+            orientation = '+'
+        assert orientation in ('+', '-')
         self.orientation = orientation
 
     def __str__(self):
@@ -84,6 +87,7 @@ class Overlap (object):
         self.qreverse = qreverse
         self.otype = self.get_otype(max_hang=max_hang)
         self.blastline = b
+        self.max_hang = max_hang
 
     def __str__(self):
         ov = Overlap_types[self.otype]
@@ -91,6 +95,16 @@ class Overlap (object):
         s += "Overlap: {0} Identity: {1}% Orientation: {2}".\
             format(self.hitlen, self.pctid, self.orientation)
         return s
+
+    @property
+    def swapped(self):
+        blastline = self.blastline.swapped
+        asize = self.asize
+        bsize = self.bsize
+        ao, bo = self.get_ao_bo()
+        qreverse = bo == '-'
+        return Overlap(blastline, bsize, asize, \
+                       max_hang=self.max_hang, qreverse=qreverse)
 
     @property
     def certificateline(self):
@@ -159,18 +173,25 @@ class Overlap (object):
 
         print >> sys.stderr, aclr, bclr
 
-    def anneal(self, aclr, bclr):
+    def get_ao_bo(self):
         ao = '-' if self.qreverse else '+'
         bo = ao if self.orientation == '+' else {'+':'-', '-':'+'}[ao]
+        return ao, bo
+
+    def anneal(self, aclr, bclr):
+        ao, bo = self.get_ao_bo()
 
         # Requirement: end-to-end join in correct order and orientation
         can_anneal = self.otype in (1, 3, 4) and \
                      (ao, bo) == (aclr.orientation, bclr.orientation)
         if not can_anneal:
-            print >> sys.stderr, "* Cannot anneal!"
-            return
+            print >> sys.stderr, "* Cannot anneal! (otype={0}|{1}{2}|{3}{4})".\
+                                format(self.otype, ao, bo,
+                                       aclr.orientation, bclr.orientation)
+            return False
 
         self.update_clr(aclr, bclr)
+        return True
 
     def print_graphic(self):
         """
@@ -462,14 +483,13 @@ def dedup(args):
     Remove redundant contigs with CD-HIT. This is run prior to
     assembly.sspace.embed().
     """
-    from jcvi.formats.agp import tidy, build
     from jcvi.formats.fasta import gaps
     from jcvi.apps.cdhit import deduplicate, ids
 
     p = OptionParser(dedup.__doc__)
     p.add_option("--mingap", default=10, type="int",
             help="The minimum size of a gap to split [default: %default]")
-    p.add_option("--pctid", default=99, type="int",
+    p.add_option("--pctid", default=98, type="int",
                  help="Sequence identity threshold [default: %default]")
     opts, args = p.parse_args(args)
 
@@ -548,7 +568,7 @@ def is_adjacent_shreds(a, b):
 
 def anneal(args):
     """
-    %prog anneal agpfile outdir annealed.agp
+    %prog anneal agpfile outdir contigs.fasta
 
     Merge adjacent overlapping contigs and make new AGP file.
     outdir contains a folder of FASTA sequences, made by:
@@ -574,10 +594,10 @@ def anneal(args):
                  help="Don't zip shred lines [default: %default]")
     opts, args = p.parse_args(args)
 
-    if len(args) != 2:
+    if len(args) != 3:
         sys.exit(not p.print_help())
 
-    agpfile, outdir = args
+    agpfile, outdir, contigs = args
     pctid = opts.pctid
     hang = opts.hang
     zipshreds = not opts.nozipshreds
@@ -630,9 +650,15 @@ def anneal(args):
             aclr, bclr = clrstore[aid], clrstore[bid]
 
             o.print_graphic()
-            o.anneal(aclr, bclr)
+            if o.anneal(aclr, bclr):
+                newagp.delete_between(aid, bid, verbose=True)
 
-            newagp.delete_between(aid, bid, verbose=True)
+            if o.otype == 2:  # b ~ a
+                o = o.swapped
+                o.print_graphic()
+                if o.anneal(bclr, aclr):
+                    newagp.switch_between(bid, aid, verbose=True)
+                    newagp.delete_between(bid, aid, verbose=True)
 
     if save:
         fw.close()
@@ -656,7 +682,13 @@ def anneal(args):
             a.component_beg = c.start
             a.component_end = c.end
 
-    newagp.print_to_file("annealed.agp")
+    annealedagp = "annealed.agp"
+    newagp.print_to_file(annealedagp)
+    tidyagp = tidy([annealedagp, contigs])
+
+    annealedfasta = "annealed.fasta"
+    build([tidyagp, contigs, annealedfasta])
+    return annealedfasta
 
 
 def blast(args):

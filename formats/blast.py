@@ -71,7 +71,8 @@ class BlastLine(object):
         args[6:10] = [self.sstart, self.sstop, self.qstart, self.qstop]
         if self.orientation == '-':
             args[8], args[9] = args[9], args[8]
-        return "\t".join(str(x) for x in args)
+        b = "\t".join(str(x) for x in args)
+        return BlastLine(b)
 
     @property
     def bedline(self):

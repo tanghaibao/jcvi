@@ -483,6 +483,16 @@ class AGP (LineFile):
     def delete_between(self, a, b, verbose=True):
         return self.update_between(a, b, [], verbose=verbose)
 
+    def switch_between(self, a, b, verbose=True):
+        ai, ax = self.get_line(a)
+        bi, bx = self.get_line(b)
+        self[ai] = bx
+        self[bi] = ax
+        if verbose:
+            msg = "* Switch between:\n"
+            msg += "\n".join([str(ax), str(bx)])
+            print >> sys.stderr, msg
+
 
 class TPFLine (object):
 

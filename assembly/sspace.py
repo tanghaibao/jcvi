@@ -323,7 +323,7 @@ def embed(args):
         newagp.append(AGPLine.cline(ctg, ctg, sizes, "?"))
 
     # Write a new AGP file
-    newagpfile = "new.agp"
+    newagpfile = "embedded.agp"
     newagp.print_to_file(newagpfile, index=True)
     tidied = tidy([newagpfile, contigs])
 

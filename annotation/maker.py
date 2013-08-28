@@ -179,8 +179,8 @@ def parallel(args):
 
 mergesh = """
 BASE=$1
-cd $1.fa/$1.maker.output
-{0} -n -d $1_master_datastore_index.log
+cd $1{0}/$1.maker.output
+{1} -n -d $1_master_datastore_index.log
 mv $1.all.gff ../../
 """
 
@@ -202,11 +202,13 @@ def merge(args):
         sys.exit(not p.print_help())
 
     outdir, outputgff = args
-    fsnames = [op.basename(x).replace(".fa", "") for x in glob(op.join(outdir, "*.fa"))]
+    fnames = glob(op.join(outdir, "*.fa*"))
+    suffix = "." + fnames[0].split(".")[-1]
+    fsnames = [op.basename(x).rsplit(".", 1)[0] for x in fnames]
     cmd = op.join(opts.maker_home, "bin/gff3_merge")
 
     outfile = "merge.sh"
-    write_file(outfile, mergesh.format(cmd), meta="run script")
+    write_file(outfile, mergesh.format(suffix, cmd), meta="run script")
 
     # Generate per split directory
     # Note that gff3_merge write to /tmp, so I limit processes here to avoid
@@ -219,6 +221,15 @@ def merge(args):
     # Again, DO NOT USE gff3_merge to merge with a smallist /tmp/ area
     print >> sys.stderr, "Use the following command to merge:\n" \
                          "$ python -m jcvi.formats.gff merge gfflist"
+
+    cmd = 'cat maker.*.out Logs/maker.*.out | grep -c "now finished"'
+    sh(cmd)
+    print >> sys.stderr, "Confirm ALL jobs have been finished"
+
+    cmd = "grep FAIL maker.*.out Logs/maker.*.out | sort -u > FAILED"
+    sh(cmd)
+    nfailed = sum(1 for x in open("FAILED"))
+    print >> sys.stderr, "FAILED !! {0} instances.".format(nfailed)
 
 
 def longest(args):

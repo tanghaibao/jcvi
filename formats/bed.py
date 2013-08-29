@@ -270,6 +270,8 @@ def fix(args):
     Fix non-standard bed files. One typical problem is start > end.
     """
     p = OptionParser(fix.__doc__)
+    p.add_option("--minspan", default=0, type="int",
+                 help="Enforce minimum span [default: %default]")
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -277,6 +279,7 @@ def fix(args):
         sys.exit(not p.print_help())
 
     bedfile, = args
+    minspan = opts.minspan
     fp = open(bedfile)
     fw = must_open(opts.outfile, "w")
     nfixed = ntotal = 0
@@ -294,7 +297,11 @@ def fix(args):
         atoms[1:3] = [str(start), str(end)]
         if len(atoms) > 6:
             atoms[6] = orientation
-        print >> fw, "\t".join(atoms)
+        line = "\t".join(atoms)
+        b = BedLine(line)
+
+        if b.span >= minspan:
+            print >> fw, b
 
         ntotal += 1
 

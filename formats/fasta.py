@@ -1819,8 +1819,6 @@ def sequin(args):
     TATTAACGATGAATAATAATGAGAAGCCATATAGAATTGGTGATAATGTAAAAAAAGGGGCTCTTATTAC
     """
     p = OptionParser(sequin.__doc__)
-    p.add_option("--mingap", dest="mingap", default=100, type="int",
-            help="The minimum size of a gap to split [default: %default]")
     p.add_option("--unk", default=100, type="int",
             help="The size for unknown gaps [default: %default]")
     p.add_option("--newid", default=None,
@@ -1829,6 +1827,7 @@ def sequin(args):
             help="Add [chromosome= ] to FASTA header [default: %default]")
     p.add_option("--clone", default=None,
             help="Add [clone= ] to FASTA header [default: %default]")
+    p.set_mingap(default=100)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -1990,10 +1989,9 @@ def gaps(args):
     from jcvi.formats.agp import mask, build
 
     p = OptionParser(gaps.__doc__)
-    p.add_option("--mingap", default=100, type="int",
-            help="The minimum size of a gap to split [default: %default]")
     p.add_option("--split", default=False, action="store_true",
             help="Generate .split.fasta [default: %default]")
+    p.set_mingap(default=100)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:

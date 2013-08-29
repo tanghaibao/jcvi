@@ -146,11 +146,11 @@ def partition(args):
     """
     %prog partition agpfile contigs.fasta newagpfile
 
-    Partition contigs to remove subset.
+    Remove subset in agp where components consist entirely of sequences from
+    `contigs.fasta`. Large contigs >= min_length will be immune to removal.
     """
     p = OptionParser(partition.__doc__)
-    p.add_option("--min_length", default=20000, type="int",
-                 help="Minimum object length to consider [default: %default]")
+    p.set_min_length(default=20000)
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -222,8 +222,8 @@ def embed(args):
     2. Promote singleton contigs only if they are >= 10Kb.
     """
     p = OptionParser(embed.__doc__)
-    p.add_option("--mingap", default=10, type="int",
-                 help="Option -minGap used with gapSplit [default: %default]")
+    p.set_mingap(default=10)
+    p.set_min_length(default=20000)
     opts, args = p.parse_args(args)
 
     if len(args) != 3:

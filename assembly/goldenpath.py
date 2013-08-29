@@ -503,10 +503,9 @@ def dedup(args):
     from jcvi.apps.cdhit import deduplicate, ids
 
     p = OptionParser(dedup.__doc__)
-    p.add_option("--mingap", default=10, type="int",
-            help="The minimum size of a gap to split [default: %default]")
-    p.add_option("--pctid", default=98, type="int",
+    p.add_option("--pctid", default=GoodPct,
                  help="Sequence identity threshold [default: %default]")
+    p.set_mingap(default=10)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -629,9 +628,7 @@ def anneal(args):
     from jcvi.utils.iter import pairwise
 
     p = OptionParser(anneal.__doc__)
-    p.add_option("--length", default=100, type="int",
-                 help="Overlap length [default: %default]")
-    p.add_option("--pctid", default=GoodPct, type="int",
+    p.add_option("--pctid", default=GoodPct,
                  help="Overlap identity [default: %default]")
     p.add_option("--hitlen", default=GoodOverlap, type="int",
             help="Minimum overlap length [default: %default]")
@@ -876,7 +873,7 @@ def overlap(args):
             help="Do not chain adjacent HSPs [default: chain HSPs]")
     p.add_option("--evalue", default=.01, type="float",
             help="E-value cutoff [default: %default]")
-    p.add_option("--pctid", default=GoodPct, type="int",
+    p.add_option("--pctid", default=GoodPct,
             help="Percent identity [default: %default]")
     p.add_option("--hitlen", default=GoodOverlap, type="int",
             help="Minimum overlap length [default: %default]")
@@ -892,6 +889,7 @@ def overlap(args):
     evalue = opts.evalue
     pctid = opts.pctid
     hitlen = opts.hitlen
+    cutoff = Cutoff(pctid, hitlen)
 
     # Check first whether it is file or accession name
     if not op.exists(afasta):
@@ -930,7 +928,7 @@ def overlap(args):
 
     aid, asize = Fasta(afasta).itersizes().next()
     bid, bsize = Fasta(bfasta).itersizes().next()
-    o = Overlap(besthsp, asize, bsize, qreverse=opts.qreverse)
+    o = Overlap(besthsp, asize, bsize, cutoff, qreverse=opts.qreverse)
     o.print_graphic()
 
     return o

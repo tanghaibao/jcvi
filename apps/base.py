@@ -139,6 +139,14 @@ class OptionParser (OptionP):
         self.set_params()
         self.set_grid()
 
+    def set_min_length(self, default=20000):
+        self.add_option("--min_length", default=default, type="int",
+                     help="Minimum length to consider [default: %default]")
+
+    def set_mingap(self, default=100):
+        self.add_option("--mingap", default=default, type="int",
+                     help="Minimum size of gaps [default: %default]")
+
 
 def splitall(path):
     allparts = []

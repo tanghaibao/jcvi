@@ -218,8 +218,8 @@ def embed(args):
     directly to scaffold.
 
     Rules:
-    1. Only update existing structure by embedding contigs (<=3 contigs)
-    2. Promote singleton contigs only if they are >= 10Kb.
+    1. Only update existing structure by embedding contigs small enough to fit.
+    2. Promote singleton contigs only if they are big (>= min_length).
     """
     p = OptionParser(embed.__doc__)
     p.set_mingap(default=10)
@@ -230,6 +230,7 @@ def embed(args):
         sys.exit(not p.print_help())
 
     evidencefile, scaffolds, contigs = args
+    min_length = opts.min_length
     splitfasta, oagp, cagp = gaps([scaffolds, "--split",
                                    "--mingap={0}".format(opts.mingap)])
 
@@ -261,13 +262,15 @@ def embed(args):
 
         target_name, tag = get_target(p, name)
         path = q.get_path(name, target_name, tag=tag)
+        path_size = sum([sizes[x.v] for x, t in path]) if path else None
         status = NO_UPDATE
 
-        if path and len(path) > 3:  # Heuristic, the patch must not be too long
+        # Heuristic, the patch must not be too long
+        if path and path_size > min_length and len(path) > 3:
             path = None
 
         if not path:
-            print >> sys.stderr, name, target_name, path, status
+            print >> sys.stderr, name, target_name, path, path_size, status
             continue
 
         backward = False
@@ -294,7 +297,7 @@ def embed(args):
             path.append((target, tag))
             status = INSERT_BETWEEN
 
-        print >> sys.stderr, name, target_name, path, status
+        print >> sys.stderr, name, target_name, path, path_size, status
 
         # Trim the ends off from the constructed AGPLines
         lines = path_to_agp(q, path, object, sizes, status)
@@ -314,7 +317,7 @@ def embed(args):
         seen |= td
 
     # Recruite big singleton contigs
-    CUTOFF = 10000
+    CUTOFF = opts.min_length
     for ctg, size in sizes.items():
         if ctg in seen:
             continue

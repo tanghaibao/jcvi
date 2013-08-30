@@ -414,7 +414,6 @@ def main():
         ('timestamp', 'record timestamps for all files in the current folder'),
         ('expand', 'move files in subfolders into the current folder'),
         ('touch', 'recover timestamps for files in the current folder'),
-        ('blast', 'run blastn using query against reference'),
         ('mdownload', 'multiple download a list of files'),
             )
     p = ActionDispatcher(actions)
@@ -592,43 +591,6 @@ def less(args):
     fp = must_open(filename)
     for p in pos:
         snapshot(fp, p, fsize, counts=counts)
-
-
-def blast(args):
-    """
-    %prog blast ref.fasta query.fasta
-
-    Calls blast and then filter the BLAST hits. Default is megablast.
-    """
-    from jcvi.apps.command import run_megablast
-
-    task_choices = ("blastn", "blastn-short", "dc-megablast", \
-                    "megablast", "vecscreen")
-
-    p = OptionParser(blast.__doc__)
-    p.set_align(pctid=None, evalue=.01)
-    p.add_option("--wordsize", type="int", help="Word size [default: %default]")
-    p.add_option("--best", default=1, type="int",
-            help="Only look for best N hits [default: %default]")
-    p.add_option("--task", default="megablast", choices=task_choices,
-            help="Task of the blastn, one of {0}".\
-                 format("|".join(task_choices)) + " [default: %default]")
-    p.set_cpus()
-    opts, args = p.parse_args(args)
-
-    if len(args) != 2:
-        sys.exit(not p.print_help())
-
-    reffasta, queryfasta = args
-    q = op.basename(queryfasta).split(".")[0]
-    r = op.basename(reffasta).split(".")[0]
-    blastfile = "{0}.{1}.blast".format(q, r)
-
-    run_megablast(infile=queryfasta, outfile=blastfile, db=reffasta,
-                  wordsize=opts.wordsize, pctid=opts.pctid, evalue=opts.evalue,
-                  hitlen=None, best=opts.best, task=opts.task, cpus=opts.cpus)
-
-    return blastfile
 
 
 if __name__ == '__main__':

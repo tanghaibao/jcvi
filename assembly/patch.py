@@ -841,7 +841,7 @@ def install(args):
     The output is a bedfile that can be converted to AGP using
     jcvi.formats.agp.frombed().
     """
-    from jcvi.apps.base import blast
+    from jcvi.apps.align import blast
     from jcvi.formats.fasta import SeqIO
 
     p = OptionParser(install.__doc__)

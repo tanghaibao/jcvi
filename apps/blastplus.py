@@ -6,18 +6,13 @@ import os.path as op
 import sys
 import logging
 
-from jcvi.apps.base import OptionParser
 from subprocess import Popen, PIPE
 from multiprocessing import Lock, Pool
-from itertools import islice
-from Bio import SeqIO
 
-from jcvi.formats.base import must_open
+from jcvi.formats.base import must_open, split
 from jcvi.apps.grid import Jobs
-from jcvi.formats.base import split
-from jcvi.apps.base import ActionDispatcher, debug, \
-        sh, mkdir
-from jcvi.apps.command import run_formatdb
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh, mkdir
+from jcvi.apps.align import run_formatdb
 debug()
 
 

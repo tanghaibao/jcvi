@@ -16,15 +16,14 @@ import sys
 import logging
 
 from collections import defaultdict
-from jcvi.apps.base import OptionParser
 
 from jcvi.formats.contig import ContigFile
 from jcvi.formats.fasta import Fasta, SeqIO, gaps, format, tidy
 from jcvi.formats.sizes import Sizes
 from jcvi.utils.cbook import depends
 from jcvi.assembly.base import n50
-from jcvi.apps.command import run_megablast
-from jcvi.apps.base import ActionDispatcher, debug, sh, mkdir, need_update
+from jcvi.apps.align import run_megablast
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh, mkdir, need_update
 debug()
 
 
@@ -47,7 +46,7 @@ def screen(args):
     Screen sequences against FASTA library. Sequences that have 95% id and 50%
     cov will be removed by default.
     """
-    from jcvi.apps.base import blast
+    from jcvi.apps.align import blast
     from jcvi.formats.blast import covfilter
 
     p = OptionParser(screen.__doc__)

@@ -459,7 +459,7 @@ def filter(args):
         except AssertionError:
             continue
 
-        if c.identity < id_cutoff:
+        if c.identity < pctid:
             continue
         if c.len2 < hitlen:
             continue

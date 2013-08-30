@@ -730,7 +730,7 @@ def blast(args):
     Insert a component into agpfile by aligning to the best hit in pool and see
     if they have good overlaps.
     """
-    from jcvi.apps.command import run_megablast
+    from jcvi.apps.align import run_megablast
 
     p = OptionParser(blast.__doc__)
     p.add_option("-n", type="int", default=2,
@@ -781,7 +781,7 @@ def bes(args):
     Use the clone name to download BES gss sequences from Genbank, map and then
     visualize.
     """
-    from jcvi.apps.command import run_blat
+    from jcvi.apps.align import run_blat
 
     p = OptionParser(bes.__doc__)
     opts, args = p.parse_args(args)

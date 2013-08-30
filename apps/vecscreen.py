@@ -9,15 +9,13 @@ import os.path as op
 import sys
 import logging
 
-from jcvi.apps.base import OptionParser
-
 from jcvi.utils.cbook import depends
 from jcvi.utils.range import range_merge
 from jcvi.formats.fasta import tidy
 from jcvi.formats.blast import BlastLine
 from jcvi.formats.base import must_open
-from jcvi.apps.command import run_vecscreen, run_megablast
-from jcvi.apps.base import ActionDispatcher, debug, download, sh
+from jcvi.apps.align import run_vecscreen, run_megablast
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, download, sh
 debug()
 
 

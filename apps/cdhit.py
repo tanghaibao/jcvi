@@ -138,7 +138,7 @@ def deduplicate(args):
     Wraps `cd-hit-454` to remove duplicate reads.
     """
     p = OptionParser(deduplicate.__doc__)
-    p.add_option("--pctid", default=98, type="int",
+    p.add_option("--pctid", default=98, type="float",
                  help="Sequence identity threshold [default: %default]")
     p.add_option("--est", default=False, action="store_true",
                  help="Use `cd-hit-est` to cluster [default: %default]")
@@ -159,6 +159,7 @@ def deduplicate(args):
     cmd = "cd-hit-est" if opts.est else "cd-hit-454"
     cmd = op.join(opts.cdhit_home, cmd)
     cmd += " -c {0}".format(identity)
+    cmd += " -d 0"  # include complete defline
     cmd += " -M 0 -T {0} -i {1} -o {1}.cdhit".format(opts.cpus, fastafile)
     sh(cmd, grid=opts.grid)
 

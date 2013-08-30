@@ -139,7 +139,7 @@ class OptionParser (OptionP):
         self.set_params()
         self.set_grid()
 
-    def set_min_length(self, default=20000):
+    def set_min_length(self, default=10000):
         self.add_option("--min_length", default=default, type="int",
                      help="Minimum length to consider [default: %default]")
 

@@ -150,7 +150,7 @@ def partition(args):
     `contigs.fasta`. Large contigs >= min_length will be immune to removal.
     """
     p = OptionParser(partition.__doc__)
-    p.set_min_length(default=20000)
+    p.set_min_length(default=10000)
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -223,7 +223,7 @@ def embed(args):
     """
     p = OptionParser(embed.__doc__)
     p.set_mingap(default=10)
-    p.set_min_length(default=20000)
+    p.set_min_length(default=10000)
     opts, args = p.parse_args(args)
 
     if len(args) != 3:

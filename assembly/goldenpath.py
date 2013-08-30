@@ -503,7 +503,7 @@ def dedup(args):
     from jcvi.apps.cdhit import deduplicate, ids
 
     p = OptionParser(dedup.__doc__)
-    p.add_option("--pctid", default=GoodPct,
+    p.add_option("--pctid", default=GoodPct, type="float",
                  help="Sequence identity threshold [default: %default]")
     p.set_mingap(default=10)
     opts, args = p.parse_args(args)
@@ -628,7 +628,7 @@ def anneal(args):
     from jcvi.utils.iter import pairwise
 
     p = OptionParser(anneal.__doc__)
-    p.add_option("--pctid", default=GoodPct,
+    p.add_option("--pctid", default=GoodPct, type="float",
                  help="Overlap identity [default: %default]")
     p.add_option("--hitlen", default=GoodOverlap, type="int",
             help="Minimum overlap length [default: %default]")
@@ -873,7 +873,7 @@ def overlap(args):
             help="Do not chain adjacent HSPs [default: chain HSPs]")
     p.add_option("--evalue", default=.01, type="float",
             help="E-value cutoff [default: %default]")
-    p.add_option("--pctid", default=GoodPct,
+    p.add_option("--pctid", default=GoodPct, type="float",
             help="Percent identity [default: %default]")
     p.add_option("--hitlen", default=GoodOverlap, type="int",
             help="Minimum overlap length [default: %default]")

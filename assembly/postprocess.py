@@ -51,10 +51,7 @@ def screen(args):
     from jcvi.formats.blast import covfilter
 
     p = OptionParser(screen.__doc__)
-    p.add_option("--pctid", default=95, type="int",
-            help="Percentage identity cutoff [default: %default]")
-    p.add_option("--pctcov", default=50, type="int",
-            help="Percentage identity cutoff [default: %default]")
+    p.set_align(pctid=95, pctcov=50)
     p.add_option("--best", default=1, type="int",
             help="Get the best N hit [default: %default]")
     p.add_option("--newfasta",

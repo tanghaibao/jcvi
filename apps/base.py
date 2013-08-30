@@ -147,6 +147,20 @@ class OptionParser (OptionP):
         self.add_option("--mingap", default=default, type="int",
                      help="Minimum size of gaps [default: %default]")
 
+    def set_align(self, pctid="off", hitlen="off", pctcov="off", evalue="off"):
+        if pctid != "off":
+            self.add_option("--pctid", default=pctid, type="int",
+                     help="Sequence percent identity [default: %default]")
+        if hitlen != "off":
+            self.add_option("--hitlen", default=hitlen, type="int",
+                     help="Minimum overlap length [default: %default]")
+        if pctcov != "off":
+            self.add_option("--pctcov", default=pctcov, type="int",
+                     help="Percentage coverage cutoff [default: %default]")
+        if evalue != "off":
+            self.add_option("--evalue", default=evalue, type="float",
+                     help="E-value cutoff [default: %default]")
+
 
 def splitall(path):
     allparts = []
@@ -592,10 +606,8 @@ def blast(args):
                     "megablast", "vecscreen")
 
     p = OptionParser(blast.__doc__)
-    p.add_option("--pctid", type="int", help="Percent identity [default: %default]")
+    p.set_align(pctid=None, evalue=.01)
     p.add_option("--wordsize", type="int", help="Word size [default: %default]")
-    p.add_option("--evalue", type="float", default=0.01,
-                 help="E-value cutoff [default: %default]")
     p.add_option("--best", default=1, type="int",
             help="Only look for best N hits [default: %default]")
     p.add_option("--task", default="megablast", choices=task_choices,

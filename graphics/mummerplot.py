@@ -9,12 +9,10 @@ main features in the dot plot.
 import sys
 import logging
 
-from jcvi.apps.base import OptionParser
-
-from jcvi.formats.coords import Coords
+from jcvi.formats.coords import Coords, filter
 from jcvi.formats.sizes import Sizes
 from jcvi.formats.base import SetFile
-from jcvi.apps.base import debug, sh, need_update
+from jcvi.apps.base import OptionParser, debug, sh, need_update
 debug()
 
 
@@ -39,6 +37,7 @@ def main(args):
                  help="Minimum reference coverage [default: %default]")
     p.add_option("--all", default=False, action="store_true",
                  help="Plot one pdf file per ref in refidsfile [default: %default]")
+    p.set_align(pctid=96, hitlen=500)
     opts, args = p.parse_args(args)
 
     if len(args) != 4:
@@ -49,6 +48,10 @@ def main(args):
     rsizes = Sizes(reffasta).mapping
     refs = SetFile(refidsfile)
     refcov = opts.refcov
+    pctid = opts.pctid
+    hitlen = opts.hitlen
+    deltafile = filter([deltafile, "--pctid={0}".format(pctid),
+                        "--hitlen={0}".format(hitlen)])
 
     if opts.all:
         for r in refs:

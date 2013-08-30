@@ -503,8 +503,7 @@ def dedup(args):
     from jcvi.apps.cdhit import deduplicate, ids
 
     p = OptionParser(dedup.__doc__)
-    p.add_option("--pctid", default=GoodPct, type="float",
-                 help="Sequence identity threshold [default: %default]")
+    p.set_align(pctid=GoodPct)
     p.set_mingap(default=10)
     opts, args = p.parse_args(args)
 
@@ -597,8 +596,9 @@ def populate_blastfile(blastfile, agp, outdir, opts):
     for a, b, qreverse in agp.iter_paired_components():
         aid = a.component_id
         bid = b.component_id
-        oopts = [aid, bid, "--nochain", "--suffix", \
-                "fa", "--dir", outdir, \
+        oopts = [aid, bid, \
+                "--suffix", "fa", \
+                "--dir", outdir, \
                 "--pctid={0}".format(opts.pctid), \
                 "--hitlen={0}".format(opts.hitlen)]
         if qreverse:
@@ -612,11 +612,9 @@ def populate_blastfile(blastfile, agp, outdir, opts):
 
 def anneal(args):
     """
-    %prog anneal agpfile outdir contigs.fasta
+    %prog anneal agpfile contigs.fasta
 
     Merge adjacent overlapping contigs and make new AGP file.
-    outdir contains a folder of FASTA sequences, made by:
-    $ faSplit byname contigs.fasta outdir/
 
     By default it will also anneal lines like these together (unless --nozipshreds):
     scaffold4       1       1608    1       W       ca-bacs.5638.frag11.22000-23608 1       1608    -
@@ -628,21 +626,26 @@ def anneal(args):
     from jcvi.utils.iter import pairwise
 
     p = OptionParser(anneal.__doc__)
-    p.add_option("--pctid", default=GoodPct, type="float",
-                 help="Overlap identity [default: %default]")
-    p.add_option("--hitlen", default=GoodOverlap, type="int",
-            help="Minimum overlap length [default: %default]")
+    p.set_align(pctid=GoodPct, hitlen=GoodOverlap)
     p.add_option("--hang", default=GoodOverhang, type="int",
                  help="Maximum overhang length [default: %default]")
     p.add_option("--nozipshreds", default=False, action="store_true",
                  help="Don't zip shred lines [default: %default]")
+    p.add_option("--outdir", default="outdir",
+                 help="Directory to cache the sequences [default: %default]")
     p.set_cpus()
     opts, args = p.parse_args(args)
 
-    if len(args) != 3:
+    if len(args) != 2:
         sys.exit(not p.print_help())
 
-    agpfile, outdir, contigs = args
+    agpfile, contigs = args
+    outdir = opts.outdir
+    if not op.exists(outdir):
+        mkdir(outdir)
+        cmd = "faSplit byname {0} {1}/".format(contigs, outdir)
+        sh(cmd)
+
     zipshreds = not opts.nozipshreds
     cutoff = Cutoff(opts.pctid, opts.hitlen, opts.hang)
     logging.debug(str(cutoff))
@@ -871,12 +874,7 @@ def overlap(args):
             help="Reverse seq a [default: %default]")
     p.add_option("--nochain", default=False, action="store_true",
             help="Do not chain adjacent HSPs [default: chain HSPs]")
-    p.add_option("--evalue", default=.01, type="float",
-            help="E-value cutoff [default: %default]")
-    p.add_option("--pctid", default=GoodPct, type="float",
-            help="Percent identity [default: %default]")
-    p.add_option("--hitlen", default=GoodOverlap, type="int",
-            help="Minimum overlap length [default: %default]")
+    p.set_align(pctid=GoodPct, hitlen=GoodOverlap, evalue=.01)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -917,7 +915,7 @@ def overlap(args):
     hsps = [x for x in hsps if x.hitlen >= hitlen]
     if chain:
         logging.debug("Chain HSPs in the Blast output.")
-        dist = 2 * GoodOverlap  # Distance to chain the HSPs
+        dist = 2 * hitlen  # Distance to chain the HSPs
         hsps = chain_HSPs(hsps, xdist=dist, ydist=dist)
 
     if len(hsps) == 0:

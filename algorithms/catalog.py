@@ -506,7 +506,7 @@ def omgprepare(args):
     p.add_option("--norbh", action="store_true",
                  help="Disable RBH hits [default: %default]")
     p.add_option("--pctid", default=0, type="int",
-                 help="Pencent id cutoff for RBH hits [default: %default]")
+                 help="Percent id cutoff for RBH hits [default: %default]")
     p.add_option("--cscore", default=90, type="int",
                  help="C-score cutoff for RBH hits [default: %default]")
     p.set_stripnames()
@@ -763,8 +763,7 @@ def tandem(args):
     p.add_option("--percent_overlap", type="int", default=50,
                help="tandem genes have >=x% aligned sequence, x=0-100 \
                [default: %default]")
-    p.add_option("--evalue", default=.01, type="float",
-               help="E-value cutoff [default: %default]")
+    p.set_align(evalue=.01)
     p.add_option("--not_self", default=False, action="store_true",
                  help="provided is not self blast file [default: %default]")
     p.add_option("--strip_gene_name", dest="sep", type="string", default=".",

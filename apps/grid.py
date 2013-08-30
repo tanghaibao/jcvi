@@ -43,6 +43,11 @@ class Jobs (list):
         self.join()
 
 
+class Poison (int):
+    def __init__(self):
+        pass
+
+
 class WriteJobs (object):
     """
     Runs multiple function calls, but write to the same file.
@@ -58,11 +63,11 @@ class WriteJobs (object):
         logging.debug("A total of {0} items to compute.".format(workerq.qsize()))
 
         for i in xrange(cpus):
-            workerq.put(None)
+            workerq.put(Poison())
 
         self.worker = Jobs(work, args=[(workerq, writerq, target)] * cpus)
-        logging.debug("Worker queue initialized ({0})".format(len(self.worker)))
-        self.writer = Process(target=write, args=(writerq, filename))
+        self.writer = Process(target=write, args=(workerq, writerq, \
+                                                  filename, cpus))
 
     def run(self):
         self.worker.start()
@@ -74,21 +79,24 @@ class WriteJobs (object):
 def work(queue_in, queue_out, target):
     while True:
         a = queue_in.get()
-        if a is None:  # poison pill
+        if isinstance(a, Poison):
             break
         res = target(a)
         queue_out.put(res)
-        logging.debug("Worker: {0} items left to compute".\
-                        format(queue_in.qsize()))
-    queue_out.put(None)
+    queue_out.put(Poison())
 
 
-def write(queue, filename):
+def write(queue_in, queue_out, filename, cpus):
     fw = must_open(filename, "w")
+    poisons = 0
     while True:
-        res = queue.get()
-        if res is None:
-            break
+        res = queue_out.get()
+        logging.debug("Writer: {0} items left to compute".\
+                        format(queue_in.qsize()))
+        if isinstance(res, Poison):
+            poisons += 1
+            if poisons == cpus:  # wait all workers finish
+                break
         if res:
             print >> fw, res
             fw.flush()

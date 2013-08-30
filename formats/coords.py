@@ -420,28 +420,39 @@ def summary(args):
 
 def filter(args):
     """
-    %prog filter test.coords > new.coords
+    %prog filter <deltafile|coordsfile>
 
-    produce a new coords file and filter based on id% or cov%
+    Produce a new delta/coords file and filter based on id% or cov%.
+    Use `delta-filter` for .delta file.
     """
     p = OptionParser(filter.__doc__)
-    p.add_option("--pctid", dest="pctid", default=0., type="float",
-            help="pctid cutoff [default: %default]")
-    p.add_option("--hitlen", dest="hitlen", default=0., type="float",
-            help="pctid cutoff [default: %default]")
-    p.add_option("--overlap", dest="overlap", default=False,
-            action="store_true",
-            help="print overlap status (e.g. terminal, contained)")
+    p.set_align(pctid=0, hitlen=0)
+    p.add_option("--overlap", default=False, action="store_true",
+            help="Print overlap status (e.g. terminal, contained)")
 
     opts, args = p.parse_args(args)
     if len(args) != 1:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
-    id_cutoff = opts.pctid
+    pctid = opts.pctid
     hitlen = opts.hitlen
-    assert 0 <= id_cutoff <= 100, "id% needs to be between [0, 100]"
 
-    fp = open(args[0])
+    filename, = args
+    if pctid == 0 and hitlen == 0:
+        return filename
+
+    pf, suffix = filename.rsplit(".", 1)
+    outfile = "".join((pf, ".P{0}L{1}.".format(pctid, hitlen), suffix))
+    if not need_update(filename, outfile):
+        return outfile
+
+    if suffix == "delta":
+        cmd = "delta-filter -i {0} -l {1} {2}".format(pctid, hitlen, filename)
+        sh(cmd, outfile=outfile)
+        return outfile
+
+    fp = open(filename)
+    fw = must_open(outfile, "w")
     for row in fp:
         try:
             c = CoordsLine(row)
@@ -459,7 +470,9 @@ def filter(args):
         if opts.overlap:
             ov = Overlap_types[c.overlap]
             outrow += "\t" + ov
-        print outrow
+        print >> fw, outrow
+
+    return outfile
 
 
 def bed(args):

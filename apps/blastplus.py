@@ -56,8 +56,7 @@ def main():
             help="specify BLAST+ program to use. See complete list here: " \
             "http://www.ncbi.nlm.nih.gov/books/NBK52640/#chapter1.Installation"
             " [default: %default]")
-    p.add_option("--evalue", type="float", default=0.01,
-             help="E-value cutoff [default: %default]")
+    p.set_align(evalue=.01)
     p.add_option("--best", default=1, type="int",
             help="Only look for best N hits [default: %default]")
 

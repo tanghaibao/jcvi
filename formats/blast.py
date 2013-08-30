@@ -278,12 +278,7 @@ def filter(args):
     p = OptionParser(filter.__doc__)
     p.add_option("--score", dest="score", default=0, type="int",
             help="Score cutoff [default: %default]")
-    p.add_option("--pctid", dest="pctid", default=95, type="int",
-            help="Percent identity cutoff [default: %default]")
-    p.add_option("--hitlen", dest="hitlen", default=100, type="int",
-            help="Hit length cutoff [default: %default]")
-    p.add_option("--evalue", default=.01, type="float",
-            help="E-value cutoff [default: %default]")
+    p.set_align(pctid=95, hitlen=100, evalue=.01)
     p.add_option("--self", default=None, choices=("strict", "loose"),
             help="remove self hits, choices:\n " \
             "`strict`: matched names and spans;\n" \
@@ -900,10 +895,7 @@ def covfilter(args):
     allowed_iterby = ("query", "query_sbjct")
 
     p = OptionParser(covfilter.__doc__)
-    p.add_option("--pctid", dest="pctid", default=95, type="int",
-            help="Percentage identity cutoff [default: %default]")
-    p.add_option("--pctcov", dest="pctcov", default=50, type="int",
-            help="Percentage identity cutoff [default: %default]")
+    p.set_align(pctid=95, pctcov=50)
     p.add_option("--scov", default=False, action="store_true",
             help="Subject coverage instead of query [default: %default]")
     p.add_option("--union", action="store_true",

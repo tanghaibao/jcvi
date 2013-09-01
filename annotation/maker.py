@@ -137,7 +137,7 @@ def parallel(args):
     p = OptionParser(parallel.__doc__)
     p.add_option("--maker_home", default="~/htang/export/maker",
                  help="Home directory for MAKER [default: %default]")
-    set_tmpdir(p, tmpdir=None)
+    p.set_tmpdir(tmpdir="tmp")
     p.set_grid_opts()
     opts, args = p.parse_args(args)
 
@@ -147,6 +147,10 @@ def parallel(args):
     genome, NN = args
     threaded = opts.threaded
     tmpdir = opts.tmpdir
+
+    mkdir(tmpdir)
+    tmpdir = get_abs_path(tmpdir)
+
     N = int(NN)
     assert 1 < N < 1000, "Required: 1 < N < 1000!"
 
@@ -259,19 +263,20 @@ def merge(args):
 
 def validate(args):
     """
-    %prog validate outdir
+    %prog validate outdir genome.fasta
 
-    Validate current folder after MAKER run and check for failures.
+    Validate current folder after MAKER run and check for failures. Failed batch
+    will be written to a directory for additional work.
     """
     from jcvi.utils.counter import Counter
 
     p = OptionParser(validate.__doc__)
     opts, args = p.parse_args(args)
 
-    if len(args) != 1:
+    if len(args) != 2:
         sys.exit(not p.print_help())
 
-    outdir, = args
+    outdir, genome = args
     counter = Counter()
 
     fsnames, suffix = get_fsnames(outdir)
@@ -283,16 +288,36 @@ def validate(args):
         counter.update(dslog.scaffold_status.values())
         all_failed.extend([(f, x) for x in dslog.failed])
 
-    print >> sys.stderr, counter
+    cmd = 'tail maker.*.out Logs/maker.*.out | grep -c "now finished"'
+    n = int(popen(cmd).read())
+    assert len(fsnames) == n
+    print >> sys.stderr, "ALL jobs have been finished"
 
-    FAILED = "FAILED"
-    fw = open(FAILED, "w")
+    nfailed = len(all_failed)
+    if nfailed == 0:
+        print >> sys.stderr, "ALL scaffolds are completed with no errors"
+        return
+
+    print >> sys.stderr, "Scaffold status:"
+    print >> sys.stderr, counter
+    failed = "FAILED"
+    fw = open(failed, "w")
     print >> fw, "\n".join(["\t".join((f, x)) for f, x in all_failed])
     fw.close()
 
-    nfailed = sum(1 for x in open("FAILED"))
-    assert nfailed == len(all_failed)
+    nlines = sum(1 for x in open("FAILED"))
+    assert nlines == nfailed
     print >> sys.stderr, "FAILED !! {0} instances.".format(nfailed)
+
+    # Rebuild the failed batch
+    failed_ids = failed + ".ids"
+    failed_fasta = failed + ".fasta"
+    cmd = "cut -f2 {0}".format(failed)
+    sh(cmd, outfile=failed_ids)
+    if need_update((genome, failed_ids), failed_fasta):
+        cmd = "faSomeRecords {0} {1} {2}".\
+                    format(genome, failed_ids, failed_fasta)
+        sh(cmd)
 
 
 def longest(args):

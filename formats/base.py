@@ -196,6 +196,15 @@ class FileSplitter (object):
 
         return names
 
+    def write(self, fw, batch):
+        if self.klass == "seqio":
+            count = SeqIO.write(batch, fw, self.format)
+        else:
+            for line in batch:
+                fw.write(line)
+            count = len(batch)
+        return count
+
     def split(self, N, force=False):
         """
         There are two modes of splitting the records
@@ -205,7 +214,7 @@ class FileSplitter (object):
         use `cycle` if the len of the record is not evenly distributed
         """
         mode = self.mode
-        assert mode in ("batch", "cycle")
+        assert mode in ("batch", "cycle", "optimal")
         logging.debug("set split mode=%s" % mode)
 
         self.names = self.__class__.get_names(self.filename, N)
@@ -221,24 +230,32 @@ class FileSplitter (object):
 
         if mode == "batch":
             for batch, fw in zip(self._batch_iterator(N), filehandles):
-
-                if self.klass == "seqio":
-                    count = SeqIO.write(batch, fw, self.format)
-                else:
-                    for line in batch:
-                        fw.write(line)
-                    count = len(batch)
-
+                count = self.write(fw, batch)
                 logging.debug("write %d records to %s" % (count, fw.name))
 
         elif mode == "cycle":
             handle = self._open(self.filename)
             for record, fw in izip(handle, cycle(filehandles)):
+                count = self.write(fw, [record])
 
-                if self.klass == "seqio":
-                    SeqIO.write(record, fw, self.format)
-                else:
-                    fw.write(record)
+        elif mode == "optimal":
+            """
+            This mode is based on Longest Processing Time (LPT) algorithm:
+
+            A simple, often-used algorithm is the LPT algorithm (Longest
+            Processing Time) which sorts the jobs by its processing time and
+            then assigns them to the machine with the earliest end time so far.
+            This algorithm achieves an upper bound of 4/3 - 1/(3m) OPT.
+
+            Citation: <http://en.wikipedia.org/wiki/Multiprocessor_scheduling>
+            """
+            endtime = [0] * N
+            handle = self._open(self.filename)
+            for record in handle:
+                mt, mi = min((x, i) for (i, x) in enumerate(endtime))
+                fw = filehandles[mi]
+                count = self.write(fw, [record])
+                endtime[mi] += len(record)
 
         for fw in filehandles:
             fw.close()
@@ -645,15 +662,25 @@ def split(args):
     """
     %prog split file outdir
 
-    split file into records
+    Split file into records. This allows splitting FASTA/FASTQ/TXT file,
+    splitting properly at boundary of records. Split is useful for parallization
+    on input chunks.
+
+    Option --mode is useful on how to break into chunks.
+    1. chunk - chunk records sequentially, 1-100 in file 1, 101-200 in file 2, etc.
+    2. cycle - chunk records in Round Robin fashion
+    3. optimal - try to make split file of roughly similar sizes, using LPT
+    algorithm. This is the default.
     """
     p = OptionParser(split.__doc__)
+    mode_choices = ("batch", "cycle", "optimal")
     p.add_option("-n", dest="N", type="int", default=1,
             help="split into N chunks [default: %default]")
     p.add_option("--all", default=False, action="store_true",
             help="split all records [default: %default]")
-    p.add_option("--cycle", default=False, action="store_true",
-            help="splitted records in Round Robin fashion [default: %default]")
+    p.add_option("--mode", default="optimal", choices=mode_choices,
+            help="Mode when splitting records, one of {0}".\
+                    format("|".join(mode_choices)) + " [default: %default]")
     p.add_option("--format", default="fasta", choices=("fasta", "fastq", "txt"),
             help="input file format [default: %default]")
 
@@ -662,7 +689,7 @@ def split(args):
     if len(args) != 2:
         sys.exit(p.print_help())
 
-    mode = "cycle" if opts.cycle else "batch"
+    mode = opts.mode
     filename, outdir = args
     fs = FileSplitter(filename, outputdir=outdir, format=opts.format, mode=mode)
 

@@ -155,7 +155,7 @@ def parallel(args):
     assert 1 <= N < 1000, "Required: 1 < N < 1000!"
 
     outdir = "outdir"
-    fs = split([genome, outdir, "--cycle", "-n", NN])
+    fs = split([genome, outdir, "-n", NN])
 
     c = CTLFile("maker_opts.ctl")
     c.update_abs_path()

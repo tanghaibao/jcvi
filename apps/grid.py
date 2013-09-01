@@ -138,7 +138,7 @@ class GridProcess (object):
         if self.threaded:
             qsub += " -pe threaded {0}".format(self.threaded)
         if self.arr:
-            assert 1 < self.arr < 100000
+            assert 1 <= self.arr < 100000
             qsub += " -t 1-{0}".format(self.arr)
 
         # I/O

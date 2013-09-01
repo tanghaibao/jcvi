@@ -152,7 +152,7 @@ def parallel(args):
     tmpdir = get_abs_path(tmpdir)
 
     N = int(NN)
-    assert 1 < N < 1000, "Required: 1 < N < 1000!"
+    assert 1 <= N < 1000, "Required: 1 < N < 1000!"
 
     outdir = "outdir"
     fs = split([genome, outdir, "--cycle", "-n", NN])

@@ -13,14 +13,14 @@ import os.path as op
 import sys
 import logging
 
+from glob import glob
 from collections import defaultdict
-from jcvi.apps.base import OptionParser
 
-from jcvi.formats.base import LineFile, write_file
+from jcvi.formats.base import BaseFile, LineFile, write_file
 from jcvi.apps.softlink import get_abs_path
 from jcvi.apps.grid import GridProcess
-from jcvi.apps.base import ActionDispatcher, need_update, popen, debug, sh, \
-        mkdir
+from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, popen, \
+        debug, sh, mkdir
 debug()
 
 
@@ -85,11 +85,31 @@ class CTLFile (LineFile):
         logging.debug("File written to `{0}`".format(filename))
 
 
+class DatastoreIndexFile (BaseFile):
+
+    def __init__(self, filename):
+        super(DatastoreIndexFile, self).__init__(filename)
+        scaffold_status = {}
+        failed = []
+
+        fp = open(filename)
+        for row in fp:
+            scaffold, dir, status = row.strip().split("\t")
+            scaffold_status[scaffold] = status
+        for scaffold, status in scaffold_status.items():
+            if status != "FINISHED":
+                failed.append(scaffold)
+
+        self.scaffold_status = scaffold_status
+        self.failed = failed
+
+
 def main():
 
     actions = (
         ('parallel', 'partition the genome into parts and run separately'),
         ('merge', 'generate the gff files after parallel'),
+        ('validate', 'validate after MAKER run to check for failures'),
         ('datastore', 'generate a list of gff filenames to merge'),
         ('split', 'split MAKER models by checking against evidences'),
         ('batcheval', 'calls bed.evaluate() in batch'),
@@ -184,6 +204,13 @@ cd $1{0}/$1.maker.output
 mv $1.all.gff ../../
 """
 
+def get_fsnames(outdir):
+    fnames = glob(op.join(outdir, "*.fa*"))
+    suffix = "." + fnames[0].split(".")[-1]
+    fsnames = [op.basename(x).rsplit(".", 1)[0] for x in fnames]
+
+    return fsnames, suffix
+
 
 def merge(args):
     """
@@ -191,7 +218,7 @@ def merge(args):
 
     Follow-up command after grid jobs are completed after parallel().
     """
-    from glob import glob
+    from jcvi.formats.gff import merge
 
     p = OptionParser(merge.__doc__)
     p.add_option("--maker_home", default="~/htang/export/maker",
@@ -202,9 +229,8 @@ def merge(args):
         sys.exit(not p.print_help())
 
     outdir, outputgff = args
-    fnames = glob(op.join(outdir, "*.fa*"))
-    suffix = "." + fnames[0].split(".")[-1]
-    fsnames = [op.basename(x).rsplit(".", 1)[0] for x in fnames]
+    fsnames, suffix = get_fsnames(outdir)
+    nfs = len(fsnames)
     cmd = op.join(opts.maker_home, "bin/gff3_merge")
 
     outfile = "merge.sh"
@@ -217,18 +243,55 @@ def merge(args):
 
     # One final output
     gffnames = glob("*.all.gff")
-    assert len(gffnames) == len(fsnames)
-    # Again, DO NOT USE gff3_merge to merge with a smallist /tmp/ area
-    print >> sys.stderr, "Use the following command to merge:\n" \
-                         "$ python -m jcvi.formats.gff merge gfflist"
+    assert len(gffnames) == nfs
 
-    cmd = 'cat maker.*.out Logs/maker.*.out | grep -c "now finished"'
-    sh(cmd)
-    print >> sys.stderr, "Confirm ALL jobs have been finished"
+    # Again, DO NOT USE gff3_merge to merge with a smallish /tmp/ area
+    gfflist = "gfflist"
+    fw = open(gfflist, "w")
+    print >> fw, "\n".join(gffnames)
+    fw.close()
 
-    cmd = "grep FAIL maker.*.out Logs/maker.*.out | sort -u > FAILED"
-    sh(cmd)
+    nlines = sum(1 for x in open(gfflist))
+    assert nlines == nfs  # Be extra, extra careful to include all results
+    merge([gfflist, "-o", outputgff])
+    logging.debug("Merged GFF file written to `{0}`".format(outputgff))
+
+
+def validate(args):
+    """
+    %prog validate outdir
+
+    Validate current folder after MAKER run and check for failures.
+    """
+    from jcvi.utils.counter import Counter
+
+    p = OptionParser(validate.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    outdir, = args
+    counter = Counter()
+
+    fsnames, suffix = get_fsnames(outdir)
+    dsfile = "{0}{1}/{0}.maker.output/{0}_master_datastore_index.log"
+    dslogs = [dsfile.format(x, suffix) for x in fsnames]
+    all_failed = []
+    for f, d in zip(fsnames, dslogs):
+        dslog = DatastoreIndexFile(d)
+        counter.update(dslog.scaffold_status.values())
+        all_failed.extend([(f, x) for x in dslog.failed])
+
+    print >> sys.stderr, counter
+
+    FAILED = "FAILED"
+    fw = open(FAILED, "w")
+    print >> fw, "\n".join(["\t".join((f, x)) for f, x in all_failed])
+    fw.close()
+
     nfailed = sum(1 for x in open("FAILED"))
+    assert nfailed == len(all_failed)
     print >> sys.stderr, "FAILED !! {0} instances.".format(nfailed)
 
 

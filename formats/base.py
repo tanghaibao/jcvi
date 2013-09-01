@@ -660,10 +660,10 @@ def reorder(args):
 
 def split(args):
     """
-    %prog split file outdir
+    %prog split file outdir N
 
-    Split file into records. This allows splitting FASTA/FASTQ/TXT file,
-    splitting properly at boundary of records. Split is useful for parallization
+    Split file into N records. This allows splitting FASTA/FASTQ/TXT file
+    properly at boundary of records. Split is useful for parallelization
     on input chunks.
 
     Option --mode is useful on how to break into chunks.
@@ -674,8 +674,6 @@ def split(args):
     """
     p = OptionParser(split.__doc__)
     mode_choices = ("batch", "cycle", "optimal")
-    p.add_option("-n", dest="N", type="int", default=1,
-            help="split into N chunks [default: %default]")
     p.add_option("--all", default=False, action="store_true",
             help="split all records [default: %default]")
     p.add_option("--mode", default="optimal", choices=mode_choices,
@@ -686,18 +684,19 @@ def split(args):
 
     opts, args = p.parse_args(args)
 
-    if len(args) != 2:
-        sys.exit(p.print_help())
+    if len(args) != 3:
+        sys.exit(not p.print_help())
 
     mode = opts.mode
-    filename, outdir = args
+    filename, outdir, N = args
     fs = FileSplitter(filename, outputdir=outdir, format=opts.format, mode=mode)
 
     if opts.all:
-        logging.debug("option -all override -n")
+        logging.debug("option -all override N")
         N = fs.num_records
     else:
-        N = opts.N
+        N = int(N)
+        assert N > 0, "N must be > 0"
 
     logging.debug("split file into %d chunks" % N)
     fs.split(N)

@@ -81,7 +81,7 @@ def main():
     cpus = opts.cpus
     logging.debug("Dispatch job to %d cpus" % cpus)
     outdir = "outdir"
-    fs = split([afasta_fn, outdir, "-n {0}".format(cpus)])
+    fs = split([afasta_fn, outdir, str(cpus)])
     queries = fs.names
 
     dbtype = "prot" if op.basename(blast_bin) in ["blastp", "blastx"] \

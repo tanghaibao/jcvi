@@ -343,14 +343,14 @@ then
 else
     echo "Load reads ..."
     PrepareAllPathsInputs.pl \
-        DATA_DIR=$PWD PLOIDY=2 \
-        HOSTS='32' PHRED_64={0} \
+        DATA_DIR=$PWD PLOIDY={0} \
+        HOSTS='{1}' PHRED_64={2} \
         PICARD_TOOLS_DIR=~/htang/export/picard-tools-1.47/
 fi
 
 RunAllPathsLG PRE=. REFERENCE_NAME=. OVERWRITE=True HAPLOIDIFY=False \
-    DATA_SUBDIR=. RUN=allpaths SUBDIR=run THREADS=32 MIN_CONTIG=200 \
-    {1} | tee run.log"""
+    DATA_SUBDIR=. RUN=allpaths SUBDIR=run THREADS={1} MIN_CONTIG=200 \
+    {3} | tee run.log"""
 
 
 def prepare(args):
@@ -369,6 +369,9 @@ def prepare(args):
                  help="Extra parameters for corrected data [default: %default]")
     p.add_option("--norun", default=False, action="store_true",
                  help="Don't write `run.sh` script [default: %default]")
+    p.add_option("--ploidy", default="2", choices=("1", "2"),
+                 help="Ploidy [default: %default]")
+    p.set_cpus(cpus=32)
     opts, args = p.parse_args(args)
 
     if len(args) < 1:
@@ -441,7 +444,7 @@ def prepare(args):
         extra += " REMOVE_DODGY_READS_FRAG=False FE_MAX_KMER_FREQ_TO_MARK=1"
 
     if not opts.norun:
-        contents = ALLPATHSRUN.format(phred64, extra)
+        contents = ALLPATHSRUN.format(opts.ploidy, opts.cpus, phred64, extra)
         write_file(runfile, contents, meta="run script")
 
 

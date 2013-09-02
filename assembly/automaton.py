@@ -98,6 +98,8 @@ def allpaths(args):
     Run automated ALLPATHS on list of dirs.
     """
     p = OptionParser(allpaths.__doc__)
+    p.add_option("--ploidy", default="1", choices=("1", "2"),
+                 help="Ploidy [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) == 0:
@@ -105,7 +107,8 @@ def allpaths(args):
 
     folders = args
     for pf in folders:
-        assemble_dir(pf, target=["final.contigs.fasta", "final.scaffolds.fasta"])
+        assemble_dir(pf, target=["final.contigs.fasta", "final.scaffolds.fasta"],
+                     ploidy=opts.ploidy)
 
 
 def jira(args):
@@ -181,13 +184,14 @@ def assemble_pairs(p, pf, tag, target=["final.contigs.fasta"]):
     assemble_dir(pf, target)
 
 
-def assemble_dir(pf, target):
+def assemble_dir(pf, target, ploidy="1"):
     from jcvi.assembly.allpaths import prepare
 
     asm = [x.replace("final", pf) for x in target]
     cwd = os.getcwd()
     os.chdir(pf)
-    prepare([pf] + sorted(glob("*.fastq") + glob("*.fastq.gz")))
+    prepare([pf] + sorted(glob("*.fastq") + glob("*.fastq.gz")) + \
+            ["--ploidy={0}".format(ploidy)])
     sh("./run.sh")
 
     for a, t in zip(asm, target):

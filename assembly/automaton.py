@@ -12,11 +12,69 @@ import sys
 import logging
 
 from glob import glob
-from jcvi.apps.base import OptionParser
 
 from jcvi.utils.iter import grouper
-from jcvi.apps.base import ActionDispatcher, debug, need_update, mkdir, sh
+from jcvi.formats.base import LineFile
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, need_update, \
+            mkdir, sh
 debug()
+
+
+class Meta (object):
+
+    def __init__(self, fastq, guess=True):
+        # Note the guesswork is largely based on JIRA LIMS naming convention
+        self.fastq = fastq.strip()
+        self.suffix = op.splitext(fastq)[-1]
+        if "_R1_" in fastq:
+            paired = ".1"
+        elif "_R2_" in fastq:
+            paired = ".2"
+        else:
+            paired = ""
+        self.paired = paired
+        if guess:
+            self.guess()
+
+    def __str__(self):
+        return "\t".join((self.genome, self.tag, self.fastq))
+
+    @property
+    def link(self):
+        linkname = "{0}{1}{2}".format(self.tag, self.paired, self.suffix)
+        return op.join(self.genome, linkname)
+
+    def make_link(self):
+        mkdir(self.genome)
+        if op.islink(self.link):
+            os.unlink(self.link)
+        os.symlink(self.fastq, self.link)
+
+    def guess(self):
+        # Try to guess library info based on file name
+        # SUBAC47-MP-IL73-1_CGGAAT_L001_R1_filtered.fastq
+        basename = op.basename(self.fastq)
+        baseparts = basename.split("-")
+        self.genome = baseparts[0]
+        self.tag = baseparts[1]
+
+        if self.genome.endswith("BP"):
+            self.genome, bp = self.genome[:-5], self.genome[-5:-2]
+            self.tag = "-".join((self.tag, bp))  # 500BP
+
+
+class MetaFile (LineFile):
+
+    def __init__(self, filename):
+        super(MetaFile, self).__init__(filename)
+        fp = open(filename)
+        for row in fp:
+            genome, tag, fastq = row.split()
+            m = Meta(fastq, guess=False)
+            m.genome, m.tag = genome, tag
+            self.append(m)
+
+        self.sort(key=lambda x: (x.genome, x.tag, x.fastq))
 
 
 def main():
@@ -25,9 +83,45 @@ def main():
         ('correct', 'run automated ALLPATHS correction'),
         ('allpaths', 'run automated ALLPATHS'),
         ('soap', 'run automated SOAP'),
+        ('jira', 'parse JIRA report and prepare input'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def jira(args):
+    """
+    %prog jira jira.txt
+
+    Parse JIRA report and prepare input. Look for all FASTQ files in the report
+    and get the prefix. Assign fastq to a folder and a new file name indicating
+    the library type (e.g. PE-500, MP-5000, etc.).
+    """
+    p = OptionParser(jira.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    jfile, = args
+    metafile = jfile + ".meta"
+
+    if need_update(jfile, metafile):
+        fp = open(jfile)
+        fastqfiles = [x.strip() for x in fp if ".fastq" in x]
+        metas = [Meta(x) for x in fastqfiles]
+
+        fw = open(metafile, "w")
+        print >> fw, "\n".join(str(x) for x in metas)
+        print >> sys.stderr, "Now modify `{0}`, and restart this script.".\
+                            format(metafile)
+        print >> sys.stderr, "Each line is : genome library fastqfile"
+        fw.close()
+        return
+
+    mf = MetaFile(metafile)
+    for m in mf:
+        m.make_link()
 
 
 def slink(p, pf, tag, extra=None):

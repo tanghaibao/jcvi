@@ -43,13 +43,13 @@ def get_profile(sqshrc="~/.sqshrc"):
     return hostname, username, password
 
 
-def connect(db):
+def connect(dbname):
     import Sybase
 
     hostname, username, password = get_profile()
-    db = Sybase.connect(hostname, username, password, database=db)
-    c = db.cursor()
-    return c
+    dbh = Sybase.connect(hostname, username, password, database=dbname)
+    c = dbh.cursor()
+    return dbh, c
 
 
 def fetchall(cur, sql):
@@ -57,8 +57,12 @@ def fetchall(cur, sql):
     return cur.fetchall()
 
 
-def runsql(cur, sql):
-    return cur.execute(sql)
+def execute(cur, sql):
+    cur.execute(sql)
+
+
+def commit(dbh):
+    return dbh.commit()
 
 
 def main():
@@ -167,6 +171,8 @@ def query(args):
                  help="Specify name of database to query [default: %default]")
     p.add_option("--qtype", default="select", choices=valid_qtypes,
                  help="Specify type of query being run [default: %default]")
+    p.add_option("--dryrun", default=False, action="store_true",
+                 help="Don't commit to database. Just print queries [default: %default]")
     p.add_option("--fieldsep", default="\t",
                  help="Specify output field separator [default: '%default']")
     p.set_outfile()
@@ -199,29 +205,34 @@ def query(args):
             datafile = datafile.strip()
             fp = must_open(datafile)
             for row in fp:
-                atoms = row.split()
+                atoms = row.strip().split("\t")
                 assert len(atoms) == len(m), \
                         "Number of columns in `datafile`({0})".format(len(atoms)) + \
                         " != number of `placeholders`({0})".format(len(m))
                 mi = [int(x.strip("{}")) for x in m]
                 natoms = [x for (mi,x) in sorted(zip(mi,atoms))]
+                nqry = qry
                 for idx, (match, atom) in enumerate(zip(m, natoms)):
-                    nqry = qry.replace(match, atom)
-                    queries.add(nqry)
+                    nqry = nqry.replace(match, atom)
+                queries.add(nqry)
     else:
         queries.add(qry)
 
-    fw = must_open(opts.outfile, "w")
-    cur = connect(dbname)
+    if not opts.dryrun:
+        fw = must_open(opts.outfile, "w")
+        dbh, cur = connect(dbname)
     for qry in queries:
-        if qtype == "select":
-            results = fetchall(cur, qry)
-            for result in results:
-                print >> fw, fieldsep.join([str(x) for x in result])
+        if opts.dryrun:
+            print qry
         else:
-            status = runsql(cur, qry)
-            if status is not None:
-                logging.debug("Error in query {0}".format(qry))
+            if qtype == "select":
+                results = fetchall(cur, qry)
+                for result in results:
+                    print >> fw, fieldsep.join([str(x) for x in result])
+            else:
+                execute(cur, qry)
+    if not opts.dryrun and qtype != "select":
+        commit(dbh)
 
 
 if __name__ == '__main__':

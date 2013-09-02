@@ -15,6 +15,7 @@ from glob import glob
 
 from jcvi.utils.iter import grouper
 from jcvi.formats.base import LineFile
+from jcvi.apps.softlink import get_abs_path
 from jcvi.apps.base import OptionParser, ActionDispatcher, debug, need_update, \
             mkdir, sh
 debug()
@@ -80,13 +81,31 @@ class MetaFile (LineFile):
 def main():
 
     actions = (
-        ('correct', 'run automated ALLPATHS correction'),
-        ('allpaths', 'run automated ALLPATHS'),
-        ('soap', 'run automated SOAP'),
         ('jira', 'parse JIRA report and prepare input'),
+        ('allpaths', 'run automated ALLPATHS on list of dirs'),
+        ('allpathsX', 'run automated ALLPATHS on list of files'),
+        ('soapX', 'run automated SOAP on list of files'),
+        ('correctX', 'run automated ALLPATHS correction on list of files'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def allpaths(args):
+    """
+    %prog allpaths folder1 folder2 ...
+
+    Run automated ALLPATHS on list of dirs.
+    """
+    p = OptionParser(allpaths.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) == 0:
+        sys.exit(not p.print_help())
+
+    folders = args
+    for pf in folders:
+        assemble_dir(pf, target=["final.contigs.fasta", "final.scaffolds.fasta"])
 
 
 def jira(args):
@@ -148,25 +167,31 @@ def slink(p, pf, tag, extra=None):
     os.chdir(cwd)
 
 
-def assemble_pairs(p, pf, tag):
+def assemble_pairs(p, pf, tag, target=["final.contigs.fasta"]):
     """
     Take one pair of reads and assemble to contigs.fasta.
     """
-    from jcvi.assembly.preprocess import prepare
-
     logging.debug("Work on {0} ({1})".format(pf, ','.join(p)))
-    asm = "{0}.contigs.fasta".format(pf)
+    asm = [x.replace("final", pf) for x in target]
     if not need_update(p, asm):
         logging.debug("Assembly found: {0}. Skipped.".format(asm))
         return
 
     slink(p, pf, tag)
+    assemble_dir(pf, target)
 
+
+def assemble_dir(pf, target):
+    from jcvi.assembly.allpaths import prepare
+
+    asm = [x.replace("final", pf) for x in target]
     cwd = os.getcwd()
     os.chdir(pf)
     prepare([pf] + sorted(glob("*.fastq") + glob("*.fastq.gz")))
     sh("./run.sh")
-    sh("cp allpaths/ASSEMBLIES/run/final.contigs.fasta ../{0}".format(asm))
+
+    for a, t in zip(asm, target):
+        sh("cp allpaths/ASSEMBLIES/run/{0} ../{1}".format(t, a))
 
     logging.debug("Assembly finished: {0}".format(asm))
     os.chdir(cwd)
@@ -237,17 +262,15 @@ def iter_project(folder, n=2):
         yield p, pf
 
 
-def soap(args):
+def soapX(args):
     """
-    %prog soap folder tag [*.fastq]
+    %prog soapX folder tag [*.fastq]
 
     Run SOAP on a folder of paired reads and apply tag before assembly.
     Optional *.fastq in the argument list will be symlinked in each folder and
     co-assembled.
     """
-    from jcvi.apps.softlink import get_abs_path
-
-    p = OptionParser(soap.__doc__)
+    p = OptionParser(soapX.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) < 2:
@@ -261,13 +284,13 @@ def soap(args):
         soap_trios(p, pf, tag, extra)
 
 
-def correct(args):
+def correctX(args):
     """
-    %prog correct folder tag
+    %prog correctX folder tag
 
     Run ALLPATHS correction on a folder of paired reads and apply tag.
     """
-    p = OptionParser(correct.__doc__)
+    p = OptionParser(correctX.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -279,14 +302,14 @@ def correct(args):
         correct_pairs(p, pf, tag)
 
 
-def allpaths(args):
+def allpathsX(args):
     """
-    %prog automaton folder tag
+    %prog allpathsX folder tag
 
     Run assembly on a folder of paired reads and apply tag (PE-200, PE-500).
     Allow multiple tags separated by comma, e.g. PE-350,TT-1050
     """
-    p = OptionParser(allpaths.__doc__)
+    p = OptionParser(allpathsX.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:

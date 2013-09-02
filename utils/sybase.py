@@ -164,7 +164,7 @@ def query(args):
     """
     import re
 
-    valid_qtypes = ["select", "insert", "update", "delete"]
+    valid_qtypes = ("select", "insert", "update", "delete")
 
     p = OptionParser(query.__doc__)
     p.add_option("--db", default="mta4",
@@ -206,11 +206,11 @@ def query(args):
             fp = must_open(datafile)
             for row in fp:
                 atoms = row.strip().split("\t")
-                assert len(atoms) == len(m), \
+                mi = [int(x.strip("{}")) for x in m]
+                assert max(mi) <= len(atoms), \
                         "Number of columns in `datafile`({0})".format(len(atoms)) + \
                         " != number of `placeholders`({0})".format(len(m))
-                mi = [int(x.strip("{}")) for x in m]
-                natoms = [x for (mi,x) in sorted(zip(mi,atoms))]
+                natoms = [atoms[x] for x in mi]
                 nqry = qry
                 for idx, (match, atom) in enumerate(zip(m, natoms)):
                     nqry = nqry.replace(match, atom)

@@ -222,7 +222,7 @@ def merge(args):
 
     Follow-up command after grid jobs are completed after parallel().
     """
-    from jcvi.formats.gff import merge
+    from jcvi.formats.gff import merge as gmerge
 
     p = OptionParser(merge.__doc__)
     p.add_option("--maker_home", default="~/htang/export/maker",
@@ -257,7 +257,7 @@ def merge(args):
 
     nlines = sum(1 for x in open(gfflist))
     assert nlines == nfs  # Be extra, extra careful to include all results
-    merge([gfflist, "-o", outputgff])
+    gmerge([gfflist, "-o", outputgff])
     logging.debug("Merged GFF file written to `{0}`".format(outputgff))
 
 

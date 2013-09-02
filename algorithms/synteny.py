@@ -575,33 +575,70 @@ def matrix(args):
                     [str(m[(aseqid, x)]) for x in bseqids])
 
 
+def get_boundary_bases(start, end, order):
+
+    from jcvi.utils.range import range_minmax
+
+    (i, s), (j, e) = order[start], order[end]
+    seqid = s.seqid
+    assert seqid == e.seqid
+
+    startbase, endbase = range_minmax([(s.start, s.end), (e.start, e.end)])
+
+    return seqid, startbase, endbase
+
+
 def simple(args):
     """
     %prog simple anchorfile --qbed=qbedfile --sbed=sbedfile [options]
 
     Write the block ends for each block in the anchorfile.
-    GeneA1    GeneA2    GeneB1    GeneB2    +/-
-    optional additional columns:
-    orderA1    orderA2    orderB1    orderB2    sizeA   sizeB   size    block_id(0-based)
+    GeneA1    GeneA2    GeneB1    GeneB2   +/-      score
+
+    Optional additional columns:
+    orderA1   orderA2   orderB1   orderB2  sizeA    sizeB   size    block_id
+
+    With base coordinates (--coords):
+    block_id  seqidA    startA    endA     GeneA1   GeneA2  geneSpanA
+    block_id  seqidB    startB    endB     GeneB1   GeneB2  geneSpanB
     """
     p = OptionParser(simple.__doc__)
-    p.add_option("--additional", default=False, action="store_true", \
-        help="output additional columns [default: %default]")
+    p.add_option("--rich", default=False, action="store_true", \
+                help="Output additional columns [default: %default]")
+    p.add_option("--coords", default=False, action="store_true",
+                help="Output columns with base coordinates [default: %default]")
+    p.add_option("--noheader", default=False, action="store_true",
+                help="Don't output header [default: %default]")
     p.set_beds()
     opts, args = p.parse_args(args)
-    additional = opts.additional
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     anchorfile, = args
+    additional = opts.rich
+    coords = opts.coords
+    header = not opts.noheader
+
     ac = AnchorFile(anchorfile)
     simplefile = anchorfile.rsplit(".", 1)[0] + ".simple"
 
     qbed, sbed, qorder, sorder, is_self = check_beds(anchorfile, p, opts)
+    pf = "-".join(anchorfile.split(".", 2)[:2])
     blocks = ac.blocks
 
+    if coords:
+        h = "Block|Chr|Start|End|StartGene|EndGene|GeneSpan|Orientation"
+    else:
+        h = "StartGeneA|EndGeneA|StartGeneB|EndGeneB|Orientation|Score"
+        if additional:
+            h += "|StartOrderA|EndOrderA|StartOrderB|EndOrderB|"\
+                  "SizeA|SizeB|Size|Block"
+
     fws = open(simplefile, "w")
+    if header:
+        print >> fws, "\t".join(h.split("|"))
+
     for i, block in enumerate(blocks):
 
         a, b, scores = zip(*block)
@@ -625,12 +662,30 @@ def simple(args):
         bspan = bendi - bstarti + 1
         score = int((aspan * bspan) ** .5)
         score = str(score)
+        block_id = pf + "-block-{0}".format(i)
 
-        if not additional:
-            print >> fws, "\t".join((astart, aend, bstart, bend, score, orientation))
-        else:
-            print >> fws, "\t".join(map(str, (astart, aend, bstart, bend, score, \
-                    orientation, astarti, aendi, bstarti, bendi, sizeA, sizeB, size, i)))
+        if coords:
+
+            aseqid, astartbase, aendbase = \
+                    get_boundary_bases(astart, aend, qorder)
+            bseqid, bstartbase, bendbase = \
+                    get_boundary_bases(bstart, bend, sorder)
+
+            # Write dual lines
+            aargs = [block_id, aseqid, astartbase, aendbase,
+                     astart, aend, aspan, "+"]
+            bargs = [block_id, bseqid, bstartbase, bendbase,
+                     bstart, bend, bspan, orientation]
+
+            for args in (aargs, bargs):
+                print >> fws, "\t".join(str(x) for x in args)
+            continue
+
+        args = [astart, aend, bstart, bend, score, orientation]
+        if additional:
+            args += [astarti, aendi, bstarti, bendi,
+                     sizeA, sizeB, size, block_id]
+        print >> fws, "\t".join(str(x) for x in args)
 
     fws.close()
     logging.debug("A total of {0} blocks written to `{1}`.".format(i + 1, simplefile))
@@ -738,7 +793,7 @@ def screen(args):
     fw.close()
 
     if osimple:
-        simple([newanchorfile, \
+        simple([newanchorfile, "--noheader", \
                 "--qbed=" + qbed.filename, "--sbed=" + sbed.filename])
 
     logging.debug("Before: {0} blocks, After: {1} blocks".\

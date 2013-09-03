@@ -11,7 +11,6 @@ import re
 import logging
 
 from collections import namedtuple
-from jcvi.apps.base import OptionParser
 from itertools import islice
 
 from Bio import SeqIO
@@ -19,8 +18,7 @@ from Bio.SeqIO.QualityIO import FastqGeneralIterator
 
 from jcvi.formats.fasta import must_open, rc
 from jcvi.formats.base import DictFile
-from jcvi.apps.base import ActionDispatcher, debug, sh, \
-        mkdir
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh, mkdir
 debug()
 
 qual_offset = lambda x: 33 if x == "sanger" else 64
@@ -147,11 +145,49 @@ def main():
         ('trim', 'trim reads using fastx_trimmer'),
         ('some', 'select a subset of fastq reads'),
         ('guessoffset', 'guess the quality offset of the fastq records'),
+        ('readlen', 'calculate read length'),
         ('format', 'format fastq file, convert header from casava 1.8+ to older format'),
         ('fasta', 'convert fastq to fasta and qual file'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def calc_readlen(f, first):
+    from jcvi.utils.cbook import SummaryStats
+
+    L = []
+    ai = iter_fastq(f)
+    rec = ai.next()
+    while rec:
+        L.append(rec.length)
+        if len(L) > first:
+            break
+        rec = ai.next()
+    s = SummaryStats(L)
+
+    return s
+
+
+def readlen(args):
+    """
+    %prog readlen fastqfile
+
+    Calculate read length, will only try the first N reads. Output min, max, and
+    avg for each file.
+    """
+    p = OptionParser(readlen.__doc__)
+    p.add_option("--first", default=100000, type="int",
+                 help="Only sample the first N reads [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    f, = args
+    s = calc_readlen(f, opts.first)
+    print "\t".join(str(x) for x in (f, s.min, s.max, s.mean))
+    return int(s.max)
 
 
 def fasta(args):

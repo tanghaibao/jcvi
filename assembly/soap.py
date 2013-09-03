@@ -12,7 +12,7 @@ import logging
 from itertools import groupby
 from jcvi.apps.base import OptionParser
 
-from jcvi.formats.fastq import guessoffset
+from jcvi.formats.fastq import guessoffset, readlen
 from jcvi.assembly.base import FastqNamings, Library
 from jcvi.apps.base import ActionDispatcher, debug, need_update, sh
 debug()
@@ -258,8 +258,9 @@ def prepare(args):
     libs.sort(key=lambda x: x[0].size)
     rank = 0
     singletons = []
+    max_rd_len = max(readlen([f]) for f in fnames)
 
-    block = "max_rd_len=150\n"
+    block = "max_rd_len={0}\n".format(max_rd_len)
     for stream in (sys.stderr, fw, fw_gc):
         print >> stream, block
 

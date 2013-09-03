@@ -14,7 +14,7 @@ from jcvi.apps.base import OptionParser
 from multiprocessing import Process, Queue, cpu_count
 
 from jcvi.formats.base import write_file, must_open
-from jcvi.apps.base import ActionDispatcher, sh, popen, backup, debug
+from jcvi.apps.base import ActionDispatcher, sh, popen, backup, mkdir, debug
 debug()
 
 
@@ -109,7 +109,8 @@ class GridProcess (object):
     pat2 = re.compile(r"Your job-array (?P<id>\S*) ")
 
     def __init__(self, cmd, jobid="", queue="default", threaded=None,
-                       infile=None, outfile=None, errfile=None, arr=None):
+                       infile=None, outfile=None, errfile=None, arr=None,
+                       concurrency=None, outdir="."):
 
         self.cmd = cmd
         self.jobid = jobid
@@ -119,6 +120,8 @@ class GridProcess (object):
         self.outfile = outfile
         self.errfile = errfile
         self.arr = arr
+        self.concurrency = concurrency
+        self.outdir = outdir
         self.pat = self.pat2 if arr else self.pat1
 
     def __str__(self):
@@ -140,11 +143,15 @@ class GridProcess (object):
         if self.arr:
             assert 1 <= self.arr < 100000
             qsub += " -t 1-{0}".format(self.arr)
+        if self.concurrency:
+            qsub += " -tc {0}".format(self.concurrency)
 
         # I/O
         infile = self.infile
         outfile = self.outfile
         errfile = self.errfile
+        outdir = self.outdir
+        mkdir(outdir)
         redirect_same = outfile and (outfile == errfile)
 
         if infile:
@@ -152,9 +159,9 @@ class GridProcess (object):
         if redirect_same:
             qsub += " -j y"
         if outfile:
-            qsub += " -o {0}".format(outfile)
+            qsub += " -o {0}/{1}".format(outdir, outfile)
         if errfile and not redirect_same:
-            qsub += " -e {0}".format(errfile)
+            qsub += " -e {0}/{1}".format(outdir, errfile)
 
         cmd = " ".join((qsub, self.cmd))
         return cmd
@@ -174,10 +181,10 @@ class GridProcess (object):
             msg += " < {0} ".format(self.infile)
         if self.outfile:
             backup(self.outfile)
-            msg += " > {0} ".format(self.outfile)
+            msg += " > {0}/{1} ".format(self.outdir, self.outfile)
         if self.errfile:
             backup(self.errfile)
-            msg += " 2> {0} ".format(self.errfile)
+            msg += " 2> {0}/{1} ".format(self.outdir, self.errfile)
 
         logging.debug(msg)
 
@@ -224,7 +231,7 @@ def array(args):
     Parallelize a set of commands on grid using array jobs.
     """
     p = OptionParser(array.__doc__)
-    p.set_grid_opts()
+    p.set_grid_opts(array=True, outdir=True)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -235,14 +242,16 @@ def array(args):
     ncmds = sum(1 for x in fp)
     fp.close()
 
-    runfile = "array.sh"
+    pf = cmds.rsplit(".",  1)[0]
+    runfile = pf + ".sh"
     contents = arraysh.format(cmds)
     write_file(runfile, contents, meta="run script")
 
-    outfile = "\$TASK_ID.out"
-    p = GridProcess(runfile, outfile=outfile, errfile=outfile,
+    outfile = "{0}.{1}.out".format(pf, "\$TASK_ID")
+    p = GridProcess("sh {0}".format(runfile), outfile=outfile, errfile=outfile,
                     queue=opts.queue, threaded=opts.threaded,
-                    arr=ncmds)
+                    arr=ncmds, concurrency=opts.concurrency,
+                    outdir=opts.outdir)
     p.start()
 
 

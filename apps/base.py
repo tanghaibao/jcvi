@@ -79,13 +79,20 @@ class OptionParser (OptionP):
                 default=False, action="store_true",
                 help="Run on the grid [default: %default]")
 
-    def set_grid_opts(self):
+    def set_grid_opts(self, array=False, outdir=False):
         queue_choices = ("default", "fast", "medium", "himem")
         self.add_option("-l", dest="queue", default="default", choices=queue_choices,
-                     help="Name of the queue, one of {0} [default: %default]".\
+                     help="Name of the queue, one of {0} [default: %default]". \
                           format("|".join(queue_choices)))
         self.add_option("-t", dest="threaded", type="int",
                      help="Append '-pe threaded N' [default: %default]")
+        if array:
+            self.add_option("-c", dest="concurrency", type="int",
+                     help="Append task concurrency limit '-tc N' [default: %default]")
+        if outdir:
+            self.add_option("-d", dest="outdir", default=".",
+                     help="Specify directory to store grid log/err files" +
+                          " [default: %default]")
 
     def set_params(self):
         """

@@ -81,7 +81,7 @@ class MetaFile (LineFile):
 def main():
 
     actions = (
-        ('jira', 'parse JIRA report and prepare input'),
+        ('prepare', 'parse JIRA report and prepare input'),
         ('allpaths', 'run automated ALLPATHS on list of dirs'),
         ('allpathsX', 'run automated ALLPATHS on list of files'),
         ('soapX', 'run automated SOAP on list of files'),
@@ -107,19 +107,21 @@ def allpaths(args):
 
     folders = args
     for pf in folders:
-        assemble_dir(pf, target=["final.contigs.fasta", "final.scaffolds.fasta"],
+        assemble_dir(pf, target=["final.contigs.fasta", "final.assembly.fasta"],
                      ploidy=opts.ploidy)
 
 
-def jira(args):
+def prepare(args):
     """
-    %prog jira jira.txt
+    %prog prepare jira.txt
 
     Parse JIRA report and prepare input. Look for all FASTQ files in the report
     and get the prefix. Assign fastq to a folder and a new file name indicating
     the library type (e.g. PE-500, MP-5000, etc.).
+
+    Note that JIRA report can also be a list of FASTQ files.
     """
-    p = OptionParser(jira.__doc__)
+    p = OptionParser(prepare.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:

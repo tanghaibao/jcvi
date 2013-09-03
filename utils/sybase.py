@@ -9,6 +9,8 @@ import os.path as op
 import sys
 import logging
 
+import re
+
 from jcvi.apps.base import OptionParser
 
 from jcvi.formats.base import must_open
@@ -149,28 +151,28 @@ def pull(args):
         sh(cmd)
 
 
+to_commit_re = re.compile("|".join("update", "insert", "delete"))
+def to_commit(query):
+    """
+    check if query needs to be committed (only if "update", "insert" or "delete")
+    """
+    return True if to_commit_re.match(query, re.I) else False
+
+
 def query(args):
     """
-    %prog query "SELECT feat_name FROM asm_feature
-        WHERE feat_type = \\"{0}\\"
-        AND end5 <= \\"{1}\\"
-        AND end3 >= \\"{2}\\"" ::: datafile(s)
+    %prog query "SELECT feat_name FROM asm_feature WHERE feat_type = \\"{0}\\" AND end5 <= \\"{1}\\" AND end3 >= \\"{2}\\"" ::: datafile1 ....
 
-    Script takes the data from tab-delimited `datafile` and replaces the placeholders
+    Script takes the data from tab-delimited datafile(s) and replaces the placeholders
     in the query which is then executed. Depending upon the type of query, results are
-    either printed out (when running select) or not (when running insert, update, delete)
+    either printed out (when running `select`) or not (when running `insert`, `update`
+    or `delete`)
 
     If the query contains quotes around field values, then these need to be to be escaped with \\
     """
-    import re
-
-    valid_qtypes = ("select", "insert", "update", "delete")
-
     p = OptionParser(query.__doc__)
     p.add_option("--db", default="mta4",
                  help="Specify name of database to query [default: %default]")
-    p.add_option("--qtype", default="select", choices=valid_qtypes,
-                 help="Specify type of query being run [default: %default]")
     p.add_option("--dryrun", default=False, action="store_true",
                  help="Don't commit to database. Just print queries [default: %default]")
     p.add_option("--fieldsep", default="\t",
@@ -221,17 +223,19 @@ def query(args):
     if not opts.dryrun:
         fw = must_open(opts.outfile, "w")
         dbh, cur = connect(dbname)
+    cflag = None
     for qry in queries:
         if opts.dryrun:
             print qry
         else:
-            if qtype == "select":
+            if to_commit(qry):
+                execute(cur, qry)
+                cflag = True
+            else:
                 results = fetchall(cur, qry)
                 for result in results:
                     print >> fw, fieldsep.join([str(x) for x in result])
-            else:
-                execute(cur, qry)
-    if not opts.dryrun and qtype != "select":
+    if not opts.dryrun and cflag:
         commit(dbh)
 
 

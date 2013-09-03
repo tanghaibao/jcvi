@@ -244,6 +244,9 @@ def array(args):
 
     pf = cmds.rsplit(".",  1)[0]
     runfile = pf + ".sh"
+    assert runfile != cmds, \
+            "Commands list file should not have a `.sh` extension"
+
     contents = arraysh.format(cmds)
     write_file(runfile, contents, meta="run script")
 
@@ -283,7 +286,7 @@ def run(args):
     %prog run < commands.list  # run a list of commands
     """
     p = OptionParser(run.__doc__)
-    p.set_grid_opts()
+    p.set_grid_opts(outdir=True)
     opts, args = p.parse_args(args)
 
     if len(args) == 0:
@@ -329,7 +332,8 @@ def run(args):
 
         ncmd = ncmd.strip()
         p = GridProcess(ncmd, outfile=outfile,
-                        queue=opts.queue, threaded=opts.threaded)
+                        queue=opts.queue, threaded=opts.threaded,
+                        outdir=opts.outdir)
         p.start()
 
 

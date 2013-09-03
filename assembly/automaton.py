@@ -45,8 +45,13 @@ class Meta (object):
         linkname = "{0}{1}{2}".format(self.tag, self.paired, self.suffix)
         return op.join(self.genome, linkname)
 
-    def make_link(self):
+    def make_link(self, firstN=0):
         mkdir(self.genome)
+        if firstN > 0:
+            from jcvi.formats.fastq import first
+            first([str(firstN), self.fastq, "--outfile={0}".format(self.link)])
+            return
+
         if op.islink(self.link):
             os.unlink(self.link)
         os.symlink(self.fastq, self.link)
@@ -122,6 +127,8 @@ def prepare(args):
     Note that JIRA report can also be a list of FASTQ files.
     """
     p = OptionParser(prepare.__doc__)
+    p.add_option("--first", default=0, type="int",
+                 help="Use only first N reads [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -145,7 +152,7 @@ def prepare(args):
 
     mf = MetaFile(metafile)
     for m in mf:
-        m.make_link()
+        m.make_link(firstN=opts.first)
 
 
 def slink(p, pf, tag, extra=None):

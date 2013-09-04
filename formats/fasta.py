@@ -937,8 +937,8 @@ def format(args):
     if annotfile:
         annotation = DictFile(annotfile, delimiter="\t")
 
-    fw = must_open(outfasta, "w")
     fp = SeqIO.parse(must_open(infasta), "fasta")
+    fw = must_open(outfasta, "w")
     for i, rec in enumerate(fp):
         origid = rec.id
         description = rec.description
@@ -1939,6 +1939,9 @@ def tidy(args):
         if gapsize:
             normalized += normalize_gaps(rec, gapsize)
 
+        if len(rec) == 0:
+            logging.debug("Drop seq {0}".format(rec.id))
+            continue
         SeqIO.write([rec], fw, "fasta")
 
     # Print statistics

@@ -114,7 +114,6 @@ def main():
         ('fastq', 'export ALLPATHS fastb file to fastq'),
         ('fixpairs', 'fix pairs library stats'),
         ('fill', 'run FillFragments on `frag_reads_corr.fastb`'),
-        ('automaton', 'run assembly on a folder of paired reads'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())

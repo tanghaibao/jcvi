@@ -6,10 +6,14 @@ Perform DNA-DNA alignment using BLAST, NUCMER and BLAT. Keep the interface the
 same and does parallelization both in core and on grid.
 """
 
+import os.path as op
 import sys
+import shutil
+import logging
 
 from jcvi.utils.cbook import depends
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug
+from jcvi.apps.command import BLPATH
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh
 debug()
 
 

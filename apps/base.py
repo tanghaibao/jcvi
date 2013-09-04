@@ -365,8 +365,10 @@ def download(url, filename=None):
         msg = "File `{0}` exists. Download skipped.".format(filename)
         logging.error(msg)
     else:
-        cmd = "wget {0} -O {1}".format(url, filename)
-        sh(cmd)
+        from jcvi.utils.ez_setup import get_best_downloader
+
+        downloader = get_best_downloader()
+        downloader(url, filename)
 
     return filename
 

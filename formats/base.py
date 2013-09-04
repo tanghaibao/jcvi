@@ -612,7 +612,11 @@ def group(args):
                 if not grouper[key][col]:
                     grouper[key][col] = set()
                 if col < len(atoms):
-                    grouper[key][col].add(atoms[col])
+                    if groupsep in atoms[col]:
+                        for atom in atoms[col].split(groupsep):
+                            grouper[key][col].add(atom)
+                    else:
+                        grouper[key][col].add(atoms[col])
         else:
             grouper.join(*atoms)
 

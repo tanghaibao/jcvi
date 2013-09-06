@@ -629,11 +629,12 @@ def notify(args):
 
     if opts.method == "email":
         from smtplib import SMTP
+        from socket import getfqdn
         from subprocess import check_output
 
         SERVER = "localhost"
         USER = check_output(["whoami"]).strip()
-        DOMAIN = check_output(["dnsdomainname"]).strip()
+        DOMAIN = ".".join(str(x) for x in getfqdn().split(".")[1:])
 
         FROM = "notifier-donotreply@{1}".format(DOMAIN)
         TO = ["{0}@{1}".format(USER, DOMAIN)] # must be a list
@@ -670,6 +671,8 @@ def waitpid(args):
 
     Given a PID, this script will wait for the PID to finish running and
     then perform a desired action (notify user and/or execute a new command)
+
+    Specify `--grid` option to send the new process to the grid after waiting for PID
     """
     debug()
     from time import sleep
@@ -682,6 +685,7 @@ def waitpid(args):
     p.add_option("--interval", default=120, type="int",
                  help="Specify interval at which PID should be monitored" + \
                       " [default: %default]")
+    p.set_grid()
     opts, args = p.parse_args(args)
 
     if len(args) == 0:
@@ -711,7 +715,8 @@ def waitpid(args):
         notify(["[completed] {0}: `{1}`".format(hostname, orig_cmd)])
 
     if cmd is not None:
-        sh(cmd, background=True)
+        bg = False if opts.grid else True
+        sh(cmd, grid=opts.grid, background=bg)
 
 
 if __name__ == '__main__':

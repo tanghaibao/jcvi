@@ -104,6 +104,28 @@ dimer_pat = re.compile(r"dimerisation", re.I)
 # '\s+LENGTH=\d+' to ''
 length_pat = re.compile(r"\s+LENGTH\=\d+", re.I)
 
+# disallowed words
+disallow = ("genome", "annotation", "project")
+disallow_pat = re.compile("|".join(str(x) for x in disallow))
+
+# disallowed organism names
+organism = ("thaliana", "rickettsia", "rice", "yeast")
+organism_pat = re.compile("|".join("^.*{0}".format(str(x)) for x in organism))
+
+# consolidate glycosidic links
+glycosidic_link_pat = re.compile("\d+,\d+")
+
+# Kevin Silverstein suggested names (exclude list)
+spada = ("LCR", "RALF", "SCR")
+spada_pat = re.compile("|".join("^{0}$".format(str(x)) for x in spada))
+
+# names with all capital letters (maybe followed by numbers)
+sym_pat = re.compile(r"^[A-Z]+[A-Z0-9\-]{0,}$")
+lc_sym_pat = re.compile(r"^[A-z]{1}[a-z]+[0-9]{1,}$")
+eol_sym_pat = re.compile(r"\([A-Z]+[A-Z0-9\-]{0,}\)$")
+
+# sulfer -> sulfur
+sulfer_pat = re.compile(r"sulfer")
 
 Template = """
 proteins_fasta: {2}
@@ -165,6 +187,13 @@ Hypothetical = "hypothetical protein"
 
 def fix_text(s):
 
+    # before trimming off at the first ";", check if name has glycosidic
+    # linkage information (e.g 1,3 or 1,4). If so, also check if multiple
+    # linkages are separated by ";". If so, replace ";" by "-"
+    m = re.findall(glycosidic_link_pat, s)
+    if m and ";" in s:
+        s = re.sub(";\s*", "-", s)
+
     s = s.split(";")[0]
 
     # Cellular locations
@@ -189,6 +218,12 @@ def fix_text(s):
     s = re.sub(r"[']+", "'", s)
 
     s = s.strip()
+
+    # if name length is > 100, trim off name at first symbol
+    if len(s) > 100:
+        for m in re.finditer(r"(?=\W{1})[^\s]", s):
+            s = s[:m.start(0)]
+            break
 
     # -like to -like protein
     s = re.sub(like_pat, "-like protein", s)
@@ -246,7 +281,7 @@ def fix_text(s):
 
     # plural to singular
     if re.search(plural_pat, s):
-        if s.find('biogenesis') == -1 and s.find('Topors') == -1:
+        if s.find('biogenesis') == -1 and s.find('Topors') == -1 and s.find('allergens') == -1:
             s = re.sub(r"s$", "", s)
 
     # 'like_TBP' or 'likeTBP' to 'like TBP'
@@ -281,7 +316,39 @@ def fix_text(s):
     if re.search(length_pat, s):
         s = re.sub(length_pat, "", s)
 
+    # if name has a dot followed by a space (". ") in it and contains multiple
+    # parts separated by a comma, strip name starting from first occurrence of ","
+    if re.search(r"\. ", s):
+        if re.search(r",", s):
+            s = s.split(",")[0]
+
+    # if name contains any of the disallowed words,
+    # remove word occurrence from name
+    # if name contains references to any other organism, trim name upto
+    # that occurrence
+    for pat in (disallow_pat, organism_pat):
+        if re.search(pat, s):
+            s = re.sub(pat, "", s)
+
     s = s.strip()
+
+    # if name is entirely a gene symbol-like (all capital letters, maybe followed by numbers)
+    # add a "-like protein" at the end
+    if (re.search(sym_pat, s) or re.search(lc_sym_pat, s)) \
+            and not re.search(spada_pat, s):
+        s = s + "-like protein"
+
+    # if gene symbol in parantheses at EOL, remove symbol
+    if re.search(eol_sym_pat, s):
+        s = re.sub(eol_sym_pat, "", s)
+
+    # if name terminates at a symbol([^A-Za-z0-9_]), trim it off
+    if re.search(r"\W{1,}$", s) and not re.search(r"\)$", s):
+        s = re.sub("\W{1,}$", "", s)
+
+    # change sulfer to sulfur
+    if re.search(sulfer_pat, s):
+        s = re.sub(sulfer_pat, "sulfur", s)
 
     """
     case (qr/^Histone-lysine/) { $ahrd =~ s/,\s+H\d{1}\s+lysine\-\d+//gs; }
@@ -293,7 +360,7 @@ def fix_text(s):
         s = Unknown
 
     # All that's left is `protein` is not informative
-    if sl in ("protein", ""):
+    if sl in ("protein", "protein, putative", ""):
         s = Unknown
 
     if Unknown.lower() in sl:
@@ -329,9 +396,11 @@ def fix(args):
     fp = open(csvfile)
     for row in fp:
         atoms = row.rstrip("\r\n").split("\t")
-        name, hit, ahrd_code, desc = atoms[:4]
+        name, hit, ahrd_code, desc = atoms[:4] \
+                if len(atoms) > 2 else \
+                atoms[0], None, None, atoms[-1]
         newdesc = fix_text(desc)
-        if hit.strip() != "" and newdesc == Hypothetical:
+        if hit and hit.strip() != "" and newdesc == Hypothetical:
             newdesc = "conserved " + newdesc
         print "\t".join(atoms[:4] + [newdesc] + atoms[4:])
 

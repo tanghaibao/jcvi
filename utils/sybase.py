@@ -151,12 +151,14 @@ def pull(args):
         sh(cmd)
 
 
-to_commit_re = re.compile("|".join("update", "insert", "delete"))
+to_commit_re = re.compile("|".join("^{0}".format(x) for x in ("update", "insert", "delete")), re.I)
 def to_commit(query):
     """
     check if query needs to be committed (only if "update", "insert" or "delete")
     """
-    return True if to_commit_re.match(query, re.I) else False
+    if re.search(to_commit_re, query):
+        return True
+    return None
 
 
 def query(args):
@@ -184,7 +186,6 @@ def query(args):
         sys.exit(not p.print_help())
 
     dbname = opts.db
-    qtype = opts.qtype
     fieldsep = opts.fieldsep
 
     sep = ":::"

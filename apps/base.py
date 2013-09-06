@@ -424,6 +424,8 @@ def main():
         ('expand', 'move files in subfolders into the current folder'),
         ('touch', 'recover timestamps for files in the current folder'),
         ('mdownload', 'multiple download a list of files'),
+        ('waitpid', 'wait for a PID to finish and then perform desired action'),
+        ('notify', 'send an email/push notification'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -600,6 +602,116 @@ def less(args):
     fp = must_open(filename)
     for p in pos:
         snapshot(fp, p, fsize, counts=counts)
+
+
+def notify(args):
+    """
+    %prog notify "Message to be sent"
+
+    Send a message via email/push notification.
+    Recipient email address is constructured by getting the login username and
+    `dnsdomainname` of the server running the process
+    """
+    valid_notif_methods = ("email", "push")
+
+    p = OptionParser(notify.__doc__)
+    p.add_option("--subject", default="JCVI: job monitor",
+                 help="Specify the subject of the notification message")
+    p.add_option("--method", default="email", choices=valid_notif_methods,
+                 help="Specify the mode of notification [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) == 0:
+        logging.error("Please provide a brief message to be sent")
+        sys.exit(not p.print_help())
+
+    MESSAGE = " ".join(args).strip()
+
+    if opts.method == "email":
+        from smtplib import SMTP
+        from subprocess import check_output
+
+        SERVER = "localhost"
+        USER = check_output(["whoami"]).strip()
+        DOMAIN = check_output(["dnsdomainname"]).strip()
+
+        FROM = "notifier-donotreply@{1}".format(DOMAIN)
+        TO = ["{0}@{1}".format(USER, DOMAIN)] # must be a list
+
+        SUBJECT = opts.subject
+
+        # Prepare actual message
+        message = "Subject: {0}\n{1}".format(SUBJECT, MESSAGE)
+
+        # Send the mail
+        server = SMTP(SERVER)
+        server.sendmail(FROM, TO, message)
+        server.quit()
+    elif opts.method == "push":
+        logging.warning("Push notification not implemented yet")
+
+
+def is_running(pid):
+    """Check whether pid exists in the current process table."""
+    if pid < 0:
+        return False
+    import errno
+    try:
+        os.kill(pid, 0)
+    except OSError, e:
+        return e.errno == errno.EPERM
+    else:
+        return True
+
+
+def waitpid(args):
+    """
+    %prog waitpid PID ::: ./command_to_run
+
+    Given a PID, this script will wait for the PID to finish running and
+    then perform a desired action (notify user and/or execute a new command)
+    """
+    debug()
+    from time import sleep
+    from subprocess import check_output
+
+    p = OptionParser(waitpid.__doc__)
+    p.add_option("--notify", default=False, action="store_true",
+                 help="Specify if notification is to be sent after waiting" + \
+                      " [default: %default]")
+    p.add_option("--interval", default=120, type="int",
+                 help="Specify interval at which PID should be monitored" + \
+                      " [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) == 0:
+        sys.exit(not p.print_help())
+
+    sep = ":::"
+    cmd = None
+    if sep in args:
+        sepidx = args.index(sep)
+        cmd = " ".join(args[sepidx + 1:]).strip()
+        args = args[:sepidx]
+
+    pid = int(" ".join(args).strip())
+
+    status = is_running(pid)
+    if status:
+        find_orig_cmd = "ps -p {0} -o cmd h".format(pid)
+        orig_cmd = check_output(find_orig_cmd.split()).strip()
+        while is_running(pid):
+            sleep(opts.interval)
+    else:
+        logging.debug("Process with PID {0} does not exist".format(pid))
+        sys.exit()
+
+    if opts.notify:
+        hostname = check_output(["hostname"]).strip()
+        notify(["[completed] {0}: `{1}`".format(hostname, orig_cmd)])
+
+    if cmd is not None:
+        sh(cmd, background=True)
 
 
 if __name__ == '__main__':

@@ -169,6 +169,26 @@ class OptionParser (OptionP):
                      help="E-value cutoff [default: %default]")
 
 
+def ConfigSectionMap(Config, section):
+    """
+    Read a specific section from a ConfigParser() object and return
+    a dict() of all key-value pairs in that section
+    """
+    debug()
+
+    cfg = {}
+    options = Config.options(section)
+    for option in options:
+        try:
+            cfg[option] = Config.get(section, option)
+            if cfg[option] == -1:
+                logging.debug("skip: {0}".format(option))
+        except:
+            logging.debug("exception on {0}!".format(option))
+            cfg[option] = None
+    return cfg
+
+
 def splitall(path):
     allparts = []
     while True:
@@ -218,13 +238,18 @@ def backup(filename):
 
 
 def gethostname():
-    import socket
-    return socket.gethostname()
+    from socket import gethostname
+    return gethostname()
 
 
 def getusername():
-    import getpass
-    return getpass.getuser()
+    from getpass import getuser
+    return getuser()
+
+
+def getdomainname():
+    from socket import getfqdn
+    return ".".join(str(x) for x in getfqdn().split(".")[1:])
 
 
 def sh(cmd, grid=False, infile=None, outfile=None, errfile=None,
@@ -604,52 +629,139 @@ def less(args):
         snapshot(fp, p, fsize, counts=counts)
 
 
+# notification specific variables
+valid_notif_methods = ["email"]
+available_push_api = {"push" : ("pushover")}
+
+def pushover(message, token, user, title="JCVI: Job Monitor", \
+        priority=0, timestamp=None):
+    """
+    pushover.net python API
+
+    <https://pushover.net/faq#library-python>
+    """
+    assert -1 <= priority <= 2, \
+            "Priority should be and int() between -1 and 2"
+
+    if timestamp == None:
+        from time import time
+        timestamp = int(time())
+
+    retry, expire = (300, 3600) if priority == 2 \
+            else (None, None)
+
+    from httplib import HTTPSConnection
+    from urllib import urlencode
+
+    conn = HTTPSConnection("api.pushover.net:443")
+    conn.request("POST", "/1/messages.json",
+      urlencode({
+          "token": token,
+          "user": user,
+          "message": message,
+          "title": title,
+          "priority": priority,
+          "timestamp": timestamp,
+          "retry": retry,
+          "expire": expire,
+      }), { "Content-type": "application/x-www-form-urlencoded" })
+    conn.getresponse()
+
+
+def pushnotify(subject, message, api="pushover", priority=0, timestamp=None):
+    """
+    Send push notifications using pre-existing APIs
+
+    Requires a config `.ini` file in the user home area containing
+    the necessary api tokens and user keys
+
+    Default API: "pushover"
+    """
+    import types
+    assert type(priority) is types.IntType and -1 <= priority <= 2, \
+            "Priority should be and int() between -1 and 2"
+
+    import ConfigParser
+
+    cfgfile = op.join(op.expanduser("~"), "pushnotify.ini")
+    Config = ConfigParser.ConfigParser()
+    if op.exists(cfgfile):
+        Config.read(cfgfile)
+    else:
+        sys.exit("Push notification config file `{0}`".format(cfgfile) + \
+                 " does not exist!")
+
+    if api == "pushover":
+        cfg = ConfigSectionMap(Config, api)
+        token, key = cfg["token"], cfg["user"]
+        pushover(message, token, key, title=subject, \
+                priority=priority, timestamp=timestamp)
+
+
+def send_email(fromaddr, toaddr, subject, message):
+    """
+    Send an email message
+    """
+    from smtplib import SMTP
+
+    SERVER = "localhost"
+    message = "Subject: {0}\n{1}".format(subject, message)
+
+    server = SMTP(SERVER)
+    server.sendmail(fromaddr, toaddr, message)
+    server.quit()
+
+
 def notify(args):
     """
     %prog notify "Message to be sent"
 
     Send a message via email/push notification.
-    Recipient email address is constructured by getting the login username and
-    `dnsdomainname` of the server running the process
+    Recipient email address is constructed by joining the login `username`
+    and `dnsdomainname` of the server running the current process
     """
-    valid_notif_methods = ("email", "push")
+    valid_priorities = range(-1, 3, 1)
+    valid_notif_methods.extend(available_push_api.keys())
 
     p = OptionParser(notify.__doc__)
+    p.add_option("--method", default="email", choices=valid_notif_methods,
+                 help="Specify the mode of notification [default: %default]" + \
+                      " [choices: ({0})]".format(", ".join('"{0}"'.format(x) for x in valid_notif_methods)))
     p.add_option("--subject", default="JCVI: job monitor",
                  help="Specify the subject of the notification message")
-    p.add_option("--method", default="email", choices=valid_notif_methods,
-                 help="Specify the mode of notification [default: %default]")
+
+    g1 = OptionGroup(p, "Optional parameters",
+                "Note: Used when notification `method` is `push`")
+    g1.add_option("--api", default="pushover", choices=available_push_api.values(),
+                  help="Specify API used to send the push notification" + \
+                  " [default: %default]")
+    g1.add_option("--priority", default=0, type="int",
+                  help="Message priority (-1 <= p <= 2) [default: %default]")
+    g1.add_option("--timestamp", default=None, type="int", \
+                  dest="timestamp", \
+                  help="Message timestamp in unix format [default: %default]")
+    p.add_option_group(g1)
+
     opts, args = p.parse_args(args)
 
     if len(args) == 0:
         logging.error("Please provide a brief message to be sent")
         sys.exit(not p.print_help())
 
-    MESSAGE = " ".join(args).strip()
+    subject = opts.subject
+    message = " ".join(args).strip()
 
     if opts.method == "email":
-        from smtplib import SMTP
-        from socket import getfqdn
-        from subprocess import check_output
+        user = getusername()
+        domain = getdomainname()
 
-        SERVER = "localhost"
-        USER = check_output(["whoami"]).strip()
-        DOMAIN = ".".join(str(x) for x in getfqdn().split(".")[1:])
+        fromaddr = "notifier-donotreply@{0}".format(domain)
+        toaddr = ["{0}@{1}".format(user, domain)]
 
-        FROM = "notifier-donotreply@{1}".format(DOMAIN)
-        TO = ["{0}@{1}".format(USER, DOMAIN)] # must be a list
-
-        SUBJECT = opts.subject
-
-        # Prepare actual message
-        message = "Subject: {0}\n{1}".format(SUBJECT, MESSAGE)
-
-        # Send the mail
-        server = SMTP(SERVER)
-        server.sendmail(FROM, TO, message)
-        server.quit()
-    elif opts.method == "push":
-        logging.warning("Push notification not implemented yet")
+        send_email(fromadd, toaddr, subject, message)
+    else:
+        pushnotify(subject, message, api=opts.api, priority=opts.priority, \
+                   timestamp=opts.timestamp)
 
 
 def is_running(pid):
@@ -678,10 +790,13 @@ def waitpid(args):
     from time import sleep
     from subprocess import check_output
 
+    valid_notif_methods.extend(available_push_api.values())
+
     p = OptionParser(waitpid.__doc__)
-    p.add_option("--notify", default=False, action="store_true",
-                 help="Specify if notification is to be sent after waiting" + \
-                      " [default: %default]")
+    p.add_option("--notify", default=None, choices=valid_notif_methods,
+                 help="Specify type of notification to be sent after waiting" + \
+                      " [default: %default]" + \
+                      " [choices: ({0})]".format(", ".join('"{0}"'.format(x) for x in valid_notif_methods)))
     p.add_option("--interval", default=120, type="int",
                  help="Specify interval at which PID should be monitored" + \
                       " [default: %default]")
@@ -702,8 +817,8 @@ def waitpid(args):
 
     status = is_running(pid)
     if status:
-        find_orig_cmd = "ps -p {0} -o cmd h".format(pid)
-        orig_cmd = check_output(find_orig_cmd.split()).strip()
+        get_origcmd = "ps -p {0} -o cmd h".format(pid)
+        origcmd = check_output(get_origcmd.split()).strip()
         while is_running(pid):
             sleep(opts.interval)
     else:
@@ -712,7 +827,12 @@ def waitpid(args):
 
     if opts.notify:
         hostname = check_output(["hostname"]).strip()
-        notify(["[completed] {0}: `{1}`".format(hostname, orig_cmd)])
+        method, api = opts.notify, None
+        if opts.notify != "email":
+            method, api = "push", opts.notify
+        notify(["[completed] {0}: `{1}`".format(gethostname(), origcmd), \
+                "--method={0}".format(method), \
+                "--api={0}".format(api)])
 
     if cmd is not None:
         bg = False if opts.grid else True

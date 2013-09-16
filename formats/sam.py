@@ -58,10 +58,22 @@ class Sam (LineFile):
                 callback(s)
 
 
-def output_bam(cmd, bam=False):
+# output sam/bam commands
+outsam = "samtools view -F 4"
+outbam = outsam + " -bS"
+outunmappedsam = "samtools view -f 4"
+outunmappedbam = outunmappedsam + " -bS"
+
+def output_bam(cmd, outfile, bam=False, unmappedfile=None):
     tcmd = cmd
+    outcmd, outunmappedcmd = outsam, outunmappedsam
     if bam:
-        tcmd += " | samtools view -bS -F 4 - "
+        outcmd, outunmappedcmd = outbam, outunmappedbam
+
+    tcmd += " | tee "
+    tcmd += ">( {0} - > {1} ) ".format(outcmd, outfile)
+    if unmappedfile:
+        tcmd += ">( {0} - > {1} ) ".format(outunmappedcmd, unmappedfile)
     return tcmd
 
 

@@ -104,6 +104,7 @@ def align(args):
         sys.exit(not p.print_help())
 
 
+devnull = "/dev/null"
 def samse(args, opts):
     """
     %prog samse database.fasta short_read.fastq
@@ -119,6 +120,7 @@ def samse(args, opts):
 
     prefix = get_prefix(readfile, dbfile)
     samfile = (prefix + ".bam") if opts.bam else (prefix + ".sam")
+    unmappedfile = (prefix + ".unmapped.bam") if opts.unmapped else None
     if not need_update((safile, saifile), samfile):
         logging.error("`{0}` exists. `bwa samse` already run.".format(samfile))
         return
@@ -128,8 +130,8 @@ def samse(args, opts):
     if opts.uniq:
         cmd += " -n 1"
 
-    cmd = output_bam(cmd, bam=opts.bam)
-    sh(cmd, grid=grid, outfile=samfile, threaded=opts.cpus)
+    cmd = output_bam(cmd, samfile, bam=opts.bam, unmappedfile=unmappedfile)
+    sh(cmd, grid=grid, outfile=devnull, threaded=opts.cpus)
 
 
 def sampe(args, opts):
@@ -148,6 +150,7 @@ def sampe(args, opts):
 
     prefix = get_prefix(read1file, dbfile)
     samfile = (prefix + ".bam") if opts.bam else (prefix + ".sam")
+    unmappedfile = (prefix + ".unmapped.bam") if opts.unmapped else None
     if not need_update((safile, sai1file, sai2file), samfile):
         logging.error("`{0}` exists. `bwa samse` already run.".format(samfile))
         return
@@ -158,8 +161,8 @@ def sampe(args, opts):
     if opts.uniq:
         cmd += " -n 1"
 
-    cmd = output_bam(cmd, bam=opts.bam)
-    sh(cmd, grid=grid, outfile=samfile)
+    cmd = output_bam(cmd, samfile, bam=opts.bam, unmappedfile=unmappedfile)
+    sh(cmd, grid=grid, outfile=devnull)
 
 
 def bwasw(args):
@@ -184,14 +187,15 @@ def bwasw(args):
 
     prefix = get_prefix(readfile, dbfile)
     samfile = (prefix + ".bam") if opts.bam else (prefix + ".sam")
+    unmappedfile = (prefix + ".unmapped.bam") if opts.unmapped else None
     if not need_update(safile, samfile):
         logging.error("`{0}` exists. `bwa bwasw` already run.".format(samfile))
         return
 
     cmd = "bwa bwasw -t 32 {0} {1} ".format(dbfile, readfile)
     cmd += "{0}".format(extra)
-    cmd = output_bam(cmd, bam=opts.bam)
-    sh(cmd, grid=grid, outfile=samfile)
+    cmd = output_bam(cmd, samfile, bam=opts.bam, unmappedfile=unmappedfile)
+    sh(cmd, grid=grid, outfile=devnull)
 
 
 if __name__ == '__main__':

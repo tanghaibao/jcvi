@@ -79,7 +79,7 @@ class OptionParser (OptionP):
                 default=False, action="store_true",
                 help="Run on the grid [default: %default]")
 
-    def set_grid_opts(self, array=False, outdir=False):
+    def set_grid_opts(self, array=False):
         queue_choices = ("default", "fast", "medium", "himem")
         self.add_option("-l", dest="queue", default="default", choices=queue_choices,
                      help="Name of the queue, one of {0} [default: %default]". \
@@ -89,10 +89,13 @@ class OptionParser (OptionP):
         if array:
             self.add_option("-c", dest="concurrency", type="int",
                      help="Append task concurrency limit '-tc N' [default: %default]")
-        if outdir:
-            self.add_option("-d", dest="outdir", default=".",
-                     help="Specify directory to store grid log/err files" +
-                          " [default: %default]")
+        self.add_option("-d", dest="outdir", default=".",
+                help="Specify directory to store grid output/error files" +
+                      " [default: %default]")
+        self.add_option("-N", dest="name", default=None,
+                     help="Specify descriptive name for the job [default: %default]")
+        self.add_option("--cwd", action="store_true", default=True,
+                     help="Specify if job should run in PWD [default: %default]")
 
     def set_params(self):
         """
@@ -142,6 +145,8 @@ class OptionParser (OptionP):
                      help="write to bam file [default: %default]")
         self.add_option("--uniq", default=False, action="store_true",
                      help="Keep only uniquely mapped [default: %default]")
+        self.add_option("--unmapped", default=False, action="store_true",
+                     help="Keep unmapped reads [default: %default]")
         self.set_cpus()
         self.set_params()
         self.set_grid()
@@ -252,6 +257,7 @@ def getdomainname():
     return ".".join(str(x) for x in getfqdn().split(".")[1:])
 
 
+shell = "/bin/bash"
 def sh(cmd, grid=False, infile=None, outfile=None, errfile=None,
         append=False, background=False, threaded=None, log=True):
     """
@@ -283,7 +289,7 @@ def sh(cmd, grid=False, infile=None, outfile=None, errfile=None,
 
         if log:
             logging.debug(cmd)
-        return call(cmd, shell=True)
+        return call(cmd, shell=True, executable=shell)
 
 
 def popen(cmd, debug=True):
@@ -293,7 +299,8 @@ def popen(cmd, debug=True):
     from subprocess import Popen, PIPE
     if debug:
         logging.debug(cmd)
-    proc = Popen(cmd, bufsize=1, stdout=PIPE, shell=True)
+    proc = Popen(cmd, bufsize=1, stdout=PIPE, shell=True, \
+                 executable=shell)
     return proc.stdout
 
 

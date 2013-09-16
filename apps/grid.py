@@ -110,7 +110,7 @@ class GridProcess (object):
 
     def __init__(self, cmd, jobid="", queue="default", threaded=None,
                        infile=None, outfile=None, errfile=None, arr=None,
-                       concurrency=None, outdir="."):
+                       concurrency=None, outdir=".", name=None, cwd=True):
 
         self.cmd = cmd
         self.jobid = jobid
@@ -122,6 +122,8 @@ class GridProcess (object):
         self.arr = arr
         self.concurrency = concurrency
         self.outdir = outdir
+        self.name = name
+        self.cwd = cwd
         self.pat = self.pat2 if arr else self.pat1
 
     def __str__(self):
@@ -135,7 +137,9 @@ class GridProcess (object):
             self.cmd = "sh -c {1}{0}{1}".format(self.cmd, quote)
 
         # qsub command (the project code is specific to jcvi)
-        qsub = "qsub -P {0} -cwd".format(PCODE)
+        qsub = "qsub -P {0}".format(PCODE)
+        if self.cwd:
+            qsub += " -cwd"
         if self.queue != "default":
             qsub += " -l {0}".format(self.queue)
         if self.threaded:
@@ -145,6 +149,8 @@ class GridProcess (object):
             qsub += " -t 1-{0}".format(self.arr)
         if self.concurrency:
             qsub += " -tc {0}".format(self.concurrency)
+        if self.name:
+            qsub += ' -N "{0}"'.format(self.name)
 
         # I/O
         infile = self.infile
@@ -231,7 +237,7 @@ def array(args):
     Parallelize a set of commands on grid using array jobs.
     """
     p = OptionParser(array.__doc__)
-    p.set_grid_opts(array=True, outdir=True)
+    p.set_grid_opts(array=True)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -254,7 +260,8 @@ def array(args):
     p = GridProcess("sh {0}".format(runfile), outfile=outfile, errfile=outfile,
                     queue=opts.queue, threaded=opts.threaded,
                     arr=ncmds, concurrency=opts.concurrency,
-                    outdir=opts.outdir)
+                    outdir=opts.outdir, name=opts.name,
+                    cwd=opts.cwd)
     p.start()
 
 
@@ -286,7 +293,7 @@ def run(args):
     %prog run < commands.list  # run a list of commands
     """
     p = OptionParser(run.__doc__)
-    p.set_grid_opts(outdir=True)
+    p.set_grid_opts()
     opts, args = p.parse_args(args)
 
     if len(args) == 0:
@@ -333,7 +340,8 @@ def run(args):
         ncmd = ncmd.strip()
         p = GridProcess(ncmd, outfile=outfile,
                         queue=opts.queue, threaded=opts.threaded,
-                        outdir=opts.outdir)
+                        outdir=opts.outdir, name=opts.name,
+                        cwd=opts.cwd)
         p.start()
 
 

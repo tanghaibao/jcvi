@@ -138,7 +138,7 @@ def parallel(args):
     p.add_option("--maker_home", default="~/htang/export/maker",
                  help="Home directory for MAKER [default: %default]")
     p.set_tmpdir(tmpdir="tmp")
-    p.set_grid_opts()
+    p.set_grid_opts(array=True)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -195,7 +195,8 @@ def parallel(args):
     outfile = "maker.\$TASK_ID.out"
     p = GridProcess(runfile, outfile=outfile, errfile=outfile,
                     queue=opts.queue, threaded=threaded,
-                    arr=ncmds)
+                    arr=ncmds, outdir=opts.outdir,
+                    name=opts.name, cwd=opts.cwd)
     qsubfile = "qsub.sh"
     qsub = p.build()
     write_file(qsubfile, qsub, meta="run script")

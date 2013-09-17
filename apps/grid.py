@@ -18,8 +18,6 @@ from jcvi.apps.base import ActionDispatcher, sh, popen, backup, mkdir, debug
 debug()
 
 
-PCODE = "04048"  # Project code, JCVI specific
-
 
 class Jobs (list):
     """
@@ -108,7 +106,7 @@ class GridProcess (object):
     pat1 = re.compile(r"Your job (?P<id>[0-9]*) ")
     pat2 = re.compile(r"Your job-array (?P<id>\S*) ")
 
-    def __init__(self, cmd, jobid="", pcode=None, queue="default", threaded=None,
+    def __init__(self, cmd, jobid="", pcode="04048", queue="default", threaded=None,
                        infile=None, outfile=None, errfile=None, arr=None,
                        concurrency=None, outdir=".", name=None):
 
@@ -123,7 +121,7 @@ class GridProcess (object):
         self.concurrency = concurrency
         self.outdir = outdir
         self.name = name
-        self.pcode = pcode if pcode else PCODE
+        self.pcode = pcode
         self.pat = self.pat2 if arr else self.pat1
 
     def __str__(self):

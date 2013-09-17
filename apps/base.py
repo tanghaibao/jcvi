@@ -838,9 +838,11 @@ def waitpid(args):
         method, api = opts.notify, None
         if opts.notify != "email":
             method, api = "push", opts.notify
+        notifycmd = "--method={0}".format(method)
+        if api:
+            notifycmd += " --api={0}".format(api)
         notify(["[completed] {0}: `{1}`".format(gethostname(), origcmd), \
-                "--method={0}".format(method), \
-                "--api={0}".format(api)])
+                notifycmd])
 
     if cmd is not None:
         bg = False if opts.grid else True

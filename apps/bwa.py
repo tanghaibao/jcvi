@@ -10,6 +10,7 @@ The whole pipeline is following bwa documentation at
 import sys
 import logging
 import os.path as op
+from os import devnull
 
 from jcvi.apps.base import OptionParser
 
@@ -104,7 +105,6 @@ def align(args):
         sys.exit(not p.print_help())
 
 
-devnull = "/dev/null"
 def samse(args, opts):
     """
     %prog samse database.fasta short_read.fastq

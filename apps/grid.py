@@ -108,9 +108,9 @@ class GridProcess (object):
     pat1 = re.compile(r"Your job (?P<id>[0-9]*) ")
     pat2 = re.compile(r"Your job-array (?P<id>\S*) ")
 
-    def __init__(self, cmd, jobid="", queue="default", threaded=None,
+    def __init__(self, cmd, jobid="", pcode=None, queue="default", threaded=None,
                        infile=None, outfile=None, errfile=None, arr=None,
-                       concurrency=None, outdir=".", name=None, cwd=True):
+                       concurrency=None, outdir=".", name=None):
 
         self.cmd = cmd
         self.jobid = jobid
@@ -123,7 +123,7 @@ class GridProcess (object):
         self.concurrency = concurrency
         self.outdir = outdir
         self.name = name
-        self.cwd = cwd
+        self.pcode = pcode if pcode else PCODE
         self.pat = self.pat2 if arr else self.pat1
 
     def __str__(self):
@@ -137,9 +137,7 @@ class GridProcess (object):
             self.cmd = "sh -c {1}{0}{1}".format(self.cmd, quote)
 
         # qsub command (the project code is specific to jcvi)
-        qsub = "qsub -P {0}".format(PCODE)
-        if self.cwd:
-            qsub += " -cwd"
+        qsub = "qsub -P {0} -cwd".format(self.pcode)
         if self.queue != "default":
             qsub += " -l {0}".format(self.queue)
         if self.threaded:
@@ -165,9 +163,11 @@ class GridProcess (object):
         if redirect_same:
             qsub += " -j y"
         if outfile:
-            qsub += " -o {0}/{1}".format(outdir, outfile)
+            outfile = op.join(outdir, outfile)
+            qsub += " -o {0}".format(outfile)
         if errfile and not redirect_same:
-            qsub += " -e {0}/{1}".format(outdir, errfile)
+            errfile = op.join(outdir, errfile)
+            qsub += " -e {0}".format(errfile)
 
         cmd = " ".join((qsub, self.cmd))
         return cmd
@@ -258,10 +258,9 @@ def array(args):
 
     outfile = "{0}.{1}.out".format(pf, "\$TASK_ID")
     p = GridProcess("sh {0}".format(runfile), outfile=outfile, errfile=outfile,
-                    queue=opts.queue, threaded=opts.threaded,
+                    pcode=opts.pcode, queue=opts.queue, threaded=opts.threaded,
                     arr=ncmds, concurrency=opts.concurrency,
-                    outdir=opts.outdir, name=opts.name,
-                    cwd=opts.cwd)
+                    outdir=opts.outdir, name=opts.name)
     p.start()
 
 
@@ -338,10 +337,9 @@ def run(args):
             ncmd, outfile = ncmd.strip(), outfile.strip()
 
         ncmd = ncmd.strip()
-        p = GridProcess(ncmd, outfile=outfile,
+        p = GridProcess(ncmd, outfile=outfile, pcode=opts.pcode,
                         queue=opts.queue, threaded=opts.threaded,
-                        outdir=opts.outdir, name=opts.name,
-                        cwd=opts.cwd)
+                        outdir=opts.outdir, name=opts.name)
         p.start()
 
 

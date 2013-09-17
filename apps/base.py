@@ -81,6 +81,8 @@ class OptionParser (OptionP):
 
     def set_grid_opts(self, array=False):
         queue_choices = ("default", "fast", "medium", "himem")
+        self.add_option("-P", dest="pcode", type="int",
+                     help="Specify accounting project code [default: %default]")
         self.add_option("-l", dest="queue", default="default", choices=queue_choices,
                      help="Name of the queue, one of {0} [default: %default]". \
                           format("|".join(queue_choices)))
@@ -94,8 +96,6 @@ class OptionParser (OptionP):
                       " [default: %default]")
         self.add_option("-N", dest="name", default=None,
                      help="Specify descriptive name for the job [default: %default]")
-        self.add_option("--cwd", action="store_true", default=True,
-                     help="Specify if job should run in PWD [default: %default]")
 
     def set_params(self):
         """
@@ -257,9 +257,9 @@ def getdomainname():
     return ".".join(str(x) for x in getfqdn().split(".")[1:])
 
 
-shell = "/bin/bash"
 def sh(cmd, grid=False, infile=None, outfile=None, errfile=None,
-        append=False, background=False, threaded=None, log=True):
+        append=False, background=False, threaded=None, log=True,
+        shell="/bin/bash"):
     """
     simple wrapper for system calls
     """
@@ -267,7 +267,7 @@ def sh(cmd, grid=False, infile=None, outfile=None, errfile=None,
         from jcvi.apps.grid import GridProcess
         pr = GridProcess(cmd, infile=infile, outfile=outfile, errfile=errfile,
                          threaded=threaded)
-        pr.start(path=None)
+        pr.start()
         return 0  # A fake retcode
     else:
         if infile:
@@ -292,7 +292,7 @@ def sh(cmd, grid=False, infile=None, outfile=None, errfile=None,
         return call(cmd, shell=True, executable=shell)
 
 
-def popen(cmd, debug=True):
+def popen(cmd, debug=True, shell="/bin/bash"):
     """
     Capture the cmd stdout output to a file handle.
     """

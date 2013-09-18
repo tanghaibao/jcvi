@@ -89,6 +89,12 @@ class Fasta (BaseFile, dict):
         for k, rec in self.iteritems_ordered():
             yield k, len(rec)
 
+    def tostring(self):
+        d = {}
+        for k, rec in self.iteritems():
+            d[k] = str(rec.seq)
+        return d
+
     @property
     def totalsize(self):
         return sum(size for k, size in self.itersizes())

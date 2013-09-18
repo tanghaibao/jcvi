@@ -13,7 +13,6 @@ import shutil
 import logging
 
 from copy import deepcopy
-from jcvi.apps.base import OptionParser, OptionGroup
 from collections import defaultdict
 from itertools import groupby
 
@@ -27,7 +26,8 @@ from jcvi.formats.bed import Bed, BedLine
 from jcvi.assembly.base import calculate_A50
 from jcvi.utils.range import range_intersect
 from jcvi.utils.iter import pairwise, flatten
-from jcvi.apps.base import ActionDispatcher, sh
+from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher, \
+            sh, need_update
 
 
 Valid_component_type = list("ADFGNOPUW")
@@ -709,11 +709,96 @@ def main():
         ('build', 'given agp file and component fasta file, build ' +\
                  'pseudomolecule fasta'),
         ('validate', 'given agp file, component and pseudomolecule fasta, ' +\
-                     'validate if the build is correct')
+                     'validate if the build is correct'),
+        ('infer', 'infer where the components are in the genome'),
             )
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def map_one_scaffold_1way(scaffold_name, scaffold, genome, orientation='+'):
+    if orientation == '-':
+        scaffold = scaffold.reverse_complement()
+
+    scaffold = str(scaffold)
+    for obj_name, obj in genome.iteritems():
+        obj_idx = obj.find(scaffold)
+        if obj_idx == -1:
+            continue
+        else:
+            return obj_name, obj_idx, orientation
+    return -1, -1, orientation  # unmapped scaffolds
+
+
+def map_one_scaffold(opts):
+    scaffold_name, scaffold, genome = opts
+    scaffold = scaffold.seq
+    obj_name, obj_idx, objo = map_one_scaffold_1way(scaffold_name, scaffold, genome)
+    if obj_name == -1:
+        obj_name, obj_idx, objo = map_one_scaffold_1way(scaffold_name, scaffold, genome,
+                                                   orientation='-')
+    if obj_name == -1:
+        return ""
+
+    obj_end = obj_idx + len(scaffold)
+    return "\t".join(str(x) for x in (obj_name, obj_idx, obj_end,
+                                      scaffold_name, 1000, objo))
+
+
+def check_seen(r, seen):
+    from jcvi.utils.range import range_overlap
+
+    for s in seen:
+        if range_overlap(r, s):
+            return True
+    return False
+
+
+def infer(args):
+    """
+    %prog infer scaffolds.fasta genome.fasta
+
+    Infer where the components are in the genome. This function is rarely used,
+    but can be useful when distributor does not ship an AGP file.
+    """
+    from jcvi.apps.grid import WriteJobs
+    from jcvi.formats.bed import Bed, sort
+
+    p = OptionParser(infer.__doc__)
+    p.set_cpus()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    scaffoldsf, genomef = args
+    inferbed = "infer-components.bed"
+    if need_update((scaffoldsf, genomef), inferbed):
+        scaffolds = Fasta(scaffoldsf, lazy=True)
+        genome = Fasta(genomef)
+        genome = genome.tostring()
+        args = [(scaffold_name, scaffold, genome) \
+                for scaffold_name, scaffold in scaffolds.iteritems_ordered()]
+
+        pool = WriteJobs(map_one_scaffold, args, inferbed, cpus=opts.cpus)
+        pool.run()
+
+    sort([inferbed, "-i"])
+    bed = Bed(inferbed)
+    inferagpbed = "infer.bed"
+    fw = open(inferagpbed, "w")
+    seen = []
+    for b in bed:
+        r = (b.seqid, b.start, b.end)
+        if check_seen(r, seen):
+            continue
+        print >> fw, "\t".join(str(x) for x in \
+                    (b.accn, 0, b.span, b.seqid, b.score, b.strand))
+        seen.append(r)
+    fw.close()
+
+    frombed([inferagpbed])
 
 
 def format(args):

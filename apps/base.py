@@ -720,16 +720,67 @@ def send_email(fromaddr, toaddr, subject, message):
     server.quit()
 
 
+def gen_email_addresses():
+    """ Auto-generate the FROM and TO email address """
+    user = getusername()
+    domain = getdomainname()
+
+    fromaddr = "notifier-donotreply@{0}".format(getdomainname())
+    toaddr = "{0}@{1}".format(user, domain)
+
+    return fromaddr, toaddr
+
+
+def is_valid_email(email):
+    """
+    RFC822 Email Address Regex
+    --------------------------
+
+    Originally written by Cal Henderson
+    c.f. http://iamcal.com/publish/articles/php/parsing_email/
+
+    Translated to Python by Tim Fletcher, with changes suggested by Dan Kubb.
+
+    Licensed under a Creative Commons Attribution-ShareAlike 2.5 License
+    http://creativecommons.org/licenses/by-sa/2.5/
+    """
+    import re
+
+    qtext = '[^\\x0d\\x22\\x5c\\x80-\\xff]'
+    dtext = '[^\\x0d\\x5b-\\x5d\\x80-\\xff]'
+    atom = '[^\\x00-\\x20\\x22\\x28\\x29\\x2c\\x2e\\x3a-\\x3c\\x3e\\x40\\x5b-\\x5d\\x7f-\\xff]+'
+    quoted_pair = '\\x5c[\\x00-\\x7f]'
+    domain_literal = "\\x5b(?:%s|%s)*\\x5d" % (dtext, quoted_pair)
+    quoted_string = "\\x22(?:%s|%s)*\\x22" % (qtext, quoted_pair)
+    domain_ref = atom
+    sub_domain = "(?:%s|%s)" % (domain_ref, domain_literal)
+    word = "(?:%s|%s)" % (atom, quoted_string)
+    domain = "%s(?:\\x2e%s)*" % (sub_domain, sub_domain)
+    local_part = "%s(?:\\x2e%s)*" % (word, word)
+    addr_spec = "%s\\x40%s" % (local_part, domain)
+
+    email_address = re.compile('\A%s\Z' % addr_spec)
+    if email_address.match(email):
+        return True
+    return False
+
+
 def notify(args):
     """
     %prog notify "Message to be sent"
 
     Send a message via email/push notification.
-    Recipient email address is constructed by joining the login `username`
-    and `dnsdomainname` of the server running the current process
+
+    Email notify: Recipient email address is constructed by joining the login `username`
+    and `dnsdomainname` of the server
+
+    Push notify: Uses available API
     """
+    debug()
     valid_priorities = range(-1, 3, 1)
     valid_notif_methods.extend(available_push_api.keys())
+
+    fromaddr, toaddr = gen_email_addresses()
 
     p = OptionParser(notify.__doc__)
     p.add_option("--method", default="email", choices=valid_notif_methods,
@@ -738,17 +789,22 @@ def notify(args):
     p.add_option("--subject", default="JCVI: job monitor",
                  help="Specify the subject of the notification message")
 
-    g1 = OptionGroup(p, "Optional parameters",
-                "Note: Used when notification `method` is `push`")
-    g1.add_option("--api", default="pushover", choices=available_push_api.values(),
+    g1 = OptionGroup(p, "Optional `email` parameters")
+    g1.add_option("--address", dest="toaddr", default=toaddr,
+                 help="Specify TO email address to send the notification" + \
+                      " [default: %default]")
+    p.add_option_group(g1)
+
+    g2 = OptionGroup(p, "Optional `push` parameters")
+    g2.add_option("--api", default="pushover", choices=available_push_api.values(),
                   help="Specify API used to send the push notification" + \
                   " [default: %default]")
-    g1.add_option("--priority", default=0, type="int",
+    g2.add_option("--priority", default=0, type="int",
                   help="Message priority (-1 <= p <= 2) [default: %default]")
-    g1.add_option("--timestamp", default=None, type="int", \
+    g2.add_option("--timestamp", default=None, type="int", \
                   dest="timestamp", \
                   help="Message timestamp in unix format [default: %default]")
-    p.add_option_group(g1)
+    p.add_option_group(g2)
 
     opts, args = p.parse_args(args)
 
@@ -760,13 +816,11 @@ def notify(args):
     message = " ".join(args).strip()
 
     if opts.method == "email":
-        user = getusername()
-        domain = getdomainname()
-
-        fromaddr = "notifier-donotreply@{0}".format(domain)
-        toaddr = ["{0}@{1}".format(user, domain)]
-
-        send_email(fromadd, toaddr, subject, message)
+        if not is_valid_email(opts.toaddr):
+            logging.debug("Email address `{0}` is not valid!".format(opts.toaddr))
+            sys.exit()
+        toaddr = [opts.toaddr]   # TO address should be in a list
+        send_email(fromaddr, toaddr, subject, message)
     else:
         pushnotify(subject, message, api=opts.api, priority=opts.priority, \
                    timestamp=opts.timestamp)
@@ -787,11 +841,12 @@ def is_running(pid):
 
 def waitpid(args):
     """
-    %prog waitpid PID ::: ./command_to_run
+    %prog waitpid PID ::: "./command_to_run param1 param2 ...."
 
     Given a PID, this script will wait for the PID to finish running and
     then perform a desired action (notify user and/or execute a new command)
 
+    Specify "--notify=METHOD` to send the user a notification after waiting for PID
     Specify `--grid` option to send the new process to the grid after waiting for PID
     """
     debug()
@@ -804,7 +859,8 @@ def waitpid(args):
     p.add_option("--notify", default=None, choices=valid_notif_methods,
                  help="Specify type of notification to be sent after waiting" + \
                       " [default: %default]" + \
-                      " [choices: ({0})]".format(", ".join('"{0}"'.format(x) for x in valid_notif_methods)))
+                      " [choices: ({0})]".format(", ".join('"{0}"'.format(x) for x \
+                      in valid_notif_methods)))
     p.add_option("--interval", default=120, type="int",
                  help="Specify interval at which PID should be monitored" + \
                       " [default: %default]")

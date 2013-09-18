@@ -6,7 +6,6 @@ import sys
 import logging
 
 from functools import partial
-from glob import glob
 
 import numpy as np
 import matplotlib as mpl
@@ -21,8 +20,8 @@ from matplotlib.path import Path
 from matplotlib.colors import LogNorm
 from matplotlib.transforms import Affine2D
 
-from jcvi.utils.cbook import human_size
 from jcvi.apps.console import dark, green
+from jcvi.apps.base import glob
 
 
 class ImageOptions (object):

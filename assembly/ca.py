@@ -13,20 +13,18 @@ import os.path as op
 import sys
 import logging
 
-from glob import glob
-from jcvi.apps.base import OptionParser
 from collections import defaultdict
 
 from Bio import SeqIO
 
 from jcvi.formats.base import must_open
-from jcvi.formats.fasta import Fasta, SeqRecord, \
-        get_qual, iter_fasta_qual, write_fasta_qual
+from jcvi.formats.fasta import Fasta, SeqRecord
 from jcvi.formats.blast import Blast
 from jcvi.utils.range import range_minmax
 from jcvi.utils.table import tabulate
 from jcvi.apps.softlink import get_abs_path
-from jcvi.apps.base import ActionDispatcher, sh, need_update, debug
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update, \
+            debug, glob
 debug()
 
 

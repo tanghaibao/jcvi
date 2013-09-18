@@ -13,14 +13,13 @@ import os.path as op
 import sys
 import logging
 
-from glob import glob
 from collections import defaultdict
 
 from jcvi.formats.base import BaseFile, LineFile, write_file
 from jcvi.apps.softlink import get_abs_path
 from jcvi.apps.grid import GridProcess
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, popen, \
-        debug, sh, mkdir
+        debug, sh, mkdir, glob
 debug()
 
 

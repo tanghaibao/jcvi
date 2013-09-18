@@ -12,17 +12,13 @@ in a fix_unitig folder in the assembly folder. In any case, from the current
 dir, it needs to get access to ../5-consensus.
 """
 
-import os
 import os.path as op
 import sys
 import shutil
 import logging
 
-from glob import glob
-from jcvi.apps.base import OptionParser
-
 from jcvi.formats.base import BaseFile
-from jcvi.apps.base import ActionDispatcher, sh, mkdir, debug
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh, mkdir, debug, glob
 debug()
 
 
@@ -220,7 +216,7 @@ def error(args):
     fw = open("errors.log", "w")
 
     seen = set()
-    for g in sorted(glob("../5-consensus/*.err")):
+    for g in glob("../5-consensus/*.err"):
         if "partitioned" in g:
             continue
 

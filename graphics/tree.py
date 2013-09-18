@@ -5,15 +5,13 @@ import sys
 import os.path as op
 import logging
 
-from glob import glob
-from jcvi.apps.base import OptionParser
-
 from ete2 import Tree
+
 from jcvi.formats.sizes import Sizes
 from jcvi.formats.base import DictFile
 from jcvi.graphics.base import plt, _, set_image_options, savefig
 from jcvi.graphics.glyph import ExonGlyph, get_setups
-from jcvi.apps.base import debug
+from jcvi.apps.base import OptionParser, debug, glob
 debug()
 
 

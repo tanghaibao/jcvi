@@ -9,10 +9,8 @@ import os.path as op
 import sys
 import logging
 
-from glob import glob
-from jcvi.apps.base import OptionParser
-
-from jcvi.apps.base import ActionDispatcher, debug, mkdir, sh
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, mkdir, \
+            sh, glob
 debug()
 
 

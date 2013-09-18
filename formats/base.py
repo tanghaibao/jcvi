@@ -105,6 +105,8 @@ class FileMerger (object):
 
         self.filelist = filelist
         self.outfile = outfile
+        self.ingz = filelist[0].endswith(".gz")
+        self.outgz = outfile.endswith(".gz")
 
     def merge(self, checkexists=False):
         outfile = self.outfile
@@ -113,7 +115,15 @@ class FileMerger (object):
             return
 
         files = " ".join(self.filelist)
-        sh("cat {0}".format(files), outfile=outfile)
+        ingz, outgz = self.ingz, self.outgz
+        if ingz and outgz:  # can merge gz files directly
+            cmd = "cat {0} > {1}".format(files, outfile)
+            sh(cmd)
+        else:
+            cmd = "zcat" if self.ingz else "cat"
+            cmd += " " + files
+            sh(cmd, outfile=outfile)
+
         return outfile
 
 

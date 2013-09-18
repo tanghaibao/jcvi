@@ -11,13 +11,11 @@ import os.path as op
 import sys
 import logging
 
-from glob import glob
-
 from jcvi.utils.iter import grouper
 from jcvi.formats.base import LineFile
 from jcvi.apps.softlink import get_abs_path
 from jcvi.apps.base import OptionParser, ActionDispatcher, debug, need_update, \
-            mkdir, sh
+            mkdir, sh, glob
 debug()
 
 

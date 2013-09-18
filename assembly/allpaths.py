@@ -11,15 +11,13 @@ import sys
 import logging
 import numpy as np
 
-from glob import glob
 from struct import pack, unpack
 from itertools import islice, izip
-from jcvi.apps.base import OptionParser
 
 from jcvi.formats.base import BaseFile
 from jcvi.assembly.base import FastqNamings, Library
 from jcvi.apps.grid import Jobs
-from jcvi.apps.base import ActionDispatcher, debug, need_update, sh
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, need_update, sh, glob
 debug()
 
 

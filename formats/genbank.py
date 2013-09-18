@@ -6,24 +6,20 @@ Genbank record operations based on biopython Bio.SeqIO
 https://github.com/biopython/biopython/blob/master/Bio/SeqIO/InsdcIO.py
 """
 
-import os
 import os.path as op
 import sys
 import logging
 
-from jcvi.apps.base import OptionParser
-from glob import glob
 from collections import defaultdict
 
 from Bio import SeqIO
 from Bio.Seq import Seq
-from Bio.SeqFeature import SeqFeature
 
-from jcvi.utils.orderedcollections import DefaultOrderedDict
 from jcvi.formats.base import must_open, FileShredder, BaseFile
 from jcvi.formats.gff import GffLine
-from jcvi.apps.base import ActionDispatcher, sh, mkdir, debug
 from jcvi.apps.entrez import fetch
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh, mkdir, \
+            debug, glob
 debug()
 
 

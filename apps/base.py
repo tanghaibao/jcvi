@@ -208,7 +208,6 @@ def splitall(path):
 
 def get_module_docstring(filepath):
     "Get module-level docstring of Python module at filepath, e.g. 'path/to/file.py'."
-    import code
     co = compile(open(filepath).read(), filepath, 'exec')
     if co.co_consts and isinstance(co.co_consts[0], basestring):
         docstring = co.co_consts[0]
@@ -218,8 +217,6 @@ def get_module_docstring(filepath):
 
 
 def dmain(cwd):
-    from glob import glob
-
     pyscripts = glob(op.join(cwd, "*.py"))
     actions = []
     for ps in sorted(pyscripts):
@@ -328,6 +325,14 @@ def which(program):
                 return exe_file
 
     return None
+
+
+def glob(pathname):
+    """
+    Wraps around glob.glob(), but return a sorted list.
+    """
+    import glob as gl
+    return sorted(gl.glob(pathname))
 
 
 def mkdir(dirname, overwrite=False):

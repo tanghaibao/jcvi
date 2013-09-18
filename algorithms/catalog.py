@@ -6,8 +6,6 @@ import sys
 import logging
 import string
 
-from glob import glob
-from jcvi.apps.base import OptionParser
 from collections import defaultdict
 from itertools import product, combinations
 
@@ -18,7 +16,7 @@ from jcvi.formats.base import must_open, BaseFile
 from jcvi.utils.grouper import Grouper
 from jcvi.utils.cbook import gene_name
 from jcvi.algorithms.synteny import AnchorFile, check_beds
-from jcvi.apps.base import debug, \
+from jcvi.apps.base import OptionParser, debug, glob, \
         ActionDispatcher, need_update, sh, mkdir
 debug()
 

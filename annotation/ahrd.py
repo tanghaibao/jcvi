@@ -13,10 +13,7 @@ import sys
 import re
 import logging
 
-from glob import glob
-from jcvi.apps.base import OptionParser
-
-from jcvi.apps.base import ActionDispatcher, debug, mkdir
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, mkdir, glob
 debug()
 
 ##### Compiled RegExps #####

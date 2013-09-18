@@ -9,8 +9,6 @@ import os.path as op
 import sys
 import logging
 
-from glob import glob
-from jcvi.apps.base import OptionParser
 from itertools import product, groupby, islice
 from multiprocessing import Pool
 from collections import namedtuple
@@ -21,7 +19,7 @@ from Bio.SeqIO.QualityIO import FastqGeneralIterator
 from jcvi.utils.iter import flatten
 from jcvi.formats.base import FileMerger, must_open
 from jcvi.formats.fastq import FastqPairedIterator
-from jcvi.apps.base import ActionDispatcher, debug, mkdir
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, mkdir, glob
 debug()
 
 

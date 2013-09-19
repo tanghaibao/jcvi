@@ -112,7 +112,7 @@ class OptionParser (OptionP):
         self.add_option("-o", "--outfile", default=outfile,
                 help="Outfile name [default: %default]")
 
-    def set_tmpdir(self, tmpdir="/tmp"):
+    def set_tmpdir(self, tmpdir=None):
         """
         Add --temporary_directory option to specify unix `sort` tmpdir
         """

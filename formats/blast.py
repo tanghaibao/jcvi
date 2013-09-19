@@ -10,9 +10,6 @@ import logging
 
 from itertools import groupby
 from collections import defaultdict
-from jcvi.apps.base import OptionParser
-
-import numpy as np
 
 from jcvi.formats.base import LineFile, BaseFile, must_open
 from jcvi.formats.coords import print_stats
@@ -20,7 +17,7 @@ from jcvi.formats.sizes import Sizes
 from jcvi.utils.grouper import Grouper
 from jcvi.utils.orderedcollections import OrderedDict
 from jcvi.utils.range import range_distance
-from jcvi.apps.base import ActionDispatcher, debug, sh, popen
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh, popen
 debug()
 
 
@@ -632,7 +629,10 @@ def sort(args):
         else:
             key = "-k1,1 -k12,12gr"
 
-    cmd = "sort -T {2} {0} {1} -o {1}".format(key, blastfile, opts.tmpdir)
+    cmd = "sort"
+    if opts.tmpdir:
+        cmd += " -T {0}".format(opts.tmpdir)
+    cmd += " {0} {1} -o {1}".format(key, blastfile)
     sh(cmd)
 
 
@@ -1146,6 +1146,7 @@ def report_pairs(data, cutoff=0, mateorientation=None,
     This subroutine is used by the pairs function in blast.py and cas.py.
     Reports number of fragments and pairs as well as linked pairs
     """
+    import numpy as np
     from jcvi.utils.cbook import percentage
 
     allowed_mateorientations = ("++", "--", "+-", "-+")

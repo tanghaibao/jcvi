@@ -9,7 +9,6 @@ import shutil
 import logging
 import string
 
-from jcvi.apps.base import OptionParser
 from itertools import groupby, izip_longest
 
 from Bio import SeqIO
@@ -19,7 +18,7 @@ from Bio.SeqRecord import SeqRecord
 from jcvi.formats.base import BaseFile, DictFile, must_open
 from jcvi.formats.bed import Bed
 from jcvi.apps.console import red, green
-from jcvi.apps.base import ActionDispatcher, debug, need_update
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, need_update
 debug()
 
 
@@ -1960,32 +1959,52 @@ def tidy(args):
     fw.close()
 
 
-def write_gaps_bed(inputfasta, bedfile, mingap):
-    fwbed = open(bedfile, "w")
-    logging.debug("Write gap (>={0}bp) locations to `{1}`.".\
-                  format(mingap, bedfile))
+def write_gaps_worker(rec):
+    start = 0
+    seq = rec.seq.upper()
+    output = []
+    for gap, seq in groupby(seq, lambda x: x == 'N'):
+        seq = "".join(seq)
+        current_length = len(seq)
+        object_beg = start + 1
+        object_end = start + current_length
+        if gap:
+            s = "\t".join(str(x) for x in (rec.id,
+                object_beg - 1, object_end))
+            output.append(s)
+        start += current_length
+
+    return "\n".join(output)
+
+
+def write_gaps_bed(inputfasta, prefix, mingap, cpus):
+    import shutil
+
+    from jcvi.apps.grid import WriteJobs
+    from jcvi.formats.bed import sort
+
+    bedfile = prefix + ".gaps.bed"
+    recs = list(SeqIO.parse(inputfasta, "fasta"))
+    pool = WriteJobs(write_gaps_worker, recs, bedfile, cpus=cpus)
+    pool.run()
+
+    sort([bedfile, "-i"])
+
+    bed = Bed(bedfile)
+    nbedfile = prefix + ".{0}N.bed".format(mingap)
 
     gapnum = 0
-    for rec in SeqIO.parse(inputfasta, "fasta"):
-        allgaps = []
-        start = 0
-        object = rec.id
-        seq = rec.seq.upper()
-        for gap, seq in groupby(seq, lambda x: x == 'N'):
-            seq = "".join(seq)
-            current_length = len(seq)
-            object_beg = start + 1
-            object_end = start + current_length
-            if gap and current_length >= mingap:
-                allgaps.append((current_length, start))
-                gapnum += 1
-                gapname = "gap.{0:05d}".format(gapnum)
-                print >> fwbed, "\t".join(str(x) for x in (object,
-                    object_beg - 1, object_end, gapname))
+    fw = open(nbedfile, "w")
+    for b in bed:
+        if b.span < mingap:
+            continue
+        gapnum += 1
+        gapname = "gap.{0:05d}".format(gapnum)
+        print >> fw, "\t".join(str(x) for x in (b, gapname, b.span))
 
-            start += current_length
-
-    fwbed.close()
+    shutil.move(nbedfile, bedfile)
+    logging.debug("Write gap (>={0}bp) locations to `{1}`.".\
+                  format(mingap, bedfile))
 
 
 def gaps(args):
@@ -2001,6 +2020,7 @@ def gaps(args):
     p.add_option("--split", default=False, action="store_true",
             help="Generate .split.fasta [default: %default]")
     p.set_mingap(default=100)
+    p.set_cpus()
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -2013,7 +2033,7 @@ def gaps(args):
     bedfile = prefix + ".gaps.bed"
 
     if need_update(inputfasta, bedfile):
-        write_gaps_bed(inputfasta, bedfile, mingap)
+        write_gaps_bed(inputfasta, prefix, mingap, opts.cpus)
 
     if split:
         splitfile = prefix + ".split.fasta"

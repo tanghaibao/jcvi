@@ -9,14 +9,14 @@ import logging
 
 from collections import defaultdict
 from urllib import quote, unquote
-from jcvi.apps.base import OptionParser, OptionGroup
 
 from jcvi.formats.base import LineFile, must_open, is_number
 from jcvi.formats.fasta import Fasta, SeqIO
 from jcvi.formats.bed import Bed, BedLine
 from jcvi.utils.iter import flatten
 from jcvi.utils.orderedcollections import DefaultOrderedDict, parse_qs
-from jcvi.apps.base import ActionDispatcher, mkdir, need_update, sh
+from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher, mkdir, \
+            need_update, sh
 
 
 Valid_strands = ('+', '-', '?', '.')
@@ -912,7 +912,10 @@ def sort(args):
     if opts.inplace:
         sortedgff = gffile
 
-    cmd = "sort -T {2} -k1,1 -k4,4n {0} -o {1}".format(gffile, sortedgff, opts.tmpdir)
+    cmd = "sort"
+    if opts.tmpdir:
+        cmd += " -T {0}".format(opts.tmpdir)
+    cmd += " -k1,1 -k4,4n {0} -o {1}".format(gffile, sortedgff)
     sh(cmd)
 
 

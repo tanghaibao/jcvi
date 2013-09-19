@@ -8,13 +8,12 @@ import sys
 import logging
 
 from itertools import groupby
-from jcvi.apps.base import OptionParser
 
 from jcvi.formats.base import LineFile, must_open, is_number
 from jcvi.utils.cbook import depends, thousands, percentage
 from jcvi.utils.range import Range, range_union, range_chain, \
         range_distance, range_intersect
-from jcvi.apps.base import ActionDispatcher, debug, sh, \
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh, \
         need_update, popen
 debug()
 
@@ -1036,8 +1035,10 @@ def sort(args):
 
     sortopt = "-k1,1 -k2,2n -k4,4" if not opts.accn else \
               "-k4,4 -k1,1 -k2,2n"
-    cmd = "sort -T {2} {0} {1}".format(sortopt, bedfile, opts.tmpdir)
-    cmd += " -o {0}".format(sortedbed)
+    cmd = "sort"
+    if opts.tmpdir:
+        cmd += " -T {0}".format(opts.tmpdir)
+    cmd += " {0} {1} -o {2}".format(sortopt, bedfile, sortedbed)
     sh(cmd)
 
     return sortedbed

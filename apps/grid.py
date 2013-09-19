@@ -18,7 +18,6 @@ from jcvi.apps.base import ActionDispatcher, sh, popen, backup, mkdir, debug
 debug()
 
 
-
 class Jobs (list):
     """
     Runs multiple funcion calls on the SAME computer, using multiprocessing.
@@ -41,7 +40,7 @@ class Jobs (list):
         self.join()
 
 
-class Poison (int):
+class Poison:
     def __init__(self):
         pass
 
@@ -58,7 +57,6 @@ class WriteJobs (object):
 
         for a in args:
             workerq.put(a)
-        logging.debug("A total of {0} items to compute.".format(workerq.qsize()))
 
         for i in xrange(cpus):
             workerq.put(Poison())
@@ -85,17 +83,24 @@ def work(queue_in, queue_out, target):
 
 
 def write(queue_in, queue_out, filename, cpus):
+    from jcvi.utils.progressbar import ProgressBar, Percentage, Bar, ETA
+
     fw = must_open(filename, "w")
+    isize = queue_in.qsize()
+    logging.debug("A total of {0} items to compute.".format(isize))
+    widgets = ['Queue: ', Percentage(), ' ',
+               Bar(marker='>', left='[', right=']'), ' ', ETA()]
+    p = ProgressBar(maxval=isize, term_width=60, widgets=widgets).start()
     poisons = 0
     while True:
         res = queue_out.get()
-        logging.debug("Writer: {0} items left to compute".\
-                        format(queue_in.qsize()))
+        qsize = queue_in.qsize()
+        p.update(isize - qsize)
         if isinstance(res, Poison):
             poisons += 1
             if poisons == cpus:  # wait all workers finish
                 break
-        if res:
+        elif res:
             print >> fw, res
             fw.flush()
     fw.close()

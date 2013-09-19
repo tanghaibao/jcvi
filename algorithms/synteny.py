@@ -6,7 +6,6 @@ import logging
 
 import numpy as np
 from collections import defaultdict, namedtuple
-from jcvi.apps.base import OptionParser
 
 from jcvi.formats.bed import Bed, BedLine
 from jcvi.formats.blast import BlastLine
@@ -15,7 +14,7 @@ from jcvi.utils.grouper import Grouper
 from jcvi.utils.cbook import gene_name
 from jcvi.utils.range import Range, range_chain
 from jcvi.utils.iter import flatten
-from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug
 debug()
 
 

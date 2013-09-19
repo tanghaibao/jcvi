@@ -298,6 +298,8 @@ def must_open(filename, mode="r", checkexists=False, skipcheck=False, \
 
         if len(filename) == 1:
             filename = filename[0]
+        elif filename[0].endswith(".gz") or filename[0].endswith(".bz2"):
+            filename = " ".join(filename)  # allow opening multiple gz/bz2 files
         else:
             import fileinput
             return fileinput.input(filename)

@@ -96,6 +96,12 @@ class GffLine (object):
 
         self.attributes_text = sep.join(attributes)
 
+    def update_tag(self, old_tag, new_tag):
+        if old_tag not in self.attributes:
+            return
+        self.attributes[new_tag] = self.attributes[old_tag]
+        del self.attributes[old_tag]
+
     @property
     def accn(self):
         if self.key and self.key in self.attributes:    # GFF3 format
@@ -956,26 +962,24 @@ def fromgtf(args):
     for g in gff:
         if g.type in ("transcript", "mRNA"):
             g.type = "mRNA"
-            g.attributes["ID"] = g.attributes[transcript_id]
-            g.attributes["Parent"] = g.attributes[gene_id]
+            g.update_tag(transcript_id, "ID")
+            g.update_tag("mRNA", "ID")
+            g.update_tag(gene_id, "Parent")
+            g.update_tag("Gene", "Parent")
         elif g.type in ("exon", "CDS") or "UTR" in g.type:
-            g.attributes["Parent"] = g.attributes[transcript_id]
+            g.update_tag("transcript_id", "Parent")
+            g.update_tag(g.type, "Parent")
         elif g.type == "gene":
-            g.attributes["ID"] = g.attributes[gene_id]
+            g.update_tag(gene_id, "ID")
+            g.update_tag("Gene", "ID")
         else:
             assert 0, "Don't know how to deal with {0}".format(g.type)
-
-        if transcript_id in g.attributes:
-            del g.attributes[transcript_id]
-        if gene_id in g.attributes:
-            del g.attributes[gene_id]
 
         g.update_attributes(gff3=True)
         print >> fw, g
         nfeats += 1
 
-    logging.debug("A total of {0} features written to `{1}`.".\
-                format(nfeats, gffile))
+    logging.debug("A total of {0} features written.".format(nfeats))
 
 
 def frombed(args):

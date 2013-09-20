@@ -9,13 +9,11 @@ chromosomes.
 import sys
 import logging
 
-from jcvi.apps.base import OptionParser
-
 from jcvi.formats.base import BaseFile, LineFile, must_open, read_block
 from jcvi.formats.bed import Bed, fastaFromBed
 from jcvi.formats.blast import bed
 from jcvi.utils.counter import Counter
-from jcvi.apps.base import ActionDispatcher, debug, need_update
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, need_update
 debug()
 
 
@@ -148,8 +146,7 @@ def ld(args):
 
     from jcvi.formats.bed import Bed
     from jcvi.algorithms.matrix import symmetrize
-    from jcvi.graphics.base import plt, savefig, cm, \
-                set_image_options, Rectangle
+    from jcvi.graphics.base import plt, savefig, cm, Rectangle
 
     p = OptionParser(ld.__doc__)
     p.add_option("--subsample", default=500, type="int",
@@ -158,7 +155,7 @@ def ld(args):
                  help="Plot the map as heatmap [default: %default]")
     p.add_option("--cmap", default="jet",
                  help="Use this color map [default: %default]")
-    opts, args, iopts = set_image_options(p, args, figsize="8x8")
+    opts, args, iopts = p.set_image_options(args, figsize="8x8")
 
     if len(args) != 1:
         sys.exit(not p.print_help())

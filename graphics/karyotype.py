@@ -28,7 +28,7 @@ from jcvi.utils.iter import pairwise
 from jcvi.graphics.chromosome import HorizontalChromosome
 from jcvi.graphics.glyph import TextCircle
 from jcvi.graphics.synteny import Shade
-from jcvi.graphics.base import plt, _, set_image_options, savefig, markup
+from jcvi.graphics.base import plt, _, savefig, markup
 debug()
 
 
@@ -358,7 +358,7 @@ def main():
     p = OptionParser(__doc__)
     p.add_option("--auto", action="store_true",
                  help="Automatically adjust seqids [default: %default]")
-    opts, args, iopts = set_image_options(p, figsize="8x7")
+    opts, args, iopts = p.set_image_options(figsize="8x7")
 
     if len(args) != 2:
         sys.exit(not p.print_help())

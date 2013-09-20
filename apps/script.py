@@ -6,10 +6,8 @@ import sys
 import os.path as op
 import logging
 
-from jcvi.apps.base import OptionParser
-
 from jcvi.formats.base import must_open
-from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug
 debug()
 
 default_template = """#!/usr/bin/env python
@@ -63,16 +61,14 @@ Illustrate blablabla...
 import sys
 import logging
 
-from jcvi.apps.base import OptionParser
-
-from jcvi.graphics.base import plt, set_image_options, savefig
-from jcvi.apps.base import debug
+from jcvi.graphics.base import plt, savefig
+from jcvi.apps.base import OptionParser, debug
 debug()
 
 
 def main():
     p = OptionParser(__doc__)
-    opts, args, iopts = set_image_options(p)
+    opts, args, iopts = p.set_image_options()
 
     if len(args) != 1:
         sys.exit(not p.print_help())

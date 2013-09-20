@@ -15,17 +15,16 @@ whether you are BLASTing raw sequences or makers, you need to place --sizes or
 import os.path as op
 import sys
 import logging
-from random import sample
-from jcvi.apps.base import OptionParser
-
 import numpy as np
+
+from random import sample
 
 from jcvi.formats.blast import BlastLine
 from jcvi.formats.sizes import Sizes
 from jcvi.formats.bed import Bed, BedLine
-from jcvi.apps.base import debug
+from jcvi.apps.base import OptionParser, debug
 from jcvi.graphics.base import plt, ticker, Rectangle, cm, _, \
-        set_human_base_axis, set_image_options, savefig
+        set_human_base_axis, savefig
 debug()
 
 
@@ -248,7 +247,7 @@ if __name__ == "__main__":
             help="Remove trailing .? from gene names [default: %default]")
     p.add_option("--sample", default=None, type="int",
             help="Only plot maximum of N dots [default: %default]")
-    opts, args, iopts = set_image_options(p, figsize="8x8", dpi=150)
+    opts, args, iopts = p.set_image_options(figsize="8x8", dpi=150)
 
     qsizes, ssizes = opts.qsizes, opts.ssizes
     qbed, sbed = opts.qbed, opts.sbed

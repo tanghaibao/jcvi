@@ -10,15 +10,12 @@ import logging
 
 import numpy as np
 
-from jcvi.apps.base import OptionParser
-
-from jcvi.graphics.base import plt, _, Rectangle, Polygon, CirclePolygon, \
-        set_image_options, savefig
+from jcvi.graphics.base import plt, _, Rectangle, Polygon, CirclePolygon, savefig
 from jcvi.graphics.glyph import GeneGlyph, RoundLabel, RoundRect, \
         arrowprops, TextCircle, plot_cap
 from jcvi.graphics.chromosome import Chromosome
 from jcvi.utils.iter import pairwise
-from jcvi.apps.base import ActionDispatcher, fname, debug
+from jcvi.apps.base import OptionParser, ActionDispatcher, fname, debug
 debug()
 
 
@@ -53,7 +50,7 @@ def napusretention(args):
     from jcvi.graphics.chromosome import ChromosomeMap
 
     p = OptionParser(napusretention.__doc__)
-    opts, args, iopts = set_image_options(p, args, figsize="6x4")
+    opts, args, iopts = p.set_image_options(args, figsize="6x4")
 
     if len(args) != 4:
         sys.exit(not p.print_help())
@@ -144,7 +141,7 @@ def amborella(args):
                  help="Display trees on the bottom of the figure [default: %default]")
     p.add_option("--switch",
                  help="Rename the seqid with two-column file [default: %default]")
-    opts, args, iopts = set_image_options(p, args, figsize="8x7")
+    opts, args, iopts = p.set_image_options(args, figsize="8x7")
 
     if len(args) != 5:
         sys.exit(p.print_help())
@@ -199,7 +196,7 @@ def cotton(args):
                  help="Display trees on the bottom of the figure [default: %default]")
     p.add_option("--switch",
                  help="Rename the seqid with two-column file [default: %default]")
-    opts, args, iopts = set_image_options(p, args, figsize="8x7")
+    opts, args, iopts = p.set_image_options(args, figsize="8x7")
 
     if len(args) != 5:
         sys.exit(p.print_help())

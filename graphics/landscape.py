@@ -14,17 +14,15 @@ import numpy as np
 
 from math import ceil
 from collections import defaultdict
-from jcvi.apps.base import OptionParser
 
 from jcvi.formats.sizes import Sizes
 from jcvi.formats.base import LineFile, DictFile
 from jcvi.formats.bed import Bed, bins
 from jcvi.algorithms.matrix import moving_sum
-from jcvi.graphics.base import plt, _, set_image_options, \
-        Rectangle, CirclePolygon, savefig, \
+from jcvi.graphics.base import plt, _, Rectangle, CirclePolygon, savefig, \
         ticker, human_readable_base, tex_formatter
 from jcvi.utils.cbook import human_size, autoscale
-from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug
 debug()
 
 
@@ -185,7 +183,7 @@ def composite(args):
     p.add_option("--fatten", default=False, action="store_true",
                  help="Help visualize certain narrow features [default: %default]")
     add_window_options(p)
-    opts, args, iopts = set_image_options(p, args, figsize="8x5")
+    opts, args, iopts = p.set_image_options(args, figsize="8x5")
 
     if len(args) != 2:
         sys.exit(not p.print_help())
@@ -286,7 +284,7 @@ def heatmap(args):
     p.add_option("--meres", default=None,
                  help="Extra centromere / telomere features [default: %default]")
     add_window_options(p)
-    opts, args, iopts = set_image_options(p, args, figsize="8x5")
+    opts, args, iopts = p.set_image_options(args, figsize="8x5")
 
     if len(args) != 2:
         sys.exit(not p.print_help())
@@ -473,7 +471,7 @@ def stack(args):
     p.add_option("--switch",
                  help="Change chr names based on two-column file [default: %default]")
     add_window_options(p)
-    opts, args, iopts = set_image_options(p, args, figsize="8x8")
+    opts, args, iopts = p.set_image_options(args, figsize="8x8")
 
     if len(args) != 1:
         sys.exit(not p.print_help())

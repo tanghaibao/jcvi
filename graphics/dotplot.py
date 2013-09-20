@@ -28,13 +28,12 @@ import string
 import numpy as np
 from random import sample
 from itertools import groupby
-from jcvi.apps.base import OptionParser
 
 from jcvi.formats.bed import Bed
 from jcvi.algorithms.synteny import batch_scan, check_beds
-from jcvi.apps.base import debug
+from jcvi.apps.base import OptionParser, debug
 from jcvi.graphics.base import plt, ticker, Rectangle, cm, _, \
-        set_human_axis, set_image_options, savefig
+        set_human_axis, savefig
 debug()
 
 
@@ -287,7 +286,7 @@ if __name__ == "__main__":
             help="Do not render labels for chr less than portion of genome [default: %default]")
     p.add_option("--palette",
             help="Two column file, block id to color mapping [default: %default]")
-    opts, args, iopts = set_image_options(p, sys.argv[1:], figsize="8x8", dpi=90)
+    opts, args, iopts = p.set_image_options(sys.argv[1:], figsize="8x8", dpi=90)
 
     if len(args) != 1:
         sys.exit(not p.print_help())

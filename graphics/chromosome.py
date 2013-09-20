@@ -12,14 +12,13 @@ import logging
 
 from math import radians, ceil
 from itertools import groupby
-from jcvi.apps.base import OptionParser
 
 import numpy as np
 
 from jcvi.formats.bed import Bed
-from jcvi.graphics.base import plt, Rectangle, Polygon, \
-        CirclePolygon, _, set_image_options, savefig
+from jcvi.graphics.base import plt, Rectangle, Polygon, CirclePolygon, _, savefig
 from jcvi.graphics.glyph import BaseGlyph, plot_cap
+from jcvi.apps.base import OptionParser
 
 
 def canvas2px(coord, dmn, dpi):
@@ -174,7 +173,7 @@ def main():
     p.add_option("--winsize", default=50000, type="int",
             help="if drawing an imagemap, specify the window size (bases) of each map element "
                  "[default: %default bp]")
-    opts, args, iopts = set_image_options(p, figsize="6x6", dpi=300)
+    opts, args, iopts = p.set_image_options(figsize="6x6", dpi=300)
 
     if len(args) not in (1, 2):
         sys.exit(p.print_help())

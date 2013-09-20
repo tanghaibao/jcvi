@@ -15,11 +15,8 @@ You can download a number of free TTF fonts from:
 import sys
 import logging
 
-from jcvi.apps.base import OptionParser
-
-from jcvi.graphics.base import plt, set_image_options, savefig, fontprop, \
-        available_fonts
-from jcvi.apps.base import debug
+from jcvi.graphics.base import plt, savefig, fontprop, available_fonts
+from jcvi.apps.base import OptionParser, debug
 debug()
 
 
@@ -31,7 +28,7 @@ def main():
                  help="Font color [default: %default]")
     p.add_option("--size", default=36, type="int",
                  help="Font size [default: %default]")
-    opts, args, iopts = set_image_options(p, figsize='2x1', dpi=60, format='png')
+    opts, args, iopts = p.set_image_options(figsize='2x1', dpi=60, format='png')
 
     if len(args) != 1:
         sys.exit(not p.print_help())

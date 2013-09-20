@@ -32,7 +32,6 @@ import warnings
 
 from math import ceil
 from itertools import chain
-from jcvi.apps.base import OptionParser, OptionGroup
 
 import numpy as np
 from ete2 import Tree
@@ -51,9 +50,9 @@ from jcvi.apps.ks import AbstractCommandline, find_first_isoform, \
 from jcvi.formats.base import must_open, DictFile, LineFile
 from jcvi.formats.fasta import Fasta
 from jcvi.utils.orderedcollections import OrderedDict
-from jcvi.graphics.base import plt, _, set_image_options, savefig
+from jcvi.graphics.base import plt, _, savefig
 from jcvi.apps.command import getpath, partial
-from jcvi.apps.base import ActionDispatcher, debug, mkdir, sh
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, mkdir, sh
 debug()
 
 
@@ -944,7 +943,7 @@ def draw(args):
                  "for the OTUs: leafname<tab>color [default: %default]")
     p.add_option("--outdir", type="string", default=".", \
                  help="path to output dir. New dir is made if not existed [default: %default]")
-    opts, args, iopts = set_image_options(p, figsize="8x6")
+    opts, args, iopts = p.set_image_options(figsize="8x6")
     input = opts.input
     outdir = opts.outdir
     combine = opts.combine.split("x")

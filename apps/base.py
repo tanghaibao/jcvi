@@ -174,6 +174,43 @@ class OptionParser (OptionP):
             self.add_option("--evalue", default=evalue, type="float",
                      help="E-value cutoff [default: %default]")
 
+    def set_image_options(self, args=None, figsize="6x6", dpi=300,
+                          format="pdf", theme="helvetica"):
+        """
+        Add image format options for given command line programs.
+        """
+        from jcvi.graphics.base import ImageOptions, setup_theme
+
+        allowed_format = ("emf", "eps", "pdf", "png", "ps", \
+                          "raw", "rgba", "svg", "svgz")
+        allowed_themes = ("helvetica", "palatino", "schoolbook", "mpl")
+
+        group = OptionGroup(self, "Image options")
+        self.add_option_group(group)
+
+        group.add_option("--figsize", default=figsize,
+                help="Figure size `width`x`height` in inches [default: %default]")
+        group.add_option("--dpi", default=dpi, type="int",
+                help="Physical dot density (dots per inch) [default: %default]")
+        group.add_option("--format", default=format, choices=allowed_format,
+                help="Generate image of format, must be one of {0}".\
+                format("|".join(allowed_format)) + " [default: %default]")
+        group.add_option("--theme", default=theme, choices=allowed_themes,
+                help="Font theme, must be one of {0}".format("|".join(allowed_themes)) + \
+                     " [default: %default]")
+
+        if args is None:
+            args = sys.argv[1:]
+
+        opts, args = self.parse_args(args)
+
+        assert opts.dpi > 0
+        assert "x" in opts.figsize
+
+        setup_theme(opts.theme)
+
+        return opts, args, ImageOptions(opts)
+
 
 def ConfigSectionMap(Config, section):
     """

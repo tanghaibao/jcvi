@@ -14,14 +14,14 @@ import logging
 import re
 
 from itertools import groupby
-from jcvi.apps.base import OptionParser, OptionGroup
 from pybedtools import BedTool
 
 from jcvi.formats.bed import Bed, BedLine, sort
 from jcvi.formats.gff import GffLine, Gff
 from jcvi.formats.base import SetFile, must_open
 from jcvi.utils.cbook import number
-from jcvi.apps.base import ActionDispatcher, debug, need_update, popen, sh
+from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher, debug, \
+            need_update, popen, sh
 debug()
 
 
@@ -174,7 +174,7 @@ def plot(args):
     Plot gene identifiers along a particular chromosome, often to illustrate the
     gene id assignment procedure.
     """
-    from jcvi.graphics.base import plt, set_image_options, savefig
+    from jcvi.graphics.base import plt, savefig
     from jcvi.graphics.chromosome import ChromosomeMap
 
     p = OptionParser(plot.__doc__)
@@ -182,7 +182,7 @@ def plot(args):
     p.add_option("--ymax", type="int", help="Y-axis max value")
     p.add_option("--log", action="store_true",
                 help="Write plotting data [default: %default]")
-    opts, args, iopts = set_image_options(p, args, figsize="6x4")
+    opts, args, iopts = p.set_image_options(args, figsize="6x4")
 
     if len(args) != 2:
         sys.exit(not p.print_help())

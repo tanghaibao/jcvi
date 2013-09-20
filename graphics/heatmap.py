@@ -27,10 +27,9 @@ import logging
 
 import numpy as np
 from itertools import groupby
-from jcvi.apps.base import OptionParser
 
-from jcvi.graphics.base import plt, cm, _, set_image_options, LogNorm, savefig
-from jcvi.apps.base import debug
+from jcvi.graphics.base import plt, cm, _, LogNorm, savefig
+from jcvi.apps.base import OptionParser, debug
 debug()
 
 
@@ -72,7 +71,7 @@ def main():
                  help="Horizontal color bar [default: vertical]")
     p.add_option("--cmap", default="jet",
                  help="Use this color map [default: %default]")
-    opts, args, iopts = set_image_options(p, figsize="8x8")
+    opts, args, iopts = p.set_image_options(figsize="8x8")
 
     if len(args) != 1:
         sys.exit(not p.print_help())

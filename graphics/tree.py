@@ -9,7 +9,7 @@ from ete2 import Tree
 
 from jcvi.formats.sizes import Sizes
 from jcvi.formats.base import DictFile
-from jcvi.graphics.base import plt, _, set_image_options, savefig
+from jcvi.graphics.base import plt, _, savefig
 from jcvi.graphics.glyph import ExonGlyph, get_setups
 from jcvi.apps.base import OptionParser, debug, glob
 debug()
@@ -255,7 +255,7 @@ def main(args):
     p.add_option("--leaffont", default=12,
                  help="Font size for the OTUs")
 
-    opts, args, iopts = set_image_options(p, args, figsize="8x6")
+    opts, args, iopts = p.set_image_options(args, figsize="8x6")
 
     if len(args) != 1:
         sys.exit(not p.print_help())

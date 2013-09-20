@@ -10,18 +10,15 @@ import sys
 import logging
 import os.path as op
 
-from jcvi.apps.base import OptionParser
-
 from jcvi.formats.fasta import Fasta
 from jcvi.formats.blast import Blast
 from jcvi.formats.bed import Bed, BedLine
 from jcvi.formats.sizes import Sizes
 from jcvi.assembly.base import calculate_A50
 from jcvi.assembly.coverage import BedLine, Sizes, Coverage
-from jcvi.graphics.base import plt, Rectangle, set_human_base_axis, \
-        _, set_image_options, savefig
+from jcvi.graphics.base import plt, Rectangle, set_human_base_axis, _, savefig
 from jcvi.utils.cbook import thousands
-from jcvi.apps.base import ActionDispatcher, debug, need_update
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, need_update
 debug()
 
 
@@ -53,7 +50,7 @@ def coverage(args):
                  help="Limit ymax [default: %default]")
     p.add_option("--spans", default=False, action="store_true",
                  help="BED files already contain clone spans [default: %default]")
-    opts, args, iopts = set_image_options(p, args, figsize="8x5")
+    opts, args, iopts = p.set_image_options(args, figsize="8x5")
 
     if len(args) < 3:
         sys.exit(not p.print_help())
@@ -178,7 +175,6 @@ def scaffold(args):
     This script will plot a dot in the dot plot in the corresponding location
     the plots are one contig/scaffold per plot.
     """
-    from jcvi.graphics.base import set_image_options
     from jcvi.utils.iter import grouper
 
     p = OptionParser(scaffold.__doc__)
@@ -186,7 +182,7 @@ def scaffold(args):
             help="Plot scaffolds with size larger than [default: %default]")
     p.add_option("--highlights",
             help="A set of regions in BED format to highlight [default: %default]")
-    opts, args, iopts = set_image_options(p, args, figsize="14x8", dpi=150)
+    opts, args, iopts = p.set_image_options(args, figsize="14x8", dpi=150)
 
     if len(args) < 4 or len(args) % 3 != 1:
         sys.exit(not p.print_help())

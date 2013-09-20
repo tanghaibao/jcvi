@@ -19,17 +19,14 @@ import sys
 import logging
 import numpy as np
 
-from jcvi.apps.base import OptionParser
-
 from jcvi.algorithms.synteny import BlockFile
 from jcvi.formats.bed import Bed
 from jcvi.formats.base import LineFile, DictFile
 from jcvi.utils.cbook import human_size
-from jcvi.apps.base import debug
+from jcvi.apps.base import OptionParser, debug
 
 from jcvi.graphics.glyph import Glyph, RoundLabel
-from jcvi.graphics.base import plt, _, set_image_options, Affine2D, \
-        Path, PathPatch, savefig, markup
+from jcvi.graphics.base import plt, _, Affine2D, Path, PathPatch, savefig, markup
 debug()
 
 
@@ -257,7 +254,7 @@ def main():
                  help="Rename the seqid with two-column file [default: %default]")
     p.add_option("--tree",
                  help="Display trees on the bottom of the figure [default: %default]")
-    opts, args, iopts = set_image_options(p, figsize="8x7")
+    opts, args, iopts = p.set_image_options(figsize="8x7")
 
     if len(args) != 3:
         sys.exit(not p.print_help())

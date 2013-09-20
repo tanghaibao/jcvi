@@ -619,7 +619,7 @@ def ortholog(args):
     qprefix = ".".join((bprefix, aprefix))
     last = pprefix + ".last"
     if need_update((afasta, bfasta), last):
-        last_main([bfasta, afasta, "-o", last, "-a", "16"])
+        last_main([bfasta, afasta, "-o", last])
 
     filtered_last = last + ".filtered"
     bstring = ["--qbed=" + abed, "--sbed=" + bbed]

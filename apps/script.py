@@ -6,13 +6,11 @@ import sys
 import os.path as op
 import logging
 
-from jcvi.formats.base import must_open
+from jcvi.formats.base import write_file
 from jcvi.apps.base import OptionParser, ActionDispatcher, debug
 debug()
 
-default_template = """#!/usr/bin/env python
-# -*- coding: UTF-8 -*-
-
+default_template = """
 \"\"\"
 
 \"\"\"
@@ -48,9 +46,7 @@ if __name__ == '__main__':
     main()
 """
 
-graphic_template = """#!/usr/bin/env python
-# -*- coding: UTF-8 -*-
-
+graphic_template = """
 \"\"\"
 %prog datafile
 
@@ -98,19 +94,17 @@ def main():
     create a minimal boilerplate for a new script
     """
     p = OptionParser(main.__doc__)
-    p.add_option("-g", dest="graphic", default=False, action="store_true",
-            help="create boilerplate for a graphic script")
+    p.add_option("--graphic", default=False, action="store_true",
+            help="Create boilerplate for a graphic script")
 
     opts, args = p.parse_args()
     if len(args) != 1:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
     script, = args
     template = graphic_template if opts.graphic else default_template
+    write_file(script, template, meta="python script")
 
-    fw = must_open(script, "w", checkexists=True)
-    fw.write(template)
-    fw.close()
     message = "template writes to `{0}`".format(script)
     if opts.graphic:
         message = "graphic " + message

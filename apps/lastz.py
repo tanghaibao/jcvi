@@ -7,14 +7,13 @@ import sys
 import logging
 
 from math import exp
-from jcvi.apps.base import OptionParser
 from subprocess import Popen, PIPE
 from multiprocessing import Lock, Pool
 
 from jcvi.formats.base import must_open
 from jcvi.apps.grid import Grid, Jobs
-from jcvi.apps.base import ActionDispatcher, debug, \
-        sh, mkdir
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, \
+            sh, mkdir
 debug()
 
 
@@ -158,8 +157,6 @@ def main():
         "lav, lav+text, axt, axt+, maf, maf+, maf-, sam, softsam, "\
         "sam-, softsam-, cigar, BLASTN, BLASTN-, differences, rdotplot, text".split(','))
 
-    p.add_option("-a", "-A", dest="cpus", default=1, type="int",
-            help="parallelize job to multiple cpus [default: %default]")
     p.add_option("--format", default="BLASTN-", choices=supported_formats,
             help="output format, one of {0} [default: %default]".\
                  format("|".join(supported_formats)))
@@ -169,7 +166,7 @@ def main():
             help="treat lower-case letters as mask info [default: %default]")
     p.add_option("--similar", default=False, action="store_true",
             help="Use options tuned for close comparison [default: %default]")
-
+    p.set_cpus()
     p.set_params()
     p.set_outfile()
     p.set_grid()

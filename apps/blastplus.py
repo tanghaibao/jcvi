@@ -40,8 +40,6 @@ def main():
     """
     p = OptionParser(main.__doc__)
 
-    p.add_option("-a", "-A", dest="cpus", default=1, type="int",
-            help="parallelize job to multiple cpus [default: %default]")
     p.add_option("--format", default=" \'6 qseqid sseqid pident length " \
             "mismatch gapopen qstart qend sstart send evalue bitscore\' ",
             help="0-11, learn more with \"blastp -help\". [default: %default]")
@@ -55,6 +53,7 @@ def main():
     p.add_option("--best", default=1, type="int",
             help="Only look for best N hits [default: %default]")
 
+    p.set_cpus()
     p.set_params()
     p.set_outfile()
     opts, args = p.parse_args()

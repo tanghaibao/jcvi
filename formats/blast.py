@@ -1105,40 +1105,6 @@ def bed(args):
     return bedfile
 
 
-def set_options_pairs():
-    """
-    %prog pairs <blastfile|casfile|bedfile|posmapfile>
-
-    Report how many paired ends mapped, avg distance between paired ends, etc.
-    Paired reads must have the same prefix, use --rclip to remove trailing
-    part, e.g. /1, /2, or .f, .r, default behavior is to truncate until last
-    char.
-    """
-    p = OptionParser(set_options_pairs.__doc__)
-
-    p.add_option("--cutoff", dest="cutoff", default=0, type="int",
-            help="distance to call valid links between mates "\
-                 "[default: estimate from input]")
-    p.add_option("--mateorientation", default=None,
-            choices=("++", "--", "+-", "-+"),
-            help="use only certain mate orientations [default: %default]")
-    p.add_option("--pairsfile", default=None,
-            help="write valid pairs to pairsfile [default: %default]")
-    p.add_option("--nrows", default=200000, type="int",
-            help="only use the first n lines [default: %default]")
-    p.add_option("--rclip", default=0, type="int",
-            help="pair ID is derived from rstrip N chars [default: %default]")
-    p.add_option("--pdf", default=False, action="store_true",
-            help="print PDF instead ASCII histogram [default: %default]")
-    p.add_option("--bins", default=20, type="int",
-            help="number of bins in the histogram [default: %default]")
-    p.add_option("--distmode", default="ss", choices=("ss", "ee"),
-            help="distance mode between paired reads, ss is outer distance, " \
-                 "ee is inner distance [default: %default]")
-
-    return p
-
-
 def report_pairs(data, cutoff=0, mateorientation=None,
         pairsfile=None, insertsfile=None, rclip=1, ascii=False, bins=20,
         distmode="ss"):
@@ -1266,12 +1232,12 @@ def report_pairs(data, cutoff=0, mateorientation=None,
 
 def pairs(args):
     """
-    See __doc__ for set_options_pairs().
+    See __doc__ for OptionParser.set_pairs().
     """
     import jcvi.formats.bed
 
-    p = set_options_pairs()
-
+    p = OptionParser(pairs.__doc__)
+    p.set_pairs()
     opts, targs = p.parse_args(args)
 
     if len(targs) != 1:

@@ -5,22 +5,46 @@
 Utilities when processing PASA results.
 """
 
+import os.path as op
 import sys
 import logging
 
-from jcvi.apps.base import OptionParser
-
-from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.formats.base import write_file
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug
 debug()
 
 
 def main():
 
     actions = (
+        ('prepare', 'generate PASA run script'),
         ('longest', 'label longest transcript per gene as full-length'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def prepare(args):
+    """
+    %prog prepare alignAssembly.config est.fasta ref.fasta
+
+    Generate PASA run script.
+    """
+    p = OptionParser(prepare.__doc__)
+    p.set_home("pasa")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    cfg, est, ref = args
+    phome = opts.pasa_home
+    cmd = op.join(phome, "scripts/Launch_PASA_pipeline.pl")
+    cmd += " -c {0}".format(cfg)
+    cmd += " -C -R --ALIGNERS blat,gmap"
+    cmd += " -t {0} -g {1}".format(est, ref)
+    runfile = "run.sh"
+    write_file(runfile, cmd, meta="run script")
 
 
 def longest(args):

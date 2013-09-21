@@ -37,8 +37,7 @@ def dn(args):
     p = OptionParser(dn.__doc__)
     p.add_option("--paired", default=False, action="store_true",
                  help="Paired-end mode [default: %default]")
-    p.add_option("--trinity_home", default="~/export/trinityrnaseq_r2013_08_14/",
-                 help="Home directory for TRINITY [default: %default]")
+    p.set_home("trinity")
     p.set_cpus()
     opts, args = p.parse_args(args)
 

@@ -10,9 +10,8 @@ import os.path as op
 import sys
 import logging
 
-from jcvi.apps.base import OptionParser
-
-from jcvi.apps.base import ActionDispatcher, debug, mkdir, sh, need_update
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, mkdir, \
+            sh, need_update
 debug()
 
 
@@ -38,8 +37,7 @@ def pasa(args):
     from jcvi.formats.gff import Gff
 
     p = OptionParser(pasa.__doc__)
-    p.add_option("--pasa_home", default="~/htang/export/PASA2-r20130605p1",
-                 help="Home directory for PASA [default: %default]")
+    p.set_home("pasa")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -90,8 +88,7 @@ def genemark(args):
     model gff file is needed.
     """
     p = OptionParser(genemark.__doc__)
-    p.add_option("--gmes_home", default="~/htang/export/gmes",
-                 help="Home directory for GENEMARK [default: %default]")
+    p.set_home("gmes")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -124,8 +121,7 @@ def snap(args):
     <http://gmod.org/wiki/MAKER_Tutorial_2012>
     """
     p = OptionParser(snap.__doc__)
-    p.add_option("--maker_home", default="~/htang/export/maker",
-                 help="Home directory for MAKER [default: %default]")
+    p.set_home("maker")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -164,8 +160,7 @@ def augustus(args):
     <http://www.molecularevolution.org/molevolfiles/exercises/augustus/training.html>
     """
     p = OptionParser(snap.__doc__)
-    p.add_option("--augustus_home", default="~/htang/export/augustus.2.5.5",
-                 help="Home directory for AUGUSTUS [default: %default]")
+    p.set_home("augustus")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:

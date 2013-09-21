@@ -211,6 +211,50 @@ class OptionParser (OptionP):
 
         return opts, args, ImageOptions(opts)
 
+    def set_pairs(self):
+        """
+        %prog pairs <blastfile|samfile|casfile|bedfile|posmapfile>
+
+        Report how many paired ends mapped, avg distance between paired ends, etc.
+        Paired reads must have the same prefix, use --rclip to remove trailing
+        part, e.g. /1, /2, or .f, .r, default behavior is to truncate until last
+        char.
+        """
+        self.set_usage(self.set_pairs.__doc__)
+
+        self.add_option("--cutoff", default=0, type="int",
+                help="Distance to call valid links between mates "\
+                     "[default: estimate from input]")
+        self.add_option("--mateorientation", default=None,
+                choices=("++", "--", "+-", "-+"),
+                help="Use only certain mate orientations [default: %default]")
+        self.add_option("--pairsfile", default=None,
+                help="Write valid pairs to pairsfile [default: %default]")
+        self.add_option("--nrows", default=200000, type="int",
+                help="Only use the first n lines [default: %default]")
+        self.add_option("--rclip", default=0, type="int",
+                help="Pair ID is derived from rstrip N chars [default: %default]")
+        self.add_option("--pdf", default=False, action="store_true",
+                help="Print PDF instead ASCII histogram [default: %default]")
+        self.add_option("--bins", default=20, type="int",
+                help="Number of bins in the histogram [default: %default]")
+        self.add_option("--distmode", default="ss", choices=("ss", "ee"),
+                help="Distance mode between paired reads, ss is outer distance, " \
+                     "ee is inner distance [default: %default]")
+
+    def set_home(self, prog):
+        tag = "--{0}_home".format(prog)
+        default = {"amos": "~/code/amos-code/",
+                   "trinity": "~/export/trinityrnaseq_r2013_08_14/",
+                   "cdhit": "~/htang/export/cd-hit-v4.6.1-2012-08-27",
+                   "maker": "~/htang/export/maker",
+                   "pasa": "~/htang/export/PASA2-r20130605p1",
+                   "gmes": "~/htang/export/gmes",
+                   "augustus": "~/htang/export/augustus.2.5.5",
+                   }[prog]
+        help = "Home directory for {0} [default: %default]".format(prog.upper())
+        self.add_option(tag, default=default, help=help)
+
 
 def ConfigSectionMap(Config, section):
     """

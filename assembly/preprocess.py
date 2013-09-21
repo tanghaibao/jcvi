@@ -10,15 +10,13 @@ import os.path as op
 import sys
 import logging
 
-from jcvi.apps.base import OptionParser
-
 from jcvi.formats.base import BaseFile, write_file
 from jcvi.formats.fastq import guessoffset
 from jcvi.utils.cbook import depends, human_size
 from jcvi.utils.data import Adapters
 from jcvi.apps.command import JAVAPATH
-from jcvi.apps.base import ActionDispatcher, debug, download, \
-        sh, mkdir, need_update
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, download, \
+            sh, mkdir, need_update
 debug()
 
 
@@ -116,8 +114,7 @@ def alignextend(args):
     p = OptionParser(alignextend.__doc__)
     p.add_option("--nosuffix", default=False, action="store_true",
                  help="Do not add /1/2 suffix to the read [default: %default]")
-    p.add_option("--amos_home", default="~/code/amos-code/",
-                 help="Home directory for AMOS [default: %default]")
+    p.set_home("amos")
     p.set_cpus()
     opts, args = p.parse_args(args)
 

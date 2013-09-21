@@ -10,7 +10,7 @@ import logging
 from itertools import groupby
 
 from jcvi.formats.base import LineFile, must_open, is_number
-from jcvi.utils.cbook import depends, thousands, percentage
+from jcvi.utils.cbook import thousands, percentage
 from jcvi.utils.range import Range, range_union, range_chain, \
         range_distance, range_intersect
 from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh, \
@@ -938,11 +938,12 @@ def sizes(args):
 
 def pairs(args):
     """
-    See __doc__ for set_options_pairs().
+    See __doc__ for OptionParser.set_pairs().
     """
-    from jcvi.formats.blast import report_pairs, set_options_pairs
-    p = set_options_pairs()
+    from jcvi.formats.blast import report_pairs
 
+    p = OptionParser(pairs.__doc__)
+    p.set_pairs()
     opts, args = p.parse_args(args)
 
     if len(args) != 1:

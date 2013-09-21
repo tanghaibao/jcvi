@@ -19,7 +19,7 @@ from jcvi.formats.base import BaseFile, LineFile, write_file
 from jcvi.apps.softlink import get_abs_path
 from jcvi.apps.grid import GridProcess
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, popen, \
-        debug, sh, mkdir, glob
+            debug, sh, mkdir, glob
 debug()
 
 
@@ -134,8 +134,7 @@ def parallel(args):
     from jcvi.formats.base import split
 
     p = OptionParser(parallel.__doc__)
-    p.add_option("--maker_home", default="~/htang/export/maker",
-                 help="Home directory for MAKER [default: %default]")
+    p.set_home("maker")
     p.set_tmpdir(tmpdir="tmp")
     p.set_grid_opts(array=True)
     opts, args = p.parse_args(args)
@@ -225,8 +224,7 @@ def merge(args):
     from jcvi.formats.gff import merge as gmerge
 
     p = OptionParser(merge.__doc__)
-    p.add_option("--maker_home", default="~/htang/export/maker",
-                 help="Home directory for MAKER [default: %default]")
+    p.set_home("maker")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:

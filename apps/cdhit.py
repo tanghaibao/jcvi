@@ -9,11 +9,10 @@ import os.path as op
 import sys
 import logging
 
-from jcvi.apps.base import OptionParser
 from collections import defaultdict
 
 from jcvi.formats.base import LineFile, read_block
-from jcvi.apps.base import ActionDispatcher, debug, sh
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh
 debug()
 
 
@@ -141,9 +140,7 @@ def deduplicate(args):
     p.set_align(pctid=98)
     p.add_option("--est", default=False, action="store_true",
                  help="Use `cd-hit-est` to cluster [default: %default]")
-    p.add_option("--cdhit_home",
-                 default="~/htang/export/cd-hit-v4.6.1-2012-08-27",
-                 help="Directory that contains cd-hit [default: %default]")
+    p.set_home("cdhit")
     p.set_cpus()
     p.set_grid()
 

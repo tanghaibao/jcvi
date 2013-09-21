@@ -14,12 +14,10 @@ import csv
 import logging
 
 from collections import namedtuple, defaultdict
-from jcvi.apps.base import OptionParser
 from itertools import groupby
 
 from jcvi.formats.base import BaseFile, LineFile
-from jcvi.formats.blast import set_options_pairs
-from jcvi.apps.base import ActionDispatcher, sh, debug
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh, debug
 debug()
 
 
@@ -315,12 +313,12 @@ def dup(args):
 
 def pairs(args):
     """
-    See __doc__ for set_options_pairs().
+    See __doc__ for OptionParser.set_pairs().
     """
     import jcvi.formats.bed
 
-    p = set_options_pairs()
-
+    p = OptionParser(pairs.__doc__)
+    p.set_pairs()
     opts, targs = p.parse_args(args)
 
     if len(targs) != 1:

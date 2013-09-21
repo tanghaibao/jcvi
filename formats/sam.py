@@ -10,15 +10,13 @@ import sys
 import logging
 
 from itertools import groupby
-from jcvi.apps.base import OptionParser
 
-from Bio import SeqIO
 from jcvi.formats.base import LineFile
 from jcvi.formats.fasta import Fasta
 from jcvi.formats.sizes import Sizes
 from jcvi.utils.cbook import fill
 from jcvi.assembly.base import Astat
-from jcvi.apps.base import ActionDispatcher, need_update, sh, debug
+from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh, debug
 debug()
 
 
@@ -186,13 +184,12 @@ def fpkm(args):
 
 def pairs(args):
     """
-    See __doc__ for set_options_pairs().
+    See __doc__ for OptionParser.set_pairs().
     """
     import jcvi.formats.bed
-    from jcvi.formats.blast import set_options_pairs
 
-    p = set_options_pairs()
-
+    p = OptionParser(pairs.__doc__)
+    p.set_pairs()
     opts, targs = p.parse_args(args)
 
     if len(targs) != 1:

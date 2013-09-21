@@ -5,16 +5,13 @@ Codes to submit multiple jobs to JCVI grid engine
 import os
 import os.path as op
 import sys
-import time
 import re
 import logging
 
-from subprocess import Popen, PIPE
-from jcvi.apps.base import OptionParser
 from multiprocessing import Process, Queue, cpu_count
 
 from jcvi.formats.base import write_file, must_open
-from jcvi.apps.base import ActionDispatcher, sh, popen, backup, mkdir, debug
+from jcvi.apps.base import OptionParser, ActionDispatcher, popen, backup, mkdir, debug
 debug()
 
 

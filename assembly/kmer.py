@@ -9,13 +9,12 @@ import os.path as op
 import sys
 import logging
 
-from jcvi.apps.base import OptionParser
-
 from jcvi.utils.iter import pairwise
 from jcvi.graphics.base import plt, asciiplot, _, set_human_axis, savefig
 from jcvi.formats.fasta import Fasta
 from jcvi.formats.base import must_open
-from jcvi.apps.base import ActionDispatcher, sh, debug, need_update
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh, debug, \
+            need_update, Popen, PIPE
 debug()
 
 
@@ -227,7 +226,6 @@ def count(args):
 
     Run dump - jellyfish - bin - bincount in serial.
     """
-    from subprocess import Popen, PIPE
     from bitarray import bitarray
 
     p = OptionParser(count.__doc__)
@@ -240,7 +238,7 @@ def count(args):
     K = get_K(jfdb)
     cmd = "jellyfish query {0} -C | cut -d' ' -f 2".format(jfdb)
     t = must_open("tmp", "w")
-    proc = Popen(cmd, stdin=PIPE, stdout=t, shell=True)
+    proc = Popen(cmd, stdin=PIPE, stdout=t)
     t.flush()
 
     f = Fasta(fastafile, lazy=True)

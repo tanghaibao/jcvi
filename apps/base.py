@@ -8,7 +8,7 @@ import sys
 import shutil
 import logging
 
-from subprocess import call
+from subprocess import PIPE, call
 from optparse import OptionParser as OptionP, OptionGroup
 
 os.environ["LC_ALL"] = "C"
@@ -373,16 +373,20 @@ def sh(cmd, grid=False, infile=None, outfile=None, errfile=None,
         return call(cmd, shell=True, executable=shell)
 
 
-def popen(cmd, debug=True, shell="/bin/bash"):
+def Popen(cmd, stdin=None, stdout=PIPE, debug=False, shell="/bin/bash"):
     """
     Capture the cmd stdout output to a file handle.
     """
-    from subprocess import Popen, PIPE
+    from subprocess import Popen as P
     if debug:
         logging.debug(cmd)
-    proc = Popen(cmd, bufsize=1, stdout=PIPE, shell=True, \
-                 executable=shell)
-    return proc.stdout
+    proc = P(cmd, bufsize=1, stdin=stdin, stdout=stdout, \
+             shell=True, executable=shell)
+    return proc
+
+
+def popen(cmd, debug=True, shell="/bin/bash"):
+    return Popen(cmd, debug=debug, shell=shell).stdout
 
 
 def is_exe(fpath):

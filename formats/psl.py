@@ -11,11 +11,9 @@ import sys
 import math
 import logging
 
-from jcvi.apps.base import OptionParser
-
 from jcvi.formats.base import LineFile, must_open
-from jcvi.apps.base import ActionDispatcher, debug, sh, \
-        need_update, popen
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh, \
+        need_update
 debug()
 
 

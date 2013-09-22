@@ -11,7 +11,6 @@ import os.path as op
 import sys
 import logging
 
-from subprocess import Popen, PIPE
 from itertools import islice
 from multiprocessing import Lock
 from Bio import SeqIO
@@ -19,7 +18,7 @@ from Bio import SeqIO
 from jcvi.utils.cbook import depends
 from jcvi.apps.grid import Jobs
 from jcvi.formats.base import must_open
-from jcvi.apps.base import OptionParser, debug, sh
+from jcvi.apps.base import OptionParser, debug, sh, Popen, PIPE
 debug()
 
 
@@ -33,7 +32,7 @@ def run_lastdb(infile=None, outfile=None, mask=False, lastdb_bin="lastdb"):
 
 def last(k, n, out_fh, cmd, query, lock):
 
-    proc = Popen(cmd, stdin=PIPE, stdout=PIPE, shell=True)
+    proc = Popen(cmd, stdin=PIPE)
 
     parser = SeqIO.parse(query, "fasta")
     for rec in islice(parser, k - 1, None, n):

@@ -14,8 +14,6 @@ import logging
 from math import log, sqrt, pi, exp
 from itertools import product, combinations
 from collections import namedtuple
-from jcvi.apps.base import OptionParser, OptionGroup
-from subprocess import Popen, PIPE
 
 import numpy as np
 from Bio import SeqIO
@@ -24,7 +22,8 @@ from Bio.Align.Applications import ClustalwCommandline, MuscleCommandline
 
 from jcvi.formats.base import must_open, LineFile
 from jcvi.apps.command import getpath, partial
-from jcvi.apps.base import ActionDispatcher, debug, mkdir, sh
+from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher, debug, \
+            mkdir, sh, Popen
 debug()
 
 
@@ -37,7 +36,7 @@ PAML_BIN = partial(getpath, name="PAML", warn="warn")
 class AbstractCommandline:
 
     def run(self):
-        r = Popen(str(self), shell=True, stdout=PIPE)
+        r = Popen(str(self))
         return r.communicate()
 
 

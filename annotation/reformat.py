@@ -761,7 +761,7 @@ def consolidate(nbedfile, obedfile, cbedfile):
     ba = obedtool.intersect(nbedtool, s=True, u=True)
 
     cmd = "cat {0} {1} | sort -k1,1 -k2,2n".format(ab.fn, ba.fn)
-    fp = popen(cmd, debug=True)
+    fp = popen(cmd)
     ovl = BedTool(fp.readlines())
 
     abmerge = ovl.merge(s=True, nms=True, scores="mean").sort()

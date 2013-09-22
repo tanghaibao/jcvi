@@ -6,20 +6,20 @@ import os.path as op
 import sys
 import logging
 
-from subprocess import Popen, PIPE
 from multiprocessing import Lock, Pool
 
 from jcvi.formats.base import must_open, split
 from jcvi.apps.grid import Jobs
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh, mkdir
 from jcvi.apps.align import run_formatdb
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh, \
+            mkdir, Popen
 debug()
 
 
 def blastplus(k, n, out_fh, cmd, query, lock):
 
     cmd += " -query {0}".format(query)
-    proc = Popen(cmd, stdin=PIPE, stdout=PIPE, shell=True)
+    proc = Popen(cmd)
 
     logging.debug("job <%d> started: %s" % (proc.pid, cmd))
     for row in proc.stdout:

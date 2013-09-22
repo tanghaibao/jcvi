@@ -7,13 +7,12 @@ import sys
 import logging
 
 from math import exp
-from subprocess import Popen, PIPE
 from multiprocessing import Lock, Pool
 
 from jcvi.formats.base import must_open
 from jcvi.apps.grid import Grid, Jobs
 from jcvi.apps.base import OptionParser, ActionDispatcher, debug, \
-            sh, mkdir
+            sh, mkdir, Popen
 debug()
 
 
@@ -100,7 +99,7 @@ def lastz_2bit(t):
     if grid:  # if run on SGE, only the cmd is needed
         return lastz_cmd
 
-    proc = Popen(lastz_cmd, bufsize=1, stdout=PIPE, shell=True)
+    proc = Popen(lastz_cmd)
     out_fh = open(outfile, "w")
 
     logging.debug("job <%d> started: %s" % (proc.pid, lastz_cmd))
@@ -133,7 +132,7 @@ def lastz(k, n, bfasta_fn, afasta_fn, out_fh, lock, lastz_bin, extra,
     if grid:  # if run on SGE, only the cmd is needed
         return lastz_cmd
 
-    proc = Popen(lastz_cmd, bufsize=1, stdout=PIPE, shell=True)
+    proc = Popen(lastz_cmd)
 
     logging.debug("job <%d> started: %s" % (proc.pid, lastz_cmd))
     for row in proc.stdout:

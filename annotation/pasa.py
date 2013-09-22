@@ -32,6 +32,7 @@ def prepare(args):
     """
     p = OptionParser(prepare.__doc__)
     p.set_home("pasa")
+    p.set_cpus()
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -40,7 +41,7 @@ def prepare(args):
     cfg, est, ref = args
     phome = opts.pasa_home
     cmd = op.join(phome, "scripts/Launch_PASA_pipeline.pl")
-    cmd += " -c {0}".format(cfg)
+    cmd += " -c {0} --CPU {1}".format(cfg, opts.cpus)
     cmd += " -C -R --ALIGNERS blat,gmap"
     cmd += " -t {0} -g {1}".format(est, ref)
     runfile = "run.sh"

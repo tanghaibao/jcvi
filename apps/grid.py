@@ -224,6 +224,7 @@ def main():
     actions = (
         ('run', 'run a normal command on grid'),
         ('array', 'run an array job'),
+        ('kill', 'wrapper around the `qdel` command'),
             )
 
     p = ActionDispatcher(actions)
@@ -341,6 +342,71 @@ def run(args):
                         queue=opts.queue, threaded=opts.threaded,
                         outdir=opts.outdir, name=opts.name)
         p.start()
+
+
+def kill(args):
+    """
+    %prog kill [options] JOBIDs/JOBNAMEPAT
+
+    Kill all jobs based on list of JOBIDs (comma separated) or
+    JOBNAME pattern matching (case-sensitive)
+
+    Examples:
+    %prog kill 160253,160245,160252
+    %prog kill --method=pattern "python*"
+    %prog kill --all
+    """
+    import shlex
+    from jcvi.apps.base import sh, getusername
+    from jcvi.formats.base import is_number
+    from subprocess import check_output, CalledProcessError
+    import xml.etree.ElementTree as ET
+
+    valid_methods = ("jobid", "pattern")
+    p = OptionParser(kill.__doc__)
+    p.add_option("--method", default="jobid", choices=valid_methods,
+                 help="Identify jobs based on ({0})".format(", ".join(\
+                      '"{0}"'.format(x) for x in valid_methods)) + \
+                      " [default: %default]")
+    p.add_option("--all", default=False, action="store_true",
+                 help="Kill all jobs owned by current user." + \
+                      " Ignores `--method`. [default: %default]")
+
+    opts, args = p.parse_args(args)
+    username = getusername()
+    if not opts.all:
+        if len(args) == 0:
+            sys.exit(not p.print_help())
+    else:
+        sh("qdel -u {0}".format(username))
+        sys.exit()
+
+    inargs, = args
+    valid_jobids = set()
+    if opts.method == "jobid":
+        jobids = inargs.strip().split(",")
+        for jobid in jobids:
+            if not is_number(jobid):
+                logging.debug("JOBID `{0}` should be a number".format(jobid))
+            else:
+                valid_jobids.add(jobid)
+    elif opts.method == "pattern":
+        jobnamepat = inargs.strip()
+        qsxmlcmd = 'qstat -u "{0}" -j "{1}" -nenv -njd -xml'.format(username, jobnamepat)
+        try:
+            qsxml = check_output(shlex.split(qsxmlcmd)).strip()
+        except CalledProcessError, e:
+            qsxml = None
+            logging.debug('No jobs matching the pattern "{0}"'.format(jobnamepat))
+
+        if qsxml is not None:
+            for job in ET.fromstring(qsxml).findall("djob_info"):
+                for elem in job.findall("element"):
+                    jobid = elem.find("JB_job_number").text
+                    valid_jobids.add(jobid)
+
+    if valid_jobids:
+        sh("qdel {0}".format(",".join(valid_jobids)))
 
 
 if __name__ == '__main__':

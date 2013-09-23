@@ -942,6 +942,7 @@ def waitpid(args):
     Specify `--grid` option to send the new process to the grid after waiting for PID
     """
     debug()
+    import shlex
     from time import sleep
     from subprocess import check_output
 
@@ -974,7 +975,7 @@ def waitpid(args):
     status = is_running(pid)
     if status:
         get_origcmd = "ps -p {0} -o cmd h".format(pid)
-        origcmd = check_output(get_origcmd.split()).strip()
+        origcmd = check_output(shlex.split(get_origcmd)).strip()
         while is_running(pid):
             sleep(opts.interval)
     else:

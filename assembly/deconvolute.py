@@ -79,6 +79,39 @@ def split_barcode_paired(t):
     fw.close()
 
 
+def append_barcode_paired(t):
+
+    barcode, excludebarcode, outdir, inputfile = t
+    bs = barcode.seq
+    trim = len(bs)
+    fake_qual = len(bs) * "#"
+    outfastq = op.join(outdir, "{0}.{1}.fastq".format(barcode.id, barcode.seq))
+
+    r1, r2 = inputfile
+    p1fp, p2fp = FastqPairedIterator(r1, r2)
+    fw = open(outfastq, "w")
+    while True:
+        a = list(islice(p1fp, 4))
+        if not a:
+            break
+
+        title, seq, plus, qual = a
+        seq = seq.strip()
+        if not is_barcode_sample(seq, barcode, excludebarcode, trim):
+            continue
+
+        fw.writelines(a)
+
+        title, seq, plus, qual = list(islice(p2fp, 4))
+        title, seq, qual = title.strip(), seq.strip(), qual.strip()
+        # append barcode
+        seq = bs + seq
+        qual = fake_qual + qual
+        print >> fw, "{0}\n{1}\n+\n{2}".format(title, seq, qual)
+
+    fw.close()
+
+
 def split_barcode(t):
 
     barcode, excludebarcode, outdir, inputfile = t
@@ -116,6 +149,8 @@ def split(args):
                  help="Don't check shared prefix [default: %default]")
     p.add_option("--paired", default=False, action="store_true",
                  help="Paired-end data [default: %default]")
+    p.add_option("--append", default=False, action="store_true",
+                 help="Append barcode to 2nd read [default: %default]")
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -124,6 +159,11 @@ def split(args):
 
     barcodefile = args[0]
     fastqfile = args[1:]
+    paired = opts.paired
+    append = opts.append
+    if append:
+        assert paired, "--append only works with --paired"
+
     nfiles = len(fastqfile)
 
     barcodes = []
@@ -161,11 +201,10 @@ def split(args):
     logging.debug("Create a pool of {0} workers.".format(cpus))
     pool = Pool(cpus)
 
-    paired = opts.paired
     if paired:
         assert nfiles == 2, "You asked for --paired, but sent in {0} files".\
                             format(nfiles)
-        split_fun = split_barcode_paired
+        split_fun = append_barcode_paired if append else split_barcode_paired
         mode = "paired"
     else:
         split_fun = split_barcode

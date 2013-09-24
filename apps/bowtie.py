@@ -12,17 +12,14 @@ import sys
 import logging
 import os.path as op
 
-from jcvi.apps.base import OptionParser
-
 from jcvi.formats.base import BaseFile
 from jcvi.utils.cbook import percentage
-from jcvi.formats.sam import output_bam, get_prefix
-from jcvi.apps.base import ActionDispatcher, need_update, \
+from jcvi.formats.sam import output_bam, get_prefix, get_samfile
+from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, \
                 sh, debug
 debug()
 
 
-app = op.splitext(op.basename(__file__))[0]
 first_tag = lambda fp: fp.next().split()[0]
 
 
@@ -135,10 +132,9 @@ def align(args):
     dbfile, readfile = args[0:2]
     safile = check_index(dbfile, grid=grid)
     prefix = get_prefix(readfile, dbfile)
-
-    samfile = (prefix + ".bam") if opts.bam else (prefix + ".sam")
+    samfile, unmapped = get_samfile(readfile, dbfile,
+                                    bam=opts.bam, unmapped=opts.unmapped)
     logfile = prefix + ".log" if opts.log else None
-    unmapped = prefix + ".unmapped.bam" if opts.unmapped else None
     offset = guessoffset([readfile])
 
     if not need_update(safile, samfile):
@@ -162,7 +158,7 @@ def align(args):
     cmd += " --phred{0}".format(offset)
     cmd += " {0}".format(extra)
 
-    cmd = output_bam(cmd, samfile, app=app, bam=opts.bam)
+    cmd = output_bam(cmd, samfile, bam=opts.bam)
     sh(cmd, grid=grid, errfile=logfile, threaded=opts.cpus)
     return samfile, logfile
 

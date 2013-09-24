@@ -56,31 +56,25 @@ class Sam (LineFile):
                 callback(s)
 
 
-def output_bam(cmd, outfile, app="bowtie", bam=False, unmappedfile=None):
+def output_bam(cmd, outfile, bam=False, unmappedfile=None):
     from os import devnull
 
-    outcmd = "samtools view -S"
+    if not bam:
+        assert unmappedfile is None, "cannot created unmappedfile (bam=False)"
+        return cmd + " > {0}".format(outfile)
+
+    outcmd = "samtools view -bS"
     mflag, uflag = " -F 4", " -f 4"
 
-    tcmd = cmd
-    if bam:
-        outcmd += " -b"
-
-    tobam = " | {0} {1} - > {2}".format(outcmd, mflag, outfile)
-    if app == "bowtie":
-        if bam:
-            return cmd + tobam
-        return cmd
-
     if unmappedfile:
-        tcmd += " | tee "
-        tcmd += ">( {0} {1} - > {2} ) ".format(outcmd, mflag, outfile)
-        tcmd += ">( {0} {1} - > {2} ) ".format(outcmd, uflag, unmappedfile)
-        tcmd += "> {0}".format(devnull)
+        cmd += " | tee "
+        cmd += ">( {0} {1} - > {2} ) ".format(outcmd, mflag, outfile)
+        cmd += ">( {0} {1} - > {2} ) ".format(outcmd, uflag, unmappedfile)
+        cmd += "> {0}".format(devnull)
     else:
-        tcmd += tobam
+        cmd += " | {0} {1} - > {2}".format(outcmd, mflag, outfile)
 
-    return tcmd
+    return cmd
 
 
 class GenomeCoverageLine (object):
@@ -116,6 +110,14 @@ def get_prefix(readfile, dbfile):
     rdpf = op.basename(readfile).replace(".gz", "").rsplit(".", 1)[0]
     dbpf = op.basename(dbfile).split(".")[0]
     return ".".join((rdpf, dbpf))
+
+
+def get_samfile(readfile, dbfile, bam=False, unmapped=False):
+    prefix = get_prefix(readfile, dbfile)
+    extension = ".bam" if bam else ".sam"
+    samfile = prefix + extension
+    unmappedfile = (prefix + ".unmapped" + extension) if unmapped else None
+    return samfile, unmappedfile
 
 
 def main():

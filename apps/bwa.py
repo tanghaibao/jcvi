@@ -11,14 +11,10 @@ import sys
 import logging
 import os.path as op
 
-from jcvi.apps.base import OptionParser
-
-from jcvi.formats.sam import output_bam, get_prefix
-from jcvi.apps.base import ActionDispatcher, need_update, \
+from jcvi.formats.sam import output_bam, get_samfile
+from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, \
                 sh, debug
 debug()
-
-app = op.splitext(op.basename(__file__))[0]
 
 
 def main():
@@ -93,17 +89,17 @@ def align(args):
     p.set_sam_options()
 
     opts, args = p.parse_args(args)
-    extra = opts.extra
-    grid = opts.grid
 
     if len(args) == 2:
         logging.debug("Single-end alignment")
-        samse(args, opts)
+        cmd = samse(args, opts)
     elif len(args) == 3:
         logging.debug("Paired-end alignment")
-        sampe(args, opts)
+        cmd = sampe(args, opts)
     else:
         sys.exit(not p.print_help())
+
+    sh(cmd, grid=opts.grid, threaded=opts.cpus)
 
 
 def samse(args, opts):
@@ -119,10 +115,8 @@ def samse(args, opts):
     safile = check_index(dbfile, grid=grid)
     saifile = check_aln(dbfile, readfile, grid=grid, cpus=opts.cpus)
 
-    prefix = get_prefix(readfile, dbfile)
-    extension = ".bam" if opts.bam else ".sam"
-    samfile = prefix + extension
-    unmappedfile = (prefix + ".unmapped" + extension) if opts.unmapped else None
+    samfile, unmappedfile = get_samfile(readfile, dbfile,
+                                        bam=opts.bam, unmapped=opts.unmapped)
     if not need_update((safile, saifile), samfile):
         logging.error("`{0}` exists. `bwa samse` already run.".format(samfile))
         return
@@ -132,8 +126,7 @@ def samse(args, opts):
     if opts.uniq:
         cmd += " -n 1"
 
-    cmd = output_bam(cmd, samfile, app=app, bam=opts.bam, unmappedfile=unmappedfile)
-    sh(cmd, grid=grid, threaded=opts.cpus)
+    return output_bam(cmd, samfile, bam=opts.bam, unmappedfile=unmappedfile)
 
 
 def sampe(args, opts):
@@ -150,10 +143,8 @@ def sampe(args, opts):
     sai1file = check_aln(dbfile, read1file, grid=grid, cpus=opts.cpus)
     sai2file = check_aln(dbfile, read2file, grid=grid, cpus=opts.cpus)
 
-    prefix = get_prefix(read1file, dbfile)
-    extension = ".bam" if opts.bam else ".sam"
-    samfile = prefix + extension
-    unmappedfile = (prefix + ".unmapped" + extension) if opts.unmapped else None
+    samfile, unmappedfile = get_samfile(read1file, dbfile,
+                                        bam=opts.bam, unmapped=opts.unmapped)
     if not need_update((safile, sai1file, sai2file), samfile):
         logging.error("`{0}` exists. `bwa samse` already run.".format(samfile))
         return
@@ -164,8 +155,7 @@ def sampe(args, opts):
     if opts.uniq:
         cmd += " -n 1"
 
-    cmd = output_bam(cmd, samfile, app=app, bam=opts.bam, unmappedfile=unmappedfile)
-    sh(cmd, grid=grid)
+    return output_bam(cmd, samfile, bam=opts.bam, unmappedfile=unmappedfile)
 
 
 def bwasw(args):
@@ -188,17 +178,15 @@ def bwasw(args):
     dbfile, readfile = args
     safile = check_index(dbfile, grid=grid)
 
-    prefix = get_prefix(readfile, dbfile)
-    extension = ".bam" if opts.bam else ".sam"
-    samfile = prefix + extension
-    unmappedfile = (prefix + ".unmapped" + extension) if opts.unmapped else None
+    samfile, unmappedfile = get_samfile(readfile, dbfile,
+                                        bam=opts.bam, unmapped=opts.unmapped)
     if not need_update(safile, samfile):
         logging.error("`{0}` exists. `bwa bwasw` already run.".format(samfile))
         return
 
     cmd = "bwa bwasw -t 32 {0} {1} ".format(dbfile, readfile)
     cmd += "{0}".format(extra)
-    cmd = output_bam(cmd, samfile, app=app, am=opts.bam, unmappedfile=unmappedfile)
+    cmd = output_bam(cmd, samfile, bam=opts.bam, unmappedfile=unmappedfile)
     sh(cmd, grid=grid)
 
 

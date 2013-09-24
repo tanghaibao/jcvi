@@ -60,7 +60,7 @@ def output_bam(cmd, outfile, bam=False, unmappedfile=None):
     from os import devnull
 
     if not bam:
-        assert unmappedfile is None, "cannot created unmappedfile (bam=False)"
+        assert unmappedfile is None, "Cannot create unmappedfile (bam=False)"
         return cmd + " > {0}".format(outfile)
 
     outcmd = "samtools view -bS"

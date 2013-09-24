@@ -76,7 +76,7 @@ def contamination(args):
 
     p = OptionParser(contamination.__doc__)
     p.add_option("--firstN", default=100000, type="int",
-                 help="Use only the first N reads [default: all]")
+                 help="Use only the first N reads [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:

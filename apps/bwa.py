@@ -174,6 +174,7 @@ def bwasw(args):
 
     extra = opts.extra
     grid = opts.grid
+    cpus = opts.cpus
 
     dbfile, readfile = args
     safile = check_index(dbfile, grid=grid)
@@ -184,10 +185,10 @@ def bwasw(args):
         logging.error("`{0}` exists. `bwa bwasw` already run.".format(samfile))
         return
 
-    cmd = "bwa bwasw -t 32 {0} {1} ".format(dbfile, readfile)
+    cmd = "bwa bwasw -t {0} {1} {2}".format(cpus, dbfile, readfile)
     cmd += "{0}".format(extra)
     cmd = output_bam(cmd, samfile, bam=opts.bam, unmappedfile=unmappedfile)
-    sh(cmd, grid=grid)
+    sh(cmd, grid=grid, cpus=cpus)
 
 
 if __name__ == '__main__':

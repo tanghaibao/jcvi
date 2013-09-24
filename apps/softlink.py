@@ -93,8 +93,6 @@ def cp(args):
 
     for link_name in fp:
         link_name = link_name.strip()
-        if not op.islink(link_name):
-            continue
         if not op.exists(link_name):
             continue
 

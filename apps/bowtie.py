@@ -110,8 +110,6 @@ def align(args):
     p = OptionParser(align.__doc__)
     p.add_option("--firstN", default=0, type="int",
                  help="Use only the first N reads [default: all]")
-    p.add_option("--unmapped", default=None,
-                 help="Write unmapped reads to file [default: %default]")
     p.add_option("--log", default=False, action="store_true",
                  help="Write log file [default: %default]")
     p.set_sam_options()
@@ -132,7 +130,6 @@ def align(args):
     extra = opts.extra
     grid = opts.grid
     firstN = opts.firstN
-    unmapped = opts.unmapped
 
     dbfile, readfile = args[0:2]
     safile = check_index(dbfile, grid=grid)
@@ -140,6 +137,7 @@ def align(args):
 
     samfile = (prefix + ".bam") if opts.bam else (prefix + ".sam")
     logfile = prefix + ".log" if opts.log else None
+    unmapped = prefix + ".unmapped.bam" if opts.unmapped else None
     offset = guessoffset([readfile])
 
     if not need_update(safile, samfile):
@@ -163,8 +161,8 @@ def align(args):
     cmd += " --phred{0}".format(offset)
     cmd += " {0}".format(extra)
 
-    cmd = output_bam(cmd, bam=opts.bam)
-    sh(cmd, grid=grid, outfile=samfile, errfile=logfile, threaded=opts.cpus)
+    cmd = output_bam(cmd, samfile, bam=opts.bam)
+    sh(cmd, grid=grid, errfile=logfile, threaded=opts.cpus)
     return samfile, logfile
 
 

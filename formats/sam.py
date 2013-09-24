@@ -68,10 +68,13 @@ def output_bam(cmd, outfile, bam=False, unmappedfile=None):
     if bam:
         outcmd, outunmappedcmd = outbam, outunmappedbam
 
-    tcmd += " | tee "
-    tcmd += ">( {0} - > {1} ) ".format(outcmd, outfile)
     if unmappedfile:
+        tcmd += " | tee "
+        tcmd += ">( {0} - > {1} ) ".format(outcmd, outfile)
         tcmd += ">( {0} - > {1} ) ".format(outunmappedcmd, unmappedfile)
+    else:
+        tcmd += " | {0} - > {1}".format(outcmd, outfile)
+
     return tcmd
 
 

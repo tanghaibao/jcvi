@@ -132,7 +132,7 @@ def align(args):
     dbfile, readfile = args[0:2]
     safile = check_index(dbfile, grid=grid)
     prefix = get_prefix(readfile, dbfile)
-    samfile, unmapped = get_samfile(readfile, dbfile,
+    samfile, unmapped = get_samfile(readfile, dbfile, bowtie=True,
                                     bam=opts.bam, unmapped=opts.unmapped)
     logfile = prefix + ".log" if opts.log else None
     offset = guessoffset([readfile])

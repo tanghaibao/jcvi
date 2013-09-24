@@ -308,7 +308,7 @@ def filter(args):
 
     score, pctid, hitlen, evalue, selfrule = \
             opts.score, opts.pctid, opts.hitlen, opts.evalue, opts.self
-    newblastfile = blastfile + ".P{0}L{1}".format(pctid, hitlen) if \
+    newblastfile = blastfile + ".P{0}L{1}".format(int(pctid), hitlen) if \
                     outfile is None else outfile
     fw = must_open(newblastfile, "w")
     for row in fp:

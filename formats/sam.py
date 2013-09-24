@@ -64,7 +64,7 @@ def output_bam(cmd, outfile, bam=False, unmappedfile=None):
         return cmd + " > {0}".format(outfile)
 
     outcmd = "samtools view -bS"
-    mflag, uflag = " -F 4", " -f 4"
+    mflag, uflag = "-F 4", "-f 4"
 
     if unmappedfile:
         cmd += " | tee "
@@ -112,11 +112,12 @@ def get_prefix(readfile, dbfile):
     return ".".join((rdpf, dbpf))
 
 
-def get_samfile(readfile, dbfile, bam=False, unmapped=False):
+def get_samfile(readfile, dbfile, bam=False, unmapped=False, bowtie=False):
     prefix = get_prefix(readfile, dbfile)
-    extension = ".bam" if bam else ".sam"
-    samfile = prefix + extension
-    unmappedfile = (prefix + ".unmapped" + extension) if unmapped else None
+    ext = ".bam" if bam else ".sam"
+    samfile = prefix + ext
+    ext = ".fastq" if bowtie else ".bam"
+    unmappedfile = (prefix + ".unmapped" + ext) if unmapped else None
     return samfile, unmappedfile
 
 

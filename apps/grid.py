@@ -346,14 +346,14 @@ def run(args):
 
 def kill(args):
     """
-    %prog kill [options] JOBIDs/JOBNAMEPAT
+    %prog kill [options] JOBNAMEPAT/JOBIDs
 
-    Kill all jobs based on list of JOBIDs (comma separated) or
-    JOBNAME pattern matching (case-sensitive)
+    Kill jobs based on JOBNAME pattern matching (case-sensitive)
+    or list of JOBIDs (comma separated)
 
     Examples:
-    %prog kill 160253,160245,160252
-    %prog kill --method=pattern "python*"
+    %prog kill "pyth*"
+    %prog kill --method=jobid 160253,160245,160252
     %prog kill --all
     """
     import shlex
@@ -362,9 +362,9 @@ def kill(args):
     from subprocess import check_output, CalledProcessError
     import xml.etree.ElementTree as ET
 
-    valid_methods = ("jobid", "pattern")
+    valid_methods = ("pattern", "jobid")
     p = OptionParser(kill.__doc__)
-    p.add_option("--method", default="jobid", choices=valid_methods,
+    p.add_option("--method", default="pattern", choices=valid_methods,
                  help="Identify jobs based on ({0})".format(", ".join(\
                       '"{0}"'.format(x) for x in valid_methods)) + \
                       " [default: %default]")

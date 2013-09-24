@@ -22,6 +22,7 @@ from jcvi.apps.base import ActionDispatcher, need_update, \
 debug()
 
 
+app = op.splitext(op.basename(__file__))[0]
 first_tag = lambda fp: fp.next().split()[0]
 
 
@@ -161,7 +162,7 @@ def align(args):
     cmd += " --phred{0}".format(offset)
     cmd += " {0}".format(extra)
 
-    cmd = output_bam(cmd, samfile, bam=opts.bam)
+    cmd = output_bam(cmd, samfile, app=app, bam=opts.bam)
     sh(cmd, grid=grid, errfile=logfile, threaded=opts.cpus)
     return samfile, logfile
 

@@ -10,7 +10,6 @@ The whole pipeline is following bwa documentation at
 import sys
 import logging
 import os.path as op
-from os import devnull
 
 from jcvi.apps.base import OptionParser
 
@@ -121,8 +120,9 @@ def samse(args, opts):
     saifile = check_aln(dbfile, readfile, grid=grid, cpus=opts.cpus)
 
     prefix = get_prefix(readfile, dbfile)
-    samfile = (prefix + ".bam") if opts.bam else (prefix + ".sam")
-    unmappedfile = (prefix + ".unmapped.bam") if opts.unmapped else None
+    extension = ".bam" if opts.bam else ".sam"
+    samfile = prefix + extension
+    unmappedfile = (prefix + ".unmapped" + extension) if opts.unmapped else None
     if not need_update((safile, saifile), samfile):
         logging.error("`{0}` exists. `bwa samse` already run.".format(samfile))
         return
@@ -151,8 +151,9 @@ def sampe(args, opts):
     sai2file = check_aln(dbfile, read2file, grid=grid, cpus=opts.cpus)
 
     prefix = get_prefix(read1file, dbfile)
-    samfile = (prefix + ".bam") if opts.bam else (prefix + ".sam")
-    unmappedfile = (prefix + ".unmapped.bam") if opts.unmapped else None
+    extension = ".bam" if opts.bam else ".sam"
+    samfile = prefix + extension
+    unmappedfile = (prefix + ".unmapped" + extension) if opts.unmapped else None
     if not need_update((safile, sai1file, sai2file), samfile):
         logging.error("`{0}` exists. `bwa samse` already run.".format(samfile))
         return
@@ -188,8 +189,9 @@ def bwasw(args):
     safile = check_index(dbfile, grid=grid)
 
     prefix = get_prefix(readfile, dbfile)
-    samfile = (prefix + ".bam") if opts.bam else (prefix + ".sam")
-    unmappedfile = (prefix + ".unmapped.bam") if opts.unmapped else None
+    extension = ".bam" if opts.bam else ".sam"
+    samfile = prefix + extension
+    unmappedfile = (prefix + ".unmapped" + extension) if opts.unmapped else None
     if not need_update(safile, samfile):
         logging.error("`{0}` exists. `bwa bwasw` already run.".format(samfile))
         return

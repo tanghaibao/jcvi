@@ -13,6 +13,7 @@ import logging
 
 from jcvi.utils.iter import grouper
 from jcvi.formats.base import LineFile
+from jcvi.apps.bowtie import align
 from jcvi.apps.softlink import get_abs_path
 from jcvi.apps.base import OptionParser, ActionDispatcher, debug, need_update, \
             mkdir, sh, glob
@@ -86,6 +87,7 @@ def main():
     actions = (
         ('prepare', 'parse JIRA report and prepare input'),
         ('pairs', 'estimate insert sizes for input files'),
+        ('contamination', 'remove contaminated reads'),
         ('allpaths', 'run automated ALLPATHS on list of dirs'),
         ('allpathsX', 'run automated ALLPATHS on list of files'),
         ('soapX', 'run automated SOAP on list of files'),
@@ -95,14 +97,30 @@ def main():
     p.dispatch(globals())
 
 
+def contamination(args):
+    """
+    %prog contamination folder Ecoli.fasta
+
+    Remove contaminated reads.
+    """
+    p = OptionParser(contamination.__doc__)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    folder, ecoli = args
+    ecoli = get_abs_path(ecoli)
+    for p, pf in iter_project(folder, 2):
+        align_opts = [ecoli] + p + ["--bam", "--unmapped"]
+        samfile, logfile = align(align_opts)
+
+
 def pairs(args):
     """
     %prog pairs folder reference.fasta
 
     Estimate insert sizes for input files.
     """
-    from jcvi.apps.bowtie import align
-    from jcvi.apps.softlink import get_abs_path
     from jcvi.formats.fastq import first
     from jcvi.formats.sam import pairs as ps
 
@@ -122,7 +140,7 @@ def pairs(args):
     ref = get_abs_path(ref)
     for p, pf in iter_project(folder, 2):
         samplefq = op.join(work, pf + ".first.fastq")
-        first(["100000"] + list(p) + ["-o", samplefq])
+        first(["100000"] + p + ["-o", samplefq])
 
         os.chdir(work)
         samfile, logfile = align([ref, op.basename(samplefq), "--bam"])
@@ -307,7 +325,7 @@ def iter_project(folder, n=2):
 
         pp = [op.basename(x) for x in p]
         pf = op.commonprefix(pp).strip("._-")
-        yield p, pf
+        yield list(p), pf
 
 
 def soapX(args):

@@ -57,7 +57,8 @@ class Sam (LineFile):
 
 
 def output_bam(cmd, outfile, app="bowtie", bam=False, unmappedfile=None):
-    # output sam/bam commands
+    from os import devnull
+
     outcmd = "samtools view -S"
     mflag, uflag = " -F 4", " -f 4"
 
@@ -75,6 +76,7 @@ def output_bam(cmd, outfile, app="bowtie", bam=False, unmappedfile=None):
         tcmd += " | tee "
         tcmd += ">( {0} {1} - > {2} ) ".format(outcmd, mflag, outfile)
         tcmd += ">( {0} {1} - > {2} ) ".format(outcmd, uflag, unmappedfile)
+        tcmd += "> {0}".format(devnull)
     else:
         tcmd += tobam
 

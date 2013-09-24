@@ -133,7 +133,7 @@ def samse(args, opts):
         cmd += " -n 1"
 
     cmd = output_bam(cmd, samfile, app=app, bam=opts.bam, unmappedfile=unmappedfile)
-    sh(cmd, grid=grid, outfile=devnull, threaded=opts.cpus)
+    sh(cmd, grid=grid, threaded=opts.cpus)
 
 
 def sampe(args, opts):
@@ -164,7 +164,7 @@ def sampe(args, opts):
         cmd += " -n 1"
 
     cmd = output_bam(cmd, samfile, app=app, bam=opts.bam, unmappedfile=unmappedfile)
-    sh(cmd, grid=grid, outfile=devnull)
+    sh(cmd, grid=grid)
 
 
 def bwasw(args):
@@ -197,7 +197,7 @@ def bwasw(args):
     cmd = "bwa bwasw -t 32 {0} {1} ".format(dbfile, readfile)
     cmd += "{0}".format(extra)
     cmd = output_bam(cmd, samfile, app=app, am=opts.bam, unmappedfile=unmappedfile)
-    sh(cmd, grid=grid, outfile=devnull)
+    sh(cmd, grid=grid)
 
 
 if __name__ == '__main__':

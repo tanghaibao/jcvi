@@ -391,8 +391,13 @@ def annotate(args):
 def print_stats(qrycovered, refcovered, id_pct):
     from jcvi.utils.cbook import thousands
 
-    m1 = "Reference coverage: {0} bp".format(thousands(refcovered))
-    m2 = "Query coverage: {0} bp".format(thousands(qrycovered))
+    try:
+        refcovered = thousands(refcovered)
+        qrycovered = thousands(qrycovered)
+    except:
+        pass
+    m1 = "Reference coverage: {0} bp".format(refcovered)
+    m2 = "Query coverage: {0} bp".format(qrycovered)
     m3 = "Identity: {0:.1f}%".format(id_pct)
     print >> sys.stderr, "\n".join((m1, m2, m3))
 

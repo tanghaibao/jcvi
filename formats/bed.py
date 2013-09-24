@@ -1169,6 +1169,7 @@ def flanking(args):
     if maxd:
         data = [f for f in data if f[0]<=maxd]
 
+    n += 1 # not counting self
     n = min(n, len(data))
     distances, subbed = zip(*data)
     distances = array(distances)

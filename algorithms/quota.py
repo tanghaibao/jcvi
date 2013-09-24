@@ -324,7 +324,11 @@ def main(args):
         from jcvi.algorithms.synteny import screen
 
         new_qa_file = ".".join((prefix, suffix, "anchors"))
-        screen([qa_file, new_qa_file, "--ids", outfile])
+        largs = [qa_file, new_qa_file, "--ids", outfile]
+        if opts.qbed and opts.sbed:
+            largs += ["--qbed={0}".format(opts.qbed)]
+            largs += ["--sbed={0}".format(opts.sbed)]
+        screen(largs)
 
 
 if __name__ == '__main__':

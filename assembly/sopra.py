@@ -250,11 +250,10 @@ def link(args):
 
     cutoffopt = "--cutoff={0}".format(cutoff)
     mateorientationopt = '--mateorientation=+-'
-    bedfile, (meandist, stdev, p0, p1, p2) = \
-            pairs([bedfile, cutoffopt, mateorientationopt])
+    bedfile, stats = pairs([bedfile, cutoffopt, mateorientationopt])
 
-    maxcutoff = cutoff or p2
-    insert = opts.insert or p0
+    maxcutoff = cutoff or stats.p2
+    insert = opts.insert or stats.median
     logging.debug("Mate hangs must be <= {0}, --cutoff to override".\
             format(maxcutoff))
 

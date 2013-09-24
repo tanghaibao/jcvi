@@ -1113,7 +1113,7 @@ def report_pairs(data, cutoff=0, mateorientation=None,
     Reports number of fragments and pairs as well as linked pairs
     """
     import numpy as np
-    from jcvi.utils.cbook import percentage
+    from jcvi.utils.cbook import SummaryStats, percentage
 
     allowed_mateorientations = ("++", "--", "+-", "-+")
 
@@ -1183,24 +1183,15 @@ def report_pairs(data, cutoff=0, mateorientation=None,
 
     print >>sys.stderr, "{0} fragments, {1} pairs ({2} total)".\
                 format(num_fragments, num_pairs, num_fragments + num_pairs * 2)
-    num_links = len(linked_dist)
 
-    linked_dist = np.array(linked_dist, dtype="int")
-    linked_dist = np.sort(linked_dist)
+    s = SummaryStats(linked_dist, dtype="int")
+    num_links = s.size
 
-    meandist = np.mean(linked_dist)
-    stdev = np.std(linked_dist)
-
-    p0 = np.median(linked_dist)
-    p1 = linked_dist[int(num_links * .025)]
-    p2 = linked_dist[int(num_links * .975)]
-
-    meandist, stdev = int(meandist), int(stdev)
-    p0 = int(p0)
+    meandist, stdev = s.mean, s.sd
+    p0, p1, p2 = s.median, s.p1, s.p2
 
     print >>sys.stderr, "%d pairs (%.1f%%) are linked (cutoff=%d)" % \
             (num_links, num_links * 100. / num_pairs, cutoff)
-
     print >>sys.stderr, "mean distance between mates: {0} +/- {1}".\
             format(meandist, stdev)
     print >>sys.stderr, "median distance between mates: {0}".format(p0)
@@ -1227,7 +1218,7 @@ def report_pairs(data, cutoff=0, mateorientation=None,
         if op.exists(insertsfile):
             os.remove(insertsfile)
 
-    return meandist, stdev, p0, p1, p2
+    return s
 
 
 def pairs(args):

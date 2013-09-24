@@ -131,10 +131,10 @@ class Registry (defaultdict):
 
 class SummaryStats (object):
 
-    def __init__(self, a, title=None):
+    def __init__(self, a, dtype=None, title=None):
         import numpy as np
 
-        self.data = a = np.array(a)
+        self.data = a = np.array(a, dtype=dtype)
         self.min = a.min()
         self.max = a.max()
         self.size = a.size
@@ -146,6 +146,13 @@ class SummaryStats (object):
         a.sort()
         self.firstq = a[self.size / 4]
         self.thirdq = a[self.size * 3 / 4]
+        self.p1 = a[int(self.size * .025)]
+        self.p2 = a[int(self.size * .975)]
+
+        if dtype == "int":
+            self.mean = int(self.mean)
+            self.sd = int(self.sd)
+            self.median = int(self.median)
 
     def __str__(self):
         s = self.title + ": " if self.title else ""

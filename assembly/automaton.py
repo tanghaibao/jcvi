@@ -85,6 +85,7 @@ def main():
 
     actions = (
         ('prepare', 'parse JIRA report and prepare input'),
+        ('pairs', 'estimate insert sizes for input files'),
         ('allpaths', 'run automated ALLPATHS on list of dirs'),
         ('allpathsX', 'run automated ALLPATHS on list of files'),
         ('soapX', 'run automated SOAP on list of files'),
@@ -92,6 +93,41 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def pairs(args):
+    """
+    %prog pairs folder reference.fasta
+
+    Estimate insert sizes for input files.
+    """
+    from jcvi.apps.bowtie import align
+    from jcvi.apps.softlink import get_abs_path
+    from jcvi.formats.fastq import first
+    from jcvi.formats.sam import pairs as ps
+
+    p = OptionParser(pairs.__doc__)
+    p.add_option("--rclip", default=0, type="int",
+            help="Pair ID is derived from rstrip N chars [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    cwd = os.getcwd()
+    work = "estimatepairs"
+    mkdir(work)
+
+    folder, ref = args
+    ref = get_abs_path(ref)
+    for p, pf in iter_project(folder, 2):
+        samplefq = op.join(work, pf + ".first.fastq")
+        first(["100000"] + list(p) + ["-o", samplefq])
+
+        os.chdir(work)
+        samfile, logfile = align([ref, op.basename(samplefq), "--bam"])
+        bedfile, stats = ps([samfile, "--rclip={0}".format(opts.rclip)])
+        os.chdir(cwd)
 
 
 def allpaths(args):
@@ -263,7 +299,8 @@ def soap_trios(p, pf, tag, extra):
 
 def iter_project(folder, n=2):
     # Check for paired reads and extract project id
-    filelist = sorted(glob(folder + "/*.*"))
+    filelist = [x for x in glob(folder + "/*.*") \
+                    if x.rsplit(".", 1)[-1] in ("fq", "fastq", "txt", "gz")]
     for p in grouper(n, filelist):
         if len(p) != n:
             continue

@@ -188,7 +188,7 @@ def bwasw(args):
     cmd = "bwa bwasw -t {0} {1} {2}".format(cpus, dbfile, readfile)
     cmd += "{0}".format(extra)
     cmd = output_bam(cmd, samfile, bam=opts.bam, unmappedfile=unmappedfile)
-    sh(cmd, grid=grid, cpus=cpus)
+    sh(cmd, grid=grid, threaded=cpus)
 
 
 if __name__ == '__main__':

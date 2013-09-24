@@ -117,8 +117,8 @@ class GridProcess (object):
         self.queue = queue
         self.threaded = threaded
         self.infile = infile
-        self.outfile = outfile
-        self.errfile = errfile
+        self.outfile = outfile or ""
+        self.errfile = errfile or ""
         self.arr = arr
         self.concurrency = concurrency
         self.outdir = outdir
@@ -160,12 +160,12 @@ class GridProcess (object):
 
         if infile:
             qsub += " -i {0}".format(infile)
+
+        outfile = op.join(outdir, outfile)
+        qsub += " -o {0}".format(outfile)
         if redirect_same:
             qsub += " -j y"
-        if outfile:
-            outfile = op.join(outdir, outfile)
-            qsub += " -o {0}".format(outfile)
-        if errfile and not redirect_same:
+        else:
             errfile = op.join(outdir, errfile)
             qsub += " -e {0}".format(errfile)
 

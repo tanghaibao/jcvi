@@ -591,6 +591,8 @@ def format(args):
     Read in the gff and print it out, changing seqid, etc.
     """
     from jcvi.formats.base import DictFile
+    from jcvi.utils.range import range_minmax
+    from jcvi.utils.cbook import AutoVivification
 
     p = OptionParser(format.__doc__)
     p.add_option("--unique", default=False, action="store_true",
@@ -604,6 +606,9 @@ def format(args):
                 " a file, value will globally replace GFF source [default: %default]")
     p.add_option("--multiparents", default=False, action="store_true",
                  help="Separate features with multiple parents [default: %default]")
+    p.add_option("--chaindup", default=None, dest="duptype",
+                 help="Chain duplicate features of a particular GFF3 `type`," + \
+                      " sharing the same ID attribute [default: %default]")
     p.add_option("--gsac", default=False, action="store_true",
                  help="Fix GSAC GFF3 file attributes [default: %default]")
     p.add_option("--fixphase", default=False, action="store_true",
@@ -625,7 +630,11 @@ def format(args):
     source = opts.source
     attrib_file = opts.attrib_file
     gsac = opts.gsac
+    if opts.unique and opts.duptype:
+        logging.debug("Cannot use `--unique` and `--chaindup` together")
+        sys.exit()
     unique = opts.unique
+    duptype = opts.duptype
     fixphase = opts.fixphase
     phaseT = {"1":"2", "2":"1"}
 
@@ -647,18 +656,25 @@ def format(args):
         unique = True
         notes = {}
 
-    if unique:
-        dupcounts = defaultdict(int)
-        newparentid = {}
+    if unique or duptype:
+        if unique:
+            dupcounts = defaultdict(int)
+            seen = defaultdict(int)
+            newparentid = {}
+        elif duptype:
+            dupranges = AutoVivification()
+            skip = defaultdict(int)
         gff = Gff(gffile)
-        for g in gff:
+        for idx, g in enumerate(gff):
             id = g.accn
-            dupcounts[id] += 1
-        seen = defaultdict(int)
+            if unique:
+                dupcounts[id] += 1
+            elif duptype and g.type == duptype:
+                dupranges[id][idx] = (g.start, g.end)
 
     fw = must_open(outfile, "w")
     gff = Gff(gffile)
-    for g in gff:
+    for idx, g in enumerate(gff):
         origid = g.seqid
         if fixphase:
             phase = g.phase
@@ -726,6 +742,17 @@ def format(args):
                     g.attributes["Parent"] = [newparentid[parent]]
                     g.update_attributes(gff3=True)
 
+        if duptype:
+            id = g.accn
+            if duptype == g.type and len(dupranges[id]) > 1:
+                p = sorted(dupranges[id].keys())
+                s, e = dupranges[id][p[0]][0:2]  # get coords of first encountered feature
+                if g.start == s and g.end == e and p[0] == idx:
+                    r = [dupranges[id][x] for x in dupranges[id].keys()]
+                    g.start, g.end = range_minmax(r)
+                else:
+                    skip[(idx, id, g.start, g.end)] = 1
+
         if gsac and g.type == "gene":
             notes[g.accn] = g.attributes["Name"]
 
@@ -744,6 +771,8 @@ def format(args):
                 g.update_attributes(gff3=True)
             if gsac:
                 fix_gsac(g, notes)
+            if duptype == g.type and skip[(idx, g.accn, g.start, g.end)] == 1:
+                continue
             print >> fw, g
 
     fw.close()

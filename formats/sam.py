@@ -57,22 +57,13 @@ class Sam (LineFile):
 
 
 def output_bam(cmd, outfile, bam=False, unmappedfile=None):
-    from os import devnull
-
-    if not bam:
-        assert unmappedfile is None, "Cannot create unmappedfile (bam=False)"
+    if unmappedfile:
         return cmd + " > {0}".format(outfile)
 
-    outcmd = "samtools view -bS"
-    mflag, uflag = "-F 4", "-f 4"
+    from os import devnull
 
-    if unmappedfile:
-        cmd += " | tee "
-        cmd += ">( {0} {1} - > {2} ) ".format(outcmd, mflag, outfile)
-        cmd += ">( {0} {1} - > {2} ) ".format(outcmd, uflag, unmappedfile)
-        cmd += "> {0}".format(devnull)
-    else:
-        cmd += " | {0} {1} - > {2}".format(outcmd, mflag, outfile)
+    outcmd, mflag = ("samtools view -bS", "-F 4")
+    cmd += " | {0} {1} - > {2}".format(outcmd, mflag, outfile)
 
     return cmd
 
@@ -114,7 +105,7 @@ def get_prefix(readfile, dbfile):
 
 def get_samfile(readfile, dbfile, bam=False, unmapped=False, bowtie=False):
     prefix = get_prefix(readfile, dbfile)
-    ext = ".bam" if bam else ".sam"
+    ext = ".bam" if bam and not unmapped else ".sam"
     samfile = prefix + ext
     ext = ".fastq" if bowtie else ".bam"
     unmappedfile = (prefix + ".unmapped" + ext) if unmapped else None
@@ -133,6 +124,7 @@ def main():
         ('fpkm', 'calculate FPKM values from BAM file'),
         ('coverage', 'calculate depth for BAM file'),
         ('bcf', 'run mpileup on a set of bam files'),
+        ('mapped', 'extract mapped/unmapped reads from samfile'),
             )
 
     p = ActionDispatcher(actions)
@@ -358,6 +350,54 @@ def index(args):
         sh("samtools index {0}".format(sortedbamfile))
 
     return sortedbamfile
+
+
+def mapped(args):
+    """
+    %prog mapped sam/bamfile
+
+    Given an input sam/bam file, output a sam/bam file containing only the mapped reads.
+    Optionally, extract the unmapped reads into a separate file
+    """
+    import pysam
+    from multiprocessing import Process
+
+    p = OptionParser(mapped.__doc__)
+    p.set_sam_options(extra=False)
+
+    opts, args = p.parse_args(args)
+    if len(args) != 1:
+        sys.exit(p.print_help())
+
+    samfile, = args
+
+    view_opts = []
+    oext, mopts = (".sam", ["-S"]) \
+            if samfile.endswith(".sam") else (".bam", [])
+
+    flag, ext = ("-b", ".bam") if opts.bam else ("-h", ".sam")
+    mopts.append(flag)
+
+    if opts.uniq:
+        mopts.append("-q1")
+        ext = ".uniq{0}".format(ext)
+
+    if opts.unmapped:
+        uopts = [x for x in mopts]
+        uoutfile = samfile.replace(oext, ".unmapped{0}".format(ext))
+        uopts.extend(["-f4", samfile, "-o{0}".format(uoutfile)])
+        view_opts.append(uopts)
+
+    outfile = samfile.replace(oext, ".mapped{0}".format(ext))
+    mopts.extend(["-F4", samfile, "-o{0}".format(outfile)])
+    view_opts.append(mopts)
+
+    jobs = []
+    for i in range(len(view_opts)):
+        logging.debug('samtools view {0}'.format(" ".join(view_opts[i])))
+        p = Process(target=pysam.view, args=(x for x in view_opts[i]))
+        jobs.append(p)
+        p.start()
 
 
 def pair(args):

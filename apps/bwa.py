@@ -11,7 +11,7 @@ import sys
 import logging
 import os.path as op
 
-from jcvi.formats.sam import output_bam, get_samfile
+from jcvi.formats.sam import output_bam, get_samfile, mapped
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, \
                 sh, debug
 debug()
@@ -99,7 +99,17 @@ def align(args):
     else:
         sys.exit(not p.print_help())
 
-    sh(cmd, grid=opts.grid, threaded=opts.cpus)
+    if cmd:
+        sh(cmd, grid=opts.grid, threaded=opts.cpus)
+
+    if opts.unmapped:
+        dbfile, readfile, = args
+        samfile, unmappedfile = get_samfile(readfile, dbfile,
+                                            bam=opts.bam, unmapped=opts.unmapped)
+        mopts = [samfile, "--unmapped"]
+        if opts.bam:
+            mopts.append("--bam")
+        mapped(mopts)
 
 
 def samse(args, opts):
@@ -189,6 +199,12 @@ def bwasw(args):
     cmd += "{0}".format(extra)
     cmd = output_bam(cmd, samfile, bam=opts.bam, unmappedfile=unmappedfile)
     sh(cmd, grid=grid, threaded=cpus)
+    if opts.unmapped:
+        mopts = [samfile, "--unmapped"]
+        if opts.bam:
+            mopts.append("--bam")
+        mapped(mopts)
+
 
 
 if __name__ == '__main__':

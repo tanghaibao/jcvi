@@ -143,16 +143,17 @@ class OptionParser (OptionP):
         self.add_option("--qbed", help="Path to qbed")
         self.add_option("--sbed", help="Path to sbed")
 
-    def set_sam_options(self):
+    def set_sam_options(self, extra=True):
         self.add_option("--bam", default=False, action="store_true",
                      help="write to bam file [default: %default]")
         self.add_option("--uniq", default=False, action="store_true",
                      help="Keep only uniquely mapped [default: %default]")
         self.add_option("--unmapped", default=False, action="store_true",
                      help="Keep unmapped reads [default: %default]")
-        self.set_cpus()
-        self.set_params()
-        self.set_grid()
+        if extra:
+            self.set_cpus()
+            self.set_params()
+            self.set_grid()
 
     def set_min_length(self, default=10000):
         self.add_option("--min_length", default=default, type="int",

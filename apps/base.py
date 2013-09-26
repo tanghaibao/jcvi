@@ -348,12 +348,14 @@ def sh(cmd, grid=False, infile=None, outfile=None, errfile=None,
     """
     simple wrapper for system calls
     """
+    if not cmd:
+        return 1
     if grid:
         from jcvi.apps.grid import GridProcess
         pr = GridProcess(cmd, infile=infile, outfile=outfile, errfile=errfile,
                          threaded=threaded)
         pr.start()
-        return 0  # A fake retcode
+        return pr.jobid
     else:
         if infile:
             cat = "cat"

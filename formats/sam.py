@@ -363,7 +363,7 @@ def mapped(args):
     Optionally, extract the unmapped reads into a separate file
     """
     import pysam
-    from multiprocessing import Process
+    from jcvi.apps.grid import Jobs
 
     p = OptionParser(mapped.__doc__)
     p.set_sam_options(extra=False)
@@ -395,12 +395,11 @@ def mapped(args):
     mopts.extend(["-F4", samfile, "-o{0}".format(outfile)])
     view_opts.append(mopts)
 
-    jobs = []
-    for i in range(len(view_opts)):
-        logging.debug('samtools view {0}'.format(" ".join(view_opts[i])))
-        p = Process(target=pysam.view, args=(x for x in view_opts[i]))
-        jobs.append(p)
-        p.start()
+    for vo in view_opts:
+        logging.debug('samtools view {0}'.format(" ".join(vo)))
+
+    jobs = Jobs(pysam.view, [(z for z in x) for x in view_opts])
+    jobs.run()
 
 
 def pair(args):

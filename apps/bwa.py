@@ -12,6 +12,7 @@ import logging
 import os.path as op
 
 from jcvi.formats.sam import output_bam, get_samfile, mapped
+from jcvi.formats.base import FileShredder
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, \
                 sh, debug
 debug()
@@ -22,7 +23,6 @@ def main():
     actions = (
         ('index', 'wraps bwa index'),
         ('align', 'wraps bwa samse or sampe'),
-        ('bwasw', 'wraps bwa bwasw'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -86,34 +86,48 @@ def align(args):
     Wrapper for `bwa samse` or `bwa sampe`, depending on the number of args.
     """
     p = OptionParser(align.__doc__)
+    p.add_option("--bwasw", default=False, action="store_true",
+                 help="Run bwasw mode [default: %default]")
     p.set_sam_options()
 
     opts, args = p.parse_args(args)
+    bsw = opts.bwasw
 
-    if len(args) == 2:
-        logging.debug("Single-end alignment")
-        cmd = samse(args, opts)
-    elif len(args) == 3:
-        logging.debug("Paired-end alignment")
-        cmd = sampe(args, opts)
-    else:
+    if len(args) not in (2, 3):
         sys.exit(not p.print_help())
 
+    if len(args) == 2:
+        mode = "Single-end alignment"
+        if bsw:
+            mode += " (long reads)"
+            c = bwasw
+        else:
+            c = samse
+    else:
+        assert not bsw, "Cannot use --bwasw with paired-end mode"
+        mode = "Paired-end alignment"
+        c = sampe
+
+    logging.debug(mode)
+    cmd = c(args, opts)
+
     bam = opts.bam
+    grid = opts.grid
     unmapped = opts.unmapped
 
-    if cmd:
-        sh(cmd, grid=opts.grid, threaded=opts.cpus)
+    sh(cmd, grid=grid, threaded=opts.cpus)
+    if grid:
+        return
 
     if unmapped:
         dbfile, readfile = args[:2]
         samfile, _, unmapped = get_samfile(readfile, dbfile,
                                            bam=bam, unmapped=unmapped)
-
         mopts = [samfile, "--unmapped"]
         if bam:
             mopts += ["--bam"]
         mapped(mopts)
+        FileShredder([samfile])
 
 
 def samse(args, opts):
@@ -172,21 +186,12 @@ def sampe(args, opts):
     return output_bam(cmd, samfile)
 
 
-def bwasw(args):
+def bwasw(args, opts):
     """
     %prog bwasw database.fasta long_read.fastq
 
     Wrapper for `bwa bwasw`. Output will be long_read.sam.
     """
-    p = OptionParser(bwasw.__doc__)
-    p.set_sam_options()
-
-    opts, args = p.parse_args(args)
-
-    if len(args) != 2:
-        sys.exit(p.print_help())
-
-    extra = opts.extra
     grid = opts.grid
     cpus = opts.cpus
     bam = opts.bam
@@ -202,14 +207,8 @@ def bwasw(args):
         return
 
     cmd = "bwa bwasw -t {0} {1} {2}".format(cpus, dbfile, readfile)
-    cmd += "{0}".format(extra)
-    cmd = output_bam(cmd, samfile)
-    sh(cmd, grid=grid, threaded=cpus)
-    if unmapped:
-        mopts = [samfile, "--unmapped"]
-        if bam:
-            mopts += ["--bam"]
-        mapped(mopts)
+    cmd += "{0}".format(opts.extra)
+    return output_bam(cmd, samfile)
 
 
 if __name__ == '__main__':

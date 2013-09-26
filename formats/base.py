@@ -586,6 +586,7 @@ def group(args):
     c	9                     |
     c 	10   11               |
 
+    By default, it uniqifies all the grouped elements
     """
     from jcvi.utils.cbook import AutoVivification
     from jcvi.utils.grouper import Grouper
@@ -597,6 +598,8 @@ def group(args):
                  help="Default column to groupby [default: %default]")
     p.add_option("--groupsep", default=',',
                  help="Separator to join the grouped elements [default: `%default`]")
+    p.add_option("--nouniq", default=False, action="store_true",
+                 help="Do not uniqify the grouped elements [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -625,13 +628,19 @@ def group(args):
                 if col == groupby:
                     continue
                 if not grouper[key][col]:
-                    grouper[key][col] = set()
+                    grouper[key][col] = [] if opts.nouniq else set()
                 if col < len(atoms):
                     if groupsep in atoms[col]:
                         for atom in atoms[col].split(groupsep):
-                            grouper[key][col].add(atom)
+                            if opts.nouniq:
+                                grouper[key][col].append(atom)
+                            else:
+                                grouper[key][col].add(atom)
                     else:
-                        grouper[key][col].add(atoms[col])
+                        if opts.nouniq:
+                            grouper[key][col].append(atoms[col])
+                        else:
+                            grouper[key][col].add(atoms[col])
         else:
             grouper.join(*atoms)
 

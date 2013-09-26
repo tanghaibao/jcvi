@@ -110,7 +110,7 @@ class GridProcess (object):
 
     def __init__(self, cmd, jobid="", pcode="04048", queue="default", threaded=None,
                        infile=None, outfile=None, errfile=None, arr=None,
-                       concurrency=None, outdir=".", name=None):
+                       concurrency=None, outdir=".", name=None, hold_jid=None):
 
         self.cmd = cmd
         self.jobid = jobid
@@ -124,6 +124,7 @@ class GridProcess (object):
         self.outdir = outdir
         self.name = name
         self.pcode = pcode
+        self.hold_jid = hold_jid
         self.pat = self.pat2 if arr else self.pat1
 
     def __str__(self):
@@ -149,6 +150,9 @@ class GridProcess (object):
             qsub += " -tc {0}".format(self.concurrency)
         if self.name:
             qsub += ' -N "{0}"'.format(self.name)
+        if self.hold_jid:
+            param = "-hold_jid_ad" if self.arr else "-hold_jid"
+            qsub += " {0} {1}".format(param, self.hold_jid)
 
         # I/O
         infile = self.infile
@@ -260,8 +264,8 @@ def array(args):
     outfile = "{0}.{1}.out".format(pf, "\$TASK_ID")
     p = GridProcess("sh {0}".format(runfile), outfile=outfile, errfile=outfile,
                     pcode=opts.pcode, queue=opts.queue, threaded=opts.threaded,
-                    arr=ncmds, concurrency=opts.concurrency,
-                    outdir=opts.outdir, name=opts.name)
+                    arr=ncmds, concurrency=opts.concurrency, outdir=opts.outdir,
+                    name=opts.name, hold_jid=opts.hold_jid)
     p.start()
 
 
@@ -340,7 +344,8 @@ def run(args):
         ncmd = ncmd.strip()
         p = GridProcess(ncmd, outfile=outfile, pcode=opts.pcode,
                         queue=opts.queue, threaded=opts.threaded,
-                        outdir=opts.outdir, name=opts.name)
+                        outdir=opts.outdir, name=opts.name,
+                        hold_jid=opts.hold_jid)
         p.start()
 
 

@@ -85,20 +85,24 @@ class OptionParser (OptionP):
         valid_pcodes = popen("qconf -sprjl", debug=False).read().strip().split("\n")
         valid_pcodes.append(vcode)
         self.add_option("-P", dest="pcode", default=vcode, choices=valid_pcodes,
-                     help="Specify accounting project code [default: %default]")
+                        help="Specify accounting project code [default: %default]")
         self.add_option("-l", dest="queue", default="default", choices=queue_choices,
-                     help="Name of the queue, one of {0} [default: %default]". \
-                          format("|".join(queue_choices)))
+                        help="Name of the queue, one of {0} [default: %default]". \
+                        format("|".join(queue_choices)))
         self.add_option("-t", dest="threaded", type="int",
-                     help="Append '-pe threaded N' [default: %default]")
+                        help="Append '-pe threaded N' [default: %default]")
         if array:
             self.add_option("-c", dest="concurrency", type="int",
-                     help="Append task concurrency limit '-tc N' [default: %default]")
+                            help="Append task concurrency limit '-tc N'" + \
+                                 " [default: %default]")
         self.add_option("-d", dest="outdir", default=".",
-                help="Specify directory to store grid output/error files" +
-                      " [default: %default]")
+                        help="Specify directory to store grid output/error files" +
+                             " [default: %default]")
         self.add_option("-N", dest="name", default=None,
-                     help="Specify descriptive name for the job [default: %default]")
+                        help="Specify descriptive name for the job [default: %default]")
+        self.add_option("-h", dest="hold_jid", default=None,
+                        help="Define the job dependency list [default: %default]")
+
 
     def set_params(self):
         """

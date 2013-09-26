@@ -194,7 +194,9 @@ def parallel(args):
     p = GridProcess(runfile, outfile=outfile, errfile=outfile,
                     queue=opts.queue, threaded=threaded,
                     arr=ncmds, outdir=opts.outdir,
-                    name=opts.name, cwd=opts.cwd)
+                    name=opts.name, cwd=opts.cwd,
+                    hold_jid=opts.hold_jid,
+                    pcode=opts.pcode)
     qsubfile = "qsub.sh"
     qsub = p.build()
     write_file(qsubfile, qsub, meta="run script")

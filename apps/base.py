@@ -885,7 +885,7 @@ def notify(args):
     g1 = OptionGroup(p, "Optional `email` parameters")
     g1.add_option("--address", dest="toaddr", default=toaddr,
                  help="Specify TO email address to send the notification" + \
-                      " [default: %default]")
+                      ' [default: "%default"]')
     p.add_option_group(g1)
 
     g2 = OptionGroup(p, "Optional `push` parameters")
@@ -958,6 +958,13 @@ def waitpid(args):
     p.add_option("--interval", default=120, type="int",
                  help="Specify interval at which PID should be monitored" + \
                       " [default: %default]")
+
+    fromaddr, toaddr = gen_email_addresses()
+    g1 = OptionGroup(p, "Optional `email` parameters")
+    g1.add_option("--address", dest="toaddr", default=toaddr,
+                 help="Specify TO email address to send the notification" + \
+                      ' [default: "%default"]')
+    p.add_option_group(g1)
     p.set_grid()
     opts, args = p.parse_args(args)
 
@@ -984,15 +991,15 @@ def waitpid(args):
         sys.exit()
 
     if opts.notify:
+        notifycmd = ["[completed] {0}: `{1}`".format(gethostname(), origcmd)]
         hostname = check_output(["hostname"]).strip()
-        method, api = opts.notify, None
-        if opts.notify != "email":
-            method, api = "push", opts.notify
-        notifycmd = "--method={0}".format(method)
-        if api:
-            notifycmd += " --api={0}".format(api)
-        notify(["[completed] {0}: `{1}`".format(gethostname(), origcmd), \
-                notifycmd])
+        if otps.notify != "email":
+            method, api = ("push", opts.notify)
+            notifycmd.append("--api={0}".format(api))
+        else:
+            notifycmd.append('--address="{0}"'.format(opts.address))
+        notifycmd.append("--method={0}".format(method))
+        notify(notifycmd)
 
     if cmd is not None:
         bg = False if opts.grid else True

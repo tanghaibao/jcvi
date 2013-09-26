@@ -28,7 +28,7 @@ autodiscover=false
 def main():
 
     actions = (
-        ('map', 'map the reads to the reference'),
+        ('align', 'align reads to reference'),
         ('prepare', 'prepare to run clc_novo_assemble'),
         ('trim', 'wrapper around clc quality_trim'),
             )
@@ -99,14 +99,14 @@ def prepare(args):
     write_file(runfile, cmd, meta="run script")
 
 
-def map(args):
+def align(args):
     """
-    %prog map reference fastqfiles
+    %prog align reference fastqfiles
 
     Use `clc_ref_assemble` to map the read files to a reference. Use a non-zero
     -s option to turn on paired end mode.
     """
-    p = OptionParser(map.__doc__)
+    p = OptionParser(align.__doc__)
     p.add_option("-o", dest="outfile", default=None,
             help="Output prefix.cas file [default: %default]")
     p.add_option("-s", dest="size", default=0, type="int",

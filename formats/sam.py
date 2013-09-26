@@ -56,8 +56,9 @@ class Sam (LineFile):
                 callback(s)
 
 
-def output_bam(cmd, outfile, bam=False, unmappedfile=None):
-    if unmappedfile:
+def output_bam(cmd, outfile):
+    bam = outfile.endswith(".bam")
+    if not bam:
         return cmd + " > {0}".format(outfile)
 
     from os import devnull
@@ -103,13 +104,15 @@ def get_prefix(readfile, dbfile):
     return ".".join((rdpf, dbpf))
 
 
-def get_samfile(readfile, dbfile, bam=False, unmapped=False, bowtie=False):
+def get_samfile(readfile, dbfile, bam=False, mapped=False,
+                unmapped=False, bowtie=False):
     prefix = get_prefix(readfile, dbfile)
     ext = ".bam" if bam and not unmapped else ".sam"
     samfile = prefix + ext
     ext = ".fastq" if bowtie else ".bam"
-    unmappedfile = (prefix + ".unmapped" + ext) if unmapped else None
-    return samfile, unmappedfile
+    mapped = (prefix + ".mapped" + ext) if mapped else None
+    unmapped = (prefix + ".unmapped" + ext) if unmapped else None
+    return samfile, mapped, unmapped
 
 
 def main():

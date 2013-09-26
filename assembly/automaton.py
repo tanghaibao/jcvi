@@ -26,10 +26,10 @@ class Meta (object):
         # Note the guesswork is largely based on JIRA LIMS naming convention
         self.fastq = fastq.strip()
         self.suffix = op.splitext(fastq)[-1]
-        if "_R1_" in fastq:
-            paired = ".1"
-        elif "_R2_" in fastq:
-            paired = ".2"
+        if ".1." in fastq or ".2." in fastq:
+            paired = ".1" if ".1." in fastq else ".2"
+        elif "_R1_" in fastq or "_R2_" in fastq:
+            paired = ".1" if "_R1_" in fastq else ".2"
         else:
             paired = ""
         self.paired = paired
@@ -53,7 +53,7 @@ class Meta (object):
 
         if op.islink(self.link):
             os.unlink(self.link)
-        os.symlink(self.fastq, self.link)
+        os.symlink(get_abs_path(self.fastq), self.link)
 
     def guess(self):
         # Try to guess library info based on file name
@@ -164,6 +164,8 @@ def allpaths(args):
 
     folders = args
     for pf in folders:
+        if not op.isdir(pf):
+            continue
         assemble_dir(pf, target=["final.contigs.fasta", "final.assembly.fasta"],
                      ploidy=opts.ploidy)
 
@@ -235,12 +237,6 @@ def assemble_pairs(p, pf, tag, target=["final.contigs.fasta"]):
     """
     Take one pair of reads and assemble to contigs.fasta.
     """
-    logging.debug("Work on {0} ({1})".format(pf, ','.join(p)))
-    asm = [x.replace("final", pf) for x in target]
-    if not need_update(p, asm):
-        logging.debug("Assembly found: {0}. Skipped.".format(asm))
-        return
-
     slink(p, pf, tag)
     assemble_dir(pf, target)
 
@@ -248,7 +244,12 @@ def assemble_pairs(p, pf, tag, target=["final.contigs.fasta"]):
 def assemble_dir(pf, target, ploidy="1"):
     from jcvi.assembly.allpaths import prepare
 
+    logging.debug("Work on {0}".format(pf))
     asm = [x.replace("final", pf) for x in target]
+    if not need_update(pf, asm):
+        logging.debug("Assembly found: {0}. Skipped.".format(asm))
+        return
+
     cwd = os.getcwd()
     os.chdir(pf)
     prepare([pf] + sorted(glob("*.fastq") + glob("*.fastq.gz")) + \

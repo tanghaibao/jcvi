@@ -99,16 +99,20 @@ def align(args):
     else:
         sys.exit(not p.print_help())
 
+    bam = opts.bam
+    unmapped = opts.unmapped
+
     if cmd:
         sh(cmd, grid=opts.grid, threaded=opts.cpus)
 
-    if opts.unmapped:
-        dbfile, readfile, = args
-        samfile, unmappedfile = get_samfile(readfile, dbfile,
-                                            bam=opts.bam, unmapped=opts.unmapped)
+    if unmapped:
+        dbfile, readfile = args[:2]
+        samfile, _, unmapped = get_samfile(readfile, dbfile,
+                                           bam=bam, unmapped=unmapped)
+
         mopts = [samfile, "--unmapped"]
-        if opts.bam:
-            mopts.append("--bam")
+        if bam:
+            mopts += ["--bam"]
         mapped(mopts)
 
 
@@ -125,8 +129,8 @@ def samse(args, opts):
     safile = check_index(dbfile, grid=grid)
     saifile = check_aln(dbfile, readfile, grid=grid, cpus=opts.cpus)
 
-    samfile, unmappedfile = get_samfile(readfile, dbfile,
-                                        bam=opts.bam, unmapped=opts.unmapped)
+    samfile, _, unmapped = get_samfile(readfile, dbfile,
+                                       bam=opts.bam, unmapped=opts.unmapped)
     if not need_update((safile, saifile), samfile):
         logging.error("`{0}` exists. `bwa samse` already run.".format(samfile))
         return
@@ -136,7 +140,7 @@ def samse(args, opts):
     if opts.uniq:
         cmd += " -n 1"
 
-    return output_bam(cmd, samfile, bam=opts.bam, unmappedfile=unmappedfile)
+    return output_bam(cmd, samfile)
 
 
 def sampe(args, opts):
@@ -153,8 +157,8 @@ def sampe(args, opts):
     sai1file = check_aln(dbfile, read1file, grid=grid, cpus=opts.cpus)
     sai2file = check_aln(dbfile, read2file, grid=grid, cpus=opts.cpus)
 
-    samfile, unmappedfile = get_samfile(read1file, dbfile,
-                                        bam=opts.bam, unmapped=opts.unmapped)
+    samfile, _, unmapped = get_samfile(read1file, dbfile,
+                                       bam=opts.bam, unmapped=opts.unmapped)
     if not need_update((safile, sai1file, sai2file), samfile):
         logging.error("`{0}` exists. `bwa samse` already run.".format(samfile))
         return
@@ -165,7 +169,7 @@ def sampe(args, opts):
     if opts.uniq:
         cmd += " -n 1"
 
-    return output_bam(cmd, samfile, bam=opts.bam, unmappedfile=unmappedfile)
+    return output_bam(cmd, samfile)
 
 
 def bwasw(args):
@@ -185,26 +189,27 @@ def bwasw(args):
     extra = opts.extra
     grid = opts.grid
     cpus = opts.cpus
+    bam = opts.bam
+    unmapped = opts.unmapped
 
     dbfile, readfile = args
     safile = check_index(dbfile, grid=grid)
 
-    samfile, unmappedfile = get_samfile(readfile, dbfile,
-                                        bam=opts.bam, unmapped=opts.unmapped)
+    samfile, _, unmapped = get_samfile(readfile, dbfile,
+                                       bam=bam, unmapped=unmapped)
     if not need_update(safile, samfile):
         logging.error("`{0}` exists. `bwa bwasw` already run.".format(samfile))
         return
 
     cmd = "bwa bwasw -t {0} {1} {2}".format(cpus, dbfile, readfile)
     cmd += "{0}".format(extra)
-    cmd = output_bam(cmd, samfile, bam=opts.bam, unmappedfile=unmappedfile)
+    cmd = output_bam(cmd, samfile)
     sh(cmd, grid=grid, threaded=cpus)
-    if opts.unmapped:
+    if unmapped:
         mopts = [samfile, "--unmapped"]
-        if opts.bam:
-            mopts.append("--bam")
+        if bam:
+            mopts += ["--bam"]
         mapped(mopts)
-
 
 
 if __name__ == '__main__':

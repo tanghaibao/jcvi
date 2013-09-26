@@ -109,10 +109,8 @@ class GridOpts (dict):
         export = ("pcode", "queue", "threaded", "concurrency",
                   "outdir", "name", "hold_jid")
         for e in export:
-            try:
+            if e in opts.__dict__:
                 self[e] = getattr(opts, e)
-            except:
-                pass
 
 
 class GridProcess (object):
@@ -140,7 +138,7 @@ class GridProcess (object):
         self.hold_jid = hold_jid
         self.pat = self.pat2 if arr else self.pat1
         if grid_opts:
-            self.__dict__.update(grid_opts)
+            self.__dict__.update(GridOpts(grid_opts))
 
     def __str__(self):
         return "\t".join((x for x in \
@@ -278,7 +276,7 @@ def array(args):
 
     outfile = "{0}.{1}.out".format(pf, "\$TASK_ID")
     p = GridProcess("sh {0}".format(runfile), outfile=outfile, errfile=outfile,
-                    arr=ncmds, grid_opts=GridOpts(opts))
+                    arr=ncmds, grid_opts=opts)
     p.start()
 
 
@@ -355,7 +353,7 @@ def run(args):
             ncmd, outfile = ncmd.strip(), outfile.strip()
 
         ncmd = ncmd.strip()
-        p = GridProcess(ncmd, outfile=outfile, grid_opts=GridOpts(opts))
+        p = GridProcess(ncmd, outfile=outfile, grid_opts=opts)
         p.start()
 
 

@@ -103,6 +103,18 @@ def write(queue_in, queue_out, filename, cpus):
     fw.close()
 
 
+class GridOpts (dict):
+
+    def __init__(self, opts):
+        export = ("pcode", "queue", "threaded", "concurrency",
+                  "outdir", "name", "hold_jid")
+        for e in export:
+            try:
+                self[e] = getattr(opts, e)
+            except:
+                pass
+
+
 class GridProcess (object):
 
     pat1 = re.compile(r"Your job (?P<id>[0-9]*) ")
@@ -110,7 +122,8 @@ class GridProcess (object):
 
     def __init__(self, cmd, jobid="", pcode="04048", queue="default", threaded=None,
                        infile=None, outfile=None, errfile=None, arr=None,
-                       concurrency=None, outdir=".", name=None, hold_jid=None):
+                       concurrency=None, outdir=".", name=None, hold_jid=None,
+                       grid_opts=None):
 
         self.cmd = cmd
         self.jobid = jobid
@@ -126,6 +139,8 @@ class GridProcess (object):
         self.pcode = pcode
         self.hold_jid = hold_jid
         self.pat = self.pat2 if arr else self.pat1
+        if grid_opts:
+            self.__dict__.update(grid_opts)
 
     def __str__(self):
         return "\t".join((x for x in \
@@ -263,9 +278,7 @@ def array(args):
 
     outfile = "{0}.{1}.out".format(pf, "\$TASK_ID")
     p = GridProcess("sh {0}".format(runfile), outfile=outfile, errfile=outfile,
-                    pcode=opts.pcode, queue=opts.queue, threaded=opts.threaded,
-                    arr=ncmds, concurrency=opts.concurrency, outdir=opts.outdir,
-                    name=opts.name, hold_jid=opts.hold_jid)
+                    arr=ncmds, grid_opts=GridOpts(opts))
     p.start()
 
 
@@ -342,10 +355,7 @@ def run(args):
             ncmd, outfile = ncmd.strip(), outfile.strip()
 
         ncmd = ncmd.strip()
-        p = GridProcess(ncmd, outfile=outfile, pcode=opts.pcode,
-                        queue=opts.queue, threaded=opts.threaded,
-                        outdir=opts.outdir, name=opts.name,
-                        hold_jid=opts.hold_jid)
+        p = GridProcess(ncmd, outfile=outfile, grid_opts=GridOpts(opts))
         p.start()
 
 

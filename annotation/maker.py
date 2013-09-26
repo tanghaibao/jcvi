@@ -17,7 +17,7 @@ from collections import defaultdict
 
 from jcvi.formats.base import BaseFile, LineFile, write_file
 from jcvi.apps.softlink import get_abs_path
-from jcvi.apps.grid import GridProcess
+from jcvi.apps.grid import GridProcess, GridOpts
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, popen, \
             debug, sh, mkdir, glob
 debug()
@@ -192,11 +192,7 @@ def parallel(args):
     # qsub script
     outfile = "maker.\$TASK_ID.out"
     p = GridProcess(runfile, outfile=outfile, errfile=outfile,
-                    queue=opts.queue, threaded=threaded,
-                    arr=ncmds, outdir=opts.outdir,
-                    name=opts.name, cwd=opts.cwd,
-                    hold_jid=opts.hold_jid,
-                    pcode=opts.pcode)
+                    arr=ncmds, grid_opts=GridOpts(opts))
     qsubfile = "qsub.sh"
     qsub = p.build()
     write_file(qsubfile, qsub, meta="run script")

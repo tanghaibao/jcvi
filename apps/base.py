@@ -120,6 +120,13 @@ class OptionParser (OptionP):
         self.add_option("-o", "--outfile", default=outfile,
                 help="Outfile name [default: %default]")
 
+    def set_email(self):
+        """
+        Add --email option to specify an email address
+        """
+        self.add_option("--email", default=get_email_address(user=True),
+                help='Specify an email address [default: "%default"]')
+
     def set_tmpdir(self, tmpdir=None):
         """
         Add --temporary_directory option to specify unix `sort` tmpdir
@@ -824,15 +831,18 @@ def send_email(fromaddr, toaddr, subject, message):
     server.quit()
 
 
-def gen_email_addresses():
+def get_email_address(user=None):
     """ Auto-generate the FROM and TO email address """
-    user = getusername()
+    username = getusername()
     domain = getdomainname()
 
     fromaddr = "notifier-donotreply@{0}".format(getdomainname())
-    toaddr = "{0}@{1}".format(user, domain)
+    myemail = "{0}@{1}".format(username, domain)
 
-    return fromaddr, toaddr
+    if user:
+        return myemail
+    else:
+        return fromaddr, myemail
 
 
 def is_valid_email(email):
@@ -884,7 +894,7 @@ def notify(args):
     valid_priorities = range(-1, 3, 1)
     valid_notif_methods.extend(available_push_api.keys())
 
-    fromaddr, toaddr = gen_email_addresses()
+    fromaddr, toaddr = get_email_address()
 
     p = OptionParser(notify.__doc__)
     p.add_option("--method", default="email", choices=valid_notif_methods,
@@ -893,22 +903,18 @@ def notify(args):
     p.add_option("--subject", default="JCVI: job monitor",
                  help="Specify the subject of the notification message")
 
-    g1 = OptionGroup(p, "Optional `email` parameters")
-    g1.add_option("--address", dest="toaddr", default=toaddr,
-                 help="Specify TO email address to send the notification" + \
-                      ' [default: "%default"]')
-    p.add_option_group(g1)
+    p.set_email()
 
-    g2 = OptionGroup(p, "Optional `push` parameters")
-    g2.add_option("--api", default="pushover", choices=available_push_api.values(),
+    g1 = OptionGroup(p, "Optional `push` parameters")
+    g1.add_option("--api", default="pushover", choices=available_push_api.values(),
                   help="Specify API used to send the push notification" + \
                   " [default: %default]")
-    g2.add_option("--priority", default=0, type="int",
+    g1.add_option("--priority", default=0, type="int",
                   help="Message priority (-1 <= p <= 2) [default: %default]")
-    g2.add_option("--timestamp", default=None, type="int", \
+    g1.add_option("--timestamp", default=None, type="int", \
                   dest="timestamp", \
                   help="Message timestamp in unix format [default: %default]")
-    p.add_option_group(g2)
+    p.add_option_group(g1)
 
     opts, args = p.parse_args(args)
 
@@ -970,12 +976,7 @@ def waitpid(args):
                  help="Specify interval at which PID should be monitored" + \
                       " [default: %default]")
 
-    fromaddr, toaddr = gen_email_addresses()
-    g1 = OptionGroup(p, "Optional `email` parameters")
-    g1.add_option("--address", dest="toaddr", default=toaddr,
-                 help="Specify TO email address to send the notification" + \
-                      ' [default: "%default"]')
-    p.add_option_group(g1)
+    p.set_email()
     p.set_grid()
     opts, args = p.parse_args(args)
 

@@ -16,10 +16,10 @@ from jcvi.formats.base import must_open
 from jcvi.formats.fasta import print_first_difference
 from jcvi.utils.iter import grouper
 from jcvi.apps.console import green
-from jcvi.apps.base import ActionDispatcher, mkdir, debug
+from jcvi.apps.base import ActionDispatcher, get_email_address, mkdir, debug
 debug()
 
-myEmail = "htang@jcvi.org"
+myEmail = get_email_address(user=True)
 Entrez.email = myEmail
 
 
@@ -46,7 +46,7 @@ def batch_taxids(list_of_names):
 
 
 def batch_entrez(list_of_terms, db="nuccore", retmax=1, rettype="fasta",
-            batchsize=1):
+            batchsize=1, email=myEmail):
     """
     Retrieve multiple rather than a single record
     """
@@ -94,7 +94,7 @@ def batch_entrez(list_of_terms, db="nuccore", retmax=1, rettype="fasta",
             while not success:
                 try:
                     fetch_handle = Entrez.efetch(db=db, id=id, rettype=rettype,
-                            email=myEmail)
+                            email=email)
                     success = True
                 except (urllib2.HTTPError, urllib2.URLError,
                         RuntimeError) as e:
@@ -136,6 +136,7 @@ def bisect(args):
     This proceeds by a sequential search from xxxx.1 to the latest record.
     """
     p = OptionParser(bisect.__doc__)
+    p.set_email()
 
     opts, args = p.parse_args(args)
 
@@ -149,7 +150,7 @@ def bisect(args):
     for i in range(1, 100):
         term = "%s.%d" % (acc, i)
         try:
-            query = list(batch_entrez([term]))
+            query = list(batch_entrez([term], email=opts.email))
         except AssertionError as e:
             logging.debug("no records found for %s. terminating." % term)
             return
@@ -196,14 +197,16 @@ def fetch(args):
             help="download format [default: %default]")
     p.add_option("--database", default="nuccore", choices=valid_databases,
             help="search database [default: %default]")
-    p.add_option("--outdir", default=None,
-            help="output directory, with accession number as filename")
-    p.add_option("--retmax", default=10000, type="int",
+    p.add_option("--retmax", default=1000000, type="int",
             help="how many results to return [default: %default]")
     p.add_option("--skipcheck", default=False, action="store_true",
             help="turn off prompt to check file existence [default: %default]")
     p.add_option("--batchsize", default=500, type="int",
             help="download the results in batch for speed-up [default: %default]")
+    p.add_option("--outdir", default=None,
+            help="output directory, with accession number as filename")
+    p.set_outfile()
+    p.set_email()
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -230,7 +233,7 @@ def fetch(args):
     assert batchsize >= 1, "batchsize must >= 1"
 
     if " " in pf:
-        pf = "out"
+        pf = opts.outfile if opts.outfile else "out"
 
     outfile = "{0}.{1}".format(pf, fmt)
 
@@ -248,7 +251,8 @@ def fetch(args):
     seen = set()
     totalsize = 0
     for id, size, term, handle in batch_entrez(list_of_terms, retmax=opts.retmax, \
-                                 rettype=fmt, db=database, batchsize=batchsize):
+                                 rettype=fmt, db=database, batchsize=batchsize, \
+                                 email=opts.email):
         if outdir:
             outfile = op.join(outdir, "{0}.{1}".format(term, fmt))
             fw = must_open(outfile, "w", checkexists=True, \

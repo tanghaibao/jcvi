@@ -205,7 +205,8 @@ def fetch(args):
             help="download the results in batch for speed-up [default: %default]")
     p.add_option("--outdir", default=None,
             help="output directory, with accession number as filename")
-    p.set_outfile()
+    p.add_option("--outprefix", default="out",
+            help="output file name prefix [default: %default]")
     p.set_email()
     opts, args = p.parse_args(args)
 
@@ -233,7 +234,7 @@ def fetch(args):
     assert batchsize >= 1, "batchsize must >= 1"
 
     if " " in pf:
-        pf = opts.outfile if opts.outfile else "out"
+        pf = opts.outprefix
 
     outfile = "{0}.{1}".format(pf, fmt)
 

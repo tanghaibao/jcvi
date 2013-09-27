@@ -495,8 +495,30 @@ def get_today():
     return str(date.today())
 
 
+def ls_ftp(dir):
+    from urlparse import urlparse
+    from ftplib import FTP, error_perm
+    o = urlparse(dir)
+
+    ftp = FTP(o.netloc)
+    ftp.login()
+    ftp.cwd(o.path)
+
+    files = []
+    try:
+        files = ftp.nlst()
+    except error_perm, resp:
+        if str(resp) == "550 No files found":
+            print "no files in this directory"
+        else:
+            raise
+    return files
+
+
 def download(url, filename=None):
     from urlparse import urlsplit
+    from subprocess import CalledProcessError
+    from jcvi.formats.base import FileShredder
 
     scheme, netloc, path, query, fragment = urlsplit(url)
     filename = filename or op.basename(path)
@@ -512,7 +534,11 @@ def download(url, filename=None):
         from jcvi.utils.ez_setup import get_best_downloader
 
         downloader = get_best_downloader()
-        downloader(url, filename)
+        try:
+            downloader(url, filename)
+        except (CalledProcessError, KeyboardInterrupt) as e:
+            print >> sys.stderr, e
+            FileShredder([filename])
 
     return filename
 

@@ -9,14 +9,13 @@ import time
 import logging
 import urllib2
 
-from jcvi.apps.base import OptionParser
 from Bio import Entrez, SeqIO
 
 from jcvi.formats.base import must_open
 from jcvi.formats.fasta import print_first_difference
 from jcvi.utils.iter import grouper
 from jcvi.apps.console import green
-from jcvi.apps.base import ActionDispatcher, get_email_address, mkdir, debug
+from jcvi.apps.base import OptionParser, ActionDispatcher, get_email_address, mkdir, debug
 debug()
 
 myEmail = get_email_address(user=True)
@@ -110,9 +109,70 @@ def main():
     actions = (
         ('fetch', 'fetch records from a list of GenBank accessions'),
         ('bisect', 'determine the version of the accession'),
+        ('phytozome', 'retrieve genomes and annotations from phytozome'),
         )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def phytozome(args):
+    """
+    %prog phytozome species
+
+    Retrieve genomes and annotations from phytozome FTP.
+    Available species listed below. Use comma to give a list of species to
+    download. For example:
+
+    $ %prog phytozome Athaliana,Vvinifera,Osativa,Sbicolor,Slycopersicum
+    """
+    from jcvi.utils.cbook import tile
+    from jcvi.apps.base import ls_ftp
+
+    p = OptionParser(phytozome.__doc__)
+    p.add_option("--version", default="9.0",
+                 help="Phytozome version [default: %default]")
+    p.add_option("--assembly", default=False, action="store_true",
+                 help="Download assembly [default: %default]")
+    opts, args = p.parse_args(args)
+
+    url = "ftp://ftp.jgi-psf.org/pub/compgen/phytozome/v{0}/".\
+                    format(opts.version)
+    valid_species = [x for x in ls_ftp(url) if "." not in x]
+
+    doc = "\n".join((phytozome.__doc__, tile(valid_species)))
+    p.set_usage(doc)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    species, = args
+    species = species.split(",")
+    for s in species:
+        download_species(s, valid_species, url, assembly=opts.assembly)
+
+
+def download_species(species, valid_species, url, assembly=False):
+    from os.path import join as urljoin
+    from jcvi.apps.base import ls_ftp, download
+
+    assert species in valid_species, \
+            "{0} is not in the species list".format(species)
+
+    # We want to download assembly and annotation for given species
+    surl = urljoin(url, species)
+    contents = [x for x in ls_ftp(surl) if x.endswith("_readme.txt")]
+    magic = contents[0].split("_")[1]  # Get the magic number
+    logging.debug("Found magic number for {0}: {1}".format(species, magic))
+
+    pf = "{0}_{1}".format(species, magic)
+    asm_url = urljoin(surl, "assembly/{0}.fa.gz".format(pf))
+    ann_url = urljoin(surl, "annotation/{0}_gene.gff3.gz".format(pf))
+    cds_url = urljoin(surl, "annotation/{0}_cds.fa.gz".format(pf))
+    pep_url = urljoin(surl, "annotation/{0}_protein.fa.gz".format(pf))
+    if assembly:
+        download(asm_url)
+    for u in (ann_url, cds_url, pep_url):
+        download(u)
 
 
 def get_first_rec(fastafile):
@@ -141,7 +201,7 @@ def bisect(args):
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
     acc, fastafile = args
     arec = get_first_rec(fastafile)

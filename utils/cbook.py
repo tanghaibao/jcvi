@@ -384,6 +384,20 @@ def fill(text, delimiter="", width=70):
     return "\n".join(texts)
 
 
+def tile(lt, width=70, gap=1):
+    """
+    Pretty print list of items.
+    """
+    from jcvi.utils.iter import grouper
+
+    max_len = max(len(x) for x in lt) + gap
+    items_per_line = max(width / max_len, 1)
+    lt = [x.rjust(max_len) for x in lt]
+    g = list(grouper(items_per_line, lt, fillvalue=""))
+
+    return "\n".join("".join(x) for x in g)
+
+
 def uniqify(L):
     """
     Uniqify a list, maintains order (the first occurrence will be kept).

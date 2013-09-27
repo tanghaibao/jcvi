@@ -213,6 +213,7 @@ download_file_curl.viable = has_curl
 
 def download_file_wget(url, target):
     cmd = ['wget', url, '--output-document', target]
+    cmd += ["--no-check-certificate"]
     if url.startswith("ftp:"):
         cmd += ["--no-passive-ftp"]
     subprocess.check_call(cmd)

@@ -357,6 +357,16 @@ def run(args):
         p.start()
 
 
+def guess_method(tag):
+    from jcvi.formats.base import is_number
+
+    jobids = tag.split(",")
+    for jobid in jobids:
+        if not is_number(jobid):
+            return "pattern"
+    return "jobid"
+
+
 def kill(args):
     """
     %prog kill [options] JOBNAMEPAT/JOBIDs
@@ -365,52 +375,46 @@ def kill(args):
     or list of JOBIDs (comma separated)
 
     Examples:
-    %prog kill "pyth*"
-    %prog kill --method=jobid 160253,160245,160252
-    %prog kill --all
+    %prog kill "pyth*"                 # Use regex
+    %prog kill 160253,160245,160252    # Use list of job ids
+    %prog kill all                     # Everything
     """
     import shlex
     from jcvi.apps.base import sh, getusername
-    from jcvi.formats.base import is_number
     from subprocess import check_output, CalledProcessError
     import xml.etree.ElementTree as ET
 
     valid_methods = ("pattern", "jobid")
     p = OptionParser(kill.__doc__)
-    p.add_option("--method", default="pattern", choices=valid_methods,
-                 help="Identify jobs based on ({0})".format(", ".join(\
-                      '"{0}"'.format(x) for x in valid_methods)) + \
-                      " [default: %default]")
-    p.add_option("--all", default=False, action="store_true",
-                 help="Kill all jobs owned by current user." + \
-                      " Ignores `--method`. [default: %default]")
-
+    p.add_option("--method", choices=valid_methods,
+                 help="Identify jobs based on {0} [default: guess]".\
+                        format("|".join(valid_methods)))
     opts, args = p.parse_args(args)
-    username = getusername()
-    if not opts.all:
-        if len(args) == 0:
-            sys.exit(not p.print_help())
-    else:
-        sh("qdel -u {0}".format(username))
-        sys.exit()
 
-    inargs, = args
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    username = getusername()
+    tag, = args
+    tag = tag.strip()
+
+    if tag == "all":
+        sh("qdel -u {0}".format(username))
+        return
+
     valid_jobids = set()
-    if opts.method == "jobid":
-        jobids = inargs.strip().split(",")
-        for jobid in jobids:
-            if not is_number(jobid):
-                logging.debug("JOBID `{0}` should be a number".format(jobid))
-            else:
-                valid_jobids.add(jobid)
-    elif opts.method == "pattern":
-        jobnamepat = inargs.strip()
-        qsxmlcmd = 'qstat -u "{0}" -j "{1}" -nenv -njd -xml'.format(username, jobnamepat)
+    method = opts.method or guess_method(tag)
+    if method == "jobid":
+        jobids = tag.split(",")
+        valid_jobids |= set(jobids)
+    elif method == "pattern":
+        qsxmlcmd = 'qstat -u "{0}" -j "{1}" -nenv -njd -xml'.\
+                                format(username, tag)
         try:
             qsxml = check_output(shlex.split(qsxmlcmd)).strip()
         except CalledProcessError, e:
             qsxml = None
-            logging.debug('No jobs matching the pattern "{0}"'.format(jobnamepat))
+            logging.debug('No jobs matching the pattern "{0}"'.format(tag))
 
         if qsxml is not None:
             for job in ET.fromstring(qsxml).findall("djob_info"):

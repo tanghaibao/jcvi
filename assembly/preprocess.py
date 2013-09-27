@@ -242,6 +242,7 @@ def trim(args):
     p.add_option("--log", default=None, dest="trimlog",
             help="Specify a `trimlog` file [default: %default]")
     p.set_grid()
+    p.set_cpus(cpus=4)
 
     opts, args = p.parse_args(args)
 
@@ -278,7 +279,7 @@ def trim(args):
         offset = int(opts.phred)
 
     phredflag = " -phred{0}".format(offset)
-    threadsflag = " -threads 4"
+    threadsflag = " -threads {0}".format(opts.cpus)
     if opts.trimlog:
         trimlog = " -trimlog {0}".format(opts.trimlog)
 
@@ -330,7 +331,7 @@ def trim(args):
 
     if offset != 33:
         cmd += " TOPHRED33"
-    sh(cmd, grid=opts.grid, threaded=4)
+    sh(cmd, grid=opts.grid, threaded=opts.cpus)
 
 
 @depends

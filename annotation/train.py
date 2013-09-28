@@ -110,7 +110,7 @@ def genemark(args):
     sh(cmd)
 
     os.chdir(cwd)
-    logging.debug("GENEMARK matrix written to `{0}/{1}.mod`".format(gmdir, species))
+    logging.debug("GENEMARK matrix written to `{0}/mod/{1}.mod`".format(gmdir, species))
 
 
 def snap(args):
@@ -169,6 +169,8 @@ def augustus(args):
     species, gffile, fastafile = args
     mhome = opts.augustus_home
     augdir = "augustus"
+
+    cwd = os.getcwd()
     mkdir(augdir)
     os.chdir(augdir)
 
@@ -181,13 +183,11 @@ def augustus(args):
     sh("{0}/scripts/filterGenes.pl badgenes.lst raw.gb > training.gb".\
             format(mhome))
     sh("grep -c LOCUS raw.gb training.gb")
-    sh("{0}/scripts/randomSplit.pl training.gb 100".format(mhome))
-    sh("{0}/bin/etraining --species={1} training.gb.train".format(mhome, species))
+    sh("{0}/scripts/autoAugTrain.pl --trainingset=training.gb --species={1}".\
+            format(mhome, species))
 
-    msg = """Now ready to run:
-    $ {0}/scripts/optimize_augustus.pl --species={1} training.gb.train
-    """.format(mhome, species)
-    logging.debug(msg)
+    os.chdir(cwd)
+    sh("cp -r {0}/species/{1} augustus/".format(mhome, species))
 
 
 if __name__ == '__main__':

@@ -178,13 +178,13 @@ class GridProcess (object):
         if infile:
             qsub += " -i {0}".format(infile)
 
-        outfile = op.join(outdir, outfile)
-        qsub += " -o {0}".format(outfile)
+        self.outfile = op.join(outdir, outfile)
+        qsub += " -o {0}".format(self.outfile)
         if redirect_same:
             qsub += " -j y"
         else:
-            errfile = op.join(outdir, errfile)
-            qsub += " -e {0}".format(errfile)
+            self.errfile = op.join(outdir, errfile)
+            qsub += " -e {0}".format(self.errfile)
 
         cmd = " ".join((qsub, self.cmd))
         return cmd
@@ -204,10 +204,10 @@ class GridProcess (object):
             msg += " < {0} ".format(self.infile)
         if self.outfile:
             backup(self.outfile)
-            msg += " > {0}/{1} ".format(self.outdir, self.outfile)
+            msg += " > {0} ".format(self.outfile)
         if self.errfile:
             backup(self.errfile)
-            msg += " 2> {0}/{1} ".format(self.outdir, self.errfile)
+            msg += " 2> {1} ".format(self.errfile)
 
         logging.debug(msg)
 

@@ -269,7 +269,7 @@ class OptionParser (OptionP):
                    "maker": "~/htang/export/maker",
                    "pasa": "~/htang/export/PASA2-r20130605p1",
                    "gmes": "~/htang/export/gmes",
-                   "augustus": "~/htang/export/augustus.2.5.5",
+                   "augustus": op.split(os.environ["AUGUSTUS_CONFIG_PATH"])[0],
                    }[prog]
         help = "Home directory for {0} [default: %default]".format(prog.upper())
         self.add_option(tag, default=default, help=help)

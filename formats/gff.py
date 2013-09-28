@@ -968,6 +968,7 @@ def fromgtf(args):
                  help="Field name for gene [default: %default]")
     p.add_option("--augustus", default=False, action="store_true",
                  help="Input is AUGUSTUS gtf [default: %default]")
+    p.set_home("augustus")
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -977,7 +978,7 @@ def fromgtf(args):
     gtffile, = args
     outfile = opts.outfile
     if opts.augustus:
-        ahome = op.split(os.environ["AUGUSTUS_CONFIG_PATH"])[0]
+        ahome = opts.augustus_home
         s = op.join(ahome, "scripts/gtf2gff.pl")
         cmd = "{0} --gff3 < {1} --out={2}".format(s, gtffile, outfile)
         sh(cmd)

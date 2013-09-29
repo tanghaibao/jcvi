@@ -17,7 +17,7 @@ from collections import defaultdict
 
 from jcvi.formats.base import BaseFile, LineFile, write_file
 from jcvi.apps.softlink import get_abs_path
-from jcvi.apps.grid import GridProcess
+from jcvi.apps.grid import GridProcess, get_grid_engine
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, popen, \
             debug, sh, mkdir, glob
 debug()
@@ -124,6 +124,23 @@ cd $DIR
 {1} --ignore_nfs_tmp"""
 
 
+arraysh_ua = """
+#PBS -q standard
+#PBS -J 1-{0}
+#PBS -l select=1:ncpus={1}:mem=8gb
+#PBS -l jobtype=serial
+#PBS -l place=pack:shared
+#PBS -l walltime=99:00:00
+#PBS -l cput=99:00:00
+#PBS -W group_list=genomeanalytics
+
+cd $PBS_O_WORKDIR
+DIR=`awk "NR==$PBS_ARRAY_INDEX" {2}`
+cd $DIR
+{3} --ignore_nfs_tmp > ../maker.$PBS_ARRAY_INDEX.out 2>&1
+"""
+
+
 def parallel(args):
     """
     %prog parallel genome.fasta N
@@ -143,7 +160,7 @@ def parallel(args):
         sys.exit(not p.print_help())
 
     genome, NN = args
-    threaded = opts.threaded
+    threaded = opts.threaded or 1
     tmpdir = opts.tmpdir
 
     mkdir(tmpdir)
@@ -186,8 +203,13 @@ def parallel(args):
     if tmpdir:
         cmd += " -TMP {0}".format(tmpdir)
 
-    contents = arraysh.format(jobs, cmd)
+    engine = get_grid_engine()
+    contents = arraysh.format(jobs, cmd) if engine == "SGE" \
+                else arraysh_ua.format(N, threaded, jobs, cmd)
     write_file(runfile, contents, meta="run script")
+
+    if engine == "PBS":
+        return
 
     # qsub script
     outfile = "maker.\$TASK_ID.out"

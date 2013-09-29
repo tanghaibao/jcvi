@@ -207,7 +207,7 @@ class GridProcess (object):
             msg += " > {0} ".format(self.outfile)
         if self.errfile:
             backup(self.errfile)
-            msg += " 2> {1} ".format(self.errfile)
+            msg += " 2> {0} ".format(self.errfile)
 
         logging.debug(msg)
 
@@ -234,6 +234,12 @@ class Grid (list):
 arraysh = """
 CMD=`awk "NR==$SGE_TASK_ID" {0}`
 $CMD"""
+
+
+def get_grid_engine():
+    cmd = "qsub --version"
+    ret = popen(cmd, debug=False).read()
+    return "PBS" if "PBS" in cmd else "SGE"
 
 
 def main():

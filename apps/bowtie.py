@@ -15,6 +15,7 @@ import os.path as op
 from jcvi.formats.base import BaseFile
 from jcvi.utils.cbook import percentage
 from jcvi.formats.sam import output_bam, get_prefix, get_samfile
+from jcvi.apps.softlink import get_abs_path
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, \
                 sh, debug
 debug()
@@ -65,6 +66,7 @@ def main():
 
 
 def check_index(dbfile, grid=False):
+    dbfile = get_abs_path(dbfile)
     safile = dbfile + ".1.bt2"
     if need_update(dbfile, safile):
         cmd = "bowtie2-build {0} {0}".format(dbfile)

@@ -13,6 +13,7 @@ import os.path as op
 
 from jcvi.formats.sam import output_bam, get_samfile, mapped
 from jcvi.formats.base import FileShredder
+from jcvi.apps.softlink import get_abs_path
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, \
                 sh, debug
 debug()
@@ -29,6 +30,7 @@ def main():
 
 
 def check_index(dbfile, grid=False):
+    dbfile = get_abs_path(dbfile)
     safile = dbfile + ".sa"
     if need_update(dbfile, safile):
         cmd = "bwa index -a bwtsw {0}".format(dbfile)

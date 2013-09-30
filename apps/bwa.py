@@ -30,7 +30,6 @@ def main():
 
 
 def check_index(dbfile, grid=False):
-    dbfile = get_abs_path(dbfile)
     safile = dbfile + ".sa"
     if need_update(dbfile, safile):
         cmd = "bwa index -a bwtsw {0}".format(dbfile)
@@ -110,6 +109,7 @@ def align(args):
         mode = "Paired-end alignment"
         c = sampe
 
+    args[0] = get_abs_path(args[0])
     logging.debug(mode)
     cmd = c(args, opts)
 

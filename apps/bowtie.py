@@ -66,7 +66,6 @@ def main():
 
 
 def check_index(dbfile, grid=False):
-    dbfile = get_abs_path(dbfile)
     safile = dbfile + ".1.bt2"
     if need_update(dbfile, safile):
         cmd = "bowtie2-build {0} {0}".format(dbfile)
@@ -136,6 +135,7 @@ def align(args):
     unmapped = opts.unmapped
 
     dbfile, readfile = args[0:2]
+    dbfile = get_abs_path(dbfile)
     safile = check_index(dbfile, grid=grid)
     prefix = get_prefix(readfile, dbfile)
     samfile, mapped, unmapped = get_samfile(readfile, dbfile, bowtie=True,

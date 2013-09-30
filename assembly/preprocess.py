@@ -84,10 +84,10 @@ def contamination(args):
 
     ecoli, genome, fq = args
     firstN_opt = "--firstN={0}".format(opts.firstN)
-    samfile, logfile = align([ecoli, fq, firstN_opt, "--log"])
+    samfile, logfile = align([ecoli, fq, firstN_opt])
     bl = BowtieLogFile(logfile)
     lowerbound = bl.rate
-    samfile, logfile = align([genome, fq, firstN_opt, "--log"])
+    samfile, logfile = align([genome, fq, firstN_opt])
     bl = BowtieLogFile(logfile)
     upperbound = 100 - bl.rate
 

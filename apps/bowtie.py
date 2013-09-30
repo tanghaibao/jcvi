@@ -111,8 +111,6 @@ def align(args):
                  help="Use only the first N reads [default: all]")
     p.add_option("--maxins", default=800, type="int",
                  help="Maximum insertion size [default: %default]")
-    p.add_option("--log", default=False, action="store_true",
-                 help="Write log file [default: %default]")
     p.set_sam_options(bowtie=True)
 
     opts, args = p.parse_args(args)
@@ -141,7 +139,7 @@ def align(args):
     samfile, mapped, unmapped = get_samfile(readfile, dbfile, bowtie=True,
                                             mapped=mapped, unmapped=unmapped,
                                             bam=opts.bam)
-    logfile = prefix + ".log" if opts.log else None
+    logfile = prefix + ".log"
     offset = guessoffset([readfile])
 
     if not need_update(safile, samfile):
@@ -168,9 +166,10 @@ def align(args):
     cmd += " -p {0}".format(cpus)
     cmd += " --phred{0}".format(offset)
     cmd += " {0}".format(extra)
+    cmd += " 2> {0}".format(logfile)
 
     cmd = output_bam(cmd, samfile)
-    sh(cmd, grid=opts.grid, errfile=logfile, threaded=cpus)
+    sh(cmd, grid=opts.grid, threaded=cpus)
     return samfile, logfile
 
 

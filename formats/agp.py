@@ -86,6 +86,7 @@ class AGPLine (object):
                 if linkage_evidence:
                     self.linkage_evidence = linkage_evidence.split(";")
             self.orientation = "na"
+            self.component_id = "{0}.gap{1:03d}".format(self.gap_type, int(self.part_number))
 
         if validate:
             try:
@@ -133,14 +134,15 @@ class AGPLine (object):
     def gffline(self, gff_source="MGSC", gff_feat_type="golden_path_fragment"):
         # gff3 formatted line
         gff_feat_id = "".join(str(x) for x in (self.object, ".", \
-                      format(int(self.part_number), '03d')))
+                    "{0:03d}".format(int(self.part_number))))
         attributes = ";".join(("ID=" + gff_feat_id, \
                               "Name=" + self.component_id, \
                               "phase=" + self.component_type))
+        orientation = "." if self.orientation == "na" else self.orientation
 
         return "\t".join(str(x) for x in (self.object, gff_source, \
                gff_feat_type, str(self.object_beg), str(self.object_end),\
-               ".", self.orientation, ".", attributes))
+               ".", orientation, ".", attributes))
 
     @property
     def isCloneGap(self):
@@ -1460,12 +1462,9 @@ def bed(args):
     if opts.component:
         opts.nogaps = True
 
-    # If output format is gff3, ignore AGP gap lines.
-    if opts.gff:
-        opts.nogaps = True
-        # If 'verifySO' option is invoked, validate the SO term
-        if opts.verifySO:
-            validate_term(opts.feature)
+    # If output format is gff3 and 'verifySO' option is invoked, validate the SO term
+    if opts.gff and opts.verifySO:
+        validate_term(opts.feature)
 
     agpfile, = args
     agp = AGP(agpfile)

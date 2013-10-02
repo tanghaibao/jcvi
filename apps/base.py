@@ -146,6 +146,23 @@ class OptionParser (OptionP):
         self.add_option("--cpus", default=cpus, type="int",
                      help="Number of CPUs to use, 0=unlimited [default: %default]")
 
+    def set_db_opts(self, dbname="mta4", credentials=True):
+        """
+        Add db connection specific attributes
+        """
+        from jcvi.utils.sybase import get_profile
+
+        hostname, username, password = get_profile()
+        self.add_option("--db", default=dbname,
+                help="Specify name of database to query [default: %default]")
+        if credentials:
+            self.add_option("--hostname", default=hostname,
+                    help="Specify hostname [default: %default]")
+            self.add_option("--username", default=username,
+                    help="Username to connect to database [default: %default]")
+            self.add_option("--password", default=password,
+                    help="Password to connect to database [default: %default]")
+
     def set_stripnames(self):
         self.add_option("--no_strip_names", dest="strip_names",
                 action="store_false", default=True,

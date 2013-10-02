@@ -19,7 +19,14 @@ from jcvi.apps.base import ActionDispatcher, sh, debug
 debug()
 
 
-def get_profile(sqshrc="~/.sqshrc"):
+def db_defaults():
+    """
+    JCVI legacy Sybase database connection defaults
+    """
+    return "SYBPROD", "access", "access"
+
+
+def get_profile(sqshrc="~/.sqshrc", hostname=None, username=None, password=None):
     """
     get database, username, password from .sqshrc file e.g.
     \set username="user"
@@ -37,21 +44,28 @@ def get_profile(sqshrc="~/.sqshrc"):
         if "username" in row:
             username = _(row)
 
-    if not username:
+    dhost, duser, dpass = db_defaults()
+
+    if not password:
+        username, password = duser, dpass
+    elif not username:
         username = getusername()
+
     if not hostname:
-        hostname = gethostname()
+        hostname = dhost
 
     return hostname, username, password
 
 
-def connect(dbname):
+def connect(dbname, hostname=None, username=None, password=None):
     import Sybase
 
-    hostname, username, password = get_profile()
+    hostname, username, password = \
+            get_profile(hostname=hostname, username=username, password=password)
+
     dbh = Sybase.connect(hostname, username, password, database=dbname)
-    c = dbh.cursor()
-    return dbh, c
+    cur = dbh.cursor()
+    return dbh, cur
 
 
 def fetchall(cur, sql):
@@ -90,6 +104,7 @@ def libs(args):
         and trash is null;
     """
     p = OptionParser(libs.__doc__)
+    p.set_db_opts(dbname="track", credentials=None)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -97,10 +112,9 @@ def libs(args):
 
     libfile, = args
 
-    db = "track"
     sqlcmd = "select library.lib_id, library.name, bac.gb# from library join bac on " + \
              "library.bac_id=bac.id where bac.lib_name='Medicago'"
-    cur = connect(db)
+    cur = connect(opts.dbname)
     results = fetchall(cur, sqlcmd)
 
     fw = open(libfile, "w")
@@ -120,6 +134,7 @@ def pull(args):
     Pull the sequences using the first column in the libfile.
     """
     p = OptionParser(pull.__doc__)
+    p.set_db_opts(dbname="mtg2", credentials=None)
     p.add_option("--frag", default=False, action="store_true",
             help="The command to pull sequences from db [default: %default]")
     opts, args = p.parse_args(args)
@@ -129,6 +144,7 @@ def pull(args):
 
     libfile, = args
 
+    dbname = opts.dbname
     frag = opts.frag
     fp = open(libfile)
     hostname, username, password = get_profile()
@@ -144,10 +160,10 @@ def pull(args):
             fw.close()
 
         if frag:
-            cmd = "pullfrag -D mtg2 -n {0}.sql -o {0} -q -S SYBPROD".format(lib_id)
+            cmd = "pullfrag -D {0} -n {1}.sql -o {1} -q -S {2}".format(dbname, lib_id, hostname)
             cmd += " -U {0} -P {1}".format(username, password)
         else:
-            cmd = "pullseq -D mtg2 -n {0}.sql -o {0} -q".format(lib_id)
+            cmd = "pullseq -D {0} -n {1}.sql -o {1} -q".format(dbname, lib_id)
         sh(cmd)
 
 
@@ -173,8 +189,7 @@ def query(args):
     If the query contains quotes around field values, then these need to be to be escaped with \\
     """
     p = OptionParser(query.__doc__)
-    p.add_option("--db", default="mta4",
-                 help="Specify name of database to query [default: %default]")
+    p.set_db_opts()
     p.add_option("--dryrun", default=False, action="store_true",
                  help="Don't commit to database. Just print queries [default: %default]")
     p.add_option("--fieldsep", default="\t",
@@ -185,7 +200,6 @@ def query(args):
     if len(args) == 0:
         sys.exit(not p.print_help())
 
-    dbname = opts.db
     fieldsep = opts.fieldsep
 
     sep = ":::"
@@ -223,7 +237,8 @@ def query(args):
 
     if not opts.dryrun:
         fw = must_open(opts.outfile, "w")
-        dbh, cur = connect(dbname)
+        dbh, cur = connect(opts.dbname, hostname=opts.hostname, username=opts.username,\
+                password=opts.password)
     cflag = None
     for qry in queries:
         if opts.dryrun:

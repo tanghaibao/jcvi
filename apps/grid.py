@@ -329,10 +329,11 @@ def run(args):
         if not filenames:
             filenames = [""]
     else:
-        filenames = sys.stdin
+        filenames = sys.stdin if not sys.stdin.isatty() else [""]
 
     cmd = " ".join(args)
 
+    cmds = [] if filenames else [cmd]
     for i, filename in enumerate(filenames):
         filename = filename.strip()
         noextname = filename.rsplit(".", 1)[0]
@@ -360,6 +361,9 @@ def run(args):
             ncmd, outfile = ncmd.strip(), outfile.strip()
 
         ncmd = ncmd.strip()
+        cmds.append(ncmd)
+
+    for ncmd in cmds:
         p = GridProcess(ncmd, outfile=outfile, grid_opts=opts)
         p.start()
 

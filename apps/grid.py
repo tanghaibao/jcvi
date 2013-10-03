@@ -55,6 +55,7 @@ class WriteJobs (object):
         for a in args:
             workerq.put(a)
 
+        cpus = min(cpus, len(a))
         for i in xrange(cpus):
             workerq.put(Poison())
 
@@ -85,6 +86,7 @@ def write(queue_in, queue_out, filename, cpus):
     fw = must_open(filename, "w")
     isize = queue_in.qsize()
     logging.debug("A total of {0} items to compute.".format(isize))
+    isize = isize or 1
     widgets = ['Queue: ', Percentage(), ' ',
                Bar(marker='>', left='[', right=']'), ' ', ETA()]
     p = ProgressBar(maxval=isize, term_width=60, widgets=widgets).start()

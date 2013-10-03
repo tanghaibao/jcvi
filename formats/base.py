@@ -356,7 +356,7 @@ def must_open(filename, mode="r", checkexists=False, skipcheck=False, \
     return fp
 
 
-def write_file(filename, contents, meta="file", skipcheck=False):
+def write_file(filename, contents, meta="file", skipcheck=False, tee=False):
     meta_choices = ("file", "run script", "python script")
     assert meta in meta_choices, "meta must be one of {0}".\
                     format("|".join(meta_choices))
@@ -371,6 +371,8 @@ def write_file(filename, contents, meta="file", skipcheck=False):
     if fw:
         print >> fw, contents
         fw.close()
+    if tee:
+        print >> sys.stderr, contents
 
     message = "{0} written to `{1}`.".format(meta, filename)
     logging.debug(message.capitalize())

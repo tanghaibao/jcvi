@@ -5,20 +5,20 @@
 SSPACE scaffolding-related operations.
 """
 
+import os.path as op
 import sys
 import logging
 
 from copy import deepcopy
-from jcvi.apps.base import OptionParser
 from collections import deque, defaultdict
 
 from jcvi.formats.fasta import Fasta, gaps
 from jcvi.formats.sizes import Sizes
-from jcvi.formats.base import BaseFile, read_block
+from jcvi.formats.base import BaseFile, read_block, write_file
 from jcvi.formats.agp import AGP, AGPLine, reindex, tidy
 from jcvi.utils.iter import pairwise
 from jcvi.algorithms.graph import BiGraph, BiEdge
-from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug
 debug()
 
 
@@ -115,12 +115,49 @@ class EvidenceFile (BaseFile):
 def main():
 
     actions = (
+        ('scaffold', 'run SSPACE scaffolding'),
         ('agp', 'convert SSPACE scaffold structure to AGP format'),
         ('embed', 'embed contigs to upgrade existing structure'),
         ('partition', 'partition contigs based on their inter-connectedness'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def scaffold(args):
+    """
+    %prog scaffold contigs.fasta MP*.fastq
+
+    Run SSPACE scaffolding.
+    """
+    from jcvi.assembly.base import get_libs
+
+    p = OptionParser(scaffold.__doc__)
+    p.set_home("sspace")
+    p.set_cpus()
+    opts, args = p.parse_args(args)
+
+    if len(args) < 1:
+        sys.exit(not p.print_help())
+
+    contigs = args[0]
+    libs = get_libs(args[1:])
+    assert libs
+
+    libtxt = "libraries.txt"
+    contents = []
+    for i, (lib, fns) in enumerate(libs):
+        fns = " ".join(fns)
+        pe = "RF" if lib.read_orientation == "outward" else "FR"
+        libline = " ".join(str(x) for x in \
+                    ("lib{0}".format(i + 1), fns, lib.size, 0.75, pe))
+        contents.append(libline)
+
+    write_file(libtxt, "\n".join(contents), skipcheck=True, tee=True)
+    cmd = "perl " + op.join(opts.sspace_home, "SSPACE_Basic_v2.0.pl")
+    cmd += " -l {0} -s {1} -T {2}".format(libtxt, contigs, opts.cpus)
+    runsh = "run.sh"
+    write_file(runsh, cmd, meta="run script")
 
 
 def agp(args):
@@ -223,7 +260,7 @@ def embed(args):
     """
     p = OptionParser(embed.__doc__)
     p.set_mingap(default=10)
-    p.set_min_length(default=10000)
+    p.set_min_length(default=200)
     opts, args = p.parse_args(args)
 
     if len(args) != 3:

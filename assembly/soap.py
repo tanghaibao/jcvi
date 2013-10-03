@@ -13,7 +13,7 @@ from itertools import groupby
 from jcvi.apps.base import OptionParser
 
 from jcvi.formats.fastq import guessoffset, readlen
-from jcvi.assembly.base import FastqNamings, Library
+from jcvi.assembly.base import FastqNamings, Library, get_libs
 from jcvi.apps.base import ActionDispatcher, debug, need_update, sh
 debug()
 
@@ -58,10 +58,11 @@ K={1}
 S=soap.config
 G=soap.gc.config
 C=SOAPdenovo-63mer_v2.0
-A=asm{1}
+A=asm$K
 """
 
-GCRUN = "GapCloser_v1.12 -a ${A}.scafSeq -b $G -l 150 -o ${A}.closed.scafSeq -p 31 -t $P"
+GCRUN = "GapCloser_v1.12 -a ${A}.scafSeq -b $G -l 155 -o ${A}.closed.scafSeq -p 31 -t $P"
+GCRUNG = "GapCloser_v1.12 -a {0} -b $G -l 155 -o {1} -p 31 -t $P"
 
 SOAPRUN = """
 $C pregraph -s $S -d 1 -K $K -o $A -R -p $P
@@ -233,6 +234,8 @@ def prepare(args):
                  help="Assemble the first rank only, other libs asm_flags=2 [default: %default]")
     p.add_option("--scaffold",
                  help="Only perform scaffolding [default: %default]")
+    p.add_option("--gapclose",
+                 help="Only perform gap closure [default: %default]")
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -250,12 +253,7 @@ def prepare(args):
     fw = open(cfgfile, "w")
     fw_gc = open(gc_cfgfile, "w")
 
-    library_name = lambda x: "-".join(\
-                op.basename(x).split(".")[0].split("-")[:2])
-    libs = [(Library(x), sorted(fs)) for x, fs in \
-                groupby(fnames, key=library_name)]
-
-    libs.sort(key=lambda x: x[0].size)
+    libs = get_libs(fnames)
     rank = 0
     singletons = []
     max_rd_len = max(readlen([f]) for f in fnames)
@@ -303,8 +301,14 @@ def prepare(args):
 
     runfile = "run.sh"
     scaffold = opts.scaffold
-    template = SOAPHEADER.format(opts.cpus, opts.K)
-    template += SCFRUN % scaffold if scaffold else SOAPRUN
+    header = SOAPHEADER.format(opts.cpus, opts.K)
+    if opts.gapclose:
+        gapclose = opts.gapclose
+        outfile = gapclose.rsplit(".", 1)[0] + ".closed.fasta"
+        template = header + GCRUNG.format(gapclose, outfile)
+    else:
+        template = header + (SCFRUN % scaffold if scaffold else SOAPRUN)
+
     write_file(runfile, template, meta="run script")
     fw.close()
     fw_gc.close()

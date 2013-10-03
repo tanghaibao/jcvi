@@ -12,11 +12,10 @@ ln2 = log(2)
 
 import numpy as np
 from bisect import bisect
-from jcvi.apps.base import OptionParser
 
 from jcvi.formats.base import must_open
 from jcvi.formats.fasta import Fasta
-from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, glob
 debug()
 
 
@@ -64,6 +63,23 @@ class Library (object):
         self.asm_flags = 3 if pf != "MP" else 2
         if not self.paired:
             self.read_orientation = ""
+
+
+def get_libs(args):
+    from itertools import groupby
+
+    fnames = args or glob("*.fastq*")
+    fnames = sorted(fnames)
+    for x in fnames:
+        assert op.exists(x), "File `{0}` not found.".format(x)
+
+    library_name = lambda x: "-".join(\
+                op.basename(x).split(".")[0].split("-")[:2])
+    libs = [(Library(x), sorted(fs)) for x, fs in \
+                groupby(fnames, key=library_name)]
+
+    libs.sort(key=lambda x: x[0].size)
+    return libs
 
 
 def calculate_A50(ctgsizes, cutoff=0):

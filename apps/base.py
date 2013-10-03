@@ -288,6 +288,7 @@ class OptionParser (OptionP):
                    "gmes": "~/htang/export/gmes",
                    "augustus": op.split(os.environ["AUGUSTUS_CONFIG_PATH"])[0],
                    "sspace": "~/htang/export/SSPACE-BASIC-2.0_linux-x86_64",
+                   "pbjelly": "/usr/local/projects/MTG4/PacBio/PBJelly_12.9.14/",
                    }[prog]
         help = "Home directory for {0} [default: %default]".format(prog.upper())
         self.add_option(tag, default=default, help=help)

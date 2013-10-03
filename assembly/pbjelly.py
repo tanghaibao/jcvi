@@ -77,6 +77,7 @@ def patch(args):
 
     Run PBJelly with reference and reads.
     """
+    from jcvi.apps.base import which
     from jcvi.formats.base import write_file
     from jcvi.formats.fasta import format
 
@@ -85,12 +86,19 @@ def patch(args):
                  help="Clean FASTA to remove description [default: %default]")
     p.add_option("--highqual", default=False, action="store_true",
                  help="Reads are of high quality [default: %default]")
+    p.set_home("pbjelly")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
         sys.exit(not p.print_help())
 
     ref, reads = args
+    cmd = op.join(opts.pbjelly_home, "exportPaths.sh")
+    if not which("fakeQuals.py"):
+        message = "Run this command:\n\tsource {0}".format(cmd)
+        print >> sys.stderr, message
+        return
+
     pf = ref.rsplit(".", 1)[0]
     pr = reads.rsplit(".", 1)[0]
     # Remove description line
@@ -109,8 +117,8 @@ def patch(args):
     dref, dreads = "data/reference", "data/reads"
     sh("mkdir -p {0}".format(dref))
     sh("mkdir -p {0}".format(dreads))
-    sh("mv {0} {1}/".format(" ".join((ref, refq)), dref))
-    sh("mv {0} {1}/".format(" ".join((reads, readsq)), dreads))
+    sh("cp {0} {1}/".format(" ".join((ref, refq)), dref))
+    sh("cp {0} {1}/".format(" ".join((reads, readsq)), dreads))
     cwd = os.getcwd()
 
     outputDir = cwd

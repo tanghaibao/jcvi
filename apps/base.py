@@ -247,15 +247,21 @@ class OptionParser (OptionP):
 
         return opts, args, ImageOptions(opts)
 
-    def set_rclip(self, cutoff=0, rclip=0, mateorientation=None):
+    def set_cutoff(self, cutoff=0):
         self.add_option("--cutoff", default=cutoff, type="int",
                 help="Distance to call valid links between mates "\
-                     "[default: estimate from input]")
-        self.add_option("--rclip", default=rclip, type="int",
-                help="Pair ID is derived from rstrip N chars [default: %default]")
+                     "[default: %default]")
+
+    def set_mateorientation(self, mateorientation=None):
         self.add_option("--mateorientation", default=mateorientation,
                 choices=("++", "--", "+-", "-+"),
                 help="Use only certain mate orientations [default: %default]")
+
+    def set_rclip(self, cutoff=0, rclip=0, mateorientation=None):
+        self.add_option("--rclip", default=rclip, type="int",
+                help="Pair ID is derived from rstrip N chars [default: %default]")
+        self.set_cutoff(cutoff=cutoff)
+        self.set_mateorientation(mateorientation=mateorientation)
 
     def set_pairs(self):
         """

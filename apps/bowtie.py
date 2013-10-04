@@ -109,13 +109,20 @@ def align(args):
     p = OptionParser(align.__doc__)
     p.add_option("--firstN", default=0, type="int",
                  help="Use only the first N reads [default: all]")
-    p.add_option("--maxins", default=800, type="int",
-                 help="Maximum insertion size [default: %default]")
+    p.set_cutoff(cutoff=800)
+    p.set_mateorientation(mateorientation="+-")
     p.set_sam_options(bowtie=True)
 
     opts, args = p.parse_args(args)
     extra = opts.extra
     grid = opts.grid
+    mo = opts.mateorientation
+    if mo == '+-':
+        extra += ""
+    elif mo == '-+':
+        extra += "--rf"
+    else:
+        extra += "--ff"
 
     PE = True
     if len(args) == 2:
@@ -126,7 +133,6 @@ def align(args):
     else:
         sys.exit(not p.print_help())
 
-    extra = opts.extra
     firstN = opts.firstN
     cpus = opts.cpus
     mapped = opts.mapped
@@ -150,7 +156,7 @@ def align(args):
     if PE:
         r1, r2 = args[1:3]
         cmd += " -1 {0} -2 {1}".format(r1, r2)
-        cmd += " --maxins {0}".format(opts.maxins)
+        cmd += " --maxins {0}".format(opts.cutoff)
         mtag, utag = "--al-conc", "--un-conc"
     else:
         cmd += " -U {0}".format(readfile)
@@ -170,6 +176,8 @@ def align(args):
 
     cmd = output_bam(cmd, samfile)
     sh(cmd, grid=opts.grid, threaded=cpus)
+    print >> sys.stderr, open(logfile).read()
+
     return samfile, logfile
 
 

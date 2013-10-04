@@ -104,14 +104,23 @@ def contamination(args):
     Remove contaminated reads.
     """
     p = OptionParser(contamination.__doc__)
+    p.add_option("--mapped", default=False, action="store_true",
+                 help="Retain contaminated reads instead [default: %default]")
+    p.set_cutoff(cutoff=800)
+    p.set_mateorientation()
+    opts, args = p.parse_args(args)
 
     if len(args) != 2:
         sys.exit(not p.print_help())
 
     folder, ecoli = args
     ecoli = get_abs_path(ecoli)
+    tag = "--mapped" if opts.mapped else "--unmapped"
     for p, pf in iter_project(folder, 2):
-        align_opts = [ecoli] + p + ["--bam", "--unmapped"]
+        align_opts = [ecoli] + p + ["--bam", tag]
+        align_opts += ["--cutoff={0}".format(opts.cutoff)]
+        if opts.mateorientation:
+            align_opts += ["--mateorientation={0}".format(opts.mateorientation)]
         samfile, logfile = align(align_opts)
 
 

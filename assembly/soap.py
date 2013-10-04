@@ -236,7 +236,7 @@ def prepare(args):
                  help="Only perform scaffolding [default: %default]")
     p.add_option("--gapclose",
                  help="Only perform gap closure [default: %default]")
-    p.set_cpus()
+    p.set_cpus(cpus=32)
     opts, args = p.parse_args(args)
 
     if len(args) < 1:

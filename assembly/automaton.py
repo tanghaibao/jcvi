@@ -125,8 +125,7 @@ def pairs(args):
     from jcvi.formats.sam import pairs as ps
 
     p = OptionParser(pairs.__doc__)
-    p.add_option("--rclip", default=0, type="int",
-            help="Pair ID is derived from rstrip N chars [default: %default]")
+    p.set_rclip()
     opts, args = p.parse_args(args)
 
     if len(args) != 2:

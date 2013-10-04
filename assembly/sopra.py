@@ -228,11 +228,9 @@ def link(args):
     between contigs that start with the same prefix_xxx.
     """
     p = OptionParser(link.__doc__)
+    p.set_rclip(rclip=1, mateorientation="+-")
     p.add_option("--insert", type="int", default=0,
             help="Mean insert size [default: estimate from data]")
-    p.add_option("--cutoff", type="int", default=0,
-            help="Largest distance expected for linkage " + \
-                 "[default: estimate from data]")
     p.add_option("--prefix", default=False, action="store_true",
             help="Only keep links between IDs with same prefix [default: %default]")
     p.add_option("--debug", dest="debug", default=False, action="store_true",
@@ -249,8 +247,9 @@ def link(args):
     sizes = Sizes(fastafile)
 
     cutoffopt = "--cutoff={0}".format(cutoff)
-    mateorientationopt = '--mateorientation=+-'
-    bedfile, stats = pairs([bedfile, cutoffopt, mateorientationopt])
+    mateorientationopt = '--mateorientation={0}'.format(opts.mateorientation)
+    bedfile, stats = pairs([bedfile, cutoffopt,
+                            mateorientationopt, "--rclip={0}".format(opts.rclip)])
 
     maxcutoff = cutoff or stats.p2
     insert = opts.insert or stats.median

@@ -21,7 +21,6 @@ import math
 import logging
 
 from itertools import groupby
-from jcvi.apps.base import OptionParser
 from collections import defaultdict
 
 from jcvi.formats.bed import Bed, BedLine, complementBed, mergeBed, \
@@ -34,7 +33,7 @@ from jcvi.utils.range import range_parse, range_distance, ranges_depth, \
             range_interleave
 from jcvi.utils.iter import roundrobin
 from jcvi.formats.base import must_open, FileMerger, FileShredder
-from jcvi.apps.base import ActionDispatcher, debug, sh, mkdir
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh, mkdir
 debug()
 
 
@@ -218,8 +217,7 @@ def paste(args):
     p.add_option("--maxsize", default=300000, type="int",
             help="Maximum size of patchers to be replaced [default: %default]")
     p.add_option("--prefix", help="Prefix of the new object [default: %default]")
-    p.add_option("--rclip", default=1, type="int",
-            help="Pair ID is derived from rstrip N chars [default: %default]")
+    p.set_rclip(rclip=1)
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -845,8 +843,7 @@ def install(args):
     from jcvi.formats.fasta import SeqIO
 
     p = OptionParser(install.__doc__)
-    p.add_option("--rclip", default=1, type="int",
-            help="Pair ID is derived from rstrip N chars [default: %default]")
+    p.set_rclip(rclip=1)
     p.add_option("--maxsize", default=300000, type="int",
             help="Maximum size of patchers to be replaced [default: %default]")
     p.add_option("--prefix", help="Prefix of the new object [default: %default]")

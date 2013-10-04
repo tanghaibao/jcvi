@@ -247,6 +247,16 @@ class OptionParser (OptionP):
 
         return opts, args, ImageOptions(opts)
 
+    def set_rclip(self, cutoff=0, rclip=0, mateorientation=None):
+        self.add_option("--cutoff", default=cutoff, type="int",
+                help="Distance to call valid links between mates "\
+                     "[default: estimate from input]")
+        self.add_option("--rclip", default=rclip, type="int",
+                help="Pair ID is derived from rstrip N chars [default: %default]")
+        self.add_option("--mateorientation", default=mateorientation,
+                choices=("++", "--", "+-", "-+"),
+                help="Use only certain mate orientations [default: %default]")
+
     def set_pairs(self):
         """
         %prog pairs <blastfile|samfile|casfile|bedfile|posmapfile>
@@ -258,18 +268,11 @@ class OptionParser (OptionP):
         """
         self.set_usage(self.set_pairs.__doc__)
 
-        self.add_option("--cutoff", default=0, type="int",
-                help="Distance to call valid links between mates "\
-                     "[default: estimate from input]")
-        self.add_option("--mateorientation", default=None,
-                choices=("++", "--", "+-", "-+"),
-                help="Use only certain mate orientations [default: %default]")
         self.add_option("--pairsfile", default=None,
                 help="Write valid pairs to pairsfile [default: %default]")
         self.add_option("--nrows", default=200000, type="int",
                 help="Only use the first n lines [default: %default]")
-        self.add_option("--rclip", default=0, type="int",
-                help="Pair ID is derived from rstrip N chars [default: %default]")
+        self.set_rclip()
         self.add_option("--pdf", default=False, action="store_true",
                 help="Print PDF instead ASCII histogram [default: %default]")
         self.add_option("--bins", default=20, type="int",

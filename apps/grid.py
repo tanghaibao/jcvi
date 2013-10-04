@@ -335,7 +335,7 @@ def run(args):
 
     cmd = " ".join(args)
 
-    cmds = [] if filenames else [cmd]
+    cmds = [] if filenames else [(cmd, None)]
     for i, filename in enumerate(filenames):
         filename = filename.strip()
         noextname = filename.rsplit(".", 1)[0]
@@ -363,9 +363,9 @@ def run(args):
             ncmd, outfile = ncmd.strip(), outfile.strip()
 
         ncmd = ncmd.strip()
-        cmds.append(ncmd)
+        cmds.append((ncmd, outfile))
 
-    for ncmd in cmds:
+    for ncmd, outfile in cmds:
         p = GridProcess(ncmd, outfile=outfile, grid_opts=opts)
         p.start()
 

@@ -138,6 +138,7 @@ def main():
         ('shuffle', 'shuffle paired reads into the same file interleaved'),
         ('split', 'split paired reads into two files'),
         ('splitread', 'split appended reads (from JGI)'),
+        ('catread', 'cat pairs together (reverse of splitread)'),
         ('pairinplace', 'collect pairs by checking adjacent ids'),
         ('convert', 'convert between illumina and sanger offset'),
         ('first', 'get first N reads from file'),
@@ -561,6 +562,33 @@ def trim(args):
         cmd += "-l {0.last} ".format(opts)
 
     sh(cmd, grid=grid, infile=fastqfile, outfile=fq)
+
+
+def catread(args):
+    """
+    %prog catread fastqfile1 fastqfile2
+
+    Concatenate paired end reads into one. Useful for example to do single-end
+    mapping and perform filtering on the whole read pair level.
+    """
+    p = OptionParser(catread.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    r1, r2 = args
+    p1fp, p2fp = FastqPairedIterator(r1, r2)
+    outfile = op.basename(op.commonprefix((r1, r2)) + ".cat.fastq")
+    fw = must_open(outfile, "w")
+    while True:
+        a = list(islice(p1fp, 4))
+        if not a:
+            break
+        atitle, aseq, _, aqual = a
+        btitle, bseq, _, bqual = list(islice(p2fp, 4))
+        print >> fw, "\n".join((atitle.strip(), aseq.strip() + bseq.strip(), \
+                                "+", aqual.strip() + bqual.strip()))
 
 
 def splitread(args):

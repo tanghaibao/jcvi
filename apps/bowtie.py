@@ -95,6 +95,7 @@ def index(args):
     grid = opts.grid
 
     dbfile, = args
+    dbfile = get_abs_path(dbfile)
     safile = check_index(dbfile, grid=grid)
 
 
@@ -111,6 +112,8 @@ def align(args):
                  help="Use only the first N reads [default: all]")
     p.add_option("--full", default=False, action="store_true",
                  help="Enforce end-to-end alignment [default: local]")
+    p.add_option("--reorder", default=False, action="store_true",
+                 help="Keep the input read order [default: %default]")
     p.set_cutoff(cutoff=800)
     p.set_mateorientation(mateorientation="+-")
     p.set_sam_options(bowtie=True)
@@ -175,7 +178,11 @@ def align(args):
     cmd += " -p {0}".format(cpus)
     cmd += " --phred{0}".format(offset)
     cmd += " {0}".format(gl)
+    if opts.reorder:
+        cmd += " --reorder"
+
     cmd += " {0}".format(extra)
+    # Finally the log
     cmd += " 2> {0}".format(logfile)
 
     cmd = output_bam(cmd, samfile)

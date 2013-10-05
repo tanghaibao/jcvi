@@ -37,8 +37,6 @@ def mask(args):
     perform FASTA tidy if requested.
     """
     p = OptionParser(mask.__doc__)
-    p.add_option("--tidy", default=False, action="store_true",
-                 help="Normalize the gaps [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -61,8 +59,7 @@ def mask(args):
             format(fastafile, outfastafile)
     sh(cmd)
 
-    if opts.tidy:
-        tidy([outfastafile])
+    tidy([outfastafile])
 
 
 def blast(args):

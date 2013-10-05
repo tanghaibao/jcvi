@@ -314,21 +314,22 @@ def checkShuffleSizes(p1, p2, pairsfastq, extra=0):
 
 def shuffle(args):
     """
-    %prog shuffle p1.fastq p2.fastq pairs.fastq
+    %prog shuffle p1.fastq p2.fastq
 
     Shuffle pairs into interleaved format.
     """
     from itertools import izip
 
     p = OptionParser(shuffle.__doc__)
-    p.add_option("--tag", dest="tag", default=False, action="store_true",
+    p.add_option("--tag", default=False, action="store_true",
             help="add tag (/1, /2) to the read name")
     opts, args = p.parse_args(args)
 
-    if len(args) != 3:
+    if len(args) != 2:
         sys.exit(not p.print_help())
 
-    p1, p2, pairsfastq = args
+    p1, p2 = args
+    pairsfastq = op.basename(op.commonprefix((p1, p2)) + ".fastq")
     tag = opts.tag
 
     p1fp = must_open(p1)
@@ -708,8 +709,7 @@ def pairinplace(args):
     from jcvi.utils.iter import pairwise
 
     p = OptionParser(pairinplace.__doc__)
-    p.add_option("-r", dest="rclip", default=1, type="int",
-            help="pair ID is derived from rstrip N chars [default: %default]")
+    p.set_rclip(rclip=0)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -740,7 +740,7 @@ def pairinplace(args):
             skipflag = False
             continue
 
-        if a.id == b.id:
+        if a.name == b.name:
             print >> pairsfw, a
             print >> pairsfw, b
             skipflag = True

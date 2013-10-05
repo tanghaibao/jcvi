@@ -116,6 +116,7 @@ def main():
 
     actions = (
         ('scaffold', 'run SSPACE scaffolding'),
+        ('close', 'run GapFiller to fill gaps'),
         ('agp', 'convert SSPACE scaffold structure to AGP format'),
         ('embed', 'embed contigs to upgrade existing structure'),
         ('partition', 'partition contigs based on their inter-connectedness'),
@@ -124,14 +125,55 @@ def main():
     p.dispatch(globals())
 
 
+def write_libraries(fastqs, aligner=None):
+    from jcvi.assembly.base import get_libs
+    libs = get_libs(fastqs)
+    assert libs
+
+    libtxt = "libraries.txt"
+    contents = []
+    for i, (lib, fns) in enumerate(libs):
+        fns = " ".join(fns)
+        pe = "RF" if lib.read_orientation == "outward" else "FR"
+        cc = ["lib{0}".format(i + 1), fns, lib.size, 0.75, pe]
+        if aligner:
+            cc.insert(1, aligner)
+        libline = " ".join(str(x) for x in cc)
+        contents.append(libline)
+
+    write_file(libtxt, "\n".join(contents), tee=True)
+    return libtxt
+
+
+def close(args):
+    """
+    %prog close scaffolds.fasta PE*.fastq
+
+    Run GapFiller to fill gaps.
+    """
+    p = OptionParser(close.__doc__)
+    p.set_home("gapfiller")
+    p.set_cpus()
+    opts, args = p.parse_args(args)
+
+    if len(args) < 1:
+        sys.exit(not p.print_help())
+
+    scaffolds = args[0]
+    libtxt = write_libraries(args[1:], aligner="bwa")
+
+    cmd = "perl " + op.join(opts.gapfiller_home, "GapFiller.pl")
+    cmd += " -l {0} -s {1} -T {2}".format(libtxt, scaffolds, opts.cpus)
+    runsh = "run.sh"
+    write_file(runsh, cmd, meta="run script")
+
+
 def scaffold(args):
     """
     %prog scaffold contigs.fasta MP*.fastq
 
     Run SSPACE scaffolding.
     """
-    from jcvi.assembly.base import get_libs
-
     p = OptionParser(scaffold.__doc__)
     p.set_home("sspace")
     p.set_cpus()
@@ -141,19 +183,8 @@ def scaffold(args):
         sys.exit(not p.print_help())
 
     contigs = args[0]
-    libs = get_libs(args[1:])
-    assert libs
+    libtxt = write_libraries(args[1:])
 
-    libtxt = "libraries.txt"
-    contents = []
-    for i, (lib, fns) in enumerate(libs):
-        fns = " ".join(fns)
-        pe = "RF" if lib.read_orientation == "outward" else "FR"
-        libline = " ".join(str(x) for x in \
-                    ("lib{0}".format(i + 1), fns, lib.size, 0.75, pe))
-        contents.append(libline)
-
-    write_file(libtxt, "\n".join(contents), skipcheck=True, tee=True)
     cmd = "perl " + op.join(opts.sspace_home, "SSPACE_Basic_v2.0.pl")
     cmd += " -l {0} -s {1} -T {2}".format(libtxt, contigs, opts.cpus)
     runsh = "run.sh"

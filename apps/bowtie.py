@@ -109,6 +109,8 @@ def align(args):
     p = OptionParser(align.__doc__)
     p.add_option("--firstN", default=0, type="int",
                  help="Use only the first N reads [default: all]")
+    p.add_option("--full", default=False, action="store_true",
+                 help="Enforce end-to-end alignment [default: local]")
     p.set_cutoff(cutoff=800)
     p.set_mateorientation(mateorientation="+-")
     p.set_sam_options(bowtie=True)
@@ -137,6 +139,7 @@ def align(args):
     cpus = opts.cpus
     mapped = opts.mapped
     unmapped = opts.unmapped
+    gl = "--end-to-end" if opts.full else "--local"
 
     dbfile, readfile = args[0:2]
     dbfile = get_abs_path(dbfile)
@@ -171,6 +174,7 @@ def align(args):
         cmd += " --upto {0}".format(firstN)
     cmd += " -p {0}".format(cpus)
     cmd += " --phred{0}".format(offset)
+    cmd += " {0}".format(gl)
     cmd += " {0}".format(extra)
     cmd += " 2> {0}".format(logfile)
 

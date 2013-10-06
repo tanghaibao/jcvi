@@ -329,7 +329,7 @@ def shuffle(args):
         sys.exit(not p.print_help())
 
     p1, p2 = args
-    pairsfastq = op.basename(op.commonprefix((p1, p2)) + ".fastq")
+    pairsfastq = op.basename(op.commonprefix((p1, p2)).rstrip(".") + ".fastq")
     tag = opts.tag
 
     p1fp = must_open(p1)
@@ -355,7 +355,8 @@ def shuffle(args):
     extra = nreads * 2 if tag else 0
     checkShuffleSizes(p1, p2, pairsfastq, extra=extra)
 
-    logging.debug("File sizes verified after writing {0} reads.".format(nreads))
+    logging.debug("File `{0}` verified after writing {1} reads.".\
+                     format(pairsfastq, nreads))
 
 
 def split(args):

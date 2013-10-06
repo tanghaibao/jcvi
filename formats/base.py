@@ -457,8 +457,7 @@ def append(args):
     filename.
     """
     p = OptionParser(append.__doc__)
-    p.add_option("--sep", default="\t",
-                help="Separator for the added column [default: %default]")
+    p.set_sep()
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -537,8 +536,7 @@ def flatten(args):
     from itertools import izip_longest
 
     p = OptionParser(flatten.__doc__)
-    p.add_option("--sep", default=",",
-                 help="Separator for the tabfile [default: %default]")
+    p.set_sep(sep=",")
     p.add_option("--zipflatten", default=None, dest="zipsep",
                  help="Specify if columns of the file should be zipped before" +
                  " flattening. If so, specify delimiter separating column elements" +
@@ -594,8 +592,7 @@ def group(args):
     from jcvi.utils.grouper import Grouper
 
     p = OptionParser(group.__doc__)
-    p.add_option("--sep", default="\t",
-                 help="Input file separator [default: `%default`]")
+    p.set_sep()
     p.add_option("--groupby", default=None, type='int',
                  help="Default column to groupby [default: %default]")
     p.add_option("--groupsep", default=',',
@@ -671,8 +668,7 @@ def reorder(args):
     import csv
 
     p = OptionParser(reorder.__doc__)
-    p.add_option("--sep", default="\t",
-                 help="Separator for the tabfile [default: %default]")
+    p.set_sep()
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -751,8 +747,7 @@ def join(args):
     p = OptionParser(join.__doc__)
     p.add_option("--column", default="0",
                  help="0-based column id, multiple values allowed [default: %default]")
-    p.add_option("--sep", default="\t",
-                 help="column separator, multiple values allowed [default: %default]")
+    p.set_sep(multiple=True)
     p.add_option("--noheader", default=False, action="store_true",
                  help="Do not print header [default: %default]")
     p.add_option("--na", default="na",
@@ -835,8 +830,7 @@ def subset(args):
     p = OptionParser(subset.__doc__)
     p.add_option("--column", default="0",
                  help="0-based column id, multiple values allowed [default: %default]")
-    p.add_option("--sep", default="\t",
-                 help="column separator, multiple values allowed [default: %default]")
+    p.set_sep(multiple=True)
     p.add_option("--pivot", default=1, type="int",
                  help="1 for using order in file1, 2 for using order in \
                     file2 [default: %default]")

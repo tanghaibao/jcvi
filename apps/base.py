@@ -287,6 +287,13 @@ class OptionParser (OptionP):
                 help="Distance mode between paired reads, ss is outer distance, " \
                      "ee is inner distance [default: %default]")
 
+    def set_sep(self, sep='\t', multiple=False):
+        help = "Separator in the tabfile"
+        if multiple:
+            help += ", multiple values allowed"
+        self.add_option("--sep", default=sep,
+                     help="{0} [default: '%default']".format(help))
+
     def set_home(self, prog):
         tag = "--{0}_home".format(prog)
         default = {"amos": "~/code/amos-code/",

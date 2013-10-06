@@ -8,11 +8,10 @@ Parse html pages.
 import sys
 import logging
 
-from jcvi.apps.base import OptionParser
 from BeautifulSoup import BeautifulSoup
 from urlparse import urlsplit, urljoin
 
-from jcvi.apps.base import ActionDispatcher, debug, download
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, download
 debug()
 
 
@@ -77,8 +76,7 @@ def table(args):
     import csv
 
     p = OptionParser(table.__doc__)
-    p.add_option("--sep", default=",",
-                 help="Use separator [default: %default]")
+    p.set_sep(sep=",")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:

@@ -141,6 +141,7 @@ class SummaryStats (object):
         self.mean = np.mean(a)
         self.sd = np.std(a)
         self.median = np.median(a)
+        self.sum = a.sum()
         self.title = title
 
         a.sort()

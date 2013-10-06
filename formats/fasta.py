@@ -17,6 +17,7 @@ from Bio.SeqRecord import SeqRecord
 
 from jcvi.formats.base import BaseFile, DictFile, must_open
 from jcvi.formats.bed import Bed
+from jcvi.utils.table import write_csv
 from jcvi.apps.console import red, green
 from jcvi.apps.base import OptionParser, ActionDispatcher, debug, need_update
 debug()
@@ -165,7 +166,7 @@ http://biostar.stackexchange.com/questions/5902/
 
 (Code includes improvements from Brad Chapman)
 """
-class ORFFinder:
+class ORFFinder (object):
     """Find the longest ORF in a given sequence
     "seq" is a string, if "start" is not provided any codon can be the start of
     and ORF. If muliple ORFs have the longest length the first one encountered
@@ -250,6 +251,62 @@ class ORFFinder:
         return orf
 
 
+class SequenceInfo (object):
+    """
+    Emulate output from `sequence_info`:
+
+    File                           SUBAC32.contigs.fasta
+
+    Number of sequences                    80
+
+    Residue counts:
+      Number of A's                     66266   31.36 %
+      Number of C's                     40032   18.95 %
+      Number of G's                     39145   18.53 %
+      Number of T's                     65799   31.14 %
+      Number of N's                        58    0.03 %
+      Total                            211300
+
+    Sequence lengths:
+      Minimum                             242
+      Maximum                            8398
+      Average                            2641.25
+      N50                                4791
+    """
+    def __init__(self, filename):
+        from jcvi.utils.counter import Counter
+        from jcvi.utils.cbook import SummaryStats
+        from jcvi.assembly.base import calculate_A50
+
+        f = Fasta(filename)
+        self.filename = filename
+        self.header = \
+        "File|#_seqs|#_As|#_Cs|#_Gs|#_Ts|#_Ns|Total|Min|Max|Avg|N50".split("|")
+        self.nseqs = len(f)
+        counter = Counter()
+        sizes = []
+        for k, s in f.iteritems():
+            s = str(s.seq).upper()
+            sizes.append(len(s))
+            counter.update(s)
+        self.na = na = counter['A']
+        self.nc = nc = counter['C']
+        self.ng = ng = counter['G']
+        self.nt = nt = counter['T']
+        s = SummaryStats(sizes)
+        self.sum = s.sum
+        self.nn = self.sum - na - nc - ng - nt
+        a50, l50, nn50 = calculate_A50(sizes)
+        self.min = s.min
+        self.max = s.max
+        self.mean = int(s.mean)
+        self.n50 = l50
+        self.data = [self.filename, self.nseqs,
+                     self.na, self.nc, self.ng, self.nt, self.nn, self.sum,
+                     self.min, self.max, self.mean, self.n50]
+        assert len(self.header) == len(self.data)
+
+
 def rc(s):
     _complement = string.maketrans('ATCGatcgNnXx', 'TAGCtagcNnXx')
     cs = s.translate(_complement)
@@ -263,7 +320,8 @@ def main():
                     'in fasta format'),
         ('longestorf', 'find longest orf for CDS fasta'),
         ('translate', 'translate CDS to proteins'),
-        ('summary', "report the real no of bases and N's in fastafiles"),
+        ('info', 'run `sequence_info` on fasta files'),
+        ('summary', "report the real no of bases and N's in fasta files"),
         ('uniq', 'remove records that are the same'),
         ('ids', 'generate a list of headers'),
         ('format', 'trim accession id to the first space or switch id ' + \
@@ -293,6 +351,28 @@ def main():
     p.dispatch(globals())
 
 
+def info(args):
+    """
+    %prog info *.fasta
+
+    Run `sequence_info` on FASTA files. Generate a report per file.
+    """
+    p = OptionParser(info.__doc__)
+    p.set_sep(sep="|")
+    opts, args = p.parse_args(args)
+
+    if len(args) == 0:
+        sys.exit(not p.print_help())
+
+    fastafiles = args
+    sep = opts.sep
+    data = []
+    for f in fastafiles:
+        s = SequenceInfo(f)
+        data.append(s.data)
+    write_csv(s.header, data, sep=sep)
+
+
 def fromtab(args):
     """
     %prog fromtab tabfile fastafile
@@ -301,8 +381,7 @@ def fromtab(args):
     generatea `adapters.fasta` for TRIMMOMATIC.
     """
     p = OptionParser(fromtab.__doc__)
-    p.add_option("--sep",
-                 help="Separator in the tabfile [default: %default]")
+    p.set_sep(sep=None)
     p.add_option("--replace",
                  help="Replace spaces in name to char [default: %default]")
     opts, args = p.parse_args(args)
@@ -833,8 +912,6 @@ def summary(args):
 
     Report real bases and N's in fastafiles in a tabular report
     """
-    from jcvi.utils.table import write_csv
-
     p = OptionParser(summary.__doc__)
     p.add_option("--suffix", default="Mb",
             help="make the base pair counts human readable [default: %default]")

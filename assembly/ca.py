@@ -395,12 +395,6 @@ def make_matepairs(fastafile):
     return matefile
 
 
-def add_size_option(p):
-    p.add_option("-s", dest="size", default=0, type="int",
-            help="insert has mean size of [default: %default] " + \
-                 "stddev is assumed to be 20% around mean size")
-
-
 get_mean_sv = lambda size: (size, size / 5)
 
 
@@ -439,7 +433,7 @@ def fasta(args):
     p.add_option("--maxreadlen", default=32000, type="int",
             help="Maximum read length allowed [default: %default]")
     p.set_grid()
-    add_size_option(p)
+    p.set_size()
 
     opts, args = p.parse_args(args)
 
@@ -513,7 +507,7 @@ def sff(args):
     p.add_option("--nodedup", default=False, action="store_true",
             help="Do not remove duplicates [default: %default]")
     p.set_grid()
-    add_size_option(p)
+    p.set_size()
 
     opts, args = p.parse_args(args)
 
@@ -563,12 +557,10 @@ def fastq(args):
     from jcvi.formats.fastq import guessoffset
 
     p = OptionParser(fastq.__doc__)
-    phdchoices = ("33", "64")
     p.add_option("--outtie", dest="outtie", default=False, action="store_true",
             help="Are these outie reads? [default: %default]")
-    p.add_option("--phred", default=None, choices=phdchoices,
-            help="Phred score offset {0} [default: guess]".format(phdchoices))
-    add_size_option(p)
+    p.set_phred()
+    p.set_size()
 
     opts, args = p.parse_args(args)
 

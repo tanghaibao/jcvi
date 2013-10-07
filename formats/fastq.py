@@ -672,14 +672,10 @@ def convert(args):
     illumina fastq quality encoding uses offset 64, and sanger uses 33. This
     script creates a new file with the correct encoding
     """
-    supported_qvs = ("illumina", "sanger")
+    from jcvi.apps.command import EMBOSSPATH
+
     p = OptionParser(convert.__doc__)
-    p.add_option("-Q", dest="infastq", default="illumina", choices=supported_qvs,
-            help="input qv, one of {0} [default: %default]".\
-                format("|".join(supported_qvs)))
-    p.add_option("-q", dest="outfastq", default="sanger", choices=supported_qvs,
-            help="output qv, one of {0} [default: %default]".\
-                format("|".join(supported_qvs)))
+    p.set_phred()
     p.set_grid()
 
     opts, args = p.parse_args(args)
@@ -688,21 +684,22 @@ def convert(args):
         sys.exit(not p.print_help())
 
     infastq, outfastq = args
+    phred = opts.phred or str(guessoffset([infastq]))
+    gz = infastq.endswith(".gz")
 
-    from jcvi.apps.command import EMBOSSPATH
+    fin = "illumina" if phred == "64" else "sanger"
+    fout = "sanger" if phred == "64" else "illumina"
 
     seqret = EMBOSSPATH("seqret")
     if infastq.endswith(".gz"):
         cmd = "zcat {0} | ".format(infastq)
         cmd += seqret + " fastq-{0}::stdin fastq-{1}::stdout".\
-                format(opts.infastq, opts.outfastq)
+                format(fin, fout)
     else:
         cmd = seqret + " fastq-{0}::{1} fastq-{2}::stdout".\
-                format(opts.infastq, infastq, opts.outfastq)
+                format(fin, infastq, fout)
 
-    cmd += " | gzip > {0}".format(outfastq)
-
-    sh(cmd, grid=opts.grid)
+    sh(cmd, outfile=outfastq, grid=opts.grid)
 
     return outfastq
 

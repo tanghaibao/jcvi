@@ -302,6 +302,16 @@ class OptionParser (OptionP):
         self.add_option("--firstN", default=100000, type="int",
                      help="Use only the first N reads [default: %default]")
 
+    def set_phred(self, phred=None):
+        phdchoices = ("33", "64")
+        self.add_option("--phred", default=phred, choices=phdchoices,
+                help="Phred score offset {0} [default: guess]".format(phdchoices))
+
+    def set_size(self, size=0):
+        self.add_option("--size", default=size, type="int",
+                help="Insert mean size, stdev assumed to be 20% around mean" + \
+                     " [default: %default]")
+
     def set_home(self, prog):
         tag = "--{0}_home".format(prog)
         default = {"amos": "~/code/amos-code/",

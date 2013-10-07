@@ -36,7 +36,10 @@ def get_abs_path(link_name):
     link_dir = op.dirname(link_name)
     source = op.normpath(op.join(link_dir, source))
     source = op.abspath(source)
-    return source
+    if source == link_name:
+        return source
+    else:
+        return get_abs_path(source)
 
 
 def touch(args):

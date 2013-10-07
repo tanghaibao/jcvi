@@ -256,6 +256,10 @@ class OptionParser (OptionP):
                 help="Distance to call valid links between mates "\
                      "[default: %default]")
 
+    def set_depth(self, depth=50):
+        self.add_option("--depth", default=depth, type="int",
+                     help="Desired depth [default: %default]")
+
     def set_mateorientation(self, mateorientation=None):
         self.add_option("--mateorientation", default=mateorientation,
                 choices=("++", "--", "+-", "-+"),
@@ -324,6 +328,7 @@ class OptionParser (OptionP):
                    "sspace": "~/htang/export/SSPACE-BASIC-2.0_linux-x86_64",
                    "gapfiller": "~/htang/export/GapFiller_v1-11_linux-x86_64",
                    "pbjelly": "/usr/local/projects/MTG4/PacBio/PBJelly_12.9.14/",
+                   "khmer": "~/htang/export/khmer",
                    }[prog]
         help = "Home directory for {0} [default: %default]".format(prog.upper())
         self.add_option(tag, default=default, help=help)

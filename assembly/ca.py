@@ -194,8 +194,7 @@ def shred(args):
     shredded into pseudo-reads with certain length and depth.
     """
     p = OptionParser(shred.__doc__)
-    p.add_option("--depth", default=2, type="int",
-            help="Desired depth of the reads [default: %default]")
+    p.set_depth(depth=2)
     p.add_option("--readlen", default=1000, type="int",
             help="Desired length of the reads [default: %default]")
     p.add_option("--minctglen", default=0, type="int",

@@ -37,12 +37,11 @@ def wgsim(args):
                  help="Outer distance between the two ends [default: %default]")
     p.add_option("--genomesize", type="int",
                  help="Genome size in Mb [default: estimate from data]")
-    p.add_option("--depth", default=10, type="int",
-                 help="Target depth (aka base coverage) [default: %default]")
     p.add_option("--readlen", default=100, type="int",
                  help="Length of the read [default: %default]")
     p.add_option("--noerrors", default=False, action="store_true",
                  help="Simulate reads with no errors [default: %default]")
+    p.set_depth(depth=10)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:

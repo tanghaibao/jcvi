@@ -52,7 +52,8 @@ class FastqRecord (object):
         self.length = len(self.seq)
         assert self.length == len(self.qual), \
                 "length mismatch: seq(%s) and qual(%s)" % (self.seq, self.qual)
-        self.id = key(self.name) if key else self.name
+        if key:
+            self.name = key(self.name)
 
     def __str__(self):
         return "\n".join((self.name, self.seq, "+", self.qual))
@@ -365,6 +366,7 @@ def shuffle(args):
 
     logging.debug("File `{0}` verified after writing {1} reads.".\
                      format(pairsfastq, nreads))
+    return pairsfastq
 
 
 def split(args):
@@ -715,14 +717,17 @@ def pairinplace(args):
     from jcvi.utils.iter import pairwise
 
     p = OptionParser(pairinplace.__doc__)
-    p.set_rclip(rclip=0)
+    p.add_option("--base",
+                help="Base name for the output files [default: %default]")
+    p.add_option("--rclip", default=0, type="int",
+                help="Pair ID is derived from rstrip N chars [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     fastqfile, = args
-    base = op.basename(fastqfile).split(".")[0]
+    base = opts.base or op.basename(fastqfile).split(".")[0]
 
     frags = base + ".frags.fastq"
     pairs = base + ".pairs.fastq"
@@ -758,6 +763,7 @@ def pairinplace(args):
         print >> fragsfw, a
 
     logging.debug("Reads paired into `%s` and `%s`" % (pairs, frags))
+    return pairs
 
 
 if __name__ == '__main__':

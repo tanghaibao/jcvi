@@ -169,6 +169,10 @@ class OptionParser (OptionP):
                 help="do not strip alternative splicing "
                 "(e.g. At5g06540.1 -> At5g06540)")
 
+    def set_fixchrnames(self, orgn="medicago"):
+        self.add_option("--fixchrname", default=orgn, dest="fix_chr_name",
+                help="Fix quirky chromosome names [default: %default]")
+
     def set_beds(self):
         self.add_option("--qbed", help="Path to qbed")
         self.add_option("--sbed", help="Path to sbed")

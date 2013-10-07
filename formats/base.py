@@ -928,5 +928,48 @@ def setop(args):
         print x
 
 
+def fixChromName(name, orgn="medicago"):
+    """
+    Convert quirky chromosome names encountered in different
+    release files, which are very project specific, into a more
+    general format.
+
+    For example, in Medicago
+        Convert a seqid like
+            `Mt3.5.1_Chr1` to `chr1`
+            `Mt3.5_Chr3` to `chr3`
+            `chr01_pseudomolecule_IMGAG` to `chr1`
+
+    Some examples from Maize
+        Convert a seqid like
+            `chromosome:AGPv2:2:1:237068873:1` to `2`
+        Special cases
+            `chromosome:AGPv2:mitochondrion:1:569630:1` to `Mt`
+            `chromosome:AGPv2:chloroplast:1:140384:1` to `Pt`
+    """
+    import re
+    mtr_pat1 = re.compile(r"\w+[0-9]+\.[0-9]+[\.[0-9]+]{0,}_(\w+[0-9]+)")
+    mtr_pat2 = re.compile(r"(\w+[0-9]+)_\w+_\w+")
+
+    zmays_pat = re.compile(r"[A-z]+:\w+:(\w+):1:[0-9]+:[0-9]+")
+    zmays_sub = { 'mitochondrion' : 'Mt', 'chloroplast' : 'Pt' }
+    if orgn == "medicago":
+        for mtr_pat in (mtr_pat1, mtr_pat2):
+            match = re.search(mtr_pat, name)
+            if match:
+                n = match.group(1)
+                n = n.replace("0", "")
+                name = re.sub(mtr_pat, n, name)
+    elif orgn == "maize":
+        match = re.search(zmays_pat, name)
+        if match:
+            n = match.group(1)
+            name = re.sub(zmays_pat, n, name)
+            if name in zmays_sub:
+                name = zmays_sub[name]
+
+    return name
+
+
 if __name__ == '__main__':
     main()

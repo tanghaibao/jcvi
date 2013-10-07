@@ -224,6 +224,7 @@ def main():
         ('parents', 'find the parents given a list of IDs'),
         ('children', 'find all children that belongs to the same parent'),
         ('frombed', 'convert from bed format to gff3'),
+        ('fromsoap', 'convert from soap format to gff3'),
         ('gapsplit', 'split alignment GFF3 at gaps based on CIGAR string'),
         ('orient', 'orient the coding features based on translation'),
             )
@@ -1034,6 +1035,42 @@ def frombed(args):
 
     for b in bed:
         print b.gffline(type=opts.type, source=opts.source)
+
+
+def fromsoap(args):
+    """
+    %prog fromsoap soapfile > gff_file
+
+    """
+    p = OptionParser(fromsoap.__doc__)
+    p.add_option("--type", default="nucleotide_match",
+                 help="GFF feature type [default: %default]")
+    p.add_option("--source", default="soap",
+                help="GFF source qualifier [default: %default]")
+    p.set_fixchrnames(orgn="maize")
+    p.set_outfile()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    soapfile, = args
+    pad0 = len(str(sum(1 for line in open(soapfile))))
+
+    fw = must_open(opts.outfile, "w")
+    fp = must_open(soapfile)
+    for idx, line in enumerate(fp):
+        if opts.fix_chr_name:
+            from jcvi.formats.base import fixChromName
+            line = fixChromName(line, orgn=opts.fix_chr_name)
+
+        atoms = line.strip().split("\t")
+        attributes = "ID=match{0};Name={1}".format(str(idx).zfill(pad0), atoms[0])
+        start, end = int(atoms[8]), int(atoms[5]) + int(atoms[8]) - 1
+        seqid = atoms[7]
+
+        print >> fw, "\t".join(str(x) for x in (seqid, opts.source, opts.type, \
+            start, end, ".", atoms[6], ".", attributes))
 
 
 def gtf(args):

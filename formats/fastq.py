@@ -178,15 +178,14 @@ def readlen(args):
     avg for each file.
     """
     p = OptionParser(readlen.__doc__)
-    p.add_option("--first", default=100000, type="int",
-                 help="Only sample the first N reads [default: %default]")
+    p.set_firstN()
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     f, = args
-    s = calc_readlen(f, opts.first)
+    s = calc_readlen(f, opts.firstN)
     print "\t".join(str(x) for x in (f, s.min, s.max, s.mean))
     return int(s.max)
 
@@ -205,16 +204,21 @@ def fasta(args):
 
     fastqfile, = args
     pf = fastqfile.rsplit(".", 1)[0]
-    SeqIO.convert(fastqfile, "fastq", pf + ".fasta", "fasta")
-    SeqIO.convert(fastqfile, "fastq", pf + ".qual", "qual")
+    fastafile, qualfile = pf + ".fasta", pf + ".qual"
+    SeqIO.convert(fastqfile, "fastq", fastafile, "fasta")
+    SeqIO.convert(fastqfile, "fastq", qualfile, "qual")
+
+    return fastafile, qualfile
 
 
 def first(args):
     """
     %prog first N fastqfile(s)
 
-    Get first N reads from file. Output will be written to *.firstN.fastq.
+    Get first N reads from file.
     """
+    from jcvi.apps.base import need_update
+
     p = OptionParser(first.__doc__)
     p.set_outfile()
     opts, args = p.parse_args(args)
@@ -226,6 +230,10 @@ def first(args):
     nlines = N * 4
     fastqfiles = args[1:]
     fastqfile = fastqfiles[0]
+    outfile = opts.outfile
+    if not need_update(fastqfiles, outfile):
+        logging.debug("File `{0}` exists. Will not overwrite.".format(outfile))
+        return
 
     gz = fastqfile.endswith(".gz")
     for fastqfile in fastqfiles:

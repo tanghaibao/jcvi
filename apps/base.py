@@ -294,6 +294,10 @@ class OptionParser (OptionP):
         self.add_option("--sep", default=sep,
                      help="{0} [default: '%default']".format(help))
 
+    def set_firstN(self, firstN=100000):
+        self.add_option("--firstN", default=100000, type="int",
+                     help="Use only the first N reads [default: %default]")
+
     def set_home(self, prog):
         tag = "--{0}_home".format(prog)
         default = {"amos": "~/code/amos-code/",

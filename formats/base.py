@@ -93,7 +93,7 @@ class FileShredder (object):
     """
     def __init__(self, filelist):
 
-        cmd = "rm -f {0}".format(" ".join(filelist))
+        cmd = "rm -rf {0}".format(" ".join(filelist))
         sh(cmd)
 
 

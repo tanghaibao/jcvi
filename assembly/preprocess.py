@@ -58,9 +58,93 @@ def main():
         ('hetsmooth', 'reduce K-mer diversity using het-smooth'),
         ('alignextend', 'increase read length by extending based on alignments'),
         ('contamination', 'check reads contamination against Ecoli'),
+        ('expand', 'expand sequences using short reads'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def expand(args):
+    """
+    %prog expand bes.fasta reads.fastq
+
+    Expand sequences using short reads. Useful, for example for getting BAC-end
+    sequences. The template to use, in `bes.fasta` may just contain the junction
+    sequences, then align the reads to get the 'flanks' for such sequences.
+    """
+    import math
+
+    from jcvi.formats.fasta import Fasta, SeqIO
+    from jcvi.formats.fastq import readlen, first, fasta
+    from jcvi.formats.blast import Blast
+    from jcvi.formats.base import FileShredder
+    from jcvi.apps.bowtie import align, get_samfile
+    from jcvi.apps.align import blast
+
+    p = OptionParser(expand.__doc__)
+    p.add_option("--depth", default=200, type="int",
+                 help="Desired depth for assembly [default: %default]")
+    p.set_firstN()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    bes, reads = args
+    size = Fasta(bes).totalsize
+    rl = readlen([reads])
+    expected_size = size + 2 * rl
+    nreads = expected_size * opts.depth / rl
+    nreads = int(math.ceil(nreads / 1000.)) * 1000
+
+    # Attract reads
+    samfile, logfile = align([bes, reads, "--reorder", "--mapped",
+           "--firstN={0}".format(opts.firstN)])
+
+    samfile, mapped, _ = get_samfile(reads, bes, bowtie=True, mapped=True)
+    logging.debug("Extract first {0} reads from `{1}`.".format(nreads, mapped))
+
+    pf = mapped.split(".")[0]
+    pf = pf.split("-")[0]
+    bespf = bes.split(".")[0]
+    reads = pf + ".expand.fastq"
+    first([str(nreads), mapped, "-o", reads])
+
+    # Perform mini-assembly
+    fastafile = reads.rsplit(".", 1)[0] + ".fasta"
+    if need_update(reads, fastafile):
+        fastafile, qualfile = fasta([reads])
+
+    contigs = op.join(pf, "454LargeContigs.fna")
+    if need_update(fastafile, contigs):
+        cmd = "runAssembly -o {0} -cpu 8 {1}".format(pf, fastafile)
+        sh(cmd)
+    assert op.exists(contigs)
+
+    # Annotate contigs
+    blastfile = blast([bes, contigs])
+    mapping = {}
+    for b in Blast(blastfile):
+        mapping[b.query] = b.subject
+
+    f = Fasta(contigs, lazy=True)
+    annotatedfasta = ".".join((pf, bespf, "fasta"))
+    fw = open(annotatedfasta, "w")
+    nseq = 0
+    for key, v in f.iteritems_ordered():
+        vid = v.id
+        if vid not in mapping:
+            continue
+        v.id = "_".join((pf, vid, mapping[vid]))
+        SeqIO.write([v], fw, "fasta")
+        nseq += 1
+    fw.close()
+
+    FileShredder([samfile, logfile, mapped, reads, fastafile, qualfile, blastfile, pf])
+    logging.debug("Annotated seqs (n={0}) written to `{1}`.".\
+                    format(nseq, annotatedfasta))
+
+    return annotatedfasta
 
 
 def contamination(args):
@@ -75,8 +159,7 @@ def contamination(args):
     from jcvi.apps.bowtie import BowtieLogFile, align
 
     p = OptionParser(contamination.__doc__)
-    p.add_option("--firstN", default=100000, type="int",
-                 help="Use only the first N reads [default: %default]")
+    p.set_firstN()
     opts, args = p.parse_args(args)
 
     if len(args) != 3:

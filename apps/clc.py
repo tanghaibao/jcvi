@@ -143,7 +143,7 @@ def align(args):
     if not outfile.endswith(".cas"):
         outfile += ".cas"
 
-    cmd += " --cpus {0}".format(cpus)
+    cmd += " --cpus {0}".format(opts.cpus)
     cmd += " -d {0} -o {1} -q ".format(ref, outfile)
     fastqs = " ".join(fastqfiles)
     if size == 0:

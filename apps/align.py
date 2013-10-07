@@ -13,6 +13,7 @@ import logging
 
 from jcvi.utils.cbook import depends
 from jcvi.apps.command import BLPATH
+from jcvi.apps.softlink import get_abs_path
 from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh
 debug()
 
@@ -43,6 +44,7 @@ def run_vecscreen(infile=None, outfile=None, db="UniVec_Core",
     BLASTN parameters reference:
     http://www.ncbi.nlm.nih.gov/VecScreen/VecScreen_docs.html
     """
+    db = get_abs_path(db)
     nin = db + ".nin"
     run_formatdb(infile=db, outfile=nin)
 
@@ -60,6 +62,7 @@ def run_megablast(infile=None, outfile=None, db=None, wordsize=None, \
 
     assert db, "Need to specify database fasta file."
 
+    db = get_abs_path(db)
     nin = db + ".nin"
     nin00 = db + ".00.nin"
     nin = nin00 if op.exists(nin00) else (db + ".nin")

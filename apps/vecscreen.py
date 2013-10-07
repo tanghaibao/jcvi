@@ -37,6 +37,8 @@ def mask(args):
     perform FASTA tidy if requested.
     """
     p = OptionParser(mask.__doc__)
+    p.add_option("--db",
+                 help="Contaminant db other than Ecoli K12 [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -49,7 +51,7 @@ def mask(args):
     vecbedfile = blast([fastafile])
     ecoliurl = \
     "ftp://ftp.ncbi.nih.gov/genomes/Bacteria/Escherichia_coli_K_12_substr__MG1655_uid57779/NC_000913.fna"
-    ecolifile = download(ecoliurl, filename="Ecoli.fasta")
+    ecolifile = opts.db or download(ecoliurl, filename="Ecoli.fasta")
     assert op.exists(ecolifile)
     ecolibedfile = blast([fastafile, "--db={0}".format(ecolifile)])
 
@@ -70,9 +72,9 @@ def blast(args):
     on the vector/contaminant ranges.
     """
     p = OptionParser(blast.__doc__)
-    p.add_option("--dist", dest="dist", default=100, type="int",
+    p.add_option("--dist", default=100, type="int",
             help="Merge adjacent HSPs separated by [default: %default]")
-    p.add_option("--db", dest="db", default=None,
+    p.add_option("--db",
             help="Use a different database rather than UniVec_Core")
     opts, args = p.parse_args(args)
 

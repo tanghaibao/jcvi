@@ -124,8 +124,8 @@ def expand(args):
     # Annotate contigs
     blastfile = blast([bes, contigs])
     mapping = {}
-    for b in Blast(blastfile):
-        mapping[b.query] = b.subject
+    for query, b in Blast(blastfile).iter_best_hit():
+        mapping[query] = b
 
     f = Fasta(contigs, lazy=True)
     annotatedfasta = ".".join((pf, bespf, "fasta"))
@@ -135,8 +135,11 @@ def expand(args):
         vid = v.id
         if vid not in mapping:
             continue
-        v.id = "_".join((pf, vid, mapping[vid]))
-        SeqIO.write([v], fw, "fasta")
+        b = mapping[vid]
+        rec = v.reverse_complement() if b.orientation == '-' else v
+        rec.id = "_".join((pf, vid, b.subject))
+        rec.description = ""
+        SeqIO.write([rec], fw, "fasta")
         nseq += 1
     fw.close()
 

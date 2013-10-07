@@ -112,6 +112,7 @@ def expand(args):
 
     # Perform mini-assembly
     fastafile = reads.rsplit(".", 1)[0] + ".fasta"
+    qualfile = ""
     if need_update(reads, fastafile):
         fastafile, qualfile = fasta([reads])
 
@@ -130,22 +131,26 @@ def expand(args):
     f = Fasta(contigs, lazy=True)
     annotatedfasta = ".".join((pf, bespf, "fasta"))
     fw = open(annotatedfasta, "w")
-    nseq = 0
+    keys = list(Fasta(bes).iterkeys_ordered())  # keep an ordered list
+    recs = []
     for key, v in f.iteritems_ordered():
         vid = v.id
         if vid not in mapping:
             continue
         b = mapping[vid]
+        subject = b.subject
         rec = v.reverse_complement() if b.orientation == '-' else v
-        rec.id = "_".join((pf, vid, b.subject))
+        rec.id = rid = "_".join((pf, vid, subject))
         rec.description = ""
-        SeqIO.write([rec], fw, "fasta")
-        nseq += 1
+        recs.append((keys.index(subject), rid, rec))
+
+    recs = [x[-1] for x in sorted(recs)]
+    SeqIO.write(recs, fw, "fasta")
     fw.close()
 
     FileShredder([samfile, logfile, mapped, reads, fastafile, qualfile, blastfile, pf])
     logging.debug("Annotated seqs (n={0}) written to `{1}`.".\
-                    format(nseq, annotatedfasta))
+                    format(len(recs), annotatedfasta))
 
     return annotatedfasta
 

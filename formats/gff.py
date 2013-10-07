@@ -1061,7 +1061,7 @@ def fromsoap(args):
     fp = must_open(soapfile)
     for idx, line in enumerate(fp):
         if opts.fix_chr_name:
-            from jcvi.formats.base import fixChromName
+            from jcvi.utils.cbook import fixChromName
             line = fixChromName(line, orgn=opts.fix_chr_name)
 
         atoms = line.strip().split("\t")

@@ -388,9 +388,9 @@ def trim(args):
             help="Phred score offset {0} [default: guess]".format(phdchoices))
     p.add_option("--nofrags", default=False, action="store_true",
             help="Discard frags file in PE mode [default: %default]")
-    p.add_option("--minqv", default=10, type="int",
+    p.add_option("--minqv", default=15, type="int",
             help="Average qv after trimming [default: %default]")
-    p.add_option("--minlen", default=30, type="int",
+    p.add_option("--minlen", default=36, type="int",
             help="Minimum length after trimming [default: %default]")
     p.add_option("--adapteronly", default=False, action="store_true",
             help="Only trim adapters with no qv trimming [default: %default]")
@@ -478,7 +478,7 @@ def trim(args):
         cmd += " {0}".format(" ".join((fastqfile1, fastqfile2, \
                 pairs1, frags1, pairs2, frags2)))
 
-    cmd += " ILLUMINACLIP:{0}:2:40:12".format(adaptersfile)
+    cmd += " ILLUMINACLIP:{0}:2:30:10".format(adaptersfile)
 
     if not opts.adapteronly:
         cmd += " LEADING:3 TRAILING:3"

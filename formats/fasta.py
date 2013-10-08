@@ -281,30 +281,42 @@ class SequenceInfo (object):
         f = Fasta(filename)
         self.filename = filename
         self.header = \
-        "File|#_seqs|#_As|#_Cs|#_Gs|#_Ts|#_Ns|Total|Min|Max|Avg|N50".split("|")
+        "File|#_seqs|#_reals|#_Ns|Total|Gaps|Min|Max|Avg|N50".split("|")
         self.nseqs = len(f)
         counter = Counter()
         sizes = []
+        gaps = []
         for k, s in f.iteritems():
             s = str(s.seq).upper()
             sizes.append(len(s))
             counter.update(s)
+            gaps += list(self.iter_gap_len(s))
         self.na = na = counter['A']
         self.nc = nc = counter['C']
         self.ng = ng = counter['G']
         self.nt = nt = counter['T']
+        self.real = real = na + nc + ng + nt
         s = SummaryStats(sizes)
         self.sum = s.sum
-        self.nn = self.sum - na - nc - ng - nt
+        self.gaps = len(gaps)
+        self.nn = self.sum - real
         a50, l50, nn50 = calculate_A50(sizes)
         self.min = s.min
         self.max = s.max
         self.mean = int(s.mean)
         self.n50 = l50
         self.data = [self.filename, self.nseqs,
-                     self.na, self.nc, self.ng, self.nt, self.nn, self.sum,
+                     self.real, self.nn, self.sum, self.gaps,
                      self.min, self.max, self.mean, self.n50]
         assert len(self.header) == len(self.data)
+
+    def iter_gap_len(self, seq, mingap=10):
+        for gap, seq in groupby(seq, lambda x: x == 'N'):
+            if not gap:
+                continue
+            gap_len = len(list(seq))
+            if gap_len >= mingap:
+                yield len(list(seq))
 
 
 def rc(s):

@@ -939,7 +939,7 @@ def refine(args):
         gaps = list(gaps)
         gap = gaps[0]
         if len(gaps) == 1 and gap[-1] == "0":
-            assert gap[-2] == "."
+            assert gap[-3] == "."
             print >> nogapsfw, "\t".join(b)
             continue
 

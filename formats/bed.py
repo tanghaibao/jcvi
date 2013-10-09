@@ -1058,7 +1058,7 @@ def mates(args):
             help="Remove mates that are intra-scaffold [default: %default]")
     p.add_option("--prefix", default=False, action="store_true",
             help="Only keep links between IDs with same prefix [default: %default]")
-    p.set_rclip()
+    p.set_mates()
 
     opts, args = p.parse_args(args)
 

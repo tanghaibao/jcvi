@@ -228,7 +228,7 @@ def link(args):
     between contigs that start with the same prefix_xxx.
     """
     p = OptionParser(link.__doc__)
-    p.set_rclip(rclip=1, mateorientation="+-")
+    p.set_mates(rclip=1, mateorientation="+-")
     p.add_option("--insert", type="int", default=0,
             help="Mean insert size [default: estimate from data]")
     p.add_option("--prefix", default=False, action="store_true",

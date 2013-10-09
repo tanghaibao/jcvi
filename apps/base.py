@@ -251,23 +251,26 @@ class OptionParser (OptionP):
 
         return opts, args, ImageOptions(opts)
 
+    def set_depth(self, depth=50):
+        self.add_option("--depth", default=depth, type="int",
+                     help="Desired depth [default: %default]")
+
+    def set_rclip(self, rclip=0):
+        self.add_option("--rclip", default=rclip, type="int",
+                help="Pair ID is derived from rstrip N chars [default: %default]")
+
     def set_cutoff(self, cutoff=0):
         self.add_option("--cutoff", default=cutoff, type="int",
                 help="Distance to call valid links between mates "\
                      "[default: %default]")
-
-    def set_depth(self, depth=50):
-        self.add_option("--depth", default=depth, type="int",
-                     help="Desired depth [default: %default]")
 
     def set_mateorientation(self, mateorientation=None):
         self.add_option("--mateorientation", default=mateorientation,
                 choices=("++", "--", "+-", "-+"),
                 help="Use only certain mate orientations [default: %default]")
 
-    def set_rclip(self, cutoff=0, rclip=0, mateorientation=None):
-        self.add_option("--rclip", default=rclip, type="int",
-                help="Pair ID is derived from rstrip N chars [default: %default]")
+    def set_mates(self, rclip=0, cutoff=0, mateorientation=None):
+        self.set_rclip(rclip=rclip)
         self.set_cutoff(cutoff=cutoff)
         self.set_mateorientation(mateorientation=mateorientation)
 
@@ -286,7 +289,7 @@ class OptionParser (OptionP):
                 help="Write valid pairs to pairsfile [default: %default]")
         self.add_option("--nrows", default=200000, type="int",
                 help="Only use the first n lines [default: %default]")
-        self.set_rclip()
+        self.set_mates()
         self.add_option("--pdf", default=False, action="store_true",
                 help="Print PDF instead ASCII histogram [default: %default]")
         self.add_option("--bins", default=20, type="int",
@@ -300,11 +303,15 @@ class OptionParser (OptionP):
         if multiple:
             help += ", multiple values allowed"
         self.add_option("--sep", default=sep,
-                     help="{0} [default: '%default']".format(help))
+                help="{0} [default: '%default']".format(help))
 
     def set_firstN(self, firstN=100000):
         self.add_option("--firstN", default=firstN, type="int",
-                     help="Use only the first N reads [default: %default]")
+                help="Use only the first N reads [default: %default]")
+
+    def set_tag(self, tag=False):
+        self.add_option("--tag", default=tag, action="store_true",
+                help="Add tag (/1, /2) to the read name")
 
     def set_phred(self, phred=None):
         phdchoices = ("33", "64")

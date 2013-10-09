@@ -134,7 +134,7 @@ def pairs(args):
     from jcvi.formats.sam import pairs as ps
 
     p = OptionParser(pairs.__doc__)
-    p.set_rclip()
+    p.set_mates()
     opts, args = p.parse_args(args)
 
     if len(args) != 2:

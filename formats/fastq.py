@@ -330,8 +330,7 @@ def shuffle(args):
     from itertools import izip
 
     p = OptionParser(shuffle.__doc__)
-    p.add_option("--tag", default=False, action="store_true",
-            help="add tag (/1, /2) to the read name")
+    p.set_tag()
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -717,10 +716,10 @@ def pairinplace(args):
     from jcvi.utils.iter import pairwise
 
     p = OptionParser(pairinplace.__doc__)
+    p.set_rclip()
+    p.set_tag()
     p.add_option("--base",
                 help="Base name for the output files [default: %default]")
-    p.add_option("--rclip", default=0, type="int",
-                help="Pair ID is derived from rstrip N chars [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -739,7 +738,8 @@ def pairinplace(args):
     pairsfw = must_open(pairs, "w")
 
     N = opts.rclip
-    strip_name = lambda x: x[:-N] if N else str
+    tag = opts.tag
+    strip_name = (lambda x: x[:-N]) if N else None
 
     fh_iter = iter_fastq(fastqfile, key=strip_name)
     skipflag = False  # controls the iterator skip
@@ -752,6 +752,9 @@ def pairinplace(args):
             continue
 
         if a.name == b.name:
+            if tag:
+                a.name += "/1"
+                b.name += "/2"
             print >> pairsfw, a
             print >> pairsfw, b
             skipflag = True

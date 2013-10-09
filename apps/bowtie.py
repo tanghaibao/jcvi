@@ -108,7 +108,7 @@ def align(args):
     from jcvi.formats.fastq import guessoffset
 
     p = OptionParser(align.__doc__)
-    p.set_firstN()
+    p.set_firstN(firstN=0)
     p.add_option("--full", default=False, action="store_true",
                  help="Enforce end-to-end alignment [default: local]")
     p.add_option("--reorder", default=False, action="store_true",

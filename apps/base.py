@@ -303,7 +303,7 @@ class OptionParser (OptionP):
                      help="{0} [default: '%default']".format(help))
 
     def set_firstN(self, firstN=100000):
-        self.add_option("--firstN", default=100000, type="int",
+        self.add_option("--firstN", default=firstN, type="int",
                      help="Use only the first N reads [default: %default]")
 
     def set_phred(self, phred=None):

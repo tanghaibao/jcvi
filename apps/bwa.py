@@ -89,6 +89,7 @@ def align(args):
     p = OptionParser(align.__doc__)
     p.add_option("--bwasw", default=False, action="store_true",
                  help="Run bwasw mode [default: %default]")
+    p.set_cutoff(cutoff=800)
     p.set_sam_options()
 
     opts, args = p.parse_args(args)
@@ -181,6 +182,8 @@ def sampe(args, opts):
 
     cmd = "bwa sampe {0} {1} {2} {3} {4}".format(dbfile, sai1file, sai2file,
             read1file, read2file)
+    if opts.cutoff:
+        cmd += " -a {0}".format(opts.cutoff)
     cmd += " {0}".format(extra)
     if opts.uniq:
         cmd += " -n 1"

@@ -180,45 +180,9 @@ def main():
 
     actions = (
             ('n50', "Given FASTA or a list of contig sizes, calculate N50"),
-            ('allstats', "Summarize multiple FASTA in a table"),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
-
-
-def allstats(args):
-    """
-    %prog allstats fastafiles
-
-    Summarize multiple FASTA in a table.
-    """
-    from jcvi.utils.table import tabulate
-
-    p = OptionParser(allstats.__doc__)
-    p.add_option("--exclude", help="Exclude statistics, must be {0}, "
-                      "multiple separated by comma [default: %default]".\
-                      format("|".join(header))
-                 )
-
-    opts, args = p.parse_args(args)
-
-    if len(args) < 1:
-        sys.exit(not p.print_help())
-
-    fastafiles = args
-    exclude = opts.exclude.split(",")
-    assert all(x in header for x in exclude)
-
-    tabledict = {}
-    for fastafile in fastafiles:
-        pf = fastafile.rsplit(".", 1)[0]
-        for key, val in n50([fastafile]):
-            if key in exclude:
-                continue
-            tabledict[(pf, key)] = val
-
-    table = tabulate(tabledict)
-    print >> sys.stderr, table
 
 
 if __name__ == '__main__':

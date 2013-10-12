@@ -119,7 +119,6 @@ def main():
         ('close', 'run GapFiller to fill gaps'),
         ('agp', 'convert SSPACE scaffold structure to AGP format'),
         ('embed', 'embed contigs to upgrade existing structure'),
-        ('partition', 'partition contigs based on their inter-connectedness'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -210,37 +209,6 @@ def agp(args):
     ef.write_agp(agpfile)
 
 
-def partition(args):
-    """
-    %prog partition agpfile contigs.fasta newagpfile
-
-    Remove subset in agp where components consist entirely of sequences from
-    `contigs.fasta`. Large contigs >= min_length will be immune to removal.
-    """
-    p = OptionParser(partition.__doc__)
-    p.set_min_length(default=10000)
-    opts, args = p.parse_args(args)
-
-    if len(args) != 3:
-        sys.exit(not p.print_help())
-
-    agpfile, contigs, newagpfile = args
-    min_length = opts.min_length
-
-    ids = set(Fasta(contigs, lazy=True).iterkeys_ordered())
-    agp = AGP(agpfile)
-    fw = open(newagpfile, "w")
-    for object, lines in agp.iter_object():
-        length = max(x.object_end for x in lines)
-        oids = set(x.component_id for x in lines if not x.is_gap)
-        if oids <= ids and length < min_length:
-            continue
-        for r in lines:
-            print >> fw, r
-    fw.close()
-    logging.debug("Partitioned AGP written to `{0}`".format(newagpfile))
-
-
 def get_target(p, name):
     before, before_tag = p.get_next(name, ">")
     if not before:  # Start of a scaffold
@@ -291,7 +259,8 @@ def embed(args):
     """
     p = OptionParser(embed.__doc__)
     p.set_mingap(default=10)
-    p.set_min_length(default=200)
+    p.add_option("--min_length", default=200, type="int",
+                 help="Minimum length to consider [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:

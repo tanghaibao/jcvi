@@ -273,7 +273,7 @@ class SequenceInfo (object):
       Average                            2641.25
       N50                                4791
     """
-    def __init__(self, filename):
+    def __init__(self, filename, gapstats=False):
         from jcvi.utils.counter import Counter
         from jcvi.utils.cbook import SummaryStats
         from jcvi.assembly.base import calculate_A50
@@ -281,7 +281,9 @@ class SequenceInfo (object):
         f = Fasta(filename)
         self.filename = filename
         self.header = \
-        "File|#_seqs|#_reals|#_Ns|Total|Gaps|Min|Max|Avg|N50".split("|")
+        "File|#_seqs|#_reals|#_Ns|Total|Min|Max|N50".split("|")
+        if gapstats:
+            self.header += ["Gaps"]
         self.nseqs = len(f)
         counter = Counter()
         sizes = []
@@ -290,7 +292,8 @@ class SequenceInfo (object):
             s = str(s.seq).upper()
             sizes.append(len(s))
             counter.update(s)
-            gaps += list(self.iter_gap_len(s))
+            if gapstats:
+                gaps += list(self.iter_gap_len(s))
         self.na = na = counter['A']
         self.nc = nc = counter['C']
         self.ng = ng = counter['G']
@@ -298,7 +301,8 @@ class SequenceInfo (object):
         self.real = real = na + nc + ng + nt
         s = SummaryStats(sizes)
         self.sum = s.sum
-        self.gaps = len(gaps)
+        if gapstats:
+            self.gaps = len(gaps)
         self.nn = self.sum - real
         a50, l50, nn50 = calculate_A50(sizes)
         self.min = s.min
@@ -306,8 +310,10 @@ class SequenceInfo (object):
         self.mean = int(s.mean)
         self.n50 = l50
         self.data = [self.filename, self.nseqs,
-                     self.real, self.nn, self.sum, self.gaps,
-                     self.min, self.max, self.mean, self.n50]
+                     self.real, self.nn, self.sum,
+                     self.min, self.max, self.n50]
+        if gapstats:
+            self.data += [self.gaps]
         assert len(self.header) == len(self.data)
 
     def iter_gap_len(self, seq, mingap=10):
@@ -370,6 +376,8 @@ def info(args):
     Run `sequence_info` on FASTA files. Generate a report per file.
     """
     p = OptionParser(info.__doc__)
+    p.add_option("--gaps", default=False, action="store_true",
+                 help="Count number of gaps [default: %default]")
     p.set_sep(sep="|")
     opts, args = p.parse_args(args)
 
@@ -380,7 +388,7 @@ def info(args):
     sep = opts.sep
     data = []
     for f in fastafiles:
-        s = SequenceInfo(f)
+        s = SequenceInfo(f, gapstats=opts.gaps)
         data.append(s.data)
     write_csv(s.header, data, sep=sep)
 

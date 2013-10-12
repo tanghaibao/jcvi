@@ -540,6 +540,8 @@ def correct(args):
     from jcvi.assembly.base import FastqNamings
 
     p = OptionParser(correct.__doc__ + FastqNamings)
+    p.add_option("--workdir", default="data",
+                help="Working directory [default: %default]")
     p.add_option("--nofragsdedup", default=False, action="store_true",
                  help="Don't deduplicate the fragment reads [default: %default]")
     p.add_option("--ploidy", default="2", choices=("1", "2"),
@@ -561,7 +563,7 @@ def correct(args):
 
     prepare(["Unknown"] + fastq + ["--norun"])
 
-    datadir = "data"
+    datadir = opts.workdir
     mkdir(datadir)
     fullpath = op.join(os.getcwd(), datadir)
     nthreads = " NUM_THREADS={0}".format(opts.cpus)
@@ -614,7 +616,7 @@ def correct_frag(datadir, tag, origfastb, nthreads,
     if need_update(editfastb, corrfastb):
         cmd = "CleanCorrectedReads DELETE=True"
         cmd += " HEAD_IN={0} HEAD_OUT={1}".format(edit, corr)
-        cmd += " PLOIDY_FILE=data/ploidy"
+        cmd += " PLOIDY_FILE={0}/ploidy".format(datadir)
         if haploidify:
             cmd += " HAPLOIDIFY=True"
         cmd += nthreads

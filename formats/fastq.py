@@ -117,6 +117,10 @@ class FastqHeader(object):
         return True if self.dialect == ">=1.8" else None
 
 
+def pairspf(pp):
+    return op.basename(op.commonprefix(pp).rstrip("._-"))
+
+
 def iter_fastq(filename, offset=0, key=None):
     if isinstance(filename, str):
         logging.debug("Read file `{0}`".format(filename))
@@ -337,7 +341,7 @@ def shuffle(args):
         sys.exit(not p.print_help())
 
     p1, p2 = args
-    pairsfastq = op.basename(op.commonprefix((p1, p2)).rstrip(".") + ".fastq")
+    pairsfastq = pairspf((p1, p2)) + ".fastq"
     tag = opts.tag
 
     p1fp = must_open(p1)
@@ -590,7 +594,7 @@ def catread(args):
 
     r1, r2 = args
     p1fp, p2fp = FastqPairedIterator(r1, r2)
-    outfile = op.basename(op.commonprefix((r1, r2)) + ".cat.fastq")
+    outfile = pairspf((r1, r2)) + ".cat.fastq"
     fw = must_open(outfile, "w")
     while True:
         a = list(islice(p1fp, 4))

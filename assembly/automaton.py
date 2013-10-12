@@ -13,7 +13,7 @@ import logging
 
 from jcvi.utils.iter import grouper
 from jcvi.formats.base import LineFile
-from jcvi.apps.bowtie import align
+from jcvi.formats.fastq import first, pairspf
 from jcvi.apps.softlink import get_abs_path
 from jcvi.apps.base import OptionParser, ActionDispatcher, debug, need_update, \
             mkdir, sh, glob
@@ -47,7 +47,6 @@ class Meta (object):
     def make_link(self, firstN=0):
         mkdir(self.genome)
         if firstN > 0:
-            from jcvi.formats.fastq import first
             first([str(firstN), self.fastq, "--outfile={0}".format(self.link)])
             return
 
@@ -103,6 +102,8 @@ def contamination(args):
 
     Remove contaminated reads.
     """
+    from jcvi.apps.bowtie import align
+
     p = OptionParser(contamination.__doc__)
     p.add_option("--mapped", default=False, action="store_true",
                  help="Retain contaminated reads instead [default: %default]")
@@ -128,31 +129,49 @@ def pairs(args):
     """
     %prog pairs folder reference.fasta
 
-    Estimate insert sizes for input files.
+    Estimate insert size distribution. Compatible with a variety of aligners,
+    including CLC, BOWTIE and BWA.
     """
-    from jcvi.formats.fastq import first
-    from jcvi.formats.sam import pairs as ps
-
+    valid_aligners = ("clc", "bowtie", "bwa")
     p = OptionParser(pairs.__doc__)
+    p.set_firstN()
     p.set_mates()
+    p.add_option("--aligner", default="bowtie", choices=valid_aligners,
+                 help="Use aligner {0} [default: %default]".\
+                     format("|".join(valid_aligners)))
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
         sys.exit(not p.print_help())
 
     cwd = os.getcwd()
-    work = "estimatepairs"
+    aligner = opts.aligner
+    work = "-".join(("pairs", aligner))
     mkdir(work)
+
+    if aligner == "clc":
+        from jcvi.apps.clc import align
+        from jcvi.formats.cas import pairs as ps
+    else:
+        from jcvi.formats.sam import pairs as ps
+
+    if aligner == "bowtie":
+        from jcvi.apps.bowtie import align
+    elif aligner == "bwa":
+        from jcvi.apps.bwa import align
 
     folder, ref = args
     ref = get_abs_path(ref)
     for p, pf in iter_project(folder, 2):
         samplefq = op.join(work, pf + ".first.fastq")
-        first(["100000"] + p + ["-o", samplefq])
+        first([str(opts.firstN)] + p + ["-o", samplefq])
 
         os.chdir(work)
-        samfile, logfile = align([ref, op.basename(samplefq), "--bam"])
-        bedfile, stats = ps([samfile, "--rclip={0}".format(opts.rclip)])
+        align_args = [ref, op.basename(samplefq)]
+        if aligner != "clc":
+           align_args += ["--bam"]
+        outfile, logfile = align(align_args)
+        bedfile, stats = ps([outfile, "--rclip={0}".format(opts.rclip)])
         os.chdir(cwd)
 
 
@@ -333,7 +352,7 @@ def iter_project(folder, n=2):
             continue
 
         pp = [op.basename(x) for x in p]
-        pf = op.commonprefix(pp).strip("._-")
+        pf = pairspf(pp)
         yield list(p), pf
 
 

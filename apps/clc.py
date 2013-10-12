@@ -162,6 +162,7 @@ def align(args):
         cmd += " -l {0} -s {1}".format(opts.fraction, opts.similarity)
 
     sh(cmd, grid=opts.grid)
+    return outfile, None
 
 
 def trim(args):

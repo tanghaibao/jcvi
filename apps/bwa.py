@@ -112,7 +112,9 @@ def align(args):
 
     args[0] = get_abs_path(args[0])
     logging.debug(mode)
-    cmd = c(args, opts)
+    cmd, samfile = c(args, opts)
+    if cmd:
+        cmd = output_bam(cmd, samfile)
 
     bam = opts.bam
     grid = opts.grid
@@ -124,13 +126,13 @@ def align(args):
 
     if unmapped:
         dbfile, readfile = args[:2]
-        samfile, _, unmapped = get_samfile(readfile, dbfile,
-                                           bam=bam, unmapped=unmapped)
         mopts = [samfile, "--unmapped"]
         if bam:
             mopts += ["--bam"]
         mapped(mopts)
         FileShredder([samfile])
+
+    return samfile, None
 
 
 def samse(args, opts):
@@ -150,14 +152,14 @@ def samse(args, opts):
                                        bam=opts.bam, unmapped=opts.unmapped)
     if not need_update((safile, saifile), samfile):
         logging.error("`{0}` exists. `bwa samse` already run.".format(samfile))
-        return
+        return "", samfile
 
     cmd = "bwa samse {0} {1} {2}".format(dbfile, saifile, readfile)
     cmd += " {0}".format(extra)
     if opts.uniq:
         cmd += " -n 1"
 
-    return output_bam(cmd, samfile)
+    return cmd, samfile
 
 
 def sampe(args, opts):
@@ -188,7 +190,7 @@ def sampe(args, opts):
     if opts.uniq:
         cmd += " -n 1"
 
-    return output_bam(cmd, samfile)
+    return cmd, samfile
 
 
 def bwasw(args, opts):
@@ -213,7 +215,7 @@ def bwasw(args, opts):
 
     cmd = "bwa bwasw -t {0} {1} {2}".format(cpus, dbfile, readfile)
     cmd += "{0}".format(opts.extra)
-    return output_bam(cmd, samfile)
+    return cmd, samfile
 
 
 if __name__ == '__main__':

@@ -60,6 +60,7 @@ def main():
         ('contamination', 'check reads contamination against Ecoli'),
         ('diginorm', 'run K-mer based normalization'),
         ('expand', 'expand sequences using short reads'),
+        ('pairs', 'estimate insert size distribution'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())

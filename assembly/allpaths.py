@@ -121,9 +121,12 @@ def fastq(args):
     """
     %prog fastq fastbfile
 
-    Export ALLPATHS fastb file to fastq file.
+    Export ALLPATHS fastb file to fastq file. Use --dir to indicate a previously
+    run allpaths folder.
     """
     p = OptionParser(fastq.__doc__)
+    p.add_option("--dir",
+                help="Working directory [default: %default]")
     p.add_option("--nosim", default=False, action="store_true",
                  help="Do not simulate qual to 50 [default: %default]")
     opts, args = p.parse_args(args)
@@ -132,6 +135,11 @@ def fastq(args):
         sys.exit(not p.print_help())
 
     fastbfile, = args
+    d = opts.dir
+    if d:
+        from jcvi.assembly.preprocess import export_fastq
+        export_fastq(d, fastbfile)
+
     sim = not opts.nosim
     pf = "j" if "jump" in fastbfile else "f"
 

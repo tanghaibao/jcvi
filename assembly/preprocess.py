@@ -540,7 +540,7 @@ def correct(args):
     from jcvi.assembly.base import FastqNamings
 
     p = OptionParser(correct.__doc__ + FastqNamings)
-    p.add_option("--workdir", default="data",
+    p.add_option("--dir", default="correct",
                 help="Working directory [default: %default]")
     p.add_option("--nofragsdedup", default=False, action="store_true",
                  help="Don't deduplicate the fragment reads [default: %default]")
@@ -590,6 +590,22 @@ def correct(args):
         correct_jump(datadir, tagj, origjfastb, nthreads)
 
 
+def export_fastq(datadir, corrfastb, rc=False):
+    pf = op.basename(corrfastb.rsplit(".", 1)[0])
+
+    cwd = os.getcwd()
+    os.chdir(datadir)
+    corrfastq = pf + ".fastq"
+    run_FastbAndQualb2Fastq(infile=op.basename(corrfastb), \
+                            outfile=corrfastq, rc=rc)
+    os.chdir(cwd)
+
+    pairsfile = pf + ".pairs"
+    fragsfastq = pf + ".corr.fastq"
+    run_pairs(infile=[op.join(datadir, pairsfile), op.join(datadir, corrfastq)],
+                      outfile=fragsfastq)
+
+
 def correct_frag(datadir, tag, origfastb, nthreads,
                  dedup=False, haploidify=False):
     filt = datadir + "/{0}_filt".format(tag)
@@ -622,18 +638,7 @@ def correct_frag(datadir, tag, origfastb, nthreads,
         cmd += nthreads
         sh(cmd)
 
-    pf = op.basename(corr)
-
-    cwd = os.getcwd()
-    os.chdir(datadir)
-    corrfastq = pf + ".fastq"
-    run_FastbAndQualb2Fastq(infile=op.basename(corrfastb), outfile=corrfastq)
-    os.chdir(cwd)
-
-    pairsfile = pf + ".pairs"
-    fragsfastq = pf + ".corr.fastq"
-    run_pairs(infile=[op.join(datadir, pairsfile), op.join(datadir, corrfastq)],
-                      outfile=fragsfastq)
+    export_fastq(datadir, corrfastb)
 
 
 def correct_jump(datadir, tagj, origjfastb, nthreads):
@@ -643,18 +648,7 @@ def correct_jump(datadir, tagj, origjfastb, nthreads):
     run_RemoveDodgyReads(infile=origjfastb, outfile=filtfastb, \
                          removeDuplicates=True, rc=True, nthreads=nthreads)
 
-    pf = op.basename(filt)
-
-    cwd = os.getcwd()
-    os.chdir(datadir)
-    filtfastq = pf + ".fastq"
-    run_FastbAndQualb2Fastq(infile=op.basename(filtfastb), outfile=filtfastq, rc=True)
-    os.chdir(cwd)
-
-    pairsfile = pf + ".pairs"
-    fragsfastq = pf + ".corr.fastq"
-    run_pairs(infile=[op.join(datadir, pairsfile), op.join(datadir, filtfastq)],
-                      outfile=fragsfastq)
+    export_fastq(datadir, filtfastb, rc=True)
 
 
 if __name__ == '__main__':

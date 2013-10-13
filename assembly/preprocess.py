@@ -540,7 +540,7 @@ def correct(args):
     from jcvi.assembly.base import FastqNamings
 
     p = OptionParser(correct.__doc__ + FastqNamings)
-    p.add_option("--dir", default="correct",
+    p.add_option("--dir", default="data",
                 help="Working directory [default: %default]")
     p.add_option("--nofragsdedup", default=False, action="store_true",
                  help="Don't deduplicate the fragment reads [default: %default]")
@@ -563,7 +563,7 @@ def correct(args):
 
     prepare(["Unknown"] + fastq + ["--norun"])
 
-    datadir = opts.workdir
+    datadir = opts.dir
     mkdir(datadir)
     fullpath = op.join(os.getcwd(), datadir)
     nthreads = " NUM_THREADS={0}".format(opts.cpus)

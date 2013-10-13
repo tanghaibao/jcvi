@@ -183,7 +183,7 @@ def pairs(args):
             pf = str(int(pf) + 1)  # Get the first two effective digits
         lib = "{0}-{1}".format(tag, pf.ljust(len(median), '0'))
         for i, xp in enumerate(p):
-            suffix = "fasta.gz" if xp.endswith(".gz") else "fastq"
+            suffix = "fastq.gz" if xp.endswith(".gz") else "fastq"
             link = "{0}-{1}.{2}.{3}".format(lib, prefix.replace("-", ""),
                                             i + 1, suffix)
             m = "\t".join(str(x) for x in (xp, link))

@@ -991,9 +991,9 @@ def format(args):
             help="Add trailing /1 and /2 for interleaved pairs [default: %default]")
     p.add_option("--sequential", default=False, action="store_true",
             help="Add sequential IDs [default: %default]")
-    p.add_option("--sequentialoffset", default=1, type="int",
+    p.add_option("--sequentialoffset", default=0, type="int",
             help="Sequential IDs start at [default: %default]")
-    p.add_option("--pad0", default=6, type="int",
+    p.add_option("--pad0", default=0, type="int",
             help="Pad a few zeros in front of sequential [default: %default]")
     p.add_option("--gb", default=False, action="store_true",
             help="For Genbank ID, get the accession [default: %default]")

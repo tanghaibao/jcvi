@@ -109,7 +109,7 @@ def main():
         ('prepare', 'prepare ALLPATHS csv files and run script'),
         ('log', 'prepare a log of created files'),
         ('pairs', 'parse ALLPATHS pairs file'),
-        ('fastq', 'export ALLPATHS fastb file to fastq'),
+        ('dump', 'export ALLPATHS fastb file to fastq'),
         ('fixpairs', 'fix pairs library stats'),
         ('fill', 'run FillFragments on `frag_reads_corr.fastb`'),
             )
@@ -117,14 +117,14 @@ def main():
     p.dispatch(globals())
 
 
-def fastq(args):
+def dump(args):
     """
-    %prog fastq fastbfile
+    %prog dump fastbfile
 
     Export ALLPATHS fastb file to fastq file. Use --dir to indicate a previously
     run allpaths folder.
     """
-    p = OptionParser(fastq.__doc__)
+    p = OptionParser(dump.__doc__)
     p.add_option("--dir",
                 help="Working directory [default: %default]")
     p.add_option("--nosim", default=False, action="store_true",

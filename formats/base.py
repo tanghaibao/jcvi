@@ -368,7 +368,7 @@ def write_file(filename, contents, meta="file", skipcheck=False, tee=False):
         contents = "#!/usr/bin/env python\n# -*- coding: UTF-8 -*-\n\n" + \
                     contents.strip()
 
-    fw = must_open(filename, "w", checkexists=True, skipcheck=skipcheck)
+    fw = must_open(filename, "w", checkexists=True)
     if fw:
         print >> fw, contents
         fw.close()

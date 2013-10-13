@@ -12,7 +12,7 @@ import sys
 import logging
 
 from jcvi.utils.iter import grouper
-from jcvi.formats.base import LineFile
+from jcvi.formats.base import LineFile, write_file
 from jcvi.formats.fastq import first, pairspf
 from jcvi.apps.softlink import get_abs_path
 from jcvi.apps.base import OptionParser, ActionDispatcher, debug, need_update, \
@@ -162,8 +162,9 @@ def pairs(args):
 
     folder, ref = args
     ref = get_abs_path(ref)
-    for p, pf in iter_project(folder, 2):
-        samplefq = op.join(work, pf + ".first.fastq")
+    messages = []
+    for p, prefix in iter_project(folder, 2):
+        samplefq = op.join(work, prefix + ".first.fastq")
         first([str(opts.firstN)] + p + ["-o", samplefq])
 
         os.chdir(work)
@@ -173,6 +174,23 @@ def pairs(args):
         outfile, logfile = align(align_args)
         bedfile, stats = ps([outfile, "--rclip={0}".format(opts.rclip)])
         os.chdir(cwd)
+
+        median = stats.median
+        tag = "MP" if median > 1000 else "PE"
+        median = str(median)
+        pf, sf = median[:2], median[2:]
+        if int(sf) != 0:
+            pf = str(int(pf) + 1)  # Get the first two effective digits
+        lib = "{0}-{1}".format(tag, pf.ljust(len(median), '0'))
+        for i, xp in enumerate(p):
+            suffix = "fasta.gz" if xp.endswith(".gz") else "fastq"
+            link = "{0}-{1}.{2}.{3}".format(lib, prefix.replace("-", ""),
+                                            i + 1, suffix)
+            m = "\t".join(str(x) for x in (xp, link))
+            messages.append(m)
+
+    messages = "\n".join(messages)
+    write_file("f.meta", messages, tee=True)
 
 
 def allpaths(args):

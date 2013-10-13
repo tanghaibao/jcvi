@@ -21,6 +21,7 @@ def main():
         ('cp', 'cp all the symlinks to current folder'),
         ('clean', 'removes all the symlinks in current folder'),
         ('size', 'print the file sizes for the files pointed by symlinks'),
+        ('link', 'link source to target based on a tabular file'),
         )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -42,6 +43,45 @@ def get_abs_path(link_name):
         return get_abs_path(source)
 
 
+def lnsf(source, target, log=False):
+    # re-link the symlinks (similar to `ln -sf`)
+    if op.lexists(target):
+        os.unlink(target)
+    os.symlink(source, target)
+    if log:
+        logging.debug("{0} => {1}".format(source, target))
+
+
+def link(args):
+    """
+    %prog link metafile
+
+    Link source to target based on a tabular file.
+    """
+    from jcvi.apps.base import mkdir
+
+    p = OptionParser(link.__doc__)
+    p.add_option("--dir",
+                 help="Place links in a subdirectory [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    meta, = args
+    d = opts.dir
+    if d:
+        mkdir(d)
+
+    fp = open(meta)
+    for row in fp:
+        source, target = row.split()
+        source = get_abs_path(source)
+        if d:
+            target = op.join(d, target)
+        lnsf(source, target, log=True)
+
+
 def touch(args):
     """
     find . -type l | %prog touch
@@ -61,10 +101,7 @@ def touch(args):
             continue
 
         source = get_abs_path(link_name)
-
-        # re-link the symlinks (similar to `ln -sf`)
-        os.unlink(link_name)
-        os.symlink(source, link_name)
+        lnsf(source, link_name)
 
 
 def clean(args):
@@ -98,7 +135,6 @@ def cp(args):
             continue
 
         source = get_abs_path(link_name)
-
         link_name = op.basename(link_name)
         if not op.exists(link_name):
             os.symlink(source, link_name)

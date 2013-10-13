@@ -5,7 +5,6 @@ parses tabular BLAST -m8 (-format 6 in BLAST+) format
 import os
 import os.path as op
 import sys
-import math
 import logging
 
 from itertools import groupby
@@ -406,7 +405,6 @@ def score(args):
     Add up the scores for each query seq. Go through the lines and for each
     query sequence, add up the scores when subject is in each pile by A.ids.
     """
-    from collections import defaultdict
     from jcvi.formats.base import SetFile
     from jcvi.formats.fasta import Fasta
 
@@ -1103,122 +1101,6 @@ def bed(args):
     logging.debug("File written to `{0}`.".format(bedfile))
 
     return bedfile
-
-
-def report_pairs(data, cutoff=0, mateorientation=None,
-        pairsfile=None, insertsfile=None, rclip=1, ascii=False, bins=20,
-        distmode="ss"):
-    """
-    This subroutine is used by the pairs function in blast.py and cas.py.
-    Reports number of fragments and pairs as well as linked pairs
-    """
-    import numpy as np
-    from jcvi.utils.cbook import SummaryStats, percentage
-
-    allowed_mateorientations = ("++", "--", "+-", "-+")
-
-    if mateorientation:
-        assert mateorientation in allowed_mateorientations
-
-    num_fragments, num_pairs = 0, 0
-
-    all_dist = []
-    linked_dist = []
-    # +- (forward-backward) is `innie`, -+ (backward-forward) is `outie`
-    orientations = defaultdict(int)
-
-    # clip how many chars from end of the read name to get pair name
-    key = (lambda x: x.accn[:-rclip]) if rclip else (lambda x: x.accn)
-    data.sort(key=key)
-
-    if pairsfile:
-        pairsfw = open(pairsfile, "w")
-    if insertsfile:
-        insertsfw = open(insertsfile, "w")
-
-    for pe, lines in groupby(data, key=key):
-        lines = list(lines)
-        if len(lines) != 2:
-            num_fragments += len(lines)
-            continue
-
-        num_pairs += 1
-        a, b = lines
-
-        asubject, astart, astop = a.seqid, a.start, a.end
-        bsubject, bstart, bstop = b.seqid, b.start, b.end
-
-        aquery, bquery = a.accn, b.accn
-        astrand, bstrand = a.strand, b.strand
-
-        dist, orientation = range_distance(\
-                (asubject, astart, astop, astrand),
-                (bsubject, bstart, bstop, bstrand),
-                distmode=distmode)
-
-        if dist >= 0:
-            all_dist.append((dist, orientation, aquery, bquery))
-
-    # select only pairs with certain orientations - e.g. innies, outies, etc.
-    if mateorientation:
-        all_dist = [x for x in all_dist if x[1] == mateorientation]
-
-    # try to infer cutoff as twice the median until convergence
-    if cutoff <= 0:
-        dists = np.array([x[0] for x in all_dist], dtype="int")
-        p0 = np.median(dists)
-        cutoff = int(2 * p0)  # initial estimate
-        cutoff = int(math.ceil(cutoff / bins)) * bins
-        logging.debug("Insert size cutoff set to {0}, ".format(cutoff) +
-            "use '--cutoff' to override")
-
-    for dist, orientation, aquery, bquery in all_dist:
-        if dist > cutoff:
-            continue
-
-        linked_dist.append(dist)
-        if pairsfile:
-            print >> pairsfw, "{0}\t{1}\t{2}".format(aquery, bquery, dist)
-        orientations[orientation] += 1
-
-    print >>sys.stderr, "{0} fragments, {1} pairs ({2} total)".\
-                format(num_fragments, num_pairs, num_fragments + num_pairs * 2)
-
-    s = SummaryStats(linked_dist, dtype="int")
-    num_links = s.size
-
-    meandist, stdev = s.mean, s.sd
-    p0, p1, p2 = s.median, s.p1, s.p2
-
-    print >>sys.stderr, "%d pairs (%.1f%%) are linked (cutoff=%d)" % \
-            (num_links, num_links * 100. / num_pairs, cutoff)
-    print >>sys.stderr, "mean distance between mates: {0} +/- {1}".\
-            format(meandist, stdev)
-    print >>sys.stderr, "median distance between mates: {0}".format(p0)
-    print >>sys.stderr, "95% distance range: {0} - {1}".format(p1, p2)
-    print >>sys.stderr, "\nOrientations:"
-
-    orientation_summary = []
-    for orientation, count in sorted(orientations.items()):
-        o = "{0}:{1}".format(orientation, \
-                percentage(count, num_links, denominator=False))
-        orientation_summary.append(o.split()[0])
-        print >>sys.stderr, o
-
-    if insertsfile:
-        from jcvi.graphics.histogram import histogram
-
-        print >>insertsfw, "\n".join(str(x) for x in linked_dist)
-        insertsfw.close()
-        prefix = insertsfile.rsplit(".", 1)[0]
-        osummary = " ".join(orientation_summary)
-        title="{0} ({1}; median:{2} bp)".format(prefix, osummary, p0)
-        histogram(insertsfile, vmin=0, vmax=cutoff, bins=bins,
-                xlabel="Insertsize", title=title, ascii=ascii)
-        if op.exists(insertsfile):
-            os.remove(insertsfile)
-
-    return s
 
 
 def pairs(args):

@@ -14,7 +14,6 @@ import shutil
 import logging
 
 from copy import deepcopy
-from jcvi.apps.base import OptionParser
 from itertools import groupby
 
 from jcvi.formats.agp import AGP, TPF, get_phase, reindex, tidy, build
@@ -25,7 +24,7 @@ from jcvi.formats.coords import Overlap_types
 from jcvi.formats.base import must_open
 from jcvi.utils.cbook import memoized
 from jcvi.apps.entrez import fetch
-from jcvi.apps.base import ActionDispatcher, debug, popen, mkdir, sh, \
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, popen, mkdir, sh, \
         need_update
 debug()
 
@@ -518,7 +517,7 @@ def dedup(args):
     clstrfile = dd + ".clstr"
     idsfile = dd + ".ids"
     if need_update(splitfile, clstrfile):
-        deduplicate([splitfile, "--pctid={0}".format(opts.pctid), "--est"])
+        deduplicate([splitfile, "--pctid={0}".format(opts.pctid)])
     if need_update(clstrfile, idsfile):
         ids([clstrfile])
 

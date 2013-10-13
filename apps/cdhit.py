@@ -134,12 +134,12 @@ def deduplicate(args):
     """
     %prog deduplicate fastafile
 
-    Wraps `cd-hit-454` to remove duplicate reads.
+    Wraps `cd-hit-est` to remove duplicate sequences.
     """
     p = OptionParser(deduplicate.__doc__)
     p.set_align(pctid=98)
-    p.add_option("--est", default=False, action="store_true",
-                 help="Use `cd-hit-est` to cluster [default: %default]")
+    p.add_option("--reads", default=False, action="store_true",
+                 help="Use `cd-hit-454` to deduplicate [default: %default]")
     p.set_home("cdhit")
     p.set_cpus()
     p.set_grid()
@@ -152,7 +152,7 @@ def deduplicate(args):
     fastafile, = args
     identity = opts.pctid / 100.
 
-    cmd = "cd-hit-est" if opts.est else "cd-hit-454"
+    cmd = "cd-hit-454" if opts.reads else "cd-hit-est"
     cmd = op.join(opts.cdhit_home, cmd)
     cmd += " -c {0}".format(identity)
     cmd += " -d 0"  # include complete defline

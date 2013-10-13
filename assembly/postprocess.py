@@ -31,12 +31,50 @@ def main():
 
     actions = (
         ('screen', 'screen sequences against library'),
+        ('build', 'build assembly files after a set of clean-ups'),
         ('overlap', 'build larger contig set by fishing additional seqs'),
         ('overlapbatch', 'call overlap on a set of sequences'),
         ('scaffold', 'build scaffolds based on the ordering in the AGP file'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def build(args):
+    """
+    %prog build current.fasta Bacteria_Virus.fasta prefix
+
+    Build assembly files after a set of clean-ups:
+    1. Use cdhit (100%) to remove duplicate scaffolds
+    2. Screen against the bacteria and virus database (remove scaffolds 95% id, 50% cov)
+    3. Mask matches to UniVec_Core
+    4. Sort by decreasing scaffold sizes
+    5. Rename the scaffolds sequentially
+    6. Build the contigs by splitting scaffolds at gaps
+    7. Rename the contigs sequentially
+    """
+    from jcvi.apps.cdhit import deduplicate
+    from jcvi.apps.vecscreen import mask
+    from jcvi.formats.fasta import sort, format
+
+    p = OptionParser(build.__doc__)
+    opts, arg = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    fastafile, bacteria, pf = args
+    dd = deduplicate([fastafile, "--pctid=100"])
+    screenfasta = screen([dd, bacteria])
+    tidyfasta = mask([screenfasta])
+    sortedfasta = sort([tidyfasta, "--sizes"])
+    scaffoldfasta = pf + ".assembly.fasta"
+    format([sortedfasta, scaffoldfasta, "--prefix=scaffold_", "--sequential"])
+    gapsplitfasta = pf + ".gapSplit.fasta"
+    cmd = "gapSplit -minGap=10 {0} {1}".format(scaffoldfasta, gapsplitfasta)
+    sh(cmd)
+    contigsfasta = pf + ".contigs.fasta"
+    format([gapsplitfasta, contigsfasta, "--prefix=contig_", "--sequential"])
 
 
 def screen(args):
@@ -53,8 +91,6 @@ def screen(args):
     p.set_align(pctid=95, pctcov=50)
     p.add_option("--best", default=1, type="int",
             help="Get the best N hit [default: %default]")
-    p.add_option("--newfasta",
-            help="Generate new FASTA file [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -69,10 +105,14 @@ def screen(args):
     covfilter([blastfile, scaffolds, "--union", "--ids=" + idsfile,
                pctidflag, "--pctcov={0}".format(opts.pctcov)])
 
-    nf = opts.newfasta
-    if nf:
-        cmd = "faSomeRecords {0} -exclude {1} {2}".format(scaffolds, idsfile, nf)
-        sh(cmd)
+    pf = scaffolds.rsplit(".", 1)[0]
+    nf = pf + ".screen.fasta"
+    cmd = "faSomeRecords {0} -exclude {1} {2}".format(scaffolds, idsfile, nf)
+    sh(cmd)
+
+    logging.debug("Screened FASTA written to `{0}`.".format(nf))
+
+    return nf
 
 
 def scaffold(args):

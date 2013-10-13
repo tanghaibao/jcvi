@@ -61,7 +61,7 @@ def mask(args):
             format(fastafile, outfastafile)
     sh(cmd)
 
-    tidy([outfastafile])
+    return tidy([outfastafile])
 
 
 def blast(args):

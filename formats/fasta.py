@@ -851,6 +851,8 @@ def sort(args):
     logging.debug("Sorted file written to `{0}`.".format(sortedfastafile))
     fw.close()
 
+    return sortedfastafile
+
 
 def join(args):
     """
@@ -2054,6 +2056,8 @@ def tidy(args):
 
     logging.debug("Tidy FASTA written to `{0}`.".format(tidyfastafile))
     fw.close()
+
+    return tidyfastafile
 
 
 def write_gaps_worker(rec):

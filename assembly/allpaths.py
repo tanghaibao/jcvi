@@ -139,6 +139,7 @@ def dump(args):
     if d:
         from jcvi.assembly.preprocess import export_fastq
         export_fastq(d, fastbfile)
+        return
 
     sim = not opts.nosim
     pf = "j" if "jump" in fastbfile else "f"

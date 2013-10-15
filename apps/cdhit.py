@@ -140,6 +140,8 @@ def deduplicate(args):
     p.set_align(pctid=98)
     p.add_option("--reads", default=False, action="store_true",
                  help="Use `cd-hit-454` to deduplicate [default: %default]")
+    p.add_option("--samestrand", default=False, action="store_true",
+                 help="Enforce same strand alignment [%default: %default]")
     p.set_home("cdhit")
     p.set_cpus()
     p.set_grid()
@@ -156,6 +158,8 @@ def deduplicate(args):
     cmd = op.join(opts.cdhit_home, cmd)
     cmd += " -c {0}".format(identity)
     cmd += " -d 0"  # include complete defline
+    if opts.samestrand:
+        cmd += " -r 0"
     cmd += " -M 0 -T {0} -i {1} -o {1}.cdhit".format(opts.cpus, fastafile)
     sh(cmd, grid=opts.grid)
 

@@ -58,13 +58,16 @@ def build(args):
     from jcvi.formats.fasta import sort, format
 
     p = OptionParser(build.__doc__)
-    opts, arg = p.parse_args(args)
+    p.add_option("--nodedup", default=False, action="store_true",
+                 help="Do not deduplicate [default: deduplicate]")
+    opts, args = p.parse_args(args)
 
     if len(args) != 3:
         sys.exit(not p.print_help())
 
     fastafile, bacteria, pf = args
-    dd = deduplicate([fastafile, "--pctid=100"])
+    dd = deduplicate([fastafile, "--pctid=100"]) \
+                if not opts.nodedup else fastafile
     screenfasta = screen([dd, bacteria])
     tidyfasta = mask([screenfasta])
     sortedfasta = sort([tidyfasta, "--sizes"])

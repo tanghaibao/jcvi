@@ -262,10 +262,16 @@ def prepare(args):
     for stream in (sys.stderr, fw, fw_gc):
         print >> stream, block
 
+    # Collect singletons first
+    singletons = []
+    for lib, fs in libs:
+        if lib.size == 0:
+            singletons += fs
+            continue
+
     for lib, fs in libs:
         size = lib.size
         if size == 0:
-            singletons = fs
             continue
 
         rank += 1
@@ -281,18 +287,17 @@ def prepare(args):
             block += "pair_num_cutoff={0}\n".format(pair_num_cutoff)
         block += "map_len=35\n"
 
-        if singletons:
-            fs += singletons
-            singletons = []
-
         for f in fs:
             if ".1." in f:
                 tag = "q1"
             elif ".2." in f:
                 tag = "q2"
-            else:
-                tag = "q"
             block += "{0}={1}\n".format(tag, f)
+
+        if rank == 1:
+            for s in singletons:
+                block += "q={0}\n".format(s)
+
         print >> sys.stderr, block
         print >> fw, block
 

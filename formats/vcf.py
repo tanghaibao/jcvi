@@ -224,6 +224,9 @@ def mstmap(args):
                  help="Missing threshold [default: %default]")
     p.add_option("--noheader", default=False, action="store_true",
                  help="Do not print MSTmap run parameters [default: %default]")
+    p.add_option("--pv4", default=False, action="store_true",
+                 help="Enable filtering strand-bias, tail distance bias, etc."
+                 "[default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -235,6 +238,8 @@ def mstmap(args):
         vcffile = bcffile.rsplit(".", 1)[0] + ".vcf"
         cmd = "bcftools view {0}".format(bcffile)
         cmd += " | vcfutils.pl varFilter"
+        if not opts.pv4:
+            cmd += " -1 0 -2 0 -3 0 -4 0 -e 0"
         if need_update(bcffile, vcffile):
             sh(cmd, outfile=vcffile)
 

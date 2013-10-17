@@ -394,10 +394,10 @@ def fixChromName(name, orgn="medicago"):
             `chromosome:AGPv2:chloroplast:1:140384:1` to `Pt`
     """
     import re
-    mtr_pat1 = re.compile(r"\w+[0-9]+\.[0-9]+[\.[0-9]+]{0,}_(\w+[0-9]+)")
-    mtr_pat2 = re.compile(r"(\w+[0-9]+)_\w+_\w+")
+    mtr_pat1 = re.compile(r"Mt[0-9]+\.[0-9]+[\.[0-9]+]{0,}_([a-z]+[0-9]+)")
+    mtr_pat2 = re.compile(r"([A-z0-9]+)_[A-z]+_[A-z]+")
 
-    zmays_pat = re.compile(r"[A-z]+:\w+:(\w+):1:[0-9]+:[0-9]+")
+    zmays_pat = re.compile(r"[a-z]+:[A-z0-9]+:([A-z0-9]+):[0-9]+:[0-9]+:[0-9]+")
     zmays_sub = { 'mitochondrion' : 'Mt', 'chloroplast' : 'Pt' }
     if orgn == "medicago":
         for mtr_pat in (mtr_pat1, mtr_pat2):

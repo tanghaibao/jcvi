@@ -1100,7 +1100,7 @@ def waitpid(args):
     if opts.notify:
         notifycmd = ["[completed] {0}: `{1}`".format(gethostname(), origcmd)]
         hostname = check_output(["hostname"]).strip()
-        if otps.notify != "email":
+        if opts.notify != "email":
             method, api = ("push", opts.notify)
             notifycmd.append("--api={0}".format(api))
         else:

@@ -32,6 +32,9 @@ valid_gff_parent_child = {"match": "match_part",
                           "mRNA": "exon"
                          }
 valid_gff_type = tuple(valid_gff_parent_child.keys())
+reserved_gff_attributes = ("ID", "Name", "Alias", "Parent", "Target",
+                           "Gap", "Derives_from", "Note", "Dbxref",
+                           "Ontology_term", "Is_circular")
 
 
 class GffLine (object):
@@ -651,7 +654,9 @@ def format(args):
         names = DictFile(names, delimiter="\t")
     if attrib_file:
         attr_values = DictFile(attrib_file, delimiter="\t")
-        attr_name = op.basename(attrib_file).rsplit(".", 1)[0].lower()
+        attr_name = op.basename(attrib_file).rsplit(".", 1)[0]
+        if attr_name not in reserved_gff_attributes:
+            attr_name = attr_name.lower()
 
     if gsac:  # setting gsac will force IDs to be unique
         unique = True

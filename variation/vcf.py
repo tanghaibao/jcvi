@@ -9,10 +9,9 @@ import sys
 import logging
 
 from collections import defaultdict
-from jcvi.apps.base import OptionParser
 
 from jcvi.formats.sizes import Sizes
-from jcvi.apps.base import ActionDispatcher, debug, need_update, sh
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, need_update, sh
 debug()
 
 

@@ -432,7 +432,7 @@ def breakpoint(args):
     """
     %prog breakpoint mstmap.input > breakpoints.bed
 
-    Find scaffold breakpoints using genetic map. Use formats.vcf.mstmap() to
+    Find scaffold breakpoints using genetic map. Use variation.vcf.mstmap() to
     generate the input for this routine.
     """
     from jcvi.utils.iter import pairwise

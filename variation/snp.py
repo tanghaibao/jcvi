@@ -8,10 +8,8 @@ Analyze SNPs in resequencing panels.
 import sys
 import logging
 
-from jcvi.apps.base import OptionParser
-
 from jcvi.formats.fasta import Fasta
-from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug
 debug()
 
 

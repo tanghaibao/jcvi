@@ -332,9 +332,16 @@ class OptionParser (OptionP):
                    "gapfiller": "~/htang/export/GapFiller_v1-11_linux-x86_64",
                    "pbjelly": "/usr/local/projects/MTG4/PacBio/PBJelly_12.9.14/",
                    "khmer": "~/htang/export/khmer",
+                   "tassel": "/usr/local/projects/MTG4/packages/tassel",
                    }[prog]
         help = "Home directory for {0} [default: %default]".format(prog.upper())
         self.add_option(tag, default=default, help=help)
+
+    def set_aligner(self, aligner="bowtie"):
+        valid_aligners = ("clc", "bowtie", "bwa")
+        self.add_option("--aligner", default=aligner, choices=valid_aligners,
+                     help="Use aligner {0} [default: %default]".\
+                         format("|".join(valid_aligners)))
 
 
 def ConfigSectionMap(Config, section):

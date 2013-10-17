@@ -132,13 +132,10 @@ def pairs(args):
     Estimate insert size distribution. Compatible with a variety of aligners,
     including CLC, BOWTIE and BWA.
     """
-    valid_aligners = ("clc", "bowtie", "bwa")
     p = OptionParser(pairs.__doc__)
     p.set_firstN()
     p.set_mates()
-    p.add_option("--aligner", default="bowtie", choices=valid_aligners,
-                 help="Use aligner {0} [default: %default]".\
-                     format("|".join(valid_aligners)))
+    p.set_aligner()
     opts, args = p.parse_args(args)
 
     if len(args) != 2:

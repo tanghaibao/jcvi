@@ -274,7 +274,6 @@ class SequenceInfo (object):
       N50                                4791
     """
     def __init__(self, filename, gapstats=False):
-        from jcvi.utils.counter import Counter
         from jcvi.utils.cbook import SummaryStats
         from jcvi.assembly.base import calculate_A50
 
@@ -285,19 +284,18 @@ class SequenceInfo (object):
         if gapstats:
             self.header += ["Gaps"]
         self.nseqs = len(f)
-        counter = Counter()
         sizes = []
         gaps = []
+        na = nc = ng = nt = 0
         for k, s in f.iteritems():
             s = str(s.seq).upper()
             sizes.append(len(s))
-            counter.update(s)
+            na += s.count('A')
+            nc += s.count('C')
+            ng += s.count('G')
+            nt += s.count('T')
             if gapstats:
                 gaps += list(self.iter_gap_len(s))
-        self.na = na = counter['A']
-        self.nc = nc = counter['C']
-        self.ng = ng = counter['G']
-        self.nt = nt = counter['T']
         self.real = real = na + nc + ng + nt
         s = SummaryStats(sizes)
         self.sum = s.sum

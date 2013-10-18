@@ -190,7 +190,6 @@ class OptionParser (OptionP):
         if extra:
             self.set_cpus()
             self.set_params()
-            self.set_grid()
 
     def set_mingap(self, default=100):
         self.add_option("--mingap", default=default, type="int",
@@ -1070,7 +1069,6 @@ def waitpid(args):
     p.add_option("--interval", default=120, type="int",
                  help="Specify interval at which PID should be monitored" + \
                       " [default: %default]")
-
     p.set_email()
     p.set_grid()
     opts, args = p.parse_args(args)

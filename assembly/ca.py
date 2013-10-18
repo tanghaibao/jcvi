@@ -431,18 +431,14 @@ def fasta(args):
             help="matepairs file")
     p.add_option("--maxreadlen", default=32000, type="int",
             help="Maximum read length allowed [default: %default]")
-    p.set_grid()
     p.set_size()
-
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    grid = opts.grid
-    maxreadlen = opts.maxreadlen
-
     fastafile, = args
+    maxreadlen = opts.maxreadlen
     f = Fasta(fastafile, lazy=True)
     if maxreadlen > 0:
         split = False
@@ -489,7 +485,7 @@ def fasta(args):
     if mated:
         cmd += "-mean {0} -stddev {1} -m {2} ".format(mean, sv, matefile)
 
-    sh(cmd, grid=grid, outfile=frgfile)
+    sh(cmd, outfile=frgfile)
 
 
 def sff(args):
@@ -505,15 +501,11 @@ def sff(args):
             help="Output frg filename prefix")
     p.add_option("--nodedup", default=False, action="store_true",
             help="Do not remove duplicates [default: %default]")
-    p.set_grid()
     p.set_size()
-
     opts, args = p.parse_args(args)
 
     if len(args) < 1:
         sys.exit(p.print_help())
-
-    grid = opts.grid
 
     sffiles = args
     plates = [x.split(".")[0].split("_")[-1] for x in sffiles]
@@ -544,7 +536,7 @@ def sff(args):
 
     cmd += " ".join(sffiles)
 
-    sh(cmd, grid=grid)
+    sh(cmd)
 
 
 def fastq(args):

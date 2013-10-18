@@ -144,8 +144,6 @@ def deduplicate(args):
                  help="Enforce same strand alignment [%default: %default]")
     p.set_home("cdhit")
     p.set_cpus()
-    p.set_grid()
-
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -161,7 +159,7 @@ def deduplicate(args):
     if opts.samestrand:
         cmd += " -r 0"
     cmd += " -M 0 -T {0} -i {1} -o {1}.cdhit".format(opts.cpus, fastafile)
-    sh(cmd, grid=opts.grid)
+    sh(cmd)
 
     dd = fastafile + ".cdhit"
     return dd

@@ -384,8 +384,6 @@ def split(args):
     from jcvi.apps.grid import Jobs
 
     p = OptionParser(split.__doc__)
-    p.set_grid()
-
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -410,16 +408,11 @@ def split(args):
     p1cmd += " > " + p1
     p2cmd += " > " + p2
 
-    if opts.grid:
-        sh(p1cmd, grid=True)
-        sh(p2cmd, grid=True)
+    args = [(p1cmd, ), (p2cmd, )]
+    m = Jobs(target=sh, args=args)
+    m.run()
 
-    else:
-        args = [(p1cmd, ), (p2cmd, )]
-        m = Jobs(target=sh, args=args)
-        m.run()
-
-        checkShuffleSizes(p1, p2, pairsfastq)
+    checkShuffleSizes(p1, p2, pairsfastq)
 
 
 def guessoffset(args):
@@ -550,21 +543,16 @@ def trim(args):
     Wraps `fastx_trimmer` to trim from begin or end of reads.
     """
     p = OptionParser(trim.__doc__)
-    p.set_grid()
-
     p.add_option("-f", dest="first", default=0, type="int",
             help="First base to keep. Default is 1.")
     p.add_option("-l", dest="last", default=0, type="int",
             help="Last base to keep. Default is entire read.")
-
     opts, args = p.parse_args(args)
+
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    grid = opts.grid
-
     fastqfile, = args
-
     obfastqfile = op.basename(fastqfile)
     fq = obfastqfile.rsplit(".", 1)[0] + ".ntrimmed.fastq"
     if fastqfile.endswith(".gz"):
@@ -576,7 +564,7 @@ def trim(args):
     if opts.last:
         cmd += "-l {0.last} ".format(opts)
 
-    sh(cmd, grid=grid, infile=fastqfile, outfile=fq)
+    sh(cmd, infile=fastqfile, outfile=fq)
 
 
 def catread(args):
@@ -679,7 +667,6 @@ def convert(args):
     """
     p = OptionParser(convert.__doc__)
     p.set_phred()
-    p.set_grid()
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -701,7 +688,7 @@ def convert(args):
         cmd = seqret + " fastq-{0}::{1} fastq-{2}::stdout".\
                 format(fin, infastq, fout)
 
-    sh(cmd, outfile=outfastq, grid=opts.grid)
+    sh(cmd, outfile=outfastq)
 
     return outfastq
 

@@ -84,7 +84,7 @@ def lastz_2bit(t):
     Used for formats other than BLAST, i.e. lav, maf, etc. which requires the
     database file to contain a single FASTA record.
     """
-    bfasta_fn, afasta_fn, outfile, lastz_bin, extra, mask, format, grid = t
+    bfasta_fn, afasta_fn, outfile, lastz_bin, extra, mask, format = t
 
     ref_tags = [Darkspace]
     qry_tags = [Darkspace]
@@ -96,9 +96,6 @@ def lastz_2bit(t):
         lastz_cmd += " " + extra.strip()
 
     lastz_cmd += " --format={0}".format(format)
-    if grid:  # if run on SGE, only the cmd is needed
-        return lastz_cmd
-
     proc = Popen(lastz_cmd)
     out_fh = open(outfile, "w")
 
@@ -110,7 +107,7 @@ def lastz_2bit(t):
 
 
 def lastz(k, n, bfasta_fn, afasta_fn, out_fh, lock, lastz_bin, extra,
-          mask=False, grid=False):
+          mask=False):
 
     ref_tags = [Multiple, Darkspace]
     qry_tags = [Darkspace]
@@ -128,9 +125,6 @@ def lastz(k, n, bfasta_fn, afasta_fn, out_fh, lock, lastz_bin, extra,
     # The above conversion is no longer necessary after LASTZ v1.02.40
     # (of which I contributed a patch)
     #lastz_cmd += " --format=BLASTN-"
-
-    if grid:  # if run on SGE, only the cmd is needed
-        return lastz_cmd
 
     proc = Popen(lastz_cmd)
 
@@ -168,8 +162,6 @@ def main():
     p.set_cpus()
     p.set_params()
     p.set_outfile()
-    p.set_grid()
-
     opts, args = p.parse_args()
 
     if len(args) != 2:
@@ -182,10 +174,6 @@ def main():
     afasta_fn = op.abspath(afasta_fn)
     bfasta_fn = op.abspath(bfasta_fn)
     out_fh = must_open(opts.outfile, "w")
-
-    grid = opts.grid
-    if grid:
-        print >>sys.stderr, "Running jobs on JCVI grid"
 
     extra = opts.extra
     if opts.similar:
@@ -220,13 +208,7 @@ def main():
             bfasta = "/".join((bfasta_2bit, id))
             outfile = op.join(outdir, "{0}.{1}.{2}".format(apf, id, format))
             args.append((bfasta, afasta_fn, outfile, \
-                         lastz_bin, extra, mask, format, grid))
-
-        if grid:
-            cmds = [lastz_2bit(x) for x in args]
-            g = Grid(cmds)
-            g.run()
-            g.writestatus()
+                         lastz_bin, extra, mask, format))
 
         p = Pool(cpus)
         p.map(lastz_2bit, args)
@@ -235,20 +217,10 @@ def main():
 
     lock = Lock()
 
-    if grid:
-        cmds = [lastz(k + 1, cpus, bfasta_fn, afasta_fn, out_fh, \
-                lock, lastz_bin, extra, mask, grid) for k in xrange(cpus)]
-        mkdir(outdir)
-        g = Grid(cmds, outfiles=[op.join(outdir, "out.{0}.lastz").\
-                format(i) for i in range(len(cmds))])
-        g.run()
-        g.writestatus()
-
-    else:
-        args = [(k + 1, cpus, bfasta_fn, afasta_fn, out_fh,
-                lock, lastz_bin, extra, mask) for k in xrange(cpus)]
-        g = Jobs(target=lastz, args=args)
-        g.run()
+    args = [(k + 1, cpus, bfasta_fn, afasta_fn, out_fh,
+            lock, lastz_bin, extra, mask) for k in xrange(cpus)]
+    g = Jobs(target=lastz, args=args)
+    g.run()
 
 
 if __name__ == '__main__':

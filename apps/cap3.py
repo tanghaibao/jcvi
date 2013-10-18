@@ -15,9 +15,7 @@ import logging
 import os
 import os.path as op
 
-from jcvi.apps.base import OptionParser, OptionGroup
-
-from jcvi.apps.base import ActionDispatcher, sh, debug
+from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher, sh, debug
 debug()
 
 
@@ -154,7 +152,6 @@ def assemble(args):
             help="prefix string for output file name [default: %default]")
     p.add_option_group(g2)
 
-    p.set_grid()
     p.set_params()
 
     opts, args = p.parse_args(args)
@@ -207,7 +204,7 @@ def assemble(args):
                 cmd += " {0}".format(opts.extra)
             logfile = "{0}.{1}.log".format(file, opts.prefix)
 
-            sh(cmd, outfile=logfile, grid=opts.grid)
+            sh(cmd, outfile=logfile)
 
 
 if __name__ == '__main__':

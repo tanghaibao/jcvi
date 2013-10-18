@@ -98,8 +98,6 @@ def info(args):
     p = OptionParser(info.__doc__)
     p.add_option("--coverage", default=False, action="store_true",
             help="Generate coverage output, replacing IDs [default: %default]")
-    p.set_grid()
-
     opts, args = p.parse_args(args)
 
     if len(args) not in (1, 2):
@@ -116,7 +114,7 @@ def info(args):
     infofile = pf + ".info"
     cmd = "assembly_info {0}".format(casfile)
     if not op.exists(infofile):
-        sh(cmd, outfile=infofile, grid=opts.grid)
+        sh(cmd, outfile=infofile)
 
     inreadblock = False
     incontigblock = False
@@ -233,14 +231,10 @@ def txt(args):
     p = OptionParser(txt.__doc__)
     p.add_option("-m", dest="multi", default=False, action="store_true",
         help="report multi-matches [default: %default]")
-    p.set_grid()
-
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(p.print_help())
-
-    grid = opts.grid
 
     casfile, = args
     txtfile = casfile.replace(".cas", ".txt")
@@ -250,7 +244,7 @@ def txt(args):
     if opts.multi:
         cmd += "-m "
     cmd += casfile
-    sh(cmd, grid=grid, outfile=txtfile)
+    sh(cmd, outfile=txtfile)
 
     return txtfile
 
@@ -264,8 +258,6 @@ def split(args):
     one big assembly per contig
     """
     p = OptionParser(split.__doc__)
-    p.set_grid()
-
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -280,7 +272,7 @@ def split(args):
 
     for i in range(start, end + 1):
         cmd = split_cmd.format(casfile=casfile, i=i)
-        sh(cmd, grid=opts.grid)
+        sh(cmd)
 
 
 def check_txt(casfile):

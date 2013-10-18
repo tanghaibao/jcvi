@@ -29,18 +29,18 @@ def main():
     p.dispatch(globals())
 
 
-def check_index(dbfile, grid=False):
+def check_index(dbfile):
     safile = dbfile + ".sa"
     if need_update(dbfile, safile):
         cmd = "bwa index -a bwtsw {0}".format(dbfile)
-        sh(cmd, grid=grid)
+        sh(cmd)
     else:
         logging.error("`{0}` exists. `bwa index` already run.".format(safile))
 
     return safile
 
 
-def check_aln(dbfile, readfile, grid=False, cpus=32):
+def check_aln(dbfile, readfile, cpus=32):
     from jcvi.formats.fastq import guessoffset
 
     saifile = readfile.rsplit(".", 1)[0] + ".sai"
@@ -51,7 +51,7 @@ def check_aln(dbfile, readfile, grid=False, cpus=32):
             cmd += " -I"
 
         cmd += " {0} {1}".format(dbfile, readfile)
-        sh(cmd, grid=grid, outfile=saifile)
+        sh(cmd, outfile=saifile)
     else:
         logging.error("`{0}` exists. `bwa aln` already run.".format(saifile))
 
@@ -62,22 +62,16 @@ def index(args):
     """
     %prog index database.fasta
 
-    Wrapper for `bwa index`. Same interface, only adds grid submission.
+    Wrapper for `bwa index`. Same interface.
     """
     p = OptionParser(index.__doc__)
-    p.set_params()
-    p.set_grid()
-
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    extra = opts.extra
-    grid = opts.grid
-
     dbfile, = args
-    safile = check_index(dbfile, grid=grid)
+    safile = check_index(dbfile)
 
 
 def align(args):
@@ -117,13 +111,9 @@ def align(args):
         cmd = output_bam(cmd, samfile)
 
     bam = opts.bam
-    grid = opts.grid
     unmapped = opts.unmapped
 
-    sh(cmd, grid=grid, threaded=opts.cpus)
-    if grid:
-        return
-
+    sh(cmd, threaded=opts.cpus)
     if unmapped:
         dbfile, readfile = args[:2]
         mopts = [samfile, "--unmapped"]
@@ -141,12 +131,9 @@ def samse(args, opts):
 
     Wrapper for `bwa samse`. Output will be short_read.sam.
     """
-    extra = opts.extra
-    grid = opts.grid
-
     dbfile, readfile = args
-    safile = check_index(dbfile, grid=grid)
-    saifile = check_aln(dbfile, readfile, grid=grid, cpus=opts.cpus)
+    safile = check_index(dbfile)
+    saifile = check_aln(dbfile, readfile, cpus=opts.cpus)
 
     samfile, _, unmapped = get_samfile(readfile, dbfile,
                                        bam=opts.bam, unmapped=opts.unmapped)
@@ -155,7 +142,7 @@ def samse(args, opts):
         return "", samfile
 
     cmd = "bwa samse {0} {1} {2}".format(dbfile, saifile, readfile)
-    cmd += " {0}".format(extra)
+    cmd += " {0}".format(opts.extra)
     if opts.uniq:
         cmd += " -n 1"
 
@@ -168,13 +155,10 @@ def sampe(args, opts):
 
     Wrapper for `bwa sampe`. Output will be read1.sam.
     """
-    extra = opts.extra
-    grid = opts.grid
-
     dbfile, read1file, read2file = args
-    safile = check_index(dbfile, grid=grid)
-    sai1file = check_aln(dbfile, read1file, grid=grid, cpus=opts.cpus)
-    sai2file = check_aln(dbfile, read2file, grid=grid, cpus=opts.cpus)
+    safile = check_index(dbfile)
+    sai1file = check_aln(dbfile, read1file, cpus=opts.cpus)
+    sai2file = check_aln(dbfile, read2file, cpus=opts.cpus)
 
     samfile, _, unmapped = get_samfile(read1file, dbfile,
                                        bam=opts.bam, unmapped=opts.unmapped)
@@ -186,7 +170,7 @@ def sampe(args, opts):
             read1file, read2file)
     if opts.cutoff:
         cmd += " -a {0}".format(opts.cutoff)
-    cmd += " {0}".format(extra)
+    cmd += " {0}".format(opts.extra)
     if opts.uniq:
         cmd += " -n 1"
 
@@ -199,13 +183,12 @@ def bwasw(args, opts):
 
     Wrapper for `bwa bwasw`. Output will be long_read.sam.
     """
-    grid = opts.grid
     cpus = opts.cpus
     bam = opts.bam
     unmapped = opts.unmapped
 
     dbfile, readfile = args
-    safile = check_index(dbfile, grid=grid)
+    safile = check_index(dbfile)
 
     samfile, _, unmapped = get_samfile(readfile, dbfile,
                                        bam=bam, unmapped=unmapped)

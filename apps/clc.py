@@ -8,10 +8,8 @@ Wrapper script for some programs in clc-ngs-cell
 import sys
 import os.path as op
 
-from jcvi.apps.base import OptionParser
-
 from jcvi.formats.base import write_file
-from jcvi.apps.base import ActionDispatcher, debug, sh
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh
 debug()
 
 
@@ -121,9 +119,8 @@ def align(args):
             help="Similarity of the matching region [default: %default]")
     p.set_params()
     p.set_cpus()
-    p.set_grid()
-
     opts, args = p.parse_args(args)
+
     if len(args) < 2:
         sys.exit(not p.print_help())
 
@@ -161,7 +158,7 @@ def align(args):
 
         cmd += " -l {0} -s {1}".format(opts.fraction, opts.similarity)
 
-    sh(cmd, grid=opts.grid)
+    sh(cmd)
     return outfile, None
 
 
@@ -186,8 +183,6 @@ def trim(args):
             help="Set the ascii offset value in fastq [default: %default]")
     p.add_option("--fasta", dest="fasta", default=False, action="store_true",
             help="Output fasta sequence? [default: fastq]")
-    p.set_grid()
-
     opts, args = p.parse_args(args)
 
     largs = len(args)
@@ -213,7 +208,7 @@ def trim(args):
         cmd += "-r {0} ".format(fastqfile1)
 
     cmd += "-o {0}.fragments.{1}".format(prefix, suffix)
-    sh(cmd, grid=opts.grid)
+    sh(cmd)
 
 
 if __name__ == '__main__':

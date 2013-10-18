@@ -65,11 +65,11 @@ def main():
     p.dispatch(globals())
 
 
-def check_index(dbfile, grid=False):
+def check_index(dbfile):
     safile = dbfile + ".1.bt2"
     if need_update(dbfile, safile):
         cmd = "bowtie2-build {0} {0}".format(dbfile)
-        sh(cmd, grid=grid)
+        sh(cmd)
     else:
         logging.error("`{0}` exists. `bowtie2-build` already run.".format(safile))
 
@@ -80,23 +80,17 @@ def index(args):
     """
     %prog index database.fasta
 
-    Wrapper for `bowtie2-build`. Same interface, only adds grid submission.
+    Wrapper for `bowtie2-build`. Same interface.
     """
     p = OptionParser(index.__doc__)
-    p.set_params()
-    p.set_grid()
-
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    extra = opts.extra
-    grid = opts.grid
-
     dbfile, = args
     dbfile = get_abs_path(dbfile)
-    safile = check_index(dbfile, grid=grid)
+    safile = check_index(dbfile)
 
 
 def align(args):
@@ -119,7 +113,6 @@ def align(args):
 
     opts, args = p.parse_args(args)
     extra = opts.extra
-    grid = opts.grid
     mo = opts.mateorientation
     if mo == '+-':
         extra += ""
@@ -145,7 +138,7 @@ def align(args):
 
     dbfile, readfile = args[0:2]
     dbfile = get_abs_path(dbfile)
-    safile = check_index(dbfile, grid=grid)
+    safile = check_index(dbfile)
     prefix = get_prefix(readfile, dbfile)
     samfile, mapped, unmapped = get_samfile(readfile, dbfile, bowtie=True,
                                             mapped=mapped, unmapped=unmapped,
@@ -185,7 +178,7 @@ def align(args):
     cmd += " 2> {0}".format(logfile)
 
     cmd = output_bam(cmd, samfile)
-    sh(cmd, grid=opts.grid, threaded=cpus)
+    sh(cmd, threaded=cpus)
     print >> sys.stderr, open(logfile).read()
 
     return samfile, logfile

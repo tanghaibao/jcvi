@@ -397,9 +397,7 @@ def trim(args):
             help="Do not write to gzipped files [default: %default]")
     p.add_option("--log", default=None, dest="trimlog",
             help="Specify a `trimlog` file [default: %default]")
-    p.set_grid()
     p.set_cpus(cpus=4)
-
     opts, args = p.parse_args(args)
 
     if len(args) not in (1, 2):
@@ -486,7 +484,7 @@ def trim(args):
 
     if offset != 33:
         cmd += " TOPHRED33"
-    sh(cmd, grid=opts.grid, threaded=opts.cpus)
+    sh(cmd, threaded=opts.cpus)
 
 
 @depends

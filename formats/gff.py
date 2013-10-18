@@ -35,6 +35,7 @@ valid_gff_type = tuple(valid_gff_parent_child.keys())
 reserved_gff_attributes = ("ID", "Name", "Alias", "Parent", "Target",
                            "Gap", "Derives_from", "Note", "Dbxref",
                            "Ontology_term", "Is_circular")
+multiple_gff_attributes = ("Parent", "Alias", "Dbxref", "Ontology_term")
 
 
 class GffLine (object):
@@ -95,7 +96,9 @@ class GffLine (object):
             val = ",".join(val)
             val = "\"{0}\"".format(val) if " " in val and (not gff3) else val
             equal = "=" if gff3 else " "
-            attributes.append(equal.join((tag, quote(val, safe="%/:?~#+!$'@()*[]| "))))
+            if tag not in multiple_gff_attributes:
+                val = quote(val, safe="%/:?~#+!$'@()*[]| ")
+            attributes.append(equal.join((tag, val)))
 
         self.attributes_text = sep.join(attributes)
 
@@ -672,7 +675,10 @@ def format(args):
             skip = defaultdict(int)
         gff = Gff(gffile)
         for idx, g in enumerate(gff):
-            id = g.accn
+            if opts.gff3 and "ID" not in g.attributes.keys():
+                id = "{0}_{1}".format(str(g.type).lower(), idx)
+            else:
+                id = g.accn
             if unique:
                 dupcounts[id] += 1
             elif duptype and g.type == duptype:
@@ -733,6 +739,10 @@ def format(args):
                 g.update_attributes()
 
         if unique:
+            if opts.gff3 and "ID" not in g.attributes.keys():
+                g.attributes["ID"] = ["{0}_{1}".format(str(g.type).lower(), idx)]
+                g.update_attributes(gff3=opts.gff3)
+
             id = g.accn
             if dupcounts[id] > 1:
                 seen[id] += 1
@@ -742,7 +752,7 @@ def format(args):
                 g.attributes["ID"] = [id]
                 g.update_attributes(gff3=True)
 
-            if g.attributes["Parent"]:
+            if "Parent" in g.attributes.keys():
                 parent = g.attributes["Parent"][0]
                 if dupcounts[parent] > 1:
                     g.attributes["Parent"] = [newparentid[parent]]

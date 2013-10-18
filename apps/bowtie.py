@@ -131,7 +131,6 @@ def align(args):
         sys.exit(not p.print_help())
 
     firstN = opts.firstN
-    cpus = opts.cpus
     mapped = opts.mapped
     unmapped = opts.unmapped
     gl = "--end-to-end" if opts.full else "--local"
@@ -167,7 +166,7 @@ def align(args):
 
     if firstN:
         cmd += " --upto {0}".format(firstN)
-    cmd += " -p {0}".format(cpus)
+    cmd += " -p {0}".format(opts.cpus)
     cmd += " --phred{0}".format(offset)
     cmd += " {0}".format(gl)
     if opts.reorder:
@@ -178,7 +177,7 @@ def align(args):
     cmd += " 2> {0}".format(logfile)
 
     cmd = output_bam(cmd, samfile)
-    sh(cmd, threaded=cpus)
+    sh(cmd)
     print >> sys.stderr, open(logfile).read()
 
     return samfile, logfile

@@ -113,7 +113,7 @@ def align(args):
     bam = opts.bam
     unmapped = opts.unmapped
 
-    sh(cmd, threaded=opts.cpus)
+    sh(cmd)
     if unmapped:
         dbfile, readfile = args[:2]
         mopts = [samfile, "--unmapped"]

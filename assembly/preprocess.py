@@ -484,7 +484,7 @@ def trim(args):
 
     if offset != 33:
         cmd += " TOPHRED33"
-    sh(cmd, threaded=opts.cpus)
+    sh(cmd)
 
 
 @depends

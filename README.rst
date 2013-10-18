@@ -17,21 +17,18 @@ Contents
 Following modules are available as generic Bioinformatics handling methods.
 
 - ``algorithms``
-
     * Linear programming solver with SCIP and GLPK.
     * Supermap: find set of non-overlapping anchors in BLAST or NUCMER output.
     * Longest or heaviest increasing subsequence.
     * Matrix operations.
 
 - ``apps``
-
     * GenBank entrez accession and Phytozome downloader.
     * Calculate (non)synonymous substitution rate between gene pairs.
     * Basic phylogenetic tree construction using PHYLIP, PhyML, or RAxML, and visualization.
     * Wrapper for BLAST+, LASTZ, LAST, BWA, BOWTIE2, CLC, CDHIT, CAP3, etc.
 
 - ``formats``
-
     Currently supports ``.ace`` format (phrap, cap3, etc.), ``.agp`` (goldenpath),
     ``.bed`` format, ``.blast`` output, ``.btab`` format, ``.cas`` (CLC assembler output),
     ``.coords`` format (``nucmer`` output), ``.fasta`` format, ``.fastq`` format,
@@ -40,14 +37,12 @@ Following modules are available as generic Bioinformatics handling methods.
     ``.sam`` format (read mapping), ``.contig`` format (TIGR assembly format), etc.
 
 - ``graphics``
-
     * BLAST or synteny dot plot.
     * Histogram using R and ASCII art.
     * Painting regions on set of chromosomes.
     * Heatmap from csv file.
 
 - ``utils``
-
     * Grouper can be used as disjoint set data structure.
     * range contains common range operations, like overlap and chaining.
     * Sybase connector to JCVI internal database.
@@ -57,28 +52,24 @@ Following modules are available as generic Bioinformatics handling methods.
 Then there are modules that contain domain-specific methods.
 
 - ``assembly``
-
     * K-mer histogram analysis.
     * Preparation and validation of tiling path for clone-based assemblies.
     * Scaffolding through BAMBUS, optical map and genetic map.
     * Pre-assembly and post-assembly QC procedures.
 
 - ``annotation``
-
     * Training of *ab initio* gene predictors.
     * Calculate gene, exon and intron statistics.
     * Wrapper for PASA and EVM.
     * Launch multiple MAKER processes.
 
 - ``compara``
-
     * C-score based BLAST filter.
     * Synteny scan (de-novo) and lift over (find nearby anchors).
     * Ancestral genome reconstruction using Sankoff's and PAR method.
     * Ortholog and tandem gene duplicates finder.
 
 - ``variation``
-
     * Convert between various flavors of SNP datasets.
     * Read deconvolution into taxa or samples.
     * Launch TASSEL pipeline.
@@ -104,15 +95,13 @@ Resolve dependencies first. Then place the whole folder ``jcvi/`` on your
 ``PYTHONPATH``. Most scripts can both ``import`` or run as utility script. *This
 is the preferred method*, as you can run regardless of the dir you are in::
 
-    export PYTHONPATH=/dir_contains_jcvi
+    export PYTHONPATH=dir_contains_jcvi:$PYTHONPATH
     python -m jcvi.formats.fasta
 
-You can also copy ``jcvi`` to the current folder (since Python searches current
-folder by default)::
+Please replace ``dir_contains_jcvi`` above with whatever you like, but it must
+contain ``jcvi``.
 
-    python jcvi/formats/fasta.py
-
-Please note: a few module might ask for locations of external programs, if the extended
+In addition, a few module might ask for locations of external programs, if the extended
 cannot be found in your ``PATH``. The external programs that are often used are:
 
 * `Kent tools <http://hgdownload.cse.ucsc.edu/admin/jksrc.zip>`_

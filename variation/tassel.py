@@ -92,6 +92,19 @@ def prepare(args):
     cmd = run_pipeline(thome, "TagsToSNPByAlignmentPlugin", o)
     runsh.append(cmd)
 
+    o = "-hmp hapmap/raw/myGBSGenos_chr+.hmp.txt"
+    o += " -o hapmap/mergedSNPs/myGBSGenos_mergedSNPs_chr+.hmp.txt"
+    o += " -misMat 0.1 -p myPedigreeFile.ped -callHets -sC 1 -eC 10"
+    cmd = run_pipeline(thome, "MergeDuplicateSNPsPlugin", o)
+    runsh.append(cmd)
+
+    o = "-hmp hapmap/mergedSNPs/myGBSGenos_mergedSNPs_chr+.hmp.txt"
+    o += " -o hapmap/filt/myGBSGenos_mergedSNPsFilt_chr+.hmp.txt"
+    o += " -mnTCov 0.01 -mnSCov 0.2 -mnMAF 0.01 -sC 1 -eC 10"
+    #o += "-hLD -mnR2 0.2 -mnBonP 0.005"
+    cmd = run_pipeline(thome, "GBSHapMapFiltersPlugin", o)
+    runsh.append(cmd)
+
     runfile = "run.sh"
     write_file(runfile, "\n".join(runsh), meta="run script")
 

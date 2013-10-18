@@ -11,18 +11,20 @@ import os.path as op
 import csv
 import logging
 
+import numpy as np
+
 from math import log, sqrt, pi, exp
 from itertools import product, combinations
+from functools import partial
 from collections import namedtuple
 
-import numpy as np
 from Bio import SeqIO
 from Bio import AlignIO
 from Bio.Align.Applications import ClustalwCommandline, MuscleCommandline
 
 from jcvi.formats.base import must_open, LineFile
 from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher, debug, \
-            mkdir, sh, Popen, getpath, partial
+            mkdir, sh, Popen, getpath
 debug()
 
 

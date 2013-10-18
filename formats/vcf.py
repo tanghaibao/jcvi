@@ -213,18 +213,18 @@ def mstmap(args):
     Convert bcf/vcf format to mstmap input.
     """
     p = OptionParser(mstmap.__doc__)
-    p.add_option("--freq", default=.2, type="float",
-                 help="Allele must be above frequency [default: %default]")
     p.add_option("--dh", default=False, action="store_true",
                  help="Double haploid population, no het [default: %default]")
+    p.add_option("--freq", default=.2, type="float",
+                 help="Allele must be above frequency [default: %default]")
     p.add_option("--mindepth", default=3, type="int",
                  help="Only trust genotype calls with depth [default: %default]")
     p.add_option("--missingthreshold", default=.25, type="float",
-                 help="Missing threshold [default: %default]")
+                 help="Fraction missing must be below [default: %default]")
     p.add_option("--noheader", default=False, action="store_true",
                  help="Do not print MSTmap run parameters [default: %default]")
     p.add_option("--pv4", default=False, action="store_true",
-                 help="Enable filtering strand-bias, tail distance bias, etc."
+                 help="Enable filtering strand-bias, tail distance bias, etc. "
                  "[default: %default]")
     opts, args = p.parse_args(args)
 
@@ -277,12 +277,13 @@ number_of_individual {3}
         geno = atoms[9:]
         geno = [encode_genotype(x, mindepth=opts.mindepth, nohet=nohet) for x in geno]
         assert len(geno) == nind
+        f = 1. / nind
 
-        if geno.count("A") * 1. / nind < freq:
+        if geno.count("A") * f < freq:
             continue
-        if geno.count("B") * 1. / nind < freq:
+        if geno.count("B") * f < freq:
             continue
-        if geno.count("-") * 1. / nind > opts.missingthreshold:
+        if geno.count("-") * f > opts.missingthreshold:
             continue
 
         genotype = "\t".join([marker] + geno)

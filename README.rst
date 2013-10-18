@@ -17,7 +17,6 @@ Contents
 Following modules are available as generic Bioinformatics handling methods.
 
 - ``algorithms``
-    Algorithms for math intensive stuff:
 
     * Linear programming solver with SCIP and GLPK.
     * Supermap: find set of non-overlapping anchors in BLAST or NUCMER output.
@@ -25,8 +24,6 @@ Following modules are available as generic Bioinformatics handling methods.
     * Matrix operations.
 
 - ``apps``
-    Helper library to wrap command line programs and run jobs on JCVI grid
-    engine (split jobs, check status, etc.):
 
     * GenBank entrez accession and Phytozome downloader.
     * Calculate (non)synonymous substitution rate between gene pairs.
@@ -34,7 +31,6 @@ Following modules are available as generic Bioinformatics handling methods.
     * Wrapper for BLAST+, LASTZ, LAST, BWA, BOWTIE2, CLC, CDHIT, CAP3, etc.
 
 - ``formats``
-    File parsers for various files used in genome assembly and comparisons:
 
     Currently supports ``.ace`` format (phrap, cap3, etc.), ``.agp`` (goldenpath),
     ``.bed`` format, ``.blast`` output, ``.btab`` format, ``.cas`` (CLC assembler output),
@@ -44,7 +40,6 @@ Following modules are available as generic Bioinformatics handling methods.
     ``.sam`` format (read mapping), ``.contig`` format (TIGR assembly format), etc.
 
 - ``graphics``
-    Graphics to visualize comparative genomics or assembly stuff:
 
     * BLAST or synteny dot plot.
     * Histogram using R and ASCII art.
@@ -52,9 +47,6 @@ Following modules are available as generic Bioinformatics handling methods.
     * Heatmap from csv file.
 
 - ``utils``
-    Data structures to simplify programming tasks. Most of the scripts are
-    derived from ideas in the public domain, and are commonly used by other
-    modules:
 
     * Grouper can be used as disjoint set data structure.
     * range contains common range operations, like overlap and chaining.
@@ -65,7 +57,6 @@ Following modules are available as generic Bioinformatics handling methods.
 Then there are modules that contain domain-specific methods.
 
 - ``assembly``
-    Prepare input data to assembler, and also post-assembly scaffolding, QC, etc:
 
     * K-mer histogram analysis.
     * Preparation and validation of tiling path for clone-based assemblies.
@@ -73,7 +64,6 @@ Then there are modules that contain domain-specific methods.
     * Pre-assembly and post-assembly QC procedures.
 
 - ``annotation``
-    Launch, process and categorize gene predictions:
 
     * Training of *ab initio* gene predictors.
     * Calculate gene, exon and intron statistics.
@@ -81,7 +71,6 @@ Then there are modules that contain domain-specific methods.
     * Launch multiple MAKER processes.
 
 - ``compara``
-    Curate synteny, homology and ancestral genome reconstruction:
 
     * C-score based BLAST filter.
     * Synteny scan (de-novo) and lift over (find nearby anchors).
@@ -89,9 +78,6 @@ Then there are modules that contain domain-specific methods.
     * Ortholog and tandem gene duplicates finder.
 
 - ``variation``
-    Handle multiple variations among multiple individuals, including genetic
-    mapping in controlled crosses and association mapping in re-sequencing
-    panels:
 
     * Convert between various flavors of SNP datasets.
     * Read deconvolution into taxa or samples.

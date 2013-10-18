@@ -30,7 +30,7 @@ from random import sample
 from itertools import groupby
 
 from jcvi.formats.bed import Bed
-from jcvi.algorithms.synteny import batch_scan, check_beds
+from jcvi.compara.synteny import batch_scan, check_beds
 from jcvi.apps.base import OptionParser, debug
 from jcvi.graphics.base import plt, ticker, Rectangle, cm, _, \
         set_human_axis, savefig

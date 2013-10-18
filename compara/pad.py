@@ -8,7 +8,7 @@ This implements the method described in Tang et al. 2010 PNAS paper,
 Angiosperm genome comparisons reveal early polyploidy in the monocot lineage
 
 The main pipeline assumes starting with defined synteny blocks in .anchors
-format (use algorithms.scan()), then segment the chromosomes and cluster the
+format (use compara.synteny.scan()), then segment the chromosomes and cluster
 segments according to the matching patterns. Finally the putative ancestral
 regions (PAR) are identified and visualized.
 """
@@ -19,13 +19,12 @@ import logging
 
 import numpy as np
 from math import log
-from jcvi.utils.iter import pairwise
-from jcvi.apps.base import OptionParser
 
-from jcvi.algorithms.synteny import AnchorFile, check_beds
+from jcvi.utils.iter import pairwise
+from jcvi.compara.synteny import AnchorFile, check_beds
 from jcvi.formats.bed import Bed
 from jcvi.formats.blast import BlastLine
-from jcvi.apps.base import ActionDispatcher, debug, need_update, sh
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, need_update, sh
 debug()
 
 

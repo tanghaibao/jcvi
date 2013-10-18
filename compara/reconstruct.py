@@ -12,11 +12,10 @@ import logging
 
 from math import sqrt
 from itertools import izip_longest
-from jcvi.apps.base import OptionParser
 
-from jcvi.algorithms.synteny import AnchorFile, check_beds
-from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.compara.synteny import AnchorFile, check_beds
 from jcvi.formats.bed import Bed
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug
 debug()
 
 

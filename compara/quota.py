@@ -23,15 +23,13 @@ import cStringIO
 import itertools
 import logging
 
-from jcvi.apps.base import OptionParser
-
 from jcvi.utils.range import range_overlap
 from jcvi.utils.grouper import Grouper
-from jcvi.algorithms.synteny import AnchorFile, _score, check_beds
 from jcvi.algorithms.lpsolve import GLPKSolver, SCIPSolver
+from jcvi.compara.synteny import AnchorFile, _score, check_beds
 from jcvi.formats.bed import Bed
 from jcvi.formats.base import must_open
-from jcvi.apps.base import debug
+from jcvi.apps.base import OptionParser, debug
 debug()
 
 
@@ -321,7 +319,7 @@ def main(args):
     logging.debug("Screened blocks ids written to `{0}`.".format(outfile))
 
     if opts.screen:
-        from jcvi.algorithms.synteny import screen
+        from jcvi.compara.synteny import screen
 
         new_qa_file = ".".join((prefix, suffix, "anchors"))
         largs = [qa_file, new_qa_file, "--ids", outfile]

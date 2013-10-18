@@ -15,7 +15,7 @@ from jcvi.formats.bed import Bed
 from jcvi.formats.base import must_open, BaseFile
 from jcvi.utils.grouper import Grouper
 from jcvi.utils.cbook import gene_name
-from jcvi.algorithms.synteny import AnchorFile, check_beds
+from jcvi.compara.synteny import AnchorFile, check_beds
 from jcvi.apps.base import OptionParser, debug, glob, \
         ActionDispatcher, need_update, sh, mkdir
 debug()
@@ -598,9 +598,9 @@ def ortholog(args):
     match (RBH).
     """
     from jcvi.apps.last import main as last_main
-    from jcvi.apps.blastfilter import main as blastfilter_main
-    from jcvi.algorithms.quota import main as quota_main
-    from jcvi.algorithms.synteny import scan, screen, mcscan, liftover
+    from jcvi.compara.blastfilter import main as blastfilter_main
+    from jcvi.compara.quota import main as quota_main
+    from jcvi.compara.synteny import scan, screen, mcscan, liftover
     from jcvi.formats.blast import cscore
 
     p = OptionParser(ortholog.__doc__)

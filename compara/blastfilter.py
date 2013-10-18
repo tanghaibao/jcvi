@@ -27,14 +27,13 @@ import itertools
 
 from math import log10
 from collections import defaultdict
-from jcvi.apps.base import OptionParser, OptionGroup
 
 from jcvi.formats.bed import Bed
 from jcvi.formats.blast import BlastLine
 from jcvi.utils.grouper import Grouper
 from jcvi.utils.cbook import gene_name
-from jcvi.algorithms.synteny import check_beds
-from jcvi.apps.base import debug
+from jcvi.compara.synteny import check_beds
+from jcvi.apps.base import OptionParser, OptionGroup, debug
 debug()
 
 

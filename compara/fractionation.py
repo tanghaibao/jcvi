@@ -8,15 +8,14 @@ Catalog gene losses, and bites within genes.
 import sys
 import logging
 
-from jcvi.apps.base import OptionParser
 from itertools import groupby
 
 from jcvi.formats.blast import Blast
 from jcvi.formats.bed import Bed
 from jcvi.utils.range import range_minmax, range_overlap
 from jcvi.utils.cbook import gene_name
-from jcvi.algorithms.synteny import check_beds
-from jcvi.apps.base import ActionDispatcher, debug, sh
+from jcvi.compara.synteny import check_beds
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh
 debug()
 
 

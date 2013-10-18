@@ -19,7 +19,7 @@ import sys
 import logging
 import numpy as np
 
-from jcvi.algorithms.synteny import BlockFile
+from jcvi.compara.synteny import BlockFile
 from jcvi.formats.bed import Bed
 from jcvi.formats.base import LineFile, DictFile
 from jcvi.utils.cbook import human_size

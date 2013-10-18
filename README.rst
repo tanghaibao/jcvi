@@ -14,40 +14,28 @@ assembly-related calculations. Documentations will be lagging behind.
 
 Contents
 ---------
+Following modules are available as generic Bioinformatics handling methods.
+
 - ``algorithms``
-    Algorithms for math intensive stuff, including:
+    Algorithms for math intensive stuff:
 
     * Linear programming solver with SCIP and GLPK.
-    * Synteny scan (de-novo) and lift over (find nearby anchors).
     * Supermap: find set of non-overlapping anchors in BLAST or NUCMER output.
-    * Order and orientations of contigs (aka scaffolding) in de-novo assembly.
-    * Tandem gene duplicates finder.
-
-- ``assembly``
-    Scripts to prepare input data to assembler, and also post-assembly
-    scaffolding, quality control, etc. In general, anything related to genome
-    assembly and scaffolding:
-
-    * K-mer histogram analysis.
-    * Prepare frg for Celera Assembler (CA).
-    * Preparation and validation of tiling path for clone-based assemblies.
-    * Read trimming and correction.
-    * Scaffolding through BAMBUS, optical map and genetic map.
+    * Longest or heaviest increasing subsequence.
+    * Matrix operations.
 
 - ``apps``
     Helper library to wrap command line programs and run jobs on JCVI grid
-    engine (split jobs, check status, etc.). Driver scripts including:
+    engine (split jobs, check status, etc.):
 
-    * BLAST filter that selects subset of anchors.
-    * GenBank entrez accession downloader.
-    * Prepare Genbank sequence data submission files.
-    * Wrapper for BLAST+, LASTZ, LAST, BWA, CLC, CDHIT, CAP3, etc.
-    * Low complexity sequence masker with NCBI WindowMasker.
+    * GenBank entrez accession and Phytozome downloader.
     * Calculate (non)synonymous substitution rate between gene pairs.
     * Basic phylogenetic tree construction using PHYLIP, PhyML, or RAxML, and visualization.
+    * Wrapper for BLAST+, LASTZ, LAST, BWA, BOWTIE2, CLC, CDHIT, CAP3, etc.
 
 - ``formats``
-    File parsers for various files used in genome assembly and comparisons.
+    File parsers for various files used in genome assembly and comparisons:
+
     Currently supports ``.ace`` format (phrap, cap3, etc.), ``.agp`` (goldenpath),
     ``.bed`` format, ``.blast`` output, ``.btab`` format, ``.cas`` (CLC assembler output),
     ``.coords`` format (``nucmer`` output), ``.fasta`` format, ``.fastq`` format,
@@ -56,24 +44,58 @@ Contents
     ``.sam`` format (read mapping), ``.contig`` format (TIGR assembly format), etc.
 
 - ``graphics``
-    Graphics to visualize comparative genomics or assembly stuff. Including:
+    Graphics to visualize comparative genomics or assembly stuff:
 
     * BLAST or synteny dot plot.
-    * Histogram using R.
+    * Histogram using R and ASCII art.
     * Painting regions on set of chromosomes.
-    * ASCII histogram and line plot.
     * Heatmap from csv file.
 
 - ``utils``
     Data structures to simplify programming tasks. Most of the scripts are
     derived from ideas in the public domain, and are commonly used by other
-    modules.  For example:
+    modules:
 
     * Grouper can be used as disjoint set data structure.
     * range contains common range operations, like overlap and chaining.
     * Sybase connector to JCVI internal database.
-    * Table and string formatting functions.
-    * Miscellaneous cookbook recipes, like iterators and decorators.
+    * Miscellaneous cookbook recipes, iterators decorators, table utilities.
+
+
+Then there are modules that contain domain-specific methods.
+
+- ``assembly``
+    Prepare input data to assembler, and also post-assembly scaffolding, QC, etc:
+
+    * K-mer histogram analysis.
+    * Preparation and validation of tiling path for clone-based assemblies.
+    * Scaffolding through BAMBUS, optical map and genetic map.
+    * Pre-assembly and post-assembly QC procedures.
+
+- ``annotation``
+    Launch, process and categorize gene predictions:
+
+    * Training of *ab initio* gene predictors.
+    * Calculate gene, exon and intron statistics.
+    * Wrapper for PASA and EVM.
+    * Launch multiple MAKER processes.
+
+- ``compara``
+    Curate synteny, homology and ancestral genome reconstruction:
+
+    * C-score based BLAST filter.
+    * Synteny scan (de-novo) and lift over (find nearby anchors).
+    * Ancestral genome reconstruction using Sankoff's and PAR method.
+    * Ortholog and tandem gene duplicates finder.
+
+- ``variation``
+    Handle multiple variations among multiple individuals, including genetic
+    mapping in controlled crosses and association mapping in re-sequencing
+    panels:
+
+    * Convert between various flavors of SNP datasets.
+    * Read deconvolution into taxa or samples.
+    * Launch TASSEL pipeline.
 
 
 Dependencies
@@ -87,7 +109,7 @@ only used by a few modules.
 * `scipy <http://www.scipy.org>`_
 
 There are other Python modules here and there in various scripts. The best way
-is to install them via ``easy_install`` when you see ``ImportError``.
+is to install them via ``pip install`` when you see ``ImportError``.
 
 
 Installation
@@ -105,15 +127,7 @@ folder by default)::
     python jcvi/formats/fasta.py
 
 Please note: a few module might ask for locations of external programs, if the extended
-cannot be found in your ``PATH``. For example::
-
-    === Configure path for EMBOSS ===
-    URL: <http://emboss.sourceforge.net/>
-    [Directory that contains `seqret`]: ~/scratch/bin
-    23:53:57 [command] Configuration written to `/home/htang/.jcvirc`.
-
-The locations of these binaries can later be changed by modifying ``~/.jcvirc``.
-The external programs that are often used are:
+cannot be found in your ``PATH``. The external programs that are often used are:
 
 * `Kent tools <http://hgdownload.cse.ucsc.edu/admin/jksrc.zip>`_
 * `BEDTOOLS <http://code.google.com/p/bedtools/>`_
@@ -122,16 +136,22 @@ The external programs that are often used are:
 Most of the scripts in this package contains multiple actions. To use the
 ``fasta`` example::
 
-    Available actions:
+    Usage:
+        python -m jcvi.formats.fasta ACTION
+
+    Available ACTIONs:
         `extract`: given fasta file and seq id, retrieve the sequence in fasta format
+        `longestorf`: find longest orf for CDS fasta
         `translate`: translate CDS to proteins
-        `summary`: report the real no of bases and N's in fastafiles
+        `info`: run `sequence_info` on fasta files
+        `summary`: report the real no of bases and N's in fasta files
         `uniq`: remove records that are the same
         `ids`: generate a list of headers
         `format`: trim accession id to the first space or switch id based on 2-column mapping file
         `pool`: pool a bunch of fastafiles together and add prefix
         `random`: randomly take some records
         `diff`: check if two fasta records contain same information
+        `identical`: given 2 fasta files, find all exactly identical records
         `trim`: given a cross_match screened fasta, trim the sequence
         `sort`: sort the records by IDs, sizes, etc.
         `filter`: filter the records by size
@@ -143,6 +163,9 @@ Most of the scripts in this package contains multiple actions. To use the
         `gaps`: print out a list of gap sizes within sequences
         `join`: concatenate a list of seqs and add gaps in between
         `some`: include or exclude a list of records (also performs on .qual file if available)
+        `clean`: remove irregular chars in FASTA seqs
+        `ispcr`: reformat paired primers into isPcr query format
+        `fromtab`: convert 2-column sequence file to FASTA format
 
 Then you need to use one action, you can just do::
 
@@ -151,4 +174,3 @@ Then you need to use one action, you can just do::
 This will tell you the options and arguments it expects.
 
 **Feel free to check out other scripts in the package, it is not just for FASTA.**
-

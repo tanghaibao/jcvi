@@ -10,11 +10,9 @@ import os.path as op
 import sys
 import logging
 
-from jcvi.apps.base import OptionParser
-
 from jcvi.utils.cbook import SummaryStats
 from jcvi.formats.gff import GffLine, make_index
-from jcvi.apps.base import ActionDispatcher, debug, mkdir
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, mkdir
 debug()
 
 

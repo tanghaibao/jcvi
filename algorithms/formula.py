@@ -8,10 +8,9 @@ Some math formula for various calculations
 import sys
 
 from math import log, exp
-from jcvi.apps.base import OptionParser
 
 from jcvi.utils.cbook import human_size
-from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug
 debug()
 
 

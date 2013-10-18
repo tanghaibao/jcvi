@@ -10,15 +10,14 @@ import os.path as op
 import sys
 import logging
 
+import numpy as np
+
 from math import log, ceil
 from collections import defaultdict
-from jcvi.apps.base import OptionParser
-
-import numpy as np
 
 from jcvi.graphics.base import asciiplot
 from jcvi.apps.r import RTemplate
-from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug
 debug()
 
 histogram_header = """

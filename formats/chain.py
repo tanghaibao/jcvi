@@ -26,10 +26,8 @@ import os.path as op
 import sys
 import logging
 
-from jcvi.apps.base import OptionParser
-
 from jcvi.formats.base import BaseFile, read_block
-from jcvi.apps.base import ActionDispatcher, debug, sh, need_update
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh, need_update
 debug()
 
 

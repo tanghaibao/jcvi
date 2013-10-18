@@ -10,11 +10,10 @@ TIGR contig format, see spec:
 import sys
 import logging
 
-from jcvi.apps.base import OptionParser
 from collections import defaultdict
 
 from jcvi.formats.base import BaseFile, read_block
-from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug
 debug()
 
 

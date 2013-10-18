@@ -9,7 +9,6 @@ import shutil
 import logging
 
 from subprocess import PIPE, call
-from functools import partial
 from optparse import OptionParser as OptionP, OptionGroup
 os.environ["LC_ALL"] = "C"
 

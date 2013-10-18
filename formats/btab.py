@@ -14,10 +14,8 @@ import os.path as op
 import sys
 import logging
 
-from jcvi.apps.base import OptionParser
-
 from jcvi.formats.base import LineFile, must_open
-from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug
 debug()
 
 

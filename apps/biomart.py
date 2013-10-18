@@ -7,10 +7,9 @@ import sys
 import urllib
 import logging
 
-from jcvi.apps.base import OptionParser
 from xml.etree.ElementTree import ElementTree, Element, SubElement, tostring
 
-from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug
 debug()
 
 

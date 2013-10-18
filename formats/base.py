@@ -8,11 +8,10 @@ import sys
 import logging
 
 from itertools import groupby, islice, cycle, izip
-from jcvi.apps.base import OptionParser
 
 from Bio import SeqIO
-from jcvi.apps.base import ActionDispatcher, sh, debug, need_update, \
-        mkdir, popen
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh, debug, need_update, \
+            mkdir, popen
 debug()
 
 

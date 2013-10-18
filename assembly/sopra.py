@@ -9,13 +9,12 @@ import sys
 import logging
 
 from collections import defaultdict
-from jcvi.apps.base import OptionParser
 
 from jcvi.formats.base import must_open
 from jcvi.formats.bed import BedLine, pairs
 from jcvi.formats.sizes import Sizes
 from jcvi.utils.iter import pairwise
-from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug
 debug()
 
 

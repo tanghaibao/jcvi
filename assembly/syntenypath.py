@@ -8,15 +8,14 @@ Syntenic path assembly.
 import sys
 import logging
 
-from itertools import groupby, combinations
-from jcvi.apps.base import OptionParser
 from string import maketrans
+from itertools import groupby, combinations
 
 from jcvi.formats.blast import BlastSlow
 from jcvi.formats.sizes import Sizes
 from jcvi.utils.iter import pairwise
 from jcvi.algorithms.graph import BiGraph, BiEdge
-from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug
 debug()
 
 

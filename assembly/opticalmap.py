@@ -11,13 +11,12 @@ import logging
 import numpy as np
 
 from collections import defaultdict
-from jcvi.utils.iter import pairwise
-from jcvi.apps.base import OptionParser
 from xml.etree.ElementTree import ElementTree
 
 from jcvi.formats.bed import Bed
 from jcvi.utils.range import range_chain, range_parse, Range
-from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.utils.iter import pairwise
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug
 debug()
 
 

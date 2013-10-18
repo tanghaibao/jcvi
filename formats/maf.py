@@ -11,15 +11,13 @@ import os.path as op
 import sys
 import logging
 
-from jcvi.apps.base import OptionParser
-
 from bx import interval_index_file
 from bx.align import maf
 
 from jcvi.formats.base import BaseFile
-from jcvi.apps.base import ActionDispatcher, debug, need_update
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, need_update
 from jcvi.apps.lastz import blastz_score_to_ncbi_expectation, \
-    blastz_score_to_ncbi_bits, blast_fields
+            blastz_score_to_ncbi_bits, blast_fields
 debug()
 
 

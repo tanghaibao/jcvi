@@ -9,10 +9,9 @@ import os.path as op
 import sys
 import logging
 
-from jcvi.apps.base import OptionParser
-
 import numpy as np
-from jcvi.apps.base import ActionDispatcher, debug
+
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug
 from jcvi.graphics.base import plt, Rectangle, CirclePolygon, Polygon, _, \
         savefig
 debug()

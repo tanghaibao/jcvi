@@ -29,11 +29,9 @@ import os.path as op
 import logging
 import bsddb
 
-from jcvi.apps.base import OptionParser
-
 from jcvi.formats.bed import BedLine
 from jcvi.formats.base import read_until
-from jcvi.apps.base import ActionDispatcher, need_update, debug
+from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, debug
 debug()
 
 

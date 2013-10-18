@@ -10,11 +10,10 @@ import sys
 import logging
 
 from itertools import groupby
-from jcvi.apps.base import OptionParser
 
 from jcvi.formats.fastq import guessoffset, readlen
 from jcvi.assembly.base import FastqNamings, Library, get_libs
-from jcvi.apps.base import ActionDispatcher, debug, need_update, sh
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, need_update, sh
 debug()
 
 

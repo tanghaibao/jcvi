@@ -9,11 +9,9 @@ import os
 import os.path as op
 import sys
 
-from jcvi.apps.base import OptionParser
-
 from jcvi.formats.fasta import Fasta
 from jcvi.utils.cbook import depends, percentage
-from jcvi.apps.base import ActionDispatcher, debug, sh
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh
 debug()
 
 

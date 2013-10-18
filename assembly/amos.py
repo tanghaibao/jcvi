@@ -12,7 +12,6 @@ import re
 import sys
 import logging
 
-from jcvi.apps.base import OptionParser
 from collections import defaultdict
 
 from Bio import SeqIO
@@ -20,7 +19,7 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
 from jcvi.utils.cbook import percentage
-from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug
 debug()
 
 

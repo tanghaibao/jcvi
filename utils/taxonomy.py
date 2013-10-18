@@ -31,12 +31,11 @@ import time
 import logging
 
 from urllib2 import urlopen
-from jcvi.apps.base import OptionParser
 from ClientForm import ParseResponse
 from BeautifulSoup import BeautifulSoup
 
 from jcvi.utils.cbook import memoized
-from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug
 debug()
 
 

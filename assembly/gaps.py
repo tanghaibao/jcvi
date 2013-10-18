@@ -10,12 +10,11 @@ import sys
 import logging
 
 from itertools import groupby
-from jcvi.apps.base import OptionParser
 
 from jcvi.formats.sizes import Sizes
 from jcvi.formats.bed import Bed, fastaFromBed
 from jcvi.formats.blast import BlastSlow
-from jcvi.apps.base import ActionDispatcher, debug, need_update, blast
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, need_update
 debug()
 
 
@@ -250,6 +249,7 @@ def sizes(args):
     -   Negative value: the R flanker map before L flanker
     """
     from jcvi.formats.base import DictFile
+    from jcvi.apps.align import blast
 
     p = OptionParser(sizes.__doc__)
     opts, args = p.parse_args(args)

@@ -7,10 +7,9 @@ import os
 import sys
 
 from string import Template
-from jcvi.apps.base import OptionParser
 
 from jcvi.formats.base import must_open
-from jcvi.apps.base import ActionDispatcher, sh, debug
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh, debug
 debug()
 
 

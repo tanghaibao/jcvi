@@ -12,9 +12,7 @@ import os.path as op
 import sys
 import logging
 
-from jcvi.apps.base import OptionParser
-
-from jcvi.apps.base import ActionDispatcher, debug, sh, which
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh, which
 debug()
 
 

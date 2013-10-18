@@ -13,11 +13,10 @@ import numpy as np
 import logging
 
 from itertools import groupby
-from jcvi.apps.base import OptionParser
 
 from jcvi.formats.sizes import Sizes
 from jcvi.formats.base import BaseFile, must_open
-from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug
 debug()
 
 

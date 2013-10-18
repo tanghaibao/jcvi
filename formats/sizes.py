@@ -7,13 +7,10 @@ import sys
 import logging
 
 import numpy as np
-from jcvi.apps.base import OptionParser
 
 from jcvi.formats.base import LineFile
 from jcvi.apps.softlink import get_abs_path
-from jcvi.apps.base import sh, need_update
-
-from jcvi.apps.base import ActionDispatcher, debug, need_update
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, need_update, sh
 debug()
 
 

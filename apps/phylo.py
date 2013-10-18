@@ -32,21 +32,18 @@ import warnings
 
 from math import ceil
 from itertools import chain
+from functools import partial
 
 import numpy as np
 from ete2 import Tree
-from Bio import SeqIO
-from Bio import AlignIO
+from Bio import SeqIO, AlignIO
 from Bio.Data import CodonTable
-from Bio.Emboss.Applications import FSeqBootCommandline
-from Bio.Emboss.Applications import FDNADistCommandline
-from Bio.Emboss.Applications import FNeighborCommandline
-from Bio.Emboss.Applications import FConsenseCommandline
-from Bio.Phylo.Applications import PhymlCommandline
-from Bio.Phylo.Applications import RaxmlCommandline
+from Bio.Emboss.Applications import FSeqBootCommandline, FDNADistCommandline, \
+            FNeighborCommandline, FConsenseCommandline
+from Bio.Phylo.Applications import PhymlCommandline, RaxmlCommandline
 
 from jcvi.apps.ks import AbstractCommandline, find_first_isoform, \
-    run_mrtrans, clustal_align_protein, muscle_align_protein
+            run_mrtrans, clustal_align_protein, muscle_align_protein
 from jcvi.formats.base import must_open, DictFile, LineFile
 from jcvi.formats.fasta import Fasta
 from jcvi.utils.orderedcollections import OrderedDict

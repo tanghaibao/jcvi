@@ -11,10 +11,8 @@ Library dependency: xlutils
 
 import sys
 
-from jcvi.apps.base import OptionParser
-
 from xlrd import open_workbook
-from jcvi.apps.base import ActionDispatcher, debug
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug
 debug()
 
 

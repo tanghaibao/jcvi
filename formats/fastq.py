@@ -677,12 +677,9 @@ def convert(args):
     illumina fastq quality encoding uses offset 64, and sanger uses 33. This
     script creates a new file with the correct encoding
     """
-    from jcvi.apps.command import EMBOSSPATH
-
     p = OptionParser(convert.__doc__)
     p.set_phred()
     p.set_grid()
-
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -695,7 +692,7 @@ def convert(args):
     fin = "illumina" if phred == "64" else "sanger"
     fout = "sanger" if phred == "64" else "illumina"
 
-    seqret = EMBOSSPATH("seqret")
+    seqret = "seqret"
     if infastq.endswith(".gz"):
         cmd = "zcat {0} | ".format(infastq)
         cmd += seqret + " fastq-{0}::stdin fastq-{1}::stdout".\

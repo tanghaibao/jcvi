@@ -12,7 +12,6 @@ import shutil
 import logging
 
 from jcvi.utils.cbook import depends
-from jcvi.apps.command import BLPATH
 from jcvi.apps.softlink import get_abs_path
 from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh
 debug()
@@ -20,7 +19,7 @@ debug()
 
 @depends
 def run_formatdb(infile=None, outfile=None, dbtype="nucl"):
-    cmd = BLPATH("makeblastdb")
+    cmd = "makeblastdb"
     cmd += " -dbtype {0} -in {1}".format(dbtype, infile)
     sh(cmd)
 
@@ -48,7 +47,7 @@ def run_vecscreen(infile=None, outfile=None, db="UniVec_Core",
     nin = db + ".nin"
     run_formatdb(infile=db, outfile=nin)
 
-    cmd = BLPATH("blastn")
+    cmd = "blastn"
     cmd += " -task blastn"
     cmd += " -query {0} -db {1} -out {2}".format(infile, db, outfile)
     cmd += " -penalty -5 -gapopen 4 -gapextend 4 -dust yes -soft_masking true"
@@ -68,7 +67,7 @@ def run_megablast(infile=None, outfile=None, db=None, wordsize=None, \
     nin = nin00 if op.exists(nin00) else (db + ".nin")
     run_formatdb(infile=db, outfile=nin)
 
-    cmd = BLPATH("blastn")
+    cmd = "blastn"
     cmd += " -query {0} -db {1} -out {2}".format(infile, db, outfile)
     cmd += " -evalue {0} -outfmt 6 -num_threads {1}".format(evalue, cpus)
     cmd += " -task {0}".format(task)

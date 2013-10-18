@@ -14,7 +14,6 @@ from jcvi.formats.base import BaseFile, write_file
 from jcvi.formats.fastq import guessoffset
 from jcvi.utils.cbook import depends, human_size
 from jcvi.utils.data import Adapters
-from jcvi.apps.command import JAVAPATH
 from jcvi.apps.base import OptionParser, ActionDispatcher, debug, download, \
             sh, mkdir, need_update
 debug()
@@ -440,8 +439,7 @@ def trim(args):
     if opts.trimlog:
         trimlog = " -trimlog {0}".format(opts.trimlog)
 
-    cmd = JAVAPATH("java")
-    cmd += " -Xmx4g -jar {0}".format(path)
+    cmd = "java -Xmx4g -jar {0}".format(path)
     frags = ".frags.fastq"
     pairs = ".pairs.fastq"
     if not opts.nogz:

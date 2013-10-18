@@ -21,9 +21,8 @@ from Bio import AlignIO
 from Bio.Align.Applications import ClustalwCommandline, MuscleCommandline
 
 from jcvi.formats.base import must_open, LineFile
-from jcvi.apps.command import getpath, partial
 from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher, debug, \
-            mkdir, sh, Popen
+            mkdir, sh, Popen, getpath, partial
 debug()
 
 

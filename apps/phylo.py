@@ -51,8 +51,8 @@ from jcvi.formats.base import must_open, DictFile, LineFile
 from jcvi.formats.fasta import Fasta
 from jcvi.utils.orderedcollections import OrderedDict
 from jcvi.graphics.base import plt, _, savefig
-from jcvi.apps.command import getpath, partial
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug, mkdir, sh
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, mkdir, sh, \
+            getpath, partial
 debug()
 
 

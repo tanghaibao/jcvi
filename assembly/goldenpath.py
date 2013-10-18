@@ -25,7 +25,7 @@ from jcvi.formats.base import must_open
 from jcvi.utils.cbook import memoized
 from jcvi.apps.entrez import fetch
 from jcvi.apps.base import OptionParser, ActionDispatcher, debug, popen, mkdir, sh, \
-        need_update
+            need_update
 debug()
 
 
@@ -861,7 +861,6 @@ def overlap(args):
     instead of FASTA files. In case of IDs, the sequences will be downloaded
     first.
     """
-    from jcvi.apps.command import BLPATH
     from jcvi.formats.blast import chain_HSPs
 
     p = OptionParser(overlap.__doc__)
@@ -903,7 +902,7 @@ def overlap(args):
 
     assert op.exists(afasta) and op.exists(bfasta)
 
-    cmd = BLPATH("blastn")
+    cmd = "blastn"
     cmd += " -query {0} -subject {1}".format(afasta, bfasta)
     cmd += " -evalue {0} -outfmt 6 -perc_identity {1}".format(evalue, pctid)
 

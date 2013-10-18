@@ -9,8 +9,8 @@ import shutil
 import logging
 
 from subprocess import PIPE, call
+from functools import partial
 from optparse import OptionParser as OptionP, OptionGroup
-
 os.environ["LC_ALL"] = "C"
 
 
@@ -1111,6 +1111,64 @@ def waitpid(args):
     if cmd is not None:
         bg = False if opts.grid else True
         sh(cmd, grid=opts.grid, background=bg)
+
+
+def getpath(cmd, name=None, url=None, cfg="~/.jcvirc", warn="exit"):
+    """
+    Get install locations of common binaries
+    First, check ~/.jcvirc file to get the full path
+    If not present, ask on the console and store
+    """
+    import ConfigParser
+
+    p = which(cmd)  # if in PATH, just returns it
+    if p:
+        return p
+
+    PATH = "Path"
+    config = ConfigParser.RawConfigParser()
+    cfg = op.expanduser(cfg)
+    changed = False
+    if op.exists(cfg):
+        config.read(cfg)
+
+    assert name is not None, "Need a program name"
+
+    try:
+        fullpath = config.get(PATH, name)
+    except ConfigParser.NoSectionError:
+        config.add_section(PATH)
+        changed = True
+    except:
+        pass
+
+    try:
+        fullpath = config.get(PATH, name)
+    except ConfigParser.NoOptionError:
+        msg = "=== Configure path for {0} ===\n".format(name, cfg)
+        if url:
+            msg += "URL: {0}\n".format(url)
+        msg += "[Directory that contains `{0}`]: ".format(cmd)
+        fullpath = raw_input(msg).strip()
+        config.set(PATH, name, fullpath)
+        changed = True
+
+    path = op.join(op.expanduser(fullpath), cmd)
+    try:
+        assert is_exe(path), \
+            "***ERROR: Cannot execute binary `{0}`. ".format(path)
+    except AssertionError, e:
+        if warn == "exit":
+            sys.exit("{0!s}Please verify and rerun.".format(e))
+        elif warn == "warn":
+            logging.warning("{0!s}Some functions may not work.***".format(e))
+
+    if changed:
+        configfile = open(cfg, "w")
+        config.write(configfile)
+        logging.debug("Configuration written to `{0}`.".format(cfg))
+
+    return path
 
 
 if __name__ == '__main__':

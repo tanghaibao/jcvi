@@ -13,14 +13,13 @@ import sys
 import logging
 
 from collections import defaultdict
-from jcvi.apps.base import OptionParser
 
 from jcvi.formats.base import BaseFile, must_open
 from jcvi.formats.fasta import gaps
 from jcvi.formats.sizes import Sizes
 from jcvi.formats.posmap import query, bed
 from jcvi.formats.bed import BedLine
-from jcvi.apps.base import ActionDispatcher, sh, debug, need_update
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh, debug, need_update
 debug()
 
 
@@ -30,7 +29,6 @@ class Coverage (BaseFile):
     contigID baseID coverage
     """
     def __init__(self, bedfile, sizesfile):
-        from jcvi.apps.command import BDPATH
         from jcvi.formats.bed import sort
 
         sortedbedfile = bedfile.rsplit(".", 1)[0] + ".sorted.bed"
@@ -40,7 +38,7 @@ class Coverage (BaseFile):
 
         coveragefile = bedfile + ".coverage"
         if need_update(bedfile, coveragefile):
-            cmd = BDPATH("genomeCoverageBed")
+            cmd = "genomeCoverageBed"
             cmd += " -bg -i {0} -g {1}".format(bedfile, sizesfile)
             sh(cmd, outfile=coveragefile)
 

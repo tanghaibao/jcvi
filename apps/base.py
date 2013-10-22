@@ -152,7 +152,7 @@ class OptionParser (OptionP):
         from jcvi.utils.sybase import get_profile
 
         hostname, username, password = get_profile()
-        self.add_option("--db", default=dbname,
+        self.add_option("--db", default=dbname, dest="dbname",
                 help="Specify name of database to query [default: %default]")
         if credentials:
             self.add_option("--hostname", default=hostname,
@@ -1101,7 +1101,7 @@ def waitpid(args):
             method, api = ("push", opts.notify)
             notifycmd.append("--api={0}".format(api))
         else:
-            notifycmd.append('--address="{0}"'.format(opts.address))
+            notifycmd.append('--email="{0}"'.format(opts.email))
         notifycmd.append("--method={0}".format(method))
         notify(notifycmd)
 

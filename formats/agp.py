@@ -1693,9 +1693,6 @@ def tidy(args):
     reindex_opts = [agpfile, "--inplace"]
     if opts.nogaps:
         reindex_opts += ["--nogaps"]
-    reindex_opts = [agpfile, "--inplace"]
-    if opts.nogaps:
-        reindex_opts += ["--nogaps"]
     agpfile = reindex(reindex_opts)
 
     tidyagpfile = originalagpfile.replace(".agp", ".tidy.agp")

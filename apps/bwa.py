@@ -32,7 +32,7 @@ def main():
 def check_index(dbfile):
     safile = dbfile + ".sa"
     if need_update(dbfile, safile):
-        cmd = "bwa index -a bwtsw {0}".format(dbfile)
+        cmd = "bwa index {0}".format(dbfile)
         sh(cmd)
     else:
         logging.error("`{0}` exists. `bwa index` already run.".format(safile))
@@ -46,11 +46,10 @@ def check_aln(dbfile, readfile, cpus=32):
     saifile = readfile.rsplit(".", 1)[0] + ".sai"
     if need_update((dbfile, readfile), saifile):
         offset = guessoffset([readfile])
-        cmd = "bwa aln -t {0}".format(cpus)
+        cmd = "bwa aln " + " ".join((dbfile, readfile))
+        cmd += " -t {0}".format(cpus)
         if offset == 64:
             cmd += " -I"
-
-        cmd += " {0} {1}".format(dbfile, readfile)
         sh(cmd, outfile=saifile)
     else:
         logging.error("`{0}` exists. `bwa aln` already run.".format(saifile))
@@ -78,34 +77,38 @@ def align(args):
     """
     %prog align database.fasta read1.fq [read2.fq]
 
-    Wrapper for `bwa samse` or `bwa sampe`, depending on the number of args.
+    Wrapper for three modes of BWA - mem (default), aln, bwasw (long reads).
     """
+    valid_modes = ("bwasw", "aln", "mem")
     p = OptionParser(align.__doc__)
-    p.add_option("--bwasw", default=False, action="store_true",
-                 help="Run bwasw mode [default: %default]")
+    p.add_option("--mode", default="mem", choices=valid_modes,
+                 help="BWA mode [default: %default]")
     p.set_cutoff(cutoff=800)
     p.set_sam_options()
 
     opts, args = p.parse_args(args)
-    bsw = opts.bwasw
+    mode = opts.mode
+    nargs = len(args)
 
-    if len(args) not in (2, 3):
+    if nargs not in (2, 3):
         sys.exit(not p.print_help())
 
-    if len(args) == 2:
-        mode = "Single-end alignment"
-        if bsw:
-            mode += " (long reads)"
+    tag = "bwa-{0}: ".format(mode)
+    c = mem
+    if nargs == 2:
+        tag += "Single-end alignment"
+        if mode == "bwasw":
             c = bwasw
-        else:
+        elif mode == "aln":
             c = samse
     else:
-        assert not bsw, "Cannot use --bwasw with paired-end mode"
-        mode = "Paired-end alignment"
-        c = sampe
+        assert mode != "bwasw", "Cannot use --bwasw with paired-end mode"
+        tag += "Paired-end alignment"
+        if mode == "aln":
+            c = sampe
 
+    logging.debug(tag)
     args[0] = get_abs_path(args[0])
-    logging.debug(mode)
     cmd, samfile = c(args, opts)
     if cmd:
         cmd = output_bam(cmd, samfile)
@@ -142,7 +145,7 @@ def samse(args, opts):
         return "", samfile
 
     cmd = "bwa samse {0} {1} {2}".format(dbfile, saifile, readfile)
-    cmd += " {0}".format(opts.extra)
+    cmd += " " + opts.extra
     if opts.uniq:
         cmd += " -n 1"
 
@@ -164,16 +167,39 @@ def sampe(args, opts):
                                        bam=opts.bam, unmapped=opts.unmapped)
     if not need_update((safile, sai1file, sai2file), samfile):
         logging.error("`{0}` exists. `bwa samse` already run.".format(samfile))
-        return
+        return "", samfile
 
-    cmd = "bwa sampe {0} {1} {2} {3} {4}".format(dbfile, sai1file, sai2file,
-            read1file, read2file)
+    cmd = "bwa sampe " + " ".join((dbfile, sai1file, sai2file, \
+                                   read1file, read2file))
+    cmd += " " + opts.extra
     if opts.cutoff:
         cmd += " -a {0}".format(opts.cutoff)
-    cmd += " {0}".format(opts.extra)
     if opts.uniq:
         cmd += " -n 1"
 
+    return cmd, samfile
+
+
+def mem(args, opts):
+    """
+    %prog mem database.fasta read1.fq [read2.fq]
+
+    Wrapper for `bwa mem`. Output will be read1.sam.
+    """
+    dbfile, read1file = args[:2]
+    if len(args) > 2:
+        read2file = args[2]
+
+    safile = check_index(dbfile)
+    samfile, _, unmapped = get_samfile(read1file, dbfile,
+                                       bam=opts.bam, unmapped=opts.unmapped)
+    if not need_update(read1file, samfile):
+        logging.error("`{0}` exists. `bwa mem` already run.".format(samfile))
+        return "", samfile
+
+    cmd = "bwa mem " + " ".join(args)
+    cmd += " -t {0}".format(opts.cpus)
+    cmd += " " + opts.extra
     return cmd, samfile
 
 
@@ -183,21 +209,18 @@ def bwasw(args, opts):
 
     Wrapper for `bwa bwasw`. Output will be long_read.sam.
     """
-    cpus = opts.cpus
-    bam = opts.bam
-    unmapped = opts.unmapped
-
     dbfile, readfile = args
     safile = check_index(dbfile)
 
     samfile, _, unmapped = get_samfile(readfile, dbfile,
-                                       bam=bam, unmapped=unmapped)
+                                       bam=opts.bam, unmapped=opts.unmapped)
     if not need_update(safile, samfile):
         logging.error("`{0}` exists. `bwa bwasw` already run.".format(samfile))
-        return
+        return "", samfile
 
-    cmd = "bwa bwasw -t {0} {1} {2}".format(cpus, dbfile, readfile)
-    cmd += "{0}".format(opts.extra)
+    cmd = "bwa bwasw " + " ".join(args)
+    cmd += " -t {0}".format(opts.cpus)
+    cmd += " " + opts.extra
     return cmd, samfile
 
 

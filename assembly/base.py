@@ -17,7 +17,7 @@ from bisect import bisect
 
 from jcvi.formats.base import must_open
 from jcvi.formats.fasta import Fasta
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug, glob
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, glob, sh
 debug()
 
 

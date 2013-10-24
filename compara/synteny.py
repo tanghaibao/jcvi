@@ -1165,7 +1165,7 @@ def scan(args):
     pull out syntenic anchors from blastfile based on single-linkage algorithm
     """
     p = OptionParser(scan.__doc__)
-    p.add_option("-n", "--min_size", dest="n", type="int", default=5,
+    p.add_option("-n", "--min_size", dest="n", type="int", default=4,
             help="minimum number of anchors in a cluster [default: %default]")
     p.add_option("--liftover",
             help="Scan BLAST file to find extra anchors [default: %default]")

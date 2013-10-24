@@ -630,7 +630,7 @@ def ortholog(args):
     anchors = pprefix + ".anchors"
     lifted_anchors = pprefix + ".lifted.anchors"
     if need_update(filtered_last, lifted_anchors):
-        scan([filtered_last, anchors, "--dist=20", "--min_size=4"] + bstring)
+        scan([filtered_last, anchors] + bstring)
 
     ooanchors = pprefix + ".1x1.anchors"
     if need_update(anchors, ooanchors):

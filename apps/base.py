@@ -172,6 +172,12 @@ class OptionParser (OptionP):
         self.add_option("--fixchrname", default=orgn, dest="fix_chr_name",
                 help="Fix quirky chromosome names [default: %default]")
 
+    def set_SO_opts(self):
+        verifySO_choices = ("verify", "resolve")
+        self.add_option("--verifySO", choices=verifySO_choices,
+                help="Verify validity of GFF3 feature type against the SO" + \
+                     " [default: %default]")
+
     def set_beds(self):
         self.add_option("--qbed", help="Path to qbed")
         self.add_option("--sbed", help="Path to sbed")
@@ -582,7 +588,7 @@ def ls_ftp(dir):
     return files
 
 
-def download(url, filename=None):
+def download(url, filename=None, debug=True):
     from urlparse import urlsplit
     from subprocess import CalledProcessError
     from jcvi.formats.base import FileShredder
@@ -595,8 +601,9 @@ def download(url, filename=None):
         filename = "index.html"
 
     if op.exists(filename):
-        msg = "File `{0}` exists. Download skipped.".format(filename)
-        logging.error(msg)
+        if debug:
+            msg = "File `{0}` exists. Download skipped.".format(filename)
+            logging.error(msg)
     else:
         from jcvi.utils.ez_setup import get_best_downloader
 

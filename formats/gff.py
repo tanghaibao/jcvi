@@ -84,7 +84,20 @@ class GffLine (object):
                 self.start, self.end, self.score, self.strand, self.phase,
                 self.attributes_text))
 
-    def update_attributes(self, skipEmpty=None, gff3=None):
+    def get_attr(self, key, first=True):
+        if key in self.attributes.keys():
+            if first:
+                return self.attributes[key][0]
+            return self.attributes[key]
+        return None
+
+    def set_attr(self, key, value, update=True, gff3=None):
+        self.attributes[key] = [x for x in value] \
+                if type(value) is list else [value]
+        if update:
+            self.update_attributes(gff3=gff3, urlquote=False)
+
+    def update_attributes(self, skipEmpty=None, gff3=None, urlquote=True):
         attributes = []
         if gff3 is None:
             gff3 = self.gff3
@@ -96,8 +109,8 @@ class GffLine (object):
             val = ",".join(val)
             val = "\"{0}\"".format(val) if " " in val and (not gff3) else val
             equal = "=" if gff3 else " "
-            if tag not in multiple_gff_attributes:
-                val = quote(val, safe="%/:?~#+!$'@()*[]| ")
+            if tag not in multiple_gff_attributes and urlquote:
+                val = quote(val, safe="/:?~#+!$'@()*[]| ")
             attributes.append(equal.join((tag, val)))
 
         self.attributes_text = sep.join(attributes)
@@ -600,6 +613,7 @@ def format(args):
     from jcvi.formats.base import DictFile
     from jcvi.utils.range import range_minmax
     from jcvi.utils.cbook import AutoVivification
+    from jcvi.formats.obo import load_GODag, validate_term
 
     p = OptionParser(format.__doc__)
     p.add_option("--unique", default=False, action="store_true",
@@ -623,7 +637,12 @@ def format(args):
     p.add_option("--add_attribute", dest="attrib_file", help="Add a new attribute; " +
                 "attribute value comes from two-column file; attribute key comes " +
                 "from filename [default: %default]")
+    p.add_option("--remove_feats", help="Comma separated list of features to remove" + \
+                " [default: %default]")
     p.set_outfile()
+    p.add_option("--nostrict", default=False, action="store_true",
+                 help="Disable strict parsing of mapping file [default: %default]")
+    p.set_SO_opts()
 
     opts, args = p.parse_args(args)
 
@@ -644,19 +663,21 @@ def format(args):
     duptype = opts.duptype
     fixphase = opts.fixphase
     phaseT = {"1":"2", "2":"1"}
+    remove_feats = opts.remove_feats.split(",") if opts.remove_feats else None
+    strict = False if opts.nostrict else True
 
     outfile = opts.outfile
 
     if mapfile:
-        mapping = DictFile(mapfile, delimiter="\t")
+        mapping = DictFile(mapfile, delimiter="\t", strict=strict)
     if note:
-        note = DictFile(note, delimiter="\t")
+        note = DictFile(note, delimiter="\t", strict=strict)
     if source and op.isfile(source):
-        source = DictFile(source, delimiter="\t")
+        source = DictFile(source, delimiter="\t", strict=strict)
     if names:
-        names = DictFile(names, delimiter="\t")
+        names = DictFile(names, delimiter="\t", strict=strict)
     if attrib_file:
-        attr_values = DictFile(attrib_file, delimiter="\t")
+        attr_values = DictFile(attrib_file, delimiter="\t", strict=strict)
         attr_name = op.basename(attrib_file).rsplit(".", 1)[0]
         if attr_name not in reserved_gff_attributes:
             attr_name = attr_name.lower()
@@ -665,7 +686,7 @@ def format(args):
         unique = True
         notes = {}
 
-    if unique or duptype:
+    if unique or duptype or remove_feats:
         if unique:
             dupcounts = defaultdict(int)
             seen = defaultdict(int)
@@ -673,6 +694,8 @@ def format(args):
         elif duptype:
             dupranges = AutoVivification()
             skip = defaultdict(int)
+        if remove_feats:
+            remove = set()
         gff = Gff(gffile)
         for idx, g in enumerate(gff):
             if opts.gff3 and "ID" not in g.attributes.keys():
@@ -683,10 +706,36 @@ def format(args):
                 dupcounts[id] += 1
             elif duptype and g.type == duptype:
                 dupranges[id][idx] = (g.start, g.end)
+            if remove_feats and g.type in remove_feats:
+                remove.add(id)
+
+    if opts.verifySO:
+        so = load_GODag()
 
     fw = must_open(outfile, "w")
     gff = Gff(gffile)
     for idx, g in enumerate(gff):
+        if remove_feats:
+            if g.type in remove_feats:
+                id = g.get_attr("ID")
+                if id in remove:
+                    continue
+            else:
+                if "Parent" in g.attributes.keys():
+                    keep, parent = [], g.get_attr("Parent", first=False)
+                    for i, pid in enumerate(parent):
+                        if pid not in remove:
+                            keep.append(parent[i])
+                    if len(keep) == 0:
+                        continue
+                    parent = g.set_attr("Parent", keep)
+
+        if opts.verifySO:
+            ntype = validate_term(g.type, so=so, method=opts.verifySO)
+            if ntype and g.type != ntype:
+                logging.debug("Resolved term to `{0}`".format(ntype))
+                g.type = ntype
+
         origid = g.seqid
         if fixphase:
             phase = g.phase
@@ -695,7 +744,6 @@ def format(args):
         if mapfile:
             if origid in mapping:
                 g.seqid = mapping[origid]
-                g.update_attributes()
             else:
                 logging.error("{0} not found in `{1}`. ID unchanged.".\
                         format(origid, mapfile))
@@ -705,21 +753,15 @@ def format(args):
                 g.source = source[g.source]
             else:
                 g.source = source
-            g.update_attributes()
 
         if names:
-            id = g.attributes["ID"]
-            id = id[0] if id else None
-
+            id = g.get_attr("ID")
             if id in names:
-                g.attributes["Name"] = [names[id]]
-                g.update_attributes()
+                g.set_attr("Name", names[id])
 
         if note:
-            id = g.attributes["ID"]
-            id = id[0] if id else None
-            name = g.attributes["Name"][0] \
-                    if "Name" in g.attributes.keys() else None
+            id = g.get_attr("ID")
+            name = g.get_attr("Name")
             tag = None
             if id in note:
                 tag = note[id]
@@ -727,21 +769,16 @@ def format(args):
                 tag = note[name]
 
             if tag:
-                g.attributes["Note"] = [tag]
-                g.update_attributes()
+                g.set_attr("Note", tag)
 
         if attrib_file:
-            id = g.attributes["ID"]
-            id = id[0] if id else None
-
+            id = g.get_attr("ID")
             if id in attr_values.keys():
-                g.attributes[attr_name] = [attr_values[id]]
-                g.update_attributes()
+                g.set_attr(attr_name, attr_values[id])
 
         if unique:
             if opts.gff3 and "ID" not in g.attributes.keys():
-                g.attributes["ID"] = ["{0}_{1}".format(str(g.type).lower(), idx)]
-                g.update_attributes(gff3=opts.gff3)
+                g.set_attr("ID", "{0}_{1}".format(str(g.type).lower(), idx))
 
             id = g.accn
             if dupcounts[id] > 1:
@@ -749,14 +786,12 @@ def format(args):
                 old_id = id
                 id = "{0}-{1}".format(old_id, seen[old_id])
                 newparentid[old_id] = id
-                g.attributes["ID"] = [id]
-                g.update_attributes(gff3=True)
+                g.set_attr("ID", id, gff3=True)
 
             if "Parent" in g.attributes.keys():
                 parent = g.attributes["Parent"][0]
                 if dupcounts[parent] > 1:
-                    g.attributes["Parent"] = [newparentid[parent]]
-                    g.update_attributes(gff3=True)
+                    g.set_attr("Parent", newparentid[parent], gff3=True)
 
         if duptype:
             id = g.accn
@@ -774,11 +809,10 @@ def format(args):
 
         pp = g.attributes.get("Parent", [])
         if opts.multiparents and len(pp) > 1:  # separate multiple parents
-            id = g.attributes["ID"][0]
+            id = g.get_attr("ID")
             for i, parent in enumerate(pp):
-                g.attributes["ID"] = ["{0}-{1}".format(id, i + 1)]
-                g.attributes["Parent"] = [parent]
-                g.update_attributes()
+                g.set_attr("ID", "{0}-{1}".format(id, i + 1), update=False)
+                g.set_attr("Parent", parent)
                 if gsac:
                     fix_gsac(g, notes)
                 print >> fw, g

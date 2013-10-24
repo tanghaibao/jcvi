@@ -1403,25 +1403,6 @@ def tpf(args):
         print "\t".join((component_id, object, orientation))
 
 
-def validate_term(term):
-    """
-    Validate an SO term against so.obo
-    OBO file retrieved from 'http://obo.cvs.sourceforge.net/viewvc/obo/obo/ontology/genomic-proteomic/so.obo'
-    """
-    from jcvi.formats.obo import GODag
-    from jcvi.apps.base import download
-
-    so_file_url = "http://obo.cvs.sourceforge.net/viewvc/obo/obo/ontology/genomic-proteomic/so.obo"
-    so_file = download(so_file_url)
-
-    so = GODag(so_file)
-    valid_names = so.valid_names
-    if not term in valid_names:
-        logging.error("Term `{0}` does not exist. Please refer to `{1}`".format(term, so_file_url))
-        sys.exit()
-
-    return True
-
 
 def bed(args):
     """
@@ -1429,6 +1410,8 @@ def bed(args):
 
     print out the tiling paths in bed/gff3 format
     """
+    from jcvi.formats.obo import load_GODag, validate_term
+
     p = OptionParser(bed.__doc__)
     p.add_option("--gaps", default=False, action="store_true",
             help="Only print bed lines for gaps [default: %default]")
@@ -1448,11 +1431,8 @@ def bed(args):
             help="Specify a gff3 source [default: `%default`]")
     g1.add_option("--feature", default="golden_path_fragment",
             help="Specify a gff3 feature type [default: `%default`]")
-    g1.add_option("--verifySO", default=False, action="store_true",
-            help="Verify gff3 feature type againt SO for validity. " +\
-                  "Looks for `so.obo` in current folder. If not exists, " +\
-                  "it downloads the obo file. [default: %default]")
     p.add_option_group(g1)
+    p.set_SO_opts()
 
     opts, args = p.parse_args(args)
 
@@ -1464,7 +1444,7 @@ def bed(args):
 
     # If output format is gff3 and 'verifySO' option is invoked, validate the SO term
     if opts.gff and opts.verifySO:
-        validate_term(opts.feature)
+        validate_term(opts.feature, method=opts.verifySO)
 
     agpfile, = args
     agp = AGP(agpfile)
@@ -1710,6 +1690,9 @@ def tidy(args):
 
     # Step 4: Final reindex
     agpfile = newagpfile
+    reindex_opts = [agpfile, "--inplace"]
+    if opts.nogaps:
+        reindex_opts += ["--nogaps"]
     reindex_opts = [agpfile, "--inplace"]
     if opts.nogaps:
         reindex_opts += ["--nogaps"]

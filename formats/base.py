@@ -47,7 +47,7 @@ class DictFile (BaseFile, dict):
     """
     Generic file parser for multi-column files, keyed by a particular index.
     """
-    def __init__(self, filename, keypos=0, valuepos=1, delimiter=None):
+    def __init__(self, filename, keypos=0, valuepos=1, delimiter=None, strict=True):
 
         super(DictFile, self).__init__(filename)
 
@@ -59,10 +59,15 @@ class DictFile (BaseFile, dict):
             atoms = row.split(delimiter)
             thiscols = len(atoms)
             if thiscols < ncols:
-                msg = "Must contain >= {0} columns.  Aborted.\n".format(ncols)
+                action = "Aborted" if strict else "Skipped"
+
+                msg = "Must contain >= {0} columns.  {1}.\n".format(ncols, action)
                 msg += "  --> Line {0}: {1}".format(lineno + 1, row)
                 logging.error(msg)
-                sys.exit(1)
+                if strict:
+                    sys.exit(1)
+                else:
+                    continue
 
             key = atoms[keypos]
             value = atoms[valuepos] if (valuepos is not None) else atoms

@@ -247,8 +247,11 @@ def bcf(args):
     """
     from jcvi.apps.grid import Jobs
 
+    valid_callers = ("mpileup", "freebayes")
     p = OptionParser(bcf.__doc__)
     p.set_outfile()
+    p.add_option("--caller", default="freebayes", choices=valid_callers,
+                 help="Use variant caller [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) < 2:
@@ -256,6 +259,7 @@ def bcf(args):
 
     fastafile = args[0]
     bamfiles = args[1:]
+    caller = opts.caller
 
     unsorted = [x for x in bamfiles if ".sorted." not in x]
     jargs = [[[x, "--unique"]] for x in unsorted]
@@ -264,9 +268,13 @@ def bcf(args):
 
     bamfiles = [x.replace(".sorted.bam", ".bam") for x in bamfiles]
     bamfiles = [x.replace(".bam", ".sorted.bam") for x in bamfiles]
-    cmd = "samtools mpileup -P ILLUMINA -E -ugDf"
-    cmd += " {0} {1}".format(fastafile, " ".join(bamfiles))
-    cmd += " | bcftools view -bcvg -"
+    if caller == "mpileup":
+        cmd = "samtools mpileup -P ILLUMINA -E -ugDf"
+        cmd += " {0} {1}".format(fastafile, " ".join(bamfiles))
+        cmd += " | bcftools view -bcvg -"
+    elif caller == "freebayes":
+        cmd = "freebayes -f"
+        cmd += " {0} {1}".format(fastafile, " ".join(bamfiles))
     sh(cmd, outfile=opts.outfile)
 
 

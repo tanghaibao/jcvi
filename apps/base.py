@@ -51,6 +51,7 @@ class ActionDispatcher (object):
         sys.exit(1)
 
     def dispatch(self, globals):
+        from difflib import get_close_matches
         meta = "ACTION"  # function is only invoked for listing ACTIONs
         if len(sys.argv) == 1:
             self.print_help()
@@ -59,6 +60,9 @@ class ActionDispatcher (object):
 
         if not action in self.valid_actions:
             print >> sys.stderr, "[error] {0} not a valid {1}\n".format(action, meta)
+            alt = get_close_matches(action, self.valid_actions)
+            print >> sys.stderr, "Did you mean one of these?\n\t{0}\n".\
+                                format(", ".join(alt))
             self.print_help()
 
         globals[action](sys.argv[2:])

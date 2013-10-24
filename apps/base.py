@@ -70,6 +70,33 @@ class OptionParser (OptionP):
 
         OptionP.__init__(self, doc)
 
+    def parse_args(self, args=None):
+        dests = set()
+        ol = []
+        for g in [self] + self.option_groups:
+            ol += g.option_list
+        for o in ol:
+            if o.dest in dests:
+                continue
+            self.add_help_from_choices(o)
+            dests.add(o.dest)
+
+        return OptionP.parse_args(self, args)
+
+    def add_help_from_choices(self, o):
+        if o.type != "choice":
+            return
+
+        help_pf, help_sf = o.help.split("[")
+        help_pf, help_sf = help_pf.strip(), help_sf.strip()
+        if o.default is None:
+            help_sf = "default: GUESS]"
+        ctext = "|".join(sorted(o.choices))
+        if len(ctext) > 100:
+            ctext = ctext[:100] + " ... "
+        choice_text = "must be one of {0}".format(ctext)
+        o.help = "{0}, {1} [{2}".format(help_pf, choice_text, help_sf)
+
     def set_grid(self):
         """
         Add --grid options for command line programs
@@ -88,8 +115,7 @@ class OptionParser (OptionP):
         group.add_option("-P", dest="pcode", default=vcode, choices=valid_pcodes,
                         help="Specify accounting project code [default: %default]")
         group.add_option("-l", dest="queue", default="default", choices=queue_choices,
-                        help="Name of the queue, one of {0} [default: %default]". \
-                        format("|".join(queue_choices)))
+                        help="Name of the queue [default: %default]")
         group.add_option("-t", dest="threaded", type="int",
                         help="Append '-pe threaded N' [default: %default]")
         if array:
@@ -233,11 +259,9 @@ class OptionParser (OptionP):
         group.add_option("--dpi", default=dpi, type="int",
                 help="Physical dot density (dots per inch) [default: %default]")
         group.add_option("--format", default=format, choices=allowed_format,
-                help="Generate image of format, must be one of {0}".\
-                format("|".join(allowed_format)) + " [default: %default]")
+                help="Generate image of format [default: %default]")
         group.add_option("--theme", default=theme, choices=allowed_themes,
-                help="Font theme, must be one of {0}".format("|".join(allowed_themes)) + \
-                     " [default: %default]")
+                help="Font theme [default: %default]")
 
         if args is None:
             args = sys.argv[1:]
@@ -344,8 +368,7 @@ class OptionParser (OptionP):
     def set_aligner(self, aligner="bowtie"):
         valid_aligners = ("clc", "bowtie", "bwa")
         self.add_option("--aligner", default=aligner, choices=valid_aligners,
-                     help="Use aligner {0} [default: %default]".\
-                         format("|".join(valid_aligners)))
+                     help="Use aligner [default: %default]")
 
 
 def ConfigSectionMap(Config, section):
@@ -998,8 +1021,7 @@ def notify(args):
 
     p = OptionParser(notify.__doc__)
     p.add_option("--method", default="email", choices=valid_notif_methods,
-                 help="Specify the mode of notification [default: %default]" + \
-                      " [choices: ({0})]".format(", ".join('"{0}"'.format(x) for x in valid_notif_methods)))
+                 help="Specify the mode of notification [default: %default]")
     p.add_option("--subject", default="JCVI: job monitor",
                  help="Specify the subject of the notification message")
 
@@ -1069,9 +1091,7 @@ def waitpid(args):
     p = OptionParser(waitpid.__doc__)
     p.add_option("--notify", default=None, choices=valid_notif_methods,
                  help="Specify type of notification to be sent after waiting" + \
-                      " [default: %default]" + \
-                      " [choices: ({0})]".format(", ".join('"{0}"'.format(x) for x \
-                      in valid_notif_methods)))
+                      " [default: %default]")
     p.add_option("--interval", default=120, type="int",
                  help="Specify interval at which PID should be monitored" + \
                       " [default: %default]")

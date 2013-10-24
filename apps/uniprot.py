@@ -63,22 +63,19 @@ def fetch(args):
     p.add_option("--columns", default="entry name, protein names, genes,organism",
             help="columns to download, if --format is `tab` or `xls`." +
             " [default: %default]")
-
     p.add_option("--include", default=False, action="store_true",
             help="Include isoforms when --format is `fasta` or include `description` when" +
             " --format is `rdf`. [default: %default]");
-
     p.add_option("--limit", default=10, type="int",
             help="Max number of results to retrieve [default: %default]")
     p.add_option("--offset", default=0, type="int",
             help="Offset of first result, used with --limit [default: %default]")
-
     p.add_option("--skipcheck", default=False, action="store_true",
             help="turn off prompt to check file existence [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
     query, = args
     url_params = {}

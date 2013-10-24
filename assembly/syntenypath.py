@@ -77,8 +77,7 @@ def partition(args):
     p.add_option("--namestart", default=0, type="int",
                  help="Use a shorter name, starting index [default: %default]")
     p.add_option("--format", default="png", choices=allowed_format,
-            help="Generate image of format, must be one of {0}".\
-            format("|".join(allowed_format)) + " [default: %default]")
+            help="Generate image of format [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:

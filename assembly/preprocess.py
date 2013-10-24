@@ -384,7 +384,7 @@ def trim(args):
     p.add_option("--path", default=op.join("~/bin", TrimJar),
             help="Path to trimmomatic jar file [default: %default]")
     p.add_option("--phred", default=None, choices=phdchoices,
-            help="Phred score offset {0} [default: guess]".format(phdchoices))
+            help="Phred score offset [default: guess]")
     p.add_option("--nofrags", default=False, action="store_true",
             help="Discard frags file in PE mode [default: %default]")
     p.add_option("--minqv", default=15, type="int",
@@ -541,7 +541,7 @@ def correct(args):
     p.add_option("--nofragsdedup", default=False, action="store_true",
                  help="Don't deduplicate the fragment reads [default: %default]")
     p.add_option("--ploidy", default="2", choices=("1", "2"),
-                 help="Ploidy = [default: %default]")
+                 help="Ploidy [default: %default]")
     p.add_option("--haploidify", default=False, action="store_true",
                  help="Set HAPLOIDIFY=True [default: %default]")
     p.set_cpus()

@@ -708,8 +708,7 @@ def split(args):
     p.add_option("--all", default=False, action="store_true",
             help="split all records [default: %default]")
     p.add_option("--mode", default="optimal", choices=mode_choices,
-            help="Mode when splitting records, one of {0}".\
-                    format("|".join(mode_choices)) + " [default: %default]")
+            help="Mode when splitting records [default: %default]")
     p.add_option("--format", default="fasta", choices=("fasta", "fastq", "txt"),
             help="input file format [default: %default]")
 

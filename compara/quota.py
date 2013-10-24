@@ -265,8 +265,7 @@ def main(args):
             help="you might turn this on when screening paralogous blocks, "\
                  "esp. if you have reduced mirrored blocks into non-redundant set")
     p.add_option("--solver", default="SCIP", choices=supported_solvers,
-            help="use MIP solver, must be one of %s " % (supported_solvers,) +\
-                 "[default: %default]")
+            help="use MIP solver [default: %default]")
     p.add_option("--verbose", action="store_true",
             default=False, help="show verbose solver output")
 

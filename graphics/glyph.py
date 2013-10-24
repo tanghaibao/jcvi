@@ -254,11 +254,9 @@ def gff(args):
     one gene, and only the "mRNA" and "CDS" feature will be drawn on the canvas.
     """
     align_choices = ("left", "center", "right")
-
     p = OptionParser(gff.__doc__)
     p.add_option("--align", default="left", choices=align_choices,
-                 help="Horizontal alignment {0} [default: %default]".\
-                    format("|".join(align_choices)))
+                 help="Horizontal alignment [default: %default]")
     p.add_option("--noUTR", default=False, action="store_true",
                  help="Do not plot UTRs [default: %default]")
     opts, args = p.parse_args(args)

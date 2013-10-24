@@ -886,15 +886,13 @@ def uniq(args):
     p.add_option("--type", default="gene",
                  help="Types of features to non-redundify [default: %default]")
     p.add_option("--mode", default="span", choices=supported_modes,
-                 help="Pile mode, one of {0} [default: %default]".\
-                      format("|".join(supported_modes)))
+                 help="Pile mode [default: %default]")
     p.add_option("--best", default=1, type="int",
                  help="Use best N features [default: %default]")
     p.add_option("--name", default=False, action="store_true",
                  help="Non-redundify Name attribute [default: %default]")
     p.add_option("--iter", default="2", choices=("1", "2"),
-                 help="Number of iterations to grab children, use 1 or 2 "\
-                      "[default: %default]")
+                 help="Number of iterations to grab children [default: %default]")
     p.set_outfile()
 
     opts, args = p.parse_args(args)

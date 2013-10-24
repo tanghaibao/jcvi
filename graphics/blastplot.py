@@ -239,8 +239,7 @@ if __name__ == "__main__":
     p.add_option("--qh", help="Path to highlight bed for query")
     p.add_option("--sh", help="Path to highlight bed for subject")
     p.add_option("--style", default="dot", choices=DotStyles,
-            help="Style of the dots, one of {0} [default: %default]".\
-                format("|".join(DotStyles)))
+            help="Style of the dots [default: %default]")
     p.add_option("--proportional", default=False, action="store_true",
             help="Make image width:height equal to seq ratio [default: %default]")
     p.add_option("--stripNames", default=False, action="store_true",

@@ -114,15 +114,13 @@ def blast(args):
     """
     task_choices = ("blastn", "blastn-short", "dc-megablast", \
                     "megablast", "vecscreen")
-
     p = OptionParser(blast.__doc__)
     p.set_align(pctid=None, evalue=.01)
     p.add_option("--wordsize", type="int", help="Word size [default: %default]")
     p.add_option("--best", default=1, type="int",
             help="Only look for best N hits [default: %default]")
     p.add_option("--task", default="megablast", choices=task_choices,
-            help="Task of the blastn, one of {0}".\
-                 format("|".join(task_choices)) + " [default: %default]")
+            help="Task of the blastn [default: %default]")
     p.set_cpus()
     opts, args = p.parse_args(args)
 

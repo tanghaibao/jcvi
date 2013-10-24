@@ -276,9 +276,8 @@ def filter(args):
             help="Score cutoff [default: %default]")
     p.set_align(pctid=95, hitlen=100, evalue=.01)
     p.add_option("--self", default=None, choices=("strict", "loose"),
-            help="remove self hits, choices:\n " \
-            "`strict`: matched names and spans;\n" \
-            "`loose`: matched names [default: %default]")
+            help="Remove self hits. strict: matched names and spans; " \
+            "loose: matched names [default: %default]")
     p.add_option("--ids", default=None,
             help="path to tab or comma delimited file containing ids to " \
             "retain [default: %default]")
@@ -903,8 +902,7 @@ def covfilter(args):
     p.add_option("--list", dest="list", default=False, action="store_true",
             help="List the id% and cov% per gene [default: %default]")
     p.add_option("--iterby", dest="iterby", default="query", choices=allowed_iterby,
-            help="Choose how to iterate through BLAST output [default: %default]" +
-            " [choices: ('{0}')]".format("', '".join(allowed_iterby)))
+            help="Choose how to iterate through BLAST [default: %default]")
     p.set_outfile(outfile=None)
 
     opts, args = p.parse_args(args)

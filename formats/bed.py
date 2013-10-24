@@ -798,7 +798,7 @@ def distance(args):
 
     p = OptionParser(distance.__doc__)
     p.add_option("--distmode", default="ss", choices=("ss", "ee"),
-            help="distance mode between paired reads, ss is outer distance, " \
+            help="Distance mode between paired reads. ss is outer distance, " \
                  "ee is inner distance [default: %default]")
     opts, args = p.parse_args(args)
 

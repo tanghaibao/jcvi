@@ -64,8 +64,7 @@ def main(args):
     p.add_option("--mask", default=False, action="store_true",
                  help="invoke -c in lastdb [default: %default]")
     p.add_option("--format", default="blast", choices=supported_formats,
-                 help="Output format, one of {0} [default: %default]".\
-                      format("|".join(supported_formats)))
+                 help="Output format [default: %default]")
     p.add_option("--eval", default=False, action="store_true",
                  help="Use lastex to recalculate E-value [default: %default]")
     p.set_cpus()

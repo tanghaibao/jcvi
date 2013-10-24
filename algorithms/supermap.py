@@ -150,11 +150,10 @@ if __name__ == '__main__':
 
     filter_choices = ("ref", "query", "intersection", "union")
     dialect_choices = ("blast", "coords")
-
     p.add_option("--filter", choices=filter_choices, default="intersection",
-            help="Available filters: " + str(filter_choices) + " [default: %default]")
+            help="Available filters [default: %default]")
     p.add_option("--dialect", choices=dialect_choices,
-            help="Input format: " + str(dialect_choices))
+            help="Input format [default: guess]")
     p.add_option("--clip", default=0, type="int",
             help="Clip ranges so that to allow minor overlaps [default: %default]")
 

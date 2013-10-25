@@ -12,10 +12,8 @@ second column is values.
 import sys
 import logging
 
-from jcvi.apps.base import OptionParser
-
 from jcvi.apps.r import RTemplate
-from jcvi.apps.base import debug
+from jcvi.apps.base import OptionParser, debug
 debug()
 
 

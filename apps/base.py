@@ -88,18 +88,25 @@ class OptionParser (OptionP):
         return OptionP.parse_args(self, args)
 
     def add_help_from_choices(self, o):
-        if o.type != "choice":
-            return
+        default_tag = "%default"
+        help_pf = o.help
+        if "[" in o.help:
+            help_pf = help_pf.split("[")[0]
+        help_pf = help_pf.strip()
 
-        help_pf, help_sf = o.help.split("[")
-        help_pf, help_sf = help_pf.strip(), help_sf.strip()
-        if o.default is None:
-            help_sf = "default: GUESS]"
-        ctext = "|".join(sorted(o.choices))
-        if len(ctext) > 100:
-            ctext = ctext[:100] + " ... "
-        choice_text = "must be one of {0}".format(ctext)
-        o.help = "{0}, {1} [{2}".format(help_pf, choice_text, help_sf)
+        if o.type == "choice":
+            if o.default is None:
+                default_tag = "guess"
+            ctext = "|".join(sorted(o.choices))
+            if len(ctext) > 100:
+                ctext = ctext[:100] + " ... "
+            choice_text = "must be one of {0}".format(ctext)
+            o.help = "{0}, {1} [default: {2}]".format(help_pf,
+                            choice_text, default_tag)
+        else:
+            if o.default is None:
+                default_tag = "disabled"
+            o.help = "{0} [default: {1}]".format(help_pf, default_tag)
 
     def set_grid(self):
         """
@@ -120,7 +127,7 @@ class OptionParser (OptionP):
                         help="Specify accounting project code [default: %default]")
         group.add_option("-l", dest="queue", default="default", choices=queue_choices,
                         help="Name of the queue [default: %default]")
-        group.add_option("-t", dest="threaded", type="int",
+        group.add_option("-t", dest="threaded", default=None, type="int",
                         help="Append '-pe threaded N' [default: %default]")
         if array:
             group.add_option("-c", dest="concurrency", type="int",

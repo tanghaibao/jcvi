@@ -250,7 +250,7 @@ def bcf(args):
     valid_callers = ("mpileup", "freebayes")
     p = OptionParser(bcf.__doc__)
     p.set_outfile()
-    p.add_option("--caller", default="freebayes", choices=valid_callers,
+    p.add_option("--caller", default="mpileup", choices=valid_callers,
                  help="Use variant caller [default: %default]")
     opts, args = p.parse_args(args)
 

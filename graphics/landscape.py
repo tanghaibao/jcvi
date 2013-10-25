@@ -44,7 +44,7 @@ class BinLine (object):
     def __init__(self, row):
         args = row.split()
         self.chr = args[0]
-        self.len = int(args[1])
+        self.len = float(args[1])
         self.binlen = int(args[2])
 
     def __str__(self):
@@ -182,6 +182,8 @@ def composite(args):
                  help="Features to plot in alt-bars [default: %default]")
     p.add_option("--fatten", default=False, action="store_true",
                  help="Help visualize certain narrow features [default: %default]")
+    p.add_option("--mode", default="span", choices=("span", "count", "score"),
+                 help="Accumulate feature based on [default: %default]")
     add_window_options(p)
     opts, args, iopts = p.set_image_options(args, figsize="8x5")
 
@@ -202,7 +204,7 @@ def composite(args):
         altbars = opts.altbars.split(",")
         altbarbeds = get_beds(altbars)
 
-    linebins = get_binfiles(linebeds, fastafile, shift, counts=True)
+    linebins = get_binfiles(linebeds, fastafile, shift, mode=opts.mode)
 
     margin = .12
     inner = .015
@@ -413,13 +415,11 @@ def draw_gauge(ax, margin, maxl, rightmargin=None, optimal=7):
     return best_stride / xinterval
 
 
-def get_binfiles(bedfiles, fastafile, shift, counts=False, subtract=None):
+def get_binfiles(bedfiles, fastafile, shift, mode="span", subtract=None):
     binopts = ["--binsize={0}".format(shift)]
+    binopts.append("--mode={0}".format(mode))
     if subtract:
         binopts.append("--subtract={0}".format(subtract))
-    if counts:
-        binopts.append("--counts")
-
     binfiles = [bins([x, fastafile] + binopts) for x in bedfiles]
     binfiles = [BinFile(x) for x in binfiles]
 

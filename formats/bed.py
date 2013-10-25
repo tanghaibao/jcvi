@@ -435,8 +435,8 @@ def bins(args):
                  help="Size of the bins [default: %default]")
     p.add_option("--subtract",
                  help="Subtract bases from window [default: %default]")
-    p.add_option("--counts", default=False, action="store_true",
-                 help="Count feature numbers instead of bases [default: %default]")
+    p.add_option("--mode", default="span", choices=("span", "count", "score"),
+                 help="Accumulate feature based on [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -444,14 +444,12 @@ def bins(args):
 
     bedfile, fastafile = args
     subtract = opts.subtract
-    counts = opts.counts
+    mode = opts.mode
     assert op.exists(bedfile)
 
     binsize = opts.binsize
     binfile = bedfile + ".{0}".format(binsize)
-    if counts:
-        binfile += ".counts"
-    binfile += ".bins"
+    binfile += ".{0}.bins".format(mode)
 
     if not need_update(bedfile, binfile):
         return binfile
@@ -460,7 +458,8 @@ def bins(args):
     sizesfile = sz.filename
     sizes = sz.mapping
     fw = open(binfile, "w")
-    bedfile = mergeBed(bedfile)
+    scores = "median" if mode == "score" else None
+    bedfile = mergeBed(bedfile, nms=True, scores=scores)
     if subtract:
         subtractmerge = mergeBed(subtract)
         subtract_complement = complementBed(subtractmerge, sizesfile)
@@ -478,8 +477,9 @@ def bins(args):
         if last_bin:
             nbins += 1
 
-        a = np.zeros(nbins, dtype="int")
-        b = np.zeros(nbins, dtype="int")
+        a = np.zeros(nbins)  # values
+        b = np.zeros(nbins, dtype="int")  # bases
+        c = np.zeros(nbins, dtype="int")  # count
         b[:-1] = binsize
         b[-1] = last_bin
 
@@ -490,11 +490,12 @@ def bins(args):
             endbin = end / binsize
 
             assert startbin <= endbin
+            c[startbin:endbin + 1] += 1
 
-            if counts:
-                a[startbin:endbin + 1] += 1
+            if mode == "score":
+                a[startbin:endbin + 1] += float(bb.score)
 
-            else:
+            elif mode == "base":
                 if startbin == endbin:
                     a[startbin] += end - start + 1
 
@@ -505,6 +506,9 @@ def bins(args):
                     if startbin + 1 < endbin:
                         a[startbin + 1:endbin] += binsize
                     a[endbin] += lastsize
+
+        if mode == "count":
+            a = c
 
         for xa, xb in zip(a, b):
             print >> fw, "\t".join(str(x) for x in (chr, xa, xb))
@@ -611,8 +615,8 @@ def mergeBed(bedfile, d=0, nms=False, s=False, scores=None):
     if s:
         cmd += " -s"
     if scores:
-        valid_opts = ["sum", "min", "max", "mean", "median",
-                "mode", "antimode", "collapse"]
+        valid_opts = ("sum", "min", "max", "mean", "median",
+                "mode", "antimode", "collapse")
         if not scores in valid_opts:
             scores = "mean"
         cmd += " -scores {0}".format(scores)

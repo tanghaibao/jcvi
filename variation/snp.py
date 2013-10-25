@@ -9,17 +9,43 @@ import sys
 import logging
 
 from jcvi.formats.fasta import Fasta
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh
 debug()
 
 
 def main():
 
     actions = (
-        ('frommaf', 'Convert to four-column tabular format from MAF'),
+        ('frommaf', 'convert to four-column tabular format from MAF'),
+        ('freq', 'call snp frequencies and keep AO and RO'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def freq(args):
+    """
+    %prog freq fastafile bamfile
+
+    Call SNP frequencies and generate GFF file.
+    """
+    p = OptionParser(freq.__doc__)
+    p.add_option("--mindepth", default=3, type="int",
+                 help="Minimum depth [default: %default]")
+    p.add_option("--minqual", default=20, type="int",
+                 help="Minimum quality [default: %default]")
+    p.set_outfile()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    fastafile, bamfile = args
+    cmd = "freebayes -f {0} --pooled-continuous {1}".format(fastafile, bamfile)
+    cmd += " -F 0 -C {0}".format(opts.mindepth)
+    cmd += ' | vcffilter -f "QUAL > {0}"'.format(opts.minqual)
+    cmd += " | vcfkeepinfo - AO RO TYPE"
+    sh(cmd, outfile=opts.outfile)
 
 
 def frommaf(args):

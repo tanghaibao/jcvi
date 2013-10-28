@@ -14,6 +14,7 @@ from collections import defaultdict
 from xml.etree.ElementTree import ElementTree
 
 from jcvi.formats.bed import Bed
+from jcvi.formats.base import must_open
 from jcvi.utils.range import range_chain, range_parse, Range
 from jcvi.utils.iter import pairwise
 from jcvi.apps.base import OptionParser, ActionDispatcher, debug
@@ -46,9 +47,11 @@ class OpticalMap (object):
             e = MapAlignment(e)
             yield e.reference_map_name, e.aligned_map_name, e
 
-    def write_bed(self, fw=sys.stdout, blockonly=False, switch=False):
+    def write_bed(self, bedfile="stdout", blockonly=False, switch=False):
+        fw = must_open(bedfile, "w")
         # when switching ref_map and aligned_map elements, disable `blockOnly`
-        if switch: blockonly = False
+        if switch:
+            blockonly = False
         for a in self.alignments:
             reference_map_name = a.reference_map_name
             aligned_map_name = a.aligned_map_name
@@ -328,10 +331,9 @@ def bed(args):
 
     xmlfile, = args
     bedfile = xmlfile.rsplit(".", 1)[0] + ".bed"
-    fw = open(bedfile, "w")
 
     om = OpticalMap(xmlfile)
-    om.write_bed(fw, blockonly=opts.blockonly, switch=opts.switch)
+    om.write_bed(bedfile, blockonly=opts.blockonly, switch=opts.switch)
     fw.close()
 
     if not opts.nosort:

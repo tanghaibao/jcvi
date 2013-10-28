@@ -32,7 +32,7 @@ def range_parse(s):
     return Range(chr, start, end, 0, 0)
 
 
-def range_intersect(a, b):
+def range_intersect(a, b, extend=0):
     """
     Returns the intersection between two reanges.
 
@@ -47,11 +47,11 @@ def range_intersect(a, b):
     if b_min > b_max:
         b_min, b_max = b_max, b_min
 
-    if a_max < b_min or b_max < a_min:
+    if a_max + extend < b_min or b_max + extend < a_min:
         return None
     i_min = max(a_min, b_min)
     i_max = min(a_max, b_max)
-    if i_min > i_max:
+    if i_min > i_max + extend:
         return None
 
     return [i_min, i_max]

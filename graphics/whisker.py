@@ -22,7 +22,7 @@ library(ggplot2)
 data <- read.table('$datafile', header=T, sep='\t')
 data$$$x <- factor(data$$$x, c($levels))
 m <- ggplot(data, aes($x, $y))
-m + geom_boxplot(colour="darkgreen") + opts(title='$title') +
+m + geom_boxplot(colour="darkgreen", notch='$notch') + opts(title='$title') +
 scale_x_discrete('$lx') + scale_y_continuous('$ly') +
 theme(text=element_text(size=$fontsize))
 ggsave('$outfile')
@@ -33,6 +33,8 @@ def main():
     p = OptionParser(__doc__)
     p.add_option("--levels",
                 help="Reorder factors, comma-delimited [default: alphabetical]")
+    p.add_option("--notch", default=False, action="store_true",
+                 help="notched box plot [default: %default]")
     p.add_option("--title", default=" ",
                 help="Title of the figure [default: %default]")
     p.add_option("--xlabel", help="X-axis label [default: %default]")
@@ -48,6 +50,7 @@ def main():
     header = open(datafile)
     outfile = datafile.rsplit(".", 1)[0] + ".pdf"
     levels = opts.levels
+    notch = opts.notch
     title = opts.title
     xlabel = opts.xlabel
     ylabel = opts.ylabel

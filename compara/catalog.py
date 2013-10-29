@@ -590,7 +590,7 @@ def make_ortholog(blocksfile, rbhfile, orthofile):
 
 def ortholog(args):
     """
-    %prog ortholog a.cds a.bed b.cds b.bed
+    %prog ortholog a.bed a.cds b.bed b.cds
 
     Run a sensitive pipeline to find orthologs between two species a and b.
     The pipeline runs LAST and 1-to-1 quota synteny blocks as the backbone of
@@ -611,7 +611,7 @@ def ortholog(args):
     if len(args) != 4:
         sys.exit(not p.print_help())
 
-    afasta, abed, bfasta, bbed = args
+    abed, afasta, bbed, bfasta = args
     ccscore = opts.cscore
     aprefix = afasta.split(".")[0]
     bprefix = bfasta.split(".")[0]

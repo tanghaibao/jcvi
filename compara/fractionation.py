@@ -31,9 +31,76 @@ def main():
         ('genestatus', 'tag genes based on translation from GMAP models'),
         # Specific study (requires specific datasets)
         ('napus', 'extract napus gene loss vs diploid ancestors'),
+        ('merge', 'merge protein quartets table with registry (napus)'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def merge(args):
+    """
+    %prog merge protein-quartets registry LOST
+
+    Merge protein quartets table with dna quartets registry. This is specific
+    to the napus project.
+    """
+    from jcvi.formats.base import DictFile
+
+    p = OptionParser(merge.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    quartets, registry, lost = args
+    qq = DictFile(registry, keypos=1, valuepos=3)
+    lost = DictFile(lost, keypos=1, valuepos=0, delimiter='|')
+    qq.update(lost)
+    fp = open(quartets)
+    cases = {
+        "AN,CN": 4,
+        "BO,AN,CN": 8,
+        "BO,CN": 2,
+        "BR,AN": 1,
+        "BR,AN,CN": 6,
+        "BR,BO": 3,
+        "BR,BO,AN": 5,
+        "BR,BO,AN,CN": 9,
+        "BR,BO,CN": 7,
+    }
+    ip = {
+        "syntenic_model": "Syntenic_model_excluded_by_OMG",
+        "complete": "Predictable",
+        "partial": "Truncated",
+        "pseudogene": "Pseudogene",
+        "random": "Match_random",
+        "real_ns": "Transposed",
+        "gmap_fail": "GMAP_fail",
+        "AN LOST": "AN_LOST",
+        "CN LOST": "CN_LOST",
+        "BR LOST": "BR_LOST",
+        "BO LOST": "BO_LOST",
+        "outside": "Outside_synteny_blocks",
+        "[NF]": "Not_found",
+    }
+    for row in fp:
+        atoms = row.strip().split("\t")
+        genes = atoms[:4]
+        tag = atoms[4]
+        a, b, c, d = [qq.get(x, ".").rsplit("-", 1)[-1] for x in genes]
+        qqs = [c, d, a, b]
+        for i, q in enumerate(qqs):
+            if atoms[i] != '.':
+                qqs[i] = "syntenic_model"
+        # Make comment
+        comment = "Case{0}".format(cases[tag])
+        dots = sum([1 for x in genes if x == '.'])
+        if dots == 1:
+            idx = genes.index(".")
+            status = qqs[idx]
+            status = ip[status]
+            comment += "-" + status
+        print row.strip() + "\t" + "\t".join(qqs + [comment])
 
 
 def gffselect(args):
@@ -147,7 +214,6 @@ def genestatus(args):
     Tag genes based on translation from GMAP models, using fasta.translate()
     --ids.
     """
-    from itertools import groupby
     p = OptionParser(genestatus.__doc__)
     opts, args = p.parse_args(args)
 

@@ -84,7 +84,7 @@ def get_libs(args):
     return libs
 
 
-def calculate_A50(ctgsizes, cutoff=0):
+def calculate_A50(ctgsizes, cutoff=0, percent=50):
     """
     Given an array of contig sizes, produce A50, N50, and L50 values
     """
@@ -96,7 +96,7 @@ def calculate_A50(ctgsizes, cutoff=0):
     a50 = np.cumsum(ctgsizes)
 
     total = np.sum(ctgsizes)
-    idx = bisect(a50, total / 2)
+    idx = bisect(a50, total * percent / 100.)
     l50 = ctgsizes[idx]
     n50 = idx + 1
 

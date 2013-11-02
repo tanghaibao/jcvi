@@ -1095,7 +1095,6 @@ def waitpid(args):
     debug()
     import shlex
     from time import sleep
-    from subprocess import check_output
 
     valid_notif_methods.extend(available_push_api.values())
 
@@ -1106,12 +1105,21 @@ def waitpid(args):
     p.add_option("--interval", default=120, type="int",
                  help="Specify interval at which PID should be monitored" + \
                       " [default: %default]")
+    p.add_option("--message",
+                 help="Specify notification message [default: %none]")
     p.set_email()
     p.set_grid()
     opts, args = p.parse_args(args)
 
     if len(args) == 0:
         sys.exit(not p.print_help())
+
+    if not opts.message:
+        """
+        If notification message not specified by user, just get
+        the name of the running command and use it as the message
+        """
+        from subprocess import check_output
 
     sep = ":::"
     cmd = None
@@ -1124,8 +1132,11 @@ def waitpid(args):
 
     status = is_running(pid)
     if status:
-        get_origcmd = "ps -p {0} -o cmd h".format(pid)
-        origcmd = check_output(shlex.split(get_origcmd)).strip()
+        if opts.message:
+            msg = opts.message
+        else:
+            get_origcmd = "ps -p {0} -o cmd h".format(pid)
+            msg = origcmd = check_output(shlex.split(get_origcmd)).strip()
         while is_running(pid):
             sleep(opts.interval)
     else:
@@ -1133,8 +1144,7 @@ def waitpid(args):
         sys.exit()
 
     if opts.notify:
-        notifycmd = ["[completed] {0}: `{1}`".format(gethostname(), origcmd)]
-        hostname = check_output(["hostname"]).strip()
+        notifycmd = ["[completed] {0}: `{1}`".format(gethostname(), msg)]
         if opts.notify != "email":
             method, api = ("push", opts.notify)
             notifycmd.append("--api={0}".format(api))

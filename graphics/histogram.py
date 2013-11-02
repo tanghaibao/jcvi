@@ -169,7 +169,7 @@ def histogram(numberfile, vmin, vmax, xlabel, title,
 
 
 def histogram_multiple(numberfiles, vmin, vmax, xlabel, title,
-                       bins=20, skip=0, ascii=False,
+                       tags=None, bins=20, skip=0, ascii=False,
                        facet=False, fill="white", prefix=""):
     """
     Generate histogram using number from numberfile, and only numbers in the
@@ -183,13 +183,20 @@ def histogram_multiple(numberfiles, vmin, vmax, xlabel, title,
 
     fw = open(newfile, "w")
     print >> fw, "{0}\tgrp".format(xlabel)
-    for f in numberfiles:
+
+    if tags:
+        tags = tags.split(",")
+
+    for i, f in enumerate(numberfiles):
         data, va, vb = get_data(f, vmin, vmax, skip=skip)
         vmin = min(vmin, va)
         vmax = max(vmax, vb)
 
         fp = open(f)
-        tag = op.basename(f).split(".")[0]
+        if tags:
+            tag = tags[i]
+        else:
+            tag = op.basename(f).rsplit(".", 1)[0]
         for row in fp:
             val = row.strip()
             print >> fw, "\t".join((val, tag))
@@ -225,6 +232,8 @@ def main():
     p.add_option("--xlabel", dest="xlabel", default="value",
             help="label on the X-axis")
     p.add_option("--title", help="title of the plot")
+    p.add_option("--tags", dest="tags", default=None,
+            help="tags for data if multiple input files, comma sep")
     p.add_option("--ascii", default=False, action="store_true",
             help="print ASCII text stem-leaf plot [default: %default]")
     p.add_option("--log", default="0", choices=("0", "2", "10"),
@@ -252,7 +261,7 @@ def main():
                 log=log, fill=opts.fill)
     else:
         histogram_multiple(args, vmin, vmax, xlabel, title,
-                bins=bins, skip=skip, ascii=opts.ascii,
+                tags=opts.tags, bins=bins, skip=skip, ascii=opts.ascii,
                 facet=opts.facet, fill=opts.fill)
 
 

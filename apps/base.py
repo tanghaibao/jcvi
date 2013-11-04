@@ -1106,7 +1106,7 @@ def waitpid(args):
                  help="Specify interval at which PID should be monitored" + \
                       " [default: %default]")
     p.add_option("--message",
-                 help="Specify notification message [default: %none]")
+                help="Specify notification message [default: %default]")
     p.set_email()
     p.set_grid()
     opts, args = p.parse_args(args)

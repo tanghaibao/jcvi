@@ -91,9 +91,14 @@ class GffLine (object):
             return self.attributes[key]
         return None
 
-    def set_attr(self, key, value, update=True, gff3=None):
-        self.attributes[key] = [x for x in value] \
-                if type(value) is list else [value]
+    def set_attr(self, key, value, update=True, gff3=None, append=False, dbtag=None):
+        if type(value) is not list:
+            value = [value]
+            if key == "Dbxref" and dbtag:
+                value = ["{0}:{1}".format(dbtag, x) for x in value]
+        if key not in self.attributes.keys() or not append:
+            self.attributes[key] = []
+        self.attributes[key].extend(value)
         if update:
             self.update_attributes(gff3=gff3, urlquote=False)
 
@@ -620,8 +625,8 @@ def format(args):
                  help="Make IDs unique [default: %default]")
     p.add_option("--gff3", default=False, action="store_true",
                  help="Force to write gff3 attributes [default: %default]")
-    p.add_option("--note", help="Add Note from two-column file [default: %default]")
     p.add_option("--name", help="Add Name from two-column file [default: %default]")
+    p.add_option("--note", help="Add Note from two-column file [default: %default]")
     p.add_option("--seqid", help="Switch seqid from two-column file [default: %default]")
     p.add_option("--source", help="Switch GFF source from two-column file. If not" +
                 " a file, value will globally replace GFF source [default: %default]")
@@ -637,6 +642,9 @@ def format(args):
     p.add_option("--add_attribute", dest="attrib_file", help="Add a new attribute; " +
                 "attribute value comes from two-column file; attribute key comes " +
                 "from filename [default: %default]")
+    p.add_option("--dbxref", dest="dbxref_file", help="Add a new Dbxref value (DBTAG:ID) " + \
+                "from two-column file. DBTAG comes from filename, ID comes from 2nd column " + \
+                "[default: %default]")
     p.add_option("--remove_feats", help="Comma separated list of features to remove" + \
                 " [default: %default]")
     p.set_outfile()
@@ -655,6 +663,7 @@ def format(args):
     note = opts.note
     source = opts.source
     attrib_file = opts.attrib_file
+    dbxref_file = opts.dbxref_file
     gsac = opts.gsac
     if opts.unique and opts.duptype:
         logging.debug("Cannot use `--unique` and `--chaindup` together")
@@ -681,6 +690,9 @@ def format(args):
         attr_name = op.basename(attrib_file).rsplit(".", 1)[0]
         if attr_name not in reserved_gff_attributes:
             attr_name = attr_name.lower()
+    if dbxref_file:
+        dbxref_values = DictFile(dbxref_file, delimiter="\t", strict=strict)
+        dbtag = op.basename(dbxref_file).rsplit(".", 1)[0]
 
     if gsac:  # setting gsac will force IDs to be unique
         unique = True
@@ -754,13 +766,12 @@ def format(args):
             else:
                 g.source = source
 
+        id = g.get_attr("ID")
         if names:
-            id = g.get_attr("ID")
             if id in names:
                 g.set_attr("Name", names[id])
 
         if note:
-            id = g.get_attr("ID")
             name = g.get_attr("Name")
             tag = None
             if id in note:
@@ -772,9 +783,12 @@ def format(args):
                 g.set_attr("Note", tag)
 
         if attrib_file:
-            id = g.get_attr("ID")
             if id in attr_values.keys():
                 g.set_attr(attr_name, attr_values[id])
+
+        if dbxref_file:
+            if id in dbxref_values.keys():
+                g.set_attr("Dbxref", dbxref_values[id], dbtag=dbtag)
 
         if unique:
             if opts.gff3 and "ID" not in g.attributes.keys():

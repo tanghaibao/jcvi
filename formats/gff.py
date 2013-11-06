@@ -885,6 +885,85 @@ def get_piles(allgenes):
         yield [allgenes[x] for x in pile]
 
 
+def match_span(f1, f2):
+    return (f1.start == f2.start) and (f1.stop == f2.stop)
+
+
+def match_ftype(f1, f2):
+    return f1.featuretype == f2.featuretype
+
+
+def match_nchildren(f1c, f2c):
+    return len(list(f1c)) == len(list(f2c))
+
+
+def match_child_ftype(f1c, f2c):
+    from collections import Counter
+
+    return len(set(Counter(i.featuretype for i in f1c).keys()) ^ \
+            set(Counter(i.featuretype for i in f2c).keys()))
+
+
+def match_feats(f1, f2, gffdb, iter):
+    """
+    Given 2 gffutils database features, compare the features against each other
+    to identify if gene structures are the same or different
+    """
+    if match_span(f1, f2):
+        for n in range(1, iter + 1):
+            f1c, f2c = gffdb.children(f1, level=n), gffdb.children(f2, level=n)
+            if match_child_ftype(f1c, f2c) == 0:
+                if match_nchildren(f1c, f2c):
+                    for cf1, cf2 in zip(f1c, f2c):
+                        if not match_span(cf1, cf2):
+                            return False
+                else:
+                    return False
+            else:
+                return False
+    else:
+        return False
+
+    return True
+
+
+def dedup_pile(group, gffdb, iter=2):
+    """
+    Identify all redundant gene structures and remove all but one duplicate
+    entity from the pile (which has already been filtered by span/score)
+    """
+    from itertools import combinations
+    from jcvi.utils.grouper import Grouper
+
+    newgrp, pile = set(), {}
+    dups = Grouper()
+    for elem in group:
+        pile[elem.accn] = elem
+
+    for f1, f2 in combinations(pile.keys(), 2):
+        dbf1, dbf2 = gffdb[f1], gffdb[f2]
+        if match_feats(dbf1, dbf2, gffdb, iter):
+            dups.join(f1, f2)
+        else:
+            for f in (f1, f2):
+                if f not in dups:
+                    newgrp.add(pile[f])
+                elif pile[f] in newgrp:
+                    newgrp.remove(pile[f])
+
+    for dup in dups:
+        scores = []
+        for d in dup:
+            for x in (elem for elem in group if elem.accn == d):
+                scores.append((- float(x.score), x))
+
+        scores.sort()
+        (bscore, best) = scores[0]
+        newgrp.add(best)
+
+    return list(newgrp)
+
+
 def uniq(args):
     """
     %prog uniq gffile > uniq.gff
@@ -905,6 +984,10 @@ def uniq(args):
                  help="Use best N features [default: %default]")
     p.add_option("--name", default=False, action="store_true",
                  help="Non-redundify Name attribute [default: %default]")
+    p.add_option("--dedup", default=False, action="store_true",
+                 help="Iterate through every pile and remove all but one feature " + \
+                      "within a group of features sharing gene structure " + \
+                      "[default: %default]")
     p.add_option("--iter", default="2", choices=("1", "2"),
                  help="Number of iterations to grab children [default: %default]")
     p.set_outfile()
@@ -929,6 +1012,8 @@ def uniq(args):
     allgenes.sort(key=lambda x: (x.seqid, x.start))
 
     g = get_piles(allgenes)
+    if opts.dedup:
+        gffdb = make_index(gffile)
 
     bestids = set()
     for group in g:
@@ -937,6 +1022,7 @@ def uniq(args):
         else:
             scores_group = [(- float(x.score), x) for x in group]
 
+        flt_group = []
         scores_group.sort()
         seen = set()
         for score, x in scores_group:
@@ -948,7 +1034,13 @@ def uniq(args):
                 continue
 
             seen.add(name)
-            bestids.add(x.accn)
+            flt_group.append(x) if opts.dedup \
+                    else bestids.add(x.accn)
+
+        if opts.dedup:
+            dedup_group = dedup_pile(flt_group, gffdb, iter=int(opts.iter))
+            for x in dedup_group:
+                bestids.add(x.accn)
 
     populate_children(opts.outfile, bestids, gffile, opts.type, iter=opts.iter)
 

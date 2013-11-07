@@ -639,12 +639,12 @@ def format(args):
                  help="Fix GSAC GFF3 file attributes [default: %default]")
     p.add_option("--fixphase", default=False, action="store_true",
                  help="Change phase 1<->2, 2<->1 [default: %default]")
-    p.add_option("--add_attribute", dest="attrib_file", help="Add a new attribute; " +
-                "attribute value comes from two-column file; attribute key comes " +
-                "from filename [default: %default]")
-    p.add_option("--dbxref", dest="dbxref_file", help="Add a new Dbxref value (DBTAG:ID) " + \
-                "from two-column file. DBTAG comes from filename, ID comes from 2nd column " + \
-                "[default: %default]")
+    p.add_option("--add_attribute", dest="attrib_files", help="Add new attribute(s) " +
+                "from two-column file(s); accepts comma-separated list of files; " +
+                "attribute name comes from filename [default: %default]")
+    p.add_option("--add_dbxref", dest="dbxref_files", help="Add new Dbxref value(s) (DBTAG:ID) " + \
+                "from two-column file(s). DBTAG comes from filename, ID comes from 2nd column; " + \
+                "accepts comma-separated list of files; [default: %default]")
     p.add_option("--remove_feats", help="Comma separated list of features to remove" + \
                 " [default: %default]")
     p.set_outfile()
@@ -662,8 +662,8 @@ def format(args):
     names = opts.name
     note = opts.note
     source = opts.source
-    attrib_file = opts.attrib_file
-    dbxref_file = opts.dbxref_file
+    attrib_files = opts.attrib_files
+    dbxref_files = opts.dbxref_files
     gsac = opts.gsac
     if opts.unique and opts.duptype:
         logging.debug("Cannot use `--unique` and `--chaindup` together")
@@ -685,14 +685,18 @@ def format(args):
         source = DictFile(source, delimiter="\t", strict=strict)
     if names:
         names = DictFile(names, delimiter="\t", strict=strict)
-    if attrib_file:
-        attr_values = DictFile(attrib_file, delimiter="\t", strict=strict)
-        attr_name = op.basename(attrib_file).rsplit(".", 1)[0]
-        if attr_name not in reserved_gff_attributes:
-            attr_name = attr_name.lower()
-    if dbxref_file:
-        dbxref_values = DictFile(dbxref_file, delimiter="\t", strict=strict)
-        dbtag = op.basename(dbxref_file).rsplit(".", 1)[0]
+    if attrib_files:
+        attr_values, files = {}, attrib_files.split(",")
+        for fn in files:
+            attr_name = op.basename(fn).rsplit(".", 1)[0]
+            if attr_name not in reserved_gff_attributes:
+                attr_name = attr_name.lower()
+            attr_values[attr_name] = DictFile(fn, delimiter="\t", strict=strict)
+    if dbxref_files:
+        dbxref_values, files = {}, dbxref_files.split(",")
+        for fn in files:
+            dbtag = op.basename(fn).rsplit(".", 1)[0]
+            dbxref_values[dbtag] = DictFile(fn, delimiter="\t", strict=strict)
 
     if gsac:  # setting gsac will force IDs to be unique
         unique = True
@@ -782,13 +786,15 @@ def format(args):
             if tag:
                 g.set_attr("Note", tag)
 
-        if attrib_file:
-            if id in attr_values.keys():
-                g.set_attr(attr_name, attr_values[id])
+        if attrib_files:
+            for attr_name in attr_values.keys():
+                if id in attr_values[attr_name].keys():
+                    g.set_attr(attr_name, attr_values[attr_name][id])
 
-        if dbxref_file:
-            if id in dbxref_values.keys():
-                g.set_attr("Dbxref", dbxref_values[id], dbtag=dbtag)
+        if dbxref_files:
+            for dbtag in dbxref_values.keys():
+                if id in dbxref_values[dbtag].keys():
+                    g.set_attr("Dbxref", dbxref_values[dbtag][id], dbtag=dbtag, append=True)
 
         if unique:
             if opts.gff3 and "ID" not in g.attributes.keys():
@@ -927,15 +933,17 @@ def match_feats(f1, f2, gffdb, iter):
     return True
 
 
-def dedup_pile(group, gffdb, iter=2):
+def dedup_pile(newgrp, group, gffdb, iter):
     """
     Identify all redundant gene structures and remove all but one duplicate
     entity from the pile (which has already been filtered by span/score)
+
+    Performs all possible pairwise comparisons of gene structure within the pile
     """
     from itertools import combinations
     from jcvi.utils.grouper import Grouper
 
-    newgrp, pile = set(), {}
+    pile = {}
     dups = Grouper()
     for elem in group:
         pile[elem.accn] = elem
@@ -947,9 +955,9 @@ def dedup_pile(group, gffdb, iter=2):
         else:
             for f in (f1, f2):
                 if f not in dups:
-                    newgrp.add(pile[f])
-                elif pile[f] in newgrp:
-                    newgrp.remove(pile[f])
+                    newgrp[f] = 1
+                elif f in newgrp:
+                    newgrp.pop(f, None)
 
     for dup in dups:
         scores = []
@@ -959,9 +967,7 @@ def dedup_pile(group, gffdb, iter=2):
 
         scores.sort()
         (bscore, best) = scores[0]
-        newgrp.add(best)
-
-    return list(newgrp)
+        newgrp[best.accn] = 1
 
 
 def uniq(args):
@@ -990,6 +996,7 @@ def uniq(args):
                       "[default: %default]")
     p.add_option("--iter", default="2", choices=("1", "2"),
                  help="Number of iterations to grab children [default: %default]")
+    p.set_cpus()
     p.set_outfile()
 
     opts, args = p.parse_args(args)
@@ -1008,14 +1015,12 @@ def uniq(args):
             continue
         allgenes.append(g)
 
-    logging.debug("A total of {0} genes imported.".format(len(allgenes)))
+    logging.debug("A total of `{0}` {1} features imported.".format(len(allgenes), type))
     allgenes.sort(key=lambda x: (x.seqid, x.start))
 
     g = get_piles(allgenes)
-    if opts.dedup:
-        gffdb = make_index(gffile)
 
-    bestids = set()
+    bestids, flt_groups = set(), []
     for group in g:
         if mode == "span":
             scores_group = [(- x.span, x) for x in group]
@@ -1037,17 +1042,34 @@ def uniq(args):
             flt_group.append(x) if opts.dedup \
                     else bestids.add(x.accn)
 
-        if opts.dedup:
-            dedup_group = dedup_pile(flt_group, gffdb, iter=int(opts.iter))
-            for x in dedup_group:
-                bestids.add(x.accn)
+        flt_groups.append(flt_group)
+
+    if opts.dedup:
+        gffdb = make_index(gffile)
+
+        from jcvi.utils.iter import grouper
+        from jcvi.apps.grid import Jobs
+        from multiprocessing import Manager
+
+        manager = Manager()
+        results = manager.dict()
+
+        logging.debug("Deduplicating `{0}` piles at a time".format(opts.cpus))
+        for cpu_groups in grouper(opts.cpus, flt_groups):
+            jobs = Jobs(dedup_pile, [(results, flt_group, gffdb, int(opts.iter)) \
+                    for flt_group in cpu_groups])
+            jobs.run()
+        logging.debug("Deduplication complete".format(len(flt_groups)))
+
+        for x in results.keys():
+            bestids.add(x)
 
     populate_children(opts.outfile, bestids, gffile, opts.type, iter=opts.iter)
 
 
 def populate_children(outfile, ids, gffile, otype, iter="2"):
     fw = must_open(outfile, "w")
-    logging.debug("A total of {0} genes selected.".format(len(ids)))
+    logging.debug("A total of `{0}` {1} features selected.".format(len(ids), otype))
     logging.debug("Populate children. Iteration 1..")
     gff = Gff(gffile)
     children = set()

@@ -57,7 +57,7 @@ class GffLine (object):
         self.phase = args[7]
         assert self.phase in Valid_phases, \
                 "phase must be one of {0}".format(Valid_phases)
-        self.attributes_text = args[8].strip()
+        self.attributes_text = "" if len(args) <= 8 else args[8].strip()
         self.attributes = make_attributes(self.attributes_text, gff3=gff3)
         # key is not in the gff3 field, this indicates the conversion to accn
         self.key = key  # usually it's `ID=xxxxx;`
@@ -114,8 +114,11 @@ class GffLine (object):
             val = ",".join(val)
             val = "\"{0}\"".format(val) if " " in val and (not gff3) else val
             equal = "=" if gff3 else " "
-            if tag not in multiple_gff_attributes and urlquote:
-                val = quote(val, safe="/:?~#+!$'@()*[]| ")
+            if urlquote:
+                safechars = " /:?~#+!$'@()*[]|"
+                if tag in multiple_gff_attributes:
+                    safechars += ","
+                val = quote(val, safe=safechars)
             attributes.append(equal.join((tag, val)))
 
         self.attributes_text = sep.join(attributes)

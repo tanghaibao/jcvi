@@ -10,7 +10,7 @@ import os.path as op
 import sys
 import logging
 
-from jcvi.formats.base import BaseFile, write_file
+from jcvi.formats.base import BaseFile, write_file, must_open
 from jcvi.formats.fastq import guessoffset
 from jcvi.utils.cbook import depends, human_size
 from jcvi.utils.data import Adapters
@@ -305,6 +305,7 @@ def count(args):
     p = OptionParser(count.__doc__)
     p.add_option("--dir",
                 help="Sub-directory where FASTQC was run [default: %default]")
+    p.set_outfile()
     opts, args = p.parse_args(args)
 
     if len(args) < 1:
@@ -328,6 +329,12 @@ def count(args):
         rows.append(row)
 
     print loadtable(header, rows)
+
+    fw = must_open(opts.outfile, "w")
+    data = [header] + rows
+    for d in data:
+        print >> fw, ",".join(d)
+
 
 
 def hetsmooth(args):

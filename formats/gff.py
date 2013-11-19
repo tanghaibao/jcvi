@@ -135,7 +135,7 @@ class GffLine (object):
             a = self.attributes[self.key]
         else:   # GFF2 format
             a = self.attributes_text.split()
-        return ",".join(a)
+        return quote(",".join(a))
 
     id = accn
 

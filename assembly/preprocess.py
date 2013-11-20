@@ -21,7 +21,7 @@ debug()
 
 class FastQCdata (BaseFile, dict):
 
-    def __init__(self, filename):
+    def __init__(self, filename, human=False):
         super(FastQCdata, self).__init__(filename)
         fp = open(filename)
         for row in fp:
@@ -43,9 +43,10 @@ class FastQCdata (BaseFile, dict):
                 sl = int(b)
 
         ts, sl = int(ts), int(sl)
+        tb = ts * sl
 
-        self["Total Sequences"] = human_size(ts).rstrip("b")
-        self["Total Bases"] = human_size(ts * sl).rstrip("b")
+        self["Total Sequences"] = human_size(ts).rstrip("b") if human else ts
+        self["Total Bases"] = human_size(tb).rstrip("b") if human else tb
 
 
 def main():
@@ -305,6 +306,8 @@ def count(args):
     p = OptionParser(count.__doc__)
     p.add_option("--dir",
                 help="Sub-directory where FASTQC was run [default: %default]")
+    p.add_option("--human", default=False, action="store_true",
+                help="Human friendly numbers [default: %default]")
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -315,6 +318,7 @@ def count(args):
     subdir = opts.dir
     header = "Filename|Total Sequences|Sequence length|Total Bases".split("|")
     rows = []
+    human = opts.human
     for f in filenames:
         folder = f.replace(".gz", "").rsplit(".", 1)[0] + "_fastqc"
         if subdir:
@@ -324,7 +328,7 @@ def count(args):
             logging.debug("File `{0}` not found.".format(summaryfile))
             continue
 
-        fqcdata = FastQCdata(summaryfile)
+        fqcdata = FastQCdata(summaryfile, human=human)
         row = [fqcdata[x] for x in header]
         rows.append(row)
 
@@ -333,7 +337,7 @@ def count(args):
     fw = must_open(opts.outfile, "w")
     data = [header] + rows
     for d in data:
-        print >> fw, ",".join(d)
+        print >> fw, ",".join(str(x) for x in d)
 
 
 

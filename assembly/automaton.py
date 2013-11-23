@@ -84,6 +84,7 @@ class MetaFile (LineFile):
 def main():
 
     actions = (
+        ('tophat', 'run tophat on a list of inputs'),
         ('prepare', 'parse JIRA report and prepare input'),
         ('pairs', 'estimate insert sizes for input files'),
         ('contamination', 'remove contaminated reads'),
@@ -123,6 +124,41 @@ def contamination(args):
         if opts.mateorientation:
             align_opts += ["--mateorientation={0}".format(opts.mateorientation)]
         samfile, logfile = align(align_opts)
+
+
+def tophat(args):
+    """
+    %prog tophat folder reference
+
+    Run tophat on a folder of reads.
+    """
+    p = OptionParser(tophat.__doc__)
+    p.add_option("--gtf", help="Reference annotation [default: %default]")
+    p.add_option("--intron", default=15000, type="int",
+                 help="Max intron size [default: %default]")
+    p.set_cpus()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    folder, reference = args
+    cwd = os.getcwd()
+    for p, prefix in iter_project(folder, 2):
+        a, b = p
+        outdir = "{0}_tophat".format(prefix)
+        outfile = op.join(outdir, "accepted_hits.bam")
+        if not need_update(p, outfile):
+            logging.debug("File `{0}` found. Skipping.".format(outfile))
+            continue
+
+        cmd = "tophat -p {0}".format(opts.cpus)
+        if opts.gtf:
+            cmd += " -G {0}".format(opts.gtf)
+        cmd += " --max-intron-length {0}".format(opts.intron)
+        cmd += " -o {0}".format(outdir)
+        cmd += " {0} {1} {2}".format(reference, a, b)
+        sh(cmd)
 
 
 def pairs(args):

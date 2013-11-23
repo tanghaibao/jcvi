@@ -136,6 +136,10 @@ def tophat(args):
     p.add_option("--gtf", help="Reference annotation [default: %default]")
     p.add_option("--intron", default=15000, type="int",
                  help="Max intron size [default: %default]")
+    p.add_option("--dist", default=-50, type="int",
+                 help="Mate inner distance [default: %default]")
+    p.add_option("--stdev", default=50, type="int",
+                 help="Mate standard deviation [default: %default]")
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -156,6 +160,8 @@ def tophat(args):
         if opts.gtf:
             cmd += " -G {0}".format(opts.gtf)
         cmd += " --max-intron-length {0}".format(opts.intron)
+        cmd += " --mate-inner-dist {0}".format(opts.dist)
+        cmd += " --mate-std-dev {0}".format(opts.stdev)
         cmd += " -o {0}".format(outdir)
         cmd += " {0} {1} {2}".format(reference, a, b)
         sh(cmd)

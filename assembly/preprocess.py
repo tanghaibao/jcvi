@@ -332,7 +332,7 @@ def count(args):
         row = [fqcdata[x] for x in header]
         rows.append(row)
 
-    print loadtable(header, rows)
+    print >> sys.stderr, loadtable(header, rows)
 
     fw = must_open(opts.outfile, "w")
     data = [header] + rows

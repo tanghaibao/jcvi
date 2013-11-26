@@ -108,8 +108,10 @@ def savefig(figname, dpi=150, iopts=None):
         format = "pdf"
     try:
         plt.savefig(figname, dpi=dpi, format=format)
-    except:
-        logging.error("savefig failed. Reset usetex to False.")
+    except Exception as e:
+        message = "savefig failed. Reset usetex to False."
+        message += "\n{0}".format(str(e))
+        logging.error(message)
         rc('text', **{'usetex': False})
         plt.savefig(figname, dpi=dpi)
 

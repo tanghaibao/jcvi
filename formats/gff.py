@@ -57,7 +57,7 @@ class GffLine (object):
         self.phase = args[7]
         assert self.phase in Valid_phases, \
                 "phase must be one of {0}".format(Valid_phases)
-        self.attributes_text = args[8].strip()
+        self.attributes_text = "" if len(args) <= 8 else args[8].strip()
         self.attributes = make_attributes(self.attributes_text, gff3=gff3)
         # key is not in the gff3 field, this indicates the conversion to accn
         self.key = key  # usually it's `ID=xxxxx;`
@@ -91,9 +91,14 @@ class GffLine (object):
             return self.attributes[key]
         return None
 
-    def set_attr(self, key, value, update=True, gff3=None):
-        self.attributes[key] = [x for x in value] \
-                if type(value) is list else [value]
+    def set_attr(self, key, value, update=True, gff3=None, append=False, dbtag=None):
+        if type(value) is not list:
+            value = [value]
+            if key == "Dbxref" and dbtag:
+                value = ["{0}:{1}".format(dbtag, x) for x in value]
+        if key not in self.attributes.keys() or not append:
+            self.attributes[key] = []
+        self.attributes[key].extend(value)
         if update:
             self.update_attributes(gff3=gff3, urlquote=False)
 
@@ -109,8 +114,11 @@ class GffLine (object):
             val = ",".join(val)
             val = "\"{0}\"".format(val) if " " in val and (not gff3) else val
             equal = "=" if gff3 else " "
-            if tag not in multiple_gff_attributes and urlquote:
-                val = quote(val, safe="/:?~#+!$'@()*[]| ")
+            if urlquote:
+                safechars = " /:?~#+!$'@()*[]|"
+                if tag in multiple_gff_attributes:
+                    safechars += ","
+                val = quote(val, safe=safechars)
             attributes.append(equal.join((tag, val)))
 
         self.attributes_text = sep.join(attributes)
@@ -127,7 +135,7 @@ class GffLine (object):
             a = self.attributes[self.key]
         else:   # GFF2 format
             a = self.attributes_text.split()
-        return ",".join(a)
+        return quote(",".join(a))
 
     id = accn
 
@@ -620,8 +628,8 @@ def format(args):
                  help="Make IDs unique [default: %default]")
     p.add_option("--gff3", default=False, action="store_true",
                  help="Force to write gff3 attributes [default: %default]")
-    p.add_option("--note", help="Add Note from two-column file [default: %default]")
     p.add_option("--name", help="Add Name from two-column file [default: %default]")
+    p.add_option("--note", help="Add Note from two-column file [default: %default]")
     p.add_option("--seqid", help="Switch seqid from two-column file [default: %default]")
     p.add_option("--source", help="Switch GFF source from two-column file. If not" +
                 " a file, value will globally replace GFF source [default: %default]")
@@ -634,9 +642,12 @@ def format(args):
                  help="Fix GSAC GFF3 file attributes [default: %default]")
     p.add_option("--fixphase", default=False, action="store_true",
                  help="Change phase 1<->2, 2<->1 [default: %default]")
-    p.add_option("--add_attribute", dest="attrib_file", help="Add a new attribute; " +
-                "attribute value comes from two-column file; attribute key comes " +
-                "from filename [default: %default]")
+    p.add_option("--add_attribute", dest="attrib_files", help="Add new attribute(s) " +
+                "from two-column file(s); accepts comma-separated list of files; " +
+                "attribute name comes from filename [default: %default]")
+    p.add_option("--add_dbxref", dest="dbxref_files", help="Add new Dbxref value(s) (DBTAG:ID) " + \
+                "from two-column file(s). DBTAG comes from filename, ID comes from 2nd column; " + \
+                "accepts comma-separated list of files; [default: %default]")
     p.add_option("--remove_feats", help="Comma separated list of features to remove" + \
                 " [default: %default]")
     p.set_outfile()
@@ -654,7 +665,8 @@ def format(args):
     names = opts.name
     note = opts.note
     source = opts.source
-    attrib_file = opts.attrib_file
+    attrib_files = opts.attrib_files
+    dbxref_files = opts.dbxref_files
     gsac = opts.gsac
     if opts.unique and opts.duptype:
         logging.debug("Cannot use `--unique` and `--chaindup` together")
@@ -676,11 +688,18 @@ def format(args):
         source = DictFile(source, delimiter="\t", strict=strict)
     if names:
         names = DictFile(names, delimiter="\t", strict=strict)
-    if attrib_file:
-        attr_values = DictFile(attrib_file, delimiter="\t", strict=strict)
-        attr_name = op.basename(attrib_file).rsplit(".", 1)[0]
-        if attr_name not in reserved_gff_attributes:
-            attr_name = attr_name.lower()
+    if attrib_files:
+        attr_values, files = {}, attrib_files.split(",")
+        for fn in files:
+            attr_name = op.basename(fn).rsplit(".", 1)[0]
+            if attr_name not in reserved_gff_attributes:
+                attr_name = attr_name.lower()
+            attr_values[attr_name] = DictFile(fn, delimiter="\t", strict=strict)
+    if dbxref_files:
+        dbxref_values, files = {}, dbxref_files.split(",")
+        for fn in files:
+            dbtag = op.basename(fn).rsplit(".", 1)[0]
+            dbxref_values[dbtag] = DictFile(fn, delimiter="\t", strict=strict)
 
     if gsac:  # setting gsac will force IDs to be unique
         unique = True
@@ -754,13 +773,12 @@ def format(args):
             else:
                 g.source = source
 
+        id = g.get_attr("ID")
         if names:
-            id = g.get_attr("ID")
             if id in names:
                 g.set_attr("Name", names[id])
 
         if note:
-            id = g.get_attr("ID")
             name = g.get_attr("Name")
             tag = None
             if id in note:
@@ -771,10 +789,15 @@ def format(args):
             if tag:
                 g.set_attr("Note", tag)
 
-        if attrib_file:
-            id = g.get_attr("ID")
-            if id in attr_values.keys():
-                g.set_attr(attr_name, attr_values[id])
+        if attrib_files:
+            for attr_name in attr_values.keys():
+                if id in attr_values[attr_name].keys():
+                    g.set_attr(attr_name, attr_values[attr_name][id])
+
+        if dbxref_files:
+            for dbtag in dbxref_values.keys():
+                if id in dbxref_values[dbtag].keys():
+                    g.set_attr("Dbxref", dbxref_values[dbtag][id], dbtag=dbtag, append=True)
 
         if unique:
             if opts.gff3 and "ID" not in g.attributes.keys():
@@ -871,6 +894,85 @@ def get_piles(allgenes):
         yield [allgenes[x] for x in pile]
 
 
+def match_span(f1, f2):
+    return (f1.start == f2.start) and (f1.stop == f2.stop)
+
+
+def match_ftype(f1, f2):
+    return f1.featuretype == f2.featuretype
+
+
+def match_nchildren(f1c, f2c):
+    return len(list(f1c)) == len(list(f2c))
+
+
+def match_child_ftype(f1c, f2c):
+    from collections import Counter
+
+    return len(set(Counter(i.featuretype for i in f1c).keys()) ^ \
+            set(Counter(i.featuretype for i in f2c).keys()))
+
+
+def match_feats(f1, f2, gffdb, iter):
+    """
+    Given 2 gffutils database features, compare the features against each other
+    to identify if gene structures are the same or different
+    """
+    if match_span(f1, f2):
+        for n in range(1, iter + 1):
+            f1c, f2c = gffdb.children(f1, level=n), gffdb.children(f2, level=n)
+            if match_child_ftype(f1c, f2c) == 0:
+                if match_nchildren(f1c, f2c):
+                    for cf1, cf2 in zip(f1c, f2c):
+                        if not match_span(cf1, cf2):
+                            return False
+                else:
+                    return False
+            else:
+                return False
+    else:
+        return False
+
+    return True
+
+
+def dedup_pile(newgrp, group, gffdb, iter):
+    """
+    Identify all redundant gene structures and remove all but one duplicate
+    entity from the pile (which has already been filtered by span/score)
+
+    Performs all possible pairwise comparisons of gene structure within the pile
+    """
+    from itertools import combinations
+    from jcvi.utils.grouper import Grouper
+
+    pile = {}
+    dups = Grouper()
+    for elem in group:
+        pile[elem.accn] = elem
+
+    for f1, f2 in combinations(pile.keys(), 2):
+        dbf1, dbf2 = gffdb[f1], gffdb[f2]
+        if match_feats(dbf1, dbf2, gffdb, iter):
+            dups.join(f1, f2)
+        else:
+            for f in (f1, f2):
+                if f not in dups:
+                    newgrp[f] = 1
+                elif f in newgrp:
+                    newgrp.pop(f, None)
+
+    for dup in dups:
+        scores = []
+        for d in dup:
+            for x in (elem for elem in group if elem.accn == d):
+                scores.append((- float(x.score), x))
+
+        scores.sort()
+        (bscore, best) = scores[0]
+        newgrp[best.accn] = 1
+
+
 def uniq(args):
     """
     %prog uniq gffile > uniq.gff
@@ -891,8 +993,13 @@ def uniq(args):
                  help="Use best N features [default: %default]")
     p.add_option("--name", default=False, action="store_true",
                  help="Non-redundify Name attribute [default: %default]")
+    p.add_option("--dedup", default=False, action="store_true",
+                 help="Iterate through every pile and remove all but one feature " + \
+                      "within a group of features sharing gene structure " + \
+                      "[default: %default]")
     p.add_option("--iter", default="2", choices=("1", "2"),
                  help="Number of iterations to grab children [default: %default]")
+    p.set_cpus()
     p.set_outfile()
 
     opts, args = p.parse_args(args)
@@ -911,18 +1018,19 @@ def uniq(args):
             continue
         allgenes.append(g)
 
-    logging.debug("A total of {0} genes imported.".format(len(allgenes)))
+    logging.debug("A total of `{0}` {1} features imported.".format(len(allgenes), type))
     allgenes.sort(key=lambda x: (x.seqid, x.start))
 
     g = get_piles(allgenes)
 
-    bestids = set()
+    bestids, flt_groups = set(), []
     for group in g:
         if mode == "span":
             scores_group = [(- x.span, x) for x in group]
         else:
             scores_group = [(- float(x.score), x) for x in group]
 
+        flt_group = []
         scores_group.sort()
         seen = set()
         for score, x in scores_group:
@@ -934,14 +1042,37 @@ def uniq(args):
                 continue
 
             seen.add(name)
-            bestids.add(x.accn)
+            flt_group.append(x) if opts.dedup \
+                    else bestids.add(x.accn)
+
+        flt_groups.append(flt_group)
+
+    if opts.dedup:
+        gffdb = make_index(gffile)
+
+        from jcvi.utils.iter import grouper
+        from jcvi.apps.grid import Jobs
+        from multiprocessing import Manager
+
+        manager = Manager()
+        results = manager.dict()
+
+        logging.debug("Deduplicating `{0}` piles at a time".format(opts.cpus))
+        for cpu_groups in grouper(opts.cpus, flt_groups):
+            jobs = Jobs(dedup_pile, [(results, flt_group, gffdb, int(opts.iter)) \
+                    for flt_group in cpu_groups])
+            jobs.run()
+        logging.debug("Deduplication complete".format(len(flt_groups)))
+
+        for x in results.keys():
+            bestids.add(x)
 
     populate_children(opts.outfile, bestids, gffile, opts.type, iter=opts.iter)
 
 
 def populate_children(outfile, ids, gffile, otype, iter="2"):
     fw = must_open(outfile, "w")
-    logging.debug("A total of {0} genes selected.".format(len(ids)))
+    logging.debug("A total of `{0}` {1} features selected.".format(len(ids), otype))
     logging.debug("Populate children. Iteration 1..")
     gff = Gff(gffile)
     children = set()

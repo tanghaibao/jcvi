@@ -1099,15 +1099,24 @@ def summary(args):
     from jcvi.utils.cbook import SummaryStats
 
     p = OptionParser(summary.__doc__)
+    p.add_option("--sizes", default=False, action="store_true",
+                 help="Write .sizes file")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
     bedfile, = args
     bed = Bed(bedfile)
-    mspans = None
     mspans = [(x.span, x.accn) for x in bed]
+    if opts.sizes:
+        sizesfile = bedfile + ".sizes"
+        fw = open(sizesfile, "w")
+        for span, accn in mspans:
+            print >> fw, span
+        fw.close()
+        logging.debug("Spans written to `{0}`.".format(sizesfile))
+
     spans, accns = zip(*mspans)
     stats = SummaryStats(spans)
     print >> sys.stderr, "Total seqids: {0}".format(len(bed.seqids))

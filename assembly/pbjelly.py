@@ -75,7 +75,6 @@ def patch(args):
 
     Run PBJelly with reference and reads.
     """
-    from jcvi.apps.base import which
     from jcvi.formats.base import write_file
     from jcvi.formats.fasta import format
 
@@ -91,7 +90,7 @@ def patch(args):
         sys.exit(not p.print_help())
 
     ref, reads = args
-    cmd = op.join(opts.pbjelly_home, "exportPaths.sh")
+    cmd = op.join(opts.pbjelly_home, "setup.sh")
     if not which("fakeQuals.py"):
         message = "Run this command:\n\tsource {0}".format(cmd)
         print >> sys.stderr, message
@@ -127,10 +126,7 @@ def patch(args):
 
     # Make sure we have the patched version of Extraction.py
     # See discussion <http://seqanswers.com/forums/showthread.php?t=27599>
-    extpy = which("Extraction.py")
-    lines = open(extpy).readlines()
-    patchline = lines[191].strip()
-    assert patchline.split()[0] == "return"
+    # This check has been removed
 
     # Build the pipeline
     runsh = []
@@ -138,7 +134,7 @@ def patch(args):
         runsh.append("Jelly.py {0} Protocol.xml".format(action))
 
     pcmds = """find assembly -name "ref*" -exec echo \\
-        "WrapAssembly.py {{}} {0}/{1}/{2}.gapInfo.bed \\
+        "Assembly.py {{}} {0}/{1}/{2}.gapInfo.bed \\
         > {{}}/assembly.out 2> {{}}/assembly.err" \; > commands.list""".\
         format(outputDir, dref, pf)
     runsh.append(pcmds)

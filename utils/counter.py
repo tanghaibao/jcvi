@@ -189,7 +189,7 @@ class Counter(dict):
                 result[elem] = newcount
         return result
 
-    def report(self, percentage=False):
+    def report(self, sep=", ", percentage=False):
         total = sum(self.values())
         items = []
         for k, v in sorted(self.items(), key=lambda x: -x[-1]):
@@ -198,7 +198,7 @@ class Counter(dict):
                 item += " ({0:.1f}%)".format(v * 100. / total)
             items.append(item)
 
-        return ", ".join(items)
+        return sep.join(items)
 
 
 if __name__ == '__main__':

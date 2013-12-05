@@ -134,9 +134,8 @@ def patch(args):
         runsh.append("Jelly.py {0} Protocol.xml".format(action))
 
     pcmds = """find assembly -name "ref*" -exec echo \\
-        "Assembly.py {{}} {0}/{1}/{2}.gapInfo.bed \\
-        > {{}}/assembly.out 2> {{}}/assembly.err" \; > commands.list""".\
-        format(outputDir, dref, pf)
+        "Assembly.py {{}} \\
+        > {{}}/assembly.out 2> {{}}/assembly.err" \; > commands.list"""
     runsh.append(pcmds)
 
     runsh.append("parallel < commands.list")

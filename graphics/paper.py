@@ -139,7 +139,7 @@ def litchi(args):
     from jcvi.graphics.glyph import DoubleSquare
 
     p = OptionParser(litchi.__doc__)
-    opts, args, iopts = p.set_image_options(args, figsize="8x6")
+    opts, args, iopts = p.set_image_options(args, figsize="9x6")
 
     if len(args) != 4:
         sys.exit(not p.print_help())

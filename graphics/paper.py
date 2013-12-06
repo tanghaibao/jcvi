@@ -30,8 +30,10 @@ def main():
         ('epoch', 'show the methods used in epoch paper'),
         # Cotton paper (Paterson et al., 2012 Nature)
         ('cotton', 'plot cotton macro- and micro-synteny (requires data)'),
-        # Unpublished
+        # Amborella paper (to appear)
         ('amborella', 'plot amborella macro- and micro-synteny (requires data)'),
+        # Unpublished
+        ('litchi', 'plot litchi micro-synteny (requires data)'),
         ('napusretention', 'plot retention rate along chr (requires data)'),
             )
     p = ActionDispatcher(actions)
@@ -127,11 +129,82 @@ def napusretention(args):
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
+def litchi(args):
+    """
+    %prog litchi mcscan.out all.bed layout switch.ids
+
+    Build a composite figure that calls graphis.synteny.
+    """
+    from jcvi.graphics.synteny import Synteny, draw_gene_legend
+    from jcvi.graphics.glyph import DoubleSquare
+
+    p = OptionParser(litchi.__doc__)
+    opts, args, iopts = p.set_image_options(args, figsize="9x6")
+
+    if len(args) != 4:
+        sys.exit(not p.print_help())
+
+    datafile, bedfile, slayout, switch = args
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes([0, 0, 1, 1])
+
+    Synteny(fig, root, datafile, bedfile, slayout, switch=switch)
+
+    # legend showing the orientation of the genes
+    draw_gene_legend(root, .4, .7, .82)
+
+    # On the left panel, make a species tree
+    fc = 'lightslategrey'
+
+    def join_nodes(root, coords, a, b, x, circle=True):
+        # Join node a and b to make an internal node
+        ax, ay = coords[a]
+        bx, by = coords[b]
+        nx, ny = x, (ay + by) / 2
+        root.plot((nx, ax), (ay, ay), lw=2, color=fc)
+        root.plot((nx, bx), (by, by), lw=2, color=fc)
+        root.plot((nx, nx), (ay, by), lw=2, color=fc)
+        if circle:
+            DoubleSquare(root, nx, ny, fc=fc)
+        return nx, ny
+
+    coords = {}
+    xs, xp = .16, .03
+    coords["lychee"] = (xs, .37)
+    coords["clementine"] = (xs, .5)
+    coords["cacao"] = (xs, .6)
+    coords["strawberry"] = (xs, .7)
+    coords["grape"] = (xs, .8)
+    xs -= xp
+    coords["Sapindales"] = join_nodes(root, coords, "clementine", "lychee", xs)
+    xs -= xp
+    coords["Rosid-II"] = join_nodes(root, coords, "cacao", "Sapindales", xs)
+    xs -= xp
+    coords["Rosid"] = join_nodes(root, coords, "strawberry", "Rosid-II", xs)
+    xs -= xp
+    coords["crown"] = join_nodes(root, coords, "grape", "Rosid", xs,
+                                 circle=False)
+
+    # Names of the internal nodes
+    for tag in ("Rosid", "Rosid-II", "Sapindales"):
+        nx, ny = coords[tag]
+        nx, ny = nx - .01, ny - .02
+        root.text(nx, ny, tag, rotation=90, ha="right", va="top", color=fc)
+
+    root.set_xlim(0, 1)
+    root.set_ylim(0, 1)
+    root.set_axis_off()
+
+    pf = "litchi"
+    image_name = pf + "." + iopts.format
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
+
+
 def amborella(args):
     """
     %prog amborella seqids karyotype.layout mcscan.out all.bed synteny.layout
 
-    Build a composite figure that calls graphics.karyotype and graphic.synteny.
+    Build a composite figure that calls graphics.karyotype and graphics.synteny.
     """
     from jcvi.graphics.karyotype import Karyotype
     from jcvi.graphics.synteny import Synteny, draw_gene_legend
@@ -144,7 +217,7 @@ def amborella(args):
     opts, args, iopts = p.set_image_options(args, figsize="8x7")
 
     if len(args) != 5:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
     seqidsfile, klayout, datafile, bedfile, slayout = args
     switch = opts.switch

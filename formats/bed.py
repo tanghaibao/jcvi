@@ -243,6 +243,7 @@ def main():
 
     actions = (
         ('sort', 'sort bed file'),
+        ('merge', 'merge bed files'),
         ('index', 'index bed file using tabix'),
         ('bins', 'bin bed lengths into each window'),
         ('summary', 'summarize the lengths of the intervals'),
@@ -262,6 +263,30 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def merge(args):
+    """
+    %prog merge bedfiles > newbedfile
+
+    Concatenate bed files together. Performing seqid and name changes to avoid
+    conflicts in the new bed file.
+    """
+    p = OptionParser(merge.__doc__)
+    p.set_outfile()
+    opts, args = p.parse_args(args)
+
+    if len(args) < 1:
+        sys.exit(not p.print_help())
+
+    bedfiles = args
+    fw = must_open(opts.outfile, "w")
+    for bedfile in bedfiles:
+        bed = Bed(bedfile)
+        pf = bedfile.split(".")[0]
+        for b in bed:
+            b.seqid = "_".join((pf, b.seqid))
+            print >> fw, b
 
 
 def fix(args):
@@ -1099,15 +1124,24 @@ def summary(args):
     from jcvi.utils.cbook import SummaryStats
 
     p = OptionParser(summary.__doc__)
+    p.add_option("--sizes", default=False, action="store_true",
+                 help="Write .sizes file")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
     bedfile, = args
     bed = Bed(bedfile)
-    mspans = None
     mspans = [(x.span, x.accn) for x in bed]
+    if opts.sizes:
+        sizesfile = bedfile + ".sizes"
+        fw = open(sizesfile, "w")
+        for span, accn in mspans:
+            print >> fw, span
+        fw.close()
+        logging.debug("Spans written to `{0}`.".format(sizesfile))
+
     spans, accns = zip(*mspans)
     stats = SummaryStats(spans)
     print >> sys.stderr, "Total seqids: {0}".format(len(bed.seqids))

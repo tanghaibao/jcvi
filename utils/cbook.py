@@ -307,8 +307,6 @@ def gene_name(st, sep="."):
         sep = None
     elif st.startswith("Os"):
         sep = "-"
-    elif st.startswith("GRM"):
-        sep = "_"
 
     return st.rsplit(sep, 1)[0]
 

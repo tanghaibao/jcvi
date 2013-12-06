@@ -29,18 +29,20 @@ data <- data[data >= vmin]
 data <- data[data <= vmax]
 data <- data.frame($xlabel=data)
 m <- ggplot(data, aes(x=$xlabel)) +
-     opts(plot.title=theme_text(size=12, colour="darkblue"))
+     theme(plot.title=element_text(size=12, colour="darkblue"))
 """
 
 histogram_template = histogram_header + """
 m + geom_histogram(colour="darkgreen", fill="$fill", binwidth=(vmax-vmin)/$bins) +
-opts(title='$title')
+labs(title='$title')
 ggsave('$outfile')
 """
 
 histogram_log_template = histogram_header + """
+library(scales)
 m + geom_histogram(colour="darkgreen", fill="$fill", binwidth=0.33) +
-scale_x_log$base() + opts(title='$title')
+labs(title='$title') +
+scale_x_continuous(trans=log${base}_trans())
 ggsave('$outfile')
 """
 

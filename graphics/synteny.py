@@ -100,7 +100,7 @@ class Shade (object):
 
 class Region (object):
 
-    def __init__(self, ax, ext, layout, bed, scale, switch=None, pad=.04):
+    def __init__(self, ax, ext, layout, bed, scale, switch=None, pad=.04, vpad=.012):
         x, y = layout.x, layout.y
         ratio = layout.ratio
         scale /= ratio
@@ -176,18 +176,18 @@ class Region (object):
         trans_angle = ax.transAxes.transform_angles(np.array((lr, )),
                                                     l.reshape((1, 2)))[0]
         lx, ly = l
-        p3 = pad / 3
-        ax.text(lx, ly + p3, markup(chr), color=layout.color,
+        ax.text(lx, ly + vpad, markup(chr), color=layout.color,
                     ha=ha, va="center", rotation=trans_angle)
-        ax.text(lx, ly - p3, label, color="k",
+        ax.text(lx, ly - vpad, label, color="k",
                     ha=ha, va="center", rotation=trans_angle)
 
 
 class Synteny (object):
 
     def __init__(self, fig, root, datafile, bedfile, layoutfile,
-                 switch=None, tree=None):
+                 switch=None, tree=None, pad=.04):
 
+        w, h = fig.get_figwidth(), fig.get_figheight()
         bed = Bed(bedfile)
         order = bed.order
         bf = BlockFile(datafile)
@@ -204,9 +204,10 @@ class Synteny (object):
 
         gg = {}
         ymids = []
+        vpad = .012 * w / h
         for i in xrange(bf.ncols):
             ext = exts[i]
-            r = Region(root, ext, lo[i], bed, scale, switch)
+            r = Region(root, ext, lo[i], bed, scale, switch, vpad=vpad)
             gg.update(r.gg)
             ymids.append(r.y)
 

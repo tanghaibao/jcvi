@@ -87,6 +87,19 @@ class RoundRect (object):
                       ha="center", va="center", color="w")
 
 
+class DoubleSquare (object):
+    """Square with a double-line margin
+    """
+    def __init__(self, ax, x, y, radius=.01, **kwargs):
+
+        d = radius * 1.5
+        ax.add_patch(Rectangle((x - d, y - d), 2 * d, 2 * d,
+                     fc="w", ec="k", zorder=10))
+        d = radius
+        ax.add_patch(Rectangle((x - d, y - d), 2 * d, 2 * d,
+                     zorder=10, **kwargs))
+
+
 class DoubleCircle (object):
     """Circle with a double-line margin
     """

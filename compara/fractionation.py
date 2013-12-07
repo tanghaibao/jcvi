@@ -14,6 +14,7 @@ from jcvi.formats.blast import Blast
 from jcvi.formats.bed import Bed
 from jcvi.utils.range import range_minmax, range_overlap
 from jcvi.utils.cbook import gene_name
+from jcvi.utils.grouper import Grouper
 from jcvi.compara.synteny import check_beds
 from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh
 debug()
@@ -32,9 +33,46 @@ def main():
         # Specific study (requires specific datasets)
         ('napus', 'extract napus gene loss vs diploid ancestors'),
         ('merge', 'merge protein quartets table with registry (napus)'),
+        ('segment', 'merge adjacent gene loss into segmental loss'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def segment(args):
+    """
+    %prog segment loss.ids bedfile
+
+    Merge adjacent gene loss into segmental loss.
+    """
+    from jcvi.utils.iter import pairwise
+    from jcvi.formats.base import SetFile
+
+    p = OptionParser(segment.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    idsfile, bedfile = args
+    bed = Bed(bedfile)
+    ids = SetFile(idsfile)
+    losses = Grouper()
+    for a, b in pairwise(bed):
+        a, b = a.accn, b.accn
+        if a in ids:
+            losses.join(a, a)
+        if a in ids and b in ids:
+            losses.join(a, b)
+
+    losses = list(losses)
+    singletons = [x for x in losses if len(x) == 1]
+    segments = [x for x in losses if len(x) > 1]
+    ns, nm = len(singletons), len(segments)
+    assert len(losses) == ns + nm
+
+    print singletons
+    print segments
 
 
 def merge(args):
@@ -372,7 +410,6 @@ def napus(args):
     Step 4: categorize gene losses into singleton, or segmental (defined as
     consecutive losses with a maximum skip of 1
     """
-    from jcvi.utils.grouper import Grouper
     from jcvi.utils.cbook import SummaryStats
 
     p = OptionParser(napus.__doc__)

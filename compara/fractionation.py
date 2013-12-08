@@ -12,7 +12,7 @@ from itertools import groupby
 
 from jcvi.formats.blast import Blast
 from jcvi.formats.bed import Bed
-from jcvi.utils.range import range_minmax, range_overlap
+from jcvi.utils.range import range_minmax, range_overlap, range_distance
 from jcvi.utils.cbook import gene_name
 from jcvi.utils.grouper import Grouper
 from jcvi.compara.synteny import check_beds
@@ -30,13 +30,69 @@ def main():
         # Gene specific status
         ('gffselect', 'dump gff for the missing genes'),
         ('genestatus', 'tag genes based on translation from GMAP models'),
-        # Specific study (requires specific datasets)
-        ('napus', 'extract napus gene loss vs diploid ancestors'),
+        ('diff', 'calculate diff of size of syntenic regions'),
+        # Specific study for napus (requires specific datasets)
+        ('napus', 'extract gene loss vs diploid ancestors (napus)'),
         ('merge', 'merge protein quartets table with registry (napus)'),
-        ('segment', 'merge adjacent gene loss into segmental loss'),
+        ('segment', 'merge adjacent gene loss into segmental loss (napus)'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def diff(args):
+    """
+    %prog diff simplefile
+
+    Calculate difference of pairwise syntenic regions.
+    """
+    from jcvi.utils.cbook import SummaryStats
+
+    p = OptionParser(diff.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    simplefile, = args
+    fp = open(simplefile)
+    data = [x.split() for x in fp]
+    spans = []
+    for block_id, ab in groupby(data[1:], key=lambda x: x[0]):
+        a, b = list(ab)
+        aspan, bspan = a[4], b[4]
+        aspan, bspan = int(aspan), int(bspan)
+        spans.append((aspan, bspan))
+    aspans, bspans = zip(*spans)
+    dspans = [b - a for a, b, in spans]
+    s = SummaryStats(dspans)
+    print >> sys.stderr, "For a total of {0} blocks:".format(len(dspans))
+    print >> sys.stderr, "Sum of A: {0}".format(sum(aspans))
+    print >> sys.stderr, "Sum of B: {0}".format(sum(bspans))
+    print >> sys.stderr, "Sum of Delta: {0} ({1})".format(sum(dspans), s)
+
+
+def estimate_size(accns, bed, order, conservative=True):
+    """
+    Estimate the bp length for the deletion tracks, indicated by the gene accns.
+    True different levels of estimates vary on conservativeness.
+    """
+    accns = [order[x] for x in accns]
+    ii, bb = zip(*accns)
+    mini, maxi = min(ii), max(ii)
+    if not conservative: # extend one gene
+        mini -= 1
+        maxi += 1
+    minb = bed[mini]
+    maxb = bed[maxi]
+    assert minb.seqid == maxb.seqid
+    distmode = "ss" if conservative else "ee"
+    ra = (minb.seqid, minb.start, minb.end, "+")
+    rb = (maxb.seqid, maxb.start, maxb.end, "+")
+
+    dist, orientation = range_distance(ra, rb, distmode=distmode)
+    assert dist != -1
+    return dist
 
 
 def segment(args):
@@ -44,6 +100,13 @@ def segment(args):
     %prog segment loss.ids bedfile
 
     Merge adjacent gene loss into segmental loss.
+
+    Then based on the segmental loss, estimate amount of DNA loss in base pairs.
+    Two estimates can be given:
+    - conservative: just within the start and end of a single gene
+    - aggressive: extend the deletion track to the next gene
+
+    The real deletion size is within these estimates.
     """
     from jcvi.utils.iter import pairwise
     from jcvi.formats.base import SetFile
@@ -56,6 +119,7 @@ def segment(args):
 
     idsfile, bedfile = args
     bed = Bed(bedfile)
+    order = bed.order
     ids = SetFile(idsfile)
     losses = Grouper()
     for a, b in pairwise(bed):
@@ -68,11 +132,31 @@ def segment(args):
     losses = list(losses)
     singletons = [x for x in losses if len(x) == 1]
     segments = [x for x in losses if len(x) > 1]
-    ns, nm = len(singletons), len(segments)
-    assert len(losses) == ns + nm
+    ns, nm, nt = len(singletons), len(segments), len(losses)
+    assert ns + nm == nt
 
-    print singletons
-    print segments
+    # DEBUG PER TRACK
+    #for x in singletons + segments:
+    #    print x
+    #    print estimate_size(x, bed, order)
+    #    print estimate_size(x, bed, order, conservative=False)
+
+    sing_asize = sum(estimate_size(x, bed, order) for x in singletons)
+    seg_asize = sum(estimate_size(x, bed, order) for x in segments)
+    sing_bsize = sum(estimate_size(x, bed, order, conservative=False) \
+                           for x in singletons)
+    seg_bsize = sum(estimate_size(x, bed, order, conservative=False) \
+                         for x in segments)
+    total_asize = sing_asize + seg_asize
+    total_bsize = sing_bsize + seg_bsize
+    print >> sys.stderr, "Singleton ({0}): {1} - {2} bp".\
+                         format(ns, sing_asize, sing_bsize)
+    print >> sys.stderr, "Segment ({0}): {1} - {2} bp".\
+                         format(nm, seg_asize, seg_bsize)
+    print >> sys.stderr, "Total ({0}): {1} - {2} bp".\
+                         format(nt, total_asize, total_bsize)
+    print >> sys.stderr, "Average ({0}): {1} bp".\
+                         format(nt, (total_asize + total_bsize) / 2)
 
 
 def merge(args):

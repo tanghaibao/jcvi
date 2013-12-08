@@ -6,6 +6,7 @@ mostly decorator patterns
 import os.path as op
 import re
 import logging
+import functools
 
 from collections import defaultdict
 

@@ -5,15 +5,14 @@ import sys
 import logging
 
 import numpy as np
-from collections import defaultdict, namedtuple
+from collections import defaultdict
 
-from jcvi.formats.bed import Bed, BedLine
+from jcvi.formats.bed import Bed
 from jcvi.formats.blast import BlastLine
 from jcvi.formats.base import BaseFile, SetFile, read_block, must_open
 from jcvi.utils.grouper import Grouper
 from jcvi.utils.cbook import gene_name
 from jcvi.utils.range import Range, range_chain
-from jcvi.utils.iter import flatten
 from jcvi.apps.base import OptionParser, ActionDispatcher, debug
 debug()
 
@@ -598,8 +597,8 @@ def simple(args):
     orderA1   orderA2   orderB1   orderB2  sizeA    sizeB   size    block_id
 
     With base coordinates (--coords):
-    block_id  seqidA    startA    endA     GeneA1   GeneA2  geneSpanA
-    block_id  seqidB    startB    endB     GeneB1   GeneB2  geneSpanB
+    block_id  seqidA    startA    endA     bpSpanA  GeneA1   GeneA2  geneSpanA
+    block_id  seqidB    startB    endB     bpSpanB  GeneB1   GeneB2  geneSpanB
     """
     p = OptionParser(simple.__doc__)
     p.add_option("--rich", default=False, action="store_true", \
@@ -627,7 +626,7 @@ def simple(args):
     blocks = ac.blocks
 
     if coords:
-        h = "Block|Chr|Start|End|StartGene|EndGene|GeneSpan|Orientation"
+        h = "Block|Chr|Start|End|Span|StartGene|EndGene|GeneSpan|Orientation"
     else:
         h = "StartGeneA|EndGeneA|StartGeneB|EndGeneB|Orientation|Score"
         if additional:
@@ -669,12 +668,14 @@ def simple(args):
                     get_boundary_bases(astart, aend, qorder)
             bseqid, bstartbase, bendbase = \
                     get_boundary_bases(bstart, bend, sorder)
+            abase = aendbase - astartbase + 1
+            bbase = bendbase - bstartbase + 1
 
             # Write dual lines
             aargs = [block_id, aseqid, astartbase, aendbase,
-                     astart, aend, aspan, "+"]
+                     abase, astart, aend, aspan, "+"]
             bargs = [block_id, bseqid, bstartbase, bendbase,
-                     bstart, bend, bspan, orientation]
+                     bbase, bstart, bend, bspan, orientation]
 
             for args in (aargs, bargs):
                 print >> fws, "\t".join(str(x) for x in args)

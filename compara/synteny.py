@@ -1085,7 +1085,6 @@ def depth(args):
 
     qgenome = qbed.filename.split(".")[0]
     sgenome = sbed.filename.split(".")[0]
-    depthdetails = []
     print >> sys.stderr, "Genome {0} depths:".format(qgenome)
     ds, details = range_depth(qranges, len(qbed))
     if depthfile:
@@ -1145,7 +1144,6 @@ def breakpoint(args):
     order = Bed(bedfile).order
     blastbedfile = bed([blastfile])
     bbed = Bed(blastbedfile)
-    key = lambda x: x[1]
     for scaffold, bs in bbed.sub_beds():
         blocks = get_blocks(scaffold, bs, order,
                             xdist=opts.xdist, ydist=opts.ydist, N=opts.n)

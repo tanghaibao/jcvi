@@ -23,6 +23,7 @@ debug()
 def main():
 
     actions = (
+        # Identify true gene loss
         ('loss', 'extract likely gene loss candidates'),
         ('validate', 'confirm synteny loss against CDS bed overlaps'),
         ('summary', 'provide summary of fractionation'),
@@ -30,14 +31,60 @@ def main():
         # Gene specific status
         ('gffselect', 'dump gff for the missing genes'),
         ('genestatus', 'tag genes based on translation from GMAP models'),
-        ('diff', 'calculate diff of size of syntenic regions'),
         # Specific study for napus (requires specific datasets)
         ('napus', 'extract gene loss vs diploid ancestors (napus)'),
         ('merge', 'merge protein quartets table with registry (napus)'),
         ('segment', 'merge adjacent gene loss into segmental loss (napus)'),
+        ('offdiag', 'find gene pairs that are off diagonal'),
+        ('diff', 'calculate diff of size of syntenic regions'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def offdiag(args):
+    """
+    %prog offdiag diploid.napus.1x1.lifted.anchors
+
+    Find gene pairs that are off diagnoal. "Off diagonal" are the pairs that are
+    not on the orthologous chromosomes. For example, napus chrA01 and brapa A01.
+    """
+    p = OptionParser(offdiag.__doc__)
+    p.set_beds()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    anchorsfile, = args
+    qbed, sbed, qorder, sorder, is_self = check_beds(anchorsfile, p, opts)
+
+    fp = open(anchorsfile)
+    pf = "-".join(anchorsfile.split(".")[:2])
+    header = "Block-id|Napus|Diploid|Napus-chr|Diploid-chr|RBH?".split("|")
+    print "\t".join(header)
+    i = -1
+    for row in fp:
+        if row[0] == '#':
+            i += 1
+            continue
+        q, s, score = row.split()
+        rbh = 'no' if score[-1] == 'L' else 'yes'
+        qi, qq = qorder[q]
+        si, ss = sorder[s]
+        oqseqid = qseqid = qq.seqid
+        osseqid = sseqid = ss.seqid
+        sseqid = sseqid.split("_")[0][-3:]
+        if qseqid[0] == 'A':
+            qseqid = qseqid[-3:]       # A09 => A09
+        elif qseqid[0] == 'C':
+            qseqid = 'C0' + qseqid[-1]  # C9 => C09
+        else:
+            continue
+        if qseqid == sseqid or sseqid[-2:] == 'nn':
+            continue
+        block_id = pf + "-block-{0}".format(i)
+        print "\t".join((block_id, q, s, oqseqid, osseqid, rbh))
 
 
 def diff(args):
@@ -134,6 +181,11 @@ def segment(args):
     segments = [x for x in losses if len(x) > 1]
     ns, nm, nt = len(singletons), len(segments), len(losses)
     assert ns + nm == nt
+
+    # Find longest segment stretch
+    mx, maxsegment = max([(len(x), x) for x in segments])
+    print >> sys.stderr, "Longest stretch: run of {0} genes".format(mx)
+    print >> sys.stderr, "  {0}".format("|".join(sorted(maxsegment)))
 
     # DEBUG PER TRACK
     #for x in singletons + segments:

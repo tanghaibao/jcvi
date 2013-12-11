@@ -85,6 +85,7 @@ def main():
 
     actions = (
         ('tophat', 'run tophat on a list of inputs'),
+        ('cufflinks', 'run cufflinks following tophat'),
         ('prepare', 'parse JIRA report and prepare input'),
         ('pairs', 'estimate insert sizes for input files'),
         ('contamination', 'remove contaminated reads'),
@@ -126,6 +127,34 @@ def contamination(args):
         samfile, logfile = align(align_opts)
 
 
+def cufflinks(args):
+    """
+    %prog cufflinks folder reference
+
+    Run cufflinks on a folder containing tophat results.
+    """
+    p = OptionParser(cufflinks.__doc__)
+    p.add_option("--gtf", help="Reference annotation [default: %default]")
+    p.set_cpus()
+    opts, args = p.parse_args(args)
+
+    folder, reference = args
+    os.chdir(folder)
+    bams = glob("*tophat/accepted_hits.bam")
+    for bam in bams:
+        pf, ab = op.split(bam)
+        outdir = op.join(pf, "cufflinks")
+        cmd = "cufflinks"
+        cmd += " -o {0}".format(outdir)
+        cmd += " -p {0}".format(opts.cpus)
+        if opts.gtf:
+            cmd += " -g {0}".format(opts.gtf)
+        cmd += " --frag-bias-correct {0}".format(reference)
+        cmd += " --multi-read-correct"
+        cmd += " {0}".format(bam)
+        sh(cmd)
+
+
 def tophat(args):
     """
     %prog tophat folder reference
@@ -147,7 +176,6 @@ def tophat(args):
         sys.exit(not p.print_help())
 
     folder, reference = args
-    cwd = os.getcwd()
     for p, prefix in iter_project(folder, 2):
         a, b = p
         outdir = "{0}_tophat".format(prefix)

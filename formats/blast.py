@@ -1167,13 +1167,16 @@ def best(args):
     blastfile, = args
     n = opts.n
     hsps = opts.hsps
+    tmpdir = opts.tmpdir
     ref = "query" if not opts.subject else "subject"
 
     if not opts.nosort:
-        if ref == "query":
-            sort([blastfile, "-T {0}".format(opts.tmpdir)])
-        else:
-            sort([blastfile, "-T {0}".format(opts.tmpdir), "--refscore"])
+        sargs = [blastfile]
+        if tmpdir:
+            sargs += ["-T {0}".format(tmpdir)]
+        if ref != "query":
+            sargs += ["--refscore"]
+        sort(sargs)
     else:
         logging.debug("Assuming sorted BLAST")
 

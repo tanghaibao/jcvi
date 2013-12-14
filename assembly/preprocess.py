@@ -23,6 +23,16 @@ class FastQCdata (BaseFile, dict):
 
     def __init__(self, filename, human=False):
         super(FastQCdata, self).__init__(filename)
+        if not op.exists(filename):
+            logging.debug("File `{0}` not found.".format(filename))
+            # Sample_RF37-1/RF37-1_GATCAG_L008_R2_fastqc =>
+            # RF37-1_GATCAG_L008_R2
+            self["Filename"] = op.basename(\
+                    op.split(filename)[0]).rsplit("_", 1)[0]
+            self["Total Sequences"] = self["Sequence length"] = \
+                self["Total Bases"] = "na"
+            return
+
         fp = open(filename)
         for row in fp:
             atoms = row.rstrip().split("\t")
@@ -324,9 +334,6 @@ def count(args):
         if subdir:
             folder = op.join(subdir, folder)
         summaryfile = op.join(folder, "fastqc_data.txt")
-        if not op.exists(summaryfile):
-            logging.debug("File `{0}` not found.".format(summaryfile))
-            continue
 
         fqcdata = FastQCdata(summaryfile, human=human)
         row = [fqcdata[x] for x in header]

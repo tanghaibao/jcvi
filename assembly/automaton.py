@@ -144,6 +144,9 @@ def cufflinks(args):
     for bam in bams:
         pf, ab = op.split(bam)
         outdir = op.join(pf, "cufflinks")
+        if op.exists(outdir):
+            logging.debug("Directory {0} found. Skipping.".format(outdir))
+            continue
         cmd = "cufflinks"
         cmd += " -o {0}".format(outdir)
         cmd += " -p {0}".format(opts.cpus)

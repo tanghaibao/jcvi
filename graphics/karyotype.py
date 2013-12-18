@@ -8,6 +8,15 @@ Illustrate macrosynteny between tracks which represent individual genomes.
 
 seqids contain the chromosomes to plot. Each line correspond to a track.
 layout provides configuration for placement of tracks and mapping file between tracks.
+
+Layout file example - first section specify how to draw each track. Then the "edges"
+section specify which connections to draw.
+
+# y, xstart, xend, rotation, color, label, va, bed
+.6, .1, .4, 0, m, Grape, top, grape.bed
+.4, .3, .6, 60, k, Athaliana, top, athaliana.bed
+# edges
+e, 0, 1, athaliana.grape.4x1.simple
 """
 
 
@@ -28,7 +37,7 @@ from jcvi.utils.iter import pairwise
 from jcvi.graphics.chromosome import HorizontalChromosome
 from jcvi.graphics.glyph import TextCircle
 from jcvi.graphics.synteny import Shade
-from jcvi.graphics.base import plt, _, savefig, markup
+from jcvi.graphics.base import plt, _, Affine2D, savefig, markup
 debug()
 
 
@@ -39,16 +48,17 @@ class LayoutLine (object):
         args = [x.strip() for x in args]
 
         self.empty = False
-        if len(args) < 7:
+        if len(args) < 8:
             self.empty = True
             return
         self.y = float(args[0])
         self.xstart = float(args[1])
         self.xend = float(args[2])
-        self.color = args[3]
-        self.label = args[4]
-        self.va = args[5]
-        self.bed = Bed(args[6])
+        self.rotation = int(args[3])
+        self.color = args[4]
+        self.label = args[5]
+        self.va = args[6]
+        self.bed = Bed(args[7])
         self.order = self.bed.order
         self.order_in_chr = self.bed.order_in_chr
 
@@ -77,6 +87,7 @@ class Layout (LineFile):
         order = self[i].order
         # Sometimes the simplefile has query and subject wrong
         fp = open(simplefile)
+        header = fp.next()
         blocks = []
         for row in fp:
             hl = ("*" in row)
@@ -108,6 +119,7 @@ class Track (object):
         self.y = t.y
         self.sizes = sizes = t.sizes
         self.label = t.label
+        self.rotation = t.rotation
         self.va = t.va
         self.color = t.color
         self.seqids = t.seqids
@@ -118,6 +130,13 @@ class Track (object):
 
         self.xstart = xstart = t.xstart
         self.xend = t.xend
+
+        # Rotation transform
+        x = (self.xstart + self.xend) / 2
+        y = self.y
+        self.tr = Affine2D().rotate_deg_around(x, y, self.rotation) + ax.transAxes
+        self.inv = ax.transAxes.inverted()
+
         gap = .01
         nseqids = len(self.seqids)
         if nseqids > MaxSeqids:
@@ -149,11 +168,13 @@ class Track (object):
         gap = self.gap
         va = self.va
         nseqids = len(self.seqids)
+        tr = self.tr
         for i, sid in enumerate(self.seqids):
             size = self.sizes[sid]
             rsize = self.ratio * size
             xend = xstart + rsize
             hc = HorizontalChromosome(ax, xstart, xend, y, height=.01, fc=color)
+            hc.set_transform(tr)
             sid = sid.rsplit("_", 1)[-1]
             si = "".join(x for x in sid if x not in string.letters)
             si = str(int(si))
@@ -166,12 +187,12 @@ class Track (object):
             pad = .02
             if va == "bottom":
                 pad = - pad
-            TextCircle(ax, xx, y + pad, _(si), radius=.01,
-                       fc="w", color=color, size=10)
+            tc = TextCircle(ax, xx, y + pad, _(si), radius=.01,
+                       fc="w", color=color, size=10, transform=tr)
 
         xp = self.xstart / 2 if self.xstart <= .5 else (1 + self.xend) / 2
         label = markup(self.label)
-        ax.text(xp, y + gap, label, ha="center", color=color)
+        ax.text(xp, y + gap, label, ha="center", color=color, transform=tr)
 
     def update_offsets(self):
         self.offsets = {}
@@ -189,6 +210,9 @@ class Track (object):
             return None, None
         x = self.offsets[seqid] + self.ratio * i
         y = self.y
+        x, y = self.tr.transform((x, y))
+        x, y = self.inv.transform((x, y))
+
         return x, y
 
 

@@ -283,7 +283,7 @@ def merge(args):
     fw = must_open(opts.outfile, "w")
     for bedfile in bedfiles:
         bed = Bed(bedfile)
-        pf = bedfile.split(".")[0]
+        pf = op.basename(bedfile).split(".")[0]
         for b in bed:
             b.seqid = "_".join((pf, b.seqid))
             print >> fw, b

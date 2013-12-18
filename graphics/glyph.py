@@ -115,13 +115,13 @@ class TextCircle (object):
     """Circle with a character wrapped in
     """
     def __init__(self, ax, x, y, label, radius=.02, fc="k", color="w",
-                size=12, zorder=4):
+                size=12, zorder=4, transform=None):
 
         circle = CirclePolygon((x, y), radius, resolution=20, \
-                                fc=fc, ec=fc, zorder=zorder)
+                                fc=fc, ec=fc, zorder=zorder, transform=transform)
         ax.add_patch(circle)
         ax.text(x, y, label, ha="center", va="center", color=color,
-                size=size, zorder=zorder + 1)
+                size=size, zorder=zorder + 1, transform=transform)
 
 
 class BaseGlyph (list):

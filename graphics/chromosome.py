@@ -58,7 +58,7 @@ class Chromosome (object):
         ax.add_patch(Polygon(pts, fc=fc, fill=fill, zorder=zorder))
 
 
-class HorizontalChromosome (object):
+class HorizontalChromosome (BaseGlyph):
     def __init__(self, ax, x1, x2, y, height=.015, ec="k", patch=None,
                     fc=None, fill=False, zorder=2):
         """
@@ -67,19 +67,22 @@ class HorizontalChromosome (object):
         The chromosome can also be patched, e.g. to show scaffold composition in
         alternating shades. Use a list of starting locations to segment.
         """
+        super(HorizontalChromosome, self).__init__(ax)
         pts = self.get_pts(x1, x2, y, height)
         r = self.r
-        ax.add_patch(Polygon(pts, fill=False, ec=ec, zorder=zorder))
+        self.append(Polygon(pts, fill=False, ec=ec, zorder=zorder))
         if fc:
             pts = self.get_pts(x1, x2, y, height * .5)
-            ax.add_patch(Polygon(pts, fc=fc, lw=0, zorder=zorder))
+            self.append(Polygon(pts, fc=fc, lw=0, zorder=zorder))
         if patch:
             for i in xrange(0, len(patch), 2):
                 if i + 1 > len(patch) - 1:
                     continue
                 p1, p2 = patch[i], patch[i + 1]
-                ax.add_patch(Rectangle((p1, y - r), p2 - p1, 2 * r, lw=0,
+                self.append(Rectangle((p1, y - r), p2 - p1, 2 * r, lw=0,
                              fc="lightgrey"))
+
+        self.add_patches()
 
     def get_pts(self, x1, x2, y, height):
         self.r = r = height / (3 ** .5)

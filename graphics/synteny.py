@@ -94,8 +94,9 @@ class Shade (object):
         if highlight:
             ec = fc = highlight
 
-        ax.add_patch(PathPatch(path, ec=ec, fc=fc, alpha=alpha,
-                     lw=lw, zorder=zorder))
+        pp = PathPatch(path, ec=ec, fc=fc, alpha=alpha,
+                     lw=lw, zorder=zorder)
+        ax.add_patch(pp)
 
 
 class Region (object):

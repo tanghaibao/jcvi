@@ -186,9 +186,6 @@ class Bed(LineFile):
             # chromosome, extent of the chromosome
             yield seqid, ranks[0][1], ranks[-1][1]
 
-    def resort(self, key):
-        self.sort(key=key)
-
 
 class BedEvaluate (object):
 

@@ -239,7 +239,7 @@ def build_nj_phylip(alignment, outfile, outgroup, work_dir="."):
         AlignIO.write(alignment, file(phy_file, "w"), "phylip")
     except ValueError:
         print >>sys.stderr, \
-            "Repeated seq name, possibly due to truncation. Tree not built."
+            "Repeated seq name, possibly due to truncation. NJ tree not built."
         return None
 
     seqboot_out = phy_file.rsplit(".",1)[0] + ".fseqboot"

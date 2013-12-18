@@ -11,6 +11,7 @@ from itertools import groupby
 from collections import defaultdict
 
 from jcvi.formats.base import LineFile, BaseFile, must_open
+from jcvi.formats.bed import Bed
 from jcvi.formats.coords import print_stats
 from jcvi.formats.sizes import Sizes
 from jcvi.utils.grouper import Grouper
@@ -362,6 +363,7 @@ def main():
         ('chain', 'chain adjacent HSPs together'),
         ('swap', 'swap query and subjects in BLAST tabular file'),
         ('sort', 'sort lines so that query grouped together and scores desc'),
+        ('subset', 'extract hits from some query and subject chrs'),
         ('mismatches', 'print out histogram of mismatches of HSPs'),
         ('annotate', 'annotate overlap types in BLAST tabular file'),
         ('score', 'add up the scores for each query seq'),
@@ -1211,6 +1213,63 @@ def summary(args):
 
     qrycovered, refcovered, id_pct = get_stats(blastfile)
     print_stats(qrycovered, refcovered, id_pct)
+
+
+def subset(args):
+    """
+    %prog subset blastfile qbedfile sbedfile
+
+    Extract blast hits between given query and subject chrs.
+
+    If --qchrs or --schrs is not given, then all chrs from q/s genome will
+    be included. However one of --qchrs and --schrs must be specified.
+    Otherwise the script will do nothing.
+    """
+    p = OptionParser(subset.__doc__)
+    p.add_option("--qchrs", default=None,
+                help="query chrs to extract, comma sep [default: %default]")
+    p.add_option("--schrs", default=None,
+                help="subject chrs to extract, comma sep [default: %default]")
+    p.add_option("--convert", default=False, action="store_true",
+            help="convert accns to chr_rank [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    blastfile, qbedfile, sbedfile = args
+    qchrs = opts.qchrs
+    schrs = opts.schrs
+    assert qchrs or schrs, p.print_help()
+    convert = opts.convert
+
+    outfile = blastfile + "."
+    if qchrs:
+        outfile += qchrs + "."
+        qchrs = set(qchrs.split(","))
+    else:
+        qchrs = set(Bed(qbedfile).seqids)
+    if schrs:
+        schrs = set(schrs.split(","))
+        if qbedfile != sbedfile or qchrs != schrs:
+            outfile += ",".join(schrs) + "."
+    else:
+        schrs = set(Bed(sbedfile).seqids)
+    outfile += "blast"
+
+    qo = Bed(qbedfile).order
+    so = Bed(sbedfile).order
+
+    fw = must_open(outfile, "w")
+    for b in Blast(blastfile):
+        q, s = b.query, b.subject
+        if qo[q][1].seqid in qchrs and so[s][1].seqid in schrs:
+            if convert:
+                b.query = qo[q][1].seqid + "_" + "{0:05d}".format(qo[q][0])
+                b.subject = so[s][1].seqid + "_" + "{0:05d}".format(so[s][0])
+            print >> fw, b
+    fw.close()
+    logging.debug("Subset blastfile written to `{0}`".format(outfile))
 
 
 def guess_blast_mode(blast_file):

@@ -14,6 +14,7 @@ from jcvi.graphics.base import plt, _, Rectangle, Polygon, CirclePolygon, savefi
 from jcvi.graphics.glyph import GeneGlyph, RoundLabel, RoundRect, \
         arrowprops, TextCircle, plot_cap
 from jcvi.graphics.chromosome import Chromosome
+from jcvi.graphics.karyotype import Karyotype
 from jcvi.utils.iter import pairwise
 from jcvi.apps.base import OptionParser, ActionDispatcher, fname, debug
 debug()
@@ -34,6 +35,7 @@ def main():
         ('amborella', 'plot amborella macro- and micro-synteny (requires data)'),
         # Unpublished
         ('litchi', 'plot litchi micro-synteny (requires data)'),
+        ('napus', 'plot napus macro-synteny (requires data)'),
         ('napusretention', 'plot retention rate along chr (requires data)'),
             )
     p = ActionDispatcher(actions)
@@ -200,13 +202,59 @@ def litchi(args):
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
+def napus(args):
+    """
+    %prog napus seqids layout
+
+    Build a figure that calls graphics.karyotype to illustrate the high ploidy
+    of B. napus genome.
+    """
+    p = OptionParser(napus.__doc__)
+    opts, args, iopts = p.set_image_options(args, figsize="8x7")
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    seqidsfile, klayout = args
+
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes([0, 0, 1, 1])
+
+    Karyotype(fig, root, seqidsfile, klayout)
+
+    fc = "lightslategrey"
+    radius = .012
+    TextCircle(root, .1, .93, r'$\gamma$', radius=radius, fc=fc)
+    root.text(.1, .91, r"$\times3$", ha="center", va="top", color=fc)
+    TextCircle(root, .08, .82, r'$\alpha$', radius=radius, fc=fc)
+    TextCircle(root, .12, .82, r'$\beta$', radius=radius, fc=fc)
+    root.text(.1, .8, r"$\times3\times2\times2$", ha="center", va="top", color=fc)
+    root.text(.1, .67, r"Brassica triplication", ha="center",
+                va="top", color=fc, size=11)
+    root.text(.1, .65, r"$\times3\times2\times2\times3$", ha="center", va="top", color=fc)
+    root.text(.1, .42, r"Allo-tetraploidy", ha="center",
+                va="top", color=fc, size=11)
+    root.text(.1, .4, r"$\times3\times2\times2\times3\times2$", ha="center", va="top", color=fc)
+
+    bb = dict(boxstyle="round", fc="w", ec="0.5", alpha=0.5)
+    root.text(.5, .2, "Brassica napus", ha="center",
+                size=18, color="g", bbox=bb)
+
+    root.set_xlim(0, 1)
+    root.set_ylim(0, 1)
+    root.set_axis_off()
+
+    pf = "napus"
+    image_name = pf + "." + iopts.format
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
+
+
 def amborella(args):
     """
     %prog amborella seqids karyotype.layout mcscan.out all.bed synteny.layout
 
     Build a composite figure that calls graphics.karyotype and graphics.synteny.
     """
-    from jcvi.graphics.karyotype import Karyotype
     from jcvi.graphics.synteny import Synteny, draw_gene_legend
 
     p = OptionParser(amborella.__doc__)
@@ -258,7 +306,6 @@ def cotton(args):
 
     Build a composite figure that calls graphics.karyotype and graphic.synteny.
     """
-    from jcvi.graphics.karyotype import Karyotype
     from jcvi.graphics.synteny import Synteny, draw_gene_legend
     from jcvi.graphics.tree import draw_tree, read_trees
 

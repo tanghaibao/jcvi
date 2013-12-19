@@ -155,10 +155,11 @@ def segment(args):
 
     The real deletion size is within these estimates.
     """
-    from jcvi.utils.iter import pairwise
     from jcvi.formats.base import SetFile
 
     p = OptionParser(segment.__doc__)
+    p.add_option("--chain", default=1, type="int",
+                 help="Allow next N genes to be chained [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -169,12 +170,17 @@ def segment(args):
     order = bed.order
     ids = SetFile(idsfile)
     losses = Grouper()
-    for a, b in pairwise(bed):
-        a, b = a.accn, b.accn
-        if a in ids:
-            losses.join(a, a)
-        if a in ids and b in ids:
-            losses.join(a, b)
+    skip = opts.chain
+    for i, a in enumerate(bed):
+        a = a.accn
+        for j in xrange(i + 1, i + 1 + skip):
+            if j >= len(bed):
+                break
+            b = bed[j].accn
+            if a in ids:
+                losses.join(a, a)
+            if a in ids and b in ids:
+                losses.join(a, b)
 
     losses = list(losses)
     singletons = [x for x in losses if len(x) == 1]
@@ -182,16 +188,15 @@ def segment(args):
     ns, nm, nt = len(singletons), len(segments), len(losses)
     assert ns + nm == nt
 
+    # Summary for all segments
+    for x in sorted(singletons) + sorted(segments):
+        print "\t".join(str(x) for x in ("|".join(sorted(x)), len(x),
+                        estimate_size(x, bed, order)))
+
     # Find longest segment stretch
     mx, maxsegment = max([(len(x), x) for x in segments])
     print >> sys.stderr, "Longest stretch: run of {0} genes".format(mx)
     print >> sys.stderr, "  {0}".format("|".join(sorted(maxsegment)))
-
-    # DEBUG PER TRACK
-    #for x in singletons + segments:
-    #    print x
-    #    print estimate_size(x, bed, order)
-    #    print estimate_size(x, bed, order, conservative=False)
 
     sing_asize = sum(estimate_size(x, bed, order) for x in singletons)
     seg_asize = sum(estimate_size(x, bed, order) for x in segments)

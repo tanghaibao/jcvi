@@ -194,16 +194,19 @@ def segment(args):
                         estimate_size(x, bed, order)))
 
     # Find longest segment stretch
-    mx, maxsegment = max([(len(x), x) for x in segments])
-    print >> sys.stderr, "Longest stretch: run of {0} genes".format(mx)
-    print >> sys.stderr, "  {0}".format("|".join(sorted(maxsegment)))
+    if segments:
+        mx, maxsegment = max([(len(x), x) for x in segments])
+        print >> sys.stderr, "Longest stretch: run of {0} genes".format(mx)
+        print >> sys.stderr, "  {0}".format("|".join(sorted(maxsegment)))
+        seg_asize = sum(estimate_size(x, bed, order) for x in segments)
+        seg_bsize = sum(estimate_size(x, bed, order, conservative=False) \
+                             for x in segments)
+    else:
+        seg_asize = seg_bsize = 0
 
     sing_asize = sum(estimate_size(x, bed, order) for x in singletons)
-    seg_asize = sum(estimate_size(x, bed, order) for x in segments)
     sing_bsize = sum(estimate_size(x, bed, order, conservative=False) \
                            for x in singletons)
-    seg_bsize = sum(estimate_size(x, bed, order, conservative=False) \
-                         for x in segments)
     total_asize = sing_asize + seg_asize
     total_bsize = sing_bsize + seg_bsize
     print >> sys.stderr, "Singleton ({0}): {1} - {2} bp".\

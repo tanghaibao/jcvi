@@ -734,11 +734,14 @@ def expand(args):
     """
     %prog expand */*
 
-    Move files in subfolders into the current folder.
+    Move files in subfolders into the current folder. Use --symlink to create a
+    link instead.
     """
     debug()
 
     p = OptionParser(expand.__doc__)
+    p.add_option("--symlink", default=False, action="store_true",
+                 help="Create symbolic link [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) < 1:
@@ -751,7 +754,8 @@ def expand(args):
             logging.debug("Name collision `{0}`, ignored.".format(oa))
             continue
 
-        cmd = "mv {0} {1}".format(a, oa)
+        cmd = "cp -s" if opts.symlink else "mv"
+        cmd += " {0} {1}".format(a, oa)
         sh(cmd)
         seen.add(oa)
 

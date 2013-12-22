@@ -183,7 +183,8 @@ def tophat(args):
         a, b = p
         outdir = "{0}_tophat".format(prefix)
         outfile = op.join(outdir, "accepted_hits.bam")
-        if not need_update(p, outfile):
+        #if not need_update(p, outfile):
+        if op.exists(outfile):
             logging.debug("File `{0}` found. Skipping.".format(outfile))
             continue
 

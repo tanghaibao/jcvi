@@ -61,8 +61,6 @@ def output_bam(cmd, outfile):
     if not bam:
         return cmd + " > {0}".format(outfile)
 
-    from os import devnull
-
     outcmd, mflag = ("samtools view -bS", "-F 4")
     cmd += " | {0} {1} - > {2}".format(outcmd, mflag, outfile)
 
@@ -128,10 +126,37 @@ def main():
         ('coverage', 'calculate depth for BAM file'),
         ('bcf', 'run mpileup on a set of bam files'),
         ('mapped', 'extract mapped/unmapped reads from samfile'),
+        ('count', 'count the number of reads mapped using htseq'),
             )
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def count(args):
+    """
+    %prog count bamfile gtf
+
+    Count the number of reads mapped using `htseq-count`.
+    """
+    p = OptionParser(count.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    bamfile, gtf = args
+    pf = bamfile.split(".")[0]
+    nsorted = pf + "_nsorted"
+    cmd = "samtools sort -n {0} {1}".format(bamfile, nsorted)
+    sh(cmd)
+    nsortedbam, nsortedsam = nsorted + ".bam", nsorted + ".sam"
+    cmd = "samtools view -h {0}".format(nsortedbam)
+    sh(cmd, outfile=nsortedsam)
+    countsfile = pf + ".counts"
+    cmd = "htseq-count --stranded=no"
+    cmd += " {0} {1}".format(nsortedsam, gtf)
+    sh(cmd, outfile=countsfile)
 
 
 def coverage(args):

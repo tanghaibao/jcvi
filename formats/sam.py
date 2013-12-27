@@ -147,16 +147,19 @@ def count(args):
 
     bamfile, gtf = args
     pf = bamfile.split(".")[0]
+    countfile = pf + ".count"
     nsorted = pf + "_nsorted"
-    cmd = "samtools sort -n {0} {1}".format(bamfile, nsorted)
-    sh(cmd)
     nsortedbam, nsortedsam = nsorted + ".bam", nsorted + ".sam"
-    cmd = "samtools view -h {0}".format(nsortedbam)
-    sh(cmd, outfile=nsortedsam)
-    countsfile = pf + ".counts"
-    cmd = "htseq-count --stranded=no"
-    cmd += " {0} {1}".format(nsortedsam, gtf)
-    sh(cmd, outfile=countsfile)
+    if need_update(bamfile, nsortedsam):
+        cmd = "samtools sort -n {0} {1}".format(bamfile, nsorted)
+        sh(cmd)
+        cmd = "samtools view -h {0}".format(nsortedbam)
+        sh(cmd, outfile=nsortedsam)
+
+    if need_update(nsortedsam, countfile):
+        cmd = "htseq-count --stranded=no --minaqual=10"
+        cmd += " {0} {1}".format(nsortedsam, gtf)
+        sh(cmd, outfile=countfile)
 
 
 def coverage(args):

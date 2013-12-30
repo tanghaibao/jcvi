@@ -567,6 +567,9 @@ def chain(args):
     """
     from jcvi.utils.range import range_minmax
     p = OptionParser(chain.__doc__)
+    p.add_option("--transfer_attrib", dest="attrib_list",
+                help="Attributes to transfer to the parent feature; accepts comma" + \
+                " separated list of attribute names [default: %default]")
     p.set_outfile()
 
     opts, args = p.parse_args(args)
@@ -575,6 +578,7 @@ def chain(args):
         sys.exit(not p.print_help())
 
     gffile, = args
+    attrib_list = opts.attrib_list
     gffdict = {}
     fw = must_open(opts.outfile, "w")
     gff = Gff(gffile)
@@ -587,12 +591,20 @@ def chain(args):
                             'type': g.type,
                             'coords': [],
                             'children': [],
+                            'attrs': DefaultOrderedDict(set)
                           }
+            gffdict[id]['attrs']['ID'].add(id)
+
+        if attrib_list:
+            for a in attrib_list.split(","):
+                if a in g.attributes.keys():
+                    [gffdict[id]['attrs'][a].add(x) for x in g.attributes[a]]
+                    del g.attributes[a]
 
         gffdict[id]['coords'].append((g.start, g.end))
 
         g.type = valid_gff_parent_child[g.type]
-        g.attributes["Parent"] = g.attributes.pop("ID")
+        g.attributes["Parent"] = g.attributes["ID"]
         g.attributes["ID"] = ["{0}-{1}".\
                 format(id, len(gffdict[id]['children']) + 1)]
         g.update_attributes()
@@ -604,8 +616,14 @@ def chain(args):
         type = v['type']
         strand = v['strand']
         start, stop = range_minmax(gffdict[key]['coords'])
-        print >> fw, "\t".join(str(x) for x in [seqid, source, type, start, stop,
-            ".", strand, ".", "ID=" + key])
+
+        g = GffLine("\t".join(str(x) for x in [seqid, source, type, start, stop, \
+            ".", strand, "."]))
+        g.attributes = v['attrs']
+        g.update_attributes()
+
+        print >> fw, g
+
         for child in gffdict[key]['children']:
             print >> fw, child
 

@@ -143,18 +143,31 @@ class PslLine(object):
                 self.tEnd, score, self.strand, ".", attributes])
         return line
 
+    @property
+    def bed12line(self):
+        color = "255,0,0"
+        self.blockStarts = ",".join([str(x - self.tStart) for x in self.tStarts])
+        line = "\t".join(str(x) for x in (self.tName, self.tStart, self.tEnd, \
+                self.qName, "{0:.2f}".format(self.pct_id()), self.strand, \
+                self.tStart, self.tEnd, color, self.blockCount, \
+                ",".join(str(bs) for bs in self.blockSizes), \
+                self.blockStarts))
+        return line
+
 
 class Psl(LineFile):
 
     def __init__(self, filename=None):
         super(Psl, self).__init__(filename)
 
+        import re
+
         self.mCounts = {}   # dict to hold match counts
         if not filename:
             return
 
         for line in must_open(filename):
-            if line[0] == "#":
+            if not re.match(r'\d+', line[0]):
                 continue
             self.append(PslLine(line))
 
@@ -168,9 +181,32 @@ def main():
 
     actions = (
         ('gff', 'convert psl to gff3 format'),
+        ('bed', 'convert psl to bed12 format'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def bed(args):
+    """
+    %prog bed pslfile
+
+    Convert to bed format.
+    """
+    p = OptionParser(bed.__doc__)
+    p.set_outfile()
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    pslfile, = args
+    fw = must_open(opts.outfile, "w")
+
+    psl = Psl(pslfile)
+    for p in psl:
+        print >> fw, p.bed12line
 
 
 def gff(args):

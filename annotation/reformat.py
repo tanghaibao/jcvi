@@ -310,7 +310,7 @@ def instantiate(args):
                 blocks.append((tag, [sbed[x[0]] for x in names]))
             else:
                 start, end = names[0][-1], names[-1][-1]
-                start, end = atg_name(start)[-1], atg_name(end)[-1]
+                start, end = atg_name(start, retval="rank"), atg_name(end, retval="rank")
                 blocks.append((tag, [start, end]))
 
         id_table = {}  # old to new name conversion
@@ -612,7 +612,8 @@ def annotate(args):
     for chr, chrbed in nbed.sub_beds():
         abedline, splits = annotate_chr(chr, chrbed, g, scores, nbedline, abedline, opts, splits)
 
-    abedline = process_splits(splits, scores, nbedline, abedline)
+    if splits is not None:
+        abedline = process_splits(splits, scores, nbedline, abedline)
 
     abedfile = npf + ".annotated.bed"
     afh = open(abedfile, "w")
@@ -673,15 +674,14 @@ def annotate_chr(chr, chrbed, g, scores, nbedline, abedline, opts, splits):
             accns = []
             print >> sys.stderr, accn
             for elem in scores[accn]:
-                accns.append(elem[1])
                 print >> sys.stderr, "\t" + ", ".join([str(x)\
                         for x in elem[1:]])
-
                 if opts.atg_name:
                     achr, arank = atg_name(elem[1])
                     if not achr or achr != current_chr:
                         continue
 
+                accns.append(elem[1])
                 if len(new) > 1:
                     if newgrp not in scores: scores[newgrp] = []
                     scores[newgrp].append(elem)

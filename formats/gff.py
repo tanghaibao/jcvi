@@ -210,7 +210,7 @@ def make_attributes(s, gff3=True):
         s = s.replace('+', 'PlusSign')
         d = parse_qs(s)
         for key in d.iterkeys():
-            d[key][0] = unquote(d[key][0].replace('PlusSign', '+'))
+            d[key][0] = unquote(d[key][0].replace('PlusSign', '+').replace('"', ''))
     else:
         attributes = s.split(";")
         d = DefaultOrderedDict(list)
@@ -566,10 +566,15 @@ def chain(args):
     child coordinates.
     """
     from jcvi.utils.range import range_minmax
+    valid_merge_op = ('sum', 'min', 'max', 'mean', 'collapse')
+
     p = OptionParser(chain.__doc__)
     p.add_option("--transfer_attrib", dest="attrib_list",
-                help="Attributes to transfer to the parent feature; accepts comma" + \
+                help="Attributes to transfer to parent feature; accepts comma" + \
                 " separated list of attribute names [default: %default]")
+    p.add_option("--transfer_score", dest="score_merge_op", choices=valid_merge_op,
+                help="Transfer value stored in score field to parent feature." + \
+                " Score is reported based on chosen operation")
     p.set_outfile()
 
     opts, args = p.parse_args(args)
@@ -579,6 +584,7 @@ def chain(args):
 
     gffile, = args
     attrib_list = opts.attrib_list
+    score_merge_op = opts.score_merge_op
     gffdict = {}
     fw = must_open(opts.outfile, "w")
     gff = Gff(gffile)
@@ -591,6 +597,7 @@ def chain(args):
                             'type': g.type,
                             'coords': [],
                             'children': [],
+                            'score': [],
                             'attrs': DefaultOrderedDict(set)
                           }
             gffdict[id]['attrs']['ID'].add(id)
@@ -602,6 +609,10 @@ def chain(args):
                     del g.attributes[a]
 
         gffdict[id]['coords'].append((g.start, g.end))
+        if score_merge_op:
+            if is_number(g.score):
+                gffdict[id]['score'].append(float(g.score))
+                g.score = "."
 
         g.type = valid_gff_parent_child[g.type]
         g.attributes["Parent"] = g.attributes["ID"]
@@ -617,8 +628,22 @@ def chain(args):
         strand = v['strand']
         start, stop = range_minmax(gffdict[key]['coords'])
 
+        score = "."
+        if score_merge_op:
+            v['score'].sort()
+            if score_merge_op == "sum":
+                score = sum(v['score'])
+            elif score_merge_op == "min":
+                score = min(v['score'])
+            elif score_merge_op == "max":
+                score = max(v['score'])
+            elif score_merge_op == "mean":
+                score = sum(v['score'], 0.0)/len(v['score'])
+            elif score_merge_op == "collapse":
+                score = ",".join((str(x) for x in v['score']))
+
         g = GffLine("\t".join(str(x) for x in [seqid, source, type, start, stop, \
-            ".", strand, "."]))
+            score, strand, "."]))
         g.attributes = v['attrs']
         g.update_attributes()
 

@@ -308,7 +308,7 @@ def fix(args):
     minspan = opts.minspan
     fp = open(bedfile)
     fw = must_open(opts.outfile, "w")
-    nfixed = ntotal = 0
+    nfixed = nfiltered = ntotal = 0
     for row in fp:
         atoms = row.strip().split("\t")
         assert len(atoms) >= 3, "Must be at least 3 columns"
@@ -328,10 +328,14 @@ def fix(args):
 
         if b.span >= minspan:
             print >> fw, b
+            nfiltered += 1
 
         ntotal += 1
 
-    logging.debug("Total fixed: {0}".format(percentage(nfixed, ntotal)))
+    if nfixed:
+        logging.debug("Total fixed: {0}".format(percentage(nfixed, ntotal)))
+    if nfiltered:
+        logging.debug("Total filtered: {0}".format(percentage(nfiltered, ntotal)))
 
 
 def some(args):

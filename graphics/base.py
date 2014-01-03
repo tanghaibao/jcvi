@@ -139,6 +139,7 @@ human_readable_base = partial(human_readable, base=True)
 human_formatter = ticker.FuncFormatter(human_readable)
 human_base_formatter = ticker.FuncFormatter(human_readable_base)
 tex_formatter = ticker.FuncFormatter(lambda x, pos: _(str(int(x))))
+kb_formatter = ticker.FuncFormatter(lambda x, pos: "{0}K".format(int(x / 1000)))
 tex_1digit_formatter = ticker.FuncFormatter(lambda x, pos: _("{0:.1f}".format(x)))
 tex_2digit_formatter = ticker.FuncFormatter(lambda x, pos: _("{0:.2f}".format(x)))
 

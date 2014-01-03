@@ -10,7 +10,8 @@ import logging
 
 import numpy as np
 
-from jcvi.graphics.base import plt, _, Rectangle, Polygon, CirclePolygon, savefig
+from jcvi.graphics.base import plt, _, Rectangle, Polygon, CirclePolygon, \
+        savefig, mpl
 from jcvi.graphics.glyph import GeneGlyph, RoundLabel, RoundRect, \
         arrowprops, TextCircle, plot_cap
 from jcvi.graphics.chromosome import Chromosome
@@ -31,103 +32,92 @@ def main():
         ('epoch', 'show the methods used in epoch paper'),
         # Cotton paper (Paterson et al., 2012 Nature)
         ('cotton', 'plot cotton macro- and micro-synteny (requires data)'),
-        # Amborella paper (to appear)
+        # Amborella paper (Albert et al., 2013 Science)
         ('amborella', 'plot amborella macro- and micro-synteny (requires data)'),
         # Unpublished
         ('litchi', 'plot litchi micro-synteny (requires data)'),
         ('napus', 'plot napus macro-synteny (requires data)'),
-        ('napusretention', 'plot retention rate along chr (requires data)'),
+        ('napusdeletion', 'plot histogram for napus deletions (requires data)'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
 
-def napusretention(args):
+def napusdeletion(args):
     """
-    %prog napusretention final.index scaffold.bed genes.bed chrX
+    %prog napusdeletion [deletion-genes|deletion-bases] C2-deletions boleracea.bed
 
-    Plot retention rate along specified chromosome. File `final.index` contains
-    three column with first (query), second (ortholog), third (homeolog).
+    Plot histogram for napus deletions. Can plot deletion-genes or
+    deletion-bases. The three largest segmental deletions will be highlighted
+    along with a drawing of the C2 chromosome.
     """
-    from jcvi.algorithms.matrix import moving_sum
+    import math
     from jcvi.formats.bed import Bed
-    from jcvi.graphics.chromosome import ChromosomeMap
+    from jcvi.graphics.glyph import TextCircle
+    from jcvi.graphics.chromosome import HorizontalChromosome
+    from jcvi.graphics.base import kb_formatter
 
-    p = OptionParser(napusretention.__doc__)
-    opts, args, iopts = p.set_image_options(args, figsize="6x4")
+    p = OptionParser(napusdeletion.__doc__)
+    opts, args, iopts = p.set_image_options(args)
 
-    if len(args) != 4:
+    if len(args) != 3:
         sys.exit(not p.print_help())
 
-    finalist, scaffoldbed, genesbed, chr = args
-    bed = Bed(scaffoldbed)
-    scaffolds = list(bed.sub_bed(chr))
-    logging.debug("Imported {0} scaffolds from {1}.".format(len(scaffolds), chr))
-
-    bed = Bed(genesbed)
-    genes = list(x for x in bed.sub_bed(chr))
-    ngenes = len(genes)
-    logging.debug("Imported {0} genes from {1}.".format(ngenes, chr))
-
-    ortho, homeo = {}, {}
-    fp = open(finalist)
-    for row in fp:
-        query, ortholog, homeolog = row.split()
-        ortho[query] = int(ortholog != '.')
-        homeo[query] = int(homeolog != '.')
-
-    genes = [x for x in genes if x.accn in ortho]
-    ortholist, homeolist = [], []
-    for x in genes:
-        accn = x.accn
-        ortholist.append(ortho[accn])
-        homeolist.append(homeo[accn])
-
-    window = 100
-    halfw = window / 2
-    ortholist = moving_sum(ortholist, window=window)[halfw : -halfw]
-    homeolist = moving_sum(homeolist, window=window)[halfw : -halfw]
+    deletion_genes, deletions, bed = args
+    dg = [int(x) for x in open(deletion_genes)]
+    dsg, lsg = "darkslategray", "lightslategray"
 
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
+    ax = fig.add_axes([.1, .1, .8, .8])
+    minval = 2 if deletion_genes == "deleted-genes" else 2048
+    bins = np.logspace(math.log(minval, 10), math.log(max(dg), 10), 16)
+    n, bins, histpatches = ax.hist(dg, bins=bins, \
+                                   fc=lsg, alpha=.75)
+    ax.set_xscale('log', basex=2)
+    if deletion_genes == "deleted-genes":
+        ax.xaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%d'))
+        ax.set_xlabel('No. of deleted genes in each segment')
+    else:
+        ax.xaxis.set_major_formatter(kb_formatter)
+        ax.set_xlabel('No. of deleted bases in each segment')
+    ax.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%d'))
+    ax.set_ylabel('No. of segments')
+    ax.patch.set_alpha(0.1)
 
-    xstart, xend = .2, .8
-    ystart, yend = .2, .8
-    pad = .02
+    # Draw chromosome C2
+    na, nb = .45, .85
+    root.text((na + nb) / 2, .54, "ChrC02", ha="center")
+    hc = HorizontalChromosome(root, na, nb, .5, height=.025,
+                             fc=lsg, fill=True)
 
-    chrlen = max(x.end for x in scaffolds)
-    ratio = (xend - xstart) / chrlen
-    patchstart = [(xstart + x.start * ratio) for x in scaffolds]
+    order = Bed(bed).order
+    fp = open(deletions)
+    scale = lambda x: na + x * (nb - na) / 52886895
+    for i, row in enumerate(fp):
+        i += 1
+        num, genes = row.split()
+        genes = genes.split("|")
+        ia, a = order[genes[0]]
+        ib, b = order[genes[-1]]
+        mi, mx = a.start, a.end
+        mi, mx = scale(mi), scale(mx)
+        root.add_patch(Rectangle((mi, .475), mx - mi, .05,
+                       fc="red", ec="red"))
+        if i == 1:   # offset between two adjacent regions for aesthetics
+            mi -= .015
+        elif i == 2:
+            mi += .015
+        TextCircle(root, mi, .44, str(i), fc="red")
 
-    title = "Homolog retention in {0}-gene windows".format(window)
-    subtitle = "{0}, {1} scaffolds, {2} genes".format(chr, len(scaffolds), ngenes)
-
-    chr_map = ChromosomeMap(fig, root, xstart, xend, ystart, yend, pad, 0, 100, 2,
-                    title, subtitle, patchstart=patchstart)
-
-    # Legends
-    y = ystart + pad * 4
-    root.plot([.3, .33], [y, y], "r-", lw=2)
-    root.text(.33 + pad, y, "Ortholog", va="center")
-    y = ystart + pad * 2
-    root.plot([.3, .33], [y, y], "g-", lw=2)
-    root.text(.33 + pad, y, "Homeolog", va="center")
-
-    ax = chr_map.axes
-    starts = [x.start for x in genes][halfw : -halfw]
-
-    ax.plot(starts, ortholist, "r-")
-    ax.plot(starts, homeolist, "g-")
-
-    ax.set_xlim(0, chrlen)
-    ax.set_ylim(0, 100)
-    ax.set_axis_off()
+    for i, mi in zip(range(1, 4), (.83, .78, .73)):
+        TextCircle(root, mi, .2, str(i), fc="red")
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
     root.set_axis_off()
 
-    image_name = chr + ".retention." + iopts.format
+    image_name = deletion_genes + ".pdf"
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 

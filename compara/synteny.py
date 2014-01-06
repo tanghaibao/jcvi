@@ -177,6 +177,39 @@ class BlockFile (BaseFile):
                 if g not in (".", ""):
                     yield g, hd
 
+    def query_gene(self, gene, color=None, invert=False):
+        """
+        Used in mcscanq() for query
+        """
+        qi = self.columns[0].index(gene)
+        ndata = len(self.data)
+        for col in self.columns[1:]:
+            upstream_dist = downstream_dist = 1000
+            # search upstream
+            for i in xrange(qi - 1, -1, -1):
+                if col[i] not in (".", ""):
+                    upstream = col[i]
+                    upstream_dist = qi - i
+                    break
+            # search downstream
+            for i in xrange(qi, ndata):
+                if col[i] not in (".", ""):
+                    downstream = col[i]
+                    downstream_dist = i - qi
+                    break
+            closest = upstream if upstream_dist < downstream_dist \
+                    else downstream
+            # output in .simple format
+            if invert:
+                line = "\t".join(str(x) for x in \
+                        (closest, closest, gene, gene, 0, "+"))
+            else:
+                line = "\t".join(str(x) for x in \
+                        (gene, gene, closest, closest, 0, "+"))
+            if color:
+                line = color + "*" + line
+            yield line
+
 
 def _score(cluster):
     """
@@ -381,6 +414,7 @@ def main():
         ('summary', 'provide statistics for pairwise blocks'),
         ('liftover', 'given anchor list, pull adjacent pairs from blast file'),
         ('mcscan', 'stack synteny blocks on a reference bed'),
+        ('mcscanq', 'query multiple synteny blocks'),
         ('screen', 'extract subset of blocks from anchorfile'),
         ('simple', 'convert anchorfile to simple block descriptions'),
         ('stats', 'provide statistics for mscan blocks'),
@@ -394,6 +428,31 @@ def main():
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def mcscanq(args):
+    """
+    %prog mcscanq query.ids blocksfile
+
+    Query multiple synteny blocks to get the closest alignment feature. Mostly
+    used for 'highlighting' the lines in the synteny plot, drawn by
+    graphics.karyotype and graphics.synteny.
+    """
+    p = OptionParser(mcscanq.__doc__)
+    p.add_option("--color", help="Add color highlight, used in plotting")
+    p.add_option("--invert", default=False, action="store_true",
+                 help="Invert query and subject [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) < 2:
+        sys.exit(not p.print_help())
+
+    qids, blocksfile = args
+    qids = SetFile(qids)
+    b = BlockFile(blocksfile)
+    for gene in qids:
+        for line in b.query_gene(gene, color=opts.color, invert=opts.invert):
+            print line
 
 
 def spa(args):

@@ -86,7 +86,7 @@ def main():
     actions = (
         ('tophat', 'run tophat on a list of inputs'),
         ('cufflinks', 'run cufflinks following tophat'),
-        ('prepare', 'parse JIRA report and prepare input'),
+        ('prepare', 'parse list of FASTQ files and prepare input'),
         ('pairs', 'estimate insert sizes for input files'),
         ('contamination', 'remove contaminated reads'),
         ('allpaths', 'run automated ALLPATHS on list of dirs'),

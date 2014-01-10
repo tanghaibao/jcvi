@@ -113,11 +113,11 @@ def prepare(args):
     countsdb = defaultdict(list)
     for c in countfiles:
         rs = RiceSample(c)
-        countsdb[rs.ind].append(rs)
+        countsdb[(rs.tissue, rs.ind)].append(rs)
 
     # Merge duplicates - data sequenced in different batches
-    key = lambda x: (x.tissue, x.label, x.rep)
-    for ind, rs in sorted(countsdb.items()):
+    key = lambda x: (x.label, x.rep)
+    for (tissue, ind), rs in sorted(countsdb.items()):
         rs.sort(key=key)
         nrs = len(rs)
         for i in xrange(nrs):
@@ -130,20 +130,26 @@ def prepare(args):
                     continue
                 ri.merge(rj)
                 rj.working = False
-        countsdb[ind] = [x for x in rs if x.working]
+        countsdb[(tissue, ind)] = [x for x in rs if x.working]
 
     # Group into families
     mkdir("families")
-    for ind, rs in sorted(countsdb.items()):
-        if rs[0].label != "F1":
+    for (tissue, ind), r in sorted(countsdb.items()):
+        r = list(r)
+        if r[0].label != "F1":
             continue
-        P1, P2 = rs[0].P1, rs[0].P2
-        rs = rs + countsdb[P1] + countsdb[P2]
-        rs.sort(key=key)
-        for tissue, ss in groupby(rs, key=lambda x: x.tissue):
-            ss = list(ss)
-            outfile = "-".join((tissue, ind))
-            merge_counts(ss, op.join(families, outfile))
+        P1, P2 = r[0].P1, r[0].P2
+        P1, P2 = countsdb[(tissue, P1)], countsdb[(tissue, P2)]
+        rs = P1 + P2 + r
+        groups = [1] * len(P1) + [2] * len(P2) + [3] * len(r)
+        assert len(rs) == len(groups)
+
+        outfile = "-".join((tissue, ind))
+        merge_counts(rs, op.join(families, outfile))
+        groupsfile = outfile + ".groups"
+        fw = open(op.join(families, groupsfile), "w")
+        print >> fw, ",".join(str(x) for x in groups)
+        fw.close()
 
 
 if __name__ == '__main__':

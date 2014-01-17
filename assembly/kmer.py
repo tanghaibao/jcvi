@@ -380,6 +380,7 @@ def jellyfish(args):
             help="Do not print histogram [default: %default]")
     p.add_option("--fasta", default=False, action="store_true",
             help="Inputs are FASTA [default: %default]")
+    p.set_cpus()
     opts, args = p.parse_args(args)
 
     if len(args) < 1:
@@ -396,6 +397,7 @@ def jellyfish(args):
     fasta = opts.fasta
     if fasta:
         coverage /= 2
+    gzip = fq.endswith(".gz")
 
     hashsize = totalfilesize / coverage
     #hashsize = max(hashsize, 4000000000)  # based on msr-ca
@@ -412,13 +414,14 @@ def jellyfish(args):
 
     jfpf = "{0}-K{1}".format(pf, K)
     jfdb = jfpf + "_0"
+    fastqfiles = " ".join(fastqfiles)
 
-    cmd = "jellyfish count -t 64 -C -o {0}".format(jfpf)
+    cmd = "jellyfish count -t {0} -C -o {1}".format(opts.cpus, jfpf)
     cmd += " -s {0} -m {1}".format(hashsize, K)
-    if not fasta:
-        cmd += " -p 126 --min-quality 5".format(hashsize, K)
-        cmd += " --quality-start {0}".format(offset)
-    cmd += " " + " ".join(fastqfiles)
+    if gzip:
+        cmd = "gzip -dc {0} | ".format(fastqfiles) + cmd + " /dev/fd/0"
+    else:
+        cmd += " " + fastqfiles
 
     if need_update(fastqfiles, jfdb):
         sh(cmd)

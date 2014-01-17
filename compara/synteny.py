@@ -448,9 +448,10 @@ def mcscanq(args):
         sys.exit(not p.print_help())
 
     qids, blocksfile = args
-    qids = SetFile(qids)
     b = BlockFile(blocksfile)
-    for gene in qids:
+    fp = open(qids)
+    for gene in fp:
+        gene = gene.strip()
         for line in b.query_gene(gene, color=opts.color, invert=opts.invert):
             print line
 

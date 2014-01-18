@@ -367,19 +367,15 @@ def jellyfish(args):
     """
     from jcvi.apps.base import getfilesize
     from jcvi.utils.cbook import human_size
-    from jcvi.formats.fastq import guessoffset
-
     p = OptionParser(jellyfish.__doc__)
     p.add_option("-K", default=23, type="int",
                  help="K-mer size [default: %default]")
     p.add_option("--coverage", default=40, type="int",
-            help="Expected sequence coverage [default: %default]")
+                 help="Expected sequence coverage [default: %default]")
     p.add_option("--prefix", default="jf",
-            help="Database prefix [default: %default]")
+                 help="Database prefix [default: %default]")
     p.add_option("--nohist", default=False, action="store_true",
-            help="Do not print histogram [default: %default]")
-    p.add_option("--fasta", default=False, action="store_true",
-            help="Inputs are FASTA [default: %default]")
+                 help="Do not print histogram [default: %default]")
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -389,31 +385,19 @@ def jellyfish(args):
     fastqfiles = args
     K = opts.K
     coverage = opts.coverage
-    pf = opts.prefix
 
     totalfilesize = sum(getfilesize(x) for x in fastqfiles)
     fq = fastqfiles[0]
-
-    fasta = opts.fasta
-    if fasta:
-        coverage /= 2
+    pf = opts.prefix
     gzip = fq.endswith(".gz")
 
     hashsize = totalfilesize / coverage
-    #hashsize = max(hashsize, 4000000000)  # based on msr-ca
-
     logging.debug("Total file size: {0}, hashsize (-s): {1}".\
                     format(human_size(totalfilesize,
                            a_kilobyte_is_1024_bytes=True), hashsize))
 
-    if fasta:
-        pf = fq.split(".")[0]
-    else:
-        offset = guessoffset([fq])
-        assert all(guessoffset([x]) == offset for x in fastqfiles[1:])
-
     jfpf = "{0}-K{1}".format(pf, K)
-    jfdb = jfpf + "_0"
+    jfdb = jfpf
     fastqfiles = " ".join(fastqfiles)
 
     cmd = "jellyfish count -t {0} -C -o {1}".format(opts.cpus, jfpf)

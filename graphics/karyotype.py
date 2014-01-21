@@ -181,7 +181,7 @@ class Track (object):
             xx = (xstart + xend) / 2
             xstart = xend + gap
 
-            if nseqids > MaxSeqids:
+            if nseqids > 2 * MaxSeqids and (i + 1) % 10 != 0:
                 continue
 
             pad = .02

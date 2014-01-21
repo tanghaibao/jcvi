@@ -214,20 +214,21 @@ def napus(args):
 
     fc = "lightslategrey"
     radius = .012
-    TextCircle(root, .1, .93, r'$\gamma$', radius=radius, fc=fc)
-    root.text(.1, .91, r"$\times3$", ha="center", va="top", color=fc)
-    TextCircle(root, .08, .82, r'$\alpha$', radius=radius, fc=fc)
-    TextCircle(root, .12, .82, r'$\beta$', radius=radius, fc=fc)
-    root.text(.1, .8, r"$\times3\times2\times2$", ha="center", va="top", color=fc)
-    root.text(.1, .67, r"Brassica triplication", ha="center",
+    ot = -.05  # use this to adjust vertical position of the left panel
+    TextCircle(root, .1, .9 + ot, r'$\gamma$', radius=radius, fc=fc)
+    root.text(.1, .88 + ot, r"$\times3$", ha="center", va="top", color=fc)
+    TextCircle(root, .08, .79 + ot, r'$\alpha$', radius=radius, fc=fc)
+    TextCircle(root, .12, .79 + ot, r'$\beta$', radius=radius, fc=fc)
+    root.text(.1, .77 + ot, r"$\times3\times2\times2$", ha="center", va="top", color=fc)
+    root.text(.1, .67 + ot, r"Brassica triplication", ha="center",
                 va="top", color=fc, size=11)
-    root.text(.1, .65, r"$\times3\times2\times2\times3$", ha="center", va="top", color=fc)
-    root.text(.1, .42, r"Allo-tetraploidy", ha="center",
+    root.text(.1, .65 + ot, r"$\times3\times2\times2\times3$", ha="center", va="top", color=fc)
+    root.text(.1, .42 + ot, r"Allo-tetraploidy", ha="center",
                 va="top", color=fc, size=11)
-    root.text(.1, .4, r"$\times3\times2\times2\times3\times2$", ha="center", va="top", color=fc)
+    root.text(.1, .4 + ot, r"$\times3\times2\times2\times3\times2$", ha="center", va="top", color=fc)
 
     bb = dict(boxstyle="round", fc="w", ec="0.5", alpha=0.5)
-    root.text(.5, .2, "Brassica napus", ha="center",
+    root.text(.5, .2 + ot, "Brassica napus", ha="center",
                 size=18, color="g", bbox=bb)
 
     root.set_xlim(0, 1)

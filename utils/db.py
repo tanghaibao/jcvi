@@ -2,7 +2,7 @@
 # -*- coding: UTF-8 -*-
 
 """
-Connect to JCVI sybase account
+Connect to databases (Sybase, MySQL and PostgreSQL database backends)
 """
 
 import os.path as op
@@ -17,33 +17,49 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, sh, debug, \
 debug()
 
 
-def db_defaults():
-    """
-    JCVI legacy Sybase database connection defaults
-    """
-    return "SYBPROD", "access", "access"
+# set up valid database connection params
+from jcvi.utils.cbook import AutoVivification
+valid_dbconn = AutoVivification()
+for (dbconn, port, module, host) in zip(("Sybase", "MySQL", "PostgreSQL"), \
+        (2025, 3306, 5432), \
+        ("Sybase", "MySQLdb", "psycopg2"), \
+        ("SYBPROD", "mysql-lan-dev", "pgsql-lan-dev")):
+    valid_dbconn[dbconn]['port'] = port
+    valid_dbconn[dbconn]['module'] = module
+    valid_dbconn[dbconn]['hostname'] = host
 
 
-def get_profile(sqshrc="~/.sqshrc", hostname=None, username=None, password=None):
+def db_defaults(connector='Sybase'):
+    """
+    JCVI legacy Sybase, MySQL and PostgreSQL database connection defaults
+    """
+    return valid_dbconn[connector]['hostname'], "access", "access"
+
+
+def get_profile(sqshrc="~/.sqshrc", connector='Sybase', hostname=None, username=None, password=None):
     """
     get database, username, password from .sqshrc file e.g.
     \set username="user"
     """
-    _ = lambda x: x.split("=")[-1].translate(None, "\"'").strip()
-    sqshrc = op.expanduser(sqshrc)
-    for row in open(sqshrc):
-        row = row.strip()
-        if not row.startswith("\\set") or "prompt" in row:
-            continue
-        if "password" in row:
-            password = _(row)
-        if "hostname" in row:
-            hostname = _(row)
-        if "username" in row:
-            username = _(row)
+    if connector == 'Sybase':
+        shost, suser, spass = None, None, None
+        _ = lambda x: x.split("=")[-1].translate(None, "\"'").strip()
+        sqshrc = op.expanduser(sqshrc)
+        for row in open(sqshrc):
+            row = row.strip()
+            if not row.startswith("\\set") or "prompt" in row:
+                continue
+            if "password" in row:
+                spass = _(row)
+            if "hostname" in row:
+                shost = _(row)
+            if "username" in row:
+                suser = _(row)
 
-    dhost, duser, dpass = db_defaults()
+        if (suser and spass): username, password = suser, spass
+        if shost: hostname = shost
 
+    dhost, duser, dpass = db_defaults(connector=connector)
     if not password:
         username, password = duser, dpass
     elif not username:
@@ -55,13 +71,22 @@ def get_profile(sqshrc="~/.sqshrc", hostname=None, username=None, password=None)
     return hostname, username, password
 
 
-def connect(dbname, hostname=None, username=None, password=None):
-    import Sybase
+def connect(dbname, connector='Sybase', hostname=None, username=None, password=None, port=None):
+    if None in (hostname, username, password):
+        hostname, username, password = \
+                get_profile(hostname=hostname, username=username, password=password)
+    if port is None:
+        port = valid_dbconn[connector]['port']
 
-    hostname, username, password = \
-            get_profile(hostname=hostname, username=username, password=password)
+    if connector == 'PostgreSQL':
+        dsn = "host={0} user={1} password={2} dbname={3} port={4}".format(hostname, \
+                username, password, dbname, port)
 
-    dbh = Sybase.connect(hostname, username, password, database=dbname)
+    dbconn = __import__(valid_dbconn[connector]['module'])
+    if connector == 'PostgreSQL':
+        dbh = dbconn.connect(dsn)
+    else:
+        dbh = dbconn.connect(hostname, username, password, dbname, port)
     cur = dbh.cursor()
     return dbh, cur
 
@@ -184,7 +209,7 @@ def query(args):
     either printed out (when running `select`) or not (when running `insert`, `update`
     or `delete`)
 
-    If the query contains quotes around field values, then these need to be to be escaped with \\
+    If the query contains quotes around field values, then these need to be escaped with \\
     """
     p = OptionParser(query.__doc__)
     p.set_db_opts()
@@ -235,8 +260,8 @@ def query(args):
 
     if not opts.dryrun:
         fw = must_open(opts.outfile, "w")
-        dbh, cur = connect(opts.dbname, hostname=opts.hostname, username=opts.username,\
-                password=opts.password)
+        dbh, cur = connect(opts.dbname, connector=opts.dbconn, hostname=opts.hostname, \
+                username=opts.username, password=opts.password, port=opts.port)
     cflag = None
     for qry in queries:
         if opts.dryrun:

@@ -186,11 +186,13 @@ class OptionParser (OptionP):
         """
         Add db connection specific attributes
         """
-        from jcvi.utils.sybase import get_profile
+        from jcvi.utils.db import valid_dbconn, get_profile
 
-        hostname, username, password = get_profile()
         self.add_option("--db", default=dbname, dest="dbname",
                 help="Specify name of database to query [default: %default]")
+        self.add_option("--connector", default="Sybase", dest="dbconn",
+                choices=valid_dbconn.keys(), help="Specify database connector [default: %default]")
+        hostname, username, password = get_profile()
         if credentials:
             self.add_option("--hostname", default=hostname,
                     help="Specify hostname [default: %default]")
@@ -198,6 +200,8 @@ class OptionParser (OptionP):
                     help="Username to connect to database [default: %default]")
             self.add_option("--password", default=password,
                     help="Password to connect to database [default: %default]")
+        self.add_option("--port", type="int",
+                help="Specify port number [default: %default]")
 
     def set_stripnames(self):
         self.add_option("--no_strip_names", dest="strip_names",

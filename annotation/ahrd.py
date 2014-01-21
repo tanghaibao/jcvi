@@ -124,6 +124,15 @@ eol_sym_pat = re.compile(r"\([A-Z]+[A-Z0-9\-]{0,}\)$")
 # sulfer -> sulfur
 sulfer_pat = re.compile(r"sulfer")
 
+# assessory -> accessory
+assessory_pat = re.compile(r"assessory")
+
+# british to american spelling conversion
+# -ise -> -ize
+# -isation -> ization
+ise_pat = re.compile(r"\b([A-z]+)ise\b")
+isation_pat = re.compile(r"\b([A-z]+)isation\b")
+
 Template = """
 proteins_fasta: {2}
 blast_dbs:
@@ -346,6 +355,21 @@ def fix_text(s):
     # change sulfer to sulfur
     if re.search(sulfer_pat, s):
         s = re.sub(sulfer_pat, "sulfur", s)
+
+    # change assessory to accessory
+    if re.search(assessory_pat, s):
+        s = re.sub(assessory_pat, "accessory", s)
+
+    # change -ise/-isation to -ize/-ization
+    match = re.search(ise_pat, s)
+    if match:
+        ret = match.group(1)
+        s = re.sub(ise_pat, "{0}ize".format(ret), s)
+
+    match = re.search(isation_pat, s)
+    if match:
+        ret = match.group(1)
+        s = re.sub(isation_pat, "{0}ization".format(ret), s)
 
     """
     case (qr/^Histone-lysine/) { $ahrd =~ s/,\s+H\d{1}\s+lysine\-\d+//gs; }

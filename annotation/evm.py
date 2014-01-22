@@ -28,7 +28,7 @@ $EVM/EvmUtils/write_EVM_commands.pl --genome genome.fasta --weights $W \
     --terminalExons pasa.terminal_exons.gff3 \
     --output_file_name evm.out --partitions partitions_list.out > commands.list
 
-$EGC_SCRIPTS/run_cmds_on_grid.pl commands.list 04048
+$EGC_SCRIPTS/run_cmds_on_grid.pl commands.list 0372
 
 #$EVM/EvmUtils/execute_EVM_commands.pl commands.list
 """

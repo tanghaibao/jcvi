@@ -120,7 +120,7 @@ class GridProcess (object):
     pat1 = re.compile(r"Your job (?P<id>[0-9]*) ")
     pat2 = re.compile(r"Your job-array (?P<id>\S*) ")
 
-    def __init__(self, cmd, jobid="", pcode="04048", queue="default", threaded=None,
+    def __init__(self, cmd, jobid="", pcode="0372", queue="default", threaded=None,
                        infile=None, outfile=None, errfile=None, arr=None,
                        concurrency=None, outdir=".", name=None, hold_jid=None,
                        grid_opts=None):

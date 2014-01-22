@@ -118,7 +118,7 @@ class OptionParser (OptionP):
 
     def set_grid_opts(self, array=False):
         queue_choices = ("default", "fast", "medium", "himem")
-        vcode = "04048"
+        vcode = "0372"
         valid_pcodes = popen("qconf -sprjl", debug=False).read().strip().split("\n")
         valid_pcodes.append(vcode)
 

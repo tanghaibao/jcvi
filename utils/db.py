@@ -78,15 +78,14 @@ def connect(dbname, connector='Sybase', hostname=None, username=None, password=N
     if port is None:
         port = valid_dbconn[connector]['port']
 
+    dbconn = __import__(valid_dbconn[connector]['module'])
     if connector == 'PostgreSQL':
         dsn = "host={0} user={1} password={2} dbname={3} port={4}".format(hostname, \
                 username, password, dbname, port)
-
-    dbconn = __import__(valid_dbconn[connector]['module'])
-    if connector == 'PostgreSQL':
         dbh = dbconn.connect(dsn)
     else:
         dbh = dbconn.connect(hostname, username, password, dbname, port)
+
     cur = dbh.cursor()
     return dbh, cur
 

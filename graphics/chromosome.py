@@ -15,6 +15,7 @@ from itertools import groupby
 
 import numpy as np
 
+from jcvi.formats.base import DictFile
 from jcvi.formats.bed import Bed
 from jcvi.graphics.base import plt, Rectangle, Polygon, CirclePolygon, _, savefig
 from jcvi.graphics.glyph import BaseGlyph, plot_cap
@@ -176,6 +177,8 @@ def main():
     p.add_option("--winsize", default=50000, type="int",
             help="if drawing an imagemap, specify the window size (bases) of each map element "
                  "[default: %default bp]")
+    p.add_option("--empty",
+            help="Write legend for unpainted region")
     opts, args, iopts = p.set_image_options(figsize="6x6", dpi=300)
 
     if len(args) not in (1, 2):
@@ -199,7 +202,7 @@ def main():
         print >> mapfh, '<map id="' + prefix + '">'
 
     if mappingfile:
-        mappings = dict(x.split() for x in open(mappingfile))
+        mappings = DictFile(mappingfile, delimiter="\t")
         classes = sorted(set(mappings.values()))
         logging.debug("A total of {0} classes found: {1}".format(len(classes),
             ','.join(classes)))
@@ -337,6 +340,11 @@ def main():
             alpha=alpha))
         root.text(xstart + xwidth + .01, yy, klass, fontsize=10)
         xstart += xinterval
+
+    empty = opts.empty
+    if empty:
+        root.add_patch(Rectangle((xstart, yy), xwidth, xwidth, fill=False, lw=1))
+        root.text(xstart + xwidth + .01, yy, empty, fontsize=10)
 
     root.text(.5, .95, opts.title, fontstyle="italic", ha="center", va="center")
 

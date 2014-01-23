@@ -262,13 +262,14 @@ def napusexp(args):
 
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
-    Synteny(fig, root, block, napusbed, layout)
-    draw_gene_legend(root, .27, .52, .57)
+    s = Synteny(fig, root, block, napusbed, layout)
+    draw_gene_legend(root, .22, .55, .57)
 
     # Import the expression values
     # Columns are: leaf-A, leaf-C, root-A, root-C
-    nrows = sum(1 for x in open(block))
+    pairs = [row.split() for row in open(block)]
     data = np.loadtxt(exp)
+    nrows = len(pairs)
     assert data.shape[0] == nrows, "block and exp row counts mismatch"
     A = data[:, [2, 0]]
     C = data[:, [3, 1]]
@@ -276,11 +277,25 @@ def napusexp(args):
     C = np.transpose(C)
 
     x, y, d, w, h = .18, .64, .008, .65, .08
-    for y in (.64, .29):
+    lsg = "lightslategrey"
+    coords = s.gg  # Coordinates of the genes
+    Ag = [p[0] for p in pairs]
+    Cg = [p[1] for p in pairs]
+
+    for y, Gg in ((.64, Ag), (.29, Cg)):
         root.add_patch(Rectangle((x - h, y - d), w + h + d, h + 2 * d, fill=False,
-                                ec="lightslategrey", lw=1))
+                                ec=lsg, lw=1))
         root.text(x - d, y + 3 * h / 4, "leaf", ha="right", va="center")
         root.text(x - d, y + h / 4, "root", ha="right", va="center")
+        ty = y - 2 * d if y > .5 else y + h + 2 * d
+        for i, g in enumerate(Gg):
+            start, end = coords[g]
+            sx, sy = start
+            ex, ey = end
+            assert sy == ey
+            sy = sy + 2 * d if sy > .5 else sy - 2 * d
+            root.plot(((sx + ex) / 2, x + w * (i + .5)/ nrows), (sy, ty),
+                            lw=2, ls=":", color="k", alpha=.2)
 
     axA = fig.add_axes([x, .64, w, h])
     axC = fig.add_axes([x, .29, w, h])

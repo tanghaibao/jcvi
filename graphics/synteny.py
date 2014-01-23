@@ -203,7 +203,7 @@ class Synteny (object):
         maxspan = max(exts, key=lambda x: x[-1])[-1]
         scale = maxspan / .65
 
-        gg = {}
+        self.gg = gg = {}
         ymids = []
         vpad = .012 * w / h
         for i in xrange(bf.ncols):

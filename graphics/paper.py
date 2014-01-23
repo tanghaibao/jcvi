@@ -11,11 +11,12 @@ import logging
 import numpy as np
 
 from jcvi.graphics.base import plt, _, Rectangle, Polygon, CirclePolygon, \
-        savefig, mpl
+        savefig, mpl, cm
 from jcvi.graphics.glyph import GeneGlyph, RoundLabel, RoundRect, \
         arrowprops, TextCircle, plot_cap
 from jcvi.graphics.chromosome import Chromosome
 from jcvi.graphics.karyotype import Karyotype
+from jcvi.graphics.synteny import Synteny, draw_gene_legend
 from jcvi.utils.iter import pairwise
 from jcvi.apps.base import OptionParser, ActionDispatcher, fname, debug
 debug()
@@ -37,6 +38,7 @@ def main():
         # Unpublished
         ('litchi', 'plot litchi micro-synteny (requires data)'),
         ('napus', 'plot napus macro-synteny (requires data)'),
+        ('napusexp', 'plot expression values between homeologs (requires data)'),
         ('napusdeletion', 'plot histogram for napus deletions (requires data)'),
             )
     p = ActionDispatcher(actions)
@@ -127,7 +129,6 @@ def litchi(args):
 
     Build a composite figure that calls graphis.synteny.
     """
-    from jcvi.graphics.synteny import Synteny, draw_gene_legend
     from jcvi.graphics.glyph import DoubleSquare
 
     p = OptionParser(litchi.__doc__)
@@ -240,14 +241,77 @@ def napus(args):
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
+def napusexp(args):
+    """
+    %prog napusexp block exp layout napus.bed
+
+    Plot a composite figure showing synteny and the expression level between
+    homeologs in two tissues - total 4 lists of values. block file contains the
+    gene pairs between AN and CN.
+    """
+    from matplotlib.colors import LogNorm
+    from jcvi.graphics.base import red_purple as default_cm
+
+    p = OptionParser(napusexp.__doc__)
+    opts, args, iopts = p.set_image_options(args, figsize="8x7")
+
+    if len(args) != 4:
+        sys.exit(not p.print_help())
+
+    block, exp, layout, napusbed = args
+
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes([0, 0, 1, 1])
+    Synteny(fig, root, block, napusbed, layout)
+    draw_gene_legend(root, .27, .52, .57)
+
+    # Import the expression values
+    # Columns are: leaf-A, leaf-C, root-A, root-C
+    nrows = sum(1 for x in open(block))
+    data = np.loadtxt(exp)
+    assert data.shape[0] == nrows, "block and exp row counts mismatch"
+    A = data[:, [2, 0]]
+    C = data[:, [3, 1]]
+    A = np.transpose(A)
+    C = np.transpose(C)
+
+    x, y, d, w, h = .18, .64, .008, .65, .08
+    for y in (.64, .29):
+        root.add_patch(Rectangle((x - h, y - d), w + h + d, h + 2 * d, fill=False,
+                                ec="lightslategrey", lw=1))
+        root.text(x - d, y + 3 * h / 4, "leaf", ha="right", va="center")
+        root.text(x - d, y + h / 4, "root", ha="right", va="center")
+
+    axA = fig.add_axes([x, .64, w, h])
+    axC = fig.add_axes([x, .29, w, h])
+
+    norm = LogNorm(1, 10000)
+    p = axA.pcolormesh(A, cmap=default_cm, norm=norm)
+    p = axC.pcolormesh(C, cmap=default_cm, norm=norm)
+    axA.set_xlim(0, nrows)
+    axC.set_xlim(0, nrows)
+
+    x, y, w, h = .35, .17, .3, .03
+    ax_colorbar = fig.add_axes([x, y, w, h])
+    fig.colorbar(p, cax=ax_colorbar, orientation='horizontal')
+    root.text(x - d, y + h / 2, "RPKM", ha="right", va="center")
+
+    root.set_xlim(0, 1)
+    root.set_ylim(0, 1)
+    for x in (axA, axC, root):
+        x.set_axis_off()
+
+    pf = "napusexp"
+    image_name = pf + "." + iopts.format
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
+
+
 def amborella(args):
     """
     %prog amborella seqids karyotype.layout mcscan.out all.bed synteny.layout
 
     Build a composite figure that calls graphics.karyotype and graphics.synteny.
     """
-    from jcvi.graphics.synteny import Synteny, draw_gene_legend
-
     p = OptionParser(amborella.__doc__)
     p.add_option("--tree",
                  help="Display trees on the bottom of the figure [default: %default]")
@@ -297,7 +361,6 @@ def cotton(args):
 
     Build a composite figure that calls graphics.karyotype and graphic.synteny.
     """
-    from jcvi.graphics.synteny import Synteny, draw_gene_legend
     from jcvi.graphics.tree import draw_tree, read_trees
 
     p = OptionParser(cotton.__doc__)

@@ -72,6 +72,8 @@ def prettyplot():
     # and red=hot=large numbers with '_r' suffix
     blue_red = brewer2mpl.get_map('RdBu', 'Diverging', 11,
                                   reverse=True).mpl_colormap
+    green_purple = brewer2mpl.get_map('PRGn', 'diverging', 11).mpl_colormap
+    red_purple = brewer2mpl.get_map('RdPu', 'Sequential', 9).mpl_colormap
 
     # Default "patches" like scatterplots
     mpl.rcParams['patch.linewidth'] = 0.75     # edge width in points
@@ -95,10 +97,13 @@ def prettyplot():
 
     # change the text colors also to the almost black
     mpl.rcParams['text.color'] = almost_black
+    return almost_black, blues_r, reds, blue_red, set1, set2, \
+            light_grey, green_purple, red_purple
 
 
 # Code borrowed from https://github.com/olgabot/prettyplotlib (thanks)
-prettyplot()
+almost_black, blues_r, reds, blue_red, set1, set2, \
+    light_grey, green_purple, red_purple = prettyplot()
 
 
 def savefig(figname, dpi=150, iopts=None):

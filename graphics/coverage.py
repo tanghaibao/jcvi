@@ -41,7 +41,7 @@ class XYtrack (object):
 class Coverage (object):
 
     def __init__(self, fig, root, canvas, chr, xlim, datadir, order=None,
-                 gauge="bottom"):
+                 gauge="bottom", plot_label=True):
         x, y, w, h = canvas
         p = .01
         root.add_patch(Rectangle((x - p, y - p), w + 2 * p, h + 2 * p, lw=1,
@@ -84,8 +84,9 @@ class Coverage (object):
             label = datafile.split(".")[1]
             xy.draw(ax, label)
             ax.set_xlim(*xlim)
-            root.text(x - .05, yy + yinterval / 2, label,
-                        ha="center", va="center", color=c)
+            if plot_label:
+                root.text(x - .05, yy + yinterval / 2, label,
+                            ha="center", va="center", color=c)
 
 
 def main():

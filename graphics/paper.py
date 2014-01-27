@@ -58,7 +58,7 @@ def napuscov(args):
     %prog napuscov chrA01 chrC01 chr.sizes data AN.CN.1x1.lifted.anchors.simple
 
     Plot coverage graphs between homeologs, the middle panel show the
-    homeologous gene pairs.
+    homeologous gene pairs. Allow multiple chromosomes to multiple chromosomes.
     """
     from jcvi.graphics.coverage import Coverage, Sizes
 
@@ -72,6 +72,9 @@ def napuscov(args):
         sys.exit(not p.print_help())
 
     chr1, chr2, sizes, datadir, simplefile = args
+    chr1 = chr1.split(",")
+    chr2 = chr2.split(",")
+
     order = opts.order
     if order:
         order = order.split(",")
@@ -79,29 +82,45 @@ def napuscov(args):
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
 
-    chr_size1 = sizes.get_size(chr1)
-    chr_size2 = sizes.get_size(chr2)
+    chr_sizes1 = [sizes.get_size(x) for x in chr1]
+    chr_sizes2 = [sizes.get_size(x) for x in chr2]
+    chr_size1, chr_size2 = sum(chr_sizes1), sum(chr_sizes2)
     ratio = .8 / max(chr_size1, chr_size2)
+    gap = .03
 
-    w1 = ratio * chr_size1
-    w1_start = .5 - w1 / 2
+    # Center two panels
+    w1 = ratio * chr_size1 + (len(chr1) - 1) * gap
+    w1s = w1_start = .5 - w1 / 2
     w1_end = .5 + w1 / 2
-    canvas1 = (w1_start, .6, w1, .3)
-    c = Coverage(fig, root, canvas1, chr1, (0, chr_size1), datadir,
-                 order=order, gauge="top")
-
-    w2 = ratio * chr_size2
-    w2_start = .5 - w2 / 2
+    w2 = ratio * chr_size2 + (len(chr2) - 1) * gap
+    w2s = w2_start = .5 - w2 / 2
     w2_end = .5 + w2 / 2
-    canvas2 = (w2_start, .15, w2, .3)
-    c = Coverage(fig, root, canvas2, chr2, (0, chr_size2), datadir,
-                 order=order, gauge="bottom")
+
+    i = 0
+    for c1, s1 in zip(chr1, chr_sizes1):
+        w1 = ratio * s1
+        canvas1 = (w1s, .6, w1, .3)
+        plot_label = i == 0
+        i += 1
+        c = Coverage(fig, root, canvas1, c1, (0, s1), datadir,
+                     order=order, gauge="top", plot_label=plot_label)
+        w1s += w1 + gap
+
+    i = 0
+    for c2, s2 in zip(chr2, chr_sizes2):
+        w2 = ratio * s2
+        canvas2 = (w2s, .15, w2, .3)
+        plot_label = i == 0
+        i += 1
+        c = Coverage(fig, root, canvas2, c2, (0, s2), datadir,
+                     order=order, gauge="bottom", plot_label=plot_label)
+        w2s += w2 + gap
 
     # Synteny panel
     seqidsfile = "seqids"
     fw = open(seqidsfile, "w")
-    print >> fw, chr1
-    print >> fw, chr2
+    print >> fw, ",".join(chr1)
+    print >> fw, ",".join(chr2)
     fw.close()
     logging.debug("File `{0}` written.".format(seqidsfile))
 
@@ -111,12 +130,13 @@ def napuscov(args):
     fw.close()
     logging.debug("File `{0}` written.".format(klayout))
 
-    Karyotype(fig, root, seqidsfile, klayout)
+    Karyotype(fig, root, seqidsfile, klayout, gap=gap, generank=False)
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
     root.set_axis_off()
 
+    chr2 = "_".join(chr2)
     image_name = chr2 + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 

@@ -43,7 +43,7 @@ debug()
 
 class LayoutLine (object):
 
-    def __init__(self, row, delimiter=','):
+    def __init__(self, row, delimiter=',', generank=True):
         args = row.rstrip().split(delimiter)
         args = [x.strip() for x in args]
 
@@ -60,12 +60,13 @@ class LayoutLine (object):
         self.va = args[6]
         self.bed = Bed(args[7])
         self.order = self.bed.order
-        self.order_in_chr = self.bed.order_in_chr
+        self.order_in_chr = self.bed.order_in_chr if generank \
+                            else self.bed.bp_in_chr
 
 
 class Layout (LineFile):
 
-    def __init__(self, filename, delimiter=','):
+    def __init__(self, filename, delimiter=',', generank=False):
         super(Layout, self).__init__(filename)
         fp = open(filename)
         self.edges = []
@@ -81,7 +82,8 @@ class Layout (LineFile):
                 blocks = self.parse_blocks(fn, i)
                 self.edges.append((i, j, blocks))
             else:
-                self.append(LayoutLine(row, delimiter=delimiter))
+                self.append(LayoutLine(row, delimiter=delimiter,
+                            generank=generank))
 
     def parse_blocks(self, simplefile, i):
         order = self[i].order
@@ -109,7 +111,7 @@ MaxSeqids = 20   # above which no labels are written
 
 class Track (object):
 
-    def __init__(self, ax, t, draw=True):
+    def __init__(self, ax, t, gap=.01, draw=True):
 
         self.empty = t.empty
         if t.empty:
@@ -137,7 +139,6 @@ class Track (object):
         self.tr = Affine2D().rotate_deg_around(x, y, self.rotation) + ax.transAxes
         self.inv = ax.transAxes.inverted()
 
-        gap = .01
         nseqids = len(self.seqids)
         if nseqids > MaxSeqids:
             gap = min(gap, gap * MaxSeqids / nseqids + .001)
@@ -251,9 +252,9 @@ class ShadeManager (object):
 
 class Karyotype (object):
 
-    def __init__(self, fig, root, seqidsfile, layoutfile):
+    def __init__(self, fig, root, seqidsfile, layoutfile, gap=.01, generank=True):
 
-        layout = Layout(layoutfile)
+        layout = Layout(layoutfile, generank=generank)
 
         fp = open(seqidsfile)
         for i, row in enumerate(fp):
@@ -265,13 +266,17 @@ class Karyotype (object):
                 continue
 
             bed = t.bed
-            sizes = dict((x, len(list(bed.sub_bed(x)))) for x in seqids)
+            self.generank = generank
+            if generank:
+                sizes = dict((x, len(list(bed.sub_bed(x)))) for x in seqids)
+            else:
+                sizes = dict((x, max(z.end for z in bed.sub_bed(x))) for x in seqids)
             t.seqids = seqids
             t.sizes = sizes
 
         tracks = []
         for lo in layout:
-            tr = Track(root, lo, draw=False)
+            tr = Track(root, lo, gap=gap, draw=False)
             tracks.append(tr)
 
         ShadeManager(root, tracks, layout)

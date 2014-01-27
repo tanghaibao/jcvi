@@ -156,9 +156,19 @@ class Bed(LineFile):
         # get the gene order on a particular seqid
         res = {}
         self.sort(key=self.nullkey)
-        for seqid, beds in groupby(self, key=lambda x:x.seqid):
+        for seqid, beds in groupby(self, key=lambda x: x.seqid):
             for i, f in enumerate(beds):
                 res[f.accn] = (seqid, i, f)
+        return res
+
+    @property
+    def bp_in_chr(self):
+        # get the bp position on a particular seqid
+        res = {}
+        self.sort(key=self.nullkey)
+        for seqid, beds in groupby(self, key=lambda x: x.seqid):
+            for i, f in enumerate(beds):
+                res[f.accn] = (seqid, (f.start + f.end) / 2, f)
         return res
 
     @property

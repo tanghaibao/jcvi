@@ -165,7 +165,7 @@ class Region (object):
 
         # Tentative solution to labels stick into glyph
         magic = 40.
-        cc = abs(lr) / magic  if abs(lr) > magic else 1
+        cc = abs(lr) / magic if abs(lr) > magic else 1
         if va == "top":
             yy = y + cc * pad
         elif va == "bottom":

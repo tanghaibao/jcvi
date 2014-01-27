@@ -39,10 +39,24 @@ def main():
         ('litchi', 'plot litchi micro-synteny (requires data)'),
         ('napus', 'plot napus macro-synteny (requires data)'),
         ('napusexp', 'plot expression values between homeologs (requires data)'),
+        ('napuscov', 'plot coverage graphs between homeologs (requires data)'),
         ('napusdeletion', 'plot histogram for napus deletions (requires data)'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def napuscov(args):
+    """
+    %prog napuscov chrC01 chr.sizes data AN.CN.1x1.lifted.anchors
+
+    Plot coverage graphs between homeologs.
+    """
+    p = OptionParser(napuscov.__doc__)
+    opts, args, iopts = p.set_image_options(args)
+
+    if len(args) != 4:
+        sys.exit(not p.print_help())
 
 
 def napusdeletion(args):

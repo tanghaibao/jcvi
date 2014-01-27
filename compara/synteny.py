@@ -763,7 +763,6 @@ def screen(args):
     4. Option --minspan: remove blocks with less span than this.
     5. Option --minsize: remove blocks with less number of anchors than this.
     """
-
     p = OptionParser(screen.__doc__)
     p.set_beds()
 

@@ -46,17 +46,79 @@ def main():
     p.dispatch(globals())
 
 
+template = """# y, xstart, xend, rotation, color, label, va, bed
+.56, {0}, {1}, 0, darkslategray, , top, AN.bed
+.48, {2}, {3}, 0, darkslategray, , top, CN.bed
+# edges
+e, 0, 1, {4}
+"""
+
 def napuscov(args):
     """
-    %prog napuscov chrC01 chr.sizes data AN.CN.1x1.lifted.anchors
+    %prog napuscov chrA01 chrC01 chr.sizes data AN.CN.1x1.lifted.anchors.simple
 
-    Plot coverage graphs between homeologs.
+    Plot coverage graphs between homeologs, the middle panel show the
+    homeologous gene pairs.
     """
+    from jcvi.graphics.coverage import Coverage, Sizes
+
     p = OptionParser(napuscov.__doc__)
+    p.add_option("--order",
+                default="swede,kale,h165,yudal,aviso,abu,bristol,bzh",
+                help="The order to plot the tracks, comma-separated")
     opts, args, iopts = p.set_image_options(args)
 
-    if len(args) != 4:
+    if len(args) != 5:
         sys.exit(not p.print_help())
+
+    chr1, chr2, sizes, datadir, simplefile = args
+    order = opts.order
+    if order:
+        order = order.split(",")
+    sizes = Sizes(sizes)
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes([0, 0, 1, 1])
+
+    chr_size1 = sizes.get_size(chr1)
+    chr_size2 = sizes.get_size(chr2)
+    ratio = .8 / max(chr_size1, chr_size2)
+
+    w1 = ratio * chr_size1
+    w1_start = .5 - w1 / 2
+    w1_end = .5 + w1 / 2
+    canvas1 = (w1_start, .6, w1, .3)
+    c = Coverage(fig, root, canvas1, chr1, (0, chr_size1), datadir,
+                 order=order, gauge="top")
+
+    w2 = ratio * chr_size2
+    w2_start = .5 - w2 / 2
+    w2_end = .5 + w2 / 2
+    canvas2 = (w2_start, .15, w2, .3)
+    c = Coverage(fig, root, canvas2, chr2, (0, chr_size2), datadir,
+                 order=order, gauge="bottom")
+
+    # Synteny panel
+    seqidsfile = "seqids"
+    fw = open(seqidsfile, "w")
+    print >> fw, chr1
+    print >> fw, chr2
+    fw.close()
+    logging.debug("File `{0}` written.".format(seqidsfile))
+
+    klayout = "layout"
+    fw = open(klayout, "w")
+    print >> fw, template.format(w1_start, w1_end, w2_start, w2_end, simplefile)
+    fw.close()
+    logging.debug("File `{0}` written.".format(klayout))
+
+    Karyotype(fig, root, seqidsfile, klayout)
+
+    root.set_xlim(0, 1)
+    root.set_ylim(0, 1)
+    root.set_axis_off()
+
+    image_name = chr2 + "." + iopts.format
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
 def napusdeletion(args):

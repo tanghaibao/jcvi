@@ -15,7 +15,8 @@ import logging
 import numpy as np
 
 from jcvi.formats.sizes import Sizes
-from jcvi.graphics.base import plt, savefig, Rectangle
+from jcvi.graphics.base import plt, savefig, Rectangle, mb_formatter, \
+        adjust_spines
 from jcvi.apps.base import OptionParser, debug, glob
 debug()
 
@@ -28,22 +29,19 @@ class XYtrack (object):
                         .format(datafile, len(self.x)))
         self.color = color
 
-    def draw(self, ax, xlim, label):
+    def draw(self, ax, label):
         x, y = self.x, self.y
         color = self.color
-        ax.text(.5, .5, label, ha="center", va="center", color="w",
-                bbox=dict(fc="k", alpha=.3, ec="w", boxstyle="round"),
-                transform=ax.transAxes)
         ax.plot(x, y, color=color)
         ax.fill_between(x, y, color=color)
-        ax.set_xlim(*xlim)
         ax.set_ylim(0, 40)
         ax.set_axis_off()
 
 
 class Coverage (object):
 
-    def __init__(self, fig, root, canvas, chr, xlim, datadir, order=None):
+    def __init__(self, fig, root, canvas, chr, xlim, datadir, order=None,
+                 gauge="bottom"):
         x, y, w, h = canvas
         p = .01
         root.add_patch(Rectangle((x - p, y - p), w + 2 * p, h + 2 * p, lw=1,
@@ -63,12 +61,31 @@ class Coverage (object):
         if order:
             datafiles.sort(key=lambda x: order.index(x.split(".")[1]))
 
+        if gauge == "top":
+            gauge_ax = fig.add_axes([x, yy + p, w, .0001])
+            adjust_spines(gauge_ax, ["top"])
+            tpos = yy + .07
+        elif gauge == "bottom":
+            gauge_ax = fig.add_axes([x, y - p, w, .0001])
+            adjust_spines(gauge_ax, ["bottom"])
+            tpos = y - .07
+
+        gauge_ax.set_xlim(*xlim)
+        gauge_ax.xaxis.set_major_formatter(mb_formatter)
+        gauge_ax.yaxis.set_ticks([])
+
+        root.text(x + w / 2, tpos, chr, ha="center", va="center",
+                  color="darkslategray")
+
         for datafile, c in zip(datafiles, set2):
             yy -= yinterval
             ax = fig.add_axes([x, yy, w, yinterval * .9])
             xy = XYtrack(datafile, color=c)
             label = datafile.split(".")[1]
-            xy.draw(ax, xlim, label)
+            xy.draw(ax, label)
+            ax.set_xlim(*xlim)
+            root.text(x - .05, yy + yinterval / 2, label,
+                        ha="center", va="center", color=c)
 
 
 def main():
@@ -81,11 +98,13 @@ def main():
         sys.exit(not p.print_help())
 
     chr, sizes, datadir = args
-    order = opts.order.split(",")
+    order = opt.order
+    if order:
+        order = order.split(",")
     sizes = Sizes(sizes)
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
-    canvas = (.1, .35, .8, .35)
+    canvas = (.12, .35, .8, .35)
     chr_size = sizes.get_size(chr)
     c = Coverage(fig, root, canvas, chr, (0, chr_size), datadir,
                  order=order)

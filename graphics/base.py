@@ -144,6 +144,7 @@ human_readable_base = partial(human_readable, base=True)
 human_formatter = ticker.FuncFormatter(human_readable)
 human_base_formatter = ticker.FuncFormatter(human_readable_base)
 tex_formatter = ticker.FuncFormatter(lambda x, pos: _(str(int(x))))
+mb_formatter = ticker.FuncFormatter(lambda x, pos: "{0}M".format(int(x / 1000000)))
 kb_formatter = ticker.FuncFormatter(lambda x, pos: "{0}K".format(int(x / 1000)))
 tex_1digit_formatter = ticker.FuncFormatter(lambda x, pos: _("{0:.1f}".format(x)))
 tex_2digit_formatter = ticker.FuncFormatter(lambda x, pos: _("{0:.2f}".format(x)))
@@ -378,3 +379,24 @@ def get_intensity(octal):
     r, g, b = int(r, 16), int(g, 16), int(b, 16)
     intensity = sqrt((r * r + g * g + b * b) / 3)
     return intensity
+
+
+def adjust_spines(ax, spines):
+    # Modified from <http://matplotlib.org/examples/pylab_examples/spine_placement_demo.html>
+    for loc, spine in ax.spines.items():
+        if loc in spines:
+            pass
+            #spine.set_position(('outward', 10)) # outward by 10 points
+            #spine.set_smart_bounds(True)
+        else:
+            spine.set_color('none') # don't draw spine
+
+    if 'left' in spines:
+        ax.yaxis.set_ticks_position('left')
+    else:
+        ax.yaxis.set_ticks_position('right')
+
+    if 'bottom' in spines:
+        ax.xaxis.set_ticks_position('bottom')
+    else:
+        ax.xaxis.set_ticks_position('top')

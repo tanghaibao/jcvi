@@ -183,6 +183,8 @@ class Track (object):
 
             if nseqids > 2 * MaxSeqids and (i + 1) % 10 != 0:
                 continue
+            if nseqids < 5:
+                continue
 
             pad = .02
             if va == "bottom":

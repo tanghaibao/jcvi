@@ -41,7 +41,7 @@ class XYtrack (object):
 class Coverage (object):
 
     def __init__(self, fig, root, canvas, chr, xlim, datadir, order=None,
-                 gauge="bottom", plot_label=True):
+                 gauge="bottom", plot_label=True, gauge_step=5000000):
         x, y, w, h = canvas
         p = .01
         root.add_patch(Rectangle((x - p, y - p), w + 2 * p, h + 2 * p, lw=1,
@@ -70,12 +70,14 @@ class Coverage (object):
             adjust_spines(gauge_ax, ["bottom"])
             tpos = y - .07
 
-        gauge_ax.set_xlim(*xlim)
+        start, end = xlim
+        gauge_ax.set_xlim(start, end)
         gauge_ax.xaxis.set_major_formatter(mb_formatter)
+        gauge_ax.xaxis.set_ticks(np.arange(start, end, gauge_step))
         gauge_ax.yaxis.set_ticks([])
 
         root.text(x + w / 2, tpos, chr, ha="center", va="center",
-                  color="darkslategray")
+                  color="darkslategray", size=16)
 
         for datafile, c in zip(datafiles, set2):
             yy -= yinterval
@@ -85,7 +87,7 @@ class Coverage (object):
             xy.draw(ax, label)
             ax.set_xlim(*xlim)
             if plot_label:
-                root.text(x - .05, yy + yinterval / 2, label,
+                root.text(x - .035, yy + yinterval / 2, label,
                             ha="center", va="center", color=c)
 
 

@@ -66,7 +66,9 @@ def napuscov(args):
     p.add_option("--order",
                 default="swede,kale,h165,yudal,aviso,abu,bristol,bzh",
                 help="The order to plot the tracks, comma-separated")
-    opts, args, iopts = p.set_image_options(args)
+    p.add_option("--gauge_step", default=5000000, type="int",
+                help="Step size for the base scale")
+    opts, args, iopts = p.set_image_options(args, figsize="11x8")
 
     if len(args) != 5:
         sys.exit(not p.print_help())
@@ -103,7 +105,8 @@ def napuscov(args):
         plot_label = i == 0
         i += 1
         c = Coverage(fig, root, canvas1, c1, (0, s1), datadir,
-                     order=order, gauge="top", plot_label=plot_label)
+                     order=order, gauge="top", plot_label=plot_label,
+                     gauge_step=opts.gauge_step)
         w1s += w1 + gap
 
     i = 0

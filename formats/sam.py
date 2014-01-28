@@ -278,6 +278,8 @@ def bcf(args):
     valid_callers = ("mpileup", "freebayes")
     p = OptionParser(bcf.__doc__)
     p.set_outfile()
+    p.add_option("--nosort", default=False, action="store_true",
+                 help="Do not sort the BAM files")
     p.add_option("--caller", default="mpileup", choices=valid_callers,
                  help="Use variant caller [default: %default]")
     opts, args = p.parse_args(args)
@@ -290,12 +292,15 @@ def bcf(args):
     caller = opts.caller
 
     unsorted = [x for x in bamfiles if ".sorted." not in x]
-    jargs = [[[x, "--unique"]] for x in unsorted]
-    jobs = Jobs(index, args=jargs)
-    jobs.run()
+    if opts.nosort:
+        bamfiles = unsorted
+    else:
+        jargs = [[[x, "--unique"]] for x in unsorted]
+        jobs = Jobs(index, args=jargs)
+        jobs.run()
+        bamfiles = [x.replace(".sorted.bam", ".bam") for x in bamfiles]
+        bamfiles = [x.replace(".bam", ".sorted.bam") for x in bamfiles]
 
-    bamfiles = [x.replace(".sorted.bam", ".bam") for x in bamfiles]
-    bamfiles = [x.replace(".bam", ".sorted.bam") for x in bamfiles]
     if caller == "mpileup":
         cmd = "samtools mpileup -P ILLUMINA -E -ugDf"
         cmd += " {0} {1}".format(fastafile, " ".join(bamfiles))

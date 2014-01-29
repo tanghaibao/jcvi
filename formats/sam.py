@@ -16,7 +16,8 @@ from jcvi.formats.fasta import Fasta
 from jcvi.formats.sizes import Sizes
 from jcvi.utils.cbook import fill
 from jcvi.assembly.base import Astat
-from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh, debug
+from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh, \
+            debug, mkdir, glob
 debug()
 
 
@@ -127,10 +128,51 @@ def main():
         ('bcf', 'run mpileup on a set of bam files'),
         ('mapped', 'extract mapped/unmapped reads from samfile'),
         ('count', 'count the number of reads mapped using htseq'),
+        ('merge', 'merge bam files'),
             )
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def merge(args):
+    """
+    %prog merge merged_bams bams1_dir bams2_dir ...
+
+    Merge BAM files. Treat the bams with the same prefix as a set.
+    Output the commands first.
+    """
+    p = OptionParser(merge.__doc__)
+    p.add_option("--sep", default="_",
+                 help="Separator to group per prefix")
+    opts, args = p.parse_args(args)
+
+    if len(args) < 2:
+        sys.exit(not p.print_help())
+
+    merged_bams = args[0]
+    bamdirs = args[1:]
+
+    mkdir(merged_bams)
+    bams = []
+    for x in bamdirs:
+        bams += glob(op.join(x, "*.bam"))
+
+    logging.debug("Found a total of {0} BAM files.".format(len(bams)))
+
+    sep = opts.sep
+    key = lambda x: op.basename(x).split(sep)[0]
+    bams.sort(key=key)
+    for prefix, files in groupby(bams, key=key):
+        files = sorted(list(files))
+        nfiles = len(files)
+        source =  " ".join(files)
+        target = op.join(merged_bams, op.basename(files[0]))
+        if nfiles == 1:
+            cmd = "ln -s {0} {1}".format(source, target)
+        else:
+            cmd = "samtools merge {0} {1}".format(target, source)
+        print cmd
 
 
 def count(args):

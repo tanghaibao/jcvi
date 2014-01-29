@@ -12,7 +12,6 @@ import logging
 
 import numpy as np
 from collections import defaultdict
-from itertools import groupby
 
 from jcvi.formats.base import BaseFile
 from jcvi.apps.base import OptionParser, ActionDispatcher, debug, glob, mkdir

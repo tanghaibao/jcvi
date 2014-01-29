@@ -142,6 +142,8 @@ def merge(args):
     Merge BAM files. Treat the bams with the same prefix as a set.
     Output the commands first.
     """
+    from jcvi.apps.softlink import get_abs_path
+
     p = OptionParser(merge.__doc__)
     p.add_option("--sep", default="_",
                  help="Separator to group per prefix")
@@ -169,6 +171,7 @@ def merge(args):
         source =  " ".join(files)
         target = op.join(merged_bams, op.basename(files[0]))
         if nfiles == 1:
+            source = get_abs_path(source)
             cmd = "ln -s {0} {1}".format(source, target)
         else:
             cmd = "samtools merge {0} {1}".format(target, source)

@@ -1500,10 +1500,10 @@ def note(args):
     Extract certain attribute field for each feature.
     """
     p = OptionParser(note.__doc__)
-    p.add_option("--key", default="Parent",
-            help="The key field to extract [default: %default]")
-    p.add_option("--attribute", default="Note",
-            help="The attribute field to extract [default: %default]")
+    p.add_option("--type", default=None,
+            help="Only process certain types, multiple types allowed with comma")
+    p.add_option("--attribute", default="Parent,Note",
+            help="Attribute field to extract, multiple fields allowd with comma")
 
     opts, args = p.parse_args(args)
 
@@ -1511,17 +1511,20 @@ def note(args):
         sys.exit(not p.print_help())
 
     gffile, = args
-    key = opts.key
-    attrib = opts.attribute
+    type = opts.type
+    if type:
+        type = type.split(",")
+    attrib = opts.attribute.split(",")
 
     gff = Gff(gffile)
     seen = set()
     for g in gff:
-        if attrib in g.attributes:
-            keyval = (g.attributes[key][0], g.attributes[attrib][0])
-            if keyval not in seen:
-                print "\t".join(keyval)
-                seen.add(keyval)
+        if type and g.type not in type:
+            continue
+        keyval = tuple([g.attributes[x][0] for x in attrib])
+        if keyval not in seen:
+            print "\t".join(keyval)
+            seen.add(keyval)
 
 
 def bed(args):

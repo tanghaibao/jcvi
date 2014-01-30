@@ -249,7 +249,7 @@ def main():
         clen = chr_lens[chr]
         xx = xstart + a * xinterval + .5 * xwidth
         yy = ystart - cent_position * ratio
-        root.text(xx, ystart + .01, _(chr), ha="center")
+        root.text(xx, ystart + .01, chr, ha="center")
         ChromosomeWithCentromere(root, xx, ystart, yy,
                 ystart - clen * ratio, width=xwidth)
 
@@ -323,10 +323,9 @@ def main():
                 root.plot([xstart, xstart + tip], [yy, yy], "b-")
             else:
                 root.plot([xstart - tip, xstart + tip], [yy, yy], 'b-', lw=2)
-                root.text(xstart + tip + extra, yy, _(x),
-                        color="gray", va="center")
+                root.text(xstart + tip + extra, yy, x, color="gray", va="center")
             yy -= yinterval
-        root.text(xstart, yy - .03, _("Mb"), color="gray", va="center")
+        root.text(xstart, yy - .03, "Mb", color="gray", va="center")
 
     # class legends, four in a row
     xstart = .1

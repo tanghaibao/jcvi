@@ -374,7 +374,7 @@ def heatmap(args):
             xx = margin + cpos
             accn = b.accn.capitalize()
             root.add_patch(CirclePolygon((xx, yy), radius=.01, fc="m", ec="m"))
-            root.text(xx + .014, yy, _(accn), va="center", color="m")
+            root.text(xx + .014, yy, accn, va="center", color="m")
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
@@ -406,11 +406,11 @@ def draw_gauge(ax, margin, maxl, rightmargin=None, optimal=7):
             l, suffix = l[:-2], l[-2:]
 
         ax.plot([xx, xx], [yy, yy + tip], "k-", lw=2)
-        ax.text(xx, yy + 2 * tip, _(l), ha="center", size=13)
+        ax.text(xx, yy + 2 * tip, l, ha="center", size=13)
         xx += xinterval
 
     xx += 4 * tip - xinterval
-    ax.text(xx + tip, yy + 2 * tip, _(suffix))
+    ax.text(xx + tip, yy + 2 * tip, suffix)
 
     return best_stride / xinterval
 
@@ -539,7 +539,7 @@ def stack(args):
 
         root.add_patch(Rectangle((xx, yy), inner, inner, color=p, lw=0))
         xx += 2 * inner
-        root.text(xx, yy, _(b), size=13)
+        root.text(xx, yy, b, size=13)
         xx += len(b) * .012 + inner
 
     root.set_xlim(0, 1)

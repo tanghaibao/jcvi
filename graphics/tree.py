@@ -158,7 +158,7 @@ def draw_tree(ax, tx, rmargin=.3, leafcolor="k", supportcolor="k",
             if sizes and gname in sizes:
                 size = sizes[gname]
                 size = size / 3 - 1  # base pair converted to amino acid
-                size = _("{0}aa".format(size))
+                size = "{0}aa".format(size)
                 ax.text(1 - rmargin / 2 + tip, yy, size, size=leaffont)
 
         else:
@@ -176,7 +176,7 @@ def draw_tree(ax, tx, rmargin=.3, leafcolor="k", supportcolor="k",
                 support = support / 100.
             if not n.is_root():
                 if support > scutoff / 100.:
-                    ax.text(xx, yy+.005, _("{0:d}".format(int(abs(support * 100)))),
+                    ax.text(xx, yy+.005, "{0:d}".format(int(abs(support * 100))),
                         ha="right", size=leaffont, color=supportcolor)
 
         coords[n] = (xx, yy)
@@ -189,14 +189,14 @@ def draw_tree(ax, tx, rmargin=.3, leafcolor="k", supportcolor="k",
     ax.plot([x1, x1], [yy - tip, yy + tip], "k-")
     ax.plot([x2, x2], [yy - tip, yy + tip], "k-")
     ax.plot([x1, x2], [yy, yy], "k-")
-    ax.text((x1 + x2) / 2, yy - tip, _("{0:g}".format(br)),
+    ax.text((x1 + x2) / 2, yy - tip, "{0:g}".format(br),
             va="top", ha="center", size=leaffont)
 
     if SH is not None:
         xs = x1
         ys = (margin + yy) / 2.
-        ax.text(xs, ys, _("SH test against ref tree: {0}"\
-                .format(SH)), ha="left", size=leaffont, color="g")
+        ax.text(xs, ys, "SH test against ref tree: {0}"\
+                .format(SH), ha="left", size=leaffont, color="g")
 
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)

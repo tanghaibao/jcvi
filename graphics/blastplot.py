@@ -295,7 +295,7 @@ if __name__ == "__main__":
             baseticks=True, stripNames=opts.stripNames, highlights=highlights)
 
     # add genome names
-    to_ax_label = lambda fname: _(op.basename(fname).split(".")[0])
+    to_ax_label = lambda fname: op.basename(fname).split(".")[0]
     gx, gy = [to_ax_label(x.filename) for x in (qsizes, ssizes)]
     ax.set_xlabel(gx, size=16)
     ax.set_ylabel(gy, size=16)

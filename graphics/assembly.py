@@ -85,7 +85,7 @@ def coverage(args):
         bedsum = Bed(bedfile).sum(seqid=ctg)
         notcoveredbases = size - bedsum
 
-        legend = _(bedfile.split(".")[0])
+        legend = bedfile.split(".")[0]
         msg = "{0}: {1} bp not covered".format(legend, thousands(notcoveredbases))
         not_covered.append(msg)
         print >> sys.stderr, msg
@@ -128,7 +128,7 @@ def scaffolding(ax, scaffoldID, blastf, qsizes, ssizes, qbed, sbed,
     xtitle = fname
     if xtitle == "FPC":
         ax.set_xticklabels([""] * len(ax.get_xticklabels()))
-    ax.set_xlabel(_(xtitle), color="g")
+    ax.set_xlabel(xtitle, color="g")
     for x in ax.get_xticklines():
         x.set_visible(False)
 
@@ -148,8 +148,7 @@ def plot_one_scaffold(scaffoldID, ssizes, sbed, trios, imagename, iopts,
         scaffolding(ax, scaffoldID, blastf, qsizes, ssizes, qbed, sbed,
                     highlights=highlights)
 
-    root.text(.5, .95, _("{0}   (size={1})".\
-            format(scaffoldID, thousands(scafsize))),
+    root.text(.5, .95, "{0}   (size={1})".format(scaffoldID, thousands(scafsize)),
             size=18, ha="center", color='b')
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
@@ -270,7 +269,7 @@ def qc(args):
     baseline, = ax.plot(x, y, 'g-')
     x, y = matecoverage.get_plot_data(scf, bins=bins)
     mateline, = ax.plot(x, y, 'r-')
-    legends = (_("Base coverage"), _("Mate coverage"))
+    legends = ("Base coverage", "Mate coverage")
     leg = ax.legend((baseline, mateline), legends, shadow=True, fancybox=True)
     leg.get_frame().set_alpha(.5)
     ax.set_xlim(0, size)
@@ -317,10 +316,10 @@ def qc(args):
         xend = pos(end)
         root.add_patch(Rectangle((xstart, .15), xend - xstart, .03, fc='w'))
 
-    root.text(.5, .1, _(scf), color='b', ha="center")
+    root.text(.5, .1, scf, color='b', ha="center")
     warn_msg = "Only the inserts > {0}bp are shown".format(cutoff)
-    root.text(.5, .1, _(scf), color='b', ha="center")
-    root.text(.5, .05, _(warn_msg), color='gray', ha="center")
+    root.text(.5, .1, scf, color='b', ha="center")
+    root.text(.5, .05, warn_msg, color='gray', ha="center")
     # clean up and output
     set_human_base_axis(ax)
     root.set_xlim(0, 1)

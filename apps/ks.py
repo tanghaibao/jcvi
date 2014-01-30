@@ -152,9 +152,9 @@ class KsPlot (object):
         leg.get_frame().set_alpha(.5)
 
         ax.set_xlim((0, ks_max - self.interval))
-        ax.set_title(_(title), fontweight="bold")
-        ax.set_xlabel(_('Synonymous substitutions per site (Ks)'))
-        ax.set_ylabel(_('Percentage of gene pairs'))
+        ax.set_title(title, fontweight="bold")
+        ax.set_xlabel('Synonymous substitutions per site (Ks)')
+        ax.set_ylabel('Percentage of gene pairs')
 
         tf = tex_2digit_formatter if self.interval < .1 else \
              tex_1digit_formatter
@@ -863,7 +863,7 @@ def plot_ks_dist(ax, data, interval, components, ks_max,
         for i in xrange(components):
             peak_val = exp(mus[i])
             mixline = lognormpdf_mix(peak_val, probs, mus, variances, interval)
-            ax.text(peak_val, mixline, _("Ks=%.2f" % peak_val), \
+            ax.text(peak_val, mixline, "Ks=%.2f" % peak_val, \
                     color="w", size=10, bbox=dict(ec='w',fc=color, \
                     alpha=.6, boxstyle='round'))
 

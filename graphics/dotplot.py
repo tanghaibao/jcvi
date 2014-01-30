@@ -220,7 +220,7 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts,
     if genomenames:
         gx, gy = genomenames.split("_")
     else:
-        to_ax_label = lambda fname: _(op.basename(fname).split(".")[0])
+        to_ax_label = lambda fname: op.basename(fname).split(".")[0]
         gx, gy = [to_ax_label(x.filename) for x in (qbed, sbed)]
     ax.set_xlabel(gx, size=16)
     ax.set_ylabel(gy, size=16)

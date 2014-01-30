@@ -545,20 +545,20 @@ def histogram(args):
     axt = ax.transAxes
     ax.text(ks.max1, tcounts[ks.max1], "SNP peak", va="top")
     ax.text(ks.max2, tcounts[ks.max2], "Main peak")
-    ax.text(.05, .95, _(Total_Kmers_msg), color=tc, transform=axt)
-    ax.text(.05, .9, _(Kmer_coverage_msg), color=tc, transform=axt)
-    ax.text(.05, .85, _(Genome_size_msg), color=tc, transform=axt)
+    ax.text(.05, .95, Total_Kmers_msg, color=tc, transform=axt)
+    ax.text(.05, .9, Kmer_coverage_msg, color=tc, transform=axt)
+    ax.text(.05, .85, Genome_size_msg, color=tc, transform=axt)
     ax.text(.05, .8, Repetitive_msg, color=tc, transform=axt)
     ax.text(.05, .75, SNPrate_msg, color=tc, transform=axt)
 
     ymin, ymax = ax.get_ylim()
     ymax = ymax * 7 / 6
 
-    ax.set_title(_(title), color='r')
+    ax.set_title(title, color='r')
     ax.set_ylim((ymin, ymax))
     xlabel, ylabel = "Coverage (X)", "Counts"
-    ax.set_xlabel(_(xlabel), color='r')
-    ax.set_ylabel(_(ylabel), color='r')
+    ax.set_xlabel(xlabel, color='r')
+    ax.set_ylabel(ylabel, color='r')
     set_human_axis(ax)
 
     imagename = histfile.split(".")[0] + ".pdf"

@@ -240,13 +240,13 @@ def ld(args):
 
     root.add_patch(Rectangle((.1, .1), .8, .8, fill=False, ec="k", lw=2))
     m = mstmap.split(".")[0]
-    root.text(.5, .06, "Linkage Disequilibrium between markers", ha="center")
+    root.text(.5, .06, "Linkage Disequilibrium between {0} markers".format(m), ha="center")
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
     root.set_axis_off()
 
-    image_name = mstmap + ".subsample" + "." + iopts.format
+    image_name = m + ".subsample" + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 

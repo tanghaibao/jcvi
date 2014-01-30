@@ -615,10 +615,10 @@ def plot_diagram(ax, x, y, label="S", title="syntenic"):
             ax.add_patch(r)
 
     if label == "FN":
-        ax.text(x + .005, yb, _("NNNNN"), ha="center", size=7)
+        ax.text(x + .005, yb, "NNNNN", ha="center", size=7)
 
     title = "{0}: {1}".format(label, title)
-    ax.text(x, ya + 5 * ytip, _(title), size=8, ha="center")
+    ax.text(x, ya + 5 * ytip, title, size=8, ha="center")
 
 
 def epoch(args):
@@ -730,8 +730,8 @@ def bites(args):
         plt.plot((.1, .8), (ya, ya), "-", color="gray", lw=2, zorder=1)
         plt.plot((.1, .8), (yb, yb), "-", color="gray", lw=2, zorder=1)
         RoundLabel(root, .5, ya + 4 * ytip, title)
-        root.text(.9, ya, _("A. thaliana"), ha="center", va="center")
-        root.text(.9, yb, _("B. rapa"), ha="center", va="center")
+        root.text(.9, ya, "A. thaliana", ha="center", va="center")
+        root.text(.9, yb, "B. rapa", ha="center", va="center")
         myhsps = hsps
         if i >= 1:
             myhsps = hsps[:-1]
@@ -765,7 +765,7 @@ def bites(args):
         i += 1
         a, b, c, d = [m(x) for x in (a, b, c, d)]
         xx = (a + b + c + d) / 4
-        TextCircle(root, xx, yy, _(str(i)))
+        TextCircle(root, xx, yy, str(i))
 
     # Bites
     ystart = .24
@@ -778,7 +778,7 @@ def bites(args):
         xx = .15 if (i % 2 == 0) else .55
         yy = ystart - i / 2 * ytip
         i += 1
-        TextCircle(root, xx, yy, _(str(i)))
+        TextCircle(root, xx, yy, str(i))
         color = "k" if selected else "gray"
         root.text(xx + ytip, yy, bite, size=10, color=color, va="center")
 
@@ -822,7 +822,7 @@ def scenario(args):
     yratio = .05
     for xx, yy, label, chrl in labels:
         #RoundLabel(root, xx, yy, label)
-        root.text(xx, yy, _(label), ha="center", va="center")
+        root.text(xx, yy, label, ha="center", va="center")
         offset = len(label) * .012
         for i, c in enumerate(chrl):
             ya = yy + yratio * c
@@ -834,7 +834,7 @@ def scenario(args):
                 (.25, .03, "III dominant"))
 
     for xx, yy, c in comments:
-        root.text(xx, yy, _(c), size=9, ha="center", va="center")
+        root.text(xx, yy, c, size=9, ha="center", va="center")
 
     # Branches
     tip = .04

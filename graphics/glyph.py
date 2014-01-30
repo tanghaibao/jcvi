@@ -291,7 +291,6 @@ def gff(args):
     tip = .01
     for genename, mrnabed, cdsbeds in setups:
         ex = ExonGlyph(root, xs, ys, mrnabed, cdsbeds, ratio=ratio, align=align)
-        genename = _(genename)
         if align == "left":
             root.text(xs - tip, ys, genename, ha="right", va="center")
         elif align == "right":
@@ -368,11 +367,11 @@ def demo(args):
         tip = .02
         if i == 0:
             ya = yy + tip
-            root.text(x1, ya, _("Flower"), rotation=rotation, va="bottom")
-            root.text(x2, ya, _("Root"), rotation=rotation, va="bottom")
+            root.text(x1, ya, "Flower", rotation=rotation, va="bottom")
+            root.text(x2, ya, "Root", rotation=rotation, va="bottom")
         elif i == 7:
             ya = yy + tip
-            root.text(x2, ya, _("Leaf"), rotation=rotation, va="bottom")
+            root.text(x2, ya, "Leaf", rotation=rotation, va="bottom")
 
     # Draw arrows between panels (center)
     arrow_dist = .08

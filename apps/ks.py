@@ -394,6 +394,10 @@ def prepare(args):
         if row[0] == '#':
             continue
         a, b = row.split()[:2]
+        if a == b:
+            logging.debug("Self pairs found: {0} - {1}. Ignored".format(a, b))
+            continue
+
         if a not in f:
             a = find_first_isoform(a, f)
             assert a, a
@@ -850,14 +854,14 @@ def plot_ks_dist(ax, data, interval, components, ks_max,
                     color=color, marker=marker, fill=fill)
     logging.debug("Total {0} pairs after filtering.".format(len(data)))
 
-    probs, mus, variances = get_mixture(data, components)
-
-    iv = .001
-    bins = np.arange(iv, ks_max, iv)
-    y = lognormpdf_mix(bins, probs, mus, variances, interval)
-
     line_mixture = None
     if fitted:
+        probs, mus, variances = get_mixture(data, components)
+
+        iv = .001
+        bins = np.arange(iv, ks_max, iv)
+        y = lognormpdf_mix(bins, probs, mus, variances, interval)
+
         line_mixture, = ax.plot(bins, y, ':', color=color, lw=3)
 
         for i in xrange(components):

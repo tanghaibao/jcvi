@@ -71,20 +71,6 @@ def draw_box(clusters, ax, color="b"):
                                 ec=color, fc='y', alpha=.5))
 
 
-def draw_cmap(ax, cmap_text, vmin, vmax, cmap=None, reverse=False):
-    X = [1, 0] if reverse else [0, 1]
-    Y = np.array([X, X])
-    xmin, xmax = .5, .9
-    ymin, ymax = .02, .04
-    ax.imshow(Y, extent=(xmin, xmax, ymin, ymax), cmap=cmap)
-    ax.text(xmin - .01, (ymin + ymax) * .5, _(cmap_text),
-            ha="right", va="center", size=10)
-    vmiddle = (vmin + vmax) * .5
-    xmiddle = (xmin + xmax) * .5
-    for x, v in zip((xmin, xmiddle, xmax), (vmin, vmiddle, vmax)):
-        ax.text(x, ymin - .005, _("%.1f" % v), ha="center", va="top", size=10)
-
-
 def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts,
         is_self=False, synteny=False, cmap_text=None, genomenames=None,
         sample_number=10000, ignore=.005, palette=None, chrlw=.01, title=None):

@@ -146,7 +146,6 @@ def ld(args):
 
     from jcvi.formats.bed import Bed
     from jcvi.algorithms.matrix import symmetrize
-    from jcvi.graphics.base import plt, savefig, cm, Rectangle
 
     p = OptionParser(ld.__doc__)
     p.add_option("--subsample", default=500, type="int",
@@ -197,6 +196,8 @@ def ld(args):
     if not opts.plot:
         return
 
+    from jcvi.graphics.base import plt, savefig, cm, Rectangle, draw_cmap
+
     plt.rcParams["axes.linewidth"] = 0
 
     fig = plt.figure(1, (iopts.w, iopts.h))
@@ -235,8 +236,11 @@ def ld(args):
     ax.set_ylim(extent)
     ax.set_axis_off()
 
+    draw_cmap(root, "Pairwise LD (r^2)", 0, 1, cmap=default_cm)
+
     root.add_patch(Rectangle((.1, .1), .8, .8, fill=False, ec="k", lw=2))
-    root.text(.5, .05, mstmap, ha="center")
+    m = mstmap.split(".")[0]
+    root.text(.5, .06, "Linkage Disequilibrium between markers", ha="center")
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)

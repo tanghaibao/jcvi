@@ -400,3 +400,19 @@ def adjust_spines(ax, spines):
         ax.xaxis.set_ticks_position('bottom')
     else:
         ax.xaxis.set_ticks_position('top')
+
+
+def draw_cmap(ax, cmap_text, vmin, vmax, cmap=None, reverse=False):
+    # Draw a horizontal colormap at bottom-right corder of the canvas
+    Y = np.outer(np.ones(10), np.arange(0, 1, 0.01))
+    if reverse:
+        Y = Y[::-1]
+    xmin, xmax = .6, .9
+    ymin, ymax = .02, .04
+    ax.imshow(Y, extent=(xmin, xmax, ymin, ymax), cmap=cmap)
+    ax.text(xmin - .01, (ymin + ymax) * .5, cmap_text,
+            ha="right", va="center", size=10)
+    vmiddle = (vmin + vmax) * .5
+    xmiddle = (xmin + xmax) * .5
+    for x, v in zip((xmin, xmiddle, xmax), (vmin, vmiddle, vmax)):
+        ax.text(x, ymin - .005, "%.1f" % v, ha="center", va="top", size=10)

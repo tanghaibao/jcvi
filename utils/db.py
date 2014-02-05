@@ -233,29 +233,40 @@ def query(args):
         if not files:
             files = [""]
 
+    qrys = []
     qry = " ".join(args)
+    if ";" in qry:
+        for q in qry.split(";"):
+            if len(q.strip()) > 0:
+                qrys.append(q)
+    else:
+        qrys.append(qry)
+
     queries = set()
     if files:
-        m = re.findall(r"\{\d+\}", qry)
-        if not m:
-            logging.error("Error: query `{0}` does not contain placeholders".format(qry))
-            sys.exit()
         for datafile in files:
             datafile = datafile.strip()
             fp = must_open(datafile)
             for row in fp:
-                atoms = row.strip().split("\t")
-                mi = [int(x.strip("{}")) for x in m]
-                assert max(mi) <= len(atoms), \
-                        "Number of columns in `datafile`({0})".format(len(atoms)) + \
-                        " != number of `placeholders`({0})".format(len(m))
-                natoms = [atoms[x] for x in mi]
-                nqry = qry
-                for idx, (match, atom) in enumerate(zip(m, natoms)):
-                    nqry = nqry.replace(match, atom)
-                queries.add(nqry)
+                for qry in qrys:
+                    qry = qry.strip()
+                    m = re.findall(r"\{\d+\}", qry)
+                    if m:
+                        mi = [int(x.strip("{}")) for x in m]
+                        atoms = row.strip().split("\t")
+                        assert max(mi) <= len(atoms), \
+                                "Number of columns in `datafile`({0})".format(len(atoms)) + \
+                                " != number of `placeholders`({0})".format(len(m))
+                        natoms = [atoms[x] for x in mi]
+                        for idx, (match, atom) in enumerate(zip(m, natoms)):
+                            qry = qry.replace(match, atom)
+                    queries.add(qry)
     else:
-        queries.add(qry)
+        for qry in qrys:
+            if re.search(r"\{\d+\}", qry):
+                logging.error("Query `{0}` contains placeholders, no datafile(s) specified".format(qry))
+                sys.exit()
+            queries.add(qry)
 
     if not opts.dryrun:
         fw = must_open(opts.outfile, "w")

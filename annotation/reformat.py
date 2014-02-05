@@ -354,7 +354,7 @@ def atg_name(name, retval="chr,rank", trimpad0=True):
     pad0s = ["chr", "rank"]
 
     m = re.match(atg_name_pat, name)
-    if m is not None and m.group('sep') in seps:
+    if m is not None and m.group('sep').lower() in seps:
         retvals = []
         for grp in retval.split(","):
             val = number(m.group(grp)) \

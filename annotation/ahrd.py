@@ -84,7 +84,7 @@ homolog_pat6 = re.compile(r"\s+homolog$", re.I)
 agenet_pat = re.compile(r"Agenet domain-containing protein \/ ", re.I)
 
 # plural to singular
-plural_pat = re.compile(r"[eidnr]s$", re.I)
+plural_pat = re.compile(r"[deinr]s$", re.I)
 
 # 'like_TBP' or 'likeTBP' to 'like TBP'
 tbp_pat = re.compile(r"like[_]*TBP", re.I)
@@ -287,7 +287,8 @@ def fix_text(s):
 
     # plural to singular
     if re.search(plural_pat, s):
-        if s.find('biogenesis') == -1 and s.find('Topors') == -1 and s.find('allergens') == -1:
+        #if s.find('biogenesis') == -1 and s.find('Topors') == -1 and s.find('allergens') == -1:
+        if s.find('biogenesis') == -1 and s.find('Topors') == -1:
             s = re.sub(r"s$", "", s)
 
     # 'like_TBP' or 'likeTBP' to 'like TBP'

@@ -6,6 +6,7 @@ import sys
 import os
 import os.path as op
 import logging
+import re
 
 from collections import defaultdict
 from urllib import quote, unquote
@@ -140,6 +141,29 @@ class GffLine (object):
     id = accn
 
     @property
+    def signature(self):
+        """
+        create a unique signature for any GFF line based on joining
+        columns 1,2,3,4,5,7,8 (into a comma separated string)
+        """
+        from jcvi.annotation.reformat import atg_name
+
+        sig_elems = [self.seqid, self.source, self.type, \
+                    self.start, self.end, self.strand, \
+                    self.phase]
+        if re.search("exon|CDS|UTR", self.type):
+            parent = self.get_attr("Parent")
+            if parent:
+                (locus, iso) = atg_name(parent, retval="locus,iso", \
+                        trimpad0=False)
+                if locus:
+                    sig_elems.append(locus)
+        else:
+            sig_elems.extend([id])
+
+        return ",".join(str(elem) for elem in sig_elems)
+
+    @property
     def span(self):
         return self.end - self.start + 1
 
@@ -153,26 +177,33 @@ class GffLine (object):
 
 class Gff (LineFile):
 
-    def __init__(self, filename, key="ID", append_source=False, score_attrib=False):
+    def __init__(self, filename, key="ID", gff3=False, append_source=False, \
+            score_attrib=False):
         super(Gff, self).__init__(filename)
         self.key = key
         self.append_source = append_source
         self.score_attrib = score_attrib
-        self.gff3 = self.get_gff_type()
-        self.fp.seek(0)
+        if not gff3:
+            self.set_gff_type()
+        else:
+            self.gff3 = gff3
 
-    def get_gff_type(self):
-        self.gff3 = True
+    def set_gff_type(self):
         if self.filename in ("-", "stdin"):
+            self.gff3 = True
             return True
 
         # Determine file type
         row = None
         for row in self:
+            if row[0] == '#': continue
             break
         gff3 = False if not row else "=" in row.attributes_text
         if not gff3:
             logging.debug("File is not gff3 standard.")
+
+        self.gff3 = gff3
+        self.fp.seek(0)
         return gff3
 
     def __iter__(self):
@@ -666,36 +697,51 @@ def format(args):
     from jcvi.utils.cbook import AutoVivification
     from jcvi.formats.obo import load_GODag, validate_term
 
+    valid_multiparent_ops = ["split", "merge"]
+
     p = OptionParser(format.__doc__)
-    p.add_option("--unique", default=False, action="store_true",
-                 help="Make IDs unique [default: %default]")
     p.add_option("--gff3", default=False, action="store_true",
                  help="Force to write gff3 attributes [default: %default]")
-    p.add_option("--name", help="Add Name from two-column file [default: %default]")
-    p.add_option("--note", help="Add Note from two-column file [default: %default]")
-    p.add_option("--seqid", help="Switch seqid from two-column file [default: %default]")
-    p.add_option("--source", help="Switch GFF source from two-column file. If not" +
-                " a file, value will globally replace GFF source [default: %default]")
-    p.add_option("--multiparents", default=False, action="store_true",
-                 help="Separate features with multiple parents [default: %default]")
-    p.add_option("--chaindup", default=None, dest="duptype",
-                 help="Chain duplicate features of a particular GFF3 `type`," + \
-                      " sharing the same ID attribute [default: %default]")
-    p.add_option("--gsac", default=False, action="store_true",
-                 help="Fix GSAC GFF3 file attributes [default: %default]")
-    p.add_option("--fixphase", default=False, action="store_true",
-                 help="Change phase 1<->2, 2<->1 [default: %default]")
-    p.add_option("--add_attribute", dest="attrib_files", help="Add new attribute(s) " +
-                "from two-column file(s); accepts comma-separated list of files; " +
-                "attribute name comes from filename [default: %default]")
-    p.add_option("--add_dbxref", dest="dbxref_files", help="Add new Dbxref value(s) (DBTAG:ID) " + \
+
+    g1 = OptionGroup(p, "Parameter(s) used to modify GFF attributes (9th column)")
+    g1.add_option("--name", help="Add Name attribute from two-column file [default: %default]")
+    g1.add_option("--note", help="Add Note attribute from two-column file [default: %default]")
+    g1.add_option("--add_attribute", dest="attrib_files", help="Add new attribute(s) " +
+                "from two-column file(s); attribute name comes from filename; " +
+                "accepts comma-separated list of files [default: %default]")
+    g1.add_option("--add_dbxref", dest="dbxref_files", help="Add new Dbxref value(s) (DBTAG:ID) " + \
                 "from two-column file(s). DBTAG comes from filename, ID comes from 2nd column; " + \
-                "accepts comma-separated list of files; [default: %default]")
-    p.add_option("--remove_feats", help="Comma separated list of features to remove" + \
-                " [default: %default]")
-    p.set_outfile()
+                "accepts comma-separated list of files [default: %default]")
     p.add_option("--nostrict", default=False, action="store_true",
                  help="Disable strict parsing of mapping file [default: %default]")
+    p.add_option_group(g1)
+
+    g2 = OptionGroup(p, "Parameter(s) used to modify content within columns 1-8")
+    g2.add_option("--seqid", help="Switch seqid from two-column file [default: %default]")
+    g2.add_option("--source", help="Switch GFF source from two-column file. If not" +
+                " a file, value will globally replace GFF source [default: %default]")
+    g2.add_option("--fixphase", default=False, action="store_true",
+                 help="Change phase 1<->2, 2<->1 [default: %default]")
+    p.add_option_group(g2)
+
+    g3 = OptionGroup(p, "Other parameter(s) to perform manipulations to the GFF " + \
+                 "file content")
+    g3.add_option("--unique", default=False, action="store_true",
+                 help="Make IDs unique [default: %default]")
+    g3.add_option("--chaindup", default=None, dest="duptype",
+                 help="Chain duplicate features of a particular GFF3 `type`," + \
+                      " sharing the same ID attribute [default: %default]")
+    g3.add_option("--multiparents", default=None, choices=valid_multiparent_ops,
+                 help="Split/merge identical features (same `seqid`, `source`, `type` " + \
+                 "`coord-range`, `strand`, `phase`) mapping to multiple parents " + \
+                 "[default: %default]")
+    g3.add_option("--remove_feats", help="Comma separated list of features to remove" + \
+                " [default: %default]")
+    g3.add_option("--gsac", default=False, action="store_true",
+                 help="Fix GSAC GFF3 file attributes [default: %default]")
+    p.add_option_group(g3)
+
+    p.set_outfile()
     p.set_SO_opts()
 
     opts, args = p.parse_args(args)
@@ -748,7 +794,8 @@ def format(args):
         unique = True
         notes = {}
 
-    if unique or duptype or remove_feats:
+    remove = set()
+    if unique or duptype or remove_feats or opts.multiparents == "merge":
         if unique:
             dupcounts = defaultdict(int)
             seen = defaultdict(int)
@@ -756,26 +803,35 @@ def format(args):
         elif duptype:
             dupranges = AutoVivification()
             skip = defaultdict(int)
-        if remove_feats:
-            remove = set()
-        gff = Gff(gffile)
+        if opts.multiparents == "merge":
+            merge_feats = AutoVivification()
+        gff = Gff(gffile, gff3=opts.gff3)
         for idx, g in enumerate(gff):
             if opts.gff3 and "ID" not in g.attributes.keys():
                 id = "{0}_{1}".format(str(g.type).lower(), idx)
             else:
                 id = g.accn
+            if remove_feats and g.type in remove_feats:
+                remove.add(id)
             if unique:
                 dupcounts[id] += 1
             elif duptype and g.type == duptype:
                 dupranges[id][idx] = (g.start, g.end)
-            if remove_feats and g.type in remove_feats:
-                remove.add(id)
+            if opts.multiparents == "merge":
+                pp = g.get_attr("Parent", first=False)
+                if pp and len(pp) > 0:
+                    for parent in pp:
+                        if parent not in remove:
+                            sig = g.signature
+                            if sig not in merge_feats.keys():
+                                merge_feats[sig]['parents'] = []
+                            merge_feats[sig]['parents'].append(parent)
 
     if opts.verifySO:
         so = load_GODag()
 
     fw = must_open(outfile, "w")
-    gff = Gff(gffile)
+    gff = Gff(gffile, gff3=opts.gff3)
     for idx, g in enumerate(gff):
         if remove_feats:
             if g.type in remove_feats:
@@ -797,6 +853,15 @@ def format(args):
             if ntype and g.type != ntype:
                 logging.debug("Resolved term to `{0}`".format(ntype))
                 g.type = ntype
+
+        if opts.multiparents == "merge":
+            sig = g.signature
+            if len(merge_feats[sig]['parents']) > 1:
+                if 'candidate' not in merge_feats[sig].keys():
+                    merge_feats[sig]['candidate'] = g.id
+                    g.set_attr("Parent", merge_feats[sig]['parents'])
+                else:
+                    continue
 
         origid = g.seqid
         if fixphase:
@@ -873,8 +938,8 @@ def format(args):
         if gsac and g.type == "gene":
             notes[g.accn] = g.attributes["Name"]
 
-        pp = g.attributes.get("Parent", [])
-        if opts.multiparents and len(pp) > 1:  # separate multiple parents
+        pp = g.get_attr("Parent", first=False)
+        if opts.multiparents == "split" and (pp and len(pp) > 1):  # separate features with multiple parents
             id = g.get_attr("ID")
             for i, parent in enumerate(pp):
                 g.set_attr("ID", "{0}-{1}".format(id, i + 1), update=False)
@@ -1113,7 +1178,7 @@ def uniq(args):
     populate_children(opts.outfile, bestids, gffile, opts.type, iter=opts.iter)
 
 
-def populate_children(outfile, ids, gffile, otype, iter="2"):
+def populate_children(outfile, ids, gffile, otype=None, iter="2"):
     fw = must_open(outfile, "w")
     logging.debug("A total of `{0}` {1} features selected.".format(len(ids), otype))
     logging.debug("Populate children. Iteration 1..")
@@ -1143,7 +1208,7 @@ def populate_children(outfile, ids, gffile, otype, iter="2"):
         accn = g.accn
         if accn in seen:
             continue
-        if (g.type == otype and accn in ids) or (accn in children):
+        if ((otype and g.type == otype) and accn in ids) or (accn in children):
             seen.add(accn)
             print >> fw, g
     fw.close()
@@ -1153,27 +1218,85 @@ def sort(args):
     """
     %prog sort gffile
 
-    Sort gff file.
+    Sort gff file either topologically (based on hierarchy of features) or
+    using plain old unix based sort based on [chromosome, start coordinate].
     """
+    valid_sort_methods = ("topo", "unix")
+
     p = OptionParser(sort.__doc__)
+    p.add_option("--method", default="unix", choices=valid_sort_methods,
+                 help="Specify sort method [default: %default]")
     p.add_option("-i", dest="inplace", default=False, action="store_true",
-                 help="Sort inplace [default: %default]")
+                 help="If doing a unix sort, perform sort inplace [default: %default]")
     p.set_tmpdir()
+    p.set_outfile()
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     gffile, = args
-    sortedgff = op.basename(gffile).rsplit(".", 1)[0] + ".sorted.gff"
-    if opts.inplace:
-        sortedgff = gffile
+    sortedgff = opts.outfile
+    if opts.inplace and opts.method == "unix" and gffile in ("-", "stdin"):
+        logging.error("Cannot perform inplace sort when input is `stdin`")
+        sys.exit()
 
-    cmd = "sort"
-    if opts.tmpdir:
-        cmd += " -T {0}".format(opts.tmpdir)
-    cmd += " -k1,1 -k4,4n {0} -o {1}".format(gffile, sortedgff)
-    sh(cmd)
+    if opts.method == "unix":
+        cmd = "sort"
+        cmd += " -k1,1 -k4,4n {0}".format(gffile)
+        if opts.tmpdir:
+            cmd += " -T {0}".format(opts.tmpdir)
+        if opts.inplace:
+            cmd += " -o {0}".gffile
+            sortedgff = None
+        sh(cmd, outfile=sortedgff)
+    else:
+        toplvl, gffdict = [], {}
+        gff = Gff(gffile)
+        for g in gff:
+            id = g.get_attr("ID")
+            parent = g.get_attr("Parent", first=False)
+            gffdict = _sort_init_dict(gffdict, id)
+            gffdict[id]['gffline'] = g
+            if parent:
+                for pp in parent:
+                    gffdict = _sort_init_dict(gffdict, pp)
+                    if pp not in gffdict[id]['parents']:
+                        gffdict[id]['parents'].append(pp)
+                    if id not in gffdict[pp]['children']:
+                        gffdict[pp]['children'].append(id)
+            else:
+                toplvl.append(id)
+
+        fw = must_open(sortedgff, "w")
+        for id in toplvl:
+            print >> fw, gffdict[id]['gffline']
+            children = [x for x in gffdict[id]['children']]
+            children = _sort_retr_child(gffdict, children)
+            for child in children:
+                print >> fw, gffdict[child]['gffline']
+
+
+def _sort_init_dict(gffdict, id):
+    if id not in gffdict:
+        gffdict[id] = DefaultOrderedDict(list)
+        for reln in ('parents', 'children'):
+            if reln not in gffdict[id].keys():
+                gffdict[id][reln] = list()
+    return gffdict
+
+
+def _sort_retr_child(gffdict, children):
+    chldrn = children
+    for child in chldrn:
+        if len(gffdict[child]['children']) > 0:
+            for sub_child in gffdict[child]['children']:
+                if sub_child not in children:
+                    children.append(sub_child)
+    if len(chldrn) != len(children):
+        return _sort_retr_child(gffdict, children)
+    else:
+        return children
 
 
 def fromgtf(args):
@@ -1429,7 +1552,7 @@ def extract(args):
     outfile = opts.outfile
     if opts.children:
         assert names is not None, "Must set --names"
-        populate_children(outfile, names, gffile, "gene")
+        populate_children(outfile, names, gffile)
         return
 
     fp = open(gffile)

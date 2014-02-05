@@ -892,7 +892,7 @@ def less(args):
 
 # notification specific variables
 valid_notif_methods = ["email"]
-available_push_api = {"push" : ("pushover")}
+available_push_api = {"push" : ["pushover", "nma"]}
 
 def pushover(message, token, user, title="JCVI: Job Monitor", \
         priority=0, timestamp=None):
@@ -902,7 +902,7 @@ def pushover(message, token, user, title="JCVI: Job Monitor", \
     <https://pushover.net/faq#library-python>
     """
     assert -1 <= priority <= 2, \
-            "Priority should be and int() between -1 and 2"
+            "Priority should be an int() between -1 and 2"
 
     if timestamp == None:
         from time import time
@@ -929,14 +929,47 @@ def pushover(message, token, user, title="JCVI: Job Monitor", \
     conn.getresponse()
 
 
+def nma(description, apikey, event="JCVI: Job Monitor", priority=0):
+    """
+    notifymyandroid.com API
+
+    <http://www.notifymyandroid.com/api.jsp>
+    """
+    assert -2 <= priority <= 2, \
+            "Priority should be an int() between -2 and 2"
+
+    from httplib import HTTPSConnection
+    from urllib import urlencode
+
+    conn = HTTPSConnection("www.notifymyandroid.com")
+    conn.request("POST", "/publicapi/notify",
+        urlencode({
+            "apikey": apikey,
+            "application": "python notify",
+            "event": event,
+            "description": description,
+            "priority": priority,
+        }), { "Content-type": "application/x-www-form-urlencoded" })
+    conn.getresponse()
+
+
 def pushnotify(subject, message, api="pushover", priority=0, timestamp=None):
     """
     Send push notifications using pre-existing APIs
 
-    Requires a config `.ini` file in the user home area containing
-    the necessary api tokens and user keys
+    Requires a config `pushnotify.ini` file in the user home area containing
+    the necessary api tokens and user keys.
 
     Default API: "pushover"
+
+    Config file format:
+    -------------------
+        [pushover]
+        token: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+        user: yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy
+
+        [nma]
+        apikey: zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz
     """
     import types
     assert type(priority) is types.IntType and -1 <= priority <= 2, \
@@ -957,6 +990,11 @@ def pushnotify(subject, message, api="pushover", priority=0, timestamp=None):
         token, key = cfg["token"], cfg["user"]
         pushover(message, token, key, title=subject, \
                 priority=priority, timestamp=timestamp)
+    elif api == "nma":
+        cfg = ConfigSectionMap(Config, api)
+        apikey = cfg["apikey"]
+        nma(message, apikey, event=subject, \
+                priority=priority)
 
 
 def send_email(fromaddr, toaddr, subject, message):
@@ -1032,8 +1070,10 @@ def notify(args):
 
     Push notify: Uses available API
     """
+    from jcvi.utils.iter import flatten
+
     debug()
-    valid_priorities = range(-1, 3, 1)
+    valid_priorities = range(-2, 3, 1)
     valid_notif_methods.extend(available_push_api.keys())
 
     fromaddr, toaddr = get_email_address()
@@ -1047,7 +1087,8 @@ def notify(args):
     p.set_email()
 
     g1 = OptionGroup(p, "Optional `push` parameters")
-    g1.add_option("--api", default="pushover", choices=available_push_api.values(),
+    g1.add_option("--api", default="pushover", \
+                  choices=list(flatten(available_push_api.values())),
                   help="Specify API used to send the push notification" + \
                   " [default: %default]")
     g1.add_option("--priority", default=0, type="int",
@@ -1103,15 +1144,16 @@ def waitpid(args):
     debug()
     import shlex
     from time import sleep
+    from jcvi.utils.iter import flatten
 
-    valid_notif_methods.extend(available_push_api.values())
+    valid_notif_methods.extend(list(flatten(available_push_api.values())))
 
     p = OptionParser(waitpid.__doc__)
     p.add_option("--notify", default=None, choices=valid_notif_methods,
                  help="Specify type of notification to be sent after waiting" + \
                       " [default: %default]")
     p.add_option("--interval", default=120, type="int",
-                 help="Specify interval at which PID should be monitored" + \
+                 help="Specify PID polling interval (in seconds)" + \
                       " [default: %default]")
     p.add_option("--message",
                 help="Specify notification message [default: %default]")
@@ -1154,11 +1196,10 @@ def waitpid(args):
     if opts.notify:
         notifycmd = ["[completed] {0}: `{1}`".format(gethostname(), msg)]
         if opts.notify != "email":
-            method, api = ("push", opts.notify)
-            notifycmd.append("--api={0}".format(api))
+            notifycmd.append("--method={0}".format("push"))
+            notifycmd.append("--api={0}".format(opts.notify))
         else:
             notifycmd.append('--email="{0}"'.format(opts.email))
-        notifycmd.append("--method={0}".format(method))
         notify(notifycmd)
 
     if cmd is not None:

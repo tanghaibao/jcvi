@@ -50,18 +50,29 @@ def rmdup(args):
 
 def freebayes(args):
     """
-    %prog freebayes ref.fa *.bam
+    %prog freebayes prefix ref.fa *.bam
 
     Call SNPs using freebayes.
     """
     p = OptionParser(freebayes.__doc__)
+    p.add_option("--mindepth", default=3, type="int",
+                 help="Minimum depth [default: %default]")
+    p.add_option("--minqual", default=20, type="int",
+                 help="Minimum quality [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) < 2:
         sys.exit(not p.print_help())
 
-    ref = args[0]
-    bams = args[1:]
+    prefix, ref = args[0:2]
+    bams = args[2:]
+    cmd = "bamaddrg"
+    cmd += " " + " ".join("-b {0}".format(x) for x in bams)
+    fmd = "freebayes --stdin -C {0} -f {1}".format(opts.mindepth, ref)
+    seqids = list(Fasta(ref).iterkeys_ordered())
+    for s in seqids:
+        outfile = prefix + ".{0}.vcf".format(s)
+        print cmd, "|", fmd + " -r {0} -v {1}".format(s, outfile)
 
 
 def freq(args):

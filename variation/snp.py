@@ -20,6 +20,7 @@ def main():
         ('freq', 'call snp frequencies and keep AO and RO'),
         ('rmdup', 'remove PCR duplicates from BAM files'),
         ('freebayes', 'call snps using freebayes'),
+        ('mpileup', 'call snps using samtools-mpileup'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -48,6 +49,29 @@ def rmdup(args):
         print " ".join((cmd, b, rb))
 
 
+def mpileup(args):
+    """
+    %prog freebayes prefix ref.fa *.bam
+
+    Call SNPs using samtools mpileup.
+    """
+    p = OptionParser(mpileup.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) < 2:
+        sys.exit(not p.print_help())
+
+    prefix, ref = args[0:2]
+    bams = args[2:]
+    cmd = "samtools mpileup -P ILLUMINA -E -ugD -r {0}"
+    cmd += " -f {0} {1}".format(ref, " ".join(bams))
+    fmd = "bcftools view -cvg -"
+    seqids = list(Fasta(ref).iterkeys_ordered())
+    for s in seqids:
+        outfile = prefix + ".{0}.vcf".format(s)
+        print cmd.format(s), "|", fmd, ">", outfile
+
+
 def freebayes(args):
     """
     %prog freebayes prefix ref.fa *.bam
@@ -66,13 +90,13 @@ def freebayes(args):
 
     prefix, ref = args[0:2]
     bams = args[2:]
-    cmd = "bamaddrg"
+    cmd = "bamaddrg -R {0}"
     cmd += " " + " ".join("-b {0}".format(x) for x in bams)
     fmd = "freebayes --stdin -C {0} -f {1}".format(opts.mindepth, ref)
     seqids = list(Fasta(ref).iterkeys_ordered())
     for s in seqids:
         outfile = prefix + ".{0}.vcf".format(s)
-        print cmd, "|", fmd + " -r {0} -v {1}".format(s, outfile)
+        print cmd.format(s), "|", fmd + " -r {0} -v {1}".format(s, outfile)
 
 
 def freq(args):

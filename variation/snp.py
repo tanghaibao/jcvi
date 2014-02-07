@@ -18,9 +18,50 @@ def main():
     actions = (
         ('frommaf', 'convert to four-column tabular format from MAF'),
         ('freq', 'call snp frequencies and keep AO and RO'),
+        ('rmdup', 'remove PCR duplicates from BAM files'),
+        ('freebayes', 'call snps using freebayes'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def rmdup(args):
+    """
+    %prog rmdup *.bam
+
+    Remove PCR duplicates from BAM files.
+    """
+    p = OptionParser(rmdup.__doc__)
+    p.add_option("-S", default=False, action="store_true",
+                 help="Treat PE reads as SE in rmdup")
+    opts, args = p.parse_args(args)
+
+    if len(args) < 1:
+        sys.exit(not p.print_help())
+
+    bams = args
+    cmd = "samtools rmdup"
+    if opts.S:
+        cmd += " -S"
+    for b in bams:
+        rb = b.rsplit(".", 1)[0] + ".rmdup.bam"
+        print " ".join((cmd, b, rb))
+
+
+def freebayes(args):
+    """
+    %prog freebayes ref.fa *.bam
+
+    Call SNPs using freebayes.
+    """
+    p = OptionParser(freebayes.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) < 2:
+        sys.exit(not p.print_help())
+
+    ref = args[0]
+    bams = args[1:]
 
 
 def freq(args):

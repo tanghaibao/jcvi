@@ -159,7 +159,9 @@ class GffLine (object):
                 if locus:
                     sig_elems.append(locus)
         else:
-            sig_elems.extend([id])
+            id = self.get_attr("ID")
+            if id:
+                sig_elems.extend([id])
 
         return ",".join(str(elem) for elem in sig_elems)
 
@@ -825,7 +827,8 @@ def format(args):
                             sig = g.signature
                             if sig not in merge_feats.keys():
                                 merge_feats[sig]['parents'] = []
-                            merge_feats[sig]['parents'].append(parent)
+                            if parent not in merge_feats[sig]['parents']:
+                                merge_feats[sig]['parents'].append(parent)
 
     if opts.verifySO:
         so = load_GODag()

@@ -204,6 +204,7 @@ def encode_genotype(s, mindepth=3, nohet=False):
         return '-' if nohet else 'X'
     if inferred == '1/1':
         return 'B'
+    return '-'
 
 
 def mstmap(args):

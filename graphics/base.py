@@ -36,10 +36,7 @@ class ImageOptions (object):
 
 
 def prettyplot():
-    try:
-        import brewer2mpl
-    except:
-        return
+    import brewer2mpl
 
     # Get Set2 from ColorBrewer, a set of colors deemed colorblind-safe and
     # pleasant to look at by Drs. Cynthia Brewer and Mark Harrower of Pennsylvania
@@ -54,7 +51,6 @@ def prettyplot():
     # Another ColorBrewer scale. This one has nice "traditional" colors like
     # reds and blues
     set1 = brewer2mpl.get_map('Set1', 'qualitative', 9).mpl_colors
-    mpl.rcParams['axes.color_cycle'] = set2
 
     # Set some commonly used colors
     almost_black = '#262626'

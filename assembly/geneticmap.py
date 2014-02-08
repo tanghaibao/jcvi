@@ -116,6 +116,9 @@ def calc_ldscore(a, b):
     c_ba = c[('B', 'A')]
     c_bb = c[('B', 'B')]
     n = c_aa + c_ab + c_ba + c_bb
+    if n == 0:
+        return 0
+
     f = 1. / n
     x_aa = c_aa * f
     x_ab = c_ab * f
@@ -150,8 +153,6 @@ def ld(args):
     p = OptionParser(ld.__doc__)
     p.add_option("--subsample", default=500, type="int",
                  help="Subsample markers to speed up [default: %default]")
-    p.add_option("--plot", default=False, action="store_true",
-                 help="Plot the map as heatmap [default: %default]")
     p.add_option("--cmap", default="jet",
                  help="Use this color map [default: %default]")
     opts, args, iopts = p.set_image_options(args, figsize="8x8")
@@ -193,9 +194,6 @@ def ld(args):
         logging.debug("LD matrix `{0}` exists ({1}x{1})."\
                         .format(ldmatrix, nmarkers))
 
-    if not opts.plot:
-        return
-
     from jcvi.graphics.base import plt, savefig, cm, Rectangle, draw_cmap
 
     plt.rcParams["axes.linewidth"] = 0
@@ -236,7 +234,7 @@ def ld(args):
     ax.set_ylim(extent)
     ax.set_axis_off()
 
-    draw_cmap(root, "Pairwise LD (r^2)", 0, 1, cmap=default_cm)
+    draw_cmap(root, "Pairwise LD (r2)", 0, 1, cmap=default_cm)
 
     root.add_patch(Rectangle((.1, .1), .8, .8, fill=False, ec="k", lw=2))
     m = mstmap.split(".")[0]

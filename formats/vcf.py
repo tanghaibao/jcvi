@@ -21,9 +21,33 @@ def main():
         ('location', 'given SNP locations characterize the locations'),
         ('mstmap', 'convert vcf format to mstmap input'),
         ('summary', 'summarize the genotype calls in table'),
+        ('refallele', 'make refAllele file'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def refallele(args):
+    """
+    %prog refallele vcffile > out.refAllele
+
+    Make refAllele file which can be used to convert PLINK file to VCF file.
+    """
+    p = OptionParser(refallele.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    vcffile, = args
+    fp = open(vcffile)
+    for row in fp:
+        if row[0] == '#':
+            continue
+        atoms = row.split()
+        marker = "{0}:{1}".format(*atoms[:2])
+        ref = atoms[3]
+        print "\t".join((marker, ref))
 
 
 def location(args):
@@ -139,7 +163,6 @@ def summary(args):
         bedfw.close()
 
     nsites = sum(len(x) for x in snps.values())
-    ncontigs = len(snps)
     sizes = Sizes(fastafile)
     bpsize = sizes.totalsize
     snprate = lambda a: a * 1000. / bpsize

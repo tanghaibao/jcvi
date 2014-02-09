@@ -184,6 +184,9 @@ def summary(args):
                   format(snpcountsfile))
 
 
+g2x = {"0/0": 'A', "0/1": 'X', "1/1": 'B', "./.": '-'}
+
+
 def encode_genotype(s, mindepth=3, nohet=False):
     """
     >>> encode_genotype("1/1:128,18,0:6:18")  # homozygote B
@@ -194,6 +197,9 @@ def encode_genotype(s, mindepth=3, nohet=False):
     'X'
     """
     atoms = s.split(":")
+    if len(atoms) < 3:
+        return g2x[atoms[0]]
+
     inferred, likelihood, depth = atoms[:3]
     depth = int(depth)
     if depth < mindepth:

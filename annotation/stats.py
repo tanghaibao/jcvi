@@ -10,24 +10,153 @@ import os.path as op
 import sys
 import logging
 
-from jcvi.utils.cbook import SummaryStats
+from jcvi.utils.cbook import SummaryStats, percentage
+from jcvi.utils.table import tabulate
 from jcvi.formats.gff import GffLine, make_index
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug, mkdir
+from jcvi.formats.base import DictFile
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, mkdir, \
+            need_update
 debug()
 
 
 metrics = ("Exon_Length", "Intron_Length", "Gene_Length", "Exon_Count")
 
 
+class GeneStats (object):
+
+    def __init__(self, feat, conf_class, transcript_sizes, exons):
+        self.fid = feat.id
+        self.conf_class = conf_class
+        self.num_exons = len(exons)
+        self.num_transcripts = len(transcript_sizes)
+        self.locus_size = feat.stop - feat.start + 1
+        self.cum_transcript_size = sum(transcript_sizes)
+        self.cum_exon_size = sum((stop - start + 1) \
+                        for (c, start, stop) in exons)
+
+    def __str__(self):
+        return "\t".join(str(x) for x in (self.fid, self.conf_class,
+                         self.num_exons, self.num_transcripts,
+                         self.locus_size,
+                         self.cum_transcript_size,
+                         self.cum_exon_size))
+
+
 def main():
 
     actions = (
         ('stats', 'collect gene statistics based on gff file'),
-        ('histogram', 'plot gene statistics based on output of stats'),
+        ('genestats', 'print detailed gene statistics'),
         ('summary', 'print gene statistics table'),
+        ('histogram', 'plot gene statistics based on output of stats'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def genestats(args):
+    """
+    %prog genestats gffile
+
+    Print summary stats, including:
+    - Number of genes
+    - Number of single-exon genes
+    - Number of multi-exon genes
+    - Number of distinct exons
+    - Number of genes with alternative transcript variants
+    - Number of predicted transcripts
+    - Mean number of distinct exons per gene
+    - Mean number of transcripts per gene
+    - Mean gene locus size (first to last exon)
+    - Mean transcript size (UTR, CDS)
+    - Mean exon size
+
+    Stats modeled after barley genome paper Table 1.
+    A physical, genetic and functional sequence assembly of the barley genome
+    """
+    p = OptionParser(genestats.__doc__)
+    p.add_option("--groupby", default="conf_class",
+                 help="Print separate stats groupby")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    gff_file, = args
+    gb = opts.groupby
+    g = make_index(gff_file)
+
+    tf = "transcript.sizes"
+    if need_update(gff_file, tf):
+        fw = open(tf, "w")
+        for feat in g.features_of_type("mRNA"):
+            fid = feat.id
+            conf_class = feat.attributes.get(gb, "all")
+            tsize = sum((c.stop - c.start + 1) for c in g.children(fid, 1) \
+                             if c.featuretype == "exon")
+            print >> fw, "\t".join((fid, str(tsize), conf_class))
+        fw.close()
+
+    tsizes = DictFile(tf)
+    conf_classes = DictFile(tf, valuepos=2)
+    logging.debug("A total of {0} transcripts populated.".format(len(tsizes)))
+
+    genes = []
+    for feat in g.features_of_type("gene"):
+        fid = feat.id
+        transcripts = [c.id for c in g.children(fid, 1) \
+                         if c.featuretype == "mRNA"]
+        transcript_sizes = [int(tsizes[x]) for x in transcripts]
+        exons = set((c.chrom, c.start, c.stop) for c in g.children(fid, 2) \
+                         if c.featuretype == "exon")
+        conf_class = conf_classes[transcripts[0]]
+        gs = GeneStats(feat, conf_class, transcript_sizes, exons)
+        genes.append(gs)
+
+    r = {}  # Report
+    distinct_groups = set(conf_classes.values())
+    for g in distinct_groups:
+        num_genes = num_single_exon_genes = num_multi_exon_genes = 0
+        num_genes_with_alts = num_transcripts = num_exons = 0
+        cum_locus_size = cum_transcript_size = cum_exon_size = 0
+        for gs in genes:
+            if gs.conf_class != g:
+                continue
+            num_genes += 1
+            if gs.num_exons == 1:
+                num_single_exon_genes += 1
+            else:
+                num_multi_exon_genes += 1
+            num_exons += gs.num_exons
+            if gs.num_transcripts > 1:
+                num_genes_with_alts += 1
+            num_transcripts += gs.num_transcripts
+            cum_locus_size += gs.locus_size
+            cum_transcript_size += gs.cum_transcript_size
+            cum_exon_size += gs.cum_exon_size
+
+        mean_num_exons = num_exons * 1. / num_genes
+        mean_num_transcripts = num_transcripts * 1. / num_genes
+        mean_locus_size = cum_locus_size * 1. / num_genes
+        mean_transcript_size = cum_transcript_size * 1. / num_transcripts
+        mean_exon_size = cum_exon_size * 1. / num_exons
+
+        r[("Number of genes", g)] = num_genes
+        r[("Number of single-exon genes", g)] = \
+            percentage(num_single_exon_genes, num_genes, denominator=False)
+        r[("Number of multi-exon genes", g)] = \
+            percentage(num_multi_exon_genes, num_genes, denominator=False)
+        r[("Number of distinct exons", g)] = num_exons
+        r[("Number of genes with alternative transcript variants", g)] = \
+            percentage(num_genes_with_alts, num_genes, denominator=False)
+        r[("Number of predicted transcripts", g)] = num_transcripts
+        r[("Mean number of distinct exons per gene", g)] = mean_num_exons
+        r[("Mean number of transcripts per gene", g)] = mean_num_transcripts
+        r[("Mean gene locus size (first to last exon)", g)] = mean_locus_size
+        r[("Mean transcript size (UTR, CDS)", g)] = mean_transcript_size
+        r[("Mean exon size", g)] = mean_exon_size
+
+    print >> sys.stderr, tabulate(r)
 
 
 def summary(args):

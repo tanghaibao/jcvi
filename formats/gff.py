@@ -179,26 +179,21 @@ class GffLine (object):
 
 class Gff (LineFile):
 
-    def __init__(self, filename, key="ID", gff3=False, append_source=False, \
-            score_attrib=False):
+    def __init__(self, filename, key="ID", append_source=False, score_attrib=False):
         super(Gff, self).__init__(filename)
         self.key = key
         self.append_source = append_source
         self.score_attrib = score_attrib
-        if not gff3:
-            self.set_gff_type()
-        else:
-            self.gff3 = gff3
-
-    def set_gff_type(self):
         if self.filename in ("-", "stdin"):
             self.gff3 = True
-            return True
+            return
 
+        self.set_gff_type()
+
+    def set_gff_type(self):
         # Determine file type
         row = None
         for row in self:
-            if row[0] == '#': continue
             break
         gff3 = False if not row else "=" in row.attributes_text
         if not gff3:
@@ -206,7 +201,6 @@ class Gff (LineFile):
 
         self.gff3 = gff3
         self.fp.seek(0)
-        return gff3
 
     def __iter__(self):
         self.fp = must_open(self.filename)
@@ -219,7 +213,7 @@ class Gff (LineFile):
                     break
                 continue
             yield GffLine(row, key=self.key, append_source=self.append_source, \
-                    score_attrib=self.score_attrib, gff3=self.gff3)
+                    score_attrib=self.score_attrib)
 
     @property
     def seqids(self):

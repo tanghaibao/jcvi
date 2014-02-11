@@ -37,6 +37,7 @@ reserved_gff_attributes = ("ID", "Name", "Alias", "Parent", "Target",
                            "Gap", "Derives_from", "Note", "Dbxref",
                            "Ontology_term", "Is_circular")
 multiple_gff_attributes = ("Parent", "Alias", "Dbxref", "Ontology_term")
+safechars = " /:?~#+!$'@()*[]|"
 
 
 class GffLine (object):
@@ -109,6 +110,7 @@ class GffLine (object):
             gff3 = self.gff3
 
         sep = ";" if gff3 else "; "
+        sc = safechars
         for tag, val in self.attributes.items():
             if not val and skipEmpty:
                 continue
@@ -116,10 +118,9 @@ class GffLine (object):
             val = "\"{0}\"".format(val) if " " in val and (not gff3) else val
             equal = "=" if gff3 else " "
             if urlquote:
-                safechars = " /:?~#+!$'@()*[]|"
                 if tag in multiple_gff_attributes:
-                    safechars += ","
-                val = quote(val, safe=safechars)
+                    sc += ","
+                val = quote(val, safe=sc)
             attributes.append(equal.join((tag, val)))
 
         self.attributes_text = sep.join(attributes)
@@ -136,7 +137,7 @@ class GffLine (object):
             a = self.attributes[self.key]
         else:   # GFF2 format
             a = self.attributes_text.split()
-        return quote(",".join(a))
+        return quote(",".join(a), safe=safechars)
 
     id = accn
 
@@ -1704,6 +1705,7 @@ def make_index(gff_file):
     if need_update(gff_file, db_file):
         if op.exists(db_file):
             os.remove(db_file)
+        logging.debug("Indexing `{0}`".format(gff_file))
         gffutils.create_db(gff_file, db_file)
 
     return gffutils.FeatureDB(db_file)

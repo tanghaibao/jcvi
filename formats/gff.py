@@ -696,8 +696,6 @@ def format(args):
     valid_multiparent_ops = ["split", "merge"]
 
     p = OptionParser(format.__doc__)
-    p.add_option("--gff3", default=False, action="store_true",
-                 help="Force to write gff3 attributes [default: %default]")
 
     g1 = OptionGroup(p, "Parameter(s) used to modify GFF attributes (9th column)")
     g1.add_option("--name", help="Add Name attribute from two-column file [default: %default]")
@@ -801,7 +799,7 @@ def format(args):
             skip = defaultdict(int)
         if opts.multiparents == "merge":
             merge_feats = AutoVivification()
-        gff = Gff(gffile, gff3=opts.gff3)
+        gff = Gff(gffile)
         for idx, g in enumerate(gff):
             if opts.gff3 and "ID" not in g.attributes.keys():
                 id = "{0}_{1}".format(str(g.type).lower(), idx)
@@ -828,7 +826,7 @@ def format(args):
         so = load_GODag()
 
     fw = must_open(outfile, "w")
-    gff = Gff(gffile, gff3=opts.gff3)
+    gff = Gff(gffile)
     for idx, g in enumerate(gff):
         if remove_feats:
             if g.type in remove_feats:

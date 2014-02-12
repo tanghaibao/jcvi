@@ -17,40 +17,89 @@ from jcvi.graphics.glyph import GeneGlyph, RoundLabel, RoundRect, \
 from jcvi.graphics.chromosome import Chromosome
 from jcvi.graphics.karyotype import Karyotype
 from jcvi.graphics.synteny import Synteny, draw_gene_legend
+from jcvi.graphics.coverage import Coverage, Sizes
 from jcvi.utils.iter import pairwise
 from jcvi.apps.base import OptionParser, ActionDispatcher, fname, debug
 debug()
 
 
+template_cov = """# y, xstart, xend, rotation, color, label, va, bed
+.56, {0}, {1}, 0, darkslategray, , top, AN.bed
+.48, {2}, {3}, 0, darkslategray, , top, CN.bed
+# edges
+e, 0, 1, AN.CN.1x1.lifted.simple
+"""
+template_f3a = """# y, xstart, xend, rotation, color, label, va, bed
+.65, {0}, {1}, 0, w, , top, AN.bed
+.55, {2}, {3}, 0, w, , top, brapa.bed
+.45, {4}, {5}, 0, w, , top, boleracea.bed
+.35, {6}, {7}, 0, w, , top, CN.bed
+# edges
+e, 0, 1, AN.brapa.1x1.lifted.simple
+e, 1, 2, brapa.boleracea.1x1.lifted.simple
+e, 3, 2, CN.boleracea.1x1.lifted.simple
+"""
+gap = .03
+
+
 def main():
 
     actions = (
-        ('napus', 'plot napus macro-synteny (requires data)'),
-        ('napusexp', 'plot expression values between homeologs (requires data)'),
-        ('napuscov', 'plot coverage graphs between homeologs (requires data)'),
-        ('napusdeletion', 'plot histogram for napus deletions (requires data)'),
+        ('ploidy', 'plot napus macro-synteny (requires data)'),
+        ('expr', 'plot expression values between homeologs (requires data)'),
+        ('cov', 'plot coverage graphs between homeologs (requires data)'),
+        ('deletion', 'plot histogram for napus deletions (requires data)'),
+        ('f3a', 'plot figure-3a'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
 
-template = """# y, xstart, xend, rotation, color, label, va, bed
-.56, {0}, {1}, 0, darkslategray, , top, AN.bed
-.48, {2}, {3}, 0, darkslategray, , top, CN.bed
-# edges
-e, 0, 1, {4}
-"""
+def calc_ratio(chrs, sizes):
+    chr_sizes = [[sizes.get_size(x) for x in z] for z in chrs]
+    chr_sum_sizes = [sum(x) for x in chr_sizes]
+    ratio = .8 / max(chr_sum_sizes)
+    return chr_sizes, chr_sum_sizes, ratio
 
-def napuscov(args):
+
+def center_panel(chr, chr_size, ratio, gap=gap):
+    # Center two panels
+    w = (ratio * chr_size + (len(chr) - 1) * gap) / 2
+    return .5 - w, .5 + w
+
+
+def make_seqids(chrs, seqidsfile="seqids"):
+    seqidsfile = "seqids"
+    fw = open(seqidsfile, "w")
+    for chr in chrs:
+        print >> fw, ",".join(chr)
+    fw.close()
+    logging.debug("File `{0}` written.".format(seqidsfile))
+    return seqidsfile
+
+
+def make_layout(chrs, chr_sizes, ratio, template, klayout="layout"):
+    coords = []
+    for chr, chr_size in zip(chrs, chr_sizes):
+        coords.extend(center_panel(chr, chr_size, ratio))
+
+    klayout = "layout"
+    fw = open(klayout, "w")
+    print >> fw, template.format(*coords)
+    fw.close()
+    logging.debug("File `{0}` written.".format(klayout))
+
+    return klayout
+
+
+def cov(args):
     """
-    %prog napuscov chrA01 chrC01 chr.sizes data AN.CN.1x1.lifted.anchors.simple
+    %prog cov chrA01 chrC01 chr.sizes data AN.CN.1x1.lifted.anchors.simple
 
     Plot coverage graphs between homeologs, the middle panel show the
     homeologous gene pairs. Allow multiple chromosomes to multiple chromosomes.
     """
-    from jcvi.graphics.coverage import Coverage, Sizes
-
-    p = OptionParser(napuscov.__doc__)
+    p = OptionParser(cov.__doc__)
     p.add_option("--order",
                 default="swede,kale,h165,yudal,aviso,abu,bristol,bzh",
                 help="The order to plot the tracks, comma-separated")
@@ -58,10 +107,10 @@ def napuscov(args):
                 help="Step size for the base scale")
     opts, args, iopts = p.set_image_options(args, figsize="11x8")
 
-    if len(args) != 5:
+    if len(args) != 4:
         sys.exit(not p.print_help())
 
-    chr1, chr2, sizes, datadir, simplefile = args
+    chr1, chr2, sizes, datadir = args
     chr1 = chr1.split(",")
     chr2 = chr2.split(",")
 
@@ -72,19 +121,15 @@ def napuscov(args):
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
 
-    chr_sizes1 = [sizes.get_size(x) for x in chr1]
-    chr_sizes2 = [sizes.get_size(x) for x in chr2]
-    chr_size1, chr_size2 = sum(chr_sizes1), sum(chr_sizes2)
-    ratio = .8 / max(chr_size1, chr_size2)
-    gap = .03
+    chrs = (chr1, chr2)
+    chr_sizes, chr_sum_sizes, ratio = calc_ratio(chrs, sizes)
+    chr_size1, chr_size2 = chr_sum_sizes
+    chr_sizes1, chr_sizes2 = chr_sizes
 
-    # Center two panels
-    w1 = ratio * chr_size1 + (len(chr1) - 1) * gap
-    w1s = w1_start = .5 - w1 / 2
-    w1_end = .5 + w1 / 2
-    w2 = ratio * chr_size2 + (len(chr2) - 1) * gap
-    w2s = w2_start = .5 - w2 / 2
-    w2_end = .5 + w2 / 2
+    w1_start, w1_end = center_panel(chr1, chr_size1, ratio)
+    w2_start, w2_end = center_panel(chr2, chr_size2, ratio)
+    w1s = w1_start
+    w2s = w2_start
 
     i = 0
     for c1, s1 in zip(chr1, chr_sizes1):
@@ -108,19 +153,8 @@ def napuscov(args):
         w2s += w2 + gap
 
     # Synteny panel
-    seqidsfile = "seqids"
-    fw = open(seqidsfile, "w")
-    print >> fw, ",".join(chr1)
-    print >> fw, ",".join(chr2)
-    fw.close()
-    logging.debug("File `{0}` written.".format(seqidsfile))
-
-    klayout = "layout"
-    fw = open(klayout, "w")
-    print >> fw, template.format(w1_start, w1_end, w2_start, w2_end, simplefile)
-    fw.close()
-    logging.debug("File `{0}` written.".format(klayout))
-
+    seqidsfile = make_seqids(chrs)
+    klayout = make_layout(chrs, chr_sum_sizes, ratio, template_cov)
     Karyotype(fig, root, seqidsfile, klayout, gap=gap, generank=False)
 
     root.set_xlim(0, 1)
@@ -132,9 +166,46 @@ def napuscov(args):
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
-def napusdeletion(args):
+def f3a(args):
     """
-    %prog napusdeletion [deletion-genes|deletion-bases] C2-deletions boleracea.bed
+    %prog f3a chrA02,A02,C2,chrC02 chr.sizes
+
+    Napus Figure 3A displays alignments between quartet chromosomes, inset
+    with read histograms.
+    """
+    p = OptionParser(f3a.__doc__)
+    p.add_option("--gauge_step", default=5000000, type="int",
+                help="Step size for the base scale")
+    opts, args, iopts = p.set_image_options(args, figsize="11x8")
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    chrs, sizes = args
+    chrs = [[x] for x in chrs.split(",")]
+    sizes = Sizes(sizes)
+
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes([0, 0, 1, 1])
+
+    chr_sizes, chr_sum_sizes, ratio = calc_ratio(chrs, sizes)
+
+    # Synteny panel
+    seqidsfile = make_seqids(chrs)
+    klayout = make_layout(chrs, chr_sum_sizes, ratio, template_f3a)
+    Karyotype(fig, root, seqidsfile, klayout, gap=gap, generank=False)
+
+    root.set_xlim(0, 1)
+    root.set_ylim(0, 1)
+    root.set_axis_off()
+
+    image_name = "napusf3a." + iopts.format
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
+
+
+def deletion(args):
+    """
+    %prog deletion [deletion-genes|deletion-bases] C2-deletions boleracea.bed
 
     Plot histogram for napus deletions. Can plot deletion-genes or
     deletion-bases. The three largest segmental deletions will be highlighted
@@ -146,7 +217,7 @@ def napusdeletion(args):
     from jcvi.graphics.chromosome import HorizontalChromosome
     from jcvi.graphics.base import kb_formatter
 
-    p = OptionParser(napusdeletion.__doc__)
+    p = OptionParser(deletion.__doc__)
     opts, args, iopts = p.set_image_options(args)
 
     if len(args) != 3:
@@ -210,14 +281,14 @@ def napusdeletion(args):
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
-def napus(args):
+def ploidy(args):
     """
-    %prog napus seqids layout
+    %prog ploidy seqids layout
 
     Build a figure that calls graphics.karyotype to illustrate the high ploidy
     of B. napus genome.
     """
-    p = OptionParser(napus.__doc__)
+    p = OptionParser(ploidy.__doc__)
     opts, args, iopts = p.set_image_options(args, figsize="8x7")
 
     if len(args) != 2:
@@ -258,9 +329,9 @@ def napus(args):
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
-def napusexp(args):
+def expr(args):
     """
-    %prog napusexp block exp layout napus.bed
+    %prog expr block exp layout napus.bed
 
     Plot a composite figure showing synteny and the expression level between
     homeologs in two tissues - total 4 lists of values. block file contains the
@@ -269,7 +340,7 @@ def napusexp(args):
     from matplotlib.colors import LogNorm
     from jcvi.graphics.base import red_purple as default_cm
 
-    p = OptionParser(napusexp.__doc__)
+    p = OptionParser(expr.__doc__)
     opts, args, iopts = p.set_image_options(args, figsize="8x7")
 
     if len(args) != 4:

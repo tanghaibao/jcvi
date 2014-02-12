@@ -52,11 +52,8 @@ class Coverage (object):
         yy = y + h
 
         # Get the pallette
-        try:
-            import brewer2mpl
-            set2 = brewer2mpl.get_map('Set2', 'qualitative', ntracks).mpl_colors
-        except ImportError:
-            from jcvi.graphics.base import set2
+        import brewer2mpl
+        set2 = brewer2mpl.get_map('Set2', 'qualitative', ntracks).mpl_colors
 
         if order:
             datafiles.sort(key=lambda x: order.index(x.split(".")[1]))

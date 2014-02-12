@@ -193,7 +193,7 @@ class Track (object):
             tc = TextCircle(ax, xx, y + pad, _(si), radius=.01,
                        fc="w", color=color, size=10, transform=tr)
 
-        xp = self.xstart / 2 if self.xstart <= .5 else (1 + self.xend) / 2
+        xp = .1 if (self.xstart + self.xend) / 2 <= .5 else .9
         label = markup(self.label)
         ax.text(xp, y + gap, label, ha="center", color=color, transform=tr)
 

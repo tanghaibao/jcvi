@@ -159,6 +159,7 @@ def merge(args):
     bams = []
     for x in bamdirs:
         bams += glob(op.join(x, "*.bam"))
+    bams = [x for x in bams if "nsorted" not in x]
 
     logging.debug("Found a total of {0} BAM files.".format(len(bams)))
 

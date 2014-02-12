@@ -67,7 +67,7 @@ def tabulate(d, transpose=False, key_fun=None):
     return table
 
 
-def write_csv(header, contents, sep=",", filename="stdout", tee=False):
+def write_csv(header, contents, sep=",", filename="stdout", thousands=False, tee=False):
     """
     Write csv that are aligned with the column headers.
 
@@ -78,7 +78,8 @@ def write_csv(header, contents, sep=",", filename="stdout", tee=False):
           1,     100
           2,     200
     """
-    from jcvi.formats.base import must_open
+    from jcvi.formats.base import must_open, is_number
+    from jcvi.utils.cbook import thousands as th
 
     fw = must_open(filename, "w")
     allcontents = [header] + contents if header else contents
@@ -88,6 +89,11 @@ def write_csv(header, contents, sep=",", filename="stdout", tee=False):
 
     # Stringify the contents
     for i, content in enumerate(allcontents):
+        if thousands:
+            content = [int(x) if is_number(x, cast=int) else x \
+                        for x in content]
+            content = [th(x) if (is_number(x, cast=int) and x >= 1000) else x \
+                        for x in content]
         allcontents[i] = [str(x) for x in content]
 
     colwidths = [max(len(x[i]) for x in allcontents) for i in xrange(cols)]

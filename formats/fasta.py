@@ -957,7 +957,7 @@ def summary(args):
             nns = rec.seq.count('n') + rec.seq.count('N')
             reals = seqlen - nns
             pct = reals * 100. / seqlen
-            pctreal = "{0:.1f} %".format(pct)
+            pctreal = "{0:.1f}%".format(pct)
             if idsfile and pct < 50:
                 nids += 1
                 print >> idsfile, rec.id
@@ -968,10 +968,10 @@ def summary(args):
     reals = sum(reals)
     nns = sum(nns)
     seqlen = sum(seqlen)
-    pctreal = "{0:.1f} %".format(reals * 100. / seqlen)
+    pctreal = "{0:.1f}%".format(reals * 100. / seqlen)
     data.append(("Total", reals, nns, seqlen, pctreal))
 
-    write_csv(header, data, sep=" ", filename=opts.outfile)
+    write_csv(header, data, sep=" ", filename=opts.outfile, thousands=True)
     if idsfile:
         logging.debug("A total of {0} ids >= 50% N's written to {1}.".\
                       format(nids, idsfile.name))

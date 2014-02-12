@@ -422,17 +422,14 @@ def read_block(handle, signal):
         yield None, seq
 
 
-def is_number(s):
+def is_number(s, cast=float):
     """
-    check if a string is a number
+    Check if a string is a number. Use cast=int to check if s is an integer.
     """
     try:
-        float(s) # for int, long and float
+        cast(s) # for int, long and float
     except ValueError:
-        try:
-            complex(s) # for complex
-        except ValueError:
-            return False
+        return False
 
     return True
 

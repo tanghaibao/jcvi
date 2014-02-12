@@ -38,8 +38,7 @@ class Jobs (list):
 
 
 class Poison:
-    def __init__(self):
-        pass
+    pass
 
 
 class WriteJobs (object):

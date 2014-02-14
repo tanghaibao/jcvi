@@ -12,13 +12,13 @@ import logging
 import numpy as np
 
 from jcvi.graphics.base import plt, _, Rectangle, Polygon, CirclePolygon, \
-        savefig, mpl, cm
+        savefig, mpl, cm, adjust_spines
 from jcvi.graphics.glyph import GeneGlyph, RoundLabel, RoundRect, \
         arrowprops, TextCircle, plot_cap
 from jcvi.graphics.chromosome import Chromosome
 from jcvi.graphics.karyotype import Karyotype
 from jcvi.graphics.synteny import Synteny, draw_gene_legend
-from jcvi.graphics.coverage import Coverage, Sizes, XYtrack
+from jcvi.graphics.coverage import Coverage, Sizes, XYtrack, setup_gauge_ax
 from jcvi.utils.iter import pairwise
 from jcvi.apps.base import OptionParser, ActionDispatcher, fname, debug
 debug()
@@ -175,7 +175,7 @@ def f3a(args):
     with read histograms.
     """
     p = OptionParser(f3a.__doc__)
-    p.add_option("--gauge_step", default=5000000, type="int",
+    p.add_option("--gauge_step", default=10000000, type="int",
                 help="Step size for the base scale")
     opts, args, iopts = p.set_image_options(args, figsize="11x8")
 
@@ -183,8 +183,10 @@ def f3a(args):
         sys.exit(not p.print_help())
 
     chrs, sizes, datadir = args
+    gauge_step = opts.gauge_step
     chrs = [[x] for x in chrs.split(",")]
     sizes = Sizes(sizes)
+    height = .08
 
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
@@ -195,18 +197,25 @@ def f3a(args):
     seqidsfile = make_seqids(chrs)
     klayout = make_layout(chrs, chr_sum_sizes, ratio, template_f3a)
     K = Karyotype(fig, root, seqidsfile, klayout, gap=gap,
-                  height=.07, generank=False)
+                  height=height, lw=2, generank=False)
 
     # Inset with datafiles
     datafiles = ("chrA02.bzh.forxmgr", "parent.A02.per10kb.forxmgr",
                  "parent.C2.per10kb.forxmgr", "chrC02.bzh.forxmgr")
     datafiles = [op.join(datadir, x) for x in datafiles]
     tracks = K.tracks
-    r = .07 / 4
+    r = height / 4
     for t, datafile in zip(tracks, datafiles):
-        ax = fig.add_axes([t.xstart, t.y - r, t.xend - t.xstart, 2 * r])
-        XYtrack(datafile, color="darkslategray").draw(ax)
-        ax.set_xlim(0, t.total)
+        x, y = t.xstart, t.y - r
+        w = t.xend - t.xstart
+        ax = fig.add_axes([x, y, w, 2 * r])
+        XYtrack(datafile, color="lightslategray").draw(ax)
+
+        start, end = 0, t.total
+        ax.set_xlim(start, end)
+        gauge_ax = fig.add_axes([x, y, w, .0001])
+        adjust_spines(gauge_ax, ["bottom"])
+        setup_gauge_ax(gauge_ax, start, end, gauge_step)
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)

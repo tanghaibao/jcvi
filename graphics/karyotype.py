@@ -111,7 +111,7 @@ MaxSeqids = 20   # above which no labels are written
 
 class Track (object):
 
-    def __init__(self, ax, t, gap=.01, height=.01, draw=True):
+    def __init__(self, ax, t, gap=.01, height=.01, lw=1, draw=True):
 
         self.empty = t.empty
         if t.empty:
@@ -152,6 +152,7 @@ class Track (object):
 
         self.ratio = ratio
         self.update_offsets()
+        self.lw = lw
 
         if draw:
             self.draw()
@@ -175,7 +176,8 @@ class Track (object):
             size = self.sizes[sid]
             rsize = self.ratio * size
             xend = xstart + rsize
-            hc = HorizontalChromosome(ax, xstart, xend, y, height=self.height, fc=color)
+            hc = HorizontalChromosome(ax, xstart, xend, y,
+                                      height=self.height, lw=self.lw, fc=color)
             hc.set_transform(tr)
             sid = sid.rsplit("_", 1)[-1]
             si = "".join(x for x in sid if x not in string.letters)
@@ -196,7 +198,8 @@ class Track (object):
 
         xp = .1 if (self.xstart + self.xend) / 2 <= .5 else .9
         label = markup(self.label)
-        ax.text(xp, y + height, label, ha="center", color=color, transform=tr)
+        c = color if color != "gainsboro" else "k"
+        ax.text(xp, y + self.height * .6, label, ha="center", color=c, transform=tr)
 
     def update_offsets(self):
         self.offsets = {}
@@ -254,7 +257,7 @@ class ShadeManager (object):
 class Karyotype (object):
 
     def __init__(self, fig, root, seqidsfile, layoutfile, gap=.01,
-                 height=.01, generank=True):
+                 height=.01, lw=1, generank=True):
 
         layout = Layout(layoutfile, generank=generank)
 
@@ -278,7 +281,7 @@ class Karyotype (object):
 
         tracks = []
         for lo in layout:
-            tr = Track(root, lo, gap=gap, height=height, draw=False)
+            tr = Track(root, lo, gap=gap, height=height, lw=lw, draw=False)
             tracks.append(tr)
 
         ShadeManager(root, tracks, layout)

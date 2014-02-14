@@ -68,10 +68,7 @@ class Coverage (object):
             tpos = y - .07
 
         start, end = xlim
-        gauge_ax.set_xlim(start, end)
-        gauge_ax.xaxis.set_major_formatter(mb_formatter)
-        gauge_ax.xaxis.set_ticks(np.arange(start, end, gauge_step))
-        gauge_ax.yaxis.set_ticks([])
+        setup_gauge_ax(gauge_ax, start, end, gauge_step)
 
         root.text(x + w / 2, tpos, chr, ha="center", va="center",
                   color="darkslategray", size=16)
@@ -86,6 +83,13 @@ class Coverage (object):
                 label = datafile.split(".")[1]
                 root.text(x - .035, yy + yinterval / 2, label,
                             ha="center", va="center", color=c)
+
+
+def setup_gauge_ax(gauge_ax, start, end, gauge_step):
+    gauge_ax.set_xlim(start, end)
+    gauge_ax.xaxis.set_major_formatter(mb_formatter)
+    gauge_ax.xaxis.set_ticks(np.arange(start + gauge_step, end, gauge_step))
+    gauge_ax.yaxis.set_ticks([])
 
 
 def main():

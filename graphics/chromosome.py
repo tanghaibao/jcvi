@@ -61,7 +61,7 @@ class Chromosome (object):
 
 class HorizontalChromosome (BaseGlyph):
     def __init__(self, ax, x1, x2, y, height=.015, ec="k", patch=None,
-                    fc=None, fill=False, zorder=2):
+                 lw=1, fc=None, fill=False, zorder=2):
         """
         Chromosome with positions given in (x1, y) => (x2, y)
 
@@ -71,7 +71,7 @@ class HorizontalChromosome (BaseGlyph):
         super(HorizontalChromosome, self).__init__(ax)
         pts = self.get_pts(x1, x2, y, height)
         r = self.r
-        self.append(Polygon(pts, fill=False, ec=ec, zorder=zorder))
+        self.append(Polygon(pts, fill=False, lw=lw, ec=ec, zorder=zorder))
         if fc:
             pts = self.get_pts(x1, x2, y, height * .5)
             self.append(Polygon(pts, fc=fc, lw=0, zorder=zorder))

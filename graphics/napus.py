@@ -106,6 +106,8 @@ def cov(args):
                 help="The order to plot the tracks, comma-separated")
     p.add_option("--gauge_step", default=5000000, type="int",
                 help="Step size for the base scale")
+    p.add_option("--hlsuffix", default="regions.forhaibao",
+                help="Suffix for the filename to be used to highlight regions")
     opts, args, iopts = p.set_image_options(args, figsize="11x8")
 
     if len(args) != 4:
@@ -116,6 +118,7 @@ def cov(args):
     chr2 = chr2.split(",")
 
     order = opts.order
+    hlsuffix = opts.hlsuffix
     if order:
         order = order.split(",")
     sizes = Sizes(sizes)
@@ -140,7 +143,8 @@ def cov(args):
         i += 1
         c = Coverage(fig, root, canvas1, c1, (0, s1), datadir,
                      order=order, gauge="top", plot_label=plot_label,
-                     gauge_step=opts.gauge_step)
+                     gauge_step=opts.gauge_step,
+                     hlsuffix=hlsuffix)
         w1s += w1 + gap
 
     i = 0
@@ -150,7 +154,8 @@ def cov(args):
         plot_label = i == 0
         i += 1
         c = Coverage(fig, root, canvas2, c2, (0, s2), datadir,
-                     order=order, gauge="bottom", plot_label=plot_label)
+                     order=order, gauge="bottom", plot_label=plot_label,
+                     hlsuffix=hlsuffix)
         w2s += w2 + gap
 
     # Synteny panel
@@ -167,6 +172,33 @@ def cov(args):
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
+def conversion_track(order, filename, col, label, ax, color):
+    from jcvi.formats.bed import Bed
+
+    ids = []
+    fp = open(filename)
+    for row in fp:
+        atoms = row.split()
+        gid = atoms[col].replace('T', 'G')
+        ids.append(gid)
+
+    beds = [order[x][1] for x in ids if x in order]
+    pts = [x.start for x in beds if x.seqid == label]
+    logging.debug("A total of {0} converted loci imported.".format(len(pts)))
+
+    ax.scatter(pts, len(pts) * [0], s=4, c=color, edgecolors="none")
+    ax.set_axis_off()
+
+
+def make_affix_axis(fig, t, yoffset, height=.001):
+    x, y = t.xstart, t.y + yoffset
+    w = t.xend - t.xstart
+    ax = fig.add_axes([x, y, w, height])
+    start, end = 0, t.total
+    ax.set_xlim(start, end)
+    return ax
+
+
 def f3a(args):
     """
     %prog f3a chrA02,A02,C2,chrC02 chr.sizes data
@@ -174,6 +206,8 @@ def f3a(args):
     Napus Figure 3A displays alignments between quartet chromosomes, inset
     with read histograms.
     """
+    from jcvi.formats.bed import Bed
+
     p = OptionParser(f3a.__doc__)
     p.add_option("--gauge_step", default=10000000, type="int",
                 help="Step size for the base scale")
@@ -206,16 +240,22 @@ def f3a(args):
     tracks = K.tracks
     r = height / 4
     for t, datafile in zip(tracks, datafiles):
-        x, y = t.xstart, t.y - r
-        w = t.xend - t.xstart
-        ax = fig.add_axes([x, y, w, 2 * r])
-        XYtrack(datafile, color="lightslategray").draw(ax)
-
+        ax = make_affix_axis(fig, t, -r, height=2 * r)
+        XYtrack(ax, datafile, color="lightslategray").draw()
         start, end = 0, t.total
-        ax.set_xlim(start, end)
-        gauge_ax = fig.add_axes([x, y, w, .0001])
+        gauge_ax = make_affix_axis(fig, t, -r)
         adjust_spines(gauge_ax, ["bottom"])
         setup_gauge_ax(gauge_ax, start, end, gauge_step)
+
+    # Converted gene tracks
+    ax_AN = make_affix_axis(fig, tracks[0], r, height=r/2)
+    ax_CN = make_affix_axis(fig, tracks[-1], r, height=r/2)
+
+    order = Bed("napus.bed").order
+    conversion_track(order, "data/Genes.Converted.seuil.0.6.AtoC.txt",
+                     2, "chrA02", ax_AN, "b")
+    conversion_track(order, "data/Genes.Converted.seuil.0.6.CtoA.txt",
+                     3, "chrC02", ax_CN, "g")
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)

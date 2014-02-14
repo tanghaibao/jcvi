@@ -23,13 +23,16 @@ debug()
 
 class XYtrack (object):
 
-    def __init__(self, datafile, color=None):
+    def __init__(self, ax, datafile, color=None):
+        self.ax = ax
         self.x, self.y = np.loadtxt(datafile, unpack=True)
         logging.debug("File `{0}` imported (records={1})."\
                         .format(datafile, len(self.x)))
         self.color = color or "k"
+        self.mapping = dict(zip(self.x, self.y))
 
-    def draw(self, ax):
+    def draw(self):
+        ax = self.ax
         x, y = self.x, self.y
         color = self.color
         ax.plot(x, y, color=color)
@@ -37,10 +40,39 @@ class XYtrack (object):
         ax.set_ylim(0, 40)
         ax.set_axis_off()
 
+    def import_hlfile(self, hlfile, chr, unit=10000):
+        fp = open(hlfile)
+        imported = 0
+        for row in fp:
+            if row.strip() == "":
+                continue
+            seqid, start, end, tag = row.split()
+            if seqid != chr:
+                continue
+            start = (int(start) - 1) * unit
+            end = int(end) * unit
+            if tag == "double":
+                self.highlight(start, end, unit=unit)
+            else:
+                self.highlight(start, end, color="g", unit=unit)
+            imported += 1
+        logging.debug("Imported {0} regions from file `{1}`.".\
+                        format(imported, hlfile))
+
+    def highlight(self, start, end, color="r", unit=10000):
+        ax = self.ax
+        x = range(start, end, unit)
+        y = [self.mapping.get(z, 0) for z in x]
+        x = [start] + x + [end]  # Two end points
+        y = [0] + y + [0]
+        ax.plot(x, y, color=color)
+        ax.fill_between(x, y, color=color)
+
 
 class Coverage (object):
 
-    def __init__(self, fig, root, canvas, chr, xlim, datadir, order=None,
+    def __init__(self, fig, root, canvas, chr, xlim, datadir,
+                 order=None, hlsuffix=None,
                  gauge="bottom", plot_label=True, gauge_step=5000000):
         x, y, w, h = canvas
         p = .01
@@ -73,14 +105,16 @@ class Coverage (object):
         root.text(x + w / 2, tpos, chr, ha="center", va="center",
                   color="darkslategray", size=16)
 
-        for datafile, c in zip(datafiles, set2):
+        for label, datafile, c in zip(order, datafiles, set2):
             yy -= yinterval
             ax = fig.add_axes([x, yy, w, yinterval * .9])
-            xy = XYtrack(datafile, color=c)
-            xy.draw(ax)
+            xy = XYtrack(ax, datafile, color=c)
+            xy.draw()
+            if hlsuffix:
+                hlfile = op.join(datadir, ".".join((label, hlsuffix)))
+                xy.import_hlfile(hlfile, chr)
             ax.set_xlim(*xlim)
             if plot_label:
-                label = datafile.split(".")[1]
                 root.text(x - .035, yy + yinterval / 2, label,
                             ha="center", va="center", color=c)
 
@@ -103,6 +137,7 @@ def main():
 
     chr, sizes, datadir = args
     order = opt.order
+    hlsuffix = opts.hlsuffix
     if order:
         order = order.split(",")
     sizes = Sizes(sizes)
@@ -111,7 +146,7 @@ def main():
     canvas = (.12, .35, .8, .35)
     chr_size = sizes.get_size(chr)
     c = Coverage(fig, root, canvas, chr, (0, chr_size), datadir,
-                 order=order)
+                 order=order, hlsuffix=hlsuffix)
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)

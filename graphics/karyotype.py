@@ -281,6 +281,8 @@ class Karyotype (object):
 
         tracks = []
         for lo in layout:
+            if lo.empty:
+                continue
             tr = Track(root, lo, gap=gap, height=height, lw=lw, draw=False)
             tracks.append(tr)
 

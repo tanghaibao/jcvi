@@ -108,7 +108,7 @@ def prepare(args):
         sys.exit(not p.print_help())
 
     counts, families = args
-    countfiles = glob(op.join(counts, "*count*"))
+    countfiles = glob(op.join(counts, "*.count"))
     countsdb = defaultdict(list)
     for c in countfiles:
         rs = RiceSample(c)

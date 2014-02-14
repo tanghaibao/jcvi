@@ -86,16 +86,17 @@ class HorizontalChromosome (BaseGlyph):
         self.add_patches()
 
     def get_pts(self, x1, x2, y, height):
+        h = height / 2
         self.r = r = height / (3 ** .5)
 
         if x2 - x1 < 2 * height:  # rectangle for small chromosomes
-            return [[x1, y + r], [x1, y - r], [x2, y - r], [x2, y + r]]
+            return [[x1, y + h], [x1, y - h], [x2, y - h], [x2, y + h]]
 
         pts = []
         pts += plot_cap((x1 + r, y), np.radians(range(120, 240)), r)
-        pts += [[x1 + r / 2, y - r], [x2 - r / 2, y - r]]
+        pts += [[x1 + r / 2, y - h], [x2 - r / 2, y - h]]
         pts += plot_cap((x2 - r, y), np.radians(range(-60, 60)), r)
-        pts += [[x2 - r / 2, y + r], [x1 + r / 2, y + r]]
+        pts += [[x2 - r / 2, y + h], [x1 + r / 2, y + h]]
 
         return pts
 

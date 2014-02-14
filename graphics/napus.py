@@ -5,6 +5,7 @@
 Functions in this script produce figures in the various past manuscripts.
 """
 
+import os.path as op
 import sys
 import logging
 
@@ -17,7 +18,7 @@ from jcvi.graphics.glyph import GeneGlyph, RoundLabel, RoundRect, \
 from jcvi.graphics.chromosome import Chromosome
 from jcvi.graphics.karyotype import Karyotype
 from jcvi.graphics.synteny import Synteny, draw_gene_legend
-from jcvi.graphics.coverage import Coverage, Sizes
+from jcvi.graphics.coverage import Coverage, Sizes, XYtrack
 from jcvi.utils.iter import pairwise
 from jcvi.apps.base import OptionParser, ActionDispatcher, fname, debug
 debug()
@@ -30,10 +31,10 @@ template_cov = """# y, xstart, xend, rotation, color, label, va, bed
 e, 0, 1, AN.CN.1x1.lifted.simple
 """
 template_f3a = """# y, xstart, xend, rotation, color, label, va, bed
-.65, {0}, {1}, 0, w, , top, AN.bed
-.55, {2}, {3}, 0, w, , top, brapa.bed
-.45, {4}, {5}, 0, w, , top, boleracea.bed
-.35, {6}, {7}, 0, w, , top, CN.bed
+.9, {0}, {1}, 0, gainsboro, B. napus A2, top, AN.bed
+.75, {2}, {3}, 0, gainsboro, B. rapa A2, top, brapa.bed
+.6, {4}, {5}, 0, gainsboro, B. oleracea C2, top, boleracea.bed
+.45, {6}, {7}, 0, gainsboro, B. napus C2, top, CN.bed
 # edges
 e, 0, 1, AN.brapa.1x1.lifted.simple
 e, 1, 2, brapa.boleracea.1x1.lifted.simple
@@ -168,7 +169,7 @@ def cov(args):
 
 def f3a(args):
     """
-    %prog f3a chrA02,A02,C2,chrC02 chr.sizes
+    %prog f3a chrA02,A02,C2,chrC02 chr.sizes data
 
     Napus Figure 3A displays alignments between quartet chromosomes, inset
     with read histograms.
@@ -178,10 +179,10 @@ def f3a(args):
                 help="Step size for the base scale")
     opts, args, iopts = p.set_image_options(args, figsize="11x8")
 
-    if len(args) != 2:
+    if len(args) != 3:
         sys.exit(not p.print_help())
 
-    chrs, sizes = args
+    chrs, sizes, datadir = args
     chrs = [[x] for x in chrs.split(",")]
     sizes = Sizes(sizes)
 
@@ -193,7 +194,19 @@ def f3a(args):
     # Synteny panel
     seqidsfile = make_seqids(chrs)
     klayout = make_layout(chrs, chr_sum_sizes, ratio, template_f3a)
-    Karyotype(fig, root, seqidsfile, klayout, gap=gap, generank=False)
+    K = Karyotype(fig, root, seqidsfile, klayout, gap=gap,
+                  height=.07, generank=False)
+
+    # Inset with datafiles
+    datafiles = ("chrA02.bzh.forxmgr", "parent.A02.per10kb.forxmgr",
+                 "parent.C2.per10kb.forxmgr", "chrC02.bzh.forxmgr")
+    datafiles = [op.join(datadir, x) for x in datafiles]
+    tracks = K.tracks
+    r = .07 / 4
+    for t, datafile in zip(tracks, datafiles):
+        ax = fig.add_axes([t.xstart, t.y - r, t.xend - t.xstart, 2 * r])
+        XYtrack(datafile, color="darkslategray").draw(ax)
+        ax.set_xlim(0, t.total)
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)

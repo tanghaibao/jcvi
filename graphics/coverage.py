@@ -27,9 +27,9 @@ class XYtrack (object):
         self.x, self.y = np.loadtxt(datafile, unpack=True)
         logging.debug("File `{0}` imported (records={1})."\
                         .format(datafile, len(self.x)))
-        self.color = color
+        self.color = color or "k"
 
-    def draw(self, ax, label):
+    def draw(self, ax):
         x, y = self.x, self.y
         color = self.color
         ax.plot(x, y, color=color)
@@ -80,10 +80,10 @@ class Coverage (object):
             yy -= yinterval
             ax = fig.add_axes([x, yy, w, yinterval * .9])
             xy = XYtrack(datafile, color=c)
-            label = datafile.split(".")[1]
-            xy.draw(ax, label)
+            xy.draw(ax)
             ax.set_xlim(*xlim)
             if plot_label:
+                label = datafile.split(".")[1]
                 root.text(x - .035, yy + yinterval / 2, label,
                             ha="center", va="center", color=c)
 

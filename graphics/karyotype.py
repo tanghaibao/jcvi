@@ -111,7 +111,7 @@ MaxSeqids = 20   # above which no labels are written
 
 class Track (object):
 
-    def __init__(self, ax, t, gap=.01, draw=True):
+    def __init__(self, ax, t, gap=.01, height=.01, draw=True):
 
         self.empty = t.empty
         if t.empty:
@@ -123,12 +123,13 @@ class Track (object):
         self.label = t.label
         self.rotation = t.rotation
         self.va = t.va
-        self.color = t.color
+        self.color = t.color if t.color != "None" else None
         self.seqids = t.seqids
         self.bed = t.bed
         self.order = t.order
         self.order_in_chr = t.order_in_chr
         self.ax = ax
+        self.height = height
 
         self.xstart = xstart = t.xstart
         self.xend = t.xend
@@ -146,7 +147,7 @@ class Track (object):
 
         rpad = 1 - t.xend
         span = 1 - xstart - rpad - gap * (len(sizes) - 1)
-        total = sum(sizes.values())
+        self.total = total = sum(sizes.values())
         ratio = span / total
 
         self.ratio = ratio
@@ -174,7 +175,7 @@ class Track (object):
             size = self.sizes[sid]
             rsize = self.ratio * size
             xend = xstart + rsize
-            hc = HorizontalChromosome(ax, xstart, xend, y, height=.01, fc=color)
+            hc = HorizontalChromosome(ax, xstart, xend, y, height=self.height, fc=color)
             hc.set_transform(tr)
             sid = sid.rsplit("_", 1)[-1]
             si = "".join(x for x in sid if x not in string.letters)
@@ -195,7 +196,7 @@ class Track (object):
 
         xp = .1 if (self.xstart + self.xend) / 2 <= .5 else .9
         label = markup(self.label)
-        ax.text(xp, y + gap, label, ha="center", color=color, transform=tr)
+        ax.text(xp, y + height, label, ha="center", color=color, transform=tr)
 
     def update_offsets(self):
         self.offsets = {}
@@ -252,7 +253,8 @@ class ShadeManager (object):
 
 class Karyotype (object):
 
-    def __init__(self, fig, root, seqidsfile, layoutfile, gap=.01, generank=True):
+    def __init__(self, fig, root, seqidsfile, layoutfile, gap=.01,
+                 height=.01, generank=True):
 
         layout = Layout(layoutfile, generank=generank)
 
@@ -276,7 +278,7 @@ class Karyotype (object):
 
         tracks = []
         for lo in layout:
-            tr = Track(root, lo, gap=gap, draw=False)
+            tr = Track(root, lo, gap=gap, height=height, draw=False)
             tracks.append(tr)
 
         ShadeManager(root, tracks, layout)

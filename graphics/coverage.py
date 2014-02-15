@@ -23,26 +23,51 @@ debug()
 
 class XYtrack (object):
 
-    def __init__(self, ax, datafile, color=None):
+    def __init__(self, ax, datafile, color=None, ymax=50):
         self.ax = ax
-        self.x, self.y = np.loadtxt(datafile, unpack=True)
+        self.xy = []
+        fp = open(datafile)
+        for row in fp:
+            atoms = row.split()
+            self.xy.append([int(atoms[0]), float(atoms[1])])
+        fp.close()
+
+        self.x, self.y = zip(*self.xy)
         logging.debug("File `{0}` imported (records={1})."\
                         .format(datafile, len(self.x)))
         self.color = color or "k"
-        self.mapping = dict(zip(self.x, self.y))
+        self.ymax = ymax
+
+    @property
+    def mapping(self):
+        return dict(zip(self.x, self.y))
+
+    def interpolate(self, maxsize, unit=10000):
+        maxsize = int(maxsize)
+        for pos in range(0, maxsize, unit):
+            if pos in self.x:
+                continue
+            self.xy.append([pos, 0])
+        self.xy.sort()
+        self.x, self.y = zip(*self.xy)
+        logging.debug("After interpolate: {0}".format(len(self.x)))
+
+    def cap(self, ymax=50):
+        self.xy = [[a, 0] if b > ymax else [a, b] for a, b in self.xy]
+        self.x, self.y = zip(*self.xy)
 
     def draw(self):
         ax = self.ax
-        x, y = self.x, self.y
         color = self.color
-        ax.plot(x, y, color=color)
-        ax.fill_between(x, y, color=color)
-        ax.set_ylim(0, 40)
+        ax.plot(self.x, self.y, lw=0)
+        ax.fill_between(self.x, self.y, color=color)
+        ax.set_ylim(0, self.ymax)
         ax.set_axis_off()
 
     def import_hlfile(self, hlfile, chr, unit=10000):
         fp = open(hlfile)
         imported = 0
+        mapping = self.mapping
         for row in fp:
             if row.strip() == "":
                 continue
@@ -52,20 +77,23 @@ class XYtrack (object):
             start = (int(start) - 1) * unit
             end = int(end) * unit
             if tag == "double":
-                self.highlight(start, end, unit=unit)
+                self.highlight(mapping, start, end, unit=unit)
             else:
-                self.highlight(start, end, color="g", unit=unit)
+                self.highlight(mapping, start, end, color="g", unit=unit)
             imported += 1
         logging.debug("Imported {0} regions from file `{1}`.".\
                         format(imported, hlfile))
 
-    def highlight(self, start, end, color="r", unit=10000):
+    def highlight(self, mapping, start, end, color="r", unit=10000):
         ax = self.ax
         x = range(start, end, unit)
-        y = [self.mapping.get(z, 0) for z in x]
-        x = [start] + x + [end]  # Two end points
-        y = [0] + y + [0]
-        ax.plot(x, y, color=color)
+        y = [mapping[z] for z in x]
+        # Mask the highlight region so that they don't appear in background
+        for a in self.xy:
+            if start <= a[0] < end:
+                a[1] = 0
+        self.x, self.y = zip(*self.xy)
+        ax.plot(x, y, lw=0)
         ax.fill_between(x, y, color=color)
 
 
@@ -109,14 +137,16 @@ class Coverage (object):
             yy -= yinterval
             ax = fig.add_axes([x, yy, w, yinterval * .9])
             xy = XYtrack(ax, datafile, color=c)
-            xy.draw()
+            xy.interpolate(end)
+            xy.cap(ymax=50)
             if hlsuffix:
                 hlfile = op.join(datadir, ".".join((label, hlsuffix)))
                 xy.import_hlfile(hlfile, chr)
-            ax.set_xlim(*xlim)
             if plot_label:
                 root.text(x - .035, yy + yinterval / 2, label,
                             ha="center", va="center", color=c)
+            xy.draw()
+            ax.set_xlim(*xlim)
 
 
 def setup_gauge_ax(gauge_ax, start, end, gauge_step):

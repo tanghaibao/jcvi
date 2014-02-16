@@ -23,7 +23,7 @@ debug()
 
 class XYtrack (object):
 
-    def __init__(self, ax, datafile, color=None, ymax=50):
+    def __init__(self, ax, datafile, color=None, ymax=40):
         self.ax = ax
         self.xy = []
         fp = open(datafile)
@@ -44,7 +44,7 @@ class XYtrack (object):
 
     def interpolate(self, maxsize, unit=10000):
         maxsize = int(maxsize)
-        for pos in range(0, maxsize, unit):
+        for pos in range(unit, maxsize + unit, unit):
             if pos in self.x:
                 continue
             self.xy.append([pos, 0])
@@ -60,7 +60,7 @@ class XYtrack (object):
         ax = self.ax
         color = self.color
         ax.plot(self.x, self.y, lw=0)
-        ax.fill_between(self.x, self.y, color=color)
+        ax.fill_between(self.x, self.y, color=color, lw=0)
         ax.set_ylim(0, self.ymax)
         ax.set_axis_off()
 
@@ -74,7 +74,7 @@ class XYtrack (object):
             seqid, start, end, tag = row.split()
             if seqid != chr:
                 continue
-            start = (int(start) - 1) * unit
+            start = int(start) * unit
             end = int(end) * unit
             if tag == "double":
                 self.highlight(mapping, start, end, unit=unit)
@@ -90,11 +90,11 @@ class XYtrack (object):
         y = [mapping[z] for z in x]
         # Mask the highlight region so that they don't appear in background
         for a in self.xy:
-            if start <= a[0] < end:
+            if start <= a[0] <= end:
                 a[1] = 0
         self.x, self.y = zip(*self.xy)
         ax.plot(x, y, lw=0)
-        ax.fill_between(x, y, color=color)
+        ax.fill_between(x, y, color=color, lw=0)
 
 
 class Coverage (object):

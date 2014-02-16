@@ -30,11 +30,11 @@ template_cov = """# y, xstart, xend, rotation, color, label, va, bed
 # edges
 e, 0, 1, AN.CN.1x1.lifted.simple
 """
-template_f3a = """# y, xstart, xend, rotation, color, label, va, bed
-.9, {0}, {1}, 0, gainsboro, B. napus A2, top, AN.bed
-.75, {2}, {3}, 0, gainsboro, B. rapa A2, top, brapa.bed
-.6, {4}, {5}, 0, gainsboro, B. oleracea C2, top, boleracea.bed
-.45, {6}, {7}, 0, gainsboro, B. napus C2, top, CN.bed
+template_f3a = r"""# y, xstart, xend, rotation, color, label, va, bed
+.9, {0}, {1}, 0, gainsboro, \textit{{B. napus}} A$\mathsf{{_n}}$2, top, AN.bed
+.75, {2}, {3}, 0, gainsboro, \textit{{B. rapa}} A$\mathsf{{_r}}$2, top, brapa.bed
+.6, {4}, {5}, 0, gainsboro, \textit{{B. oleracea}} C$\mathsf{{_o}}$2, top, boleracea.bed
+.45, {6}, {7}, 0, gainsboro, \textit{{B. napus}} C$\mathsf{{_n}}$2, top, CN.bed
 # edges
 e, 0, 1, AN.brapa.1x1.lifted.simple
 e, 1, 2, brapa.boleracea.1x1.lifted.simple
@@ -363,7 +363,7 @@ def ploidy(args):
 
     Karyotype(fig, root, seqidsfile, klayout)
 
-    fc = "lightslategrey"
+    fc = "darkslategrey"
     radius = .012
     ot = -.05  # use this to adjust vertical position of the left panel
     TextCircle(root, .1, .9 + ot, r'$\gamma$', radius=radius, fc=fc)
@@ -378,9 +378,10 @@ def ploidy(args):
                 va="top", color=fc, size=11)
     root.text(.1, .4 + ot, r"$\times3\times2\times2\times3\times2$", ha="center", va="top", color=fc)
 
-    bb = dict(boxstyle="round", fc="w", ec="0.5", alpha=0.5)
-    root.text(.5, .2 + ot, "Brassica napus", ha="center",
-                size=18, color="g", bbox=bb)
+    bb = dict(boxstyle="round,pad=.5", fc="w", ec="0.5", alpha=0.5)
+    root.text(.5, .2 + ot, r"\noindent\textit{Brassica napus}\\"
+                "(A$\mathsf{_n}$C$\mathsf{_n}$ genome)", ha="center",
+                size=16, color="g", bbox=bb)
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)

@@ -196,7 +196,7 @@ class Track (object):
             tc = TextCircle(ax, xx, y + pad, _(si), radius=.01,
                        fc="w", color=color, size=10, transform=tr)
 
-        xp = .1 if (self.xstart + self.xend) / 2 <= .5 else .9
+        xp = .1 if (self.xstart + self.xend) / 2 <= .5 else .92
         label = markup(self.label)
         c = color if color != "gainsboro" else "k"
         ax.text(xp, y + self.height * .6, label, ha="center", color=c, transform=tr)

@@ -16,7 +16,7 @@ import numpy as np
 
 from jcvi.formats.sizes import Sizes
 from jcvi.graphics.base import plt, savefig, Rectangle, mb_formatter, \
-        adjust_spines
+            mb_float_formatter, adjust_spines
 from jcvi.apps.base import OptionParser, debug, glob
 debug()
 
@@ -149,9 +149,10 @@ class Coverage (object):
             ax.set_xlim(*xlim)
 
 
-def setup_gauge_ax(gauge_ax, start, end, gauge_step):
+def setup_gauge_ax(gauge_ax, start, end, gauge_step, float_formatter=False):
     gauge_ax.set_xlim(start, end)
-    gauge_ax.xaxis.set_major_formatter(mb_formatter)
+    formatter = mb_float_formatter if float_formatter else mb_formatter
+    gauge_ax.xaxis.set_major_formatter(formatter)
     gauge_ax.xaxis.set_ticks(np.arange(start + gauge_step, end, gauge_step))
     gauge_ax.yaxis.set_ticks([])
 

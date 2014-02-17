@@ -20,6 +20,7 @@ from jcvi.graphics.karyotype import Karyotype
 from jcvi.graphics.synteny import Synteny, draw_gene_legend
 from jcvi.graphics.coverage import Coverage, Sizes, XYtrack, setup_gauge_ax
 from jcvi.utils.iter import pairwise
+from jcvi.formats.base import LineFile
 from jcvi.apps.base import OptionParser, ActionDispatcher, fname, debug
 debug()
 
@@ -41,6 +42,38 @@ e, 1, 2, brapa.boleracea.1x1.lifted.simple
 e, 3, 2, CN.boleracea.1x1.lifted.simple
 """
 gap = .03
+
+
+class F3CLayoutLine (object):
+
+    def __init__(self, row, delimiter=",", datadir=None):
+        args = row.rstrip().split(delimiter)
+        args = [x.strip() for x in args]
+        self.region = args[0]
+        self.seqid, se = self.region.split(":")
+        start, end = se.split("-")
+        self.start, self.end = int(start), int(end)
+        self.center = (self.start + self.end) / 2
+        self.span = self.end - self.start + 1
+        self.y = float(args[1])
+        self.color = args[2]
+        self.label = args[3]
+        self.datafile = args[4]
+        if datadir:
+            self.datafile = op.join(datadir, self.datafile)
+
+
+class F3CLayout(LineFile):
+
+    def __init__(self, filename, delimiter=',', datadir=None):
+        super(F3CLayout, self).__init__(filename)
+        fp = open(filename)
+        self.edges = []
+        for row in fp:
+            if row[0] == '#':
+                continue
+            self.append(F3CLayoutLine(row, delimiter=delimiter,
+                                    datadir=datadir))
 
 
 def main():
@@ -289,23 +322,45 @@ def f3a(args):
 
 def f3c(args):
     """
-    %prog f3c data
+    %prog f3c layout data
 
     Napus Figure 3C displays an example deleted region for quartet chromosomes,
     showing read alignments from high GL and low GL lines.
     """
     p = OptionParser(f3c.__doc__)
-    p.add_option("--gauge_step", default=10000000, type="int",
+    p.add_option("--gauge_step", default=200000, type="int",
                 help="Step size for the base scale")
-    opts, args, iopts = p.set_image_options(args, figsize="11x8")
+    opts, args, iopts = p.set_image_options(args, figsize="8x11")
 
-    if len(args) != 1:
+    if len(args) != 2:
         sys.exit(not p.print_help())
 
-    datadir, = args
+    layout, datadir = args
+    layout = F3CLayout(layout, datadir=datadir)
+    gs = opts.gauge_step
 
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
+    axes = []
+    maxspan = max(x.span for x in layout)
+    maxspan += 2 * gs  # +/- 200Kb
+    w = .7
+    h = .065
+    xstart = .15
+    ratio = w / maxspan
+    for t in layout:
+        ax = fig.add_axes([xstart, t.y, w, h])
+        xy = XYtrack(ax, t.datafile, color=t.color)
+        bp_start = t.center - maxspan / 2
+        bp_end = t.center + maxspan / 2
+        ax.set_xlim(bp_start, bp_end)
+        ax.plot([t.start, t.start], [0, 40], "k:", lw=2)
+        ax.plot([t.end, t.end], [0, 40], "k:", lw=2)
+        xy.interpolate(bp_end)
+        xy.draw()
+        gax = fig.add_axes([xstart, t.y, w, .001])
+        setup_gauge_ax(gax, bp_start, bp_end, gs, float_formatter=True)
+        root.text(.08, t.y, t.label, color=t.color, ha="center")
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)

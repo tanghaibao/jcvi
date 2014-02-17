@@ -330,7 +330,7 @@ def f3c(args):
     p = OptionParser(f3c.__doc__)
     p.add_option("--gauge_step", default=200000, type="int",
                 help="Step size for the base scale")
-    opts, args, iopts = p.set_image_options(args, figsize="8x11")
+    opts, args, iopts = p.set_image_options(args, figsize="8x8")
 
     if len(args) != 2:
         sys.exit(not p.print_help())
@@ -354,13 +354,15 @@ def f3c(args):
         bp_start = t.center - maxspan / 2
         bp_end = t.center + maxspan / 2
         ax.set_xlim(bp_start, bp_end)
-        ax.plot([t.start, t.start], [0, 40], "k:", lw=2)
-        ax.plot([t.end, t.end], [0, 40], "k:", lw=2)
+        ax.plot([t.start, t.start], [0, 40], "r-", lw=2)
+        ax.plot([t.end, t.end], [0, 40], "r-", lw=2)
+        #ax.add_patch(Rectangle([t.start, 0], t.end - t.start, 40,
+        #                    fc="r", alpha=.2))
         xy.interpolate(bp_end)
         xy.draw()
         gax = fig.add_axes([xstart, t.y, w, .001])
         setup_gauge_ax(gax, bp_start, bp_end, gs, float_formatter=True)
-        root.text(.08, t.y, t.label, color=t.color, ha="center")
+        root.text(.08, t.y, t.label, color="k", ha="center")
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
@@ -526,7 +528,7 @@ def expr(args):
     pairs = [row.split() for row in open(block)]
     data = np.loadtxt(exp)
     nrows = len(pairs)
-    assert data.shape[0] == nrows, "block and exp row counts mismatch"
+    #assert data.shape[0] == nrows, "block and exp row counts mismatch"
     A = data[:, [2, 0]]
     C = data[:, [3, 1]]
     A = np.transpose(A)

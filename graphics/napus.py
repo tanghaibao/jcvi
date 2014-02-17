@@ -51,13 +51,14 @@ def main():
         ('cov', 'plot coverage graphs between homeologs (requires data)'),
         ('deletion', 'plot histogram for napus deletions (requires data)'),
         ('f3a', 'plot figure-3a'),
+        ('f3c', 'plot figure-3c'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
 
 def calc_ratio(chrs, sizes):
-    chr_sizes = [[sizes.get_size(x) for x in z] for z in chrs]
+    chr_sizes = [[sizes[x] for x in z] for z in chrs]
     chr_sum_sizes = [sum(x) for x in chr_sizes]
     ratio = .8 / max(chr_sum_sizes)
     return chr_sizes, chr_sum_sizes, ratio
@@ -113,7 +114,7 @@ def cov(args):
     if len(args) != 4:
         sys.exit(not p.print_help())
 
-    chr1, chr2, sizes, datadir = args
+    chr1, chr2, sizesfile, datadir = args
     chr1 = chr1.split(",")
     chr2 = chr2.split(",")
 
@@ -121,7 +122,7 @@ def cov(args):
     hlsuffix = opts.hlsuffix
     if order:
         order = order.split(",")
-    sizes = Sizes(sizes)
+    sizes = Sizes(sizesfile).mapping
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
 
@@ -161,7 +162,8 @@ def cov(args):
     # Synteny panel
     seqidsfile = make_seqids(chrs)
     klayout = make_layout(chrs, chr_sum_sizes, ratio, template_cov)
-    Karyotype(fig, root, seqidsfile, klayout, gap=gap, generank=False)
+    Karyotype(fig, root, seqidsfile, klayout, gap=gap,
+              generank=False, sizes=sizes)
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
@@ -186,7 +188,7 @@ def conversion_track(order, filename, col, label, ax, color):
     pts = [x.start for x in beds if x.seqid == label]
     logging.debug("A total of {0} converted loci imported.".format(len(pts)))
 
-    ax.scatter(pts, len(pts) * [0], s=4, c=color, edgecolors="none")
+    ax.scatter(pts, len(pts) * [0], s=5, c=color, edgecolors="none")
     ax.set_axis_off()
 
 
@@ -195,7 +197,6 @@ def make_affix_axis(fig, t, yoffset, height=.001):
     w = t.xend - t.xstart
     ax = fig.add_axes([x, y, w, height])
     start, end = 0, t.total
-    ax.set_xlim(start, end)
     return ax
 
 
@@ -219,7 +220,7 @@ def f3a(args):
     chrs, sizes, datadir = args
     gauge_step = opts.gauge_step
     chrs = [[x] for x in chrs.split(",")]
-    sizes = Sizes(sizes)
+    sizes = Sizes(sizes).mapping
     height = .08
 
     fig = plt.figure(1, (iopts.w, iopts.h))
@@ -231,7 +232,7 @@ def f3a(args):
     seqidsfile = make_seqids(chrs)
     klayout = make_layout(chrs, chr_sum_sizes, ratio, template_f3a)
     K = Karyotype(fig, root, seqidsfile, klayout, gap=gap,
-                  height=height, lw=2, generank=False)
+                  height=height, lw=2, generank=False, sizes=sizes)
 
     # Inset with datafiles
     datafiles = ("chrA02.bzh.forxmgr", "parent.A02.per10kb.forxmgr",
@@ -239,10 +240,17 @@ def f3a(args):
     datafiles = [op.join(datadir, x) for x in datafiles]
     tracks = K.tracks
     r = height / 4
+    hlfile = op.join(datadir, "bzh.regions.forhaibao")
     for t, datafile in zip(tracks, datafiles):
         ax = make_affix_axis(fig, t, -r, height=2 * r)
-        XYtrack(ax, datafile, color="lightslategray").draw()
+        chr = t.seqids[0]
+        xy = XYtrack(ax, datafile, color="lightslategray")
         start, end = 0, t.total
+        xy.interpolate(end)
+        #xy.cap(ymax=50)
+        #xy.import_hlfile(hlfile, chr)
+        xy.draw()
+        ax.set_xlim(start, end)
         gauge_ax = make_affix_axis(fig, t, -r)
         adjust_spines(gauge_ax, ["bottom"])
         setup_gauge_ax(gauge_ax, start, end, gauge_step)
@@ -254,14 +262,56 @@ def f3a(args):
     order = Bed("napus.bed").order
     conversion_track(order, "data/Genes.Converted.seuil.0.6.AtoC.txt",
                      2, "chrA02", ax_AN, "b")
+    conversion_track(order, "data/Genes.Converted.seuil.0.6.AtoC.txt",
+                     3, "chrC02", ax_CN, "b")
+    conversion_track(order, "data/Genes.Converted.seuil.0.6.CtoA.txt",
+                     2, "chrA02", ax_AN, "g")
     conversion_track(order, "data/Genes.Converted.seuil.0.6.CtoA.txt",
                      3, "chrC02", ax_CN, "g")
+    ax_AN.set_xlim(0, tracks[0].total)
+    ax_CN.set_xlim(0, tracks[-1].total)
+
+    # Conversion legend
+    root.text(.81, .8, r"Converted A$\mathsf{_n}$ to C$\mathsf{_n}$",
+                va="center")
+    root.text(.81, .77, r"Converted C$\mathsf{_n}$ to A$\mathsf{_n}$",
+                va="center")
+    root.scatter([.8], [.8], s=10, color="b")
+    root.scatter([.8], [.77], s=10, color="g")
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
     root.set_axis_off()
 
     image_name = "napusf3a." + iopts.format
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
+
+
+def f3c(args):
+    """
+    %prog f3c data
+
+    Napus Figure 3C displays an example deleted region for quartet chromosomes,
+    showing read alignments from high GL and low GL lines.
+    """
+    p = OptionParser(f3c.__doc__)
+    p.add_option("--gauge_step", default=10000000, type="int",
+                help="Step size for the base scale")
+    opts, args, iopts = p.set_image_options(args, figsize="11x8")
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    datadir, = args
+
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes([0, 0, 1, 1])
+
+    root.set_xlim(0, 1)
+    root.set_ylim(0, 1)
+    root.set_axis_off()
+
+    image_name = "napusf3c." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 

@@ -257,7 +257,7 @@ class ShadeManager (object):
 class Karyotype (object):
 
     def __init__(self, fig, root, seqidsfile, layoutfile, gap=.01,
-                 height=.01, lw=1, generank=True):
+                 height=.01, lw=1, generank=True, sizes=None):
 
         layout = Layout(layoutfile, generank=generank)
 
@@ -273,11 +273,12 @@ class Karyotype (object):
             bed = t.bed
             self.generank = generank
             if generank:
-                sizes = dict((x, len(list(bed.sub_bed(x)))) for x in seqids)
+                sz = dict((x, len(list(bed.sub_bed(x)))) for x in seqids)
             else:
-                sizes = dict((x, max(z.end for z in bed.sub_bed(x))) for x in seqids)
+                assert sizes is not None
+                sz = dict((x, sizes[x]) for x in seqids)
             t.seqids = seqids
-            t.sizes = sizes
+            t.sizes = sz
 
         tracks = []
         for lo in layout:

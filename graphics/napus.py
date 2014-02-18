@@ -169,6 +169,7 @@ def cov(args):
     w1s = w1_start
     w2s = w2_start
 
+    dsg = "gray"
     i = 0
     for c1, s1 in zip(chr1, chr_sizes1):
         w1 = ratio * s1
@@ -177,8 +178,8 @@ def cov(args):
         i += 1
         c = Coverage(fig, root, canvas1, c1, (0, s1), datadir,
                      order=order, gauge="top", plot_label=plot_label,
-                     gauge_step=opts.gauge_step,
-                     hlsuffix=hlsuffix)
+                     gauge_step=opts.gauge_step, palette=dsg,
+                     cap=40, hlsuffix=hlsuffix)
         w1s += w1 + gap
 
     i = 0
@@ -189,7 +190,8 @@ def cov(args):
         i += 1
         c = Coverage(fig, root, canvas2, c2, (0, s2), datadir,
                      order=order, gauge="bottom", plot_label=plot_label,
-                     hlsuffix=hlsuffix)
+                     gauge_step=opts.gauge_step, palette=dsg,
+                     cap=40, hlsuffix=hlsuffix)
         w2s += w2 + gap
 
     # Synteny panel

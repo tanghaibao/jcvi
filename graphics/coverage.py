@@ -52,7 +52,7 @@ class XYtrack (object):
         self.x, self.y = zip(*self.xy)
         logging.debug("After interpolate: {0}".format(len(self.x)))
 
-    def cap(self, ymax=50):
+    def cap(self, ymax):
         self.xy = [[a, 0] if b > ymax else [a, b] for a, b in self.xy]
         self.x, self.y = zip(*self.xy)
 
@@ -74,8 +74,8 @@ class XYtrack (object):
             seqid, start, end, tag = row.split()
             if seqid != chr:
                 continue
-            start = int(start) * unit
-            end = int(end) * unit
+            start = int(start)
+            end = int(end)
             if tag == "double":
                 self.highlight(mapping, start, end, unit=unit)
             else:
@@ -95,12 +95,14 @@ class XYtrack (object):
         self.x, self.y = zip(*self.xy)
         ax.plot(x, y, lw=0)
         ax.fill_between(x, y, color=color, lw=0)
+        ax.add_patch(Rectangle((start, 0), end - start, self.ymax,
+                    fc=color, alpha=.2))
 
 
 class Coverage (object):
 
     def __init__(self, fig, root, canvas, chr, xlim, datadir,
-                 order=None, hlsuffix=None,
+                 order=None, hlsuffix=None, palette=None, cap=50,
                  gauge="bottom", plot_label=True, gauge_step=5000000):
         x, y, w, h = canvas
         p = .01
@@ -111,9 +113,12 @@ class Coverage (object):
         yinterval = h / ntracks
         yy = y + h
 
-        # Get the pallette
-        import brewer2mpl
-        set2 = brewer2mpl.get_map('Set2', 'qualitative', ntracks).mpl_colors
+        if palette is None:
+            # Get the palette
+            import brewer2mpl
+            set2 = brewer2mpl.get_map('Set2', 'qualitative', ntracks).mpl_colors
+        else:
+            set2 = [palette] * ntracks
 
         if order:
             datafiles.sort(key=lambda x: order.index(x.split(".")[1]))
@@ -138,7 +143,7 @@ class Coverage (object):
             ax = fig.add_axes([x, yy, w, yinterval * .9])
             xy = XYtrack(ax, datafile, color=c)
             xy.interpolate(end)
-            xy.cap(ymax=50)
+            xy.cap(ymax=cap)
             if hlsuffix:
                 hlfile = op.join(datadir, ".".join((label, hlsuffix)))
                 xy.import_hlfile(hlfile, chr)

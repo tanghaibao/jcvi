@@ -103,7 +103,8 @@ class Coverage (object):
 
     def __init__(self, fig, root, canvas, chr, xlim, datadir,
                  order=None, hlsuffix=None, palette=None, cap=50,
-                 gauge="bottom", plot_label=True, gauge_step=5000000):
+                 gauge="bottom", plot_label=True, plot_chr_label=True,
+                 gauge_step=5000000):
         x, y, w, h = canvas
         p = .01
         root.add_patch(Rectangle((x - p, y - p), w + 2 * p, h + 2 * p, lw=1,
@@ -133,10 +134,12 @@ class Coverage (object):
             tpos = y - .07
 
         start, end = xlim
-        setup_gauge_ax(gauge_ax, start, end, gauge_step)
+        fs = gauge_step < 1000000
+        setup_gauge_ax(gauge_ax, start, end, gauge_step, float_formatter=fs)
 
-        root.text(x + w / 2, tpos, chr, ha="center", va="center",
-                  color="darkslategray", size=16)
+        if plot_chr_label:
+            root.text(x + w / 2, tpos, chr, ha="center", va="center",
+                      color="darkslategray", size=16)
 
         for label, datafile, c in zip(order, datafiles, set2):
             yy -= yinterval

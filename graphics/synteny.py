@@ -32,7 +32,7 @@ debug()
 
 class LayoutLine (object):
 
-    def __init__(self, row, delimiter=','):
+    def __init__(self, row, delimiter=',', hidden=False):
         args = row.rstrip().split(delimiter)
         args = [x.strip() for x in args]
         self.x = float(args[0])
@@ -42,6 +42,7 @@ class LayoutLine (object):
         self.va = args[4]
         self.color = args[5]
         self.ratio = 1
+        self.hidden = hidden
         if len(args) > 6:
             self.ratio = float(args[6])
 
@@ -55,6 +56,9 @@ class Layout (LineFile):
         for row in fp:
             if row[0] == '#':
                 continue
+            hidden = row[0] == '*'
+            if hidden:  # Hidden track
+                row = row[1:]
             if row[0] == 'e':
                 args = row.rstrip().split(delimiter)
                 args = [x.strip() for x in args]
@@ -63,7 +67,7 @@ class Layout (LineFile):
                 assert args[0] == 'e'
                 self.edges.append((a, b))
             else:
-                self.append(LayoutLine(row, delimiter=delimiter))
+                self.append(LayoutLine(row, delimiter=delimiter, hidden=hidden))
 
 
 class Shade (object):
@@ -115,10 +119,12 @@ class Region (object):
         xstart, xend = x - flank, x + flank
 
         cv = lambda t: xstart + abs(t - startbp) / scale
+        hidden = layout.hidden
 
         # Chromosome
-        ax.plot((xstart, xend), (y, y), color="gray", transform=tr, \
-                lw=2, zorder=1)
+        if not hidden:
+            ax.plot((xstart, xend), (y, y), color="gray", transform=tr, \
+                    lw=2, zorder=1)
 
         genes = bed[si: ei + 1]
         startbp, endbp = start.start, end.end
@@ -147,8 +153,9 @@ class Region (object):
             self.gg[g.accn] = (a, b)
 
             color = "b" if strand == "+" else "g"
-            gp = Glyph(ax, x1, x2, y, height, gradient=False, fc=color, zorder=3)
-            gp.set_transform(tr)
+            if not hidden:
+                gp = Glyph(ax, x1, x2, y, height, gradient=False, fc=color, zorder=3)
+                gp.set_transform(tr)
 
         ha, va = layout.ha, layout.va
 
@@ -177,10 +184,11 @@ class Region (object):
         trans_angle = ax.transAxes.transform_angles(np.array((lr, )),
                                                     l.reshape((1, 2)))[0]
         lx, ly = l
-        ax.text(lx, ly + vpad, markup(chr), color=layout.color,
-                    ha=ha, va="center", rotation=trans_angle)
-        ax.text(lx, ly - vpad, label, color="k",
-                    ha=ha, va="center", rotation=trans_angle)
+        if not hidden:
+            ax.text(lx, ly + vpad, markup(chr), color=layout.color,
+                        ha=ha, va="center", rotation=trans_angle)
+            ax.text(lx, ly - vpad, label, color="k",
+                        ha=ha, va="center", rotation=trans_angle)
 
 
 class Synteny (object):
@@ -209,17 +217,18 @@ class Synteny (object):
         for i in xrange(bf.ncols):
             ext = exts[i]
             r = Region(root, ext, lo[i], bed, scale, switch, vpad=vpad)
-            gg.update(r.gg)
+            # Use tid and accn to store gene positions
+            gg.update(dict(((i, k), v) for k, v in r.gg.items()))
             ymids.append(r.y)
 
         for i, j in lo.edges:
             for ga, gb, h in bf.iter_pairs(i, j):
-                a, b = gg[ga], gg[gb]
+                a, b = gg[(i, ga)], gg[(j, gb)]
                 ymid = (ymids[i] + ymids[j]) / 2
                 Shade(root, a, b, ymid, fc="gainsboro", lw=0, alpha=1)
 
             for ga, gb, h in bf.iter_pairs(i, j, highlight=True):
-                a, b = gg[ga], gg[gb]
+                a, b = gg[(i, ga)], gg[(j, gb)]
                 ymid = (ymids[i] + ymids[j]) / 2
                 Shade(root, a, b, ymid, alpha=1, highlight=h, zorder=2)
 

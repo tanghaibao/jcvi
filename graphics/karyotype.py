@@ -92,6 +92,8 @@ class Layout (LineFile):
         header = fp.next()
         blocks = []
         for row in fp:
+            if row[:2] == "##":
+                continue
             hl = ("*" in row)
             if hl:
                 hl, row = row.split("*", 1)

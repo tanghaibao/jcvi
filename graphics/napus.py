@@ -363,6 +363,10 @@ def f3c(args):
         gax = fig.add_axes([xstart, t.y, w, .001])
         setup_gauge_ax(gax, bp_start, bp_end, gs, float_formatter=True)
         root.text(.08, t.y, t.label, color="k", ha="center")
+        print >> sys.stderr, t.label, bp_start, bp_end
+
+    block, napusbed, layout = "target.blocks", "napus.bed", "target.layout"
+    s = Synteny(fig, root, block, napusbed, layout)
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)

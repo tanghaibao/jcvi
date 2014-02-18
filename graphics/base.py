@@ -179,7 +179,6 @@ def fontprop(ax, name, size=12):
 def markup(s):
     import re
     s = re.sub("\*(.*)\*", r"\\textit{\1}", s)
-    s = s.replace("_", "-")
     return s
 
 

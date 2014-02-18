@@ -95,8 +95,8 @@ class XYtrack (object):
         self.x, self.y = zip(*self.xy)
         ax.plot(x, y, lw=0)
         ax.fill_between(x, y, color=color, lw=0)
-        ax.add_patch(Rectangle((start, 0), end - start, self.ymax,
-                    fc=color, alpha=.2))
+        #ax.add_patch(Rectangle((start, 0), end - start, self.ymax,
+        #            fc=color, alpha=.25, lw=0))
 
 
 class Coverage (object):

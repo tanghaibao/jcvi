@@ -32,10 +32,10 @@ template_cov = """# y, xstart, xend, rotation, color, label, va, bed
 e, 0, 1, AN.CN.1x1.lifted.simple
 """
 template_f3a = r"""# y, xstart, xend, rotation, color, label, va, bed
-.9, {0}, {1}, 0, gainsboro, \textit{{B. napus}} A$\mathsf{{_n}}$2, top, AN.bed
-.75, {2}, {3}, 0, gainsboro, \textit{{B. rapa}} A$\mathsf{{_r}}$2, top, brapa.bed
-.6, {4}, {5}, 0, gainsboro, \textit{{B. oleracea}} C$\mathsf{{_o}}$2, top, boleracea.bed
-.45, {6}, {7}, 0, gainsboro, \textit{{B. napus}} C$\mathsf{{_n}}$2, top, CN.bed
+.8, {0}, {1}, 0, gainsboro, \textit{{B. napus}} A$\mathsf{{_n}}$2, top, AN.bed
+.6, {2}, {3}, 0, gainsboro, \textit{{B. rapa}} A$\mathsf{{_r}}$2, top, brapa.bed
+.4, {4}, {5}, 0, gainsboro, \textit{{B. oleracea}} C$\mathsf{{_o}}$2, top, boleracea.bed
+.2, {6}, {7}, 0, gainsboro, \textit{{B. napus}} C$\mathsf{{_n}}$2, top, CN.bed
 # edges
 e, 0, 1, AN.brapa.1x1.lifted.simple
 e, 1, 2, brapa.boleracea.1x1.lifted.simple
@@ -138,6 +138,8 @@ def cov(args):
     p.add_option("--order",
                 default="swede,kale,h165,yudal,aviso,abu,bristol,bzh",
                 help="The order to plot the tracks, comma-separated")
+    p.add_option("--reverse", default=True, action="store_true",
+                help="Plot the order in reverse")
     p.add_option("--gauge_step", default=5000000, type="int",
                 help="Step size for the base scale")
     p.add_option("--hlsuffix", default="regions.forhaibao",
@@ -152,9 +154,12 @@ def cov(args):
     chr2 = chr2.split(",")
 
     order = opts.order
+    reverse = opts.reverse
     hlsuffix = opts.hlsuffix
     if order:
         order = order.split(",")
+        if opts.reverse:
+            order.reverse()
     sizes = Sizes(sizesfile).mapping
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
@@ -205,25 +210,28 @@ def cov(args):
     root.set_axis_off()
 
     chr2 = "_".join(chr2)
+    if opts.reverse:
+        chr2 += ".reverse"
     image_name = chr2 + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
-def conversion_track(order, filename, col, label, ax, color):
+def conversion_track(order, filename, col, label, ax, color, ypos=0):
     from jcvi.formats.bed import Bed
 
     ids = []
     fp = open(filename)
     for row in fp:
         atoms = row.split()
-        gid = atoms[col].replace('T', 'G')
+        gid = atoms[col].rsplit(".", 1)[0]
+        gid = gid.replace('T', 'G')
         ids.append(gid)
 
     beds = [order[x][1] for x in ids if x in order]
     pts = [x.start for x in beds if x.seqid == label]
     logging.debug("A total of {0} converted loci imported.".format(len(pts)))
 
-    ax.scatter(pts, len(pts) * [0], s=5, c=color, edgecolors="none")
+    ax.scatter(pts, len(pts) * [ypos], s=5, c=color, edgecolors="none")
     ax.set_axis_off()
 
 
@@ -237,7 +245,7 @@ def make_affix_axis(fig, t, yoffset, height=.001):
 
 def f3a(args):
     """
-    %prog f3a chrA02,A02,C2,chrC02 chr.sizes data
+    %prog f3a chrA02,A02,C2,chrC02 chr.sizes all.bed data
 
     Napus Figure 3A displays alignments between quartet chromosomes, inset
     with read histograms.
@@ -247,16 +255,15 @@ def f3a(args):
     p = OptionParser(f3a.__doc__)
     p.add_option("--gauge_step", default=10000000, type="int",
                 help="Step size for the base scale")
-    opts, args, iopts = p.set_image_options(args, figsize="11x8")
+    opts, args, iopts = p.set_image_options(args, figsize="10x6")
 
-    if len(args) != 3:
+    if len(args) != 4:
         sys.exit(not p.print_help())
 
-    chrs, sizes, datadir = args
+    chrs, sizes, bedfile, datadir = args
     gauge_step = opts.gauge_step
     chrs = [[x] for x in chrs.split(",")]
     sizes = Sizes(sizes).mapping
-    height = .08
 
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
@@ -266,6 +273,7 @@ def f3a(args):
     # Synteny panel
     seqidsfile = make_seqids(chrs)
     klayout = make_layout(chrs, chr_sum_sizes, ratio, template_f3a)
+    height = .11
     K = Karyotype(fig, root, seqidsfile, klayout, gap=gap,
                   height=height, lw=2, generank=False, sizes=sizes)
 
@@ -282,8 +290,8 @@ def f3a(args):
         xy = XYtrack(ax, datafile, color="lightslategray")
         start, end = 0, t.total
         xy.interpolate(end)
-        #xy.cap(ymax=50)
-        #xy.import_hlfile(hlfile, chr)
+        xy.cap(ymax=40)
+        xy.import_hlfile(hlfile, chr)
         xy.draw()
         ax.set_xlim(start, end)
         gauge_ax = make_affix_axis(fig, t, -r)
@@ -291,28 +299,30 @@ def f3a(args):
         setup_gauge_ax(gauge_ax, start, end, gauge_step)
 
     # Converted gene tracks
-    ax_AN = make_affix_axis(fig, tracks[0], r, height=r/2)
-    ax_CN = make_affix_axis(fig, tracks[-1], r, height=r/2)
+    ax_Ar = make_affix_axis(fig, tracks[1], r, height=r/2)
+    ax_Co = make_affix_axis(fig, tracks[2], r, height=r/2)
 
-    order = Bed("napus.bed").order
+    order = Bed(bedfile).order
     conversion_track(order, "data/Genes.Converted.seuil.0.6.AtoC.txt",
-                     2, "chrA02", ax_AN, "b")
+                     0, "A02", ax_Ar, "b")
     conversion_track(order, "data/Genes.Converted.seuil.0.6.AtoC.txt",
-                     3, "chrC02", ax_CN, "b")
+                     1, "C2", ax_Co, "b")
     conversion_track(order, "data/Genes.Converted.seuil.0.6.CtoA.txt",
-                     2, "chrA02", ax_AN, "g")
+                     0, "A02", ax_Ar, "g", ypos=1)
     conversion_track(order, "data/Genes.Converted.seuil.0.6.CtoA.txt",
-                     3, "chrC02", ax_CN, "g")
-    ax_AN.set_xlim(0, tracks[0].total)
-    ax_CN.set_xlim(0, tracks[-1].total)
+                     1, "C2", ax_Co, "g", ypos=1)
+    ax_Ar.set_xlim(0, tracks[1].total)
+    ax_Ar.set_ylim(-.5, 1.5)
+    ax_Co.set_xlim(0, tracks[2].total)
+    ax_Co.set_ylim(-.5, 1.5)
 
     # Conversion legend
     root.text(.81, .8, r"Converted A$\mathsf{_n}$ to C$\mathsf{_n}$",
                 va="center")
     root.text(.81, .77, r"Converted C$\mathsf{_n}$ to A$\mathsf{_n}$",
                 va="center")
-    root.scatter([.8], [.8], s=10, color="b")
-    root.scatter([.8], [.77], s=10, color="g")
+    root.scatter([.8], [.8], s=20, color="b")
+    root.scatter([.8], [.77], s=20, color="g")
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
@@ -358,8 +368,7 @@ def f3c(args):
         ax.set_xlim(bp_start, bp_end)
         ax.plot([t.start, t.start], [0, 40], "r-", lw=2)
         ax.plot([t.end, t.end], [0, 40], "r-", lw=2)
-        #ax.add_patch(Rectangle([t.start, 0], t.end - t.start, 40,
-        #                    fc="r", alpha=.2))
+
         xy.interpolate(bp_end)
         xy.draw()
         gax = fig.add_axes([xstart, t.y, w, .001])

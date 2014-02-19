@@ -127,7 +127,7 @@ class Region (object):
             ax.plot((xstart, xend), (y, y), color="gray", transform=tr, \
                     lw=2, zorder=1)
 
-        genes = bed[si: ei + 1]
+        self.genes = genes = bed[si: ei + 1]
         startbp, endbp = start.start, end.end
         if orientation == '-':
             startbp, endbp = endbp, startbp

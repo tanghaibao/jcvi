@@ -529,7 +529,7 @@ def expr(args):
     from jcvi.graphics.base import red_purple as default_cm
 
     p = OptionParser(expr.__doc__)
-    opts, args, iopts = p.set_image_options(args, figsize="8x7")
+    opts, args, iopts = p.set_image_options(args, figsize="8x5")
 
     if len(args) != 4:
         sys.exit(not p.print_help())
@@ -539,50 +539,59 @@ def expr(args):
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
     s = Synteny(fig, root, block, napusbed, layout)
-    draw_gene_legend(root, .22, .55, .57)
 
     # Import the expression values
     # Columns are: leaf-A, leaf-C, root-A, root-C
-    pairs = [row.split() for row in open(block)]
-    data = np.loadtxt(exp)
-    nrows = len(pairs)
-    #assert data.shape[0] == nrows, "block and exp row counts mismatch"
-    A = data[:, [2, 0]]
-    C = data[:, [3, 1]]
+    fp = open(exp)
+    data = {}
+    for row in fp:
+        gid, lf, rt = row.split()
+        lf, rt = float(lf), float(rt)
+        data[gid] = (lf, rt)
+
+    rA, rB = s.rr
+    gA = [x.accn for x in rA.genes]
+    gC = [x.accn for x in rB.genes]
+
+    A = [data.get(x, (0, 0)) for x in gA]
+    C = [data.get(x, (0, 0)) for x in gC]
+    A = np.array(A)
+    C = np.array(C)
     A = np.transpose(A)
     C = np.transpose(C)
 
-    x, y, d, w, h = .18, .64, .008, .65, .08
+    d, h = .01, .1
     lsg = "lightslategrey"
     coords = s.gg  # Coordinates of the genes
-    Ag = [p[0] for p in pairs]
-    Cg = [p[1] for p in pairs]
-
-    for y, Gg in ((.64, Ag), (.29, Cg)):
+    axes = []
+    for j, (y, gg) in enumerate(((.79, gA), (.24, gC))):
+        r = s.rr[j]
+        x = r.xstart
+        w = r.xend - r.xstart
+        ax = fig.add_axes([x, y, w, h])
+        axes.append(ax)
         root.add_patch(Rectangle((x - h, y - d), w + h + d, h + 2 * d, fill=False,
                                 ec=lsg, lw=1))
-        root.text(x - d, y + 3 * h / 4, "leaf", ha="right", va="center")
-        root.text(x - d, y + h / 4, "root", ha="right", va="center")
+        root.text(x - d, y + 3 * h / 4, "root", ha="right", va="center")
+        root.text(x - d, y + h / 4, "leaf", ha="right", va="center")
         ty = y - 2 * d if y > .5 else y + h + 2 * d
-        for i, g in enumerate(Gg):
-            start, end = coords[g]
+        nrows = len(gg)
+        for i, g in enumerate(gg):
+            start, end = coords[(j, g)]
             sx, sy = start
             ex, ey = end
             assert sy == ey
             sy = sy + 2 * d if sy > .5 else sy - 2 * d
-            root.plot(((sx + ex) / 2, x + w * (i + .5)/ nrows), (sy, ty),
-                            lw=2, ls=":", color="k", alpha=.2)
+            root.plot(((sx + ex) / 2, x + w * (i + .5) / nrows), (sy, ty),
+                            lw=1, ls=":", color="k", alpha=.2)
 
-    axA = fig.add_axes([x, .64, w, h])
-    axC = fig.add_axes([x, .29, w, h])
+    axA, axC = axes
+    p = axA.pcolormesh(A, cmap=default_cm)
+    p = axC.pcolormesh(C, cmap=default_cm)
+    axA.set_xlim(0, len(gA))
+    axC.set_xlim(0, len(gC))
 
-    norm = LogNorm(1, 10000)
-    p = axA.pcolormesh(A, cmap=default_cm, norm=norm)
-    p = axC.pcolormesh(C, cmap=default_cm, norm=norm)
-    axA.set_xlim(0, nrows)
-    axC.set_xlim(0, nrows)
-
-    x, y, w, h = .35, .17, .3, .03
+    x, y, w, h = .35, .1, .3, .05
     ax_colorbar = fig.add_axes([x, y, w, h])
     fig.colorbar(p, cax=ax_colorbar, orientation='horizontal')
     root.text(x - d, y + h / 2, "RPKM", ha="right", va="center")
@@ -592,8 +601,7 @@ def expr(args):
     for x in (axA, axC, root):
         x.set_axis_off()
 
-    pf = "napusexp"
-    image_name = pf + "." + iopts.format
+    image_name = "napusf4b." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 

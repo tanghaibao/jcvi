@@ -32,7 +32,10 @@ debug()
 
 class LayoutLine (object):
 
-    def __init__(self, row, delimiter=',', hidden=False):
+    def __init__(self, row, delimiter=','):
+        self.hidden = row[0] == '*'
+        if self.hidden:
+            row = row[1:]
         args = row.rstrip().split(delimiter)
         args = [x.strip() for x in args]
         self.x = float(args[0])
@@ -42,7 +45,6 @@ class LayoutLine (object):
         self.va = args[4]
         self.color = args[5]
         self.ratio = 1
-        self.hidden = hidden
         if len(args) > 6:
             self.ratio = float(args[6])
 
@@ -56,9 +58,6 @@ class Layout (LineFile):
         for row in fp:
             if row[0] == '#':
                 continue
-            hidden = row[0] == '*'
-            if hidden:  # Hidden track
-                row = row[1:]
             if row[0] == 'e':
                 args = row.rstrip().split(delimiter)
                 args = [x.strip() for x in args]
@@ -67,7 +66,7 @@ class Layout (LineFile):
                 assert args[0] == 'e'
                 self.edges.append((a, b))
             else:
-                self.append(LayoutLine(row, delimiter=delimiter, hidden=hidden))
+                self.append(LayoutLine(row, delimiter=delimiter))
 
 
 class Shade (object):
@@ -105,7 +104,8 @@ class Shade (object):
 
 class Region (object):
 
-    def __init__(self, ax, ext, layout, bed, scale, switch=None, pad=.04, vpad=.012):
+    def __init__(self, ax, ext, layout, bed, scale, switch=None, chr_label=True,
+                 pad=.04, vpad=.012):
         x, y = layout.x, layout.y
         ratio = layout.ratio
         scale /= ratio
@@ -117,6 +117,7 @@ class Region (object):
         start, end, si, ei, chr, orientation, span = ext
         flank = span / scale / 2
         xstart, xend = x - flank, x + flank
+        self.xstart, self.xend = xstart, xend
 
         cv = lambda t: xstart + abs(t - startbp) / scale
         hidden = layout.hidden
@@ -184,7 +185,7 @@ class Region (object):
         trans_angle = ax.transAxes.transform_angles(np.array((lr, )),
                                                     l.reshape((1, 2)))[0]
         lx, ly = l
-        if not hidden:
+        if not hidden and chr_label:
             ax.text(lx, ly + vpad, markup(chr), color=layout.color,
                         ha=ha, va="center", rotation=trans_angle)
             ax.text(lx, ly - vpad, label, color="k",
@@ -194,7 +195,7 @@ class Region (object):
 class Synteny (object):
 
     def __init__(self, fig, root, datafile, bedfile, layoutfile,
-                 switch=None, tree=None, pad=.04):
+                 switch=None, tree=None, chr_label=True, pad=.04):
 
         w, h = fig.get_figwidth(), fig.get_figheight()
         bed = Bed(bedfile)
@@ -212,11 +213,13 @@ class Synteny (object):
         scale = maxspan / .65
 
         self.gg = gg = {}
+        self.rr = []
         ymids = []
         vpad = .012 * w / h
         for i in xrange(bf.ncols):
             ext = exts[i]
-            r = Region(root, ext, lo[i], bed, scale, switch, vpad=vpad)
+            r = Region(root, ext, lo[i], bed, scale, switch, chr_label=chr_label, vpad=vpad)
+            self.rr.append(r)
             # Use tid and accn to store gene positions
             gg.update(dict(((i, k), v) for k, v in r.gg.items()))
             ymids.append(r.y)

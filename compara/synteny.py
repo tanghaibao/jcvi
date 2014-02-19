@@ -144,8 +144,9 @@ class BlockFile (BaseFile):
         chr = start.seqid if same_chr else None
         ngenes = ei - si + 1
         if debug:
-            print >> sys.stderr, "Column {0}: {1} - {2}".\
-                    format(i, start.accn, end.accn)
+            r = "{0}:{1}-{2}".format(chr, start.start, end.end)
+            print >> sys.stderr, "Column {0}: {1} - {2} ({3})".\
+                    format(i, start.accn, end.accn, r)
             print >> sys.stderr, "  {0} .. {1} ({2}) features .. {3}".\
                     format(chr, ngenes, len(ocol), orientation)
 

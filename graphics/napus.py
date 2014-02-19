@@ -350,18 +350,23 @@ def f3c(args):
     root = fig.add_axes([0, 0, 1, 1])
 
     block, napusbed, slayout = "r28.txt", "all.bed", "r28.layout"
-    s = Synteny(fig, root, block, napusbed, slayout)
+    s = Synteny(fig, root, block, napusbed, slayout, chr_label=False)
+    synteny_exts = [(x.xstart, x.xend) for x in s.rr]
 
-    w = .7
     h = .1
-    xstart = .12
     order = "bzh,yudal".split(",")
-    for t in layout:
-        canvas = [xstart, t.y, w, h]
+    labels = (r"\textit{B. napus} A$\mathsf{_n}$2",
+              r"\textit{B. rapa} A$\mathsf{_r}$2",
+              r"\textit{B. oleracea} C$\mathsf{_o}$2",
+              r"\textit{B. napus} C$\mathsf{_n}$2")
+    for i, (label, t) in enumerate(zip(labels, layout)):
+        xstart, xend = synteny_exts[2 * i]
+        canvas = [xstart, t.y, xend - xstart, h]
+        root.text(xstart - h, t.y + h / 2, label, ha="center", va="center")
         c = Coverage(fig, root, canvas, t.seqid, (t.start, t.end), datadir,
                      order=order, gauge="top", plot_chr_label=False,
                      gauge_step=gs, palette="gray",
-                     cap=40)
+                     cap=40, hlsuffix="regions.forhaibao")
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)

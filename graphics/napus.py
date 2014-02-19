@@ -44,7 +44,7 @@ e, 3, 2, CN.boleracea.1x1.lifted.simple
 gap = .03
 
 
-class F3CLayoutLine (object):
+class F4ALayoutLine (object):
 
     def __init__(self, row, delimiter=",", datadir=None):
         args = row.rstrip().split(delimiter)
@@ -55,19 +55,20 @@ class F3CLayoutLine (object):
         self.start, self.end = int(start), int(end)
         self.center = (self.start + self.end) / 2
         self.span = self.end - self.start + 1
-        self.y = float(args[1])
+        self.box_region = args[1]
+        self.y = float(args[2])
 
 
-class F3CLayout(LineFile):
+class F4ALayout(LineFile):
 
     def __init__(self, filename, delimiter=',', datadir=None):
-        super(F3CLayout, self).__init__(filename)
+        super(F4ALayout, self).__init__(filename)
         fp = open(filename)
         self.edges = []
         for row in fp:
             if row[0] == '#':
                 continue
-            self.append(F3CLayoutLine(row, delimiter=delimiter,
+            self.append(F4ALayoutLine(row, delimiter=delimiter,
                                     datadir=datadir))
 
 
@@ -79,7 +80,7 @@ def main():
         ('cov', 'plot coverage graphs between homeologs (requires data)'),
         ('deletion', 'plot histogram for napus deletions (requires data)'),
         ('f3a', 'plot figure-3a'),
-        ('f3c', 'plot figure-3c'),
+        ('f4a', 'plot figure-4a'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -327,23 +328,23 @@ def f3a(args):
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
-def f3c(args):
+def f4a(args):
     """
-    %prog f3c layout data
+    %prog f4a layout data
 
-    Napus Figure 3C displays an example deleted region for quartet chromosomes,
+    Napus Figure 4A displays an example deleted region for quartet chromosomes,
     showing read alignments from high GL and low GL lines.
     """
-    p = OptionParser(f3c.__doc__)
+    p = OptionParser(f4a.__doc__)
     p.add_option("--gauge_step", default=200000, type="int",
                 help="Step size for the base scale")
-    opts, args, iopts = p.set_image_options(args, figsize="10x8")
+    opts, args, iopts = p.set_image_options(args, figsize="9x9")
 
     if len(args) != 2:
         sys.exit(not p.print_help())
 
     layout, datadir = args
-    layout = F3CLayout(layout, datadir=datadir)
+    layout = F4ALayout(layout, datadir=datadir)
 
     gs = opts.gauge_step
     fig = plt.figure(1, (iopts.w, iopts.h))
@@ -363,16 +364,29 @@ def f3c(args):
         xstart, xend = synteny_exts[2 * i]
         canvas = [xstart, t.y, xend - xstart, h]
         root.text(xstart - h, t.y + h / 2, label, ha="center", va="center")
+        ch, ab = t.box_region.split(":")
+        a, b = ab.split("-")
+        vlines = [int(x) for x in (a, b)]
         c = Coverage(fig, root, canvas, t.seqid, (t.start, t.end), datadir,
                      order=order, gauge="top", plot_chr_label=False,
                      gauge_step=gs, palette="gray",
-                     cap=40, hlsuffix="regions.forhaibao")
+                     cap=40, hlsuffix="regions.forhaibao",
+                     vlines=vlines)
+
+    # Highlight GSL biosynthesis genes
+    a, b = (3, "Bra029311"), (5, "Bo2g161590")
+    for x in (a, b):
+        start, end = s.gg[x]
+        xstart, ystart = start
+        xend, yend = end
+        x = (xstart + xend) / 2
+        TextCircle(root, x, ystart, "G", radius=.012, zorder=20)
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
     root.set_axis_off()
 
-    image_name = "napusf3c." + iopts.format
+    image_name = "napusf4a." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 

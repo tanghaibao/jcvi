@@ -95,8 +95,10 @@ class XYtrack (object):
         self.x, self.y = zip(*self.xy)
         ax.plot(x, y, lw=0)
         ax.fill_between(x, y, color=color, lw=0)
-        #ax.add_patch(Rectangle((start, 0), end - start, self.ymax,
-        #            fc=color, alpha=.25, lw=0))
+
+    def vlines(self, xs, color='m'):
+        for x in xs:
+            self.ax.plot((x, x), (0, self.ymax), "-", color=color, lw=2)
 
 
 class Coverage (object):
@@ -104,7 +106,7 @@ class Coverage (object):
     def __init__(self, fig, root, canvas, chr, xlim, datadir,
                  order=None, hlsuffix=None, palette=None, cap=50,
                  gauge="bottom", plot_label=True, plot_chr_label=True,
-                 gauge_step=5000000):
+                 gauge_step=5000000, vlines=None):
         x, y, w, h = canvas
         p = .01
         root.add_patch(Rectangle((x - p, y - p), w + 2 * p, h + 2 * p, lw=1,
@@ -147,6 +149,8 @@ class Coverage (object):
             xy = XYtrack(ax, datafile, color=c)
             xy.interpolate(end)
             xy.cap(ymax=cap)
+            if vlines:
+                xy.vlines(vlines)
             if hlsuffix:
                 hlfile = op.join(datadir, ".".join((label, hlsuffix)))
                 xy.import_hlfile(hlfile, chr)

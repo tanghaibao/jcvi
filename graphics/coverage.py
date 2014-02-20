@@ -179,7 +179,7 @@ def main():
         sys.exit(not p.print_help())
 
     chr, sizes, datadir = args
-    order = opt.order
+    order = opts.order
     hlsuffix = opts.hlsuffix
     if order:
         order = order.split(",")

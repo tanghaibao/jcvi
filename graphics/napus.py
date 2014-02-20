@@ -12,7 +12,7 @@ import logging
 import numpy as np
 
 from jcvi.graphics.base import plt, _, Rectangle, Polygon, CirclePolygon, \
-        savefig, mpl, cm, adjust_spines
+        savefig, mpl, cm, adjust_spines, FancyArrowPatch
 from jcvi.graphics.glyph import GeneGlyph, RoundLabel, RoundRect, \
         arrowprops, TextCircle, plot_cap
 from jcvi.graphics.chromosome import Chromosome
@@ -134,7 +134,7 @@ def cov(args):
     p.add_option("--order",
                 default="swede,kale,h165,yudal,aviso,abu,bristol,bzh",
                 help="The order to plot the tracks, comma-separated")
-    p.add_option("--reverse", default=True, action="store_true",
+    p.add_option("--reverse", default=False, action="store_true",
                 help="Plot the order in reverse")
     p.add_option("--gauge_step", default=5000000, type="int",
                 help="Step size for the base scale")
@@ -270,15 +270,16 @@ def f3a(args):
     seqidsfile = make_seqids(chrs)
     klayout = make_layout(chrs, chr_sum_sizes, ratio, template_f3a)
     height = .11
+    r = height / 4
     K = Karyotype(fig, root, seqidsfile, klayout, gap=gap,
-                  height=height, lw=2, generank=False, sizes=sizes)
+                  height=height, lw=2, generank=False, sizes=sizes,
+                  heightpad=r)
 
     # Inset with datafiles
     datafiles = ("chrA02.bzh.forxmgr", "parent.A02.per10kb.forxmgr",
                  "parent.C2.per10kb.forxmgr", "chrC02.bzh.forxmgr")
     datafiles = [op.join(datadir, x) for x in datafiles]
     tracks = K.tracks
-    r = height / 4
     hlfile = op.join(datadir, "bzh.regions.forhaibao")
     for t, datafile in zip(tracks, datafiles):
         ax = make_affix_axis(fig, t, -r, height=2 * r)
@@ -375,12 +376,17 @@ def f4a(args):
 
     # Highlight GSL biosynthesis genes
     a, b = (3, "Bra029311"), (5, "Bo2g161590")
-    for x in (a, b):
-        start, end = s.gg[x]
+    for gid in (a, b):
+        start, end = s.gg[gid]
         xstart, ystart = start
         xend, yend = end
         x = (xstart + xend) / 2
-        TextCircle(root, x, ystart, "G", radius=.012, zorder=20)
+        #TextCircle(root, x, ystart, "G", radius=.012, zorder=20)
+        arrow = FancyArrowPatch(posA=(x, ystart - .03),
+                                posB=(x, ystart - .005),
+                                arrowstyle="fancy,head_width=6,head_length=8",
+                                lw=3, fc='k', ec='k', zorder=20)
+        root.add_patch(arrow)
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
@@ -506,7 +512,7 @@ def ploidy(args):
     bb = dict(boxstyle="round,pad=.5", fc="w", ec="0.5", alpha=0.5)
     root.text(.5, .2 + ot, r"\noindent\textit{Brassica napus}\\"
                 "(A$\mathsf{_n}$C$\mathsf{_n}$ genome)", ha="center",
-                size=16, color="g", bbox=bb)
+                size=16, color="k", bbox=bb)
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
@@ -525,7 +531,6 @@ def expr(args):
     homeologs in two tissues - total 4 lists of values. block file contains the
     gene pairs between AN and CN.
     """
-    from matplotlib.colors import LogNorm
     from jcvi.graphics.base import red_purple as default_cm
 
     p = OptionParser(expr.__doc__)

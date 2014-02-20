@@ -15,7 +15,8 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 
 from matplotlib import cm, rc
-from matplotlib.patches import Rectangle, Polygon, CirclePolygon, PathPatch
+from matplotlib.patches import Rectangle, Polygon, CirclePolygon, PathPatch, \
+            FancyArrowPatch
 from matplotlib.path import Path
 from matplotlib.colors import LogNorm
 from matplotlib.transforms import Affine2D

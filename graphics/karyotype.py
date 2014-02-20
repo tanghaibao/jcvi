@@ -113,7 +113,7 @@ MaxSeqids = 20   # above which no labels are written
 
 class Track (object):
 
-    def __init__(self, ax, t, gap=.01, height=.01, lw=1, draw=True):
+    def __init__(self, ax, t, gap=.01, height=.01, lw=1, draw=True, heightpad=0):
 
         self.empty = t.empty
         if t.empty:
@@ -216,24 +216,26 @@ class Track (object):
         order_in_chr = self.order_in_chr
         seqid, i, f = order_in_chr[gene]
         if seqid not in self.offsets:
-            return None, None
+            return [None, None]
         x = self.offsets[seqid] + self.ratio * i
         y = self.y
         x, y = self.tr.transform((x, y))
         x, y = self.inv.transform((x, y))
 
-        return x, y
+        return [x, y]
 
 
 class ShadeManager (object):
 
-    def __init__(self, ax, tracks, layout):
+    def __init__(self, ax, tracks, layout, heightpad=0):
         for i, j, blocks in layout.edges:
             # if same track (duplication shades), shall we draw above or below?
             samearc = "above" if i == j and i == 0 else "below"
-            self.draw_blocks(ax, blocks, tracks[i], tracks[j], samearc=samearc)
+            self.draw_blocks(ax, blocks, tracks[i], tracks[j],
+                             samearc=samearc, heightpad=heightpad)
 
-    def draw_blocks(self, ax, blocks, atrack, btrack, samearc="below"):
+    def draw_blocks(self, ax, blocks, atrack, btrack,
+                    samearc="below", heightpad=0):
         for a, b, c, d, score, orientation, highlight in blocks:
             p = atrack.get_coords(a), atrack.get_coords(b)
             q = btrack.get_coords(c), btrack.get_coords(d)
@@ -249,6 +251,13 @@ class ShadeManager (object):
                     ymid = atrack.y - pad
                 else:
                     ymid = atrack.y + pad
+            if heightpad:
+                if atrack.y < btrack.y:
+                    p[0][1] = p[1][1] = atrack.y + heightpad
+                    q[0][1] = q[1][1] = btrack.y - heightpad
+                else:
+                    p[0][1] = p[1][1] = atrack.y - heightpad
+                    q[0][1] = q[1][1] = btrack.y + heightpad
 
             zorder = 2 if highlight else 1
             lw = 1 if highlight else 0
@@ -259,7 +268,7 @@ class ShadeManager (object):
 class Karyotype (object):
 
     def __init__(self, fig, root, seqidsfile, layoutfile, gap=.01,
-                 height=.01, lw=1, generank=True, sizes=None):
+                 height=.01, lw=1, generank=True, sizes=None, heightpad=0):
 
         layout = Layout(layoutfile, generank=generank)
 
@@ -289,7 +298,7 @@ class Karyotype (object):
             tr = Track(root, lo, gap=gap, height=height, lw=lw, draw=False)
             tracks.append(tr)
 
-        ShadeManager(root, tracks, layout)
+        ShadeManager(root, tracks, layout, heightpad=heightpad)
 
         for tr in tracks:
             tr.draw()  # this time for real

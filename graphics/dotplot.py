@@ -71,7 +71,24 @@ def draw_box(clusters, ax, color="b"):
                                 ec=color, fc='y', alpha=.5))
 
 
-def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts,
+def dotplot_main(anchorfile, qbed, sbed, image_name, iopts, vmin=0, vmax=1,
+        is_self=False, synteny=False, cmap_text=None, genomenames=None,
+        sample_number=10000, ignore=.005, palette=None, chrlw=.01, title=None):
+
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes([0, 0, 1, 1])  # the whole canvas
+    ax = fig.add_axes([.1, .1, .8, .8])  # the dot plot
+
+    dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=vmin, vmax=vmax,
+        is_self=is_self, synteny=synteny, cmap_text=cmap_text,
+        genomenames=genomenames,
+        sample_number=sample_number, ignore=ignore, palette=palette,
+        chrlw=chrlw, title=title)
+
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
+
+
+def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
         is_self=False, synteny=False, cmap_text=None, genomenames=None,
         sample_number=10000, ignore=.005, palette=None, chrlw=.01, title=None):
 
@@ -125,10 +142,6 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts,
         data.append((qi, si, nv))
         if is_self:  # Mirror image
             data.append((si, qi, nv))
-
-    fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes([0, 0, 1, 1])  # the whole canvas
-    ax = fig.add_axes([.1, .1, .8, .8])  # the dot plot
 
     # only show random subset, default to sample_number = 5000
     if len(data) > sample_number:
@@ -248,7 +261,6 @@ def dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts,
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
     root.set_axis_off()
-    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
 if __name__ == "__main__":
@@ -290,7 +302,7 @@ if __name__ == "__main__":
     qbed, sbed, qorder, sorder, is_self = check_beds(anchorfile, p, opts)
 
     image_name = op.splitext(anchorfile)[0] + "." + opts.format
-    dotplot(anchorfile, qbed, sbed, image_name, vmin, vmax, iopts, \
+    dotplot_main(anchorfile, qbed, sbed, image_name, iopts, vmin=0, vmax=1,
             is_self=is_self, synteny=synteny, cmap_text=cmap_text, \
             genomenames=genomenames, sample_number=sample_number,
             ignore=opts.ignore, palette=palette)

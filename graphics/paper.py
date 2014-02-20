@@ -5,6 +5,7 @@
 Functions in this script produce figures in the various past manuscripts.
 """
 
+import os.path as op
 import sys
 import logging
 
@@ -37,9 +38,57 @@ def main():
         ('amborella', 'plot amborella macro- and micro-synteny (requires data)'),
         # Unpublished
         ('litchi', 'plot litchi micro-synteny (requires data)'),
+        ('mtdotplots', 'plot Mt3.5 and Mt4.0 side-by-side'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def mtdotplots(args):
+    """
+    %prog mtdotplots Mt3.5 Mt4.0 medicago.medicago.lifted.1x1.anchors
+
+    Plot Mt3.5 and Mt4.0 side-by-side. This is essentially combined from two
+    graphics.dotplot() function calls as panel A and B.
+    """
+    from jcvi.graphics.dotplot import check_beds, dotplot
+
+    p = OptionParser(mtdotplots.__doc__)
+    p.set_beds()
+    opts, args, iopts = p.set_image_options(args, figsize="16x8", dpi=90)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    a, b, ac = args
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes([0, 0, 1, 1])
+    r1 = fig.add_axes([0, 0, .5, 1])
+    r2 = fig.add_axes([.5, 0, .5, 1])
+    a1 = fig.add_axes([.05, .1, .4, .8])
+    a2 = fig.add_axes([.55, .1, .4, .8])
+
+    anchorfile = op.join(a, ac)
+    qbed, sbed, qorder, sorder, is_self = check_beds(anchorfile, p, opts)
+    dotplot(anchorfile, qbed, sbed, fig, r1, a1, is_self=is_self,
+            genomenames="Mt3.5_Mt3.5")
+
+    opts.qbed = opts.sbed = None
+    anchorfile = op.join(b, ac)
+    qbed, sbed, qorder, sorder, is_self = check_beds(anchorfile, p, opts)
+    dotplot(anchorfile, qbed, sbed, fig, r2, a2, is_self=is_self,
+            genomenames="Mt4.0_Mt4.0")
+
+    root.text(.03, .95, "A", ha="center", va="center", size=36)
+    root.text(.53, .95, "B", ha="center", va="center", size=36)
+
+    root.set_xlim(0, 1)
+    root.set_ylim(0, 1)
+    root.set_axis_off()
+
+    pf = "mtdotplots"
+    image_name = pf + "." + iopts.format
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
 def litchi(args):

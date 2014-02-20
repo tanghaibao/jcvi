@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
+import os.path as op
 import sys
 import logging
 
@@ -364,11 +365,12 @@ def synteny_liftover(points, anchors, dist):
 
 def check_beds(hintfile, p, opts):
 
+    wd, hintfile = op.split(hintfile)
     if not (opts.qbed and opts.sbed):
         try:
             q, s = hintfile.split(".", 2)[:2]
-            opts.qbed = q + ".bed"
-            opts.sbed = s + ".bed"
+            opts.qbed = op.join(wd, q + ".bed")
+            opts.sbed = op.join(wd, s + ".bed")
             logging.debug("Assuming --qbed={0} --sbed={1}".\
                          format(opts.qbed, opts.sbed))
         except:

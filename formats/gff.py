@@ -93,7 +93,7 @@ class GffLine (object):
             return self.attributes[key]
         return None
 
-    def set_attr(self, key, value, update=True, gff3=None, append=False, dbtag=None):
+    def set_attr(self, key, value, update=False, append=False, dbtag=None):
         if type(value) is not list:
             value = [value]
             if key == "Dbxref" and dbtag:
@@ -102,7 +102,7 @@ class GffLine (object):
             self.attributes[key] = []
         self.attributes[key].extend(value)
         if update:
-            self.update_attributes(gff3=gff3, urlquote=False)
+            self.update_attributes(gff3=self.gff3, urlquote=False)
 
     def update_attributes(self, skipEmpty=None, gff3=None, urlquote=True):
         attributes = []
@@ -802,7 +802,7 @@ def format(args):
             merge_feats = AutoVivification()
         gff = Gff(gffile)
         for idx, g in enumerate(gff):
-            if opts.gff3 and "ID" not in g.attributes.keys():
+            if "ID" not in g.attributes.keys():
                 id = "{0}_{1}".format(str(g.type).lower(), idx)
             else:
                 id = g.accn
@@ -891,7 +891,7 @@ def format(args):
                 tag = note[name]
 
             if tag:
-                g.set_attr("Note", tag)
+                g.set_attr("Note", tag, update=False)
 
         if attrib_files:
             for attr_name in attr_values.keys():
@@ -904,8 +904,8 @@ def format(args):
                     g.set_attr("Dbxref", dbxref_values[dbtag][id], dbtag=dbtag, append=True)
 
         if unique:
-            if opts.gff3 and "ID" not in g.attributes.keys():
-                g.set_attr("ID", "{0}_{1}".format(str(g.type).lower(), idx))
+            if "ID" not in g.attributes.keys():
+                g.set_attr("ID", "{0}_{1}".format(str(g.type).lower(), idx), update=False)
 
             id = g.accn
             if dupcounts[id] > 1:
@@ -913,12 +913,12 @@ def format(args):
                 old_id = id
                 id = "{0}-{1}".format(old_id, seen[old_id])
                 newparentid[old_id] = id
-                g.set_attr("ID", id, gff3=True)
+                g.set_attr("ID", id)
 
             if "Parent" in g.attributes.keys():
                 parent = g.attributes["Parent"][0]
                 if dupcounts[parent] > 1:
-                    g.set_attr("Parent", newparentid[parent], gff3=True)
+                    g.set_attr("Parent", newparentid[parent])
 
         if duptype:
             id = g.accn
@@ -938,14 +938,13 @@ def format(args):
         if opts.multiparents == "split" and (pp and len(pp) > 1):  # separate features with multiple parents
             id = g.get_attr("ID")
             for i, parent in enumerate(pp):
-                g.set_attr("ID", "{0}-{1}".format(id, i + 1), update=False)
-                g.set_attr("Parent", parent)
+                g.set_attr("ID", "{0}-{1}".format(id, i + 1))
+                g.set_attr("Parent", parent, update=True)
                 if gsac:
                     fix_gsac(g, notes)
                 print >> fw, g
         else:
-            if opts.gff3:
-                g.update_attributes(gff3=True)
+            g.update_attributes()
             if gsac:
                 fix_gsac(g, notes)
             if duptype == g.type and skip[(idx, g.accn, g.start, g.end)] == 1:
@@ -1202,9 +1201,9 @@ def populate_children(outfile, ids, gffile, otype=None, iter="2"):
     seen = set()
     for g in gff:
         accn = g.accn
-        if accn in seen:
+        if (accn in seen) or (otype and g.type != otype):
             continue
-        if ((otype and g.type == otype) and accn in ids) or (accn in children):
+        if (accn in ids) or (accn in children):
             seen.add(accn)
             print >> fw, g
     fw.close()

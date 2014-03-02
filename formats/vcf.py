@@ -256,6 +256,8 @@ def mstmap(args):
     p.add_option("--pv4", default=False, action="store_true",
                  help="Enable filtering strand-bias, tail distance bias, etc. "
                  "[default: %default]")
+    p.add_option("--sep", default=".",
+                 help="Use separator to simplify individual names")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -273,6 +275,7 @@ def mstmap(args):
             sh(cmd, outfile=vcffile)
 
     freq = opts.freq
+    sep = opts.sep
 
     header = """population_type {0}
 population_name LG
@@ -297,7 +300,7 @@ number_of_individual {3}
             continue
         atoms = row.split()
         if row[0] == '#':
-            ind = [x.split(".")[0] for x in atoms[9:]]
+            ind = [x.split(sep)[0] for x in atoms[9:]]
             nind = len(ind)
             mh = "\t".join(["locus_name"] + ind)
             continue

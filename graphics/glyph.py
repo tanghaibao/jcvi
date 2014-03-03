@@ -7,13 +7,11 @@ Gradient gene features
 
 import os.path as op
 import sys
-import logging
 
 import numpy as np
 
 from jcvi.apps.base import OptionParser, ActionDispatcher, debug
-from jcvi.graphics.base import plt, Rectangle, CirclePolygon, Polygon, _, \
-        savefig
+from jcvi.graphics.base import plt, Rectangle, CirclePolygon, Polygon, savefig
 debug()
 
 tstep = .05
@@ -83,7 +81,7 @@ class RoundRect (object):
         ax.add_patch(p1)
         # add a white transparency ellipse filter
         if label:
-            root.text(x + width / 2,y + height / 2,label, size=10,
+            ax.text(x + width / 2,y + height / 2,label, size=10,
                       ha="center", va="center", color="w")
 
 
@@ -283,14 +281,15 @@ def gff(args):
     gffiles = args
     ngenes = len(gffiles)
 
-    setups, ratio = get_setups(gffiles, canvas=.6, noUTR=opts.noUTR)
+    canvas = .6
+    setups, ratio = get_setups(gffiles, canvas=canvas, noUTR=opts.noUTR)
     align = opts.align
     xs = .2 if align == "left" else .8
     yinterval = canvas / ngenes
     ys = .8
     tip = .01
     for genename, mrnabed, cdsbeds in setups:
-        ex = ExonGlyph(root, xs, ys, mrnabed, cdsbeds, ratio=ratio, align=align)
+        ExonGlyph(root, xs, ys, mrnabed, cdsbeds, ratio=ratio, align=align)
         if align == "left":
             root.text(xs - tip, ys, genename, ha="right", va="center")
         elif align == "right":

@@ -13,7 +13,6 @@ You can download a number of free TTF fonts from:
 
 
 import sys
-import logging
 
 from jcvi.graphics.base import plt, savefig, fontprop, available_fonts
 from jcvi.apps.base import OptionParser, debug
@@ -40,7 +39,7 @@ def main():
     ax = fig.add_axes([0, 0, 1, 1])
 
     ax.text(.5, .5, text, color=opts.color, ha="center", va="center")
-    prop = fontprop(ax, opts.font, size=opts.size)
+    fontprop(ax, opts.font, size=opts.size)
 
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)

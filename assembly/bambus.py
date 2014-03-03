@@ -5,7 +5,6 @@
 Driver script to run BAMBUS to scaffold contigs.
 """
 
-import os.path as op
 import sys
 
 from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh, need_update

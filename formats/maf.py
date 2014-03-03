@@ -6,10 +6,7 @@ MAF format specification:
 <http://genome.ucsc.edu/FAQ/FAQformat#format5>
 """
 
-import os
-import os.path as op
 import sys
-import logging
 
 from bx import interval_index_file
 from bx.align import maf
@@ -17,7 +14,7 @@ from bx.align import maf
 from jcvi.formats.base import BaseFile
 from jcvi.apps.base import OptionParser, ActionDispatcher, debug, need_update
 from jcvi.apps.lastz import blastz_score_to_ncbi_expectation, \
-            blastz_score_to_ncbi_bits, blast_fields
+            blastz_score_to_ncbi_bits
 debug()
 
 
@@ -29,20 +26,20 @@ class Maf (BaseFile, dict):
         indexfile = filename + ".idx"
         if index:
             if need_update(filename, indexfile):
-                self.build_index(indexfile)
+                self.build_index(filename, indexfile)
 
             self.index = maf.Index(filename, indexfile)
 
         fp = open(filename)
         self.reader = maf.Reader(fp)
 
-    def build_index(self, indexfile):
+    def build_index(self, filename, indexfile):
         """
         Recipe from Brad Chapman's blog
         <http://bcbio.wordpress.com/2009/07/26/sorting-genomic-alignments-using-python/>
         """
         indexes = interval_index_file.Indexes()
-        in_handle = open(in_file)
+        in_handle = open(filename)
 
         reader = maf.Reader(in_handle)
         while True:
@@ -91,7 +88,6 @@ def bed(args):
         reader = Maf(f).reader
         for rec in reader:
             a, b = rec.components
-            length = len(a.text)
 
             for a, tag in zip((a, b), "ab"):
                 name = "{0}_{1:07d}{2}".format(prefix, j, tag)

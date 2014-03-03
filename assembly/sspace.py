@@ -10,9 +10,9 @@ import sys
 import logging
 
 from copy import deepcopy
-from collections import deque, defaultdict
+from collections import defaultdict
 
-from jcvi.formats.fasta import Fasta, gaps
+from jcvi.formats.fasta import gaps
 from jcvi.formats.sizes import Sizes
 from jcvi.formats.base import BaseFile, read_block, write_file
 from jcvi.formats.agp import AGP, AGPLine, reindex, tidy
@@ -108,7 +108,7 @@ class EvidenceFile (BaseFile):
             print >> fw, a
         fw.close()
 
-        reindexed = reindex([filename, "--inplace"])
+        reindex([filename, "--inplace"])
         return filename
 
 
@@ -365,7 +365,7 @@ def embed(args):
     # Write a new AGP file
     newagpfile = "embedded.agp"
     newagp.print_to_file(newagpfile, index=True)
-    tidied = tidy([newagpfile, contigs])
+    tidy([newagpfile, contigs])
 
 
 if __name__ == '__main__':

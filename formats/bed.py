@@ -377,7 +377,6 @@ def some(args):
     ntotal = nkeep = 0
     for b in bed:
         ntotal += 1
-        id = b.accn
         keep = b.accn in ids
         if inverse:
             keep = not keep
@@ -436,7 +435,6 @@ def uniq(args):
 
 
 def subtractbins(binfile1, binfile2):
-    from itertools import izip_longest
     from jcvi.graphics.landscape import BinFile
 
     abin = BinFile(binfile1)

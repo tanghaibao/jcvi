@@ -3,11 +3,10 @@
 
 
 import sys
-import os.path as op
 import logging
 
 from jcvi.formats.base import write_file
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug
+from jcvi.apps.base import OptionParser, debug
 debug()
 
 default_template = """

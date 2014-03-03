@@ -139,7 +139,7 @@ class KsPlot (object):
 
     def draw(self, title="Ks distribution"):
 
-        from jcvi.graphics.base import plt, _, tex_formatter, \
+        from jcvi.graphics.base import tex_formatter, \
                     tex_1digit_formatter, tex_2digit_formatter, savefig
 
         ax = self.ax
@@ -251,8 +251,6 @@ def gc3(args):
     If 2 genomes are involved, the cdsfile of the 2nd genome can be provided
     concatenated or separated.
     """
-    import csv
-
     p = OptionParser(gc3.__doc__)
     p.add_option("--plot", default=False, action="store_true",
                  help="Also plot the GC3 histogram [default: %default]")
@@ -367,7 +365,7 @@ def prepare(args):
     pairsfile can be generated from formats.blast.cscore(). The first two
     columns contain the pair.
     """
-    from jcvi.formats.fasta import Fasta, SeqIO
+    from jcvi.formats.fasta import Fasta
 
     p = OptionParser(prepare.__doc__)
     p.set_outfile()
@@ -847,8 +845,6 @@ def get_mixture(data, components):
 
 def plot_ks_dist(ax, data, interval, components, ks_max,
                  color='r', marker='.', fill=False, fitted=True):
-
-    from jcvi.graphics.base import _
 
     line, = my_hist(ax, data, interval, ks_max,
                     color=color, marker=marker, fill=fill)

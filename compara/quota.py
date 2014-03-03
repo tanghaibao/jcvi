@@ -16,18 +16,15 @@ The algorithm is described in Tang et al. BMC Bioinformatics 2011.
 programming."
 """
 
-import os
 import os.path as op
 import sys
 import cStringIO
-import itertools
 import logging
 
 from jcvi.utils.range import range_overlap
 from jcvi.utils.grouper import Grouper
 from jcvi.algorithms.lpsolve import GLPKSolver, SCIPSolver
 from jcvi.compara.synteny import AnchorFile, _score, check_beds
-from jcvi.formats.bed import Bed
 from jcvi.formats.base import must_open
 from jcvi.apps.base import OptionParser, debug
 debug()

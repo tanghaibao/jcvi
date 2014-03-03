@@ -7,9 +7,6 @@ Script to write and assist SOAPdenovo assembly.
 
 import os.path as op
 import sys
-import logging
-
-from itertools import groupby
 
 from jcvi.formats.fastq import guessoffset, readlen
 from jcvi.assembly.base import FastqNamings, Library, get_libs

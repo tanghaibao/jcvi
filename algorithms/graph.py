@@ -23,7 +23,7 @@ from string import maketrans
 
 from networkx.algorithms.dag import topological_sort
 from networkx.algorithms.components.weakly_connected import \
-        weakly_connected_components
+            weakly_connected_components
 from networkx.algorithms.components.connected import connected_components
 from networkx.algorithms.shortest_paths.generic import shortest_path
 
@@ -190,7 +190,7 @@ class BiGraph (object):
             #discovered |= set(x.v for x in path)
             yield path
 
-    def path(self, path):
+    def path(self, path, flip=False):
         from jcvi.utils.iter import pairwise
 
         oo = []

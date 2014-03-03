@@ -22,18 +22,11 @@ e, 0, 1, athaliana.grape.4x1.simple
 
 import sys
 import string
-import os.path as op
-import logging
-import random
 
-from collections import defaultdict
 from jcvi.apps.base import OptionParser
-
 from jcvi.formats.bed import Bed
 from jcvi.formats.base import LineFile
 from jcvi.apps.base import debug
-from jcvi.utils.iter import pairwise
-
 from jcvi.graphics.chromosome import HorizontalChromosome
 from jcvi.graphics.glyph import TextCircle
 from jcvi.graphics.synteny import Shade
@@ -89,7 +82,6 @@ class Layout (LineFile):
         order = self[i].order
         # Sometimes the simplefile has query and subject wrong
         fp = open(simplefile)
-        header = fp.next()
         blocks = []
         for row in fp:
             if row[:2] == "##":
@@ -195,7 +187,7 @@ class Track (object):
             pad = .02
             if va == "bottom":
                 pad = - pad
-            tc = TextCircle(ax, xx, y + pad, _(si), radius=.01,
+            TextCircle(ax, xx, y + pad, _(si), radius=.01,
                        fc="w", color=color, size=10, transform=tr)
 
         xp = .1 if (self.xstart + self.xend) / 2 <= .5 else .92

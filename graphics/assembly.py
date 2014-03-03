@@ -11,12 +11,11 @@ import logging
 import os.path as op
 
 from jcvi.formats.fasta import Fasta
-from jcvi.formats.blast import Blast
 from jcvi.formats.bed import Bed, BedLine
 from jcvi.formats.sizes import Sizes
 from jcvi.assembly.base import calculate_A50
 from jcvi.assembly.coverage import BedLine, Sizes, Coverage
-from jcvi.graphics.base import plt, Rectangle, set_human_base_axis, _, savefig
+from jcvi.graphics.base import plt, Rectangle, set_human_base_axis, savefig
 from jcvi.utils.cbook import thousands
 from jcvi.apps.base import OptionParser, ActionDispatcher, debug, need_update
 debug()
@@ -61,7 +60,7 @@ def coverage(args):
     sizes = Sizes(fastafile)
     size = sizes.mapping[ctg]
 
-    fig = plt.figure(1, (iopts.w, iopts.h))
+    plt.figure(1, (iopts.w, iopts.h))
     ax = plt.gca()
 
     bins = 100  # smooth the curve
@@ -261,7 +260,6 @@ def qc(args):
     ax = fig.add_axes([.1, .45, .8, .45])
 
     bins = 200  # Smooth the curve
-    logging.debug("Coverage curve use window size of {0} bases.".format(window))
     basecoverage = Coverage(bedfile, sizesfile)
     matecoverage = Coverage(pairsbedfile, sizesfile)
 

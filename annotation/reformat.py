@@ -17,7 +17,7 @@ from itertools import groupby
 from pybedtools import BedTool
 
 from jcvi.formats.bed import Bed, BedLine, sort
-from jcvi.formats.gff import GffLine, Gff
+from jcvi.formats.gff import Gff
 from jcvi.formats.base import SetFile, must_open
 from jcvi.utils.cbook import number
 from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher, debug, \
@@ -413,7 +413,6 @@ def renumber(args):
     Renumber genes for annotation updates.
     """
     from jcvi.algorithms.lis import longest_increasing_subsequence
-    from jcvi.formats.bed import mergeBed
     from jcvi.utils.grouper import Grouper
 
     p = OptionParser(renumber.__doc__)
@@ -428,8 +427,6 @@ def renumber(args):
         sys.exit(not p.print_help())
 
     bedfile, = args
-    pad0 = opts.pad0
-    prefix = opts.prefix
 
     pf = bedfile.rsplit(".", 1)[0]
     abedfile = pf + ".a.bed"
@@ -519,7 +516,6 @@ def annotate(args):
     Adjust the value of `new_id_pat` manually as per your ID naming conventions.
     """
     from jcvi.utils.grouper import Grouper
-    from jcvi.formats.base import DictFile
 
     global new_id_pat
     new_id_pat = re.compile(r"^\d+\.[cemtx]+\S+")
@@ -653,6 +649,7 @@ def read_scores(scoresfile, opts):
         scores[new].append((new, old, pid, score))
 
     return scores
+
 
 def annotate_chr(chr, chrbed, g, scores, nbedline, abedline, opts, splits):
     current_chr = number(chr)

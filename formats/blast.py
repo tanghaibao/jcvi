@@ -2,7 +2,6 @@
 parses tabular BLAST -m8 (-format 6 in BLAST+) format
 """
 
-import os
 import os.path as op
 import sys
 import logging
@@ -858,7 +857,6 @@ def condense(args):
     for q, lines in groupby(blast, key=key):
         lines = list(lines)
         condenser = defaultdict(list)
-        condensed_hsps = []
 
         for b in lines:
             condenser[(b.subject, b.orientation)].append(b)
@@ -1057,7 +1055,6 @@ def covfilter(args):
     if not outfile:
         return
 
-    fp = open(blastfile)
     fw = must_open(outfile, "w")
     blast = Blast(blastfile)
     for b in blast:

@@ -7,7 +7,6 @@
 Parser for FPC physical map file, writes a tabular file to stdout
 """
 
-import os
 import sys
 import logging
 

@@ -14,7 +14,6 @@ from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
-from jcvi.utils.iter import unique_everseen
 from jcvi.apps.base import OptionParser, ActionDispatcher, debug
 from jcvi.formats.base import must_open
 debug()

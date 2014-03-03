@@ -7,17 +7,16 @@ from the script used in the Tang et al. PNAS 2010 paper, sigma figure.
 """
 
 import sys
-import os
 import logging
 
-from math import radians, ceil
+from math import ceil
 from itertools import groupby
 
 import numpy as np
 
 from jcvi.formats.base import DictFile
 from jcvi.formats.bed import Bed
-from jcvi.graphics.base import plt, Rectangle, Polygon, CirclePolygon, _, savefig
+from jcvi.graphics.base import plt, Rectangle, Polygon, CirclePolygon, savefig
 from jcvi.graphics.glyph import BaseGlyph, plot_cap
 from jcvi.apps.base import OptionParser
 

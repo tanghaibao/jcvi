@@ -26,7 +26,7 @@ from jcvi.utils.cbook import human_size
 from jcvi.apps.base import OptionParser, debug
 
 from jcvi.graphics.glyph import Glyph, RoundLabel
-from jcvi.graphics.base import plt, _, Affine2D, Path, PathPatch, savefig, markup
+from jcvi.graphics.base import plt, Affine2D, Path, PathPatch, savefig, markup
 debug()
 
 
@@ -237,9 +237,8 @@ class Synteny (object):
 
         if tree:
             from jcvi.graphics.tree import draw_tree, read_trees
-            trees = read_trees(tree)
 
-            tree_axes = []
+            trees = read_trees(tree)
             ntrees = len(trees)
             logging.debug("A total of {0} trees imported.".format(ntrees))
             xiv = 1. / ntrees

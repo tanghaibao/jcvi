@@ -47,7 +47,7 @@ from jcvi.apps.ks import AbstractCommandline, find_first_isoform, \
 from jcvi.formats.base import must_open, DictFile, LineFile
 from jcvi.formats.fasta import Fasta
 from jcvi.utils.orderedcollections import OrderedDict
-from jcvi.graphics.base import plt, _, savefig
+from jcvi.graphics.base import plt, savefig
 from jcvi.apps.base import OptionParser, ActionDispatcher, debug, mkdir, sh, getpath
 debug()
 

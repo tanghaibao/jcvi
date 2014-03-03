@@ -1073,7 +1073,6 @@ def notify(args):
     from jcvi.utils.iter import flatten
 
     debug()
-    valid_priorities = range(-2, 3, 1)
     valid_notif_methods.extend(available_push_api.keys())
 
     fromaddr, toaddr = get_email_address()
@@ -1186,7 +1185,7 @@ def waitpid(args):
             msg = opts.message
         else:
             get_origcmd = "ps -p {0} -o cmd h".format(pid)
-            msg = origcmd = check_output(shlex.split(get_origcmd)).strip()
+            msg = check_output(shlex.split(get_origcmd)).strip()
         while is_running(pid):
             sleep(opts.interval)
     else:

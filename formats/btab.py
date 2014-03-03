@@ -9,12 +9,10 @@ btab format used by aat, found spec here:
 <http://ergatis.diagcomputing.org/cgi/documentation.cgi?article=components&page=aat_aa>
 """
 
-import os
-import os.path as op
 import sys
-import logging
 
 from jcvi.formats.base import LineFile, must_open
+from jcvi.formats.gff import valid_gff_type
 from jcvi.apps.base import OptionParser, ActionDispatcher, debug
 debug()
 

@@ -23,7 +23,6 @@ IV	IRX7,GUX2
 
 
 import sys
-import logging
 
 import numpy as np
 from itertools import groupby

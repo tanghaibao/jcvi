@@ -11,17 +11,14 @@ import logging
 
 import numpy as np
 
-from jcvi.graphics.base import plt, _, Rectangle, Polygon, CirclePolygon, \
-        savefig, mpl, cm, adjust_spines, FancyArrowPatch
-from jcvi.graphics.glyph import GeneGlyph, RoundLabel, RoundRect, \
-        arrowprops, TextCircle, plot_cap
-from jcvi.graphics.chromosome import Chromosome
+from jcvi.graphics.base import plt, Rectangle, savefig, mpl, \
+            adjust_spines, FancyArrowPatch
+from jcvi.graphics.glyph import TextCircle
 from jcvi.graphics.karyotype import Karyotype
-from jcvi.graphics.synteny import Synteny, draw_gene_legend
+from jcvi.graphics.synteny import Synteny
 from jcvi.graphics.coverage import Coverage, Sizes, XYtrack, setup_gauge_ax
-from jcvi.utils.iter import pairwise
 from jcvi.formats.base import LineFile
-from jcvi.apps.base import OptionParser, ActionDispatcher, fname, debug
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug
 debug()
 
 
@@ -150,7 +147,6 @@ def cov(args):
     chr2 = chr2.split(",")
 
     order = opts.order
-    reverse = opts.reverse
     hlsuffix = opts.hlsuffix
     if order:
         order = order.split(",")
@@ -177,7 +173,7 @@ def cov(args):
         canvas1 = (w1s, .6, w1, .3)
         plot_label = i == 0
         i += 1
-        c = Coverage(fig, root, canvas1, c1, (0, s1), datadir,
+        Coverage(fig, root, canvas1, c1, (0, s1), datadir,
                      order=order, gauge="top", plot_label=plot_label,
                      gauge_step=opts.gauge_step, palette=dsg,
                      cap=40, hlsuffix=hlsuffix)
@@ -189,7 +185,7 @@ def cov(args):
         canvas2 = (w2s, .15, w2, .3)
         plot_label = i == 0
         i += 1
-        c = Coverage(fig, root, canvas2, c2, (0, s2), datadir,
+        Coverage(fig, root, canvas2, c2, (0, s2), datadir,
                      order=order, gauge="bottom", plot_label=plot_label,
                      gauge_step=opts.gauge_step, palette=dsg,
                      cap=40, hlsuffix=hlsuffix)
@@ -213,8 +209,6 @@ def cov(args):
 
 
 def conversion_track(order, filename, col, label, ax, color, ypos=0):
-    from jcvi.formats.bed import Bed
-
     ids = []
     fp = open(filename)
     for row in fp:
@@ -368,7 +362,7 @@ def f4a(args):
         ch, ab = t.box_region.split(":")
         a, b = ab.split("-")
         vlines = [int(x) for x in (a, b)]
-        c = Coverage(fig, root, canvas, t.seqid, (t.start, t.end), datadir,
+        Coverage(fig, root, canvas, t.seqid, (t.start, t.end), datadir,
                      order=order, gauge="top", plot_chr_label=False,
                      gauge_step=gs, palette="gray",
                      cap=40, hlsuffix="regions.forhaibao",
@@ -406,7 +400,6 @@ def deletion(args):
     """
     import math
     from jcvi.formats.bed import Bed
-    from jcvi.graphics.glyph import TextCircle
     from jcvi.graphics.chromosome import HorizontalChromosome
     from jcvi.graphics.base import kb_formatter
 
@@ -441,7 +434,7 @@ def deletion(args):
     # Draw chromosome C2
     na, nb = .45, .85
     root.text((na + nb) / 2, .54, "ChrC02", ha="center")
-    hc = HorizontalChromosome(root, na, nb, .5, height=.025,
+    HorizontalChromosome(root, na, nb, .5, height=.025,
                              fc=lsg, fill=True)
 
     order = Bed(bed).order

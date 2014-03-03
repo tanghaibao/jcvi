@@ -88,7 +88,7 @@ class Mates (object):
     def __init__(self, filename):
         fp = csv.reader(open(filename), delimiter='\t')
         for row in fp:
-            b = MatesLine._make(row)
+            MatesLine._make(row)
 
 
 class FrgScfLine (object):

@@ -49,8 +49,6 @@ class OMGFile (BaseFile):
         self.components = components
 
     def best(self):
-        maxsize = 0
-        maxcomponent = []
         bb = set()
         for component in self.components:
             size = len(component)
@@ -440,7 +438,6 @@ def omg(args):
     for i, row in enumerate(fp):
         gf = op.join(work, "gf{0:05d}".format(i))
         genes = row.rstrip().split(",")
-        ngenes = len(genes)
 
         fw = open(gf, "w")
         contents = ""
@@ -526,8 +523,6 @@ def omgprepare(args):
     fp.close()
 
     ploidy = DictFile(ploidy)
-    qp = qbed.filename.split(".")[0]
-    sp = sbed.filename.split(".")[0]
 
     geneinfo(qbed, qorder, genomeidx, ploidy)
     geneinfo(sbed, sorder, genomeidx, ploidy)
@@ -600,7 +595,7 @@ def ortholog(args):
     from jcvi.apps.last import main as last_main
     from jcvi.compara.blastfilter import main as blastfilter_main
     from jcvi.compara.quota import main as quota_main
-    from jcvi.compara.synteny import scan, screen, mcscan, liftover
+    from jcvi.compara.synteny import scan, mcscan, liftover
     from jcvi.formats.blast import cscore
 
     p = OptionParser(ortholog.__doc__)

@@ -5,12 +5,10 @@
 Matrix related subroutines
 """
 
-import sys
 import math
-
 import numpy as np
 
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug
+from jcvi.apps.base import debug
 debug()
 
 

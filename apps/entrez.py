@@ -2,7 +2,6 @@
 Wrapper for calling Bio.Entrez tools to get the sequence from a list of IDs
 """
 
-import os
 import os.path as op
 import sys
 import time

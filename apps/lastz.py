@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-import os
 import os.path as op
 import sys
 import logging
@@ -10,9 +9,8 @@ from math import exp
 from multiprocessing import Lock, Pool
 
 from jcvi.formats.base import must_open
-from jcvi.apps.grid import Grid, Jobs
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug, \
-            sh, mkdir, Popen
+from jcvi.apps.grid import Jobs
+from jcvi.apps.base import OptionParser, debug, mkdir, Popen
 debug()
 
 

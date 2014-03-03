@@ -30,7 +30,6 @@ class OpticalMap (object):
         self.alignments = []
 
         for ref, aligned, e in self.iter_alignments():
-            ref_map = self.maps[ref]
             aligned_map = self.maps[aligned]
             nfrags = aligned_map.num_frags
             if e.orientation == '-':
@@ -334,7 +333,6 @@ def bed(args):
 
     om = OpticalMap(xmlfile)
     om.write_bed(bedfile, blockonly=opts.blockonly, switch=opts.switch)
-    fw.close()
 
     if not opts.nosort:
         sort([bedfile, "--inplace"])

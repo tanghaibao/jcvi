@@ -7,14 +7,12 @@ Functions in this script produce figures in the various past manuscripts.
 
 import os.path as op
 import sys
-import logging
 
 import numpy as np
 
-from jcvi.graphics.base import plt, _, Rectangle, Polygon, CirclePolygon, \
-        savefig, mpl, cm
+from jcvi.graphics.base import plt, Rectangle, Polygon, CirclePolygon, savefig
 from jcvi.graphics.glyph import GeneGlyph, RoundLabel, RoundRect, \
-        arrowprops, TextCircle, plot_cap
+            arrowprops, TextCircle, plot_cap
 from jcvi.graphics.chromosome import Chromosome
 from jcvi.graphics.karyotype import Karyotype
 from jcvi.graphics.synteny import Synteny, draw_gene_legend
@@ -239,7 +237,7 @@ def cotton(args):
     root = fig.add_axes([0, 0, 1, 1])
 
     kt = Karyotype(fig, root, seqidsfile, klayout)
-    st = Synteny(fig, root, datafile, bedfile, slayout, switch=switch)
+    Synteny(fig, root, datafile, bedfile, slayout, switch=switch)
 
     light = "lightslategrey"
     # Show the dup depth along the cotton chromosomes
@@ -273,6 +271,7 @@ def cotton(args):
 
     # Zoom
     xpos = .835
+    ytop = .9
     xmin, xmax = .18, .82
     ymin, ymax = ytop, .55
     lc = "k"

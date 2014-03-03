@@ -55,7 +55,7 @@ def build(args):
     """
     from jcvi.apps.cdhit import deduplicate
     from jcvi.apps.vecscreen import mask
-    from jcvi.formats.fasta import sort, format
+    from jcvi.formats.fasta import sort
 
     p = OptionParser(build.__doc__)
     p.add_option("--nodedup", default=False, action="store_true",

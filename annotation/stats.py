@@ -12,7 +12,7 @@ import logging
 
 from jcvi.utils.cbook import SummaryStats, percentage
 from jcvi.utils.table import tabulate
-from jcvi.formats.gff import GffLine, make_index
+from jcvi.formats.gff import make_index
 from jcvi.formats.base import DictFile
 from jcvi.apps.base import OptionParser, ActionDispatcher, debug, mkdir, \
             need_update

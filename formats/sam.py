@@ -504,7 +504,7 @@ def pair(args):
 
     def callback(s):
         print s.pairline
-    sam = Sam(args[0], callback=callback)
+    Sam(args[0], callback=callback)
 
 
 def cigar_to_seq(a, gap='*'):
@@ -585,9 +585,6 @@ def ace(args):
     from pysam import Samfile
 
     opts, args = p.parse_args(args)
-    unpaired = opts.unpaired
-    minreadno = opts.minreadno
-    minctgsize = opts.minctgsize
 
     if len(args) != 2:
         sys.exit(not p.print_help())

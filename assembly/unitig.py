@@ -175,7 +175,6 @@ def cnsfix(args):
         sys.exit(not p.print_help())
 
     cnsfixout, = args
-    prefix = get_prefix()
     fp = open(cnsfixout)
     utgs = []
     saves = []

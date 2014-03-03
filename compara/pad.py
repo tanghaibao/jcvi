@@ -75,7 +75,6 @@ def make_arrays(blastfile, qpadbed, spadbed, qpadnames, spadnames):
     S = qsize * ssize
     expected = np.zeros((m, n))
     qsum = 0
-    ssum = 0
     for i, a in enumerate(qpadnames):
         alen = qpadlen[a]
         qsum += alen

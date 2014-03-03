@@ -9,7 +9,7 @@ import sys
 import logging
 
 from BeautifulSoup import BeautifulSoup
-from urlparse import urlsplit, urljoin
+from urlparse import urljoin
 
 from jcvi.apps.base import OptionParser, ActionDispatcher, debug, download
 debug()

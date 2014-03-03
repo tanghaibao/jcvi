@@ -295,7 +295,6 @@ def gb(args):
     Convert GFF3 to Genbank format. Recipe taken from:
     <http://www.biostars.org/p/2492/>
     """
-    from Bio import SeqIO
     from Bio.Alphabet import generic_dna
     try:
         from BCBio import GFF
@@ -1551,6 +1550,7 @@ def extract(args):
         return
 
     fp = open(gffile)
+    fw = must_open(opts.outfile, "w")
     for row in fp:
         atoms = row.split()
         if len(atoms) == 0:
@@ -1928,7 +1928,7 @@ def parse_feature_param(feature):
 
         if not upstream_site in valid_upstream_sites:
             flag, error_msg = 1, "Error: upstream site `" + upstream_site + "` not valid." + \
-                    " Please choose from " + valid_upstream_site
+                    " Please choose from " + valid_upstream_sites
     elif feature == "CDS":
         parents, children = "mRNA", "CDS"
     else:

@@ -7,12 +7,8 @@
 Parses obo_file and plot GO lineage
 """
 
-import os
-import os.path as op
 import sys
 import logging
-
-from exceptions import EOFError
 
 from jcvi.formats.base import read_until
 from jcvi.apps.base import debug

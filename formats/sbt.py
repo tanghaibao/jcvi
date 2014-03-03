@@ -65,7 +65,6 @@ def parse_names(lstfile):
     sections, starting with [Sequence] and [Manuscript], respectively, then
     followed by authors separated by comma.
     """
-    import string
     from jcvi.formats.base import read_block
 
     fp = open(lstfile)

@@ -12,8 +12,7 @@ import logging
 import re
 
 from jcvi.formats.base import must_open
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, debug, \
-            mkdir, gethostname, getusername
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh, debug, getusername
 debug()
 
 

@@ -30,7 +30,7 @@ import sys
 import time
 import logging
 
-from urllib2 import urlopen
+from urllib2 import urlopen, URLError, HTTPError
 from ClientForm import ParseResponse
 from BeautifulSoup import BeautifulSoup
 
@@ -61,8 +61,7 @@ class TaxIDTree(object):
             try:
                 response = urlopen(URL)
                 success = True
-            except (urllib2.URLError, urllib2.HTTPError,
-                    RuntimeError) as e:
+            except (URLError, HTTPError, RuntimeError) as e:
                 logging.error(e)
                 logging.debug("wait 5 seconds to reconnect...")
                 time.sleep(5)
@@ -127,7 +126,6 @@ def MRCA(list_of_taxids):
     t = TaxIDTree(list_of_taxids)
     t = Tree(str(t), format=8)
 
-    leaves = [x.name for x in t.get_leaves()]
     ancestor = t.get_common_ancestor(*t.get_leaves())
 
     return ancestor.name
@@ -183,8 +181,6 @@ def newick(args):
 
     Query a list of IDs to retrieve phylogeny.
     """
-    from jcvi.formats.base import SetFile
-
     p = OptionParser(newick.__doc__)
     opts, args = p.parse_args(args)
 

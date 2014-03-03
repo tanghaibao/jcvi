@@ -9,7 +9,6 @@ The whole pipeline is following bwa documentation at
 
 import sys
 import logging
-import os.path as op
 
 from jcvi.formats.sam import output_bam, get_samfile, mapped
 from jcvi.formats.base import FileShredder
@@ -70,7 +69,7 @@ def index(args):
         sys.exit(not p.print_help())
 
     dbfile, = args
-    safile = check_index(dbfile)
+    check_index(dbfile)
 
 
 def align(args):
@@ -187,10 +186,8 @@ def mem(args, opts):
     Wrapper for `bwa mem`. Output will be read1.sam.
     """
     dbfile, read1file = args[:2]
-    if len(args) > 2:
-        read2file = args[2]
 
-    safile = check_index(dbfile)
+    check_index(dbfile)
     samfile, _, unmapped = get_samfile(read1file, dbfile,
                                        bam=opts.bam, unmapped=opts.unmapped)
     if not need_update(read1file, samfile):

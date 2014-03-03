@@ -15,7 +15,6 @@ There are a few techniques, used in curating medicago assembly.
 6. Insert unplaced scaffolds using mates
 """
 
-import os.path as op
 import sys
 import math
 import logging
@@ -26,14 +25,13 @@ from collections import defaultdict
 from jcvi.formats.bed import Bed, BedLine, complementBed, mergeBed, \
         fastaFromBed, summary
 from jcvi.formats.blast import BlastSlow
-from jcvi.formats.fasta import Fasta
 from jcvi.formats.sizes import Sizes
 from jcvi.utils.range import range_parse, range_distance, ranges_depth, \
             range_minmax, range_overlap, range_merge, range_closest, \
             range_interleave
 from jcvi.utils.iter import roundrobin
-from jcvi.formats.base import must_open, FileMerger, FileShredder
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh, mkdir
+from jcvi.formats.base import FileMerger, FileShredder
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh
 debug()
 
 
@@ -76,7 +74,6 @@ def pastegenes(args):
     program will try to make a patch.
     """
     from jcvi.formats.base import DictFile
-    from jcvi.utils.range import range_minmax, range_distance
     from jcvi.utils.cbook import gene_name
 
     p = OptionParser(pastegenes.__doc__)
@@ -225,7 +222,6 @@ def paste(args):
 
     pbed, blastfile, bbfasta = args
     maxsize = opts.maxsize  # Max DNA size to replace gap
-    rclip = opts.rclip
     order = Bed(pbed).order
 
     beforebed, afterbed = blast_to_twobeds(blastfile, order, log=True,
@@ -857,7 +853,6 @@ def install(args):
     pbed, pfasta, bbfasta, altfasta = args
     maxsize = opts.maxsize  # Max DNA size to replace gap
     rclip = opts.rclip
-    prefix = opts.prefix
 
     blastfile = blast([altfasta, pfasta,"--wordsize=100", "--pctid=99"])
     order = Bed(pbed).order
@@ -951,7 +946,6 @@ def refine(args):
     largestgapsfw.close()
 
     closestgapsbed = pf + ".closestgaps.bed"
-    closestgapsfw = open(closestgapsbed, "w")
     cmd = "closestBed -a {0} -b {1} -d".format(nogapsbed, gapsbed)
     sh(cmd, outfile=closestgapsbed)
 
@@ -1010,10 +1004,8 @@ def patcher(args):
     backbonebed = uniq([backbonebed])
     otherbed = uniq([otherbed])
 
-    bb = opts.backbone
     pf = backbonebed.split(".")[0]
     key = lambda x: (x.seqid, x.start, x.end)
-    is_bb = lambda x: x.startswith(bb)
 
     # Make a uniq bed keeping backbone at redundant intervals
     cmd = "intersectBed -v -wa"
@@ -1038,7 +1030,6 @@ def patcher(args):
         sb = list(sb)
         chr, start, end, strand = merge_ranges(sb)
 
-        id = "{0}:{1}-{2}".format(chr, start, end)
         print >> bed_fw, "\t".join(str(x) for x in \
                 (chr, start, end, opts.object, 1000, strand))
 

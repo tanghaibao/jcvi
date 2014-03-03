@@ -616,7 +616,6 @@ def translate(args):
     represents a partial gene, therefore disrupting the frame of the protein.
     Check all three frames to get a valid translation.
     """
-    from collections import defaultdict
     from jcvi.utils.cbook import percentage
 
     transl_tables = [str(x) for x in xrange(1,25)]
@@ -1997,7 +1996,6 @@ def normalize_gaps(rec, gapsize):
     NN = gapsize * "N"
     for gap, seq in groupby(rec.seq, lambda x: x.upper() == 'N'):
         seq = "".join(seq)
-        seqlen = len(seq)
         if gap:
             seq = NN
             normalized += 1
@@ -2029,7 +2027,6 @@ def tidy(args):
 
     tidyfastafile = fastafile.rsplit(".", 1)[0] + ".tidy.fasta"
     fw = must_open(tidyfastafile, "w")
-    normalized_gap = "N" * gapsize
 
     removed = normalized = 0
     fasta = Fasta(fastafile, lazy=True)
@@ -2077,8 +2074,6 @@ def write_gaps_worker(rec):
 
 
 def write_gaps_bed(inputfasta, prefix, mingap, cpus):
-    import shutil
-
     from jcvi.apps.grid import WriteJobs
     from jcvi.formats.bed import sort
 

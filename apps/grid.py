@@ -226,9 +226,6 @@ class Grid (list):
             self.append(GridProcess(cmd, outfile=outfile))
 
     def run(self):
-
-        cwd = os.getcwd()
-
         for pi in self:
             pi.start()
 
@@ -240,7 +237,7 @@ $CMD"""
 
 def get_grid_engine():
     cmd = "qsub --version"
-    ret = popen(cmd, debug=False).read()
+    popen(cmd, debug=False).read()
     return "PBS" if "PBS" in cmd else "SGE"
 
 

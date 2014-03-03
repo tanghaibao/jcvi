@@ -212,8 +212,8 @@ def posmap(args):
         bed_to_bedpe(bedfile, bedpefile, pairsbedfile=pairsbedfile, ca=True)
 
     # base coverage
-    basecoverage = Coverage(bedfile, sizesfile)
-    pecoverage = Coverage(pairsbedfile, sizesfile)
+    Coverage(bedfile, sizesfile)
+    Coverage(pairsbedfile, sizesfile)
 
 
 if __name__ == '__main__':

@@ -5,7 +5,6 @@
 Mask low complexity regions in the genome.
 """
 
-import os
 import os.path as op
 import sys
 
@@ -64,7 +63,6 @@ def summary(args):
     allmasked = 0
     allbases = 0
     cutoff = 50
-    others = 0
     for key, seq in f.iteritems():
         masked = 0
         for base in seq:

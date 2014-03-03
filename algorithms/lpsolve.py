@@ -27,7 +27,6 @@ The input lp_data is assumed in .lp format, see below
 
 import os
 import os.path as op
-import sys
 import shutil
 import logging
 import cStringIO
@@ -117,8 +116,6 @@ class GLPKSolver(AbstractMIPSolver):
         return retcode, listfile
 
     def parse_output(self, listfile, clean=False):
-
-        filtered_list = []
 
         fp = open(listfile)
         header = fp.readline()

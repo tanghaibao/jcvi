@@ -25,7 +25,6 @@ files, use biopython's index instead
 
 import os
 import sys
-import os.path as op
 import logging
 import bsddb
 

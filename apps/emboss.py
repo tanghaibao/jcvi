@@ -41,7 +41,6 @@ def needle(args):
     Take protein pairs and needle them.
     """
     from Bio.Emboss.Applications import NeedleCommandline
-    from Bio import AlignIO
 
     from jcvi.formats.fasta import Fasta, SeqIO
     from jcvi.formats.base import FileShredder

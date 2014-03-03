@@ -10,7 +10,6 @@ files. Bowtie2 help:
 
 import sys
 import logging
-import os.path as op
 
 from jcvi.formats.base import BaseFile
 from jcvi.utils.cbook import percentage
@@ -90,7 +89,7 @@ def index(args):
 
     dbfile, = args
     dbfile = get_abs_path(dbfile)
-    safile = check_index(dbfile)
+    check_index(dbfile)
 
 
 def align(args):

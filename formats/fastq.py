@@ -10,7 +10,6 @@ import sys
 import re
 import logging
 
-from collections import namedtuple
 from itertools import islice
 
 from Bio import SeqIO
@@ -18,7 +17,7 @@ from Bio.SeqIO.QualityIO import FastqGeneralIterator
 
 from jcvi.formats.fasta import must_open, rc
 from jcvi.formats.base import DictFile
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh, mkdir
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh
 debug()
 
 qual_offset = lambda x: 33 if x == "sanger" else 64
@@ -331,8 +330,6 @@ def shuffle(args):
 
     Shuffle pairs into interleaved format.
     """
-    from itertools import izip
-
     p = OptionParser(shuffle.__doc__)
     p.set_tag()
     opts, args = p.parse_args(args)
@@ -674,8 +671,6 @@ def convert(args):
 
     infastq, outfastq = args
     phred = opts.phred or str(guessoffset([infastq]))
-    gz = infastq.endswith(".gz")
-
     fin = "illumina" if phred == "64" else "sanger"
     fout = "sanger" if phred == "64" else "illumina"
 

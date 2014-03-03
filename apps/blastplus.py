@@ -1,18 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-import os
 import os.path as op
 import sys
 import logging
 
-from multiprocessing import Lock, Pool
+from multiprocessing import Lock
 
 from jcvi.formats.base import must_open, split
 from jcvi.apps.grid import Jobs
 from jcvi.apps.align import run_formatdb
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh, \
-            mkdir, Popen
+from jcvi.apps.base import OptionParser, debug, mkdir, Popen
 debug()
 
 

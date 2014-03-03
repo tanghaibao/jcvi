@@ -10,7 +10,6 @@ second column is values.
 
 
 import sys
-import logging
 
 from jcvi.apps.r import RTemplate
 from jcvi.apps.base import OptionParser, debug
@@ -48,18 +47,10 @@ def main():
 
     datafile, = args
     header = open(datafile)
-    outfile = datafile.rsplit(".", 1)[0] + ".pdf"
     levels = opts.levels
-    notch = opts.notch
-    title = opts.title
     xlabel = opts.xlabel
     ylabel = opts.ylabel
-    fontsize = opts.fontsize
-
     lx, ly = header.next().rstrip().split('\t')
-
-    x = lx.replace(" ", ".")
-    y = ly.replace(" ", ".")
 
     lx = xlabel or lx
     ly = ylabel or ly

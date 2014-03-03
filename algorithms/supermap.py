@@ -13,9 +13,7 @@ to keep either the union or the intersection of retain chained alignments from
 both genomes, similar to the SUPERMAP algorithm. This operation is symmetrical.
 """
 
-import os
 import sys
-import collections
 import logging
 
 from jcvi.apps.base import OptionParser

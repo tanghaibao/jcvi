@@ -9,11 +9,9 @@ does scaffolding differently.
 """
 
 import sys
-import logging
 
 from itertools import groupby
 
-from jcvi.formats.base import must_open
 from jcvi.apps.base import OptionParser, ActionDispatcher, debug
 debug()
 

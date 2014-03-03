@@ -5,15 +5,11 @@
 Classes to handle the .psl files
 """
 
-import os
-import os.path as op
 import sys
 import math
-import logging
 
 from jcvi.formats.base import LineFile, must_open
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh, \
-        need_update
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug
 debug()
 
 
@@ -21,8 +17,7 @@ class PslLine(object):
 
     def __init__(self, sline):
         args = sline.strip().split()
-        self.nargs = nargs = len(args)
-
+        self.nargs = len(args)
         self.matches = int(args[0])
         self.misMatches = int(args[1])
         self.repMatches = int(args[2])

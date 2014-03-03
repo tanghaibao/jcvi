@@ -7,7 +7,6 @@
 Convert the result from Eisen's CLUSTER program: data.gtr and data.cdt into NEWICK format
 """
 
-import os.path as op
 import sys
 import csv
 import logging

@@ -288,7 +288,7 @@ class GenBank(dict):
 
             seqid = rec.id.split(".")[0]
             if not seqid:
-                seqid = gbrec.name.split(".")[0]
+                seqid = rec.name.split(".")[0]
             seq = rec.seq
             fw.write(">{0}\n{1}\n".format(seqid, seq))
 
@@ -319,7 +319,7 @@ def gff(args):
         sys.exit(not p.print_help())
 
     gbkfile, = args
-    g = MultiGenBank(gbkfile)
+    MultiGenBank(gbkfile)
 
 
 def preparegb(p, args):

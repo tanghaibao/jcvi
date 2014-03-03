@@ -5,7 +5,6 @@
 Programatically accessing UniprotKB to get data from a list of queries
 """
 
-import os
 import os.path as op
 import sys
 import time
@@ -13,7 +12,7 @@ import logging
 import urllib, urllib2
 
 from jcvi.formats.base import must_open
-from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, debug
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug
 debug()
 
 

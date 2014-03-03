@@ -4,7 +4,6 @@
 # Longest increasing subsequence, code stolen from internet (thanks)
 # http://wordaligned.org/articles/patience-sort
 import bisect
-from collections import defaultdict
 
 # We want a maximum function which accepts a default value
 from functools import partial, reduce

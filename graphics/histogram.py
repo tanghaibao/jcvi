@@ -17,7 +17,7 @@ from collections import defaultdict
 
 from jcvi.graphics.base import asciiplot
 from jcvi.apps.r import RTemplate
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug
+from jcvi.apps.base import OptionParser, debug
 debug()
 
 histogram_header = """
@@ -161,10 +161,7 @@ def histogram(numberfile, vmin, vmax, xlabel, title,
         return texthistogram([numberfile], vmin, vmax, title=title,
                 bins=bins, skip=skip, log=log)
 
-    outfile = numberfile + '.pdf'
     data, vmin, vmax = get_data(numberfile, vmin, vmax, skip=skip)
-    base = log
-
     template = histogram_log_template if log else histogram_template
     rtemplate = RTemplate(template, locals())
     rtemplate.run()

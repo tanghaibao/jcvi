@@ -622,8 +622,6 @@ def anneal(args):
 
     These are most likely shreds, which we look for based on names.
     """
-    from jcvi.utils.iter import pairwise
-
     p = OptionParser(anneal.__doc__)
     p.set_align(pctid=GoodPct, hitlen=GoodOverlap)
     p.add_option("--hang", default=GoodOverhang, type="int",

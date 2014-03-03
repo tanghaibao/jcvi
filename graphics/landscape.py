@@ -8,18 +8,16 @@ and sorghum paper.
 
 
 import sys
-import logging
 
 import numpy as np
 
-from math import ceil
 from collections import defaultdict
 
 from jcvi.formats.sizes import Sizes
 from jcvi.formats.base import LineFile, DictFile
 from jcvi.formats.bed import Bed, bins
 from jcvi.algorithms.matrix import moving_sum
-from jcvi.graphics.base import plt, _, Rectangle, CirclePolygon, savefig, \
+from jcvi.graphics.base import plt, Rectangle, CirclePolygon, savefig, \
         ticker, human_readable_base, tex_formatter
 from jcvi.utils.cbook import human_size, autoscale
 from jcvi.apps.base import OptionParser, ActionDispatcher, debug
@@ -120,15 +118,12 @@ def linearray(binfile, chr, window, shift):
 
 
 def lineplot(ax, binfiles, nbins, chr, window, shift):
-    from jcvi.utils.cbook import human_size
-
     assert len(binfiles) <= 2, "A max of two line plots are supported"
 
     t = np.arange(nbins)
     bf = binfiles[0]
     m = linearray(bf, chr, window, shift)
     ax.plot(t, m, "b-", lw=2)
-    xticklabels = ax.get_xticklabels()
 
     formatter = ticker.FuncFormatter(lambda x, pos: \
                     human_readable_base(int(x) * shift, pos))
@@ -207,7 +202,6 @@ def composite(args):
     linebins = get_binfiles(linebeds, fastafile, shift, mode=opts.mode)
 
     margin = .12
-    inner = .015
     clen = Sizes(fastafile).mapping[chr]
     nbins = get_nbins(clen, shift)
 
@@ -234,7 +228,7 @@ def composite(args):
     fattend = .0025
     for bb in barbeds:
         root.text(xend + .01, yy, bb.split(".")[0], va="center")
-        hc = HorizontalChromosome(root, xstart, xend, yy, height=.02)
+        HorizontalChromosome(root, xstart, xend, yy, height=.02)
         bb = Bed(bb)
         for b in bb:
             start, end = xs(b.start), xs(b.end)
@@ -497,7 +491,6 @@ def stack(args):
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
 
-    max_len = s
     # Gauge
     ratio = draw_gauge(root, margin, maxl)
 

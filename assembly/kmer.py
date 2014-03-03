@@ -9,8 +9,7 @@ import os.path as op
 import sys
 import logging
 
-from jcvi.utils.iter import pairwise
-from jcvi.graphics.base import plt, asciiplot, _, set_human_axis, savefig
+from jcvi.graphics.base import plt, asciiplot, set_human_axis, savefig
 from jcvi.formats.fasta import Fasta
 from jcvi.formats.base import must_open
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, debug, \
@@ -476,7 +475,6 @@ def histogram(args):
     totalKmers = 0
 
     # Guess the format of the Kmer histogram
-    soap = False
     for row in fp:
         if row.startswith("# 1:"):
             kformat = KALLPATHS
@@ -530,7 +528,7 @@ def histogram(args):
     if ascii:
         return asciiplot(x, y, title=title)
 
-    fig = plt.figure(1, (6, 6))
+    plt.figure(1, (6, 6))
     plt.plot(x, y, 'g-', lw=2, alpha=.5)
 
     t = (ks.min1, ks.max1, ks.min2, ks.max2, ks.min3)

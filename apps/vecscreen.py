@@ -7,9 +7,7 @@ Run through NCBI vecscreen on a local machine.
 
 import os.path as op
 import sys
-import logging
 
-from jcvi.utils.cbook import depends
 from jcvi.utils.range import range_merge
 from jcvi.formats.fasta import tidy
 from jcvi.formats.blast import BlastLine

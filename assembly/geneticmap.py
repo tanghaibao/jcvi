@@ -147,7 +147,6 @@ def ld(args):
     from random import sample
     from itertools import combinations
 
-    from jcvi.formats.bed import Bed
     from jcvi.algorithms.matrix import symmetrize
 
     p = OptionParser(ld.__doc__)
@@ -203,11 +202,11 @@ def ld(args):
     ax = fig.add_axes([.1, .1, .8, .8])  # the heatmap
 
     default_cm = cm.get_cmap(opts.cmap)
-    im = ax.matshow(M, cmap=default_cm)
+    ax.matshow(M, cmap=default_cm)
 
     # Plot chromosomes breaks
     bed = Bed(markerbedfile)
-    xsize = ysize = len(bed)
+    xsize = len(bed)
     extent = (0, nmarkers)
     chr_labels = []
     ignore_size = 20

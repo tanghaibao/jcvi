@@ -23,8 +23,7 @@ from jcvi.formats.blast import BlastLine
 from jcvi.formats.sizes import Sizes
 from jcvi.formats.bed import Bed, BedLine
 from jcvi.apps.base import OptionParser, debug
-from jcvi.graphics.base import plt, ticker, Rectangle, cm, _, \
-        set_human_base_axis, savefig
+from jcvi.graphics.base import plt, Rectangle, set_human_base_axis, savefig
 debug()
 
 

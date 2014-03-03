@@ -76,7 +76,6 @@ def rdotplot(args):
 
     rdotplotfile, = args
     assert rdotplotfile.endswith(".rdotplot")
-    pngfile = rdotplotfile.replace(".rdotplot", ".png")
 
     rtemplate = RTemplate(dotplot_template, locals())
     rtemplate.run()

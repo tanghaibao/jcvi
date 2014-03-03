@@ -12,7 +12,7 @@ import logging
 from jcvi.formats.coords import Coords, filter
 from jcvi.formats.sizes import Sizes
 from jcvi.formats.base import SetFile
-from jcvi.apps.base import OptionParser, debug, sh, need_update
+from jcvi.apps.base import OptionParser, debug, sh
 debug()
 
 

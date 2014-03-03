@@ -320,7 +320,6 @@ def scaffold(args):
     agpfile = pf + ".agp"
     fwagp = open(agpfile, "w")
 
-    clinks = []
     g = nx.MultiGraph()  # use this to get connected components
 
     fp = open(linksfile)

@@ -11,10 +11,9 @@ import string
 import logging
 
 from collections import defaultdict
-
 from Bio import SeqIO
 
-from jcvi.utils.cbook import memoized, fill
+from jcvi.utils.cbook import memoized
 from jcvi.utils.orderedcollections import parse_qs
 from jcvi.formats.base import DictFile
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, mkdir, debug, glob
@@ -253,7 +252,7 @@ def htgnew(args):
     This function is simpler than htg, since the record names have not be
     assigned yet (so less bookkeeping).
     """
-    from jcvi.formats.fasta import Fasta, sequin
+    from jcvi.formats.fasta import sequin
 
     p = OptionParser(htgnew.__doc__)
     p.add_option("--comment", default="",
@@ -346,7 +345,7 @@ def htg(args):
     For example, the clone name changes or phase upgrades. In this case, run
     formats.agp.phase() manually, modify the phasefile and use --phases to override.
     """
-    from jcvi.formats.fasta import Fasta, sequin, ids
+    from jcvi.formats.fasta import sequin, ids
     from jcvi.formats.agp import phase
     from jcvi.apps.entrez import fetch
 
@@ -637,13 +636,8 @@ def gss(args):
         plate = plateMapping[plate]
         d = Directions[direction]
 
-        row = w384[0]
-        column = int(w384[1:])
-        seq = fill(str(rec.seq), width=70)
-
         cloneID = "{0}{1}".format(plate, w384)
         gssID = "{0}{1}".format(cloneID, d)
-        primer = Primers[d]
         seen[gssID] += 1
 
         if seen[gssID] > 1:

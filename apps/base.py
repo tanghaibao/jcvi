@@ -8,6 +8,7 @@ import sys
 import shutil
 import logging
 
+from socket import gethostname
 from subprocess import PIPE, call
 from optparse import OptionParser as OptionP, OptionGroup
 os.environ["LC_ALL"] = "C"
@@ -449,11 +450,6 @@ def backup(filename):
         logging.debug("Backup `{0}` to `{1}`".format(filename, bakname))
         sh("mv {0} {1}".format(filename, bakname))
         return bakname
-
-
-def gethostname():
-    from socket import gethostname
-    return gethostname()
 
 
 def getusername():

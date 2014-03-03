@@ -1290,7 +1290,6 @@ def liftover(args):
     all_anchors, anchor_to_block = read_anchors(ac, qorder, sorder)
 
     # select hits that are close to the anchor list
-    fw = sys.stdout
     lifted = 0
     for chr_pair in sorted(all_anchors.keys()):
         hits = np.array(all_hits[chr_pair])

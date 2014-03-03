@@ -13,9 +13,8 @@ import logging
 from math import exp
 from itertools import groupby
 
-from jcvi.formats.base import LineFile
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh, \
-            need_update, must_open
+from jcvi.formats.base import LineFile, need_update
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh, need_update
 debug()
 
 Overlap_types = ("none", "a ~ b", "b ~ a", "a in b", "b in a")

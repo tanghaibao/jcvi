@@ -54,6 +54,7 @@ class F4ALayoutLine (object):
         self.span = self.end - self.start + 1
         self.box_region = args[1]
         self.y = float(args[2])
+        self.i = int(args[3])
 
 
 class F4ALayout(LineFile):
@@ -333,7 +334,7 @@ def f4a(args):
     p = OptionParser(f4a.__doc__)
     p.add_option("--gauge_step", default=200000, type="int",
                 help="Step size for the base scale")
-    opts, args, iopts = p.set_image_options(args, figsize="9x9")
+    opts, args, iopts = p.set_image_options(args, figsize="9x7")
 
     if len(args) != 2:
         sys.exit(not p.print_help())
@@ -355,10 +356,10 @@ def f4a(args):
               r"\textit{B. rapa} A$\mathsf{_r}$2",
               r"\textit{B. oleracea} C$\mathsf{_o}$2",
               r"\textit{B. napus} C$\mathsf{_n}$2")
-    for i, (label, t) in enumerate(zip(labels, layout)):
-        xstart, xend = synteny_exts[2 * i]
+    for t in layout:
+        xstart, xend = synteny_exts[2 * t.i]
         canvas = [xstart, t.y, xend - xstart, h]
-        root.text(xstart - h, t.y + h / 2, label, ha="center", va="center")
+        root.text(xstart - h, t.y + h / 2, labels[t.i], ha="center", va="center")
         ch, ab = t.box_region.split(":")
         a, b = ab.split("-")
         vlines = [int(x) for x in (a, b)]
@@ -376,7 +377,7 @@ def f4a(args):
         xend, yend = end
         x = (xstart + xend) / 2
         #TextCircle(root, x, ystart, "G", radius=.012, zorder=20)
-        arrow = FancyArrowPatch(posA=(x, ystart - .03),
+        arrow = FancyArrowPatch(posA=(x, ystart - .04),
                                 posB=(x, ystart - .005),
                                 arrowstyle="fancy,head_width=6,head_length=8",
                                 lw=3, fc='k', ec='k', zorder=20)

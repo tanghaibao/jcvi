@@ -97,7 +97,7 @@ def patch(args):
         return
 
     pf = ref.rsplit(".", 1)[0]
-    pr = reads.rsplit(".", 1)[0]
+    pr, px = reads.rsplit(".", 1)
     # Remove description line
     if opts.cleanfasta:
         oref = pf + ".f.fasta"
@@ -108,14 +108,19 @@ def patch(args):
 
     # Check if the FASTA has qual
     ref, refq = fake_quals(ref)
-    reads, readsq = fake_quals(reads)
+    convert_reads = not px in ("fq", "fastq", "txt")
+    if convert_reads:
+        reads, readsq = fake_quals(reads)
+        readsfiles = " ".join((reads, readsq))
+    else:
+        readsfiles = reads
 
     # Make directory structure
     dref, dreads = "data/reference", "data/reads"
     sh("mkdir -p {0}".format(dref))
     sh("mkdir -p {0}".format(dreads))
     sh("cp {0} {1}/".format(" ".join((ref, refq)), dref))
-    sh("cp {0} {1}/".format(" ".join((reads, readsq)), dreads))
+    sh("cp {0} {1}/".format(readsfiles, dreads))
     cwd = os.getcwd()
 
     outputDir = cwd

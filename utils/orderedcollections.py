@@ -178,7 +178,7 @@ class DefaultOrderedDict(OrderedDict):
                                         OrderedDict.__repr__(self))
 
 
-def parse_qs(qs, keep_blank_values=0, strict_parsing=0):
+def parse_qs(qs, keep_blank_values=0, strict_parsing=0, keep_attr_order=True):
     """
     Kind of like urlparse.parse_qs, except returns an ordered dict.
     Also avoids replicating that function's bad habit of overriding the
@@ -187,7 +187,7 @@ def parse_qs(qs, keep_blank_values=0, strict_parsing=0):
     Taken from below with modification:
     <https://bitbucket.org/btubbs/thumpy/raw/8cdece404f15/thumpy.py>
     """
-    od = DefaultOrderedDict(list)
+    od = DefaultOrderedDict(list) if keep_attr_order else defaultdict(list)
     for name, value in urlparse.parse_qsl(qs, keep_blank_values, strict_parsing):
         od[name].append(value)
 

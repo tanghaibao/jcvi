@@ -156,6 +156,7 @@ class GODag(dict):
     def __init__(self, obo_file="gene_ontology.1_2.obo"):
 
         self.load_obo_file(obo_file)
+        self.valid_names = set(x.name for x in self.values())
 
     def load_obo_file(self, obo_file):
 
@@ -270,10 +271,6 @@ class GODag(dict):
         if bad_terms:
             print >>sys.stderr, "terms not found:", bad_terms
 
-    @property
-    def valid_names(self):
-        return set(x.name for x in self.values())
-
 
 def load_GODag():
     """
@@ -294,8 +291,7 @@ def validate_term(term, so=None, method="verify"):
     if so is None:
         so = load_GODag()
 
-    valid_names = so.valid_names
-    if term not in valid_names:
+    if term not in so.valid_names:
         if method == "resolve":
             logging.debug("Resolving term `{0}` using SO".format(term))
             if "_" in term:

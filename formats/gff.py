@@ -14,6 +14,7 @@ from urllib import quote, unquote
 from jcvi.formats.base import LineFile, must_open, is_number
 from jcvi.formats.fasta import Fasta, SeqIO
 from jcvi.formats.bed import Bed, BedLine
+from jcvi.annotation.reformat import atg_name
 from jcvi.utils.iter import flatten
 from jcvi.utils.orderedcollections import DefaultOrderedDict, parse_qs
 from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher, mkdir, \
@@ -44,8 +45,9 @@ class GffLine (object):
     """
     Specification here (http://www.sequenceontology.org/gff3.shtml)
     """
-    def __init__(self, sline, key="ID", gff3=True,
-                 append_source=False, score_attrib=False):
+    def __init__(self, sline, key="ID", gff3=True, line_index=None,
+                 append_source=False, score_attrib=False,
+                 keep_attr_order=True, compute_signature=False):
         args = sline.strip().split("\t")
         self.seqid = args[0]
         self.source = args[1]
@@ -60,7 +62,7 @@ class GffLine (object):
         assert self.phase in Valid_phases, \
                 "phase must be one of {0}".format(Valid_phases)
         self.attributes_text = "" if len(args) <= 8 else args[8].strip()
-        self.attributes = make_attributes(self.attributes_text, gff3=gff3)
+        self.attributes = make_attributes(self.attributes_text, gff3=gff3, keep_attr_order=keep_attr_order)
         # key is not in the gff3 field, this indicates the conversion to accn
         self.key = key  # usually it's `ID=xxxxx;`
         self.gff3 = gff3
@@ -78,6 +80,16 @@ class GffLine (object):
             # is numeric or not. If not, keep original GFF score value
             self.score = self.attributes[score_attrib][0]
 
+        if line_index is not None and is_number(line_index):
+            # if `line_index` in provided, initialize an idx variable
+            # used to autcompute the ID for a feature
+            self.idx = line_index
+
+        if compute_signature:
+            # if `compute_signature` is specified, compute a signature for
+            # the gff line and store in variable `sign`
+            self.sign = self.signature
+
     def __getitem__(self, key):
         return getattr(self, key)
 
@@ -87,7 +99,7 @@ class GffLine (object):
                 self.attributes_text))
 
     def get_attr(self, key, first=True):
-        if key in self.attributes.keys():
+        if key in self.attributes:
             if first:
                 return self.attributes[key][0]
             return self.attributes[key]
@@ -98,7 +110,7 @@ class GffLine (object):
             value = [value]
             if key == "Dbxref" and dbtag:
                 value = ["{0}:{1}".format(dbtag, x) for x in value]
-        if key not in self.attributes.keys() or not append:
+        if key not in self.attributes or not append:
             self.attributes[key] = []
         self.attributes[key].extend(value)
         if update:
@@ -110,7 +122,6 @@ class GffLine (object):
             gff3 = self.gff3
 
         sep = ";" if gff3 else "; "
-        sc = safechars
         for tag, val in self.attributes.items():
             if not val and skipEmpty:
                 continue
@@ -118,6 +129,7 @@ class GffLine (object):
             val = "\"{0}\"".format(val) if " " in val and (not gff3) else val
             equal = "=" if gff3 else " "
             if urlquote:
+                sc = safechars
                 if tag in multiple_gff_attributes:
                     sc += ","
                 val = quote(val, safe=sc)
@@ -133,38 +145,15 @@ class GffLine (object):
 
     @property
     def accn(self):
-        if self.key and self.key in self.attributes:    # GFF3 format
-            a = self.attributes[self.key]
+        if self.key:
+            if self.key == "ID" and self.key not in self.attributes:
+                a = "{0}_{1}".format(str(self.type).lower(), self.idx)
+                self.set_attr("ID", a, update=True)
+            elif self.key in self.attributes:    # GFF3 format
+                a = self.attributes[self.key]
         else:   # GFF2 format
             a = self.attributes_text.split()
         return quote(",".join(a), safe=safechars)
-
-    id = accn
-
-    @property
-    def signature(self):
-        """
-        create a unique signature for any GFF line based on joining
-        columns 1,2,3,4,5,7,8 (into a comma separated string)
-        """
-        from jcvi.annotation.reformat import atg_name
-
-        sig_elems = [self.seqid, self.source, self.type, \
-                    self.start, self.end, self.strand, \
-                    self.phase]
-        if re.search("exon|CDS|UTR", self.type):
-            parent = self.get_attr("Parent")
-            if parent:
-                (locus, iso) = atg_name(parent, retval="locus,iso", \
-                        trimpad0=False)
-                if locus:
-                    sig_elems.append(locus)
-        else:
-            id = self.get_attr("ID")
-            if id:
-                sig_elems.extend([id])
-
-        return ",".join(str(elem) for elem in sig_elems)
 
     @property
     def span(self):
@@ -177,19 +166,52 @@ class GffLine (object):
             str(self.end), self.accn, score, self.strand))
         return BedLine(row)
 
+    @property
+    def signature(self):
+        """
+        create a unique signature for any GFF line based on joining
+        columns 1,2,3,4,5,7,8 (into a comma separated string)
+        """
+        sig_elems = [self.seqid, self.source, self.type, \
+                    self.start, self.end, self.strand, \
+                    self.phase]
+        if re.search("exon|CDS|UTR", self.type):
+            parent = self.get_attr("Parent")
+            if parent:
+                (locus, iso) = atg_name(parent, retval="locus,iso", \
+                        trimpad0=False)
+                if locus:
+                    sig_elems.append(locus)
+        else:
+            sig_elems.extend([self.accn])
+
+        return ",".join(str(elem) for elem in sig_elems)
+
 
 class Gff (LineFile):
 
-    def __init__(self, filename, key="ID", append_source=False, score_attrib=False):
+    def __init__(self, filename, key="ID", append_source=False, score_attrib=False, \
+            keep_attr_order=True, make_gff_store=False, compute_signature=False):
         super(Gff, self).__init__(filename)
-        self.key = key
-        self.append_source = append_source
-        self.score_attrib = score_attrib
-        if self.filename in ("-", "stdin"):
-            self.gff3 = True
-            return
+        self.make_gff_store = make_gff_store
+        if self.make_gff_store:
+            self.gffstore = []
+            gff = Gff(self.filename, key=key, append_source=append_source, \
+                    score_attrib=score_attrib, keep_attr_order=keep_attr_order, \
+                    compute_signature=compute_signature)
+            for g in gff:
+                self.gffstore.append(g)
+        else:
+            self.key = key
+            self.append_source = append_source
+            self.score_attrib = score_attrib
+            self.keep_attr_order = keep_attr_order
+            self.compute_signature = compute_signature
+            if self.filename in ("-", "stdin"):
+                self.gff3 = True
+                return
 
-        self.set_gff_type()
+            self.set_gff_type()
 
     def set_gff_type(self):
         # Determine file type
@@ -204,24 +226,63 @@ class Gff (LineFile):
         self.fp.seek(0)
 
     def __iter__(self):
-        self.fp = must_open(self.filename)
-        for row in self.fp:
-            row = row.strip()
-            if row.strip() == "":
-                continue
-            if row[0] == '#':
-                if row == FastaTag:
-                    break
-                continue
-            yield GffLine(row, key=self.key, append_source=self.append_source, \
-                    score_attrib=self.score_attrib)
+        if self.make_gff_store:
+            for row in self.gffstore:
+                yield row
+        else:
+            self.fp = must_open(self.filename)
+            for idx, row in enumerate(self.fp):
+                row = row.strip()
+                if row.strip() == "":
+                    continue
+                if row[0] == '#':
+                    if row == FastaTag:
+                        break
+                    continue
+                yield GffLine(row, key=self.key, line_index=idx, append_source=self.append_source, \
+                        score_attrib=self.score_attrib, keep_attr_order=self.keep_attr_order, \
+                        compute_signature=self.compute_signature)
 
     @property
     def seqids(self):
         return set(x.seqid for x in self)
 
 
-def make_attributes(s, gff3=True):
+class GffFeatureTracker (object):
+
+    def __init__(self):
+        self.ftype = "exon|CDS|UTR|fragment"
+        self.tracker = {}
+        self.symbolstore = {}
+
+    def track(self, parent, g):
+        if re.search(self.ftype, g.type):
+            if parent not in self.tracker:
+                self.tracker[parent] = {}
+            if g.type not in self.tracker[parent]:
+                self.tracker[parent][g.type] = set()
+            self.tracker[parent][g.type].add((g.start, g.end, g.sign))
+
+    def _sort(self, parent, ftype, reverse=False):
+        if not isinstance(self.tracker[parent][ftype], list):
+            self.tracker[parent][ftype] = sorted(list(self.tracker[parent][ftype]), key=lambda x: (x[0], x[1]), reverse=reverse)
+
+    def feat_index(self, parent, ftype, strand, feat_tuple):
+        reverse = True if strand == "-" else False
+        self._sort(parent, ftype, reverse=reverse)
+        return self.tracker[parent][ftype].index(feat_tuple)
+
+    def store_symbol(self, g):
+        for symbol_attr in ("symbol", "Alias", "ID"):
+            if symbol_attr in g.attributes:
+                break
+        self.symbolstore[g.accn] = g.get_attr(symbol_attr)
+
+    def get_symbol(self, parent):
+        return self.symbolstore[parent]
+
+
+def make_attributes(s, gff3=True, keep_attr_order=True):
     """
     In GFF3, the last column is typically:
     ID=cds00002;Parent=mRNA00002;
@@ -236,12 +297,12 @@ def make_attributes(s, gff3=True):
         replacing the '+' sign with a space
         """
         s = s.replace('+', 'PlusSign')
-        d = parse_qs(s)
+        d = parse_qs(s, keep_attr_order=keep_attr_order)
         for key in d.iterkeys():
             d[key][0] = unquote(d[key][0].replace('PlusSign', '+').replace('"', ''))
     else:
         attributes = s.split(";")
-        d = DefaultOrderedDict(list)
+        d = DefaultOrderedDict(list) if keep_attr_order else defaultdict(list)
         for a in attributes:
             a = a.strip()
             if ' ' not in a:
@@ -492,8 +553,6 @@ def gapsplit(args):
     each feature into one parent and multiple child features based on alignment
     information encoded in CIGAR string.
     """
-    import re
-
     p = OptionParser(gapsplit.__doc__)
 
     opts, args = p.parse_args(args)
@@ -631,7 +690,7 @@ def chain(args):
 
         if attrib_list:
             for a in attrib_list.split(","):
-                if a in g.attributes.keys():
+                if a in g.attributes:
                     [gffdict[id]['attrs'][a].add(x) for x in g.attributes[a]]
                     del g.attributes[a]
 
@@ -700,19 +759,24 @@ def format(args):
     g1 = OptionGroup(p, "Parameter(s) used to modify GFF attributes (9th column)")
     g1.add_option("--name", help="Add Name attribute from two-column file [default: %default]")
     g1.add_option("--note", help="Add Note attribute from two-column file [default: %default]")
-    g1.add_option("--add_attribute", dest="attrib_files", help="Add new attribute(s) " +
-                "from two-column file(s); attribute name comes from filename; " +
+    g1.add_option("--add_attribute", dest="attrib_files", help="Add new attribute(s) " + \
+                "from two-column file(s); attribute name comes from filename; " + \
                 "accepts comma-separated list of files [default: %default]")
     g1.add_option("--add_dbxref", dest="dbxref_files", help="Add new Dbxref value(s) (DBTAG:ID) " + \
                 "from two-column file(s). DBTAG comes from filename, ID comes from 2nd column; " + \
                 "accepts comma-separated list of files [default: %default]")
-    p.add_option("--nostrict", default=False, action="store_true",
+    g1.add_option("--nostrict", default=False, action="store_true",
                  help="Disable strict parsing of mapping file [default: %default]")
+    g1.add_option("--invent_name_attr", default=False, action="store_true",
+                 help="Invent `Name` attribute for 2nd level child features; " + \
+                "Formatted like  PARENT:FEAT_TYPE:FEAT_INDEX [default: %default]")
+    g1.add_option("--no_keep_attr_order", default=False, action="store_true",
+                 help="Do not maintain attribute order [default: %default]")
     p.add_option_group(g1)
 
     g2 = OptionGroup(p, "Parameter(s) used to modify content within columns 1-8")
     g2.add_option("--seqid", help="Switch seqid from two-column file [default: %default]")
-    g2.add_option("--source", help="Switch GFF source from two-column file. If not" +
+    g2.add_option("--source", help="Switch GFF source from two-column file. If not" + \
                 " a file, value will globally replace GFF source [default: %default]")
     g2.add_option("--fixphase", default=False, action="store_true",
                  help="Change phase 1<->2, 2<->1 [default: %default]")
@@ -733,6 +797,8 @@ def format(args):
                 " [default: %default]")
     g3.add_option("--gsac", default=False, action="store_true",
                  help="Fix GSAC GFF3 file attributes [default: %default]")
+    g3.add_option("--make_gff_store", default=False, action="store_true",
+                 help="Store entire GFF file in memory during first iteration [default: %default]")
     p.add_option_group(g3)
 
     p.set_outfile()
@@ -748,8 +814,8 @@ def format(args):
     names = opts.name
     note = opts.note
     source = opts.source
-    attrib_files = opts.attrib_files
-    dbxref_files = opts.dbxref_files
+    attrib_files = opts.attrib_files.split(",") if opts.attrib_files else None
+    dbxref_files = opts.dbxref_files.split(",") if opts.dbxref_files else None
     gsac = opts.gsac
     if opts.unique and opts.duptype:
         logging.debug("Cannot use `--unique` and `--chaindup` together")
@@ -760,6 +826,9 @@ def format(args):
     phaseT = {"1":"2", "2":"1"}
     remove_feats = opts.remove_feats.split(",") if opts.remove_feats else None
     strict = False if opts.nostrict else True
+    make_gff_store = True if gffile in ("-", "stdin") else opts.make_gff_store
+    invent_name_attr = opts.invent_name_attr
+    compute_signature = False
 
     outfile = opts.outfile
 
@@ -772,15 +841,15 @@ def format(args):
     if names:
         names = DictFile(names, delimiter="\t", strict=strict)
     if attrib_files:
-        attr_values, files = {}, attrib_files.split(",")
-        for fn in files:
+        attr_values = {}
+        for fn in attrib_files:
             attr_name = op.basename(fn).rsplit(".", 1)[0]
             if attr_name not in reserved_gff_attributes:
                 attr_name = attr_name.lower()
             attr_values[attr_name] = DictFile(fn, delimiter="\t", strict=strict)
     if dbxref_files:
-        dbxref_values, files = {}, dbxref_files.split(",")
-        for fn in files:
+        dbxref_values = {}
+        for fn in dbxref_files:
             dbtag = op.basename(fn).rsplit(".", 1)[0]
             dbxref_values[dbtag] = DictFile(fn, delimiter="\t", strict=strict)
 
@@ -789,7 +858,7 @@ def format(args):
         notes = {}
 
     remove = set()
-    if unique or duptype or remove_feats or opts.multiparents == "merge":
+    if unique or duptype or remove_feats or opts.multiparents == "merge" or invent_name_attr or make_gff_store:
         if unique:
             dupcounts = defaultdict(int)
             seen = defaultdict(int)
@@ -799,42 +868,61 @@ def format(args):
             skip = defaultdict(int)
         if opts.multiparents == "merge":
             merge_feats = AutoVivification()
-        gff = Gff(gffile)
-        for idx, g in enumerate(gff):
-            if "ID" not in g.attributes.keys():
-                id = "{0}_{1}".format(str(g.type).lower(), idx)
-            else:
-                id = g.accn
+        if invent_name_attr:
+            ft = GffFeatureTracker()
+        if opts.multiparents == "merge" or invent_name_attr:
+            make_gff_store = compute_signature = True
+        gff = Gff(gffile, keep_attr_order=(not opts.no_keep_attr_order), \
+                make_gff_store=make_gff_store, compute_signature=compute_signature)
+        for g in gff:
+            id = g.accn
             if remove_feats and g.type in remove_feats:
                 remove.add(id)
             if unique:
                 dupcounts[id] += 1
             elif duptype and g.type == duptype:
-                dupranges[id][idx] = (g.start, g.end)
+                dupranges[id][g.idx] = (g.start, g.end)
             if opts.multiparents == "merge":
                 pp = g.get_attr("Parent", first=False)
                 if pp and len(pp) > 0:
                     for parent in pp:
                         if parent not in remove:
-                            sig = g.signature
-                            if sig not in merge_feats.keys():
+                            sig = g.sign
+                            if sig not in merge_feats:
                                 merge_feats[sig]['parents'] = []
                             if parent not in merge_feats[sig]['parents']:
                                 merge_feats[sig]['parents'].append(parent)
+            if invent_name_attr:
+                parent, iso = atg_name(g.get_attr("Parent"), retval="locus,iso")
+                if not parent:
+                    parent = g.get_attr("Parent")
+                ft.track(parent, g)
 
     if opts.verifySO:
         so = load_GODag()
+        valid_soterm = {}
 
     fw = must_open(outfile, "w")
-    gff = Gff(gffile)
-    for idx, g in enumerate(gff):
+    if not make_gff_store:
+        gff = Gff(gffile, keep_attr_order=(not opts.no_keep_attr_order))
+    for g in gff:
+        id = g.accn
+
+        if opts.multiparents == "merge":
+            sig = g.sign
+            if len(merge_feats[sig]['parents']) > 1:
+                if 'candidate' not in merge_feats[sig]:
+                    merge_feats[sig]['candidate'] = id
+                    g.set_attr("Parent", merge_feats[sig]['parents'])
+                else:
+                    continue
+
         if remove_feats:
             if g.type in remove_feats:
-                id = g.get_attr("ID")
                 if id in remove:
                     continue
             else:
-                if "Parent" in g.attributes.keys():
+                if "Parent" in g.attributes:
                     keep, parent = [], g.get_attr("Parent", first=False)
                     for i, pid in enumerate(parent):
                         if pid not in remove:
@@ -844,19 +932,12 @@ def format(args):
                     parent = g.set_attr("Parent", keep)
 
         if opts.verifySO:
-            ntype = validate_term(g.type, so=so, method=opts.verifySO)
+            if g.type not in valid_soterm:
+                valid_soterm[g.type] = validate_term(g.type, so=so, method=opts.verifySO)
+            ntype = valid_soterm[g.type]
             if ntype and g.type != ntype:
                 logging.debug("Resolved term to `{0}`".format(ntype))
                 g.type = ntype
-
-        if opts.multiparents == "merge":
-            sig = g.signature
-            if len(merge_feats[sig]['parents']) > 1:
-                if 'candidate' not in merge_feats[sig].keys():
-                    merge_feats[sig]['candidate'] = g.id
-                    g.set_attr("Parent", merge_feats[sig]['parents'])
-                else:
-                    continue
 
         origid = g.seqid
         if fixphase:
@@ -876,7 +957,6 @@ def format(args):
             else:
                 g.source = source
 
-        id = g.get_attr("ID")
         if names:
             if id in names:
                 g.set_attr("Name", names[id])
@@ -893,20 +973,16 @@ def format(args):
                 g.set_attr("Note", tag, update=False)
 
         if attrib_files:
-            for attr_name in attr_values.keys():
-                if id in attr_values[attr_name].keys():
+            for attr_name in attr_values:
+                if id in attr_values[attr_name]:
                     g.set_attr(attr_name, attr_values[attr_name][id])
 
         if dbxref_files:
-            for dbtag in dbxref_values.keys():
-                if id in dbxref_values[dbtag].keys():
+            for dbtag in dbxref_values:
+                if id in dbxref_values[dbtag]:
                     g.set_attr("Dbxref", dbxref_values[dbtag][id], dbtag=dbtag, append=True)
 
         if unique:
-            if "ID" not in g.attributes.keys():
-                g.set_attr("ID", "{0}_{1}".format(str(g.type).lower(), idx), update=False)
-
-            id = g.accn
             if dupcounts[id] > 1:
                 seen[id] += 1
                 old_id = id
@@ -914,24 +990,37 @@ def format(args):
                 newparentid[old_id] = id
                 g.set_attr("ID", id)
 
-            if "Parent" in g.attributes.keys():
+            if "Parent" in g.attributes:
                 parent = g.attributes["Parent"][0]
                 if dupcounts[parent] > 1:
                     g.set_attr("Parent", newparentid[parent])
 
         if duptype:
-            id = g.accn
             if duptype == g.type and len(dupranges[id]) > 1:
-                p = sorted(dupranges[id].keys())
+                p = sorted(dupranges[id])
                 s, e = dupranges[id][p[0]][0:2]  # get coords of first encountered feature
-                if g.start == s and g.end == e and p[0] == idx:
-                    r = [dupranges[id][x] for x in dupranges[id].keys()]
+                if g.start == s and g.end == e and p[0] == g.idx:
+                    r = [dupranges[id][x] for x in dupranges[id]]
                     g.start, g.end = range_minmax(r)
                 else:
-                    skip[(idx, id, g.start, g.end)] = 1
+                    skip[(g.idx, id, g.start, g.end)] = 1
 
         if gsac and g.type == "gene":
-            notes[g.accn] = g.attributes["Name"]
+            notes[id] = g.attributes["Name"]
+
+        if invent_name_attr:
+            ft.store_symbol(g)
+            if re.search(ft.ftype, g.type):
+                parent, iso = atg_name(g.get_attr("Parent"), retval="locus,iso")
+                if not parent:
+                    parent = g.get_attr("Parent")
+                if parent in ft.tracker:
+                    fidx = ft.feat_index(parent, g.type, g.strand, (g.start, g.end, g.sign))
+                    symbol = ft.get_symbol(parent)
+                    attr = "ID" if symbol == parent else "Name"
+                    g.set_attr(attr, "{0}:{1}:{2}".format(symbol, g.type, fidx + 1))
+                    if opts.multiparents == "merge" and attr == "Name":
+                        g.set_attr("ID", "{0}:{1}:{2}".format(parent, g.type, fidx + 1))
 
         pp = g.get_attr("Parent", first=False)
         if opts.multiparents == "split" and (pp and len(pp) > 1):  # separate features with multiple parents
@@ -946,7 +1035,7 @@ def format(args):
             g.update_attributes()
             if gsac:
                 fix_gsac(g, notes)
-            if duptype == g.type and skip[(idx, g.accn, g.start, g.end)] == 1:
+            if duptype == g.type and skip[(g.idx, id, g.start, g.end)] == 1:
                 continue
             print >> fw, g
 
@@ -1053,7 +1142,7 @@ def dedup_pile(newgrp, group, gffdb, iter):
     for elem in group:
         pile[elem.accn] = elem
 
-    for f1, f2 in combinations(pile.keys(), 2):
+    for f1, f2 in combinations(pile, 2):
         dbf1, dbf2 = gffdb[f1], gffdb[f2]
         if match_feats(dbf1, dbf2, gffdb, iter):
             dups.join(f1, f2)
@@ -1166,7 +1255,7 @@ def uniq(args):
             jobs.run()
         logging.debug("Deduplication complete".format(len(flt_groups)))
 
-        for x in results.keys():
+        for x in results:
             bestids.add(x)
 
     populate_children(opts.outfile, bestids, gffile, opts.type, iter=opts.iter)
@@ -1248,7 +1337,7 @@ def sort(args):
         toplvl, gffdict = [], {}
         gff = Gff(gffile)
         for g in gff:
-            id = g.get_attr("ID")
+            id = g.accn
             parent = g.get_attr("Parent", first=False)
             gffdict = _sort_init_dict(gffdict, id)
             gffdict[id]['gffline'] = g
@@ -1275,7 +1364,7 @@ def _sort_init_dict(gffdict, id):
     if id not in gffdict:
         gffdict[id] = DefaultOrderedDict(list)
         for reln in ('parents', 'children'):
-            if reln not in gffdict[id].keys():
+            if reln not in gffdict[id]:
                 gffdict[id][reln] = list()
     return gffdict
 
@@ -1502,7 +1591,7 @@ def merge(args):
 
         f = Fasta(gffile, lazy=True)
         for key, rec in f.iteritems_ordered():
-            if key in fastarecs.keys():
+            if key in fastarecs:
                 continue
             fastarecs[key] = rec
 
@@ -1907,8 +1996,6 @@ def parse_feature_param(feature):
 
     If erroneous, returns a flag and error message to be displayed on exit
     """
-    import re
-
     # can request upstream sequence only from the following valid sites
     valid_upstream_sites = ["TSS", "TrSS"]
 

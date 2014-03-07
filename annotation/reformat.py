@@ -17,7 +17,6 @@ from itertools import groupby
 from pybedtools import BedTool
 
 from jcvi.formats.bed import Bed, BedLine, sort
-from jcvi.formats.gff import Gff
 from jcvi.formats.base import SetFile, must_open
 from jcvi.utils.cbook import number
 from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher, debug, \
@@ -345,7 +344,7 @@ def instantiate(args):
 def atg_name(name, retval="chr,rank", trimpad0=True):
     atg_name_pat = re.compile(r"""
             ^(?P<locus>
-                (?P<prefix>\D+)(?P<chr>\d+)(?P<sep>\D+)(?P<rank>\d+)
+                (?P<prefix>\D+)(?P<chr>[\d+CM])(?P<sep>\D+)(?P<rank>\d+)
             )
             \.?(?P<iso>\d+)?
             """, re.VERBOSE)
@@ -353,16 +352,17 @@ def atg_name(name, retval="chr,rank", trimpad0=True):
     seps = ["g", "te", "trna", "s"]
     pad0s = ["chr", "rank"]
 
-    m = re.match(atg_name_pat, name)
-    if m is not None and m.group('sep').lower() in seps:
-        retvals = []
-        for grp in retval.split(","):
-            val = number(m.group(grp)) \
-                    if trimpad0 and grp in pad0s \
-                    else m.group(grp)
-            retvals.append(val)
+    if name is not None:
+        m = re.match(atg_name_pat, name)
+        if m is not None and m.group('sep').lower() in seps:
+            retvals = []
+            for grp in retval.split(","):
+                val = number(m.group(grp)) \
+                        if trimpad0 and grp in pad0s \
+                        else m.group(grp)
+                retvals.append(val)
 
-        return (x for x in retvals)
+            return (x for x in retvals)
     else:
         return (None for x in retval.split(","))
 
@@ -987,6 +987,8 @@ def augustus(args):
 
     AUGUSTUS does generate a gff3 (--gff3=on) but need some refinement.
     """
+    from jcvi.formats.gff import Gff
+
     p = OptionParser(augustus.__doc__)
     opts, args = p.parse_args(args)
 

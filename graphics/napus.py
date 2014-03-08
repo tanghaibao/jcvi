@@ -268,7 +268,7 @@ def f3a(args):
     r = height / 4
     K = Karyotype(fig, root, seqidsfile, klayout, gap=gap,
                   height=height, lw=2, generank=False, sizes=sizes,
-                  heightpad=r)
+                  heightpad=r, roundrect=True)
 
     # Inset with datafiles
     datafiles = ("chrA02.bzh.forxmgr", "parent.A02.per10kb.forxmgr",
@@ -296,11 +296,11 @@ def f3a(args):
 
     order = Bed(bedfile).order
     conversion_track(order, "data/Genes.Converted.seuil.0.6.AtoC.txt",
-                     0, "A02", ax_Ar, "b")
+                     0, "A02", ax_Ar, "g")
     conversion_track(order, "data/Genes.Converted.seuil.0.6.AtoC.txt",
-                     1, "C2", ax_Co, "b")
+                     1, "C2", ax_Co, "r")
     conversion_track(order, "data/Genes.Converted.seuil.0.6.CtoA.txt",
-                     0, "A02", ax_Ar, "g", ypos=1)
+                     0, "A02", ax_Ar, "r", ypos=1)
     conversion_track(order, "data/Genes.Converted.seuil.0.6.CtoA.txt",
                      1, "C2", ax_Co, "g", ypos=1)
     ax_Ar.set_xlim(0, tracks[1].total)
@@ -313,8 +313,8 @@ def f3a(args):
                 va="center")
     root.text(.81, .77, r"Converted C$\mathsf{_n}$ to A$\mathsf{_n}$",
                 va="center")
-    root.scatter([.8], [.8], s=20, color="b")
-    root.scatter([.8], [.77], s=20, color="g")
+    root.scatter([.8], [.8], s=20, color="g")
+    root.scatter([.8], [.77], s=20, color="r")
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)

@@ -84,7 +84,7 @@ class Layout (LineFile):
         fp = open(simplefile)
         blocks = []
         for row in fp:
-            if row[:2] == "##":
+            if row[:2] == "##" or row.startswith("StartGeneA"):
                 continue
             hl = ("*" in row)
             if hl:
@@ -105,7 +105,8 @@ MaxSeqids = 20   # above which no labels are written
 
 class Track (object):
 
-    def __init__(self, ax, t, gap=.01, height=.01, lw=1, draw=True, heightpad=0):
+    def __init__(self, ax, t, gap=.01, height=.01, lw=1, draw=True,
+                 heightpad=0, roundrect=False):
 
         self.empty = t.empty
         if t.empty:
@@ -149,12 +150,12 @@ class Track (object):
         self.lw = lw
 
         if draw:
-            self.draw()
+            self.draw(roundrect=roundrect)
 
     def __str__(self):
         return self.label
 
-    def draw(self):
+    def draw(self, roundrect=False):
         if self.empty:
             return
 
@@ -171,7 +172,8 @@ class Track (object):
             rsize = self.ratio * size
             xend = xstart + rsize
             hc = HorizontalChromosome(ax, xstart, xend, y,
-                                      height=self.height, lw=self.lw, fc=color)
+                                      height=self.height, lw=self.lw, fc=color,
+                                      roundrect=roundrect)
             hc.set_transform(tr)
             sid = sid.rsplit("_", 1)[-1]
             si = "".join(x for x in sid if x not in string.letters)
@@ -260,7 +262,8 @@ class ShadeManager (object):
 class Karyotype (object):
 
     def __init__(self, fig, root, seqidsfile, layoutfile, gap=.01,
-                 height=.01, lw=1, generank=True, sizes=None, heightpad=0):
+                 height=.01, lw=1, generank=True, sizes=None, heightpad=0,
+                 roundrect=False):
 
         layout = Layout(layoutfile, generank=generank)
 
@@ -293,7 +296,7 @@ class Karyotype (object):
         ShadeManager(root, tracks, layout, heightpad=heightpad)
 
         for tr in tracks:
-            tr.draw()  # this time for real
+            tr.draw(roundrect=roundrect)  # this time for real
 
         self.tracks = tracks
 

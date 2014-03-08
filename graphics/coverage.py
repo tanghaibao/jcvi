@@ -84,9 +84,9 @@ class XYtrack (object):
         logging.debug("Imported {0} regions from file `{1}`.".\
                         format(imported, hlfile))
 
-    def highlight(self, mapping, start, end, color="r", unit=10000):
+    def highlight(self, mapping, start, end, color="r", unit=10000, zorder=10):
         ax = self.ax
-        x = range(start, end, unit)
+        x = range(start, end + unit, unit)
         y = [mapping[z] for z in x]
         # Mask the highlight region so that they don't appear in background
         for a in self.xy:
@@ -94,7 +94,7 @@ class XYtrack (object):
                 a[1] = 0
         self.x, self.y = zip(*self.xy)
         ax.plot(x, y, lw=0)
-        ax.fill_between(x, y, color=color, lw=0)
+        ax.fill_between(x, y, color=color, lw=0, zorder=zorder)
 
     def vlines(self, xs, color='m'):
         for x in xs:

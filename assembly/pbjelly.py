@@ -22,9 +22,11 @@ class Protocol (object):
         self.outputDir = outputDir
         self.reference = reference
         self.reads = reads
-        oblasr = (20, 98) if highqual else (8, 70)
+        oblasr = (20, 98) if highqual else (8, 75)
         self.blasr = "-minMatch {0} -minPctIdentity {1}".format(*oblasr)
-        self.blasr += " -bestn 8 -nCandidates 30 -maxScore -500 -nproc 64 -noSplitSubreads"
+        #self.blasr += " -bestn 8 -nCandidates 30 -maxScore -500 -nproc 64 -noSplitSubreads"
+        self.blasr += " -sdpTupleSize 8 -bestn 2 -nCandidates 10 " \
+                      "-maxScore -500 -nproc 64 -noSplitSubread"
 
     def write_xml(self, filename="Protocol.xml"):
         import xml.etree.cElementTree as ET
@@ -46,7 +48,8 @@ class Protocol (object):
         s = XD.parseString(s)
 
         fw = open(filename, "w")
-        print >> fw, s.toprettyxml()
+        #print >> fw, s.toprettyxml()
+        print >> fw, s.toxml()
         logging.debug("XML configuration written to `{0}`".format(filename))
         fw.close()
 
@@ -92,8 +95,21 @@ def patch(args):
     ref, reads = args
     cmd = op.join(opts.pbjelly_home, "setup.sh")
     if not which("fakeQuals.py"):
-        message = "Run this command:\n\tsource {0}".format(cmd)
-        print >> sys.stderr, message
+        setup = "source {0}".format(cmd)
+        sh(setup)
+
+    # Check environment
+    try:
+        import networkx
+        version = networkx.version
+    except:
+        logging.error("You need networkx==1.1 to run PBJELLY")
+        return
+
+    try:
+        import argparse
+    except ImportError:
+        logging.error("You need Python2.7 or at least argparse lib")
         return
 
     pf = ref.rsplit(".", 1)[0]
@@ -134,13 +150,13 @@ def patch(args):
     # This check has been removed
 
     # Build the pipeline
-    runsh = []
+    runsh = [setup]
     for action in "setup|mapping|support|extraction".split("|"):
         runsh.append("Jelly.py {0} Protocol.xml".format(action))
 
     pcmds = """find assembly -name "ref*" -exec echo \\
-        "Assembly.py {{}} \\
-        > {{}}/assembly.out 2> {{}}/assembly.err" \; > commands.list"""
+        "Assembly.py {} \\
+        > {}/assembly.out 2> {}/assembly.err" \; > commands.list"""
     runsh.append(pcmds)
 
     runsh.append("parallel < commands.list")

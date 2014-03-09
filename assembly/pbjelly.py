@@ -44,6 +44,13 @@ class Protocol (object):
         inp.set("baseDir", baseDir)
         job = ET.SubElement(inp, "job")
         job.text = readsfile
+        cluster = ET.SubElement(jellyProtocol, "cluster")
+        command = ET.SubElement(cluster, "command")
+        command.set("notes", "For single node, multi-core machines")
+        command.text = "echo '${CMD}' ${JOBNAME} ${STDOUT} ${STDERR}"
+        nJobs = ET.SubElement(cluster, "nJobs")
+        nJobs.text = "1"
+
         s = ET.tostring(jellyProtocol)
         s = XD.parseString(s)
 
@@ -154,11 +161,13 @@ def patch(args):
     for action in "setup|mapping|support|extraction".split("|"):
         runsh.append("Jelly.py {0} Protocol.xml".format(action))
 
-    pcmds = """find assembly -name "ref*" -exec echo \\
-        "Assembly.py {} \\
-        > {}/assembly.out 2> {}/assembly.err" \; > commands.list"""
-    runsh.append(pcmds)
+    #pcmds = """find assembly -name "ref*" -exec echo \\
+    #    "Assembly.py {} \\
+    #    > {}/assembly.out 2> {}/assembly.err" \; > commands.list"""
+    #runsh.append(pcmds)
 
+    runsh.append("Jelly.py assembly Protocol.xml")
+    runsh.append("cp assembly/assembly_chunk0.sh commands.list")
     runsh.append("parallel < commands.list")
     runsh.append("Jelly.py output Protocol.xml")
 

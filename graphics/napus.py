@@ -209,10 +209,17 @@ def cov(args):
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
-def conversion_track(order, filename, col, label, ax, color, ypos=0):
+def conversion_track(order, filename, col, label, ax, color,
+                     ypos=0, asterisk=False):
     ids = []
     fp = open(filename)
     for row in fp:
+        if asterisk and row[0] != "*":
+            continue
+        if (not asterisk) and row[0] == "*":
+            continue
+        if asterisk:
+            row = row[1:]
         atoms = row.split()
         gid = atoms[col].rsplit(".", 1)[0]
         gid = gid.replace('T', 'G')
@@ -220,9 +227,17 @@ def conversion_track(order, filename, col, label, ax, color, ypos=0):
 
     beds = [order[x][1] for x in ids if x in order]
     pts = [x.start for x in beds if x.seqid == label]
-    logging.debug("A total of {0} converted loci imported.".format(len(pts)))
+    if len(pts):
+        logging.debug("A total of {0} converted loci imported.".format(len(pts)))
+    else:
+        logging.error("Array empty. Skipped scatterplot.")
+        return
 
-    ax.scatter(pts, len(pts) * [ypos], s=5, c=color, edgecolors="none")
+    y = len(pts) * [ypos]
+    if asterisk:
+        ax.plot(pts, y, ls='.', marker='o', mec=color, mfc='w', mew=2, ms=3)
+    else:
+        ax.scatter(pts, y, s=5, c=color, edgecolors="none")
     ax.set_axis_off()
 
 
@@ -295,26 +310,29 @@ def f3a(args):
     ax_Co = make_affix_axis(fig, tracks[2], r, height=r/2)
 
     order = Bed(bedfile).order
-    conversion_track(order, "data/Genes.Converted.seuil.0.6.AtoC.txt",
-                     0, "A02", ax_Ar, "g")
-    conversion_track(order, "data/Genes.Converted.seuil.0.6.AtoC.txt",
-                     1, "C2", ax_Co, "r")
-    conversion_track(order, "data/Genes.Converted.seuil.0.6.CtoA.txt",
-                     0, "A02", ax_Ar, "r", ypos=1)
-    conversion_track(order, "data/Genes.Converted.seuil.0.6.CtoA.txt",
-                     1, "C2", ax_Co, "g", ypos=1)
+    for asterisk in (False, True):
+        conversion_track(order, "data/Genes.Converted.seuil.0.6.AtoC.txt",
+                         0, "A02", ax_Ar, "g", asterisk=asterisk)
+        conversion_track(order, "data/Genes.Converted.seuil.0.6.AtoC.txt",
+                         1, "C2", ax_Co, "g", ypos=1, asterisk=asterisk)
+        conversion_track(order, "data/Genes.Converted.seuil.0.6.CtoA.txt",
+                         0, "A02", ax_Ar, "r", ypos=1, asterisk=asterisk)
+        conversion_track(order, "data/Genes.Converted.seuil.0.6.CtoA.txt",
+                         1, "C2", ax_Co, "r", asterisk=asterisk)
+
     ax_Ar.set_xlim(0, tracks[1].total)
     ax_Ar.set_ylim(-.5, 1.5)
     ax_Co.set_xlim(0, tracks[2].total)
     ax_Co.set_ylim(-.5, 1.5)
 
     # Conversion legend
-    root.text(.81, .8, r"Converted A$\mathsf{_n}$ to C$\mathsf{_n}$",
-                va="center")
-    root.text(.81, .77, r"Converted C$\mathsf{_n}$ to A$\mathsf{_n}$",
-                va="center")
-    root.scatter([.8], [.8], s=20, color="g")
-    root.scatter([.8], [.77], s=20, color="r")
+    if True:
+        root.text(.81, .8, r"Converted A$\mathsf{_n}$ to C$\mathsf{_n}$",
+                    va="center")
+        root.text(.81, .77, r"Converted C$\mathsf{_n}$ to A$\mathsf{_n}$",
+                    va="center")
+        root.scatter([.8], [.8], s=20, color="g")
+        root.scatter([.8], [.77], s=20, color="r")
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)

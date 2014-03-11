@@ -312,13 +312,13 @@ def f3a(args):
     order = Bed(bedfile).order
     for asterisk in (False, True):
         conversion_track(order, "data/Genes.Converted.seuil.0.6.AtoC.txt",
-                         0, "A02", ax_Ar, "g", asterisk=asterisk)
+                         0, "A02", ax_Ar, "r", asterisk=asterisk)
         conversion_track(order, "data/Genes.Converted.seuil.0.6.AtoC.txt",
-                         1, "C2", ax_Co, "g", ypos=1, asterisk=asterisk)
+                         1, "C2", ax_Co, "g", asterisk=asterisk)
         conversion_track(order, "data/Genes.Converted.seuil.0.6.CtoA.txt",
-                         0, "A02", ax_Ar, "r", ypos=1, asterisk=asterisk)
+                         0, "A02", ax_Ar, "g", ypos=1, asterisk=asterisk)
         conversion_track(order, "data/Genes.Converted.seuil.0.6.CtoA.txt",
-                         1, "C2", ax_Co, "r", asterisk=asterisk)
+                         1, "C2", ax_Co, "r", ypos=1, asterisk=asterisk)
 
     ax_Ar.set_xlim(0, tracks[1].total)
     ax_Ar.set_ylim(-.5, 1.5)
@@ -326,7 +326,7 @@ def f3a(args):
     ax_Co.set_ylim(-.5, 1.5)
 
     # Conversion legend
-    if True:
+    if False:
         root.text(.81, .8, r"Converted A$\mathsf{_n}$ to C$\mathsf{_n}$",
                     va="center")
         root.text(.81, .77, r"Converted C$\mathsf{_n}$ to A$\mathsf{_n}$",

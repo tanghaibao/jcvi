@@ -16,6 +16,7 @@ import numpy as np
 
 from jcvi.formats.base import DictFile
 from jcvi.formats.bed import Bed
+from jcvi.graphics.glyph import RoundRect
 from jcvi.graphics.base import plt, Rectangle, Polygon, CirclePolygon, savefig
 from jcvi.graphics.glyph import BaseGlyph, plot_cap
 from jcvi.apps.base import OptionParser
@@ -71,15 +72,18 @@ class HorizontalChromosome (BaseGlyph):
         pts = self.get_pts(x1, x2, y, height)
         r = self.r
         if roundrect:
-            from jcvi.graphics.glyph import RoundRect
             RoundRect(ax, (x1, y - height * .5), x2 - x1, height, fill=False,
                       lw=lw, ec=ec, zorder=zorder)
         else:
             self.append(Polygon(pts, fill=False, lw=lw, ec=ec, zorder=zorder))
 
         if fc:
-            pts = self.get_pts(x1, x2, y, height * .5)
-            self.append(Polygon(pts, fc=fc, lw=0, zorder=zorder))
+            pts = self.get_pts(x1, x2, y, height / 2)
+            if roundrect:
+                RoundRect(ax, (x1, y - height / 4), x2 - x1, height / 2, fc=fc,
+                          lw=0, zorder=zorder)
+            else:
+                self.append(Polygon(pts, fc=fc, lw=0, zorder=zorder))
         if patch:
             for i in xrange(0, len(patch), 2):
                 if i + 1 > len(patch) - 1:

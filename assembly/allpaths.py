@@ -377,7 +377,7 @@ def prepare(args):
                  help="Don't write `run.sh` script [default: %default]")
     p.add_option("--ploidy", default="2", choices=("1", "2"),
                  help="Ploidy [default: %default]")
-    p.set_cpus(cpus=32)
+    p.set_cpus()
     opts, args = p.parse_args(args)
 
     if len(args) < 1:

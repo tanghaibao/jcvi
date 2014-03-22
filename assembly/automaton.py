@@ -172,7 +172,7 @@ def tophat(args):
                  help="Mate inner distance [default: %default]")
     p.add_option("--stdev", default=50, type="int",
                  help="Mate standard deviation [default: %default]")
-    p.set_cpus(cpus=32)
+    p.set_cpus()
     opts, args = p.parse_args(args)
 
     if len(args) != 2:

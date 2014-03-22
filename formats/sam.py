@@ -178,8 +178,10 @@ def merge(args):
             cmd = "ln -s {0} {1}".format(source, target)
             mm.add("", target, cmd)
         else:
-            cmd = "samtools merge {0} {1}".format(target, source)
-            mm.add(files, target, cmd)
+            cmds = []
+            cmds.append("rm {0}".format(target))
+            cmds.append("samtools merge {0} {1}".format(target, source))
+            mm.add(files, target, cmds)
     mm.write()
 
 

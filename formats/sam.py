@@ -143,6 +143,7 @@ def merge(args):
     Output the commands first.
     """
     from jcvi.apps.softlink import get_abs_path
+    from jcvi.apps.grid import MakeManager
 
     p = OptionParser(merge.__doc__)
     p.add_option("--sep", default="_",
@@ -166,17 +167,20 @@ def merge(args):
     sep = opts.sep
     key = lambda x: op.basename(x).split(sep)[0]
     bams.sort(key=key)
+    mm = MakeManager()
     for prefix, files in groupby(bams, key=key):
         files = sorted(list(files))
         nfiles = len(files)
-        source =  " ".join(files)
+        source = " ".join(files)
         target = op.join(merged_bams, op.basename(files[0]))
         if nfiles == 1:
             source = get_abs_path(source)
             cmd = "ln -s {0} {1}".format(source, target)
+            mm.add("", target, cmd)
         else:
             cmd = "samtools merge {0} {1}".format(target, source)
-        print cmd
+            mm.add(files, target, cmd)
+    mm.write()
 
 
 def count(args):

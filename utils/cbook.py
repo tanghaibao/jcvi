@@ -68,7 +68,7 @@ def depends(func):
     Decorator to perform check on infile and outfile. When infile is not present, issue
     warning, and when outfile is present, skip function calls.
     """
-    from jcvi.apps.base import need_update
+    from jcvi.apps.base import need_update, listify
 
     infile = "infile"
     outfile = "outfile"
@@ -76,9 +76,7 @@ def depends(func):
         assert outfile in kwargs, \
             "You need to specify `outfile=` on function call"
         if infile in kwargs:
-            infilename = kwargs[infile]
-            if isinstance(infilename, basestring):
-                infilename = [infilename]
+            infilename = listify(kwargs[infile])
             for x in infilename:
                 assert op.exists(x), \
                     "The specified infile `{0}` does not exist".format(x)
@@ -91,8 +89,7 @@ def depends(func):
                 .format(outfilename)
             logging.debug(msg)
 
-        if isinstance(outfilename, basestring):
-            outfilename = [outfilename]
+        outfilename = listify(outfilename)
 
         for x in outfilename:
             assert op.exists(x), \

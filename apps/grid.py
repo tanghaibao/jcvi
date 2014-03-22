@@ -2,7 +2,6 @@
 Codes to submit multiple jobs to JCVI grid engine
 """
 
-import os
 import os.path as op
 import sys
 import re
@@ -11,8 +10,51 @@ import logging
 from multiprocessing import Process, Queue, cpu_count
 
 from jcvi.formats.base import write_file, must_open
-from jcvi.apps.base import OptionParser, ActionDispatcher, popen, backup, mkdir, debug
+from jcvi.apps.base import OptionParser, ActionDispatcher, popen, backup, \
+            mkdir, debug, sh, listify
 debug()
+
+
+class Dependency (object):
+    """
+    Used by MakeManager.
+    """
+    def __init__(self, source, target, cmds):
+        self.source = listify(source)
+        self.target = listify(target)
+        self.cmds = listify(cmds)
+
+    def __str__(self):
+        source = " ".join(self.source)
+        target = " ".join(self.target)
+        s = "{0} : {1}\n".format(target, source)
+        for c in self.cmds:
+            s += "\t" + c + "\n"
+        return s
+
+
+class MakeManager (list):
+    """
+    Write and execute makefile.
+    """
+    def __init__(self, filename="makefile"):
+        backup(filename)
+        self.makefile = filename
+
+    def add(self, source, target, cmds):
+        d = Dependency(source, target, cmds)
+        self.append(d)
+
+    def write(self):
+        fw = open(self.makefile, "w")
+        for d in self:
+            print >> fw, d
+        fw.close()
+        logging.debug("Makefile written to `{0}`.".format(self.makefile))
+
+    def run(self, cpus=1):
+        cmd = "make -j {0} -f {1}".format(cpus, self.makefile)
+        sh(cmd)
 
 
 class Jobs (list):

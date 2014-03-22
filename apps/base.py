@@ -580,15 +580,17 @@ def is_newer_file(a, b):
     return am > bm
 
 
+def listify(a):
+    return [a] if isinstance(a, basestring) else a
+
+
 def need_update(a, b):
     """
     Check if file a is newer than file b and decide whether or not to update
     file b. Can generalize to two lists.
     """
-    if isinstance(a, basestring):
-        a = [a]
-    if isinstance(b, basestring):
-        b = [b]
+    a = listify(a)
+    b = listify(b)
 
     return any((not op.exists(x)) for x in b) or \
            any(is_newer_file(x, y) for x in a for y in b)

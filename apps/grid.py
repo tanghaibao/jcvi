@@ -19,10 +19,13 @@ class Dependency (object):
     """
     Used by MakeManager.
     """
-    def __init__(self, source, target, cmds):
+    def __init__(self, source, target, cmds, remove=False):
         self.source = listify(source)
         self.target = listify(target)
         self.cmds = listify(cmds)
+        if remove:
+            rm_cmd = "rm -f {0}".format(" ".join(self.target))
+            self.cmds = [rm_cmd] + self.cmds
 
     def __str__(self):
         source = " ".join(self.source)
@@ -40,13 +43,17 @@ class MakeManager (list):
     def __init__(self, filename="makefile"):
         backup(filename)
         self.makefile = filename
+        self.targets = []
 
-    def add(self, source, target, cmds):
-        d = Dependency(source, target, cmds)
+    def add(self, source, target, cmds, remove=False):
+        d = Dependency(source, target, cmds, remove=remove)
         self.append(d)
+        self.targets.append(target)
 
     def write(self):
+        assert self.targets, "No targets specified"
         fw = open(self.makefile, "w")
+        print >> fw, "all : {0}\n".format(" ".join(self.targets))
         for d in self:
             print >> fw, d
         fw.close()

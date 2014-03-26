@@ -344,7 +344,7 @@ def instantiate(args):
 def atg_name(name, retval="chr,rank", trimpad0=True):
     atg_name_pat = re.compile(r"""
             ^(?P<locus>
-                (?P<prefix>\D+)(?P<chr>[\d+CM])(?P<sep>\D+)(?P<rank>\d+)
+                (?P<prefix>\D+)(?P<chr>\d+|C|M)(?P<sep>\D+)(?P<rank>\d+)
             )
             \.?(?P<iso>\d+)?
             """, re.VERBOSE)

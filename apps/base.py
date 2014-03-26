@@ -215,9 +215,13 @@ class OptionParser (OptionP):
                 help="Fix quirky chromosome names [default: %default]")
 
     def set_SO_opts(self):
-        verifySO_choices = ("verify", "resolve")
+        verifySO_choices = ("verify", "resolve:prefix", "resolve:suffix")
         self.add_option("--verifySO", choices=verifySO_choices,
-                help="Verify validity of GFF3 feature type against the SO" + \
+                help="Verify validity of GFF3 feature type against the SO; " + \
+                     "`resolve` will try to converge towards a valid SO " + \
+                     "term by removing elements from the feature type " + \
+                     "string by splitting at underscores. Example: " + \
+                     "`mRNA_TE_gene` resolves to `mRNA` using 'resolve:prefix'" + \
                      " [default: %default]")
 
     def set_beds(self):

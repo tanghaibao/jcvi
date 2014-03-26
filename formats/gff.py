@@ -936,7 +936,6 @@ def format(args):
                 valid_soterm[g.type] = validate_term(g.type, so=so, method=opts.verifySO)
             ntype = valid_soterm[g.type]
             if ntype and g.type != ntype:
-                logging.debug("Resolved term to `{0}`".format(ntype))
                 g.type = ntype
 
         origid = g.seqid

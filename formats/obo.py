@@ -10,6 +10,7 @@ Parses obo_file and plot GO lineage
 import sys
 import logging
 
+from collections import deque
 from jcvi.formats.base import read_until
 from jcvi.apps.base import debug
 debug()
@@ -291,12 +292,13 @@ def validate_term(term, so=None, method="verify"):
     if so is None:
         so = load_GODag()
 
+    oterm = term
     if term not in so.valid_names:
-        if method == "resolve":
-            logging.debug("Resolving term `{0}` using SO".format(term))
+        if "resolve" in method:
             if "_" in term:
-                tparts = term.split("_")
-                nterm = "_".join(tparts[0:len(tparts)-1]).strip()
+                tparts = deque(term.split("_"))
+                tparts.pop() if "prefix" in method else tparts.popleft()
+                nterm = "_".join(tparts).strip()
                 term = validate_term(nterm, so=so, method=method)
             if term is None:
                 return None
@@ -304,6 +306,8 @@ def validate_term(term, so=None, method="verify"):
             logging.error("Term `{0}` does not exist".format(term))
             sys.exit(1)
 
+    if oterm != term:
+        logging.debug("Resolved term `{0}` to `{1}`".format(oterm, term))
     return term
 
 

@@ -198,6 +198,9 @@ def count(args):
     bamfile, gtf = args
     pf = bamfile.split(".")[0]
     countfile = pf + ".count"
+    if not need_update(bamfile, countfile):
+        return
+
     nsorted = pf + "_nsorted"
     nsortedbam, nsortedsam = nsorted + ".bam", nsorted + ".sam"
     if need_update(bamfile, nsortedsam):

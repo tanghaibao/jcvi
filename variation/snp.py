@@ -9,7 +9,8 @@ import sys
 import logging
 
 from jcvi.formats.fasta import Fasta
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, \
+            sh, need_update
 debug()
 
 
@@ -46,6 +47,8 @@ def rmdup(args):
         cmd += " -S"
     for b in bams:
         rb = b.rsplit(".", 1)[0] + ".rmdup.bam"
+        if not need_update(b, rb):
+            continue
         print " ".join((cmd, b, rb))
 
 

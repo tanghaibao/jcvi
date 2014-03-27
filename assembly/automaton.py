@@ -166,6 +166,8 @@ def tophat(args):
     """
     p = OptionParser(tophat.__doc__)
     p.add_option("--gtf", help="Reference annotation [default: %default]")
+    p.add_option("--single", default=False, action="store_true",
+                 help="Single end mapping")
     p.add_option("--intron", default=15000, type="int",
                  help="Max intron size [default: %default]")
     p.add_option("--dist", default=-50, type="int",
@@ -178,12 +180,11 @@ def tophat(args):
     if len(args) != 2:
         sys.exit(not p.print_help())
 
+    num = 1 if opts.single else 2
     folder, reference = args
-    for p, prefix in iter_project(folder, 2):
-        a, b = p
+    for p, prefix in iter_project(folder, num):
         outdir = "{0}_tophat".format(prefix)
         outfile = op.join(outdir, "accepted_hits.bam")
-        #if not need_update(p, outfile):
         if op.exists(outfile):
             logging.debug("File `{0}` found. Skipping.".format(outfile))
             continue
@@ -191,11 +192,18 @@ def tophat(args):
         cmd = "tophat -p {0}".format(opts.cpus)
         if opts.gtf:
             cmd += " -G {0}".format(opts.gtf)
-        cmd += " --max-intron-length {0}".format(opts.intron)
-        cmd += " --mate-inner-dist {0}".format(opts.dist)
-        cmd += " --mate-std-dev {0}".format(opts.stdev)
         cmd += " -o {0}".format(outdir)
-        cmd += " {0} {1} {2}".format(reference, a, b)
+
+        if num == 1:  # Single-end
+            a, = p
+            cmd += " {0} {1}".format(reference, a)
+        else:  # Paired-end
+            a, b = p
+            cmd += " --max-intron-length {0}".format(opts.intron)
+            cmd += " --mate-inner-dist {0}".format(opts.dist)
+            cmd += " --mate-std-dev {0}".format(opts.stdev)
+            cmd += " {0} {1} {2}".format(reference, a, b)
+
         sh(cmd)
 
 

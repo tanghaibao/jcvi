@@ -190,6 +190,8 @@ def count(args):
     Count the number of reads mapped using `htseq-count`.
     """
     p = OptionParser(count.__doc__)
+    p.add_option("--type", default="exon",
+                 help="Only count feature type")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -211,6 +213,7 @@ def count(args):
 
     if need_update(nsortedsam, countfile):
         cmd = "htseq-count --stranded=no --minaqual=10"
+        cmd += " -t {0}".format(opts.type)
         cmd += " {0} {1}".format(nsortedsam, gtf)
         sh(cmd, outfile=countfile)
 

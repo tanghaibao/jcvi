@@ -106,13 +106,16 @@ class GffLine (object):
         return None
 
     def set_attr(self, key, value, update=False, append=False, dbtag=None):
-        if type(value) is not list:
-            value = [value]
-            if key == "Dbxref" and dbtag:
-                value = ["{0}:{1}".format(dbtag, x) for x in value]
-        if key not in self.attributes or not append:
-            self.attributes[key] = []
-        self.attributes[key].extend(value)
+        if value is None:
+            self.attributes.pop(key, None)
+        else:
+            if type(value) is not list:
+                value = [value]
+                if key == "Dbxref" and dbtag:
+                    value = ["{0}:{1}".format(dbtag, x) for x in value]
+            if key not in self.attributes or not append:
+                self.attributes[key] = []
+            self.attributes[key].extend(value)
         if update:
             self.update_attributes(gff3=self.gff3, urlquote=False)
 
@@ -767,6 +770,8 @@ def format(args):
                 "accepts comma-separated list of files [default: %default]")
     g1.add_option("--nostrict", default=False, action="store_true",
                  help="Disable strict parsing of mapping file [default: %default]")
+    g1.add_option("--remove_attr", dest="remove_attrs", help="Specify attributes to remove; " + \
+                "accepts comma-separated list of attribute names [default: %default]")
     g1.add_option("--invent_name_attr", default=False, action="store_true",
                  help="Invent `Name` attribute for 2nd level child features; " + \
                 "Formatted like  PARENT:FEAT_TYPE:FEAT_INDEX [default: %default]")
@@ -816,6 +821,7 @@ def format(args):
     source = opts.source
     attrib_files = opts.attrib_files.split(",") if opts.attrib_files else None
     dbxref_files = opts.dbxref_files.split(",") if opts.dbxref_files else None
+    remove_attrs = opts.remove_attrs.split(",") if opts.remove_attrs else None
     gsac = opts.gsac
     if opts.unique and opts.duptype:
         logging.debug("Cannot use `--unique` and `--chaindup` together")
@@ -832,14 +838,18 @@ def format(args):
 
     outfile = opts.outfile
 
+    mod_attrs = set()
     if mapfile:
         mapping = DictFile(mapfile, delimiter="\t", strict=strict)
+        mod_attrs.add("ID")
     if note:
         note = DictFile(note, delimiter="\t", strict=strict)
+        mod_attrs.add("Note")
     if source and op.isfile(source):
         source = DictFile(source, delimiter="\t", strict=strict)
     if names:
         names = DictFile(names, delimiter="\t", strict=strict)
+        mod_attrs.add("Name")
     if attrib_files:
         attr_values = {}
         for fn in attrib_files:
@@ -847,11 +857,23 @@ def format(args):
             if attr_name not in reserved_gff_attributes:
                 attr_name = attr_name.lower()
             attr_values[attr_name] = DictFile(fn, delimiter="\t", strict=strict)
+            mod_attrs.add(attr_name)
     if dbxref_files:
         dbxref_values = {}
         for fn in dbxref_files:
             dbtag = op.basename(fn).rsplit(".", 1)[0]
             dbxref_values[dbtag] = DictFile(fn, delimiter="\t", strict=strict)
+        mod_attrs.add("Dbxref")
+
+    mod_remove_attrs = []
+    for remove_attr in remove_attrs:
+        if remove_attr in mod_attrs:
+            mod_remove_attrs.append(remove_attr)
+
+    if mod_remove_attrs:
+        logging.error("Attributes `{0}` cannot be removed and modified".format( \
+                ",".join(mod_remove_attrs)))
+        sys.exit()
 
     if gsac:  # setting gsac will force IDs to be unique
         unique = True
@@ -930,6 +952,11 @@ def format(args):
                     if len(keep) == 0:
                         continue
                     parent = g.set_attr("Parent", keep)
+
+        if remove_attrs:
+            for remove_attr in remove_attrs:
+                if remove_attr in g.attributes:
+                    g.set_attr(remove_attr, None)
 
         if opts.verifySO:
             if g.type not in valid_soterm:

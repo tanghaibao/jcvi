@@ -158,6 +158,8 @@ class GffLine (object):
             a = self.attributes_text.split()
         return quote(",".join(a), safe=safechars)
 
+    id = accn
+
     @property
     def span(self):
         return self.end - self.start + 1
@@ -865,15 +867,16 @@ def format(args):
             dbxref_values[dbtag] = DictFile(fn, delimiter="\t", strict=strict)
         mod_attrs.add("Dbxref")
 
-    mod_remove_attrs = []
-    for remove_attr in remove_attrs:
-        if remove_attr in mod_attrs:
-            mod_remove_attrs.append(remove_attr)
+    if remove_attrs:
+        mod_remove_attrs = []
+        for remove_attr in remove_attrs:
+            if remove_attr in mod_attrs:
+                mod_remove_attrs.append(remove_attr)
 
-    if mod_remove_attrs:
-        logging.error("Attributes `{0}` cannot be removed and modified".format( \
-                ",".join(mod_remove_attrs)))
-        sys.exit()
+        if mod_remove_attrs:
+            logging.error("Attributes `{0}` cannot be removed and modified".format( \
+                    ",".join(mod_remove_attrs)))
+            sys.exit()
 
     if gsac:  # setting gsac will force IDs to be unique
         unique = True

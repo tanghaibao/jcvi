@@ -85,6 +85,8 @@ class SetFile (BaseFile, set):
         super(SetFile, self).__init__(filename)
         fp = open(filename)
         for row in fp:
+            if not row.strip():
+                continue
             keys = [x.strip() for x in row.split(delimiter)]
             if column >= 0:
                 keys = [keys[column]]

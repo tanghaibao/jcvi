@@ -311,13 +311,14 @@ def count(args):
     Count reads based on FASTQC results. FASTQC needs to be run on all the input
     data given before running this command.
     """
-    from jcvi.utils.table import loadtable
+    from jcvi.utils.table import loadtable, write_csv
 
     p = OptionParser(count.__doc__)
     p.add_option("--dir",
                 help="Sub-directory where FASTQC was run [default: %default]")
     p.add_option("--human", default=False, action="store_true",
                 help="Human friendly numbers [default: %default]")
+    p.set_table()
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -340,12 +341,8 @@ def count(args):
         rows.append(row)
 
     print >> sys.stderr, loadtable(header, rows)
-
-    fw = must_open(opts.outfile, "w")
-    data = [header] + rows
-    for d in data:
-        print >> fw, ",".join(str(x) for x in d)
-
+    write_csv(header, rows, sep=opts.sep,
+              filename=opts.outfile, align=opts.align)
 
 
 def hetsmooth(args):

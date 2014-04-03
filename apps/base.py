@@ -143,6 +143,17 @@ class OptionParser (OptionP):
                         help="Define the job dependency list [default: %default]")
         self.add_option_group(group)
 
+    def set_table(self, sep=",", align=False):
+        group = OptionGroup(self, "Table formatting")
+        group.add_option("--sep", default=sep, help="Separator")
+        if align:
+            group.add_option("--noalign", dest="align", default=True,
+                             action="store_false", help="Cell alignment")
+        else:
+            group.add_option("--align", default=False,
+                             action="store_true", help="Cell alignment")
+        self.add_option_group(group)
+
     def set_params(self):
         """
         Add --params options for given command line programs

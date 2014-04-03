@@ -376,19 +376,20 @@ def info(args):
     p = OptionParser(info.__doc__)
     p.add_option("--gaps", default=False, action="store_true",
                  help="Count number of gaps [default: %default]")
-    p.set_sep(sep="|")
+    p.set_table()
+    p.set_outfile()
     opts, args = p.parse_args(args)
 
     if len(args) == 0:
         sys.exit(not p.print_help())
 
     fastafiles = args
-    sep = opts.sep
     data = []
     for f in fastafiles:
         s = SequenceInfo(f, gapstats=opts.gaps)
         data.append(s.data)
-    write_csv(s.header, data, sep=sep)
+    write_csv(s.header, data, sep=opts.sep,
+              filename=opts.outfile, align=opts.align)
 
 
 def fromtab(args):

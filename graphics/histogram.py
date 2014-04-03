@@ -29,7 +29,7 @@ data <- data[data >= vmin]
 data <- data[data <= vmax]
 data <- data.frame($xlabel=data)
 m <- ggplot(data, aes(x=$xlabel)) +
-     theme(plot.title=element_text(size=12, colour="darkblue"))
+     theme(plot.title=element_text(size=11, colour="darkblue"))
 """
 
 histogram_template = histogram_header + """
@@ -162,6 +162,7 @@ def histogram(numberfile, vmin, vmax, xlabel, title,
                 bins=bins, skip=skip, log=log)
 
     data, vmin, vmax = get_data(numberfile, vmin, vmax, skip=skip)
+    outfile = numberfile + '.pdf'
     template = histogram_log_template if log else histogram_template
     rtemplate = RTemplate(template, locals())
     rtemplate.run()

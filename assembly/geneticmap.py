@@ -11,7 +11,6 @@ import logging
 
 from jcvi.formats.base import BaseFile, LineFile, must_open, read_block
 from jcvi.formats.bed import Bed, fastaFromBed
-from jcvi.formats.blast import bed
 from jcvi.utils.counter import Counter
 from jcvi.apps.base import OptionParser, ActionDispatcher, debug, need_update
 debug()
@@ -82,6 +81,54 @@ class MSTMap (LineFile):
                       format(self.nmarkers, self.nind))
 
 
+class CSVMapLine (object):
+
+    def __init__(self, row, sep=",", mapname=None):
+        # ScaffoldID,ScaffoldPosition,LinkageGroup,GeneticPosition
+        args = row.strip().split(sep)
+        self.seqid = args[0]
+        self.pos = int(args[1])
+        self.lg = args[2]
+        self.cm = float(args[3])
+        self.mapname = mapname
+
+    def __str__(self):
+        return "\t".join(str(x) for x in \
+                (self.seqid, self.pos, self.mapname, self.lg, self.cm))
+
+
+class CSVMap (LineFile):
+
+    def __init__(self, filename, header=True):
+        super(CSVMap, self).__init__(filename)
+        self.mapname = filename.split(".")[0]
+        fp = open(filename)
+        if header:
+            fp.readline()
+
+        for row in fp:
+            self.append(CSVMapLine(row, mapname=self.mapname))
+
+        self.nmarkers = len(self)
+        self.nlg = len(set(x.lg for x in self))
+        logging.debug("Map contains {0} markers in {1} linkage groups.".\
+                      format(self.nmarkers, self.nlg))
+
+
+class CSVMapCollection (list):
+
+    def __init__(self, maps):
+        for m in maps:
+            m = CSVMap(m)
+            self.extend(m)
+
+    def extract(self, seqid):
+        r = [x for x in self if x.seqid == seqid]
+        r.sort(key=(lambda x: x.pos))
+        for row in r:
+            print row
+
+
 def hamming_distance(a, b, ignore=None):
     dist = 0
     for x, y in zip(a, b):
@@ -98,13 +145,37 @@ def main():
         ('breakpoint', 'find scaffold breakpoints using genetic map'),
         ('ld', 'calculate pairwise linkage disequilibrium'),
         ('fasta', 'extract markers based on map'),
-        ('placeone', 'attempt to place one scaffold'),
         ('anchor', 'anchor scaffolds based on map'),
         ('rename', 'rename markers according to the new mapping locations'),
         ('header', 'rename lines in the map header'),
+        # Construct goldenpath
+        ('path', 'construct golden path given a set of genetic maps'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def path(args):
+    """
+    %prog path map1 map2 map3 ...
+
+    Construct golden path given a set of genetic maps. Tha map is csv formatted,
+    for example:
+
+    ScaffoldID,ScaffoldPosition,LinkageGroup,GeneticPosition
+    scaffold_2707,11508,1,0
+    scaffold_2707,11525,1,1.00000000000001e-05
+    scaffold_759,81336,1,49.7317510625759
+    """
+    p = OptionParser(path.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) < 1:
+        sys.exit(not p.print_help())
+
+    maps = args
+    cc = CSVMapCollection(maps)
+    cc.extract("scaffold_0")
 
 
 def calc_ldscore(a, b):
@@ -288,6 +359,8 @@ def rename(args):
 
     Rename markers according to the new mapping locations.
     """
+    from jcvi.formats.blast import bed
+
     p = OptionParser(rename.__doc__)
     opts, args = p.parse_args(args)
 
@@ -319,6 +392,8 @@ def anchor(args):
 
     Anchor scaffolds based on map.
     """
+    from jcvi.formats.blast import bed
+
     p = OptionParser(anchor.__doc__)
     opts, args = p.parse_args(args)
 
@@ -381,38 +456,6 @@ def fasta(args):
     fw.close()
 
     fastaFromBed(markersbed, sfasta, name=True)
-
-
-def place(genotype, map, exclude):
-    d = [(hamming_distance(genotype, x.genotype, ignore="-"), x) \
-            for x in map if x.seqid != exclude]
-    return min(d)
-
-
-def placeone(args):
-    """
-    %prog placeone map scaffold_id
-
-    Attempt to place one scaffold.
-    """
-    p = OptionParser(placeone.__doc__)
-    opts, args = p.parse_args(args)
-
-    if len(args) != 2:
-        sys.exit(not p.print_help())
-
-    mstmap, scf = args
-    data = MSTMap(mstmap)
-    for d in data:
-        if d.seqid != scf:
-            continue
-
-        dist, besthit = place(d.genotype, data, scf)
-        width = len(d) + len(d.id) + 10
-        print >> sys.stderr, "distance = {0}".format(dist)
-        print >> sys.stderr, str(d).rjust(width)
-        print >> sys.stderr, str(besthit).rjust(width)
-        print >> sys.stderr, "-" * width
 
 
 OK, BREAK, END = range(3)

@@ -8,6 +8,7 @@ Classes to handle the .psl files
 import sys
 import math
 import re
+import logging
 
 from jcvi.formats.base import LineFile, must_open
 from jcvi.apps.base import OptionParser, ActionDispatcher, debug
@@ -43,10 +44,10 @@ class PslLine(object):
         self.tStart = int(args[15])
         self.tEnd = int(args[16])
         self.blockCount = int(args[17])
-        self.blockSizes = [int(x) for x in args[18].split(',')[0:-1]]
-        self.qStarts = [int(x) for x in args[19].split(',')[0:-1]]
-        self.tStarts = [self.tSize - int(x) if self.strand == "-" else int(x) \
-                for x in args[20].strip().split(',')[0:-1]]
+        self.blockSizes = [int(x) for x in args[18].strip().split(',')[:-1]]
+        self.qStarts = [int(x) for x in args[19].strip().split(',')[:-1]]
+        self.tStarts = [self.tSize - int(x) if self.strand == "-" \
+                else int(x) for x in args[20].strip().split(',')[:-1]]
 
     def __str__(self):
         args = [self.matches, self.misMatches, self.repMatches, \
@@ -73,8 +74,15 @@ class PslLine(object):
 
     @property
     def score(self):
-        return self.matches + (self.repMatches / 2) - self.misMatches - \
-                self.qNumInsert - self.tNumInsert
+        sizeMult = self._sizeMult
+
+        return sizeMult * (self.matches + (self.repMatches >> 1)) - \
+               sizeMult * self.misMatches - self.qNumInsert - self.tNumInsert
+
+    @property
+    def coverage(self):
+        return 100 * (self.matches + self.misMatches + \
+                self.repMatches + self.nCount) / self.qSize
 
     @property
     def swap(self):
@@ -101,10 +109,10 @@ class PslLine(object):
         last = self.blockCount - 1
         return ((self.tEnd == self.tStarts[last] + 3 * self.blockSizes[last]) \
                 and self.strand == "+") or \
-                ((self.tSize - (self.tStarts[last] + 3 * self.blockSizes[last])\
+                ((self.tStart == self.tSize - (self.tStarts[last] + 3 * self.blockSizes[last])\
                 and self.strand == "-"))
 
-    def _milliBad(self, ismRNA=True):
+    def _milliBad(self, ismRNA=False):
         """
         calculate badness in parts per thousand
         i.e. number of non-identical matches
@@ -126,24 +134,28 @@ class PslLine(object):
 
         total = (self.matches + self.repMatches + self.misMatches) * sizeMult
 
-        return (1000 * (round(3 * math.log(1 + sizeDiff) + self.misMatches * sizeMult \
-                + insertFactor))) / total if total != 0 else 0
+        return (1000 * (self.misMatches * sizeMult + insertFactor + \
+                round(3 * math.log(1 + sizeDiff)))) / total if total != 0 else 0
 
     def pct_id(self, simple=None):
         return 100.00 - self._milliBad(ismRNA=True) * 0.1 if not simple \
-                else 100.00 * self.matches / self.qSize
+                else 100.00 * self.matches / (self.matches + self.misMatches)
+                #else 100.00 * self.score / self.qSize
 
     def gffline(self, source="GMAP", type="match_part", primary_tag="Parent", \
            alt_score=None, suffix=".match", count=0):
 
-        score = "." if type == "match_part" else "{0:.2f}".format(self.pct_id(simple=alt_score))
+        score = "." if type == "match_part" else "{0:.2f}".format(self.score)
 
         target = " ".join(str(x) for x in [self.qName, self.qStart, self.qEnd])
-        attributes = ";".join(str(x) for x in [primary_tag + "=" + self.qName + suffix + \
-                str(count), "Target=" + target])
+        attributes = [primary_tag + "=" + self.qName + suffix + str(count), "Target=" + target]
+        if primary_tag == "ID":
+            attributes.extend(["identity={0:.2f}".format(self.pct_id(simple=alt_score)),\
+                    "coverage={0:.2f}".format(self.coverage)])
+        attrs = ";".join(str(x) for x in attributes)
 
         line = "\t".join(str(x) for x in [self.tName, source, type, self.tStart, \
-                self.tEnd, score, self.strand, ".", attributes])
+                self.tEnd, score, self.strand, ".", attrs])
         return line
 
     @property

@@ -343,7 +343,7 @@ def instantiate(args):
 def atg_name(name, retval="chr,rank", trimpad0=True):
     atg_name_pat = re.compile(r"""
             ^(?P<locus>
-                (?:(?P<prefix>\D+)\.?)(?P<chr>[\d|C|M]+)(?P<sep>[A-z]+)(?P<rank>\d+)
+                (?:(?P<prefix>\D+[\D\d\D])\.?)(?P<chr>[\d|C|M]+)(?P<sep>[A-z]+)(?P<rank>\d+)
             )
             \.?(?P<iso>\d+)?
             """, re.VERBOSE)
@@ -824,6 +824,9 @@ def rename(args):
                  help="Pad gene identifiers on small scaffolds [default: %default]")
     p.add_option("--prefix", default="Bo",
                  help="Genome prefix [default: %default]")
+    p.add_option("--jgi", default=False, action="store_true",
+                 help="Create JGI style identifier PREFIX.NN[G|TE]NNNNN.1" + \
+                      " [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) not in (1, 2):
@@ -847,6 +850,8 @@ def rename(args):
     gap_increment -= gene_increment
     assert gap_increment >= 0
 
+    if opts.jgi:
+        prefix += "."
     fw = open(idsfile, "w")
     for chr, lines in groupby(genes, key=lambda x: x.seqid):
         lines = list(lines)

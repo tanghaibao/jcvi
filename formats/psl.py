@@ -7,6 +7,7 @@ Classes to handle the .psl files
 
 import sys
 import math
+import re
 
 from jcvi.formats.base import LineFile, must_open
 from jcvi.apps.base import OptionParser, ActionDispatcher, debug
@@ -26,11 +27,17 @@ class PslLine(object):
         self.qBaseInsert = int(args[5])
         self.tNumInsert = int(args[6])
         self.tBaseInsert = int(args[7])
-        self.strand = args[8]
+        self.strand, self.qstrand = args[8], None
+        m = re.match(r"(?P<qs>[\+\-]?)(?P<gs>[\+\-])", self.strand)
+        if m:
+            self.qstrand, self.strand = m.group('qs'), m.group('gs')
         self.qName = args[9]
         self.qSize = int(args[10])
         self.qStart = int(args[11])
         self.qEnd = int(args[12])
+        if self.qstrand == "-":
+            self.qStart, self.qEnd = self.qSize - self.qEnd, \
+                    self.qSize - self.qStart
         self.tName = args[13]
         self.tSize = int(args[14])
         self.tStart = int(args[15])
@@ -38,7 +45,8 @@ class PslLine(object):
         self.blockCount = int(args[17])
         self.blockSizes = [int(x) for x in args[18].split(',')[0:-1]]
         self.qStarts = [int(x) for x in args[19].split(',')[0:-1]]
-        self.tStarts = [int(x) for x in args[20].strip().split(',')[0:-1]]
+        self.tStarts = [self.tSize - int(x) if self.strand == "-" else int(x) \
+                for x in args[20].strip().split(',')[0:-1]]
 
     def __str__(self):
         args = [self.matches, self.misMatches, self.repMatches, \

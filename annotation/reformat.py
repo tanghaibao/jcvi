@@ -14,7 +14,6 @@ import logging
 import re
 
 from itertools import groupby
-from pybedtools import BedTool
 
 from jcvi.formats.bed import Bed, BedLine, sort
 from jcvi.formats.base import SetFile, must_open
@@ -621,6 +620,7 @@ def annotate(args):
 
 
 def calculate_ovl(nbedfile, obedfile, opts, scoresfile):
+    from pybedtools import BedTool
     nbedtool = BedTool(nbedfile)
     obedtool = BedTool(obedfile)
 
@@ -751,6 +751,7 @@ def get_pairs(cbedfile, pairsfile):
 
 
 def consolidate(nbedfile, obedfile, cbedfile):
+    from pybedtools import BedTool
     nbedtool = BedTool(nbedfile)
     obedtool = BedTool(obedfile)
 

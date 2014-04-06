@@ -14,10 +14,30 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, debug
 debug()
 
 
+def recomb_probability(cM, method="kosambi"):
+    """
+    <http://statgen.ncsu.edu/qtlcart/manual/node46.html>
+
+    >>> recomb_probability(1)
+    0.009998666879965463
+    >>> recomb_probability(100)
+    0.48201379003790845
+    >>> recomb_probability(10000)
+    0.5
+    """
+    assert method in ("kosambi", "haldane")
+    d = cM / 100.
+    if method == "kosambi":
+        e4d = exp(4 * d)
+        return (e4d - 1) / (e4d + 1) / 2
+    elif method == "haldane":
+        return (1 - exp(-2 * d)) / 2
+
+
 def jukesCantorD(p, L=100):
     """
     >>> jukesCantorD(.1)
-    (0.10732563273050497, 0.0011982248520710061)
+    (0.10732563273050497, 0.001198224852071006)
     >>> jukesCantorD(.7)
     (2.0310376508266565, 0.47249999999999864)
     """
@@ -33,7 +53,7 @@ def jukesCantorD(p, L=100):
 def jukesCantorP(D):
     """
     >>> jukesCantorP(.1)
-    0.093620010717789387
+    0.09362001071778939
     >>> jukesCantorP(2)
     0.6978874115828988
     """

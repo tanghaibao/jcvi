@@ -9,6 +9,8 @@ chromosomes.
 import sys
 import logging
 
+from itertools import groupby
+
 from jcvi.formats.base import BaseFile, LineFile, must_open, read_block
 from jcvi.formats.bed import Bed, fastaFromBed
 from jcvi.utils.counter import Counter
@@ -96,6 +98,8 @@ class CSVMapLine (object):
         return "\t".join(str(x) for x in \
                 (self.seqid, self.pos, self.mapname, self.lg, self.cm))
 
+    __repr__ = __str__
+
 
 class CSVMap (LineFile):
 
@@ -114,19 +118,56 @@ class CSVMap (LineFile):
         logging.debug("Map contains {0} markers in {1} linkage groups.".\
                       format(self.nmarkers, self.nlg))
 
+    def extract(self, seqid):
+        r = [x for x in self if x.seqid == seqid]
+        r.sort(key=lambda x: x.pos)
+        return r
+
+    def breakpoint(self, seqid):
+        r = self.extract(seqid)
+        key = lambda x: x.lg
+        lgs = []
+        for lg, markers in groupby(r, key=key):
+            markers = list(markers)
+            lgs.append(markers)
+        # Compress markers
+        scaffold = []
+        for markers in lgs:
+            m = markers[0]
+            pp = [x.pos for x in markers]
+            mext = "{0}:{1}-{2}".format(seqid, min(pp), max(pp))
+            gg = [x.cm for x in markers]
+            lext = "{0}:{1}-{2}".format(m.lg, min(gg), max(gg))
+            tag = "|".join((mext, lext, str(len(markers))))
+            scaffold.append(tag)
+
+        if len(lgs) > 1:
+            print >> sys.stderr, "Breakpoint found ({0}|{1})!".\
+                        format(seqid, self.mapname)
+            print >> sys.stderr, scaffold
+
 
 class CSVMapCollection (list):
 
     def __init__(self, maps):
+        self.maps = []
         for m in maps:
             m = CSVMap(m)
+            self.maps.append(m)
             self.extend(m)
 
     def extract(self, seqid):
         r = [x for x in self if x.seqid == seqid]
-        r.sort(key=(lambda x: x.pos))
-        for row in r:
-            print row
+        r.sort(key=lambda x: x.pos)
+        return r
+
+    def breakpoint(self, seqid):
+        for m in self.maps:
+            m.breakpoint(seqid)
+
+    @property
+    def seqids(self):
+        return sorted(set(x.seqid for x in self))
 
 
 def hamming_distance(a, b, ignore=None):
@@ -175,7 +216,9 @@ def path(args):
 
     maps = args
     cc = CSVMapCollection(maps)
-    cc.extract("scaffold_0")
+    allseqids = cc.seqids
+    for s in allseqids:
+        cc.breakpoint(s)
 
 
 def calc_ldscore(a, b):

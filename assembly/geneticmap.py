@@ -12,7 +12,7 @@ import logging
 from itertools import groupby
 
 from jcvi.formats.base import BaseFile, LineFile, must_open, read_block
-from jcvi.formats.bed import Bed, fastaFromBed
+from jcvi.formats.bed import Bed, BedLine, fastaFromBed
 from jcvi.utils.iter import pairwise
 from jcvi.utils.counter import Counter
 from jcvi.apps.base import OptionParser, ActionDispatcher, debug, need_update
@@ -155,7 +155,7 @@ class ScaffoldLinkage (object):
                 print >> fw, b.bedline
 
 
-class CSVMapMarker (object):
+class CSVMapLine (object):
 
     def __init__(self, row, sep=",", mapname=None):
         # ScaffoldID,ScaffoldPosition,LinkageGroup,GeneticPosition
@@ -166,6 +166,22 @@ class CSVMapMarker (object):
         self.cm = float(args[3])
         self.mapname = mapname
 
+    @property
+    def bedline(self):
+        marker = "{0}-{1}:{2:.6f}".format(self.mapname, self.lg, self.cm)
+        return "\t".join(str(x) for x in \
+                (self.seqid, self.pos - 1, self.pos, marker))
+
+
+class Marker (object):
+
+    def __init__(self, b):
+        self.seqid = b.seqid
+        self.pos = b.start
+        self.mapname, lgcm = b.accn.split("-")
+        self.lg, cm = lgcm.split(":")
+        self.cm = float(cm)
+
     def __str__(self):
         return "\t".join(str(x) for x in \
                 (self.seqid, self.pos, self.mapname, self.lg, self.cm))
@@ -173,37 +189,17 @@ class CSVMapMarker (object):
     __repr__ = __str__
 
 
-class CSVMap (LineFile):
+class Map (list):
 
-    def __init__(self, filename, header=True):
-        super(CSVMap, self).__init__(filename)
-        self.mapname = filename.split(".")[0]
-        fp = open(filename)
-        if header:
-            fp.readline()
-
-        for row in fp:
-            self.append(CSVMapMarker(row, mapname=self.mapname))
+    def __init__(self, bedfile):
+        bed = Bed(bedfile)
+        for b in bed:
+            self.append(Marker(b))
 
         self.nmarkers = len(self)
         self.nlg = len(set(x.lg for x in self))
         logging.debug("Map contains {0} markers in {1} linkage groups.".\
                       format(self.nmarkers, self.nlg))
-
-    def extract(self, seqid):
-        r = [x for x in self if x.seqid == seqid]
-        r.sort(key=lambda x: x.pos)
-        return r
-
-
-class CSVMapCollection (list):
-
-    def __init__(self, maps):
-        self.maps = []
-        for m in maps:
-            m = CSVMap(m)
-            self.maps.append(m)
-            self.extend(m)
 
     def extract(self, seqid):
         r = [x for x in self if x.seqid == seqid]
@@ -216,7 +212,7 @@ class CSVMapCollection (list):
 
     @property
     def mapnames(self):
-        return [x.mapname for x in self.maps]
+        return sorted(set(x.mapname for x in self))
 
 
 def hamming_distance(a, b, ignore=None):
@@ -239,32 +235,61 @@ def main():
         ('rename', 'rename markers according to the new mapping locations'),
         ('header', 'rename lines in the map header'),
         # Construct goldenpath
+        ('merge', 'merge csv maps and convert to bed format'),
         ('path', 'construct golden path given a set of genetic maps'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
 
-def path(args):
+def merge(args):
     """
-    %prog path map1 map2 map3 ...
+    %prog merge map1 map2 map3 ...
 
-    Construct golden path given a set of genetic maps. Tha map is csv formatted,
-    for example:
+    Convert csv maps to bed format.
+
+    Each input map is csv formatted, for example:
 
     ScaffoldID,ScaffoldPosition,LinkageGroup,GeneticPosition
     scaffold_2707,11508,1,0
     scaffold_2707,11525,1,1.00000000000001e-05
     scaffold_759,81336,1,49.7317510625759
     """
-    p = OptionParser(path.__doc__)
+    p = OptionParser(merge.__doc__)
+    p.set_outfile()
     opts, args = p.parse_args(args)
 
     if len(args) < 1:
         sys.exit(not p.print_help())
 
     maps = args
-    cc = CSVMapCollection(maps)
+    fp = must_open(maps)
+    b = Bed()
+    for row in fp:
+        mapname = fp.filename().split(".")[0]
+        try:
+            m = CSVMapLine(row, mapname=mapname)
+            b.append(BedLine(m.bedline))
+        except ValueError:
+            continue
+
+    b.print_to_file(filename=opts.outfile, sorted=True)
+
+
+def path(args):
+    """
+    %prog path map1 map2 map3 ...
+
+    Construct golden path given a set of genetic maps.
+    """
+    p = OptionParser(path.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    bedfile, = args
+    cc = Map(bedfile)
     allseqids = cc.seqids
     bptsbed = "breakpoints.bed"
     fw = must_open(bptsbed, "w")

@@ -9,7 +9,7 @@ chromosomes.
 import sys
 import logging
 
-from itertools import groupby
+from itertools import groupby, combinations
 
 from jcvi.formats.base import BaseFile, LineFile, must_open, read_block
 from jcvi.formats.bed import Bed, BedLine, fastaFromBed
@@ -110,7 +110,7 @@ class Breakpoint (object):
                         (self.seqid, self.left, self.right - 1))
 
 
-class ScaffoldLinkage (object):
+class Scaffold (object):
     """
     Partition all markers on a scaffold into intervals between adjacent markers.
     Iterate through the maps, when a certain interval is supported, increment
@@ -126,12 +126,26 @@ class ScaffoldLinkage (object):
 
         assert len(bpts) + 1 == len(r)
         self.markers = r
+        self.seqid = seqid
         self.bpts = bpts
         self.mapc = mapc
 
-        print >> sys.stderr, self.markers
-        self.score_breaks()
-        print >> sys.stderr, self.bpts
+    @property
+    def mlg_counts(self):
+        return Counter([x.mlg for x in self.markers])
+
+    def add_LG_pairs(self, G, mappair):
+        cc = self.mlg_counts.items()
+        mappair = sorted(mappair)
+        for (ak, av), (bk, bv) in combinations(cc, 2):
+            aks, bks = ak.split("-")[0], bk.split("-")[0]
+            if sorted((aks, bks)) != mappair:
+                continue
+            weight = min(av, bv)
+            if G.has_edge(ak, bk):
+                G[ak][bk]['weight'] += weight
+            else:
+                G.add_edge(ak, bk, weight=weight)
 
     def score_breaks(self):
         for m in self.mapc.mapnames:
@@ -178,8 +192,8 @@ class Marker (object):
     def __init__(self, b):
         self.seqid = b.seqid
         self.pos = b.start
-        self.mapname, lgcm = b.accn.split("-")
-        self.lg, cm = lgcm.split(":")
+        self.mlg, cm = b.accn.split(":")
+        self.mapname, self.lg = b.accn.split("-")
         self.cm = float(cm)
 
     def __str__(self):
@@ -197,7 +211,7 @@ class Map (list):
             self.append(Marker(b))
 
         self.nmarkers = len(self)
-        self.nlg = len(set(x.lg for x in self))
+        self.nlg = len(set(x.mlg for x in self))
         logging.debug("Map contains {0} markers in {1} linkage groups.".\
                       format(self.nmarkers, self.nlg))
 
@@ -213,16 +227,6 @@ class Map (list):
     @property
     def mapnames(self):
         return sorted(set(x.mapname for x in self))
-
-
-def hamming_distance(a, b, ignore=None):
-    dist = 0
-    for x, y in zip(a, b):
-        if ignore and ignore in (x, y):
-            continue
-        if x != y:
-            dist += 1
-    return dist
 
 
 def main():
@@ -270,7 +274,7 @@ def merge(args):
         try:
             m = CSVMapLine(row, mapname=mapname)
             b.append(BedLine(m.bedline))
-        except ValueError:
+        except ValueError:  # header
             continue
 
     b.print_to_file(filename=opts.outfile, sorted=True)
@@ -278,25 +282,60 @@ def merge(args):
 
 def path(args):
     """
-    %prog path map1 map2 map3 ...
+    %prog path map.bed
 
     Construct golden path given a set of genetic maps.
     """
+    from jcvi.algorithms.graph import nx
+    from jcvi.utils.grouper import Grouper
+
     p = OptionParser(path.__doc__)
+    p.add_option("--pivot", default="BCFemale",
+                 help="Which map is framework map [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     bedfile, = args
+    pivot = opts.pivot
+
     cc = Map(bedfile)
+    mapnames = cc.mapnames
     allseqids = cc.seqids
-    bptsbed = "breakpoints.bed"
-    fw = must_open(bptsbed, "w")
+    # Partition the linkage groups into consensus clusters
+    C = Grouper()
+    for mapname in mapnames:
+        if mapname == pivot:
+            continue
+        G = nx.Graph()
+        for s in allseqids:
+            s = Scaffold(s, cc)
+            s.add_LG_pairs(G, (pivot, mapname))
+        print G.edges(data=True)
+        # Find the best pivot LG every non-pivot LG matches to
+        for n in G.nodes():
+            if n.split("-")[0] == pivot:
+                continue
+            print G[n]
+            best_neighbor = max(G[n].items(), key=lambda x: x[1]['weight'])
+            print "BEST", best_neighbor
+            C.join(n, best_neighbor[0])
+    print list(C)
+
+    # Partition the scaffolds and assign them to one consensus
     for s in allseqids:
-        sl = ScaffoldLinkage(s, cc)
-        sl.print_breaks(fw)
-    fw.close()
+        s = Scaffold(s, cc)
+        counts = {}
+        for mlg, count in s.mlg_counts.items():
+            consensus = C[mlg]
+            if consensus not in counts:
+                counts[consensus] = 0
+            counts[consensus] += count
+        best_assignment = max(counts.items(), key=lambda x: x[1])
+        best_value = best_assignment[1]
+        if counts.values().count(best_value) > 1:  # tie
+            print "AMBIGUOUS", s.seqid, counts
 
 
 def calc_ldscore(a, b):
@@ -337,7 +376,6 @@ def ld(args):
     """
     import numpy as np
     from random import sample
-    from itertools import combinations
 
     from jcvi.algorithms.matrix import symmetrize
 
@@ -577,6 +615,16 @@ def fasta(args):
     fw.close()
 
     fastaFromBed(markersbed, sfasta, name=True)
+
+
+def hamming_distance(a, b, ignore=None):
+    dist = 0
+    for x, y in zip(a, b):
+        if ignore and ignore in (x, y):
+            continue
+        if x != y:
+            dist += 1
+    return dist
 
 
 OK, BREAK, END = range(3)

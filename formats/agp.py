@@ -26,8 +26,7 @@ from jcvi.formats.bed import Bed, BedLine
 from jcvi.assembly.base import calculate_A50
 from jcvi.utils.range import range_intersect
 from jcvi.utils.iter import pairwise, flatten
-from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher, \
-            sh, need_update
+from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher, need_update
 
 
 Valid_component_type = list("ADFGNOPUW")
@@ -1045,7 +1044,7 @@ def cut(args):
 
     fw.close()
     # Reindex
-    idxagpfile = reindex([newagpfile, "--inplace"])
+    reindex([newagpfile, "--inplace"])
 
     return newagpfile
 
@@ -1063,6 +1062,8 @@ def mask(args):
                  help="Create new names for component [default: %default]")
     p.add_option("--gaptype", default="scaffold",
                  help="Masked region has gap type of [default: %default]")
+    p.add_option("--retain", default=False, action="store_true",
+                 help="Retain old names for non-split objects [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -1142,6 +1143,7 @@ def mask(args):
             if not (splitobject and is_gap):
                 agp_fixes[component].append(aline)
 
+    retain = opts.retain
     # Finally write the masked agp
     for a in agp:
         if a.is_gap:
@@ -1149,10 +1151,11 @@ def mask(args):
         elif a.component_id in agp_fixes:
             print >> fw, "\n".join(agp_fixes[a.component_id])
         else:
-            if splitobject:
-                a.object += "_0"
-            elif splitcomponent:
-                a.component_id += "_0"
+            if not retain:
+                if splitobject:
+                    a.object += "_0"
+                elif splitcomponent:
+                    a.component_id += "_0"
             print >> fw, a
 
     fw.close()

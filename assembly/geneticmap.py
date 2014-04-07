@@ -13,6 +13,7 @@ from itertools import groupby
 
 from jcvi.formats.base import BaseFile, LineFile, must_open, read_block
 from jcvi.formats.bed import Bed, fastaFromBed
+from jcvi.utils.iter import pairwise
 from jcvi.utils.counter import Counter
 from jcvi.apps.base import OptionParser, ActionDispatcher, debug, need_update
 debug()
@@ -83,7 +84,78 @@ class MSTMap (LineFile):
                       format(self.nmarkers, self.nind))
 
 
-class CSVMapLine (object):
+class Breakpoint (object):
+
+    def __init__(self, a, b):
+        self.seqid = a.seqid
+        assert a.seqid == b.seqid, "SeqID must match"
+        a, b = sorted((a, b), key=lambda x: x.pos)
+        self.left, self.right = a.pos, b.pos
+        self.score = 0
+
+    def __str__(self):
+        return "BPT:{0}|{1}|{2}".format(self.left, self.right,
+                                        self.score)
+
+    __repr__ = __str__
+
+    @classmethod
+    def genetic_distance(cls, a, b):
+        assert a.mapname == b.mapname
+        return abs(a.cm - b.cm) if a.lg == b.lg else -1
+
+    @property
+    def bedline(self):
+        return "\t".join(str(x) for x in \
+                        (self.seqid, self.left, self.right - 1))
+
+
+class ScaffoldLinkage (object):
+    """
+    Partition all markers on a scaffold into intervals between adjacent markers.
+    Iterate through the maps, when a certain interval is supported, increment
+    score; otherwise decrement score. Finally break the intervals that failed to
+    pass threshold.
+    """
+    def __init__(self, seqid, mapc):
+        r = mapc.extract(seqid)
+        bpts = []
+        for a, b in pairwise(r):
+            bpt = Breakpoint(a, b)
+            bpts.append(bpt)
+
+        assert len(bpts) + 1 == len(r)
+        self.markers = r
+        self.bpts = bpts
+        self.mapc = mapc
+
+        print >> sys.stderr, self.markers
+        self.score_breaks()
+        print >> sys.stderr, self.bpts
+
+    def score_breaks(self):
+        for m in self.mapc.mapnames:
+            self.score_break(m)
+
+    def score_break(self, mapname):
+        map = list((i, m) for i, m in enumerate(self.markers)\
+                    if m.mapname == mapname)
+        for (ai, a), (bi, b) in pairwise(map):
+            gdist = Breakpoint.genetic_distance(a, b)
+            bonus = 1 if gdist >= 0 else -1  # simple scoring
+            for x in self.bpts[ai:bi]:
+                x.score += bonus
+
+    def print_breaks(self, fw):
+        key = lambda x: x.score >= 0
+        for valid, bb in groupby(self.bpts, key=key):
+            if valid:
+                continue
+            for b in bb:
+                print >> fw, b.bedline
+
+
+class CSVMapMarker (object):
 
     def __init__(self, row, sep=",", mapname=None):
         # ScaffoldID,ScaffoldPosition,LinkageGroup,GeneticPosition
@@ -111,7 +183,7 @@ class CSVMap (LineFile):
             fp.readline()
 
         for row in fp:
-            self.append(CSVMapLine(row, mapname=self.mapname))
+            self.append(CSVMapMarker(row, mapname=self.mapname))
 
         self.nmarkers = len(self)
         self.nlg = len(set(x.lg for x in self))
@@ -122,29 +194,6 @@ class CSVMap (LineFile):
         r = [x for x in self if x.seqid == seqid]
         r.sort(key=lambda x: x.pos)
         return r
-
-    def breakpoint(self, seqid):
-        r = self.extract(seqid)
-        key = lambda x: x.lg
-        lgs = []
-        for lg, markers in groupby(r, key=key):
-            markers = list(markers)
-            lgs.append(markers)
-        # Compress markers
-        scaffold = []
-        for markers in lgs:
-            m = markers[0]
-            pp = [x.pos for x in markers]
-            mext = "{0}:{1}-{2}".format(seqid, min(pp), max(pp))
-            gg = [x.cm for x in markers]
-            lext = "{0}:{1}-{2}".format(m.lg, min(gg), max(gg))
-            tag = "|".join((mext, lext, str(len(markers))))
-            scaffold.append(tag)
-
-        if len(lgs) > 1:
-            print >> sys.stderr, "Breakpoint found ({0}|{1})!".\
-                        format(seqid, self.mapname)
-            print >> sys.stderr, scaffold
 
 
 class CSVMapCollection (list):
@@ -161,13 +210,13 @@ class CSVMapCollection (list):
         r.sort(key=lambda x: x.pos)
         return r
 
-    def breakpoint(self, seqid):
-        for m in self.maps:
-            m.breakpoint(seqid)
-
     @property
     def seqids(self):
         return sorted(set(x.seqid for x in self))
+
+    @property
+    def mapnames(self):
+        return [x.mapname for x in self.maps]
 
 
 def hamming_distance(a, b, ignore=None):
@@ -217,8 +266,12 @@ def path(args):
     maps = args
     cc = CSVMapCollection(maps)
     allseqids = cc.seqids
+    bptsbed = "breakpoints.bed"
+    fw = must_open(bptsbed, "w")
     for s in allseqids:
-        cc.breakpoint(s)
+        sl = ScaffoldLinkage(s, cc)
+        sl.print_breaks(fw)
+    fw.close()
 
 
 def calc_ldscore(a, b):

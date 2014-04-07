@@ -909,6 +909,8 @@ def refine(args):
     Find gaps within or near breakpoint region.
     """
     p = OptionParser(refine.__doc__)
+    p.add_option("--closest", default=False, action="store_true",
+                 help="In case of no gaps, use closest [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -944,16 +946,20 @@ def refine(args):
 
     nogapsfw.close()
     largestgapsfw.close()
+    beds = [largestgapsbed]
+    toclean = [nogapsbed, largestgapsbed]
 
-    closestgapsbed = pf + ".closestgaps.bed"
-    cmd = "closestBed -a {0} -b {1} -d".format(nogapsbed, gapsbed)
-    sh(cmd, outfile=closestgapsbed)
+    if opts.closest:
+        closestgapsbed = pf + ".closestgaps.bed"
+        cmd = "closestBed -a {0} -b {1} -d".format(nogapsbed, gapsbed)
+        sh(cmd, outfile=closestgapsbed)
+        beds += [closestgapsbed]
+        toclean += [closestgapsbed]
 
     refinedbed = pf + ".refined.bed"
-    FileMerger([largestgapsbed, closestgapsbed], outfile=refinedbed).merge()
+    FileMerger(beds, outfile=refinedbed).merge()
 
     # Clean-up
-    toclean = [nogapsbed, largestgapsbed, closestgapsbed]
     FileShredder(toclean)
 
     return refinedbed

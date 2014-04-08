@@ -10,6 +10,7 @@ import sys
 import logging
 
 from itertools import groupby, combinations
+from collections import defaultdict
 
 from jcvi.formats.base import BaseFile, LineFile, must_open, read_block
 from jcvi.formats.bed import Bed, BedLine, fastaFromBed
@@ -312,20 +313,18 @@ def path(args):
         for s in allseqids:
             s = Scaffold(s, cc)
             s.add_LG_pairs(G, (pivot, mapname))
-        print G.edges(data=True)
         # Find the best pivot LG every non-pivot LG matches to
         for n in G.nodes():
             if n.split("-")[0] == pivot:
                 continue
-            print G[n]
             best_neighbor = max(G[n].items(), key=lambda x: x[1]['weight'])
-            print "BEST", best_neighbor
             C.join(n, best_neighbor[0])
-    print list(C)
 
+    partitions = defaultdict(list)
     # Partition the scaffolds and assign them to one consensus
     for s in allseqids:
         s = Scaffold(s, cc)
+        seqid = s.seqid
         counts = {}
         for mlg, count in s.mlg_counts.items():
             consensus = C[mlg]
@@ -333,9 +332,16 @@ def path(args):
                 counts[consensus] = 0
             counts[consensus] += count
         best_assignment = max(counts.items(), key=lambda x: x[1])
-        best_value = best_assignment[1]
+        best_consensus, best_value = best_assignment
         if counts.values().count(best_value) > 1:  # tie
-            print "AMBIGUOUS", s.seqid, counts
+            print >> sys.stderr, "AMBIGUOUS", seqid, counts
+            continue
+        partitions[best_consensus].append(seqid)
+
+    # Perform OO within each partition
+    for lgs, scaffolds in partitions.items():
+        print lgs
+        print scaffolds
 
 
 def calc_ldscore(a, b):

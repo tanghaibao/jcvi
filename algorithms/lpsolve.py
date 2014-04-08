@@ -188,20 +188,22 @@ class SCIPSolver(AbstractMIPSolver):
         return results
 
 
-def node_to_edge(edges):
+def node_to_edge(edges, directed=True):
     """
     From list of edges, record per node, incoming and outgoing edges
     """
     outgoing = defaultdict(set)
-    incoming = defaultdict(set)
+    incoming = defaultdict(set) if directed else outgoing
     nodes = set()
     for i, edge in enumerate(edges):
-        a, b, w = edge
+        a, b, = edge[:2]
         outgoing[a].add(i)
         incoming[b].add(i)
         nodes.add(a)
         nodes.add(b)
-    return outgoing, incoming, nodes
+    if directed:
+        return outgoing, incoming, nodes
+    return outgoing, nodes
 
 
 def print_objective(lp_handle, edges, objective=MAXIMIZE):
@@ -210,6 +212,9 @@ def print_objective(lp_handle, edges, objective=MAXIMIZE):
     objective, constraints, vars
     spec <http://lpsolve.sourceforge.net/5.0/CPLEX-format.htm>
     """
+    assert edges, "Edges must be non-empty"
+    if len(edges[0]) == 2:  # assume weight is 1 if not specified
+        edges = [(a, b, 1) for (a, b) in edges]
     print >> lp_handle, objective
     items = [" + {0}x{1}".format(w, i + 1) \
             for i, (a, b, w) in enumerate(edges)]
@@ -239,7 +244,61 @@ def lpsolve(lp_handle, solver="scip", clean=True):
 
     g = solver(lp_data, clean=clean)
     selected = set(g.results)
-    return selected, g.obj_val
+    try:
+        obj_val = g.obj_val
+    except AttributeError:  # No solution!
+        return None, None
+    return selected, obj_val
+
+
+def summation(incident_edges, clean=False):
+    s = "".join(" + x{0}".format(i + 1) for i in incident_edges)
+    if clean:
+        s = s.strip().strip('+')
+    return s
+
+
+def hamiltonian(edges):
+    """
+    Calculates shortest path that traverses each node exactly once.
+    <http://tfinley.net/software/pyglpk/ex_ham.html>
+
+    >>> g = [(1,2), (2,3), (3,4), (4,2), (3,5)]
+    >>> hamiltonian(g)
+    ([(1, 2), (3, 4), (3, 5), (4, 2)], 4)
+    >>> g = [(1,2), (2,3), (1,4), (2,5), (3,6)]
+    >>> hamiltonian(g)
+    (None, None)
+    >>> g += [(5,6)]
+    >>> hamiltonian(g)
+    ([(1, 2), (1, 4), (2, 3), (3, 6), (5, 6)], 5)
+    """
+    incident, nodes = node_to_edge(edges, directed=False)
+
+    nedges = len(edges)
+    lp_handle = cStringIO.StringIO()
+
+    print_objective(lp_handle, edges, objective=MINIMIZE)
+    constraints = []
+    # For each node, select at least 1 and at most 2 incident edges
+    for n in nodes:
+        incident_edges = incident[n]
+        icc = summation(incident_edges, clean=True)
+        constraints.append("{0} >= 1".format(icc))
+        constraints.append("{0} <= 2".format(icc))
+
+    # We should select exactly (number of nodes - 1) edges total
+    allcc = summation(range(nedges), clean=True)
+    constraints.append("{0} = {1}".format(allcc, len(nodes) - 1))
+
+    print_constraints(lp_handle, constraints)
+    print_vars(lp_handle, nedges, vars=BINARY)
+
+    selected, obj_val = lpsolve(lp_handle)
+    results = sorted(x for i, x in enumerate(edges) if i in selected) \
+                    if selected else None
+
+    return results, obj_val
 
 
 def path(edges, source, sink, flavor="longest"):
@@ -270,8 +329,8 @@ def path(edges, source, sink, flavor="longest"):
     for v in nodes:
         incoming_edges = incoming[v]
         outgoing_edges = outgoing[v]
-        icc = "".join(" + x{0}".format(i + 1) for i in incoming_edges)
-        occ = "".join(" + x{0}".format(i + 1) for i in outgoing_edges)
+        icc = summation(incoming_edges)
+        occ = summation(outgoing_edges)
 
         if v == source:
             if not outgoing_edges:
@@ -294,9 +353,8 @@ def path(edges, source, sink, flavor="longest"):
     print_vars(lp_handle, nedges, vars=BINARY)
 
     selected, obj_val = lpsolve(lp_handle)
-    results = sorted(x for i, x in enumerate(edges) if i in selected)
-    if not results:
-        results = None
+    results = sorted(x for i, x in enumerate(edges) if i in selected) \
+                    if selected else None
 
     return results, obj_val
 

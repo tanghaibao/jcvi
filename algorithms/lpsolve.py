@@ -178,7 +178,7 @@ class SCIPSolver(AbstractMIPSolver):
             results.append(int(x[1:]) - 1)  # 0-based indexing
 
         if results:
-            self.obj_val = int(obj_row.split(":")[1])
+            self.obj_val = float(obj_row.split(":")[1].strip())
 
         fp.close()
 

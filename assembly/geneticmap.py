@@ -9,12 +9,11 @@ chromosomes.
 import sys
 import logging
 
-from itertools import groupby, combinations
+from itertools import combinations, product
 from collections import defaultdict
 
 from jcvi.formats.base import BaseFile, LineFile, must_open, read_block
 from jcvi.formats.bed import Bed, BedLine, fastaFromBed
-from jcvi.utils.iter import pairwise
 from jcvi.utils.counter import Counter
 from jcvi.apps.base import OptionParser, ActionDispatcher, debug, need_update
 debug()
@@ -85,32 +84,6 @@ class MSTMap (LineFile):
                       format(self.nmarkers, self.nind))
 
 
-class Breakpoint (object):
-
-    def __init__(self, a, b):
-        self.seqid = a.seqid
-        assert a.seqid == b.seqid, "SeqID must match"
-        a, b = sorted((a, b), key=lambda x: x.pos)
-        self.left, self.right = a.pos, b.pos
-        self.score = 0
-
-    def __str__(self):
-        return "BPT:{0}|{1}|{2}".format(self.left, self.right,
-                                        self.score)
-
-    __repr__ = __str__
-
-    @classmethod
-    def genetic_distance(cls, a, b):
-        assert a.mapname == b.mapname
-        return abs(a.cm - b.cm) if a.lg == b.lg else -1
-
-    @property
-    def bedline(self):
-        return "\t".join(str(x) for x in \
-                        (self.seqid, self.left, self.right - 1))
-
-
 class Scaffold (object):
     """
     Partition all markers on a scaffold into intervals between adjacent markers.
@@ -120,15 +93,8 @@ class Scaffold (object):
     """
     def __init__(self, seqid, mapc):
         r = mapc.extract(seqid)
-        bpts = []
-        for a, b in pairwise(r):
-            bpt = Breakpoint(a, b)
-            bpts.append(bpt)
-
-        assert len(bpts) + 1 == len(r)
         self.markers = r
         self.seqid = seqid
-        self.bpts = bpts
         self.mapc = mapc
 
     @property
@@ -148,26 +114,38 @@ class Scaffold (object):
             else:
                 G.add_edge(ak, bk, weight=weight)
 
-    def score_breaks(self):
-        for m in self.mapc.mapnames:
-            self.score_break(m)
 
-    def score_break(self, mapname):
-        map = list((i, m) for i, m in enumerate(self.markers)\
-                    if m.mapname == mapname)
-        for (ai, a), (bi, b) in pairwise(map):
-            gdist = Breakpoint.genetic_distance(a, b)
-            bonus = 1 if gdist >= 0 else -1  # simple scoring
-            for x in self.bpts[ai:bi]:
-                x.score += bonus
+class ScaffoldOO (object):
+    """
+    This contains the routine to construct order and orientation for the
+    scaffolds per partition.
+    """
+    def __init__(self, lgs, scaffolds, mapc):
+        from jcvi.algorithms.lpsolve import hamiltonian
 
-    def print_breaks(self, fw):
-        key = lambda x: x.score >= 0
-        for valid, bb in groupby(self.bpts, key=key):
-            if valid:
-                continue
-            for b in bb:
-                print >> fw, b.bedline
+        self.lgs = lgs
+        self.scaffolds = scaffolds
+        self.mapc = mapc
+
+        bins = mapc.bins
+        distances = {}
+        for lg in lgs:
+            for a, b in combinations(scaffolds, 2):
+                xa = bins.get((lg, a), [])
+                xb = bins.get((lg, b), [])
+                dists = [abs(x.cm - y.cm) for x, y in product(xa, xb)]
+                if not dists:
+                    continue
+                dist = min(dists)
+                #print lg, a, b, xa, xb, dist
+                ab = a, b
+                if ab in distances:
+                    distances[ab] = min(dist, distances[(a, b)])
+                else:
+                    distances[ab] = dist
+
+        distance_edges = list((a, b, w) for (a, b), w in distances.items())
+        print hamiltonian(distance_edges)
 
 
 class CSVMapLine (object):
@@ -196,10 +174,10 @@ class Marker (object):
         self.mlg, cm = b.accn.split(":")
         self.mapname, self.lg = b.accn.split("-")
         self.cm = float(cm)
+        self.bedline = b
 
     def __str__(self):
-        return "\t".join(str(x) for x in \
-                (self.seqid, self.pos, self.mapname, self.lg, self.cm))
+        return str(self.bedline)
 
     __repr__ = __str__
 
@@ -220,6 +198,13 @@ class Map (list):
         r = [x for x in self if x.seqid == seqid]
         r.sort(key=lambda x: x.pos)
         return r
+
+    @property
+    def bins(self):
+        s = defaultdict(list)
+        for m in self:
+            s[(m.mlg, m.seqid)].append(m)
+        return s
 
     @property
     def seqids(self):
@@ -342,6 +327,7 @@ def path(args):
     for lgs, scaffolds in partitions.items():
         print lgs
         print scaffolds
+        ScaffoldOO(lgs, scaffolds, cc)
 
 
 def calc_ldscore(a, b):

@@ -343,12 +343,12 @@ def instantiate(args):
 def atg_name(name, retval="chr,rank", trimpad0=True):
     atg_name_pat = re.compile(r"""
             ^(?P<locus>
-                (?:(?P<prefix>\D+[\D\d\D])\.?)(?P<chr>[\d|C|M]+)(?P<sep>[A-z]+)(?P<rank>\d+)
+                (?:(?P<prefix>\D+[\D\d\D])\.?)(?P<chr>[\d|C|M]+)?(?P<sep>[A-z]+)(?P<rank>\d+)
             )
             \.?(?P<iso>\d+)?
             """, re.VERBOSE)
 
-    seps = ["g", "te", "trna", "s"]
+    seps = ["g", "te", "trna", "s", "u"]
     pad0s = ["chr", "rank"]
 
     if name is not None:

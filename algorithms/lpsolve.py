@@ -34,6 +34,7 @@ import cStringIO
 from collections import defaultdict
 
 from jcvi.utils.cbook import fill
+from jcvi.formats.base import flexible_cast
 from jcvi.apps.base import sh, mkdir, debug
 debug()
 
@@ -178,7 +179,7 @@ class SCIPSolver(AbstractMIPSolver):
             results.append(int(x[1:]) - 1)  # 0-based indexing
 
         if results:
-            self.obj_val = float(obj_row.split(":")[1].strip())
+            self.obj_val = flexible_cast(obj_row.split(":")[1].strip())
 
         fp.close()
 
@@ -258,27 +259,72 @@ def summation(incident_edges, clean=False):
     return s
 
 
-def hamiltonian(edges):
+def edges_to_path(edges, directed=True):
+    """
+    Connect edges and return a path.
+    """
+    if not edges:
+        return None
+
+    path = []
+    if directed:
+        source_sink = dict(x[:2] for x in edges)
+        outgoing, incoming, nodes = node_to_edge(edges, directed=directed)
+        # Find source and start from there
+        for n in nodes:
+            if not incoming[n]:
+                break
+        path.append(n)
+        while n in source_sink:
+            n = source_sink[n]
+            path.append(n)
+    else:
+        source_sink = defaultdict(set)
+        for e in edges:
+            source, sink = e[:2]
+            source_sink[source].add(sink)
+            source_sink[sink].add(source)
+        incident, nodes = node_to_edge(edges, directed=directed)
+        # Find the end that is lexicographically smaller
+        ends = [n for n, e in incident.items() if len(e) == 1]
+        n = min(ends)
+        path.append(n)
+        seen = set([n])
+        while True:
+            dn = source_sink[n]
+            dn = [x for x in dn if x not in seen]
+            if not dn:
+                break
+            assert len(dn) == 1
+            n, = dn
+            path.append(n)
+            seen.add(n)
+
+    return path
+
+
+def hamiltonian(edges, flavor="shortest"):
     """
     Calculates shortest path that traverses each node exactly once.
     <http://tfinley.net/software/pyglpk/ex_ham.html>
 
     >>> g = [(1,2), (2,3), (3,4), (4,2), (3,5)]
     >>> hamiltonian(g)
-    ([(1, 2), (3, 4), (3, 5), (4, 2)], 4)
+    ([1, 2, 4, 3, 5], 4)
     >>> g = [(1,2), (2,3), (1,4), (2,5), (3,6)]
     >>> hamiltonian(g)
     (None, None)
     >>> g += [(5,6)]
     >>> hamiltonian(g)
-    ([(1, 2), (1, 4), (2, 3), (3, 6), (5, 6)], 5)
+    ([4, 1, 2, 3, 6, 5], 5)
     """
     incident, nodes = node_to_edge(edges, directed=False)
 
     nedges = len(edges)
     lp_handle = cStringIO.StringIO()
 
-    print_objective(lp_handle, edges, objective=MINIMIZE)
+    objective = MAXIMIZE if flavor == "longest" else MINIMIZE
+    print_objective(lp_handle, edges, objective=objective)
     constraints = []
     # For each node, select at least 1 and at most 2 incident edges
     for n in nodes:
@@ -297,6 +343,7 @@ def hamiltonian(edges):
     selected, obj_val = lpsolve(lp_handle)
     results = sorted(x for i, x in enumerate(edges) if i in selected) \
                     if selected else None
+    results = edges_to_path(results, directed=False)
 
     return results, obj_val
 
@@ -307,10 +354,10 @@ def path(edges, source, sink, flavor="longest"):
 
     >>> g = [(1,2,1),(2,3,9),(2,4,3),(2,5,2),(3,6,8),(4,6,10),(4,7,4)]
     >>> g += [(6,8,7),(7,9,5),(8,9,6),(9,10,11)]
-    >>> print path(g, 1, 8, flavor="shortest")
-    ([(1, 2, 1), (2, 4, 3), (4, 6, 10), (6, 8, 7)], 21)
-    >>> print path(g, 1, 8, flavor="longest")
-    ([(1, 2, 1), (2, 3, 9), (3, 6, 8), (6, 8, 7)], 25)
+    >>> path(g, 1, 8, flavor="shortest")
+    ([1, 2, 4, 6, 8], 21)
+    >>> path(g, 1, 8, flavor="longest")
+    ([1, 2, 3, 6, 8], 25)
     """
     outgoing, incoming, nodes = node_to_edge(edges)
 
@@ -355,6 +402,7 @@ def path(edges, source, sink, flavor="longest"):
     selected, obj_val = lpsolve(lp_handle)
     results = sorted(x for i, x in enumerate(edges) if i in selected) \
                     if selected else None
+    results = edges_to_path(results)
 
     return results, obj_val
 

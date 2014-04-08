@@ -436,6 +436,12 @@ def is_number(s, cast=float):
     return True
 
 
+def flexible_cast(s):
+    if is_number(s, cast=int):
+        return int(s)
+    return float(s)
+
+
 def main():
 
     actions = (

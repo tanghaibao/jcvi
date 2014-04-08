@@ -48,6 +48,7 @@ MINIMIZE = "Minimize"
 SUBJECTTO = "Subject To"
 BOUNDS = "Bounds"
 BINARY = "Binary"
+GENERNAL = "General"
 END = "End"
 
 
@@ -207,6 +208,20 @@ def node_to_edge(edges, directed=True):
     return outgoing, nodes
 
 
+def populate_edge_weights(edges):
+    # assume weight is 1 if not specified
+    new_edges = []
+    for e in edges:
+        assert len(e) in (2, 3)
+        if len(e) == 2:
+            a, b = e
+            w = 1
+        else:
+            a, b, w = e
+        new_edges.append((a, b, w))
+    return new_edges
+
+
 def print_objective(lp_handle, edges, objective=MAXIMIZE):
     """
     CPLEX LP format commonly contains three blocks:
@@ -214,11 +229,10 @@ def print_objective(lp_handle, edges, objective=MAXIMIZE):
     spec <http://lpsolve.sourceforge.net/5.0/CPLEX-format.htm>
     """
     assert edges, "Edges must be non-empty"
-    if len(edges[0]) == 2:  # assume weight is 1 if not specified
-        edges = [(a, b, 1) for (a, b) in edges]
+    edges = populate_edge_weights(edges)
     print >> lp_handle, objective
     items = [" + {0}x{1}".format(w, i + 1) \
-            for i, (a, b, w) in enumerate(edges)]
+            for i, (a, b, w) in enumerate(edges) if w]
     sums = fill(items, width=10)
     print >> lp_handle, sums
 
@@ -229,12 +243,16 @@ def print_constraints(lp_handle, constraints):
         print >> lp_handle, cc
 
 
-def print_vars(lp_handle, nedges, vars=BINARY):
+def print_bounds(lp_handle, bounds):
+    print >> lp_handle, BOUNDS
+    for bb in bounds:
+        print >> lp_handle, " {0}".format(bb)
+
+
+def print_vars(lp_handle, nedges, offset=1, vars=BINARY):
     print >> lp_handle, vars
     for i in xrange(nedges):
-        print >> lp_handle, " x{0}".format(i + 1)
-
-    print >> lp_handle, END
+        print >> lp_handle, " x{0}".format(i + offset)
 
 
 def lpsolve(lp_handle, solver="scip", clean=True):
@@ -300,13 +318,20 @@ def edges_to_path(edges, directed=True):
             path.append(n)
             seen.add(n)
 
+    rpath = path[::-1]
+    if rpath < path:
+        path = rpath
+
+    assert len(path) == len(edges) + 1
     return path
 
 
 def hamiltonian(edges, flavor="shortest"):
     """
-    Calculates shortest path that traverses each node exactly once.
-    <http://tfinley.net/software/pyglpk/ex_ham.html>
+    Calculates shortest path that traverses each node exactly once. Convert
+    Hamiltonian path problem to TSP by adding one dummy point that has a distance
+    of zero to all your other points. Solve the TSP and get rid of the dummy
+    point - what remains is the Hamiltonian Path.
 
     >>> g = [(1,2), (2,3), (3,4), (4,2), (3,5)]
     >>> hamiltonian(g)
@@ -316,34 +341,75 @@ def hamiltonian(edges, flavor="shortest"):
     (None, None)
     >>> g += [(5,6)]
     >>> hamiltonian(g)
-    ([4, 1, 2, 3, 6, 5], 5)
+    ([3, 6, 5, 2, 1, 4], 5)
     """
     incident, nodes = node_to_edge(edges, directed=False)
+    DUMMY = "DUMMY"
+    dummy_edges = edges + [(DUMMY, x, 0) for x in nodes]
+    # Make graph symmetric
+    all_edges = dummy_edges[:]
+    for e in dummy_edges:  # flip source and link
+        new_edge = tuple([e[1], e[0]] + list(e[2:]))
+        all_edges.append(new_edge)
 
-    nedges = len(edges)
+    results, obj_val = tsp(all_edges, flavor=flavor)
+    if results:
+        results = [x for x in results if DUMMY not in x]
+        results = edges_to_path(results)
+    return results, obj_val
+
+
+def tsp(edges, flavor="shortest"):
+    """
+    Calculates shortest cycle that traverses each node exactly once. Also known
+    as the Traveling Salesman Problem (TSP).
+    """
+    incoming, outgoing, nodes = node_to_edge(edges)
+
+    nedges, nnodes = len(edges), len(nodes)
     lp_handle = cStringIO.StringIO()
 
     objective = MAXIMIZE if flavor == "longest" else MINIMIZE
     print_objective(lp_handle, edges, objective=objective)
     constraints = []
-    # For each node, select at least 1 and at most 2 incident edges
-    for n in nodes:
-        incident_edges = incident[n]
-        icc = summation(incident_edges, clean=True)
-        constraints.append("{0} >= 1".format(icc))
-        constraints.append("{0} <= 2".format(icc))
+    # For each node, select exactly 1 incoming and 1 outgoing edge
+    for v in nodes:
+        incoming_edges = incoming[v]
+        outgoing_edges = outgoing[v]
+        icc = summation(incoming_edges)
+        occ = summation(outgoing_edges)
+        constraints.append("{0} = 1".format(icc))
+        constraints.append("{0} = 1".format(occ))
 
-    # We should select exactly (number of nodes - 1) edges total
-    allcc = summation(range(nedges), clean=True)
-    constraints.append("{0} = {1}".format(allcc, len(nodes) - 1))
+    # Subtour elimination - Miller-Tucker-Zemlin (MTZ) formulation
+    # <http://en.wikipedia.org/wiki/Travelling_salesman_problem>
+    start_step = nedges + 1
+    nodes_to_steps = dict((n, start_step + i) for i, n in enumerate(nodes))
+    for i, e in enumerate(edges):
+        a, b = e[:2]
+        a, b = nodes_to_steps[a], nodes_to_steps[b]
+        if a == start_step or b == start_step:
+            continue
+        con_ab = " x{0} - x{1} + {2}x{3} <= {4}".\
+                format(a, b, nnodes, i + 1, nnodes - 1)
+        constraints.append(con_ab)
 
     print_constraints(lp_handle, constraints)
-    print_vars(lp_handle, nedges, vars=BINARY)
 
-    selected, obj_val = lpsolve(lp_handle)
+    # Step variables u_i bound between 1 and n, as additional variables
+    bounds = ["x{0} = 1".format(start_step)]
+    for i in xrange(start_step + 1, nedges + nnodes + 1):
+        bounds.append("2 <= x{0} <= {1}".format(i, nnodes))
+    print_bounds(lp_handle, bounds)
+
+    print_vars(lp_handle, nedges, vars=BINARY)
+    print_vars(lp_handle, nnodes, offset=start_step, vars=GENERNAL)
+    print >> lp_handle, END
+    #print lp_handle.getvalue()
+
+    selected, obj_val = lpsolve(lp_handle, clean=False)
     results = sorted(x for i, x in enumerate(edges) if i in selected) \
                     if selected else None
-    results = edges_to_path(results, directed=False)
 
     return results, obj_val
 
@@ -398,6 +464,7 @@ def path(edges, source, sink, flavor="longest"):
 
     print_constraints(lp_handle, constraints)
     print_vars(lp_handle, nedges, vars=BINARY)
+    print >> lp_handle, END
 
     selected, obj_val = lpsolve(lp_handle)
     results = sorted(x for i, x in enumerate(edges) if i in selected) \

@@ -144,7 +144,9 @@ class ScaffoldOO (object):
                 else:
                     distances[ab] = dist
 
-        distance_edges = list((a, b, w) for (a, b), w in distances.items())
+        threshold = 50
+        distance_edges = list((a, b, w) for (a, b), w in distances.items() \
+                                if w < threshold)
         print hamiltonian(distance_edges)
 
 

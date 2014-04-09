@@ -270,10 +270,8 @@ def lpsolve(lp_handle, solver="scip", clean=True):
     return selected, obj_val
 
 
-def summation(incident_edges, clean=False):
+def summation(incident_edges):
     s = "".join(" + x{0}".format(i + 1) for i in incident_edges)
-    if clean:
-        s = s.strip().strip('+')
     return s
 
 
@@ -318,11 +316,9 @@ def edges_to_path(edges, directed=True):
             path.append(n)
             seen.add(n)
 
-    rpath = path[::-1]
-    if rpath < path:
-        path = rpath
-
+    path = min(path, path[::-1])
     assert len(path) == len(edges) + 1
+
     return path
 
 
@@ -365,6 +361,7 @@ def tsp(edges, flavor="shortest"):
     as the Traveling Salesman Problem (TSP).
     """
     incoming, outgoing, nodes = node_to_edge(edges)
+    nodes = sorted(nodes)
 
     nedges, nnodes = len(edges), len(nodes)
     lp_handle = cStringIO.StringIO()
@@ -383,31 +380,33 @@ def tsp(edges, flavor="shortest"):
 
     # Subtour elimination - Miller-Tucker-Zemlin (MTZ) formulation
     # <http://en.wikipedia.org/wiki/Travelling_salesman_problem>
+    # Desrochers and laporte, 1991 (DFJ) has a stronger constraint
     start_step = nedges + 1
-    nodes_to_steps = dict((n, start_step + i) for i, n in enumerate(nodes))
+    u0 = nodes[0]
+    nodes_to_steps = dict((n, start_step + i) for i, n in enumerate(nodes[1:]))
     for i, e in enumerate(edges):
         a, b = e[:2]
-        a, b = nodes_to_steps[a], nodes_to_steps[b]
-        if a == start_step or b == start_step:
+        if u0 in (a, b):
             continue
+        a, b = nodes_to_steps[a], nodes_to_steps[b]
         con_ab = " x{0} - x{1} + {2}x{3} <= {4}".\
-                format(a, b, nnodes, i + 1, nnodes - 1)
+                format(a, b, nnodes - 1, i + 1, nnodes - 2)
         constraints.append(con_ab)
 
     print_constraints(lp_handle, constraints)
 
     # Step variables u_i bound between 1 and n, as additional variables
-    bounds = ["x{0} = 1".format(start_step)]
-    for i in xrange(start_step + 1, nedges + nnodes + 1):
-        bounds.append("2 <= x{0} <= {1}".format(i, nnodes))
+    bounds = []
+    for i in xrange(start_step, nedges + nnodes):
+        bounds.append("1 <= x{0} <= {1}".format(i, nnodes - 1))
     print_bounds(lp_handle, bounds)
 
     print_vars(lp_handle, nedges, vars=BINARY)
-    print_vars(lp_handle, nnodes, offset=start_step, vars=GENERNAL)
+    print_vars(lp_handle, nnodes - 1, offset=start_step, vars=GENERNAL)
     print >> lp_handle, END
-    #print lp_handle.getvalue()
+    print lp_handle.getvalue()
 
-    selected, obj_val = lpsolve(lp_handle, clean=False)
+    selected, obj_val = lpsolve(lp_handle)
     results = sorted(x for i, x in enumerate(edges) if i in selected) \
                     if selected else None
 

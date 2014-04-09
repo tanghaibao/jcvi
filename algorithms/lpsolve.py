@@ -337,7 +337,7 @@ def hamiltonian(edges, flavor="shortest"):
     (None, None)
     >>> g += [(5,6)]
     >>> hamiltonian(g)
-    ([3, 6, 5, 2, 1, 4], 5)
+    ([4, 1, 2, 3, 6, 5], 5)
     """
     incident, nodes = node_to_edge(edges, directed=False)
     DUMMY = "DUMMY"
@@ -381,16 +381,22 @@ def tsp(edges, flavor="shortest"):
     # Subtour elimination - Miller-Tucker-Zemlin (MTZ) formulation
     # <http://en.wikipedia.org/wiki/Travelling_salesman_problem>
     # Desrochers and laporte, 1991 (DFJ) has a stronger constraint
+    # See also:
+    # G. Laporte / The traveling salesman problem: Overview of algorithms
     start_step = nedges + 1
     u0 = nodes[0]
     nodes_to_steps = dict((n, start_step + i) for i, n in enumerate(nodes[1:]))
+    edge_store = dict((e[:2], i) for i, e in enumerate(edges))
     for i, e in enumerate(edges):
         a, b = e[:2]
         if u0 in (a, b):
             continue
-        a, b = nodes_to_steps[a], nodes_to_steps[b]
-        con_ab = " x{0} - x{1} + {2}x{3} <= {4}".\
-                format(a, b, nnodes - 1, i + 1, nnodes - 2)
+        na, nb = nodes_to_steps[a], nodes_to_steps[b]
+        con_ab = " x{0} - x{1} + {2}x{3}".format(na, nb, nnodes - 1, i + 1)
+        if (b, a) in edge_store:  # This extra term is the stronger DFJ formulation
+            j = edge_store[(b, a)]
+            con_ab += " + {0}x{1}".format(nnodes - 3, j + 1)
+        con_ab += " <= {0}".format(nnodes - 2)
         constraints.append(con_ab)
 
     print_constraints(lp_handle, constraints)
@@ -404,7 +410,7 @@ def tsp(edges, flavor="shortest"):
     print_vars(lp_handle, nedges, vars=BINARY)
     print_vars(lp_handle, nnodes - 1, offset=start_step, vars=GENERNAL)
     print >> lp_handle, END
-    print lp_handle.getvalue()
+    #print lp_handle.getvalue()
 
     selected, obj_val = lpsolve(lp_handle)
     results = sorted(x for i, x in enumerate(edges) if i in selected) \

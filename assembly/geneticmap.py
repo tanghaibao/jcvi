@@ -148,9 +148,7 @@ class ScaffoldOO (object):
                 else:
                     distances[ab] = dist
 
-        threshold = 20
-        distance_edges = list((a, b, w) for (a, b), w in distances.items() \
-                                if w < threshold)
+        distance_edges = list((a, b, w) for (a, b), w in distances.items())
         tour = hamiltonian(distance_edges)
         assert len(tour) == len(scaffolds), \
                 "Tour ({0}) != Scaffolds ({1})".format(len(tour), len(scaffolds))

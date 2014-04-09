@@ -120,8 +120,8 @@ class ScaffoldOO (object):
     This contains the routine to construct order and orientation for the
     scaffolds per partition.
     """
-    def __init__(self, lgs, scaffolds, mapc):
-        from jcvi.algorithms.lpsolve import hamiltonian
+    def __init__(self, lgs, scaffolds, mapc, distance_function="rank"):
+        from jcvi.algorithms.tsp import hamiltonian
 
         self.lgs = lgs
         self.scaffolds = scaffolds
@@ -129,11 +129,15 @@ class ScaffoldOO (object):
 
         bins = mapc.bins
         distances = {}
+        assert distance_function in ("cm", "rank")
         for lg in lgs:
             for a, b in combinations(scaffolds, 2):
                 xa = bins.get((lg, a), [])
                 xb = bins.get((lg, b), [])
-                dists = [abs(x.cm - y.cm) for x, y in product(xa, xb)]
+                if distance_function == "cm":
+                    dists = [abs(x.cm - y.cm) for x, y in product(xa, xb)]
+                else:
+                    dists = [abs(x.rank - y.rank) for x, y in product(xa, xb)]
                 if not dists:
                     continue
                 dist = min(dists)
@@ -144,10 +148,13 @@ class ScaffoldOO (object):
                 else:
                     distances[ab] = dist
 
-        threshold = 50
+        threshold = 20
         distance_edges = list((a, b, w) for (a, b), w in distances.items() \
                                 if w < threshold)
-        print hamiltonian(distance_edges)
+        tour = hamiltonian(distance_edges)
+        assert len(tour) == len(scaffolds), \
+                "Tour ({0}) != Scaffolds ({1})".format(len(tour), len(scaffolds))
+        print tour
 
 
 class CSVMapLine (object):
@@ -176,10 +183,13 @@ class Marker (object):
         self.mlg, cm = b.accn.split(":")
         self.mapname, self.lg = b.accn.split("-")
         self.cm = float(cm)
-        self.bedline = b
+        self.accn = b.accn
+        self.rank = -1
 
     def __str__(self):
-        return str(self.bedline)
+        return "\t".join(str(x) for x in
+                    (self.seqid, self.pos - 1, self.pos,
+                     self.accn, self.rank))
 
     __repr__ = __str__
 
@@ -192,14 +202,22 @@ class Map (list):
             self.append(Marker(b))
 
         self.nmarkers = len(self)
-        self.nlg = len(set(x.mlg for x in self))
+        self.mlg = set(x.mlg for x in self)
         logging.debug("Map contains {0} markers in {1} linkage groups.".\
-                      format(self.nmarkers, self.nlg))
+                      format(self.nmarkers, len(self.mlg)))
+        self.compute_ranks()
 
     def extract(self, seqid):
         r = [x for x in self if x.seqid == seqid]
         r.sort(key=lambda x: x.pos)
         return r
+
+    def compute_ranks(self):
+        for mlg in self.mlg:
+            mlg_set = [x for x in self if x.mlg == mlg]
+            mlg_set.sort(key=lambda x: x.cm)
+            for rank, marker in enumerate(mlg_set):
+                marker.rank = rank
 
     @property
     def bins(self):
@@ -329,7 +347,7 @@ def path(args):
     for lgs, scaffolds in partitions.items():
         print lgs
         print scaffolds
-        ScaffoldOO(lgs, scaffolds, cc)
+        ScaffoldOO(lgs, scaffolds, cc, distance_function="rank")
 
 
 def calc_ldscore(a, b):

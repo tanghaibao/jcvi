@@ -203,6 +203,7 @@ def node_to_edge(edges, directed=True):
         incoming[b].add(i)
         nodes.add(a)
         nodes.add(b)
+    nodes = sorted(nodes)
     if directed:
         return outgoing, incoming, nodes
     return outgoing, nodes
@@ -229,7 +230,6 @@ def print_objective(lp_handle, edges, objective=MAXIMIZE):
     spec <http://lpsolve.sourceforge.net/5.0/CPLEX-format.htm>
     """
     assert edges, "Edges must be non-empty"
-    edges = populate_edge_weights(edges)
     print >> lp_handle, objective
     items = [" + {0}x{1}".format(w, i + 1) \
             for i, (a, b, w) in enumerate(edges) if w]
@@ -339,6 +339,7 @@ def hamiltonian(edges, flavor="shortest"):
     >>> hamiltonian(g)
     ([4, 1, 2, 3, 6, 5], 5)
     """
+    edges = populate_edge_weights(edges)
     incident, nodes = node_to_edge(edges, directed=False)
     DUMMY = "DUMMY"
     dummy_edges = edges + [(DUMMY, x, 0) for x in nodes]
@@ -360,8 +361,8 @@ def tsp(edges, flavor="shortest"):
     Calculates shortest cycle that traverses each node exactly once. Also known
     as the Traveling Salesman Problem (TSP).
     """
+    edges = populate_edge_weights(edges)
     incoming, outgoing, nodes = node_to_edge(edges)
-    nodes = sorted(nodes)
 
     nedges, nnodes = len(edges), len(nodes)
     lp_handle = cStringIO.StringIO()

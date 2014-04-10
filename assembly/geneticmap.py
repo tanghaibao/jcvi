@@ -152,12 +152,12 @@ class ScaffoldOO (object):
         bins = self.bins
 
         distances = {}
-        assert distance_function in ("cm", "rank")
+        assert distance_function in ("cM", "rank")
         for lg in self.lgs:
             for a, b in combinations(scaffolds, 2):
                 xa = bins.get((lg, a), [])
                 xb = bins.get((lg, b), [])
-                if distance_function == "cm":
+                if distance_function == "cM":
                     dists = [abs(x.cm - y.cm) for x, y in product(xa, xb)]
                 else:
                     dists = [abs(x.rank - y.rank) for x, y in product(xa, xb)]
@@ -167,7 +167,7 @@ class ScaffoldOO (object):
                 #print lg, a, b, xa, xb, dist
                 ab = a, b
                 if ab in distances:
-                    distances[ab] = min(dist, distances[(a, b)])
+                    distances[ab] = min(dist, distances[ab])
                 else:
                     distances[ab] = dist
 
@@ -355,11 +355,15 @@ def path(args):
     from jcvi.formats.sizes import Sizes
     from jcvi.utils.grouper import Grouper
 
+    distance_choices = ("cM", "rank")
+
     p = OptionParser(path.__doc__)
+    p.add_option("--distance", default="cM", choices=distance_choices,
+                 help="Distance function when building consensus")
     p.add_option("--pivot", default="BCFemale",
-                 help="Which map is framework map [default: %default]")
+                 help="Which map is framework map")
     p.add_option("--gapsize", default=100, type="int",
-                 help="Insert gaps of size [default: %default]")
+                 help="Insert gaps of size")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:

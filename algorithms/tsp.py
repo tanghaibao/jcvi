@@ -9,12 +9,10 @@ algorithms.lpsolve.tsp().
 import os.path as op
 import os
 import logging
-import math
 
 import numpy as np
 
 from jcvi.formats.base import must_open
-from jcvi.utils.iter import pairwise
 from jcvi.algorithms.lpsolve import populate_edge_weights, node_to_edge
 from jcvi.apps.base import mkdir, debug, which, sh
 debug()
@@ -141,7 +139,32 @@ def tsp(edges):
     return c.tour
 
 
+def demo():
+    from itertools import combinations
+    from jcvi.utils.iter import pairwise
+    from jcvi.graphics.base import plt, savefig
+
+    POINTS = 100
+    x = np.random.randn(POINTS)
+    y = np.random.randn(POINTS)
+    edges = []
+    xy = zip(x, y)
+    for ia, ib in combinations(range(POINTS), 2):
+        ax, ay = xy[ia]
+        bx, by = xy[ib]
+        dist = ((ax - bx) ** 2 + (ay - by) ** 2) ** .5
+        edges.append((ia, ib, dist))
+
+    tour = hamiltonian(edges)
+    plt.plot(x, y, "ro")
+    for ia, ib in pairwise(tour):
+        plt.plot((x[ia], x[ib]), (y[ia], y[ib]), "r-")
+
+    savefig("demo.pdf")
+
+
 if __name__ == '__main__':
 
-    import doctest
-    doctest.testmod()
+    #import doctest
+    #doctest.testmod()
+    demo()

@@ -9,6 +9,8 @@ chromosomes.
 import sys
 import logging
 
+import numpy as np
+
 from itertools import combinations, product
 from collections import defaultdict
 
@@ -120,17 +122,38 @@ class ScaffoldOO (object):
     This contains the routine to construct order and orientation for the
     scaffolds per partition.
     """
-    def __init__(self, lgs, scaffolds, mapc, distance_function="rank"):
-        from jcvi.algorithms.tsp import hamiltonian
+    def __init__(self, lgs, scaffolds, mapc, pivot, distance_function="rank"):
 
         self.lgs = lgs
         self.scaffolds = scaffolds
-        self.mapc = mapc
+        self.bins = mapc.bins
 
-        bins = mapc.bins
+        tour = self.assign_order(distance_function=distance_function)
+        signs, flip = self.assign_orientation(tour, pivot)
+        if flip:
+            tour = tour[::-1]
+            signs = - signs[::-1]
+
+        recode = {0: '?', 1: '+', -1: '-'}
+        signs = [recode[x] for x in signs]
+        tour_signs = zip(tour, signs)
+        print >> sys.stderr, tour_signs
+        self.tour_signs = tour_signs
+
+        for lg in self.lgs:
+            if lg.split("-")[0] == pivot:
+                self.object = lg
+                break
+
+    def assign_order(self, distance_function="rank"):
+        from jcvi.algorithms.tsp import hamiltonian
+
+        scaffolds = self.scaffolds
+        bins = self.bins
+
         distances = {}
         assert distance_function in ("cm", "rank")
-        for lg in lgs:
+        for lg in self.lgs:
             for a, b in combinations(scaffolds, 2):
                 xa = bins.get((lg, a), [])
                 xb = bins.get((lg, b), [])
@@ -152,7 +175,44 @@ class ScaffoldOO (object):
         tour = hamiltonian(distance_edges)
         assert len(tour) == len(scaffolds), \
                 "Tour ({0}) != Scaffolds ({1})".format(len(tour), len(scaffolds))
-        print tour
+        return tour
+
+    def assign_orientation(self, tour, pivot):
+        from scipy.stats import spearmanr
+        from jcvi.algorithms.matrix import determine_signs
+
+        bins = self.bins
+        edges = []
+        for lg in self.lgs:
+            oo = []
+            for s in tour:
+                xs = bins.get((lg, s), [])
+                if not xs:
+                    oo.append(0)
+                    continue
+                physical = [x.pos for x in xs]
+                cm = [x.cm for x in xs]
+                rho, p_value = spearmanr(physical, cm)
+                if np.isnan(rho):
+                    rho = 0
+                oo.append(rho)
+
+            if lg.split("-")[0] == pivot:
+                pivot_oo = oo
+
+            for i, j in combinations(range(len(tour)), 2):
+                orientation = oo[i] * oo[j]
+                if not orientation:
+                    continue
+                orientation = '+' if orientation > 0 else '-'
+                edges.append((i, j, orientation))
+
+        signs = determine_signs(tour, edges)
+
+        # Finally flip this according to pivot map
+        flipr = signs * np.array(pivot_oo)
+        flip = sum(flipr) < 0
+        return signs, flip
 
 
 class CSVMapLine (object):
@@ -286,23 +346,28 @@ def merge(args):
 
 def path(args):
     """
-    %prog path map.bed
+    %prog path map.bed scaffolds.fasta
 
     Construct golden path given a set of genetic maps.
     """
     from jcvi.algorithms.graph import nx
+    from jcvi.formats.agp import order_to_agp
+    from jcvi.formats.sizes import Sizes
     from jcvi.utils.grouper import Grouper
 
     p = OptionParser(path.__doc__)
     p.add_option("--pivot", default="BCFemale",
                  help="Which map is framework map [default: %default]")
+    p.add_option("--gapsize", default=100, type="int",
+                 help="Insert gaps of size [default: %default]")
     opts, args = p.parse_args(args)
 
-    if len(args) != 1:
+    if len(args) != 2:
         sys.exit(not p.print_help())
 
-    bedfile, = args
+    bedfile, fastafile = args
     pivot = opts.pivot
+    gapsize = opts.gapsize
 
     cc = Map(bedfile)
     mapnames = cc.mapnames
@@ -342,10 +407,16 @@ def path(args):
         partitions[best_consensus].append(seqid)
 
     # Perform OO within each partition
+    agpfile = bedfile.rsplit(".", 1)[0] + ".agp"
+    sizes = Sizes(fastafile).mapping
+    fwagp = must_open(agpfile, "w")
     for lgs, scaffolds in partitions.items():
-        print lgs
-        print scaffolds
-        ScaffoldOO(lgs, scaffolds, cc, distance_function="rank")
+        print >> sys.stderr, lgs
+        s = ScaffoldOO(lgs, scaffolds, cc, pivot)
+        order_to_agp(s.object, s.tour_signs, sizes, fwagp, gapsize=gapsize)
+    fwagp.close()
+
+    logging.debug("AGP file written to `{0}`.".format(agpfile))
 
 
 def calc_ldscore(a, b):

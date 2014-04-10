@@ -12,7 +12,8 @@ import os.path as op
 import sys
 import logging
 
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh, which
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh, \
+            which, glob
 debug()
 
 
@@ -65,9 +66,44 @@ def main():
 
     actions = (
         ('patch', 'run PBJelly with reference and reads'),
+        ('spancount', 'count support for each gap'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def spancount(args):
+    """
+    %prog spancount list_of_fillingMetrics
+
+    Count span support for each gap. A file with paths of all fillingMetrics can
+    be built with Linux `find`.
+
+    $ (find assembly -name "fillingMetrics.json" -print > list_of_fillMetrics 2>
+    /dev/null &)
+    """
+    import json
+
+    p = OptionParser(spancount.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    fof, = args
+    fp = open(fof)
+    flist = [row.strip() for row in fp]
+    spanCount = "spanCount"
+    avgSpanBases = "avgSpanBases"
+    fw = open(spanCount, "w")
+    for f in flist:
+        fp = open(f)
+        j = json.load(fp)
+        sc = j.get(spanCount, None)
+        asb = j.get(avgSpanBases, None)
+        print >> fw, f, asb, sc
+        fw.flush()
+    fw.close()
 
 
 def fake_quals(fa):

@@ -6,12 +6,35 @@ Some math formula for various calculations
 """
 
 import sys
+import numpy as np
 
 from math import log, exp
 
 from jcvi.utils.cbook import human_size
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug
-debug()
+
+
+def reject_outliers(a, threshold=3.5):
+    """
+    Iglewicz and Hoaglin's robust test for multiple outliers (two sided test).
+    <http://www.itl.nist.gov/div898/handbook/eda/section3/eda35h.htm>
+
+    See also:
+    <http://contchart.com/outliers.aspx>
+
+    >>> a = [0, 1, 2, 4, 12, 58, 188, 189]
+    >>> reject_outliers(a)
+    array([False, False, False, False, False,  True,  True,  True], dtype=bool)
+    """
+    if len(a) < 3:
+        return np.zeros(len(a), dtype=bool)
+
+    A = np.array(a, dtype=float)
+    M = np.median(A)
+    D = np.absolute(A - M)
+    MAD = np.median(D)
+    Mi = np.absolute(0.6745 * (A - M) / MAD)
+    #return A, M, D, MAD, Mi
+    return Mi > 3.5
 
 
 def recomb_probability(cM, method="kosambi"):
@@ -62,19 +85,8 @@ def jukesCantorP(D):
     return p
 
 
-def main():
-
-    actions = (
-        ('velvet', 'calculate velvet memory requirement'),
-            )
-    p = ActionDispatcher(actions)
-    p.dispatch(globals())
-
-
-def velvet(args):
+def velvet(readsize, genomesize, numreads, K):
     """
-    %prog velvet readsize genomesize numreads K
-
     Calculate velvet memory requirement.
     <http://seqanswers.com/forums/showthread.php?t=2101>
 
@@ -86,13 +98,6 @@ def velvet(args):
     Number of reads is in millions
     K is the kmer hash value used in velveth
     """
-    p = OptionParser(velvet.__doc__)
-    opts, args = p.parse_args(args)
-
-    if len(args) != 4:
-        sys.exit(not p.print_help())
-
-    readsize, genomesize, numreads, K = [int(x) for x in args]
     ram = -109635 + 18977 * readsize + 86326 * genomesize + \
             233353 * numreads - 51092 * K
     print >> sys.stderr, "ReadSize: {0}".format(readsize)
@@ -105,7 +110,6 @@ def velvet(args):
 
 
 if __name__ == '__main__':
+
     import doctest
     doctest.testmod()
-
-    main()

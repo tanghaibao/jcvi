@@ -95,8 +95,7 @@ class Scaffold (object):
     pass threshold.
     """
     def __init__(self, seqid, mapc):
-        r = mapc.extract(seqid)
-        self.markers = r
+        self.markers = mapc.extract(seqid)
         self.seqid = seqid
         self.mapc = mapc
 
@@ -123,10 +122,10 @@ class ScaffoldOO (object):
     This contains the routine to construct order and orientation for the
     scaffolds per partition.
     """
-    def __init__(self, lgs, scaffolds, mapc, pivot, weights, function="cM", precision=0):
+    def __init__(self, lgs, scaffolds, mapc, pivot, weights, function="rank", precision=0):
 
         self.lgs = lgs
-        self.bins = mapc.bins
+        self.bins = mapc.get_bins(function=function)
         self.precision = precision
 
         signs, flip = self.assign_orientation(scaffolds, pivot, weights)
@@ -142,27 +141,14 @@ class ScaffoldOO (object):
                 self.object = lg
                 break
 
-    def quartile(self, a, lower=False):
-        # Extract the quartile subarray
-        L = len(a)
-        Q = max(L / 4, 1) + 1
-        return a[:Q] if lower else a[L - Q:]
-
     def distance(self, xa, xb, function="rank"):
         if not xa or not xb:
             return INF
-        # Since real data is noisy and contain outliers, the distance
-        # calculation is based on the min distance between A's upper quartile
-        # and B's lower quartile
-        xa = self.quartile(xa)
-        xb = self.quartile(xb, lower=True)
-        assert function in ("cM", "rank")
+
         if function == "cM":
-            return min(abs(a.cm - b.cm) \
-                        for a, b in product(xa, xb))
+            return abs(xb[0].cm - xa[-1].cm)
         else:
-            return min(abs(a.rank - b.rank) \
-                        for a, b in product(xa, xb))
+            return abs(xb[0].rank - xa[-1].rank)
 
     def get_mean_distance(self, a, weights):
         a, w = zip(*a)
@@ -307,12 +293,28 @@ class Map (list):
             for rank, marker in enumerate(mlg_set):
                 marker.rank = rank
 
-    @property
-    def bins(self):
+    def get_bins(self, remove_outliers=True, function="rank"):
         s = defaultdict(list)
         for m in self:
             s[(m.mlg, m.seqid)].append(m)
+
+        if remove_outliers:
+            for pair, markers in s.items():
+                s[pair] = self.remove_outliers(markers, function=function)
         return s
+
+    def remove_outliers(self, markers, function="rank"):
+        from jcvi.algorithms.formula import reject_outliers
+
+        if function == "rank":
+            data = [x.rank for x in markers]
+        else:
+            data = [x.cm for x in markers]
+
+        reject = reject_outliers(data)
+        clean_markers = [m for m, r in zip(markers, reject) if not r]
+        print markers, clean_markers
+        return clean_markers
 
     @property
     def seqids(self):

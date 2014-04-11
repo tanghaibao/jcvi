@@ -141,14 +141,24 @@ class ScaffoldOO (object):
                 self.object = lg
                 break
 
+    def extreme(self, a, N=2, lower=False):
+        # Take most extreme N values, which is robust to outliers
+        ext = a[:N] if lower else a[len(a) - N:]
+        return ext
+
     def distance(self, xa, xb, function="rank"):
         if not xa or not xb:
             return INF
 
+        xa = self.extreme(xa)
+        xb = self.extreme(xb, lower=True)
+
         if function == "cM":
-            return abs(xb[0].cm - xa[-1].cm)
+            return min(abs(a.cm - b.cm) \
+                        for a, b in product(xa, xb))
         else:
-            return abs(xb[0].rank - xa[-1].rank)
+            return min(abs(a.rank - b.rank) \
+                        for a, b in product(xa, xb))
 
     def get_mean_distance(self, a, weights):
         a, w = zip(*a)
@@ -313,7 +323,7 @@ class Map (list):
 
         reject = reject_outliers(data)
         clean_markers = [m for m, r in zip(markers, reject) if not r]
-        print markers, clean_markers
+        #print markers, clean_markers
         return clean_markers
 
     @property

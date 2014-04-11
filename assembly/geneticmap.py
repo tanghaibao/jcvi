@@ -11,7 +11,7 @@ import logging
 
 import numpy as np
 
-from itertools import combinations, product
+from itertools import combinations
 from collections import defaultdict
 
 from jcvi.formats.base import BaseFile, LineFile, must_open, read_block
@@ -172,7 +172,8 @@ class ScaffoldOO (object):
                         distances[e] = d
 
         distance_edges = sorted((a, b, w) for (a, b), w in distances.items())
-        tour = hamiltonian(distance_edges, symmetric=False)
+        precision = 6 if function == "cM" else 0
+        tour = hamiltonian(distance_edges, symmetric=False, precision=precision)
         assert len(tour) == len(scaffolds), \
                 "Tour ({0}) != Scaffolds ({1})".format(len(tour), len(scaffolds))
 
@@ -366,7 +367,7 @@ def path(args):
     distance_choices = ("cM", "rank")
 
     p = OptionParser(path.__doc__)
-    p.add_option("--distance", default="cM", choices=distance_choices,
+    p.add_option("--distance", default="rank", choices=distance_choices,
                  help="Distance function when building consensus")
     p.add_option("--pivot", default="BCFemale",
                  help="Which map is framework map")

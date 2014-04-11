@@ -17,12 +17,14 @@ from jcvi.algorithms.lpsolve import populate_edge_weights, node_to_edge
 from jcvi.apps.base import mkdir, debug, which, sh
 debug()
 
+NEG_INF = -9999
 Work_dir = "tsp_work"
 
 
 class Concorde (object):
 
-    def __init__(self, edges, work_dir=Work_dir, clean=False, verbose=False):
+    def __init__(self, edges, work_dir=Work_dir, clean=False, verbose=False,
+                       precision=0):
 
         self.work_dir = work_dir
         self.clean = clean
@@ -30,11 +32,11 @@ class Concorde (object):
 
         mkdir(work_dir)
         tspfile = op.join(work_dir, "data.tsp")
-        self.print_to_tsplib(edges, tspfile)
+        self.print_to_tsplib(edges, tspfile, precision=precision)
         retcode, outfile = self.run_concorde(tspfile)
         self.tour = self.parse_output(outfile)
 
-    def print_to_tsplib(self, edges, tspfile):
+    def print_to_tsplib(self, edges, tspfile, precision=0):
         """
         See TSPlib format:
         <https://www.iwr.uni-heidelberg.de/groups/comopt/software/TSPLIB95/>
@@ -55,30 +57,32 @@ class Concorde (object):
         nodes_indices = dict((n, i) for i, n in enumerate(nodes))
         self.nnodes = nnodes = len(nodes)
 
-        # TSPLIB requires explicit weights to be integral
-        weights = [x[-1] for x in edges if x[-1] > 0]
-        min_weight = min(weights) if weights else 1
-        factor = 1. / min_weight if min_weight < 1 else 1
-        factor = min(factor, 1000)
-        edges = [(a, b, int(w * factor)) for a, b, w in edges]
-
-        weights = [x[-1] for x in edges if x[-1] > 0]
-        Maxdist = 10 ** len(str(sum(weights))) - 1
+        # TSPLIB requires explicit weights to be integral, and non-negative
+        weights = [x[-1] for x in edges]
+        mweights = [x for x in weights if x != NEG_INF]
+        max_x, min_x = max(mweights), min(mweights)
+        inf = 2 * max(abs(max_x), abs(min_x))
+        # Remove negative values
+        shift = -min_x if min_x < 0 else 0
+        if NEG_INF in weights:
+            shift += 1
+        factor = 10 ** precision
 
         print >> fw, "NAME: data"
         print >> fw, "TYPE: TSP"
         print >> fw, "DIMENSION: {0}".format(nnodes)
 
-        D = np.ones((nnodes, nnodes), dtype=int) * Maxdist
+        D = np.ones((nnodes, nnodes), dtype=int) * inf
         for a, b, w in edges:
             ia, ib = nodes_indices[a], nodes_indices[b]
-            D[ia, ib] = D[ib, ia] = w
+            dw = 0 if w == NEG_INF else int((w + shift) * factor)
+            D[ia, ib] = D[ib, ia] = dw
 
         print >> fw, "EDGE_WEIGHT_TYPE: EXPLICIT"
         print >> fw, "EDGE_WEIGHT_FORMAT: FULL_MATRIX"
         print >> fw, "EDGE_WEIGHT_SECTION"
         for row in D:  # Dump the full matrix
-            print >> fw, " " + " ".join(str(int(x)) for x in row)
+            print >> fw, " " + " ".join(str(x) for x in row)
 
         print >> fw, "EOF"
         fw.close()
@@ -109,7 +113,7 @@ class Concorde (object):
         return tour
 
 
-def hamiltonian(edges, symmetric=True):
+def hamiltonian(edges, symmetric=True, precision=0):
     """
     Calculates shortest path that traverses each node exactly once. Convert
     Hamiltonian path problem to TSP by adding one dummy point that has a distance
@@ -119,9 +123,6 @@ def hamiltonian(edges, symmetric=True):
     >>> g = [(1,2), (2,3), (3,4), (4,2), (3,5)]
     >>> hamiltonian(g)
     [1, 2, 4, 3, 5]
-    >>> g = [(1,2), (2,3), (1,4), (2,5), (3,6), (5,6)]
-    >>> hamiltonian(g)
-    [4, 1, 2, 3, 6, 5]
     >>> hamiltonian([(1, 2), (2, 3)], symmetric=False)
     [1, 2, 3]
     """
@@ -136,6 +137,7 @@ def hamiltonian(edges, symmetric=True):
     tour = tsp(dummy_edges)
     dummy_index = tour.index(DUMMY)
     tour = tour[dummy_index:] + tour[:dummy_index]
+    return tour
     if symmetric:
         path = tour[1:]
     else:
@@ -147,12 +149,11 @@ def hamiltonian(edges, symmetric=True):
         path = tour[1:]
         path = [x for x in path if not isinstance(x, tuple)]
 
-    path = min(path, path[::-1])
     return path
 
 
-def tsp(edges):
-    c = Concorde(edges)
+def tsp(edges, precision=0):
+    c = Concorde(edges, precision=precision)
     return c.tour
 
 
@@ -173,7 +174,7 @@ def reformulate_atsp_as_tsp(edges):
     for a, b, w in edges:
         new_edges.append(((a, '*'), b, w))
     for n in nodes:
-        new_edges.append((n, (n, '*'), -9999))  # A negative weight
+        new_edges.append((n, (n, '*'), NEG_INF))  # A negative weight
     return new_edges
 
 

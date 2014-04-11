@@ -496,18 +496,20 @@ def sh(cmd, grid=False, infile=None, outfile=None, errfile=None,
             cat = "cat"
             if infile.endswith(".gz"):
                 cat = "zcat"
-            cmd = "{0} {1} | ".format(cat, infile) + cmd
+            cmd = "{0} {1} |".format(cat, infile) + cmd
         if outfile and outfile != "stdout":
             if outfile.endswith(".gz"):
                 cmd += " | gzip"
             tag = ">"
             if append:
                 tag = ">>"
-            cmd += " {0} {1} ".format(tag, outfile)
+            cmd += " {0}{1}".format(tag, outfile)
         if errfile:
-            cmd += " 2> {0} ".format(errfile)
+            if errfile == outfile:
+                errfile = "&1"
+            cmd += " 2>{0}".format(errfile)
         if background:
-            cmd += " & "
+            cmd += " &"
 
         if log:
             logging.debug(cmd)

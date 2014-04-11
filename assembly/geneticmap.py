@@ -122,10 +122,11 @@ class ScaffoldOO (object):
     This contains the routine to construct order and orientation for the
     scaffolds per partition.
     """
-    def __init__(self, lgs, scaffolds, mapc, pivot, function="cM"):
+    def __init__(self, lgs, scaffolds, mapc, pivot, function="cM", precision=0):
 
         self.lgs = lgs
         self.bins = mapc.bins
+        self.precision = precision
 
         signs, flip = self.assign_orientation(scaffolds, pivot)
         if flip:
@@ -133,7 +134,6 @@ class ScaffoldOO (object):
         scaffolds = zip(scaffolds, signs)
 
         tour = self.assign_order(scaffolds, function=function)
-        print >> sys.stderr, tour
         self.tour = tour
 
         for lg in self.lgs:
@@ -172,8 +172,7 @@ class ScaffoldOO (object):
                         distances[e] = d
 
         distance_edges = sorted((a, b, w) for (a, b), w in distances.items())
-        precision = 6 if function == "cM" else 0
-        tour = hamiltonian(distance_edges, symmetric=False, precision=precision)
+        tour = hamiltonian(distance_edges, symmetric=False, precision=self.precision)
         assert len(tour) == len(scaffolds), \
                 "Tour ({0}) != Scaffolds ({1})".format(len(tour), len(scaffolds))
 
@@ -382,6 +381,7 @@ def path(args):
     pivot = opts.pivot
     gapsize = opts.gapsize
     function = opts.distance
+    precision = 3 if function == "cM" else 0
 
     cc = Map(bedfile)
     mapnames = cc.mapnames
@@ -427,9 +427,11 @@ def path(args):
     agpfile = bedfile.rsplit(".", 1)[0] + ".agp"
     sizes = Sizes(fastafile).mapping
     fwagp = must_open(agpfile, "w")
-    for lgs, scaffolds in partitions.items():
+    for lgs, scaffolds in sorted(partitions.items()):
         print >> sys.stderr, lgs
-        s = ScaffoldOO(lgs, scaffolds, cc, pivot, function=function)
+        s = ScaffoldOO(lgs, scaffolds, cc, pivot, function=function,
+                       precision=precision)
+        print >> sys.stderr, s.tour
         order_to_agp(s.object, s.tour, sizes, fwagp, gapsize=gapsize)
     fwagp.close()
 

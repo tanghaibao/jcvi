@@ -17,7 +17,7 @@ from jcvi.algorithms.lpsolve import populate_edge_weights, node_to_edge
 from jcvi.apps.base import mkdir, debug, which, sh
 debug()
 
-NEG_INF = -9999
+NEG_INF = -1000
 Work_dir = "tsp_work"
 
 
@@ -59,24 +59,20 @@ class Concorde (object):
 
         # TSPLIB requires explicit weights to be integral, and non-negative
         weights = [x[-1] for x in edges]
-        mweights = [x for x in weights if x != NEG_INF]
-        max_x, min_x = max(mweights), min(mweights)
+        max_x, min_x = max(weights), min(weights)
         inf = 2 * max(abs(max_x), abs(min_x))
-        # Remove negative values
-        shift = -min_x if min_x < 0 else 0
-        if NEG_INF in weights:
-            shift += 1
         factor = 10 ** precision
 
         print >> fw, "NAME: data"
         print >> fw, "TYPE: TSP"
         print >> fw, "DIMENSION: {0}".format(nnodes)
 
-        D = np.ones((nnodes, nnodes), dtype=int) * inf
+        D = np.ones((nnodes, nnodes), dtype=float) * inf
         for a, b, w in edges:
             ia, ib = nodes_indices[a], nodes_indices[b]
-            dw = 0 if w == NEG_INF else int((w + shift) * factor)
-            D[ia, ib] = D[ib, ia] = dw
+            D[ia, ib] = D[ib, ia] = w
+        D = (D - min_x) * factor
+        D = D.astype(int)
 
         print >> fw, "EDGE_WEIGHT_TYPE: EXPLICIT"
         print >> fw, "EDGE_WEIGHT_FORMAT: FULL_MATRIX"
@@ -99,7 +95,7 @@ class Concorde (object):
         cmd = "{0} -x -o {1} {2}".format(cc, outfile, tspfile)
 
         outf = None if self.verbose else "/dev/null"
-        retcode = sh(cmd, outfile=outf)
+        retcode = sh(cmd, outfile=outf, errfile=outf)
         return retcode, outfile
 
     def parse_output(self, outfile):
@@ -134,10 +130,9 @@ def hamiltonian(edges, symmetric=True, precision=0):
         dummy_edges += [(x, DUMMY, 0) for x in nodes]
         dummy_edges = reformulate_atsp_as_tsp(dummy_edges)
 
-    tour = tsp(dummy_edges)
+    tour = tsp(dummy_edges, precision=precision)
     dummy_index = tour.index(DUMMY)
     tour = tour[dummy_index:] + tour[:dummy_index]
-    return tour
     if symmetric:
         path = tour[1:]
     else:

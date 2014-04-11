@@ -17,7 +17,8 @@ from jcvi.algorithms.lpsolve import populate_edge_weights, node_to_edge
 from jcvi.apps.base import mkdir, debug, which, sh
 debug()
 
-NEG_INF = -1000
+INF = 1000
+NEG_INF = -INF
 Work_dir = "tsp_work"
 
 

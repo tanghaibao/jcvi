@@ -14,6 +14,7 @@ import numpy as np
 from itertools import combinations
 from collections import defaultdict
 
+from jcvi.algorithms.tsp import hamiltonian, INF
 from jcvi.formats.base import BaseFile, LineFile, must_open, read_block
 from jcvi.formats.bed import Bed, BedLine, fastaFromBed
 from jcvi.utils.counter import Counter
@@ -142,6 +143,8 @@ class ScaffoldOO (object):
                 break
 
     def distance(self, xa, xb, function="rank"):
+        if not xa or not xb:
+            return INF
         assert function in ("cM", "rank")
         if function == "cM":
             return abs(xb[0].cm - xa[-1].cm)
@@ -149,8 +152,6 @@ class ScaffoldOO (object):
             return abs(xb[0].rank - xa[-1].rank)
 
     def assign_order(self, scaffolds, function="rank"):
-        from jcvi.algorithms.tsp import hamiltonian
-
         bins = self.bins
         distances = {}
         for lg in self.lgs:
@@ -181,16 +182,18 @@ class ScaffoldOO (object):
         tour = [(x, recode[scaffolds_oo[x]]) for x in tour]
         return tour
 
-    def assign_orientation(self, tour, pivot):
+    def assign_orientation(self, scaffolds, pivot):
         from scipy.stats import spearmanr
         from jcvi.algorithms.matrix import determine_signs
 
         bins = self.bins
         edges = []
+        nmarkers = defaultdict(int)
         for lg in self.lgs:
             oo = []
-            for s in tour:
+            for s in scaffolds:
                 xs = bins.get((lg, s), [])
+                nmarkers[s] += len(xs)
                 if not xs:
                     oo.append(0)
                     continue
@@ -204,17 +207,18 @@ class ScaffoldOO (object):
             if lg.split("-")[0] == pivot:
                 pivot_oo = oo
 
-            for i, j in combinations(range(len(tour)), 2):
+            for i, j in combinations(range(len(scaffolds)), 2):
                 orientation = oo[i] * oo[j]
                 if not orientation:
                     continue
                 orientation = '+' if orientation > 0 else '-'
                 edges.append((i, j, orientation))
 
-        signs = determine_signs(tour, edges)
+        signs = determine_signs(scaffolds, edges)
 
-        # Finally flip this according to pivot map
-        flipr = signs * np.array(pivot_oo)
+        # Finally flip this according to pivot map, then weight by #_markers
+        nmarkers = [nmarkers[x] for x in scaffolds]
+        flipr = signs * np.sign(np.array(pivot_oo)) * nmarkers
         flip = sum(flipr) < 0
         return signs, flip
 

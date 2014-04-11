@@ -9,10 +9,11 @@ algorithms.lpsolve.tsp().
 import os.path as op
 import os
 import logging
+import shutil
 
 import numpy as np
 
-from jcvi.formats.base import must_open
+from jcvi.formats.base import FileShredder, must_open
 from jcvi.algorithms.lpsolve import populate_edge_weights, node_to_edge
 from jcvi.apps.base import mkdir, debug, which, sh
 debug()
@@ -24,7 +25,7 @@ Work_dir = "tsp_work"
 
 class Concorde (object):
 
-    def __init__(self, edges, work_dir=Work_dir, clean=False, verbose=False,
+    def __init__(self, edges, work_dir=Work_dir, clean=True, verbose=False,
                        precision=0):
 
         self.work_dir = work_dir
@@ -36,6 +37,12 @@ class Concorde (object):
         self.print_to_tsplib(edges, tspfile, precision=precision)
         retcode, outfile = self.run_concorde(tspfile)
         self.tour = self.parse_output(outfile)
+
+        if clean:
+            shutil.rmtree(work_dir)
+            residual_output = ["data.sol", "data.res", "Odata.res"]
+            FileShredder(residual_output)
+
 
     def print_to_tsplib(self, edges, tspfile, precision=0):
         """

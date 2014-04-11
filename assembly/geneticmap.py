@@ -123,7 +123,7 @@ class ScaffoldOO (object):
     This contains the routine to construct order and orientation for the
     scaffolds per partition.
     """
-    def __init__(self, lgs, scaffolds, mapc, pivot, function="cM", precision=0):
+    def __init__(self, lgs, scaffolds, mapc, pivot, weights, function="cM", precision=0):
 
         self.lgs = lgs
         self.bins = mapc.bins
@@ -134,7 +134,7 @@ class ScaffoldOO (object):
             signs = - signs
         scaffolds = zip(scaffolds, signs)
 
-        tour = self.assign_order(scaffolds, function=function)
+        tour = self.assign_order(scaffolds, weights, function=function)
         self.tour = tour
 
         for lg in self.lgs:
@@ -164,10 +164,16 @@ class ScaffoldOO (object):
             return min(abs(a.rank - b.rank) \
                         for a, b in product(xa, xb))
 
-    def assign_order(self, scaffolds, function="rank"):
+    def get_mean_distance(self, a, weights):
+        a, w = zip(*a)
+        w = [weights[x] for x in w]
+        return np.average(a, weights=w)
+
+    def assign_order(self, scaffolds, weights, function="rank"):
         bins = self.bins
-        distances = {}
+        distances = defaultdict(list)
         for lg in self.lgs:
+            mapname = lg.split("-")[0]
             for (a, ao), (b, bo) in combinations(scaffolds, 2):
                 xa = bins.get((lg, a), [])
                 xb = bins.get((lg, b), [])
@@ -180,10 +186,12 @@ class ScaffoldOO (object):
                 d_ba = self.distance(xb, xa, function=function)
 
                 for e, d in ((a, b), d_ab), ((b, a), d_ba):
-                    if e in distances:
-                        distances[e] = min(d, distances[e])
-                    else:
-                        distances[e] = d
+                    if d == INF:
+                        continue
+                    distances[e].append((d, mapname))
+
+        for e, v in distances.items():
+            distances[e] = self.get_mean_distance(v, weights)
 
         distance_edges = sorted((a, b, w) for (a, b), w in distances.items())
         tour = hamiltonian(distance_edges, symmetric=False, precision=self.precision)
@@ -358,8 +366,10 @@ def merge(args):
     maps = args
     fp = must_open(maps)
     b = Bed()
+    mapnames = set()
     for row in fp:
         mapname = fp.filename().split(".")[0]
+        mapnames.add(mapname)
         try:
             m = CSVMapLine(row, mapname=mapname)
             b.append(BedLine(m.bedline))
@@ -368,12 +378,22 @@ def merge(args):
 
     b.print_to_file(filename=opts.outfile, sorted=True)
 
+    assert len(maps) == len(mapnames), "You have a collision in map names"
+    weightsfile = "weights.txt"
+    fw = open(weightsfile, "w")
+    for mapname in sorted(mapnames):
+        weight = 1
+        print >> fw, mapname, weight
+    logging.debug("Weights file written to `{0}`.".format(weightsfile))
+
 
 def path(args):
     """
-    %prog path map.bed scaffolds.fasta
+    %prog path map.bed weights.txt scaffolds.fasta
 
-    Construct golden path given a set of genetic maps.
+    Construct golden path given a set of genetic maps. The respective weight for
+    each map is given in file `weights.txt`. The map with the highest weight is
+    considered the pivot map.
     """
     from jcvi.algorithms.graph import nx
     from jcvi.formats.agp import order_to_agp
@@ -385,17 +405,23 @@ def path(args):
     p = OptionParser(path.__doc__)
     p.add_option("--distance", default="rank", choices=distance_choices,
                  help="Distance function when building consensus")
-    p.add_option("--pivot", default="BCFemale",
-                 help="Which map is framework map")
     p.add_option("--gapsize", default=100, type="int",
                  help="Insert gaps of size")
     opts, args = p.parse_args(args)
 
-    if len(args) != 2:
+    if len(args) != 3:
         sys.exit(not p.print_help())
 
-    bedfile, fastafile = args
-    pivot = opts.pivot
+    bedfile, weightsfile, fastafile = args
+    # Read in the weights
+    weights = {}
+    fp = open(weightsfile)
+    for row in fp:
+        mapname, w = row.split()
+        weights[mapname] = int(w)
+
+    pivot_weight, pivot = max((w, m) for m, w in weights.items())
+    logging.debug("Pivot map: `{0}` (weight={1}).".format(pivot, pivot_weight))
     gapsize = opts.gapsize
     function = opts.distance
     precision = 3 if function == "cM" else 0
@@ -446,8 +472,8 @@ def path(args):
     fwagp = must_open(agpfile, "w")
     for lgs, scaffolds in sorted(partitions.items()):
         print >> sys.stderr, lgs
-        s = ScaffoldOO(lgs, scaffolds, cc, pivot, function=function,
-                       precision=precision)
+        s = ScaffoldOO(lgs, scaffolds, cc, pivot, weights,
+                       function=function, precision=precision)
         print >> sys.stderr, s.tour
         order_to_agp(s.object, s.tour, sizes, fwagp, gapsize=gapsize,
                      gaptype="map")

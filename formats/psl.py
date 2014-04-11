@@ -28,8 +28,8 @@ class PslLine(object):
         self.qBaseInsert = int(args[5])
         self.tNumInsert = int(args[6])
         self.tBaseInsert = int(args[7])
-        self.strand, self.qstrand = args[8], None
-        m = re.match(r"(?P<qs>[\+\-]?)(?P<gs>[\+\-])", self.strand)
+        self.qstrand, self.strand = args[8], None
+        m = re.match(r"(?P<qs>[\+\-]?)(?P<gs>[\+\-])", self.qstrand)
         if m:
             self.qstrand, self.strand = m.group('qs'), m.group('gs')
         self.qName = args[9]
@@ -48,7 +48,7 @@ class PslLine(object):
         self.qStarts = [int(x) for x in args[19].strip().split(',')[:-1]]
         self.tStarts = [self.tSize - int(x) if self.strand == "-" \
                 else int(x) for x in args[20].strip().split(',')[:-1]]
-
+        
     def __str__(self):
         args = [self.matches, self.misMatches, self.repMatches, \
                 self.nCount, self.qNumInsert, self.qBaseInsert, \
@@ -140,7 +140,7 @@ class PslLine(object):
     def pct_id(self, simple=None):
         return 100.00 - self._milliBad(ismRNA=True) * 0.1 if not simple \
                 else 100.00 * self.matches / (self.matches + self.misMatches)
-                #else 100.00 * self.score / self.qSize
+                #else 100.00 * self.score / self.qSize    
 
     def gffline(self, source="GMAP", type="match_part", primary_tag="Parent", \
            alt_score=None, suffix=".match", count=0):
@@ -148,6 +148,7 @@ class PslLine(object):
         score = "." if type == "match_part" else "{0:.2f}".format(self.score)
 
         target = " ".join(str(x) for x in [self.qName, self.qStart, self.qEnd])
+        
         attributes = [primary_tag + "=" + self.qName + suffix + str(count), "Target=" + target]
         if primary_tag == "ID":
             attributes.extend(["identity={0:.2f}".format(self.pct_id(simple=alt_score)),\
@@ -261,8 +262,6 @@ def gff(args):
         # switch from 0-origin to 1-origin
         p.qStart += 1
         p.tStart += 1
-        if p.strand == "-":
-            p.qStart, p.qEnd = p.qEnd, p.qStart
 
         print >> fw, p.gffline(source=opts.source, type=opts.type, suffix=opts.suffix, \
                 primary_tag="ID", alt_score=opts.simple_score, \
@@ -283,11 +282,10 @@ def gff(args):
             part.tStart += 1
 
             if part.strand == "-":
-                part.aLen = p.blockSizes[nparts - 1 - n]
-                part.qEnd = p.qStarts[nparts - 1 - n]
-                part.qStart = part.qEnd + part.aLen
-                part.qEnd += 1
-
+                part.aLen = p.blockSizes[n]
+                part.qStart = p.qStarts[n]
+                part.qEnd = part.qStart + part.aLen
+                part.qStart += 1
             print >> fw, part.gffline(source=opts.source, suffix=opts.suffix, \
                     count=psl.getMatchCount(part.qName))
 

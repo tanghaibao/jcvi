@@ -292,6 +292,10 @@ class Map (list):
     def mapnames(self):
         return sorted(set(x.mapname for x in self))
 
+    @property
+    def mlgs(self):
+        return sorted(set(x.mlg for x in self))
+
 
 def main():
 
@@ -378,6 +382,9 @@ def path(args):
     allseqids = cc.seqids
     # Partition the linkage groups into consensus clusters
     C = Grouper()
+    # Initialize the partitions
+    for mlg in cc.mlgs:
+        C.join(mlg)
     for mapname in mapnames:
         if mapname == pivot:
             continue

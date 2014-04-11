@@ -11,7 +11,7 @@ import logging
 
 import numpy as np
 
-from itertools import combinations
+from itertools import combinations, product
 from collections import defaultdict
 
 from jcvi.algorithms.tsp import hamiltonian, INF
@@ -142,14 +142,27 @@ class ScaffoldOO (object):
                 self.object = lg
                 break
 
+    def quartile(self, a, lower=False):
+        # Extract the quartile subarray
+        L = len(a)
+        Q = max(L / 4, 1) + 1
+        return a[:Q] if lower else a[L - Q:]
+
     def distance(self, xa, xb, function="rank"):
         if not xa or not xb:
             return INF
+        # Since real data is noisy and contain outliers, the distance
+        # calculation is based on the min distance between A's upper quartile
+        # and B's lower quartile
+        xa = self.quartile(xa)
+        xb = self.quartile(xb, lower=True)
         assert function in ("cM", "rank")
         if function == "cM":
-            return abs(xb[0].cm - xa[-1].cm)
+            return min(abs(a.cm - b.cm) \
+                        for a, b in product(xa, xb))
         else:
-            return abs(xb[0].rank - xa[-1].rank)
+            return min(abs(a.rank - b.rank) \
+                        for a, b in product(xa, xb))
 
     def assign_order(self, scaffolds, function="rank"):
         bins = self.bins

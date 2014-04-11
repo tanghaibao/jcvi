@@ -56,12 +56,14 @@ class Concorde (object):
         self.nnodes = nnodes = len(nodes)
 
         # TSPLIB requires explicit weights to be integral
-        weights = [x[-1] for x in edges if x[-1]]
-        min_weight = min(weights) if weights else 0
+        weights = [x[-1] for x in edges if x[-1] > 0]
+        min_weight = min(weights) if weights else 1
         factor = 1. / min_weight if min_weight < 1 else 1
         factor = min(factor, 1000)
         edges = [(a, b, int(w * factor)) for a, b, w in edges]
-        Maxdist = 10 ** len(str(sum(x[-1] for x in edges))) - 1
+
+        weights = [x[-1] for x in edges if x[-1] > 0]
+        Maxdist = 10 ** len(str(sum(weights))) - 1
 
         print >> fw, "NAME: data"
         print >> fw, "TYPE: TSP"
@@ -107,7 +109,7 @@ class Concorde (object):
         return tour
 
 
-def hamiltonian(edges):
+def hamiltonian(edges, symmetric=True):
     """
     Calculates shortest path that traverses each node exactly once. Convert
     Hamiltonian path problem to TSP by adding one dummy point that has a distance
@@ -120,23 +122,59 @@ def hamiltonian(edges):
     >>> g = [(1,2), (2,3), (1,4), (2,5), (3,6), (5,6)]
     >>> hamiltonian(g)
     [4, 1, 2, 3, 6, 5]
+    >>> hamiltonian([(1, 2), (2, 3)], symmetric=False)
+    [1, 2, 3]
     """
     edges = populate_edge_weights(edges)
     incident, nodes = node_to_edge(edges, directed=False)
     DUMMY = "DUMMY"
     dummy_edges = edges + [(DUMMY, x, 0) for x in nodes]
+    if not symmetric:
+        dummy_edges += [(x, DUMMY, 0) for x in nodes]
+        dummy_edges = reformulate_atsp_as_tsp(dummy_edges)
 
     tour = tsp(dummy_edges)
     dummy_index = tour.index(DUMMY)
-    path = tour[dummy_index + 1:] + tour[:dummy_index]
-    path = min(path, path[::-1])
+    tour = tour[dummy_index:] + tour[:dummy_index]
+    if symmetric:
+        path = tour[1:]
+    else:
+        dummy_star_index = tour.index((DUMMY, '*'))
+        assert dummy_star_index in (1, len(tour) - 1), tour
+        if dummy_star_index == len(tour) - 1:  # need to flip
+            tour = tour[1:] + tour[:1]
+            tour = tour[::-1]
+        path = tour[1:]
+        path = [x for x in path if not isinstance(x, tuple)]
 
+    path = min(path, path[::-1])
     return path
 
 
 def tsp(edges):
     c = Concorde(edges)
     return c.tour
+
+
+def reformulate_atsp_as_tsp(edges):
+    """
+    To reformulate the ATSP as a TSP, for each city a dummy city (e.g, for New
+    York, a dummy city New York* is added. Between each city and its
+    corresponding dummy city a negative or very small distance with value cheap
+    is used. This makes sure that each cities always occurs in the solution
+    together with its dummy city. The original distances are used between the
+    cities and the dummy cities, where each city is responsible for the distance
+    going to the city and the dummy city is responsible for the distance coming
+    from the city. The distances between all cities and the distances between
+    all dummy cities are set to infeasible.
+    """
+    incident, nodes = node_to_edge(edges, directed=False)
+    new_edges = []
+    for a, b, w in edges:
+        new_edges.append(((a, '*'), b, w))
+    for n in nodes:
+        new_edges.append((n, (n, '*'), -9999))  # A negative weight
+    return new_edges
 
 
 def demo():
@@ -165,6 +203,6 @@ def demo():
 
 if __name__ == '__main__':
 
-    #import doctest
-    #doctest.testmod()
-    demo()
+    import doctest
+    doctest.testmod()
+    #demo()

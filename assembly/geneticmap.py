@@ -122,59 +122,63 @@ class ScaffoldOO (object):
     This contains the routine to construct order and orientation for the
     scaffolds per partition.
     """
-    def __init__(self, lgs, scaffolds, mapc, pivot, distance_function="rank"):
+    def __init__(self, lgs, scaffolds, mapc, pivot, function="cM"):
 
         self.lgs = lgs
-        self.scaffolds = scaffolds
         self.bins = mapc.bins
 
-        tour = self.assign_order(distance_function=distance_function)
-        signs, flip = self.assign_orientation(tour, pivot)
+        signs, flip = self.assign_orientation(scaffolds, pivot)
         if flip:
-            tour = tour[::-1]
-            signs = - signs[::-1]
+            signs = - signs
+        scaffolds = zip(scaffolds, signs)
 
-        recode = {0: '?', 1: '+', -1: '-'}
-        signs = [recode[x] for x in signs]
-        tour_signs = zip(tour, signs)
-        print >> sys.stderr, tour_signs
-        self.tour_signs = tour_signs
+        tour = self.assign_order(scaffolds, function=function)
+        print >> sys.stderr, tour
+        self.tour = tour
 
         for lg in self.lgs:
             if lg.split("-")[0] == pivot:
                 self.object = lg
                 break
 
-    def assign_order(self, distance_function="rank"):
+    def distance(self, xa, xb, function="rank"):
+        assert function in ("cM", "rank")
+        if function == "cM":
+            return abs(xb[0].cm - xa[-1].cm)
+        else:
+            return abs(xb[0].rank - xa[-1].rank)
+
+    def assign_order(self, scaffolds, function="rank"):
         from jcvi.algorithms.tsp import hamiltonian
 
-        scaffolds = self.scaffolds
         bins = self.bins
-
         distances = {}
-        assert distance_function in ("cM", "rank")
         for lg in self.lgs:
-            for a, b in combinations(scaffolds, 2):
+            for (a, ao), (b, bo) in combinations(scaffolds, 2):
                 xa = bins.get((lg, a), [])
                 xb = bins.get((lg, b), [])
-                if distance_function == "cM":
-                    dists = [abs(x.cm - y.cm) for x, y in product(xa, xb)]
-                else:
-                    dists = [abs(x.rank - y.rank) for x, y in product(xa, xb)]
-                if not dists:
-                    continue
-                dist = min(dists)
-                #print lg, a, b, xa, xb, dist
-                ab = a, b
-                if ab in distances:
-                    distances[ab] = min(dist, distances[ab])
-                else:
-                    distances[ab] = dist
+                if ao < 0:
+                    xa = xa[::-1]
+                if bo < 0:
+                    xb = xb[::-1]
 
-        distance_edges = list((a, b, w) for (a, b), w in distances.items())
-        tour = hamiltonian(distance_edges)
+                d_ab = self.distance(xa, xb, function=function)
+                d_ba = self.distance(xb, xa, function=function)
+
+                for e, d in ((a, b), d_ab), ((b, a), d_ba):
+                    if e in distances:
+                        distances[e] = min(d, distances[e])
+                    else:
+                        distances[e] = d
+
+        distance_edges = sorted((a, b, w) for (a, b), w in distances.items())
+        tour = hamiltonian(distance_edges, symmetric=False)
         assert len(tour) == len(scaffolds), \
                 "Tour ({0}) != Scaffolds ({1})".format(len(tour), len(scaffolds))
+
+        scaffolds_oo = dict(scaffolds)
+        recode = {0: '?', 1: '+', -1: '-'}
+        tour = [(x, recode[scaffolds_oo[x]]) for x in tour]
         return tour
 
     def assign_orientation(self, tour, pivot):
@@ -376,6 +380,7 @@ def path(args):
     bedfile, fastafile = args
     pivot = opts.pivot
     gapsize = opts.gapsize
+    function = opts.distance
 
     cc = Map(bedfile)
     mapnames = cc.mapnames
@@ -423,8 +428,8 @@ def path(args):
     fwagp = must_open(agpfile, "w")
     for lgs, scaffolds in partitions.items():
         print >> sys.stderr, lgs
-        s = ScaffoldOO(lgs, scaffolds, cc, pivot)
-        order_to_agp(s.object, s.tour_signs, sizes, fwagp, gapsize=gapsize)
+        s = ScaffoldOO(lgs, scaffolds, cc, pivot, function=function)
+        order_to_agp(s.object, s.tour, sizes, fwagp, gapsize=gapsize)
     fwagp.close()
 
     logging.debug("AGP file written to `{0}`.".format(agpfile))

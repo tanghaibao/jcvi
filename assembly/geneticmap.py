@@ -436,7 +436,8 @@ def path(args):
         s = ScaffoldOO(lgs, scaffolds, cc, pivot, function=function,
                        precision=precision)
         print >> sys.stderr, s.tour
-        order_to_agp(s.object, s.tour, sizes, fwagp, gapsize=gapsize)
+        order_to_agp(s.object, s.tour, sizes, fwagp, gapsize=gapsize,
+                     gaptype="map")
     fwagp.close()
 
     logging.debug("AGP file written to `{0}`.".format(agpfile))

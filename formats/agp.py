@@ -632,14 +632,14 @@ class OO (LineFile):
                 object_beg += size
 
 
-def order_to_agp(object, ctgorder, sizes, fwagp, gapsize=100):
+def order_to_agp(object, ctgorder, sizes, fwagp, gapsize=100, gaptype="scaffold"):
 
     o = OO()  # Without a filename
     for scaffold_number, (ctg, strand) in enumerate(ctgorder):
         size = sizes[ctg]
         o.add(object, ctg, size, strand)
 
-    o.write_AGP(fwagp, gapsize=gapsize, phases={})
+    o.write_AGP(fwagp, gapsize=gapsize, gaptype=gaptype, phases={})
 
 
 def trimNs(seq, line, newagp):
@@ -764,7 +764,7 @@ def infer(args):
     but can be useful when distributor does not ship an AGP file.
     """
     from jcvi.apps.grid import WriteJobs
-    from jcvi.formats.bed import Bed, sort
+    from jcvi.formats.bed import sort
 
     p = OptionParser(infer.__doc__)
     p.set_cpus()

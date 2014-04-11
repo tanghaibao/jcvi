@@ -76,11 +76,13 @@ def determine_signs(nodes, edges):
     """
     N = len(nodes)
     M = np.zeros((N, N), dtype=int)
-    for a, b, direction in edges:
+    for e in edges:
+        a, b, direction = e[:3]
+        w = e[-1] if len(e) == 4 else 1
         if direction == '+':
-            M[a, b] += 1
+            M[a, b] += w
         else:
-            M[a, b] -= 1
+            M[a, b] -= w
 
     M = symmetrize(M)
 

@@ -129,7 +129,7 @@ class ScaffoldOO (object):
         self.bins = mapc.bins
         self.precision = precision
 
-        signs, flip = self.assign_orientation(scaffolds, pivot)
+        signs, flip = self.assign_orientation(scaffolds, pivot, weights)
         if flip:
             signs = - signs
         scaffolds = zip(scaffolds, signs)
@@ -203,7 +203,7 @@ class ScaffoldOO (object):
         tour = [(x, recode[scaffolds_oo[x]]) for x in tour]
         return tour
 
-    def assign_orientation(self, scaffolds, pivot):
+    def assign_orientation(self, scaffolds, pivot, weights):
         from scipy.stats import spearmanr
         from jcvi.algorithms.matrix import determine_signs
 
@@ -211,6 +211,7 @@ class ScaffoldOO (object):
         edges = []
         nmarkers = defaultdict(int)
         for lg in self.lgs:
+            mapname = lg.split("-")[0]
             oo = []
             for s in scaffolds:
                 xs = bins.get((lg, s), [])
@@ -225,7 +226,7 @@ class ScaffoldOO (object):
                     rho = 0
                 oo.append(rho)
 
-            if lg.split("-")[0] == pivot:
+            if mapname == pivot:
                 pivot_oo = oo
 
             for i, j in combinations(range(len(scaffolds)), 2):
@@ -233,7 +234,7 @@ class ScaffoldOO (object):
                 if not orientation:
                     continue
                 orientation = '+' if orientation > 0 else '-'
-                edges.append((i, j, orientation))
+                edges.append((i, j, orientation, weights[mapname]))
 
         signs = determine_signs(scaffolds, edges)
 

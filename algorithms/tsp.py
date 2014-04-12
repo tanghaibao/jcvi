@@ -27,7 +27,7 @@ Work_dir = "tsp_work"
 class Concorde (object):
 
     def __init__(self, edges, work_dir=Work_dir, clean=True, verbose=False,
-                       precision=0):
+                       precision=0, seed=666):
 
         self.work_dir = work_dir
         self.clean = clean
@@ -36,7 +36,7 @@ class Concorde (object):
         mkdir(work_dir)
         tspfile = op.join(work_dir, "data.tsp")
         self.print_to_tsplib(edges, tspfile, precision=precision)
-        retcode, outfile = self.run_concorde(tspfile)
+        retcode, outfile = self.run_concorde(tspfile, seed=seed)
         self.tour = self.parse_output(outfile)
 
         if clean:
@@ -93,7 +93,7 @@ class Concorde (object):
         fw.close()
         logging.debug("Write TSP instance to `{0}`".format(tspfile))
 
-    def run_concorde(self, tspfile):
+    def run_concorde(self, tspfile, seed=666):
         outfile = op.join(self.work_dir, "data.sol")
         if op.exists(outfile):
             os.remove(outfile)
@@ -101,7 +101,7 @@ class Concorde (object):
         cc = "concorde"
         assert which(cc), "You must install `concorde` on your PATH" + \
                           " [http://www.math.uwaterloo.ca/tsp/concorde.html]"
-        cmd = "{0} -x -o {1} {2}".format(cc, outfile, tspfile)
+        cmd = "{0} -s {1} -x -o {2} {3}".format(cc, seed, outfile, tspfile)
 
         outf = None if self.verbose else "/dev/null"
         retcode = sh(cmd, outfile=outf, errfile=outf)

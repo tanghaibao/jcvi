@@ -392,12 +392,12 @@ def solve_component(h, sizes, fwlog):
     ledges = []
     for a, b, c in edges:
         orientation = c["orientation"]
-        orientation = '+' if orientation[0] == orientation[1] else '-'
+        w = 1 if orientation[0] == orientation[1] else -1
         a, b = inodes[a], inodes[b]
         if a > b:
             a, b = b, a
 
-        ledges.append((a, b, orientation))
+        ledges.append((a, b, w))
 
     N = len(nodes)
     print >> fwlog, N, ", ".join(nodes)

@@ -92,12 +92,7 @@ class MSTMap (LineFile):
 
 
 class Scaffold (object):
-    """
-    Partition all markers on a scaffold into intervals between adjacent markers.
-    Iterate through the maps, when a certain interval is supported, increment
-    score; otherwise decrement score. Finally break the intervals that failed to
-    pass threshold.
-    """
+
     def __init__(self, seqid, mapc):
         self.markers = mapc.extract(seqid)
         self.seqid = seqid
@@ -263,7 +258,6 @@ class ScaffoldOO (object):
                     continue
                 d = math.copysign(1, orientation) * ni * nj
                 signs[(i, j)].append((d, mapname))
-                print >> sys.stderr, si, sj, d, mapname
 
         for e, v in signs.items():
             signs[e] = self.get_mean_distance(v, weights)

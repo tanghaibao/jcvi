@@ -71,19 +71,13 @@ def determine_signs(nodes, edges):
     """
     Construct the orientation matrix for the pairs on N molecules.
 
-    >>> determine_signs([0, 1, 2], [(0, 1, '+'), (0, 2, '-'), (1, 2, '-')])
+    >>> determine_signs([0, 1, 2], [(0, 1, 1), (0, 2, -1), (1, 2, -1)])
     array([ 1,  1, -1])
     """
     N = len(nodes)
     M = np.zeros((N, N), dtype=float)
-    for e in edges:
-        a, b, direction = e[:3]
-        w = e[-1] if len(e) == 4 else 1
-        if direction == '+':
-            M[a, b] += w
-        else:
-            M[a, b] -= w
-
+    for a, b, w in edges:
+        M[a, b] += w
     M = symmetrize(M)
 
     return get_signs(M, validate=False)

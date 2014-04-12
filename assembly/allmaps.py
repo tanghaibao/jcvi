@@ -7,7 +7,6 @@ Scaffold Ordering with Weighted Maps.
 
 import sys
 import logging
-import math
 
 import numpy as np
 
@@ -57,6 +56,11 @@ class Scaffold (object):
             G[bk, ak] += weight
 
 
+class Dummy:
+    def __init__(self, rank):
+        self.cM = self.rank = rank
+
+
 class ScaffoldOO (object):
     """
     This contains the routine to construct order and orientation for the
@@ -76,7 +80,7 @@ class ScaffoldOO (object):
             signs = - signs
         scaffolds = zip(scaffolds, signs)
 
-        tour = self.assign_order(scaffolds, weights)
+        tour = self.assign_order(scaffolds, pivot, weights)
         self.tour = tour
 
         for lg in self.lgs:
@@ -89,25 +93,50 @@ class ScaffoldOO (object):
         ext = a[:N] if lower else a[len(a) - N:]
         return ext
 
+    def fuzzyd(self, xa, xb, ra, rb):
+        """
+        fuzzyd calculates the closest distances between two sets
+        Extra terms are to penalize the edge margin, for example:
+
+            =====A=B...C=D=====
+            .....0.1...1.2.....
+
+        The smallest distance can be A-C, but this needs to add an additional
+        term of rank difference between A-C, which is 1.
+
+        In the case of connections to START/END dummies, the ranks are:
+
+            S...A=B=====C=D...E
+            0...0.1.....1.0...0
+        """
+        f = self.function
+
+        assert len(xa) == len(ra) and len(xb) == len(rb)
+        xa, xb = zip(xa, ra), zip(xb, rb)
+        # `bi - ai` term is the margin penalty
+        return min(abs(f(a) - f(b)) + bi - ai \
+                for (a, ai), (b, bi) in product(xa, xb))
+
     def distance(self, xa, xb):
-        # Pairwise distance between scaffolds, Note that this is asymmetric
+        # Pairwise distance between scaffolds, note that this is asymmetric
         if not xa or not xb:
             return INF
 
         xa = self.extreme(xa)
         xb = self.extreme(xb, lower=True)
-        f = self.function
-        # ...====A=B  C=D====...
-        return min(abs(f(a) - f(b)) for a, b in product(xa, xb))
+        ra, rb = range(len(xa)), range(len(xa) - 1, len(xa) + len(xb) - 1)
+        return self.fuzzyd(xa, xb, ra, rb)
 
-    def distance_to_ends(self, xs, length):
+    def distance_to_ends(self, xa, xb):
         # Distance to chr ends (two dummy nodes - START and END)
-        if not xs:
+        if not xb:
             return INF
 
-        f = self.function
-        xe = self.extreme(xs) + self.extreme(xs, lower=True)
-        return min(abs(f(a) - b) for a, b in product(xe, (0, length)))
+        xe = self.extreme(xb)
+        rr = range(len(xe))
+        ra, rb = (0, 0), rr + rr[::-1]
+        xb = xe + self.extreme(xb, lower=True)
+        return self.fuzzyd(xa, xb, ra, rb)
 
     def weighted_mean(self, a, weights):
         a, w = zip(*a)
@@ -120,7 +149,7 @@ class ScaffoldOO (object):
             xs = xs[::-1]
         return xs
 
-    def assign_order(self, scaffolds, weights):
+    def assign_order(self, scaffolds, pivot, weights):
         """
         The goal is to assign scaffold orders. To help order the scaffolds, two
         dummy node, START and END, mark the ends of the chromosome. We connect
@@ -129,15 +158,6 @@ class ScaffoldOO (object):
         distances = defaultdict(list)
         for lg in self.lgs:
             mapname = lg.split("-")[0]
-            length = self.lengths[lg]
-            for s, so in scaffolds:  # Connect scaffolds to chr ends
-                xs = self.get_markers(lg, s, so)
-                d = self.distance_to_ends(xs, length)
-                for e in (START, s), (s, END):
-                    if d == INF:
-                        continue
-                    distances[e].append((d, mapname))
-
             for (a, ao), (b, bo) in combinations(scaffolds, 2):
                 xa = self.get_markers(lg, a, ao)
                 xb = self.get_markers(lg, b, bo)
@@ -146,6 +166,22 @@ class ScaffoldOO (object):
                 d_ba = self.distance(xb, xa)
 
                 for e, d in ((a, b), d_ab), ((b, a), d_ba):
+                    if d == INF:
+                        continue
+                    distances[e].append((d, mapname))
+
+            # Only connect ends for the pivot map, this ensure that the starting
+            # and ending scaffold is always part of pivot map. The terminal
+            # scaffolds for the less weighted maps are 'folded' in.
+            if mapname != pivot:
+                continue
+
+            length = self.lengths[lg]
+            xa = [Dummy(0), Dummy(length)]  # START, END
+            for b, bo in scaffolds:  # Connect scaffolds to chr ends
+                xb = self.get_markers(lg, b, bo)
+                d = self.distance_to_ends(xa, xb)
+                for e in (START, b), (b, END):
                     if d == INF:
                         continue
                     distances[e].append((d, mapname))
@@ -169,14 +205,14 @@ class ScaffoldOO (object):
     def assign_orientation(self, scaffolds, pivot, weights):
         bins = self.bins
         f = self.function
-        nmarkers = defaultdict(int)
         signs = defaultdict(list)
         for lg in self.lgs:
             mapname = lg.split("-")[0]
             oo = []
+            nmarkers = {}
             for s in scaffolds:
                 xs = bins.get((lg, s), [])
-                nmarkers[s] += len(xs)
+                nmarkers[s] = len(xs)
                 if not xs:
                     oo.append(0)
                     continue
@@ -196,7 +232,7 @@ class ScaffoldOO (object):
                 orientation = oo[i] * oo[j]
                 if not orientation:
                     continue
-                d = math.copysign(1, orientation) * ni * nj
+                d = np.sign(orientation) * ni * nj
                 signs[(i, j)].append((d, mapname))
 
         for e, v in signs.items():

@@ -18,9 +18,6 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, debug, need_update
 debug()
 
 
-START, END = "START", "END"
-
-
 class BinMap (BaseFile, dict):
 
     def __init__(self, filename):

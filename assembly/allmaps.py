@@ -18,13 +18,15 @@ from scipy.stats import spearmanr
 from jcvi.algorithms.matrix import determine_signs
 from jcvi.algorithms.formula import reject_outliers
 from jcvi.algorithms.tsp import hamiltonian, INF
+from jcvi.formats.agp import order_to_agp, build as agp_build
 from jcvi.formats.base import must_open
-from jcvi.formats.bed import Bed, BedLine
-from jcvi.formats.agp import order_to_agp
+from jcvi.formats.bed import Bed, BedLine, sort
+from jcvi.formats.chain import fromagp
 from jcvi.formats.sizes import Sizes
 from jcvi.utils.grouper import Grouper
 from jcvi.utils.counter import Counter
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug
+from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh, \
+            need_update
 debug()
 
 
@@ -315,9 +317,9 @@ class Map (list):
 def main():
 
     actions = (
-        # Construct goldenpath
         ('merge', 'merge csv maps and convert to bed format'),
         ('path', 'construct golden path given a set of genetic maps'),
+        ('build', 'build associated FASTA and CHAIN file'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -373,7 +375,8 @@ def path(args):
 
     Construct golden path given a set of genetic maps. The respective weight for
     each map is given in file `weights.txt`. The map with the highest weight is
-    considered the pivot map.
+    considered the pivot map. The final output is an AGP file that contain the
+    ordered scaffolds.
     """
     distance_choices = ("cM", "rank")
 
@@ -462,6 +465,37 @@ def path(args):
     fwagp.close()
 
     logging.debug("AGP file written to `{0}`.".format(agpfile))
+
+
+def build(args):
+    """
+    %prog build agpfile scaffolds.fasta genome.fasta map.bed
+
+    Build associated genome FASTA file and CHAIN file that can be used to lift
+    old coordinates to new coordinates. The CHAIN file will be used to lift the
+    original marker positions to new positions in the reconstructed genome.
+    """
+    p = OptionParser(build.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 4:
+        sys.exit(not p.print_help())
+
+    agpfile, scaffolds, genome, mapbed = args
+    if need_update((agpfile, scaffolds), genome):
+        agp_build([agpfile, scaffolds, genome])
+
+    chainfile = agpfile.rsplit(".", 1)[0] + ".chain"
+    if need_update((agpfile, scaffolds, genome), chainfile):
+        fromagp([agpfile, scaffolds, genome])
+
+    liftedbed = mapbed.rsplit(".", 1)[0] + ".lifted.bed"
+    if need_update((mapbed, chainfile), liftedbed):
+        cmd = "liftOver -minMatch=1 {0} {1} {2} unmapped".\
+                format(mapbed, chainfile, liftedbed)
+        sh(cmd)
+
+    sort([liftedbed, "-i"])  # Sort bed in place
 
 
 if __name__ == '__main__':

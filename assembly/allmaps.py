@@ -60,13 +60,13 @@ class ScaffoldOO (object):
     This contains the routine to construct order and orientation for the
     scaffolds per partition.
     """
-    def __init__(self, lgs, scaffolds, mapc, pivot, weights, function="rank", precision=0):
+    def __init__(self, lgs, scaffolds, mapc, pivot, weights,
+                 function=(lambda x: x.rank), precision=0):
 
         self.lgs = lgs
-        self.ranks = mapc.ranks
-        self.bins = mapc.get_bins(function=function)
-        self.function = (lambda x: x.cm) if function == "cM" else \
-                        (lambda x: x.rank)
+        self.lengths = mapc.compute_lengths(function)
+        self.bins = mapc.get_bins(function)
+        self.function = function
         self.precision = precision
 
         signs, flip = self.assign_orientation(scaffolds, pivot, weights)
@@ -107,7 +107,7 @@ class ScaffoldOO (object):
         xe = self.extreme(xs) + self.extreme(xs, lower=True)
         return min(abs(f(a) - b) for a, b in product(xe, (0, length)))
 
-    def get_mean_distance(self, a, weights):
+    def weighted_mean(self, a, weights):
         a, w = zip(*a)
         w = [weights[x] for x in w]
         return np.average(a, weights=w)
@@ -127,7 +127,7 @@ class ScaffoldOO (object):
         distances = defaultdict(list)
         for lg in self.lgs:
             mapname = lg.split("-")[0]
-            length = self.ranks[lg]
+            length = self.lengths[lg]
             for s, so in scaffolds:  # Connect scaffolds to chr ends
                 xs = self.get_markers(lg, s, so)
                 d = self.distance_to_ends(xs, length)
@@ -149,7 +149,7 @@ class ScaffoldOO (object):
                     distances[e].append((d, mapname))
 
         for e, v in distances.items():
-            distances[e] = self.get_mean_distance(v, weights)
+            distances[e] = self.weighted_mean(v, weights)
 
         distance_edges = sorted((a, b, w) for (a, b), w in distances.items())
         tour = hamiltonian(distance_edges, symmetric=False, precision=self.precision)
@@ -198,7 +198,7 @@ class ScaffoldOO (object):
                 signs[(i, j)].append((d, mapname))
 
         for e, v in signs.items():
-            signs[e] = self.get_mean_distance(v, weights)
+            signs[e] = self.weighted_mean(v, weights)
 
         signs_edges = sorted((a, b, w) for (a, b), w in signs.items())
         signs = determine_signs(scaffolds, signs_edges)
@@ -273,26 +273,27 @@ class Map (list):
             mlg_set.sort(key=lambda x: x.cm)
             for rank, marker in enumerate(mlg_set):
                 marker.rank = rank
-            ranks[mlg] = len(mlg_set)
+            ranks[mlg] = mlg_set
         return ranks
 
-    def get_bins(self, remove_outliers=True, function="rank"):
+    def compute_lengths(self, function):
+        lengths = {}
+        for mlg, v in self.ranks.items():
+            lengths[mlg] = max(function(x) for x in v)
+        return lengths
+
+    def get_bins(self, function, remove_outliers=True):
         s = defaultdict(list)
         for m in self:
             s[(m.mlg, m.seqid)].append(m)
 
         if remove_outliers:
             for pair, markers in s.items():
-                s[pair] = self.remove_outliers(markers, function=function)
+                s[pair] = self.remove_outliers(markers, function)
         return s
 
-    def remove_outliers(self, markers, function="rank"):
-
-        if function == "rank":
-            data = [x.rank for x in markers]
-        else:
-            data = [x.cm for x in markers]
-
+    def remove_outliers(self, markers, function):
+        data = [function(x) for x in markers]
         reject = reject_outliers(data)
         clean_markers = [m for m, r in zip(markers, reject) if not r]
         #print markers, clean_markers
@@ -399,6 +400,8 @@ def path(args):
     gapsize = opts.gapsize
     function = opts.distance
     precision = 3 if function == "cM" else 0
+    function = (lambda x: x.cm) if function == "cM" else \
+               (lambda x: x.rank)
 
     cc = Map(bedfile)
     mapnames = cc.mapnames

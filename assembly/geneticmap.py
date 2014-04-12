@@ -8,6 +8,7 @@ chromosomes.
 
 import sys
 import logging
+import math
 
 import numpy as np
 
@@ -162,15 +163,14 @@ class ScaffoldOO (object):
         f = self.function
         return min(abs(f(a) - f(b)) for a, b in product(xa, xb))
 
-    def distance_to_end(self, xs, offset=0):
+    def distance_to_ends(self, xs, length):
         # Distance to chr ends (two dummy nodes - START and END)
         if not xs:
             return INF
 
         f = self.function
-        lower = offset == 0
-        xs = self.extreme(xs, lower=lower)
-        return min(abs(offset - f(x)) for x in xs)
+        xe = self.extreme(xs) + self.extreme(xs, lower=True)
+        return min(abs(f(a) - b) for a, b in product(xe, (0, length)))
 
     def get_mean_distance(self, a, weights):
         a, w = zip(*a)
@@ -195,10 +195,8 @@ class ScaffoldOO (object):
             length = self.ranks[lg]
             for s, so in scaffolds:  # Connect scaffolds to chr ends
                 xs = self.get_markers(lg, s, so)
-                d_ss = self.distance_to_end(xs)
-                d_se = self.distance_to_end(xs, offset=length)
-
-                for e, d in ((START, s), d_ss), ((s, END), d_se):
+                d = self.distance_to_ends(xs, length)
+                for e in (START, s), (s, END):
                     if d == INF:
                         continue
                     distances[e].append((d, mapname))
@@ -236,8 +234,8 @@ class ScaffoldOO (object):
         from jcvi.algorithms.matrix import determine_signs
 
         bins = self.bins
-        edges = []
         nmarkers = defaultdict(int)
+        signs = defaultdict(list)
         for lg in self.lgs:
             mapname = lg.split("-")[0]
             oo = []
@@ -258,13 +256,20 @@ class ScaffoldOO (object):
                 pivot_oo = oo
 
             for i, j in combinations(range(len(scaffolds)), 2):
+                si, sj = scaffolds[i], scaffolds[j]
+                ni, nj = nmarkers[si], nmarkers[sj]
                 orientation = oo[i] * oo[j]
                 if not orientation:
                     continue
-                orientation = '+' if orientation > 0 else '-'
-                edges.append((i, j, orientation, weights[mapname]))
+                d = math.copysign(1, orientation) * ni * nj
+                signs[(i, j)].append((d, mapname))
+                print >> sys.stderr, si, sj, d, mapname
 
-        signs = determine_signs(scaffolds, edges)
+        for e, v in signs.items():
+            signs[e] = self.get_mean_distance(v, weights)
+
+        signs_edges = sorted((a, b, w) for (a, b), w in signs.items())
+        signs = determine_signs(scaffolds, signs_edges)
 
         # Finally flip this according to pivot map, then weight by #_markers
         nmarkers = [nmarkers[x] for x in scaffolds]

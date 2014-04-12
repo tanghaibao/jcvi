@@ -75,7 +75,7 @@ def determine_signs(nodes, edges):
     array([ 1,  1, -1])
     """
     N = len(nodes)
-    M = np.zeros((N, N), dtype=int)
+    M = np.zeros((N, N), dtype=float)
     for e in edges:
         a, b, direction = e[:3]
         w = e[-1] if len(e) == 4 else 1

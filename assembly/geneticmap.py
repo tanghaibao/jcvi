@@ -22,6 +22,9 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, debug, need_update
 debug()
 
 
+START, END = "START", "END"
+
+
 class BinMap (BaseFile, dict):
 
     def __init__(self, filename):
@@ -125,7 +128,10 @@ class ScaffoldOO (object):
     def __init__(self, lgs, scaffolds, mapc, pivot, weights, function="rank", precision=0):
 
         self.lgs = lgs
+        self.ranks = mapc.ranks
         self.bins = mapc.get_bins(function=function)
+        self.function = (lambda x: x.cm) if function == "cM" else \
+                        (lambda x: x.rank)
         self.precision = precision
 
         signs, flip = self.assign_orientation(scaffolds, pivot, weights)
@@ -133,7 +139,7 @@ class ScaffoldOO (object):
             signs = - signs
         scaffolds = zip(scaffolds, signs)
 
-        tour = self.assign_order(scaffolds, weights, function=function)
+        tour = self.assign_order(scaffolds, weights)
         self.tour = tour
 
         for lg in self.lgs:
@@ -146,40 +152,63 @@ class ScaffoldOO (object):
         ext = a[:N] if lower else a[len(a) - N:]
         return ext
 
-    def distance(self, xa, xb, function="rank"):
+    def distance(self, xa, xb):
+        # Pairwise distance between scaffolds, Note that this is asymmetric
         if not xa or not xb:
             return INF
 
         xa = self.extreme(xa)
         xb = self.extreme(xb, lower=True)
+        f = self.function
+        return min(abs(f(a) - f(b)) for a, b in product(xa, xb))
 
-        if function == "cM":
-            return min(abs(a.cm - b.cm) \
-                        for a, b in product(xa, xb))
-        else:
-            return min(abs(a.rank - b.rank) \
-                        for a, b in product(xa, xb))
+    def distance_to_end(self, xs, offset=0):
+        # Distance to chr ends (two dummy nodes - START and END)
+        if not xs:
+            return INF
+
+        f = self.function
+        lower = offset == 0
+        xs = self.extreme(xs, lower=lower)
+        return min(abs(offset - f(x)) for x in xs)
 
     def get_mean_distance(self, a, weights):
         a, w = zip(*a)
         w = [weights[x] for x in w]
         return np.average(a, weights=w)
 
-    def assign_order(self, scaffolds, weights, function="rank"):
-        bins = self.bins
+    def get_markers(self, lg, scaffold, orientation):
+        xs = self.bins.get((lg, scaffold), [])
+        if orientation < 0:
+            xs = xs[::-1]
+        return xs
+
+    def assign_order(self, scaffolds, weights):
+        """
+        The goal is to assign scaffold orders. To help order the scaffolds, two
+        dummy node, START and END, mark the ends of the chromosome. We connect
+        START to each scaffold (directed), and each scaffold to END.
+        """
         distances = defaultdict(list)
         for lg in self.lgs:
             mapname = lg.split("-")[0]
-            for (a, ao), (b, bo) in combinations(scaffolds, 2):
-                xa = bins.get((lg, a), [])
-                xb = bins.get((lg, b), [])
-                if ao < 0:
-                    xa = xa[::-1]
-                if bo < 0:
-                    xb = xb[::-1]
+            length = self.ranks[lg]
+            for s, so in scaffolds:  # Connect scaffolds to chr ends
+                xs = self.get_markers(lg, s, so)
+                d_ss = self.distance_to_end(xs)
+                d_se = self.distance_to_end(xs, offset=length)
 
-                d_ab = self.distance(xa, xb, function=function)
-                d_ba = self.distance(xb, xa, function=function)
+                for e, d in ((START, s), d_ss), ((s, END), d_se):
+                    if d == INF:
+                        continue
+                    distances[e].append((d, mapname))
+
+            for (a, ao), (b, bo) in combinations(scaffolds, 2):
+                xa = self.get_markers(lg, a, ao)
+                xb = self.get_markers(lg, b, bo)
+
+                d_ab = self.distance(xa, xb)
+                d_ba = self.distance(xb, xa)
 
                 for e, d in ((a, b), d_ab), ((b, a), d_ba):
                     if d == INF:
@@ -191,6 +220,9 @@ class ScaffoldOO (object):
 
         distance_edges = sorted((a, b, w) for (a, b), w in distances.items())
         tour = hamiltonian(distance_edges, symmetric=False, precision=self.precision)
+        # Remove dummy nodes
+        assert tour[0] == START and tour[-1] == END
+        tour = tour[1:-1]
         assert len(tour) == len(scaffolds), \
                 "Tour ({0}) != Scaffolds ({1})".format(len(tour), len(scaffolds))
 
@@ -255,8 +287,9 @@ class CSVMapLine (object):
     @property
     def bedline(self):
         marker = "{0}-{1}:{2:.6f}".format(self.mapname, self.lg, self.cm)
+        track = "{0}:{1}".format(self.seqid, self.pos)
         return "\t".join(str(x) for x in \
-                (self.seqid, self.pos - 1, self.pos, marker))
+                (self.seqid, self.pos - 1, self.pos, marker, track))
 
 
 class Marker (object):
@@ -289,7 +322,7 @@ class Map (list):
         self.mlg = set(x.mlg for x in self)
         logging.debug("Map contains {0} markers in {1} linkage groups.".\
                       format(self.nmarkers, len(self.mlg)))
-        self.compute_ranks()
+        self.ranks = self.compute_ranks()
 
     def extract(self, seqid):
         r = [x for x in self if x.seqid == seqid]
@@ -297,11 +330,14 @@ class Map (list):
         return r
 
     def compute_ranks(self):
+        ranks = {}  # Store the length for each linkage group
         for mlg in self.mlg:
             mlg_set = [x for x in self if x.mlg == mlg]
             mlg_set.sort(key=lambda x: x.cm)
             for rank, marker in enumerate(mlg_set):
                 marker.rank = rank
+            ranks[mlg] = len(mlg_set)
+        return ranks
 
     def get_bins(self, remove_outliers=True, function="rank"):
         s = defaultdict(list)

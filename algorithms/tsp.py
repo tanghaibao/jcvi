@@ -10,13 +10,14 @@ import os.path as op
 import os
 import logging
 import shutil
-
 import numpy as np
 
+from collections import defaultdict
+
 from jcvi.formats.base import FileShredder, must_open
-from jcvi.algorithms.lpsolve import populate_edge_weights, node_to_edge
 from jcvi.apps.base import mkdir, debug, which, sh
 debug()
+
 
 INF = 1000
 NEG_INF = -INF
@@ -115,6 +116,39 @@ class Concorde (object):
             tour += [int(x) for x in row.split()]
         tour = [self.nodes[x] for x in tour]
         return tour
+
+
+def node_to_edge(edges, directed=True):
+    """
+    From list of edges, record per node, incoming and outgoing edges
+    """
+    outgoing = defaultdict(set)
+    incoming = defaultdict(set) if directed else outgoing
+    nodes = set()
+    for i, edge in enumerate(edges):
+        a, b, = edge[:2]
+        outgoing[a].add(i)
+        incoming[b].add(i)
+        nodes.add(a)
+        nodes.add(b)
+    nodes = sorted(nodes)
+    if directed:
+        return outgoing, incoming, nodes
+    return outgoing, nodes
+
+
+def populate_edge_weights(edges):
+    # assume weight is 1 if not specified
+    new_edges = []
+    for e in edges:
+        assert len(e) in (2, 3)
+        if len(e) == 2:
+            a, b = e
+            w = 1
+        else:
+            a, b, w = e
+        new_edges.append((a, b, w))
+    return new_edges
 
 
 def hamiltonian(edges, symmetric=True, precision=0):

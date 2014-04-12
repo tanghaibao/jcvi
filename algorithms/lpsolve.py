@@ -36,6 +36,7 @@ from collections import defaultdict
 from jcvi.utils.cbook import fill
 from jcvi.formats.base import flexible_cast
 from jcvi.apps.base import sh, mkdir, debug
+from jcvi.algorithms.tsp import populate_edge_weights, node_to_edge
 debug()
 
 
@@ -188,39 +189,6 @@ class SCIPSolver(AbstractMIPSolver):
             self.cleanup()
 
         return results
-
-
-def node_to_edge(edges, directed=True):
-    """
-    From list of edges, record per node, incoming and outgoing edges
-    """
-    outgoing = defaultdict(set)
-    incoming = defaultdict(set) if directed else outgoing
-    nodes = set()
-    for i, edge in enumerate(edges):
-        a, b, = edge[:2]
-        outgoing[a].add(i)
-        incoming[b].add(i)
-        nodes.add(a)
-        nodes.add(b)
-    nodes = sorted(nodes)
-    if directed:
-        return outgoing, incoming, nodes
-    return outgoing, nodes
-
-
-def populate_edge_weights(edges):
-    # assume weight is 1 if not specified
-    new_edges = []
-    for e in edges:
-        assert len(e) in (2, 3)
-        if len(e) == 2:
-            a, b = e
-            w = 1
-        else:
-            a, b, w = e
-        new_edges.append((a, b, w))
-    return new_edges
 
 
 def print_objective(lp_handle, edges, objective=MAXIMIZE):

@@ -34,6 +34,7 @@ import cStringIO
 from collections import defaultdict
 
 from jcvi.utils.cbook import fill
+from jcvi.utils.iter import pairwise
 from jcvi.formats.base import flexible_cast
 from jcvi.apps.base import sh, mkdir, debug
 from jcvi.algorithms.tsp import populate_edge_weights, node_to_edge
@@ -444,6 +445,61 @@ def path(edges, source, sink, flavor="longest"):
     results = sorted(x for i, x in enumerate(edges) if i in selected) \
                     if selected else None
     results = edges_to_path(results)
+
+    return results, obj_val
+
+
+def min_feedback_arc_set(edges):
+    """
+    A directed graph may contain directed cycles, when such cycles are
+    undesirable, we wish to eliminate them and obtain a directed acyclic graph
+    (DAG). A feedback arc set has the property that it has at least one edge
+    of every cycle in the graph. A minimum feedback arc set is the set that
+    minimizes the total weight of the removed edges; or alternatively maximize
+    the remaining edges. See: <http://en.wikipedia.org/wiki/Feedback_arc_set>.
+
+    The MIP formulation proceeds as follows: use 0/1 indicator variable to
+    select whether an edge is in the set, subject to constraint that each cycle
+    must pick at least one such edge.
+
+    >>> g = [(1, 2, 2), (2, 3, 2), (3, 4, 2)] + [(1, 3, 1), (3, 2, 1), (2, 4, 1)]
+    >>> min_feedback_arc_set(g)
+    ([(3, 2, 1)], 1)
+    """
+    import networkx as nx
+
+    G = nx.DiGraph()
+    edge_to_index = {}
+    for i, (a, b, w) in enumerate(edges):
+        G.add_edge(a, b, weight=w)
+        edge_to_index[a, b] = i
+
+    nedges = len(edges)
+    lp_handle = cStringIO.StringIO()
+
+    objective = MINIMIZE
+    print_objective(lp_handle, edges, objective=objective)
+
+    constraints = []
+    ncycles = 0
+    for c in nx.simple_cycles(G):
+        cycle_edges = []
+        rc = c + [c[0]]  # Rotate the cycle
+        for a, b in pairwise(rc):
+            cycle_edges.append(edge_to_index[a, b])
+        cc = summation(cycle_edges)
+        constraints.append("{0} >= 1".format(cc))
+        ncycles += 1
+    logging.debug("A total of {0} cycles found.".format(ncycles))
+
+    print_constraints(lp_handle, constraints)
+    print_vars(lp_handle, nedges, vars=BINARY)
+    print >> lp_handle, END
+    #print lp_handle.getvalue()
+
+    selected, obj_val = lpsolve(lp_handle)
+    results = sorted(x for i, x in enumerate(edges) if i in selected) \
+                    if selected else None
 
     return results, obj_val
 

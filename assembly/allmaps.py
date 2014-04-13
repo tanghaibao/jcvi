@@ -10,13 +10,13 @@ import logging
 
 import numpy as np
 
-from itertools import combinations, product
+from itertools import combinations
 from collections import defaultdict
 from scipy.stats import spearmanr
 
 from jcvi.algorithms.matrix import determine_signs
 from jcvi.algorithms.formula import reject_outliers
-from jcvi.algorithms.tsp import hamiltonian, INF
+from jcvi.algorithms.tsp import hamiltonian
 from jcvi.formats.agp import order_to_agp, build as agp_build
 from jcvi.formats.base import must_open
 from jcvi.formats.bed import Bed, BedLine, sort
@@ -56,11 +56,6 @@ class Scaffold (object):
             G[bk, ak] += weight
 
 
-class Dummy:
-    def __init__(self, rank):
-        self.cM = self.rank = rank
-
-
 class ScaffoldOO (object):
     """
     This contains the routine to construct order and orientation for the
@@ -88,56 +83,6 @@ class ScaffoldOO (object):
                 self.object = lg
                 break
 
-    def extreme(self, a, N=2, lower=False):
-        # Take most extreme N values, which is robust to outliers
-        ext = a[:N] if lower else a[len(a) - N:]
-        return ext
-
-    def fuzzyd(self, xa, xb, ra, rb):
-        """
-        fuzzyd calculates the closest distances between two sets
-        Extra terms are to penalize the edge margin, for example:
-
-            =====A=B...C=D=====
-            .....0.1...1.2.....
-
-        The smallest distance can be A-C, but this needs to add an additional
-        term of rank difference between A-C, which is 1.
-
-        In the case of connections to START/END dummies, the ranks are:
-
-            S...A=B=====C=D...E
-            0...0.1.....1.0...0
-        """
-        f = self.function
-
-        assert len(xa) == len(ra) and len(xb) == len(rb)
-        xa, xb = zip(xa, ra), zip(xb, rb)
-        # `bi - ai` term is the margin penalty
-        return min(abs(f(a) - f(b)) + bi - ai \
-                for (a, ai), (b, bi) in product(xa, xb))
-
-    def distance(self, xa, xb):
-        # Pairwise distance between scaffolds, note that this is asymmetric
-        if not xa or not xb:
-            return INF
-
-        xa = self.extreme(xa)
-        xb = self.extreme(xb, lower=True)
-        ra, rb = range(len(xa)), range(len(xa) - 1, len(xa) + len(xb) - 1)
-        return self.fuzzyd(xa, xb, ra, rb)
-
-    def distance_to_ends(self, xa, xb):
-        # Distance to chr ends (two dummy nodes - START and END)
-        if not xb:
-            return INF
-
-        xe = self.extreme(xb)
-        rr = range(len(xe))
-        ra, rb = (0, 0), rr + rr[::-1]
-        xb = xe + self.extreme(xb, lower=True)
-        return self.fuzzyd(xa, xb, ra, rb)
-
     def weighted_mean(self, a, weights):
         a, w = zip(*a)
         w = [weights[x] for x in w]
@@ -156,19 +101,25 @@ class ScaffoldOO (object):
         START to each scaffold (directed), and each scaffold to END.
         """
         distances = defaultdict(list)
+        f = self.function
         for lg in self.lgs:
             mapname = lg.split("-")[0]
-            for (a, ao), (b, bo) in combinations(scaffolds, 2):
+            length = self.lengths[lg]
+            positions = {}
+            for a, ao in scaffolds:
                 xa = self.get_markers(lg, a, ao)
-                xb = self.get_markers(lg, b, bo)
+                if not xa:
+                    continue
+                d = np.median([f(x) for x in xa])
+                assert 0 <= d <= length
+                positions[a] = d
 
-                d_ab = self.distance(xa, xb)
-                d_ba = self.distance(xb, xa)
-
-                for e, d in ((a, b), d_ab), ((b, a), d_ba):
-                    if d == INF:
-                        continue
-                    distances[e].append((d, mapname))
+            for (a, ao), (b, bo) in combinations(scaffolds, 2):
+                if a not in positions or b not in positions:
+                    continue
+                d = abs(positions[a] - positions[b])
+                distances[a, b].append((d, mapname))
+                distances[b, a].append((d, mapname))
 
             # Only connect ends for the pivot map, this ensure that the starting
             # and ending scaffold is always part of pivot map. The terminal
@@ -176,15 +127,12 @@ class ScaffoldOO (object):
             if mapname != pivot:
                 continue
 
-            length = self.lengths[lg]
-            xa = [Dummy(0), Dummy(length)]  # START, END
-            for b, bo in scaffolds:  # Connect scaffolds to chr ends
-                xb = self.get_markers(lg, b, bo)
-                d = self.distance_to_ends(xa, xb)
-                for e in (START, b), (b, END):
-                    if d == INF:
-                        continue
-                    distances[e].append((d, mapname))
+            for a, ao in scaffolds:
+                if a not in positions:
+                    continue
+                d = positions[a]
+                distances[START, a].append((d, mapname))
+                distances[a, END].append((length - d, mapname))
 
         for e, v in distances.items():
             distances[e] = self.weighted_mean(v, weights)
@@ -334,7 +282,6 @@ class Map (list):
         data = [function(x) for x in markers]
         reject = reject_outliers(data)
         clean_markers = [m for m, r in zip(markers, reject) if not r]
-        #print markers, clean_markers
         return clean_markers
 
     @property

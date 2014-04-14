@@ -5,6 +5,7 @@
 Scaffold Ordering with Weighted Maps.
 """
 
+import os.path as op
 import sys
 import logging
 
@@ -355,6 +356,11 @@ def merge(args):
 
     assert len(maps) == len(mapnames), "You have a collision in map names"
     weightsfile = "weights.txt"
+    if op.exists(weightsfile):
+        logging.debug("Weights file `{0}` found. Will not overwrite.".\
+                        format(weightsfile))
+        return
+
     fw = open(weightsfile, "w")
     for mapname in sorted(mapnames):
         weight = 1
@@ -391,16 +397,18 @@ def path(args):
         mapname, w = row.split()
         weights[mapname] = int(w)
 
-    pivot_weight, pivot = max((w, m) for m, w in weights.items())
+    cc = Map(bedfile)
+    mapnames = cc.mapnames
+    allseqids = cc.seqids
+
+    pivot_weight, pivot = max((w, m) for m, w in weights.items() \
+                                 if m in mapnames)
     logging.debug("Pivot map: `{0}` (weight={1}).".format(pivot, pivot_weight))
     gapsize = opts.gapsize
     function = opts.distance
     function = (lambda x: x.cm) if function == "cM" else \
                (lambda x: x.rank)
 
-    cc = Map(bedfile)
-    mapnames = cc.mapnames
-    allseqids = cc.seqids
     # Partition the linkage groups into consensus clusters
     C = Grouper()
     # Initialize the partitions

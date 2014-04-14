@@ -498,7 +498,7 @@ def min_feedback_arc_set(edges, remove=False):
     print_vars(lp_handle, nedges, vars=BINARY)
     print >> lp_handle, END
 
-    selected, obj_val = lpsolve(lp_handle)
+    selected, obj_val = lpsolve(lp_handle, clean=False)
     if remove:
         results = [x for i, x in enumerate(edges) if i not in selected] \
                         if selected else None

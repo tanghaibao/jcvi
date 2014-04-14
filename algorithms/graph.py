@@ -294,10 +294,12 @@ def merge_paths(paths, weights=None):
     Zip together sorted lists.
 
     >>> paths = [[1, 2, 3], [1, 3, 4], [2, 4, 5]]
-    >>> merge_paths(paths)
+    >>> G = merge_paths(paths)
+    >>> nx.topological_sort(G)
     [1, 2, 3, 4, 5]
     >>> paths = [[1, 2, 3, 4], [1, 2, 3, 2, 4]]
-    >>> merge_paths(paths, weights=(1, 2))
+    >>> G = merge_paths(paths, weights=(1, 2))
+    >>> nx.topological_sort(G)
     [1, 2, 3, 4]
     """
     from jcvi.algorithms.lpsolve import min_feedback_arc_set
@@ -314,7 +316,7 @@ def merge_paths(paths, weights=None):
                 continue
             G.add_edge(a, b, weight=w)
 
-    if not nx.is_directed_acyclic_graph(G):
+    while not nx.is_directed_acyclic_graph(G):
         edges = []
         for a, b, w in G.edges_iter(data=True):
             w = w['weight']
@@ -326,7 +328,7 @@ def merge_paths(paths, weights=None):
     assert nx.is_directed_acyclic_graph(G)
     G = transitive_reduction(G)
 
-    return nx.topological_sort(G)
+    return G
 
 
 def transitive_reduction(G):
@@ -367,7 +369,7 @@ def longest_path_weighted_nodes(G, source, target, weights=None):
 
     >>> G = nx.DiGraph([(1, 2), (1, 3), (2, "M"), (3, "M")])
     >>> longest_path_weighted_nodes(G, 1, "M", weights={1: 1, 2: 1, 3: 2, "M": 1})
-    [1, 3, 'M']
+    ([1, 3, 'M'], 4)
     """
     assert nx.is_directed_acyclic_graph(G)
 
@@ -375,8 +377,8 @@ def longest_path_weighted_nodes(G, source, target, weights=None):
     node_to_index = dict((t, i) for i, t in enumerate(tree))
 
     nnodes = len(tree)
-    w = [weights[x] for x in tree] if weights else [1] * nnodes
-    score, fromc = [0] * nnodes, [-1] * nnodes
+    w = [weights.get(x, 1) for x in tree] if weights else [1] * nnodes
+    score, fromc = w[:], [-1] * nnodes
     si = node_to_index[source]
     ti = node_to_index[target]
     for a in tree[si: ti]:
@@ -396,7 +398,7 @@ def longest_path_weighted_nodes(G, source, target, weights=None):
         ti = fromc[ti]
 
     path = [tree[x] for x in path[::-1]]
-    return path
+    return path, score[ti]
 
 
 if __name__ == '__main__':

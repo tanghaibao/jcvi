@@ -16,7 +16,7 @@ from scipy.stats import spearmanr
 
 from jcvi.algorithms.matrix import determine_signs
 from jcvi.algorithms.formula import reject_outliers
-from jcvi.algorithms.tsp import hamiltonian
+from jcvi.algorithms.graph import merge_paths, longest_path_weighted_nodes
 from jcvi.formats.agp import order_to_agp, build as agp_build
 from jcvi.formats.base import must_open
 from jcvi.formats.bed import Bed, BedLine, sort
@@ -61,18 +61,16 @@ class ScaffoldOO (object):
     This contains the routine to construct order and orientation for the
     scaffolds per partition.
     """
-    def __init__(self, lgs, scaffolds, mapc, pivot, weights,
-                 function=(lambda x: x.rank), precision=0):
+    def __init__(self, lgs, scaffolds, mapc, pivot, weights, sizes,
+                 function=(lambda x: x.rank)):
 
         self.lgs = lgs
         self.lengths = mapc.compute_lengths(function)
         self.bins = mapc.get_bins(function)
         self.function = function
-        self.precision = precision
+        self.sizes = sizes
 
-        signs, flip = self.assign_orientation(scaffolds, pivot, weights)
-        if flip:
-            signs = - signs
+        signs = self.assign_orientation(scaffolds, pivot, weights)
         scaffolds = zip(scaffolds, signs)
 
         tour = self.assign_order(scaffolds, pivot, weights)
@@ -94,56 +92,70 @@ class ScaffoldOO (object):
             xs = xs[::-1]
         return xs
 
+    def get_rho(self, xy):
+        if not xy:
+            return 0
+        x, y = zip(*xy)
+        rho, p_value = spearmanr(x, y)
+        if np.isnan(rho):
+            rho = 0
+        return rho
+
     def assign_order(self, scaffolds, pivot, weights):
         """
         The goal is to assign scaffold orders. To help order the scaffolds, two
         dummy node, START and END, mark the ends of the chromosome. We connect
         START to each scaffold (directed), and each scaffold to END.
         """
-        distances = defaultdict(list)
         f = self.function
+        positions, paths, w = [], [], []
         for lg in self.lgs:
             mapname = lg.split("-")[0]
             length = self.lengths[lg]
-            positions = {}
+            position = {}
             for a, ao in scaffolds:
                 xa = self.get_markers(lg, a, ao)
                 if not xa:
                     continue
                 d = np.median([f(x) for x in xa])
                 assert 0 <= d <= length
-                positions[a] = d
+                position[a] = d
 
-            for (a, ao), (b, bo) in combinations(scaffolds, 2):
-                if a not in positions or b not in positions:
+            if mapname == pivot:
+                pivot_position = position
+
+            positions.append(position)
+            w.append(weights[mapname])
+
+        for position in positions:
+            # Sort the order based on median distance
+            path = sorted((v, k) for k, v in position.items())
+            vv, path = zip(*path)
+
+            # Flip order if path goes in the opposite direction to the pivot
+            common = []
+            for a, ap in position.items():
+                if a not in pivot_position:
                     continue
-                d = abs(positions[a] - positions[b])
-                distances[a, b].append((d, mapname))
-                distances[b, a].append((d, mapname))
+                pp = pivot_position[a]
+                common.append((ap, pp))
 
-            # Only connect ends for the pivot map, this ensure that the starting
-            # and ending scaffold is always part of pivot map. The terminal
-            # scaffolds for the less weighted maps are 'folded' in.
-            if mapname != pivot:
-                continue
+            rho = self.get_rho(common)
+            if rho < 0:
+                path = path[::-1]
+            paths.append(path)
 
-            for a, ao in scaffolds:
-                if a not in positions:
-                    continue
-                d = positions[a]
-                distances[START, a].append((d, mapname))
-                distances[a, END].append((length - d, mapname))
+        G = merge_paths(paths, weights=w)
+        for s, so in scaffolds:  # Connect everything to DUMMY ends
+            G.add_edge(START, s)
+            G.add_edge(s, END)
+        tour, total_size = longest_path_weighted_nodes(G, START, END, self.sizes)
 
-        for e, v in distances.items():
-            distances[e] = self.weighted_mean(v, weights)
-
-        distance_edges = sorted((a, b, w) for (a, b), w in distances.items())
-        tour = hamiltonian(distance_edges, symmetric=False, precision=self.precision)
         # Remove dummy nodes
         assert tour[0] == START and tour[-1] == END
         tour = tour[1:-1]
-        assert len(tour) == len(scaffolds), \
-                "Tour ({0}) != Scaffolds ({1})".format(len(tour), len(scaffolds))
+        logging.debug("Best order contains {0} scaffolds (L={1})".\
+                        format(len(tour), total_size))
 
         scaffolds_oo = dict(scaffolds)
         recode = {0: '?', 1: '+', -1: '-'}
@@ -164,11 +176,8 @@ class ScaffoldOO (object):
                 if not xs:
                     oo.append(0)
                     continue
-                physical = [x.pos for x in xs]
-                cm = [f(x) for x in xs]
-                rho, p_value = spearmanr(physical, cm)
-                if np.isnan(rho):
-                    rho = 0
+                physical_to_cm = [(x.pos, f(x)) for x in xs]
+                rho = self.get_rho(physical_to_cm)
                 oo.append(rho)
 
             if mapname == pivot:
@@ -192,8 +201,9 @@ class ScaffoldOO (object):
         # Finally flip this according to pivot map, then weight by #_markers
         nmarkers = [nmarkers[x] for x in scaffolds]
         flipr = signs * np.sign(np.array(pivot_oo)) * nmarkers
-        flip = sum(flipr) < 0
-        return signs, flip
+        if sum(flipr) < 0:
+            signs = - signs
+        return signs
 
 
 class CSVMapLine (object):
@@ -385,7 +395,6 @@ def path(args):
     logging.debug("Pivot map: `{0}` (weight={1}).".format(pivot, pivot_weight))
     gapsize = opts.gapsize
     function = opts.distance
-    precision = 3 if function == "cM" else 0
     function = (lambda x: x.cm) if function == "cM" else \
                (lambda x: x.rank)
 
@@ -440,8 +449,8 @@ def path(args):
     fwagp = must_open(agpfile, "w")
     for lgs, scaffolds in sorted(partitions.items()):
         print >> sys.stderr, lgs
-        s = ScaffoldOO(lgs, scaffolds, cc, pivot, weights,
-                       function=function, precision=precision)
+        s = ScaffoldOO(lgs, scaffolds, cc, pivot, weights, sizes,
+                       function=function)
         print >> sys.stderr, s.tour
         order_to_agp(s.object, s.tour, sizes, fwagp, gapsize=gapsize,
                      gaptype="map")

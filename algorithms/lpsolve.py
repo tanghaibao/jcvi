@@ -449,7 +449,7 @@ def path(edges, source, sink, flavor="longest"):
     return results, obj_val
 
 
-def min_feedback_arc_set(edges):
+def min_feedback_arc_set(edges, remove=False):
     """
     A directed graph may contain directed cycles, when such cycles are
     undesirable, we wish to eliminate them and obtain a directed acyclic graph
@@ -465,13 +465,15 @@ def min_feedback_arc_set(edges):
     >>> g = [(1, 2, 2), (2, 3, 2), (3, 4, 2)] + [(1, 3, 1), (3, 2, 1), (2, 4, 1)]
     >>> min_feedback_arc_set(g)
     ([(3, 2, 1)], 1)
+    >>> min_feedback_arc_set(g, remove=True)  # Return DAG
+    ([(1, 2, 2), (2, 3, 2), (3, 4, 2), (1, 3, 1), (2, 4, 1)], 1)
     """
     import networkx as nx
 
     G = nx.DiGraph()
     edge_to_index = {}
     for i, (a, b, w) in enumerate(edges):
-        G.add_edge(a, b, weight=w)
+        G.add_edge(a, b)
         edge_to_index[a, b] = i
 
     nedges = len(edges)
@@ -495,11 +497,14 @@ def min_feedback_arc_set(edges):
     print_constraints(lp_handle, constraints)
     print_vars(lp_handle, nedges, vars=BINARY)
     print >> lp_handle, END
-    #print lp_handle.getvalue()
 
     selected, obj_val = lpsolve(lp_handle)
-    results = sorted(x for i, x in enumerate(edges) if i in selected) \
-                    if selected else None
+    if remove:
+        results = [x for i, x in enumerate(edges) if i not in selected] \
+                        if selected else None
+    else:
+        results = [x for i, x in enumerate(edges) if i in selected] \
+                        if selected else None
 
     return results, obj_val
 

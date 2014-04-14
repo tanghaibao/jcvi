@@ -2,16 +2,7 @@
 # -*- coding: UTF-8 -*-
 
 """
-Wrapper for the common graph algorithms. Common usages are:
-
->>> edges = [(1, 2), (2, 3), (4, 5)]
->>> g = nx.DiGraph(edges)
->>> c = weakly_connected_components(g)
->>> print c
-[[1, 2, 3], [4, 5]]
->>> sub = g.subgraph(c[0])
->>> topological_sort(sub)
-[1, 2, 3]
+Wrapper for the common graph algorithms.
 """
 
 import sys
@@ -21,12 +12,7 @@ import networkx as nx
 from collections import deque
 from string import maketrans
 
-from networkx.algorithms.dag import topological_sort
-from networkx.algorithms.components.weakly_connected import \
-            weakly_connected_components
-from networkx.algorithms.components.connected import connected_components
-from networkx.algorithms.shortest_paths.generic import shortest_path
-
+from jcvi.utils.iter import pairwise
 from jcvi.formats.base import must_open
 from jcvi.apps.base import debug
 debug()
@@ -191,8 +177,6 @@ class BiGraph (object):
             yield path
 
     def path(self, path, flip=False):
-        from jcvi.utils.iter import pairwise
-
         oo = []
         if len(path) == 1:
             m = "Singleton {0}".format(path[0])
@@ -202,7 +186,7 @@ class BiGraph (object):
         edges = []
         for a, b in pairwise(path):
             av, bv = a.v, b.v
-            e = self.get_edge((av, bv))
+            e = self.get_edge(av, bv)
 
             if not oo:  # First edge imports two nodes
                 oo.append((e.v1.v, e.o1 == ">"))
@@ -305,7 +289,7 @@ def bigraph_test():
     #g.draw("demo.png", verbose=True)
 
 
-def merge_paths(paths):
+def merge_paths(paths, weights=None):
     """
     Zip together sorted lists.
 
@@ -313,18 +297,46 @@ def merge_paths(paths):
     >>> merge_paths(paths)
     [1, 2, 3, 4, 5]
     """
-    from jcvi.utils.iter import pairwise
-
-    edges = []
+    G = nx.DiGraph()
     for a in paths:
-        edges.extend(list(pairwise(a)))
+        G.add_path(a)
 
-    g = nx.DiGraph(edges)
-    return topological_sort(g)
+    G = transitive_reduction(G)
+    assert nx.is_directed_acyclic_graph(G)
+
+    return nx.topological_sort(G)
+
+
+def transitive_reduction(G):
+    """
+    Returns a transitive reduction of a graph.  The original graph
+    is not modified.
+
+    A transitive reduction H of G has a path from x to y if and
+    only if there was a path from x to y in G.  Deleting any edge
+    of H destroys this property.  A transitive reduction is not
+    unique in general.  A transitive reduction has the same
+    transitive closure as the original graph.
+
+    A transitive reduction of a complete graph is a tree.  A
+    transitive reduction of a tree is itself.
+
+    >>> G = nx.DiGraph([(1, 2), (1, 3), (2, 3), (2, 4), (3, 4)])
+    >>> H = transitive_reduction(G)
+    >>> H.edges()
+    [(1, 2), (2, 3), (3, 4)]
+    """
+    H = G.copy()
+    for a, b in G.edges_iter():
+        # Try deleting the edge, see if we still have a path
+        # between the vertices
+        H.remove_edge(a, b)
+        if not nx.has_path(H, a, b):  # we shouldn't have deleted it
+            H.add_edge(a, b)
+    return H
 
 
 if __name__ == '__main__':
     import doctest
     doctest.testmod()
-
-    bigraph_test()
+    #bigraph_test()

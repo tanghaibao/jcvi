@@ -150,7 +150,7 @@ def query(args):
 
     Query the path from sourcectg to targetctg using links in the bundlefile.
     """
-    from jcvi.algorithms.graph import nx, shortest_path
+    import networkx as nx
 
     p = OptionParser(query.__doc__)
 
@@ -168,7 +168,7 @@ def query(args):
         c = LinkLine(row)
         g.add_edge(c.aseqid, c.bseqid)
 
-    ctgs = shortest_path(g, srcctg, targetctg)
+    ctgs = nx.shortest_path(g, srcctg, targetctg)
 
     ctgs = set(ctgs)
     fp = open(bundlefile)

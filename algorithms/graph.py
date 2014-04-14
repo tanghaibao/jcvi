@@ -298,7 +298,7 @@ def merge_paths(paths, weights=None):
     [1, 2, 3, 4, 5]
     >>> paths = [[1, 2, 3, 4], [1, 2, 3, 2, 4]]
     >>> merge_paths(paths, weights=(1, 2))
-    [1, 3, 2, 4]
+    [1, 2, 3, 4]
     """
     from jcvi.algorithms.lpsolve import min_feedback_arc_set
 
@@ -356,6 +356,47 @@ def transitive_reduction(G):
         if not nx.has_path(H, a, b):  # we shouldn't have deleted it
             H.add_edge(a, b)
     return H
+
+
+def longest_path_weighted_nodes(G, source, target, weights=None):
+    """
+    The longest path problem is the problem of finding a simple path of maximum
+    length in a given graph. While for general graph, this problem is NP-hard,
+    but if G is a directed acyclic graph (DAG), longest paths in G can be found
+    in linear time with dynamic programming.
+
+    >>> G = nx.DiGraph([(1, 2), (1, 3), (2, "M"), (3, "M")])
+    >>> longest_path_weighted_nodes(G, 1, "M", weights={1: 1, 2: 1, 3: 2, "M": 1})
+    [1, 3, 'M']
+    """
+    assert nx.is_directed_acyclic_graph(G)
+
+    tree = nx.topological_sort(G)
+    node_to_index = dict((t, i) for i, t in enumerate(tree))
+
+    nnodes = len(tree)
+    w = [weights[x] for x in tree] if weights else [1] * nnodes
+    score, fromc = [0] * nnodes, [-1] * nnodes
+    si = node_to_index[source]
+    ti = node_to_index[target]
+    for a in tree[si: ti]:
+        ai = node_to_index[a]
+        for b in G[a]:
+            bi = node_to_index[b]
+            d = score[ai] + w[bi]
+            if d <= score[bi]:
+                continue
+            score[bi] = d  # Update longest distance so far
+            fromc[bi] = ai
+
+    # Backtracking
+    path = []
+    while ti != -1:
+        path.append(ti)
+        ti = fromc[ti]
+
+    path = [tree[x] for x in path[::-1]]
+    return path
 
 
 if __name__ == '__main__':

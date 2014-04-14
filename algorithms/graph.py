@@ -296,13 +296,31 @@ def merge_paths(paths, weights=None):
     >>> paths = [[1, 2, 3], [1, 3, 4], [2, 4, 5]]
     >>> merge_paths(paths)
     [1, 2, 3, 4, 5]
+    >>> paths = [[1, 2, 3, 4], [1, 3, 2, 4]]
+    >>> merge_paths(paths, weights=(1, 2))
+    [1, 3, 2, 4]
     """
-    G = nx.DiGraph()
-    for a in paths:
-        G.add_path(a)
+    from jcvi.algorithms.lpsolve import min_feedback_arc_set
 
-    G = transitive_reduction(G)
+    npaths = len(paths)
+    weights = weights or [1] * npaths
+    assert len(paths) == len(weights)
+
+    G = nx.DiGraph()
+    for a, w in zip(paths, weights):
+        G.add_path(a, weight=w)
+
+    if not nx.is_directed_acyclic_graph(G):
+        edges = []
+        for a, b, w in G.edges_iter(data=True):
+            w = w['weight']
+            edges.append((a, b, w))
+        mf, mf_score = min_feedback_arc_set(edges)
+        for a, b, w in mf:
+            G.remove_edge(a, b)
+
     assert nx.is_directed_acyclic_graph(G)
+    G = transitive_reduction(G)
 
     return nx.topological_sort(G)
 

@@ -296,7 +296,7 @@ def merge_paths(paths, weights=None):
     >>> paths = [[1, 2, 3], [1, 3, 4], [2, 4, 5]]
     >>> merge_paths(paths)
     [1, 2, 3, 4, 5]
-    >>> paths = [[1, 2, 3, 4], [1, 3, 2, 4]]
+    >>> paths = [[1, 2, 3, 4], [1, 2, 3, 2, 4]]
     >>> merge_paths(paths, weights=(1, 2))
     [1, 3, 2, 4]
     """
@@ -307,8 +307,12 @@ def merge_paths(paths, weights=None):
     assert len(paths) == len(weights)
 
     G = nx.DiGraph()
-    for a, w in zip(paths, weights):
-        G.add_path(a, weight=w)
+    for path, w in zip(paths, weights):
+        for a, b in pairwise(path):
+            if G.has_edge(a, b):  # Parallel edges found!
+                G[a][b]['weight'] += w
+                continue
+            G.add_edge(a, b, weight=w)
 
     if not nx.is_directed_acyclic_graph(G):
         edges = []

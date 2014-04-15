@@ -67,7 +67,7 @@ def determine_positions(nodes, edges):
     return np.array([0] + [int(round(x, 0)) for x in s])
 
 
-def determine_signs(nodes, edges):
+def determine_signs(nodes, edges, cutoff=1e-10):
     """
     Construct the orientation matrix for the pairs on N molecules.
 
@@ -80,7 +80,7 @@ def determine_signs(nodes, edges):
         M[a, b] += w
     M = symmetrize(M)
 
-    return get_signs(M, validate=False)
+    return get_signs(M, cutoff=cutoff, validate=False)
 
 
 def symmetrize(M):
@@ -91,7 +91,7 @@ def symmetrize(M):
     return M + M.T - np.diag(M.diagonal())
 
 
-def get_signs(M, validate=True):
+def get_signs(M, cutoff=1e-10, validate=True):
     """
     Given a numpy array M that contains pairwise orientations, find the largest
     eigenvalue and associated eigenvector and return the signs for the
@@ -115,6 +115,8 @@ def get_signs(M, validate=True):
     w, v = np.linalg.eigh(M)
     m = np.argmax(w)
     mv = v[:, m]
+    f = lambda x: (x if abs(x) > cutoff else 0)
+    mv = [f(x) for x in mv]
 
     sign_array = np.array(np.sign(mv), dtype=int)
 

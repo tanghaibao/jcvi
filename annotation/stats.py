@@ -97,7 +97,7 @@ def genestats(args):
             print >> fw, "\t".join((fid, str(tsize), conf_class))
         fw.close()
 
-    tsizes = DictFile(tf)
+    tsizes = DictFile(tf, cast=int)
     conf_classes = DictFile(tf, valuepos=2)
     logging.debug("A total of {0} transcripts populated.".format(len(tsizes)))
 
@@ -106,7 +106,7 @@ def genestats(args):
         fid = feat.id
         transcripts = [c.id for c in g.children(fid, 1) \
                          if c.featuretype == "mRNA"]
-        transcript_sizes = [int(tsizes[x]) for x in transcripts]
+        transcript_sizes = [tsizes[x] for x in transcripts]
         exons = set((c.chrom, c.start, c.stop) for c in g.children(fid, 2) \
                          if c.featuretype == "exon")
         conf_class = conf_classes[transcripts[0]]

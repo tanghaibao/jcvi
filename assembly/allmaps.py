@@ -19,7 +19,7 @@ from jcvi.algorithms.matrix import determine_signs
 from jcvi.algorithms.formula import reject_outliers
 from jcvi.algorithms.graph import merge_paths, longest_path_weighted_nodes
 from jcvi.formats.agp import order_to_agp, build as agp_build
-from jcvi.formats.base import must_open
+from jcvi.formats.base import LineFile, DictFile, must_open
 from jcvi.formats.bed import Bed, BedLine, sort
 from jcvi.formats.chain import fromagp
 from jcvi.formats.sizes import Sizes
@@ -246,10 +246,11 @@ class Marker (object):
     __repr__ = __str__
 
 
-class Map (list):
+class Map (LineFile):
 
-    def __init__(self, bedfile):
-        bed = Bed(bedfile)
+    def __init__(self, filename):
+        super(Map, self).__init__(filename)
+        bed = Bed(filename)
         for b in bed:
             self.append(Marker(b))
 
@@ -309,12 +310,29 @@ class Map (list):
         return sorted(set(x.mlg for x in self))
 
 
+class Weights(DictFile):
+
+    def __init__(self, filename, cast=int):
+        super(Weights, self).__init__(filename, cast=cast)
+
+    def update_maps(self, mapnames, default=1):
+        for m in mapnames:
+            if m in self:
+                continue
+            self[m] = default
+            logging.debug("Weight for `{0}` set to {1}.".format(m, default))
+
+    def get_pivot(self, mapnames):
+        return max((w, m) for m, w in self.items() if m in mapnames)
+
+
 def main():
 
     actions = (
         ('merge', 'merge csv maps and convert to bed format'),
         ('path', 'construct golden path given a set of genetic maps'),
         ('build', 'build associated FASTA and CHAIN file'),
+        ('plot', 'plot matchings between golden path and maps'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -399,27 +417,14 @@ def path(args):
         sys.exit(not p.print_help())
 
     bedfile, weightsfile, fastafile = args
-    # Read in the weights
-    weights = {}
-    if op.exists(weightsfile):
-        fp = open(weightsfile)
-        for row in fp:
-            mapname, w = row.split()
-            weights[mapname] = int(w)
-        fp.close()
+    weights = Weights(weightsfile)
 
     cc = Map(bedfile)
     mapnames = cc.mapnames
     allseqids = cc.seqids
-    default_weight = 1
-    for m in mapnames:
-        if m in weights:
-            continue
-        weights[m] = default_weight
-        logging.debug("Weight for `{0}` set to {1}.".format(m, default_weight))
+    weights.update_maps(mapnames)
+    pivot_weight, pivot = weights.get_pivot(mapnames)
 
-    pivot_weight, pivot = max((w, m) for m, w in weights.items() \
-                                if m in mapnames)
     logging.debug("Pivot map: `{0}` (weight={1}).".format(pivot, pivot_weight))
     gapsize = opts.gapsize
     function = opts.distance
@@ -505,7 +510,8 @@ def build(args):
 
     Build associated genome FASTA file and CHAIN file that can be used to lift
     old coordinates to new coordinates. The CHAIN file will be used to lift the
-    original marker positions to new positions in the reconstructed genome.
+    original marker positions to new positions in the reconstructed genome. The
+    new positions of the markers will be reported in *.lifted.bed.
     """
     p = OptionParser(build.__doc__)
     opts, args = p.parse_args(args)
@@ -528,6 +534,48 @@ def build(args):
         sh(cmd)
 
     sort([liftedbed, "-i"])  # Sort bed in place
+
+
+def plot(args):
+    """
+    %prog plot lifted.bed seqid weightsfile
+
+    Plot the matchings between the reconstructed pseudomolecules and the maps.
+    Two types of visualizations are available in one canvas:
+
+    1. Parallel axes, and matching markers are shown in connecting lines;
+    2. Scatter plot.
+    """
+    from jcvi.graphics.base import plt, savefig
+
+    p = OptionParser(plot.__doc__)
+    p.add_option("--links", default=10, type="int",
+                 help="Only plot matchings more than")
+    opts, args, iopts = p.set_image_options(args, figsize="8x12")
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    bedfile, seqid, weightsfile = args
+    links = opts.links
+
+    cc = Map(bedfile)
+    weights = Weights(weightsfile)
+    allseqids = cc.seqids
+    assert seqid in allseqids, "{0} not in {1}".format(seqid, allseqids)
+
+    s = Scaffold(seqid, cc)
+    mlgs = [k for k, v in s.mlg_counts.items() if v >= links]
+
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes([0, 0, 1, 1])
+
+    root.set_xlim(0, 1)
+    root.set_ylim(0, 1)
+    root.set_axis_off()
+
+    image_name = seqid + "." + iopts.format
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
 if __name__ == '__main__':

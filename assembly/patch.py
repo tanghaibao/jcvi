@@ -93,12 +93,12 @@ def pastegenes(args):
     flank = opts.flank
     maxsize = opts.maxsize
 
-    coverage = DictFile(coveragefile, valuepos=2)
+    coverage = DictFile(coveragefile, valuepos=2, cast=float)
 
     obed = Bed(oldbed)
     order = obed.order
     bed = [x for x in obed if x.accn in coverage]
-    key = lambda x: float(coverage[x.accn]) >= cutoff
+    key = lambda x: coverage[x.accn] >= cutoff
 
     extrabed = "extra.bed"
     extendbed = "extend.bed"

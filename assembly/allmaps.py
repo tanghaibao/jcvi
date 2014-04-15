@@ -31,6 +31,7 @@ debug()
 
 
 START, END = "START", "END"
+np.seterr(invalid="ignore")
 
 
 class Scaffold (object):
@@ -368,6 +369,14 @@ def merge(args):
     logging.debug("Weights file written to `{0}`.".format(weightsfile))
 
 
+def best_no_ambiguous(d, label):
+    best, best_value = max(d.items(), key=lambda x: x[1])
+    if d.values().count(best_value) > 1:  # tie
+        print >> sys.stderr, "AMBIGUOUS", label, d
+        return None, None
+    return best, best_value
+
+
 def path(args):
     """
     %prog path map.bed weights.txt scaffolds.fasta
@@ -392,17 +401,24 @@ def path(args):
     bedfile, weightsfile, fastafile = args
     # Read in the weights
     weights = {}
-    fp = open(weightsfile)
-    for row in fp:
-        mapname, w = row.split()
-        weights[mapname] = int(w)
+    if op.exists(weightsfile):
+        fp = open(weightsfile)
+        for row in fp:
+            mapname, w = row.split()
+            weights[mapname] = int(w)
+        fp.close()
 
     cc = Map(bedfile)
     mapnames = cc.mapnames
     allseqids = cc.seqids
+    default_weight = 1
+    for m in mapnames:
+        if m in weights:
+            continue
+        weights[m] = default_weight
+        logging.debug("Weight for `{0}` set to {1}.".format(m, default_weight))
 
-    pivot_weight, pivot = max((w, m) for m, w in weights.items() \
-                                 if m in mapnames)
+    pivot_weight, pivot = max((w, m) for m, w in weights.items())
     logging.debug("Pivot map: `{0}` (weight={1}).".format(pivot, pivot_weight))
     gapsize = opts.gapsize
     function = opts.distance
@@ -430,8 +446,11 @@ def path(args):
         for n, neighbors in nodes.items():
             if n.split("-")[0] == pivot:
                 continue
-            best_neighbor = max(neighbors, key=lambda x: x[-1])
-            C.join(n, best_neighbor[0])
+            neighbors = dict(neighbors)
+            best_neighbor, best_value = best_no_ambiguous(neighbors, n)
+            if best_neighbor is None:
+                continue
+            C.join(n, best_neighbor)
 
     partitions = defaultdict(list)
     # Partition the scaffolds and assign them to one consensus
@@ -441,13 +460,13 @@ def path(args):
         counts = {}
         for mlg, count in s.mlg_counts.items():
             consensus = C[mlg]
+            mapname = mlg.split("-")[0]
+            mw = weights[mapname]
             if consensus not in counts:
                 counts[consensus] = 0
-            counts[consensus] += count
-        best_assignment = max(counts.items(), key=lambda x: x[1])
-        best_consensus, best_value = best_assignment
-        if counts.values().count(best_value) > 1:  # tie
-            print >> sys.stderr, "AMBIGUOUS", seqid, counts
+            counts[consensus] += count * mw
+        best_consensus, best_value = best_no_ambiguous(counts, seqid)
+        if best_consensus is None:
             continue
         partitions[best_consensus].append(seqid)
 
@@ -455,11 +474,15 @@ def path(args):
     agpfile = bedfile.rsplit(".", 1)[0] + ".agp"
     sizes = Sizes(fastafile).mapping
     fwagp = must_open(agpfile, "w")
+    solutions = []
     for lgs, scaffolds in sorted(partitions.items()):
         print >> sys.stderr, lgs
         s = ScaffoldOO(lgs, scaffolds, cc, pivot, weights, sizes,
                        function=function)
         print >> sys.stderr, s.tour
+        solutions.append(s)
+
+    for s in sorted(solutions, key=lambda x: x.object):
         order_to_agp(s.object, s.tour, sizes, fwagp, gapsize=gapsize,
                      gaptype="map")
     fwagp.close()

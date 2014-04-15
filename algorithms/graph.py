@@ -351,12 +351,12 @@ def transitive_reduction(G):
     [(1, 2), (2, 3), (3, 4)]
     """
     H = G.copy()
-    for a, b in G.edges_iter():
+    for a, b, w in G.edges_iter(data=True):
         # Try deleting the edge, see if we still have a path
         # between the vertices
         H.remove_edge(a, b)
         if not nx.has_path(H, a, b):  # we shouldn't have deleted it
-            H.add_edge(a, b)
+            H.add_edge(a, b, w)
     return H
 
 
@@ -377,15 +377,16 @@ def longest_path_weighted_nodes(G, source, target, weights=None):
     node_to_index = dict((t, i) for i, t in enumerate(tree))
 
     nnodes = len(tree)
-    w = [weights.get(x, 1) for x in tree] if weights else [1] * nnodes
-    score, fromc = w[:], [-1] * nnodes
+    weights = [weights.get(x, 1) for x in tree] if weights else [1] * nnodes
+    score, fromc = weights[:], [-1] * nnodes
     si = node_to_index[source]
     ti = node_to_index[target]
     for a in tree[si: ti]:
         ai = node_to_index[a]
-        for b in G[a]:
+        for b, w in G[a].items():
             bi = node_to_index[b]
-            d = score[ai] + w[bi]
+            w = w.get('weight', 1)
+            d = score[ai] + weights[bi] * w  # Favor heavier edges
             if d <= score[bi]:
                 continue
             score[bi] = d  # Update longest distance so far

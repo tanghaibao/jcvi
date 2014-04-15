@@ -156,7 +156,7 @@ class ScaffoldOO (object):
         # Remove dummy nodes
         assert tour[0] == START and tour[-1] == END
         tour = tour[1:-1]
-        logging.debug("Best order contains {0} scaffolds (L={1})".\
+        logging.debug("Best order contains {0} scaffolds (Score={1})".\
                         format(len(tour), total_size))
 
         scaffolds_oo = dict(scaffolds)

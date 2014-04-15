@@ -22,29 +22,6 @@ from jcvi.graphics.glyph import BaseGlyph, plot_cap
 from jcvi.apps.base import OptionParser
 
 
-def canvas2px(coord, dmn, dpi):
-    """
-    Convert matplotlib canvas coordinate to pixels
-    """
-    return int(round(coord * dmn * dpi))
-
-
-def write_ImageMapLine(tlx, tly, brx, bry, w, h, dpi, chr, segment_start, segment_end):
-    """
-    Write out an image map area line with the coordinates passed to this
-    function
-    <area shape="rect" coords="tlx,tly,brx,bry" href="#chr7" title="chr7:100001..500001">
-    """
-    tlx, brx = [canvas2px(x, w, dpi) for x in (tlx, brx)]
-    tly, bry = [canvas2px(y, h, dpi) for y in (tly, bry)]
-    chr, bac_list = chr.split(':')
-    return '<area shape="rect" coords="' + \
-           ",".join(str(x) for x in (tlx, tly, brx, bry)) \
-           + '" href="#' + chr + '"' \
-           + ' title="' + chr + ':' + str(segment_start) + '..' + str(segment_end) + '"' \
-           + ' />'
-
-
 class Chromosome (object):
     def __init__(self, ax, x, y1, y2, width=.015, fc="k", fill=False, zorder=2):
         """
@@ -143,7 +120,7 @@ class ChromosomeMap (object):
         width, height = xend - xstart, yend - ystart
 
         y = ystart - pad
-        hc = HorizontalChromosome(root, xstart, xend, y, patch=patchstart, height=.03)
+        HorizontalChromosome(root, xstart, xend, y, patch=patchstart, height=.03)
 
         # Gauge
         lsg = "lightslategrey"
@@ -166,6 +143,63 @@ class ChromosomeMap (object):
         root.text((xstart + xend) / 2, y - .05, subtitle, ha="center", va="center", color=lsg)
 
         self.axes = fig.add_axes([xstart, ystart, width, height])
+
+
+class GeneticMap (BaseGlyph):
+
+    def __init__(self, ax, x, y1, y2, markers, tip=.008, fc="k"):
+
+        ax.plot([x, x], [y1, y2], '-', color=fc, lw=2)
+        max_chr_len = max(markers)
+        r = y2 - y1
+        ratio = r / max_chr_len
+        for m in markers:
+            yy = y2 - ratio * m
+            ax.plot((x - tip, x + tip), (yy, yy), "-", color=fc)
+
+
+class Gauge (BaseGlyph):
+
+    def __init__(self, ax, x, y1, y2, max_chr_len, step=1e6, tip=.008, fc="b"):
+
+        ax.plot([x, x], [y1, y2], '-', color=fc, lw=2)
+        extra = .006  # offset for the unit label
+        r = y2 - y1
+        yy = y2
+        gauge = int(ceil(max_chr_len / step))
+        ratio = r / max_chr_len
+        yinterval = 2 * ratio * step
+        for g in xrange(0, gauge, 2):
+            if g % 10:
+                ax.plot((x, x + tip), (yy, yy), "-", color=fc)
+            else:
+                ax.plot((x - tip, x + tip), (yy, yy), '-', color=fc, lw=2)
+                ax.text(x + tip + extra, yy, g, color="gray", va="center")
+            yy -= yinterval
+        ax.text(x, yy - .03, "Mb", color="gray", va="center")
+
+
+def canvas2px(coord, dmn, dpi):
+    """
+    Convert matplotlib canvas coordinate to pixels
+    """
+    return int(round(coord * dmn * dpi))
+
+
+def write_ImageMapLine(tlx, tly, brx, bry, w, h, dpi, chr, segment_start, segment_end):
+    """
+    Write out an image map area line with the coordinates passed to this
+    function
+    <area shape="rect" coords="tlx,tly,brx,bry" href="#chr7" title="chr7:100001..500001">
+    """
+    tlx, brx = [canvas2px(x, w, dpi) for x in (tlx, brx)]
+    tly, bry = [canvas2px(y, h, dpi) for y in (tly, bry)]
+    chr, bac_list = chr.split(':')
+    return '<area shape="rect" coords="' + \
+           ",".join(str(x) for x in (tlx, tly, brx, bry)) \
+           + '" href="#' + chr + '"' \
+           + ' title="' + chr + ':' + str(segment_start) + '..' + str(segment_end) + '"' \
+           + ' />'
 
 
 def main():
@@ -320,22 +354,8 @@ def main():
         logging.debug("Image map written to `{0}`".format(mapfh.name))
 
     if opts.gauge:
-        tip = .008  # the ticks on the gauge bar
-        extra = .006  # the offset for the unit label
         xstart, ystart = .9, .85
-        yy = ystart
-        gauge = int(ceil(max_chr_len / 1e6))
-        mb = ratio * 1e6
-        yinterval = 2 * mb
-        root.plot([xstart, xstart], [yy, yy - r], 'b-', lw=2)
-        for x in xrange(0, gauge, 2):
-            if x % 10:
-                root.plot([xstart, xstart + tip], [yy, yy], "b-")
-            else:
-                root.plot([xstart - tip, xstart + tip], [yy, yy], 'b-', lw=2)
-                root.text(xstart + tip + extra, yy, x, color="gray", va="center")
-            yy -= yinterval
-        root.text(xstart, yy - .03, "Mb", color="gray", va="center")
+        Gauge(root, xstart, ystart - r, ystart, max_chr_len)
 
     # class legends, four in a row
     xstart = .1

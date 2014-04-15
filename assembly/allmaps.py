@@ -538,7 +538,7 @@ def build(args):
 
 def plot(args):
     """
-    %prog plot lifted.bed seqid weightsfile
+    %prog plot map.bed map.lifted.bed seqid weightsfile
 
     Plot the matchings between the reconstructed pseudomolecules and the maps.
     Two types of visualizations are available in one canvas:
@@ -546,19 +546,21 @@ def plot(args):
     1. Parallel axes, and matching markers are shown in connecting lines;
     2. Scatter plot.
     """
-    from jcvi.graphics.base import plt, savefig
+    from jcvi.graphics.base import plt, savefig, normalize_axes
+    from jcvi.graphics.chromosome import Chromosome, GeneticMap
 
     p = OptionParser(plot.__doc__)
     p.add_option("--links", default=10, type="int",
                  help="Only plot matchings more than")
-    opts, args, iopts = p.set_image_options(args, figsize="8x12")
+    opts, args, iopts = p.set_image_options(args, figsize="12x8")
 
-    if len(args) != 3:
+    if len(args) != 4:
         sys.exit(not p.print_help())
 
-    bedfile, seqid, weightsfile = args
+    mbedfile, bedfile, seqid, weightsfile = args
     links = opts.links
 
+    mc = Map(mbedfile)
     cc = Map(bedfile)
     weights = Weights(weightsfile)
     allseqids = cc.seqids
@@ -569,10 +571,15 @@ def plot(args):
 
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
+    ax1 = fig.add_axes([0, 0, .5, 1])
+    ax2 = fig.add_axes([.5, 0, .5, 1])
 
-    root.set_xlim(0, 1)
-    root.set_ylim(0, 1)
-    root.set_axis_off()
+    # Parallel coordinates
+    GeneticMap(ax1, .5, .2, .8, [1, 2, 3, 4, 5, 10])
+
+    # Scatter plot
+
+    normalize_axes((ax1, ax2, root))
 
     image_name = seqid + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)

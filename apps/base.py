@@ -598,7 +598,7 @@ def is_newer_file(a, b):
 
 
 def listify(a):
-    return [a] if isinstance(a, basestring) else a
+    return a if (isinstance(a, list) or isinstance(a, tuple)) else [a]
 
 
 def need_update(a, b):

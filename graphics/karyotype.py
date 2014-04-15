@@ -162,7 +162,7 @@ class Track (object):
         y = self.y
         color = self.color
         ax = self.ax
-        xs = xstart = self.xstart
+        xstart = self.xstart
         gap = self.gap
         va = self.va
         nseqids = len(self.seqids)

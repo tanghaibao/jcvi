@@ -22,7 +22,7 @@ from matplotlib.colors import LogNorm
 from matplotlib.transforms import Affine2D
 
 from jcvi.apps.console import dark, green
-from jcvi.apps.base import glob
+from jcvi.apps.base import glob, listify
 
 
 class ImageOptions (object):
@@ -101,6 +101,14 @@ def prettyplot():
 # Code borrowed from https://github.com/olgabot/prettyplotlib (thanks)
 almost_black, blues_r, reds, blue_red, set1, set2, \
     light_grey, green_purple, red_purple = prettyplot()
+
+
+def normalize_axes(axes):
+    axes = listify(axes)
+    for ax in axes:
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+        ax.set_axis_off()
 
 
 def savefig(figname, dpi=150, iopts=None):

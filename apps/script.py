@@ -56,7 +56,7 @@ Illustrate blablabla...
 import sys
 import logging
 
-from jcvi.graphics.base import plt, savefig
+from jcvi.graphics.base import plt, savefig, normalize_axes
 from jcvi.apps.base import OptionParser, debug
 debug()
 
@@ -73,9 +73,7 @@ def main():
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
 
-    root.set_xlim(0, 1)
-    root.set_ylim(0, 1)
-    root.set_axis_off()
+    normalize_axes(root)
 
     image_name = pf + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
@@ -93,7 +91,7 @@ def main():
     create a minimal boilerplate for a new script
     """
     p = OptionParser(main.__doc__)
-    p.add_option("--graphic", default=False, action="store_true",
+    p.add_option("-g", "--graphic", default=False, action="store_true",
             help="Create boilerplate for a graphic script")
 
     opts, args = p.parse_args()

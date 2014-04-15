@@ -418,7 +418,8 @@ def path(args):
         weights[m] = default_weight
         logging.debug("Weight for `{0}` set to {1}.".format(m, default_weight))
 
-    pivot_weight, pivot = max((w, m) for m, w in weights.items())
+    pivot_weight, pivot = max((w, m) for m, w in weights.items() \
+                                if m in mapnames)
     logging.debug("Pivot map: `{0}` (weight={1}).".format(pivot, pivot_weight))
     gapsize = opts.gapsize
     function = opts.distance
@@ -471,16 +472,23 @@ def path(args):
         partitions[best_consensus].append(seqid)
 
     # Perform OO within each partition
-    agpfile = bedfile.rsplit(".", 1)[0] + ".agp"
+    pf = bedfile.rsplit(".", 1)[0]
+    agpfile = pf + ".agp"
+    tourfile = pf + ".tour"
     sizes = Sizes(fastafile).mapping
     fwagp = must_open(agpfile, "w")
+    fwtour = must_open(tourfile, "w")
     solutions = []
     for lgs, scaffolds in sorted(partitions.items()):
-        print >> sys.stderr, lgs
+        tag = "|".join(lgs)
         s = ScaffoldOO(lgs, scaffolds, cc, pivot, weights, sizes,
                        function=function)
-        print >> sys.stderr, s.tour
+
+        for fw in (sys.stderr, fwtour):
+            print >> fw, ">{0}".format(tag)
+            print >> fw, " ".join("".join(x) for x in s.tour)
         solutions.append(s)
+    fwtour.close()
 
     for s in sorted(solutions, key=lambda x: x.object):
         order_to_agp(s.object, s.tour, sizes, fwagp, gapsize=gapsize,
@@ -488,6 +496,7 @@ def path(args):
     fwagp.close()
 
     logging.debug("AGP file written to `{0}`.".format(agpfile))
+    logging.debug("Tour file written to `{0}`.".format(tourfile))
 
 
 def build(args):

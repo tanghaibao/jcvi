@@ -344,7 +344,8 @@ class Layout (object):
         parts = []
         for i in xrange(N):
             parts.append([])
-        for mlg, mlgsize in self.mlgs:
+        # LPT greedy algorithm, sort by LG size decreasing
+        for mlg, mlgsize in sorted(self.mlgs, key=lambda x: - x[-1]):
             mt, mi = min((x, i) for (i, x) in enumerate(endtime))
             endtime[mi] += mlgsize
             parts[mi].append((mlg, mlgsize))
@@ -358,13 +359,13 @@ class Layout (object):
             part_sizes.append((ps, len(p) - 1))
         max_part_size, ngaps = max(part_sizes)
         gaps = gapsize * ngaps
-        ratio = r / (max_part_size + gaps)
+        ratio = (r - gaps) / max_part_size
         self.ratio = ratio
 
         coords = {}
         for x, p, (ps, ngaps) in zip((.25, .75), self.parts, part_sizes):
             gaps = gapsize * ngaps
-            ystart = (1 + ratio * (ps + gaps)) / 2
+            ystart = (1 + ratio * ps + gaps) / 2
             for m, ms in p:
                 mlen = ratio * ms
                 coords[m] = (x, ystart - mlen, ystart)
@@ -592,7 +593,7 @@ def plot(args):
     1. Parallel axes, and matching markers are shown in connecting lines;
     2. Scatter plot.
     """
-    from jcvi.graphics.base import plt, savefig, normalize_axes
+    from jcvi.graphics.base import plt, savefig, normalize_axes, set2
     from jcvi.graphics.chromosome import Chromosome, GeneticMap
 
     p = OptionParser(plot.__doc__)
@@ -627,6 +628,7 @@ def plot(args):
 
     tip = .02
     marker_pos = {}
+    colors = dict((mlg, set2[i]) for i, (mlg, mlg_count) in enumerate(mlgs))
     # Parallel coordinates
     for mlg, (x, y1, y2) in coords.items():
         mm = mc.extract_mlg(mlg)
@@ -641,7 +643,8 @@ def plot(args):
         g = GeneticMap(ax1, x, y1, y2, markers, tip=tip, flip=flip)
         extra = -2 * tip if x < .5 else 2 * tip
         ha = "right" if x < .5 else "left"
-        ax1.text(x + extra, (y1 + y2) / 2, mlg, ha=ha, va="center", rotation=90)
+        ax1.text(x + extra, (y1 + y2) / 2, mlg, color=colors[mlg],
+                 ha=ha, va="center", rotation=90)
         marker_pos.update(g.marker_pos)
 
     # Pseudomolecules in the center
@@ -665,7 +668,7 @@ def plot(args):
         extra *= 1.2
         cx += extra
         mx -= extra
-        ax1.plot((cx, mx), (cy, my), "-", color="g")
+        ax1.plot((cx, mx), (cy, my), "-", color=colors[b.mlg])
 
     # Scatter plot
 

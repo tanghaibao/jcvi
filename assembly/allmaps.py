@@ -19,7 +19,7 @@ from jcvi.algorithms.matrix import determine_signs
 from jcvi.algorithms.formula import reject_outliers
 from jcvi.algorithms.graph import merge_paths, longest_path_weighted_nodes
 from jcvi.formats.agp import AGP, order_to_agp, build as agp_build
-from jcvi.formats.base import DictFile, must_open
+from jcvi.formats.base import DictFile, FileMerger, must_open
 from jcvi.formats.bed import Bed, BedLine, sort
 from jcvi.formats.chain import fromagp
 from jcvi.formats.sizes import Sizes
@@ -525,7 +525,7 @@ def path(args):
 
     # Perform OO within each partition
     pf = bedfile.rsplit(".", 1)[0]
-    agpfile = pf + ".agp"
+    agpfile = pf + ".chr.agp"
     tourfile = pf + ".tour"
     sizes = Sizes(fastafile).mapping
     fwagp = must_open(agpfile, "w")
@@ -551,9 +551,21 @@ def path(args):
     logging.debug("Tour file written to `{0}`.".format(tourfile))
 
 
+def write_unplaced_agp(agpfile, scaffolds, unplaced_agp):
+    agp = AGP(agpfile)
+    scaffolds_seen = set(x.component_id for x in agp)
+    sizes = Sizes(scaffolds).mapping
+    fwagp = must_open(unplaced_agp, "w")
+    for s in sorted(sizes.keys()):
+        if s in scaffolds_seen:
+            continue
+        order_to_agp(s, [(s, "?")], sizes, fwagp)
+    logging.debug("Write unplaced AGP to `{0}`.".format(unplaced_agp))
+
+
 def build(args):
     """
-    %prog build agpfile scaffolds.fasta genome.fasta map.bed
+    %prog build agpfile scaffolds.fasta map.bed
 
     Build associated genome FASTA file and CHAIN file that can be used to lift
     old coordinates to new coordinates. The CHAIN file will be used to lift the
@@ -563,16 +575,34 @@ def build(args):
     p = OptionParser(build.__doc__)
     opts, args = p.parse_args(args)
 
-    if len(args) != 4:
+    if len(args) != 3:
         sys.exit(not p.print_help())
 
-    agpfile, scaffolds, genome, mapbed = args
-    if need_update((agpfile, scaffolds), genome):
-        agp_build([agpfile, scaffolds, genome])
+    chr_agp, scaffolds, mapbed = args
+    pf = chr_agp.split(".")[0]
+    chr_fasta = pf + ".chr.fasta"
+    if need_update((chr_agp, scaffolds), chr_fasta):
+        agp_build([chr_agp, scaffolds, chr_fasta])
 
-    chainfile = agpfile.rsplit(".", 1)[0] + ".chain"
-    if need_update((agpfile, scaffolds, genome), chainfile):
-        fromagp([agpfile, scaffolds, genome])
+    unplaced_agp = pf + ".unplaced.agp"
+    if need_update((chr_agp, scaffolds), unplaced_agp):
+        write_unplaced_agp(chr_agp, scaffolds, unplaced_agp)
+
+    unplaced_fasta = pf + ".unplaced.fasta"
+    if need_update((unplaced_agp, scaffolds), unplaced_fasta):
+        agp_build([unplaced_agp, scaffolds, unplaced_fasta])
+
+    combined_agp = pf + ".agp"
+    if need_update((chr_agp, unplaced_agp), combined_agp):
+        FileMerger((chr_agp, unplaced_agp), combined_agp).merge()
+
+    combined_fasta = pf + ".fasta"
+    if need_update((chr_fasta, unplaced_fasta), combined_fasta):
+        FileMerger((chr_fasta, unplaced_fasta), combined_fasta).merge()
+
+    chainfile = pf + ".chain"
+    if need_update((combined_agp, scaffolds, combined_fasta), chainfile):
+        fromagp([combined_agp, scaffolds, combined_fasta])
 
     liftedbed = mapbed.rsplit(".", 1)[0] + ".lifted.bed"
     if need_update((mapbed, chainfile), liftedbed):
@@ -585,7 +615,7 @@ def build(args):
 
 def plot(args):
     """
-    %prog plot map.bed map.lifted.bed seqid agpfile weightsfile
+    %prog plot seqid map.lifted.bed agpfile weightsfile
 
     Plot the matchings between the reconstructed pseudomolecules and the maps.
     Two types of visualizations are available in one canvas:
@@ -602,13 +632,12 @@ def plot(args):
                  help="Only plot matchings more than")
     opts, args, iopts = p.set_image_options(args, figsize="10x6")
 
-    if len(args) != 5:
+    if len(args) != 4:
         sys.exit(not p.print_help())
 
-    mbedfile, bedfile, seqid, agpfile, weightsfile = args
+    seqid, bedfile, agpfile, weightsfile = args
     links = opts.links
 
-    mc = Map(mbedfile)
     cc = Map(bedfile)
     allseqids = cc.seqids
     mapnames = cc.mapnames
@@ -619,7 +648,7 @@ def plot(args):
     mlgs = [k for k, v in s.mlg_counts.items() if v >= links]
     mlgsizes = {}
     for mlg in mlgs:
-        mm = mc.extract_mlg(mlg)
+        mm = cc.extract_mlg(mlg)
         mlgsize = max(x.cm for x in mm)
         mlgsizes[mlg] = mlgsize
 
@@ -640,10 +669,8 @@ def plot(args):
     colors = dict((mlg, colors[mlg.split("-")[0]]) for mlg in mlgs)
     # Parallel coordinates
     for mlg, (x, y1, y2) in coords.items():
-        mm = mc.extract_mlg(mlg)
-        markers = [(m.accn, m.cm) for m in mm]  # exhaustive marker list
-
         mm = cc.extract_mlg(mlg)
+        markers = [(m.accn, m.cm) for m in mm]  # exhaustive marker list
         xy = [(m.pos, m.cm) for m in mm if m.seqid == seqid]
         mx, my = zip(*xy)
         rho, p_value = spearmanr(mx, my)

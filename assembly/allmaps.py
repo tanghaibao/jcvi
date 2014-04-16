@@ -19,7 +19,7 @@ from jcvi.algorithms.matrix import determine_signs
 from jcvi.algorithms.formula import reject_outliers
 from jcvi.algorithms.graph import merge_paths, longest_path_weighted_nodes
 from jcvi.formats.agp import AGP, order_to_agp, build as agp_build
-from jcvi.formats.base import LineFile, DictFile, must_open
+from jcvi.formats.base import DictFile, must_open
 from jcvi.formats.bed import Bed, BedLine, sort
 from jcvi.formats.chain import fromagp
 from jcvi.formats.sizes import Sizes
@@ -247,10 +247,9 @@ class Marker (object):
     __repr__ = __str__
 
 
-class Map (LineFile):
+class Map (list):
 
     def __init__(self, filename):
-        super(Map, self).__init__(filename)
         bed = Bed(filename)
         for b in bed:
             self.append(Marker(b))
@@ -595,7 +594,8 @@ def plot(args):
     2. Scatter plot.
     """
     from jcvi.graphics.base import plt, savefig, normalize_axes, set2
-    from jcvi.graphics.chromosome import Chromosome, GeneticMap
+    from jcvi.graphics.chromosome import Chromosome, GeneticMap, \
+                HorizontalChromosome
 
     p = OptionParser(plot.__doc__)
     p.add_option("--links", default=10, type="int",
@@ -636,7 +636,8 @@ def plot(args):
     tip = .02
     marker_pos = {}
     # Palette
-    colors = dict((mlg, set2[i]) for i, mlg in enumerate(mlgs))
+    colors = dict((mapname, set2[i]) for i, mapname in enumerate(mapnames))
+    colors = dict((mlg, colors[mlg.split("-")[0]]) for mlg in mlgs)
     # Parallel coordinates
     for mlg, (x, y1, y2) in coords.items():
         mm = mc.extract_mlg(mlg)
@@ -659,17 +660,19 @@ def plot(args):
 
     agp = AGP(agpfile)
     agp = [x for x in agp if x.object == seqid]
-    chr_size = max(x.object_end for x in agp)
+    chrsize = max(x.object_end for x in agp)
 
     # Pseudomolecules in the center
-    ratio = (ystart - ystop) / chr_size
+    r = ystart - ystop
+    ratio = r / chrsize
     f = lambda x: (ystart - ratio * x)
     patchstart = [f(x.object_beg) for x in agp if not x.is_gap]
     Chromosome(ax1, .5, ystart, ystop, width=2 * tip, patch=patchstart, lw=2)
 
-    label = "{0} ({1})".format(seqid, human_size(chr_size, precision=0))
+    label = "{0} ({1})".format(seqid, human_size(chrsize, precision=0))
     ax1.text(.5, ystart + tip, label, ha="center")
 
+    scatter_data = defaultdict(list)
     # Connecting lines
     for b in s.markers:
         marker_name = b.accn
@@ -682,15 +685,39 @@ def plot(args):
         my = marker_pos[marker_name]
 
         extra = -tip if mx < cx else tip
-        extra *= 1.2
+        extra *= 1.2  # leave boundaries for aesthetic reasons
         cx += extra
         mx -= extra
         ax1.plot((cx, mx), (cy, my), "-", color=colors[b.mlg])
+        scatter_data[b.mlg].append((b.pos, b.cm))
 
-    # Scatter plot
+    # Scatter plot, same data as parallel coordinates
+    xstart, xstop = sorted((ystart, ystop))
+    f = lambda x: (xstart + ratio * x)
+    patchstart = [f(x.object_beg) for x in agp if not x.is_gap]
+    HorizontalChromosome(ax2, xstart, xstop, ystop,
+                         height=2 * tip, patch=patchstart, lw=2)
+
+    gap = .03
+    ratio = (r - gap * len(mlgs) - tip) / sum(mlgsizes.values())
+
+    for mlg, mlgsize in sorted(mlgsizes.items(), key=lambda x: - x[-1]):
+        height = ratio * mlgsize
+        ystart -= height
+        xx = .5 + xstart / 2
+        width = r / 2
+        color = colors[mlg]
+        ax = fig.add_axes([xx, ystart, width, height])
+        ystart -= gap
+        sd = scatter_data[mlg]
+        xx, yy = zip(*sd)
+        ax.plot(xx, yy, ".", color=color)
+        ax.set_xlim(0, chrsize)
+        ax.set_ylim(0, mlgsize)
+        ax.set_xticks([])
+        ax.set_ylabel(mlg, color=color)
 
     normalize_axes((ax1, ax2, root))
-
     image_name = seqid + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 

@@ -183,7 +183,9 @@ class GeneticMap (BaseGlyph):
             marker_pos[marker_name] = yy
         self.marker_pos = marker_pos
 
-        for yy, cm, va in ((y2, 0, "bottom"), (y1, max_chr_len, "top")):
+        end_cm_labels = ((y2, max_chr_len, "bottom"), (y1, 0, "top")) if flip \
+                        else ((y2, 0, "bottom"), (y1, max_chr_len, "top"))
+        for yy, cm, va in end_cm_labels:
             label = "{0} {1}".format(int(cm), unit)
             ax.text(x, yy, label, color="gray", va=va, ha="center")
 

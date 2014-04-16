@@ -168,8 +168,9 @@ class ChromosomeMap (object):
 
 class GeneticMap (BaseGlyph):
 
-    def __init__(self, ax, x, y1, y2, markers, tip=.008, fc="k", flip=False):
-
+    def __init__(self, ax, x, y1, y2, markers, unit="cM",
+                 tip=.008, fc="k", flip=False):
+        # tip = length of the ticks
         y1, y2 = sorted((y1, y2))
         ax.plot([x, x], [y1, y2], '-', color=fc, lw=2)
         max_marker_name, max_chr_len = max(markers, key=lambda x: x[-1])
@@ -182,13 +183,18 @@ class GeneticMap (BaseGlyph):
             marker_pos[marker_name] = yy
         self.marker_pos = marker_pos
 
+        for yy, cm, va in ((y2, 0, "bottom"), (y1, max_chr_len, "top")):
+            label = "{0} {1}".format(int(cm), unit)
+            ax.text(x, yy, label, color="gray", va=va, ha="center")
+
 
 class Gauge (BaseGlyph):
 
-    def __init__(self, ax, x, y1, y2, max_chr_len, step=1e6, tip=.008, fc="b"):
-
+    def __init__(self, ax, x, y1, y2, max_chr_len, step=1e6,
+                 tip=.008, extra=.006, fc="b"):
+        # tip = length of the ticks
+        # extra = offset for the unit label
         ax.plot([x, x], [y1, y2], '-', color=fc, lw=2)
-        extra = .006  # offset for the unit label
         r = y2 - y1
         yy = y2
         gauge = int(ceil(max_chr_len / step))

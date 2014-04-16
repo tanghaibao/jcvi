@@ -334,9 +334,9 @@ class Weights (DictFile):
 
 class Layout (object):
 
-    def __init__(self, mlgs):
+    def __init__(self, mlgsizes):
 
-        self.mlgs = mlgs
+        self.mlgsizes = mlgsizes
         self.partition()
         self.calculate_coords()
 
@@ -347,7 +347,7 @@ class Layout (object):
         for i in xrange(N):
             parts.append([])
         # LPT greedy algorithm, sort by LG size decreasing
-        for mlg, mlgsize in sorted(self.mlgs, key=lambda x: - x[-1]):
+        for mlg, mlgsize in sorted(self.mlgsizes.items(), key=lambda x: - x[-1]):
             mt, mi = min((x, i) for (i, x) in enumerate(endtime))
             endtime[mi] += mlgsize
             parts[mi].append((mlg, mlgsize))
@@ -600,7 +600,7 @@ def plot(args):
     p = OptionParser(plot.__doc__)
     p.add_option("--links", default=10, type="int",
                  help="Only plot matchings more than")
-    opts, args, iopts = p.set_image_options(args, figsize="12x8")
+    opts, args, iopts = p.set_image_options(args, figsize="10x6")
 
     if len(args) != 5:
         sys.exit(not p.print_help())
@@ -616,7 +616,12 @@ def plot(args):
     assert seqid in allseqids, "{0} not in {1}".format(seqid, allseqids)
 
     s = Scaffold(seqid, cc)
-    mlgs = [(k, v) for k, v in s.mlg_counts.items() if v >= links]
+    mlgs = [k for k, v in s.mlg_counts.items() if v >= links]
+    mlgsizes = {}
+    for mlg in mlgs:
+        mm = mc.extract_mlg(mlg)
+        mlgsize = max(x.cm for x in mm)
+        mlgsizes[mlg] = mlgsize
 
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
@@ -625,12 +630,13 @@ def plot(args):
 
     # Find the layout first
     ystart, ystop = .9, .1
-    L = Layout(mlgs)
+    L = Layout(mlgsizes)
     coords = L.coords
 
     tip = .02
     marker_pos = {}
-    colors = dict((mlg, set2[i]) for i, (mlg, mlg_count) in enumerate(mlgs))
+    # Palette
+    colors = dict((mlg, set2[i]) for i, mlg in enumerate(mlgs))
     # Parallel coordinates
     for mlg, (x, y1, y2) in coords.items():
         mm = mc.extract_mlg(mlg)

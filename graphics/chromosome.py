@@ -29,6 +29,7 @@ class Chromosome (BaseGlyph):
         """
         Chromosome with positions given in (x, y1) => (x, y2)
         """
+        y1, y2 = sorted((y1, y2))
         super(Chromosome, self).__init__(ax)
         pts = self.get_pts(x, y1, y2, width)
         self.append(Polygon(pts, fill=False, lw=lw, ec=ec, zorder=zorder))
@@ -58,6 +59,7 @@ class HorizontalChromosome (BaseGlyph):
         The chromosome can also be patched, e.g. to show scaffold composition in
         alternating shades. Use a list of starting locations to segment.
         """
+        x1, x2 = sorted((x1, x2))
         super(HorizontalChromosome, self).__init__(ax)
         pts = self.get_pts(x1, x2, y, height)
         r = self.r
@@ -160,15 +162,19 @@ class ChromosomeMap (object):
 
 class GeneticMap (BaseGlyph):
 
-    def __init__(self, ax, x, y1, y2, markers, tip=.008, fc="k"):
+    def __init__(self, ax, x, y1, y2, markers, tip=.008, fc="k", flip=False):
 
+        y1, y2 = sorted((y1, y2))
         ax.plot([x, x], [y1, y2], '-', color=fc, lw=2)
-        max_chr_len = max(markers)
+        max_marker_name, max_chr_len = max(markers, key=lambda x: x[-1])
         r = y2 - y1
         ratio = r / max_chr_len
-        for m in markers:
-            yy = y2 - ratio * m
+        marker_pos = {}
+        for marker_name, cm in markers:
+            yy = (y1 + ratio * cm) if flip else (y2 - ratio * cm)
             ax.plot((x - tip, x + tip), (yy, yy), "-", color=fc)
+            marker_pos[marker_name] = yy
+        self.marker_pos = marker_pos
 
 
 class Gauge (BaseGlyph):

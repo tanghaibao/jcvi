@@ -267,7 +267,6 @@ class Map (LineFile):
 
     def extract_mlg(self, mlg):
         r = [x for x in self if x.mlg == mlg]
-        r.sort(key=lambda x: x.cm)
         return r
 
     def compute_ranks(self):
@@ -342,7 +341,9 @@ class Layout (object):
     def partition(self, N=2):
         # Partition LGs into two sides with approximately similar sum of sizes
         endtime = [0] * N
-        parts = [[]] * N
+        parts = []
+        for i in xrange(N):
+            parts.append([])
         for mlg, mlgsize in self.mlgs:
             mt, mi = min((x, i) for (i, x) in enumerate(endtime))
             endtime[mi] += mlgsize
@@ -620,16 +621,51 @@ def plot(args):
     ax2 = fig.add_axes([.5, 0, .5, 1])
 
     # Find the layout first
+    ystart, ystop = .9, .1
     L = Layout(mlgs)
     coords = L.coords
 
+    tip = .02
+    marker_pos = {}
     # Parallel coordinates
     for mlg, (x, y1, y2) in coords.items():
-        markers = [m.cm for m in mc.extract_mlg(mlg)]
-        GeneticMap(ax1, x, y1, y2, markers, tip=.015)
+        mm = mc.extract_mlg(mlg)
+        markers = [(m.accn, m.cm) for m in mm]  # exhaustive marker list
+
+        mm = cc.extract_mlg(mlg)
+        xy = [(m.pos, m.cm) for m in mm if m.seqid == seqid]
+        mx, my = zip(*xy)
+        rho, p_value = spearmanr(mx, my)
+        flip = rho < 0
+
+        g = GeneticMap(ax1, x, y1, y2, markers, tip=tip, flip=flip)
+        extra = -2 * tip if x < .5 else 2 * tip
+        ha = "right" if x < .5 else "left"
+        ax1.text(x + extra, (y1 + y2) / 2, mlg, ha=ha, va="center", rotation=90)
+        marker_pos.update(g.marker_pos)
 
     # Pseudomolecules in the center
-    Chromosome(ax1, .5, .1, .9, width=.03)
+    Chromosome(ax1, .5, ystart, ystop, width=2 * tip, lw=2)
+    ax1.text(.5, ystart + tip, seqid, ha="center")
+    chr_size = max(x.pos for x in s.markers)
+    ratio = (ystart - ystop) / chr_size
+
+    # Connecting lines
+    for b in s.markers:
+        marker_name = b.accn
+        if marker_name not in marker_pos:
+            continue
+
+        cx = .5
+        cy = ystart - ratio * b.pos
+        mx = coords[b.mlg][0]
+        my = marker_pos[marker_name]
+
+        extra = -tip if mx < cx else tip
+        extra *= 1.2
+        cx += extra
+        mx -= extra
+        ax1.plot((cx, mx), (cy, my), "-", color="g")
 
     # Scatter plot
 

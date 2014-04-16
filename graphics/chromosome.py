@@ -22,21 +22,34 @@ from jcvi.graphics.glyph import BaseGlyph, plot_cap
 from jcvi.apps.base import OptionParser
 
 
-class Chromosome (object):
-    def __init__(self, ax, x, y1, y2, width=.015, fc="k", fill=False, zorder=2):
+class Chromosome (BaseGlyph):
+
+    def __init__(self, ax, x, y1, y2, width=.015, ec="k", patch=None,
+                 lw=1, fc="k", zorder=2):
         """
         Chromosome with positions given in (x, y1) => (x, y2)
         """
+        super(Chromosome, self).__init__(ax)
+        pts = self.get_pts(x, y1, y2, width)
+        self.append(Polygon(pts, fill=False, lw=lw, ec=ec, zorder=zorder))
+
+        self.add_patches()
+
+    def get_pts(self, x, y1, y2, width):
+        w = width / 2
+        self.r = r = width / (3 ** .5)
+
         pts = []
-        r = width * .5
-        pts += plot_cap((x, y1 - r), np.radians(range(180)), r)
-        pts += [[x - r, y1 - r], [x - r, y2 + r]]
-        pts += plot_cap((x, y2 + r), np.radians(range(180, 360)), r)
-        pts += [[x + r, y2 + r], [x + r, y1 - r]]
-        ax.add_patch(Polygon(pts, fc=fc, fill=fill, zorder=zorder))
+        pts += plot_cap((x, y1 + r), np.radians(range(210, 330)), r)
+        pts += [[x + w, y1 + r / 2], [x + w, y2 - r / 2]]
+        pts += plot_cap((x, y2 - r), np.radians(range(30, 150)), r)
+        pts += [[x - w, y2 - r / 2], [x - w, y1 + r / 2]]
+
+        return pts
 
 
 class HorizontalChromosome (BaseGlyph):
+
     def __init__(self, ax, x1, x2, y, height=.015, ec="k", patch=None,
                  lw=1, fc=None, zorder=2, roundrect=False):
         """

@@ -265,6 +265,11 @@ class Map (LineFile):
         r.sort(key=lambda x: x.pos)
         return r
 
+    def extract_mlg(self, mlg):
+        r = [x for x in self if x.mlg == mlg]
+        r.sort(key=lambda x: x.cm)
+        return r
+
     def compute_ranks(self):
         ranks = {}  # Store the length for each linkage group
         for mlg in self.mlg:
@@ -310,7 +315,7 @@ class Map (LineFile):
         return sorted(set(x.mlg for x in self))
 
 
-class Weights(DictFile):
+class Weights (DictFile):
 
     def __init__(self, filename, cast=int):
         super(Weights, self).__init__(filename, cast=cast)
@@ -324,6 +329,46 @@ class Weights(DictFile):
 
     def get_pivot(self, mapnames):
         return max((w, m) for m, w in self.items() if m in mapnames)
+
+
+class Layout (object):
+
+    def __init__(self, mlgs):
+
+        self.mlgs = mlgs
+        self.partition()
+        self.calculate_coords()
+
+    def partition(self, N=2):
+        # Partition LGs into two sides with approximately similar sum of sizes
+        endtime = [0] * N
+        parts = [[]] * N
+        for mlg, mlgsize in self.mlgs:
+            mt, mi = min((x, i) for (i, x) in enumerate(endtime))
+            endtime[mi] += mlgsize
+            parts[mi].append((mlg, mlgsize))
+        self.parts = parts
+
+    def calculate_coords(self, r=.8, gapsize=.1):
+        # Find the larger partition
+        part_sizes = []
+        for p in self.parts:
+            ps = sum(ms for m, ms in p)
+            part_sizes.append((ps, len(p) - 1))
+        max_part_size, ngaps = max(part_sizes)
+        gaps = gapsize * ngaps
+        ratio = r / (max_part_size + gaps)
+        self.ratio = ratio
+
+        coords = {}
+        for x, p, (ps, ngaps) in zip((.25, .75), self.parts, part_sizes):
+            gaps = gapsize * ngaps
+            ystart = (1 + ratio * (ps + gaps)) / 2
+            for m, ms in p:
+                mlen = ratio * ms
+                coords[m] = (x, ystart - mlen, ystart)
+                ystart -= mlen + gapsize
+        self.coords = coords
 
 
 def main():
@@ -567,15 +612,24 @@ def plot(args):
     assert seqid in allseqids, "{0} not in {1}".format(seqid, allseqids)
 
     s = Scaffold(seqid, cc)
-    mlgs = [k for k, v in s.mlg_counts.items() if v >= links]
+    mlgs = [(k, v) for k, v in s.mlg_counts.items() if v >= links]
 
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
     ax1 = fig.add_axes([0, 0, .5, 1])
     ax2 = fig.add_axes([.5, 0, .5, 1])
 
+    # Find the layout first
+    L = Layout(mlgs)
+    coords = L.coords
+
     # Parallel coordinates
-    GeneticMap(ax1, .5, .2, .8, [1, 2, 3, 4, 5, 10])
+    for mlg, (x, y1, y2) in coords.items():
+        markers = [m.cm for m in mc.extract_mlg(mlg)]
+        GeneticMap(ax1, x, y1, y2, markers, tip=.015)
+
+    # Pseudomolecules in the center
+    Chromosome(ax1, .5, .1, .9, width=.03)
 
     # Scatter plot
 

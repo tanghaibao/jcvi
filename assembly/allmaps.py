@@ -18,13 +18,14 @@ from scipy.stats import spearmanr
 from jcvi.algorithms.matrix import determine_signs
 from jcvi.algorithms.formula import reject_outliers
 from jcvi.algorithms.graph import merge_paths, longest_path_weighted_nodes
-from jcvi.formats.agp import order_to_agp, build as agp_build
+from jcvi.formats.agp import AGP, order_to_agp, build as agp_build
 from jcvi.formats.base import LineFile, DictFile, must_open
 from jcvi.formats.bed import Bed, BedLine, sort
 from jcvi.formats.chain import fromagp
 from jcvi.formats.sizes import Sizes
 from jcvi.utils.grouper import Grouper
 from jcvi.utils.counter import Counter
+from jcvi.utils.cbook import human_size
 from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh, \
             need_update
 debug()
@@ -316,8 +317,9 @@ class Map (LineFile):
 
 class Weights (DictFile):
 
-    def __init__(self, filename, cast=int):
+    def __init__(self, filename, mapnames, cast=int):
         super(Weights, self).__init__(filename, cast=cast)
+        self.update_maps(mapnames)
 
     def update_maps(self, mapnames, default=1):
         for m in mapnames:
@@ -464,12 +466,11 @@ def path(args):
         sys.exit(not p.print_help())
 
     bedfile, weightsfile, fastafile = args
-    weights = Weights(weightsfile)
 
     cc = Map(bedfile)
     mapnames = cc.mapnames
     allseqids = cc.seqids
-    weights.update_maps(mapnames)
+    weights = Weights(weightsfile, mapnames)
     pivot_weight, pivot = weights.get_pivot(mapnames)
 
     logging.debug("Pivot map: `{0}` (weight={1}).".format(pivot, pivot_weight))
@@ -585,7 +586,7 @@ def build(args):
 
 def plot(args):
     """
-    %prog plot map.bed map.lifted.bed seqid weightsfile
+    %prog plot map.bed map.lifted.bed seqid agpfile weightsfile
 
     Plot the matchings between the reconstructed pseudomolecules and the maps.
     Two types of visualizations are available in one canvas:
@@ -601,16 +602,17 @@ def plot(args):
                  help="Only plot matchings more than")
     opts, args, iopts = p.set_image_options(args, figsize="12x8")
 
-    if len(args) != 4:
+    if len(args) != 5:
         sys.exit(not p.print_help())
 
-    mbedfile, bedfile, seqid, weightsfile = args
+    mbedfile, bedfile, seqid, agpfile, weightsfile = args
     links = opts.links
 
     mc = Map(mbedfile)
     cc = Map(bedfile)
-    weights = Weights(weightsfile)
     allseqids = cc.seqids
+    mapnames = cc.mapnames
+    weights = Weights(weightsfile, mapnames)
     assert seqid in allseqids, "{0} not in {1}".format(seqid, allseqids)
 
     s = Scaffold(seqid, cc)
@@ -643,15 +645,24 @@ def plot(args):
         g = GeneticMap(ax1, x, y1, y2, markers, tip=tip, flip=flip)
         extra = -2 * tip if x < .5 else 2 * tip
         ha = "right" if x < .5 else "left"
-        ax1.text(x + extra, (y1 + y2) / 2, mlg, color=colors[mlg],
+        mapname = mlg.split("-")[0]
+        label = "{0} (weight={1})".format(mlg, weights[mapname])
+        ax1.text(x + extra, (y1 + y2) / 2, label, color=colors[mlg],
                  ha=ha, va="center", rotation=90)
         marker_pos.update(g.marker_pos)
 
+    agp = AGP(agpfile)
+    agp = [x for x in agp if x.object == seqid]
+    chr_size = max(x.object_end for x in agp)
+
     # Pseudomolecules in the center
-    Chromosome(ax1, .5, ystart, ystop, width=2 * tip, lw=2)
-    ax1.text(.5, ystart + tip, seqid, ha="center")
-    chr_size = max(x.pos for x in s.markers)
     ratio = (ystart - ystop) / chr_size
+    f = lambda x: (ystart - ratio * x)
+    patchstart = [f(x.object_beg) for x in agp if not x.is_gap]
+    Chromosome(ax1, .5, ystart, ystop, width=2 * tip, patch=patchstart, lw=2)
+
+    label = "{0} ({1})".format(seqid, human_size(chr_size, precision=0))
+    ax1.text(.5, ystart + tip, label, ha="center")
 
     # Connecting lines
     for b in s.markers:
@@ -660,7 +671,7 @@ def plot(args):
             continue
 
         cx = .5
-        cy = ystart - ratio * b.pos
+        cy = f(b.pos)
         mx = coords[b.mlg][0]
         my = marker_pos[marker_name]
 

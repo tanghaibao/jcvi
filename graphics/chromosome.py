@@ -28,17 +28,27 @@ class Chromosome (BaseGlyph):
                  lw=1, fc="k", zorder=2):
         """
         Chromosome with positions given in (x, y1) => (x, y2)
+
+        The chromosome can also be patched, e.g. to show scaffold composition in
+        alternating shades. Use a list of starting locations to segment.
         """
         y1, y2 = sorted((y1, y2))
         super(Chromosome, self).__init__(ax)
-        pts = self.get_pts(x, y1, y2, width)
+        pts, r = self.get_pts(x, y1, y2, width)
         self.append(Polygon(pts, fill=False, lw=lw, ec=ec, zorder=zorder))
+        if patch:
+            for i in xrange(0, len(patch), 2):
+                if i + 1 > len(patch) - 1:
+                    continue
+                p1, p2 = patch[i], patch[i + 1]
+                self.append(Rectangle((x - r, p1), 2 * r, p2 - p1, lw=0,
+                             fc="lightgrey"))
 
         self.add_patches()
 
     def get_pts(self, x, y1, y2, width):
         w = width / 2
-        self.r = r = width / (3 ** .5)
+        r = width / (3 ** .5)
 
         pts = []
         pts += plot_cap((x, y1 + r), np.radians(range(210, 330)), r)
@@ -46,7 +56,7 @@ class Chromosome (BaseGlyph):
         pts += plot_cap((x, y2 - r), np.radians(range(30, 150)), r)
         pts += [[x - w, y2 - r / 2], [x - w, y1 + r / 2]]
 
-        return pts
+        return pts, r
 
 
 class HorizontalChromosome (BaseGlyph):
@@ -54,15 +64,11 @@ class HorizontalChromosome (BaseGlyph):
     def __init__(self, ax, x1, x2, y, height=.015, ec="k", patch=None,
                  lw=1, fc=None, zorder=2, roundrect=False):
         """
-        Chromosome with positions given in (x1, y) => (x2, y)
-
-        The chromosome can also be patched, e.g. to show scaffold composition in
-        alternating shades. Use a list of starting locations to segment.
+        Horizontal version of the Chromosome glyph above.
         """
         x1, x2 = sorted((x1, x2))
         super(HorizontalChromosome, self).__init__(ax)
-        pts = self.get_pts(x1, x2, y, height)
-        r = self.r
+        pts, r = self.get_pts(x1, x2, y, height)
         if roundrect:
             RoundRect(ax, (x1, y - height * .5), x2 - x1, height, fill=False,
                       lw=lw, ec=ec, zorder=zorder)
@@ -88,7 +94,7 @@ class HorizontalChromosome (BaseGlyph):
 
     def get_pts(self, x1, x2, y, height):
         h = height / 2
-        self.r = r = height / (3 ** .5)
+        r = height / (3 ** .5)
 
         if x2 - x1 < 2 * height:  # rectangle for small chromosomes
             return [[x1, y + h], [x1, y - h], [x2, y - h], [x2, y + h]]
@@ -99,7 +105,7 @@ class HorizontalChromosome (BaseGlyph):
         pts += plot_cap((x2 - r, y), np.radians(range(-60, 60)), r)
         pts += [[x2 - r / 2, y + h], [x1 + r / 2, y + h]]
 
-        return pts
+        return pts, r
 
 
 class ChromosomeWithCentromere (object):

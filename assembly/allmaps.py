@@ -351,6 +351,7 @@ class Weights (DictFile):
 
     def __init__(self, filename, mapnames, cast=int):
         super(Weights, self).__init__(filename, cast=cast)
+        self.maps = [x.split()[0] for x in must_open(filename)]
         self.update_maps(mapnames)
 
     def update_maps(self, mapnames, default=1):
@@ -361,7 +362,9 @@ class Weights (DictFile):
             logging.debug("Weight for `{0}` set to {1}.".format(m, default))
 
     def get_pivot(self, mapnames):
-        return max((w, m) for m, w in self.items() if m in mapnames)
+        # Break ties by occurence in file
+        return max((w, -self.maps.index(m), m) \
+                    for m, w in self.items() if m in mapnames)
 
 
 class Layout (object):
@@ -509,7 +512,7 @@ def path(args):
     mapnames = cc.mapnames
     allseqids = cc.seqids
     weights = Weights(weightsfile, mapnames)
-    pivot_weight, pivot = weights.get_pivot(mapnames)
+    pivot_weight, o, pivot = weights.get_pivot(mapnames)
 
     logging.debug("Pivot map: `{0}` (weight={1}).".format(pivot, pivot_weight))
     function = (lambda x: x.cm) if function == "cM" else \

@@ -23,7 +23,7 @@
 
 import urlparse
 
-from collections import Callable
+from collections import Callable, defaultdict
 from UserDict import DictMixin
 
 

@@ -15,17 +15,18 @@ from itertools import combinations
 from collections import defaultdict
 from scipy.stats import spearmanr
 
-from jcvi.algorithms.matrix import determine_signs
 from jcvi.algorithms.formula import reject_outliers
 from jcvi.algorithms.graph import merge_paths, longest_path_weighted_nodes
+from jcvi.algorithms.lis import longest_monotonous_subseq_length
+from jcvi.algorithms.matrix import determine_signs
 from jcvi.formats.agp import AGP, order_to_agp, build as agp_build
 from jcvi.formats.base import DictFile, FileMerger, must_open
 from jcvi.formats.bed import Bed, BedLine, sort
 from jcvi.formats.chain import fromagp
 from jcvi.formats.sizes import Sizes
-from jcvi.utils.grouper import Grouper
-from jcvi.utils.counter import Counter
 from jcvi.utils.cbook import human_size
+from jcvi.utils.counter import Counter
+from jcvi.utils.grouper import Grouper
 from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh, \
             need_update
 debug()
@@ -166,6 +167,22 @@ class ScaffoldOO (object):
         tour = [(x, recode[scaffolds_oo[x]]) for x in tour]
         return tour
 
+    def get_orientation(self, si, sj):
+        '''
+        si, sj are two number series. To compute whether these two series have
+        same orientation or not. We combine them in the two orientation
+        configurations and compute length of the longest monotonous series.
+        '''
+        if not si or not sj:
+            return 0
+        # Same orientation configuration
+        a = longest_monotonous_subseq_length(si + sj)
+        b = longest_monotonous_subseq_length(sj + si)
+        # Opposite orientation configuration
+        c = longest_monotonous_subseq_length(si + sj[::-1])
+        d = longest_monotonous_subseq_length(sj[::-1] + si)
+        return max(a, b)[0] - max(c, d)[0]
+
     def assign_orientation(self, scaffolds, pivot, weights):
         bins = self.bins
         f = self.function
@@ -174,26 +191,28 @@ class ScaffoldOO (object):
             mapname = lg.split("-")[0]
             oo = []
             nmarkers = {}
+            series = []
             for s in scaffolds:
                 xs = bins.get((lg, s), [])
                 nmarkers[s] = len(xs)
                 if not xs:
+                    series.append([])
                     oo.append(0)
                     continue
                 physical_to_cm = [(x.pos, f(x)) for x in xs]
                 rho = self.get_rho(physical_to_cm)
                 oo.append(rho)
+                series.append([f(x) for x in xs])
 
             if mapname == pivot:
                 pivot_oo = oo
 
             for i, j in combinations(range(len(scaffolds)), 2):
-                si, sj = scaffolds[i], scaffolds[j]
-                ni, nj = nmarkers[si], nmarkers[sj]
-                orientation = oo[i] * oo[j]
-                if not orientation:
+                si, sj = series[i], series[j]
+                d = self.get_orientation(si, sj)
+
+                if not d:
                     continue
-                d = np.sign(orientation) * ni * nj
                 signs[(i, j)].append((d, mapname))
 
         for e, v in signs.items():

@@ -27,6 +27,22 @@ def patience_sort(xs):
         yield x, pile
 
 
+def longest_monotonous_subseq_length(xs):
+    '''Return the length of the longest monotonous subsequence of xs, second
+    return value is the difference between increasing and decreasing lengths.
+
+    >>> longest_monotonous_subseq_length((4, 5, 1, 2, 3))
+    (3, 1)
+    >>> longest_monotonous_subseq_length((1, 2, 3, 5, 4))
+    (4, 2)
+    >>> longest_monotonous_subseq_length((1, 2, 1))
+    (2, 0)
+    '''
+    li = longest_increasing_subseq_length(xs)
+    ld = longest_decreasing_subseq_length(xs)
+    return max(li, ld), li - ld
+
+
 def longest_increasing_subseq_length(xs):
     '''Return the length of the longest increasing subsequence of xs.
 
@@ -36,6 +52,10 @@ def longest_increasing_subseq_length(xs):
     2
     '''
     return 1 + maximum((pile for x, pile in patience_sort(xs)), -1)
+
+
+def longest_decreasing_subseq_length(xs):
+    return longest_increasing_subseq_length(reversed(xs))
 
 
 def longest_increasing_subsequence(xs):

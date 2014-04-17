@@ -380,7 +380,8 @@ def main():
         ('merge', 'merge csv maps and convert to bed format'),
         ('path', 'construct golden path given a set of genetic maps'),
         ('build', 'build associated FASTA and CHAIN file'),
-        ('plot', 'plot matchings between golden path and maps'),
+        ('plot', 'plot matches between goldenpath and maps for single object'),
+        ('plotall', 'plot matches between goldenpath and maps for all objects'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -747,6 +748,30 @@ def plot(args):
     normalize_axes((ax1, ax2, root))
     image_name = seqid + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
+    plt.close(fig)
+
+
+def plotall(args):
+    """
+    %prog plot map.lifted.bed agpfile weightsfile
+
+    Plot the matchings between the reconstructed pseudomolecules and the maps.
+    This command will plot each reconstructed object (non-singleton).
+    """
+    p = OptionParser(plotall.__doc__)
+    p.add_option("--links", default=10, type="int",
+                 help="Only plot matchings more than")
+    opts, args, iopts = p.set_image_options(args, figsize="10x6")
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    mapsbed, agpfile, weightsfile = args
+    agp = AGP(agpfile)
+    objects = [ob for ob, lines in agp.iter_object() if len(lines) > 1]
+    for seqid in sorted(objects):
+        plot([seqid, mapsbed, agpfile, weightsfile,
+              "--links={0}".format(opts.links)])
 
 
 if __name__ == '__main__':

@@ -544,7 +544,9 @@ def path(args):
     fwtour.close()
 
     for s in sorted(solutions, key=lambda x: x.object):
-        order_to_agp(s.object, s.tour, sizes, fwagp, gapsize=gapsize,
+        m, lg = s.object.rsplit("-", 1)
+        object = "chr{0}".format(lg)
+        order_to_agp(object, s.tour, sizes, fwagp, gapsize=gapsize,
                      gaptype="map")
     fwagp.close()
 
@@ -713,7 +715,7 @@ def plot(args):
         my = marker_pos[marker_name]
 
         extra = -tip if mx < cx else tip
-        extra *= 1.2  # leave boundaries for aesthetic reasons
+        extra *= 1.25  # leave boundaries for aesthetic reasons
         cx += extra
         mx -= extra
         ax1.plot((cx, mx), (cy, my), "-", color=colors[b.mlg])
@@ -743,6 +745,10 @@ def plot(args):
         ax.set_xlim(0, chrsize)
         ax.set_ylim(0, mlgsize)
         ax.set_xticks([])
+        while height / len(ax.get_yticks()) < .03:
+            ax.set_yticks(ax.get_yticks()[::2])  # Sparsify the ticks
+        yticklabels = [int(x) for x in ax.get_yticks()]
+        ax.set_yticklabels(yticklabels, family='Helvetica')
         ax.set_ylabel(mlg, color=color)
 
     normalize_axes((ax1, ax2, root))

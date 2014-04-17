@@ -37,11 +37,12 @@ class Chromosome (BaseGlyph):
         pts, r = self.get_pts(x, y1, y2, width)
         self.append(Polygon(pts, fill=False, lw=lw, ec=ec, zorder=zorder))
         if patch:
+            rr = r * .9  # Shrink a bit for the patches
             for i in xrange(0, len(patch), 2):
                 if i + 1 > len(patch) - 1:
                     continue
                 p1, p2 = patch[i], patch[i + 1]
-                self.append(Rectangle((x - r, p1), 2 * r, p2 - p1, lw=0,
+                self.append(Rectangle((x - rr, p1), 2 * rr, p2 - p1, lw=0,
                              fc="lightgrey"))
 
         self.add_patches()
@@ -83,11 +84,12 @@ class HorizontalChromosome (BaseGlyph):
             else:
                 self.append(Polygon(pts, fc=fc, lw=0, zorder=zorder))
         if patch:
+            rr = r * .9  # Shrink a bit for the patches
             for i in xrange(0, len(patch), 2):
                 if i + 1 > len(patch) - 1:
                     continue
                 p1, p2 = patch[i], patch[i + 1]
-                self.append(Rectangle((p1, y - r), p2 - p1, 2 * r, lw=0,
+                self.append(Rectangle((p1, y - rr), p2 - p1, 2 * rr, lw=0,
                              fc="lightgrey"))
 
         self.add_patches()
@@ -183,8 +185,9 @@ class GeneticMap (BaseGlyph):
             marker_pos[marker_name] = yy
         self.marker_pos = marker_pos
 
-        end_cm_labels = ((y2, max_chr_len, "bottom"), (y1, 0, "top")) if flip \
-                        else ((y2, 0, "bottom"), (y1, max_chr_len, "top"))
+        t = tip / 2
+        end_cm_labels = ((y2 + t, max_chr_len, "bottom"), (y1 - t, 0, "top")) if flip \
+                        else ((y2 + t, 0, "bottom"), (y1 - t, max_chr_len, "top"))
         for yy, cm, va in end_cm_labels:
             label = "{0} {1}".format(int(cm), unit)
             ax.text(x, yy, label, color="gray", va=va, ha="center")

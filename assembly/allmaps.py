@@ -79,9 +79,10 @@ class ScaffoldOO (object):
         tour = self.assign_order(scaffolds, pivot, weights)
         self.tour = tour
 
-        for lg in self.lgs:
-            if lg.split("-")[0] == pivot:
-                self.object = lg
+        for mlg in self.lgs:
+            mapname, lg = mlg.rsplit("-", 1)
+            if mapname == pivot:
+                self.object = "chr{0}".format(lg)
                 break
 
     def weighted_mean(self, a, weights):
@@ -538,15 +539,13 @@ def path(args):
                        function=function)
 
         for fw in (sys.stderr, fwtour):
-            print >> fw, ">{0}".format(tag)
+            print >> fw, ">{0} ({1})".format(s.object, tag)
             print >> fw, " ".join("".join(x) for x in s.tour)
         solutions.append(s)
     fwtour.close()
 
     for s in sorted(solutions, key=lambda x: x.object):
-        m, lg = s.object.rsplit("-", 1)
-        object = "chr{0}".format(lg)
-        order_to_agp(object, s.tour, sizes, fwagp, gapsize=gapsize,
+        order_to_agp(s.object, s.tour, sizes, fwagp, gapsize=gapsize,
                      gaptype="map")
     fwagp.close()
 

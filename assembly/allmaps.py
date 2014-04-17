@@ -27,6 +27,7 @@ from jcvi.formats.sizes import Sizes
 from jcvi.utils.cbook import human_size
 from jcvi.utils.counter import Counter
 from jcvi.utils.grouper import Grouper
+from jcvi.utils.iter import pairwise
 from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh, \
             need_update
 debug()
@@ -269,31 +270,55 @@ class Marker (object):
 
 class Map (list):
 
-    def __init__(self, filename):
+    def __init__(self, filename, cutoff=0):
         bed = Bed(filename)
         for b in bed:
             self.append(Marker(b))
+        self.report()
 
+        if cutoff:
+            self.compress(cutoff)
+            self.report()
+
+    def report(self):
         self.nmarkers = len(self)
-        self.mlg = set(x.mlg for x in self)
+        self.seqids = sorted(set(x.seqid for x in self))
+        self.mapnames = sorted(set(x.mapname for x in self))
+        self.mlgs = sorted(set(x.mlg for x in self))
         logging.debug("Map contains {0} markers in {1} linkage groups.".\
-                      format(self.nmarkers, len(self.mlg)))
+                      format(self.nmarkers, len(self.mlgs)))
         self.ranks = self.compute_ranks()
 
     def extract(self, seqid):
         r = [x for x in self if x.seqid == seqid]
-        r.sort(key=lambda x: x.pos)
-        return r
+        return sorted(r, key=lambda x: x.pos)
 
     def extract_mlg(self, mlg):
         r = [x for x in self if x.mlg == mlg]
-        return r
+        return sorted(r, key=lambda x: x.cm)
+
+    def compress(self, cutoff):
+        data = []  # After merge
+        for seqid in self.seqids:
+            G = Grouper()
+            seqid_set = self.extract(seqid)
+            for s in seqid_set:
+                G.join(s)
+            for a, b in pairwise(seqid_set):
+                if abs(a.cm - b.cm) < cutoff:
+                    G.join(a, b)
+            for g in G:
+                g.sort(key=lambda x: x.pos)
+                data.append(g[len(g) / 2])
+
+        del self[:]  # Purge current data and replace with merged
+        for d in data:
+            self.append(d)
 
     def compute_ranks(self):
         ranks = {}  # Store the length for each linkage group
-        for mlg in self.mlg:
-            mlg_set = [x for x in self if x.mlg == mlg]
-            mlg_set.sort(key=lambda x: x.cm)
+        for mlg in self.mlgs:
+            mlg_set = self.extract_mlg(mlg)
             for rank, marker in enumerate(mlg_set):
                 marker.rank = rank
             ranks[mlg] = mlg_set
@@ -320,18 +345,6 @@ class Map (list):
         reject = reject_outliers(data)
         clean_markers = [m for m, r in zip(markers, reject) if not r]
         return clean_markers
-
-    @property
-    def seqids(self):
-        return sorted(set(x.seqid for x in self))
-
-    @property
-    def mapnames(self):
-        return sorted(set(x.mapname for x in self))
-
-    @property
-    def mlgs(self):
-        return sorted(set(x.mlg for x in self))
 
 
 class Weights (DictFile):
@@ -480,22 +493,25 @@ def path(args):
                  help="Distance function when building consensus")
     p.add_option("--gapsize", default=100, type="int",
                  help="Insert gaps of size")
+    p.add_option("--compress", default=0, type="float",
+                 help="Compress bins smaller than cM apart, 0 to disable")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
         sys.exit(not p.print_help())
 
     bedfile, weightsfile, fastafile = args
+    gapsize = opts.gapsize
+    function = opts.distance
+    cutoff = opts.compress
 
-    cc = Map(bedfile)
+    cc = Map(bedfile, cutoff=cutoff)
     mapnames = cc.mapnames
     allseqids = cc.seqids
     weights = Weights(weightsfile, mapnames)
     pivot_weight, pivot = weights.get_pivot(mapnames)
 
     logging.debug("Pivot map: `{0}` (weight={1}).".format(pivot, pivot_weight))
-    gapsize = opts.gapsize
-    function = opts.distance
     function = (lambda x: x.cm) if function == "cM" else \
                (lambda x: x.rank)
 

@@ -152,6 +152,7 @@ class ScaffoldOO (object):
             paths.append(path)
 
         G = merge_paths(paths, weights=w)
+        """
         for s, so in scaffolds:  # Connect everything to DUMMY ends
             G.add_edge(START, s)
             G.add_edge(s, END)
@@ -162,6 +163,9 @@ class ScaffoldOO (object):
         tour = tour[1:-1]
         logging.debug("Best order contains {0} scaffolds (Score={1})".\
                         format(len(tour), total_size))
+        """
+        import networkx as nx
+        tour = nx.topological_sort(G)
 
         scaffolds_oo = dict(scaffolds)
         recode = {0: '?', 1: '+', -1: '-'}

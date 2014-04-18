@@ -289,21 +289,10 @@ def bigraph_test():
     #g.draw("demo.png", verbose=True)
 
 
-def merge_paths(paths, weights=None):
+def make_paths(paths, weights=None):
     """
-    Zip together sorted lists.
-
-    >>> paths = [[1, 2, 3], [1, 3, 4], [2, 4, 5]]
-    >>> G = merge_paths(paths)
-    >>> nx.topological_sort(G)
-    [1, 2, 3, 4, 5]
-    >>> paths = [[1, 2, 3, 4], [1, 2, 3, 2, 4]]
-    >>> G = merge_paths(paths, weights=(1, 2))
-    >>> nx.topological_sort(G)
-    [1, 2, 3, 4]
+    Zip together paths. Called by merge_paths().
     """
-    from jcvi.algorithms.lpsolve import min_feedback_arc_set
-
     npaths = len(paths)
     weights = weights or [1] * npaths
     assert len(paths) == len(weights)
@@ -315,6 +304,14 @@ def merge_paths(paths, weights=None):
                 G[a][b]['weight'] += w
                 continue
             G.add_edge(a, b, weight=w)
+    return G
+
+
+def reduce_paths(G):
+    """
+    Make graph into a directed acyclic graph (DAG).
+    """
+    from jcvi.algorithms.lpsolve import min_feedback_arc_set
 
     while not nx.is_directed_acyclic_graph(G):
         edges = []
@@ -327,7 +324,6 @@ def merge_paths(paths, weights=None):
 
     assert nx.is_directed_acyclic_graph(G)
     G = transitive_reduction(G)
-
     return G
 
 
@@ -358,6 +354,24 @@ def transitive_reduction(G):
         if not nx.has_path(H, a, b):  # we shouldn't have deleted it
             H.add_edge(a, b, w)
     return H
+
+
+def merge_paths(paths, weights=None):
+    """
+    Zip together sorted lists.
+
+    >>> paths = [[1, 2, 3], [1, 3, 4], [2, 4, 5]]
+    >>> G = merge_paths(paths)
+    >>> nx.topological_sort(G)
+    [1, 2, 3, 4, 5]
+    >>> paths = [[1, 2, 3, 4], [1, 2, 3, 2, 4]]
+    >>> G = merge_paths(paths, weights=(1, 2))
+    >>> nx.topological_sort(G)
+    [1, 2, 3, 4]
+    """
+    G = make_paths(paths, weights=weights)
+    G = reduce_paths(G)
+    return G
 
 
 def longest_path_weighted_nodes(G, source, target, weights=None):

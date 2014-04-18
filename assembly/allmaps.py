@@ -10,13 +10,14 @@ import sys
 import logging
 
 import numpy as np
+import networkx as nx
 
 from itertools import combinations
 from collections import defaultdict
 from scipy.stats import spearmanr
 
 from jcvi.algorithms.formula import reject_outliers
-from jcvi.algorithms.graph import merge_paths, longest_path_weighted_nodes
+from jcvi.algorithms.graph import make_paths, reduce_paths
 from jcvi.algorithms.lis import longest_monotonous_subseq_length
 from jcvi.algorithms.matrix import determine_signs
 from jcvi.formats.agp import AGP, order_to_agp, build as agp_build
@@ -67,7 +68,7 @@ class ScaffoldOO (object):
     scaffolds per partition.
     """
     def __init__(self, lgs, scaffolds, mapc, pivot, weights, sizes,
-                 function=(lambda x: x.rank)):
+                 function=(lambda x: x.rank), cutoff=.01):
 
         self.lgs = lgs
         self.lengths = mapc.compute_lengths(function)
@@ -78,7 +79,7 @@ class ScaffoldOO (object):
         signs = self.assign_orientation(scaffolds, pivot, weights)
         scaffolds = zip(scaffolds, signs)
 
-        tour = self.assign_order(scaffolds, pivot, weights)
+        tour = self.assign_order(scaffolds, pivot, weights, cutoff=cutoff)
         self.tour = tour
 
         for mlg in self.lgs:
@@ -107,30 +108,34 @@ class ScaffoldOO (object):
             rho = 0
         return rho
 
-    def assign_order(self, scaffolds, pivot, weights):
+    def assign_order(self, scaffolds, pivot, weights, cutoff=.01):
         """
         The goal is to assign scaffold orders. To help order the scaffolds, two
         dummy node, START and END, mark the ends of the chromosome. We connect
         START to each scaffold (directed), and each scaffold to END.
         """
         f = self.function
-        positions, paths, w = [], [], []
+        positions, guides, paths, w = [], [], [], []
         for lg in self.lgs:
             mapname = lg.split("-")[0]
             length = self.lengths[lg]
             position = {}
+            guide = {}  # cM guide to ward against 'close binning'
             for a, ao in scaffolds:
                 xa = self.get_markers(lg, a, ao)
                 if not xa:
                     continue
                 d = np.median([f(x) for x in xa])
+                g = np.median([x.cm for x in xa])
                 assert 0 <= d <= length
                 position[a] = d
+                guide[a] = g
 
             if mapname == pivot:
                 pivot_position = position
 
             positions.append(position)
+            guides.append(guide)
             w.append(weights[mapname])
 
         for position in positions:
@@ -151,20 +156,41 @@ class ScaffoldOO (object):
                 path = path[::-1]
             paths.append(path)
 
-        G = merge_paths(paths, weights=w)
-        """
-        for s, so in scaffolds:  # Connect everything to DUMMY ends
-            G.add_edge(START, s)
-            G.add_edge(s, END)
-        tour, total_size = longest_path_weighted_nodes(G, START, END, self.sizes)
+        G = make_paths(paths, weights=w)
+        # For the scaffold pairs that are close in cM distance, i.e. in the same
+        # genetic bin, down-weight this edge!
+        down = set()
+        for path, guide, weight in zip(paths, guides, w):
+            for a, b in pairwise(path):
+                if abs(guide[a] - guide[b]) > cutoff:
+                    continue
+                if (a, b) in down:
+                    continue
+                assert G.has_edge(a, b)
+                G[a][b]['weight'] /= 10.  # Penalty for contained in the same bin
+                down.add((a, b))
 
-        # Remove dummy nodes
-        assert tour[0] == START and tour[-1] == END
-        tour = tour[1:-1]
-        logging.debug("Best order contains {0} scaffolds (Score={1})".\
-                        format(len(tour), total_size))
-        """
-        import networkx as nx
+            # We need to maintain ordering with add-on edges, so that the feedback
+            # set do not disrupt the order with respect to far-away markers
+            for p in path:
+                pcm = guide[p]
+                # Find the next closest bins on both flanks
+                L = [(xcm, x) for x, xcm in guide.items() if pcm - xcm > cutoff]
+                R = [(xcm, x) for x, xcm in guide.items() if xcm - pcm > cutoff]
+                if L:
+                    lcm, l = max(L)
+                    if not G.has_edge(l, p):
+                        G.add_edge(l, p, weight=weight)
+                        #print "L extend:", l, p, lcm, pcm
+                if R:
+                    rcm, r = min(R)
+                    if not G.has_edge(p, r):
+                        G.add_edge(p, r, weight=weight)
+                        #print "R extend:", p, r, pcm, rcm
+
+        logging.debug("Graph size: |V|={0}, |E|={1}.".format(len(G), G.size()))
+
+        G = reduce_paths(G)
         tour = nx.topological_sort(G)
 
         scaffolds_oo = dict(scaffolds)
@@ -280,10 +306,6 @@ class Map (list):
             self.append(Marker(b))
         self.report()
 
-        if cutoff:
-            self.compress(cutoff)
-            self.report()
-
     def report(self):
         self.nmarkers = len(self)
         self.seqids = sorted(set(x.seqid for x in self))
@@ -300,24 +322,6 @@ class Map (list):
     def extract_mlg(self, mlg):
         r = [x for x in self if x.mlg == mlg]
         return sorted(r, key=lambda x: x.cm)
-
-    def compress(self, cutoff):
-        data = []  # After merge
-        for seqid in self.seqids:
-            G = Grouper()
-            seqid_set = self.extract(seqid)
-            for s in seqid_set:
-                G.join(s)
-            for a, b in pairwise(seqid_set):
-                if abs(a.cm - b.cm) < cutoff:
-                    G.join(a, b)
-            for g in G:
-                g.sort(key=lambda x: x.pos)
-                data.append(g[len(g) / 2])
-
-        del self[:]  # Purge current data and replace with merged
-        for d in data:
-            self.append(d)
 
     def compute_ranks(self):
         ranks = {}  # Store the length for each linkage group
@@ -500,8 +504,8 @@ def path(args):
                  help="Distance function when building consensus")
     p.add_option("--gapsize", default=100, type="int",
                  help="Insert gaps of size")
-    p.add_option("--compress", default=0, type="float",
-                 help="Compress bins smaller than cM apart, 0 to disable")
+    p.add_option("--cutoff", default=.01, type="float",
+                 help="Down-weight distance <= cM apart, 0 to disable")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -510,9 +514,9 @@ def path(args):
     bedfile, weightsfile, fastafile = args
     gapsize = opts.gapsize
     function = opts.distance
-    cutoff = opts.compress
+    cutoff = opts.cutoff
 
-    cc = Map(bedfile, cutoff=cutoff)
+    cc = Map(bedfile)
     mapnames = cc.mapnames
     allseqids = cc.seqids
     weights = Weights(weightsfile, mapnames)
@@ -578,7 +582,7 @@ def path(args):
     for lgs, scaffolds in sorted(partitions.items()):
         tag = "|".join(lgs)
         s = ScaffoldOO(lgs, scaffolds, cc, pivot, weights, sizes,
-                       function=function)
+                       function=function, cutoff=cutoff)
 
         for fw in (sys.stderr, fwtour):
             print >> fw, ">{0} ({1})".format(s.object, tag)

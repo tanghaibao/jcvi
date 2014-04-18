@@ -16,7 +16,7 @@ from itertools import combinations
 from collections import defaultdict
 from scipy.stats import spearmanr
 
-from jcvi.algorithms.formula import reject_outliers
+from jcvi.algorithms.formula import reject_outliers, geometric_mean
 from jcvi.algorithms.graph import make_paths, reduce_paths
 from jcvi.algorithms.lis import longest_monotonous_subseq_length
 from jcvi.algorithms.matrix import determine_signs
@@ -60,6 +60,15 @@ class Scaffold (object):
             weight = min(av, bv)
             G[ak, bk] += weight
             G[bk, ak] += weight
+
+
+class LinkageGroup (object):
+
+    def __init__(self, position, guide, nmarker):
+        # Three dicts that are keyed by scaffold id
+        self.position = position
+        self.guide = guide
+        self.nmarker = nmarker
 
 
 class ScaffoldOO (object):
@@ -115,12 +124,13 @@ class ScaffoldOO (object):
         START to each scaffold (directed), and each scaffold to END.
         """
         f = self.function
-        positions, guides, paths, w = [], [], [], []
+        linkage_groups, w = [], []
         for lg in self.lgs:
             mapname = lg.split("-")[0]
             length = self.lengths[lg]
             position = {}
             guide = {}  # cM guide to ward against 'close binning'
+            nmarker = {}  # used to up-weight the edges
             for a, ao in scaffolds:
                 xa = self.get_markers(lg, a, ao)
                 if not xa:
@@ -130,15 +140,18 @@ class ScaffoldOO (object):
                 assert 0 <= d <= length
                 position[a] = d
                 guide[a] = g
+                nmarker[a] = len(xa)
 
             if mapname == pivot:
                 pivot_position = position
 
-            positions.append(position)
-            guides.append(guide)
+            LG = LinkageGroup(position, guide, nmarker)
+            linkage_groups.append(LG)
             w.append(weights[mapname])
 
-        for position in positions:
+        paths = []
+        for lg in linkage_groups:
+            position = lg.position
             # Sort the order based on median distance
             path = sorted((v, k) for k, v in position.items())
             vv, path = zip(*path)
@@ -157,10 +170,19 @@ class ScaffoldOO (object):
             paths.append(path)
 
         G = make_paths(paths, weights=w)
+        # Upweight the scaffold pairs with the geometric mean of marker numbers
+        for path, lg in zip(paths, linkage_groups):
+            nmarker = lg.nmarker
+            for a, b in pairwise(path):
+                an, bn = nmarker[a], nmarker[b]
+                G[a][b]['weight'] *= geometric_mean(an, bn)
+
         # For the scaffold pairs that are close in cM distance, i.e. in the same
         # genetic bin, down-weight this edge!
         down = set()
-        for path, guide, weight in zip(paths, guides, w):
+        for path, lg, weight in zip(paths, linkage_groups, w):
+            guide = lg.guide
+            nmarker = lg.nmarker
             for a, b in pairwise(path):
                 if abs(guide[a] - guide[b]) > cutoff:
                     continue
@@ -174,6 +196,7 @@ class ScaffoldOO (object):
             # set do not disrupt the order with respect to far-away markers
             for i, p in enumerate(path):
                 pcm = guide[p]
+                pn = nmarker[p]
                 # Find the next closest bins on both flanks
                 L = [(xcm, x) for x, xcm in guide.items() \
                             if pcm - xcm > cutoff and x in path[:i]]
@@ -182,11 +205,13 @@ class ScaffoldOO (object):
                 if L:
                     lcm, l = max(L)
                     if not G.has_edge(l, p):
-                        G.add_edge(l, p, weight=weight)
+                        uw = geometric_mean(nmarker[l], pn)
+                        G.add_edge(l, p, weight=weight * uw)
                 if R:
                     rcm, r = min(R)
                     if not G.has_edge(p, r):
-                        G.add_edge(p, r, weight=weight)
+                        uw = geometric_mean(pn, nmarker[r])
+                        G.add_edge(p, r, weight=weight * uw)
 
         logging.debug("Graph size: |V|={0}, |E|={1}.".format(len(G), G.size()))
 

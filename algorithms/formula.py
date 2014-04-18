@@ -13,6 +13,10 @@ from math import log, exp
 from jcvi.utils.cbook import human_size
 
 
+def geometric_mean(a, b, cast=int):
+    return cast((a * b) ** .5)
+
+
 def reject_outliers(a, threshold=3.5):
     """
     Iglewicz and Hoaglin's robust test for multiple outliers (two sided test).

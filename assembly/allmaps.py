@@ -64,8 +64,9 @@ class Scaffold (object):
 
 class LinkageGroup (object):
 
-    def __init__(self, position, guide, nmarker):
+    def __init__(self, lg, position, guide, nmarker):
         # Three dicts that are keyed by scaffold id
+        self.lg = lg
         self.position = position
         self.guide = guide
         self.nmarker = nmarker
@@ -145,7 +146,7 @@ class ScaffoldOO (object):
             if mapname == pivot:
                 pivot_position = position
 
-            LG = LinkageGroup(position, guide, nmarker)
+            LG = LinkageGroup(lg, position, guide, nmarker)
             linkage_groups.append(LG)
             w.append(weights[mapname])
 
@@ -201,17 +202,19 @@ class ScaffoldOO (object):
                 L = [(xcm, x) for x, xcm in guide.items() \
                             if pcm - xcm > cutoff and x in path[:i]]
                 R = [(xcm, x) for x, xcm in guide.items() \
-                            if xcm - pcm > cutoff and x in paths[i + 1:]]
+                            if xcm - pcm > cutoff and x in path[i + 1:]]
                 if L:
                     lcm, l = max(L)
-                    if not G.has_edge(l, p):
-                        uw = geometric_mean(nmarker[l], pn)
-                        G.add_edge(l, p, weight=weight * uw)
+                    if G.has_edge(l, p):
+                        G.remove_edge(l, p)
+                    uw = geometric_mean(nmarker[l], pn)
+                    G.add_edge(l, p, weight=weight * uw)
                 if R:
                     rcm, r = min(R)
-                    if not G.has_edge(p, r):
-                        uw = geometric_mean(pn, nmarker[r])
-                        G.add_edge(p, r, weight=weight * uw)
+                    if G.has_edge(p, r):
+                        G.remove_edge(p, r)
+                    uw = geometric_mean(pn, nmarker[r])
+                    G.add_edge(p, r, weight=weight * uw)
 
         logging.debug("Graph size: |V|={0}, |E|={1}.".format(len(G), G.size()))
 

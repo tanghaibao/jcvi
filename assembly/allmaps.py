@@ -172,21 +172,21 @@ class ScaffoldOO (object):
 
             # We need to maintain ordering with add-on edges, so that the feedback
             # set do not disrupt the order with respect to far-away markers
-            for p in path:
+            for i, p in enumerate(path):
                 pcm = guide[p]
                 # Find the next closest bins on both flanks
-                L = [(xcm, x) for x, xcm in guide.items() if pcm - xcm > cutoff]
-                R = [(xcm, x) for x, xcm in guide.items() if xcm - pcm > cutoff]
+                L = [(xcm, x) for x, xcm in guide.items() \
+                            if pcm - xcm > cutoff and x in path[:i]]
+                R = [(xcm, x) for x, xcm in guide.items() \
+                            if xcm - pcm > cutoff and x in paths[i + 1:]]
                 if L:
                     lcm, l = max(L)
                     if not G.has_edge(l, p):
                         G.add_edge(l, p, weight=weight)
-                        #print "L extend:", l, p, lcm, pcm
                 if R:
                     rcm, r = min(R)
                     if not G.has_edge(p, r):
                         G.add_edge(p, r, weight=weight)
-                        #print "R extend:", p, r, pcm, rcm
 
         logging.debug("Graph size: |V|={0}, |E|={1}.".format(len(G), G.size()))
 

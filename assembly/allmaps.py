@@ -212,16 +212,18 @@ class ScaffoldOO (object):
                             if xcm - pcm > cutoff and x in path[i + 1:]]
                 if L:
                     lcm, l = max(L)
+                    uw = weight * geometric_mean(nmarker[l], pn)
                     if G.has_edge(l, p):
-                        G.remove_edge(l, p)
-                    uw = geometric_mean(nmarker[l], pn)
-                    G.add_edge(l, p, weight=weight * uw)
+                        G[l][p]['weight'] += uw
+                    else:
+                        G.add_edge(l, p, weight=uw)
                 if R:
                     rcm, r = min(R)
+                    uw = weight * geometric_mean(pn, nmarker[r])
                     if G.has_edge(p, r):
-                        G.remove_edge(p, r)
-                    uw = geometric_mean(pn, nmarker[r])
-                    G.add_edge(p, r, weight=weight * uw)
+                        G[p][r]['weight'] += uw
+                    else:
+                        G.add_edge(p, r, weight=uw)
 
         logging.debug("Graph size: |V|={0}, |E|={1}.".format(len(G), G.size()))
 

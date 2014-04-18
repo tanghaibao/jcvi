@@ -449,7 +449,7 @@ def path(edges, source, sink, flavor="longest"):
     return results, obj_val
 
 
-def min_feedback_arc_set(edges, remove=False):
+def min_feedback_arc_set(edges, remove=False, maxcycles=20000):
     """
     A directed graph may contain directed cycles, when such cycles are
     undesirable, we wish to eliminate them and obtain a directed acyclic graph
@@ -492,6 +492,8 @@ def min_feedback_arc_set(edges, remove=False):
         cc = summation(cycle_edges)
         constraints.append("{0} >= 1".format(cc))
         ncycles += 1
+        if ncycles == maxcycles:
+            break
     logging.debug("A total of {0} cycles found.".format(ncycles))
 
     print_constraints(lp_handle, constraints)

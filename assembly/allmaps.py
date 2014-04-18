@@ -153,9 +153,10 @@ class ScaffoldOO (object):
         paths = []
         for lg in linkage_groups:
             position = lg.position
+            guide = lg.guide
             # Sort the order based on median distance
-            path = sorted((v, k) for k, v in position.items())
-            vv, path = zip(*path)
+            path = sorted((v, guide[k], k) for k, v in position.items())
+            vv, gg, path = zip(*path)
 
             # Flip order if path goes in the opposite direction to the pivot
             common = []
@@ -169,6 +170,12 @@ class ScaffoldOO (object):
             if rho < 0:
                 path = path[::-1]
             paths.append(path)
+
+            print lg.lg
+            print lg.position
+            print lg.guide
+            print lg.nmarker
+            print path
 
         G = make_paths(paths, weights=w)
         # Upweight the scaffold pairs with the geometric mean of marker numbers
@@ -218,8 +225,11 @@ class ScaffoldOO (object):
 
         logging.debug("Graph size: |V|={0}, |E|={1}.".format(len(G), G.size()))
 
+        print G.edges(data=True)
         G = reduce_paths(G)
+        print G.edges()
         tour = nx.topological_sort(G)
+        print tour
 
         scaffolds_oo = dict(scaffolds)
         recode = {0: '?', 1: '+', -1: '-'}

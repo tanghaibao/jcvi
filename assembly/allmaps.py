@@ -335,7 +335,7 @@ class Marker (object):
 
 class Map (list):
 
-    def __init__(self, filename, cutoff=0):
+    def __init__(self, filename):
         bed = Bed(filename)
         for b in bed:
             self.append(Marker(b))
@@ -766,7 +766,7 @@ def plot(args):
         flip = rho < 0
 
         g = GeneticMap(ax1, x, y1, y2, markers, tip=tip, flip=flip)
-        extra = -2 * tip if x < .5 else 2 * tip
+        extra = -3 * tip if x < .5 else 3 * tip
         ha = "right" if x < .5 else "left"
         mapname = mlg.split("-")[0]
         label = "{0} (weight={1})".format(mlg, weights[mapname])
@@ -810,7 +810,8 @@ def plot(args):
     # Scatter plot, same data as parallel coordinates
     xstart, xstop = sorted((ystart, ystop))
     f = lambda x: (xstart + ratio * x)
-    patchstart = [f(x.object_beg) for x in agp if not x.is_gap]
+    pp = [x.object_beg for x in agp if not x.is_gap]
+    patchstart = [f(x) for x in pp]
     HorizontalChromosome(ax2, xstart, xstop, ystop,
                          height=2 * tip, patch=patchstart, lw=2)
 
@@ -827,6 +828,7 @@ def plot(args):
         ystart -= gap
         sd = scatter_data[mlg]
         xx, yy = zip(*sd)
+        ax.vlines(pp, [0], [mlgsize], colors="snow")
         ax.plot(xx, yy, ".", color=color)
         ax.text(.5, 1 - .5 * gap / height, r"$\rho$={0:.3f}".format(rhos[mlg]),
                     ha="center", va="top", transform=ax.transAxes, color="gray")

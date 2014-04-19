@@ -16,10 +16,11 @@ from itertools import combinations
 from collections import defaultdict
 from scipy.stats import spearmanr
 
-from jcvi.algorithms.formula import reject_outliers, geometric_mean
+from jcvi.algorithms.formula import reject_outliers
 from jcvi.algorithms.graph import reduce_paths, update_weight
 from jcvi.algorithms.lis import longest_monotonous_subseq_length, \
             longest_increasing_subseq_length
+from jcvi.algorithms.tsp import hamiltonian
 from jcvi.algorithms.matrix import determine_signs
 from jcvi.formats.agp import AGP, order_to_agp, build as agp_build
 from jcvi.formats.base import DictFile, FileMerger, must_open
@@ -163,6 +164,7 @@ class ScaffoldOO (object):
             w.append(weights[mapname])
 
         paths = []
+        rhos = []
         for lg in linkage_groups:
             position = lg.position
             guide = lg.guide
@@ -182,12 +184,14 @@ class ScaffoldOO (object):
             if rho < 0:
                 path = path[::-1]
             paths.append(path)
+            rhos.append(rho)
 
             print lg.lg
             print lg.position
             print lg.guide
             print path
 
+        """
         G = nx.DiGraph()
         for path, lg, weight in zip(paths, linkage_groups, w):
             xseries, start_index = lg.get_series(path)
@@ -210,13 +214,54 @@ class ScaffoldOO (object):
         G = reduce_paths(G)
         print G.edges()
         tour = nx.topological_sort(G)
-        print tour
 
-        if draw:
+        if False:
             G = nx.to_agraph(G)
             pngfile = "{0}.png".format("_".join(x.lg for x in linkage_groups))
             G.draw(pngfile, prog="dot")
             logging.debug("Consensus graph written to `{0}`.".format(pngfile))
+        """
+
+        # Preparation of TSP
+        distances = defaultdict(list)
+        for path, rho, lg, weight in zip(paths, rhos, linkage_groups, w):
+            mapname = lg.lg.split("-")[0]
+            position = lg.position
+            length = self.lengths[lg.lg]
+            for a, b in combinations(path, 2):
+                d = abs(position[a] - position[b])
+                distances[a, b].append((d, mapname))
+            for p in path:
+                adist, bdist = position[p], length - position[p]
+                if rho < 0:
+                    adist, bdist = bdist, adist
+                distances[START, p].append((adist, mapname))
+                distances[p, END].append((bdist, mapname))
+
+        G = nx.DiGraph()
+        for (a, b), v in distances.items():
+            d = self.weighted_mean(v, weights)
+            G.add_edge(a, b, weight=d)
+            if a == START or b == END:
+                continue
+            G.add_edge(b, a, weight=d)
+
+        L = nx.all_pairs_dijkstra_path_length(G)
+        for (a, ao), (b, bo) in combinations(scaffolds, 2):
+            if G.has_edge(a, b):
+                continue
+            l = L[a][b]
+            G.add_edge(a, b, weight=l)
+            G.add_edge(b, a, weight=l)
+
+        edges = []
+        for a, b, d in G.edges(data=True):
+            edges.append((a, b, d['weight']))
+
+        tour = hamiltonian(edges, symmetric=False, precision=1)
+        print tour
+        assert tour[0] == START and tour[-1] == END
+        tour = tour[1:-1]
 
         scaffolds_oo = dict(scaffolds)
         recode = {0: '?', 1: '+', -1: '-'}
@@ -268,7 +313,7 @@ class ScaffoldOO (object):
 
                 if not d:
                     continue
-                signs[(i, j)].append((d, mapname))
+                signs[i, j].append((d, mapname))
 
         for e, v in signs.items():
             signs[e] = self.weighted_mean(v, weights)

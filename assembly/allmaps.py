@@ -75,8 +75,6 @@ class LinkageGroup (object):
                             for k, v in self.series.items())
         self.guide = dict((k, np.median([x.cm for x in v])) \
                             for k, v in markers.items())
-        self.nmarker = dict((k, len(v)) \
-                            for k, v in markers.items())
 
     def get_series(self, path):
         xseries = []
@@ -188,16 +186,13 @@ class ScaffoldOO (object):
             print lg.lg
             print lg.position
             print lg.guide
-            print lg.nmarker
             print path
 
         G = nx.DiGraph()
         for path, lg, weight in zip(paths, linkage_groups, w):
             xseries, start_index = lg.get_series(path)
             guide = lg.guide
-            nmarker = lg.nmarker
-            pairs = set()
-            N = int(len(xseries) ** .5 / 2) + 1
+            N = int(len(xseries) ** .5)
             for a, b in pairwise(path):
                 i = start_index[b]
                 lb, ub = max(i - N, 0), min(i + N, len(xseries))
@@ -208,29 +203,6 @@ class ScaffoldOO (object):
                 b2 = .1 if abs(guide[a] - guide[b]) < cutoff else 1
                 s = weight * b1 * b2
                 update_weight(G, a, b, s)
-                pairs.add((a, b))
-
-            # We need to maintain ordering with add-on edges, so that the feedback
-            # set do not disrupt the order with respect to far-away markers
-            for i, p in enumerate(path):
-                pcm = guide[p]
-                pn = nmarker[p]
-                # Find the next closest bins on both flanks
-                L = [(xcm, x) for x, xcm in guide.items() \
-                            if pcm - xcm > cutoff and x in path[:i]]
-                R = [(xcm, x) for x, xcm in guide.items() \
-                            if xcm - pcm > cutoff and x in path[i + 1:]]
-                L = R = []
-                if L:
-                    lcm, l = max(L)
-                    uw = weight * geometric_mean(nmarker[l], pn)
-                    if (l, p) not in pairs:
-                        update_weight(G, l, p, uw)
-                if R:
-                    rcm, r = min(R)
-                    uw = weight * geometric_mean(pn, nmarker[r])
-                    if (p, r) not in pairs:
-                        update_weight(G, p, r, uw)
 
         logging.debug("Graph size: |V|={0}, |E|={1}.".format(len(G), G.size()))
 

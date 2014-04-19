@@ -18,7 +18,8 @@ from scipy.stats import spearmanr
 
 from jcvi.algorithms.formula import reject_outliers, geometric_mean
 from jcvi.algorithms.graph import reduce_paths, update_weight
-from jcvi.algorithms.lis import longest_monotonous_subseq_length
+from jcvi.algorithms.lis import longest_monotonous_subseq_length, \
+            longest_increasing_subseq_length
 from jcvi.algorithms.matrix import determine_signs
 from jcvi.formats.agp import AGP, order_to_agp, build as agp_build
 from jcvi.formats.base import DictFile, FileMerger, must_open
@@ -64,12 +65,26 @@ class Scaffold (object):
 
 class LinkageGroup (object):
 
-    def __init__(self, lg, position, guide, nmarker):
+    def __init__(self, lg, markers, function=(lambda x: x.rank)):
         # Three dicts that are keyed by scaffold id
         self.lg = lg
-        self.position = position
-        self.guide = guide
-        self.nmarker = nmarker
+        self.markers = markers
+        self.series = dict((k, [function(x) for x in v]) \
+                            for k, v in markers.items())
+        self.position = dict((k, np.median(v)) \
+                            for k, v in self.series.items())
+        self.guide = dict((k, np.median([x.cm for x in v])) \
+                            for k, v in markers.items())
+        self.nmarker = dict((k, len(v)) \
+                            for k, v in markers.items())
+
+    def get_series(self, path):
+        xseries = []
+        start_index = {}
+        for p in path:
+            start_index[p] = len(xseries)
+            xseries += self.series[p]
+        return xseries, start_index
 
 
 class ScaffoldOO (object):
@@ -104,7 +119,7 @@ class ScaffoldOO (object):
         w = [weights[x] for x in w]
         return np.average(a, weights=w)
 
-    def get_markers(self, lg, scaffold, orientation):
+    def get_markers(self, lg, scaffold, orientation=0):
         xs = self.bins.get((lg, scaffold), [])
         if orientation < 0:
             xs = xs[::-1]
@@ -130,24 +145,22 @@ class ScaffoldOO (object):
         for lg in self.lgs:
             mapname = lg.split("-")[0]
             length = self.lengths[lg]
+            markers = {}
             position = {}
             guide = {}  # cM guide to ward against 'close binning'
-            nmarker = {}  # used to up-weight the edges
             for a, ao in scaffolds:
-                xa = self.get_markers(lg, a, ao)
+                xa = self.get_markers(lg, a, orientation=ao)
                 if not xa:
                     continue
                 d = np.median([f(x) for x in xa])
-                g = np.median([x.cm for x in xa])
                 assert 0 <= d <= length
+                markers[a] = xa
                 position[a] = d
-                guide[a] = g
-                nmarker[a] = len(xa)
 
             if mapname == pivot:
                 pivot_position = position
 
-            LG = LinkageGroup(lg, position, guide, nmarker)
+            LG = LinkageGroup(lg, markers, function=f)
             linkage_groups.append(LG)
             w.append(weights[mapname])
 
@@ -180,12 +193,17 @@ class ScaffoldOO (object):
 
         G = nx.DiGraph()
         for path, lg, weight in zip(paths, linkage_groups, w):
+            xseries, start_index = lg.get_series(path)
             guide = lg.guide
             nmarker = lg.nmarker
             pairs = set()
+            N = int(len(xseries) ** .5 / 2) + 1
             for a, b in pairwise(path):
+                i = start_index[b]
+                lb, ub = max(i - N, 0), min(i + N, len(xseries))
+                xs = xseries[lb: ub]
                 # Upweight scaffold pairs with the geometric mean of marker numbers
-                b1 = geometric_mean(nmarker[a], nmarker[b])
+                b1 = longest_increasing_subseq_length(xs)
                 # Downweight scaffold pairs that fall within the same bin
                 b2 = .1 if abs(guide[a] - guide[b]) < cutoff else 1
                 s = weight * b1 * b2
@@ -250,7 +268,6 @@ class ScaffoldOO (object):
         return max(a, b)[0] - max(c, d)[0]
 
     def assign_orientation(self, scaffolds, pivot, weights):
-        bins = self.bins
         f = self.function
         signs = defaultdict(list)
         for lg in self.lgs:
@@ -259,7 +276,7 @@ class ScaffoldOO (object):
             nmarkers = {}
             series = []
             for s in scaffolds:
-                xs = bins.get((lg, s), [])
+                xs = self.get_markers(lg, s)
                 nmarkers[s] = len(xs)
                 if not xs:
                     series.append([])

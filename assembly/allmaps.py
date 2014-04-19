@@ -742,6 +742,8 @@ def plot(args):
     # Palette
     colors = dict((mapname, set2[i]) for i, mapname in enumerate(mapnames))
     colors = dict((mlg, colors[mlg.split("-")[0]]) for mlg in mlgs)
+
+    rhos = {}
     # Parallel coordinates
     for mlg, (x, y1, y2) in coords.items():
         mm = cc.extract_mlg(mlg)
@@ -749,6 +751,7 @@ def plot(args):
         xy = [(m.pos, m.cm) for m in mm if m.seqid == seqid]
         mx, my = zip(*xy)
         rho, p_value = spearmanr(mx, my)
+        rhos[mlg] = rho
         flip = rho < 0
 
         g = GeneticMap(ax1, x, y1, y2, markers, tip=tip, flip=flip)
@@ -814,6 +817,8 @@ def plot(args):
         sd = scatter_data[mlg]
         xx, yy = zip(*sd)
         ax.plot(xx, yy, ".", color=color)
+        ax.text(.5, 1 - .5 * gap / height, r"$\rho$={0:.3f}".format(rhos[mlg]),
+                    ha="center", va="top", transform=ax.transAxes, color="gray")
         ax.set_xlim(0, chrsize)
         ax.set_ylim(0, mlgsize)
         ax.set_xticks([])

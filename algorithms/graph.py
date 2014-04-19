@@ -289,6 +289,13 @@ def bigraph_test():
     #g.draw("demo.png", verbose=True)
 
 
+def update_weight(G, a, b, w):
+    if G.has_edge(a, b):  # Parallel edges found!
+        G[a][b]['weight'] += w
+    else:
+        G.add_edge(a, b, weight=w)
+
+
 def make_paths(paths, weights=None):
     """
     Zip together paths. Called by merge_paths().
@@ -300,10 +307,7 @@ def make_paths(paths, weights=None):
     G = nx.DiGraph()
     for path, w in zip(paths, weights):
         for a, b in pairwise(path):
-            if G.has_edge(a, b):  # Parallel edges found!
-                G[a][b]['weight'] += w
-                continue
-            G.add_edge(a, b, weight=w)
+            update_weight(G, a, b, w)
     return G
 
 

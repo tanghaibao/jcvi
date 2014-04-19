@@ -17,7 +17,7 @@ from collections import defaultdict
 from scipy.stats import spearmanr
 
 from jcvi.algorithms.formula import reject_outliers, geometric_mean
-from jcvi.algorithms.graph import make_paths, reduce_paths
+from jcvi.algorithms.graph import reduce_paths, update_weight
 from jcvi.algorithms.lis import longest_monotonous_subseq_length
 from jcvi.algorithms.matrix import determine_signs
 from jcvi.formats.agp import AGP, order_to_agp, build as agp_build
@@ -177,28 +177,19 @@ class ScaffoldOO (object):
             print lg.nmarker
             print path
 
-        G = make_paths(paths, weights=w)
-        # Upweight the scaffold pairs with the geometric mean of marker numbers
-        for path, lg in zip(paths, linkage_groups):
-            nmarker = lg.nmarker
-            for a, b in pairwise(path):
-                an, bn = nmarker[a], nmarker[b]
-                G[a][b]['weight'] *= geometric_mean(an, bn)
-
-        # For the scaffold pairs that are close in cM distance, i.e. in the same
-        # genetic bin, down-weight this edge!
-        down = set()
+        G = nx.DiGraph()
         for path, lg, weight in zip(paths, linkage_groups, w):
             guide = lg.guide
             nmarker = lg.nmarker
+            pairs = set()
             for a, b in pairwise(path):
-                if abs(guide[a] - guide[b]) > cutoff:
-                    continue
-                if (a, b) in down:
-                    continue
-                assert G.has_edge(a, b)
-                G[a][b]['weight'] /= 10.  # Penalty for contained in the same bin
-                down.add((a, b))
+                # Upweight scaffold pairs with the geometric mean of marker numbers
+                b1 = geometric_mean(nmarker[a], nmarker[b])
+                # Downweight scaffold pairs that fall within the same bin
+                b2 = .1 if abs(guide[a] - guide[b]) < cutoff else 1
+                s = weight * b1 * b2
+                update_weight(G, a, b, s)
+                pairs.add((a, b))
 
             # We need to maintain ordering with add-on edges, so that the feedback
             # set do not disrupt the order with respect to far-away markers
@@ -213,17 +204,13 @@ class ScaffoldOO (object):
                 if L:
                     lcm, l = max(L)
                     uw = weight * geometric_mean(nmarker[l], pn)
-                    if G.has_edge(l, p):
-                        G[l][p]['weight'] += uw
-                    else:
-                        G.add_edge(l, p, weight=uw)
+                    if (l, p) not in pairs:
+                        update_weight(G, l, p, uw)
                 if R:
                     rcm, r = min(R)
                     uw = weight * geometric_mean(pn, nmarker[r])
-                    if G.has_edge(p, r):
-                        G[p][r]['weight'] += uw
-                    else:
-                        G.add_edge(p, r, weight=uw)
+                    if (p, r) not in pairs:
+                        update_weight(G, p, r, uw)
 
         logging.debug("Graph size: |V|={0}, |E|={1}.".format(len(G), G.size()))
 

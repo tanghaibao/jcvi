@@ -78,7 +78,7 @@ class ScaffoldOO (object):
     scaffolds per partition.
     """
     def __init__(self, lgs, scaffolds, mapc, pivot, weights, sizes,
-                 function=(lambda x: x.rank), cutoff=.01):
+                 function=(lambda x: x.rank), cutoff=.01, draw=False):
 
         self.lgs = lgs
         self.lengths = mapc.compute_lengths(function)
@@ -89,7 +89,8 @@ class ScaffoldOO (object):
         signs = self.assign_orientation(scaffolds, pivot, weights)
         scaffolds = zip(scaffolds, signs)
 
-        tour = self.assign_order(scaffolds, pivot, weights, cutoff=cutoff)
+        tour = self.assign_order(scaffolds, pivot, weights,
+                                 cutoff=cutoff, draw=draw)
         self.tour = tour
 
         for mlg in self.lgs:
@@ -118,7 +119,7 @@ class ScaffoldOO (object):
             rho = 0
         return rho
 
-    def assign_order(self, scaffolds, pivot, weights, cutoff=.01):
+    def assign_order(self, scaffolds, pivot, weights, cutoff=.01, draw=False):
         """
         The goal is to assign scaffold orders. To help order the scaffolds, two
         dummy node, START and END, mark the ends of the chromosome. We connect
@@ -201,6 +202,7 @@ class ScaffoldOO (object):
                             if pcm - xcm > cutoff and x in path[:i]]
                 R = [(xcm, x) for x, xcm in guide.items() \
                             if xcm - pcm > cutoff and x in path[i + 1:]]
+                L = R = []
                 if L:
                     lcm, l = max(L)
                     uw = weight * geometric_mean(nmarker[l], pn)
@@ -219,6 +221,12 @@ class ScaffoldOO (object):
         print G.edges()
         tour = nx.topological_sort(G)
         print tour
+
+        if draw:
+            G = nx.to_agraph(G)
+            pngfile = "{0}.png".format("_".join(x.lg for x in linkage_groups))
+            G.draw(pngfile, prog="dot")
+            logging.debug("Consensus graph written to `{0}`.".format(pngfile))
 
         scaffolds_oo = dict(scaffolds)
         recode = {0: '?', 1: '+', -1: '-'}
@@ -533,6 +541,8 @@ def path(args):
                  help="Insert gaps of size")
     p.add_option("--cutoff", default=.01, type="float",
                  help="Down-weight distance <= cM apart, 0 to disable")
+    p.add_option("--draw", default=False, action="store_true",
+                 help="Draw consensus path")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -542,6 +552,7 @@ def path(args):
     gapsize = opts.gapsize
     function = opts.distance
     cutoff = opts.cutoff
+    draw = opts.draw
 
     cc = Map(bedfile)
     mapnames = cc.mapnames
@@ -609,7 +620,7 @@ def path(args):
     for lgs, scaffolds in sorted(partitions.items()):
         tag = "|".join(lgs)
         s = ScaffoldOO(lgs, scaffolds, cc, pivot, weights, sizes,
-                       function=function, cutoff=cutoff)
+                       function=function, cutoff=cutoff, draw=draw)
 
         for fw in (sys.stderr, fwtour):
             print >> fw, ">{0} ({1})".format(s.object, tag)

@@ -26,7 +26,7 @@ Work_dir = "tsp_work"
 
 class Concorde (object):
 
-    def __init__(self, edges, work_dir=Work_dir, clean=True, verbose=False,
+    def __init__(self, edges, work_dir=Work_dir, clean=False, verbose=False,
                        precision=0, seed=666):
 
         self.work_dir = work_dir
@@ -71,6 +71,8 @@ class Concorde (object):
         max_x, min_x = max(weights), min(weights)
         inf = 2 * max(abs(max_x), abs(min_x))
         factor = 10 ** precision
+        logging.debug("TSP rescale: max_x={0}, min_x={1}, inf={2}, factor={3}".\
+                        format(max_x, min_x, inf, factor))
 
         print >> fw, "NAME: data"
         print >> fw, "TYPE: TSP"

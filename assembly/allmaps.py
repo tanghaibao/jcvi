@@ -17,9 +17,7 @@ from collections import defaultdict
 from scipy.stats import spearmanr
 
 from jcvi.algorithms.formula import reject_outliers
-from jcvi.algorithms.graph import reduce_paths, update_weight
-from jcvi.algorithms.lis import longest_monotonous_subseq_length, \
-            longest_increasing_subseq_length
+from jcvi.algorithms.lis import longest_monotonous_subseq_length
 from jcvi.algorithms.tsp import hamiltonian
 from jcvi.algorithms.matrix import determine_signs
 from jcvi.formats.agp import AGP, order_to_agp, build as agp_build
@@ -30,7 +28,7 @@ from jcvi.formats.sizes import Sizes
 from jcvi.utils.cbook import human_size
 from jcvi.utils.counter import Counter
 from jcvi.utils.grouper import Grouper
-from jcvi.utils.iter import pairwise
+from jcvi.utils.iter import flatten
 from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh, \
             need_update
 debug()
@@ -77,14 +75,6 @@ class LinkageGroup (object):
         self.guide = dict((k, np.median([x.cm for x in v])) \
                             for k, v in markers.items())
 
-    def get_series(self, path):
-        xseries = []
-        start_index = {}
-        for p in path:
-            start_index[p] = len(xseries)
-            xseries += self.series[p]
-        return xseries, start_index
-
 
 class ScaffoldOO (object):
     """
@@ -92,7 +82,7 @@ class ScaffoldOO (object):
     scaffolds per partition.
     """
     def __init__(self, lgs, scaffolds, mapc, pivot, weights, sizes,
-                 function=(lambda x: x.rank), cutoff=.01, draw=False):
+                 function=(lambda x: x.rank), cutoff=.01):
 
         self.lgs = lgs
         self.lengths = mapc.compute_lengths(function)
@@ -103,8 +93,12 @@ class ScaffoldOO (object):
         signs = self.assign_orientation(scaffolds, pivot, weights)
         scaffolds = zip(scaffolds, signs)
 
-        tour = self.assign_order(scaffolds, pivot, weights,
-                                 cutoff=cutoff, draw=draw)
+        tour, linkage_groups = self.assign_order(scaffolds, pivot, weights,
+                                 cutoff=cutoff)
+        tour = self.fix_orientation(tour, linkage_groups, weights)
+
+        recode = {0: '?', 1: '+', -1: '-'}
+        tour = [(x, recode[o]) for x, o in tour]
         self.tour = tour
 
         for mlg in self.lgs:
@@ -124,6 +118,10 @@ class ScaffoldOO (object):
             xs = xs[::-1]
         return xs
 
+    def get_series(self, lg, scaffold, orientation=0):
+        xs = self.get_markers(lg, scaffold, orientation=orientation)
+        return [self.function(x) for x in xs]
+
     def get_rho(self, xy):
         if not xy:
             return 0
@@ -133,14 +131,14 @@ class ScaffoldOO (object):
             rho = 0
         return rho
 
-    def assign_order(self, scaffolds, pivot, weights, cutoff=.01, draw=False):
+    def assign_order(self, scaffolds, pivot, weights, cutoff=.01):
         """
         The goal is to assign scaffold orders. To help order the scaffolds, two
         dummy node, START and END, mark the ends of the chromosome. We connect
         START to each scaffold (directed), and each scaffold to END.
         """
         f = self.function
-        linkage_groups, w = [], []
+        linkage_groups = []
         for lg in self.lgs:
             mapname = lg.split("-")[0]
             length = self.lengths[lg]
@@ -161,7 +159,6 @@ class ScaffoldOO (object):
 
             LG = LinkageGroup(lg, markers, function=f)
             linkage_groups.append(LG)
-            w.append(weights[mapname])
 
         paths = []
         rhos = []
@@ -191,40 +188,9 @@ class ScaffoldOO (object):
             print lg.guide
             print path
 
-        """
-        G = nx.DiGraph()
-        for path, lg, weight in zip(paths, linkage_groups, w):
-            xseries, start_index = lg.get_series(path)
-            guide = lg.guide
-            N = int(len(xseries) ** .5)
-            for a, b in pairwise(path):
-                i = start_index[b]
-                lb, ub = max(i - N, 0), min(i + N, len(xseries))
-                xs = xseries[lb: ub]
-                # Upweight scaffold pairs with the geometric mean of marker numbers
-                b1 = longest_increasing_subseq_length(xs)
-                # Downweight scaffold pairs that fall within the same bin
-                b2 = .1 if abs(guide[a] - guide[b]) < cutoff else 1
-                s = weight * b1 * b2
-                update_weight(G, a, b, s)
-
-        logging.debug("Graph size: |V|={0}, |E|={1}.".format(len(G), G.size()))
-
-        print G.edges(data=True)
-        G = reduce_paths(G)
-        print G.edges()
-        tour = nx.topological_sort(G)
-
-        if False:
-            G = nx.to_agraph(G)
-            pngfile = "{0}.png".format("_".join(x.lg for x in linkage_groups))
-            G.draw(pngfile, prog="dot")
-            logging.debug("Consensus graph written to `{0}`.".format(pngfile))
-        """
-
         # Preparation of TSP
         distances = defaultdict(list)
-        for path, rho, lg, weight in zip(paths, rhos, linkage_groups, w):
+        for path, rho, lg in zip(paths, rhos, linkage_groups):
             mapname = lg.lg.split("-")[0]
             position = lg.position
             length = self.lengths[lg.lg]
@@ -246,6 +212,8 @@ class ScaffoldOO (object):
                 continue
             G.add_edge(b, a, weight=d)
 
+        logging.debug("Graph size: |V|={0}, |E|={1}.".format(len(G), G.size()))
+
         L = nx.all_pairs_dijkstra_path_length(G)
         for (a, ao), (b, bo) in combinations(scaffolds, 2):
             if G.has_edge(a, b):
@@ -258,15 +226,14 @@ class ScaffoldOO (object):
         for a, b, d in G.edges(data=True):
             edges.append((a, b, d['weight']))
 
-        tour = hamiltonian(edges, symmetric=False, precision=1)
+        tour = hamiltonian(edges, symmetric=False, precision=2)
         print tour
         assert tour[0] == START and tour[-1] == END
         tour = tour[1:-1]
 
         scaffolds_oo = dict(scaffolds)
-        recode = {0: '?', 1: '+', -1: '-'}
-        tour = [(x, recode[scaffolds_oo[x]]) for x in tour]
-        return tour
+        tour = [(x, scaffolds_oo[x]) for x in tour]
+        return tour, linkage_groups
 
     def get_orientation(self, si, sj):
         '''
@@ -306,6 +273,7 @@ class ScaffoldOO (object):
 
             if mapname == pivot:
                 pivot_oo = oo
+                pivot_nmarkers = nmarkers
 
             for i, j in combinations(range(len(scaffolds)), 2):
                 si, sj = series[i], series[j]
@@ -322,11 +290,46 @@ class ScaffoldOO (object):
         signs = determine_signs(scaffolds, signs_edges)
 
         # Finally flip this according to pivot map, then weight by #_markers
-        nmarkers = [nmarkers[x] for x in scaffolds]
+        nmarkers = [pivot_nmarkers[x] for x in scaffolds]
         flipr = signs * np.sign(np.array(pivot_oo)) * nmarkers
+        print "scaffolds", scaffolds
+        print "nmarkers", nmarkers
+        print "pivot_oo", pivot_oo
+        print "signs", signs
+        print "flipr", flipr
+        print "sum", sum(flipr)
         if sum(flipr) < 0:
             signs = - signs
         return signs
+
+    def fix_orientation(self, tour, linkage_groups, weights):
+        """
+        Test each scaffold if flipping will increass longest monotonous chain
+        length.
+        """
+        scaffold_oo = defaultdict(list)
+        scaffolds, oos = zip(*tour)
+        for mlg in linkage_groups:
+            lg = mlg.lg
+            mapname = lg.split("-")[0]
+            for s, o in tour:
+                i = scaffolds.index(s)
+                L = [self.get_series(lg, x, xo) for x, xo in tour[:i]]
+                U = [self.get_series(lg, x, xo) for x, xo in tour[i + 1:]]
+                L, U = list(flatten(L)), list(flatten(U))
+                M = self.get_series(lg, s)
+                plus = longest_monotonous_subseq_length(L + M + U)
+                minus = longest_monotonous_subseq_length(L + M[::-1] + U)
+                print lg, s, o, M, plus, minus
+                d = plus[0] - minus[0]
+                scaffold_oo[s].append((d, mapname))  # reset orientation
+
+        for s, v in scaffold_oo.items():
+            scaffold_oo[s] = np.sign(self.weighted_mean(v, weights))
+            print s, v
+
+        tour = [(x, scaffold_oo[x]) for x in scaffolds]
+        return tour
 
 
 class CSVMapLine (object):
@@ -575,8 +578,6 @@ def path(args):
                  help="Insert gaps of size")
     p.add_option("--cutoff", default=.01, type="float",
                  help="Down-weight distance <= cM apart, 0 to disable")
-    p.add_option("--draw", default=False, action="store_true",
-                 help="Draw consensus path")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -586,7 +587,6 @@ def path(args):
     gapsize = opts.gapsize
     function = opts.distance
     cutoff = opts.cutoff
-    draw = opts.draw
 
     cc = Map(bedfile)
     mapnames = cc.mapnames
@@ -654,7 +654,7 @@ def path(args):
     for lgs, scaffolds in sorted(partitions.items()):
         tag = "|".join(lgs)
         s = ScaffoldOO(lgs, scaffolds, cc, pivot, weights, sizes,
-                       function=function, cutoff=cutoff, draw=draw)
+                       function=function, cutoff=cutoff)
 
         for fw in (sys.stderr, fwtour):
             print >> fw, ">{0} ({1})".format(s.object, tag)

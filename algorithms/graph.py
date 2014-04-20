@@ -331,6 +331,12 @@ def reduce_paths(G):
     return G
 
 
+def draw_graph(G, pngfile, prog="dot"):
+    G = nx.to_agraph(G)
+    G.draw(pngfile, prog=prog)
+    logging.debug("Graph written to `{0}`.".format(pngfile))
+
+
 def transitive_reduction(G):
     """
     Returns a transitive reduction of a graph.  The original graph

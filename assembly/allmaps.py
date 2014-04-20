@@ -307,6 +307,7 @@ class ScaffoldOO (object):
         Test each scaffold if flipping will increass longest monotonous chain
         length.
         """
+        orientations = dict(tour)  # old configuration here
         scaffold_oo = defaultdict(list)
         scaffolds, oos = zip(*tour)
         for mlg in linkage_groups:
@@ -325,10 +326,12 @@ class ScaffoldOO (object):
                 scaffold_oo[s].append((d, mapname))  # reset orientation
 
         for s, v in scaffold_oo.items():
-            scaffold_oo[s] = np.sign(self.weighted_mean(v, weights))
+            d = np.sign(self.weighted_mean(v, weights))
             print s, v
+            if d:  # only update when there is good evidence
+                orientations[s] = d
 
-        tour = [(x, scaffold_oo[x]) for x in scaffolds]
+        tour = [(x, orientations[x]) for x in scaffolds]
         return tour
 
 

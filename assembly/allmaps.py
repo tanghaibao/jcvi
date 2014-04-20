@@ -326,10 +326,10 @@ class ScaffoldOO (object):
                 scaffold_oo[s].append((d, mapname))  # reset orientation
 
         for s, v in scaffold_oo.items():
-            d = np.sign(self.weighted_mean(v, weights))
-            print s, v
-            if d:  # only update when there is good evidence
-                orientations[s] = d
+            d = self.weighted_mean(v, weights)
+            if abs(d) > .5:  # only update when there is good evidence
+                orientations[s] = np.sign(d)
+            print s, v, d
 
         tour = [(x, orientations[x]) for x in scaffolds]
         return tour

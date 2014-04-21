@@ -35,6 +35,7 @@ debug()
 
 
 START, END = "START", "END"
+distance_choices = ("cM", "rank")
 np.seterr(invalid="ignore")
 
 
@@ -573,6 +574,12 @@ def best_no_ambiguous(d, label):
     return best, best_value
 
 
+def get_function(field):
+    assert field in distance_choices
+    return (lambda x: x.cm) if field == "cM" else \
+           (lambda x: x.rank)
+
+
 def path(args):
     """
     %prog path map.bed weights.txt scaffolds.fasta
@@ -582,8 +589,6 @@ def path(args):
     considered the pivot map. The final output is an AGP file that contain the
     ordered scaffolds.
     """
-    distance_choices = ("cM", "rank")
-
     p = OptionParser(path.__doc__)
     p.add_option("--distance", default="rank", choices=distance_choices,
                  help="Distance function when building consensus")
@@ -598,7 +603,6 @@ def path(args):
 
     bedfile, weightsfile, fastafile = args
     gapsize = opts.gapsize
-    function = opts.distance
     cutoff = opts.cutoff
 
     cc = Map(bedfile)
@@ -607,9 +611,7 @@ def path(args):
     weights = Weights(weightsfile, mapnames)
     pivot = weights.pivot
     ref = weights.ref
-
-    function = (lambda x: x.cm) if function == "cM" else \
-               (lambda x: x.rank)
+    function = get_function(opts.distance)
 
     # Partition the linkage groups into consensus clusters
     C = Grouper()
@@ -763,6 +765,8 @@ def plot(args):
                 HorizontalChromosome
 
     p = OptionParser(plot.__doc__)
+    p.add_option("--distance", default="cM", choices=distance_choices,
+                 help="Plot markers based on distance")
     p.add_option("--links", default=10, type="int",
                  help="Only plot matchings more than")
     opts, args, iopts = p.set_image_options(args, figsize="10x6")
@@ -778,13 +782,14 @@ def plot(args):
     mapnames = cc.mapnames
     weights = Weights(weightsfile, mapnames)
     assert seqid in allseqids, "{0} not in {1}".format(seqid, allseqids)
+    function = get_function(opts.distance)
 
     s = Scaffold(seqid, cc)
     mlgs = [k for k, v in s.mlg_counts.items() if v >= links]
     mlgsizes = {}
     for mlg in mlgs:
         mm = cc.extract_mlg(mlg)
-        mlgsize = max(x.cm for x in mm)
+        mlgsize = max(function(x) for x in mm)
         mlgsizes[mlg] = mlgsize
 
     fig = plt.figure(1, (iopts.w, iopts.h))
@@ -807,8 +812,8 @@ def plot(args):
     # Parallel coordinates
     for mlg, (x, y1, y2) in coords.items():
         mm = cc.extract_mlg(mlg)
-        markers = [(m.accn, m.cm) for m in mm]  # exhaustive marker list
-        xy = [(m.pos, m.cm) for m in mm if m.seqid == seqid]
+        markers = [(m.accn, function(m)) for m in mm]  # exhaustive marker list
+        xy = [(m.pos, function(m)) for m in mm if m.seqid == seqid]
         mx, my = zip(*xy)
         rho, p_value = spearmanr(mx, my)
         rhos[mlg] = rho
@@ -854,7 +859,7 @@ def plot(args):
         cx += extra
         mx -= extra
         ax1.plot((cx, mx), (cy, my), "-", color=colors[b.mlg])
-        scatter_data[b.mlg].append((b.pos, b.cm))
+        scatter_data[b.mlg].append((b.pos, function(b)))
 
     # Scatter plot, same data as parallel coordinates
     xstart, xstop = sorted((ystart, ystop))
@@ -904,6 +909,8 @@ def plotall(args):
     This command will plot each reconstructed object (non-singleton).
     """
     p = OptionParser(plotall.__doc__)
+    p.add_option("--distance", default="cM", choices=distance_choices,
+                 help="Plot markers based on distance")
     p.add_option("--links", default=10, type="int",
                  help="Only plot matchings more than")
     opts, args, iopts = p.set_image_options(args, figsize="10x6")
@@ -916,6 +923,7 @@ def plotall(args):
     objects = [ob for ob, lines in agp.iter_object() if len(lines) > 1]
     for seqid in sorted(objects):
         plot([seqid, mapsbed, agpfile, weightsfile,
+              "--distance={0}".format(opts.distance),
               "--links={0}".format(opts.links)])
 
 

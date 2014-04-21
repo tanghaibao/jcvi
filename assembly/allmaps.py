@@ -436,8 +436,18 @@ class Weights (DictFile):
         super(Weights, self).__init__(filename, cast=cast)
         self.maps = [x.split()[0] for x in must_open(filename)]
         self.update_maps(mapnames)
+        pivot_weight, o, pivot = self.get_pivot(mapnames)
+        ref = self.maps[0]
+        self.pivot = pivot
+        self.ref = ref
+
+        logging.debug("Map weights: {0}".format(self.items()))
 
     def update_maps(self, mapnames, default=1):
+        keys = self.keys()
+        for m in keys:
+            if m not in mapnames:
+                del self[m]
         for m in mapnames:
             if m in self:
                 continue
@@ -595,9 +605,9 @@ def path(args):
     mapnames = cc.mapnames
     allseqids = cc.seqids
     weights = Weights(weightsfile, mapnames)
-    pivot_weight, o, pivot = weights.get_pivot(mapnames)
+    pivot = weights.pivot
+    ref = weights.ref
 
-    logging.debug("Pivot map: `{0}` (weight={1}).".format(pivot, pivot_weight))
     function = (lambda x: x.cm) if function == "cM" else \
                (lambda x: x.rank)
 
@@ -606,21 +616,23 @@ def path(args):
     # Initialize the partitions
     for mlg in cc.mlgs:
         C.join(mlg)
+
+    logging.debug("Partition LGs based on {0}.".format(ref))
     for mapname in mapnames:
-        if mapname == pivot:
+        if mapname == ref:
             continue
         # Compute co-occurrence between LG pairs
         G = defaultdict(int)
         for s in allseqids:
             s = Scaffold(s, cc)
-            s.add_LG_pairs(G, (pivot, mapname))
+            s.add_LG_pairs(G, (ref, mapname))
         # Convert edge list to adj list
         nodes = defaultdict(list)
         for (a, b), w in G.items():
             nodes[a].append((b, w))
-        # Find the best pivot LG every non-pivot LG matches to
+        # Find the best ref LG every non-ref LG matches to
         for n, neighbors in nodes.items():
-            if n.split("-")[0] == pivot:
+            if n.split("-")[0] == ref:
                 continue
             neighbors = dict(neighbors)
             best_neighbor, best_value = best_no_ambiguous(neighbors, n)

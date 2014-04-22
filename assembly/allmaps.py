@@ -164,6 +164,8 @@ class ScaffoldOO (object):
                     markers[s] = xs
             LG = LinkageGroup(lg, length, markers, function=self.function)
             self.linkage_groups.append(LG)
+            print LG.lg
+            print sorted((v, k) for k, v in LG.position.items())
 
     def distances_to_tour(self):
         scaffolds = self.scaffolds
@@ -355,6 +357,8 @@ class ScaffoldOO (object):
                 plus = longest_monotonous_subseq_length(L + M + U)
                 minus = longest_monotonous_subseq_length(L + M[::-1] + U)
                 d = plus[0] - minus[0]
+                if not d:
+                    continue
                 scaffold_oo[s].append((d, mapname))  # reset orientation
 
         for s, v in scaffold_oo.items():
@@ -428,11 +432,12 @@ class Marker (object):
 
 class Map (list):
 
-    def __init__(self, filename):
+    def __init__(self, filename, cutoff=0):
         bed = Bed(filename)
         for b in bed:
             self.append(Marker(b))
         self.report()
+        self.ranks = self.compute_ranks(cutoff)
 
     def report(self):
         self.nmarkers = len(self)
@@ -441,7 +446,6 @@ class Map (list):
         self.mlgs = sorted(set(x.mlg for x in self))
         logging.debug("Map contains {0} markers in {1} linkage groups.".\
                       format(self.nmarkers, len(self.mlgs)))
-        self.ranks = self.compute_ranks()
 
     def extract(self, seqid):
         r = [x for x in self if x.seqid == seqid]
@@ -451,11 +455,18 @@ class Map (list):
         r = [x for x in self if x.mlg == mlg]
         return sorted(r, key=lambda x: x.cm)
 
-    def compute_ranks(self):
+    def compute_ranks(self, cutoff):
         ranks = {}  # Store the length for each linkage group
         for mlg in self.mlgs:
+            rank = 0
             mlg_set = self.extract_mlg(mlg)
-            for rank, marker in enumerate(mlg_set):
+            for i, marker in enumerate(mlg_set):
+                if i == 0:
+                    marker.rank = rank
+                    continue
+                d = mlg_set[i].cm - mlg_set[i - 1].cm
+                increment = .1 if d < cutoff else 1  # compression
+                rank += increment
                 marker.rank = rank
             ranks[mlg] = mlg_set
         return ranks
@@ -656,7 +667,7 @@ def path(args):
                  help="Distance function when building consensus")
     p.add_option("--gapsize", default=100, type="int",
                  help="Insert gaps of size")
-    p.add_option("--cutoff", default=.01, type="float",
+    p.add_option("--cutoff", default=0, type="float",
                  help="Down-weight distance <= cM apart, 0 to disable")
     opts, args = p.parse_args(args)
 
@@ -666,7 +677,7 @@ def path(args):
     bedfile, weightsfile, fastafile = args
     gapsize = opts.gapsize
 
-    cc = Map(bedfile)
+    cc = Map(bedfile, cutoff=opts.cutoff)
     mapnames = cc.mapnames
     allseqids = cc.seqids
     weights = Weights(weightsfile, mapnames)
@@ -831,6 +842,8 @@ def plot(args):
                  help="Plot markers based on distance")
     p.add_option("--links", default=10, type="int",
                  help="Only plot matchings more than")
+    p.add_option("--cutoff", default=0, type="float",
+                 help="Down-weight distance <= cM apart, 0 to disable")
     opts, args, iopts = p.set_image_options(args, figsize="10x6")
 
     if len(args) != 4:
@@ -839,7 +852,7 @@ def plot(args):
     seqid, bedfile, agpfile, weightsfile = args
     links = opts.links
 
-    cc = Map(bedfile)
+    cc = Map(bedfile, cutoff=opts.cutoff)
     allseqids = cc.seqids
     mapnames = cc.mapnames
     weights = Weights(weightsfile, mapnames)
@@ -975,6 +988,8 @@ def plotall(args):
                  help="Plot markers based on distance")
     p.add_option("--links", default=10, type="int",
                  help="Only plot matchings more than")
+    p.add_option("--cutoff", default=0, type="float",
+                 help="Down-weight distance <= cM apart, 0 to disable")
     opts, args, iopts = p.set_image_options(args, figsize="10x6")
 
     if len(args) != 3:
@@ -986,7 +1001,8 @@ def plotall(args):
     for seqid in sorted(objects):
         plot([seqid, mapsbed, agpfile, weightsfile,
               "--distance={0}".format(opts.distance),
-              "--links={0}".format(opts.links)])
+              "--links={0}".format(opts.links),
+              "--cutoff={0}".format(opts.cutoff)])
 
 
 if __name__ == '__main__':

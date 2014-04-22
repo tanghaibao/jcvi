@@ -28,7 +28,7 @@ from jcvi.formats.sizes import Sizes
 from jcvi.utils.cbook import human_size
 from jcvi.utils.counter import Counter
 from jcvi.utils.grouper import Grouper
-from jcvi.utils.iter import flatten
+from jcvi.utils.iter import flatten, pairwise
 from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh, \
             need_update
 debug()
@@ -68,6 +68,7 @@ class LinkageGroup (object):
     def __init__(self, lg, markers, function=(lambda x: x.rank)):
         # Three dicts that are keyed by scaffold id
         self.lg = lg
+        self.mapname = lg.split("-")[0]
         self.markers = markers
         self.series = dict((k, [function(x) for x in v]) \
                             for k, v in markers.items())
@@ -97,6 +98,8 @@ class ScaffoldOO (object):
         tour, linkage_groups = self.assign_order(scaffolds, pivot, weights,
                                  cutoff=cutoff)
         tour = self.fix_orientation(tour, linkage_groups, weights)
+        score = self.evaluate(tour, linkage_groups, weights)
+        logging.debug("Current score: {0}".format(score))
 
         recode = {0: '?', 1: '+', -1: '-'}
         tour = [(x, recode[o]) for x, o in tour]
@@ -186,13 +189,12 @@ class ScaffoldOO (object):
 
             print lg.lg
             print lg.position
-            print lg.guide
             print path
 
         # Preparation of TSP
         distances = defaultdict(list)
         for path, rho, lg in zip(paths, rhos, linkage_groups):
-            mapname = lg.lg.split("-")[0]
+            mapname = lg.mapname
             position = lg.position
             length = self.lengths[lg.lg]
             for a, b in combinations(path, 2):
@@ -293,12 +295,6 @@ class ScaffoldOO (object):
         # Finally flip this according to pivot map, then weight by #_markers
         nmarkers = [pivot_nmarkers[x] for x in scaffolds]
         flipr = signs * np.sign(np.array(pivot_oo)) * nmarkers
-        print "scaffolds", scaffolds
-        print "nmarkers", nmarkers
-        print "pivot_oo", pivot_oo
-        print "signs", signs
-        print "flipr", flipr
-        print "sum", sum(flipr)
         if sum(flipr) < 0:
             signs = - signs
         return signs
@@ -313,7 +309,7 @@ class ScaffoldOO (object):
         scaffolds, oos = zip(*tour)
         for mlg in linkage_groups:
             lg = mlg.lg
-            mapname = lg.split("-")[0]
+            mapname = mlg.mapname
             for s, o in tour:
                 i = scaffolds.index(s)
                 L = [self.get_series(lg, x, xo) for x, xo in tour[:i]]
@@ -334,6 +330,23 @@ class ScaffoldOO (object):
 
         tour = [(x, orientations[x]) for x in scaffolds]
         return tour
+
+    def evaluate(self, tour, linkage_groups, weights):
+        """
+        Return score that correspond to the sum of all distances.
+        """
+        scaffolds, oos = zip(*tour)
+        score = 0
+        for mlg in linkage_groups:
+            lg = mlg.lg
+            position = mlg.position
+            mapname = mlg.mapname
+            length = self.lengths[lg]
+            lg_position = [position[x] for x in scaffolds if x in position]
+            lg_position = [0] + lg_position + [length]
+            s = sum(abs(a - b) for a, b in pairwise(lg_position))
+            score += weights[mapname] * s
+        return score
 
 
 class CSVMapLine (object):

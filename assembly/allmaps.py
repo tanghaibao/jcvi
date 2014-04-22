@@ -99,8 +99,8 @@ class ScaffoldOO (object):
                  function=(lambda x: x.rank)):
 
         self.lgs = lgs
-        self.lengths = mapc.compute_lengths(function)
-        self.bins = mapc.get_bins(function)
+        self.lengths = mapc.lengths
+        self.bins = mapc.bins
         self.function = function
         self.sizes = sizes
         self.scaffolds = scaffolds
@@ -377,11 +377,10 @@ class ScaffoldOO (object):
         weights = self.weights
         score = 0
         for mlg in self.linkage_groups:
-            lg = mlg.lg
             position = mlg.position
             mapname = mlg.mapname
             rho = mlg.rho
-            length = self.lengths[lg]
+            length = mlg.length
             lg_position = [position[x] for x in tour if x in position]
             if rho >= 0:
                 lg_position = [0] + lg_position + [length]
@@ -389,6 +388,7 @@ class ScaffoldOO (object):
                 lg_position = [length] + lg_position + [0]
             s = sum(abs(a - b) for a, b in pairwise(lg_position))
             score += weights[mapname] * s
+
         return score
 
 
@@ -432,12 +432,14 @@ class Marker (object):
 
 class Map (list):
 
-    def __init__(self, filename, cutoff=0):
+    def __init__(self, filename, function, cutoff=0):
         bed = Bed(filename)
         for b in bed:
             self.append(Marker(b))
         self.report()
         self.ranks = self.compute_ranks(cutoff)
+        self.lengths = self.compute_lengths(function)
+        self.bins = self.get_bins(function)
 
     def report(self):
         self.nmarkers = len(self)
@@ -677,13 +679,13 @@ def path(args):
     bedfile, weightsfile, fastafile = args
     gapsize = opts.gapsize
 
-    cc = Map(bedfile, cutoff=opts.cutoff)
+    function = get_function(opts.distance)
+    cc = Map(bedfile, function, cutoff=opts.cutoff)
     mapnames = cc.mapnames
     allseqids = cc.seqids
     weights = Weights(weightsfile, mapnames)
     pivot = weights.pivot
     ref = weights.ref
-    function = get_function(opts.distance)
 
     # Partition the linkage groups into consensus clusters
     C = Grouper()
@@ -852,12 +854,12 @@ def plot(args):
     seqid, bedfile, agpfile, weightsfile = args
     links = opts.links
 
-    cc = Map(bedfile, cutoff=opts.cutoff)
+    function = get_function(opts.distance)
+    cc = Map(bedfile, function, cutoff=opts.cutoff)
     allseqids = cc.seqids
     mapnames = cc.mapnames
     weights = Weights(weightsfile, mapnames)
     assert seqid in allseqids, "{0} not in {1}".format(seqid, allseqids)
-    function = get_function(opts.distance)
 
     s = Scaffold(seqid, cc)
     mlgs = [k for k, v in s.mlg_counts.items() if v >= links]

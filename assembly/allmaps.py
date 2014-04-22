@@ -65,17 +65,29 @@ class Scaffold (object):
 
 class LinkageGroup (object):
 
-    def __init__(self, lg, markers, function=(lambda x: x.rank)):
-        # Three dicts that are keyed by scaffold id
+    def __init__(self, lg, length, markers, function=(lambda x: x.rank)):
         self.lg = lg
-        self.mapname = lg.split("-")[0]
+        self.length = length
         self.markers = markers
-        self.series = dict((k, [function(x) for x in v]) \
-                            for k, v in markers.items())
-        self.position = dict((k, np.median(v)) \
-                            for k, v in self.series.items())
-        self.guide = dict((k, np.median([x.cm for x in v])) \
-                            for k, v in markers.items())
+
+        self.mapname = lg.split("-")[0]
+        self.series = {}
+        self.nmarkers = {}
+        self.oo = {}
+        self.position = {}
+        self.guide = {}
+        for k, v in markers.items():  # keyed by scaffold ids
+            self.series[k] = xs = [function(x) for x in v]
+            self.nmarkers[k] = len(v)
+            physical_to_cm = [(x.pos, function(x)) for x in v]
+            self.oo[k] = get_rho(physical_to_cm)
+            self.position[k] = np.median(xs)
+            self.guide[k] = np.median([x.cm for x in v])
+
+        path = sorted((v, self.guide[k], k) for k, v in self.position.items())
+        vv, gg, path = zip(*path)
+        self.path = path
+        self.rho = 0
 
 
 class ScaffoldOO (object):
@@ -84,23 +96,29 @@ class ScaffoldOO (object):
     scaffolds per partition.
     """
     def __init__(self, lgs, scaffolds, mapc, pivot, weights, sizes,
-                 function=(lambda x: x.rank), cutoff=.01):
+                 function=(lambda x: x.rank)):
 
         self.lgs = lgs
         self.lengths = mapc.compute_lengths(function)
         self.bins = mapc.get_bins(function)
         self.function = function
         self.sizes = sizes
+        self.scaffolds = scaffolds
+        self.pivot = pivot
+        self.weights = weights
 
-        signs = self.assign_orientation(scaffolds, pivot, weights)
-        scaffolds = zip(scaffolds, signs)
+        self.prepare_linkage_groups()  # populate all data
+        signs = self.assign_orientation()
+        assert len(signs) == len(scaffolds)
+        scaffolds_oo = dict(zip(scaffolds, signs))
 
-        tour, linkage_groups = self.assign_order(scaffolds, pivot, weights,
-                                 cutoff=cutoff)
-        tour = self.fix_orientation(tour, linkage_groups, weights)
-        score = self.evaluate(tour, linkage_groups, weights)
+        tour = self.assign_order()
+        tour = [(x, scaffolds_oo[x]) for x in tour]
+
+        score = self.evaluate(tour)
         logging.debug("Current score: {0}".format(score))
 
+        tour = self.fix_orientation(tour)
         recode = {0: '?', 1: '+', -1: '-'}
         tour = [(x, recode[o]) for x, o in tour]
         self.tour = tour
@@ -111,9 +129,9 @@ class ScaffoldOO (object):
                 self.object = "chr{0}".format(lg)
                 break
 
-    def weighted_mean(self, a, weights):
+    def weighted_mean(self, a):
         a, w = zip(*a)
-        w = [weights[x] for x in w]
+        w = [self.weights[x] for x in w]
         return np.average(a, weights=w)
 
     def get_markers(self, lg, scaffold, orientation=0):
@@ -126,53 +144,33 @@ class ScaffoldOO (object):
         xs = self.get_markers(lg, scaffold, orientation=orientation)
         return [self.function(x) for x in xs]
 
-    def get_rho(self, xy):
-        if not xy:
-            return 0
-        x, y = zip(*xy)
-        rho, p_value = spearmanr(x, y)
-        if np.isnan(rho):
-            rho = 0
-        return rho
+    def prepare_linkage_groups(self):
+        self.linkage_groups = []
+        for lg in self.lgs:
+            length = self.lengths[lg]
+            markers = {}
+            for s in self.scaffolds:
+                xs = self.get_markers(lg, s)
+                if xs:
+                    markers[s] = xs
+            LG = LinkageGroup(lg, length, markers, function=self.function)
+            self.linkage_groups.append(LG)
 
-    def assign_order(self, scaffolds, pivot, weights, cutoff=.01):
+    def assign_order(self):
         """
         The goal is to assign scaffold orders. To help order the scaffolds, two
         dummy node, START and END, mark the ends of the chromosome. We connect
         START to each scaffold (directed), and each scaffold to END.
         """
-        f = self.function
-        linkage_groups = []
-        for lg in self.lgs:
-            mapname = lg.split("-")[0]
-            length = self.lengths[lg]
-            markers = {}
-            position = {}
-            guide = {}  # cM guide to ward against 'close binning'
-            for a, ao in scaffolds:
-                xa = self.get_markers(lg, a, orientation=ao)
-                if not xa:
-                    continue
-                d = np.median([f(x) for x in xa])
-                assert 0 <= d <= length
-                markers[a] = xa
-                position[a] = d
+        scaffolds = self.scaffolds
+        linkage_groups = self.linkage_groups
+        for mlg in linkage_groups:
+            mapname = mlg.mapname
+            if mapname == self.pivot:
+                pivot_position = mlg.position
 
-            if mapname == pivot:
-                pivot_position = position
-
-            LG = LinkageGroup(lg, markers, function=f)
-            linkage_groups.append(LG)
-
-        paths = []
-        rhos = []
-        for lg in linkage_groups:
-            position = lg.position
-            guide = lg.guide
-            # Sort the order based on median distance
-            path = sorted((v, guide[k], k) for k, v in position.items())
-            vv, gg, path = zip(*path)
-
+        for mlg in linkage_groups:
+            position = mlg.position
             # Flip order if path goes in the opposite direction to the pivot
             common = []
             for a, ap in position.items():
@@ -181,22 +179,18 @@ class ScaffoldOO (object):
                 pp = pivot_position[a]
                 common.append((ap, pp))
 
-            rho = self.get_rho(common)
-            if rho < 0:
-                path = path[::-1]
-            paths.append(path)
-            rhos.append(rho)
-
-            print lg.lg
-            print lg.position
-            print path
+            mlg.rho = get_rho(common)
+            if mlg.rho < 0:
+                mlg.path = mlg.path[::-1]
 
         # Preparation of TSP
         distances = defaultdict(list)
-        for path, rho, lg in zip(paths, rhos, linkage_groups):
-            mapname = lg.mapname
-            position = lg.position
-            length = self.lengths[lg.lg]
+        for mlg in linkage_groups:
+            mapname = mlg.mapname
+            position = mlg.position
+            length = mlg.length
+            path = mlg.path
+            rho = mlg.rho
             for a, b in combinations(path, 2):
                 d = abs(position[a] - position[b])
                 distances[a, b].append((d, mapname))
@@ -209,7 +203,7 @@ class ScaffoldOO (object):
 
         G = nx.DiGraph()
         for (a, b), v in distances.items():
-            d = self.weighted_mean(v, weights)
+            d = self.weighted_mean(v)
             G.add_edge(a, b, weight=d)
             if a == START or b == END:
                 continue
@@ -218,7 +212,7 @@ class ScaffoldOO (object):
         logging.debug("Graph size: |V|={0}, |E|={1}.".format(len(G), G.size()))
 
         L = nx.all_pairs_dijkstra_path_length(G)
-        for (a, ao), (b, bo) in combinations(scaffolds, 2):
+        for a, b in combinations(scaffolds, 2):
             if G.has_edge(a, b):
                 continue
             l = L[a][b]
@@ -230,13 +224,10 @@ class ScaffoldOO (object):
             edges.append((a, b, d['weight']))
 
         tour = hamiltonian(edges, symmetric=False, precision=2)
-        print tour
         assert tour[0] == START and tour[-1] == END
         tour = tour[1:-1]
 
-        scaffolds_oo = dict(scaffolds)
-        tour = [(x, scaffolds_oo[x]) for x in tour]
-        return tour, linkage_groups
+        return tour
 
     def get_orientation(self, si, sj):
         '''
@@ -254,52 +245,39 @@ class ScaffoldOO (object):
         d = longest_monotonous_subseq_length(sj[::-1] + si)
         return max(a, b)[0] - max(c, d)[0]
 
-    def assign_orientation(self, scaffolds, pivot, weights):
-        f = self.function
+    def assign_orientation(self):
         signs = defaultdict(list)
-        for lg in self.lgs:
-            mapname = lg.split("-")[0]
-            oo = []
-            nmarkers = {}
-            series = []
-            for s in scaffolds:
-                xs = self.get_markers(lg, s)
-                nmarkers[s] = len(xs)
-                if not xs:
-                    series.append([])
-                    oo.append(0)
-                    continue
-                physical_to_cm = [(x.pos, f(x)) for x in xs]
-                rho = self.get_rho(physical_to_cm)
-                oo.append(rho)
-                series.append([f(x) for x in xs])
-
-            if mapname == pivot:
-                pivot_oo = oo
-                pivot_nmarkers = nmarkers
+        scaffolds = self.scaffolds
+        for mlg in self.linkage_groups:
+            mapname = mlg.mapname
+            series = mlg.series
+            if mapname == self.pivot:
+                pivot_oo = mlg.oo
+                pivot_nmarkers = mlg.nmarkers
 
             for i, j in combinations(range(len(scaffolds)), 2):
-                si, sj = series[i], series[j]
+                si, sj = scaffolds[i], scaffolds[j]
+                si, sj = series.get(si, []), series.get(sj, [])
                 d = self.get_orientation(si, sj)
-
                 if not d:
                     continue
                 signs[i, j].append((d, mapname))
 
         for e, v in signs.items():
-            signs[e] = self.weighted_mean(v, weights)
+            signs[e] = self.weighted_mean(v)
 
         signs_edges = sorted((a, b, w) for (a, b), w in signs.items())
         signs = determine_signs(scaffolds, signs_edges)
 
         # Finally flip this according to pivot map, then weight by #_markers
-        nmarkers = [pivot_nmarkers[x] for x in scaffolds]
+        pivot_oo = [pivot_oo.get(x, 0) for x in scaffolds]
+        nmarkers = [pivot_nmarkers.get(x, 0) for x in scaffolds]
         flipr = signs * np.sign(np.array(pivot_oo)) * nmarkers
         if sum(flipr) < 0:
             signs = - signs
         return signs
 
-    def fix_orientation(self, tour, linkage_groups, weights):
+    def fix_orientation(self, tour):
         """
         Test each scaffold if flipping will increass longest monotonous chain
         length.
@@ -307,7 +285,7 @@ class ScaffoldOO (object):
         orientations = dict(tour)  # old configuration here
         scaffold_oo = defaultdict(list)
         scaffolds, oos = zip(*tour)
-        for mlg in linkage_groups:
+        for mlg in self.linkage_groups:
             lg = mlg.lg
             mapname = mlg.mapname
             for s, o in tour:
@@ -318,26 +296,26 @@ class ScaffoldOO (object):
                 M = self.get_series(lg, s)
                 plus = longest_monotonous_subseq_length(L + M + U)
                 minus = longest_monotonous_subseq_length(L + M[::-1] + U)
-                print lg, s, o, M, plus, minus
                 d = plus[0] - minus[0]
                 scaffold_oo[s].append((d, mapname))  # reset orientation
 
         for s, v in scaffold_oo.items():
-            d = self.weighted_mean(v, weights)
+            d = self.weighted_mean(v)
             if abs(d) > .5:  # only update when there is good evidence
                 orientations[s] = np.sign(d)
-            print s, v, d
+            #print s, v, d
 
         tour = [(x, orientations[x]) for x in scaffolds]
         return tour
 
-    def evaluate(self, tour, linkage_groups, weights):
+    def evaluate(self, tour):
         """
         Return score that correspond to the sum of all distances.
         """
         scaffolds, oos = zip(*tour)
+        weights = self.weights
         score = 0
-        for mlg in linkage_groups:
+        for mlg in self.linkage_groups:
             lg = mlg.lg
             position = mlg.position
             mapname = mlg.mapname
@@ -517,6 +495,16 @@ class Layout (object):
         self.coords = coords
 
 
+def get_rho(xy):
+    if not xy:
+        return 0
+    x, y = zip(*xy)
+    rho, p_value = spearmanr(x, y)
+    if np.isnan(rho):
+        rho = 0
+    return rho
+
+
 def main():
 
     actions = (
@@ -616,7 +604,6 @@ def path(args):
 
     bedfile, weightsfile, fastafile = args
     gapsize = opts.gapsize
-    cutoff = opts.cutoff
 
     cc = Map(bedfile)
     mapnames = cc.mapnames
@@ -683,8 +670,9 @@ def path(args):
     solutions = []
     for lgs, scaffolds in sorted(partitions.items()):
         tag = "|".join(lgs)
+        logging.debug("Working on {0}...".format(tag))
         s = ScaffoldOO(lgs, scaffolds, cc, pivot, weights, sizes,
-                       function=function, cutoff=cutoff)
+                       function=function)
 
         for fw in (sys.stderr, fwtour):
             print >> fw, ">{0} ({1})".format(s.object, tag)

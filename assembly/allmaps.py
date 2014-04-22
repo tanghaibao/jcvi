@@ -12,7 +12,7 @@ import logging
 import numpy as np
 import networkx as nx
 
-from itertools import combinations
+from itertools import combinations, product
 from collections import defaultdict
 from scipy.stats import spearmanr
 
@@ -69,6 +69,7 @@ class LinkageGroup (object):
         self.lg = lg
         self.length = length
         self.markers = markers
+        self.function = f = function
 
         self.mapname = lg.split("-")[0]
         self.series = {}
@@ -77,9 +78,9 @@ class LinkageGroup (object):
         self.position = {}
         self.guide = {}
         for k, v in markers.items():  # keyed by scaffold ids
-            self.series[k] = xs = [function(x) for x in v]
+            self.series[k] = xs = [f(x) for x in v]
             self.nmarkers[k] = len(v)
-            physical_to_cm = [(x.pos, function(x)) for x in v]
+            physical_to_cm = [(x.pos, f(x)) for x in v]
             self.oo[k] = get_rho(physical_to_cm)
             self.position[k] = np.median(xs)
             self.guide[k] = np.median([x.cm for x in v])
@@ -88,6 +89,17 @@ class LinkageGroup (object):
         vv, gg, path = zip(*path)
         self.path = path
         self.rho = 0
+        self.distances = self.populate_pairwise_distance()
+
+    def populate_pairwise_distance(self):
+        distances = {}
+        f = self.function
+        markers = self.markers
+        for a, b in combinations(self.path, 2):
+            ma, mb = markers[a], markers[b]
+            d = min(abs(f(x) - f(y)) for x, y in product(ma, mb))
+            distances[a, b] = distances[b, a] = d
+        return distances
 
 
 class ScaffoldOO (object):
@@ -231,8 +243,9 @@ class ScaffoldOO (object):
             length = mlg.length
             path = mlg.path
             rho = mlg.rho
+            dd = mlg.distances
             for a, b in combinations(path, 2):
-                d = abs(position[a] - position[b])
+                d = dd[a, b]
                 distances[a, b].append((d, mapname))
             for p in path:
                 adist, bdist = position[p], length - position[p]
@@ -260,6 +273,7 @@ class ScaffoldOO (object):
         for mlg in self.linkage_groups:
             mapname = mlg.mapname
             position = mlg.position
+            dd = mlg.distances
             for a, b in pairwise(tour):
                 if not a in position:
                     continue
@@ -272,7 +286,7 @@ class ScaffoldOO (object):
                 if not c:
                     continue
                 ci = tour_index[c]
-                distance = abs(position[c] - position[a])
+                distance = dd[c, a]
                 d = distance / 2.
                 for i in xrange(ai + 1, ci):
                     t = tour[i]
@@ -381,12 +395,14 @@ class ScaffoldOO (object):
             mapname = mlg.mapname
             rho = mlg.rho
             length = mlg.length
-            lg_position = [position[x] for x in tour if x in position]
-            if rho >= 0:
-                lg_position = [0] + lg_position + [length]
-            else:
-                lg_position = [length] + lg_position + [0]
-            s = sum(abs(a - b) for a, b in pairwise(lg_position))
+            dd = mlg.distances
+            lg_tour = [x for x in tour if x in position]
+            s = sum(dd[a, b] for a, b in pairwise(lg_tour))
+            start, end = lg_tour[0], lg_tour[-1]
+            if rho < 0:
+                start, end = end, start
+            adist, bdist = position[start], length - position[end]
+            s += adist + bdist
             score += weights[mapname] * s
 
         return score

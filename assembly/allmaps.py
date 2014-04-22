@@ -113,10 +113,19 @@ class ScaffoldOO (object):
         scaffolds_oo = dict(zip(scaffolds, signs))
 
         tour = self.assign_order()
-        tour = [(x, scaffolds_oo[x]) for x in tour]
+        links = 1
+        iterations = 0
+        solutions = []
+        while links:
+            score = self.evaluate(tour)
+            logging.debug("Iteration {0} score: {1}".format(iterations, score))
+            solutions.append((score, tour))
+            tour, links = self.fix_order(tour)
+            iterations += 1
 
-        score = self.evaluate(tour)
-        logging.debug("Current score: {0}".format(score))
+        min_score, tour = min(solutions)
+        logging.debug("Best solution score: {0}".format(min_score))
+        tour = [(x, scaffolds_oo[x]) for x in tour]
 
         tour = self.fix_orientation(tour)
         recode = {0: '?', 1: '+', -1: '-'}
@@ -156,13 +165,42 @@ class ScaffoldOO (object):
             LG = LinkageGroup(lg, length, markers, function=self.function)
             self.linkage_groups.append(LG)
 
+    def distances_to_tour(self):
+        scaffolds = self.scaffolds
+        distances = self.distances
+        G = nx.DiGraph()
+        for (a, b), v in distances.items():
+            d = self.weighted_mean(v)
+            G.add_edge(a, b, weight=d)
+            if a == START or b == END:
+                continue
+            G.add_edge(b, a, weight=d)
+
+        logging.debug("Graph size: |V|={0}, |E|={1}.".format(len(G), G.size()))
+
+        L = nx.all_pairs_dijkstra_path_length(G)
+        for a, b in combinations(scaffolds, 2):
+            if G.has_edge(a, b):
+                continue
+            l = L[a][b]
+            G.add_edge(a, b, weight=l)
+            G.add_edge(b, a, weight=l)
+
+        edges = []
+        for a, b, d in G.edges(data=True):
+            edges.append((a, b, d['weight']))
+
+        tour = hamiltonian(edges, symmetric=False, precision=2)
+        assert tour[0] == START and tour[-1] == END
+        tour = tour[1:-1]
+        return tour
+
     def assign_order(self):
         """
         The goal is to assign scaffold orders. To help order the scaffolds, two
         dummy node, START and END, mark the ends of the chromosome. We connect
         START to each scaffold (directed), and each scaffold to END.
         """
-        scaffolds = self.scaffolds
         linkage_groups = self.linkage_groups
         for mlg in linkage_groups:
             mapname = mlg.mapname
@@ -200,41 +238,61 @@ class ScaffoldOO (object):
                     adist, bdist = bdist, adist
                 distances[START, p].append((adist, mapname))
                 distances[p, END].append((bdist, mapname))
+        self.distances = distances
 
-        G = nx.DiGraph()
-        for (a, b), v in distances.items():
-            d = self.weighted_mean(v)
-            G.add_edge(a, b, weight=d)
-            if a == START or b == END:
-                continue
-            G.add_edge(b, a, weight=d)
-
-        logging.debug("Graph size: |V|={0}, |E|={1}.".format(len(G), G.size()))
-
-        L = nx.all_pairs_dijkstra_path_length(G)
-        for a, b in combinations(scaffolds, 2):
-            if G.has_edge(a, b):
-                continue
-            l = L[a][b]
-            G.add_edge(a, b, weight=l)
-            G.add_edge(b, a, weight=l)
-
-        edges = []
-        for a, b, d in G.edges(data=True):
-            edges.append((a, b, d['weight']))
-
-        tour = hamiltonian(edges, symmetric=False, precision=2)
-        assert tour[0] == START and tour[-1] == END
-        tour = tour[1:-1]
-
+        tour = self.distances_to_tour()
         return tour
 
+    def fix_order(self, tour):
+        """
+        TSP will not produce the ideal order, but quite close. The reason for
+        slight inaccuracies is due to scaffold connections (edges) that are
+        unique to certain maps. In other words, edges like this will have no
+        weight for certain maps. The following fix add those edges back by
+        extrapolating distances based on the preliminary order and then
+        iteratively perform updates after inserting those weights back.
+        """
+        distances = self.distances
+        tour_index = dict((t, i) for i, t in enumerate(tour))
+        links = 0
+        for mlg in self.linkage_groups:
+            mapname = mlg.mapname
+            position = mlg.position
+            for a, b in pairwise(tour):
+                if not a in position:
+                    continue
+                if b in position:
+                    continue
+                # Find the closest scaffold in the same lg DOWNSTREAM
+                ai = tour_index[a]
+                flank = [x for x in tour[ai + 1:] if x in position]
+                c = flank[0] if flank else None
+                if not c:
+                    continue
+                ci = tour_index[c]
+                distance = abs(position[c] - position[a])
+                d = distance / 2.
+                for i in xrange(ai + 1, ci):
+                    t = tour[i]
+                    for e in ((a, t), (t, a), (t, c), (c, t)):
+                        if mapname in [x[-1] for x in distances[e]]:
+                            continue
+                        distances[e].append((d, mapname))
+                        print e[0], "=>", e[1], d, mapname
+                        links += 1
+
+        logging.debug("A total of {0} new edges inserted.".format(links))
+        if links:
+            tour = self.distances_to_tour()
+        return tour, links
+
+
     def get_orientation(self, si, sj):
-        '''
+        """
         si, sj are two number series. To compute whether these two series have
         same orientation or not. We combine them in the two orientation
         configurations and compute length of the longest monotonous series.
-        '''
+        """
         if not si or not sj:
             return 0
         # Same orientation configuration
@@ -312,16 +370,19 @@ class ScaffoldOO (object):
         """
         Return score that correspond to the sum of all distances.
         """
-        scaffolds, oos = zip(*tour)
         weights = self.weights
         score = 0
         for mlg in self.linkage_groups:
             lg = mlg.lg
             position = mlg.position
             mapname = mlg.mapname
+            rho = mlg.rho
             length = self.lengths[lg]
-            lg_position = [position[x] for x in scaffolds if x in position]
-            lg_position = [0] + lg_position + [length]
+            lg_position = [position[x] for x in tour if x in position]
+            if rho >= 0:
+                lg_position = [0] + lg_position + [length]
+            else:
+                lg_position = [length] + lg_position + [0]
             s = sum(abs(a - b) for a, b in pairwise(lg_position))
             score += weights[mapname] * s
         return score

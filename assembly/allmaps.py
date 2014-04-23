@@ -127,20 +127,16 @@ class ScaffoldOO (object):
         scaffolds_oo = dict(zip(scaffolds, signs))
 
         tour = self.assign_order()
-        links = 1
-        iterations = 0
-        solutions = []
-        while links:
-            score = self.evaluate(tour)
-            logging.debug("Iteration {0} score: {1}".format(iterations, score))
-            solutions.append((score, tour))
-            tour, links = self.fix_order(tour)
-            iterations += 1
+        distances_start = self.distances.copy()
+        while True:
+            tour_start = tour
+            tour = self.iterative_fix_order(tour_start)
+            if tour == tour_start:
+                break
+            logging.debug("Order refinement reset")
+            self.distances = distances_start.copy()  # Recover initial state
 
-        min_score, tour = min(solutions)
-        logging.debug("Best solution score: {0}".format(min_score))
         tour = [(x, scaffolds_oo[x]) for x in tour]
-
         tour = self.fix_orientation(tour)
         recode = {0: '?', 1: '+', -1: '-'}
         tour = [(x, recode[o]) for x, o in tour]
@@ -261,6 +257,21 @@ class ScaffoldOO (object):
         self.distances = distances
 
         tour = self.distances_to_tour()
+        return tour
+
+    def iterative_fix_order(self, tour):
+        links = 1
+        iterations = 0
+        solutions = []
+        while links:
+            score = self.evaluate(tour)
+            logging.debug("Iteration {0} score: {1}".format(iterations, score))
+            solutions.append((score, tour))
+            tour, links = self.fix_order(tour)
+            iterations += 1
+
+        min_score, tour = min(solutions)
+        logging.debug("Best solution score: {0}".format(min_score))
         return tour
 
     def fix_order(self, tour):

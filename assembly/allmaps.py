@@ -306,7 +306,7 @@ class ScaffoldOO (object):
                 d = distance / 2.
                 for i in xrange(ai + 1, ci):
                     t = tour[i]
-                    for e in ((a, t), (t, a), (t, c), (c, t)):
+                    for e in ((a, t), (t, c)):
                         if mapname in [x[-1] for x in distances[e]]:
                             continue
                         distances[e].append((d, mapname))

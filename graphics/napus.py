@@ -233,11 +233,7 @@ def conversion_track(order, filename, col, label, ax, color,
         logging.error("Array empty. Skipped scatterplot.")
         return
 
-    y = len(pts) * [ypos]
-    if asterisk:
-        ax.plot(pts, y, ls='.', marker='o', mec=color, mfc='w', mew=2, ms=3)
-    else:
-        ax.scatter(pts, y, s=5, c=color, edgecolors="none")
+    ax.vlines(pts, [-1], [ypos], color=color)
     ax.set_axis_off()
 
 
@@ -321,9 +317,9 @@ def f3a(args):
                          1, "C2", ax_Co, "r", ypos=1, asterisk=asterisk)
 
     ax_Ar.set_xlim(0, tracks[1].total)
-    ax_Ar.set_ylim(-.5, 1.5)
+    ax_Ar.set_ylim(-1, 1)
     ax_Co.set_xlim(0, tracks[2].total)
-    ax_Co.set_ylim(-.5, 1.5)
+    ax_Co.set_ylim(-1, 1)
 
     # Conversion legend
     if False:

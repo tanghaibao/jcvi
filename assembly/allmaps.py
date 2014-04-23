@@ -36,6 +36,8 @@ debug()
 
 START, END = "START", "END"
 distance_choices = ("cM", "rank")
+linkage_choices = ("single", "double", "half",
+                   "complete", "average", "median")
 np.seterr(invalid="ignore")
 
 
@@ -65,7 +67,8 @@ class Scaffold (object):
 
 class LinkageGroup (object):
 
-    def __init__(self, lg, length, markers, function=(lambda x: x.rank)):
+    def __init__(self, lg, length, markers, function=(lambda x: x.rank),
+                       linkage=min):
         self.lg = lg
         self.length = length
         self.markers = markers
@@ -89,15 +92,13 @@ class LinkageGroup (object):
         vv, gg, path = zip(*path)
         self.path = path
         self.rho = 0
-        self.distances = self.populate_pairwise_distance()
+        self.distances = self.populate_pairwise_distance(linkage)
 
-    def populate_pairwise_distance(self):
+    def populate_pairwise_distance(self, linkage):
         distances = {}
-        f = self.function
-        markers = self.markers
+        series = self.series
         for a, b in combinations(self.path, 2):
-            ma, mb = markers[a], markers[b]
-            d = min(abs(f(x) - f(y)) for x, y in product(ma, mb))
+            d = linkage_distance(series[a], series[b], linkage=linkage)
             distances[a, b] = distances[b, a] = d
         return distances
 
@@ -108,16 +109,17 @@ class ScaffoldOO (object):
     scaffolds per partition.
     """
     def __init__(self, lgs, scaffolds, mapc, pivot, weights, sizes,
-                 function=(lambda x: x.rank)):
+                 function=(lambda x: x.rank), linkage=min):
 
         self.lgs = lgs
         self.lengths = mapc.lengths
         self.bins = mapc.bins
-        self.function = function
         self.sizes = sizes
         self.scaffolds = scaffolds
         self.pivot = pivot
         self.weights = weights
+        self.function = function
+        self.linkage = linkage
 
         self.prepare_linkage_groups()  # populate all data
         signs = self.assign_orientation()
@@ -174,10 +176,9 @@ class ScaffoldOO (object):
                 xs = self.get_markers(lg, s)
                 if xs:
                     markers[s] = xs
-            LG = LinkageGroup(lg, length, markers, function=self.function)
+            LG = LinkageGroup(lg, length, markers,
+                              function=self.function, linkage=self.linkage)
             self.linkage_groups.append(LG)
-            print LG.lg
-            print sorted((v, k) for k, v in LG.position.items())
 
     def distances_to_tour(self):
         scaffolds = self.scaffolds
@@ -237,8 +238,10 @@ class ScaffoldOO (object):
 
         # Preparation of TSP
         distances = defaultdict(list)
+        #linkage = self.linkage
         for mlg in linkage_groups:
             mapname = mlg.mapname
+            #series = mlg.series
             position = mlg.position
             length = mlg.length
             path = mlg.path
@@ -248,6 +251,8 @@ class ScaffoldOO (object):
                 d = dd[a, b]
                 distances[a, b].append((d, mapname))
             for p in path:
+                #adist = linkage_distance([0], series[p], linkage=linkage)
+                #bdist = linkage_distance(series[p], [length], linkage=linkage)
                 adist, bdist = position[p], length - position[p]
                 if rho < 0:
                     adist, bdist = bdist, adist
@@ -294,7 +299,6 @@ class ScaffoldOO (object):
                         if mapname in [x[-1] for x in distances[e]]:
                             continue
                         distances[e].append((d, mapname))
-                        print e[0], "=>", e[1], d, mapname
                         links += 1
 
         logging.debug("A total of {0} new edges inserted.".format(links))
@@ -379,7 +383,6 @@ class ScaffoldOO (object):
             d = self.weighted_mean(v)
             if abs(d) > .5:  # only update when there is good evidence
                 orientations[s] = np.sign(d)
-            #print s, v, d
 
         tour = [(x, orientations[x]) for x in scaffolds]
         return tour
@@ -389,19 +392,21 @@ class ScaffoldOO (object):
         Return score that correspond to the sum of all distances.
         """
         weights = self.weights
+        linkage = self.linkage
         score = 0
         for mlg in self.linkage_groups:
-            position = mlg.position
+            series = mlg.series
             mapname = mlg.mapname
             rho = mlg.rho
             length = mlg.length
             dd = mlg.distances
-            lg_tour = [x for x in tour if x in position]
+            lg_tour = [x for x in tour if x in series]
             s = sum(dd[a, b] for a, b in pairwise(lg_tour))
             start, end = lg_tour[0], lg_tour[-1]
             if rho < 0:
                 start, end = end, start
-            adist, bdist = position[start], length - position[end]
+            adist = linkage_distance([0], series[start], linkage=linkage)
+            bdist = linkage_distance(series[end], [length], linkage=linkage)
             s += adist + bdist
             score += weights[mapname] * s
 
@@ -595,6 +600,26 @@ def get_rho(xy):
     return rho
 
 
+def linkage_distance(a, b, linkage=min):
+    return linkage([abs(i - j) for i, j in product(a, b)])
+
+
+def double_linkage(L):
+    if len(L) == 1:
+        return L[0]
+    L.sort()
+    a, b = L[:2]
+    return (a + b) / 2.
+
+
+def half_linkage(L):
+    if len(L) == 1:
+        return L[0]
+    L.sort()
+    L = L[:len(L) / 2]
+    return np.median(L)
+
+
 def main():
 
     actions = (
@@ -677,12 +702,14 @@ def path(args):
 
     Construct golden path given a set of genetic maps. The respective weight for
     each map is given in file `weights.txt`. The map with the highest weight is
-    considered the pivot map. The final output is an AGP file that contain the
+    considered the pivot map. The final output is an AGP file that contains
     ordered scaffolds.
     """
     p = OptionParser(path.__doc__)
     p.add_option("--distance", default="rank", choices=distance_choices,
                  help="Distance function when building consensus")
+    p.add_option("--linkage", default="double", choices=linkage_choices,
+                 help="Linkage function")
     p.add_option("--gapsize", default=100, type="int",
                  help="Insert gaps of size")
     p.add_option("--cutoff", default=0, type="float",
@@ -702,6 +729,11 @@ def path(args):
     weights = Weights(weightsfile, mapnames)
     pivot = weights.pivot
     ref = weights.ref
+    linkage = opts.linkage
+    logging.debug("Linkage function: {0}-linkage".format(linkage))
+    linkage = {"single": min, "double": double_linkage,
+               "complete": max, "half": half_linkage,
+               "average": np.mean, "median": np.median}[linkage]
 
     # Partition the linkage groups into consensus clusters
     C = Grouper()
@@ -709,7 +741,7 @@ def path(args):
     for mlg in cc.mlgs:
         C.join(mlg)
 
-    logging.debug("Partition LGs based on {0}.".format(ref))
+    logging.debug("Partition LGs based on {0}".format(ref))
     for mapname in mapnames:
         if mapname == ref:
             continue
@@ -760,9 +792,9 @@ def path(args):
     solutions = []
     for lgs, scaffolds in sorted(partitions.items()):
         tag = "|".join(lgs)
-        logging.debug("Working on {0}...".format(tag))
+        logging.debug("Working on {0} ...".format(tag))
         s = ScaffoldOO(lgs, scaffolds, cc, pivot, weights, sizes,
-                       function=function)
+                       function=function, linkage=linkage)
 
         for fw in (sys.stderr, fwtour):
             print >> fw, ">{0} ({1})".format(s.object, tag)

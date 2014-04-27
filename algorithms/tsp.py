@@ -13,8 +13,10 @@ import shutil
 import numpy as np
 
 from collections import defaultdict
+from itertools import combinations
 
 from jcvi.formats.base import FileShredder, must_open
+from jcvi.utils.iter import pairwise
 from jcvi.apps.base import mkdir, debug, which, sh
 debug()
 
@@ -217,32 +219,55 @@ def reformulate_atsp_as_tsp(edges):
     return new_edges
 
 
-def demo():
-    from itertools import combinations
-    from jcvi.utils.iter import pairwise
-    from jcvi.graphics.base import plt, savefig
-
-    POINTS = 100
-    x = np.random.randn(POINTS)
-    y = np.random.randn(POINTS)
-    edges = []
+def make_data(n):
+    x = np.random.randn(n)
+    y = np.random.randn(n)
     xy = zip(x, y)
-    for ia, ib in combinations(range(POINTS), 2):
+    N = x.size
+    M = np.zeros((N, N), dtype=float)
+    for ia, ib in combinations(range(N), 2):
         ax, ay = xy[ia]
         bx, by = xy[ib]
-        dist = ((ax - bx) ** 2 + (ay - by) ** 2) ** .5
-        edges.append((ia, ib, dist))
+        d = ((ax - bx) ** 2 + (ay - by) ** 2) ** .5
+        M[ia, ib] = M[ib, ia] = d
+    return x, y, M
 
-    tour = hamiltonian(edges)
+
+def evaluate(tour, M):
+    score = 0
+    for ia, ib in pairwise(tour):
+        score += M[ia, ib]
+    return score
+
+
+def plot_data(x, y, tour, M):
+    from jcvi.graphics.base import plt, savefig
     plt.plot(x, y, "ro")
     for ia, ib in pairwise(tour):
         plt.plot((x[ia], x[ib]), (y[ia], y[ib]), "r-")
 
+    score = evaluate(tour, M)
+    plt.title("Score={0:.2f}".format(score))
+
     savefig("demo.pdf")
+
+
+def concorde_tour(POINTS, M):
+    edges = []
+    for ia, ib in combinations(range(POINTS), 2):
+        edges.append((ia, ib, M[ia, ib]))
+    tour = hamiltonian(edges, precision=3)
+    return tour
+
+
+def demo(POINTS=100):
+    x, y, M = make_data(POINTS)
+    tour = concorde_tour(POINTS, M)
+    plot_data(x, y, tour, M)
 
 
 if __name__ == '__main__':
 
-    import doctest
-    doctest.testmod()
-    #demo()
+    #import doctest
+    #doctest.testmod()
+    demo()

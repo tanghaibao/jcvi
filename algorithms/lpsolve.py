@@ -192,51 +192,54 @@ class SCIPSolver(AbstractMIPSolver):
         return results
 
 
-def print_objective(lp_handle, edges, objective=MAXIMIZE):
+class LPInstance (object):
     """
     CPLEX LP format commonly contains three blocks:
     objective, constraints, vars
     spec <http://lpsolve.sourceforge.net/5.0/CPLEX-format.htm>
     """
-    assert edges, "Edges must be non-empty"
-    print >> lp_handle, objective
-    items = [" + {0}x{1}".format(w, i + 1) \
-            for i, (a, b, w) in enumerate(edges) if w]
-    sums = fill(items, width=10)
-    print >> lp_handle, sums
+    def __init__(self):
+        self.handle = cStringIO.StringIO()
 
+    def print_objective(self, edges, objective=MAXIMIZE):
+        assert edges, "Edges must be non-empty"
+        print >> self.handle, objective
+        items = [" + {0}x{1}".format(w, i + 1) \
+                for i, (a, b, w) in enumerate(edges) if w]
+        sums = fill(items, width=10)
+        print >> self.handle, sums
 
-def print_constraints(lp_handle, constraints):
-    print >> lp_handle, SUBJECTTO
-    for cc in constraints:
-        print >> lp_handle, cc
+    def print_constraints(self, constraints):
+        print >> self.handle, SUBJECTTO
+        for cc in constraints:
+            print >> self.handle, cc
 
+    def print_bounds(self, bounds):
+        print >> self.handle, BOUNDS
+        for bb in bounds:
+            print >> self.handle, " {0}".format(bb)
 
-def print_bounds(lp_handle, bounds):
-    print >> lp_handle, BOUNDS
-    for bb in bounds:
-        print >> lp_handle, " {0}".format(bb)
+    def print_vars(self, nedges, offset=1, vars=BINARY):
+        print >> self.handle, vars
+        for i in xrange(nedges):
+            print >> self.handle, " x{0}".format(i + offset)
 
+    def print_end(self):
+        print >> self.handle, END
 
-def print_vars(lp_handle, nedges, offset=1, vars=BINARY):
-    print >> lp_handle, vars
-    for i in xrange(nedges):
-        print >> lp_handle, " x{0}".format(i + offset)
+    def lpsolve(self, solver="scip", clean=True):
 
+        solver = SCIPSolver if solver == "scip" else GLPKSolver
+        lp_data = self.handle.getvalue()
+        self.handle.close()
 
-def lpsolve(lp_handle, solver="scip", clean=True):
-
-    solver = SCIPSolver if solver == "scip" else GLPKSolver
-    lp_data = lp_handle.getvalue()
-    lp_handle.close()
-
-    g = solver(lp_data, clean=clean)
-    selected = set(g.results)
-    try:
-        obj_val = g.obj_val
-    except AttributeError:  # No solution!
-        return None, None
-    return selected, obj_val
+        g = solver(lp_data, clean=clean)
+        selected = set(g.results)
+        try:
+            obj_val = g.obj_val
+        except AttributeError:  # No solution!
+            return None, None
+        return selected, obj_val
 
 
 def summation(incident_edges):
@@ -291,7 +294,7 @@ def edges_to_path(edges, directed=True):
     return path
 
 
-def hamiltonian(edges, flavor="shortest"):
+def hamiltonian(edges):
     """
     Calculates shortest path that traverses each node exactly once. Convert
     Hamiltonian path problem to TSP by adding one dummy point that has a distance
@@ -318,14 +321,14 @@ def hamiltonian(edges, flavor="shortest"):
         new_edge = tuple([e[1], e[0]] + list(e[2:]))
         all_edges.append(new_edge)
 
-    results, obj_val = tsp(all_edges, flavor=flavor)
+    results, obj_val = tsp(all_edges)
     if results:
         results = [x for x in results if DUMMY not in x]
         results = edges_to_path(results)
     return results, obj_val
 
 
-def tsp(edges, flavor="shortest"):
+def tsp(edges):
     """
     Calculates shortest cycle that traverses each node exactly once. Also known
     as the Traveling Salesman Problem (TSP).
@@ -334,10 +337,9 @@ def tsp(edges, flavor="shortest"):
     incoming, outgoing, nodes = node_to_edge(edges)
 
     nedges, nnodes = len(edges), len(nodes)
-    lp_handle = cStringIO.StringIO()
+    L = LPInstance()
 
-    objective = MAXIMIZE if flavor == "longest" else MINIMIZE
-    print_objective(lp_handle, edges, objective=objective)
+    L.print_objective(edges, objective=MINIMIZE)
     constraints = []
     # For each node, select exactly 1 incoming and 1 outgoing edge
     for v in nodes:
@@ -369,20 +371,19 @@ def tsp(edges, flavor="shortest"):
         con_ab += " <= {0}".format(nnodes - 2)
         constraints.append(con_ab)
 
-    print_constraints(lp_handle, constraints)
+    L.print_constraints(constraints)
 
     # Step variables u_i bound between 1 and n, as additional variables
     bounds = []
     for i in xrange(start_step, nedges + nnodes):
         bounds.append("1 <= x{0} <= {1}".format(i, nnodes - 1))
-    print_bounds(lp_handle, bounds)
+    L.print_bounds(bounds)
 
-    print_vars(lp_handle, nedges, vars=BINARY)
-    print_vars(lp_handle, nnodes - 1, offset=start_step, vars=GENERNAL)
-    print >> lp_handle, END
-    #print lp_handle.getvalue()
+    L.print_vars(nedges, vars=BINARY)
+    L.print_vars(nnodes - 1, offset=start_step, vars=GENERNAL)
+    L.print_end()
 
-    selected, obj_val = lpsolve(lp_handle)
+    selected, obj_val = L.lpsolve()
     results = sorted(x for i, x in enumerate(edges) if i in selected) \
                     if selected else None
 
@@ -412,12 +413,12 @@ def path(edges, source, sink, flavor="longest"):
     outgoing, incoming, nodes = node_to_edge(edges)
 
     nedges = len(edges)
-    lp_handle = cStringIO.StringIO()
+    L = LPInstance()
 
     assert flavor in ("longest", "shortest")
 
     objective = MAXIMIZE if flavor == "longest" else MINIMIZE
-    print_objective(lp_handle, edges, objective=objective)
+    L.print_objective(edges, objective=objective)
 
     # Balancing constraint, incoming edges equal to outgoing edges except
     # source and sink
@@ -446,11 +447,11 @@ def path(edges, source, sink, flavor="longest"):
             if outgoing_edges:
                 constraints.append("{0} <= 1".format(occ))
 
-    print_constraints(lp_handle, constraints)
-    print_vars(lp_handle, nedges, vars=BINARY)
-    print >> lp_handle, END
+    L.print_constraints(constraints)
+    L.print_vars(nedges, vars=BINARY)
+    L.print_end()
 
-    selected, obj_val = lpsolve(lp_handle)
+    selected, obj_val = L.lpsolve()
     results = sorted(x for i, x in enumerate(edges) if i in selected) \
                     if selected else None
     results = edges_to_path(results)
@@ -486,10 +487,10 @@ def min_feedback_arc_set(edges, remove=False, maxcycles=20000):
         edge_to_index[a, b] = i
 
     nedges = len(edges)
-    lp_handle = cStringIO.StringIO()
+    L = LPInstance()
 
     objective = MINIMIZE
-    print_objective(lp_handle, edges, objective=objective)
+    L.print_objective(edges, objective=objective)
 
     constraints = []
     ncycles = 0
@@ -505,11 +506,11 @@ def min_feedback_arc_set(edges, remove=False, maxcycles=20000):
             break
     logging.debug("A total of {0} cycles found.".format(ncycles))
 
-    print_constraints(lp_handle, constraints)
-    print_vars(lp_handle, nedges, vars=BINARY)
-    print >> lp_handle, END
+    L.print_constraints(constraints)
+    L.print_vars(nedges, vars=BINARY)
+    L.print_end()
 
-    selected, obj_val = lpsolve(lp_handle, clean=False)
+    selected, obj_val = L.lpsolve(clean=False)
     if remove:
         results = [x for i, x in enumerate(edges) if i not in selected] \
                         if selected else None

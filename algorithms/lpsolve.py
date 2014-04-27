@@ -389,6 +389,15 @@ def tsp(edges, flavor="shortest"):
     return results, obj_val
 
 
+def lpsolve_tsp_tour(POINTS, M):
+    from itertools import combinations
+    edges = []
+    for ia, ib in combinations(range(POINTS), 2):
+        edges.append((ia, ib, M[ia, ib]))
+    tour, val = hamiltonian(edges)
+    return tour
+
+
 def path(edges, source, sink, flavor="longest"):
     """
     Calculates shortest/longest path from list of edges in a graph

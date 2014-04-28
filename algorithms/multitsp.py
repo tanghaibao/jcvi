@@ -22,9 +22,9 @@ import numpy as np
 from random import sample
 from itertools import combinations
 
-from jcvi.algorithms.lpsolve import hamiltonian
-from jcvi.algorithms.lpsolve import node_to_edge, \
-            edges_to_path, MINIMIZE, BINARY, GENERNAL, LPInstance, summation
+from jcvi.algorithms.lpsolve import hamiltonian, node_to_edge, \
+            MINIMIZE, BINARY, GENERNAL, LPInstance, summation
+from jcvi.utils.iter import flatten
 
 
 def make_mtsp_data(POINTS, SALESMEN):
@@ -55,64 +55,69 @@ def make_mtsp_data(POINTS, SALESMEN):
     return salesmen
 
 
-def mhamiltonian(edges):
-    incident, nodes = node_to_edge(edges, directed=False)
+def mhamiltonian(salesmen):
+    """
+    Salesmen is simply a list of edges. All edges are assumed to be directed, so
+    caller is responsible for setting up distances in both directions.
+    """
     DUMMY = "DUMMY"
-    dummy_edges = edges + [(DUMMY, x, 0) for x in nodes]
-    # Make graph symmetric
-    all_edges = dummy_edges[:]
-    for e in dummy_edges:  # flip source and link
-        new_edge = tuple([e[1], e[0]] + list(e[2:]))
-        all_edges.append(new_edge)
+    dummy_salesmen = []
+    for edges in salesmen:
+        incident, nodes = node_to_edge(edges, directed=False)
+        dummy_edges = edges + [(DUMMY, x, 0) for x in nodes] + \
+                              [(x, DUMMY, 0) for x in nodes]
+        dummy_salesmen.append(dummy_edges)
 
-    results, obj_val = mtsp(all_edges)
+    results, obj_val = mtsp(dummy_salesmen)
     if results:
         results = [x for x in results if DUMMY not in x]
-        results = edges_to_path(results)
     return results, obj_val
 
 
-def mtsp(edges):
+def mtsp(salesmen):
     """
     Calculates shortest cycle that traverses each node exactly once. Also known
     as the Traveling Salesman Problem (TSP).
     """
-    incoming, outgoing, nodes = node_to_edge(edges)
-
-    nedges, nnodes = len(edges), len(nodes)
     L = LPInstance()
+    all_edges = list(flatten(salesmen))
+    incident, all_nodes = node_to_edge(all_edges, directed=False)
+    nedges, nnodes = len(all_edges), len(all_nodes)
 
-    L.print_objective(edges, objective=MINIMIZE)
+    L.print_objective(all_edges, objective=MINIMIZE)
     constraints = []
-    # For each node, select exactly 1 incoming and 1 outgoing edge
-    for v in nodes:
-        incoming_edges = incoming[v]
-        outgoing_edges = outgoing[v]
-        icc = summation(incoming_edges)
-        occ = summation(outgoing_edges)
-        constraints.append("{0} = 1".format(icc))
-        constraints.append("{0} = 1".format(occ))
+    current_nedges = 0
+    for edges in salesmen:
+        incoming, outgoing, nodes = node_to_edge(edges)
+        # For each node, select exactly 1 incoming and 1 outgoing edge
+        for v in nodes:
+            incoming_edges = [x + current_nedges for x in incoming[v]]
+            outgoing_edges = [x + current_nedges for x in outgoing[v]]
+            icc = summation(incoming_edges)
+            occ = summation(outgoing_edges)
+            constraints.append("{0} = 1".format(icc))
+            constraints.append("{0} = 1".format(occ))
+        current_nedges += len(edges)
+
+    assert current_nedges == nedges
 
     # Subtour elimination - Miller-Tucker-Zemlin (MTZ) formulation
-    # <http://en.wikipedia.org/wiki/Travelling_salesman_problem>
-    # Desrochers and laporte, 1991 (DFJ) has a stronger constraint
-    # See also:
-    # G. Laporte / The traveling salesman problem: Overview of algorithms
     start_step = nedges + 1
-    u0 = nodes[0]
-    nodes_to_steps = dict((n, start_step + i) for i, n in enumerate(nodes[1:]))
-    edge_store = dict((e[:2], i) for i, e in enumerate(edges))
-    for i, e in enumerate(edges):
-        a, b = e[:2]
-        if u0 in (a, b):
-            continue
-        na, nb = nodes_to_steps[a], nodes_to_steps[b]
-        con_ab = " x{0} - x{1} + {2}x{3}".format(na, nb, nnodes - 1, i + 1)
-        if (b, a) in edge_store:  # This extra term is the stronger DFJ formulation
-            j = edge_store[(b, a)]
-            con_ab += " + {0}x{1}".format(nnodes - 3, j + 1)
-        con_ab += " <= {0}".format(nnodes - 2)
-        constraints.append(con_ab)
+    u0 = all_nodes[0]
+    print all_nodes
+    nodes_to_steps = dict((n, start_step + i) for i, n in enumerate(all_nodes[1:]))
+    current_nedges = 0
+    for edges in salesmen:
+        edge_store = dict((e[:2], i + current_nedges) for i, e in enumerate(edges))
+        for a, b, w in edges:
+            if u0 in (a, b):
+                continue
+            na, nb = nodes_to_steps[a], nodes_to_steps[b]
+            i = edge_store[a, b]
+            con_ab = " x{0} - x{1} + {2}x{3}".format(na, nb, nnodes - 1, i + 1)
+            con_ab += " <= {0}".format(nnodes - 2)
+            constraints.append(con_ab)
+        current_nedges += len(edges)
 
     L.print_constraints(constraints)
 
@@ -126,15 +131,18 @@ def mtsp(edges):
     L.print_vars(nnodes - 1, offset=start_step, vars=GENERNAL)
     L.print_end()
 
-    selected, obj_val = L.lpsolve()
-    results = sorted(x for i, x in enumerate(edges) if i in selected) \
+    #print L.handle.getvalue()
+    selected, obj_val = L.lpsolve(clean=False)
+    results = sorted(x for i, x in enumerate(all_edges) if i in selected) \
                     if selected else None
 
     return results, obj_val
 
 
 def main():
-    make_mtsp_data(10, 2)
+    salesmen = make_mtsp_data(100, 2)
+    tour, val = mhamiltonian(salesmen)
+    print tour, val
 
 
 if __name__ == '__main__':

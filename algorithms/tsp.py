@@ -155,7 +155,7 @@ def populate_edge_weights(edges):
     return new_edges
 
 
-def hamiltonian(edges, symmetric=True, precision=0):
+def hamiltonian(edges, directed=False, precision=0):
     """
     Calculates shortest path that traverses each node exactly once. Convert
     Hamiltonian path problem to TSP by adding one dummy point that has a distance
@@ -165,23 +165,22 @@ def hamiltonian(edges, symmetric=True, precision=0):
     >>> g = [(1,2), (2,3), (3,4), (4,2), (3,5)]
     >>> hamiltonian(g)
     [1, 2, 4, 3, 5]
-    >>> hamiltonian([(1, 2), (2, 3)], symmetric=False)
+    >>> hamiltonian([(1, 2), (2, 3)], directed=True)
     [1, 2, 3]
     """
     edges = populate_edge_weights(edges)
     incident, nodes = node_to_edge(edges, directed=False)
     DUMMY = "DUMMY"
     dummy_edges = edges + [(DUMMY, x, 0) for x in nodes]
-    if not symmetric:
+    if directed:
         dummy_edges += [(x, DUMMY, 0) for x in nodes]
         dummy_edges = reformulate_atsp_as_tsp(dummy_edges)
 
     tour = tsp(dummy_edges, precision=precision)
+
     dummy_index = tour.index(DUMMY)
     tour = tour[dummy_index:] + tour[:dummy_index]
-    if symmetric:
-        path = tour[1:]
-    else:
+    if directed:
         dummy_star_index = tour.index((DUMMY, '*'))
         assert dummy_star_index in (1, len(tour) - 1), tour
         if dummy_star_index == len(tour) - 1:  # need to flip
@@ -189,6 +188,8 @@ def hamiltonian(edges, symmetric=True, precision=0):
             tour = tour[::-1]
         path = tour[1:]
         path = [x for x in path if not isinstance(x, tuple)]
+    else:
+        path = tour[1:]
 
     return path
 
@@ -219,18 +220,24 @@ def reformulate_atsp_as_tsp(edges):
     return new_edges
 
 
-def make_data(n):
-    x = np.random.randn(n)
-    y = np.random.randn(n)
+def make_data(N, directed=False):
+    x = np.random.randn(N)
+    y = np.random.randn(N)
     xy = zip(x, y)
-    N = x.size
     M = np.zeros((N, N), dtype=float)
     for ia, ib in combinations(range(N), 2):
         ax, ay = xy[ia]
         bx, by = xy[ib]
         d = ((ax - bx) ** 2 + (ay - by) ** 2) ** .5
         M[ia, ib] = M[ib, ia] = d
-    return x, y, M
+
+    edges = []
+    for ia, ib in combinations(range(N), 2):
+        edges.append((ia, ib, M[ia, ib]))
+        if directed:
+            edges.append((ib, ia, M[ib, ia]))
+
+    return x, y, M, edges
 
 
 def evaluate(tour, M):
@@ -252,22 +259,26 @@ def plot_data(x, y, tour, M):
     savefig("demo.pdf")
 
 
-def concorde_tour(POINTS, M):
-    edges = []
-    for ia, ib in combinations(range(POINTS), 2):
-        edges.append((ia, ib, M[ia, ib]))
-    tour = hamiltonian(edges, precision=3)
-    return tour
+def concorde_demo(POINTS=100):
+    x, y, M, edges = make_data(POINTS)
+    ctour = hamiltonian(edges, precision=3)
+    plot_data(x, y, ctour, M)
 
 
-def demo(POINTS=100):
-    x, y, M = make_data(POINTS)
-    tour = concorde_tour(POINTS, M)
-    plot_data(x, y, tour, M)
+def compare_lpsolve_to_concorde(POINTS=20, directed=False):
+    from jcvi.algorithms.lpsolve import hamiltonian as lhamiltonian
+
+    x, y, M, edges = make_data(POINTS, directed=directed)
+    ltour, val = lhamiltonian(edges, directed=directed)
+    print ltour, evaluate(ltour, M)
+
+    ctour = hamiltonian(edges, directed=directed, precision=3)
+    print ctour, evaluate(ctour, M)
 
 
 if __name__ == '__main__':
 
     #import doctest
     #doctest.testmod()
-    demo()
+    #concorde_demo()
+    compare_lpsolve_to_concorde()

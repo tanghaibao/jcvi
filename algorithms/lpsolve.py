@@ -287,14 +287,14 @@ def edges_to_path(edges, directed=True):
             n, = dn
             path.append(n)
             seen.add(n)
+        path = min(path, path[::-1])
 
-    path = min(path, path[::-1])
     assert len(path) == len(edges) + 1
 
     return path
 
 
-def hamiltonian(edges):
+def hamiltonian(edges, directed=False):
     """
     Calculates shortest path that traverses each node exactly once. Convert
     Hamiltonian path problem to TSP by adding one dummy point that has a distance
@@ -313,15 +313,17 @@ def hamiltonian(edges):
     """
     edges = populate_edge_weights(edges)
     incident, nodes = node_to_edge(edges, directed=False)
-    DUMMY = "DUMMY"
-    dummy_edges = edges + [(DUMMY, x, 0) for x in nodes]
-    # Make graph symmetric
-    all_edges = dummy_edges[:]
-    for e in dummy_edges:  # flip source and link
-        new_edge = tuple([e[1], e[0]] + list(e[2:]))
-        all_edges.append(new_edge)
+    if not directed:  # Make graph symmetric
+        dual_edges = edges[:]
+        for a, b, w in edges:
+            dual_edges.append((b, a, w))
+        edges = dual_edges
 
-    results, obj_val = tsp(all_edges)
+    DUMMY = "DUMMY"
+    dummy_edges = edges + [(DUMMY, x, 0) for x in nodes] + \
+                          [(x, DUMMY, 0) for x in nodes]
+
+    results, obj_val = tsp(dummy_edges)
     if results:
         results = [x for x in results if DUMMY not in x]
         results = edges_to_path(results)
@@ -388,15 +390,6 @@ def tsp(edges):
                     if selected else None
 
     return results, obj_val
-
-
-def lpsolve_tsp_tour(POINTS, M):
-    from itertools import combinations
-    edges = []
-    for ia, ib in combinations(range(POINTS), 2):
-        edges.append((ia, ib, M[ia, ib]))
-    tour, val = hamiltonian(edges)
-    return tour
 
 
 def path(edges, source, sink, flavor="longest"):

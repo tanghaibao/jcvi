@@ -22,11 +22,9 @@ import numpy as np
 from random import sample
 from itertools import combinations
 
-from jcvi.utils.iter import pairwise
-from jcvi.algorithms.lpsolve import lpsolve_tsp_tour, hamiltonian
-from jcvi.algorithms.lpsolve import populate_edge_weights, node_to_edge, \
+from jcvi.algorithms.lpsolve import hamiltonian
+from jcvi.algorithms.lpsolve import node_to_edge, \
             edges_to_path, MINIMIZE, BINARY, GENERNAL, LPInstance, summation
-from jcvi.algorithms.tsp import concorde_tour, make_data
 
 
 def make_mtsp_data(POINTS, SALESMEN):
@@ -47,17 +45,17 @@ def make_mtsp_data(POINTS, SALESMEN):
         for a, b in combinations(subscaffolds, 2):
             d = abs(positions[a] - positions[b])
             edges.append((a, b, d))
+            edges.append((b, a, d))
         for p in subscaffolds:
             d = positions[p]
             edges.append(("START", p, d))
             edges.append((p, "END", 1 - d))
-        print hamiltonian(edges)
+        print hamiltonian(edges, directed=True)
         salesmen.append(edges)
     return salesmen
 
 
-def mhamiltonian(edges, flavor="shortest"):
-    edges = populate_edge_weights(edges)
+def mhamiltonian(edges):
     incident, nodes = node_to_edge(edges, directed=False)
     DUMMY = "DUMMY"
     dummy_edges = edges + [(DUMMY, x, 0) for x in nodes]
@@ -67,19 +65,18 @@ def mhamiltonian(edges, flavor="shortest"):
         new_edge = tuple([e[1], e[0]] + list(e[2:]))
         all_edges.append(new_edge)
 
-    results, obj_val = mtsp(all_edges, flavor=flavor)
+    results, obj_val = mtsp(all_edges)
     if results:
         results = [x for x in results if DUMMY not in x]
         results = edges_to_path(results)
     return results, obj_val
 
 
-def mtsp(edges, flavor="shortest"):
+def mtsp(edges):
     """
     Calculates shortest cycle that traverses each node exactly once. Also known
     as the Traveling Salesman Problem (TSP).
     """
-    edges = populate_edge_weights(edges)
     incoming, outgoing, nodes = node_to_edge(edges)
 
     nedges, nnodes = len(edges), len(nodes)
@@ -134,23 +131,6 @@ def mtsp(edges, flavor="shortest"):
                     if selected else None
 
     return results, obj_val
-
-
-def evaluate(tour, M):
-    score = 0
-    for ia, ib in pairwise(tour):
-        score += M[ia, ib]
-    return score
-
-
-def compare_lpsolve_to_concorde():
-    POINTS = 20
-    x, y, M = make_data(POINTS)
-    ltour = lpsolve_tsp_tour(POINTS, M)
-    print ltour, evaluate(ltour, M)
-
-    ctour = concorde_tour(POINTS, M)
-    print ctour, evaluate(ctour, M)
 
 
 def main():

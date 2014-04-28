@@ -85,7 +85,7 @@ def sync_tsp(salesmen):
     incident, all_nodes = node_to_edge(all_edges, directed=False)
     nedges, nnodes = len(all_edges), len(all_nodes)
 
-    L.print_objective(all_edges, objective=MINIMIZE)
+    L.add_objective(all_edges, objective=MINIMIZE)
     constraints = []
     current_nedges = 0
     for edges in salesmen:
@@ -119,17 +119,16 @@ def sync_tsp(salesmen):
             constraints.append(con_ab)
         current_nedges += len(edges)
 
-    L.print_constraints(constraints)
+    L.constraints = constraints
 
     # Step variables u_i bound between 1 and n, as additional variables
     bounds = []
     for i in xrange(start_step, nedges + nnodes):
-        bounds.append("1 <= x{0} <= {1}".format(i, nnodes - 1))
-    L.print_bounds(bounds)
+        bounds.append(" 1 <= x{0} <= {1}".format(i, nnodes - 1))
+    L.bounds = bounds
 
-    L.print_vars(nedges, vars=BINARY)
-    L.print_vars(nnodes - 1, offset=start_step, vars=GENERNAL)
-    L.print_end()
+    L.add_vars(nedges)
+    L.add_vars(nnodes - 1, offset=start_step, binary=False)
 
     #print L.handle.getvalue()
     selected, obj_val = L.lpsolve(clean=False)

@@ -198,34 +198,48 @@ class LPInstance (object):
     """
     def __init__(self):
         self.handle = cStringIO.StringIO()
+        self.objective = MAXIMIZE
+        self.sum = ""
+        self.constraints = []
+        self.bounds = []
+        self.binaryvars = []
+        self.generalvars = []
 
-    def print_objective(self, edges, objective=MAXIMIZE):
+    def print_instance(self):
+        fw = self.handle
+        print >> fw, self.objective
+        print >> fw, self.sum
+        print >> fw, SUBJECTTO
+        assert self.constraints, "Must contain constraints"
+        print >> fw, "\n".join(self.constraints)
+        if self.bounds:
+            print >> fw, BOUNDS
+            print >> fw, "\n".join(self.bounds)
+        if self.binaryvars:
+            print >> fw, BINARY
+            print >> fw, "\n".join(self.binaryvars)
+        if self.generalvars:
+            print >> fw, GENERNAL
+            print >> fw, "\n".join(self.generalvars)
+        print >> fw, END
+
+    def add_objective(self, edges, objective=MAXIMIZE):
         assert edges, "Edges must be non-empty"
-        print >> self.handle, objective
+        self.objective = objective
         items = [" + {0}x{1}".format(w, i + 1) \
                 for i, (a, b, w) in enumerate(edges) if w]
         sums = fill(items, width=10)
-        print >> self.handle, sums
+        self.sum = sums
 
-    def print_constraints(self, constraints):
-        print >> self.handle, SUBJECTTO
-        for cc in constraints:
-            print >> self.handle, cc
-
-    def print_bounds(self, bounds):
-        print >> self.handle, BOUNDS
-        for bb in bounds:
-            print >> self.handle, " {0}".format(bb)
-
-    def print_vars(self, nedges, offset=1, vars=BINARY):
-        print >> self.handle, vars
-        for i in xrange(nedges):
-            print >> self.handle, " x{0}".format(i + offset)
-
-    def print_end(self):
-        print >> self.handle, END
+    def add_vars(self, nedges, offset=1, binary=True):
+        vars = [" x{0}".format(i + offset) for i in xrange(nedges)]
+        if binary:
+            self.binaryvars = vars
+        else:
+            self.generalvars = vars
 
     def lpsolve(self, solver="scip", clean=True):
+        self.print_instance()
 
         solver = SCIPSolver if solver == "scip" else GLPKSolver
         lp_data = self.handle.getvalue()
@@ -272,13 +286,12 @@ def hamiltonian(edges, directed=False):
 
     >>> g = [(1,2), (2,3), (3,4), (4,2), (3,5)]
     >>> hamiltonian(g)
-    ([1, 2, 4, 3, 5], 4)
+    [1, 2, 4, 3, 5]
     >>> g = [(1,2), (2,3), (1,4), (2,5), (3,6)]
     >>> hamiltonian(g)
-    (None, None)
     >>> g += [(5,6)]
     >>> hamiltonian(g)
-    ([4, 1, 2, 3, 6, 5], 5)
+    [5, 6, 3, 2, 1, 4]
     """
     edges = populate_edge_weights(edges)
     incident, nodes = node_to_edge(edges, directed=False)
@@ -310,7 +323,7 @@ def tsp(edges):
     nedges, nnodes = len(edges), len(nodes)
     L = LPInstance()
 
-    L.print_objective(edges, objective=MINIMIZE)
+    L.add_objective(edges, objective=MINIMIZE)
     constraints = []
     # For each node, select exactly 1 incoming and 1 outgoing edge
     for v in nodes:
@@ -342,17 +355,16 @@ def tsp(edges):
         con_ab += " <= {0}".format(nnodes - 2)
         constraints.append(con_ab)
 
-    L.print_constraints(constraints)
+    L.constraints = constraints
 
     # Step variables u_i bound between 1 and n, as additional variables
     bounds = []
     for i in xrange(start_step, nedges + nnodes):
-        bounds.append("1 <= x{0} <= {1}".format(i, nnodes - 1))
-    L.print_bounds(bounds)
+        bounds.append(" 1 <= x{0} <= {1}".format(i, nnodes - 1))
+    L.bounds = bounds
 
-    L.print_vars(nedges, vars=BINARY)
-    L.print_vars(nnodes - 1, offset=start_step, vars=GENERNAL)
-    L.print_end()
+    L.add_vars(nedges)
+    L.add_vars(nnodes - 1, offset=start_step, binary=False)
 
     selected, obj_val = L.lpsolve()
     results = sorted(x for i, x in enumerate(edges) if i in selected) \
@@ -380,7 +392,7 @@ def path(edges, source, sink, flavor="longest"):
     assert flavor in ("longest", "shortest")
 
     objective = MAXIMIZE if flavor == "longest" else MINIMIZE
-    L.print_objective(edges, objective=objective)
+    L.add_objective(edges, objective=objective)
 
     # Balancing constraint, incoming edges equal to outgoing edges except
     # source and sink
@@ -409,9 +421,8 @@ def path(edges, source, sink, flavor="longest"):
             if outgoing_edges:
                 constraints.append("{0} <= 1".format(occ))
 
-    L.print_constraints(constraints)
-    L.print_vars(nedges, vars=BINARY)
-    L.print_end()
+    L.constraints = constraints
+    L.add_vars(nedges)
 
     selected, obj_val = L.lpsolve()
     results = sorted(x for i, x in enumerate(edges) if i in selected) \
@@ -451,8 +462,7 @@ def min_feedback_arc_set(edges, remove=False, maxcycles=20000):
     nedges = len(edges)
     L = LPInstance()
 
-    objective = MINIMIZE
-    L.print_objective(edges, objective=objective)
+    L.add_objective(edges, objective=MINIMIZE)
 
     constraints = []
     ncycles = 0
@@ -468,9 +478,8 @@ def min_feedback_arc_set(edges, remove=False, maxcycles=20000):
             break
     logging.debug("A total of {0} cycles found.".format(ncycles))
 
-    L.print_constraints(constraints)
-    L.print_vars(nedges, vars=BINARY)
-    L.print_end()
+    L.constraints = constraints
+    L.add_vars(nedges)
 
     selected, obj_val = L.lpsolve(clean=False)
     if remove:

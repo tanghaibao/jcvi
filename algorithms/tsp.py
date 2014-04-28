@@ -269,7 +269,7 @@ def compare_lpsolve_to_concorde(POINTS=20, directed=False):
     from jcvi.algorithms.lpsolve import hamiltonian as lhamiltonian
 
     x, y, M, edges = make_data(POINTS, directed=directed)
-    ltour, val = lhamiltonian(edges, directed=directed)
+    ltour = lhamiltonian(edges, directed=directed)
     print ltour, evaluate(ltour, M)
 
     ctour = hamiltonian(edges, directed=directed, precision=3)

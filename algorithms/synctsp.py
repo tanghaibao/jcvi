@@ -22,12 +22,12 @@ import numpy as np
 from random import sample
 from itertools import combinations
 
-from jcvi.algorithms.lpsolve import hamiltonian, node_to_edge, \
+from jcvi.algorithms.lpsolve import node_to_edge, edges_to_path, \
             MINIMIZE, BINARY, GENERNAL, LPInstance, summation
 from jcvi.utils.iter import flatten
 
 
-def make_mtsp_data(POINTS, SALESMEN):
+def make_data(POINTS, SALESMEN):
     """
     Make test data that has known solutions. All points lay on single line of
     length 1, and we simulate two salesmen. The score of the optimal solution is
@@ -37,7 +37,8 @@ def make_mtsp_data(POINTS, SALESMEN):
     positions = zip(scaffolds, np.random.rand(POINTS))
     positions += [("START", 0), ("END", 1)]
     positions = dict(positions)
-    print sorted((v, k) for k, v in positions.items())
+    answer = sorted((v, k) for k, v in positions.items())
+    dd, answer = zip(*answer)
     salesmen = []
     for i in xrange(SALESMEN):
         subscaffolds = sample(scaffolds, POINTS * 3 / 5)
@@ -50,12 +51,11 @@ def make_mtsp_data(POINTS, SALESMEN):
             d = positions[p]
             edges.append(("START", p, d))
             edges.append((p, "END", 1 - d))
-        print hamiltonian(edges, directed=True)
         salesmen.append(edges)
-    return salesmen
+    return salesmen, answer
 
 
-def mhamiltonian(salesmen):
+def sync_hamiltonian(salesmen):
     """
     Salesmen is simply a list of edges. All edges are assumed to be directed, so
     caller is responsible for setting up distances in both directions.
@@ -68,13 +68,14 @@ def mhamiltonian(salesmen):
                               [(x, DUMMY, 0) for x in nodes]
         dummy_salesmen.append(dummy_edges)
 
-    results, obj_val = mtsp(dummy_salesmen)
+    results, obj_val = sync_tsp(dummy_salesmen)
     if results:
         results = [x for x in results if DUMMY not in x]
+        results = edges_to_path(results)
     return results, obj_val
 
 
-def mtsp(salesmen):
+def sync_tsp(salesmen):
     """
     Calculates shortest cycle that traverses each node exactly once. Also known
     as the Traveling Salesman Problem (TSP).
@@ -104,7 +105,6 @@ def mtsp(salesmen):
     # Subtour elimination - Miller-Tucker-Zemlin (MTZ) formulation
     start_step = nedges + 1
     u0 = all_nodes[0]
-    print all_nodes
     nodes_to_steps = dict((n, start_step + i) for i, n in enumerate(all_nodes[1:]))
     current_nedges = 0
     for edges in salesmen:
@@ -140,9 +140,10 @@ def mtsp(salesmen):
 
 
 def main():
-    salesmen = make_mtsp_data(100, 2)
-    tour, val = mhamiltonian(salesmen)
-    print tour, val
+    salesmen, answer = make_data(100, 2)
+    tour, val = sync_hamiltonian(salesmen)
+    print "Solution found:", tour, val
+    print "Truth:", answer
 
 
 if __name__ == '__main__':

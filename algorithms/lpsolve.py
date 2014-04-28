@@ -31,8 +31,6 @@ import shutil
 import logging
 import cStringIO
 
-from collections import defaultdict
-
 from jcvi.utils.cbook import fill
 from jcvi.utils.iter import pairwise
 from jcvi.formats.base import flexible_cast
@@ -247,50 +245,21 @@ def summation(incident_edges):
     return s
 
 
-def edges_to_path(edges, directed=True):
+def edges_to_path(edges):
     """
     Connect edges and return a path.
     """
+    import networkx as nx
+
     if not edges:
         return None
 
-    path = []
-    if directed:
-        source_sink = dict(x[:2] for x in edges)
-        outgoing, incoming, nodes = node_to_edge(edges, directed=directed)
-        # Find source and start from there
-        for n in nodes:
-            if not incoming[n]:
-                break
-        path.append(n)
-        while n in source_sink:
-            n = source_sink[n]
-            path.append(n)
-    else:
-        source_sink = defaultdict(set)
-        for e in edges:
-            source, sink = e[:2]
-            source_sink[source].add(sink)
-            source_sink[sink].add(source)
-        incident, nodes = node_to_edge(edges, directed=directed)
-        # Find the end that is lexicographically smaller
-        ends = [n for n, e in incident.items() if len(e) == 1]
-        n = min(ends)
-        path.append(n)
-        seen = set([n])
-        while True:
-            dn = source_sink[n]
-            dn = [x for x in dn if x not in seen]
-            if not dn:
-                break
-            assert len(dn) == 1
-            n, = dn
-            path.append(n)
-            seen.add(n)
-        path = min(path, path[::-1])
+    G = nx.DiGraph()
+    for e in edges:
+        a, b = e[:2]
+        G.add_edge(a, b)
 
-    assert len(path) == len(edges) + 1
-
+    path = nx.topological_sort(G)
     return path
 
 
@@ -323,11 +292,11 @@ def hamiltonian(edges, directed=False):
     dummy_edges = edges + [(DUMMY, x, 0) for x in nodes] + \
                           [(x, DUMMY, 0) for x in nodes]
 
-    results, obj_val = tsp(dummy_edges)
+    results = tsp(dummy_edges)
     if results:
         results = [x for x in results if DUMMY not in x]
         results = edges_to_path(results)
-    return results, obj_val
+    return results
 
 
 def tsp(edges):
@@ -389,7 +358,7 @@ def tsp(edges):
     results = sorted(x for i, x in enumerate(edges) if i in selected) \
                     if selected else None
 
-    return results, obj_val
+    return results
 
 
 def path(edges, source, sink, flavor="longest"):

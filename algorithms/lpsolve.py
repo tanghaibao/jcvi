@@ -304,12 +304,69 @@ def hamiltonian(edges, directed=False, constraint_generation=True):
     dummy_edges = edges + [(DUMMY, x, 0) for x in nodes] + \
                           [(x, DUMMY, 0) for x in nodes]
 
-    results = tsp(dummy_edges, constraint_generation=constraint_generation)
+    #results = tsp(dummy_edges, constraint_generation=constraint_generation)
+    results = tsp_gurobi(dummy_edges)
     if results:
         results = [x for x in results if DUMMY not in x]
         results = edges_to_path(results)
         if not directed:
             results = min(results, results[::-1])
+    return results
+
+
+def tsp_gurobi(edges):
+    """
+    Modeled using GUROBI python example.
+    """
+    from gurobipy import Model, GRB, quicksum
+
+    edges = populate_edge_weights(edges)
+    incoming, outgoing, nodes = node_to_edge(edges)
+    nnodes = len(nodes)
+    u0 = nodes[0]
+
+    m = Model()
+
+    step = lambda x: "u_{0}".format(x)
+    # Create variables
+    vars = {}
+    for i, (a, b, w) in enumerate(edges):
+        vars[i] = m.addVar(obj=w, vtype=GRB.BINARY, name=str(i))
+    for n in nodes[1:]:
+        n = step(n)
+        vars[n] = m.addVar(obj=0, vtype=GRB.INTEGER, name=n)
+    m.update()
+
+    # Bounds for step variables
+    for n in nodes[1:]:
+        n = step(n)
+        vars[n].lb = 1
+        vars[n].ub = nnodes - 1
+
+    # Add degree constraint
+    for v in nodes:
+        incoming_edges = incoming[v]
+        outgoing_edges = outgoing[v]
+        m.addConstr(quicksum(vars[x] for x in incoming_edges) == 1)
+        m.addConstr(quicksum(vars[x] for x in outgoing_edges) == 1)
+
+    # Subtour elimination
+    for i, e in enumerate(edges):
+        a, b = e[:2]
+        if u0 in (a, b):
+            continue
+        a, b = step(a), step(b)
+        na, nb, ne = vars[a], vars[b], vars[i]
+        m.addConstr(na - nb + (nnodes - 1) * ne <= nnodes - 2)
+
+    m.update()
+
+    m._vars = vars
+    m.optimize()
+    selected = [v.varName for v in m.getVars() if v.x > .5]
+    selected = [int(x) for x in selected if x[:2] != "u_"]
+    results = sorted(x for i, x in enumerate(edges) if i in selected) \
+                    if selected else None
     return results
 
 

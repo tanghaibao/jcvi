@@ -322,8 +322,9 @@ def tsp_gurobi(edges):
 
     edges = populate_edge_weights(edges)
     incoming, outgoing, nodes = node_to_edge(edges)
-    nnodes = len(nodes)
-    u0 = nodes[0]
+    idx = dict((n, i) for i, n in enumerate(nodes))
+    nedges = len(edges)
+    n = len(nodes)
 
     m = Model()
 
@@ -332,16 +333,16 @@ def tsp_gurobi(edges):
     vars = {}
     for i, (a, b, w) in enumerate(edges):
         vars[i] = m.addVar(obj=w, vtype=GRB.BINARY, name=str(i))
-    for n in nodes[1:]:
-        n = step(n)
-        vars[n] = m.addVar(obj=0, vtype=GRB.INTEGER, name=n)
+    for u in nodes[1:]:
+        u = step(u)
+        vars[u] = m.addVar(obj=0, vtype=GRB.INTEGER, name=u)
     m.update()
 
     # Bounds for step variables
-    for n in nodes[1:]:
-        n = step(n)
-        vars[n].lb = 1
-        vars[n].ub = nnodes - 1
+    for u in nodes[1:]:
+        u = step(u)
+        vars[u].lb = 1
+        vars[u].ub = n - 1
 
     # Add degree constraint
     for v in nodes:
@@ -351,6 +352,9 @@ def tsp_gurobi(edges):
         m.addConstr(quicksum(vars[x] for x in outgoing_edges) == 1)
 
     # Subtour elimination
+    edge_store = dict(((idx[a], idx[b]), i) for i, (a, b, w) in enumerate(edges))
+    """
+    u0 = nodes[0]
     for i, e in enumerate(edges):
         a, b = e[:2]
         if u0 in (a, b):
@@ -358,11 +362,54 @@ def tsp_gurobi(edges):
         a, b = step(a), step(b)
         na, nb, ne = vars[a], vars[b], vars[i]
         m.addConstr(na - nb + (nnodes - 1) * ne <= nnodes - 2)
+    """
+    # Given a list of edges, finds the shortest subtour
+    def subtour(s_edges):
+        visited = [False] * n
+        cycles = []
+        lengths = []
+        selected = [[] for i in range(n)]
+        for x, y in s_edges:
+            selected[x].append(y)
+        while True:
+            current = visited.index(False)
+            thiscycle = [current]
+            while True:
+                visited[current] = True
+                neighbors = [x for x in selected[current] if not visited[x]]
+                if len(neighbors) == 0:
+                    break
+                current = neighbors[0]
+                thiscycle.append(current)
+            cycles.append(thiscycle)
+            lengths.append(len(thiscycle))
+            if sum(lengths) == n:
+                break
+        return cycles[lengths.index(min(lengths))]
+
+    def subtourelim(model, where):
+        if where != GRB.callback.MIPSOL:
+            return
+        selected = []
+        # make a list of edges selected in the solution
+        sol = model.cbGetSolution([model._vars[i] for i in range(nedges)])
+        selected = [edges[i] for i, x in enumerate(sol) if x > .5]
+        selected = [(idx[a], idx[b]) for a, b, w in selected]
+        # find the shortest cycle in the selected edge list
+        tour = subtour(selected)
+        if len(tour) == n:
+            return
+        # add a subtour elimination constraint
+        c = tour
+        incident = [edge_store[a, b] for a, b in pairwise(c + [c[0]])]
+        model.cbLazy(quicksum(model._vars[x] for x in incident) <= len(tour) - 1)
 
     m.update()
 
     m._vars = vars
-    m.optimize()
+    m.params.LazyConstraints = 1
+    m.optimize(subtourelim)
+
     selected = [v.varName for v in m.getVars() if v.x > .5]
     selected = [int(x) for x in selected if x[:2] != "u_"]
     results = sorted(x for i, x in enumerate(edges) if i in selected) \

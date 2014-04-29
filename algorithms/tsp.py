@@ -265,7 +265,7 @@ def concorde_demo(POINTS=100):
     plot_data(x, y, ctour, M)
 
 
-def compare_lpsolve_to_concorde(POINTS=20, directed=False):
+def compare_lpsolve_to_concorde(POINTS=80, directed=False):
     from jcvi.algorithms.lpsolve import hamiltonian as lhamiltonian
 
     x, y, M, edges = make_data(POINTS, directed=directed)

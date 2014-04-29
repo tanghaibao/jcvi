@@ -86,7 +86,7 @@ def sync_tsp(salesmen):
     nedges, nnodes = len(all_edges), len(all_nodes)
 
     L.add_objective(all_edges, objective=MINIMIZE)
-    constraints = []
+    balance = []
     current_nedges = 0
     for edges in salesmen:
         incoming, outgoing, nodes = node_to_edge(edges)
@@ -96,13 +96,14 @@ def sync_tsp(salesmen):
             outgoing_edges = [x + current_nedges for x in outgoing[v]]
             icc = summation(incoming_edges)
             occ = summation(outgoing_edges)
-            constraints.append("{0} = 1".format(icc))
-            constraints.append("{0} = 1".format(occ))
+            balance.append("{0} = 1".format(icc))
+            balance.append("{0} = 1".format(occ))
         current_nedges += len(edges)
 
     assert current_nedges == nedges
 
     # Subtour elimination - Miller-Tucker-Zemlin (MTZ) formulation
+    mtz = []
     start_step = nedges + 1
     u0 = all_nodes[0]
     nodes_to_steps = dict((n, start_step + i) for i, n in enumerate(all_nodes[1:]))
@@ -116,10 +117,10 @@ def sync_tsp(salesmen):
             i = edge_store[a, b]
             con_ab = " x{0} - x{1} + {2}x{3}".format(na, nb, nnodes - 1, i + 1)
             con_ab += " <= {0}".format(nnodes - 2)
-            constraints.append(con_ab)
+            mtz.append(con_ab)
         current_nedges += len(edges)
 
-    L.constraints = constraints
+    L.constraints = balance + mtz
 
     # Step variables u_i bound between 1 and n, as additional variables
     bounds = []
@@ -130,7 +131,6 @@ def sync_tsp(salesmen):
     L.add_vars(nedges)
     L.add_vars(nnodes - 1, offset=start_step, binary=False)
 
-    #print L.handle.getvalue()
     selected, obj_val = L.lpsolve(clean=False)
     results = sorted(x for i, x in enumerate(all_edges) if i in selected) \
                     if selected else None

@@ -30,6 +30,7 @@ import os.path as op
 import shutil
 import logging
 import cStringIO
+import networkx as nx
 
 from jcvi.utils.cbook import fill
 from jcvi.utils.iter import pairwise
@@ -197,7 +198,6 @@ class LPInstance (object):
     spec <http://lpsolve.sourceforge.net/5.0/CPLEX-format.htm>
     """
     def __init__(self):
-        self.handle = cStringIO.StringIO()
         self.objective = MAXIMIZE
         self.sum = ""
         self.constraints = []
@@ -206,7 +206,7 @@ class LPInstance (object):
         self.generalvars = []
 
     def print_instance(self):
-        fw = self.handle
+        self.handle = fw = cStringIO.StringIO()
         print >> fw, self.objective
         print >> fw, self.sum
         print >> fw, SUBJECTTO
@@ -259,25 +259,27 @@ def summation(incident_edges):
     return s
 
 
-def edges_to_path(edges):
-    """
-    Connect edges and return a path.
-    """
-    import networkx as nx
-
-    if not edges:
-        return None
-
+def edges_to_graph(edges):
     G = nx.DiGraph()
     for e in edges:
         a, b = e[:2]
         G.add_edge(a, b)
+    return G
 
+
+def edges_to_path(edges):
+    """
+    Connect edges and return a path.
+    """
+    if not edges:
+        return None
+
+    G = edges_to_graph(edges)
     path = nx.topological_sort(G)
     return path
 
 
-def hamiltonian(edges, directed=False):
+def hamiltonian(edges, directed=False, constraint_generation=True):
     """
     Calculates shortest path that traverses each node exactly once. Convert
     Hamiltonian path problem to TSP by adding one dummy point that has a distance
@@ -289,9 +291,6 @@ def hamiltonian(edges, directed=False):
     [1, 2, 4, 3, 5]
     >>> g = [(1,2), (2,3), (1,4), (2,5), (3,6)]
     >>> hamiltonian(g)
-    >>> g += [(5,6)]
-    >>> hamiltonian(g)
-    [5, 6, 3, 2, 1, 4]
     """
     edges = populate_edge_weights(edges)
     incident, nodes = node_to_edge(edges, directed=False)
@@ -305,14 +304,16 @@ def hamiltonian(edges, directed=False):
     dummy_edges = edges + [(DUMMY, x, 0) for x in nodes] + \
                           [(x, DUMMY, 0) for x in nodes]
 
-    results = tsp(dummy_edges)
+    results = tsp(dummy_edges, constraint_generation=constraint_generation)
     if results:
         results = [x for x in results if DUMMY not in x]
         results = edges_to_path(results)
+        if not directed:
+            results = min(results, results[::-1])
     return results
 
 
-def tsp(edges):
+def tsp(edges, constraint_generation=False):
     """
     Calculates shortest cycle that traverses each node exactly once. Also known
     as the Traveling Salesman Problem (TSP).
@@ -324,15 +325,15 @@ def tsp(edges):
     L = LPInstance()
 
     L.add_objective(edges, objective=MINIMIZE)
-    constraints = []
+    balance = []
     # For each node, select exactly 1 incoming and 1 outgoing edge
     for v in nodes:
         incoming_edges = incoming[v]
         outgoing_edges = outgoing[v]
         icc = summation(incoming_edges)
         occ = summation(outgoing_edges)
-        constraints.append("{0} = 1".format(icc))
-        constraints.append("{0} = 1".format(occ))
+        balance.append("{0} = 1".format(icc))
+        balance.append("{0} = 1".format(occ))
 
     # Subtour elimination - Miller-Tucker-Zemlin (MTZ) formulation
     # <http://en.wikipedia.org/wiki/Travelling_salesman_problem>
@@ -343,6 +344,7 @@ def tsp(edges):
     u0 = nodes[0]
     nodes_to_steps = dict((n, start_step + i) for i, n in enumerate(nodes[1:]))
     edge_store = dict((e[:2], i) for i, e in enumerate(edges))
+    mtz = []
     for i, e in enumerate(edges):
         a, b = e[:2]
         if u0 in (a, b):
@@ -353,22 +355,44 @@ def tsp(edges):
             j = edge_store[(b, a)]
             con_ab += " + {0}x{1}".format(nnodes - 3, j + 1)
         con_ab += " <= {0}".format(nnodes - 2)
-        constraints.append(con_ab)
-
-    L.constraints = constraints
+        mtz.append(con_ab)
 
     # Step variables u_i bound between 1 and n, as additional variables
     bounds = []
     for i in xrange(start_step, nedges + nnodes):
         bounds.append(" 1 <= x{0} <= {1}".format(i, nnodes - 1))
-    L.bounds = bounds
 
     L.add_vars(nedges)
-    L.add_vars(nnodes - 1, offset=start_step, binary=False)
 
-    selected, obj_val = L.lpsolve()
-    results = sorted(x for i, x in enumerate(edges) if i in selected) \
-                    if selected else None
+    """
+    Constraint generation seek to find 'cuts' in the LP problem, by solving the
+    relaxed form. The subtours were then incrementally added to the constraints.
+    """
+    if constraint_generation:
+        L.constraints = balance
+        subtours = []
+        while True:
+            selected, obj_val = L.lpsolve()
+            results = sorted(x for i, x in enumerate(edges) if i in selected) \
+                            if selected else None
+            if not results:
+                break
+            G = edges_to_graph(results)
+            cycles = list(nx.simple_cycles(G))
+            if len(cycles) == 1:
+                break
+            for c in cycles:
+                incident = [edge_store[a, b] for a, b in pairwise(c + [c[0]])]
+                icc = summation(incident)
+                subtours.append("{0} <= {1}".format(icc, len(incident) - 1))
+            L.constraints = balance + subtours
+    else:
+        L.constraints = balance + mtz
+        L.add_vars(nnodes - 1, offset=start_step, binary=False)
+        L.bounds = bounds
+        selected, obj_val = L.lpsolve()
+        results = sorted(x for i, x in enumerate(edges) if i in selected) \
+                        if selected else None
 
     return results
 
@@ -451,8 +475,6 @@ def min_feedback_arc_set(edges, remove=False, maxcycles=20000):
     >>> min_feedback_arc_set(g, remove=True)  # Return DAG
     ([(1, 2, 2), (2, 3, 2), (3, 4, 2), (1, 3, 1), (2, 4, 1)], 1)
     """
-    import networkx as nx
-
     G = nx.DiGraph()
     edge_to_index = {}
     for i, (a, b, w) in enumerate(edges):

@@ -23,7 +23,7 @@ from random import sample
 from itertools import combinations
 
 from jcvi.algorithms.lpsolve import node_to_edge, edges_to_path, \
-            MINIMIZE, BINARY, GENERNAL, LPInstance, summation
+            MINIMIZE, LPInstance, summation
 from jcvi.utils.iter import flatten
 
 
@@ -42,6 +42,9 @@ def make_data(POINTS, SALESMEN):
     salesmen = []
     for i in xrange(SALESMEN):
         subscaffolds = sample(scaffolds, POINTS * 3 / 5)
+        subscaffolds = sorted((positions[k], k) for k in subscaffolds)
+        dd, subscaffolds = zip(*subscaffolds)
+        print i, subscaffolds
         edges = []
         for a, b in combinations(subscaffolds, 2):
             d = abs(positions[a] - positions[b])
@@ -68,11 +71,76 @@ def sync_hamiltonian(salesmen):
                               [(x, DUMMY, 0) for x in nodes]
         dummy_salesmen.append(dummy_edges)
 
-    results, obj_val = sync_tsp(dummy_salesmen)
+    #results, obj_val = sync_tsp(dummy_salesmen)
+    results, obj_val = sync_tsp_gurobi(dummy_salesmen)
     if results:
         results = [x for x in results if DUMMY not in x]
         results = edges_to_path(results)
     return results, obj_val
+
+
+def sync_tsp_gurobi(salesmen):
+    from gurobipy import Model, GRB, quicksum
+
+    all_edges = list(flatten(salesmen))
+    incident, all_nodes = node_to_edge(all_edges, directed=False)
+    nedges, n = len(all_edges), len(all_nodes)
+
+    m = Model()
+
+    step = lambda x: "u_{0}".format(x)
+    # Create variables
+    vars = {}
+    for i, (a, b, w) in enumerate(all_edges):
+        vars[i] = m.addVar(obj=w, vtype=GRB.BINARY, name=str(i))
+    for u in all_nodes[1:]:
+        u = step(u)
+        vars[u] = m.addVar(obj=0, vtype=GRB.INTEGER, name=u)
+    m.update()
+
+    current_nedges = 0
+    # Add degree constraint
+    for edges in salesmen:
+        incoming, outgoing, nodes = node_to_edge(edges)
+        # For each node, select exactly 1 incoming and 1 outgoing edge
+        for v in nodes:
+            incoming_edges = [x + current_nedges for x in incoming[v]]
+            outgoing_edges = [x + current_nedges for x in outgoing[v]]
+            m.addConstr(quicksum(vars[x] for x in incoming_edges) == 1)
+            m.addConstr(quicksum(vars[x] for x in outgoing_edges) == 1)
+        current_nedges += len(edges)
+
+    assert current_nedges == nedges
+
+    # Bounds for step variables
+    for u in nodes[1:]:
+        u = step(u)
+        vars[u].lb = 1
+        vars[u].ub = n - 1
+
+    # Subtour elimination - Miller-Tucker-Zemlin (MTZ) formulation
+    u0 = nodes[0]
+    current_nedges = 0
+    for edges in salesmen:
+        for i, e in enumerate(edges):
+            a, b = e[:2]
+            if u0 in (a, b):
+                continue
+            a, b = step(a), step(b)
+            na, nb, ne = vars[a], vars[b], vars[i + current_nedges]
+            m.addConstr(na - nb + (n - 1) * ne <= n - 2)
+        current_nedges += len(edges)
+    m.update()
+
+    m._vars = vars
+    #m.params.LazyConstraints = 1
+    m.optimize()
+
+    selected = [v.varName for v in m.getVars() if v.x > .5]
+    selected = [int(x) for x in selected if x[:2] != "u_"]
+    results = sorted(x for i, x in enumerate(all_edges) if i in selected) \
+                    if selected else None
+    return results, m.objVal
 
 
 def sync_tsp(salesmen):
@@ -139,7 +207,7 @@ def sync_tsp(salesmen):
 
 
 def main():
-    salesmen, answer = make_data(100, 2)
+    salesmen, answer = make_data(200, 2)
     tour, val = sync_hamiltonian(salesmen)
     print "Solution found:", tour, val
     print "Truth:", answer

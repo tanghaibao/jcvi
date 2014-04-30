@@ -353,16 +353,7 @@ def tsp_gurobi(edges):
 
     # Subtour elimination
     edge_store = dict(((idx[a], idx[b]), i) for i, (a, b, w) in enumerate(edges))
-    """
-    u0 = nodes[0]
-    for i, e in enumerate(edges):
-        a, b = e[:2]
-        if u0 in (a, b):
-            continue
-        a, b = step(a), step(b)
-        na, nb, ne = vars[a], vars[b], vars[i]
-        m.addConstr(na - nb + (nnodes - 1) * ne <= nnodes - 2)
-    """
+
     # Given a list of edges, finds the shortest subtour
     def subtour(s_edges):
         visited = [False] * n

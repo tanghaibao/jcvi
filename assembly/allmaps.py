@@ -19,7 +19,6 @@ from scipy.stats import spearmanr
 from jcvi.algorithms.formula import reject_outliers
 from jcvi.algorithms.lis import longest_monotonous_subseq_length
 from jcvi.algorithms.tsp import hamiltonian
-from jcvi.algorithms.synctsp import sync_hamiltonian
 from jcvi.algorithms.matrix import determine_signs
 from jcvi.formats.agp import AGP, order_to_agp, build as agp_build
 from jcvi.formats.base import DictFile, FileMerger, must_open
@@ -74,6 +73,7 @@ class LinkageGroup (object):
         self.length = length
         self.markers = markers
         self.function = f = function
+        self.linkage = linkage
 
         self.mapname = lg.split("-")[0]
         self.series = {}
@@ -93,14 +93,25 @@ class LinkageGroup (object):
         vv, gg, path = zip(*path)
         self.path = path
         self.rho = 0
-        self.distances = self.populate_pairwise_distance(linkage)
 
-    def populate_pairwise_distance(self, linkage):
+    def populate_pairwise_distance(self):
         distances = {}
         series = self.series
+        linkage = self.linkage
         for a, b in combinations(self.path, 2):
             d = linkage_distance(series[a], series[b], linkage=linkage)
             distances[a, b] = distances[b, a] = d
+
+        for p in self.path:
+            adist = linkage_distance([0], series[p], linkage=linkage)
+            bdist = linkage_distance(series[p], [self.length], linkage=linkage)
+            if self.rho < 0:
+                adist, bdist = bdist, adist
+            distances[START, p] = distances[p, START] = adist
+            distances[END, p] = distances[p, END] = bdist
+
+        self.distances = distances
+
         return distances
 
 
@@ -128,7 +139,6 @@ class ScaffoldOO (object):
         scaffolds_oo = dict(zip(scaffolds, signs))
 
         tour = self.assign_order()
-        """
         distances_start = self.distances.copy()
         while True:
             tour_start = tour
@@ -137,7 +147,6 @@ class ScaffoldOO (object):
                 break
             logging.debug("Order refinement reset")
             self.distances = distances_start.copy()  # Recover initial state
-        """
 
         tour = [(x, scaffolds_oo[x]) for x in tour]
         tour = self.fix_orientation(tour)
@@ -235,42 +244,29 @@ class ScaffoldOO (object):
             if mlg.rho < 0:
                 mlg.path = mlg.path[::-1]
 
+            mlg.populate_pairwise_distance()
+
         # Preparation of TSP
         distances = defaultdict(list)
-        salesmen = []
-        #linkage = self.linkage
         for mlg in linkage_groups:
             mapname = mlg.mapname
-            #series = mlg.series
             position = mlg.position
             length = mlg.length
             path = mlg.path
             rho = mlg.rho
             dd = mlg.distances
-            weight = self.weights[mapname]
-            edges = []
             for a, b in combinations(path, 2):
                 d = dd[a, b]
                 distances[a, b].append((d, mapname))
-                edges.append((a, b, weight * d))
-                edges.append((b, a, weight * d))
             for p in path:
-                #adist = linkage_distance([0], series[p], linkage=linkage)
-                #bdist = linkage_distance(series[p], [length], linkage=linkage)
                 adist, bdist = position[p], length - position[p]
                 if rho < 0:
                     adist, bdist = bdist, adist
                 distances[START, p].append((adist, mapname))
                 distances[p, END].append((bdist, mapname))
-                edges.append((START, p, weight * adist))
-                edges.append((p, END, weight * bdist))
-            salesmen.append(edges)
 
         self.distances = distances
-        #tour = self.distances_to_tour()
-        tour = sync_hamiltonian(salesmen)
-        assert tour[0] == START and tour[-1] == END
-        tour = tour[1:-1]
+        tour = self.distances_to_tour()
         return tour
 
     def iterative_fix_order(self, tour):

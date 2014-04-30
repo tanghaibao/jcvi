@@ -24,7 +24,7 @@ from itertools import combinations
 
 from jcvi.algorithms.lpsolve import node_to_edge, edges_to_path, \
             MINIMIZE, LPInstance, summation
-from jcvi.utils.iter import flatten
+from jcvi.utils.iter import flatten, pairwise
 
 
 def make_data(POINTS, SALESMEN):
@@ -84,6 +84,7 @@ def sync_tsp_gurobi(salesmen):
 
     all_edges = list(flatten(salesmen))
     incident, all_nodes = node_to_edge(all_edges, directed=False)
+    idx = dict((n, i) for i, n in enumerate(all_nodes))
     nedges, n = len(all_edges), len(all_nodes)
 
     m = Model()
@@ -122,8 +123,7 @@ def sync_tsp_gurobi(salesmen):
     u0 = nodes[0]
     current_nedges = 0
     for edges in salesmen:
-        for i, e in enumerate(edges):
-            a, b = e[:2]
+        for i, (a, b, w) in enumerate(edges):
             if u0 in (a, b):
                 continue
             a, b = step(a), step(b)
@@ -131,6 +131,54 @@ def sync_tsp_gurobi(salesmen):
             m.addConstr(na - nb + (n - 1) * ne <= n - 2)
         current_nedges += len(edges)
     m.update()
+
+    # Given a list of edges, finds the shortest subtour
+    def subtour(s_edges):
+        visited = [False] * n
+        cycles = []
+        lengths = []
+        selected = [[] for i in range(n)]
+        for x, y in s_edges:
+            selected[x].append(y)
+        while True:
+            current = visited.index(False)
+            thiscycle = [current]
+            while True:
+                visited[current] = True
+                neighbors = [x for x in selected[current] if not visited[x]]
+                if len(neighbors) == 0:
+                    break
+                current = neighbors[0]
+                thiscycle.append(current)
+            cycles.append(thiscycle)
+            lengths.append(len(thiscycle))
+            if sum(lengths) == n:
+                break
+        return cycles[lengths.index(min(lengths))]
+
+    def subtourelim(model, where):
+        if where != GRB.callback.MIPSOL:
+            return
+        selected = []
+        # make a list of edges selected in the solution
+        sol = model.cbGetSolution([model._vars[i] for i in range(nedges)])
+        selected = [all_edges[i] for i, x in enumerate(sol) if x > .5]
+        # find the shortest cycle in the selected edge list
+        current_nedges = 0
+        for salesman in salesmen:
+            incoming, outgoing, nodes = node_to_edge(edges)
+            edge_store = dict(((a, b), i + current_nedges) \
+                               for i, (a, b, w) in salesman)
+            salesmen_selected = [(idx[a], idx[b]) for a, b, w in selected \
+                                 if a in nodes and b in nodes]
+            tour = subtour(salesmen_selected)
+            if len(tour) == len(nodes):
+                return
+            # add a subtour elimination constraint
+            c = tour
+            incident = [edge_store[a, b] for a, b in pairwise(c + [c[0]])]
+            model.cbLazy(quicksum(model._vars[x] for x in incident) <= len(tour) - 1)
+            current_nedges += len(salesman)
 
     m._vars = vars
     #m.params.LazyConstraints = 1

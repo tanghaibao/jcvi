@@ -86,29 +86,27 @@ def table(args):
     page = open(htmlfile).read()
     soup = BeautifulSoup(page)
 
-    tabl = soup.find('table')
-    rows = tabl.findAll('tr')
-    csvfile = htmlfile.rsplit(".", 1)[0] + ".csv"
-    writer = csv.writer(open(csvfile, "w"), delimiter=opts.sep)
+    for i, tabl in enumerate(soup.findAll('table')):
+        nrows = 0
+        csvfile = htmlfile.rsplit(".", 1)[0] + ".{0}.csv".format(i)
+        writer = csv.writer(open(csvfile, "w"), delimiter=opts.sep)
+        rows = tabl.findAll('tr')
+        for tr in rows:
+            cols = tr.findAll('td')
+            if not cols:
+                cols = tr.findAll('th')
 
-    nrows = 0
-    for tr in rows:
-        cols = tr.findAll('td')
-        if not cols:
-            cols = tr.findAll('th')
-
-        row = []
-        for td in cols:
-            try:
-                cell = "".join(td.find(text=True))
-                cell = unescape(cell)
-            except TypeError:
-                cell = ""
-            row.append(cell)
-        writer.writerow(row)
-        nrows += 1
-
-    logging.debug("Table with {0} rows written to `{1}`.".format(nrows, csvfile))
+            row = []
+            for td in cols:
+                try:
+                    cell = "".join(td.find(text=True))
+                    cell = unescape(cell)
+                except TypeError:
+                    cell = ""
+                row.append(cell)
+            writer.writerow(row)
+            nrows += 1
+        logging.debug("Table with {0} rows written to `{1}`.".format(nrows, csvfile))
 
 
 if __name__ == '__main__':

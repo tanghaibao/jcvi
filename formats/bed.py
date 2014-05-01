@@ -12,7 +12,7 @@ from collections import defaultdict
 from itertools import groupby
 
 from jcvi.formats.base import LineFile, must_open, is_number
-from jcvi.utils.cbook import thousands, percentage
+from jcvi.utils.cbook import SummaryStats, thousands, percentage
 from jcvi.utils.range import Range, range_union, range_chain, \
         range_distance, range_intersect
 from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh, \
@@ -128,15 +128,7 @@ class Bed(LineFile):
         fw.close()
 
     def sum(self, seqid=None, unique=True):
-        if seqid:
-            ranges = [(x.seqid, x.start, x.end) for x in self \
-                        if x.seqid == seqid]
-        else:
-            ranges = [(x.seqid, x.start, x.end) for x in self]
-
-        unique_sum = range_union(ranges)
-        raw_sum = sum(x.span for x in self)
-        return unique_sum if unique else raw_sum
+        return bed_sum(self, seqid=seqid, unique=unique)
 
     @property
     def seqids(self):
@@ -247,6 +239,47 @@ class BedEvaluate (object):
     def score(self):
         return "|".join(("{0:.3f}".format(x) for x in \
                     (self.sensitivity, self.specificity, self.accuracy)))
+
+
+class BedSummary(object):
+
+    def __init__(self, bed):
+        mspans = [(x.span, x.accn) for x in bed]
+        spans, accns = zip(*mspans)
+        self.mspans = mspans
+        self.stats = SummaryStats(spans)
+        self.nseqids = len(set(x.seqid for x in bed))
+        self.nfeats = len(bed)
+        self.total_bases = bed_sum(bed, unique=False)
+        self.unique_bases = bed_sum(bed)
+        self.coverage = self.total_bases * 1. / self.unique_bases
+
+    def report(self):
+        print >> sys.stderr, "Total seqids: {0}".format(self.nseqids)
+        print >> sys.stderr, "Total ranges: {0}".format(self.nfeats)
+        print >> sys.stderr, "Total unique bases: {0} bp".format(thousands(self.unique_bases))
+        print >> sys.stderr, "Total bases: {0} bp".format(thousands(self.total_bases))
+        print >> sys.stderr, "Estimated coverage: {0:.1f}x".format(self.coverage)
+        print >> sys.stderr, self.stats
+        maxspan, maxaccn = max(self.mspans)
+        minspan, minaccn = min(self.mspans)
+        print >> sys.stderr, "Longest: {0} ({1})".format(maxaccn, maxspan)
+        print >> sys.stderr, "Shortest: {0} ({1})".format(minaccn, minspan)
+
+    def __str__(self):
+        return "\t".join(str(x) for x in (self.nfeats, self.unique_bases))
+
+
+def bed_sum(beds, seqid=None, unique=True):
+    if seqid:
+        ranges = [(x.seqid, x.start, x.end) for x in beds \
+                    if x.seqid == seqid]
+    else:
+        ranges = [(x.seqid, x.start, x.end) for x in beds]
+
+    unique_sum = range_union(ranges)
+    raw_sum = sum(x.span for x in beds)
+    return unique_sum if unique else raw_sum
 
 
 def main():
@@ -987,7 +1020,6 @@ def report_pairs(data, cutoff=0, mateorientation=None,
     Reports number of fragments and pairs as well as linked pairs
     """
     import numpy as np
-    from jcvi.utils.cbook import SummaryStats, percentage
 
     allowed_mateorientations = ("++", "--", "+-", "-+")
 
@@ -1133,11 +1165,11 @@ def summary(args):
 
     Sum the total lengths of the intervals.
     """
-    from jcvi.utils.cbook import SummaryStats
-
     p = OptionParser(summary.__doc__)
     p.add_option("--sizes", default=False, action="store_true",
                  help="Write .sizes file")
+    p.add_option("--all", default=False, action="store_true",
+                 help="Write summary stats per seqid")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -1145,7 +1177,6 @@ def summary(args):
 
     bedfile, = args
     bed = Bed(bedfile)
-    mspans = [(x.span, x.accn) for x in bed]
     if opts.sizes:
         sizesfile = bedfile + ".sizes"
         fw = open(sizesfile, "w")
@@ -1154,24 +1185,14 @@ def summary(args):
         fw.close()
         logging.debug("Spans written to `{0}`.".format(sizesfile))
 
-    spans, accns = zip(*mspans)
-    stats = SummaryStats(spans)
-    print >> sys.stderr, "Total seqids: {0}".format(len(bed.seqids))
-    print >> sys.stderr, "Total ranges: {0}".format(len(bed))
+    if not opts.all:
+        bs = BedSummary(bed)
+        bs.report()
+        return bs
 
-    total_bases = bed.sum(unique=False)
-    unique_bases = bed.sum()
-
-    print >> sys.stderr, "Total unique bases: {0} bp".format(thousands(unique_bases))
-    print >> sys.stderr, "Total bases: {0} bp".format(thousands(total_bases))
-    print >> sys.stderr, "Estimated coverage: {0:.1f}x".\
-                        format(total_bases * 1. / unique_bases)
-
-    print >> sys.stderr, stats
-    maxspan, maxaccn = max(mspans)
-    minspan, minaccn = min(mspans)
-    print >> sys.stderr, "Longest: {0} ({1})".format(maxaccn, maxspan)
-    print >> sys.stderr, "Shortest: {0} ({1})".format(minaccn, minspan)
+    for seqid, subbeds in bed.sub_beds():
+        bs = BedSummary(subbeds)
+        print "\t".join((seqid, str(bs)))
 
 
 def sort(args):

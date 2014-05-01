@@ -108,11 +108,16 @@ class Fasta (BaseFile, dict):
         start = start - 1 if start is not None else 0
         stop = stop if stop is not None else len(fasta)
 
-        assert start >= 0, "start (%d) must > 0" % (start + 1)
+        if start < 0:
+            msg = "start ({0}) must > 0. Reset to 1".format(start + 1)
+            logging.error(msg)
+            start = 0
 
-        assert stop <= len(fasta), \
-                ("stop (%d) must be <= " + \
-                "length of `%s` (%d)") % (stop, fasta.id, len(fasta))
+        if stop > len(fasta):
+            msg = "stop ({0}) must be <= length of `{1}` ({2}). Reset to {2}.".\
+                        format(stop, fasta.id, len(fasta))
+            logging.error(msg)
+            stop = len(fasta)
 
         seq = fasta.seq[start:stop]
 
@@ -240,7 +245,9 @@ class ORFFinder (object):
             start, end = size - end, size - start
             self.result[2 : 4] = start, end
 
-        assert start < end, self.result
+        assert start <= end, self.result
+        if start == end:
+            return "N"
 
         orf = self.seq[start : end]
         if strand == '-':

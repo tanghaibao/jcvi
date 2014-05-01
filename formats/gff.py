@@ -409,6 +409,7 @@ def orient(args):
 
     orientations = DictFile(idsfile)
     gff = Gff(ingff3)
+    flipped = 0
     for g in gff:
         id = None
         for tag in ("ID", "Parent"):
@@ -420,8 +421,11 @@ def orient(args):
         orientation = orientations.get(id, "+")
         if orientation == '-':
             g.strand = {"+": "-", "-": "+"}[g.strand]
+            flipped += 1
 
         print g
+
+    logging.debug("A total of {0} features flipped.".format(flipped))
 
 
 def rename(args):
@@ -1238,7 +1242,7 @@ def uniq(args):
             continue
         allgenes.append(g)
 
-    logging.debug("A total of `{0}` {1} features imported.".format(len(allgenes), type))
+    logging.debug("A total of {0} `{1}` features imported.".format(len(allgenes), type))
     allgenes.sort(key=lambda x: (x.seqid, x.start))
 
     g = get_piles(allgenes)
@@ -1277,7 +1281,7 @@ def uniq(args):
         manager = Manager()
         results = manager.dict()
 
-        logging.debug("Deduplicating `{0}` piles at a time".format(opts.cpus))
+        logging.debug("Deduplicating {0} piles at a time".format(opts.cpus))
         for cpu_groups in grouper(opts.cpus, flt_groups):
             jobs = Jobs(dedup_pile, [(results, flt_group, gffdb, int(opts.iter)) \
                     for flt_group in cpu_groups])

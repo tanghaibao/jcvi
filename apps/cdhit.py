@@ -68,7 +68,7 @@ def main():
 
     actions = (
         ('ids', 'get the representative ids from clstr file'),
-        ('deduplicate', 'use `cd-hit-454` to remove duplicate reads'),
+        ('deduplicate', 'use `cd-hit-est` to remove duplicate reads'),
         ('summary', 'parse cdhit.clstr file to get distribution of cluster sizes'),
             )
     p = ActionDispatcher(actions)

@@ -11,7 +11,7 @@ import logging
 from collections import defaultdict
 from itertools import groupby
 
-from jcvi.formats.base import LineFile, must_open, is_number
+from jcvi.formats.base import LineFile, must_open, is_number, get_number
 from jcvi.utils.cbook import SummaryStats, thousands, percentage
 from jcvi.utils.range import Range, range_union, range_chain, \
         range_distance, range_intersect
@@ -123,8 +123,11 @@ class Bed(LineFile):
             self.sort(key=self.key)
 
         fw = must_open(filename, "w")
-        for bedline in self:
-            print >> fw, bedline
+        for b in self:
+            if b.start < 1:
+                logging.error("Start < 1. Reset start for `{0}`.".format(b.accn))
+                b.start = 1
+            print >> fw, b
         fw.close()
 
     def sum(self, seqid=None, unique=True):
@@ -296,6 +299,7 @@ def main():
         ('mates', 'print paired reads from bedfile'),
         ('sizes', 'infer the sizes for each seqid'),
         ('uniq', 'remove overlapping features with higher scores'),
+        ('longest', 'select longest feature within overlapping piles'),
         ('bedpe', 'convert to bedpe format'),
         ('distance', 'calculate distance between bed features'),
         ('sample', 'sample bed file and remove high-coverage regions'),
@@ -306,6 +310,69 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def remove_isoforms(ids):
+    """
+    This is more or less a hack to remove the GMAP multiple mappings. Multiple
+    GMAP mappings can be seen given the names .mrna1, .mrna2, etc.
+    """
+    key = lambda x: x.rsplit(".", 1)[0]
+    iso_number = lambda x: get_number(x.split(".")[-1])
+    ids = sorted(ids, key=key)
+    newids = []
+    for k, ii in groupby(ids, key=key):
+        min_i = min(list(ii), key=iso_number)
+        newids.append(min_i)
+    return newids
+
+
+def longest(args):
+    """
+    %prog longest bedfile fastafile
+
+    Select longest feature within overlapping piles.
+    """
+    from jcvi.formats.sizes import Sizes
+
+    p = OptionParser(longest.__doc__)
+    p.add_option("--maxsize", default=20000, type="int",
+                 help="Limit max size")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    bedfile, fastafile = args
+    maxsize = opts.maxsize
+    mergedbed = mergeBed(bedfile, nms=True)
+    sizes = Sizes(fastafile).mapping
+    bed = Bed(mergedbed)
+
+    pf = bedfile.rsplit(".", 1)[0]
+    ids = set()
+    for b in bed:
+        accns = b.accn.split(";")
+        accn_sizes = [(sizes.get(x, 0), x) for x in accns]
+        accn_sizes = [(size, x) for size, x in accn_sizes if size < maxsize]
+        max_size, max_accn = max(accn_sizes)
+        ids.add(max_accn)
+
+    newids = remove_isoforms(ids)
+    logging.debug("Remove isoforms: before={0} after={1}".\
+                    format(len(ids), len(newids)))
+
+    longestidsfile = pf + ".longest.ids"
+    fw = open(longestidsfile, "w")
+    print >> fw, "\n".join(newids)
+    fw.close()
+    logging.debug("A total of {0} records written to `{1}`.".\
+                    format(len(newids), longestidsfile))
+
+    longestfastafile = pf + ".longest.fasta"
+    cmd = "faSomeRecords {0} {1} {2}".\
+                    format(fastafile, longestidsfile, longestfastafile)
+    sh(cmd)
 
 
 def merge(args):

@@ -437,6 +437,15 @@ def is_number(s, cast=float):
     return True
 
 
+def get_number(s, cast=int):
+    """
+    Try to get a number out of a string, and cast it.
+    """
+    import string
+    d = "".join(x for x in s if x in string.digits)
+    return cast(d)
+
+
 def flexible_cast(s):
     if is_number(s, cast=int):
         return int(s)

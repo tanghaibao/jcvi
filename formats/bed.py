@@ -338,6 +338,8 @@ def longest(args):
     p = OptionParser(longest.__doc__)
     p.add_option("--maxsize", default=20000, type="int",
                  help="Limit max size")
+    p.add_option("--precedence", default="Medtr",
+                 help="Accessions with prefix take precedence")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -345,6 +347,7 @@ def longest(args):
 
     bedfile, fastafile = args
     maxsize = opts.maxsize
+    prec = opts.precedence
     mergedbed = mergeBed(bedfile, nms=True)
     sizes = Sizes(fastafile).mapping
     bed = Bed(mergedbed)
@@ -353,8 +356,13 @@ def longest(args):
     ids = set()
     for b in bed:
         accns = b.accn.split(";")
+        prec_accns = [x for x in accns if x.startswith(prec)]
+        if prec_accns:
+            accns = prec_accns
         accn_sizes = [(sizes.get(x, 0), x) for x in accns]
         accn_sizes = [(size, x) for size, x in accn_sizes if size < maxsize]
+        if not accn_sizes:
+            continue
         max_size, max_accn = max(accn_sizes)
         ids.add(max_accn)
 

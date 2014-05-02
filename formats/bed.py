@@ -338,6 +338,8 @@ def longest(args):
     p = OptionParser(longest.__doc__)
     p.add_option("--maxsize", default=20000, type="int",
                  help="Limit max size")
+    p.add_option("--minsize", default=60, type="int",
+                 help="Limit min size")
     p.add_option("--precedence", default="Medtr",
                  help="Accessions with prefix take precedence")
     opts, args = p.parse_args(args)
@@ -347,6 +349,7 @@ def longest(args):
 
     bedfile, fastafile = args
     maxsize = opts.maxsize
+    minsize = opts.minsize
     prec = opts.precedence
     mergedbed = mergeBed(bedfile, nms=True)
     sizes = Sizes(fastafile).mapping
@@ -364,6 +367,8 @@ def longest(args):
         if not accn_sizes:
             continue
         max_size, max_accn = max(accn_sizes)
+        if max_size < minsize:
+            continue
         ids.add(max_accn)
 
     newids = remove_isoforms(ids)
@@ -377,10 +382,9 @@ def longest(args):
     logging.debug("A total of {0} records written to `{1}`.".\
                     format(len(newids), longestidsfile))
 
-    longestfastafile = pf + ".longest.fasta"
-    cmd = "faSomeRecords {0} {1} {2}".\
-                    format(fastafile, longestidsfile, longestfastafile)
-    sh(cmd)
+    longestbedfile = pf + ".longest.bed"
+    some([bedfile, longestidsfile, "--outfile={0}".format(longestbedfile),
+            "--no_strip_names"])
 
 
 def merge(args):
@@ -468,6 +472,7 @@ def some(args):
     p = OptionParser(some.__doc__)
     p.add_option("-v", dest="inverse", default=False, action="store_true",
                  help="Get the inverse, like grep -v [default: %default]")
+    p.set_outfile()
     p.set_stripnames()
     opts, args = p.parse_args(args)
 
@@ -477,6 +482,7 @@ def some(args):
     bedfile, idsfile = args
     inverse = opts.inverse
     ostrip = opts.strip_names
+    fw = must_open(opts.outfile, "w")
 
     ids = SetFile(idsfile)
     if ostrip:
@@ -491,8 +497,9 @@ def some(args):
 
         if keep:
             nkeep += 1
-            print b
+            print >> fw, b
 
+    fw.close()
     logging.debug("Stats: {0} features kept.".\
                     format(percentage(nkeep, ntotal)))
 

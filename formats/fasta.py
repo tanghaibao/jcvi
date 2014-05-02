@@ -109,7 +109,8 @@ class Fasta (BaseFile, dict):
         stop = stop if stop is not None else len(fasta)
 
         if start < 0:
-            msg = "start ({0}) must > 0. Reset to 1".format(start + 1)
+            msg = "start ({0}) must > 0 of `{1}`. Reset to 1".\
+                        format(start + 1, fasta.id)
             logging.error(msg)
             start = 0
 

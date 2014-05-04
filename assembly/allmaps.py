@@ -138,22 +138,34 @@ class ScaffoldOO (object):
         signs = self.assign_orientation()
         assert len(signs) == len(scaffolds)
         scaffolds_oo = dict(zip(scaffolds, signs))
-
         tour = self.assign_order()
-        toolbox = GA_setup(scaffolds, tour)
-        tour = GA_run(toolbox)
-        """
-        distances_start = self.distances.copy()
-        while True:
-            tour_start = tour
-            tour = self.iterative_fix_order(tour_start)
-            if tour == tour_start:
-                break
-            logging.debug("Order refinement reset")
-            self.distances = distances_start.copy()  # Recover initial state
-        """
-
         tour = [(x, scaffolds_oo[x]) for x in tour]
+
+        # Prepare Evolutionary Computation
+        scaffolds_ii = dict((s, i) for i, s in enumerate(scaffolds))
+        scf = [[]] * len(scaffolds)
+        ww = []
+        pathsets = []
+        for mlg in self.linkage_groups:
+            w = float(weights[mlg.mapname])
+            pathset = set(scaffolds_ii[x] for x in mlg.path)
+            for s, o in tour:
+                si = scaffolds_ii[s]
+                if scf[si]:
+                    continue
+                scf[si] = self.get_series(mlg.lg, s, orientation=o)
+            pathsets.append(pathset)
+            ww.append(w)
+        tour = [scaffolds_ii[x] for x, o in tour]
+        logging.debug("Start Evolutionary Computation")
+        toolbox = GA_setup(scf, tour, weights=ww)
+        toolbox.register("evaluate", colinear_evaluate_multi,
+                                     scaffolds=scf,
+                                     pathsets=pathsets)
+        tour = GA_run(toolbox, cpus=64)
+        tour = [scaffolds[x] for x in tour]
+        tour = [(x, scaffolds_oo[x]) for x in tour]
+
         tour = self.fix_orientation(tour)
         recode = {0: '?', 1: '+', -1: '-'}
         tour = [(x, recode[o]) for x, o in tour]
@@ -273,65 +285,6 @@ class ScaffoldOO (object):
         self.distances = distances
         tour = self.distances_to_tour()
         return tour
-
-    def iterative_fix_order(self, tour):
-        links = 1
-        iterations = 0
-        solutions = []
-        while links:
-            score = self.evaluate(tour)
-            logging.debug("Iteration {0} score: {1}".format(iterations, score))
-            solutions.append((score, tour))
-            tour, links = self.fix_order(tour)
-            iterations += 1
-
-        min_score, tour = min(solutions)
-        logging.debug("Best solution score: {0}".format(min_score))
-        return tour
-
-    def fix_order(self, tour):
-        """
-        TSP will not produce the ideal order, but quite close. The reason for
-        slight inaccuracies is due to scaffold connections (edges) that are
-        unique to certain maps. In other words, edges like this will have no
-        weight for certain maps. The following fix add those edges back by
-        extrapolating distances based on the preliminary order and then
-        iteratively perform updates after inserting those weights back.
-        """
-        distances = self.distances
-        tour_index = dict((t, i) for i, t in enumerate(tour))
-        links = 0
-        for mlg in self.linkage_groups:
-            mapname = mlg.mapname
-            position = mlg.position
-            dd = mlg.distances
-            for a, b in pairwise(tour):
-                if not a in position:
-                    continue
-                if b in position:
-                    continue
-                # Find the closest scaffold in the same lg DOWNSTREAM
-                ai = tour_index[a]
-                flank = [x for x in tour[ai + 1:] if x in position]
-                c = flank[0] if flank else None
-                if not c:
-                    continue
-                ci = tour_index[c]
-                distance = dd[c, a]
-                d = distance / 2.
-                for i in xrange(ai + 1, ci):
-                    t = tour[i]
-                    for e in ((a, t), (t, c)):
-                        if mapname in [x[-1] for x in distances[e]]:
-                            continue
-                        distances[e].append((d, mapname))
-                        links += 1
-
-        logging.debug("A total of {0} new edges inserted.".format(links))
-        if links:
-            tour = self.distances_to_tour()
-        return tour, links
-
 
     def get_orientation(self, si, sj):
         """
@@ -614,6 +567,18 @@ class Layout (object):
                 coords[m] = (x, ystart - mlen, ystart)
                 ystart -= mlen + gapsize
         self.coords = coords
+
+
+def colinear_evaluate_multi(tour, scaffolds, pathsets):
+    scores = []
+    for pathset in pathsets:
+        subtour = [x for x in tour if x in pathset]
+        series = []
+        for t in subtour:
+            series.extend(scaffolds[t])
+        score, diff = longest_monotonous_subseq_length(series)
+        scores.append(score)
+    return tuple(scores)
 
 
 def get_rho(xy):

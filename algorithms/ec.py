@@ -19,11 +19,11 @@ from jcvi.algorithms.lis import longest_monotonous_subseq_length
 
 def make_data(POINTS, SCF):
     seq = range(POINTS)
-    scaffolds = {}
+    scaffolds = []
     batch = POINTS / SCF
     for i in xrange(SCF):
-        s = i
-        scaffolds[s] = seq[i * batch: (i + 1) * batch]
+        p = seq[i * batch: (i + 1) * batch]
+        scaffolds.append(p)
     return scaffolds
 
 
@@ -44,7 +44,7 @@ def genome_mutation(candidate):
     """
     size = len(candidate)
     prob = random.random()
-    if prob > .7:    # Inversion
+    if prob > .5:    # Inversion
         p = random.randint(0, size-1)
         q = random.randint(0, size-1)
         if p > q:
@@ -61,10 +61,7 @@ def genome_mutation(candidate):
         return candidate,
 
 
-def GA_setup(scaffolds, guess, evaluate, weights=(1.0,)):
-    ss = scaffolds.keys()
-    SCF = len(scaffolds)
-
+def GA_setup(scaffolds, guess, weights=(1.0,)):
     creator.create("FitnessMax", base.Fitness, weights=weights)
     creator.create("Individual", array.array, typecode='i', fitness=creator.FitnessMax)
 
@@ -73,6 +70,8 @@ def GA_setup(scaffolds, guess, evaluate, weights=(1.0,)):
     if guess:
         toolbox.register("individual", creator.Individual, guess)
     else:
+        SCF = len(scaffolds)
+        ss = range(SCF)
         # Attribute generator
         toolbox.register("indices", random.sample, ss, SCF)
         # Structure initializers
@@ -83,7 +82,6 @@ def GA_setup(scaffolds, guess, evaluate, weights=(1.0,)):
     toolbox.register("mate", tools.cxPartialyMatched)
     toolbox.register("mutate", genome_mutation)
     toolbox.register("select", tools.selTournament, tournsize=3)
-    toolbox.register("evaluate", colinear_evaluate, scaffolds=scaffolds)
     return toolbox
 
 
@@ -149,9 +147,10 @@ def eaSimpleConverge(population, toolbox, cxpb, mutpb, ngen, stats=None,
     return population
 
 
-def GA_run(toolbox):
-    pool = multiprocessing.Pool()
-    toolbox.register("map", pool.map)
+def GA_run(toolbox, cpus=1, ngen=1000):
+    if cpus > 1:
+        pool = multiprocessing.Pool(cpus)
+        toolbox.register("map", pool.map)
     #random.seed(666)
     pop = toolbox.population(n=100)
     hof = tools.HallOfFame(1)
@@ -160,7 +159,7 @@ def GA_run(toolbox):
     stats.register("max", max)
     stats.register("min", min)
 
-    eaSimpleConverge(pop, toolbox, .7, .2, 1000, stats=stats,
+    eaSimpleConverge(pop, toolbox, .7, .2, ngen, stats=stats,
                         halloffame=hof)
     tour = hof[0]
     return tour
@@ -176,6 +175,7 @@ if __name__ == "__main__":
     guess[7:18] = guess[7:18][::-1]
     print guess
 
-    toolbox = GA_setup(scaffolds, guess, colinear_evaluate)
-    tour = GA_run(toolbox)
+    toolbox = GA_setup(scaffolds, guess)
+    toolbox.register("evaluate", colinear_evaluate, scaffolds=scaffolds)
+    tour = GA_run(toolbox, cpus=64)
     print tour, colinear_evaluate(tour, scaffolds)

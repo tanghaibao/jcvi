@@ -28,7 +28,7 @@ Work_dir = "tsp_work"
 
 class Concorde (object):
 
-    def __init__(self, edges, work_dir=Work_dir, clean=False, verbose=False,
+    def __init__(self, edges, work_dir=Work_dir, clean=True, verbose=False,
                        precision=0, seed=666):
 
         self.work_dir = work_dir

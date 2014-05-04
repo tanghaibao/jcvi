@@ -147,7 +147,7 @@ def eaSimpleConverge(population, toolbox, cxpb, mutpb, ngen, stats=None,
     return population
 
 
-def GA_run(toolbox, cpus=1, ngen=1000):
+def GA_run(toolbox, ngen=500, cpus=1):
     if cpus > 1:
         pool = multiprocessing.Pool(cpus)
         toolbox.register("map", pool.map)

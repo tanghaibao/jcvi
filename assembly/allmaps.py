@@ -122,7 +122,7 @@ class ScaffoldOO (object):
     scaffolds per partition.
     """
     def __init__(self, lgs, scaffolds, mapc, pivot, weights, sizes,
-                 function=(lambda x: x.rank), linkage=min):
+                 function=(lambda x: x.rank), linkage=min, ngen=500, cpus=64):
 
         self.lgs = lgs
         self.lengths = mapc.lengths
@@ -151,7 +151,7 @@ class ScaffoldOO (object):
             toolbox.register("evaluate", colinear_evaluate_multi,
                                      scaffolds=scf,
                                      pathsets=pathsets)
-            tour, fitness = GA_run(toolbox, cpus=64, ngen=500)
+            tour, fitness = GA_run(toolbox, ngen=ngen, cpus=cpus)
             tour = [scaffolds[x] for x in tour]
             tour = [(x, scaffolds_oo[x]) for x in tour]
             if best_fitness and fitness <= best_fitness:
@@ -577,7 +577,7 @@ def colinear_evaluate_multi(tour, scaffolds, pathsets):
         for t in subtour:
             series.extend(scaffolds[t])
         score, diff = longest_monotonous_subseq_length(series)
-        scores.append(score)
+        scores.append(diff)
     return tuple(scores)
 
 
@@ -703,8 +703,11 @@ def path(args):
                  help="Linkage function")
     p.add_option("--gapsize", default=100, type="int",
                  help="Insert gaps of size")
+    p.add_option("--ngen", default=500, type="int",
+                 help="Number of iterations for GA")
     p.add_option("--cutoff", default=0, type="float",
                  help="Down-weight distance <= cM apart, 0 to disable")
+    p.set_cpus()
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -712,6 +715,8 @@ def path(args):
 
     bedfile, weightsfile, fastafile = args
     gapsize = opts.gapsize
+    ngen = opts.ngen
+    cpus = opts.cpus
 
     function = get_function(opts.distance)
     cc = Map(bedfile, function, cutoff=opts.cutoff)
@@ -785,7 +790,8 @@ def path(args):
         tag = "|".join(lgs)
         logging.debug("Working on {0} ...".format(tag))
         s = ScaffoldOO(lgs, scaffolds, cc, pivot, weights, sizes,
-                       function=function, linkage=linkage)
+                       function=function, linkage=linkage,
+                       ngen=ngen, cpus=cpus)
 
         for fw in (sys.stderr, fwtour):
             print >> fw, ">{0} ({1})".format(s.object, tag)

@@ -20,6 +20,7 @@ from jcvi.algorithms.formula import reject_outliers
 from jcvi.algorithms.lis import longest_monotonous_subseq_length
 from jcvi.algorithms.tsp import hamiltonian
 from jcvi.algorithms.matrix import determine_signs
+from jcvi.algorithms.ec import GA_setup, GA_run
 from jcvi.formats.agp import AGP, order_to_agp, build as agp_build
 from jcvi.formats.base import DictFile, FileMerger, must_open
 from jcvi.formats.bed import Bed, BedLine, sort
@@ -139,6 +140,9 @@ class ScaffoldOO (object):
         scaffolds_oo = dict(zip(scaffolds, signs))
 
         tour = self.assign_order()
+        toolbox = GA_setup(scaffolds, tour)
+        tour = GA_run(toolbox)
+        """
         distances_start = self.distances.copy()
         while True:
             tour_start = tour
@@ -147,6 +151,7 @@ class ScaffoldOO (object):
                 break
             logging.debug("Order refinement reset")
             self.distances = distances_start.copy()  # Recover initial state
+        """
 
         tour = [(x, scaffolds_oo[x]) for x in tour]
         tour = self.fix_orientation(tour)

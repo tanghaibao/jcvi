@@ -2,7 +2,8 @@
 # -*- coding: UTF-8 -*-
 
 """
-This module contains a Genetic Algorithm (GA) based method to solve scaffold
+This module contains methods to interface with DEAP evolutionary computation
+framewor, including a Genetic Algorithm (GA) based method to solve scaffold
 ordering and orientation problem.
 """
 
@@ -12,6 +13,7 @@ import random
 import multiprocessing
 
 from deap import base, creator, tools
+from deap.algorithms import varAnd
 from jcvi.algorithms.lis import longest_monotonous_subseq_length
 
 
@@ -59,11 +61,11 @@ def genome_mutation(candidate):
         return candidate,
 
 
-def GA_setup(scaffolds, guess):
+def GA_setup(scaffolds, guess, evaluate, weights=(1.0,)):
     ss = scaffolds.keys()
     SCF = len(scaffolds)
 
-    creator.create("FitnessMax", base.Fitness, weights=(1.0,))
+    creator.create("FitnessMax", base.Fitness, weights=weights)
     creator.create("Individual", array.array, typecode='i', fitness=creator.FitnessMax)
 
     toolbox = base.Toolbox()
@@ -90,24 +92,11 @@ def eaSimpleConverge(population, toolbox, cxpb, mutpb, ngen, stats=None,
     """This algorithm reproduce the simplest evolutionary algorithm as
     presented in chapter 7 of [Back2000]_.
 
-    Modified by Haibao to allow checking if there is no change for ngen, as a
-    rule for convergence.
-
-    :param population: A list of individuals.
-    :param toolbox: A :class:`~deap.base.Toolbox` that contains the evolution
-                    operators.
-    :param cxpb: The probability of mating two individuals.
-    :param mutpb: The probability of mutating an individual.
-    :param ngen: The number of generation.
-    :param stats: A :class:`~deap.tools.Statistics` object that is updated
-                  inplace, optional.
-    :param halloffame: A :class:`~deap.tools.HallOfFame` object that will
-                       contain the best individuals, optional.
-    :param verbose: Whether or not to log the statistics.
-    :returns: The final population.
+    Modified to allow checking if there is no change for ngen, as a simple
+    rule for convergence. Interface is similar to eaSimple(). However, in
+    eaSimple, ngen is total number of iterations; in eaSimpleConverge, we
+    terminate only when the best is NOT updated for ngen iterations.
     """
-    from deap.algorithms import varAnd
-
     # Evaluate the individuals with an invalid fitness
     invalid_ind = [ind for ind in population if not ind.fitness.valid]
     fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
@@ -149,7 +138,7 @@ def eaSimpleConverge(population, toolbox, cxpb, mutpb, ngen, stats=None,
             print >> sys.stderr, "Current iteration {0}: max_score={1}".\
                             format(gen, current_best)
 
-        if current_best > best:
+        if current_best != best:
             best = current_best
             updated = gen
 
@@ -160,7 +149,7 @@ def eaSimpleConverge(population, toolbox, cxpb, mutpb, ngen, stats=None,
     return population
 
 
-def colinearsort(toolbox, scaffolds):
+def GA_run(toolbox):
     pool = multiprocessing.Pool()
     toolbox.register("map", pool.map)
     #random.seed(666)
@@ -187,6 +176,6 @@ if __name__ == "__main__":
     guess[7:18] = guess[7:18][::-1]
     print guess
 
-    toolbox = GA_setup(scaffolds, guess)
-    tour = colinearsort(toolbox, scaffolds)
+    toolbox = GA_setup(scaffolds, guess, colinear_evaluate)
+    tour = GA_run(toolbox)
     print tour, colinear_evaluate(tour, scaffolds)

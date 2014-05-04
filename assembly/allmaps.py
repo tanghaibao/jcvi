@@ -29,7 +29,7 @@ from jcvi.formats.sizes import Sizes
 from jcvi.utils.cbook import human_size
 from jcvi.utils.counter import Counter
 from jcvi.utils.grouper import Grouper
-from jcvi.utils.iter import flatten, pairwise
+from jcvi.utils.iter import flatten
 from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh, \
             need_update
 debug()
@@ -141,7 +141,44 @@ class ScaffoldOO (object):
         tour = self.assign_order()
         tour = [(x, scaffolds_oo[x]) for x in tour]
 
-        # Prepare Evolutionary Computation
+        i = 0
+        best_tour, best_fitness = None, None
+        while True:   # Multiple EC rounds due to orientation fixes
+            logging.debug("Start EC round {0}".format(i))
+            scaffolds_oo = dict(tour)
+            scf, tour, ww, pathsets = self.prepare_ec(scaffolds, tour, weights)
+            toolbox = GA_setup(scf, tour, weights=ww)
+            toolbox.register("evaluate", colinear_evaluate_multi,
+                                     scaffolds=scf,
+                                     pathsets=pathsets)
+            tour, fitness = GA_run(toolbox, cpus=64, ngen=500)
+            tour = [scaffolds[x] for x in tour]
+            tour = [(x, scaffolds_oo[x]) for x in tour]
+            if best_fitness and fitness <= best_fitness:
+                logging.debug("No fitness improvement: {0}. Exit EC.".\
+                              format(best_fitness))
+                break
+            best_tour, best_fitness = tour, fitness
+            logging.debug("Current best fitness: {0}".format(best_fitness))
+            tour = self.fix_orientation(tour)
+            i += 1
+
+        tour = best_tour
+        recode = {0: '?', 1: '+', -1: '-'}
+        tour = [(x, recode[o]) for x, o in tour]
+        self.tour = tour
+
+        for mlg in self.lgs:
+            mapname, lg = mlg.rsplit("-", 1)
+            if mapname == pivot:
+                self.object = "chr{0}".format(lg)
+                break
+
+    def prepare_ec(self, scaffolds, tour, weights):
+        """
+        Prepare Evolutionary Computation. This converts scaffold names into
+        indices (integer) in the scaffolds array.
+        """
         scaffolds_ii = dict((s, i) for i, s in enumerate(scaffolds))
         scf = [[]] * len(scaffolds)
         ww = []
@@ -157,25 +194,8 @@ class ScaffoldOO (object):
             pathsets.append(pathset)
             ww.append(w)
         tour = [scaffolds_ii[x] for x, o in tour]
-        logging.debug("Start Evolutionary Computation")
-        toolbox = GA_setup(scf, tour, weights=ww)
-        toolbox.register("evaluate", colinear_evaluate_multi,
-                                     scaffolds=scf,
-                                     pathsets=pathsets)
-        tour = GA_run(toolbox, cpus=64)
-        tour = [scaffolds[x] for x in tour]
-        tour = [(x, scaffolds_oo[x]) for x in tour]
 
-        tour = self.fix_orientation(tour)
-        recode = {0: '?', 1: '+', -1: '-'}
-        tour = [(x, recode[o]) for x, o in tour]
-        self.tour = tour
-
-        for mlg in self.lgs:
-            mapname, lg = mlg.rsplit("-", 1)
-            if mapname == pivot:
-                self.object = "chr{0}".format(lg)
-                break
+        return scf, tour, ww, pathsets
 
     def weighted_mean(self, a):
         a, w = zip(*a)
@@ -358,38 +378,18 @@ class ScaffoldOO (object):
                     continue
                 scaffold_oo[s].append((d, mapname))  # reset orientation
 
+        fixed = 0
         for s, v in scaffold_oo.items():
             d = self.weighted_mean(v)
-            if abs(d) > .5:  # only update when there is good evidence
-                orientations[s] = np.sign(d)
+            old_d = orientations[s]
+            new_d = np.sign(d)
+            if new_d != old_d:
+                orientations[s] = new_d
+                fixed += 1
 
         tour = [(x, orientations[x]) for x in scaffolds]
+        logging.debug("Fixed orientations for {0} scaffolds.".format(fixed))
         return tour
-
-    def evaluate(self, tour):
-        """
-        Return score that correspond to the sum of all distances.
-        """
-        weights = self.weights
-        linkage = self.linkage
-        score = 0
-        for mlg in self.linkage_groups:
-            series = mlg.series
-            mapname = mlg.mapname
-            rho = mlg.rho
-            length = mlg.length
-            dd = mlg.distances
-            lg_tour = [x for x in tour if x in series]
-            s = sum(dd[a, b] for a, b in pairwise(lg_tour))
-            start, end = lg_tour[0], lg_tour[-1]
-            if rho < 0:
-                start, end = end, start
-            adist = linkage_distance([0], series[start], linkage=linkage)
-            bdist = linkage_distance(series[end], [length], linkage=linkage)
-            s += adist + bdist
-            score += weights[mapname] * s
-
-        return score
 
 
 class CSVMapLine (object):

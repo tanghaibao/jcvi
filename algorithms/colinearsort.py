@@ -25,10 +25,10 @@ def make_data(POINTS, SCF):
     return scaffolds
 
 
-def evaluate(tour):
+def colinear_evaluate(tour, scaffolds):
     series = []
     for t in tour:
-        series += scaffolds[t]
+        series.extend(scaffolds[t])
     score, diff = longest_monotonous_subseq_length(series)
     return score,
 
@@ -59,7 +59,7 @@ def genome_mutation(candidate):
         return candidate,
 
 
-def GA_setup(scaffolds):
+def GA_setup(scaffolds, guess):
     ss = scaffolds.keys()
     SCF = len(scaffolds)
 
@@ -68,15 +68,20 @@ def GA_setup(scaffolds):
 
     toolbox = base.Toolbox()
 
-    # Attribute generator
-    toolbox.register("indices", random.sample, ss, SCF)
-    # Structure initializers
-    toolbox.register("individual", tools.initIterate, creator.Individual, toolbox.indices)
+    if guess:
+        toolbox.register("individual", creator.Individual, guess)
+    else:
+        # Attribute generator
+        toolbox.register("indices", random.sample, ss, SCF)
+        # Structure initializers
+        toolbox.register("individual", tools.initIterate, creator.Individual,
+                                       toolbox.indices)
+
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
     toolbox.register("mate", tools.cxPartialyMatched)
     toolbox.register("mutate", genome_mutation)
     toolbox.register("select", tools.selTournament, tournsize=3)
-    toolbox.register("evaluate", evaluate)
+    toolbox.register("evaluate", colinear_evaluate, scaffolds=scaffolds)
     return toolbox
 
 
@@ -155,12 +160,7 @@ def eaSimpleConverge(population, toolbox, cxpb, mutpb, ngen, stats=None,
     return population
 
 
-def main():
-    global scaffolds
-    POINTS, SCF = 500, 50
-    scaffolds = make_data(POINTS, SCF)
-
-    toolbox = GA_setup(scaffolds)
+def colinearsort(toolbox, scaffolds):
     pool = multiprocessing.Pool()
     toolbox.register("map", pool.map)
     #random.seed(666)
@@ -174,8 +174,19 @@ def main():
     eaSimpleConverge(pop, toolbox, .7, .2, 1000, stats=stats,
                         halloffame=hof)
     tour = hof[0]
-    print tour, evaluate(tour)
+    return tour
 
 
 if __name__ == "__main__":
-    main()
+    POINTS, SCF = 200, 20
+    scaffolds = make_data(POINTS, SCF)
+
+    # Demo case: scramble of the list
+    guess = range(SCF)
+    guess[5:15] = guess[5:15][::-1]
+    guess[7:18] = guess[7:18][::-1]
+    print guess
+
+    toolbox = GA_setup(scaffolds, guess)
+    tour = colinearsort(toolbox, scaffolds)
+    print tour, colinear_evaluate(tour, scaffolds)

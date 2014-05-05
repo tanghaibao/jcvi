@@ -146,11 +146,10 @@ class ScaffoldOO (object):
         while True:   # Multiple EC rounds due to orientation fixes
             logging.debug("Start EC round {0}".format(i))
             scaffolds_oo = dict(tour)
-            scf, tour, ww, pathsets = self.prepare_ec(scaffolds, tour, weights)
-            toolbox = GA_setup(scf, tour, weights=ww)
+            scfs, tour, ww = self.prepare_ec(scaffolds, tour, weights)
+            toolbox = GA_setup(tour)
             toolbox.register("evaluate", colinear_evaluate_multi,
-                                     scaffolds=scf,
-                                     pathsets=pathsets)
+                                         scfs=scfs, weights=ww)
             tour, fitness = GA_run(toolbox, ngen=ngen, cpus=cpus)
             tour = [scaffolds[x] for x in tour]
             tour = [(x, scaffolds_oo[x]) for x in tour]
@@ -180,22 +179,19 @@ class ScaffoldOO (object):
         indices (integer) in the scaffolds array.
         """
         scaffolds_ii = dict((s, i) for i, s in enumerate(scaffolds))
-        scf = [[]] * len(scaffolds)
+        scfs = []
         ww = []
-        pathsets = []
         for mlg in self.linkage_groups:
             w = float(weights[mlg.mapname])
-            pathset = set(scaffolds_ii[x] for x in mlg.path)
+            scf = {}
             for s, o in tour:
                 si = scaffolds_ii[s]
-                if scf[si]:
-                    continue
                 scf[si] = self.get_series(mlg.lg, s, orientation=o)
-            pathsets.append(pathset)
+            scfs.append(scf)
             ww.append(w)
         tour = [scaffolds_ii[x] for x, o in tour]
 
-        return scf, tour, ww, pathsets
+        return scfs, tour, ww
 
     def weighted_mean(self, a):
         a, w = zip(*a)
@@ -569,16 +565,16 @@ class Layout (object):
         self.coords = coords
 
 
-def colinear_evaluate_multi(tour, scaffolds, pathsets):
-    scores = []
-    for pathset in pathsets:
-        subtour = [x for x in tour if x in pathset]
+def colinear_evaluate_multi(tour, scfs, weights):
+    weighted_score = 0
+    for scf, w in zip(scfs, weights):
+        subtour = [x for x in tour if x in scf]
         series = []
         for t in subtour:
-            series.extend(scaffolds[t])
+            series.extend(scf[t])
         score, diff = longest_monotonous_subseq_length(series)
-        scores.append(diff)
-    return tuple(scores)
+        weighted_score += score * w
+    return (weighted_score,)
 
 
 def get_rho(xy):

@@ -61,23 +61,30 @@ def genome_mutation(candidate):
         return candidate,
 
 
-def GA_setup(scaffolds, guess, weights=(1.0,)):
+def genome_mutation_orientation(candidate):
+    size = len(candidate)
+    prob = random.random()
+    if prob > .5:             # Range flip
+        p = random.randint(0, size - 1)
+        q = random.randint(0, size - 1)
+        if p > q:
+            p, q = q, p
+        q += 1
+        for x in xrange(p, q):
+            candidate[x] = -candidate[x]
+    else:                     # Single flip
+        p = random.randint(0, size - 1)
+        candidate[p] = -candidate[x]
+    return candidate,
+
+
+def GA_setup(guess, weights=(1.0,)):
     creator.create("FitnessMax", base.Fitness, weights=weights)
     creator.create("Individual", array.array, typecode='i', fitness=creator.FitnessMax)
 
     toolbox = base.Toolbox()
 
-    if guess:
-        toolbox.register("individual", creator.Individual, guess)
-    else:
-        SCF = len(scaffolds)
-        ss = range(SCF)
-        # Attribute generator
-        toolbox.register("indices", random.sample, ss, SCF)
-        # Structure initializers
-        toolbox.register("individual", tools.initIterate, creator.Individual,
-                                       toolbox.indices)
-
+    toolbox.register("individual", creator.Individual, guess)
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
     toolbox.register("mate", tools.cxPartialyMatched)
     toolbox.register("mutate", genome_mutation)
@@ -175,7 +182,7 @@ if __name__ == "__main__":
     guess[7:18] = guess[7:18][::-1]
     print guess
 
-    toolbox = GA_setup(scaffolds, guess)
+    toolbox = GA_setup(guess)
     toolbox.register("evaluate", colinear_evaluate, scaffolds=scaffolds)
     tour, tour.fitness = GA_run(toolbox, cpus=64)
     print tour, tour.fitness

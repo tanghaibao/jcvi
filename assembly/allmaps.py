@@ -428,12 +428,12 @@ class Marker (object):
 
 class Map (list):
 
-    def __init__(self, filename, function, cutoff=0):
+    def __init__(self, filename, function):
         bed = Bed(filename)
         for b in bed:
             self.append(Marker(b))
         self.report()
-        self.ranks = self.compute_ranks(cutoff)
+        self.ranks = self.compute_ranks()
         self.lengths = self.compute_lengths(function)
         self.bins = self.get_bins(function)
 
@@ -453,7 +453,7 @@ class Map (list):
         r = [x for x in self if x.mlg == mlg]
         return sorted(r, key=lambda x: x.cm)
 
-    def compute_ranks(self, cutoff):
+    def compute_ranks(self):
         ranks = {}  # Store the length for each linkage group
         for mlg in self.mlgs:
             rank = 0
@@ -462,9 +462,7 @@ class Map (list):
                 if i == 0:
                     marker.rank = rank
                     continue
-                d = mlg_set[i].cm - mlg_set[i - 1].cm
-                increment = .1 if d < cutoff else 1  # compression
-                rank += increment
+                rank += 1
                 marker.rank = rank
             ranks[mlg] = mlg_set
         return ranks
@@ -703,10 +701,8 @@ def path(args):
                  help="Linkage function")
     p.add_option("--gapsize", default=100, type="int",
                  help="Insert gaps of size")
-    p.add_option("--ngen", default=500, type="int",
+    p.add_option("--ngen", default=800, type="int",
                  help="Number of iterations for GA")
-    p.add_option("--cutoff", default=0, type="float",
-                 help="Down-weight distance <= cM apart, 0 to disable")
     p.set_cpus(cpus=32)
     opts, args = p.parse_args(args)
 
@@ -719,7 +715,7 @@ def path(args):
     cpus = opts.cpus
 
     function = get_function(opts.distance)
-    cc = Map(bedfile, function, cutoff=opts.cutoff)
+    cc = Map(bedfile, function)
     mapnames = cc.mapnames
     allseqids = cc.seqids
     weights = Weights(weightsfile, mapnames)
@@ -889,8 +885,6 @@ def plot(args):
                  help="Plot markers based on distance")
     p.add_option("--links", default=10, type="int",
                  help="Only plot matchings more than")
-    p.add_option("--cutoff", default=0, type="float",
-                 help="Down-weight distance <= cM apart, 0 to disable")
     opts, args, iopts = p.set_image_options(args, figsize="10x6")
 
     if len(args) != 4:
@@ -900,7 +894,7 @@ def plot(args):
     links = opts.links
 
     function = get_function(opts.distance)
-    cc = Map(bedfile, function, cutoff=opts.cutoff)
+    cc = Map(bedfile, function)
     allseqids = cc.seqids
     mapnames = cc.mapnames
     weights = Weights(weightsfile, mapnames)
@@ -946,7 +940,7 @@ def plot(args):
         ha = "right" if x < .5 else "left"
         mapname = mlg.split("-")[0]
         tlg = mlg.replace("_", ".")  # Latex does not like underscore char
-        label = "{0} (weight={1})".format(tlg, weights[mapname])
+        label = "{0} (w={1})".format(tlg, weights[mapname])
         ax1.text(x + extra, (y1 + y2) / 2, label, color=colors[mlg],
                  ha=ha, va="center", rotation=90)
         marker_pos.update(g.marker_pos)
@@ -995,29 +989,38 @@ def plot(args):
     gap = .03
     ratio = (r - gap * len(mlgs) - tip) / sum(mlgsizes.values())
 
-    for mlg, mlgsize in sorted(mlgsizes.items(), key=lambda x: - x[-1]):
+    tlgs = []
+    for mlg, mlgsize in sorted(mlgsizes.items()):
         height = ratio * mlgsize
         ystart -= height
         xx = .5 + xstart / 2
         width = r / 2
         color = colors[mlg]
         ax = fig.add_axes([xx, ystart, width, height])
+        ypos = ystart + height / 2
         ystart -= gap
         sd = scatter_data[mlg]
         xx, yy = zip(*sd)
-        ax.vlines(pp, [0], [mlgsize], colors="snow")
+        ax.vlines(pp, [0], [mlgsize], colors="beige")
         ax.plot(xx, yy, ".", color=color)
-        ax.text(.5, 1 - .5 * gap / height, r"$\rho$={0:.3f}".format(rhos[mlg]),
+        ax.text(.5, 1 - .4 * gap / height, r"$\rho$={0:.3f}".format(rhos[mlg]),
                     ha="center", va="top", transform=ax.transAxes, color="gray")
-        ax.set_xlim(0, chrsize)
-        ax.set_ylim(0, mlgsize)
-        ax.set_xticks([])
         while height / len(ax.get_yticks()) < .03:
             ax.set_yticks(ax.get_yticks()[::2])  # Sparsify the ticks
         yticklabels = [int(x) for x in ax.get_yticks()]
         ax.set_yticklabels(yticklabels, family='Helvetica')
         tlg = mlg.replace("_", ".")
-        ax.set_ylabel(tlg, color=color)
+        tlgs.append((tlg, ypos, color))
+        ax.set_xlim(0, chrsize)
+        ax.set_ylim(0, mlgsize)
+        ax.set_xticks([])
+
+    for i, (tlg, ypos, color) in enumerate(tlgs):
+        ha = "center"
+        if len(tlgs) > 4:
+            ha = "right" if i % 2 else "left"
+        root.text(.5, ypos, tlg, color=color, rotation=90,
+                      ha=ha, va="center")
 
     normalize_axes((ax1, ax2, root))
     image_name = seqid + "." + iopts.format
@@ -1027,7 +1030,7 @@ def plot(args):
 
 def plotall(args):
     """
-    %prog plot map.lifted.bed agpfile weightsfile
+    %prog plotall map.lifted.bed agpfile weightsfile
 
     Plot the matchings between the reconstructed pseudomolecules and the maps.
     This command will plot each reconstructed object (non-singleton).
@@ -1037,8 +1040,6 @@ def plotall(args):
                  help="Plot markers based on distance")
     p.add_option("--links", default=10, type="int",
                  help="Only plot matchings more than")
-    p.add_option("--cutoff", default=0, type="float",
-                 help="Down-weight distance <= cM apart, 0 to disable")
     opts, args, iopts = p.set_image_options(args, figsize="10x6")
 
     if len(args) != 3:
@@ -1050,8 +1051,7 @@ def plotall(args):
     for seqid in sorted(objects):
         plot([seqid, mapsbed, agpfile, weightsfile,
               "--distance={0}".format(opts.distance),
-              "--links={0}".format(opts.links),
-              "--cutoff={0}".format(opts.cutoff)])
+              "--links={0}".format(opts.links)])
 
 
 if __name__ == '__main__':

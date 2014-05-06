@@ -169,6 +169,8 @@ def GA_run(toolbox, ngen=500, cpus=1):
     eaSimpleConverge(pop, toolbox, .7, .2, ngen, stats=stats,
                         halloffame=hof)
     tour = hof[0]
+    if cpus > 1:
+        pool.terminate()
     return tour, tour.fitness
 
 
@@ -184,5 +186,5 @@ if __name__ == "__main__":
 
     toolbox = GA_setup(guess)
     toolbox.register("evaluate", colinear_evaluate, scaffolds=scaffolds)
-    tour, tour.fitness = GA_run(toolbox, cpus=64)
+    tour, tour.fitness = GA_run(toolbox, cpus=32)
     print tour, tour.fitness

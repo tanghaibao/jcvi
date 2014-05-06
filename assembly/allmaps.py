@@ -649,7 +649,11 @@ def merge(args):
         mapnames.add(mapname)
         try:
             m = CSVMapLine(row, mapname=mapname)
-            b.append(BedLine(m.bedline))
+            if m.cm < 0:
+                logging.error("Ignore marker with negative genetic distance")
+                print >> sys.stderr, row.strip()
+            else:
+                b.append(BedLine(m.bedline))
         except ValueError:  # header
             continue
 
@@ -703,7 +707,7 @@ def path(args):
                  help="Number of iterations for GA")
     p.add_option("--cutoff", default=0, type="float",
                  help="Down-weight distance <= cM apart, 0 to disable")
-    p.set_cpus()
+    p.set_cpus(cpus=32)
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -941,7 +945,8 @@ def plot(args):
         extra = -3 * tip if x < .5 else 3 * tip
         ha = "right" if x < .5 else "left"
         mapname = mlg.split("-")[0]
-        label = "{0} (weight={1})".format(mlg, weights[mapname])
+        tlg = mlg.replace("_", ".")  # Latex does not like underscore char
+        label = "{0} (weight={1})".format(tlg, weights[mapname])
         ax1.text(x + extra, (y1 + y2) / 2, label, color=colors[mlg],
                  ha=ha, va="center", rotation=90)
         marker_pos.update(g.marker_pos)
@@ -1011,7 +1016,8 @@ def plot(args):
             ax.set_yticks(ax.get_yticks()[::2])  # Sparsify the ticks
         yticklabels = [int(x) for x in ax.get_yticks()]
         ax.set_yticklabels(yticklabels, family='Helvetica')
-        ax.set_ylabel(mlg, color=color)
+        tlg = mlg.replace("_", ".")
+        ax.set_ylabel(tlg, color=color)
 
     normalize_axes((ax1, ax2, root))
     image_name = seqid + "." + iopts.format

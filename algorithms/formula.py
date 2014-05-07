@@ -9,8 +9,27 @@ import sys
 import numpy as np
 
 from math import log, exp
+from Bio.Cluster import distancematrix
 
 from jcvi.utils.cbook import human_size
+
+
+def spearmanr(x, y):
+    """
+    Michiel de Hoon's library (available in BioPython or standalone as
+    PyCluster) returns Spearman rsb which does include a tie correction.
+
+    >>> x = [5.05, 6.75, 3.21, 2.66]
+    >>> y = [1.65, 26.5, -5.93, 7.96]
+    >>> z = [1.65, 2.64, 2.64, 6.95]
+    >>> round(spearmanr(x, y), 4)
+    0.4
+    >>> round(spearmanr(x, z), 4)
+    -0.6325
+    """
+    if not x or not y:
+        return 0
+    return 1 - distancematrix((x, y), dist="s")[1][0]
 
 
 def geometric_mean(a, b, cast=int):

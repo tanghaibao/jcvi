@@ -14,9 +14,8 @@ import networkx as nx
 
 from itertools import combinations, product
 from collections import defaultdict
-from scipy.stats import spearmanr
 
-from jcvi.algorithms.formula import reject_outliers
+from jcvi.algorithms.formula import reject_outliers, spearmanr
 from jcvi.algorithms.lis import longest_monotonous_subseq_length
 from jcvi.algorithms.tsp import hamiltonian
 from jcvi.algorithms.matrix import determine_signs
@@ -579,7 +578,7 @@ def get_rho(xy):
     if not xy:
         return 0
     x, y = zip(*xy)
-    rho, p_value = spearmanr(x, y)
+    rho = spearmanr(x, y)
     if np.isnan(rho):
         rho = 0
     return rho
@@ -701,7 +700,7 @@ def path(args):
                  help="Linkage function")
     p.add_option("--gapsize", default=100, type="int",
                  help="Insert gaps of size")
-    p.add_option("--ngen", default=800, type="int",
+    p.add_option("--ngen", default=500, type="int",
                  help="Number of iterations for GA")
     p.set_cpus(cpus=32)
     opts, args = p.parse_args(args)
@@ -931,7 +930,7 @@ def plot(args):
         markers = [(m.accn, function(m)) for m in mm]  # exhaustive marker list
         xy = [(m.pos, function(m)) for m in mm if m.seqid == seqid]
         mx, my = zip(*xy)
-        rho, p_value = spearmanr(mx, my)
+        rho = spearmanr(mx, my)
         rhos[mlg] = rho
         flip = rho < 0
 

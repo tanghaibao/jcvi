@@ -7,7 +7,8 @@ assembly-related calculations. Documentations will be lagging behind.
 :Author: Haibao Tang (`tanghaibao <http://github.com/tanghaibao>`_),
          Vivek Krishnakumar (`vivekkrish <https://github.com/vivekkrish>`_),
          Jingping Li (`Jingping <https://github.com/Jingping>`_),
-         Maria Kim (`msarmien <https://github.com/msarmien>`_)
+         Maria Kim (`msarmien <https://github.com/msarmien>`_),
+         Xingtan Zhang (`tangerzhang <https://github.com/tangerzhang>`_)
 :Email: tanghaibao@gmail.com
 :License: `BSD <http://creativecommons.org/licenses/BSD/>`_
 
@@ -100,7 +101,8 @@ is the preferred method*, as you can run regardless of the dir you are in::
     python -m jcvi.formats.fasta
 
 Please replace ``dir_contains_jcvi`` above with whatever you like, but it must
-contain ``jcvi``.
+contain ``jcvi``. To avoid setting ``PYTHONPATH`` everytime, please insert the last
+command in your ``.bashrc`` or ``.bash_profile``.
 
 In addition, a few module might ask for locations of external programs, if the extended
 cannot be found in your ``PATH``. The external programs that are often used are:

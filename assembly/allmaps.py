@@ -702,7 +702,7 @@ def path(args):
                  help="Insert gaps of size")
     p.add_option("--ngen", default=500, type="int",
                  help="Number of iterations for GA")
-    p.set_cpus(cpus=32)
+    p.set_cpus(cpus=6)
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -1027,7 +1027,7 @@ def plot(args):
     plt.close(fig)
 
 
-def plotall(args):
+def plotall(xargs):
     """
     %prog plotall map.lifted.bed agpfile weightsfile
 
@@ -1039,7 +1039,7 @@ def plotall(args):
                  help="Plot markers based on distance")
     p.add_option("--links", default=10, type="int",
                  help="Only plot matchings more than")
-    opts, args, iopts = p.set_image_options(args, figsize="10x6")
+    opts, args, iopts = p.set_image_options(xargs, figsize="10x6")
 
     if len(args) != 3:
         sys.exit(not p.print_help())
@@ -1048,9 +1048,7 @@ def plotall(args):
     agp = AGP(agpfile)
     objects = [ob for ob, lines in agp.iter_object() if len(lines) > 1]
     for seqid in sorted(objects):
-        plot([seqid, mapsbed, agpfile, weightsfile,
-              "--distance={0}".format(opts.distance),
-              "--links={0}".format(opts.links)])
+        plot([seqid] + xargs)
 
 
 if __name__ == '__main__':

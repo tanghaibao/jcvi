@@ -29,9 +29,9 @@ def main():
 
 def rmdup(args):
     """
-    %prog rmdup *.bam
+    %prog rmdup *.bam > rmdup.cmds
 
-    Remove PCR duplicates from BAM files.
+    Remove PCR duplicates from BAM files, generate a list of commands.
     """
     p = OptionParser(rmdup.__doc__)
     p.add_option("-S", default=False, action="store_true",
@@ -46,6 +46,8 @@ def rmdup(args):
     if opts.S:
         cmd += " -S"
     for b in bams:
+        if "rmdup" in b:
+            continue
         rb = b.rsplit(".", 1)[0] + ".rmdup.bam"
         if not need_update(b, rb):
             continue

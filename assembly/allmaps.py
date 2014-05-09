@@ -121,7 +121,7 @@ class ScaffoldOO (object):
     scaffolds per partition.
     """
     def __init__(self, lgs, scaffolds, mapc, pivot, weights, sizes,
-                 function=(lambda x: x.rank), linkage=min, ngen=500, cpus=64):
+                 function=(lambda x: x.rank), linkage=min, ngen=500, cpus=8):
 
         self.lgs = lgs
         self.lengths = mapc.lengths
@@ -702,7 +702,7 @@ def path(args):
                  help="Insert gaps of size")
     p.add_option("--ngen", default=500, type="int",
                  help="Number of iterations for GA")
-    p.set_cpus(cpus=6)
+    p.set_cpus(cpus=8)
     opts, args = p.parse_args(args)
 
     if len(args) != 3:

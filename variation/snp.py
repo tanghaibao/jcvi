@@ -56,7 +56,7 @@ def rmdup(args):
 
 def mpileup(args):
     """
-    %prog freebayes prefix ref.fa *.bam
+    %prog mpileup prefix ref.fa *.bam
 
     Call SNPs using samtools mpileup.
     """

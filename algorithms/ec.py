@@ -186,5 +186,5 @@ if __name__ == "__main__":
 
     toolbox = GA_setup(guess)
     toolbox.register("evaluate", colinear_evaluate, scaffolds=scaffolds)
-    tour, tour.fitness = GA_run(toolbox, cpus=32)
+    tour, tour.fitness = GA_run(toolbox, cpus=8)
     print tour, tour.fitness

@@ -712,6 +712,10 @@ def path(args):
     gapsize = opts.gapsize
     ngen = opts.ngen
     cpus = opts.cpus
+    if sys.version_info[:2] < (2, 7):
+        logging.debug("Python version: {0}. CPUs set to 1.".\
+                        format(sys.version.splitlines()[0].strip()))
+        cpus = 1
 
     function = get_function(opts.distance)
     cc = Map(bedfile, function)

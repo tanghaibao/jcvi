@@ -333,9 +333,6 @@ def script(args):
     counts[("No Idea", "N")] = noidea
 
     table = tabulate(counts)
-    func = lambda a: a * 100. / total
-    table = table.withNewColumn("Percentage", callback=func,
-            columns=("N",), digits=2)
     print >> sys.stderr, table
 
 

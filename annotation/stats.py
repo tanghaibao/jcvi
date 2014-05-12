@@ -165,8 +165,6 @@ def summary(args):
 
     Print gene statistics table.
     """
-    from jcvi.utils.table import tabulate
-
     p = OptionParser(summary.__doc__)
     opts, args = p.parse_args(args)
 

@@ -29,6 +29,7 @@ from jcvi.utils.cbook import human_size
 from jcvi.utils.counter import Counter
 from jcvi.utils.grouper import Grouper
 from jcvi.utils.iter import flatten
+from jcvi.utils.table import tabulate
 from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh, \
             need_update
 debug()
@@ -427,7 +428,7 @@ class Marker (object):
 
 class Map (list):
 
-    def __init__(self, filename, function):
+    def __init__(self, filename, function=(lambda x: x.rank)):
         bed = Bed(filename)
         for b in bed:
             self.append(Marker(b))
@@ -487,6 +488,26 @@ class Map (list):
         reject = reject_outliers(data)
         clean_markers = [m for m, r in zip(markers, reject) if not r]
         return clean_markers
+
+
+class MapSummary (object):
+
+    def __init__(self, markers, l50, s, scaffolds=None):
+        self.num_markers = len(markers)
+        self.num_lgs = len(set(x.mlg for x in markers))
+        scaffolds = scaffolds or set(x.seqid for x in markers)
+        n50_scaffolds = [x for x in scaffolds if s.mapping[x] >= l50]
+        self.num_scaffolds = len(scaffolds)
+        self.num_n50_scaffolds = len(n50_scaffolds)
+        self.total_bases = sum(s.mapping[x] for x in scaffolds)
+        self.tally_markers(markers)
+
+    def tally_markers(self, markers):
+        counter = Counter([x.seqid for x in markers])
+        self.scaffold_1m = len([x for x in counter.values() if x == 1])
+        self.scaffold_2m = len([x for x in counter.values() if x == 2])
+        self.scaffold_3m = len([x for x in counter.values() if x == 3])
+        self.scaffold_4m = len([x for x in counter.values() if x >= 4])
 
 
 class Weights (DictFile):
@@ -596,20 +617,13 @@ def double_linkage(L):
     return (a + b) / 2.
 
 
-def half_linkage(L):
-    if len(L) == 1:
-        return L[0]
-    L.sort()
-    L = L[:len(L) / 2]
-    return np.median(L)
-
-
 def main():
 
     actions = (
         ('merge', 'merge csv maps and convert to bed format'),
         ('path', 'construct golden path given a set of genetic maps'),
         ('build', 'build associated FASTA and CHAIN file'),
+        ('summary', 'report summary stats for maps and final consensus'),
         ('plot', 'plot matches between goldenpath and maps for single object'),
         ('plotall', 'plot matches between goldenpath and maps for all objects'),
             )
@@ -695,11 +709,11 @@ def path(args):
     """
     p = OptionParser(path.__doc__)
     p.add_option("--distance", default="rank", choices=distance_choices,
-                 help="Distance function when building consensus")
+                 help="Distance function when building initial consensus")
     p.add_option("--linkage", default="double", choices=linkage_choices,
-                 help="Linkage function")
+                 help="Linkage function when building initial consensus")
     p.add_option("--gapsize", default=100, type="int",
-                 help="Insert gaps of size")
+                 help="Insert gaps of size between scaffolds")
     p.add_option("--ngen", default=500, type="int",
                  help="Number of iterations for GA")
     p.set_cpus(cpus=8)
@@ -726,8 +740,7 @@ def path(args):
     ref = weights.ref
     linkage = opts.linkage
     logging.debug("Linkage function: {0}-linkage".format(linkage))
-    linkage = {"single": min, "double": double_linkage,
-               "complete": max, "half": half_linkage,
+    linkage = {"single": min, "double": double_linkage, "complete": max,
                "average": np.mean, "median": np.median}[linkage]
 
     # Partition the linkage groups into consensus clusters
@@ -817,6 +830,64 @@ def write_unplaced_agp(agpfile, scaffolds, unplaced_agp):
             continue
         order_to_agp(s, [(s, "?")], sizes, fwagp)
     logging.debug("Write unplaced AGP to `{0}`.".format(unplaced_agp))
+
+
+def summary(args):
+    """
+    %prog summary agpfile scaffolds.fasta map.bed
+
+    Print out summary statistics per map, followed by consensus summary of
+    scaffold anchoring based on multiple maps.
+    """
+    p = OptionParser(summary.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    chr_agp, scaffolds, mapbed = args
+    cc = Map(mapbed)
+    mapnames = cc.mapnames
+    s = Sizes(scaffolds)
+    total, l50, n50 = s.summary
+    r = {}
+    maps = []
+
+    print >> sys.stderr, "*** Summary for each individual map ***"
+    for mapname in mapnames:
+        markers = [x for x in cc if x.mapname == mapname]
+        ms = MapSummary(markers, l50, s)
+        r["Linkage Groups", mapname] = ms.num_lgs
+        r["Markers", mapname] = ms.num_markers
+        r["Scaffolds", mapname] = ms.num_scaffolds
+        r["N50 Scaffolds", mapname] = ms.num_n50_scaffolds
+        r["Total bases", mapname] = ms.total_bases
+        r["Scaffolds with 1 marker", mapname] = ms.scaffold_1m
+        r["Scaffolds with 2 markers", mapname] = ms.scaffold_2m
+        r["Scaffolds with 3 markers", mapname] = ms.scaffold_3m
+        r["Scaffolds with >=4 markers", mapname] = ms.scaffold_4m
+        maps.append(ms)
+    print >> sys.stderr, tabulate(r)
+
+    r = {}
+    agp = AGP(chr_agp)
+    print >> sys.stderr, "*** Summary for consensus map ***"
+    consensus_scaffolds = set(x.component_id for x in agp if not x.is_gap)
+    unplaced_scaffolds = set(s.mapping.keys()) - consensus_scaffolds
+
+    for mapname, sc in (("Anchored", consensus_scaffolds),
+                    ("Unplaced", unplaced_scaffolds)):
+        markers = [x for x in cc if x.seqid in sc]
+        ms = MapSummary(markers, l50, s, scaffolds=sc)
+        r["Markers", mapname] = ms.num_markers
+        r["Scaffolds", mapname] = ms.num_scaffolds
+        r["N50 Scaffolds", mapname] = ms.num_n50_scaffolds
+        r["Total bases", mapname] = ms.total_bases
+        r["Scaffolds with 1 marker", mapname] = ms.scaffold_1m
+        r["Scaffolds with 2 markers", mapname] = ms.scaffold_2m
+        r["Scaffolds with 3 markers", mapname] = ms.scaffold_3m
+        r["Scaffolds with >=4 markers", mapname] = ms.scaffold_4m
+    print >> sys.stderr, tabulate(r)
 
 
 def build(args):

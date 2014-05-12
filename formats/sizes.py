@@ -93,6 +93,14 @@ class Sizes (LineFile):
         for i in xrange(len(self)):
             yield self.ctgs[i], self.cumsizes[i], self.cumsizes[i + 1]
 
+    @property
+    def summary(self):
+        from jcvi.assembly.base import calculate_A50
+
+        ctgsizes = self.sizes_mapping.values()
+        a50, l50, n50 = calculate_A50(ctgsizes)
+        return sum(ctgsizes), l50, n50
+
 
 def main():
 

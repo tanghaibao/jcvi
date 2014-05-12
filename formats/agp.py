@@ -935,6 +935,8 @@ def stats(args):
 
     Print out a report for length of gaps and components.
     """
+    from jcvi.utils.table import tabulate
+
     p = OptionParser(stats.__doc__)
     p.add_option("--warn", default=False, action="store_true",
                  help="Warnings on small component spans [default: %default]")
@@ -974,10 +976,7 @@ def stats(args):
         table[(label, "Max")] = "{0} ({1})".format(*max(lengths))
         table[(label, "Sum")] = sum(x[0] for x in lengths)
 
-    from jcvi.utils.table import tabulate
-
-    table = tabulate(table)
-    print >> sys.stderr, table
+    print >> sys.stderr, tabulate(table)
 
 
 def cut(args):

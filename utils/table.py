@@ -3,23 +3,20 @@ Routines to summarize and report tabular data.
 """
 
 
-def banner(listOfStuff, rulersize=80, major='=', minor='-'):
+def banner(listOfStuff, major='=', minor='-'):
     """
     Print a tabular output, with horizontal separators
     """
-    table_edge = major * rulersize + "\n"
-    table_sep = minor * rulersize + "\n"
-    contents = table_sep.join(str(x) + "\n" for x in listOfStuff)
-    return "".join((table_edge, contents, table_edge))
+    rulersize = max(len(x) for x in listOfStuff)
+    table_edge = major * rulersize
+    table_sep = minor * rulersize
+    header = listOfStuff[0]
+    contents = "\n".join(listOfStuff[1:])
+
+    return "\n".join((table_edge, header, table_sep, contents, table_sep))
 
 
-def loadtable(header, rows):
-
-    from cogent import LoadTable
-    return LoadTable(header=header, rows=rows)
-
-
-def tabulate(d, transpose=False, key_fun=None):
+def tabulate(d, transpose=False, thousands=True, key_fun=None):
     """
     d is a dictionary, keyed by tuple(A, B).
     Goal is to put A in rows, B in columns, report data in table form.
@@ -40,8 +37,6 @@ def tabulate(d, transpose=False, key_fun=None):
     b    4    0
     -----------
     """
-    from cogent import LoadTable
-
     pairs = d.keys()
     rows, cols = zip(*pairs)
     if transpose:
@@ -62,27 +57,15 @@ def tabulate(d, transpose=False, key_fun=None):
             data = [key_fun(x) for x in data]
         table.append([str(r)] + data)
 
-    table = LoadTable(header=header, rows=table)
+    contents = load_csv(header, table, sep="   ", thousands=thousands)
+    return banner(contents)
 
-    return table
 
+def load_csv(header, contents, sep=",", thousands=False, align=True):
 
-def write_csv(header, contents, sep=",", filename="stdout", thousands=False,
-              tee=False, align=True):
-    """
-    Write csv that are aligned with the column headers.
-
-    >>> header = ["x_value", "y_value"]
-    >>> contents = [(1, 100), (2, 200)]
-    >>> write_csv(header, contents)
-    x_value, y_value
-          1,     100
-          2,     200
-    """
-    from jcvi.formats.base import must_open, is_number
+    from jcvi.formats.base import is_number
     from jcvi.utils.cbook import thousands as th
 
-    fw = must_open(filename, "w")
     allcontents = [header] + contents if header else contents
     cols = len(contents[0])
     for content in allcontents:
@@ -99,13 +82,37 @@ def write_csv(header, contents, sep=",", filename="stdout", thousands=False,
 
     colwidths = [max(len(x[i]) for x in allcontents) for i in xrange(cols)]
     sep += " "
+    formatted_contents = []
     for content in allcontents:
         rjusted = [x.rjust(cw) for x, cw in zip(content, colwidths)] \
                     if align else content
         formatted = sep.join(rjusted)
-        print >> fw, formatted
-        if tee and filename != "stdout":
-            print formatted
+        formatted_contents.append(formatted)
+
+    return formatted_contents
+
+
+def write_csv(header, contents, sep=",", filename="stdout", thousands=False,
+              tee=False, align=True):
+    """
+    Write csv that are aligned with the column headers.
+
+    >>> header = ["x_value", "y_value"]
+    >>> contents = [(1, 100), (2, 200)]
+    >>> write_csv(header, contents)
+    x_value, y_value
+          1,     100
+          2,     200
+    """
+    from jcvi.formats.base import must_open
+
+    formatted = load_csv(header, contents,
+                         sep=sep, thousands=thousands, align=align)
+    formatted = "\n".join(formatted)
+    fw = must_open(filename, "w")
+    print >> fw, formatted
+    if tee and filename != "stdout":
+        print formatted
 
 
 if __name__ == '__main__':

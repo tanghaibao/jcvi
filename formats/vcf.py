@@ -207,10 +207,10 @@ def summary(args):
                   format(snpcountsfile))
 
 
-g2x = {"0/0": 'A', "0/1": 'X', "1/1": 'B', "./.": '-'}
+g2x = {"0/0": 'A', "0/1": 'X', "1/1": 'B', "./.": '-', ".": '-'}
 
 
-def encode_genotype(s, mindepth=3, nohet=False):
+def encode_genotype(s, mindepth=3, depth_index=2, nohet=False):
     """
     >>> encode_genotype("1/1:128,18,0:6:18")  # homozygote B
     'B'
@@ -223,8 +223,8 @@ def encode_genotype(s, mindepth=3, nohet=False):
     if len(atoms) < 3:
         return g2x[atoms[0]]
 
-    inferred, likelihood, depth = atoms[:3]
-    depth = int(depth)
+    inferred = atoms[0]
+    depth = int(atoms[depth_index])
     if depth < mindepth:
         return '-'
     if inferred == '0/0':
@@ -256,6 +256,8 @@ def mstmap(args):
     p.add_option("--pv4", default=False, action="store_true",
                  help="Enable filtering strand-bias, tail distance bias, etc. "
                  "[default: %default]")
+    p.add_option("--freebayes", default=False, action="store_true",
+                 help="VCF output from freebayes")
     p.add_option("--sep", default=".",
                  help="Use separator to simplify individual names")
     opts, args = p.parse_args(args)
@@ -276,6 +278,7 @@ def mstmap(args):
 
     freq = opts.freq
     sep = opts.sep
+    depth_index = 1 if opts.freebayes else 2
 
     header = """population_type {0}
 population_name LG
@@ -308,7 +311,9 @@ number_of_individual {3}
         marker = "{0}.{1}".format(*atoms[:2])
 
         geno = atoms[9:]
-        geno = [encode_genotype(x, mindepth=opts.mindepth, nohet=nohet) for x in geno]
+        geno = [encode_genotype(x, mindepth=opts.mindepth,
+                                depth_index=depth_index,
+                                nohet=nohet) for x in geno]
         assert len(geno) == nind
         f = 1. / nind
 

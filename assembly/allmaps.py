@@ -37,8 +37,7 @@ debug()
 
 START, END = "START", "END"
 distance_choices = ("cM", "rank")
-linkage_choices = ("single", "double", "half",
-                   "complete", "average", "median")
+linkage_choices = ("single", "double", "complete", "average", "median")
 np.seterr(invalid="ignore")
 
 

@@ -3,17 +3,24 @@ Routines to summarize and report tabular data.
 """
 
 
-def banner(listOfStuff, major='=', minor='-'):
+def banner(header, rows, major='=', minor='-'):
+    formatted = [header] + rows
+    rulersize = max(max(len(z) for z in x.splitlines()) for x in formatted)
+    table_edge = major * rulersize
+    table_sep = minor * rulersize
+    rows = "\n".join(rows)
+
+    return "\n".join((table_edge, header, table_sep, rows, table_sep))
+
+
+def loadtable(header, rows, major='=', minor='-', thousands=True):
     """
     Print a tabular output, with horizontal separators
     """
-    rulersize = max(len(x) for x in listOfStuff)
-    table_edge = major * rulersize
-    table_sep = minor * rulersize
-    header = listOfStuff[0]
-    contents = "\n".join(listOfStuff[1:])
+    formatted = load_csv(header, rows, sep="   ", thousands=thousands)
+    header, rows = formatted[0], formatted[1:]
 
-    return "\n".join((table_edge, header, table_sep, contents, table_sep))
+    return banner(header, rows)
 
 
 def tabulate(d, transpose=False, thousands=True, key_fun=None):
@@ -57,8 +64,7 @@ def tabulate(d, transpose=False, thousands=True, key_fun=None):
             data = [key_fun(x) for x in data]
         table.append([str(r)] + data)
 
-    contents = load_csv(header, table, sep="   ", thousands=thousands)
-    return banner(contents)
+    return loadtable(header, table, thousands=thousands)
 
 
 def load_csv(header, contents, sep=",", thousands=False, align=True):

@@ -1213,7 +1213,7 @@ def diff(args):
         asize, bsize = len(arec), len(brec)
 
         if not opts.quiet:
-            print banner((arec, brec))
+            print banner(str(arec), [str(brec)])
             if asize == bsize:
                 print green("Two sequence size match (%d)" % asize)
             else:

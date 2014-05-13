@@ -10,7 +10,7 @@ import os.path as op
 import sys
 import logging
 
-from jcvi.formats.base import BaseFile, write_file, must_open
+from jcvi.formats.base import BaseFile, write_file
 from jcvi.formats.fastq import guessoffset
 from jcvi.utils.cbook import depends, human_size
 from jcvi.utils.data import Adapters
@@ -331,7 +331,7 @@ def count(args):
     rows = []
     human = opts.human
     for f in filenames:
-        folder = f.replace(".gz", "").rsplit(".", 1)[0] + "_fastqc"
+        folder = f.replace(".gz", "").replace(".fastq", "") + "_fastqc"
         if subdir:
             folder = op.join(subdir, folder)
         summaryfile = op.join(folder, "fastqc_data.txt")

@@ -116,15 +116,13 @@ def partition(args):
         small_graph.draw(pngfile, namestart=opts.namestart,
                          nodehighlight=telomeres, dpi=72)
 
-    from jcvi.utils.table import banner
-
     legend = ["Edge colors:"]
     legend.append("[BLUE] Experimental + Synteny")
     legend.append("[BLACK] Experimental certain")
     legend.append("[GRAY] Experimental uncertain")
     legend.append("[RED] Synteny only")
     legend.append("Rectangle nodes are telomeres.")
-    print >> sys.stderr, banner(legend)
+    print >> sys.stderr, "\n".join(legend)
 
 
 def merge(args):

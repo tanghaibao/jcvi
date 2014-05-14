@@ -651,6 +651,7 @@ def merge(args):
         sys.exit(not p.print_help())
 
     maps = args
+    outfile = opts.outfile
     fp = must_open(maps)
     b = Bed()
     mapnames = set()
@@ -664,10 +665,12 @@ def merge(args):
                 print >> sys.stderr, row.strip()
             else:
                 b.append(BedLine(m.bedline))
-        except ValueError:  # header
+        except (IndexError, ValueError):  # header or mal-formed line
             continue
 
-    b.print_to_file(filename=opts.outfile, sorted=True)
+    b.print_to_file(filename=outfile, sorted=True)
+    logging.debug("A total of {0} markers written to `{1}`.".\
+                        format(len(b), outfile))
 
     assert len(maps) == len(mapnames), "You have a collision in map names"
     weightsfile = "weights.txt"

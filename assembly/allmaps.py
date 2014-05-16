@@ -492,6 +492,7 @@ class Map (list):
 class MapSummary (object):
 
     def __init__(self, markers, l50, s, scaffolds=None):
+        markers = self.unique_markers(markers)
         self.num_markers = len(markers)
         self.num_lgs = len(set(x.mlg for x in markers))
         scaffolds = scaffolds or set(x.seqid for x in markers)
@@ -500,6 +501,17 @@ class MapSummary (object):
         self.num_n50_scaffolds = len(n50_scaffolds)
         self.total_bases = sum(s.mapping[x] for x in scaffolds)
         self.tally_markers(markers)
+
+    def unique_markers(self, markers):
+        umarkers = []
+        seen = set()
+        for m in markers:
+            mt = (m.seqid, m.pos)
+            if mt in seen:
+                continue
+            umarkers.append(m)
+            seen.add(mt)
+        return umarkers
 
     def tally_markers(self, markers):
         counter = Counter([x.seqid for x in markers])

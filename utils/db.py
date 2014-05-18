@@ -215,6 +215,8 @@ def query(args):
                  help="Don't commit to database. Just print queries [default: %default]")
     p.add_option("--fieldsep", default="\t",
                  help="Specify output field separator [default: '%default']")
+    p.add_option("--verbose", default=False, action="store_true",
+                 help="Print out all the queries [default: %default]")
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -273,9 +275,9 @@ def query(args):
                 username=opts.username, password=opts.password, port=opts.port)
     cflag = None
     for qry in queries:
-        if opts.dryrun:
+        if opts.dryrun or opts.verbose:
             print qry
-        else:
+        if not opts.dryrun:
             if to_commit(qry):
                 execute(cur, qry)
                 cflag = True

@@ -8,6 +8,8 @@ import sys
 import shutil
 import logging
 
+from httplib import HTTPSConnection
+from urllib import urlencode
 from socket import gethostname
 from subprocess import PIPE, call
 from optparse import OptionParser as OptionP, OptionGroup
@@ -907,7 +909,7 @@ def less(args):
 
 # notification specific variables
 valid_notif_methods = ["email"]
-available_push_api = {"push" : ["pushover", "nma"]}
+available_push_api = {"push" : ["pushover", "nma", "pushbullet"]}
 
 def pushover(message, token, user, title="JCVI: Job Monitor", \
         priority=0, timestamp=None):
@@ -925,9 +927,6 @@ def pushover(message, token, user, title="JCVI: Job Monitor", \
 
     retry, expire = (300, 3600) if priority == 2 \
             else (None, None)
-
-    from httplib import HTTPSConnection
-    from urllib import urlencode
 
     conn = HTTPSConnection("api.pushover.net:443")
     conn.request("POST", "/1/messages.json",
@@ -953,9 +952,6 @@ def nma(description, apikey, event="JCVI: Job Monitor", priority=0):
     assert -2 <= priority <= 2, \
             "Priority should be an int() between -2 and 2"
 
-    from httplib import HTTPSConnection
-    from urllib import urlencode
-
     conn = HTTPSConnection("www.notifymyandroid.com")
     conn.request("POST", "/publicapi/notify",
         urlencode({
@@ -965,6 +961,30 @@ def nma(description, apikey, event="JCVI: Job Monitor", priority=0):
             "description": description,
             "priority": priority,
         }), { "Content-type": "application/x-www-form-urlencoded" })
+    conn.getresponse()
+
+
+def pushbullet(body, apikey, device, title="JCVI: Job Monitor", type="note"):
+    """
+    pushbullet.com API
+
+    <https://www.pushbullet.com/api>
+    """
+    import base64
+
+    headers = {}
+    auth = base64.encodestring("{0}:".format(apikey)).strip()
+    headers['Authorization'] = "Basic {0}".format(auth)
+    headers['Content-type'] = "application/x-www-form-urlencoded"
+
+    conn = HTTPSConnection("api.pushbullet.com".format(apikey))
+    conn.request("POST", "/api/pushes",
+        urlencode({
+            "iden": device,
+            "type": "note",
+            "title": title,
+            "body": body,
+            }), headers)
     conn.getresponse()
 
 
@@ -985,6 +1005,10 @@ def pushnotify(subject, message, api="pushover", priority=0, timestamp=None):
 
         [nma]
         apikey: zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz
+
+        [pushbullet]
+        apikey: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+        iden: dddddddddddddddddddddddddddddddddddd
     """
     import types
     assert type(priority) is types.IntType and -1 <= priority <= 2, \
@@ -1010,6 +1034,11 @@ def pushnotify(subject, message, api="pushover", priority=0, timestamp=None):
         apikey = cfg["apikey"]
         nma(message, apikey, event=subject, \
                 priority=priority)
+    elif api == "pushbullet":
+        cfg = ConfigSectionMap(Config, api)
+        apikey, iden = cfg["apikey"], cfg['iden']
+        pushbullet(message, apikey, iden, title=subject, \
+                type="note")
 
 
 def send_email(fromaddr, toaddr, subject, message):

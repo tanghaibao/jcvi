@@ -67,7 +67,7 @@ class FastqRecord (object):
 
 class FastqHeader(object):
 
-    def __init__(self, row):
+    def __init__(self, row, paired=False):
         header = row.strip().split(" ")
         h = header[0].split(":")
         self.instrument = h[0]
@@ -102,11 +102,31 @@ class FastqHeader(object):
                 self.yPos, self.multiplexId, self.readNum = \
                         m.group(1), m.group(2), m.group(3)
 
+        self.paired = paired
+
+    def __str__(self):
+        if self.dialect == ">=1.8":
+            yPos = "{0}/{1}".format(self.yPos, self.readNum) if self.paired \
+                    else self.yPos
+
+            h0 = ":".join(str(x) for x in (self.instrument, self.runId, \
+                    self.flowcellId, self.laneNum, self.tileNum, \
+                    self.xPos, yPos))
+            h1 = ":".join(str(x) for x in (self.readNum, self.isFiltered, \
+                    self.controlNum, self.barcode))
+
+            return "{0} {1}".format(h0, h1)
+        else:
+            yPos = "{0}#{1}/{2}".format(self.yPos, self.multiplexId, \
+                    self.readNum) if self.paired else self.yPos
+
+            return ":".join(str(x) for x in (self.instrument, self.laneNum, \
+                    self.tileNum, self.xPos, self.yPos))
 
     @property
     def illumina_old(self):
-        header = ":".join(str(x) for x in [self.instrument, self.laneNum, self.tileNum, \
-                self.xPos, self.yPos + "#" + self.barcode])
+        header = ":".join(str(x) for x in (self.instrument, self.laneNum, \
+                self.tileNum, self.xPos, self.yPos + "#" + self.barcode))
         header = header + "/" + str(self.readNum)
 
         return header
@@ -477,6 +497,7 @@ def format(args):
     p.add_option("--old_header", default=False, action="store_true",
                 help="Convert header format from illumina new (1.8+) to older format" +
                 " [default: %default]")
+    p.set_tag()
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -486,14 +507,16 @@ def format(args):
     ai = iter_fastq(fastqfile)
     rec = ai.next()
     while rec:
+        h = FastqHeader(rec.header, paired=opts.tag)
         if opts.old_header:
-            h = FastqHeader(rec.header)
             if h.is_new_fmt:
                 rec.name = h.illumina_old
             else:
                 logging.error("Error: Input fastq header not in Illumina Casava" +
                             " 1.8+ format")
                 sys.exit()
+        else:
+            rec.name = str(h)
         print rec
         rec = ai.next()
 

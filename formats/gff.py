@@ -31,6 +31,7 @@ valid_gff_parent_child = {"match": "match_part",
                           "nucleotide_to_protein_match": "match_part",
                           "expressed_sequence_match": "match_part",
                           "protein_match": "match_part",
+                          "transposable_element": "transposon_fragment",
                           "mRNA": "exon"
                          }
 valid_gff_type = tuple(valid_gff_parent_child.keys())

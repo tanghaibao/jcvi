@@ -39,15 +39,20 @@ class BedLine(object):
         if nargs > 3:
             self.accn = args[3]
         if nargs > 4:
-            self.extra = args[4:]
-            self.score = self.extra[0]
+            self.score = args[4]
         if nargs > 5:
-            self.strand = self.extra[1]
+            self.strand = args[5]
+        if nargs > 6:
+            self.extra = args[6:]
 
     def __str__(self):
         args = [self.seqid, self.start - 1, self.end]
         if self.accn:
             args += [self.accn]
+        if self.score:
+            args += [self.score]
+        if self.strand:
+            args += [self.strand]
         if self.extra:
             args += self.extra
 

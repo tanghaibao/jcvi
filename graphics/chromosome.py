@@ -77,7 +77,7 @@ class HorizontalChromosome (BaseGlyph):
             self.append(Polygon(pts, fill=False, lw=lw, ec=ec, zorder=zorder))
 
         if fc:
-            pts = self.get_pts(x1, x2, y, height / 2)
+            pts, r = self.get_pts(x1, x2, y, height / 2)
             if roundrect:
                 RoundRect(ax, (x1, y - height / 4), x2 - x1, height / 2, fc=fc,
                           lw=0, zorder=zorder)
@@ -99,7 +99,7 @@ class HorizontalChromosome (BaseGlyph):
         r = height / (3 ** .5)
 
         if x2 - x1 < 2 * height:  # rectangle for small chromosomes
-            return [[x1, y + h], [x1, y - h], [x2, y - h], [x2, y + h]]
+            return [[x1, y + h], [x1, y - h], [x2, y - h], [x2, y + h]], r
 
         pts = []
         pts += plot_cap((x1 + r, y), np.radians(range(120, 240)), r)

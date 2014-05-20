@@ -50,18 +50,19 @@ def import_data(datafile):
     fp = open(datafile)
     fp.readline()
     for row in fp:
-        x, y, z = row.split()
-        x, y, z = float(x), float(y), float(z)
+        x, y = row.split()[:2]
+        x, y = float(x), float(y)
         data.append((x, y))
     return data
 
 
-def subplot(ax, data, xlabel, ylabel, xcast=float, ycast=float):
+def subplot(ax, data, xlabel, ylabel, ylim=1.1, xcast=float, ycast=float):
     x, y = zip(*data)
     ax.plot(x, y, "ko:", mec="k", mfc="w", ms=4)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
-    ax.set_ylim(0, 1.1)
+    if ylim:
+        ax.set_ylim(0, ylim)
     xticklabels = [xcast(x) for x in ax.get_xticks()]
     yticklabels = [ycast(x) for x in ax.get_yticks()]
     ax.set_xticklabels(xticklabels, family='Helvetica')
@@ -77,21 +78,25 @@ def allmapsQC(args):
     p = OptionParser(allmapsQC.__doc__)
     opts, args, iopts = p.set_image_options(args, dpi=300)
 
-    if len(args) != 3:
+    if len(args) != 4:
         sys.exit(not p.print_help())
 
-    dataA, dataB, dataC = args
+    dataA, dataB, dataC, dataD = args
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
     A = fig.add_axes([.12, .62, .35, .35])
-    dataA = import_data(dataA)
-    subplot(A, dataA, "Inversion rate", "Accuracy")
     B = fig.add_axes([.62, .62, .35, .35])
-    dataB = import_data(dataB)
-    subplot(B, dataB, "Translocation rate", "Accuracy")
     C = fig.add_axes([.12, .12, .35, .35])
+    D = fig.add_axes([.62, .12, .35, .35])
+    dataA = import_data(dataA)
+    dataB = import_data(dataB)
     dataC = import_data(dataC)
+    dataD = import_data(dataD)
+    subplot(A, dataA, "Inversion error rate", "Accuracy")
+    subplot(B, dataB, "Translocation error rate", "Accuracy")
     subplot(C, dataC, "Number of input maps", "Accuracy", xcast=int)
+    subplot(D, dataD, "Number of input maps", "Runtime (sec)",
+                       xcast=int, ycast=int, ylim=None)
 
     root.text(.02, .96, "A", size=16)
     root.text(.52, .96, "B", size=16)

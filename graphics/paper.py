@@ -10,7 +10,8 @@ import sys
 
 import numpy as np
 
-from jcvi.graphics.base import plt, Rectangle, Polygon, CirclePolygon, savefig
+from jcvi.graphics.base import plt, Rectangle, Polygon, CirclePolygon, \
+            savefig, normalize_axes
 from jcvi.graphics.glyph import GeneGlyph, RoundLabel, RoundRect, \
             arrowprops, TextCircle, plot_cap
 from jcvi.graphics.chromosome import Chromosome
@@ -34,12 +35,72 @@ def main():
         ('cotton', 'plot cotton macro- and micro-synteny (requires data)'),
         # Amborella paper (Albert et al., 2013 Science)
         ('amborella', 'plot amborella macro- and micro-synteny (requires data)'),
+        # Mt4.0 paper (Tang et al., 2014 BMC Genomics)
+        ('mtdotplots', 'plot Mt3.5 and Mt4.0 side-by-side'),
         # Unpublished
         ('litchi', 'plot litchi micro-synteny (requires data)'),
-        ('mtdotplots', 'plot Mt3.5 and Mt4.0 side-by-side'),
+        ('allmapsQC', 'plot ALLMAPS accuracy across a range of simulated data'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def import_data(datafile):
+    data = []
+    fp = open(datafile)
+    fp.readline()
+    for row in fp:
+        x, y, z = row.split()
+        x, y, z = float(x), float(y), float(z)
+        data.append((x, y))
+    return data
+
+
+def subplot(ax, data, xlabel, ylabel, xcast=float, ycast=float):
+    x, y = zip(*data)
+    ax.plot(x, y, "ko:", mec="k", mfc="w", ms=4)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.set_ylim(0, 1.1)
+    xticklabels = [xcast(x) for x in ax.get_xticks()]
+    yticklabels = [ycast(x) for x in ax.get_yticks()]
+    ax.set_xticklabels(xticklabels, family='Helvetica')
+    ax.set_yticklabels(yticklabels, family='Helvetica')
+
+
+def allmapsQC(args):
+    """
+    %prog allmapsQC inversion.txt translocation.txt maps.txt
+
+    Plot ALLMAPS accuracy across a range of simulated datasets.
+    """
+    p = OptionParser(allmapsQC.__doc__)
+    opts, args, iopts = p.set_image_options(args, dpi=300)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    dataA, dataB, dataC = args
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes([0, 0, 1, 1])
+    A = fig.add_axes([.12, .62, .35, .35])
+    dataA = import_data(dataA)
+    subplot(A, dataA, "Inversion rate", "Accuracy")
+    B = fig.add_axes([.62, .62, .35, .35])
+    dataB = import_data(dataB)
+    subplot(B, dataB, "Translocation rate", "Accuracy")
+    C = fig.add_axes([.12, .12, .35, .35])
+    dataC = import_data(dataC)
+    subplot(C, dataC, "Number of input maps", "Accuracy", xcast=int)
+
+    root.text(.02, .96, "A", size=16)
+    root.text(.52, .96, "B", size=16)
+    root.text(.02, .46, "C", size=16)
+    root.text(.52, .46, "D", size=16)
+
+    normalize_axes(root)
+    image_name = "simulation." + iopts.format
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
 def mtdotplots(args):

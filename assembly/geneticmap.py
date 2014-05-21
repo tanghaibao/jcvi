@@ -34,12 +34,18 @@ class BinMap (BaseFile, dict):
                 pos = int(float(pos) * 1000)
                 self[lg].append((marker, pos))
 
-    def print_to_bed(self, filename="stdout"):
+    def print_to_bed(self, filename="stdout", switch=False):
         fw = must_open(filename, "w")
         for lg, markers in sorted(self.items()):
             for marker, pos in markers:
-                print >> fw, "\t".join(str(x) for x in \
-                        (lg, pos, pos + 1, marker))
+                if not switch:
+                    line = (lg, pos, pos + 1, marker)
+                else:
+                    seqid, spos = marker.split(".")
+                    spos = int(spos)
+                    marker = "{0}:{1}".format(lg, pos)
+                    line = (seqid, spos, spos + 1, marker)
+                print >> fw, "\t".join(str(x) for x in line)
         fw.close()
 
 
@@ -88,6 +94,7 @@ def main():
     actions = (
         ('breakpoint', 'find scaffold breakpoints using genetic map'),
         ('ld', 'calculate pairwise linkage disequilibrium'),
+        ('bed', 'convert MSTmap output to bed format'),
         ('fasta', 'extract markers based on map'),
         ('anchor', 'anchor scaffolds based on map'),
         ('rename', 'rename markers according to the new mapping locations'),
@@ -333,6 +340,27 @@ def anchor(args):
         new_accn = "{0}:{1}-{2}".format(mb.seqid, mb.start, mb.end)
         b.accn = new_accn
         print b
+
+
+def bed(args):
+    """
+    %prog fasta map.out
+
+    Convert MSTMAP output into bed format.
+    """
+    p = OptionParser(bed.__doc__)
+    p.add_option("--switch", default=False, action="store_true",
+                 help="Switch reference and aligned map elements [default: %default]")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    mapout, = args
+    pf = mapout.split(".")[0]
+    mapbed = pf + ".bed"
+    bm = BinMap(mapout)
+    bm.print_to_bed(mapbed, switch=opts.switch)
 
 
 def fasta(args):

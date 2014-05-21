@@ -46,7 +46,7 @@ class OpticalMap (object):
             e = MapAlignment(e)
             yield e.reference_map_name, e.aligned_map_name, e
 
-    def write_bed(self, bedfile="stdout", blockonly=False, switch=False):
+    def write_bed(self, bedfile="stdout", point=False, blockonly=False, switch=False):
         fw = must_open(bedfile, "w")
         # when switching ref_map and aligned_map elements, disable `blockOnly`
         if switch:
@@ -71,21 +71,25 @@ class OpticalMap (object):
                 start = 0 if i == 0 else (aligned_blocks[i - 1] - 1)
                 end = aligned_blocks[i] - 1
                 endpoints.extend([start, end])
-                if not switch:
-                    accn = "{0}:{1}-{2}".format(aligned_map_name,
-                            start, end)
 
                 ref_start = ref_blocks[l - 1] - 1
                 ref_end = ref_blocks[r] - 1
                 ref_endpoints.extend([ref_start, ref_end])
+
                 if switch:
                     accn = "{0}:{1}-{2}".format(reference_map_name,
                             ref_start, ref_end)
+                else:
+                    accn = "{0}:{1}-{2}".format(aligned_map_name,
+                            start, end)
+
+                if point:
+                    accn = accn.rsplit("-")[0]
 
                 if not blockonly:
                     bed_elems = [reference_map_name, ref_start, ref_end,
-                                accn, score, orientation] if not switch \
-                                else [aligned_map_name, start, end,
+                                accn, score, orientation] if not switch else \
+                                [aligned_map_name, start, end,
                                 accn, score, orientation]
                     print >> fw, "\t".join(str(x) for x in \
                                 bed_elems)
@@ -319,6 +323,8 @@ def bed(args):
     p = OptionParser(bed.__doc__)
     p.add_option("--blockonly", default=False, action="store_true",
                  help="Only print out large blocks, not fragments [default: %default]")
+    p.add_option("--point", default=False, action="store_true",
+                 help="Print accesssion as single point instead of interval")
     p.add_option("--switch", default=False, action="store_true",
                  help="Switch reference and aligned map elements [default: %default]")
     p.add_option("--nosort", default=False, action="store_true",
@@ -332,7 +338,8 @@ def bed(args):
     bedfile = xmlfile.rsplit(".", 1)[0] + ".bed"
 
     om = OpticalMap(xmlfile)
-    om.write_bed(bedfile, blockonly=opts.blockonly, switch=opts.switch)
+    om.write_bed(bedfile, point=opts.point,
+                          blockonly=opts.blockonly, switch=opts.switch)
 
     if not opts.nosort:
         sort([bedfile, "--inplace"])

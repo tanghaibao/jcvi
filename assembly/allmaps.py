@@ -632,6 +632,7 @@ def main():
 
     actions = (
         ('merge', 'merge csv maps and convert to bed format'),
+        ('mergebed', 'merge maps in bed format'),
         ('path', 'construct golden path given a set of genetic maps'),
         ('build', 'build associated FASTA and CHAIN file'),
         ('summary', 'report summary stats for maps and final consensus'),
@@ -685,7 +686,47 @@ def merge(args):
                         format(len(b), outfile))
 
     assert len(maps) == len(mapnames), "You have a collision in map names"
-    weightsfile = "weights.txt"
+    write_weightsfile(mapnames)
+
+
+def mergebed(args):
+    """
+    %prog mergebed map1.bed map2.bed map3.bed ...
+
+    Combine bed maps to bed format, adding the map name.
+    """
+    p = OptionParser(mergebed.__doc__)
+    p.set_outfile()
+    opts, args = p.parse_args(args)
+
+    if len(args) < 1:
+        sys.exit(not p.print_help())
+
+    maps = args
+    outfile = opts.outfile
+    fp = must_open(maps)
+    b = Bed()
+    mapnames = set()
+    for row in fp:
+        mapname = fp.filename().split(".")[0]
+        mapnames.add(mapname)
+        try:
+            m = BedLine(row)
+            m.accn = "{0}-{1}".format(mapname, m.accn)
+            m.extra = ["{0}:{1}".format(m.seqid, m.start)]
+            b.append(m)
+        except (IndexError, ValueError):  # header or mal-formed line
+            continue
+
+    b.print_to_file(filename=outfile, sorted=True)
+    logging.debug("A total of {0} markers written to `{1}`.".\
+                        format(len(b), outfile))
+
+    assert len(maps) == len(mapnames), "You have a collision in map names"
+    write_weightsfile(mapnames)
+
+
+def write_weightsfile(mapnames, weightsfile="weights.txt"):
     if op.exists(weightsfile):
         logging.debug("Weights file `{0}` found. Will not overwrite.".\
                         format(weightsfile))

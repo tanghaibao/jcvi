@@ -46,7 +46,8 @@ class OpticalMap (object):
             e = MapAlignment(e)
             yield e.reference_map_name, e.aligned_map_name, e
 
-    def write_bed(self, bedfile="stdout", point=False, blockonly=False, switch=False):
+    def write_bed(self, bedfile="stdout", point=False, scale=None,
+                                          blockonly=False, switch=False):
         fw = must_open(bedfile, "w")
         # when switching ref_map and aligned_map elements, disable `blockOnly`
         if switch:
@@ -77,9 +78,15 @@ class OpticalMap (object):
                 ref_endpoints.extend([ref_start, ref_end])
 
                 if switch:
+                    if scale:
+                        ref_start /= scale
+                        ref_end /= scale
                     accn = "{0}:{1}-{2}".format(reference_map_name,
                             ref_start, ref_end)
                 else:
+                    if scale:
+                        start /= scale
+                        end /= scale
                     accn = "{0}:{1}-{2}".format(aligned_map_name,
                             start, end)
 
@@ -325,6 +332,8 @@ def bed(args):
                  help="Only print out large blocks, not fragments [default: %default]")
     p.add_option("--point", default=False, action="store_true",
                  help="Print accesssion as single point instead of interval")
+    p.add_option("--scale", type="float",
+                 help="Scale the OM distance by factor")
     p.add_option("--switch", default=False, action="store_true",
                  help="Switch reference and aligned map elements [default: %default]")
     p.add_option("--nosort", default=False, action="store_true",
@@ -338,7 +347,7 @@ def bed(args):
     bedfile = xmlfile.rsplit(".", 1)[0] + ".bed"
 
     om = OpticalMap(xmlfile)
-    om.write_bed(bedfile, point=opts.point,
+    om.write_bed(bedfile, point=opts.point, scale=opts.scale,
                           blockonly=opts.blockonly, switch=opts.switch)
 
     if not opts.nosort:

@@ -855,6 +855,10 @@ def path(args):
     solutions = []
     for lgs, scaffolds in sorted(partitions.items()):
         tag = "|".join(lgs)
+        lgs_maps = set(x.split("-")[0] for x in lgs)
+        if pivot not in lgs_maps:
+            logging.debug("Skipping {0} ...".format(tag))
+            continue
         logging.debug("Working on {0} ...".format(tag))
         s = ScaffoldOO(lgs, scaffolds, cc, pivot, weights, sizes,
                        function=function, linkage=linkage,
@@ -1134,7 +1138,7 @@ def plot(args):
         ax.plot(xx, yy, ".", color=color)
         ax.text(.5, 1 - .4 * gap / height, r"$\rho$={0:.3f}".format(rhos[mlg]),
                     ha="center", va="top", transform=ax.transAxes, color="gray")
-        while height / len(ax.get_yticks()) < .03:
+        while height / len(ax.get_yticks()) < .03 and len(ax.get_yticks()) >= 2:
             ax.set_yticks(ax.get_yticks()[::2])  # Sparsify the ticks
         yticklabels = [int(x) for x in ax.get_yticks()]
         ax.set_yticklabels(yticklabels, family='Helvetica')

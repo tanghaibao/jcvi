@@ -43,8 +43,8 @@ class BinMap (BaseFile, dict):
                 else:
                     seqid, spos = marker.split(".")
                     spos = int(spos)
-                    marker = "{0}:{1}".format(lg, pos)
-                    line = (seqid, spos, spos + 1, marker)
+                    marker = "{0}:{1}".format(lg, pos / 1000.)
+                    line = (seqid, spos - 1, spos, marker)
                 print >> fw, "\t".join(str(x) for x in line)
         fw.close()
 

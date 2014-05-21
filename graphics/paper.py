@@ -39,10 +39,61 @@ def main():
         ('mtdotplots', 'plot Mt3.5 and Mt4.0 side-by-side'),
         # Unpublished
         ('litchi', 'plot litchi micro-synteny (requires data)'),
+        ('lms', 'ALLMAPS cartoon to illustrate LMS metric'),
         ('allmapsQC', 'plot ALLMAPS accuracy across a range of simulated data'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def lms(args):
+    """
+    %prog lms
+
+    ALLMAPS cartoon to illustrate LMS metric.
+    """
+    from random import randint
+    from jcvi.graphics.chromosome import HorizontalChromosome
+
+    p = OptionParser(lms.__doc__)
+    opts, args, iopts = p.set_image_options(args, figsize="6x4", dpi=300)
+
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes([0, 0, 1, 1])
+    w = h = .7
+    ax = fig.add_axes([.15, .2, w, h])
+
+    xdata = [x + randint(-3, 3) for x in range(10, 110, 10)]
+    ydata = [x + randint(-3, 3) for x in range(10, 110, 10)]
+    ydata[3:7] = ydata[3:7][::-1]
+    ax.plot(xdata, ydata, "k.", mec="k", mfc="w", mew=3, ms=12)
+    ax.set_xlim(0, 110)
+    ax.set_ylim(0, 110)
+    yticklabels = [int(x) for x in ax.get_yticks()]
+    ax.set_yticklabels(yticklabels, family='Helvetica')
+    ax.set_xticks([])
+    ax.set_ylabel("Map (cM)")
+    xydata = zip(xdata, ydata)
+    lis = xydata[:3] + [xydata[4]] + xydata[7:]
+    lds = xydata[3:7]
+    xlis, ylis = zip(*lis)
+    xlds, ylds = zip(*lds)
+    ax.plot(xlis, ylis, "r-", lw=12, alpha=.3,
+                              solid_capstyle="round", solid_joinstyle="round")
+    ax.plot(xlds, ylds, "g-", lw=12, alpha=.3,
+                              solid_capstyle="round", solid_joinstyle="round")
+    HorizontalChromosome(root, .15, .15 + w, .14, height=.04, lw=2)
+    root.text(.15 + w / 2, .1, "Chromosome location (bp)", ha="center", va="top")
+
+    ax.text(80, 30, "LIS = 7", color="r", ha="center", va="center")
+    ax.text(80, 20, "LDS = 4", color="g", ha="center", va="center")
+    ax.text(80, 10, "LMS = $max$(LIS, LDS) = 7", ha="center", va="center")
+
+    normalize_axes(root)
+
+    pf = "lms"
+    image_name = pf + "." + iopts.format
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
 def import_data(datafile):

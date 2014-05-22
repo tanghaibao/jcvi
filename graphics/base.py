@@ -111,6 +111,13 @@ def normalize_axes(axes):
         ax.set_axis_off()
 
 
+def panel_labels(ax, labels, size=16):
+    for xx, yy, panel_label in labels:
+        panel_label = r"$\textbf{{{0}}}$".format(panel_label)
+        ax.text(xx, yy, panel_label, size=size,
+                        ha="center", va="center")
+
+
 def savefig(figname, dpi=150, iopts=None):
     try:
         format = figname.rsplit(".", 1)[-1].lower()

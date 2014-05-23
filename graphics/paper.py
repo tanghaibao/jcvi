@@ -117,7 +117,7 @@ def lms(args):
     for i, s in enumerate(scaffolds):
         xx = (patch[i] + patch[i + 1]) / 2
         root.text(xx, .09, s, va="center", ha="center")
-    root.text(.1 + w / 2, .04, "LMS($a||b||c$)=7", ha="center")
+    root.text(.1 + w / 2, .04, "LMS($a||b||c$) = 7", ha="center")
 
     # Panel C
     ax = fig.add_axes([.6, .12, w, h])
@@ -134,7 +134,7 @@ def lms(args):
     for i, s in enumerate(scaffolds):
         xx = (patch[i] + patch[i + 1]) / 2
         root.text(xx, .09, s, va="center", ha="center")
-    root.text(.6 + w / 2, .04, "LMS($a||-c||b$)=10", ha="center")
+    root.text(.6 + w / 2, .04, "LMS($a||-c||b$) = 10", ha="center")
 
     labels = ((.05, .95, 'A'), (.05, .48, 'B'), (.55, .48, 'C'))
     panel_labels(root, labels)

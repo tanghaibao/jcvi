@@ -22,6 +22,7 @@ debug()
 def main():
 
     actions = (
+        ("bed", "convert ANCHORS file to BED format"),
         ('fromblast', 'Generate path from BLAST file'),
         ('happy', 'Make graph from happy mapping data'),
         ('partition', 'Make individual graphs partitioned by happy mapping'),
@@ -29,6 +30,54 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def bed(args):
+    """
+    %prog bed anchorsfile
+
+    Convert ANCHORS file to BED format.
+    """
+    from collections import defaultdict
+    from jcvi.compara.synteny import AnchorFile, check_beds
+    from jcvi.formats.bed import Bed, BedLine
+    from jcvi.formats.base import get_number
+
+    p = OptionParser(bed.__doc__)
+    p.add_option("--switch", default=False, action="store_true",
+                 help="Switch reference and aligned map elements")
+    p.set_beds()
+    p.set_outfile()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    anchorsfile, = args
+    ac = AnchorFile(anchorsfile)
+    pairs = defaultdict(list)
+    for a, b, block_id in ac.iter_pairs():
+        pairs[a].append(b)
+
+    qbed, sbed, qorder, sorder, is_self = check_beds(anchorsfile, p, opts)
+    bd = Bed()
+    for q in qbed:
+        qseqid, qstart, qend, qaccn = q.seqid, q.start, q.end, q.accn
+        if qaccn not in pairs:
+            continue
+        for s in pairs[qaccn]:
+            si, s = sorder[s]
+            sseqid, sstart, send, saccn = s.seqid, s.start, s.end, s.accn
+        if opts.switch:
+            qseqid, sseqid = sseqid, qseqid
+            qstart, sstart = sstart, qstart
+            qend, send = send, qend
+            qaccn, saccn = saccn, qaccn
+        bedline = "\t".join(str(x) for x in (qseqid, qstart - 1, qend,
+                            "{0}:{1}".format(get_number(sseqid), sstart)))
+        bd.append(BedLine(bedline))
+
+    bd.print_to_file(filename=opts.outfile, sorted=True)
 
 
 def happy_nodes(row, prefix=None):

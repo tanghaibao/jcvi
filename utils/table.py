@@ -23,7 +23,7 @@ def loadtable(header, rows, major='=', minor='-', thousands=True):
     return banner(header, rows)
 
 
-def tabulate(d, transpose=False, thousands=True, key_fun=None):
+def tabulate(d, transpose=False, thousands=True, key_fun=None, sep=',', align=True):
     """
     d is a dictionary, keyed by tuple(A, B).
     Goal is to put A in rows, B in columns, report data in table form.
@@ -63,6 +63,10 @@ def tabulate(d, transpose=False, thousands=True, key_fun=None):
         if key_fun:
             data = [key_fun(x) for x in data]
         table.append([str(r)] + data)
+
+    if not align:
+        formatted = load_csv(header, table, sep=sep)
+        return "\n".join(formatted)
 
     return loadtable(header, table, thousands=thousands)
 

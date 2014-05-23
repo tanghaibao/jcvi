@@ -905,12 +905,15 @@ def summary(args):
     scaffold anchoring based on multiple maps.
     """
     p = OptionParser(summary.__doc__)
+    p.set_table(sep="|", align=True)
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
         sys.exit(not p.print_help())
 
     chr_agp, scaffolds, mapbed = args
+    sep = opts.sep
+    align = opts.align
     cc = Map(mapbed)
     mapnames = cc.mapnames
     s = Sizes(scaffolds)
@@ -932,7 +935,7 @@ def summary(args):
         r["Scaffolds with 3 markers", mapname] = ms.scaffold_3m
         r["Scaffolds with >=4 markers", mapname] = ms.scaffold_4m
         maps.append(ms)
-    print >> sys.stderr, tabulate(r)
+    print >> sys.stderr, tabulate(r, sep=sep, align=align)
 
     r = {}
     agp = AGP(chr_agp)
@@ -952,7 +955,7 @@ def summary(args):
         r["Scaffolds with 2 markers", mapname] = ms.scaffold_2m
         r["Scaffolds with 3 markers", mapname] = ms.scaffold_3m
         r["Scaffolds with >=4 markers", mapname] = ms.scaffold_4m
-    print >> sys.stderr, tabulate(r)
+    print >> sys.stderr, tabulate(r, sep=sep, align=align)
 
 
 def build(args):
@@ -1144,15 +1147,15 @@ def plot(args):
         ax.plot(xx, yy, ".", color=color)
         ax.text(.5, 1 - .4 * gap / height, r"$\rho$={0:.3f}".format(rhos[mlg]),
                     ha="center", va="top", transform=ax.transAxes, color="gray")
-        while height / len(ax.get_yticks()) < .03 and len(ax.get_yticks()) >= 2:
-            ax.set_yticks(ax.get_yticks()[::2])  # Sparsify the ticks
-        yticklabels = [int(x) for x in ax.get_yticks()]
-        ax.set_yticklabels(yticklabels, family='Helvetica')
         tlg = mlg.replace("_", ".")
         tlgs.append((tlg, ypos, color))
         ax.set_xlim(0, chrsize)
         ax.set_ylim(0, mlgsize)
         ax.set_xticks([])
+        while height / len(ax.get_yticks()) < .03 and len(ax.get_yticks()) >= 2:
+            ax.set_yticks(ax.get_yticks()[::2])  # Sparsify the ticks
+        yticklabels = [int(x) for x in ax.get_yticks()]
+        ax.set_yticklabels(yticklabels, family='Helvetica')
 
     for i, (tlg, ypos, color) in enumerate(tlgs):
         ha = "center"

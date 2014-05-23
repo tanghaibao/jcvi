@@ -216,6 +216,8 @@ class ScaffoldOO (object):
                 xs = self.get_markers(lg, s)
                 if xs:
                     markers[s] = xs
+            if not markers:
+                continue
             LG = LinkageGroup(lg, length, markers,
                               function=self.function, linkage=self.linkage)
             self.linkage_groups.append(LG)
@@ -771,6 +773,7 @@ def path(args):
                  help="Insert gaps of size between scaffolds")
     p.add_option("--ngen", default=500, type="int",
                  help="Number of iterations for GA")
+    p.add_option("--seqid", help="Only run partition with this seqid")
     p.set_cpus(cpus=8)
     opts, args = p.parse_args(args)
 
@@ -794,6 +797,7 @@ def path(args):
     pivot = weights.pivot
     ref = weights.ref
     linkage = opts.linkage
+    oseqid = opts.seqid
     logging.debug("Linkage function: {0}-linkage".format(linkage))
     linkage = {"single": min, "double": double_linkage, "complete": max,
                "average": np.mean, "median": np.median}[linkage]
@@ -854,6 +858,8 @@ def path(args):
     fwtour = must_open(tourfile, "w")
     solutions = []
     for lgs, scaffolds in sorted(partitions.items()):
+        if oseqid and oseqid not in lgs:
+            continue
         tag = "|".join(lgs)
         lgs_maps = set(x.split("-")[0] for x in lgs)
         if pivot not in lgs_maps:

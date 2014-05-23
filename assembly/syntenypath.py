@@ -46,6 +46,8 @@ def bed(args):
     p = OptionParser(bed.__doc__)
     p.add_option("--switch", default=False, action="store_true",
                  help="Switch reference and aligned map elements")
+    p.add_option("--scale", type="float",
+                 help="Scale the aligned map distance by factor")
     p.set_beds()
     p.set_outfile()
     opts, args = p.parse_args(args)
@@ -54,6 +56,8 @@ def bed(args):
         sys.exit(not p.print_help())
 
     anchorsfile, = args
+    switch = opts.switch
+    scale = opts.scale
     ac = AnchorFile(anchorsfile)
     pairs = defaultdict(list)
     for a, b, block_id in ac.iter_pairs():
@@ -68,11 +72,13 @@ def bed(args):
         for s in pairs[qaccn]:
             si, s = sorder[s]
             sseqid, sstart, send, saccn = s.seqid, s.start, s.end, s.accn
-        if opts.switch:
+        if switch:
             qseqid, sseqid = sseqid, qseqid
             qstart, sstart = sstart, qstart
             qend, send = send, qend
             qaccn, saccn = saccn, qaccn
+        if scale:
+            sstart /= scale
         bedline = "\t".join(str(x) for x in (qseqid, qstart - 1, qend,
                             "{0}:{1}".format(get_number(sseqid), sstart)))
         bd.append(BedLine(bedline))

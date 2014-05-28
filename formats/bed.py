@@ -1204,6 +1204,8 @@ def report_pairs(data, cutoff=0, mateorientation=None,
         print >>insertsfw, "\n".join(str(x) for x in linked_dist)
         insertsfw.close()
         prefix = insertsfile.rsplit(".", 1)[0]
+        if prefix > 10:
+            prefix = prefix.split("-")[0]
         osummary = " ".join(orientation_summary)
         title="{0} ({1}; median:{2} bp)".format(prefix, osummary, p0)
         histogram(insertsfile, vmin=0, vmax=cutoff, bins=bins,

@@ -200,6 +200,7 @@ class Gff (LineFile):
             keep_attr_order=True, make_gff_store=False, compute_signature=False):
         super(Gff, self).__init__(filename)
         self.make_gff_store = make_gff_store
+        self.gff3 = True
         if self.make_gff_store:
             self.gffstore = []
             gff = Gff(self.filename, key=key, append_source=append_source, \
@@ -214,7 +215,6 @@ class Gff (LineFile):
             self.keep_attr_order = keep_attr_order
             self.compute_signature = compute_signature
             if self.filename in ("-", "stdin"):
-                self.gff3 = True
                 return
 
             self.set_gff_type()
@@ -247,7 +247,7 @@ class Gff (LineFile):
                     continue
                 yield GffLine(row, key=self.key, line_index=idx, append_source=self.append_source, \
                         score_attrib=self.score_attrib, keep_attr_order=self.keep_attr_order, \
-                        compute_signature=self.compute_signature)
+                        compute_signature=self.compute_signature, gff3=self.gff3)
 
     @property
     def seqids(self):

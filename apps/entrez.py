@@ -12,9 +12,11 @@ from Bio import Entrez, SeqIO
 
 from jcvi.formats.base import must_open
 from jcvi.formats.fasta import print_first_difference
+from jcvi.utils.cbook import tile
 from jcvi.utils.iter import grouper
 from jcvi.apps.console import green
-from jcvi.apps.base import OptionParser, ActionDispatcher, get_email_address, mkdir, debug
+from jcvi.apps.base import OptionParser, ActionDispatcher, get_email_address, \
+            mkdir, ls_ftp, download, debug
 debug()
 
 myEmail = get_email_address(user=True)
@@ -109,24 +111,69 @@ def main():
         ('fetch', 'fetch records from a list of GenBank accessions'),
         ('bisect', 'determine the version of the accession'),
         ('phytozome', 'retrieve genomes and annotations from phytozome'),
+        ('ensembl', 'retrieve genomes and annotations from ensembl'),
         )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def ensembl(args):
+    """
+    %prog ensembl species
+
+    Retrieve genomes and annotations from ensembl FTP. Available species
+    listed below. Use comma to give a list of species to download. For example:
+
+    $ %prog ensembl danio_rerio,gasterosteus_aculeatus
+    """
+    p = OptionParser(ensembl.__doc__)
+    p.add_option("--version", default="75",
+                 help="Ensembl version [default: %default]")
+    opts, args = p.parse_args(args)
+
+    version = opts.version
+    url = "ftp://ftp.ensembl.org/pub/release-{0}/".format(version)
+    fasta_url = url + "fasta/"
+
+    valid_species = [x for x in ls_ftp(fasta_url) if "." not in x]
+    doc = "\n".join((ensembl.__doc__, tile(valid_species)))
+    p.set_usage(doc)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    species, = args
+    species = species.split(",")
+    for s in species:
+        download_species_ensembl(s, valid_species, url)
+
+
+def download_species_ensembl(species, valid_species, url):
+    from os.path import join as urljoin
+
+    assert species in valid_species, \
+            "{0} is not in the species list".format(species)
+
+    # We want to download assembly and annotation for given species
+    ann_url = urljoin(url, "gtf/{0}".format(species))
+    cds_url = urljoin(url, "fasta/{0}/cds".format(species))
+
+    for u in (ann_url, cds_url):
+        valid_files = [x for x in ls_ftp(u) if x.endswith(".gz")]
+        for f in valid_files:
+            f = urljoin(u, f)
+            download(f)
 
 
 def phytozome(args):
     """
     %prog phytozome species
 
-    Retrieve genomes and annotations from phytozome FTP.
-    Available species listed below. Use comma to give a list of species to
-    download. For example:
+    Retrieve genomes and annotations from phytozome FTP. Available species
+    listed below. Use comma to give a list of species to download. For example:
 
     $ %prog phytozome Athaliana,Vvinifera,Osativa,Sbicolor,Slycopersicum
     """
-    from jcvi.utils.cbook import tile
-    from jcvi.apps.base import ls_ftp
-
     p = OptionParser(phytozome.__doc__)
     p.add_option("--version", default="9.0",
                  help="Phytozome version [default: %default]")
@@ -147,12 +194,11 @@ def phytozome(args):
     species, = args
     species = species.split(",")
     for s in species:
-        download_species(s, valid_species, url, assembly=opts.assembly)
+        download_species_phytozome(s, valid_species, url, assembly=opts.assembly)
 
 
-def download_species(species, valid_species, url, assembly=False):
+def download_species_phytozome(species, valid_species, url, assembly=False):
     from os.path import join as urljoin
-    from jcvi.apps.base import ls_ftp, download
 
     assert species in valid_species, \
             "{0} is not in the species list".format(species)

@@ -214,7 +214,7 @@ class Gff (LineFile):
             self.score_attrib = score_attrib
             self.keep_attr_order = keep_attr_order
             self.compute_signature = compute_signature
-            if self.filename in ("-", "stdin"):
+            if filename in ("-", "stdin") or filename.endswith(".gz"):
                 return
 
             self.set_gff_type()

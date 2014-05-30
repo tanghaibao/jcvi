@@ -216,7 +216,7 @@ def download_species_phytozome(species, valid_species, url, assembly=False):
     pep_url = urljoin(surl, "annotation/{0}_protein.fa.gz".format(pf))
     if assembly:
         download(asm_url)
-    for u in (ann_url, cds_url, pep_url):
+    for u in (ann_url, cds_url):
         download(u)
 
 

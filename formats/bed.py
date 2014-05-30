@@ -13,6 +13,7 @@ from itertools import groupby
 
 from jcvi.formats.base import LineFile, must_open, is_number, get_number
 from jcvi.utils.cbook import SummaryStats, thousands, percentage
+from jcvi.utils.natsort import natsort_key
 from jcvi.utils.range import Range, range_union, range_chain, \
         range_distance, range_intersect
 from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh, \
@@ -109,7 +110,7 @@ class Bed(LineFile):
 
         # the sorting key provides some flexibility in ordering the features
         # for example, user might not like the lexico-order of seqid
-        self.nullkey = lambda x: (x.seqid, x.start, x.accn)
+        self.nullkey = lambda x: (natsort_key(x.seqid), x.start, x.accn)
         self.key = key or self.nullkey
 
         if not filename:

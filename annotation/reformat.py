@@ -13,7 +13,7 @@ import sys
 import logging
 import re
 
-from itertools import groupby
+from itertools import groupby, product
 
 from jcvi.formats.bed import Bed, BedLine, sort
 from jcvi.formats.base import SetFile, must_open
@@ -24,6 +24,7 @@ from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher, \
 
 FRAME, RETAIN, OVERLAP, NEW = "FRAME", "RETAIN", "OVERLAP", "NEW"
 PRIORITY = (FRAME, RETAIN, OVERLAP, NEW)
+new_id_pat = re.compile(r"^\d+\.[cemtx]+\S+")
 
 
 class Stride (object):
@@ -515,8 +516,6 @@ def annotate(args):
     """
     from jcvi.utils.grouper import Grouper
 
-    global new_id_pat
-    new_id_pat = re.compile(r"^\d+\.[cemtx]+\S+")
     valid_resolve_choices = ["alignment", "overlap"]
 
     p = OptionParser(annotate.__doc__)
@@ -734,8 +733,6 @@ def process_splits(splits, scores, nbedline, abedline):
 
 
 def get_pairs(cbedfile, pairsfile):
-    from itertools import product
-
     fp = open(pairsfile, "w")
     bed = Bed(cbedfile)
     for b in bed:

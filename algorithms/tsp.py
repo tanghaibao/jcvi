@@ -276,8 +276,5 @@ def compare_lpsolve_to_concorde(POINTS=80, directed=False):
 
 
 if __name__ == '__main__':
-
-    #import doctest
-    #doctest.testmod()
-    #concorde_demo()
-    compare_lpsolve_to_concorde()
+    import doctest
+    doctest.testmod()

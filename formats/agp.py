@@ -14,7 +14,7 @@ import logging
 
 from copy import deepcopy
 from collections import defaultdict
-from itertools import groupby
+from itertools import groupby, izip_longest
 
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
@@ -876,7 +876,7 @@ def frombed(args):
     fw.close()
 
     # Reindex
-    idxagpfile = reindex([agpfile, "--inplace"])
+    return reindex([agpfile, "--inplace"])
 
 
 def swap(args):
@@ -887,7 +887,6 @@ def swap(args):
     conjuction with formats.chain.fromagp() to convert between different
     coordinate systems.
     """
-    from itertools import izip_longest
     from jcvi.utils.range import range_interleave
 
     p = OptionParser(swap.__doc__)

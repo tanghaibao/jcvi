@@ -7,7 +7,6 @@ output - mostly as *.coords file.
 """
 
 import sys
-import itertools
 import logging
 
 from math import exp
@@ -183,7 +182,7 @@ class Coords (LineFile):
         self.quality_sort()
 
         hits = dict((query, list(blines)) for (query, blines) in \
-                itertools.groupby(self, lambda x: x.query))
+                        groupby(self, lambda x: x.query))
 
         self.ref_sort()
 
@@ -197,7 +196,7 @@ class Coords (LineFile):
         self.quality_sort()
 
         best_hits = dict((query, blines.next()) for (query, blines) in \
-                itertools.groupby(self, lambda x: x.query))
+                        groupby(self, lambda x: x.query))
 
         self.ref_sort()
 

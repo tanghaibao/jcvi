@@ -23,9 +23,9 @@ Finally a blast.filtered file is created.
 import sys
 import logging
 import os.path as op
-import itertools
 
 from collections import defaultdict
+from itertools import groupby
 
 from jcvi.formats.blast import BlastLine
 from jcvi.utils.grouper import Grouper
@@ -238,7 +238,7 @@ def tandem_grouper(bed, blast_list, tandem_Nmax=10, flip=True):
     simple_blast.sort()
 
     standems = Grouper()
-    for name, hits in itertools.groupby(simple_blast, key=lambda x: x[0]):
+    for name, hits in groupby(simple_blast, key=lambda x: x[0]):
         # these are already sorted.
         hits = [x[1] for x in hits]
         for ia, a in enumerate(hits[:-1]):

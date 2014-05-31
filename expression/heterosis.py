@@ -15,8 +15,7 @@ import numpy as np
 from collections import defaultdict
 
 from jcvi.formats.base import BaseFile
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug, glob, mkdir
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher, glob, mkdir
 
 
 class RiceSample (BaseFile):

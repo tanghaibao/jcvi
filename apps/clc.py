@@ -9,8 +9,7 @@ import sys
 import os.path as op
 
 from jcvi.formats.base import write_file
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh
 
 
 CLCLICENSE = """

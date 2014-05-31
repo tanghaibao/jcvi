@@ -15,8 +15,7 @@ You can download a number of free TTF fonts from:
 import sys
 
 from jcvi.graphics.base import plt, savefig, fontprop, available_fonts
-from jcvi.apps.base import OptionParser, debug
-debug()
+from jcvi.apps.base import OptionParser
 
 
 def main():

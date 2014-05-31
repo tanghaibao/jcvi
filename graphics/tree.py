@@ -11,8 +11,7 @@ from jcvi.formats.sizes import Sizes
 from jcvi.formats.base import DictFile
 from jcvi.graphics.base import plt, savefig
 from jcvi.graphics.glyph import ExonGlyph, get_setups
-from jcvi.apps.base import OptionParser, debug, glob
-debug()
+from jcvi.apps.base import OptionParser, glob
 
 
 def truncate_name(name, rule=None):

@@ -11,10 +11,8 @@ import sys
 import logging
 
 from jcvi.apps.base import OptionParser
-
 from jcvi.formats.base import read_until, read_block
-from jcvi.apps.base import debug
-debug()
+
 
 bac_tag = "BAC :"
 

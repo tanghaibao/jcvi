@@ -10,8 +10,7 @@ import numpy as np
 
 from jcvi.formats.base import LineFile
 from jcvi.apps.softlink import get_abs_path
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug, need_update, sh
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh
 
 
 class Sizes (LineFile):

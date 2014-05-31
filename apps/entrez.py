@@ -16,8 +16,8 @@ from jcvi.utils.cbook import tile
 from jcvi.utils.iter import grouper
 from jcvi.apps.console import green
 from jcvi.apps.base import OptionParser, ActionDispatcher, get_email_address, \
-            mkdir, ls_ftp, download, debug
-debug()
+            mkdir, ls_ftp, download
+
 
 myEmail = get_email_address(user=True)
 Entrez.email = myEmail
@@ -213,7 +213,6 @@ def download_species_phytozome(species, valid_species, url, assembly=False):
     asm_url = urljoin(surl, "assembly/{0}.fa.gz".format(pf))
     ann_url = urljoin(surl, "annotation/{0}_gene.gff3.gz".format(pf))
     cds_url = urljoin(surl, "annotation/{0}_cds.fa.gz".format(pf))
-    pep_url = urljoin(surl, "annotation/{0}_protein.fa.gz".format(pf))
     if assembly:
         download(asm_url)
     for u in (ann_url, cds_url):

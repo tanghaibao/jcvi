@@ -13,8 +13,7 @@ from jcvi.formats.fasta import tidy
 from jcvi.formats.blast import BlastLine
 from jcvi.formats.base import must_open
 from jcvi.apps.align import run_vecscreen, run_megablast
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug, download, sh
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher, download, sh
 
 
 def main():

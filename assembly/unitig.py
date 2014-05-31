@@ -18,8 +18,7 @@ import shutil
 import logging
 
 from jcvi.formats.base import BaseFile
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, mkdir, debug, glob
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh, mkdir, glob
 
 
 class UnitigLayout (BaseFile):

@@ -10,8 +10,7 @@ from multiprocessing import Lock
 from jcvi.formats.base import must_open, split
 from jcvi.apps.grid import Jobs
 from jcvi.apps.align import run_formatdb
-from jcvi.apps.base import OptionParser, debug, mkdir, Popen
-debug()
+from jcvi.apps.base import OptionParser, Popen
 
 
 def blastplus(k, n, out_fh, cmd, query, lock):

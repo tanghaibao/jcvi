@@ -12,9 +12,8 @@ import logging
 from jcvi.graphics.base import plt, asciiplot, set_human_axis, savefig
 from jcvi.formats.fasta import Fasta
 from jcvi.formats.base import must_open
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, debug, \
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh, \
             need_update, Popen, PIPE
-debug()
 
 
 class KmerSpectrum (object):

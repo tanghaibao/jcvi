@@ -11,8 +11,7 @@ import sys
 
 from jcvi.formats.base import write_file
 from jcvi.apps.softlink import get_abs_path
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug, mkdir
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir
 
 
 def main():

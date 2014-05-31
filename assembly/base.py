@@ -17,8 +17,7 @@ from bisect import bisect
 
 from jcvi.formats.base import must_open
 from jcvi.formats.fasta import Fasta
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug, glob, sh
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher, glob, sh
 
 
 orientationlabels = {"++": "normal", "+-": "innie", "-+": "outie", "--": "antinormal"}

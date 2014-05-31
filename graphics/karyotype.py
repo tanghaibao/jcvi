@@ -26,12 +26,10 @@ import string
 from jcvi.apps.base import OptionParser
 from jcvi.formats.bed import Bed
 from jcvi.formats.base import LineFile
-from jcvi.apps.base import debug
 from jcvi.graphics.chromosome import HorizontalChromosome
 from jcvi.graphics.glyph import TextCircle
 from jcvi.graphics.synteny import Shade
-from jcvi.graphics.base import plt, _, Affine2D, savefig, markup
-debug()
+from jcvi.graphics.base import plt, Affine2D, savefig, markup
 
 
 class LayoutLine (object):
@@ -189,7 +187,7 @@ class Track (object):
             pad = .02
             if va == "bottom":
                 pad = - pad
-            TextCircle(ax, xx, y + pad, _(si), radius=.01,
+            TextCircle(ax, xx, y + pad, si, radius=.01,
                        fc="w", color=color, size=10, transform=tr)
 
         xp = .1 if (self.xstart + self.xend) / 2 <= .5 else .92

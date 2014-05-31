@@ -12,8 +12,7 @@ import logging
 import urllib, urllib2
 
 from jcvi.formats.base import must_open
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
 uniprot_url = "http://www.uniprot.org/uniprot/"

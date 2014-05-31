@@ -17,8 +17,8 @@ from Bio.SeqIO.QualityIO import FastqGeneralIterator
 
 from jcvi.formats.fasta import must_open, rc
 from jcvi.formats.base import DictFile
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh
+
 
 qual_offset = lambda x: 33 if x == "sanger" else 64
 

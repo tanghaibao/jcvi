@@ -20,8 +20,7 @@ from jcvi.algorithms.matrix import moving_sum
 from jcvi.graphics.base import plt, Rectangle, CirclePolygon, savefig, \
             ticker, human_readable_base, tex_formatter
 from jcvi.utils.cbook import human_size, autoscale
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
 # Colors picked from Schmutz soybean genome paper using ColorPic

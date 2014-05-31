@@ -16,9 +16,8 @@ from jcvi.formats.base import must_open, BaseFile
 from jcvi.utils.grouper import Grouper
 from jcvi.utils.cbook import gene_name
 from jcvi.compara.synteny import AnchorFile, check_beds
-from jcvi.apps.base import OptionParser, debug, glob, \
-        ActionDispatcher, need_update, sh, mkdir
-debug()
+from jcvi.apps.base import OptionParser, glob, ActionDispatcher, \
+            need_update, sh, mkdir
 
 
 class OMGFile (BaseFile):
@@ -28,6 +27,7 @@ class OMGFile (BaseFile):
         fp = open(filename)
         inblock = False
         components = []
+        component = []
         for row in fp:
             if inblock:
                 atoms = row.split()

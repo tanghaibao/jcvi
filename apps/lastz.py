@@ -10,8 +10,7 @@ from multiprocessing import Lock, Pool
 
 from jcvi.formats.base import must_open
 from jcvi.apps.grid import Jobs
-from jcvi.apps.base import OptionParser, debug, mkdir, Popen
-debug()
+from jcvi.apps.base import OptionParser, mkdir, Popen
 
 
 # LASTZ options

@@ -10,8 +10,7 @@ import sys
 
 from jcvi.formats.fasta import Fasta
 from jcvi.utils.cbook import depends, percentage
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh
 
 
 @depends

@@ -12,8 +12,7 @@ import sys
 
 from itertools import groupby
 
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
 def main():

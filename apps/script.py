@@ -6,8 +6,8 @@ import sys
 import logging
 
 from jcvi.formats.base import write_file
-from jcvi.apps.base import OptionParser, debug
-debug()
+from jcvi.apps.base import OptionParser
+
 
 default_template = """
 \"\"\"
@@ -16,8 +16,7 @@ default_template = """
 
 import sys
 
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
 def main():
@@ -57,8 +56,7 @@ import sys
 import logging
 
 from jcvi.graphics.base import plt, savefig, normalize_axes
-from jcvi.apps.base import OptionParser, debug
-debug()
+from jcvi.apps.base import OptionParser
 
 
 def main():

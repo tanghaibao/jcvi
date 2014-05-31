@@ -18,8 +18,7 @@ from jcvi.graphics.karyotype import Karyotype
 from jcvi.graphics.synteny import Synteny
 from jcvi.graphics.coverage import Coverage, Sizes, XYtrack, setup_gauge_ax
 from jcvi.formats.base import LineFile
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
 template_cov = """# y, xstart, xend, rotation, color, label, va, bed

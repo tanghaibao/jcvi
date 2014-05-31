@@ -28,10 +28,9 @@ import string
 from random import sample
 
 from jcvi.compara.synteny import batch_scan, check_beds
-from jcvi.apps.base import OptionParser, debug
+from jcvi.apps.base import OptionParser
 from jcvi.graphics.base import plt, Rectangle, cm, set_human_axis, savefig, \
             draw_cmap
-debug()
 
 
 class Palette (dict):

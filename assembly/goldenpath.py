@@ -17,16 +17,13 @@ from copy import deepcopy
 from itertools import groupby
 
 from jcvi.formats.agp import AGP, TPF, get_phase, reindex, tidy, build
-from jcvi.formats.base import BaseFile
+from jcvi.formats.base import BaseFile, must_open
 from jcvi.formats.fasta import Fasta, SeqIO
 from jcvi.formats.blast import BlastSlow, BlastLine
 from jcvi.formats.coords import Overlap_types
-from jcvi.formats.base import must_open
 from jcvi.utils.cbook import memoized
 from jcvi.apps.entrez import fetch
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug, popen, mkdir, sh, \
-            need_update
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher, popen, mkdir, sh, need_update
 
 
 GoodPct = 98

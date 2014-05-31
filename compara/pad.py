@@ -24,8 +24,7 @@ from jcvi.utils.iter import pairwise
 from jcvi.compara.synteny import AnchorFile, check_beds
 from jcvi.formats.bed import Bed
 from jcvi.formats.blast import BlastLine
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug, need_update, sh
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh
 
 
 def main():

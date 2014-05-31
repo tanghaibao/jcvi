@@ -10,7 +10,6 @@ import sys
 import logging
 
 from copy import deepcopy
-from collections import defaultdict
 
 from jcvi.formats.fasta import gaps
 from jcvi.formats.sizes import Sizes
@@ -18,8 +17,7 @@ from jcvi.formats.base import BaseFile, read_block, write_file
 from jcvi.formats.agp import AGP, AGPLine, reindex, tidy
 from jcvi.utils.iter import pairwise
 from jcvi.algorithms.graph import BiGraph, BiEdge
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
 NO_UPDATE, INSERT_BEFORE, INSERT_AFTER, INSERT_BETWEEN = \

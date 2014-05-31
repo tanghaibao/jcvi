@@ -16,8 +16,7 @@ from jcvi.formats.sizes import Sizes
 from jcvi.utils.grouper import Grouper
 from jcvi.utils.orderedcollections import OrderedDict
 from jcvi.utils.range import range_distance
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh, popen
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh, popen
 
 
 class BlastLine(object):
@@ -92,7 +91,7 @@ class BlastLine(object):
         elif selfrule == "loose":
             return self.query==self.subject
         else:
-            sys.exit(is_self_hit.__doc__)
+            sys.exit(1)
 
 
 class BlastSlow (LineFile):

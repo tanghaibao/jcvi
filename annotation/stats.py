@@ -14,9 +14,7 @@ from jcvi.utils.cbook import SummaryStats, percentage
 from jcvi.utils.table import tabulate
 from jcvi.formats.gff import make_index
 from jcvi.formats.base import DictFile
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug, mkdir, \
-            need_update
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, need_update
 
 
 metrics = ("Exon_Length", "Intron_Length", "Gene_Length", "Exon_Count")

@@ -23,11 +23,10 @@ from jcvi.compara.synteny import BlockFile
 from jcvi.formats.bed import Bed
 from jcvi.formats.base import LineFile, DictFile
 from jcvi.utils.cbook import human_size
-from jcvi.apps.base import OptionParser, debug
+from jcvi.apps.base import OptionParser
 
 from jcvi.graphics.glyph import Glyph, RoundLabel
 from jcvi.graphics.base import plt, Affine2D, Path, PathPatch, savefig, markup
-debug()
 
 
 class LayoutLine (object):

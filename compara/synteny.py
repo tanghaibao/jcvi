@@ -14,8 +14,7 @@ from jcvi.formats.base import BaseFile, SetFile, read_block, must_open
 from jcvi.utils.grouper import Grouper
 from jcvi.utils.cbook import gene_name
 from jcvi.utils.range import Range, range_chain
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
 class AnchorFile (BaseFile):

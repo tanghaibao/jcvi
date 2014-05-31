@@ -14,8 +14,7 @@ from string import maketrans
 
 from jcvi.utils.iter import pairwise
 from jcvi.formats.base import must_open
-from jcvi.apps.base import debug
-debug()
+
 
 """
 Bidirectional graph.

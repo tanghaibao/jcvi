@@ -17,8 +17,7 @@ from itertools import combinations
 
 from jcvi.formats.base import FileShredder, must_open
 from jcvi.utils.iter import pairwise
-from jcvi.apps.base import mkdir, debug, which, sh
-debug()
+from jcvi.apps.base import mkdir, which, sh
 
 
 INF = 1000

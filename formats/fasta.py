@@ -19,8 +19,7 @@ from jcvi.formats.base import BaseFile, DictFile, must_open
 from jcvi.formats.bed import Bed
 from jcvi.utils.table import write_csv
 from jcvi.apps.console import red, green
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug, need_update
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher, need_update
 
 
 class Fasta (BaseFile, dict):

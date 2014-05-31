@@ -14,8 +14,7 @@ from Bio import SeqIO
 
 from jcvi.formats.base import LineFile
 from jcvi.formats.sizes import Sizes
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, debug, need_update
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update
 
 
 class CasTabLine (LineFile):

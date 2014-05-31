@@ -19,8 +19,7 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
 from jcvi.utils.cbook import percentage
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
 class Message (list):

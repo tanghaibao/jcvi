@@ -14,8 +14,7 @@ from collections import defaultdict
 
 from jcvi.formats.fasta import ids
 from jcvi.formats.base import write_file
-from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, debug, sh
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh
 
 
 EVMRUN = r"""

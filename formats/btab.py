@@ -13,8 +13,7 @@ import sys
 
 from jcvi.formats.base import LineFile, must_open
 from jcvi.formats.gff import valid_gff_type
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
 class BtabLine (object):

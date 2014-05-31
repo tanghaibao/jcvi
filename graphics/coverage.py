@@ -17,8 +17,7 @@ import numpy as np
 from jcvi.formats.sizes import Sizes
 from jcvi.graphics.base import plt, savefig, Rectangle, mb_formatter, \
             mb_float_formatter, adjust_spines
-from jcvi.apps.base import OptionParser, debug, glob
-debug()
+from jcvi.apps.base import OptionParser, glob
 
 
 class XYtrack (object):

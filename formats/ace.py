@@ -14,9 +14,8 @@ from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug
+from jcvi.apps.base import OptionParser, ActionDispatcher
 from jcvi.formats.base import must_open
-debug()
 
 
 def main():

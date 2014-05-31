@@ -12,10 +12,9 @@ from bx import interval_index_file
 from bx.align import maf
 
 from jcvi.formats.base import BaseFile
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug, need_update
+from jcvi.apps.base import OptionParser, ActionDispatcher, need_update
 from jcvi.apps.lastz import blastz_score_to_ncbi_expectation, \
             blastz_score_to_ncbi_bits
-debug()
 
 
 class Maf (BaseFile, dict):

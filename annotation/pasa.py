@@ -10,8 +10,7 @@ import sys
 import logging
 
 from jcvi.formats.base import write_file
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
 def main():

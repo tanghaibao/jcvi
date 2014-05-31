@@ -31,8 +31,7 @@ from jcvi.formats.blast import BlastLine
 from jcvi.utils.grouper import Grouper
 from jcvi.utils.cbook import gene_name
 from jcvi.compara.synteny import check_beds
-from jcvi.apps.base import OptionParser, debug
-debug()
+from jcvi.apps.base import OptionParser
 
 
 def blastfilter_main(blast_file, p, opts):

@@ -14,8 +14,7 @@ from itertools import combinations
 from jcvi.formats.base import BaseFile, LineFile, must_open, read_block
 from jcvi.formats.bed import Bed, fastaFromBed
 from jcvi.utils.counter import Counter
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug, need_update
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher, need_update
 
 
 class BinMap (BaseFile, dict):

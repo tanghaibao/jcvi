@@ -7,8 +7,7 @@ Machine learning algorithms.
 
 import sys
 
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
 def main():

@@ -13,11 +13,9 @@ import logging
 
 from collections import namedtuple
 from itertools import groupby
-from jcvi.apps.base import OptionParser
 
+from jcvi.apps.base import OptionParser
 from jcvi.formats.base import BaseFile
-from jcvi.apps.base import debug
-debug()
 
 
 GTRLine = namedtuple("GTRLine", "parent left_child right_child dist")

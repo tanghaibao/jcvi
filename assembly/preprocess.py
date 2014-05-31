@@ -14,9 +14,8 @@ from jcvi.formats.base import BaseFile, write_file
 from jcvi.formats.fastq import guessoffset
 from jcvi.utils.cbook import depends, human_size
 from jcvi.utils.data import Adapters
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug, download, \
+from jcvi.apps.base import OptionParser, ActionDispatcher, download, \
             sh, mkdir, need_update
-debug()
 
 
 class FastQCdata (BaseFile, dict):

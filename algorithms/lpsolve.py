@@ -35,9 +35,8 @@ import networkx as nx
 from jcvi.utils.cbook import fill
 from jcvi.utils.iter import pairwise
 from jcvi.formats.base import flexible_cast
-from jcvi.apps.base import sh, mkdir, debug
+from jcvi.apps.base import sh, mkdir
 from jcvi.algorithms.tsp import populate_edge_weights, node_to_edge
-debug()
 
 
 Work_dir = "lpsolve_work"

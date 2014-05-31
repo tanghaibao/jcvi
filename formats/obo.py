@@ -12,8 +12,7 @@ import logging
 
 from collections import deque
 from jcvi.formats.base import read_until
-from jcvi.apps.base import debug
-debug()
+
 
 typedef_tag, term_tag = "[Typedef]", "[Term]"
 

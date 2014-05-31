@@ -23,8 +23,7 @@ from jcvi.formats.sizes import Sizes
 from jcvi.utils.cbook import depends
 from jcvi.assembly.base import n50
 from jcvi.apps.align import run_megablast
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh, mkdir, need_update
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh, mkdir, need_update
 
 
 def main():

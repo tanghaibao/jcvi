@@ -10,8 +10,8 @@ import sys
 import string
 import logging
 
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher
+
 
 NameTemplate = """        {{
           name name {{

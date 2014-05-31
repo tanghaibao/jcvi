@@ -15,8 +15,7 @@ import logging
 import os
 import os.path as op
 
-from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher, sh, debug
-debug()
+from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher, sh
 
 
 def main():

@@ -17,8 +17,7 @@ from jcvi.formats.bed import Bed
 from jcvi.formats.base import must_open
 from jcvi.utils.range import range_chain, range_parse, Range
 from jcvi.utils.iter import pairwise
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
 class OpticalMap (object):

@@ -15,9 +15,7 @@ from jcvi.formats.base import BaseFile
 from jcvi.utils.cbook import percentage
 from jcvi.formats.sam import output_bam, get_prefix, get_samfile
 from jcvi.apps.softlink import get_abs_path
-from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, \
-                sh, debug
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh
 
 
 first_tag = lambda fp: fp.next().split()[0]

@@ -13,8 +13,7 @@ import logging
 
 from jcvi.utils.cbook import depends
 from jcvi.apps.softlink import get_abs_path
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh
 
 
 @depends

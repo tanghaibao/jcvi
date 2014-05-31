@@ -409,8 +409,6 @@ def ConfigSectionMap(Config, section):
     Read a specific section from a ConfigParser() object and return
     a dict() of all key-value pairs in that section
     """
-    debug()
-
     cfg = {}
     options = Config.options(section)
     for option in options:
@@ -711,8 +709,9 @@ def debug():
     format += magenta(" %(message)s")
     logging.basicConfig(level=logging.DEBUG,
             format=format,
-            datefmt="%H:%M:%S",
-            )
+            datefmt="%H:%M:%S")
+
+debug()
 
 
 def main():
@@ -758,8 +757,6 @@ def expand(args):
     Move files in subfolders into the current folder. Use --symlink to create a
     link instead.
     """
-    debug()
-
     p = OptionParser(expand.__doc__)
     p.add_option("--symlink", default=False, action="store_true",
                  help="Create symbolic link [default: %default]")
@@ -1116,7 +1113,6 @@ def notify(args):
     """
     from jcvi.utils.iter import flatten
 
-    debug()
     valid_notif_methods.extend(available_push_api.keys())
 
     fromaddr, toaddr = get_email_address()
@@ -1184,7 +1180,6 @@ def waitpid(args):
     Specify "--notify=METHOD` to send the user a notification after waiting for PID
     Specify `--grid` option to send the new process to the grid after waiting for PID
     """
-    debug()
     import shlex
     from time import sleep
     from jcvi.utils.iter import flatten

@@ -13,8 +13,8 @@ import sys
 import re
 import logging
 
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug, mkdir, glob
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, glob
+
 
 ##### Compiled RegExps #####
 # Cellular locations

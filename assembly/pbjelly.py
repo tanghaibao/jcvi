@@ -12,9 +12,7 @@ import os.path as op
 import sys
 import logging
 
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh, \
-            which, glob
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh, which
 
 
 class Protocol (object):

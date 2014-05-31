@@ -16,8 +16,8 @@ from Bio import SeqIO
 from jcvi.utils.cbook import memoized
 from jcvi.utils.orderedcollections import parse_qs
 from jcvi.formats.base import DictFile
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, mkdir, debug, glob
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh, mkdir, glob
+
 
 """
 GSS submission template files

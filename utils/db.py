@@ -12,12 +12,11 @@ import logging
 import re
 
 from jcvi.formats.base import must_open
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, debug, getusername
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh, getusername
+from jcvi.utils.cbook import AutoVivification
 
 
 # set up valid database connection params
-from jcvi.utils.cbook import AutoVivification
 valid_dbconn = AutoVivification()
 for (dbconn, port, module, host) in zip(("Sybase", "MySQL", "PostgreSQL"), \
         (2025, 3306, 5432), \

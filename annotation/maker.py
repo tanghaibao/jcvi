@@ -19,8 +19,7 @@ from jcvi.formats.base import BaseFile, LineFile, write_file
 from jcvi.apps.softlink import get_abs_path
 from jcvi.apps.grid import GridProcess, get_grid_engine
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, popen, \
-            debug, sh, mkdir, glob
-debug()
+            sh, mkdir, glob
 
 
 class CTLine (object):

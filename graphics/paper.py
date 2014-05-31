@@ -18,8 +18,7 @@ from jcvi.graphics.chromosome import Chromosome
 from jcvi.graphics.karyotype import Karyotype
 from jcvi.graphics.synteny import Synteny, draw_gene_legend
 from jcvi.utils.iter import pairwise
-from jcvi.apps.base import OptionParser, ActionDispatcher, fname, debug
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher, fname
 
 
 def main():

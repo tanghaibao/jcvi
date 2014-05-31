@@ -12,8 +12,7 @@ import logging
 from collections import defaultdict
 
 from jcvi.formats.base import LineFile, read_block
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh
 
 
 class ClstrLine (object):

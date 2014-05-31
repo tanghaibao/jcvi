@@ -12,8 +12,7 @@ Library dependency: xlutils
 import sys
 
 from xlrd import open_workbook
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
 def main():

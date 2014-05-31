@@ -16,8 +16,7 @@ from itertools import groupby
 
 from jcvi.formats.sizes import Sizes
 from jcvi.formats.base import BaseFile, must_open
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
 class BinFile (BaseFile):

@@ -11,8 +11,7 @@ import logging
 from Bio.Restriction.Restriction import AllEnzymes, Analysis
 
 from jcvi.formats.fasta import Fasta, SeqRecord, SeqIO
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
 def main():

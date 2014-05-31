@@ -17,12 +17,9 @@ import sys
 import logging
 
 from jcvi.apps.base import OptionParser
-
 from jcvi.formats.blast import BlastLine
 from jcvi.formats.coords import CoordsLine
 from jcvi.utils.range import Range, range_chain
-from jcvi.apps.base import debug
-debug()
 
 
 def BlastOrCoordsLine(filename, filter="ref", dialect="blast", clip=0):

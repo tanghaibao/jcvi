@@ -10,9 +10,8 @@ import os.path as op
 import sys
 import logging
 
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug, mkdir, \
+from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, \
             sh, need_update
-debug()
 
 
 def main():

@@ -10,8 +10,7 @@ import sys
 
 from jcvi.formats.fastq import guessoffset, readlen
 from jcvi.assembly.base import FastqNamings, Library, get_libs
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug, need_update, sh
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh
 
 
 class FillLine (object):

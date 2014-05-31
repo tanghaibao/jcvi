@@ -14,8 +14,7 @@ from jcvi.formats.base import must_open
 from jcvi.formats.bed import BedLine, pairs
 from jcvi.formats.sizes import Sizes
 from jcvi.utils.iter import pairwise
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
 class LinkLine (object):

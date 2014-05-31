@@ -16,8 +16,7 @@ from jcvi.utils.range import range_minmax, range_overlap, range_distance
 from jcvi.utils.cbook import gene_name
 from jcvi.utils.grouper import Grouper
 from jcvi.compara.synteny import check_beds
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh
 
 
 def main():

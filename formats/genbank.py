@@ -18,9 +18,7 @@ from Bio.Seq import Seq
 from jcvi.formats.base import must_open, FileShredder, BaseFile
 from jcvi.formats.gff import GffLine
 from jcvi.apps.entrez import fetch
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, mkdir, \
-            debug, glob
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh, mkdir, glob
 
 
 MT = "mol_type"

@@ -11,8 +11,7 @@ from multiprocessing import Process, Queue, cpu_count
 
 from jcvi.formats.base import write_file, must_open
 from jcvi.apps.base import OptionParser, ActionDispatcher, popen, backup, \
-            mkdir, debug, sh, listify
-debug()
+            mkdir, sh, listify
 
 
 class Dependency (object):

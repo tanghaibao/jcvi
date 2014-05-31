@@ -8,9 +8,6 @@ Matrix related subroutines
 import math
 import numpy as np
 
-from jcvi.apps.base import debug
-debug()
-
 
 is_symmetric = lambda M: (M.T == M).all()
 

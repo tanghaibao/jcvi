@@ -11,8 +11,7 @@ import logging
 from BeautifulSoup import BeautifulSoup
 from urlparse import urljoin
 
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug, download
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher, download
 
 
 def main():

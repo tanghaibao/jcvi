@@ -18,8 +18,7 @@ from Bio import SeqIO
 from jcvi.utils.cbook import depends
 from jcvi.apps.grid import Jobs
 from jcvi.formats.base import must_open
-from jcvi.apps.base import OptionParser, debug, sh, Popen, PIPE
-debug()
+from jcvi.apps.base import OptionParser, sh, Popen, PIPE
 
 
 @depends

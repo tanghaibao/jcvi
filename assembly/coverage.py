@@ -19,8 +19,7 @@ from jcvi.formats.fasta import gaps
 from jcvi.formats.sizes import Sizes
 from jcvi.formats.posmap import query, bed
 from jcvi.formats.bed import BedLine
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, debug, need_update
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update
 
 
 class Coverage (BaseFile):

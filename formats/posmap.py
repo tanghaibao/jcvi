@@ -17,8 +17,7 @@ from collections import namedtuple, defaultdict
 from itertools import groupby
 
 from jcvi.formats.base import BaseFile, LineFile
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, debug
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh
 
 
 class MateLine (object):

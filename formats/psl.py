@@ -8,11 +8,9 @@ Classes to handle the .psl files
 import sys
 import math
 import re
-import logging
 
 from jcvi.formats.base import LineFile, must_open
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
 class PslLine(object):
@@ -48,7 +46,7 @@ class PslLine(object):
         self.qStarts = [int(x) for x in args[19].strip().split(',')[:-1]]
         self.tStarts = [self.tSize - int(x) if self.strand == "-" \
                 else int(x) for x in args[20].strip().split(',')[:-1]]
-        
+
     def __str__(self):
         args = [self.matches, self.misMatches, self.repMatches, \
                 self.nCount, self.qNumInsert, self.qBaseInsert, \
@@ -140,7 +138,7 @@ class PslLine(object):
     def pct_id(self, simple=None):
         return 100.00 - self._milliBad(ismRNA=True) * 0.1 if not simple \
                 else 100.00 * self.matches / (self.matches + self.misMatches)
-                #else 100.00 * self.score / self.qSize    
+                #else 100.00 * self.score / self.qSize
 
     def gffline(self, source="GMAP", type="match_part", primary_tag="Parent", \
            alt_score=None, suffix=".match", count=0):
@@ -148,7 +146,7 @@ class PslLine(object):
         score = "." if type == "match_part" else "{0:.2f}".format(self.score)
 
         target = " ".join(str(x) for x in [self.qName, self.qStart, self.qEnd])
-        
+
         attributes = [primary_tag + "=" + self.qName + suffix + str(count), "Target=" + target]
         if primary_tag == "ID":
             attributes.extend(["identity={0:.2f}".format(self.pct_id(simple=alt_score)),\

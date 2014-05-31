@@ -23,9 +23,7 @@ from jcvi.formats.blast import Blast
 from jcvi.utils.range import range_minmax
 from jcvi.utils.table import tabulate
 from jcvi.apps.softlink import get_abs_path
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update, \
-            debug, glob
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update, glob
 
 
 def main():

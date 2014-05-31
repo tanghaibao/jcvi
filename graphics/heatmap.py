@@ -27,9 +27,8 @@ import sys
 import numpy as np
 from itertools import groupby
 
-from jcvi.graphics.base import plt, cm, _, LogNorm, savefig
-from jcvi.apps.base import OptionParser, debug
-debug()
+from jcvi.graphics.base import plt, cm, LogNorm, savefig
+from jcvi.apps.base import OptionParser
 
 
 def parse_csv(csvfile, vmin=0, groups=False):
@@ -121,7 +120,7 @@ def main():
     else:
         axcolor = fig.add_axes([.9, .3, .02, .4])
         orientation = "vertical"
-    fig.colorbar(im, cax=axcolor, ticks=t, format=_("%d"), orientation=orientation)
+    fig.colorbar(im, cax=axcolor, ticks=t, orientation=orientation)
 
     if groups:
         groups = [(key, len(list(nn))) for key, nn in groupby(groups)]

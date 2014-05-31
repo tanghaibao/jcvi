@@ -17,8 +17,8 @@ from collections import defaultdict
 
 from jcvi.graphics.base import asciiplot
 from jcvi.apps.r import RTemplate
-from jcvi.apps.base import OptionParser, debug
-debug()
+from jcvi.apps.base import OptionParser
+
 
 histogram_header = """
 library(ggplot2)

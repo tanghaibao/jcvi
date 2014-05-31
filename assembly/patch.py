@@ -23,7 +23,7 @@ from itertools import groupby
 from collections import defaultdict
 
 from jcvi.formats.bed import Bed, BedLine, complementBed, mergeBed, \
-        fastaFromBed, summary
+            fastaFromBed, summary
 from jcvi.formats.blast import BlastSlow
 from jcvi.formats.sizes import Sizes
 from jcvi.utils.range import range_parse, range_distance, ranges_depth, \
@@ -31,8 +31,7 @@ from jcvi.utils.range import range_parse, range_distance, ranges_depth, \
             range_interleave
 from jcvi.utils.iter import roundrobin
 from jcvi.formats.base import FileMerger, FileShredder
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh
 
 
 def main():

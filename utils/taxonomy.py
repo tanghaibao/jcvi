@@ -35,8 +35,7 @@ from ClientForm import ParseResponse
 from BeautifulSoup import BeautifulSoup
 
 from jcvi.utils.cbook import memoized
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
 URL = "http://itol.embl.de/other_trees.shtml"

@@ -30,9 +30,7 @@ from jcvi.utils.counter import Counter
 from jcvi.utils.grouper import Grouper
 from jcvi.utils.iter import flatten
 from jcvi.utils.table import tabulate
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh, \
-            need_update
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update
 
 
 START, END = "START", "END"

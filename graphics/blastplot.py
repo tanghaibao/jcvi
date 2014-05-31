@@ -22,9 +22,8 @@ from random import sample
 from jcvi.formats.blast import BlastLine
 from jcvi.formats.sizes import Sizes
 from jcvi.formats.bed import Bed, BedLine
-from jcvi.apps.base import OptionParser, debug
+from jcvi.apps.base import OptionParser
 from jcvi.graphics.base import plt, Rectangle, set_human_base_axis, savefig
-debug()
 
 
 DotStyles = ("line", "circle", "dot")

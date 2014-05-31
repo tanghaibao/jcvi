@@ -15,8 +15,7 @@ from itertools import izip_longest
 
 from jcvi.compara.synteny import AnchorFile, check_beds
 from jcvi.formats.bed import Bed
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
 def main():

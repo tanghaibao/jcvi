@@ -14,8 +14,7 @@ import os
 import sys
 
 from jcvi.formats.base import FileMerger, write_file
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug, mkdir, glob
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, glob
 
 
 def main():

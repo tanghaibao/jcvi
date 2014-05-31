@@ -18,9 +18,8 @@ from itertools import groupby
 from jcvi.formats.bed import Bed, BedLine, sort
 from jcvi.formats.base import SetFile, must_open
 from jcvi.utils.cbook import number
-from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher, debug, \
+from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher, \
             need_update, popen, sh
-debug()
 
 
 FRAME, RETAIN, OVERLAP, NEW = "FRAME", "RETAIN", "OVERLAP", "NEW"

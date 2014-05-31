@@ -10,9 +10,9 @@ import sys
 
 import numpy as np
 
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug
+from jcvi.apps.base import OptionParser, ActionDispatcher
 from jcvi.graphics.base import plt, Rectangle, CirclePolygon, Polygon, savefig
-debug()
+
 
 tstep = .05
 Timing = np.arange(0, 1 + tstep, tstep)

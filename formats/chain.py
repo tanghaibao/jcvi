@@ -27,8 +27,7 @@ import sys
 import logging
 
 from jcvi.formats.base import BaseFile, read_block
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug, sh, need_update
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update
 
 
 class ChainLine (object):

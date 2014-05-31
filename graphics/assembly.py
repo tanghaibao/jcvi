@@ -14,11 +14,10 @@ from jcvi.formats.fasta import Fasta
 from jcvi.formats.bed import Bed, BedLine
 from jcvi.formats.sizes import Sizes
 from jcvi.assembly.base import calculate_A50
-from jcvi.assembly.coverage import BedLine, Coverage
+from jcvi.assembly.coverage import Coverage
 from jcvi.graphics.base import plt, Rectangle, set_human_base_axis, savefig
 from jcvi.utils.cbook import thousands
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug, need_update
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher, need_update
 
 
 def main():

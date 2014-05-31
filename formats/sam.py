@@ -16,9 +16,7 @@ from jcvi.formats.fasta import Fasta
 from jcvi.formats.sizes import Sizes
 from jcvi.utils.cbook import fill
 from jcvi.assembly.base import Astat
-from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh, \
-            debug, mkdir, glob
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh, mkdir, glob
 
 
 class SamLine (object):

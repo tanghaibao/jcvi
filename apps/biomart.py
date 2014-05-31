@@ -9,8 +9,7 @@ import logging
 
 from xml.etree.ElementTree import ElementTree, Element, SubElement, tostring
 
-from jcvi.apps.base import OptionParser, ActionDispatcher, debug
-debug()
+from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
 class MartXMLParser(ElementTree):

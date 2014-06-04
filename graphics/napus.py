@@ -12,7 +12,7 @@ import logging
 import numpy as np
 
 from jcvi.graphics.base import plt, Rectangle, savefig, mpl, \
-            adjust_spines, FancyArrowPatch
+            adjust_spines, FancyArrowPatch, normalize_axes, panel_labels
 from jcvi.graphics.glyph import TextCircle
 from jcvi.graphics.karyotype import Karyotype
 from jcvi.graphics.synteny import Synteny
@@ -28,10 +28,10 @@ template_cov = """# y, xstart, xend, rotation, color, label, va, bed
 e, 0, 1, AN.CN.1x1.lifted.simple
 """
 template_f3a = r"""# y, xstart, xend, rotation, color, label, va, bed
-.8, {0}, {1}, 0, gainsboro, \textit{{B. napus}} A$\mathsf{{_n}}$2, top, AN.bed
-.6, {2}, {3}, 0, gainsboro, \textit{{B. rapa}} A$\mathsf{{_r}}$2, top, brapa.bed
-.4, {4}, {5}, 0, gainsboro, \textit{{B. oleracea}} C$\mathsf{{_o}}$2, top, boleracea.bed
-.2, {6}, {7}, 0, gainsboro, \textit{{B. napus}} C$\mathsf{{_n}}$2, top, CN.bed
+.65, {0}, {1}, 0, gainsboro, \textit{{B. napus}} A$\mathsf{{_n}}$2, top, AN.bed
+.55, {2}, {3}, 0, gainsboro, \textit{{B. rapa}} A$\mathsf{{_r}}$2, top, brapa.bed
+.45, {4}, {5}, 0, gainsboro, \textit{{B. oleracea}} C$\mathsf{{_o}}$2, top, boleracea.bed
+.35, {6}, {7}, 0, gainsboro, \textit{{B. napus}} C$\mathsf{{_n}}$2, top, CN.bed
 # edges
 e, 0, 1, AN.brapa.1x1.lifted.simple
 e, 1, 2, brapa.boleracea.1x1.lifted.simple
@@ -76,8 +76,8 @@ def main():
         ('expr', 'plot expression values between homeologs (requires data)'),
         ('cov', 'plot coverage graphs between homeologs (requires data)'),
         ('deletion', 'plot histogram for napus deletions (requires data)'),
-        ('f3a', 'plot figure-3a'),
-        ('f4a', 'plot figure-4a'),
+        ('fig3', 'plot Figure-3'),
+        ('fig4', 'plot Figure-4 (not in main text)'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -170,9 +170,9 @@ def cov(args):
     i = 0
     for c1, s1 in zip(chr1, chr_sizes1):
         w1 = ratio * s1
-        canvas1 = (w1s, .6, w1, .3)
         plot_label = i == 0
         i += 1
+        canvas1 = (w1s, .6, w1, .3)
         Coverage(fig, root, canvas1, c1, (0, s1), datadir,
                      order=order, gauge="top", plot_label=plot_label,
                      gauge_step=opts.gauge_step, palette=dsg,
@@ -182,9 +182,9 @@ def cov(args):
     i = 0
     for c2, s2 in zip(chr2, chr_sizes2):
         w2 = ratio * s2
-        canvas2 = (w2s, .15, w2, .3)
         plot_label = i == 0
         i += 1
+        canvas2 = (w2s, .15, w2, .3)
         Coverage(fig, root, canvas2, c2, (0, s2), datadir,
                      order=order, gauge="bottom", plot_label=plot_label,
                      gauge_step=opts.gauge_step, palette=dsg,
@@ -244,19 +244,19 @@ def make_affix_axis(fig, t, yoffset, height=.001):
     return ax
 
 
-def f3a(args):
+def fig3(args):
     """
-    %prog f3a chrA02,A02,C2,chrC02 chr.sizes all.bed data
+    %prog fig3 chrA02,A02,C2,chrC02 chr.sizes all.bed data
 
-    Napus Figure 3A displays alignments between quartet chromosomes, inset
+    Napus Figure 3 displays alignments between quartet chromosomes, inset
     with read histograms.
     """
     from jcvi.formats.bed import Bed
 
-    p = OptionParser(f3a.__doc__)
+    p = OptionParser(fig3.__doc__)
     p.add_option("--gauge_step", default=10000000, type="int",
                 help="Step size for the base scale")
-    opts, args, iopts = p.set_image_options(args, figsize="10x6")
+    opts, args, iopts = p.set_image_options(args, figsize="12x9")
 
     if len(args) != 4:
         sys.exit(not p.print_help())
@@ -274,7 +274,7 @@ def f3a(args):
     # Synteny panel
     seqidsfile = make_seqids(chrs)
     klayout = make_layout(chrs, chr_sum_sizes, ratio, template_f3a)
-    height = .11
+    height = .07
     r = height / 4
     K = Karyotype(fig, root, seqidsfile, klayout, gap=gap,
                   height=height, lw=2, generank=False, sizes=sizes,
@@ -329,22 +329,44 @@ def f3a(args):
         root.scatter([.8], [.8], s=20, color="g")
         root.scatter([.8], [.77], s=20, color="r")
 
-    root.set_xlim(0, 1)
-    root.set_ylim(0, 1)
-    root.set_axis_off()
+    # Plot coverage in resequencing lines
+    gstep = 5000000
+    order = "swede,kale,h165,yudal,aviso,abu,bristol,bzh".split(",")
+    hlsuffix = "regions.forhaibao"
+    chr1, chr2 = "chrA02", "chrC02"
+    t1, t2 = tracks[0], tracks[-1]
+    s1, s2 = sizes[chr1], sizes[chr2]
 
-    image_name = "napusf3a." + iopts.format
+    canvas1 = (t1.xstart, .73, t1.xend - t1.xstart, .2)
+    Coverage(fig, root, canvas1, chr1, (0, s1), datadir,
+                 order=order, gauge="top", plot_chr_label=False,
+                 gauge_step=gstep, palette="gray",
+                 cap=40, hlsuffix=hlsuffix)
+
+    canvas2 = (t2.xstart, .07, t2.xend - t2.xstart, .2)
+    Coverage(fig, root, canvas2, chr2, (0, s2), datadir,
+                 order=order, gauge="bottom", plot_chr_label=False,
+                 gauge_step=gstep, palette="gray",
+                 cap=40, hlsuffix=hlsuffix)
+
+    pad = .04
+    labels = ((.1, .67, "A"), (t1.xstart - pad, .93 + pad, "B"),
+              (t2.xstart - pad, .27 + pad, "C"))
+    panel_labels(root, labels)
+    normalize_axes(root)
+
+    image_name = "napus-fig3." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
-def f4a(args):
+def fig4(args):
     """
-    %prog f4a layout data
+    %prog fig4 layout data
 
     Napus Figure 4A displays an example deleted region for quartet chromosomes,
     showing read alignments from high GL and low GL lines.
     """
-    p = OptionParser(f4a.__doc__)
+    p = OptionParser(fig4.__doc__)
     p.add_option("--gauge_step", default=200000, type="int",
                 help="Step size for the base scale")
     opts, args, iopts = p.set_image_options(args, figsize="9x7")
@@ -400,7 +422,7 @@ def f4a(args):
     root.set_ylim(0, 1)
     root.set_axis_off()
 
-    image_name = "napusf4a." + iopts.format
+    image_name = "napus-fig4." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 

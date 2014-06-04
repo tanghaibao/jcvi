@@ -145,8 +145,10 @@ class Coverage (object):
             root.text(x + w / 2, tpos, chr, ha="center", va="center",
                       color="darkslategray", size=16)
 
+        yys = []
         for label, datafile, c in zip(order, datafiles, set2):
             yy -= yinterval
+            yys.append(yy)
             ax = fig.add_axes([x, yy, w, yinterval * .9])
             xy = XYtrack(ax, datafile, color=c)
             xy.interpolate(end)
@@ -163,6 +165,8 @@ class Coverage (object):
                             ha="right", va="center")
             xy.draw()
             ax.set_xlim(*xlim)
+
+        self.yys = yys
 
 
 def setup_gauge_ax(gauge_ax, start, end, gauge_step, float_formatter=False):

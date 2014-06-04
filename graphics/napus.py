@@ -90,10 +90,10 @@ def calc_ratio(chrs, sizes):
     return chr_sizes, chr_sum_sizes, ratio
 
 
-def center_panel(chr, chr_size, ratio, gap=gap):
+def center_panel(chr, chr_size, ratio, gap=gap, shift=0):
     # Center two panels
     w = (ratio * chr_size + (len(chr) - 1) * gap) / 2
-    return .5 - w, .5 + w
+    return .5 - w + shift, .5 + w + shift
 
 
 def make_seqids(chrs, seqidsfile="seqids"):
@@ -106,10 +106,10 @@ def make_seqids(chrs, seqidsfile="seqids"):
     return seqidsfile
 
 
-def make_layout(chrs, chr_sizes, ratio, template, klayout="layout"):
+def make_layout(chrs, chr_sizes, ratio, template, klayout="layout", shift=0):
     coords = []
     for chr, chr_size in zip(chrs, chr_sizes):
-        coords.extend(center_panel(chr, chr_size, ratio))
+        coords.extend(center_panel(chr, chr_size, ratio, shift=shift))
 
     klayout = "layout"
     fw = open(klayout, "w")
@@ -273,7 +273,7 @@ def fig3(args):
 
     # Synteny panel
     seqidsfile = make_seqids(chrs)
-    klayout = make_layout(chrs, chr_sum_sizes, ratio, template_f3a)
+    klayout = make_layout(chrs, chr_sum_sizes, ratio, template_f3a, shift=.05)
     height = .07
     r = height / 4
     K = Karyotype(fig, root, seqidsfile, klayout, gap=gap,
@@ -287,9 +287,10 @@ def fig3(args):
         lx, ly = kl.xstart, kl.y
         if lx < .11:
             lx += .1
-            ly += .065
+            ly += .06
         label = kl.label
-        root.text(lx - .02, ly, label, ha="right", va="center")
+        root.text(lx - .015, ly, label, fontsize=15,
+                  ha="right", va="center")
 
     # Inset with datafiles
     datafiles = ("chrA02.bzh.forxmgr", "parent.A02.per10kb.forxmgr",
@@ -297,8 +298,10 @@ def fig3(args):
     datafiles = [op.join(datadir, x) for x in datafiles]
     tracks = K.tracks
     hlfile = op.join(datadir, "bzh.regions.forhaibao")
+    xy_axes = []
     for t, datafile in zip(tracks, datafiles):
         ax = make_affix_axis(fig, t, -r, height=2 * r)
+        xy_axes.append(ax)
         chr = t.seqids[0]
         xy = XYtrack(ax, datafile, color="lightslategray")
         start, end = 0, t.total
@@ -326,6 +329,31 @@ def fig3(args):
         conversion_track(order, "data/Genes.Converted.seuil.0.6.CtoA.txt",
                          1, "C2", ax_Co, "r", ypos=1, asterisk=asterisk)
 
+    Ar, Co = xy_axes[1:3]
+    annotations = ((Ar, "Bra028920 Bra028897", "center", "1DAn2+"),
+                   (Ar, "Bra020081 Bra020171", "right", "2DAn2+"),
+                   (Ar, "Bra020218 Bra020286", "left", "3DAn2+"),
+                   (Ar, "Bra008143 Bra008167", "left", "4DAn2-"),
+                   (Ar, "Bra029317 Bra029251", "right", "5DAn2+ (GSL)"),
+                   (Co, "Bo2g001000 Bo2g001300", "left", "1DCn2-"),
+                   (Co, "Bo2g018560 Bo2g023700", "right", "2DCn2-"),
+                   (Co, "Bo2g024450 Bo2g025390", "left", "3DCn2-"),
+                   (Co, "Bo2g081060 Bo2g082340", "left", "4DCn2+"),
+                   (Co, "Bo2g161510 Bo2g164260", "right", "5DCn2-"))
+
+    for ax, genes, ha, label in annotations:
+        g1, g2 = genes.split()
+        x1, x2 = order[g1][1].start, order[g2][1].start
+        if ha == "center":
+            x = (x1 + x2) / 2 * .8
+        elif ha == "left":
+            x = x2
+        else:
+            x = x1
+        label = r"\textit{{{0}}}".format(label)
+        color = "r" if "+" in label else "g"
+        ax.text(x, 30, label, color=color, fontsize=9, ha=ha, va="center")
+
     ax_Ar.set_xlim(0, tracks[1].total)
     ax_Ar.set_ylim(-1, 1)
     ax_Co.set_xlim(0, tracks[2].total)
@@ -341,10 +369,27 @@ def fig3(args):
     s1, s2 = sizes[chr1], sizes[chr2]
 
     canvas1 = (t1.xstart, .75, t1.xend - t1.xstart, .2)
-    Coverage(fig, root, canvas1, chr1, (0, s1), datadir,
+    c = Coverage(fig, root, canvas1, chr1, (0, s1), datadir,
                  order=order, gauge=None, plot_chr_label=False,
                  gauge_step=gstep, palette="gray",
                  cap=40, hlsuffix=hlsuffix, labels_dict=labels_dict)
+    yys = c.yys
+    x1, x2 = .37, .72
+    tip = .02
+    annotations = ((x1, yys[2] + .3 * tip, tip, tip / 2, "FLC"),
+                   (x1, yys[3] + .6 * tip, tip, tip / 2, "FLC"),
+                   (x1, yys[5] + .6 * tip, tip, tip / 2, "FLC"),
+                   (x2, yys[0] + .9 * tip, -1.2 * tip, 0, "GSL"),
+                   (x2, yys[4] + .9 * tip, -1.2 * tip, 0, "GSL"),
+                   (x2, yys[6] + .9 * tip, -1.2 * tip, 0, "GSL"))
+
+    arrowprops=dict(facecolor='black', shrink=.05, frac=.5,
+                    width=1, headwidth=4)
+    for x, y, dx, dy, label in annotations:
+        label = r"\textit{{{0}}}".format(label)
+        root.annotate(label, xy=(x, y), xytext=(x + dx, y + dy),
+                      arrowprops=arrowprops, color="r", fontsize=9,
+                      ha="center", va="center")
 
     canvas2 = (t2.xstart, .05, t2.xend - t2.xstart, .2)
     Coverage(fig, root, canvas2, chr2, (0, s2), datadir,

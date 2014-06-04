@@ -71,26 +71,6 @@ class BedLine(object):
         strand = self.strand or '+'
         return (self.seqid, self.start, self.end, strand)
 
-    def reverse_complement(self, sizes):
-        # this function is used in assembly.sopra
-        seqid = self.seqid.rstrip('-')
-        size = sizes.get_size(seqid)
-
-        if self.seqid[-1] == '-':
-            self.seqid = self.seqid[:-1]
-        else:
-            self.seqid += '-'
-
-        start = size - self.end + 1
-        end = size - self.start + 1
-        self.start, self.end = start, end
-        assert self.start <= self.end, \
-                "start={0} end={1}".format(self.start, self.end)
-
-        if self.strand:
-            strand = {'+': '-', '-': '+'}[self.strand]
-            self.strand = self.extra[1] = strand
-
     def gffline(self, type='match', source='default'):
         score = "." if not self.score or \
                 (self.score and not is_number(self.score)) \

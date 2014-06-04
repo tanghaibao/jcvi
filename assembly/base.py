@@ -20,8 +20,6 @@ from jcvi.formats.fasta import Fasta
 from jcvi.apps.base import OptionParser, ActionDispatcher, glob, sh
 
 
-orientationlabels = {"++": "normal", "+-": "innie", "-+": "outie", "--": "antinormal"}
-orientationflips = {"++": "--", "+-": "-+", "-+": "+-", "--": "++"}
 types = {"PE": "fragment", "MP": "jumping", "TT": "jumping", "LL": "long"}
 header = ("Length", "L50", "N50", "Min", "Max", "N")
 

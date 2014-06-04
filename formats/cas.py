@@ -63,8 +63,6 @@ def main():
         ('bed', 'convert cas tabular output to bed format'),
         ('pairs', 'print paired-end reads of cas tabular output'),
         ('info', 'print the number of read mapping using `assembly_info`'),
-        ('fastpairs', 'print pair distance and orientation, assuming paired '\
-            'reads next to one another'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -181,44 +179,6 @@ def info(args):
                 row = fp.readline()
 
         row = fp.readline()
-
-
-def fastpairs(args):
-    """
-    %prog fastpairs castabfile
-
-    Assuming paired reads are adjacent in the castabfile. Print pair distance
-    and orientations.
-    """
-    from jcvi.utils.range import range_distance
-    from jcvi.assembly.base import orientationlabels
-
-    p = OptionParser(fastpairs.__doc__)
-
-    opts, args = p.parse_args(args)
-
-    if len(args) != 1:
-        sys.exit(p.print_help())
-
-    castabfile, = args
-    fp = open(castabfile)
-    arow = fp.readline()
-    while arow:
-        brow = fp.readline()
-        a, b = CasTabLine(arow), CasTabLine(brow)
-        asubject, astart, astop = a.refnum, a.refstart, a.refstop
-        bsubject, bstart, bstop = b.refnum, b.refstart, b.refstop
-        if -1 not in (astart, bstart):
-            aquery, bquery = a.readname, b.readname
-            astrand, bstrand = a.strand, b.strand
-            dist, orientation = range_distance(\
-                (asubject, astart, astop, astrand),
-                (bsubject, bstart, bstop, bstrand)
-                    )
-            orientation = orientationlabels[orientation]
-            if dist != -1:
-                print "\t".join(str(x) for x in (aquery, bquery, dist, orientation))
-        arow = fp.readline()
 
 
 def txt(args):

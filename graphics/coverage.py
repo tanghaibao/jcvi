@@ -105,12 +105,17 @@ class Coverage (object):
     def __init__(self, fig, root, canvas, chr, xlim, datadir,
                  order=None, hlsuffix=None, palette=None, cap=50,
                  gauge="bottom", plot_label=True, plot_chr_label=True,
-                 gauge_step=5000000, vlines=None):
+                 gauge_step=5000000, vlines=None, labels_dict={}):
         x, y, w, h = canvas
         p = .01
         root.add_patch(Rectangle((x - p, y - p), w + 2 * p, h + 2 * p, lw=1,
                         fill=False, ec="darkslategray", zorder=10))
         datafiles = glob(op.join(datadir, chr + "*"))
+
+        if order:
+            datafiles = [z for z in datafiles if z.split(".")[1] in order]
+            datafiles.sort(key=lambda x: order.index(x.split(".")[1]))
+
         ntracks = len(datafiles)
         yinterval = h / ntracks
         yy = y + h
@@ -122,9 +127,6 @@ class Coverage (object):
         else:
             set2 = [palette] * ntracks
 
-        if order:
-            datafiles.sort(key=lambda x: order.index(x.split(".")[1]))
-
         if gauge == "top":
             gauge_ax = fig.add_axes([x, yy + p, w, .0001])
             adjust_spines(gauge_ax, ["top"])
@@ -135,8 +137,9 @@ class Coverage (object):
             tpos = y - .07
 
         start, end = xlim
-        fs = gauge_step < 1000000
-        setup_gauge_ax(gauge_ax, start, end, gauge_step, float_formatter=fs)
+        if gauge:
+            fs = gauge_step < 1000000
+            setup_gauge_ax(gauge_ax, start, end, gauge_step, float_formatter=fs)
 
         if plot_chr_label:
             root.text(x + w / 2, tpos, chr, ha="center", va="center",
@@ -154,8 +157,10 @@ class Coverage (object):
                 hlfile = op.join(datadir, ".".join((label, hlsuffix)))
                 xy.import_hlfile(hlfile, chr)
             if plot_label:
-                root.text(x - .035, yy + yinterval / 2, label,
-                            ha="center", va="center", color=c)
+                label = labels_dict.get(label, label.capitalize())
+                label = r"\textit{{{0}}}".format(label)
+                root.text(x - .015, yy + yinterval / 2, label,
+                            ha="right", va="center")
             xy.draw()
             ax.set_xlim(*xlim)
 
@@ -187,7 +192,7 @@ def main():
     root = fig.add_axes([0, 0, 1, 1])
     canvas = (.12, .35, .8, .35)
     chr_size = sizes.get_size(chr)
-    c = Coverage(fig, root, canvas, chr, (0, chr_size), datadir,
+    Coverage(fig, root, canvas, chr, (0, chr_size), datadir,
                  order=order, hlsuffix=hlsuffix)
 
     root.set_xlim(0, 1)

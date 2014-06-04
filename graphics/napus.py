@@ -28,15 +28,15 @@ template_cov = """# y, xstart, xend, rotation, color, label, va, bed
 e, 0, 1, AN.CN.1x1.lifted.simple
 """
 template_f3a = r"""# y, xstart, xend, rotation, color, label, va, bed
-.65, {0}, {1}, 0, gainsboro, \textit{{B. napus}} A$\mathsf{{_n}}$2, top, AN.bed
+.65, {0}, {1}, 0, gainsboro, \noindent\textit{{B. napus}} A$\mathsf{{_n}}$2\\(cv Darmor-\textit{{bzh}}), top, AN.bed
 .55, {2}, {3}, 0, gainsboro, \textit{{B. rapa}} A$\mathsf{{_r}}$2, top, brapa.bed
 .45, {4}, {5}, 0, gainsboro, \textit{{B. oleracea}} C$\mathsf{{_o}}$2, top, boleracea.bed
-.35, {6}, {7}, 0, gainsboro, \textit{{B. napus}} C$\mathsf{{_n}}$2, top, CN.bed
+.35, {6}, {7}, 0, gainsboro, \noindent\textit{{B. napus}} C$\mathsf{{_n}}$2\\(cv Darmor-\textit{{bzh}}), top, CN.bed
 # edges
 e, 0, 1, AN.brapa.1x1.lifted.simple
 e, 1, 2, brapa.boleracea.1x1.lifted.simple
-e, 3, 2, CN.boleracea.1x1.lifted.simple
-"""
+e, 3, 2, CN.boleracea.1x1.lifted.simple"""
+
 gap = .03
 
 
@@ -278,7 +278,18 @@ def fig3(args):
     r = height / 4
     K = Karyotype(fig, root, seqidsfile, klayout, gap=gap,
                   height=height, lw=2, generank=False, sizes=sizes,
-                  heightpad=r, roundrect=True)
+                  heightpad=r, roundrect=True, plot_label=False)
+
+    # Chromosome labels
+    for kl in K.layout:
+        if kl.empty:
+            continue
+        lx, ly = kl.xstart, kl.y
+        if lx < .11:
+            lx += .1
+            ly += .065
+        label = kl.label
+        root.text(lx - .02, ly, label, ha="right", va="center")
 
     # Inset with datafiles
     datafiles = ("chrA02.bzh.forxmgr", "parent.A02.per10kb.forxmgr",
@@ -320,38 +331,30 @@ def fig3(args):
     ax_Co.set_xlim(0, tracks[2].total)
     ax_Co.set_ylim(-1, 1)
 
-    # Conversion legend
-    if False:
-        root.text(.81, .8, r"Converted A$\mathsf{_n}$ to C$\mathsf{_n}$",
-                    va="center")
-        root.text(.81, .77, r"Converted C$\mathsf{_n}$ to A$\mathsf{_n}$",
-                    va="center")
-        root.scatter([.8], [.8], s=20, color="g")
-        root.scatter([.8], [.77], s=20, color="r")
-
     # Plot coverage in resequencing lines
     gstep = 5000000
-    order = "swede,kale,h165,yudal,aviso,abu,bristol,bzh".split(",")
+    order = "swede,kale,h165,yudal,aviso,abu,bristol".split(",")
+    labels_dict = {"h165": "Resynthesized (H165)", "abu": "Aburamasari"}
     hlsuffix = "regions.forhaibao"
     chr1, chr2 = "chrA02", "chrC02"
     t1, t2 = tracks[0], tracks[-1]
     s1, s2 = sizes[chr1], sizes[chr2]
 
-    canvas1 = (t1.xstart, .73, t1.xend - t1.xstart, .2)
+    canvas1 = (t1.xstart, .75, t1.xend - t1.xstart, .2)
     Coverage(fig, root, canvas1, chr1, (0, s1), datadir,
-                 order=order, gauge="top", plot_chr_label=False,
+                 order=order, gauge=None, plot_chr_label=False,
                  gauge_step=gstep, palette="gray",
-                 cap=40, hlsuffix=hlsuffix)
+                 cap=40, hlsuffix=hlsuffix, labels_dict=labels_dict)
 
-    canvas2 = (t2.xstart, .07, t2.xend - t2.xstart, .2)
+    canvas2 = (t2.xstart, .05, t2.xend - t2.xstart, .2)
     Coverage(fig, root, canvas2, chr2, (0, s2), datadir,
-                 order=order, gauge="bottom", plot_chr_label=False,
+                 order=order, gauge=None, plot_chr_label=False,
                  gauge_step=gstep, palette="gray",
-                 cap=40, hlsuffix=hlsuffix)
+                 cap=40, hlsuffix=hlsuffix, labels_dict=labels_dict)
 
-    pad = .04
-    labels = ((.1, .67, "A"), (t1.xstart - pad, .93 + pad, "B"),
-              (t2.xstart - pad, .27 + pad, "C"))
+    pad = .03
+    labels = ((.1, .67, "A"), (t1.xstart - 3 * pad, .95 + pad, "B"),
+              (t2.xstart - 3 * pad, .25 + pad, "C"))
     panel_labels(root, labels)
     normalize_axes(root)
 
@@ -411,7 +414,6 @@ def fig4(args):
         xstart, ystart = start
         xend, yend = end
         x = (xstart + xend) / 2
-        #TextCircle(root, x, ystart, "G", radius=.012, zorder=20)
         arrow = FancyArrowPatch(posA=(x, ystart - .04),
                                 posB=(x, ystart - .005),
                                 arrowstyle="fancy,head_width=6,head_length=8",

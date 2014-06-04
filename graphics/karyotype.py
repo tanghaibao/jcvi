@@ -153,7 +153,7 @@ class Track (object):
     def __str__(self):
         return self.label
 
-    def draw(self, roundrect=False):
+    def draw(self, roundrect=False, plot_label=True):
         if self.empty:
             return
 
@@ -193,7 +193,9 @@ class Track (object):
         xp = .1 if (self.xstart + self.xend) / 2 <= .5 else .92
         label = markup(self.label)
         c = color if color != "gainsboro" else "k"
-        ax.text(xp, y + self.height * .6, label, ha="center", color=c, transform=tr)
+        if plot_label:
+            ax.text(xp, y + self.height * .6, label,
+                    ha="center", color=c, transform=tr)
 
     def update_offsets(self):
         self.offsets = {}
@@ -261,7 +263,7 @@ class Karyotype (object):
 
     def __init__(self, fig, root, seqidsfile, layoutfile, gap=.01,
                  height=.01, lw=1, generank=True, sizes=None, heightpad=0,
-                 roundrect=False):
+                 roundrect=False, plot_label=True):
 
         layout = Layout(layoutfile, generank=generank)
 
@@ -294,9 +296,10 @@ class Karyotype (object):
         ShadeManager(root, tracks, layout, heightpad=heightpad)
 
         for tr in tracks:
-            tr.draw(roundrect=roundrect)  # this time for real
+            tr.draw(roundrect=roundrect, plot_label=plot_label)  # this time for real
 
         self.tracks = tracks
+        self.layout = layout
 
 
 def main():

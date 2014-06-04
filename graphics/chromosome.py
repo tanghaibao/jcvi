@@ -72,7 +72,7 @@ class HorizontalChromosome (BaseGlyph):
         pts, r = self.get_pts(x1, x2, y, height)
         if roundrect:
             RoundRect(ax, (x1, y - height * .5), x2 - x1, height, fill=False,
-                      lw=lw, ec=ec, zorder=zorder)
+                      lw=lw, ec=ec, zorder=zorder + 1)
         else:
             self.append(Polygon(pts, fill=False, lw=lw, ec=ec, zorder=zorder))
 

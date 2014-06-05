@@ -283,6 +283,8 @@ class OptionParser (OptionP):
         allowed_format = ("emf", "eps", "pdf", "png", "ps", \
                           "raw", "rgba", "svg", "svgz")
         allowed_themes = ("helvetica", "palatino", "schoolbook", "mpl")
+        allowed_diverge = ("BrBG", "PiYG", "PRGn", "PuOr", "RdBu", \
+                           "RdGy", "RdYlBu", "RdYlGn", "Spectral")
 
         group = OptionGroup(self, "Image options")
         self.add_option_group(group)
@@ -295,6 +297,8 @@ class OptionParser (OptionP):
                 help="Generate image of format [default: %default]")
         group.add_option("--theme", default=theme, choices=allowed_themes,
                 help="Font theme [default: %default]")
+        group.add_option("--diverge", default="PiYG", choices=allowed_diverge,
+                help="Contrasting color scheme")
 
         if args is None:
             args = sys.argv[1:]

@@ -63,7 +63,8 @@ class XYtrack (object):
         ax.set_ylim(0, self.ymax)
         ax.set_axis_off()
 
-    def import_hlfile(self, hlfile, chr, unit=10000):
+    def import_hlfile(self, hlfile, chr, unit=10000, diverge=('r', 'g')):
+        rr, gg = diverge
         fp = open(hlfile)
         imported = 0
         mapping = self.mapping
@@ -76,9 +77,9 @@ class XYtrack (object):
             start = int(start)
             end = int(end)
             if tag == "double":
-                self.highlight(mapping, start, end, unit=unit)
+                self.highlight(mapping, start, end, color=rr, unit=unit)
             else:
-                self.highlight(mapping, start, end, color="g", unit=unit)
+                self.highlight(mapping, start, end, color=gg, unit=unit)
             imported += 1
         logging.debug("Imported {0} regions from file `{1}`.".\
                         format(imported, hlfile))
@@ -105,7 +106,8 @@ class Coverage (object):
     def __init__(self, fig, root, canvas, chr, xlim, datadir,
                  order=None, hlsuffix=None, palette=None, cap=50,
                  gauge="bottom", plot_label=True, plot_chr_label=True,
-                 gauge_step=5000000, vlines=None, labels_dict={}):
+                 gauge_step=5000000, vlines=None, labels_dict={},
+                 diverge=('r', 'g')):
         x, y, w, h = canvas
         p = .01
         root.add_patch(Rectangle((x - p, y - p), w + 2 * p, h + 2 * p, lw=1,
@@ -157,7 +159,7 @@ class Coverage (object):
                 xy.vlines(vlines)
             if hlsuffix:
                 hlfile = op.join(datadir, ".".join((label, hlsuffix)))
-                xy.import_hlfile(hlfile, chr)
+                xy.import_hlfile(hlfile, chr, diverge=diverge)
             if plot_label:
                 label = labels_dict.get(label, label.capitalize())
                 label = r"\textit{{{0}}}".format(label)

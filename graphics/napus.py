@@ -12,7 +12,8 @@ import logging
 import numpy as np
 
 from jcvi.graphics.base import plt, Rectangle, savefig, mpl, \
-            adjust_spines, FancyArrowPatch, normalize_axes, panel_labels
+            adjust_spines, FancyArrowPatch, normalize_axes, panel_labels, \
+            diverge_colors
 from jcvi.graphics.glyph import TextCircle
 from jcvi.graphics.karyotype import Karyotype
 from jcvi.graphics.synteny import Synteny
@@ -263,6 +264,8 @@ def fig3(args):
 
     chrs, sizes, bedfile, datadir = args
     gauge_step = opts.gauge_step
+    diverge = diverge_colors(opts.diverge)
+    rr, gg = diverge
     chrs = [[x] for x in chrs.split(",")]
     sizes = Sizes(sizes).mapping
 
@@ -307,7 +310,7 @@ def fig3(args):
         start, end = 0, t.total
         xy.interpolate(end)
         xy.cap(ymax=40)
-        xy.import_hlfile(hlfile, chr)
+        xy.import_hlfile(hlfile, chr, diverge=diverge)
         xy.draw()
         ax.set_xlim(start, end)
         gauge_ax = make_affix_axis(fig, t, -r)
@@ -321,13 +324,13 @@ def fig3(args):
     order = Bed(bedfile).order
     for asterisk in (False, True):
         conversion_track(order, "data/Genes.Converted.seuil.0.6.AtoC.txt",
-                         0, "A02", ax_Ar, "r", asterisk=asterisk)
+                         0, "A02", ax_Ar, rr, asterisk=asterisk)
         conversion_track(order, "data/Genes.Converted.seuil.0.6.AtoC.txt",
-                         1, "C2", ax_Co, "g", asterisk=asterisk)
+                         1, "C2", ax_Co, gg, asterisk=asterisk)
         conversion_track(order, "data/Genes.Converted.seuil.0.6.CtoA.txt",
-                         0, "A02", ax_Ar, "g", ypos=1, asterisk=asterisk)
+                         0, "A02", ax_Ar, gg, ypos=1, asterisk=asterisk)
         conversion_track(order, "data/Genes.Converted.seuil.0.6.CtoA.txt",
-                         1, "C2", ax_Co, "r", ypos=1, asterisk=asterisk)
+                         1, "C2", ax_Co, rr, ypos=1, asterisk=asterisk)
 
     Ar, Co = xy_axes[1:3]
     annotations = ((Ar, "Bra028920 Bra028897", "center", "1DAn2+"),
@@ -351,7 +354,7 @@ def fig3(args):
         else:
             x = x1
         label = r"\textit{{{0}}}".format(label)
-        color = "r" if "+" in label else "g"
+        color = rr if "+" in label else gg
         ax.text(x, 30, label, color=color, fontsize=9, ha=ha, va="center")
 
     ax_Ar.set_xlim(0, tracks[1].total)
@@ -372,7 +375,8 @@ def fig3(args):
     c = Coverage(fig, root, canvas1, chr1, (0, s1), datadir,
                  order=order, gauge=None, plot_chr_label=False,
                  gauge_step=gstep, palette="gray",
-                 cap=40, hlsuffix=hlsuffix, labels_dict=labels_dict)
+                 cap=40, hlsuffix=hlsuffix, labels_dict=labels_dict,
+                 diverge=diverge)
     yys = c.yys
     x1, x2 = .37, .72
     tip = .02
@@ -388,14 +392,15 @@ def fig3(args):
     for x, y, dx, dy, label in annotations:
         label = r"\textit{{{0}}}".format(label)
         root.annotate(label, xy=(x, y), xytext=(x + dx, y + dy),
-                      arrowprops=arrowprops, color="r", fontsize=9,
+                      arrowprops=arrowprops, color=rr, fontsize=9,
                       ha="center", va="center")
 
     canvas2 = (t2.xstart, .05, t2.xend - t2.xstart, .2)
     Coverage(fig, root, canvas2, chr2, (0, s2), datadir,
                  order=order, gauge=None, plot_chr_label=False,
                  gauge_step=gstep, palette="gray",
-                 cap=40, hlsuffix=hlsuffix, labels_dict=labels_dict)
+                 cap=40, hlsuffix=hlsuffix, labels_dict=labels_dict,
+                 diverge=diverge)
 
     pad = .03
     labels = ((.1, .67, "A"), (t1.xstart - 3 * pad, .95 + pad, "B"),

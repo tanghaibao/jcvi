@@ -36,6 +36,13 @@ class ImageOptions (object):
         return "({0}px x {1}px)".format(self.dpi * self.w, self.dpi * self.h)
 
 
+def diverge_colors(scheme, color_class=5):
+    import brewer2mpl
+
+    colors = brewer2mpl.get_map(scheme, 'diverging', color_class).mpl_colors
+    return colors[0], colors[-1]
+
+
 def prettyplot():
     import brewer2mpl
 

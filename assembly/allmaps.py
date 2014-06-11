@@ -119,7 +119,8 @@ class ScaffoldOO (object):
     scaffolds per partition.
     """
     def __init__(self, lgs, scaffolds, mapc, pivot, weights, sizes,
-                 function=(lambda x: x.rank), linkage=min, ngen=500, cpus=8):
+                 function=(lambda x: x.rank), linkage=min,
+                 ngen=500, npop=100, cpus=8):
 
         self.lgs = lgs
         self.lengths = mapc.lengths
@@ -147,7 +148,7 @@ class ScaffoldOO (object):
             toolbox = GA_setup(tour)
             toolbox.register("evaluate", colinear_evaluate_multi,
                                          scfs=scfs, weights=ww)
-            tour, fitness = GA_run(toolbox, ngen=ngen, cpus=cpus)
+            tour, fitness = GA_run(toolbox, ngen=ngen, npop=npop, cpus=cpus)
             tour = [scaffolds[x] for x in tour]
             tour = [(x, scaffolds_oo[x]) for x in tour]
             if best_fitness and fitness <= best_fitness:
@@ -770,7 +771,9 @@ def path(args):
     p.add_option("--gapsize", default=100, type="int",
                  help="Insert gaps of size between scaffolds")
     p.add_option("--ngen", default=500, type="int",
-                 help="Number of iterations for GA")
+                 help="Iterations in GA, more ~ slower")
+    p.add_option("--npop", default=100, type="int",
+                 help="Population size in GA, more ~ slower")
     p.add_option("--seqid", help="Only run partition with this seqid")
     p.set_cpus(cpus=8)
     opts, args = p.parse_args(args)
@@ -781,6 +784,7 @@ def path(args):
     bedfile, weightsfile, fastafile = args
     gapsize = opts.gapsize
     ngen = opts.ngen
+    npop = opts.npop
     cpus = opts.cpus
     if sys.version_info[:2] < (2, 7):
         logging.debug("Python version: {0}. CPUs set to 1.".\
@@ -866,7 +870,7 @@ def path(args):
         logging.debug("Working on {0} ...".format(tag))
         s = ScaffoldOO(lgs, scaffolds, cc, pivot, weights, sizes,
                        function=function, linkage=linkage,
-                       ngen=ngen, cpus=cpus)
+                       ngen=ngen, npop=npop, cpus=cpus)
 
         for fw in (sys.stderr, fwtour):
             print >> fw, ">{0} ({1})".format(s.object, tag)

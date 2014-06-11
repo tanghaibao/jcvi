@@ -10,6 +10,7 @@ ordering and orientation problem.
 import sys
 import array
 import random
+import logging
 import multiprocessing
 
 from deap import base, creator, tools
@@ -154,12 +155,14 @@ def eaSimpleConverge(population, toolbox, cxpb, mutpb, ngen, stats=None,
     return population
 
 
-def GA_run(toolbox, ngen=500, cpus=1):
+def GA_run(toolbox, ngen=500, npop=100, cpus=1):
+    logging.debug("GA setup: ngen={0} npop={1} cpus={2}".\
+                    format(ngen, npop, cpus))
     if cpus > 1:
         pool = multiprocessing.Pool(cpus)
         toolbox.register("map", pool.map)
     #random.seed(666)
-    pop = toolbox.population(n=100)
+    pop = toolbox.population(n=npop)
     hof = tools.HallOfFame(1)
 
     stats = tools.Statistics(lambda ind: ind.fitness.values)

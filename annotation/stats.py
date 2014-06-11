@@ -141,12 +141,12 @@ def genestats(args):
 
         r[("Number of genes", g)] = num_genes
         r[("Number of single-exon genes", g)] = \
-            percentage(num_single_exon_genes, num_genes, denominator=False)
+            percentage(num_single_exon_genes, num_genes, mode=1)
         r[("Number of multi-exon genes", g)] = \
-            percentage(num_multi_exon_genes, num_genes, denominator=False)
+            percentage(num_multi_exon_genes, num_genes, mode=1)
         r[("Number of distinct exons", g)] = num_exons
         r[("Number of genes with alternative transcript variants", g)] = \
-            percentage(num_genes_with_alts, num_genes, denominator=False)
+            percentage(num_genes_with_alts, num_genes, mode=1)
         r[("Number of predicted transcripts", g)] = num_transcripts
         r[("Mean number of distinct exons per gene", g)] = mean_num_exons
         r[("Mean number of transcripts per gene", g)] = mean_num_transcripts

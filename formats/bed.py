@@ -1174,7 +1174,7 @@ def report_pairs(data, cutoff=0, mateorientation=None,
     orientation_summary = []
     for orientation, count in sorted(orientations.items()):
         o = "{0}:{1}".format(orientation, \
-                percentage(count, num_links, denominator=False))
+                percentage(count, num_links, mode=1))
         orientation_summary.append(o.split()[0])
         print >>sys.stderr, o
 

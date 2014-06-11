@@ -25,7 +25,7 @@ from jcvi.formats.base import DictFile, FileMerger, must_open
 from jcvi.formats.bed import Bed, BedLine, sort
 from jcvi.formats.chain import fromagp
 from jcvi.formats.sizes import Sizes
-from jcvi.utils.cbook import human_size
+from jcvi.utils.cbook import human_size, percentage
 from jcvi.utils.counter import Counter
 from jcvi.utils.grouper import Grouper
 from jcvi.utils.iter import flatten
@@ -927,7 +927,7 @@ def summary(args):
         r["Markers", mapname] = ms.num_markers
         r["Scaffolds", mapname] = ms.num_scaffolds
         r["N50 Scaffolds", mapname] = ms.num_n50_scaffolds
-        r["Total bases", mapname] = ms.total_bases
+        r["Total bases", mapname] = percentage(ms.total_bases, total, mode=1)
         r["Scaffolds with 1 marker", mapname] = ms.scaffold_1m
         r["Scaffolds with 2 markers", mapname] = ms.scaffold_2m
         r["Scaffolds with 3 markers", mapname] = ms.scaffold_3m
@@ -948,7 +948,7 @@ def summary(args):
         r["Markers", mapname] = ms.num_markers
         r["Scaffolds", mapname] = ms.num_scaffolds
         r["N50 Scaffolds", mapname] = ms.num_n50_scaffolds
-        r["Total bases", mapname] = ms.total_bases
+        r["Total bases", mapname] = percentage(ms.total_bases, total, mode=1)
         r["Scaffolds with 1 marker", mapname] = ms.scaffold_1m
         r["Scaffolds with 2 markers", mapname] = ms.scaffold_2m
         r["Scaffolds with 3 markers", mapname] = ms.scaffold_3m

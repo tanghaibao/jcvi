@@ -195,16 +195,18 @@ class AutoVivification(dict):
             return value
 
 
-def percentage(a, b, denominator=True):
+def percentage(a, b, mode=0):
     """
     >>> percentage(100, 200)
     '100 of 200 (50.0%)'
     """
-    if denominator:
-        s = "{0} of {1} ({2:.1f}%)".format(a, b, a * 100. / b)
-    else:
-        s = "{0} ({1:.1f}%)".format(a, a * 100. / b)
-    return s
+    pct = "{0:.1f}%".format(a * 100. / b)
+    a, b = thousands(a), thousands(b)
+    if mode == 0:
+        return "{0} of {1} ({2})".format(a, b, pct)
+    elif mode == 1:
+        return "{0} ({1})".format(a, pct)
+    return pct
 
 
 def thousands(x):

@@ -261,18 +261,21 @@ class AGP (LineFile):
         return north, south
 
     @classmethod
-    def print_header(cls, fw=sys.stdout, organism="Medicago truncatula",
-            taxid=3880, source="J. Craig Venter Institute", comment=None):
+    def print_header(cls, fw=sys.stdout, organism=None,
+                          taxid=None, source=None, comment=None):
         # these comments are entirely optional, modeled after maize AGP
-        print >> fw, "# ORGANISM: {0}".format(organism)
-        print >> fw, "# TAX_ID: {0}".format(taxid)
-        print >> fw, "# GENOME CENTER: {0}".format(source)
+        if organism:
+            print >> fw, "# ORGANISM: {0}".format(organism)
+        if taxid:
+            print >> fw, "# TAX_ID: {0}".format(taxid)
+        if source:
+            print >> fw, "# GENOME CENTER: {0}".format(source)
         if comment:
             print >> fw, "# COMMENT: {0}".format(comment)
-        header = "object object_beg object_end part_number component_type " +\
-                 "component_id/gap_length component_beg/gap_type " +\
-                 "component_end/linkage orientation"
-        print >> fw, "# FIELDS: {0}".format(", ".join(header.split()))
+        fields = "object object_beg object_end part_number component_type " \
+                 "component_id/gap_length component_beg/gap_type " \
+                 "component_end/linkage orientation/linkage_evidence"
+        print >> fw, "# FIELDS: {0}".format(", ".join(fields.split()))
 
     def rstats(self, object, bacs, components, scaffold_sizes, length):
         from jcvi.utils.cbook import human_size
@@ -1625,7 +1628,8 @@ def gaps(args):
     loghistogram(sizes)
 
     if opts.header:
-        AGP.print_header(fw)
+        AGP.print_header(fw, organism="Medicago truncatula",
+                         taxid=3880, source="J. Craig Venter Institute")
 
     if merge:
         for ob, bb in groupby(data, lambda x: x.object):

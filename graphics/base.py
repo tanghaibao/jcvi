@@ -436,32 +436,3 @@ def draw_cmap(ax, cmap_text, vmin, vmax, cmap=None, reverse=False):
     xmiddle = (xmin + xmax) * .5
     for x, v in zip((xmin, xmiddle, xmax), (vmin, vmiddle, vmax)):
         ax.text(x, ymin - .005, "%.1f" % v, ha="center", va="top", size=10)
-
-
-def colorline(ax, x, y, z=None, cmap=plt.get_cmap('copper'), norm=plt.Normalize(0.0, 1.0),
-                  lw=3, alpha=1.0):
-    '''
-    Modified based on:
-    <http://nbviewer.ipython.org/github/dpsanders/matplotlib-examples/blob/master/colorline.ipynb>
-
-    Plot a colored line with coordinates x and y
-    Optionally specify colors in the array z
-    Optionally specify a colormap, a norm function and a line width
-    '''
-    # Default colors equally spaced on [0,1]:
-    if z is None:
-        z = np.linspace(0.0, 1.0, len(x))
-
-    # Special case if a single number:
-    if not hasattr(z, "__iter__"):  # to check for numerical input -- this is a hack
-        z = np.array([z])
-
-    z = np.asarray(z)
-
-    segments = make_segments(x, y)
-    lc = LineCollection(segments, array=z, cmap=cmap, norm=norm, lw=lw, alpha=alpha)
-
-    ax = plt.gca()
-    ax.add_collection(lc)
-
-    return lc

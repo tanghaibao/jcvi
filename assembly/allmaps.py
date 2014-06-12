@@ -1010,6 +1010,15 @@ def build(args):
     sort([liftedbed, "-i"])  # Sort bed in place
 
 
+def add_allmaps_plot_options(p):
+    p.add_option("--distance", default="cM", choices=distance_choices,
+                 help="Plot markers based on distance")
+    p.add_option("--links", default=10, type="int",
+                 help="Only plot matchings more than")
+    p.add_option("--panels", default=False, action="store_true",
+                 help="Add panel labels A/B")
+
+
 def plot(args):
     """
     %prog plot seqid map.lifted.bed agpfile weightsfile
@@ -1020,15 +1029,13 @@ def plot(args):
     1. Parallel axes, and matching markers are shown in connecting lines;
     2. Scatter plot.
     """
-    from jcvi.graphics.base import plt, savefig, normalize_axes, set2
+    from jcvi.graphics.base import plt, savefig, normalize_axes, \
+                set2, panel_labels
     from jcvi.graphics.chromosome import Chromosome, GeneticMap, \
                 HorizontalChromosome
 
     p = OptionParser(plot.__doc__)
-    p.add_option("--distance", default="cM", choices=distance_choices,
-                 help="Plot markers based on distance")
-    p.add_option("--links", default=10, type="int",
-                 help="Only plot matchings more than")
+    add_allmaps_plot_options(p)
     opts, args, iopts = p.set_image_options(args, figsize="10x6")
 
     if len(args) != 4:
@@ -1166,6 +1173,10 @@ def plot(args):
         root.text(.5, ypos, tlg, color=color, rotation=90,
                       ha=ha, va="center")
 
+    if opts.panels:
+        labels = ((.04, .96, 'A'), (.48, .96, 'B'))
+        panel_labels(root, labels)
+
     normalize_axes((ax1, ax2, root))
     image_name = seqid + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
@@ -1180,10 +1191,7 @@ def plotall(xargs):
     This command will plot each reconstructed object (non-singleton).
     """
     p = OptionParser(plotall.__doc__)
-    p.add_option("--distance", default="cM", choices=distance_choices,
-                 help="Plot markers based on distance")
-    p.add_option("--links", default=10, type="int",
-                 help="Only plot matchings more than")
+    add_allmaps_plot_options(p)
     opts, args, iopts = p.set_image_options(xargs, figsize="10x6")
 
     if len(args) != 3:

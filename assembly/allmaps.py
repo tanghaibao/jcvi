@@ -1162,7 +1162,8 @@ def plot(args):
         xx, yy = zip(*sd)
         ax.vlines(pp, [0], [mlgsize], colors="beige")
         ax.plot(xx, yy, ".", color=color)
-        ax.text(.5, 1 - .4 * gap / height, r"$\rho$={0:.3f}".format(rhos[mlg]),
+        rho = rhos[mlg]
+        ax.text(.5, 1 - .4 * gap / height, r"$\rho$={0:.3f}".format(rho),
                     ha="center", va="top", transform=ax.transAxes, color="gray")
         tlg = mlg.replace("_", ".")
         tlgs.append((tlg, ypos, color))
@@ -1173,6 +1174,8 @@ def plot(args):
             ax.set_yticks(ax.get_yticks()[::2])  # Sparsify the ticks
         yticklabels = [int(x) for x in ax.get_yticks()]
         ax.set_yticklabels(yticklabels, family='Helvetica')
+        if rho < 0:
+            ax.invert_yaxis()
 
     for i, (tlg, ypos, color) in enumerate(tlgs):
         ha = "center"

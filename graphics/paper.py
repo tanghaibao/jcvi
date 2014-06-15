@@ -156,11 +156,14 @@ def import_data(datafile):
     return data
 
 
-def subplot(ax, data, xlabel, ylabel, ylim=1.1, xcast=float, ycast=float):
+def subplot(ax, data, xlabel, ylabel, xlim=None, ylim=1.1,
+                      xcast=float, ycast=float):
     x, y = zip(*data)
     ax.plot(x, y, "ko:", mec="k", mfc="w", ms=4)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
+    if xlim:
+        ax.set_xlim(0, xlim)
     if ylim:
         ax.set_ylim(0, ylim)
     xticklabels = [xcast(x) for x in ax.get_xticks()]
@@ -192,11 +195,10 @@ def allmapsQC(args):
     dataB = import_data(dataB)
     dataC = import_data(dataC)
     dataD = import_data(dataD)
-    subplot(A, dataA, "Inversion error rate", "Accuracy")
-    subplot(B, dataB, "Translocation error rate", "Accuracy")
+    subplot(A, dataA, "Inversion error rate", "Accuracy", xlim=.5)
+    subplot(B, dataB, "Translocation error rate", "Accuracy", xlim=.5)
     subplot(C, dataC, "Number of input maps", "Accuracy", xcast=int)
-    subplot(D, dataD, "Number of input maps", "Runtime (sec)",
-                       xcast=int, ycast=int, ylim=None)
+    subplot(D, dataD, "Number of input maps", "Accuracy", xcast=int)
 
     labels = ((.03, .97, "A"), (.53, .97, "B"),
               (.03, .47, "C"), (.53, .47, "D"))

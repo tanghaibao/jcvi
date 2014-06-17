@@ -31,6 +31,7 @@ from jcvi.algorithms.lis import longest_increasing_subsequence, \
             longest_decreasing_subsequence
 from jcvi.compara.synteny import check_beds, read_blast
 from jcvi.utils.grouper import Grouper
+from jcvi.formats.base import must_open
 from jcvi.apps.base import OptionParser, OptionGroup
 
 
@@ -140,6 +141,7 @@ def batch_query(qbed, sbed, all_data, opts, c=None, transpose=False):
     simple_bed = lambda x: (sbed[x].seqid, sbed[x].start)
     qsimplebed = qbed.simple_bed
 
+    fw = must_open(opts.outfile, "w")
     for seqid, ranks in groupby(qsimplebed, key=lambda x: x[0]):
         ranks = [x[1] for x in ranks]
         for r in ranks:
@@ -173,7 +175,7 @@ def batch_query(qbed, sbed, all_data, opts, c=None, transpose=False):
                     c.execute("insert into synteny values (?,?,?,?,?,?,?,?)",
                               data[:6] + [qnote, snote])
                 else:
-                    print "\t".join(map(str, data))
+                    print >> fw, "\t".join(map(str, data))
 
 
 def main(blastfile, p, opts):
@@ -207,6 +209,7 @@ if __name__ == '__main__':
     p = OptionParser(__doc__)
     p.set_beds()
     p.set_stripnames()
+    p.set_outfile()
 
     coge_group = OptionGroup(p, "CoGe-specific options")
     coge_group.add_option("--sqlite", help="Write sqlite database")

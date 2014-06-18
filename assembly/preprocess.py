@@ -391,7 +391,7 @@ def trim(args):
 
     <http://www.usadellab.org/cms/index.php?page=trimmomatic>
     """
-    tv = "0.30"
+    tv = "0.32"
     TrimJar = "trimmomatic-{0}.jar".format(tv)
     phdchoices = ("33", "64")
     p = OptionParser(trim.__doc__)

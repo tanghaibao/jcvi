@@ -349,13 +349,12 @@ else
     echo "Load reads ..."
     PrepareAllPathsInputs.pl \
         DATA_DIR=$PWD PLOIDY={0} \
-        HOSTS='{1}' PHRED_64={2} \
-        PICARD_TOOLS_DIR=~/htang/export/picard-tools-1.47/
+        HOSTS='{1}' PHRED_64={2}
 fi
 
 RunAllPathsLG PRE=. REFERENCE_NAME=. OVERWRITE=True HAPLOIDIFY=False \
     DATA_SUBDIR=. RUN=allpaths SUBDIR=run THREADS={1} MIN_CONTIG=200 \
-    {3} | tee run.log"""
+    {3} | tee allpaths.log"""
 
 
 def prepare(args):

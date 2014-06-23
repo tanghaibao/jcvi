@@ -21,6 +21,7 @@ synteny score. For the same query, it is ordered with decreasing synteny score.
 The last column means orientation. "+" is same direction.
 """
 
+import os.path as op
 import sys
 import sqlite3
 
@@ -123,13 +124,15 @@ def find_synteny_region(query, sbed, data, window, cutoff, colinear=False):
     return sorted(regions, key=lambda x: -x[-1]) # decreasing synteny score
 
 
-def batch_query(qbed, sbed, all_data, opts, c=None, transpose=False):
+def batch_query(qbed, sbed, all_data, opts, fw=None, c=None, transpose=False):
 
     cutoff = int(opts.cutoff * opts.window)
     window = opts.window / 2
-    sqlite = opts.sqlite
     colinear = opts.scoring == "collinear"
     qnote, snote = opts.qnote, opts.snote
+    if qnote == "null" or snote == "null":
+        qnote = op.basename(qbed.filename).split(".")[0]
+        snote = op.basename(sbed.filename).split(".")[0]
 
     # process all genes present in the bed file
     if transpose:
@@ -141,7 +144,6 @@ def batch_query(qbed, sbed, all_data, opts, c=None, transpose=False):
     simple_bed = lambda x: (sbed[x].seqid, sbed[x].start)
     qsimplebed = qbed.simple_bed
 
-    fw = must_open(opts.outfile, "w")
     for seqid, ranks in groupby(qsimplebed, key=lambda x: x[0]):
         ranks = [x[1] for x in ranks]
         for r in ranks:
@@ -171,11 +173,11 @@ def batch_query(qbed, sbed, all_data, opts, c=None, transpose=False):
 
                 left_pos, right_pos = sorted((left_pos, right_pos))
                 data = [query, anchor, gray, score, flank_dist, orientation, far_syntelog]
-                if sqlite:
-                    c.execute("insert into synteny values (?,?,?,?,?,?,?,?)",
-                              data[:6] + [qnote, snote])
-                else:
-                    print >> fw, "\t".join(map(str, data))
+                pdata = data[:6] + [qnote, snote]
+                if fw:
+                    print >> fw, "\t".join(str(x) for x in pdata)
+                    continue
+                c.execute("insert into synteny values (?,?,?,?,?,?,?,?)", pdata)
 
 
 def main(blastfile, p, opts):
@@ -194,14 +196,19 @@ def main(blastfile, p, opts):
         c.execute("create table synteny (query text, anchor text, "
                 "gray varchar(1), score integer, dr integer, "
                 "orientation varchar(1), qnote text, snote text)")
+        fw = None
+    else:
+        fw = must_open(opts.outfile, "w")
 
-    batch_query(qbed, sbed, all_data, opts, c=c, transpose=False)
-    batch_query(qbed, sbed, all_data, opts, c=c, transpose=True)
+    batch_query(qbed, sbed, all_data, opts, fw=fw, c=c, transpose=False)
+    batch_query(qbed, sbed, all_data, opts, fw=fw, c=c, transpose=True)
 
     if sqlite:
         c.execute("create index q on synteny (query)")
         conn.commit()
         c.close()
+    else:
+        fw.close()
 
 
 if __name__ == '__main__':

@@ -20,7 +20,7 @@ def main():
 
     actions = (
         ('index', 'wraps bwa index'),
-        ('align', 'wraps bwa samse or sampe'),
+        ('align', 'wraps bwa aln|mem|bwasw'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())

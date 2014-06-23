@@ -2,7 +2,7 @@
 # -*- coding: UTF-8 -*-
 
 """
-Functions in this script produce figures in the various past manuscripts.
+Scripts for the Brassica napus genome manuscript (un-published).
 """
 
 import os.path as op

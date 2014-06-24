@@ -12,8 +12,8 @@ from itertools import groupby
 
 from jcvi.utils.counter import Counter
 from jcvi.utils.range import Range, range_interleave, range_chain
-from jcvi.formats.bed import Bed, sort
-from jcvi.apps.base import OptionParser, ActionDispatcher, need_update
+from jcvi.formats.bed import Bed, sort, depth
+from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh
 
 
 def main():
@@ -49,6 +49,7 @@ def deletion(args):
     if need_update(bedfile, sortedbedfile):
         sort([bedfile, "--accn"])
 
+    # Find reads that contain multiple matches
     bed = Bed(sortedbedfile, sorted=False)
     ibedfile = pf + ".d.bed"
     fw = open(ibedfile, "w")
@@ -58,11 +59,13 @@ def deletion(args):
         branges = [(x.seqid, x.start, x.end) for x in bb]
         iranges = range_interleave(branges)
         for seqid, start, end in iranges:
+            if end - start < opts.minspan:
+                continue
             print >> fw, "\t".join(str(x) for x in \
-                        (seqid, start - 1, end, accn + '-d'))
+                        (seqid, start - 1, end - 1, accn + '-d'))
     fw.close()
 
-    # Uniqify the insertions
+    # Uniqify the insertions and count occurrences
     bed = Bed(ibedfile)
     countbedfile = pf + ".uniq.bed"
     fw = open(countbedfile, "w")
@@ -76,8 +79,21 @@ def deletion(args):
     fw.close()
     sort([countbedfile, "-i"])
 
+    # Remove deletions that contain average read depth >= .5
+    depthbedfile = pf + ".depth.bed"
+    depth([sortedbedfile, countbedfile, "--outfile={0}".format(depthbedfile)])
+    validbedfile = pf + ".valid.bed"
+    fw = open(validbedfile, "w")
+    logging.debug("Filter valid deletions to `{0}`.".format(validbedfile))
+    bed = Bed(depthbedfile)
+    for b in bed:
+        if float(b.score) >= 0.5:
+            continue
+        print >> fw, b
+    fw.close()
+
     # Find best-scoring non-overlapping set
-    bed = Bed(countbedfile)
+    bed = Bed(validbedfile)
     iesbedfile = pf + ".ies.bed"
     fw = open(iesbedfile, "w")
     logging.debug("Write IES to `{0}`.".format(iesbedfile))
@@ -90,8 +106,6 @@ def deletion(args):
     for seqid, start, end, score, id in iranges:
         ies_name = "IES-{0:05d}-r{1}".format(ies_id, score)
         span = end - start + 1
-        if span < opts.minspan:
-            continue
         print >> fw, "\t".join(str(x) for x in \
                         (seqid, start - 1, end, ies_name, span))
         ies_id += 1

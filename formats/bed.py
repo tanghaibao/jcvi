@@ -1298,6 +1298,9 @@ def sort(args):
     p.add_option("-i", "--inplace", dest="inplace",
             default=False, action="store_true",
             help="Sort bed file in place [default: %default]")
+    p.add_option("-u", dest="unique",
+            default=False, action="store_true",
+            help="Uniqify the bed file")
     p.add_option("--accn", default=False, action="store_true",
             help="Sort based on the accessions [default: %default]")
     p.set_tmpdir()
@@ -1318,6 +1321,8 @@ def sort(args):
     cmd = "sort"
     if opts.tmpdir:
         cmd += " -T {0}".format(opts.tmpdir)
+    if opts.unique:
+        cmd += " -u"
     cmd += " {0} {1} -o {2}".format(sortopt, bedfile, sortedbed)
     sh(cmd)
 

@@ -27,7 +27,7 @@ def main():
 
 def deletion(args):
     """
-    %prog deletion mac.mic.bed
+    %prog deletion mac.mic.bed mic.gaps.bed
 
     Find IES based on mapping MAC reads to MIC genome.
     """
@@ -38,16 +38,16 @@ def deletion(args):
                  help="Minimum span to call a deletion")
     opts, args = p.parse_args(args)
 
-    if len(args) != 1:
+    if len(args) != 2:
         sys.exit(not p.print_help())
 
-    bedfile, = args
+    bedfile, gapsbedfile = args
     mindepth = opts.mindepth
 
     pf = bedfile.rsplit(".", 1)[0]
     sortedbedfile = pf + ".sorted.bed"
     if need_update(bedfile, sortedbedfile):
-        sort([bedfile, "--accn"])
+        sort([bedfile, "-u", "--accn"])
 
     # Find reads that contain multiple matches
     bed = Bed(sortedbedfile, sorted=False)
@@ -59,10 +59,10 @@ def deletion(args):
         branges = [(x.seqid, x.start, x.end) for x in bb]
         iranges = range_interleave(branges)
         for seqid, start, end in iranges:
-            if end - start < opts.minspan:
+            if end - start + 1 < opts.minspan:
                 continue
             print >> fw, "\t".join(str(x) for x in \
-                        (seqid, start - 1, end - 1, accn + '-d'))
+                        (seqid, start - 1, end, accn + '-d'))
     fw.close()
 
     # Uniqify the insertions and count occurrences
@@ -87,13 +87,18 @@ def deletion(args):
     logging.debug("Filter valid deletions to `{0}`.".format(validbedfile))
     bed = Bed(depthbedfile)
     for b in bed:
-        if float(b.score) >= 0.5:
+        if float(b.score) >= 1:
             continue
         print >> fw, b
     fw.close()
 
+    # Remove deletions that intersect with sequencing gaps
+    intersectbedfile = pf + ".intersect.bed"
+    cmd = "intersectBed -f .5 -v -a {0} -b {1}".format(validbedfile, gapsbedfile)
+    sh(cmd, outfile=intersectbedfile)
+
     # Find best-scoring non-overlapping set
-    bed = Bed(validbedfile)
+    bed = Bed(intersectbedfile)
     iesbedfile = pf + ".ies.bed"
     fw = open(iesbedfile, "w")
     logging.debug("Write IES to `{0}`.".format(iesbedfile))

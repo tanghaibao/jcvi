@@ -34,6 +34,8 @@ def deletion(args):
     p = OptionParser(deletion.__doc__)
     p.add_option("--mindepth", default=3, type="int",
                  help="Minimum depth to call a deletion")
+    p.add_option("--minspan", default=30, type="int",
+                 help="Minimum span to call a deletion")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -67,7 +69,7 @@ def deletion(args):
     logging.debug("Write counts to `{0}`.".format(countbedfile))
     registry = Counter((x.seqid, x.start, x.end) for x in bed)
     for (seqid, start, end), count in registry.items():
-        if count < mindepth:
+        if count < opts.mindepth:
             continue
         print >> fw, "\t".join(str(x) for x in \
                         (seqid, start - 1, end, count))
@@ -86,9 +88,12 @@ def deletion(args):
                     format(iscore, len(iranges)))
     ies_id = 1
     for seqid, start, end, score, id in iranges:
-        ies_name = "IES-{0:05d}-{1}".format(ies_id, score)
+        ies_name = "IES-{0:05d}-r{1}".format(ies_id, score)
+        span = end - start + 1
+        if span < opts.minspan:
+            continue
         print >> fw, "\t".join(str(x) for x in \
-                        (seqid, start - 1, end, ies_name))
+                        (seqid, start - 1, end, ies_name, span))
         ies_id += 1
     fw.close()
 

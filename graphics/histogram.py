@@ -140,30 +140,32 @@ def stem_leaf_plot(data, vmin, vmax, bins, digit=1, title=None):
 
 
 def texthistogram(numberfiles, vmin, vmax, title=None,
-                  bins=20, skip=0, log=0):
+                  bins=20, skip=0, base=0):
 
     for nf in numberfiles:
         logging.debug("Import `{0}`.".format(nf))
         data, vmin, vmax = get_data(nf, vmin, vmax, skip=skip)
-        if log:
-            loghistogram(data, base=log, title=title)
+        if base:
+            loghistogram(data, base=base, title=title)
         else:
             stem_leaf_plot(data, vmin, vmax, bins, title=title)
 
 
 def histogram(numberfile, vmin, vmax, xlabel, title,
-              bins=50, skip=0, ascii=False, log=0, fill="white"):
+              bins=50, skip=0, ascii=False, base=0, fill="white"):
     """
     Generate histogram using number from numberfile, and only numbers in the
     range of (vmin, vmax)
     """
     if ascii:
         return texthistogram([numberfile], vmin, vmax, title=title,
-                bins=bins, skip=skip, log=log)
+                bins=bins, skip=skip, base=base)
 
     data, vmin, vmax = get_data(numberfile, vmin, vmax, skip=skip)
     outfile = numberfile + '.pdf'
-    template = histogram_log_template if log else histogram_template
+    if base:
+        outfile = numberfile + ".base{0}.pdf".format(base)
+    template = histogram_log_template if base else histogram_template
     rtemplate = RTemplate(template, locals())
     rtemplate.run()
 
@@ -236,7 +238,7 @@ def main():
             help="tags for data if multiple input files, comma sep")
     p.add_option("--ascii", default=False, action="store_true",
             help="print ASCII text stem-leaf plot [default: %default]")
-    p.add_option("--log", default="0", choices=("0", "2", "10"),
+    p.add_option("--base", default="0", choices=("0", "2", "10"),
             help="use logarithm axis with base, 0 to disable [default: %default]")
     p.add_option("--facet", default=False, action="store_true",
             help="place multiple histograms side-by-side [default: %default]")
@@ -252,13 +254,13 @@ def main():
     bins = opts.bins
     xlabel, title = opts.xlabel, opts.title
     title = title or args[0]
-    log = int(opts.log)
+    base = int(opts.base)
 
     fileno = len(args)
     if fileno == 1:
         histogram(args[0], vmin, vmax, xlabel, title,
                 bins=bins, skip=skip, ascii=opts.ascii,
-                log=log, fill=opts.fill)
+                base=base, fill=opts.fill)
     else:
         histogram_multiple(args, vmin, vmax, xlabel, title,
                 tags=opts.tags, bins=bins, skip=skip, ascii=opts.ascii,

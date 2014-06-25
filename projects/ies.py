@@ -12,7 +12,7 @@ from itertools import groupby
 
 from jcvi.utils.counter import Counter
 from jcvi.utils.range import Range, range_interleave, range_chain
-from jcvi.formats.bed import Bed, sort, depth
+from jcvi.formats.bed import Bed, sort, depth, some
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh
 
 
@@ -71,15 +71,18 @@ def deletion(args):
     fw = open(countbedfile, "w")
     logging.debug("Write counts to `{0}`.".format(countbedfile))
     registry = Counter((x.seqid, x.start, x.end) for x in bed)
+    ies_id = 1
     for (seqid, start, end), count in registry.items():
+        ies_name = "{0:05d}-r{1}".format(ies_id, count)
         if count < opts.mindepth:
             continue
         print >> fw, "\t".join(str(x) for x in \
-                        (seqid, start - 1, end, count))
+                        (seqid, start - 1, end, ies_name))
+        ies_id += 1
     fw.close()
     sort([countbedfile, "-i"])
 
-    # Remove deletions that contain average read depth >= .5
+    # Remove deletions that contain some read depth
     depthbedfile = pf + ".depth.bed"
     depth([sortedbedfile, countbedfile, "--outfile={0}".format(depthbedfile)])
     validbedfile = pf + ".valid.bed"
@@ -92,17 +95,34 @@ def deletion(args):
         print >> fw, b
     fw.close()
 
-    # Remove deletions that intersect with sequencing gaps
-    intersectbedfile = pf + ".intersect.bed"
-    cmd = "intersectBed -f .5 -v -a {0} -b {1}".format(validbedfile, gapsbedfile)
-    sh(cmd, outfile=intersectbedfile)
+    # Remove deletions that contain sequencing gaps on its flanks
+    flanksbedfile = pf + ".flanks.bed"
+    fw = open(flanksbedfile, "w")
+    bed = Bed(validbedfile)
+    flank = 100
+    logging.debug("Write deletion flanks to `{0}`.".format(flanksbedfile))
+    for b in bed:
+        start, end = b.start, b.end
+        b.start, b.end = start, min(start + flank - 1, end)
+        print >> fw, b
+        b.start, b.end = max(start, end - flank + 1), end
+        print >> fw, b
+    fw.close()
+
+    intersectidsfile = pf + ".intersect.ids"
+    cmd = "intersectBed -a {0} -b {1}".format(flanksbedfile, gapsbedfile)
+    cmd += " | cut -f4 | sort -u"
+    selectedbedfile = pf + ".selected.bed"
+    sh(cmd, outfile=intersectidsfile)
+    some([validbedfile, intersectidsfile, "-v",
+            "--outfile={0}".format(selectedbedfile)])
 
     # Find best-scoring non-overlapping set
-    bed = Bed(intersectbedfile)
+    bed = Bed(selectedbedfile)
     iesbedfile = pf + ".ies.bed"
     fw = open(iesbedfile, "w")
     logging.debug("Write IES to `{0}`.".format(iesbedfile))
-    branges = [Range(x.seqid, x.start, x.end, int(x.accn), i) \
+    branges = [Range(x.seqid, x.start, x.end, int(x.accn.rsplit("r")[-1]), i) \
                     for i, x in enumerate(bed)]
     iranges, iscore = range_chain(branges)
     logging.debug("Best chain score: {0} ({1} IES)".\

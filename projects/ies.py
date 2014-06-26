@@ -42,7 +42,6 @@ def deletion(args):
         sys.exit(not p.print_help())
 
     bedfile, gapsbedfile = args
-    mindepth = opts.mindepth
 
     pf = bedfile.rsplit(".", 1)[0]
     sortedbedfile = pf + ".sorted.bed"

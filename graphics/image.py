@@ -34,6 +34,14 @@ def main():
     p.dispatch(globals())
 
 
+def rgb2ints(rgbx):
+    r, g, b = rgbx
+    r *= 255
+    g *= 255
+    b *= 255
+    return int(round(r)), int(round(g)), int(round(b))
+
+
 def rgb(args):
     """
     %prog rgb pngfile
@@ -54,26 +62,32 @@ def rgb(args):
     ax1.set_title('Original picture')
     ax1.imshow(img)
 
-    img_nonwhite = []
+    img_rgbi = []
+    intensity = lambda x: sqrt((x[0] * x[0] + x[1] * x[1] + x[2] * x[2]) / 3)
     for row in img:
         for r, g, b, a in row:
-            intensity = sqrt((r * r + g * g + b * b) / 3)
-            if intensity > .95:
+            its = intensity((r, g, b))
+            if its > .95:
                 continue
-            img_nonwhite.append((r, g, b))
-    rr, gg, bb = zip(*img_nonwhite)
-    rgb_1q = np.percentile(rr, 75), np.percentile(gg, 75), np.percentile(bb, 75)
-    rgb_m = np.median(rr), np.median(gg), np.median(bb)
-    rgb_3q = np.percentile(rr, 25), np.percentile(gg, 25), np.percentile(bb, 25)
+            img_rgbi.append((r, g, b))
+    img_rgbi.sort(key=intensity)
+    npixels = len(img_rgbi)
+    logging.debug("A total of {0} pixels imported".format(npixels))
+    rgb_1q = img_rgbi[npixels / 4 * 3]
+    rgb_m = img_rgbi[npixels / 2]
+    rgb_3q = img_rgbi[npixels / 4]
 
     yy = .6
+    ax2.text(.5, .8, pf.replace("_", "-"), color="g", ha="center", va="center")
     for t, rgbx in zip(("1st quartile", "Median", "3rd quartile"),
-                    (rgb_1q, rgb_m, rgb_3q)):
+                       (rgb_1q, rgb_m, rgb_3q)):
+        ax2.add_patch(Rectangle((.55, yy - .04), .08, .08, lw=0,
+                      fc=rgb2hex(rgbx)))
+        hashtag = rgb2ints(rgbx)
+        hashtag = ",".join(str(x) for x in hashtag)
+        print >> sys.stderr, pf, t, hashtag
         ax2.text(.5, yy, t, ha="right", va="center")
-        ax2.add_patch(Rectangle((.6, yy - .04), .08, .08, lw=0, fc=rgbx))
-        hashtag = rgb2hex(rgbx).upper()
-        hashtag = hashtag.replace("#", "\#")
-        ax2.text(.7, yy, hashtag, va="center")
+        ax2.text(.65, yy, hashtag, va="center")
         yy -= .1
     normalize_axes(ax2)
 

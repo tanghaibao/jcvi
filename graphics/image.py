@@ -17,10 +17,11 @@ from jcvi.graphics.base import plt, savefig, normalize_axes, Rectangle
 
 from scipy import ndimage
 from skimage import filter, color, img_as_float
-from skimage.transform import hough_ellipse, probabilistic_hough_line
-from skimage.draw import ellipse_perimeter
 from skimage import exposure
+from skimage.color import label2rgb
+from skimage.measure import regionprops
 from skimage.morphology import disk, closing
+from jcvi.algorithms.formula import reject_outliers
 from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
@@ -34,12 +35,25 @@ def main():
     p.dispatch(globals())
 
 
+intensity = lambda x: sqrt((x[0] * x[0] + x[1] * x[1] + x[2] * x[2]) / 3)
+
+
 def rgb2ints(rgbx):
     r, g, b = rgbx
     r *= 255
     g *= 255
     b *= 255
     return int(round(r)), int(round(g)), int(round(b))
+
+
+def pixel_stats(img):
+    img.sort(key=intensity)
+    npixels = len(img)
+    logging.debug("A total of {0} pixels imported".format(npixels))
+    rgb_1q = img[npixels / 4 * 3]
+    rgb_m = img[npixels / 2]
+    rgb_3q = img[npixels / 4]
+    return npixels, rgb_1q, rgb_m, rgb_3q
 
 
 def rgb(args):
@@ -63,19 +77,14 @@ def rgb(args):
     ax1.imshow(img)
 
     img_rgbi = []
-    intensity = lambda x: sqrt((x[0] * x[0] + x[1] * x[1] + x[2] * x[2]) / 3)
     for row in img:
         for r, g, b, a in row:
             its = intensity((r, g, b))
-            if its > .95:
+            if its > .99:
                 continue
             img_rgbi.append((r, g, b))
-    img_rgbi.sort(key=intensity)
-    npixels = len(img_rgbi)
-    logging.debug("A total of {0} pixels imported".format(npixels))
-    rgb_1q = img_rgbi[npixels / 4 * 3]
-    rgb_m = img_rgbi[npixels / 2]
-    rgb_3q = img_rgbi[npixels / 4]
+
+    npixels, rgb_1q, rgb_m, rgb_3q = pixel_stats(img_rgbi)
 
     yy = .6
     ax2.text(.5, .8, pf.replace("_", "-"), color="g", ha="center", va="center")
@@ -131,37 +140,79 @@ def seeds(args):
     pngfile, = args
     pf = op.basename(pngfile).split(".")[0]
     img = load_image(pngfile)
-    img = img[200:500, 100:400]
-
-    fig, (ax1, ax2) = plt.subplots(ncols=2, nrows=1, figsize=(8, 4))
+    fig, (ax1, ax2, ax3) = plt.subplots(ncols=3, nrows=1, figsize=(8, 6))
 
     img_gray = color.rgb2gray(img)
-    #img_gray[img_gray < .2] = 1
-    #edges = filter.sobel(img_gray)
     edges = filter.canny(img_gray)
-    #filled = ndimage.binary_fill_holes(edges)
-    #selem = disk(1)
-    #closed = closing(edges, selem)
-    lines = probabilistic_hough_line(edges, threshold=30,
-                                    line_length=30, line_gap=1)
+    selem = disk(1)
+    closed = closing(edges, selem)
+    filled = ndimage.binary_fill_holes(closed)
 
-    #result = hough_ellipse(edges, min_size=40, max_size=40)
-    #print result
+    w, h = img_gray.shape
+    max_size = w * h / 2
+    label_objects, nb_labels = ndimage.label(filled)
+    print nb_labels
+    sizes = np.bincount(label_objects.ravel())
+    print sizes
+    mask_sizes = np.logical_and(sizes > 1000, sizes < max_size)
+    print mask_sizes
+    cleaned = mask_sizes[label_objects]
+
+    #label_objects, nb_labels = ndimage.label(cleaned)
+    #print nb_labels
+    #mask_sizes = np.invert(reject_outliers(sizes))
+    #cleaned = mask_sizes[label_objects]
+
+    label_objects, nb_labels = ndimage.label(cleaned)
+    print nb_labels
+    #img_label_overlay = label2rgb(label_objects, image=img)
+
     ax1.set_title('Original picture')
     ax1.imshow(img)
 
-    ax2.set_title('Edge detection')
-    #display_histogram(ax2, img_gray)
+    ax2.set_title('Object detection')
     edges = color.gray2rgb(edges)
     w, h, c = edges.shape
-    #closed = color.gray2rgb(closed)
-    ax2.imshow(edges)
-    for p0, p1 in lines:
-        ax, ay = p0[0:2]
-        bx, by = p1[0:2]
-        plt.plot((ax, bx), (ay, by), "r-")
-    ax2.set_xlim(0, w)
-    ax2.set_ylim(h, 0)
+    ax2.imshow(img)
+    img_ravel = []
+    for row in img:
+        for r, g, b in row:
+            img_ravel.append((r, g, b))
+    label_ravel = label_objects.ravel()
+    assert len(img_ravel) == len(label_ravel)
+    data = []
+    for i, region in enumerate(regionprops(label_objects)):
+        i += 1
+        pixels = [pix for pix, label in zip(img_ravel, label_ravel) \
+                        if label == i]
+        npixels, rgb_1q, rgb_m, rgb_3q = pixel_stats(pixels)
+        data.append((i, npixels, rgb_m))
+        # draw rectangle around segmented coins
+        minr, minc, maxr, maxc = region.bbox
+        rect = Rectangle((minc, minr), maxc - minc, maxr - minr,
+                                  fill=False, ec='w', lw=1)
+        ax2.add_patch(rect)
+        mc, mr = (minc + maxc) / 2, (minr + maxr) / 2
+        ax2.text(mc, mr, "\#{0}".format(i), color='w',
+                    ha="center", va="center")
+    ax2.set_xlim(0, h)
+    ax2.set_ylim(w, 0)
+
+    yy = .7
+    for i, npixels, rgbx in data:
+        itag =  "\#{0}:".format(i)
+        pixeltag = "{0} pixels".format(npixels)
+        rgbx = [x / 255. for x in rgbx]
+        hashtag = ",".join(str(x) for x in rgb2ints(rgbx))
+        print >> sys.stderr, itag, pixeltag, hashtag
+        ax3.text(.05, yy, itag, va="center")
+        ax3.text(.2, yy, pixeltag, va="center")
+        yy -= .04
+        ax3.add_patch(Rectangle((.2, yy - .025), .25, .05, lw=0,
+                      fc=rgb2hex(rgbx)))
+        ax3.text(.5, yy, hashtag, va="center")
+        yy -= .06
+    normalize_axes(ax3)
 
     image_name = pf + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)

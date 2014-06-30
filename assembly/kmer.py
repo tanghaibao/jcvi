@@ -457,6 +457,8 @@ def histogram(args):
             help="Print PDF instead of ASCII plot [default: %default]")
     p.add_option("--coverage", default=0, type="int",
             help="Kmer coverage [default: auto]")
+    p.add_option("--nopeaks", default=False, action="store_true",
+            help="Do not annotate K-mer peaks")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -469,6 +471,7 @@ def histogram(args):
     kformat = KMERYL
 
     ascii = not opts.pdf
+    peaks = not opts.nopeaks
     fp = open(histfile)
     hist = {}
     totalKmers = 0
@@ -529,6 +532,7 @@ def histogram(args):
 
     plt.figure(1, (6, 6))
     plt.plot(x, y, 'g-', lw=2, alpha=.5)
+    ax = plt.gca()
 
     t = (ks.min1, ks.max1, ks.min2, ks.max2, ks.min3)
     tcounts = [(x, y) for x, y in counts if x in t]
@@ -536,12 +540,12 @@ def histogram(args):
     plt.plot(x, y, 'ko', lw=2, mec='k', mfc='w')
     tcounts = dict(tcounts)
 
-    ax = plt.gca()
+    if peaks:
+        ax.text(ks.max1, tcounts[ks.max1], "SNP peak", va="top")
+        ax.text(ks.max2, tcounts[ks.max2], "Main peak")
 
     tc = "gray"
     axt = ax.transAxes
-    ax.text(ks.max1, tcounts[ks.max1], "SNP peak", va="top")
-    ax.text(ks.max2, tcounts[ks.max2], "Main peak")
     ax.text(.05, .95, Total_Kmers_msg, color=tc, transform=axt)
     ax.text(.05, .9, Kmer_coverage_msg, color=tc, transform=axt)
     ax.text(.05, .85, Genome_size_msg, color=tc, transform=axt)

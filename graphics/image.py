@@ -26,12 +26,6 @@ from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher, need_upd
 np.seterr(all="ignore")
 
 
-class Seed (object):
-
-    def __init__(self, img):
-        pass
-
-
 def main():
 
     actions = (
@@ -175,7 +169,7 @@ def seeds(args):
     valid_filters = ("canny", "roberts", "sobel")
     g3.add_option("--filter", default="canny", choices=valid_filters,
                 help="Edge detection algorithm")
-    g3.add_option("--sigma", default=2, type="int",
+    g3.add_option("--sigma", default=1, type="int",
                 help="Canny edge detection sigma, higher for noisy image")
     g3.add_option("--kernel", default=2, type="int",
                 help="Edge closure, higher for noisy image")
@@ -267,9 +261,9 @@ def seeds(args):
         major_dy = sin(orientation) * major / 2
         minor_dx = sin(orientation) * minor / 2
         minor_dy = cos(orientation) * minor / 2
-        ax3.plot((x0 - major_dx, x0 + major_dx),
+        ax2.plot((x0 - major_dx, x0 + major_dx),
                  (y0 + major_dy, y0 - major_dy), 'r-')
-        ax3.plot((x0 - minor_dx, x0 + minor_dx),
+        ax2.plot((x0 - minor_dx, x0 + minor_dx),
                  (y0 - minor_dy, y0 + minor_dy), 'r-')
 
         pixels = [pix for pix, label in zip(img_ravel, label_ravel) \
@@ -281,10 +275,12 @@ def seeds(args):
                                   fill=False, ec='w', lw=1)
         ax3.add_patch(rect)
         mc, mr = (minc + maxc) / 2, (minr + maxr) / 2
-        ax3.text(mc, mr, "\#{0}".format(i), color='w',
-                    ha="center", va="center")
-    ax3.set_xlim(0, h)
-    ax3.set_ylim(w, 0)
+        ax3.text(mc, mr, "{0}".format(i), color='w',
+                    ha="center", va="center", size=8)
+
+    for ax in (ax2, ax3):
+        ax.set_xlim(0, h)
+        ax.set_ylim(w, 0)
 
     # Output identified seed stats
     yy = .7
@@ -292,7 +288,7 @@ def seeds(args):
         itag =  "\#{0}:".format(i)
         ellipse_size = major * minor * pi / 4
         pixeltag = "Length:{0} Width:{1}".format(int(major), int(minor))
-        sizetag = "Size:{0} Ellipse_size:{1}".format(npixels, int(ellipse_size))
+        sizetag = "Size:{0} Ellipse:{1}".format(npixels, int(ellipse_size))
         rgbx = [x / 255. for x in rgbx]
         hashtag = ",".join(str(x) for x in rgb2ints(rgbx))
         print >> sys.stderr, itag, pixeltag, sizetag, hashtag
@@ -303,7 +299,14 @@ def seeds(args):
                       fc=rgb2hex(rgbx)))
         ax4.text(.5, yy, hashtag, va="center")
         yy -= .06
+
     normalize_axes(ax4)
+
+    for ax in (ax1, ax2, ax3):
+        xticklabels = [int(x) for x in ax.get_xticks()]
+        yticklabels = [int(x) for x in ax.get_yticks()]
+        ax.set_xticklabels(xticklabels, family='Helvetica')
+        ax.set_yticklabels(yticklabels, family='Helvetica')
 
     image_name = pf + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)

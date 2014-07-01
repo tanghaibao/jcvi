@@ -163,7 +163,7 @@ def seeds(args):
     p.add_option_group(g1)
 
     g2 = OptionGroup(p, "Object recognition")
-    g2.add_option("--minsize", default=.0005, type="float",
+    g2.add_option("--minsize", default=.001, type="float",
                 help="Min ratio of object to image")
     g2.add_option("--maxsize", default=.5, type="float",
                 help="Max ratio of object to image")
@@ -172,9 +172,12 @@ def seeds(args):
     p.add_option_group(g2)
 
     g3 = OptionGroup(p, "De-noise")
-    g3.add_option("--sigma", default=3, type="int",
-                help="Canny edge detection, higher for noisy image")
-    g3.add_option("--kernel", default=3, type="int",
+    valid_filters = ("canny", "roberts", "sobel")
+    g3.add_option("--filter", default="canny", choices=valid_filters,
+                help="Edge detection algorithm")
+    g3.add_option("--sigma", default=2, type="int",
+                help="Canny edge detection sigma, higher for noisy image")
+    g3.add_option("--kernel", default=2, type="int",
                 help="Edge closure, higher for noisy image")
     p.add_option_group(g3)
     opts, args, iopts = p.set_image_options(args)
@@ -185,6 +188,7 @@ def seeds(args):
     pngfile, = args
     pf = op.basename(pngfile).split(".")[0]
     sigma, kernel = opts.sigma, opts.kernel
+    ff = opts.filter
 
     img = load_image(pngfile, rotate=opts.rotate)
     w, h, c = img.shape
@@ -201,31 +205,38 @@ def seeds(args):
 
     fig, (ax1, ax2, ax3, ax4) = plt.subplots(ncols=4, nrows=1, figsize=(12, 6))
 
+    # Edge detection
     img_gray = color.rgb2gray(img)
-    edges = filter.canny(img_gray, sigma=opts.sigma)
+    logging.debug("Running {0} edge detection".format(ff))
+    if ff == "canny":
+        edges = filter.canny(img_gray, sigma=opts.sigma)
+    elif ff == "roberts":
+        edges = filter.roberts(img_gray)
+    elif ff == "sobel":
+        edges = filter.sobel(img_gray)
     selem = disk(opts.kernel)
     closed = closing(edges, selem)
     filled = ndimage.binary_fill_holes(closed)
 
+    # Object size filtering
     w, h = img_gray.shape
     min_size = int(w * h * opts.minsize)
     max_size = int(w * h * opts.maxsize)
     label_objects, nb_labels = ndimage.label(filled)
-    print nb_labels
     sizes = np.bincount(label_objects.ravel())
-    print sizes
     logging.debug("Find objects with pixels between {0} and {1}"\
                     .format(min_size, max_size))
     mask_sizes = np.logical_and(sizes >= min_size, sizes <= max_size)
     cleaned = mask_sizes[label_objects]
 
     label_objects, nb_labels = ndimage.label(cleaned)
-    print nb_labels
+    logging.debug("A total of {0} objects identified.".format(nb_labels))
 
     ax1.set_title('Original picture')
     ax1.imshow(img)
 
-    ax2.set_title(r'Edge detection (\sigma={0}, k={1})'.format(sigma, kernel))
+    ax2.set_title('Edge detection\n({0}, $\sigma$={1}, $k$={2})'.\
+                    format(ff, sigma, kernel))
     edges = color.gray2rgb(edges)
     cleaned = color.gray2rgb(cleaned)
     ax2.imshow(cleaned)

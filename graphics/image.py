@@ -11,18 +11,22 @@ import logging
 from math import sqrt
 
 import numpy as np
-import matplotlib.image as mpimg
 from matplotlib.colors import rgb2hex
 from jcvi.graphics.base import plt, savefig, normalize_axes, Rectangle
 
+from wand.image import Image
 from scipy import ndimage
 from skimage import filter, color, img_as_float
 from skimage import exposure
-from skimage.color import label2rgb
 from skimage.measure import regionprops
 from skimage.morphology import disk, closing
-from jcvi.algorithms.formula import reject_outliers
-from jcvi.apps.base import OptionParser, ActionDispatcher
+from jcvi.apps.base import OptionParser, ActionDispatcher, need_update
+
+
+class Seed (object):
+
+    def __init__(self, img):
+        pass
 
 
 def main():
@@ -112,26 +116,45 @@ def display_histogram(ax_hist, img, bins=256):
     ax_hist.set_xlabel('Pixel intensity')
     ax_hist.set_xlim(0, 1)
 
-     # Display cumulative distribution
+    # Display cumulative distribution
     img_cdf, bins = exposure.cumulative_distribution(img, bins)
     ax_cdf.plot(bins, img_cdf, 'r')
     ax_cdf.set_yticks([])
 
 
-def load_image(pngfile):
-    img = mpimg.imread(pngfile)
+def load_image(pngfile, resize=1000, format="jpeg"):
+    resizefile = pngfile.rsplit(".", 1)[0] + ".resize.jpg"
+    if need_update(pngfile, resizefile):
+        img = Image(filename=pngfile)
+        w, h = img.size
+        nw, nh = resize, resize * h / w
+        img.resize(nw, nh)
+        img.format = format
+        img.save(filename=resizefile)
+        logging.debug("Image resized from ({0} x {1}px) to ({2}px x {3}px)".\
+                        format(w, h, nw, nh))
+
+    img = plt.imread(resizefile)
     w, h, c = img.shape
-    logging.debug("Image `{0}` loaded ({1}px x {2}px).".format(pngfile, w, h))
+    logging.debug("Image `{0}` loaded ({1}px x {2}px).".format(resizefile, w, h))
     return img
 
 
 def seeds(args):
     """
-    %prog seeds pngfile
+    %prog seeds [pngfile|jpgfile]
 
-    Extract seed color from pngfile.
+    Extract seed color from [pngfile|jpgfile]. Use --rows and --cols to crop image.
     """
     p = OptionParser(seeds.__doc__)
+    p.add_option("--rows", default=':',
+                help="Crop rows e.g. `:800` takes first 800 rows")
+    p.add_option("--cols", default=':',
+                help="Crop cols e.g. `800:` takes last 800 cols")
+    p.add_option("--maxsize", default=.2, type="float",
+                help="Max proportion of object to image")
+    p.add_option("--count", default=5, type="int",
+                help="Report max number of objects")
     opts, args, iopts = p.set_image_options(args)
 
     if len(args) != 1:
@@ -139,7 +162,20 @@ def seeds(args):
 
     pngfile, = args
     pf = op.basename(pngfile).split(".")[0]
+
     img = load_image(pngfile)
+    w, h, c = img.shape
+    # Crop image
+    ra, rb = opts.rows.split(":")
+    ca, cb = opts.cols.split(":")
+    ra = 0 if ra == '' else int(ra)
+    rb = w if rb == '' else int(rb)
+    ca = 0 if ca == '' else int(ca)
+    cb = h if cb == '' else int(cb)
+    if opts.rows != ':' or opts.cols != ':':
+        img = img[ra:rb, ca:cb]
+        logging.debug("Crop image to {0}:{1} {2}:{3}".format(ra, rb, ca, cb))
+
     fig, (ax1, ax2, ax3) = plt.subplots(ncols=3, nrows=1, figsize=(8, 6))
 
     img_gray = color.rgb2gray(img)
@@ -149,7 +185,7 @@ def seeds(args):
     filled = ndimage.binary_fill_holes(closed)
 
     w, h = img_gray.shape
-    max_size = w * h / 2
+    max_size = w * h * opts.maxsize
     label_objects, nb_labels = ndimage.label(filled)
     print nb_labels
     sizes = np.bincount(label_objects.ravel())
@@ -158,14 +194,8 @@ def seeds(args):
     print mask_sizes
     cleaned = mask_sizes[label_objects]
 
-    #label_objects, nb_labels = ndimage.label(cleaned)
-    #print nb_labels
-    #mask_sizes = np.invert(reject_outliers(sizes))
-    #cleaned = mask_sizes[label_objects]
-
     label_objects, nb_labels = ndimage.label(cleaned)
     print nb_labels
-    #img_label_overlay = label2rgb(label_objects, image=img)
 
     ax1.set_title('Original picture')
     ax1.imshow(img)
@@ -195,6 +225,8 @@ def seeds(args):
         mc, mr = (minc + maxc) / 2, (minr + maxr) / 2
         ax2.text(mc, mr, "\#{0}".format(i), color='w',
                     ha="center", va="center")
+        if i > opts.count:
+            break
     ax2.set_xlim(0, h)
     ax2.set_ylim(w, 0)
 

@@ -20,7 +20,10 @@ from skimage import filter, color, img_as_float
 from skimage import exposure
 from skimage.measure import regionprops
 from skimage.morphology import disk, closing
-from jcvi.apps.base import OptionParser, ActionDispatcher, need_update
+from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher, need_update
+
+
+np.seterr(all="ignore")
 
 
 class Seed (object):
@@ -122,10 +125,12 @@ def display_histogram(ax_hist, img, bins=256):
     ax_cdf.set_yticks([])
 
 
-def load_image(pngfile, resize=1000, format="jpeg"):
+def load_image(pngfile, resize=1000, format="jpeg", rotate=0):
     resizefile = pngfile.rsplit(".", 1)[0] + ".resize.jpg"
     if need_update(pngfile, resizefile):
         img = Image(filename=pngfile)
+        if rotate:
+            img.rotate(rotate)
         w, h = img.size
         nw, nh = resize, resize * h / w
         img.resize(nw, nh)
@@ -135,6 +140,7 @@ def load_image(pngfile, resize=1000, format="jpeg"):
                         format(w, h, nw, nh))
 
     img = plt.imread(resizefile)
+    img = np.flipud(img)
     w, h, c = img.shape
     logging.debug("Image `{0}` loaded ({1}px x {2}px).".format(resizefile, w, h))
     return img
@@ -147,14 +153,30 @@ def seeds(args):
     Extract seed color from [pngfile|jpgfile]. Use --rows and --cols to crop image.
     """
     p = OptionParser(seeds.__doc__)
-    p.add_option("--rows", default=':',
+    g1 = OptionGroup(p, "Image manipulation")
+    g1.add_option("--rows", default=':',
                 help="Crop rows e.g. `:800` takes first 800 rows")
-    p.add_option("--cols", default=':',
+    g1.add_option("--cols", default=':',
                 help="Crop cols e.g. `800:` takes last 800 cols")
-    p.add_option("--maxsize", default=.2, type="float",
-                help="Max proportion of object to image")
-    p.add_option("--count", default=5, type="int",
+    g1.add_option("--rotate", default=0, type="int",
+                help="Rotate degrees clockwise")
+    p.add_option_group(g1)
+
+    g2 = OptionGroup(p, "Object recognition")
+    g2.add_option("--minsize", default=.0005, type="float",
+                help="Min ratio of object to image")
+    g2.add_option("--maxsize", default=.5, type="float",
+                help="Max ratio of object to image")
+    g2.add_option("--count", default=10, type="int",
                 help="Report max number of objects")
+    p.add_option_group(g2)
+
+    g3 = OptionGroup(p, "De-noise")
+    g3.add_option("--sigma", default=3, type="int",
+                help="Canny edge detection, higher for noisy image")
+    g3.add_option("--kernel", default=3, type="int",
+                help="Edge closure, higher for noisy image")
+    p.add_option_group(g3)
     opts, args, iopts = p.set_image_options(args)
 
     if len(args) != 1:
@@ -162,8 +184,9 @@ def seeds(args):
 
     pngfile, = args
     pf = op.basename(pngfile).split(".")[0]
+    sigma, kernel = opts.sigma, opts.kernel
 
-    img = load_image(pngfile)
+    img = load_image(pngfile, rotate=opts.rotate)
     w, h, c = img.shape
     # Crop image
     ra, rb = opts.rows.split(":")
@@ -176,22 +199,24 @@ def seeds(args):
         img = img[ra:rb, ca:cb]
         logging.debug("Crop image to {0}:{1} {2}:{3}".format(ra, rb, ca, cb))
 
-    fig, (ax1, ax2, ax3) = plt.subplots(ncols=3, nrows=1, figsize=(8, 6))
+    fig, (ax1, ax2, ax3, ax4) = plt.subplots(ncols=4, nrows=1, figsize=(12, 6))
 
     img_gray = color.rgb2gray(img)
-    edges = filter.canny(img_gray)
-    selem = disk(1)
+    edges = filter.canny(img_gray, sigma=opts.sigma)
+    selem = disk(opts.kernel)
     closed = closing(edges, selem)
     filled = ndimage.binary_fill_holes(closed)
 
     w, h = img_gray.shape
-    max_size = w * h * opts.maxsize
+    min_size = int(w * h * opts.minsize)
+    max_size = int(w * h * opts.maxsize)
     label_objects, nb_labels = ndimage.label(filled)
     print nb_labels
     sizes = np.bincount(label_objects.ravel())
     print sizes
-    mask_sizes = np.logical_and(sizes > 1000, sizes < max_size)
-    print mask_sizes
+    logging.debug("Find objects with pixels between {0} and {1}"\
+                    .format(min_size, max_size))
+    mask_sizes = np.logical_and(sizes >= min_size, sizes <= max_size)
     cleaned = mask_sizes[label_objects]
 
     label_objects, nb_labels = ndimage.label(cleaned)
@@ -200,10 +225,14 @@ def seeds(args):
     ax1.set_title('Original picture')
     ax1.imshow(img)
 
-    ax2.set_title('Object detection')
+    ax2.set_title(r'Edge detection (\sigma={0}, k={1})'.format(sigma, kernel))
     edges = color.gray2rgb(edges)
-    w, h, c = edges.shape
-    ax2.imshow(img)
+    cleaned = color.gray2rgb(cleaned)
+    ax2.imshow(cleaned)
+
+    ax3.set_title('Object detection')
+    ax3.imshow(img)
+
     img_ravel = []
     for row in img:
         for r, g, b in row:
@@ -212,6 +241,8 @@ def seeds(args):
     assert len(img_ravel) == len(label_ravel)
     data = []
     for i, region in enumerate(regionprops(label_objects)):
+        if i >= opts.count:
+            break
         i += 1
         pixels = [pix for pix, label in zip(img_ravel, label_ravel) \
                         if label == i]
@@ -221,14 +252,10 @@ def seeds(args):
         minr, minc, maxr, maxc = region.bbox
         rect = Rectangle((minc, minr), maxc - minc, maxr - minr,
                                   fill=False, ec='w', lw=1)
-        ax2.add_patch(rect)
+        ax3.add_patch(rect)
         mc, mr = (minc + maxc) / 2, (minr + maxr) / 2
-        ax2.text(mc, mr, "\#{0}".format(i), color='w',
+        ax3.text(mc, mr, "\#{0}".format(i), color='w',
                     ha="center", va="center")
-        if i > opts.count:
-            break
-    ax2.set_xlim(0, h)
-    ax2.set_ylim(w, 0)
 
     yy = .7
     for i, npixels, rgbx in data:
@@ -237,14 +264,14 @@ def seeds(args):
         rgbx = [x / 255. for x in rgbx]
         hashtag = ",".join(str(x) for x in rgb2ints(rgbx))
         print >> sys.stderr, itag, pixeltag, hashtag
-        ax3.text(.05, yy, itag, va="center")
-        ax3.text(.2, yy, pixeltag, va="center")
+        ax4.text(.05, yy, itag, va="center")
+        ax4.text(.2, yy, pixeltag, va="center")
         yy -= .04
-        ax3.add_patch(Rectangle((.2, yy - .025), .25, .05, lw=0,
+        ax4.add_patch(Rectangle((.2, yy - .025), .25, .05, lw=0,
                       fc=rgb2hex(rgbx)))
-        ax3.text(.5, yy, hashtag, va="center")
+        ax4.text(.5, yy, hashtag, va="center")
         yy -= .06
-    normalize_axes(ax3)
+    normalize_axes(ax4)
 
     image_name = pf + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)

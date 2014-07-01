@@ -8,7 +8,7 @@ Image processing pipelines for phenotyping projects.
 import os.path as op
 import sys
 import logging
-from math import sqrt
+from math import sqrt, sin, cos, pi
 
 import numpy as np
 from matplotlib.colors import rgb2hex
@@ -207,7 +207,7 @@ def seeds(args):
 
     # Edge detection
     img_gray = color.rgb2gray(img)
-    logging.debug("Running {0} edge detection".format(ff))
+    logging.debug("Running {0} edge detection ...".format(ff))
     if ff == "canny":
         edges = filter.canny(img_gray, sigma=opts.sigma)
     elif ff == "roberts":
@@ -232,6 +232,7 @@ def seeds(args):
     label_objects, nb_labels = ndimage.label(cleaned)
     logging.debug("A total of {0} objects identified.".format(nb_labels))
 
+    # Plotting
     ax1.set_title('Original picture')
     ax1.imshow(img)
 
@@ -251,30 +252,50 @@ def seeds(args):
     label_ravel = label_objects.ravel()
     assert len(img_ravel) == len(label_ravel)
     data = []
-    for i, region in enumerate(regionprops(label_objects)):
+
+    # Calculate region properties
+    rp = regionprops(label_objects)
+    for i, props in enumerate(rp):
+        i += 1
         if i >= opts.count:
             break
-        i += 1
+
+        y0, x0 = props.centroid
+        orientation = props.orientation
+        major, minor = props.major_axis_length, props.minor_axis_length
+        major_dx = cos(orientation) * major / 2
+        major_dy = sin(orientation) * major / 2
+        minor_dx = sin(orientation) * minor / 2
+        minor_dy = cos(orientation) * minor / 2
+        ax3.plot((x0 - major_dx, x0 + major_dx),
+                 (y0 + major_dy, y0 - major_dy), 'r-')
+        ax3.plot((x0 - minor_dx, x0 + minor_dx),
+                 (y0 - minor_dy, y0 + minor_dy), 'r-')
+
         pixels = [pix for pix, label in zip(img_ravel, label_ravel) \
                         if label == i]
         npixels, rgb_1q, rgb_m, rgb_3q = pixel_stats(pixels)
-        data.append((i, npixels, rgb_m))
-        # draw rectangle around segmented coins
-        minr, minc, maxr, maxc = region.bbox
+        data.append((i, npixels, rgb_m, major, minor))
+        minr, minc, maxr, maxc = props.bbox
         rect = Rectangle((minc, minr), maxc - minc, maxr - minr,
                                   fill=False, ec='w', lw=1)
         ax3.add_patch(rect)
         mc, mr = (minc + maxc) / 2, (minr + maxr) / 2
         ax3.text(mc, mr, "\#{0}".format(i), color='w',
                     ha="center", va="center")
+    ax3.set_xlim(0, h)
+    ax3.set_ylim(w, 0)
 
+    # Output identified seed stats
     yy = .7
-    for i, npixels, rgbx in data:
+    for i, npixels, rgbx, major, minor in data:
         itag =  "\#{0}:".format(i)
-        pixeltag = "{0} pixels".format(npixels)
+        ellipse_size = major * minor * pi / 4
+        pixeltag = "Length:{0} Width:{1}".format(int(major), int(minor))
+        sizetag = "Size:{0} Ellipse_size:{1}".format(npixels, int(ellipse_size))
         rgbx = [x / 255. for x in rgbx]
         hashtag = ",".join(str(x) for x in rgb2ints(rgbx))
-        print >> sys.stderr, itag, pixeltag, hashtag
+        print >> sys.stderr, itag, pixeltag, sizetag, hashtag
         ax4.text(.05, yy, itag, va="center")
         ax4.text(.2, yy, pixeltag, va="center")
         yy -= .04

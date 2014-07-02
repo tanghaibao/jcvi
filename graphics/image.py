@@ -36,8 +36,13 @@ def main():
     p.dispatch(globals())
 
 
+def p_round(n, precision=5):
+    precision = int(precision)
+    return int(round(n / float(precision))) * precision
+
+
 def pixel_stats(img):
-    img = [(r / 5 * 5, g / 5 * 5, b / 5 * 5) for r, g, b in img]
+    img = [(p_round(r), p_round(g), p_round(b)) for r, g, b in img]
     c = Counter(img)
     imgx, count = c.most_common(1)[0]
     return imgx
@@ -208,6 +213,7 @@ def seeds(args):
         ax.set_xlim(0, h)
         ax.set_ylim(w, 0)
 
+    ax4.text(.1, .8, "File: {0}".format(op.basename(pngfile)), color='g')
     # Output identified seed stats
     yy = .7
     for i, npixels, rgbx, major, minor in data:
@@ -217,7 +223,7 @@ def seeds(args):
         sizetag = "size={0} ellipse={1}".format(npixels, int(ellipse_size))
         hashtag = ",".join(str(x) for x in rgbx)
         hashtag = "{0} {1}".format(hashtag, closest_color(rgbx))
-        print itag, pixeltag, sizetag, hashtag
+        print pf, itag, pixeltag, sizetag, hashtag
         ax4.text(.05, yy, itag, va="center")
         ax4.text(.2, yy, pixeltag, va="center")
         yy -= .04

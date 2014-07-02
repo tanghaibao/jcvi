@@ -30,7 +30,6 @@ def main():
 
     actions = (
         ('seeds', 'extract seed color from images'),
-        ('rgb', 'extract rgb from image'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -213,7 +212,8 @@ def seeds(args):
         ax.set_xlim(0, h)
         ax.set_ylim(w, 0)
 
-    ax4.text(.1, .8, "File: {0}".format(op.basename(pngfile)), color='g')
+    filename = op.basename(pngfile).replace('_', '\_')
+    ax4.text(.1, .8, "File: {0}".format(filename), color='g')
     # Output identified seed stats
     yy = .7
     for i, npixels, rgbx, major, minor in data:

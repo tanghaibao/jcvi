@@ -8,18 +8,18 @@ Image processing pipelines for phenotyping projects.
 import os.path as op
 import sys
 import logging
-from math import sqrt, sin, cos, pi
+from math import sin, cos, pi
 
 import numpy as np
-from matplotlib.colors import rgb2hex
 from jcvi.graphics.base import plt, savefig, normalize_axes, Rectangle
 
 from wand.image import Image
-from scipy import ndimage
-from skimage import filter, color, img_as_float
-from skimage import exposure
+from scipy.ndimage import binary_fill_holes, label
+from skimage import filter, color
 from skimage.measure import regionprops
 from skimage.morphology import disk, closing
+from jcvi.utils.counter import Counter
+from jcvi.utils.webcolors import rgb_to_hex, closest_color
 from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher, need_update
 
 
@@ -36,87 +36,11 @@ def main():
     p.dispatch(globals())
 
 
-intensity = lambda x: sqrt((x[0] * x[0] + x[1] * x[1] + x[2] * x[2]) / 3)
-
-
-def rgb2ints(rgbx):
-    r, g, b = rgbx
-    r *= 255
-    g *= 255
-    b *= 255
-    return int(round(r)), int(round(g)), int(round(b))
-
-
 def pixel_stats(img):
-    img.sort(key=intensity)
-    npixels = len(img)
-    logging.debug("A total of {0} pixels imported".format(npixels))
-    rgb_1q = img[npixels / 4 * 3]
-    rgb_m = img[npixels / 2]
-    rgb_3q = img[npixels / 4]
-    return npixels, rgb_1q, rgb_m, rgb_3q
-
-
-def rgb(args):
-    """
-    %prog rgb pngfile
-
-    Extract RGB from image.
-    """
-    p = OptionParser(rgb.__doc__)
-    opts, args, iopts = p.set_image_options(args)
-
-    if len(args) != 1:
-        sys.exit(not p.print_help())
-
-    pngfile, = args
-    pf = op.basename(pngfile).split(".")[0]
-    img = load_image(pngfile)
-
-    fig, (ax1, ax2) = plt.subplots(ncols=2, nrows=1, figsize=(6, 3))
-    ax1.set_title('Original picture')
-    ax1.imshow(img)
-
-    img_rgbi = []
-    for row in img:
-        for r, g, b, a in row:
-            its = intensity((r, g, b))
-            if its > .99:
-                continue
-            img_rgbi.append((r, g, b))
-
-    npixels, rgb_1q, rgb_m, rgb_3q = pixel_stats(img_rgbi)
-
-    yy = .6
-    ax2.text(.5, .8, pf.replace("_", "-"), color="g", ha="center", va="center")
-    for t, rgbx in zip(("1st quartile", "Median", "3rd quartile"),
-                       (rgb_1q, rgb_m, rgb_3q)):
-        ax2.add_patch(Rectangle((.55, yy - .04), .08, .08, lw=0,
-                      fc=rgb2hex(rgbx)))
-        hashtag = rgb2ints(rgbx)
-        hashtag = ",".join(str(x) for x in hashtag)
-        print >> sys.stderr, pf, t, hashtag
-        ax2.text(.5, yy, t, ha="right", va="center")
-        ax2.text(.65, yy, hashtag, va="center")
-        yy -= .1
-    normalize_axes(ax2)
-
-    image_name = pf + "." + iopts.format
-    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
-
-
-def display_histogram(ax_hist, img, bins=256):
-    img = img_as_float(img)
-    ax_cdf = ax_hist.twinx()
-    ax_hist.hist(img.ravel(), bins=bins, histtype='step', color='black')
-    ax_hist.ticklabel_format(axis='y', style='scientific', scilimits=(0, 0))
-    ax_hist.set_xlabel('Pixel intensity')
-    ax_hist.set_xlim(0, 1)
-
-    # Display cumulative distribution
-    img_cdf, bins = exposure.cumulative_distribution(img, bins)
-    ax_cdf.plot(bins, img_cdf, 'r')
-    ax_cdf.set_yticks([])
+    img = [(r / 5 * 5, g / 5 * 5, b / 5 * 5) for r, g, b in img]
+    c = Counter(img)
+    imgx, count = c.most_common(1)[0]
+    return imgx
 
 
 def load_image(pngfile, resize=1000, format="jpeg", rotate=0):
@@ -125,13 +49,14 @@ def load_image(pngfile, resize=1000, format="jpeg", rotate=0):
         img = Image(filename=pngfile)
         if rotate:
             img.rotate(rotate)
-        w, h = img.size
-        nw, nh = resize, resize * h / w
-        img.resize(nw, nh)
+        if resize:
+            w, h = img.size
+            nw, nh = resize, resize * h / w
+            img.resize(nw, nh)
+            logging.debug("Image resized from ({0} x {1}px) to ({2}px x {3}px)".\
+                            format(w, h, nw, nh))
         img.format = format
         img.save(filename=resizefile)
-        logging.debug("Image resized from ({0} x {1}px) to ({2}px x {3}px)".\
-                        format(w, h, nw, nh))
 
     img = plt.imread(resizefile)
     img = np.flipud(img)
@@ -210,20 +135,20 @@ def seeds(args):
         edges = filter.sobel(img_gray)
     selem = disk(opts.kernel)
     closed = closing(edges, selem)
-    filled = ndimage.binary_fill_holes(closed)
+    filled = binary_fill_holes(closed)
 
     # Object size filtering
     w, h = img_gray.shape
     min_size = int(w * h * opts.minsize)
     max_size = int(w * h * opts.maxsize)
-    label_objects, nb_labels = ndimage.label(filled)
+    label_objects, nb_labels = label(filled)
     sizes = np.bincount(label_objects.ravel())
     logging.debug("Find objects with pixels between {0} and {1}"\
                     .format(min_size, max_size))
     mask_sizes = np.logical_and(sizes >= min_size, sizes <= max_size)
     cleaned = mask_sizes[label_objects]
 
-    label_objects, nb_labels = ndimage.label(cleaned)
+    label_objects, nb_labels = label(cleaned)
     logging.debug("A total of {0} objects identified.".format(nb_labels))
 
     # Plotting
@@ -239,14 +164,7 @@ def seeds(args):
     ax3.set_title('Object detection')
     ax3.imshow(img)
 
-    img_ravel = []
-    for row in img:
-        for r, g, b in row:
-            img_ravel.append((r, g, b))
-    label_ravel = label_objects.ravel()
-    assert len(img_ravel) == len(label_ravel)
     data = []
-
     # Calculate region properties
     rp = regionprops(label_objects)
     for i, props in enumerate(rp):
@@ -266,10 +184,18 @@ def seeds(args):
         ax2.plot((x0 - minor_dx, x0 + minor_dx),
                  (y0 - minor_dy, y0 + minor_dy), 'r-')
 
-        pixels = [pix for pix, label in zip(img_ravel, label_ravel) \
-                        if label == i]
-        npixels, rgb_1q, rgb_m, rgb_3q = pixel_stats(pixels)
-        data.append((i, npixels, rgb_m, major, minor))
+        npixels = int(props.area)
+        # Sample the center of the blob for color
+        d = int(round(minor / 2 * .7))
+        square = img[(y0 - d):(y0 + d), (x0 - d):(x0 + d)]
+        pixels = []
+        for row in square:
+            pixels.extend(row)
+        logging.debug("Seed #{0}: {1} pixels ({2} sampled)".\
+                        format(i, npixels, len(pixels)))
+
+        rgbx = pixel_stats(pixels)
+        data.append((i, npixels, rgbx, major, minor))
         minr, minc, maxr, maxc = props.bbox
         rect = Rectangle((minc, minr), maxc - minc, maxr - minr,
                                   fill=False, ec='w', lw=1)
@@ -285,19 +211,19 @@ def seeds(args):
     # Output identified seed stats
     yy = .7
     for i, npixels, rgbx, major, minor in data:
-        itag =  "\#{0}:".format(i)
+        itag =  "{0}:".format(i)
         ellipse_size = major * minor * pi / 4
-        pixeltag = "Length:{0} Width:{1}".format(int(major), int(minor))
-        sizetag = "Size:{0} Ellipse:{1}".format(npixels, int(ellipse_size))
-        rgbx = [x / 255. for x in rgbx]
-        hashtag = ",".join(str(x) for x in rgb2ints(rgbx))
-        print >> sys.stderr, itag, pixeltag, sizetag, hashtag
+        pixeltag = "length={0} width={1}".format(int(major), int(minor))
+        sizetag = "size={0} ellipse={1}".format(npixels, int(ellipse_size))
+        hashtag = ",".join(str(x) for x in rgbx)
+        hashtag = "{0} {1}".format(hashtag, closest_color(rgbx))
+        print itag, pixeltag, sizetag, hashtag
         ax4.text(.05, yy, itag, va="center")
         ax4.text(.2, yy, pixeltag, va="center")
         yy -= .04
-        ax4.add_patch(Rectangle((.2, yy - .025), .25, .05, lw=0,
-                      fc=rgb2hex(rgbx)))
-        ax4.text(.5, yy, hashtag, va="center")
+        ax4.add_patch(Rectangle((.2, yy - .025), .15, .05, lw=0,
+                      fc=rgb_to_hex(rgbx)))
+        ax4.text(.4, yy, hashtag, va="center")
         yy -= .06
 
     normalize_axes(ax4)

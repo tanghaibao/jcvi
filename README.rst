@@ -104,6 +104,10 @@ Please replace ``dir_contains_jcvi`` above with whatever you like, but it must
 contain ``jcvi``. To avoid setting ``PYTHONPATH`` everytime, please insert the last
 command in your ``.bashrc`` or ``.bash_profile``.
 
+If you have ``pip`` installed:
+
+    pip install git+git://github.com/tanghaibao/jcvi.git
+
 In addition, a few module might ask for locations of external programs, if the extended
 cannot be found in your ``PATH``. The external programs that are often used are:
 

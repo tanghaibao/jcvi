@@ -140,7 +140,7 @@ def seeds(args):
                 help="Min ratio of object to image")
     g2.add_option("--maxsize", default=.5, type="float",
                 help="Max ratio of object to image")
-    g2.add_option("--count", default=10, type="int",
+    g2.add_option("--count", default=30, type="int",
                 help="Report max number of objects")
     p.add_option_group(g2)
 
@@ -220,7 +220,7 @@ def seeds(args):
     rp = regionprops(label_objects)
     for i, props in enumerate(rp):
         i += 1
-        if i >= opts.count:
+        if i > opts.count:
             break
 
         y0, x0 = props.centroid
@@ -279,6 +279,8 @@ def seeds(args):
         hashtag = ",".join(str(x) for x in rgbx)
         hashtag = "{0} {1}".format(hashtag, closest_color(rgbx))
         print accession, "seed", itag, pixeltag, sizetag, hashtag
+        if i > 7:
+            continue
         ax4.text(.05, yy, itag, va="center")
         ax4.text(.2, yy, pixeltag, va="center")
         yy -= .04
@@ -287,6 +289,8 @@ def seeds(args):
         ax4.text(.4, yy, hashtag, va="center")
         yy -= .06
 
+    ax4.text(.1 , yy, "(A total of {0} objects displayed)".format(nb_labels),
+             color="darkslategrey")
     normalize_axes(ax4)
 
     for ax in (ax1, ax2, ax3):

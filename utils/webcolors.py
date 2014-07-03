@@ -188,6 +188,7 @@ values to normalized color names. These eight mappings are as follows:
 
 import math
 import re
+import logging
 
 
 def _reversedict(d):
@@ -823,18 +824,40 @@ def rgb_percent_to_rgb(rgb_percent_triplet):
     return tuple(map(_percent_to_integer, rgb_percent_triplet))
 
 
-def closest_color(requested_colour):
+def color_diff(rgb1, rgb2):
+    """
+    Calculate distance between two RGB colors. See discussion:
+
+    http://stackoverflow.com/questions/8863810/python-find-similar-colors-best-way
+
+    - for basic / fast calculations, you can use dE76 but beware of its problems
+    - for graphics arts use we recommend dE94 and perhaps dE-CMC 2:1
+    - for textiles use dE-CMC
+    """
+    from colormath.color_objects import LabColor, sRGBColor
+    from colormath.color_conversions import convert_color
+    from colormath.color_diff import delta_e_cmc
+
+    rgb1 = sRGBColor(*rgb1)
+    rgb2 = sRGBColor(*rgb2)
+    lab1 = convert_color(rgb1, LabColor)
+    lab2 = convert_color(rgb2, LabColor)
+    return delta_e_cmc(lab1, lab2)
+
+
+def closest_color(requested_color):
     """
     Find closest color name for the request RGB tuple.
     """
-    min_colors = {}
+    logging.disable(logging.DEBUG)
+    colors = []
     for key, name in css3_hex_to_names.items():
-        r, g, b = hex_to_rgb(key)
-        rd = (r - requested_colour[0]) ** 2
-        gd = (g - requested_colour[1]) ** 2
-        bd = (b - requested_colour[2]) ** 2
-        min_colors[(rd + gd + bd)] = name
-    return min_colors[min(min_colors.keys())]
+        diff = color_diff(hex_to_rgb(key), requested_color)
+        colors.append((diff, name))
+    logging.disable(logging.NOTSET)
+    min_diff, min_color = min(colors)
+
+    return min_color
 
 
 if __name__ == '__main__':

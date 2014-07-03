@@ -47,8 +47,18 @@ def pixel_stats(img):
     return imgx
 
 
-def load_image(pngfile, resize=1000, format="jpeg", rotate=0):
-    resizefile = pngfile.rsplit(".", 1)[0] + ".resize.jpg"
+def slice(s, m):
+    assert ':' in s
+    ra, rb = s.split(':')
+    ra = 0 if ra == '' else int(ra)
+    rb = m if rb == '' else int(rb)
+    return ra, rb
+
+
+def load_image(pngfile, resize=1000, format="jpeg", rotate=0,
+               rows=':', cols=':', labelrows=None, labelcols=None):
+
+    resizefile = pngfile.rsplit(".", 1)[0] + ".r{0}.jpg".format(resize)
     if need_update(pngfile, resizefile):
         img = Image(filename=pngfile)
         if rotate:
@@ -57,16 +67,24 @@ def load_image(pngfile, resize=1000, format="jpeg", rotate=0):
             w, h = img.size
             nw, nh = resize, resize * h / w
             img.resize(nw, nh)
-            logging.debug("Image resized from ({0} x {1}px) to ({2}px x {3}px)".\
+            logging.debug("Image resized from ({0}px x {1}px) to ({2}px x {3}px)".\
                             format(w, h, nw, nh))
         img.format = format
         img.save(filename=resizefile)
 
     img = plt.imread(resizefile)
     img = np.flipud(img)
-    w, h, c = img.shape
+    h, w, c = img.shape
     logging.debug("Image `{0}` loaded ({1}px x {2}px).".format(resizefile, w, h))
     return img
+
+
+def crop_image(img, rows, cols):
+    w, h, c = img.shape
+    ra, rb = slice(rows, w)
+    ca, cb = slice(cols, h)
+    logging.debug("Crop image to {0}:{1} {2}:{3}".format(ra, rb, ca, cb))
+    return img[ra:rb, ca:cb]
 
 
 def seeds(args):
@@ -77,12 +95,16 @@ def seeds(args):
     """
     p = OptionParser(seeds.__doc__)
     g1 = OptionGroup(p, "Image manipulation")
-    g1.add_option("--rows", default=':',
-                help="Crop rows e.g. `:800` takes first 800 rows")
-    g1.add_option("--cols", default=':',
-                help="Crop cols e.g. `800:` takes last 800 cols")
     g1.add_option("--rotate", default=0, type="int",
                 help="Rotate degrees clockwise")
+    g1.add_option("--rows", default=':',
+                help="Crop rows e.g. `:800` from first 800 rows")
+    g1.add_option("--cols", default=':',
+                help="Crop cols e.g. `-800:` from last 800 cols")
+    g1.add_option("--labelrows",
+                help="Label rows e.g. `:800` from first 800 rows")
+    g1.add_option("--labelcols",
+                help="Label cols e.g. `-800: from last 800 rows")
     p.add_option_group(g1)
 
     g2 = OptionGroup(p, "Object recognition")
@@ -103,7 +125,7 @@ def seeds(args):
     g3.add_option("--kernel", default=2, type="int",
                 help="Edge closure, higher for noisy image")
     p.add_option_group(g3)
-    opts, args, iopts = p.set_image_options(args)
+    opts, args, iopts = p.set_image_options(args, figsize='12x6')
 
     if len(args) != 1:
         sys.exit(not p.print_help())
@@ -111,22 +133,18 @@ def seeds(args):
     pngfile, = args
     pf = op.basename(pngfile).split(".")[0]
     sigma, kernel = opts.sigma, opts.kernel
+    rows, cols = opts.rows, opts.cols
+    labelrows, labelcols = opts.labelrows, opts.labelcols
     ff = opts.filter
 
     img = load_image(pngfile, rotate=opts.rotate)
     w, h, c = img.shape
     # Crop image
-    ra, rb = opts.rows.split(":")
-    ca, cb = opts.cols.split(":")
-    ra = 0 if ra == '' else int(ra)
-    rb = w if rb == '' else int(rb)
-    ca = 0 if ca == '' else int(ca)
-    cb = h if cb == '' else int(cb)
-    if opts.rows != ':' or opts.cols != ':':
-        img = img[ra:rb, ca:cb]
-        logging.debug("Crop image to {0}:{1} {2}:{3}".format(ra, rb, ca, cb))
+    if rows != ':' or cols != ':':
+        img = crop_image(img, rows, cols)
 
-    fig, (ax1, ax2, ax3, ax4) = plt.subplots(ncols=4, nrows=1, figsize=(12, 6))
+    fig, (ax1, ax2, ax3, ax4) = plt.subplots(ncols=4, nrows=1,
+                                             figsize=(iopts.w, iopts.h))
 
     # Edge detection
     img_gray = color.rgb2gray(img)

@@ -13,14 +13,16 @@ from math import sin, cos, pi
 import numpy as np
 from jcvi.graphics.base import plt, savefig, normalize_axes, Rectangle
 
+from Image import open as iopen
 from wand.image import Image
+from pytesseract import image_to_string
 from scipy.ndimage import binary_fill_holes, label
 from skimage import filter, color
 from skimage.measure import regionprops
 from skimage.morphology import disk, closing
 from jcvi.utils.counter import Counter
 from jcvi.utils.webcolors import rgb_to_hex, closest_color
-from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher, need_update
+from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher
 
 
 np.seterr(all="ignore")
@@ -55,36 +57,62 @@ def slice(s, m):
     return ra, rb
 
 
-def load_image(pngfile, resize=1000, format="jpeg", rotate=0,
-               rows=':', cols=':', labelrows=None, labelcols=None):
+def convert_image(pngfile, resize=1000, format="jpeg", rotate=0,
+                  rows=':', cols=':', labelrows=None, labelcols=None):
+    pf = pngfile.rsplit(".", 1)[0]
+    resizefile = pf + ".resize.jpg"
+    mainfile = pf + ".main.jpg"
+    labelfile = pf + ".label.jpg"
+    img = Image(filename=pngfile)
+    # Rotation, slicing and cropping of main image
+    if rotate:
+        img.rotate(rotate)
+    if resize:
+        w, h = img.size
+        nw, nh = resize, resize * h / w
+        img.resize(nw, nh)
+        logging.debug("Image resized from {0}px:{1}px to {2}px:{3}px".\
+                        format(w, h, nw, nh))
+    img.format = format
+    img.save(filename=resizefile)
 
-    resizefile = pngfile.rsplit(".", 1)[0] + ".r{0}.jpg".format(resize)
-    if need_update(pngfile, resizefile):
-        img = Image(filename=pngfile)
-        if rotate:
-            img.rotate(rotate)
-        if resize:
-            w, h = img.size
-            nw, nh = resize, resize * h / w
-            img.resize(nw, nh)
-            logging.debug("Image resized from ({0}px x {1}px) to ({2}px x {3}px)".\
-                            format(w, h, nw, nh))
+    rimg = img.clone()
+    if rows != ':' or cols != ':':
+        w, h = img.size
+        ra, rb = slice(rows, h)
+        ca, cb = slice(cols, w)
+        # left, top, right, bottom
+        img.crop(ca, ra, cb, rb)
+        logging.debug("Crop image to {0}:{1} {2}:{3}".format(ra, rb, ca, cb))
         img.format = format
-        img.save(filename=resizefile)
+        img.save(filename=mainfile)
+    else:
+        mainfile = resizefile
 
+    # Extract text labels from image
+    if labelrows or labelcols:
+        if labelrows and not labelcols:
+            labelcols = ':'
+        if labelcols and not labelrows:
+            labelrows = ':'
+        ra, rb = slice(labelrows, h)
+        ca, cb = slice(labelcols, w)
+        rimg.crop(ca, ra, cb, rb)
+        logging.debug("Extract label from {0}:{1} {2}:{3}".format(ra, rb, ca, cb))
+        rimg.format = format
+        rimg.save(filename=labelfile)
+    else:
+        labelfile = None
+
+    return resizefile, mainfile, labelfile
+
+
+def load_image(resizefile):
     img = plt.imread(resizefile)
     img = np.flipud(img)
     h, w, c = img.shape
     logging.debug("Image `{0}` loaded ({1}px x {2}px).".format(resizefile, w, h))
     return img
-
-
-def crop_image(img, rows, cols):
-    w, h, c = img.shape
-    ra, rb = slice(rows, w)
-    ca, cb = slice(cols, h)
-    logging.debug("Crop image to {0}:{1} {2}:{3}".format(ra, rb, ca, cb))
-    return img[ra:rb, ca:cb]
 
 
 def seeds(args):
@@ -137,11 +165,12 @@ def seeds(args):
     labelrows, labelcols = opts.labelrows, opts.labelcols
     ff = opts.filter
 
-    img = load_image(pngfile, rotate=opts.rotate)
-    w, h, c = img.shape
-    # Crop image
-    if rows != ':' or cols != ':':
-        img = crop_image(img, rows, cols)
+    resizefile, mainfile, labelfile = convert_image(pngfile, rotate=opts.rotate,
+                                    rows=rows, cols=cols,
+                                    labelrows=labelrows, labelcols=labelcols)
+
+    oimg = load_image(resizefile)
+    img = load_image(mainfile)
 
     fig, (ax1, ax2, ax3, ax4) = plt.subplots(ncols=4, nrows=1,
                                              figsize=(iopts.w, iopts.h))
@@ -175,7 +204,7 @@ def seeds(args):
 
     # Plotting
     ax1.set_title('Original picture')
-    ax1.imshow(img)
+    ax1.imshow(oimg)
 
     ax2.set_title('Edge detection\n({0}, $\sigma$={1}, $k$={2})'.\
                     format(ff, sigma, kernel))
@@ -231,7 +260,15 @@ def seeds(args):
         ax.set_ylim(w, 0)
 
     filename = op.basename(pngfile).replace('_', '\_')
-    ax4.text(.1, .8, "File: {0}".format(filename), color='g')
+    if labelfile:
+        accession = image_to_string(iopen(labelfile))
+        accession = " ".join(accession.split())  # normalize spaces
+        accession = accession.replace('_', '\_')
+    else:
+        accession = filename
+
+    ax4.text(.1, .82, "File: {0}".format(filename), color='g')
+    ax4.text(.1, .76, "Label: {0}".format(accession), color='m')
     # Output identified seed stats
     yy = .7
     for i, npixels, rgbx, major, minor in data:
@@ -241,7 +278,7 @@ def seeds(args):
         sizetag = "size={0} ellipse={1}".format(npixels, int(ellipse_size))
         hashtag = ",".join(str(x) for x in rgbx)
         hashtag = "{0} {1}".format(hashtag, closest_color(rgbx))
-        print pf, itag, pixeltag, sizetag, hashtag
+        print accession, "seed", itag, pixeltag, sizetag, hashtag
         ax4.text(.05, yy, itag, va="center")
         ax4.text(.2, yy, pixeltag, va="center")
         yy -= .04

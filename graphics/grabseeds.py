@@ -16,10 +16,11 @@ from jcvi.graphics.base import plt, savefig, normalize_axes, Rectangle
 from Image import open as iopen
 from wand.image import Image
 from pytesseract import image_to_string
-from scipy.ndimage import binary_fill_holes, label
+from scipy.ndimage import binary_fill_holes, label, distance_transform_edt
 from skimage import filter, color
+from skimage.feature import peak_local_max
 from skimage.measure import regionprops
-from skimage.morphology import disk, closing
+from skimage.morphology import disk, closing, watershed
 from jcvi.utils.counter import Counter
 from jcvi.utils.webcolors import rgb_to_hex, closest_color
 from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher
@@ -142,6 +143,8 @@ def seeds(args):
                 help="Max ratio of object to image")
     g2.add_option("--count", default=100, type="int",
                 help="Report max number of objects")
+    g2.add_option("--watershed", default=False, action="store_true",
+                help="Run watershed to segment touching objects")
     p.add_option_group(g2)
 
     g3 = OptionGroup(p, "De-noise")
@@ -192,19 +195,28 @@ def seeds(args):
     selem = disk(opts.kernel)
     closed = closing(edges, selem)
     filled = binary_fill_holes(closed)
+    label_objects, nb_labels = label(filled)
+
+    # Watershed algorithm
+    if opts.watershed:
+        distance = distance_transform_edt(filled)
+        local_maxi = peak_local_max(distance, indices=False, footprint=np.ones((3, 3)),
+                                    labels=filled)
+        markers, nmarkers = label(local_maxi)
+        logging.debug("Identified {0} watershed markers".format(nmarkers))
+        label_objects = watershed(-distance, markers, mask=filled)
 
     # Object size filtering
+    sizes = np.bincount(label_objects.ravel())
     w, h = img_gray.shape
     min_size = int(w * h * opts.minsize)
     max_size = int(w * h * opts.maxsize)
-    label_objects, nb_labels = label(filled)
-    sizes = np.bincount(label_objects.ravel())
     logging.debug("Find objects with pixels between {0} and {1}"\
                     .format(min_size, max_size))
     mask_sizes = np.logical_and(sizes >= min_size, sizes <= max_size)
     cleaned = mask_sizes[label_objects]
 
-    label_objects, nb_labels = label(cleaned)
+    olabels, nb_labels = label(cleaned)
     logging.debug("A total of {0} objects identified.".format(nb_labels))
 
     # Plotting
@@ -223,7 +235,7 @@ def seeds(args):
 
     data = []
     # Calculate region properties
-    rp = regionprops(label_objects)
+    rp = regionprops(olabels)
     rp.sort(key=lambda x: (int(x.centroid[0] // 100), x.centroid[1]))
     for i, props in enumerate(rp):
         i += 1

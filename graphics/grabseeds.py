@@ -8,7 +8,7 @@ Image processing pipelines for phenotyping projects.
 import os.path as op
 import sys
 import logging
-from math import sin, cos, pi
+from math import sin, cos
 
 import numpy as np
 from jcvi.graphics.base import plt, savefig, normalize_axes, Rectangle
@@ -140,7 +140,7 @@ def seeds(args):
                 help="Min ratio of object to image")
     g2.add_option("--maxsize", default=.5, type="float",
                 help="Max ratio of object to image")
-    g2.add_option("--count", default=30, type="int",
+    g2.add_option("--count", default=100, type="int",
                 help="Report max number of objects")
     p.add_option_group(g2)
 
@@ -151,8 +151,13 @@ def seeds(args):
     g3.add_option("--sigma", default=1, type="int",
                 help="Canny edge detection sigma, higher for noisy image")
     g3.add_option("--kernel", default=2, type="int",
-                help="Edge closure, higher for noisy image")
+                help="Edge closure, higher if the object edges are dull")
     p.add_option_group(g3)
+
+    g4 = OptionGroup(p, "Output")
+    g4.add_option("--edges", default=False, action="store_true",
+                help="Visualize edges in middle PDF panel")
+    p.add_option_group(g4)
     opts, args, iopts = p.set_image_options(args, figsize='12x6')
 
     if len(args) != 1:
@@ -210,7 +215,8 @@ def seeds(args):
                     format(ff, sigma, kernel))
     edges = color.gray2rgb(edges)
     cleaned = color.gray2rgb(cleaned)
-    ax2.imshow(cleaned)
+    ax2_img = edges if opts.edges else cleaned
+    ax2.imshow(ax2_img)
 
     ax3.set_title('Object detection')
     ax3.imshow(img)
@@ -218,6 +224,7 @@ def seeds(args):
     data = []
     # Calculate region properties
     rp = regionprops(label_objects)
+    rp.sort(key=lambda x: (int(x.centroid[0] // 100), x.centroid[1]))
     for i, props in enumerate(rp):
         i += 1
         if i > opts.count:
@@ -253,7 +260,7 @@ def seeds(args):
         ax3.add_patch(rect)
         mc, mr = (minc + maxc) / 2, (minr + maxr) / 2
         ax3.text(mc, mr, "{0}".format(i), color='w',
-                    ha="center", va="center", size=8)
+                    ha="center", va="center", size=6)
 
     for ax in (ax2, ax3):
         ax.set_xlim(0, h)
@@ -272,21 +279,19 @@ def seeds(args):
     # Output identified seed stats
     yy = .7
     for i, npixels, rgbx, major, minor in data:
-        itag =  "{0}:".format(i)
-        ellipse_size = major * minor * pi / 4
         pixeltag = "length={0} width={1}".format(int(major), int(minor))
-        sizetag = "size={0} ellipse={1}".format(npixels, int(ellipse_size))
+        sizetag = "size={0}".format(npixels)
         hashtag = ",".join(str(x) for x in rgbx)
         hashtag = "{0} {1}".format(hashtag, closest_color(rgbx))
-        print accession, "seed", itag, pixeltag, sizetag, hashtag
+        print accession, "seed", "{0}:".format(i), pixeltag, sizetag, hashtag
         if i > 7:
             continue
-        ax4.text(.05, yy, itag, va="center")
-        ax4.text(.2, yy, pixeltag, va="center")
+        ax4.text(.01, yy, str(i), va="center", bbox=dict(fc='none', ec='k'))
+        ax4.text(.1, yy, pixeltag, va="center")
         yy -= .04
-        ax4.add_patch(Rectangle((.2, yy - .025), .15, .05, lw=0,
+        ax4.add_patch(Rectangle((.1, yy - .025), .12, .05, lw=0,
                       fc=rgb_to_hex(rgbx)))
-        ax4.text(.4, yy, hashtag, va="center")
+        ax4.text(.27, yy, hashtag, va="center")
         yy -= .06
 
     ax4.text(.1 , yy, "(A total of {0} objects displayed)".format(nb_labels),

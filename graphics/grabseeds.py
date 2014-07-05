@@ -65,6 +65,8 @@ def convert_image(pngfile, resize=1000, format="jpeg", rotate=0,
     mainfile = pf + ".main.jpg"
     labelfile = pf + ".label.jpg"
     img = Image(filename=pngfile)
+    exif = dict((k, v) for k, v in img.metadata.items() if k.startswith('exif:'))
+
     # Rotation, slicing and cropping of main image
     if rotate:
         img.rotate(rotate)
@@ -105,7 +107,7 @@ def convert_image(pngfile, resize=1000, format="jpeg", rotate=0,
     else:
         labelfile = None
 
-    return resizefile, mainfile, labelfile
+    return resizefile, mainfile, labelfile, exif
 
 
 def load_image(resizefile):
@@ -173,7 +175,7 @@ def seeds(args):
     labelrows, labelcols = opts.labelrows, opts.labelcols
     ff = opts.filter
 
-    resizefile, mainfile, labelfile = convert_image(pngfile, rotate=opts.rotate,
+    resizefile, mainfile, labelfile, exif = convert_image(pngfile, rotate=opts.rotate,
                                     rows=rows, cols=cols,
                                     labelrows=labelrows, labelcols=labelcols)
 
@@ -236,7 +238,6 @@ def seeds(args):
     data = []
     # Calculate region properties
     rp = regionprops(olabels)
-    rp.sort(key=lambda x: (int(x.centroid[0] // 100), x.centroid[1]))
     for i, props in enumerate(rp):
         i += 1
         if i > opts.count:
@@ -284,18 +285,19 @@ def seeds(args):
         accession = " ".join(accession.split())  # normalize spaces
         accession = accession.replace('_', '\_')
     else:
-        accession = filename
+        accession = pf
 
     ax4.text(.1, .82, "File: {0}".format(filename), color='g')
     ax4.text(.1, .76, "Label: {0}".format(accession), color='m')
     # Output identified seed stats
     yy = .7
     for i, npixels, rgbx, major, minor in data:
-        pixeltag = "length={0} width={1}".format(int(major), int(minor))
-        sizetag = "size={0}".format(npixels)
+        pixeltag = "length={0} width={1} size={2}".\
+                        format(int(major), int(minor), npixels)
         hashtag = ",".join(str(x) for x in rgbx)
         hashtag = "{0} {1}".format(hashtag, closest_color(rgbx))
-        print accession, "seed", "{0}:".format(i), pixeltag, sizetag, hashtag
+        print >> sys.stderr, accession, "seed", "{0}:".format(i), \
+                        pixeltag, hashtag
         if i > 7:
             continue
         ax4.text(.01, yy, str(i), va="center", bbox=dict(fc='none', ec='k'))

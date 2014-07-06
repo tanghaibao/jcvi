@@ -17,10 +17,12 @@ from Image import open as iopen
 from wand.image import Image
 from pytesseract import image_to_string
 from scipy.ndimage import binary_fill_holes, label, distance_transform_edt
-from skimage import filter, color
+from skimage.filter import canny, roberts, sobel
+from skimage.color import gray2rgb, rgb2gray
 from skimage.feature import peak_local_max
 from skimage.measure import regionprops
 from skimage.morphology import disk, closing, watershed
+from skimage.segmentation import clear_border
 from jcvi.utils.counter import Counter
 from jcvi.utils.webcolors import rgb_to_hex, closest_color
 from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher
@@ -32,10 +34,68 @@ np.seterr(all="ignore")
 def main():
 
     actions = (
-        ('seeds', 'extract seed color from images'),
+        ('batchseeds', 'extract seed metrics for each image in a directory'),
+        ('seeds', 'extract seed metrics from one image'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def add_seeds_options(p, args):
+    g1 = OptionGroup(p, "Image manipulation")
+    g1.add_option("--rotate", default=0, type="int",
+                help="Rotate degrees clockwise")
+    g1.add_option("--rows", default=':',
+                help="Crop rows e.g. `:800` from first 800 rows")
+    g1.add_option("--cols", default=':',
+                help="Crop cols e.g. `-800:` from last 800 cols")
+    g1.add_option("--labelrows",
+                help="Label rows e.g. `:800` from first 800 rows")
+    g1.add_option("--labelcols",
+                help="Label cols e.g. `-800: from last 800 rows")
+    p.add_option_group(g1)
+
+    g2 = OptionGroup(p, "Object recognition")
+    g2.add_option("--minsize", default=.001, type="float",
+                help="Min ratio of object to image")
+    g2.add_option("--maxsize", default=.5, type="float",
+                help="Max ratio of object to image")
+    g2.add_option("--count", default=100, type="int",
+                help="Report max number of objects")
+    g2.add_option("--watershed", default=False, action="store_true",
+                help="Run watershed to segment touching objects")
+    p.add_option_group(g2)
+
+    g3 = OptionGroup(p, "De-noise")
+    valid_filters = ("canny", "roberts", "sobel")
+    g3.add_option("--filter", default="canny", choices=valid_filters,
+                help="Edge detection algorithm")
+    g3.add_option("--sigma", default=1, type="int",
+                help="Canny edge detection sigma, higher for noisy image")
+    g3.add_option("--kernel", default=2, type="int",
+                help="Edge closure, higher if the object edges are dull")
+    p.add_option_group(g3)
+
+    g4 = OptionGroup(p, "Output")
+    g4.add_option("--edges", default=False, action="store_true",
+                help="Visualize edges in middle PDF panel")
+    p.add_option_group(g4)
+    opts, args, iopts = p.set_image_options(args, figsize='12x6')
+
+    return opts, args, iopts
+
+
+def batchseeds(args):
+    """
+    %prog batchseeds folder
+
+    Extract seed metrics for each image in a directory.
+    """
+    p = OptionParser(batchseeds.__doc__)
+    opts, args, iopts = add_seeds_options(p, args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
 
 
 def p_round(n, precision=5):
@@ -122,48 +182,10 @@ def seeds(args):
     """
     %prog seeds [pngfile|jpgfile]
 
-    Extract seed color from [pngfile|jpgfile]. Use --rows and --cols to crop image.
+    Extract seed metrics from [pngfile|jpgfile]. Use --rows and --cols to crop image.
     """
     p = OptionParser(seeds.__doc__)
-    g1 = OptionGroup(p, "Image manipulation")
-    g1.add_option("--rotate", default=0, type="int",
-                help="Rotate degrees clockwise")
-    g1.add_option("--rows", default=':',
-                help="Crop rows e.g. `:800` from first 800 rows")
-    g1.add_option("--cols", default=':',
-                help="Crop cols e.g. `-800:` from last 800 cols")
-    g1.add_option("--labelrows",
-                help="Label rows e.g. `:800` from first 800 rows")
-    g1.add_option("--labelcols",
-                help="Label cols e.g. `-800: from last 800 rows")
-    p.add_option_group(g1)
-
-    g2 = OptionGroup(p, "Object recognition")
-    g2.add_option("--minsize", default=.001, type="float",
-                help="Min ratio of object to image")
-    g2.add_option("--maxsize", default=.5, type="float",
-                help="Max ratio of object to image")
-    g2.add_option("--count", default=100, type="int",
-                help="Report max number of objects")
-    g2.add_option("--watershed", default=False, action="store_true",
-                help="Run watershed to segment touching objects")
-    p.add_option_group(g2)
-
-    g3 = OptionGroup(p, "De-noise")
-    valid_filters = ("canny", "roberts", "sobel")
-    g3.add_option("--filter", default="canny", choices=valid_filters,
-                help="Edge detection algorithm")
-    g3.add_option("--sigma", default=1, type="int",
-                help="Canny edge detection sigma, higher for noisy image")
-    g3.add_option("--kernel", default=2, type="int",
-                help="Edge closure, higher if the object edges are dull")
-    p.add_option_group(g3)
-
-    g4 = OptionGroup(p, "Output")
-    g4.add_option("--edges", default=False, action="store_true",
-                help="Visualize edges in middle PDF panel")
-    p.add_option_group(g4)
-    opts, args, iopts = p.set_image_options(args, figsize='12x6')
+    opts, args, iopts = add_seeds_options(p, args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
@@ -186,14 +208,15 @@ def seeds(args):
                                              figsize=(iopts.w, iopts.h))
 
     # Edge detection
-    img_gray = color.rgb2gray(img)
+    img_gray = rgb2gray(img)
     logging.debug("Running {0} edge detection ...".format(ff))
     if ff == "canny":
-        edges = filter.canny(img_gray, sigma=opts.sigma)
+        edges = canny(img_gray, sigma=opts.sigma)
     elif ff == "roberts":
-        edges = filter.roberts(img_gray)
+        edges = roberts(img_gray)
     elif ff == "sobel":
-        edges = filter.sobel(img_gray)
+        edges = sobel(img_gray)
+    edges = clear_border(edges, buffer_size=10)
     selem = disk(opts.kernel)
     closed = closing(edges, selem)
     filled = binary_fill_holes(closed)
@@ -227,8 +250,8 @@ def seeds(args):
 
     ax2.set_title('Edge detection\n({0}, $\sigma$={1}, $k$={2})'.\
                     format(ff, sigma, kernel))
-    edges = color.gray2rgb(edges)
-    cleaned = color.gray2rgb(cleaned)
+    edges = gray2rgb(edges)
+    cleaned = gray2rgb(cleaned)
     ax2_img = edges if opts.edges else cleaned
     ax2.imshow(ax2_img)
 
@@ -257,7 +280,7 @@ def seeds(args):
 
         npixels = int(props.area)
         # Sample the center of the blob for color
-        d = int(round(minor / 2 * .7))
+        d = min(int(round(minor / 2 * .7)), 100)
         square = img[(y0 - d):(y0 + d), (x0 - d):(x0 + d)]
         pixels = []
         for row in square:

@@ -22,7 +22,7 @@ from skimage.color import gray2rgb, rgb2gray
 from skimage.feature import peak_local_max
 from skimage.measure import regionprops, label
 from skimage.morphology import disk, closing, watershed
-from skimage.segmentation import clear_border, random_walker
+from skimage.segmentation import clear_border
 from jcvi.utils.counter import Counter
 from jcvi.utils.webcolors import rgb_to_hex, closest_color
 from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher
@@ -39,6 +39,18 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def h_dome(img, h=.3):
+    """
+    This operation is known as the h-dome of the image and leaves features of
+    height h in the subtracted image.
+    """
+    from skimage.morphology import reconstruction
+    seed = img - h
+    background = reconstruction(seed, img)
+    hdome = img - background
+    return hdome
 
 
 def add_seeds_options(p, args):
@@ -74,6 +86,8 @@ def add_seeds_options(p, args):
                 help="Canny edge detection sigma, higher for noisy image")
     g3.add_option("--kernel", default=2, type="int",
                 help="Edge closure, higher if the object edges are dull")
+    g3.add_option("--border", default=10, type="int",
+                help="Remove image border of certain pixels")
     p.add_option_group(g3)
 
     g4 = OptionGroup(p, "Output")
@@ -216,9 +230,9 @@ def seeds(args):
         edges = roberts(img_gray)
     elif ff == "sobel":
         edges = sobel(img_gray)
-    edges = clear_border(edges, buffer_size=10)
-    selem = disk(opts.kernel)
-    closed = closing(edges, selem)
+    edges = clear_border(edges, buffer_size=opts.border)
+    selem = disk(kernel)
+    closed = closing(edges, selem) if kernel else edges
     filled = binary_fill_holes(closed)
     label_objects, nb_labels = label(filled, return_num=True)
 
@@ -230,8 +244,6 @@ def seeds(args):
         markers, nmarkers = label(local_maxi, return_num=True)
         logging.debug("Identified {0} watershed markers".format(nmarkers))
         label_objects = watershed(-distance, markers, mask=filled)
-        #markers[~filled] = -1
-        #label_objects = random_walker(filled, markers, beta=10, mode='bf')
 
     # Object size filtering
     sizes = np.bincount(label_objects.ravel())

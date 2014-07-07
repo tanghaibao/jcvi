@@ -16,13 +16,13 @@ from jcvi.graphics.base import plt, savefig, normalize_axes, Rectangle
 from Image import open as iopen
 from wand.image import Image
 from pytesseract import image_to_string
-from scipy.ndimage import binary_fill_holes, label, distance_transform_edt
+from scipy.ndimage import binary_fill_holes, distance_transform_edt
 from skimage.filter import canny, roberts, sobel
 from skimage.color import gray2rgb, rgb2gray
 from skimage.feature import peak_local_max
-from skimage.measure import regionprops
+from skimage.measure import regionprops, label
 from skimage.morphology import disk, closing, watershed
-from skimage.segmentation import clear_border
+from skimage.segmentation import clear_border, random_walker
 from jcvi.utils.counter import Counter
 from jcvi.utils.webcolors import rgb_to_hex, closest_color
 from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher
@@ -220,16 +220,18 @@ def seeds(args):
     selem = disk(opts.kernel)
     closed = closing(edges, selem)
     filled = binary_fill_holes(closed)
-    label_objects, nb_labels = label(filled)
+    label_objects, nb_labels = label(filled, return_num=True)
 
     # Watershed algorithm
     if opts.watershed:
         distance = distance_transform_edt(filled)
         local_maxi = peak_local_max(distance, indices=False, footprint=np.ones((3, 3)),
                                     labels=filled)
-        markers, nmarkers = label(local_maxi)
+        markers, nmarkers = label(local_maxi, return_num=True)
         logging.debug("Identified {0} watershed markers".format(nmarkers))
         label_objects = watershed(-distance, markers, mask=filled)
+        #markers[~filled] = -1
+        #label_objects = random_walker(filled, markers, beta=10, mode='bf')
 
     # Object size filtering
     sizes = np.bincount(label_objects.ravel())
@@ -241,7 +243,7 @@ def seeds(args):
     mask_sizes = np.logical_and(sizes >= min_size, sizes <= max_size)
     cleaned = mask_sizes[label_objects]
 
-    olabels, nb_labels = label(cleaned)
+    olabels, nb_labels = label(cleaned, return_num=True)
     logging.debug("A total of {0} objects identified.".format(nb_labels))
 
     # Plotting
@@ -252,7 +254,11 @@ def seeds(args):
                     format(ff, sigma, kernel))
     edges = gray2rgb(edges)
     cleaned = gray2rgb(cleaned)
-    ax2_img = edges if opts.edges else cleaned
+    ax2_img = cleaned
+    if opts.edges:
+        ax2_img = edges
+    if opts.watershed:
+        ax2_img = distance
     ax2.imshow(ax2_img)
 
     ax3.set_title('Object detection')

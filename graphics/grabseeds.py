@@ -11,7 +11,7 @@ import logging
 from math import sin, cos
 
 import numpy as np
-from jcvi.graphics.base import plt, savefig, normalize_axes, Rectangle
+from jcvi.graphics.base import plt, savefig, normalize_axes, Rectangle, latex
 
 from Image import open as iopen
 from wand.image import Image
@@ -234,28 +234,24 @@ def seeds(args):
     selem = disk(kernel)
     closed = closing(edges, selem) if kernel else edges
     filled = binary_fill_holes(closed)
-    label_objects, nb_labels = label(filled, return_num=True)
 
     # Watershed algorithm
     if opts.watershed:
         distance = distance_transform_edt(filled)
-        local_maxi = peak_local_max(distance, indices=False, footprint=np.ones((3, 3)),
-                                    labels=filled)
+        local_maxi = peak_local_max(distance, threshold_rel=.05, indices=False)
+        coordinates = peak_local_max(distance, threshold_rel=.05)
         markers, nmarkers = label(local_maxi, return_num=True)
         logging.debug("Identified {0} watershed markers".format(nmarkers))
-        elevation_map = sobel(img_gray)
-        label_objects = watershed(elevation_map, markers, mask=filled)
+        labels = watershed(closed, markers, mask=filled)
+    else:
+        labels = label(filled)
 
     # Object size filtering
-    sizes = np.bincount(label_objects.ravel())
     w, h = img_gray.shape
     min_size = int(w * h * opts.minsize)
     max_size = int(w * h * opts.maxsize)
     logging.debug("Find objects with pixels between {0} and {1}"\
                     .format(min_size, max_size))
-    mask_sizes = np.logical_and(sizes >= min_size, sizes <= max_size)
-    cleaned = mask_sizes[label_objects]
-    olabels = label(cleaned)
 
     # Plotting
     ax1.set_title('Original picture')
@@ -263,13 +259,12 @@ def seeds(args):
 
     ax2.set_title('Edge detection\n({0}, $\sigma$={1}, $k$={2})'.\
                     format(ff, sigma, kernel))
-    edges = gray2rgb(edges)
-    cleaned = gray2rgb(cleaned)
-    ax2_img = cleaned
+    closed = gray2rgb(closed)
+    ax2_img = labels
     if opts.edges:
-        ax2_img = edges
-    if opts.watershed:
-        ax2_img = cleaned
+        ax2_img = closed
+    elif opts.watershed:
+        ax2.plot(coordinates[:, 1], coordinates[:, 0], 'g.')
     ax2.imshow(ax2_img)
 
     ax3.set_title('Object detection')
@@ -277,9 +272,10 @@ def seeds(args):
 
     data = []
     # Calculate region properties
-    rp = regionprops(olabels)
+    rp = regionprops(labels)
     rp = [x for x in rp if min_size <= x.area <= max_size]
-    logging.debug("A total of {0} objects identified.".format(len(rp)))
+    nb_labels = len(rp)
+    logging.debug("A total of {0} objects identified.".format(nb_labels))
     for i, props in enumerate(rp):
         i += 1
         if i > opts.count:
@@ -321,16 +317,15 @@ def seeds(args):
         ax.set_xlim(0, h)
         ax.set_ylim(w, 0)
 
-    filename = op.basename(pngfile).replace('_', '\_')
+    filename = op.basename(pngfile)
     if labelfile:
         accession = image_to_string(iopen(labelfile))
         accession = " ".join(accession.split())  # normalize spaces
-        accession = accession.replace('_', '\_')
     else:
         accession = pf
 
-    ax4.text(.1, .82, "File: {0}".format(filename), color='g')
-    ax4.text(.1, .76, "Label: {0}".format(accession), color='m')
+    ax4.text(.1, .82, "File: {0}".format(latex(filename)), color='g')
+    ax4.text(.1, .76, "Label: {0}".format(latex(accession)), color='m')
     # Output identified seed stats
     yy = .7
     for i, npixels, rgbx, major, minor in data:

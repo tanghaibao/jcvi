@@ -43,6 +43,21 @@ def diverge_colors(scheme, color_class=5):
     return colors[0], colors[-1]
 
 
+CHARS = {
+    '&':  r'\&',
+    '%':  r'\%',
+    '$':  r'\$',
+    '#':  r'\#',
+    '_':  r'\_',
+    '{':  r'\{',
+    '}':  r'\}',
+}
+
+
+def latex(s):
+    return "".join([CHARS.get(char, char) for char in s])
+
+
 def prettyplot():
     import brewer2mpl
 

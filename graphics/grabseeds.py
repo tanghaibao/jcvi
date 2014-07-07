@@ -243,7 +243,8 @@ def seeds(args):
                                     labels=filled)
         markers, nmarkers = label(local_maxi, return_num=True)
         logging.debug("Identified {0} watershed markers".format(nmarkers))
-        label_objects = watershed(-distance, markers, mask=filled)
+        elevation_map = sobel(img_gray)
+        label_objects = watershed(elevation_map, markers, mask=filled)
 
     # Object size filtering
     sizes = np.bincount(label_objects.ravel())
@@ -254,9 +255,7 @@ def seeds(args):
                     .format(min_size, max_size))
     mask_sizes = np.logical_and(sizes >= min_size, sizes <= max_size)
     cleaned = mask_sizes[label_objects]
-
-    olabels, nb_labels = label(cleaned, return_num=True)
-    logging.debug("A total of {0} objects identified.".format(nb_labels))
+    olabels = label(cleaned)
 
     # Plotting
     ax1.set_title('Original picture')
@@ -270,7 +269,7 @@ def seeds(args):
     if opts.edges:
         ax2_img = edges
     if opts.watershed:
-        ax2_img = distance
+        ax2_img = cleaned
     ax2.imshow(ax2_img)
 
     ax3.set_title('Object detection')
@@ -279,6 +278,8 @@ def seeds(args):
     data = []
     # Calculate region properties
     rp = regionprops(olabels)
+    rp = [x for x in rp if min_size <= x.area <= max_size]
+    logging.debug("A total of {0} objects identified.".format(len(rp)))
     for i, props in enumerate(rp):
         i += 1
         if i > opts.count:

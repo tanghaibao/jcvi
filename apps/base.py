@@ -561,12 +561,25 @@ def which(program):
     return None
 
 
-def glob(pathname):
+def glob(pathname, pattern=None):
     """
     Wraps around glob.glob(), but return a sorted list.
     """
     import glob as gl
+    if pattern:
+        pathname = op.join(pathname, pattern)
     return sorted(gl.glob(pathname))
+
+
+def iglob(pathname, *patterns):
+    """
+    Allow multiple file formats. For example:
+
+    >>> iglob("apps", "*.py", "*.pyc")
+    """
+    from itertools import chain
+    it = chain.from_iterable(glob(pathname, pattern) for pattern in patterns)
+    return sorted(list(it))
 
 
 def mkdir(dirname, overwrite=False):

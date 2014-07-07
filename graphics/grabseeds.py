@@ -25,7 +25,8 @@ from skimage.morphology import disk, closing, watershed
 from skimage.segmentation import clear_border
 from jcvi.utils.counter import Counter
 from jcvi.utils.webcolors import rgb_to_hex, closest_color
-from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher
+from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher, \
+                iglob, mkdir
 
 
 np.seterr(all="ignore")
@@ -93,6 +94,8 @@ def add_seeds_options(p, args):
     g4 = OptionGroup(p, "Output")
     g4.add_option("--edges", default=False, action="store_true",
                 help="Visualize edges in middle PDF panel")
+    g4.add_option("--outdir", default=".",
+                help="Store intermediate images and PDF in folder")
     p.add_option_group(g4)
     opts, args, iopts = p.set_image_options(args, figsize='12x6')
 
@@ -105,11 +108,20 @@ def batchseeds(args):
 
     Extract seed metrics for each image in a directory.
     """
+    xargs = args[1:]
     p = OptionParser(batchseeds.__doc__)
     opts, args, iopts = add_seeds_options(p, args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
+
+    folder, = args
+    folder = folder.rstrip('/')
+    assert op.isdir(folder)
+    images = iglob(folder, "*.jpg", "*.JPG", "*.png")
+    outdir = folder + "-debug"
+    for im in images:
+        seeds([im, "--outdir={0}".format(outdir)] + xargs)
 
 
 def p_round(n, precision=5):
@@ -132,12 +144,13 @@ def slice(s, m):
     return ra, rb
 
 
-def convert_image(pngfile, resize=1000, format="jpeg", rotate=0,
+def convert_image(pngfile, outdir=".",
+                  resize=1000, format="jpeg", rotate=0,
                   rows=':', cols=':', labelrows=None, labelcols=None):
-    pf = pngfile.rsplit(".", 1)[0]
-    resizefile = pf + ".resize.jpg"
-    mainfile = pf + ".main.jpg"
-    labelfile = pf + ".label.jpg"
+    pf = op.basename(pngfile).rsplit(".", 1)[0]
+    resizefile = op.join(outdir, pf + ".resize.jpg")
+    mainfile = op.join(outdir, pf + ".main.jpg")
+    labelfile = op.join(outdir, pf + ".label.jpg")
     img = Image(filename=pngfile)
     exif = dict((k, v) for k, v in img.metadata.items() if k.startswith('exif:'))
 
@@ -205,13 +218,18 @@ def seeds(args):
         sys.exit(not p.print_help())
 
     pngfile, = args
-    pf = op.basename(pngfile).split(".")[0]
+    pf = op.basename(pngfile).rsplit(".", 1)[0]
     sigma, kernel = opts.sigma, opts.kernel
     rows, cols = opts.rows, opts.cols
     labelrows, labelcols = opts.labelrows, opts.labelcols
     ff = opts.filter
+    outdir = opts.outdir
+    if outdir != '.':
+        mkdir(outdir)
 
-    resizefile, mainfile, labelfile, exif = convert_image(pngfile, rotate=opts.rotate,
+    resizefile, mainfile, labelfile, exif = \
+                      convert_image(pngfile, outdir=outdir,
+                                    rotate=opts.rotate,
                                     rows=rows, cols=cols,
                                     labelrows=labelrows, labelcols=labelcols)
 
@@ -355,7 +373,7 @@ def seeds(args):
         ax.set_xticklabels(xticklabels, family='Helvetica')
         ax.set_yticklabels(yticklabels, family='Helvetica')
 
-    image_name = pf + "." + iopts.format
+    image_name = op.join(outdir, pf + "." + iopts.format)
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 

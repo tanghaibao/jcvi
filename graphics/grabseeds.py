@@ -95,7 +95,7 @@ def add_seeds_options(p, args):
     p.add_option_group(g1)
 
     g2 = OptionGroup(p, "Object recognition")
-    g2.add_option("--minsize", default=.001, type="float",
+    g2.add_option("--minsize", default=.0002, type="float",
                 help="Min ratio of object to image")
     g2.add_option("--maxsize", default=.5, type="float",
                 help="Max ratio of object to image")
@@ -122,6 +122,8 @@ def add_seeds_options(p, args):
                 help="Visualize edges in middle PDF panel")
     g4.add_option("--outdir", default=".",
                 help="Store intermediate images and PDF in folder")
+    g4.add_option("--rgb", default=False, action="store_true",
+                help="Visualize RGB colors in EXCEL file")
     p.add_option_group(g4)
     opts, args, iopts = p.set_image_options(args, figsize='12x6')
 
@@ -167,7 +169,10 @@ def batchseeds(args):
         nseeds += len(objects)
     fw.close()
     logging.debug("Processed {0} images.".format(len(images)))
-    excelfile = fromcsv([outfile, "--rgb=8"])
+    fromcsv_args = [outfile]
+    if opts.rgb:
+        fromcsv_args += ["--rgb=8"]
+    excelfile = fromcsv(fromcsv_args)
     logging.debug("A total of {0} objects written to `{1}`.".\
                     format(nseeds, excelfile))
 
@@ -214,7 +219,10 @@ def convert_image(pngfile, outdir=".",
         img.rotate(rotate)
     if resize:
         w, h = img.size
-        nw, nh = resize, resize * h / w
+        if w < h:
+            nw, nh = resize, resize * h / w
+        else:
+            nw, nh = resize * w / h, resize
         img.resize(nw, nh)
         logging.debug("Image resized from {0}px:{1}px to {2}px:{3}px".\
                         format(w, h, nw, nh))
@@ -385,7 +393,7 @@ def seeds(args):
 
         npixels = int(props.area)
         # Sample the center of the blob for color
-        d = min(int(round(minor / 2 * .7)), 100)
+        d = min(int(round(minor / 2 * .35)) + 1, 50)
         square = img[(y0 - d):(y0 + d), (x0 - d):(x0 + d)]
         pixels = []
         for row in square:
@@ -431,8 +439,8 @@ def seeds(args):
     for ax in (ax1, ax2, ax3):
         xticklabels = [int(x) for x in ax.get_xticks()]
         yticklabels = [int(x) for x in ax.get_yticks()]
-        ax.set_xticklabels(xticklabels, family='Helvetica')
-        ax.set_yticklabels(yticklabels, family='Helvetica')
+        ax.set_xticklabels(xticklabels, family='Helvetica', size=8)
+        ax.set_yticklabels(yticklabels, family='Helvetica', size=8)
 
     image_name = op.join(outdir, pf + "." + iopts.format)
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)

@@ -16,7 +16,6 @@ from jcvi.graphics.base import plt, savefig, normalize_axes, Rectangle, latex
 
 from Image import open as iopen
 from wand.image import Image
-from pytesseract import image_to_string
 from scipy.ndimage import binary_fill_holes, distance_transform_edt
 from skimage.color import gray2rgb, rgb2gray
 from skimage.filter import canny, roberts, sobel
@@ -26,6 +25,8 @@ from skimage.morphology import disk, closing, watershed
 from skimage.segmentation import clear_border
 from jcvi.utils.counter import Counter
 from jcvi.utils.webcolors import rgb_to_hex, closest_color
+from jcvi.formats.base import must_open
+from jcvi.apps.tesseract import image_to_string
 from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher, \
                 iglob, mkdir
 
@@ -45,7 +46,7 @@ class Seed (object):
         self.props = props
         self.rgb = rgb
         self.colorname = closest_color(rgb)
-        self.datetime = exif['exif:DateTimeOriginal']
+        self.datetime = exif.get('exif:DateTimeOriginal', "none")
         self.rgbtag = ','.join(str(x) for x in rgb)
         self.pixeltag = "length={0} width={1} area={2}".\
                         format(self.length, self.width, self.area)
@@ -146,11 +147,17 @@ def batchseeds(args):
     folder, = args
     folder = folder.rstrip('/')
     assert op.isdir(folder)
-    images = iglob(folder, "*.jpg", "*.JPG", "*.png")
+    images = []
+    for im in iglob(folder, "*.jpg", "*.JPG", "*.png"):
+        if im.endswith(".resize.jpg") or \
+           im.endswith(".main.jpg") or \
+           im.endswith(".label.jpg"):
+            continue
+        images.append(im)
 
     outdir = folder + "-debug"
     outfile = folder + "-output.tsv"
-    fw = open(outfile, 'w')
+    fw = must_open(outfile, 'w')
     print >> fw, Seed.header()
     nseeds = 0
     for im in images:
@@ -162,7 +169,7 @@ def batchseeds(args):
     logging.debug("Processed {0} images.".format(len(images)))
     excelfile = fromcsv([outfile, "--rgb=8"])
     logging.debug("A total of {0} objects written to `{1}`.".\
-                    format(nseeds, outfile))
+                    format(nseeds, excelfile))
 
     pdfs = iglob(outdir, "*.pdf")
     outpdf = folder + "-output.pdf"
@@ -268,6 +275,7 @@ def seeds(args):
     Extract seed metrics from [pngfile|jpgfile]. Use --rows and --cols to crop image.
     """
     p = OptionParser(seeds.__doc__)
+    p.set_outfile()
     opts, args, iopts = add_seeds_options(p, args)
 
     if len(args) != 1:
@@ -401,8 +409,9 @@ def seeds(args):
     ax4.text(.1, .92, "File: {0}".format(latex(filename)), color='g')
     ax4.text(.1, .86, "Label: {0}".format(latex(accession)), color='m')
     yy = .8
+    fw = must_open(opts.outfile, "w")
     for o in objects:
-        print >> sys.stderr, o
+        print >> fw, o.tsvline
         i = o.seedno
         if i > 7:
             continue

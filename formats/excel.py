@@ -58,6 +58,7 @@ class ColorMatcher(object):
         """Takes an "R,G,B" string or wx.Color and returns a matching xlwt
         color.
         """
+        from jcvi.utils.webcolors import color_diff
         if isinstance(color, int):
             return color
         if color:
@@ -65,7 +66,9 @@ class ColorMatcher(object):
                 rgb = map(int, color.split(','))
             else:
                 rgb = color.Get()
-            distances = [self.color_distance(rgb, x) for x in self.xlwt_colors]
+            logging.disable(logging.DEBUG)
+            distances = [color_diff(rgb, x) for x in self.xlwt_colors]
+            logging.disable(logging.NOTSET)
             result = distances.index(min(distances))
             self.unused_colors.discard(self.xlwt_colors[result])
             return result

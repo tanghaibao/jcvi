@@ -257,6 +257,8 @@ def extract_label(labelfile):
     accession = image_to_string(iopen(labelfile))
     accession = " ".join(accession.split())  # normalize spaces
     accession = "".join(x for x in accession if x in string.printable)
+    if not accession:
+        accession = "none"
     return accession
 
 

@@ -32,6 +32,41 @@ from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher, \
 np.seterr(all="ignore")
 
 
+class Seed (object):
+
+    def __init__(self, imagename, accession, seedno, rgb, props, exif):
+        self.imagename = imagename
+        self.accession = accession
+        self.seedno = seedno
+        self.area = int(round(props.area))
+        self.length = int(round(props.major_axis_length))
+        self.width = int(round(props.minor_axis_length))
+        self.props = props
+        self.rgb = rgb
+        self.colorname = closest_color(rgb)
+        self.datetime = exif['exif:DateTimeOriginal']
+        self.rgbtag = ','.join(str(x) for x in rgb)
+        self.pixeltag = "length={0} width={1} area={2}".\
+                        format(self.length, self.width, self.area)
+        self.hashtag = " ".join((self.rgbtag, self.colorname))
+
+    def __str__(self):
+        return " ".join(str(x) for x in (self.accession, "seed",
+                        "{0}:".format(self.seedno), self.pixeltag, self.hashtag))
+
+    @classmethod
+    def header(cls):
+        fields = "ImageName Accession SeedNum Area Length Width" \
+                 " RGB ColorName DateTime"
+        return "\t".join(fields.split())
+
+    @property
+    def tsvline(self):
+        return "\t".join(str(x) for x in (self.imagename, self.accession,
+                        self.seedno, self.area, self.length, self.width,
+                        self.rgbtag, self.colorname, self.datetime))
+
+
 def main():
 
     actions = (
@@ -120,8 +155,19 @@ def batchseeds(args):
     assert op.isdir(folder)
     images = iglob(folder, "*.jpg", "*.JPG", "*.png")
     outdir = folder + "-debug"
+    outfile = folder + "-output.tsv"
+    fw = open(outfile, 'w')
+    print >> fw, Seed.header()
+    nseeds = 0
     for im in images:
-        seeds([im, "--outdir={0}".format(outdir)] + xargs)
+        objects = seeds([im, "--outdir={0}".format(outdir)] + xargs)
+        for o in objects:
+            print >> fw, o.tsvline
+        nseeds += len(objects)
+    fw.close()
+    logging.debug("A total of {0} objects written to `{1}`.".\
+                    format(nseeds, outfile))
+    return outfile
 
 
 def p_round(n, precision=5):
@@ -288,12 +334,19 @@ def seeds(args):
     ax3.set_title('Object detection')
     ax3.imshow(img)
 
-    data = []
+    filename = op.basename(pngfile)
+    if labelfile:
+        accession = image_to_string(iopen(labelfile))
+        accession = " ".join(accession.split())  # normalize spaces
+    else:
+        accession = pf
+
     # Calculate region properties
     rp = regionprops(labels)
     rp = [x for x in rp if min_size <= x.area <= max_size]
     nb_labels = len(rp)
     logging.debug("A total of {0} objects identified.".format(nb_labels))
+    objects = []
     for i, props in enumerate(rp):
         i += 1
         if i > opts.count:
@@ -321,8 +374,8 @@ def seeds(args):
         logging.debug("Seed #{0}: {1} pixels ({2} sampled)".\
                         format(i, npixels, len(pixels)))
 
-        rgbx = pixel_stats(pixels)
-        data.append((i, npixels, rgbx, major, minor))
+        rgb = pixel_stats(pixels)
+        objects.append(Seed(filename, accession, i, rgb, props, exif))
         minr, minc, maxr, maxc = props.bbox
         rect = Rectangle((minc, minr), maxc - minc, maxr - minr,
                                   fill=False, ec='w', lw=1)
@@ -335,34 +388,21 @@ def seeds(args):
         ax.set_xlim(0, h)
         ax.set_ylim(w, 0)
 
-    filename = op.basename(pngfile)
-    if labelfile:
-        accession = image_to_string(iopen(labelfile))
-        accession = " ".join(accession.split())  # normalize spaces
-    else:
-        accession = pf
-
+    # Output identified seed stats
     ax4.text(.1, .82, "File: {0}".format(latex(filename)), color='g')
     ax4.text(.1, .76, "Label: {0}".format(latex(accession)), color='m')
-    # Output identified seed stats
     yy = .7
-    for i, npixels, rgbx, major, minor in data:
-        pixeltag = "length={0} width={1} size={2}".\
-                        format(int(major), int(minor), npixels)
-        hashtag = ",".join(str(x) for x in rgbx)
-        hashtag = "{0} {1}".format(hashtag, closest_color(rgbx))
-        print >> sys.stderr, accession, "seed", "{0}:".format(i), \
-                        pixeltag, hashtag
+    for o in objects:
+        print >> sys.stderr, o
         if i > 7:
             continue
         ax4.text(.01, yy, str(i), va="center", bbox=dict(fc='none', ec='k'))
-        ax4.text(.1, yy, pixeltag, va="center")
+        ax4.text(.1, yy, o.pixeltag, va="center")
         yy -= .04
         ax4.add_patch(Rectangle((.1, yy - .025), .12, .05, lw=0,
-                      fc=rgb_to_hex(rgbx)))
-        ax4.text(.27, yy, hashtag, va="center")
+                      fc=rgb_to_hex(o.rgb)))
+        ax4.text(.27, yy, o.hashtag, va="center")
         yy -= .06
-
     ax4.text(.1 , yy, "(A total of {0} objects displayed)".format(nb_labels),
              color="darkslategrey")
     normalize_axes(ax4)
@@ -375,6 +415,7 @@ def seeds(args):
 
     image_name = op.join(outdir, pf + "." + iopts.format)
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
+    return objects
 
 
 if __name__ == '__main__':

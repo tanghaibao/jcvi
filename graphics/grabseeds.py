@@ -56,15 +56,16 @@ class Seed (object):
 
     @classmethod
     def header(cls):
-        fields = "ImageName Accession SeedNum Area Length Width" \
-                 " RGB ColorName DateTime"
+        fields = "ImageName DateTime Accession SeedNum Area Length Width" \
+                 " ColorName RGB"
         return "\t".join(fields.split())
 
     @property
     def tsvline(self):
         return "\t".join(str(x) for x in (self.imagename, self.accession,
-                        self.seedno, self.area, self.length, self.width,
-                        self.rgbtag, self.colorname, self.datetime))
+                        self.datetime, self.seedno,
+                        self.area, self.length, self.width,
+                        self.colorname, self.rgbtag))
 
 
 def main():
@@ -143,6 +144,8 @@ def batchseeds(args):
 
     Extract seed metrics for each image in a directory.
     """
+    from jcvi.formats.pdf import cat
+
     xargs = args[1:]
     p = OptionParser(batchseeds.__doc__)
     opts, args, iopts = add_seeds_options(p, args)
@@ -167,6 +170,12 @@ def batchseeds(args):
     fw.close()
     logging.debug("A total of {0} objects written to `{1}`.".\
                     format(nseeds, outfile))
+
+    pdfs = iglob(outdir, "*.pdf")
+    outpdf = folder + "-output.pdf"
+    cat(pdfs + ["--outfile={0}".format(outpdf)])
+
+    logging.debug("Debugging information written to `{0}`.".format(outpdf))
     return outfile
 
 
@@ -389,11 +398,12 @@ def seeds(args):
         ax.set_ylim(w, 0)
 
     # Output identified seed stats
-    ax4.text(.1, .82, "File: {0}".format(latex(filename)), color='g')
-    ax4.text(.1, .76, "Label: {0}".format(latex(accession)), color='m')
-    yy = .7
+    ax4.text(.1, .92, "File: {0}".format(latex(filename)), color='g')
+    ax4.text(.1, .86, "Label: {0}".format(latex(accession)), color='m')
+    yy = .8
     for o in objects:
         print >> sys.stderr, o
+        i = o.seedno
         if i > 7:
             continue
         ax4.text(.01, yy, str(i), va="center", bbox=dict(fc='none', ec='k'))

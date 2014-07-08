@@ -7,6 +7,7 @@ Image processing pipelines for phenotyping projects.
 
 import os.path as op
 import sys
+import string
 import logging
 from math import sin, cos
 
@@ -17,8 +18,8 @@ from Image import open as iopen
 from wand.image import Image
 from pytesseract import image_to_string
 from scipy.ndimage import binary_fill_holes, distance_transform_edt
-from skimage.filter import canny, roberts, sobel
 from skimage.color import gray2rgb, rgb2gray
+from skimage.filter import canny, roberts, sobel
 from skimage.feature import peak_local_max
 from skimage.measure import regionprops, label
 from skimage.morphology import disk, closing, watershed
@@ -62,8 +63,8 @@ class Seed (object):
 
     @property
     def tsvline(self):
-        return "\t".join(str(x) for x in (self.imagename, self.accession,
-                        self.datetime, self.seedno,
+        return "\t".join(str(x) for x in (self.imagename, self.datetime,
+                        self.accession, self.seedno,
                         self.area, self.length, self.width,
                         self.colorname, self.rgbtag))
 
@@ -76,18 +77,6 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
-
-
-def h_dome(img, h=.3):
-    """
-    This operation is known as the h-dome of the image and leaves features of
-    height h in the subtracted image.
-    """
-    from skimage.morphology import reconstruction
-    seed = img - h
-    background = reconstruction(seed, img)
-    hdome = img - background
-    return hdome
 
 
 def add_seeds_options(p, args):
@@ -145,6 +134,7 @@ def batchseeds(args):
     Extract seed metrics for each image in a directory.
     """
     from jcvi.formats.pdf import cat
+    from jcvi.formats.excel import fromcsv
 
     xargs = args[1:]
     p = OptionParser(batchseeds.__doc__)
@@ -157,6 +147,7 @@ def batchseeds(args):
     folder = folder.rstrip('/')
     assert op.isdir(folder)
     images = iglob(folder, "*.jpg", "*.JPG", "*.png")
+
     outdir = folder + "-debug"
     outfile = folder + "-output.tsv"
     fw = open(outfile, 'w')
@@ -168,6 +159,8 @@ def batchseeds(args):
             print >> fw, o.tsvline
         nseeds += len(objects)
     fw.close()
+    logging.debug("Processed {0} images.".format(len(images)))
+    excelfile = fromcsv([outfile, "--rgb=8"])
     logging.debug("A total of {0} objects written to `{1}`.".\
                     format(nseeds, outfile))
 
@@ -227,8 +220,8 @@ def convert_image(pngfile, outdir=".",
         ra, rb = slice(rows, h)
         ca, cb = slice(cols, w)
         # left, top, right, bottom
-        img.crop(ca, ra, cb, rb)
         logging.debug("Crop image to {0}:{1} {2}:{3}".format(ra, rb, ca, cb))
+        img.crop(ca, ra, cb, rb)
         img.format = format
         img.save(filename=mainfile)
     else:
@@ -236,20 +229,28 @@ def convert_image(pngfile, outdir=".",
 
     # Extract text labels from image
     if labelrows or labelcols:
+        w, h = rimg.size
         if labelrows and not labelcols:
             labelcols = ':'
         if labelcols and not labelrows:
             labelrows = ':'
         ra, rb = slice(labelrows, h)
         ca, cb = slice(labelcols, w)
-        rimg.crop(ca, ra, cb, rb)
         logging.debug("Extract label from {0}:{1} {2}:{3}".format(ra, rb, ca, cb))
+        rimg.crop(ca, ra, cb, rb)
         rimg.format = format
         rimg.save(filename=labelfile)
     else:
         labelfile = None
 
     return resizefile, mainfile, labelfile, exif
+
+
+def extract_label(labelfile):
+    accession = image_to_string(iopen(labelfile))
+    accession = " ".join(accession.split())  # normalize spaces
+    accession = "".join(x for x in accession if x in string.printable)
+    return accession
 
 
 def load_image(resizefile):
@@ -345,8 +346,7 @@ def seeds(args):
 
     filename = op.basename(pngfile)
     if labelfile:
-        accession = image_to_string(iopen(labelfile))
-        accession = " ".join(accession.split())  # normalize spaces
+        accession = extract_label(labelfile)
     else:
         accession = pf
 

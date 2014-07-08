@@ -449,7 +449,9 @@ def get_number(s, cast=int):
 def flexible_cast(s):
     if is_number(s, cast=int):
         return int(s)
-    return float(s)
+    elif is_number(s, cast=float):
+        return float(s)
+    return s
 
 
 def main():

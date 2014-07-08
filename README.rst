@@ -41,8 +41,8 @@ Following modules are available as generic Bioinformatics handling methods.
 - ``graphics``
     * BLAST or synteny dot plot.
     * Histogram using R and ASCII art.
-    * Painting regions on set of chromosomes.
-    * Heatmap from csv file.
+    * Paint regions on set of chromosomes.
+    * Macro-synteny and micro-synteny plots.
 
 - ``utils``
     * Grouper can be used as disjoint set data structure.
@@ -71,10 +71,11 @@ Then there are modules that contain domain-specific methods.
     * Ancestral genome reconstruction using Sankoff's and PAR method.
     * Ortholog and tandem gene duplicates finder.
 
-- ``variation``
-    * Convert between various flavors of SNP datasets.
-    * Read deconvolution into taxa or samples.
-    * Launch TASSEL pipeline.
+
+Applications
+------------
+Please visit `wiki <https://github.com/tanghaibao/jcvi/wiki>`_ for
+full-fledged applications.
 
 
 Dependencies

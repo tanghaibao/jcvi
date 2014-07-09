@@ -74,25 +74,6 @@ class BlastLine(object):
                 (self.subject, self.sstart - 1, self.sstop, self.query,
                  self.score, self.orientation))
 
-    def is_self_hit(self, selfrule):
-        """
-        selfrule:
-        "strict": return True if query and subject have matched names, start
-                  and stop positions
-        "loose": return True if query and subject have matched names
-        None: always return False
-        """
-        if selfrule is None:
-            return False
-        elif selfrule == "strict":
-            return all([self.query==self.subject, \
-                        self.qstart==self.sstart, \
-                        self.qstop==self.sstop])
-        elif selfrule == "loose":
-            return self.query==self.subject
-        else:
-            sys.exit(1)
-
 
 class BlastSlow (LineFile):
     """
@@ -275,20 +256,17 @@ def filter(args):
     - self: non-self
     - ids: valid ids
 
-    use --inverse to obtain the complementary records
+    Use --inverse to obtain the complementary records
     """
     p = OptionParser(filter.__doc__)
     p.add_option("--score", dest="score", default=0, type="int",
-            help="Score cutoff [default: %default]")
+                 help="Score cutoff")
     p.set_align(pctid=95, hitlen=100, evalue=.01)
-    p.add_option("--self", default=None, choices=("strict", "loose"),
-            help="Remove self hits. strict: matched names and spans; " \
-            "loose: matched names [default: %default]")
-    p.add_option("--ids", default=None,
-            help="path to tab or comma delimited file containing ids to " \
-            "retain [default: %default]")
-    p.add_option("--inverse", action="store_true",
-            help="Similar to grep -v, inverse [default: %default]")
+    p.add_option("--self", default=False, action="store_true",
+                 help="Remove self hits")
+    p.add_option("--ids", help="Path to file with ids to retain")
+    p.add_option("--inverse", default=False, action="store_true",
+                 help="Similar to grep -v, inverse")
     p.set_outfile(outfile=None)
 
     opts, args = p.parse_args(args)
@@ -314,6 +292,8 @@ def filter(args):
             opts.score, opts.pctid, opts.hitlen, opts.evalue, opts.self
     newblastfile = blastfile + ".P{0}L{1}".format(int(pctid), hitlen) if \
                     outfile is None else outfile
+    if inverse:
+        newblastfile += ".inverse"
     fw = must_open(newblastfile, "w")
     for row in fp:
         if row[0] == '#':
@@ -332,7 +312,7 @@ def filter(args):
             c.pctid < pctid or \
             c.hitlen < hitlen or \
             c.evalue > evalue or \
-            c.is_self_hit(selfrule) or \
+            (selfrule and c.query != c.subject) or \
             noids
 
         if inverse:
@@ -1266,38 +1246,6 @@ def subset(args):
             print >> fw, b
     fw.close()
     logging.debug("Subset blastfile written to `{0}`".format(outfile))
-
-
-def guess_blast_mode(blast_file):
-    fp = must_open(blast_file)
-    sample = fp.readline()
-    while sample[0] == "#":
-        sample = fp.readline()
-    fp.close()
-    atoms = sample.split("\t")
-
-    if len(atoms) == 12:
-        return "1" * 12
-    elif len(atoms) == 2:
-        return "110000000000"
-    elif len(atoms) == 3:
-        try:
-            x = float(atoms[2])
-        except:
-            m = "cannot guess the mode"
-        else:
-            if x < 1:
-                # guess eval
-                return "110000000010"
-            if x >= 1:
-                # guess score
-                return "110000000001"
-    else:
-        m = "cannot guess the mode"
-
-    if m:
-        print >> sys.stderr, m
-    return None
 
 
 if __name__ == '__main__':

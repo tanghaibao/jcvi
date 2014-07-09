@@ -1,8 +1,7 @@
-
 JCVI utility libraries
 ======================
-My own collection of Python libraries to parse files, or perform
-assembly-related calculations. Documentations will be lagging behind.
+Collection of Python libraries to parse bioinformatics files, or perform
+computation related to assembly, annotation, and comparative genomics.
 
 :Author: Haibao Tang (`tanghaibao <http://github.com/tanghaibao>`_),
          Vivek Krishnakumar (`vivekkrish <https://github.com/vivekkrish>`_),

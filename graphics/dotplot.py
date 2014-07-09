@@ -86,7 +86,8 @@ def dotplot_main(anchorfile, qbed, sbed, image_name, iopts, vmin=0, vmax=1,
 
 def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
         is_self=False, synteny=False, cmap_text=None, genomenames=None,
-        sample_number=10000, ignore=.005, palette=None, chrlw=.01, title=None):
+        sample_number=10000, ignore=.005, palette=None, chrlw=.01, title=None,
+        sepcolor="gainsboro"):
 
     fp = open(anchorfile)
 
@@ -125,10 +126,8 @@ def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
             value = vmax
 
         if query not in qorder:
-            #logging.warning("ignore %s" % query)
             continue
         if subject not in sorder:
-            #logging.warning("ignore %s" % subject)
             continue
 
         qi, q = qorder[query]
@@ -139,10 +138,11 @@ def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
         if is_self:  # Mirror image
             data.append((si, qi, nv))
 
-    # only show random subset, default to sample_number = 5000
-    if len(data) > sample_number:
-        logging.debug("Showing a random subset of %s data points (total %s) " \
-                      "for clarity." % (sample_number, len(data)))
+    npairs = len(data)
+    # Only show random subset
+    if npairs > sample_number:
+        logging.debug("Showing a random subset of {0} data points (total {1}) " \
+                      "for clarity.".format(sample_number, npairs))
         data = sample(data, sample_number)
 
     # the data are plotted in this order, the least value are plotted
@@ -190,7 +190,7 @@ def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
             pass
 
         xchr_labels.append((seqid, (beg + end) / 2, ignore))
-        ax.plot([beg, beg], ylim, "g-", lw=chrlw)
+        ax.plot([beg, beg], ylim, "-", lw=chrlw, color=sepcolor)
 
     for (seqid, beg, end) in sbed.get_breaks():
         ignore = abs(end - beg) < ignore_size_y
@@ -202,7 +202,7 @@ def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
             pass
 
         ychr_labels.append((seqid, (beg + end) / 2, ignore))
-        ax.plot(xlim, [beg, beg], "g-", lw=chrlw)
+        ax.plot(xlim, [beg, beg], "-", lw=chrlw, color=sepcolor)
 
     # plot the chromosome labels
     for label, pos, ignore in xchr_labels:
@@ -251,8 +251,12 @@ def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
             root.text(xstart + .04, ystart, category, color=c)
             xstart += .1
 
-    if title:
-        fig.suptitle(title, x=.05, y=.98, color="k")
+    if not title:
+        title = "Inter-genomic comparison: {0} vs {1}".format(gx, gy)
+        if is_self:
+            title = "Intra-genomic comparison within {0}".format(gx)
+        title += " ({0} gene pairs)".format(npairs)
+    root.set_title(title, x=.5, y=.96, color="k")
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)

@@ -10,7 +10,7 @@ import os.path as op
 import logging
 import sys
 
-from jcvi.apps.base import OptionParser, ActionDispatcher
+from jcvi.apps.base import OptionParser, ActionDispatcher, get_abs_path
 
 
 def main():
@@ -24,22 +24,6 @@ def main():
         )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
-
-
-def get_abs_path(link_name):
-    source = link_name
-    if op.islink(source):
-        source = os.readlink(source)
-    else:
-        source = op.basename(source)
-
-    link_dir = op.dirname(link_name)
-    source = op.normpath(op.join(link_dir, source))
-    source = op.abspath(source)
-    if source == link_name:
-        return source
-    else:
-        return get_abs_path(source)
 
 
 def lnsf(source, target, log=False):

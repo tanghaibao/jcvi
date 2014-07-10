@@ -10,8 +10,7 @@ import os.path as op
 import sys
 
 from jcvi.formats.base import write_file
-from jcvi.apps.softlink import get_abs_path
-from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir
+from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, get_abs_path
 
 
 def main():

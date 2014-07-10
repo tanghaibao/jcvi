@@ -1,12 +1,4 @@
-"""
-Adapter FASTA used by TRIMMOMATIC. To generate the sequences:
-$ fasta fromtab ~/bin/FastQC/Contaminants/contaminant_list.txt adapters.fasta --replace='-'
-$ faRc adapters.fasta adapters.fasta.rc
-$ cat adapters.fasta adapters.fasta.rc > adapters.combined.fasta
-$ cdhit deduplicate --samestrand adapters.combined.fasta --pctid=100
-"""
-
-Adapters = """>Illumina-Single-End-Adapter-2
+>Illumina-Single-End-Adapter-2
 CAAGCAGAAGACGGCATACGAGCTCTTCCGATCT
 >Illumina-Single-End-PCR-Primer-1
 AATGATACGGCGACCACCGAGATCTACACTCTTTCCCTACACGACGCTCTTCCGATCT
@@ -431,4 +423,4 @@ GTGGACCACTTTGGTTTTC
 >RC_ABI-Solid3-GAPDH-Forward-Primer
 CCTTGGCCAGGGGTGCTAA
 >RC_ABI-Solid3-GAPDH-Reverse-Primer
-CATGGCCTCCAAGGAGTAAG"""
+CATGGCCTCCAAGGAGTAAG

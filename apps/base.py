@@ -426,6 +426,25 @@ def ConfigSectionMap(Config, section):
     return cfg
 
 
+def get_abs_path(link_name):
+    source = link_name
+    if op.islink(source):
+        source = os.readlink(source)
+    else:
+        source = op.basename(source)
+
+    link_dir = op.dirname(link_name)
+    source = op.normpath(op.join(link_dir, source))
+    source = op.abspath(source)
+    if source == link_name:
+        return source
+    else:
+        return get_abs_path(source)
+
+
+datadir = get_abs_path(op.join(op.dirname(__file__), '../utils/data'))
+
+
 def splitall(path):
     allparts = []
     while True:

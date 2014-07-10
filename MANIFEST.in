@@ -1,1 +1,2 @@
 recursive-include graphics *.ttf
+recursive-include utils *.fasta *.json *.txt

@@ -12,8 +12,7 @@ import shutil
 import logging
 
 from jcvi.utils.cbook import depends
-from jcvi.apps.softlink import get_abs_path
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh, get_abs_path
 
 
 @depends

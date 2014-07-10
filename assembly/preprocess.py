@@ -10,12 +10,11 @@ import os.path as op
 import sys
 import logging
 
-from jcvi.formats.base import BaseFile, write_file
+from jcvi.formats.base import BaseFile, write_file, must_open
 from jcvi.formats.fastq import guessoffset
 from jcvi.utils.cbook import depends, human_size
-from jcvi.utils.data import Adapters
 from jcvi.apps.base import OptionParser, ActionDispatcher, download, \
-            sh, mkdir, need_update
+            sh, mkdir, need_update, datadir
 
 
 class FastQCdata (BaseFile, dict):
@@ -435,6 +434,7 @@ def trim(args):
         format(path)
 
     adaptersfile = "adapters.fasta"
+    Adapters = must_open(op.join(datadir, adaptersfile)).read()
     write_file(adaptersfile, Adapters, skipcheck=True)
 
     assert op.exists(adaptersfile), \

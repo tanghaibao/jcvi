@@ -16,7 +16,8 @@ from jcvi.formats.fasta import Fasta
 from jcvi.formats.sizes import Sizes
 from jcvi.utils.cbook import fill
 from jcvi.assembly.base import Astat
-from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh, mkdir, glob
+from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh, \
+            mkdir, glob, get_abs_path
 
 
 class SamLine (object):
@@ -140,7 +141,6 @@ def merge(args):
     Merge BAM files. Treat the bams with the same prefix as a set.
     Output the commands first.
     """
-    from jcvi.apps.softlink import get_abs_path
     from jcvi.apps.grid import MakeManager
 
     p = OptionParser(merge.__doc__)

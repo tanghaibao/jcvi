@@ -21,6 +21,7 @@ from matplotlib.path import Path
 from matplotlib.colors import LogNorm
 from matplotlib.transforms import Affine2D
 
+from jcvi.utils.brewer2mpl import get_map
 from jcvi.apps.console import dark, green
 from jcvi.apps.base import glob, listify
 
@@ -37,9 +38,7 @@ class ImageOptions (object):
 
 
 def diverge_colors(scheme, color_class=5):
-    import brewer2mpl
-
-    colors = brewer2mpl.get_map(scheme, 'diverging', color_class).mpl_colors
+    colors = get_map(scheme, 'diverging', color_class).mpl_colors
     return colors[0], colors[-1]
 
 
@@ -59,8 +58,6 @@ def latex(s):
 
 
 def prettyplot():
-    import brewer2mpl
-
     # Get Set2 from ColorBrewer, a set of colors deemed colorblind-safe and
     # pleasant to look at by Drs. Cynthia Brewer and Mark Harrower of Pennsylvania
     # State University. These colors look lovely together, and are less
@@ -69,11 +66,11 @@ def prettyplot():
     #     http://colorbrewer2.org/
     # - A quick visual reference to every ColorBrewer scale:
     #     http://bl.ocks.org/mbostock/5577023
-    set2 = brewer2mpl.get_map('Set2', 'qualitative', 8).mpl_colors
+    set2 = get_map('Set2', 'qualitative', 8).mpl_colors
 
     # Another ColorBrewer scale. This one has nice "traditional" colors like
     # reds and blues
-    set1 = brewer2mpl.get_map('Set1', 'qualitative', 9).mpl_colors
+    set1 = get_map('Set1', 'qualitative', 9).mpl_colors
 
     # Set some commonly used colors
     almost_black = '#262626'
@@ -89,10 +86,10 @@ def prettyplot():
 
     # Need to 'reverse' red to blue so that blue=cold=small numbers,
     # and red=hot=large numbers with '_r' suffix
-    blue_red = brewer2mpl.get_map('RdBu', 'Diverging', 11,
+    blue_red = get_map('RdBu', 'Diverging', 11,
                                   reverse=True).mpl_colormap
-    green_purple = brewer2mpl.get_map('PRGn', 'diverging', 11).mpl_colormap
-    red_purple = brewer2mpl.get_map('RdPu', 'Sequential', 9).mpl_colormap
+    green_purple = get_map('PRGn', 'diverging', 11).mpl_colormap
+    red_purple = get_map('RdPu', 'Sequential', 9).mpl_colormap
 
     # Default "patches" like scatterplots
     mpl.rcParams['patch.linewidth'] = 0.75     # edge width in points

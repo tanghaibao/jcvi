@@ -9,8 +9,8 @@ import logging
 import numpy as np
 
 from jcvi.formats.base import LineFile
-from jcvi.apps.softlink import get_abs_path
-from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh
+from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh, \
+            get_abs_path
 
 
 class Sizes (LineFile):

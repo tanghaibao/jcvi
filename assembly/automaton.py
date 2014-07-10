@@ -14,9 +14,8 @@ import logging
 from jcvi.utils.iter import grouper
 from jcvi.formats.base import LineFile, write_file
 from jcvi.formats.fastq import first, pairspf
-from jcvi.apps.softlink import get_abs_path
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, \
-            mkdir, sh, glob
+            mkdir, sh, glob, get_abs_path
 
 
 class Meta (object):

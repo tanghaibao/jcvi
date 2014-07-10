@@ -16,10 +16,9 @@ import logging
 from collections import defaultdict
 
 from jcvi.formats.base import BaseFile, LineFile, write_file
-from jcvi.apps.softlink import get_abs_path
 from jcvi.apps.grid import GridProcess, get_grid_engine
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, popen, \
-            sh, mkdir, glob
+            sh, mkdir, glob, get_abs_path
 
 
 class CTLine (object):

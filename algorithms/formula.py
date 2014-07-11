@@ -9,7 +9,6 @@ import sys
 import numpy as np
 
 from math import log, exp
-from Bio.Cluster import distancematrix
 
 from jcvi.utils.cbook import human_size
 
@@ -27,6 +26,8 @@ def spearmanr(x, y):
     >>> round(spearmanr(x, z), 4)
     -0.6325
     """
+    from Bio.Cluster import distancematrix
+
     if not x or not y:
         return 0
     return 1 - distancematrix((x, y), dist="s")[1][0]

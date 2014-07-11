@@ -95,7 +95,7 @@ def add_seeds_options(p, args):
     p.add_option_group(g1)
 
     g2 = OptionGroup(p, "Object recognition")
-    g2.add_option("--minsize", default=.0002, type="float",
+    g2.add_option("--minsize", default=.0005, type="float",
                 help="Min ratio of object to image")
     g2.add_option("--maxsize", default=.5, type="float",
                 help="Max ratio of object to image")
@@ -113,7 +113,7 @@ def add_seeds_options(p, args):
                 help="Canny edge detection sigma, higher for noisy image")
     g3.add_option("--kernel", default=2, type="int",
                 help="Edge closure, higher if the object edges are dull")
-    g3.add_option("--border", default=10, type="int",
+    g3.add_option("--border", default=5, type="int",
                 help="Remove image border of certain pixels")
     p.add_option_group(g3)
 
@@ -124,6 +124,7 @@ def add_seeds_options(p, args):
                 help="Store intermediate images and PDF in folder")
     g4.add_option("--rgb", default=False, action="store_true",
                 help="Visualize RGB colors in EXCEL file")
+    g4.add_option("--prefix", help="Output prefix")
     p.add_option_group(g4)
     opts, args, iopts = p.set_image_options(args, figsize='12x6')
 
@@ -204,10 +205,9 @@ def slice(s, m):
     return ra, rb
 
 
-def convert_image(pngfile, outdir=".",
+def convert_image(pngfile, pf, outdir=".",
                   resize=1000, format="jpeg", rotate=0,
                   rows=':', cols=':', labelrows=None, labelcols=None):
-    pf = op.basename(pngfile).rsplit(".", 1)[0]
     resizefile = op.join(outdir, pf + ".resize.jpg")
     mainfile = op.join(outdir, pf + ".main.jpg")
     labelfile = op.join(outdir, pf + ".label.jpg")
@@ -219,13 +219,14 @@ def convert_image(pngfile, outdir=".",
         img.rotate(rotate)
     if resize:
         w, h = img.size
-        if w < h:
-            nw, nh = resize, resize * h / w
-        else:
-            nw, nh = resize * w / h, resize
-        img.resize(nw, nh)
-        logging.debug("Image resized from {0}px:{1}px to {2}px:{3}px".\
-                        format(w, h, nw, nh))
+        if min(w, h) > resize:
+            if w < h:
+                nw, nh = resize, resize * h / w
+            else:
+                nw, nh = resize * w / h, resize
+            img.resize(nw, nh)
+            logging.debug("Image resized from {0}px:{1}px to {2}px:{3}px".\
+                            format(w, h, nw, nh))
     img.format = format
     img.save(filename=resizefile)
 
@@ -292,7 +293,7 @@ def seeds(args):
         sys.exit(not p.print_help())
 
     pngfile, = args
-    pf = op.basename(pngfile).rsplit(".", 1)[0]
+    pf = opts.prefix or op.basename(pngfile).rsplit(".", 1)[0]
     sigma, kernel = opts.sigma, opts.kernel
     rows, cols = opts.rows, opts.cols
     labelrows, labelcols = opts.labelrows, opts.labelcols
@@ -302,7 +303,7 @@ def seeds(args):
         mkdir(outdir)
 
     resizefile, mainfile, labelfile, exif = \
-                      convert_image(pngfile, outdir=outdir,
+                      convert_image(pngfile, pf, outdir=outdir,
                                     rotate=opts.rotate,
                                     rows=rows, cols=cols,
                                     labelrows=labelrows, labelcols=labelcols)
@@ -349,8 +350,10 @@ def seeds(args):
     ax1.set_title('Original picture')
     ax1.imshow(oimg)
 
-    ax2.set_title('Edge detection\n({0}, $\sigma$={1}, $k$={2})'.\
-                    format(ff, sigma, kernel))
+    params = "{0}, $\sigma$={1}, $k$={2}".format(ff, sigma, kernel)
+    if opts.watershed:
+        params += ", watershed"
+    ax2.set_title('Edge detection\n({0})'.format(params))
     closed = gray2rgb(closed)
     ax2_img = labels
     if opts.edges:

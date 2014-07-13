@@ -18,6 +18,7 @@ from Image import open as iopen
 from wand.image import Image
 from scipy.cluster.vq import vq, kmeans
 from scipy.ndimage import binary_fill_holes, distance_transform_edt
+from scipy.optimize import fmin
 from skimage.color import gray2rgb, rgb2gray
 from skimage.filter import canny, roberts, sobel
 from skimage.feature import peak_local_max
@@ -83,13 +84,13 @@ class SeedLine (object):
         self.length = int(args[6])
         self.width = int(args[7])
         self.colorname = args[8]
-        self.rgbtag = args[9]
+        self.rgb = args[9]
 
     def __str__(self):
         return "\t".join(str(x) for x in (self.imagename, self.datetime,
                         self.accession, self.seedno, self.location,
                         self.area, self.length, self.width,
-                        self.colorname, self.rgbtag))
+                        self.colorname, self.rgb))
 
 
 def main():
@@ -101,6 +102,13 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def total_error(x, colormap):
+    xs = np.reshape(x, (3, 3))
+    error_squared = sum([np.linalg.norm(np.dot(xs, o) - e) ** 2 \
+                            for o, e in colormap])
+    return error_squared ** .5
 
 
 def calibrate(args):
@@ -164,9 +172,22 @@ def calibrate(args):
         t.rank = (yi, xi)
 
     seeds.sort(key=lambda x: x.rank)
+
+    colormap = []
+    key = lambda rgb: [int(x) for x in rgb.split(',')]
     for s in seeds:
         x, y = s.rank
         print s, s.rank, colorchecker[x][y]
+        observed, expected = key(s.rgb), key(colorchecker[x][y])
+        colormap.append((np.array(observed), np.array(expected)))
+
+    # Color transfer
+    tr0 = np.eye(3).flatten()
+    print >> sys.stderr, "Initial distance:", total_error(tr0, colormap)
+    tr = fmin(total_error, tr0, args=(colormap,))
+    tr.resize((3, 3))
+    for o, e in colormap:
+        print o, e, np.dot(tr, o)
 
 
 def get_kmeans(a, k, iter=100):

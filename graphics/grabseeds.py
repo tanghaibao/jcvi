@@ -18,7 +18,7 @@ from Image import open as iopen
 from wand.image import Image
 from scipy.cluster.vq import vq, kmeans
 from scipy.ndimage import binary_fill_holes, distance_transform_edt
-from scipy.optimize import fmin
+from scipy.optimize import fmin_bfgs as fmin
 from skimage.color import gray2rgb, rgb2gray
 from skimage.filter import canny, roberts, sobel
 from skimage.feature import peak_local_max
@@ -186,6 +186,7 @@ def calibrate(args):
     print >> sys.stderr, "Initial distance:", total_error(tr0, colormap)
     tr = fmin(total_error, tr0, args=(colormap,))
     tr.resize((3, 3))
+    print >> sys.stderr, tr
     for o, e in colormap:
         print o, e, np.dot(tr, o)
 

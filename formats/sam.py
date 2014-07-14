@@ -242,6 +242,7 @@ def coverage(args):
         cmd = "bedGraphToBigWig {0} {1} {2}".\
                     format(bedgraphfile, sizesfile, bigwigfile)
         sh(cmd)
+        return
 
     coveragefile = fastafile + ".coverage"
     if need_update(fastafile, coveragefile):

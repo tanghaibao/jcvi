@@ -231,20 +231,21 @@ def coverage(args):
         sys.exit(not p.print_help())
 
     fastafile, bamfile = args
+    pf = bamfile.rsplit(".", 2)[0]
     sizesfile = Sizes(fastafile).filename
     cmd = "genomeCoverageBed -ibam {0} -g {1}".format(bamfile, sizesfile)
     if opts.bigwig:
         cmd += " -bg"
-        bedgraphfile = fastafile + ".bedgraph"
+        bedgraphfile = pf + ".bedgraph"
         sh(cmd, outfile=bedgraphfile)
 
-        bigwigfile = fastafile + ".bigwig"
+        bigwigfile = pf + ".bigwig"
         cmd = "bedGraphToBigWig {0} {1} {2}".\
                     format(bedgraphfile, sizesfile, bigwigfile)
         sh(cmd)
         return
 
-    coveragefile = fastafile + ".coverage"
+    coveragefile = pf + ".coverage"
     if need_update(fastafile, coveragefile):
         sh(cmd, outfile=coveragefile)
 

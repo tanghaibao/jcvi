@@ -223,6 +223,8 @@ def coverage(args):
     Calculate coverage for BAM file. BAM file must be sorted.
     """
     p = OptionParser(coverage.__doc__)
+    p.add_option("--bigwig", default=False, action="store_true",
+                 help="Generate .bigwig format")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -231,6 +233,15 @@ def coverage(args):
     fastafile, bamfile = args
     sizesfile = Sizes(fastafile).filename
     cmd = "genomeCoverageBed -ibam {0} -g {1}".format(bamfile, sizesfile)
+    if opts.bigwig:
+        cmd += " -bg"
+        bedgraphfile = fastafile + ".bedgraph"
+        sh(cmd, outfile=bedgraphfile)
+
+        bigwigfile = fastafile + ".bigwig"
+        cmd = "bedGraphToBigWig {0} {1} {2}".\
+                    format(bedgraphfile, sizesfile, bigwigfile)
+        sh(cmd)
 
     coveragefile = fastafile + ".coverage"
     if need_update(fastafile, coveragefile):

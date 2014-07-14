@@ -26,7 +26,8 @@ from skimage.measure import regionprops, label
 from skimage.morphology import disk, closing, watershed
 from skimage.segmentation import clear_border
 from jcvi.utils.counter import Counter
-from jcvi.utils.webcolors import rgb_to_hex, closest_color
+from jcvi.utils.webcolors import rgb_to_hex, closest_color, \
+                normalize_integer_triplet
 from jcvi.formats.base import must_open
 from jcvi.algorithms.formula import reject_outliers
 from jcvi.apps.tesseract import image_to_string
@@ -44,7 +45,7 @@ class Seed (object):
         self.accession = accession
         self.seedno = seedno
         y, x = props.centroid
-        self.location = "{0},{1}".format(int(round(x)), int(round(y)))
+        self.location = "{0}|{1}".format(int(round(x)), int(round(y)))
         self.area = int(round(props.area))
         self.length = int(round(props.major_axis_length))
         self.width = int(round(props.minor_axis_length))
@@ -60,7 +61,7 @@ class Seed (object):
     @classmethod
     def header(cls):
         fields = "ImageName DateTime Accession SeedNum Location "\
-                 "Area Length Width ColorName RGB"
+                 "Area Length(px) Width(px) ColorName RGB"
         return "\t".join(fields.split())
 
     def __str__(self):
@@ -79,18 +80,46 @@ class SeedLine (object):
         self.accession = args[2]
         self.seedno = args[3]
         self.location = args[4]
-        self.x, self.y = [int(x) for x in self.location.split(',')]
+        self.x, self.y = [int(x) for x in self.location.split('|')]
         self.area = int(args[5])
         self.length = int(args[6])
         self.width = int(args[7])
         self.colorname = args[8]
         self.rgb = args[9]
 
+    @classmethod
+    def header(cls):
+        corrected_fields = "PixelCMratio RGBtransform Length(cm)" \
+                        " Width(cm) CorrectedColorName CorrectedRGB".split()
+        return Seed.header() + '\t' + '\t'.join(corrected_fields)
+
+    def calibrate(self, pixel_cm_ratio, tr):
+        self.pixelcmratio = "{0:.2f}".format(pixel_cm_ratio)
+        self.rgbtransform = ",".join(["{0:.2f}".format(x) \
+                                      for x in tr.flatten()])
+        self.correctedlength = "{0:.2f}".format(self.length / pixel_cm_ratio)
+        self.correctedwidth = "{0:.2f}".format(self.width / pixel_cm_ratio)
+        correctedrgb = np.dot(tr, np.array(rgb_to_triplet(self.rgb)))
+        self.correctedrgb = triplet_to_rgb(correctedrgb)
+        self.correctedcolorname = closest_color(correctedrgb)
+
     def __str__(self):
         return "\t".join(str(x) for x in (self.imagename, self.datetime,
                         self.accession, self.seedno, self.location,
                         self.area, self.length, self.width,
-                        self.colorname, self.rgb))
+                        self.colorname, self.rgb,
+                        self.pixelcmratio, self.rgbtransform,
+                        self.correctedlength, self.correctedwidth,
+                        self.correctedcolorname, self.correctedrgb))
+
+
+def rgb_to_triplet(rgb):
+    return tuple([int(x) for x in rgb.split(',')])
+
+
+def triplet_to_rgb(triplet):
+    triplet = normalize_integer_triplet(triplet)
+    return ",".join(str(int(round(x))) for x in triplet)
 
 
 def main():
@@ -174,11 +203,9 @@ def calibrate(args):
     seeds.sort(key=lambda x: x.rank)
 
     colormap = []
-    key = lambda rgb: [int(x) for x in rgb.split(',')]
     for s in seeds:
         x, y = s.rank
-        print s, s.rank, colorchecker[x][y]
-        observed, expected = key(s.rgb), key(colorchecker[x][y])
+        observed, expected = rgb_to_triplet(s.rgb), rgb_to_triplet(colorchecker[x][y])
         colormap.append((np.array(observed), np.array(expected)))
 
     # Color transfer
@@ -186,9 +213,16 @@ def calibrate(args):
     print >> sys.stderr, "Initial distance:", total_error(tr0, colormap)
     tr = fmin(total_error, tr0, args=(colormap,))
     tr.resize((3, 3))
-    print >> sys.stderr, tr
-    for o, e in colormap:
-        print o, e, np.dot(tr, o)
+    print >> sys.stderr, "RGB linear transform:\n", tr
+    calibtsvfile = tsvfile.rsplit(".", 1)[0] + ".calibrated.tsv"
+    fw = must_open(calibtsvfile, 'w')
+    print >> fw, SeedLine.header()
+    for s in seeds:
+        s.calibrate(pixel_cm_ratio, tr)
+        print >> fw, s
+    fw.close()
+
+    logging.debug("Calibrated file written to `{0}`.".format(calibtsvfile))
 
 
 def get_kmeans(a, k, iter=100):
@@ -241,8 +275,6 @@ def add_seeds_options(p, args):
                 help="Visualize edges in middle PDF panel")
     g4.add_option("--outdir", default=".",
                 help="Store intermediate images and PDF in folder")
-    g4.add_option("--rgb", default=False, action="store_true",
-                help="Visualize RGB colors in EXCEL file")
     g4.add_option("--prefix", help="Output prefix")
     p.add_option_group(g4)
     opts, args, iopts = p.set_image_options(args, figsize='12x6')
@@ -257,7 +289,6 @@ def batchseeds(args):
     Extract seed metrics for each image in a directory.
     """
     from jcvi.formats.pdf import cat
-    from jcvi.formats.excel import fromcsv
 
     xargs = args[1:]
     p = OptionParser(batchseeds.__doc__)
@@ -289,12 +320,8 @@ def batchseeds(args):
         nseeds += len(objects)
     fw.close()
     logging.debug("Processed {0} images.".format(len(images)))
-    fromcsv_args = [outfile]
-    if opts.rgb:
-        fromcsv_args += ["--rgb=9"]
-    excelfile = fromcsv(fromcsv_args)
     logging.debug("A total of {0} objects written to `{1}`.".\
-                    format(nseeds, excelfile))
+                    format(nseeds, outfile))
 
     pdfs = iglob(outdir, "*.pdf")
     outpdf = folder + "-output.pdf"

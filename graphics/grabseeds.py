@@ -279,7 +279,7 @@ def batchseeds(args):
     outfile = folder + "-output.tsv"
     assert op.isdir(folder)
     images = []
-    jsonfile = op.join(folder, "calibrate.json")
+    jsonfile = opts.calibrate or op.join(folder, "calibrate.json")
     if not op.exists(jsonfile):
         jsonfile = None
     for im in iglob(folder, "*.jpg", "*.JPG", "*.png"):

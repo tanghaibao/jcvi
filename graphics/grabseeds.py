@@ -55,45 +55,31 @@ class Seed (object):
         self.rgb = rgb
         self.colorname = closest_color(rgb)
         self.datetime = exif.get('exif:DateTimeOriginal', "none")
-        self.rgbtag = ','.join(str(x) for x in rgb)
+        self.rgbtag = triplet_to_rgb(rgb)
         self.pixeltag = "length={0} width={1} area={2}".\
                         format(self.length, self.width, self.area)
         self.hashtag = " ".join((self.rgbtag, self.colorname))
-
-    @classmethod
-    def header(cls):
-        fields = "ImageName DateTime Accession SeedNum Location "\
-                 "Area Length(px) Width(px) ColorName RGB"
-        return "\t".join(fields.split())
+        self.calibrated = False
 
     def __str__(self):
-        return "\t".join(str(x) for x in (self.imagename, self.datetime,
-                        self.accession, self.seedno, self.location,
-                        self.area, self.length, self.width,
-                        self.colorname, self.rgbtag))
-
-
-class SeedLine (object):
-
-    def __init__(self, line):
-        args = line.rstrip().split("\t")
-        self.imagename = args[0]
-        self.datetime = args[1]
-        self.accession = args[2]
-        self.seedno = args[3]
-        self.location = args[4]
-        self.x, self.y = [int(x) for x in self.location.split('|')]
-        self.area = int(args[5])
-        self.length = int(args[6])
-        self.width = int(args[7])
-        self.colorname = args[8]
-        self.rgb = args[9]
+        fields = [self.imagename, self.datetime,
+                  self.accession, self.seedno, self.location,
+                  self.area, self.length, self.width,
+                  self.colorname, self.rgbtag]
+        if self.calibrated:
+            fields += [self.pixelcmratio, self.rgbtransform,
+                       self.correctedlength, self.correctedwidth,
+                       self.correctedcolorname, self.correctedrgb]
+        return "\t".join(str(x) for x in fields)
 
     @classmethod
-    def header(cls):
-        corrected_fields = "PixelCMratio RGBtransform Length(cm)" \
-                        " Width(cm) CorrectedColorName CorrectedRGB".split()
-        return Seed.header() + '\t' + '\t'.join(corrected_fields)
+    def header(cls, calibrate=False):
+        fields = "ImageName DateTime Accession SeedNum Location "\
+                 "Area Length(px) Width(px) ColorName RGB".split()
+        if calibrate:
+            fields += "PixelCMratio RGBtransform Length(cm)" \
+                      " Width(cm) CorrectedColorName CorrectedRGB".split()
+        return "\t".join(fields)
 
     def calibrate(self, pixel_cm_ratio, tr):
         self.pixelcmratio = "{0:.2f}".format(pixel_cm_ratio)
@@ -101,18 +87,10 @@ class SeedLine (object):
                                       for x in tr.flatten()])
         self.correctedlength = "{0:.2f}".format(self.length / pixel_cm_ratio)
         self.correctedwidth = "{0:.2f}".format(self.width / pixel_cm_ratio)
-        correctedrgb = np.dot(tr, np.array(rgb_to_triplet(self.rgb)))
+        correctedrgb = np.dot(tr, np.array(self.rgb))
         self.correctedrgb = triplet_to_rgb(correctedrgb)
         self.correctedcolorname = closest_color(correctedrgb)
-
-    def __str__(self):
-        return "\t".join(str(x) for x in (self.imagename, self.datetime,
-                        self.accession, self.seedno, self.location,
-                        self.area, self.length, self.width,
-                        self.colorname, self.rgb,
-                        self.pixelcmratio, self.rgbtransform,
-                        self.correctedlength, self.correctedwidth,
-                        self.correctedcolorname, self.correctedrgb))
+        self.calibrated = True
 
 
 def rgb_to_triplet(rgb):
@@ -170,7 +148,8 @@ def calibrate(args):
         colorchecker.append(boxes)
         expected += len(boxes)
 
-    objects = seeds([imagefile] + xargs)
+    folder = op.split(imagefile)[0]
+    objects = seeds([imagefile, "--outdir={0}".format(folder)] + xargs)
     nseeds = len(objects)
     logging.debug("Found {0} boxes (expected={1})".format(nseeds, expected))
     assert expected - 4 <= nseeds <= expected + 4, \
@@ -210,7 +189,7 @@ def calibrate(args):
     calib = {"PixelCMratio": pixel_cm_ratio,
              "RGBtransform": tr.tolist()}
 
-    jsonfile = op.join(opts.outdir, "calibrate.json")
+    jsonfile = op.join(folder, "calibrate.json")
     fw = must_open(jsonfile, "w")
     print >> fw, json.dumps(calib, indent=4)
     fw.close()
@@ -265,12 +244,14 @@ def add_seeds_options(p, args):
     p.add_option_group(g3)
 
     g4 = OptionGroup(p, "Output")
+    g4.add_option("--calibrate", help="JSON file to correct distance and color")
     g4.add_option("--edges", default=False, action="store_true",
                 help="Visualize edges in middle PDF panel")
     g4.add_option("--outdir", default=".",
                 help="Store intermediate images and PDF in folder")
     g4.add_option("--prefix", help="Output prefix")
-    g4.add_option("--calibrate", help="JSON file to correct distance and color")
+    g4.add_option("--noheader", default=False, action="store_true",
+                help="Do not print header")
     p.add_option_group(g4)
     opts, args, iopts = p.set_image_options(args, figsize='12x6')
 
@@ -298,21 +279,23 @@ def batchseeds(args):
     outfile = folder + "-output.tsv"
     assert op.isdir(folder)
     images = []
-    jsonfile = None
+    jsonfile = op.join(folder, "calibrate.json")
+    if not op.exists(jsonfile):
+        jsonfile = None
     for im in iglob(folder, "*.jpg", "*.JPG", "*.png"):
         if im.endswith(".resize.jpg") or \
            im.endswith(".main.jpg") or \
            im.endswith(".label.jpg"):
             continue
-        if im.split('.')[0] == "calibrate":
-            jsonfile = calibrate([im, "--outdir={0}".format(outdir)])
+        if op.basename(im).startswith("calibrate"):
+            continue
         images.append(im)
 
     fw = must_open(outfile, 'w')
-    print >> fw, Seed.header()
+    print >> fw, Seed.header(calibrate=jsonfile)
     nseeds = 0
     for im in images:
-        imargs = [im, "--outdir={0}".format(outdir)] + xargs
+        imargs = [im, "--noheader", "--outdir={0}".format(outdir)] + xargs
         if jsonfile:
             imargs += ["--calibrate={0}".format(jsonfile)]
         objects = seeds(imargs)
@@ -372,8 +355,8 @@ def convert_image(pngfile, pf, outdir=".",
             else:
                 nw, nh = resize * w / h, resize
             img.resize(nw, nh)
-            logging.debug("Image resized from {0}px:{1}px to {2}px:{3}px".\
-                            format(w, h, nw, nh))
+            logging.debug("Image `{0}` resized from {1}px:{2}px to {3}px:{4}px".\
+                            format(pngfile, w, h, nw, nh))
     img.format = format
     img.save(filename=resizefile)
 
@@ -449,6 +432,10 @@ def seeds(args):
     outdir = opts.outdir
     if outdir != '.':
         mkdir(outdir)
+    if calib:
+        calib = json.load(must_open(calib))
+        pixel_cm_ratio, tr = calib["PixelCMratio"], calib["RGBtransform"]
+        tr = np.array(tr)
 
     resizefile, mainfile, labelfile, exif = \
                       convert_image(pngfile, pf, outdir=outdir,
@@ -572,7 +559,11 @@ def seeds(args):
     ax4.text(.1, .86, "Label: {0}".format(latex(accession)), color='m')
     yy = .8
     fw = must_open(opts.outfile, "w")
+    if not opts.noheader:
+        print >> fw, Seed.header(calibrate=calib)
     for o in objects:
+        if calib:
+            o.calibrate(pixel_cm_ratio, tr)
         print >> fw, o
         i = o.seedno
         if i > 7:

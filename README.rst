@@ -94,15 +94,16 @@ is to install them via ``pip install`` when you see ``ImportError``.
 Installation
 ------------
 Resolve dependencies first. Then place the whole folder ``jcvi/`` on your
-``PYTHONPATH``. Most scripts can both ``import`` or run as utility script. *This
-is the preferred method*, as you can run regardless of the dir you are in::
+``PYTHONPATH``. *This is the preferred method*, as you can run regardless of the directory
+that you are currently in::
 
-    export PYTHONPATH=dir_contains_jcvi:$PYTHONPATH
-    python -m jcvi.formats.fasta
+    cd ~/code  # or any directory of your choice
+    git clone git://github.com/tanghaibao/jcvi.git
+    export PYTHONPATH=~/code:$PYTHONPATH
 
-Please replace ``dir_contains_jcvi`` above with whatever you like, but it must
-contain ``jcvi``. To avoid setting ``PYTHONPATH`` everytime, please insert the last
-command in your ``.bashrc`` or ``.bash_profile``.
+Please replace ``~/code`` above with whatever you like, but it must contain ``jcvi``.
+To avoid setting ``PYTHONPATH`` everytime, please insert the ``export`` command in your
+``.bashrc`` or ``.bash_profile``.
 
 Alternatively, if you have ``pip`` installed::
 

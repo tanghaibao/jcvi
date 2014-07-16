@@ -855,15 +855,14 @@ def color_diff(rgb1, rgb2):
     - for graphics arts use we recommend dE94 and perhaps dE-CMC 2:1
     - for textiles use dE-CMC
     """
-    from colormath.color_objects import LabColor, sRGBColor
-    from colormath.color_conversions import convert_color
-    from colormath.color_diff import delta_e_cmc
+    import numpy as np
+    from skimage.color import rgb2lab, deltaE_cmc
 
-    rgb1 = sRGBColor(*rgb1)
-    rgb2 = sRGBColor(*rgb2)
-    lab1 = convert_color(rgb1, LabColor)
-    lab2 = convert_color(rgb2, LabColor)
-    return delta_e_cmc(lab1, lab2)
+    rgb1 = np.array(rgb1, dtype="float64").reshape(1, 1, 3) / 255.
+    rgb2 = np.array(rgb2, dtype="float64").reshape(1, 1, 3) / 255.
+    lab1 = rgb2lab(rgb1)
+    lab2 = rgb2lab(rgb2)
+    return deltaE_cmc(lab1, lab2, kL=2, kC=1)[0, 0]
 
 
 def closest_color(requested_color):

@@ -263,7 +263,8 @@ def fig3(args):
 
     chrs, sizes, bedfile, datadir = args
     gauge_step = opts.gauge_step
-    rr, gg = iopts.diverge
+    diverge = iopts.diverge
+    rr, gg = diverge
     chrs = [[x] for x in chrs.split(",")]
     sizes = Sizes(sizes).mapping
 

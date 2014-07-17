@@ -122,33 +122,34 @@ Most of the scripts in this package contains multiple actions. To use the
     Usage:
         python -m jcvi.formats.fasta ACTION
 
+
     Available ACTIONs:
-        `extract`: given fasta file and seq id, retrieve the sequence in fasta format
-        `longestorf`: find longest orf for CDS fasta
-        `translate`: translate CDS to proteins
-        `info`: run `sequence_info` on fasta files
-        `summary`: report the real no of bases and N's in fasta files
-        `uniq`: remove records that are the same
-        `ids`: generate a list of headers
-        `format`: trim accession id to the first space or switch id based on 2-column mapping file
-        `pool`: pool a bunch of fastafiles together and add prefix
-        `random`: randomly take some records
-        `diff`: check if two fasta records contain same information
-        `identical`: given 2 fasta files, find all exactly identical records
-        `trim`: given a cross_match screened fasta, trim the sequence
-        `sort`: sort the records by IDs, sizes, etc.
-        `filter`: filter the records by size
-        `pair`: sort paired reads to .pairs, rest to .fragments
-        `pairinplace`: starting from fragment.fasta, find if adjacent records can form pairs
-        `fastq`: combine fasta and qual to create fastq file
-        `tidy`: normalize gap sizes and remove small components in fasta
-        `sequin`: generate a gapped fasta file for sequin submission
-        `gaps`: print out a list of gap sizes within sequences
-        `join`: concatenate a list of seqs and add gaps in between
-        `some`: include or exclude a list of records (also performs on .qual file if available)
-        `clean`: remove irregular chars in FASTA seqs
-        `ispcr`: reformat paired primers into isPcr query format
-        `fromtab`: convert 2-column sequence file to FASTA format
+              clean | Remove irregular chars in fasta seqs
+               diff | Check if two fasta records contain same information
+            extract | Given fasta file and seq id, retrieve the sequence in fasta format
+              fastq | Combine fasta and qual to create fastq file
+             filter | Filter the records by size
+             format | Trim accession id to the first space or switch id based on 2-column mapping file
+            fromtab | Convert 2-column sequence file to fasta format
+               gaps | Print out a list of gap sizes within sequences
+          identical | Given 2 fasta files, find all exactly identical records
+                ids | Generate a list of headers
+               info | Run `sequence_info` on fasta files
+              ispcr | Reformat paired primers into ispcr query format
+               join | Concatenate a list of seqs and add gaps in between
+         longestorf | Find longest orf for cds fasta
+               pair | Sort paired reads to .pairs, rest to .fragments
+        pairinplace | Starting from fragment.fasta, find if adjacent records can form pairs
+               pool | Pool a bunch of fastafiles together and add prefix
+             random | Randomly take some records
+             sequin | Generate a gapped fasta file for sequin submission
+               some | Include or exclude a list of records (also performs on .qual file if available)
+               sort | Sort the records by ids, sizes, etc.
+            summary | Report the real no of bases and n's in fasta files
+               tidy | Normalize gap sizes and remove small components in fasta
+          translate | Translate cds to proteins
+               trim | Given a cross_match screened fasta, trim the sequence
+               uniq | Remove records that are the same
 
 Then you need to use one action, you can just do::
 

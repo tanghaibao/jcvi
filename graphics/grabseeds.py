@@ -10,7 +10,7 @@ import os.path as op
 import sys
 import string
 import logging
-from math import sin, cos
+from math import sin, cos, pi
 
 import numpy as np
 from jcvi.graphics.base import plt, savefig, normalize_axes, Rectangle, latex
@@ -52,6 +52,7 @@ class Seed (object):
         self.length = int(round(props.major_axis_length))
         self.width = int(round(props.minor_axis_length))
         self.props = props
+        self.circularity = 4 * pi * props.area / props.perimeter ** 2
         self.rgb = rgb
         self.colorname = closest_color(rgb)
         self.datetime = exif.get('exif:DateTimeOriginal', "none")
@@ -64,7 +65,8 @@ class Seed (object):
     def __str__(self):
         fields = [self.imagename, self.datetime,
                   self.accession, self.seedno, self.location,
-                  self.area, self.length, self.width,
+                  self.area, "{0:.2f}".format(self.circularity),
+                  self.length, self.width,
                   self.colorname, self.rgbtag]
         if self.calibrated:
             fields += [self.pixelcmratio, self.rgbtransform,
@@ -75,7 +77,7 @@ class Seed (object):
     @classmethod
     def header(cls, calibrate=False):
         fields = "ImageName DateTime Accession SeedNum Location "\
-                 "Area Length(px) Width(px) ColorName RGB".split()
+                 "Area Circularity Length(px) Width(px) ColorName RGB".split()
         if calibrate:
             fields += "PixelCMratio RGBtransform Length(cm)" \
                       " Width(cm) CorrectedColorName CorrectedRGB".split()

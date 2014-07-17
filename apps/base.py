@@ -45,12 +45,14 @@ class ActionDispatcher (object):
         else:
             args[-1] += " " + meta
 
-        help = "Usage:\n    python -m {0}\n\n".format(".".join(args))
+        help = "Usage:\n    python -m {0}\n\n\n".format(".".join(args))
         help += "Available {0}s:\n".format(meta)
-        for action, action_help in self.actions:
-            help += "    `%s`: %s\n" % (action, action_help)
+        max_action_len = max(len(action) for action, ah in self.actions)
+        for action, action_help in sorted(self.actions):
+            action = action.rjust(max_action_len + 4)
+            help += " | ".join((action, action_help.capitalize())) + '\n'
 
-        print >> sys.stderr, help
+        sys.stderr.write(help)
         sys.exit(1)
 
     def dispatch(self, globals):

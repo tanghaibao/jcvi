@@ -7,7 +7,7 @@
 visualize the anchorfile in a dotplot. anchorfile contains two columns
 indicating gene pairs, followed by an optional column (e.g. Ks value).
 
-The option --palette specifies the block color to highlight certain blocks in
+The option --colormap specifies the block color to highlight certain blocks in
 a file.  Block ids are 1-based (non-digit chars will be removed). For example, below
 requests that the 7th blocks to be colored red.
 
@@ -269,8 +269,7 @@ if __name__ == "__main__":
     p.set_beds()
     p.add_option("--synteny", default=False, action="store_true",
             help="Run a fast synteny scan and display blocks [default: %default]")
-    p.add_option("--cmap", help="Draw colormap box on the bottom-left corner "
-                 "[default: `%default`]")
+    p.add_option("--cmaptext", help="Draw colormap box on the bottom-left corner")
     p.add_option("--vmin", dest="vmin", type="float", default=0,
             help="Minimum value in the colormap [default: %default]")
     p.add_option("--vmax", dest="vmax", type="float", default=1,
@@ -282,7 +281,7 @@ if __name__ == "__main__":
             help="Maximum number of data points to plot [default: %default]")
     p.add_option("--ignore", type="float", default=.005,
             help="Do not render labels for chr less than portion of genome [default: %default]")
-    p.add_option("--palette",
+    p.add_option("--colormap",
             help="Two column file, block id to color mapping [default: %default]")
     opts, args, iopts = p.set_image_options(sys.argv[1:], figsize="8x8",
                                             style="dark", dpi=90)
@@ -292,10 +291,10 @@ if __name__ == "__main__":
 
     synteny = opts.synteny
     vmin, vmax = opts.vmin, opts.vmax
-    cmap_text = opts.cmap
+    cmap_text = opts.cmaptext
     genomenames = opts.genomenames
     sample_number = opts.sample_number
-    palette = opts.palette
+    palette = opts.colormap
     if palette:
         palette = Palette(palette)
 

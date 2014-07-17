@@ -255,7 +255,7 @@ def add_seeds_options(p, args):
     g4.add_option("--noheader", default=False, action="store_true",
                 help="Do not print header")
     p.add_option_group(g4)
-    opts, args, iopts = p.set_image_options(args, figsize='12x6')
+    opts, args, iopts = p.set_image_options(args, figsize='12x6', style="white")
 
     return opts, args, iopts
 
@@ -497,7 +497,7 @@ def seeds(args):
         ax2_img = closed
     elif opts.watershed:
         ax2.plot(coordinates[:, 1], coordinates[:, 0], 'g.')
-    ax2.imshow(ax2_img)
+    ax2.imshow(ax2_img, cmap=iopts.cmap)
 
     ax3.set_title('Object detection')
     ax3.imshow(img)

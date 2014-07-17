@@ -815,7 +815,7 @@ def format(args):
 
     p = OptionParser(format.__doc__)
     p.add_option("--switchcomponent",
-                 help="Switch component id based on [%default: %default]")
+                 help="Switch component id based on")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:

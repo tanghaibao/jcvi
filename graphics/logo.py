@@ -20,8 +20,8 @@ from jcvi.apps.base import OptionParser
 
 def main():
     p = OptionParser(__doc__)
-    p.add_option("--font", default="Airswing.ttf", choices=available_fonts,
-                 help="Font name [default: `%default`]")
+    p.add_option("--customfont", default="Airswing.ttf", choices=available_fonts,
+                 help="Custom font name [default: `%default`]")
     p.add_option("--color", default="limegreen",
                  help="Font color [default: %default]")
     p.add_option("--size", default=36, type="int",

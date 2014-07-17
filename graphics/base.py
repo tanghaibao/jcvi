@@ -32,14 +32,16 @@ class ImageOptions (object):
         self.w, self.h = [int(x) for x in opts.figsize.split('x')]
         self.dpi = opts.dpi
         self.format = opts.format
+        self.cmap = cm.get_cmap(opts.cmap)
+        self.opts = opts
 
     def __str__(self):
         return "({0}px x {1}px)".format(self.dpi * self.w, self.dpi * self.h)
 
-
-def diverge_colors(scheme, color_class=5):
-    colors = get_map(scheme, 'diverging', color_class).mpl_colors
-    return colors[0], colors[-1]
+    @property
+    def diverge(self):
+        colors = get_map(self.opts.diverge, 'diverging', 5).mpl_colors
+        return colors[0], colors[-1]
 
 
 CHARS = {
@@ -177,25 +179,21 @@ def markup(s):
     return s
 
 
-def setup_theme(theme="helvetica", style="darkgrid"):
-
+def setup_theme(context='notebook', style="darkgrid", palette='deep', font='Helvetica'):
     try:
         import seaborn as sns
-        sns.set()
-        sns.set_style(style)
+        sns.set(context=context, style=style, palette=palette)
     except ImportError:
         pass
 
     rc('text', **{'usetex': True})
 
-    if theme == "helvetica":
+    if font == "Helvetica":
         rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica']})
-    elif theme == "palatino":
+    elif font == "Palatino":
         rc('font', **{'family':'serif','serif': ['Palatino']})
-    elif theme == "schoolbook":
+    elif font == "Schoolbook":
         rc('font', **{'family':'serif','serif': ['Century Schoolbook L']})
-
-    return str
 
 
 setup_theme()
@@ -256,7 +254,7 @@ def print_colors(palette, outfile="Palette.png"):
 
 
 def discrete_rainbow(N=7, cmap=cm.Set1, usepreset=True, shuffle=False, \
-    plot=False):
+                     plot=False):
     """
     Return a discrete colormap and the set of colors.
 

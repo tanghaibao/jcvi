@@ -27,7 +27,7 @@ import sys
 import numpy as np
 from itertools import groupby
 
-from jcvi.graphics.base import plt, cm, LogNorm, savefig
+from jcvi.graphics.base import plt, LogNorm, savefig
 from jcvi.apps.base import OptionParser
 
 
@@ -67,8 +67,6 @@ def main():
     p.add_option("--rowgroups", help="Row groupings [default: %default]")
     p.add_option("--horizontalbar", default=False, action="store_true",
                  help="Horizontal color bar [default: vertical]")
-    p.add_option("--cmap", default="jet",
-                 help="Use this color map [default: %default]")
     opts, args, iopts = p.set_image_options(figsize="8x8")
 
     if len(args) != 1:
@@ -96,8 +94,7 @@ def main():
     root = fig.add_axes([0, 0, 1, 1])
     ax = fig.add_axes([xstart, .15, .7, .7])
 
-    default_cm = cm.get_cmap(opts.cmap)
-    im = ax.matshow(data, cmap=default_cm, norm=LogNorm(vmin=1, vmax=10000))
+    im = ax.matshow(data, cmap=iopts.cmap, norm=LogNorm(vmin=1, vmax=10000))
     nrows, ncols = len(rows), len(cols)
 
     xinterval = .7 / ncols

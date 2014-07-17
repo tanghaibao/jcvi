@@ -140,7 +140,7 @@ def deduplicate(args):
     p.add_option("--reads", default=False, action="store_true",
                  help="Use `cd-hit-454` to deduplicate [default: %default]")
     p.add_option("--samestrand", default=False, action="store_true",
-                 help="Enforce same strand alignment [%default: %default]")
+                 help="Enforce same strand alignment")
     p.set_home("cdhit")
     p.set_cpus()
     opts, args = p.parse_args(args)

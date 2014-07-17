@@ -274,7 +274,8 @@ class OptionParser (OptionP):
                      help="E-value cutoff [default: %default]")
 
     def set_image_options(self, args=None, figsize="6x6", dpi=300,
-                          format="pdf", theme="helvetica", style="darkgrid"):
+                          format="pdf", font="Helvetica", palette="deep",
+                          style="darkgrid"):
         """
         Add image format options for given command line programs.
         """
@@ -282,7 +283,7 @@ class OptionParser (OptionP):
 
         allowed_format = ("emf", "eps", "pdf", "png", "ps", \
                           "raw", "rgba", "svg", "svgz")
-        allowed_themes = ("helvetica", "palatino", "schoolbook", "mpl")
+        allowed_fonts = ("Helvetica", "Palatino", "Schoolbook", "Arial")
         allowed_styles = ("darkgrid", "whitegrid", "dark", "white", "ticks")
         allowed_diverge = ("BrBG", "PiYG", "PRGn", "PuOr", "RdBu", \
                            "RdGy", "RdYlBu", "RdYlGn", "Spectral")
@@ -296,12 +297,13 @@ class OptionParser (OptionP):
                 help="Physical dot density (dots per inch) [default: %default]")
         group.add_option("--format", default=format, choices=allowed_format,
                 help="Generate image of format [default: %default]")
-        group.add_option("--theme", default=theme, choices=allowed_themes,
-                help="Font theme [default: %default]")
+        group.add_option("--font", default=font, choices=allowed_fonts,
+                help="Font name")
         group.add_option("--style", default=style, choices=allowed_styles,
                 help="Axes background")
         group.add_option("--diverge", default="PiYG", choices=allowed_diverge,
                 help="Contrasting color scheme")
+        group.add_option("--cmap", default="jet", help="Use this color map")
 
         if args is None:
             args = sys.argv[1:]
@@ -311,7 +313,7 @@ class OptionParser (OptionP):
         assert opts.dpi > 0
         assert "x" in opts.figsize
 
-        setup_theme(theme=opts.theme, style=opts.style)
+        setup_theme(style=opts.style, font=opts.font)
 
         return opts, args, ImageOptions(opts)
 

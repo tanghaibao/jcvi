@@ -12,8 +12,7 @@ import logging
 import numpy as np
 
 from jcvi.graphics.base import plt, Rectangle, savefig, mpl, \
-            adjust_spines, FancyArrowPatch, normalize_axes, panel_labels, \
-            diverge_colors
+            adjust_spines, FancyArrowPatch, normalize_axes, panel_labels
 from jcvi.graphics.glyph import TextCircle
 from jcvi.graphics.karyotype import Karyotype
 from jcvi.graphics.synteny import Synteny
@@ -264,8 +263,7 @@ def fig3(args):
 
     chrs, sizes, bedfile, datadir = args
     gauge_step = opts.gauge_step
-    diverge = diverge_colors(opts.diverge)
-    rr, gg = diverge
+    rr, gg = iopts.diverge
     chrs = [[x] for x in chrs.split(",")]
     sizes = Sizes(sizes).mapping
 

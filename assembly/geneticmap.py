@@ -147,8 +147,6 @@ def ld(args):
     p = OptionParser(ld.__doc__)
     p.add_option("--subsample", default=500, type="int",
                  help="Subsample markers to speed up [default: %default]")
-    p.add_option("--cmap", default="jet",
-                 help="Use this color map [default: %default]")
     opts, args, iopts = p.set_image_options(args, figsize="8x8")
 
     if len(args) != 1:
@@ -188,7 +186,7 @@ def ld(args):
         logging.debug("LD matrix `{0}` exists ({1}x{1})."\
                         .format(ldmatrix, nmarkers))
 
-    from jcvi.graphics.base import plt, savefig, cm, Rectangle, draw_cmap
+    from jcvi.graphics.base import plt, savefig, Rectangle, draw_cmap
 
     plt.rcParams["axes.linewidth"] = 0
 
@@ -196,8 +194,7 @@ def ld(args):
     root = fig.add_axes([0, 0, 1, 1])
     ax = fig.add_axes([.1, .1, .8, .8])  # the heatmap
 
-    default_cm = cm.get_cmap(opts.cmap)
-    ax.matshow(M, cmap=default_cm)
+    ax.matshow(M, cmap=iopts.cmap)
 
     # Plot chromosomes breaks
     bed = Bed(markerbedfile)

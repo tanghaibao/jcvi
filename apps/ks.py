@@ -23,8 +23,8 @@ from Bio import AlignIO
 from Bio.Align.Applications import ClustalwCommandline, MuscleCommandline
 
 from jcvi.formats.base import must_open, LineFile
-from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher, \
-            mkdir, sh, Popen, getpath
+from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, sh, \
+            Popen, getpath
 
 
 CLUSTALW_BIN = partial(getpath, name="CLUSTALW2", warn="warn")

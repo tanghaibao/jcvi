@@ -284,7 +284,8 @@ if __name__ == "__main__":
             help="Do not render labels for chr less than portion of genome [default: %default]")
     p.add_option("--palette",
             help="Two column file, block id to color mapping [default: %default]")
-    opts, args, iopts = p.set_image_options(sys.argv[1:], figsize="8x8", dpi=90)
+    opts, args, iopts = p.set_image_options(sys.argv[1:], figsize="8x8",
+                                            style="dark", dpi=90)
 
     if len(args) != 1:
         sys.exit(not p.print_help())

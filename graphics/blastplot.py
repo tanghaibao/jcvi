@@ -244,7 +244,7 @@ if __name__ == "__main__":
             help="Remove trailing .? from gene names [default: %default]")
     p.add_option("--sample", default=None, type="int",
             help="Only plot maximum of N dots [default: %default]")
-    opts, args, iopts = p.set_image_options(figsize="8x8", dpi=150)
+    opts, args, iopts = p.set_image_options(figsize="8x8", style="dark", dpi=150)
 
     qsizes, ssizes = opts.qsizes, opts.ssizes
     qbed, sbed = opts.qbed, opts.sbed

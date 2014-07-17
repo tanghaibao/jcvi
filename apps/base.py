@@ -274,7 +274,7 @@ class OptionParser (OptionP):
                      help="E-value cutoff [default: %default]")
 
     def set_image_options(self, args=None, figsize="6x6", dpi=300,
-                          format="pdf", theme="helvetica", style="whitegrid"):
+                          format="pdf", theme="helvetica", style="darkgrid"):
         """
         Add image format options for given command line programs.
         """

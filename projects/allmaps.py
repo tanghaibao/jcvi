@@ -135,7 +135,7 @@ def import_data(datafile):
 def subplot(ax, data, xlabel, ylabel, xlim=None, ylim=1.1,
                       xcast=float, ycast=float):
     x, y = zip(*data)
-    ax.plot(x, y, "ko:", mec="k", mfc="w", ms=4)
+    ax.plot(x, y, "ko:", mec="k", ms=4)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     if xlim:

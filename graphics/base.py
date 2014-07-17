@@ -62,19 +62,8 @@ def prettyplot():
     # pleasant to look at by Drs. Cynthia Brewer and Mark Harrower of Pennsylvania
     # State University. These colors look lovely together, and are less
     # saturated than those colors in Set1. For more on ColorBrewer, see:
-    # - Flash-based interactive map:
-    #     http://colorbrewer2.org/
-    # - A quick visual reference to every ColorBrewer scale:
-    #     http://bl.ocks.org/mbostock/5577023
     set2 = get_map('Set2', 'qualitative', 8).mpl_colors
-
-    # Another ColorBrewer scale. This one has nice "traditional" colors like
-    # reds and blues
     set1 = get_map('Set1', 'qualitative', 9).mpl_colors
-
-    # Set some commonly used colors
-    almost_black = '#262626'
-    light_grey = np.array([float(248) / float(255)] * 3)
 
     reds = mpl.cm.Reds
     reds.set_bad('white')
@@ -91,35 +80,10 @@ def prettyplot():
     green_purple = get_map('PRGn', 'diverging', 11).mpl_colormap
     red_purple = get_map('RdPu', 'Sequential', 9).mpl_colormap
 
-    # Default "patches" like scatterplots
-    mpl.rcParams['patch.linewidth'] = 0.75     # edge width in points
-
-    # Default empty circle with a colored outline
-    mpl.rcParams['patch.facecolor'] = 'none'
-    mpl.rcParams['patch.edgecolor'] = set2[0]
-
-    # Change the default axis colors from black to a slightly lighter black,
-    # and a little thinner (0.5 instead of 1)
-    mpl.rcParams['axes.edgecolor'] = almost_black
-    mpl.rcParams['axes.labelcolor'] = almost_black
-    mpl.rcParams['axes.linewidth'] = 0.5
-
-    # Make the default grid be white so it "removes" lines rather than adds
-    mpl.rcParams['grid.color'] = 'white'
-
-    # change the tick colors also to the almost black
-    mpl.rcParams['ytick.color'] = almost_black
-    mpl.rcParams['xtick.color'] = almost_black
-
-    # change the text colors also to the almost black
-    mpl.rcParams['text.color'] = almost_black
-    return almost_black, blues_r, reds, blue_red, set1, set2, \
-            light_grey, green_purple, red_purple
+    return blues_r, reds, blue_red, set1, set2, green_purple, red_purple
 
 
-# Code borrowed from https://github.com/olgabot/prettyplotlib (thanks)
-almost_black, blues_r, reds, blue_red, set1, set2, \
-    light_grey, green_purple, red_purple = prettyplot()
+blues_r, reds, blue_red, set1, set2, green_purple, red_purple = prettyplot()
 
 
 def normalize_axes(axes):

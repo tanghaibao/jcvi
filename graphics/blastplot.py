@@ -236,13 +236,13 @@ if __name__ == "__main__":
             help="Minimum size of subject contigs to select [default: %default]")
     p.add_option("--qh", help="Path to highlight bed for query")
     p.add_option("--sh", help="Path to highlight bed for subject")
-    p.add_option("--style", default="dot", choices=DotStyles,
+    p.add_option("--dotstyle", default="dot", choices=DotStyles,
             help="Style of the dots [default: %default]")
     p.add_option("--proportional", default=False, action="store_true",
             help="Make image width:height equal to seq ratio [default: %default]")
     p.add_option("--stripNames", default=False, action="store_true",
             help="Remove trailing .? from gene names [default: %default]")
-    p.add_option("--sample", default=None, type="int",
+    p.add_option("--nmax", default=None, type="int",
             help="Only plot maximum of N dots [default: %default]")
     opts, args, iopts = p.set_image_options(figsize="8x8", style="dark", dpi=150)
 
@@ -289,7 +289,7 @@ if __name__ == "__main__":
     ax = fig.add_axes([.1, .1, .8, .8])  # the dot plot
 
     blastplot(ax, blastfile, qsizes, ssizes, qbed, sbed,
-            style=opts.style, proportional=proportional, sampleN=opts.sample,
+            style=opts.dotstyle, proportional=proportional, sampleN=opts.nmax,
             baseticks=True, stripNames=opts.stripNames, highlights=highlights)
 
     # add genome names

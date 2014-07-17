@@ -182,7 +182,9 @@ def markup(s):
 def setup_theme(context='notebook', style="darkgrid", palette='deep', font='Helvetica'):
     try:
         import seaborn as sns
-        sns.set(context=context, style=style, palette=palette)
+        extra_rc = {"lines.linewidth": .75,
+                    "lines.markeredgewidth": 1}
+        sns.set(context=context, style=style, palette=palette, rc=extra_rc)
     except ImportError:
         pass
 

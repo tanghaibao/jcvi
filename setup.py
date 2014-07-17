@@ -3,7 +3,7 @@
 from setuptools import setup, find_packages
 
 setup(name='jcvi',
-      version='1.0',
+      version='0.5.0',
       description='Python utility libraries on genome assembly, '\
                   'annotation and comparative genomics',
       author='Haibao Tang',

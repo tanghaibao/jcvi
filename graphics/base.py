@@ -174,21 +174,17 @@ def human_readable(x, pos, base=False):
 human_readable_base = partial(human_readable, base=True)
 human_formatter = ticker.FuncFormatter(human_readable)
 human_base_formatter = ticker.FuncFormatter(human_readable_base)
-tex_formatter = ticker.FuncFormatter(lambda x, pos: _(str(int(x))))
 mb_formatter = ticker.FuncFormatter(lambda x, pos: "{0}M".format(int(x / 1000000)))
 mb_float_formatter = ticker.FuncFormatter(lambda x, pos: "{0:.1f}M".format(x / 1000000.))
 kb_formatter = ticker.FuncFormatter(lambda x, pos: "{0}K".format(int(x / 1000)))
-tex_1digit_formatter = ticker.FuncFormatter(lambda x, pos: _("{0:.1f}".format(x)))
-tex_2digit_formatter = ticker.FuncFormatter(lambda x, pos: _("{0:.2f}".format(x)))
 
 
-def set_tex_axis(ax, formatter=tex_formatter):
+def set_human_axis(ax, formatter=human_formatter):
     ax.xaxis.set_major_formatter(formatter)
     ax.yaxis.set_major_formatter(formatter)
 
 
-set_human_axis = partial(set_tex_axis, formatter=human_formatter)
-set_human_base_axis = partial(set_tex_axis, formatter=human_base_formatter)
+set_human_base_axis = partial(set_human_axis, formatter=human_base_formatter)
 
 font_dir = op.join(op.dirname(__file__), "fonts")
 available_fonts = [op.basename(x) for x in glob(font_dir + "/*")]
@@ -217,15 +213,14 @@ def markup(s):
     return s
 
 
-def setup_theme(theme="helvetica"):
+def setup_theme(theme="helvetica", style="darkgrid"):
 
-    plt.rcdefaults()
-    # i always like the latex font
-    _ = lambda m: "\n".join(r"$\mathsf{%s}$" % str(x).\
-              replace("_", "\_").replace(" ", r"\ ") for x in m.split("\n"))
-
-    if theme == "mpl":
-        return _
+    try:
+        import seaborn as sns
+        sns.set()
+        sns.set_style(style)
+    except ImportError:
+        pass
 
     rc('text', **{'usetex': True})
 
@@ -237,9 +232,6 @@ def setup_theme(theme="helvetica"):
         rc('font', **{'family':'serif','serif': ['Century Schoolbook L']})
 
     return str
-
-
-_ = setup_theme()
 
 
 def asciiaxis(x, digit=1):

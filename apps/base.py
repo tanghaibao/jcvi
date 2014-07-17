@@ -274,7 +274,7 @@ class OptionParser (OptionP):
                      help="E-value cutoff [default: %default]")
 
     def set_image_options(self, args=None, figsize="6x6", dpi=300,
-                          format="pdf", theme="helvetica"):
+                          format="pdf", theme="helvetica", style="whitegrid"):
         """
         Add image format options for given command line programs.
         """
@@ -283,6 +283,7 @@ class OptionParser (OptionP):
         allowed_format = ("emf", "eps", "pdf", "png", "ps", \
                           "raw", "rgba", "svg", "svgz")
         allowed_themes = ("helvetica", "palatino", "schoolbook", "mpl")
+        allowed_styles = ("darkgrid", "whitegrid", "dark", "white", "ticks")
         allowed_diverge = ("BrBG", "PiYG", "PRGn", "PuOr", "RdBu", \
                            "RdGy", "RdYlBu", "RdYlGn", "Spectral")
 
@@ -297,6 +298,8 @@ class OptionParser (OptionP):
                 help="Generate image of format [default: %default]")
         group.add_option("--theme", default=theme, choices=allowed_themes,
                 help="Font theme [default: %default]")
+        group.add_option("--style", default=style, choices=allowed_styles,
+                help="Axes background")
         group.add_option("--diverge", default="PiYG", choices=allowed_diverge,
                 help="Contrasting color scheme")
 
@@ -308,7 +311,7 @@ class OptionParser (OptionP):
         assert opts.dpi > 0
         assert "x" in opts.figsize
 
-        setup_theme(opts.theme)
+        setup_theme(theme=opts.theme, style=opts.style)
 
         return opts, args, ImageOptions(opts)
 

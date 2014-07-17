@@ -138,8 +138,7 @@ class KsPlot (object):
 
     def draw(self, title="Ks distribution"):
 
-        from jcvi.graphics.base import tex_formatter, \
-                    tex_1digit_formatter, tex_2digit_formatter, savefig
+        from jcvi.graphics.base import savefig
 
         ax = self.ax
         ks_max = self.ks_max
@@ -155,10 +154,8 @@ class KsPlot (object):
         ax.set_xlabel('Synonymous substitutions per site (Ks)')
         ax.set_ylabel('Percentage of gene pairs')
 
-        tf = tex_2digit_formatter if self.interval < .1 else \
-             tex_1digit_formatter
-        ax.xaxis.set_major_formatter(tf)
-        ax.yaxis.set_major_formatter(tex_formatter)
+        ax.set_xticklabels(ax.get_xticks(), family='Helvetica')
+        ax.set_yticklabels([int(x) for x in ax.get_yticks()], family='Helvetica')
 
         image_name = "Ks_plot.pdf"
         savefig(image_name, dpi=300)
@@ -182,7 +179,7 @@ def multireport(args):
     p.add_option("--nofit", default=False, action="store_true",
                  help="Do not plot fitted lines [default: %default]")
     add_plot_options(p)
-    opts, args = p.parse_args(args)
+    opts, args, iopts = p.set_image_options(args, figsize="5x5")
 
     if len(args) != 1:
         sys.exit(not p.print_help())
@@ -195,7 +192,7 @@ def multireport(args):
     fitted = not opts.nofit
     layout = Layout(layoutfile)
 
-    fig = plt.figure(1, (5, 5))
+    fig = plt.figure(1, (iopts.w, iopts.h))
     ax = fig.add_axes([.12, .1, .8, .8])
     kp = KsPlot(ax, ks_max, bins, legendp=opts.legendp)
     for lo in layout:
@@ -877,14 +874,12 @@ def add_plot_options(p):
     p.add_option("--bins", default=20, type="int",
                  help="Number of bins to plot in the histogram [default: %default]")
 
-    group = OptionGroup(p, "Image options")
-    group.add_option("--legendp", default="upper right",
+    p.add_option("--legendp", default="upper right",
                  help="Place of the legend [default: %default]")
-    group.add_option("--fill", default=False, action="store_true",
+    p.add_option("--fill", default=False, action="store_true",
                  help="Fill the histogram area [default: %default]")
-    group.add_option("--title", default="Ks distribution",
+    p.add_option("--title", default="Ks distribution",
                  help="Title of the plot [default: %default]")
-    p.add_option_group(group)
 
 
 def report(args):
@@ -898,13 +893,12 @@ def report(args):
     from jcvi.graphics.histogram import stem_leaf_plot
 
     p = OptionParser(report.__doc__)
-    add_plot_options(p)
-
     p.add_option("--pdf", default=False, action="store_true",
             help="Generate graphic output for the histogram [default: %default]")
     p.add_option("--components", default=1, type="int",
             help="Number of components to decompose peaks [default: %default]")
-    opts, args = p.parse_args(args)
+    add_plot_options(p)
+    opts, args, iopts = p.set_image_options(args, figsize="5x5")
 
     if len(args) !=  1:
         sys.exit(not p.print_help())
@@ -943,7 +937,7 @@ def report(args):
     data = [x.ng_ks for x in data]
     data = [x for x in data if ks_min <= x <= ks_max]
 
-    fig = plt.figure(1, (5, 5))
+    fig = plt.figure(1, (iopts.w, iopts.h))
     ax = fig.add_axes([.12, .1, .8, .8])
     kp = KsPlot(ax, ks_max, opts.bins, legendp=opts.legendp)
     kp.add_data(data, components, fill=opts.fill)

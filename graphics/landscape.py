@@ -18,7 +18,7 @@ from jcvi.formats.base import LineFile, DictFile
 from jcvi.formats.bed import Bed, bins
 from jcvi.algorithms.matrix import moving_sum
 from jcvi.graphics.base import plt, Rectangle, CirclePolygon, savefig, \
-            ticker, human_readable_base, tex_formatter
+            ticker, human_readable_base
 from jcvi.utils.cbook import human_size, autoscale
 from jcvi.apps.base import OptionParser, ActionDispatcher
 
@@ -127,7 +127,6 @@ def lineplot(ax, binfiles, nbins, chr, window, shift):
     formatter = ticker.FuncFormatter(lambda x, pos: \
                     human_readable_base(int(x) * shift, pos))
     ax.xaxis.set_major_formatter(formatter)
-    ax.yaxis.set_major_formatter(tex_formatter)
     for tl in ax.get_xticklabels():
         tl.set_color('darkslategray')
 
@@ -148,7 +147,6 @@ def lineplot(ax, binfiles, nbins, chr, window, shift):
 
         label = bf.filename.split(".")[0]
         ax2.set_ylabel(label + " " + perw, color='r')
-        ax2.yaxis.set_major_formatter(tex_formatter)
 
     ax.set_xlim(0, nbins)
 

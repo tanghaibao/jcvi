@@ -213,7 +213,7 @@ def markup(s):
     return s
 
 
-def setup_theme(theme="helvetica", style="darkgrid"):
+def setup_theme(theme="helvetica", style="whitegrid"):
 
     try:
         import seaborn as sns
@@ -232,6 +232,9 @@ def setup_theme(theme="helvetica", style="darkgrid"):
         rc('font', **{'family':'serif','serif': ['Century Schoolbook L']})
 
     return str
+
+
+setup_theme()
 
 
 def asciiaxis(x, digit=1):

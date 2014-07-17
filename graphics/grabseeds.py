@@ -405,7 +405,6 @@ def extract_label(labelfile):
 
 def load_image(resizefile):
     img = plt.imread(resizefile)
-    img = np.flipud(img)
     h, w, c = img.shape
     logging.debug("Image `{0}` loaded ({1}px x {2}px).".format(resizefile, w, h))
     return img

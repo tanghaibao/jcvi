@@ -20,7 +20,7 @@ setup(
       author='Haibao Tang',
       author_email='tanghaibao@gmail.com',
       package_dir={name: '.'},
-      packages=[x for x in find_packages("../") if x.split('.')[0] == name],
+      packages=[name] + ['.'.join((name, x)) for x in find_packages()],
       include_package_data=True,
       data_files=[(name + '/data', glob("data/*"))],
       classifiers=classifiers,

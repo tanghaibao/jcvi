@@ -3,6 +3,7 @@ from __future__ import print_function
 import os.path
 import json
 import webbrowser
+from jcvi.apps.base import datadir as _DATADIR
 
 try:
     from matplotlib.colors import LinearSegmentedColormap
@@ -15,7 +16,6 @@ else:
 __all__ = ('COLOR_MAPS', 'print_maps', 'print_all_maps', 'print_maps_by_type',
            'get_map', 'MAP_TYPES', 'BrewerMap')
 
-_DATADIR = os.path.join(os.path.dirname(__file__), 'data')
 _DATAFILE = os.path.join(_DATADIR, 'colorbrewer_all_schemes.json')
 
 with open(_DATAFILE, 'r') as f:

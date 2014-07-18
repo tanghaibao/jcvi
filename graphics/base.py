@@ -23,7 +23,7 @@ from matplotlib.transforms import Affine2D
 
 from jcvi.utils.brewer2mpl import get_map
 from jcvi.apps.console import dark, green
-from jcvi.apps.base import glob, listify
+from jcvi.apps.base import glob, listify, datadir
 
 
 class ImageOptions (object):
@@ -152,8 +152,7 @@ def set_human_axis(ax, formatter=human_formatter):
 
 set_human_base_axis = partial(set_human_axis, formatter=human_base_formatter)
 
-font_dir = op.join(op.dirname(__file__), "fonts")
-available_fonts = [op.basename(x) for x in glob(font_dir + "/*")]
+available_fonts = [op.basename(x) for x in glob(datadir + "/*.ttf")]
 
 
 def fontprop(ax, name, size=12):
@@ -163,7 +162,7 @@ def fontprop(ax, name, size=12):
 
     import matplotlib.font_manager as fm
 
-    fname = op.join(font_dir, name)
+    fname = op.join(datadir, name)
     prop = fm.FontProperties(fname=fname, size=size)
 
     logging.debug("Set font to `{0}` (`{1}`).".format(name, prop.get_file()))

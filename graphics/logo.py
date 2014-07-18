@@ -21,7 +21,7 @@ from jcvi.apps.base import OptionParser
 def main():
     p = OptionParser(__doc__)
     p.add_option("--customfont", default="Airswing.ttf", choices=available_fonts,
-                 help="Custom font name [default: `%default`]")
+                 help="Custom font name")
     p.add_option("--color", default="limegreen",
                  help="Font color [default: %default]")
     p.add_option("--size", default=36, type="int",
@@ -38,7 +38,7 @@ def main():
     ax = fig.add_axes([0, 0, 1, 1])
 
     ax.text(.5, .5, text, color=opts.color, ha="center", va="center")
-    fontprop(ax, opts.font, size=opts.size)
+    fontprop(ax, opts.customfont, size=opts.size)
 
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)

@@ -1,2 +1,3 @@
+include README.rst LICENSE
 recursive-include graphics *.ttf
 recursive-include utils *.fasta *.json *.txt

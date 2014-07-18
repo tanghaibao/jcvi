@@ -85,7 +85,7 @@ only used by a few modules.
 
 * `Biopython <http://www.biopython.org>`_
 * `numpy <http://numpy.scipy.org>`_
-* `scipy <http://www.scipy.org>`_
+* `matplotlib <http://matplotlib.org/>`_
 
 There are other Python modules here and there in various scripts. The best way
 is to install them via ``pip install`` when you see ``ImportError``.
@@ -93,9 +93,15 @@ is to install them via ``pip install`` when you see ``ImportError``.
 
 Installation
 ------------
-Resolve dependencies first. Then place the whole folder ``jcvi/`` on your
-``PYTHONPATH``. *This is the preferred method*, as you can run regardless of the directory
-that you are currently in::
+The easiest way is to install it via PyPI::
+
+    easy_install jcvi
+
+To install the development version::
+
+    pip install git+git://github.com/tanghaibao/jcvi.git
+
+Alternatively, if you want to install manually::
 
     cd ~/code  # or any directory of your choice
     git clone git://github.com/tanghaibao/jcvi.git
@@ -104,10 +110,6 @@ that you are currently in::
 Please replace ``~/code`` above with whatever you like, but it must contain ``jcvi``.
 To avoid setting ``PYTHONPATH`` everytime, please insert the ``export`` command in your
 ``.bashrc`` or ``.bash_profile``.
-
-Alternatively, if you have ``pip`` installed::
-
-    pip install git+git://github.com/tanghaibao/jcvi.git
 
 In addition, a few module might ask for locations of external programs, if the extended
 cannot be found in your ``PATH``. The external programs that are often used are:

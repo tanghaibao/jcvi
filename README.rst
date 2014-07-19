@@ -1,5 +1,18 @@
 JCVI utility libraries
 ======================
+
+.. image:: https://pypip.in/v/jcvi/badge.png
+    :target: https://crate.io/packages/jcvi/
+    :alt: Latest PyPI version
+
+.. image:: https://pypip.in/d/jcvi/badge.png
+    :target: https://crate.io/packages/jcvi/
+    :alt: Number of PyPI downloads
+
+.. image:: https://pypip.in/license/jcvi/badge.png
+    :target: https://crate.io/packages/jcvi/
+    :alt: License
+
 Collection of Python libraries to parse bioinformatics files, or perform
 computation related to assembly, annotation, and comparative genomics.
 

@@ -97,14 +97,14 @@ def blastfilter_main(blast_file, p, opts):
 
         filtered_blasts.append(b)
 
-    if not cscore is None:
+    if cscore:
         before_filter = len(filtered_blasts)
         logging.debug("running the cscore filter (cscore>=%.2f) .." % cscore)
         filtered_blasts = list(filter_cscore(filtered_blasts, cscore=cscore))
         logging.debug("after filter (%d->%d) .." % (before_filter,
             len(filtered_blasts)))
 
-    if not tandem_Nmax is None:
+    if tandem_Nmax:
         logging.debug("running the local dups filter (tandem_Nmax=%d) .." % \
                 tandem_Nmax)
 
@@ -258,7 +258,7 @@ def main(args):
     p.add_option("--tandems_only", dest="tandems_only",
             action="store_true", default=False,
             help="only calculate tandems, write .localdup file and exit.")
-    p.add_option("--tandem_Nmax", type="int",
+    p.add_option("--tandem_Nmax", type="int", default=10,
             help="merge tandem genes within distance [default: %default]")
     p.add_option("--cscore", type="float",
             help="retain hits that have good bitscore. a value of 0.5 means "

@@ -54,9 +54,13 @@ def cat(args):
     if len(args) < 1:
         sys.exit(not p.print_help())
 
+    outfile = opts.outfile
+    if outfile in args:
+        args.remove(outfile)
+
     filename_page_ranges = parse_filename_page_ranges(args)
     verbose = opts.verbose
-    fw = must_open(opts.outfile, "wb")
+    fw = must_open(outfile, "wb")
 
     merger = PdfFileMerger()
     in_fs = {}

@@ -16,8 +16,7 @@ import re
 from itertools import groupby, product
 
 from jcvi.formats.bed import Bed, BedLine, sort
-from jcvi.formats.base import SetFile, must_open
-from jcvi.utils.cbook import number
+from jcvi.formats.base import SetFile, must_open, get_number
 from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher, \
             need_update, popen, sh
 
@@ -71,7 +70,7 @@ class NameRegister (object):
         start_bp = info[0].start
         end_bp = info[-1].end
 
-        current_chr = number(chr)
+        current_chr = get_number(chr)
         needed = info
         assert end_id > start_id, \
             "end ({0}) > start ({1})".format(end_id, start_id)
@@ -356,7 +355,7 @@ def atg_name(name, retval="chr,rank", trimpad0=True):
         if m is not None and m.group('sep').lower() in seps:
             retvals = []
             for grp in retval.split(","):
-                val = number(m.group(grp)) \
+                val = get_number(m.group(grp)) \
                         if trimpad0 and grp in pad0s \
                         else m.group(grp)
                 retvals.append(val)
@@ -444,7 +443,7 @@ def renumber(args):
         if "chr" not in chr:
             continue
 
-        current_chr = number(chr)
+        current_chr = get_number(chr)
         ranks = []
 
         gg = set()
@@ -650,7 +649,7 @@ def read_scores(scoresfile, opts):
 
 
 def annotate_chr(chr, chrbed, g, scores, nbedline, abedline, opts, splits):
-    current_chr = number(chr)
+    current_chr = get_number(chr)
 
     for line in chrbed:
         accn = line.accn

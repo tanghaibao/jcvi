@@ -28,7 +28,7 @@ import string
 from random import sample
 
 from jcvi.compara.synteny import batch_scan, check_beds
-from jcvi.formats.base import get_number, is_number
+from jcvi.utils.cbook import seqid_parse
 from jcvi.apps.base import OptionParser
 from jcvi.graphics.base import plt, Rectangle, cm, set_human_axis, savefig, \
             draw_cmap
@@ -56,15 +56,6 @@ class Palette (dict):
 
         for k, v in self.items():  # Update from categories to colors
             self[k] = self.colors[v]
-
-
-def parse_seqid(seqid, maxlen=8):
-    if is_number(seqid):
-        return 'c' + seqid
-    if len(seqid) <= maxlen:
-        return seqid
-    sid = get_number(seqid)
-    return ".".join((seqid[:3], str(sid)))
 
 
 def draw_box(clusters, ax, color="b"):
@@ -192,14 +183,14 @@ def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
     # plot the chromosome breaks
     for (seqid, beg, end) in qbed.get_breaks():
         ignore = abs(end - beg) < ignore_size_x
-        seqid = parse_seqid(seqid)
+        seqid = "".join(seqid_parse(seqid)[:2])
 
         xchr_labels.append((seqid, (beg + end) / 2, ignore))
         ax.plot([beg, beg], ylim, "-", lw=chrlw, color=sepcolor)
 
     for (seqid, beg, end) in sbed.get_breaks():
         ignore = abs(end - beg) < ignore_size_y
-        seqid = parse_seqid(seqid)
+        seqid = "".join(seqid_parse(seqid)[:2])
 
         ychr_labels.append((seqid, (beg + end) / 2, ignore))
         ax.plot(xlim, [beg, beg], "-", lw=chrlw, color=sepcolor)

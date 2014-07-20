@@ -25,11 +25,10 @@ import string
 
 from jcvi.apps.base import OptionParser
 from jcvi.formats.bed import Bed
-from jcvi.formats.base import LineFile
 from jcvi.graphics.chromosome import HorizontalChromosome
 from jcvi.graphics.glyph import TextCircle
 from jcvi.graphics.synteny import Shade
-from jcvi.graphics.base import plt, Affine2D, savefig, markup
+from jcvi.graphics.base import mpl, plt, savefig, markup, AbstractLayout
 
 
 class LayoutLine (object):
@@ -55,7 +54,7 @@ class LayoutLine (object):
                             else self.bed.bp_in_chr
 
 
-class Layout (LineFile):
+class Layout (AbstractLayout):
 
     def __init__(self, filename, delimiter=',', generank=False):
         super(Layout, self).__init__(filename)
@@ -75,6 +74,8 @@ class Layout (LineFile):
             else:
                 self.append(LayoutLine(row, delimiter=delimiter,
                             generank=generank))
+
+        self.assign_colors()
 
     def parse_blocks(self, simplefile, i):
         order = self[i].order
@@ -130,7 +131,8 @@ class Track (object):
         # Rotation transform
         x = (self.xstart + self.xend) / 2
         y = self.y
-        self.tr = Affine2D().rotate_deg_around(x, y, self.rotation) + ax.transAxes
+        self.tr = mpl.transforms.Affine2D().\
+                    rotate_deg_around(x, y, self.rotation) + ax.transAxes
         self.inv = ax.transAxes.inverted()
 
         nseqids = len(self.seqids)

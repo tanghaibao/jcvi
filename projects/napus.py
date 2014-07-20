@@ -56,7 +56,7 @@ class F4ALayoutLine (object):
         self.i = int(args[3])
 
 
-class F4ALayout(LineFile):
+class F4ALayout (LineFile):
 
     def __init__(self, filename, delimiter=',', datadir=None):
         super(F4ALayout, self).__init__(filename)

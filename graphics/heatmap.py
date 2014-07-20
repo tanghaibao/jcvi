@@ -27,7 +27,7 @@ import sys
 import numpy as np
 from itertools import groupby
 
-from jcvi.graphics.base import plt, LogNorm, savefig
+from jcvi.graphics.base import mpl, plt, savefig
 from jcvi.apps.base import OptionParser
 
 
@@ -94,7 +94,7 @@ def main():
     root = fig.add_axes([0, 0, 1, 1])
     ax = fig.add_axes([xstart, .15, .7, .7])
 
-    im = ax.matshow(data, cmap=iopts.cmap, norm=LogNorm(vmin=1, vmax=10000))
+    im = ax.matshow(data, cmap=iopts.cmap, norm=mpl.colors.LogNorm(vmin=1, vmax=10000))
     nrows, ncols = len(rows), len(cols)
 
     xinterval = .7 / ncols

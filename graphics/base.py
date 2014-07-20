@@ -18,10 +18,9 @@ from matplotlib import cm, rc
 from matplotlib.patches import Rectangle, Polygon, CirclePolygon, PathPatch, \
             FancyArrowPatch
 from matplotlib.path import Path
-from matplotlib.colors import LogNorm
-from matplotlib.transforms import Affine2D
 
 from jcvi.utils.brewer2mpl import get_map
+from jcvi.formats.base import LineFile
 from jcvi.apps.console import dark, green
 from jcvi.apps.base import glob, listify, datadir
 
@@ -70,6 +69,33 @@ class TextHandler (object):
         size = self.heights[i - 1][1] if i else minsize
         size = min(size, maxsize)
         return size
+
+
+class AbstractLayout (LineFile):
+    """
+    Simple csv layout file for complex plotting settings. Typically, each line
+    represents a subplot, a track or a panel.
+    """
+    def __init__(self, filename, delimiter=','):
+        super(AbstractLayout, self).__init__(filename)
+
+    def assign_array(self, attrib, array):
+        assert len(array) == len(self)
+        for x, c in zip(self, array):
+            if not getattr(x, attrib):
+                setattr(x, attrib, c)
+
+    def assign_colors(self):
+        colorset = get_map('Set2', 'qualitative', len(self)).mpl_colors
+        self.assign_array("color", colorset)
+
+    def assign_markers(self):
+        from random import sample
+        markerset = sample(mpl.lines.Line2D.filled_markers, len(self))
+        self.assign_array("marker", markerset)
+
+    def __str__(self):
+        return "\n".join(str(x) for x in self)
 
 
 CHARS = {

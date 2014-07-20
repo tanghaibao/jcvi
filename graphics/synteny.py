@@ -21,12 +21,13 @@ import numpy as np
 
 from jcvi.compara.synteny import BlockFile
 from jcvi.formats.bed import Bed
-from jcvi.formats.base import LineFile, DictFile
+from jcvi.formats.base import DictFile
 from jcvi.utils.cbook import human_size
 from jcvi.apps.base import OptionParser
 
 from jcvi.graphics.glyph import Glyph, RoundLabel
-from jcvi.graphics.base import plt, Affine2D, Path, PathPatch, savefig, markup
+from jcvi.graphics.base import mpl, plt, savefig, markup, \
+            Path, PathPatch, AbstractLayout
 
 
 class LayoutLine (object):
@@ -48,7 +49,7 @@ class LayoutLine (object):
             self.ratio = float(args[6])
 
 
-class Layout (LineFile):
+class Layout (AbstractLayout):
 
     def __init__(self, filename, delimiter=','):
         super(Layout, self).__init__(filename)
@@ -66,6 +67,8 @@ class Layout (LineFile):
                 self.edges.append((a, b))
             else:
                 self.append(LayoutLine(row, delimiter=delimiter))
+
+        self.assign_colors()
 
 
 class Shade (object):
@@ -110,7 +113,8 @@ class Region (object):
         scale /= ratio
         self.y = y
         lr = layout.rotation
-        tr = Affine2D().rotate_deg_around(x, y, lr) + ax.transAxes
+        tr = mpl.transforms.Affine2D().\
+                    rotate_deg_around(x, y, lr) + ax.transAxes
         inv = ax.transAxes.inverted()
 
         start, end, si, ei, chr, orientation, span = ext

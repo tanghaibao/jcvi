@@ -94,9 +94,9 @@ class OptionParser (OptionP):
 
     def add_help_from_choices(self, o):
         default_tag = "%default"
-        help_pf = o.help
-        if "[" in o.help:
-            help_pf = help_pf.split("[")[0]
+        help_pf = o.help.capitalize()
+        if "[" in help_pf:
+            help_pf = help_pf.rsplit("[", 1)[0]
         help_pf = help_pf.strip()
 
         if o.type == "choice":

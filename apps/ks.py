@@ -22,7 +22,8 @@ from Bio import SeqIO
 from Bio import AlignIO
 from Bio.Align.Applications import ClustalwCommandline, MuscleCommandline
 
-from jcvi.formats.base import must_open, LineFile
+from jcvi.formats.base import must_open
+from jcvi.graphics.base import plt, savefig, AbstractLayout
 from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, sh, \
             Popen, getpath
 
@@ -101,7 +102,7 @@ class LayoutLine (object):
                                          self.label, self.color, self.marker))
 
 
-class Layout (LineFile):
+class Layout (AbstractLayout):
 
     def __init__(self, filename, delimiter=','):
         super(Layout, self).__init__(filename)
@@ -113,25 +114,6 @@ class Layout (LineFile):
 
         self.assign_colors()
         self.assign_markers()
-
-    def assign_colors(self):
-        if '' not in [x.color for x in self]:
-            return
-
-        from jcvi.utils.brewer2mpl import get_map
-        colorset = get_map('Set2', 'qualitative', len(self)).mpl_colors
-        for x, c in zip(self, colorset):
-            x.color = c
-
-    def assign_markers(self):
-        from jcvi.graphics.base import mpl
-        from random import sample
-        markerset = sample(mpl.lines.Line2D.filled_markers, len(self))
-        for x, s in zip(self, markerset):
-            x.marker = s
-
-    def __str__(self):
-        return "\n".join(str(x) for x in self)
 
 
 class KsPlot (object):
@@ -163,8 +145,6 @@ class KsPlot (object):
             self.labels.append(label + " (fitted)")
 
     def draw(self, title="Ks distribution"):
-
-        from jcvi.graphics.base import savefig
 
         ax = self.ax
         ks_max = self.ks_max
@@ -198,9 +178,9 @@ def multireport(args):
     LAP.sorghum.ks, 1, LAP-sorghum, r, o
     SES.sorghum.ks, 1, SES-sorghum, g, +
     MOL.sorghum.ks, 1, MOL-sorghum, m, ^
-    """
-    from jcvi.graphics.base import plt
 
+    If color or marker is missing, then a random one will be assigned.
+    """
     p = OptionParser(multireport.__doc__)
     p.add_option("--nofit", default=False, action="store_true",
                  help="Do not plot fitted lines [default: %default]")
@@ -958,7 +938,6 @@ def report(args):
     if not opts.pdf:
         return
 
-    from jcvi.graphics.base import plt
 
     components = opts.components
     data = [x.ng_ks for x in data]

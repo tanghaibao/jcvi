@@ -355,7 +355,7 @@ def seqid_parse(seqid, sep=["-", "_"], stdpf=True):
         else:
             prefix = "C"
 
-    return (prefix, id, suffix)
+    return prefix, id, suffix
 
 
 def fixChromName(name, orgn="medicago"):

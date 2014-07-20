@@ -44,6 +44,34 @@ class ImageOptions (object):
         return colors[0], colors[-1]
 
 
+class TextHandler (object):
+
+    def __init__(self, fig):
+        self.build_height_array(fig)
+
+    @classmethod
+    def get_text_width_height(cls, fig, txt="chr01", size=12, usetex=True):
+        tp = mpl.textpath.TextPath((0,0), txt, size=size, usetex=usetex)
+        bb = tp.get_extents()
+        xmin, ymin = fig.transFigure.inverted().transform((bb.xmin, bb.ymin))
+        xmax, ymax = fig.transFigure.inverted().transform((bb.xmax, bb.ymax))
+        return xmax - xmin, ymax - ymin
+
+    def build_height_array(self, fig, start=1, stop=36):
+        self.heights = []
+        for i in xrange(start, stop + 1):
+            w, h = TextHandler.get_text_width_height(fig, size=i)
+            self.heights.append((h, i))
+
+    def select_fontsize(self, height, minsize=1, maxsize=12):
+        from bisect import bisect_left
+
+        i = bisect_left(self.heights, (height,))
+        size = self.heights[i - 1][1] if i else minsize
+        size = min(size, maxsize)
+        return size
+
+
 CHARS = {
     '&':  r'\&',
     '%':  r'\%',
@@ -187,7 +215,7 @@ def setup_theme(context='notebook', style="darkgrid", palette='deep', font='Helv
     except ImportError:
         pass
 
-    rc('text', **{'usetex': True})
+    rc('text', usetex=True)
 
     if font == "Helvetica":
         rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica']})

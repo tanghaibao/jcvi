@@ -96,6 +96,10 @@ class LayoutLine (object):
         self.color = args[3]
         self.marker = args[4]
 
+    def __str__(self):
+        return ", ".join(str(x) for x in (self.ksfile, self.components,
+                                         self.label, self.color, self.marker))
+
 
 class Layout (LineFile):
 
@@ -106,6 +110,28 @@ class Layout (LineFile):
             if row[0] == '#':
                 continue
             self.append(LayoutLine(row, delimiter=delimiter))
+
+        self.assign_colors()
+        self.assign_markers()
+
+    def assign_colors(self):
+        if '' not in [x.color for x in self]:
+            return
+
+        from jcvi.utils.brewer2mpl import get_map
+        colorset = get_map('Set2', 'qualitative', len(self)).mpl_colors
+        for x, c in zip(self, colorset):
+            x.color = c
+
+    def assign_markers(self):
+        from jcvi.graphics.base import mpl
+        from random import sample
+        markerset = sample(mpl.lines.Line2D.filled_markers, len(self))
+        for x, s in zip(self, markerset):
+            x.marker = s
+
+    def __str__(self):
+        return "\n".join(str(x) for x in self)
 
 
 class KsPlot (object):
@@ -191,6 +217,7 @@ def multireport(args):
     fill = opts.fill
     fitted = not opts.nofit
     layout = Layout(layoutfile)
+    print >> sys.stderr, layout
 
     fig = plt.figure(1, (iopts.w, iopts.h))
     ax = fig.add_axes([.12, .1, .8, .8])
@@ -780,10 +807,10 @@ def my_hist(ax, l, interval, max_r, color='g', marker='.', fill=False):
         from pylab import poly_between
 
         xs, ys = poly_between(n, 0, p)
-        line = ax.fill(xs, ys, fc=color, alpha=.3)
+        line = ax.fill(xs, ys, fc=color, alpha=.5)
 
     else:
-        line = ax.plot(n, p, color=color, lw=2,
+        line = ax.plot(n, p, color=color, lw=2, ms=3,
                        marker=marker, mfc="w", mec=color, mew=2)
 
     return line

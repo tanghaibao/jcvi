@@ -31,7 +31,7 @@ from jcvi.compara.synteny import batch_scan, check_beds
 from jcvi.utils.cbook import seqid_parse
 from jcvi.apps.base import OptionParser
 from jcvi.graphics.base import plt, Rectangle, cm, set_human_axis, savefig, \
-            draw_cmap
+            draw_cmap, TextHandler
 
 
 class Palette (dict):
@@ -70,7 +70,7 @@ def draw_box(clusters, ax, color="b"):
 
 def dotplot_main(anchorfile, qbed, sbed, image_name, iopts, vmin=0, vmax=1,
         is_self=False, synteny=False, cmap_text=None, genomenames=None,
-        sample_number=10000, ignore=.005, palette=None, chrlw=.01, title=None):
+        sample_number=10000, minfont=5, palette=None, chrlw=.01, title=None):
 
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])  # the whole canvas
@@ -78,16 +78,15 @@ def dotplot_main(anchorfile, qbed, sbed, image_name, iopts, vmin=0, vmax=1,
 
     dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=vmin, vmax=vmax,
         is_self=is_self, synteny=synteny, cmap_text=cmap_text,
-        genomenames=genomenames,
-        sample_number=sample_number, ignore=ignore, palette=palette,
-        chrlw=chrlw, title=title)
+        genomenames=genomenames, sample_number=sample_number,
+        minfont=minfont, palette=palette, chrlw=chrlw, title=title)
 
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
 def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
         is_self=False, synteny=False, cmap_text=None, genomenames=None,
-        sample_number=10000, ignore=.005, palette=None, chrlw=.01, title=None,
+        sample_number=10000, minfont=5, palette=None, chrlw=.01, title=None,
         sepcolor="gainsboro"):
 
     fp = open(anchorfile)
@@ -173,40 +172,39 @@ def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
     xlim = (0, xsize)
     ylim = (ysize, 0)  # invert the y-axis
 
-    xchr_labels, ychr_labels = [], []
     # Tag to mark whether to plot chr name (skip small ones)
-    ignore_size_x = ignore_size_y = 0
-    if ignore:
-        ignore_size_x = xsize * ignore
-        ignore_size_y = ysize * ignore
+    xchr_labels, ychr_labels = [], []
+    th = TextHandler(fig)
 
     # plot the chromosome breaks
     for (seqid, beg, end) in qbed.get_breaks():
-        ignore = abs(end - beg) < ignore_size_x
+        xsize_ratio = abs(end - beg) * .8 / xsize
+        fontsize = th.select_fontsize(xsize_ratio)
         seqid = "".join(seqid_parse(seqid)[:2])
 
-        xchr_labels.append((seqid, (beg + end) / 2, ignore))
+        xchr_labels.append((seqid, (beg + end) / 2, fontsize))
         ax.plot([beg, beg], ylim, "-", lw=chrlw, color=sepcolor)
 
     for (seqid, beg, end) in sbed.get_breaks():
-        ignore = abs(end - beg) < ignore_size_y
+        ysize_ratio = abs(end - beg) * .8 / ysize
+        fontsize = th.select_fontsize(ysize_ratio)
         seqid = "".join(seqid_parse(seqid)[:2])
 
-        ychr_labels.append((seqid, (beg + end) / 2, ignore))
+        ychr_labels.append((seqid, (beg + end) / 2, fontsize))
         ax.plot(xlim, [beg, beg], "-", lw=chrlw, color=sepcolor)
 
     # plot the chromosome labels
-    for label, pos, ignore in xchr_labels:
+    for label, pos, fontsize in xchr_labels:
         pos = .1 + pos * .8 / xsize
-        if not ignore:
-            root.text(pos, .91, label,
+        if fontsize >= minfont:
+            root.text(pos, .91, label, size=fontsize,
                 ha="center", va="bottom", rotation=45, color="grey")
 
     # remember y labels are inverted
-    for label, pos, ignore in ychr_labels:
+    for label, pos, fontsize in ychr_labels:
         pos = .9 - pos * .8 / ysize
-        if not ignore:
-            root.text(.91, pos, label,
+        if fontsize >= minfont:
+            root.text(.91, pos, label, size=fontsize,
                 va="center", color="grey")
 
     # create a diagonal to separate mirror image for self comparison
@@ -270,8 +268,8 @@ if __name__ == "__main__":
             "eg. \"Vitis vinifera_Oryza sativa\"")
     p.add_option("--nmax", dest="sample_number", type="int", default=10000,
             help="Maximum number of data points to plot [default: %default]")
-    p.add_option("--ignore", type="float", default=.005,
-            help="Do not render labels for chr less than portion of genome [default: %default]")
+    p.add_option("--minfont", type="int", default=4,
+            help="Do not render labels with size smaller than")
     p.add_option("--colormap",
             help="Two column file, block id to color mapping [default: %default]")
     opts, args, iopts = p.set_image_options(sys.argv[1:], figsize="8x8",
@@ -296,4 +294,4 @@ if __name__ == "__main__":
     dotplot_main(anchorfile, qbed, sbed, image_name, iopts, vmin=0, vmax=1,
             is_self=is_self, synteny=synteny, cmap_text=cmap_text, \
             genomenames=genomenames, sample_number=sample_number,
-            ignore=opts.ignore, palette=palette)
+            minfont=opts.minfont, palette=palette)

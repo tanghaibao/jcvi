@@ -27,7 +27,7 @@ def main():
 
 def deletion(args):
     """
-    %prog deletion mac.mic.bed mic.gaps.bed
+    %prog deletion [mac.mic.bam|mac.mic.bed] mic.gaps.bed
 
     Find IES based on mapping MAC reads to MIC genome.
     """
@@ -36,17 +36,29 @@ def deletion(args):
                  help="Minimum depth to call a deletion")
     p.add_option("--minspan", default=30, type="int",
                  help="Minimum span to call a deletion")
+    p.add_option("--split", default=False, action="store_true",
+                 help="Break at cigar N into separate parts")
+    p.set_tmpdir()
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
         sys.exit(not p.print_help())
 
     bedfile, gapsbedfile = args
+    if bedfile.endswith(".bam"):
+        bamfile = bedfile
+        bedfile = bamfile.replace(".sorted.", ".").replace(".bam", ".bed")
+        if need_update(bamfile, bedfile):
+            cmd = "bamToBed -i {0}".format(bamfile)
+            if opts.split:
+                cmd += " -split"
+            cmd += " | cut -f1-4"
+            sh(cmd, outfile=bedfile)
 
     pf = bedfile.rsplit(".", 1)[0]
     sortedbedfile = pf + ".sorted.bed"
     if need_update(bedfile, sortedbedfile):
-        sort([bedfile, "-u", "--accn"])
+        sort([bedfile, "-u", "--accn", "--tmpdir={0}".format(opts.tmpdir)])
 
     # Find reads that contain multiple matches
     bed = Bed(sortedbedfile, sorted=False)

@@ -80,6 +80,8 @@ def align(args):
     p = OptionParser(align.__doc__)
     p.add_option("--mode", default="mem", choices=valid_modes,
                  help="BWA mode [default: %default]")
+    p.add_option("--readtype", choices=("pacbio", "pbread"),
+                 help="Read type in bwa-mem")
     p.set_cutoff(cutoff=800)
     p.set_sam_options()
 
@@ -194,6 +196,8 @@ def mem(args, opts):
 
     cmd = "bwa mem " + " ".join(args)
     cmd += " -t {0}".format(opts.cpus)
+    if opts.readtype:
+        cmd += " -x {0}".format(opts.readtype)
     cmd += " " + opts.extra
     return cmd, samfile
 

@@ -34,7 +34,8 @@ def db_defaults(connector='Sybase'):
     return valid_dbconn[connector]['hostname'], "access", "access"
 
 
-def get_profile(sqshrc="~/.sqshrc", connector='Sybase', hostname=None, username=None, password=None):
+def get_profile(sqshrc="~/.sqshrc", connector='Sybase',
+                hostname=None, username=None, password=None):
     """
     get database, username, password from .sqshrc file e.g.
     \set username="user"
@@ -43,19 +44,25 @@ def get_profile(sqshrc="~/.sqshrc", connector='Sybase', hostname=None, username=
         shost, suser, spass = None, None, None
         _ = lambda x: x.split("=")[-1].translate(None, "\"'").strip()
         sqshrc = op.expanduser(sqshrc)
-        for row in open(sqshrc):
-            row = row.strip()
-            if not row.startswith("\\set") or "prompt" in row:
-                continue
-            if "password" in row:
-                spass = _(row)
-            if "hostname" in row:
-                shost = _(row)
-            if "username" in row:
-                suser = _(row)
+        if op.exists(sqshrc):
+            for row in open(sqshrc):
+                row = row.strip()
+                if not row.startswith("\\set") or "prompt" in row:
+                    continue
+                if "password" in row:
+                    spass = _(row)
+                if "hostname" in row:
+                    shost = _(row)
+                if "username" in row:
+                    suser = _(row)
+        else:
+            print >> sys.stderr, \
+                "[warning] file `{0}` not found".format(sqshrc)
 
-        if (suser and spass): username, password = suser, spass
-        if shost: hostname = shost
+        if suser and spass:
+            username, password = suser, spass
+        if shost:
+            hostname = shost
 
     dhost, duser, dpass = db_defaults(connector=connector)
     if not password:
@@ -212,17 +219,15 @@ def query(args):
     p.set_db_opts()
     p.add_option("--dryrun", default=False, action="store_true",
                  help="Don't commit to database. Just print queries [default: %default]")
-    p.add_option("--fieldsep", default="\t",
-                 help="Specify output field separator [default: '%default']")
-    p.add_option("--verbose", default=False, action="store_true",
-                 help="Print out all the queries [default: %default]")
+    p.set_sep(help="Specify output field separator")
+    p.set_verbose(help="Print out all the queries")
     p.set_outfile()
     opts, args = p.parse_args(args)
 
     if len(args) == 0:
         sys.exit(not p.print_help())
 
-    fieldsep = opts.fieldsep
+    fieldsep = opts.sep
 
     sep = ":::"
     files = None

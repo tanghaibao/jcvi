@@ -264,8 +264,7 @@ def fromblast(args):
                  help="Populate clique instead of linear path [default: %default]")
     p.add_option("--maxdist", default=100000, type="int",
                  help="Create edge within certain distance [default: %default]")
-    p.add_option("--verbose", default=False, action="store_true",
-                 help="Print verbose reports to stdout [default: %default]")
+    p.set_verbose(help="Print verbose reports to stdout")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:

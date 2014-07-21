@@ -40,11 +40,10 @@ def extract(args):
     p.add_option("--format", default=False, action="store_true",
             help="enable flag to reformat header into a symbol separated list of constituent reads "+ \
             "[default: %default]")
-    p.add_option("--sep", default="|",
-            help="choose a separator used to list the reads in the FASTA header [default: '%default']")
     p.add_option("--singlets", default=False, action="store_true",
             help="ask the program to look in the singlets file (should be in the same folder) for " +\
             "unused reads and put them in the resultant fasta file [default: %default]")
+    p.set_sep(sep="|", help="Separator used to list the reads in the FASTA header")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:

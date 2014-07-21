@@ -144,8 +144,7 @@ def merge(args):
     from jcvi.apps.grid import MakeManager
 
     p = OptionParser(merge.__doc__)
-    p.add_option("--sep", default="_",
-                 help="Separator to group per prefix")
+    p.set_sep(sep="_", help="Separator to group per prefix")
     opts, args = p.parse_args(args)
 
     if len(args) < 2:

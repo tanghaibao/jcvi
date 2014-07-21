@@ -47,8 +47,7 @@ def cat(args):
     """
     p = OptionParser(cat.__doc__.format(page_range_help=PAGE_RANGE_HELP))
     p.set_outfile()
-    p.add_option("-v", "--verbose", default=False, action="store_true",
-                 help="Show page ranges as they are being read")
+    p.set_verbose(help="Show page ranges as they are being read")
     opts, args = p.parse_args(args)
 
     if len(args) < 1:

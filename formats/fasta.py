@@ -774,6 +774,7 @@ def pool(args):
     filenames.
     """
     p = OptionParser(pool.__doc__)
+    opts, args = p.parse_args(args)
 
     if len(args) < 1:
         sys.exit(not p.print_help())
@@ -1484,13 +1485,10 @@ def pair(args):
     into the pairs and the rest go to fragments.
     """
     p = OptionParser(pair.__doc__)
-    p.add_option("-d", dest="separator", default=None,
-            help="separater in the name field to reduce to the same clone " +\
-                 "[e.g. GFNQ33242/1 use /, BOT01-2453H.b1 use .]" +\
-                 "[default: trim until last char]")
+    p.set_sep(sep=None, help="Separator in name to reduce to clone id" +\
+                 "e.g. GFNQ33242/1 use /, BOT01-2453H.b1 use .")
     p.add_option("-m", dest="matepairs", default=False, action="store_true",
             help="generate .matepairs file [often used for Celera Assembler]")
-
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -1522,7 +1520,7 @@ def pair(args):
 
     all_keys = list(f.iterkeys())
     all_keys.sort()
-    sep = opts.separator
+    sep = opts.sep
 
     if sep:
         key_fun = lambda x: x.split(sep, 1)[0]

@@ -96,8 +96,7 @@ def mergeclean(args):
     from jcvi.formats.base import FileShredder
 
     p = OptionParser(mergeclean.__doc__)
-    p.add_option("--sep", default="_",
-                 help="Separator to group per prefix")
+    p.set_sep(sep="_", help="Separator to group per prefix")
     opts, args = p.parse_args(args)
 
     if len(args) < 1:

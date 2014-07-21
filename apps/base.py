@@ -94,7 +94,7 @@ class OptionParser (OptionP):
 
     def add_help_from_choices(self, o):
         default_tag = "%default"
-        help_pf = o.help.capitalize()
+        help_pf = o.help[:1].upper() + o.help[1:]
         if "[" in help_pf:
             help_pf = help_pf.rsplit("[", 1)[0]
         help_pf = help_pf.strip()
@@ -109,9 +109,11 @@ class OptionParser (OptionP):
             o.help = "{0}, {1} [default: {2}]".format(help_pf,
                             choice_text, default_tag)
         else:
+            o.help = help_pf
             if o.default is None:
                 default_tag = "disabled"
-            o.help = "{0} [default: {1}]".format(help_pf, default_tag)
+            if o.get_opt_string() != "--help":
+                o.help += " [default: {0}]".format(default_tag)
 
     def set_grid(self):
         """
@@ -366,8 +368,7 @@ class OptionParser (OptionP):
                 help="Distance mode between paired reads, ss is outer distance, " \
                      "ee is inner distance [default: %default]")
 
-    def set_sep(self, sep='\t', multiple=False):
-        help = "Separator in the tabfile"
+    def set_sep(self, sep='\t', help="Separator in the tabfile", multiple=False):
         if multiple:
             help += ", multiple values allowed"
         self.add_option("--sep", default=sep,
@@ -413,6 +414,9 @@ class OptionParser (OptionP):
         valid_aligners = ("clc", "bowtie", "bwa")
         self.add_option("--aligner", default=aligner, choices=valid_aligners,
                      help="Use aligner [default: %default]")
+
+    def set_verbose(self, help="Print detailed reports"):
+        self.add_option("--verbose", default=False, action="store_true", help=help)
 
 
 def ConfigSectionMap(Config, section):

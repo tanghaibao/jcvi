@@ -376,8 +376,7 @@ def test(args):
     For example, `%prog test unitig1.5.530` will test the modified `unitig530`
     """
     p = OptionParser(test.__doc__)
-    p.add_option("--verbose", default=False, action="store_true",
-                 help="Turn on verbose debugging [default: %default]")
+    p.set_verbose(help="Turn on verbose debugging")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:

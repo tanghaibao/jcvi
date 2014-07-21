@@ -262,8 +262,7 @@ def main(args):
                  "esp. if you have reduced mirrored blocks into non-redundant set")
     p.add_option("--solver", default="SCIP", choices=supported_solvers,
             help="use MIP solver [default: %default]")
-    p.add_option("--verbose", action="store_true",
-            default=False, help="show verbose solver output")
+    p.set_verbose(help="Show verbose solver output")
 
     p.add_option("--screen", default=False, action="store_true",
             help="generate new anchors file [default: %default]")

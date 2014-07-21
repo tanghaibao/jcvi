@@ -257,8 +257,7 @@ def mstmap(args):
                  "[default: %default]")
     p.add_option("--freebayes", default=False, action="store_true",
                  help="VCF output from freebayes")
-    p.add_option("--sep", default=".",
-                 help="Use separator to simplify individual names")
+    p.set_sep(sep=".", help="Use separator to simplify individual names")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:

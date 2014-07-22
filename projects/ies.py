@@ -57,6 +57,7 @@ def deletion(args):
 
     if bedfile.endswith(".sorted.bed"):
         sortedbedfile = bedfile
+        pf = bedfile.rsplit(".", 2)[0]
     else:
         pf = bedfile.rsplit(".", 1)[0]
         sortedbedfile = pf + ".sorted.bed"

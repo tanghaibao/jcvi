@@ -55,10 +55,13 @@ def deletion(args):
             cmd += " | cut -f1-4"
             sh(cmd, outfile=bedfile)
 
-    pf = bedfile.rsplit(".", 1)[0]
-    sortedbedfile = pf + ".sorted.bed"
-    if need_update(bedfile, sortedbedfile):
-        sort([bedfile, "-u", "--accn", "--tmpdir={0}".format(opts.tmpdir)])
+    if bedfile.endswith(".sorted.bed"):
+        sortedbedfile = bedfile
+    else:
+        pf = bedfile.rsplit(".", 1)[0]
+        sortedbedfile = pf + ".sorted.bed"
+        if need_update(bedfile, sortedbedfile):
+            sort([bedfile, "-u", "--accn", "--tmpdir={0}".format(opts.tmpdir)])
 
     # Find reads that contain multiple matches
     bed = Bed(sortedbedfile, sorted=False)

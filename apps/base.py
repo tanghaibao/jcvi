@@ -112,7 +112,7 @@ class OptionParser (OptionP):
             o.help = help_pf
             if o.default is None:
                 default_tag = "disabled"
-            if o.get_opt_string() != "--help":
+            if o.get_opt_string() != "--help" and o.action != "store_false":
                 o.help += " [default: {0}]".format(default_tag)
 
     def set_grid(self):
@@ -246,8 +246,8 @@ class OptionParser (OptionP):
         self.add_option("--sbed", help="Path to sbed")
 
     def set_sam_options(self, extra=True, bowtie=False):
-        self.add_option("--bam", default=False, action="store_true",
-                     help="write to bam file [default: %default]")
+        self.add_option("--sam", dest="bam", default=True, action="store_false",
+                     help="Write to SAM file instead of BAM")
         self.add_option("--uniq", default=False, action="store_true",
                      help="Keep only uniquely mapped [default: %default]")
         if bowtie:

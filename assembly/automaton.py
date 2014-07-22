@@ -118,7 +118,7 @@ def contamination(args):
     ecoli = get_abs_path(ecoli)
     tag = "--mapped" if opts.mapped else "--unmapped"
     for p, pf in iter_project(folder, 2):
-        align_opts = [ecoli] + p + ["--bam", tag]
+        align_opts = [ecoli] + p + [tag]
         align_opts += ["--cutoff={0}".format(opts.cutoff)]
         if opts.mateorientation:
             align_opts += ["--mateorientation={0}".format(opts.mateorientation)]
@@ -246,8 +246,6 @@ def pairs(args):
 
         os.chdir(work)
         align_args = [ref, op.basename(samplefq)]
-        if aligner != "clc":
-           align_args += ["--bam"]
         outfile, logfile = align(align_args)
         bedfile, stats = ps([outfile, "--rclip={0}".format(opts.rclip)])
         os.chdir(cwd)

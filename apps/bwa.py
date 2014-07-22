@@ -119,8 +119,8 @@ def align(args):
     if unmapped:
         dbfile, readfile = args[:2]
         mopts = [samfile, "--unmapped"]
-        if bam:
-            mopts += ["--bam"]
+        if not bam:
+            mopts += ["--sam"]
         mapped(mopts)
         FileShredder([samfile])
 

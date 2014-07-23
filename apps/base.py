@@ -14,6 +14,8 @@ from urllib import urlencode
 from socket import gethostname
 from subprocess import PIPE, call
 from optparse import OptionParser as OptionP, OptionGroup
+
+
 os.environ["LC_ALL"] = "C"
 
 
@@ -94,6 +96,8 @@ class OptionParser (OptionP):
         return OptionP.parse_args(self, args)
 
     def add_help_from_choices(self, o):
+        from jcvi.utils.natsort import natsorted
+
         default_tag = "%default"
         help_pf = o.help[:1].upper() + o.help[1:]
         if "[" in help_pf:
@@ -103,7 +107,7 @@ class OptionParser (OptionP):
         if o.type == "choice":
             if o.default is None:
                 default_tag = "guess"
-            ctext = "|".join(sorted(o.choices))
+            ctext = "|".join(natsorted(o.choices))
             if len(ctext) > 100:
                 ctext = ctext[:100] + " ... "
             choice_text = "must be one of {0}".format(ctext)

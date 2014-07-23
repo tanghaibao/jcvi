@@ -182,8 +182,8 @@ def multireport(args):
     If color or marker is missing, then a random one will be assigned.
     """
     p = OptionParser(multireport.__doc__)
-    p.add_option("--nofit", default=False, action="store_true",
-                 help="Do not plot fitted lines [default: %default]")
+    p.add_option("--fit", default=False, action="store_true",
+                 help="Plot fitted lines")
     add_plot_options(p)
     opts, args, iopts = p.set_image_options(args, figsize="5x5")
 
@@ -195,7 +195,7 @@ def multireport(args):
     ks_max = opts.vmax
     bins = opts.bins
     fill = opts.fill
-    fitted = not opts.nofit
+    fitted = opts.fit
     layout = Layout(layoutfile)
     print >> sys.stderr, layout
 
@@ -878,13 +878,12 @@ def add_plot_options(p):
                  help="Minimum value, inclusive [default: %default]")
     p.add_option("--vmax", default=2., type="float",
                  help="Maximum value, inclusive [default: %default]")
-    p.add_option("--bins", default=20, type="int",
+    p.add_option("--bins", default=40, type="int",
                  help="Number of bins to plot in the histogram [default: %default]")
-
     p.add_option("--legendp", default="upper right",
                  help="Place of the legend [default: %default]")
-    p.add_option("--fill", default=False, action="store_true",
-                 help="Fill the histogram area [default: %default]")
+    p.add_option("--nofill", dest="fill", default=True, action="store_false",
+                 help="Do not fill the histogram area")
     p.add_option("--title", default="Ks distribution",
                  help="Title of the plot [default: %default]")
 

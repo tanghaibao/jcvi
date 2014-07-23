@@ -748,8 +748,6 @@ def debug():
     """
     Turn on the debugging
     """
-    import logging
-
     from jcvi.apps.console import magenta, yellow
 
     format = yellow("%(asctime)s [%(module)s]")

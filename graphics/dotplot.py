@@ -28,7 +28,7 @@ import string
 from random import sample
 
 from jcvi.compara.synteny import batch_scan, check_beds
-from jcvi.utils.cbook import seqid_parse
+from jcvi.utils.cbook import seqid_parse, thousands
 from jcvi.apps.base import OptionParser
 from jcvi.graphics.base import plt, Rectangle, cm, set_human_axis, savefig, \
             draw_cmap, TextHandler
@@ -244,8 +244,9 @@ def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
         title = "Inter-genomic comparison: {0} vs {1}".format(gx, gy)
         if is_self:
             title = "Intra-genomic comparison within {0}".format(gx)
-        title += " ({0} gene pairs)".format(npairs)
+        title += " ({0} gene pairs)".format(thousands(npairs))
     root.set_title(title, x=.5, y=.96, color="k")
+    logging.debug(title)
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)

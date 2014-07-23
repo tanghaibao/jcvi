@@ -66,7 +66,7 @@ def main(args):
                  help="Output format [default: %default]")
     p.add_option("--eval", default=False, action="store_true",
                  help="Use lastex to recalculate E-value [default: %default]")
-    p.set_cpus()
+    p.set_cpus(cpus=32)
     p.set_params()
     p.set_outfile()
 

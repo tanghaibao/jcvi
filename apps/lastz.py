@@ -155,7 +155,7 @@ def main():
             help="treat lower-case letters as mask info [default: %default]")
     p.add_option("--similar", default=False, action="store_true",
             help="Use options tuned for close comparison [default: %default]")
-    p.set_cpus()
+    p.set_cpus(cpus=32)
     p.set_params()
     p.set_outfile()
     opts, args = p.parse_args()

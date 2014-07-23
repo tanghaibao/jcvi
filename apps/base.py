@@ -4,8 +4,9 @@ basic support for running library as script
 
 import os
 import os.path as op
-import sys
 import shutil
+import signal
+import sys
 import logging
 
 from httplib import HTTPSConnection
@@ -557,8 +558,11 @@ def Popen(cmd, stdin=None, stdout=PIPE, debug=False, shell="/bin/bash"):
     from subprocess import Popen as P
     if debug:
         logging.debug(cmd)
+    # See: <https://blog.nelhage.com/2010/02/a-very-subtle-bug/>
     proc = P(cmd, bufsize=1, stdin=stdin, stdout=stdout, \
-             shell=True, executable=shell)
+             shell=True, executable=shell,
+             preexec_fn=lambda: signal.signal(signal.SIGPIPE,
+                                     signal.SIG_DFL))
     return proc
 
 

@@ -136,6 +136,9 @@ def cufflinks(args):
     p.set_cpus()
     opts, args = p.parse_args(args)
 
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
     folder, reference = args
     os.chdir(folder)
     bams = glob("*tophat/accepted_hits.bam")

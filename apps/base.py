@@ -143,11 +143,9 @@ class OptionParser (OptionP):
                         help="Append '-pe threaded N' [default: %default]")
         if array:
             group.add_option("-c", dest="concurrency", type="int",
-                            help="Append task concurrency limit '-tc N'" + \
-                                 " [default: %default]")
+                            help="Append task concurrency limit '-tc N'")
         group.add_option("-d", dest="outdir", default=".",
-                        help="Specify directory to store grid output/error files" +
-                             " [default: %default]")
+                        help="Specify directory to store grid output/error files")
         group.add_option("-N", dest="name", default=None,
                         help="Specify descriptive name for the job [default: %default]")
         group.add_option("-H", dest="hold_jid", default=None,
@@ -243,8 +241,7 @@ class OptionParser (OptionP):
                      "`resolve` will try to converge towards a valid SO " + \
                      "term by removing elements from the feature type " + \
                      "string by splitting at underscores. Example: " + \
-                     "`mRNA_TE_gene` resolves to `mRNA` using 'resolve:prefix'" + \
-                     " [default: %default]")
+                     "`mRNA_TE_gene` resolves to `mRNA` using 'resolve:prefix'")
 
     def set_beds(self):
         self.add_option("--qbed", help="Path to qbed")
@@ -336,8 +333,7 @@ class OptionParser (OptionP):
 
     def set_cutoff(self, cutoff=0):
         self.add_option("--cutoff", default=cutoff, type="int",
-                help="Distance to call valid links between mates "\
-                     "[default: %default]")
+                help="Distance to call valid links between mates")
 
     def set_mateorientation(self, mateorientation=None):
         self.add_option("--mateorientation", default=mateorientation,
@@ -394,8 +390,7 @@ class OptionParser (OptionP):
 
     def set_size(self, size=0):
         self.add_option("--size", default=size, type="int",
-                help="Insert mean size, stdev assumed to be 20% around mean" + \
-                     " [default: %default]")
+                help="Insert mean size, stdev assumed to be 20% around mean")
 
     def set_home(self, prog):
         tag = "--{0}_home".format(prog)
@@ -491,7 +486,8 @@ def dmain(cwd):
             continue
         pd = get_module_docstring(ps)
         action_help = [x.rstrip(":.,\n") for x in pd.splitlines(True) \
-                if len(x.strip()) > 10][0] if pd else "no docstring found"
+                if len(x.strip()) > 10 and x[0] != '%'][0] \
+                if pd else "no docstring found"
         actions.append((action, action_help))
 
     a = ActionDispatcher(actions)
@@ -1181,8 +1177,7 @@ def notify(args):
     g1 = OptionGroup(p, "Optional `push` parameters")
     g1.add_option("--api", default="pushover", \
                   choices=list(flatten(available_push_api.values())),
-                  help="Specify API used to send the push notification" + \
-                  " [default: %default]")
+                  help="Specify API used to send the push notification")
     g1.add_option("--priority", default=0, type="int",
                   help="Message priority (-1 <= p <= 2) [default: %default]")
     g1.add_option("--timestamp", default=None, type="int", \
@@ -1241,11 +1236,9 @@ def waitpid(args):
 
     p = OptionParser(waitpid.__doc__)
     p.add_option("--notify", default=None, choices=valid_notif_methods,
-                 help="Specify type of notification to be sent after waiting" + \
-                      " [default: %default]")
+                 help="Specify type of notification to be sent after waiting")
     p.add_option("--interval", default=120, type="int",
-                 help="Specify PID polling interval (in seconds)" + \
-                      " [default: %default]")
+                 help="Specify PID polling interval in seconds")
     p.add_option("--message",
                 help="Specify notification message [default: %default]")
     p.set_email()

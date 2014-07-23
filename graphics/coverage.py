@@ -2,7 +2,7 @@
 # -*- coding: UTF-8 -*-
 
 """
-%prog napuscov chrC01 chr.sizes data
+%prog chrC01 chr.sizes data
 
 Read coverage histogram, similar to wiggle plot. Data contains all the track
 data in the form of tab-delimited (x, y) lists.
@@ -16,7 +16,7 @@ import numpy as np
 
 from jcvi.formats.sizes import Sizes
 from jcvi.graphics.base import plt, savefig, Rectangle, mb_formatter, \
-            mb_float_formatter, adjust_spines
+            mb_float_formatter, adjust_spines, get_map
 from jcvi.apps.base import OptionParser, glob
 
 
@@ -124,8 +124,7 @@ class Coverage (object):
 
         if palette is None:
             # Get the palette
-            import brewer2mpl
-            set2 = brewer2mpl.get_map('Set2', 'qualitative', ntracks).mpl_colors
+            set2 = get_map('Set2', 'qualitative', ntracks).mpl_colors
         else:
             set2 = [palette] * ntracks
 

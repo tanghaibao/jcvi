@@ -55,6 +55,7 @@ def deletion(args):
             cmd += " | cut -f1-4"
             sh(cmd, outfile=bedfile)
 
+    sort_tmpdir = "--tmpdir={0}".format(opts.tmpdir)
     if bedfile.endswith(".sorted.bed"):
         sortedbedfile = bedfile
         pf = bedfile.rsplit(".", 2)[0]
@@ -62,7 +63,7 @@ def deletion(args):
         pf = bedfile.rsplit(".", 1)[0]
         sortedbedfile = pf + ".sorted.bed"
         if need_update(bedfile, sortedbedfile):
-            sort([bedfile, "-u", "--accn", "--tmpdir={0}".format(opts.tmpdir)])
+            sort([bedfile, "-u", "--accn", sort_tmpdir])
 
     # Find reads that contain multiple matches
     bed = Bed(sortedbedfile, sorted=False)
@@ -95,7 +96,7 @@ def deletion(args):
                         (seqid, start - 1, end, ies_name))
         ies_id += 1
     fw.close()
-    sort([countbedfile, "-i"])
+    sort([countbedfile, "-i", sort_tmpdir])
 
     # Remove deletions that contain some read depth
     depthbedfile = pf + ".depth.bed"

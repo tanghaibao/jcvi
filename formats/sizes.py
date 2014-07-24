@@ -106,7 +106,6 @@ def main():
     actions = (
         ('extract', 'extract the lines containing only the given IDs'),
         ('agp', 'write to AGP format from sizes file'),
-        ('lft', 'write to liftUp format from sizes file'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -131,32 +130,6 @@ def extract(args):
         name = row.strip()
         size = sizes[name]
         print "\t".join(str(x) for x in (name, size))
-
-
-def lft(args):
-    """
-    %prog lft <fastafile|sizesfile>
-
-    Convert the sizes file to a trivial lft file.
-    """
-    p = OptionParser(lft.__doc__)
-    opts, args = p.parse_args(args)
-
-    if len(args) != 1:
-        sys.exit(not p.print_help())
-
-    sizesfile, = args
-    lftfile = sizesfile.split(".")[0] + ".lft"
-
-    if need_update(sizesfile, lftfile):
-        sizes = Sizes(sizesfile)
-        fw = open(lftfile, "w")
-        for ctg, size in sizes.iter_sizes():
-            print >> fw, "\t".join(str(x) for x in \
-                            (0, ctg, size, ctg, size))
-        fw.close()
-
-    return lftfile
 
 
 def agp(args):

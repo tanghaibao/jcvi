@@ -244,6 +244,7 @@ def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
         title = "Inter-genomic comparison: {0} vs {1}".format(gx, gy)
         if is_self:
             title = "Intra-genomic comparison within {0}".format(gx)
+            npairs /= 2
         title += " ({0} gene pairs)".format(thousands(npairs))
     root.set_title(title, x=.5, y=.96, color="k")
     logging.debug(title)

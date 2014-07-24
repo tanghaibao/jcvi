@@ -280,9 +280,6 @@ def frompsl(args):
     pslfile, oldfasta, newfasta = args
     pf = oldfasta.split(".")[0]
 
-    # Use liftUp to change the coordinate system. Requires .lft files
-    # This step is skipped as the output psl is the same as input?
-
     # Chain together alignments from using axtChain
     chainfile = pf + ".chain"
     twobitfiles = []

@@ -87,7 +87,8 @@ def main():
         ('prepare', 'parse list of FASTQ files and prepare input'),
         ('pairs', 'estimate insert sizes for input files'),
         ('contamination', 'remove contaminated reads'),
-        ('allpaths', 'run automated ALLPATHS on list of dirs'),
+        ('allpaths', 'run automated ALLPATHS'),
+        ('spades', 'run automated SPADES assembly'),
         ('allpathsX', 'run automated ALLPATHS on list of files'),
         ('soapX', 'run automated SOAP on list of files'),
         ('correctX', 'run automated ALLPATHS correction on list of files'),
@@ -96,11 +97,46 @@ def main():
     p.dispatch(globals())
 
 
+def spades(args):
+    """
+    %prog spades folder
+
+    Run automated SPADES.
+    """
+    from jcvi.formats.fastq import readlen
+
+    p = OptionParser(spades.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) == 0:
+        sys.exit(not p.print_help())
+
+    folder, = args
+    for p, pf in iter_project(folder, 2):
+        rl = readlen([p[0], "--silent"])
+
+        # <http://spades.bioinf.spbau.ru/release3.1.0/manual.html#sec3.4>
+        kmers = None
+        if rl >= 150:
+            kmers = "21,33,55,77"
+        elif rl >= 250:
+            kmers = "21,33,55,77,99,127"
+
+        cmd = "spades.py"
+        if kmers:
+            cmd += " -k {0}".format(kmers)
+        cmd += " --careful"
+        cmd += " --pe1-1 {0} --pe1-2 {1}".format(*p)
+        cmd += " -o {0}_spades".format(pf)
+        print cmd
+
+
 def contamination(args):
     """
     %prog contamination folder Ecoli.fasta
 
-    Remove contaminated reads.
+    Remove contaminated reads. The FASTQ files in the folder will automatically
+    pair and filtered against Ecoli.fasta to remove contaminants using BOWTIE2.
     """
     from jcvi.apps.bowtie import align
 
@@ -108,7 +144,7 @@ def contamination(args):
     p.add_option("--mapped", default=False, action="store_true",
                  help="Retain contaminated reads instead [default: %default]")
     p.set_cutoff(cutoff=800)
-    p.set_mateorientation()
+    p.set_mateorientation(mateorientation="+-")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -119,7 +155,7 @@ def contamination(args):
     tag = "--mapped" if opts.mapped else "--unmapped"
     for p, pf in iter_project(folder, 2):
         align_opts = [ecoli] + p + [tag]
-        align_opts += ["--cutoff={0}".format(opts.cutoff)]
+        align_opts += ["--cutoff={0}".format(opts.cutoff), "--null"]
         if opts.mateorientation:
             align_opts += ["--mateorientation={0}".format(opts.mateorientation)]
         samfile, logfile = align(align_opts)

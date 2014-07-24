@@ -778,6 +778,7 @@ def bes(args):
     from jcvi.apps.align import run_blat
 
     p = OptionParser(bes.__doc__)
+    p.set_cpus()
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -789,7 +790,7 @@ def bes(args):
     besfasta = clonename + ".fasta"
     blatfile = clonename + ".bes.blat"
     run_blat(infile=besfasta, outfile=blatfile, db=bacfasta, \
-             pctid=95, hitlen=100)
+             pctid=95, hitlen=100, cpus=opts.cpus)
 
     aid, asize = Fasta(bacfasta).itersizes().next()
 

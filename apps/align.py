@@ -12,7 +12,8 @@ import shutil
 import logging
 
 from jcvi.utils.cbook import depends
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, get_abs_path
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh, get_abs_path, \
+            which
 
 
 @depends
@@ -23,8 +24,11 @@ def run_formatdb(infile=None, outfile=None, dbtype="nucl"):
 
 
 @depends
-def run_blat(infile=None, outfile=None, db="UniVec_Core", pctid=95, hitlen=50):
-    cmd = 'blat {0} {1} -out=blast8 {2}'.format(db, infile, outfile)
+def run_blat(infile=None, outfile=None, db="UniVec_Core",
+             pctid=95, hitlen=50, cpus=16):
+
+    cmd = "pblat -threads={0}".format(cpus) if which("pblat") else "blat"
+    cmd += ' {0} {1} -out=blast8 {2}'.format(db, infile, outfile)
     sh(cmd)
 
     blatfile = outfile

@@ -105,9 +105,9 @@ def get_prefix(readfile, dbfile):
 def get_samfile(readfile, dbfile, bam=False, mapped=False,
                 unmapped=False, bowtie=False):
     prefix = get_prefix(readfile, dbfile)
-    ext = ".bam" if bam and not unmapped else ".sam"
+    ext = ".bam" if bam else ".sam"
     samfile = prefix + ext
-    ext = ".fastq" if bowtie else ".bam"
+    ext = ".fastq" if bowtie else ext
     mapped = (prefix + ".mapped" + ext) if mapped else None
     unmapped = (prefix + ".unmapped" + ext) if unmapped else None
     return samfile, mapped, unmapped

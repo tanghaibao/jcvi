@@ -203,6 +203,8 @@ def readlen(args):
     """
     p = OptionParser(readlen.__doc__)
     p.set_firstN()
+    p.add_option("--silent", default=False, action="store_true",
+                 help="Do not print read length stats")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -210,7 +212,9 @@ def readlen(args):
 
     f, = args
     s = calc_readlen(f, opts.firstN)
-    print "\t".join(str(x) for x in (f, s.min, s.max, s.mean))
+    if not opts.silent:
+        print "\t".join(str(x) for x in (f, s.min, s.max, s.mean))
+
     return int(s.max)
 
 

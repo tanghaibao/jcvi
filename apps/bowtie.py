@@ -104,6 +104,8 @@ def align(args):
                  help="Enforce end-to-end alignment [default: local]")
     p.add_option("--reorder", default=False, action="store_true",
                  help="Keep the input read order [default: %default]")
+    p.add_option("--null", default=False, action="store_true",
+                 help="Do not write to SAM/BAM output")
     p.set_cutoff(cutoff=800)
     p.set_mateorientation(mateorientation="+-")
     p.set_sam_options(bowtie=True)
@@ -172,6 +174,9 @@ def align(args):
     cmd += " {0}".format(extra)
     # Finally the log
     cmd += " 2> {0}".format(logfile)
+
+    if opts.null:
+        samfile = "/dev/null"
 
     cmd = output_bam(cmd, samfile)
     sh(cmd)

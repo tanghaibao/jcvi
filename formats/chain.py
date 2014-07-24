@@ -27,7 +27,8 @@ import sys
 import logging
 
 from jcvi.formats.base import BaseFile, read_block
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update, \
+            which
 
 
 class ChainLine (object):
@@ -200,6 +201,7 @@ def blat(args):
                  help="Matches minus mismatches gap penalty [default: %default]")
     p.add_option("--minid", default=98, type="int",
                  help="Minimum sequence identity [default: %default]")
+    p.set_cpus()
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -212,7 +214,8 @@ def blat(args):
         twobitfiles.append(tbfile)
 
     oldtwobit, newtwobit = twobitfiles
-    cmd = "blat {0} {1}".format(oldtwobit, newfasta)
+    cmd = "pblat -threads={0}".format(opts.cpus) if which("pblat") else "blat"
+    cmd += " {0} {1}".format(oldtwobit, newfasta)
     cmd += " -tileSize=12 -minScore={0} -minIdentity={1} ".\
                 format(opts.minscore, opts.minid)
     pslfile = "{0}.{1}.psl".format(*(op.basename(x).split('.')[0] \

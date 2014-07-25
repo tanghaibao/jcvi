@@ -479,7 +479,7 @@ def iter_project(folder, n=2):
     # Check for paired reads and extract project id
     filelist = [x for x in glob(folder + "/*.*") \
                     if x.rsplit(".", 1)[-1] in ("fq", "fastq", "txt", "gz")]
-    for p in grouper(n, filelist):
+    for p in grouper(filelist, n):
         if len(p) != n:
             continue
 

@@ -186,7 +186,7 @@ def scaffold(args):
 
     highlights = opts.highlights
     scafsizes = Sizes(args[0])
-    trios = list(grouper(3, args[1:]))
+    trios = list(grouper(args[1:], 3))
     trios = [(a, Sizes(b), Bed(c)) for a, b, c in trios]
     if highlights:
         hlbed = Bed(highlights)

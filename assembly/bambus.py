@@ -46,7 +46,7 @@ def scaffold(args):
 
     rclip = opts.rclip
     ctgfasta = args[0]
-    duos = list(grouper(2, args[1:]))
+    duos = list(grouper(args[1:], 2))
     trios = []
     for fastafile, bedfile in duos:
         prefix = bedfile.rsplit(".", 1)[0]

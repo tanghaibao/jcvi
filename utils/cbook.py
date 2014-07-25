@@ -421,7 +421,7 @@ def tile(lt, width=70, gap=1):
     max_len = max(len(x) for x in lt) + gap
     items_per_line = max(width / max_len, 1)
     lt = [x.rjust(max_len) for x in lt]
-    g = list(grouper(items_per_line, lt, fillvalue=""))
+    g = list(grouper(lt, items_per_line, fillvalue=""))
 
     return "\n".join("".join(x) for x in g)
 

@@ -513,7 +513,7 @@ def ispcr(args):
 
     npairs = 0
     fastaiter = SeqIO.parse(fastafile, "fasta")
-    for a, b in grouper(2, fastaiter):
+    for a, b in grouper(fastaiter, 2):
 
         aid, bid = [strip_name(x) for x in (a.id, b.id)]
         assert aid == bid, "Name mismatch {0}".format((aid, bid))
@@ -573,8 +573,8 @@ def fancyprint(fw, seq, width=60, chunk=10):
     seqlen = len(seq)
     maxchar = len(str(seqlen))
 
-    s = ["".join(x) for x in grouper(chunk, seq, fillvalue="")]
-    s = [" ".join(x) for x in grouper(nchunks, s, fillvalue="")]
+    s = ["".join(x) for x in grouper(seq, chunk, fillvalue="")]
+    s = [" ".join(x) for x in grouper(s, nchunks, fillvalue="")]
     for a, b in zip(range(1, len(seq), width), s):
         b = b.rstrip()
         a = str(a).rjust(maxchar, " ")

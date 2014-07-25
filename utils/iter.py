@@ -56,20 +56,9 @@ def dotproduct(vec1, vec2):
     return sum(imap(operator.mul, vec1, vec2))
 
 
-def flatten(listOfLists, level=1):
-    "Flatten one or multiple levels of nesting"
-    if level==1:
-        return chain.from_iterable(listOfLists)
-
-    elif level>1:
-        fl = []
-        for l in listOfLists:
-            if isinstance(l, Iterable) and not isinstance(l, basestring):
-                for sub in flatten(l, level=level):
-                    fl.append(sub)
-            else:
-                fl.append(l)
-        return fl
+def flatten(listOfLists):
+    "Flatten one level of nesting"
+    return chain.from_iterable(listOfLists)
 
 
 def repeatfunc(func, times=None, *args):
@@ -89,8 +78,9 @@ def pairwise(iterable):
     return izip(a, b)
 
 
-def grouper(n, iterable, fillvalue=None):
-    "grouper(3, 'ABCDEFG', 'x') --> ABC DEF Gxx"
+def grouper(iterable, n, fillvalue=None):
+    "Collect data into fixed-length chunks or blocks"
+    # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx
     args = [iter(iterable)] * n
     return izip_longest(fillvalue=fillvalue, *args)
 
@@ -134,7 +124,7 @@ def unique_everseen(iterable, key=None):
 
 
 def unique_justseen(iterable, key=None):
-    "Unique elements, preserving order. Remember only the element just seen."
+    "List unique elements, preserving order. Remember only the element just seen."
     # unique_justseen('AAAABBBCCDAABBB') --> A B C D A B
     # unique_justseen('ABBCcAD', str.lower) --> A B C A D
     return imap(next, imap(itemgetter(1), groupby(iterable, key)))
@@ -187,11 +177,23 @@ def random_combination(iterable, r):
 
 
 def random_combination_with_replacement(iterable, r):
-    "Random selection of itertools.combinations_with_replacement(iterable, r)"
+    "Random selection from itertools.combinations_with_replacement(iterable, r)"
     pool = tuple(iterable)
     n = len(pool)
     indices = sorted(random.randrange(n) for i in xrange(r))
     return tuple(pool[i] for i in indices)
+
+
+def tee_lookahead(t, i):
+    """Inspect the i-th upcomping value from a tee object
+       while leaving the tee object at its current position.
+
+       Raise an IndexError if the underlying iterator doesn't
+       have enough values.
+    """
+    for value in islice(t.__copy__(), i, None):
+        return value
+    raise IndexError(i)
 
 
 """

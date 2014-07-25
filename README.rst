@@ -87,7 +87,9 @@ Then there are modules that contain domain-specific methods.
 Applications
 ------------
 Please visit `wiki <https://github.com/tanghaibao/jcvi/wiki>`_ for
-full-fledged applications.
+full-fledged applications. Also visit our `Gallery
+<https://github.com/tanghaibao/jcvi/wiki/Gallery>`_ to see our
+graphics functionality for the production of publication-ready figures.
 
 
 Dependencies

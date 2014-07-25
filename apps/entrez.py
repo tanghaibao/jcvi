@@ -83,7 +83,7 @@ def batch_entrez(list_of_terms, db="nuccore", retmax=1, rettype="fasta",
         if batchsize != 1:
             logging.debug("Use a batch size of {0}.".format(batchsize))
 
-        ids = list(grouper(batchsize, ids))
+        ids = list(grouper(ids, batchsize))
 
         for id in ids:
             id = [x for x in id if x]

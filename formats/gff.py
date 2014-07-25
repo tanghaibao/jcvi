@@ -1283,7 +1283,7 @@ def uniq(args):
         results = manager.dict()
 
         logging.debug("Deduplicating {0} piles at a time".format(opts.cpus))
-        for cpu_groups in grouper(opts.cpus, flt_groups):
+        for cpu_groups in grouper(flt_groups, opts.cpus):
             jobs = Jobs(dedup_pile, [(results, flt_group, gffdb, int(opts.iter)) \
                     for flt_group in cpu_groups])
             jobs.run()

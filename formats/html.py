@@ -61,7 +61,7 @@ def gallery(args):
             if not im:
                 continue
             im = op.basename(im)
-            pf = im.split('.')[0]
+            pf = im.split('.')[0].replace('_', '-')
             link = link_prefix.rstrip("/") + "/" + im
             print td.format(pf, link, width)
         print "</tr>"

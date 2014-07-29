@@ -57,8 +57,7 @@ def reject_outliers(a, threshold=3.5):
     D = np.absolute(A - M)
     MAD = np.median(D)
     Mi = np.absolute(0.6745 * (A - M) / MAD)
-    #return A, M, D, MAD, Mi
-    return Mi > 3.5
+    return Mi > threshold
 
 
 def recomb_probability(cM, method="kosambi"):

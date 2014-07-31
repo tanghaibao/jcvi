@@ -216,7 +216,7 @@ def _score(cluster):
     """
     score of the cluster, in this case, is the number of non-repetitive matches
     """
-    x, y, scores = zip(*cluster)
+    x, y = zip(*cluster)[:2]
     return min(len(set(x)), len(set(y)))
 
 
@@ -426,10 +426,38 @@ def main():
         ('coge', 'convert CoGe file to anchors file'),
         ('spa', 'convert chr ordering from SPA to simple lists'),
         ('rebuild', 'rebuild anchors file from prebuilt blocks file'),
+        ('fromaligns', 'convert aligns file to anchors file'),
             )
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def fromaligns(args):
+    """
+    %prog fromaligns out.aligns
+
+    Convert aligns file (old MCscan output) to anchors file.
+    """
+    p = OptionParser(fromaligns.__doc__)
+    p.set_outfile()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    alignsfile, = args
+    fp = must_open(alignsfile)
+    fw = must_open(opts.outfile, "w")
+    for row in fp:
+        if row.startswith("## Alignment"):
+            print >> fw, "###"
+            continue
+        if row[0] == '#' or not row.strip():
+            continue
+        atoms = row.split(':')[-1].split()
+        print >> fw, "\t".join(atoms[:2])
+    fw.close()
 
 
 def mcscanq(args):

@@ -768,11 +768,14 @@ def filter(args):
 
 def pool(args):
     """
-    %prog pool fastafiles
+    %prog pool fastafiles > pool.fasta
 
     Pool a bunch of FASTA files, and add prefix to each record based on
-    filenames.
+    filenames. Useful to simplify file names in a pool of files. See usage in
+    formats.fasta.pool().
     """
+    from jcvi.formats.base import longest_unique_prefix
+
     p = OptionParser(pool.__doc__)
     opts, args = p.parse_args(args)
 
@@ -780,7 +783,8 @@ def pool(args):
         sys.exit(not p.print_help())
 
     for fastafile in args:
-        pf = op.basename(fastafile).split(".")[0].split("_")[0]
+        pf = longest_unique_prefix(fastafile, args)
+        print >> sys.stderr, fastafile, "=>", pf
         prefixopt = "--prefix={0}_".format(pf)
         format([fastafile, "stdout", prefixopt])
 

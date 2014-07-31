@@ -281,6 +281,20 @@ class FileSplitter (object):
             fw.close()
 
 
+def longest_unique_prefix(query, targets, remove_self=True):
+    """
+    Find the longest unique prefix for filename, when compared against a list of
+    filenames.
+    """
+    query = op.basename(query)
+    targets = [op.basename(x) for x in targets]
+    prefix_lengths = [len(op.commonprefix([query, name])) for name in targets]
+    if remove_self and len(query) in prefix_lengths:
+        prefix_lengths.remove(len(query))
+    longest_length = max(prefix_lengths)
+    return query[:longest_length + 1]
+
+
 def check_exists(filename, oappend=False):
     """
     Avoid overwriting some files accidentally.

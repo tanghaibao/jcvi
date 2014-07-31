@@ -284,7 +284,8 @@ class FileSplitter (object):
 def longest_unique_prefix(query, targets, remove_self=True):
     """
     Find the longest unique prefix for filename, when compared against a list of
-    filenames.
+    filenames. Useful to simplify file names in a pool of files. See usage in
+    formats.fasta.pool().
     """
     query = op.basename(query)
     targets = [op.basename(x) for x in targets]

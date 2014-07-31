@@ -771,8 +771,8 @@ def pool(args):
     %prog pool fastafiles > pool.fasta
 
     Pool a bunch of FASTA files, and add prefix to each record based on
-    filenames. Useful to simplify file names in a pool of files. See usage in
-    formats.fasta.pool().
+    filenames. File names are simplified to longest unique prefix to avoid
+    collisions after getting shortened.
     """
     from jcvi.formats.base import longest_unique_prefix
 

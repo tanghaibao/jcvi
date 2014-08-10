@@ -14,11 +14,12 @@ classifiers = [
     'Topic :: Scientific/Engineering :: Bio-Informatics',
     ]
 
+exec(open("__init__.py").read())
 setup(
       name=name,
-      version='0.4.7',
+      version=__version__,
       author='Haibao Tang',
-      author_email='tanghaibao@gmail.com',
+      author_email=__email__,
       package_dir={name: '.'},
       packages=[name] + ['.'.join((name, x)) for x in find_packages()],
       include_package_data=True,

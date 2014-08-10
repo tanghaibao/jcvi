@@ -684,20 +684,30 @@ def size(args):
 
 def convert(args):
     """
-    %prog convert in.fastq out.fastq
+    %prog convert in.fastq
 
     illumina fastq quality encoding uses offset 64, and sanger uses 33. This
-    script creates a new file with the correct encoding
+    script creates a new file with the correct encoding. Output gzipped file if
+    input is also gzipped.
     """
     p = OptionParser(convert.__doc__)
     p.set_phred()
     opts, args = p.parse_args(args)
 
-    if len(args) != 2:
+    if len(args) != 1:
         sys.exit(not p.print_help())
 
-    infastq, outfastq = args
+    infastq, = args
     phred = opts.phred or str(guessoffset([infastq]))
+    ophred = {"64": "33", "33": "64"}[phred]
+
+    gz = infastq.endswith(".gz")
+    outfastq = infastq.rsplit(".", 1)[0] if gz else infastq
+    pf, sf = outfastq.rsplit(".", 1)
+    outfastq = "{0}.q{1}.{2}".format(pf, ophred, sf)
+    if gz:
+        outfastq += ".gz"
+
     fin = "illumina" if phred == "64" else "sanger"
     fout = "sanger" if phred == "64" else "illumina"
 

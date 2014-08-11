@@ -293,9 +293,50 @@ def main():
         ('flanking', 'get n flanking features for a given position'),
         ('some', 'get a subset of bed features given a list'),
         ('fix', 'fix non-standard bed files'),
+        ('filter', 'filter the bedfile to retain records between size range'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def filter(args):
+    """
+    %prog filter bedfile
+
+    Filter the bedfile to retain records between certain size range.
+    """
+    p = OptionParser(filter.__doc__)
+    p.add_option("--minsize", default=0, type="int",
+                 help="Minimum feature length")
+    p.add_option("--maxsize", default=1000000000, type="int",
+                 help="Minimum feature length")
+    p.set_outfile()
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    bedfile, = args
+    fp = must_open(bedfile)
+    fw = must_open(opts.outfile, "w")
+    minsize, maxsize = opts.minsize, opts.maxsize
+    total_span = 0
+    total = []
+    keep = []
+    for row in fp:
+        b = BedLine(row)
+        span = b.span
+        total.append(span)
+        if not minsize <= span <= maxsize:
+            continue
+        print >> fw, b
+        keep.append(span)
+
+    logging.debug("Stats: {0} features kept.".\
+                    format(percentage(len(keep), len(total))))
+    logging.debug("Stats: {0} bases kept.".\
+                    format(percentage(sum(keep), sum(total))))
 
 
 def depth(args):

@@ -13,6 +13,7 @@ from itertools import groupby
 from jcvi.utils.counter import Counter
 from jcvi.utils.range import Range, range_interleave, range_chain
 from jcvi.formats.bed import Bed, sort, depth, some
+from jcvi.formats.base import must_open
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh
 
 
@@ -20,9 +21,47 @@ def main():
 
     actions = (
         ('deletion', 'find IES based on mapping MAC reads'),
+        ('insertion', 'find IES excision points based on mapping MIC reads'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def insertion(args):
+    """
+    %prog insertion mic.mac.bed mac.fasta mac.gaps.bed
+
+    Find IES based on mapping MIC reads to MAC genome.
+    """
+    p = OptionParser(insertion.__doc__)
+    p.add_option("--mindepth", default=6, type="int",
+                 help="Minimum depth to call an insertion")
+    p.add_option("--extend", default=10, type="int",
+                 help="Allow insertion sites to match up within distance")
+    p.set_outfile()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    bedfile, fastafile, gapbedfile = args
+    mindepth = opts.mindepth
+    bed = Bed(bedfile)
+    fw = must_open(opts.outfile, "w")
+    for seqid, feats in bed.sub_beds():
+        left_ends = Counter([x.start for x in feats])
+        right_ends = Counter([x.end for x in feats])
+        selected = []
+        for le, count in left_ends.items():
+            if count >= mindepth:
+                selected.append((seqid, le, "LE", count))
+        for re, count in right_ends.items():
+            if count >= mindepth:
+                selected.append((seqid, re, "RE", count))
+        selected.sort()
+        for seqid, pos, label, count in selected:
+            label = "{0}-r{1}".format(label, count)
+            print >> fw, "\t".join((seqid, str(pos - 1), str(pos), label))
 
 
 def deletion(args):

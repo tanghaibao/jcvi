@@ -12,7 +12,7 @@ from itertools import groupby
 
 from jcvi.utils.counter import Counter
 from jcvi.utils.range import Range, range_interleave, range_chain
-from jcvi.formats.bed import Bed, sort, depth, some
+from jcvi.formats.bed import Bed, sort, depth, some, mergeBed
 from jcvi.formats.base import must_open
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh
 
@@ -22,29 +22,57 @@ def main():
     actions = (
         ('deletion', 'find IES based on mapping MAC reads'),
         ('insertion', 'find IES excision points based on mapping MIC reads'),
+        ('insertionpairs', 'pair up the candidate insertions'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
 
-def insertion(args):
+def insertionpairs(args):
     """
-    %prog insertion mic.mac.bed mac.fasta mac.gaps.bed
+    %prog insertionpairs endpoints.bed
 
-    Find IES based on mapping MIC reads to MAC genome.
+    Pair up the candidate endpoints. A candidate exision point would contain
+    both left-end (LE) and right-end (RE) within a given distance.
     """
-    p = OptionParser(insertion.__doc__)
-    p.add_option("--mindepth", default=6, type="int",
-                 help="Minimum depth to call an insertion")
+    p = OptionParser(insertionpairs.__doc__)
     p.add_option("--extend", default=10, type="int",
                  help="Allow insertion sites to match up within distance")
     p.set_outfile()
     opts, args = p.parse_args(args)
 
-    if len(args) != 3:
+    if len(args) != 1:
         sys.exit(not p.print_help())
 
-    bedfile, fastafile, gapbedfile = args
+    bedfile, = args
+    mergedbedfile = mergeBed(bedfile, d=opts.extend, nms=True)
+    bed = Bed(mergedbedfile)
+    fw = must_open(opts.outfile, "w")
+    for b in bed:
+        names = b.accn.split(",")
+        pfs = set(x.split('-')[0] for x in names)
+        if len(pfs) != 2:
+            continue
+        print >> fw, b
+
+
+def insertion(args):
+    """
+    %prog insertion mic.mac.bed
+
+    Find IES based on mapping MIC reads to MAC genome. Output a bedfile with
+    'lesions' (stack of broken reads) in the MAC genome.
+    """
+    p = OptionParser(insertion.__doc__)
+    p.add_option("--mindepth", default=6, type="int",
+                 help="Minimum depth to call an insertion")
+    p.set_outfile()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    bedfile, = args
     mindepth = opts.mindepth
     bed = Bed(bedfile)
     fw = must_open(opts.outfile, "w")

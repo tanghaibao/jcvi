@@ -808,11 +808,12 @@ def fastaFromBed(bedfile, fastafile, name=False, stranded=False):
 
 
 def mergeBed(bedfile, d=0, nms=False, s=False, scores=None):
+    sort([bedfile, "-i"])
     cmd = "mergeBed -i {0}".format(bedfile)
     if d:
         cmd += " -d {0}".format(d)
     if nms:
-        cmd += " -nms"
+        cmd += " -c 4 -o collapse"
     if s:
         cmd += " -s"
     if scores:

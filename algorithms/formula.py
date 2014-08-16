@@ -8,9 +8,48 @@ Some math formula for various calculations
 import sys
 import numpy as np
 
-from math import log, exp
+from math import log, exp, sqrt
 
 from jcvi.utils.cbook import human_size
+
+
+def erf(x):
+    # save the sign of x
+    sign = 1 if x >= 0 else -1
+    x = abs(x)
+
+    # constants
+    a1 =  0.254829592
+    a2 = -0.284496736
+    a3 =  1.421413741
+    a4 = -1.453152027
+    a5 =  1.061405429
+    p  =  0.3275911
+
+    # A&S formula 7.1.26
+    t = 1.0 / (1.0 + p*x)
+    y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * exp(-x * x)
+    return sign * y  # erf(-x) = -erf(x)
+
+
+def gaussian_prob_le(mu, sigma, x):
+    if sigma == 0:
+        return 1
+    z = (x - mu) / (sigma * sqrt(2))
+    return .5 + .5 * erf(z)
+
+
+def choose_insertsize(readlen=150, step=20, cutoff=.01):
+    """
+    Calculate ratio of overlap for a range of insert sizes. Idea borrowed from
+    ALLPATHS code (`allpaths_cache/CacheToAllPathsInputs.pl`).
+    """
+    print >> sys.stderr, "Insert-size\tOverlap"
+    for i in range(0, 3 * readlen, step):
+        p = gaussian_prob_le(i, i / 5, 2 * readlen)
+        if p < cutoff or p > 1 - cutoff:
+            continue
+        print >> sys.stderr, "{0}bp\t{1}%".format(i, int(round(100 * p)))
 
 
 def spearmanr(x, y):
@@ -31,10 +70,6 @@ def spearmanr(x, y):
     if not x or not y:
         return 0
     return 1 - distancematrix((x, y), dist="s")[1][0]
-
-
-def geometric_mean(a, b, cast=int):
-    return cast((a * b) ** .5)
 
 
 def reject_outliers(a, threshold=3.5):

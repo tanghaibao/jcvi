@@ -17,6 +17,16 @@ from jcvi.formats.base import must_open
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh
 
 
+class EndPoint (object):
+
+    def __init__(self, label):
+        args = label.split('-')
+        self.label = label
+        self.leftright = args[0]
+        self.position = int(args[1])
+        self.reads = int(args[2].strip('r'))
+
+
 def main():
 
     actions = (
@@ -34,6 +44,11 @@ def insertionpairs(args):
 
     Pair up the candidate endpoints. A candidate exision point would contain
     both left-end (LE) and right-end (RE) within a given distance.
+
+    -----------|   |------------
+        -------|   |--------
+      ---------|   |----------
+            (RE)   (LE)
     """
     p = OptionParser(insertionpairs.__doc__)
     p.add_option("--extend", default=10, type="int",
@@ -48,11 +63,22 @@ def insertionpairs(args):
     mergedbedfile = mergeBed(bedfile, d=opts.extend, nms=True)
     bed = Bed(mergedbedfile)
     fw = must_open(opts.outfile, "w")
+    support = lambda x: -x.reads
     for b in bed:
         names = b.accn.split(",")
-        pfs = set(x.split('-')[0] for x in names)
-        if len(pfs) != 2:
+        ends = [EndPoint(x) for x in names]
+        REs = sorted([x for x in ends if x.leftright == "RE"], key=support)
+        LEs = sorted([x for x in ends if x.leftright == "LE"], key=support)
+        if not (REs and LEs):
             continue
+        mRE, mLE = REs[0], LEs[0]
+        pRE, pLE = mRE.position, mLE.position
+        if pLE < pRE:
+            b.start, b.end = pLE - 1, pRE
+        else:
+            b.start, b.end = pRE - 1, pLE
+        b.accn = "{0}|{1}".format(mRE.label, mLE.label)
+        b.score = pLE - pRE - 1
         print >> fw, b
 
 
@@ -82,10 +108,10 @@ def insertion(args):
         selected = []
         for le, count in left_ends.items():
             if count >= mindepth:
-                selected.append((seqid, le, "LE", count))
+                selected.append((seqid, le, "LE-{0}".format(le), count))
         for re, count in right_ends.items():
             if count >= mindepth:
-                selected.append((seqid, re, "RE", count))
+                selected.append((seqid, re, "RE-{0}".format(re), count))
         selected.sort()
         for seqid, pos, label, count in selected:
             label = "{0}-r{1}".format(label, count)

@@ -47,13 +47,13 @@ class BedLine(object):
 
     def __str__(self):
         args = [self.seqid, self.start - 1, self.end]
-        if self.accn:
+        if self.accn is not None:
             args += [self.accn]
-        if self.score:
+        if self.score is not None:
             args += [self.score]
-        if self.strand:
+        if self.strand is not None:
             args += [self.strand]
-        if self.extra:
+        if self.extra is not None:
             args += self.extra
 
         s = "\t".join(str(x) for x in args)

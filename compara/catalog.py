@@ -585,10 +585,12 @@ def make_ortholog(blocksfile, rbhfile, orthofile):
 
 def ortholog(args):
     """
-    %prog ortholog a.bed a.cds b.bed b.cds
+    %prog ortholog species_a species_b
 
     Run a sensitive pipeline to find orthologs between two species a and b.
-    The pipeline runs LAST and 1-to-1 quota synteny blocks as the backbone of
+    The pipeline runs LAST and generate .lifted.anchors.
+
+    `--full` mode would assume 1-to-1 quota synteny blocks as the backbone of
     such predictions. Extra orthologs will be recruited from reciprocal best
     match (RBH).
     """
@@ -599,15 +601,23 @@ def ortholog(args):
     from jcvi.formats.blast import cscore
 
     p = OptionParser(ortholog.__doc__)
-    p.add_option("--cscore", default=0.99, type="float",
+    p.add_option("--full", default=False, action="store_true",
+                 help="Run in full mode, including blocks and RBH")
+    p.add_option("--cscore", default=0.7, type="float",
                  help="C-score cutoff [default: %default]")
+    p.add_option("--dist", default=20, type="int",
+                 help="Extent of flanking regions to search")
     opts, args = p.parse_args(args)
 
-    if len(args) != 4:
+    if len(args) != 2:
         sys.exit(not p.print_help())
 
-    abed, afasta, bbed, bfasta = args
+    a, b = args
+    abed, afasta = a + ".bed", a + ".cds"
+    bbed, bfasta = b + ".bed", b + ".cds"
     ccscore = opts.cscore
+    dist = "--dist={0}".format(opts.dist)
+
     aprefix = afasta.split(".")[0]
     bprefix = bfasta.split(".")[0]
     pprefix = ".".join((aprefix, bprefix))
@@ -617,23 +627,28 @@ def ortholog(args):
         last_main([bfasta, afasta, "-o", last])
 
     filtered_last = last + ".filtered"
-    bstring = ["--qbed=" + abed, "--sbed=" + bbed]
     if need_update(last, filtered_last):
         blastfilter_main([last, "--cscore={0}".format(ccscore),
-                          "--tandem_Nmax=10"] + bstring)
+                          "--tandem_Nmax=10"])
 
     anchors = pprefix + ".anchors"
     lifted_anchors = pprefix + ".lifted.anchors"
-    if need_update(filtered_last, lifted_anchors):
-        scan([filtered_last, anchors] + bstring)
+    if not opts.full:
+        if need_update(filtered_last, lifted_anchors):
+            scan([filtered_last, anchors, dist,
+                    "--liftover={0}".format(last)])
+        return
+
+    if need_update(filtered_last, anchors):
+        scan([filtered_last, anchors, dist])
 
     ooanchors = pprefix + ".1x1.anchors"
     if need_update(anchors, ooanchors):
-        quota_main([anchors, "--quota=1:1", "--screen"] + bstring)
+        quota_main([anchors, "--quota=1:1", "--screen"])
 
     lifted_anchors = pprefix + ".1x1.lifted.anchors"
     if need_update((last, ooanchors), lifted_anchors):
-        liftover([last, ooanchors] + bstring)
+        liftover([last, ooanchors, dist])
 
     pblocks = pprefix + ".1x1.blocks"
     qblocks = qprefix + ".1x1.blocks"

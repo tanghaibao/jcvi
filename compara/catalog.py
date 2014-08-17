@@ -598,7 +598,7 @@ def ortholog(args):
     from jcvi.compara.blastfilter import main as blastfilter_main
     from jcvi.compara.quota import main as quota_main
     from jcvi.compara.synteny import scan, mcscan, liftover
-    from jcvi.formats.blast import cscore
+    from jcvi.formats.blast import cscore, filter
 
     p = OptionParser(ortholog.__doc__)
     p.add_option("--full", default=False, action="store_true",
@@ -626,10 +626,12 @@ def ortholog(args):
     if need_update((afasta, bfasta), last):
         last_main([bfasta, afasta, "-o", last])
 
+    if a == b:
+        last = filter([last, "--hitlen=0", "--pctid=98", "--inverse"])
+
     filtered_last = last + ".filtered"
     if need_update(last, filtered_last):
-        blastfilter_main([last, "--cscore={0}".format(ccscore),
-                          "--tandem_Nmax=10"])
+        blastfilter_main([last, "--cscore={0}".format(ccscore)])
 
     anchors = pprefix + ".anchors"
     lifted_anchors = pprefix + ".lifted.anchors"

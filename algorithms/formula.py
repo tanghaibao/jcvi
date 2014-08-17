@@ -34,7 +34,7 @@ def erf(x):
 
 def gaussian_prob_le(mu, sigma, x):
     if sigma == 0:
-        return 1
+        return 1 if mu <= x else 0
     z = (x - mu) / (sigma * sqrt(2))
     return .5 + .5 * erf(z)
 

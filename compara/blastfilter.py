@@ -260,7 +260,7 @@ def main(args):
             help="only calculate tandems, write .localdup file and exit.")
     p.add_option("--tandem_Nmax", type="int", default=10,
             help="merge tandem genes within distance [default: %default]")
-    p.add_option("--cscore", type="float",
+    p.add_option("--cscore", type="float", default=.7,
             help="retain hits that have good bitscore. a value of 0.5 means "
                  "keep all values that are 50% or greater of the best hit. "
                  "higher is more stringent [default: %default]")

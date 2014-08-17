@@ -281,18 +281,15 @@ def autoscale(bp, optimal=6):
     return best_stride
 
 
-def gene_name(st, sep="."):
+def gene_name(st, exclude=("ev",), sep="."):
     """
-    Helper functions in the BLAST filtering to get rid alternative splicings
-    this is ugly, but different annotation groups are inconsistent
-    with how the alternative splicings are named;
-    mostly it can be done by removing the suffix
-    except for papaya (evm...) and maize (somewhat complicated)
+    Helper functions in the BLAST filtering to get rid alternative splicings.
+    This is ugly, but different annotation groups are inconsistent with respect
+    to how the alternative splicings are named. Mostly it can be done by removing
+    the suffix, except for ones in the exclude list.
     """
-    if st.startswith("ev"):
+    if any(st.startswith(x) for x in exclude):
         sep = None
-    elif st.startswith("Os"):
-        sep = "-"
 
     return st.rsplit(sep, 1)[0]
 

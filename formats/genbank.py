@@ -15,7 +15,7 @@ from collections import defaultdict
 from Bio import SeqIO
 from Bio.Seq import Seq
 
-from jcvi.formats.base import must_open, FileShredder, BaseFile
+from jcvi.formats.base import must_open, FileShredder, BaseFile, get_number
 from jcvi.formats.gff import GffLine
 from jcvi.apps.entrez import fetch
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, mkdir, glob
@@ -50,11 +50,6 @@ class MultiGenBank (BaseFile):
             for f in rf:
                 type = f.type
                 fsf = f.sub_features
-                if type == "gene":
-                    continue
-
-                if type == "CDS":
-                    f.type = "mRNA"
 
                 self.print_gffline(gff_fw, f, seqid)
                 nfeats += 1
@@ -87,7 +82,8 @@ class MultiGenBank (BaseFile):
         attr = "ID=tmp"
         source = self.source
 
-        start, end = f.location.start + 1, f.location.end
+        start = get_number(f.location.start) + 1
+        end = get_number(f.location.end)
         strand = '-' if f.strand < 0 else '+'
         g = "\t".join(str(x) for x in \
             (seqid, source, type, start, end, score, strand, phase, attr))

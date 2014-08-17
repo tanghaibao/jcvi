@@ -457,7 +457,7 @@ def get_number(s, cast=int):
     Try to get a number out of a string, and cast it.
     """
     import string
-    d = "".join(x for x in s if x in string.digits)
+    d = "".join(x for x in str(s) if x in string.digits)
     return cast(d)
 
 

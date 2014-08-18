@@ -110,10 +110,11 @@ class GffLine (object):
         if value is None:
             self.attributes.pop(key, None)
         else:
+            if key == "Dbxref" and dbtag:
+                value = value.split(",")
+                value = ["{0}:{1}".format(dbtag, x) for x in value]
             if type(value) is not list:
                 value = [value]
-                if key == "Dbxref" and dbtag:
-                    value = ["{0}:{1}".format(dbtag, x) for x in value]
             if key not in self.attributes or not append:
                 self.attributes[key] = []
             self.attributes[key].extend(value)
@@ -1938,6 +1939,14 @@ def load(args):
 
     parents = set(opts.parents.split(','))
     children_list = set(opts.children.split(','))
+
+    """
+    In a situation where we want to extract sequence for only the top-level
+    parent feature, specify feature type of parent == child
+    """
+    skipChildren = True if len(parents.symmetric_difference(children_list)) == 0 \
+            else False
+
     id_attr = opts.id_attribute
     desc_attr = opts.desc_attribute
     sep = opts.sep
@@ -1991,18 +2000,23 @@ def load(args):
                     "LENGTH=" + str(upstream_len)))
         else:
             children = []
-            for c in g.children(feat.id, 1):
+            if not skipChildren:
+                for c in g.children(feat.id, 1):
+                    if c.featuretype not in children_list:
+                        continue
+                    child = f.sequence(dict(chr=c.chrom, start=c.start, stop=c.stop,
+                        strand=c.strand))
+                    children.append((child, c))
 
-                if c.featuretype not in children_list:
+                if not children:
+                    print >>sys.stderr, "[warning] %s has no children with type %s" \
+                                            % (feat.id, ','.join(children_list))
                     continue
-                child = f.sequence(dict(chr=c.chrom, start=c.start, stop=c.stop,
-                    strand=c.strand))
-                children.append((child, c))
+            else:
+                child = f.sequence(dict(chr=feat.seqid, start=feat.start, stop=feat.end,
+                    strand=feat.strand))
+                children.append((child, feat))
 
-            if not children:
-                print >>sys.stderr, "[warning] %s has no children with type %s" \
-                                        % (feat.id, ','.join(children_list))
-                continue
             # sort children in incremental position
             children.sort(key=lambda x: x[1].start)
             # reverse children if negative strand

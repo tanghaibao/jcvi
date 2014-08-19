@@ -27,7 +27,7 @@ import string
 
 from random import sample
 
-from jcvi.compara.synteny import batch_scan, check_beds
+from jcvi.compara.synteny import AnchorFile, batch_scan, check_beds
 from jcvi.utils.cbook import seqid_parse, thousands
 from jcvi.apps.base import OptionParser
 from jcvi.graphics.base import plt, Rectangle, cm, set_human_axis, savefig, \
@@ -254,6 +254,18 @@ def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
     root.set_axis_off()
 
 
+def subset_bed(bed, seqids):
+    from copy import deepcopy
+
+    newbed = deepcopy(bed)
+    del newbed[:]
+    for b in bed:
+        if b.seqid not in seqids:
+            continue
+        newbed.append(b)
+    return newbed
+
+
 if __name__ == "__main__":
 
     p = OptionParser(__doc__)
@@ -274,6 +286,8 @@ if __name__ == "__main__":
             help="Do not render labels with size smaller than")
     p.add_option("--colormap",
             help="Two column file, block id to color mapping [default: %default]")
+    p.add_option("--skipempty", default=False, action="store_true",
+            help="Skip seqids that do not have matches")
     opts, args, iopts = p.set_image_options(sys.argv[1:], figsize="8x8",
                                             style="dark", dpi=90)
 
@@ -291,6 +305,18 @@ if __name__ == "__main__":
 
     anchorfile, = args
     qbed, sbed, qorder, sorder, is_self = check_beds(anchorfile, p, opts)
+
+    if opts.skipempty:
+        ac = AnchorFile(anchorfile)
+        qseqids, sseqids = set(), set()
+        for pair in ac.iter_pairs():
+            q, s = pair[:2]
+            qi, q = qorder[q]
+            si, s = sorder[s]
+            qseqids.add(q.seqid)
+            sseqids.add(s.seqid)
+        qbed = subset_bed(qbed, qseqids)
+        sbed = subset_bed(sbed, sseqids)
 
     image_name = op.splitext(anchorfile)[0] + "." + opts.format
     dotplot_main(anchorfile, qbed, sbed, image_name, iopts, vmin=0, vmax=1,

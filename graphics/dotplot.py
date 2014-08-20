@@ -31,7 +31,7 @@ from jcvi.compara.synteny import AnchorFile, batch_scan, check_beds
 from jcvi.utils.cbook import seqid_parse, thousands
 from jcvi.apps.base import OptionParser
 from jcvi.graphics.base import plt, Rectangle, cm, set_human_axis, savefig, \
-            draw_cmap, TextHandler
+            draw_cmap, TextHandler, latex
 
 
 class Palette (dict):
@@ -197,14 +197,14 @@ def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
     for label, pos, fontsize in xchr_labels:
         pos = .1 + pos * .8 / xsize
         if fontsize >= minfont:
-            root.text(pos, .91, label, size=fontsize,
+            root.text(pos, .91, latex(label), size=fontsize,
                 ha="center", va="bottom", rotation=45, color="grey")
 
     # remember y labels are inverted
     for label, pos, fontsize in ychr_labels:
         pos = .9 - pos * .8 / ysize
         if fontsize >= minfont:
-            root.text(.91, pos, label, size=fontsize,
+            root.text(.91, pos, latex(label), size=fontsize,
                 va="center", color="grey")
 
     # create a diagonal to separate mirror image for self comparison

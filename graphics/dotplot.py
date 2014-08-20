@@ -294,11 +294,6 @@ if __name__ == "__main__":
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    synteny = opts.synteny
-    vmin, vmax = opts.vmin, opts.vmax
-    cmap_text = opts.cmaptext
-    genomenames = opts.genomenames
-    sample_number = opts.sample_number
     palette = opts.colormap
     if palette:
         palette = Palette(palette)
@@ -308,18 +303,27 @@ if __name__ == "__main__":
 
     if opts.skipempty:
         ac = AnchorFile(anchorfile)
-        qseqids, sseqids = set(), set()
+        if is_self:
+            qseqids = sseqids = set()
+        else:
+            qseqids, sseqids = set(), set()
+
         for pair in ac.iter_pairs():
             q, s = pair[:2]
             qi, q = qorder[q]
             si, s = sorder[s]
             qseqids.add(q.seqid)
             sseqids.add(s.seqid)
-        qbed = subset_bed(qbed, qseqids)
-        sbed = subset_bed(sbed, sseqids)
+
+        if is_self:
+            qbed = sbed = subset_bed(qbed, qseqids)
+        else:
+            qbed = subset_bed(qbed, qseqids)
+            sbed = subset_bed(sbed, sseqids)
 
     image_name = op.splitext(anchorfile)[0] + "." + opts.format
-    dotplot_main(anchorfile, qbed, sbed, image_name, iopts, vmin=0, vmax=1,
-            is_self=is_self, synteny=synteny, cmap_text=cmap_text, \
-            genomenames=genomenames, sample_number=sample_number,
+    dotplot_main(anchorfile, qbed, sbed, image_name, iopts,
+            vmin=opts.vmin, vmax=opts.vmax, is_self=is_self,
+            synteny=opts.synteny, cmap_text=opts.cmaptext,
+            genomenames=opts.genomenames, sample_number=opts.sample_number,
             minfont=opts.minfont, palette=palette)

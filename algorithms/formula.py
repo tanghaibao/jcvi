@@ -52,6 +52,16 @@ def choose_insertsize(readlen=150, step=20, cutoff=.01):
         print >> sys.stderr, "{0}bp\t{1}%".format(i, int(round(100 * p)))
 
 
+def get_kmeans(a, k, iter=100):
+    from scipy.cluster.vq import vq, kmeans
+
+    a = np.array(a)
+    centroids, _ = kmeans(a, k, iter=iter)
+    centroids.sort()
+    idx, _ = vq(a, centroids)
+    return idx
+
+
 def spearmanr(x, y):
     """
     Michiel de Hoon's library (available in BioPython or standalone as

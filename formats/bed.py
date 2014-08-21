@@ -7,6 +7,7 @@ import os.path as op
 import sys
 import math
 import logging
+import numpy as np
 
 from collections import defaultdict
 from itertools import groupby
@@ -321,7 +322,6 @@ def filter(args):
     fp = must_open(bedfile)
     fw = must_open(opts.outfile, "w")
     minsize, maxsize = opts.minsize, opts.maxsize
-    total_span = 0
     total = []
     keep = []
     for row in fp:
@@ -1144,15 +1144,37 @@ def sizes(args):
     return sizesfile
 
 
+def analyze_dists(dists, cutoff=1000, alpha=.1):
+    """
+    The dists can show bimodal distribution if they come from a mate-pair
+    library. Assume bimodal distribution and then separate the two peaks. Based
+    on the percentage in each peak, we can decide if it is indeed one peak or
+    two peaks, and report the median respectively.
+    """
+    peak0 = [d for d in dists if d < cutoff]
+    peak1 = [d for d in dists if d >= cutoff]
+    c0, c1 = len(peak0), len(peak1)
+    logging.debug("Component counts: {0} {1}".format(c0, c1))
+    if c0 == 0 or c1 == 0 or float(c1) / len(dists) < alpha:
+        logging.debug("Single peak identified ({0} / {1} < {2})".\
+                        format(c1, len(dists), alpha))
+        return np.median(dists)
+
+    peak0_median = np.median(peak0)
+    peak1_median = np.median(peak1)
+    logging.debug("Dual peaks identified: {0}bp ({1}), {2}bp ({3}) (selected)".\
+                format(int(peak0_median), c0, int(peak1_median), c1))
+
+    return peak1_median
+
+
 def report_pairs(data, cutoff=0, mateorientation=None,
         pairsfile=None, insertsfile=None, rclip=1, ascii=False, bins=20,
-        distmode="ss"):
+        distmode="ss", mpcutoff=1000):
     """
     This subroutine is used by the pairs function in blast.py and cas.py.
     Reports number of fragments and pairs as well as linked pairs
     """
-    import numpy as np
-
     allowed_mateorientations = ("++", "--", "+-", "-+")
 
     if mateorientation:
@@ -1204,7 +1226,7 @@ def report_pairs(data, cutoff=0, mateorientation=None,
     # try to infer cutoff as twice the median until convergence
     if cutoff <= 0:
         dists = np.array([x[0] for x in all_dist], dtype="int")
-        p0 = np.median(dists)
+        p0 = analyze_dists(dists, cutoff=mpcutoff)
         cutoff = int(2 * p0)  # initial estimate
         cutoff = int(math.ceil(cutoff / bins)) * bins
         logging.debug("Insert size cutoff set to {0}, ".format(cutoff) +
@@ -1212,6 +1234,8 @@ def report_pairs(data, cutoff=0, mateorientation=None,
 
     for dist, orientation, aquery, bquery in all_dist:
         if dist > cutoff:
+            continue
+        if cutoff > 2 * mpcutoff and dist < mpcutoff:
             continue
 
         linked_dist.append(dist)

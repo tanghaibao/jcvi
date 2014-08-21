@@ -293,7 +293,7 @@ def pairs(args):
         tag = "MP" if median > 1000 else "PE"
         median = str(median)
         pf, sf = median[:2], median[2:]
-        if int(sf) != 0:
+        if sf and int(sf) != 0:
             pf = str(int(pf) + 1)  # Get the first two effective digits
         lib = "{0}-{1}".format(tag, pf.ljust(len(median), '0'))
         for i, xp in enumerate(p):

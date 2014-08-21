@@ -17,7 +17,6 @@ from jcvi.graphics.base import plt, savefig, normalize_axes, Rectangle, latex
 
 from Image import open as iopen
 from wand.image import Image
-from scipy.cluster.vq import vq, kmeans
 from scipy.ndimage import binary_fill_holes, distance_transform_edt
 from scipy.optimize import fmin_bfgs as fmin
 from skimage.color import gray2rgb, rgb2gray
@@ -30,7 +29,7 @@ from jcvi.utils.counter import Counter
 from jcvi.utils.webcolors import rgb_to_hex, closest_color, \
                 normalize_integer_triplet
 from jcvi.formats.base import must_open
-from jcvi.algorithms.formula import reject_outliers
+from jcvi.algorithms.formula import reject_outliers, get_kmeans
 from jcvi.apps.tesseract import image_to_string
 from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher, \
                 iglob, mkdir, datadir
@@ -198,14 +197,6 @@ def calibrate(args):
     logging.debug("Calibration specs written to `{0}`.".format(jsonfile))
 
     return jsonfile
-
-
-def get_kmeans(a, k, iter=100):
-    a = np.array(a)
-    centroids, _ = kmeans(a, k, iter=iter)
-    centroids.sort()
-    idx, _ = vq(a, centroids)
-    return idx
 
 
 def add_seeds_options(p, args):

@@ -88,11 +88,21 @@ def reject_outliers(a, threshold=3.5):
         return np.zeros(len(a), dtype=bool)
 
     A = np.array(a, dtype=float)
+    lb, ub = outlier_cutoff(A, threshold=threshold)
+    return np.logical_or(A > ub, A < lb)
+
+
+def outlier_cutoff(a, threshold=3.5):
+    """
+    Iglewicz and Hoaglin's robust, returns the cutoff values - lower bound and
+    upper bound.
+    """
+    A = np.array(a, dtype=float)
     M = np.median(A)
     D = np.absolute(A - M)
     MAD = np.median(D)
-    Mi = np.absolute(0.6745 * (A - M) / MAD)
-    return Mi > threshold
+    C = threshold / .6745 * MAD
+    return M - C, M + C
 
 
 def recomb_probability(cM, method="kosambi"):

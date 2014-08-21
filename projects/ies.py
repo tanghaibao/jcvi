@@ -14,6 +14,7 @@ from jcvi.utils.counter import Counter
 from jcvi.utils.range import Range, range_interleave, range_chain
 from jcvi.formats.bed import Bed, sort, depth, some, mergeBed
 from jcvi.formats.base import must_open
+from jcvi.algorithms.formula import outlier_cutoff
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh
 
 
@@ -194,16 +195,20 @@ def deletion(args):
         sort([countbedfile, "-i", sort_tmpdir])
 
     # Remove deletions that contain some read depth
-    validbedfile = pf + ".valid.bed"
-    if need_update((sortedbedfile, countbedfile), validbedfile):
-        depthbedfile = pf + ".depth.bed"
+    depthbedfile = pf + ".depth.bed"
+    if need_update((sortedbedfile, countbedfile), depthbedfile):
         depth([sortedbedfile, countbedfile, "--outfile={0}".format(depthbedfile)])
 
+    validbedfile = pf + ".valid.bed"
+    if need_update(depthbedfile, validbedfile):
         fw = open(validbedfile, "w")
         logging.debug("Filter valid deletions to `{0}`.".format(validbedfile))
         bed = Bed(depthbedfile)
+        all_scores = [float(b.score) for b in bed]
+        lb, ub = outlier_cutoff(all_scores)
+        logging.debug("Bounds for depths: LB={0:.2f} (ignored)  UB={1:.2f}".format(lb, ub))
         for b in bed:
-            if float(b.score) >= 1:
+            if float(b.score) > ub:
                 continue
             print >> fw, b
         fw.close()

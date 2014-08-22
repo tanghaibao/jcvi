@@ -408,6 +408,13 @@ def adjust_spines(ax, spines):
         ax.xaxis.set_ticks_position('top')
 
 
+def set_ticklabels_helvetica(ax, xcast=int, ycast=int):
+    xticklabels = [xcast(x) for x in ax.get_xticks()]
+    yticklabels = [ycast(x) for x in ax.get_yticks()]
+    ax.set_xticklabels(xticklabels, family='Helvetica')
+    ax.set_yticklabels(yticklabels, family='Helvetica')
+
+
 def draw_cmap(ax, cmap_text, vmin, vmax, cmap=None, reverse=False):
     # Draw a horizontal colormap at bottom-right corder of the canvas
     Y = np.outer(np.ones(10), np.arange(0, 1, 0.01))

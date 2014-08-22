@@ -49,13 +49,15 @@ def variation(args):
     Associate IES in parents and progeny.
     """
     p = OptionParser(variation.__doc__)
-    opts, args, iopts = p.set_image_options(args, figsize="5x5")
+    p.add_option("--diversity", choices=("breakpoint", "variant"),
+                 default="variant", help="Plot diversity")
+    opts, args, iopts = p.set_image_options(args, figsize="6x6")
 
     if len(args) != 3:
         sys.exit(not p.print_help())
 
     pfs = [op.basename(x).split('-')[0] for x in args]
-    F1 = pfs[-1]
+    P1, P2, F1 = pfs
     newbedfile = "-".join(pfs) + ".bed"
     if need_update(args, newbedfile):
         newbed = Bed()
@@ -67,11 +69,13 @@ def variation(args):
                 newbed.append(b)
         newbed.print_to_file(newbedfile, sorted=True)
 
+    neworder = Bed(newbedfile).order
     mergedbedfile = mergeBed(newbedfile, nms=True)
     bed = Bed(mergedbedfile)
     valid = 0
     total_counts = Counter()
     F1_counts = []
+    bp_diff = []
     for b in bed:
         accns = b.accn.split(',')
         pfs_accns = [x.split("-")[0] for x in accns]
@@ -83,6 +87,17 @@ def variation(args):
         total_counts += pfs_counts
         F1_counts.append(pfs_counts[F1])
 
+        # Collect breakpoint positions between P1 and F1
+        P1_accns = [x for x in accns if x.split("-")[0] == P1]
+        F1_accns = [x for x in accns if x.split("-")[0] == F1]
+        if len(P1_accns) != 1:
+            continue
+
+        ri, ref = neworder[P1_accns[0]]
+        P1_accns = [neworder[x][-1] for x in F1_accns]
+        bp_diff.extend(x.start - ref.start for x in P1_accns)
+        bp_diff.extend(x.end - ref.end for x in P1_accns)
+
     print >> sys.stderr, \
             "A total of {0} sites show consistent deletions across samples.".\
                     format(percentage(valid, len(bed)))
@@ -92,20 +107,43 @@ def variation(args):
 
     F1_counts = Counter(F1_counts)
 
-    from jcvi.graphics.base import plt, savefig
+    # Plot the IES variant number diversity
+    from jcvi.graphics.base import plt, savefig, set_ticklabels_helvetica
 
     fig = plt.figure(1, (iopts.w, iopts.h))
-    left, height = zip(*sorted(F1_counts.items()))
-    for l, h in zip(left, height):
-        print >> sys.stderr, "{0:>9} variants: {1}".format(l, h)
-        plt.text(l, h + 5, str(h), color="darkslategray", size=8,
-                 ha="center", va="bottom", rotation=90)
+    if opts.diversity == "variant":
+        left, height = zip(*sorted(F1_counts.items()))
+        for l, h in zip(left, height):
+            print >> sys.stderr, "{0:>9} variants: {1}".format(l, h)
+            plt.text(l, h + 5, str(h), color="darkslategray", size=8,
+                     ha="center", va="bottom", rotation=90)
 
-    plt.bar(left, height, align="center")
-    plt.xlabel("Identified number of IES per site")
-    plt.ylabel("Count")
-    plt.title("IES variation in progeny pool")
-    savefig(F1 + ".counts.pdf")
+        plt.bar(left, height, align="center")
+        plt.xlabel("Identified number of IES per site")
+        plt.ylabel("Counts")
+        plt.title("IES variation in progeny pool")
+        ax = plt.gca()
+        set_ticklabels_helvetica(ax)
+        savefig(F1 + ".counts.pdf")
+
+    # Plot the IES breakpoint position diversity
+    else:
+        bp_diff = Counter(bp_diff)
+        fig = plt.figure(1, (iopts.w, iopts.h))
+        left, height = zip(*sorted(bp_diff.items()))
+        plt.bar(left, height, align="center")
+        plt.xlabel("Progeny breakpoint relative to SB210")
+        plt.ylabel("Counts")
+        plt.xlim(-20, 20)
+        ax = plt.gca()
+        set_ticklabels_helvetica(ax)
+        savefig(F1 + ".breaks.pdf")
+
+        total = sum(height)
+        zeros = bp_diff[0]
+        within_20 = sum([v for i, v in bp_diff.items() if -20 <= i <= 20])
+        print >> sys.stderr, "No deviation: {0}".format(percentage(zeros, total))
+        print >> sys.stderr, " Within 20bp: {0}".format(percentage(within_20, total))
 
 
 def insertionpairs(args):

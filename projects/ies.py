@@ -5,16 +5,18 @@
 Locate IES sequences within MIC genome of tetrahymena.
 """
 
+import os.path as op
 import sys
 import logging
 
 from itertools import groupby
 
-from jcvi.utils.counter import Counter
-from jcvi.utils.range import Range, range_interleave, range_chain
+from jcvi.algorithms.formula import outlier_cutoff
 from jcvi.formats.bed import Bed, sort, depth, some, mergeBed
 from jcvi.formats.base import must_open
-from jcvi.algorithms.formula import outlier_cutoff
+from jcvi.utils.counter import Counter
+from jcvi.utils.range import Range, range_interleave, range_chain
+from jcvi.utils.cbook import percentage
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh
 
 
@@ -34,9 +36,76 @@ def main():
         ('deletion', 'find IES based on mapping MAC reads'),
         ('insertion', 'find IES excision points based on mapping MIC reads'),
         ('insertionpairs', 'pair up the candidate insertions'),
+        ('variation', 'associate IES in parents and progeny'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def variation(args):
+    """
+    %prog variation P1.bed P2.bed F1.bed
+
+    Associate IES in parents and progeny.
+    """
+    p = OptionParser(variation.__doc__)
+    opts, args, iopts = p.set_image_options(args, figsize="5x5")
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    pfs = [op.basename(x).split('-')[0] for x in args]
+    F1 = pfs[-1]
+    newbedfile = "-".join(pfs) + ".bed"
+    if need_update(args, newbedfile):
+        newbed = Bed()
+        for pf, filename in zip(pfs, args):
+            bed = Bed(filename)
+            for b in bed:
+                b.accn = "-".join((pf, b.accn))
+                b.score = None
+                newbed.append(b)
+        newbed.print_to_file(newbedfile, sorted=True)
+
+    mergedbedfile = mergeBed(newbedfile, nms=True)
+    bed = Bed(mergedbedfile)
+    valid = 0
+    total_counts = Counter()
+    F1_counts = []
+    for b in bed:
+        accns = b.accn.split(',')
+        pfs_accns = [x.split("-")[0] for x in accns]
+        pfs_counts = Counter(pfs_accns)
+        if len(pfs_counts) != 3:
+            continue
+
+        valid += 1
+        total_counts += pfs_counts
+        F1_counts.append(pfs_counts[F1])
+
+    print >> sys.stderr, \
+            "A total of {0} sites show consistent deletions across samples.".\
+                    format(percentage(valid, len(bed)))
+    for pf, count in total_counts.items():
+        print >> sys.stderr, "{0:>9}: {1:.2f} deletions/site".\
+                    format(pf, count * 1. / valid)
+
+    F1_counts = Counter(F1_counts)
+
+    from jcvi.graphics.base import plt, savefig
+
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    left, height = zip(*sorted(F1_counts.items()))
+    for l, h in zip(left, height):
+        print >> sys.stderr, "{0:>9} variants: {1}".format(l, h)
+        plt.text(l, h + 5, str(h), color="darkslategray", size=8,
+                 ha="center", va="bottom", rotation=90)
+
+    plt.bar(left, height, align="center")
+    plt.xlabel("Identified number of IES per site")
+    plt.ylabel("Count")
+    plt.title("IES variation in progeny pool")
+    savefig(F1 + ".counts.pdf")
 
 
 def insertionpairs(args):

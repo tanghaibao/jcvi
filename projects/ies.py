@@ -76,11 +76,14 @@ def variation(args):
     total_counts = Counter()
     F1_counts = []
     bp_diff = []
+    novelbedfile = "novel.bed"
+    fw = open(novelbedfile, "w")
     for b in bed:
         accns = b.accn.split(',')
         pfs_accns = [x.split("-")[0] for x in accns]
         pfs_counts = Counter(pfs_accns)
         if len(pfs_counts) != 3:
+            print >> fw, b
             continue
 
         valid += 1

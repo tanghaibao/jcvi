@@ -211,6 +211,11 @@ def readlen(args):
         sys.exit(not p.print_help())
 
     f, = args
+    fq = f.replace(".gz", "") if f.endswith(".gz") else f
+    if not any((fq.endswith(".fastq"), fq.endswith(".fq"))):
+        logging.debug("File `{0}` does not endswith .fastq or .fq")
+        return 0
+
     s = calc_readlen(f, opts.firstN)
     if not opts.silent:
         print "\t".join(str(x) for x in (f, s.min, s.max, s.mean))

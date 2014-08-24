@@ -52,7 +52,7 @@ P={0}
 K={1}
 S=soap.config
 G=soap.gc.config
-C=SOAPdenovo-63mer_v2.0
+C={2}
 A=asm$K
 """
 
@@ -68,8 +68,8 @@ $C scaff -g $A -F -p $P
 
 SCFRUN = """
 prepare -K $K -c %s -g $A
-SOAPdenovo-63mer map -s $S -g $A -p $P
-SOAPdenovo-63mer_v2.0 scaff -z -g $A -F -p $P
+$C map -s $S -g $A -p $P
+$C scaff -z -g $A -F -p $P
 """ + GCRUN
 
 
@@ -238,6 +238,7 @@ def prepare(args):
         sys.exit(not p.print_help())
 
     fnames = args
+    K = opts.K
     for x in fnames:
         assert op.exists(x), "File `{0}` not found.".format(x)
 
@@ -301,7 +302,9 @@ def prepare(args):
 
     runfile = "run.sh"
     scaffold = opts.scaffold
-    header = SOAPHEADER.format(opts.cpus, opts.K)
+    bb = 63 if K <= 63 else 127
+    binary = "SOAPdenovo-{0}mer".format(bb)
+    header = SOAPHEADER.format(opts.cpus, K, binary)
     if opts.gapclose:
         gapclose = opts.gapclose
         outfile = gapclose.rsplit(".", 1)[0] + ".closed.fasta"

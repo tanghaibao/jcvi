@@ -8,7 +8,7 @@ Script to write and assist SOAPdenovo assembly.
 import os.path as op
 import sys
 
-from jcvi.formats.fastq import guessoffset, readlen
+from jcvi.formats.fastq import guessoffset, readlen, is_fastq
 from jcvi.assembly.base import FastqNamings, Library, get_libs
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh
 
@@ -292,7 +292,8 @@ def prepare(args):
 
         if rank == 1:
             for s in singletons:
-                block += "q={0}\n".format(s)
+                tag = "q" if is_fastq(s) else "f"
+                block += tag + "={0}\n".format(s)
 
         print >> sys.stderr, block
         print >> fw, block

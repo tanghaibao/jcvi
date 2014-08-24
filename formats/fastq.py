@@ -194,6 +194,11 @@ def calc_readlen(f, first):
     return s
 
 
+def is_fastq(f):
+    fq = f.replace(".gz", "") if f.endswith(".gz") else f
+    return any((fq.endswith(".fastq"), fq.endswith(".fq")))
+
+
 def readlen(args):
     """
     %prog readlen fastqfile
@@ -211,8 +216,7 @@ def readlen(args):
         sys.exit(not p.print_help())
 
     f, = args
-    fq = f.replace(".gz", "") if f.endswith(".gz") else f
-    if not any((fq.endswith(".fastq"), fq.endswith(".fq"))):
+    if not is_fastq(f):
         logging.debug("File `{0}` does not endswith .fastq or .fq")
         return 0
 

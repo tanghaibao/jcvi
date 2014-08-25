@@ -9,7 +9,7 @@ import os.path as op
 import sys
 import logging
 
-from jcvi.graphics.base import plt, asciiplot, set_human_axis, savefig
+from jcvi.graphics.base import plt, asciiplot, set_human_axis, savefig, markup
 from jcvi.formats.fasta import Fasta
 from jcvi.formats.base import must_open
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, \
@@ -555,7 +555,7 @@ def histogram(args):
     ymin, ymax = ax.get_ylim()
     ymax = ymax * 7 / 6
 
-    ax.set_title(title, color='r')
+    ax.set_title(markup(title), color='r')
     ax.set_ylim((ymin, ymax))
     xlabel, ylabel = "Coverage (X)", "Counts"
     ax.set_xlabel(xlabel, color='r')

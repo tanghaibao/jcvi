@@ -546,11 +546,11 @@ def histogram(args):
 
     tc = "gray"
     axt = ax.transAxes
-    ax.text(.05, .95, Total_Kmers_msg, color=tc, transform=axt)
-    ax.text(.05, .9, Kmer_coverage_msg, color=tc, transform=axt)
-    ax.text(.05, .85, Genome_size_msg, color=tc, transform=axt)
-    ax.text(.05, .8, Repetitive_msg, color=tc, transform=axt)
-    ax.text(.05, .75, SNPrate_msg, color=tc, transform=axt)
+    ax.text(.95, .95, Total_Kmers_msg, color=tc, transform=axt, ha="right")
+    ax.text(.95, .9, Kmer_coverage_msg, color=tc, transform=axt, ha="right")
+    ax.text(.95, .85, Genome_size_msg, color=tc, transform=axt, ha="right")
+    ax.text(.95, .8, Repetitive_msg, color=tc, transform=axt, ha="right")
+    ax.text(.95, .75, SNPrate_msg, color=tc, transform=axt, ha="right")
 
     ymin, ymax = ax.get_ylim()
     ymax = ymax * 7 / 6

@@ -646,7 +646,7 @@ def bins(args):
     bedfile, fastafile = args
     subtract = opts.subtract
     mode = opts.mode
-    assert op.exists(bedfile)
+    assert op.exists(bedfile), "File `{0}` not found".format(bedfile)
 
     binsize = opts.binsize
     binfile = bedfile + ".{0}".format(binsize)
@@ -696,7 +696,7 @@ def bins(args):
             if mode == "score":
                 a[startbin:endbin + 1] += float(bb.score)
 
-            elif mode == "base":
+            elif mode == "span":
                 if startbin == endbin:
                     a[startbin] += end - start + 1
 
@@ -813,7 +813,12 @@ def mergeBed(bedfile, d=0, nms=False, s=False, scores=None):
     if d:
         cmd += " -d {0}".format(d)
     if nms:
-        cmd += " -c 4 -o collapse"
+        nargs = len(open(bedfile).readline().split())
+        if nargs <= 3:
+            logging.debug("Only {0} columns detected... set nms=True"\
+                            .format(nargs))
+        else:
+            cmd += " -c 4 -o collapse"
     if s:
         cmd += " -s"
     if scores:

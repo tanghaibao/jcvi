@@ -7,7 +7,9 @@ and sorghum paper.
 """
 
 
+import os.path as op
 import sys
+import logging
 
 import numpy as np
 
@@ -91,6 +93,8 @@ def check_window_options(opts):
     shift = opts.shift
     subtract = opts.subtract
     assert window % shift == 0, "--window must be divisible by --shift"
+    logging.debug("Line/stack-plot options: window={0} shift={1} subtract={2}".\
+                    format(window, shift, subtract))
 
     return window, shift, subtract
 
@@ -289,8 +293,8 @@ def heatmap(args):
     heatmaps = opts.heatmaps.split(",")
     stackbeds = get_beds(stacks)
     heatmapbeds = get_beds(heatmaps)
-    stackbins = get_binfiles(stackbeds, fastafile, shift, subtract)
-    heatmapbins = get_binfiles(heatmapbeds, fastafile, shift, subtract)
+    stackbins = get_binfiles(stackbeds, fastafile, shift, subtract=subtract)
+    heatmapbins = get_binfiles(heatmapbeds, fastafile, shift, subtract=subtract)
 
     margin = .06
     inner = .015
@@ -395,7 +399,6 @@ def draw_gauge(ax, margin, maxl, rightmargin=None, optimal=7):
         l = human_size(i, precision=0, target=target)
         if l[-1] == 'b':
             l, suffix = l[:-2], l[-2:]
-
         ax.plot([xx, xx], [yy, yy + tip], "k-", lw=2)
         ax.text(xx, yy + 2 * tip, l, ha="center", size=13)
         xx += xinterval
@@ -411,7 +414,7 @@ def get_binfiles(bedfiles, fastafile, shift, mode="span", subtract=None):
     binopts.append("--mode={0}".format(mode))
     if subtract:
         binopts.append("--subtract={0}".format(subtract))
-    binfiles = [bins([x, fastafile] + binopts) for x in bedfiles]
+    binfiles = [bins([x, fastafile] + binopts) for x in bedfiles if op.exists(x)]
     binfiles = [BinFile(x) for x in binfiles]
 
     return binfiles

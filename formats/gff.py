@@ -1244,7 +1244,7 @@ def uniq(args):
             continue
         allgenes.append(g)
 
-    logging.debug("A total of {0} `{1}` features imported.".format(len(allgenes), type))
+    logging.debug("A total of {0} {1} features imported.".format(len(allgenes), type))
     allgenes.sort(key=lambda x: (x.seqid, x.start))
 
     g = get_piles(allgenes)
@@ -1298,7 +1298,7 @@ def uniq(args):
 
 def populate_children(outfile, ids, gffile, otype=None, iter="2"):
     fw = must_open(outfile, "w")
-    logging.debug("A total of `{0}` {1} features selected.".format(len(ids), otype))
+    logging.debug("A total of {0} {1} features selected.".format(len(ids), otype))
     logging.debug("Populate children. Iteration 1..")
     gff = Gff(gffile)
     children = set()
@@ -1776,6 +1776,8 @@ def bed(args):
     Parses the start, stop locations of the selected features out of GFF and
     generate a bed file
     '''
+    from jcvi.utils.cbook import gene_name
+
     p = OptionParser(bed.__doc__)
     p.add_option("--type", dest="type", default="gene",
             help="Feature type to extract, use comma for multiple [default: %default]")
@@ -1789,6 +1791,7 @@ def bed(args):
             help="Append GFF source name to extracted key value")
     p.add_option("--nosort", default=False, action="store_true",
             help="Do not sort the output bed file [default: %default]")
+    p.set_stripnames(default=False)
     p.set_outfile()
 
     opts, args = p.parse_args(args)
@@ -1797,6 +1800,7 @@ def bed(args):
 
     gffile, = args
     key = opts.key
+    strip_names = opts.strip_names
     if key == "None":
         key = None
 
@@ -1812,7 +1816,10 @@ def bed(args):
         if g.type not in type or (source and g.source not in source):
             continue
 
-        b.append(g.bedline)
+        bl = g.bedline
+        if strip_names:
+            bl.accn = gene_name(bl.accn)
+        b.append(bl)
 
     sorted = not opts.nosort
     b.print_to_file(opts.outfile, sorted=sorted)

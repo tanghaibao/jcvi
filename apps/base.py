@@ -53,7 +53,8 @@ class ActionDispatcher (object):
         max_action_len = max(len(action) for action, ah in self.actions)
         for action, action_help in sorted(self.actions):
             action = action.rjust(max_action_len + 4)
-            help += " | ".join((action, action_help.capitalize())) + '\n'
+            help += " | ".join((action, action_help[0].upper() + \
+                                        action_help[1:])) + '\n'
 
         sys.stderr.write(help)
         sys.exit(1)
@@ -224,10 +225,16 @@ class OptionParser (OptionP):
         self.add_option("--port", type="int",
                 help="Specify port number [default: %default]")
 
-    def set_stripnames(self):
-        self.add_option("--no_strip_names", dest="strip_names",
+    def set_stripnames(self, default=True):
+        if default:
+            self.add_option("--no_strip_names", dest="strip_names",
                 action="store_false", default=True,
                 help="do not strip alternative splicing "
+                "(e.g. At5g06540.1 -> At5g06540)")
+        else:
+            self.add_option("--strip_names",
+                action="store_true", default=False,
+                help="strip alternative splicing "
                 "(e.g. At5g06540.1 -> At5g06540)")
 
     def set_fixchrnames(self, orgn="medicago"):

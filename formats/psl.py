@@ -34,9 +34,9 @@ class PslLine(object):
         self.qSize = int(args[10])
         self.qStart = int(args[11])
         self.qEnd = int(args[12])
-        if self.qstrand == "-":
-            self.qStart, self.qEnd = self.qSize - self.qEnd, \
-                    self.qSize - self.qStart
+##        if self.qstrand == "-":
+##            self.qStart, self.qEnd = self.qSize - self.qEnd, \
+##                    self.qSize - self.qStart
         self.tName = args[13]
         self.tSize = int(args[14])
         self.tStart = int(args[15])
@@ -44,8 +44,9 @@ class PslLine(object):
         self.blockCount = int(args[17])
         self.blockSizes = [int(x) for x in args[18].strip().split(',')[:-1]]
         self.qStarts = [int(x) for x in args[19].strip().split(',')[:-1]]
-        self.tStarts = [self.tSize - int(x) if self.strand == "-" \
-                else int(x) for x in args[20].strip().split(',')[:-1]]
+        self.tStarts = [int(x) for x in args[20].strip().split(',')[:-1]]
+##        self.tStarts = [self.tSize - int(x) if self.strand == "-" \
+##                else int(x) for x in args[20].strip().split(',')[:-1]]
 
     def __str__(self):
         args = [self.matches, self.misMatches, self.repMatches, \
@@ -272,18 +273,14 @@ def gff(args):
 
         nparts = len(p.qStarts)
         for n in xrange(nparts):
-            part.qStart, part.tStart, aLen = p.qStarts[n], p.tStarts[n], p.blockSizes[n]
-            part.qEnd = part.qStart + aLen
-            part.tEnd = part.tStart + aLen
-
-            part.qStart += 1
-            part.tStart += 1
+            part.qStart, part.tStart, aLen = p.qStarts[n] + 1, p.tStarts[n] + 1, p.blockSizes[n]
+            part.qEnd = part.qStart + aLen - 1
+            part.tEnd = part.tStart + aLen - 1
 
             if part.strand == "-":
-                part.aLen = p.blockSizes[n]
-                part.qStart = p.qStarts[n]
-                part.qEnd = part.qStart + part.aLen
-                part.qStart += 1
+                part.qStart = p.qSize - (p.qStarts[n] + p.blockSizes[n]) + 1
+                part.qEnd = p.qSize - p.qStarts[n]
+
             print >> fw, part.gffline(source=opts.source, suffix=opts.suffix, \
                     count=psl.getMatchCount(part.qName))
 

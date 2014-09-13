@@ -124,7 +124,7 @@ def main():
         ('consensus', 'convert bam alignments to consensus FASTA'),
         ('fpkm', 'calculate FPKM values from BAM file'),
         ('coverage', 'calculate depth for BAM file'),
-        ('bcf', 'run mpileup on a set of bam files'),
+        ('vcf', 'call SNPs on a set of bam files'),
         ('mapped', 'extract mapped/unmapped reads from samfile'),
         ('count', 'count the number of reads mapped using htseq'),
         ('merge', 'merge bam files'),
@@ -222,27 +222,32 @@ def coverage(args):
     Calculate coverage for BAM file. BAM file must be sorted.
     """
     p = OptionParser(coverage.__doc__)
-    p.add_option("--bigwig", default=False, action="store_true",
-                 help="Generate .bigwig format")
+    p.add_option("--format", default="bigwig",
+                 choices=("bedgraph", "bigwig", "coverage"),
+                 help="Output format")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
         sys.exit(not p.print_help())
 
     fastafile, bamfile = args
+    format = opts.format
     pf = bamfile.rsplit(".", 2)[0]
     sizesfile = Sizes(fastafile).filename
     cmd = "genomeCoverageBed -ibam {0} -g {1}".format(bamfile, sizesfile)
-    if opts.bigwig:
+    if format in ("bedgraph", "bigwig"):
         cmd += " -bg"
         bedgraphfile = pf + ".bedgraph"
         sh(cmd, outfile=bedgraphfile)
+
+        if format == "bedgraph":
+            return bedgraphfile
 
         bigwigfile = pf + ".bigwig"
         cmd = "bedGraphToBigWig {0} {1} {2}".\
                     format(bedgraphfile, sizesfile, bigwigfile)
         sh(cmd)
-        return
+        return bigwigfile
 
     coveragefile = pf + ".coverage"
     if need_update(fastafile, coveragefile):
@@ -315,6 +320,8 @@ def consensus(args):
     p = OptionParser(consensus.__doc__)
     p.add_option("--fasta", default=False, action="store_true",
             help="Generate consensus FASTA sequences [default: %default]")
+    p.add_option("--mask", default=0, type="int",
+            help="Mask bases with quality lower than")
     opts, args = p.parse_args(args)
 
     if len(args) < 2:
@@ -323,27 +330,28 @@ def consensus(args):
     fastafile, bamfile = args
     fasta = opts.fasta
     suffix = "fasta" if fasta else "fastq"
-    cnsfile = bamfile.rsplit(".", 1)[0] + ".cns.{0}".format(suffix)
-    cmd = "samtools mpileup -uf {0} {1}".format(fastafile, bamfile)
-    cmd += " | bcftools view -cg -"
-    cmd += " | vcfutils.pl vcf2fq"
+    pf = bamfile.rsplit(".", 1)[0]
+    cnsfile = pf + ".cns.{0}".format(suffix)
+    vcfgzfile = pf + ".vcf.gz"
+    vcf([fastafile, bamfile, "-o", vcfgzfile])
+    cmd += "zcat {0} | vcfutils.pl vcf2fq".format(vcfgzfile)
     if fasta:
-        cmd += " | seqtk fq2fa - 20"
+        cmd += " | seqtk seq -q {0} -A -".format(opts.mask)
 
     sh(cmd, outfile=cnsfile)
 
 
-def bcf(args):
+def vcf(args):
     """
-    %prog bcf fastafile bamfiles > bcffile
+    %prog vcf fastafile bamfiles > out.vcf.gz
 
-    Run mpileup on bam files.
+    Call SNPs on bam files.
     """
     from jcvi.apps.grid import Jobs
 
     valid_callers = ("mpileup", "freebayes")
-    p = OptionParser(bcf.__doc__)
-    p.set_outfile()
+    p = OptionParser(vcf.__doc__)
+    p.set_outfile(outfile="out.vcf.gz")
     p.add_option("--nosort", default=False, action="store_true",
                  help="Do not sort the BAM files")
     p.add_option("--caller", default="mpileup", choices=valid_callers,
@@ -368,9 +376,9 @@ def bcf(args):
         bamfiles = [x.replace(".bam", ".sorted.bam") for x in bamfiles]
 
     if caller == "mpileup":
-        cmd = "samtools mpileup -P ILLUMINA -E -ugDf"
+        cmd = "samtools mpileup -E -uf"
         cmd += " {0} {1}".format(fastafile, " ".join(bamfiles))
-        cmd += " | bcftools view -bcvg -"
+        cmd += " | bcftools call -vmO v"
     elif caller == "freebayes":
         cmd = "freebayes -f"
         cmd += " {0} {1}".format(fastafile, " ".join(bamfiles))

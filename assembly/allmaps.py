@@ -659,6 +659,10 @@ def merge(args):
     scaffold_759,81336,1,49.7317510625759
     """
     p = OptionParser(merge.__doc__)
+    p.add_option("-w", "--weightsfile", default="weights.txt",
+                 help="Write weights to file")
+    p.add_option("-p", "--prefix", default="out",
+                 help="Write ALLMAPS input bed file with prefix")
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -666,7 +670,7 @@ def merge(args):
         sys.exit(not p.print_help())
 
     maps = args
-    outfile = opts.outfile
+    outfile = opts.prefix + ".bed"
     fp = must_open(maps)
     b = Bed()
     mapnames = set()
@@ -688,7 +692,7 @@ def merge(args):
                         format(len(b), outfile))
 
     assert len(maps) == len(mapnames), "You have a collision in map names"
-    write_weightsfile(mapnames)
+    write_weightsfile(mapnames, weightsfile=opts.weightsfile)
 
 
 def mergebed(args):
@@ -698,14 +702,17 @@ def mergebed(args):
     Combine bed maps to bed format, adding the map name.
     """
     p = OptionParser(mergebed.__doc__)
-    p.set_outfile()
+    p.add_option("-w", "--weightsfile", default="weights.txt",
+                 help="Write weights to file")
+    p.add_option("-p", "--prefix", default="out",
+                 help="Write ALLMAPS input bed file with prefix")
     opts, args = p.parse_args(args)
 
     if len(args) < 1:
         sys.exit(not p.print_help())
 
     maps = args
-    outfile = opts.outfile
+    outfile = opts.prefix + ".bed"
     fp = must_open(maps)
     b = Bed()
     mapnames = set()
@@ -725,7 +732,7 @@ def mergebed(args):
                         format(len(b), outfile))
 
     assert len(maps) == len(mapnames), "You have a collision in map names"
-    write_weightsfile(mapnames)
+    write_weightsfile(mapnames, weightsfile=opts.weightsfile)
 
 
 def write_weightsfile(mapnames, weightsfile="weights.txt"):
@@ -757,7 +764,7 @@ def get_function(field):
 
 def path(args):
     """
-    %prog path map.bed weights.txt scaffolds.fasta
+    %prog path prefix scaffolds.fasta
 
     Construct golden path given a set of genetic maps. The respective weight for
     each map is given in file `weights.txt`. The map with the highest weight is
@@ -766,6 +773,8 @@ def path(args):
     """
     oargs = args
     p = OptionParser(path.__doc__)
+    p.add_option("-w", "--weightsfile", default="weights.txt",
+                 help="Use weights from file")
     p.add_option("--distance", default="rank", choices=distance_choices,
                  help="Distance function when building initial consensus")
     p.add_option("--linkage", default="double", choices=linkage_choices,
@@ -780,10 +789,12 @@ def path(args):
     p.set_cpus(cpus=8)
     opts, args = p.parse_args(args)
 
-    if len(args) != 3:
+    if len(args) != 2:
         sys.exit(not p.print_help())
 
-    bedfile, weightsfile, fastafile = args
+    pf, fastafile = args
+    bedfile = pf + ".bed"
+    weightsfile = opts.weightsfile
     gapsize = opts.gapsize
     ngen = opts.ngen
     npop = opts.npop
@@ -854,7 +865,6 @@ def path(args):
         partitions[best_consensus].append(seqid)
 
     # Perform OO within each partition
-    pf = bedfile.rsplit(".", 1)[0]
     agpfile = pf + ".chr.agp"
     tourfile = pf + ".tour"
     sizes = Sizes(fastafile).mapping
@@ -909,7 +919,7 @@ def write_unplaced_agp(agpfile, scaffolds, unplaced_agp):
 
 def summary(args):
     """
-    %prog summary agpfile scaffolds.fasta map.bed
+    %prog summary prefix scaffolds.fasta
 
     Print out summary statistics per map, followed by consensus summary of
     scaffold anchoring based on multiple maps.
@@ -918,10 +928,12 @@ def summary(args):
     p.set_table(sep="|", align=True)
     opts, args = p.parse_args(args)
 
-    if len(args) != 3:
+    if len(args) != 2:
         sys.exit(not p.print_help())
 
-    chr_agp, scaffolds, mapbed = args
+    pf, scaffolds = args
+    mapbed = pf + ".bed"
+    chr_agp = pf + ".chr.agp"
     sep = opts.sep
     align = opts.align
     cc = Map(mapbed)
@@ -970,7 +982,7 @@ def summary(args):
 
 def build(args):
     """
-    %prog build agpfile scaffolds.fasta map.bed
+    %prog build prefix scaffolds.fasta
 
     Build associated genome FASTA file and CHAIN file that can be used to lift
     old coordinates to new coordinates. The CHAIN file will be used to lift the
@@ -980,11 +992,12 @@ def build(args):
     p = OptionParser(build.__doc__)
     opts, args = p.parse_args(args)
 
-    if len(args) != 3:
+    if len(args) != 2:
         sys.exit(not p.print_help())
 
-    chr_agp, scaffolds, mapbed = args
-    pf = chr_agp.split(".")[0]
+    pf, scaffolds = args
+    mapbed = pf + ".bed"
+    chr_agp = pf + ".chr.agp"
     chr_fasta = pf + ".chr.fasta"
     if need_update((chr_agp, scaffolds), chr_fasta):
         agp_build([chr_agp, scaffolds, chr_fasta])
@@ -1019,6 +1032,8 @@ def build(args):
 
 
 def add_allmaps_plot_options(p):
+    p.add_option("-w", "--weightsfile", default="weights.txt",
+                 help="Use weights from file")
     p.add_option("--distance", default="cM", choices=distance_choices,
                  help="Plot markers based on distance")
     p.add_option("--links", default=10, type="int",
@@ -1029,7 +1044,7 @@ def add_allmaps_plot_options(p):
 
 def plot(args):
     """
-    %prog plot seqid map.lifted.bed agpfile weightsfile
+    %prog plot prefix seqid
 
     Plot the matchings between the reconstructed pseudomolecules and the maps.
     Two types of visualizations are available in one canvas:
@@ -1046,10 +1061,13 @@ def plot(args):
     add_allmaps_plot_options(p)
     opts, args, iopts = p.set_image_options(args, figsize="10x6")
 
-    if len(args) != 4:
+    if len(args) != 2:
         sys.exit(not p.print_help())
 
-    seqid, bedfile, agpfile, weightsfile = args
+    pf, seqid = args
+    bedfile = pf + ".lifted.bed"
+    agpfile = pf + ".agp"
+    weightsfile = opts.weightsfile
     links = opts.links
 
     function = get_function(opts.distance)
@@ -1196,7 +1214,7 @@ def plot(args):
 
 def plotall(xargs):
     """
-    %prog plotall map.lifted.bed agpfile weightsfile
+    %prog plotall prefix
 
     Plot the matchings between the reconstructed pseudomolecules and the maps.
     This command will plot each reconstructed object (non-singleton).
@@ -1205,14 +1223,15 @@ def plotall(xargs):
     add_allmaps_plot_options(p)
     opts, args, iopts = p.set_image_options(xargs, figsize="10x6")
 
-    if len(args) != 3:
+    if len(args) != 1:
         sys.exit(not p.print_help())
 
-    mapsbed, agpfile, weightsfile = args
+    pf, = args
+    agpfile = pf + ".agp"
     agp = AGP(agpfile)
     objects = [ob for ob, lines in agp.iter_object() if len(lines) > 1]
     for seqid in sorted(objects):
-        plot([seqid] + xargs)
+        plot(xargs + [seqid])
 
 
 if __name__ == '__main__':

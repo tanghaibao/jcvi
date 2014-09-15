@@ -311,6 +311,8 @@ def filter(args):
                  help="Minimum feature length")
     p.add_option("--maxsize", default=1000000000, type="int",
                  help="Minimum feature length")
+    p.add_option("--minaccn", type="int",
+                 help="Minimum value of accn, useful to filter based on coverage")
     p.set_outfile()
 
     opts, args = p.parse_args(args)
@@ -322,6 +324,7 @@ def filter(args):
     fp = must_open(bedfile)
     fw = must_open(opts.outfile, "w")
     minsize, maxsize = opts.minsize, opts.maxsize
+    minaccn = opts.minaccn
     total = []
     keep = []
     for row in fp:
@@ -329,6 +332,8 @@ def filter(args):
         span = b.span
         total.append(span)
         if not minsize <= span <= maxsize:
+            continue
+        if minaccn and int(b.accn) < minaccn:
             continue
         print >> fw, b
         keep.append(span)

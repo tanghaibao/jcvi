@@ -6,7 +6,9 @@ Scripts for the ALLMAPS manuscript (un-published)
 """
 
 import sys
+import numpy as np
 
+from jcvi.assembly.allmaps import AGP, Map, GapEstimator, spearmanr
 from jcvi.graphics.base import plt, savefig, normalize_axes, panel_labels, set2
 from jcvi.apps.base import OptionParser, ActionDispatcher
 
@@ -22,32 +24,12 @@ def main():
     p.dispatch(globals())
 
 
-def get_splines(scatter_data, ceil=25 * 1e-6):
-    from scipy.interpolate import UnivariateSpline
-    from jcvi.algorithms.lis import longest_monotonic_subsequence as lms
-
-    mx, my = zip(*scatter_data)
-    yy, xx = zip(*lms(zip(my, mx)))  # filter with LMS
-    spl = UnivariateSpline(xx, yy)
-    spld = spl.derivative()
-
-    def spl_derivative(x, ceil=ceil):
-        s = abs(spld(x))
-        s[s > ceil] = ceil
-        return s
-
-    return spl, spl_derivative
-
-
 def estimategaps(args):
     """
-    %prog estimategaps JM-2 chr23 JMFemale-23
+    %prog estimategaps JM-4 chr1 JMMale-1
 
     Illustrate ALLMAPS gap estimation algorithm.
     """
-    import numpy as np
-    from jcvi.assembly.allmaps import AGP, Map, Scaffold, spearmanr
-
     p = OptionParser(estimategaps.__doc__)
     opts, args, iopts = p.set_image_options(args, figsize="6x6", dpi=300)
 
@@ -60,17 +42,11 @@ def estimategaps(args):
 
     function = lambda x: x.cm
     cc = Map(bedfile, function)
-    mm = cc.extract_mlg(mlg)
-    mlgsize = max(function(x) for x in mm)
-
     agp = AGP(agpfile)
-    agp = [x for x in agp if x.object == seqid]
-    pp = [x.object_beg for x in agp if not x.is_gap]
-    chrsize = max(x.object_end for x in agp)
 
-    s = Scaffold(seqid, cc)
-    scatter_data = [(x.pos, function(x)) for x in s.markers if x.mlg == mlg]
-    scatter_data.sort()
+    g = GapEstimator(cc, agp, seqid, mlg, function=function)
+    pp, chrsize, mlgsize = g.pp, g.chrsize, g.mlgsize
+    spl, f = g.get_splines()
 
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
@@ -80,16 +56,16 @@ def estimategaps(args):
     w, h = .7, .3
     t = np.linspace(0, chrsize, 1000)
     ax = fig.add_axes([xstart, ystart, w, h])
-    mx, my = zip(*scatter_data)
+    mx, my = zip(*g.scatter_data)
     rho = spearmanr(mx, my)
-    spl, f = get_splines(scatter_data)
 
     dsg = "g"
     ax.vlines(pp, 0, mlgsize, colors="beige")
     ax.plot(mx, my, ".", color=set2[3])
     ax.plot(t, spl(t), "-", color=dsg)
+    ax.text(.05, .95, mlg, va="top", transform=ax.transAxes)
     normalize_lms_axis(ax, xlim=chrsize, ylim=mlgsize,
-                       ylabel="Genetic distances (cM)")
+                       ylabel="Genetic distance (cM)")
     if rho < 0:
         ax.invert_yaxis()
 
@@ -101,7 +77,7 @@ def estimategaps(args):
     ax.plot(t, f(t), "-", lw=2, color=dsg)
     ax.plot(pp, f(pp), "o", mfc="w", mec=dsg, ms=5)
     normalize_lms_axis(ax, xlim=chrsize, ylim=25 * 1e-6, yfactor=1000000,
-                       ylabel="Recomb. rates\n(cM / Mb)")
+                       ylabel="Recomb. rate\n(cM / Mb)")
 
     labels = ((.05, .95, 'A'), (.05, .6, 'B'), (.05, .32, 'C'))
     panel_labels(root, labels)

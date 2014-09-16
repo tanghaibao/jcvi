@@ -17,7 +17,8 @@ from collections import defaultdict
 
 from jcvi import __version__ as version
 from jcvi.algorithms.formula import reject_outliers, spearmanr
-from jcvi.algorithms.lis import longest_monotonic_subseq_length as lms
+from jcvi.algorithms.lis import longest_monotonic_subseq_length as lms, \
+            longest_monotonic_subsequence as lmseq
 from jcvi.algorithms.tsp import hamiltonian
 from jcvi.algorithms.matrix import determine_signs
 from jcvi.algorithms.ec import GA_setup, GA_run
@@ -29,7 +30,7 @@ from jcvi.formats.sizes import Sizes
 from jcvi.utils.cbook import human_size, percentage
 from jcvi.utils.counter import Counter
 from jcvi.utils.grouper import Grouper
-from jcvi.utils.iter import flatten, pairwise
+from jcvi.utils.iter import flatten
 from jcvi.utils.table import tabulate
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, \
             need_update, get_today
@@ -595,6 +596,38 @@ class Layout (object):
                 coords[m] = (x, ystart - mlen, ystart)
                 ystart -= mlen + gapsize
         self.coords = coords
+
+
+class GapEstimator (object):
+
+    def __init__(self, mapc, agp, seqid, mlg, function=lambda x: x.cm):
+        mm = mapc.extract_mlg(mlg)
+        self.mlgsize = max(function(x) for x in mm)
+
+        agp = [x for x in agp if x.object == seqid]
+        self.pp = [x.object_beg for x in agp if not x.is_gap]
+        self.chrsize = max(x.object_end for x in agp)
+
+        s = Scaffold(seqid, mapc)
+        scatter_data = [(x.pos, function(x)) for x in s.markers \
+                                             if x.mlg == mlg]
+        scatter_data.sort()
+        self.scatter_data = scatter_data
+
+    def get_splines(self, ceil=25 * 1e-6):
+        from scipy.interpolate import UnivariateSpline
+
+        mx, my = zip(*self.scatter_data)
+        yy, xx = zip(*lmseq(zip(my, mx)))  # filter with LMS
+        spl = UnivariateSpline(xx, yy)
+        spld = spl.derivative()
+
+        def spl_derivative(x, ceil=ceil):
+            s = abs(spld(x))
+            s[s > ceil] = ceil
+            return s
+
+        return spl, spl_derivative
 
 
 def colinear_evaluate_multi(tour, scfs, weights):

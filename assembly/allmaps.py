@@ -30,7 +30,7 @@ from jcvi.formats.sizes import Sizes
 from jcvi.utils.cbook import human_size, percentage
 from jcvi.utils.counter import Counter
 from jcvi.utils.grouper import Grouper
-from jcvi.utils.iter import flatten
+from jcvi.utils.iter import flatten, pairwise
 from jcvi.utils.table import tabulate
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, \
             need_update, get_today
@@ -420,6 +420,10 @@ class Marker (object):
         self.cm = float(cm)
         self.accn = b.accn
         self.rank = -1
+        if b.score:
+            self.scaffoldaccn = b.score
+            self.scaffoldid, scaffoldpos = b.score.split(':')
+            self.scaffoldpos = int(scaffoldpos)
 
     def __str__(self):
         return "\t".join(str(x) for x in
@@ -604,17 +608,24 @@ class GapEstimator (object):
         mm = mapc.extract_mlg(mlg)
         self.mlgsize = max(function(x) for x in mm)
 
-        agp = [x for x in agp if x.object == seqid]
-        self.pp = [x.object_beg for x in agp if not x.is_gap]
-        self.chrsize = max(x.object_end for x in agp)
+        self.agp = [x for x in agp if x.object == seqid]
+        self.scaffolds = [x.component_id for x in self.agp if not x.is_gap]
+        self.pp = [x.object_beg for x in self.agp if x.is_gap]
+        self.chrsize = max(x.object_end for x in self.agp)
 
         s = Scaffold(seqid, mapc)
-        scatter_data = [(x.pos, function(x)) for x in s.markers \
-                                             if x.mlg == mlg]
-        scatter_data.sort()
-        self.scatter_data = scatter_data
+        self.scatter_data = []
+        self.scaffold_markers = defaultdict(list)
+        for x in s.markers:
+            if x.mlg != mlg:
+                continue
+            self.scaffold_markers[x.scaffoldid].append(x)
+            self.scatter_data.append((x.pos, function(x)))
+        self.scatter_data.sort()
 
-    def get_splines(self, ceil=25 * 1e-6):
+        self.get_splines()
+
+    def get_splines(self, floor=25 * 1e-9, ceil=25 * 1e-6):
         from scipy.interpolate import UnivariateSpline
 
         mx, my = zip(*self.scatter_data)
@@ -622,12 +633,50 @@ class GapEstimator (object):
         spl = UnivariateSpline(xx, yy)
         spld = spl.derivative()
 
-        def spl_derivative(x, ceil=ceil):
+        def spl_derivative(x):
             s = abs(spld(x))
+            s[s < floor] = floor
             s[s > ceil] = ceil
             return s
 
-        return spl, spl_derivative
+        self.spl = spl
+        self.spld = spl_derivative
+
+    def compute_one_gap(self, a, b, gappos, verbose=False,
+                        minsize=100, maxsize=500000):
+        ma, mb = self.scaffold_markers[a], self.scaffold_markers[b]
+        all_marker_pairs = []
+        for x, y in product(ma, mb):
+            cm_dist = abs(x.cm - y.cm)
+            ratio, = self.spld([gappos])
+            converted_dist = int(round(cm_dist / ratio))
+            overhang_x = abs(x.pos - gappos)
+            overhang_y = abs(y.pos - gappos) - minsize
+            estimated = converted_dist - overhang_x - overhang_y
+            if estimated < minsize:
+                estimated = minsize
+            if estimated > maxsize:
+                estimated = maxsize
+            if verbose:
+                print '=' * 10
+                print x
+                print y
+                print x.scaffoldaccn, y.scaffoldaccn
+                print "Converted dist:", cm_dist, ratio, converted_dist
+                print "Overhangs:", overhang_x, overhang_y
+                print "Estimated", estimated
+            all_marker_pairs.append(estimated)
+
+        gapsize = min(all_marker_pairs) if all_marker_pairs else None
+        if verbose:
+            print '*'* 5, a, b, gapsize
+        return gapsize
+
+    def compute_all_gaps(self, verbose=False):
+        self.gapsizes = []
+        for (a, b), gappos in zip(pairwise(self.scaffolds), self.pp):
+            gapsize = self.compute_one_gap(a, b, gappos, verbose=verbose)
+            self.gapsizes.append(gapsize)
 
 
 def colinear_evaluate_multi(tour, scfs, weights):
@@ -689,10 +738,11 @@ def estimategaps(args):
     The AGP file `prefix.chr.agp` will be modified in-place.
     """
     p = OptionParser(estimategaps.__doc__)
-    p.add_option("-w", "--weightsfile", default="weights.txt",
-                 help="Use weights from file")
-    p.add_option("--unknown", default=100, type="int",
-                 help="Replace gaps with negative or unknown size")
+    p.add_option("--minsize", default=100, type="int",
+                 help="Minimum gap size")
+    p.add_option("--maxsize", default=500000, type="int",
+                 help="Maximum gap size")
+    p.set_verbose(help="Print details for each gap calculation")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -700,10 +750,11 @@ def estimategaps(args):
 
     pf, = args
     agpfile = pf + ".chr.agp"
-    bedfile = pf + ".bed"
+    bedfile = pf + ".lifted.bed"
 
-    cc = Map(bedfile, get_function("cM"))
+    cc = Map(bedfile)
     agp = AGP(agpfile)
+
     for ob, components in agp.iter_object():
         components = [Scaffold(x, cc) for x in components]
 

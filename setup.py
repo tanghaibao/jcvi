@@ -31,5 +31,6 @@ setup(
       description='Python utility libraries on genome assembly, '\
                   'annotation and comparative genomics',
       long_description=open("README.rst").read(),
-      install_requires=['biopython', 'numpy', 'matplotlib']
+      install_requires=['biopython', 'numpy', 'matplotlib',
+                        'deap', 'networkx']
      )

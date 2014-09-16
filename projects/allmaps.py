@@ -46,7 +46,8 @@ def estimategaps(args):
 
     g = GapEstimator(cc, agp, seqid, mlg, function=function)
     pp, chrsize, mlgsize = g.pp, g.chrsize, g.mlgsize
-    spl, f = g.get_splines()
+    spl, spld = g.spl, g.spld
+    g.compute_all_gaps(verbose=True)
 
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
@@ -74,8 +75,8 @@ def estimategaps(args):
     h = .25
     ax = fig.add_axes([xstart, ystart, w, h])
     ax.vlines(pp, 0, mlgsize, colors="beige")
-    ax.plot(t, f(t), "-", lw=2, color=dsg)
-    ax.plot(pp, f(pp), "o", mfc="w", mec=dsg, ms=5)
+    ax.plot(t, spld(t), "-", lw=2, color=dsg)
+    ax.plot(pp, spld(pp), "o", mfc="w", mec=dsg, ms=5)
     normalize_lms_axis(ax, xlim=chrsize, ylim=25 * 1e-6, yfactor=1000000,
                        ylabel="Recomb. rate\n(cM / Mb)")
 

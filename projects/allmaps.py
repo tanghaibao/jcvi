@@ -7,7 +7,7 @@ Scripts for the ALLMAPS manuscript (un-published)
 
 import sys
 
-from jcvi.graphics.base import plt, savefig, normalize_axes, panel_labels
+from jcvi.graphics.base import plt, savefig, normalize_axes, panel_labels, set2
 from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
@@ -22,7 +22,7 @@ def main():
     p.dispatch(globals())
 
 
-def get_splines(scatter_data, ceil=30 * 1e-6):
+def get_splines(scatter_data, ceil=25 * 1e-6):
     from scipy.interpolate import UnivariateSpline
     from jcvi.algorithms.lis import longest_monotonic_subsequence as lms
 
@@ -84,24 +84,26 @@ def estimategaps(args):
     rho = spearmanr(mx, my)
     spl, f = get_splines(scatter_data)
 
-    ax.vlines(pp, [0], [mlgsize], colors="beige")
-    ax.plot(mx, my, "k.")
-    ax.plot(t, spl(t), "g-", lw=2)
+    dsg = "g"
+    ax.vlines(pp, 0, mlgsize, colors="beige")
+    ax.plot(mx, my, ".", color=set2[3])
+    ax.plot(t, spl(t), "-", color=dsg)
     normalize_lms_axis(ax, xlim=chrsize, ylim=mlgsize,
                        ylabel="Genetic distances (cM)")
     if rho < 0:
         ax.invert_yaxis()
 
     # Panel B
-    ystart -= .3
+    ystart -= .28
     h = .25
     ax = fig.add_axes([xstart, ystart, w, h])
-    ax.plot(t, f(t), "m-", lw=2)
-    ax.plot(mx, f(mx), "o", mfc="w", mec="m", ms=5)
-    normalize_lms_axis(ax, xlim=chrsize, ylim=None, yfactor=1000000,
+    ax.vlines(pp, 0, mlgsize, colors="beige")
+    ax.plot(t, f(t), "-", lw=2, color=dsg)
+    ax.plot(pp, f(pp), "o", mfc="w", mec=dsg, ms=5)
+    normalize_lms_axis(ax, xlim=chrsize, ylim=25 * 1e-6, yfactor=1000000,
                        ylabel="Recomb. rates\n(cM / Mb)")
 
-    labels = ((.05, .95, 'A'), (.05, .6, 'B'), (.05, .3, 'C'))
+    labels = ((.05, .95, 'A'), (.05, .6, 'B'), (.05, .32, 'C'))
     panel_labels(root, labels)
     normalize_axes(root)
 
@@ -115,7 +117,7 @@ def normalize_lms_axis(ax, xlim=110, ylim=110, yfactor=1, ylabel="Map (cM)"):
         ax.set_xlim(0, xlim)
     if ylim:
         ax.set_ylim(0, ylim)
-    yticklabels = [int(x * yfactor) for x in ax.get_yticks()]
+    yticklabels = [int(round(x * yfactor)) for x in ax.get_yticks()]
     ax.set_yticklabels(yticklabels, family='Helvetica')
     ax.set_xticks([])
     ax.set_ylabel(ylabel)

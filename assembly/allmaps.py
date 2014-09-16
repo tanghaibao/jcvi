@@ -1209,7 +1209,7 @@ def plot(args):
         ystart -= gap
         sd = scatter_data[mlg]
         xx, yy = zip(*sd)
-        ax.vlines(pp, [0], [mlgsize], colors="beige")
+        ax.vlines(pp, 0, mlgsize, colors="beige")
         ax.plot(xx, yy, ".", color=color)
         rho = rhos[mlg]
         ax.text(.5, 1 - .4 * gap / height, r"$\rho$={0:.3f}".format(rho),

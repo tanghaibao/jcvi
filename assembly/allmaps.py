@@ -22,7 +22,7 @@ from jcvi.algorithms.lis import longest_monotonic_subseq_length as lms, \
 from jcvi.algorithms.tsp import hamiltonian
 from jcvi.algorithms.matrix import determine_signs
 from jcvi.algorithms.ec import GA_setup, GA_run
-from jcvi.formats.agp import AGP, order_to_agp, build as agp_build
+from jcvi.formats.agp import AGP, order_to_agp, build as agp_build, reindex
 from jcvi.formats.base import DictFile, FileMerger, must_open
 from jcvi.formats.bed import Bed, BedLine, sort
 from jcvi.formats.chain import fromagp
@@ -606,6 +606,8 @@ class GapEstimator (object):
 
     def __init__(self, mapc, agp, seqid, mlg, function=lambda x: x.cm):
         mm = mapc.extract_mlg(mlg)
+        logging.debug("Extracted {0} markers for {1}-{2}".\
+                        format(len(mm), seqid, mlg))
         self.mlgsize = max(function(x) for x in mm)
 
         self.agp = [x for x in agp if x.object == seqid]
@@ -622,7 +624,6 @@ class GapEstimator (object):
             self.scaffold_markers[x.scaffoldid].append(x)
             self.scatter_data.append((x.pos, function(x)))
         self.scatter_data.sort()
-
         self.get_splines()
 
     def get_splines(self, floor=25 * 1e-9, ceil=25 * 1e-6):
@@ -642,8 +643,7 @@ class GapEstimator (object):
         self.spl = spl
         self.spld = spl_derivative
 
-    def compute_one_gap(self, a, b, gappos, verbose=False,
-                        minsize=100, maxsize=500000):
+    def compute_one_gap(self, a, b, gappos, minsize, maxsize, verbose=False):
         ma, mb = self.scaffold_markers[a], self.scaffold_markers[b]
         all_marker_pairs = []
         for x, y in product(ma, mb):
@@ -672,10 +672,11 @@ class GapEstimator (object):
             print '*'* 5, a, b, gapsize
         return gapsize
 
-    def compute_all_gaps(self, verbose=False):
+    def compute_all_gaps(self, minsize=100, maxsize=500000, verbose=False):
         self.gapsizes = []
         for (a, b), gappos in zip(pairwise(self.scaffolds), self.pp):
-            gapsize = self.compute_one_gap(a, b, gappos, verbose=verbose)
+            gapsize = self.compute_one_gap(a, b, gappos,
+                                           minsize, maxsize, verbose=verbose)
             self.gapsizes.append(gapsize)
 
 
@@ -742,6 +743,8 @@ def estimategaps(args):
                  help="Minimum gap size")
     p.add_option("--maxsize", default=500000, type="int",
                  help="Maximum gap size")
+    p.add_option("--links", default=10, type="int",
+                 help="Only use linkage grounds with matchings more than")
     p.set_verbose(help="Print details for each gap calculation")
     opts, args = p.parse_args(args)
 
@@ -754,9 +757,45 @@ def estimategaps(args):
 
     cc = Map(bedfile)
     agp = AGP(agpfile)
+    minsize, maxsize = opts.minsize, opts.maxsize
+    links = opts.links
+    verbose = opts.verbose
+
+    outagpfile = pf + ".estimategaps.agp"
+    fw = must_open(outagpfile, "w")
 
     for ob, components in agp.iter_object():
-        components = [Scaffold(x, cc) for x in components]
+        components = list(components)
+        s = Scaffold(ob, cc)
+        mlg_counts = s.mlg_counts
+        gaps = [x for x in components if x.is_gap]
+        gapsizes = [None] * len(gaps)   # master
+        for mlg, count in mlg_counts.items():
+            if count < links:
+                continue
+            g = GapEstimator(cc, agp, ob, mlg)
+            g.compute_all_gaps(minsize=minsize, maxsize=maxsize, \
+                               verbose=verbose)
+            # Merge evidence from this mlg into master
+            assert len(g.gapsizes) == len(gaps)
+            for i, gs in enumerate(gapsizes):
+                gg = g.gapsizes[i]
+                if gs is None:
+                    gapsizes[i] = gg
+                elif gg:
+                    gapsizes[i] = min(gs, gg)
+
+        print gapsizes
+        # Modify AGP
+        i = 0
+        for x in components:
+            if x.is_gap:
+                x.gap_length = gapsizes[i] or minsize
+                i += 1
+            print >> fw, x
+
+    fw.close()
+    reindex([outagpfile, "--inplace"])
 
 
 def merge(args):

@@ -15,19 +15,110 @@ def main():
 
     actions = (
         ('lms', 'ALLMAPS cartoon to illustrate LMS metric'),
+        ('estimategaps', "illustrate ALLMAPS gap estimation algorithm"),
         ('allmapsQC', 'plot ALLMAPS accuracy across a range of simulated data'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
 
-def normalize_lms_axis(ax):
-    ax.set_xlim(0, 110)
-    ax.set_ylim(0, 110)
-    yticklabels = [int(x) for x in ax.get_yticks()]
+def get_splines(scatter_data, ceil=30 * 1e-6):
+    from scipy.interpolate import UnivariateSpline
+    from jcvi.algorithms.lis import longest_monotonic_subsequence as lms
+
+    mx, my = zip(*scatter_data)
+    yy, xx = zip(*lms(zip(my, mx)))  # filter with LMS
+    spl = UnivariateSpline(xx, yy)
+    spld = spl.derivative()
+
+    def spl_derivative(x, ceil=ceil):
+        s = abs(spld(x))
+        s[s > ceil] = ceil
+        return s
+
+    return spl, spl_derivative
+
+
+def estimategaps(args):
+    """
+    %prog estimategaps JM-2 chr23 JMFemale-23
+
+    Illustrate ALLMAPS gap estimation algorithm.
+    """
+    import numpy as np
+    from jcvi.assembly.allmaps import AGP, Map, Scaffold, spearmanr
+
+    p = OptionParser(estimategaps.__doc__)
+    opts, args, iopts = p.set_image_options(args, figsize="6x6", dpi=300)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    pf, seqid, mlg = args
+    bedfile = pf + ".lifted.bed"
+    agpfile = pf + ".agp"
+
+    function = lambda x: x.cm
+    cc = Map(bedfile, function)
+    mm = cc.extract_mlg(mlg)
+    mlgsize = max(function(x) for x in mm)
+
+    agp = AGP(agpfile)
+    agp = [x for x in agp if x.object == seqid]
+    pp = [x.object_beg for x in agp if not x.is_gap]
+    chrsize = max(x.object_end for x in agp)
+
+    s = Scaffold(seqid, cc)
+    scatter_data = [(x.pos, function(x)) for x in s.markers if x.mlg == mlg]
+    scatter_data.sort()
+
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes([0, 0, 1, 1])
+
+    # Panel A
+    xstart, ystart = .15, .65
+    w, h = .7, .3
+    t = np.linspace(0, chrsize, 1000)
+    ax = fig.add_axes([xstart, ystart, w, h])
+    mx, my = zip(*scatter_data)
+    rho = spearmanr(mx, my)
+    spl, f = get_splines(scatter_data)
+
+    ax.vlines(pp, [0], [mlgsize], colors="beige")
+    ax.plot(mx, my, "k.")
+    ax.plot(t, spl(t), "g-", lw=2)
+    normalize_lms_axis(ax, xlim=chrsize, ylim=mlgsize,
+                       ylabel="Genetic distances (cM)")
+    if rho < 0:
+        ax.invert_yaxis()
+
+    # Panel B
+    ystart -= .3
+    h = .25
+    ax = fig.add_axes([xstart, ystart, w, h])
+    ax.plot(t, f(t), "m-", lw=2)
+    ax.plot(mx, f(mx), "o", mfc="w", mec="m", ms=5)
+    normalize_lms_axis(ax, xlim=chrsize, ylim=None, yfactor=1000000,
+                       ylabel="Recomb. rates\n(cM / Mb)")
+
+    labels = ((.05, .95, 'A'), (.05, .6, 'B'), (.05, .3, 'C'))
+    panel_labels(root, labels)
+    normalize_axes(root)
+
+    pf = "estimategaps"
+    image_name = pf + "." + iopts.format
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
+
+
+def normalize_lms_axis(ax, xlim=110, ylim=110, yfactor=1, ylabel="Map (cM)"):
+    if xlim:
+        ax.set_xlim(0, xlim)
+    if ylim:
+        ax.set_ylim(0, ylim)
+    yticklabels = [int(x * yfactor) for x in ax.get_yticks()]
     ax.set_yticklabels(yticklabels, family='Helvetica')
     ax.set_xticks([])
-    ax.set_ylabel("Map (cM)")
+    ax.set_ylabel(ylabel)
 
 
 def lms(args):

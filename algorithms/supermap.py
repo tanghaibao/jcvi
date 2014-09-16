@@ -7,7 +7,7 @@
 This script combines pairwise alignments, sort and filter the alignments.
 Infile expect BLAST tabular format (-m8) or nucmer .coords file.
 
-In order to handle dups, we have to run two monotonous chains in both genomes,
+In order to handle dups, we have to run two monotonic chains in both genomes,
 first chain using ref, and a second chain using query and we will have options
 to keep either the union or the intersection of retain chained alignments from
 both genomes, similar to the SUPERMAP algorithm. This operation is symmetrical.

@@ -27,15 +27,15 @@ def patience_sort(xs):
         yield x, pile
 
 
-def longest_monotonous_subseq_length(xs):
-    '''Return the length of the longest monotonous subsequence of xs, second
+def longest_monotonic_subseq_length(xs):
+    '''Return the length of the longest monotonic subsequence of xs, second
     return value is the difference between increasing and decreasing lengths.
 
-    >>> longest_monotonous_subseq_length((4, 5, 1, 2, 3))
+    >>> longest_monotonic_subseq_length((4, 5, 1, 2, 3))
     (3, 1)
-    >>> longest_monotonous_subseq_length((1, 2, 3, 5, 4))
+    >>> longest_monotonic_subseq_length((1, 2, 3, 5, 4))
     (4, 2)
-    >>> longest_monotonous_subseq_length((1, 2, 1))
+    >>> longest_monotonic_subseq_length((1, 2, 1))
     (2, 0)
     '''
     li = longest_increasing_subseq_length(xs)
@@ -94,6 +94,14 @@ def longest_decreasing_subsequence(xs):
     [97, 88, 77, 26]
     '''
     return list(reversed(longest_increasing_subsequence(reversed(xs))))
+
+
+def longest_monotonic_subsequence(xs):
+    lis = longest_increasing_subsequence(xs)
+    lds = longest_decreasing_subsequence(xs)
+    if len(lis) >= len(lds):
+        return lis
+    return lds
 
 
 def backtracking(a, L, bestsofar):

@@ -15,7 +15,7 @@ import multiprocessing
 
 from deap import base, creator, tools
 from deap.algorithms import varAnd
-from jcvi.algorithms.lis import longest_monotonous_subseq_length
+from jcvi.algorithms.lis import longest_monotonic_subseq_length
 
 
 def make_data(POINTS, SCF):
@@ -32,7 +32,7 @@ def colinear_evaluate(tour, scaffolds):
     series = []
     for t in tour:
         series.extend(scaffolds[t])
-    score, diff = longest_monotonous_subseq_length(series)
+    score, diff = longest_monotonic_subseq_length(series)
     return score,
 
 

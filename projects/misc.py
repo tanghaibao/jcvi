@@ -210,8 +210,6 @@ def cotton(args):
     p = OptionParser(cotton.__doc__)
     p.add_option("--depthfile",
                  help="Use depth info in this file [default: %default]")
-    p.add_option("--tree",
-                 help="Display trees on the bottom of the figure [default: %default]")
     p.add_option("--switch",
                  help="Rename the seqid with two-column file [default: %default]")
     opts, args, iopts = p.set_image_options(args, figsize="8x7")
@@ -221,7 +219,6 @@ def cotton(args):
 
     seqidsfile, klayout, datafile, bedfile, slayout = args
     switch = opts.switch
-    tree = opts.tree
     depthfile = opts.depthfile
 
     fig = plt.figure(1, (iopts.w, iopts.h))

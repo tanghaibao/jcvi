@@ -9,7 +9,8 @@ import sys
 import numpy as np
 
 from jcvi.assembly.allmaps import AGP, Map, GapEstimator, spearmanr
-from jcvi.graphics.base import plt, savefig, normalize_axes, panel_labels, set2
+from jcvi.graphics.chromosome import HorizontalChromosome
+from jcvi.graphics.base import plt, savefig, latex, normalize_axes, panel_labels, set2
 from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
@@ -47,7 +48,7 @@ def estimategaps(args):
     g = GapEstimator(cc, agp, seqid, mlg, function=function)
     pp, chrsize, mlgsize = g.pp, g.chrsize, g.mlgsize
     spl, spld = g.spl, g.spld
-    g.compute_all_gaps(verbose=True)
+    g.compute_all_gaps(verbose=False)
 
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
@@ -79,6 +80,56 @@ def estimategaps(args):
     ax.plot(pp, spld(pp), "o", mfc="w", mec=dsg, ms=5)
     normalize_lms_axis(ax, xlim=chrsize, ylim=25 * 1e-6, yfactor=1000000,
                        ylabel="Recomb. rate\n(cM / Mb)")
+
+    # Panel C (specific to JMMale-1)
+    a, b = "scaffold_1076", "scaffold_861"
+    sizes = dict((x.component_id, (x.object_beg, x.object_end,
+                                   x.component_span, x.orientation)) \
+                                   for x in g.agp if not x.is_gap)
+    a_beg, a_end, asize, ao = sizes[a]
+    b_beg, b_end, bsize, bo = sizes[b]
+    gapsize = g.get_gapsize(a)
+    total_size = asize + gapsize + bsize
+    ratio = .6 / total_size
+    y = .2
+    pad = .03
+    pb_ratio = w / chrsize
+
+    # Zoom
+    lsg = "lightslategray"
+    root.plot((.15 + pb_ratio * a_beg, .2),
+              (ystart, ystart - .1), ":", color=lsg)
+    root.plot((.15 + pb_ratio * b_end, .8),
+              (ystart, ystart - .05), ":", color=lsg)
+    ends = []
+    for tag, size, marker, beg in zip((a, b), (asize, bsize), (49213, 81277),
+                              (.2, .2 + (asize + gapsize) * ratio)):
+        end = beg + size * ratio
+        marker = beg + marker * ratio
+        ends.append((beg, end, marker))
+        root.plot((marker,), (y,), "o", color=lsg)
+        root.text((beg + end) / 2, y + pad, latex(tag),
+                  ha="center", va="center")
+        HorizontalChromosome(root, beg, end, y, height=.025, fc='gainsboro')
+
+    begs, ends, markers = zip(*ends)
+    fontprop = dict(color=lsg, ha="center", va="center")
+    ypos = y + pad * 2
+    root.plot(markers, (ypos, ypos), "-", lw=2, color=lsg)
+    root.text(sum(markers) / 2, ypos + pad,
+              "Distance: 1.29cM $\Leftrightarrow$ 211,842bp (@6.1cM/Mb)", **fontprop)
+
+    ypos = y - pad
+    xx = markers[0], ends[0]
+    root.plot(xx, (ypos, ypos), "-", lw=2, color=lsg)
+    root.text(sum(xx) / 2, ypos - pad, "34,115bp", **fontprop)
+    xx = markers[1], begs[1]
+    root.plot(xx, (ypos, ypos), "-", lw=2, color=lsg)
+    root.text(sum(xx) / 2, ypos - pad, "81,276bp", **fontprop)
+
+    root.plot((ends[0], begs[1]), (y, y), ":", lw=2, color=lsg)
+    root.text(.5, ypos - 3 * pad, r"$\textit{Estimated gap size: 96,433bp}$",
+                                  color="r", ha="center", va="center")
 
     labels = ((.05, .95, 'A'), (.05, .6, 'B'), (.05, .32, 'C'))
     panel_labels(root, labels)

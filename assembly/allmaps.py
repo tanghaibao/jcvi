@@ -626,6 +626,11 @@ class GapEstimator (object):
         self.scatter_data.sort()
         self.get_splines()
 
+    def get_gapsize(self, scaffold):
+        # Find the gap size right after a query scaffold
+        i = self.scaffolds.index(scaffold)
+        return self.gapsizes[i]
+
     def get_splines(self, floor=25 * 1e-9, ceil=25 * 1e-6):
         from scipy.interpolate import UnivariateSpline
 

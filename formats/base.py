@@ -896,7 +896,7 @@ def subset(args):
     else:
         ss = [s] * 2
 
-    if nargs>2:
+    if nargs > 2:
         file2 = FileMerger(args[1:], outfile="concatenatedFile2").merge()
     else:
         file2 = args[1]
@@ -917,7 +917,7 @@ def subset(args):
         if key in d:
             print >> fw, ss[0].join(files[0][key])
 
-    if nargs>2:
+    if nargs > 2:
         FileShredder([file2])
 
 

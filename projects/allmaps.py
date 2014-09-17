@@ -42,7 +42,7 @@ def estimategaps(args):
     agpfile = pf + ".agp"
 
     function = lambda x: x.cm
-    cc = Map(bedfile, function)
+    cc = Map(bedfile, scaffold_info=True, function=function)
     agp = AGP(agpfile)
 
     g = GapEstimator(cc, agp, seqid, mlg, function=function)
@@ -128,7 +128,7 @@ def estimategaps(args):
     root.text(sum(xx) / 2, ypos - pad, "81,276bp", **fontprop)
 
     root.plot((ends[0], begs[1]), (y, y), ":", lw=2, color=lsg)
-    root.text(.5, ypos - 3 * pad, r"$\textit{Estimated gap size: 96,433bp}$",
+    root.text(sum(markers) / 2, ypos - 3 * pad, r"$\textit{Estimated gap size: 96,433bp}$",
                                   color="r", ha="center", va="center")
 
     labels = ((.05, .95, 'A'), (.05, .6, 'B'), (.05, .32, 'C'))

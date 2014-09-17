@@ -25,7 +25,7 @@ class BedLine(object):
     # the Bed format supports more columns. we only need
     # the first 4, but keep the information in 'extra'.
     __slots__ = ("seqid", "start", "end", "accn",
-                 "extra", "score", "strand", "nargs")
+                 "extra", "score", "strand", "args", "nargs")
 
     def __init__(self, sline):
         args = sline.strip().split("\t")
@@ -45,6 +45,8 @@ class BedLine(object):
             self.strand = args[5]
         if nargs > 6:
             self.extra = args[6:]
+
+        self.args = args
 
     def __str__(self):
         args = [self.seqid, self.start - 1, self.end]

@@ -419,11 +419,13 @@ class Marker (object):
         self.mapname, self.lg = b.accn.split("-")
         self.cm = float(cm)
         self.accn = b.accn
+        self.args = b.args
         self.rank = -1
-        if b.score:
-            self.scaffoldaccn = b.score
-            self.scaffoldid, scaffoldpos = b.score.split(':')
-            self.scaffoldpos = int(scaffoldpos)
+
+    def parse_scaffold_info(self):
+        self.scaffoldaccn = self.args[-1]
+        self.scaffoldid, scaffoldpos = self.scaffoldaccn.split(':')
+        self.scaffoldpos = int(scaffoldpos)
 
     def __str__(self):
         return "\t".join(str(x) for x in
@@ -435,7 +437,8 @@ class Marker (object):
 
 class Map (list):
 
-    def __init__(self, filename, function=(lambda x: x.rank)):
+    def __init__(self, filename, scaffold_info=False,
+                 function=(lambda x: x.rank)):
         bed = Bed(filename)
         for b in bed:
             self.append(Marker(b))
@@ -443,6 +446,9 @@ class Map (list):
         self.ranks = self.compute_ranks()
         self.lengths = self.compute_lengths(function)
         self.bins = self.get_bins(function)
+        if scaffold_info:
+            for b in self:
+                b.parse_scaffold_info()
 
     def report(self):
         self.nmarkers = len(self)
@@ -527,6 +533,19 @@ class MapSummary (object):
         self.scaffold_2m = len([x for x in counter.values() if x == 2])
         self.scaffold_3m = len([x for x in counter.values() if x == 3])
         self.scaffold_4m = len([x for x in counter.values() if x >= 4])
+
+    def export_table(self, r, mapname, total):
+        r["Markers (unique)", mapname] = self.num_markers
+        r["Markers per Mb", mapname] = \
+                self.num_markers * 1e6 / self.total_bases \
+                if self.total_bases else 0
+        r["Scaffolds", mapname] = self.num_scaffolds
+        r["N50 Scaffolds", mapname] = self.num_n50_scaffolds
+        r["Total bases", mapname] = percentage(self.total_bases, total, mode=1)
+        r["Scaffolds with 1 marker", mapname] = self.scaffold_1m
+        r["Scaffolds with 2 markers", mapname] = self.scaffold_2m
+        r["Scaffolds with 3 markers", mapname] = self.scaffold_3m
+        r["Scaffolds with >=4 markers", mapname] = self.scaffold_4m
 
 
 class Weights (DictFile):
@@ -760,7 +779,7 @@ def estimategaps(args):
     agpfile = pf + ".chr.agp"
     bedfile = pf + ".lifted.bed"
 
-    cc = Map(bedfile)
+    cc = Map(bedfile, scaffold_info=True)
     agp = AGP(agpfile)
     minsize, maxsize = opts.minsize, opts.maxsize
     links = opts.links
@@ -1107,14 +1126,7 @@ def summary(args):
         markers = [x for x in cc if x.mapname == mapname]
         ms = MapSummary(markers, l50, s)
         r["Linkage Groups", mapname] = ms.num_lgs
-        r["Markers", mapname] = ms.num_markers
-        r["Scaffolds", mapname] = ms.num_scaffolds
-        r["N50 Scaffolds", mapname] = ms.num_n50_scaffolds
-        r["Total bases", mapname] = percentage(ms.total_bases, total, mode=1)
-        r["Scaffolds with 1 marker", mapname] = ms.scaffold_1m
-        r["Scaffolds with 2 markers", mapname] = ms.scaffold_2m
-        r["Scaffolds with 3 markers", mapname] = ms.scaffold_3m
-        r["Scaffolds with >=4 markers", mapname] = ms.scaffold_4m
+        ms.export_table(r, mapname, total)
         maps.append(ms)
     print >> sys.stderr, tabulate(r, sep=sep, align=align)
 
@@ -1128,14 +1140,7 @@ def summary(args):
                     ("Unplaced", unplaced_scaffolds)):
         markers = [x for x in cc if x.seqid in sc]
         ms = MapSummary(markers, l50, s, scaffolds=sc)
-        r["Markers", mapname] = ms.num_markers
-        r["Scaffolds", mapname] = ms.num_scaffolds
-        r["N50 Scaffolds", mapname] = ms.num_n50_scaffolds
-        r["Total bases", mapname] = percentage(ms.total_bases, total, mode=1)
-        r["Scaffolds with 1 marker", mapname] = ms.scaffold_1m
-        r["Scaffolds with 2 markers", mapname] = ms.scaffold_2m
-        r["Scaffolds with 3 markers", mapname] = ms.scaffold_3m
-        r["Scaffolds with >=4 markers", mapname] = ms.scaffold_4m
+        ms.export_table(r, mapname, total)
     print >> sys.stderr, tabulate(r, sep=sep, align=align)
 
 

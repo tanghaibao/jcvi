@@ -10,7 +10,8 @@ import numpy as np
 
 from jcvi.assembly.allmaps import AGP, Map, GapEstimator, spearmanr
 from jcvi.graphics.chromosome import HorizontalChromosome
-from jcvi.graphics.base import plt, savefig, latex, normalize_axes, panel_labels, set2
+from jcvi.graphics.base import plt, savefig, latex, normalize_axes, \
+            panel_labels, set2, set_ticklabels_helvetica
 from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
@@ -19,7 +20,7 @@ def main():
     actions = (
         ('lms', 'ALLMAPS cartoon to illustrate LMS metric'),
         ('estimategaps', "illustrate ALLMAPS gap estimation algorithm"),
-        ('allmapsQC', 'plot ALLMAPS accuracy across a range of simulated data'),
+        ('simulation', 'plot ALLMAPS accuracy across a range of simulated data'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -257,35 +258,39 @@ def import_data(datafile):
     fp = open(datafile)
     fp.readline()
     for row in fp:
-        x, y = row.split()[:2]
-        x, y = float(x), float(y)
-        data.append((x, y))
+        atoms = row.split()
+        atoms = [float(x) for x in atoms]
+        data.append(atoms)
     return data
 
 
 def subplot(ax, data, xlabel, ylabel, xlim=None, ylim=1.1,
-                      xcast=float, ycast=float):
-    x, y = zip(*data)
-    ax.plot(x, y, "ko:", mec="k", mfc="w", ms=4)
+                      xcast=float, ycast=float, legend=None):
+    columned_data = zip(*data)
+    x, yy = columned_data[0], columned_data[1:]
+    lines = []
+    for y, m in zip(yy, "o^x"):
+        line, = ax.plot(x, y, "k:", marker=m, mec="k", mfc="w", ms=4)
+        lines.append(line)
+    if legend:
+        assert len(lines) == len(legend)
+        ax.legend(lines, legend, loc='best')
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     if xlim:
         ax.set_xlim(0, xlim)
     if ylim:
         ax.set_ylim(0, ylim)
-    xticklabels = [xcast(x) for x in ax.get_xticks()]
-    yticklabels = [ycast(x) for x in ax.get_yticks()]
-    ax.set_xticklabels(xticklabels, family='Helvetica')
-    ax.set_yticklabels(yticklabels, family='Helvetica')
+    set_ticklabels_helvetica(ax, xcast=xcast, ycast=ycast)
 
 
-def allmapsQC(args):
+def simulation(args):
     """
-    %prog allmapsQC inversion.txt translocation.txt maps.txt
+    %prog simulation inversion.txt translocation.txt maps.txt multimaps.txt
 
     Plot ALLMAPS accuracy across a range of simulated datasets.
     """
-    p = OptionParser(allmapsQC.__doc__)
+    p = OptionParser(simulation.__doc__)
     opts, args, iopts = p.set_image_options(args, dpi=300)
 
     if len(args) != 4:
@@ -303,7 +308,9 @@ def allmapsQC(args):
     dataC = import_data(dataC)
     dataD = import_data(dataD)
     subplot(A, dataA, "Inversion error rate", "Accuracy", xlim=.5)
-    subplot(B, dataB, "Translocation error rate", "Accuracy", xlim=.5)
+    subplot(B, dataB, "Translocation error rate", "Accuracy", xlim=.5,
+                      legend=("intra-chromosomal", "inter-chromosomal",
+                              "75\% intra + 25\% inter"))
     subplot(C, dataC, "Number of input maps", "Accuracy", xcast=int)
     subplot(D, dataD, "Number of input maps", "Accuracy", xcast=int)
 

@@ -815,6 +815,7 @@ def estimategaps(args):
         for x in components:
             if x.is_gap:
                 x.gap_length = gapsizes[i] or minsize
+                x.component_type = 'U' if x.gap_length == 100 else 'N'
                 i += 1
             print >> fw, x
 

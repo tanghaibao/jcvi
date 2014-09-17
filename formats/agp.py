@@ -618,9 +618,10 @@ class OO (LineFile):
                 if part_number > 0:  # Print gap except for the first one
                     object_end = object_beg + gapsize - 1
                     part_number += 1
+                    component_type = 'U' if gapsize == 100 else 'N'
                     print >> fw, "\t".join(str(x) for x in \
                             (object, object_beg, object_end, part_number,
-                             'N', gapsize, gaptype, linkage, evidence))
+                             component_type, gapsize, gaptype, linkage, evidence))
 
                     object_beg += gapsize
 

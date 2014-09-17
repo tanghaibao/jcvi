@@ -117,7 +117,7 @@ def estimategaps(args):
     ypos = y + pad * 2
     root.plot(markers, (ypos, ypos), "-", lw=2, color=lsg)
     root.text(sum(markers) / 2, ypos + pad,
-              "Distance: 1.29cM $\Leftrightarrow$ 211,842bp (@6.1cM/Mb)", **fontprop)
+              "Distance: 1.29cM $\Leftrightarrow$ 211,842bp (6.1 cM/Mb)", **fontprop)
 
     ypos = y - pad
     xx = markers[0], ends[0]

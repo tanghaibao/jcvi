@@ -78,8 +78,9 @@ def estimategaps(args):
     ax.vlines(pp, 0, mlgsize, colors="beige")
     ax.plot(t, spld(t), "-", lw=2, color=dsg)
     ax.plot(pp, spld(pp), "o", mfc="w", mec=dsg, ms=5)
-    normalize_lms_axis(ax, xlim=chrsize, ylim=25 * 1e-6, yfactor=1000000,
-                       ylabel="Recomb. rate\n(cM / Mb)")
+    normalize_lms_axis(ax, xlim=chrsize, ylim=25 * 1e-6,
+                       xfactor=1e-6, xlabel="Physical position (Mb)",
+                       yfactor=1000000, ylabel="Recomb. rate\n(cM / Mb)")
 
     # Panel C (specific to JMMale-1)
     a, b = "scaffold_1076", "scaffold_861"
@@ -91,16 +92,16 @@ def estimategaps(args):
     gapsize = g.get_gapsize(a)
     total_size = asize + gapsize + bsize
     ratio = .6 / total_size
-    y = .2
+    y = .16
     pad = .03
     pb_ratio = w / chrsize
 
     # Zoom
     lsg = "lightslategray"
     root.plot((.15 + pb_ratio * a_beg, .2),
-              (ystart, ystart - .1), ":", color=lsg)
-    root.plot((.15 + pb_ratio * b_end, .8),
-              (ystart, ystart - .05), ":", color=lsg)
+              (ystart, ystart - .14), ":", color=lsg)
+    root.plot((.15 + pb_ratio * b_end, .3),
+              (ystart, ystart - .08), ":", color=lsg)
     ends = []
     for tag, size, marker, beg in zip((a, b), (asize, bsize), (49213, 81277),
                               (.2, .2 + (asize + gapsize) * ratio)):
@@ -117,7 +118,7 @@ def estimategaps(args):
     ypos = y + pad * 2
     root.plot(markers, (ypos, ypos), "-", lw=2, color=lsg)
     root.text(sum(markers) / 2, ypos + pad,
-              "Distance: 1.29cM $\Leftrightarrow$ 211,842bp (6.1 cM/Mb)", **fontprop)
+              "Distance: 1.29cM $\Leftrightarrow$ 211,824bp (6.1 cM/Mb)", **fontprop)
 
     ypos = y - pad
     xx = markers[0], ends[0]
@@ -131,7 +132,7 @@ def estimategaps(args):
     root.text(sum(markers) / 2, ypos - 3 * pad, r"$\textit{Estimated gap size: 96,433bp}$",
                                   color="r", ha="center", va="center")
 
-    labels = ((.05, .95, 'A'), (.05, .6, 'B'), (.05, .32, 'C'))
+    labels = ((.05, .95, 'A'), (.05, .6, 'B'), (.05, .27, 'C'))
     panel_labels(root, labels)
     normalize_axes(root)
 
@@ -140,15 +141,24 @@ def estimategaps(args):
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
-def normalize_lms_axis(ax, xlim=110, ylim=110, yfactor=1, ylabel="Map (cM)"):
+def normalize_lms_axis(ax, xlim=110, ylim=110, xfactor=1e-6, yfactor=1,
+                       xlabel=None, ylabel="Map (cM)"):
     if xlim:
         ax.set_xlim(0, xlim)
     if ylim:
         ax.set_ylim(0, ylim)
-    yticklabels = [int(round(x * yfactor)) for x in ax.get_yticks()]
-    ax.set_yticklabels(yticklabels, family='Helvetica')
-    ax.set_xticks([])
-    ax.set_ylabel(ylabel)
+    if xlabel:
+        xticklabels = [int(round(x * xfactor)) for x in ax.get_xticks()]
+        ax.set_xticklabels(xticklabels, family='Helvetica')
+        ax.set_xlabel(xlabel)
+    else:
+        ax.set_xticks([])
+    if ylabel:
+        yticklabels = [int(round(x * yfactor)) for x in ax.get_yticks()]
+        ax.set_yticklabels(yticklabels, family='Helvetica')
+        ax.set_ylabel(ylabel)
+    else:
+        ax.set_yticks([])
 
 
 def lms(args):

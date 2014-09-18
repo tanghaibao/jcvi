@@ -249,9 +249,12 @@ class ScaffoldOO (object):
         for a, b, d in G.edges(data=True):
             edges.append((a, b, d['weight']))
 
-        tour = hamiltonian(edges, directed=True, precision=2)
-        assert tour[0] == START and tour[-1] == END
-        tour = tour[1:-1]
+        try:
+            tour = hamiltonian(edges, directed=True, precision=2)
+            assert tour[0] == START and tour[-1] == END
+            tour = tour[1:-1]
+        except:
+            tour = scaffolds[:]
         return tour
 
     def assign_order(self):

@@ -20,7 +20,7 @@ from jcvi.utils.iter import pairwise
 from jcvi.apps.base import mkdir, which, sh
 
 
-INF = 1000
+INF = 10000
 NEG_INF = -INF
 Work_dir = "tsp_work"
 

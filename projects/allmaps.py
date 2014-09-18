@@ -45,6 +45,7 @@ def query_links(abed, bbed):
     recovered = set(abedlinks) & set(bxbedlinks)
     print >> sys.stderr, "Recovered {0}".\
                     format(percentage(len(recovered), atotal))
+    print >> sys.stderr, set(abedlinks) - set(bxbedlinks)
 
 
 def comparebed(args):

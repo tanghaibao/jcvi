@@ -254,6 +254,7 @@ class ScaffoldOO (object):
             assert tour[0] == START and tour[-1] == END
             tour = tour[1:-1]
         except:
+            logging.debug("concorde-TSP failed. Use default scaffold ordering.")
             tour = scaffolds[:]
         return tour
 
@@ -965,7 +966,11 @@ def path(args):
     p.add_option("--npop", default=100, type="int",
                  help="Population size in GA, more ~ slower")
     p.add_option("--seqid", help="Only run partition with this seqid")
-    p.set_cpus(cpus=8)
+    p.add_option("--links", default=10, type="int",
+                 help="Only plot matchings more than")
+    p.add_option("--noplot", default=False, action="store_true",
+                 help="Do not visualize the alignments")
+    p.set_cpus(cpus=16)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -1090,7 +1095,8 @@ def path(args):
     summaryfile = pf + ".summary.txt"
     summary([inputbed, fastafile, "--outfile={0}".format(summaryfile)])
 
-    plotall([inputbed])
+    if not opts.noplot:
+        plotall([inputbed, "--links={0}".format(opts.links)])
 
 
 def write_unplaced_agp(agpfile, scaffolds, unplaced_agp):

@@ -1415,7 +1415,7 @@ def bed(args):
 
     print out the tiling paths in bed/gff3 format
     """
-    from jcvi.formats.obo import load_GODag, validate_term
+    from jcvi.formats.obo import validate_term
 
     p = OptionParser(bed.__doc__)
     p.add_option("--gaps", default=False, action="store_true",

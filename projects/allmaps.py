@@ -9,6 +9,8 @@ import sys
 import numpy as np
 
 from jcvi.assembly.allmaps import AGP, Map, GapEstimator, spearmanr
+from jcvi.formats.bed import Bed
+from jcvi.utils.cbook import percentage
 from jcvi.graphics.chromosome import HorizontalChromosome
 from jcvi.graphics.base import plt, savefig, latex, normalize_axes, \
             panel_labels, set2, set_ticklabels_helvetica
@@ -21,9 +23,47 @@ def main():
         ('lms', 'ALLMAPS cartoon to illustrate LMS metric'),
         ('estimategaps', "illustrate ALLMAPS gap estimation algorithm"),
         ('simulation', 'plot ALLMAPS accuracy across a range of simulated data'),
+        ('comparebed', 'compare the scaffold links indicated in two bed files'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def query_links(abed, bbed):
+    abedlinks = abed.links
+    bbedlinks = bbed.links
+    # Reverse complement bbedlinks
+    bxbedlinks = bbedlinks[:]
+    for (a, ai), (b, bi) in bbedlinks:
+        ai = {"+": "-", "?": "-", "-": "+"}[ai]
+        bi = {"+": "-", "?": "-", "-": "+"}[bi]
+        bxbedlinks.append(((b, bi), (a, ai)))
+
+    atotal = len(abedlinks)
+    print >> sys.stderr, "Total links in {0}: {1}".\
+                    format(abed.filename, atotal)
+    recovered = set(abedlinks) & set(bxbedlinks)
+    print >> sys.stderr, "Recovered {0}".\
+                    format(percentage(len(recovered), atotal))
+
+
+def comparebed(args):
+    """
+    %prog comparebed AP.chr.bed infer.bed
+
+    Compare the scaffold links indicated in two bed files.
+    """
+    p = OptionParser(comparebed.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    abed, bbed = args
+    abed = Bed(abed)
+    bbed = Bed(bbed)
+    query_links(abed, bbed)
+    query_links(bbed, abed)
 
 
 def estimategaps(args):

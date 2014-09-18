@@ -13,6 +13,7 @@ from collections import defaultdict
 from itertools import groupby
 
 from jcvi.formats.base import LineFile, must_open, is_number, get_number
+from jcvi.utils.iter import pairwise
 from jcvi.utils.cbook import SummaryStats, thousands, percentage
 from jcvi.utils.natsort import natsort_key
 from jcvi.utils.range import Range, range_union, range_chain, \
@@ -157,6 +158,14 @@ class Bed(LineFile):
     @property
     def simple_bed(self):
         return [(b.seqid, i) for (i, b) in enumerate(self)]
+
+    @property
+    def links(self):
+        r = []
+        for s, sb in self.sub_beds():
+            for a, b in pairwise(sb):
+                r.append(((a.accn, a.strand), (b.accn, b.strand)))
+        return r
 
     def sub_bed(self, seqid):
         # get all the beds on one chromosome

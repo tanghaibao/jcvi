@@ -25,9 +25,45 @@ def main():
         ('simulation', 'plot ALLMAPS accuracy across a range of simulated data'),
         ('comparebed', 'compare the scaffold links indicated in two bed files'),
         ('resamplestats', 'prepare resample results table'),
+        ('resample', 'plot ALLMAPS performance across resampled real data'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def resample(args):
+    """
+    %prog resample yellow-catfish-resample.txt medicago-resample.txt
+
+    Plot ALLMAPS performance across resampled real data.
+    """
+    p = OptionParser(resample.__doc__)
+    opts, args, iopts = p.set_image_options(args, figsize="8x4", dpi=300)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    dataA, dataB = args
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes([0, 0, 1, 1])
+    A = fig.add_axes([.1, .18, .32, .64])
+    B = fig.add_axes([.6, .18, .32, .64])
+    dataA = import_data(dataA)
+    dataB = import_data(dataB)
+    xlabel = "Proportion of markers"
+    ylabels = ("Anchor rate", "Runtime (m)")
+    legend = ("anchor rate", "runtime")
+    subplot_twinx(A, dataA, xlabel, ylabels,
+                     title="Yellow catfish", legend=legend)
+    subplot_twinx(B, dataB, xlabel, ylabels,
+                     title="Medicago", legend=legend)
+
+    labels = ((.04, .92, "A"), (.54, .92, "B"))
+    panel_labels(root, labels)
+
+    normalize_axes(root)
+    image_name = "resample." + iopts.format
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
 def resamplestats(args):
@@ -353,6 +389,37 @@ def import_data(datafile):
         atoms = [float(x) for x in atoms]
         data.append(atoms)
     return data
+
+
+def subplot_twinx(ax, data, xlabel, ylabels, xcast=float, ycast=float,
+                            title=None, legend=None, loc='lower right'):
+    columned_data = zip(*data)
+    x, yy = columned_data[0], columned_data[1:]
+    assert len(ylabels) == 2
+    assert len(yy) == 2
+    lines = []
+    ax2 = ax.twinx()
+    for a, y, m, yl in zip((ax, ax2), yy, "ox", ylabels):
+        line, = a.plot(x, y, "k:", marker=m, mec="k", mfc="w", ms=4)
+        lines.append(line)
+        a.set_ylabel(yl)
+    if legend:
+        assert len(legend) == 2
+        ax.legend(lines, legend, loc=loc)
+    ax.set_xlabel(xlabel)
+    if title:
+        ax.set_title(title)
+
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1.1)
+    set_ticklabels_helvetica(ax, xcast=xcast, ycast=ycast)
+
+    yb = ax2.get_ybound()[1]
+    yb = yb // 5 * 5  # make integer interval
+    ax2.set_yticks(np.arange(0, 1.1 * yb, yb / 5))
+    ax2.set_ylim(0, 1.1 * yb)
+    set_ticklabels_helvetica(ax2, xcast=xcast, ycast=int)
+    ax2.grid(False)
 
 
 def subplot(ax, data, xlabel, ylabel, xlim=None, ylim=1.1,

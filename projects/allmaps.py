@@ -56,7 +56,7 @@ def resample(args):
     subplot_twinx(A, dataA, xlabel, ylabels,
                      title="Yellow catfish", legend=legend)
     subplot_twinx(B, dataB, xlabel, ylabels,
-                     title="Medicago", legend=legend)
+                     title="Medicago", legend=legend, loc='upper left')
 
     labels = ((.04, .92, "A"), (.54, .92, "B"))
     panel_labels(root, labels)
@@ -96,23 +96,22 @@ def resamplestats(args):
         time = m + s / 60
         times.append(time)
 
-    assert len(times) == 10
+    N = len(times)
 
     rates = []
-    for i in xrange(1, 11, 1):
-        summaryfile = "{0}.0.{1}.summary.txt".format(pf, i)
+    for i in xrange(-N + 1, 1, 1):
+        summaryfile = "{0}.{1}.summary.txt".format(pf, 2 ** i)
         fp = open(summaryfile)
         lines = fp.readlines()
         # Total bases    580,791,244 (80.8%)    138,298,666 (19.2%)
         pct = float(lines[-2].split()[3].strip("()%"))
         rates.append(pct / 100.)
 
-    assert len(rates) == 10
+    assert len(rates) == N
 
     print "ratio\tanchor-rate\ttime(m)"
-    for i in xrange(1, 11, 1):
-        z = i / 10.
-        print "{0}\t{1:.3f}\t{2:.3f}".format(z, rates[i - 1], times[i - 1])
+    for j, i in enumerate(xrange(-N + 1, 1, 1)):
+        print "{0}\t{1:.3f}\t{2:.3f}".format(i, rates[j], times[j])
 
 
 def query_links(abed, bbed):
@@ -410,15 +409,21 @@ def subplot_twinx(ax, data, xlabel, ylabels, xcast=float, ycast=float,
     if title:
         ax.set_title(title)
 
-    ax.set_xlim(0, 1)
     ax.set_ylim(0, 1.1)
-    set_ticklabels_helvetica(ax, xcast=xcast, ycast=ycast)
+    xticklabels = [r"$\frac{{1}}{" + str(int(2 ** -float(x))) + "}$" \
+                                    for x in ax.get_xticks()]
+    xticklabels[-1] = r"$1$"
+    yticklabels = [float(x) for x in ax.get_yticks()]
+    ax.set_xticklabels(xticklabels)
+    ax.set_yticklabels(yticklabels, family='Helvetica')
 
     yb = ax2.get_ybound()[1]
     yb = yb // 5 * 5  # make integer interval
     ax2.set_yticks(np.arange(0, 1.1 * yb, yb / 5))
     ax2.set_ylim(0, 1.1 * yb)
-    set_ticklabels_helvetica(ax2, xcast=xcast, ycast=int)
+    yticklabels = [int(x) for x in ax2.get_yticks()]
+    ax2.set_xticklabels(xticklabels)
+    ax2.set_yticklabels(yticklabels, family='Helvetica')
     ax2.grid(False)
 
 

@@ -306,9 +306,44 @@ def main():
         ('some', 'get a subset of bed features given a list'),
         ('fix', 'fix non-standard bed files'),
         ('filter', 'filter the bedfile to retain records between size range'),
+        ('random', 'extract a random subset of features'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def random(args):
+    """
+    %prog random bedfile number_of_features
+
+    Extract a random subset of features. Number of features can be an integer
+    number, or a fractional number in which case a random fraction (for example
+    0.1 = 10% of all features) will be extracted.
+    """
+    from random import sample
+    from jcvi.formats.base import flexible_cast
+
+    p = OptionParser(random.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    bedfile, N = args
+    assert is_number(N)
+
+    b = Bed(bedfile)
+    NN = flexible_cast(N)
+    if NN < 1:
+        NN = int(round(NN * len(b)))
+
+    beds = sample(b, NN)
+    new_bed = Bed()
+    new_bed.extend(beds)
+
+    outfile = bedfile.rsplit(".", 1)[0] + ".{0}.bed".format(N)
+    new_bed.print_to_file(outfile)
+    logging.debug("Write {0} features to `{1}`".format(NN, outfile))
 
 
 def filter(args):

@@ -24,9 +24,59 @@ def main():
         ('estimategaps', "illustrate ALLMAPS gap estimation algorithm"),
         ('simulation', 'plot ALLMAPS accuracy across a range of simulated data'),
         ('comparebed', 'compare the scaffold links indicated in two bed files'),
+        ('resamplestats', 'prepare resample results table'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def resamplestats(args):
+    """
+    %prog resamplestats prefix run.log
+
+    Prepare resample results table. Ten subsets of original data were generated
+    and ALLMAPS were iterated through them, creating `run.log` which contains the
+    timing results. The anchor rate can be found in `prefix.0.{1-10}.summary.txt`.
+    """
+    p = OptionParser(resamplestats.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    pf, runlog = args
+    fp = open(runlog)
+    Real = "real"
+    times = []
+    for row in fp:
+        # real    10m31.513s
+        if not row.startswith(Real):
+            continue
+        tag, time = row.split()
+        assert tag == Real
+        m, s = time.split('m')
+        s = s.rstrip('s')
+        m, s = float(m), float(s)
+        time = m + s / 60
+        times.append(time)
+
+    assert len(times) == 10
+
+    rates = []
+    for i in xrange(1, 11, 1):
+        summaryfile = "{0}.0.{1}.summary.txt".format(pf, i)
+        fp = open(summaryfile)
+        lines = fp.readlines()
+        # Total bases    580,791,244 (80.8%)    138,298,666 (19.2%)
+        pct = float(lines[-2].split()[3].strip("()%"))
+        rates.append(pct / 100.)
+
+    assert len(rates) == 10
+
+    print "ratio\tanchor-rate\ttime(m)"
+    for i in xrange(1, 11, 1):
+        z = i / 10.
+        print "{0}\t{1:.3f}\t{2:.3f}".format(z, rates[i - 1], times[i - 1])
 
 
 def query_links(abed, bbed):

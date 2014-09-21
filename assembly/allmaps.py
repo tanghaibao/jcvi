@@ -33,7 +33,7 @@ from jcvi.utils.grouper import Grouper
 from jcvi.utils.iter import flatten, pairwise
 from jcvi.utils.table import tabulate
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, \
-            need_update, get_today
+            need_update, get_today, SUPPRESS_HELP
 
 
 START, END = "START", "END"
@@ -953,6 +953,8 @@ def path(args):
     """
     oargs = args
     p = OptionParser(path.__doc__)
+    p.add_option("-b", "--bedfile", help=SUPPRESS_HELP)
+    p.add_option("-s", "--fastafile", help=SUPPRESS_HELP)
     p.add_option("-w", "--weightsfile", default="weights.txt",
                  help="Use weights from file")
     p.add_option("--distance", default="rank", choices=distance_choices,
@@ -977,6 +979,8 @@ def path(args):
         sys.exit(not p.print_help())
 
     inputbed, fastafile = args
+    inputbed = opts.bedfile or inputbed
+    fastafile = opts.fastafile or fastafile
     pf = inputbed.rsplit(".", 1)[0]
     bedfile = pf + ".bed"
     weightsfile = opts.weightsfile

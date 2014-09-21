@@ -50,13 +50,13 @@ def resample(args):
     B = fig.add_axes([.6, .18, .32, .64])
     dataA = import_data(dataA)
     dataB = import_data(dataB)
-    xlabel = "Proportion of markers"
+    xlabel = "Fraction of markers"
     ylabels = ("Anchor rate", "Runtime (m)")
     legend = ("anchor rate", "runtime")
     subplot_twinx(A, dataA, xlabel, ylabels,
                      title="Yellow catfish", legend=legend)
     subplot_twinx(B, dataB, xlabel, ylabels,
-                     title="Medicago", legend=legend, loc='upper left')
+                     title="Medicago", legend=legend)
 
     labels = ((.04, .92, "A"), (.54, .92, "B"))
     panel_labels(root, labels)
@@ -391,7 +391,7 @@ def import_data(datafile):
 
 
 def subplot_twinx(ax, data, xlabel, ylabels, xcast=float, ycast=float,
-                            title=None, legend=None, loc='lower right'):
+                            title=None, legend=None, loc='upper left'):
     columned_data = zip(*data)
     x, yy = columned_data[0], columned_data[1:]
     assert len(ylabels) == 2

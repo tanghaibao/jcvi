@@ -13,7 +13,7 @@ from httplib import HTTPSConnection
 from urllib import urlencode
 from socket import gethostname
 from subprocess import PIPE, call
-from optparse import OptionParser as OptionP, OptionGroup
+from optparse import OptionParser as OptionP, OptionGroup, SUPPRESS_HELP
 
 
 os.environ["LC_ALL"] = "C"
@@ -98,6 +98,9 @@ class OptionParser (OptionP):
 
     def add_help_from_choices(self, o):
         from jcvi.utils.natsort import natsorted
+
+        if o.help == SUPPRESS_HELP:
+            return
 
         default_tag = "%default"
         help_pf = o.help[:1].upper() + o.help[1:]

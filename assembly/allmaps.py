@@ -1267,11 +1267,11 @@ def plot(args):
     assert seqid in allseqids, "{0} not in {1}".format(seqid, allseqids)
 
     s = Scaffold(seqid, cc)
-    mlgs = []
+    mlgs = [k for k, v in s.mlg_counts.items() if v >= links]
     while not mlgs:
-        mlgs = [k for k, v in s.mlg_counts.items() if v >= links]
         links /= 2
         logging.error("No markers to plot, --links reset to {0}".format(links))
+        mlgs = [k for k, v in s.mlg_counts.items() if v >= links]
 
     mlgsizes = {}
     for mlg in mlgs:

@@ -207,7 +207,7 @@ class BlockFile (BaseFile):
             else:
                 line = "\t".join(str(x) for x in \
                         (gene, gene, closest, closest, 0, "+"))
-            if color:
+            if color is not None:
                 line = color + "*" + line
             yield line
 

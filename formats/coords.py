@@ -12,7 +12,7 @@ import logging
 from math import exp
 from itertools import groupby
 
-from jcvi.formats.base import LineFile
+from jcvi.formats.base import LineFile, must_open
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update
 
 
@@ -442,7 +442,7 @@ def filter(args):
         return filename
 
     pf, suffix = filename.rsplit(".", 1)
-    outfile = "".join((pf, ".P{0}L{1}.".format(pctid, hitlen), suffix))
+    outfile = "".join((pf, ".P{0}L{1}.".format(int(pctid), int(hitlen)), suffix))
     if not need_update(filename, outfile):
         return outfile
 

@@ -75,7 +75,7 @@ def genome_mutation_orientation(candidate):
             candidate[x] = -candidate[x]
     else:                     # Single flip
         p = random.randint(0, size - 1)
-        candidate[p] = -candidate[x]
+        candidate[p] = -candidate[p]
     return candidate,
 
 

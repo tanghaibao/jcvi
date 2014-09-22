@@ -1391,16 +1391,17 @@ def summary(args):
 
     bedfile, = args
     bed = Bed(bedfile)
+    bs = BedSummary(bed)
     if opts.sizes:
         sizesfile = bedfile + ".sizes"
         fw = open(sizesfile, "w")
-        for span, accn in mspans:
+        for span, accn in bs.mspans:
             print >> fw, span
         fw.close()
         logging.debug("Spans written to `{0}`.".format(sizesfile))
+        return bs
 
     if not opts.all:
-        bs = BedSummary(bed)
         bs.report()
         return bs
 

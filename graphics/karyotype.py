@@ -24,6 +24,7 @@ import sys
 import string
 
 from jcvi.apps.base import OptionParser
+from jcvi.compara.synteny import SimpleFile
 from jcvi.formats.bed import Bed
 from jcvi.graphics.chromosome import HorizontalChromosome
 from jcvi.graphics.glyph import TextCircle
@@ -79,24 +80,7 @@ class Layout (AbstractLayout):
 
     def parse_blocks(self, simplefile, i):
         order = self[i].order
-        # Sometimes the simplefile has query and subject wrong
-        fp = open(simplefile)
-        blocks = []
-        for row in fp:
-            if row[:2] == "##" or row.startswith("StartGeneA"):
-                continue
-            hl = ("*" in row)
-            if hl:
-                hl, row = row.split("*", 1)
-                hl = hl or "r"
-            a, b, c, d, score, orientation = row.split()
-            if a not in order:
-                a, b, c, d = c, d, a, b
-            if orientation == '-':
-                c, d = d, c
-            score = int(score)
-            blocks.append((a, b, c, d, score, orientation, hl))
-        return blocks
+        return SimpleFile(simplefile, order=order).blocks
 
 
 MaxSeqids = 20   # above which no labels are written
@@ -322,7 +306,7 @@ def main():
     root.set_ylim(0, 1)
     root.set_axis_off()
 
-    pf = "out"
+    pf = "karyotype"
     image_name = pf + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 

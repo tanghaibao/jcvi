@@ -208,6 +208,7 @@ def estimategaps(args):
     normalize_lms_axis(ax, xlim=chrsize, ylim=25 * 1e-6,
                        xfactor=1e-6, xlabel="Physical position (Mb)",
                        yfactor=1000000, ylabel="Recomb. rate\n(cM / Mb)")
+    ax.xaxis.grid(False)
 
     # Panel C (specific to JMMale-1)
     a, b = "scaffold_1076", "scaffold_861"

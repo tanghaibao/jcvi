@@ -145,7 +145,7 @@ def heaviest_increasing_subsequence(a, debug=False):
             print (key, weight), bestsofar
 
     tb = reversed(list(backtracking(a, L, bestsofar)))
-    return [a[x] for x in tb]
+    return [a[x] for x in tb], max(L.items())[0]
 
 
 if __name__ == '__main__':

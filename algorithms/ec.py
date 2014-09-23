@@ -144,7 +144,7 @@ def eaSimpleConverge(population, toolbox, cxpb, mutpb, ngen, stats=None,
             print >> sys.stderr, "Current iteration {0}: max_score={1}".\
                             format(gen, current_best)
 
-        if current_best != best:
+        if current_best > best:
             best = current_best
             updated = gen
 

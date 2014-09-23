@@ -8,6 +8,7 @@ import logging
 import numpy as np
 from collections import defaultdict
 
+from jcvi.algorithms.lis import heaviest_increasing_subsequence as his
 from jcvi.formats.bed import Bed
 from jcvi.formats.blast import BlastLine
 from jcvi.formats.base import BaseFile, SetFile, read_block, must_open
@@ -210,6 +211,28 @@ class BlockFile (BaseFile):
             if color is not None:
                 line = color + "*" + line
             yield line
+
+
+class SimpleFile (object):
+
+    def __init__(self, simplefile, order=None):
+        # Sometimes the simplefile has query and subject wrong
+        fp = open(simplefile)
+        self.blocks = []
+        for row in fp:
+            if row[:2] == "##" or row.startswith("StartGeneA"):
+                continue
+            hl = ("*" in row)
+            if hl:
+                hl, row = row.split("*", 1)
+                hl = hl or "r"
+            a, b, c, d, score, orientation = row.split()
+            if order and a not in order:
+                a, b, c, d = c, d, a, b
+            if orientation == '-':
+                c, d = d, c
+            score = int(score)
+            self.blocks.append((a, b, c, d, score, orientation, hl))
 
 
 def _score(cluster):
@@ -425,12 +448,69 @@ def main():
         ('matrix', 'make oxford grid based on anchors file'),
         ('coge', 'convert CoGe file to anchors file'),
         ('spa', 'convert chr ordering from SPA to simple lists'),
+        ('layout', 'compute layout based on .simple file'),
         ('rebuild', 'rebuild anchors file from prebuilt blocks file'),
         ('fromaligns', 'convert aligns file to anchors file'),
             )
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def colinear_evaluate_weights(tour, data):
+    tour = dict((s, i) for i, s in enumerate(tour))
+    data = [(tour[x], score) for x, score in data if x in tour]
+    return his(data)[-1],
+
+
+def layout(args):
+    """
+    %prog layout query.subject.simple query.seqids subject.seqids
+
+    Compute optimal seqids order in a second genome, based on seqids on one
+    genome, given the pairwise blocks in .simple format.
+    """
+    from jcvi.algorithms.ec import GA_setup, GA_run
+
+    p = OptionParser(layout.__doc__)
+    p.set_beds()
+    p.set_cpus(cpus=32)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    simplefile, qseqids, sseqids = args
+    qbed, sbed, qorder, sorder, is_self = check_beds(simplefile, p, opts)
+
+    qseqids = qseqids.strip().split(",")
+    sseqids = sseqids.strip().split(",")
+    qseqids_ii = dict((s, i) for i, s in enumerate(qseqids))
+    sseqids_ii = dict((s, i) for i, s in enumerate(sseqids))
+
+    blocks = SimpleFile(simplefile).blocks
+    scores = defaultdict(int)
+    for a, b, c, d, score, orientation, hl in blocks:
+        qi, q = qorder[a]
+        si, s = sorder[c]
+        qseqid, sseqid = q.seqid, s.seqid
+        if sseqid not in sseqids:
+            continue
+        scores[sseqids_ii[sseqid], qseqid] += score
+
+    data = []
+    for (a, b), score in sorted(scores.items()):
+        if b not in qseqids_ii:
+            continue
+        data.append((qseqids_ii[b], score))
+
+    tour = range(len(qseqids))
+    toolbox = GA_setup(tour)
+    toolbox.register("evaluate", colinear_evaluate_weights, data=data)
+    tour, fitness = GA_run(toolbox, ngen=100, npop=100, cpus=opts.cpus)
+    tour = [qseqids[x] for x in tour]
+
+    print ",".join(tour)
 
 
 def fromaligns(args):

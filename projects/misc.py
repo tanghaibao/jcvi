@@ -11,7 +11,7 @@ import sys
 import numpy as np
 
 from jcvi.graphics.base import plt, Polygon, savefig
-from jcvi.graphics.glyph import GeneGlyph, RoundRect, TextCircle, plot_cap
+from jcvi.graphics.glyph import GeneGlyph, RoundRect, TextCircle, DoubleSquare, plot_cap
 from jcvi.graphics.karyotype import Karyotype
 from jcvi.graphics.synteny import Synteny, draw_gene_legend
 from jcvi.apps.base import OptionParser, ActionDispatcher, fname
@@ -30,9 +30,79 @@ def main():
         ('mtdotplots', 'plot Mt3.5 and Mt4.0 side-by-side'),
         # Unpublished
         ('litchi', 'plot litchi micro-synteny (requires data)'),
+        ('birch', 'plot birch macro-synteny (requires data)'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def join_nodes(root, coords, a, b, x, slope=2.4,
+               fc="lightslategray", rectangle=True, circle=True):
+    # Join node a and b to make an internal node
+    ax, ay = coords[a]
+    bx, by = coords[b]
+    if ay < by:
+        ax, ay, bx, by = bx, by, ax, ay
+    if rectangle:
+        nx, ny = x, (ay + by) / 2
+        root.plot((nx, ax), (ay, ay), lw=2, color=fc)
+        root.plot((nx, bx), (by, by), lw=2, color=fc)
+        root.plot((nx, nx), (ay, by), lw=2, color=fc)
+    else:
+        dx = (abs(ay - by) / slope - abs(ax - bx)) / 2
+        nx = max(ax, bx) + dx
+        ny = by + (nx - bx) * slope
+        root.plot((nx, ax), (ny, ay), lw=2, color=fc)
+        root.plot((nx, bx), (ny, by), lw=2, color=fc)
+    if circle:
+        DoubleSquare(root, nx, ny, fc=fc)
+    return nx, ny
+
+
+def birch(args):
+    """
+    %prog birch seqids layout
+
+    Plot birch macro-synteny, with an embedded phylogenetic tree to the right.
+    """
+    p = OptionParser(birch.__doc__)
+    opts, args, iopts = p.set_image_options(args, figsize="8x6")
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    seqids, layout = args
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes([0, 0, 1, 1])
+
+    K = Karyotype(fig, root, seqids, layout)
+    L = K.layout
+
+    xs = .79
+    dt = dict(rectangle=False, circle=False)
+    # Embed a phylogenetic tree to the right
+    coords = {}
+    coords["Amborella"] = (xs, L[0].y)
+    coords["Vitis"] = (xs, L[1].y)
+    coords["Prunus"] = (xs, L[2].y)
+    coords["Betula"] = (xs, L[3].y)
+    coords["Populus"] = (xs, L[4].y)
+    coords["Arabidopsis"] = (xs, L[5].y)
+    coords["fabids"] = join_nodes(root, coords, "Prunus", "Betula", xs, **dt)
+    coords["malvids"] = join_nodes(root, coords, \
+                                   "Populus", "Arabidopsis", xs, **dt)
+    coords["rosids"] = join_nodes(root, coords, "fabids", "malvids", xs, **dt)
+    coords["eudicots"] = join_nodes(root, coords, "rosids", "Vitis", xs, **dt)
+    coords["angiosperm"] = join_nodes(root, coords, \
+                                      "eudicots", "Amborella", xs, **dt)
+
+    root.set_xlim(0, 1)
+    root.set_ylim(0, 1)
+    root.set_axis_off()
+
+    pf = "birch"
+    image_name = pf + "." + iopts.format
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
 def mtdotplots(args):
@@ -88,8 +158,6 @@ def litchi(args):
 
     Build a composite figure that calls graphis.synteny.
     """
-    from jcvi.graphics.glyph import DoubleSquare
-
     p = OptionParser(litchi.__doc__)
     opts, args, iopts = p.set_image_options(args, figsize="9x6")
 
@@ -107,18 +175,6 @@ def litchi(args):
 
     # On the left panel, make a species tree
     fc = 'lightslategrey'
-
-    def join_nodes(root, coords, a, b, x, circle=True):
-        # Join node a and b to make an internal node
-        ax, ay = coords[a]
-        bx, by = coords[b]
-        nx, ny = x, (ay + by) / 2
-        root.plot((nx, ax), (ay, ay), lw=2, color=fc)
-        root.plot((nx, bx), (by, by), lw=2, color=fc)
-        root.plot((nx, nx), (ay, by), lw=2, color=fc)
-        if circle:
-            DoubleSquare(root, nx, ny, fc=fc)
-        return nx, ny
 
     coords = {}
     xs, xp = .16, .03

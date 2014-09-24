@@ -215,7 +215,7 @@ class BlockFile (BaseFile):
 
 class SimpleFile (object):
 
-    def __init__(self, simplefile, order=None):
+    def __init__(self, simplefile, defaultcolor='#fb8072', order=None):
         # Sometimes the simplefile has query and subject wrong
         fp = open(simplefile)
         self.blocks = []
@@ -225,7 +225,7 @@ class SimpleFile (object):
             hl = ("*" in row)
             if hl:
                 hl, row = row.split("*", 1)
-                hl = hl or "r"
+                hl = hl or defaultcolor
             a, b, c, d, score, orientation = row.split()
             if order and a not in order:
                 a, b, c, d = c, d, a, b

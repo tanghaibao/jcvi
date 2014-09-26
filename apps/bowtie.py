@@ -106,6 +106,8 @@ def align(args):
                  help="Keep the input read order [default: %default]")
     p.add_option("--null", default=False, action="store_true",
                  help="Do not write to SAM/BAM output")
+    p.add_option("--fasta", default=False, action="store_true",
+                 help="Query reads are FASTA")
     p.set_cutoff(cutoff=800)
     p.set_mateorientation(mateorientation="+-")
     p.set_sam_options(bowtie=True)
@@ -132,6 +134,7 @@ def align(args):
     firstN = opts.firstN
     mapped = opts.mapped
     unmapped = opts.unmapped
+    fasta = opts.fasta
     gl = "--end-to-end" if opts.full else "--local"
 
     dbfile, readfile = args[0:2]
@@ -142,7 +145,8 @@ def align(args):
                                             mapped=mapped, unmapped=unmapped,
                                             bam=opts.bam)
     logfile = prefix + ".log"
-    offset = guessoffset([readfile])
+    if not fasta:
+        offset = guessoffset([readfile])
 
     if not need_update(safile, samfile):
         logging.error("`{0}` exists. `bowtie2` already run.".format(samfile))
@@ -166,7 +170,10 @@ def align(args):
     if firstN:
         cmd += " --upto {0}".format(firstN)
     cmd += " -p {0}".format(opts.cpus)
-    cmd += " --phred{0}".format(offset)
+    if fasta:
+        cmd += " -f"
+    else:
+        cmd += " --phred{0}".format(offset)
     cmd += " {0}".format(gl)
     if opts.reorder:
         cmd += " --reorder"

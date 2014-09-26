@@ -90,7 +90,7 @@ def correct(args):
     table.
     """
     p = OptionParser(correct.__doc__)
-    p.add_cpus()
+    p.set_cpus()
     opts, args = p.parse_args(args)
 
     if len(args) < 1:

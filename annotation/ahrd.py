@@ -13,6 +13,7 @@ import sys
 import re
 import logging
 
+from jcvi.formats.base import must_open
 from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, glob
 
 
@@ -192,6 +193,13 @@ Hypothetical = "hypothetical protein"
 
 
 def fix_text(s):
+
+    # Fix descriptions like D7TDB1 (
+    s = re.sub("([A-Z0-9]){6} \(", "", s)
+    s = s.translate(None, "[]")
+    s = s.replace("(-)", "[-]")
+    s = s.replace("(+)", "[+]")
+    s = s.translate(None, "()")
 
     # before trimming off at the first ";", check if name has glycosidic
     # linkage information (e.g 1,3 or 1,4). If so, also check if multiple
@@ -391,6 +399,12 @@ def fix_text(s):
     if "FUNCTIONS IN".lower() in sl and "unknown" in sl:
         s = Unknown
 
+    if "uncharacterized" in sl:
+        s = "uncharacterized protein"
+
+    s = s.replace(", putative", "")
+    s = s.replace("Putative ", "")
+
     if s == Unknown:
         s = Hypothetical
 
@@ -409,6 +423,7 @@ def fix(args):
     Fix ugly names from Uniprot.
     """
     p = OptionParser(fix.__doc__)
+    p.set_outfile()
     opts, args = p.parse_args(args)
 
     if len(args) < 1:
@@ -416,7 +431,12 @@ def fix(args):
 
     csvfile, = args
     fp = open(csvfile)
+    fw = must_open(opts.outfile, "w")
     for row in fp:
+        if row[0] == '#':
+            continue
+        if row.strip() == "":
+            continue
         atoms = row.rstrip("\r\n").split("\t")
         name, hit, ahrd_code, desc = atoms[:4] \
                 if len(atoms) > 2 else \
@@ -424,7 +444,7 @@ def fix(args):
         newdesc = fix_text(desc)
         if hit and hit.strip() != "" and newdesc == Hypothetical:
             newdesc = "conserved " + newdesc
-        print "\t".join(atoms[:4] + [newdesc] + atoms[4:])
+        print >> fw, "\t".join(atoms[:4] + [newdesc] + atoms[4:])
 
 
 def merge(args):

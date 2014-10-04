@@ -159,6 +159,8 @@ def augustus(args):
     <http://www.molecularevolution.org/molevolfiles/exercises/augustus/training.html>
     """
     p = OptionParser(snap.__doc__)
+    p.add_option("--autotrain", default=False, action="store_true",
+                 help="Run autoAugTrain.pl to iteratively train AUGUSTUS")
     p.set_home("augustus")
     opts, args = p.parse_args(args)
 
@@ -172,6 +174,11 @@ def augustus(args):
     cwd = os.getcwd()
     mkdir(augdir)
     os.chdir(augdir)
+    target = "{0}/config/species/{1}".format(mhome, species)
+
+    if op.exists(target):
+        logging.debug("Removing existing target `{0}`".format(target))
+        sh("rm -rf {0}".format(target))
 
     sh("{0}/scripts/new_species.pl --species={1}".format(mhome, species))
     sh("{0}/scripts/gff2gbSmallDNA.pl ../{1} ../{2} 1000 raw.gb".\
@@ -182,11 +189,15 @@ def augustus(args):
     sh("{0}/scripts/filterGenes.pl badgenes.lst raw.gb > training.gb".\
             format(mhome))
     sh("grep -c LOCUS raw.gb training.gb")
-    sh("{0}/scripts/autoAugTrain.pl --trainingset=training.gb --species={1}".\
-            format(mhome, species))
+
+    # autoAugTrain failed to execute, disable for now
+    if opts.autotrain:
+        sh("rm -rf {0}".format(target))
+        sh("{0}/scripts/autoAugTrain.pl --trainingset=training.gb --species={1}".\
+                format(mhome, species))
 
     os.chdir(cwd)
-    sh("cp -r {0}/species/{1} augustus/".format(mhome, species))
+    sh("cp -r {0} augustus/".format(target))
 
 
 if __name__ == '__main__':

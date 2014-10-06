@@ -18,7 +18,7 @@ from Bio.SeqIO.QualityIO import FastqGeneralIterator
 
 from jcvi.formats.fasta import must_open, rc
 from jcvi.formats.base import DictFile
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh, which
 
 
 qual_offset = lambda x: 33 if x == "sanger" else 64
@@ -209,6 +209,7 @@ def main():
         ('readlen', 'calculate read length'),
         ('format', 'format fastq file, convert header from casava 1.8+ to older format'),
         ('fasta', 'convert fastq to fasta and qual file'),
+        ('fromsra', 'convert sra to fastq using `fastq-dump`'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -835,6 +836,49 @@ def pairinplace(args):
 
     logging.debug("Reads paired into `%s` and `%s`" % (pairs, frags))
     return pairs
+
+
+def fromsra(args):
+    """
+    %prog fromsra srafile
+
+    Convert sra file to fastq using the sratoolkit `fastq-dump`
+    """
+    p = OptionParser(fromsra.__doc__)
+    p.add_option("--paired", default=False, action="store_true",
+            help="Specify if library layout is paired-end " + \
+                 "[default: %default]")
+    p.add_option("--compress", default=None, choices=["gzip", "bzip2"],
+            help="Compress output fastq files [default: %default]")
+    p.add_option("--outdir", default=".",
+            help="Specify output directory [default: %default]")
+    p.set_grid()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    srafile, = args
+    paired = opts.paired
+    compress = opts.compress
+    outdir = opts.outdir
+
+    script_path = which("fastq-dump")
+    if not script_path:
+        logging.error("Cannot find `fastq-dump` in the PATH")
+        sys.exit()
+
+    cmd = [script_path]
+    if compress:
+        cmd.append("--{0}".format(compress))
+    if paired:
+        cmd.append("--split-3")
+    if outdir:
+        cmd.append("--outdir {0}".format(outdir))
+    cmd.append(srafile)
+
+    outcmd = " ".join(cmd)
+    sh(outcmd, grid=opts.grid)
 
 
 if __name__ == '__main__':

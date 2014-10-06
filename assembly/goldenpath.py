@@ -22,7 +22,7 @@ from jcvi.formats.fasta import Fasta, SeqIO
 from jcvi.formats.blast import BlastSlow, BlastLine
 from jcvi.formats.coords import Overlap_types
 from jcvi.utils.cbook import memoized
-from jcvi.apps.entrez import fetch
+from jcvi.apps.fetch import entrez
 from jcvi.apps.base import OptionParser, ActionDispatcher, popen, mkdir, sh, need_update
 
 
@@ -738,7 +738,7 @@ def blast(args):
     fastadir = "fasta"
     infile = op.join(fastadir, clonename + ".fasta")
     if not op.exists(infile):
-        fetch([clonename, "--skipcheck", "--outdir=" + fastadir])
+        entrez([clonename, "--skipcheck", "--outdir=" + fastadir])
 
     outfile = "{0}.{1}.blast".format(clonename, allfasta.split(".")[0])
     run_megablast(infile=infile, outfile=outfile, db=allfasta, \
@@ -786,7 +786,7 @@ def bes(args):
 
     bacfasta, clonename = args
 
-    fetch([clonename, "--database=nucgss", "--skipcheck"])
+    entrez([clonename, "--database=nucgss", "--skipcheck"])
     besfasta = clonename + ".fasta"
     blatfile = clonename + ".bes.blat"
     run_blat(infile=besfasta, outfile=blatfile, db=bacfasta, \
@@ -887,13 +887,13 @@ def overlap(args):
     if not op.exists(afasta):
         af = op.join(dir, ".".join((afasta, suffix)))
         if not op.exists(af):  # Check to avoid redownload
-            fetch([afasta, "--skipcheck", "--outdir=" + dir])
+            entrez([afasta, "--skipcheck", "--outdir=" + dir])
         afasta = af
 
     if not op.exists(bfasta):
         bf = op.join(dir, ".".join((bfasta, suffix)))
         if not op.exists(bf):
-            fetch([bfasta, "--skipcheck", "--outdir=" + dir])
+            entrez([bfasta, "--skipcheck", "--outdir=" + dir])
         bfasta = bf
 
     assert op.exists(afasta) and op.exists(bfasta)
@@ -931,7 +931,7 @@ def phase(accession):
     gbdir = "gb"
     gbfile = op.join(gbdir, accession + ".gb")
     if not op.exists(gbfile):
-        fetch([accession, "--skipcheck", "--outdir=" + gbdir, \
+        entrez([accession, "--skipcheck", "--outdir=" + gbdir, \
                "--format=gb"])
     rec = SeqIO.parse(gbfile, "gb").next()
     ph, keywords = get_phase(rec)
@@ -991,7 +991,7 @@ def certificate(args):
 
         af = op.join(fastadir, aid + ".fasta")
         if not op.exists(af):  # Check to avoid redownload
-            fetch([aid, "--skipcheck", "--outdir=" + fastadir])
+            entrez([aid, "--skipcheck", "--outdir=" + fastadir])
 
         north, south = tpf.getNorthSouthClone(i)
         aphase, asize = phase(aid)

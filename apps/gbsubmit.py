@@ -347,7 +347,7 @@ def htg(args):
     """
     from jcvi.formats.fasta import sequin, ids
     from jcvi.formats.agp import phase
-    from jcvi.apps.entrez import fetch
+    from jcvi.apps.fetch import entrez
 
     p = OptionParser(htg.__doc__)
     p.add_option("--phases", default=None,
@@ -370,14 +370,14 @@ def htg(args):
 
     asndir = "asn.1"
     mkdir(asndir)
-    fetch([idsfile, "--format=asn.1", "--outdir={0}".format(asndir)])
+    entrez([idsfile, "--format=asn.1", "--outdir={0}".format(asndir)])
     asn(glob("{0}/*".format(asndir)) + \
             ["--outfile={0}".format(namesfile)])
 
     if opts.phases is None:
         gbdir = "gb"
         mkdir(gbdir)
-        fetch([idsfile, "--format=gb", "--outdir={0}".format(gbdir)])
+        entrez([idsfile, "--format=gb", "--outdir={0}".format(gbdir)])
         phase(glob("{0}/*".format(gbdir)) + \
                 ["--outfile={0}".format(phasefile)])
     else:

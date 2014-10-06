@@ -17,7 +17,7 @@ from Bio.Seq import Seq
 
 from jcvi.formats.base import must_open, FileShredder, BaseFile, get_number
 from jcvi.formats.gff import GffLine
-from jcvi.apps.entrez import fetch
+from jcvi.apps.fetch import entrez
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, mkdir, glob
 
 
@@ -174,7 +174,7 @@ class GenBank(dict):
             sh("rm -rf {0}_old; mv -f {0} {0}_old".format(gbdir,))
             assert mkdir(gbdir)
 
-        fetch([self.idfile, "--format=gb", "--database=nuccore", "--outdir={0}"\
+        entrez([self.idfile, "--format=gb", "--database=nuccore", "--outdir={0}"\
             .format(gbdir)])
 
         logging.debug('GenBank records written to {0}.'.format(gbdir))

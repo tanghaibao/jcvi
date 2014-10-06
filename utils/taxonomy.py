@@ -96,7 +96,7 @@ def get_names(list_of_taxids):
     >>> get_names(mylist)
     ['Arabidopsis thaliana', 'Carica papaya', 'Populus trichocarpa', 'Medicago truncatula']
     """
-    from jcvi.apps.entrez import batch_taxonomy
+    from jcvi.apps.fetch import batch_taxonomy
     list_of_taxids = [str(x) for x in list_of_taxids]
     return list(batch_taxonomy(list_of_taxids))
 
@@ -107,7 +107,7 @@ def get_taxids(list_of_names):
     >>> get_taxids(mylist)
     [1, 2]
     """
-    from jcvi.apps.entrez import batch_taxids
+    from jcvi.apps.fetch import batch_taxids
     return [int(x) for x in batch_taxids(list_of_names)]
 
 

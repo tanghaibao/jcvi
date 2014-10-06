@@ -1,5 +1,6 @@
 """
-Wrapper for calling Bio.Entrez tools to get the sequence from a list of IDs
+Wrapper for fetching data from various online repositories \
+(Entrez, Ensembl, Phytozome, and SRA)
 """
 
 import os.path as op
@@ -7,6 +8,8 @@ import sys
 import time
 import logging
 import urllib2
+import re
+from os.path import join as urljoin
 
 from Bio import Entrez, SeqIO
 
@@ -108,10 +111,11 @@ def batch_entrez(list_of_terms, db="nuccore", retmax=1, rettype="fasta",
 def main():
 
     actions = (
-        ('fetch', 'fetch records from a list of GenBank accessions'),
-        ('bisect', 'determine the version of the accession'),
+        ('entrez', 'fetch records from entrez using a list of GenBank accessions'),
+        ('bisect', 'determine the version of the accession by querying entrez'),
         ('phytozome', 'retrieve genomes and annotations from phytozome'),
         ('ensembl', 'retrieve genomes and annotations from ensembl'),
+        ('sra', 'retrieve files from SRA via the sra-instant FTP'),
         )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -149,8 +153,6 @@ def ensembl(args):
 
 
 def download_species_ensembl(species, valid_species, url):
-    from os.path import join as urljoin
-
     assert species in valid_species, \
             "{0} is not in the species list".format(species)
 
@@ -236,7 +238,7 @@ def bisect(args):
     """
     %prog bisect acc accession.fasta
 
-    determine the version of the accession, based on a fasta file.
+    determine the version of the accession by querying entrez, based on a fasta file.
     This proceeds by a sequential search from xxxx.1 to the latest record.
     """
     p = OptionParser(bisect.__doc__)
@@ -273,15 +275,15 @@ def bisect(args):
         print green("%s matches the sequence in `%s`" % (valid, fastafile))
 
 
-def fetch(args):
+def entrez(args):
     """
-    %prog fetch <filename|term>
+    %prog entrez <filename|term>
 
     `filename` contains a list of terms to search. Or just one term. If the
     results are small in size, e.g. "--format=acc", use "--batchsize=100" to speed
     the download.
     """
-    p = OptionParser(fetch.__doc__)
+    p = OptionParser(entrez.__doc__)
 
     allowed_databases = {"fasta": ["genome", "nuccore", "nucgss", "protein", "nucest"],
                          "asn.1": ["genome", "nuccore", "nucgss", "protein"],
@@ -359,7 +361,7 @@ def fetch(args):
                                  rettype=fmt, db=database, batchsize=batchsize, \
                                  email=opts.email):
         if outdir:
-            outfile = op.join(outdir, "{0}.{1}".format(term, fmt))
+            outfile = urljoin(outdir, "{0}.{1}".format(term, fmt))
             fw = must_open(outfile, "w", checkexists=True, \
                     skipcheck=opts.skipcheck)
             if fw is None:
@@ -381,6 +383,38 @@ def fetch(args):
                 format(totalsize, fmt.upper())
 
     return outfile
+
+
+def sra(args):
+    """
+    %prog sra term
+
+    Given an SRA run ID, fetch the corresponding .sra file
+    from the sra-instant FTP
+    """
+    sra_base_url = "ftp://ftp-trace.ncbi.nlm.nih.gov/sra/sra-instant/reads/ByRun/sra/"
+    sra_run_id_re = re.compile(r'^([DES]{1}RR)(\d{3})(\d{3,4})$')
+
+    p = OptionParser(sra.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    term, = args
+
+    m = re.search(sra_run_id_re, term)
+    if m is None:
+        logging.error("Incorrect SRA identifier format " + \
+                "[should be like SRR126150, SRR1001901. " + \
+                "len(identifier) should be between 9-10 characters]")
+        sys.exit()
+
+    prefix, subprefix = m.group(1), "{0}{1}".format(m.group(1), m.group(2))
+    download_url = urljoin(sra_base_url, prefix, subprefix, term, "{0}.sra".format(term))
+
+    logging.debug("Downloading file: {0}".format(download_url))
+    download(download_url)
 
 
 if __name__ == '__main__':

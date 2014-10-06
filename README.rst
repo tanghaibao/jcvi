@@ -37,7 +37,7 @@ Following modules are available as generic Bioinformatics handling methods.
     * Matrix operations.
 
 - ``apps``
-    * GenBank entrez accession and Phytozome downloader.
+    * GenBank entrez accession, phytozome, ensembl and SRA downloader.
     * Calculate (non)synonymous substitution rate between gene pairs.
     * Basic phylogenetic tree construction using PHYLIP, PhyML, or RAxML, and visualization.
     * Wrapper for BLAST+, LASTZ, LAST, BWA, BOWTIE2, CLC, CDHIT, CAP3, etc.

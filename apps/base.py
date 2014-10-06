@@ -389,9 +389,14 @@ class OptionParser (OptionP):
         self.add_option("--firstN", default=firstN, type="int",
                 help="Use only the first N reads [default: %default]")
 
-    def set_tag(self, tag=False):
-        self.add_option("--tag", default=tag, action="store_true",
-                help="Add tag (/1, /2) to the read name")
+    def set_tag(self, tag=False, specify_tag=False):
+        if not specify_tag:
+            self.add_option("--tag", default=tag, action="store_true",
+                    help="Add tag (/1, /2) to the read name")
+        else:
+            tag_choices = ["/1", "/2"]
+            self.add_option("--tag", default=None, choices=tag_choices,
+                    help="Specify tag to be added to read name")
 
     def set_phred(self, phred=None):
         phdchoices = ("33", "64")

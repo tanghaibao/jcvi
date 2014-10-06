@@ -9,6 +9,7 @@ import os.path as op
 import sys
 import re
 import logging
+import json
 
 from itertools import islice
 
@@ -21,6 +22,10 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, sh
 
 
 qual_offset = lambda x: 33 if x == "sanger" else 64
+allowed_dialect_conversions = {
+    ">=1.8": ("<1.8"),
+    "sra": ("<1.8"),
+}
 
 
 class FastqLite (object):
@@ -67,45 +72,74 @@ class FastqRecord (object):
 
 class FastqHeader(object):
 
-    def __init__(self, row, paired=False):
+    def __init__(self, row, tag=None):
         header = row.strip().split(" ")
-        h = header[0].split(":")
-        self.instrument = h[0]
-        if len(header) == 2 and header[1].find(":"):
-            self.dialect = ">=1.8"  # Illumina Casava 1.8+ format
+        self.readId, self.readLen, self.readNum = None, None, None
+        self.multiplexId = 0
+        self.paired = False
+        if len(header) == 3 and "length" in header[2]:
+            self.dialect = "sra"
+            self.readId = header[0]
+            m = re.search("length\=(\d+)", header[2])
+            if m:
+                self.readLen = m.group(1)
+            h = header[1].split(":")
 
+            self.instrument = h[0]
             self.runId = int(h[1])
             self.flowcellId = h[2]
             self.laneNum = int(h[3])
             self.tileNum = int(h[4])
             self.xPos = int(h[5])
             self.yPos = h[6]
-            if re.search("/", self.yPos):
-                self.paired = True
-                self.yPos, self.readNum = self.yPos.split("/")
-
-            a = header[1].split(":")
-            self.readNum = int(a[0])
-            self.isFiltered = a[1]
-            self.controlNum = int(a[2])
-            self.barcode = a[3] if a[3] else 0
         else:
-            self.dialect = "<1.8"   # Old Illumina Casava format (< 1.8)
-            self.laneNum = int(h[1])
-            self.tileNum = int(h[2])
-            self.xPos = int(h[3])
-            self.yPos = h[4]
-            self.paired = False
-            m = re.search(r"(\d+)(#\S+)\/(\d+)", self.yPos)
-            if m:
-                self.paired = True
-                self.yPos, self.multiplexId, self.readNum = \
-                        m.group(1), m.group(2), m.group(3)
+            h = header[0].split(":")
+            self.instrument = h[0]
+            if len(header) == 2 and header[1].find(":"):
+                self.dialect = ">=1.8"  # Illumina Casava 1.8+ format
 
-        self.paired = paired
+                self.runId = int(h[1])
+                self.flowcellId = h[2]
+                self.laneNum = int(h[3])
+                self.tileNum = int(h[4])
+                self.xPos = int(h[5])
+                self.yPos = h[6]
+                if re.search("/", self.yPos):
+                    self.paired = True
+                    self.yPos, self.readNum = self.yPos.split("/")
+
+                a = header[1].split(":")
+                self.readNum = int(a[0])
+                self.isFiltered = a[1]
+                self.controlNum = int(a[2])
+                self.barcode = a[3]
+            else:
+                self.dialect = "<1.8"   # Old Illumina Casava format (< 1.8)
+                self.laneNum = int(h[1])
+                self.tileNum = int(h[2])
+                self.xPos = int(h[3])
+                self.yPos = h[4]
+                m = re.search(r"(\d+)(#\S+)\/(\d+)", self.yPos)
+                if m:
+                    self.paired = True
+                    self.yPos, self.multiplexId, self.readNum = \
+                            m.group(1), m.group(2), m.group(3)
+
+        if self.paired == False and tag is not None:
+            self.readNum = tag.split("/")[1]
+            self.paired = True
+
 
     def __str__(self):
-        if self.dialect == ">=1.8":
+        if self.dialect == "sra":
+            h0 = self.readId
+            h1 = ":".join(str(x) for x in (self.instrument, self.runId, \
+                    self.flowcellId, self.laneNum, self.tileNum, \
+                    self.xPos, yPos))
+            h2 = "length={0}".format(self.readLen)
+
+            return "@{0} {1} {2}".format(h0, h1, h2)
+        elif self.dialect == ">=1.8":
             yPos = "{0}/{1}".format(self.yPos, self.readNum) if self.paired \
                     else self.yPos
 
@@ -115,25 +149,27 @@ class FastqHeader(object):
             h1 = ":".join(str(x) for x in (self.readNum, self.isFiltered, \
                     self.controlNum, self.barcode))
 
-            return "{0} {1}".format(h0, h1)
+            return "@{0} {1}".format(h0, h1)
         else:
             yPos = "{0}#{1}/{2}".format(self.yPos, self.multiplexId, \
                     self.readNum) if self.paired else self.yPos
+            h0 = ":".join(str(x) for x in (self.instrument, self.laneNum, \
+                    self.tileNum, self.xPos, yPos))
 
-            return ":".join(str(x) for x in (self.instrument, self.laneNum, \
-                    self.tileNum, self.xPos, self.yPos))
+            return "@{0}".format(h0)
 
-    @property
-    def illumina_old(self):
-        header = ":".join(str(x) for x in (self.instrument, self.laneNum, \
-                self.tileNum, self.xPos, self.yPos + "#" + self.barcode))
-        header = header + "/" + str(self.readNum)
+    def convert_header(self, dialect=None):
+        if self.dialect == dialect:
+            logging.error("Error: Input and output dialect are the same")
+            sys.exit()
 
-        return header
+        if dialect not in allowed_dialect_conversions[self.dialect]:
+            logging.error("Error: Cannot convert from `{0}` to `{1}` dialect".format(self.dialect, dialect))
+            logging.error("Allowed conversions: {0}".format(json.dumps(allowed_dialect_conversions, indent=4)))
+            sys.exit()
 
-    @property
-    def is_new_fmt(self):
-        return True if self.dialect == ">=1.8" else None
+        self.dialect = dialect
+        return str(self)
 
 
 def pairspf(pp):
@@ -503,14 +539,14 @@ def format(args):
     %prog format fastqfile
 
     Format FASTQ file. Currently provides option to convert FASTQ header from
-    Illumina Casava 1.8+ format to the older format
+    one dialect to another.
     """
     p = OptionParser(format.__doc__)
 
-    p.add_option("--old_header", default=False, action="store_true",
-                help="Convert header format from illumina new (1.8+) to older format" +
+    p.add_option("--convert", default=None, choices=[">=1.8", "<1.8", "sra"],
+                help="Convert fastq header to a different format" +
                 " [default: %default]")
-    p.set_tag()
+    p.set_tag(specify_tag=True)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -519,17 +555,20 @@ def format(args):
     fastqfile, = args
     ai = iter_fastq(fastqfile)
     rec = ai.next()
+    dialect = None
     while rec:
-        h = FastqHeader(rec.header, paired=opts.tag)
-        if opts.old_header:
-            if h.is_new_fmt:
-                rec.name = h.illumina_old
-            else:
-                logging.error("Error: Input fastq header not in Illumina Casava" +
-                            " 1.8+ format")
-                sys.exit()
+        h = FastqHeader(rec.header, tag=opts.tag)
+        if not dialect:
+            dialect = h.dialect
+            logging.debug("Input fastq dialect: `{0}`".format(dialect))
+            if opts.convert:
+                logging.debug("Output fastq dialect: `{0}`".format(opts.convert))
+
+        if opts.convert:
+            rec.name = h.convert_header(dialect=opts.convert)
         else:
-            rec.name = str(h)
+            logging.error("Nothing to do! Exiting....")
+            sys.exit()
         print rec
         rec = ai.next()
 

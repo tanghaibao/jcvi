@@ -275,19 +275,32 @@ class OptionParser (OptionP):
         self.add_option("--mingap", default=default, type="int",
                      help="Minimum size of gaps [default: %default]")
 
-    def set_align(self, pctid="off", hitlen="off", pctcov="off", evalue="off"):
-        if pctid != "off":
+    def set_align(self, pctid=None, hitlen=None, pctcov=None, evalue=None, \
+            compreh_pctcov=None, intron=None, bpsplice=None):
+        if pctid is not None:
             self.add_option("--pctid", default=pctid, type="float",
                      help="Sequence percent identity [default: %default]")
-        if hitlen != "off":
+        if hitlen is not None:
             self.add_option("--hitlen", default=hitlen, type="int",
                      help="Minimum overlap length [default: %default]")
-        if pctcov != "off":
+        if pctcov is not None:
             self.add_option("--pctcov", default=pctcov, type="int",
                      help="Percentage coverage cutoff [default: %default]")
-        if evalue != "off":
+        if evalue is not None:
             self.add_option("--evalue", default=evalue, type="float",
                      help="E-value cutoff [default: %default]")
+        if compreh_pctcov is not None:
+            self.add_option("--compreh_pctcov", default=compreh_pctcov, \
+                     type="int", help="Percent coverage cutoff used to " + \
+                     "build PASA comprehensive transcriptome [default: %default]")
+        if intron is not None:
+            self.add_option("--intron", default=intron, type="int",
+                    help="Maximum intron length used for mapping " + \
+                         "[default: %default]")
+        if bpsplice is not None:
+            self.add_option("--bpsplice", default=bpsplice, type="int",
+                    help="Number of bp of perfect splice boundary " + \
+                         "[default: %default]")
 
     def set_image_options(self, args=None, figsize="6x6", dpi=300,
                           format="pdf", font="Helvetica", palette="deep",

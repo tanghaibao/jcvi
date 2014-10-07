@@ -378,28 +378,39 @@ def must_open(filename, mode="r", checkexists=False, skipcheck=False, \
 
     return fp
 
+script_Template = """{0}{1}"""
 
-def write_file(filename, contents, meta="file", skipcheck=False, tee=False):
+bash_shebang = "#!/bin/bash"
+
+python_shebang = """#!/usr/bin/env python
+# -*- coding: UTF-8 -*-"""
+
+
+def write_file(filename, contents, meta="file", skipcheck=False, append=False, tee=False):
     meta_choices = ("file", "run script", "python script")
     assert meta in meta_choices, "meta must be one of {0}".\
                     format("|".join(meta_choices))
 
-    if meta == "run script":
-        contents = "#!/bin/bash\n\n" + contents.strip()
-    elif meta == "python script":
-        contents = "#!/usr/bin/env python\n# -*- coding: UTF-8 -*-\n\n" + \
-                    contents.strip()
+    shebang = "\n"
+    if "script" in meta:
+        if not append:
+            if meta == "run script":
+                shebang = bash_shebang
+            elif meta == "python script":
+                shebang = python_shebang
+    contents = script_Template.format(shebang, contents.strip())
 
-    fw = must_open(filename, "w", checkexists=True, skipcheck=skipcheck)
+    fw = must_open(filename, "w", checkexists=True, skipcheck=skipcheck, oappend=append)
     if fw:
         print >> fw, contents
         fw.close()
     if tee:
         print >> sys.stderr, contents
 
-    message = "{0} written to `{1}`.".format(meta, filename)
+    fileop = "appended" if append else "written"
+    message = "{0} {1} to `{2}`.".format(meta, fileop, filename)
     logging.debug(message.capitalize())
-    if meta == "run script":
+    if meta == "run script" and not append:
         sh("chmod u+x {0}".format(filename))
 
 

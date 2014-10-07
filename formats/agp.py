@@ -615,7 +615,7 @@ class OO (LineFile):
             for b in beds:
                 component_id = b.component_id
                 size = b.component_size
-                if part_number > 0:  # Print gap except for the first one
+                if part_number > 0 and gapsize > 0:  # Print gap except for the first one
                     object_end = object_beg + gapsize - 1
                     part_number += 1
                     component_type = 'U' if gapsize == 100 else 'N'

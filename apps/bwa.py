@@ -27,6 +27,7 @@ def main():
 
 
 def check_index(dbfile):
+    dbfile = get_abs_path(dbfile)
     safile = dbfile + ".sa"
     if need_update(dbfile, safile):
         cmd = "bwa index {0}".format(dbfile)
@@ -107,7 +108,6 @@ def align(args):
             c = sampe
 
     logging.debug(tag)
-    args[0] = get_abs_path(args[0])
     cmd, samfile = c(args, opts)
     if cmd:
         cmd = output_bam(cmd, samfile)

@@ -199,6 +199,7 @@ def fix_text(s):
     s = s.translate(None, "[]")
     s = s.replace("(-)", "[-]")
     s = s.replace("(+)", "[+]")
+    s = s.replace("(Uncharacterized protein)", "")
     s = s.translate(None, "()")
 
     # before trimming off at the first ";", check if name has glycosidic
@@ -232,12 +233,6 @@ def fix_text(s):
     s = re.sub(r"[']+", "'", s)
 
     s = s.strip()
-
-    # if name length is > 100, trim off name at first symbol
-    if len(s) > 100:
-        for m in re.finditer(r"(?=\W{1})[^\s]", s):
-            s = s[:m.start(0)]
-            break
 
     # -like to -like protein
     s = re.sub(like_pat, "-like protein", s)
@@ -405,7 +400,7 @@ def fix_text(s):
     s = s.replace(", putative", "")
     s = s.replace("Putative ", "")
 
-    if s == Unknown:
+    if s == Unknown or s.strip() == "protein":
         s = Hypothetical
 
     # Compact all spaces

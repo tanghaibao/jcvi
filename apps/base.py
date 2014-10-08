@@ -434,6 +434,7 @@ class OptionParser (OptionP):
                    "pbjelly": "/usr/local/projects/MTG4/PacBio/PBJelly_12.9.14/",
                    "khmer": "~/htang/export/khmer",
                    "tassel": "/usr/local/projects/MTG4/packages/tassel",
+                   "eddyyeh": "/home/shared/scripts/eddyyeh",
                    }[prog]
         help = "Home directory for {0} [default: %default]".format(prog.upper())
         self.add_option(tag, default=default, help=help)

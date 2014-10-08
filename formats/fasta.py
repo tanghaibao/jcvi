@@ -937,6 +937,8 @@ def join(args):
     joinedfastafile = prefix + ".joined.fasta"
     build([agpfile, fastafile, joinedfastafile])
 
+    return joinedfastafile
+
 
 def summary(args):
     """

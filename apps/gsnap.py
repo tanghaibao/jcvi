@@ -67,10 +67,13 @@ def align(args):
     Wrapper for `gsnap` single-end or paired-end, depending on the number of
     args.
     """
+    from jcvi.formats.fasta import join
     from jcvi.formats.fastq import guessoffset
     from jcvi.projects.tgbs import snp
 
     p = OptionParser(align.__doc__)
+    p.add_option("--join", default=False, action="store_true",
+                 help="Join sequences with padded 50Ns")
     p.add_option("--rnaseq", default=False, action="store_true",
                  help="Input is RNA-seq reads, turn splicing on")
     p.add_option("--snp", default=False, action="store_true",
@@ -86,6 +89,9 @@ def align(args):
         sys.exit(not p.print_help())
 
     dbfile, readfile = args[0:2]
+    if opts.join:
+        dbfile = join([dbfile, "--gapsize=50", "--newid=chr0"])
+
     assert op.exists(dbfile) and op.exists(readfile)
     prefix = get_prefix(readfile, dbfile)
     logfile = prefix + ".log"

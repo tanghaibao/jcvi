@@ -68,43 +68,47 @@ def align(args):
     args.
     """
     from jcvi.formats.fastq import guessoffset
+    from jcvi.projects.tgbs import snp
 
     p = OptionParser(align.__doc__)
     p.add_option("--rnaseq", default=False, action="store_true",
                  help="Input is RNA-seq reads, turn splicing on")
+    p.add_option("--snp", default=False, action="store_true",
+                 help="Call SNPs after GSNAP")
     p.set_cpus()
     opts, args = p.parse_args(args)
 
-    PE = True
     if len(args) == 2:
         logging.debug("Single-end alignment")
-        PE = False
     elif len(args) == 3:
         logging.debug("Paired-end alignment")
     else:
         sys.exit(not p.print_help())
 
     dbfile, readfile = args[0:2]
+    assert op.exists(dbfile) and op.exists(readfile)
     prefix = get_prefix(readfile, dbfile)
     logfile = prefix + ".log"
     gsnapfile = prefix + ".gsnap"
     if not need_update((dbfile, readfile), gsnapfile):
         logging.error("`{0}` exists. `gsnap` already run.".format(gsnapfile))
-        return gsnapfile, logfile
+    else:
+        dbdir, dbname = check_index(dbfile)
+        cmd = "gsnap -D {0} -d {1}".format(dbdir, dbname)
+        cmd += " -B 5 -m 0.1 -i 2 -n 3"  # memory, mismatch, indel penalty, nhits
+        if opts.rnaseq:
+            cmd += " -N 1"
+        cmd += " -t {0}".format(opts.cpus)
+        cmd += " --gmap-mode none --nofails"
+        if readfile.endswith(".gz"):
+            cmd += " --gunzip"
+        offset = "sanger" if guessoffset([readfile]) == 33 else "illumina"
+        cmd += " --quality-protocol {0}".format(offset)
+        cmd += " " + " ".join(args[1:])
+        sh(cmd, outfile=gsnapfile, errfile=logfile)
 
-    dbdir, dbname = check_index(dbfile)
-    cmd = "gsnap -D {0} -d {1}".format(dbdir, dbname)
-    cmd += " -B 5 -m 0.1 -i 2 -n 3"  # memory, mismatch, indel penalty, nhits
-    if opts.rnaseq:
-        cmd += " -N 1"
-    cmd += " -t {0}".format(opts.cpus)
-    cmd += " --gmap-mode none --nofails"
-    if readfile.endswith(".gz"):
-        cmd += " --gunzip"
-    offset = "sanger" if guessoffset([readfile]) == 33 else "illumina"
-    cmd += " --quality-protocol {0}".format(offset)
-    cmd += " " + " ".join(args[1:])
-    sh(cmd, outfile=gsnapfile, errfile=logfile)
+    if opts.snp:
+        snp([gsnapfile, "--cpus={0}".format(opts.cpus)])
 
     return gsnapfile, logfile
 

@@ -325,7 +325,7 @@ def array(args):
             "Commands list file should not have a `.sh` extension"
 
     contents = arraysh.format(cmds)
-    write_file(runfile, contents, meta="run script")
+    write_file(runfile, contents)
 
     outfile = "{0}.{1}.out".format(pf, "\$TASK_ID")
     p = GridProcess("sh {0}".format(runfile), outfile=outfile, errfile=outfile,

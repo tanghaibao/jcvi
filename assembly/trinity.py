@@ -75,7 +75,7 @@ def dn(args):
         cmd += " --single {0}".format(reads[0][-1])
 
     runfile = "run.sh"
-    write_file(runfile, cmd, meta="run script")
+    write_file(runfile, cmd)
     os.chdir(cwd)
 
 

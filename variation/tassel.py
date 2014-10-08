@@ -104,7 +104,7 @@ def prepare(args):
     runsh.append(cmd)
 
     runfile = "run.sh"
-    write_file(runfile, "\n".join(runsh), meta="run script")
+    write_file(runfile, "\n".join(runsh))
 
 
 if __name__ == '__main__':

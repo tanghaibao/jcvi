@@ -207,7 +207,7 @@ def patch(args):
 
     runfile = "run.sh"
     contents = "\n".join(runsh)
-    write_file(runfile, contents, meta="run script")
+    write_file(runfile, contents)
 
 
 if __name__ == '__main__':

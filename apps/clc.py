@@ -93,7 +93,7 @@ def prepare(args):
     cmd += "\n".join("\t{0} \\".format(x) for x in pairs)
 
     runfile = "run.sh"
-    write_file(runfile, cmd, meta="run script")
+    write_file(runfile, cmd)
 
 
 def align(args):

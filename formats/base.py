@@ -378,15 +378,22 @@ def must_open(filename, mode="r", checkexists=False, skipcheck=False, \
 
     return fp
 
-script_Template = """{0}{1}"""
 
 bash_shebang = "#!/bin/bash"
-
 python_shebang = """#!/usr/bin/env python
 # -*- coding: UTF-8 -*-"""
 
 
-def write_file(filename, contents, meta="file", skipcheck=False, append=False, tee=False):
+def write_file(filename, contents, meta=None, skipcheck=False, append=False, tee=False):
+    if not meta:
+        suffix = filename.rsplit(".", 1)[-1]
+        if suffix == "sh":
+            meta = "run script"
+        elif suffix == "py":
+            meta = "python script"
+        else:
+            meta = "file"
+
     meta_choices = ("file", "run script", "python script")
     assert meta in meta_choices, "meta must be one of {0}".\
                     format("|".join(meta_choices))
@@ -398,7 +405,7 @@ def write_file(filename, contents, meta="file", skipcheck=False, append=False, t
                 shebang = bash_shebang
             elif meta == "python script":
                 shebang = python_shebang
-    contents = script_Template.format(shebang, contents.strip())
+    contents = "\n\n".join((shebang, contents.strip()))
 
     fw = must_open(filename, "w", checkexists=True, skipcheck=skipcheck, oappend=append)
     if fw:

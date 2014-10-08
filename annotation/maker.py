@@ -204,7 +204,7 @@ def parallel(args):
     engine = get_grid_engine()
     contents = arraysh.format(jobs, cmd) if engine == "SGE" \
                 else arraysh_ua.format(N, threaded, jobs, cmd)
-    write_file(runfile, contents, meta="run script")
+    write_file(runfile, contents)
 
     if engine == "PBS":
         return
@@ -215,7 +215,7 @@ def parallel(args):
                     arr=ncmds, grid_opts=opts)
     qsubfile = "qsub.sh"
     qsub = p.build()
-    write_file(qsubfile, qsub, meta="run script")
+    write_file(qsubfile, qsub)
 
 
 mergesh = """
@@ -254,7 +254,7 @@ def merge(args):
     cmd = op.join(opts.maker_home, "bin/gff3_merge")
 
     outfile = "merge.sh"
-    write_file(outfile, mergesh.format(suffix, cmd), meta="run script")
+    write_file(outfile, mergesh.format(suffix, cmd))
 
     # Generate per split directory
     # Note that gff3_merge write to /tmp, so I limit processes here to avoid

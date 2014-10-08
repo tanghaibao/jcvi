@@ -98,7 +98,7 @@ def main():
 
     script, = args
     template = graphic_template if opts.graphic else default_template
-    write_file(script, template, meta="python script")
+    write_file(script, template)
 
     message = "template writes to `{0}`".format(script)
     if opts.graphic:

@@ -128,7 +128,7 @@ def maker(args):
         contents.append("\t".join(str(x) for x in (type, s, weight)))
 
     contents = "\n".join(sorted(contents))
-    write_file(weightsfile, contents, meta="weights file")
+    write_file(weightsfile, contents)
 
     evs = [x + ".gff" for x in (A, T, P)]
     FileShredder(evs)
@@ -141,7 +141,7 @@ def maker(args):
     partition(evs)
     runfile = "run.sh"
     contents = EVMRUN.format(*evs)
-    write_file(runfile, contents, meta="run script")
+    write_file(runfile, contents)
 
 
 def tigrload(args):
@@ -161,7 +161,7 @@ def tigrload(args):
 
     runfile = "load.sh"
     contents = EVMLOAD.format(db, ev_type)
-    write_file(runfile, contents, meta="run script")
+    write_file(runfile, contents)
 
 
 def pasa(args):
@@ -257,7 +257,7 @@ def tigrprepare(args):
     partition(evs)
     runfile = "run.sh"
     contents = EVMRUN.format(*evs)
-    write_file(runfile, contents, meta="run script")
+    write_file(runfile, contents)
 
 
 if __name__ == '__main__':

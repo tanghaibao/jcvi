@@ -449,7 +449,7 @@ def prepare(args):
 
     if not opts.norun:
         contents = ALLPATHSRUN.format(opts.ploidy, opts.cpus, phred64, extra)
-        write_file(runfile, contents, meta="run script")
+        write_file(runfile, contents)
 
 
 def log(args):

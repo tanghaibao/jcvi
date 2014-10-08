@@ -162,7 +162,7 @@ def close(args):
     cmd = "perl " + op.join(opts.gapfiller_home, "GapFiller.pl")
     cmd += " -l {0} -s {1} -T {2}".format(libtxt, scaffolds, opts.cpus)
     runsh = "run.sh"
-    write_file(runsh, cmd, meta="run script")
+    write_file(runsh, cmd)
 
 
 def scaffold(args):
@@ -185,7 +185,7 @@ def scaffold(args):
     cmd = "perl " + op.join(opts.sspace_home, "SSPACE_Basic_v2.0.pl")
     cmd += " -l {0} -s {1} -T {2}".format(libtxt, contigs, opts.cpus)
     runsh = "run.sh"
-    write_file(runsh, cmd, meta="run script")
+    write_file(runsh, cmd)
 
 
 def agp(args):

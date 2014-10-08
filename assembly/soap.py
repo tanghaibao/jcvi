@@ -313,7 +313,7 @@ def prepare(args):
     else:
         template = header + (SCFRUN % scaffold if scaffold else SOAPRUN)
 
-    write_file(runfile, template, meta="run script")
+    write_file(runfile, template)
     fw.close()
     fw_gc.close()
 

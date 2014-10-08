@@ -106,7 +106,7 @@ def assemble(args):
 
     cpus = opts.cpus
     grid = opts.grid
-    prepare, runfile, meta = opts.prepare, "run.sh", "run script"
+    prepare, runfile = opts.prepare, "run.sh"
     pctcov, pctid = opts.pctcov, opts.pctid
     compreh_pctcov, bpsplice = opts.compreh_pctcov, opts.bpsplice
 
@@ -114,12 +114,12 @@ def assemble(args):
     os.chdir(pasa_db)
 
     if prepare:
-        write_file(runfile, "", meta=meta)  # initialize run script
+        write_file(runfile, "")  # initialize run script
 
     if ggfasta:
         transcripts = FileMerger([dnfasta, ggfasta], tfasta).merge()
         accn_extract_cmd = "cat {0} | {1} > {2}".format(dnfasta, accn_extract, tdn)
-        write_file(runfile, accn_extract_cmd, meta=meta, append=True) \
+        write_file(runfile, accn_extract_cmd, append=True) \
                 if prepare else sh(accn_extract_cmd)
     else:
         transcripts = dnfasta
@@ -131,7 +131,7 @@ def assemble(args):
     if clean:
         cleancmd = "{0} {1} -c {2} -l 60".format(seqclean, transcripts, cpus)
         if prepare:
-            write_file(runfile, cleancmd, meta=meta, append=True)
+            write_file(runfile, cleancmd, append=True)
         else:
             prjobid = sh(cleancmd, grid=grid, grid_opts=opts)
 
@@ -147,7 +147,7 @@ def assemble(args):
     aacmd += " --ALIGNERS {0} -I {1}".format(",".join(aligners), opts.intron)
 
     if prepare:
-        write_file(runfile, aacmd, meta=meta, append=True)
+        write_file(runfile, aacmd, append=True)
     else:
         opts.hold_jid = prjobid
         prjobid = sh(aacmd, grid=grid, grid_opts=opts)
@@ -157,7 +157,7 @@ def assemble(args):
         comprehcmd += "--min_per_ID {0} --min_per_aligned {1}".format(pctid, pctcov)
 
         if prepare:
-            write_file(runfile, comprehcmd, meta=meta, append=True)
+            write_file(runfile, comprehcmd, append=True)
         else:
             opts.hold_jid = prjobid
             prjobid = sh(comprehcmd, grid=grid, grid_opts=opts)

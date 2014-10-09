@@ -90,7 +90,7 @@ def align(args):
 
     dbfile, readfile = args[0:2]
     if opts.join:
-        dbfile = join([dbfile, "--gapsize=50", "--newid=chr0"])
+        dbfile = join([dbfile, "--gapsize=50", "--newid=chr1"])
 
     assert op.exists(dbfile) and op.exists(readfile)
     prefix = get_prefix(readfile, dbfile)

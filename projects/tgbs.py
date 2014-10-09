@@ -15,9 +15,41 @@ def main():
 
     actions = (
         ('snp', 'run SNP calling on GSNAP output'),
+        ('bam', 'convert GSNAP output to BAM'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def bam(args):
+    """
+    %prog snp input.gsnap ref.fasta
+
+    Convert GSNAP output to BAM.
+    """
+    from jcvi.formats.sizes import Sizes
+    from jcvi.formats.sam import index
+
+    p = OptionParser(bam.__doc__)
+    p.set_home("eddyyeh")
+    p.set_cpus()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    gsnapfile, fastafile = args
+    EYHOME = opts.eddyyeh_home
+    pf = gsnapfile.rsplit(".", 1)[0]
+    uniqsam = pf + ".unique.sam"
+    if need_update((gsnapfile, fastafile), uniqsam):
+        cmd = op.join(EYHOME, "gsnap2gff3.pl")
+        sizesfile = Sizes(fastafile).filename
+        cmd += " --format sam -i {0} -o {1}".format(gsnapfile, uniqsam)
+        cmd += " -u -l {0} -p {1}".format(sizesfile, opts.cpus)
+        sh(cmd)
+
+    index([uniqsam])
 
 
 def snp(args):

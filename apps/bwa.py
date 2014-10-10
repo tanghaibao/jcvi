@@ -35,7 +35,7 @@ def check_index(dbfile):
     else:
         logging.error("`{0}` exists. `bwa index` already run.".format(safile))
 
-    return safile
+    return dbfile
 
 
 def check_aln(dbfile, readfile, cpus=32):
@@ -134,12 +134,12 @@ def samse(args, opts):
     Wrapper for `bwa samse`. Output will be short_read.sam.
     """
     dbfile, readfile = args
-    safile = check_index(dbfile)
+    dbfile = check_index(dbfile)
     saifile = check_aln(dbfile, readfile, cpus=opts.cpus)
 
     samfile, _, unmapped = get_samfile(readfile, dbfile,
                                        bam=opts.bam, unmapped=opts.unmapped)
-    if not need_update((safile, saifile), samfile):
+    if not need_update((dbfile, saifile), samfile):
         logging.error("`{0}` exists. `bwa samse` already run.".format(samfile))
         return "", samfile
 
@@ -158,13 +158,13 @@ def sampe(args, opts):
     Wrapper for `bwa sampe`. Output will be read1.sam.
     """
     dbfile, read1file, read2file = args
-    safile = check_index(dbfile)
+    dbfile = check_index(dbfile)
     sai1file = check_aln(dbfile, read1file, cpus=opts.cpus)
     sai2file = check_aln(dbfile, read2file, cpus=opts.cpus)
 
     samfile, _, unmapped = get_samfile(read1file, dbfile,
                                        bam=opts.bam, unmapped=opts.unmapped)
-    if not need_update((safile, sai1file, sai2file), samfile):
+    if not need_update((dbfile, sai1file, sai2file), samfile):
         logging.error("`{0}` exists. `bwa samse` already run.".format(samfile))
         return "", samfile
 
@@ -187,7 +187,8 @@ def mem(args, opts):
     """
     dbfile, read1file = args[:2]
 
-    check_index(dbfile)
+    dbfile = check_index(dbfile)
+    args[0] = dbfile
     samfile, _, unmapped = get_samfile(read1file, dbfile,
                                        bam=opts.bam, unmapped=opts.unmapped)
     if not need_update(read1file, samfile):
@@ -209,11 +210,11 @@ def bwasw(args, opts):
     Wrapper for `bwa bwasw`. Output will be long_read.sam.
     """
     dbfile, readfile = args
-    safile = check_index(dbfile)
+    dbfile = check_index(dbfile)
 
     samfile, _, unmapped = get_samfile(readfile, dbfile,
                                        bam=opts.bam, unmapped=opts.unmapped)
-    if not need_update(safile, samfile):
+    if not need_update(dbfile, samfile):
         logging.error("`{0}` exists. `bwa bwasw` already run.".format(samfile))
         return "", samfile
 

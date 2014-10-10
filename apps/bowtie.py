@@ -71,7 +71,7 @@ def check_index(dbfile):
     else:
         logging.error("`{0}` exists. `bowtie2-build` already run.".format(safile))
 
-    return safile
+    return dbfile
 
 
 def index(args):
@@ -138,7 +138,7 @@ def align(args):
     gl = "--end-to-end" if opts.full else "--local"
 
     dbfile, readfile = args[0:2]
-    safile = check_index(dbfile)
+    dbfile = check_index(dbfile)
     prefix = get_prefix(readfile, dbfile)
     samfile, mapped, unmapped = get_samfile(readfile, dbfile, bowtie=True,
                                             mapped=mapped, unmapped=unmapped,
@@ -147,7 +147,7 @@ def align(args):
     if not fasta:
         offset = guessoffset([readfile])
 
-    if not need_update(safile, samfile):
+    if not need_update(dbfile, samfile):
         logging.error("`{0}` exists. `bowtie2` already run.".format(samfile))
         return samfile, logfile
 

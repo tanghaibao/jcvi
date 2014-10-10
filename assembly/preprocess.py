@@ -89,12 +89,14 @@ def diginorm(args):
     $ python setup.py install
     $ cd ../khmer
     $ make test
-    $ export PYTHONPATH=/root/khmer/python
+    $ export PYTHONPATH=~/export/khmer
     """
     from jcvi.formats.fastq import shuffle, pairinplace, split
 
     p = OptionParser(diginorm.__doc__)
-    p.set_depth()
+    p.add_option("--single", default=False, action="store_true",
+                 help="Single end reads")
+    p.set_depth(depth=20)
     p.set_home("khmer")
     opts, args = p.parse_args(args)
 
@@ -108,17 +110,20 @@ def diginorm(args):
 
     kh = opts.khmer_home
     depth = opts.depth
+    PE = not opts.single
     sys.path.insert(0, op.join(kh, "python"))
 
     pf = fastq.rsplit(".", 1)[0]
-    hashfile = pf + ".kh"
     keepfile = fastq + ".keep"
+    hashfile = pf + ".kh"
     norm_cmd = op.join(kh, "scripts/normalize-by-median.py")
     filt_cmd = op.join(kh, "scripts/filter-abund.py")
     if need_update(fastq, (hashfile, keepfile)):
         cmd = norm_cmd
-        cmd += " -C {0} -k 20 -N 4 -x 2.5e8 -p".format(depth)
-        cmd += " --savehash {0} {1}".format(hashfile, fastq)
+        cmd += " -C {0} -k 20 -N 4 -x 2.5e8".format(depth)
+        if PE:
+            cmd += " -p"
+        cmd += " -s {0} {1}".format(hashfile, fastq)
         sh(cmd)
 
     abundfiltfile = keepfile + ".abundfilt"
@@ -130,13 +135,14 @@ def diginorm(args):
     seckeepfile = abundfiltfile + ".keep"
     if need_update(abundfiltfile, seckeepfile):
         cmd = norm_cmd
-        cmd += " -C {0} -k 20 -N 4 -x 1e8".format(depth - 5)
+        cmd += " -C {0} -k 20 -N 4 -x 1e8".format(depth - 10)
         cmd += " {0}".format(abundfiltfile)
         sh(cmd)
 
-    pairsfile = pairinplace([seckeepfile,
-                            "--base={0}".format(pf + "_norm"), "--rclip=2"])
-    split([pairsfile])
+    if PE:
+        pairsfile = pairinplace([seckeepfile,
+                                "--base={0}".format(pf + "_norm"), "--rclip=2"])
+        split([pairsfile])
 
 
 def expand(args):

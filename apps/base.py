@@ -432,7 +432,7 @@ class OptionParser (OptionP):
                    "sspace": "~/htang/export/SSPACE-BASIC-2.0_linux-x86_64",
                    "gapfiller": "~/htang/export/GapFiller_v1-11_linux-x86_64",
                    "pbjelly": "/usr/local/projects/MTG4/PacBio/PBJelly_12.9.14/",
-                   "khmer": "~/htang/export/khmer",
+                   "khmer": "~/export/khmer",
                    "tassel": "/usr/local/projects/MTG4/packages/tassel",
                    "eddyyeh": "/home/shared/scripts/eddyyeh",
                    }[prog]

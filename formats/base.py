@@ -490,6 +490,7 @@ def flexible_cast(s):
 def main():
 
     actions = (
+        ('pairwise', 'convert a list of IDs into all pairs'),
         ('split', 'split large file into N chunks'),
         ('reorder', 'reorder columns in tab-delimited files'),
         ('flatten', 'convert a list of IDs into one per line'),
@@ -502,6 +503,29 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def pairwise(args):
+    """
+    %prog pairwise ids
+
+    Convert a list of IDs into all pairs.
+    """
+    from itertools import combinations
+
+    p = OptionParser(pairwise.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    idsfile, = args
+    ids = SetFile(idsfile)
+    ids = sorted(ids)
+    fw = open(idsfile + ".pairs", "w")
+    for a, b in combinations(ids, 2):
+        print >> fw, "\t".join((a, b))
+    fw.close()
 
 
 def append(args):

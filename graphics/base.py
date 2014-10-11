@@ -240,7 +240,7 @@ def setup_theme(context='notebook', style="darkgrid", palette='deep', font='Helv
                     "patch.edgecolor": 'k',
                     }
         sns.set(context=context, style=style, palette=palette, rc=extra_rc)
-    except ImportError:
+    except ImportError, SyntaxError:
         pass
 
     rc('text', usetex=True)

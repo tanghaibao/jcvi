@@ -168,7 +168,7 @@ class GffLine (object):
 
     @property
     def bedline(self):
-        score = "1000" if self.score == '.' else self.score
+        score = "0" if self.score == '.' else self.score
         row = "\t".join((self.seqid, str(self.start - 1),
             str(self.end), self.accn, score, self.strand))
         return BedLine(row)

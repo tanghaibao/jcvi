@@ -172,7 +172,8 @@ class OptionParser (OptionP):
         Add --params options for given command line programs
         """
         self.add_option("--params", dest="extra", default="",
-                help="Extra parameters to run [default: %default]")
+                help="Extra parameters to pass (these WILL NOT be validated)" + \
+                     " [default: %default]")
 
     def set_outfile(self, outfile="stdout"):
         """
@@ -419,6 +420,25 @@ class OptionParser (OptionP):
     def set_size(self, size=0):
         self.add_option("--size", default=size, type="int",
                 help="Insert mean size, stdev assumed to be 20% around mean")
+
+    def set_trinity_opts(self, gg=False):
+        self.add_option("--JM", default="100G", type="str",
+                help="Jellyfish memory allocation [default: %default]")
+        self.add_option("--min_contig_length", default="60", type="int",
+                help="Minimum assembled contig length to report" + \
+                     " [default: %default]")
+        self.set_cpus()
+        self.add_option("--bflyGCThreads", default=None, type="int",
+                help="Threads for garbage collection [default: %default]")
+        if gg:
+            self.add_option("--max_intron", default=2000, type="int",
+                         help="maximum allowed intron length [default: %default]")
+        self.set_params()
+        self.set_home("trinity")
+        self.add_option("--grid_conf_file", default=None, type="str",
+                help="Configuration file for supported compute farms" + \
+                     " (e.g. $TRINITY_HOME/htc_conf/JCVI_SGE.0611.conf)" + \
+                     " [default: %default]")
 
     def set_home(self, prog):
         tag = "--{0}_home".format(prog)

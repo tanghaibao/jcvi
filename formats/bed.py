@@ -81,7 +81,7 @@ class BedLine(object):
                 else self.score
         strand = "." if not self.strand else self.strand
         row = "\t".join((self.seqid, source, type,
-            str(self.start + 1), str(self.end), score,
+            str(self.start), str(self.end), score,
             strand, '.', 'ID=' + self.accn))
         return row
 

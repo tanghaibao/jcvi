@@ -32,7 +32,8 @@ def dn(args):
     %prog dn folder
 
     Run Trinity-DN on a folder of reads. When paired-end (--paired) mode is on,
-    filenames will be scanned based on whether they contain "_1_" and "_2_".
+    filenames will be scanned based on whether they contain the patterns
+    ("_1_" and "_2_") or (".1." and ".2.") or ("_1." and "_2.")
     """
     p = OptionParser(dn.__doc__)
     p.add_option("--paired", default=False, action="store_true",
@@ -54,8 +55,8 @@ def dn(args):
 
     flist = glob("../" + folder + "/*")
     if paired:
-        f1 = [x for x in flist if "_1_" in x or ".1." in x]
-        f2 = [x for x in flist if "_2_" in x or ".2." in x]
+        f1 = [x for x in flist if "_1_" in x or ".1." in x or "_1." in x]
+        f2 = [x for x in flist if "_2_" in x or ".2." in x or "_2." in x]
         assert len(f1) == len(f2)
         r1, r2 = "left.fastq", "right.fastq"
         reads = ((f1, r1), (f2, r2))

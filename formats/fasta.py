@@ -1000,10 +1000,11 @@ def format(args):
 
     Reformat FASTA file and also clean up names.
     """
+    sequential_choices = ("replace", "prefix", "suffix")
     p = OptionParser(format.__doc__)
     p.add_option("--pairs", default=False, action="store_true",
             help="Add trailing /1 and /2 for interleaved pairs [default: %default]")
-    p.add_option("--sequential", default=False, action="store_true",
+    p.add_option("--sequential", default=None, choices=sequential_choices,
             help="Add sequential IDs [default: %default]")
     p.add_option("--sequentialoffset", default=0, type="int",
             help="Sequential IDs start at [default: %default]")
@@ -1058,6 +1059,8 @@ def format(args):
     for i, rec in enumerate(fp):
         origid = rec.id
         description = rec.description
+        if description.startswith(origid):
+            description = description.replace(origid, "").strip()
         if sep:
             description = description.split(sep)[idx]
             rec.id = description
@@ -1075,6 +1078,10 @@ def format(args):
             rec.id = rec.id.rsplit(".", 1)[0]
         if sequential:
             rec.id = "{0:0{1}d}".format(sequentialoffset, opts.pad0)
+            if sequential == "prefix":
+                rec.id = "{0}-{1}".format(rec.id, origid)
+            elif sequential == "suffix":
+                rec.id = "{0}-{1}".format(origid, rec.id)
             sequentialoffset += 1
         if opts.template:
             template, dir, lib = [x.split("=")[-1] for x in
@@ -1090,10 +1097,11 @@ def format(args):
             rec.id = prefix + rec.id
         if suffix:
             rec.id += suffix
-        rec.description = ""
         if annotfile:
             rec.description = annotation.get(origid, "") if not mapfile \
                     else annotation.get(rec.id, "")
+        else:
+            rec.description = description
         if idsfile:
             print >> idsfile, "\t".join((origid, rec.id))
         if upper:

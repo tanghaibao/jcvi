@@ -18,10 +18,10 @@ from jcvi.utils.cbook import AutoVivification
 
 # set up valid database connection params
 valid_dbconn = AutoVivification()
-for (dbconn, port, module, host) in zip(("Sybase", "MySQL", "PostgreSQL"), \
-        (2025, 3306, 5432), \
-        ("Sybase", "MySQLdb", "psycopg2"), \
-        ("SYBPROD", "mysql-lan-dev", "pgsql-lan-dev")):
+for (dbconn, port, module, host) in zip(("Sybase", "MySQL", "PostgreSQL", "Oracle"), \
+        (2025, 3306, 5432, 1521), \
+        ("Sybase", "MySQLdb", "psycopg2", "cx_Oracle"), \
+        ("SYBPROD", "mysql-lan-dev", "pgsql-lan-dev", "DBNAME.tacc.utexas.edu")):
     valid_dbconn[dbconn]['port'] = port
     valid_dbconn[dbconn]['module'] = module
     valid_dbconn[dbconn]['hostname'] = host
@@ -88,6 +88,9 @@ def connect(dbname, connector='Sybase', hostname=None, username=None, password=N
         dsn = "host={0} user={1} password={2} dbname={3} port={4}".format(hostname, \
                 username, password, dbname, port)
         dbh = dbconn.connect(dsn)
+    elif connector == 'Oracle':
+        dsn = dbconn.makedsn(hostname, port, dbname)
+        dbh = dbconn.connect(username, password, dsn)
     else:
         dbh = dbconn.connect(hostname, username, password, dbname, port)
 
@@ -95,9 +98,9 @@ def connect(dbname, connector='Sybase', hostname=None, username=None, password=N
     return dbh, cur
 
 
-def fetchall(cur, sql):
+def fetchall(cur, sql, connector=None):
     cur.execute(sql)
-    return cur.fetchall()
+    return cur if connector == "Oracle" else cur.fetchall()
 
 
 def execute(cur, sql):
@@ -286,7 +289,7 @@ def query(args):
                 execute(cur, qry)
                 cflag = True
             else:
-                results = fetchall(cur, qry)
+                results = fetchall(cur, qry, connector=opts.dbconn)
                 for result in results:
                     print >> fw, fieldsep.join([str(x) for x in result])
     if not opts.dryrun and cflag:

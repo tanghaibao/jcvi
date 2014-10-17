@@ -82,11 +82,13 @@ def dn(args):
 
 def gg(args):
     """
-    %prog gg [--options] folder|bamfile genome.fasta
+    %prog gg [--options] folder genome.fasta
 
-    Run Trinity-GG on a folder of reads or a coord-sorted BAM file.  When paired-end
-    (--paired) mode is on, filenames will be scanned based on whether they contain
-    the patterns ("_1_" and "_2_") or (".1." and ".2.") or ("_1." and "_2.")
+    Run Trinity-GG on a folder of reads.  When paired-end (--paired) mode is on,
+    filenames will be scanned based on whether they contain the patterns
+    ("_1_" and "_2_") or (".1." and ".2.") or ("_1." and "_2.").
+
+    If coord-sorted BAM is provided, then it will use it as starting point
     """
     p = OptionParser(gg.__doc__)
     p.add_option("--paired", default=False, action="store_true",
@@ -100,33 +102,30 @@ def gg(args):
     inparam, genome, = args
     paired = opts.paired
     thome = opts.trinity_home
+    use_bam = opts.use_bam
 
-    pf = inparam
-    if not op.isdir(inparam):
-        pf = inparam.split(".")[0]
-    tfolder = "{0}_DN".format(pf)
+    pf = inparam.split(".")[0]
+    tfolder = "{0}_GG".format(pf)
 
     cwd = os.getcwd()
     mkdir(tfolder)
     os.chdir(tfolder)
 
-    if not op.isdir(inparam):
-        flist = glob("../" + inparam + "/*")
-        if paired:
-            f1 = [x for x in flist if "_1_" in x or ".1." in x or "_1." in x]
-            f2 = [x for x in flist if "_2_" in x or ".2." in x or "_2." in x]
-            assert len(f1) == len(f2)
+    flist = glob("../" + inparam + "/*")
+    if paired:
+        f1 = [x for x in flist if "_1_" in x or ".1." in x or "_1." in x]
+        f2 = [x for x in flist if "_2_" in x or ".2." in x or "_2." in x]
+        assert len(f1) == len(f2)
 
     cmd = op.join(thome, "Trinity")
     cmd += " --seqType fq --JM {0} --CPU {1}".format(opts.JM, opts.cpus)
     cmd += " --genome {0} --genome_guided_max_intron {1}".format(genome, opts.max_intron)
-    if flist:
-        if paired:
-            cmd += " --left {0} --right {1}".format(" ".join(f1), " ".join(f2))
-        else:
-            cmd += " --single {0}".format(" ".join(flist))
+    if paired:
+        cmd += " --left {0} --right {1}".format(" ".join(f1), " ".join(f2))
     else:
-        cmd += " --genome_guided_use_bam {0}".format(inparam)
+        cmd += " --single {0}".format(" ".join(flist))
+    if use_bam:
+        cmd += " --genome_guided_use_bam {0}".format(use_bam)
 
     runfile = "run.sh"
     write_file(runfile, cmd)

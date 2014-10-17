@@ -431,6 +431,9 @@ class OptionParser (OptionP):
         self.add_option("--bflyGCThreads", default=None, type="int",
                 help="Threads for garbage collection [default: %default]")
         if gg:
+            self.add_option("--use_bam", default=None, type="str",
+                         help="provide coord-sorted bam file as starting point" + \
+                              " [default: %default]")
             self.add_option("--max_intron", default=2000, type="int",
                          help="maximum allowed intron length [default: %default]")
         self.set_params()

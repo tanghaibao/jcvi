@@ -279,7 +279,7 @@ class OptionParser (OptionP):
     def set_align(self, pctid=None, hitlen=None, pctcov=None, evalue=None, \
             compreh_pctcov=None, intron=None, bpsplice=None):
         if pctid is not None:
-            self.add_option("--pctid", default=pctid, type="float",
+            self.add_option("--pctid", default=pctid, type="int",
                      help="Sequence percent identity [default: %default]")
         if hitlen is not None:
             self.add_option("--hitlen", default=hitlen, type="int",

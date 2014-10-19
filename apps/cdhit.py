@@ -175,7 +175,8 @@ def deduplicate(args):
     if opts.consensus:
         cons = dd + ".consensus"
         cmd = op.join(opts.cdhit_home, "cdhit-cluster-consensus")
-        cmd += " {0} {1} {2}".format(clstr, fastafile, cons)
+        cmd += " clustfile={0} fastafile={1} output={2} maxlen=1".\
+                    format(clstr, fastafile, cons)
         if need_update((clstr, fastafile), cons):
             sh(cmd)
 

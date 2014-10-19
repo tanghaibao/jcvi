@@ -12,7 +12,7 @@ import logging
 from collections import defaultdict
 
 from jcvi.formats.base import LineFile, read_block
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update
 
 
 class ClstrLine (object):
@@ -137,6 +137,10 @@ def deduplicate(args):
     """
     p = OptionParser(deduplicate.__doc__)
     p.set_align(pctid=98)
+    p.add_option("--fast", default=False, action="store_true",
+                 help="Place sequence in the first cluster")
+    p.add_option("--consensus", default=False, action="store_true",
+                 help="Compute consensus sequences")
     p.add_option("--reads", default=False, action="store_true",
                  help="Use `cd-hit-454` to deduplicate [default: %default]")
     p.add_option("--samestrand", default=False, action="store_true",
@@ -151,16 +155,30 @@ def deduplicate(args):
     fastafile, = args
     identity = opts.pctid / 100.
 
-    cmd = "cd-hit-454" if opts.reads else "cd-hit-est"
-    cmd = op.join(opts.cdhit_home, cmd)
+    ocmd = "cd-hit-454" if opts.reads else "cd-hit-est"
+    cmd = op.join(opts.cdhit_home, ocmd)
     cmd += " -c {0}".format(identity)
-    cmd += " -d 0"  # include complete defline
-    if opts.samestrand:
-        cmd += " -r 0"
-    cmd += " -M 0 -T {0} -i {1} -o {1}.cdhit".format(opts.cpus, fastafile)
-    sh(cmd)
+    if ocmd == "cd-hit-est":
+        cmd += " -d 0"  # include complete defline
+        if opts.samestrand:
+            cmd += " -r 0"
+    if not opts.fast:
+        cmd += " -g 1"
 
-    dd = fastafile + ".cdhit"
+    dd = fastafile + ".P{0}.cdhit".format(opts.pctid)
+    clstr = dd + ".clstr"
+
+    cmd += " -M 0 -T {0} -i {1} -o {2}".format(opts.cpus, fastafile, dd)
+    if need_update(fastafile, (dd, clstr)):
+        sh(cmd)
+
+    if opts.consensus:
+        cons = dd + ".consensus"
+        cmd = op.join(opts.cdhit_home, "cdhit-cluster-consensus")
+        cmd += " {0} {1} {2}".format(clstr, fastafile, cons)
+        if need_update((clstr, fastafile), cons):
+            sh(cmd)
+
     return dd
 
 

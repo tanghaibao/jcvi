@@ -22,7 +22,7 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, get_email_address, \
             mkdir, ls_ftp, download
 
 
-myEmail = get_email_address(user=True)
+myEmail = get_email_address()
 Entrez.email = myEmail
 
 

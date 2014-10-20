@@ -187,7 +187,7 @@ class OptionParser (OptionP):
         """
         Add --email option to specify an email address
         """
-        self.add_option("--email", default=get_email_address(user=True),
+        self.add_option("--email", default=get_email_address(),
                 help='Specify an email address [default: "%default"]')
 
     def set_tmpdir(self, tmpdir=None):
@@ -1160,18 +1160,17 @@ def send_email(fromaddr, toaddr, subject, message):
     server.quit()
 
 
-def get_email_address(user=None):
+def get_email_address(whoami="user"):
     """ Auto-generate the FROM and TO email address """
-    username = getusername()
-    domain = getdomainname()
+    if whoami == "user":
+        username = getusername()
+        domain = getdomainname()
 
-    fromaddr = "notifier-donotreply@{0}".format(getdomainname())
-    myemail = "{0}@{1}".format(username, domain)
-
-    if user:
+        myemail = "{0}@{1}".format(username, domain)
         return myemail
     else:
-        return fromaddr, myemail
+        fromaddr = "notifier-donotreply@{0}".format(getdomainname())
+        return fromaddr
 
 
 def is_valid_email(email):
@@ -1223,14 +1222,13 @@ def notify(args):
 
     valid_notif_methods.extend(available_push_api.keys())
 
-    fromaddr, toaddr = get_email_address()
+    fromaddr = get_email_address(whoami="notifier")
 
     p = OptionParser(notify.__doc__)
     p.add_option("--method", default="email", choices=valid_notif_methods,
                  help="Specify the mode of notification [default: %default]")
     p.add_option("--subject", default="JCVI: job monitor",
                  help="Specify the subject of the notification message")
-
     p.set_email()
 
     g1 = OptionGroup(p, "Optional `push` parameters")
@@ -1254,10 +1252,10 @@ def notify(args):
     message = " ".join(args).strip()
 
     if opts.method == "email":
-        if not is_valid_email(opts.toaddr):
-            logging.debug("Email address `{0}` is not valid!".format(opts.toaddr))
+        if not is_valid_email(opts.email):
+            logging.debug("Email address `{0}` is not valid!".format(opts.email))
             sys.exit()
-        toaddr = [opts.toaddr]   # TO address should be in a list
+        toaddr = [opts.email]   # TO address should be in a list
         send_email(fromaddr, toaddr, subject, message)
     else:
         pushnotify(subject, message, api=opts.api, priority=opts.priority, \
@@ -1342,7 +1340,7 @@ def waitpid(args):
             notifycmd.append("--method={0}".format("push"))
             notifycmd.append("--api={0}".format(opts.notify))
         else:
-            notifycmd.append('--email="{0}"'.format(opts.email))
+            notifycmd.append('--email={0}'.format(opts.email))
         notify(notifycmd)
 
     if cmd is not None:

@@ -167,13 +167,14 @@ class OptionParser (OptionP):
                              action="store_true", help="Cell alignment")
         self.add_option_group(group)
 
-    def set_params(self):
+    def set_params(self, dest=None):
         """
         Add --params options for given command line programs
         """
+        dest_prog = "to {0}".format(dest) if dest else ""
         self.add_option("--params", dest="extra", default="",
-                help="Extra parameters to pass (these WILL NOT be validated)" + \
-                     " [default: %default]")
+                help="Extra parameters to pass {0}".format(dest_prog) + \
+                     " (these WILL NOT be validated) [default: %default]")
 
     def set_outfile(self, outfile="stdout"):
         """
@@ -422,26 +423,30 @@ class OptionParser (OptionP):
                 help="Insert mean size, stdev assumed to be 20% around mean")
 
     def set_trinity_opts(self, gg=False):
-        self.add_option("--JM", default="100G", type="str",
+        self.set_home("trinity")
+        self.set_cpus()
+        self.set_params(dest="Trinity")
+        topts = OptionGroup(self, "General Trinity options")
+        self.add_option_group(topts)
+        topts.add_option("--JM", default="100G", type="str",
                 help="Jellyfish memory allocation [default: %default]")
-        self.add_option("--min_contig_length", default="60", type="int",
+        topts.add_option("--min_contig_length", default="60", type="int",
                 help="Minimum assembled contig length to report" + \
                      " [default: %default]")
-        self.set_cpus()
-        self.add_option("--bflyGCThreads", default=None, type="int",
+        topts.add_option("--bflyGCThreads", default=None, type="int",
                 help="Threads for garbage collection [default: %default]")
-        if gg:
-            self.add_option("--use_bam", default=None, type="str",
-                         help="provide coord-sorted bam file as starting point" + \
-                              " [default: %default]")
-            self.add_option("--max_intron", default=2000, type="int",
-                         help="maximum allowed intron length [default: %default]")
-        self.set_params()
-        self.set_home("trinity")
-        self.add_option("--grid_conf_file", default=None, type="str",
+        topts.add_option("--grid_conf_file", default=None, type="str",
                 help="Configuration file for supported compute farms" + \
                      " (e.g. $TRINITY_HOME/htc_conf/JCVI_SGE.0611.conf)" + \
                      " [default: %default]")
+        ggopts = OptionGroup(self, "Genome-guided Trinity options")
+        self.add_option_group(ggopts)
+        ggopts.add_option("--use_bam", default=None, type="str",
+                     help="provide coord-sorted bam file as starting point" + \
+                          " [default: %default]")
+        ggopts.add_option("--max_intron", default=2000, type="int",
+                     help="maximum allowed intron length [default: %default]")
+
 
     def set_home(self, prog):
         tag = "--{0}_home".format(prog)

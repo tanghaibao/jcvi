@@ -20,92 +20,51 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, glob
 def main():
 
     actions = (
-        ('dn', 'run trinity-dn on a folder of reads'),
-        ('gg', 'run trinity-gg on a folder of reads or BAM file'),
+        ('prepare', 'prepare shell script to run trinity-dn/gg on a folder of reads'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
 
-def dn(args):
+def prepare(args):
     """
-    %prog dn folder
+    %prog prepare [--options] folder [genome.fasta]
 
-    Run Trinity-DN on a folder of reads. When paired-end (--paired) mode is on,
-    filenames will be scanned based on whether they contain the patterns
-    ("_1_" and "_2_") or (".1." and ".2.") or ("_1." and "_2.")
-    """
-    p = OptionParser(dn.__doc__)
-    p.add_option("--paired", default=False, action="store_true",
-                 help="Paired-end mode [default: %default]")
-    p.set_trinity_opts()
-    opts, args = p.parse_args(args)
-
-    if len(args) != 1:
-        sys.exit(not p.print_help())
-
-    folder, = args
-    paired = opts.paired
-    thome = opts.trinity_home
-    tfolder = folder + "_DN"
-
-    cwd = os.getcwd()
-    mkdir(tfolder)
-    os.chdir(tfolder)
-
-    flist = glob("../" + folder + "/*")
-    if paired:
-        f1 = [x for x in flist if "_1_" in x or ".1." in x or "_1." in x]
-        f2 = [x for x in flist if "_2_" in x or ".2." in x or "_2." in x]
-        assert len(f1) == len(f2)
-        r1, r2 = "left.fastq", "right.fastq"
-        reads = ((f1, r1), (f2, r2))
-    else:
-        r = "single.fastq"
-        reads = ((flist, r), )
-
-    for fl, r in reads:
-        fm = FileMerger(fl, r)
-        fm.merge(checkexists=True)
-
-    cmd = op.join(thome, "Trinity")
-    cmd += " --seqType fq --JM {0} --CPU {1}".format(opts.JM, opts.cpus)
-    if paired:
-        cmd += " --left {0} --right {1}".format(reads[0][-1], reads[1][-1])
-    else:
-        cmd += " --single {0}".format(reads[0][-1])
-
-    runfile = "run.sh"
-    write_file(runfile, cmd)
-    os.chdir(cwd)
-
-
-def gg(args):
-    """
-    %prog gg [--options] folder genome.fasta
-
-    Run Trinity-GG on a folder of reads.  When paired-end (--paired) mode is on,
+    Run Trinity on a folder of reads.  When paired-end (--paired) mode is on,
     filenames will be scanned based on whether they contain the patterns
     ("_1_" and "_2_") or (".1." and ".2.") or ("_1." and "_2.").
 
+    By default, prepare script for DN
+
+    If genome.fasta is provided, prepare script for GG
     If coord-sorted BAM is provided, then it will use it as starting point
+
+    Newer versions of trinity can take multiple fastq files as input.
+    If "--merge" is specified, the fastq files are merged together before assembling
     """
-    p = OptionParser(gg.__doc__)
+    p = OptionParser(prepare.__doc__)
     p.add_option("--paired", default=False, action="store_true",
                  help="Paired-end mode [default: %default]")
-    p.set_trinity_opts(gg=True)
+    p.add_option("--merge", default=False, action="store_true",
+                 help="Merge individual input fastq's into left/right/single" + \
+                      " file(s) [default: %default]")
+    p.set_trinity_opts()
     opts, args = p.parse_args(args)
 
-    if len(args) != 2:
+    if len(args) not in (1, 2):
         sys.exit(not p.print_help())
 
-    inparam, genome, = args
+    inparam, = args[:1]
+    genome = args[1] if len(args) == 2 else None
+    method = "GG" if genome is not None else "DN"
+
     paired = opts.paired
+    merge = opts.merge
     thome = opts.trinity_home
     use_bam = opts.use_bam
 
     pf = inparam.split(".")[0]
-    tfolder = "{0}_GG".format(pf)
+    tfolder = "{0}_{1}".format(pf, method)
 
     cwd = os.getcwd()
     mkdir(tfolder)
@@ -116,19 +75,45 @@ def gg(args):
         f1 = [x for x in flist if "_1_" in x or ".1." in x or "_1." in x]
         f2 = [x for x in flist if "_2_" in x or ".2." in x or "_2." in x]
         assert len(f1) == len(f2)
+        if merge:
+            r1, r2 = "left.fastq", "right.fastq"
+            reads = ((f1, r1), (f2, r2))
+    else:
+        if merge:
+            r = "single.fastq"
+            reads = ((flist, r), )
+
+    if merge:
+        for fl, r in reads:
+            fm = FileMerger(fl, r)
+            fm.merge(checkexists=True)
 
     cmd = op.join(thome, "Trinity")
     cmd += " --seqType fq --JM {0} --CPU {1}".format(opts.JM, opts.cpus)
-    cmd += " --genome {0} --genome_guided_max_intron {1}".format(genome, opts.max_intron)
+    cmd += " --min_contig_length {0}".format(opts.min_contig_length)
+    if opts.bflyGCThreads:
+        cmd += " --bflyGCThreads {0}".format(opts.bflyGCThreads)
+
+    if method == "GG":
+        cmd += " --genome {0} --genome_guided_max_intron {1}".format(genome, opts.max_intron)
+        if use_bam:
+            cmd += " --genome_guided_use_bam {0}".format(use_bam)
+
     if paired:
-        for lf, rf in zip(f1, f2):
-            cmd += " --left {0}".format(lf)
-            cmd += " --right {0}".format(rf)
+        if merge:
+            cmd += " --left {0} --right {1}".format(reads[0][-1], reads[1][-1])
+        else:
+            for lf, rf in zip(f1, f2):
+                cmd += " --left {0}".format(lf)
+                cmd += " --right {0}".format(rf)
     else:
-        for f in flist:
-            cmd += " --single {0}".format(f)
-    if use_bam:
-        cmd += " --genome_guided_use_bam {0}".format(use_bam)
+        if merge:
+             cmd += " --single {0}".format(reads[0][-1])
+        else:
+            for f in flist:
+                cmd += " --single {0}".format(f)
+    if opts.extra:
+        cmd += " {0}".format(opts.extra)
 
     runfile = "run.sh"
     write_file(runfile, cmd)

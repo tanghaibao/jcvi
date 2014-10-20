@@ -121,9 +121,12 @@ def gg(args):
     cmd += " --seqType fq --JM {0} --CPU {1}".format(opts.JM, opts.cpus)
     cmd += " --genome {0} --genome_guided_max_intron {1}".format(genome, opts.max_intron)
     if paired:
-        cmd += " --left {0} --right {1}".format(" ".join(f1), " ".join(f2))
+        for lf, rf in zip(f1, f2):
+            cmd += " --left {0}".format(lf)
+            cmd += " --right {0}".format(rf)
     else:
-        cmd += " --single {0}".format(" ".join(flist))
+        for f in flist:
+            cmd += " --single {0}".format(f)
     if use_bam:
         cmd += " --genome_guided_use_bam {0}".format(use_bam)
 

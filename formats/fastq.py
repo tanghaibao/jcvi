@@ -72,7 +72,7 @@ class FastqRecord (object):
 
 class FastqHeader(object):
 
-    def __init__(self, row, tag=None):
+    def __init__(self, row):
         header = row.strip().split(" ")
         self.readId, self.readLen, self.readNum = None, None, None
         self.multiplexId = 0
@@ -86,12 +86,14 @@ class FastqHeader(object):
             h = header[1].split(":")
 
             self.instrument = h[0]
-            self.runId = int(h[1])
-            self.flowcellId = h[2]
-            self.laneNum = int(h[3])
-            self.tileNum = int(h[4])
-            self.xPos = int(h[5])
-            self.yPos = h[6]
+            if len(h) == 7:
+                self.runId, self.flowcellId = int(h[1]), h[2]
+                self.laneNum, self.tileNum = int(h[3]), int(h[4])
+                self.xPos, self.yPos = int(h[5]), h[6]
+            else:
+                self.runId, self.flowcellId = None, None
+                self.laneNum, self.tileNum = int(h[1]), int(h[2])
+                self.xPos, self.yPos = int(h[3]), h[4]
         else:
             h = header[0].split(":")
             self.instrument = h[0]
@@ -125,20 +127,21 @@ class FastqHeader(object):
                     self.yPos, self.multiplexId, self.readNum = \
                             m.group(1), m.group(2), m.group(3)
 
-        if self.paired == False and tag is not None:
-            self.readNum = tag.split("/")[1]
-            self.paired = True
-
 
     def __str__(self):
         if self.dialect == "sra":
             h0 = self.readId
-            h1 = ":".join(str(x) for x in (self.instrument, self.runId, \
-                    self.flowcellId, self.laneNum, self.tileNum, \
-                    self.xPos, yPos))
+            if self.readNum:
+                h0 += "/{0}".format(self.readNum)
+
+            h1elems = [self.instrument, self.laneNum, self.tileNum, \
+                    self.xPos, self.yPos]
+            if self.runId and self.flowcellId:
+                h1elems[1:1] = [self.runId, self.flowcellId]
+            h1 = ":".join(str(x) for x in h1elems)
             h2 = "length={0}".format(self.readLen)
 
-            return "@{0} {1} {2}".format(h0, h1, h2)
+            return "{0} {1} {2}".format(h0, h1, h2)
         elif self.dialect == ">=1.8":
             yPos = "{0}/{1}".format(self.yPos, self.readNum) if self.paired \
                     else self.yPos
@@ -158,17 +161,21 @@ class FastqHeader(object):
 
             return "@{0}".format(h0)
 
-    def convert_header(self, dialect=None):
-        if self.dialect == dialect:
-            logging.error("Error: Input and output dialect are the same")
-            sys.exit()
+    def format_header(self, dialect=None, tag=None):
+        if dialect:
+            if self.dialect == dialect:
+                logging.error("Input and output dialect are the same")
+            elif dialect not in allowed_dialect_conversions[self.dialect]:
+                logging.error("Error: Cannot convert from `{0}` to `{1}` dialect".format(self.dialect, dialect))
+                logging.error("Allowed conversions: {0}".format(json.dumps(allowed_dialect_conversions, indent=4)))
+                sys.exit()
+            else:
+                self.dialect = dialect
 
-        if dialect not in allowed_dialect_conversions[self.dialect]:
-            logging.error("Error: Cannot convert from `{0}` to `{1}` dialect".format(self.dialect, dialect))
-            logging.error("Allowed conversions: {0}".format(json.dumps(allowed_dialect_conversions, indent=4)))
-            sys.exit()
+        if tag:
+            readNum = tag.split("/")[1]
+            self.readNum = readNum
 
-        self.dialect = dialect
         return str(self)
 
 
@@ -558,18 +565,15 @@ def format(args):
     rec = ai.next()
     dialect = None
     while rec:
-        h = FastqHeader(rec.header, tag=opts.tag)
+        h = FastqHeader(rec.header)
         if not dialect:
             dialect = h.dialect
             logging.debug("Input fastq dialect: `{0}`".format(dialect))
             if opts.convert:
                 logging.debug("Output fastq dialect: `{0}`".format(opts.convert))
 
-        if opts.convert:
-            rec.name = h.convert_header(dialect=opts.convert)
-        else:
-            logging.error("Nothing to do! Exiting....")
-            sys.exit()
+        rec.name = h.format_header(dialect=opts.convert, tag=opts.tag)
+
         print rec
         rec = ai.next()
 

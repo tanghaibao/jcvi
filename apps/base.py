@@ -447,17 +447,19 @@ class OptionParser (OptionP):
         tag = "--{0}_home".format(prog)
         default = {"amos": "~/code/amos-code/",
                    "trinity": "~/export/trinityrnaseq_r2013_08_14/",
-                   "cdhit": "~/htang/export/cd-hit-v4.6.1-2012-08-27",
-                   "maker": "~/htang/export/maker",
-                   "pasa": "~/htang/export/PASA2-r20130605p1",
-                   "gmes": "~/htang/export/gmes",
+                   "cdhit": "~/export/cd-hit-v4.6.1-2012-08-27",
+                   "maker": "~/export/maker",
+                   "pasa": "~/export/PASA2-r20130605p1",
+                   "gmes": "~/export/gmes",
                    "augustus": op.split(os.environ["AUGUSTUS_CONFIG_PATH"])[0],
-                   "sspace": "~/htang/export/SSPACE-BASIC-2.0_linux-x86_64",
-                   "gapfiller": "~/htang/export/GapFiller_v1-11_linux-x86_64",
+                   "sspace": "~/export/SSPACE-BASIC-2.0_linux-x86_64",
+                   "gapfiller": "~/export/GapFiller_v1-11_linux-x86_64",
                    "pbjelly": "/usr/local/projects/MTG4/PacBio/PBJelly_12.9.14/",
                    "khmer": "~/export/khmer",
                    "tassel": "/usr/local/projects/MTG4/packages/tassel",
                    "eddyyeh": "/home/shared/scripts/eddyyeh",
+                   "fiona": "~/export/fiona-0.2.0-Linux-x86_64",
+                   "fermi": "~/export/fermi",
                    }[prog]
         help = "Home directory for {0} [default: %default]".format(prog.upper())
         self.add_option(tag, default=default, help=help)

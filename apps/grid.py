@@ -40,7 +40,6 @@ class MakeManager (list):
     Write and execute makefile.
     """
     def __init__(self, filename="makefile"):
-        backup(filename)
         self.makefile = filename
         self.targets = []
 
@@ -51,7 +50,10 @@ class MakeManager (list):
 
     def write(self):
         assert self.targets, "No targets specified"
-        fw = open(self.makefile, "w")
+        filename = self.makefile
+        if op.exists(filename):
+            backup(filename)
+        fw = open(filename, "w")
         print >> fw, "all : {0}\n".format(" ".join(self.targets))
         for d in self:
             print >> fw, d

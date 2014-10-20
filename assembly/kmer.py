@@ -511,11 +511,12 @@ def histogram(args):
     Total_Kmers = int(totalKmers)
     coverage = opts.coverage
     Kmer_coverage = ks.max2 if not coverage else coverage
-    Genome_size = Total_Kmers * 1. / Kmer_coverage / 1e6
+    Genome_size = int(round(Total_Kmers * 1. / Kmer_coverage))
 
     Total_Kmers_msg = "Total {0}-mers: {1}".format(N, Total_Kmers)
     Kmer_coverage_msg = "{0}-mer coverage: {1}".format(N, Kmer_coverage)
-    Genome_size_msg = "Estimated genome size: {0:.1f}Mb".format(Genome_size)
+    Genome_size_msg = "Estimated genome size: {0:.1f}Mb".\
+                        format(Genome_size / 1e6)
     Repetitive_msg = ks.repetitive
     SNPrate_msg = ks.snprate
 
@@ -528,7 +529,8 @@ def histogram(args):
     title = "{0} genome {1}-mer histogram".format(species, N)
 
     if ascii:
-        return asciiplot(x, y, title=title)
+        asciiplot(x, y, title=title)
+        return Genome_size
 
     plt.figure(1, (6, 6))
     plt.plot(x, y, 'g-', lw=2, alpha=.5)
@@ -564,6 +566,8 @@ def histogram(args):
 
     imagename = histfile.split(".")[0] + ".pdf"
     savefig(imagename, dpi=100)
+
+    return Genome_size
 
 
 if __name__ == '__main__':

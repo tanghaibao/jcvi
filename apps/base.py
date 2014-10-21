@@ -435,10 +435,9 @@ class OptionParser (OptionP):
                      " [default: %default]")
         topts.add_option("--bflyGCThreads", default=None, type="int",
                 help="Threads for garbage collection [default: %default]")
-        topts.add_option("--grid_conf_file", default=None, type="str",
-                help="Configuration file for supported compute farms" + \
-                     " (e.g. $TRINITY_HOME/htc_conf/JCVI_SGE.0611.conf)" + \
-                     " [default: %default]")
+        topts.add_option("--grid_conf_file", default="$TRINITY_HOME/htc_conf/JCVI_SGE.0611.conf", \
+                type="str", help="Configuration file for supported compute farms" + \
+                                 " [default: %default]")
         ggopts = OptionGroup(self, "Genome-guided Trinity options")
         self.add_option_group(ggopts)
         ggopts.add_option("--use_bam", default=None, type="str",

@@ -49,6 +49,7 @@ def prepare(args):
                  help="Merge individual input fastq's into left/right/single" + \
                       " file(s) [default: %default]")
     p.set_trinity_opts()
+    p.set_grid()
     opts, args = p.parse_args(args)
 
     if len(args) not in (1, 2):
@@ -98,6 +99,8 @@ def prepare(args):
         cmd += " --genome {0} --genome_guided_max_intron {1}".format(genome, opts.max_intron)
         if use_bam:
             cmd += " --genome_guided_use_bam {0}".format(use_bam)
+    if opts.grid or opts.grid_conf_file:
+        cmd += " --grid_conf_file={0}".format(opts.grid_conf_file)
 
     if paired:
         if merge:

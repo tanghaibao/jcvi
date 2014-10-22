@@ -11,7 +11,7 @@ import logging
 
 from collections import defaultdict
 
-from jcvi.formats.base import LineFile, read_block
+from jcvi.formats.base import LineFile, read_block, must_open
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update
 
 
@@ -69,10 +69,44 @@ def main():
         ('ids', 'get the representative ids from clstr file'),
         ('deduplicate', 'use `cd-hit-est` to remove duplicate reads'),
         ('uclust', 'use `usearch` to remove duplicate reads'),
+        ('filter', 'filter consensus sequence with min cluster size'),
         ('summary', 'parse cdhit.clstr file to get distribution of cluster sizes'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def filter(args):
+    """
+    %prog filter consensus.fasta
+
+    Filter consensus sequence with min cluster size.
+    """
+    from jcvi.formats.fasta import Fasta, SeqIO
+
+    p = OptionParser(filter.__doc__)
+    p.add_option("--minsize", default=10, type="int",
+                 help="Minimum cluster size")
+    p.set_outfile()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    fastafile, = args
+    minsize = opts.minsize
+    f = Fasta(fastafile, lazy=True)
+    fw = must_open(opts.outfile, "w")
+    for desc, rec in f.iterdescriptions_ordered():
+        if desc.startswith("singleton"):
+            continue
+        # consensus_for_cluster_0 with 63 sequences
+        name, w, size, seqs = desc.split()
+        assert w == "with"
+        size = int(size)
+        if size < minsize:
+            continue
+        SeqIO.write(rec, fw, "fasta")
 
 
 def uclust(args):

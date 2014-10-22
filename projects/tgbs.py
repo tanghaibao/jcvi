@@ -73,15 +73,17 @@ def novo(args):
     Reference-free tGBS pipeline.
     """
     from jcvi.assembly.kmer import jellyfish, histogram
-    from jcvi.apps.grid import MakeManager
+    from jcvi.assembly.preprocess import diginorm
+    from jcvi.formats.fasta import filter as fasta_filter, format
+    from jcvi.apps.cdhit import filter as cdhit_filter
 
     p = OptionParser(novo.__doc__)
     p.add_option("--technology", choices=("illumina", "454", "iontorrent"),
                  default="iontorrent", help="Sequencing platform")
     p.add_option("--dedup", choices=("uclust", "cdhit"),
                  default="cdhit", help="Dedup algorithm")
+    p.set_align(pctid=96)
     p.set_home("cdhit")
-    p.set_home("fermi")
     p.set_home("fiona")
     p.set_cpus()
     opts, args = p.parse_args(args)
@@ -92,42 +94,49 @@ def novo(args):
     fastqfile, = args
     cpus = opts.cpus
     pf, sf = fastqfile.rsplit(".", 1)
+
+    diginormfile = pf + ".diginorm." + sf
+    if need_update(fastqfile, diginormfile):
+        diginorm([fastqfile, "--single"])
+        keepabund = fastqfile + ".keep.abundfilt"
+        sh("cp -s {0} {1}".format(keepabund, diginormfile))
+
     jf = pf + "-K23.histogram"
-    if need_update(fastqfile, jf):
-        jellyfish([fastqfile, "--prefix={0}".format(pf),
+    if need_update(diginormfile, jf):
+        jellyfish([diginormfile, "--prefix={0}".format(pf),
                     "--cpus={0}".format(cpus)])
 
     genomesize = histogram([jf, pf, "23"])
     fiona = pf + ".fiona." + sf
-    if need_update(fastqfile, fiona):
+    if need_update(diginormfile, fiona):
         cmd = op.join(opts.fiona_home, "bin/fiona")
         cmd += " -g {0} -nt {1} --sequencing-technology {2}".\
                     format(genomesize, cpus, opts.technology)
-        cmd += " -vv {0} {1}".format(fastqfile, fiona)
+        cmd += " -vv {0} {1}".format(diginormfile, fiona)
         logfile = pf + ".fiona.log"
         sh(cmd, outfile=logfile, errfile=logfile)
 
-    mag = pf + ".p0.mag.gz"
-    fhome = opts.fermi_home
-    if need_update(fiona, mag):
-        cmd = op.join(fhome, "run-fermi.pl")
-        cmd += " -t {0} -e {1}/fermi -p {2} {3}".format(cpus, fhome, pf, fiona)
-        sh(cmd, outfile="makefile")
-        MakeManager().run(cpus=cpus)
-
-    asm = pf + ".fermi.fasta"
-    if need_update(mag, asm):
-        cmd = "seqtk seq {0} -A".format(mag)
-        sh(cmd, outfile=asm)
-
     dedup = opts.dedup
-    cons = asm + ".P98.{0}.consensus.fasta".format(dedup)
-    if need_update(asm, cons):
+    pctid = opts.pctid
+    cons = fiona + ".P{0}.{1}.consensus.fasta".format(pctid, dedup)
+    if need_update(fiona, cons):
         if dedup == "cdhit":
-            deduplicate([asm, "--consensus", "--reads",
-                      "--cdhit_home={0}".format(opts.cdhit_home)])
+            deduplicate([fiona, "--consensus", "--reads",
+                         "--pctid={0}".format(pctid),
+                         "--cdhit_home={0}".format(opts.cdhit_home)])
         else:
-            uclust([asm])
+            uclust([fiona, "--pctid={0}".format(pctid)])
+
+    filteredfile = pf + ".filtered.fasta"
+    if need_update(cons, filteredfile):
+        covfile = pf + ".cov.fasta"
+        cdhit_filter([cons, "--outfile={0}".format(covfile)])
+        fasta_filter([covfile, "50", "--outfile={0}".format(filteredfile)])
+
+    finalfile = pf + ".final.fasta"
+    if need_update(filteredfile, finalfile):
+        format([filteredfile, finalfile, "--sequential=replace",
+                    "--prefix={0}_".format(pf)])
 
 
 def bam(args):

@@ -96,7 +96,11 @@ def diginorm(args):
     p = OptionParser(diginorm.__doc__)
     p.add_option("--single", default=False, action="store_true",
                  help="Single end reads")
-    p.set_depth(depth=20)
+    p.add_option("--tablesize", default=2e9,
+                 help="Memory size")
+    p.add_option("--npass", default="1", choices=("1", "2"),
+                 help="How many passes of normalization")
+    p.set_depth(depth=50)
     p.set_home("khmer")
     opts, args = p.parse_args(args)
 
@@ -116,11 +120,12 @@ def diginorm(args):
     pf = fastq.rsplit(".", 1)[0]
     keepfile = fastq + ".keep"
     hashfile = pf + ".kh"
+    ts = opts.tablesize
     norm_cmd = op.join(kh, "scripts/normalize-by-median.py")
     filt_cmd = op.join(kh, "scripts/filter-abund.py")
     if need_update(fastq, (hashfile, keepfile)):
         cmd = norm_cmd
-        cmd += " -C {0} -k 20 -N 4 -x 2.5e8".format(depth)
+        cmd += " -C {0} -k 20 -N 4 -x {1}".format(depth, ts)
         if PE:
             cmd += " -p"
         cmd += " -s {0} {1}".format(hashfile, fastq)
@@ -132,12 +137,15 @@ def diginorm(args):
         cmd += " {0} {1}".format(hashfile, keepfile)
         sh(cmd)
 
-    seckeepfile = abundfiltfile + ".keep"
-    if need_update(abundfiltfile, seckeepfile):
-        cmd = norm_cmd
-        cmd += " -C {0} -k 20 -N 4 -x 1e8".format(depth - 10)
-        cmd += " {0}".format(abundfiltfile)
-        sh(cmd)
+    if opts.npass == "1":
+        seckeepfile = abundfiltfile
+    else:
+        seckeepfile = abundfiltfile + ".keep"
+        if need_update(abundfiltfile, seckeepfile):
+            cmd = norm_cmd
+            cmd += " -C {0} -k 20 -N 4 -x {1}".format(depth - 10, ts / 2)
+            cmd += " {0}".format(abundfiltfile)
+            sh(cmd)
 
     if PE:
         pairsfile = pairinplace([seckeepfile,

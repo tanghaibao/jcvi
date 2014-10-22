@@ -68,10 +68,45 @@ def main():
     actions = (
         ('ids', 'get the representative ids from clstr file'),
         ('deduplicate', 'use `cd-hit-est` to remove duplicate reads'),
+        ('uclust', 'use `usearch` to remove duplicate reads'),
         ('summary', 'parse cdhit.clstr file to get distribution of cluster sizes'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def uclust(args):
+    """
+    %prog uclust fastafile
+
+    Use `usearch` to remove duplicate reads.
+    """
+    p = OptionParser(uclust.__doc__)
+    p.set_align(pctid=98)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    fastafile, = args
+    identity = opts.pctid / 100.
+
+    pf, sf = fastafile.rsplit(".", 1)
+    sortedfastafile = pf + ".sorted." + sf
+    if need_update(fastafile, sortedfastafile):
+        cmd = "usearch -sortbylength {0} -output {1}".\
+                    format(fastafile, sortedfastafile)
+        sh(cmd)
+
+    pf = fastafile + ".P{0}.uclust".format(opts.pctid)
+    clstrfile = pf + ".clstr"
+    consensusfastafile = pf + ".consensus.fasta"
+    if need_update(sortedfastafile, consensusfastafile):
+        cmd = "usearch -cluster_smallmem {0}".format(sortedfastafile)
+        cmd += " -id {0}".format(identity)
+        #cmd += " -strand both"
+        cmd += " -uc {0} -consout {1}".format(clstrfile, consensusfastafile)
+        sh(cmd)
 
 
 def ids(args):

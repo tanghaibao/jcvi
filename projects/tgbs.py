@@ -8,6 +8,7 @@ Reference-free tGBS related functions.
 import os.path as op
 import sys
 
+from jcvi.apps.cdhit import uclust, deduplicate
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh
 
 
@@ -17,9 +18,52 @@ def main():
         ('snp', 'run SNP calling on GSNAP output'),
         ('bam', 'convert GSNAP output to BAM'),
         ('novo', 'reference-free tGBS pipeline'),
+        ('merge', 'merge several novo assemblies'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def merge(args):
+    """
+    %prog merge *.cdhit.consensus.fasta
+
+    Merge several novo assemblies.
+    """
+    from jcvi.formats.base import FileMerger
+    from jcvi.formats.fasta import format, extract
+
+    p = OptionParser(merge.__doc__)
+    p.add_option("--prefix", default="consensus",
+                 help="Prefix for the merged output")
+    opts, args = p.parse_args(args)
+
+    if len(args) < 1:
+        sys.exit(not p.print_help())
+
+    fastafiles = args
+    pf = opts.prefix
+    mergedfile = pf + ".fasta"
+    if need_update(fastafiles, mergedfile):
+        FileMerger(fastafiles, outfile=mergedfile).merge()
+
+    fixedfile = pf + ".fixed.fasta"
+    if need_update(mergedfile, fixedfile):
+        format([mergedfile, fixedfile, "--sequential=suffix"])
+
+    consfile = fixedfile + ".P96.uclust.consensus.fasta"
+    if need_update(fixedfile, consfile):
+        uclust([fixedfile, "--pctid=96"])
+
+    asmfile = pf + ".assembly.fasta"
+    if need_update(consfile, asmfile):
+        extract([consfile, "seqs=1;", "--exclude", "--idonly",
+                    "--outfile={0}".format(asmfile)])
+
+    finalfile = pf + ".final.fasta"
+    if need_update(asmfile, finalfile):
+        format([asmfile, finalfile, "--sequential=replace",
+                    "--prefix={0}_".format(pf)])
 
 
 def novo(args):
@@ -30,11 +74,12 @@ def novo(args):
     """
     from jcvi.assembly.kmer import jellyfish, histogram
     from jcvi.apps.grid import MakeManager
-    from jcvi.apps.cdhit import deduplicate
 
     p = OptionParser(novo.__doc__)
     p.add_option("--technology", choices=("illumina", "454", "iontorrent"),
                  default="iontorrent", help="Sequencing platform")
+    p.add_option("--dedup", choices=("uclust", "cdhit"),
+                 default="cdhit", help="Dedup algorithm")
     p.set_home("cdhit")
     p.set_home("fermi")
     p.set_home("fiona")
@@ -75,10 +120,14 @@ def novo(args):
         cmd = "seqtk seq {0} -A".format(mag)
         sh(cmd, outfile=asm)
 
-    cons = asm + ".P98.cdhit.consensus.fasta"
+    dedup = opts.dedup
+    cons = asm + ".P98.{0}.consensus.fasta".format(dedup)
     if need_update(asm, cons):
-        deduplicate([asm, "--consensus", "--reads",
+        if dedup == "cdhit":
+            deduplicate([asm, "--consensus", "--reads",
                       "--cdhit_home={0}".format(opts.cdhit_home)])
+        else:
+            uclust([asm])
 
 
 def bam(args):

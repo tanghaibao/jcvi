@@ -1640,6 +1640,8 @@ def extract(args):
             help="search description line for match [default: %default]")
     p.add_option('--exclude', default=False, action="store_true",
             help="exclude description that matches [default: %default]")
+    p.add_option('--idonly', default=False, action="store_true",
+            help="Only search identifier")
     p.add_option('--bed', default=None,
             help="path to bed file to guide extraction by matching seqname")
     p.set_outfile()
@@ -1708,7 +1710,8 @@ def extract(args):
 
     if include or exclude:
         f = Fasta(fastafile, lazy=True)
-        for k, rec in f.iterdescriptions_ordered():
+        fi = f.iteritems_ordered if opts.idonly else f.iterdescriptions_ordered
+        for k, rec in fi():
             if include and key not in k:
                 continue
             if exclude and key in k:

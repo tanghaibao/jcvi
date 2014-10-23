@@ -147,7 +147,7 @@ def assemble(args):
     if ggfasta:
         aacmd += " --TDN {0} ".format(tdn)
     aacmd += " --ALIGNERS {0} -I {1} --CPU {2}".format(",".join(aligners), \
-            opts.intron, opts.cpu)
+            opts.intron, cpus)
 
     if prepare:
         write_file(runfile, aacmd, append=True)

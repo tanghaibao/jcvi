@@ -82,6 +82,7 @@ def novo(args):
                  default="iontorrent", help="Sequencing platform")
     p.add_option("--dedup", choices=("uclust", "cdhit"),
                  default="cdhit", help="Dedup algorithm")
+    p.set_depth(depth=50)
     p.set_align(pctid=96)
     p.set_home("cdhit")
     p.set_home("fiona")
@@ -93,11 +94,12 @@ def novo(args):
 
     fastqfile, = args
     cpus = opts.cpus
+    depth = opts.depth
     pf, sf = fastqfile.rsplit(".", 1)
 
     diginormfile = pf + ".diginorm." + sf
     if need_update(fastqfile, diginormfile):
-        diginorm([fastqfile, "--single"])
+        diginorm([fastqfile, "--single", "--depth={0}".format(depth)])
         keepabund = fastqfile + ".keep.abundfilt"
         sh("cp -s {0} {1}".format(keepabund, diginormfile))
 
@@ -130,7 +132,8 @@ def novo(args):
     filteredfile = pf + ".filtered.fasta"
     if need_update(cons, filteredfile):
         covfile = pf + ".cov.fasta"
-        cdhit_filter([cons, "--outfile={0}".format(covfile)])
+        cdhit_filter([cons, "--outfile={0}".format(covfile),
+                      "--minsize={0}".format(depth / 5)])
         fasta_filter([covfile, "50", "--outfile={0}".format(filteredfile)])
 
     finalfile = pf + ".final.fasta"

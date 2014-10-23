@@ -461,6 +461,7 @@ class OptionParser (OptionP):
                    "pbjelly": "/usr/local/projects/MTG4/PacBio/PBJelly_12.9.14/",
                    "khmer": "~/export/khmer",
                    "tassel": "/usr/local/projects/MTG4/packages/tassel",
+                   "tgi": "/usr/local/projects/tgi/bin",
                    "eddyyeh": "/home/shared/scripts/eddyyeh",
                    "fiona": "~/export/fiona-0.2.0-Linux-x86_64",
                    "fermi": "~/export/fermi",

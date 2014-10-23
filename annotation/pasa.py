@@ -63,6 +63,7 @@ def assemble(args):
     """
     p = OptionParser(assemble.__doc__)
     p.set_home("pasa")
+    p.set_home("tgi")
     p.set_align(pctid=95, pctcov=90, intron=2000, bpsplice=3, compreh_pctcov=30)
     p.add_option("--aligners", default="blat,gmap",
             help="Specify splice aligners to use for mapping [default: %default]")
@@ -95,14 +96,14 @@ def assemble(args):
             sys.exit()
 
     clean = opts.clean
-    seqclean = which("seqclean")
-    if clean and not seqclean:
-        logging.error("Cannot find tgi seqclean in PATH")
-        sys.exit()
+    seqclean = op.join(opts.tgi_home, "seqclean")
 
-    accn_extract = which(op.join(PASA_HOME, "misc_utilities", "accession_extractor.pl"))
-    launch_pasa = which(op.join(PASA_HOME, "scripts", "Launch_PASA_pipeline.pl"))
-    build_compreh_trans = which(op.join(PASA_HOME, "scripts", "build_comprehensive_transcriptome.dbi"))
+    accn_extract = which(op.join(PASA_HOME, "misc_utilities", \
+            "accession_extractor.pl"))
+    launch_pasa = which(op.join(PASA_HOME, "scripts", \
+            "Launch_PASA_pipeline.pl"))
+    build_compreh_trans = which(op.join(PASA_HOME, "scripts", \
+            "build_comprehensive_transcriptome.dbi"))
 
     cpus = opts.cpus
     grid = opts.grid
@@ -136,7 +137,8 @@ def assemble(args):
             prjobid = sh(cleancmd, grid=grid, grid_opts=opts)
 
     aafw = must_open(aaconf, "w")
-    print >> aafw, alignAssembly_conf.format("{0}_pasa".format(pasa_db), pctcov, pctid, bpsplice)
+    print >> aafw, alignAssembly_conf.format("{0}_pasa".format(pasa_db), \
+            pctcov, pctid, bpsplice)
     aafw.close()
 
     aacmd = "{0} -c {1} -C -R -g {2}".format(launch_pasa, aaconf, genome)
@@ -144,7 +146,8 @@ def assemble(args):
              " -t {0} ".format(transcripts)
     if ggfasta:
         aacmd += " --TDN {0} ".format(tdn)
-    aacmd += " --ALIGNERS {0} -I {1}".format(",".join(aligners), opts.intron)
+    aacmd += " --ALIGNERS {0} -I {1} --CPU {2}".format(",".join(aligners), \
+            opts.intron, opts.cpu)
 
     if prepare:
         write_file(runfile, aacmd, append=True)

@@ -157,7 +157,7 @@ def assemble(args):
 
     if ggfasta:
         comprehcmd = "{0} -c {1} -t {2}".format(build_compreh_trans, aaconf, transcripts)
-        comprehcmd += "--min_per_ID {0} --min_per_aligned {1}".format(pctid, pctcov)
+        comprehcmd += " --min_per_ID {0} --min_per_aligned {1}".format(pctid, compreh_pctcov)
 
         if prepare:
             write_file(runfile, comprehcmd, append=True)

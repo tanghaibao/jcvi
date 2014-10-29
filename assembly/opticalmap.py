@@ -173,9 +173,47 @@ def main():
         ('condense', 'condense split alignments in om bed'),
         ('fasta', 'use the OM bed to scaffold and create pseudomolecules'),
         ('chimera', 'scan the bed file to break scaffolds that multi-maps'),
+        ('silicosoma', 'convert .silico to .soma'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def silicosoma(args):
+    """
+    %prog silicosoma in.silico > out.soma
+
+    Convert .silico to .soma file.
+
+    Format of .silico
+        A text file containing in-silico digested contigs. This file contains pairs
+    of lines. The first line in each pair constains an identifier, this contig
+    length in bp, and the number of restriction sites, separated by white space.
+    The second line contains a white space delimited list of the restriction
+    site positions.
+
+    Format of .soma
+        Each line of the text file contains two decimal numbers: The size of the
+    fragment and the standard deviation (both in kb), separated by white space.
+    The standard deviation is ignored.
+    """
+    p = OptionParser(silicosoma.__doc__)
+    p.set_outfile()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    silicofile, = args
+    fp = must_open(silicofile)
+    fw = must_open(opts.outfile, "w")
+    fp.next()
+    positions = [int(x) for x in fp.next().split()]
+    for a, b in pairwise(positions):
+        assert a <= b
+        fragsize = int(round((b - a) / 1000.))  # kb
+        if fragsize:
+            print >> fw, fragsize, 0
 
 
 def condense(args):

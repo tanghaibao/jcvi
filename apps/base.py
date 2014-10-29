@@ -430,7 +430,7 @@ class OptionParser (OptionP):
         self.add_option_group(topts)
         topts.add_option("--JM", default="100G", type="str",
                 help="Jellyfish memory allocation [default: %default]")
-        topts.add_option("--min_contig_length", default="60", type="int",
+        topts.add_option("--min_contig_length", default=90, type="int",
                 help="Minimum assembled contig length to report" + \
                      " [default: %default]")
         topts.add_option("--bflyGCThreads", default=None, type="int",

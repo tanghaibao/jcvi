@@ -14,7 +14,7 @@ import os
 import sys
 
 from jcvi.formats.base import FileMerger, write_file
-from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, glob
+from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, iglob
 
 
 def main():
@@ -71,7 +71,7 @@ def prepare(args):
     mkdir(tfolder)
     os.chdir(tfolder)
 
-    flist = glob("../" + inparam + "/*")
+    flist = iglob("../" + inparam, "*.fq", "*.fastq", "*.fq.gz", "*.fastq.gz")
     if paired:
         f1 = [x for x in flist if "_1_" in x or ".1." in x or "_1." in x]
         f2 = [x for x in flist if "_2_" in x or ".2." in x or "_2." in x]
@@ -99,7 +99,7 @@ def prepare(args):
         cmd += " --genome {0} --genome_guided_max_intron {1}".format(genome, opts.max_intron)
         if use_bam:
             cmd += " --genome_guided_use_bam {0}".format(use_bam)
-    if opts.grid or opts.grid_conf_file:
+    if opts.grid and opts.grid_conf_file:
         cmd += " --grid_conf_file={0}".format(opts.grid_conf_file)
 
     if paired:

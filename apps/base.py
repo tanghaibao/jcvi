@@ -499,8 +499,6 @@ class OptionParser (OptionP):
                          "[default: %default]")
             self.add_option("--trust_FL", default="", action="store_true",
                     help="Trust FL-status of cDNA [default: %default]")
-        elif action == "splicing":
-            pass
 
     def set_home(self, prog):
         tag = "--{0}_home".format(prog)

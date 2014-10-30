@@ -57,7 +57,6 @@ def main():
     actions = (
         ('assemble', 'run pasa alignment assembly pipeline'),
         ('compare', 'run pasa annotation comparison pipeline'),
-        ('splicing', 'run pasa alt-splicing analysis pipeline'),
         ('longest', 'label longest transcript per gene as full-length'),
             )
     p = ActionDispatcher(actions)

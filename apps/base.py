@@ -278,7 +278,7 @@ class OptionParser (OptionP):
                      help="Minimum size of gaps [default: %default]")
 
     def set_align(self, pctid=None, hitlen=None, pctcov=None, evalue=None, \
-            compreh_pctcov=None, intron=None, bpsplice=None):
+            compreh_pctid=None, compreh_pctcov=None, intron=None, bpsplice=None):
         if pctid is not None:
             self.add_option("--pctid", default=pctid, type="int",
                      help="Sequence percent identity [default: %default]")
@@ -291,6 +291,10 @@ class OptionParser (OptionP):
         if evalue is not None:
             self.add_option("--evalue", default=evalue, type="float",
                      help="E-value cutoff [default: %default]")
+        if compreh_pctid is not None:
+            self.add_option("--compreh_pctid", default=pctid, type="int",
+                     help="Sequence percent identity cutoff used to " + \
+                          "build PASA comprehensive transcriptome [default: %default]")
         if compreh_pctcov is not None:
             self.add_option("--compreh_pctcov", default=compreh_pctcov, \
                      type="int", help="Percent coverage cutoff used to " + \
@@ -446,6 +450,57 @@ class OptionParser (OptionP):
         ggopts.add_option("--max_intron", default=2000, type="int",
                      help="maximum allowed intron length [default: %default]")
 
+    def set_pasa_opts(self, action="assemble"):
+        self.set_home("pasa")
+        if action == "assemble":
+            self.set_home("tgi")
+            self.add_option("--clean", default=False, action="store_true",
+                    help="Clean transcripts using tgi seqclean [default: %default]")
+            self.set_align(pctid=95, pctcov=90, intron=2000, bpsplice=3)
+            self.add_option("--aligners", default="blat,gmap",
+                    help="Specify splice aligners to use for mapping [default: %default]")
+            self.set_cpus()
+            self.add_option("--compreh", default=False, action="store_true",
+                    help="Run comprehensive transcriptome assembly [default: %default]")
+            self.set_align(compreh_pctid=95, compreh_pctcov=30)
+            self.add_option("--prefix", default="compreh_init_build", type="str",
+                    help="Prefix for compreh_trans output file names [default: %default]")
+        elif action == "compare":
+            genetic_code = ["universal", "Euplotes", "Tetrahymena", "Candida", "Acetabularia"]
+            self.add_option("--genetic_code", default="universal", choices=genetic_code,
+                    help="Choose translation table [default: %default]")
+            self.add_option("--pctovl", default=50, type="int",
+                    help="Minimum pct overlap between gene and FL assembly " + \
+                         "[default: %default]")
+            self.add_option("--pct_coding", default=50, type="int",
+                    help="Minimum pct of cDNA sequence to be protein coding " + \
+                         "[default: %default]")
+            self.add_option("--orf_size", default=0, type="int",
+                    help="Minimum size of ORF encoded protein [default: %default]")
+            self.add_option("--utr_exons", default=2, type="int",
+                    help="Maximum number of UTR exons [default: %default]")
+            self.add_option("--pctlen_FL", default=70, type="int",
+                    help="Minimum protein length for comparisons involving " + \
+                         "FL assemblies [default: %default]")
+            self.add_option("--pctlen_nonFL", default=70, type="int",
+                    help="Minimum protein length for comparisons involving " + \
+                         "non-FL assemblies [default: %default]")
+            self.add_option("--pctid_prot", default=70, type="int",
+                    help="Minimum pctid allowed for protein pairwise comparison" + \
+                         "[default: %default]")
+            self.add_option("--pct_aln", default=70, type="int",
+                    help="Minimum pct of shorter protein length aligning to " + \
+                         "update protein or isoform [default: %default]")
+            self.add_option("--pctovl_gene", default=80, type="int",
+                    help="Minimum pct overlap among genome span of the ORF of " + \
+                         "each overlapping gene to allow merging [default: %default]")
+            self.add_option("--stompovl", default="", action="store_true",
+                    help="Ignore alignment results, only consider genome span of ORF" + \
+                         "[default: %default]")
+            self.add_option("--trust_FL", default="", action="store_true",
+                    help="Trust FL-status of cDNA [default: %default]")
+        elif action == "splicing":
+            pass
 
     def set_home(self, prog):
         tag = "--{0}_home".format(prog)

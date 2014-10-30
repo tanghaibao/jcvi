@@ -19,11 +19,6 @@ alignAssembly_conf = """
 # MySQL settings
 MYSQLDB={0}
 
-#######################################################
-# Parameters to specify to specific scripts in pipeline
-# create a key = "script_name" + ":" + "parameter"
-# assign a value as done above.
-
 #script validate_alignments_in_db.dbi
 validate_alignments_in_db.dbi:--MIN_PERCENT_ALIGNED={1}
 validate_alignments_in_db.dbi:--MIN_AVG_PER_ID={2}
@@ -31,6 +26,25 @@ validate_alignments_in_db.dbi:--NUM_BP_PERFECT_SPLICE_BOUNDARY={3}
 
 #script subcluster_builder.dbi
 subcluster_builder.dbi:-m=50
+"""
+
+annotCompare_conf = """
+# MySQL settings
+MYSQLDB={0}
+
+#script cDNA_annotation_comparer.dbi
+cDNA_annotation_comparer.dbi:--MIN_PERCENT_OVERLAP={1}
+cDNA_annotation_comparer.dbi:--MIN_PERCENT_PROT_CODING={2}
+cDNA_annotation_comparer.dbi:--MIN_PERID_PROT_COMPARE={3}
+cDNA_annotation_comparer.dbi:--MIN_PERCENT_LENGTH_FL_COMPARE={4}
+cDNA_annotation_comparer.dbi:--MIN_PERCENT_LENGTH_NONFL_COMPARE={5}
+cDNA_annotation_comparer.dbi:--MIN_FL_ORF_SIZE={6}
+cDNA_annotation_comparer.dbi:--MIN_PERCENT_ALIGN_LENGTH={7}
+cDNA_annotation_comparer.dbi:--MIN_PERCENT_OVERLAP_GENE_REPLACE={8}
+cDNA_annotation_comparer.dbi:--STOMP_HIGH_PERCENTAGE_OVERLAPPING_GENE={9}
+cDNA_annotation_comparer.dbi:--TRUST_FL_STATUS={10}
+cDNA_annotation_comparer.dbi:--MAX_UTR_EXONS={11}
+cDNA_annotation_comparer.dbi:--GENETIC_CODE={12}
 """
 
 tdn, tfasta = "tdn.accs", "transcripts.fasta"
@@ -42,6 +56,8 @@ def main():
 
     actions = (
         ('assemble', 'run pasa alignment assembly pipeline'),
+        ('compare', 'run pasa annotation comparison pipeline'),
+        ('splicing', 'run pasa alt-splicing analysis pipeline'),
         ('longest', 'label longest transcript per gene as full-length'),
             )
     p = ActionDispatcher(actions)
@@ -54,26 +70,19 @@ def assemble(args):
 
     Run the PASA alignment assembly pipeline
 
-    If two transcript fasta files (Trinity denovo and genome guided) are provided,
-    the PASA Comprehensive Transcriptome protocol is followed
-    <http://pasa.sourceforge.net/#A_ComprehensiveTranscriptome>
+    If two transcript fasta files (Trinity denovo and genome guided) are provided
+    and the `--compreh` param is enabled, the PASA Comprehensive Transcriptome DB
+    protocol is followed <http://pasa.sourceforge.net/#A_ComprehensiveTranscriptome>
 
     Using the `--prepare` option creates a shell script with the run commands without
     executing the pipeline
     """
     p = OptionParser(assemble.__doc__)
-    p.set_home("pasa")
-    p.set_home("tgi")
-    p.set_align(pctid=95, pctcov=90, intron=2000, bpsplice=3, compreh_pctcov=30)
-    p.add_option("--aligners", default="blat,gmap",
-            help="Specify splice aligners to use for mapping [default: %default]")
-    p.add_option("--clean", default=False, action="store_true",
-            help="Clean transcripts using tgi seqclean [default: %default]")
-    p.set_cpus()
-    p.set_grid()
-    p.set_grid_opts()
+    p.set_pasa_opts()
     p.add_option("--prepare", default=False, action="store_true",
             help="Prepare PASA run script with commands [default: %default]")
+    p.set_grid()
+    p.set_grid_opts()
     opts, args = p.parse_args(args)
 
     if len(args) not in (3, 4):
@@ -155,15 +164,81 @@ def assemble(args):
         opts.hold_jid = prjobid
         prjobid = sh(aacmd, grid=grid, grid_opts=opts)
 
-    if ggfasta:
+    if opts.compreh and ggfasta:
         comprehcmd = "{0} -c {1} -t {2}".format(build_compreh_trans, aaconf, transcripts)
-        comprehcmd += " --min_per_ID {0} --min_per_aligned {1}".format(pctid, compreh_pctcov)
+        comprehcmd += " --min_per_ID {0} --min_per_aligned {1}".format(compreh_pctid, compreh_pctcov)
 
         if prepare:
             write_file(runfile, comprehcmd, append=True)
         else:
             opts.hold_jid = prjobid
             prjobid = sh(comprehcmd, grid=grid, grid_opts=opts)
+
+
+def compare(args):
+    """
+    %prog compare pasa_db_name genome.fasta transcripts.fasta [annotation.gff]
+
+    Run the PASA annotation comparison pipeline
+
+    If annotation.gff file is provided, the PASA database is loaded with the annotations
+    first before starting annotation comparison. Otherwise, it uses previously
+    loaded annotation data.
+
+    Using the `--prepare` option creates a shell script with the run commands without
+    executing the pipeline
+    """
+    p = OptionParser(compare.__doc__)
+    p.set_pasa_opts(action="compare")
+    p.add_option("--prepare", default=False, action="store_true",
+            help="Prepare PASA run script with commands [default: %default]")
+    p.set_grid()
+    p.set_grid_opts()
+    opts, args = p.parse_args(args)
+
+    if len(args) not in (3, 4):
+        sys.exit(not p.print_help())
+
+    pasa_db, genome, transcripts, = args[:3]
+    annotation = args[3] if len(args) == 4 else None
+
+    PASA_HOME = opts.pasa_home
+    if not op.isdir(PASA_HOME):
+        logging.error("PASA_HOME={0} directory does not exist".format(PASA_HOME))
+        sys.exit()
+
+    launch_pasa = which(op.join(PASA_HOME, "scripts", \
+            "Launch_PASA_pipeline.pl"))
+
+    grid = opts.grid
+    prepare, runfile = opts.prepare, "run.sh"
+
+    os.chdir(pasa_db)
+
+    if prepare:
+        write_file(runfile, "")  # initialize run script
+
+    if opts.grid and not opts.threaded:
+        opts.threaded = opts.cpus
+
+    acfw = must_open(acconf, "w")
+    print >> acfw, annotCompare_conf.format("{0}_pasa".format(pasa_db), \
+            opts.pctovl, opts.pct_coding, opts.pctid_prot, opts.pctlen_FL, \
+            opts.pctlen_nonFL, opts.orf_size, opts.pct_aln, opts.pctovl_gene, \
+            opts.stompovl, opts.trust_FL, opts.utr_exons, opts.genetic_code)
+    acfw.close()
+
+    if not op.exists("{0}.clean".format(transcripts)):
+        transcripts = "{0}.clean".format(transcripts)
+
+    accmd = "{0} -c {1} -A -g {2} -t {3}".format(launch_pasa, acconf, genome, \
+            transcripts)
+    if annotation:
+        accmd += " -L --annots_gff3 {0}".format(annotation)
+    if prepare:
+        write_file(runfile, accmd, append=True)
+    else:
+        sh(accmd, grid=grid, grid_opts=opts)
 
 
 def longest(args):

@@ -192,7 +192,7 @@ class GeneGlyph (BaseGlyph):
         p3 = (x2, y)
         p4 = (x2 - orientation * tip, y + height * .5)
         p5 = (x1, y + .5*height)
-        self.append(Polygon([p1, p2, p3, p4, p5], ec=color, **kwargs))
+        self.append(Polygon([p1, p2, p3, p4, p5], fc=color, ec=color, **kwargs))
 
         if gradient:
             zz = kwargs.get("zorder", 1)

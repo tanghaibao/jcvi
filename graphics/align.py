@@ -24,17 +24,21 @@ from jcvi.apps.base import OptionParser
 
 class BaseAlign (object):
 
-    def __init__(self, fig, xywh, xmax=100):
+    def __init__(self, fig, xywh, xpad=0, ypad=0, xmax=100):
         x, y, w, h = xywh
         self.ax = fig.add_axes(xywh)
-        self.sax = fig.add_axes([x + .15 * w, y + .15 * h, w * .7, h * .7])
+        self.sax = fig.add_axes([x + xpad * w, y + ypad * h,
+                                (1 - 2 * xpad) * w, (1 - 2 * ypad) * h])
         self.amax = self.bmax = xmax
         self.a = [(1, xmax)]
         self.b = [(1, xmax)]
         self.apatch = self.bpatch = None
+        self.xpad = xpad
+        self.ypad = ypad
+        self.canvas = 1 - 2 * xpad
 
-    def convert(self, pos, xmax, xstart=.15, canvas=.7):
-        return xstart + pos * canvas / xmax
+    def convert(self, pos, xmax):
+        return self.xpad + pos * self.canvas / xmax
 
     def invert(self, a, b):
         self.a = [(1, a), (a, b), (b, self.amax)]
@@ -65,39 +69,42 @@ class BaseAlign (object):
 
 class PairwiseAlign (BaseAlign):
 
-    def __init__(self, fig, xywh):
-        super(PairwiseAlign, self).__init__(fig, xywh)
+    def __init__(self, fig, xywh, xpad=.15, ypad=.15):
+        super(PairwiseAlign, self).__init__(fig, xywh, xpad, ypad)
 
     def draw(self, width=.03):
-        HorizontalChromosome(self.ax, .15, .85, .1, height=width,
+        HorizontalChromosome(self.ax, self.xpad, 1 - self.xpad,
+                             self.ypad - .05, height=width,
                              patch=self.apatch, lw=2)
-        Chromosome(self.ax, .1, .15, .85, width=width,
-                   patch=self.bpatch, lw=2)
+        Chromosome(self.ax, self.xpad - .05, self.ypad, 1 - self.ypad,
+                   width=width, patch=self.bpatch, lw=2)
         for a, b in zip(self.a, self.b):
             self.sax.plot(a, b, "-", color="darkslategrey", lw=2)
         self.sax.set_xticklabels([])
         self.sax.set_yticklabels([])
+        self.sax.set_xlim((1, self.amax))
+        self.sax.set_ylim((1, self.bmax))
 
 
 class ReadAlign (BaseAlign):
 
-    def __init__(self, fig, xywh, readlen=6, gap=4):
-        super(ReadAlign, self).__init__(fig, xywh)
+    def __init__(self, fig, xywh, xpad=.1, ypad=.25, readlen=6, gap=4):
+        super(ReadAlign, self).__init__(fig, xywh, xpad, ypad)
         self.readlen = readlen
         self.gap = gap
         self.reads = []
+        self.ymax = 12
+        self.ntracks = 0
         self.layout(1, self.amax)
 
-    def layout(self, start, end, maxtracks=6, ystart=.25, trackgap=.03):
+    def layout(self, start, end, maxtracks=6):
         readrange = 2 * self.readlen + self.gap
         end -= readrange
         assert start < end, "end must be > start + readlen"
         reads = []
         for x in xrange(100):
-            pos = self.convert(randint(start, end), self.amax,
-                               xstart=.1, canvas=.8)
-            reads.append(PairedRead(pos, ratio=.8 / self.amax,
-                                    readlen=self.readlen, gap=self.gap))
+            pos = randint(start, end)
+            reads.append(PairedRead(pos, readlen=self.readlen, gap=self.gap))
 
         track_ends = [0]
         reads.sort(key=lambda x: x.start)
@@ -111,54 +118,54 @@ class ReadAlign (BaseAlign):
                     continue
                 track_ends.append(r.end)
                 mi = len(track_ends) - 1
-            ypos = ystart + mi * trackgap
-            r.set_y(ypos)
+            r.set_y(self.ntracks + mi)
         reads = [x for x in reads if x.y is not None]
         self.reads += reads
-        self.ymax = ystart + len(track_ends) * trackgap
+        self.ntracks += len(track_ends)
 
     def remove(self, a, b, maxtracks=0):
-        pass
+        self.reads = [r for r in self.reads \
+                      if not (range_overlap((0, a, b), (0, r.start, r.end)) \
+                              and r.y >= maxtracks)]
 
     def draw(self, width=.03):
-        HorizontalChromosome(self.ax, .1, .9, .2, height=width,
+        HorizontalChromosome(self.ax, self.xpad, 1 - self.xpad,
+                             self.ypad - width / 2, height=width,
                              patch=self.apatch, lw=2)
         for r in self.reads:
-            r.draw(self.ax)
+            r.draw(self.sax)
         normalize_axes(self.sax)
+        self.sax.set_xlim((1, self.amax))
+        self.sax.set_ylim((-1, self.ymax))
 
     def highlight(self, a, b):
-        a, b = self.convert(a, self.amax), self.convert(b, self.amax)
-        self.ax.plot((a, a), (.215, self.ymax), "g-", lw=2)
-        self.ax.plot((b, b), (.215, self.ymax), "g-", lw=2)
+        self.sax.plot((a, a), (-1, self.ntracks), "g-", lw=2)
+        self.sax.plot((b, b), (-1, self.ntracks), "g-", lw=2)
         for r in self.reads:
             if range_overlap((0, a, b), (0, r.start, r.end)):
                 r.set_color('r')
 
-    def delete(self, a, b):
-        self.apatch = (self.convert(a, self.amax),
-                       self.convert(b, self.amax))
-        self.highlight(a, b)
-
     def duplicate(self, a, b):
         self.apatch = (self.convert(a, self.amax),
                        self.convert(b, self.amax))
-        self.layout(a, b, ystart=self.ymax)
+        self.layout(1, self.amax)
+        self.remove(1, a, maxtracks=6)
+        self.remove(b, self.amax, maxtracks=6)
         self.highlight(a, b)
 
 
 class SingleRead (object):
 
-    def __init__(self, start, ratio, readlen, sign=1):
+    def __init__(self, start, readlen, sign=1):
         self.x1 = start
-        self.x2 = start + sign * ratio * readlen
+        self.x2 = start + sign * readlen
         self.y = None
         self.start, self.end = min(self.x1, self.x2), max(self.x1, self.x2)
         self.span = self.end - self.start + 1
         self.color = 'k'
 
-    def draw(self, ax, height=.015):
-        GeneGlyph(ax, self.x1, self.x2, self.y, height, tip=.01,
+    def draw(self, ax, height=.5):
+        GeneGlyph(ax, self.x1, self.x2, self.y, height, tip=1,
                   color=self.color, gradient=True)
 
     def breakpoint(self, a, b):
@@ -172,12 +179,12 @@ class SingleRead (object):
 
 class PairedRead (object):
 
-    def __init__(self, start, ratio, readlen, gap):
-        self.r1 = SingleRead(start, ratio, readlen)
-        i1 = start + readlen * ratio
-        i2 = i1 + gap * ratio
-        i3 = i2 + readlen * ratio
-        self.r2 = SingleRead(i3, ratio, readlen, sign=-1)
+    def __init__(self, start, readlen, gap):
+        self.r1 = SingleRead(start, readlen)
+        i1 = start + readlen
+        i2 = i1 + gap
+        i3 = i2 + readlen
+        self.r2 = SingleRead(i3, readlen, sign=-1)
         self.i1, self.i2 = i1, i2
         self.start = min(self.r1.start, self.r2.start)
         self.end = max(self.r1.end, self.r2.end)
@@ -211,7 +218,7 @@ def main():
     root = fig.add_axes([0, 0, 1, 1])
     if mode == "dotplot":
         p = PairwiseAlign(fig, [0, 0, 1, 1])
-        p.duplicate(30, 60)
+        p.duplicate(30, 70, gap=5)
         p.draw()
     elif mode == "reads":
         p = ReadAlign(fig, [0, 0, 1, 1])

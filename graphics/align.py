@@ -2,7 +2,7 @@
 # -*- coding: UTF-8 -*-
 
 """
-%prog [dotplot|reads|om]
+%prog demo
 
 Illustrate three different types of alignments.
 - Pairwise sequence alignment, aka, "dot plot"
@@ -84,6 +84,7 @@ class PairwiseAlign (BaseAlign):
         self.sax.set_yticklabels([])
         self.sax.set_xlim((1, self.amax))
         self.sax.set_ylim((1, self.bmax))
+        normalize_axes(self.ax)
 
 
 class ReadAlign (BaseAlign):
@@ -134,9 +135,10 @@ class ReadAlign (BaseAlign):
                              patch=self.apatch, lw=2)
         for r in self.reads:
             r.draw(self.sax)
-        normalize_axes(self.sax)
         self.sax.set_xlim((1, self.amax))
         self.sax.set_ylim((-1, self.ymax))
+        normalize_axes(self.ax)
+        self.sax.set_axis_off()
 
     def highlight(self, a, b):
         self.sax.plot((a, a), (-1, self.ntracks), "g-", lw=2)
@@ -206,24 +208,32 @@ class PairedRead (object):
 
 def main():
     p = OptionParser(__doc__)
-    opts, args, iopts = p.set_image_options()
+    opts, args, iopts = p.set_image_options(figsize="9x7")
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     mode, = args
-    assert mode in ("dotplot", "reads", "om")
+    assert mode == "demo"
 
+    w = .33
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
-    if mode == "dotplot":
-        p = PairwiseAlign(fig, [0, 0, 1, 1])
-        p.duplicate(30, 70, gap=5)
-        p.draw()
-    elif mode == "reads":
-        p = ReadAlign(fig, [0, 0, 1, 1])
-        p.duplicate(30, 70)
-        p.draw()
+    p = PairwiseAlign(fig, [0, 2 * w, w, w])
+    p.invert(30, 70)
+    p.draw()
+
+    p = PairwiseAlign(fig, [0, w, w, w])
+    p.delete(30, 70)
+    p.draw()
+
+    p = PairwiseAlign(fig, [0, 0, w, w])
+    p.duplicate(30, 70, gap=5)
+    p.draw()
+
+    p = ReadAlign(fig, [w, 0, w, w])
+    p.duplicate(30, 70)
+    p.draw()
 
     normalize_axes(root)
 

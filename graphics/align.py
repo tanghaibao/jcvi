@@ -74,7 +74,7 @@ class PairwiseAlign (BaseAlign):
 
     def draw(self, width=.03):
         HorizontalChromosome(self.ax, self.xpad, 1 - self.xpad,
-                             self.ypad - .05, height=width,
+                             self.ypad - .05, height=width * 1.5,
                              patch=self.apatch, lw=2)
         Chromosome(self.ax, self.xpad - .05, self.ypad, 1 - self.ypad,
                    width=width, patch=self.bpatch, lw=2)
@@ -98,7 +98,7 @@ class ReadAlign (BaseAlign):
         self.ntracks = 0
         self.layout(1, self.amax)
 
-    def layout(self, start, end, maxtracks=6):
+    def layout(self, start, end, maxtracks=8):
         readrange = 2 * self.readlen + self.gap
         end -= readrange
         assert start < end, "end must be > start + readlen"
@@ -106,11 +106,11 @@ class ReadAlign (BaseAlign):
         for x in xrange(100):
             pos = randint(start, end)
             reads.append(PairedRead(pos, readlen=self.readlen, gap=self.gap))
-        reads, ntracks = self.arrange(reads, maxtracks)
+        reads, ntracks = self.arrange(reads, self.ntracks, maxtracks=maxtracks)
         self.reads += reads
         self.ntracks += ntracks
 
-    def arrange(self, reads, maxtracks):
+    def arrange(self, reads, ntracks, maxtracks=8):
         track_ends = [0]
         reads.sort(key=lambda x: x.start)
         for r in reads:
@@ -123,7 +123,7 @@ class ReadAlign (BaseAlign):
                     continue
                 track_ends.append(r.end)
                 mi = len(track_ends) - 1
-            r.set_y(self.ntracks + mi)
+            r.set_y(ntracks + mi)
         ntracks = len(track_ends)
         reads = [x for x in reads if x.y is not None]
         return reads, ntracks
@@ -135,7 +135,7 @@ class ReadAlign (BaseAlign):
 
     def draw(self, width=.03):
         HorizontalChromosome(self.ax, self.xpad, 1 - self.xpad,
-                             self.ypad - width / 2, height=width,
+                             self.ypad - width / 2, height=width * 1.5,
                              patch=self.apatch, lw=2)
         for r in self.reads:
             r.draw(self.sax)
@@ -147,24 +147,36 @@ class ReadAlign (BaseAlign):
     def highlight(self, a, b):
         self.apatch = (self.convert(a, self.amax),
                        self.convert(b, self.amax))
-        self.sax.plot((a, a), (-1, self.ntracks), "g-", lw=2)
-        self.sax.plot((b, b), (-1, self.ntracks), "g-", lw=2)
+        self.sax.plot((a, a), (-1, self.ntracks), "m-", lw=2)
+        self.sax.plot((b, b), (-1, self.ntracks), "m-", lw=2)
 
     def invert(self, a, b):
+        reads = []
         for r in self.reads:
-            r.breakpoint(a, 'r', 'r')
-            r.breakpoint(b, 'r', 'r')
+            r.set_y(None)
+            keep = True
+            if r.start < a < r.end or r.start < b < r.end:
+                adist, bdist = abs(a - r.mid), abs(b - r.mid)
+                flipr = r.r2 if adist > bdist else r.r1
+                flipr.x1 = a + b - flipr.x1
+                flipr.x2 = a + b - flipr.x2
+                flipr.color = 'y'
+                if adist > self.gap and bdist > self.gap:
+                    keep = False
+            if keep:
+                reads.append(r)
+        self.reads, self.ntracks = self.arrange(reads, 0)
         self.highlight(a, b)
 
     def delete(self, a, b):
         self.remove(a, b)
         for r in self.reads:
-            r.breakpoint(a, 'r', 'lightgrey')
-            r.breakpoint(b, 'lightgrey', 'r')
+            r.breakpoint(a, 'g', 'lightgrey')
+            r.breakpoint(b, 'lightgrey', 'g')
         self.highlight(a, b)
 
     def duplicate(self, a, b):
-        self.layout(1, self.amax)
+        self.layout(1, self.amax, maxtracks=4)
         self.remove(1, a, maxtracks=6)
         self.remove(b, self.amax, maxtracks=6)
         for r in self.reads:
@@ -182,14 +194,24 @@ class SingleRead (object):
         self.x1 = start
         self.x2 = start + sign * readlen
         self.y = None
-        self.sign = sign
-        if sign > 0:
-            self.start, self.end = self.x1, self.x2
-        else:
-            self.start, self.end = self.x2, self.x1
-        self.span = self.end - self.start + 1
         self.color = 'k'
         self.broken = None
+
+    @property
+    def sign(self):
+        return 1 if self.x2 >= self.x1 else -1
+
+    @property
+    def start(self):
+        return min(self.x1, self.x2)
+
+    @property
+    def end(self):
+        return max(self.x1, self.x2)
+
+    @property
+    def span(self):
+        return self.end - self.start + 1
 
     def draw(self, ax, height=.6):
         if self.broken is None:
@@ -217,15 +239,29 @@ class PairedRead (object):
 
     def __init__(self, start, readlen, gap):
         self.r1 = SingleRead(start, readlen)
-        i1 = start + readlen
-        i2 = i1 + gap
-        i3 = i2 + readlen
-        self.r2 = SingleRead(i3, readlen, sign=-1)
-        self.i1, self.i2 = i1, i2
-        self.start = min(self.r1.start, self.r2.start)
-        self.end = max(self.r1.end, self.r2.end)
+        self.r2 = SingleRead(start + gap + 2 * readlen, readlen, sign=-1)
         self.color = 'k'
         self.y = None
+
+    @property
+    def start(self):
+        return min(self.r1.start, self.r2.start)
+
+    @property
+    def end(self):
+        return max(self.r1.end, self.r2.end)
+
+    @property
+    def i1(self):
+        return min(self.r1.end, self.r2.end)
+
+    @property
+    def i2(self):
+        return max(self.r1.start, self.r2.start)
+
+    @property
+    def mid(self):
+        return (self.start + self.end) * .5
 
     def set_y(self, y):
         self.y = y
@@ -247,7 +283,7 @@ class PairedRead (object):
             return
         if self.y < ystart:
             return
-        self.color = lcolor if a > (self.start + self.end) * .5 else rcolor
+        self.color = lcolor if a > self.mid else rcolor
         self.r1.breakpoint(a, lcolor, rcolor)
         self.r2.breakpoint(a, lcolor, rcolor)
 

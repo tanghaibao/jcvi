@@ -89,7 +89,7 @@ class PairwiseAlign (BaseAlign):
 
 class ReadAlign (BaseAlign):
 
-    def __init__(self, fig, xywh, xpad=.1, ypad=.25, readlen=6, gap=4):
+    def __init__(self, fig, xywh, xpad=.05, ypad=.2, readlen=6, gap=3):
         super(ReadAlign, self).__init__(fig, xywh, xpad, ypad)
         self.readlen = readlen
         self.gap = gap
@@ -106,7 +106,11 @@ class ReadAlign (BaseAlign):
         for x in xrange(100):
             pos = randint(start, end)
             reads.append(PairedRead(pos, readlen=self.readlen, gap=self.gap))
+        reads, ntracks = self.arrange(reads, maxtracks)
+        self.reads += reads
+        self.ntracks += ntracks
 
+    def arrange(self, reads, maxtracks):
         track_ends = [0]
         reads.sort(key=lambda x: x.start)
         for r in reads:
@@ -120,13 +124,13 @@ class ReadAlign (BaseAlign):
                 track_ends.append(r.end)
                 mi = len(track_ends) - 1
             r.set_y(self.ntracks + mi)
+        ntracks = len(track_ends)
         reads = [x for x in reads if x.y is not None]
-        self.reads += reads
-        self.ntracks += len(track_ends)
+        return reads, ntracks
 
     def remove(self, a, b, maxtracks=0):
         self.reads = [r for r in self.reads \
-                      if not (range_overlap((0, a, b), (0, r.start, r.end)) \
+                      if not (a <= r.start <= b and a <= r.end <= b \
                               and r.y >= maxtracks)]
 
     def draw(self, width=.03):
@@ -141,18 +145,34 @@ class ReadAlign (BaseAlign):
         self.sax.set_axis_off()
 
     def highlight(self, a, b):
-        self.sax.plot((a, a), (-1, self.ntracks), "g-", lw=2)
-        self.sax.plot((b, b), (-1, self.ntracks), "g-", lw=2)
-        for r in self.reads:
-            if range_overlap((0, a, b), (0, r.start, r.end)):
-                r.set_color('r')
-
-    def duplicate(self, a, b):
         self.apatch = (self.convert(a, self.amax),
                        self.convert(b, self.amax))
+        self.sax.plot((a, a), (-1, self.ntracks), "g-", lw=2)
+        self.sax.plot((b, b), (-1, self.ntracks), "g-", lw=2)
+
+    def invert(self, a, b):
+        for r in self.reads:
+            r.breakpoint(a, 'r', 'r')
+            r.breakpoint(b, 'r', 'r')
+        self.highlight(a, b)
+
+    def delete(self, a, b):
+        self.remove(a, b)
+        for r in self.reads:
+            r.breakpoint(a, 'r', 'lightgrey')
+            r.breakpoint(b, 'lightgrey', 'r')
+        self.highlight(a, b)
+
+    def duplicate(self, a, b):
         self.layout(1, self.amax)
         self.remove(1, a, maxtracks=6)
         self.remove(b, self.amax, maxtracks=6)
+        for r in self.reads:
+            r.paint(a, b, 'r')
+            r.breakpoint(a, 'k', 'r')
+            r.breakpoint(b, 'r', 'k')
+            r.breakpoint(a, 'lightgrey', 'r', ystart=6)
+            r.breakpoint(b, 'r', 'lightgrey', ystart=6)
         self.highlight(a, b)
 
 
@@ -162,21 +182,35 @@ class SingleRead (object):
         self.x1 = start
         self.x2 = start + sign * readlen
         self.y = None
-        self.start, self.end = min(self.x1, self.x2), max(self.x1, self.x2)
+        self.sign = sign
+        if sign > 0:
+            self.start, self.end = self.x1, self.x2
+        else:
+            self.start, self.end = self.x2, self.x1
         self.span = self.end - self.start + 1
         self.color = 'k'
+        self.broken = None
 
-    def draw(self, ax, height=.5):
-        GeneGlyph(ax, self.x1, self.x2, self.y, height, tip=1,
-                  color=self.color, gradient=True)
+    def draw(self, ax, height=.6):
+        if self.broken is None:
+            GeneGlyph(ax, self.x1, self.x2, self.y, height, tip=2,
+                      color=self.color, gradient=True)
+        else:
+            a, lcolor, rcolor = self.broken
+            if self.sign < 0:
+                lcolor, rcolor = rcolor, lcolor
+            GeneGlyph(ax, self.x1, a, self.y, height, tip=0,
+                      color=lcolor, gradient=True)
+            GeneGlyph(ax, a, self.x2, self.y, height, tip=2,
+                      color=rcolor, gradient=True)
 
-    def breakpoint(self, a, b):
-        if self.start < a < self.end:
-            self.end = a
-            self.color = 'r'
-        elif self.start < b < self.end:
-            self.start = b
-            self.color = 'r'
+    def breakpoint(self, a, lcolor, rcolor):
+        if a > self.end:
+            self.color = lcolor
+        elif a < self.start:
+            self.color = rcolor
+        else:
+            self.broken = (a, lcolor, rcolor)
 
 
 class PairedRead (object):
@@ -190,10 +224,8 @@ class PairedRead (object):
         self.i1, self.i2 = i1, i2
         self.start = min(self.r1.start, self.r2.start)
         self.end = max(self.r1.end, self.r2.end)
+        self.color = 'k'
         self.y = None
-
-    def set_color(self, color):
-        self.r1.color = self.r2.color = color
 
     def set_y(self, y):
         self.y = y
@@ -203,7 +235,21 @@ class PairedRead (object):
         self.r1.draw(ax)
         self.r2.draw(ax)
         ax.plot((self.i1, self.i2), (self.y, self.y), "-",
-                 color="lightslategrey", lw=2)
+                 color=self.color)
+
+    def paint(self, a, b, color):
+        if range_overlap((0, self.start + 1 , self.end - 1),
+                         (0, a, b)):
+            self.r1.color = self.r2.color = self.color = color
+
+    def breakpoint(self, a, lcolor, rcolor, ystart=0):
+        if not self.start < a < self.end:
+            return
+        if self.y < ystart:
+            return
+        self.color = lcolor if a > (self.start + self.end) * .5 else rcolor
+        self.r1.breakpoint(a, lcolor, rcolor)
+        self.r2.breakpoint(a, lcolor, rcolor)
 
 
 def main():
@@ -229,6 +275,14 @@ def main():
 
     p = PairwiseAlign(fig, [0, 0, w, w])
     p.duplicate(30, 70, gap=5)
+    p.draw()
+
+    p = ReadAlign(fig, [w, 2 * w, w, w])
+    p.invert(30, 70)
+    p.draw()
+
+    p = ReadAlign(fig, [w, w, w, w])
+    p.delete(30, 70)
     p.draw()
 
     p = ReadAlign(fig, [w, 0, w, w])

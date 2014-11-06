@@ -186,6 +186,7 @@ class GeneGlyph (BaseGlyph):
         # Figure out the polygon vertices first
         orientation = 1 if x1 < x2 else -1
         level = 10
+        tip = min(tip, abs(x1 - x2))
         # Frame
         p1 = (x1, y - height * .5)
         p2 = (x2 - orientation * tip, y - height * .5)

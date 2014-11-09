@@ -131,7 +131,6 @@ class RestrictionMap (object):
         return np.cumsum(self.map_blocks)
 
 
-
 class MapAlignment (object):
 
     def __init__(self, node):

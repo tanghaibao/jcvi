@@ -13,12 +13,13 @@ Illustrate three different types of alignments.
 
 import sys
 
-from random import randint
+from random import randint, choice
 
+from jcvi.utils.iter import pairwise
 from jcvi.utils.range import range_overlap
 from jcvi.graphics.chromosome import Chromosome, HorizontalChromosome
 from jcvi.graphics.glyph import GeneGlyph
-from jcvi.graphics.base import plt, savefig, normalize_axes
+from jcvi.graphics.base import Rectangle, plt, savefig, normalize_axes, set2
 from jcvi.apps.base import OptionParser
 
 
@@ -188,6 +189,60 @@ class ReadAlign (BaseAlign):
         self.highlight(a, b)
 
 
+class OpticalMapAlign (BaseAlign):
+
+    def __init__(self, fig, xywh, xpad=.05, ypad=.3):
+        super(OpticalMapAlign, self).__init__(fig, xywh, xpad, ypad)
+        self.om1 = self.from_silico()
+        self.om2 = self.om1[:]
+
+    def make_wiggles(self, length, wiggle=3):
+        ar = [0]
+        while len(ar) <= length:
+            nm = ar[-1] + choice((-1, 1))
+            if not 0 <= nm < wiggle:
+                continue
+            ar.append(nm)
+        return ar
+
+    def make_colors(self, length, palette=set2[:4]):
+        ar = []
+        while len(ar) <= length:
+            nm = choice(palette)
+            if ar and nm == ar[-1]:
+                continue
+            ar.append(nm)
+        return ar
+
+    def from_silico(self, filename="Ecoli.silico", nfrags=40):
+        fp = open(filename)
+        fp.next()
+        frags = [0] + [int(x) for x in fp.next().split()]
+        return frags[:nfrags]
+
+    def draw_track(self, ar, ystart=0):
+        nfrags = len(ar)
+        wiggles = self.make_wiggles(nfrags)
+        colors = self.make_colors(nfrags)
+        j = 0
+        for a, b in pairwise(ar):
+            if b - a < max(ar) / 200:
+                continue
+            j += 1
+            wiggle, color = wiggles[j], colors[j]
+            yf = ystart + wiggle * 1. / max(wiggles)
+            p = Rectangle((a, yf), b - a, 1, color=color)
+            self.sax.add_patch(p)
+
+    def draw(self):
+        self.draw_track(self.om1)
+        self.draw_track(self.om2, ystart=10)
+        self.sax.set_xlim((-1, max(self.om1)))
+        self.sax.set_ylim((-1, 12))
+        normalize_axes(self.ax)
+        self.sax.set_axis_off()
+
+
 class SingleRead (object):
 
     def __init__(self, start, readlen, sign=1):
@@ -323,6 +378,9 @@ def main():
 
     p = ReadAlign(fig, [w, 0, w, w])
     p.duplicate(30, 70)
+    p.draw()
+
+    p = OpticalMapAlign(fig, [2 * w, 0, w, w])
     p.draw()
 
     normalize_axes(root)

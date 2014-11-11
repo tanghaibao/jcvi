@@ -89,11 +89,11 @@ class FastqHeader(object):
             if len(h) == 7:
                 self.runId, self.flowcellId = int(h[1]), h[2]
                 self.laneNum, self.tileNum = int(h[3]), int(h[4])
-                self.xPos, self.yPos = int(h[5]), h[6]
+                self.xPos, self.yPos = h[5], h[6]
             else:
                 self.runId, self.flowcellId = None, None
                 self.laneNum, self.tileNum = int(h[1]), int(h[2])
-                self.xPos, self.yPos = int(h[3]), h[4]
+                self.xPos, self.yPos = h[3], h[4]
         else:
             h = header[0].split(":")
             self.instrument = h[0]

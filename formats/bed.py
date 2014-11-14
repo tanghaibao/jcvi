@@ -325,7 +325,7 @@ def juncs(args):
     from tempfile import mkstemp
     from pybedtools import BedTool
 
-    p = OptionParser(junctions.__doc__)
+    p = OptionParser(juncs.__doc__)
     p.set_outfile()
 
     opts, args = p.parse_args(args)
@@ -346,12 +346,17 @@ def juncs(args):
             print >> fw, b
     fw.close()
 
-    trimbed = sort([trimbed, "-i"])
-    tbed = BedTool(trimbed)
-    grouptbed = tbed.groupby(g=[1,2,3,6], c=5, ops=['sum'])
+    if len(args) > 1:
+        trimbed = sort([trimbed, "-i"])
+        tbed = BedTool(trimbed)
+        grouptbed = tbed.groupby(g=[1,2,3,6], c=5, ops=['sum'])
 
-    cmd = """awk -F $'\t' 'BEGIN { OFS = FS } { ID = sprintf("mJUNC%07d", NR); print $1,$2,$3,ID,$5,$4; }'"""
-    sh(cmd, infile=grouptbed.fn, outfile=opts.outfile)
+        cmd = """awk -F $'\t' 'BEGIN { OFS = FS } { ID = sprintf("mJUNC%07d", NR); print $1,$2,$3,ID,$5,$4; }'"""
+        infile = grouptbed.fn
+        sh(cmd, infile=infile, outfile=opts.outfile)
+    else:
+        sort([trimbed, "-o", opts.outfile])
+
     os.unlink(trimbed)
 
 
@@ -1469,6 +1474,7 @@ def sort(args):
             help="Uniqify the bed file")
     p.add_option("--accn", default=False, action="store_true",
             help="Sort based on the accessions [default: %default]")
+    p.set_outfile(outfile=None)
     p.set_tmpdir()
     opts, args = p.parse_args(args)
 
@@ -1478,9 +1484,11 @@ def sort(args):
     bedfile, = args
     inplace = opts.inplace
 
-    sortedbed = op.basename(bedfile).rsplit(".", 1)[0] + ".sorted.bed"
+    sortedbed = opts.outfile
     if inplace:
         sortedbed = bedfile
+    elif opts.outfile is None:
+        sortedbed = op.basename(bedfile).rsplit(".", 1)[0] + ".sorted.bed"
 
     sortopt = "-k1,1 -k2,2n -k4,4" if not opts.accn else \
               "-k4,4 -k1,1 -k2,2n"

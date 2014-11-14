@@ -347,7 +347,8 @@ def juncs(args):
     fw.close()
 
     if len(args) > 1:
-        trimbed = sort([trimbed, "-i"])
+        sh("sort -k1,1 -k2,2n {0} -o {0}".format(trimbed))
+
         tbed = BedTool(trimbed)
         grouptbed = tbed.groupby(g=[1,2,3,6], c=5, ops=['sum'])
 

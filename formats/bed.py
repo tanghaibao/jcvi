@@ -88,7 +88,7 @@ class BedLine(object):
 
 class Bed(LineFile):
 
-    def __init__(self, filename=None, key=None, sorted=True):
+    def __init__(self, filename=None, key=None, sorted=True, juncs=False):
         super(Bed, self).__init__(filename)
 
         # the sorting key provides some flexibility in ordering the features
@@ -100,7 +100,7 @@ class Bed(LineFile):
             return
 
         for line in must_open(filename):
-            if line[0] == "#":
+            if line[0] == "#" or (juncs and line.startswith('track name')):
                 continue
             self.append(BedLine(line))
 
@@ -307,9 +307,52 @@ def main():
         ('fix', 'fix non-standard bed files'),
         ('filter', 'filter the bedfile to retain records between size range'),
         ('random', 'extract a random subset of features'),
+        ('juncs', 'trim junctions.bed overhang to get intron, merge multiple beds'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def juncs(args):
+    """
+    %prog junctions junctions1.bed [junctions2.bed ...]
+
+    Given a TopHat junctions.bed file, trim the read overhang to get intron span
+
+    If more than one junction bed file is provided, uniq the junctions and
+    calculate cumulative (sum) junction support
+    """
+    from tempfile import mkstemp
+    from pybedtools import BedTool
+
+    p = OptionParser(junctions.__doc__)
+    p.set_outfile()
+
+    opts, args = p.parse_args(args)
+
+    if len(args) < 1:
+        sys.exit(not p.print_help())
+
+    fh, trimbed = mkstemp(suffix = ".bed")
+    fw = must_open(trimbed, "w")
+    for i, juncbed in enumerate(args):
+        bed = Bed(juncbed, juncs=True)
+        for b in bed:
+            ovh = [int(x) for x in b.extra[-2].split(",")]
+            b.start += ovh[0]
+            b.end -= ovh[1]
+            b.accn = "{0}-{1}".format(b.accn, i)
+            b.extra = None
+            print >> fw, b
+    fw.close()
+
+    trimbed = sort([trimbed, "-i"])
+    tbed = BedTool(trimbed)
+    grouptbed = tbed.groupby(g=[1,2,3,6], c=5, ops=['sum'])
+
+    cmd = """awk -F $'\t' 'BEGIN { OFS = FS } { ID = sprintf("mJUNC%07d", NR); print $1,$2,$3,ID,$5,$4; }'"""
+    sh(cmd, infile=grouptbed.fn, outfile=opts.outfile)
+    os.unlink(trimbed)
 
 
 def random(args):

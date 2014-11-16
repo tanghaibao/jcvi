@@ -13,6 +13,7 @@ Illustrate three different types of alignments.
 
 import sys
 
+from bisect import bisect
 from random import choice, randint
 
 from jcvi.utils.iter import pairwise
@@ -195,7 +196,7 @@ class OpticalMapAlign (BaseAlign):
         super(OpticalMapAlign, self).__init__(fig, xywh, xpad, ypad)
         om = self.from_silico()
         self.om1 = OpticalMapTrack(self.sax, om)
-        self.om2 = OpticalMapTrack(self.sax, om, ystart=-3, color='y')
+        self.om2 = OpticalMapTrack(self.sax, om, ystart=-3, color='orange')
 
     def from_silico(self, filename="Ecoli.silico", nfrags=25):
         fp = open(filename)
@@ -209,46 +210,106 @@ class OpticalMapAlign (BaseAlign):
             sizes.append(size)
 
         sizes = [choice(sizes) for x in xrange(nfrags)]
-        cumsizes = [0]
-        for a in sizes:
-            cumsizes.append(cumsizes[-1] + a)
-        return cumsizes
+        return sizes
 
     def draw(self):
-        self.sax.set_xlim(0, max(self.om1.ar))
+        self.om1.draw()
+        self.om2.draw()
+        self.sax.set_xlim(0, self.om1.amax)
         self.sax.set_ylim(-8, 8)
         normalize_axes(self.ax)
         self.sax.set_axis_off()
 
+    def invert(self, a, b):
+        ai, bi = self.om2.invert(a, b)
+        self.om1.highlight(ai, bi, 'lightslategrey')
+        self.om2.highlight(ai, bi, 'y')
+
+    def delete(self, a, b):
+        ai, bi = self.om2.delete(a, b)
+        self.om1.highlight(ai, bi, 'g')
+        self.om2.highlight(ai, bi, None)
+
+    def duplicate(self, a, b, gap=5):
+        (ai, bi), (ci, di) = self.om1.duplicate(a, b, gap)
+        (ai, bi), (ci, di) = self.om2.duplicate(a, b, gap)
+        self.om1.highlight(ai, bi, 'r')
+        self.om1.highlight(ci, di, 'r')
+        self.om2.highlight(ai, bi, None)
+        self.om2.highlight(ci, di, 'r')
+
 
 class OpticalMapTrack (BaseGlyph):
 
-    def __init__(self, ax, ar, ystart=0, color='darkslategrey', wiggle=3, height=1):
+    def __init__(self, ax, sizes, ystart=0, color='darkslategrey',
+                 height=1, wiggle=3):
 
         super(OpticalMapTrack, self).__init__(ax)
-        self.ar = ar
+        self.sizes = sizes[:]
         self.ystart = ystart
         self.height = height
-        self.wiggles = self.make_wiggles(self.length, wiggle=wiggle)
-        self.colors = [color] * self.length
-        pad = max(ar) / 100
+        self.color = color
+        self.wiggle = wiggle
+        self.make_wiggles()
+
+    def draw(self):
+        ar = self.make_ar()
+        self.pad = pad = max(ar) / 100
         pads = 0
         for (a, b), w, color in zip(pairwise(ar), self.wiggles, self.colors):
-            yf = ystart + w * 1. / wiggle
-            p = Rectangle((a + pads, yf), b - a, height, color=color)
-            self.append(p)
+            yf = self.ystart + w * 1. / self.wiggle
+            if color:
+                p = Rectangle((a + pads, yf), b - a, self.height, color=color)
+                self.append(p)
             pads += pad
         self.add_patches()
 
+    def get_endpoints(self, a, b, xmax=100):
+        ar = self.make_ar()
+        a, b = max(ar) * a / xmax, max(ar) * b / xmax
+        return bisect(ar, a), bisect(ar, b)
+
+    def invert(self, a, b):
+        ai, bi = self.get_endpoints(a, b)
+        bb = self.sizes[ai:bi]
+        self.sizes = self.sizes[:ai] + bb[::-1] + self.sizes[bi:]
+        return ai, bi
+
+    def delete(self, a, b):
+        return self.get_endpoints(a, b)
+
+    def duplicate(self, a, b, gap):
+        ai, bi = self.get_endpoints(a, b)
+        ci, di = self.get_endpoints(a - gap, a)
+        bb = self.sizes[ai:bi]
+        bs = len(bb)
+        self.sizes = self.sizes[:ci] + bb + self.sizes[ci:]
+        self.make_wiggles()
+        return (ci, ci + bs), (di + bs, di + 2 * bs)
+
+    def highlight(self, ai, bi, color):
+        self.colors[ai:bi] = [color] * (bi - ai)
+
+    @property
+    def amax(self):
+        return sum(self.sizes) + (self.length - 1) * self.pad
+
     @property
     def length(self):
-        return len(self.ar)
+        return len(self.sizes)
 
-    def make_wiggles(self, length, wiggle=3):
-        ar = [wiggle / 2 + 1]
-        while len(ar) <= length:
-            ar += range(wiggle, 0, -1)
-        return ar[:self.length]
+    def make_ar(self):
+        cumsizes = [0]
+        for a in self.sizes:
+            cumsizes.append(cumsizes[-1] + a)
+        return cumsizes
+
+    def make_wiggles(self):
+        ar = [self.wiggle / 2 + 1]
+        while len(ar) <= self.length:
+            ar += range(self.wiggle, 0, -1)
+        self.wiggles = ar[:self.length]
+        self.colors = [self.color] * self.length
 
 
 class SingleRead (object):
@@ -398,7 +459,7 @@ def main():
     p.draw()
 
     p = OpticalMapAlign(fig, [2 * w, 0, w, w])
-    p.duplicate(a, b)
+    p.duplicate(a, b, gap=5)
     p.draw()
 
     normalize_axes(root)

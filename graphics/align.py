@@ -35,6 +35,7 @@ class BaseAlign (object):
         self.a = [(1, xmax)]
         self.b = [(1, xmax)]
         self.apatch = self.bpatch = None
+        self.apatchcolor = self.bpatchcolor = 'darkslategrey'
         self.xpad = xpad
         self.ypad = ypad
         self.canvas = 1 - 2 * xpad
@@ -49,6 +50,7 @@ class BaseAlign (object):
                        self.convert(b, self.amax))
         self.bpatch = (self.convert(a, self.bmax),
                        self.convert(b, self.bmax))
+        self.bpatchcolor = 'y'
 
     def delete(self, a, b):
         self.bmax -= b - a
@@ -67,6 +69,7 @@ class BaseAlign (object):
                        self.convert(b, self.bmax),
                        self.convert(b + gap, self.bmax),
                        self.convert(2 * b - a + gap, self.bmax))
+        self.bpatchcolor = 'tomato'
 
 
 class PairwiseAlign (BaseAlign):
@@ -79,7 +82,8 @@ class PairwiseAlign (BaseAlign):
                              self.ypad - .05, height=width * 1.5,
                              patch=self.apatch, lw=2)
         Chromosome(self.ax, self.xpad - .05, self.ypad, 1 - self.ypad,
-                   width=width, patch=self.bpatch, lw=2)
+                   width=width, patch=self.bpatch,
+                   patchcolor=self.bpatchcolor, lw=2)
         for a, b in zip(self.a, self.b):
             self.sax.plot(a, b, "-", color="darkslategrey", lw=2)
         self.sax.set_xticklabels([])
@@ -182,11 +186,11 @@ class ReadAlign (BaseAlign):
         self.remove(1, a, maxtracks=6)
         self.remove(b, self.amax, maxtracks=6)
         for r in self.reads:
-            r.paint(a, b, 'r')
-            r.breakpoint(a, 'k', 'r')
-            r.breakpoint(b, 'r', 'k')
-            r.breakpoint(a, 'lightgrey', 'r', ystart=6)
-            r.breakpoint(b, 'r', 'lightgrey', ystart=6)
+            r.paint(a, b, 'tomato')
+            r.breakpoint(a, 'k', 'tomato')
+            r.breakpoint(b, 'tomato', 'k')
+            r.breakpoint(a, 'lightgrey', 'tomato', ystart=6)
+            r.breakpoint(b, 'tomato', 'lightgrey', ystart=6)
         self.highlight(a, b)
 
 
@@ -227,16 +231,16 @@ class OpticalMapAlign (BaseAlign):
 
     def delete(self, a, b):
         ai, bi = self.om2.delete(a, b)
-        self.om1.highlight(ai, bi, 'g')
+        self.om1.highlight(ai, bi, 'lightslategrey')
         self.om2.highlight(ai, bi, None)
 
-    def duplicate(self, a, b, gap=5):
-        (ai, bi), (ci, di) = self.om1.duplicate(a, b, gap)
-        (ai, bi), (ci, di) = self.om2.duplicate(a, b, gap)
-        self.om1.highlight(ai, bi, 'r')
-        self.om1.highlight(ci, di, 'r')
-        self.om2.highlight(ai, bi, None)
-        self.om2.highlight(ci, di, 'r')
+    def duplicate(self, a, b):
+        (ai, bi), (ci, di) = self.om1.duplicate(a, b)
+        (ai, bi), (ci, di) = self.om2.duplicate(a, b)
+        self.om1.highlight(ai, bi, None)
+        self.om1.highlight(ci, di, 'lightslategrey')
+        self.om2.highlight(ai, bi, 'tomato')
+        self.om2.highlight(ci, di, 'tomato')
 
 
 class OpticalMapTrack (BaseGlyph):
@@ -267,7 +271,7 @@ class OpticalMapTrack (BaseGlyph):
     def get_endpoints(self, a, b, xmax=100):
         ar = self.make_ar()
         a, b = max(ar) * a / xmax, max(ar) * b / xmax
-        return bisect(ar, a), bisect(ar, b)
+        return bisect(ar, a) - 1, bisect(ar, b)
 
     def invert(self, a, b):
         ai, bi = self.get_endpoints(a, b)
@@ -278,9 +282,11 @@ class OpticalMapTrack (BaseGlyph):
     def delete(self, a, b):
         return self.get_endpoints(a, b)
 
-    def duplicate(self, a, b, gap):
+    def duplicate(self, a, b):
         ai, bi = self.get_endpoints(a, b)
-        ci, di = self.get_endpoints(a - gap, a)
+        ai += self.wiggle / 2
+        bi += self.wiggle / 2
+        ci, di = ai - self.wiggle, ai
         bb = self.sizes[ai:bi]
         bs = len(bb)
         self.sizes = self.sizes[:ci] + bb + self.sizes[ci:]
@@ -459,7 +465,7 @@ def main():
     p.draw()
 
     p = OpticalMapAlign(fig, [2 * w, 0, w, w])
-    p.duplicate(a, b, gap=5)
+    p.duplicate(a, b)
     p.draw()
 
     normalize_axes(root)

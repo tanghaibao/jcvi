@@ -25,7 +25,7 @@ from jcvi.apps.base import OptionParser
 class Chromosome (BaseGlyph):
 
     def __init__(self, ax, x, y1, y2, width=.015, ec="k", patch=None,
-                 lw=1, fc="k", zorder=2):
+                 patchcolor='lightgrey', lw=1, fc="k", zorder=2):
         """
         Chromosome with positions given in (x, y1) => (x, y2)
 
@@ -43,7 +43,7 @@ class Chromosome (BaseGlyph):
                     continue
                 p1, p2 = patch[i], patch[i + 1]
                 self.append(Rectangle((x - rr, p1), 2 * rr, p2 - p1, lw=0,
-                             fc="lightgrey"))
+                             fc=patchcolor))
 
         self.add_patches()
 
@@ -63,7 +63,8 @@ class Chromosome (BaseGlyph):
 class HorizontalChromosome (BaseGlyph):
 
     def __init__(self, ax, x1, x2, y, height=.015, ec="k", patch=None,
-                 lw=1, fc=None, zorder=2, roundrect=False):
+                 patchcolor='lightgrey', lw=1, fc=None,
+                 zorder=2, roundrect=False):
         """
         Horizontal version of the Chromosome glyph above.
         """
@@ -90,7 +91,7 @@ class HorizontalChromosome (BaseGlyph):
                     continue
                 p1, p2 = patch[i], patch[i + 1]
                 self.append(Rectangle((p1, y - rr), p2 - p1, 2 * rr, lw=0,
-                             fc="lightgrey"))
+                             fc=patchcolor))
 
         self.add_patches()
 

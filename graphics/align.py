@@ -13,13 +13,13 @@ Illustrate three different types of alignments.
 
 import sys
 
-from random import randint, choice
+from random import choice, randint
 
 from jcvi.utils.iter import pairwise
 from jcvi.utils.range import range_overlap
 from jcvi.graphics.chromosome import Chromosome, HorizontalChromosome
-from jcvi.graphics.glyph import GeneGlyph
-from jcvi.graphics.base import Rectangle, plt, savefig, normalize_axes, set2
+from jcvi.graphics.glyph import BaseGlyph, GeneGlyph
+from jcvi.graphics.base import Rectangle, plt, savefig, normalize_axes
 from jcvi.apps.base import OptionParser
 
 
@@ -193,54 +193,62 @@ class OpticalMapAlign (BaseAlign):
 
     def __init__(self, fig, xywh, xpad=.05, ypad=.3):
         super(OpticalMapAlign, self).__init__(fig, xywh, xpad, ypad)
-        self.om1 = self.from_silico()
-        self.om2 = self.om1[:]
+        om = self.from_silico()
+        self.om1 = OpticalMapTrack(self.sax, om)
+        self.om2 = OpticalMapTrack(self.sax, om, ystart=-3, color='y')
 
-    def make_wiggles(self, length, wiggle=3):
-        ar = [0]
-        while len(ar) <= length:
-            nm = ar[-1] + choice((-1, 1))
-            if not 0 <= nm < wiggle:
-                continue
-            ar.append(nm)
-        return ar
-
-    def make_colors(self, length, palette=set2[:4]):
-        ar = []
-        while len(ar) <= length:
-            nm = choice(palette)
-            if ar and nm == ar[-1]:
-                continue
-            ar.append(nm)
-        return ar
-
-    def from_silico(self, filename="Ecoli.silico", nfrags=40):
+    def from_silico(self, filename="Ecoli.silico", nfrags=25):
         fp = open(filename)
         fp.next()
-        frags = [0] + [int(x) for x in fp.next().split()]
-        return frags[:nfrags]
-
-    def draw_track(self, ar, ystart=0):
-        nfrags = len(ar)
-        wiggles = self.make_wiggles(nfrags)
-        colors = self.make_colors(nfrags)
-        j = 0
+        ar = [0] + [int(x) for x in fp.next().split()]
+        sizes = []  # Only retain frags beyond certain size
         for a, b in pairwise(ar):
-            if b - a < max(ar) / 200:
+            size = b - a
+            if size < max(ar[:nfrags]) / 100:
                 continue
-            j += 1
-            wiggle, color = wiggles[j], colors[j]
-            yf = ystart + wiggle * 1. / max(wiggles)
-            p = Rectangle((a, yf), b - a, 1, color=color)
-            self.sax.add_patch(p)
+            sizes.append(size)
+
+        sizes = [choice(sizes) for x in xrange(nfrags)]
+        cumsizes = [0]
+        for a in sizes:
+            cumsizes.append(cumsizes[-1] + a)
+        return cumsizes
 
     def draw(self):
-        self.draw_track(self.om1)
-        self.draw_track(self.om2, ystart=10)
-        self.sax.set_xlim((-1, max(self.om1)))
-        self.sax.set_ylim((-1, 12))
+        self.sax.set_xlim(0, max(self.om1.ar))
+        self.sax.set_ylim(-8, 8)
         normalize_axes(self.ax)
         self.sax.set_axis_off()
+
+
+class OpticalMapTrack (BaseGlyph):
+
+    def __init__(self, ax, ar, ystart=0, color='darkslategrey', wiggle=3, height=1):
+
+        super(OpticalMapTrack, self).__init__(ax)
+        self.ar = ar
+        self.ystart = ystart
+        self.height = height
+        self.wiggles = self.make_wiggles(self.length, wiggle=wiggle)
+        self.colors = [color] * self.length
+        pad = max(ar) / 100
+        pads = 0
+        for (a, b), w, color in zip(pairwise(ar), self.wiggles, self.colors):
+            yf = ystart + w * 1. / wiggle
+            p = Rectangle((a + pads, yf), b - a, height, color=color)
+            self.append(p)
+            pads += pad
+        self.add_patches()
+
+    @property
+    def length(self):
+        return len(self.ar)
+
+    def make_wiggles(self, length, wiggle=3):
+        ar = [wiggle / 2 + 1]
+        while len(ar) <= length:
+            ar += range(wiggle, 0, -1)
+        return ar[:self.length]
 
 
 class SingleRead (object):
@@ -353,34 +361,44 @@ def main():
     mode, = args
     assert mode == "demo"
 
+    a, b = 30, 70
     w = .33
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
     p = PairwiseAlign(fig, [0, 2 * w, w, w])
-    p.invert(30, 70)
+    p.invert(a, b)
     p.draw()
 
     p = PairwiseAlign(fig, [0, w, w, w])
-    p.delete(30, 70)
+    p.delete(a, b)
     p.draw()
 
     p = PairwiseAlign(fig, [0, 0, w, w])
-    p.duplicate(30, 70, gap=5)
+    p.duplicate(a, b, gap=5)
     p.draw()
 
     p = ReadAlign(fig, [w, 2 * w, w, w])
-    p.invert(30, 70)
+    p.invert(a, b)
     p.draw()
 
     p = ReadAlign(fig, [w, w, w, w])
-    p.delete(30, 70)
+    p.delete(a, b)
     p.draw()
 
     p = ReadAlign(fig, [w, 0, w, w])
-    p.duplicate(30, 70)
+    p.duplicate(a, b)
+    p.draw()
+
+    p = OpticalMapAlign(fig, [2 * w, 2 * w, w, w])
+    p.invert(a, b)
+    p.draw()
+
+    p = OpticalMapAlign(fig, [2 * w, w, w, w])
+    p.delete(a, b)
     p.draw()
 
     p = OpticalMapAlign(fig, [2 * w, 0, w, w])
+    p.duplicate(a, b)
     p.draw()
 
     normalize_axes(root)

@@ -452,42 +452,64 @@ def main():
     assert mode == "demo"
 
     a, b = 30, 70
-    w = .33
+    pad = .08
+    w = .31
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
-    p = PairwiseAlign(fig, [0, 2 * w, w, w])
+
+    # Row separators
+    yy = 1 - pad
+    for i in xrange(3):
+        root.plot((0, 1), (yy, yy), "-", lw=2, color="lightgray")
+        yy -= w
+
+    # Row headers
+    xx = pad * .6
+    yy = 1 - pad - .5 * w
+    for title in ("Inversion", "Indel", "Duplication"):
+        root.text(xx, yy, title, ha="center", va="center")
+        yy -= w
+
+    # Column headers
+    xx = pad + .5 * w
+    yy = 1 - pad / 2
+    for title in ("Assembly alignment", "Read alignment", "Optical map alignment"):
+        root.text(xx, yy, title, ha="center", va="center")
+        xx += w
+
+    p = PairwiseAlign(fig, [pad, 2 * w, w, w])
     p.invert(a, b)
     p.draw()
 
-    p = PairwiseAlign(fig, [0, w, w, w])
+    p = PairwiseAlign(fig, [pad, w, w, w])
     p.delete(a, b)
     p.draw()
 
-    p = PairwiseAlign(fig, [0, 0, w, w])
+    p = PairwiseAlign(fig, [pad, 0, w, w])
     p.duplicate(a, b, gap=5)
     p.draw()
 
-    p = ReadAlign(fig, [w, 2 * w, w, w])
+    p = ReadAlign(fig, [pad + w, 2 * w, w, w])
     p.invert(a, b)
     p.draw()
 
-    p = ReadAlign(fig, [w, w, w, w])
+    p = ReadAlign(fig, [pad + w, w, w, w])
     p.delete(a, b)
     p.draw()
 
-    p = ReadAlign(fig, [w, 0, w, w])
+    p = ReadAlign(fig, [pad + w, 0, w, w])
     p.duplicate(a, b)
     p.draw()
 
-    p = OpticalMapAlign(fig, [2 * w, 2 * w, w, w])
+    p = OpticalMapAlign(fig, [pad + 2 * w, 2 * w, w, w])
     p.invert(a, b)
     p.draw()
 
-    p = OpticalMapAlign(fig, [2 * w, w, w, w])
+    p = OpticalMapAlign(fig, [pad + 2 * w, w, w, w])
     p.delete(a, b)
     p.draw()
 
-    p = OpticalMapAlign(fig, [2 * w, 0, w, w])
+    p = OpticalMapAlign(fig, [pad + 2 * w, 0, w, w])
     p.duplicate(a, b)
     p.draw()
 

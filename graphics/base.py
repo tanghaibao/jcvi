@@ -16,7 +16,7 @@ import matplotlib.ticker as ticker
 
 from matplotlib import cm, rc
 from matplotlib.patches import Rectangle, Polygon, CirclePolygon, PathPatch, \
-            FancyArrowPatch
+            FancyArrow, FancyArrowPatch
 from matplotlib.path import Path
 
 from jcvi.utils.brewer2mpl import get_map

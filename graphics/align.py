@@ -20,7 +20,7 @@ from jcvi.utils.iter import pairwise
 from jcvi.utils.range import range_overlap
 from jcvi.graphics.chromosome import Chromosome, HorizontalChromosome
 from jcvi.graphics.glyph import BaseGlyph, GeneGlyph
-from jcvi.graphics.base import Rectangle, plt, savefig, normalize_axes
+from jcvi.graphics.base import FancyArrow, Rectangle, plt, savefig, normalize_axes
 from jcvi.apps.base import OptionParser
 
 
@@ -227,7 +227,7 @@ class OpticalMapAlign (BaseAlign):
     def invert(self, a, b):
         ai, bi = self.om2.invert(a, b)
         self.om1.highlight(ai, bi, 'lightslategrey')
-        self.om2.highlight(ai, bi, 'y')
+        self.om2.highlight(ai, bi, 'y', arrow_inverse=True)
 
     def delete(self, a, b):
         ai, bi = self.om2.delete(a, b)
@@ -249,6 +249,7 @@ class OpticalMapTrack (BaseGlyph):
                  height=1, wiggle=3):
 
         super(OpticalMapTrack, self).__init__(ax)
+        self.ax = ax
         self.sizes = sizes[:]
         self.ystart = ystart
         self.height = height
@@ -257,8 +258,8 @@ class OpticalMapTrack (BaseGlyph):
         self.make_wiggles()
 
     def draw(self):
-        ar = self.make_ar()
-        self.pad = pad = max(ar) / 100
+        ar = self.ar
+        pad = self.pad
         pads = 0
         for (a, b), w, color in zip(pairwise(ar), self.wiggles, self.colors):
             yf = self.ystart + w * 1. / self.wiggle
@@ -269,7 +270,7 @@ class OpticalMapTrack (BaseGlyph):
         self.add_patches()
 
     def get_endpoints(self, a, b, xmax=100):
-        ar = self.make_ar()
+        ar = self.ar
         a, b = max(ar) * a / xmax, max(ar) * b / xmax
         return bisect(ar, a) - 1, bisect(ar, b)
 
@@ -293,8 +294,27 @@ class OpticalMapTrack (BaseGlyph):
         self.make_wiggles()
         return (ci, ci + bs), (di + bs, di + 2 * bs)
 
-    def highlight(self, ai, bi, color):
+    def highlight(self, ai, bi, color, arrow_inverse=False):
         self.colors[ai:bi] = [color] * (bi - ai)
+        ar = self.ar
+        a, b = ar[ai], ar[bi]
+        a += self.pad * (ai - 1)
+        b += self.pad * (bi - 1)
+        if self.ystart < 0:
+            yy = self.ystart - 2
+            shape = 'left'
+        else:
+            yy = self.ystart + 4
+            shape = 'right'
+        if arrow_inverse:
+            a, b = b, a
+            shape = 'right' if shape == 'left' else 'left'
+        if not color:
+            return
+        p = FancyArrow(a, yy, b - a, 0, fc=color, lw=0, shape=shape,
+                       length_includes_head=True, width=1,
+                       head_length=abs(b - a) * .15, head_width=3)
+        self.ax.add_patch(p)
 
     @property
     def amax(self):
@@ -304,7 +324,8 @@ class OpticalMapTrack (BaseGlyph):
     def length(self):
         return len(self.sizes)
 
-    def make_ar(self):
+    @property
+    def ar(self):
         cumsizes = [0]
         for a in self.sizes:
             cumsizes.append(cumsizes[-1] + a)
@@ -316,6 +337,8 @@ class OpticalMapTrack (BaseGlyph):
             ar += range(self.wiggle, 0, -1)
         self.wiggles = ar[:self.length]
         self.colors = [self.color] * self.length
+        ar = self.ar
+        self.pad = max(ar) / 100
 
 
 class SingleRead (object):

@@ -11,6 +11,7 @@ import re
 from collections import defaultdict
 from urllib import quote, unquote
 
+from jcvi.utils.cbook import AutoVivification
 from jcvi.formats.base import LineFile, must_open, is_number
 from jcvi.formats.fasta import Fasta, SeqIO
 from jcvi.formats.bed import Bed, BedLine
@@ -34,6 +35,13 @@ valid_gff_parent_child = {"match": "match_part",
                           "transposable_element": "transposon_fragment",
                           "mRNA": "exon"
                          }
+valid_gff_to_gtf_type = {"exon": "exon",
+                         "CDS": "CDS",
+                         "start_codon": "start_codon",
+                         "stop_codon": "stop_codon",
+                         "five_prime_UTR": "5UTR",
+                         "three_prime_UTR": "3UTR"
+                        }
 valid_gff_type = tuple(valid_gff_parent_child.keys())
 reserved_gff_attributes = ("ID", "Name", "Alias", "Parent", "Target",
                            "Gap", "Derives_from", "Note", "Dbxref",
@@ -761,7 +769,6 @@ def format(args):
     """
     from jcvi.formats.base import DictFile
     from jcvi.utils.range import range_minmax
-    from jcvi.utils.cbook import AutoVivification
     from jcvi.formats.obo import load_GODag, validate_term
 
     valid_multiparent_ops = ["split", "merge"]
@@ -1552,33 +1559,37 @@ def gtf(args):
 
     gffile, = args
     gff = Gff(gffile)
-    transcript_to_gene = {}
+    transcript_info = AutoVivification()
     for g in gff:
-        if g.type == "mRNA":
+        if g.type.endswith("RNA"):
             if "ID" in g.attributes and "Parent" in g.attributes:
-                transcript_id = g.attributes["ID"][0]
-                gene_id = g.attributes["Parent"][0]
+                transcript_id = g.get_attr("ID")
+                gene_id = g.get_attr("Parent")
             elif "mRNA" in g.attributes and "Gene" in g.attributes:
-                transcript_id = g.attributes["mRNA"][0]
-                gene_id = g.attributes["Gene"][0]
+                transcript_id = g.get_attr("mRNA")
+                gene_id = g.get_attr("Gene")
             else:
-                transcript_id = g.attributes["ID"][0]
+                transcript_id = g.get_attr("ID")
                 gene_id = transcript_id
-            transcript_to_gene[transcript_id] = gene_id
+            transcript_info[transcript_id]["gene_id"] = gene_id
+            transcript_info[transcript_id]["gene_type"] = g.type
             continue
 
-        if g.type not in ("CDS", "exon", "start_codon", "stop_codon"):
+        if g.type not in valid_gff_to_gtf_type.keys():
             continue
 
         try:
-            transcript_id = g.attributes["Parent"]
+            transcript_id = g.get_attr("Parent", first=False)
         except IndexError:
-            transcript_id = g.attributes["mRNA"]
+            transcript_id = g.get_attr("mRNA", first=False)
 
+        g.type = valid_gff_to_gtf_type[g.type]
         for tid in transcript_id:
-            gene_id = transcript_to_gene[tid]
+            if transcript_info[tid]["gene_type"] != "mRNA":
+                continue
+            gene_id = transcript_info[tid]["gene_id"]
             g.attributes = dict(gene_id=[gene_id], transcript_id=[tid])
-            g.update_attributes()
+            g.update_attributes(gff3=False)
 
             print g
 
@@ -1784,7 +1795,7 @@ def splicecov(args):
     """
     from tempfile import mkstemp
     from pybedtools import BedTool
-    from jcvi.utils.cbook import AutoVivification, SummaryStats
+    from jcvi.utils.cbook import SummaryStats
 
     p = OptionParser(splicecov.__doc__)
     p.set_outfile()

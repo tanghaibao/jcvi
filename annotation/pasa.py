@@ -44,7 +44,6 @@ cDNA_annotation_comparer.dbi:--MIN_PERCENT_OVERLAP_GENE_REPLACE={8}
 cDNA_annotation_comparer.dbi:--STOMP_HIGH_PERCENTAGE_OVERLAPPING_GENE={9}
 cDNA_annotation_comparer.dbi:--TRUST_FL_STATUS={10}
 cDNA_annotation_comparer.dbi:--MAX_UTR_EXONS={11}
-cDNA_annotation_comparer.dbi:--GENETIC_CODE={12}
 """
 
 tdn, tfasta = "tdn.accs", "transcripts.fasta"
@@ -224,14 +223,14 @@ def compare(args):
     print >> acfw, annotCompare_conf.format("{0}_pasa".format(pasa_db), \
             opts.pctovl, opts.pct_coding, opts.pctid_prot, opts.pctlen_FL, \
             opts.pctlen_nonFL, opts.orf_size, opts.pct_aln, opts.pctovl_gene, \
-            opts.stompovl, opts.trust_FL, opts.utr_exons, opts.genetic_code)
+            opts.stompovl, opts.trust_FL, opts.utr_exons)
     acfw.close()
 
-    if not op.exists("{0}.clean".format(transcripts)):
+    if op.exists("{0}.clean".format(transcripts)):
         transcripts = "{0}.clean".format(transcripts)
 
-    accmd = "{0} -c {1} -A -g {2} -t {3}".format(launch_pasa, acconf, genome, \
-            transcripts)
+    accmd = "{0} -c {1} -A -g {2} -t {3} --GENETIC_CODE {4}".format(launch_pasa, \
+            acconf, genome, transcripts, opts.genetic_code)
     if annotation:
         accmd += " -L --annots_gff3 {0}".format(annotation)
     if prepare:

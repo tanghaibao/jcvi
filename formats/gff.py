@@ -350,6 +350,7 @@ def main():
         ('fromsoap', 'convert from soap format to gff3'),
         ('gapsplit', 'split alignment GFF3 at gaps based on CIGAR string'),
         ('orient', 'orient the coding features based on translation'),
+        ('splicecov', 'tag gff introns with coverage info from junctions.bed'),
             )
 
     p = ActionDispatcher(actions)
@@ -1767,6 +1768,89 @@ def note(args):
         if keyval not in seen:
             print "\t".join(keyval)
             seen.add(keyval)
+
+
+def splicecov(args):
+    """
+    %prog splicecov annotation.gff3 junctions.bed
+
+    Given an annotation GFF file (containing introns) and a
+    TopHat junctions.bed file (preprocessed using formats.bed.juncs(),
+    each intron gets tagged with the JUNC identifier and read coverage.
+
+    Output is a summary table listing for each gene locus, the isoform number,
+    number of splice junctions and {average, median, min & max} read coverage
+    across the junctions.
+    """
+    from tempfile import mkstemp
+    from pybedtools import BedTool
+    from jcvi.utils.cbook import AutoVivification, SummaryStats
+
+    p = OptionParser(splicecov.__doc__)
+    p.set_outfile()
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    gfffile, juncsbed, = args
+    tagged = "{0}.{1}.gff3".format(gfffile.rsplit(".", 1)[0], "tag_introns")
+
+    gff3, junc = BedTool(gfffile), BedTool(juncsbed)
+    ab = gff3.intersect(junc, wao=True, f=1.0, s=True)
+    abfh = must_open(ab.fn)
+
+    seen = set()
+    scov = AutoVivification()
+
+    fh, tmpgff = mkstemp(suffix=".gff3")
+    fw = must_open(tmpgff, "w")
+    for line in abfh:
+        args = line.strip().split("\t")
+        nargs = len(args)
+
+        g = GffLine("\t".join(str(x) for x in args[:9]))
+        if g.type == "intron" and args[10] != -1:
+            ispan, jspan = g.span, int(args[11]) - int(args[10])
+            if ispan == jspan:
+                g.set_attr("ID", args[12], update=True)
+                g.score = int(args[13])
+
+                pparts = g.get_attr("Parent").split(".")
+                locus, iso = pparts[0], ".".join(pparts[1:])
+                seen.add(iso)
+                if not scov[locus][iso]:
+                    scov[locus][iso] = []
+                scov[locus][iso].append(g.score)
+            else:
+                continue
+        print >> fw, g
+    fw.close()
+
+    format([tmpgff, "--unique", "-o", tagged])
+    os.unlink(tmpgff)
+
+    isos = sorted(list(seen))
+    fw = must_open(opts.outfile, "w")
+    h1, h2, stats = ["#"], ["#locus"], ["N", "mean", "median", "min", "max"]
+    for iso in isos:
+        h1.extend([str(iso)] + [""] * (len(stats) - 1))
+        h2.extend(stats)
+    print >> fw, "\t".join(str(x) for x in h1)
+    print >> fw, "\t".join(str(x) for x in h2)
+    for locus in scov.keys():
+        out = [locus]
+        for iso in isos:
+            if iso in scov[locus].keys():
+                juncs = scov[locus][iso]
+                jstats = SummaryStats(juncs, dtype="int")
+                out.extend([jstats.size, jstats.mean, jstats.median, \
+                        jstats.min, jstats.max])
+            else:
+                out.extend(["-"] * len(stats))
+        print >> fw, "\t".join(str(x) for x in out)
+    fw.close()
 
 
 def bed(args):

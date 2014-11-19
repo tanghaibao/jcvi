@@ -129,9 +129,11 @@ class GffLine (object):
         if update:
             self.update_attributes(gff3=self.gff3, urlquote=False)
 
-    def update_attributes(self, skipEmpty=None, gff3=None, urlquote=True):
+    def update_attributes(self, skipEmpty=None, gff3=None, gtf=None, urlquote=True):
         attributes = []
-        if gff3 is None:
+        if gtf:
+            gff3 = None
+        elif gff3 is None:
             gff3 = self.gff3
 
         sep = ";" if gff3 else "; "
@@ -139,7 +141,7 @@ class GffLine (object):
             if not val and skipEmpty:
                 continue
             val = ",".join(val)
-            val = "\"{0}\"".format(val) if " " in val and (not gff3) else val
+            val = "\"{0}\"".format(val) if (" " in val and (not gff3)) or gtf else val
             equal = "=" if gff3 else " "
             if urlquote:
                 sc = safechars
@@ -149,6 +151,8 @@ class GffLine (object):
             attributes.append(equal.join((tag, val)))
 
         self.attributes_text = sep.join(attributes)
+        if gtf:
+            self.attributes_text += ";"
 
     def update_tag(self, old_tag, new_tag):
         if old_tag not in self.attributes:
@@ -1589,7 +1593,7 @@ def gtf(args):
                 continue
             gene_id = transcript_info[tid]["gene_id"]
             g.attributes = dict(gene_id=[gene_id], transcript_id=[tid])
-            g.update_attributes(gff3=False)
+            g.update_attributes(gtf=True, urlquote=False)
 
             print g
 

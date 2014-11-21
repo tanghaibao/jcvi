@@ -989,12 +989,15 @@ def cut(args):
     Cut at the boundaries of the ranges in the bedfile.
     """
     p = OptionParser(cut.__doc__)
+    p.add_option("--sep", default=".", help="Separator for splits")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
         sys.exit(not p.print_help())
 
     agpfile, bedfile = args
+    sep = opts.sep
+
     agp = AGP(agpfile)
     bed = Bed(bedfile)
     simple_agp = agp.order
@@ -1009,8 +1012,6 @@ def cut(args):
         orientation = a.orientation
 
         assert a.component_beg, a.component_end
-        arange = a.component_beg, a.component_end
-
         cuts = set()
         for i in intervals:
             start, end = i.start, i.end
@@ -1026,7 +1027,7 @@ def cut(args):
 
         sum_of_spans = 0
         for i, (a, b) in enumerate(pairwise(cuts)):
-            oid = object + "_{0}".format(i)
+            oid = object + "{0}{1}".format(sep, i + 1)
             aline = [oid, 0, 0, 0]
             cspan = b - a
             aline += ['D', component, a + 1, b, orientation]
@@ -1066,6 +1067,7 @@ def mask(args):
                  help="Masked region has gap type of [default: %default]")
     p.add_option("--retain", default=False, action="store_true",
                  help="Retain old names for non-split objects [default: %default]")
+    p.add_option("--sep", default=".", help="Separator for splits")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -1075,6 +1077,7 @@ def mask(args):
     gaptype = opts.gaptype
     splitobject = opts.splitobject
     splitcomponent = opts.splitcomponent
+    sep = opts.sep
 
     assert not (splitobject and splitcomponent), \
                 "Options --splitobject and --splitcomponent conflict"
@@ -1094,7 +1097,6 @@ def mask(args):
     for component, intervals in bed.sub_beds():
         i, a = simple_agp[component]
         object = a.object
-        component_span = a.component_span
         orientation = a.orientation
 
         assert a.component_beg, a.component_end
@@ -1122,12 +1124,13 @@ def mask(args):
             if orientation not in ('+', '-'):
                 orientation = '+'
 
-            oid = object + "_{0}".format(i / 2) if splitobject else object
+            oid = object + "{0}{1}".format(sep, i / 2 + 1) if splitobject else object
             aline = [oid, 0, 0, 0]
             if i % 2 == 0:
                 cspan = b - a - 1
                 if splitcomponent:
-                    cid = component + "_{0}".format(componentindex[component])
+                    cid = component + "{0}{1}".\
+                                    format(sep, componentindex[component] + 1)
                     componentindex[component] += 1
                     aline += ['W', cid, 1, cspan, orientation]
                 else:
@@ -1155,9 +1158,9 @@ def mask(args):
         else:
             if not retain:
                 if splitobject:
-                    a.object += "_0"
+                    a.object += sep + "0"
                 elif splitcomponent:
-                    a.component_id += "_0"
+                    a.component_id += sep + "0"
             print >> fw, a
 
     fw.close()

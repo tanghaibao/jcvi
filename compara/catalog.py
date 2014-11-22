@@ -607,6 +607,7 @@ def ortholog(args):
                  help="C-score cutoff [default: %default]")
     p.add_option("--dist", default=20, type="int",
                  help="Extent of flanking regions to search")
+    p.add_option("--quota", help="Quota align parameter")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -616,6 +617,7 @@ def ortholog(args):
     abed, afasta = a + ".bed", a + ".cds"
     bbed, bfasta = b + ".bed", b + ".cds"
     ccscore = opts.cscore
+    quota = opts.quota
     dist = "--dist={0}".format(opts.dist)
 
     aprefix = afasta.split(".")[0]
@@ -639,6 +641,9 @@ def ortholog(args):
         if need_update(filtered_last, lifted_anchors):
             scan([filtered_last, anchors, dist,
                     "--liftover={0}".format(last)])
+        if quota:
+            quota_main([lifted_anchors,
+                        "--quota={0}".format(quota), "--screen"])
         return
 
     if need_update(filtered_last, anchors):

@@ -870,12 +870,11 @@ def frombed(args):
             if gapsize and i != 0:
                 print >> fw, "\t".join(str(x) for x in \
                     (object, 0, 0, 0, "U", \
-                     gapsize, "contig", "no", "na"))
+                     gapsize, "scaffold", "yes", "map"))
 
-            bstrand = '-' if b.strand == '-' else '+'
             print >> fw, "\t".join(str(x) for x in \
                     (object, 0, 0, 0, "W", \
-                     b.seqid, b.start, b.end, bstrand))
+                     b.seqid, b.start, b.end, b.strand))
 
     fw.close()
 

@@ -96,7 +96,7 @@ def diginorm(args):
     p = OptionParser(diginorm.__doc__)
     p.add_option("--single", default=False, action="store_true",
                  help="Single end reads")
-    p.add_option("--tablesize", default=2e9,
+    p.add_option("--tablesize", default=8e9,
                  help="Memory size")
     p.add_option("--npass", default="1", choices=("1", "2"),
                  help="How many passes of normalization")

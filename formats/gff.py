@@ -794,7 +794,7 @@ def format(args):
                 "accepts comma-separated list of attribute names [default: %default]")
     g1.add_option("--invent_name_attr", default=False, action="store_true",
                  help="Invent `Name` attribute for 2nd level child features; " + \
-                "Formatted like  PARENT:FEAT_TYPE:FEAT_INDEX [default: %default]")
+                "Formatted like PARENT:FEAT_TYPE:FEAT_INDEX")
     g1.add_option("--no_keep_attr_order", default=False, action="store_true",
                  help="Do not maintain attribute order [default: %default]")
     p.add_option_group(g1)
@@ -1336,7 +1336,7 @@ def populate_children(outfile, ids, gffile, otype=None, iter="2"):
     seen = set()
     for g in gff:
         accn = g.accn
-        if (accn in seen) or (otype and g.type != otype):
+        if accn in seen:
             continue
         if (accn in ids) or (accn in children):
             seen.add(accn)

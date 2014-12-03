@@ -2,6 +2,7 @@
 Wrapper for biopython Fasta, add option to parse sequence headers
 """
 
+import re
 import sys
 import os
 import os.path as op
@@ -14,6 +15,9 @@ from itertools import groupby, izip_longest
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
+from Bio.SeqUtils.CheckSum import seguid
+
+from hashlib import md5
 
 from jcvi.formats.base import BaseFile, DictFile, must_open
 from jcvi.formats.bed import Bed
@@ -1247,41 +1251,26 @@ def diff(args):
         print >> fw, "\n".join(problem_ids)
 
 
-def hash_fasta(fastafile, ignore_case=False, ignore_N=False, ignore_stop=False):
+def hash_fasta(seq, ignore_case=False, ignore_N=False, ignore_stop=False, checksum="MD5"):
     """
-    Generates MD5 hash of each element within the input multifasta file
-    Returns a dictionary with the sequence hashes as keys and sequence IDs as values
+    Generates checksum of input sequence element
     """
-    import re
-    import hashlib
+    if ignore_stop:
+        seq = seq.rstrip("*")
+    if ignore_case:
+        seq = seq.upper()
+    if ignore_N:
+        if not all(c.upper() in 'ATGCN' for c in seq):
+            seq = re.sub('X', '', seq)
+        else:
+            seq = re.sub('N', '', seq)
 
-    f = Fasta(fastafile)
+    if checksum == "MD5":
+        hashed = md5(seq).hexdigest()
+    elif checksum == "GCG":
+        hashed = seguid(seq)
 
-    logging.debug("Hashing individual elements of {0}".format(fastafile))
-    hash_dict = {}
-    for name, rec in f.iteritems_ordered():
-        seq = re.sub(' ', '', rec.seq.tostring())
-        orig_seq = seq
-
-        if ignore_stop:
-            seq = seq.rstrip("*")
-        if ignore_case:
-            seq = seq.upper()
-        if ignore_N:
-            if not all(c.upper() in 'ATGCN' for c in seq):
-                seq = re.sub('X', '', seq)
-            else:
-                seq = re.sub('N', '', seq)
-
-        md5_hex = hashlib.md5(seq).hexdigest()
-
-        if md5_hex not in hash_dict.keys():
-            hash_dict[md5_hex] = {}
-            hash_dict[md5_hex]['names'] = set()
-        hash_dict[md5_hex]['names'].add(name)
-        hash_dict[md5_hex]['seq'] = orig_seq
-
-    return hash_dict
+    return hashed
 
 
 def identical(args):
@@ -1289,7 +1278,7 @@ def identical(args):
     %prog identical *.fasta
 
     Given multiple fasta files, find all the exactly identical records
-    based on the computed md5 hexdigest of each sequence.
+    based on the computed md5 hexdigest or GCG checksum of each sequence.
 
     Output is an N + 1 column file (where N = number of input fasta files).
     If there are duplicates within a given fasta file, they will all be
@@ -1307,6 +1296,10 @@ def identical(args):
 	t6         1281         470
 	t7         3367          na
     """
+    from jcvi.utils.cbook import AutoVivification
+
+    allowed_checksum = ["MD5", "GCG"]
+
     p = OptionParser(identical.__doc__)
     p.add_option("--ignore_case", default=False, action="store_true",
             help="ignore case when comparing sequences [default: %default]")
@@ -1317,6 +1310,8 @@ def identical(args):
     p.add_option("--output_uniq", default=False, action="store_true",
             help="output uniq sequences in FASTA format" + \
                  " [default: %default]")
+    p.add_option("--checksum", default="MD5", choices=allowed_checksum,
+            help="specify checksum method [default: %default]")
     p.set_outfile()
 
     opts, args = p.parse_args(args)
@@ -1324,42 +1319,47 @@ def identical(args):
     if len(args) == 0:
         sys.exit(not p.print_help())
 
-    d, setlist, uniq = {}, [], {}
+    d = AutoVivification()
+    files = []
     for fastafile in args:
+        f = Fasta(fastafile)
         pf = fastafile.rsplit(".", 1)[0]
-        d[pf] = hash_fasta(fastafile, ignore_case=opts.ignore_case, ignore_N=opts.ignore_N, \
-            ignore_stop=opts.ignore_stop)
-        setlist.append(set(d[pf].keys()))
+        files.append(pf)
 
-    hashes = set.union(*setlist)
+        logging.debug("Hashing individual elements of {0}".format(fastafile))
+        for name, rec in f.iteritems_ordered():
+            seq = re.sub(' ', '', str(rec.seq))
+            hashed = hash_fasta(seq, ignore_case=opts.ignore_case, ignore_N=opts.ignore_N, \
+                ignore_stop=opts.ignore_stop, checksum=opts.checksum)
+            if not d[hashed]:
+                d[hashed]['seq'] = seq
+                d[hashed]['count'] = 0
+            if not d[hashed]['names'][pf]:
+                d[hashed]['names'][pf] = set()
+            d[hashed]['names'][pf].add(name)
 
     fw = must_open(opts.outfile, "w")
     if opts.output_uniq:
-        uniqfile = "_".join(d.keys()) + ".uniq.fasta"
+        uniqfile = "_".join(files) + ".uniq.fasta"
         uniqfw = must_open(uniqfile, "w")
 
     header = "\t".join(str(x) for x in (args))
     print >> fw, "\t".join(str(x) for x in ("", header))
-    for idx, md5_hex in enumerate(hashes):
-        if opts.output_uniq and md5_hex not in uniq.keys():
-                uniq[md5_hex] = {}
-                uniq[md5_hex]['count'] = 0
-
+    for idx, hashed in enumerate(d.keys()):
         line = []
         line.append("t{0}".format(idx))
-        for fastafile in d.keys():
-            if md5_hex in d[fastafile].keys():
-                line.append(",".join(d[fastafile][md5_hex]['names']))
+        for fastafile in files:
+            if fastafile in d[hashed]['names'].keys():
+                line.append(",".join(d[hashed]['names'][fastafile]))
                 if opts.output_uniq:
-                    uniq[md5_hex]['count'] += len(d[fastafile][md5_hex]['names'])
-                    uniq[md5_hex]['seq'] = d[fastafile][md5_hex]['seq']
+                    d[hashed]['count'] += len(d[hashed]['names'][fastafile])
             else:
                 line.append("na")
         print >> fw, "\t".join(line)
 
         if opts.output_uniq:
-            seqid = "\t".join(str(x) for x in ("t{0}".format(idx), uniq[md5_hex]['count']))
-            rec = SeqRecord(Seq(uniq[md5_hex]['seq']), id=seqid, description="")
+            seqid = "\t".join(str(x) for x in ("t{0}".format(idx), d[hashed]['count']))
+            rec = SeqRecord(Seq(d[hashed]['seq']), id=seqid, description="")
             SeqIO.write([rec], uniqfw, "fasta")
 
     fw.close()

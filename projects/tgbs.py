@@ -109,7 +109,7 @@ def novo(args):
                     "--cpus={0}".format(cpus)])
 
     genomesize = histogram([jf, pf, "23"])
-    fiona = pf + ".fiona." + sf
+    fiona = pf + ".fiona.fa"
     if need_update(diginormfile, fiona):
         cmd = op.join(opts.fiona_home, "bin/fiona")
         cmd += " -g {0} -nt {1} --sequencing-technology {2}".\

@@ -1310,6 +1310,7 @@ def uniq(args):
 
 def populate_children(outfile, ids, gffile, otype=None, iter="2"):
     fw = must_open(outfile, "w")
+    otype = otype or 'null'
     logging.debug("A total of {0} {1} features selected.".format(len(ids), otype))
     logging.debug("Populate children. Iteration 1..")
     gff = Gff(gffile)

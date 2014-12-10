@@ -108,8 +108,11 @@ def align(args):
         cmd += " --gmap-mode none --nofails"
         if readfile.endswith(".gz"):
             cmd += " --gunzip"
-        offset = "sanger" if guessoffset([readfile]) == 33 else "illumina"
-        cmd += " --quality-protocol {0}".format(offset)
+        try:
+            offset = "sanger" if guessoffset([readfile]) == 33 else "illumina"
+            cmd += " --quality-protocol {0}".format(offset)
+        except AssertionError:
+            pass
         cmd += " " + " ".join(args[1:])
         sh(cmd, outfile=gsnapfile, errfile=logfile)
 

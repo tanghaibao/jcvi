@@ -196,7 +196,7 @@ def mem(args, opts):
         return "", samfile
 
     cmd = "bwa mem " + " ".join(args)
-    cmd += " -t {0}".format(opts.cpus)
+    cmd += " -M -t {0}".format(opts.cpus)
     if opts.readtype:
         cmd += " -x {0}".format(opts.readtype)
     cmd += " " + opts.extra

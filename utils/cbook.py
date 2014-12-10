@@ -155,9 +155,10 @@ class SummaryStats (object):
 
     def __str__(self):
         s = self.title + ": " if self.title else ""
-        s += "Min={0} Max={1} N={2} Mean={3:.5g} SD={4:.5g} Median={5:.5g}".\
+        s += "Min={0} Max={1} N={2} Mean={3:.5g} SD={4:.5g} Median={5:.5g} Sum={6}".\
                 format(self.min, self.max, self.size,
-                       self.mean, self.sd, self.median)
+                       self.mean, self.sd, self.median,
+                       self.sum)
         return s
 
     def todict(self, quartile=False):

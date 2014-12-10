@@ -18,52 +18,40 @@ def main():
         ('snp', 'run SNP calling on GSNAP output'),
         ('bam', 'convert GSNAP output to BAM'),
         ('novo', 'reference-free tGBS pipeline'),
-        ('merge', 'merge several novo assemblies'),
+        ('count', 'count the number of reads in all clusters'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
 
-def merge(args):
+def count(args):
     """
-    %prog merge *.cdhit.consensus.fasta
+    %prog count cdhit.consensus.fasta
 
-    Merge several novo assemblies.
+    Scan the headers for the consensus clusters and count the number of reads.
     """
-    from jcvi.formats.base import FileMerger
-    from jcvi.formats.fasta import format, extract
+    from jcvi.formats.fasta import Fasta
+    from jcvi.utils.cbook import SummaryStats
 
-    p = OptionParser(merge.__doc__)
-    p.add_option("--prefix", default="consensus",
-                 help="Prefix for the merged output")
+    p = OptionParser(count.__doc__)
     opts, args = p.parse_args(args)
 
-    if len(args) < 1:
+    if len(args) != 1:
         sys.exit(not p.print_help())
 
-    fastafiles = args
-    pf = opts.prefix
-    mergedfile = pf + ".fasta"
-    if need_update(fastafiles, mergedfile):
-        FileMerger(fastafiles, outfile=mergedfile).merge()
+    fastafile, = args
+    f = Fasta(fastafile, lazy=True)
+    sizes = []
+    for desc, rec in f.iterdescriptions_ordered():
+        if desc.startswith("singleton"):
+            sizes.append(1)
+            continue
+        # consensus_for_cluster_0 with 63 sequences
+        name, w, size, seqs = desc.split()
+        assert w == "with"
+        sizes.append(int(size))
 
-    fixedfile = pf + ".fixed.fasta"
-    if need_update(mergedfile, fixedfile):
-        format([mergedfile, fixedfile, "--sequential=suffix"])
-
-    consfile = fixedfile + ".P96.uclust.consensus.fasta"
-    if need_update(fixedfile, consfile):
-        uclust([fixedfile, "--pctid=96"])
-
-    asmfile = pf + ".assembly.fasta"
-    if need_update(consfile, asmfile):
-        extract([consfile, "seqs=1;", "--exclude", "--idonly",
-                    "--outfile={0}".format(asmfile)])
-
-    finalfile = pf + ".final.fasta"
-    if need_update(asmfile, finalfile):
-        format([asmfile, finalfile, "--sequential=replace",
-                    "--prefix={0}_".format(pf)])
+    print SummaryStats(sizes)
 
 
 def novo(args):

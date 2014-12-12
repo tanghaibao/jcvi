@@ -398,6 +398,7 @@ def write_file(filename, contents, meta=None, skipcheck=False, append=False, tee
     assert meta in meta_choices, "meta must be one of {0}".\
                     format("|".join(meta_choices))
 
+    contents = contents.strip()
     shebang = "\n"
     if "script" in meta:
         if not append:
@@ -405,7 +406,7 @@ def write_file(filename, contents, meta=None, skipcheck=False, append=False, tee
                 shebang = bash_shebang
             elif meta == "python script":
                 shebang = python_shebang
-    contents = "\n\n".join((shebang, contents.strip()))
+        contents = "\n\n".join((shebang, contents))
 
     fw = must_open(filename, "w", checkexists=True, skipcheck=skipcheck, oappend=append)
     if fw:

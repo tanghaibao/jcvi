@@ -31,6 +31,7 @@ def count(args):
     Scan the headers for the consensus clusters and count the number of reads.
     """
     from jcvi.formats.fasta import Fasta
+    from jcvi.graphics.histogram import stem_leaf_plot
     from jcvi.utils.cbook import SummaryStats
 
     p = OptionParser(count.__doc__)
@@ -51,7 +52,9 @@ def count(args):
         assert w == "with"
         sizes.append(int(size))
 
-    print SummaryStats(sizes)
+    s = SummaryStats(sizes)
+    print >> sys.stderr, s
+    stem_leaf_plot(s.data, 0, 100, 20, title="Cluster size")
 
 
 def novo(args):

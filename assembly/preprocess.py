@@ -343,7 +343,7 @@ def count(args):
     rows = []
     human = opts.human
     for f in filenames:
-        folder = f.replace(".gz", "").replace(".fastq", "") + "_fastqc"
+        folder = f.replace(".gz", "").rsplit(".", 1)[0] + "_fastqc"
         if subdir:
             folder = op.join(subdir, folder)
         summaryfile = op.join(folder, "fastqc_data.txt")

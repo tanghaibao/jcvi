@@ -175,6 +175,10 @@ class GffLine (object):
     id = accn
 
     @property
+    def parent(self):
+        return self.attributes["Parent"][0] if "Parent" in self.attributes else None
+
+    @property
     def span(self):
         return self.end - self.start + 1
 

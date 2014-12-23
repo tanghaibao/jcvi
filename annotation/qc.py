@@ -11,9 +11,10 @@ testing. Several aspects of annotation QC are implemented in this script.
 
 import sys
 
-from jcvi.formats.gff import Gff, make_index
+from jcvi.formats.gff import Gff, get_piles, make_index, import_feats, \
+            populate_children
 from jcvi.formats.base import must_open
-from jcvi.utils.range import range_minmax
+from jcvi.utils.range import Range, range_minmax, range_chain
 from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
@@ -25,6 +26,50 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def uniq(args):
+    """
+    %prog uniq gffile
+
+    Remove overlapping gene models. Similar to formats.gff.uniq(), overlapping
+    'piles' are processed, one by one.
+
+    Here, we use a different algorithm, that retains the best non-overlapping
+    subset witin each pile, rather than single best model. Scoring function is
+    also different, rather than based on score or span, we optimize for the
+    subset that show the best EAD score.
+    """
+    p = OptionParser(uniq.__doc__)
+    p.set_outfile()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    gffile, = args
+    gff = Gff(gffile)
+    gene_register = {}
+    for g in gff:
+        if g.type != "mRNA":
+            continue
+        score = 100 - int(round(float(g.attributes["_AED"][0]) * 100))
+        gene_register[g.parent] = score
+
+    allgenes = import_feats(gffile)
+    g = get_piles(allgenes)
+
+    bestids = set()
+    for group in g:
+        ranges = [Range(x.seqid, x.start, x.end, \
+                    gene_register[x.accn], x.accn) for x in group]
+        selected_chain, score = range_chain(ranges)
+        bestids |= set(x.id for x in selected_chain)
+
+    removed = set(x.accn for x in allgenes) - bestids
+    fw = open("removed.ids", "w")
+    print >> fw, "\n".join(sorted(removed))
+    populate_children(opts.outfile, bestids, gffile, "gene")
 
 
 def get_cds_minmax(g, cid, level=2):

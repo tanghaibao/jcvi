@@ -1215,6 +1215,19 @@ def dedup_pile(newgrp, group, gffdb, iter):
         newgrp[best.accn] = 1
 
 
+def import_feats(gffile, type="gene"):
+    gff = Gff(gffile)
+    allgenes = []
+    for g in gff:
+        if g.type != type:
+            continue
+        allgenes.append(g)
+
+    logging.debug("A total of {0} {1} features imported.".format(len(allgenes), type))
+    allgenes.sort(key=lambda x: (x.seqid, x.start))
+    return allgenes
+
+
 def uniq(args):
     """
     %prog uniq gffile > uniq.gff
@@ -1250,19 +1263,10 @@ def uniq(args):
         sys.exit(not p.print_help())
 
     gffile, = args
-    gff = Gff(gffile)
     mode = opts.mode
     bestn = opts.best
-    type = opts.type
-    allgenes = []
-    for g in gff:
-        if g.type != type:
-            continue
-        allgenes.append(g)
 
-    logging.debug("A total of {0} {1} features imported.".format(len(allgenes), type))
-    allgenes.sort(key=lambda x: (x.seqid, x.start))
-
+    allgenes = import_feats(gffile, opts.type)
     g = get_piles(allgenes)
 
     bestids, flt_groups = set(), []

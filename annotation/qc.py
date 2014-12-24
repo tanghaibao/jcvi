@@ -69,6 +69,7 @@ def uniq(args):
     removed = set(x.accn for x in allgenes) - bestids
     fw = open("removed.ids", "w")
     print >> fw, "\n".join(sorted(removed))
+    fw.close()
     populate_children(opts.outfile, bestids, gffile, "gene")
 
 

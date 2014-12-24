@@ -1788,7 +1788,8 @@ def note(args):
     for g in gff:
         if type and g.type not in type:
             continue
-        keyval = tuple([g.attributes[x][0] for x in attrib])
+        keyval = [g.accn] + [g.attributes[x][0] for x in attrib if x in g.attributes]
+        keyval = tuple(keyval)
         if keyval not in seen:
             print "\t".join(keyval)
             seen.add(keyval)

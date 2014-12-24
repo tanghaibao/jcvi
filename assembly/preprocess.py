@@ -566,7 +566,7 @@ def correct(args):
     p = OptionParser(correct.__doc__ + FastqNamings)
     p.add_option("--dir", default="data",
                 help="Working directory [default: %default]")
-    p.add_option("--nofragsdedup", default=False, action="store_true",
+    p.add_option("--fragsdedup", default=False, action="store_true",
                  help="Don't deduplicate the fragment reads [default: %default]")
     p.add_option("--ploidy", default="2", choices=("1", "2"),
                  help="Ploidy [default: %default]")
@@ -603,8 +603,7 @@ def correct(args):
         sh(cmd)
 
     if op.exists(origfastb):
-        dedup = not opts.nofragsdedup
-        correct_frag(datadir, tag, origfastb, nthreads, dedup=dedup,
+        correct_frag(datadir, tag, origfastb, nthreads, dedup=opts.fragsdedup,
                      haploidify=haploidify)
 
     origj = datadir + "/{0}_orig".format(tagj)

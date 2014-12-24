@@ -659,9 +659,12 @@ def uniq(args):
 
     Remove overlapping features with higher scores.
     """
+    from jcvi.formats.sizes import Sizes
+
     p = OptionParser(uniq.__doc__)
-    p.add_option("--slen", default=False, action="store_true",
-                 help="Use sequence length as score [default: %default]")
+    p.add_option("--sizes", help="Use sequence length as score")
+    p.add_option("--mode", default="span", choices=("span", "score"),
+                 help="Pile mode")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -671,12 +674,18 @@ def uniq(args):
     uniqbedfile = bedfile.split(".")[0] + ".uniq.bed"
     bed = Bed(bedfile)
 
-    if opts.slen:
-        ranges = [Range(x.seqid, x.start, x.end, x.end - x.start, i) \
+    if opts.sizes:
+        sizes = Sizes(opts.sizes).mapping
+        ranges = [Range(x.seqid, x.start, x.end, sizes[x.accn], i) \
                     for i, x in enumerate(bed)]
     else:
-        ranges = [Range(x.seqid, x.start, x.end, float(x.score), i) \
-                    for i, x in enumerate(bed)]
+        if opts.mode == "span":
+            ranges = [Range(x.seqid, x.start, x.end, x.end - x.start + 1, i) \
+                        for i, x in enumerate(bed)]
+        else:
+            ranges = [Range(x.seqid, x.start, x.end, float(x.score), i) \
+                        for i, x in enumerate(bed)]
+
     selected, score = range_chain(ranges)
     selected = [x.id for x in selected]
     selected_ids = set(selected)

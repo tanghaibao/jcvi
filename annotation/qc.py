@@ -14,6 +14,7 @@ import sys
 from jcvi.formats.gff import Gff, get_piles, make_index, import_feats, \
             populate_children
 from jcvi.formats.base import must_open
+from jcvi.formats.sizes import Sizes
 from jcvi.utils.range import Range, range_minmax, range_chain
 from jcvi.apps.base import OptionParser, ActionDispatcher
 
@@ -30,7 +31,7 @@ def main():
 
 def uniq(args):
     """
-    %prog uniq gffile
+    %prog uniq gffile cdsfasta
 
     Remove overlapping gene models. Similar to formats.gff.uniq(), overlapping
     'piles' are processed, one by one.
@@ -38,23 +39,26 @@ def uniq(args):
     Here, we use a different algorithm, that retains the best non-overlapping
     subset witin each pile, rather than single best model. Scoring function is
     also different, rather than based on score or span, we optimize for the
-    subset that show the best EAD score.
+    subset that show the best combined score. Score is defined by:
+
+    score = (1 - AED) * length
     """
     p = OptionParser(uniq.__doc__)
     p.set_outfile()
     opts, args = p.parse_args(args)
 
-    if len(args) != 1:
+    if len(args) != 2:
         sys.exit(not p.print_help())
 
-    gffile, = args
+    gffile, cdsfasta = args
     gff = Gff(gffile)
+    sizes = Sizes(cdsfasta).mapping
     gene_register = {}
     for g in gff:
         if g.type != "mRNA":
             continue
-        score = 100 - int(round(float(g.attributes["_AED"][0]) * 100))
-        gene_register[g.parent] = score
+        aed = float(g.attributes["_AED"][0])
+        gene_register[g.parent] = (1 - aed) * sizes[g.accn]
 
     allgenes = import_feats(gffile)
     g = get_piles(allgenes)

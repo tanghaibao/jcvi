@@ -132,15 +132,27 @@ def variation(args):
     # Plot the IES breakpoint position diversity
     else:
         bp_diff = Counter(bp_diff)
+        bp_diff_abs = Counter()
+        for k, v in bp_diff.items():
+            bp_diff_abs[abs(k)] += v
         fig = plt.figure(1, (iopts.w, iopts.h))
-        left, height = zip(*sorted(bp_diff.items()))
+        left, height = zip(*sorted(bp_diff_abs.items()))
+        for l, h in zip(left, height)[:21]:
+            plt.text(l, h + 50, str(h), color="darkslategray", size=8,
+                     ha="center", va="bottom", rotation=90)
+
         plt.bar(left, height, align="center")
         plt.xlabel("Progeny breakpoint relative to SB210")
         plt.ylabel("Counts")
-        plt.xlim(-20, 20)
+        plt.xlim(-.5, 20.5)
         ax = plt.gca()
         set_ticklabels_helvetica(ax)
         savefig(F1 + ".breaks.pdf")
+        # Serialize the data to a file
+        fw = open("Breakpoint-offset-histogram.csv", "w")
+        for k, v in sorted(bp_diff.items()):
+            print >> fw, "{0},{1}".format(k, v)
+        fw.close()
 
         total = sum(height)
         zeros = bp_diff[0]

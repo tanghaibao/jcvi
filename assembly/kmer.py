@@ -539,10 +539,10 @@ def histogram(args):
     t = (ks.min1, ks.max1, ks.min2, ks.max2, ks.min3)
     tcounts = [(x, y) for x, y in counts if x in t]
     x, y = zip(*tcounts)
-    plt.plot(x, y, 'ko', lw=2, mec='k', mfc='w')
     tcounts = dict(tcounts)
 
     if peaks:
+        plt.plot(x, y, 'ko', lw=2, mec='k', mfc='w')
         ax.text(ks.max1, tcounts[ks.max1], "SNP peak", va="top")
         ax.text(ks.max2, tcounts[ks.max2], "Main peak")
 

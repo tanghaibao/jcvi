@@ -950,6 +950,8 @@ def summary(args):
 
     Report real bases and N's in fastafiles in a tabular report
     """
+    from jcvi.utils.natsort import natsort_key
+
     p = OptionParser(summary.__doc__)
     p.add_option("--suffix", default="Mb",
             help="make the base pair counts human readable [default: %default]")
@@ -982,6 +984,7 @@ def summary(args):
 
             data.append((rec.id, reals, nns, seqlen, pctreal))
 
+    data.sort(key=natsort_key)
     ids, reals, nns, seqlen, pctreal = zip(*data)
     reals = sum(reals)
     nns = sum(nns)

@@ -12,6 +12,7 @@ import logging
 from jcvi.graphics.base import plt, asciiplot, set_human_axis, savefig, markup
 from jcvi.formats.fasta import Fasta
 from jcvi.formats.base import must_open
+from jcvi.utils.cbook import thousands, percentage
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, \
             need_update, Popen, PIPE
 
@@ -27,7 +28,6 @@ class KmerSpectrum (object):
         allpathslg/src/kmers/KmerSpectra.cc
         """
         from math import sqrt
-        from jcvi.utils.cbook import thousands, percentage
 
         data = self.data
         kf_ceil = max(K for (K, c) in data)
@@ -513,7 +513,7 @@ def histogram(args):
     Kmer_coverage = ks.max2 if not coverage else coverage
     Genome_size = int(round(Total_Kmers * 1. / Kmer_coverage))
 
-    Total_Kmers_msg = "Total {0}-mers: {1}".format(N, Total_Kmers)
+    Total_Kmers_msg = "Total {0}-mers: {1}".format(N, thousands(Total_Kmers))
     Kmer_coverage_msg = "{0}-mer coverage: {1}".format(N, Kmer_coverage)
     Genome_size_msg = "Estimated genome size: {0:.1f}Mb".\
                         format(Genome_size / 1e6)

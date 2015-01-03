@@ -18,7 +18,7 @@ exec(open("__init__.py").read())
 setup(
       name=name,
       version=__version__,
-      author='Haibao Tang',
+      author=__author__[0],
       author_email=__email__,
       package_dir={name: '.'},
       packages=[name] + ['.'.join((name, x)) for x in find_packages()],

@@ -25,7 +25,7 @@ def run_formatdb(infile=None, outfile=None, dbtype="nucl"):
 
 @depends
 def run_blat(infile=None, outfile=None, db="UniVec_Core",
-             pctid=95, hitlen=50, cpus=16):
+             pctid=95, hitlen=50, cpus=16, overwrite=True):
 
     cmd = "pblat -threads={0}".format(cpus) if which("pblat") else "blat"
     cmd += ' {0} {1} -out=blast8 {2}'.format(db, infile, outfile)
@@ -35,7 +35,8 @@ def run_blat(infile=None, outfile=None, db="UniVec_Core",
     filtered_blatfile = outfile + ".P{0}L{1}".format(pctid, hitlen)
     run_blast_filter(infile=blatfile, outfile=filtered_blatfile,
             pctid=pctid, hitlen=hitlen)
-    shutil.move(filtered_blatfile, blatfile)
+    if overwrite:
+        shutil.move(filtered_blatfile, blatfile)
 
 
 @depends
@@ -103,9 +104,40 @@ def main():
 
     actions = (
         ('blast', 'run blastn using query against reference'),
+        ('blat', 'run blat using query against reference'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def get_outfile(reffasta, queryfasta, suffix="blast"):
+    q = op.basename(queryfasta).split(".")[0]
+    r = op.basename(reffasta).split(".")[0]
+    return ".".join((q, r, suffix))
+
+
+def blat(args):
+    """
+    %prog blat ref.fasta query.fasta
+
+    Calls blat and filters BLAST hits.
+    """
+    p = OptionParser(blat.__doc__)
+    p.set_align(pctid=95, hitlen=30)
+    p.set_cpus()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    reffasta, queryfasta = args
+    blastfile = get_outfile(reffasta, queryfasta, suffix="blat")
+
+    run_blat(infile=queryfasta, outfile=blastfile, db=reffasta,
+             pctid=opts.pctid, hitlen=opts.hitlen, cpus=opts.cpus,
+             overwrite=False)
+
+    return blastfile
 
 
 def blast(args):
@@ -130,9 +162,7 @@ def blast(args):
         sys.exit(not p.print_help())
 
     reffasta, queryfasta = args
-    q = op.basename(queryfasta).split(".")[0]
-    r = op.basename(reffasta).split(".")[0]
-    blastfile = "{0}.{1}.blast".format(q, r)
+    blastfile = get_outfile(reffasta, queryfasta)
 
     run_megablast(infile=queryfasta, outfile=blastfile, db=reffasta,
                   wordsize=opts.wordsize, pctid=opts.pctid, evalue=opts.evalue,

@@ -1065,12 +1065,9 @@ def format(args):
     fw = must_open(outfasta, "w")
     for i, rec in enumerate(fp):
         origid = rec.id
-        description = rec.description
-        if description.startswith(origid):
-            description = description.replace(origid, "").strip()
+        description = rec.description.replace(origid, "").strip()
         if sep:
-            description = description.split(sep)[idx]
-            rec.id = description
+            rec.id = rec.description.split(sep)[idx].strip()
         if gb:
             # gi|262233616|gb|GU123895.1| Coffea arabica clone BAC
             atoms = rec.id.split("|")

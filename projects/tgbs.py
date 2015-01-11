@@ -6,10 +6,12 @@ Reference-free tGBS related functions.
 """
 
 import os.path as op
+import logging
 import sys
 
+from jcvi.formats.fasta import Fasta
 from jcvi.apps.cdhit import uclust, deduplicate
-from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh
+from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh, iglob
 
 
 def main():
@@ -27,32 +29,80 @@ def main():
 
 def resolve(args):
     """
-    %prog resolve bamfile contig pos
+    %prog resolve matrixfile fastafile bamfolder
 
-    separate repeats along collapsed contigs.
+    Separate repeats along collapsed contigs. First scan the matrixfile for
+    largely heterozygous sites. For each heterozygous site, we scan each bam to
+    retrieve distinct haplotypes. The frequency of each haplotype is then
+    computed, the haplotype with the highest frequency, assumed to be
+    paralogous, is removed.
     """
     import pysam
+    from itertools import groupby
+    from jcvi.utils.counter import Counter
 
     p = OptionParser(resolve.__doc__)
+    p.add_option("--missing", default=.5,
+                 help="Maximum level of missing data")
+    p.add_option("--het", default=.5,
+                 help="Maximum level of heterozygous calls")
     opts, args = p.parse_args(args)
 
-    if len(args) not in (2, 3):
+    if len(args) != 3:
         sys.exit(not p.print_help())
 
-    if len(args) == 2:
-        bamfile, contig = args
-        pos = None
-    else:
-        bamfile, contig, pos = args
-        pos = int(pos)
-    samfile = pysam.AlignmentFile(bamfile, "rb")
-    for c in samfile.pileup(contig):
-        if c.reference_pos != pos - 1:
+    matrixfile, fastafile, bamfolder = args
+    #f = Fasta(fastafile)
+    fp = open(matrixfile)
+    for row in fp:
+        if row[0] != '#':
+            break
+    header = row.split()
+    ngenotypes = len(header) - 4
+    nmissing = int(round(opts.missing * ngenotypes))
+    logging.debug("A total of {0} individuals scanned".format(ngenotypes))
+    logging.debug("Look for markers with < {0} missing and > {1} het".\
+                    format(opts.missing, opts.het))
+    bamfiles = iglob(bamfolder, "*.bam")
+    logging.debug("Folder `{0}` contained {1} bam files".\
+                    format(bamfolder, len(bamfiles)))
+
+    data = []
+    for row in fp:
+        if row[0] == '#':
             continue
-        for r in c.pileups:
-            rname = r.alignment.query_name
-            rbase = r.alignment.query_sequence[r.query_position]
-            print rname, rbase
+        atoms = row.split()
+        seqid, pos, ref, alt = atoms[:4]
+        genotypes = atoms[4:]
+        c = Counter(genotypes)
+        c0 = c.get('0', 0)
+        c3 = c.get('3', 0)
+        if c0 >= nmissing:
+            continue
+        hetratio = c3 * 1. / (ngenotypes - c0)
+        if hetratio <= opts.het:
+            continue
+        pos = int(pos)
+        data.append((seqid, pos, ref, alt, c, hetratio))
+
+    data.sort()
+    logging.debug("A total of {0} target markers in {1} contigs.".\
+                    format(len(data), len(set(x[0] for x in data))))
+
+    for seqid, d in groupby(data, lambda x: x[0]):
+        d = list(d)
+        logging.debug("Process contig {0} ({1} markers)".format(seqid, len(d)))
+        for s, pos, ref, alt, c, hetratio in d:
+            for bamfile in bamfiles:
+                print bamfile
+                samfile = pysam.AlignmentFile(bamfile, "rb")
+                for c in samfile.pileup(seqid):
+                    if c.reference_pos != pos - 1:
+                        continue
+                    for r in c.pileups:
+                        rname = r.alignment.query_name
+                        rbase = r.alignment.query_sequence[r.query_position]
+                        print rname, rbase
 
 
 def count(args):

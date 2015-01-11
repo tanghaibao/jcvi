@@ -144,7 +144,6 @@ class Fasta (BaseFile, dict):
         >>> f = Fasta('tests/data/three_chrs.fasta')
         >>> f.sequence({'start':1, 'stop':2, 'strand':1, 'chr': 'chr1'})
         'AC'
-
         >>> f.sequence({'start':1, 'stop':2, 'strand': -1, 'chr': 'chr1'})
         'GT'
         """

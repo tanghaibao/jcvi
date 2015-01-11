@@ -18,10 +18,41 @@ def main():
         ('snp', 'run SNP calling on GSNAP output'),
         ('bam', 'convert GSNAP output to BAM'),
         ('novo', 'reference-free tGBS pipeline'),
+        ('resolve', 'separate repeats on collapsed contigs'),
         ('count', 'count the number of reads in all clusters'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def resolve(args):
+    """
+    %prog resolve bamfile contig pos
+
+    separate repeats along collapsed contigs.
+    """
+    import pysam
+
+    p = OptionParser(resolve.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) not in (2, 3):
+        sys.exit(not p.print_help())
+
+    if len(args) == 2:
+        bamfile, contig = args
+        pos = None
+    else:
+        bamfile, contig, pos = args
+        pos = int(pos)
+    samfile = pysam.AlignmentFile(bamfile, "rb")
+    for c in samfile.pileup(contig):
+        if c.reference_pos != pos - 1:
+            continue
+        for r in c.pileups:
+            rname = r.alignment.query_name
+            rbase = r.alignment.query_sequence[r.query_position]
+            print rname, rbase
 
 
 def count(args):

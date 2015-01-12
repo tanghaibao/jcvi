@@ -9,9 +9,34 @@ import os.path as op
 import logging
 import sys
 
+from itertools import combinations
+
 from jcvi.formats.fasta import Fasta
+from jcvi.formats.base import must_open
+from jcvi.utils.counter import Counter
 from jcvi.apps.cdhit import uclust, deduplicate
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh, iglob
+
+
+class HaplotypeResolver (object):
+
+    def __init__(self, haplotype_set):
+        self.haplotype_set = haplotype_set
+        self.nind = len(haplotype_set)
+        self.counter = Counter()
+        for haplotypes in haplotype_set:
+            self.counter.update(Counter(haplotypes))
+
+    def __str__(self):
+        return str(self.counter)
+
+    def solve(self, fw):
+        haplotype_counts = self.counter.items()
+        for (a, ai), (b, bi) in combinations(haplotype_counts, 2):
+            abi = sum(1 for haplotypes in self.haplotype_set \
+                if a in haplotypes and b in haplotypes)
+            print >> fw, a, b, abi
+            fw.flush()
 
 
 def main():
@@ -40,13 +65,13 @@ def resolve(args):
     import pysam
     from collections import defaultdict
     from itertools import groupby
-    from jcvi.utils.counter import Counter
 
     p = OptionParser(resolve.__doc__)
     p.add_option("--missing", default=.5,
                  help="Maximum level of missing data")
     p.add_option("--het", default=.5,
                  help="Maximum level of heterozygous calls")
+    p.set_outfile()
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -91,11 +116,12 @@ def resolve(args):
                     format(len(data), len(set(x[0] for x in data))))
     samfiles = [pysam.AlignmentFile(x, "rb") for x in bamfiles]
 
+    fw = must_open(opts.outfile, "w")
     for seqid, d in groupby(data, lambda x: x[0]):
         d = list(d)
         nmarkers = len(d)
         logging.debug("Process contig {0} ({1} markers)".format(seqid, nmarkers))
-        haplotype_counter = Counter()
+        haplotype_set = []
         for samfile in samfiles:
             reads = defaultdict(list)
             positions = []
@@ -113,10 +139,15 @@ def resolve(args):
                 hap = ['-'] * nmarkers
                 for p, rbase in read:
                     hap[positions.index(p)] = rbase
-                haplotypes.append("".join(hap))
+                hap = "".join(hap)
+                if "-" in hap:
+                    continue
+                haplotypes.append(hap)
             haplotypes = set(haplotypes)
-            haplotype_counter.update(Counter(haplotypes))
-            print haplotype_counter
+            haplotype_set.append(haplotypes)
+        hr = HaplotypeResolver(haplotype_set)
+        print >> fw, seqid, hr
+        hr.solve(fw)
 
 
 def count(args):

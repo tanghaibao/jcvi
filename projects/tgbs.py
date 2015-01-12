@@ -38,6 +38,7 @@ def resolve(args):
     paralogous, is removed.
     """
     import pysam
+    from collections import defaultdict
     from itertools import groupby
     from jcvi.utils.counter import Counter
 
@@ -88,21 +89,34 @@ def resolve(args):
     data.sort()
     logging.debug("A total of {0} target markers in {1} contigs.".\
                     format(len(data), len(set(x[0] for x in data))))
+    samfiles = [pysam.AlignmentFile(x, "rb") for x in bamfiles]
 
     for seqid, d in groupby(data, lambda x: x[0]):
         d = list(d)
-        logging.debug("Process contig {0} ({1} markers)".format(seqid, len(d)))
-        for s, pos, ref, alt, c, hetratio in d:
-            for bamfile in bamfiles:
-                print bamfile
-                samfile = pysam.AlignmentFile(bamfile, "rb")
+        nmarkers = len(d)
+        logging.debug("Process contig {0} ({1} markers)".format(seqid, nmarkers))
+        haplotype_counter = Counter()
+        for samfile in samfiles:
+            reads = defaultdict(list)
+            positions = []
+            for s, pos, ref, alt, c, hetratio in d:
                 for c in samfile.pileup(seqid):
                     if c.reference_pos != pos - 1:
                         continue
                     for r in c.pileups:
                         rname = r.alignment.query_name
                         rbase = r.alignment.query_sequence[r.query_position]
-                        print rname, rbase
+                        reads[rname].append((pos, rbase))
+                positions.append(pos)
+            haplotypes = []
+            for read in reads.values():
+                hap = ['-'] * nmarkers
+                for p, rbase in read:
+                    hap[positions.index(p)] = rbase
+                haplotypes.append("".join(hap))
+            haplotypes = set(haplotypes)
+            haplotype_counter.update(Counter(haplotypes))
+            print haplotype_counter
 
 
 def count(args):
@@ -111,7 +125,6 @@ def count(args):
 
     Scan the headers for the consensus clusters and count the number of reads.
     """
-    from jcvi.formats.fasta import Fasta
     from jcvi.graphics.histogram import stem_leaf_plot
     from jcvi.utils.cbook import SummaryStats
 

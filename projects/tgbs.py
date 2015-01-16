@@ -20,22 +20,31 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh, iglo
 
 class HaplotypeResolver (object):
 
-    def __init__(self, haplotype_set):
+    def __init__(self, haplotype_set, maf=.1):
         self.haplotype_set = haplotype_set
         self.nind = len(haplotype_set)
-        self.counter = Counter()
+        self.notmissing = sum(1 for x in haplotype_set if x)
+        counter = Counter()
         for haplotypes in haplotype_set:
-            self.counter.update(Counter(haplotypes))
+            counter.update(Counter(haplotypes))
+        self.counter = {}
+        for h, c in counter.items():
+            if c >= self.notmissing * maf:
+                self.counter[h] = c
 
     def __str__(self):
-        return str(self.counter)
+        return "N={0} M={1} C={2}".format(len(self.counter), \
+                                self.notmissing, self.counter)
 
     def solve(self, fw):
         haplotype_counts = self.counter.items()
         for (a, ai), (b, bi) in combinations(haplotype_counts, 2):
             abi = sum(1 for haplotypes in self.haplotype_set \
                 if a in haplotypes and b in haplotypes)
-            print >> fw, a, b, abi
+            pct = max(abi * 100 / ai, abi * 100 / bi)
+            print >> fw, a, b, "A={0}".format(ai), "B={0}".format(bi), \
+                               "AB={0}".format(abi), "{0}%".format(pct), \
+                               "compatible" if pct < 50 else ""
             fw.flush()
 
 
@@ -115,6 +124,10 @@ def resolve(args):
     logging.debug("A total of {0} target markers in {1} contigs.".\
                     format(len(data), len(set(x[0] for x in data))))
     samfiles = [pysam.AlignmentFile(x, "rb") for x in bamfiles]
+    samfiles = [(op.basename(x.filename).split(".")[0], x) for x in samfiles]
+    samfiles.sort()
+    logging.debug("BAM files grouped to {0} individuals".\
+                    format(len(set(x[0] for x in samfiles))))
 
     fw = must_open(opts.outfile, "w")
     for seqid, d in groupby(data, lambda x: x[0]):
@@ -122,27 +135,28 @@ def resolve(args):
         nmarkers = len(d)
         logging.debug("Process contig {0} ({1} markers)".format(seqid, nmarkers))
         haplotype_set = []
-        for samfile in samfiles:
-            reads = defaultdict(list)
-            positions = []
-            for s, pos, ref, alt, c, hetratio in d:
-                for c in samfile.pileup(seqid):
-                    if c.reference_pos != pos - 1:
-                        continue
-                    for r in c.pileups:
-                        rname = r.alignment.query_name
-                        rbase = r.alignment.query_sequence[r.query_position]
-                        reads[rname].append((pos, rbase))
-                positions.append(pos)
+        for pf, sf in groupby(samfiles, key=lambda x: x[0]):
             haplotypes = []
-            for read in reads.values():
-                hap = ['-'] * nmarkers
-                for p, rbase in read:
-                    hap[positions.index(p)] = rbase
-                hap = "".join(hap)
-                if "-" in hap:
-                    continue
-                haplotypes.append(hap)
+            for pfi, samfile in sf:
+                reads = defaultdict(list)
+                positions = []
+                for s, pos, ref, alt, c, hetratio in d:
+                    for c in samfile.pileup(seqid):
+                        if c.reference_pos != pos - 1:
+                            continue
+                        for r in c.pileups:
+                            rname = r.alignment.query_name
+                            rbase = r.alignment.query_sequence[r.query_position]
+                            reads[rname].append((pos, rbase))
+                    positions.append(pos)
+                for read in reads.values():
+                    hap = ['-'] * nmarkers
+                    for p, rbase in read:
+                        hap[positions.index(p)] = rbase
+                    hap = "".join(hap)
+                    if "-" in hap:
+                        continue
+                    haplotypes.append(hap)
             haplotypes = set(haplotypes)
             haplotype_set.append(haplotypes)
         hr = HaplotypeResolver(haplotype_set)

@@ -500,6 +500,15 @@ class OptionParser (OptionP):
             self.add_option("--trust_FL", default="", action="store_true",
                     help="Trust FL-status of cDNA [default: %default]")
 
+    def set_annot_reformat_opts(self):
+        self.add_option("--pad0", default=6, type="int",
+                     help="Pad gene identifiers with 0 [default: %default]")
+        self.add_option("--prefix", default="Medtr",
+                     help="Genome prefix [default: %default]")
+        self.add_option("--uc", default=False, action="store_true",
+                     help="Toggle gene identifier upper case" \
+                        + " [default: %default]")
+
     def set_home(self, prog):
         tag = "--{0}_home".format(prog)
         default = {"amos": "~/code/amos-code/",

@@ -16,7 +16,7 @@ import re
 from itertools import groupby, product
 
 from jcvi.formats.bed import Bed, BedLine, sort
-from jcvi.formats.base import SetFile, must_open, get_number
+from jcvi.formats.base import SetFile, must_open, get_number, flexible_cast
 from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher, \
             need_update, popen, sh
 
@@ -53,9 +53,12 @@ class Stride (object):
 
 class NameRegister (object):
 
-    def __init__(self):
+    def __init__(self, prefix="Medtr", pad0="6", uc=False):
         self.black = set()
         self.gaps = []
+        self.prefix = prefix
+        self.pad0 = pad0
+        self.uc = uc
 
     def get_blacklist(self, filename):
         black = SetFile(filename)
@@ -70,7 +73,7 @@ class NameRegister (object):
         start_bp = info[0].start
         end_bp = info[-1].end
 
-        current_chr = get_number(chr)
+        current_chr = chr_number(chr)
         needed = info
         assert end_id > start_id, \
             "end ({0}) > start ({1})".format(end_id, start_id)
@@ -79,11 +82,13 @@ class NameRegister (object):
         available = [x for x in xrange(start_id + 1, end_id) if
                             (current_chr, x) not in self.black]
 
-        message = "chr{0} need {1} ids, has {2} spots ({3} available)".\
-                format(current_chr, len(needed), spots, len(available))
+        message = "{0} need {1} ids, has {2} spots ({3} available)".\
+                format(chr, len(needed), spots, len(available))
 
-        start_gene = gene_name(current_chr, start_id)
-        end_gene = gene_name(current_chr, end_id)
+        start_gene = gene_name(current_chr, start_id, prefix=self.prefix, \
+                pad0=self.pad0, uc=self.uc)
+        end_gene = gene_name(current_chr, end_id, prefix=self.prefix,
+                pad0=self.pad0, uc=self.uc)
         message += " between {0} - {1}\n".format(start_gene, end_gene)
 
         assert end_bp > start_bp
@@ -137,7 +142,8 @@ class NameRegister (object):
         # Finally assign the ids
         assert len(needed) == len(available)
         for b, rank in zip(needed, available):
-            name = gene_name(current_chr, rank)
+            name = gene_name(current_chr, rank, prefix=self.prefix, \
+                    pad0=self.pad0, uc=self.uc)
             print >> sys.stderr, "\t".join((str(b), name))
             id_table[b.accn] = name
             self.black.add((current_chr, rank))
@@ -190,7 +196,7 @@ def plot(args):
     old, new = [], []
     i = 0
     for b in beds:
-        accn = b.extra[2]
+        accn = b.extra[0]
         if "te" in accn:
             continue
 
@@ -269,13 +275,14 @@ def instantiate(args):
     instantiate NEW genes tagged by renumber.
     """
     p = OptionParser(instantiate.__doc__)
+    p.set_annot_reformat_opts()
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
         sys.exit(not p.print_help())
 
     taggedbed, blacklist, gapsbed = args
-    r = NameRegister()
+    r = NameRegister(prefix=opts.prefix, pad0=opts.pad0, uc=opts.uc)
     r.get_blacklist(blacklist)
     r.get_gaps(gapsbed)
 
@@ -287,14 +294,15 @@ def instantiate(args):
 
     tagkey = lambda x: x.rsplit("|", 1)[-1]
     for chr, sbed in bed.sub_beds():
-        if "chr" not in chr:
+        current_chr = chr_number(chr)
+        if not current_chr:
             continue
 
         sbed = list(sbed)
 
         ranks = []
         for i, s in enumerate(sbed):
-            nametag = s.extra[2]
+            nametag = s.extra[0]
             tag = tagkey(nametag)
 
             if tag in (NEW, FRAME):
@@ -323,7 +331,7 @@ def instantiate(args):
 
         # Output new names
         for i, s in enumerate(sbed):
-            nametag = s.extra[2]
+            nametag = s.extra[0]
             name, tag = nametag.split("|")
 
             if tag == NEW:
@@ -333,7 +341,7 @@ def instantiate(args):
                 if name in id_table:
                     name = id_table[name]
 
-            s.extra[2] = "|".join((name, tag))
+            s.extra[0] = "|".join((name, tag))
             print >> fw, s
 
     fw.close()
@@ -342,31 +350,48 @@ def instantiate(args):
 def atg_name(name, retval="chr,rank", trimpad0=True):
     atg_name_pat = re.compile(r"""
             ^(?P<locus>
-                (?:(?P<prefix>\D+[\D\d\D])\.?)(?P<chr>[\d|C|M]+)?(?P<sep>[A-z]+)(?P<rank>\d+)
+                (?:(?P<prefix>\D+[\D\d\D])\.?)(?P<chr>[\d|C|M]+)(?P<sep>[A-z]+)(?P<rank>\d+)
             )
             \.?(?P<iso>\d+)?
             """, re.VERBOSE)
 
     seps = ["g", "te", "trna", "s", "u"]
-    pad0s = ["chr", "rank"]
+    pad0s = ["rank"]
 
     if name is not None:
         m = re.match(atg_name_pat, name)
         if m is not None and m.group('sep').lower() in seps:
             retvals = []
             for grp in retval.split(","):
-                val = get_number(m.group(grp)) \
-                        if trimpad0 and grp in pad0s \
-                        else m.group(grp)
+                if grp == 'chr':
+                    val = chr_number(m.group(grp))
+                else:
+                    val = get_number(m.group(grp)) \
+                            if trimpad0 and grp in pad0s \
+                            else m.group(grp)
                 retvals.append(val)
 
-            return (x for x in retvals)
-    else:
-        return (None for x in retval.split(","))
+            return (x for x in retvals) if len(retvals) > 1 \
+                    else retvals[0]
+
+    return (None for x in retval.split(","))
 
 
-def gene_name(current_chr, x, prefix="Medtr", sep="g", pad0=6):
-    return "{0}{1}{2}{3:0{4}}".format(prefix, current_chr, sep, x, pad0)
+def gene_name(current_chr, x, prefix="Medtr", sep="g", pad0=6, uc=False):
+    identifier = "{0}{1}{2}{3:0{4}}".format(prefix, current_chr, sep, x, pad0)
+    if uc: identifier = identifier.upper()
+    return identifier
+
+
+def chr_number(chr):
+    chr_pat = re.compile(r"(?P<prefix>\D*)(?P<chr>[\d|C|M]+)$", re.VERBOSE | re.IGNORECASE)
+
+    if chr is not None:
+        m = re.match(chr_pat, chr)
+        if m is not None:
+            return flexible_cast(m.group('chr'))
+
+    return None
 
 
 def prepare(bedfile):
@@ -414,10 +439,7 @@ def renumber(args):
     from jcvi.utils.grouper import Grouper
 
     p = OptionParser(renumber.__doc__)
-    p.add_option("--pad0", default=6, type="int",
-                 help="Pad gene identifiers with 0 [default: %default]")
-    p.add_option("--prefix", default="Medtr",
-                 help="Genome prefix [default: %default]")
+    p.set_annot_reformat_opts()
 
     opts, args = p.parse_args(args)
 
@@ -440,12 +462,11 @@ def renumber(args):
 
     bed = Bed(abedfile)
     for chr, sbed in bed.sub_beds():
-        if "chr" not in chr:
+        current_chr = chr_number(chr)
+        if not current_chr:
             continue
 
-        current_chr = get_number(chr)
         ranks = []
-
         gg = set()
         for s in sbed:
             accn = s.accn
@@ -459,8 +480,10 @@ def renumber(args):
         print >> sys.stderr, current_chr, len(sbed), "==>", len(ranks), \
                     "==>", len(lranks)
 
-        granks = set(gene_name(current_chr, x) for x in lranks) | \
-                 set(gene_name(current_chr, x, sep="te") for x in lranks)
+        granks = set(gene_name(current_chr, x, prefix=opts.prefix, \
+                     pad0=opts.pad0, uc=opts.uc) for x in lranks) | \
+                 set(gene_name(current_chr, x, prefix=opts.prefix, \
+                     pad0=opts.pad0, sep="te", uc=opts.uc) for x in lranks)
 
         tagstore = {}
         for s in sbed:
@@ -649,11 +672,11 @@ def read_scores(scoresfile, opts):
 
 
 def annotate_chr(chr, chrbed, g, scores, nbedline, abedline, opts, splits):
-    current_chr = get_number(chr)
+    current_chr = chr_number(chr)
 
     for line in chrbed:
         accn = line.accn
-        if accn not in g or (opts.atg_name and "chr" not in chr):
+        if accn not in g or (opts.atg_name and not current_chr):
             abedline[accn] = line
             continue
 

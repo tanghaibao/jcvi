@@ -8,6 +8,7 @@ Deals with K-mers and K-mer distribution from reads or genome
 import os.path as op
 import sys
 import logging
+import numpy as np
 
 from jcvi.graphics.base import plt, asciiplot, set_human_axis, savefig, \
             markup, panel_labels, normalize_axes, set_ticklabels_helvetica
@@ -534,6 +535,10 @@ def multihistogram(args):
     A.set_title(markup(title), color='r')
     x, y = zip(*genomesizes)
     B.plot(x, y, "ko", mfc='w')
+    t = np.linspace(opts.kmin - .5, opts.kmax + .5, 100)
+    p = np.poly1d(np.polyfit(x, y, 2))
+    B.plot(t, p(t), "r:")
+
     xlabel, ylabel = "K-mer size", "Estimated genome size (Mb)"
     B.set_xlabel(xlabel, color='r')
     B.set_ylabel(ylabel, color='r')

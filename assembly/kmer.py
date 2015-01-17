@@ -9,18 +9,61 @@ import os.path as op
 import sys
 import logging
 
-from jcvi.graphics.base import plt, asciiplot, set_human_axis, savefig, markup
+from jcvi.graphics.base import plt, asciiplot, set_human_axis, savefig, \
+            markup, panel_labels, normalize_axes, set_ticklabels_helvetica
 from jcvi.formats.fasta import Fasta
-from jcvi.formats.base import must_open
+from jcvi.formats.base import BaseFile, must_open, get_number
 from jcvi.utils.cbook import thousands, percentage
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, \
             need_update, Popen, PIPE
 
 
-class KmerSpectrum (object):
+KMERYL, KSOAP, KALLPATHS = range(3)
 
-    def __init__(self, data):
-        self.data = data
+
+class KmerSpectrum (BaseFile):
+
+    def __init__(self, histfile):
+        self.load_data(histfile)
+
+    def load_data(self, histfile):
+        self.data = []
+        self.totalKmers = 0
+        self.hist = {}
+        kformat = self.guess_format(histfile)
+        kformats = ("Meryl", "Soap", "AllPaths")
+        logging.debug("Guessed format: {0}".format(kformats[kformat]))
+
+        fp = open(histfile)
+        for rowno, row in enumerate(fp):
+            if row[0] == '#':
+                continue
+            if kformat == KSOAP:
+                K = rowno + 1
+                counts = int(row.strip())
+            else:  # meryl histogram
+                K, counts = row.split()[:2]
+                K, counts = int(K), int(counts)
+
+            Kcounts = K * counts
+            self.totalKmers += Kcounts
+            self.hist[K] = Kcounts
+            self.data.append((K, counts))
+
+    def guess_format(self, histfile):
+        # Guess the format of the Kmer histogram
+        fp = open(histfile)
+        for row in fp:
+            if row.startswith("# 1:"):
+                return KALLPATHS
+            if len(row.split()) == 1:
+                return KSOAP
+        return KMERYL
+
+    def get_xy(self, vmin=1, vmax=100):
+        self.counts = sorted((a, b) for a, b in self.hist.items() \
+                        if vmin <= a <= vmax)
+        return zip(*self.counts)
 
     def analyze(self, ploidy=2, K=23, covmax=1000000):
         """
@@ -113,17 +156,10 @@ class KmerSpectrum (object):
 
         _nk_total = cnk[len(cnk) - 1]
         _nk_bad_low_kf = cnk[_kf_min1]
-        _nk_good_snp = cnk[_kf_min2] - cnk[_kf_min1]
         _nk_good_uniq = cnk[_kf_min3] - cnk[_kf_min2]
-        _nk_good_rep = cnk[_kf_hi] - cnk[_kf_min3]
         _nk_bad_high_kf = _nk_total - cnk[_kf_hi]
-
-        _ndk_total = cndk[len(cndk) - 1]
-        _ndk_bad_low_kf = cndk[_kf_min1]
         _ndk_good_snp = cndk[_kf_min2] - cndk[_kf_min1]
         _ndk_good_uniq = cndk[_kf_min3] - cndk[_kf_min2]
-        _ndk_good_rep = cndk[_kf_hi] - cndk[_kf_min3]
-        _ndk_bad_high_kf = _ndk_total - cndk[_kf_hi]
 
         # kmer coverage C_k
         _kf_ave_uniq = _nk_good_uniq * 1. / _ndk_good_uniq
@@ -145,7 +181,7 @@ class KmerSpectrum (object):
         GR = int(_genome_size_repetitive)
         coverage = int(_coverage)
 
-        m = "Kmer Spectrum Analysis\n"
+        m = "Kmer (K={0}) Spectrum Analysis\n".format(K)
         m += "Genome size estimate = {0}\n".format(thousands(G))
         m += "Genome size estimate CN = 1 = {0} ({1})\n".format(thousands(G1),
                 percentage(G1, G))
@@ -161,6 +197,8 @@ class KmerSpectrum (object):
             self.snprate = "SNP rate not computed (Ploidy = {0})".format(ploidy)
         m += self.snprate + '\n'
 
+        self.genomesize = int(round(self.totalKmers * 1. / self.max2))
+
         print >> sys.stderr, m
 
 
@@ -170,6 +208,7 @@ def main():
         ('jellyfish', 'dump histogram using `jellyfish`'),
         ('meryl', 'dump histogram using `meryl`'),
         ('histogram', 'plot the histogram based on meryl K-mer distribution'),
+        ('multihistogram', 'plot histogram across a set of K-mer sizes'),
         # These forms a pipeline to count K-mers for given FASTA seq
         ('dump', 'convert FASTA sequences to list of K-mers'),
         ('bin', 'serialize counts to bitarrays'),
@@ -440,6 +479,74 @@ def meryl(args):
     return outfile
 
 
+def multihistogram(args):
+    """
+    %prog multihistogram *.histogram species
+
+    Plot the histogram based on a set of K-mer hisotograms. The method is based
+    on Star et al.'s method (Atlantic Cod genome paper).
+    """
+    p = OptionParser(multihistogram.__doc__)
+    p.add_option("--kmin", default=15, type="int",
+            help="Minimum K-mer size, inclusive")
+    p.add_option("--kmax", default=30, type="int",
+            help="Maximum K-mer size, inclusive")
+    p.add_option("--vmin", default=2, type="int",
+            help="Minimum value, inclusive")
+    p.add_option("--vmax", default=100, type="int",
+            help="Maximum value, inclusive")
+    opts, args, iopts = p.set_image_options(args, figsize="10x5", dpi=300)
+
+    histfiles = args[:-1]
+    species = args[-1]
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes([0, 0, 1, 1])
+    A = fig.add_axes([.08, .12, .38, .76])
+    B = fig.add_axes([.58, .12, .38, .76])
+
+    lines = []
+    legends = []
+    genomesizes = []
+    for histfile in histfiles:
+        ks = KmerSpectrum(histfile)
+        x, y = ks.get_xy(opts.vmin, opts.vmax)
+        K = get_number(op.basename(histfile).split(".")[0].split("-")[-1])
+        if not opts.kmin <= K <= opts.kmax:
+            continue
+
+        line, = A.plot(x, y, '-', lw=1)
+        lines.append(line)
+        legends.append("K = {0}".format(K))
+        ks.analyze(K=K)
+        genomesizes.append((K, ks.genomesize / 1e6))
+
+    leg = A.legend(lines, legends, shadow=True, fancybox=True)
+    leg.get_frame().set_alpha(.5)
+
+    title = "{0} genome K-mer histogram".format(species)
+    A.set_title(markup(title), color='r')
+    xlabel, ylabel = "Coverage (X)", "Counts"
+    A.set_xlabel(xlabel, color='r')
+    A.set_ylabel(ylabel, color='r')
+    set_human_axis(A)
+
+    title = "{0} genome size estimate".format(species)
+    A.set_title(markup(title), color='r')
+    x, y = zip(*genomesizes)
+    B.plot(x, y, "ko", mfc='w')
+    xlabel, ylabel = "K-mer size", "Estimated genome size (Mb)"
+    B.set_xlabel(xlabel, color='r')
+    B.set_ylabel(ylabel, color='r')
+    set_ticklabels_helvetica(B)
+
+    labels = ((.04, .96, 'A'), (.48, .96, 'B'))
+    panel_labels(root, labels)
+
+    normalize_axes(root)
+    imagename = species + ".multiK.pdf"
+    savefig(imagename, dpi=iopts.dpi, iopts=iopts)
+
+
 def histogram(args):
     """
     %prog histogram meryl.histogram species K
@@ -465,50 +572,14 @@ def histogram(args):
         sys.exit(not p.print_help())
 
     histfile, species, N = args
-    N = int(N)
-    KMERYL, KSOAP, KALLPATHS = range(3)
-    kformats = ("Meryl", "Soap", "AllPaths")
-    kformat = KMERYL
-
     ascii = not opts.pdf
     peaks = not opts.nopeaks
-    fp = open(histfile)
-    hist = {}
-    totalKmers = 0
+    N = int(N)
 
-    # Guess the format of the Kmer histogram
-    for row in fp:
-        if row.startswith("# 1:"):
-            kformat = KALLPATHS
-            break
-        if len(row.split()) == 1:
-            kformat = KSOAP
-            break
-    fp.seek(0)
+    ks = KmerSpectrum(histfile)
+    ks.analyze(K=N)
 
-    logging.debug("Guessed format: {0}".format(kformats[kformat]))
-
-    data = []
-    for rowno, row in enumerate(fp):
-        if row[0] == '#':
-            continue
-        if kformat == KSOAP:
-            K = rowno + 1
-            counts = int(row.strip())
-        else:  # meryl histogram
-            K, counts = row.split()[:2]
-            K, counts = int(K), int(counts)
-
-        Kcounts = K * counts
-        totalKmers += Kcounts
-        hist[K] = Kcounts
-        data.append((K, counts))
-
-    covmax = 1000000
-    ks = KmerSpectrum(data)
-    ks.analyze(K=N, covmax=covmax)
-
-    Total_Kmers = int(totalKmers)
+    Total_Kmers = int(ks.totalKmers)
     coverage = opts.coverage
     Kmer_coverage = ks.max2 if not coverage else coverage
     Genome_size = int(round(Total_Kmers * 1. / Kmer_coverage))
@@ -523,9 +594,7 @@ def histogram(args):
     for msg in (Total_Kmers_msg, Kmer_coverage_msg, Genome_size_msg):
         print >> sys.stderr, msg
 
-    counts = sorted((a, b) for a, b in hist.items() \
-                    if opts.vmin <= a <= opts.vmax)
-    x, y = zip(*counts)
+    x, y = ks.get_xy(opts.vmin, opts.vmax)
     title = "{0} genome {1}-mer histogram".format(species, N)
 
     if ascii:
@@ -536,12 +605,11 @@ def histogram(args):
     plt.plot(x, y, 'g-', lw=2, alpha=.5)
     ax = plt.gca()
 
-    t = (ks.min1, ks.max1, ks.min2, ks.max2, ks.min3)
-    tcounts = [(x, y) for x, y in counts if x in t]
-    x, y = zip(*tcounts)
-    tcounts = dict(tcounts)
-
     if peaks:
+        t = (ks.min1, ks.max1, ks.min2, ks.max2, ks.min3)
+        tcounts = [(x, y) for x, y in ks.counts if x in t]
+        x, y = zip(*tcounts)
+        tcounts = dict(tcounts)
         plt.plot(x, y, 'ko', lw=2, mec='k', mfc='w')
         ax.text(ks.max1, tcounts[ks.max1], "SNP peak", va="top")
         ax.text(ks.max2, tcounts[ks.max2], "Main peak")

@@ -525,14 +525,14 @@ def multihistogram(args):
     leg.get_frame().set_alpha(.5)
 
     title = "{0} genome K-mer histogram".format(species)
-    A.set_title(markup(title), color='r')
+    A.set_title(markup(title))
     xlabel, ylabel = "Coverage (X)", "Counts"
-    A.set_xlabel(xlabel, color='r')
-    A.set_ylabel(ylabel, color='r')
+    A.set_xlabel(xlabel)
+    A.set_ylabel(ylabel)
     set_human_axis(A)
 
     title = "{0} genome size estimate".format(species)
-    A.set_title(markup(title), color='r')
+    B.set_title(markup(title))
     x, y = zip(*genomesizes)
     B.plot(x, y, "ko", mfc='w')
     t = np.linspace(opts.kmin - .5, opts.kmax + .5, 100)
@@ -540,11 +540,11 @@ def multihistogram(args):
     B.plot(t, p(t), "r:")
 
     xlabel, ylabel = "K-mer size", "Estimated genome size (Mb)"
-    B.set_xlabel(xlabel, color='r')
-    B.set_ylabel(ylabel, color='r')
+    B.set_xlabel(xlabel)
+    B.set_ylabel(ylabel)
     set_ticklabels_helvetica(B)
 
-    labels = ((.04, .96, 'A'), (.48, .96, 'B'))
+    labels = ((.04, .96, 'A'), (.54, .96, 'B'))
     panel_labels(root, labels)
 
     normalize_axes(root)

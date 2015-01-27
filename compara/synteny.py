@@ -13,7 +13,7 @@ from jcvi.formats.bed import Bed
 from jcvi.formats.blast import BlastLine
 from jcvi.formats.base import BaseFile, SetFile, read_block, must_open
 from jcvi.utils.grouper import Grouper
-from jcvi.utils.cbook import gene_name
+from jcvi.utils.cbook import gene_name, human_size
 from jcvi.utils.range import Range, range_chain
 from jcvi.apps.base import OptionParser, ActionDispatcher
 
@@ -807,6 +807,7 @@ def simple(args):
     if header:
         print >> fws, "\t".join(h.split("|"))
 
+    atotalbase = btotalbase = 0
     for i, block in enumerate(blocks):
 
         a, b, scores = zip(*block)
@@ -840,6 +841,8 @@ def simple(args):
                     get_boundary_bases(bstart, bend, sorder)
             abase = aendbase - astartbase + 1
             bbase = bendbase - bstartbase + 1
+            atotalbase += abase
+            btotalbase += bbase
 
             # Write dual lines
             aargs = [block_id, aseqid, astartbase, aendbase,
@@ -859,6 +862,14 @@ def simple(args):
 
     fws.close()
     logging.debug("A total of {0} blocks written to `{1}`.".format(i + 1, simplefile))
+
+    if coords:
+        print >> sys.stderr, "Total block span in {0}: {1}".format(qbed.filename, \
+                        human_size(atotalbase, precision=0))
+        print >> sys.stderr, "Total block span in {0}: {1}".format(sbed.filename, \
+                        human_size(btotalbase, precision=0))
+        print >> sys.stderr, "Ratio: {0:.1f}x".format(\
+                        max(atotalbase, btotalbase) * 1. / min(atotalbase, btotalbase))
 
 
 def screen(args):

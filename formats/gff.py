@@ -175,6 +175,10 @@ class GffLine (object):
     id = accn
 
     @property
+    def name(self):
+        return self.attributes["Name"][0] if "Name" in self.attributes else None
+
+    @property
     def parent(self):
         return self.attributes["Parent"][0] if "Parent" in self.attributes else None
 
@@ -367,10 +371,62 @@ def main():
         ('gapsplit', 'split alignment GFF3 at gaps based on CIGAR string'),
         ('orient', 'orient the coding features based on translation'),
         ('splicecov', 'tag gff introns with coverage info from junctions.bed'),
+        ('summary', 'print summary stats for features of different types'),
             )
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def summary(args):
+    """
+    %prog summary gffile
+
+    Print summary stats for features of different types.
+    """
+    from jcvi.formats.base import SetFile
+    from jcvi.formats.bed import BedSummary
+    from jcvi.utils.table import tabulate
+
+    p = OptionParser(summary.__doc__)
+    p.add_option("--isoform", default=False, action="store_true",
+                 help="Append .1 to the names")
+    p.add_option("--ids", help="Only include features from certain IDs")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    gff_file, = args
+    ids = opts.ids
+    if ids:
+        ids = SetFile(ids)
+        if opts.isoform:
+            ids = set(x + ".1" for x in ids)
+        logging.debug("Total ids loaded: {0}".format(len(ids)))
+
+        # Collects aliases
+        gff = Gff(gff_file)
+        for g in gff:
+            if g.name in ids:
+                ids.add(g.id)
+        logging.debug("Total ids after expansion: {0}".format(len(ids)))
+
+    gff = Gff(gff_file)
+    beds = defaultdict(list)
+    for g in gff:
+        if ids and not (g.id in ids or g.name in ids or g.parent in ids):
+            continue
+        beds[g.type].append(g.bedline)
+
+    table = {}
+    for type, bb in sorted(beds.items()):
+        bs = BedSummary(bb)
+        table[(type, "Features")] = bs.nfeats
+        table[(type, "Unique bases")] = bs.unique_bases
+        table[(type, "Total bases")] = bs.total_bases
+
+    print >> sys.stderr, tabulate(table)
 
 
 def gb(args):
@@ -1250,8 +1306,7 @@ def uniq(args):
                  help="Non-redundify Name attribute [default: %default]")
     p.add_option("--dedup", default=False, action="store_true",
                  help="Iterate through every pile and remove all but one feature " + \
-                      "within a group of features sharing gene structure " + \
-                      "[default: %default]")
+                      "within a group of features sharing gene structure")
     p.add_option("--iter", default="2", choices=("1", "2"),
                  help="Number of iterations to grab children [default: %default]")
     p.set_cpus()
@@ -1833,8 +1888,6 @@ def splicecov(args):
     fw = must_open(tmpgff, "w")
     for line in abfh:
         args = line.strip().split("\t")
-        nargs = len(args)
-
         g = GffLine("\t".join(str(x) for x in args[:9]))
         if g.type == "intron" and args[10] != -1:
             ispan, jspan = g.span, int(args[11]) - int(args[10])
@@ -1890,8 +1943,7 @@ def bed(args):
     p = OptionParser(bed.__doc__)
     p.add_option("--type", dest="type", default="gene",
             help="Feature type to extract, use comma for multiple [default: %default]")
-    p.add_option("--key", dest="key", default="ID",
-            help="Key in the attributes to extract [default: %default]")
+    p.add_option("--key", default="ID", help="Key in the attributes to extract")
     p.add_option("--source",
             help="Source to extract from, use comma for multiple [default: %default]")
     p.add_option("--score_attrib", dest="score_attrib", default=False,

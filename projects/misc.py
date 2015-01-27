@@ -31,6 +31,7 @@ def main():
         # Unpublished
         ('litchi', 'plot litchi micro-synteny (requires data)'),
         ('birch', 'plot birch macro-synteny (requires data)'),
+        ('oropetium', 'plot oropetium micro-synteny (requires data)'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -148,6 +149,64 @@ def mtdotplots(args):
     root.set_axis_off()
 
     pf = "mtdotplots"
+    image_name = pf + "." + iopts.format
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
+
+
+def oropetium(args):
+    """
+    %prog oropetium mcscan.out all.bed layout switch.ids
+
+    Build a composite figure that calls graphis.synteny.
+    """
+    p = OptionParser(oropetium.__doc__)
+    opts, args, iopts = p.set_image_options(args, figsize="9x6")
+
+    if len(args) != 4:
+        sys.exit(not p.print_help())
+
+    datafile, bedfile, slayout, switch = args
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes([0, 0, 1, 1])
+
+    Synteny(fig, root, datafile, bedfile, slayout, switch=switch)
+
+    # legend showing the orientation of the genes
+    draw_gene_legend(root, .4, .57, .74)
+
+    # On the left panel, make a species tree
+    fc = 'lightslategrey'
+
+    coords = {}
+    xs, xp = .16, .03
+    coords["oropetium"] = (xs, .7)
+    coords["setaria"] = (xs, .6)
+    coords["sorghum"] = (xs, .5)
+    coords["rice"] = (xs, .4)
+    coords["brachypodium"] = (xs, .3)
+    xs -= xp
+    coords["Panicoideae"] = join_nodes(root, coords, "setaria", "sorghum", xs)
+    xs -= xp
+    coords["BEP"] = join_nodes(root, coords, "rice", "brachypodium", xs)
+    coords["PACMAD"] = join_nodes(root, coords, "oropetium", "Panicoideae", xs)
+    xs -= xp
+    coords["Poaceae"] = join_nodes(root, coords, "BEP", "PACMAD", xs)
+
+    # Names of the internal nodes
+    for tag in ("BEP", "Poaceae"):
+        nx, ny = coords[tag]
+        nx, ny = nx - .005, ny - .02
+        root.text(nx, ny, tag, rotation=90, ha="right", va="top", color=fc)
+    for tag in ("PACMAD",):
+        nx, ny = coords[tag]
+        nx, ny = nx - .005, ny + .02
+        root.text(nx, ny, tag, rotation=90, ha="right", va="bottom", color=fc)
+
+    root.set_xlim(0, 1)
+    root.set_ylim(0, 1)
+    root.set_axis_off()
+
+    pf = "oropetium"
     image_name = pf + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 

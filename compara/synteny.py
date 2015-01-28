@@ -1263,8 +1263,8 @@ def depth(args):
         if is_self:
             qranges.append(srange)
 
-    qgenome = qbed.filename.split(".")[0]
-    sgenome = sbed.filename.split(".")[0]
+    qgenome = op.basename(qbed.filename).split(".")[0]
+    sgenome = op.basename(sbed.filename).split(".")[0]
     print >> sys.stderr, "Genome {0} depths:".format(qgenome)
     ds, details = range_depth(qranges, len(qbed))
     if depthfile:

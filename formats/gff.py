@@ -1201,7 +1201,7 @@ def match_ftype(f1, f2):
 
 
 def match_nchildren(f1c, f2c):
-    return len(list(f1c)) == len(list(f2c))
+    return len(f1c) == len(f2c)
 
 
 def match_child_ftype(f1c, f2c):
@@ -1211,6 +1211,21 @@ def match_child_ftype(f1c, f2c):
             set(Counter(i.featuretype for i in f2c).keys()))
 
 
+def match_Nth_child(f1c, f2c, N=1, slop=False):
+    i = N - 1
+    f1, f2 = f1c[i], f2c[i]
+
+    if slop == True:
+        if N == 1:
+            return (f1.stop == f2.stop) if f1.strand == '+' \
+                    else (f1.start == f2.start)
+        elif N == len(f1c):
+            return (f1.start == f2.start) if f1.strand == '+' \
+                    else (f1.stop == f2.stop)
+
+    return match_span(f1, f2)
+
+
 def match_feats(f1, f2, gffdb, iter):
     """
     Given 2 gffutils database features, compare the features against each other
@@ -1218,7 +1233,8 @@ def match_feats(f1, f2, gffdb, iter):
     """
     if match_span(f1, f2):
         for n in range(1, iter + 1):
-            f1c, f2c = gffdb.children(f1, level=n), gffdb.children(f2, level=n)
+            f1c, f2c = list(gffdb.children(f1, level=n)), \
+                    list(gffdb.children(f2, level=n))
             if match_child_ftype(f1c, f2c) == 0:
                 if match_nchildren(f1c, f2c):
                     for cf1, cf2 in zip(f1c, f2c):
@@ -1386,7 +1402,7 @@ def populate_children(outfile, ids, gffile, otype=None, iter="2"):
                 children.add(g.accn)
 
     if iter == "2":
-        logging.debug("Populate children. Iteration 2..")
+        logging.debug("Populate grand children. Iteration 2..")
         gff = Gff(gffile)
         for g in gff:
             if "Parent" not in g.attributes:
@@ -1727,8 +1743,9 @@ def extract(args):
                 help="Extract features from certain contigs [default: %default]")
     p.add_option("--names",
                 help="Extract features with certain names [default: %default]")
-    p.add_option("--children", default=False, action="store_true",
-                help="Grab children and grand children [default: %default]")
+    p.add_option("--children", default=0, choices=["1", "2"],
+                help="Specify number of iterations: `1` grabs children, " + \
+                     "`2` grabs grand-children [default: %default]")
     p.add_option("--tag", default="ID",
                 help="Scan the tags for the names [default: %default]")
     p.add_option("--fasta", default=False, action="store_true",
@@ -1750,7 +1767,7 @@ def extract(args):
     outfile = opts.outfile
     if opts.children:
         assert names is not None, "Must set --names"
-        populate_children(outfile, names, gffile)
+        populate_children(outfile, names, gffile, iter=opts.children)
         return
 
     fp = open(gffile)
@@ -1998,6 +2015,8 @@ def make_index(gff_file):
             os.remove(db_file)
         logging.debug("Indexing `{0}`".format(gff_file))
         gffutils.create_db(gff_file, db_file)
+    else:
+        logging.debug("Load existing `{0}` index".format(gff_file))
 
     return gffutils.FeatureDB(db_file)
 

@@ -14,7 +14,7 @@ from itertools import combinations
 
 from jcvi.formats.fasta import Fasta
 from jcvi.formats.base import must_open
-from jcvi.formats.bed import Bed, mergeBed, sort
+from jcvi.formats.bed import Bed, mergeBed
 from jcvi.utils.counter import Counter
 from jcvi.apps.cdhit import uclust, deduplicate
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh, iglob
@@ -76,13 +76,16 @@ def bed_store(bedfile):
     return reads, reads_r
 
 
-def contrast_stores(bed1_store_r, bed2_store):
+def contrast_stores(bed1_store_r, bed2_store, minreads=10, minpct=.1, prefix="AB"):
     for target, reads in bed1_store_r.iteritems():
         nreads = len(reads)
-        if nreads < 3:
+        if nreads < minreads:
             continue
+        good_mapping = max(minreads / 2, minpct * nreads)
         bed2_targets = Counter(bed2_store.get(r) for r in reads)
-        print target, nreads, bed2_targets, len(bed2_targets)
+        c = dict((k, v) for (k, v) in bed2_targets.items() if v >= good_mapping)
+        ctag = "|".join("{0}({1})".format(k, v) for (k, v) in c.items())
+        print prefix, target, nreads, ctag, len(set(c.keys()) - set([None]))
 
 
 def track(args):
@@ -101,7 +104,7 @@ def track(args):
     bed1_store, bed1_store_r = bed_store(bed1)
     bed2_store, bed2_store_r = bed_store(bed2)
     contrast_stores(bed1_store_r, bed2_store)
-    contrast_stores(bed2_store_r, bed1_store)
+    contrast_stores(bed2_store_r, bed1_store, prefix="BA")
 
 
 def resolve(args):

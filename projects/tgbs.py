@@ -14,7 +14,7 @@ from itertools import combinations
 
 from jcvi.formats.fasta import Fasta
 from jcvi.formats.base import must_open
-from jcvi.formats.bed import Bed
+from jcvi.formats.bed import Bed, mergeBed, sort
 from jcvi.utils.counter import Counter
 from jcvi.apps.cdhit import uclust, deduplicate
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh, iglob
@@ -64,13 +64,8 @@ def main():
     p.dispatch(globals())
 
 
-def bam_store(bamfile):
-    bedfile = bamfile.replace(".bam", ".bed")
-    if need_update(bamfile, bedfile):
-        cmd = "bamToBed -i {0}".format(bamfile)
-        cmd += " | mergeBed -i stdin -s -c 4 -o collapse"
-        sh(cmd, outfile=bedfile)
-
+def bed_store(bedfile):
+    bedfile = mergeBed(bedfile, s=True, nms=True, sorted=True)
     bed = Bed(bedfile)
     reads, reads_r = {}, defaultdict(list)
     for b in bed:
@@ -81,18 +76,18 @@ def bam_store(bamfile):
     return reads, reads_r
 
 
-def contrast_stores(bam1_store_r, bam2_store):
-    for target, reads in bam1_store_r.iteritems():
+def contrast_stores(bed1_store_r, bed2_store):
+    for target, reads in bed1_store_r.iteritems():
         nreads = len(reads)
         if nreads < 3:
             continue
-        bam2_targets = Counter(bam2_store.get(r) for r in reads)
-        print target, nreads, bam2_targets, len(bam2_targets)
+        bed2_targets = Counter(bed2_store.get(r) for r in reads)
+        print target, nreads, bed2_targets, len(bed2_targets)
 
 
 def track(args):
     """
-    %prog track bam1 bam2
+    %prog track bed1 bed2
 
     Track and contrast read mapping in two bam files.
     """
@@ -102,11 +97,11 @@ def track(args):
     if len(args) != 2:
         sys.exit(not p.print_help())
 
-    bam1, bam2 = args
-    bam1_store, bam1_store_r = bam_store(bam1)
-    bam2_store, bam2_store_r = bam_store(bam2)
-    contrast_stores(bam1_store_r, bam2_store)
-    contrast_stores(bam2_store_r, bam1_store)
+    bed1, bed2 = args
+    bed1_store, bed1_store_r = bed_store(bed1)
+    bed2_store, bed2_store_r = bed_store(bed2)
+    contrast_stores(bed1_store_r, bed2_store)
+    contrast_stores(bed2_store_r, bed1_store)
 
 
 def resolve(args):

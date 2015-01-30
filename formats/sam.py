@@ -116,6 +116,7 @@ def get_samfile(readfile, dbfile, bam=False, mapped=False,
 def main():
 
     actions = (
+        ('bed', 'convert bam files to bed'),
         ('pair', 'parse sam file and get pairs'),
         ('pairs', 'print paired-end reads from BAM file'),
         ('chimera', 'parse sam file from `bwasw` and list multi-hit reads'),
@@ -132,6 +133,25 @@ def main():
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def bed(args):
+    """
+    %prog bed bedfile bamfiles
+
+    Convert bam files to bed.
+    """
+    p = OptionParser(bed.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) < 2:
+        sys.exit(not p.print_help())
+
+    bedfile = args[0]
+    bamfiles = args[1:]
+    for bamfile in bamfiles:
+        cmd = "bamToBed -i {0}".format(bamfile)
+        sh(cmd, outfile=bedfile, append=True)
 
 
 def merge(args):

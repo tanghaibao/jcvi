@@ -916,8 +916,9 @@ def fastaFromBed(bedfile, fastafile, name=False, stranded=False):
     return outfile
 
 
-def mergeBed(bedfile, d=0, nms=False, s=False, scores=None):
-    sort([bedfile, "-i"])
+def mergeBed(bedfile, d=0, sorted=False, nms=False, s=False, scores=None):
+    if not sorted:
+        sort([bedfile, "-i"])
     cmd = "mergeBed -i {0}".format(bedfile)
     if d:
         cmd += " -d {0}".format(d)

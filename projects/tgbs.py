@@ -9,10 +9,12 @@ import os.path as op
 import logging
 import sys
 
+from collections import defaultdict
 from itertools import combinations
 
 from jcvi.formats.fasta import Fasta
 from jcvi.formats.base import must_open
+from jcvi.formats.bed import Bed
 from jcvi.utils.counter import Counter
 from jcvi.apps.cdhit import uclust, deduplicate
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh, iglob
@@ -56,9 +58,55 @@ def main():
         ('novo', 'reference-free tGBS pipeline'),
         ('resolve', 'separate repeats on collapsed contigs'),
         ('count', 'count the number of reads in all clusters'),
+        ('track', 'track and contrast read mapping in two bam files'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def bam_store(bamfile):
+    bedfile = bamfile.replace(".bam", ".bed")
+    if need_update(bamfile, bedfile):
+        cmd = "bamToBed -i {0}".format(bamfile)
+        cmd += " | mergeBed -i stdin -s -c 4 -o collapse"
+        sh(cmd, outfile=bedfile)
+
+    bed = Bed(bedfile)
+    reads, reads_r = {}, defaultdict(list)
+    for b in bed:
+        target = "{0}:{1}".format(b.seqid, b.start)
+        for accn in b.accn.split(","):
+            reads[accn] = target
+            reads_r[target].append(accn)
+    return reads, reads_r
+
+
+def contrast_stores(bam1_store_r, bam2_store):
+    for target, reads in bam1_store_r.iteritems():
+        nreads = len(reads)
+        if nreads < 3:
+            continue
+        bam2_targets = Counter(bam2_store.get(r) for r in reads)
+        print target, nreads, bam2_targets, len(bam2_targets)
+
+
+def track(args):
+    """
+    %prog track bam1 bam2
+
+    Track and contrast read mapping in two bam files.
+    """
+    p = OptionParser(track.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    bam1, bam2 = args
+    bam1_store, bam1_store_r = bam_store(bam1)
+    bam2_store, bam2_store_r = bam_store(bam2)
+    contrast_stores(bam1_store_r, bam2_store)
+    contrast_stores(bam2_store_r, bam1_store)
 
 
 def resolve(args):

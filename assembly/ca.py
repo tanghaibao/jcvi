@@ -13,15 +13,13 @@ import os.path as op
 import sys
 import logging
 
-from collections import defaultdict
-
 from Bio import SeqIO
 
 from jcvi.formats.base import must_open
-from jcvi.formats.fasta import Fasta, SeqRecord
+from jcvi.formats.fasta import Fasta, SeqRecord, filter, parse_fasta
 from jcvi.formats.blast import Blast
+from jcvi.utils.cbook import fill
 from jcvi.utils.range import range_minmax
-from jcvi.utils.table import tabulate
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update, \
             glob, get_abs_path
 
@@ -36,7 +34,6 @@ def main():
         ('fastq', 'convert Illumina reads to frg file'),
         ('shred', 'shred contigs into pseudo-reads'),
         ('astat', 'generate the coverage-rho scatter plot'),
-        ('script', 'create gatekeeper script file to remove or add mates'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -46,7 +43,7 @@ frgTemplate = '''{{FRG
 act:A
 acc:{fragID}
 rnd:1
-sta:G
+sta:X
 lib:{libID}
 pla:0
 loc:0
@@ -70,20 +67,33 @@ ver:2
 act:A
 acc:{libID}
 ori:U
-mea:0.0
-std:0.0
+mea:0.000
+std:0.000
 src:
 .
-nft:4
+nft:17
 fea:
+forceBOGunitigger=1
+isNotRandom=0
+doNotTrustHomopolymerRuns=0
+doTrim_initialNone=1
+doTrim_initialMerBased=0
+doTrim_initialFlowBased=0
 doTrim_initialQualityBased=0
+doRemoveDuplicateReads=1
+doTrim_finalLargestCovered=1
 doTrim_finalEvidenceBased=0
-doRemoveSpurReads=0
-doRemoveChimericReads=0
+doTrim_finalBestEdge=0
+doRemoveSpurReads=1
+doRemoveChimericReads=1
+doCheckForSubReads=0
+doConsensusCorrection=0
+forceShortReadFormat=0
+constantInsertSize=0
 .
 }}'''
 
-DEFAULTQV = chr(ord('0') + 13)  # To pass initialTrim
+DEFAULTQV = 'l'  # To pass initialTrim
 
 
 def astat(args):
@@ -181,7 +191,7 @@ def emitFragment(fw, fragID, libID, shredded_seq, fasta=False):
     qvs = DEFAULTQV * slen  # shredded reads have default low qv
 
     print >> fw, frgTemplate.format(fragID=fragID, libID=libID,
-        seq=seq, qvs=qvs, slen=slen)
+        seq=fill(seq), qvs=fill(qvs), slen=slen)
 
 
 def shred(args):
@@ -280,60 +290,6 @@ def shred(args):
     return outfile
 
 
-def script(args):
-    """
-    %prog script bfs_rfs libs
-
-    `bfs_rfs` contains the joined results from Brian's `classifyMates`. We want
-    to keep the RFS result (but not in the BFS result) to retain actual MP. Libs
-    contain a list of lib iids, use comma to separate, e.g. "9,10,11".
-    """
-    p = OptionParser(script.__doc__)
-
-    opts, args = p.parse_args(args)
-    if len(args) != 2:
-        sys.exit(p.print_help())
-
-    fsfile, libs = args
-    libs = [int(x) for x in libs.split(",")]
-    fp = open(fsfile)
-    not_found = ("limited", "exhausted")
-    counts = defaultdict(int)
-    pe, mp = 0, 0
-    both, noidea = 0, 0
-    total = 0
-
-    for i in libs:
-        print "lib iid {0} allfragsunmated 1".format(i)
-
-    for row in fp:
-        frgiid, bfs, rfs = row.split()
-        bfs = (bfs not in not_found)
-        rfs = (rfs not in not_found)
-        if bfs and (not rfs):
-            pe += 1
-        if rfs and (not bfs):
-            mp += 1
-            frgiid = int(frgiid)
-            mateiid = frgiid + 1
-            print "frg iid {0} mateiid {1}".format(frgiid, mateiid)
-            print "frg iid {0} mateiid {1}".format(mateiid, frgiid)
-        if bfs and rfs:
-            both += 1
-        if (not bfs) and (not rfs):
-            noidea += 1
-        total += 1
-
-    assert pe + mp + both + noidea == total
-    counts[("PE", "N")] = pe
-    counts[("MP", "N")] = mp
-    counts[("Both", "N")] = both
-    counts[("No Idea", "N")] = noidea
-
-    table = tabulate(counts)
-    print >> sys.stderr, table
-
-
 def tracedb(args):
     """
     %prog tracedb <xml|lib|frg>
@@ -393,8 +349,6 @@ get_mean_sv = lambda size: (size, size / 5)
 
 
 def split_fastafile(fastafile, maxreadlen=32000):
-    from jcvi.formats.fasta import filter
-
     pf = fastafile.split(".")[0]
     smallfastafile = pf + "-small.fasta"
     bigfastafile = pf + "-big.fasta"
@@ -422,10 +376,15 @@ def fasta(args):
     from jcvi.formats.fasta import clean, make_qual
 
     p = OptionParser(fasta.__doc__)
-    p.add_option("-m", dest="matefile", default=None,
-            help="matepairs file")
-    p.add_option("--maxreadlen", default=32000, type="int",
-            help="Maximum read length allowed [default: %default]")
+    p.add_option("--clean", default=False, action="store_true",
+                 help="Clean up irregular chars in seq")
+    p.add_option("--matefile", help="Matepairs file")
+    p.add_option("--maxreadlen", default=0, type="int",
+                 help="Maximum read length allowed")
+    p.add_option("--minreadlen", default=500, type="int",
+                 help="Minimum read length allowed")
+    p.add_option("--readname", default=False, action="store_true",
+                 help="Keep read name (e.g. long Pacbio name)")
     p.set_size()
     opts, args = p.parse_args(args)
 
@@ -434,14 +393,15 @@ def fasta(args):
 
     fastafile, = args
     maxreadlen = opts.maxreadlen
-    f = Fasta(fastafile, lazy=True)
+    minreadlen = opts.minreadlen
     if maxreadlen > 0:
         split = False
+        f = Fasta(fastafile, lazy=True)
         for id, size in f.itersizes_ordered():
             if size > maxreadlen:
                 logging.debug("Sequence {0} (size={1}) longer than max read len {2}".\
                                 format(id, size, maxreadlen))
-                split  = True
+                split = True
                 break
 
         if split:
@@ -457,30 +417,50 @@ def fasta(args):
     if mated:
         libname = "Sanger{0}Kb-".format(opts.size / 1000) + plate
     else:
-        libname = "SangerFrags-" + plate
+        libname = plate
 
     frgfile = libname + ".frg"
 
-    cleanfasta = fastafile.rsplit(".", 1)[0] + ".clean.fasta"
-    if need_update(fastafile, cleanfasta):
-        clean([fastafile, "--canonical", "-o", cleanfasta])
-    fastafile = cleanfasta
+    if opts.clean:
+        cleanfasta = fastafile.rsplit(".", 1)[0] + ".clean.fasta"
+        if need_update(fastafile, cleanfasta):
+            clean([fastafile, "--canonical", "-o", cleanfasta])
+        fastafile = cleanfasta
 
-    qualfile = make_qual(fastafile, score=21)
     if mated:
+        qualfile = make_qual(fastafile, score=21)
         if opts.matefile:
             matefile = opts.matefile
             assert op.exists(matefile)
         else:
             matefile = make_matepairs(fastafile)
 
-    cmd = "convert-fasta-to-v2.pl"
-    cmd += " -l {0} -s {1} -q {2} ".\
-            format(libname, fastafile, qualfile)
-    if mated:
-        cmd += "-mean {0} -stddev {1} -m {2} ".format(mean, sv, matefile)
+        cmd = "convert-fasta-to-v2.pl"
+        cmd += " -l {0} -s {1} -q {2} ".format(libname, fastafile, qualfile)
+        if mated:
+            cmd += "-mean {0} -stddev {1} -m {2} ".format(mean, sv, matefile)
 
-    sh(cmd, outfile=frgfile)
+        sh(cmd, outfile=frgfile)
+        return
+
+    fw = must_open(frgfile, "w")
+    print >> fw, headerTemplate.format(libID=libname)
+
+    sequential = not opts.readname
+    f = Fasta(fastafile, lazy=True)
+    i = j = 0
+    for fragID, seq in parse_fasta(fastafile):
+        if len(seq) < minreadlen:
+            j += 1
+            continue
+        i += 1
+        if sequential:
+            fragID = str(100000000000 + i)
+        emitFragment(fw, fragID, libname, seq)
+    fw.close()
+
+    logging.debug("A total of {0} fragments written to `{1}` ({2} discarded).".\
+                    format(i, frgfile, j))
 
 
 def sff(args):
@@ -606,7 +586,6 @@ def clr(args):
         sizes.update(f.itersizes())
 
     b = Blast(blastfile)
-    seen = set()
     for query, hits in b.iter_hits():
 
         qsize = sizes[query]

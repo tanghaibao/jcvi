@@ -544,12 +544,11 @@ def parse_fasta(infile):
         # drop '>'
         header = header.strip()[1:]
         # stitch the sequence lines together and make into upper case
-        seq = "".join(s.strip().upper() for s in fa_iter.next())
+        seq = "".join(s.strip() for s in fa_iter.next()).upper()
         yield header, seq
 
 
 def iter_clean_fasta(fastafile):
-    import string
     for header, seq in parse_fasta(fastafile):
         seq = "".join(x for x in seq if x in string.letters or x == '*')
         yield header, seq
@@ -559,7 +558,6 @@ def iter_canonical_fasta(fastafile):
     canonical = "ACGTN"
     totalbad = 0
     for header, seq in parse_fasta(fastafile):
-        seq = seq.upper()
         badcounts = sum(1 for x in seq if x not in canonical)
         seq = "".join((x if x in canonical else 'N') for x in seq)
         totalbad += badcounts
@@ -1827,10 +1825,10 @@ def make_qual(fastafile, score=OKQUAL):
     qualfile = fastafile.rsplit(".", 1)[0] + ".qual"
     fw = open(qualfile, "w")
     fasta = Fasta(fastafile, lazy=True)
-    score = str(score)
+    score = str(score) + " "
     for entry, size in fasta.itersizes_ordered():
         print >> fw, ">" + entry
-        print >> fw, (score + " ") * size
+        print >> fw, score * size
     fw.close()
     return qualfile
 

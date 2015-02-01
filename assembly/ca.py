@@ -381,7 +381,7 @@ def fasta(args):
     p.add_option("--matefile", help="Matepairs file")
     p.add_option("--maxreadlen", default=0, type="int",
                  help="Maximum read length allowed")
-    p.add_option("--minreadlen", default=500, type="int",
+    p.add_option("--minreadlen", default=1000, type="int",
                  help="Minimum read length allowed")
     p.add_option("--readname", default=False, action="store_true",
                  help="Keep read name (e.g. long Pacbio name)")
@@ -417,7 +417,7 @@ def fasta(args):
     if mated:
         libname = "Sanger{0}Kb-".format(opts.size / 1000) + plate
     else:
-        libname = plate
+        libname = plate[:2].upper()
 
     frgfile = libname + ".frg"
 
@@ -455,7 +455,7 @@ def fasta(args):
             continue
         i += 1
         if sequential:
-            fragID = str(100000000000 + i)
+            fragID = libname + str(100000000 + i)
         emitFragment(fw, fragID, libname, seq)
     fw.close()
 

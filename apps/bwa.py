@@ -79,9 +79,8 @@ def align(args):
     """
     valid_modes = ("bwasw", "aln", "mem")
     p = OptionParser(align.__doc__)
-    p.add_option("--mode", default="mem", choices=valid_modes,
-                 help="BWA mode [default: %default]")
-    p.add_option("--readtype", choices=("pacbio", "pbread"),
+    p.add_option("--mode", default="mem", choices=valid_modes, help="BWA mode")
+    p.add_option("--readtype", choices=("pacbio", "pbread", "ont2d", "intractg"),
                  help="Read type in bwa-mem")
     p.set_cutoff(cutoff=800)
     p.set_sam_options()

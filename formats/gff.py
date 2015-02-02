@@ -882,6 +882,8 @@ def format(args):
                 " [default: %default]")
     g3.add_option("--gsac", default=False, action="store_true",
                  help="Fix GSAC GFF3 file attributes [default: %default]")
+    g3.add_option("--gff3", default=False, action="store_true",
+                 help="Print output in GFF3 format [default: %default]")
     g3.add_option("--make_gff_store", default=False, action="store_true",
                  help="Store entire GFF file in memory during first iteration [default: %default]")
     p.add_option_group(g3)
@@ -1139,7 +1141,7 @@ def format(args):
                     fix_gsac(g, notes)
                 print >> fw, g
         else:
-            g.update_attributes()
+            g.update_attributes(gff3=opts.gff3)
             if gsac:
                 fix_gsac(g, notes)
             if duptype == g.type and skip[(g.idx, id, g.start, g.end)] == 1:
@@ -1215,13 +1217,19 @@ def match_Nth_child(f1c, f2c, N=1, slop=False):
     i = N - 1
     f1, f2 = f1c[i], f2c[i]
 
-    if slop == True:
-        if N == 1:
-            return (f1.stop == f2.stop) if f1.strand == '+' \
-                    else (f1.start == f2.start)
-        elif N == len(f1c):
-            return (f1.start == f2.start) if f1.strand == '+' \
-                    else (f1.stop == f2.stop)
+    if slop:
+        if 1 == len(f1c):
+            if f1.strand == '+':
+                Npos = "F" if f1.featuretype.startswith('five_prime') else "L"
+            elif f1.strand == '-':
+                Npos = "L" if f1.featuretype.startswith('five_prime') else "F"
+        elif N == 1: Npos = "F"
+        elif N == len(f1c): Npos = "L"
+
+        if Npos == "F":
+            return f1.stop == f2.stop
+        elif Npos == "L":
+            return f1.start == f2.start
 
     return match_span(f1, f2)
 

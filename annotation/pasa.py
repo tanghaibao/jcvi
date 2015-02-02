@@ -313,6 +313,7 @@ def consolidate(args):
     iterate through every gene locus and identify all cases of same and
     different isoforms across the different input datasets.
     """
+    from jcvi.formats.base import longest_unique_prefix
     from jcvi.formats.gff import make_index
     from jcvi.utils.cbook import AutoVivification
     from jcvi.utils.grouper import Grouper
@@ -331,19 +332,25 @@ def consolidate(args):
         sys.exit(not p.print_help())
 
     gffdbx = {}
+    gene_coords = {}
     mrna = AutoVivification()
     for gffile in args:
-        dbn = gffile.rsplit(".", 1)[0]
+        dbn = longest_unique_prefix(gffile, args)
         gffdbx[dbn] = make_index(gffile)
         for gene in gffdbx[dbn].features_of_type('gene', order_by=('seqid', 'start')):
+            if gene.id not in gene_coords:
+                gene_coords[gene.id] = []
+            gene_coords[gene.id].extend([gene.start, gene.stop])
+
             c = list(gffdbx[dbn].children(gene, featuretype='mRNA', order_by='start'))
             if len(c) > 0:
-                mrna[gene][dbn] = c
+                mrna[gene.id][dbn] = c
 
     fw = must_open(opts.outfile, "w")
-    outln = ["id"]
-    outln.extend(gffdbx.keys())
-    print >> fw, "\t".join(str(x) for x in outln)
+    print >> fw, "##gff-version	3"
+    summary = ["id"]
+    summary.extend(gffdbx.keys())
+    print >> sys.stderr, "\t".join(str(x) for x in summary)
     for gene in mrna:
         g = Grouper()
         dbns = list(combinations(mrna[gene], 2))
@@ -367,15 +374,40 @@ def consolidate(args):
                 for mrna1 in mrna[gene][dbn1]:
                     g.join((dbn1, mrna1.id))
 
-        print >> sys.stderr, list(g)
+        dbn = mrna[gene].keys()[0]
+        gene_coords[gene].sort()
+        _gene = gffdbx[dbn][gene]
+        _gene.start, _gene.stop = gene_coords[gene][0], gene_coords[gene][-1]
+        print >> fw, _gene
+
+        logging.debug(list(g))
         for group in g:
-            outln = []
-            outln.append("_".join(str(m) for m in set([elem[1] for elem in group])))
-            dbn = set([elem[0] for elem in group])
-            for db in gffdbx:
-                d = 'Y' if db in dbn else 'N'
-                outln.append(d)
-            print >> fw, "\t".join(str(x) for x in outln)
+            dbs, mrnas = [el[0] for el in group], [el[1] for el in group]
+            d, m = dbs[0], mrnas[0]
+            if slop:
+                mlen = 0
+                for D, M in zip(dbs, mrnas):
+                    _mrna = gffdbx[D][M]
+                    _mlen = (_mrna.stop - _mrna.start) + 1
+                    if _mlen > mlen:
+                        d, m, mlen = D, M, _mlen
+
+            dbid, _mrnaid = "".join(str(x) for x in set(dbs)), []
+            _mrnaid = [x for x in mrnas if x not in _mrnaid]
+            mrnaid = "{0}:{1}".format(dbid, "-".join(_mrnaid))
+
+            _mrna = gffdbx[d][m]
+            _mrna.attributes['ID'] = [mrnaid]
+            children = gffdbx[d].children(m, order_by='start')
+            print >> fw, _mrna
+            for child in children:
+                child.attributes['ID'] = ["{0}:{1}".format(dbid, child.id)]
+                child.attributes['Parent'] = [mrnaid]
+                print >> fw, child
+
+            summary = [mrnaid]
+            summary.extend(['Y' if db in set(dbs) else 'N' for db in gffdbx])
+            print >> sys.stderr, "\t".join(str(x) for x in summary)
 
     fw.close()
 
@@ -384,13 +416,17 @@ def match_subfeats(f1, f2, dbx1, dbx2, featuretype='CDS', slop=False):
     from jcvi.formats.gff import match_span, match_nchildren, \
             match_Nth_child
 
-    f1c, f2c = list(dbx1.children(f1, featuretype=featuretype)), \
-            list(dbx2.children(f2, featuretype=featuretype))
+    f1c, f2c = list(dbx1.children(f1, featuretype=featuretype, order_by='start')), \
+            list(dbx2.children(f2, featuretype=featuretype, order_by='start'))
 
     if len(f1c) > 0 and len(f2c) > 0:
         if match_nchildren(f1c, f2c):
             if featuretype.endswith('UTR'):
-                n = 1 if featuretype.startswith('five_prime') else len(f1c)
+                if featuretype.startswith('five_prime'):
+                    n = 1 if f1.strand == "+" else len(f1c)
+                else:
+                    n = len(f1c) if f1.strand == "+" else 1
+
                 if match_Nth_child(f1c, f2c, N=n, slop=slop):
                     del f1c[n-1], f2c[n-1]
                 else:

@@ -407,46 +407,5 @@ def consolidate(args):
     fw.close()
 
 
-def match_subfeats(f1, f2, dbx1, dbx2, featuretype='CDS', slop=False):
-    """
-    Given 2 gffutils features located in 2 separate gffutils databases,
-    iterate through all subfeatures of a certain type and check whether
-    they are identical or not
-
-    The `slop` parameter allows for variation in the terminal UTR region
-    """
-    f1c, f2c = list(dbx1.children(f1, featuretype=featuretype, order_by='start')), \
-            list(dbx2.children(f2, featuretype=featuretype, order_by='start'))
-
-    lf1c, lf2c = len(f1c), len(f2c)
-    if lf1c > 0 and lf2c > 0:
-        if match_nchildren(f1c, f2c):
-            if featuretype.endswith('UTR'):
-                if featuretype.startswith('five_prime'):
-                    n = 1 if f1.strand == "+" else lf1c
-                else:
-                    n = lf1c if f1.strand == "+" else 1
-
-                if match_Nth_child(f1c, f2c, N=n, slop=slop):
-                    del f1c[n-1], f2c[n-1]
-                else:
-                    return False
-
-            for cf1, cf2 in zip(f1c, f2c):
-                if not match_span(cf1, cf2):
-                    return False
-
-        else:
-            return False
-    else:
-        if (lf1c, lf2c) in [(0, 1), (1, 0)] and slop \
-                and featuretype.endswith('UTR'):
-            return True
-
-        return False
-
-    return True
-
-
 if __name__ == '__main__':
     main()

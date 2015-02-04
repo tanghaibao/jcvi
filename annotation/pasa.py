@@ -314,7 +314,7 @@ def consolidate(args):
     different isoforms across the different input datasets.
     """
     from jcvi.formats.base import longest_unique_prefix
-    from jcvi.formats.gff import make_index
+    from jcvi.formats.gff import make_index, match_subfeats
     from jcvi.utils.cbook import AutoVivification
     from jcvi.utils.grouper import Grouper
     from itertools import combinations, product
@@ -356,23 +356,24 @@ def consolidate(args):
         dbns = list(combinations(mrna[gene], 2))
         if len(dbns) > 0:
             for dbn1, dbn2 in dbns:
+                dbx1, dbx2 = gffdbx[dbn1], gffdbx[dbn2]
                 for mrna1, mrna2 in product(mrna[gene][dbn1], mrna[gene][dbn2]):
-                    g.join((dbn1, mrna1.id))
-                    g.join((dbn2, mrna2.id))
+                    mrna1s, mrna2s = mrna1.stop - mrna1.start + 1, \
+                            mrna2.stop - mrna2.start + 1
+                    g.join((dbn1, mrna1.id, mrna1s))
+                    g.join((dbn2, mrna2.id, mrna2s))
 
-                    fUTR, tUTR = None, None
-                    if match_subfeats(mrna1, mrna2, gffdbx[dbn1], gffdbx[dbn2]):
-                        fUTR = match_subfeats(mrna1, mrna2, gffdbx[dbn1], gffdbx[dbn2], \
-                                featuretype='five_prime_UTR', slop=slop)
-                        tUTR = match_subfeats(mrna1, mrna2, gffdbx[dbn1], gffdbx[dbn2], \
-                                featuretype='three_prime_UTR', slop=slop)
+                    if match_subfeats(mrna1, mrna2, dbx1, dbx2):
+                        res = []
+                        for ftype in ('five_prime_UTR', 'three_prime_UTR'):
+                            res.append(match_subfeats(mrna1, mrna2, dbx1, dbx2, featuretype=ftype, slop=slop))
 
-                    if fUTR and tUTR:
-                        g.join((dbn1, mrna1.id), (dbn2, mrna2.id))
+                        if all(r == True for r in res):
+                            g.join((dbn1, mrna1.id, mrna1s), (dbn2, mrna2.id, mrna2s))
         else:
             for dbn1 in mrna[gene]:
                 for mrna1 in mrna[gene][dbn1]:
-                    g.join((dbn1, mrna1.id))
+                    g.join((dbn1, mrna1.id, mrna1.stop - mrna1.start + 1))
 
         dbn = mrna[gene].keys()[0]
         gene_coords[gene].sort()
@@ -381,15 +382,9 @@ def consolidate(args):
         print >> fw, _gene
 
         for group in g:
+            group.sort(key=lambda x: x[2], reverse=True)
             dbs, mrnas = [el[0] for el in group], [el[1] for el in group]
             d, m = dbs[0], mrnas[0]
-            if slop:
-                mlen = 0
-                for D, M in zip(dbs, mrnas):
-                    _mrna = gffdbx[D][M]
-                    _mlen = (_mrna.stop - _mrna.start) + 1
-                    if _mlen > mlen:
-                        d, m, mlen = D, M, _mlen
 
             dbid, _mrnaid = "".join(str(x) for x in set(dbs)), []
             for x in mrnas:
@@ -413,19 +408,24 @@ def consolidate(args):
 
 
 def match_subfeats(f1, f2, dbx1, dbx2, featuretype='CDS', slop=False):
-    from jcvi.formats.gff import match_span, match_nchildren, \
-            match_Nth_child
+    """
+    Given 2 gffutils features located in 2 separate gffutils databases,
+    iterate through all subfeatures of a certain type and check whether
+    they are identical or not
 
+    The `slop` parameter allows for variation in the terminal UTR region
+    """
     f1c, f2c = list(dbx1.children(f1, featuretype=featuretype, order_by='start')), \
             list(dbx2.children(f2, featuretype=featuretype, order_by='start'))
 
-    if len(f1c) > 0 and len(f2c) > 0:
+    lf1c, lf2c = len(f1c), len(f2c)
+    if lf1c > 0 and lf2c > 0:
         if match_nchildren(f1c, f2c):
             if featuretype.endswith('UTR'):
                 if featuretype.startswith('five_prime'):
-                    n = 1 if f1.strand == "+" else len(f1c)
+                    n = 1 if f1.strand == "+" else lf1c
                 else:
-                    n = len(f1c) if f1.strand == "+" else 1
+                    n = lf1c if f1.strand == "+" else 1
 
                 if match_Nth_child(f1c, f2c, N=n, slop=slop):
                     del f1c[n-1], f2c[n-1]
@@ -438,6 +438,12 @@ def match_subfeats(f1, f2, dbx1, dbx2, featuretype='CDS', slop=False):
 
         else:
             return False
+    else:
+        if (lf1c, lf2c) in [(0, 1), (1, 0)] and slop \
+                and featuretype.endswith('UTR'):
+            return True
+
+        return False
 
     return True
 

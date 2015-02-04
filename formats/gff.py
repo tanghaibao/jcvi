@@ -1141,6 +1141,8 @@ def format(args):
                     fix_gsac(g, notes)
                 print >> fw, g
         else:
+            if g.gff3 and not opts.gff3:
+                opts.gff3 = True
             g.update_attributes(gff3=opts.gff3)
             if gsac:
                 fix_gsac(g, notes)
@@ -1392,13 +1394,12 @@ def uniq(args):
         for x in results:
             bestids.add(x)
 
-    populate_children(opts.outfile, bestids, gffile, opts.type, iter=opts.iter)
+    populate_children(opts.outfile, bestids, gffile, iter=opts.iter)
 
 
-def populate_children(outfile, ids, gffile, otype=None, iter="2"):
+def populate_children(outfile, ids, gffile, iter="2"):
     fw = must_open(outfile, "w")
-    otype = otype or 'null'
-    logging.debug("A total of {0} {1} features selected.".format(len(ids), otype))
+    logging.debug("A total of {0} features selected.".format(len(ids)))
     logging.debug("Populate children. Iteration 1..")
     gff = Gff(gffile)
     children = set()

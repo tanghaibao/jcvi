@@ -36,8 +36,13 @@ def prepare(args):
 
     By default, prepare script for DN
 
-    If genome.fasta is provided, prepare script for GG
-    If coord-sorted BAM is provided, then it will use it as starting point
+    If genome.fasta is provided, prepare script for GG-Trinity.
+    If coord-sorted BAM is provided, then it will use it as starting point.
+
+    Since GG-Trinity jobs are partitioned DN-Trinity jobs run on relatively small
+    regions, lesser amount of CPU can be specified for each DN job using `--gg_cpu`
+    In such cases, the `--cpu` should be set to a larger value to help speedup
+    upstream steps such as GSNAP read mapping or coordinate sorting of BAM files.
 
     Newer versions of trinity can take multiple fastq files as input.
     If "--merge" is specified, the fastq files are merged together before assembling
@@ -63,6 +68,7 @@ def prepare(args):
     merge = opts.merge
     thome = opts.trinity_home
     use_bam = opts.use_bam
+    gg_cpu = opts.gg_cpu
 
     pf = inparam.split(".")[0]
     tfolder = "{0}_{1}".format(pf, method)
@@ -99,6 +105,8 @@ def prepare(args):
         cmd += " --genome {0} --genome_guided_max_intron {1}".format(genome, opts.max_intron)
         if use_bam:
             cmd += " --genome_guided_use_bam {0}".format(use_bam)
+        if gg_cpu:
+            cmd += " --genome_guided_CPU {0}".format(gg_cpu)
     if opts.grid and opts.grid_conf_file:
         cmd += " --grid_conf_file={0}".format(opts.grid_conf_file)
 

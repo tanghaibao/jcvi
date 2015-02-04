@@ -380,7 +380,6 @@ def consolidate(args):
         _gene.start, _gene.stop = gene_coords[gene][0], gene_coords[gene][-1]
         print >> fw, _gene
 
-        logging.debug(list(g))
         for group in g:
             dbs, mrnas = [el[0] for el in group], [el[1] for el in group]
             d, m = dbs[0], mrnas[0]
@@ -393,7 +392,8 @@ def consolidate(args):
                         d, m, mlen = D, M, _mlen
 
             dbid, _mrnaid = "".join(str(x) for x in set(dbs)), []
-            _mrnaid = [x for x in mrnas if x not in _mrnaid]
+            for x in mrnas:
+                if x not in _mrnaid: _mrnaid.append(x)
             mrnaid = "{0}:{1}".format(dbid, "-".join(_mrnaid))
 
             _mrna = gffdbx[d][m]

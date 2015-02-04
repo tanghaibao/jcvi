@@ -449,6 +449,10 @@ class OptionParser (OptionP):
                           " [default: %default]")
         ggopts.add_option("--max_intron", default=2000, type="int",
                      help="maximum allowed intron length [default: %default]")
+        ggopts.add_option("--gg_cpu", default=None, type="int",
+                     help="set number of threads for individual GG-Trinity" + \
+                          " commands. if not defined, inherits from `--cpu`" + \
+                          " [default: %default]")
 
     def set_pasa_opts(self, action="assemble"):
         self.set_home("pasa")

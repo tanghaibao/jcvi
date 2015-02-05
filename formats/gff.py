@@ -1248,8 +1248,8 @@ def match_subfeats(f1, f2, dbx1, dbx2, featuretype='CDS', slop=False):
             list(dbx2.children(f2, featuretype=featuretype, order_by='start'))
 
     lf1c, lf2c = len(f1c), len(f2c)
-    if lf1c > 0 and lf2c > 0:
-        if match_nchildren(f1c, f2c):
+    if match_nchildren(f1c, f2c):
+        if lf1c > 0 and lf2c > 0:
             if featuretype.endswith('UTR'):
                 if featuretype.startswith('five_prime'):
                     n = 1 if f1.strand == "+" else lf1c
@@ -1264,9 +1264,6 @@ def match_subfeats(f1, f2, dbx1, dbx2, featuretype='CDS', slop=False):
             for cf1, cf2 in zip(f1c, f2c):
                 if not match_span(cf1, cf2):
                     return False
-
-        else:
-            return False
     else:
         if (lf1c, lf2c) in [(0, 1), (1, 0)] and slop \
                 and featuretype.endswith('UTR'):

@@ -6,6 +6,7 @@ Wrapper for mummerplot. Selecting a subset of queries and references to plot
 main features in the dot plot.
 """
 
+import os.path as op
 import sys
 import logging
 
@@ -26,12 +27,13 @@ def writeXfile(ids, dict, filename):
 
 def main(args):
     """
-    %prog deltafile refidsfile query.fasta ref.fasta
+    %prog deltafile query.fasta ref.fasta
 
     Plot one query. Extract the references that have major matches to this
     query. Control "major" by option --refcov.
     """
     p = OptionParser(main.__doc__)
+    p.add_option("--refids", help="Use subset of contigs in the ref")
     p.add_option("--refcov", default=.01, type="float",
                  help="Minimum reference coverage [default: %default]")
     p.add_option("--all", default=False, action="store_true",
@@ -39,13 +41,15 @@ def main(args):
     p.set_align(pctid=96, hitlen=500)
     opts, args = p.parse_args(args)
 
-    if len(args) != 4:
+    if len(args) != 3:
         sys.exit(not p.print_help())
 
-    deltafile, refidsfile, queryfasta, reffasta = args
+    deltafile, queryfasta, reffasta = args
+    prefix = op.basename(deltafile).split(".")[0]
     qsizes = Sizes(queryfasta).mapping
     rsizes = Sizes(reffasta).mapping
-    refs = SetFile(refidsfile)
+
+    refs = SetFile(opts.refids) if opts.refids else set(rsizes.keys())
     refcov = opts.refcov
     pctid = opts.pctid
     hitlen = opts.hitlen
@@ -54,14 +58,15 @@ def main(args):
 
     if opts.all:
         for r in refs:
-            pdffile = plot_some_queries([r], qsizes, rsizes, deltafile, refcov)
+            pdffile = plot_some_queries([r], qsizes, rsizes, \
+                                        deltafile, refcov, prefix=prefix)
             if pdffile:
                 sh("mv {0} {1}.pdf".format(pdffile, r))
     else:
-        plot_some_queries(refs, qsizes, rsizes, deltafile, refcov)
+        plot_some_queries(refs, qsizes, rsizes, deltafile, refcov, prefix=prefix)
 
 
-def plot_some_queries(refs, qsizes, rsizes, deltafile, refcov):
+def plot_some_queries(refs, qsizes, rsizes, deltafile, refcov, prefix="out"):
 
     Qfile, Rfile = "Qfile", "Rfile"
     coords = Coords(deltafile)
@@ -82,10 +87,9 @@ def plot_some_queries(refs, qsizes, rsizes, deltafile, refcov):
 
     cmd = "mummerplot {0}".format(deltafile)
     cmd += " -Rfile {0} -Qfile {1}".format(Rfile, Qfile)
-    cmd += " --postscript --layout"
+    cmd += " --postscript --layout -p {0}".format(prefix)
     sh(cmd)
 
-    prefix = "out"
     cmd = "ps2pdf {0}.ps {0}.pdf".format(prefix)
     sh(cmd)
 

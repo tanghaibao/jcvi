@@ -149,7 +149,7 @@ def blast(args):
     task_choices = ("blastn", "blastn-short", "dc-megablast", \
                     "megablast", "vecscreen")
     p = OptionParser(blast.__doc__)
-    p.set_align(pctid=None, evalue=.01)
+    p.set_align(pctid=0, evalue=.01)
     p.add_option("--wordsize", type="int", help="Word size [default: %default]")
     p.add_option("--best", default=1, type="int",
             help="Only look for best N hits [default: %default]")

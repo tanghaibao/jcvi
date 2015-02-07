@@ -1032,6 +1032,8 @@ def format(args):
     p.add_option("--ids", help="Generate ID conversion table [default: %default]")
     p.add_option("--upper", default=False, action="store_true",
             help="Convert sequence to upper case [default: %default]")
+    p.add_option("--nodesc", default=False, action="store_true",
+            help="Remove description after identifier")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -1049,6 +1051,7 @@ def format(args):
     idx = opts.index
     mapfile = opts.switch
     annotfile = opts.annotation
+    desc = not opts.nodesc
     idsfile = opts.ids
     idsfile = open(idsfile, "w") if idsfile else None
     upper = opts.upper
@@ -1102,7 +1105,7 @@ def format(args):
             rec.description = annotation.get(origid, "") if not mapfile \
                     else annotation.get(rec.id, "")
         else:
-            rec.description = description
+            rec.description = description if desc else ""
         if idsfile:
             print >> idsfile, "\t".join((origid, rec.id))
         if upper:

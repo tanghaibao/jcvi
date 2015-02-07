@@ -602,7 +602,8 @@ def get_module_docstring(filepath):
     return docstring
 
 
-def dmain(cwd):
+def dmain(mainfile):
+    cwd = op.dirname(mainfile)
     pyscripts = glob(op.join(cwd, "*.py"))
     actions = []
     for ps in sorted(pyscripts):

@@ -23,7 +23,7 @@ setup(
       package_dir={name: '.'},
       packages=[name] + ['.'.join((name, x)) for x in find_packages()],
       include_package_data=True,
-      data_files=[(name + '/utils/data', glob("utils/data/*"))],
+      package_data={"jcvi.utils.data": ["*.*"]},
       classifiers=classifiers,
       zip_safe=False,
       license='BSD',

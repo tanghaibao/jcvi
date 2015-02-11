@@ -7,6 +7,7 @@ Utilities for submitting PASA jobs and processing PASA results.
 
 import os
 import os.path as op
+from os import symlink
 import sys
 import logging
 
@@ -46,7 +47,7 @@ cDNA_annotation_comparer.dbi:--TRUST_FL_STATUS={10}
 cDNA_annotation_comparer.dbi:--MAX_UTR_EXONS={11}
 """
 
-tdn, tfasta = "tdn.accs", "transcripts.fasta"
+tdn, tfasta, gfasta = "tdn.accs", "transcripts.fasta", "genome.fasta"
 aaconf, acconf = "alignAssembly.conf", "annotCompare.conf"
 ALLOWED_ALIGNERS = ("blat", "gmap")
 
@@ -131,7 +132,8 @@ def assemble(args):
         write_file(runfile, accn_extract_cmd, append=True) \
                 if prepare else sh(accn_extract_cmd)
     else:
-        transcripts = dnfasta
+        symlink(dnfasta, tfasta)
+        transcripts = tfasta
 
     if opts.grid and not opts.threaded:
         opts.threaded = opts.cpus
@@ -149,7 +151,9 @@ def assemble(args):
             pctcov, pctid, bpsplice)
     aafw.close()
 
-    aacmd = "{0} -c {1} -C -R -g {2}".format(launch_pasa, aaconf, genome)
+    symlink(genome, gfasta)
+
+    aacmd = "{0} -c {1} -C -R -g {2}".format(launch_pasa, aaconf, gfasta)
     aacmd += " -t {0}.clean -T -u {0} ".format(transcripts) if clean else \
              " -t {0} ".format(transcripts)
     if ggfasta:

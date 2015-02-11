@@ -115,7 +115,7 @@ def genestats(args):
     distinct_groups = set(conf_classes.values())
     for g in distinct_groups:
         num_genes = num_single_exon_genes = num_multi_exon_genes = 0
-        num_genes_with_alts = num_transcripts = num_exons = 0
+        num_genes_with_alts = num_transcripts = num_exons = max_transcripts = 0
         cum_locus_size = cum_transcript_size = cum_exon_size = 0
         for gs in genes:
             if gs.conf_class != g:
@@ -128,6 +128,8 @@ def genestats(args):
             num_exons += gs.num_exons
             if gs.num_transcripts > 1:
                 num_genes_with_alts += 1
+            if gs.num_transcripts > max_transcripts:
+                max_transcripts = gs.num_transcripts
             num_transcripts += gs.num_transcripts
             cum_locus_size += gs.locus_size
             cum_transcript_size += gs.cum_transcript_size
@@ -150,6 +152,7 @@ def genestats(args):
         r[("Number of predicted transcripts", g)] = num_transcripts
         r[("Mean number of distinct exons per gene", g)] = mean_num_exons
         r[("Mean number of transcripts per gene", g)] = mean_num_transcripts
+        r[("Max number of transcripts per gene", g)] = max_transcripts
         r[("Mean gene locus size (first to last exon)", g)] = mean_locus_size
         r[("Mean transcript size (UTR, CDS)", g)] = mean_transcript_size
         r[("Mean exon size", g)] = mean_exon_size

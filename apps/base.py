@@ -463,6 +463,8 @@ class OptionParser (OptionP):
             self.set_align(pctid=95, pctcov=90, intron=2000, bpsplice=3)
             self.add_option("--aligners", default="blat,gmap",
                     help="Specify splice aligners to use for mapping [default: %default]")
+            self.add_option("--fl_accs", default=None, type="str",
+                    help="File containing list of FL-cDNA accessions [default: %default]")
             self.set_cpus()
             self.add_option("--compreh", default=False, action="store_true",
                     help="Run comprehensive transcriptome assembly [default: %default]")

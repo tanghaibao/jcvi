@@ -47,7 +47,8 @@ cDNA_annotation_comparer.dbi:--TRUST_FL_STATUS={10}
 cDNA_annotation_comparer.dbi:--MAX_UTR_EXONS={11}
 """
 
-tdn, tfasta, gfasta = "tdn.accs", "transcripts.fasta", "genome.fasta"
+tdn, flaccs = "tdn.accs", "FL_accs.txt"
+tfasta, gfasta = "transcripts.fasta", "genome.fasta"
 aaconf, acconf = "alignAssembly.conf", "annotCompare.conf"
 ALLOWED_ALIGNERS = ("blat", "gmap")
 
@@ -114,6 +115,7 @@ def assemble(args):
     build_compreh_trans = which(op.join(PASA_HOME, "scripts", \
             "build_comprehensive_transcriptome.dbi"))
 
+    fl_accs = opts.fl_accs
     cpus = opts.cpus
     grid = opts.grid
     prepare, runfile = opts.prepare, "run.sh"
@@ -156,6 +158,9 @@ def assemble(args):
     aacmd = "{0} -c {1} -C -R -g {2}".format(launch_pasa, aaconf, gfasta)
     aacmd += " -t {0}.clean -T -u {0} ".format(transcripts) if clean else \
              " -t {0} ".format(transcripts)
+    if fl_accs:
+        symlink(fl_accs, flaccs)
+        aacmd += " -f {0} ".format(flaccs)
     if ggfasta:
         aacmd += " --TDN {0} ".format(tdn)
     aacmd += " --ALIGNERS {0} -I {1} --CPU {2}".format(",".join(aligners), \

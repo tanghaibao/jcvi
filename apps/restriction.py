@@ -11,6 +11,7 @@ import logging
 from Bio.Restriction.Restriction import AllEnzymes, Analysis
 
 from jcvi.formats.fasta import Fasta, SeqRecord, SeqIO
+from jcvi.formats.base import must_open
 from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
@@ -18,9 +19,40 @@ def main():
 
     actions = (
         ('fragment', 'extract upstream and downstream seq of particular RE'),
+        ('digest', 'digest FASTA file to map restriction site positions'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def digest(args):
+    """
+    %prog digest fastafile NspI,BfuCI
+
+    Digest fasta sequences to map restriction site positions.
+    """
+    p = OptionParser(digest.__doc__)
+    p.set_outfile()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    fastafile, enzymes = args
+    enzymes = enzymes.split(",")
+    enzymes = [x for x in AllEnzymes if str(x) in enzymes]
+    f = Fasta(fastafile, lazy=True)
+    fw = must_open(opts.outfile, "w")
+
+    header = ["Contig", "Length"] + [str(x) for x in enzymes]
+    print >> fw, "\t".join(header)
+    for name, rec in f.iteritems_ordered():
+        row = [name, len(rec)]
+        for e in enzymes:
+            pos = e.search(rec.seq)
+            pos = "na" if not pos else "|".join(str(x) for x in pos)
+            row.append(pos)
+        print >> fw, "\t".join(str(x) for x in row)
 
 
 def extract_full(rec, sites, flank, fw):

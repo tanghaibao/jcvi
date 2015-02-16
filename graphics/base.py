@@ -113,6 +113,13 @@ def latex(s):
     return "".join([CHARS.get(char, char) for char in s])
 
 
+def shorten(s, maxchar=20):
+    if s <= maxchar:
+        return s
+    pad = (maxchar - 3) / 2
+    return s[:pad] + "..." + s[-pad:]
+
+
 def prettyplot():
     # Get Set2 from ColorBrewer, a set of colors deemed colorblind-safe and
     # pleasant to look at by Drs. Cynthia Brewer and Mark Harrower of Pennsylvania

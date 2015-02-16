@@ -441,13 +441,13 @@ class Marker (object):
 
 class Map (list):
 
-    def __init__(self, filename, scaffold_info=False,
+    def __init__(self, filename, scaffold_info=False, compress=1e-6,
                  function=(lambda x: x.rank)):
         bed = Bed(filename)
         for b in bed:
             self.append(Marker(b))
         self.report()
-        self.ranks = self.compute_ranks()
+        self.ranks = self.compute_ranks(compress)
         self.lengths = self.compute_lengths(function)
         self.bins = self.get_bins(function)
         if scaffold_info:
@@ -470,7 +470,7 @@ class Map (list):
         r = [x for x in self if x.mlg == mlg]
         return sorted(r, key=lambda x: x.cm)
 
-    def compute_ranks(self):
+    def compute_ranks(self, compress):
         ranks = {}  # Store the length for each linkage group
         for mlg in self.mlgs:
             rank = 0
@@ -479,7 +479,8 @@ class Map (list):
                 if i == 0:
                     marker.rank = rank
                     continue
-                rank += 1
+                if marker.cm - mlg_set[i - 1].cm > compress:
+                    rank += 1
                 marker.rank = rank
             ranks[mlg] = mlg_set
         return ranks
@@ -957,6 +958,8 @@ def path(args):
     p.add_option("-s", "--fastafile", help=SUPPRESS_HELP)
     p.add_option("-w", "--weightsfile", default="weights.txt",
                  help="Use weights from file")
+    p.add_option("--compress", default=1e-6, type="float",
+                 help="Compress markers with distance <=")
     p.add_option("--distance", default="rank", choices=distance_choices,
                  help="Distance function when building initial consensus")
     p.add_option("--linkage", default="double", choices=linkage_choices,
@@ -994,7 +997,7 @@ def path(args):
         cpus = 1
 
     function = get_function(opts.distance)
-    cc = Map(bedfile, function)
+    cc = Map(bedfile, function, compress=opts.compress)
     mapnames = cc.mapnames
     allseqids = cc.seqids
     weights = Weights(weightsfile, mapnames)
@@ -1157,9 +1160,12 @@ def summary(args):
     agp = AGP(chr_agp)
     print >> fw, "*** Summary for consensus map ***"
     consensus_scaffolds = set(x.component_id for x in agp if not x.is_gap)
+    oriented_scaffolds = set(x.component_id for x in agp \
+                            if (not x.is_gap) and x.orientation != '?')
     unplaced_scaffolds = set(s.mapping.keys()) - consensus_scaffolds
 
     for mapname, sc in (("Anchored", consensus_scaffolds),
+                    ("Oriented", oriented_scaffolds),
                     ("Unplaced", unplaced_scaffolds)):
         markers = [x for x in cc if x.seqid in sc]
         ms = MapSummary(markers, l50, s, scaffolds=sc)
@@ -1222,6 +1228,8 @@ def build(args):
 def add_allmaps_plot_options(p):
     p.add_option("-w", "--weightsfile", default="weights.txt",
                  help="Use weights from file")
+    p.add_option("--compress", default=1e-6, type="float",
+                 help="Compress markers with distance <=")
     p.add_option("--distance", default="cM", choices=distance_choices,
                  help="Plot markers based on distance")
     p.add_option("--links", default=10, type="int",
@@ -1241,7 +1249,7 @@ def plot(args):
     2. Scatter plot.
     """
     from jcvi.graphics.base import plt, savefig, normalize_axes, \
-                set2, panel_labels
+                set2, panel_labels, shorten
     from jcvi.graphics.chromosome import Chromosome, GeneticMap, \
                 HorizontalChromosome
 
@@ -1260,7 +1268,7 @@ def plot(args):
     links = opts.links
 
     function = get_function(opts.distance)
-    cc = Map(bedfile, function)
+    cc = Map(bedfile, function, compress=opts.compress)
     allseqids = cc.seqids
     mapnames = cc.mapnames
     weights = Weights(weightsfile, mapnames)
@@ -1310,7 +1318,7 @@ def plot(args):
         extra = -3 * tip if x < .5 else 3 * tip
         ha = "right" if x < .5 else "left"
         mapname = mlg.split("-")[0]
-        tlg = mlg.replace("_", ".")  # Latex does not like underscore char
+        tlg = shorten(mlg.replace("_", "."))  # Latex does not like underscore char
         label = "{0} (w={1})".format(tlg, weights[mapname])
         ax1.text(x + extra, (y1 + y2) / 2, label, color=colors[mlg],
                  ha=ha, va="center", rotation=90)
@@ -1372,12 +1380,12 @@ def plot(args):
         ystart -= gap
         sd = scatter_data[mlg]
         xx, yy = zip(*sd)
-        ax.vlines(pp, 0, mlgsize, colors="beige")
+        ax.vlines(pp, 0, 2 * mlgsize, colors="beige")
         ax.plot(xx, yy, ".", color=color)
         rho = rhos[mlg]
         ax.text(.5, 1 - .4 * gap / height, r"$\rho$={0:.3f}".format(rho),
                     ha="center", va="top", transform=ax.transAxes, color="gray")
-        tlg = mlg.replace("_", ".")
+        tlg = shorten(mlg.replace("_", "."))
         tlgs.append((tlg, ypos, color))
         ax.set_xlim(0, chrsize)
         ax.set_ylim(0, mlgsize)

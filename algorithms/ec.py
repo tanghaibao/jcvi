@@ -39,9 +39,10 @@ def colinear_evaluate(tour, scaffolds):
 def genome_mutation(candidate):
     """Return the mutants created by inversion mutation on the candidates.
 
-    This function performs inversion mutation. It randomly chooses two
+    This function performs inversion or insertion. It randomly chooses two
     locations along the candidate and reverses the values within that
-    slice.
+    slice. Insertion is done by popping one item and insert it back at random
+    position.
     """
     size = len(candidate)
     prob = random.random()

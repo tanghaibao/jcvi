@@ -442,14 +442,14 @@ class Marker (object):
 class Map (list):
 
     def __init__(self, filename, scaffold_info=False, compress=1e-6,
-                 function=(lambda x: x.rank)):
+                 remove_outliers=False, function=(lambda x: x.rank)):
         bed = Bed(filename)
         for b in bed:
             self.append(Marker(b))
         self.report()
         self.ranks = self.compute_ranks(compress)
         self.lengths = self.compute_lengths(function)
-        self.bins = self.get_bins(function)
+        self.bins = self.get_bins(function, remove_outliers)
         if scaffold_info:
             for b in self:
                 b.parse_scaffold_info()
@@ -491,7 +491,7 @@ class Map (list):
             lengths[mlg] = max(function(x) for x in v)
         return lengths
 
-    def get_bins(self, function, remove_outliers=True):
+    def get_bins(self, function, remove_outliers):
         s = defaultdict(list)
         for m in self:
             s[(m.mlg, m.seqid)].append(m)
@@ -960,6 +960,8 @@ def path(args):
                  help="Use weights from file")
     p.add_option("--compress", default=1e-6, type="float",
                  help="Compress markers with distance <=")
+    p.add_option("--removeoutliers", default=False, action="store_true",
+                 help="Remove outlier markers")
     p.add_option("--distance", default="rank", choices=distance_choices,
                  help="Distance function when building initial consensus")
     p.add_option("--linkage", default="double", choices=linkage_choices,
@@ -997,7 +999,8 @@ def path(args):
         cpus = 1
 
     function = get_function(opts.distance)
-    cc = Map(bedfile, function, compress=opts.compress)
+    cc = Map(bedfile, function, compress=opts.compress, \
+             remove_outliers=opts.removeoutliers)
     mapnames = cc.mapnames
     allseqids = cc.seqids
     weights = Weights(weightsfile, mapnames)
@@ -1228,8 +1231,6 @@ def build(args):
 def add_allmaps_plot_options(p):
     p.add_option("-w", "--weightsfile", default="weights.txt",
                  help="Use weights from file")
-    p.add_option("--compress", default=1e-6, type="float",
-                 help="Compress markers with distance <=")
     p.add_option("--distance", default="cM", choices=distance_choices,
                  help="Plot markers based on distance")
     p.add_option("--links", default=10, type="int",
@@ -1268,7 +1269,7 @@ def plot(args):
     links = opts.links
 
     function = get_function(opts.distance)
-    cc = Map(bedfile, function, compress=opts.compress)
+    cc = Map(bedfile, function)
     allseqids = cc.seqids
     mapnames = cc.mapnames
     weights = Weights(weightsfile, mapnames)

@@ -2,15 +2,15 @@ JCVI utility libraries
 ======================
 
 .. image:: https://pypip.in/v/jcvi/badge.png
-    :target: https://crate.io/packages/jcvi/
+    :target: https://pypi.python.org/pypi/jcvi
     :alt: Latest PyPI version
 
 .. image:: https://pypip.in/d/jcvi/badge.png
-    :target: https://crate.io/packages/jcvi/
+    :target: https://pypi.python.org/pypi/jcvi
     :alt: Number of PyPI downloads
 
 .. image:: https://pypip.in/license/jcvi/badge.png
-    :target: https://crate.io/packages/jcvi/
+    :target: https://pypi.python.org/pypi/jcvi
     :alt: License
 
 Collection of Python libraries to parse bioinformatics files, or perform
@@ -18,9 +18,7 @@ computation related to assembly, annotation, and comparative genomics.
 
 :Author: Haibao Tang (`tanghaibao <http://github.com/tanghaibao>`_),
          Vivek Krishnakumar (`vivekkrish <https://github.com/vivekkrish>`_),
-         Jingping Li (`Jingping <https://github.com/Jingping>`_),
-         Maria Kim (`msarmien <https://github.com/msarmien>`_),
-         Xingtan Zhang (`tangerzhang <https://github.com/tangerzhang>`_)
+         Jingping Li (`Jingping <https://github.com/Jingping>`_)
 :Email: tanghaibao@gmail.com
 :License: `BSD <http://creativecommons.org/licenses/BSD/>`_
 

@@ -2010,6 +2010,8 @@ def bed(args):
     p.add_option("--key", default="ID", help="Key in the attributes to extract")
     p.add_option("--source",
             help="Source to extract from, use comma for multiple [default: %default]")
+    p.add_option("--span", default=False, action="store_true",
+            help="Use feature span in the score column")
     p.add_option("--score_attrib", dest="score_attrib", default=False,
             help="Attribute whose value is to be used as score in `bedline` [default: %default]")
     p.add_option("--append_source", default=False, action="store_true",
@@ -2026,6 +2028,7 @@ def bed(args):
     gffile, = args
     key = opts.key
     strip_names = opts.strip_names
+    span = opts.span
     if key == "None":
         key = None
 
@@ -2044,6 +2047,8 @@ def bed(args):
         bl = g.bedline
         if strip_names:
             bl.accn = gene_name(bl.accn)
+        if span:
+            bl.score = bl.span
         b.append(bl)
 
     sorted = not opts.nosort

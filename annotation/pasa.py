@@ -47,6 +47,7 @@ cDNA_annotation_comparer.dbi:--TRUST_FL_STATUS={10}
 cDNA_annotation_comparer.dbi:--MAX_UTR_EXONS={11}
 """
 
+annotation = "annotation.gff3"
 tdn, flaccs = "tdn.accs", "FL_accs.txt"
 tfasta, gfasta = "transcripts.fasta", "genome.fasta"
 aaconf, acconf = "alignAssembly.conf", "annotCompare.conf"
@@ -185,11 +186,14 @@ def assemble(args):
 
 def compare(args):
     """
-    %prog compare pasa_db_name genome.fasta transcripts.fasta [annotation.gff]
+    %prog compare pasa_db_name [--annots_gff3=annotation.gff3]
 
     Run the PASA annotation comparison pipeline
 
-    If annotation.gff file is provided, the PASA database is loaded with the annotations
+    This assumes that PASA alignment assembly has alredy been completed and
+    run directory contains `genome.fasta` and `transcript.fasta` files.
+
+    If `--annots_gff3` is specified, the PASA database is loaded with the annotations
     first before starting annotation comparison. Otherwise, it uses previously
     loaded annotation data.
 
@@ -204,11 +208,10 @@ def compare(args):
     p.set_grid_opts()
     opts, args = p.parse_args(args)
 
-    if len(args) not in (3, 4):
+    if len(args) < 1:
         sys.exit(not p.print_help())
 
-    pasa_db, genome, transcripts, = args[:3]
-    annotation = args[3] if len(args) == 4 else None
+    pasa_db, = args
 
     PASA_HOME = opts.pasa_home
     if not op.isdir(PASA_HOME):
@@ -218,16 +221,14 @@ def compare(args):
     launch_pasa = which(op.join(PASA_HOME, "scripts", \
             "Launch_PASA_pipeline.pl"))
 
+    annots_gff3 = opts.annots_gff3
     grid = opts.grid
     prepare, runfile = opts.prepare, "run.sh"
 
     os.chdir(pasa_db)
 
     if prepare:
-        write_file(runfile, "")  # initialize run script
-
-    if opts.grid and not opts.threaded:
-        opts.threaded = opts.cpus
+        write_file(runfile, "", append=True, skipcheck=True)  # initialize run script
 
     acfw = must_open(acconf, "w")
     print >> acfw, annotCompare_conf.format("{0}_pasa".format(pasa_db), \
@@ -236,13 +237,25 @@ def compare(args):
             opts.stompovl, opts.trust_FL, opts.utr_exons)
     acfw.close()
 
+    if not op.exists(gfasta):
+        sys.exit("Genome fasta file `{0}` does not exist".format(gfasta))
+
+    transcripts = tfasta
+    if not op.exists(transcripts):
+        sys.exit("Transcript fasta file `{0}` does not exist".format(transcripts))
+
     if op.exists("{0}.clean".format(transcripts)):
         transcripts = "{0}.clean".format(transcripts)
 
     accmd = "{0} -c {1} -A -g {2} -t {3} --GENETIC_CODE {4}".format(launch_pasa, \
-            acconf, genome, transcripts, opts.genetic_code)
-    if annotation:
+            acconf, gfasta, transcripts, opts.genetic_code)
+
+    if annots_gff3:
+        if not op.exists(annots_gff3):
+            sys.exit("Annotation gff3 file `{0}` does not exist".format(annots_gff3))
+        symlink(annots_gff3, annotation)
         accmd += " -L --annots_gff3 {0}".format(annotation)
+
     if prepare:
         write_file(runfile, accmd, append=True)
     else:
@@ -359,6 +372,7 @@ def consolidate(args):
     print >> fw, "##gff-version	3"
     summary = ["id"]
     summary.extend(gffdbx.keys())
+    seen = {}
     print >> sys.stderr, "\t".join(str(x) for x in summary)
     for gene in mrna:
         g = Grouper()
@@ -395,17 +409,23 @@ def consolidate(args):
             dbs, mrnas = [el[0] for el in group], [el[1] for el in group]
             d, m = dbs[0], mrnas[0]
 
-            dbid, _mrnaid = "".join(str(x) for x in set(dbs)), []
+            dbid, _mrnaid = "|".join(str(x) for x in set(dbs)), []
             for x in mrnas:
                 if x not in _mrnaid: _mrnaid.append(x)
-            mrnaid = "{0}:{1}".format(dbid, "-".join(_mrnaid))
+            mrnaid = "{0}|{1}".format(dbid, "-".join(_mrnaid))
+            if mrnaid not in seen:
+                seen[mrnaid] = 0
+            else:
+                seen[mrnaid] += 1
+                mrnaid = "{0}-{1}".format(mrnaid, seen[mrnaid])
+
 
             _mrna = gffdbx[d][m]
             _mrna.attributes['ID'] = [mrnaid]
             children = gffdbx[d].children(m, order_by='start')
             print >> fw, _mrna
             for child in children:
-                child.attributes['ID'] = ["{0}:{1}".format(dbid, child.id)]
+                child.attributes['ID'] = ["{0}|{1}".format(dbid, child.id)]
                 child.attributes['Parent'] = [mrnaid]
                 print >> fw, child
 

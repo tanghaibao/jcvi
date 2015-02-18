@@ -472,6 +472,9 @@ class OptionParser (OptionP):
             self.add_option("--prefix", default="compreh_init_build", type="str",
                     help="Prefix for compreh_trans output file names [default: %default]")
         elif action == "compare":
+            self.add_option("--annots_gff3", default=None, type="str",
+                    help="Reference annotation to load and compare against" + \
+                    " [default: %default]")
             genetic_code = ["universal", "Euplotes", "Tetrahymena", "Candida", "Acetabularia"]
             self.add_option("--genetic_code", default="universal", choices=genetic_code,
                     help="Choose translation table [default: %default]")

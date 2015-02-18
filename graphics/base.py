@@ -46,7 +46,11 @@ class ImageOptions (object):
 class TextHandler (object):
 
     def __init__(self, fig):
-        self.build_height_array(fig)
+        self.heights = []
+        try:
+            self.build_height_array(fig)
+        except ValueError:
+            logging.debug("Failed to init heights. Variable label sizes skipped.")
 
     @classmethod
     def get_text_width_height(cls, fig, txt="chr01", size=12, usetex=True):
@@ -57,12 +61,14 @@ class TextHandler (object):
         return xmax - xmin, ymax - ymin
 
     def build_height_array(self, fig, start=1, stop=36):
-        self.heights = []
         for i in xrange(start, stop + 1):
             w, h = TextHandler.get_text_width_height(fig, size=i)
             self.heights.append((h, i))
 
     def select_fontsize(self, height, minsize=1, maxsize=12):
+        if not self.heights:
+            return maxsize if height > .01 else minsize
+
         from bisect import bisect_left
 
         i = bisect_left(self.heights, (height,))

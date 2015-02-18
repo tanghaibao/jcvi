@@ -110,13 +110,15 @@ def graph(args):
     import networkx as nx
 
     p = OptionParser(graph.__doc__)
+    p.add_option("--largest", default=10, type="int",
+                 help="Only show largest components")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     bestedges, = args
-    G = nx.DiGraph()
+    G = nx.Graph()
     fp = open(bestedges)
     for row in fp:
         if row[0] == '#':
@@ -128,9 +130,18 @@ def graph(args):
         if best3 != '0':
             G.add_edge(id1, best3)
 
+    logging.debug("Graph stats: |V|={0}, |E|={1}".format(len(G), G.size()))
+    H = nx.connected_component_subgraphs(G)
+    c = min(len(H), opts.largest)
+    logging.debug("{0} components found, {1} retained".format(len(H), c))
+
+    G = nx.Graph()
+    for x in H[:c]:
+        G.add_edges_from(x.edges())
+
     gexf = "best.gexf"
     nx.write_gexf(G, gexf)
-    logging.debug("Graph written to `{0}` (|V|={1}, |E|={2}).".\
+    logging.debug("Graph written to `{0}` (|V|={1}, |E|={2})".\
                     format(gexf, len(G), G.size()))
 
 

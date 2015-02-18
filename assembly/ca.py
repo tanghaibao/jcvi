@@ -34,6 +34,7 @@ def main():
         ('fastq', 'convert Illumina reads to frg file'),
         ('shred', 'shred contigs into pseudo-reads'),
         ('astat', 'generate the coverage-rho scatter plot'),
+        ('graph', 'visualize best.edges'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -94,6 +95,43 @@ constantInsertSize=0
 }}'''
 
 DEFAULTQV = 'l'  # To pass initialTrim
+
+
+def graph(args):
+    """
+    %prog graph best.edges
+
+    Convert Celera Assembler's "best.edges" to a GEXF which can be used to
+    feed into Gephi to check the topology of the best overlapping graph.
+
+    Reference:
+    https://github.com/PacificBiosciences/Bioinformatics-Training/blob/master/scripts/CeleraToGephi.py
+    """
+    import networkx as nx
+
+    p = OptionParser(graph.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    bestedges, = args
+    G = nx.DiGraph()
+    fp = open(bestedges)
+    for row in fp:
+        if row[0] == '#':
+            continue
+        id1, lib_id, best5, o1, best3, o3, j1, j2 = row.split()
+        G.add_node(id1)
+        if best5 != '0':
+            G.add_edge(best5, id1)
+        if best3 != '0':
+            G.add_edge(id1, best3)
+
+    gexf = "best.gexf"
+    nx.write_gexf(G, gexf)
+    logging.debug("Graph written to `{0}` (|V|={1}, |E|={2}).".\
+                    format(gexf, len(G), G.size()))
 
 
 def astat(args):

@@ -986,7 +986,7 @@ def format(args):
             if unique:
                 dupcounts[id] += 1
             elif duptype and g.type == duptype:
-                dupranges[id][g.idx] = (g.start, g.end)
+                dupranges[g.seqid][id][g.idx] = (g.start, g.end)
             if opts.multiparents == "merge":
                 pp = g.get_attr("Parent", first=False)
                 if pp and len(pp) > 0:
@@ -1105,14 +1105,14 @@ def format(args):
                     g.set_attr("Parent", newparentid[parent])
 
         if duptype:
-            if duptype == g.type and len(dupranges[id]) > 1:
-                p = sorted(dupranges[id])
-                s, e = dupranges[id][p[0]][0:2]  # get coords of first encountered feature
+            if duptype == g.type and len(dupranges[g.seqid][id]) > 1:
+                p = sorted(dupranges[g.seqid][id])
+                s, e = dupranges[g.seqid][id][p[0]][0:2]  # get coords of first encountered feature
                 if g.start == s and g.end == e and p[0] == g.idx:
-                    r = [dupranges[id][x] for x in dupranges[id]]
+                    r = [dupranges[g.seqid][id][x] for x in dupranges[g.seqid][id]]
                     g.start, g.end = range_minmax(r)
                 else:
-                    skip[(g.idx, id, g.start, g.end)] = 1
+                    skip[(g.seqid, g.idx, id, g.start, g.end)] = 1
 
         if gsac and g.type == "gene":
             notes[id] = g.attributes["Name"]
@@ -1146,7 +1146,7 @@ def format(args):
             g.update_attributes(gff3=opts.gff3)
             if gsac:
                 fix_gsac(g, notes)
-            if duptype == g.type and skip[(g.idx, id, g.start, g.end)] == 1:
+            if duptype == g.type and skip[(g.seqid, g.idx, id, g.start, g.end)] == 1:
                 continue
             print >> fw, g
 

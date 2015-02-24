@@ -1274,67 +1274,6 @@ def match_subfeats(f1, f2, dbx1, dbx2, featuretype='CDS', slop=False):
     return True
 
 
-def match_feats(f1, f2, gffdb, iter):
-    """
-    Given 2 gffutils database features, compare the features against each other
-    to identify if gene structures are the same or different
-    """
-    if match_span(f1, f2):
-        for n in range(1, iter + 1):
-            f1c, f2c = list(gffdb.children(f1, level=n)), \
-                    list(gffdb.children(f2, level=n))
-            if match_child_ftype(f1c, f2c) == 0:
-                if match_nchildren(f1c, f2c):
-                    for cf1, cf2 in zip(f1c, f2c):
-                        if not match_span(cf1, cf2):
-                            return False
-                else:
-                    return False
-            else:
-                return False
-    else:
-        return False
-
-    return True
-
-
-def dedup_pile(newgrp, group, gffdb, iter):
-    """
-    Identify all redundant gene structures and remove all but one duplicate
-    entity from the pile (which has already been filtered by span/score)
-
-    Performs all possible pairwise comparisons of gene structure within the pile
-    """
-    from itertools import combinations
-    from jcvi.utils.grouper import Grouper
-
-    pile = {}
-    dups = Grouper()
-    for elem in group:
-        pile[elem.accn] = elem
-
-    for f1, f2 in combinations(pile, 2):
-        dbf1, dbf2 = gffdb[f1], gffdb[f2]
-        if match_feats(dbf1, dbf2, gffdb, iter):
-            dups.join(f1, f2)
-        else:
-            for f in (f1, f2):
-                if f not in dups:
-                    newgrp[f] = 1
-                elif f in newgrp:
-                    newgrp.pop(f, None)
-
-    for dup in dups:
-        scores = []
-        for d in dup:
-            for x in (elem for elem in group if elem.accn == d):
-                scores.append((- float(x.score), x))
-
-        scores.sort()
-        (bscore, best) = scores[0]
-        newgrp[best.accn] = 1
-
-
 def import_feats(gffile, type="gene"):
     gff = Gff(gffile)
     allgenes = []
@@ -1368,12 +1307,8 @@ def uniq(args):
                  help="Use best N features [default: %default]")
     p.add_option("--name", default=False, action="store_true",
                  help="Non-redundify Name attribute [default: %default]")
-    p.add_option("--dedup", default=False, action="store_true",
-                 help="Iterate through every pile and remove all but one feature " + \
-                      "within a group of features sharing gene structure")
     p.add_option("--iter", default="2", choices=("1", "2"),
                  help="Number of iterations to grab children [default: %default]")
-    p.set_cpus()
     p.set_outfile()
 
     opts, args = p.parse_args(args)
@@ -1388,14 +1323,13 @@ def uniq(args):
     allgenes = import_feats(gffile, opts.type)
     g = get_piles(allgenes)
 
-    bestids, flt_groups = set(), []
+    bestids = set()
     for group in g:
         if mode == "span":
             scores_group = [(- x.span, x) for x in group]
         else:
             scores_group = [(- float(x.score), x) for x in group]
 
-        flt_group = []
         scores_group.sort()
         seen = set()
         for score, x in scores_group:
@@ -1407,30 +1341,7 @@ def uniq(args):
                 continue
 
             seen.add(name)
-            flt_group.append(x) if opts.dedup \
-                    else bestids.add(x.accn)
-
-        flt_groups.append(flt_group)
-
-    if opts.dedup:
-        gffdb = make_index(gffile)
-
-        from jcvi.utils.iter import grouper
-        from jcvi.apps.grid import Jobs
-        from multiprocessing import Manager
-
-        manager = Manager()
-        results = manager.dict()
-
-        logging.debug("Deduplicating {0} piles at a time".format(opts.cpus))
-        for cpu_groups in grouper(flt_groups, opts.cpus):
-            jobs = Jobs(dedup_pile, [(results, flt_group, gffdb, int(opts.iter)) \
-                    for flt_group in cpu_groups])
-            jobs.run()
-        logging.debug("Deduplication complete".format(len(flt_groups)))
-
-        for x in results:
-            bestids.add(x)
+            bestids.add(x.accn)
 
     populate_children(opts.outfile, bestids, gffile, iter=opts.iter)
 

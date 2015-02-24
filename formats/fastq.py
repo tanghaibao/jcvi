@@ -697,8 +697,12 @@ def splitread(args):
 
     fp = must_open(pairsfastq)
     n = opts.n
+    minsize = n * 8 / 5
 
     for name, seq, qual in FastqGeneralIterator(fp):
+        if len(seq) < minsize:
+            logging.error("Skipping read {0}, length={1}".format(name, len(seq)))
+            continue
 
         name = "@" + name
         rec1 = FastqLite(name, seq[:n], qual[:n])

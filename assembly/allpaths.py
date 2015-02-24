@@ -438,6 +438,8 @@ def prepare(args):
 
     for groups, csvfile in ((groups_33, "in_groups_33.csv"), \
                             (groups_64, "in_groups_64.csv")):
+        if not groups:
+            continue
         write_csv(groupheader, groups, filename=csvfile, tee=True)
         logging.debug("`{0}` created (# of groups = {1}).".\
             format(csvfile, len(groups)))

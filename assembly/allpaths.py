@@ -340,21 +340,27 @@ def pairs(args):
 
 ALLPATHSRUN = r"""
 ulimit -s 100000
-ulimit -v 800000000
 
 if [ -f frag_reads_orig.fastb ]
 then
     echo "'frag_reads_orig.fastb' exists. Skip loading reads."
 else
     echo "Load reads ..."
-    PrepareAllPathsInputs.pl \
-        DATA_DIR=$PWD PLOIDY={0} \
-        HOSTS='{1}' PHRED_64={2}
+    if [ -f in_groups_33.csv ]
+    then
+        PrepareAllPathsInputs.pl DATA_DIR=$PWD PLOIDY={0} HOSTS='{1}' \
+            IN_GROUPS_CSV=in_groups_33.csv PHRED_64=False
+    fi
+    if [ -f in_groups_64.csv ]
+    then
+        PrepareAllPathsInputs.pl DATA_DIR=$PWD PLOIDY={0} HOSTS='{1}' \
+            IN_GROUPS_CSV=in_groups_64.csv PHRED_64=True
+    fi
 fi
 
 RunAllPathsLG PRE=. REFERENCE_NAME=. OVERWRITE=True HAPLOIDIFY=False \
     DATA_SUBDIR=. RUN=allpaths SUBDIR=run THREADS={1} MIN_CONTIG=200 \
-    {3} | tee allpaths.log"""
+    {2} | tee allpaths.log"""
 
 
 def prepare(args):
@@ -387,18 +393,15 @@ def prepare(args):
     for x in fnames:
         assert op.exists(x), "File `{0}` not found.".format(x)
 
-    offset = guessoffset([fnames[0]])
-    phred64 = offset == 64
-
-    assert all(guessoffset([x]) == offset for x in fnames[1:])
-
     groupheader = "group_name library_name file_name".split()
     libheader = "library_name project_name organism_name type paired "\
         "frag_size frag_stddev insert_size insert_stddev read_orientation "\
         "genomic_start genomic_end".split()
-    groupcontents = []
+    groups_33 = []
+    groups_64 = []
     libs = []
     for file_name in fnames:
+        offset = guessoffset([file_name])
         group_name = op.basename(file_name).split(".")[0]
         library_name = "-".join(group_name.split("-")[:2])
 
@@ -408,7 +411,8 @@ def prepare(args):
         elif ".2." in file_name:
             continue
 
-        groupcontents.append((group_name, library_name, file_name))
+        groupscontents = groups_64 if offset == 64 else groups_33
+        groupscontents.append((group_name, library_name, file_name))
         if library_name not in libs:
             libs.append(library_name)
 
@@ -432,9 +436,11 @@ def prepare(args):
             paired, frag_size, frag_stddev, insert_size, insert_stddev, \
             read_orientation, genomic_start, genomic_end))
 
-    write_csv(groupheader, groupcontents, filename="in_groups.csv", tee=True)
-    logging.debug("`in_group.csv` created (# of groups = {0}).".\
-        format(len(groupcontents)))
+    for groups, csvfile in ((groups_33, "in_groups_33.csv"), \
+                            (groups_64, "in_groups_64.csv")):
+        write_csv(groupheader, groups, filename=csvfile, tee=True)
+        logging.debug("`{0}` created (# of groups = {1}).".\
+            format(csvfile, len(groups)))
 
     write_csv(libheader, libcontents, filename="in_libs.csv", tee=True)
     logging.debug("`in_libs.csv` created (# of libs = {0}).".\
@@ -448,7 +454,7 @@ def prepare(args):
         extra += " REMOVE_DODGY_READS_FRAG=False FE_MAX_KMER_FREQ_TO_MARK=1"
 
     if not opts.norun:
-        contents = ALLPATHSRUN.format(opts.ploidy, opts.cpus, phred64, extra)
+        contents = ALLPATHSRUN.format(opts.ploidy, opts.cpus, extra)
         write_file(runfile, contents)
 
 

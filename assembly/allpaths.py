@@ -346,16 +346,19 @@ then
     echo "'frag_reads_orig.fastb' exists. Skip loading reads."
 else
     echo "Load reads ..."
+    CacheLibs.pl CACHE_DIR=$PWD/read_cache \
+        ACTION=Add IN_LIBS_CSV=in_libs.csv
     if [ -f in_groups_33.csv ]
     then
-        PrepareAllPathsInputs.pl DATA_DIR=$PWD PLOIDY={0} HOSTS='{1}' \
-            IN_GROUPS_CSV=in_groups_33.csv PHRED_64=False
+        CacheGroups.pl CACHE_DIR=$PWD/read_cache \
+            ACTION=Add IN_GROUP_CSV=in_groups_33.csv PHRED_64=0 HOSTS='{1}'
     fi
     if [ -f in_groups_64.csv ]
     then
-        PrepareAllPathsInputs.pl DATA_DIR=$PWD PLOIDY={0} HOSTS='{1}' \
-            IN_GROUPS_CSV=in_groups_64.csv PHRED_64=True
+        CacheGroups.pl CACHE_DIR=$PWD/read_cache \
+            ACTION=Add IN_GROUP_CSV=in_groups_64.csv PHRED_64=1 HOSTS='{1}'
     fi
+    PrepareAllPathsInputs.pl DATA_DIR=$PWD PLOIDY={0} HOSTS='{1}'
 fi
 
 RunAllPathsLG PRE=. REFERENCE_NAME=. OVERWRITE=True HAPLOIDIFY=False \
@@ -437,7 +440,8 @@ def prepare(args):
             read_orientation, genomic_start, genomic_end))
 
     for groups, csvfile in ((groups_33, "in_groups_33.csv"), \
-                            (groups_64, "in_groups_64.csv")):
+                            (groups_64, "in_groups_64.csv"), \
+                            (groups_33 + groups_64, "in_groups.csv")):
         if not groups:
             continue
         write_csv(groupheader, groups, filename=csvfile, tee=True)

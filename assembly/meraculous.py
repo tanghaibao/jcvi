@@ -39,7 +39,7 @@ def prepare(args):
     """
     p = OptionParser(prepare.__doc__ + FastqNamings)
     p.add_option("-K", default=51, type="int", help="K-mer size")
-    p.set_cpus()
+    p.set_cpus(cpus=48)
     opts, args = p.parse_args(args)
 
     if len(args) < 2:
@@ -63,18 +63,19 @@ def prepare(args):
         if size == 0:
             continue
         rank += 1
-        wildcard = fs[0].replace(".1.", ".?.")
+        library_name = lib.library_name
+        name = library_name.replace("-", "")
+        wildcard = "{0}*.1.*,{0}*.2.*".format(library_name)
         rl = max(readlen([x]) for x in fs)
-        name = lib.library_name.replace("-", "")
         lib_seq = lib.get_lib_seq(wildcard, name, rl, rank)
         lib_seqs.append(lib_seq)
 
     s += "\n" + "\n".join(load_csv(None, lib_seqs, sep=" ")) + "\n"
     params = [("genome_size", genomesize),
-              ("is_diploid", 1),
+              ("is_diploid", 0),
               ("mer_size", opts.K),
               ("num_prefix_blocks", 1),
-              ("no_read_validation", 1),
+              ("no_read_validation", 0),
               ("local_num_procs", opts.cpus)]
     s += "\n" + "\n".join(load_csv(None, params, sep=" ")) + "\n"
 

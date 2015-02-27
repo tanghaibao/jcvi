@@ -9,6 +9,7 @@ import os.path as op
 import sys
 import logging
 
+from collections import defaultdict
 from itertools import groupby
 
 from jcvi.formats.base import LineFile
@@ -26,7 +27,8 @@ class SamLine (object):
 
         args = row.strip().split("\t")
         self.qname = args[0]
-        self.flag = args[1]
+        self.flag = int(args[1])
+        self.orientation = '-' if self.flag & 0x10 == 0 else '+'
         self.rname = args[2]
         self.pos = args[3]
         self.mapq = args[4]
@@ -405,34 +407,47 @@ def vcf(args):
     sh(cmd, outfile=opts.outfile)
 
 
+def breakpoint(r):
+    op_prev = None
+    cum_length = 0
+    is_clip = lambda x: x in (4, 5)
+    rl = sum(l for o, l in r.cigartuples)
+    for op, length in r.cigartuples:
+        if is_clip(op) != is_clip(op_prev) and op_prev is not None:
+            yield rl - cum_length if r.is_reverse else cum_length
+        op_prev = op
+        cum_length += length
+
+
 def chimera(args):
     """
-    %prog index samfile
+    %prog chimera bamfile
 
-    Parse SAM file from `bwasw` and list multi-hit reads.
+    Parse BAM file from `bwasw` and list multi-hit reads and breakpoints.
     """
+    import pysam
+    from jcvi.utils.natsort import natsorted
+
     p = OptionParser(chimera.__doc__)
+    p.set_verbose()
     opts, args = p.parse_args(args)
     if len(args) != 1:
-        sys.exit(p.print_help())
+        sys.exit(not p.print_help())
 
     samfile, = args
-    fp = open(samfile)
+    samfile = pysam.AlignmentFile(samfile)
+    rstore = defaultdict(list)
+    hstore = defaultdict(int)
+    for r in samfile.fetch():
+        rstore[r.query_name] += list(breakpoint(r))
+        hstore[r.query_name] += 1
+        if opts.verbose:
+            print >> sys.stderr, r.query_name, "+-"[r.is_reverse], \
+                        sum(l for o, l in r.cigartuples), r.cigarstring, list(breakpoint(r))
 
-    def key_fun(x):
-        if x[0] == '@':
-            return x[0]
-        s = SamLine(x)
-        return s.qname
-
-    for read, samlines in groupby(fp, key=key_fun):
-        if read == '@':
-            continue
-
-        samlines = [SamLine(x) for x in samlines]
-        if len(samlines) == 1:
-            continue
-        print read, [x.rname for x in samlines]
+    for rn, bps in natsorted(rstore.items()):
+        bps = "|".join(str(x) for x in sorted(bps)) if bps else "na"
+        print "\t".join((rn, str(hstore[rn]), bps))
 
 
 def index(args):

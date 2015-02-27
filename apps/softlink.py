@@ -57,9 +57,10 @@ def link(args):
         mkdir(d)
 
     fp = open(meta)
+    cwd = op.dirname(get_abs_path(meta))
     for row in fp:
         source, target = row.split()
-        source = get_abs_path(source)
+        source = op.join(cwd, source)
         if d:
             target = op.join(d, target)
         lnsf(source, target, log=True)

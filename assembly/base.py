@@ -54,14 +54,24 @@ class Library (object):
             pf, size = "PE", 0
 
         self.size = size = int(size)
-        self.stddev = size / 5
         self.type = types[pf]
+        self.stddev = size / 6 if self.type == "jumping" else size / 9
         self.paired = 0 if size == 0 else 1
         self.read_orientation = "outward" if pf == "MP" else "inward"
         self.reverse_seq = 1 if pf == "MP" else 0
         self.asm_flags = 3 if pf != "MP" else 2
         if not self.paired:
             self.read_orientation = ""
+
+    def get_lib_seq(self, wildcard, prefix, readlen, rank):
+        # lib_seq wildcard prefix insAvg insSdev avgReadLen hasInnieArtifact
+        # isRevComped useForContigging scaffRound useForGapClosing 5pWiggleRoom
+        # 3pWiggleRoom (used by MERACULOUS)
+        useForContigging = useForGapClosing = int(self.asm_flags == 3)
+        return ("lib_seq", wildcard, prefix, self.size,
+                self.stddev, readlen, int(self.type == "jumping"),
+                self.reverse_seq, useForContigging, rank,
+                useForGapClosing, 0, 0)
 
 
 def get_libs(args):

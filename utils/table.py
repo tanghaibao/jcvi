@@ -2,6 +2,10 @@
 Routines to summarize and report tabular data.
 """
 
+def comment_banner(s, width=50):
+    line = "#" * 50
+    return "\n".join((line, "#", "# " + s.strip(), "#", line))
+
 
 def banner(header, rows, major='=', minor='-'):
     formatted = [header] + rows

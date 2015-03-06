@@ -100,11 +100,11 @@ class FileShredder (object):
     """
     Same as rm -f *
     """
-    def __init__(self, filelist):
+    def __init__(self, filelist, verbose=True):
 
         filelist = [x for x in filelist if x and op.exists(x)]
         cmd = "rm -rf {0}".format(" ".join(filelist))
-        sh(cmd)
+        sh(cmd, log=verbose)
 
 
 class FileMerger (object):

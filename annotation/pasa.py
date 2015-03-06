@@ -349,6 +349,8 @@ def consolidate(args):
                  " start/stop position [default: %default]")
     p.add_option("--mode", default="name", choices=supported_modes,
             help="method used to determine overlapping loci")
+    p.add_option("--summary", default=False, action="store_true",
+            help="Generate summary table of consolidation process")
     p.set_outfile()
 
     opts, args = p.parse_args(args)
@@ -402,10 +404,13 @@ def consolidate(args):
 
     fw = must_open(opts.outfile, "w")
     print >> fw, "##gff-version	3"
-    summary = ["id"]
-    summary.extend(gffdbx.keys())
     seen = {}
-    print >> sys.stderr, "\t".join(str(x) for x in summary)
+    if opts.summary:
+        summaryfile = "{0}.summary.txt".format(opts.outfile.rsplit(".")[0])
+        sfw = must_open(summaryfile, "w")
+        summary = ["id"]
+        summary.extend(gffdbx.keys())
+        print >> sfw, "\t".join(str(x) for x in summary)
     for gene in mrna:
         g = Grouper()
         dbns = list(combinations(mrna[gene], 2))
@@ -418,7 +423,7 @@ def consolidate(args):
                     g.join((dbn1, mrna1.id, mrna1s))
                     g.join((dbn2, mrna2.id, mrna2s))
 
-                    if match_subfeats(mrna1, mrna2, dbx1, dbx2):
+                    if match_subfeats(mrna1, mrna2, dbx1, dbx2, featuretype='CDS'):
                         res = []
                         for ftype in ('five_prime_UTR', 'three_prime_UTR'):
                             res.append(match_subfeats(mrna1, mrna2, dbx1, dbx2, featuretype=ftype, slop=slop))
@@ -458,11 +463,14 @@ def consolidate(args):
                 child.attributes['Parent'] = [mrnaid]
                 print >> fw, child
 
-            summary = [mrnaid]
-            summary.extend(['Y' if db in set(dbs) else 'N' for db in gffdbx])
-            print >> sys.stderr, "\t".join(str(x) for x in summary)
+            if opts.summary:
+                summary = [mrnaid]
+                summary.extend(['Y' if db in set(dbs) else 'N' for db in gffdbx])
+                print >> sfw, "\t".join(str(x) for x in summary)
 
     fw.close()
+    if opts.summary:
+        sfw.close()
 
 
 if __name__ == '__main__':

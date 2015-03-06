@@ -560,23 +560,35 @@ def filter(args):
     """
     %prog filter gffile > filtered.gff
 
-    Filter the gff file based on Identity and coverage. You can get this type of
-    gff by using gmap:
+    Filter the gff file based on criteria below:
+    (1) feature attribute values: [Identity, Coverage].
+    You can get this type of gff by using gmap
+    $ gmap -f 2 ....
 
-    $ gmap -f 2
+    (2) Total bp length of child features
     """
     p = OptionParser(filter.__doc__)
-    p.add_option("--id", default=95, type="float",
-                 help="Minimum identity [default: %default]")
-    p.add_option("--coverage", default=90, type="float",
-                 help="Minimum coverage [default: %default]")
     p.add_option("--type", default="mRNA",
-                 help="The feature to scan for the attributes [default: %default]")
-    p.add_option("--nocase", default=False, action="store_true",
-                 help="Perform case insensitive lookup of attribute names [default: %default]")
+             help="The feature to scan for the attributes [default: %default]")
+    g1 = OptionGroup(p, "Filter by identity/coverage attribute values")
+    g1.add_option("--id", default=95, type="float",
+                 help="Minimum identity [default: %default]")
+    g1.add_option("--coverage", default=90, type="float",
+                 help="Minimum coverage [default: %default]")
+    g1.add_option("--nocase", default=False, action="store_true",
+                 help="Case insensitive lookup of attribute names [default: %default]")
+    p.add_option_group(g1)
+    g2 = OptionGroup(p, "Filter by child feature bp length")
+    g2.add_option("--child_ftype", default=None, type="str",
+                 help="Child featuretype to consider")
+    g2.add_option("--child_bp", default=None, type="int",
+                 help="Filter by total bp of children of chosen ftype")
+    p.add_option_group(g2)
+    p.set_outfile()
 
     opts, args = p.parse_args(args)
     otype, oid, ocov = opts.type, opts.id, opts.coverage
+    cftype, clenbp = opts.child_ftype, opts.child_bp
 
     id_attr, cov_attr = "Identity", "Coverage"
     if opts.nocase:
@@ -587,30 +599,42 @@ def filter(args):
 
     gffile, = args
 
-    gff = Gff(gffile)
+    gffdb = make_index(gffile)
     bad = set()
-    relatives = set()
-    for g in gff:
-        if g.type != otype:
-            continue
-        identity = float(g.attributes[id_attr][0])
-        coverage = float(g.attributes[cov_attr][0])
-        if identity < oid or coverage < ocov:
-            bad.add(g.accn)
-            relatives.add(g.attributes["Parent"][0])
+    ptype = None
+    for g in gffdb.features_of_type(otype, order_by=('seqid', 'start')):
+        if not ptype:
+            parent = list(gffdb.parents(g))
+            ptype = parent[0].featuretype \
+                if len(parent) > 0 else otype
+        if cftype and clenbp:
+            if gffdb.children_bp(g, child_featuretype=cftype) < clenbp:
+                bad.add(g.id)
+        elif oid and ocov:
+            identity = float(g.attributes[id_attr][0])
+            coverage = float(g.attributes[cov_attr][0])
+            if identity < oid or coverage < ocov:
+                bad.add(g.id)
 
     logging.debug("{0} bad accns marked.".format(len(bad)))
 
-    for g in gff:
-        if "Parent" in g.attributes and g.attributes["Parent"][0] in bad:
-            relatives.add(g.accn)
-
-    logging.debug("{0} bad relatives marked.".format(len(relatives)))
-
-    for g in gff:
-        if g.accn in bad or g.accn in relatives:
-            continue
-        print g
+    fw = must_open(opts.outfile, "w")
+    for g in gffdb.features_of_type(ptype, order_by=('seqid', 'start')):
+        if ptype != otype:
+            feats = list(gffdb.children(g, featuretype=otype, order_by=('start')))
+            ok_feats = [f for f in feats if f.id not in bad]
+            if len(ok_feats) > 0:
+                print >> fw, g
+                for feat in ok_feats:
+                    print >> fw, feat
+                    for child in gffdb.children(feat, order_by=('start')):
+                        print >> fw, child
+        else:
+            if g.id not in bad:
+                print >> fw, g
+                for child in gffdb.children(g, order_by=('start')):
+                    print >> fw, child
+    fw.close()
 
 
 def fix_gsac(g, notes):
@@ -1236,7 +1260,7 @@ def match_Nth_child(f1c, f2c, N=1, slop=False):
     return match_span(f1, f2)
 
 
-def match_subfeats(f1, f2, dbx1, dbx2, featuretype='CDS', slop=False):
+def match_subfeats(f1, f2, dbx1, dbx2, featuretype=None, slop=False):
     """
     Given 2 gffutils features located in 2 separate gffutils databases,
     iterate through all subfeatures of a certain type and check whether

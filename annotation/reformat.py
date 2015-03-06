@@ -15,6 +15,7 @@ import re
 
 from itertools import groupby, product
 
+from jcvi.utils.cbook import AutoVivification
 from jcvi.formats.bed import Bed, BedLine, sort
 from jcvi.formats.base import SetFile, must_open, get_number, flexible_cast
 from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher, \
@@ -23,7 +24,14 @@ from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher, \
 
 FRAME, RETAIN, OVERLAP, NEW = "FRAME", "RETAIN", "OVERLAP", "NEW"
 PRIORITY = (FRAME, RETAIN, OVERLAP, NEW)
+
 new_id_pat = re.compile(r"^\d+\.[cemtx]+\S+")
+atg_name_pat = re.compile(r"""
+        ^(?P<locus>
+            (?:(?P<prefix>\D+[\D\d\D])\.?)(?P<chr>[\d|C|M]+)(?P<sep>[A-z]+)(?P<rank>\d+)
+        )
+        \.?(?P<iso>\d+)?
+        """, re.VERBOSE)
 
 
 class Stride (object):
@@ -348,14 +356,7 @@ def instantiate(args):
 
 
 def atg_name(name, retval="chr,rank", trimpad0=True):
-    atg_name_pat = re.compile(r"""
-            ^(?P<locus>
-                (?:(?P<prefix>\D+[\D\d\D])\.?)(?P<chr>[\d|C|M]+)(?P<sep>[A-z]+)(?P<rank>\d+)
-            )
-            \.?(?P<iso>\d+)?
-            """, re.VERBOSE)
-
-    seps = ["g", "te", "trna", "s", "u"]
+    seps = ["g", "te", "trna", "s", "u", "nc"]
     pad0s = ["rank"]
 
     if name is not None:
@@ -649,16 +650,21 @@ def calculate_ovl(nbedfile, obedfile, opts, scoresfile):
     sh(cmd, infile=ab.fn, outfile=scoresfile)
 
 
-def read_scores(scoresfile, opts):
+def read_scores(scoresfile, opts=None, sort=False, trimsuffix=True):
     scores = {}
+    _pid, _score, resolve = (0.0, 0.0, 'alignment') if opts == None \
+            else (opts.pid, opts.score, opts.resolve)
+
     fp = must_open(scoresfile)
+    logging.debug("Load scores file `{0}`".format(scoresfile))
     for row in fp:
         (new, old, identity, score) = row.strip().split("\t")
-        old = re.sub('\.\d+$', '', old)
-        if opts.resolve == "alignment":
+        if trimsuffix:
+            old = re.sub('\.\d+$', '', old)
+        if resolve == "alignment":
             match = re.search("\d+\/\d+\s+\(\s*(\d+\.\d+)%\)", identity)
             pid = match.group(1)
-            if float(pid) < opts.pid or float(score) < opts.score:
+            if float(pid) < _pid or float(score) < _score:
                 continue
         else:
             pid = identity
@@ -666,7 +672,11 @@ def read_scores(scoresfile, opts):
         if new not in scores:
             scores[new] = []
 
-        scores[new].append((new, old, pid, score))
+        scores[new].append((new, old, float(pid), float(score)))
+
+    if sort:
+        for new in scores:
+            scores[new].sort(key=lambda k: (-k[2], -k[3]))
 
     return scores
 
@@ -899,57 +909,158 @@ def rename(args):
     logging.debug("Converted bed written to `{0}`.".format(newbedfile))
 
 
+def parse_prefix(identifier):
+    """
+    Parse identifier such as a|c|le|d|li|re|or|AT4G00480.1 and return
+    tuple of prefix string (separated at '|') and suffix (AGI identifier)
+    """
+    pf, id = (), identifier
+    if "|" in identifier:
+        pf, id = tuple(identifier.split('|')[:-1]), identifier.split('|')[-1]
+
+    return pf, id
+
+
 def reindex(args):
     """
-    %prog reindex idsfile > idsfiles.reindex
+    %prog reindex gffile pep.fasta ref.pep.fasta
 
-    Given a list of gene model identifier(following ATG naming conventions), reindex
-    all the model IDs with new isoform indices
+    Reindex the splice isoforms (mRNA) in input GFF file, preferably
+    generated after PASA annotation update
 
-    Example output:
-	Medtr2g100130.1         Medtr2g100130.1		SAME
-	Medtr2g100130.3         Medtr2g100130.2		CHANGED
-	Medtr2g100130.4         Medtr2g100130.3		CHANGED
-	Medtr2g100130.5         Medtr2g100130.4		CHANGED
-	Medtr2g100130.9         Medtr2g100130.5		CHANGED
-	Medtr2g100130.11        Medtr2g100130.6		CHANGED
-	Medtr2g100130.12        Medtr2g100130.7		CHANGED
-	Medtr2g100130.13        Medtr2g100130.8		CHANGED
+    In the input GFF file, there can be several types of mRNA within a locus:
+    * CDS matches reference, UTR extended, inherits reference mRNA ID
+    * CDS (slightly) different from reference, inherits reference mRNA ID
+    * Novel isoform added by PASA, have IDs like "LOCUS.1.1", "LOCUS.1.2"
+    * Multiple mRNA collapsed due to shared structure, have IDs like "LOCUS.1-LOCUS.1.1"
 
-    Last column has 3-flags: "SAME" (Isoform index remains the same),
-                             "CHANGED" (Isoform index has changed),
-                         and "CHECK" (Isoform index for primary isoform is missing).
+    In the case of multiple mRNA which have inherited the same reference mRNA ID,
+    break ties by comparing the new protein with the reference protein using
+    EMBOSS `needle` to decide which mRNA retains ID and which is assigned a new ID.
+
+    All mRNA identifiers should follow the AGI naming conventions.
+
+    When reindexing the isoform identifiers, order mRNA based on:
+    * decreasing transcript length
+    * decreasing support from multiple input datasets used to run pasa.consolidate()
     """
+    from jcvi.formats.gff import make_index
+    from jcvi.formats.fasta import Fasta
+    from jcvi.apps.emboss import needle
+    from jcvi.formats.base import FileShredder
+    from tempfile import mkstemp
+
     p = OptionParser(reindex.__doc__)
+    p.add_option("--scores", type="str", \
+        help="read from existing EMBOSS `needle` scores file")
+    p.set_outfile()
     opts, args = p.parse_args(args)
 
-    if len(args) != 1:
+    if len(args) != 3:
         sys.exit(not p.print_help())
 
-    index = {}
-    idsfile, = args
-    fp = must_open(idsfile)
-    for row in fp:
-        locus, iso = atg_name(row, retval="locus,iso")
-        if None in (locus, iso):
-            logging.warning("{0} is not a valid gene model identifier".format(row))
-            continue
-        if locus not in index:
-            index[locus] = set()
+    gffile, pep, refpep, = args
+    gffdb = make_index(gffile)
+    reffasta = Fasta(refpep)
 
-        index[locus].add(int(iso))
+    if not opts.scores:
+        fh, pairsfile = mkstemp(suffix=".pairs")
+        fw = must_open(pairsfile, "w")
 
-    for locus in index:
-        index[locus] = sorted(index[locus])
-        l = len(index[locus])
-        new = range(1,l+1)
-        for idx, (i, ni) in enumerate(zip(index[locus], new)):
-            flag = "SAME" if i == ni else "CHANGED"
-            if idx == 0 and i != 1:
-                flag = "CHECK"
-            print "\t".join(x for x in ("{0}.{1}".format(locus, i), \
-                                        "{0}.{1}".format(locus, ni), \
-                                        flag))
+    conflict, novel = AutoVivification(), {}
+    for gene in gffdb.features_of_type('gene', order_by=('seqid', 'start')):
+        geneid = atg_name(gene.id, retval='locus')
+        for mrna in gffdb.children(gene, featuretype='mRNA', order_by=('seqid', 'start')):
+            m = re.match(atg_name_pat, mrna.id)
+            if m is not None and "_" not in mrna.id:
+                pf, mrnaid = parse_prefix(mrna.id)
+                mlen = mrna.stop - mrna.start + 1
+
+                _iso, _newiso = [], []
+                for id in mrnaid.split("-"):
+                    a = atg_name(id, retval='iso')
+                    b = re.sub(atg_name_pat, "", id)
+                    _iso.append("{0}".format(a))
+                    _newiso.append("{0}{1}".format(a, b))
+
+                iso = "-".join(str(x) for x in set(_iso))
+                newiso = "-".join(str(x) for x in set(_newiso))
+                isoid, newisoid = list(set(_iso))[0], list(set(_newiso))[0]
+
+                if iso == newiso:
+                    if isoid not in conflict[geneid]:
+                        conflict[geneid][isoid] = []
+                    conflict[geneid][isoid].append((mrna.id, newisoid, mrna.start, mlen, len(pf)))
+                else:
+                    if geneid not in novel:
+                        novel[geneid] = []
+                    novel[geneid].append((mrna.id, newisoid, mrna.start, mlen, len(pf)))
+
+        if not opts.scores:
+            for isoform in sorted(conflict[geneid]):
+                mrnaid = "{0}.{1}".format(geneid, isoform)
+                assert mrnaid in reffasta, \
+                        "{0} missing in {1} file".format(mrnaid, refpep)
+                for mrna in conflict[geneid][isoform]:
+                    print >> fw, "\t".join(str(x) for x in (mrnaid, mrna[0]))
+
+    scoresfile = None
+    if not opts.scores:
+        fw.close()
+        needle([pairsfile, refpep, pep])
+        FileShredder([pairsfile], verbose=False)
+        scoresfile = "{0}.scores".format(pairsfile.rsplit(".")[0])
+    else:
+        scoresfile = opts.scores
+
+    scores = read_scores(scoresfile, sort=True, trimsuffix=False)
+    if not opts.scores:
+        FileShredder([scoresfile], verbose=False)
+
+    primary = {}
+    for geneid in conflict:
+        primary[geneid] = []
+        for iso in sorted(conflict[geneid]):
+            conflict[geneid][iso].sort(key=lambda k:(k[2], -k[3], -k[4]))
+            _iso = "{0}.{1}".format(geneid, iso)
+            top_score = scores[_iso][0][1]
+            result = next((i for i, v in enumerate(conflict[geneid][iso]) if v[0] == top_score), None)
+            if result is not None:
+                primary[geneid].append(conflict[geneid][iso][result])
+                del conflict[geneid][iso][result]
+                if geneid not in novel:
+                    novel[geneid] = []
+                novel[geneid].extend(conflict[geneid][iso])
+        novel[geneid].sort(key=lambda k:(k[2], -k[3], -k[4]))
+
+    fw = must_open(opts.outfile, 'w')
+    for gene in gffdb.features_of_type('gene', order_by=('seqid', 'start')):
+        geneid = gene.id
+        print >> fw, gene
+        seen = []
+        if geneid in primary:
+            all_mrna = primary[geneid]
+            all_mrna.extend(novel[geneid])
+            for iso, mrna in enumerate(all_mrna):
+                _mrna = gffdb[mrna[0]]
+                _iso = mrna[1]
+                if mrna not in novel[geneid]:
+                    seen.append(mrna[1])
+                else:
+                    _iso = (int(max(seen)) + iso + 1) - len(seen)
+
+                _mrnaid = "{0}.{1}".format(geneid, _iso)
+                _mrna['ID'], _mrna['_old_ID'] = [_mrnaid], [_mrna.id]
+
+                print >> fw, _mrna
+                for c in gffdb.children(_mrna, order_by=('start')):
+                    c['Parent'] = [_mrnaid]
+                    print >> fw, c
+        else:
+            for feat in gffdb.children(gene, order_by=('seqid', 'start')):
+                print >> fw, feat
+
+    fw.close()
 
 
 def publocus(args):
@@ -965,8 +1076,6 @@ def publocus(args):
     Medtr1g007060.1		MTR_1g007060A
     Medtr1g007060.2		MTR_1g007060B
     """
-    from jcvi.utils.cbook import AutoVivification
-
     p = OptionParser(publocus.__doc__)
     p.add_option("--locus_tag", default="MTR_",
                  help="GenBank locus tag [default: %default]")

@@ -57,7 +57,12 @@ class GffLine (object):
     def __init__(self, sline, key="ID", gff3=True, line_index=None,
                  append_source=False, score_attrib=False,
                  keep_attr_order=True, compute_signature=False):
-        args = sline.strip().split("\t")
+        sline = sline.strip()
+        args = sline.split("\t")
+        if len(args) != 9:
+            args = sline.split()
+        assert len(args) == 9, "Malformed line ({0} columns != 9): {1}"\
+                        .format(len(args), args)
         self.seqid = args[0]
         self.source = args[1]
         self.type = args[2]

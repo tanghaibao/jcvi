@@ -39,7 +39,7 @@ def prepare(args):
     """
     p = OptionParser(prepare.__doc__ + FastqNamings)
     p.add_option("-K", default=51, type="int", help="K-mer size")
-    p.set_cpus(cpus=48)
+    p.set_cpus(cpus=32)
     opts, args = p.parse_args(args)
 
     if len(args) < 2:

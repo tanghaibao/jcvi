@@ -2,7 +2,7 @@
 # -*- coding: UTF-8 -*-
 
 """
-Scripts for the Brassica napus genome manuscript (un-published).
+Scripts for the Brassica napus genome manuscript (Chalhoub et al. Science 2014).
 """
 
 import os.path as op

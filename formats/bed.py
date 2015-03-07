@@ -15,7 +15,7 @@ from itertools import groupby
 from jcvi.formats.base import LineFile, must_open, is_number, get_number
 from jcvi.utils.iter import pairwise
 from jcvi.utils.cbook import SummaryStats, thousands, percentage
-from jcvi.utils.natsort import natsort_key
+from jcvi.utils.natsort import natsort_key, natsorted
 from jcvi.utils.range import Range, range_union, range_chain, \
             range_distance, range_intersect
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, \
@@ -124,11 +124,11 @@ class Bed(LineFile):
 
     @property
     def seqids(self):
-        return sorted(set(b.seqid for b in self))
+        return natsorted(set(b.seqid for b in self))
 
     @property
     def accns(self):
-        return sorted(set(b.accn for b in self))
+        return natsorted(set(b.accn for b in self))
 
     @property
     def order(self):
@@ -308,9 +308,35 @@ def main():
         ('filter', 'filter the bedfile to retain records between size range'),
         ('random', 'extract a random subset of features'),
         ('juncs', 'trim junctions.bed overhang to get intron, merge multiple beds'),
+        ('seqids', 'print out all seqids on one line'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def seqids(args):
+    """
+    %prog seqids bedfile
+
+    Print out all seqids on one line. Useful for graphics.karyotype.
+    """
+    p = OptionParser(seqids.__doc__)
+    p.add_option("--maxn", default=100, type="int",
+                 help="Maximum number of seqids")
+    p.add_option("--prefix", help="Seqids must start with")
+    opts, args = p.parse_args(args)
+
+    if len(args) < 1:
+        sys.exit(not p.print_help())
+
+    bedfile, = args
+    pf = opts.prefix
+    bed = Bed(bedfile)
+    s = bed.seqids
+    if pf:
+        s = [x for x in s if x.startswith(pf)]
+    s = s[:opts.maxn]
+    print ",".join(s)
 
 
 def juncs(args):

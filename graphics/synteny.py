@@ -30,6 +30,9 @@ from jcvi.graphics.base import mpl, plt, savefig, markup, \
             Path, PathPatch, AbstractLayout
 
 
+forward, backward = 'b', 'g'  # Genes with different orientations
+
+
 class LayoutLine (object):
 
     def __init__(self, row, delimiter=','):
@@ -68,7 +71,8 @@ class Layout (AbstractLayout):
             else:
                 self.append(LayoutLine(row, delimiter=delimiter))
 
-        self.assign_colors()
+        if 3 <= len(self) <= 8:
+            self.assign_colors()
 
 
 class Shade (object):
@@ -156,7 +160,7 @@ class Region (object):
             a, b = inv.transform(a), inv.transform(b)
             self.gg[g.accn] = (a, b)
 
-            color = "b" if strand == "+" else "g"
+            color = forward if strand == "+" else backward
             if not hidden:
                 gp = Glyph(ax, x1, x2, y, height, gradient=False, fc=color, zorder=3)
                 gp.set_transform(tr)
@@ -180,7 +184,7 @@ class Region (object):
         if va == "top":
             yy = y + cc * pad
         elif va == "bottom":
-            yy = y - cc * pad
+            yy = y - cc * pad - .01
         else:
             yy = y
 
@@ -189,10 +193,13 @@ class Region (object):
                                                     l.reshape((1, 2)))[0]
         lx, ly = l
         if not hidden and chr_label:
+            bbox = dict(boxstyle="round", fc='w', ec='w', alpha=.5)
             ax.text(lx, ly + vpad, markup(chr), color=layout.color,
-                        ha=ha, va="center", rotation=trans_angle)
-            ax.text(lx, ly - vpad, label, color="k",
-                        ha=ha, va="center", rotation=trans_angle)
+                        ha=ha, va="center", rotation=trans_angle,
+                        bbox=bbox, zorder=10)
+            ax.text(lx, ly - vpad, label, color="lightslategrey", size=10,
+                        ha=ha, va="center", rotation=trans_angle,
+                        bbox=bbox, zorder=10)
 
 
 class Synteny (object):
@@ -256,12 +263,11 @@ class Synteny (object):
                 RoundLabel(ax, .5, .3, label, fill=True, fc="lavender", color="r")
 
 
-def draw_gene_legend(ax, x1, x2, ytop):
-    d = .04
-    ax.plot([x1, x1 + d], [ytop, ytop], "b:", lw=2)
-    ax.plot([x1 + d], [ytop], "b>", mec="b")
-    ax.plot([x2, x2 + d], [ytop, ytop], "g:", lw=2)
-    ax.plot([x2], [ytop], "g<", mec="g")
+def draw_gene_legend(ax, x1, x2, ytop, d=.04):
+    ax.plot([x1, x1 + d], [ytop, ytop], ":", color=forward, lw=2)
+    ax.plot([x1 + d], [ytop], ">", color=forward, mec=forward)
+    ax.plot([x2, x2 + d], [ytop, ytop], ":", color=backward, lw=2)
+    ax.plot([x2], [ytop], "<", color=backward, mec="g")
 
 
 def main():

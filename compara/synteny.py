@@ -101,7 +101,7 @@ class AnchorFile (BaseFile):
 
 class BlockFile (BaseFile):
 
-    def __init__(self, filename, header=False):
+    def __init__(self, filename, defaultcolor='#fb8072', header=False):
         super(BlockFile, self).__init__(filename)
         fp = must_open(filename)
         hd = fp.next().rstrip().split("\t")
@@ -119,7 +119,7 @@ class BlockFile (BaseFile):
             # r* highlights the block in red color
             if hl:
                 hl, row = row.split("*", 1)
-                hl = hl or "r"
+                hl = hl or defaultcolor
             atoms = row.rstrip().split("\t")
             atoms = [x.strip() for x in atoms]
             atoms = ["." if x == "" else x for x in atoms]

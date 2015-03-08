@@ -144,10 +144,10 @@ def prettyplot():
 
     # Need to 'reverse' red to blue so that blue=cold=small numbers,
     # and red=hot=large numbers with '_r' suffix
-    blue_red = get_map('RdBu', 'Diverging', 11,
+    blue_red = get_map('RdBu', 'diverging', 11,
                                   reverse=True).mpl_colormap
     green_purple = get_map('PRGn', 'diverging', 11).mpl_colormap
-    red_purple = get_map('RdPu', 'Sequential', 9).mpl_colormap
+    red_purple = get_map('RdPu', 'sequential', 9).mpl_colormap
 
     return blues_r, reds, blue_red, set1, set2, green_purple, red_purple
 

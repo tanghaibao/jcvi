@@ -53,13 +53,13 @@ def ploidy(args):
     fc = 'lightslategrey'
     x = .09
     radius = .012
-    TextCircle(root, x, .825, r'$\tau$', radius=radius)
-    TextCircle(root, x, .8, r'$\sigma$', radius=radius)
-    TextCircle(root, x, .72, r'$\rho$', radius=radius)
+    TextCircle(root, x, .825, r'$\tau$', radius=radius, fc=fc)
+    TextCircle(root, x, .8, r'$\sigma$', radius=radius, fc=fc)
+    TextCircle(root, x, .72, r'$\rho$', radius=radius, fc=fc)
     for ypos in (.825, .8, .72):
         root.text(.12, ypos, r"$\times2$", color=fc, ha="center", va="center")
-    root.plot([x, x], [.85, .77], ":", color=fc, lw=2)
-    root.plot([x, x], [.75, .67], ":", color=fc, lw=2)
+    root.plot([x, x], [.85, .775], ":", color=fc, lw=2)
+    root.plot([x, x], [.75, .675], ":", color=fc, lw=2)
 
     labels = ((.04, .96, 'A'), (.04, .54, 'B'))
     panel_labels(root, labels)

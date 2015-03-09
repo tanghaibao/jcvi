@@ -9,7 +9,7 @@ from ete2 import Tree
 
 from jcvi.formats.sizes import Sizes
 from jcvi.formats.base import DictFile
-from jcvi.graphics.base import plt, savefig
+from jcvi.graphics.base import Rectangle, plt, savefig
 from jcvi.graphics.glyph import ExonGlyph, get_setups
 from jcvi.apps.base import OptionParser, glob
 
@@ -197,10 +197,6 @@ def draw_tree(ax, tx, rmargin=.3, leafcolor="k", supportcolor="k",
         ax.text(xs, ys, "SH test against ref tree: {0}"\
                 .format(SH), ha="left", size=leaffont, color="g")
 
-    ax.set_xlim(0, 1)
-    ax.set_ylim(0, 1)
-    ax.set_axis_off()
-
 
 def read_trees(tree):
     from urlparse import parse_qs
@@ -216,6 +212,36 @@ def read_trees(tree):
         trees.append((label, outgroup, "".join(tx)))
 
     return trees
+
+
+def draw_geoscale(ax, minx=0, maxx=200):
+    """
+    Draw geological epoch on million year ago (mya) scale.
+    """
+    a, b = .1, .6  # Correspond to 200mya and 0mya
+    cv = lambda x: b - (x - b) / 200 * (b - a)
+    ax.plot((a, b), (.5, .5), "k-")
+    tick = .015
+    for mya in xrange(175, 0, -25):
+        p = cv(mya)
+        ax.plot((p, p), (.5, .5 - tick), "k-")
+        ax.text(p, .5 - 2.5 * tick, str(mya), ha="center", va="center")
+    ax.text((a + b) / 2, .5 - 5 * tick, "Time before present (million years)",
+            ha="center", va="center")
+
+    # Source:
+    # http://www.weston.org/schools/ms/biologyweb/evolution/handouts/GSAchron09.jpg
+    Geo = (("Neogene", 2.6, 23.0, "#fee400"),
+           ("Paleogene", 23.0, 65.5, "#ff9a65"),
+           ("Cretaceous", 65.5, 145.5, "#80ff40"),
+           ("Jurassic", 145.5, 201.6, "#33fff3"))
+    h = .05
+    for era, start, end, color in Geo:
+        start, end = cv(start), cv(end)
+        p = Rectangle((end, .5 + tick / 2), abs(start - end), h, lw=1, ec="w", fc=color)
+        ax.text((start + end) / 2, .5 + (tick + h) / 2, era,
+                ha="center", va="center", size=9)
+        ax.add_patch(p)
 
 
 def main(args):
@@ -251,8 +277,9 @@ def main(args):
     p.add_option("--leafcolor", default="k",
                  help="Font color for the OTUs, or path to a file " \
                  "containing color mappings: leafname<tab>color [default: %default]")
-    p.add_option("--leaffont", default=12,
-                 help="Font size for the OTUs")
+    p.add_option("--leaffont", default=12, help="Font size for the OTUs")
+    p.add_option("--geoscale", default=False, action="store_true",
+                 help="Plot geological scale")
 
     opts, args, iopts = p.set_image_options(args, figsize="8x6")
 
@@ -279,18 +306,26 @@ def main(args):
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
 
-    if op.isfile(opts.leafcolor):
-        leafcolor = "k"
-        leafcolorfile = opts.leafcolor
-    else:
-        leafcolor = opts.leafcolor
-        leafcolorfile = None
+    if opts.geoscale:
+        draw_geoscale(root)
 
-    draw_tree(root, tx, rmargin=opts.rmargin, leafcolor=leafcolor, \
-              outgroup=outgroup, reroot=reroot, gffdir=opts.gffdir, \
-              sizes=opts.sizes, SH=opts.SH, scutoff=opts.scutoff, \
-              barcodefile=opts.barcode, leafcolorfile=leafcolorfile,
-              leaffont=opts.leaffont)
+    else:
+        if op.isfile(opts.leafcolor):
+            leafcolor = "k"
+            leafcolorfile = opts.leafcolor
+        else:
+            leafcolor = opts.leafcolor
+            leafcolorfile = None
+
+        draw_tree(root, tx, rmargin=opts.rmargin, leafcolor=leafcolor, \
+                  outgroup=outgroup, reroot=reroot, gffdir=opts.gffdir, \
+                  sizes=opts.sizes, SH=opts.SH, scutoff=opts.scutoff, \
+                  barcodefile=opts.barcode, leafcolorfile=leafcolorfile,
+                  leaffont=opts.leaffont)
+
+    root.set_xlim(0, 1)
+    root.set_ylim(0, 1)
+    root.set_axis_off()
 
     image_name = pf + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)

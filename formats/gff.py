@@ -2008,7 +2008,7 @@ def make_index(gff_file):
         logging.debug("Indexing `{0}`".format(gff_file))
         gffutils.create_db(gff_file, db_file)
     else:
-        logging.debug("Load existing `{0}` index".format(gff_file))
+        logging.debug("Load index `{0}`".format(gff_file))
 
     return gffutils.FeatureDB(db_file)
 

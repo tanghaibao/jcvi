@@ -970,31 +970,58 @@ def reindex(args):
     conflict, novel = AutoVivification(), {}
     for gene in gffdb.features_of_type('gene', order_by=('seqid', 'start')):
         geneid = atg_name(gene.id, retval='locus')
+        novel[geneid] = []
+        updated_mrna, hybrid_mrna = [], []
         for mrna in gffdb.children(gene, featuretype='mRNA', order_by=('seqid', 'start')):
-            m = re.match(atg_name_pat, mrna.id)
-            if m is not None and "_" not in mrna.id:
+            if re.match(atg_name_pat, mrna.id) is not None and "_" not in mrna.id:
                 pf, mrnaid = parse_prefix(mrna.id)
-                mlen = mrna.stop - mrna.start + 1
-
-                _iso, _newiso = [], []
-                for id in mrnaid.split("-"):
-                    a = atg_name(id, retval='iso')
-                    b = re.sub(atg_name_pat, "", id)
-                    _iso.append("{0}".format(a))
-                    _newiso.append("{0}{1}".format(a, b))
-
-                iso = "-".join(str(x) for x in set(_iso))
-                newiso = "-".join(str(x) for x in set(_newiso))
-                isoid, newisoid = list(set(_iso))[0], list(set(_newiso))[0]
-
-                if iso == newiso:
-                    if isoid not in conflict[geneid]:
-                        conflict[geneid][isoid] = []
-                    conflict[geneid][isoid].append((mrna.id, newisoid, mrna.start, mlen, len(pf)))
+                mlen = gffdb.children_bp(mrna, child_featuretype='exon')
+                if "-" in mrna.id:
+                    hybrid_mrna.append((mrna.id, mrna.start, mlen, len(pf)))
                 else:
-                    if geneid not in novel:
-                        novel[geneid] = []
-                    novel[geneid].append((mrna.id, newisoid, mrna.start, mlen, len(pf)))
+                    updated_mrna.append((mrna.id, mrna.start, mlen, len(pf)))
+
+        for mrna in sorted(updated_mrna, key=lambda k:(k[1], -k[2], -k[3])):
+            pf, mrnaid = parse_prefix(mrna[0])
+            mstart, mlen = mrna[1], mrna[2]
+
+            iso = atg_name(mrnaid, retval='iso')
+            newiso = "{0}{1}".format(iso, re.sub(atg_name_pat, "", mrnaid))
+            if iso == newiso:
+                if iso not in conflict[geneid]:
+                    conflict[geneid][iso] = []
+                conflict[geneid][iso].append((mrna[0], iso, newiso, \
+                    mstart, mlen, len(pf)))
+            else:
+                novel[geneid].append((mrna[0], None, newiso, \
+                    mstart, mlen, len(pf)))
+
+        for mrna in sorted(hybrid_mrna, key=lambda k:(k[1], -k[2], -k[3])):
+            pf, mrnaid = parse_prefix(mrna[0])
+            mstart, mlen = mrna[1], mrna[2]
+
+            _iso, _newiso = [], []
+            for id in sorted(mrnaid.split("-")):
+                a = atg_name(id, retval='iso')
+                b = "{0}{1}".format(a, re.sub(atg_name_pat, "", id))
+                _iso.append(a)
+                _newiso.append(b)
+
+            _novel = None
+            newiso = "-".join(str(x) for x in set(_newiso))
+            for iso, niso in zip(_iso, _newiso):
+                if iso == niso:
+                    if iso not in conflict[geneid]:
+                        conflict[geneid][iso] = \
+                            [(mrna[0], iso, newiso, mstart, mlen, len(pf))]
+                        _novel = None
+                        break
+
+                _novel = True
+
+            if _novel is not None:
+                novel[geneid].append((mrna[0], None, newiso, \
+                    mstart, mlen, len(pf)))
 
         if not opts.scores:
             for isoform in sorted(conflict[geneid]):
@@ -1021,7 +1048,7 @@ def reindex(args):
     for geneid in conflict:
         primary[geneid] = []
         for iso in sorted(conflict[geneid]):
-            conflict[geneid][iso].sort(key=lambda k:(k[2], -k[3], -k[4]))
+            conflict[geneid][iso].sort(key=lambda k:(k[3], -k[4], -k[5]))
             _iso = "{0}.{1}".format(geneid, iso)
             top_score = scores[_iso][0][1]
             result = next((i for i, v in enumerate(conflict[geneid][iso]) if v[0] == top_score), None)
@@ -1031,7 +1058,7 @@ def reindex(args):
                 if geneid not in novel:
                     novel[geneid] = []
                 novel[geneid].extend(conflict[geneid][iso])
-        novel[geneid].sort(key=lambda k:(k[2], -k[3], -k[4]))
+        novel[geneid].sort(key=lambda k:(k[3], -k[4], -k[5]))
 
     fw = must_open(opts.outfile, 'w')
     for gene in gffdb.features_of_type('gene', order_by=('seqid', 'start')):

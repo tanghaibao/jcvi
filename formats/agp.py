@@ -94,6 +94,8 @@ class AGPLine (object):
                 logging.error("%s\nerror when validating this line:\n%s" % \
                         (b, row))
 
+        self.sign = -1 if self.orientation == '-' else 1
+
     def __str__(self):
 
         fields = [self.object, self.object_beg, self.object_end,
@@ -148,6 +150,9 @@ class AGPLine (object):
         return (self.is_gap and self.gap_type != "fragment")
 
     def validate(self):
+        assert self.orientation in Valid_orientation, \
+                "orientation must be one of {0}"\
+                .format("|".join(Valid_orientation))
         assert self.component_type in Valid_component_type, \
                 "component_type must be one of {0}"\
                 .format("|".join(Valid_component_type))
@@ -716,10 +721,63 @@ def main():
         ('validate', 'given agp file, component and pseudomolecule fasta, ' +\
                      'validate if the build is correct'),
         ('infer', 'infer where the components are in the genome'),
+        ('compress', 'compress coordinates based on multiple AGP files'),
             )
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def compress(args):
+    """
+    %prog transitive a.agp b.agp
+
+    Convert coordinates based on multiple AGP files. Useful to simplify multiple
+    liftOvers to compress multiple chain files into a single chain file, in
+    upgrading locations of genomic features.
+
+    Example:
+    `a.agp` could contain split scaffolds:
+    scaffold_0.1    1       600309  1       W       scaffold_0      1 600309  +
+
+    `b.agp` could contain mapping to chromosomes:
+    LG05    6435690 7035998 53      W       scaffold_0.1    1       600309  +
+
+    The final AGP we want is:
+    LG05    6435690 7035998 53      W       scaffold_0      1       600309  +
+    """
+    p = OptionParser(compress.__doc__)
+    p.set_outfile()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    aagpfile, bagpfile = args
+    # First AGP provides the mapping
+    store = {}
+    agp = AGP(aagpfile)
+    for a in agp:
+        if a.is_gap:
+            continue
+        store[(a.object, a.object_beg, a.object_end)] = \
+              (a.component_id, a.component_beg, a.component_end, a.sign)
+
+    # Second AGP forms the backbone
+    agp = AGP(bagpfile)
+    fw = must_open(opts.outfile, "w")
+    for a in agp:
+        if a.is_gap:
+            print >> fw, a
+            continue
+        component_id, component_beg, component_end, sign = \
+            store[(a.component_id, a.component_beg, a.component_end)]
+
+        orientation = '-' if sign * a.sign == -1 else '+'
+        atoms = (a.object, a.object_beg, a.object_end, a.part_number, a.component_type,
+                 component_id, component_beg, component_end, orientation)
+        a = AGPLine("\t".join(str(x) for x in atoms))
+        print >> fw, a
 
 
 def map_one_scaffold_1way(scaffold_name, scaffold, genome, orientation='+'):

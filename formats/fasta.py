@@ -2101,7 +2101,8 @@ def write_gaps_bed(inputfasta, prefix, mingap, cpus):
     from jcvi.formats.bed import sort
 
     bedfile = prefix + ".gaps.bed"
-    recs = list(SeqIO.parse(inputfasta, "fasta"))
+    f = Fasta(inputfasta)
+    recs = list(rec for k, rec in f.iteritems())
     pool = WriteJobs(write_gaps_worker, recs, bedfile, cpus=cpus)
     pool.run()
 

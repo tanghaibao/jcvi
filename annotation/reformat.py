@@ -1072,9 +1072,9 @@ def reindex(args):
                 _mrna = gffdb[mrna[0]]
                 _iso = mrna[1]
                 if mrna not in novel[geneid]:
-                    seen.append(mrna[1])
+                    seen.append(int(mrna[1]))
                 else:
-                    _iso = (int(max(seen)) + iso + 1) - len(seen)
+                    _iso = (max(seen) + iso + 1) - len(seen)
 
                 _mrnaid = "{0}.{1}".format(geneid, _iso)
                 _mrna['ID'], _mrna['_old_ID'] = [_mrnaid], [_mrna.id]

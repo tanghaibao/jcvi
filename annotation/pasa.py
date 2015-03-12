@@ -373,9 +373,17 @@ def consolidate(args):
                 loci.join(gene.id, (gene.id, dbn))
             else:
                 if (gene.id, dbn) not in loci:
+                    loci.join((gene.id, dbn))
+                    gene_cds = list(gffdbx[dbn].children(gene, \
+                        featuretype='CDS', order_by=('start')))
+                    gene_cds_start, gene_cds_stop = gene_cds[0].start, \
+                        gene_cds[-1].stop
                     for odbn in odbns:
-                        for ogene in gffdbx[odbn].region(gene, featuretype='gene'):
-                            loci.join((gene.id, dbn), (ogene.id, odbn))
+                        for ogene_cds in gffdbx[odbn].region(seqid=gene.seqid, \
+                                start=gene_cds_start, end=gene_cds_stop, \
+                                strand=gene.strand, featuretype='CDS'):
+                            for ogene in gffdbx[odbn].parents(ogene_cds, featuretype='gene'):
+                                loci.join((gene.id, dbn), (ogene.id, odbn))
 
     gfeats = {}
     mrna = AutoVivification()
@@ -451,7 +459,6 @@ def consolidate(args):
             else:
                 seen[mrnaid] += 1
                 mrnaid = "{0}-{1}".format(mrnaid, seen[mrnaid])
-
 
             _mrna = gffdbx[d][m]
             _mrna.attributes['ID'] = [mrnaid]

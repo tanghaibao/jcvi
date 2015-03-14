@@ -9,6 +9,7 @@ import os.path as op
 import sys
 
 import numpy as np
+from random import choice
 
 from jcvi.apps.base import OptionParser, ActionDispatcher
 from jcvi.graphics.base import plt, Rectangle, CirclePolygon, Polygon, savefig
@@ -180,7 +181,7 @@ class GeneGlyph (BaseGlyph):
     """Draws an oriented gene symbol, with color gradient, to represent genes
     """
     def __init__(self, ax, x1, x2, y, height, gradient=True, tip=.0025, \
-                 color="k", **kwargs):
+                 color="k", shadow=True, **kwargs):
 
         super(GeneGlyph, self).__init__(ax)
         # Figure out the polygon vertices first
@@ -193,7 +194,12 @@ class GeneGlyph (BaseGlyph):
         p3 = (x2, y)
         p4 = (x2 - orientation * tip, y + height * .5)
         p5 = (x1, y + .5*height)
-        self.append(Polygon([p1, p2, p3, p4, p5], fc=color, ec=color, **kwargs))
+        if "fc" not in kwargs:
+            kwargs["fc"] = color
+        if "ec" not in kwargs:
+            kwargs["ec"] = color
+        P = Polygon([p1, p2, p3, p4, p5], **kwargs)
+        self.append(P)
 
         if gradient:
             zz = kwargs.get("zorder", 1)
@@ -208,7 +214,33 @@ class GeneGlyph (BaseGlyph):
                 self.append(Polygon([p1, p2, p3, p4, p5], fc='w', \
                         lw=0, alpha=.2, zorder=zz))
 
+        if shadow:
+            import matplotlib.patheffects as pe
+            P.set_path_effects([pe.withSimplePatchShadow((1, -1), \
+                                alpha=.4, patch_alpha=1)])
+
         self.add_patches()
+
+
+class CartoonRegion (object):
+    """
+    Draw a collection of GeneGlyphs along chromosome.
+    """
+    def __init__(self, ax, x1, x2, y, n, gene_len=.015):
+        # Chromosome
+        ax.plot((x1, x2), (y, y), color="gray", lw=2, zorder=1)
+        t = abs(x2 - x1) / (n + 1)
+        gl = gene_len / 2
+        self.pos = np.arange(x1 + t, x2, t)
+        assert len(self.pos) == n
+
+        self.orientations = [choice([-1, 1]) for i in xrange(n)]
+        for x, o in zip(self.pos, self.orientations):
+            x1, x2 = x - gl, x + gl
+            if o < 0:
+                x1, x2 = x2, x1
+            GeneGlyph(ax, x1, x2, y, gene_len, color='m', gradient=False,
+                      shadow=True, zorder=10)
 
 
 def plot_cap(center, t, r):

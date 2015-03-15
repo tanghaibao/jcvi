@@ -9,10 +9,11 @@ import os.path as op
 import sys
 
 import numpy as np
-from random import choice
+from random import choice, shuffle, random, randint
 
 from jcvi.apps.base import OptionParser, ActionDispatcher
-from jcvi.graphics.base import plt, Rectangle, CirclePolygon, Polygon, savefig
+from jcvi.graphics.base import plt, Rectangle, CirclePolygon, Polygon, \
+            savefig, get_map
 
 
 tstep = .05
@@ -181,7 +182,7 @@ class GeneGlyph (BaseGlyph):
     """Draws an oriented gene symbol, with color gradient, to represent genes
     """
     def __init__(self, ax, x1, x2, y, height, gradient=True, tip=.0025, \
-                 color="k", shadow=True, **kwargs):
+                 color="k", shadow=False, **kwargs):
 
         super(GeneGlyph, self).__init__(ax)
         # Figure out the polygon vertices first
@@ -226,21 +227,66 @@ class CartoonRegion (object):
     """
     Draw a collection of GeneGlyphs along chromosome.
     """
-    def __init__(self, ax, x1, x2, y, n, gene_len=.015):
+    def __init__(self, n, k=12, gene_len=.012):
         # Chromosome
-        ax.plot((x1, x2), (y, y), color="gray", lw=2, zorder=1)
-        t = abs(x2 - x1) / (n + 1)
-        gl = gene_len / 2
-        self.pos = np.arange(x1 + t, x2, t)
-        assert len(self.pos) == n
-
+        self.gene_len = gene_len
+        self.n = n
         self.orientations = [choice([-1, 1]) for i in xrange(n)]
-        for x, o in zip(self.pos, self.orientations):
+        self.colors = self.assign_colors(k)
+
+    def draw(self, ax, x, y, strip=False):
+        if strip:
+            self.strip()
+
+        t = self.gene_len * 1.2
+        length = t * (self.n + 1)
+        x1, x2 = x - length / 2, x + length / 2
+        self.x1, self.x2 = x1, x2
+        ax.plot((x1, x2), (y, y), color="gray", lw=2, zorder=1)
+        pos = np.arange(x1 + t, x2, t)[:self.n]
+        assert len(pos) == self.n, "len(pos) = {0}".format(len(pos))
+
+        gene_len = self.gene_len
+        gl = gene_len / 2
+        for x, c, o in zip(pos, self.colors, self.orientations):
             x1, x2 = x - gl, x + gl
             if o < 0:
                 x1, x2 = x2, x1
-            GeneGlyph(ax, x1, x2, y, gene_len, color='m', gradient=False,
-                      shadow=True, zorder=10)
+            GeneGlyph(ax, x1, x2, y, gene_len, color=c, ec='k',
+                      gradient=False, shadow=True, zorder=10)
+
+    def assign_colors(self, k):
+        colorset = get_map('Paired', 'qualitative', k).mpl_colors
+        cs = colorset + ['w'] * (self.n - k - 1)
+        shuffle(cs)
+        return cs[:self.n / 2] + ['k'] + cs[self.n / 2:]
+
+    def delete(self, p):
+        self.colors.pop(p)
+        self.orientations.pop(p)
+        self.n -= 1
+
+    def insert(self, p):
+        self.colors.insert(p, 'w')
+        self.orientations.insert(p, choice([-1, 1]))
+        self.n += 1
+
+    def strip(self):
+        while self.colors[0] == 'w':
+            self.delete(0)
+        while self.colors[-1] == 'w':
+            self.delete(self.n - 1)
+
+    def evolve(self, target=10):
+        while self.nonwhites > target:
+            if random() > .3:
+                self.delete(randint(0, self.n - 1))
+            if random() > .7:
+                self.insert(randint(0, self.n - 1))
+
+    @property
+    def nonwhites(self):
+        return sum(1 for x in self.colors if x != 'w')
 
 
 def plot_cap(center, t, r):

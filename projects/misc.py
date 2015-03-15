@@ -397,7 +397,7 @@ def cotton(args):
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
-def plot_diagram(ax, x, y, label="S", title="syntenic"):
+def plot_diagram(ax, x, y, label="S", title="syntenic", gradient=True):
     """
     Part of the diagrams that are re-used. (x, y) marks the center of the
     diagram. Label determines the modification to the "S" graph.
@@ -427,15 +427,18 @@ def plot_diagram(ax, x, y, label="S", title="syntenic"):
 
         a, b, c, d = [m(t) for t in (a, b, c, d)]
         color = "g" if i == 1 else "r"
-        GeneGlyph(ax, a, b, ya, 2 * ytip, fc=color)
+        GeneGlyph(ax, a, b, ya, 2 * ytip, fc=color,
+                  gradient=gradient, zorder=10)
 
         if i == 1 and label in ("F", "G", "FN"):
             pass
         else:
             if fb:
-                GeneGlyph(ax, c, d, yb, 2 * ytip, fc='w', tip=0)
+                GeneGlyph(ax, c, d, yb, 2 * ytip, fc='w', tip=0,
+                          gradient=gradient, zorder=10)
             else:
-                GeneGlyph(ax, c, d, yb, 2 * ytip, fc='r')
+                GeneGlyph(ax, c, d, yb, 2 * ytip, fc='r',
+                          gradient=gradient, zorder=10)
 
         r = Polygon(((a, ya - ytip), (c, yb + ytip),
                       (d, yb + ytip), (b, ya - ytip)),

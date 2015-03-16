@@ -267,6 +267,75 @@ class BiGraph (object):
         return path if n2 is None else None
 
 
+def graph_stats(G, diameter=False):
+    logging.debug("Graph stats: |V|={0}, |E|={1}".format(len(G), G.size()))
+    if diameter:
+        d = max(nx.diameter(H) for H in nx.connected_component_subgraphs(G))
+        logging.debug("Graph diameter: {0}".format(d))
+
+
+def graph_local_neighborhood(G, depth=200, maxdegree=10):
+    from random import choice
+
+    c = [k for k, d in G.degree().iteritems() if d > maxdegree]
+    logging.debug("Remove {0} nodes with deg > {1}".format(len(c), maxdegree))
+    G.remove_nodes_from(c)
+
+    query = choice(G.nodes())
+    logging.debug("BFS search from random node {0} (depth={1})".\
+                    format(query, depth))
+    queue = set([query])
+    # BFS search of max depth
+    seen = set()
+    for i in xrange(depth):
+        neighbors = set()
+        for q in queue:
+            neighbors |= set(G.neighbors(q))
+        queue = neighbors - seen
+        if not queue:
+            break
+
+        seen |= queue
+        print >> sys.stderr, "iter: {0}, graph size={1}".format(i, len(seen))
+        if len(seen) > 10000:
+            break
+
+    return G.subgraph(seen)
+
+
+def graph_simplify(G):
+    """
+    Simplify big graphs: remove spurs and contract unique paths.
+    """
+    spurs = []
+    path_nodes = []
+    for k, d in G.degree().iteritems():
+        if d == 1:
+            spurs.append(k)
+        elif d == 2:
+            path_nodes.append(k)
+
+    logging.debug("Remove {0} spurs.".format(len(spurs)))
+    G.remove_nodes_from(spurs)
+
+    SG = G.subgraph(path_nodes)
+    cc = nx.connected_components(SG)
+    for c in cc:
+        if len(c) == 1:
+            continue
+        c = set(c)
+        neighbors = set()
+        for x in c:
+            neighbors |= set(G.neighbors(x))
+        neighbors -= c
+        newtag = list(c)[0] + "*"
+        for n in neighbors:
+            G.add_edge(newtag, n)
+        G.remove_nodes_from(c)
+    logging.debug("Contract {0} path nodes into {1} nodes.".\
+                    format(len(path_nodes), len(cc)))
+
+
 def bigraph_test():
     g = BiGraph()
     g.add_edge(BiEdge(1, 2, ">", "<"))

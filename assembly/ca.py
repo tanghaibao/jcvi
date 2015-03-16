@@ -108,29 +108,43 @@ def graph(args):
     https://github.com/PacificBiosciences/Bioinformatics-Training/blob/master/scripts/CeleraToGephi.py
     """
     import networkx as nx
+    from jcvi.algorithms.graph import graph_stats, graph_local_neighborhood
 
     p = OptionParser(graph.__doc__)
-    p.add_option("--largest", default=10, type="int",
-                 help="Only show largest components")
+    p.add_option("--maxerr", default=100, type="float", help="Maximum error rate")
+    p.add_option("--largest", default=10, type="int", help="Only show largest components")
+    p.add_option("--depth", default=200, type="int", help="Maximum depth")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     bestedges, = args
+    maxerr = opts.maxerr
+    logging.debug("Max error = {0}%".format(maxerr))
     G = nx.Graph()
     fp = open(bestedges)
     for row in fp:
         if row[0] == '#':
             continue
         id1, lib_id, best5, o1, best3, o3, j1, j2 = row.split()
-        G.add_node(id1)
-        if best5 != '0':
+        j1, j2 = float(j1), float(j2)
+        if j1 > maxerr or j2 > maxerr:
+            G.add_node(id1)
+        if best5 != '0' and j1 > maxerr:
             G.add_edge(best5, id1)
-        if best3 != '0':
+        if best3 != '0' and j2 > maxerr:
             G.add_edge(id1, best3)
 
-    logging.debug("Graph stats: |V|={0}, |E|={1}".format(len(G), G.size()))
+    graph_stats(G)
+
+    if len(G) > 10000:
+        SG = nx.Graph()
+        for x in xrange(opts.largest):
+            H = graph_local_neighborhood(G, depth=opts.depth)
+            SG.add_edges_from(H.edges())
+        G = SG
+
     H = nx.connected_component_subgraphs(G)
     c = min(len(H), opts.largest)
     logging.debug("{0} components found, {1} retained".format(len(H), c))

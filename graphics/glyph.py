@@ -279,9 +279,9 @@ class CartoonRegion (object):
 
     def evolve(self, target=10):
         while self.nonwhites > target:
-            if random() > .3:
+            if random() > .35:
                 self.delete(randint(0, self.n - 1))
-            if random() > .7:
+            if random() > .65:
                 self.insert(randint(0, self.n - 1))
 
     @property

@@ -231,7 +231,7 @@ class CartoonRegion (object):
         # Chromosome
         self.n = n
         self.orientations = [choice([-1, 1]) for i in xrange(n)]
-        self.colors = self.assign_colors(k)
+        self.assign_colors(k)
 
     def draw(self, ax, x, y, gene_len=.012, strip=True, color=True):
         if strip:
@@ -266,7 +266,15 @@ class CartoonRegion (object):
         colorset = [rgb2hex(x) for x in colorset]
         cs = colorset + ['w'] * (self.n - k - 1)
         shuffle(cs)
-        return cs[:self.n / 2] + ['k'] + cs[self.n / 2:]
+        self.colors = cs[:self.n / 2] + ['k'] + cs[self.n / 2:]
+        lf, p, rf = self.find_k()
+        self.exchange(lf, p - 2)
+        self.exchange(rf, p + 2)
+
+    def exchange(self, p1, p2):
+        self.colors[p1], self.colors[p2] = self.colors[p2], self.colors[p1]
+        self.orientations[p1], self.orientations[p2] = \
+                self.orientations[p2], self.orientations[p1]
 
     def delete(self, p, waiver=None):
         if waiver and self.colors[p] in waiver:
@@ -337,9 +345,9 @@ class CartoonRegion (object):
             left_score = sum(1 for x in self.colors[:p] if x != 'w')
             right_score = sum(1 for x in self.colors[p + 1:] if x != 'w')
             if left_score > right_score:
-                self.colors[:p] = ['w'] * p
+                self.colors[:p + 1] = ['w'] * (p + 1)
             else:
-                self.colors[p + 1:] = ['w'] * (self.n - p - 1)
+                self.colors[p:] = ['w'] * (self.n - p)
         while self.nonwhites > target:
             if random() > .35:
                 self.delete(randint(0, self.n - 1), waiver=waiver)

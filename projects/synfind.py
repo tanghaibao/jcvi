@@ -8,7 +8,7 @@ SynFind analyses and visualization.
 from copy import deepcopy
 
 from jcvi.graphics.base import FancyArrow, plt, savefig, panel_labels
-from jcvi.graphics.glyph import CartoonRegion
+from jcvi.graphics.glyph import CartoonRegion, RoundRect
 from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
@@ -21,14 +21,18 @@ def main():
     p.dispatch(globals())
 
 
+def plot_diagram(ax, x, y, A, B, tag, label):
+    ax.text(x, y + .15, "{0}: {1}".format(tag, label), ha="center")
+    A.draw(ax, x, y + .03)
+    B.draw(ax, x, y - .03)
+
+
 def cartoon(args):
     """
     %prog synteny.py
 
     Generate cartoon illustration of SynFind.
     """
-    from jcvi.projects.misc import plot_diagram
-
     p = OptionParser(cartoon.__doc__)
     opts, args, iopts = p.set_image_options(args, figsize="9x6")
 
@@ -37,36 +41,50 @@ def cartoon(args):
 
     # Panel A
     A = CartoonRegion(41)
-    A.draw(root, .35, .85)
+    A.draw(root, .35, .85, strip=False, color=False)
     x1, x2 = A.x1, A.x2
     lsg = "lightslategray"
-    p = FancyArrow(.35, .88, x1 - .35, 0, fc=lsg, lw=0, shape="left",
-                   length_includes_head=True, width=.01,
-                   head_length=abs(x1 - .35) * .15, head_width=.03)
+    pad = .01
+    xc, yc = .35, .88
+    arrowlen = x2 - xc - pad
+    arrowprops = dict(length_includes_head=True, width=.01, fc=lsg, lw=0,
+                      head_length=arrowlen * .15, head_width=.03)
+    p = FancyArrow(xc - pad, yc, -arrowlen, 0, shape="left", **arrowprops)
     root.add_patch(p)
-    p = FancyArrow(.35, .88, x2 - .35, 0, fc=lsg, lw=0, shape="right",
-                   length_includes_head=True, width=.01,
-                   head_length=abs(x2 - .35) * .15, head_width=.03)
+    p = FancyArrow(xc + pad, yc, arrowlen, 0, shape="right", **arrowprops)
     root.add_patch(p)
+
+    yt = yc + 4 * pad
+    root.text((x1 + xc) / 2, yt, "20 genes upstream", ha="center")
+    root.text((x2 + xc) / 2, yt, "20 genes downstream", ha="center")
+    root.plot((xc,), (yc,), "o", mfc='w', mec=lsg, mew=2, lw=2, color=lsg)
+    root.text(xc, yt, "Query gene", ha="center")
 
     # Panel B
-    A.draw(root, .35, .7)
+    A.draw(root, .35, .7, strip=False)
 
+    RoundRect(root, (.09, .49), .52, .14, fc='y', alpha=.2)
     a = deepcopy(A)
-    a.evolve(target=10)
-    a.draw(root, .35, .6, strip=True)
+    a.evolve(mode='S', target=10)
+    a.draw(root, .35, .6)
     b = deepcopy(A)
-    b.evolve(target=8)
-    b.draw(root, .35, .56, strip=True)
+    b.evolve(mode='F', target=8)
+    b.draw(root, .35, .56)
     c = deepcopy(A)
-    c.evolve(target=6)
-    c.draw(root, .35, .52, strip=True)
+    c.evolve(mode='G', target=6)
+    c.draw(root, .35, .52)
+
+    for x in (a, b, c):
+        root.text(.62, x.y, "Score={0}".format(x.nonwhites), va="center")
 
     # Panel C
-    plot_diagram(root, .2, .2, "S", "syntenic", gradient=False)
-    plot_diagram(root, .4, .2, "F", "missing, with both flankers",
-                 gradient=False)
-    plot_diagram(root, .6, .2, "G", "missing, with one flanker", gradient=False)
+    D = deepcopy(A)
+    for x in (D, a, b, c):
+        x.truncate_between_flankers()
+
+    plot_diagram(root, .2, .2, D, a, "S", "syntenic")
+    plot_diagram(root, .4, .2, D, b, "F", "missing, with both flankers")
+    plot_diagram(root, .6, .2, D, c, "G", "missing, with one flanker")
 
     labels = ((.04, .95, 'A'), (.04, .75, 'B'), (.04, .4, 'C'))
     panel_labels(root, labels)

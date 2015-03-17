@@ -234,7 +234,7 @@ class CartoonRegion (object):
         self.orientations = [choice([-1, 1]) for i in xrange(n)]
         self.colors = self.assign_colors(k)
 
-    def draw(self, ax, x, y, strip=False):
+    def draw(self, ax, x, y, strip=True, color=True):
         if strip:
             self.strip()
 
@@ -242,6 +242,7 @@ class CartoonRegion (object):
         length = t * (self.n + 1)
         x1, x2 = x - length / 2, x + length / 2
         self.x1, self.x2 = x1, x2
+        self.y = y
         ax.plot((x1, x2), (y, y), color="gray", lw=2, zorder=1)
         pos = np.arange(x1 + t, x2, t)[:self.n]
         assert len(pos) == self.n, "len(pos) = {0}".format(len(pos))
@@ -252,16 +253,23 @@ class CartoonRegion (object):
             x1, x2 = x - gl, x + gl
             if o < 0:
                 x1, x2 = x2, x1
+            if not color and c != 'k':
+                c = 'w'
             GeneGlyph(ax, x1, x2, y, gene_len, color=c, ec='k',
                       gradient=False, shadow=True, zorder=10)
 
     def assign_colors(self, k):
+        from matplotlib.colors import rgb2hex
+
         colorset = get_map('Paired', 'qualitative', k).mpl_colors
+        colorset = [rgb2hex(x) for x in colorset]
         cs = colorset + ['w'] * (self.n - k - 1)
         shuffle(cs)
         return cs[:self.n / 2] + ['k'] + cs[self.n / 2:]
 
-    def delete(self, p):
+    def delete(self, p, waiver=None):
+        if waiver and self.colors[p] in waiver:
+            return
         self.colors.pop(p)
         self.orientations.pop(p)
         self.n -= 1
@@ -271,17 +279,65 @@ class CartoonRegion (object):
         self.orientations.insert(p, choice([-1, 1]))
         self.n += 1
 
+    def truncate(self, b, e):
+        self.colors = self.colors[b:e]
+        self.orientations = self.orientations[b:e]
+        self.n = e - b
+
+    def assign_flankers(self):
+        lf, p, rf = self.find_k()
+        self.flanks = [self.colors[lf], self.colors[rf]]
+        return p
+
+    def truncate_between_flankers(self):
+        try:
+            lf, rf = self.flanks
+        except:
+            self.assign_flankers()
+            lf, rf = self.flanks
+        print lf, rf
+        lf = self.colors.index(lf) if lf in self.colors else None
+        rf = self.colors.index(rf) if rf in self.colors else None
+        print self.colors
+        print lf, rf
+        assert lf or rf
+        if lf and not rf:
+            rf = lf
+        if rf and not lf:
+            lf = rf
+        self.truncate(lf, rf + 1)
+
     def strip(self):
         while self.colors[0] == 'w':
             self.delete(0)
         while self.colors[-1] == 'w':
             self.delete(self.n - 1)
 
-    def evolve(self, target=10):
+    def find_k(self):
+        p = self.colors.index('k')
+        lf = max(i for i, c in enumerate(self.colors[:p]) if c != 'w')
+        rf = min(i for i, c in enumerate(self.colors[p + 1:]) if c != 'w')
+        return lf, p, rf + p + 1
+
+    def evolve(self, mode='S', target=10):
+        n = self.n
+        assert mode in ('S', 'F', 'G')
+        keep_k = mode == 'S'
+        p = self.assign_flankers()
+        waiver = ['k'] if mode == 'S' else self.flanks
+        if mode == 'F':
+            self.delete(p)
+        elif mode == 'G':
+            left_score = sum(1 for x in self.colors[:p] if x != 'w')
+            right_score = sum(1 for x in self.colors[p + 1:] if x != 'w')
+            if left_score > right_score:
+                self.truncate(0, p)
+            else:
+                self.truncate(p + 1, self.n)
         while self.nonwhites > target:
             if random() > .35:
-                self.delete(randint(0, self.n - 1))
-            if random() > .65:
+                self.delete(randint(0, self.n - 1), waiver=waiver)
+            if random() > .65 and self.n < n:
                 self.insert(randint(0, self.n - 1))
 
     @property

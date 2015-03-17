@@ -7,7 +7,7 @@ SynFind analyses and visualization.
 
 from copy import deepcopy
 
-from jcvi.graphics.base import FancyArrow, plt, savefig, panel_labels
+from jcvi.graphics.base import FancyArrow, plt, savefig, panel_labels, markup
 from jcvi.graphics.glyph import CartoonRegion, RoundRect
 from jcvi.apps.base import OptionParser, ActionDispatcher
 
@@ -22,9 +22,10 @@ def main():
 
 
 def plot_diagram(ax, x, y, A, B, tag, label):
-    ax.text(x, y + .15, "{0}: {1}".format(tag, label), ha="center")
-    A.draw(ax, x, y + .03)
-    B.draw(ax, x, y - .03)
+    ax.text(x, y + .14, "{0}: {1}".format(tag, label), ha="center")
+    strip = tag != 'G'
+    A.draw(ax, x, y + .06, gene_len=.02, strip=strip)
+    B.draw(ax, x, y, gene_len=.02, strip=strip)
 
 
 def cartoon(args):
@@ -63,7 +64,7 @@ def cartoon(args):
     # Panel B
     A.draw(root, .35, .7, strip=False)
 
-    RoundRect(root, (.09, .49), .52, .14, fc='y', alpha=.2)
+    RoundRect(root, (.07, .49), .56, .14, fc='y', alpha=.2)
     a = deepcopy(A)
     a.evolve(mode='S', target=10)
     a.draw(root, .35, .6)
@@ -75,19 +76,33 @@ def cartoon(args):
     c.draw(root, .35, .52)
 
     for x in (a, b, c):
-        root.text(.62, x.y, "Score={0}".format(x.nonwhites), va="center")
+        root.text(.64, x.y, "Score={0}".format(x.nonwhites), va="center")
 
     # Panel C
-    D = deepcopy(A)
-    for x in (D, a, b, c):
-        x.truncate_between_flankers()
+    A.truncate_between_flankers()
+    a.truncate_between_flankers()
+    b.truncate_between_flankers()
+    c.truncate_between_flankers(target=6)
 
-    plot_diagram(root, .2, .2, D, a, "S", "syntenic")
-    plot_diagram(root, .4, .2, D, b, "F", "missing, with both flankers")
-    plot_diagram(root, .6, .2, D, c, "G", "missing, with one flanker")
+    plot_diagram(root, .14, .2, A, a, "S", "syntenic")
+    plot_diagram(root, .37, .2, A, b, "F", "missing, with both flankers")
+    plot_diagram(root, .6, .2, A, c, "G", "missing, with one flanker")
 
     labels = ((.04, .95, 'A'), (.04, .75, 'B'), (.04, .4, 'C'))
     panel_labels(root, labels)
+
+    # Descriptions
+    xt = .85
+    desc = ("Extract neighborhood",
+            "of *window* size",
+            "Generate anchors",
+            "Group anchors within *window* apart",
+            "Find regions above *score* cutoff",
+            "Identify flankers",
+            "Annotate syntelog class"
+            )
+    for yt, t in zip((.88, .84, .64, .6, .56, .3, .26), desc):
+        root.text(xt, yt, markup(t), ha="center", va="center")
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)

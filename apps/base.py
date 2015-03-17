@@ -132,9 +132,8 @@ class OptionParser (OptionP):
                 default=False, action="store_true",
                 help="Run on the grid [default: %default]")
 
-    def set_grid_opts(self, array=False):
+    def set_grid_opts(self, array=False, vcode="99999"):
         queue_choices = ("default", "fast", "medium", "himem")
-        vcode = "0372"
         valid_pcodes = popen("qconf -sprjl", debug=False).read().strip().split("\n")
         valid_pcodes.append(vcode)
 

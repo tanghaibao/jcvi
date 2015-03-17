@@ -227,27 +227,28 @@ class CartoonRegion (object):
     """
     Draw a collection of GeneGlyphs along chromosome.
     """
-    def __init__(self, n, k=12, gene_len=.012):
+    def __init__(self, n, k=12):
         # Chromosome
-        self.gene_len = gene_len
         self.n = n
         self.orientations = [choice([-1, 1]) for i in xrange(n)]
         self.colors = self.assign_colors(k)
 
-    def draw(self, ax, x, y, strip=True, color=True):
+    def draw(self, ax, x, y, gene_len=.012, strip=True, color=True):
         if strip:
             self.strip()
 
-        t = self.gene_len * 1.2
+        t = gene_len * 1.2
         length = t * (self.n + 1)
         x1, x2 = x - length / 2, x + length / 2
         self.x1, self.x2 = x1, x2
         self.y = y
         ax.plot((x1, x2), (y, y), color="gray", lw=2, zorder=1)
+        bit = .008
+        xs = (x1 - 2 * bit, x1 - bit, x2 + bit, x2 + 2 * bit)
+        ax.plot(xs, [y] * 4, ".", lw=2, color="gray")
         pos = np.arange(x1 + t, x2, t)[:self.n]
         assert len(pos) == self.n, "len(pos) = {0}".format(len(pos))
 
-        gene_len = self.gene_len
         gl = gene_len / 2
         for x, c, o in zip(pos, self.colors, self.orientations):
             x1, x2 = x - gl, x + gl
@@ -280,6 +281,8 @@ class CartoonRegion (object):
         self.n += 1
 
     def truncate(self, b, e):
+        b = max(b, 0)
+        e = min(self.n, e)
         self.colors = self.colors[b:e]
         self.orientations = self.orientations[b:e]
         self.n = e - b
@@ -289,22 +292,23 @@ class CartoonRegion (object):
         self.flanks = [self.colors[lf], self.colors[rf]]
         return p
 
-    def truncate_between_flankers(self):
+    def truncate_between_flankers(self, target=0):
         try:
             lf, rf = self.flanks
         except:
             self.assign_flankers()
             lf, rf = self.flanks
-        print lf, rf
-        lf = self.colors.index(lf) if lf in self.colors else None
-        rf = self.colors.index(rf) if rf in self.colors else None
-        print self.colors
-        print lf, rf
-        assert lf or rf
-        if lf and not rf:
+        lf = self.colors.index(lf) if lf in self.colors else -1
+        rf = self.colors.index(rf) if rf in self.colors else -1
+        assert lf >= 0 or rf >= 0
+        if rf < 0:
             rf = lf
-        if rf and not lf:
+        if lf < 0:
             lf = rf
+        if rf + 1 - lf < target:
+            gap = target - rf - 1 + lf
+            lf -= gap / 2
+            rf += gap / 2
         self.truncate(lf, rf + 1)
 
     def strip(self):
@@ -324,20 +328,22 @@ class CartoonRegion (object):
         assert mode in ('S', 'F', 'G')
         keep_k = mode == 'S'
         p = self.assign_flankers()
-        waiver = ['k'] if mode == 'S' else self.flanks
+        waiver = self.flanks[:]
+        if mode == 'S':
+            waiver += ['k']
         if mode == 'F':
             self.delete(p)
         elif mode == 'G':
             left_score = sum(1 for x in self.colors[:p] if x != 'w')
             right_score = sum(1 for x in self.colors[p + 1:] if x != 'w')
             if left_score > right_score:
-                self.truncate(0, p)
+                self.colors[:p] = ['w'] * p
             else:
-                self.truncate(p + 1, self.n)
+                self.colors[p + 1:] = ['w'] * (self.n - p - 1)
         while self.nonwhites > target:
             if random() > .35:
                 self.delete(randint(0, self.n - 1), waiver=waiver)
-            if random() > .65 and self.n < n:
+            if random() > .65 and self.n < n * .8:
                 self.insert(randint(0, self.n - 1))
 
     @property

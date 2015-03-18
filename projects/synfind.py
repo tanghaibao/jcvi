@@ -5,8 +5,13 @@
 SynFind analyses and visualization.
 """
 
-from copy import deepcopy
+import sys
+import logging
 
+from copy import deepcopy
+from itertools import groupby
+
+from jcvi.formats.bed import Bed
 from jcvi.graphics.base import FancyArrow, plt, savefig, panel_labels, markup
 from jcvi.graphics.glyph import CartoonRegion, RoundRect
 from jcvi.apps.base import OptionParser, ActionDispatcher
@@ -16,9 +21,80 @@ def main():
 
     actions = (
         ('cartoon', 'generate cartoon illustration of SynFind'),
+        ('islands', 'gene presence absence analysis in ecoli'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def islands(args):
+    """
+    %prog islands coge_master_table.txt query.bed
+
+    Perform gene presence / absence analysis in Ecoli master spreadsheet. Ecoli
+    spresheets can be downloaded below:
+
+    Ecoli K12 MG1655 (K) as query
+    Regenerate this analysis: https://genomevolution.org/r/fggo
+
+    Ecoli O157:H7 EDL933 (O) as query
+    Regenerate this analysis: https://genomevolution.org/r/fgt7
+
+    Shigella flexneri 2a 301 (S) as query
+    Regenerate this analysis: https://genomevolution.org/r/fgte
+
+    Perform a similar analysis as in:
+    Jin et al. (2002) Genome sequence of Shigella flexneri 2a: insights
+    into pathogenicity through comparison with genomes of Escherichia
+    coli K12 and O157. Nucleic Acid Research.
+    """
+    p = OptionParser(islands.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    master, querybed = args
+    fp = open(master)
+    header = fp.next()
+    assert header[0] == '#'
+    qorg = header.strip().split("\t")[1]
+    qorg = qorg.split(":")[-1].strip()
+
+    store = {}
+    MISSING = ("proxy", "-")
+    for row in fp:
+        a, b, c = row.strip().split("\t")[1:4]
+        store[a] = b in MISSING and c in MISSING
+
+    bed = Bed(querybed)
+    tags = []
+    for i, b in enumerate(bed):
+        accn = b.accn
+        if accn not in store:
+            logging.warn("missing {0}".format(accn))
+            continue
+        tags.append((store[accn], accn))
+
+    large = 4  # large segments
+    II = []
+    II_large = []
+    for missing, aa in groupby(tags, key=lambda x: x[0]):
+        aa = list(aa)
+        if not missing:
+            continue
+        glist = list(a for missing, a in aa)
+        II.append(glist)
+        size = len(glist)
+        if size >= 4:
+            II_large.append(glist)
+
+    for a, t in zip((II, II_large), ("", ">=4 ")):
+        nmissing = sum(len(x) for x in a)
+        logging.debug("A total of {0} {1}-specific {2}islands found with {3} genes.".\
+                        format(len(a), qorg, t, nmissing))
+
+    print >> sys.stderr, " | ".join(".".join(x) for x in II)
 
 
 def plot_diagram(ax, x, y, A, B, tag, label):

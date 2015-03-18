@@ -13,8 +13,7 @@ from jcvi.apps.align import run_formatdb
 from jcvi.apps.base import OptionParser, Popen
 
 
-def blastplus(k, n, out_fh, cmd, query, lock):
-
+def blastplus(out_fh, cmd, query, lock):
     cmd += " -query {0}".format(query)
     proc = Popen(cmd)
 
@@ -49,8 +48,11 @@ def main():
     p.set_align(evalue=.01)
     p.add_option("--best", default=1, type="int",
             help="Only look for best N hits [default: %default]")
-
     p.set_cpus()
+    p.add_option("--nprocs", default=1, type="int",
+            help="number of BLAST processes to run in parallel. " + \
+            "split query.fa into `nprocs` chunks, " + \
+            "each chunk uses -num_threads=`cpus`")
     p.set_params()
     p.set_outfile()
     opts, args = p.parse_args()
@@ -72,18 +74,18 @@ def main():
 
     blast_bin = blast_path or blast_program
     if op.basename(blast_bin) != blast_program:
-        blast_bin = "".join([blast_bin, "/", blast_program])
+        blast_bin = op.join(blast_bin, blast_program)
 
-    cpus = opts.cpus
-    if cpus > 1:
-        logging.debug("Dispatch job to %d cpus" % cpus)
+    nprocs, cpus = opts.nprocs, opts.cpus
+    if nprocs > 1:
+        logging.debug("Dispatch job to %d processes" % nprocs)
         outdir = "outdir"
-        fs = split([afasta_fn, outdir, str(cpus)])
+        fs = split([afasta_fn, outdir, str(nprocs)])
         queries = fs.names
     else:
         queries = [afasta_fn]
 
-    dbtype = "prot" if op.basename(blast_bin) in ["blastp", "blastx"] \
+    dbtype = "prot" if op.basename(blast_bin) in ("blastp", "blastx") \
         else "nucl"
 
     db = bfasta_fn
@@ -102,11 +104,11 @@ def main():
     blast_cmd = blastplus_template.format(blast_bin, bfasta_fn, opts.format)
     blast_cmd += " -evalue {0} -max_target_seqs {1}".\
         format(opts.evalue, opts.best)
+    blast_cmd += " -num_threads {0}".format(cpus)
     if extra:
         blast_cmd += " " + extra.strip()
 
-    args = [(k + 1, cpus, out_fh, blast_cmd, query, lock) \
-                for k, query in zip(range(cpus), queries)]
+    args = [(out_fh, blast_cmd, query, lock) for query in queries]
     g = Jobs(target=blastplus, args=args)
     g.run()
 

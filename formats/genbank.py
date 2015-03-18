@@ -39,7 +39,7 @@ class MultiGenBank (BaseFile):
         gff_fw = must_open(gfffile, "w")
 
         self.source = source
-        self.counter = defaultdict(int)
+        self.counter = defaultdict(list)
 
         nrecs, nfeats = 0, 0
         for rec in SeqIO.parse(filename, "gb"):
@@ -48,17 +48,10 @@ class MultiGenBank (BaseFile):
             SeqIO.write([rec], fasta_fw, "fasta")
             rf = rec.features
             for f in rf:
-                type = f.type
-                fsf = f.sub_features
-
                 self.print_gffline(gff_fw, f, seqid)
                 nfeats += 1
 
-                if type == "CDS" and not fsf:
-                    f.type = "CDS"
-                    fsf = [f]
-
-                for sf in fsf:
+                for sf in f.sub_features:
                     self.print_gffline(gff_fw, sf, seqid, parent=f)
                     nfeats += 1
 
@@ -105,30 +98,34 @@ class MultiGenBank (BaseFile):
             id, = parent.qualifiers[LT]
             id = id.split()[0]
 
-        if type == 'CDS':
-            parent_id = id
-            self.counter[id] += 1
-            suffix = ".cds.{0}".format(self.counter[id])
-            id = parent_id + suffix
-            g.attributes["Parent"] = [parent_id]
-
         assert id != "tmp", f
+        oid = id
+        self.counter[(oid, type)].append((start, end))
+        count = len(self.counter[(oid, type)])
+
+        if type in ("mRNA", "gene"):
+            if type == "gene" and count > 1:
+                return
+            self.start = min(a for a, b in self.counter[(id, type)])
+            self.end = max(a for a, b in self.counter[(id, type)])
+            self.set_attribute("gene", "Alias", qual, g)
+            self.set_attribute("product", "Note", qual, g)
+        else:
+            suffix = ".{0}.{1}".format(type.lower(), count)
+            id = id + suffix
+            g.attributes["Parent"] = [oid]
+            self.set_attribute("product", "Note", qual, g)
+
         g.attributes["ID"] = [id]
-
-        if type == "mRNA":
-            g.attributes["Name"] = g.attributes["ID"]
-            if "product" in qual:
-                note, = qual["product"]
-                g.attributes["Note"] = [note]
-
-            if "pseudo" in qual:
-                note = "Pseudogene"
-                g.attributes["Note"] = [note]
-
         g.update_attributes()
         print >> fw, g
 
-        self.current_id = id
+        self.current_id = oid
+
+    def set_attribute(self, gb_tag, gff_tag, qual, g):
+        if gb_tag in qual:
+            tag, = qual[gb_tag]
+            g.attributes[gff_tag] = [tag]
 
 
 class GenBank(dict):

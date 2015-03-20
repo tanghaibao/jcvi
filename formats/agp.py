@@ -23,6 +23,7 @@ from Bio import SeqIO
 from jcvi.formats.base import LineFile, must_open
 from jcvi.formats.fasta import Fasta
 from jcvi.formats.bed import Bed, BedLine
+from jcvi.formats.gff import Gff, GffLine
 from jcvi.assembly.base import calculate_A50
 from jcvi.utils.range import range_intersect
 from jcvi.utils.iter import pairwise, flatten
@@ -139,6 +140,8 @@ class AGPLine (object):
         attributes = ";".join(("ID=" + gff_feat_id, \
                               "Name=" + self.component_id, \
                               "phase=" + self.component_type))
+        gff_feat_type = "gap" if self.component_type == "N" \
+            else gff_feat_type
         orientation = "." if self.orientation == "na" else self.orientation
 
         return "\t".join(str(x) for x in (self.object, gff_source, \
@@ -1230,34 +1233,39 @@ def mask(args):
 
 def liftover(args):
     """
-    %prog liftover agpfile bedfile
+    %prog liftover agpfile bedfile|gfffile
 
     Given coordinates in components, convert to the coordinates in chromosomes.
     """
     p = OptionParser(liftover.__doc__)
     p.add_option("--prefix", default=False, action="store_true",
                  help="Prepend prefix to accn names [default: %default]")
+    p.add_option("--type", default="bed", choices=("bed", "gff"),
+                 help="Specify input file type")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
         sys.exit(p.print_help())
 
-    agpfile, bedfile = args
+    agpfile, featfile = args
+    ftype = opts.type
+
     agp = AGP(agpfile).order
-    bed = Bed(bedfile)
-    newbed = Bed()
-    for b in bed:
-        component = b.seqid
+    infile, outfile = (Bed(featfile), Bed()) if ftype == "bed" \
+        else (Gff(featfile), [])
+
+    for f in infile:
+        component = f.seqid
         if component not in agp:
-            newbed.append(b)
+            outfile.append(f)
             continue
 
         i, a = agp[component]
 
         assert a.component_beg < a.component_end
         arange = a.component_beg, a.component_end
-        assert b.start < b.end
-        brange = b.start, b.end
+        assert f.start < f.end
+        brange = f.start, f.end
 
         st = range_intersect(arange, brange)
         if not st:
@@ -1272,13 +1280,23 @@ def liftover(args):
             d = a.object_beg - a.component_beg
             s, t = d + start, d + end
 
-        name = b.accn.replace(" ", "_")
+        name = f.accn.replace(" ", "_")
         if opts.prefix:
             name = component + "_" + name
-        bline = "\t".join(str(x) for x in (a.object, s - 1, t, name))
-        newbed.append(BedLine(bline))
 
-    newbed.print_to_file(sorted=True)
+        if ftype == "bed":
+            fline = "\t".join(str(x) for x in (a.object, s - 1, t, name))
+            outfile.append(BedLine(fline))
+        else:
+            fline = "\t".join(str(x) for x in (a.object, f.source, f.type, \
+                s - 1, t, f.score, a.orientation, f.phase, f.attributes_text))
+            outfile.append(GffLine(fline))
+
+    if ftype == "bed":
+        outfile.print_to_file(sorted=True)
+    else:
+        for line in outfile:
+            print line
 
 
 def reindex(args):

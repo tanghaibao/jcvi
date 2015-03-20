@@ -33,7 +33,7 @@ valid_gff_parent_child = {"match": "match_part",
                           "expressed_sequence_match": "match_part",
                           "protein_match": "match_part",
                           "transposable_element": "transposon_fragment",
-                          "mRNA": "exon"
+                          "mRNA": "exon",
                          }
 valid_gff_to_gtf_type = {"exon": "exon",
                          "CDS": "CDS",
@@ -55,7 +55,7 @@ class GffLine (object):
     Specification here (http://www.sequenceontology.org/gff3.shtml)
     """
     def __init__(self, sline, key="ID", gff3=True, line_index=None,
-                 append_source=False, score_attrib=False,
+                 append_source=False, append_ftype=False, score_attrib=False,
                  keep_attr_order=True, compute_signature=False):
         sline = sline.strip()
         args = sline.split("\t")
@@ -80,6 +80,13 @@ class GffLine (object):
         # key is not in the gff3 field, this indicates the conversion to accn
         self.key = key  # usually it's `ID=xxxxx;`
         self.gff3 = gff3
+
+        if append_ftype and self.key in self.attributes:
+            # if `append_ftype` is True, append the gff `self.type`
+            # to `self.key`. use this option to enhance the `self.accn`
+            # column in bed file
+            self.attributes[self.key][0] = ":".join((self.type, \
+                    self.attributes[self.key][0]))
 
         if append_source and self.key in self.attributes:
             # if `append_source` is True, append the gff `self.source`
@@ -222,21 +229,25 @@ class GffLine (object):
 
 class Gff (LineFile):
 
-    def __init__(self, filename, key="ID", append_source=False, score_attrib=False, \
-            keep_attr_order=True, make_gff_store=False, compute_signature=False):
+    def __init__(self, filename, key="ID", append_source=False, \
+            append_ftype=False, score_attrib=False, \
+            keep_attr_order=True, make_gff_store=False, \
+            compute_signature=False):
         super(Gff, self).__init__(filename)
         self.make_gff_store = make_gff_store
         self.gff3 = True
         if self.make_gff_store:
             self.gffstore = []
             gff = Gff(self.filename, key=key, append_source=append_source, \
-                    score_attrib=score_attrib, keep_attr_order=keep_attr_order, \
+                    append_ftype=append_ftype, score_attrib=score_attrib, \
+                    keep_attr_order=keep_attr_order, \
                     compute_signature=compute_signature)
             for g in gff:
                 self.gffstore.append(g)
         else:
             self.key = key
             self.append_source = append_source
+            self.append_ftype = append_ftype
             self.score_attrib = score_attrib
             self.keep_attr_order = keep_attr_order
             self.compute_signature = compute_signature
@@ -271,9 +282,13 @@ class Gff (LineFile):
                     if row == FastaTag:
                         break
                     continue
-                yield GffLine(row, key=self.key, line_index=idx, append_source=self.append_source, \
-                        score_attrib=self.score_attrib, keep_attr_order=self.keep_attr_order, \
-                        compute_signature=self.compute_signature, gff3=self.gff3)
+                yield GffLine(row, key=self.key, line_index=idx, \
+                        append_source=self.append_source, \
+                        append_ftype=self.append_ftype,\
+                        score_attrib=self.score_attrib, \
+                        keep_attr_order=self.keep_attr_order, \
+                        compute_signature=self.compute_signature, \
+                        gff3=self.gff3)
 
     @property
     def seqids(self):
@@ -789,8 +804,9 @@ def chain(args):
     gff = Gff(gffile)
     for g in gff:
         id = g.accn
-        if id not in gffdict:
-            gffdict[id] = { 'seqid': g.seqid,
+        gkey = (g.seqid, id)
+        if gkey not in gffdict:
+            gffdict[gkey] = { 'seqid': g.seqid,
                             'source': g.source,
                             'strand': g.strand,
                             'type': g.type,
@@ -799,33 +815,34 @@ def chain(args):
                             'score': [],
                             'attrs': DefaultOrderedDict(set)
                           }
-            gffdict[id]['attrs']['ID'].add(id)
+            gffdict[gkey]['attrs']['ID'].add(id)
 
         if attrib_list:
             for a in attrib_list.split(","):
                 if a in g.attributes:
-                    [gffdict[id]['attrs'][a].add(x) for x in g.attributes[a]]
+                    [gffdict[gkey]['attrs'][a].add(x) for x in g.attributes[a]]
                     del g.attributes[a]
 
-        gffdict[id]['coords'].append((g.start, g.end))
+        gffdict[gkey]['coords'].append((g.start, g.end))
         if score_merge_op:
             if is_number(g.score):
-                gffdict[id]['score'].append(float(g.score))
+                gffdict[gkey]['score'].append(float(g.score))
                 g.score = "."
 
         g.type = valid_gff_parent_child[g.type]
         g.attributes["Parent"] = g.attributes["ID"]
         g.attributes["ID"] = ["{0}-{1}".\
-                format(id, len(gffdict[id]['children']) + 1)]
+                format(id, len(gffdict[gkey]['children']) + 1)]
         g.update_attributes()
-        gffdict[id]['children'].append(g)
+        gffdict[gkey]['children'].append(g)
 
-    for key, v in sorted(gffdict.items()):
+    for gkey, v in sorted(gffdict.items()):
+        gseqid, key = gkey
         seqid = v['seqid']
         source = v['source']
         type = v['type']
         strand = v['strand']
-        start, stop = range_minmax(gffdict[key]['coords'])
+        start, stop = range_minmax(gffdict[gkey]['coords'])
 
         score = "."
         if score_merge_op:
@@ -842,13 +859,13 @@ def chain(args):
                 score = ",".join((str(x) for x in v['score']))
 
         g = GffLine("\t".join(str(x) for x in [seqid, source, type, start, stop, \
-            score, strand, "."]))
+            score, strand, ".", None]))
         g.attributes = v['attrs']
         g.update_attributes()
 
         print >> fw, g
 
-        for child in gffdict[key]['children']:
+        for child in gffdict[gkey]['children']:
             print >> fw, child
 
     fw.close()
@@ -892,6 +909,8 @@ def format(args):
     g2.add_option("--seqid", help="Switch seqid from two-column file [default: %default]")
     g2.add_option("--source", help="Switch GFF source from two-column file. If not" + \
                 " a file, value will globally replace GFF source [default: %default]")
+    g2.add_option("--type", help="Switch GFF feature type from two-column file. If not" + \
+                " a file, value will globally replace GFF type [default: %default]")
     g2.add_option("--fixphase", default=False, action="store_true",
                  help="Change phase 1<->2, 2<->1 [default: %default]")
     p.add_option_group(g2)
@@ -930,13 +949,15 @@ def format(args):
     names = opts.name
     note = opts.note
     source = opts.source
+    ftype = opts.type
     attrib_files = opts.attrib_files.split(",") if opts.attrib_files else None
     dbxref_files = opts.dbxref_files.split(",") if opts.dbxref_files else None
     remove_attrs = opts.remove_attrs.split(",") if opts.remove_attrs else None
     gsac = opts.gsac
-    if opts.unique and opts.duptype:
-        logging.debug("Cannot use `--unique` and `--chaindup` together")
-        sys.exit()
+    assert not (opts.unique and opts.duptype), \
+        "Cannot use `--unique` and `--chaindup` together"
+    assert not(opts.type and opts.duptype), \
+        "Cannot use `--type` and `--chaindup` together"
     unique = opts.unique
     duptype = opts.duptype
     fixphase = opts.fixphase
@@ -958,6 +979,8 @@ def format(args):
         mod_attrs.add("Note")
     if source and op.isfile(source):
         source = DictFile(source, delimiter="\t", strict=strict)
+    if ftype and op.isfile(ftype):
+        ftype = DictFile(ftype, delimiter="\t", strict=strict)
     if names:
         names = DictFile(names, delimiter="\t", strict=strict)
         mod_attrs.add("Name")
@@ -1145,6 +1168,12 @@ def format(args):
 
         if gsac and g.type == "gene":
             notes[id] = g.attributes["Name"]
+
+        if ftype:
+            if isinstance(ftype, dict) and g.type in ftype:
+                g.type = ftype[g.type]
+            else:
+                g.type = ftype
 
         if invent_name_attr:
             ft.store_symbol(g)
@@ -1956,6 +1985,8 @@ def bed(args):
             help="Attribute whose value is to be used as score in `bedline` [default: %default]")
     p.add_option("--append_source", default=False, action="store_true",
             help="Append GFF source name to extracted key value")
+    p.add_option("--append_ftype", default=False, action="store_true",
+            help="Append GFF feature type to extracted key value")
     p.add_option("--nosort", default=False, action="store_true",
             help="Do not sort the output bed file [default: %default]")
     p.set_stripnames(default=False)
@@ -1977,7 +2008,8 @@ def bed(args):
     if opts.source:
         source = set(x.strip() for x in opts.source.split(","))
 
-    gff = Gff(gffile, key=key, append_source=opts.append_source, score_attrib=opts.score_attrib)
+    gff = Gff(gffile, key=key, append_source=opts.append_source, \
+        append_ftype=opts.append_ftype, score_attrib=opts.score_attrib)
     b = Bed()
 
     for g in gff:

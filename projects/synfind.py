@@ -9,6 +9,7 @@ import sys
 import logging
 
 from copy import deepcopy
+from collections import defaultdict
 from itertools import groupby
 
 from jcvi.formats.base import must_open
@@ -49,7 +50,7 @@ def grasses(args):
 
     fp = open(master)
     fp.next()
-    master_store = {}
+    master_store = defaultdict(set)
     for row in fp:
         atoms = row.split()
         s = set()
@@ -60,7 +61,7 @@ def grasses(args):
             s.remove('-')
 
         a = atoms[1]
-        master_store[a] = s
+        master_store[a] |= set(s)
 
     fp = open(james)
     fp.next()
@@ -68,17 +69,17 @@ def grasses(args):
     for row in fp:
         atoms = row.split()
         s = set()
-        Os = []
+        Os = set()
         for x in atoms[:-1]:
             m = x.split("||")
             if m[0].startswith("Os"):
-                Os = m
+                Os |= set(m)
             if m[0].startswith("http"):
                 continue
             if m[0].startswith("chr"):
                 m = ["proxy"]
-            #m = [m[0]]
             s |= set(m)
+
         for x in Os:
             james_store[x] = s
 

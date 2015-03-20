@@ -6,7 +6,9 @@ Scripts for the pineapple genome manuscript (unpublished).
 """
 
 import sys
+import logging
 
+from jcvi.formats.sizes import Sizes
 from jcvi.graphics.base import plt, savefig, panel_labels
 from jcvi.graphics.karyotype import Karyotype
 from jcvi.graphics.synteny import Synteny, draw_gene_legend
@@ -18,6 +20,10 @@ def main():
 
     actions = (
         ('ploidy', 'plot pineapple macro-synteny (requires data)'),
+        # build pseudomolecule
+        ('agp', 'make agp file'),
+        ('breakpoints', 'make breakpoints'),
+        ('check', 'check agreement'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -71,6 +77,70 @@ def ploidy(args):
     pf = "pineapple-karyotype"
     image_name = pf + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
+
+
+scaffold = "scaffold_"
+
+
+def check(args):
+    fp = open("assembly-order.txt")
+    fp.next()
+    d = {}
+    for row in fp:
+        atoms = row.split()
+        scaf, tag, linkage, no = atoms[:4]
+        d[scaf] = tag
+
+    fp = open("chimeric-scaffolds.txt")
+    fp.next()
+    for row in fp:
+        old, new, tag, start, end = row.strip().split("\t")
+        if new not in d:
+            print new, "not in sheet1"
+            continue
+        if d[new] != tag:
+            print "{0} => {1} in sheet1 but {2} in sheet2".format(new, d[new], tag)
+
+
+def agp(args):
+    fp = open("assembly-order.txt")
+    fp.next()
+    sizes = Sizes("SCAFFOLD-SPLIT.fasta").mapping
+    for row in fp:
+        atoms = row.split()
+        assert len(atoms) in (4, 5)
+        if len(atoms) == 4:
+            atoms.append('?')
+        scaf, tag, linkage, no, strand = atoms
+        strand = strand.lower()
+        strand = {'f': '+', 'r': '-', '?': '?'}[strand]
+        scaf = "scaffold_" + scaf
+        scaf_size = sizes[scaf]
+        linkage = "LG{0:02d}".format(ord(linkage.lower()) - ord('a') + 1)
+        print "\t".join(str(x) for x in \
+                    (scaf, 0, scaf_size, linkage, 1000, strand))
+
+
+def breakpoints(args):
+    fp = open("chimeric-scaffolds.txt")
+    fp.next()
+    scaffolds = set()
+    nbreaks = 0
+    for row in fp:
+        atoms = row.strip().split("\t")
+        if len(atoms) == 3:
+            continue
+        old, new, tag, start, end = atoms
+        old = scaffold + old
+        start, end = int(start), int(end)
+        if start >= end:
+            logging.warn("{0} {1} >= {2}".format(old, start, end))
+            start, end = end, start
+        print "\t".join(str(x) for x in (old, start - 1, end))
+        nbreaks += 1
+        scaffolds.add(old)
+    print >> sys.stderr, "{0} breakpoints in total, {1} scaffolds broken"\
+                    .format(nbreaks, len(scaffolds))
 
 
 if __name__ == '__main__':

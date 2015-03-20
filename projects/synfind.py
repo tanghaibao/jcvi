@@ -11,6 +11,8 @@ import logging
 from copy import deepcopy
 from itertools import groupby
 
+from jcvi.formats.base import must_open
+from jcvi.utils.cbook import SummaryStats
 from jcvi.formats.bed import Bed
 from jcvi.graphics.base import FancyArrow, plt, savefig, panel_labels, markup
 from jcvi.graphics.glyph import CartoonRegion, RoundRect
@@ -22,9 +24,79 @@ def main():
     actions = (
         ('cartoon', 'generate cartoon illustration of SynFind'),
         ('islands', 'gene presence absence analysis in ecoli'),
+        ('grasses', 'validate SynFind pan-grass set against James'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def grasses(args):
+    """
+    %prog grasses coge_master_table.txt james.txt
+
+    Validate SynFind pan-grass set against James. This set can be generated:
+
+    https://genomevolution.org/r/fhak
+    """
+    p = OptionParser(grasses.__doc__)
+    p.set_verbose()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    master, james = args
+
+    fp = open(master)
+    fp.next()
+    master_store = {}
+    for row in fp:
+        atoms = row.split()
+        s = set()
+        for x in atoms[1:6]:
+            m = x.split(",")
+            s |= set(m)
+        if '-' in s:
+            s.remove('-')
+
+        a = atoms[1]
+        master_store[a] = s
+
+    fp = open(james)
+    fp.next()
+    james_store = {}
+    for row in fp:
+        atoms = row.split()
+        s = set()
+        Os = []
+        for x in atoms[:-1]:
+            m = x.split("||")
+            if m[0].startswith("Os"):
+                Os = m
+            if m[0].startswith("http"):
+                continue
+            if m[0].startswith("chr"):
+                m = ["proxy"]
+            #m = [m[0]]
+            s |= set(m)
+        for x in Os:
+            james_store[x] = s
+
+    jaccards = []
+    for k, v in james_store.items():
+        if k not in master_store:
+            continue
+        m = master_store[k]
+        jaccard = len(v & m) * 100 / len(v | m)
+        jaccards.append(jaccard)
+        if opts.verbose:
+            print k
+            print v
+            print m
+            print jaccard
+
+    j = SummaryStats(jaccards)
+    print j
 
 
 def islands(args):
@@ -49,6 +121,7 @@ def islands(args):
     coli K12 and O157. Nucleic Acid Research.
     """
     p = OptionParser(islands.__doc__)
+    p.set_outfile()
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -86,15 +159,17 @@ def islands(args):
         glist = list(a for missing, a in aa)
         II.append(glist)
         size = len(glist)
-        if size >= 4:
+        if size >= large:
             II_large.append(glist)
 
+    fw = must_open(opts.outfile, "w")
     for a, t in zip((II, II_large), ("", ">=4 ")):
         nmissing = sum(len(x) for x in a)
         logging.debug("A total of {0} {1}-specific {2}islands found with {3} genes.".\
                         format(len(a), qorg, t, nmissing))
 
-    print >> sys.stderr, " | ".join(".".join(x) for x in II)
+    for x in II:
+        print >> fw, len(x), ",".join(x)
 
 
 def plot_diagram(ax, x, y, A, B, tag, label):

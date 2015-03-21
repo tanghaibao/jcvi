@@ -293,6 +293,10 @@ def alignextend(args):
     p = OptionParser(alignextend.__doc__)
     p.add_option("--nosuffix", default=False, action="store_true",
                  help="Do not add /1/2 suffix to the read [default: %default]")
+    p.add_option("--rc", default=False, action="store_true",
+                 help="Reverse complement the reads before alignment")
+    p.add_option("--len", default=100, type="int",
+                 help="Extend to this length")
     p.set_home("amos")
     p.set_cpus()
     opts, args = p.parse_args(args)
@@ -312,6 +316,9 @@ def alignextend(args):
     offset = guessoffset([r1])
     if offset == 64:
         cmd += " -I"
+    if opts.rc:
+        cmd += " -rc"
+    cmd += " -len {0} -min {0} -max {1}".format(opts.len, 10 * opts.len)
     cmd += " ".join(("", pf, ref, r1, r2))
     sh(cmd)
 

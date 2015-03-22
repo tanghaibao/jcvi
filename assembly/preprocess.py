@@ -290,6 +290,7 @@ def alignextend(args):
 
     Wrapper around AMOS alignextend.
     """
+    choices = "prepare,align,filter,rmdup,genreads".split(",")
     p = OptionParser(alignextend.__doc__)
     p.add_option("--nosuffix", default=False, action="store_true",
                  help="Do not add /1/2 suffix to the read [default: %default]")
@@ -297,6 +298,10 @@ def alignextend(args):
                  help="Reverse complement the reads before alignment")
     p.add_option("--len", default=100, type="int",
                  help="Extend to this length")
+    p.add_option("--stage", default="prepare", choices=choices,
+                 help="Start from certain stage")
+    p.add_option("--dup", default=2, type="int",
+                 help="Filter duplicates with coordinates within this distance")
     p.set_home("amos")
     p.set_cpus()
     opts, args = p.parse_args(args)
@@ -318,7 +323,9 @@ def alignextend(args):
         cmd += " -I"
     if opts.rc:
         cmd += " -rc"
-    cmd += " -len {0} -min {0} -max {1}".format(opts.len, 10 * opts.len)
+    cmd += " -allow -len {0} -dup {1}".format(opts.len, opts.dup)
+    cmd += " -min {0} -max {1}".format(2 * opts.len, 20 * opts.len)
+    cmd += " -stage {0}".format(opts.stage)
     cmd += " ".join(("", pf, ref, r1, r2))
     sh(cmd)
 

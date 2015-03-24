@@ -8,6 +8,8 @@ Scripts for the pineapple genome manuscript (unpublished).
 import sys
 import logging
 
+from jcvi.formats.base import DictFile, must_open
+from jcvi.formats.bed import Bed
 from jcvi.formats.sizes import Sizes
 from jcvi.graphics.base import plt, savefig, panel_labels
 from jcvi.graphics.karyotype import Karyotype
@@ -24,9 +26,73 @@ def main():
         ('agp', 'make agp file'),
         ('breakpoints', 'make breakpoints'),
         ('check', 'check agreement'),
+        # build gene info table
+        ('geneinfo', 'build gene info table'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def read_interpro(ipr):
+    store = {}
+    fp = open(ipr)
+    # Aco000343.1     0d98a55eb3399a408e06252a2e24efcf        2083    Pfam
+    # PF00476 DNA polymerase family A 1685    2075    1.70E-55        T
+    # 10-10-2014      IPR001098       "DNA-directed DNA polymerase, family A,
+    # palm domain"    GO:0003677|GO:0003887|GO:0006260        KEGG:
+    # 00230+2.7.7.7|KEGG: 00240+2.7.7.7
+    for row in fp:
+        accession, md5, seqlen, analysis, signature, signature_description, \
+        start, stop, score, status, date, interpro, interpro_description, GO, \
+                        pathway = row.split("\t")
+        accession = accession.split(".")[0]
+        interpro_description = interpro_description.replace('"', "")
+        pathway = pathway.strip()
+        if accession not in ipr:
+            store[accession] = (interpro, interpro_description, GO, pathway)
+    return store
+
+
+def geneinfo(args):
+    """
+    %prog geneinfo pineapple.20141007.bed pineapple.20150306.bed \
+                   note.txt interproscan.txt
+
+    Build gene info table from various sources.
+    """
+    p = OptionParser(geneinfo.__doc__)
+    p.set_outfile()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 4:
+        sys.exit(not p.print_help())
+
+    scfbed, lgbed, note, ipr = args
+    note = DictFile(note, delimiter="\t")
+    scfbed = Bed(scfbed)
+    lgorder = Bed(lgbed).order
+    header = "Accession Scaffold-position LG-position "\
+             "Description Interpro-domain Interpro-description "\
+             "GO-term KEGG".split()
+    ipr = read_interpro(ipr)
+
+    fw = must_open(opts.outfile, "w")
+    print >> fw, "\t".join(header)
+
+    for b in scfbed:
+        accession = b.accn
+        scaffold_position = b.tag
+        if accession in lgorder:
+            lg_position = lgorder[accession][-1].tag
+        else:
+            lg_position = "split"
+        description = note[accession]
+        interpro = interpro_description = go = kegg = ""
+        if accession in ipr:
+            interpro, interpro_description, go, kegg = ipr[accession]
+        print >> fw, "\t".join((accession, scaffold_position, lg_position,
+                        description, interpro, interpro_description, go, kegg))
+    fw.close()
 
 
 def ploidy(args):

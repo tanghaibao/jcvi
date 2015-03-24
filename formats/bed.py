@@ -75,6 +75,10 @@ class BedLine(object):
         strand = self.strand or '+'
         return (self.seqid, self.start, self.end, strand)
 
+    @property
+    def tag(self):
+        return "{0}:{1}-{2}".format(self.seqid, self.start, self.end)
+
     def gffline(self, type='match', source='default'):
         score = "." if not self.score or \
                 (self.score and not is_number(self.score)) \

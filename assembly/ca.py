@@ -112,7 +112,7 @@ def graph(args):
 
     p = OptionParser(graph.__doc__)
     p.add_option("--maxerr", default=100, type="float", help="Maximum error rate")
-    p.add_option("--largest", default=10, type="int", help="Only show largest components")
+    p.add_option("--largest", default=1, type="int", help="Only show largest components")
     p.add_option("--depth", default=200, type="int", help="Maximum depth")
     opts, args = p.parse_args(args)
 
@@ -122,36 +122,37 @@ def graph(args):
     bestedges, = args
     maxerr = opts.maxerr
     logging.debug("Max error = {0}%".format(maxerr))
-    G = nx.Graph()
+    G = nx.DiGraph()
     fp = open(bestedges)
     for row in fp:
         if row[0] == '#':
             continue
         id1, lib_id, best5, o1, best3, o3, j1, j2 = row.split()
         j1, j2 = float(j1), float(j2)
-        if j1 > maxerr or j2 > maxerr:
+        if j1 < maxerr or j2 < maxerr:
             G.add_node(id1)
-        if best5 != '0' and j1 > maxerr:
+        if best5 != '0' and j1 < maxerr:
             G.add_edge(best5, id1)
-        if best3 != '0' and j2 > maxerr:
+        if best3 != '0' and j2 < maxerr:
             G.add_edge(id1, best3)
 
     graph_stats(G)
 
     if len(G) > 10000:
-        SG = nx.Graph()
+        SG = nx.DiGraph()
         for x in xrange(opts.largest):
             H = graph_local_neighborhood(G, depth=opts.depth)
             SG.add_edges_from(H.edges())
         G = SG
 
-    H = nx.connected_component_subgraphs(G)
-    c = min(len(H), opts.largest)
-    logging.debug("{0} components found, {1} retained".format(len(H), c))
+    if 0:  # only works for un-directed graph
+        H = nx.connected_component_subgraphs(G)
+        c = min(len(H), opts.largest)
+        logging.debug("{0} components found, {1} retained".format(len(H), c))
 
-    G = nx.Graph()
-    for x in H[:c]:
-        G.add_edges_from(x.edges())
+        G = nx.Graph()
+        for x in H[:c]:
+            G.add_edges_from(x.edges())
 
     gexf = "best.gexf"
     nx.write_gexf(G, gexf)

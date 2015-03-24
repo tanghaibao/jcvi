@@ -278,7 +278,8 @@ def graph_local_neighborhood(G, depth=200, maxdegree=10):
     from random import choice
 
     c = [k for k, d in G.degree().iteritems() if d > maxdegree]
-    logging.debug("Remove {0} nodes with deg > {1}".format(len(c), maxdegree))
+    if c:
+        logging.debug("Remove {0} nodes with deg > {1}".format(len(c), maxdegree))
     G.remove_nodes_from(c)
 
     query = choice(G.nodes())
@@ -286,7 +287,7 @@ def graph_local_neighborhood(G, depth=200, maxdegree=10):
                     format(query, depth))
     queue = set([query])
     # BFS search of max depth
-    seen = set()
+    seen = set([query])
     for i in xrange(depth):
         neighbors = set()
         for q in queue:
@@ -296,6 +297,7 @@ def graph_local_neighborhood(G, depth=200, maxdegree=10):
             break
 
         seen |= queue
+        #print sorted(list(seen))
         print >> sys.stderr, "iter: {0}, graph size={1}".format(i, len(seen))
         if len(seen) > 10000:
             break

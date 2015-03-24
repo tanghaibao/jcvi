@@ -300,8 +300,10 @@ def alignextend(args):
                  help="Extend to this length")
     p.add_option("--stage", default="prepare", choices=choices,
                  help="Start from certain stage")
-    p.add_option("--dup", default=2, type="int",
+    p.add_option("--dup", default=10, type="int",
                  help="Filter duplicates with coordinates within this distance")
+    p.add_option("--maxdiff", default=1, type="int",
+                 help="Maximum number of differences")
     p.set_home("amos")
     p.set_cpus()
     opts, args = p.parse_args(args)
@@ -325,6 +327,7 @@ def alignextend(args):
         cmd += " -rc"
     cmd += " -allow -len {0} -dup {1}".format(opts.len, opts.dup)
     cmd += " -min {0} -max {1}".format(2 * opts.len, 20 * opts.len)
+    cmd += " -maxdiff {0}".format(opts.maxdiff)
     cmd += " -stage {0}".format(opts.stage)
     cmd += " ".join(("", pf, ref, r1, r2))
     sh(cmd)

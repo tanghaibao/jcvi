@@ -791,6 +791,7 @@ def need_update(a, b):
     b = listify(b)
 
     return any((not op.exists(x)) for x in b) or \
+           all((os.stat(x).st_size == 0 for x in b)) or \
            any(is_newer_file(x, y) for x in a for y in b)
 
 

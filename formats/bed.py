@@ -207,6 +207,7 @@ class BedpeLine(object):
         self.score = args[7]
         self.strand1 = args[8]
         self.strand2 = args[9]
+        self.isdup = False
 
     @property
     def innerdist(self):
@@ -380,6 +381,20 @@ def main():
     p.dispatch(globals())
 
 
+def sfa_to_fq(sfa, qvchar):
+    fq = sfa.rsplit(".", 1)[0] + ".fq"
+    fp = must_open(sfa)
+    fw = must_open(fq, "w")
+    total = 0
+    for row in fp:
+        total += 1
+        name, seq = row.split()
+        qual = len(seq) * qvchar
+        print >> fw, "\n".join(("@" + name, seq, "+", qual))
+    logging.debug("A total of {0} sequences written to `{1}`.".format(total, fq))
+    return fq
+
+
 def alignextend(args):
     """
     %prog alignextend bedpefile ref.fasta
@@ -396,28 +411,101 @@ def alignextend(args):
                  help="Reverse complement the reads before alignment")
     p.add_option("--len", default=100, type="int",
                  help="Extend to this length")
+    p.add_option("--qv", default=31, type="int",
+                 help="Dummy qv score for extended bases")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
         sys.exit(not p.print_help())
 
     bedpe, ref = args
-    sizes = Sizes(ref).mapping
     rc = opts.rc
     rlen = opts.len
+    qvchar = chr(opts.qv + 33)
     minlen, maxlen = 2 * rlen, 20 * rlen
-    fp = must_open(bedpe)
-    for row in fp:
-        b = BedpeLine(row)
-        if rc:
-            b.rc()
-        if not b.is_innie:
-            continue
-        b.score = b.outerdist
-        if not minlen < b.score < maxlen:
-            continue
-        b.extend(rlen, sizes[b.seqid1])
-        print b
+    dupwiggle = rlen / 10
+    pf = bedpe.split(".")[0]
+
+    filtered = bedpe + ".filtered"
+    if need_update(bedpe, filtered):
+        tag = " after RC" if rc else ""
+        logging.debug("Filter criteria: innie{0}, {1} < insertsize < {2}".\
+                        format(tag, minlen, maxlen))
+        sizes = Sizes(ref).mapping
+        fp = must_open(bedpe)
+        fw = must_open(filtered, "w")
+        retained = total = 0
+        for row in fp:
+            b = BedpeLine(row)
+            total += 1
+            if rc:
+                b.rc()
+            if not b.is_innie:
+                continue
+            b.score = b.outerdist
+            if not minlen < b.score < maxlen:
+                continue
+            retained += 1
+            b.extend(rlen, sizes[b.seqid1])
+            print >> fw, b
+        logging.debug("A total of {0} mates written to `{1}`.".\
+                        format(percentage(retained, total), filtered))
+        fw.close()
+
+    sortedfiltered = filtered + ".sorted"
+    if need_update(filtered, sortedfiltered):
+        sh("sort -k1,1 -k2,2n -i {0} -o {1}".format(filtered, sortedfiltered))
+
+    clr = pf + ".clr.bed"
+    rmdup = sortedfiltered + ".rmdup"
+    if need_update(sortedfiltered, (clr, rmdup)):
+        logging.debug("Rmdup criteria: wiggle <= {0}".format(dupwiggle))
+        fp = must_open(sortedfiltered)
+        fw = must_open(rmdup, "w")
+        fw_clr = must_open(clr, "w")
+        data = [BedpeLine(x) for x in fp]
+        retained = total = 0
+        for seqid, ss in groupby(data, key=lambda x: x.seqid1):
+            ss = list(ss)
+            smin = min(x.start1 for x in ss)
+            smax = max(x.end2 for x in ss)
+            print >> fw_clr, "\t".join(str(x) for x in (seqid, smin - 1, smax))
+            for i, a in enumerate(ss):
+                if a.isdup:
+                    continue
+                for b in ss[i + 1:]:
+                    if b.start1 > a.start1 + dupwiggle:
+                        break
+                    if b.isdup:
+                        continue
+                    if a.seqid2 == b.seqid2 and \
+                       a.start2 - dupwiggle <= b.start2 <= a.start2 + dupwiggle:
+                       b.isdup = True
+            for a in ss:
+                total += 1
+                if a.isdup:
+                    continue
+                retained += 1
+                print >> fw, a
+        logging.debug("A total of {0} mates written to `{1}`.".\
+                        format(percentage(retained, total), rmdup))
+        fw.close()
+        fw_clr.close()
+
+    bed1, bed2 = pf + ".1e.bed", pf + ".2e.bed"
+    if need_update(rmdup, (bed1, bed2)):
+        sh("cut -f1-3,7-9 {0}".format(rmdup), outfile=bed1)
+        sh("cut -f4-6,7-8,10 {0}".format(rmdup), outfile=bed2)
+
+    sfa1, sfa2 = pf + ".1e.sfa", pf + ".2e.sfa"
+    if need_update((bed1, bed2, ref), (sfa1, sfa2)):
+        for bed in (bed1, bed2):
+            fastaFromBed(bed, ref, name=True, tab=True, stranded=True)
+
+    fq1, fq2 = pf + ".1e.fq", pf + ".2e.fq"
+    if need_update((sfa1, sfa2), (fq1, fq2)):
+        for sfa in (sfa1, sfa2):
+            sfa_to_fq(sfa, qvchar)
 
 
 def seqids(args):
@@ -1033,12 +1121,15 @@ def index(args):
     sh(cmd, outfile=opts.outfile)
 
 
-def fastaFromBed(bedfile, fastafile, name=False, stranded=False):
-    outfile = op.basename(bedfile).rsplit(".", 1)[0] + ".fasta"
+def fastaFromBed(bedfile, fastafile, name=False, tab=False, stranded=False):
+    suffix = ".sfa" if tab else ".fasta"
+    outfile = op.basename(bedfile).rsplit(".", 1)[0] + suffix
     cmd = "fastaFromBed -fi {0} -bed {1} -fo {2}".\
             format(fastafile, bedfile, outfile)
     if name:
         cmd += " -name"
+    if tab:
+        cmd += " -tab"
     if stranded:
         cmd += " -s"
 

@@ -411,6 +411,12 @@ def alignextend(args):
                  help="Reverse complement the reads before alignment")
     p.add_option("--len", default=100, type="int",
                  help="Extend to this length")
+    p.add_option("--minlen", default=2000, type="int",
+                 help="Minimum insert size")
+    p.add_option("--maxlen", default=8000, type="int",
+                 help="Maximum insert size")
+    p.add_option("--dup", default=10, type="int",
+                 help="Filter duplicates with coordinates within this distance")
     p.add_option("--qv", default=31, type="int",
                  help="Dummy qv score for extended bases")
     opts, args = p.parse_args(args)
@@ -421,15 +427,15 @@ def alignextend(args):
     bedpe, ref = args
     rc = opts.rc
     rlen = opts.len
+    dupwiggle = opts.dup
     qvchar = chr(opts.qv + 33)
-    minlen, maxlen = 2 * rlen, 20 * rlen
-    dupwiggle = rlen / 10
+    minlen, maxlen = opts.minlen, opts.maxlen
     pf = bedpe.split(".")[0]
 
     filtered = bedpe + ".filtered"
     if need_update(bedpe, filtered):
         tag = " after RC" if rc else ""
-        logging.debug("Filter criteria: innie{0}, {1} < insertsize < {2}".\
+        logging.debug("Filter criteria: innie{0}, {1} <= insertsize <= {2}".\
                         format(tag, minlen, maxlen))
         sizes = Sizes(ref).mapping
         fp = must_open(bedpe)
@@ -443,7 +449,7 @@ def alignextend(args):
             if not b.is_innie:
                 continue
             b.score = b.outerdist
-            if not minlen < b.score < maxlen:
+            if not minlen <= b.score <= maxlen:
                 continue
             retained += 1
             b.extend(rlen, sizes[b.seqid1])

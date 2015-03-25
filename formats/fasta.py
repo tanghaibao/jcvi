@@ -369,12 +369,43 @@ def main():
         ('join', 'concatenate a list of seqs and add gaps in between'),
         ('some', 'include or exclude a list of records (also performs on ' + \
                  '.qual file if available)'),
+        ('qual', 'generate dummy .qual file based on FASTA file'),
         ('clean', 'remove irregular chars in FASTA seqs'),
         ('ispcr', 'reformat paired primers into isPcr query format'),
         ('fromtab', 'convert 2-column sequence file to FASTA format'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def qual(args):
+    """
+    %prog qual fastafile
+
+    Generate dummy .qual file based on FASTA file.
+    """
+    from jcvi.formats.sizes import Sizes
+
+    p = OptionParser(qual.__doc__)
+    p.add_option("--qv", default=31, type="int",
+                 help="Dummy qv score for extended bases")
+    p.set_outfile()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    fastafile, = args
+    sizes = Sizes(fastafile)
+    qvchar = str(opts.qv)
+    fw = must_open(opts.outfile, "w")
+    total = 0
+    for s, slen in sizes.iter_sizes():
+        print >> fw, ">" + s
+        print >> fw, " ".join([qvchar] * slen)
+        total += 1
+    fw.close()
+    logging.debug("Written {0} records in `{1}`.".format(total, opts.outfile))
 
 
 def info(args):

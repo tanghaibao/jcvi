@@ -193,6 +193,67 @@ class Bed(LineFile):
             yield seqid, ranks[0][1], ranks[-1][1]
 
 
+class BedpeLine(object):
+
+    def __init__(self, sline):
+        args = sline.strip().split("\t")
+        self.seqid1 = args[0]
+        self.start1 = int(args[1]) + 1
+        self.end1 = int(args[2])
+        self.seqid2 = args[3]
+        self.start2 = int(args[4]) + 1
+        self.end2 = int(args[5])
+        self.accn = args[6]
+        self.score = args[7]
+        self.strand1 = args[8]
+        self.strand2 = args[9]
+
+    @property
+    def innerdist(self):
+        if self.seqid1 != self.seqid2:
+            return -1
+        return abs(self.start2 - self.end1)
+
+    @property
+    def outerdist(self):
+        if self.seqid1 != self.seqid2:
+            return -1
+        return abs(self.end2 - self.start1)
+
+    @property
+    def is_innie(self):
+        return (self.strand1, self.strand2) == ('+', '-')
+
+    def rc(self):
+        self.strand1 = '+' if self.strand1 == '-' else '-'
+        self.strand2 = '+' if self.strand2 == '-' else '-'
+
+    def _extend(self, rlen, size, start, end, strand):
+        if strand == '+':
+            end = start + rlen - 1
+            if end > size:
+                end = size
+                start = end - rlen + 1
+        else:
+            start = end - rlen + 1
+            if start < 1:
+                start = 1
+                end = start + rlen - 1
+        return start, end, strand
+
+    def extend(self, rlen, size):
+        self.start1, self.end1, self.strand1 = self._extend(\
+                rlen, size, self.start1, self.end1, self.strand1)
+        self.start2, self.end2, self.strand2 = self._extend(\
+                rlen, size, self.start2, self.end2, self.strand2)
+
+    def __str__(self):
+        args = (self.seqid1, self.start1 - 1, self.end1,
+                self.seqid2, self.start2 - 1, self.end2,
+                self.accn, self.score, self.strand1, self.strand2)
+        return "\t".join(str(x) for x in args)
+
+
 class BedEvaluate (object):
 
     def __init__(self, TPbed, FPbed, FNbed, TNbed):
@@ -313,9 +374,50 @@ def main():
         ('random', 'extract a random subset of features'),
         ('juncs', 'trim junctions.bed overhang to get intron, merge multiple beds'),
         ('seqids', 'print out all seqids on one line'),
+        ('alignextend', 'alignextend based on BEDPE and FASTA ref'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def alignextend(args):
+    """
+    %prog alignextend bedpefile ref.fasta
+
+    Similar idea to alignextend, using mates from BEDPE and FASTA ref. See AMOS
+    script here:
+
+    https://github.com/nathanhaigh/amos/blob/master/src/Experimental/alignextend.pl
+    """
+    from jcvi.formats.sizes import Sizes
+
+    p = OptionParser(alignextend.__doc__)
+    p.add_option("--rc", default=False, action="store_true",
+                 help="Reverse complement the reads before alignment")
+    p.add_option("--len", default=100, type="int",
+                 help="Extend to this length")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    bedpe, ref = args
+    sizes = Sizes(ref).mapping
+    rc = opts.rc
+    rlen = opts.len
+    minlen, maxlen = 2 * rlen, 20 * rlen
+    fp = must_open(bedpe)
+    for row in fp:
+        b = BedpeLine(row)
+        if rc:
+            b.rc()
+        if not b.is_innie:
+            continue
+        b.score = b.outerdist
+        if not minlen < b.score < maxlen:
+            continue
+        b.extend(rlen, sizes[b.seqid1])
+        print b
 
 
 def seqids(args):

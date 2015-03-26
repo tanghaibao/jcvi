@@ -18,7 +18,6 @@ from Bio import SeqIO
 from jcvi.formats.base import must_open
 from jcvi.formats.fasta import Fasta, SeqRecord, filter, parse_fasta
 from jcvi.formats.blast import Blast
-from jcvi.utils.cbook import fill
 from jcvi.utils.range import range_minmax
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update, \
             glob, get_abs_path
@@ -33,6 +32,7 @@ def main():
         ('sff', 'convert 454 reads to frg file'),
         ('fastq', 'convert Illumina reads to frg file'),
         ('shred', 'shred contigs into pseudo-reads'),
+        ('bisect', 'cut reads into two halves'),
         ('astat', 'generate the coverage-rho scatter plot'),
         ('graph', 'visualize best.edges'),
             )
@@ -44,7 +44,7 @@ frgTemplate = '''{{FRG
 act:A
 acc:{fragID}
 rnd:1
-sta:X
+sta:G
 lib:{libID}
 pla:0
 loc:0
@@ -58,7 +58,7 @@ qlt:
 .
 hps:
 .
-clr:0,{slen}
+{clr}
 }}'''
 
 headerTemplate = '''{{VER
@@ -94,7 +94,58 @@ constantInsertSize=0
 .
 }}'''
 
-DEFAULTQV = 'l'  # To pass initialTrim
+
+
+def bisect(args):
+    """
+    %prog bisect fastafile clr.bed
+
+    Cut the reads into two halves. This usage is somewhat esoteric ... after all,
+    who wants shorter reads? This is part of a test I did for a Pacbio assembly.
+    """
+    p = OptionParser(bisect.__doc__)
+    p.add_option("--lib", default='A', help="Library ID")
+    p.add_option("--overlap", default=600, type="int",
+                 help="Extend the fragments in the middle to keep connectivity")
+    p.add_option("--qv", default=31, type="int",
+                 help="Dummy qv score for extended bases")
+    p.set_outfile()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    fastafile, clrbed = args
+    ov = opts.overlap / 2
+    qvchar = chr(opts.qv + 33)
+    libID = opts.lib
+    fp = must_open(clrbed)
+    store = {}
+    for row in fp:
+        seqid, start, end = row.split()
+        store[seqid] = (int(start), int(end))
+
+    fw = must_open(opts.outfile, "w")
+    CLR = "clr:{0},{1}"
+    print >> fw, headerTemplate.format(libID=libID)
+    for k, seq in parse_fasta(fastafile):
+        if k not in store:
+            clr = CLR.format(0, len(seq))
+            emitFragment(fw, k, libID, seq, clr=clr, qvchar=qvchar)
+            continue
+        slen = len(seq)
+        mid = slen / 2
+        fid1, fid2 = k + ".1", k + ".2"
+        a, b = mid - ov, mid + ov
+        seq1, seq2 = seq[:b], seq[a:]
+        start, end = store[k]
+        if b > start:
+            clr1 = CLR.format(start, b)
+            emitFragment(fw, fid1, libID, seq1, clr=clr1, qvchar=qvchar)
+        if end - a > 0:
+            clr2 = CLR.format(0, end - a)
+            emitFragment(fw, fid2, libID, seq2, clr=clr2, qvchar=qvchar)
+    fw.close()
 
 
 def graph(args):
@@ -241,7 +292,7 @@ def astat(args):
     savefig(imagename, dpi=150)
 
 
-def emitFragment(fw, fragID, libID, shredded_seq, fasta=False):
+def emitFragment(fw, fragID, libID, shredded_seq, clr='', qvchar='l', fasta=False):
     """
     Print out the shredded sequence.
     """
@@ -252,10 +303,10 @@ def emitFragment(fw, fragID, libID, shredded_seq, fasta=False):
 
     seq = str(shredded_seq)
     slen = len(seq)
-    qvs = DEFAULTQV * slen  # shredded reads have default low qv
+    qvs = qvchar * slen  # shredded reads have default low qv
 
     print >> fw, frgTemplate.format(fragID=fragID, libID=libID,
-        seq=fill(seq), qvs=fill(qvs), slen=slen)
+        seq=seq, qvs=qvs, clr=clr)
 
 
 def shred(args):

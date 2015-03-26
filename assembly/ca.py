@@ -58,7 +58,7 @@ qlt:
 .
 hps:
 .
-{clr}
+clr:{clr_beg},{clr_end}
 }}'''
 
 headerTemplate = '''{{VER
@@ -126,12 +126,16 @@ def bisect(args):
         store[seqid] = (int(start), int(end))
 
     fw = must_open(opts.outfile, "w")
-    CLR = "clr:{0},{1}"
     print >> fw, headerTemplate.format(libID=libID)
+    seen = set()
     for k, seq in parse_fasta(fastafile):
+        if k in seen:
+            logging.error("Fragment {0} already loaded".format(k))
+            continue
+        seen.add(k)
+
         if k not in store:
-            clr = CLR.format(0, len(seq))
-            emitFragment(fw, k, libID, seq, clr=clr, qvchar=qvchar)
+            emitFragment(fw, k, libID, seq, clr=None, qvchar=qvchar)
             continue
         slen = len(seq)
         mid = slen / 2
@@ -139,12 +143,10 @@ def bisect(args):
         a, b = mid - ov, mid + ov
         seq1, seq2 = seq[:b], seq[a:]
         start, end = store[k]
-        if b > start:
-            clr1 = CLR.format(start, b)
-            emitFragment(fw, fid1, libID, seq1, clr=clr1, qvchar=qvchar)
-        if end - a > 0:
-            clr2 = CLR.format(0, end - a)
-            emitFragment(fw, fid2, libID, seq2, clr=clr2, qvchar=qvchar)
+        clr1 = (start, b) if b - start >= 500 else None
+        emitFragment(fw, fid1, libID, seq1, clr=clr1, qvchar=qvchar)
+        clr2 = (0, end - a) if end - a >= 500 else None
+        emitFragment(fw, fid2, libID, seq2, clr=clr2, qvchar=qvchar)
     fw.close()
 
 
@@ -292,7 +294,7 @@ def astat(args):
     savefig(imagename, dpi=150)
 
 
-def emitFragment(fw, fragID, libID, shredded_seq, clr='', qvchar='l', fasta=False):
+def emitFragment(fw, fragID, libID, shredded_seq, clr=None, qvchar='l', fasta=False):
     """
     Print out the shredded sequence.
     """
@@ -305,8 +307,13 @@ def emitFragment(fw, fragID, libID, shredded_seq, clr='', qvchar='l', fasta=Fals
     slen = len(seq)
     qvs = qvchar * slen  # shredded reads have default low qv
 
+    if clr is None:
+        clr_beg, clr_end = 0, slen
+    else:
+        clr_beg, clr_end = clr
+
     print >> fw, frgTemplate.format(fragID=fragID, libID=libID,
-        seq=seq, qvs=qvs, clr=clr)
+        seq=seq, qvs=qvs, clr_beg=clr_beg, clr_end=clr_end)
 
 
 def shred(args):

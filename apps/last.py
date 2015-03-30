@@ -21,6 +21,9 @@ from jcvi.formats.base import must_open
 from jcvi.apps.base import OptionParser, sh, Popen, PIPE
 
 
+supported_formats = ("tab", "maf", "blast")
+
+
 @depends
 def run_lastdb(infile=None, outfile=None, mask=False, lastdb_bin="lastdb"):
     outfilebase = outfile.rsplit(".", 1)[0]
@@ -55,9 +58,6 @@ def main(args):
 
     Run LAST by calling LASTDB, LASTAL and LASTEX.
     """
-
-    supported_formats = ("tab", "maf", "blast")
-
     p = OptionParser(main.__doc__)
     p.add_option("--path", help="specify LAST path")
     p.add_option("--mask", default=False, action="store_true",

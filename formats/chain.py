@@ -228,19 +228,20 @@ def last(args):
     """
     %prog last old.fasta new.fasta
 
-    Generate psl file using last. Calles apps.last() but with special
-    parameters: -r5 -q95 -a0 -b95 -e500, which only reports alignments larger
-    than 100 bp and >=95 % identity.
+    Generate psl file using LAST. Scoring parameters (-r -q -a -b -e)
+    automatically selected based on --minlen and --minid.
     """
-    from jcvi.apps.last import main as lastapp
+    from jcvi.apps.last import main as lastapp, supported_formats
 
     p = OptionParser(last.__doc__)
     p.add_option("--distant", default=False, action="store_true",
                  help="Assume distant relations")
-    p.add_option("--minscore", default=100, type="int",
+    p.add_option("--minlen", default=1000, type="int",
                  help="Filter alignments by how many bases match [default: %default]")
-    p.add_option("--minid", default=95, type="int",
+    p.add_option("--minid", default=80, type="int",
                  help="Minimum sequence identity [default: %default]")
+    p.add_option("--format", default="maf", choices=supported_formats,
+                 help="Output format")
     p.set_outfile()
 
     opts, args = p.parse_args(args)
@@ -248,17 +249,16 @@ def last(args):
         sys.exit(not p.print_help())
 
     oldfasta, newfasta = args
-    args = [oldfasta, newfasta, "--format=maf", \
+    args = [oldfasta, newfasta, "--format={0}".format(opts.format), \
                 "--outfile={0}".format(opts.outfile)]
 
-    minscore = opts.minscore
+    minlen = opts.minlen
     minid = opts.minid
 
-    r = 100 - minid
-    q = minid
-    e = minscore * r
+    assert minid != 100, "Perfect match not yet supported"
+    mm = minid / (100 - minid)
 
-    extra = r'--params=-r{0} -q{1} -a0 -b{1} -e{2}'.format(r, q, e)
+    extra = r'--params=-r1 -q{0} -a{0} -b{0} -e{1}'.format(mm, minlen)
     if not opts.distant:
         args.append(extra)
 

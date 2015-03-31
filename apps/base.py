@@ -784,8 +784,7 @@ def parse_multi_values(param):
         if op.isfile(param):
             values = list(set(x.strip() for x in open(param)))
         else:
-            values = list(set(param.split(","))
-
+            values = list(set(param.split(",")))
     return values
 
 

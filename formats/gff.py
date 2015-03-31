@@ -1454,10 +1454,10 @@ def sort(args):
     """
     %prog sort gffile
 
-    Sort gff file either topologically (based on hierarchy of features) or
-    using plain old unix based sort based on [chromosome, start coordinate].
+    Sort gff file using plain old unix sort based on [chromosome, start coordinate].
+    or topologically based on hierarchy of features using the gt (genometools) toolkit
     """
-    valid_sort_methods = ("topo", "unix")
+    valid_sort_methods = ("unix", "topo")
 
     p = OptionParser(sort.__doc__)
     p.add_option("--method", default="unix", choices=valid_sort_methods,
@@ -1466,6 +1466,7 @@ def sort(args):
                  help="If doing a unix sort, perform sort inplace [default: %default]")
     p.set_tmpdir()
     p.set_outfile()
+    p.set_home("gt")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -1473,9 +1474,11 @@ def sort(args):
 
     gffile, = args
     sortedgff = opts.outfile
-    if opts.inplace and opts.method == "unix" and gffile in ("-", "stdin"):
-        logging.error("Cannot perform inplace sort when input is `stdin`")
-        sys.exit()
+    if opts.inplace:
+        if opts.method == "topo" or (opts.method == "unix" and gffile in ("-", "stdin")):
+            logging.error("Cannot perform inplace sort when method is `topo`" + \
+                " or method is `unix` and input is `stdin` stream")
+            sys.exit()
 
     if opts.method == "unix":
         cmd = "sort"
@@ -1486,53 +1489,14 @@ def sort(args):
             cmd += " -o {0}".gffile
             sortedgff = None
         sh(cmd, outfile=sortedgff)
-    else:
-        toplvl, gffdict = [], {}
-        gff = Gff(gffile)
-        for g in gff:
-            id = g.accn
-            parent = g.get_attr("Parent", first=False)
-            gffdict = _sort_init_dict(gffdict, id)
-            gffdict[id]['gffline'] = g
-            if parent:
-                for pp in parent:
-                    gffdict = _sort_init_dict(gffdict, pp)
-                    if pp not in gffdict[id]['parents']:
-                        gffdict[id]['parents'].append(pp)
-                    if id not in gffdict[pp]['children']:
-                        gffdict[pp]['children'].append(id)
-            else:
-                toplvl.append(id)
-
-        fw = must_open(sortedgff, "w")
-        for id in toplvl:
-            print >> fw, gffdict[id]['gffline']
-            children = [x for x in gffdict[id]['children']]
-            children = _sort_retr_child(gffdict, children)
-            for child in children:
-                print >> fw, gffdict[child]['gffline']
-
-
-def _sort_init_dict(gffdict, id):
-    if id not in gffdict:
-        gffdict[id] = DefaultOrderedDict(list)
-        for reln in ('parents', 'children'):
-            if reln not in gffdict[id]:
-                gffdict[id][reln] = list()
-    return gffdict
-
-
-def _sort_retr_child(gffdict, children):
-    chldrn = children
-    for child in chldrn:
-        if len(gffdict[child]['children']) > 0:
-            for sub_child in gffdict[child]['children']:
-                if sub_child not in children:
-                    children.append(sub_child)
-    if len(chldrn) != len(children):
-        return _sort_retr_child(gffdict, children)
-    else:
-        return children
+    elif opts.method == "topo":
+        GT_HOME = opts.gt_home
+        if not op.isdir(GT_HOME):
+            logging.error("GT_HOME={0} directory does not exist".format(GT_HOME))
+            sys.exit()
+        cmd = "{0}".format(op.join(GT_HOME, "bin", "gt"))
+        cmd += " gff3 -sort -tidy -retainids -addids no {0}".format(gffile)
+        sh(cmd, outfile=sortedgff)
 
 
 def fromgtf(args):

@@ -526,7 +526,6 @@ class OptionParser (OptionP):
                    "pasa": "~/export/PASA2-r20130605p1",
                    "gmes": "~/export/gmes",
                    "gt": "~/export/genometools",
-                   "augustus": op.split(os.environ["AUGUSTUS_CONFIG_PATH"])[0],
                    "sspace": "~/export/SSPACE-BASIC-2.0_linux-x86_64",
                    "gapfiller": "~/export/GapFiller_v1-11_linux-x86_64",
                    "pbjelly": "/usr/local/projects/MTG4/PacBio/PBJelly_12.9.14/",

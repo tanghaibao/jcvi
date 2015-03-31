@@ -778,6 +778,17 @@ def is_newer_file(a, b):
     return am > bm
 
 
+def parse_multi_values(param):
+    values = None
+    if param:
+        if op.isfile(param):
+            values = list(set(x.strip() for x in open(param)))
+        else:
+            values = list(set(param.split(","))
+
+    return values
+
+
 def listify(a):
     return a if (isinstance(a, list) or isinstance(a, tuple)) else [a]
 

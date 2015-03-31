@@ -19,7 +19,7 @@ from jcvi.annotation.reformat import atg_name
 from jcvi.utils.iter import flatten
 from jcvi.utils.orderedcollections import DefaultOrderedDict, parse_qs
 from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher, mkdir, \
-            need_update, sh
+            parse_multi_values, need_update, sh
 
 
 Valid_strands = ('+', '-', '?', '.')
@@ -930,6 +930,9 @@ def format(args):
                 " [default: %default]")
     g3.add_option("--gsac", default=False, action="store_true",
                  help="Fix GSAC GFF3 file attributes [default: %default]")
+    g3.add_option("--process_ftype", default=None, type="str",
+                 help="Specify feature types to process; "
+                 "accepts comma-separated list of feature types [default: %default]")
     g3.add_option("--gff3", default=False, action="store_true",
                  help="Print output in GFF3 format [default: %default]")
     g3.add_option("--make_gff_store", default=False, action="store_true",
@@ -953,6 +956,7 @@ def format(args):
     attrib_files = opts.attrib_files.split(",") if opts.attrib_files else None
     dbxref_files = opts.dbxref_files.split(",") if opts.dbxref_files else None
     remove_attrs = opts.remove_attrs.split(",") if opts.remove_attrs else None
+    process_ftype = opts.process_ftype.split(",") if opts.process_ftype else None
     gsac = opts.gsac
     assert not (opts.unique and opts.duptype), \
         "Cannot use `--unique` and `--chaindup` together"
@@ -1032,6 +1036,8 @@ def format(args):
         gff = Gff(gffile, keep_attr_order=(not opts.no_keep_attr_order), \
                 make_gff_store=make_gff_store, compute_signature=compute_signature)
         for g in gff:
+            if process_ftype and g.type not in process_ftype:
+                continue
             id = g.accn
             if remove_feats and g.type in remove_feats:
                 remove.add(id)
@@ -1063,6 +1069,10 @@ def format(args):
     if not make_gff_store:
         gff = Gff(gffile, keep_attr_order=(not opts.no_keep_attr_order))
     for g in gff:
+        if process_ftype and g.type not in process_ftype:
+            print >> fw, g
+            continue
+
         id = g.accn
 
         if opts.multiparents == "merge":
@@ -1751,8 +1761,10 @@ def extract(args):
     %prog extract gffile
 
     --contigs: Extract particular contig(s) from the gff file. If multiple contigs are
-    involved, use "," to separate, e.g. "contig_12,contig_150"
-    --names: Provide a file with IDs, one each line
+    involved, use "," to separate, e.g. "contig_12,contig_150"; or provide a file
+    with multiple contig IDs, one per line
+    --names: Process particular ID(s) from the gff file. If multiple IDs are
+    involved, use "," to separate; or provide a file with multiple IDs, one per line
     """
     p = OptionParser(extract.__doc__)
     p.add_option("--contigs",
@@ -1774,13 +1786,14 @@ def extract(args):
         sys.exit(not p.print_help())
 
     gffile, = args
-    contigID = opts.contigs
+    contigfile = opts.contigs
     namesfile = opts.names
     nametag = opts.tag
 
-    contigID = set(contigID.split(",")) if contigID else None
-    names = set(x.strip() for x in open(namesfile)) if namesfile else None
+    contigID = parse_multi_values(contigfile)
+    names = parse_multi_values(namesfile)
     outfile = opts.outfile
+
     if opts.children:
         assert names is not None, "Must set --names"
         populate_children(outfile, names, gffile, iter=opts.children)

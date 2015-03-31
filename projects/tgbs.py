@@ -260,8 +260,9 @@ def novo(args):
                  default="cdhit", help="Dedup algorithm")
     p.set_depth(depth=50)
     p.set_align(pctid=96)
-    p.set_home("cdhit")
-    p.set_home("fiona")
+    p.set_home("cdhit", default="/usr/local/bin/")
+    p.set_home("fiona", default="/usr/local/bin/")
+    p.set_home("jellyfish", default="/usr/local/bin/")
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -282,12 +283,13 @@ def novo(args):
     jf = pf + "-K23.histogram"
     if need_update(diginormfile, jf):
         jellyfish([diginormfile, "--prefix={0}".format(pf),
-                    "--cpus={0}".format(cpus)])
+                    "--cpus={0}".format(cpus),
+                    "--jellyfish_home={0}".format(opts.jellyfish_home)])
 
     genomesize = histogram([jf, pf, "23"])
     fiona = pf + ".fiona.fa"
     if need_update(diginormfile, fiona):
-        cmd = op.join(opts.fiona_home, "bin/fiona")
+        cmd = op.join(opts.fiona_home, "fiona")
         cmd += " -g {0} -nt {1} --sequencing-technology {2}".\
                     format(genomesize, cpus, opts.technology)
         cmd += " -vv {0} {1}".format(diginormfile, fiona)

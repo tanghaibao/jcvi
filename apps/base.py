@@ -517,9 +517,9 @@ class OptionParser (OptionP):
                      help="Toggle gene identifier upper case" \
                         + " [default: %default]")
 
-    def set_home(self, prog):
+    def set_home(self, prog, default=None):
         tag = "--{0}_home".format(prog)
-        default = {"amos": "~/code/amos-code/",
+        default = default or {"amos": "~/code/amos-code/",
                    "trinity": "~/export/trinityrnaseq_r2013_08_14/",
                    "cdhit": "~/export/cd-hit-v4.6.1-2012-08-27",
                    "maker": "~/export/maker",
@@ -536,7 +536,12 @@ class OptionParser (OptionP):
                    "eddyyeh": "/home/shared/scripts/eddyyeh",
                    "fiona": "~/export/fiona-0.2.0-Linux-x86_64",
                    "fermi": "~/export/fermi",
-                   }[prog]
+                   }.get(prog, None)
+        if default is None:  # Last attempt at guessing the path
+            try:
+                default = op.dirname(which(prog))
+            except:
+                default = None
         help = "Home directory for {0} [default: %default]".format(prog.upper())
         self.add_option(tag, default=default, help=help)
 

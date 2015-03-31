@@ -414,6 +414,7 @@ def jellyfish(args):
                  help="Database prefix [default: %default]")
     p.add_option("--nohist", default=False, action="store_true",
                  help="Do not print histogram [default: %default]")
+    p.set_home("jellyfish")
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -438,7 +439,9 @@ def jellyfish(args):
     jfdb = jfpf
     fastqfiles = " ".join(fastqfiles)
 
-    cmd = "jellyfish count -t {0} -C -o {1}".format(opts.cpus, jfpf)
+    jfcmd = op.join(opts.jellyfish_home, "jellyfish")
+    cmd = jfcmd
+    cmd += " count -t {0} -C -o {1}".format(opts.cpus, jfpf)
     cmd += " -s {0} -m {1}".format(hashsize, K)
     if gzip:
         cmd = "gzip -dc {0} | ".format(fastqfiles) + cmd + " /dev/fd/0"
@@ -452,7 +455,7 @@ def jellyfish(args):
         return
 
     jfhisto = jfpf + ".histogram"
-    cmd = "jellyfish histo -t 64 {0} -o {1}".format(jfdb, jfhisto)
+    cmd = jfcmd + " histo -t 64 {0} -o {1}".format(jfdb, jfhisto)
 
     if need_update(jfdb, jfhisto):
         sh(cmd)

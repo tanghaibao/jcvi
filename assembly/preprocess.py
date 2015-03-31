@@ -92,16 +92,16 @@ def diginorm(args):
     $ export PYTHONPATH=~/export/khmer
     """
     from jcvi.formats.fastq import shuffle, pairinplace, split
+    from jcvi.apps.base import getfilesize
 
     p = OptionParser(diginorm.__doc__)
     p.add_option("--single", default=False, action="store_true",
                  help="Single end reads")
-    p.add_option("--tablesize", default=8e9,
-                 help="Memory size")
+    p.add_option("--tablesize", help="Memory size")
     p.add_option("--npass", default="1", choices=("1", "2"),
                  help="How many passes of normalization")
     p.set_depth(depth=50)
-    p.set_home("khmer")
+    p.set_home("khmer", default="/usr/local/bin/")
     opts, args = p.parse_args(args)
 
     if len(args) not in (1, 2):
@@ -120,9 +120,11 @@ def diginorm(args):
     pf = fastq.rsplit(".", 1)[0]
     keepfile = fastq + ".keep"
     hashfile = pf + ".kh"
-    ts = opts.tablesize
-    norm_cmd = op.join(kh, "scripts/normalize-by-median.py")
-    filt_cmd = op.join(kh, "scripts/filter-abund.py")
+    mints = 10000000
+    ts = opts.tablesize or ((getfilesize(fastq) / 16 / mints + 1) * mints)
+
+    norm_cmd = op.join(kh, "normalize-by-median.py")
+    filt_cmd = op.join(kh, "filter-abund.py")
     if need_update(fastq, (hashfile, keepfile)):
         cmd = norm_cmd
         cmd += " -C {0} -k 20 -N 4 -x {1}".format(depth, ts)

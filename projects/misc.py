@@ -60,6 +60,14 @@ def join_nodes(root, coords, a, b, x, slope=2.4,
     return nx, ny
 
 
+def branch_length(ax, start, end, text, ha="left", va="bottom", color='r'):
+    xs, ys = start
+    xe, ye = end
+    text = r"${0}$".format(text)
+    ax.text((xs + xe) / 2, (ys + ye) / 2, text, ha=ha, va=va,
+            color=color)
+
+
 def birch(args):
     """
     %prog birch seqids layout
@@ -96,6 +104,22 @@ def birch(args):
     coords["eudicots"] = join_nodes(root, coords, "rosids", "Vitis", xs, **dt)
     coords["angiosperm"] = join_nodes(root, coords, \
                                       "eudicots", "Amborella", xs, **dt)
+
+    # Show branch length
+    branch_length(root, coords["Amborella"], coords["angiosperm"], ">160.0")
+    branch_length(root, coords["eudicots"], coords["angiosperm"],
+                  ">78.2", va="top")
+    branch_length(root, coords["Vitis"], coords["eudicots"], "138.5")
+    branch_length(root, coords["rosids"], coords["eudicots"],
+                  "19.8", va="top")
+    branch_length(root, coords["Prunus"], coords["fabids"],
+                  "104.2", ha="right", va="top")
+    branch_length(root, coords["Arabidopsis"], coords["malvids"],
+                  "110.2", va="top")
+    branch_length(root, coords["fabids"], coords["rosids"],
+                  "19.8", ha="right", va="top")
+    branch_length(root, coords["malvids"], coords["rosids"],
+                  "8.5", va="top")
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)

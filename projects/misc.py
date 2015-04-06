@@ -63,7 +63,7 @@ def join_nodes(root, coords, a, b, x, slope=2.4,
 def branch_length(ax, start, end, text, ha="left", va="bottom", color='r'):
     xs, ys = start
     xe, ye = end
-    text = r"${0}$".format(text)
+    text = r"$\mathsf{" + text + "}$"
     ax.text((xs + xe) / 2, (ys + ye) / 2, text, ha=ha, va=va,
             color=color)
 

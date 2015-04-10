@@ -519,11 +519,11 @@ class OptionParser (OptionP):
 
     def set_home(self, prog, default=None):
         tag = "--{0}_home".format(prog)
-        default = default or {"amos": "~/code/amos-code/",
-                   "trinity": "~/export/trinityrnaseq_r2013_08_14/",
+        default = default or {"amos": "~/code/amos-code",
+                   "trinity": "~/export/trinityrnaseq",
                    "cdhit": "~/export/cd-hit-v4.6.1-2012-08-27",
                    "maker": "~/export/maker",
-                   "pasa": "~/export/PASA2-r20130605p1",
+                   "pasa": "~/export/PASA",
                    "gmes": "~/export/gmes",
                    "gt": "~/export/genometools",
                    "sspace": "~/export/SSPACE-BASIC-2.0_linux-x86_64",

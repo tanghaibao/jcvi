@@ -71,9 +71,10 @@ class BinFile (LineFile):
 def main():
 
     actions = (
-        ('stack', 'create landscape plote with genic/te composition'),
+        ('stack', 'create landscape plot with genic/te composition'),
         ('heatmap', 'similar to stack but adding heatmap'),
         ('composite', 'combine line plots, feature bars and alt-bars'),
+        ('multilineplot', 'combine multiple line plots in one vertical stack'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -120,13 +121,13 @@ def linearray(binfile, chr, window, shift):
     return m
 
 
-def lineplot(ax, binfiles, nbins, chr, window, shift):
+def lineplot(ax, binfiles, nbins, chr, window, shift, color="br"):
     assert len(binfiles) <= 2, "A max of two line plots are supported"
 
     t = np.arange(nbins)
     bf = binfiles[0]
     m = linearray(bf, chr, window, shift)
-    ax.plot(t, m, "b-", lw=2)
+    ax.plot(t, m, "{0}-".format(color[0]), lw=2)
 
     formatter = ticker.FuncFormatter(lambda x, pos: \
                     human_readable_base(int(x) * shift, pos))
@@ -136,21 +137,21 @@ def lineplot(ax, binfiles, nbins, chr, window, shift):
 
     label = bf.filename.split(".")[0]
     perw = "per {0}".format(human_size(window, precision=0))
-    ax.set_ylabel(label + " " + perw, color='b')
+    ax.set_ylabel(label + " " + perw, color=color[0])
 
     if len(binfiles) == 2:
         ax2 = ax.twinx()
         bf = binfiles[1]
         m = linearray(bf, chr, window, shift)
-        ax2.plot(t, m, "r-", lw=2)
+        ax2.plot(t, m, "{0}-".format(color[1]), lw=2)
         # Differentiate tick labels through colors
         for tl in ax.get_yticklabels():
-            tl.set_color('b')
+            tl.set_color(color[0])
         for tl in ax2.get_yticklabels():
-            tl.set_color('r')
+            tl.set_color(color[1])
 
         label = bf.filename.split(".")[0]
-        ax2.set_ylabel(label + " " + perw, color='r')
+        ax2.set_ylabel(label + " " + perw, color=color[1])
 
     ax.set_xlim(0, nbins)
 
@@ -259,6 +260,61 @@ def composite(args):
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
     root.set_axis_off()
+
+    image_name = chr + "." + iopts.format
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
+
+
+def multilineplot(args):
+    """
+    %prog multilineplot fastafile chr1
+
+    Combine multiple line plots in one vertical stack
+    Inputs must be BED-formatted.
+
+    --lines: traditional line plots, useful for plotting feature freq
+    """
+    from jcvi.graphics.chromosome import HorizontalChromosome
+
+    p = OptionParser(multilineplot.__doc__)
+    p.add_option("--lines",
+                 help="Features to plot in lineplot [default: %default]")
+    p.add_option("--colors",
+                 help="List of colors matching number of input bed files")
+    p.add_option("--mode", default="span", choices=("span", "count", "score"),
+                 help="Accumulate feature based on [default: %default]")
+    add_window_options(p)
+    opts, args, iopts = p.set_image_options(args, figsize="8x5")
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    fastafile, chr = args
+    window, shift, subtract = check_window_options(opts)
+    linebeds = []
+    colors = opts.colors
+    if opts.lines:
+        lines = opts.lines.split(",")
+        assert len(colors) == len(lines), "Number of chosen colors must match" + \
+                " number of input bed files"
+        linebeds = get_beds(lines)
+
+    linebins = get_binfiles(linebeds, fastafile, shift, mode=opts.mode)
+
+    clen = Sizes(fastafile).mapping[chr]
+    nbins = get_nbins(clen, shift)
+
+    plt.rcParams["xtick.major.size"] = 0
+    plt.rcParams["ytick.major.size"] = 0
+
+    fig, axarr = plt.subplots(nrows=len(lines))
+    fig.suptitle(chr, color="darkslategray")
+
+    for i, ax in enumerate(axarr):
+        lineplot(ax, [linebins[i]], nbins, chr, window, shift, \
+                color="{0}{1}".format(colors[i], 'r'))
+
+    plt.subplots_adjust(hspace=0.5)
 
     image_name = chr + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
@@ -479,7 +535,7 @@ def stack(args):
 
     stacks = opts.stacks.split(",")
     bedfiles = get_beds(stacks)
-    binfiles = get_binfiles(bedfiles, fastafile, shift, subtract)
+    binfiles = get_binfiles(bedfiles, fastafile, shift, subtract=subtract)
 
     sizes = Sizes(fastafile)
     s = list(sizes.iter_sizes())[:top]

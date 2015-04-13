@@ -565,7 +565,10 @@ def parse_fasta(infile):
     parse a fasta-formatted file and returns header
     can be a fasta file that contains multiple records.
     '''
-    fp = open(infile)
+    try:
+        fp = open(infile)
+    except:
+        fp = infile
     # keep header
     fa_iter = (x[1] for x in groupby(fp, lambda row: row[0] == '>'))
     for header in fa_iter:

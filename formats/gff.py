@@ -174,13 +174,12 @@ class GffLine (object):
 
     @property
     def accn(self):
-        if self.key:
-            if self.key == "ID" and self.key not in self.attributes:
+        if self.key:   # GFF3 format
+            if self.key not in self.attributes:
                 a = "{0}_{1}".format(str(self.type).lower(), self.idx)
-                self.set_attr("ID", a, update=True)
-            elif self.key in self.attributes:    # GFF3 format
-                a = self.attributes[self.key]
-        else:   # GFF2 format
+                self.set_attr(self.key, a, update=True)
+            a = self.attributes[self.key]
+        else:          # GFF2 format
             a = self.attributes_text.split()
         return quote(",".join(a), safe=safechars)
 
@@ -1966,6 +1965,8 @@ def bed(args):
             help="Append GFF feature type to extracted key value")
     p.add_option("--nosort", default=False, action="store_true",
             help="Do not sort the output bed file [default: %default]")
+    p.add_option("--phytozome", default=False, action="store_true",
+            help="Use Phytozome convention, extract Name per mRNA")
     p.set_stripnames(default=False)
     p.set_outfile()
 
@@ -1974,23 +1975,28 @@ def bed(args):
         sys.exit(not p.print_help())
 
     gffile, = args
-    key = opts.key
+    key = opts.key or None
+    type = opts.type or set()
+    source = opts.source or set()
     strip_names = opts.strip_names
     span = opts.span
-    if key == "None":
-        key = None
 
-    type = set(x.strip() for x in opts.type.split(","))
-    source = set()
+    if opts.type:
+        type = set(x.strip() for x in opts.type.split(","))
     if opts.source:
         source = set(x.strip() for x in opts.source.split(","))
+    if opts.phytozome:
+        key = "Name"
+        type = set(["gene"])
 
     gff = Gff(gffile, key=key, append_source=opts.append_source, \
         append_ftype=opts.append_ftype, score_attrib=opts.score_attrib)
     b = Bed()
 
     for g in gff:
-        if g.type not in type or (source and g.source not in source):
+        if type and g.type not in type:
+            continue
+        if source and g.source not in source:
             continue
 
         bl = g.bedline
@@ -2002,6 +2008,8 @@ def bed(args):
 
     sorted = not opts.nosort
     b.print_to_file(opts.outfile, sorted=sorted)
+    logging.debug("Extracted {0} features (type={1} id={2})".\
+                    format(len(b), ",".join(type), key))
 
 
 def make_index(gff_file):

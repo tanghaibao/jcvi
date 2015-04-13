@@ -55,37 +55,44 @@ def read_interpro(ipr):
 
 def geneinfo(args):
     """
-    %prog geneinfo pineapple.20141007.bed pineapple.20150306.bed \
+    %prog geneinfo pineapple.20141004.bed liftover.bed pineapple.20150413.bed \
                    note.txt interproscan.txt
 
-    Build gene info table from various sources.
+    Build gene info table from various sources. The three beds contain
+    information on the original scaffolds, linkage groups, and final selected
+    loci (after removal of TEs and split loci). The final two text files contain
+    AHRD and domain data.
     """
     p = OptionParser(geneinfo.__doc__)
-    p.set_outfile()
     opts, args = p.parse_args(args)
 
-    if len(args) != 4:
+    if len(args) != 5:
         sys.exit(not p.print_help())
 
-    scfbed, lgbed, note, ipr = args
+    scfbed, liftoverbed, lgbed, note, ipr = args
     note = DictFile(note, delimiter="\t")
     scfbed = Bed(scfbed)
     lgorder = Bed(lgbed).order
+    liftover = Bed(liftoverbed).order
     header = "Accession Scaffold-position LG-position "\
              "Description Interpro-domain Interpro-description "\
              "GO-term KEGG".split()
     ipr = read_interpro(ipr)
 
-    fw = must_open(opts.outfile, "w")
-    print >> fw, "\t".join(header)
+    fw_clean = must_open("master.txt", "w")
+    fw_removed = must_open("master-removed.txt", "w")
+
+    for fw in (fw_clean, fw_removed):
+        print >> fw, "\t".join(header)
 
     for b in scfbed:
         accession = b.accn
         scaffold_position = b.tag
-        if accession in lgorder:
-            lg_position = lgorder[accession][-1].tag
+        if accession in liftover:
+            lg_position = liftover[accession][-1].tag
         else:
             lg_position = "split"
+        fw = fw_clean if accession in lgorder else fw_removed
         description = note[accession]
         interpro = interpro_description = go = kegg = ""
         if accession in ipr:

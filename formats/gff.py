@@ -2100,7 +2100,7 @@ def load(args):
     p.add_option("--id_attribute", choices=valid_id_attributes,
             help="The attribute field to extract and use as FASTA sequence ID " + \
             "[default: %default]")
-    p.add_option("--desc_attribute",
+    p.add_option("--desc_attribute", default="Note",
             help="The attribute field to extract and use as FASTA sequence " + \
             "description [default: %default]")
     p.add_option("--full_header", dest="full_header", default=False, action="store_true",

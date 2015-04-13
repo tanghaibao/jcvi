@@ -141,7 +141,7 @@ class BaseGlyph (list):
 class Glyph (BaseGlyph):
     """Draws gradient rectangle
     """
-    def __init__(self, ax, x1, x2, y, height=.03, gradient=True, fc="gray", **kwargs):
+    def __init__(self, ax, x1, x2, y, height=.04, gradient=True, fc="gray", **kwargs):
 
         super(Glyph, self).__init__(ax)
         width = x2 - x1
@@ -155,7 +155,7 @@ class Glyph (BaseGlyph):
             for cascade in np.arange(.1, .55, .05):
                 p1 = (x1, y - height * cascade)
                 self.append(Rectangle(p1, width, 2 * cascade * height,
-                    fc='w', lw=0, alpha=.1))
+                    fc='w', lw=0, alpha=.1, **kwargs))
 
         self.add_patches()
 

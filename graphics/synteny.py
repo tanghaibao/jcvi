@@ -110,8 +110,8 @@ class Shade (object):
 
 class Region (object):
 
-    def __init__(self, ax, ext, layout, bed, scale, switch=None, chr_label=True,
-                 pad=.04, vpad=.012):
+    def __init__(self, ax, ext, layout, bed, scale, switch=None,
+                 chr_label=True, pad=.04, vpad=.012, extra_features=None):
         x, y = layout.x, layout.y
         ratio = layout.ratio
         scale /= ratio
@@ -155,14 +155,21 @@ class Region (object):
             if orientation == '-':
                 strand = "+" if strand == "-" else "-"
 
-            x1, x2 = cv(gstart), cv(gend)
-            a, b = tr.transform((x1, y)), tr.transform((x2, y))
-            a, b = inv.transform(a), inv.transform(b)
+            x1, x2, a, b = self.get_coordinates(gstart, gend, y, cv, tr, inv)
             self.gg[g.accn] = (a, b)
 
             color = forward if strand == "+" else backward
             if not hidden:
                 gp = Glyph(ax, x1, x2, y, height, gradient=False, fc=color, zorder=3)
+                gp.set_transform(tr)
+
+        # Extra features (like repeats)
+        if extra_features:
+            for g in extra_features:
+                gstart, gend = g.start, g.end
+                x1, x2, a, b = self.get_coordinates(gstart, gend, y, cv, tr, inv)
+                gp = Glyph(ax, x1, x2, y, height * 3 / 4, gradient=False,
+                           fc='#ff7f00', zorder=2)
                 gp.set_transform(tr)
 
         ha, va = layout.ha, layout.va
@@ -201,11 +208,18 @@ class Region (object):
                         ha=ha, va="center", rotation=trans_angle,
                         bbox=bbox, zorder=10)
 
+    def get_coordinates(self, gstart, gend, y, cv, tr, inv):
+        x1, x2 = cv(gstart), cv(gend)
+        a, b = tr.transform((x1, y)), tr.transform((x2, y))
+        a, b = inv.transform(a), inv.transform(b)
+        return x1, x2, a, b
+
 
 class Synteny (object):
 
     def __init__(self, fig, root, datafile, bedfile, layoutfile,
-                 switch=None, tree=None, chr_label=True, pad=.04):
+                 switch=None, tree=None, extra_features=None,
+                 chr_label=True, pad=.04):
 
         w, h = fig.get_figwidth(), fig.get_figheight()
         bed = Bed(bedfile)
@@ -213,11 +227,24 @@ class Synteny (object):
         bf = BlockFile(datafile)
         lo = Layout(layoutfile)
         switch = DictFile(switch, delimiter="\t") if switch else None
+        if extra_features:
+            extra_features = Bed(extra_features)
 
         exts = []
+        extras = []
         for i in xrange(bf.ncols):
             ext = bf.get_extent(i, order)
             exts.append(ext)
+            if extra_features:
+                start, end, si, ei, chr, orientation, span = ext
+                start, end = start.start, end.end  # start, end coordinates
+                ef = list(extra_features.extract(chr, start, end))
+
+                # Pruning removes minor features with < 0.1% of the region
+                ef_pruned = [x for x in ef if x.span >= span / 1000]
+                print >> sys.stderr, "Extracted {0} features "\
+                        "({1} after pruning)".format(len(ef), len(ef_pruned))
+                extras.append(ef_pruned)
 
         maxspan = max(exts, key=lambda x: x[-1])[-1]
         scale = maxspan / .65
@@ -228,7 +255,9 @@ class Synteny (object):
         vpad = .012 * w / h
         for i in xrange(bf.ncols):
             ext = exts[i]
-            r = Region(root, ext, lo[i], bed, scale, switch, chr_label=chr_label, vpad=vpad)
+            ef = extras[i] if extras else None
+            r = Region(root, ext, lo[i], bed, scale, switch,
+                       chr_label=chr_label, vpad=vpad, extra_features=ef)
             self.rr.append(r)
             # Use tid and accn to store gene positions
             gg.update(dict(((i, k), v) for k, v in r.gg.items()))
@@ -263,11 +292,19 @@ class Synteny (object):
                 RoundLabel(ax, .5, .3, label, fill=True, fc="lavender", color="r")
 
 
-def draw_gene_legend(ax, x1, x2, ytop, d=.04):
+def draw_gene_legend(ax, x1, x2, ytop, d=.04, text=False, repeat=False):
     ax.plot([x1, x1 + d], [ytop, ytop], ":", color=forward, lw=2)
     ax.plot([x1 + d], [ytop], ">", color=forward, mec=forward)
     ax.plot([x2, x2 + d], [ytop, ytop], ":", color=backward, lw=2)
     ax.plot([x2], [ytop], "<", color=backward, mec="g")
+    if text:
+        ax.text(x1 + d / 2, ytop + d, "gene (+)", ha="center")
+        ax.text(x2 + d / 2, ytop + d, "gene (-)", ha="center")
+    if repeat:
+        xr = (x1 + x2 + d) / 2
+        Glyph(ax, xr - d / 2, xr + d / 2, ytop, .012 * 3 / 4, gradient=False,
+              fc='#ff7f00', zorder=2)
+        ax.text(xr, ytop + d, "repeat", ha="center")
 
 
 def main():
@@ -276,6 +313,7 @@ def main():
                  help="Rename the seqid with two-column file [default: %default]")
     p.add_option("--tree",
                  help="Display trees on the bottom of the figure [default: %default]")
+    p.add_option("--extra", help="Extra features in BED format")
     opts, args, iopts = p.set_image_options(figsize="8x7")
 
     if len(args) != 3:
@@ -290,7 +328,7 @@ def main():
     root = fig.add_axes([0, 0, 1, 1])
 
     Synteny(fig, root, datafile, bedfile, layoutfile,
-            switch=switch, tree=tree)
+            switch=switch, tree=tree, extra_features=opts.extra)
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)

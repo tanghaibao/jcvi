@@ -171,6 +171,15 @@ class Bed(LineFile):
                 r.append(((a.accn, a.strand), (b.accn, b.strand)))
         return r
 
+    def extract(self, seqid, start, end):
+        # get all features within certain range
+        for b in self:
+            if b.seqid != seqid:
+                continue
+            if b.start < start or b.end > end:
+                continue
+            yield b
+
     def sub_bed(self, seqid):
         # get all the beds on one chromosome
         for b in self:

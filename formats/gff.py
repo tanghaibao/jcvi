@@ -1966,7 +1966,7 @@ def bed(args):
     p.add_option("--nosort", default=False, action="store_true",
             help="Do not sort the output bed file [default: %default]")
     p.add_option("--phytozome", default=False, action="store_true",
-            help="Use Phytozome convention, extract Name per mRNA")
+            help="Use Phytozome convention, extract Name per gene")
     p.set_stripnames(default=False)
     p.set_outfile()
 

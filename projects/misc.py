@@ -184,6 +184,7 @@ def oropetium(args):
     Build a composite figure that calls graphis.synteny.
     """
     p = OptionParser(oropetium.__doc__)
+    p.add_option("--extra", help="Extra features in BED format")
     opts, args, iopts = p.set_image_options(args, figsize="9x6")
 
     if len(args) != 4:
@@ -193,10 +194,11 @@ def oropetium(args):
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
 
-    Synteny(fig, root, datafile, bedfile, slayout, switch=switch)
+    Synteny(fig, root, datafile, bedfile, slayout,
+            switch=switch, extra_features=opts.extra)
 
     # legend showing the orientation of the genes
-    draw_gene_legend(root, .4, .57, .74)
+    draw_gene_legend(root, .4, .57, .74, text=True, repeat=True)
 
     # On the left panel, make a species tree
     fc = 'lightslategrey'

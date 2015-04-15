@@ -12,11 +12,12 @@ from collections import defaultdict
 from urllib import quote, unquote
 
 from jcvi.utils.cbook import AutoVivification
-from jcvi.formats.base import LineFile, must_open, is_number
+from jcvi.formats.base import DictFile, LineFile, must_open, is_number
 from jcvi.formats.fasta import Fasta, SeqIO
 from jcvi.formats.bed import Bed, BedLine
 from jcvi.annotation.reformat import atg_name
 from jcvi.utils.iter import flatten
+from jcvi.utils.range import range_minmax
 from jcvi.utils.orderedcollections import DefaultOrderedDict, parse_qs
 from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher, mkdir, \
             parse_multi_values, need_update, sh
@@ -374,6 +375,7 @@ def main():
         ('sort', 'sort the gff file'),
         ('filter', 'filter the gff file based on Identity and Coverage'),
         ('format', 'format the gff file, change seqid, etc.'),
+        ('fixboundaries', 'fix boundaries of parent features by range chaining child features'),
         ('chain', 'fill in parent features by chaining children'),
         ('rename', 'change the IDs within the gff3'),
         ('uniq', 'remove the redundant gene models'),
@@ -778,7 +780,6 @@ def chain(args):
     Fill in parent features by chaining child features and return extent of the
     child coordinates.
     """
-    from jcvi.utils.range import range_minmax
     valid_merge_op = ('sum', 'min', 'max', 'mean', 'collapse')
 
     p = OptionParser(chain.__doc__)
@@ -876,8 +877,6 @@ def format(args):
 
     Read in the gff and print it out, changing seqid, etc.
     """
-    from jcvi.formats.base import DictFile
-    from jcvi.utils.range import range_minmax
     from jcvi.formats.obo import load_GODag, validate_term
 
     valid_multiparent_ops = ["split", "merge"]
@@ -925,8 +924,10 @@ def format(args):
                  help="Split/merge identical features (same `seqid`, `source`, `type` " + \
                  "`coord-range`, `strand`, `phase`) mapping to multiple parents " + \
                  "[default: %default]")
-    g3.add_option("--remove_feats", help="Comma separated list of features to remove" + \
+    g3.add_option("--remove_feats", help="Comma separated list of features to remove by type" + \
                 " [default: %default]")
+    g3.add_option("--remove_feats_by_ID", help="List of features to remove by ID;" + \
+                " accepts comma-separated list or list file [default: %default]")
     g3.add_option("--gsac", default=False, action="store_true",
                  help="Fix GSAC GFF3 file attributes [default: %default]")
     g3.add_option("--process_ftype", default=None, type="str",
@@ -966,6 +967,9 @@ def format(args):
     fixphase = opts.fixphase
     phaseT = {"1":"2", "2":"1"}
     remove_feats = opts.remove_feats.split(",") if opts.remove_feats else None
+    remove_feats_by_ID = LineFile(opts.remove_feats_by_ID, load=True).lines \
+            if op.isfile(opts.remove_feats_by_ID) else \
+            opts.remove_feats_by_ID.split(",")
     strict = False if opts.nostrict else True
     make_gff_store = True if gffile in ("-", "stdin") else opts.make_gff_store
     invent_name_attr = opts.invent_name_attr
@@ -1018,7 +1022,8 @@ def format(args):
         notes = {}
 
     remove = set()
-    if unique or duptype or remove_feats or opts.multiparents == "merge" or invent_name_attr or make_gff_store:
+    if unique or duptype or remove_feats or remove_feats_by_ID \
+            or opts.multiparents == "merge" or invent_name_attr or make_gff_store:
         if unique:
             dupcounts = defaultdict(int)
             seen = defaultdict(int)
@@ -1039,6 +1044,8 @@ def format(args):
                 continue
             id = g.accn
             if remove_feats and g.type in remove_feats:
+                remove.add(id)
+            if remove_feats_by_ID and id in remove_feats_by_ID:
                 remove.add(id)
             if unique:
                 dupcounts[id] += 1
@@ -1083,16 +1090,17 @@ def format(args):
                 else:
                     continue
 
-        if remove_feats:
-            if g.type in remove_feats:
-                if id in remove:
-                    continue
+        if remove_feats or remove_feats_by_ID:
+            if id in remove:
+                continue
             else:
                 if "Parent" in g.attributes:
                     keep, parent = [], g.get_attr("Parent", first=False)
                     for i, pid in enumerate(parent):
                         if pid not in remove:
                             keep.append(parent[i])
+                        else:
+                            remove.add(id)
                     if len(keep) == 0:
                         continue
                     parent = g.set_attr("Parent", keep)
@@ -1216,6 +1224,42 @@ def format(args):
             if duptype == g.type and skip[(g.seqid, g.idx, id, g.start, g.end)] == 1:
                 continue
             print >> fw, g
+
+    fw.close()
+
+
+def fixboundaries(args):
+    """
+    %prog fixboundaries gffile --type="gene" --child_ftype="mRNA" > gffile.fixed
+
+    Adjust the boundary coordinates of parents features based on
+    range chained child features, extracting their min and max values
+    """
+    p = OptionParser(fixboundaries.__doc__)
+    p.add_option("--type", default="gene", type="str",
+                 help="Feature type for which to adjust boundaries")
+    p.add_option("--child_ftype", default=None, type="str",
+                 help="Child featuretype(s) to use for identifying boundaries")
+    p.set_outfile()
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    gffile, = args
+    gffdb = make_index(gffile)
+
+    fw = must_open(opts.outfile, "w")
+    for f in gffdb.all_features(order_by=('seqid', 'start')):
+        if f.featuretype == opts.type:
+            child_coords = []
+            for cftype in opts.child_ftype.split(","):
+                for c in gffdb.children(f, featuretype=cftype, order_by=('start')):
+                    child_coords.append((c.start, c.stop))
+            f.start, f.stop = range_minmax(child_coords)
+
+        print >> fw, f
 
     fw.close()
 
@@ -2284,8 +2328,6 @@ def get_upstream_coords(uSite, uLen, seqlen, feat, children_list, gffdb):
     If success, returns the upstream start and stop coordinates
     else, returns None
     """
-    from jcvi.utils.range import range_minmax
-
     if uSite == "TSS":
         (upstream_start, upstream_stop) = \
                 (feat.start - uLen, feat.start - 1) \

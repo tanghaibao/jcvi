@@ -64,8 +64,8 @@ def main():
     p.dispatch(globals())
 
 
-def bed_store(bedfile):
-    bedfile = mergeBed(bedfile, s=True, nms=True, sorted=True)
+def bed_store(bedfile, sorted=False):
+    bedfile = mergeBed(bedfile, s=True, nms=True, sorted=sorted)
     bed = Bed(bedfile)
     reads, reads_r = {}, defaultdict(list)
     for b in bed:
@@ -95,14 +95,17 @@ def track(args):
     Track and contrast read mapping in two bam files.
     """
     p = OptionParser(track.__doc__)
+    p.add_option("--sorted", default=False, action="store_true",
+                 help="BED already sorted")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
         sys.exit(not p.print_help())
 
     bed1, bed2 = args
-    bed1_store, bed1_store_r = bed_store(bed1)
-    bed2_store, bed2_store_r = bed_store(bed2)
+    sorted = opts.sorted
+    bed1_store, bed1_store_r = bed_store(bed1, sorted=sorted)
+    bed2_store, bed2_store_r = bed_store(bed2, sorted=sorted)
     contrast_stores(bed1_store_r, bed2_store)
     contrast_stores(bed2_store_r, bed1_store, prefix="BA")
 
@@ -122,10 +125,10 @@ def resolve(args):
     from itertools import groupby
 
     p = OptionParser(resolve.__doc__)
-    p.add_option("--missing", default=.5,
-                 help="Maximum level of missing data")
-    p.add_option("--het", default=.5,
-                 help="Maximum level of heterozygous calls")
+    p.add_option("--missing", default=.5, type="float",
+                 help="Max level of missing data")
+    p.add_option("--het", default=.5, type="float",
+                 help="Min level of heterozygous calls")
     p.set_outfile()
     opts, args = p.parse_args(args)
 

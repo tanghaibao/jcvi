@@ -13,6 +13,14 @@ JCVI utility libraries
     :target: https://pypi.python.org/pypi/jcvi
     :alt: License
 
+.. image:: https://scrutinizer-ci.com/g/tanghaibao/jcvi/badges/quality-score.png
+    :target: https://scrutinizer-ci.com/g/tanghaibao/jcvi
+    :alt: Scrutinizer
+
+.. image:: https://scrutinizer-ci.com/g/tanghaibao/jcvi/badges/build.png
+    :target: https://scrutinizer-ci.com/g/tanghaibao/jcvi
+    :alt: Build
+
 Collection of Python libraries to parse bioinformatics files, or perform
 computation related to assembly, annotation, and comparative genomics.
 

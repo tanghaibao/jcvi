@@ -505,8 +505,8 @@ def fasta(args):
                  help="Maximum read length allowed")
     p.add_option("--minreadlen", default=1000, type="int",
                  help="Minimum read length allowed")
-    p.add_option("--readname", default=False, action="store_true",
-                 help="Keep read name (e.g. long Pacbio name)")
+    p.add_option("--sequential", default=False, action="store_true",
+                 help="Overwrite read name (e.g. long Pacbio name)")
     p.set_size()
     opts, args = p.parse_args(args)
 
@@ -568,8 +568,7 @@ def fasta(args):
     fw = must_open(frgfile, "w")
     print >> fw, headerTemplate.format(libID=libname)
 
-    sequential = not opts.readname
-    f = Fasta(fastafile, lazy=True)
+    sequential = opts.sequential
     i = j = 0
     for fragID, seq in parse_fasta(fastafile):
         if len(seq) < minreadlen:

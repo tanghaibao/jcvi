@@ -566,7 +566,7 @@ def parse_fasta(infile):
     can be a fasta file that contains multiple records.
     '''
     try:
-        fp = open(infile)
+        fp = must_open(infile)
     except:
         fp = infile
     # keep header

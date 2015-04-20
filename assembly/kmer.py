@@ -216,9 +216,51 @@ def main():
         ('bincount', 'count K-mers in the bin'),
         ('count', 'run dump - jellyfish - bin - bincount in serial'),
         ('logodds', 'compute log likelihood between two db'),
+        ('model', 'model kmer distribution given error rate'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def model(args):
+    """
+    %prog model erate
+
+    Model kmer distribution given error rate. See derivation in FIONA paper:
+    <http://bioinformatics.oxfordjournals.org/content/30/17/i356.full>
+    """
+    from scipy.stats import binom, poisson
+
+    p = OptionParser(model.__doc__)
+    p.add_option("-k", default=23, type="int", help="Kmer size")
+    p.add_option("--cov", default=50, type="int", help="Expected coverage")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    erate, = args
+    erate = float(erate)
+    cov = opts.cov
+    k = opts.k
+
+    xy = []
+    # Range include c although it is unclear what it means to have c=0
+    for c in xrange(0,  cov * 2 + 1):
+        Prob_Yk = 0
+        for i in xrange(k + 1):
+            # Probability of having exactly i errors
+            pi_i = binom.pmf(i, k, erate)
+            # Expected coverage of kmer with exactly i errors
+            mu_i = cov * (erate / 3) ** i * (1 - erate) ** (k - i)
+            # Probability of seeing coverage of c
+            Prob_Yk_i = poisson.pmf(c, mu_i)
+            # Sum i over 0, 1, ... up to k errors
+            Prob_Yk += pi_i * Prob_Yk_i
+        xy.append((c, Prob_Yk))
+
+    x, y = zip(*xy)
+    asciiplot(x, y, title="Model")
 
 
 def logodds(args):

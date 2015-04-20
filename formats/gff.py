@@ -55,15 +55,16 @@ class GffLine (object):
     """
     Specification here (http://www.sequenceontology.org/gff3.shtml)
     """
-    def __init__(self, sline, key="ID", gff3=True, line_index=None,
+    def __init__(self, sline, key="ID", gff3=True, line_index=None, strict=True,
                  append_source=False, append_ftype=False, score_attrib=False,
                  keep_attr_order=True, compute_signature=False):
         sline = sline.strip()
         args = sline.split("\t")
         if len(args) != 9:
             args = sline.split()
-        assert len(args) == 9, "Malformed line ({0} columns != 9): {1}"\
-                        .format(len(args), args)
+        if strict:
+            assert len(args) == 9, "Malformed line ({0} columns != 9): {1}"\
+                            .format(len(args), args)
         self.seqid = args[0]
         self.source = args[1]
         self.type = args[2]
@@ -229,7 +230,7 @@ class GffLine (object):
 
 class Gff (LineFile):
 
-    def __init__(self, filename, key="ID", append_source=False, \
+    def __init__(self, filename, key="ID", strict=True, append_source=False, \
             append_ftype=False, score_attrib=False, \
             keep_attr_order=True, make_gff_store=False, \
             compute_signature=False):
@@ -238,7 +239,7 @@ class Gff (LineFile):
         self.gff3 = True
         if self.make_gff_store:
             self.gffstore = []
-            gff = Gff(self.filename, key=key, append_source=append_source, \
+            gff = Gff(self.filename, key=key, strict=True, append_source=append_source, \
                     append_ftype=append_ftype, score_attrib=score_attrib, \
                     keep_attr_order=keep_attr_order, \
                     compute_signature=compute_signature)
@@ -246,6 +247,7 @@ class Gff (LineFile):
                 self.gffstore.append(g)
         else:
             self.key = key
+            self.strict = strict
             self.append_source = append_source
             self.append_ftype = append_ftype
             self.score_attrib = score_attrib
@@ -283,6 +285,7 @@ class Gff (LineFile):
                         break
                     continue
                 yield GffLine(row, key=self.key, line_index=idx, \
+                        strict=self.strict, \
                         append_source=self.append_source, \
                         append_ftype=self.append_ftype,\
                         score_attrib=self.score_attrib, \
@@ -893,7 +896,7 @@ def format(args):
                 "from two-column file(s). DBTAG comes from filename, ID comes from 2nd column; " + \
                 "accepts comma-separated list of files [default: %default]")
     g1.add_option("--nostrict", default=False, action="store_true",
-                 help="Disable strict parsing of mapping file [default: %default]")
+                 help="Disable strict parsing of GFF file and/or mapping file [default: %default]")
     g1.add_option("--remove_attr", dest="remove_attrs", help="Specify attributes to remove; " + \
                 "accepts comma-separated list of attribute names [default: %default]")
     g1.add_option("--invent_name_attr", default=False, action="store_true",
@@ -967,9 +970,11 @@ def format(args):
     fixphase = opts.fixphase
     phaseT = {"1":"2", "2":"1"}
     remove_feats = opts.remove_feats.split(",") if opts.remove_feats else None
-    remove_feats_by_ID = LineFile(opts.remove_feats_by_ID, load=True).lines \
-            if op.isfile(opts.remove_feats_by_ID) else \
-            opts.remove_feats_by_ID.split(",")
+    remove_feats_by_ID = None
+    if opts.remove_feats_by_ID:
+        remove_feats_by_ID = LineFile(opts.remove_feats_by_ID, load=True).lines \
+                if op.isfile(opts.remove_feats_by_ID) else \
+                opts.remove_feats_by_ID.split(",")
     strict = False if opts.nostrict else True
     make_gff_store = True if gffile in ("-", "stdin") else opts.make_gff_store
     invent_name_attr = opts.invent_name_attr
@@ -1038,7 +1043,8 @@ def format(args):
         if opts.multiparents == "merge" or invent_name_attr:
             make_gff_store = compute_signature = True
         gff = Gff(gffile, keep_attr_order=(not opts.no_keep_attr_order), \
-                make_gff_store=make_gff_store, compute_signature=compute_signature)
+                make_gff_store=make_gff_store, compute_signature=compute_signature, \
+                strict=strict)
         for g in gff:
             if process_ftype and g.type not in process_ftype:
                 continue
@@ -1073,7 +1079,8 @@ def format(args):
 
     fw = must_open(outfile, "w")
     if not make_gff_store:
-        gff = Gff(gffile, keep_attr_order=(not opts.no_keep_attr_order))
+        gff = Gff(gffile, keep_attr_order=(not opts.no_keep_attr_order), \
+                strict=strict)
     for g in gff:
         if process_ftype and g.type not in process_ftype:
             print >> fw, g

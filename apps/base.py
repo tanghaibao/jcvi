@@ -373,6 +373,14 @@ class OptionParser (OptionP):
         self.set_cutoff(cutoff=cutoff)
         self.set_mateorientation(mateorientation=mateorientation)
 
+    def set_bedpe(self):
+        self.add_option("--rc", default=False, action="store_true",
+                     help="Reverse complement the reads before alignment")
+        self.add_option("--minlen", default=2000, type="int",
+                     help="Minimum insert size")
+        self.add_option("--maxlen", default=8000, type="int",
+                     help="Maximum insert size")
+
     def set_pairs(self):
         """
         %prog pairs <blastfile|samfile|casfile|bedfile|posmapfile>

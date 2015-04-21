@@ -13,6 +13,7 @@ from collections import defaultdict
 from itertools import groupby
 
 from jcvi.formats.base import LineFile, must_open, is_number, get_number
+from jcvi.formats.sizes import Sizes
 from jcvi.utils.iter import pairwise
 from jcvi.utils.cbook import SummaryStats, thousands, percentage
 from jcvi.utils.natsort import natsort_key, natsorted
@@ -263,6 +264,13 @@ class BedpeLine(object):
                 self.accn, self.score, self.strand1, self.strand2)
         return "\t".join(str(x) for x in args)
 
+    @property
+    def bedline(self):
+        assert self.seqid1 == self.seqid2
+        assert self.start1 <= self.end2
+        args = (self.seqid1, self.start1 - 1, self.end2, self.accn)
+        return "\t".join(str(x) for x in args)
+
 
 class BedEvaluate (object):
 
@@ -385,9 +393,44 @@ def main():
         ('juncs', 'trim junctions.bed overhang to get intron, merge multiple beds'),
         ('seqids', 'print out all seqids on one line'),
         ('alignextend', 'alignextend based on BEDPE and FASTA ref'),
+        ('clr', 'extract clear range based on BEDPE'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def clr(args):
+    """
+    %prog clr bedpefile ref.fasta
+
+    Use mates from BEDPE to extract ranges where the ref is covered by mates.
+    This is useful in detection of chimeric contigs.
+    """
+    p = OptionParser(clr.__doc__)
+    p.set_bedpe()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    bedpe, ref = args
+    filtered = bedpe + ".filtered"
+    if need_update(bedpe, filtered):
+        filter_bedpe(bedpe, filtered, ref, rc=opts.rc,
+                     minlen=opts.minlen, maxlen=opts.maxlen)
+
+    converted = bedpe + ".converted"
+    if need_update(filtered, converted):
+        fp = open(filtered)
+        fw = open(converted, "w")
+        for row in fp:
+            r = BedpeLine(row)
+            print >> fw, r.bedline
+        fw.close()
+
+    merged = bedpe + ".merged"
+    if need_update(converted, merged):
+        mergeBed(converted, nms=True)
 
 
 def sfa_to_fq(sfa, qvchar):
@@ -404,6 +447,34 @@ def sfa_to_fq(sfa, qvchar):
     return fq
 
 
+def filter_bedpe(bedpe, filtered, ref, rc=False, rlen=None,
+                 minlen=2000, maxlen=8000):
+    tag = " after RC" if rc else ""
+    logging.debug("Filter criteria: innie{0}, {1} <= insertsize <= {2}".\
+                    format(tag, minlen, maxlen))
+    sizes = Sizes(ref).mapping
+    fp = must_open(bedpe)
+    fw = must_open(filtered, "w")
+    retained = total = 0
+    for row in fp:
+        b = BedpeLine(row)
+        total += 1
+        if rc:
+            b.rc()
+        if not b.is_innie:
+            continue
+        b.score = b.outerdist
+        if not minlen <= b.score <= maxlen:
+            continue
+        retained += 1
+        if rlen:
+            b.extend(rlen, sizes[b.seqid1])
+        print >> fw, b
+    logging.debug("A total of {0} mates written to `{1}`.".\
+                    format(percentage(retained, total), filtered))
+    fw.close()
+
+
 def alignextend(args):
     """
     %prog alignextend bedpefile ref.fasta
@@ -413,59 +484,28 @@ def alignextend(args):
 
     https://github.com/nathanhaigh/amos/blob/master/src/Experimental/alignextend.pl
     """
-    from jcvi.formats.sizes import Sizes
-
     p = OptionParser(alignextend.__doc__)
-    p.add_option("--rc", default=False, action="store_true",
-                 help="Reverse complement the reads before alignment")
     p.add_option("--len", default=100, type="int",
                  help="Extend to this length")
-    p.add_option("--minlen", default=2000, type="int",
-                 help="Minimum insert size")
-    p.add_option("--maxlen", default=8000, type="int",
-                 help="Maximum insert size")
     p.add_option("--dup", default=10, type="int",
                  help="Filter duplicates with coordinates within this distance")
     p.add_option("--qv", default=31, type="int",
                  help="Dummy qv score for extended bases")
+    p.set_bedpe()
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
         sys.exit(not p.print_help())
 
     bedpe, ref = args
-    rc = opts.rc
-    rlen = opts.len
     dupwiggle = opts.dup
     qvchar = chr(opts.qv + 33)
-    minlen, maxlen = opts.minlen, opts.maxlen
     pf = bedpe.split(".")[0]
 
     filtered = bedpe + ".filtered"
     if need_update(bedpe, filtered):
-        tag = " after RC" if rc else ""
-        logging.debug("Filter criteria: innie{0}, {1} <= insertsize <= {2}".\
-                        format(tag, minlen, maxlen))
-        sizes = Sizes(ref).mapping
-        fp = must_open(bedpe)
-        fw = must_open(filtered, "w")
-        retained = total = 0
-        for row in fp:
-            b = BedpeLine(row)
-            total += 1
-            if rc:
-                b.rc()
-            if not b.is_innie:
-                continue
-            b.score = b.outerdist
-            if not minlen <= b.score <= maxlen:
-                continue
-            retained += 1
-            b.extend(rlen, sizes[b.seqid1])
-            print >> fw, b
-        logging.debug("A total of {0} mates written to `{1}`.".\
-                        format(percentage(retained, total), filtered))
-        fw.close()
+        filter_bedpe(bedpe, filtered, ref, rc=opts.rc,
+                     minlen=opts.minlen, maxlen=opts.maxlen, rlen=opts.rlen)
 
     sortedfiltered = filtered + ".sorted"
     if need_update(filtered, sortedfiltered):
@@ -971,8 +1011,6 @@ def bins(args):
     Bin bed lengths into each consecutive window. Use --subtract to remove bases
     from window, e.g. --subtract gaps.bed ignores the gap sequences.
     """
-    import numpy as np
-
     from jcvi.formats.sizes import Sizes
 
     p = OptionParser(bins.__doc__)

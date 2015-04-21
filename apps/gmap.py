@@ -21,6 +21,7 @@ def main():
     actions = (
         ('index', 'wraps gmap_build'),
         ('align', 'wraps gsnap'),
+        ('gmap', 'wraps gmap'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -32,7 +33,7 @@ def check_index(dbfile):
     if not dbdir:
         dbdir = "."
     dbname = filename.rsplit(".", 1)[0]
-    safile = op.join(dbdir, "{0}/{0}.salcpchilddc".format(dbname))
+    safile = op.join(dbdir, "{0}/{0}.genomecomp".format(dbname))
     if dbname == filename:
         dbname = filename + ".db"
     if need_update(dbfile, safile):
@@ -58,6 +59,38 @@ def index(args):
 
     dbfile, = args
     check_index(dbfile)
+
+
+def gmap(args):
+    """
+    %prog gmap database.fasta fastafile
+
+    Wrapper for `gmap`.
+    """
+    p = OptionParser(gmap.__doc__)
+    p.set_cpus()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    dbfile, fastafile = args
+    assert op.exists(dbfile) and op.exists(fastafile)
+    prefix = get_prefix(fastafile, dbfile)
+    logfile = prefix + ".log"
+    gmapfile = prefix + ".gmap.gff3"
+
+    if not need_update((dbfile, fastafile), gmapfile):
+        logging.error("`{0}` exists. `gmap` already run.".format(gmapfile))
+    else:
+        dbdir, dbname = check_index(dbfile)
+        cmd = "gmap -D {0} -d {1}".format(dbdir, dbname)
+        cmd += " -f 2 -n 0 --intronlength=100000"  # Output format 2, max npaths
+        cmd += " -t {0}".format(opts.cpus)
+
+        sh(cmd, outfile=gmapfile, errfile=logfile)
+
+    return gmapfile, logfile
 
 
 def align(args):

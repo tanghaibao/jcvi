@@ -428,9 +428,11 @@ def clr(args):
             print >> fw, r.bedline
         fw.close()
 
-    merged = bedpe + ".merged"
+    merged = bedpe + ".merge.bed"
     if need_update(converted, merged):
-        mergeBed(converted, nms=True)
+        mergeBed(converted)
+
+    return fastaFromBed(merged, ref)
 
 
 def sfa_to_fq(sfa, qvchar):
@@ -1194,7 +1196,7 @@ def fastaFromBed(bedfile, fastafile, name=False, tab=False, stranded=False):
 
 def mergeBed(bedfile, d=0, sorted=False, nms=False, s=False, scores=None):
     if not sorted:
-        sort([bedfile, "-i"])
+        bedfile = sort([bedfile, "-i"])
     cmd = "mergeBed -i {0}".format(bedfile)
     if d:
         cmd += " -d {0}".format(d)

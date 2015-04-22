@@ -68,6 +68,8 @@ def gmap(args):
     Wrapper for `gmap`.
     """
     p = OptionParser(gmap.__doc__)
+    p.add_option("--cross", default=False, action="store_true",
+                 help="Cross-species alignment")
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -87,6 +89,9 @@ def gmap(args):
         cmd = "gmap -D {0} -d {1}".format(dbdir, dbname)
         cmd += " -f 2 -n 0 --intronlength=100000"  # Output format 2, max npaths
         cmd += " -t {0}".format(opts.cpus)
+        if opts.cross:
+            cmd += " --cross-species"
+        cmd += " " + fastafile
 
         sh(cmd, outfile=gmapfile, errfile=logfile)
 

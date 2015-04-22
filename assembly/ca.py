@@ -165,8 +165,9 @@ def graph(args):
 
     p = OptionParser(graph.__doc__)
     p.add_option("--maxerr", default=100, type="float", help="Maximum error rate")
+    p.add_option("--query", default=-1, type="int", help="Search from node")
     p.add_option("--largest", default=1, type="int", help="Only show largest components")
-    p.add_option("--depth", default=200, type="int", help="Maximum depth")
+    p.add_option("--maxsize", default=100, type="int", help="Max graph size")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -175,26 +176,34 @@ def graph(args):
     bestedges, = args
     maxerr = opts.maxerr
     logging.debug("Max error = {0}%".format(maxerr))
-    G = nx.DiGraph()
-    fp = open(bestedges)
-    for row in fp:
-        if row[0] == '#':
-            continue
-        id1, lib_id, best5, o1, best3, o3, j1, j2 = row.split()
-        j1, j2 = float(j1), float(j2)
-        if j1 < maxerr or j2 < maxerr:
-            G.add_node(id1)
-        if best5 != '0' and j1 < maxerr:
-            G.add_edge(best5, id1)
-        if best3 != '0' and j2 < maxerr:
-            G.add_edge(id1, best3)
+    bestgraph = bestedges.split(".")[0] + ".graph"
+    if need_update(bestedges, bestgraph):
+        G = nx.Graph()
+        fp = open(bestedges)
+        for row in fp:
+            if row[0] == '#':
+                continue
+            id1, lib_id, best5, o1, best3, o3, j1, j2 = row.split()
+            id1, best5, best3 = int(id1), int(best5), int(best3)
+            j1, j2 = float(j1), float(j2)
+            if j1 < maxerr or j2 < maxerr:
+                G.add_node(id1)
+            if best5 != '0' and j1 < maxerr:
+                G.add_edge(best5, id1)
+            if best3 != '0' and j2 < maxerr:
+                G.add_edge(id1, best3)
+        nx.write_gpickle(G, bestgraph)
+        logging.debug("Graph pickled to `{0}`".format(bestgraph))
 
+    logging.debug("Read graph from `{0}`".format(bestgraph))
+    G = nx.read_gpickle(bestgraph)
     graph_stats(G)
 
     if len(G) > 10000:
-        SG = nx.DiGraph()
+        SG = nx.Graph()
         for x in xrange(opts.largest):
-            H = graph_local_neighborhood(G, depth=opts.depth)
+            H = graph_local_neighborhood(G, query=opts.query,
+                                         maxsize=opts.maxsize)
             SG.add_edges_from(H.edges())
         G = SG
 

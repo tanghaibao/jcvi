@@ -297,10 +297,10 @@ def graph_local_neighborhood(G, query=-1, maxdegree=10, maxsize=10000):
         if not queue:
             break
 
-        seen |= queue
-        if len(seen) > maxsize:
+        if len(seen | queue) > maxsize:
             break
 
+        seen |= queue
         #print sorted(list(seen))
         print >> sys.stderr, "iter: {0}, graph size={1}".format(depth, len(seen))
         depth += 1

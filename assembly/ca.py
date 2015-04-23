@@ -164,7 +164,7 @@ def graph(args):
     from jcvi.algorithms.graph import graph_stats, graph_local_neighborhood
 
     p = OptionParser(graph.__doc__)
-    p.add_option("--maxerr", default=100, type="float", help="Maximum error rate")
+    p.add_option("--maxerr", default=100, type="int", help="Maximum error rate")
     p.add_option("--query", default=-1, type="int", help="Search from node")
     p.add_option("--largest", default=1, type="int", help="Only show largest components")
     p.add_option("--maxsize", default=100, type="int", help="Max graph size")
@@ -176,7 +176,7 @@ def graph(args):
     bestedges, = args
     maxerr = opts.maxerr
     logging.debug("Max error = {0}%".format(maxerr))
-    bestgraph = bestedges.split(".")[0] + ".graph"
+    bestgraph = bestedges.split(".")[0] + ".err{0}.graph".format(maxerr)
     if need_update(bestedges, bestgraph):
         G = nx.Graph()
         fp = open(bestedges)

@@ -414,7 +414,7 @@ def summary(args):
 
     p = OptionParser(summary.__doc__)
     p.add_option("--isoform", default=False, action="store_true",
-                 help="Append .1 to the names")
+                 help="Find longest isoform of each id")
     p.add_option("--ids", help="Only include features from certain IDs")
     opts, args = p.parse_args(args)
 
@@ -423,24 +423,41 @@ def summary(args):
 
     gff_file, = args
     ids = opts.ids
+
     if ids:
         ids = SetFile(ids)
-        if opts.isoform:
-            ids = set(x + ".1" for x in ids)
         logging.debug("Total ids loaded: {0}".format(len(ids)))
+
+        if opts.isoform:
+            pids = set()
+            gff = Gff(gff_file)
+            for g in gff:
+                if g.type != "mRNA":
+                    continue
+                if g.parent not in ids:
+                    continue
+                if "longest" not in g.attributes:
+                    pids = set(x + ".1" for x in ids)
+                    break
+                if g.attributes["longest"][0] == "0":
+                    continue
+                pids.add(g.id)
+            ids = pids
+            logging.debug("After checking longest: {0}".format(len(ids)))
 
         # Collects aliases
         gff = Gff(gff_file)
         for g in gff:
             if g.name in ids:
                 ids.add(g.id)
-        logging.debug("Total ids after expansion: {0}".format(len(ids)))
+        logging.debug("Total ids including aliases: {0}".format(len(ids)))
 
     gff = Gff(gff_file)
     beds = defaultdict(list)
     for g in gff:
         if ids and not (g.id in ids or g.name in ids or g.parent in ids):
             continue
+
         beds[g.type].append(g.bedline)
 
     table = {}

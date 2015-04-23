@@ -20,7 +20,7 @@ from jcvi.formats.fasta import Fasta, SeqRecord, filter, parse_fasta
 from jcvi.formats.blast import Blast
 from jcvi.utils.range import range_minmax
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update, \
-            glob, get_abs_path
+            glob, get_abs_path, popen
 
 
 def main():
@@ -32,9 +32,9 @@ def main():
         ('sff', 'convert 454 reads to frg file'),
         ('fastq', 'convert Illumina reads to frg file'),
         ('shred', 'shred contigs into pseudo-reads'),
-        ('bisect', 'cut reads into two halves'),
         ('astat', 'generate the coverage-rho scatter plot'),
         ('graph', 'visualize best.edges'),
+        ('overlap', 'visualize overlaps for a given fragment'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -95,59 +95,98 @@ constantInsertSize=0
 }}'''
 
 
+class OverlapLine (object):
 
-def bisect(args):
-    """
-    %prog bisect fastafile clr.bed
+    # See doc: http://wgs-assembler.sourceforge.net/wiki/index.php/OverlapStore
+    def __init__(self, line):
+        args = line.split()
+        self.aid = int(args[0])
+        self.bid = int(args[1])
+        self.orientation = args[2]
+        self.ahang = int(args[3])
+        self.bhang = int(args[4])
+        self.erate = float(args[5])
+        self.erate_adj = float(args[6])
 
-    Cut the reads into two halves. This usage is somewhat esoteric ... after all,
-    who wants shorter reads? This is part of a test I did for a Pacbio assembly.
+
+def overlap(args):
     """
-    p = OptionParser(bisect.__doc__)
-    p.add_option("--lib", default='A', help="Library ID")
-    p.add_option("--overlap", default=600, type="int",
-                 help="Extend the fragments in the middle to keep connectivity")
-    p.add_option("--qv", default=31, type="int",
-                 help="Dummy qv score for extended bases")
-    p.set_outfile()
+    %prog overlap iid best.contains
+
+    Visualize overlaps for a given fragment. Must be run in 4-unitigger. All
+    overlaps for iid were retrieved, excluding the ones matching best.contains.
+    """
+    import cPickle
+    from jcvi.apps.console import green
+
+    p = OptionParser(overlap.__doc__)
+    p.add_option("--canvas", default=100, type="int", help="Canvas size")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
         sys.exit(not p.print_help())
 
-    fastafile, clrbed = args
-    ov = opts.overlap / 2
-    qvchar = chr(opts.qv + 33)
-    libID = opts.lib
-    fp = must_open(clrbed)
-    store = {}
-    for row in fp:
-        seqid, start, end = row.split()
-        store[seqid] = (int(start), int(end))
+    iid, bestcontains = args
+    canvas = opts.canvas
 
-    fw = must_open(opts.outfile, "w")
-    print >> fw, headerTemplate.format(libID=libID)
-    seen = set()
-    for k, seq in parse_fasta(fastafile):
-        if k in seen:
-            logging.error("Fragment {0} already loaded".format(k))
-            continue
-        seen.add(k)
+    bestcontainscache = bestcontains + ".cache"
+    if need_update(bestcontains, bestcontainscache):
+        fp = open(bestcontains)
+        fw = open(bestcontainscache, "w")
+        exclude = set()
+        for row in fp:
+            if row[0] == '#':
+                continue
+            j = int(row.split()[0])
+            exclude.add(j)
+        cPickle.dump(exclude, fw)
+        fw.close()
 
-        if k not in store:
-            emitFragment(fw, k, libID, seq, clr=None, qvchar=qvchar)
+    exclude = cPickle.load(open(bestcontainscache))
+    logging.debug("A total of {0} reads to exclude".format(len(exclude)))
+
+    cmd = "overlapStore -d ../asm.ovlStore -b {0} -e {0}".format(iid)
+    frags = []
+    for row in popen(cmd):
+        r = OverlapLine(row)
+        if r.bid in exclude:
             continue
-        slen = len(seq)
-        mid = slen / 2
-        fid1, fid2 = k + ".1", k + ".2"
-        a, b = mid - ov, mid + ov
-        seq1, seq2 = seq[:b], seq[a:]
-        start, end = store[k]
-        clr1 = (start, b) if b - start >= 500 else None
-        emitFragment(fw, fid1, libID, seq1, clr=clr1, qvchar=qvchar)
-        clr2 = (0, end - a) if end - a >= 500 else None
-        emitFragment(fw, fid2, libID, seq2, clr=clr2, qvchar=qvchar)
-    fw.close()
+        frags.append(r)
+
+    # Also include to query fragment
+    frags.append(OverlapLine("{0} {0} N 0 0 0 0".format(iid)))
+    frags.sort(key=lambda x: x.ahang)
+
+    # Determine size of the query fragment
+    cmd = "gatekeeper -b {0} -e {0}".format(iid)
+    cmd += " -tabular -dumpfragments ../asm.gkpStore"
+    fp = popen(cmd)
+    row = fp.next()
+    size = int(fp.next().split()[-1])
+
+    # Determine size of canvas
+    xmin = min(x.ahang for x in frags)
+    xmax = max(x.bhang for x in frags)
+    xsize = -xmin + size + xmax
+    ratio = xsize / canvas
+
+    fw = sys.stdout
+    for f in frags:
+        fsize = -f.ahang + size + f.bhang
+        a = (f.ahang - xmin) / ratio
+        b = fsize / ratio
+        t = '-' * b
+        if f.orientation == 'N':
+            t = t[:-1] + '>'
+        else:
+            t = '<' + t[1:]
+        if f.ahang == 0 and f.bhang == 0:
+            t = green(t)
+        c = canvas - a - b
+        fw.write(' ' * a)
+        fw.write(t)
+        fw.write(' ' * c)
+        print >> fw, str(f.bid).rjust(10)
 
 
 def graph(args):

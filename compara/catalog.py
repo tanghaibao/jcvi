@@ -629,7 +629,7 @@ def ortholog(args):
         last_main([bfasta, afasta, "-o", last])
 
     if a == b:
-        last = filter([last, "--hitlen=0", "--pctid=98", "--inverse"])
+        last = filter([last, "--hitlen=0", "--pctid=98", "--inverse", "--noself"])
 
     filtered_last = last + ".filtered"
     if need_update(last, filtered_last):

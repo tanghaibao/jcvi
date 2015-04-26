@@ -111,7 +111,7 @@ class OverlapLine (object):
 
 def overlap(args):
     """
-    %prog overlap iid best.contains
+    %prog overlap best.contains iid
 
     Visualize overlaps for a given fragment. Must be run in 4-unitigger. All
     overlaps for iid were retrieved, excluding the ones matching best.contains.
@@ -126,7 +126,7 @@ def overlap(args):
     if len(args) != 2:
         sys.exit(not p.print_help())
 
-    iid, bestcontains = args
+    bestcontains, iid = args
     canvas = opts.canvas
 
     bestcontainscache = bestcontains + ".cache"
@@ -186,7 +186,7 @@ def overlap(args):
         fw.write(' ' * a)
         fw.write(t)
         fw.write(' ' * c)
-        print >> fw, str(f.bid).rjust(10)
+        print >> fw, "{0} ({1})".format(str(f.bid).rjust(10), f.erate_adj)
 
 
 def graph(args):

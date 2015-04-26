@@ -253,17 +253,18 @@ def filter(args):
     - pctid: >= cutoff
     - hitlen: >= cutoff
     - evalue: <= cutoff
-    - self: non-self
     - ids: valid ids
 
-    Use --inverse to obtain the complementary records
+    Use --inverse to obtain the complementary records for the criteria above.
+
+    - noself: remove self-self hits
     """
     p = OptionParser(filter.__doc__)
     p.add_option("--score", dest="score", default=0, type="int",
                  help="Score cutoff")
     p.set_align(pctid=95, hitlen=100, evalue=.01)
-    p.add_option("--self", default=False, action="store_true",
-                 help="Remove self hits")
+    p.add_option("--noself", default=False, action="store_true",
+                 help="Remove self-self hits")
     p.add_option("--ids", help="Path to file with ids to retain")
     p.add_option("--inverse", default=False, action="store_true",
                  help="Similar to grep -v, inverse")
@@ -288,8 +289,8 @@ def filter(args):
     outfile = opts.outfile
     fp = must_open(blastfile)
 
-    score, pctid, hitlen, evalue, selfrule = \
-            opts.score, opts.pctid, opts.hitlen, opts.evalue, opts.self
+    score, pctid, hitlen, evalue, noself = \
+            opts.score, opts.pctid, opts.hitlen, opts.evalue, opts.noself
     newblastfile = blastfile + ".P{0}L{1}".format(int(pctid), hitlen) if \
                     outfile is None else outfile
     if inverse:
@@ -312,11 +313,12 @@ def filter(args):
             c.pctid < pctid or \
             c.hitlen < hitlen or \
             c.evalue > evalue or \
-            (selfrule and c.query != c.subject) or \
             noids
 
         if inverse:
             remove = not remove
+
+        remove = remove or (noself and c.query == c.subject)
 
         if not remove:
             print >> fw, row.rstrip()

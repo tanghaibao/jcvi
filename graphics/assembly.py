@@ -26,9 +26,52 @@ def main():
         ('coverage', 'plot coverage from a set of BED files'),
         ('qc', 'performs QC graphics on given contig/scaffold'),
         ('scaffold', 'plot the alignment of the scaffold to other evidences'),
+        ('covlen', 'plot coverage vs length'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def covlen(args):
+    """
+    %prog covlen covfile fastafile
+
+    Plot coverage vs lenght. `covfile` is two-column listing contig id and
+    depth of coverage.
+    """
+    import numpy as np
+    import seaborn as sns
+    from jcvi.formats.base import DictFile
+
+    p = OptionParser(covlen.__doc__)
+    p.add_option("--maxsize", default=100000, type="int", help="Max contig size")
+    p.add_option("--maxcov", default=100, type="int", help="Max contig size")
+    opts, args, iopts = p.set_image_options(args, figsize="8x8")
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    covfile, fastafile = args
+    cov = DictFile(covfile, cast=float)
+    s = Sizes(fastafile)
+    data = []
+    maxsize, maxcov = opts.maxsize, opts.maxcov
+    for ctg, size in s.iter_sizes():
+        c = cov[ctg]
+        if size > maxsize:
+            continue
+        if c > maxcov:
+            continue
+        data.append((size, c))
+
+    x, y = zip(*data)
+    x = np.array(x)
+    y = np.array(y)
+    logging.debug("X size {0}, Y size {1}".format(x.size, y.size))
+    sns.jointplot(x, y, kind="kde")
+
+    figname = covfile + ".pdf"
+    savefig(figname, dpi=iopts.dpi, iopts=iopts)
 
 
 def coverage(args):

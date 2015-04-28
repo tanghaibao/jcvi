@@ -274,8 +274,6 @@ def multilineplot(args):
 
     --lines: traditional line plots, useful for plotting feature freq
     """
-    from jcvi.graphics.chromosome import HorizontalChromosome
-
     p = OptionParser(multilineplot.__doc__)
     p.add_option("--lines",
                  help="Features to plot in lineplot [default: %default]")
@@ -308,6 +306,8 @@ def multilineplot(args):
     plt.rcParams["ytick.major.size"] = 0
 
     fig, axarr = plt.subplots(nrows=len(lines))
+    if len(linebeds) == 1:
+        axarr = (axarr, )
     fig.suptitle(chr, color="darkslategray")
 
     for i, ax in enumerate(axarr):

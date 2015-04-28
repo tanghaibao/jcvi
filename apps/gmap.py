@@ -70,6 +70,10 @@ def gmap(args):
     p = OptionParser(gmap.__doc__)
     p.add_option("--cross", default=False, action="store_true",
                  help="Cross-species alignment")
+    p.add_option("--npaths", default=0, type="int",
+                 help="Maximum number of paths to show."
+                 " If set to 0, prints two paths if chimera"
+                 " detected, else one.")
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -87,8 +91,9 @@ def gmap(args):
     else:
         dbdir, dbname = check_index(dbfile)
         cmd = "gmap -D {0} -d {1}".format(dbdir, dbname)
-        cmd += " -f 2 -n 0 --intronlength=100000"  # Output format 2, max npaths
+        cmd += " -f 2 --intronlength=100000"  # Output format 2
         cmd += " -t {0}".format(opts.cpus)
+        cmd += " --npaths {0}".format(opts.npaths)
         if opts.cross:
             cmd += " --cross-species"
         cmd += " " + fastafile

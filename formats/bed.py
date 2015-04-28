@@ -394,9 +394,35 @@ def main():
         ('seqids', 'print out all seqids on one line'),
         ('alignextend', 'alignextend based on BEDPE and FASTA ref'),
         ('clr', 'extract clear range based on BEDPE'),
+        ('density', 'calculates density of features per seqid'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def density(args):
+    """
+    %prog density bedfile ref.fasta
+
+    Calculates density of features per seqid.
+    """
+    p = OptionParser(density.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    bedfile, fastafile = args
+    bed = Bed(bedfile)
+    sizes = Sizes(fastafile).mapping
+    header = "seqid features size density_per_Mb".split()
+    print "\t".join(header)
+    for seqid, bb in bed.sub_beds():
+        nfeats = len(bb)
+        size = sizes[seqid]
+        ds = nfeats * 1e6 / size
+        print "\t".join(str(x) for x in \
+                    (seqid, nfeats, size, "{0:.1f}".format(ds)))
 
 
 def clr(args):

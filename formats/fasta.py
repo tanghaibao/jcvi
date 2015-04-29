@@ -442,6 +442,8 @@ def fromtab(args):
     """
     p = OptionParser(fromtab.__doc__)
     p.set_sep(sep=None)
+    p.add_option("--noheader", default=False, action="store_true",
+                 help="Ignore first line")
     p.add_option("--replace",
                  help="Replace spaces in name to char [default: %default]")
     opts, args = p.parse_args(args)
@@ -455,6 +457,8 @@ def fromtab(args):
     fp = must_open(tabfile)
     fw = must_open(fastafile, "w")
     nseq = 0
+    if opts.noheader:
+        fp.next()
     for row in fp:
         row = row.strip()
         if not row or row[0] == '#':

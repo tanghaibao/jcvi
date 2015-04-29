@@ -12,6 +12,7 @@ Prepare input files for Celera Assembler, dispatch based on file suffix::
 import os.path as op
 import sys
 import logging
+import cPickle
 
 from Bio import SeqIO
 
@@ -116,7 +117,6 @@ def overlap(args):
     Visualize overlaps for a given fragment. Must be run in 4-unitigger. All
     overlaps for iid were retrieved, excluding the ones matching best.contains.
     """
-    import cPickle
     from jcvi.apps.console import green
 
     p = OptionParser(overlap.__doc__)
@@ -189,6 +189,36 @@ def overlap(args):
         print >> fw, "{0} ({1})".format(str(f.bid).rjust(10), f.erate_adj)
 
 
+def parse_ctgs(bestedges, frgtoctg):
+    cache = frgtoctg + ".cache"
+    if need_update(frgtoctg, cache):
+        reads_to_ctgs = {}
+        fp = open(frgtoctg)
+        for row in fp:
+            frg, ctg = row.split()[:2]
+            frg, ctg = int(frg), int(ctg)
+            frg -= 100000000000
+            ctg -= 7180000000000
+            reads_to_ctgs[frg] = ctg
+        fw = open(cache, "w")
+        cPickle.dump(reads_to_ctgs, fw)
+        fw.close()
+        logging.debug("Contig mapping written to `{0}`".format(cache))
+
+    reads_to_ctgs = cPickle.load(open(cache))
+    logging.debug("Contig mapping loaded from `{0}`".format(cache))
+    return reads_to_ctgs
+
+
+def annotate_contigs(G, reads_to_ctgs):
+    for n, attrib in G.nodes_iter(data=True):
+        if n in reads_to_ctgs:
+            ctg = reads_to_ctgs[n]
+            attrib['label'] = "utg{0}".format(ctg)
+        else:
+            attrib['label'] = "na"
+
+
 def graph(args):
     """
     %prog graph best.edges
@@ -207,6 +237,8 @@ def graph(args):
     p.add_option("--query", default=-1, type="int", help="Search from node")
     p.add_option("--largest", default=1, type="int", help="Only show largest components")
     p.add_option("--maxsize", default=100, type="int", help="Max graph size")
+    p.add_option("--contigs", help="Annotate graph with contig membership, "
+                    " typically from `asm.posmap.frgctg`")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -214,6 +246,7 @@ def graph(args):
 
     bestedges, = args
     maxerr = opts.maxerr
+    largest = opts.largest
     logging.debug("Max error = {0}%".format(maxerr))
     bestgraph = bestedges.split(".")[0] + ".err{0}.graph".format(maxerr)
     if need_update(bestedges, bestgraph):
@@ -240,20 +273,23 @@ def graph(args):
 
     if len(G) > 10000:
         SG = nx.Graph()
-        for x in xrange(opts.largest):
-            H = graph_local_neighborhood(G, query=opts.query,
-                                         maxsize=opts.maxsize)
-            SG.add_edges_from(H.edges())
+        H = graph_local_neighborhood(G, query=opts.query,
+                                     maxsize=opts.maxsize)
+        SG.add_edges_from(H.edges())
         G = SG
 
-    if 0:  # only works for un-directed graph
+    if largest > 1:  # only works for un-directed graph
         H = nx.connected_component_subgraphs(G)
-        c = min(len(H), opts.largest)
+        c = min(len(H), largest)
         logging.debug("{0} components found, {1} retained".format(len(H), c))
 
         G = nx.Graph()
         for x in H[:c]:
             G.add_edges_from(x.edges())
+
+    if opts.contigs:
+        reads_to_ctgs = parse_ctgs(bestedges, opts.contigs)
+        annotate_contigs(G, reads_to_ctgs)
 
     gexf = "best.gexf"
     nx.write_gexf(G, gexf)

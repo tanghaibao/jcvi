@@ -246,6 +246,7 @@ def graph(args):
 
     bestedges, = args
     maxerr = opts.maxerr
+    query = opts.query
     largest = opts.largest
     logging.debug("Max error = {0}%".format(maxerr))
     bestgraph = bestedges.split(".")[0] + ".err{0}.graph".format(maxerr)
@@ -273,7 +274,7 @@ def graph(args):
 
     if len(G) > 10000:
         SG = nx.Graph()
-        H = graph_local_neighborhood(G, query=opts.query,
+        H = graph_local_neighborhood(G, query=query,
                                      maxsize=opts.maxsize)
         SG.add_edges_from(H.edges())
         G = SG
@@ -291,7 +292,10 @@ def graph(args):
         reads_to_ctgs = parse_ctgs(bestedges, opts.contigs)
         annotate_contigs(G, reads_to_ctgs)
 
-    gexf = "best.gexf"
+    gexf = "best"
+    if query >= 0:
+        gexf += ".{0}".format(query)
+    gexf += ".gexf"
     nx.write_gexf(G, gexf)
     logging.debug("Graph written to `{0}` (|V|={1}, |E|={2})".\
                     format(gexf, len(G), G.size()))

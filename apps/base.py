@@ -309,7 +309,7 @@ class OptionParser (OptionP):
 
     def set_image_options(self, args=None, figsize="6x6", dpi=300,
                           format="pdf", font="Helvetica", palette="deep",
-                          style="darkgrid"):
+                          style="darkgrid", cmap="jet"):
         """
         Add image format options for given command line programs.
         """
@@ -337,7 +337,7 @@ class OptionParser (OptionP):
                 help="Axes background")
         group.add_option("--diverge", default="PiYG", choices=allowed_diverge,
                 help="Contrasting color scheme")
-        group.add_option("--cmap", default="jet", help="Use this color map")
+        group.add_option("--cmap", default=cmap, help="Use this color map")
 
         if args is None:
             args = sys.argv[1:]

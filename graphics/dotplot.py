@@ -69,7 +69,7 @@ def draw_box(clusters, ax, color="b"):
 
 
 def dotplot_main(anchorfile, qbed, sbed, image_name, iopts, vmin=0, vmax=1,
-        is_self=False, synteny=False, cmap_text=None, genomenames=None,
+        is_self=False, synteny=False, cmap_text=None, cmap="copper", genomenames=None,
         sample_number=10000, minfont=5, palette=None, chrlw=.01, title=None):
 
     fig = plt.figure(1, (iopts.w, iopts.h))
@@ -77,7 +77,7 @@ def dotplot_main(anchorfile, qbed, sbed, image_name, iopts, vmin=0, vmax=1,
     ax = fig.add_axes([.1, .1, .8, .8])  # the dot plot
 
     dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=vmin, vmax=vmax,
-        is_self=is_self, synteny=synteny, cmap_text=cmap_text,
+        is_self=is_self, synteny=synteny, cmap_text=cmap_text, cmap=cmap,
         genomenames=genomenames, sample_number=sample_number,
         minfont=minfont, palette=palette, chrlw=chrlw, title=title)
 
@@ -85,9 +85,9 @@ def dotplot_main(anchorfile, qbed, sbed, image_name, iopts, vmin=0, vmax=1,
 
 
 def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
-        is_self=False, synteny=False, cmap_text=None, genomenames=None,
-        sample_number=10000, minfont=5, palette=None, chrlw=.01, title=None,
-        sepcolor="gainsboro"):
+        is_self=False, synteny=False, cmap_text=None, cmap="copper",
+        genomenames=None, sample_number=10000, minfont=5, palette=None,
+        chrlw=.01, title=None, sepcolor="gainsboro"):
 
     fp = open(anchorfile)
 
@@ -96,7 +96,8 @@ def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
 
     data = []
     if cmap_text:
-        logging.debug("Normalize values to [%.1f, %.1f]" % (vmin, vmax))
+        logging.debug("Capping values within [{0:.1f}, {1:.1f}]"\
+                        .format(vmin, vmax))
 
     block_id = 0
     for row in fp:
@@ -121,9 +122,9 @@ def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
             value = vmax
 
         if value < vmin:
-            value = vmin
+            continue
         if value > vmax:
-            value = vmax
+            continue
 
         if query not in qorder:
             continue
@@ -147,17 +148,15 @@ def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
 
     # the data are plotted in this order, the least value are plotted
     # last for aesthetics
-    if not palette:
-        data.sort(key=lambda x: -x[2])
+    #if not palette:
+    #    data.sort(key=lambda x: -x[2])
 
-    default_cm = cm.copper
     x, y, c = zip(*data)
 
     if palette:
         ax.scatter(x, y, c=c, edgecolors="none", s=2, lw=0)
-
     else:
-        ax.scatter(x, y, c=c, edgecolors="none", s=2, lw=0, cmap=default_cm,
+        ax.scatter(x, y, c=c, edgecolors="none", s=2, lw=0, cmap=cmap,
                 vmin=vmin, vmax=vmax)
 
     if synteny:
@@ -165,7 +164,7 @@ def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
         draw_box(clusters, ax)
 
     if cmap_text:
-        draw_cmap(root, cmap_text, vmin, vmax, cmap=default_cm, reverse=True)
+        draw_cmap(root, cmap_text, vmin, vmax, cmap=cmap)
 
     xsize, ysize = len(qbed), len(sbed)
     logging.debug("xsize=%d ysize=%d" % (xsize, ysize))
@@ -275,7 +274,7 @@ if __name__ == "__main__":
     p.add_option("--cmaptext", help="Draw colormap box on the bottom-left corner")
     p.add_option("--vmin", dest="vmin", type="float", default=0,
             help="Minimum value in the colormap [default: %default]")
-    p.add_option("--vmax", dest="vmax", type="float", default=1,
+    p.add_option("--vmax", dest="vmax", type="float", default=2,
             help="Maximum value in the colormap [default: %default]")
     p.add_option("--genomenames", type="string", default=None,
             help="genome names for labeling axes in the form of qname_sname, " \
@@ -289,7 +288,7 @@ if __name__ == "__main__":
     p.add_option("--skipempty", default=False, action="store_true",
             help="Skip seqids that do not have matches")
     opts, args, iopts = p.set_image_options(sys.argv[1:], figsize="8x8",
-                                            style="dark", dpi=90)
+                                            style="dark", dpi=90, cmap="copper")
 
     if len(args) != 1:
         sys.exit(not p.print_help())
@@ -324,6 +323,6 @@ if __name__ == "__main__":
     image_name = op.splitext(anchorfile)[0] + "." + opts.format
     dotplot_main(anchorfile, qbed, sbed, image_name, iopts,
             vmin=opts.vmin, vmax=opts.vmax, is_self=is_self,
-            synteny=opts.synteny, cmap_text=opts.cmaptext,
+            synteny=opts.synteny, cmap_text=opts.cmaptext, cmap=iopts.cmap,
             genomenames=opts.genomenames, sample_number=opts.sample_number,
             minfont=opts.minfont, palette=palette)

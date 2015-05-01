@@ -438,7 +438,7 @@ def draw_cmap(ax, cmap_text, vmin, vmax, cmap=None, reverse=False):
     xmin, xmax = .6, .9
     ymin, ymax = .02, .04
     ax.imshow(Y, extent=(xmin, xmax, ymin, ymax), cmap=cmap)
-    ax.text(xmin - .01, (ymin + ymax) * .5, cmap_text,
+    ax.text(xmin - .01, (ymin + ymax) * .5, markup(cmap_text),
             ha="right", va="center", size=10)
     vmiddle = (vmin + vmax) * .5
     xmiddle = (xmin + xmax) * .5

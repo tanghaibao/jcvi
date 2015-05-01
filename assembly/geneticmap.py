@@ -225,7 +225,7 @@ def ld(args):
     ax.set_ylim(extent)
     ax.set_axis_off()
 
-    draw_cmap(root, "Pairwise LD (r2)", 0, 1, cmap=default_cm)
+    draw_cmap(root, "Pairwise LD (r2)", 0, 1, cmap=iopts.cmap)
 
     root.add_patch(Rectangle((.1, .1), .8, .8, fill=False, ec="k", lw=2))
     m = mstmap.split(".")[0]

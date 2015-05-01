@@ -30,8 +30,8 @@ from random import sample
 from jcvi.compara.synteny import AnchorFile, batch_scan, check_beds
 from jcvi.utils.cbook import seqid_parse, thousands
 from jcvi.apps.base import OptionParser
-from jcvi.graphics.base import plt, Rectangle, cm, set_human_axis, savefig, \
-            draw_cmap, TextHandler, latex
+from jcvi.graphics.base import plt, Rectangle, set_human_axis, savefig, \
+            draw_cmap, TextHandler, latex, markup
 
 
 class Palette (dict):
@@ -134,7 +134,7 @@ def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
         qi, q = qorder[query]
         si, s = sorder[subject]
 
-        nv = vmax - value if block_color is None else block_color
+        nv = value if block_color is None else block_color
         data.append((qi, si, nv))
         if is_self:  # Mirror image
             data.append((si, qi, nv))
@@ -219,8 +219,8 @@ def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
     else:
         to_ax_label = lambda fname: op.basename(fname).split(".")[0]
         gx, gy = [to_ax_label(x.filename) for x in (qbed, sbed)]
-    ax.set_xlabel(gx, size=16)
-    ax.set_ylabel(gy, size=16)
+    ax.set_xlabel(markup(gx), size=16)
+    ax.set_ylabel(markup(gy), size=16)
 
     # beautify the numeric axis
     for tick in ax.get_xticklines() + ax.get_yticklines():
@@ -245,7 +245,7 @@ def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
             title = "Intra-genomic comparison within {0}".format(gx)
             npairs /= 2
         title += " ({0} gene pairs)".format(thousands(npairs))
-    root.set_title(title, x=.5, y=.96, color="k")
+    root.set_title(markup(title), x=.5, y=.96, color="k")
     logging.debug(title)
 
     root.set_xlim(0, 1)

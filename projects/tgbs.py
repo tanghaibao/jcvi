@@ -223,12 +223,15 @@ def count(args):
     from jcvi.utils.cbook import SummaryStats
 
     p = OptionParser(count.__doc__)
+    p.add_option("--csv", help="Write depth per contig to file")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     fastafile, = args
+    csv = open(opts.csv, "w") if opts.csv else None
+
     f = Fasta(fastafile, lazy=True)
     sizes = []
     for desc, rec in f.iterdescriptions_ordered():
@@ -237,8 +240,14 @@ def count(args):
             continue
         # consensus_for_cluster_0 with 63 sequences
         name, w, size, seqs = desc.split()
+        if csv:
+            print >> csv, "\t".join(str(x) for x in (name, size, len(rec)))
         assert w == "with"
         sizes.append(int(size))
+
+    if csv:
+        csv.close()
+        logging.debug("File written to `{0}`".format(opts.csv))
 
     s = SummaryStats(sizes)
     print >> sys.stderr, s

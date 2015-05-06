@@ -37,6 +37,7 @@ valid_gff_parent_child = {"match": "match_part",
                           "mRNA": "exon",
                          }
 valid_gff_to_gtf_type = {"exon": "exon",
+                         "pseudogenic_exon": "exon",
                          "CDS": "CDS",
                          "start_codon": "start_codon",
                          "stop_codon": "stop_codon",
@@ -1702,7 +1703,7 @@ def gtf(args):
     gff = Gff(gffile)
     transcript_info = AutoVivification()
     for g in gff:
-        if g.type.endswith("RNA"):
+        if g.type.endswith("RNA") or g.type.endswith("transcript"):
             if "ID" in g.attributes and "Parent" in g.attributes:
                 transcript_id = g.get_attr("ID")
                 gene_id = g.get_attr("Parent")
@@ -1726,7 +1727,8 @@ def gtf(args):
 
         g.type = valid_gff_to_gtf_type[g.type]
         for tid in transcript_id:
-            if transcript_info[tid]["gene_type"] != "mRNA":
+            gene_type = transcript_info[tid]["gene_type"]
+            if not gene_type.endswith("RNA") and not gene_type.endswith("transcript"):
                 continue
             gene_id = transcript_info[tid]["gene_id"]
             g.attributes = dict(gene_id=[gene_id], transcript_id=[tid])

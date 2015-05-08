@@ -1220,7 +1220,7 @@ def fastaFromBed(bedfile, fastafile, name=False, tab=False, stranded=False):
     return outfile
 
 
-def mergeBed(bedfile, d=0, sorted=False, nms=False, s=False, scores=None):
+def mergeBed(bedfile, d=0, sorted=False, nms=False, s=False, scores=None, delim=";"):
     if not sorted:
         bedfile = sort([bedfile, "-i"])
     cmd = "mergeBed -i {0}".format(bedfile)
@@ -1241,6 +1241,8 @@ def mergeBed(bedfile, d=0, sorted=False, nms=False, s=False, scores=None):
         if not scores in valid_opts:
             scores = "mean"
         cmd += " -scores {0}".format(scores)
+
+    cmd += ' -delim "{0}"'.format(delim)
 
     mergebedfile = op.basename(bedfile).rsplit(".", 1)[0] + ".merge.bed"
 

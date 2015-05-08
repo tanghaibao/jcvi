@@ -151,7 +151,7 @@ def texthistogram(numberfiles, vmin, vmax, title=None,
             stem_leaf_plot(data, vmin, vmax, bins, title=title)
 
 
-def histogram(numberfile, vmin, vmax, xlabel, title,
+def histogram(numberfile, vmin, vmax, xlabel, title, outfmt="pdf",
               bins=50, skip=0, ascii=False, base=0, fill="white"):
     """
     Generate histogram using number from numberfile, and only numbers in the
@@ -164,13 +164,13 @@ def histogram(numberfile, vmin, vmax, xlabel, title,
     data, vmin, vmax = get_data(numberfile, vmin, vmax, skip=skip)
     outfile = numberfile + '.pdf'
     if base:
-        outfile = numberfile + ".base{0}.pdf".format(base)
+        outfile = numberfile + ".base{0}.{1}".format(base, outfmt)
     template = histogram_log_template if base else histogram_template
     rtemplate = RTemplate(template, locals())
     rtemplate.run()
 
 
-def histogram_multiple(numberfiles, vmin, vmax, xlabel, title,
+def histogram_multiple(numberfiles, vmin, vmax, xlabel, title, outfmt="pdf",
                        tags=None, bins=20, skip=0, ascii=False,
                        facet=False, fill="white", prefix=""):
     """
@@ -205,7 +205,7 @@ def histogram_multiple(numberfiles, vmin, vmax, xlabel, title,
     fw.close()
 
     numberfile = newfile
-    outfile = numberfile + '.pdf'
+    outfile = numberfile + '.' + outfmt
     if prefix:
         outfile = prefix + outfile
     htemplate = histogram_multiple_template_b \
@@ -222,6 +222,8 @@ def main():
     line. If more than one file is inputted, the program will combine the
     histograms into the same plot.
     """
+    allowed_format = ("emf", "eps", "pdf", "png", "ps", \
+                      "raw", "rgba", "svg", "svgz")
     p = OptionParser(main.__doc__)
     p.add_option("--skip", default=0, type="int",
             help="skip the first several lines [default: %default]")
@@ -244,6 +246,8 @@ def main():
             help="place multiple histograms side-by-side [default: %default]")
     p.add_option("--fill", default="white",
             help="color of the bin [default: %default]")
+    p.add_option("--format", default="pdf", choices=allowed_format,
+            help="Generate image of format [default: %default]")
     opts, args = p.parse_args()
 
     if len(args) < 1:
@@ -258,11 +262,11 @@ def main():
 
     fileno = len(args)
     if fileno == 1:
-        histogram(args[0], vmin, vmax, xlabel, title,
+        histogram(args[0], vmin, vmax, xlabel, title, outfmt=opts.format,
                 bins=bins, skip=skip, ascii=opts.ascii,
                 base=base, fill=opts.fill)
     else:
-        histogram_multiple(args, vmin, vmax, xlabel, title,
+        histogram_multiple(args, vmin, vmax, xlabel, title, outfmt=opts.format,
                 tags=opts.tags, bins=bins, skip=skip, ascii=opts.ascii,
                 facet=opts.facet, fill=opts.fill)
 

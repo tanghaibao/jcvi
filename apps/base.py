@@ -805,6 +805,14 @@ def listify(a):
     return a if (isinstance(a, list) or isinstance(a, tuple)) else [a]
 
 
+def last_updated(a):
+    """
+    Check the time since file was last updated.
+    """
+    import time
+    return time.time() - op.getmtime(a)
+
+
 def need_update(a, b):
     """
     Check if file a is newer than file b and decide whether or not to update
@@ -846,7 +854,7 @@ def ls_ftp(dir):
     return files
 
 
-def download(url, filename=None, debug=True):
+def download(url, filename=None, debug=True, cookies=None):
     from urlparse import urlsplit
     from subprocess import CalledProcessError
     from jcvi.formats.base import FileShredder
@@ -857,6 +865,8 @@ def download(url, filename=None, debug=True):
 
     if not filename:
         filename = "index.html"
+    if not any(filename.endswith(x) for x in ('.htm', '.html', '.xml')):
+        filename += ".html"
 
     if op.exists(filename):
         if debug:
@@ -867,7 +877,7 @@ def download(url, filename=None, debug=True):
 
         downloader = get_best_downloader()
         try:
-            downloader(url, filename)
+            downloader(url, filename, cookies=cookies)
         except (CalledProcessError, KeyboardInterrupt) as e:
             print >> sys.stderr, e
             FileShredder([filename])

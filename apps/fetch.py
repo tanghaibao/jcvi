@@ -19,7 +19,7 @@ from jcvi.utils.cbook import tile
 from jcvi.utils.iter import grouper
 from jcvi.apps.console import green
 from jcvi.apps.base import OptionParser, ActionDispatcher, get_email_address, \
-            mkdir, ls_ftp, download
+            mkdir, ls_ftp, download, sh, last_updated
 
 
 myEmail = get_email_address()
@@ -114,6 +114,7 @@ def main():
         ('entrez', 'fetch records from entrez using a list of GenBank accessions'),
         ('bisect', 'determine the version of the accession by querying entrez'),
         ('phytozome', 'retrieve genomes and annotations from phytozome'),
+        ('phytozome10', 'retrieve genomes and annotations from phytozome'),
         ('ensembl', 'retrieve genomes and annotations from ensembl'),
         ('sra', 'retrieve files from SRA via the sra-instant FTP'),
         )
@@ -165,6 +166,49 @@ def download_species_ensembl(species, valid_species, url):
         for f in valid_files:
             f = urljoin(u, f)
             download(f)
+
+
+def get_cookies(name="tanghaibao@gmail.com", cookies="cookies"):
+    from getpass import getpass
+
+    # Check if cookies is still good
+    if op.exists(cookies) and last_updated(cookies) < 3600:
+        return cookies
+
+    username = raw_input("Phytozome Login [{0}]: ".format(name))
+    if username.strip() == '':
+        username = name
+
+    pw = getpass("Phytozome Password: ")
+    cmd = "curl https://signon.jgi.doe.gov/signon/create --data-ascii"
+    cmd += " login={0}\&password={1} -b {2} -c {2}".format(username, pw, cookies)
+    sh(cmd, outfile="/dev/null", errfile="/dev/null", log=False)
+
+    return cookies
+
+
+def phytozome10(args):
+    """
+    %prog phytozome species
+
+    Retrieve genomes and annotations from phytozome using Globus API. Available
+    species listed below. Use comma to give a list of species to download. For
+    example:
+
+    $ %prog phytozome Athaliana,Vvinifera,Osativa,Sbicolor,Slycopersicum
+    """
+    p = OptionParser(phytozome10.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    species, = args
+    cookies = get_cookies()
+    # Get directory listing
+    dlist = \
+    "http://genome.jgi.doe.gov/ext-api/downloads/get-directory?organism=PhytozomeV10"
+    d = download(dlist, debug=True, cookies=cookies)
 
 
 def phytozome(args):

@@ -158,11 +158,13 @@ def use_setuptools(version=DEFAULT_VERSION, download_base=DEFAULT_URL,
                             download_delay)
 
 
-def download_file_powershell(url, target):
+def download_file_powershell(url, target, cookies=None):
     """
     Download the file at url to target using Powershell (which will validate
     trust). Raise an exception if the command cannot complete.
     """
+    if cookies:
+        raise NotImplementedError
     target = os.path.abspath(target)
     cmd = [
         'powershell',
@@ -189,10 +191,12 @@ def has_powershell():
 download_file_powershell.viable = has_powershell
 
 
-def download_file_curl(url, target):
+def download_file_curl(url, target, cookies=None):
     cmd = ['curl', url, '--output', target]
     if url.startswith("ftp:"):
         cmd += ["-P", "-"]
+    if cookies:
+        cmd += ["-b", cookies, "-c", cookies]
     subprocess.check_call(cmd)
 
 
@@ -211,11 +215,13 @@ def has_curl():
 download_file_curl.viable = has_curl
 
 
-def download_file_wget(url, target):
+def download_file_wget(url, target, cookies=None):
     cmd = ['wget', url, '--output-document', target]
     cmd += ["--no-check-certificate"]
     if url.startswith("ftp:"):
         cmd += ["--no-passive-ftp"]
+    if cookies:
+        cmd += ["--load-cookies", cookies]
     subprocess.check_call(cmd)
 
 
@@ -234,11 +240,13 @@ def has_wget():
 download_file_wget.viable = has_wget
 
 
-def download_file_insecure(url, target):
+def download_file_insecure(url, target, cookies=None):
     """
     Use Python to download the file, even though it cannot authenticate the
     connection.
     """
+    if cookies:
+        raise NotImplementedError
     try:
         from urllib.request import urlopen
     except ImportError:

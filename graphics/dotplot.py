@@ -116,15 +116,18 @@ def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
         query, subject = atoms[:2]
         value = atoms[-1]
 
-        try:
-            value = float(value)
-        except ValueError:
-            value = vmax
+        if cmap_text:
+            try:
+                value = float(value)
+            except ValueError:
+                value = vmax
 
-        if value < vmin:
-            continue
-        if value > vmax:
-            continue
+            if value < vmin:
+                continue
+            if value > vmax:
+                continue
+        else:
+            value = 0
 
         if query not in qorder:
             continue

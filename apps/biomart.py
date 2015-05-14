@@ -1,6 +1,10 @@
+#!/usr/bin/env python
+# -*- coding: UTF-8 -*-
+
 """
-Builds the queries for the BioMart service
-Certain portion of the codes are ported from R package biomaRt (thanks)
+Builds the queries for Globus and BioMart servie, usefu for extraction of
+phytozome data sets.  Certain portion of the codes are ported from R package
+`biomaRt` (thanks).
 """
 
 import sys
@@ -10,6 +14,19 @@ import logging
 from xml.etree.ElementTree import ElementTree, Element, SubElement, tostring
 
 from jcvi.apps.base import OptionParser, ActionDispatcher
+
+
+class GlobusXMLParser (ElementTree):
+
+    def __init__(self, xml_data):
+        self.parse(xml_data)
+
+    def parse_folder(self):
+        """
+        Only folders containing `assembly` and `annotation` are of interest.
+        """
+        for t in self.getiterator("folder"):
+            print t.attrib["name"]
 
 
 class MartXMLParser(ElementTree):
@@ -167,9 +184,9 @@ class MartQuery(object):
         dataset_t = SubElement(query_t, "Dataset", dict(name=self.name,
             interface="default"))
         for key, val in self.filters.items():
-            filter_t = SubElement(dataset_t, "Filter", dict(name=key, value=val))
+            SubElement(dataset_t, "Filter", dict(name=key, value=val))
         for attribute in self.attributes:
-            attribute_t = SubElement(dataset_t, "Attribute", dict(name=attribute))
+            SubElement(dataset_t, "Attribute", dict(name=attribute))
 
         return tostring(query_t)
 

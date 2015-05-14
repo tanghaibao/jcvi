@@ -197,6 +197,8 @@ def phytozome10(args):
 
     $ %prog phytozome Athaliana,Vvinifera,Osativa,Sbicolor,Slycopersicum
     """
+    from jcvi.apps.biomart import GlobusXMLParser
+
     p = OptionParser(phytozome10.__doc__)
     opts, args = p.parse_args(args)
 
@@ -204,11 +206,16 @@ def phytozome10(args):
         sys.exit(not p.print_help())
 
     species, = args
+    """
     cookies = get_cookies()
     # Get directory listing
     dlist = \
     "http://genome.jgi.doe.gov/ext-api/downloads/get-directory?organism=PhytozomeV10"
     d = download(dlist, debug=True, cookies=cookies)
+    """
+    fp = open("get-directory.html")
+    g = GlobusXMLParser(fp)
+    g.parse_folder()
 
 
 def phytozome(args):

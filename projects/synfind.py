@@ -24,7 +24,7 @@ def main():
 
     actions = (
         ('cartoon', 'generate cartoon illustration of SynFind'),
-        ('islands', 'gene presence absence analysis in ecoli'),
+        ('ecoli', 'gene presence absence analysis in ecoli'),
         ('grasses', 'validate SynFind pan-grass set against James'),
             )
     p = ActionDispatcher(actions)
@@ -84,6 +84,7 @@ def grasses(args):
             james_store[x] = s
 
     jaccards = []
+    perfect_matches = 0
     for k, v in james_store.items():
         if k not in master_store:
             continue
@@ -95,14 +96,17 @@ def grasses(args):
             print v
             print m
             print jaccard
+        if jaccard > 99:
+            perfect_matches += 1
 
+    logging.debug("Perfect matches: {0}".format(perfect_matches))
     j = SummaryStats(jaccards)
     print j
 
 
-def islands(args):
+def ecoli(args):
     """
-    %prog islands coge_master_table.txt query.bed
+    %prog ecoli coge_master_table.txt query.bed
 
     Perform gene presence / absence analysis in Ecoli master spreadsheet. Ecoli
     spresheets can be downloaded below:
@@ -121,7 +125,7 @@ def islands(args):
     into pathogenicity through comparison with genomes of Escherichia
     coli K12 and O157. Nucleic Acid Research.
     """
-    p = OptionParser(islands.__doc__)
+    p = OptionParser(ecoli.__doc__)
     p.set_outfile()
     opts, args = p.parse_args(args)
 

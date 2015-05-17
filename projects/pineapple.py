@@ -8,10 +8,11 @@ Scripts for the pineapple genome manuscript (unpublished).
 import sys
 import logging
 
-from jcvi.formats.base import DictFile, LineFile, must_open
+from jcvi.formats.base import DictFile, LineFile, must_open, get_number
 from jcvi.formats.bed import Bed
 from jcvi.formats.sizes import Sizes
 from jcvi.graphics.base import Rectangle, set2, plt, savefig
+from jcvi.graphics.chromosome import Chromosome
 from jcvi.graphics.karyotype import Karyotype
 from jcvi.graphics.synteny import Synteny, draw_gene_legend
 from jcvi.graphics.glyph import TextCircle
@@ -108,9 +109,9 @@ def ancestral(args):
     tip = .02
     coords = {}
     for i, k in enumerate(regions.karyotypes):
-        x = (i  + 1) * xgap
+        x = (i + 1) * xgap
         y = .9
-        root.text(x, y + tip, k, ha="center")
+        root.text(x, y + tip, "Anc" + k, ha="center")
         root.plot((x, x), (y, y - ygap), "k-", lw=2)
         y -= 2 * ygap
         coords['a'] = (x - 1.5 * mgap , y)
@@ -139,6 +140,27 @@ def ancestral(args):
             coords[g] = (gx, gy - tip)
 
     # Bottom panel shows the location of segments on chromosomes
+    # TODO: redundant code, similar to graphics.chromosome
+    ystart = .54
+    chr_number = len(sizes)
+    xstart, xend = xgap - 2 * mgap, 1 - xgap + 2 * mgap
+    xinterval = (xend - xstart - gwidth) / (chr_number - 1)
+    chrpos = {}
+    for a, (chr, clen) in enumerate(sorted(sizes.items())):
+        chr = get_number(chr)
+        xx = xstart + a * xinterval + gwidth / 2
+        chrpos[chr] = xx
+        root.text(xx, ystart + .01, chr, ha="center")
+        Chromosome(root, xx, ystart, ystart - clen * ratio, width=gwidth)
+
+    # Start painting
+    for r in regions:
+        xx = chrpos[r.chromosome]
+        yystart = ystart - r.start * ratio
+        yyend = ystart - r.end * ratio
+        p = Rectangle((xx - gwidth / 2, yystart), gwidth, yyend - yystart,
+                      color=set2[int(r.karyotype) - 1], lw=0)
+        root.add_patch(p)
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)

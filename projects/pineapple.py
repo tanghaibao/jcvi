@@ -8,19 +8,50 @@ Scripts for the pineapple genome manuscript (unpublished).
 import sys
 import logging
 
-from jcvi.formats.base import DictFile, must_open
+from jcvi.formats.base import DictFile, LineFile, must_open
 from jcvi.formats.bed import Bed
 from jcvi.formats.sizes import Sizes
-from jcvi.graphics.base import plt, savefig, panel_labels
+from jcvi.graphics.base import Rectangle, set2, plt, savefig
 from jcvi.graphics.karyotype import Karyotype
 from jcvi.graphics.synteny import Synteny, draw_gene_legend
 from jcvi.graphics.glyph import TextCircle
 from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
+class RegionsLine (object):
+
+    def __init__(self, line):
+        args = line.split()
+        self.karyotype = args[0][0]
+        self.group = args[0][1]
+        self.chromosome = int(args[1])
+        self.start = int(args[5])
+        self.end = int(args[8])
+        self.span = abs(self.start - self.end)
+
+
+class RegionsFile (LineFile):
+
+    def __init__(self, filename):
+        super(RegionsFile, self).__init__(filename)
+        fp = open(filename)
+        fp.next()
+        for row in fp:
+            self.append(RegionsLine(row))
+
+    @property
+    def karyotypes(self):
+        return sorted(set(x.karyotype for x in self))
+
+    def get_karyotype(self, k):
+        return [x for x in self if x.karyotype == k]
+
+
 def main():
 
     actions = (
+        # main figures in text
+        ('ancestral', 'karoytype evolution of pineapple (requires data)'),
         ('ploidy', 'plot pineapple macro-synteny (requires data)'),
         # build pseudomolecule
         ('agp', 'make agp file'),
@@ -31,6 +62,91 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def join_nodes_vertical(root, coords, a, b, y, lw=2):
+    # Join node a and b to make an internal node
+    ax, ay = coords[a]
+    bx, by = coords[b]
+    nx, ny = (ax + bx) / 2, y
+    root.plot((ax, ax), (ay, ny), "k-", lw=lw)
+    root.plot((bx, bx), (ay, ny), "k-", lw=lw)
+    root.plot((ax, bx), (ny, ny), "k-", lw=lw)
+    return nx, ny
+
+
+def ancestral(args):
+    """
+    %prog ancestral ancestral.txt assembly.fasta
+
+    Karyotype evolution of pineapple. The figure is inspired by Amphioxus paper
+    Figure 3 and Tetradon paper Figure 9.
+    """
+    p = OptionParser(ancestral.__doc__)
+    opts, args, iopts = p.set_image_options(args, figsize="8x7")
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    regionsfile, sizesfile = args
+    regions = RegionsFile(regionsfile)
+    sizes = Sizes(sizesfile).mapping
+    sizes = dict((k, v) for (k, v) in sizes.iteritems() if k[:2] == "LG")
+    maxsize = max(sizes.values())
+    ratio = .5 / maxsize
+
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes((0, 0, 1, 1))
+
+    # Upper panel is the evolution of segments
+    # All segments belong to one of seven karyotypes 1 to 7
+    karyotypes = regions.karyotypes
+    xgap = 1. / (1 + len(karyotypes))
+    ygap = .05
+    mgap = xgap / 4.5
+    gwidth = mgap * .75
+    tip = .02
+    coords = {}
+    for i, k in enumerate(regions.karyotypes):
+        x = (i  + 1) * xgap
+        y = .9
+        root.text(x, y + tip, k, ha="center")
+        root.plot((x, x), (y, y - ygap), "k-", lw=2)
+        y -= 2 * ygap
+        coords['a'] = (x - 1.5 * mgap , y)
+        coords['b'] = (x - .5 * mgap , y)
+        coords['c'] = (x + .5 * mgap , y)
+        coords['d'] = (x + 1.5 * mgap , y)
+        coords['ab'] = join_nodes_vertical(root, coords, 'a', 'b', y + ygap / 2)
+        coords['cd'] = join_nodes_vertical(root, coords, 'c', 'd', y + ygap / 2)
+        coords['abcd'] = join_nodes_vertical(root, coords, 'ab', 'cd', y + ygap)
+        for n in 'abcd':
+            nx, ny = coords[n]
+            root.text(nx, ny - tip, n, ha="center")
+            coords[n] = (nx, ny - ygap / 2)
+
+        kdata = regions.get_karyotype(k)
+        for kd in kdata:
+            g = kd.group
+            gx, gy = coords[g]
+            gsize = ratio * kd.span
+            gy -= gsize
+            p = Rectangle((gx - gwidth / 2, gy),
+                           gwidth, gsize, lw=0, color=set2[i])
+            root.add_patch(p)
+            root.text(gx, gy + gsize / 2, kd.chromosome,
+                      ha="center", va="center", color='w')
+            coords[g] = (gx, gy - tip)
+
+    # Bottom panel shows the location of segments on chromosomes
+
+    root.set_xlim(0, 1)
+    root.set_ylim(0, 1)
+    root.set_axis_off()
+
+    pf = "pineapple-karyotype"
+    image_name = pf + "." + iopts.format
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
 def read_interpro(ipr):

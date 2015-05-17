@@ -11,7 +11,7 @@ import logging
 from jcvi.formats.base import DictFile, LineFile, must_open, get_number
 from jcvi.formats.bed import Bed
 from jcvi.formats.sizes import Sizes
-from jcvi.graphics.base import Rectangle, set2, plt, savefig
+from jcvi.graphics.base import Rectangle, plt, savefig
 from jcvi.graphics.chromosome import Chromosome
 from jcvi.graphics.karyotype import Karyotype
 from jcvi.graphics.synteny import Synteny, draw_gene_legend
@@ -98,6 +98,10 @@ def ancestral(args):
 
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes((0, 0, 1, 1))
+
+    from jcvi.graphics.base import set2
+    a, b, c, d, e, f, g = set2[:7]
+    set2 = (c, g, b, e, d, a, f)
 
     # Upper panel is the evolution of segments
     # All segments belong to one of seven karyotypes 1 to 7

@@ -258,8 +258,7 @@ def main():
     p.add_option("--winsize", default=50000, type="int",
             help="if drawing an imagemap, specify the window size (bases) of each map element "
                  "[default: %default bp]")
-    p.add_option("--empty",
-            help="Write legend for unpainted region")
+    p.add_option("--empty", help="Write legend for unpainted region")
     opts, args, iopts = p.set_image_options(figsize="6x6", dpi=300)
 
     if len(args) not in (1, 2):
@@ -313,7 +312,8 @@ def main():
             b.accn = '-'
 
     chr_number = len(chr_lens)
-    assert chr_number == len(centromeres)
+    if centromeres:
+        assert chr_number == len(centromeres)
 
     fig = plt.figure(1, (w, h))
     root = fig.add_axes([0, 0, 1, 1])
@@ -326,13 +326,15 @@ def main():
     ratio = r / max_chr_len  # canvas / base
 
     # first the chromosomes
-    for a, (chr, cent_position) in enumerate(sorted(centromeres.items())):
-        clen = chr_lens[chr]
+    for a, (chr, clen) in enumerate(sorted(chr_lens.items())):
         xx = xstart + a * xinterval + .5 * xwidth
-        yy = ystart - cent_position * ratio
         root.text(xx, ystart + .01, chr, ha="center")
-        ChromosomeWithCentromere(root, xx, ystart, yy,
-                ystart - clen * ratio, width=xwidth)
+        if centromeres:
+            yy = ystart - centromeres[chr] * ratio
+            ChromosomeWithCentromere(root, xx, ystart, yy,
+                    ystart - clen * ratio, width=xwidth)
+        else:
+            Chromosome(root, xx, ystart, ystart - clen * ratio, width=xwidth)
 
     chr_idxs = dict((a, i) for i, a in enumerate(sorted(chr_lens.keys())))
 

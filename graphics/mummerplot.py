@@ -38,6 +38,9 @@ def main(args):
                  help="Minimum reference coverage [default: %default]")
     p.add_option("--all", default=False, action="store_true",
                  help="Plot one pdf file per ref in refidsfile [default: %default]")
+    p.add_option("--color", default="similarity",
+                 choices=("similarity", "direction", "none"),
+                 help="Color the dots based on")
     p.set_align(pctid=96, hitlen=500)
     opts, args = p.parse_args(args)
 
@@ -45,6 +48,7 @@ def main(args):
         sys.exit(not p.print_help())
 
     deltafile, queryfasta, reffasta = args
+    color = opts.color
     prefix = op.basename(deltafile).split(".")[0]
     qsizes = Sizes(queryfasta).mapping
     rsizes = Sizes(reffasta).mapping
@@ -58,15 +62,18 @@ def main(args):
 
     if opts.all:
         for r in refs:
-            pdffile = plot_some_queries([r], qsizes, rsizes, \
-                                        deltafile, refcov, prefix=prefix)
+            pdffile = plot_some_queries([r], qsizes, rsizes, deltafile, refcov,
+                                        prefix=prefix, color=color)
             if pdffile:
                 sh("mv {0} {1}.pdf".format(pdffile, r))
     else:
-        plot_some_queries(refs, qsizes, rsizes, deltafile, refcov, prefix=prefix)
+        plot_some_queries(refs, qsizes, rsizes,
+                          deltafile, refcov,
+                          prefix=prefix, color=color)
 
 
-def plot_some_queries(refs, qsizes, rsizes, deltafile, refcov, prefix="out"):
+def plot_some_queries(refs, qsizes, rsizes, deltafile, refcov,
+                      prefix="out", color="similarity"):
 
     Qfile, Rfile = "Qfile", "Rfile"
     coords = Coords(deltafile)
@@ -88,6 +95,10 @@ def plot_some_queries(refs, qsizes, rsizes, deltafile, refcov, prefix="out"):
     cmd = "mummerplot {0}".format(deltafile)
     cmd += " -Rfile {0} -Qfile {1}".format(Rfile, Qfile)
     cmd += " --postscript --layout -p {0}".format(prefix)
+    if color == "similarity":
+        cmd += " --color"
+    elif color == "none":
+        cmd += " --nocolor"
     sh(cmd)
 
     cmd = "ps2pdf {0}.ps {0}.pdf".format(prefix)

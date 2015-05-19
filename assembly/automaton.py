@@ -295,7 +295,7 @@ def pairs(args):
         pf, sf = median[:2], median[2:]
         if sf and int(sf) != 0:
             pf = str(int(pf) + 1)  # Get the first two effective digits
-        lib = "{0}-{1}".format(tag, pf.ljust(len(median), '0'))
+        lib = "{0}-{1}".format(tag, pf + '0' * len(sf))
         for i, xp in enumerate(p):
             suffix = "fastq.gz" if xp.endswith(".gz") else "fastq"
             link = "{0}-{1}.{2}.{3}".format(lib, prefix.replace("-", ""),

@@ -99,6 +99,8 @@ def weblogo(args):
     pr = ProgressBar(maxval=nreads, term_width=60, widgets=widgets).start()
 
     k = 0
+    fw_L = open("L.fasta", "w")
+    fw_R = open("R.fasta", "w")
     for rec in iter_fastq(fastqfile):
         k += 1
         if k % 1000 == 0:
@@ -117,6 +119,14 @@ def weblogo(args):
         l4, r3 = s[:4], s[-3:]
         L4[l4] += 1
         R3[r3] += 1
+        print >> fw_L, ">{0}\n{1}".format(k, s[:N])
+        print >> fw_R, ">{0}\n{1}".format(k, s[-N:])
+
+    fw_L.close()
+    fw_R.close()
+
+    sh("weblogo -F png -s large -f L.fasta -o L.png")
+    sh("weblogo -F png -s large -f R.fasta -o R.png")
 
     np.savetxt("L.{0}.csv".format(pat), L, delimiter=',', fmt="%d")
     np.savetxt("R.{0}.csv".format(pat), R, delimiter=',', fmt="%d")

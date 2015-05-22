@@ -172,7 +172,7 @@ def n50(args):
     else:
         for row in must_open(args):
             try:
-                ctgsize = int(row.split()[-1])
+                ctgsize = int(float(row.split()[-1]))
             except ValueError:
                 continue
             ctgsizes.append(ctgsize)

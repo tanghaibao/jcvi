@@ -82,7 +82,7 @@ def prepare(args):
     cfgfile = "meraculous.config"
     write_file(cfgfile, s, tee=True)
 
-    s = "~/export/meraculous/meraculous/bin/run_meraculous.sh -c {0}"\
+    s = "~/export/meraculous/bin/run_meraculous.sh -c {0}"\
                 .format(cfgfile)
     runsh = "run.sh"
     write_file(runsh, s)

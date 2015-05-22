@@ -375,7 +375,7 @@ def prepare(args):
     """
     from jcvi.utils.table import write_csv
     from jcvi.formats.base import write_file
-    from jcvi.formats.fastq import guessoffset
+    from jcvi.formats.fastq import guessoffset, readlen
 
     p = OptionParser(prepare.__doc__ + FastqNamings)
     p.add_option("--corr", default=False, action="store_true",
@@ -454,7 +454,9 @@ def prepare(args):
 
     runfile = "run.sh"
 
-    extra = ""
+    # ALLPATHS stalls on reads over 250bp <https://www.biostars.org/p/122091/>
+    max_rd_len = max(readlen([f]) for f in fnames)
+    extra = "CLOSE_UNIPATH_GAPS=False " if max_rd_len > 200 else ""
     if opts.corr:
         extra += "FE_NUM_CYCLES=1 EC_K=28 FE_QUAL_CEIL_RADIUS=0"
         extra += " REMOVE_DODGY_READS_FRAG=False FE_MAX_KMER_FREQ_TO_MARK=1"

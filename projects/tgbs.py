@@ -13,6 +13,7 @@ from collections import defaultdict
 from itertools import combinations
 
 from jcvi.formats.fasta import Fasta
+from jcvi.formats.fastq import iter_fastq
 from jcvi.formats.base import must_open
 from jcvi.formats.bed import Bed, mergeBed
 from jcvi.utils.counter import Counter
@@ -59,9 +60,61 @@ def main():
         ('resolve', 'separate repeats on collapsed contigs'),
         ('count', 'count the number of reads in all clusters'),
         ('track', 'track and contrast read mapping in two bam files'),
+        ('weblogo', 'extract base composition for reads'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def weblogo(args):
+    """
+    %prog weblogo fastqfile
+
+    Extract base composition for reads
+    """
+    import numpy as np
+
+    p = OptionParser(weblogo.__doc__)
+    p.add_option("-N", default=10, type="int",
+                 help="Count the first and last N bases")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    fastqfile, = args
+    N = opts.N
+    pat = "ATCG"
+    L = np.zeros((4, N), dtype="int32")
+    R = np.zeros((4, N), dtype="int32")
+    p = dict((a, i) for (i, a) in enumerate(pat))
+    L4, R3 = Counter(), Counter()
+    for rec in iter_fastq(fastqfile):
+        if rec is None:
+            break
+        s = rec.seq
+        for i, a in enumerate(s[:N]):
+            a = p[a]
+            L[a][i] += 1
+        for j, a in enumerate(s[-N:][::-1]):
+            a = p[a]
+            R[a][N - 1 - j] += 1
+        l4, r3 = s[:4], s[-3:]
+        L4[l4] += 1
+        R3[r3] += 1
+
+    np.savetxt("L.{0}.csv".format(pat), L, delimiter=',', fmt="%d")
+    np.savetxt("R.{0}.csv".format(pat), R, delimiter=',', fmt="%d")
+
+    fw = open("L4.common", "w")
+    for p, c in L4.most_common(N):
+        print >> fw, "\t".join((p, str(c)))
+    fw.close()
+
+    fw = open("R3.common", "w")
+    for p, c in R3.most_common(N):
+        print >> fw, "\t".join((p, str(c)))
+    fw.close()
 
 
 def bed_store(bedfile, sorted=False):

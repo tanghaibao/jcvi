@@ -73,10 +73,13 @@ def weblogo(args):
     Extract base composition for reads
     """
     import numpy as np
+    from jcvi.utils.progressbar import ProgressBar, Percentage, Bar, ETA
 
     p = OptionParser(weblogo.__doc__)
     p.add_option("-N", default=10, type="int",
                  help="Count the first and last N bases")
+    p.add_option("--nreads", default=1000000, type="int",
+                 help="Parse first N reads")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -84,12 +87,24 @@ def weblogo(args):
 
     fastqfile, = args
     N = opts.N
+    nreads = opts.nreads
+
     pat = "ATCG"
     L = np.zeros((4, N), dtype="int32")
     R = np.zeros((4, N), dtype="int32")
     p = dict((a, i) for (i, a) in enumerate(pat))
     L4, R3 = Counter(), Counter()
+    widgets = ['Parse reads: ', Percentage(), ' ',
+               Bar(marker='>', left='[', right=']'), ' ', ETA()]
+    pr = ProgressBar(maxval=nreads, term_width=60, widgets=widgets).start()
+
+    k = 0
     for rec in iter_fastq(fastqfile):
+        k += 1
+        if k % 1000 == 0:
+            pr.update(k)
+        if k > nreads:
+            break
         if rec is None:
             break
         s = rec.seq

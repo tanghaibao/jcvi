@@ -266,7 +266,7 @@ def readlen(args):
 
     s = calc_readlen(f, opts.firstN)
     if not opts.silent:
-        print "\t".join(str(x) for x in (f, s.min, s.max, s.mean))
+        print "\t".join(str(x) for x in (f, s.min, s.max, s.mean, s.median))
 
     return int(s.max)
 

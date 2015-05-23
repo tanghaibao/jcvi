@@ -125,8 +125,11 @@ def weblogo(args):
     fw_L.close()
     fw_R.close()
 
-    sh("weblogo -F png -s large -f L.fasta -o L.png")
-    sh("weblogo -F png -s large -f R.fasta -o R.png")
+    cmd = "weblogo -F png -s large -f {0}.fasta -o {0}.png"
+    cmd += " --color-scheme classic --composition none -U probability"
+    cmd += " --title {1}"
+    sh(cmd.format('L', "First_10_bases"))
+    sh(cmd.format('R', "Last_10_bases"))
 
     np.savetxt("L.{0}.csv".format(pat), L, delimiter=',', fmt="%d")
     np.savetxt("R.{0}.csv".format(pat), R, delimiter=',', fmt="%d")

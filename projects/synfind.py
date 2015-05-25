@@ -191,7 +191,7 @@ def cartoon(args):
     Generate cartoon illustration of SynFind.
     """
     p = OptionParser(cartoon.__doc__)
-    opts, args, iopts = p.set_image_options(args, figsize="9x6")
+    opts, args, iopts = p.set_image_options(args, figsize="10x7")
 
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
@@ -251,13 +251,12 @@ def cartoon(args):
     xt = .85
     desc = ("Extract neighborhood",
             "of *window* size",
-            "Generate anchors",
-            "Group anchors within *window* apart",
+            "Count gene pairs within *window*",
             "Find regions above *score* cutoff",
             "Identify flankers",
             "Annotate syntelog class"
             )
-    for yt, t in zip((.88, .84, .64, .6, .56, .3, .26), desc):
+    for yt, t in zip((.88, .84, .64, .6, .3, .26), desc):
         root.text(xt, yt, markup(t), ha="center", va="center")
 
     root.set_xlim(0, 1)

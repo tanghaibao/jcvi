@@ -217,8 +217,7 @@ class GeneGlyph (BaseGlyph):
 
         if shadow:
             import matplotlib.patheffects as pe
-            P.set_path_effects([pe.withSimplePatchShadow((1, -1), \
-                                alpha=.4, patch_alpha=1)])
+            P.set_path_effects([pe.withSimplePatchShadow((1, -1), alpha=.4)])
 
         self.add_patches()
 

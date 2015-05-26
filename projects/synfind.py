@@ -66,6 +66,7 @@ def grasses(args):
     fp = open(james)
     fp.next()
     james_store = {}
+    tandems = set()
     for row in fp:
         atoms = row.split()
         s = set()
@@ -78,30 +79,41 @@ def grasses(args):
                 continue
             if m[0].startswith("chr"):
                 m = ["proxy"]
+            if "||" in x:
+                tandems |= set(m)
             s |= set(m)
 
         for x in Os:
             james_store[x] = s
 
     jaccards = []
+    corr_jaccards = []
     perfect_matches = 0
+    corr_perfect_matches = 0
     for k, v in james_store.items():
         if k not in master_store:
             continue
         m = master_store[k]
         jaccard = len(v & m) * 100 / len(v | m)
         jaccards.append(jaccard)
+        diff = (v ^ m ) - tandems
+        corr_jaccard = 100 - len(diff) * 100 / len(v | m)
+        corr_jaccards.append(corr_jaccard)
         if opts.verbose:
             print k
             print v
             print m
+            print diff
             print jaccard
         if jaccard > 99:
             perfect_matches += 1
+        if corr_jaccard > 99:
+            corr_perfect_matches += 1
 
     logging.debug("Perfect matches: {0}".format(perfect_matches))
-    j = SummaryStats(jaccards)
-    print j
+    logging.debug("Perfect matches (corrected): {0}".format(corr_perfect_matches))
+    print "Jaccards:", SummaryStats(jaccards)
+    print "Corrected Jaccards:", SummaryStats(corr_jaccards)
 
 
 def ecoli(args):

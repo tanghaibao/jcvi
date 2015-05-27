@@ -41,6 +41,8 @@ def main(args):
     p.add_option("--color", default="similarity",
                  choices=("similarity", "direction", "none"),
                  help="Color the dots based on")
+    p.add_option("--nolayout", default=False, action="store_true",
+                 help="Do not rearrange contigs")
     p.set_align(pctid=96, hitlen=500)
     opts, args = p.parse_args(args)
 
@@ -49,6 +51,7 @@ def main(args):
 
     deltafile, queryfasta, reffasta = args
     color = opts.color
+    layout = not opts.nolayout
     prefix = op.basename(deltafile).split(".")[0]
     qsizes = Sizes(queryfasta).mapping
     rsizes = Sizes(reffasta).mapping
@@ -63,17 +66,18 @@ def main(args):
     if opts.all:
         for r in refs:
             pdffile = plot_some_queries([r], qsizes, rsizes, deltafile, refcov,
-                                        prefix=prefix, color=color)
+                                        prefix=prefix, color=color,
+                                        layout=layout)
             if pdffile:
                 sh("mv {0} {1}.pdf".format(pdffile, r))
     else:
         plot_some_queries(refs, qsizes, rsizes,
                           deltafile, refcov,
-                          prefix=prefix, color=color)
+                          prefix=prefix, color=color, layout=layout)
 
 
 def plot_some_queries(refs, qsizes, rsizes, deltafile, refcov,
-                      prefix="out", color="similarity"):
+                      prefix="out", color="similarity", layout=True):
 
     Qfile, Rfile = "Qfile", "Rfile"
     coords = Coords(deltafile)
@@ -94,7 +98,9 @@ def plot_some_queries(refs, qsizes, rsizes, deltafile, refcov,
 
     cmd = "mummerplot {0}".format(deltafile)
     cmd += " -Rfile {0} -Qfile {1}".format(Rfile, Qfile)
-    cmd += " --postscript --layout -p {0}".format(prefix)
+    cmd += " --postscript -p {0}".format(prefix)
+    if layout:
+        cmd += " --layout"
     if color == "similarity":
         cmd += " --color"
     elif color == "none":

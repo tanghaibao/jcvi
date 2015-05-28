@@ -210,6 +210,7 @@ def main():
         ('convert', 'convert between illumina and sanger offset'),
         ('first', 'get first N reads from file'),
         ('filter', 'filter to get high qv reads'),
+        ('suffix', 'filter reads based on suffix'),
         ('trim', 'trim reads using fastx_trimmer'),
         ('some', 'select a subset of fastq reads'),
         ('guessoffset', 'guess the quality offset of the fastq records'),
@@ -220,6 +221,35 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def suffix(args):
+    """
+    %prog suffix fastqfile CAG
+
+    Filter reads based on suffix.
+    """
+    from jcvi.utils.cbook import percentage
+
+    p = OptionParser(suffix.__doc__)
+    p.set_outfile()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    fastqfile, sf = args
+    fw = must_open(opts.outfile, "w")
+    nreads = nselected = 0
+    for rec in iter_fastq(fastqfile):
+        nreads += 1
+        if rec is None:
+            break
+        if rec.seq.endswith(sf):
+            print >> fw, rec
+            nselected += 1
+    logging.debug("Selected reads with suffix {0}: {1}".\
+                  format(sf, percentage(nselected, nreads)))
 
 
 def calc_readlen(f, first):

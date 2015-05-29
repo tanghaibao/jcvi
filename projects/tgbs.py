@@ -12,7 +12,7 @@ import sys
 from collections import defaultdict
 from itertools import combinations
 
-from jcvi.formats.fasta import Fasta
+from jcvi.formats.fasta import Fasta, SeqIO
 from jcvi.formats.fastq import iter_fastq
 from jcvi.formats.base import must_open
 from jcvi.formats.bed import Bed, mergeBed
@@ -68,7 +68,7 @@ def main():
 
 def weblogo(args):
     """
-    %prog weblogo fastqfile
+    %prog weblogo [fastafile|fastqfile]
 
     Extract base composition for reads
     """
@@ -101,7 +101,10 @@ def weblogo(args):
     k = 0
     fw_L = open("L.fasta", "w")
     fw_R = open("R.fasta", "w")
-    for rec in iter_fastq(fastqfile):
+    fastq = fastqfile.endswith(".fastq")
+    it = iter_fastq(fastqfile) if fastq else \
+           SeqIO.parse(must_open(fastqfile), "fasta")
+    for rec in it:
         k += 1
         if k % 1000 == 0:
             pr.update(k)
@@ -109,13 +112,15 @@ def weblogo(args):
             break
         if rec is None:
             break
-        s = rec.seq
+        s = str(rec.seq)
         for i, a in enumerate(s[:N]):
-            a = p[a]
-            L[a][i] += 1
+            if a in p:
+                a = p[a]
+                L[a][i] += 1
         for j, a in enumerate(s[-N:][::-1]):
-            a = p[a]
-            R[a][N - 1 - j] += 1
+            if a in p:
+                a = p[a]
+                R[a][N - 1 - j] += 1
         l4, r3 = s[:4], s[-3:]
         L4[l4] += 1
         R3[r3] += 1

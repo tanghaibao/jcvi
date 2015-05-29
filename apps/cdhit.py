@@ -205,7 +205,7 @@ def deduplicate(args):
     Wraps `cd-hit-est` to remove duplicate sequences.
     """
     p = OptionParser(deduplicate.__doc__)
-    p.set_align(pctid=98)
+    p.set_align(pctid=96, pctcov=0)
     p.add_option("--fast", default=False, action="store_true",
                  help="Place sequence in the first cluster")
     p.add_option("--consensus", default=False, action="store_true",
@@ -233,6 +233,8 @@ def deduplicate(args):
             cmd += " -r 0"
     if not opts.fast:
         cmd += " -g 1"
+    if opts.pctcov != 0:
+        cmd += " -aL {0} -aS {0}".format(opts.pctcov / 100.)
 
     dd = fastafile + ".P{0}.cdhit".format(opts.pctid)
     clstr = dd + ".clstr"

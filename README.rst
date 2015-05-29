@@ -1,17 +1,13 @@
 JCVI utility libraries
 ======================
 
-.. image:: https://pypip.in/v/jcvi/badge.png
+.. image:: https://img.shields.io/pypi/v/jcvi.svg
     :target: https://pypi.python.org/pypi/jcvi
     :alt: Latest PyPI version
 
-.. image:: https://pypip.in/d/jcvi/badge.png
+.. image:: https://img.shields.io/pypi/dm/jcvi.svg
     :target: https://pypi.python.org/pypi/jcvi
     :alt: Number of PyPI downloads
-
-.. image:: https://pypip.in/license/jcvi/badge.png
-    :target: https://pypi.python.org/pypi/jcvi
-    :alt: License
 
 .. image:: https://scrutinizer-ci.com/g/tanghaibao/jcvi/badges/quality-score.png
     :target: https://scrutinizer-ci.com/g/tanghaibao/jcvi

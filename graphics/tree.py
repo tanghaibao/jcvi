@@ -214,15 +214,15 @@ def read_trees(tree):
     return trees
 
 
-def draw_geoscale(ax, minx=0, maxx=200):
+def draw_geoscale(ax, minx=0, maxx=175):
     """
     Draw geological epoch on million year ago (mya) scale.
     """
     a, b = .1, .6  # Correspond to 200mya and 0mya
-    cv = lambda x: b - (x - b) / 200 * (b - a)
+    cv = lambda x: b - (x - b) / (maxx - minx) * (b - a)
     ax.plot((a, b), (.5, .5), "k-")
     tick = .015
-    for mya in xrange(175, 0, -25):
+    for mya in xrange(maxx - 25, 0, -25):
         p = cv(mya)
         ax.plot((p, p), (.5, .5 - tick), "k-")
         ax.text(p, .5 - 2.5 * tick, str(mya), ha="center", va="center")
@@ -238,6 +238,7 @@ def draw_geoscale(ax, minx=0, maxx=200):
     h = .05
     for era, start, end, color in Geo:
         start, end = cv(start), cv(end)
+        end = max(a, end)
         p = Rectangle((end, .5 + tick / 2), abs(start - end), h, lw=1, ec="w", fc=color)
         ax.text((start + end) / 2, .5 + (tick + h) / 2, era,
                 ha="center", va="center", size=9)

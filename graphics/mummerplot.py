@@ -27,7 +27,7 @@ def writeXfile(ids, dict, filename):
 
 def main(args):
     """
-    %prog deltafile query.fasta ref.fasta
+    %prog deltafile
 
     Plot one query. Extract the references that have major matches to this
     query. Control "major" by option --refcov.
@@ -46,10 +46,11 @@ def main(args):
     p.set_align(pctid=96, hitlen=500)
     opts, args = p.parse_args(args)
 
-    if len(args) != 3:
+    if len(args) != 1:
         sys.exit(not p.print_help())
 
-    deltafile, queryfasta, reffasta = args
+    deltafile, = args
+    reffasta, queryfasta = open(deltafile).readline().split()
     color = opts.color
     layout = not opts.nolayout
     prefix = op.basename(deltafile).split(".")[0]

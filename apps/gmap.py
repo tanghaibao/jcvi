@@ -112,7 +112,6 @@ def align(args):
     """
     from jcvi.formats.fasta import join
     from jcvi.formats.fastq import guessoffset
-    from jcvi.projects.tgbs import snp
 
     p = OptionParser(align.__doc__)
     p.add_option("--join", default=False, action="store_true",
@@ -121,6 +120,7 @@ def align(args):
                  help="Input is RNA-seq reads, turn splicing on")
     p.add_option("--snp", default=False, action="store_true",
                  help="Call SNPs after GSNAP")
+    p.set_home("eddyyeh")
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -160,7 +160,14 @@ def align(args):
         sh(cmd, outfile=gsnapfile, errfile=logfile)
 
     if opts.snp:
-        snp([gsnapfile, "--cpus={0}".format(opts.cpus)])
+        EYHOME = opts.eddyyeh_home
+        pf = gsnapfile.rsplit(".", 1)[0]
+        nativefile = pf + ".unique.native"
+        if need_update(gsnapfile, nativefile):
+            cmd = op.join(EYHOME, "convert2native.pl")
+            cmd += " --gsnap {0} -o {1}".format(gsnapfile, nativefile)
+            cmd += " -proc {0}".format(opts.cpus)
+            sh(cmd)
 
     return gsnapfile, logfile
 

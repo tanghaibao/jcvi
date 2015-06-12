@@ -14,7 +14,7 @@ from itertools import combinations
 
 from jcvi.formats.fasta import Fasta, SeqIO
 from jcvi.formats.fastq import iter_fastq
-from jcvi.formats.base import must_open
+from jcvi.formats.base import must_open, write_file
 from jcvi.formats.bed import Bed, mergeBed
 from jcvi.utils.counter import Counter
 from jcvi.apps.cdhit import uclust, deduplicate
@@ -49,6 +49,32 @@ class HaplotypeResolver (object):
                                "AB={0}".format(abi), "{0}%".format(pct), \
                                "compatible" if pct < 50 else ""
             fw.flush()
+
+
+alignsh = r"""
+ls *.gz | sed 's/\..*//' | sort -u | \
+    awk '{{printf("SNP_Discovery-short.pl -native %s.*native.gz \
+                    -o %s.SNPs_Het.txt -a 2 -ac 0.3 -c 0.8\n",$0,$0)}}' \
+                > SNP.call.sh
+parallel -j {0} < SNP.call.sh
+
+ls *.gz | sed 's/\..*//' | sort -u | \
+    awk '{{printf("extract_reference_alleles.pl --native %s.*native.gz \
+                    --genotype %s.SNPs_Het.txt --allgenotypes *.SNPs_Het.txt \
+                    --fasta {1} --output %s.equal\n",$0,$0,$0)}}' \
+                > SNP.equal.sh
+parallel -j {0} < SNP.equal.sh
+
+generate_matrix.pl  --tables *SNPs_Het.txt --equal *equal \
+                    --fasta {1} --output snps.matrix.txt
+
+ls *.gz | sed 's/\..*//' | sort -u | \
+    awk '{{printf("count_reads_per_allele.pl -m snps.matrix.txt -s %s \
+                    --native %s.*native.gz \
+                    -o %s.SNPs_Het.allele_counts\n",$0,$0,$0)}}' \
+                > SNP.count.sh
+parallel -j {0} < SNP.count.sh
+"""
 
 
 def main():
@@ -451,34 +477,21 @@ def bam(args):
 
 def snp(args):
     """
-    %prog snp input.gsnap
+    %prog snp reference.fasta
 
-    Run SNP calling on GSNAP output after apps.gsnap.align().
+    Run SNP calling on GSNAP native output after apps.gsnap.align --snp. Files
+    *native.gz in the current folder will be used as input.
     """
     p = OptionParser(snp.__doc__)
-    p.set_home("eddyyeh")
     p.set_cpus()
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    gsnapfile, = args
-    EYHOME = opts.eddyyeh_home
-    pf = gsnapfile.rsplit(".", 1)[0]
-    nativefile = pf + ".native"
-    if need_update(gsnapfile, nativefile):
-        cmd = op.join(EYHOME, "convert2native.pl")
-        cmd += " --gsnap {0} -o {1}".format(gsnapfile, nativefile)
-        cmd += " -proc {0}".format(opts.cpus)
-        sh(cmd)
-
-    snpfile = pf + ".snp"
-    if need_update(nativefile, snpfile):
-        cmd = op.join(EYHOME, "SNPs/SNP_Discovery-short.pl")
-        cmd += " --native {0} -o {1}".format(nativefile, snpfile)
-        cmd += " -a 2 -ac 0.3 -c 0.8"
-        sh(cmd)
+    ref, = args
+    runfile = "align.sh"
+    write_file(runfile, alignsh.format(opts.cpus, ref))
 
 
 if __name__ == '__main__':

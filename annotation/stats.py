@@ -10,8 +10,10 @@ import os.path as op
 import sys
 import logging
 
-from jcvi.utils.cbook import SummaryStats, percentage
+from jcvi.utils.cbook import SummaryStats, percentage, human_size
+from jcvi.utils.range import range_interleave
 from jcvi.utils.table import tabulate
+from jcvi.formats.fasta import Fasta
 from jcvi.formats.gff import make_index
 from jcvi.formats.base import DictFile
 from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, need_update
@@ -44,12 +46,75 @@ def main():
 
     actions = (
         ('stats', 'collect gene statistics based on gff file'),
-        ('genestats', 'print detailed gene statistics'),
-        ('summary', 'print gene statistics table'),
+        ('statstable', 'print gene statistics table based on output of stats'),
         ('histogram', 'plot gene statistics based on output of stats'),
+        # summary tables of various styles
+        ('genestats', 'print detailed gene statistics'),
+        ('summary', 'print detailed gene/exon/intron statistics'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def gc(seqs):
+    gc = total = 0
+    for s in seqs:
+        s = s.upper()
+        gc += s.count('G') + s.count('C')
+        total += len(s)
+    return percentage(gc, total, precision=0, mode=-1)
+
+
+def summary(args):
+    """
+    %prog summary gffile fastafile
+
+    Print summary stats, including:
+    - Gene/Exon/Intron
+    - Number
+    - Average size (bp)
+    - Median size (bp)
+    - Total length (Mb)
+    - % of genome
+    - % GC
+    """
+    p = OptionParser(summary.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    gff_file, ref = args
+    s = Fasta(ref)
+    g = make_index(gff_file)
+    geneseqs, exonseqs, intronseqs = [], [], []  # Calc % GC
+    for f in g.features_of_type("gene"):
+        fid = f.id
+        fseq = s.sequence({'chr': f.chrom, 'start': f.start, 'stop': f.stop})
+        geneseqs.append(fseq)
+        exons = set((c.chrom, c.start, c.stop) for c in g.children(fid, 2) \
+                    if c.featuretype == "exon")
+        exons = list(exons)
+        for chrom, start, stop in exons:
+            fseq = s.sequence({'chr': chrom, 'start': start, 'stop': stop})
+            exonseqs.append(fseq)
+        introns = range_interleave(exons)
+        for chrom, start, stop in introns:
+            fseq = s.sequence({'chr': chrom, 'start': start, 'stop': stop})
+            intronseqs.append(fseq)
+
+    r = {}  # Report
+    for t, tseqs in zip(("Gene", "Exon", "Intron"), (geneseqs, exonseqs, intronseqs)):
+        tsizes = [len(x) for x in tseqs]
+        tsummary = SummaryStats(tsizes, dtype="int")
+        r[t, "Number"] = tsummary.size
+        r[t, "Average size (bp)"] = tsummary.mean
+        r[t, "Median size (bp)"] = tsummary.median
+        r[t, "Total length (Mb)"] = human_size(tsummary.sum, precision=0, target="Mb")
+        r[t, "% of genome"] = percentage(tsummary.sum, s.totalsize, precision=0, mode=-1)
+        r[t, "% GC"] = gc(tseqs)
+
+    print >> sys.stderr, tabulate(r)
 
 
 def genestats(args):
@@ -160,13 +225,13 @@ def genestats(args):
     print >> sys.stderr, tabulate(r)
 
 
-def summary(args):
+def statstable(args):
     """
-    %prog summary *.gff
+    %prog statstable *.gff
 
     Print gene statistics table.
     """
-    p = OptionParser(summary.__doc__)
+    p = OptionParser(statstable.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) < 1:
@@ -237,8 +302,6 @@ def stats(args):
 
     With data written to disk then you can run %prog histogram
     """
-    from jcvi.utils.range import range_interleave
-
     p = OptionParser(stats.__doc__)
     p.add_option("--gene", default="mRNA",
                  help="The gene type [default: %default]")

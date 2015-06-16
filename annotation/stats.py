@@ -61,7 +61,7 @@ def gc(seqs):
     for s in seqs:
         s = s.upper()
         gc += s.count('G') + s.count('C')
-        total += len(s)
+        total += sum(s.count(x) for x in 'ACGT')
     return percentage(gc, total, precision=0, mode=-1)
 
 

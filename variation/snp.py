@@ -9,6 +9,7 @@ import sys
 import logging
 
 from jcvi.formats.fasta import Fasta
+from jcvi.formats.base import write_file
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update
 
 
@@ -20,10 +21,38 @@ def main():
         ('rmdup', 'remove PCR duplicates from BAM files'),
         ('freebayes', 'call snps using freebayes'),
         ('mpileup', 'call snps using samtools-mpileup'),
+        ('somatic', 'generate series of SPEEDSESQ-somatic commands'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
+
+def somatic(args):
+    """
+    %prog somatic ref.fasta *.bam > somatic.sh
+
+    Useful to identify somatic mutations in each sample compared to all other
+    samples. Script using SPEEDSEQ-somatic will be written to stdout.
+    """
+    p = OptionParser(somatic.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) < 3:
+        sys.exit(not p.print_help())
+
+    ref, bams = args[0], args[1:]
+    tcmd = "~/export/speedseq/bin/speedseq somatic"
+    tcmd += " -t 32 -F .2 -C 3 -q 30"
+    cmds = []
+    for b in bams:
+        pf = b.split(".")[0]
+        cmd = tcmd
+        cmd += " -o {0}".format(pf)
+        others = ",".join(sorted(set(bams) - set([b])))
+        cmd += " {0} {1} {2}".format(ref, others, b)
+        cmds.append(cmd)
+
+    write_file("somatic.sh", "\n".join(cmds))
 
 def rmdup(args):
     """

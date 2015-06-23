@@ -8,7 +8,7 @@ Scripts for the pineapple genome manuscript (unpublished).
 import sys
 import logging
 
-from jcvi.formats.base import DictFile, LineFile, must_open, get_number
+from jcvi.formats.base import DictFile, LineFile, SetFile, must_open, get_number
 from jcvi.formats.bed import Bed
 from jcvi.formats.sizes import Sizes
 from jcvi.graphics.base import Rectangle, plt, savefig
@@ -60,9 +60,58 @@ def main():
         ('check', 'check agreement'),
         # build gene info table
         ('geneinfo', 'build gene info table'),
+        ('flanking', 'extract flanking genes for given SI loci'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def flanking(args):
+    """
+    %prog flanking SI.ids liftover.bed master.txt master-removed.txt
+
+    Extract flanking genes for given SI loci.
+    """
+    p = OptionParser(flanking.__doc__)
+    p.add_option("-N", default=50, type="int",
+                  help="How many genes on both directions")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 4:
+        sys.exit(not p.print_help())
+
+    SI, liftover, master, te = args
+    N = opts.N
+    SI = SetFile(SI, column=0, delimiter='.')
+    liftover = Bed(liftover)
+    order = liftover.order
+    neighbors = set()
+    for s in SI:
+        si, s = order[s]
+        LB = max(si - N, 0)
+        RB = min(si + N, len(liftover))
+        for j in xrange(LB, RB + 1):
+            a = liftover[j]
+            if a.seqid != s.seqid:
+                continue
+            neighbors.add(a.accn)
+
+    dmain = DictFile(master, keypos=0, valuepos=None, delimiter='\t')
+    dte = DictFile(te, keypos=0, valuepos=None, delimiter='\t')
+    header = open(master).next()
+    print "\t".join(("SI/Neighbor", "Gene/TE", header.strip()))
+    for a in liftover:
+        s = a.accn
+        if s not in neighbors:
+            continue
+
+        tag = "SI" if s in SI else "neighbor"
+        if s in dmain:
+            d = dmain[s]
+            print "\t".join([tag, "gene"] + d)
+        elif s in dte:
+            d = dte[s]
+            print "\t".join([tag, "TE"] + d)
 
 
 def join_nodes_vertical(root, coords, a, b, y, lw=2):

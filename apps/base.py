@@ -865,8 +865,6 @@ def download(url, filename=None, debug=True, cookies=None):
 
     if not filename:
         filename = "index.html"
-    if not any(filename.endswith(x) for x in ('.htm', '.html', '.xml')):
-        filename += ".html"
 
     if op.exists(filename):
         if debug:

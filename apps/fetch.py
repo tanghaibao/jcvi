@@ -337,7 +337,8 @@ def entrez(args):
     p = OptionParser(entrez.__doc__)
 
     allowed_databases = {"fasta": ["genome", "nuccore", "nucgss", "protein", "nucest"],
-                         "asn.1": ["genome", "nuccore", "nucgss", "protein"],
+                         "asn.1": ["genome", "nuccore", "nucgss", "protein", "gene"],
+                         "xml"  : ["genome", "nuccore", "nucgss", "nucest", "gene"],
                          "gb"   : ["genome", "nuccore", "nucgss"],
                          "est"  : ["nucest"],
                          "gss"  : ["nucgss"],
@@ -345,7 +346,7 @@ def entrez(args):
                         }
 
     valid_formats = tuple(allowed_databases.keys())
-    valid_databases = ("genome", "nuccore", "nucest", "nucgss", "protein")
+    valid_databases = ("genome", "nuccore", "nucest", "nucgss", "protein", "gene")
 
     p.add_option("--noversion", dest="noversion",
             default=False, action="store_true",

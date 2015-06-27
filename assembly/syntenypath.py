@@ -80,8 +80,13 @@ def bed(args):
             qaccn, saccn = saccn, qaccn
         if scale:
             sstart /= scale
+        try:
+            newsseqid = get_number(sseqid)
+        except ValueError:
+            raise ValueError, "`{0}` is on `{1}` with no number to extract".\
+                                format(saccn, sseqid)
         bedline = "\t".join(str(x) for x in (qseqid, qstart - 1, qend,
-                            "{0}:{1}".format(get_number(sseqid), sstart)))
+                            "{0}:{1}".format(newsseqid, sstart)))
         bd.append(BedLine(bedline))
 
     bd.print_to_file(filename=opts.outfile, sorted=True)

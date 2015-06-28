@@ -126,20 +126,19 @@ def uclust(args):
     identity = opts.pctid / 100.
 
     pf, sf = fastafile.rsplit(".", 1)
-    sortedfastafile = pf + ".sorted." + sf
+    sortedfastafile = pf + ".sorted.fasta"
     if need_update(fastafile, sortedfastafile):
-        cmd = "usearch -sortbylength {0} -output {1}".\
+        cmd = "usearch -sortbylength {0} -fastaout {1}".\
                     format(fastafile, sortedfastafile)
         sh(cmd)
 
     pf = fastafile + ".P{0}.uclust".format(opts.pctid)
     clstrfile = pf + ".clstr"
-    consensusfastafile = pf + ".consensus.fasta"
-    if need_update(sortedfastafile, consensusfastafile):
+    centroidsfastafile = pf + ".centroids.fasta"
+    if need_update(sortedfastafile, centroidsfastafile):
         cmd = "usearch -cluster_smallmem {0}".format(sortedfastafile)
         cmd += " -id {0}".format(identity)
-        #cmd += " -strand both"
-        cmd += " -uc {0} -consout {1}".format(clstrfile, consensusfastafile)
+        cmd += " -uc {0} -centroids {1}".format(clstrfile, centroidsfastafile)
         sh(cmd)
 
 

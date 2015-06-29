@@ -999,7 +999,7 @@ def path(args):
         cpus = 1
 
     function = get_function(opts.distance)
-    cc = Map(bedfile, function, compress=opts.compress, \
+    cc = Map(bedfile, function=function, compress=opts.compress, \
              remove_outliers=opts.removeoutliers)
     mapnames = cc.mapnames
     allseqids = cc.seqids
@@ -1269,7 +1269,7 @@ def plot(args):
     links = opts.links
 
     function = get_function(opts.distance)
-    cc = Map(bedfile, function)
+    cc = Map(bedfile, function=function)
     allseqids = cc.seqids
     mapnames = cc.mapnames
     weights = Weights(weightsfile, mapnames)

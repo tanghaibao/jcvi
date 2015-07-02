@@ -13,6 +13,7 @@ from collections import defaultdict
 
 from jcvi.formats.base import LineFile, read_block, must_open
 from jcvi.formats.fastq import fasta
+from jcvi.utils.cbook import percentage
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update
 
 
@@ -79,35 +80,54 @@ def main():
 
 def filter(args):
     """
-    %prog filter consensus.fasta
+    %prog filter *.consensus.fasta
 
     Filter consensus sequence with min cluster size.
     """
     from jcvi.formats.fasta import Fasta, SeqIO
 
     p = OptionParser(filter.__doc__)
-    p.add_option("--minsize", default=10, type="int",
+    p.add_option("--minsize", default=2, type="int",
                  help="Minimum cluster size")
     p.set_outfile()
     opts, args = p.parse_args(args)
 
-    if len(args) != 1:
+    if len(args) < 1:
         sys.exit(not p.print_help())
 
-    fastafile, = args
+    fastafiles = args
     minsize = opts.minsize
-    f = Fasta(fastafile, lazy=True)
+    totalreads = totalassembled = 0
     fw = must_open(opts.outfile, "w")
-    for desc, rec in f.iterdescriptions_ordered():
-        if desc.startswith("singleton"):
-            continue
-        # consensus_for_cluster_0 with 63 sequences
-        name, w, size, seqs = desc.split()
-        assert w == "with"
-        size = int(size)
-        if size < minsize:
-            continue
-        SeqIO.write(rec, fw, "fasta")
+    for i, fastafile in enumerate(fastafiles):
+        f = Fasta(fastafile, lazy=True)
+        pf = "s{0:03d}".format(i)
+        nreads = nsingletons = nclusters = 0
+        for desc, rec in f.iterdescriptions_ordered():
+            nclusters += 1
+            if desc.startswith("singleton"):
+                nsingletons += 1
+                nreads += 1
+                continue
+            # consensus_for_cluster_0 with 63 sequences
+            name, w, size, seqs = desc.split()
+            assert w == "with"
+            size = int(size)
+            nreads += size
+            if size < minsize:
+                continue
+            rec.description = rec.description.split(None, 1)[-1]
+            rec.id = pf + "_" + rec.id
+            SeqIO.write(rec, fw, "fasta")
+        logging.debug("Scanned {0} clusters with {1} reads ..".\
+                       format(nclusters, nreads))
+        cclusters, creads = nclusters - nsingletons, nreads - nsingletons
+        logging.debug("Saved {0} clusters (min={1}) with {2} reads (avg:{3}) [{4}]".\
+                       format(cclusters, minsize, creads, creads / cclusters, pf))
+        totalreads += nreads
+        totalassembled += nreads - nsingletons
+    logging.debug("Total assembled: {0}".\
+                  format(percentage(totalassembled, totalreads)))
 
 
 def uclust(args):

@@ -317,13 +317,14 @@ def fasta(args):
         sys.exit(not p.print_help())
 
     fastqfile, = args
+    pf = fastqfile
     gzinput = fastqfile.endswith(".gz")
     if gzinput:
         pf = fastqfile.rsplit(".", 1)[0]
 
     pf, sf = pf.rsplit(".", 1)
     if sf not in ("fq", "fastq"):
-        logging.debug("Suffix not one of `fq` or `fastq`")
+        logging.debug("Assumed FASTA: suffix not `fq` or `fastq`")
         return fastqfile, None
 
     fastafile, qualfile = pf + ".fasta", pf + ".qual"

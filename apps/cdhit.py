@@ -12,6 +12,7 @@ import logging
 from collections import defaultdict
 
 from jcvi.formats.base import LineFile, read_block, must_open
+from jcvi.formats.fastq import fasta
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update
 
 
@@ -116,7 +117,7 @@ def uclust(args):
     Use `usearch` to remove duplicate reads.
     """
     p = OptionParser(uclust.__doc__)
-    p.set_align(pctid=98)
+    p.set_align(pctid=96)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -124,21 +125,17 @@ def uclust(args):
 
     fastafile, = args
     identity = opts.pctid / 100.
+    fastafile, qualfile = fasta([fastafile, "--seqtk"])
 
     pf, sf = fastafile.rsplit(".", 1)
-    sortedfastafile = pf + ".sorted.fasta"
-    if need_update(fastafile, sortedfastafile):
-        cmd = "usearch -sortbylength {0} -fastaout {1}".\
-                    format(fastafile, sortedfastafile)
-        sh(cmd)
-
     pf = fastafile + ".P{0}.uclust".format(opts.pctid)
-    clstrfile = pf + ".clstr"
-    centroidsfastafile = pf + ".centroids.fasta"
-    if need_update(sortedfastafile, centroidsfastafile):
-        cmd = "usearch -cluster_smallmem {0}".format(sortedfastafile)
+    consensusfile = pf + ".consensus.fasta"
+    usearch = "vsearch"  # Open-source alternative
+    if need_update(fastafile, consensusfile):
+        cmd = usearch + " -minseqlength 30"
+        cmd += " -cluster_fast {0}".format(fastafile)
         cmd += " -id {0}".format(identity)
-        cmd += " -uc {0} -centroids {1}".format(clstrfile, centroidsfastafile)
+        cmd += " -consout {0}".format(consensusfile)
         sh(cmd)
 
 
@@ -222,6 +219,7 @@ def deduplicate(args):
 
     fastafile, = args
     identity = opts.pctid / 100.
+    fastafile, qualfile = fasta([fastafile, "--seqtk"])
 
     ocmd = "cd-hit-454" if opts.reads else "cd-hit-est"
     cmd = op.join(opts.cdhit_home, ocmd)

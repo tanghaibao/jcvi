@@ -18,7 +18,8 @@ from Bio.SeqIO.QualityIO import FastqGeneralIterator
 
 from jcvi.formats.fasta import must_open, rc
 from jcvi.formats.base import DictFile
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, which
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh, \
+        which, need_update
 
 
 qual_offset = lambda x: 33 if x == "sanger" else 64
@@ -308,14 +309,33 @@ def fasta(args):
     Convert fastq to fasta and qual file.
     """
     p = OptionParser(fasta.__doc__)
+    p.add_option("--seqtk", default=False, action="store_true",
+                 help="Use seqtk to convert")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     fastqfile, = args
-    pf = fastqfile.rsplit(".", 1)[0]
+    gzinput = fastqfile.endswith(".gz")
+    if gzinput:
+        pf = fastqfile.rsplit(".", 1)[0]
+
+    pf, sf = pf.rsplit(".", 1)
+    if sf not in ("fq", "fastq"):
+        logging.debug("Suffix not one of `fq` or `fastq`")
+        return fastqfile, None
+
     fastafile, qualfile = pf + ".fasta", pf + ".qual"
+    outfile = fastafile
+    if opts.seqtk:
+        if need_update(fastqfile, outfile):
+            cmd = "seqtk seq -A {0} -L 30 -l 70".format(fastqfile)
+            sh(cmd, outfile=outfile)
+        else:
+            logging.debug("Outfile `{0}` already exists.".format(outfile))
+        return outfile, None
+
     SeqIO.convert(fastqfile, "fastq", fastafile, "fasta")
     SeqIO.convert(fastqfile, "fastq", qualfile, "qual")
 

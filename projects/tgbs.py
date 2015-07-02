@@ -18,6 +18,7 @@ from jcvi.formats.base import must_open, write_file
 from jcvi.formats.bed import Bed, mergeBed
 from jcvi.utils.counter import Counter
 from jcvi.apps.cdhit import uclust, deduplicate
+from jcvi.graphics.base import plt, savefig, normalize_axes
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh, iglob
 
 
@@ -85,6 +86,7 @@ def main():
         ('novo', 'reference-free tGBS pipeline'),
         ('resolve', 'separate repeats on collapsed contigs'),
         ('count', 'count the number of reads in all clusters'),
+        ('snpplot', 'illustrate the SNP sites in CDT'),
         ('track', 'track and contrast read mapping in two bam files'),
         ('weblogo', 'extract base composition for reads'),
             )
@@ -492,6 +494,58 @@ def snp(args):
     ref, = args
     runfile = "align.sh"
     write_file(runfile, alignsh.format(opts.cpus, ref))
+
+
+def snpplot(args):
+    """
+    %prog counts.cdt
+
+    Illustrate the histogram per SNP site.
+    """
+    p = OptionParser(snpplot.__doc__)
+    opts, args, iopts = p.set_image_options(args, format="png")
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    datafile, = args
+    # Read in CDT file
+    fp = open(datafile)
+    fp.next(); fp.next()
+    data = []
+    for row in fp:
+        atoms = row.split()[4:]
+        nval = len(atoms)
+        values = [float(x) for x in atoms]
+        # normalize
+        values = [x * 1. / sum(values) for x in values]
+        data.append(values)
+
+    pf = datafile.rsplit(".", 1)[0]
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes([0, 0, 1, 1])
+    xmin, xmax = .1, .9
+    ymin, ymax = .1, .9
+    yinterval = (ymax - ymin) / len(data)
+    colors = "rbg" if nval == 3 else ["lightgray"] + list("rbg")
+    ystart = ymax
+    for d in data:
+        xstart = xmin
+        for dd, c in zip(d, colors):
+            xend = xstart + (xmax - xmin) * dd
+            root.plot((xstart, xend), (ystart, ystart), "-", color=c)
+            xstart = xend
+        ystart -= yinterval
+
+    root.text(.05, .5, "{0} LMD50 SNPs".format(len(data)),
+              ha="center", va="center", rotation=90, color="lightslategray")
+
+    for x, t, c in zip((.3, .5, .7), ("REF", "ALT", "HET"), "rbg"):
+        root.text(x, .95, t, color=c, ha="center", va="center")
+    normalize_axes(root)
+
+    image_name = pf + "." + iopts.format
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
 if __name__ == '__main__':

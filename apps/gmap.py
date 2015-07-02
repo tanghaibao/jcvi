@@ -52,12 +52,23 @@ def index(args):
     Wrapper for `gmap_build`. Same interface.
     """
     p = OptionParser(index.__doc__)
+    p.add_option("--supercat", default=False, action="store_true",
+                 help="Concatenate reference to speed up alignment")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     dbfile, = args
+    pf = dbfile.rsplit(".", 1)[0]
+    if opts.supercat:
+        supercatfile = pf + ".supercat"
+        if need_update(dbfile, supercatfile):
+            cmd = "tGBS-Generate_Pseudo_Genome.pl"
+            cmd += " -f {0} -o {1}".format(dbfile, supercatfile)
+            sh(cmd)
+        dbfile = supercatfile + ".fasta"
+
     check_index(dbfile)
 
 
@@ -110,12 +121,9 @@ def align(args):
     Wrapper for `gsnap` single-end or paired-end, depending on the number of
     args.
     """
-    from jcvi.formats.fasta import join
     from jcvi.formats.fastq import guessoffset
 
     p = OptionParser(align.__doc__)
-    p.add_option("--join", default=False, action="store_true",
-                 help="Join sequences with padded 50Ns")
     p.add_option("--rnaseq", default=False, action="store_true",
                  help="Input is RNA-seq reads, turn splicing on")
     p.add_option("--snp", default=False, action="store_true",
@@ -131,10 +139,7 @@ def align(args):
     else:
         sys.exit(not p.print_help())
 
-    dbfile, readfile = args[0:2]
-    if opts.join:
-        dbfile = join([dbfile, "--gapsize=50", "--newid=chr1"])
-
+    dbfile, readfile = args[:2]
     assert op.exists(dbfile) and op.exists(readfile)
     prefix = get_prefix(readfile, dbfile)
     logfile = prefix + ".log"

@@ -13,7 +13,7 @@ import logging
 
 from jcvi.formats.sam import get_prefix
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh, \
-            get_abs_path
+            get_abs_path, backup
 
 
 def main():
@@ -27,7 +27,7 @@ def main():
     p.dispatch(globals())
 
 
-def check_index(dbfile):
+def check_index(dbfile, go=True):
     dbfile = get_abs_path(dbfile)
     dbdir, filename = op.split(dbfile)
     if not dbdir:
@@ -36,6 +36,9 @@ def check_index(dbfile):
     safile = op.join(dbdir, "{0}/{0}.genomecomp".format(dbname))
     if dbname == filename:
         dbname = filename + ".db"
+    if not go:
+        return dbdir, dbname
+
     if need_update(dbfile, safile):
         cmd = "gmap_build -D {0} -d {1} {2}".format(dbdir, dbname, filename)
         sh(cmd)
@@ -60,16 +63,22 @@ def index(args):
         sys.exit(not p.print_help())
 
     dbfile, = args
+    supercat = opts.supercat
     pf = dbfile.rsplit(".", 1)[0]
-    if opts.supercat:
+    if supercat:
         supercatfile = pf + ".supercat"
         if need_update(dbfile, supercatfile):
             cmd = "tGBS-Generate_Pseudo_Genome.pl"
             cmd += " -f {0} -o {1}".format(dbfile, supercatfile)
             sh(cmd)
         dbfile = supercatfile + ".fasta"
+        coordsfile = supercatfile + ".coords"
+        # Rename .coords file since gmap_build will overwrite it
+        coordsbak = backup(coordsfile)
 
     check_index(dbfile)
+    if supercat:
+        sh("mv {0} {1}".format(coordsbak, coordsfile))
 
 
 def gmap(args):
@@ -128,6 +137,8 @@ def align(args):
                  help="Input is RNA-seq reads, turn splicing on")
     p.add_option("--snp", default=False, action="store_true",
                  help="Call SNPs after GSNAP")
+    p.add_option("--outdir", default=".",
+                 help="Output alignment files in directory")
     p.set_home("eddyyeh")
     p.set_cpus()
     opts, args = p.parse_args(args)
@@ -140,10 +151,13 @@ def align(args):
         sys.exit(not p.print_help())
 
     dbfile, readfile = args[:2]
+    outdir = opts.outdir
     assert op.exists(dbfile) and op.exists(readfile)
     prefix = get_prefix(readfile, dbfile)
-    logfile = prefix + ".log"
-    gsnapfile = prefix + ".gsnap"
+    logfile = op.join(outdir, prefix + ".log")
+    gsnapfile = op.join(outdir, prefix + ".gsnap")
+    nativefile = gsnapfile.rsplit(".", 1)[0] + ".unique.native"
+
     if not need_update((dbfile, readfile), gsnapfile):
         logging.error("`{0}` exists. `gsnap` already run.".format(gsnapfile))
     else:
@@ -166,8 +180,6 @@ def align(args):
 
     if opts.snp:
         EYHOME = opts.eddyyeh_home
-        pf = gsnapfile.rsplit(".", 1)[0]
-        nativefile = pf + ".unique.native"
         if need_update(gsnapfile, nativefile):
             cmd = op.join(EYHOME, "convert2native.pl")
             cmd += " --gsnap {0} -o {1}".format(gsnapfile, nativefile)

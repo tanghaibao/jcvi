@@ -638,11 +638,11 @@ def dmain(mainfile):
 
 
 def backup(filename):
+    bakname = filename + ".bak"
     if op.exists(filename):
-        bakname = filename + ".bak"
         logging.debug("Backup `{0}` to `{1}`".format(filename, bakname))
         sh("mv {0} {1}".format(filename, bakname))
-        return bakname
+    return bakname
 
 
 def getusername():

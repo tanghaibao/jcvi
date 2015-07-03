@@ -16,10 +16,14 @@ from jcvi.formats.fasta import Fasta, SeqIO
 from jcvi.formats.fastq import iter_fastq
 from jcvi.formats.base import must_open, write_file
 from jcvi.formats.bed import Bed, mergeBed
+from jcvi.formats.sam import get_prefix
 from jcvi.utils.counter import Counter
 from jcvi.apps.cdhit import uclust, deduplicate
+from jcvi.apps.gmap import check_index
+from jcvi.apps.grid import MakeManager
 from jcvi.graphics.base import plt, savefig, normalize_axes
-from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh, iglob
+from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh, \
+            iglob, mkdir
 
 
 class HaplotypeResolver (object):
@@ -52,26 +56,28 @@ class HaplotypeResolver (object):
             fw.flush()
 
 
-alignsh = r"""
-ls *.gz | sed 's/\..*//' | sort -u | \
-    awk '{{printf("SNP_Discovery-short.pl -native %s.*native.gz \
+alignsh1 = r"""
+ls *.unique.native* | sed 's/\..*//' | sort -u | \
+    awk '{{printf("SNP_Discovery-short.pl -native %s.*native* \
                     -o %s.SNPs_Het.txt -a 2 -ac 0.3 -c 0.8\n",$0,$0)}}' \
                 > SNP.call.sh
 parallel -j {0} < SNP.call.sh
+"""
 
-ls *.gz | sed 's/\..*//' | sort -u | \
-    awk '{{printf("extract_reference_alleles.pl --native %s.*native.gz \
+alignsh2 = r"""
+ls *.unique.native* | sed 's/\..*//' | sort -u | \
+    awk '{{printf("extract_reference_alleles.pl --native %s.*native* \
                     --genotype %s.SNPs_Het.txt --allgenotypes *.SNPs_Het.txt \
                     --fasta {1} --output %s.equal\n",$0,$0,$0)}}' \
                 > SNP.equal.sh
 parallel -j {0} < SNP.equal.sh
 
-generate_matrix.pl  --tables *SNPs_Het.txt --equal *equal \
-                    --fasta {1} --output snps.matrix.txt
+generate_matrix.pl --tables *SNPs_Het.txt --equal *equal \
+                   --fasta {1} --output snps.matrix.txt
 
-ls *.gz | sed 's/\..*//' | sort -u | \
+ls *.unique.native* | sed 's/\..*//' | sort -u | \
     awk '{{printf("count_reads_per_allele.pl -m snps.matrix.txt -s %s \
-                    --native %s.*native.gz \
+                    --native %s.*native* \
                     -o %s.SNPs_Het.allele_counts\n",$0,$0,$0)}}' \
                 > SNP.count.sh
 parallel -j {0} < SNP.count.sh
@@ -82,6 +88,7 @@ def main():
 
     actions = (
         ('snp', 'run SNP calling on GSNAP output'),
+        ('snpflow', 'run SNP calling pipeline from reads to allele_counts'),
         ('bam', 'convert GSNAP output to BAM'),
         ('novo', 'reference-free tGBS pipeline'),
         ('resolve', 'separate repeats on collapsed contigs'),
@@ -482,9 +489,11 @@ def snp(args):
     %prog snp reference.fasta
 
     Run SNP calling on GSNAP native output after apps.gsnap.align --snp. Files
-    *native.gz in the current folder will be used as input.
+    *native or *.native.gz in the current folder will be used as input.
     """
     p = OptionParser(snp.__doc__)
+    p.add_option("--skipsnp", default=False, action="store_true",
+                 help="Skip the SNP_Discovery_short.pl step")
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -493,7 +502,91 @@ def snp(args):
 
     ref, = args
     runfile = "align.sh"
+    alignsh = alignsh2 if opts.skipsnp else alignsh1 + alignsh2
     write_file(runfile, alignsh.format(opts.cpus, ref))
+
+
+def snpflow(args):
+    """
+    %prog snpflow trimmed reference.fasta
+
+    Run SNP calling pipeline until allele_counts are generated. This includes
+    generation of native files, SNP_Het file. Speedup for fragmented genomes
+    are also supported.
+    """
+    p = OptionParser(snpflow.__doc__)
+    p.set_cpus()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    trimmed, ref = args
+    flist = iglob(trimmed, "*.fq", "*.fq.gz")
+    nreads = len(flist)
+    samples = sorted(set(op.basename(x).split(".")[0] for x in flist))
+    nsamples = len(samples)
+    logging.debug("A total of {0} read files from {1} samples".\
+                    format(nreads, nsamples))
+
+    # Set up directory structure
+    outdir, countsdir = "native", "allele_counts"
+    for d in (outdir, countsdir):
+        mkdir(d)
+
+    mm = MakeManager()
+    # Step 0 - index database
+    db = op.join(*check_index(ref, go=False))
+    cmd = "python -m jcvi.apps.gmap index {0}".format(ref)
+    mm.add(ref, db, cmd)
+
+    # Step 1 - GSNAP alignment and conversion to native file
+    nativefiles = []
+    for f in flist:
+        prefix = get_prefix(f, ref)
+        nativefile = op.join(outdir, prefix + ".unique.native")
+        cmd = "python -m jcvi.apps.gmap align {0} {1}".format(ref, f)
+        cmd += " --outdir={0} --snp --cpus=1".format(outdir)
+        mm.add((f, db), nativefile, cmd)
+        nativefiles.append(nativefile)
+
+    # Step 2 - call SNP discovery
+    for s in samples:
+        snpfile = op.join(outdir, "{0}.SNPs_Het.txt".format(s))
+        cmd = "SNP_Discovery-short.pl"
+        cmd += " -native {0}/{1}.*unique.native".format(outdir, s)
+        cmd += " -o {0} -a 2 -ac 0.3 -c 0.8".format(snpfile)
+        flist = [x for x in nativefiles if x.split(".")[0] == s]
+        mm.add(flist, snpfile, cmd)
+
+    # Step 3 - generate equal file
+    allsnps = [op.join(outdir, "{0}.SNPs_Het.txt".format(x)) for x in samples]
+    for s in samples:
+        equalfile = op.join(outdir, "{0}.equal".format(s))
+        cmd = "extract_reference_alleles.pl"
+        cmd += " --native {0}/{1}.*unique.native".format(outdir, s)
+        cmd += " --genotype {0}/{1}.SNPs_Het.txt".format(outdir, s)
+        cmd += " --allgenotypes {0}/*.SNPs_Het.txt".format(outdir)
+        cmd += " --fasta {0} --output {1}".format(ref, equalfile)
+        mm.add(flist + allsnps, equalfile, cmd)
+
+    # Step 4 - generate snp matrix
+    allequals = [op.join(outdir, "{0}.equal".format(x)) for x in samples]
+    matrix = "snps.matrix.txt"
+    cmd = "generate_matrix.pl"
+    cmd += " --tables {0}/*SNPs_Het.txt --equal {0}/*equal".format(outdir)
+    cmd += " --fasta {0} --output {1}".format(ref, matrix)
+    mm.add(allsnps + allequals, matrix, cmd)
+
+    # Step 5 - generate allele counts
+    for s in samples:
+        allele_counts = op.join(countsdir, "{0}.SNPs_Het.allele_counts".format(s))
+        cmd = "count_reads_per_allele.pl -m snps.matrix.txt"
+        cmd += " -s {0} --native {1}/{0}.*unique.native".format(s, outdir)
+        cmd += " -o {0}".format(allele_counts)
+        mm.add([matrix] + flist, allele_counts, cmd)
+
+    mm.write()
 
 
 def snpplot(args):

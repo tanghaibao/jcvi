@@ -41,12 +41,12 @@ class MakeManager (list):
     """
     def __init__(self, filename="makefile"):
         self.makefile = filename
-        self.targets = []
+        self.targets = set()
 
     def add(self, source, target, cmds, remove=False):
         d = Dependency(source, target, cmds, remove=remove)
         self.append(d)
-        self.targets.append(target)
+        self.targets.add(target)
 
     def write(self):
         assert self.targets, "No targets specified"
@@ -54,7 +54,7 @@ class MakeManager (list):
         if op.exists(filename):
             backup(filename)
         fw = open(filename, "w")
-        print >> fw, "all : {0}\n".format(" ".join(self.targets))
+        print >> fw, "all : {0}\n".format(" ".join(sorted(self.targets)))
         for d in self:
             print >> fw, d
         fw.close()

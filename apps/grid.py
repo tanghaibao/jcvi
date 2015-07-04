@@ -18,7 +18,8 @@ class Dependency (object):
     """
     Used by MakeManager.
     """
-    def __init__(self, source, target, cmds, remove=False):
+    def __init__(self, source, target, cmds, id, remove=False):
+        self.id = id
         self.source = listify(source)
         self.target = listify(target)
         self.cmds = listify(cmds)
@@ -29,7 +30,16 @@ class Dependency (object):
     def __str__(self):
         source = " ".join(self.source)
         target = " ".join(self.target)
-        s = "{0} : {1}\n".format(target, source)
+        # When there are multiple targets, use .INTERMEDIATE
+        # <http://stackoverflow.com/questions/2973445/gnu-makefile-rule-generating-a-few-targets-from-a-single-source-file>
+        if len(self.target) > 1:
+            intermediate = "{0}.intermediate".format(self.id)
+            s = "{0} : {1}\n".format(target, intermediate)
+            s += ".INTERMEDIATE: {0}\n".format(intermediate)
+            s += "{0} : {1}\n".format(intermediate, source)
+        else:
+            s = "{0} : {1}\n".format(target, source)
+
         for c in self.cmds:
             s += "\t" + c + "\n"
         return s
@@ -42,11 +52,13 @@ class MakeManager (list):
     def __init__(self, filename="makefile"):
         self.makefile = filename
         self.targets = set()
+        self.ndeps = 0
 
     def add(self, source, target, cmds, remove=False):
-        d = Dependency(source, target, cmds, remove=remove)
+        self.ndeps += 1
+        d = Dependency(source, target, cmds, self.ndeps, remove=remove)
         self.append(d)
-        self.targets.add(target)
+        self.targets |= set(listify(target))
 
     def write(self):
         assert self.targets, "No targets specified"

@@ -27,7 +27,21 @@ def main():
     p.dispatch(globals())
 
 
-def check_index(dbfile, go=True):
+def check_index(dbfile, supercat=False, go=True):
+    if supercat:
+        updated = False
+        pf = dbfile.rsplit(".", 1)[0]
+        supercatfile = pf + ".supercat"
+        coordsfile = supercatfile + ".coords"
+        if go and need_update(dbfile, supercatfile):
+            cmd = "tGBS-Generate_Pseudo_Genome.pl"
+            cmd += " -f {0} -o {1}".format(dbfile, supercatfile)
+            sh(cmd)
+            # Rename .coords file since gmap_build will overwrite it
+            coordsbak = backup(coordsfile)
+            updated = True
+        dbfile = supercatfile + ".fasta"
+
     dbfile = get_abs_path(dbfile)
     dbdir, filename = op.split(dbfile)
     if not dbdir:
@@ -36,6 +50,7 @@ def check_index(dbfile, go=True):
     safile = op.join(dbdir, "{0}/{0}.genomecomp".format(dbname))
     if dbname == filename:
         dbname = filename + ".db"
+
     if not go:
         return dbdir, dbname
 
@@ -44,6 +59,9 @@ def check_index(dbfile, go=True):
         sh(cmd)
     else:
         logging.error("`{0}` exists. `gmap_build` already run.".format(safile))
+
+    if go and supercat and updated:
+        sh("mv {0} {1}".format(coordsbak, coordsfile))
 
     return dbdir, dbname
 
@@ -63,22 +81,7 @@ def index(args):
         sys.exit(not p.print_help())
 
     dbfile, = args
-    supercat = opts.supercat
-    pf = dbfile.rsplit(".", 1)[0]
-    if supercat:
-        supercatfile = pf + ".supercat"
-        if need_update(dbfile, supercatfile):
-            cmd = "tGBS-Generate_Pseudo_Genome.pl"
-            cmd += " -f {0} -o {1}".format(dbfile, supercatfile)
-            sh(cmd)
-        dbfile = supercatfile + ".fasta"
-        coordsfile = supercatfile + ".coords"
-        # Rename .coords file since gmap_build will overwrite it
-        coordsbak = backup(coordsfile)
-
-    check_index(dbfile)
-    if supercat:
-        sh("mv {0} {1}".format(coordsbak, coordsfile))
+    check_index(dbfile, supercat=opts.supercat)
 
 
 def gmap(args):

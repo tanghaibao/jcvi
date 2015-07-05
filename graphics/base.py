@@ -6,7 +6,7 @@ import sys
 import logging
 
 from functools import partial
-from random import shuffle
+from random import sample
 
 import numpy as np
 import matplotlib as mpl
@@ -93,12 +93,11 @@ class AbstractLayout (LineFile):
                 setattr(x, attrib, c)
 
     def assign_colors(self):
-        colorset = get_map('Set2', 'qualitative', len(self)).mpl_colors
-        shuffle(colorset)
+        colorset = get_map('Set2', 'qualitative', 8).mpl_colors
+        colorset = sample(colorset, len(self))
         self.assign_array("color", colorset)
 
     def assign_markers(self):
-        from random import sample
         markerset = sample(mpl.lines.Line2D.filled_markers, len(self))
         self.assign_array("marker", markerset)
 

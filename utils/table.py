@@ -107,7 +107,7 @@ def load_csv(header, contents, sep=",", thousands=False, align=True):
 
 
 def write_csv(header, contents, sep=",", filename="stdout", thousands=False,
-              tee=False, align=True):
+              tee=False, align=True, comment=False):
     """
     Write csv that are aligned with the column headers.
 
@@ -122,6 +122,8 @@ def write_csv(header, contents, sep=",", filename="stdout", thousands=False,
 
     formatted = load_csv(header, contents,
                          sep=sep, thousands=thousands, align=align)
+    if comment:
+        formatted[0] = '#' + formatted[0][1:]
     formatted = "\n".join(formatted)
     fw = must_open(filename, "w")
     print >> fw, formatted

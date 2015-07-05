@@ -23,9 +23,10 @@ from Bio import AlignIO
 from Bio.Align.Applications import ClustalwCommandline, MuscleCommandline
 
 from jcvi.formats.base import must_open
-from jcvi.graphics.base import plt, savefig, AbstractLayout
+from jcvi.graphics.base import plt, savefig, AbstractLayout, markup
+from jcvi.utils.table import write_csv
 from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, sh, \
-            Popen, getpath
+            Popen, getpath, iglob
 
 
 CLUSTALW_BIN = partial(getpath, name="CLUSTALW2", warn="warn")
@@ -106,6 +107,17 @@ class Layout (AbstractLayout):
 
     def __init__(self, filename, delimiter=','):
         super(Layout, self).__init__(filename)
+        if not op.exists(filename):
+            ksfiles = iglob(".", "*.ks")
+            header = "Ks file|ncomponents|label|color|marker".split("|")
+            contents = []
+            for ksfile in ksfiles:
+                leg = op.basename(ksfile).rsplit(".", 1)[0]
+                if leg.count(".") == 1:
+                    leg = markup(leg.replace(".", " *vs.* "))
+                contents.append((ksfile, "1", leg, "", ""))
+            write_csv(header, contents, comment=True, filename=filename)
+
         fp = open(filename)
         for row in fp:
             if row[0] == '#':
@@ -144,7 +156,7 @@ class KsPlot (object):
             self.lines.append(line_mixture)
             self.labels.append(label + " (fitted)")
 
-    def draw(self, title="Ks distribution"):
+    def draw(self, title="*Ks* distribution"):
 
         ax = self.ax
         ks_max = self.ks_max
@@ -156,8 +168,8 @@ class KsPlot (object):
         leg.get_frame().set_alpha(.5)
 
         ax.set_xlim((0, ks_max - self.interval))
-        ax.set_title(title, fontweight="bold")
-        ax.set_xlabel('Synonymous substitutions per site (Ks)')
+        ax.set_title(markup(title), fontweight="bold")
+        ax.set_xlabel(markup('Synonymous substitutions per site (*Ks*)'))
         ax.set_ylabel('Percentage of gene pairs')
 
         ax.set_xticklabels(ax.get_xticks(), family='Helvetica')
@@ -171,8 +183,10 @@ def multireport(args):
     """
     %prog multireport layoutfile
 
-    Generate several Ks value distributions in the same figure. The layout file
-    contains the Ks file to plot, number of components, colors, labels. For example:
+    Generate several Ks value distributions in the same figure. If the layout
+    file is missing then a template file listing all ks files will be written.
+
+    The layout file contains the Ks file, number of components, colors, and labels:
 
     # Ks file, ncomponents, label, color, marker
     LAP.sorghum.ks, 1, LAP-sorghum, r, o
@@ -884,7 +898,7 @@ def add_plot_options(p):
                  help="Place of the legend [default: %default]")
     p.add_option("--nofill", dest="fill", default=True, action="store_false",
                  help="Do not fill the histogram area")
-    p.add_option("--title", default="Ks distribution",
+    p.add_option("--title", default="*Ks* distribution",
                  help="Title of the plot [default: %default]")
 
 

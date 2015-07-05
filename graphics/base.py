@@ -443,3 +443,27 @@ def draw_cmap(ax, cmap_text, vmin, vmax, cmap=None, reverse=False):
     xmiddle = (xmin + xmax) * .5
     for x, v in zip((xmin, xmiddle, xmax), (vmin, vmiddle, vmax)):
         ax.text(x, ymin - .005, "%.1f" % v, ha="center", va="top", size=10)
+
+
+def quickplot(data, xmin, xmax, xlabel, title, ylabel="Counts", figname="plot.pdf"):
+    """
+    Simple plotting function - given a dictionary of data, produce a bar plot
+    with the counts shown on the plot.
+    """
+    plt.figure(1, (6, 6))
+    left, height = zip(*sorted(data.items()))
+    pad = max(height) * .01
+    for l, h in zip(left, height):
+        plt.text(l, h + pad, str(h), color="darkslategray", size=8,
+                 ha="center", va="bottom", rotation=90)
+    if xmax is None:
+        xmax = max(left)
+
+    plt.bar(left, height, align="center")
+    plt.xlabel(markup(xlabel))
+    plt.ylabel(markup(ylabel))
+    plt.title(markup(title))
+    plt.xlim((xmin - .5, xmax + .5))
+    ax = plt.gca()
+    set_ticklabels_helvetica(ax)
+    savefig(figname)

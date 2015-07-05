@@ -114,7 +114,7 @@ class Layout (AbstractLayout):
             for ksfile in ksfiles:
                 leg = op.basename(ksfile).rsplit(".", 1)[0]
                 if leg.count(".") == 1:
-                    leg = markup(leg.replace(".", " *vs.* "))
+                    leg = leg.replace(".", " *vs.* ")
                 contents.append((ksfile, "1", leg, "", ""))
             write_csv(header, contents, comment=True, filename=filename)
 
@@ -155,6 +155,8 @@ class KsPlot (object):
         if fitted:
             self.lines.append(line_mixture)
             self.labels.append(label + " (fitted)")
+
+        self.labels = [markup(x) for x in self.labels]
 
     def draw(self, title="*Ks* distribution"):
 

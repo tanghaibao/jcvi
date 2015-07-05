@@ -15,7 +15,8 @@ import numpy as np
 from math import log, ceil
 from collections import defaultdict
 
-from jcvi.graphics.base import asciiplot
+from jcvi.formats.base import DictFile
+from jcvi.graphics.base import asciiplot, quickplot
 from jcvi.apps.r import RTemplate
 from jcvi.apps.base import OptionParser
 
@@ -248,6 +249,8 @@ def main():
             help="color of the bin [default: %default]")
     p.add_option("--format", default="pdf", choices=allowed_format,
             help="Generate image of format [default: %default]")
+    p.add_option("--quick", default=False, action="store_true",
+            help="Use quick plot, assuming bins are already counted")
     opts, args = p.parse_args()
 
     if len(args) < 1:
@@ -259,8 +262,16 @@ def main():
     xlabel, title = opts.xlabel, opts.title
     title = title or args[0]
     base = int(opts.base)
-
     fileno = len(args)
+
+    if opts.quick:
+        assert fileno == 1, "Single input file expected using --quick"
+        filename = args[0]
+        figname = filename.rsplit(".", 1)[0] + ".pdf"
+        data = DictFile(filename, keycast=int, cast=int)
+        quickplot(data, vmin, vmax, xlabel, title, figname=figname)
+        return
+
     if fileno == 1:
         histogram(args[0], vmin, vmax, xlabel, title, outfmt=opts.format,
                 bins=bins, skip=skip, ascii=opts.ascii,

@@ -48,7 +48,7 @@ class DictFile (BaseFile, dict):
     Generic file parser for multi-column files, keyed by a particular index.
     """
     def __init__(self, filename, keypos=0, valuepos=1, delimiter=None,
-                       strict=True, cast=None):
+                       strict=True, keycast=None, cast=None):
 
         super(DictFile, self).__init__(filename)
 
@@ -72,6 +72,8 @@ class DictFile (BaseFile, dict):
 
             key = atoms[keypos]
             value = atoms[valuepos] if (valuepos is not None) else atoms
+            if keycast:
+                key = keycast(key)
             if cast:
                 value = cast(value)
             self[key] = value

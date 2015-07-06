@@ -32,7 +32,7 @@ from jcvi.utils.counter import Counter
 from jcvi.utils.grouper import Grouper
 from jcvi.utils.iter import flatten, pairwise
 from jcvi.utils.table import tabulate
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, \
+from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher, sh, \
             need_update, get_today, SUPPRESS_HELP
 
 
@@ -123,7 +123,7 @@ class ScaffoldOO (object):
     """
     def __init__(self, lgs, scaffolds, mapc, pivot, weights, sizes,
                  function=(lambda x: x.rank), linkage=min,
-                 ngen=500, npop=100, cpus=8):
+                 ngen=500, npop=100, cpus=8, seed=666):
 
         self.lgs = lgs
         self.lengths = mapc.lengths
@@ -151,16 +151,17 @@ class ScaffoldOO (object):
             toolbox = GA_setup(tour)
             toolbox.register("evaluate", colinear_evaluate_multi,
                                          scfs=scfs, weights=ww)
-            tour, fitness = GA_run(toolbox, ngen=ngen, npop=npop, cpus=cpus)
+            tour, fitness = GA_run(toolbox, ngen=ngen, npop=npop, \
+                                            cpus=cpus, seed=seed)
             tour = [scaffolds[x] for x in tour]
             tour = [(x, scaffolds_oo[x]) for x in tour]
             if best_fitness and fitness <= best_fitness:
                 logging.debug("No fitness improvement: {0}. Exit EC.".\
                               format(best_fitness))
                 break
+            tour = self.fix_orientation(tour)
             best_tour, best_fitness = tour, fitness
             logging.debug("Current best fitness: {0}".format(best_fitness))
-            tour = self.fix_orientation(tour)
             i += 1
 
         tour = best_tour
@@ -968,16 +969,21 @@ def path(args):
                  help="Linkage function when building initial consensus")
     p.add_option("--gapsize", default=100, type="int",
                  help="Insert gaps of size between scaffolds")
-    p.add_option("--ngen", default=500, type="int",
-                 help="Iterations in GA, more ~ slower")
-    p.add_option("--npop", default=100, type="int",
-                 help="Population size in GA, more ~ slower")
     p.add_option("--seqid", help="Only run partition with this seqid")
     p.add_option("--links", default=10, type="int",
                  help="Only plot matchings more than")
     p.add_option("--noplot", default=False, action="store_true",
                  help="Do not visualize the alignments")
     p.set_cpus(cpus=16)
+
+    q = OptionGroup(p, "Genetic algorithm options")
+    p.add_option_group(q)
+    q.add_option("--ngen", default=500, type="int",
+                 help="Iterations in GA, more ~ slower")
+    q.add_option("--npop", default=100, type="int",
+                 help="Population size in GA, more ~ slower")
+    q.add_option("--seed", default=666, type="int",
+                 help="Random seed number")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -993,6 +999,7 @@ def path(args):
     ngen = opts.ngen
     npop = opts.npop
     cpus = opts.cpus
+    seed = opts.seed
     if sys.version_info[:2] < (2, 7):
         logging.debug("Python version: {0}. CPUs set to 1.".\
                         format(sys.version.splitlines()[0].strip()))
@@ -1077,7 +1084,7 @@ def path(args):
         logging.debug("Working on {0} ...".format(tag))
         s = ScaffoldOO(lgs, scaffolds, cc, pivot, weights, sizes,
                        function=function, linkage=linkage,
-                       ngen=ngen, npop=npop, cpus=cpus)
+                       ngen=ngen, npop=npop, cpus=cpus, seed=seed)
 
         for fw in (sys.stderr, fwtour):
             print >> fw, ">{0} ({1})".format(s.object, tag)

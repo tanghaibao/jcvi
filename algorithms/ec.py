@@ -95,7 +95,7 @@ def GA_setup(guess, weights=(1.0,)):
 
 
 def eaSimpleConverge(population, toolbox, cxpb, mutpb, ngen, stats=None,
-             halloffame=None, verbose=True):
+             halloffame=None, callback=None, verbose=True):
     """This algorithm reproduce the simplest evolutionary algorithm as
     presented in chapter 7 of [Back2000]_.
 
@@ -135,6 +135,9 @@ def eaSimpleConverge(population, toolbox, cxpb, mutpb, ngen, stats=None,
         if halloffame is not None:
             halloffame.update(offspring)
 
+        if callback is not None:
+            callback(halloffame[0], gen)
+
         # Replace the current population by the offspring
         population[:] = offspring
 
@@ -156,7 +159,7 @@ def eaSimpleConverge(population, toolbox, cxpb, mutpb, ngen, stats=None,
     return population
 
 
-def GA_run(toolbox, ngen=500, npop=100, seed=666, cpus=1):
+def GA_run(toolbox, ngen=500, npop=100, seed=666, cpus=1, callback=None):
     logging.debug("GA setup: ngen={0} npop={1} cpus={2} seed={3}".\
                     format(ngen, npop, cpus, seed))
     if cpus > 1:
@@ -171,7 +174,7 @@ def GA_run(toolbox, ngen=500, npop=100, seed=666, cpus=1):
     stats.register("min", min)
 
     eaSimpleConverge(pop, toolbox, .7, .2, ngen, stats=stats,
-                        halloffame=hof)
+                     halloffame=hof, callback=callback)
     tour = hof[0]
     if cpus > 1:
         pool.terminate()

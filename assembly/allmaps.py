@@ -14,6 +14,7 @@ import networkx as nx
 
 from itertools import combinations, product
 from collections import defaultdict
+from functools import partial
 
 from jcvi import __version__ as version
 from jcvi.algorithms.formula import reject_outliers, spearmanr
@@ -122,7 +123,7 @@ class ScaffoldOO (object):
     scaffolds per partition.
     """
     def __init__(self, lgs, scaffolds, mapc, pivot, weights, sizes,
-                 function=(lambda x: x.rank), linkage=min,
+                 function=(lambda x: x.rank), linkage=min, fwtour=None,
                  ngen=500, npop=100, cpus=8, seed=666):
 
         self.lgs = lgs
@@ -136,11 +137,26 @@ class ScaffoldOO (object):
         self.linkage = linkage
 
         self.prepare_linkage_groups()  # populate all data
+        for mlg in self.lgs:
+            mapname, lg = mlg.rsplit("-", 1)
+            if mapname == pivot:
+                self.object = "chr{0}".format(lg)
+                break
+
+        tag = "|".join(lgs)
         signs = self.assign_orientation()
         assert len(signs) == len(scaffolds)
         scaffolds_oo = dict(zip(scaffolds, signs))
         tour = self.assign_order()
         tour = [(x, scaffolds_oo[x]) for x in tour]
+        print_tour(fwtour, self.object, tag, "INIT", tour, recode=True)
+
+        def callback(tour, gen, i=0):
+            tour = [scaffolds[x] for x in tour]
+            tour = [(x, scaffolds_oo[x]) for x in tour]
+            print_tour(fwtour, self.object, tag,
+                       "GA{0}-{1}".format(i, gen), tour, recode=True)
+            return tour
 
         i = 0
         best_tour, best_fitness = None, None
@@ -148,32 +164,28 @@ class ScaffoldOO (object):
             logging.debug("Start EC round {0}".format(i))
             scaffolds_oo = dict(tour)
             scfs, tour, ww = self.prepare_ec(scaffolds, tour, weights)
+            callbacki = partial(callback, i=i)
             toolbox = GA_setup(tour)
             toolbox.register("evaluate", colinear_evaluate_multi,
                                          scfs=scfs, weights=ww)
             tour, fitness = GA_run(toolbox, ngen=ngen, npop=npop, \
-                                            cpus=cpus, seed=seed)
-            tour = [scaffolds[x] for x in tour]
-            tour = [(x, scaffolds_oo[x]) for x in tour]
+                                            cpus=cpus, seed=seed,
+                                            callback=callbacki)
+            tour = callbacki(tour, "FIN")
             if best_fitness and fitness <= best_fitness:
                 logging.debug("No fitness improvement: {0}. Exit EC.".\
                               format(best_fitness))
                 break
             tour = self.fix_orientation(tour)
             best_tour, best_fitness = tour, fitness
+            print_tour(fwtour, self.object, tag,
+                       "GA{0}-FIXORI".format(i), tour, recode=True)
             logging.debug("Current best fitness: {0}".format(best_fitness))
             i += 1
 
-        tour = best_tour
-        recode = {0: '?', 1: '+', -1: '-'}
-        tour = [(x, recode[o]) for x, o in tour]
-        self.tour = tour
-
-        for mlg in self.lgs:
-            mapname, lg = mlg.rsplit("-", 1)
-            if mapname == pivot:
-                self.object = "chr{0}".format(lg)
-                break
+        self.tour = recode_tour(tour)
+        for fw in (sys.stderr, fwtour):
+            print_tour(fw, self.object, tag, "FINAL", self.tour)
 
     def prepare_ec(self, scaffolds, tour, weights):
         """
@@ -944,6 +956,19 @@ def get_function(field):
            (lambda x: x.rank)
 
 
+def print_tour(fw, object, tag, label, tour, recode=False):
+    if recode:
+        tour = recode_tour(tour)
+    if fw:
+        print >> fw, ">{0} ({1}) {2}".format(object, tag, label)
+        print >> fw, " ".join("".join(x) for x in tour)
+
+
+def recode_tour(tour):
+    recode = {0: '?', 1: '+', -1: '-'}
+    return [(x, recode[o]) for x, o in tour]
+
+
 def path(args):
     """
     %prog path input.bed scaffolds.fasta
@@ -1083,12 +1108,9 @@ def path(args):
             continue
         logging.debug("Working on {0} ...".format(tag))
         s = ScaffoldOO(lgs, scaffolds, cc, pivot, weights, sizes,
-                       function=function, linkage=linkage,
+                       function=function, linkage=linkage, fwtour=fwtour,
                        ngen=ngen, npop=npop, cpus=cpus, seed=seed)
 
-        for fw in (sys.stderr, fwtour):
-            print >> fw, ">{0} ({1})".format(s.object, tag)
-            print >> fw, " ".join("".join(x) for x in s.tour)
         solutions.append(s)
     fwtour.close()
 

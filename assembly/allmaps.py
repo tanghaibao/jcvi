@@ -161,7 +161,8 @@ class ScaffoldOO (object):
             tour = [(x, scaffolds_oo[x]) for x in tour]
             label = "GA{0}-{1}".format(i, gen)
             if fitness:
-                label += "-{0}".format(fitness)
+                fitness = "{0}".format(fitness).split(".")[0].replace("(", "")
+                label += "-" + fitness
             print_tour(fwtour, self.object, tag, label, tour, recode=True)
             return tour
 
@@ -823,7 +824,7 @@ def animation(args):
         fwagp.close()
         logging.debug("{0} written to `{1}`".format(header, agpfile))
         build([inputbed, scaffoldsfasta, "--cleanup"])
-        image_name = plot([inputbed, seqid])
+        image_name = plot([inputbed, seqid, "--title={0}".format(label)])
         new_name = ".".join((image_name.rsplit(".", 1)[0],
                              "{0:04d}".format(i), label, "pdf"))
         sh("mv {0} {1}".format(image_name, new_name))
@@ -1351,6 +1352,7 @@ def plot(args):
                 HorizontalChromosome
 
     p = OptionParser(plot.__doc__)
+    p.add_option("--title", help="Title of the plot")
     add_allmaps_plot_options(p)
     opts, args, iopts = p.set_image_options(args, figsize="10x6")
 
@@ -1386,6 +1388,8 @@ def plot(args):
 
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
+    bbox = dict(boxstyle="round", fc='darkslategray', ec='darkslategray')
+    root.text(.5, .95, opts.title, color="w", bbox=bbox, size=16)
     ax1 = fig.add_axes([0, 0, .5, 1])
     ax2 = fig.add_axes([.5, 0, .5, 1])
 

@@ -121,7 +121,7 @@ def latex(s):
 
 
 def shorten(s, maxchar=20):
-    if s <= maxchar:
+    if len(s) <= maxchar:
         return s
     pad = (maxchar - 3) / 2
     return s[:pad] + "..." + s[-pad:]

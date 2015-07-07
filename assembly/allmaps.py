@@ -144,18 +144,25 @@ class ScaffoldOO (object):
                 break
 
         tag = "|".join(lgs)
+        tour = zip(scaffolds, len(scaffolds) * [1])
+        print_tour(fwtour, self.object, tag, "INIT", tour, recode=True)
         signs = self.assign_orientation()
         assert len(signs) == len(scaffolds)
-        scaffolds_oo = dict(zip(scaffolds, signs))
+        tour = zip(scaffolds, signs)
+        scaffolds_oo = dict(tour)
+        print_tour(fwtour, self.object, tag, "FLIP", tour, recode=True)
         tour = self.assign_order()
         tour = [(x, scaffolds_oo[x]) for x in tour]
-        print_tour(fwtour, self.object, tag, "INIT", tour, recode=True)
+        print_tour(fwtour, self.object, tag, "TSP", tour, recode=True)
 
         def callback(tour, gen, i=0):
+            fitness = tour.fitness if hasattr(tour, "fitness") else None
             tour = [scaffolds[x] for x in tour]
             tour = [(x, scaffolds_oo[x]) for x in tour]
-            print_tour(fwtour, self.object, tag,
-                       "GA{0}-{1}".format(i, gen), tour, recode=True)
+            label = "GA{0}-{1}".format(i, gen)
+            if fitness:
+                label += "-{0}".format(fitness)
+            print_tour(fwtour, self.object, tag, label, tour, recode=True)
             return tour
 
         i = 0

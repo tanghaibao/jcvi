@@ -36,18 +36,23 @@ atg_name_pat = re.compile(r"""
 
 class Stride (object):
     """
-    Allows four basic strides:
-
-        0 10
-       0 5 10
-      0 3 7 10
-     0 2 5 8 10
+    Allows four basic strides and three extended strides:
+                    __.
+        0 10          |
+       0 5 10         | basic set of strides
+      0 3 7 10        |
+     0 2 5 8 10     __|
+    0 2 4 6 8 10      |
+   0 1 3 5 7 9 10     | extended set of strides
+  01 23 45 67 89 10 __|
 
     We have main parameters, # we need, # available go through all possible
     numbers excluding everything in black.
     """
-    def __init__(self, needed, available):
+    def __init__(self, needed, available, extended=False):
         configurations = ("0", "05", "037", "0258")
+        if extended:
+            configurations += ("02468", "013579", "0123456789")
         nneeded = len(needed)
         self.conf = None
         self.available = None
@@ -70,13 +75,14 @@ class NameRegister (object):
 
     def get_blacklist(self, filename):
         black = SetFile(filename)
-        black = set(atg_name(x) for x in black)
-        self.black.update(black)
+        for x in black:
+            chr, rank = atg_name(x)
+            self.black.add((chr, rank))
 
     def get_gaps(self, filename):
         self.gapfile = filename
 
-    def allocate(self, info, chr, start_id, end_id, id_table):
+    def allocate(self, info, chr, start_id, end_id, id_table, extended_stride=False):
 
         start_bp = info[0].start
         end_bp = info[-1].end
@@ -120,7 +126,7 @@ class NameRegister (object):
                 format(start_bp, end_bp, ngaps, len(lines))
 
         needed = lines
-        stride = Stride(needed, available)
+        stride = Stride(needed, available, extended=extended_stride)
         conf = stride.conf
         message += " stride: {0}".format(conf)
         print >> sys.stderr, message
@@ -284,6 +290,8 @@ def instantiate(args):
     """
     p = OptionParser(instantiate.__doc__)
     p.set_annot_reformat_opts()
+    p.add_option("--extended_stride", default=False, action="store_true",
+                 help="Toggle extended strides for gene numbering")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -335,7 +343,7 @@ def instantiate(args):
             end_id = start_id + 10000 if i == len(blocks) -1 \
                         else blocks[i + 1][1][0]
 
-            r.allocate(info, chr, start_id, end_id, id_table)
+            r.allocate(info, chr, start_id, end_id, id_table, extended_stride=opts.extended_stride)
 
         # Output new names
         for i, s in enumerate(sbed):

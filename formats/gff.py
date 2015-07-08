@@ -1263,7 +1263,7 @@ def fixboundaries(args):
     p = OptionParser(fixboundaries.__doc__)
     p.add_option("--type", default="gene", type="str",
                  help="Feature type for which to adjust boundaries")
-    p.add_option("--child_ftype", default=None, type="str",
+    p.add_option("--child_ftype", default="mRNA", type="str",
                  help="Child featuretype(s) to use for identifying boundaries")
     p.set_outfile()
 

@@ -83,10 +83,16 @@ def get_cds_minmax(g, cid, level=2):
     return range_minmax(cdsranges)
 
 
-def trim(c, start, end):
+def trim(c, start, end, trim5=False, trim3=False, both=True):
     cstart, cend = c.start, c.end
     # Trim coordinates for feature c based on overlap to start and end
-    c.start, c.end = max(cstart, start), min(cend, end)
+    if ((trim5 or both) and c.strand == '+') \
+            or ((trim3 or both) and c.strand == '-'):
+        c.start = max(cstart, start)
+    if ((trim3 or both) and c.strand == '+') \
+            or ((trim5 or both) and c.strand == '-'):
+        c.end = min(cend, end)
+
     if c.start != cstart or c.end != cend:
         print >> sys.stderr, c.id, \
                 "[{0}, {1}] => [{2}, {3}]".format(cstart, cend, c.start, c.end)
@@ -100,7 +106,13 @@ def trimUTR(args):
 
     Remove UTRs in the annotation set.
     """
+    from jcvi.formats.base import SetFile
+
     p = OptionParser(trimUTR.__doc__)
+    p.add_option("--trim5", default=None, type="str", \
+        help="File containing gene list for 5' UTR trimming")
+    p.add_option("--trim3", default=None, type="str", \
+        help="File containing gene list for 3' UTR trimming")
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -110,20 +122,36 @@ def trimUTR(args):
     gffile, = args
     g = make_index(gffile)
     gff = Gff(gffile)
+
+    trim_both = False if (opts.trim5 or opts.trim3) else True
+    trim5 = SetFile(opts.trim5) if opts.trim5 else set()
+    trim3 = SetFile(opts.trim3) if opts.trim3 else set()
+
     mRNA_register = {}
     fw = must_open(opts.outfile, "w")
     for c in gff:
         cid, ctype = c.accn, c.type
+        t5, t3 = False, False
         if ctype == "gene":
+            t5 = True if cid in trim5 else False
+            t3 = True if cid in trim3 else False
             start, end = get_cds_minmax(g, cid)
-            trim(c, start, end)
+            trim(c, start, end, trim5=t5, trim3=t3, both=trim_both)
         elif ctype == "mRNA":
+            if any(id in trim5 for id in (cid, c.parent)):
+                t5 = True
+                trim5.add(cid)
+            if any(id in trim3 for id in (cid, c.parent)):
+                t3 = True
+                trim3.add(cid)
             start, end = get_cds_minmax(g, cid, level=1)
-            trim(c, start, end)
+            trim(c, start, end, trim5=t5, trim3=t3, both=trim_both)
             mRNA_register[cid] = (start, end)
         elif ctype != "CDS":
+            t5 = True if c.parent in trim5 else False
+            t3 = True if c.parent in trim3 else False
             start, end = mRNA_register[c.parent]
-            trim(c, start, end)
+            trim(c, start, end, trim5=t5, trim3=t3, both=trim_both)
         if c.start > c.end:
             print >> sys.stderr, cid, \
                     "destroyed [{0} > {1}]".format(c.start, c.end)

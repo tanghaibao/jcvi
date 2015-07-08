@@ -519,7 +519,9 @@ def snpflow(args):
     if supercat:
         cmd += " --supercat"
         coordsfile = db + ".coords"
-    mm.add(ref, db, cmd)
+        mm.add(ref, (db, coordsfile), cmd)
+    else:
+        mm.add(ref, db, cmd)
 
     # Step 1 - GSNAP alignment and conversion to native file
     allnatives = []

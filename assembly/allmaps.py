@@ -6,6 +6,7 @@ Scaffold Ordering with Weighted Maps.
 """
 
 import os.path as op
+import os
 import sys
 import logging
 
@@ -34,7 +35,7 @@ from jcvi.utils.grouper import Grouper
 from jcvi.utils.iter import flatten, pairwise
 from jcvi.utils.table import tabulate
 from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher, sh, \
-            need_update, get_today, SUPPRESS_HELP
+            need_update, get_today, SUPPRESS_HELP, mkdir
 
 
 START, END = "START", "END"
@@ -794,8 +795,6 @@ def animation(args):
     p = OptionParser(animation.__doc__)
     p.add_option("--gapsize", default=100, type="int",
                  help="Insert gaps of size between scaffolds")
-    p.add_option("--iter", default=10, type="int",
-                 help="Only extract first N iterations")
     add_allmaps_plot_options(p)
     opts, args = p.parse_args(args)
 
@@ -804,13 +803,15 @@ def animation(args):
 
     inputbed, scaffoldsfasta, seqid = args
     gapsize = opts.gapsize
-    iteration = opts.iter
     pf = inputbed.rsplit(".", 1)[0]
     agpfile = pf + ".chr.agp"
     tourfile = pf + ".tour"
 
     fp = open(tourfile)
     sizes = Sizes(scaffoldsfasta).mapping
+    ffmpeg = "ffmpeg"
+    mkdir(ffmpeg)
+    score = cur_score = None
     i = 1
     for header, block in read_block(fp, ">"):
         s, tag, label = header[1:].split()
@@ -818,19 +819,38 @@ def animation(args):
             continue
         tour = block[0].split()
         tour = [(x[:-1], x[-1]) for x in tour]
-        fwagp = must_open(agpfile, "w")
-        order_to_agp(seqid, tour, sizes, fwagp, gapsize=gapsize,
-                     gaptype="map")
-        fwagp.close()
-        logging.debug("{0} written to `{1}`".format(header, agpfile))
-        build([inputbed, scaffoldsfasta, "--cleanup"])
-        image_name = plot([inputbed, seqid, "--title={0}".format(label)])
-        new_name = ".".join((image_name.rsplit(".", 1)[0],
-                             "{0:04d}".format(i), label, "pdf"))
-        sh("mv {0} {1}".format(image_name, new_name))
+        if label.startswith("GA"):
+            cur_score = label.split("-")[-1]
+            if cur_score == score:
+                i += 1
+                continue
+            score = cur_score
+
+        image_name = ".".join((seqid, "{0:04d}".format(i), label, "pdf"))
+        if need_update(tourfile, image_name):
+            fwagp = must_open(agpfile, "w")
+            order_to_agp(seqid, tour, sizes, fwagp, gapsize=gapsize,
+                         gaptype="map")
+            fwagp.close()
+            logging.debug("{0} written to `{1}`".format(header, agpfile))
+            build([inputbed, scaffoldsfasta, "--cleanup"])
+            pdf_name = plot([inputbed, seqid, "--title={0}".format(label)])
+            sh("mv {0} {1}".format(pdf_name, image_name))
+        if label in ("INIT", "FLIP", "TSP", "FINAL"):
+            for j in xrange(5):  # Delay for 5 frames
+                image_delay = image_name.rsplit(".", 1)[0] + \
+                              ".d{0}.pdf".format(j)
+                sh("cp {0} {1}/{2}".format(image_name, ffmpeg, image_delay))
+        else:
+            sh("cp {0} {1}/".format(image_name, ffmpeg))
         i += 1
-        if i > iteration:
-            break
+
+    # Make the movie
+    os.chdir(ffmpeg)
+    cmd = "parallel convert -density 300 {} {.}.png ::: *.pdf"
+    sh(cmd)
+    cmd = "ffmpeg -framerate 1 -pattern_type glob -i '*.png' {0}.mp4".format(pf)
+    sh(cmd)
 
 
 def estimategaps(args):

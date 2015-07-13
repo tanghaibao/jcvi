@@ -658,11 +658,12 @@ def histogram(args):
     if peaks:
         t = (ks.min1, ks.max1, ks.min2, ks.max2, ks.min3)
         tcounts = [(x, y) for x, y in ks.counts if x in t]
-        x, y = zip(*tcounts)
-        tcounts = dict(tcounts)
-        plt.plot(x, y, 'ko', lw=2, mec='k', mfc='w')
-        ax.text(ks.max1, tcounts[ks.max1], "SNP peak", va="top")
-        ax.text(ks.max2, tcounts[ks.max2], "Main peak")
+        if tcounts:
+            x, y = zip(*tcounts)
+            tcounts = dict(tcounts)
+            plt.plot(x, y, 'ko', lw=2, mec='k', mfc='w')
+            ax.text(ks.max1, tcounts[ks.max1], "SNP peak", va="top")
+            ax.text(ks.max2, tcounts[ks.max2], "Main peak")
 
     tc = "gray"
     axt = ax.transAxes

@@ -14,12 +14,14 @@ import sys
 import logging
 import cPickle
 
+import networkx as nx
 from Bio import SeqIO
 
 from jcvi.formats.base import must_open
 from jcvi.formats.fasta import Fasta, SeqRecord, filter, parse_fasta
 from jcvi.formats.blast import Blast
 from jcvi.utils.range import range_minmax
+from jcvi.algorithms.graph import graph_stats, graph_local_neighborhood
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update, \
             glob, get_abs_path, popen
 
@@ -34,6 +36,7 @@ def main():
         ('fastq', 'convert Illumina reads to frg file'),
         ('shred', 'shred contigs into pseudo-reads'),
         ('astat', 'generate the coverage-rho scatter plot'),
+        ('unitigs', 'output uniquely extended unitigs based on best.edges'),
         ('graph', 'visualize best.edges'),
         ('overlap', 'visualize overlaps for a given fragment'),
             )
@@ -219,39 +222,12 @@ def annotate_contigs(G, reads_to_ctgs):
             attrib['label'] = "na"
 
 
-def graph(args):
-    """
-    %prog graph best.edges
-
-    Convert Celera Assembler's "best.edges" to a GEXF which can be used to
-    feed into Gephi to check the topology of the best overlapping graph.
-
-    Reference:
-    https://github.com/PacificBiosciences/Bioinformatics-Training/blob/master/scripts/CeleraToGephi.py
-    """
-    import networkx as nx
-    from jcvi.algorithms.graph import graph_stats, graph_local_neighborhood
-
-    p = OptionParser(graph.__doc__)
-    p.add_option("--maxerr", default=100, type="int", help="Maximum error rate")
-    p.add_option("--query", default=-1, type="int", help="Search from node")
-    p.add_option("--largest", default=1, type="int", help="Only show largest components")
-    p.add_option("--maxsize", default=100, type="int", help="Max graph size")
-    p.add_option("--contigs", help="Annotate graph with contig membership, "
-                    " typically from `asm.posmap.frgctg`")
-    opts, args = p.parse_args(args)
-
-    if len(args) != 1:
-        sys.exit(not p.print_help())
-
-    bestedges, = args
-    maxerr = opts.maxerr
-    query = opts.query
-    largest = opts.largest
+def read_graph(bestedges, maxerr=100, directed=False):
     logging.debug("Max error = {0}%".format(maxerr))
-    bestgraph = bestedges.split(".")[0] + ".err{0}.graph".format(maxerr)
+    tag = "dir." if directed else ""
+    bestgraph = bestedges.split(".")[0] + ".err{0}.{1}graph".format(maxerr, tag)
     if need_update(bestedges, bestgraph):
-        G = nx.Graph()
+        G = nx.DiGraph() if directed else nx.Graph()
         fp = open(bestedges)
         for row in fp:
             if row[0] == '#':
@@ -271,6 +247,52 @@ def graph(args):
     logging.debug("Read graph from `{0}`".format(bestgraph))
     G = nx.read_gpickle(bestgraph)
     graph_stats(G)
+    return G
+
+
+def unitigs(args):
+    """
+    %prog unitigs best.edges
+
+    Reads Celera Assembler's "best.edges" and extract all unitigs.
+    """
+    p = OptionParser(unitigs.__doc__)
+    p.add_option("--maxerr", default=100, type="int", help="Maximum error rate")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    bestedges, = args
+    G = read_graph(bestedges, maxerr=opts.maxerr, directed=True)
+
+
+def graph(args):
+    """
+    %prog graph best.edges
+
+    Convert Celera Assembler's "best.edges" to a GEXF which can be used to
+    feed into Gephi to check the topology of the best overlapping graph.
+
+    Reference:
+    https://github.com/PacificBiosciences/Bioinformatics-Training/blob/master/scripts/CeleraToGephi.py
+    """
+    p = OptionParser(graph.__doc__)
+    p.add_option("--maxerr", default=100, type="int", help="Maximum error rate")
+    p.add_option("--query", default=-1, type="int", help="Search from node")
+    p.add_option("--largest", default=1, type="int", help="Only show largest components")
+    p.add_option("--maxsize", default=100, type="int", help="Max graph size")
+    p.add_option("--contigs", help="Annotate graph with contig membership, "
+                    " typically from `asm.posmap.frgctg`")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    bestedges, = args
+    query = opts.query
+    largest = opts.largest
+    G = read_graph(bestedges, maxerr=opts.maxerr)
 
     if len(G) > 10000:
         SG = nx.Graph()

@@ -21,7 +21,6 @@ from jcvi.formats.base import must_open
 from jcvi.formats.fasta import Fasta, SeqRecord, filter, parse_fasta
 from jcvi.formats.blast import Blast
 from jcvi.utils.range import range_minmax
-from jcvi.utils.grouper import Grouper
 from jcvi.algorithms.graph import graph_stats, graph_local_neighborhood
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update, \
             glob, get_abs_path, popen
@@ -284,17 +283,24 @@ def unitigs(args):
 
     bestedges, = args
     G = read_graph(bestedges, maxerr=opts.maxerr, directed=True)
-    H = Grouper()
+    H = nx.Graph()
     intconv = lambda x: int(x.split("-")[0])
     for k, v in G.iteritems():
         if k == G.get(v, None):
-            H.join(intconv(k), intconv(v))
+            H.add_edge(intconv(k), intconv(v))
 
-    nunitigs = len(H)
-    nreads = 0
-    for k in H:
-        print "|".join(str(x) for x in k)
-        nreads += len(k)
+    nunitigs = nreads = 0
+    for h in nx.connected_component_subgraphs(H, copy=False):
+        st = [x for x in h if h.degree(x) == 1]
+        if len(st) != 2:
+            continue
+        src, target = st
+        path = list(nx.all_simple_paths(h, src, target))
+        assert len(path) == 1
+        path, = path
+        print "|".join(str(x) for x in path)
+        nunitigs += 1
+        nreads += len(path)
     logging.debug("A total of {0} unitigs built from {1} reads."\
                     .format(nunitigs, nreads))
 

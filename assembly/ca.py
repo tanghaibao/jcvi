@@ -21,6 +21,7 @@ from jcvi.formats.base import must_open
 from jcvi.formats.fasta import Fasta, SeqRecord, filter, parse_fasta
 from jcvi.formats.blast import Blast
 from jcvi.utils.range import range_minmax
+from jcvi.utils.grouper import Grouper
 from jcvi.algorithms.graph import graph_stats, graph_local_neighborhood
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update, \
             glob, get_abs_path, popen
@@ -227,26 +228,44 @@ def read_graph(bestedges, maxerr=100, directed=False):
     tag = "dir." if directed else ""
     bestgraph = bestedges.split(".")[0] + ".err{0}.{1}graph".format(maxerr, tag)
     if need_update(bestedges, bestgraph):
-        G = nx.DiGraph() if directed else nx.Graph()
+        G = {} if directed else nx.Graph()
         fp = open(bestedges)
         for row in fp:
             if row[0] == '#':
                 continue
-            id1, lib_id, best5, o1, best3, o3, j1, j2 = row.split()
-            id1, best5, best3 = int(id1), int(best5), int(best3)
+            id1, lib_id, best5, o5, best3, o3, j1, j2 = row.split()
+            if not directed:
+                id1, best5, best3 = int(id1), int(best5), int(best3)
             j1, j2 = float(j1), float(j2)
             if j1 < maxerr or j2 < maxerr:
-                G.add_node(id1)
+                if directed:
+                    id1p5, id1p3 = id1 + "-5'", id1 + "-3'"
+                else:
+                    G.add_node(id1)
             if best5 != '0' and j1 < maxerr:
-                G.add_edge(best5, id1)
+                if directed:
+                    G[id1p5] = best5 + '-' + o5
+                else:
+                    G.add_edge(best5, id1)
             if best3 != '0' and j2 < maxerr:
-                G.add_edge(id1, best3)
-        nx.write_gpickle(G, bestgraph)
+                if directed:
+                    G[id1p3] = best3 + '-' + o3
+                else:
+                    G.add_edge(id1, best3)
+        if directed:
+            fw = open(bestgraph, "w")
+            cPickle.dump(G, fw)
+            fw.close()
+        else:
+            nx.write_gpickle(G, bestgraph)
         logging.debug("Graph pickled to `{0}`".format(bestgraph))
 
     logging.debug("Read graph from `{0}`".format(bestgraph))
-    G = nx.read_gpickle(bestgraph)
-    graph_stats(G)
+    if directed:
+        G = cPickle.load(open(bestgraph))
+    else:
+        G = nx.read_gpickle(bestgraph)
+        graph_stats(G)
     return G
 
 
@@ -257,7 +276,7 @@ def unitigs(args):
     Reads Celera Assembler's "best.edges" and extract all unitigs.
     """
     p = OptionParser(unitigs.__doc__)
-    p.add_option("--maxerr", default=100, type="int", help="Maximum error rate")
+    p.add_option("--maxerr", default=2, type="int", help="Maximum error rate")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -265,6 +284,19 @@ def unitigs(args):
 
     bestedges, = args
     G = read_graph(bestedges, maxerr=opts.maxerr, directed=True)
+    H = Grouper()
+    intconv = lambda x: int(x.split("-")[0])
+    for k, v in G.iteritems():
+        if k == G.get(v, None):
+            H.join(intconv(k), intconv(v))
+
+    nunitigs = len(H)
+    nreads = 0
+    for k in H:
+        print "|".join(str(x) for x in k)
+        nreads += len(k)
+    logging.debug("A total of {0} unitigs built from {1} reads."\
+                    .format(nunitigs, nreads))
 
 
 def graph(args):

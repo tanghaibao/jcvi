@@ -18,7 +18,7 @@ import networkx as nx
 from Bio import SeqIO
 
 from jcvi.formats.base import must_open
-from jcvi.formats.fasta import Fasta, SeqRecord, filter, parse_fasta
+from jcvi.formats.fasta import Fasta, SeqRecord, filter, format, parse_fasta
 from jcvi.formats.blast import Blast
 from jcvi.utils.range import range_minmax
 from jcvi.algorithms.graph import graph_stats, graph_local_neighborhood
@@ -37,6 +37,7 @@ def main():
         ('shred', 'shred contigs into pseudo-reads'),
         ('astat', 'generate the coverage-rho scatter plot'),
         ('unitigs', 'output uniquely extended unitigs based on best.edges'),
+        ('merger', 'merge reads into unitigs offline'),
         ('graph', 'visualize best.edges'),
         ('overlap', 'visualize overlaps for a given fragment'),
             )
@@ -236,17 +237,17 @@ def read_graph(bestedges, maxerr=100, directed=False):
             if not directed:
                 id1, best5, best3 = int(id1), int(best5), int(best3)
             j1, j2 = float(j1), float(j2)
-            if j1 < maxerr or j2 < maxerr:
+            if j1 <= maxerr or j2 <= maxerr:
                 if directed:
                     id1p5, id1p3 = id1 + "-5'", id1 + "-3'"
                 else:
                     G.add_node(id1)
-            if best5 != '0' and j1 < maxerr:
+            if best5 != '0' and j1 <= maxerr:
                 if directed:
                     G[id1p5] = best5 + '-' + o5
                 else:
                     G.add_edge(best5, id1)
-            if best3 != '0' and j2 < maxerr:
+            if best3 != '0' and j2 <= maxerr:
                 if directed:
                     G[id1p3] = best3 + '-' + o3
                 else:
@@ -266,6 +267,41 @@ def read_graph(bestedges, maxerr=100, directed=False):
         G = nx.read_gpickle(bestgraph)
         graph_stats(G)
     return G
+
+
+def merger(args):
+    """
+    %prog merger layout gkpStore
+
+    Merge reads into one contig.
+    """
+    p = OptionParser(merger.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    layout, gkpstore = args
+    fp = open(layout)
+    pf = "0"
+    iidfile = pf + ".iids"
+    for i, row in enumerate(fp):
+        fw = open(iidfile, "w")
+        layout = row.split("|")
+        print >> fw, "\n".join(layout)
+        fw.close()
+        cmd = "gatekeeper -iid {0}.iids -dumpfasta {0} {1}".format(i, gkpstore)
+        sh(cmd)
+
+        fastafile = "{0}.fasta".format(i)
+        newfastafile = "{0}.new.fasta".format(i)
+        format([fastafile, newfastafile, "--sequential=replace", \
+                "--sequentialoffset=1", "--nodesc"])
+        fasta([newfastafile])
+
+        sh("rm -rf {0}".format(pf))
+        cmd = "runCA {0}.frg -p {0} -d {0} consensus=pbutgcns".format(pf)
+        sh(cmd)
 
 
 def unitigs(args):

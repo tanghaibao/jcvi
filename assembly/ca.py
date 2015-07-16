@@ -271,37 +271,44 @@ def read_graph(bestedges, maxerr=100, directed=False):
 
 def merger(args):
     """
-    %prog merger layout gkpStore
+    %prog merger layout gkpStore contigs.fasta
 
     Merge reads into one contig.
     """
     p = OptionParser(merger.__doc__)
     opts, args = p.parse_args(args)
 
-    if len(args) != 2:
+    if len(args) != 3:
         sys.exit(not p.print_help())
 
-    layout, gkpstore = args
+    layout, gkpstore, contigs = args
     fp = open(layout)
     pf = "0"
     iidfile = pf + ".iids"
     for i, row in enumerate(fp):
+        logging.debug("Read unitig {0}".format(i))
         fw = open(iidfile, "w")
         layout = row.split("|")
         print >> fw, "\n".join(layout)
         fw.close()
-        cmd = "gatekeeper -iid {0}.iids -dumpfasta {0} {1}".format(i, gkpstore)
+        cmd = "gatekeeper -iid {0}.iids -dumpfasta {0} {1}".format(pf, gkpstore)
         sh(cmd)
 
-        fastafile = "{0}.fasta".format(i)
-        newfastafile = "{0}.new.fasta".format(i)
+        fastafile = "{0}.fasta".format(pf)
+        newfastafile = "{0}.new.fasta".format(pf)
         format([fastafile, newfastafile, "--sequential=replace", \
                 "--sequentialoffset=1", "--nodesc"])
         fasta([newfastafile])
 
         sh("rm -rf {0}".format(pf))
         cmd = "runCA {0}.frg -p {0} -d {0} consensus=pbutgcns".format(pf)
+        cmd += " unitigger=bogart doFragmentCorrection=0 doUnitigSplitting=0"
         sh(cmd)
+        outdir = "{0}/9-terminator".format(pf)
+
+        cmd = "cat {0}/{1}.ctg.fasta {0}/{1}.deg.fasta {0}/{1}.singleton.fasta"\
+                .format(outdir, pf)
+        sh(cmd, outfile=contigs, append=True)
 
 
 def unitigs(args):

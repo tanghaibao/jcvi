@@ -196,7 +196,9 @@ def savefig(figname, dpi=150, iopts=None):
 # human readable size (Kb, Mb, Gb)
 def human_readable(x, pos, base=False):
     x = str(int(x))
-    if x.endswith("000000"):
+    if x.endswith("000000000"):
+        x = x[:-9] + "G"
+    elif x.endswith("000000"):
         x = x[:-6] + "M"
     elif x.endswith("000"):
         x = x[:-3] + "K"
@@ -445,7 +447,8 @@ def draw_cmap(ax, cmap_text, vmin, vmax, cmap=None, reverse=False):
         ax.text(x, ymin - .005, "%.1f" % v, ha="center", va="top", size=10)
 
 
-def quickplot(data, xmin, xmax, xlabel, title, ylabel="Counts", figname="plot.pdf"):
+def quickplot(data, xmin, xmax, xlabel, title, ylabel="Counts",
+              figname="plot.pdf", counts=True):
     """
     Simple plotting function - given a dictionary of data, produce a bar plot
     with the counts shown on the plot.
@@ -453,9 +456,10 @@ def quickplot(data, xmin, xmax, xlabel, title, ylabel="Counts", figname="plot.pd
     plt.figure(1, (6, 6))
     left, height = zip(*sorted(data.items()))
     pad = max(height) * .01
-    for l, h in zip(left, height):
-        plt.text(l, h + pad, str(h), color="darkslategray", size=8,
-                 ha="center", va="bottom", rotation=90)
+    if counts:
+        for l, h in zip(left, height):
+            plt.text(l, h + pad, str(h), color="darkslategray", size=8,
+                     ha="center", va="bottom", rotation=90)
     if xmax is None:
         xmax = max(left)
 

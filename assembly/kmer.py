@@ -645,7 +645,7 @@ def histogram(args):
         print >> sys.stderr, msg
 
     x, y = ks.get_xy(opts.vmin, opts.vmax)
-    title = "{0} genome {1}-mer histogram".format(species, N)
+    title = "{0} {1}-mer histogram".format(species, N)
 
     if ascii:
         asciiplot(x, y, title=title)
@@ -676,11 +676,11 @@ def histogram(args):
     ymin, ymax = ax.get_ylim()
     ymax = ymax * 7 / 6
 
-    ax.set_title(markup(title), color='r')
+    ax.set_title(markup(title))
     ax.set_ylim((ymin, ymax))
     xlabel, ylabel = "Coverage (X)", "Counts"
-    ax.set_xlabel(xlabel, color='r')
-    ax.set_ylabel(ylabel, color='r')
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
     set_human_axis(ax)
 
     imagename = histfile.split(".")[0] + ".pdf"

@@ -124,6 +124,7 @@ def overlap(args):
     from jcvi.apps.console import green
 
     p = OptionParser(overlap.__doc__)
+    p.add_option("--maxerr", default=2, type="int", help="Maximum error rate")
     p.add_option("--canvas", default=100, type="int", help="Canvas size")
     opts, args = p.parse_args(args)
 
@@ -150,6 +151,7 @@ def overlap(args):
     logging.debug("A total of {0} reads to exclude".format(len(exclude)))
 
     cmd = "overlapStore -d ../asm.ovlStore -b {0} -e {0}".format(iid)
+    cmd += " -E {0}".format(opts.maxerr)
     frags = []
     for row in popen(cmd):
         r = OverlapLine(row)

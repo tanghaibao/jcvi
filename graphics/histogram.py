@@ -136,8 +136,12 @@ def stem_leaf_plot(data, vmin, vmax, bins, digit=1, title=None):
 
     bins = np.arange(vmin, vmax + step, step)
     hist, bin_edges = np.histogram(data, bins=bins)
+    # By default, len(bin_edges) = len(hist) + 1
+    bin_edges = bin_edges[:len(hist)]
     asciiplot(bin_edges, hist, digit=digit, title=title)
     print >> sys.stderr, "Last bin ends in {0}, inclusive.".format(vmax)
+
+    return bin_edges, hist
 
 
 def texthistogram(numberfiles, vmin, vmax, title=None,
@@ -163,9 +167,8 @@ def histogram(numberfile, vmin, vmax, xlabel, title, outfmt="pdf",
                 bins=bins, skip=skip, base=base)
 
     data, vmin, vmax = get_data(numberfile, vmin, vmax, skip=skip)
-    outfile = numberfile + '.pdf'
-    if base:
-        outfile = numberfile + ".base{0}.{1}".format(base, outfmt)
+    outfile = numberfile + ".base{0}.{1}".format(base, outfmt) \
+                if base else numberfile + ".pdf"
     template = histogram_log_template if base else histogram_template
     rtemplate = RTemplate(template, locals())
     rtemplate.run()
@@ -228,15 +231,7 @@ def main():
     p = OptionParser(main.__doc__)
     p.add_option("--skip", default=0, type="int",
             help="skip the first several lines [default: %default]")
-    p.add_option("--vmin", dest="vmin", default=0, type="int",
-            help="minimum value, inclusive [default: %default]")
-    p.add_option("--vmax", dest="vmax", default=None, type="int",
-            help="maximum value, inclusive [default: %default]")
-    p.add_option("--bins", dest="bins", default=20, type="int",
-            help="number of bins to plot in the histogram [default: %default]")
-    p.add_option("--xlabel", dest="xlabel", default="value",
-            help="label on the X-axis")
-    p.add_option("--title", help="title of the plot")
+    p.set_histogram()
     p.add_option("--tags", dest="tags", default=None,
             help="tags for data if multiple input files, comma sep")
     p.add_option("--ascii", default=False, action="store_true",

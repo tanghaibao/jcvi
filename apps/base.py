@@ -103,6 +103,7 @@ class OptionParser (OptionP):
             return
 
         default_tag = "%default"
+        assert o.help, "Option {0} do not have help string".format(o)
         help_pf = o.help[:1].upper() + o.help[1:]
         if "[" in help_pf:
             help_pf = help_pf.rsplit("[", 1)[0]
@@ -111,7 +112,7 @@ class OptionParser (OptionP):
         if o.type == "choice":
             if o.default is None:
                 default_tag = "guess"
-            ctext = "|".join(natsorted(o.choices))
+            ctext = "|".join(natsorted(str(x) for x in o.choices))
             if len(ctext) > 100:
                 ctext = ctext[:100] + " ... "
             choice_text = "must be one of {0}".format(ctext)
@@ -257,6 +258,17 @@ class OptionParser (OptionP):
     def set_beds(self):
         self.add_option("--qbed", help="Path to qbed")
         self.add_option("--sbed", help="Path to sbed")
+
+    def set_histogram(self, vmin=0, vmax=None, bins=20,
+                      xlabel="value", title=None):
+        self.add_option("--vmin", default=vmin, type="int",
+                        help="Minimum value, inclusive")
+        self.add_option("--vmax", default=vmax, type="int",
+                        help="Maximum value, inclusive")
+        self.add_option("--bins", default=bins, type="int",
+                        help="Number of bins to plot in the histogram")
+        self.add_option("--xlabel", default=xlabel, help="Label on the X-axis")
+        self.add_option("--title", default=title, help="Title of the plot")
 
     def set_sam_options(self, extra=True, bowtie=False):
         self.add_option("--sam", dest="bam", default=True, action="store_false",

@@ -83,7 +83,6 @@ def main():
 
     actions = (
         ('snpflow', 'run SNP calling pipeline from reads to allele_counts'),
-        ('bam', 'convert GSNAP output to BAM'),
         ('novo', 'reference-free tGBS pipeline'),
         ('resolve', 'separate repeats on collapsed contigs'),
         ('count', 'count the number of reads in all clusters'),
@@ -447,37 +446,6 @@ def novo(args):
                     "--prefix={0}_".format(pf)])
 
 
-def bam(args):
-    """
-    %prog snp input.gsnap ref.fasta
-
-    Convert GSNAP output to BAM.
-    """
-    from jcvi.formats.sizes import Sizes
-    from jcvi.formats.sam import index
-
-    p = OptionParser(bam.__doc__)
-    p.set_home("eddyyeh")
-    p.set_cpus()
-    opts, args = p.parse_args(args)
-
-    if len(args) != 2:
-        sys.exit(not p.print_help())
-
-    gsnapfile, fastafile = args
-    EYHOME = opts.eddyyeh_home
-    pf = gsnapfile.rsplit(".", 1)[0]
-    uniqsam = pf + ".unique.sam"
-    if need_update((gsnapfile, fastafile), uniqsam):
-        cmd = op.join(EYHOME, "gsnap2gff3.pl")
-        sizesfile = Sizes(fastafile).filename
-        cmd += " --format sam -i {0} -o {1}".format(gsnapfile, uniqsam)
-        cmd += " -u -l {0} -p {1}".format(sizesfile, opts.cpus)
-        sh(cmd)
-
-    index([uniqsam])
-
-
 def snpflow(args):
     """
     %prog snpflow trimmed reference.fasta
@@ -519,19 +487,29 @@ def snpflow(args):
     if supercat:
         cmd += " --supercat"
         coordsfile = db + ".coords"
+        supercatfile = ref.rsplit(".", 1)[0] + ".supercat.fasta"
         mm.add(ref, (db, coordsfile), cmd)
     else:
         mm.add(ref, db, cmd)
 
     # Step 1 - GSNAP alignment and conversion to native file
     allnatives = []
+    allsamstats = []
+    gmapdb = supercatfile if supercat else ref
     for f in flist:
         prefix = get_prefix(f, ref)
+        gsnapfile = op.join(nativedir, prefix + ".gsnap")
         nativefile = op.join(nativedir, prefix + ".unique.native")
-        cmd = "python -m jcvi.apps.gmap align {0}.fasta {1}".format(db, f)
-        cmd += " --outdir={0} --snp --cpus=1".format(nativedir)
+        samstatsfile = op.join(nativedir, prefix + ".unique.sam.stats")
+        cmd = "python -m jcvi.apps.gmap align {0} {1}".format(gmapdb, f)
+        cmd += " --outdir={0} --native --cpus=1".format(nativedir)
         mm.add((f, db), nativefile, cmd)
+
+        cmd = "python -m jcvi.apps.gmap bam {0} {1} --cpus=1".\
+                format(gsnapfile, gmapdb)
+        mm.add(nativefile, samstatsfile, cmd)
         allnatives.append(nativefile)
+        allsamstats.append(samstatsfile)
 
     # Step 2 - call SNP discovery
     if supercat:
@@ -541,7 +519,8 @@ def snpflow(args):
         cmd = "tGBS-Convert_Pseudo_Genome_NATIVE_Coordinates.pl"
         cmd += " -i {0}/*.native -o {1}".format(nativedir, nativeconverted)
         cmd += " -c {0}".format(coordsfile)
-        mm.add(allnatives + [coordsfile], allnativesc, cmd)
+        cmds = ["rm -rf {0}".format(nativeconverted), cmd]
+        mm.add(allnatives + [coordsfile], allnativesc, cmds)
 
         runfile = "speedup.sh"
         write_file(runfile, speedupsh.format(nativeconverted, opts.cpus))
@@ -590,7 +569,19 @@ def snpflow(args):
     rawsnps = "Genotyping.H3.txt"
     cmd = "/home/shared/scripts/delin/SamplesGenotyping.pl --homo 3"
     cmd += " -pf allele_counts -f {0} --outfile {1}".format(countsdir, rawsnps)
-    mm.add(allcounts, rawsnps, cmd)
+    cmds = ["rm -f {0}".format(rawsnps), cmd]
+    mm.add(allcounts, rawsnps, cmds)
+
+    # Step 7 - generate alignment report
+    sam_summary = "sam.summary"
+    cmd = "/home/shared/scripts/eddyyeh/alignment_stats.pl"
+    cmd += " -f {0} -o {1}".format(" ".join(allsamstats), sam_summary)
+    mm.add(allsamstats, sam_summary, cmd)
+
+    native_summary = "native.summary"
+    cmd = "/home/shared/scripts/eddyyeh/alignment_stats.pl"
+    cmd += " -n {0} -o {1}".format(" ".join(allnatives), native_summary)
+    mm.add(allnatives, native_summary, cmd)
 
     mm.write()
 

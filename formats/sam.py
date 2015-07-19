@@ -485,7 +485,7 @@ def index(args):
     if opts.unique:
         cmd += " -q 1"
 
-    if samfile.endswith(".sam"):
+    if samfile.endswith(".sam") and need_update(samfile, bamfile):
         sh(cmd)
 
     # Already sorted?

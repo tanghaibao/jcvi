@@ -22,9 +22,44 @@ def main():
         ('index', 'wraps gmap_build'),
         ('align', 'wraps gsnap'),
         ('gmap', 'wraps gmap'),
+        ('bam', 'convert GSNAP output to BAM'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def bam(args):
+    """
+    %prog snp input.gsnap ref.fasta
+
+    Convert GSNAP output to BAM.
+    """
+    from jcvi.formats.sizes import Sizes
+    from jcvi.formats.sam import index
+
+    p = OptionParser(bam.__doc__)
+    p.set_home("eddyyeh")
+    p.set_cpus()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    gsnapfile, fastafile = args
+    EYHOME = opts.eddyyeh_home
+    pf = gsnapfile.rsplit(".", 1)[0]
+    uniqsam = pf + ".unique.sam"
+    samstats = uniqsam + ".stats"
+    sizesfile = Sizes(fastafile).filename
+    if need_update((gsnapfile, sizesfile), samstats):
+        cmd = op.join(EYHOME, "gsnap2gff3.pl")
+        cmd += " --format sam -i {0} -o {1}".format(gsnapfile, uniqsam)
+        cmd += " -u -l {0} -p {1}".format(sizesfile, opts.cpus)
+        sh(cmd)
+
+    index([uniqsam])
+
+    return uniqsam
 
 
 def check_index(dbfile, supercat=False, go=True):
@@ -138,8 +173,8 @@ def align(args):
     p = OptionParser(align.__doc__)
     p.add_option("--rnaseq", default=False, action="store_true",
                  help="Input is RNA-seq reads, turn splicing on")
-    p.add_option("--snp", default=False, action="store_true",
-                 help="Call SNPs after GSNAP")
+    p.add_option("--native", default=False, action="store_true",
+                 help="Convert GSNAP output to NATIVE format")
     p.add_option("--outdir", default=".",
                  help="Output alignment files in directory")
     p.set_home("eddyyeh")
@@ -181,7 +216,7 @@ def align(args):
         cmd += " " + " ".join(args[1:])
         sh(cmd, outfile=gsnapfile, errfile=logfile)
 
-    if opts.snp:
+    if opts.native:
         EYHOME = opts.eddyyeh_home
         if need_update(gsnapfile, nativefile):
             cmd = op.join(EYHOME, "convert2native.pl")

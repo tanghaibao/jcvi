@@ -136,15 +136,16 @@ def histogram(args):
     """
     from jcvi.utils.cbook import human_size, thousands, SUFFIXES
     from jcvi.graphics.histogram import stem_leaf_plot
-    from jcvi.graphics.base import plt, markup, savefig, set2, set_ticklabels_helvetica
+    from jcvi.graphics.base import plt, markup, human_formatter, \
+                human_base_formatter, savefig, set2, set_ticklabels_helvetica
 
     p = OptionParser(histogram.__doc__)
     p.set_histogram(vmax=50000, bins=100, xlabel="Read length",
                     title="Read length distribution")
     p.add_option("--ylabel1", default="Counts",
                  help="Label of y-axis on the left")
-    p.add_option("--color", default=0, choices=range(8),
-                 help="Color of bars, which is an index 0-8 in brewer set2")
+    p.add_option("--color", default='0', choices=[str(x) for x in range(8)],
+                 help="Color of bars, which is an index 0-7 in brewer set2")
     opts, args, iopts = p.set_image_options(args, figsize="6x6", style="dark")
 
     if len(args) != 1:
@@ -160,7 +161,7 @@ def histogram(args):
     ax1 = plt.gca()
 
     width = (xmax - xmin) * .5 / bins
-    color = set2[opts.color]
+    color = set2[int(opts.color)]
     ax1.bar(left, height, width=width, linewidth=0, fc=color, align="center")
     ax1.set_xlabel(markup(opts.xlabel))
     ax1.set_ylabel(opts.ylabel1)
@@ -191,15 +192,20 @@ def histogram(args):
     xx, yy = .95, .95
     ma = "Total bases: {0}".format(hsize)
     mb = "Total reads: {0}".format(thousands(len(sizes)))
-    mc = "Average read length {0}bp".format(thousands(np.mean(all_sizes)))
-    md = "Median read length {0}bp".format(thousands(np.median(all_sizes)))
-    me = "N50 read length {0}bp".format(thousands(l50))
+    mc = "Average read length: {0}bp".format(thousands(np.mean(all_sizes)))
+    md = "Median read length: {0}bp".format(thousands(np.median(all_sizes)))
+    me = "N50 read length: {0}bp".format(thousands(l50))
     for t in (ma, mb, mc, md, me):
         print >> sys.stderr, t
         ax1.text(xx, yy, t, color=tc, transform=axt, ha="right")
         yy -= .05
 
     ax1.set_title(markup(opts.title))
+    # Seaborn removes ticks for all styles except 'ticks'. Now add them back:
+    ax1.tick_params(axis="x", direction="out", length=3,
+                    left=False, right=False, top=False, bottom=True)
+    ax1.xaxis.set_major_formatter(human_base_formatter)
+    ax1.yaxis.set_major_formatter(human_formatter)
     figname = sizes.filename + ".pdf"
     savefig(figname)
 

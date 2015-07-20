@@ -24,6 +24,7 @@ def main():
     actions = (
         ('trimUTR', 'remove UTRs in the annotation set'),
         ('uniq', 'remove overlapping gene models'),
+        ('nmd', 'identify transcript variant candidates for nonsense-mediated decay')
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -157,6 +158,68 @@ def trimUTR(args):
                     "destroyed [{0} > {1}]".format(c.start, c.end)
         else:
             print >> fw, c
+
+
+def nmd(args):
+    """
+    %prog nmd gffile
+
+    Identify transcript variants which might be candidates for nonsense
+    mediated decay (NMD)
+
+    A transcript is considered to be a candidate for NMD when the CDS stop
+    codon is located more than 50nt upstream of terminal splice site donor
+
+    References:
+    http://www.nature.com/horizon/rna/highlights/figures/s2_spec1_f3.html
+    http://www.biomedcentral.com/1741-7007/7/23/figure/F1
+    """
+    import __builtin__
+    from jcvi.utils.cbook import enumerate_reversed
+
+    p = OptionParser(nmd.__doc__)
+    p.set_outfile()
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    gffile, = args
+    gff = make_index(gffile)
+
+    fw = must_open(opts.outfile, "w")
+    for gene in gff.features_of_type('gene', order_by=('seqid', 'start')):
+        _enumerate = __builtin__.enumerate if gene.strand == "-" else enumerate_reversed
+        for mrna in gff.children(gene, featuretype='mRNA', order_by=('start')):
+            tracker = dict()
+            tracker['exon'] = list(gff.children(mrna, featuretype='exon', order_by=('start')))
+            tracker['cds'] = [None] * len(tracker['exon'])
+
+            tcds_pos = None
+            for i, exon in _enumerate(tracker['exon']):
+                for cds in gff.region(region=exon, featuretype='CDS', completely_within=True):
+                    if mrna.id in cds['Parent']:
+                        tracker['cds'][i] = cds
+                        tcds_pos = i
+                        break
+                if tcds_pos: break
+
+            NMD, distance = False, 0
+            if (mrna.strand == "+" and tcds_pos + 1 < len(tracker['exon'])) \
+                or (mrna.strand == "-" and tcds_pos - 1 >= 0):
+                tcds = tracker['cds'][tcds_pos]
+                texon = tracker['exon'][tcds_pos]
+
+                PTC = tcds.end if mrna.strand == '+' else tcds.start
+                TDSS = texon.end if mrna.strand == '+' else texon.start
+                distance = abs(TDSS - PTC)
+                NMD = True if distance > 50 else False
+
+            print >> fw, "\t".join(str(x) for x in (gene.id, mrna.id, \
+                gff.children_bp(mrna, child_featuretype='CDS'), distance, NMD))
+
+    fw.close()
 
 
 if __name__ == '__main__':

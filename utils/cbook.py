@@ -196,6 +196,17 @@ class AutoVivification(dict):
             return value
 
 
+def enumerate_reversed(sequence):
+    """
+    Perform reverse enumeration, returning an iterator with decrementing
+    index/position values
+    
+    Source: http://stackoverflow.com/questions/529424/traverse-a-list-in-reverse-order-in-python
+    """
+    for index in reversed(xrange(len(sequence))):
+        yield index, sequence[index]
+
+
 def percentage(a, b, precision=1, mode=0):
     """
     >>> percentage(100, 200)

@@ -134,28 +134,47 @@ def uclust(args):
     """
     %prog uclust fastafile
 
-    Use `usearch` to remove duplicate reads.
+    Use `vsearch` to remove duplicate reads.
     """
     p = OptionParser(uclust.__doc__)
     p.set_align(pctid=96)
+    p.set_cpus()
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     fastafile, = args
+    cpus = opts.cpus
     identity = opts.pctid / 100.
     fastafile, qualfile = fasta([fastafile, "--seqtk"])
 
     pf, sf = fastafile.rsplit(".", 1)
     pf = fastafile + ".P{0}.uclust".format(opts.pctid)
-    consensusfile = pf + ".consensus.fasta"
     usearch = "vsearch"  # Open-source alternative
-    if need_update(fastafile, consensusfile):
+    derepfile = pf + ".derep"
+    if need_update(fastafile, derepfile):
         cmd = usearch + " -minseqlength 30"
-        cmd += " -cluster_fast {0}".format(fastafile)
+        cmd += " -derep_fulllength {0}".format(fastafile)
+        cmd += " -output {0} -sizeout".format(derepfile)
+        cmd += " -threads {0}".format(cpus)
+        sh(cmd)
+
+    consensusfile = pf + ".u"
+    notmatchedfile = pf + ".notmatched"
+    if need_update(derepfile, consensusfile):
+        cmd = usearch + " -minseqlength 30"
+        cmd += " -leftjust"
+        cmd += " -cluster_smallmem {0}".format(derepfile)
         cmd += " -id {0}".format(identity)
-        cmd += " -consout {0}".format(consensusfile)
+        cmd += " -userout {0}".format(consensusfile)
+        cmd += " -userfields query+target+id+gaps+qstrand+qcov"
+        cmd += " -maxaccepts 1 -maxrejects 0"
+        cmd += " -minsl .5 -fulldp"
+        cmd += " -usersort -sizein"
+        cmd += " -notmatched {0}".format(notmatchedfile)
+        #cmd += " -consout {0}".format(consensusfile)
+        cmd += " -threads {0}".format(cpus)
         sh(cmd)
 
 

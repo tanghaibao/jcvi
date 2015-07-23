@@ -778,16 +778,26 @@ def size(args):
     p = OptionParser(size.__doc__)
     opts, args = p.parse_args(args)
 
-    total_size = 0
-    total_numrecords = 0
-    for f in args:
-        for rec in iter_fastq(f):
-            if rec:
-                total_numrecords += 1
-                total_size += len(rec)
+    if len(args) < 1:
+        sys.exit(not p.print_help())
 
-    print >>sys.stderr, "A total %d bases in %s sequences" % (total_size,
-            total_numrecords)
+    total_size = total_numrecords = 0
+    for f in args:
+        cur_size = cur_numrecords = 0
+        for rec in iter_fastq(f):
+            if not rec:
+                break
+            cur_numrecords += 1
+            cur_size += len(rec)
+
+        print " ".join(str(x) for x in \
+                (op.basename(f), cur_numrecords, cur_size))
+        total_numrecords += cur_numrecords
+        total_size += cur_size
+
+    if len(args) > 1:
+        print " ".join(str(x) for x in \
+                ("Total", total_numrecords, total_size))
 
 
 def convert(args):

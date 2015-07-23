@@ -155,7 +155,7 @@ class SummaryStats (object):
 
     def __str__(self):
         s = self.title + ": " if self.title else ""
-        s += "Min={0} Max={1} N={2} Mean={3:.5g} SD={4:.5g} Median={5:.5g} Sum={6}".\
+        s += "Min={0} Max={1} N={2} Mean={3} SD={4} Median={5} Sum={6}".\
                 format(self.min, self.max, self.size,
                        self.mean, self.sd, self.median,
                        self.sum)
@@ -200,7 +200,7 @@ def enumerate_reversed(sequence):
     """
     Perform reverse enumeration, returning an iterator with decrementing
     index/position values
-    
+
     Source: http://stackoverflow.com/questions/529424/traverse-a-list-in-reverse-order-in-python
     """
     for index in reversed(xrange(len(sequence))):

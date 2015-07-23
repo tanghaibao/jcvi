@@ -36,7 +36,7 @@ def covlen(args):
     """
     %prog covlen covfile fastafile
 
-    Plot coverage vs lenght. `covfile` is two-column listing contig id and
+    Plot coverage vs length. `covfile` is two-column listing contig id and
     depth of coverage.
     """
     import numpy as np

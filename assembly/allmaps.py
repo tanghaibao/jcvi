@@ -1409,7 +1409,8 @@ def plot(args):
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
     bbox = dict(boxstyle="round", fc='darkslategray', ec='darkslategray')
-    root.text(.5, .95, opts.title, color="w", bbox=bbox, size=16)
+    if opts.title:
+        root.text(.5, .95, opts.title, color="w", bbox=bbox, size=16)
     ax1 = fig.add_axes([0, 0, .5, 1])
     ax2 = fig.add_axes([.5, 0, .5, 1])
 

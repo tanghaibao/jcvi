@@ -122,7 +122,6 @@ def trimUTR(args):
 
     gffile, = args
     g = make_index(gffile)
-    gff = Gff(gffile)
 
     trim_both = False if (opts.trim5 or opts.trim3) else True
     trim5 = SetFile(opts.trim5) if opts.trim5 else set()
@@ -130,34 +129,36 @@ def trimUTR(args):
 
     mRNA_register = {}
     fw = must_open(opts.outfile, "w")
-    for c in gff:
-        cid, ctype = c.accn, c.type
-        t5, t3 = False, False
-        if ctype == "gene":
-            t5 = True if cid in trim5 else False
-            t3 = True if cid in trim3 else False
-            start, end = get_cds_minmax(g, cid)
-            trim(c, start, end, trim5=t5, trim3=t3, both=trim_both)
-        elif ctype == "mRNA":
-            if any(id in trim5 for id in (cid, c.parent)):
-                t5 = True
-                trim5.add(cid)
-            if any(id in trim3 for id in (cid, c.parent)):
-                t3 = True
-                trim3.add(cid)
-            start, end = get_cds_minmax(g, cid, level=1)
-            trim(c, start, end, trim5=t5, trim3=t3, both=trim_both)
-            mRNA_register[cid] = (start, end)
-        elif ctype != "CDS":
-            t5 = True if c.parent in trim5 else False
-            t3 = True if c.parent in trim3 else False
-            start, end = mRNA_register[c.parent]
-            trim(c, start, end, trim5=t5, trim3=t3, both=trim_both)
-        if c.start > c.end:
-            print >> sys.stderr, cid, \
-                    "destroyed [{0} > {1}]".format(c.start, c.end)
-        else:
-            print >> fw, c
+    for feat in g.iter_by_parent_childs(featuretype='gene', order_by=('seqid', 'start')):
+        for c in feat:
+            cid, ctype, cparent = c.id, c.featuretype, \
+                c.attributes.get('Parent', [None])[0]
+            t5, t3 = False, False
+            if ctype == "gene":
+                t5 = True if cid in trim5 else False
+                t3 = True if cid in trim3 else False
+                start, end = get_cds_minmax(g, cid)
+                trim(c, start, end, trim5=t5, trim3=t3, both=trim_both)
+            elif ctype == "mRNA":
+                if any(id in trim5 for id in (cid, cparent)):
+                    t5 = True
+                    trim5.add(cid)
+                if any(id in trim3 for id in (cid, cparent)):
+                    t3 = True
+                    trim3.add(cid)
+                start, end = get_cds_minmax(g, cid, level=1)
+                trim(c, start, end, trim5=t5, trim3=t3, both=trim_both)
+                mRNA_register[cid] = (start, end)
+            elif ctype != "CDS":
+                t5 = True if cparent in trim5 else False
+                t3 = True if cparent in trim3 else False
+                start, end = mRNA_register[cparent]
+                trim(c, start, end, trim5=t5, trim3=t3, both=trim_both)
+            if c.start > c.end:
+                print >> sys.stderr, cid, \
+                        "destroyed [{0} > {1}]".format(c.start, c.end)
+            else:
+                print >> fw, c
 
 
 def nmd(args):

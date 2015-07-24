@@ -445,18 +445,16 @@ def clr(args):
         filter_bedpe(bedpe, filtered, ref, rc=opts.rc,
                      minlen=opts.minlen, maxlen=opts.maxlen)
 
-    converted = bedpe + ".converted"
-    if need_update(filtered, converted):
-        fp = open(filtered)
-        fw = open(converted, "w")
-        for row in fp:
-            r = BedpeLine(row)
-            print >> fw, r.bedline
-        fw.close()
+    rmdup = bedpe + ".filtered.sorted.rmdup"
+    if need_update(filtered, rmdup):
+        rmdup_bedpe(filtered, rmdup, dupwiggle=opts.dup)
+
+    if opts.bedonly:
+        return
 
     merged = bedpe + ".merge.bed"
-    if need_update(converted, merged):
-        mergeBed(converted)
+    if need_update(rmdup, merged):
+        mergeBed(rmdup)
 
     return fastaFromBed(merged, ref)
 
@@ -503,6 +501,40 @@ def filter_bedpe(bedpe, filtered, ref, rc=False, rlen=None,
     fw.close()
 
 
+def rmdup_bedpe(filtered, rmdup, dupwiggle=10):
+    sortedfiltered = filtered + ".sorted"
+    if need_update(filtered, sortedfiltered):
+        sh("sort -k1,1 -k2,2n -i {0} -o {1}".format(filtered, sortedfiltered))
+
+    logging.debug("Rmdup criteria: wiggle <= {0}".format(dupwiggle))
+    fp = must_open(sortedfiltered)
+    fw = must_open(rmdup, "w")
+    data = [BedpeLine(x) for x in fp]
+    retained = total = 0
+    for seqid, ss in groupby(data, key=lambda x: x.seqid1):
+        ss = list(ss)
+        for i, a in enumerate(ss):
+            if a.isdup:
+                continue
+            for b in ss[i + 1:]:
+                if b.start1 > a.start1 + dupwiggle:
+                    break
+                if b.isdup:
+                    continue
+                if a.seqid2 == b.seqid2 and \
+                   a.start2 - dupwiggle <= b.start2 <= a.start2 + dupwiggle:
+                   b.isdup = True
+        for a in ss:
+            total += 1
+            if a.isdup:
+                continue
+            retained += 1
+            print >> fw, a
+    logging.debug("A total of {0} mates written to `{1}`.".\
+                    format(percentage(retained, total), rmdup))
+    fw.close()
+
+
 def alignextend(args):
     """
     %prog alignextend bedpefile ref.fasta
@@ -515,8 +547,6 @@ def alignextend(args):
     p = OptionParser(alignextend.__doc__)
     p.add_option("--len", default=100, type="int",
                  help="Extend to this length")
-    p.add_option("--dup", default=10, type="int",
-                 help="Filter duplicates with coordinates within this distance")
     p.add_option("--qv", default=31, type="int",
                  help="Dummy qv score for extended bases")
     p.set_bedpe()
@@ -526,7 +556,6 @@ def alignextend(args):
         sys.exit(not p.print_help())
 
     bedpe, ref = args
-    dupwiggle = opts.dup
     qvchar = chr(opts.qv + 33)
     pf = bedpe.split(".")[0]
 
@@ -535,45 +564,12 @@ def alignextend(args):
         filter_bedpe(bedpe, filtered, ref, rc=opts.rc,
                      minlen=opts.minlen, maxlen=opts.maxlen, rlen=opts.rlen)
 
-    sortedfiltered = filtered + ".sorted"
-    if need_update(filtered, sortedfiltered):
-        sh("sort -k1,1 -k2,2n -i {0} -o {1}".format(filtered, sortedfiltered))
+    rmdup = filtered + ".filtered.sorted.rmdup"
+    if need_update(filtered, rmdup):
+        rmdup_bedpe(filtered, rmdup, dupwiggle=opts.dup)
 
-    clr = pf + ".clr.bed"
-    rmdup = sortedfiltered + ".rmdup"
-    if need_update(sortedfiltered, (clr, rmdup)):
-        logging.debug("Rmdup criteria: wiggle <= {0}".format(dupwiggle))
-        fp = must_open(sortedfiltered)
-        fw = must_open(rmdup, "w")
-        fw_clr = must_open(clr, "w")
-        data = [BedpeLine(x) for x in fp]
-        retained = total = 0
-        for seqid, ss in groupby(data, key=lambda x: x.seqid1):
-            ss = list(ss)
-            smin = min(x.start1 for x in ss)
-            smax = max(x.end2 for x in ss)
-            print >> fw_clr, "\t".join(str(x) for x in (seqid, smin - 1, smax))
-            for i, a in enumerate(ss):
-                if a.isdup:
-                    continue
-                for b in ss[i + 1:]:
-                    if b.start1 > a.start1 + dupwiggle:
-                        break
-                    if b.isdup:
-                        continue
-                    if a.seqid2 == b.seqid2 and \
-                       a.start2 - dupwiggle <= b.start2 <= a.start2 + dupwiggle:
-                       b.isdup = True
-            for a in ss:
-                total += 1
-                if a.isdup:
-                    continue
-                retained += 1
-                print >> fw, a
-        logging.debug("A total of {0} mates written to `{1}`.".\
-                        format(percentage(retained, total), rmdup))
-        fw.close()
-        fw_clr.close()
+    if opts.bedonly:
+        return
 
     bed1, bed2 = pf + ".1e.bed", pf + ".2e.bed"
     if need_update(rmdup, (bed1, bed2)):

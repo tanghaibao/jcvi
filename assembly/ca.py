@@ -669,11 +669,11 @@ def split_fastafile(fastafile, maxreadlen=32000):
     bigfastafile = pf + "-big.fasta"
     shredfastafile = pf + "-big.depth1.fasta"
 
-    maxreadlen = str(maxreadlen)
     if need_update(fastafile, (smallfastafile, shredfastafile)):
-        filter([fastafile, maxreadlen, "--less", "-o", smallfastafile])
-        filter([fastafile, maxreadlen, "-o", bigfastafile])
-        shred(["--depth=1", "--readlen={0}".format(maxreadlen), \
+        filter([fastafile, str(maxreadlen), "--less", "-o", smallfastafile])
+        filter([fastafile, str(maxreadlen), "-o", bigfastafile])
+        shred(["--depth=1", "--shift={0}".format(maxreadlen / 100), \
+                "--readlen={0}".format(maxreadlen), \
                 "--fasta", bigfastafile])
 
     return smallfastafile, shredfastafile
@@ -694,7 +694,7 @@ def fasta(args):
     p.add_option("--clean", default=False, action="store_true",
                  help="Clean up irregular chars in seq")
     p.add_option("--matefile", help="Matepairs file")
-    p.add_option("--maxreadlen", default=0, type="int",
+    p.add_option("--maxreadlen", default=262143, type="int",
                  help="Maximum read length allowed")
     p.add_option("--minreadlen", default=1000, type="int",
                  help="Minimum read length allowed")
@@ -732,7 +732,7 @@ def fasta(args):
     if mated:
         libname = "Sanger{0}Kb-".format(opts.size / 1000) + plate
     else:
-        libname = plate[:2].upper()
+        libname = plate
 
     frgfile = libname + ".frg"
 

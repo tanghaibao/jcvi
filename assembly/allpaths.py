@@ -345,6 +345,7 @@ if [ -f frag_reads_orig.fastb ]
 then
     echo "'frag_reads_orig.fastb' exists. Skip loading reads."
 else
+    mkdir -p $PWD/read_cache
     echo "Load reads ..."
     CacheLibs.pl CACHE_DIR=$PWD/read_cache \
         ACTION=Add IN_LIBS_CSV=in_libs.csv

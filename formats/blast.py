@@ -523,9 +523,12 @@ def annotate(args):
 
     Annotate overlap types (dovetail, contained, etc) in BLAST tabular file.
     """
-    from jcvi.assembly.goldenpath import Overlap, Overlap_types
+    from jcvi.assembly.goldenpath import Cutoff, Overlap, Overlap_types
 
     p = OptionParser(annotate.__doc__)
+    p.set_align(pctid=94, hitlen=500)
+    p.add_option("--hang", default=500, type="int",
+                 help="Maximum overhang length")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -535,12 +538,18 @@ def annotate(args):
     fp = open(blastfile)
     asizes = Sizes(afasta).mapping
     bsizes = Sizes(bfasta).mapping
+    cutoff = Cutoff(opts.pctid, opts.hitlen, opts.hang)
+    logging.debug(str(cutoff))
     for row in fp:
         b = BlastLine(row)
         asize = asizes[b.query]
         bsize = bsizes[b.subject]
-        ov = Overlap(b, asize, bsize)
-        print "{0}\t{1}".format(b, Overlap_types[ov.otype])
+        if b.query == b.subject:
+            continue
+        ov = Overlap(b, asize, bsize, cutoff)
+        if ov.otype:
+            ov.print_graphic()
+            print "{0}\t{1}".format(b, Overlap_types[ov.otype])
 
 
 def top10(args):

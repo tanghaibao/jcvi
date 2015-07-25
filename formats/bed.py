@@ -369,6 +369,7 @@ def main():
 
     actions = (
         ('depth', 'calculate average depth per feature using coverageBed'),
+        ('mergebydepth', 'returns union of features beyond certain depth'),
         ('sort', 'sort bed file'),
         ('merge', 'merge bed files'),
         ('index', 'index bed file using tabix'),
@@ -445,18 +446,22 @@ def clr(args):
         filter_bedpe(bedpe, filtered, ref, rc=opts.rc,
                      minlen=opts.minlen, maxlen=opts.maxlen)
 
-    rmdup = bedpe + ".filtered.sorted.rmdup"
+    rmdup = filtered + ".sorted.rmdup"
     if need_update(filtered, rmdup):
         rmdup_bedpe(filtered, rmdup, dupwiggle=opts.dup)
 
-    if opts.bedonly:
-        return
+    converted = rmdup + ".converted"
+    if need_update(rmdup, converted):
+        fp = open(rmdup)
+        fw = open(converted, "w")
+        for row in fp:
+            r = BedpeLine(row)
+            print >> fw, r.bedline
+        fw.close()
 
-    merged = bedpe + ".merge.bed"
-    if need_update(rmdup, merged):
-        mergeBed(rmdup)
-
-    return fastaFromBed(merged, ref)
+    merged = converted + ".merge.bed"
+    if need_update(converted, merged):
+        mergeBed(converted)
 
 
 def sfa_to_fq(sfa, qvchar):
@@ -549,6 +554,8 @@ def alignextend(args):
                  help="Extend to this length")
     p.add_option("--qv", default=31, type="int",
                  help="Dummy qv score for extended bases")
+    p.add_option("--bedonly", default=False, action="store_true",
+                 help="Only generate bed files, no FASTA")
     p.set_bedpe()
     opts, args = p.parse_args(args)
 
@@ -736,6 +743,46 @@ def filter(args):
                     format(percentage(len(keep), len(total))))
     logging.debug("Stats: {0} bases kept.".\
                     format(percentage(sum(keep), sum(total))))
+
+
+def mergebydepth(args):
+    """
+    %prog mergebydepth reads.bed genome.fasta
+
+    Similar to mergeBed, but only returns regions beyond certain depth.
+    """
+    p = OptionParser(mergebydepth.__doc__)
+    p.add_option("--mindepth", default=3, type="int",
+                 help="Minimum depth required")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    bedfile, fastafile = args
+    sizesfile = Sizes(fastafile).filename
+    mindepth = opts.mindepth
+
+    pf = bedfile.rsplit(".", 1)[0]
+    sortedbed = pf + ".sorted.bed"
+    if need_update(bedfile, sortedbed):
+        cmd = "sort -k1,1 -k2,2n {0}".format(bedfile)
+        sh(cmd, outfile=sortedbed)
+
+    bedgraph = pf + ".bedgraph"
+    if need_update(sortedbed, bedgraph):
+        cmd = "genomeCoverageBed"
+        cmd += " -i {0} -g {1} -bga".format(sortedbed, sizesfile)
+        sh(cmd, outfile=bedgraph)
+
+    bedgraphfiltered = bedgraph + ".d{0}".format(mindepth)
+    if need_update(bedgraph, bedgraphfiltered):
+        filter([bedgraph, "--minaccn={0}".format(mindepth),
+                "--outfile={0}".format(bedgraphfiltered)])
+
+    merged = bedgraphfiltered + ".merge.fasta"
+    if need_update(bedgraphfiltered, merged):
+        mergeBed(bedgraphfiltered, sorted=True)
 
 
 def depth(args):
@@ -1240,7 +1287,8 @@ def mergeBed(bedfile, d=0, sorted=False, nms=False, s=False, scores=None, delim=
 
     cmd += ' -delim "{0}"'.format(delim)
 
-    mergebedfile = op.basename(bedfile).rsplit(".", 1)[0] + ".merge.bed"
+    pf = bedfile.rsplit(".", 1)[0] if bedfile.endswith(".bed") else bedfile
+    mergebedfile = op.basename(pf) + ".merge.bed"
 
     if need_update(bedfile, mergebedfile):
         sh(cmd, outfile=mergebedfile)

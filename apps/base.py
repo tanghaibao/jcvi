@@ -394,8 +394,6 @@ class OptionParser (OptionP):
                      help="Maximum insert size")
         self.add_option("--dup", default=10, type="int",
                      help="Filter duplicates with coordinates within this distance")
-        self.add_option("--bedonly", default=False, action="store_true",
-                     help="Only generate bed files, no FASTA")
 
     def set_pairs(self):
         """

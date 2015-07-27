@@ -368,6 +368,22 @@ def make_attributes(s, gff3=True, keep_attr_order=True):
     return d
 
 
+def to_range(obj, score=None, id=None, strand=None):
+    """
+    Given a gffutils object, convert it to a range object
+    """
+    from jcvi.utils.range import Range
+
+    if score or id:
+        _score = score if score else obj.score
+        _id = id if id else obj.id
+        return Range(seqid=obj.seqid, start=obj.start, end=obj.end, \
+            score=_score, id=_id)
+    elif strand:
+        return (obj.seqid, obj.start, obj.end, obj.strand)
+
+    return (obj.seqid, obj.start, obj.end)
+
 def main():
 
     actions = (

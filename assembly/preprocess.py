@@ -598,7 +598,7 @@ def correct(args):
         sys.exit(not p.print_help())
 
     fastq = args
-    tag, tagj = "frag_reads", "jump_reads"
+    tag, tagj, taglj = "frag_reads", "jump_reads", "long_jump_reads"
 
     ploidy = opts.ploidy
     haploidify = opts.haploidify
@@ -627,9 +627,13 @@ def correct(args):
 
     origj = datadir + "/{0}_orig".format(tagj)
     origjfastb = origj + ".fastb"
-
     if op.exists(origjfastb):
         correct_jump(datadir, tagj, origjfastb, nthreads)
+
+    origlj = datadir + "/{0}_orig".format(taglj)
+    origljfastb = origlj + ".fastb"
+    if op.exists(origljfastb):
+        correct_jump(datadir, taglj, origljfastb, nthreads)
 
 
 def export_fastq(datadir, corrfastb, rc=False):

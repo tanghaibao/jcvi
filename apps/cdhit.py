@@ -12,6 +12,7 @@ import logging
 from collections import defaultdict
 
 from jcvi.formats.base import LineFile, read_block, must_open
+from jcvi.formats.fasta import parse_fasta
 from jcvi.formats.fastq import fasta
 from jcvi.utils.cbook import percentage
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update
@@ -130,6 +131,10 @@ def filter(args):
                   format(percentage(totalassembled, totalreads)))
 
 
+def musclewrap(clustfile):
+    pass
+
+
 def uclust(args):
     """
     %prog uclust fastafile
@@ -160,22 +165,63 @@ def uclust(args):
         cmd += " -threads {0}".format(cpus)
         sh(cmd)
 
-    consensusfile = pf + ".u"
+    userfile = pf + ".u"
     notmatchedfile = pf + ".notmatched"
-    if need_update(derepfile, consensusfile):
+    if need_update(derepfile, userfile):
         cmd = usearch + " -minseqlength 30"
         cmd += " -leftjust"
         cmd += " -cluster_smallmem {0}".format(derepfile)
         cmd += " -id {0}".format(identity)
-        cmd += " -userout {0}".format(consensusfile)
+        cmd += " -userout {0}".format(userfile)
         cmd += " -userfields query+target+id+gaps+qstrand+qcov"
         cmd += " -maxaccepts 1 -maxrejects 0"
         cmd += " -minsl .5 -fulldp"
         cmd += " -usersort -sizein"
         cmd += " -notmatched {0}".format(notmatchedfile)
-        #cmd += " -consout {0}".format(consensusfile)
         cmd += " -threads {0}".format(cpus)
         sh(cmd)
+
+    D = {}  # Reads
+    for header, seq in parse_fasta(derepfile):
+        a, b = header.rstrip(";").split(";")
+        size = int(b.replace("size=", ""))
+        D[header] = (size, seq)
+
+    U = defaultdict(list)  # Clusters
+    fp = open(userfile)
+    for row in fp:
+        query, target, id, gaps, qstrand, qcov = row.rstrip().split("\t")
+        U[target].append([query, qstrand, qcov, gaps])
+
+    SEQS = []
+    sep = "//\n//\n"
+    outfile = open("clust.gz", "w")
+    for key, values in U.items():
+        seq = key + "\n" + D[key][1] + '\n'
+        S    = [i[0] for i in values]       ## names of matches
+        R    = [i[1] for i in values]       ## + or - for strands
+        Cov  = [int(float(i[2])) for i in values]  ## query coverage (overlap)
+        for i in range(len(S)):
+            if R[i] == "+":
+                " only match forward reads if high Cov"
+                if Cov[i] >= 90:
+                    seq += S[i] + '+\n' + D[S[i]][1] + "\n"
+        SEQS.append(seq)
+
+    I = {}
+    for header, seq in parse_fasta(notmatchedfile):
+        I[header] = seq
+
+    singletons = set(I.keys()) - set(U.keys())
+    logging.debug("size(I): {0}, size(U): {1}, size(I - U): {2}".\
+                    format(len(I), len(U), len(singletons)))
+    for key in singletons:
+        seq = key + "\n" + I[key] + '\n'
+        SEQS.append(seq)
+    outfile.write(sep.join(SEQS) + sep)
+    outfile.close()
+
+    musclewrap(outfile)
 
 
 def ids(args):

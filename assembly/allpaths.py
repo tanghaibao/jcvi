@@ -252,7 +252,7 @@ def fill(args):
         sh(cmd)
 
 
-def extract_pairs(fastqfile, p1fw, p2fw, fragsfw, p):
+def extract_pairs(fastqfile, p1fw, p2fw, fragsfw, p, suffix=False):
     """
     Take fastqfile and array of pair ID, extract adjacent pairs to outfile.
     Perform check on numbers when done. p1fw, p2fw is a list of file handles,
@@ -268,7 +268,12 @@ def extract_pairs(fastqfile, p1fw, p2fw, fragsfw, p):
             nfrags += 1
         a = list(islice(fp, 4))
         b = list(islice(fp, 4))
-        b[0] = a[0]  # Keep same read ID for pairs
+        if suffix:
+            name = a[0].rstrip()
+            a[0] = name + "/1\n"
+            b[0] = name + "/2\n"
+        else:
+            b[0] = a[0]  # Keep same read ID for pairs
 
         p1fw[lib].writelines(a)
         p2fw[lib].writelines(b)
@@ -310,6 +315,8 @@ def pairs(args):
     p = OptionParser(pairs.__doc__)
     p.add_option("--header", default=False, action="store_true",
             help="Print header only [default: %default]")
+    p.add_option("--suffix", default=False, action="store_true",
+                 help="Add suffix /1, /2 to read names")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -335,7 +342,7 @@ def pairs(args):
     p2fw = [open(p2file.format(x), "w") for x in p.libnames]
     fragsfw = open(fragsfile.format(pf), "w")
 
-    extract_pairs(fastqfile, p1fw, p2fw, fragsfw, p)
+    extract_pairs(fastqfile, p1fw, p2fw, fragsfw, p, suffix=opts.suffix)
 
 
 ALLPATHSRUN = r"""

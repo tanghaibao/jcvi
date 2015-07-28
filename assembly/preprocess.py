@@ -562,9 +562,12 @@ def run_FastbAndQualb2Fastq(infile=None, outfile=None, rc=False):
 
 
 @depends
-def run_pairs(infile=None, outfile=None):
+def run_pairs(infile=None, outfile=None, suffix=False):
     from jcvi.assembly.allpaths import pairs
-    pairs(infile)
+    args = infile
+    if suffix:
+        args.append("--suffix")
+    pairs(args)
 
 
 def correct(args):
@@ -591,6 +594,8 @@ def correct(args):
                  help="Ploidy [default: %default]")
     p.add_option("--haploidify", default=False, action="store_true",
                  help="Set HAPLOIDIFY=True [default: %default]")
+    p.add_option("--suffix", default=False, action="store_true",
+                 help="Add suffix /1, /2 to read names")
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -602,6 +607,7 @@ def correct(args):
 
     ploidy = opts.ploidy
     haploidify = opts.haploidify
+    suffix = opts.suffix
     assert (not haploidify) or (haploidify and ploidy == '2')
 
     prepare(["Unknown"] + fastq + ["--norun"])
@@ -623,20 +629,20 @@ def correct(args):
 
     if op.exists(origfastb):
         correct_frag(datadir, tag, origfastb, nthreads, dedup=opts.fragsdedup,
-                     haploidify=haploidify)
+                     haploidify=haploidify, suffix=suffix)
 
     origj = datadir + "/{0}_orig".format(tagj)
     origjfastb = origj + ".fastb"
     if op.exists(origjfastb):
-        correct_jump(datadir, tagj, origjfastb, nthreads)
+        correct_jump(datadir, tagj, origjfastb, nthreads, suffix=suffix)
 
     origlj = datadir + "/{0}_orig".format(taglj)
     origljfastb = origlj + ".fastb"
     if op.exists(origljfastb):
-        correct_jump(datadir, taglj, origljfastb, nthreads)
+        correct_jump(datadir, taglj, origljfastb, nthreads, suffix=suffix)
 
 
-def export_fastq(datadir, corrfastb, rc=False):
+def export_fastq(datadir, corrfastb, rc=False, suffix=False):
     pf = op.basename(corrfastb.rsplit(".", 1)[0])
 
     cwd = os.getcwd()
@@ -649,11 +655,11 @@ def export_fastq(datadir, corrfastb, rc=False):
     pairsfile = pf + ".pairs"
     fragsfastq = pf + ".corr.fastq"
     run_pairs(infile=[op.join(datadir, pairsfile), op.join(datadir, corrfastq)],
-                      outfile=fragsfastq)
+                      outfile=fragsfastq, suffix=suffix)
 
 
 def correct_frag(datadir, tag, origfastb, nthreads,
-                 dedup=False, haploidify=False):
+                 dedup=False, haploidify=False, suffix=False):
     filt = datadir + "/{0}_filt".format(tag)
     filtfastb = filt + ".fastb"
     run_RemoveDodgyReads(infile=origfastb, outfile=filtfastb,
@@ -684,17 +690,17 @@ def correct_frag(datadir, tag, origfastb, nthreads,
         cmd += nthreads
         sh(cmd)
 
-    export_fastq(datadir, corrfastb)
+    export_fastq(datadir, corrfastb, suffix=suffix)
 
 
-def correct_jump(datadir, tagj, origjfastb, nthreads):
+def correct_jump(datadir, tagj, origjfastb, nthreads, suffix=False):
     # Pipeline for jump reads does not involve correction
     filt = datadir + "/{0}_filt".format(tagj)
     filtfastb = filt + ".fastb"
     run_RemoveDodgyReads(infile=origjfastb, outfile=filtfastb, \
                          removeDuplicates=True, rc=True, nthreads=nthreads)
 
-    export_fastq(datadir, filtfastb, rc=True)
+    export_fastq(datadir, filtfastb, rc=True, suffix=suffix)
 
 
 if __name__ == '__main__':

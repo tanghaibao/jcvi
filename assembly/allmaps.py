@@ -125,7 +125,7 @@ class ScaffoldOO (object):
     """
     def __init__(self, lgs, scaffolds, mapc, pivot, weights, sizes,
                  function=(lambda x: x.rank), linkage=min, fwtour=None,
-                 ngen=500, npop=100, cpus=8, seed=666):
+                 skipconcorde=False, ngen=500, npop=100, cpus=8, seed=666):
 
         self.lgs = lgs
         self.lengths = mapc.lengths
@@ -136,6 +136,7 @@ class ScaffoldOO (object):
         self.weights = weights
         self.function = function
         self.linkage = linkage
+        self.skipconcorde = skipconcorde
 
         self.prepare_linkage_groups()  # populate all data
         for mlg in self.lgs:
@@ -263,14 +264,19 @@ class ScaffoldOO (object):
         for a, b in combinations(scaffolds, 2):
             if G.has_edge(a, b):
                 continue
-            l = L[a][b]
-            G.add_edge(a, b, weight=l)
-            G.add_edge(b, a, weight=l)
+            if a in L and b in L[a]:
+                l = L[a][b]
+                G.add_edge(a, b, weight=l)
+                G.add_edge(b, a, weight=l)
 
         edges = []
         for a, b, d in G.edges(data=True):
             edges.append((a, b, d['weight']))
 
+        if self.skipconcorde:
+            logging.debug("concorde-TSP skipped. Use default scaffold ordering.")
+            tour = scaffolds[:]
+            return tour
         try:
             tour = hamiltonian(edges, directed=True, precision=2)
             assert tour[0] == START and tour[-1] == END
@@ -1080,6 +1086,8 @@ def path(args):
                  help="Only plot matchings more than")
     p.add_option("--noplot", default=False, action="store_true",
                  help="Do not visualize the alignments")
+    p.add_option("--skipconcorde", default=False, action="store_true",
+                 help="Skip TSP optimizer, can speed up large cases")
     p.set_cpus(cpus=16)
 
     q = OptionGroup(p, "Genetic algorithm options")
@@ -1102,6 +1110,7 @@ def path(args):
     bedfile = pf + ".bed"
     weightsfile = opts.weightsfile
     gapsize = opts.gapsize
+    skipconcorde = opts.skipconcorde
     ngen = opts.ngen
     npop = opts.npop
     cpus = opts.cpus
@@ -1190,6 +1199,7 @@ def path(args):
         logging.debug("Working on {0} ...".format(tag))
         s = ScaffoldOO(lgs, scaffolds, cc, pivot, weights, sizes,
                        function=function, linkage=linkage, fwtour=fwtour,
+                       skipconcorde=skipconcorde,
                        ngen=ngen, npop=npop, cpus=cpus, seed=seed)
 
         solutions.append(s)

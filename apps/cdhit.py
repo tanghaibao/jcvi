@@ -8,14 +8,17 @@ Using CD-HIT (CD-HIT-454) in particular to remove duplicate reads.
 import os.path as op
 import sys
 import logging
+import numpy as np
 
 from collections import defaultdict
+from itertools import izip
+from subprocess import Popen, PIPE, STDOUT
 
 from jcvi.formats.base import LineFile, read_block, must_open
 from jcvi.formats.fasta import parse_fasta
 from jcvi.formats.fastq import fasta
 from jcvi.utils.cbook import percentage
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update
+from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh
 
 
 class ClstrLine (object):
@@ -131,17 +134,190 @@ def filter(args):
                   format(percentage(totalassembled, totalreads)))
 
 
+def alignfast(names, seqs):
+    """ Performs MUSCLE alignments on cluster and returns output as string """
+    ST = "\n".join('>' + i + '\n' + j for i, j in zip(names, seqs))
+    cmd = "/bin/echo '" + ST +"' | muscle -quiet -in -"
+    p = Popen(cmd, shell=True, stdin=PIPE, stdout=PIPE, stderr=STDOUT, close_fds=True)
+    (fin, fout) = (p.stdin, p.stdout)
+    return fout.read()
+
+
+def sortalign(stringnames):
+    """ parses muscle output from a string to two list """
+    G = stringnames.split("\n>")
+    GG = [i.split("\n")[0].replace(">", "") + "\n" + "".join(i.split('\n')[1:]) for i in G]
+    aligned = [i.split("\n") for i in GG]
+    nn = [">" + i[0] for i in aligned]
+    seqs = [i[1] for i in aligned]
+    return nn, seqs
+
+
 def musclewrap(clustfile):
-    pass
+    clustSfile = clustfile.replace(".clust", ".clustS")
+    f = open(clustfile)
+    k = izip(*[iter(f)]*2)
+    OUT = []
+    cnts = 0
+    while 1:
+        try: first = k.next()
+        except StopIteration: break
+        itera = [first[0],first[1]]
+        STACK = []
+        names = []
+        seqs = []
+        while itera[0] != "//\n":
+            names.append(itera[0].strip())
+            seqs.append(itera[1].strip())
+            itera = k.next()
+        if len(names) > 1:
+            " keep only the 200 most common dereps, aligning more is surely junk "
+            stringnames = alignfast(names[0:200], seqs[0:200])
+            nn, ss = sortalign(stringnames)
+            D1 = {}
+            leftlimit = 0
+            for i in range(len(nn)):
+                D1[nn[i]] = ss[i]
+
+                " do not allow seqeuence to the left of the seed (may include adapter/barcodes)"
+                if not nn[i].split(";")[-1]:
+                    leftlimit = min([ss[i].index(j) for j in ss[i] if j!="-"])
+
+            " reorder keys by derep number "
+            keys = D1.keys()
+            keys.sort(key=lambda x:int(x.split(";")[1].replace("size=","")), reverse=True)
+            for key in keys:
+                STACK.append(key+'\n'+D1[key][leftlimit:])
+        else:
+            if names:
+                STACK = [names[0]+"\n"+seqs[0]]
+
+        if STACK:
+            OUT.append("\n".join(STACK))
+
+        cnts += 1
+        if not cnts % 500:
+            if OUT:
+                outfile = open(clustSfile, 'a')
+                outfile.write("\n//\n//\n".join(OUT) + "\n//\n//\n")
+                outfile.close()
+            OUT = []
+
+    outfile = open(clustSfile, 'a')
+    if OUT:
+        outfile.write("\n//\n//\n".join(OUT)+"\n//\n//\n")
+    outfile.close()
+
+
+def stats(clustSfile, statsfile, mindepth=0):
+    infile = open(clustSfile)
+    L = izip(*[iter(infile)] * 2)
+    try:
+        a = L.next()[0]
+    except StopIteration:
+        print "no clusters found in ", clustSfile + "\n\n"
+        sys.exit()
+
+    depth = []
+    d = int(a.split(";")[1].replace("size=",""))
+    while 1:
+        try: a = L.next()[0]
+        except StopIteration: break
+        if a != "//\n":
+            d += int(a.split(";")[1].replace("size=",""))
+        else:
+            depth.append(d)
+            d = 0
+    infile.close()
+    keep = [i for i in depth if i >= mindepth]
+    namecheck = op.basename(clustSfile).split(".")[0]
+    if depth:
+        me = round(np.mean(depth), 3)
+        std = round(np.std(depth), 3)
+    else:
+        me = std = 0.0
+    if keep:
+        mek = round(np.mean(keep), 3)
+        stdk = round(np.std(keep), 3)
+    else:
+        mek = stdk = 0.0
+    out = dict(label=namecheck, cnts=len(depth), mean=me, std=std,
+               keep=len(keep), meank=mek, stdk=stdk)
+    header = "label cnts mean std keep meank stdk".split()
+
+    bins = [0, 5, 10, 15, 20, 25, 30, 35, 40, 50, 100, 250, 500, 99999]
+    ohist, edges = np.histogram(depth, bins)
+    hist = [float(i) / sum(ohist) for i in ohist]
+    hist = [int(round(i * 30)) for i in hist]
+
+    logging.debug("Sample {0} finished, {1} loci".\
+                    format(clustSfile, len(depth)))
+
+    fw = open(statsfile,'w')
+    print >> fw, "# Params: mindepth={0}".format(mindepth)
+    print >> fw, " ".join("{0}={1}".format(k, out[k]) for k in header)
+    print >> fw, "\nbins\tdepth_histogram\tcnts"
+    print >> fw, "   :\t0------------50-------------100%"
+
+    for i, j, k in zip(edges, hist, ohist):
+        firststar = " "
+        if k > 0:
+            firststar = "*"
+        print >> fw, i,'\t', firststar + "*" * j + " " * (34 - j), k
+    fw.close()
+
+
+def makeclust(derepfile, userfile, notmatchedfile, clustfile):
+    D = {}  # Reads
+    for header, seq in parse_fasta(derepfile):
+        a, b = header.rstrip(";").split(";")
+        size = int(b.replace("size=", ""))
+        D[header] = (size, seq)
+
+    U = defaultdict(list)  # Clusters
+    fp = open(userfile)
+    for row in fp:
+        query, target, id, gaps, qstrand, qcov = row.rstrip().split("\t")
+        U[target].append([query, qstrand, qcov, gaps])
+
+    SEQS = []
+    sep = "//\n//\n"
+    for key, values in U.items():
+        seq = key + "\n" + D[key][1] + '\n'
+        S    = [i[0] for i in values]       ## names of matches
+        R    = [i[1] for i in values]       ## + or - for strands
+        Cov  = [int(float(i[2])) for i in values]  ## query coverage (overlap)
+        for i in range(len(S)):
+            # Only match forward reads if high Cov
+            if R[i] == "+" and Cov[i] >= 90:
+                seq += S[i] + '+\n' + D[S[i]][1] + "\n"
+        SEQS.append(seq)
+
+    I = {}
+    for header, seq in parse_fasta(notmatchedfile):
+        I[header] = seq
+
+    singletons = set(I.keys()) - set(U.keys())
+    logging.debug("size(I): {0}, size(U): {1}, size(I - U): {2}".\
+                    format(len(I), len(U), len(singletons)))
+
+    outfile = open(clustfile, "w")
+    for key in singletons:
+        seq = key + "\n" + I[key] + '\n'
+        SEQS.append(seq)
+    outfile.write(sep.join(SEQS) + sep)
+    outfile.close()
 
 
 def uclust(args):
     """
     %prog uclust fastafile
 
-    Use `vsearch` to remove duplicate reads.
+    Use `vsearch` to remove duplicate reads. This routine is heavily influenced
+    by PyRAD: <https://github.com/dereneaton/pyrad>.
     """
     p = OptionParser(uclust.__doc__)
+    p.add_option("--mindepth", default=3, type="int", help="Minimum depth required")
     p.set_align(pctid=96)
     p.set_cpus()
     opts, args = p.parse_args(args)
@@ -181,47 +357,17 @@ def uclust(args):
         cmd += " -threads {0}".format(cpus)
         sh(cmd)
 
-    D = {}  # Reads
-    for header, seq in parse_fasta(derepfile):
-        a, b = header.rstrip(";").split(";")
-        size = int(b.replace("size=", ""))
-        D[header] = (size, seq)
+    clustfile = pf + ".clust"
+    if need_update((derepfile, userfile, notmatchedfile), clustfile):
+        makeclust(derepfile, userfile, notmatchedfile, clustfile)
 
-    U = defaultdict(list)  # Clusters
-    fp = open(userfile)
-    for row in fp:
-        query, target, id, gaps, qstrand, qcov = row.rstrip().split("\t")
-        U[target].append([query, qstrand, qcov, gaps])
+    clustSfile = pf + ".clustS"
+    if need_update(clustfile, clustSfile):
+        musclewrap(clustfile)
 
-    SEQS = []
-    sep = "//\n//\n"
-    outfile = open("clust.gz", "w")
-    for key, values in U.items():
-        seq = key + "\n" + D[key][1] + '\n'
-        S    = [i[0] for i in values]       ## names of matches
-        R    = [i[1] for i in values]       ## + or - for strands
-        Cov  = [int(float(i[2])) for i in values]  ## query coverage (overlap)
-        for i in range(len(S)):
-            if R[i] == "+":
-                " only match forward reads if high Cov"
-                if Cov[i] >= 90:
-                    seq += S[i] + '+\n' + D[S[i]][1] + "\n"
-        SEQS.append(seq)
-
-    I = {}
-    for header, seq in parse_fasta(notmatchedfile):
-        I[header] = seq
-
-    singletons = set(I.keys()) - set(U.keys())
-    logging.debug("size(I): {0}, size(U): {1}, size(I - U): {2}".\
-                    format(len(I), len(U), len(singletons)))
-    for key in singletons:
-        seq = key + "\n" + I[key] + '\n'
-        SEQS.append(seq)
-    outfile.write(sep.join(SEQS) + sep)
-    outfile.close()
-
-    musclewrap(outfile)
+    statsfile = pf + ".stats"
+    if need_update(clustSfile, statsfile):
+        stats(clustSfile, statsfile, mindepth=opts.mindepth)
 
 
 def ids(args):

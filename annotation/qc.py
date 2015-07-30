@@ -10,6 +10,7 @@ testing. Several aspects of annotation QC are implemented in this script.
 """
 
 import sys
+import logging
 
 from jcvi.formats.gff import Gff, get_piles, make_index, import_feats, \
             populate_children, to_range
@@ -118,7 +119,9 @@ def reinstate(c, rc, trim5=False, trim3=False, both=True):
         print >> sys.stderr, c.id, "no change"
 
 
-def cmp_children(start, end, rstart, rend, gff, refgff, cid, cftype="CDS"):
+def cmp_children(cid, gff, refgff, cftype="CDS"):
+    start, end = get_cds_minmax(gff, cid, level=1)
+    rstart, rend = get_cds_minmax(refgff, cid, level=1)
     return ((start == rstart) and (end == rend)) and \
         (len(list(gff.children(cid, featuretype=cftype))) \
             == len(list(refgff.children(cid, featuretype=cftype)))) and \
@@ -171,7 +174,6 @@ def trimUTR(args):
     trim3 = SetFile(opts.trim3) if opts.trim3 else set()
     refgff = make_index(opts.refgff) if opts.refgff else None
 
-    mRNA_register = {}
     fw = must_open(opts.outfile, "w")
     for feat in gff.iter_by_parent_childs(featuretype="gene", order_by=("seqid", "start"), level=1):
         for c in feat:
@@ -185,15 +187,13 @@ def trimUTR(args):
                 trim(c, start, end, trim5=t5, trim3=t3, both=trim_both)
                 fprint(c, fw)
             elif ctype == "mRNA":
-                utr_types, extras, skip_exons = [], [], []
+                utr_types, extras = [], set()
                 if any(id in trim5 for id in (cid, cparent)):
                     t5 = True
                     trim5.add(cid)
                 if any(id in trim3 for id in (cid, cparent)):
                     t3 = True
                     trim3.add(cid)
-                start, end = get_cds_minmax(gff, cid, level=1)
-                mRNA_register[cid] = (start, end)
                 refc = None
                 if refgff:
                     try:
@@ -201,22 +201,21 @@ def trimUTR(args):
                         refctype = refc.featuretype
                         refptype = refgff[refc.attributes['Parent'][0]].featuretype
                         if refctype == "mRNA" and refptype == "gene":
-                            rstart, rend = get_cds_minmax(refgff, cid, level=1)
-                            if cmp_children(start, end, rstart, rend, gff, refgff, cid, cftype="CDS"):
+                            if cmp_children(cid, gff, refgff, cftype="CDS"):
                                 reinstate(c, refc, trim5=t5, trim3=t3, both=trim_both)
                                 if t5: utr_types.append('five_prime_UTR')
                                 if t3: utr_types.append('three_prime_UTR')
                                 for utr_type in utr_types:
                                     for utr in refgff.children(refc, featuretype=utr_type):
-                                        extras.append(utr)
+                                        extras.add(utr)
                                         for exon in refgff.region(region=utr, featuretype="exon"):
                                             if exon.attributes['Parent'][0] == cid:
-                                                extras.append(exon)
-                                                skip_exons.append(to_range(exon))
+                                                extras.add(exon)
                         else:
                             refc = None
                     except gffutils.exceptions.FeatureNotFoundError:
                         pass
+                start, end = get_cds_minmax(gff, cid, level=1)
                 if not refc:
                     trim(c, start, end, trim5=t5, trim3=t3, both=trim_both)
                 fprint(c, fw)
@@ -225,8 +224,8 @@ def trimUTR(args):
                     if _ctype not in utr_types:
                         if _ctype != "CDS":
                             if _ctype == "exon":
-                                erange = to_range(cc)
-                                eskip = [range_overlap(erange, x) for x in skip_exons]
+                                eskip = [range_overlap(to_range(cc), to_range(x)) \
+                                    for x in extras if x.featuretype == 'exon']
                                 if any(skip for skip in eskip): continue
                             trim(cc, start, end, trim5=t5, trim3=t3, both=trim_both)
                             fprint(cc, fw)

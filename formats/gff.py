@@ -413,10 +413,93 @@ def main():
         ('orient', 'orient the coding features based on translation'),
         ('splicecov', 'tag gff introns with coverage info from junctions.bed'),
         ('summary', 'print summary stats for features of different types'),
+        ('cluster', 'cluster transcripts based on shared splicing structure')
             )
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def cluster(args):
+    """
+    %prog cluster gffile
+
+    Given a gff file of gene structures (multiple transcripts per gene locus),
+    cluster/consolidate all transcripts based on shared splicing structure.
+
+    If `slop` is enabled, clustering/consolidation will collapse any variation
+    in terminal UTR lengths, keeping only the longest as representative.
+    """
+    from jcvi.utils.grouper import Grouper
+    from itertools import combinations
+
+    p = OptionParser(cluster.__doc__)
+    p.add_option("--slop", default=False, action="store_true",
+            help="allow minor variation in terminal 5'/3' UTR" + \
+                 " start/stop position [default: %default]")
+    p.set_outfile()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    gffile, = args
+    slop = opts.slop
+
+    gff = make_index(gffile)
+
+    fw = must_open(opts.outfile, "w")
+    print >> fw, "##gff-version	3"
+    seen = {}
+    for gene in gff.features_of_type('gene', order_by=('seqid', 'start')):
+        g = Grouper()
+        mrnas = list(combinations([mrna for mrna in gff.children(gene, featuretype='mRNA', order_by=('start'))], 2))
+        if len(mrnas) > 0:
+            for mrna1, mrna2 in mrnas:
+                mrna1s, mrna2s = gff.children_bp(mrna1, child_featuretype='exon'), \
+                    gff.children_bp(mrna2, child_featuretype='exon')
+                g.join((mrna1.id, mrna1s))
+                g.join((mrna2.id, mrna2s))
+
+                if match_subfeats(mrna1, mrna2, gff, gff, featuretype='CDS'):
+                    res = []
+                    for ftype in ('five_prime_UTR', 'three_prime_UTR'):
+                        res.append(match_subfeats(mrna1, mrna2, gff, gff, featuretype=ftype, slop=slop))
+
+                    if all(r == True for r in res):
+                        g.join((mrna1.id, mrna1s), (mrna2.id, mrna2s))
+        else:
+            for mrna1 in gff.children(gene, featuretype='mRNA', order_by=('start')):
+                mrna1s = gff.children_bp(mrna1, child_featuretype='exon')
+                g.join((mrna1.id, mrna1s))
+
+        print >> fw, gene
+        for group in g:
+            group.sort(key=lambda x: x[1], reverse=True)
+            mrnas = [el[0] for el in group]
+            m = mrnas[0]
+
+            _mrnaid = []
+            for x in mrnas:
+                if x not in _mrnaid: _mrnaid.append(x)
+            mrnaid = "{0}".format("-".join(_mrnaid))
+            if mrnaid not in seen:
+                seen[mrnaid] = 0
+            else:
+                seen[mrnaid] += 1
+                mrnaid = "{0}-{1}".format(mrnaid, seen[mrnaid])
+
+            _mrna = gff[m]
+            _mrna.attributes['ID'] = [mrnaid]
+            _mrna.attributes['Parent'] = [gene.id]
+            children = gff.children(m, order_by='start')
+            print >> fw, _mrna
+            for child in children:
+                child.attributes['ID'] = ["{0}".format(child.id)]
+                child.attributes['Parent'] = [mrnaid]
+                print >> fw, child
+
+    fw.close()
 
 
 def summary(args):

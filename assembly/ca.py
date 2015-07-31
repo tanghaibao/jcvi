@@ -38,6 +38,7 @@ def main():
         ('astat', 'generate the coverage-rho scatter plot'),
         ('unitigs', 'output uniquely extended unitigs based on best.edges'),
         ('merger', 'merge reads into unitigs offline'),
+        ('removecontains', 'remove contained reads from gkpStore'),
         ('graph', 'visualize best.edges'),
         ('overlap', 'visualize overlaps for a given fragment'),
             )
@@ -112,6 +113,49 @@ class OverlapLine (object):
         self.bhang = int(args[4])
         self.erate = float(args[5])
         self.erate_adj = float(args[6])
+
+
+def removecontains(args):
+    """
+    %prog removecontains 4-unitigger/best.contains asm.gkpStore
+
+    Remove contained reads from gkpStore. This will improve assembly contiguity
+    without sacrificing accuracy, when using bogart unitigger.
+    """
+    p = OptionParser(removecontains.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    contains, gkpStore = args
+
+    s = set()
+    fp = open(contains)
+    for row in fp:
+        if row[0] == '#':
+            continue
+        iid = int(row.split()[0])
+        s.add(iid)
+
+    cmd = "gatekeeper -dumpfragments -lastfragiid asm.gkpStore"
+    gkpmsg = popen(cmd).read()
+    last_iid = int(gkpmsg.strip().split()[-1])
+
+    ndeleted = 0
+    editfile = "delete.edit"
+    fw = open(editfile, "w")
+    for iid in xrange(1, last_iid + 1):
+        if iid in s:
+            print >> fw, "frg iid {0} isdeleted 1".format(iid)
+            ndeleted += 1
+
+    fw.close()
+    assert len(s) == ndeleted
+    logging.debug("A total of {0} contained reads flagged as deleted."\
+                  .format(ndeleted))
+    print >> sys.stderr, "Now you can run:"
+    print >> sys.stderr, "$ gatekeeper --edit {0} {1}".format(editfile, gkpStore)
 
 
 def overlap(args):

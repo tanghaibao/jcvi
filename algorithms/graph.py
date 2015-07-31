@@ -305,7 +305,7 @@ def graph_local_neighborhood(G, query=-1, maxdegree=10, maxsize=10000):
         print >> sys.stderr, "iter: {0}, graph size={1}".format(depth, len(seen))
         depth += 1
 
-    return G.subgraph(seen)
+    return G.subgraph(seen), query
 
 
 def graph_simplify(G):

@@ -364,9 +364,9 @@ def graph(args):
     p.add_option("--maxerr", default=100, type="int", help="Maximum error rate")
     p.add_option("--query", default=-1, type="int", help="Search from node")
     p.add_option("--largest", default=1, type="int", help="Only show largest components")
-    p.add_option("--maxsize", default=100, type="int", help="Max graph size")
-    p.add_option("--contigs", help="Annotate graph with contig membership, "
-                    " typically from `asm.posmap.frgctg`")
+    p.add_option("--maxsize", default=160, type="int", help="Max graph size")
+    p.add_option("--contigs", default="../9-terminator/asm.posmap.frgctg",
+                help="Annotate graph with contig membership")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -379,7 +379,7 @@ def graph(args):
 
     if len(G) > 10000:
         SG = nx.Graph()
-        H = graph_local_neighborhood(G, query=query,
+        H, query = graph_local_neighborhood(G, query=query,
                                      maxsize=opts.maxsize)
         SG.add_edges_from(H.edges())
         G = SG

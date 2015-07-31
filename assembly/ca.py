@@ -240,16 +240,20 @@ def overlap(args):
 
 
 def parse_ctgs(bestedges, frgtoctg):
-    cache = frgtoctg + ".cache"
+    cache = "frgtoctg.cache"
     if need_update(frgtoctg, cache):
         reads_to_ctgs = {}
-        fp = open(frgtoctg)
-        for row in fp:
-            frg, ctg = row.split()[:2]
-            frg, ctg = int(frg), int(ctg)
-            frg -= 100000000000
-            ctg -= 7180000000000
-            reads_to_ctgs[frg] = ctg
+        frgtodeg = frgtoctg.replace(".frgctg", ".frgdeg")
+        for pf, f in zip(("ctg", "deg"), (frgtoctg, frgtodeg)):
+            fp = open(f)
+            logging.debug("Parse posmap file `{0}`".format(f))
+            for row in fp:
+                frg, ctg = row.split()[:2]
+                frg = int(frg) - 100000000000
+                #ctg = int(ctg) - 7180000000000
+                reads_to_ctgs[frg] = pf + ctg
+            logging.debug("Loaded mapping: {0}".format(len(reads_to_ctgs)))
+
         fw = open(cache, "w")
         cPickle.dump(reads_to_ctgs, fw)
         fw.close()
@@ -258,15 +262,6 @@ def parse_ctgs(bestedges, frgtoctg):
     reads_to_ctgs = cPickle.load(open(cache))
     logging.debug("Contig mapping loaded from `{0}`".format(cache))
     return reads_to_ctgs
-
-
-def annotate_contigs(G, reads_to_ctgs):
-    for n, attrib in G.nodes_iter(data=True):
-        if n in reads_to_ctgs:
-            ctg = reads_to_ctgs[n]
-            attrib['label'] = "utg{0}".format(ctg)
-        else:
-            attrib['label'] = "na"
 
 
 def read_graph(bestedges, maxerr=100, directed=False):
@@ -438,8 +433,17 @@ def graph(args):
             G.add_edges_from(x.edges())
 
     if opts.contigs:
+        from jcvi.utils.counter import Counter
+
         reads_to_ctgs = parse_ctgs(bestedges, opts.contigs)
-        annotate_contigs(G, reads_to_ctgs)
+        seen = []
+        for n, attrib in G.nodes_iter(data=True):
+            contig = reads_to_ctgs.get(n, "na")
+            attrib['label'] = contig
+            seen.append(contig)
+        c = Counter(seen)
+        contigs = ["{0}({1})".format(k, v) for k, v in c.most_common()]
+        print >> sys.stderr, "Contigs: {0}".format(" ".join(contigs))
 
     gexf = "best"
     if query >= 0:

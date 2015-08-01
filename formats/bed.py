@@ -1864,7 +1864,7 @@ def sort(args):
         cmd += " -u"
     cmd += " {0} {1} -o {2}".format(sortopt, bedfile, sortedbed)
 
-    if need_update(bedfile, sortedbed):
+    if inplace or need_update(bedfile, sortedbed):
         sh(cmd)
 
     return sortedbed

@@ -745,6 +745,19 @@ def filter(args):
                     format(percentage(sum(keep), sum(total))))
 
 
+def make_bedgraph(bedfile, fastafile):
+    sizesfile = Sizes(fastafile).filename
+    pf = bedfile.rsplit(".", 1)[0]
+    bedfile = sort([bedfile])
+    bedgraph = pf + ".bedgraph"
+    if need_update(bedfile, bedgraph):
+        cmd = "genomeCoverageBed"
+        cmd += " -i {0} -g {1} -bga".format(bedfile, sizesfile)
+        sh(cmd, outfile=bedgraph)
+
+    return bedgraph
+
+
 def mergebydepth(args):
     """
     %prog mergebydepth reads.bed genome.fasta
@@ -760,20 +773,8 @@ def mergebydepth(args):
         sys.exit(not p.print_help())
 
     bedfile, fastafile = args
-    sizesfile = Sizes(fastafile).filename
     mindepth = opts.mindepth
-
-    pf = bedfile.rsplit(".", 1)[0]
-    sortedbed = pf + ".sorted.bed"
-    if need_update(bedfile, sortedbed):
-        cmd = "sort -k1,1 -k2,2n {0}".format(bedfile)
-        sh(cmd, outfile=sortedbed)
-
-    bedgraph = pf + ".bedgraph"
-    if need_update(sortedbed, bedgraph):
-        cmd = "genomeCoverageBed"
-        cmd += " -i {0} -g {1} -bga".format(sortedbed, sizesfile)
-        sh(cmd, outfile=bedgraph)
+    bedgraph = make_bedgraph(bedfile)
 
     bedgraphfiltered = bedgraph + ".d{0}".format(mindepth)
     if need_update(bedgraph, bedgraphfiltered):
@@ -1211,11 +1212,12 @@ def index(args):
     """
     %prog index bedfile
 
-    Compress frgscffile.sorted and index it using `tabix`.
+    Compress and index bedfile using `tabix`. Use --fasta to give a FASTA file
+    so that a bedgraph file can be generated and indexed.
     """
     p = OptionParser(index.__doc__)
-    p.add_option("--query",
-                 help="Chromosome location [default: %default]")
+    p.add_option("--fasta", help="Generate bedgraph and index")
+    p.add_option("--query", help="Chromosome location")
     p.set_outfile()
 
     opts, args = p.parse_args(args)
@@ -1224,15 +1226,18 @@ def index(args):
         sys.exit(not p.print_help())
 
     bedfile, = args
-    gzfile = bedfile + ".gz"
+    fastafile = opts.fasta
+    if fastafile:
+        bedfile = make_bedgraph(bedfile, fastafile)
 
+    bedfile = sort([bedfile])
+
+    gzfile = bedfile + ".gz"
     if need_update(bedfile, gzfile):
-        bedfile = sort([bedfile])
-        cmd = "bgzip -c {0}".format(bedfile)
-        sh(cmd, outfile=gzfile)
+        cmd = "bgzip {0}".format(bedfile)
+        sh(cmd)
 
     tbifile = gzfile + ".tbi"
-
     if need_update(gzfile, tbifile):
         cmd = "tabix -p bed {0}".format(gzfile)
         sh(cmd)
@@ -1765,12 +1770,7 @@ def pairs(args):
 
     basename = bedfile.split(".")[0]
     insertsfile = ".".join((basename, "inserts"))
-
-    sortedbedfile = op.basename(bedfile).rsplit(".", 1)[0] + ".sorted.bed"
-    if need_update(bedfile, sortedbedfile):
-        bedfile = sort([bedfile, "--accn"])
-    else:
-        bedfile = sortedbedfile
+    bedfile = sort([bedfile, "--accn"])
 
     fp = open(bedfile)
     data = [BedLine(row) for i, row in enumerate(fp) if i < opts.nrows]
@@ -1845,11 +1845,15 @@ def sort(args):
     bedfile, = args
     inplace = opts.inplace
 
+    if not inplace and ".sorted." in bedfile:
+        return bedfile
+
     sortedbed = opts.outfile
     if inplace:
         sortedbed = bedfile
     elif opts.outfile is None:
-        sortedbed = op.basename(bedfile).rsplit(".", 1)[0] + ".sorted.bed"
+        pf, sf = op.basename(bedfile).rsplit(".", 1)
+        sortedbed = pf + ".sorted." + sf
 
     sortopt = "-k1,1 -k2,2n -k4,4" if not opts.accn else \
               "-k4,4 -k1,1 -k2,2n"
@@ -1859,7 +1863,9 @@ def sort(args):
     if opts.unique:
         cmd += " -u"
     cmd += " {0} {1} -o {2}".format(sortopt, bedfile, sortedbed)
-    sh(cmd)
+
+    if need_update(bedfile, sortedbed):
+        sh(cmd)
 
     return sortedbed
 

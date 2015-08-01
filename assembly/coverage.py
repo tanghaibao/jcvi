@@ -18,7 +18,7 @@ from jcvi.formats.base import BaseFile, must_open
 from jcvi.formats.fasta import gaps
 from jcvi.formats.sizes import Sizes
 from jcvi.formats.posmap import query, bed
-from jcvi.formats.bed import BedLine
+from jcvi.formats.bed import BedLine, sort
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update
 
 
@@ -28,13 +28,8 @@ class Coverage (BaseFile):
     contigID baseID coverage
     """
     def __init__(self, bedfile, sizesfile):
-        from jcvi.formats.bed import sort
 
-        sortedbedfile = bedfile.rsplit(".", 1)[0] + ".sorted.bed"
-        if need_update(bedfile, sortedbedfile):
-            sort([bedfile])
-        bedfile = sortedbedfile
-
+        bedfile = sort([bedfile])
         coveragefile = bedfile + ".coverage"
         if need_update(bedfile, coveragefile):
             cmd = "genomeCoverageBed"

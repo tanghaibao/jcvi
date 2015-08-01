@@ -414,12 +414,17 @@ def graph(args):
     bestedges, = args
     query = opts.query
     largest = opts.largest
+    contigs = opts.contigs
     G = read_graph(bestedges, maxerr=opts.maxerr)
+
+    if contigs:
+        reads_to_ctgs = parse_ctgs(bestedges, contigs)
 
     if len(G) > 10000:
         SG = nx.Graph()
         H, query = graph_local_neighborhood(G, query=query,
-                                     maxsize=opts.maxsize)
+                                 maxsize=opts.maxsize,
+                                 reads_to_ctgs=reads_to_ctgs)
         SG.add_edges_from(H.edges())
         G = SG
 
@@ -432,18 +437,17 @@ def graph(args):
         for x in H[:c]:
             G.add_edges_from(x.edges())
 
-    if opts.contigs:
+    if contigs:
         from jcvi.utils.counter import Counter
 
-        reads_to_ctgs = parse_ctgs(bestedges, opts.contigs)
         seen = []
         for n, attrib in G.nodes_iter(data=True):
             contig = reads_to_ctgs.get(n, "na")
             attrib['label'] = contig
             seen.append(contig)
         c = Counter(seen)
-        contigs = ["{0}({1})".format(k, v) for k, v in c.most_common()]
-        print >> sys.stderr, "Contigs: {0}".format(" ".join(contigs))
+        cc = ["{0}({1})".format(k, v) for k, v in c.most_common()]
+        print >> sys.stderr, "Contigs: {0}".format(" ".join(cc))
 
     gexf = "best"
     if query >= 0:

@@ -289,7 +289,7 @@ def graph_local_neighborhood(G, query=-1, maxdegree=10, maxsize=10000,
 
     core = []
     if reads_to_ctgs:
-        ctg = reads_to_ctgs[query]
+        ctg = reads_to_ctgs.get(query)
         core = [k for k, v in reads_to_ctgs.items() if v == ctg]
         logging.debug("Reads ({0}) extended from the same contig {1}".\
                       format(len(core), ctg))
@@ -302,6 +302,8 @@ def graph_local_neighborhood(G, query=-1, maxdegree=10, maxsize=10000,
     while True:
         neighbors = set()
         for q in queue:
+            if q not in G:
+                continue
             neighbors |= set(G.neighbors(q))
         queue = neighbors - seen
         if not queue:

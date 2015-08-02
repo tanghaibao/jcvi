@@ -244,13 +244,20 @@ def parse_ctgs(bestedges, frgtoctg):
     if need_update(frgtoctg, cache):
         reads_to_ctgs = {}
         frgtodeg = frgtoctg.replace(".frgctg", ".frgdeg")
+        iidtouid = frgtoctg.replace(".posmap.frgctg", ".iidtouid")
+        fp = open(iidtouid)
+        frgstore = {}
+        for row in fp:
+            tag, iid, uid = row.split()
+            if tag == "FRG":
+                frgstore[uid] = int(iid)
+
         for pf, f in zip(("ctg", "deg"), (frgtoctg, frgtodeg)):
             fp = open(f)
             logging.debug("Parse posmap file `{0}`".format(f))
             for row in fp:
                 frg, ctg = row.split()[:2]
-                frg = int(frg) - 100000000000
-                #ctg = int(ctg) - 7180000000000
+                frg = frgstore[frg]
                 reads_to_ctgs[frg] = pf + ctg
             logging.debug("Loaded mapping: {0}".format(len(reads_to_ctgs)))
 
@@ -420,13 +427,12 @@ def graph(args):
     if contigs:
         reads_to_ctgs = parse_ctgs(bestedges, contigs)
 
-    if len(G) > 10000:
-        SG = nx.Graph()
-        H, query = graph_local_neighborhood(G, query=query,
-                                 maxsize=opts.maxsize,
-                                 reads_to_ctgs=reads_to_ctgs)
-        SG.add_edges_from(H.edges())
-        G = SG
+    SG = nx.Graph()
+    H, query = graph_local_neighborhood(G, query=query,
+                             maxsize=opts.maxsize,
+                             reads_to_ctgs=reads_to_ctgs)
+    SG.add_edges_from(H.edges())
+    G = SG
 
     if largest > 1:  # only works for un-directed graph
         H = nx.connected_component_subgraphs(G)

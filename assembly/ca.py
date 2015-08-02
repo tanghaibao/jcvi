@@ -282,22 +282,21 @@ def read_graph(bestedges, maxerr=100, directed=False):
             if row[0] == '#':
                 continue
             id1, lib_id, best5, o5, best3, o3, j1, j2 = row.split()
-            if not directed:
-                id1, best5, best3 = int(id1), int(best5), int(best3)
+            id1, best5, best3 = int(id1), int(best5), int(best3)
             j1, j2 = float(j1), float(j2)
             if j1 <= maxerr or j2 <= maxerr:
                 if directed:
-                    id1p5, id1p3 = id1 + "-5'", id1 + "-3'"
+                    id1p5, id1p3 = "{0}-5'".format(id1), "{0}-3'".format(id1)
                 else:
                     G.add_node(id1)
-            if best5 != '0' and j1 <= maxerr:
+            if best5 and j1 <= maxerr:
                 if directed:
-                    G[id1p5] = best5 + '-' + o5
+                    G[id1p5] = "{0}-{1}".join(best5, o5)
                 else:
                     G.add_edge(best5, id1)
-            if best3 != '0' and j2 <= maxerr:
+            if best3 and j2 <= maxerr:
                 if directed:
-                    G[id1p3] = best3 + '-' + o3
+                    G[id1p3] = "{0}-{1}".join(best3, o3)
                 else:
                     G.add_edge(id1, best3)
         if directed:
@@ -410,7 +409,7 @@ def graph(args):
     p.add_option("--maxerr", default=100, type="int", help="Maximum error rate")
     p.add_option("--query", default=-1, type="int", help="Search from node")
     p.add_option("--largest", default=1, type="int", help="Only show largest components")
-    p.add_option("--maxsize", default=160, type="int", help="Max graph size")
+    p.add_option("--maxsize", default=500, type="int", help="Max graph size")
     p.add_option("--contigs", default="../9-terminator/asm.posmap.frgctg",
                 help="Annotate graph with contig membership")
     opts, args = p.parse_args(args)

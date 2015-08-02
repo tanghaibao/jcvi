@@ -274,7 +274,7 @@ def graph_stats(G, diameter=False):
         logging.debug("Graph diameter: {0}".format(d))
 
 
-def graph_local_neighborhood(G, query=-1, maxdegree=10, maxsize=10000,
+def graph_local_neighborhood(G, query=-1, maxdegree=10000, maxsize=10000,
                              reads_to_ctgs={}):
     from random import choice
 

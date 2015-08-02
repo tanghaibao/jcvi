@@ -428,7 +428,7 @@ def density(args):
 
 def clr(args):
     """
-    %prog clr bedpefile ref.fasta
+    %prog clr [bamfile|bedpefile] ref.fasta
 
     Use mates from BEDPE to extract ranges where the ref is covered by mates.
     This is useful in detection of chimeric contigs.
@@ -441,6 +441,13 @@ def clr(args):
         sys.exit(not p.print_help())
 
     bedpe, ref = args
+    if bedpe.endswith(".bam"):
+        bedpefile = bedpe.replace(".bam", ".bedpe")
+        if need_update(bedpe, bedpefile):
+            cmd = "bamToBed -bedpe -i {0}".format(bedpe)
+            sh(cmd, outfile=bedpefile)
+        bedpe = bedpefile
+
     filtered = bedpe + ".filtered"
     if need_update(bedpe, filtered):
         filter_bedpe(bedpe, filtered, ref, rc=opts.rc,

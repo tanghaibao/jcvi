@@ -386,8 +386,8 @@ class OptionParser (OptionP):
         self.set_mateorientation(mateorientation=mateorientation)
 
     def set_bedpe(self):
-        self.add_option("--rc", default=False, action="store_true",
-                     help="Reverse complement the reads before alignment")
+        self.add_option("--norc", dest="rc", default=True, action="store_false",
+                     help="Do not reverse complement, expect innie reads")
         self.add_option("--minlen", default=2000, type="int",
                      help="Minimum insert size")
         self.add_option("--maxlen", default=8000, type="int",

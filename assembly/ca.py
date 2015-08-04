@@ -278,6 +278,7 @@ def read_graph(bestedges, maxerr=100, directed=False):
     if need_update(bestedges, bestgraph):
         G = {} if directed else nx.Graph()
         fp = open(bestedges)
+        best_store = {}
         for row in fp:
             if row[0] == '#':
                 continue
@@ -285,20 +286,32 @@ def read_graph(bestedges, maxerr=100, directed=False):
             id1, best5, best3 = int(id1), int(best5), int(best3)
             j1, j2 = float(j1), float(j2)
             if j1 <= maxerr or j2 <= maxerr:
-                if directed:
-                    id1p5, id1p3 = "{0}-5'".format(id1), "{0}-3'".format(id1)
-                else:
+                if not directed:
                     G.add_node(id1)
+                id1p5, id1p3 = "{0}-5'".format(id1), "{0}-3'".format(id1)
+                best5o5 = "{0}-{1}".format(best5, o5)
+                best3o3 = "{0}-{1}".format(best3, o3)
+                best_store[id1p5] = best5o5
+                best_store[id1p3] = best3o3
             if best5 and j1 <= maxerr:
                 if directed:
-                    G[id1p5] = "{0}-{1}".join(best5, o5)
+                    G[id1p5] = best5o5
                 else:
-                    G.add_edge(best5, id1)
+                    G.add_edge(best5, id1, weight=1)
             if best3 and j2 <= maxerr:
                 if directed:
-                    G[id1p3] = "{0}-{1}".join(best3, o3)
+                    G[id1p3] = best3o3
                 else:
-                    G.add_edge(id1, best3)
+                    G.add_edge(id1, best3, weight=1)
+        # Annotate edge weight for mutual best link
+        nmutuals = 0
+        for k, v in best_store.items():
+            if best_store.get(v) == k and k < v:
+                k, v = int(k.split("-")[0]), int(v.split("-")[0])
+                G[k][v]["weight"] = 2
+                nmutuals += 1
+        logging.debug("Mutual best edges: {0}".format(nmutuals))
+
         if directed:
             fw = open(bestgraph, "w")
             cPickle.dump(G, fw)
@@ -400,7 +413,8 @@ def graph(args):
     %prog graph best.edges
 
     Convert Celera Assembler's "best.edges" to a GEXF which can be used to
-    feed into Gephi to check the topology of the best overlapping graph.
+    feed into Gephi to check the topology of the best overlapping graph. Mutual
+    best edges are represented as thicker edges.
 
     Reference:
     https://github.com/PacificBiosciences/Bioinformatics-Training/blob/master/scripts/CeleraToGephi.py
@@ -410,6 +424,8 @@ def graph(args):
     p.add_option("--query", default=-1, type="int", help="Search from node")
     p.add_option("--largest", default=1, type="int", help="Only show largest components")
     p.add_option("--maxsize", default=500, type="int", help="Max graph size")
+    p.add_option("--nomutualbest", default=False, action="store_true",
+                help="Do not plot mutual best edges as heavy")
     p.add_option("--contigs", default="../9-terminator/asm.posmap.frgctg",
                 help="Annotate graph with contig membership")
     opts, args = p.parse_args(args)
@@ -421,6 +437,7 @@ def graph(args):
     query = opts.query
     largest = opts.largest
     contigs = opts.contigs
+    edgeweight=not opts.nomutualbest
     G = read_graph(bestedges, maxerr=opts.maxerr)
 
     if contigs:
@@ -430,7 +447,7 @@ def graph(args):
     H, query = graph_local_neighborhood(G, query=query,
                              maxsize=opts.maxsize,
                              reads_to_ctgs=reads_to_ctgs)
-    SG.add_edges_from(H.edges())
+    SG.add_edges_from(H.edges(data=edgeweight))
     G = SG
 
     if largest > 1:  # only works for un-directed graph

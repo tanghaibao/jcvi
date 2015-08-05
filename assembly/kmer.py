@@ -11,7 +11,8 @@ import logging
 import numpy as np
 
 from jcvi.graphics.base import plt, asciiplot, set_human_axis, savefig, \
-            markup, panel_labels, normalize_axes, set_ticklabels_helvetica
+            markup, panel_labels, normalize_axes, set_ticklabels_helvetica, \
+            write_messages
 from jcvi.formats.fasta import Fasta
 from jcvi.formats.base import BaseFile, must_open, get_number
 from jcvi.utils.cbook import thousands, percentage
@@ -665,13 +666,9 @@ def histogram(args):
             ax.text(ks.max1, tcounts[ks.max1], "SNP peak", va="top")
             ax.text(ks.max2, tcounts[ks.max2], "Main peak")
 
-    tc = "gray"
-    axt = ax.transAxes
-    ax.text(.95, .95, Total_Kmers_msg, color=tc, transform=axt, ha="right")
-    ax.text(.95, .9, Kmer_coverage_msg, color=tc, transform=axt, ha="right")
-    ax.text(.95, .85, Genome_size_msg, color=tc, transform=axt, ha="right")
-    ax.text(.95, .8, Repetitive_msg, color=tc, transform=axt, ha="right")
-    ax.text(.95, .75, SNPrate_msg, color=tc, transform=axt, ha="right")
+    messages = [Total_Kmers_msg, Kmer_coverage_msg, Genome_size_msg,
+                Repetitive_msg, SNPrate_msg]
+    write_messages(ax, messages)
 
     ymin, ymax = ax.get_ylim()
     ymax = ymax * 7 / 6

@@ -323,6 +323,30 @@ def read_graph(bestedges, maxerr=100, directed=False):
             nx.write_gpickle(G, bestgraph)
         logging.debug("Graph pickled to `{0}`".format(bestgraph))
 
+        # Compute node degree histogram and save in (degree, counts) tab file
+        from jcvi.utils.counter import Counter
+        degrees = G.degree()
+        degree_counter = Counter(degrees.values())
+        degreesfile = "degrees.txt"
+        fw = open(degreesfile, "w")
+        for degree, count in sorted(degree_counter.items()):
+            print >> fw, "{0}\t{1}".format(degree, count)
+        fw.close()
+        logging.debug("Node degree distribution saved to `{0}`".\
+                        format(degreesfile))
+
+        # Save high degree (top 1%) nodes in save in (node, degree) tab file
+        percentile = sorted(degrees.values(), reverse=True)[len(degrees) / 1000]
+        logging.debug("Top 0.1% has degree of at least {0}".format(percentile))
+        hubs = [(k, v) for k, v in degrees.items() if v >= percentile]
+        hubs.sort(key=lambda x: x[1], reverse=True)  # degress descending
+        hubsfile = "hubs.txt"
+        fw = open(hubsfile, "w")
+        for node, degree in hubs:
+            print >> fw, "{0}\t{1}".format(node, degree)
+        fw.close()
+        logging.debug("Hubs saved to `{0}`".format(hubsfile))
+
     logging.debug("Read graph from `{0}`".format(bestgraph))
     if directed:
         G = cPickle.load(open(bestgraph))

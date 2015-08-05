@@ -447,6 +447,18 @@ def draw_cmap(ax, cmap_text, vmin, vmax, cmap=None, reverse=False):
         ax.text(x, ymin - .005, "%.1f" % v, ha="center", va="top", size=10)
 
 
+def write_messages(ax, messages):
+    """
+    Write text on canvas, usually on the top right corner.
+    """
+    tc = "gray"
+    axt = ax.transAxes
+    yy = .95
+    for msg in messages:
+        ax.text(.95, yy, msg, color=tc, transform=axt, ha="right")
+        yy -= .05
+
+
 def quickplot(data, xmin, xmax, xlabel, title, ylabel="Counts",
               figname="plot.pdf", counts=True):
     """
@@ -458,6 +470,8 @@ def quickplot(data, xmin, xmax, xlabel, title, ylabel="Counts",
     pad = max(height) * .01
     if counts:
         for l, h in zip(left, height):
+            if l > xmax:
+                break
             plt.text(l, h + pad, str(h), color="darkslategray", size=8,
                      ha="center", va="bottom", rotation=90)
     if xmax is None:
@@ -468,6 +482,21 @@ def quickplot(data, xmin, xmax, xlabel, title, ylabel="Counts",
     plt.ylabel(markup(ylabel))
     plt.title(markup(title))
     plt.xlim((xmin - .5, xmax + .5))
+
+    # Basic statistics
+    messages = []
+    counts_over_xmax = sum([v for k, v in data.items() if k > xmax])
+    if counts_over_xmax:
+        messages += ["Counts over xmax({0}): {1}".format(xmax, counts_over_xmax)]
+    kk = []
+    for k, v in data.items():
+        kk += [k] * v
+    messages += ["Total: {0}".format(np.sum(height))]
+    messages += ["Average: {0:.2f}".format(np.mean(kk))]
+    messages += ["Median: {0}".format(np.median(kk))]
     ax = plt.gca()
+    write_messages(ax, messages)
+
+    set_human_axis(ax)
     set_ticklabels_helvetica(ax)
     savefig(figname)

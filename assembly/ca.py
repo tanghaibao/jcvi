@@ -297,18 +297,21 @@ def read_graph(bestedges, maxerr=100, directed=False):
                 if directed:
                     G[id1p5] = best5o5
                 else:
-                    G.add_edge(best5, id1, weight=1)
+                    G.add_edge(best5, id1, weight=10)
             if best3 and j2 <= maxerr:
                 if directed:
                     G[id1p3] = best3o3
                 else:
-                    G.add_edge(id1, best3, weight=1)
-        # Annotate edge weight for mutual best link
+                    G.add_edge(id1, best3, weight=10)
+
+        # Annotate edge weight for mutual best link, note that edge weights are
+        # (11) set close to 10, to minimize impact to layout (Yifan Hu's
+        # multilevel)
         nmutuals = 0
         for k, v in best_store.items():
             if best_store.get(v) == k and k < v:
                 k, v = int(k.split("-")[0]), int(v.split("-")[0])
-                G[k][v]["weight"] = 2
+                G[k][v]["weight"] = 11
                 nmutuals += 1
         logging.debug("Mutual best edges: {0}".format(nmutuals))
 

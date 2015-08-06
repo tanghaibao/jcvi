@@ -274,30 +274,18 @@ def graph_stats(G, diameter=False):
         logging.debug("Graph diameter: {0}".format(d))
 
 
-def graph_local_neighborhood(G, query=-1, maxdegree=10000, maxsize=10000,
-                             reads_to_ctgs={}):
-    from random import choice
-
+def graph_local_neighborhood(G, query, maxdegree=10000, maxsize=10000):
     c = [k for k, d in G.degree().iteritems() if d > maxdegree]
     if c:
         logging.debug("Remove {0} nodes with deg > {1}".format(len(c), maxdegree))
     G.remove_nodes_from(c)
 
-    if query == -1:
-        query = choice(G.nodes())
-    logging.debug("BFS search from node {0}".format(query))
+    logging.debug("BFS search from {0}".format(query))
 
-    core = []
-    if reads_to_ctgs:
-        ctg = reads_to_ctgs.get(query)
-        core = [k for k, v in reads_to_ctgs.items() if v == ctg]
-        logging.debug("Reads ({0}) extended from the same contig {1}".\
-                      format(len(core), ctg))
-
-    queue = set([query] + core)
+    queue = set(query)
     # BFS search of max depth
-    seen = set([query] + core)
-    coresize = len(core)
+    seen = set(query)
+    coresize = len(query)
     depth = 0
     while True:
         neighbors = set()
@@ -317,7 +305,7 @@ def graph_local_neighborhood(G, query=-1, maxdegree=10000, maxsize=10000,
                                 format(depth, len(seen), len(seen) - coresize)
         depth += 1
 
-    return G.subgraph(seen), query
+    return G.subgraph(seen)
 
 
 def graph_simplify(G):

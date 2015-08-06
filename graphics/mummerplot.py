@@ -43,7 +43,7 @@ def main(args):
                  help="Color the dots based on")
     p.add_option("--nolayout", default=False, action="store_true",
                  help="Do not rearrange contigs")
-    p.set_align(pctid=96, hitlen=500)
+    p.set_align(pctid=0, hitlen=0)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:

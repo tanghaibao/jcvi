@@ -470,7 +470,7 @@ def quickplot(data, xmin, xmax, xlabel, title, ylabel="Counts",
     pad = max(height) * .01
     if counts:
         for l, h in zip(left, height):
-            if l > xmax:
+            if xmax and l > xmax:
                 break
             plt.text(l, h + pad, str(h), color="darkslategray", size=8,
                      ha="center", va="bottom", rotation=90)
@@ -492,6 +492,8 @@ def quickplot(data, xmin, xmax, xlabel, title, ylabel="Counts",
     for k, v in data.items():
         kk += [k] * v
     messages += ["Total: {0}".format(np.sum(height))]
+    messages += ["Maximum: {0}".format(np.max(kk))]
+    messages += ["Minimum: {0}".format(np.min(kk))]
     messages += ["Average: {0:.2f}".format(np.mean(kk))]
     messages += ["Median: {0}".format(np.median(kk))]
     ax = plt.gca()

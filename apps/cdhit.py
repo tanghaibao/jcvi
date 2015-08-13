@@ -9,6 +9,9 @@ import os.path as op
 import sys
 import logging
 import numpy as np
+import scipy
+import scipy.stats
+import scipy.optimize
 
 from collections import defaultdict
 from itertools import izip
@@ -75,11 +78,195 @@ def main():
         ('ids', 'get the representative ids from clstr file'),
         ('deduplicate', 'use `cd-hit-est` to remove duplicate reads'),
         ('uclust', 'use `usearch` to remove duplicate reads'),
+        ('estimateEH', 'estimate error rate and heterozygosity for stacks'),
         ('filter', 'filter consensus sequence with min cluster size'),
         ('summary', 'parse cdhit.clstr file to get distribution of cluster sizes'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def stack(D):
+    """
+    from list of bases at a site D,
+    returns an ordered list of counts of bases
+    """
+    L = len(D)
+    counts = []
+    for i in range(len(D[0])):
+        A = C = T = G = N = S = 0
+        for nseq in range(L):
+            s = D[nseq][i]
+            A += s.count("A")
+            C += s.count("C")
+            T += s.count("T")
+            G += s.count("G")
+            N += s.count("N")
+            S += s.count("-")
+        counts.append( [[A,C,T,G], N, S] )
+    return counts
+
+
+def consensus(f, minsamp, CUT1):
+    """ makes a list of lists of reads at each site """
+    f = open(f)
+    k = izip(*[iter(f)] * 2)
+    while True:
+        try:
+            first = k.next()
+        except StopIteration:
+            break
+        itera = [first[0], first[1]]
+        S = []
+        rights = []
+        lefts = []
+        leftjust = rightjust = None
+        while itera[0] != "//\n":
+            nreps = int(itera[0].strip().split(";")[1].replace("size=", ""))
+
+            # Record left and right most for cutting
+            if itera[0].strip().split(";")[-1] == "":
+                leftjust = itera[1].index([i for i in itera[1] if i not in list("-N")][0])
+                rightjust = itera[1].rindex([i for i in itera[1] if i not in list("-N")][0])
+            lefts.append(itera[1].index([i for i in itera[1] if i not in list("-N")][0]))
+            rights.append(itera[1].rindex([i for i in itera[1] if i not in list("-N")][0]))
+
+            # Append sequence * number of dereps
+            for i in range(nreps):
+                S.append(tuple(itera[1].strip()))
+            itera = k.next()
+
+        # Trim off overhang edges of gbs reads
+        if any([i < leftjust for i in lefts]):
+            rightjust = min(rights)
+        if any([i < rightjust for i in rights]):
+            leftjust = max(lefts)
+
+        for s in range(len(S)):
+            if leftjust or rightjust:
+                S[s] = S[s][leftjust: rightjust + 1]
+
+        # Trim off restriction sites from ends
+        for s in range(len(S)):
+            S[s] = S[s][len(CUT1):]
+
+        if len(S) >= minsamp:
+            # Make list for each site in sequences
+            res = stack(S)
+            # Exclude sites with indels
+            yield [i[0] for i in res if i[2] == 0]
+
+
+def makeP(N):
+    """ returns a list of freq. for ATGC"""
+    sump = float(sum([sum(i) for i in N]))
+    if sump:
+        p1 = sum([i[0] for i in N]) / sump
+        p2 = sum([i[1] for i in N]) / sump
+        p3 = sum([i[2] for i in N]) / sump
+        p4 = sum([i[3] for i in N]) / sump
+    else:
+        p1 = p2 = p3 = p4 = 0.0
+    return [p1, p2, p3, p4]
+
+
+def makeC(N):
+    """ Makes a dictionary with counts of base counts [x,x,x,x]:x,
+    speeds up Likelihood calculation"""
+    C = defaultdict(int)
+    k = iter(N)
+    while True:
+        try:
+            d = k.next()
+        except StopIteration: break
+        C[tuple(d)] += 1
+
+    L = [(i, j) for i, j in C.items()]
+    return [i for i in L if (0,0,0,0) not in i]
+
+
+def L1(E, P, N):
+    """probability homozygous"""
+    h = []
+    s = sum(N)
+    for i, l in enumerate(N):
+        p = P[i]
+        b = scipy.stats.binom.pmf(s - l, s, E)
+        h.append(p*b)
+    return sum(h)
+
+
+def L2(E, P, N):
+    """probability of heterozygous"""
+    h = []
+    s = sum(N)
+    for l, i in enumerate(N):
+        for j, k in enumerate(N):
+            if j > l:
+                one = 2. * P[l] * P[j]
+                two = scipy.stats.binom.pmf(s - i - k, s, (2. * E) / 3.)
+                three = scipy.stats.binom.pmf(i, k + i, 0.5)
+                four = 1. - (sum([q ** 2. for q in P]))
+                h.append(one * two * (three / four))
+    return sum(h)
+
+
+def totlik(E, P, H, N):
+    """ total probability """
+    lik = ((1 - H) * L1(E, P, N)) + (H * L2(E, P, N))
+    return lik
+
+
+def LL(x0, P, C):
+    """ Log likelihood score given values [H, E] """
+    H = x0[0]
+    E = x0[1]
+    L = []
+    if H <= 0. or E <= 0.:
+        r = np.exp(100)
+    else:
+        for i in C:
+            ll = totlik(E, P, H, i[0])
+            if ll > 0:
+                L.append(i[1] * np.log(ll))
+        r = -sum(L)
+    return r
+
+
+def estimateEH(args):
+    """
+    %prog estimateEH name.clustS
+
+    Estimate error rate (E) and heterozygosity (H). Idea borrowed heavily from
+    the PyRad paper.
+    """
+    p = OptionParser(estimateEH.__doc__)
+    p.add_option("--mindepth", default=5, type="int",
+                 help="Minimum depth for each stack")
+    p.add_option("--cut1", default="CATG",
+                 help="Sequence to trim on the left")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    clustSfile, = args
+    nstacks = 0
+    D = []
+    for d in consensus(clustSfile, opts.mindepth, opts.cut1):
+        D.extend(d)
+        nstacks += 1
+        if nstacks % 1000 == 0:
+            logging.debug("{0} stacks parsed".format(nstacks))
+
+    logging.debug("Computing base frequencies ...")
+    P = makeP(D)
+    logging.debug("Computing base vector counts ...")
+    C = makeC(D)
+    logging.debug("Solving log-likelihood function ...")
+    x0 = [0.01, 0.001]  # initital values
+    H, E = scipy.optimize.fmin(LL, x0, (P, C), disp=False, full_output=False)
+    print H, E
 
 
 def filter(args):

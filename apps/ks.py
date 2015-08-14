@@ -165,9 +165,10 @@ class KsPlot (object):
         lines = self.lines
         labels = self.labels
         legendp = self.legendp
-        leg = ax.legend(lines, labels, legendp,
-                        shadow=True, fancybox=True, prop={"size": 10})
-        leg.get_frame().set_alpha(.5)
+        if len(lines) > 1:
+            leg = ax.legend(lines, labels, legendp,
+                            shadow=True, fancybox=True, prop={"size": 10})
+            leg.get_frame().set_alpha(.5)
 
         ax.set_xlim((0, ks_max - self.interval))
         ax.set_title(markup(title), fontweight="bold")
@@ -175,7 +176,7 @@ class KsPlot (object):
         ax.set_ylabel('Percentage of gene pairs')
 
         ax.set_xticklabels(ax.get_xticks(), family='Helvetica')
-        ax.set_yticklabels([int(x) for x in ax.get_yticks()], family='Helvetica')
+        ax.set_yticklabels(ax.get_yticks(), family='Helvetica')
 
         image_name = "Ks_plot.pdf"
         savefig(image_name, dpi=300)
@@ -198,8 +199,6 @@ def multireport(args):
     If color or marker is missing, then a random one will be assigned.
     """
     p = OptionParser(multireport.__doc__)
-    p.add_option("--fit", default=False, action="store_true",
-                 help="Plot fitted lines")
     add_plot_options(p)
     opts, args, iopts = p.set_image_options(args, figsize="5x5")
 
@@ -211,7 +210,6 @@ def multireport(args):
     ks_max = opts.vmax
     bins = opts.bins
     fill = opts.fill
-    fitted = opts.fit
     layout = Layout(layoutfile)
     print >> sys.stderr, layout
 
@@ -224,7 +222,7 @@ def multireport(args):
         data = [x for x in data if ks_min <= x <= ks_max]
         kp.add_data(data, lo.components, label=lo.label, \
                     color=lo.color, marker=lo.marker,
-                    fill=fill, fitted=fitted)
+                    fill=fill, fitted=opts.fit)
 
     kp.draw(title=opts.title)
 
@@ -701,6 +699,7 @@ def subset(args):
                  help="don't write ksfile header line [default: %default]")
     p.add_option("--block", action="store_true",
                  help="preserve block structure in input [default: %default]")
+    p.set_stripnames()
     p.set_outfile()
 
     opts, args = p.parse_args(args)
@@ -717,7 +716,8 @@ def subset(args):
 
     ksvals = {}
     for ksfile in ksfiles:
-        ksvals.update(dict((line.name, line) for line in read_ks_file(ksfile)))
+        ksvals.update(dict((line.name, line) for line in \
+                        read_ks_file(ksfile, strip_names=opts.strip_names)))
 
     fp = open(pairsfile)
     fw = must_open(outfile, "w")
@@ -741,7 +741,7 @@ def subset(args):
                 continue
         ksline = ksvals[name]
         if block:
-            print >>fw, "\t".join(map(str, (a, b, ksline.ng_ks, ksline.ng_ka)))
+            print >>fw, "\t".join(str(x) for x in (a, b, ksline.ng_ks))
         else:
             ksline = ksline._replace(name = ";".join((a, b)))
             print >>fw, ",".join(map(str, ksline))
@@ -764,7 +764,9 @@ descriptions = {
 KsLine = namedtuple("KsLine", fields)
 
 
-def read_ks_file(ks_file):
+def read_ks_file(ks_file, strip_names=False):
+    from jcvi.utils.cbook import gene_name
+
     reader = csv.reader(open(ks_file, "rb"))
     data = []
     for row in reader:
@@ -773,6 +775,8 @@ def read_ks_file(ks_file):
 
         for i, a in enumerate(row):
             if i == 0:
+                if strip_names:
+                    row[i] = ";".join(gene_name(x) for x in row[i].split(";"))
                 continue
             try:
                 row[i] = float(row[i])
@@ -890,6 +894,8 @@ def plot_ks_dist(ax, data, interval, components, ks_max,
 
 
 def add_plot_options(p):
+    p.add_option("--fit", default=False, action="store_true",
+                 help="Plot fitted lines")
     p.add_option("--vmin", default=0., type="float",
                  help="Minimum value, inclusive [default: %default]")
     p.add_option("--vmax", default=2., type="float",
@@ -953,7 +959,6 @@ def report(args):
     if not opts.pdf:
         return
 
-
     components = opts.components
     data = [x.ng_ks for x in data]
     data = [x for x in data if ks_min <= x <= ks_max]
@@ -961,7 +966,7 @@ def report(args):
     fig = plt.figure(1, (iopts.w, iopts.h))
     ax = fig.add_axes([.12, .1, .8, .8])
     kp = KsPlot(ax, ks_max, opts.bins, legendp=opts.legendp)
-    kp.add_data(data, components, fill=opts.fill)
+    kp.add_data(data, components, fill=opts.fill, fitted=opts.fit)
     kp.draw(title=opts.title)
 
 

@@ -41,6 +41,7 @@ def main():
         ('merger', 'merge reads into unitigs offline'),
         ('removecontains', 'remove contained reads from gkpStore'),
         ('graph', 'visualize best.edges'),
+        ('prune', 'prune overlap graph'),
         ('overlap', 'visualize overlaps for a given fragment'),
             )
     p = ActionDispatcher(actions)
@@ -114,6 +115,23 @@ class OverlapLine (object):
         self.bhang = int(args[4])
         self.erate = float(args[5])
         self.erate_adj = float(args[6])
+
+
+def prune(args):
+    """
+    %prog prune best.edges
+
+    Prune overlap graph.
+    """
+    p = OptionParser(prune.__doc__)
+    p.add_option("--maxerr", default=100, type="int", help="Maximum error rate")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    bestedges, = args
+    G = read_graph(bestedges, maxerr=opts.maxerr)
 
 
 def removecontains(args):
@@ -467,7 +485,7 @@ def graph(args):
     contig = opts.contig
     largest = opts.largest
     frgctg = opts.frgctg
-    edgeweight=not opts.nomutualbest
+    edgeweight = not opts.nomutualbest
     G = read_graph(bestedges, maxerr=opts.maxerr)
 
     SG = nx.Graph()

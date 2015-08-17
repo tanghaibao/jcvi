@@ -22,6 +22,7 @@ from jcvi.formats.base import must_open
 from jcvi.formats.fasta import Fasta, SeqRecord, filter, format, parse_fasta
 from jcvi.formats.blast import Blast
 from jcvi.utils.range import range_minmax
+from jcvi.utils.counter import Counter
 from jcvi.algorithms.graph import graph_stats, graph_local_neighborhood
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update, \
             glob, get_abs_path, popen
@@ -117,14 +118,22 @@ class OverlapLine (object):
         self.erate_adj = float(args[6])
 
 
+def add_graph_options(p):
+    p.add_option("--maxerr", default=100, type="int", help="Maximum error rate")
+    p.add_option("--frgctg", default="../9-terminator/asm.posmap.frgctg",
+                help="Annotate graph with contig membership")
+
+
 def prune(args):
     """
     %prog prune best.edges
 
     Prune overlap graph.
     """
+    from collections import defaultdict
+
     p = OptionParser(prune.__doc__)
-    p.add_option("--maxerr", default=100, type="int", help="Maximum error rate")
+    add_graph_options(p)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -132,6 +141,44 @@ def prune(args):
 
     bestedges, = args
     G = read_graph(bestedges, maxerr=opts.maxerr)
+    reads_to_ctgs = parse_ctgs(bestedges, opts.frgctg)
+    edges = defaultdict(int)
+    r = defaultdict(int)
+    for a, b, d in G.edges_iter(data=True):
+        ua, ub = reads_to_ctgs.get(a), reads_to_ctgs.get(b)
+        nn = (ua, ub).count(None)
+        if nn == 0:
+            if ua == ub:
+                r["Same tigs"] += 1
+            else:
+                r["Diff tigs"] += 1
+                if ua > ub:
+                    ua, ub = ub, ua
+                edges[(ua, ub)] += 1
+        elif nn == 1:
+            r["One null"] += 1
+        else:
+            assert nn == 2
+            r["Two nulls"] += 1
+
+    U = nx.Graph()
+    for (ua, ub), count in edges.items():
+        U.add_edge(ua, ub, weight=count)
+
+    gexf = "unitigs.gexf"
+    nx.write_gexf(U, gexf)
+    logging.debug("Unitig graph written to `{0}`".format(gexf))
+
+    print >> sys.stderr, "[Unitig edge property]"
+    for k, v in r.items():
+        print >> sys.stderr, ": ".join((k, str(v)))
+    print >> sys.stderr, "Total: {0}".format(sum(r.values()))
+
+    print >> sys.stderr, "[Unitig degree distribution]"
+    degrees = U.degree()
+    degree_counter = Counter(degrees.values())
+    for degree, count in sorted(degree_counter.items()):
+        print >> sys.stderr, "{0}\t{1}".format(degree, count)
 
 
 def removecontains(args):
@@ -343,7 +390,6 @@ def read_graph(bestedges, maxerr=100, directed=False):
         logging.debug("Graph pickled to `{0}`".format(bestgraph))
 
         # Compute node degree histogram and save in (degree, counts) tab file
-        from jcvi.utils.counter import Counter
         degrees = G.degree()
         degree_counter = Counter(degrees.values())
         degreesfile = "degrees.txt"
@@ -466,15 +512,13 @@ def graph(args):
     https://github.com/PacificBiosciences/Bioinformatics-Training/blob/master/scripts/CeleraToGephi.py
     """
     p = OptionParser(graph.__doc__)
-    p.add_option("--maxerr", default=100, type="int", help="Maximum error rate")
     p.add_option("--query", default=-1, type="int", help="Search from node")
     p.add_option("--contig", help="Search from contigs, use comma to separate")
     p.add_option("--largest", default=10, type="int", help="Only show largest components")
     p.add_option("--maxsize", default=500, type="int", help="Max graph size")
     p.add_option("--nomutualbest", default=False, action="store_true",
                 help="Do not plot mutual best edges as heavy")
-    p.add_option("--frgctg", default="../9-terminator/asm.posmap.frgctg",
-                help="Annotate graph with contig membership")
+    add_graph_options(p)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:

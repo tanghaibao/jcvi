@@ -162,12 +162,15 @@ def prune(args):
             r["Two nulls"] += 1
 
     U = nx.Graph()
+    difftigs = "diff_tigs.txt"
+    neighbors = defaultdict(list)
+    fw = open(difftigs, "w")
     for (ua, ub), count in edges.items():
+        print >> fw, "\t".join((ua, ub, str(count)))
         U.add_edge(ua, ub, weight=count)
-
-    gexf = "unitigs.gexf"
-    nx.write_gexf(U, gexf)
-    logging.debug("Unitig graph written to `{0}`".format(gexf))
+        neighbors[ua].append((ub, count))
+        neighbors[ub].append((ua, count))
+    fw.close()
 
     print >> sys.stderr, "[Unitig edge property]"
     for k, v in r.items():
@@ -179,6 +182,33 @@ def prune(args):
     degree_counter = Counter(degrees.values())
     for degree, count in sorted(degree_counter.items()):
         print >> sys.stderr, "{0}\t{1}".format(degree, count)
+
+    # To find associative contigs, one look for a contig that is connected and
+    # only connected to another single contig - and do that recursively until no
+    # more contigs can be found
+    associative = {}
+    for ua, ubs in neighbors.items():
+        if len(ubs) == 1:   # Only one neighbor
+            ub, count = ubs[0]
+            if count == 2:  # Bubble
+                associative[ua] = ub
+    print >> sys.stderr, "A total of {0} associative contigs found"\
+                        .format(len(associative))
+
+    # Keep only one for mutual associative
+    for ua, ub in associative.items():
+        if ub in associative and ua < ub:
+            print >> sys.stderr, ua, "mutually associative with", ub
+            del associative[ub]
+    print >> sys.stderr, "A total of {0} associative contigs retained"\
+                        .format(len(associative))
+
+    assids = "associative.ids"
+    fw = open(assids, "w")
+    for ua, ub in sorted(associative.items(), key=lambda x:(x[1], x[0])):
+        print >> fw, "\t".join((ua, ub))
+    fw.close()
+    logging.debug("Associative contigs written to `{0}`".format(assids))
 
 
 def removecontains(args):

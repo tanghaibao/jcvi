@@ -190,8 +190,8 @@ def prune(args):
     for ua, ubs in neighbors.items():
         if len(ubs) == 1:   # Only one neighbor
             ub, count = ubs[0]
-            if count == 2:  # Bubble
-                associative[ua] = ub
+            if count >= 2:  # Bubble
+                associative[ua] = (ub, count)
     print >> sys.stderr, "A total of {0} associative contigs found"\
                         .format(len(associative))
 
@@ -205,8 +205,8 @@ def prune(args):
 
     assids = "associative.ids"
     fw = open(assids, "w")
-    for ua, ub in sorted(associative.items(), key=lambda x:(x[1], x[0])):
-        print >> fw, "\t".join((ua, ub))
+    for ua, (ub, count) in sorted(associative.items(), key=lambda x:(x[1], x[0])):
+        print >> fw, "\t".join((ua, ub, str(count)))
     fw.close()
     logging.debug("Associative contigs written to `{0}`".format(assids))
 

@@ -2,7 +2,10 @@
 # -*- coding: UTF-8 -*-
 
 """
-Using CD-HIT (CD-HIT-454) in particular to remove duplicate reads.
+Using CD-HIT and VCLUST in particular to remove duplicate reads. The VCLUST
+implementation borrows ideas and code from PyRAD (thanks). PyRAD link:
+
+<https://github.com/dereneaton/pyrad>
 """
 
 import os.path as op
@@ -89,6 +92,125 @@ def main():
     p.dispatch(globals())
 
 
+def add_consensus_options(p):
+    p.add_option("--mindepth", default=3, type="int",
+                 help="Minimum depth for each stack")
+    p.add_option("--cut", default="CATG",
+                 help="Sequence to trim on the left")
+
+
+def binom_consens(n1, n2, E, H):
+    """
+    Given two bases are observed at a site n1 and n2, and the error rate E, the
+    probability the site is aa, bb, ab is calculated using binomial distribution
+    as in Li_et al 2009, 2011, and if coverage > 500, 500 reads were randomly
+    sampled.
+    """
+    maf = n1 / (n1 + n2)
+    prior_homo = (1 - H) / 2.
+    prior_het = H
+    ab = scipy.misc.comb(n1 + n2, n1) / (2. ** (n1 + n2))
+    aa= scipy.stats.binom.pmf(n1, n1 + n2, E)
+    bb= scipy.stats.binom.pmf(n2, n1 + n2, E)
+    aa = aa * prior_homo
+    bb = bb * prior_homo
+    ab = ab * prior_het
+    Q = [aa, bb, ab]
+    Qn = ['aa','bb','ab']
+    P = max(Q) / float(aa + bb + ab)
+    return [P, maf, Qn[Q.index(max(Q))]]
+
+
+def naive_consens(n1, n2):
+    """
+    Majority consensus calling for sites with too low of coverage for
+    statistical calling. Only used with 'lowcounts' option.
+    """
+    maf = n1 * 1. / (n1 + n2)
+    return [1.0, maf, 'aa']
+
+
+def hetero(n1,n2):
+    """
+    Returns IUPAC symbol for ambiguity bases, used for polymorphic sites.
+    """
+    D = {('G', 'A'): 'R',
+         ('G', 'T'): 'K',
+         ('G', 'C'): 'S',
+         ('T', 'C'): 'Y',
+         ('T', 'A'): 'W',
+         ('C', 'A'): 'M'}
+    a = D.get((n1, n2))
+    b = D.get((n2, n1))
+    return a or b
+
+
+def unhetero(amb):
+    """
+    Returns bases from ambiguity code.
+    """
+    D = {'R': ('G', 'A'),
+         'K': ('G', 'T'),
+         'S': ('G', 'C'),
+         'Y': ('T', 'C'),
+         'W': ('T', 'A'),
+         'M': ('C', 'A')}
+    return D.get(amb.upper())
+
+
+def uplow(b):
+    """
+    Precedence G > T > C > A
+    """
+    D = {('G','A'): 'G',
+         ('A','G'): 'G',
+         ('G','T'): 'G',
+         ('T','G'): 'G',
+         ('G','C'): 'G',
+         ('C','G'): 'G',
+         ('T','C'): 'T',
+         ('C','T'): 'T',
+         ('T','A'): 'T',
+         ('A','T'): 'T',
+         ('C','A'): 'C',
+         ('A','C'): 'C'}
+    r = D.get(b)
+    if not r:
+        r = b[0]
+    return r
+
+
+def findalleles(consensus, sss, bbb):
+    cons = list(consensus)
+    bigbase = uplow(tuple([i.split("_")[0] for i in bbb]))
+    bigallele = bbb.index([i for i in bbb if i.split("_")[0] == bigbase][0])
+    for k in range(1, len(sss)):
+        c = uplow(tuple([i.split("_")[k] for i in bbb]))
+        which = bbb.index([i for i in bbb if i.split("_")[k] == c][0])
+        if bbb[bigallele] != bbb[which]:
+            cons[sss[k]] = cons[sss[k]].lower()
+
+    return "".join(cons)
+
+
+def removerepeat_Ns(shortcon):
+    """
+    Checks for interior Ns in consensus seqs remove those that arise next to
+    *single repeats* of at least 3 bases on either side, which may be
+    sequencing errors on deep coverage repeats
+    """
+    Nlocs = [i for i, j in enumerate(shortcon) if j == 'N']
+    repeats = set()
+    for n in Nlocs:
+        r1 = len(set(list(shortcon)[n - 3: n]))
+        if r1 < 2:
+            repeats.add(n)
+        r2  = len(set(list(shortcon)[n + 1: n + 4]))
+        if r2 < 2:
+            repeats.add(n)
+    return "".join([j for (i, j) in enumerate(shortcon) if i not in repeats])
+
+
 def consensus(args):
     """
     %prog consensus clustfile HEfile
@@ -98,18 +220,206 @@ def consensus(args):
     heterozygosity and error rate as calculated by estimateHE().
     """
     p = OptionParser(consensus.__doc__)
+    p.add_option("--ploidy", default=2, type="int",
+                 help="Number of haplotypes per locus")
+    p.add_option("--maxH", default=5, type="int",
+                 help="Max number of heterozygous sites allowed")
+    p.add_option("--maxN", default=5, type="int",
+                 help="Max number of Ns allowed")
+    add_consensus_options(p)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
         sys.exit(not p.print_help())
 
     clustfile, HEfile = args
-    H, E = open(HEfile).readline()
+    mindepth = opts.mindepth
+    haplos = opts.ploidy
+    maxH = opts.maxH
+    maxN = opts.maxN
+
+    H, E = open(HEfile).readline().split()
     try:
         H, E = float(H), float(E)
     except:
         H, E = .01, .001
     logging.debug("H={0} E={1}".format(H, E))
+
+    fp = open(clustfile)
+    k = izip(*[iter(fp)]*2)
+    bases = ['A','C','T','G']
+    Dic = {}
+    locus = minsamplocus = npoly = P = 0
+    while True:
+        try: first = k.next()
+        except StopIteration: break
+        itera = [first[0], first[1]]
+        fname = itera[0].strip().split(";")[0]
+        leftjust = rightjust = None
+
+        S = []               # List for sequence data
+        alleles = []         # Measures # alleles, detect paralogs
+        ploidy = 0           # Measures # alleles, detect paralogs
+        locus += 1           # Measures # of loci
+        nHs = 0              # Measures heterozygous sites in this locus
+        cons_seq = ""        # Consensus sequence
+        basenumber = 1       # Tracks error locations
+        rights = []
+        while itera[0] != "//\n":
+            # Append sequence * number of dereps
+            nreps = int(itera[0].strip().split(";")[1].replace("size=", ""))
+            for i in xrange(nreps):
+                S.append(tuple(itera[1].strip()))
+
+            # Record left and right most index of seed and hits (for GBS)
+            # leftjust is seed's left, rightjust is the shortest reverse hit
+            if itera[0].strip()[-1] == ";":
+                leftjust = itera[1].index([i for i in itera[1] if i not in list("-N")][0])
+
+            if itera[0].strip()[-1] == "-":
+                rights.append(max(-1,[itera[1].rindex(i) for i in itera[1] if i in list("ATGC")]))
+
+            itera = k.next()
+
+            # Trim off overhang edges of gbs reads
+            if rights:
+                # Record in name that there was a reverse hit
+                fname = "_".join(fname.split("_")[0:-1])+"_c1"
+                try:
+                    rightjust = min([min(i) for i in rights])
+                except ValueError:
+                    S = ""
+
+            for s in xrange(len(S)):
+                S[s] = S[s][leftjust:]
+                if rightjust:
+                    S[s] = S[s][:rightjust+1]
+
+        # Apply paralog filters, depth filter disabled
+        if len(S) < mindepth:
+            continue
+
+        minsamplocus += 1
+        RAD = stack(S)
+        for site in RAD:
+            nchanged = 0
+
+            # Minimum depth of coverage for base calling
+            depthofcoverage = sum(site[0])
+            if depthofcoverage < mindepth:
+                cons = "N"
+                n1 = depthofcoverage - 1
+                n2 = 0   # Prevents zero division error
+            else:
+                n1, n2, n3, n4 = sorted(site[0], reverse=True)
+
+                # Speed hack = if diploid exclude if a third base present at > 20%
+                quickthirdbasetest = False
+                if haplos == 2:
+                    if float(n3) / (n1 + n2 + n3 + n4) > .2:
+                        quickthirdbasetest = True
+
+                if not quickthirdbasetest:
+                    # if depth > 500 reduce by some factor for base calling """
+                    if n1 + n2 >= 500:   ## Randomly sample 500 for high-cov
+                        firstfivehundred = np.array(tuple("A"*n1+"B"*n2))
+                        np.random.shuffle(firstfivehundred)
+                        nchanged = 1
+                        oldn1 = n1
+                        oldn2 = n2
+                        n1 = list(firstfivehundred[:500]).count("A")
+                        n2 = list(firstfivehundred[:500]).count("B")
+
+                    # Make base calls using two different methods
+                    if n1 + n2 >= mindepth:
+                        P, maf, who = binom_consens(n1, n2, E, H)
+
+                    # High conf if base could be called with 95% post. prob.
+                    if float(P) >= 0.95:
+                        if who in 'ab':
+                            if nchanged:
+                                a = [i for i,l in enumerate(site[0]) if l == oldn1]
+                            else:
+                                a = [i for i,l in enumerate(site[0]) if l == n1]
+                            if len(a)==2:       ## alleles came up equal freq.
+                                cons = hetero(bases[a[0]],bases[a[1]])
+                                alleles.append(basenumber)
+                            else:               ## alleles came up diff freq.
+                                if nchanged:
+                                    b = [i for i,l in enumerate(site[0]) if l == oldn2]
+                                else:
+                                    b = [i for i,l in enumerate(site[0]) if l == n2]
+
+                                # If three alleles came up equal, only need if diploid paralog filter off"
+                                if a == b:
+                                    cons = hetero(bases[a[0]],bases[a[1]])
+                                else:
+                                    cons = hetero(bases[a[0]],bases[b[0]])
+                                alleles.append(basenumber)
+                            nHs += 1
+                        else:
+                            if nchanged:
+                                cons = bases[site[0].index(oldn1)]
+                            else:
+                                cons = bases[site[0].index(n1)]
+                    else:
+                        cons = "N"
+                else:
+                    cons = "@"   # Paralog flag
+            cons_seq += cons
+            basenumber += 1
+
+            # Only allow maxH polymorphic sites in a locus
+            if "@" not in cons_seq:
+                if nHs <= maxH:
+                    # Filter to limit to N haplotypes
+                    if haplos:
+                        al = []
+                        if len(alleles) > 1:
+                            for i in S:
+                                d = ""
+                                for z in alleles:
+                                    if i[z-1] in unhetero(cons_seq[z-1]):
+                                        d += i[z-1]+"_"
+                                if "N" not in d:
+                                    if d.count("_") == len(alleles):
+                                        al.append(d.rstrip("_"))
+
+                            AL = sorted(set(al), key=al.count)
+                            ploidy = len(AL)
+
+                            # Set correct alleles relative to first polymorphic base
+                            if AL:
+                                if ploidy <= haplos:
+                                    sss = [zz - 1 for zz in alleles]
+                                    cons_seq = findalleles(cons_seq, sss, AL)
+                                else:
+                                    cons_seq += "@E"
+
+                    if "@" not in cons_seq:
+                        # strip N's from either end
+                        shortcon = cons_seq.lstrip("N").rstrip("N").replace("-", "N")
+                        shortcon = removerepeat_Ns(shortcon)
+                        # Only allow maxN internal "N"s in a locus
+                        if shortcon.count("N") <= maxN:
+                            # Minimum length
+                            if len(shortcon) >= 32:
+                                npoly += nHs
+                                Dic[fname] = shortcon
+
+        print fname, shortcon  # debug
+
+    consens = open(clustfile.replace(".clustS", ".consensus"), 'w+')
+    for k, v in Dic.items():
+        print >> consens, "\n".join((k, v))
+    consens.close()
+
+    nsites = sum([len(i) - len(opts.cut) for i in Dic.values()])
+    ldic = len(Dic)
+    NP = 0 if not nsites else npoly / float(nsites)
+
+    return [clustfile.split('/')[-1], locus, minsamplocus, ldic, \
+            nsites, npoly, round(NP,7)]
 
 
 def stack(D):
@@ -129,7 +439,7 @@ def stack(D):
             G += s.count("G")
             N += s.count("N")
             S += s.count("-")
-        counts.append( [[A,C,T,G], N, S] )
+        counts.append([[A,C,T,G], N, S])
     return counts
 
 
@@ -266,10 +576,7 @@ def estimateHE(args):
     the PyRad paper.
     """
     p = OptionParser(estimateHE.__doc__)
-    p.add_option("--mindepth", default=5, type="int",
-                 help="Minimum depth for each stack")
-    p.add_option("--cut1", default="CATG",
-                 help="Sequence to trim on the left")
+    add_consensus_options(p)
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -279,7 +586,7 @@ def estimateHE(args):
     clustSfile, = args
     nstacks = 0
     D = []
-    for d in cons(clustSfile, opts.mindepth, opts.cut1):
+    for d in cons(clustSfile, opts.mindepth, opts.cut):
         D.extend(d)
         nstacks += 1
         if nstacks % 1000 == 0:
@@ -533,7 +840,7 @@ def uclust(args):
     by PyRAD: <https://github.com/dereneaton/pyrad>.
     """
     p = OptionParser(uclust.__doc__)
-    p.add_option("--mindepth", default=3, type="int", help="Minimum depth required")
+    add_consensus_options(p)
     p.set_align(pctid=96)
     p.set_cpus()
     opts, args = p.parse_args(args)

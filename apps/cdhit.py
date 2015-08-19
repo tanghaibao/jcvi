@@ -75,15 +75,41 @@ class ClstrFile (LineFile):
 def main():
 
     actions = (
+        # CD-HIT related
         ('ids', 'get the representative ids from clstr file'),
         ('deduplicate', 'use `cd-hit-est` to remove duplicate reads'),
-        ('uclust', 'use `usearch` to remove duplicate reads'),
-        ('estimateEH', 'estimate error rate and heterozygosity for stacks'),
         ('filter', 'filter consensus sequence with min cluster size'),
         ('summary', 'parse cdhit.clstr file to get distribution of cluster sizes'),
+        # UCLUST/VCLUST related
+        ('uclust', 'use `usearch` to remove duplicate reads'),
+        ('estimateHE', 'estimate heterozygosity and error rate for stacks'),
+        ('consensus', 'call consensus bases along the stacks'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def consensus(args):
+    """
+    %prog consensus clustfile HEfile
+
+    Call consensus along the stacks. Tabulate bases at each site, tests for
+    errors according to error rate, calls consensus. HEfile contains the
+    heterozygosity and error rate as calculated by estimateHE().
+    """
+    p = OptionParser(consensus.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    clustfile, HEfile = args
+    H, E = open(HEfile).readline()
+    try:
+        H, E = float(H), float(E)
+    except:
+        H, E = .01, .001
+    logging.debug("H={0} E={1}".format(H, E))
 
 
 def stack(D):
@@ -107,7 +133,7 @@ def stack(D):
     return counts
 
 
-def consensus(f, minsamp, CUT1):
+def cons(f, minsamp, CUT1):
     """ makes a list of lists of reads at each site """
     f = open(f)
     k = izip(*[iter(f)] * 2)
@@ -219,8 +245,7 @@ def totlik(E, P, H, N):
 
 def LL(x0, P, C):
     """ Log likelihood score given values [H, E] """
-    H = x0[0]
-    E = x0[1]
+    H, E = x0
     L = []
     if H <= 0. or E <= 0.:
         r = np.exp(100)
@@ -233,18 +258,19 @@ def LL(x0, P, C):
     return r
 
 
-def estimateEH(args):
+def estimateHE(args):
     """
-    %prog estimateEH name.clustS
+    %prog estimateHE name.clustS
 
-    Estimate error rate (E) and heterozygosity (H). Idea borrowed heavily from
+    Estimate heterozygosity (H) and error rate (E). Idea borrowed heavily from
     the PyRad paper.
     """
-    p = OptionParser(estimateEH.__doc__)
+    p = OptionParser(estimateHE.__doc__)
     p.add_option("--mindepth", default=5, type="int",
                  help="Minimum depth for each stack")
     p.add_option("--cut1", default="CATG",
                  help="Sequence to trim on the left")
+    p.set_outfile()
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -253,7 +279,7 @@ def estimateEH(args):
     clustSfile, = args
     nstacks = 0
     D = []
-    for d in consensus(clustSfile, opts.mindepth, opts.cut1):
+    for d in cons(clustSfile, opts.mindepth, opts.cut1):
         D.extend(d)
         nstacks += 1
         if nstacks % 1000 == 0:
@@ -264,9 +290,12 @@ def estimateEH(args):
     logging.debug("Computing base vector counts ...")
     C = makeC(D)
     logging.debug("Solving log-likelihood function ...")
-    x0 = [0.01, 0.001]  # initital values
-    H, E = scipy.optimize.fmin(LL, x0, (P, C), disp=False, full_output=False)
-    print H, E
+    x0 = [.01, .001]  # initital values
+    H, E = scipy.optimize.fmin(LL, x0, args=(P, C))
+
+    fw = must_open(opts.outfile, "w")
+    print >> fw, H, E
+    fw.close()
 
 
 def filter(args):

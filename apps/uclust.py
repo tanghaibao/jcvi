@@ -62,6 +62,7 @@ def main():
         ('cluster', 'use `vsearch` to remove duplicate reads'),
         ('estimateHE', 'estimate heterozygosity and error rate for stacks'),
         ('consensus', 'call consensus bases along the stacks'),
+        ('mcluster', 'cluster across samples'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -152,17 +153,35 @@ def uplow(b):
     return r
 
 
-def findalleles(consensus, sss, bbb):
+def findalleles(consensus, alleles, AL):
     cons = list(consensus)
-    bigbase = uplow(tuple([i.split("_")[0] for i in bbb]))
-    bigallele = bbb.index([i for i in bbb if i.split("_")[0] == bigbase][0])
-    for k in range(1, len(sss)):
-        c = uplow(tuple([i.split("_")[k] for i in bbb]))
-        which = bbb.index([i for i in bbb if i.split("_")[k] == c][0])
-        if bbb[bigallele] != bbb[which]:
-            cons[sss[k]] = cons[sss[k]].lower()
+    bigbase = uplow(tuple([i.split("_")[0] for i in AL]))
+    bigallele = AL.index([i for i in AL if i.split("_")[0] == bigbase][0])
+    for k in range(1, len(alleles)):
+        c = uplow(tuple([i.split("_")[k] for i in AL]))
+        which = AL.index([i for i in AL if i.split("_")[k] == c][0])
+        if AL[bigallele] != AL[which]:
+            cons[alleles[k]] = cons[alleles[k]].lower()
 
     return "".join(cons)
+
+
+def breakalleles(consensus):
+    """
+    Break ambiguity code consensus seqs into two alleles.
+    """
+    a1 = ""
+    a2 = ""
+    for base in consensus:
+        if base in tuple("RKSYWM"):
+            a, b = unhetero(base)
+        elif base in tuple("rksywm"):
+            b, a = unhetero(base)
+        else:
+            a = b = base
+        a1 += a
+        a2 += b
+    return a1, a2
 
 
 def removerepeat_Ns(shortcon):
@@ -183,9 +202,55 @@ def removerepeat_Ns(shortcon):
     return "".join([j for (i, j) in enumerate(shortcon) if i not in repeats])
 
 
+def mcluster(args):
+    """
+    %prog mcluster *.consensus
+
+    Cluster across samples using consensus sequences.
+    """
+    p = OptionParser(mcluster.__doc__)
+    add_consensus_options(p)
+    p.set_align(pctid=96)
+    p.set_cpus()
+    opts, args = p.parse_args(args)
+
+    if len(args) < 1:
+        sys.exit(not p.print_help())
+
+    consensusfiles = args
+    minlength = opts.minlength
+    identity = opts.pctid / 100.
+    cpus = opts.cpus
+
+    fastafile = "mcluster.fasta"
+    fw = must_open(fastafile, "w")
+    totalseqs = 0
+    for consensusfile in consensusfiles:
+        nseqs = 0
+        for name, seq in parse_fasta(consensusfile, upper=False):
+            a1, a2 = breakalleles(seq)
+            print >> fw, ">{0}\n{1}".format(name, a1)
+            nseqs += 1
+        logging.debug("Read `{0}`: {1} seqs".format(consensusfile, nseqs))
+        totalseqs += nseqs
+    logging.debug("Total: {0} seqs".format(totalseqs))
+    fw.close()
+
+    pf = fastafile
+    userfile = pf + ".u"
+    notmatchedfile = pf + ".notmatched"
+    if need_update(fastafile, userfile):
+        cluster_smallmem(fastafile, userfile, notmatchedfile,
+                         minlength, identity, cpus)
+
+    clustfile = pf + ".clust"
+    if need_update((fastafile, userfile, notmatchedfile), clustfile):
+        makeclust(fastafile, userfile, notmatchedfile, clustfile)
+
+
 def consensus(args):
     """
-    %prog consensus clustfile HEfile
+    %prog consensus clustfile
 
     Call consensus along the stacks. Tabulate bases at each site, tests for
     errors according to error rate, calls consensus. HEfile contains the
@@ -201,14 +266,17 @@ def consensus(args):
     add_consensus_options(p)
     opts, args = p.parse_args(args)
 
-    if len(args) != 2:
+    if len(args) != 1:
         sys.exit(not p.print_help())
 
-    clustfile, HEfile = args
+    clustfile, = args
+    HEfile = clustfile.rsplit(".", 1)[0] + ".HE"
     mindepth = opts.mindepth
     haplos = opts.ploidy
     maxH = opts.maxH
     maxN = opts.maxN
+
+    HEfile = estimateHE([clustfile])
 
     H, E = open(HEfile).readline().split()
     try:
@@ -232,11 +300,10 @@ def consensus(args):
 
         S = []               # List for sequence data
         alleles = []         # Measures # alleles, detect paralogs
-        ploidy = 0           # Measures # alleles, detect paralogs
         locus += 1           # Measures # of loci
         nHs = 0              # Measures heterozygous sites in this locus
         cons_seq = ""        # Consensus sequence
-        basenumber = 1       # Tracks error locations
+        basenumber = 0       # Tracks het locations
         rights = []
         leftjust = rightjust = None
         for name, seq, nrep in data:
@@ -272,6 +339,7 @@ def consensus(args):
 
         minsamplocus += 1
         RAD = stack(S)
+        paralog = False
         for site in RAD:
             site, Ns, gaps = site
 
@@ -307,14 +375,13 @@ def consensus(args):
                         P, maf, who = binom_consens(m1, m2, E, H)
 
                     # High conf if base could be called with 95% post. prob.
-                    if P < 0.95:
+                    if P < .95:
                         cons = 'N'
                     else:
                         if who in 'ab':
                             a = [i for i, l in enumerate(site) if l == n1]
                             if len(a) == 2:       # alleles came up equal freq
                                 cons = hetero(bases[a[0]], bases[a[1]])
-                                alleles.append(basenumber)
                             else:                 # alleles came up diff freq
                                 b = [i for i, l in enumerate(site) if l == n2]
 
@@ -323,7 +390,7 @@ def consensus(args):
                                     cons = hetero(bases[a[0]], bases[a[1]])
                                 else:
                                     cons = hetero(bases[a[0]], bases[b[0]])
-                                alleles.append(basenumber)
+                            alleles.append(basenumber)
                             nHs += 1
                         else:
                             cons = bases[site.index(n1)]
@@ -332,33 +399,29 @@ def consensus(args):
             basenumber += 1
 
             # Only allow maxH polymorphic sites in a locus
-            if '@' in cons_seq:
-                continue
-            if nHs > maxH:
-                continue
+            if cons == '@' or nHs > maxH:
+                paralog = True
+                break
 
-            # Filter to limit to N haplotypes
-            al = []
-            if len(alleles) > 1:
-                for i in S:
-                    d = ""
-                    for z in alleles:
-                        if i[z - 1] in unhetero(cons_seq[z-1]):
-                            d += i[z - 1] + "_"
-                    if "N" not in d:
-                        if d.count("_") == len(alleles):
-                            al.append(d.rstrip("_"))
+        if paralog:
+            continue
 
-                AL = sorted(set(al), key=al.count)
-                ploidy = len(AL)
+        # Filter to limit to N haplotypes
+        al = []
+        if len(alleles) > 1:
+            for s in S:
+                d = []
+                for z in alleles:
+                    if s[z] in unhetero(cons_seq[z]):
+                        d.append(s[z])
+                if "N" not in d and len(d) == len(alleles):
+                    al.append('_'.join(d))
 
-                # Set correct alleles relative to first polymorphic base
-                if AL:
-                    if ploidy <= haplos:
-                        sss = [zz - 1 for zz in alleles]
-                        cons_seq = findalleles(cons_seq, sss, AL)
-                    else:
-                        cons_seq += "@E"
+            AL = sorted(set(al), key=al.count)
+
+            # Set correct alleles relative to first polymorphic base
+            if AL:  # and len(AL) <= haplos   - TODO: check ploidy level
+                cons_seq = findalleles(cons_seq, alleles, AL)
 
         # strip N's from either end
         shortcon = cons_seq.lstrip("N").rstrip("N").replace("-", "")
@@ -368,9 +431,6 @@ def consensus(args):
         if shortcon.count("N") <= maxN and len(shortcon) >= opts.minlength:
             npoly += nHs
             output.append((fname, shortcon))
-
-        #if len(output) > 1000:
-        #    break
 
     consens = open(clustfile.replace(".clustS", ".consensus"), 'w+')
     for k, v in output:
@@ -538,6 +598,11 @@ def estimateHE(args):
         sys.exit(not p.print_help())
 
     clustSfile, = args
+    HEfile = clustSfile.rsplit(".", 1)[0] + ".HE"
+    if not need_update(clustSfile, HEfile):
+        logging.debug("File `{0}` found. Computation skipped.".format(HEfile))
+        return HEfile
+
     D = []
     for d in cons(clustSfile, opts.mindepth, opts.cut):
         D.extend(d)
@@ -550,10 +615,11 @@ def estimateHE(args):
     x0 = [.01, .001]  # initital values
     H, E = scipy.optimize.fmin(LL, x0, args=(P, C))
 
-    outfile = clustSfile.rsplit(".", 1)[0] + ".HE"
-    fw = must_open(outfile, "w")
+    fw = must_open(HEfile, "w")
     print >> fw, H, E
     fw.close()
+
+    return HEfile
 
 
 def alignfast(names, seqs):
@@ -711,6 +777,30 @@ def makeclust(derepfile, userfile, notmatchedfile, clustfile):
     outfile.close()
 
 
+def derep(fastafile, derepfile, minlength, cpus, usearch="vsearch"):
+    cmd = usearch + " -minseqlength {0}".format(minlength)
+    cmd += " -derep_fulllength {0}".format(fastafile)
+    cmd += " -output {0} -sizeout".format(derepfile)
+    cmd += " -threads {0}".format(cpus)
+    sh(cmd)
+
+
+def cluster_smallmem(derepfile, userfile, notmatchedfile, minlength, identity,
+                     cpus, usearch="vsearch"):
+    cmd = usearch + " -minseqlength {0}".format(minlength)
+    cmd += " -leftjust"
+    cmd += " -cluster_smallmem {0}".format(derepfile)
+    cmd += " -id {0}".format(identity)
+    cmd += " -userout {0}".format(userfile)
+    cmd += " -userfields query+target+id+gaps+qstrand+qcov"
+    cmd += " -maxaccepts 1 -maxrejects 0"
+    cmd += " -minsl .5 -fulldp"
+    cmd += " -usersort -sizein"
+    cmd += " -notmatched {0}".format(notmatchedfile)
+    cmd += " -threads {0}".format(cpus)
+    sh(cmd)
+
+
 def cluster(args):
     """
     %prog cluster prefix fastqfiles
@@ -720,8 +810,8 @@ def cluster(args):
     """
     p = OptionParser(cluster.__doc__)
     add_consensus_options(p)
-    p.set_outdir()
     p.set_align(pctid=96)
+    p.set_outdir()
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -739,30 +829,15 @@ def cluster(args):
 
     pf = prefix + ".P{0}".format(opts.pctid)
     pf = op.join(opts.outdir, pf)
-    usearch = "vsearch"  # Open-source alternative
     derepfile = pf + ".derep"
     if need_update(fastafile, derepfile):
-        cmd = usearch + " -minseqlength {0}".format(minlength)
-        cmd += " -derep_fulllength {0}".format(fastafile)
-        cmd += " -output {0} -sizeout".format(derepfile)
-        cmd += " -threads {0}".format(cpus)
-        sh(cmd)
+        derep(fastafile, derepfile, minlength, cpus)
 
     userfile = pf + ".u"
     notmatchedfile = pf + ".notmatched"
     if need_update(derepfile, userfile):
-        cmd = usearch + " -minseqlength {0}".format(minlength)
-        cmd += " -leftjust"
-        cmd += " -cluster_smallmem {0}".format(derepfile)
-        cmd += " -id {0}".format(identity)
-        cmd += " -userout {0}".format(userfile)
-        cmd += " -userfields query+target+id+gaps+qstrand+qcov"
-        cmd += " -maxaccepts 1 -maxrejects 0"
-        cmd += " -minsl .5 -fulldp"
-        cmd += " -usersort -sizein"
-        cmd += " -notmatched {0}".format(notmatchedfile)
-        cmd += " -threads {0}".format(cpus)
-        sh(cmd)
+        cluster_smallmem(derepfile, userfile, notmatchedfile,
+                         minlength, identity, cpus)
 
     clustfile = pf + ".clust"
     if need_update((derepfile, userfile, notmatchedfile), clustfile):

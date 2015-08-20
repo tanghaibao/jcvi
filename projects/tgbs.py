@@ -289,6 +289,7 @@ def novo2(args):
         mkdir(d)
 
     mm = MakeManager()
+    clustfiles = []
     # Step 0 - clustering within sample
     for s in samples:
         flist = [x for x in reads if op.basename(x).split(".")[0] == s]
@@ -299,6 +300,19 @@ def novo2(args):
         cmd += " --outdir={0}".format(clustdir)
         cmd += " --pctid={0}".format(pctid)
         mm.add(flist, outfile, cmd)
+        clustfiles.append(outfile)
+
+    # Step 1 - make consensus within sample
+    for s, clustfile in zip(samples, clustfiles):
+        outfile = s + ".P{0}.consensus".format(pctid)
+        outfile = op.join(clustdir, outfile)
+        cmd = "python -m jcvi.apps.uclust consensus"
+        cmd += " {0}".format(clustfile)
+        mm.add(clustfile, outfile, cmd)
+
+    # Step 2 - clustering across samples
+
+    # Step 3 - make consensus across samples
 
     mm.write()
 

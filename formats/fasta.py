@@ -564,7 +564,7 @@ def ispcr(args):
                   format(npairs, ispcrfile))
 
 
-def parse_fasta(infile):
+def parse_fasta(infile, upper=True):
     '''
     parse a fasta-formatted file and returns header
     can be a fasta file that contains multiple records.
@@ -582,7 +582,9 @@ def parse_fasta(infile):
         # drop '>'
         header = header.strip()[1:]
         # stitch the sequence lines together and make into upper case
-        seq = "".join(s.strip() for s in fa_iter.next()).upper()
+        seq = "".join(s.strip() for s in fa_iter.next())
+        if upper:
+            seq = seq.upper()
         yield header, seq
 
 

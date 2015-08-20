@@ -19,7 +19,7 @@ from Bio.SeqIO.QualityIO import FastqGeneralIterator
 from jcvi.formats.fasta import must_open, rc
 from jcvi.formats.base import DictFile
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, \
-        which, need_update
+        which, mkdir, need_update
 
 
 qual_offset = lambda x: 33 if x == "sanger" else 64
@@ -304,19 +304,26 @@ def readlen(args):
 
 def fasta(args):
     """
-    %prog fasta fastqfile
+    %prog fasta fastqfiles
 
     Convert fastq to fasta and qual file.
     """
     p = OptionParser(fasta.__doc__)
     p.add_option("--seqtk", default=False, action="store_true",
                  help="Use seqtk to convert")
+    p.set_outdir()
+    p.set_outfile()
     opts, args = p.parse_args(args)
 
-    if len(args) != 1:
+    if len(args) < 1:
         sys.exit(not p.print_help())
 
-    fastqfile, = args
+    fastqfiles = args
+    outdir = opts.outdir
+    if outdir and outdir != ".":
+        mkdir(outdir)
+
+    fastqfile = fastqfiles[0]
     pf = fastqfile
     gzinput = fastqfile.endswith(".gz")
     if gzinput:
@@ -328,17 +335,19 @@ def fasta(args):
         return fastqfile, None
 
     fastafile, qualfile = pf + ".fasta", pf + ".qual"
-    outfile = fastafile
+    outfile = opts.outfile or fastafile
+    outfile = op.join(outdir, outfile)
     if opts.seqtk:
         if need_update(fastqfile, outfile):
-            cmd = "seqtk seq -A {0} -L 30 -l 70".format(fastqfile)
+            cmd = "seqtk seq -A {0} -L 30 -l 70".format(" ".join(fastqfiles))
             sh(cmd, outfile=outfile)
         else:
             logging.debug("Outfile `{0}` already exists.".format(outfile))
         return outfile, None
 
-    SeqIO.convert(fastqfile, "fastq", fastafile, "fasta")
-    SeqIO.convert(fastqfile, "fastq", qualfile, "qual")
+    for fastqfile in fastqfiles:
+        SeqIO.convert(fastqfile, "fastq", fastafile, "fasta")
+        SeqIO.convert(fastqfile, "fastq", qualfile, "qual")
 
     return fastafile, qualfile
 
@@ -919,8 +928,7 @@ def fromsra(args):
                  "[default: %default]")
     p.add_option("--compress", default=None, choices=["gzip", "bzip2"],
             help="Compress output fastq files [default: %default]")
-    p.add_option("--outdir", default=".",
-            help="Specify output directory [default: %default]")
+    p.set_outdir()
     p.set_grid()
     opts, args = p.parse_args(args)
 

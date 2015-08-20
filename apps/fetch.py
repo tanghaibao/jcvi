@@ -361,8 +361,7 @@ def entrez(args):
             help="turn off prompt to check file existence [default: %default]")
     p.add_option("--batchsize", default=500, type="int",
             help="download the results in batch for speed-up [default: %default]")
-    p.add_option("--outdir", default=None,
-            help="output directory, with accession number as filename")
+    p.set_outdir(outdir=None)
     p.add_option("--outprefix", default="out",
             help="output file name prefix [default: %default]")
     p.set_email()

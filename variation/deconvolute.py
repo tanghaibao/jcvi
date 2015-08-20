@@ -142,8 +142,7 @@ def split(args):
     file (the deconvoluted reads) will be in interleaved format.
     """
     p = OptionParser(split.__doc__)
-    p.add_option("--outdir", default="deconv",
-                 help="Output directory [default: %default]")
+    p.set_outdir(outdir="deconv")
     p.add_option("--nocheckprefix", default=False, action="store_true",
                  help="Don't check shared prefix [default: %default]")
     p.add_option("--paired", default=False, action="store_true",
@@ -225,8 +224,7 @@ def merge(args):
     program merges them.
     """
     p = OptionParser(merge.__doc__)
-    p.add_option("--outdir", default="outdir",
-                 help="Output final reads in [default: %default]")
+    p.set_outdir(outdir="outdir")
     opts, args = p.parse_args(args)
 
     if len(args) < 1:

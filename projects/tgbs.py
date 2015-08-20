@@ -9,13 +9,9 @@ import os.path as op
 import logging
 import sys
 
-from collections import defaultdict
-from itertools import combinations
-
 from jcvi.formats.fasta import Fasta, SeqIO
 from jcvi.formats.fastq import iter_fastq
 from jcvi.formats.base import must_open, write_file
-from jcvi.formats.bed import Bed, mergeBed
 from jcvi.formats.sam import get_prefix
 from jcvi.utils.counter import Counter
 from jcvi.apps.cdhit import uclust, deduplicate
@@ -24,36 +20,6 @@ from jcvi.apps.grid import MakeManager
 from jcvi.graphics.base import plt, savefig, normalize_axes
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh, \
             iglob, mkdir
-
-
-class HaplotypeResolver (object):
-
-    def __init__(self, haplotype_set, maf=.1):
-        self.haplotype_set = haplotype_set
-        self.nind = len(haplotype_set)
-        self.notmissing = sum(1 for x in haplotype_set if x)
-        counter = Counter()
-        for haplotypes in haplotype_set:
-            counter.update(Counter(haplotypes))
-        self.counter = {}
-        for h, c in counter.items():
-            if c >= self.notmissing * maf:
-                self.counter[h] = c
-
-    def __str__(self):
-        return "N={0} M={1} C={2}".format(len(self.counter), \
-                                self.notmissing, self.counter)
-
-    def solve(self, fw):
-        haplotype_counts = self.counter.items()
-        for (a, ai), (b, bi) in combinations(haplotype_counts, 2):
-            abi = sum(1 for haplotypes in self.haplotype_set \
-                if a in haplotypes and b in haplotypes)
-            pct = max(abi * 100 / ai, abi * 100 / bi)
-            print >> fw, a, b, "A={0}".format(ai), "B={0}".format(bi), \
-                               "AB={0}".format(abi), "{0}%".format(pct), \
-                               "compatible" if pct < 50 else ""
-            fw.flush()
 
 
 speedupsh = r"""
@@ -83,12 +49,11 @@ def main():
 
     actions = (
         ('snpflow', 'run SNP calling pipeline from reads to allele_counts'),
-        ('novo', 'reference-free tGBS pipeline'),
-        ('resolve', 'separate repeats on collapsed contigs'),
         ('count', 'count the number of reads in all clusters'),
         ('snpplot', 'illustrate the SNP sites in CDT'),
-        ('track', 'track and contrast read mapping in two bam files'),
         ('weblogo', 'extract base composition for reads'),
+        ('novo', 'reference-free tGBS pipeline v1'),
+        ('novo2', 'reference-free tGBS pipeline v2'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -178,155 +143,6 @@ def weblogo(args):
     fw.close()
 
 
-def bed_store(bedfile, sorted=False):
-    bedfile = mergeBed(bedfile, s=True, nms=True, sorted=sorted)
-    bed = Bed(bedfile)
-    reads, reads_r = {}, defaultdict(list)
-    for b in bed:
-        target = "{0}:{1}".format(b.seqid, b.start)
-        for accn in b.accn.split(","):
-            reads[accn] = target
-            reads_r[target].append(accn)
-    return reads, reads_r
-
-
-def contrast_stores(bed1_store_r, bed2_store, minreads=10, minpct=.1, prefix="AB"):
-    for target, reads in bed1_store_r.iteritems():
-        nreads = len(reads)
-        if nreads < minreads:
-            continue
-        good_mapping = max(minreads / 2, minpct * nreads)
-        bed2_targets = Counter(bed2_store.get(r) for r in reads)
-        c = dict((k, v) for (k, v) in bed2_targets.items() if v >= good_mapping)
-        ctag = "|".join("{0}({1})".format(k, v) for (k, v) in c.items())
-        print prefix, target, nreads, ctag, len(set(c.keys()) - set([None]))
-
-
-def track(args):
-    """
-    %prog track bed1 bed2
-
-    Track and contrast read mapping in two bam files.
-    """
-    p = OptionParser(track.__doc__)
-    p.add_option("--sorted", default=False, action="store_true",
-                 help="BED already sorted")
-    opts, args = p.parse_args(args)
-
-    if len(args) != 2:
-        sys.exit(not p.print_help())
-
-    bed1, bed2 = args
-    sorted = opts.sorted
-    bed1_store, bed1_store_r = bed_store(bed1, sorted=sorted)
-    bed2_store, bed2_store_r = bed_store(bed2, sorted=sorted)
-    contrast_stores(bed1_store_r, bed2_store)
-    contrast_stores(bed2_store_r, bed1_store, prefix="BA")
-
-
-def resolve(args):
-    """
-    %prog resolve matrixfile fastafile bamfolder
-
-    Separate repeats along collapsed contigs. First scan the matrixfile for
-    largely heterozygous sites. For each heterozygous site, we scan each bam to
-    retrieve distinct haplotypes. The frequency of each haplotype is then
-    computed, the haplotype with the highest frequency, assumed to be
-    paralogous, is removed.
-    """
-    import pysam
-    from collections import defaultdict
-    from itertools import groupby
-
-    p = OptionParser(resolve.__doc__)
-    p.add_option("--missing", default=.5, type="float",
-                 help="Max level of missing data")
-    p.add_option("--het", default=.5, type="float",
-                 help="Min level of heterozygous calls")
-    p.set_outfile()
-    opts, args = p.parse_args(args)
-
-    if len(args) != 3:
-        sys.exit(not p.print_help())
-
-    matrixfile, fastafile, bamfolder = args
-    #f = Fasta(fastafile)
-    fp = open(matrixfile)
-    for row in fp:
-        if row[0] != '#':
-            break
-    header = row.split()
-    ngenotypes = len(header) - 4
-    nmissing = int(round(opts.missing * ngenotypes))
-    logging.debug("A total of {0} individuals scanned".format(ngenotypes))
-    logging.debug("Look for markers with < {0} missing and > {1} het".\
-                    format(opts.missing, opts.het))
-    bamfiles = iglob(bamfolder, "*.bam")
-    logging.debug("Folder `{0}` contained {1} bam files".\
-                    format(bamfolder, len(bamfiles)))
-
-    data = []
-    for row in fp:
-        if row[0] == '#':
-            continue
-        atoms = row.split()
-        seqid, pos, ref, alt = atoms[:4]
-        genotypes = atoms[4:]
-        c = Counter(genotypes)
-        c0 = c.get('0', 0)
-        c3 = c.get('3', 0)
-        if c0 >= nmissing:
-            continue
-        hetratio = c3 * 1. / (ngenotypes - c0)
-        if hetratio <= opts.het:
-            continue
-        pos = int(pos)
-        data.append((seqid, pos, ref, alt, c, hetratio))
-
-    data.sort()
-    logging.debug("A total of {0} target markers in {1} contigs.".\
-                    format(len(data), len(set(x[0] for x in data))))
-    samfiles = [pysam.AlignmentFile(x, "rb") for x in bamfiles]
-    samfiles = [(op.basename(x.filename).split(".")[0], x) for x in samfiles]
-    samfiles.sort()
-    logging.debug("BAM files grouped to {0} individuals".\
-                    format(len(set(x[0] for x in samfiles))))
-
-    fw = must_open(opts.outfile, "w")
-    for seqid, d in groupby(data, lambda x: x[0]):
-        d = list(d)
-        nmarkers = len(d)
-        logging.debug("Process contig {0} ({1} markers)".format(seqid, nmarkers))
-        haplotype_set = []
-        for pf, sf in groupby(samfiles, key=lambda x: x[0]):
-            haplotypes = []
-            for pfi, samfile in sf:
-                reads = defaultdict(list)
-                positions = []
-                for s, pos, ref, alt, c, hetratio in d:
-                    for c in samfile.pileup(seqid):
-                        if c.reference_pos != pos - 1:
-                            continue
-                        for r in c.pileups:
-                            rname = r.alignment.query_name
-                            rbase = r.alignment.query_sequence[r.query_position]
-                            reads[rname].append((pos, rbase))
-                    positions.append(pos)
-                for read in reads.values():
-                    hap = ['-'] * nmarkers
-                    for p, rbase in read:
-                        hap[positions.index(p)] = rbase
-                    hap = "".join(hap)
-                    if "-" in hap:
-                        continue
-                    haplotypes.append(hap)
-            haplotypes = set(haplotypes)
-            haplotype_set.append(haplotypes)
-        hr = HaplotypeResolver(haplotype_set)
-        print >> fw, seqid, hr
-        hr.solve(fw)
-
-
 def count(args):
     """
     %prog count cdhit.consensus.fasta
@@ -372,7 +188,7 @@ def novo(args):
     """
     %prog novo reads.fastq
 
-    Reference-free tGBS pipeline.
+    Reference-free tGBS pipeline v1.
     """
     from jcvi.assembly.kmer import jellyfish, histogram
     from jcvi.assembly.preprocess import diginorm
@@ -446,6 +262,42 @@ def novo(args):
                     "--prefix={0}_".format(pf)])
 
 
+def scan_read_files(trimmed):
+    reads = iglob(trimmed, "*.fq", "*.fq.gz")
+    samples = sorted(set(op.basename(x).split(".")[0] for x in flist))
+    logging.debug("Total {0} read files from {1} samples".\
+                    format(len(reads), len(samples)))
+    return reads, samples
+
+
+def novo2(args):
+    """
+    %prog novo2 trimmed
+
+    Reference-free tGBS pipeline v2.
+    """
+    p = OptionParser(novo2.__doc__)
+    p.set_cpus()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    trimmed, = args
+    reads, samples = scan_read_files(trimmed)
+
+    # Set up directory structure
+    clustdir = "vclust"
+    for d in (clustdir,):
+        mkdir(d)
+
+    mm = MakeManager()
+    # Step 0 - clustering within sample
+    for s in samples:
+        flist = [x for x in reads if op.basename(x).split(".")[0] == s]
+        cmd = "python -m jcvi.apps.cdhit vclust"
+
+
 def snpflow(args):
     """
     %prog snpflow trimmed reference.fasta
@@ -468,12 +320,7 @@ def snpflow(args):
         logging.debug("Total seqs in ref: {0} (supercat={1})".\
                       format(nseqs, supercat))
 
-    flist = iglob(trimmed, "*.fq", "*.fq.gz")
-    nreads = len(flist)
-    samples = sorted(set(op.basename(x).split(".")[0] for x in flist))
-    nsamples = len(samples)
-    logging.debug("Total {0} read files from {1} samples".\
-                    format(nreads, nsamples))
+    reads, samples = scan_read_files(trimmed)
 
     # Set up directory structure
     nativedir, countsdir = "native", "allele_counts"
@@ -496,7 +343,7 @@ def snpflow(args):
     allnatives = []
     allsamstats = []
     gmapdb = supercatfile if supercat else ref
-    for f in flist:
+    for f in reads:
         prefix = get_prefix(f, ref)
         gsnapfile = op.join(nativedir, prefix + ".gsnap")
         nativefile = op.join(nativedir, prefix + ".unique.native")

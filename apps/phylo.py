@@ -584,8 +584,7 @@ def prepare(args):
     p.add_option("--writecolors", default=False, action="store_true", \
         help="generate a gene_name to color mapping file which will be taken " \
         "by jcvi.apps.phylo.draw [default: %default]")
-    p.add_option("--outdir", type="string", default="sequences", \
-        help="path to output dir. New dir is made if not existing [default: %default]")
+    p.set_outdir(outdir="sequences")
 
     opts, args = p.parse_args(args)
 
@@ -716,8 +715,7 @@ def build(args):
     p.add_option("--stree", help="path to species Newick tree [default: %default]")
     p.add_option("--smap", help="path to smap file: " \
                     "gene_name_pattern<tab>species_name [default: %default]")
-    p.add_option("--outdir", type="string", default=".", \
-                 help="path to output dir. New dir is made if not existing [default: %default]")
+    p.set_outdir()
 
     opts, args = p.parse_args(args)
     gblocks = not opts.nogblocks
@@ -936,8 +934,7 @@ def draw(args):
     p.add_option("--leafcolorfile", default=None,
                  help="path to a mapping file containing font colors " \
                  "for the OTUs: leafname<tab>color [default: %default]")
-    p.add_option("--outdir", type="string", default=".", \
-                 help="path to output dir. New dir is made if not existed [default: %default]")
+    p.set_outdir()
     opts, args, iopts = p.set_image_options(figsize="8x6")
     input = opts.input
     outdir = opts.outdir

@@ -625,8 +625,7 @@ def anneal(args):
                  help="Maximum overhang length [default: %default]")
     p.add_option("--nozipshreds", default=False, action="store_true",
                  help="Don't zip shred lines [default: %default]")
-    p.add_option("--outdir", default="outdir",
-                 help="Directory to cache the sequences [default: %default]")
+    p.set_outdir(outdir="outdir")
     p.set_cpus()
     opts, args = p.parse_args(args)
 

@@ -175,9 +175,8 @@ def align(args):
                  help="Input is RNA-seq reads, turn splicing on")
     p.add_option("--native", default=False, action="store_true",
                  help="Convert GSNAP output to NATIVE format")
-    p.add_option("--outdir", default=".",
-                 help="Output alignment files in directory")
     p.set_home("eddyyeh")
+    p.set_outdir()
     p.set_cpus()
     opts, args = p.parse_args(args)
 

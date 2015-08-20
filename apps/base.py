@@ -183,6 +183,10 @@ class OptionParser (OptionP):
         self.add_option("-o", "--outfile", default=outfile,
                 help="Outfile name [default: %default]")
 
+    def set_outdir(self, outdir="."):
+        self.add_option("--outdir", default=outdir,
+                help="Specify output directory")
+
     def set_email(self):
         """
         Add --email option to specify an email address

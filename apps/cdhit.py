@@ -20,7 +20,7 @@ from collections import defaultdict
 from itertools import izip
 from subprocess import Popen, PIPE, STDOUT
 
-from jcvi.formats.base import LineFile, read_block, must_open
+from jcvi.formats.base import BaseFile, LineFile, read_block, must_open
 from jcvi.formats.fasta import parse_fasta
 from jcvi.formats.fastq import fasta
 from jcvi.utils.cbook import percentage
@@ -73,6 +73,29 @@ class ClstrFile (LineFile):
             for pp, members_with_same_pp in sorted(d.items()):
                 yield i, max(members_with_same_pp, \
                              key=lambda x: x.size).name
+
+
+class ClustSFile (BaseFile):
+
+    def __init__(self, filename):
+        super(ClustSFile, self).__init__(filename)
+
+    def iter_seqs(self):
+        f = must_open(self.filename)
+        k = izip(*[iter(f)] * 2)
+        while True:
+            try:
+                first = k.next()
+            except StopIteration:
+                break
+            itera = [first[0], first[1]]
+            data = []
+            while itera[0] != "//\n":
+                name, seq = itera[0].strip(), itera[1].strip()
+                nrep = int(name.split(";")[1].replace("size=", ""))
+                data.append((name, seq, nrep))
+                itera = k.next()
+            yield data
 
 
 def main():
@@ -245,16 +268,12 @@ def consensus(args):
         H, E = .01, .001
     logging.debug("H={0} E={1}".format(H, E))
 
-    fp = open(clustfile)
-    k = izip(*[iter(fp)]*2)
     bases = ['A','C','T','G']
     Dic = {}
     locus = minsamplocus = npoly = P = 0
-    while True:
-        try: first = k.next()
-        except StopIteration: break
-        itera = [first[0], first[1]]
-        fname = itera[0].strip().split(";")[0]
+    C = ClustSFile(clustfile)
+    for data in C.iter_seqs():
+        fname = data[0][0].split(";")[0]
         leftjust = rightjust = None
 
         S = []               # List for sequence data
@@ -265,26 +284,23 @@ def consensus(args):
         cons_seq = ""        # Consensus sequence
         basenumber = 1       # Tracks error locations
         rights = []
-        while itera[0] != "//\n":
+        for name, seq, nrep in data:
             # Append sequence * number of dereps
-            nreps = int(itera[0].strip().split(";")[1].replace("size=", ""))
-            for i in xrange(nreps):
-                S.append(tuple(itera[1].strip()))
+            for i in xrange(nrep):
+                S.append(tuple(seq.strip()))
 
             # Record left and right most index of seed and hits (for GBS)
             # leftjust is seed's left, rightjust is the shortest reverse hit
-            if itera[0].strip()[-1] == ";":
-                leftjust = itera[1].index([i for i in itera[1] if i not in list("-N")][0])
+            if name[-1] == ";":
+                leftjust = seq.index([i for i in seq if i not in list("-N")][0])
 
-            if itera[0].strip()[-1] == "-":
-                rights.append(max(-1,[itera[1].rindex(i) for i in itera[1] if i in list("ATGC")]))
-
-            itera = k.next()
+            if name[-1] == "-":
+                rights.append(max(-1, [seq.rindex(i) for i in seq if i in "ATGC"]))
 
             # Trim off overhang edges of gbs reads
             if rights:
                 # Record in name that there was a reverse hit
-                fname = "_".join(fname.split("_")[0:-1])+"_c1"
+                fname = "_".join(fname.split("_")[0:-1]) + "_c1"
                 try:
                     rightjust = min([min(i) for i in rights])
                 except ValueError:
@@ -293,7 +309,7 @@ def consensus(args):
             for s in xrange(len(S)):
                 S[s] = S[s][leftjust:]
                 if rightjust:
-                    S[s] = S[s][:rightjust+1]
+                    S[s] = S[s][:rightjust + 1]
 
         # Apply paralog filters, depth filter disabled
         if len(S) < mindepth:
@@ -319,10 +335,12 @@ def consensus(args):
                     if float(n3) / (n1 + n2 + n3 + n4) > .2:
                         quickthirdbasetest = True
 
-                if not quickthirdbasetest:
+                if quickthirdbasetest:
+                    cons = "@"   # Paralog
+                else:
                     # if depth > 500 reduce by some factor for base calling """
                     if n1 + n2 >= 500:   ## Randomly sample 500 for high-cov
-                        firstfivehundred = np.array(tuple("A"*n1+"B"*n2))
+                        firstfivehundred = np.array(tuple("A" * n1 + "B" * n2))
                         np.random.shuffle(firstfivehundred)
                         nchanged = 1
                         oldn1 = n1
@@ -335,26 +353,28 @@ def consensus(args):
                         P, maf, who = binom_consens(n1, n2, E, H)
 
                     # High conf if base could be called with 95% post. prob.
-                    if float(P) >= 0.95:
+                    if float(P) < 0.95:
+                        cons = 'N'
+                    else:
                         if who in 'ab':
                             if nchanged:
-                                a = [i for i,l in enumerate(site[0]) if l == oldn1]
+                                a = [i for i, l in enumerate(site[0]) if l == oldn1]
                             else:
-                                a = [i for i,l in enumerate(site[0]) if l == n1]
+                                a = [i for i, l in enumerate(site[0]) if l == n1]
                             if len(a)==2:       ## alleles came up equal freq.
                                 cons = hetero(bases[a[0]],bases[a[1]])
                                 alleles.append(basenumber)
                             else:               ## alleles came up diff freq.
                                 if nchanged:
-                                    b = [i for i,l in enumerate(site[0]) if l == oldn2]
+                                    b = [i for i, l in enumerate(site[0]) if l == oldn2]
                                 else:
-                                    b = [i for i,l in enumerate(site[0]) if l == n2]
+                                    b = [i for i, l in enumerate(site[0]) if l == n2]
 
                                 # If three alleles came up equal, only need if diploid paralog filter off"
                                 if a == b:
-                                    cons = hetero(bases[a[0]],bases[a[1]])
+                                    cons = hetero(bases[a[0]], bases[a[1]])
                                 else:
-                                    cons = hetero(bases[a[0]],bases[b[0]])
+                                    cons = hetero(bases[a[0]], bases[b[0]])
                                 alleles.append(basenumber)
                             nHs += 1
                         else:
@@ -362,50 +382,48 @@ def consensus(args):
                                 cons = bases[site[0].index(oldn1)]
                             else:
                                 cons = bases[site[0].index(n1)]
-                    else:
-                        cons = "N"
-                else:
-                    cons = "@"   # Paralog flag
+
             cons_seq += cons
             basenumber += 1
 
             # Only allow maxH polymorphic sites in a locus
-            if "@" not in cons_seq:
-                if nHs <= maxH:
-                    # Filter to limit to N haplotypes
-                    if haplos:
-                        al = []
-                        if len(alleles) > 1:
-                            for i in S:
-                                d = ""
-                                for z in alleles:
-                                    if i[z-1] in unhetero(cons_seq[z-1]):
-                                        d += i[z-1]+"_"
-                                if "N" not in d:
-                                    if d.count("_") == len(alleles):
-                                        al.append(d.rstrip("_"))
+            if '@' in cons_seq:
+                continue
 
-                            AL = sorted(set(al), key=al.count)
-                            ploidy = len(AL)
+            if nHs <= maxH:
+                # Filter to limit to N haplotypes
+                if haplos:
+                    al = []
+                    if len(alleles) > 1:
+                        for i in S:
+                            d = ""
+                            for z in alleles:
+                                if i[z-1] in unhetero(cons_seq[z-1]):
+                                    d += i[z-1] + "_"
+                            if "N" not in d:
+                                if d.count("_") == len(alleles):
+                                    al.append(d.rstrip("_"))
 
-                            # Set correct alleles relative to first polymorphic base
-                            if AL:
-                                if ploidy <= haplos:
-                                    sss = [zz - 1 for zz in alleles]
-                                    cons_seq = findalleles(cons_seq, sss, AL)
-                                else:
-                                    cons_seq += "@E"
+                        AL = sorted(set(al), key=al.count)
+                        ploidy = len(AL)
 
-                    if "@" not in cons_seq:
-                        # strip N's from either end
-                        shortcon = cons_seq.lstrip("N").rstrip("N").replace("-", "N")
-                        shortcon = removerepeat_Ns(shortcon)
-                        # Only allow maxN internal "N"s in a locus
-                        if shortcon.count("N") <= maxN:
-                            # Minimum length
-                            if len(shortcon) >= 32:
-                                npoly += nHs
-                                Dic[fname] = shortcon
+                        # Set correct alleles relative to first polymorphic base
+                        if AL:
+                            if ploidy <= haplos:
+                                sss = [zz - 1 for zz in alleles]
+                                cons_seq = findalleles(cons_seq, sss, AL)
+                            else:
+                                cons_seq += "@E"
+
+                # strip N's from either end
+                shortcon = cons_seq.lstrip("N").rstrip("N").replace("-", "N")
+                shortcon = removerepeat_Ns(shortcon)
+                # Only allow maxN internal "N"s in a locus
+                if shortcon.count("N") <= maxN:
+                    # Minimum length
+                    if len(shortcon) >= 32:
+                        npoly += nHs
+                        Dic[fname] = shortcon
 
         print fname, shortcon  # debug
 
@@ -445,32 +463,23 @@ def stack(D):
 
 def cons(f, minsamp, CUT1):
     """ makes a list of lists of reads at each site """
-    f = open(f)
-    k = izip(*[iter(f)] * 2)
-    while True:
-        try:
-            first = k.next()
-        except StopIteration:
-            break
-        itera = [first[0], first[1]]
+    C = ClustSFile(f)
+    for data in C.iter_seqs():
         S = []
         rights = []
         lefts = []
         leftjust = rightjust = None
-        while itera[0] != "//\n":
-            nreps = int(itera[0].strip().split(";")[1].replace("size=", ""))
-
+        for name, seq, nrep in data:
             # Record left and right most for cutting
-            if itera[0].strip().split(";")[-1] == "":
-                leftjust = itera[1].index([i for i in itera[1] if i not in list("-N")][0])
-                rightjust = itera[1].rindex([i for i in itera[1] if i not in list("-N")][0])
-            lefts.append(itera[1].index([i for i in itera[1] if i not in list("-N")][0]))
-            rights.append(itera[1].rindex([i for i in itera[1] if i not in list("-N")][0]))
+            if name.split(";")[-1] == "":
+                leftjust = seq.index([i for i in seq if i not in list("-N")][0])
+                rightjust = seq.rindex([i for i in seq if i not in list("-N")][0])
+            lefts.append(seq.index([i for i in seq if i not in list("-N")][0]))
+            rights.append(seq.rindex([i for i in seq if i not in list("-N")][0]))
 
             # Append sequence * number of dereps
-            for i in range(nreps):
-                S.append(tuple(itera[1].strip()))
-            itera = k.next()
+            for i in range(nrep):
+                S.append(tuple(seq))
 
         # Trim off overhang edges of gbs reads
         if any([i < leftjust for i in lefts]):
@@ -514,7 +523,8 @@ def makeC(N):
     while True:
         try:
             d = k.next()
-        except StopIteration: break
+        except StopIteration:
+            break
         C[tuple(d)] += 1
 
     L = [(i, j) for i, j in C.items()]
@@ -678,21 +688,14 @@ def sortalign(stringnames):
 
 def musclewrap(clustfile):
     clustSfile = clustfile.replace(".clust", ".clustS")
-    f = open(clustfile)
-    k = izip(*[iter(f)]*2)
     OUT = []
     cnts = 0
-    while 1:
-        try: first = k.next()
-        except StopIteration: break
-        itera = [first[0],first[1]]
+    C = ClustSFile(clustfile)
+    for data in C.iter_seqs():
         STACK = []
         names = []
         seqs = []
-        while itera[0] != "//\n":
-            names.append(itera[0].strip())
-            seqs.append(itera[1].strip())
-            itera = k.next()
+        names, seqs, nreps = zip(*data)
         if len(names) > 1:
             " keep only the 200 most common dereps, aligning more is surely junk "
             stringnames = alignfast(names[0:200], seqs[0:200])
@@ -733,25 +736,13 @@ def musclewrap(clustfile):
 
 
 def stats(clustSfile, statsfile, mindepth=0):
-    infile = open(clustSfile)
-    L = izip(*[iter(infile)] * 2)
-    try:
-        a = L.next()[0]
-    except StopIteration:
-        print "no clusters found in ", clustSfile + "\n\n"
-        sys.exit()
-
+    C = ClustSFile(clustSfile)
     depth = []
-    d = int(a.split(";")[1].replace("size=",""))
-    while 1:
-        try: a = L.next()[0]
-        except StopIteration: break
-        if a != "//\n":
-            d += int(a.split(";")[1].replace("size=",""))
-        else:
-            depth.append(d)
-            d = 0
-    infile.close()
+    for data in C.iter_seqs():
+        d = 0
+        for name, seq, nrep in data:
+            d += nrep
+        depth.append(d)
     keep = [i for i in depth if i >= mindepth]
     namecheck = op.basename(clustSfile).split(".")[0]
     if depth:

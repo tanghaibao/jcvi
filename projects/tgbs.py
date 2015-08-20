@@ -14,7 +14,7 @@ from jcvi.formats.fastq import iter_fastq
 from jcvi.formats.base import must_open, write_file
 from jcvi.formats.sam import get_prefix
 from jcvi.utils.counter import Counter
-from jcvi.apps.cdhit import uclust, deduplicate
+from jcvi.apps.cdhit import deduplicate
 from jcvi.apps.gmap import check_index
 from jcvi.apps.grid import MakeManager
 from jcvi.graphics.base import plt, savefig, normalize_axes
@@ -198,8 +198,6 @@ def novo(args):
     p = OptionParser(novo.__doc__)
     p.add_option("--technology", choices=("illumina", "454", "iontorrent"),
                  default="iontorrent", help="Sequencing platform")
-    p.add_option("--dedup", choices=("uclust", "cdhit"),
-                 default="cdhit", help="Dedup algorithm")
     p.set_depth(depth=50)
     p.set_align(pctid=96)
     p.set_home("cdhit", default="/usr/local/bin/")
@@ -238,16 +236,13 @@ def novo(args):
         logfile = pf + ".fiona.log"
         sh(cmd, outfile=logfile, errfile=logfile)
 
-    dedup = opts.dedup
+    dedup = "cdhit"
     pctid = opts.pctid
     cons = fiona + ".P{0}.{1}.consensus.fasta".format(pctid, dedup)
     if need_update(fiona, cons):
-        if dedup == "cdhit":
-            deduplicate([fiona, "--consensus", "--reads",
-                         "--pctid={0}".format(pctid),
-                         "--cdhit_home={0}".format(opts.cdhit_home)])
-        else:
-            uclust([fiona, "--pctid={0}".format(pctid)])
+        deduplicate([fiona, "--consensus", "--reads",
+                     "--pctid={0}".format(pctid),
+                     "--cdhit_home={0}".format(opts.cdhit_home)])
 
     filteredfile = pf + ".filtered.fasta"
     if need_update(cons, filteredfile):
@@ -264,7 +259,7 @@ def novo(args):
 
 def scan_read_files(trimmed):
     reads = iglob(trimmed, "*.fq", "*.fq.gz")
-    samples = sorted(set(op.basename(x).split(".")[0] for x in flist))
+    samples = sorted(set(op.basename(x).split(".")[0] for x in reads))
     logging.debug("Total {0} read files from {1} samples".\
                     format(len(reads), len(samples)))
     return reads, samples
@@ -277,6 +272,7 @@ def novo2(args):
     Reference-free tGBS pipeline v2.
     """
     p = OptionParser(novo2.__doc__)
+    p.set_align(pctid=96)
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -284,10 +280,11 @@ def novo2(args):
         sys.exit(not p.print_help())
 
     trimmed, = args
+    pctid = opts.pctid
     reads, samples = scan_read_files(trimmed)
 
     # Set up directory structure
-    clustdir = "vclust"
+    clustdir = "uclust"
     for d in (clustdir,):
         mkdir(d)
 
@@ -295,7 +292,15 @@ def novo2(args):
     # Step 0 - clustering within sample
     for s in samples:
         flist = [x for x in reads if op.basename(x).split(".")[0] == s]
-        cmd = "python -m jcvi.apps.cdhit vclust"
+        outfile = s + ".P{0}.clustS".format(pctid)
+        outfile = op.join(clustdir, outfile)
+        cmd = "python -m jcvi.apps.uclust cluster"
+        cmd += " {0} {1}".format(s, " ".join(flist))
+        cmd += " --outdir={0}".format(clustdir)
+        cmd += " --pctid={0}".format(pctid)
+        mm.add(flist, outfile, cmd)
+
+    mm.write()
 
 
 def snpflow(args):

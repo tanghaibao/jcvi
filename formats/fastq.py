@@ -312,7 +312,7 @@ def fasta(args):
     p.add_option("--seqtk", default=False, action="store_true",
                  help="Use seqtk to convert")
     p.set_outdir()
-    p.set_outfile()
+    p.set_outfile(outfile=None)
     opts, args = p.parse_args(args)
 
     if len(args) < 1:

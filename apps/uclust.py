@@ -532,7 +532,6 @@ def estimateHE(args):
     """
     p = OptionParser(estimateHE.__doc__)
     add_consensus_options(p)
-    p.set_outfile()
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -551,7 +550,8 @@ def estimateHE(args):
     x0 = [.01, .001]  # initital values
     H, E = scipy.optimize.fmin(LL, x0, args=(P, C))
 
-    fw = must_open(opts.outfile, "w")
+    outfile = clustSfile.rsplit(".", 1)[0] + ".HE"
+    fw = must_open(outfile, "w")
     print >> fw, H, E
     fw.close()
 
@@ -713,7 +713,7 @@ def makeclust(derepfile, userfile, notmatchedfile, clustfile):
 
 def cluster(args):
     """
-    %prog cluster fastqfiles
+    %prog cluster prefix fastqfiles
 
     Use `vsearch` to remove duplicate reads. This routine is heavily influenced
     by PyRAD: <https://github.com/dereneaton/pyrad>.
@@ -725,18 +725,20 @@ def cluster(args):
     p.set_cpus()
     opts, args = p.parse_args(args)
 
-    if len(args) < 1:
+    if len(args) < 2:
         sys.exit(not p.print_help())
 
-    fastqfiles = args
+    prefix = args[0]
+    fastqfiles = args[1:]
     cpus = opts.cpus
     identity = opts.pctid / 100.
     minlength = opts.minlength
     fastafile, qualfile = fasta(fastqfiles + ["--seqtk",
-                                "--outdir={0}".format(opts.outdir)])
+                                "--outdir={0}".format(opts.outdir),
+                                "--outfile={0}".format(prefix + ".fasta")])
 
-    pf, sf = fastafile.rsplit(".", 1)
-    pf = fastafile + ".P{0}.uclust".format(opts.pctid)
+    pf = prefix + ".P{0}".format(opts.pctid)
+    pf = op.join(opts.outdir, pf)
     usearch = "vsearch"  # Open-source alternative
     derepfile = pf + ".derep"
     if need_update(fastafile, derepfile):

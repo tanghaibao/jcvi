@@ -271,13 +271,17 @@ def consensus(args):
     logging.debug("H={0} E={1}".format(H, E))
 
     bases = "ACTG"
-    Dic = {}
     locus = minsamplocus = npoly = P = 0
     C = ClustSFile(clustfile)
+    output = []
     for data in C.iter_seqs():
         names, seqs, nreps = zip(*data)
-        fname = names[0].split(";")[0] + ";size={0};".format(sum(nreps))
-        leftjust = rightjust = None
+        name, seq, nrep = data[0]
+        fname = name.split(";")[0] + ";size={0};".format(sum(nreps))
+        if len(data) == 1:
+            if nrep >= mindepth:   # Same thing
+                output.append((fname, seq))
+            continue
 
         S = []               # List for sequence data
         alleles = []         # Measures # alleles, detect paralogs
@@ -287,6 +291,7 @@ def consensus(args):
         cons_seq = ""        # Consensus sequence
         basenumber = 1       # Tracks error locations
         rights = []
+        leftjust = rightjust = None
         for name, seq, nrep in data:
             # Append sequence * number of dereps
             for i in xrange(nrep):
@@ -409,25 +414,25 @@ def consensus(args):
                     else:
                         cons_seq += "@E"
 
-            # strip N's from either end
-            shortcon = cons_seq.lstrip("N").rstrip("N").replace("-", "")
-            shortcon = removerepeat_Ns(shortcon)
+        # strip N's from either end
+        shortcon = cons_seq.lstrip("N").rstrip("N").replace("-", "")
+        shortcon = removerepeat_Ns(shortcon)
 
-            # Only allow maxN internal "N"s in a locus
-            if shortcon.count("N") <= maxN and len(shortcon) >= opts.minlength:
-                npoly += nHs
-                Dic[fname] = shortcon
+        # Only allow maxN internal "N"s in a locus
+        if shortcon.count("N") <= maxN and len(shortcon) >= opts.minlength:
+            npoly += nHs
+            output.append((fname, shortcon))
 
-        if len(Dic) > 100:
-            break
+        #if len(output) > 100:
+        #    break
 
     consens = open(clustfile.replace(".clustS", ".consensus"), 'w+')
-    for k, v in Dic.items():
+    for k, v in output:
         print >> consens, "\n".join((k, v))
     consens.close()
 
-    nsites = sum([len(i) - len(opts.cut) for i in Dic.values()])
-    ldic = len(Dic)
+    nsites = sum([len(v) - len(opts.cut) for k, v in output])
+    ldic = len(output)
     NP = 0 if not nsites else npoly / float(nsites)
 
     return [clustfile.split('/')[-1], locus, minsamplocus, ldic, \
@@ -686,7 +691,9 @@ def musclewrap(clustfile):
         names = []
         seqs = []
         names, seqs, nreps = zip(*data)
-        if len(names) > 1:
+        if len(names) == 1:
+            STACK = ['>' + names[0] + "\n" + seqs[0]]
+        else:
             " keep only the 200 most common dereps, aligning more is surely junk "
             stringnames = alignfast(names[0:200], seqs[0:200])
             nn, ss = sortalign(stringnames)
@@ -704,9 +711,6 @@ def musclewrap(clustfile):
             keys.sort(key=lambda x:int(x.split(";")[1].replace("size=","")), reverse=True)
             for key in keys:
                 STACK.append(key + "\n" + D1[key][leftlimit:])
-        else:
-            if names:
-                STACK = [names[0] + "\n" + seqs[0]]
 
         if STACK:
             OUT.append("\n".join(STACK))

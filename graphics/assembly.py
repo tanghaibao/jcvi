@@ -40,12 +40,17 @@ def covlen(args):
     depth of coverage.
     """
     import numpy as np
+    import pandas as pd
     import seaborn as sns
     from jcvi.formats.base import DictFile
 
     p = OptionParser(covlen.__doc__)
-    p.add_option("--maxsize", default=100000, type="int", help="Max contig size")
+    p.add_option("--maxsize", default=1000000, type="int", help="Max contig size")
     p.add_option("--maxcov", default=100, type="int", help="Max contig size")
+    p.add_option("--color", default='m', help="Color of the data points")
+    p.add_option("--kind", default="scatter",
+                 choices=("scatter", "reg", "resid", "kde", "hex"),
+                 help="Kind of plot to draw")
     opts, args, iopts = p.set_image_options(args, figsize="8x8")
 
     if len(args) != 2:
@@ -57,7 +62,7 @@ def covlen(args):
     data = []
     maxsize, maxcov = opts.maxsize, opts.maxcov
     for ctg, size in s.iter_sizes():
-        c = cov[ctg]
+        c = cov.get(ctg, 0)
         if size > maxsize:
             continue
         if c > maxcov:
@@ -68,7 +73,14 @@ def covlen(args):
     x = np.array(x)
     y = np.array(y)
     logging.debug("X size {0}, Y size {1}".format(x.size, y.size))
-    sns.jointplot(x, y, kind="kde")
+
+    df = pd.DataFrame()
+    xlab, ylab = "Length", "Coverage of depth (X)"
+    df[xlab] = x
+    df[ylab] = y
+    sns.jointplot(xlab, ylab, kind=opts.kind, data=df,
+                  xlim=(0, maxsize), ylim=(0, maxcov),
+                  stat_func=None, edgecolor="w", color=opts.color)
 
     figname = covfile + ".pdf"
     savefig(figname, dpi=iopts.dpi, iopts=iopts)

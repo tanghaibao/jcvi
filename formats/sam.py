@@ -241,7 +241,7 @@ def coverage(args):
     """
     %prog coverage fastafile bamfile
 
-    Calculate coverage for BAM file. BAM file must be sorted.
+    Calculate coverage for BAM file. BAM file will be sorted if not already.
     """
     p = OptionParser(coverage.__doc__)
     p.add_option("--format", default="bigwig",
@@ -254,6 +254,8 @@ def coverage(args):
 
     fastafile, bamfile = args
     format = opts.format
+    bamfile = index([bamfile, "--fasta={0}".format(fastafile)])
+
     pf = bamfile.rsplit(".", 2)[0]
     sizesfile = Sizes(fastafile).filename
     cmd = "genomeCoverageBed -ibam {0} -g {1}".format(bamfile, sizesfile)

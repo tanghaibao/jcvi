@@ -105,9 +105,45 @@ def main():
     actions = (
         ('blast', 'run blastn using query against reference'),
         ('blat', 'run blat using query against reference'),
+        ('blasr', 'run blasr on a set of pacbio reads'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def blasr(args):
+    """
+    %prog blasr ref.fasta fofn
+
+    Run blasr on a set of PacBio reads. This is based on a divide-and-conquer
+    strategy described below.
+    """
+    from jcvi.apps.grid import MakeManager
+    from jcvi.utils.iter import grouper
+
+    p = OptionParser(blasr.__doc__)
+    p.set_cpus(cpus=8)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    reffasta, fofn = args
+    flist = sorted([x.strip() for x in open(fofn)])
+    mm = MakeManager()
+    for i, fl in enumerate(grouper(flist, 3)):
+        chunkname = "chunk{0:03d}".format(i)
+        fn = chunkname + ".fofn"
+        h5 = chunkname + ".cmp.h5"
+        fw = open(fn, "w")
+        print >> fw, "\n".join(fl)
+        fw.close()
+
+        cmd = "pbalign {0} {1} {2}".format(fn, reffasta, h5)
+        cmd += " --nproc {0} --forQuiver --tmpDir .".format(opts.cpus)
+        mm.add((fn, reffasta), h5, cmd)
+
+    mm.write()
 
 
 def get_outfile(reffasta, queryfasta, suffix="blast"):

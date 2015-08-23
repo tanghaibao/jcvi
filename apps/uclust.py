@@ -223,18 +223,20 @@ def mcluster(args):
     cpus = opts.cpus
 
     fastafile = "mcluster.fasta"
-    fw = must_open(fastafile, "w")
-    totalseqs = 0
-    for consensusfile in consensusfiles:
-        nseqs = 0
-        for name, seq in parse_fasta(consensusfile, upper=False):
-            a1, a2 = breakalleles(seq)
-            print >> fw, ">{0}\n{1}".format(name, a1)
-            nseqs += 1
-        logging.debug("Read `{0}`: {1} seqs".format(consensusfile, nseqs))
-        totalseqs += nseqs
-    logging.debug("Total: {0} seqs".format(totalseqs))
-    fw.close()
+    if need_update(consensusfiles, fastafile):
+        fw = must_open(fastafile, "w")
+        totalseqs = 0
+        for consensusfile in consensusfiles:
+            nseqs = 0
+            s = op.basename(consensusfile).split(".")[0]
+            for name, seq in parse_fasta(consensusfile, upper=False):
+                a1, a2 = breakalleles(seq)
+                print >> fw, ">{0}-{1}\n{2}".format(s, name, a1)
+                nseqs += 1
+            logging.debug("Read `{0}`: {1} seqs".format(consensusfile, nseqs))
+            totalseqs += nseqs
+        logging.debug("Total: {0} seqs".format(totalseqs))
+        fw.close()
 
     pf = fastafile
     userfile = pf + ".u"
@@ -766,9 +768,6 @@ def makeclust(derepfile, userfile, notmatchedfile, clustfile):
         I[header] = seq
 
     singletons = set(I.keys()) - set(U.keys())
-    logging.debug("size(I): {0}, size(U): {1}, size(I - U): {2}".\
-                    format(len(I), len(U), len(singletons)))
-
     outfile = open(clustfile, "w")
     for key in singletons:
         seq = key + "\n" + I[key] + '\n'

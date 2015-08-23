@@ -130,6 +130,7 @@ def blasr(args):
 
     reffasta, fofn = args
     flist = sorted([x.strip() for x in open(fofn)])
+    h5list = []
     mm = MakeManager()
     for i, fl in enumerate(grouper(flist, 3)):
         chunkname = "chunk{0:03d}".format(i)
@@ -142,6 +143,25 @@ def blasr(args):
         cmd = "pbalign {0} {1} {2}".format(fn, reffasta, h5)
         cmd += " --nproc {0} --forQuiver --tmpDir .".format(opts.cpus)
         mm.add((fn, reffasta), h5, cmd)
+        h5list.append(h5)
+
+    # Merge h5, sort and repack
+    allh5 = "all.cmp.h5"
+    tmph5 = "tmp.cmp.h5"
+    cmd_merge = "cmph5tools.py merge --outFile {0}".format(allh5)
+    cmd_merge += " " + " ".join(h5list)
+    cmd_sort = "cmph5tools.py sort --deep {0}".format(allh5)
+    cmd_repack = "h5repack -f GZIP=1 {0} {1}".format(allh5, tmph5)
+    cmd_repack += " && mv {0} {1}".format(tmph5, allh5)
+    mm.add(h5list, allh5, [cmd_merge, cmd_sort, cmd_repack])
+
+    # Quiver
+    pf = reffasta.rsplit(".", 1)[0]
+    variantsgff = pf + ".variants.gff"
+    consensusfasta = pf + ".consensus.fasta"
+    cmd = "quiver -j 64 {0}".format(allh5)
+    cmd += " -r {0} -o {1} -o {2}".format(reffasta, variantsgff, consensusfasta)
+    mm.add(allh5, consensusfasta, cmd)
 
     mm.write()
 

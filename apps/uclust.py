@@ -9,6 +9,7 @@ The VCLUST implementation borrows ideas and code from PyRAD. PyRAD link:
 """
 
 import os.path as op
+import os
 import sys
 import logging
 import numpy as np
@@ -248,6 +249,17 @@ def mcluster(args):
     if need_update((fastafile, userfile, notmatchedfile), clustfile):
         makeclust(fastafile, userfile, notmatchedfile, clustfile)
 
+    clustSfile = pf + ".clustS"
+    if need_update(clustfile, clustSfile):
+        musclewrap(clustfile)
+
+
+def makealign(clustfile):
+    C = ClustFile(clustfile)
+    for data in C.iter_seqs():
+        for name, seq, nrep in data:
+            pass
+
 
 def mconsensus(args):
     """
@@ -256,6 +268,8 @@ def mconsensus(args):
     Call consensus along the stacks from cross-sample clustering.
     """
     p = OptionParser(mconsensus.__doc__)
+    p.add_option("--minsamp", default=3, type="int",
+                 help="Min number of samples")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -266,7 +280,7 @@ def mconsensus(args):
 
 def consensus(args):
     """
-    %prog consensus clustfile
+    %prog consensus clustSfile
 
     Call consensus along the stacks. Tabulate bases at each site, tests for
     errors according to error rate, calls consensus. HEfile contains the
@@ -285,14 +299,14 @@ def consensus(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    clustfile, = args
-    HEfile = clustfile.rsplit(".", 1)[0] + ".HE"
+    clustSfile, = args
+    HEfile = clustSfile.rsplit(".", 1)[0] + ".HE"
     mindepth = opts.mindepth
     haplos = opts.ploidy
     maxH = opts.maxH
     maxN = opts.maxN
 
-    HEfile = estimateHE([clustfile])
+    HEfile = estimateHE([clustSfile])
 
     H, E = open(HEfile).readline().split()
     try:
@@ -303,7 +317,7 @@ def consensus(args):
 
     bases = "ACTG"
     locus = minsamplocus = npoly = P = 0
-    C = ClustFile(clustfile)
+    C = ClustFile(clustSfile)
     output = []
     for data in C.iter_seqs():
         names, seqs, nreps = zip(*data)
@@ -448,7 +462,7 @@ def consensus(args):
             npoly += nHs
             output.append((fname, shortcon))
 
-    consens = open(clustfile.replace(".clustS", ".consensus"), 'w+')
+    consens = open(clustSfile.replace(".clustS", ".consensus"), 'w+')
     for k, v in output:
         print >> consens, "\n".join((k, v))
     consens.close()
@@ -457,7 +471,7 @@ def consensus(args):
     ldic = len(output)
     NP = 0 if not nsites else npoly / float(nsites)
 
-    return [clustfile.split('/')[-1], locus, minsamplocus, ldic, \
+    return [clustSfile.split('/')[-1], locus, minsamplocus, ldic, \
             nsites, npoly, round(NP, 7)]
 
 
@@ -601,7 +615,7 @@ def LL(x0, P, C):
 
 def estimateHE(args):
     """
-    %prog estimateHE name.clustS
+    %prog estimateHE clustSfile
 
     Estimate heterozygosity (H) and error rate (E). Idea borrowed heavily from
     the PyRad paper.
@@ -614,6 +628,7 @@ def estimateHE(args):
         sys.exit(not p.print_help())
 
     clustSfile, = args
+    pf = clustSfile.rsplit(".", 1)[0]
     HEfile = clustSfile.rsplit(".", 1)[0] + ".HE"
     if not need_update(clustSfile, HEfile):
         logging.debug("File `{0}` found. Computation skipped.".format(HEfile))
@@ -638,17 +653,24 @@ def estimateHE(args):
     return HEfile
 
 
-def alignfast(names, seqs):
-    """ Performs MUSCLE alignments on cluster and returns output as string """
-    ST = "\n".join('>' + i + '\n' + j for i, j in zip(names, seqs))
-    cmd = "/bin/echo '" + ST +"' | muscle -quiet -in -"
+def alignfast(names, seqs, bigfile=10000):
+    """
+    Performs MUSCLE alignments on cluster and returns output as string
+    """
+    cmd = "muscle -quiet -in -"
     p = Popen(cmd, shell=True, stdin=PIPE, stdout=PIPE, stderr=STDOUT, close_fds=True)
-    (fin, fout) = (p.stdin, p.stdout)
-    return fout.read()
+    for i, j in zip(names, seqs):
+        s = "\n".join(('>' + i, j)) + "\n"
+        p.stdin.write(s)
+    p.stdin.close()
+    p.wait()
+    return p.stdout.read()
 
 
 def sortalign(stringnames):
-    """ parses muscle output from a string to two list """
+    """
+    Parses muscle output from a string to two list
+    """
     G = stringnames.split("\n>")
     GG = [i.split("\n")[0].replace(">", "") + "\n" + "".join(i.split('\n')[1:]) for i in G]
     aligned = [i.split("\n") for i in GG]
@@ -670,7 +692,7 @@ def musclewrap(clustfile):
         if len(names) == 1:
             STACK = ['>' + names[0] + "\n" + seqs[0]]
         else:
-            " keep only the 200 most common dereps, aligning more is surely junk "
+            # Keep only the 200 most common dereps, aligning more is surely junk
             stringnames = alignfast(names[0:200], seqs[0:200])
             nn, ss = sortalign(stringnames)
             D1 = {}
@@ -678,13 +700,14 @@ def musclewrap(clustfile):
             for i in range(len(nn)):
                 D1[nn[i]] = ss[i]
 
-                " do not allow seqeuence to the left of the seed (may include adapter/barcodes)"
+                # Do not allow seqeuence to the left of the seed (may include adapter/barcodes)
                 if not nn[i].split(";")[-1]:
                     leftlimit = min([ss[i].index(j) for j in ss[i] if j!="-"])
 
-            " reorder keys by derep number "
+            # Reorder keys by derep number
             keys = D1.keys()
-            keys.sort(key=lambda x:int(x.split(";")[1].replace("size=","")), reverse=True)
+            keys.sort(key=lambda x: int(x.split(";")[1].replace("size=", "")),
+                      reverse=True)
             for key in keys:
                 STACK.append(key + "\n" + D1[key][leftlimit:])
 

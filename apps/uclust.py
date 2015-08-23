@@ -17,7 +17,7 @@ import scipy.stats
 import scipy.optimize
 
 from collections import defaultdict
-from itertools import izip
+from itertools import groupby
 from random import sample
 from subprocess import Popen, PIPE, STDOUT
 
@@ -25,30 +25,29 @@ from jcvi.formats.base import BaseFile, must_open
 from jcvi.formats.fasta import parse_fasta
 from jcvi.formats.fastq import fasta
 from jcvi.utils.cbook import memoized
+from jcvi.utils.iter import grouper
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh
 
 
-class ClustSFile (BaseFile):
+SEP = "//"
+
+
+class ClustFile (BaseFile):
 
     def __init__(self, filename):
-        super(ClustSFile, self).__init__(filename)
+        super(ClustFile, self).__init__(filename)
 
     def iter_seqs(self):
-        f = must_open(self.filename)
-        k = izip(*[iter(f)] * 2)
         nstacks = 0
-        while True:
-            try:
-                first = k.next()
-            except StopIteration:
-                break
-            itera = [first[0], first[1]]
+        fp = must_open(self.filename)
+        for tag, contents in groupby(fp, lambda row: row[0] == '/'):
+            if tag:
+                continue
             data = []
-            while itera[0] != "//\n":
-                name, seq = itera[0].strip(), itera[1].strip()
+            for name, seq in grouper(contents, 2):
+                name, seq = name.strip(), seq.strip()
                 nrep = int(name.split(";")[1].replace("size=", ""))
                 data.append((name, seq, nrep))
-                itera = k.next()
             yield data
             nstacks += 1
             if nstacks % 1000 == 0:
@@ -250,6 +249,21 @@ def mcluster(args):
         makeclust(fastafile, userfile, notmatchedfile, clustfile)
 
 
+def mconsensus(args):
+    """
+    %prog mconsensus clustfile
+
+    Call consensus along the stacks from cross-sample clustering.
+    """
+    p = OptionParser(mconsensus.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    clustfile, = args
+
+
 def consensus(args):
     """
     %prog consensus clustfile
@@ -289,7 +303,7 @@ def consensus(args):
 
     bases = "ACTG"
     locus = minsamplocus = npoly = P = 0
-    C = ClustSFile(clustfile)
+    C = ClustFile(clustfile)
     output = []
     for data in C.iter_seqs():
         names, seqs, nreps = zip(*data)
@@ -470,7 +484,7 @@ def stack(D):
 
 def cons(f, minsamp, CUT1):
     """ makes a list of lists of reads at each site """
-    C = ClustSFile(f)
+    C = ClustFile(f)
     for data in C.iter_seqs():
         S = []
         rights = []
@@ -645,9 +659,9 @@ def sortalign(stringnames):
 
 def musclewrap(clustfile):
     clustSfile = clustfile.replace(".clust", ".clustS")
-    OUT = []
     cnts = 0
-    C = ClustSFile(clustfile)
+    C = ClustFile(clustfile)
+    fw = open(clustSfile, 'w')
     for data in C.iter_seqs():
         STACK = []
         names = []
@@ -675,24 +689,15 @@ def musclewrap(clustfile):
                 STACK.append(key + "\n" + D1[key][leftlimit:])
 
         if STACK:
-            OUT.append("\n".join(STACK))
-
+            print >> fw, "\n".join(STACK)
+            print >> fw, SEP
         cnts += 1
-        if not cnts % 500:
-            if OUT:
-                outfile = open(clustSfile, 'a')
-                outfile.write("\n//\n//\n".join(OUT) + "\n//\n//\n")
-                outfile.close()
-            OUT = []
 
-    outfile = open(clustSfile, 'a')
-    if OUT:
-        outfile.write("\n//\n//\n".join(OUT)+"\n//\n//\n")
-    outfile.close()
+    fw.close()
 
 
 def stats(clustSfile, statsfile, mindepth=0):
-    C = ClustSFile(clustSfile)
+    C = ClustFile(clustSfile)
     depth = []
     for data in C.iter_seqs():
         d = 0
@@ -740,9 +745,7 @@ def stats(clustSfile, statsfile, mindepth=0):
 def makeclust(derepfile, userfile, notmatchedfile, clustfile):
     D = {}  # Reads
     for header, seq in parse_fasta(derepfile):
-        a, b = header.rstrip(";").split(";")
-        size = int(b.replace("size=", ""))
-        D[header] = (size, seq)
+        D[header] = seq
 
     U = defaultdict(list)  # Clusters
     fp = open(userfile)
@@ -750,30 +753,28 @@ def makeclust(derepfile, userfile, notmatchedfile, clustfile):
         query, target, id, gaps, qstrand, qcov = row.rstrip().split("\t")
         U[target].append([query, qstrand, qcov, gaps])
 
-    SEQS = []
-    sep = "//\n//\n"
+    fw = open(clustfile, "w")
     for key, values in U.items():
-        seq = key + "\n" + D[key][1] + '\n'
         S    = [i[0] for i in values]       ## names of matches
         R    = [i[1] for i in values]       ## + or - for strands
         Cov  = [int(float(i[2])) for i in values]  ## query coverage (overlap)
+        seqs = [(key, D[key])]
         for i in range(len(S)):
             # Only match forward reads if high Cov
             if R[i] == "+" and Cov[i] >= 90:
-                seq += S[i] + '+\n' + D[S[i]][1] + "\n"
-        SEQS.append(seq)
+                seqs.append((S[i], D[S[i]]))
+        if seqs:
+            seq = "\n".join("\n".join(x) for x in seqs)
+            print >> fw, "\n".join((seq, SEP))
 
     I = {}
     for header, seq in parse_fasta(notmatchedfile):
         I[header] = seq
 
     singletons = set(I.keys()) - set(U.keys())
-    outfile = open(clustfile, "w")
     for key in singletons:
-        seq = key + "\n" + I[key] + '\n'
-        SEQS.append(seq)
-    outfile.write(sep.join(SEQS) + sep)
-    outfile.close()
+        print >> fw, "\n".join((key, I[key], SEP))
+    fw.close()
 
 
 def derep(fastafile, derepfile, minlength, cpus, usearch="vsearch"):

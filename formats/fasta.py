@@ -21,6 +21,7 @@ from hashlib import md5
 
 from jcvi.formats.base import BaseFile, DictFile, must_open
 from jcvi.formats.bed import Bed
+from jcvi.utils.cbook import percentage
 from jcvi.utils.table import write_csv
 from jcvi.apps.console import red, green
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update
@@ -357,6 +358,7 @@ def main():
         ('diff', 'check if two fasta records contain same information'),
         ('identical', 'given 2 fasta files, find all exactly identical records'),
         ('trim', 'given a cross_match screened fasta, trim the sequence'),
+        ('trimsplit', 'split sequences at lower-cased letters'),
         ('sort', 'sort the records by IDs, sizes, etc.'),
         ('filter', 'filter the records by size'),
         ('pair', 'sort paired reads to .pairs, rest to .fragments'),
@@ -376,6 +378,43 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def trimsplit(args):
+    """
+    %prog trimsplit fastafile
+
+    Split sequences at lower-cased letters. This is useful at cleaning up the
+    low quality bases for the QUIVER output.
+    """
+    p = OptionParser(trimsplit.__doc__)
+    p.add_option("--minlength", default=1000, type="int",
+                 help="Min length of contigs to keep")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    fastafile, = args
+    fw = must_open(fastafile.rsplit(".", 1)[0] + ".split.fasta", "w")
+    nremoved = 0
+    ntotal = 0
+    for name, seq in parse_fasta(fastafile, upper=False):
+        stretches = []
+        ntotal += len(seq)
+        for lower, stretch in groupby(seq, key=lambda x: x.islower()):
+            stretch = "".join(stretch)
+            if lower or len(stretch) < opts.minlength:
+                nremoved += len(stretch)
+                continue
+            stretches.append(stretch)
+        for i, seq in enumerate(stretches):
+            id = "{0}_{1}".format(name, i)
+            s = SeqRecord(Seq(seq), id=id, description="")
+            SeqIO.write([s], fw, "fasta")
+    fw.close()
+    logging.debug("Total bases removed: {0}".\
+                    format(percentage(nremoved, ntotal)))
 
 
 def qual(args):
@@ -481,8 +520,6 @@ def longestorf(args):
 
     Find longest ORF for each sequence in fastafile.
     """
-    from jcvi.utils.cbook import percentage
-
     p = OptionParser(longestorf.__doc__)
     p.add_option("--ids", action="store_true",
                  help="Generate table with ORF info [default: %default]")
@@ -665,8 +702,6 @@ def translate(args):
     represents a partial gene, therefore disrupting the frame of the protein.
     Check all three frames to get a valid translation.
     """
-    from jcvi.utils.cbook import percentage
-
     transl_tables = [str(x) for x in xrange(1,25)]
     p = OptionParser(translate.__doc__)
     p.add_option("--ids", default=False, action="store_true",

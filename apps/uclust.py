@@ -9,7 +9,6 @@ The VCLUST implementation borrows ideas and code from PyRAD. PyRAD link:
 """
 
 import os.path as op
-import os
 import sys
 import logging
 import numpy as np

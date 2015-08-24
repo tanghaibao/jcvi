@@ -57,7 +57,6 @@ class ClustFile (BaseFile):
 def main():
 
     actions = (
-        # UCLUST/VCLUST related
         ('estimateHE', 'estimate heterozygosity and error rate for stacks'),
         ('cluster', 'cluster within samples'),
         ('consensus', 'call consensus bases within samples'),
@@ -223,32 +222,37 @@ def mcluster(args):
     identity = opts.pctid / 100.
     cpus = opts.cpus
 
-    fastafile = "mcluster.fasta"
-    if need_update(consensusfiles, fastafile):
-        fw = must_open(fastafile, "w")
+    pf = "mcluster"
+    consensusfile = pf + ".consensus.fasta"
+    haplotypefile = pf + ".haplotype.fasta"
+    if need_update(consensusfiles, (consensusfile, haplotypefile)):
+        fw_cons = must_open(consensusfile, "w")
+        fw_haps = must_open(haplotypefile, "w")
         totalseqs = 0
-        for consensusfile in consensusfiles:
+        for cf in consensusfiles:
             nseqs = 0
-            s = op.basename(consensusfile).split(".")[0]
-            for name, seq in parse_fasta(consensusfile, upper=False):
+            s = op.basename(cf).split(".")[0]
+            for name, seq in parse_fasta(cf):
+                name = s + name
                 a1, a2 = breakalleles(seq)
-                print >> fw, ">{0}-{1}\n{2}".format(s, name, a1)
+                print >> fw_cons, ">{0}\n{1}".format(name, seq)
+                print >> fw_haps, ">{0}\n{1}".format(name, a1)
                 nseqs += 1
-            logging.debug("Read `{0}`: {1} seqs".format(consensusfile, nseqs))
+            logging.debug("Read `{0}`: {1} seqs".format(cf, nseqs))
             totalseqs += nseqs
         logging.debug("Total: {0} seqs".format(totalseqs))
-        fw.close()
+        fw_cons.close()
+        fw_haps.close()
 
-    pf = fastafile
     userfile = pf + ".u"
     notmatchedfile = pf + ".notmatched"
-    if need_update(fastafile, userfile):
-        cluster_smallmem(fastafile, userfile, notmatchedfile,
+    if need_update(haplotypefile, userfile):
+        cluster_smallmem(haplotypefile, userfile, notmatchedfile,
                          minlength, identity, cpus)
 
     clustfile = pf + ".clust"
-    if need_update((fastafile, userfile, notmatchedfile), clustfile):
-        makeclust(fastafile, userfile, notmatchedfile, clustfile)
+    if need_update((consensusfile, userfile, notmatchedfile), clustfile):
+        makeclust(consensusfile, userfile, notmatchedfile, clustfile)
 
     clustSfile = pf + ".clustS"
     if need_update(clustfile, clustSfile):
@@ -261,7 +265,7 @@ def makealign(clustSfile, locifile, CUT1):
     for data in C.iter_seqs():
         names, seqs, nreps = zip(*data)
         # Strip off cut site
-        seqs = [x[CUT1:] for x in seqs]
+        seqs = [x[CUT1:].upper() for x in seqs]
         longname = max(len(x) for x in names) + 2
 
         # Apply number of shared heteros paralog filter
@@ -276,6 +280,11 @@ def makealign(clustSfile, locifile, CUT1):
             if len(set(reals)) <= 1:
                 continue
 
+            # Convert ambiguous bases into reals
+            for r in reals:
+                if r in "RWMSYK":
+                    reals.extend(unhetero(r))
+            reals = [x for x in reals if x not in "RWMSYK"]
             realcounts = sorted([reals.count(x) for x in set(reals)],
                                  reverse=True)
             snpsite[i] = '*' if realcounts[1] > 1 else '-'

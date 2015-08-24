@@ -401,7 +401,7 @@ def trimsplit(args):
     fw = must_open(fastafile.rsplit(".", 1)[0] + ".split.fasta", "w")
     ntotal = 0
     removed = []
-    for name, seq in parse_fasta(fastafile, upper=False):
+    for name, seq in parse_fasta(fastafile):
         stretches = []
         ntotal += len(seq)
         for lower, stretch in groupby(seq, key=lambda x: x.islower()):
@@ -604,7 +604,7 @@ def ispcr(args):
                   format(npairs, ispcrfile))
 
 
-def parse_fasta(infile, upper=True):
+def parse_fasta(infile, upper=False):
     '''
     parse a fasta-formatted file and returns header
     can be a fasta file that contains multiple records.

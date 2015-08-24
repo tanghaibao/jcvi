@@ -387,6 +387,8 @@ def trimsplit(args):
     Split sequences at lower-cased letters. This is useful at cleaning up the
     low quality bases for the QUIVER output.
     """
+    from jcvi.utils.cbook import SummaryStats
+
     p = OptionParser(trimsplit.__doc__)
     p.add_option("--minlength", default=1000, type="int",
                  help="Min length of contigs to keep")
@@ -397,15 +399,15 @@ def trimsplit(args):
 
     fastafile, = args
     fw = must_open(fastafile.rsplit(".", 1)[0] + ".split.fasta", "w")
-    nremoved = 0
     ntotal = 0
+    removed = []
     for name, seq in parse_fasta(fastafile, upper=False):
         stretches = []
         ntotal += len(seq)
         for lower, stretch in groupby(seq, key=lambda x: x.islower()):
             stretch = "".join(stretch)
             if lower or len(stretch) < opts.minlength:
-                nremoved += len(stretch)
+                removed.append(len(stretch))
                 continue
             stretches.append(stretch)
         for i, seq in enumerate(stretches):
@@ -414,7 +416,8 @@ def trimsplit(args):
             SeqIO.write([s], fw, "fasta")
     fw.close()
     logging.debug("Total bases removed: {0}".\
-                    format(percentage(nremoved, ntotal)))
+                    format(percentage(sum(removed), ntotal)))
+    print >> sys.stderr, SummaryStats(removed)
 
 
 def qual(args):

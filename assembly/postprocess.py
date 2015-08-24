@@ -104,7 +104,7 @@ def screen(args):
                "--best={0}".format(opts.best)])
 
     idsfile = blastfile.rsplit(".", 1)[0] + ".ids"
-    covfilter([blastfile, scaffolds, "--union", "--ids=" + idsfile,
+    covfilter([blastfile, scaffolds, "--ids=" + idsfile,
                pctidflag, "--pctcov={0}".format(opts.pctcov)])
 
     pf = scaffolds.rsplit(".", 1)[0]

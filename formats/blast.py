@@ -906,8 +906,8 @@ def covfilter(args):
     p.set_align(pctid=95, pctcov=50)
     p.add_option("--scov", default=False, action="store_true",
             help="Subject coverage instead of query [default: %default]")
-    p.add_option("--union", action="store_true",
-            help="Use range union instead of supermap [default: %default]")
+    p.add_option("--supermap", action="store_true",
+            help="Use supermap instead of union")
     p.add_option("--ids", dest="ids", default=None,
             help="Print out the ids that satisfy [default: %default]")
     p.add_option("--list", dest="list", default=False, action="store_true",
@@ -924,7 +924,7 @@ def covfilter(args):
     blastfile, fastafile = args
     pctid = opts.pctid
     pctcov = opts.pctcov
-    union = opts.union
+    union = not opts.supermap
     scov = opts.scov
     sz = Sizes(fastafile)
     sizes = sz.mapping

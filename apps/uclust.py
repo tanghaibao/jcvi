@@ -660,7 +660,7 @@ def alignfast(names, seqs, bigfile=10000):
     cmd = "muscle -quiet -in -"
     p = Popen(cmd, shell=True, stdin=PIPE, stdout=PIPE, stderr=STDOUT, close_fds=True)
     for i, j in zip(names, seqs):
-        s = "\n".join(('>' + i, j)) + "\n"
+        s = "\n".join((i, j)) + "\n"
         p.stdin.write(s)
     p.stdin.close()
     p.wait()
@@ -668,15 +668,10 @@ def alignfast(names, seqs, bigfile=10000):
 
 
 def sortalign(stringnames):
-    """
-    Parses muscle output from a string to two list
-    """
     G = stringnames.split("\n>")
-    GG = [i.split("\n")[0].replace(">", "") + "\n" + "".join(i.split('\n')[1:]) for i in G]
-    aligned = [i.split("\n") for i in GG]
-    nn = [">" + i[0] for i in aligned]
-    seqs = [i[1] for i in aligned]
-    return nn, seqs
+    aligned = [('>' + i.split("\n")[0].strip('>'),
+               "".join(i.split("\n")[1:])) for i in G]
+    return aligned
 
 
 def musclewrap(clustfile):
@@ -690,19 +685,19 @@ def musclewrap(clustfile):
         seqs = []
         names, seqs, nreps = zip(*data)
         if len(names) == 1:
-            STACK = ['>' + names[0] + "\n" + seqs[0]]
+            STACK = [names[0] + "\n" + seqs[0]]
         else:
             # Keep only the 200 most common dereps, aligning more is surely junk
             stringnames = alignfast(names[0:200], seqs[0:200])
-            nn, ss = sortalign(stringnames)
+            aligned = sortalign(stringnames)
             D1 = {}
             leftlimit = 0
-            for i in range(len(nn)):
-                D1[nn[i]] = ss[i]
+            for name, seq in aligned:
+                D1[name] = seq
 
                 # Do not allow seqeuence to the left of the seed (may include adapter/barcodes)
-                if not nn[i].split(";")[-1]:
-                    leftlimit = min([ss[i].index(j) for j in ss[i] if j!="-"])
+                if not name.split(";")[-1]:
+                    leftlimit = min([seq.index(j) for j in seq if j != "-"])
 
             # Reorder keys by derep number
             keys = D1.keys()
@@ -766,37 +761,28 @@ def stats(clustSfile, statsfile, mindepth=0):
 
 
 def makeclust(derepfile, userfile, notmatchedfile, clustfile):
-    D = {}  # Reads
-    for header, seq in parse_fasta(derepfile):
-        D[header] = seq
-
+    D = dict(parse_fasta(derepfile))
     U = defaultdict(list)  # Clusters
     fp = open(userfile)
     for row in fp:
         query, target, id, gaps, qstrand, qcov = row.rstrip().split("\t")
-        U[target].append([query, qstrand, qcov, gaps])
+        U[target].append([query, qstrand, qcov])
 
     fw = open(clustfile, "w")
     for key, values in U.items():
-        S    = [i[0] for i in values]       ## names of matches
-        R    = [i[1] for i in values]       ## + or - for strands
-        Cov  = [int(float(i[2])) for i in values]  ## query coverage (overlap)
-        seqs = [(key, D[key])]
-        for i in range(len(S)):
+        seqs = [('>' + key, D[key])]
+        for name, strand, cov in values:
+            cov = float(cov)
             # Only match forward reads if high Cov
-            if R[i] == "+" and Cov[i] >= 90:
-                seqs.append((S[i], D[S[i]]))
-        if seqs:
-            seq = "\n".join("\n".join(x) for x in seqs)
-            print >> fw, "\n".join((seq, SEP))
+            if strand == "+" and cov >= 90:
+                seqs.append(('>' + name, D[name]))
+        seq = "\n".join("\n".join(x) for x in seqs)
+        print >> fw, "\n".join((seq, SEP))
 
-    I = {}
-    for header, seq in parse_fasta(notmatchedfile):
-        I[header] = seq
-
+    I = dict(parse_fasta(notmatchedfile))
     singletons = set(I.keys()) - set(U.keys())
     for key in singletons:
-        print >> fw, "\n".join((key, I[key], SEP))
+        print >> fw, "\n".join(('>' + key, I[key], SEP))
     fw.close()
 
 

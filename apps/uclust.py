@@ -58,10 +58,11 @@ def main():
 
     actions = (
         # UCLUST/VCLUST related
-        ('cluster', 'use `vsearch` to remove duplicate reads'),
         ('estimateHE', 'estimate heterozygosity and error rate for stacks'),
-        ('consensus', 'call consensus bases along the stacks'),
+        ('cluster', 'cluster within samples'),
+        ('consensus', 'call consensus bases within samples'),
         ('mcluster', 'cluster across samples'),
+        ('mconsensus', 'call consensus bases across samples'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -70,7 +71,8 @@ def main():
 def add_consensus_options(p):
     p.add_option("--minlength", default=30, type="int", help="Min contig length")
     p.add_option("--mindepth", default=3, type="int", help="Min depth for each stack")
-    p.add_option("--cut", default="CATG", help="Sequence to trim on the left")
+    p.add_option("--cut", default=4, type="int",
+                 help="Size of restriction site to trim on the left, e.g. CATG is 4")
 
 
 @memoized
@@ -253,20 +255,47 @@ def mcluster(args):
         musclewrap(clustfile)
 
 
-def makealign(clustfile):
-    C = ClustFile(clustfile)
+def makealign(clustSfile, locifile, CUT1):
+    C = ClustFile(clustSfile)
+    fw = open(locifile, "w")
     for data in C.iter_seqs():
+        names, seqs, nreps = zip(*data)
+        # Strip off cut site
+        seqs = [x[CUT1:] for x in seqs]
+        longname = max(len(x) for x in names) + 2
+
+        # Apply number of shared heteros paralog filter
+
+        # Record variable sites
+        ncols = len(seqs[0])
+        snpsite = [' '] * ncols
+
+        for i in xrange(ncols):
+            site = [s[i] for s in seqs]
+            reals = [x for x in site if x not in "N-"]
+            if len(set(reals)) <= 1:
+                continue
+
+            realcounts = sorted([reals.count(x) for x in set(reals)],
+                                 reverse=True)
+            snpsite[i] = '*' if realcounts[1] > 1 else '-'
+
         for name, seq, nrep in data:
-            pass
+            print >> fw, name.ljust(longname) + seq
+        print >> fw, "//".ljust(longname + CUT1) + "".join(snpsite) + "|"
+
+    logging.debug("Stacks written to `{0}`".format(locifile))
+    fw.close()
 
 
 def mconsensus(args):
     """
-    %prog mconsensus clustfile
+    %prog mconsensus clustSfile
 
     Call consensus along the stacks from cross-sample clustering.
     """
     p = OptionParser(mconsensus.__doc__)
+    add_consensus_options(p)
     p.add_option("--minsamp", default=3, type="int",
                  help="Min number of samples")
     opts, args = p.parse_args(args)
@@ -274,7 +303,10 @@ def mconsensus(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    clustfile, = args
+    clustSfile, = args
+    locifile = clustSfile.rsplit(".", 1)[0] + ".loci"
+    if need_update(clustSfile, locifile):
+        makealign(clustSfile, locifile, opts.cut)
 
 
 def consensus(args):
@@ -527,7 +559,7 @@ def cons(f, minsamp, CUT1):
 
         # Trim off restriction sites from ends
         for s in range(len(S)):
-            S[s] = S[s][len(CUT1):]
+            S[s] = S[s][CUT1:]
 
         if len(S) >= minsamp:
             # Make list for each site in sequences
@@ -627,7 +659,6 @@ def estimateHE(args):
         sys.exit(not p.print_help())
 
     clustSfile, = args
-    pf = clustSfile.rsplit(".", 1)[0]
     HEfile = clustSfile.rsplit(".", 1)[0] + ".HE"
     if not need_update(clustSfile, HEfile):
         logging.debug("File `{0}` found. Computation skipped.".format(HEfile))

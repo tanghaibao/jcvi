@@ -19,6 +19,7 @@ import scipy.optimize
 
 from collections import defaultdict
 from itertools import groupby
+from functools import partial
 from random import sample
 from subprocess import Popen, PIPE, STDOUT
 
@@ -84,6 +85,7 @@ def add_consensus_options(p):
     p.add_option("--prefix", default="mcluster", help="Output prefix")
     p.add_option("--minlength", default=30, type="int", help="Min contig length")
     p.add_option("--mindepth", default=3, type="int", help="Min depth for each stack")
+    p.add_option("--minsamp", default=3, type="int", help="Min number of samples")
     p.add_option("--cut", default=4, type="int",
                  help="Size of restriction site to trim on the left, e.g. CATG is 4")
 
@@ -270,8 +272,7 @@ def mcluster(args):
 
     clustSfile = pf + ".clustS"
     if need_update(clustfile, clustSfile):
-        if cpus > 1:
-            parallel_musclewrap(clustfile, cpus)
+        parallel_musclewrap(clustfile, cpus, minsamp=opts.minsamp)
 
 
 def makealign(clustSfile, locifile, CUT1):
@@ -320,8 +321,6 @@ def mconsensus(args):
     """
     p = OptionParser(mconsensus.__doc__)
     add_consensus_options(p)
-    p.add_option("--minsamp", default=3, type="int",
-                 help="Min number of samples")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -686,12 +685,16 @@ def sortalign(stringnames):
     return aligned
 
 
-def parallel_musclewrap(clustfile, cpus):
+def parallel_musclewrap(clustfile, cpus, minsamp=0):
+    musclewrap_minsamp = partial(musclewrap, minsamp=minsamp)
+    if cpus == 1:
+        return musclewrap_minsamp(clustfile)
+
     from jcvi.apps.grid import Jobs
 
     outdir = "outdir"
     fs = split([clustfile, outdir, str(cpus), "--format=clust"])
-    g = Jobs(musclewrap, fs.names)
+    g = Jobs(musclewrap_minsamp, fs.names)
     g.run()
 
     clustnames = [x.replace(".clust", ".clustS") for x in fs.names]
@@ -700,7 +703,28 @@ def parallel_musclewrap(clustfile, cpus):
     shutil.rmtree(outdir)
 
 
-def musclewrap(clustfile):
+def filter_samples(names, seqs, sep='.'):
+    """
+    When there are uncollapsed contigs within the same sample, only retain the
+    first seq, or the seq that is most abundant (with cluster_size).
+    """
+    seen = set()
+    filtered_names, filtered_seqs = [], []
+    for name, seq in zip(names, seqs):
+        samp = name.split(sep, 1)[0]
+        if samp in seen:
+            continue
+        seen.add(samp)
+        filtered_names.append(name)
+        filtered_seqs.append(seq)
+
+    nfiltered, nnames = len(filtered_names), len(names)
+    assert nfiltered == len(seen)
+
+    return filtered_names, filtered_seqs, seen
+
+
+def musclewrap(clustfile, minsamp=0):
     cnts = 0
     C = ClustFile(clustfile)
     clustSfile = clustfile.replace(".clust", ".clustS")
@@ -710,12 +734,15 @@ def musclewrap(clustfile):
         names = []
         seqs = []
         names, seqs, nreps = zip(*data)
+        if minsamp:  # Filter based on samples, applicable in mcluster()
+            names, seqs, samples = filter_samples(names, seqs)
+            if len(samples) < minsamp:
+                continue
+
         if len(names) == 1:
             STACK.append((names[0], seqs[0]))
         else:
-            # Keep only the 200 most common dereps, aligning more is surely junk
-            # TODO: SCREEN ACROSS SAMPLES TO USE AT MOST ONLY ONE INSTANCE PER SAMPLE
-            stringnames = alignfast(names[:200], seqs[:200])
+            stringnames = alignfast(names, seqs)
             aligned = sortalign(stringnames)
             D1 = {}
             for name, seq in aligned:

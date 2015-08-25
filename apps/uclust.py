@@ -20,7 +20,6 @@ import scipy.optimize
 from collections import defaultdict
 from itertools import groupby
 from functools import partial
-from random import sample
 from subprocess import Popen, PIPE, STDOUT
 
 from jcvi.formats.base import BaseFile, FileMerger, must_open, split
@@ -32,6 +31,7 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh
 
 
 SEP = "//"
+ACTGN = "ACTGN-"
 
 
 class ClustFile (BaseFile):
@@ -215,7 +215,7 @@ def removerepeat_Ns(shortcon):
         r2 = len(set(list(shortcon)[n + 1: n + 4]))
         if r2 < 2:
             repeats.add(n)
-    return "".join([j for (i, j) in enumerate(shortcon) if i not in repeats])
+    return repeats
 
 
 def mcluster(args):
@@ -348,6 +348,7 @@ def consensus(args):
     p.add_option("--maxN", default=10, type="int",
                  help="Max number of Ns allowed")
     add_consensus_options(p)
+    p.set_verbose()
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -369,7 +370,7 @@ def consensus(args):
         H, E = .01, .001
     logging.debug("H={0} E={1}".format(H, E))
 
-    bases = "ACTG"
+    bases = ACTGN[:4]
     locus = minsamplocus = npoly = P = 0
     C = ClustFile(clustSfile)
     output = []
@@ -413,25 +414,13 @@ def consensus(args):
                 n1, n2, n3, n4 = sorted(site, reverse=True)
 
                 # Speed hack = if diploid exclude if a third base present at > 20%
-                quickthirdbasetest = False
-                if haplos == 2:
-                    if float(n3) / (n1 + n2 + n3 + n4) > .2:
-                        quickthirdbasetest = True
-
-                if quickthirdbasetest:
+                if haplos == 2 and float(n3) / (n1 + n2 + n3 + n4) > .2:
                     cons = "@"   # Paralog
                 else:
-                    m1, m2 = n1, n2
-                    # For high cov data, reduce for base calling
-                    if n1 + n2 >= 500:
-                        s = sample('A' * n1 + 'B' * n2, 500)
-                        m1, m2 = s.count('A'), s.count('B')
-
                     # Make base calls, two different methods available:
                     # binom_consens and naive_consens
                     if n1 + n2 >= mindepth:
-                        P, maf, who = binom_consens(m1, m2, E, H)
-
+                        P, maf, who = binom_consens(n1, n2, E, H)
                     # High conf if base could be called with 95% post. prob.
                     if P < .95:
                         cons = 'N'
@@ -442,7 +431,6 @@ def consensus(args):
                                 cons = hetero(bases[a[0]], bases[a[1]])
                             else:                 # alleles came up diff freq
                                 b = [i for i, l in enumerate(site) if l == n2]
-
                                 # If three alleles came up equal, only need if diploid paralog filter off
                                 if a == b:
                                     cons = hetero(bases[a[0]], bases[a[1]])
@@ -481,26 +469,47 @@ def consensus(args):
             if AL:  # and len(AL) <= haplos   - TODO: check ploidy level
                 cons_seq = findalleles(cons_seq, alleles, AL)
 
-        # strip N's from either end
-        shortcon = cons_seq.strip("N").replace("-", "")
-        shortcon = removerepeat_Ns(shortcon)
+        # Strip N's from either end and gaps
+        leftjust, rightjust = get_left_right(cons_seq)
+        terminalNs = set(range(leftjust) + range(rightjust + 1, len(cons_seq)))
+        gaps = set(i for i, j in enumerate(cons_seq) if j == '-')
+
+        # Discount repeat Ns due to homopolymers
+        repeats = removerepeat_Ns(cons_seq)
+        filtered = terminalNs | gaps | repeats
+
+        shortcon = "".join(j for (i, j) in enumerate(cons_seq) \
+                            if i not in filtered)
+        shortRAD = [j for (i, j) in enumerate(RAD) if i not in filtered]
+        assert len(shortcon) == len(shortRAD)
+
+        if opts.verbose:
+            print_list = lambda L: ",".join(str(x) for x in sorted(L))
+            print fname
+            print "\n".join(["{0} {1}".format(*x) for x in S])
+            print cons_seq
+            print "Terminal Ns:", print_list(terminalNs)
+            print "Gaps:", print_list(gaps)
+            print "Repeats:", print_list(repeats)
+            print "Allelic sites:", print_list(alleles)
+            print shortcon
+            print "|".join(["{0}{1}:{2}".\
+                        format(i, shortcon[i], " ".join(str(x) for x in j)) \
+                        for i, j in enumerate(shortRAD)])
+            print "-" * 60
 
         # Only allow maxN internal "N"s in a locus
         if shortcon.count("N") <= maxN and len(shortcon) >= opts.minlength:
             npoly += nHs
             output.append((fname, shortcon))
 
-    consens = open(clustSfile.replace(".clustS", ".consensus"), 'w+')
+    consensfile = clustSfile.replace(".clustS", ".consensus")
+    consens = open(consensfile, 'w')
     for k, v in output:
         print >> consens, "\n".join((k, v))
     consens.close()
 
-    nsites = sum([len(v) - opts.cut for k, v in output])
-    ldic = len(output)
-    NP = 0 if not nsites else npoly / float(nsites)
-
-    return [clustSfile.split('/')[-1], locus, minsamplocus, ldic, \
-            nsites, npoly, round(NP, 7)]
+    return consensfile
 
 
 def stack(S):
@@ -511,7 +520,6 @@ def stack(S):
     S = np.array([list(x) for x in S])
     rows, cols = S.shape
     counts = []
-    ACTGN = "ACTGN-"
     for c in xrange(cols):
         freq = [0] * 6
         for b, nrep in zip(S[:, c], nreps):
@@ -521,8 +529,21 @@ def stack(S):
     return counts
 
 
+def get_left_right(seq):
+    """
+    Find position of the first and last base
+    """
+    cseq = seq.strip("-N")
+    leftjust = seq.index(cseq[0])
+    rightjust = seq.rindex(cseq[-1])
+
+    return leftjust, rightjust
+
+
 def cons(f, minsamp):
-    """ makes a list of lists of reads at each site """
+    """
+    Makes a list of lists of reads at each site
+    """
     C = ClustFile(f)
     for data in C:
         S = []
@@ -530,9 +551,7 @@ def cons(f, minsamp):
         rights = []
         for name, seq, nrep in data:
             # Record left and right most for cutting
-            cseq = seq.strip("-N")
-            leftjust = seq.index(cseq[0])
-            rightjust = seq.rindex(cseq[-1])
+            leftjust, rightjust = get_left_right(seq)
             lefts.append(leftjust)
             rights.append(rightjust)
 

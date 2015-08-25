@@ -150,7 +150,7 @@ def blasr(args):
     tmph5 = "tmp.cmp.h5"
     cmd_merge = "cmph5tools.py merge --outFile {0}".format(allh5)
     cmd_merge += " " + " ".join(h5list)
-    cmd_sort = "cmph5tools.py sort --deep {0}".format(allh5)
+    cmd_sort = "cmph5tools.py sort --deep {0} --tmpDir .".format(allh5)
     cmd_repack = "h5repack -f GZIP=1 {0} {1}".format(allh5, tmph5)
     cmd_repack += " && mv {0} {1}".format(tmph5, allh5)
     mm.add(h5list, allh5, [cmd_merge, cmd_sort, cmd_repack])

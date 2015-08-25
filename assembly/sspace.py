@@ -17,7 +17,7 @@ from jcvi.formats.base import BaseFile, read_block, write_file
 from jcvi.formats.agp import AGP, AGPLine, reindex, tidy
 from jcvi.utils.iter import pairwise
 from jcvi.algorithms.graph import BiGraph, BiEdge
-from jcvi.apps.base import OptionParser, ActionDispatcher
+from jcvi.apps.base import OptionParser, ActionDispatcher, download
 
 
 NO_UPDATE, INSERT_BEFORE, INSERT_AFTER, INSERT_BETWEEN = \
@@ -172,6 +172,7 @@ def scaffold(args):
     Run SSPACE scaffolding.
     """
     p = OptionParser(scaffold.__doc__)
+    p.set_aligner(aligner="bwa")
     p.set_home("sspace")
     p.set_cpus()
     opts, args = p.parse_args(args)
@@ -180,9 +181,11 @@ def scaffold(args):
         sys.exit(not p.print_help())
 
     contigs = args[0]
-    libtxt = write_libraries(args[1:])
+    libtxt = write_libraries(args[1:], aligner=opts.aligner)
+    # Requires getopts.pl which may be missing
+    download("http://mflib.org/xampp/perl/lib/getopts.pl")
 
-    cmd = "perl " + op.join(opts.sspace_home, "SSPACE_Basic_v2.0.pl")
+    cmd = "perl " + op.join(opts.sspace_home, "SSPACE_Standard_v3.0.pl")
     cmd += " -l {0} -s {1} -T {2}".format(libtxt, contigs, opts.cpus)
     runsh = "run.sh"
     write_file(runsh, cmd)

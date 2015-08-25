@@ -552,7 +552,7 @@ class OptionParser (OptionP):
                    "pasa": "~/export/PASA",
                    "gmes": "~/export/gmes",
                    "gt": "~/export/genometools",
-                   "sspace": "~/export/SSPACE-BASIC-2.0_linux-x86_64",
+                   "sspace": "~/export/SSPACE-STANDARD-3.0_linux-x86_64",
                    "gapfiller": "~/export/GapFiller_v1-11_linux-x86_64",
                    "pbjelly": "/usr/local/projects/MTG4/PacBio/PBJelly_12.9.14/",
                    "khmer": "~/export/khmer",

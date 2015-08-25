@@ -411,7 +411,7 @@ def trimsplit(args):
                 continue
             stretches.append(stretch)
         for i, seq in enumerate(stretches):
-            id = "{0}_{1}".format(name, i)
+            id = "{0}_{1}".format(name.split("|")[0], i)
             s = SeqRecord(Seq(seq), id=id, description="")
             SeqIO.write([s], fw, "fasta")
     fw.close()

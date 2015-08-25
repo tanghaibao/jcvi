@@ -12,7 +12,7 @@ import os.path as op
 import sys
 import logging
 
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, which
+from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh, which
 
 
 class Protocol (object):
@@ -23,8 +23,7 @@ class Protocol (object):
         self.reads = reads
         oblasr = (20, 98) if highqual else (8, 75)
         self.blasr = "-minMatch {0} -minPctIdentity {1}".format(*oblasr)
-        #self.blasr += " -bestn 8 -nCandidates 30 -maxScore -500 -nproc 64 -noSplitSubreads"
-        self.blasr += " -sdpTupleSize 8 -bestn 2 -nCandidates 10 " \
+        self.blasr += " -sdpTupleSize 8 -bestn 8 -nCandidates 10 " \
                       "-maxScore -500 -nproc 64 -noSplitSubread"
 
     def write_xml(self, filename="Protocol.xml"):
@@ -43,19 +42,13 @@ class Protocol (object):
         inp.set("baseDir", baseDir)
         job = ET.SubElement(inp, "job")
         job.text = readsfile
-        cluster = ET.SubElement(jellyProtocol, "cluster")
-        command = ET.SubElement(cluster, "command")
-        command.set("notes", "For single node, multi-core machines")
-        command.text = "echo '${CMD}' ${JOBNAME} ${STDOUT} ${STDERR}"
-        nJobs = ET.SubElement(cluster, "nJobs")
-        nJobs.text = "1"
 
         s = ET.tostring(jellyProtocol)
         s = XD.parseString(s)
 
         fw = open(filename, "w")
-        #print >> fw, s.toprettyxml()
-        print >> fw, s.toxml()
+        print >> sys.stderr, s.toprettyxml()
+        print >> fw, s.toprettyxml()
         logging.debug("XML configuration written to `{0}`".format(filename))
         fw.close()
 
@@ -128,30 +121,18 @@ def patch(args):
     p.add_option("--highqual", default=False, action="store_true",
                  help="Reads are of high quality [default: %default]")
     p.set_home("pbjelly")
+    p.set_cpus()
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
         sys.exit(not p.print_help())
 
     ref, reads = args
+    cpus = opts.cpus
     cmd = op.join(opts.pbjelly_home, "setup.sh")
+    setup = "source {0}".format(cmd)
     if not which("fakeQuals.py"):
-        setup = "source {0}".format(cmd)
         sh(setup)
-
-    # Check environment
-    try:
-        import networkx
-        version = networkx.version
-    except:
-        logging.error("You need networkx==1.1 to run PBJELLY")
-        return
-
-    try:
-        import argparse
-    except ImportError:
-        logging.error("You need Python2.7 or at least argparse lib")
-        return
 
     pf = ref.rsplit(".", 1)[0]
     pr, px = reads.rsplit(".", 1)
@@ -174,35 +155,29 @@ def patch(args):
 
     # Make directory structure
     dref, dreads = "data/reference", "data/reads"
-    sh("mkdir -p {0}".format(dref))
-    sh("mkdir -p {0}".format(dreads))
-    sh("cp {0} {1}/".format(" ".join((ref, refq)), dref))
-    sh("cp {0} {1}/".format(readsfiles, dreads))
     cwd = os.getcwd()
-
-    outputDir = cwd
     reference = op.join(cwd, "{0}/{1}".format(dref, ref))
     reads = op.join(cwd, "{0}/{1}".format(dreads, reads))
+    if not op.exists(reference):
+        sh("mkdir -p {0}".format(dref))
+        sh("cp {0} {1}/".format(" ".join((ref, refq)), dref))
+    sa = reference + ".sa"
+    if need_update(reference, sa):
+        sh("sawriter {0}".format(reference))
+    if not op.exists(reads):
+        sh("mkdir -p {0}".format(dreads))
+        sh("cp {0} {1}/".format(readsfiles, dreads))
+
+    outputDir = cwd
     p = Protocol(outputDir, reference, reads, highqual=opts.highqual)
     p.write_xml()
-
-    # Make sure we have the patched version of Extraction.py
-    # See discussion <http://seqanswers.com/forums/showthread.php?t=27599>
-    # This check has been removed
 
     # Build the pipeline
     runsh = [setup]
     for action in "setup|mapping|support|extraction".split("|"):
         runsh.append("Jelly.py {0} Protocol.xml".format(action))
 
-    #pcmds = """find assembly -name "ref*" -exec echo \\
-    #    "Assembly.py {} \\
-    #    > {}/assembly.out 2> {}/assembly.err" \; > commands.list"""
-    #runsh.append(pcmds)
-
-    runsh.append("Jelly.py assembly Protocol.xml")
-    runsh.append("cp assembly/assembly_chunk0.sh commands.list")
-    runsh.append("parallel < commands.list")
+    runsh.append('Jelly.py assembly Protocol.xml -x "--nproc={0}"'.format(cpus))
     runsh.append("Jelly.py output Protocol.xml")
 
     runfile = "run.sh"

@@ -137,7 +137,9 @@ def dump(args):
     d = opts.dir
     if d:
         from jcvi.assembly.preprocess import export_fastq
-        export_fastq(d, fastbfile)
+
+        rc = "jump" in fastbfile
+        export_fastq(d, fastbfile, rc=rc)
         return
 
     sim = not opts.nosim

@@ -554,7 +554,7 @@ class OptionParser (OptionP):
                    "gt": "~/export/genometools",
                    "sspace": "~/export/SSPACE-STANDARD-3.0_linux-x86_64",
                    "gapfiller": "~/export/GapFiller_v1-11_linux-x86_64",
-                   "pbjelly": "/usr/local/projects/MTG4/PacBio/PBJelly_12.9.14/",
+                   "pbjelly": "~/export/PBSuite_15.2.20",
                    "khmer": "~/export/khmer",
                    "tassel": "/usr/local/projects/MTG4/packages/tassel",
                    "tgi": "/usr/local/projects/tgi/bin",

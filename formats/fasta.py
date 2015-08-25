@@ -384,8 +384,8 @@ def trimsplit(args):
     """
     %prog trimsplit fastafile
 
-    Split sequences at lower-cased letters. This is useful at cleaning up the
-    low quality bases for the QUIVER output.
+    Split sequences at lower-cased letters and stretch of Ns. This is useful
+    at cleaning up the low quality bases for the QUIVER output.
     """
     from jcvi.utils.cbook import SummaryStats
 
@@ -398,26 +398,41 @@ def trimsplit(args):
         sys.exit(not p.print_help())
 
     fastafile, = args
+    minlength = opts.minlength
+
     fw = must_open(fastafile.rsplit(".", 1)[0] + ".split.fasta", "w")
     ntotal = 0
     removed = []
+    Ns = []
     for name, seq in parse_fasta(fastafile):
         stretches = []
         ntotal += len(seq)
         for lower, stretch in groupby(seq, key=lambda x: x.islower()):
             stretch = "".join(stretch)
-            if lower or len(stretch) < opts.minlength:
+            if lower or len(stretch) < minlength:
                 removed.append(len(stretch))
                 continue
-            stretches.append(stretch)
+            for isN, s in groupby(stretch, key=lambda x: x in "Nn"):
+                s = "".join(s)
+                if isN or len(s) < minlength:
+                    Ns.append(len(s))
+                    continue
+                stretches.append(s)
         for i, seq in enumerate(stretches):
             id = "{0}_{1}".format(name.split("|")[0], i)
             s = SeqRecord(Seq(seq), id=id, description="")
             SeqIO.write([s], fw, "fasta")
     fw.close()
-    logging.debug("Total bases removed: {0}".\
-                    format(percentage(sum(removed), ntotal)))
-    print >> sys.stderr, SummaryStats(removed)
+
+    # Reporting
+    if removed:
+        logging.debug("Total bases removed: {0}".\
+                        format(percentage(sum(removed), ntotal)))
+        print >> sys.stderr, SummaryStats(removed)
+    if Ns:
+        logging.debug("Total Ns removed: {0}".\
+                        format(percentage(sum(Ns), ntotal)))
+        print >> sys.stderr, SummaryStats(Ns)
 
 
 def qual(args):

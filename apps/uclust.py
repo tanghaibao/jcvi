@@ -9,6 +9,7 @@ The VCLUST implementation borrows ideas and code from PyRAD. PyRAD link:
 """
 
 import os.path as op
+import shutil
 import sys
 import logging
 import numpy as np
@@ -21,7 +22,7 @@ from itertools import groupby
 from random import sample
 from subprocess import Popen, PIPE, STDOUT
 
-from jcvi.formats.base import BaseFile, must_open
+from jcvi.formats.base import BaseFile, FileMerger, must_open, split
 from jcvi.formats.fasta import parse_fasta
 from jcvi.formats.fastq import fasta
 from jcvi.utils.cbook import memoized
@@ -37,13 +38,13 @@ class ClustFile (BaseFile):
     def __init__(self, filename):
         super(ClustFile, self).__init__(filename)
 
-    def iter_seqs(self):
+    def __iter__(self):
         nstacks = 0
         fp = must_open(self.filename)
         for tag, contents in groupby(fp, lambda row: row[0] == '/'):
             if tag:
                 continue
-            data = []
+            data = Clust()
             for name, seq in grouper(contents, 2):
                 name, seq = name.strip(), seq.strip()
                 nrep = int(name.split(";")[1].replace("size=", ""))
@@ -52,6 +53,18 @@ class ClustFile (BaseFile):
             nstacks += 1
             if nstacks % 5000 == 0:
                 logging.debug("{0} stacks parsed".format(nstacks))
+
+
+class Clust (list):
+
+    def __init__(self):
+        super(Clust, self).__init__(self)
+
+    def __str__(self):
+        s = []
+        for d in self:
+            s.append("\n".join(d[:2]))
+        return "\n".join(s) + "\n" + SEP
 
 
 def main():
@@ -234,7 +247,7 @@ def mcluster(args):
             nseqs = 0
             s = op.basename(cf).split(".")[0]
             for name, seq in parse_fasta(cf):
-                name = s + name
+                name = '.'.join((s, name))
                 a1, a2 = breakalleles(seq)
                 print >> fw_cons, ">{0}\n{1}".format(name, seq)
                 print >> fw_haps, ">{0}\n{1}".format(name, a1)
@@ -257,13 +270,14 @@ def mcluster(args):
 
     clustSfile = pf + ".clustS"
     if need_update(clustfile, clustSfile):
-        musclewrap(clustfile)
+        if cpus > 1:
+            parallel_musclewrap(clustfile, cpus)
 
 
 def makealign(clustSfile, locifile, CUT1):
     C = ClustFile(clustSfile)
     fw = open(locifile, "w")
-    for data in C.iter_seqs():
+    for data in C:
         names, seqs, nreps = zip(*data)
         # Strip off cut site
         seqs = [x[CUT1:].upper() for x in seqs]
@@ -360,7 +374,7 @@ def consensus(args):
     locus = minsamplocus = npoly = P = 0
     C = ClustFile(clustSfile)
     output = []
-    for data in C.iter_seqs():
+    for data in C:
         names, seqs, nreps = zip(*data)
         name, seq, nrep = data[0]
         fname = name.split(";")[0] + ";size={0};".format(sum(nreps))
@@ -511,7 +525,7 @@ def stack(S):
 def cons(f, minsamp):
     """ makes a list of lists of reads at each site """
     C = ClustFile(f)
-    for data in C.iter_seqs():
+    for data in C:
         S = []
         lefts = []
         rights = []
@@ -638,7 +652,6 @@ def estimateHE(args):
 
     logging.debug("Computing base frequencies ...")
     P = makeP(D)
-    logging.debug("Computing base vector counts ...")
     C = makeC(D)
     logging.debug("Solving log-likelihood function ...")
     x0 = [.01, .001]  # initital values
@@ -660,6 +673,7 @@ def alignfast(names, seqs):
     for i, j in zip(names, seqs):
         s = "\n".join((i, j)) + "\n"
         p.stdin.write(s)
+    p.stdin.flush()
     p.stdin.close()
     p.wait()
     return p.stdout.read()
@@ -672,21 +686,36 @@ def sortalign(stringnames):
     return aligned
 
 
-def musclewrap(clustfile):
+def parallel_musclewrap(clustfile, cpus):
+    from jcvi.apps.grid import Jobs
+
+    outdir = "outdir"
+    fs = split([clustfile, outdir, str(cpus), "--format=clust"])
+    g = Jobs(musclewrap, fs.names)
+    g.run()
+
+    clustnames = [x.replace(".clust", ".clustS") for x in fs.names]
     clustSfile = clustfile.replace(".clust", ".clustS")
+    FileMerger(clustnames, outfile=clustSfile).merge()
+    shutil.rmtree(outdir)
+
+
+def musclewrap(clustfile):
     cnts = 0
     C = ClustFile(clustfile)
+    clustSfile = clustfile.replace(".clust", ".clustS")
     fw = open(clustSfile, 'w')
-    for data in C.iter_seqs():
-        STACK = []
+    for data in C:
+        STACK = Clust()
         names = []
         seqs = []
         names, seqs, nreps = zip(*data)
         if len(names) == 1:
-            STACK = [names[0] + "\n" + seqs[0]]
+            STACK.append((names[0], seqs[0]))
         else:
             # Keep only the 200 most common dereps, aligning more is surely junk
-            stringnames = alignfast(names[0:200], seqs[0:200])
+            # TODO: SCREEN ACROSS SAMPLES TO USE AT MOST ONLY ONE INSTANCE PER SAMPLE
+            stringnames = alignfast(names[:200], seqs[:200])
             aligned = sortalign(stringnames)
             D1 = {}
             for name, seq in aligned:
@@ -697,11 +726,10 @@ def musclewrap(clustfile):
             keys.sort(key=lambda x: int(x.split(";")[1].replace("size=", "")),
                       reverse=True)
             for key in keys:
-                STACK.append(key + "\n" + D1[key])
+                STACK.append((key, D1[key]))
 
         if STACK:
-            print >> fw, "\n".join(STACK)
-            print >> fw, SEP
+            print >> fw, STACK
         cnts += 1
 
     fw.close()
@@ -710,7 +738,7 @@ def musclewrap(clustfile):
 def stats(clustSfile, statsfile, mindepth=0):
     C = ClustFile(clustSfile)
     depth = []
-    for data in C.iter_seqs():
+    for data in C:
         d = 0
         for name, seq, nrep in data:
             d += nrep

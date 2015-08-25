@@ -156,6 +156,8 @@ class FileSplitter (object):
 
         if format in ("fasta", "fastq"):
             self.klass = "seqio"
+        elif format == "clust":
+            self.klass = "clust"
         else:
             self.klass = "txt"
 
@@ -165,6 +167,9 @@ class FileSplitter (object):
 
         if self.klass == "seqio":
             handle = SeqIO.parse(open(filename), self.format)
+        elif self.klass == "clust":
+            from jcvi.apps.uclust import ClustFile
+            handle = iter(ClustFile(filename))
         else:
             handle = open(filename)
         return handle
@@ -220,12 +225,14 @@ class FileSplitter (object):
 
     def write(self, fw, batch):
         if self.klass == "seqio":
-            count = SeqIO.write(batch, fw, self.format)
+            SeqIO.write(batch, fw, self.format)
+        elif self.klass == "clust":
+            for b in batch:
+                print >> fw, b
         else:
             for line in batch:
                 fw.write(line)
-            count = len(batch)
-        return count
+        return len(batch)
 
     def split(self, N, force=False):
         """
@@ -785,7 +792,8 @@ def split(args):
             help="split all records [default: %default]")
     p.add_option("--mode", default="optimal", choices=mode_choices,
             help="Mode when splitting records [default: %default]")
-    p.add_option("--format", default="fasta", choices=("fasta", "fastq", "txt"),
+    p.add_option("--format", default="fasta",
+            choices=("fasta", "fastq", "txt", "clust"),
             help="input file format [default: %default]")
 
     opts, args = p.parse_args(args)
@@ -793,9 +801,9 @@ def split(args):
     if len(args) != 3:
         sys.exit(not p.print_help())
 
-    mode = opts.mode
     filename, outdir, N = args
-    fs = FileSplitter(filename, outputdir=outdir, format=opts.format, mode=mode)
+    fs = FileSplitter(filename, outputdir=outdir,
+                      format=opts.format, mode=opts.mode)
 
     if opts.all:
         logging.debug("option -all override N")

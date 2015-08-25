@@ -84,6 +84,7 @@ class Jobs (list):
     def __init__(self, target, args):
 
         for x in args:
+            x = listify(x)
             self.append(Process(target=target, args=x))
 
     def start(self):

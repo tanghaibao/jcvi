@@ -12,7 +12,7 @@ import os.path as op
 import sys
 import logging
 
-from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh, which
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh, which
 
 
 class Protocol (object):
@@ -21,10 +21,9 @@ class Protocol (object):
         self.outputDir = outputDir
         self.reference = reference
         self.reads = reads
-        oblasr = (20, 98) if highqual else (8, 75)
-        self.blasr = "-minMatch {0} -minPctIdentity {1}".format(*oblasr)
-        self.blasr += " -sdpTupleSize 8 -bestn 8 -nCandidates 10 " \
-                      "-maxScore -500 -nproc 64 -noSplitSubread"
+        oblasr = (24, 98) if highqual else (12, 75)
+        self.blasr = "-minMatch {0} -minPctSimilarity {1}".format(*oblasr)
+        self.blasr += " -bestn 8 -maxScore -500 -nproc 64 -noSplitSubreads"
 
     def write_xml(self, filename="Protocol.xml"):
         import xml.etree.cElementTree as ET
@@ -161,9 +160,6 @@ def patch(args):
     if not op.exists(reference):
         sh("mkdir -p {0}".format(dref))
         sh("cp {0} {1}/".format(" ".join((ref, refq)), dref))
-    sa = reference + ".sa"
-    if need_update(reference, sa):
-        sh("sawriter {0}".format(reference))
     if not op.exists(reads):
         sh("mkdir -p {0}".format(dreads))
         sh("cp {0} {1}/".format(readsfiles, dreads))

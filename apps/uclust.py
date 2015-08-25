@@ -376,9 +376,7 @@ def consensus(args):
         cons_seq = ""        # Consensus sequence
         basenumber = 0       # Tracks het locations
         for name, seq, nrep in data:
-            # Append sequence * number of dereps
-            for i in xrange(nrep):
-                S.append(tuple(seq.strip()))
+            S.append([seq, nrep])
 
         # Apply paralog filters, depth filter disabled
         if len(S) < mindepth:
@@ -388,7 +386,7 @@ def consensus(args):
         RAD = stack(S)
         paralog = False
         for site in RAD:
-            site, Ns, gaps = site
+            site, gaps = site[:4], site[-1]
 
             # Minimum depth of coverage for base calling
             depthofcoverage = sum(site)
@@ -456,7 +454,7 @@ def consensus(args):
         # Filter to limit to N haplotypes
         al = []
         if len(alleles) > 1:
-            for s in S:
+            for s, nrep in S:
                 d = []
                 for z in alleles:
                     if s[z] in unhetero(cons_seq[z]):
@@ -471,7 +469,7 @@ def consensus(args):
                 cons_seq = findalleles(cons_seq, alleles, AL)
 
         # strip N's from either end
-        shortcon = cons_seq.lstrip("N").rstrip("N").replace("-", "")
+        shortcon = cons_seq.strip("N").replace("-", "")
         shortcon = removerepeat_Ns(shortcon)
 
         # Only allow maxN internal "N"s in a locus
@@ -492,28 +490,25 @@ def consensus(args):
             nsites, npoly, round(NP, 7)]
 
 
-def stack(D):
+def stack(S):
     """
-    from list of bases at a site D,
-    returns an ordered list of counts of bases
+    From list of bases at a site D,  make counts of bases
     """
-    L = len(D)
+    S, nreps = zip(*S)
+    S = np.array([list(x) for x in S])
+    rows, cols = S.shape
     counts = []
-    for i in range(len(D[0])):
-        A = C = T = G = N = S = 0
-        for nseq in range(L):
-            s = D[nseq][i]
-            A += s.count("A")
-            C += s.count("C")
-            T += s.count("T")
-            G += s.count("G")
-            N += s.count("N")
-            S += s.count("-")
-        counts.append([[A, C, T, G], N, S])
+    ACTGN = "ACTGN-"
+    for c in xrange(cols):
+        freq = [0] * 6
+        for b, nrep in zip(S[:, c], nreps):
+            ib = ACTGN.index(b)
+            freq[ib] += nrep
+        counts.append(freq)
     return counts
 
 
-def cons(f, minsamp, CUT1):
+def cons(f, minsamp):
     """ makes a list of lists of reads at each site """
     C = ClustFile(f)
     for data in C.iter_seqs():
@@ -529,31 +524,24 @@ def cons(f, minsamp, CUT1):
             rights.append(rightjust)
 
             # Append sequence * number of dereps
-            # TODO: USE WEIGHTS INSTEAD
-            for i in range(nrep):
-                S.append(tuple(seq))
+            S.append([seq, nrep])
 
         # Trim off overhang edges of gbs reads
         leftjust = max(lefts)
         rightjust = min(rights)
 
         for s in range(len(S)):
-            if leftjust or rightjust:
-                S[s] = S[s][leftjust: rightjust + 1]
-
-        # Trim off restriction sites from ends
-        for s in range(len(S)):
-            S[s] = S[s][CUT1:]
+            S[s][0] = S[s][0][leftjust: rightjust + 1]
 
         if len(S) >= minsamp:
             # Make list for each site in sequences
             res = stack(S)
             # Exclude sites with indels
-            yield [i[0] for i in res if i[2] == 0]
+            yield [x[:4] for x in res if x[-1] == 0]
 
 
 def makeP(N):
-    # Make list of freq. for ATGC
+    # Make list of freq. for ACTG
     sump = float(sum([sum(i) for i in N]))
     if sump:
         p1 = sum([i[0] for i in N]) / sump
@@ -571,16 +559,10 @@ def makeC(N):
     speeds up Likelihood calculation
     """
     C = defaultdict(int)
-    k = iter(N)
-    while True:
-        try:
-            d = k.next()
-        except StopIteration:
-            break
+    for d in N:
         C[tuple(d)] += 1
 
-    L = [(i, j) for i, j in C.items()]
-    return [i for i in L if (0,0,0,0) not in i]
+    return [i for i in C.items() if (0, 0, 0, 0) not in i]
 
 
 def L1(E, P, N):
@@ -590,7 +572,7 @@ def L1(E, P, N):
     for i, l in enumerate(N):
         p = P[i]
         b = scipy.stats.binom.pmf(s - l, s, E)
-        h.append(p*b)
+        h.append(p * b)
     return sum(h)
 
 
@@ -651,7 +633,7 @@ def estimateHE(args):
         return HEfile
 
     D = []
-    for d in cons(clustSfile, opts.mindepth, opts.cut):
+    for d in cons(clustSfile, opts.mindepth):
         D.extend(d)
 
     logging.debug("Computing base frequencies ...")

@@ -267,7 +267,7 @@ def scan_read_files(trimmed):
 
 def novo2(args):
     """
-    %prog novo2 trimmed
+    %prog novo2 trimmed projectname
 
     Reference-free tGBS pipeline v2.
     """
@@ -276,10 +276,10 @@ def novo2(args):
     p.set_cpus()
     opts, args = p.parse_args(args)
 
-    if len(args) != 1:
+    if len(args) != 2:
         sys.exit(not p.print_help())
 
-    trimmed, = args
+    trimmed, pf = args
     pctid = opts.pctid
     reads, samples = scan_read_files(trimmed)
 
@@ -295,7 +295,7 @@ def novo2(args):
         flist = [x for x in reads if op.basename(x).split(".")[0] == s]
         outfile = s + ".P{0}.clustS".format(pctid)
         outfile = op.join(clustdir, outfile)
-        cmd = "python -m jcvi.apps.uclust cluster"
+        cmd = "python -m jcvi.apps.uclust cluster --cpus=4"
         cmd += " {0} {1}".format(s, " ".join(flist))
         cmd += " --outdir={0}".format(clustdir)
         cmd += " --pctid={0}".format(pctid)
@@ -303,14 +303,20 @@ def novo2(args):
         clustfiles.append(outfile)
 
     # Step 1 - make consensus within sample
+    allcons = []
     for s, clustfile in zip(samples, clustfiles):
         outfile = s + ".P{0}.consensus".format(pctid)
         outfile = op.join(clustdir, outfile)
         cmd = "python -m jcvi.apps.uclust consensus"
         cmd += " {0}".format(clustfile)
         mm.add(clustfile, outfile, cmd)
+        allcons.append(outfile)
 
     # Step 2 - clustering across samples
+    outfile = pf + ".clustS"
+    cmd = "python -m jcvi.apps.uclust mcluster {0}".format(" ".join(allcons))
+    cmd += " --prefix={0}".format(pf)
+    mm.add(allcons, outfile, cmd)
 
     # Step 3 - make consensus across samples
 

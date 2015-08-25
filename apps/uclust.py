@@ -50,7 +50,7 @@ class ClustFile (BaseFile):
                 data.append((name, seq, nrep))
             yield data
             nstacks += 1
-            if nstacks % 1000 == 0:
+            if nstacks % 5000 == 0:
                 logging.debug("{0} stacks parsed".format(nstacks))
 
 
@@ -68,6 +68,7 @@ def main():
 
 
 def add_consensus_options(p):
+    p.add_option("--prefix", default="mcluster", help="Output prefix")
     p.add_option("--minlength", default=30, type="int", help="Min contig length")
     p.add_option("--mindepth", default=3, type="int", help="Min depth for each stack")
     p.add_option("--cut", default=4, type="int",
@@ -221,8 +222,8 @@ def mcluster(args):
     minlength = opts.minlength
     identity = opts.pctid / 100.
     cpus = opts.cpus
+    pf = opts.prefix
 
-    pf = "mcluster"
     consensusfile = pf + ".consensus.fasta"
     haplotypefile = pf + ".haplotype.fasta"
     if need_update(consensusfiles, (consensusfile, haplotypefile)):
@@ -374,34 +375,10 @@ def consensus(args):
         nHs = 0              # Measures heterozygous sites in this locus
         cons_seq = ""        # Consensus sequence
         basenumber = 0       # Tracks het locations
-        rights = []
-        leftjust = rightjust = None
         for name, seq, nrep in data:
             # Append sequence * number of dereps
             for i in xrange(nrep):
                 S.append(tuple(seq.strip()))
-
-            # Record left and right most index of seed and hits (for GBS)
-            # leftjust is seed's left, rightjust is the shortest reverse hit
-            if name[-1] == ";":
-                leftjust = seq.index([i for i in seq if i not in list("-N")][0])
-
-            if name[-1] == "-":
-                rights.append(max(-1, [seq.rindex(i) for i in seq if i in bases]))
-
-            # Trim off overhang edges of gbs reads
-            if rights:
-                # Record in name that there was a reverse hit
-                fname = "_".join(fname.split("_")[0:-1]) + "_c1"
-                try:
-                    rightjust = min([min(i) for i in rights])
-                except ValueError:
-                    S = ""
-
-            for s in xrange(len(S)):
-                S[s] = S[s][leftjust:]
-                if rightjust:
-                    S[s] = S[s][:rightjust + 1]
 
         # Apply paralog filters, depth filter disabled
         if len(S) < mindepth:
@@ -507,7 +484,7 @@ def consensus(args):
         print >> consens, "\n".join((k, v))
     consens.close()
 
-    nsites = sum([len(v) - len(opts.cut) for k, v in output])
+    nsites = sum([len(v) - opts.cut for k, v in output])
     ldic = len(output)
     NP = 0 if not nsites else npoly / float(nsites)
 
@@ -541,26 +518,24 @@ def cons(f, minsamp, CUT1):
     C = ClustFile(f)
     for data in C.iter_seqs():
         S = []
-        rights = []
         lefts = []
-        leftjust = rightjust = None
+        rights = []
         for name, seq, nrep in data:
             # Record left and right most for cutting
-            if name.split(";")[-1] == "":
-                leftjust = seq.index([i for i in seq if i not in list("-N")][0])
-                rightjust = seq.rindex([i for i in seq if i not in list("-N")][0])
-            lefts.append(seq.index([i for i in seq if i not in list("-N")][0]))
-            rights.append(seq.rindex([i for i in seq if i not in list("-N")][0]))
+            cseq = seq.strip("-N")
+            leftjust = seq.index(cseq[0])
+            rightjust = seq.rindex(cseq[-1])
+            lefts.append(leftjust)
+            rights.append(rightjust)
 
             # Append sequence * number of dereps
+            # TODO: USE WEIGHTS INSTEAD
             for i in range(nrep):
                 S.append(tuple(seq))
 
         # Trim off overhang edges of gbs reads
-        if any([i < leftjust for i in lefts]):
-            rightjust = min(rights)
-        if any([i < rightjust for i in rights]):
-            leftjust = max(lefts)
+        leftjust = max(lefts)
+        rightjust = min(rights)
 
         for s in range(len(S)):
             if leftjust or rightjust:
@@ -578,7 +553,7 @@ def cons(f, minsamp, CUT1):
 
 
 def makeP(N):
-    """ returns a list of freq. for ATGC"""
+    # Make list of freq. for ATGC
     sump = float(sum([sum(i) for i in N]))
     if sump:
         p1 = sum([i[0] for i in N]) / sump
@@ -591,8 +566,10 @@ def makeP(N):
 
 
 def makeC(N):
-    """ Makes a dictionary with counts of base counts [x,x,x,x]:x,
-    speeds up Likelihood calculation"""
+    """
+    Makes a dictionary with counts of base counts [x,x,x,x]:x,
+    speeds up Likelihood calculation
+    """
     C = defaultdict(int)
     k = iter(N)
     while True:
@@ -607,7 +584,7 @@ def makeC(N):
 
 
 def L1(E, P, N):
-    """probability homozygous"""
+    # Probability of homozygous
     h = []
     s = sum(N)
     for i, l in enumerate(N):
@@ -618,7 +595,7 @@ def L1(E, P, N):
 
 
 def L2(E, P, N):
-    """probability of heterozygous"""
+    # Probability of heterozygous
     h = []
     s = sum(N)
     for l, i in enumerate(N):
@@ -633,13 +610,13 @@ def L2(E, P, N):
 
 
 def totlik(E, P, H, N):
-    """ total probability """
+    # Total probability
     lik = ((1 - H) * L1(E, P, N)) + (H * L2(E, P, N))
     return lik
 
 
 def LL(x0, P, C):
-    """ Log likelihood score given values [H, E] """
+    # Log likelihood score given values [H, E]
     H, E = x0
     L = []
     if H <= 0. or E <= 0.:
@@ -692,7 +669,7 @@ def estimateHE(args):
     return HEfile
 
 
-def alignfast(names, seqs, bigfile=10000):
+def alignfast(names, seqs):
     """
     Performs MUSCLE alignments on cluster and returns output as string
     """
@@ -730,20 +707,15 @@ def musclewrap(clustfile):
             stringnames = alignfast(names[0:200], seqs[0:200])
             aligned = sortalign(stringnames)
             D1 = {}
-            leftlimit = 0
             for name, seq in aligned:
                 D1[name] = seq
-
-                # Do not allow seqeuence to the left of the seed (may include adapter/barcodes)
-                if not name.split(";")[-1]:
-                    leftlimit = min([seq.index(j) for j in seq if j != "-"])
 
             # Reorder keys by derep number
             keys = D1.keys()
             keys.sort(key=lambda x: int(x.split(";")[1].replace("size=", "")),
                       reverse=True)
             for key in keys:
-                STACK.append(key + "\n" + D1[key][leftlimit:])
+                STACK.append(key + "\n" + D1[key])
 
         if STACK:
             print >> fw, "\n".join(STACK)
@@ -837,7 +809,7 @@ def cluster_smallmem(derepfile, userfile, notmatchedfile, minlength, identity,
                      cpus, usearch="vsearch"):
     cmd = usearch + " -minseqlength {0}".format(minlength)
     cmd += " -leftjust"
-    cmd += " -cluster_smallmem {0}".format(derepfile)
+    cmd += " -cluster_size {0}".format(derepfile)
     cmd += " -id {0}".format(identity)
     cmd += " -userout {0}".format(userfile)
     cmd += " -userfields query+target+id+gaps+qstrand+qcov"
@@ -875,9 +847,9 @@ def cluster(args):
                                 "--outdir={0}".format(opts.outdir),
                                 "--outfile={0}".format(prefix + ".fasta")])
 
+    prefix = op.join(opts.outdir, prefix)
     pf = prefix + ".P{0}".format(opts.pctid)
-    pf = op.join(opts.outdir, pf)
-    derepfile = pf + ".derep"
+    derepfile = prefix + ".derep"
     if need_update(fastafile, derepfile):
         derep(fastafile, derepfile, minlength, cpus)
 

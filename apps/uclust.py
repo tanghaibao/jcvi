@@ -35,7 +35,7 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, listify, mkdir, \
 SEP = "//"
 BASES = "ACTGN-"  # CAUTION: change of this line must also change AlleleCounts
 ACHEADER = "\t".join("""
-CHR   POS     REF_NT  REF_ALLELE      ALT_ALLELE      REF_COUNT
+TAXON     CHR   POS     REF_NT  REF_ALLELE      ALT_ALLELE      REF_COUNT
 ALT_COUNT       OTHER_COUNT     TOTAL_READS     A       G       C       T
 READ_INS        READ_DEL        TOTAL_READS
 """.split())
@@ -116,18 +116,21 @@ class AlleleCount (object):
         self.alt_count = sum(profile[BASES.index(x)] for x in alt_allele)
         self.A, self.C, self.T, self.G, self.N, self.gaps = profile
         self.total_count = sum(profile)
-        self.other_count = self.total_count - self.alt_count
+        self.other_count = self.total_count - self.ref_count - self.alt_count
         self.read_ins = self.total_count if self.ref_nt == '-' else 0
         self.read_del = self.gaps
 
     def __str__(self):
+        alt_allele = []
+        for a in self.alt_allele:
+            alt_allele.extend(unhetero(a))
+        alt_allele = ",".join(alt_allele).replace("-", "*")
         return "\t".join(str(x) for x in (self.taxon,
                     self.chr, self.pos,
-                    ",".join(self.ref_nt), ",".join(self.ref_allele),
-                    ",".join(self.alt_allele), self.ref_count,
-                    self.alt_count, self.other_count, self.total_reads,
+                    ",".join(self.ref_nt), ",".join(self.ref_allele), alt_allele,
+                    self.ref_count, self.alt_count, self.other_count, self.total_count,
                     self.A, self.G, self.C, self.T,
-                    self.reads_ins, self.read_del, self.total_reads
+                    self.read_ins, self.read_del, self.total_count
                     ))
 
 
@@ -372,24 +375,15 @@ def makeloci(clustSfile, store):
 
             site = [s[i] for s in seqs]
             reals = [x for x in site if x not in "N-"]
-
-            # Convert ambiguous bases into reals
-            for r in reals:
-                if r in "RWMSYK":
-                    reals.extend(unhetero(r))
-
             realcounts = sorted([(reals.count(x), x) for x in BASES],
                                  reverse=True)
             snpsite[i] = '*' if realcounts[1][0] > 1 else '-'
-            nonzeros = [x for c, x in realcounts if c]
+            nonzeros = [x for c, x in realcounts if (c and x != ref_allele)]
             alt_alleles.append(nonzeros)
 
         assert len(seed_ungapped_pos) == ncols
         assert len(ref_alleles) == ncols
         assert len(alt_alleles) == ncols
-        print seed_ungapped_pos
-        print ref_alleles
-        print alt_alleles
 
         for name, seq in zip(names, seqs):
             name = name.strip(">")
@@ -398,18 +392,20 @@ def makeloci(clustSfile, store):
             assert len(seq) == ncols
 
             ungapped_i = 0
-            for pos, ref_allele, alt_allele, r in \
-                    zip(seed_ungapped_pos, ref_alleles, alt_alleles, seq):
-                print pos
-                print ref_allele
-                print alt_allele
-                print profile[ungapped_i]
-                p = [0, 0, 0, 0, 1, 0] if r == '-' else profile[ungapped_i]
+            gap_p = [0, 0, 0, 0, 0, sum(profile[0])]
+            for pos, ref_allele, alt_allele, r, ispoly in \
+                zip(seed_ungapped_pos, ref_alleles, alt_alleles, seq, snpsite):
+                if r == '-':
+                    p = gap_p
+                else:
+                    p = profile[ungapped_i]
+                    ungapped_i += 1
+
+                if ispoly != '*':
+                    continue
                 ac = AlleleCount(taxon, fname, pos,
                                  ref_allele, alt_allele, p)
                 AC.append(ac)
-                if r != '-':
-                    ungapped_i += 1
 
         longname = max(len(x) for x in names) + 2
         for name, seq, nrep in data:

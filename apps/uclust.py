@@ -33,7 +33,8 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, listify, mkdir, \
 
 
 SEP = "//"
-BASES = "ACTGN-"  # CAUTION: change of this line must also change AlleleCounts
+BASES = "ACTGN_-"  # CAUTION: change of this line must also change AlleleCounts
+NBASES = len(BASES)
 AMB = "RKSYWM"
 AMBL = "rksywm"
 EXTENDEDBASES = BASES + AMB
@@ -42,6 +43,7 @@ TAXON     CHR   POS     REF_NT  REF_ALLELE      ALT_ALLELE      REF_COUNT
 ALT_COUNT       OTHER_COUNT     TOTAL_READS     A       G       C       T
 READ_INS        READ_DEL        TOTAL_READS
 """.split())
+alleles = lambda x: ",".join(x).replace("-", "*")
 
 
 class ClustFile (BaseFile):
@@ -84,9 +86,9 @@ class ClustStore (BaseFile):
         binfile = consensfile + ".bin"
         idxfile = consensfile + ".idx"
         self.bin = np.fromfile(binfile, dtype=np.uint16)
-        assert self.bin.size % 6 == 0
+        assert self.bin.size % NBASES == 0
 
-        self.bin = self.bin.reshape((self.bin.size / 6, 6))
+        self.bin = self.bin.reshape((self.bin.size / NBASES, NBASES))
         self.index = {}
         fp = open(idxfile)
         for row in fp:
@@ -112,7 +114,7 @@ class AlleleCount (object):
         self.taxon = taxon
         self.chr = chr
         self.pos = pos
-        self.ref_nt = ref_allele
+        self.ref_nt = listify(ref_allele)
         self.ref_allele = listify(ref_allele)
         alts = []
         for a in listify(alt_allele):
@@ -120,18 +122,19 @@ class AlleleCount (object):
         self.alt_allele = sorted(set(alts))
         self.ref_count = sum(profile[BASES.index(x)] for x in self.ref_allele)
         self.alt_count = sum(profile[BASES.index(x)] for x in self.alt_allele)
-        self.A, self.C, self.T, self.G, self.N, self.gaps = profile
-        self.total_count = sum(profile)
+        self.A, self.C, self.T, self.G, N, tgaps, gaps = profile
+        self.total_count = sum(profile) - tgaps
         others = set(BASES) - set(self.ref_allele) - set(self.alt_allele)
-        self.other_count = sum(profile[BASES.index(x)] for x in others)
-        self.read_ins = self.total_count if self.ref_nt == '-' else 0
-        self.read_del = self.gaps
+        self.other_count = sum(profile[BASES.index(x)] for x in others) - tgaps
+        self.read_ins = self.total_count if ref_allele == '-' else 0
+        self.read_del = gaps
+
 
     def __str__(self):
+        ref_allele = alleles(self.ref_allele)
         return "\t".join(str(x) for x in (self.taxon,
                     self.chr, self.pos,
-                    ",".join(self.ref_nt), ",".join(self.ref_allele),
-                    ",".join(self.alt_allele).replace("-", "*"),
+                    ref_allele, ref_allele, alleles(self.alt_allele),
                     self.ref_count, self.alt_count, self.other_count, self.total_count,
                     self.A, self.G, self.C, self.T,
                     self.read_ins, self.read_del, self.total_count
@@ -344,7 +347,7 @@ def mcluster(args):
         parallel_musclewrap(clustfile, cpus, minsamp=opts.minsamp)
 
 
-def makeloci(clustSfile, store):
+def makeloci(clustSfile, store, mindepth):
     C = ClustFile(clustSfile)
     pf = clustSfile.rsplit(".", 1)[0]
     locifile = pf + ".loci"
@@ -374,15 +377,20 @@ def makeloci(clustSfile, store):
             ref_allele = unhetero(r)[0]
             ref_alleles.append(ref_allele)
             seed_ungapped_pos.append(ungapped_i)
-            if r != '-':
+            if r not in '_-':
                 ungapped_i += 1
 
             site = [s[i] for s in seqs]   # Column slice in MSA
-            reals = [x.upper() for x in site if x not in "N-"]
+            reals = [x.upper() for x in site if x not in "N_-"]
             realcounts = sorted([(reals.count(x), x) for x in EXTENDEDBASES],
                                  reverse=True)
-            snpsite[i] = '*' if realcounts[1][0] > 1 else '-'
-            nonzeros = [x for c, x in realcounts if (c and x != ref_allele)]
+            altcount = realcounts[1][0]
+            if altcount > 1:
+                snpsite[i] = '*'
+            elif altcount == 1:
+                snpsite[i] = '-'
+            nonzeros = [x for c, x in realcounts \
+                        if (c >= mindepth and x != ref_allele)]
             nonzeros = nonzeros[:2]      # Two most common bases
             alt_alleles.append(nonzeros)
 
@@ -397,10 +405,10 @@ def makeloci(clustSfile, store):
             assert len(seq) == ncols
 
             ungapped_i = 0
-            gap_p = [0, 0, 0, 0, 0, sum(profile[0])]
+            gap_p = [0, 0, 0, 0, 0, 0, sum(profile[0])]
             for pos, ref_allele, alt_allele, r, ispoly in \
                 zip(seed_ungapped_pos, ref_alleles, alt_alleles, seq, snpsite):
-                if r == '-':
+                if r in '_-':     # insertion in ref, deletion in read
                     p = gap_p
                 else:
                     p = profile[ungapped_i]
@@ -412,12 +420,13 @@ def makeloci(clustSfile, store):
                                  ref_allele, alt_allele, p)
                 AC.append(ac)
 
-        longname = max(len(x) for x in names) + 2
+        longname = max(len(x) for x in names)
+        longname = max(len(fname) + 3, longname) + 1
         for name, seq, nrep in data:
             print >> fw, name.ljust(longname) + seq
-        print >> fw, "//".ljust(longname) + "".join(snpsite) + "|"
+        print >> fw, "// {0}".format(fname).ljust(longname) + "".join(snpsite) + "|"
 
-        seed_seq = seed_seq.strip("-N").replace("-", "")
+        seed_seq = seed_seq.strip("_N").replace("-", "")
         print >> fw_finalfasta, ">{0} with {1} sequences\n{2}".\
                     format(fname, sum(nreps), seed_seq)
         locid += 1
@@ -453,7 +462,7 @@ def mconsensus(args):
     store = ClustStores(consensusfiles)
 
     clustSfile = pf + ".clustS"
-    AC = makeloci(clustSfile, store)
+    AC = makeloci(clustSfile, store, opts.mindepth)
 
     mkdir(acdir)
     acfile = pf + ".allele_counts"
@@ -479,6 +488,8 @@ def consensus(args):
                  help="Max number of heterozygous sites allowed")
     p.add_option("--maxN", default=10, type="int",
                  help="Max number of Ns allowed")
+    p.add_option("--estimate_errors", default=False, action="store_true",
+                 help="Estimate H and E from data")
     add_consensus_options(p)
     p.set_verbose()
     opts, args = p.parse_args(args)
@@ -494,12 +505,14 @@ def consensus(args):
     maxH = opts.maxH
     maxN = opts.maxN
 
-    try:
-        HEfile = estimateHE([clustSfile])
-        H, E = open(HEfile).readline().split()
-        H, E = float(H), float(E)
-    except:
-        H, E = .01, .001
+    H, E = .01, .001
+    if opts.estimate_errors:
+        try:
+            HEfile = estimateHE([clustSfile])
+            H, E = open(HEfile).readline().split()
+            H, E = float(H), float(E)
+        except:
+            pass
     logging.debug("H={0} E={1}".format(H, E))
 
     bases = BASES[:4]
@@ -510,13 +523,13 @@ def consensus(args):
     start = end = 0  # Index into base count array
     for data in C:
         names, seqs, nreps = zip(*data)
-        name, seq, nrep = data[0]
         total_nreps = sum(nreps)
-        fname = name.split(";")[0] + ";size={0};".format(total_nreps)
-
         # Depth filter
         if total_nreps < mindepth:
             continue
+
+        name, seq, nrep = data[0]
+        fname = name.split(";")[0] + ";size={0};".format(total_nreps)
 
         S = []               # List for sequence data
         alleles = []         # Measures # alleles, detect paralogs
@@ -687,7 +700,7 @@ def stack(S):
     rows, cols = S.shape
     counts = []
     for c in xrange(cols):
-        freq = [0] * 6
+        freq = [0] * NBASES
         for b, nrep in zip(S[:, c], nreps):
             freq[BASES.index(b)] += nrep
         counts.append(freq)
@@ -705,36 +718,26 @@ def get_left_right(seq):
     return leftjust, rightjust
 
 
-def cons(f, minsamp):
+def cons(f, mindepth):
     """
     Makes a list of lists of reads at each site
     """
     C = ClustFile(f)
     for data in C:
-        S = []
-        lefts = []
-        rights = []
-        for name, seq, nrep in data:
-            # Record left and right most for cutting
-            leftjust, rightjust = get_left_right(seq)
-            lefts.append(leftjust)
-            rights.append(rightjust)
+        names, seqs, nreps = zip(*data)
+        total_nreps = sum(nreps)
+        # Depth filter
+        if total_nreps < mindepth:
+            continue
 
+        S = []
+        for name, seq, nrep in data:
             # Append sequence * number of dereps
             S.append([seq, nrep])
 
-        # Trim off overhang edges of gbs reads
-        leftjust = max(lefts)
-        rightjust = min(rights)
-
-        for s in range(len(S)):
-            S[s][0] = S[s][0][leftjust: rightjust + 1]
-
-        if len(S) >= minsamp:
-            # Make list for each site in sequences
-            res = stack(S)
-            # Exclude sites with indels
-            yield [x[:4] for x in res if x[-1] == 0]
+        # Make list for each site in sequences
+        res = stack(S)
+        yield [x[:4] for x in res if sum(x[:4]) >= mindepth]
 
 
 def makeP(N):
@@ -859,10 +862,17 @@ def alignfast(names, seqs):
     return p.communicate(s)[0]
 
 
+def replace_terminal(seq):
+    leftjust, rightjust = get_left_right(seq)
+    seq = "_" * leftjust + seq[leftjust: rightjust + 1] \
+                + "_" * (len(seq) - rightjust - 1)
+    return seq
+
+
 def sortalign(stringnames):
     G = stringnames.split("\n>")
     aligned = [('>' + i.split("\n")[0].strip('>'),
-               "".join(i.split("\n")[1:])) for i in G]
+               replace_terminal("".join(i.split("\n")[1:]))) for i in G]
     return aligned
 
 
@@ -945,7 +955,7 @@ def musclewrap(clustfile, minsamp=0):
     fw.close()
 
 
-def stats(clustSfile, statsfile, mindepth=0):
+def stats(clustSfile, statsfile, mindepth):
     C = ClustFile(clustSfile)
     depth = []
     for data in C:

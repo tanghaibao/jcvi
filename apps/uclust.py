@@ -355,51 +355,58 @@ def consensus(args):
         sys.exit(not p.print_help())
 
     clustSfile, = args
-    HEfile = clustSfile.rsplit(".", 1)[0] + ".HE"
+    pf = clustSfile.rsplit(".", 1)[0]
+    HEfile = pf + ".HE"
     mindepth = opts.mindepth
     haplos = opts.ploidy
     maxH = opts.maxH
     maxN = opts.maxN
 
-    HEfile = estimateHE([clustSfile])
-
-    H, E = open(HEfile).readline().split()
     try:
+        HEfile = estimateHE([clustSfile])
+        H, E = open(HEfile).readline().split()
         H, E = float(H), float(E)
     except:
         H, E = .01, .001
     logging.debug("H={0} E={1}".format(H, E))
 
     bases = ACTGN[:4]
-    locus = minsamplocus = npoly = P = 0
     C = ClustFile(clustSfile)
     output = []
+    bins = []
+    indices = []
+    start = end = 0  # Index into base count array
     for data in C:
         names, seqs, nreps = zip(*data)
         name, seq, nrep = data[0]
-        fname = name.split(";")[0] + ";size={0};".format(sum(nreps))
-        if len(data) == 1:
-            if nrep >= mindepth:   # Same thing
-                output.append((fname, seq))
+        total_nreps = sum(nreps)
+        fname = name.split(";")[0] + ";size={0};".format(total_nreps)
+
+        # Depth filter
+        if total_nreps < mindepth:
             continue
 
         S = []               # List for sequence data
         alleles = []         # Measures # alleles, detect paralogs
-        locus += 1           # Measures # of loci
         nHs = 0              # Measures heterozygous sites in this locus
         cons_seq = ""        # Consensus sequence
-        basenumber = 0       # Tracks het locations
+        P = 0                # Posterior probability of genotype call
         for name, seq, nrep in data:
             S.append([seq, nrep])
 
-        # Apply paralog filters, depth filter disabled
-        if len(S) < mindepth:
+        # Count all bases
+        RAD = stack(S)
+
+        if len(data) == 1:   # No computation needed
+            output.append((fname, seq))
+            bins.extend(RAD)
+            start = end
+            end += len(seq)
+            indices.append((fname, start, end))
             continue
 
-        minsamplocus += 1
-        RAD = stack(S)
         paralog = False
-        for site in RAD:
+        for basenumber, site in enumerate(RAD):
             site, gaps = site[:4], site[-1]
 
             # Minimum depth of coverage for base calling
@@ -442,7 +449,6 @@ def consensus(args):
                             cons = bases[site.index(n1)]
 
             cons_seq += cons
-            basenumber += 1
 
             # Only allow maxH polymorphic sites in a locus
             if cons == '@' or nHs > maxH:
@@ -483,6 +489,10 @@ def consensus(args):
         shortRAD = [j for (i, j) in enumerate(RAD) if i not in filtered]
         assert len(shortcon) == len(shortRAD)
 
+        # Only allow maxN internal "N"s in a locus
+        if shortcon.count("N") > maxN or len(shortcon) < opts.minlength:
+            continue
+
         if opts.verbose:
             print_list = lambda L: ",".join(str(x) for x in sorted(L))
             print fname
@@ -498,18 +508,33 @@ def consensus(args):
                         for i, j in enumerate(shortRAD)])
             print "-" * 60
 
-        # Only allow maxN internal "N"s in a locus
-        if shortcon.count("N") <= maxN and len(shortcon) >= opts.minlength:
-            npoly += nHs
-            output.append((fname, shortcon))
+        output.append((fname, shortcon))
+        bins.extend(shortRAD)
 
-    consensfile = clustSfile.replace(".clustS", ".consensus")
+        start = end
+        end += len(shortcon)
+        indices.append((fname, start, end))
+
+    consensfile = pf + ".consensus"
     consens = open(consensfile, 'w')
     for k, v in output:
         print >> consens, "\n".join((k, v))
     consens.close()
+    logging.debug("Consensus sequences written to `{0}`".format(consensfile))
 
-    return consensfile
+    binfile = consensfile + ".bin"
+    bins = np.array(bins, dtype=np.uint32)
+    bins.tofile(binfile)
+    logging.debug("Allele counts written to `{0}`".format(binfile))
+
+    idxfile = consensfile + ".idx"
+    fw = open(idxfile, "w")
+    for fname, start, end in indices:
+        print >> fw, "\t".join(str(x) for x in (fname, start, end))
+    fw.close()
+    logging.debug("Serializing indices to `{0}`".format(idxfile))
+
+    return consensfile, binfile, idxfile
 
 
 def stack(S):

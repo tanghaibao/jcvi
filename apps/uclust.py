@@ -28,11 +28,17 @@ from jcvi.formats.fasta import parse_fasta
 from jcvi.formats.fastq import fasta
 from jcvi.utils.cbook import memoized
 from jcvi.utils.iter import grouper
-from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh
+from jcvi.apps.base import OptionParser, ActionDispatcher, listify, mkdir, \
+            need_update, sh
 
 
 SEP = "//"
-ACTGN = "ACTGN-"
+BASES = "ACTGN-"  # CAUTION: change of this line must also change AlleleCounts
+ACHEADER = "\t".join("""
+CHR   POS     REF_NT  REF_ALLELE      ALT_ALLELE      REF_COUNT
+ALT_COUNT       OTHER_COUNT     TOTAL_READS     A       G       C       T
+READ_INS        READ_DEL        TOTAL_READS
+""".split())
 
 
 class ClustFile (BaseFile):
@@ -88,6 +94,41 @@ class ClustStore (BaseFile):
     def __getitem__(self, name):
         start, end = self.index[name]
         return self.bin[start:end, :]
+
+
+class AlleleCount (object):
+    """
+    Each record represents a line in the .allele_count file
+
+    Fields are:
+    # CHR   POS     REF_NT  REF_ALLELE      ALT_ALLELE      REF_COUNT
+    # ALT_COUNT       OTHER_COUNT     TOTAL_READS     A       G       C       T
+    # READ_INS        READ_DEL        TOTAL_READS
+    """
+    def __init__(self, taxon, chr, pos, ref_allele, alt_allele, profile):
+        self.taxon = taxon
+        self.chr = chr
+        self.pos = pos
+        self.ref_nt = ref_allele
+        self.ref_allele = listify(ref_allele)
+        self.alt_allele = listify(alt_allele)
+        self.ref_count = sum(profile[BASES.index(x)] for x in ref_allele)
+        self.alt_count = sum(profile[BASES.index(x)] for x in alt_allele)
+        self.A, self.C, self.T, self.G, self.N, self.gaps = profile
+        self.total_count = sum(profile)
+        self.other_count = self.total_count - self.alt_count
+        self.read_ins = self.total_count if self.ref_nt == '-' else 0
+        self.read_del = self.gaps
+
+    def __str__(self):
+        return "\t".join(str(x) for x in (self.taxon,
+                    self.chr, self.pos,
+                    ",".join(self.ref_nt), ",".join(self.ref_allele),
+                    ",".join(self.alt_allele), self.ref_count,
+                    self.alt_count, self.other_count, self.total_reads,
+                    self.A, self.G, self.C, self.T,
+                    self.reads_ins, self.read_del, self.total_reads
+                    ))
 
 
 class ClustStores (dict):
@@ -158,13 +199,14 @@ def unhetero(amb):
     """
     Returns bases from ambiguity code.
     """
+    amb = amb.upper()
     D = {'R': ('G', 'A'),
          'K': ('G', 'T'),
          'S': ('G', 'C'),
          'Y': ('T', 'C'),
          'W': ('T', 'A'),
          'M': ('C', 'A')}
-    return D.get(amb.upper())
+    return D.get(amb, amb)
 
 
 def uplow(b):
@@ -303,40 +345,73 @@ def makeloci(clustSfile, store):
     fw = open(locifile, "w")
     fw_finalfasta = open(finalfastafile, "w")
     locid = 0
+    AC = []
     for data in C:
         names, seqs, nreps = zip(*data)
         # Strip off cut site
         seqs = [x.upper() for x in seqs]
-        longname = max(len(x) for x in names) + 2
+        fname = "{0}_{1}".format(pf, locid)
 
         # TODO: apply number of shared heteros paralog filter
 
-        seed_seq = seqs[0]
-        for name, seq in zip(names, seqs):
-            name = name.strip(">")
-            label, readname = name.split(".", 1)
-            profile = store[label][readname]
-
         # Record variable sites
-        ncols = len(seqs[0])
+        seed_seq = seqs[0]
+        ncols = len(seed_seq)
         snpsite = [' '] * ncols
-
+        seed_ungapped_pos = []
+        ref_alleles = []
+        alt_alleles = []
+        ungapped_i = 0
         for i in xrange(ncols):
+            r = seed_seq[i]
+            ref_allele = unhetero(r)[0]
+            ref_alleles.append(ref_allele)
+            seed_ungapped_pos.append(ungapped_i)
+            if r != '-':
+                ungapped_i += 1
+
             site = [s[i] for s in seqs]
             reals = [x for x in site if x not in "N-"]
-            if len(set(reals)) <= 1:
-                continue
 
             # Convert ambiguous bases into reals
             for r in reals:
                 if r in "RWMSYK":
                     reals.extend(unhetero(r))
-            reals = [x for x in reals if x not in "RWMSYK"]
-            realcounts = sorted([reals.count(x) for x in set(reals)],
-                                 reverse=True)
-            snpsite[i] = '*' if realcounts[1] > 1 else '-'
 
-        fname = "{0}_{1}".format(pf, locid)
+            realcounts = sorted([(reals.count(x), x) for x in BASES],
+                                 reverse=True)
+            snpsite[i] = '*' if realcounts[1][0] > 1 else '-'
+            nonzeros = [x for c, x in realcounts if c]
+            alt_alleles.append(nonzeros)
+
+        assert len(seed_ungapped_pos) == ncols
+        assert len(ref_alleles) == ncols
+        assert len(alt_alleles) == ncols
+        print seed_ungapped_pos
+        print ref_alleles
+        print alt_alleles
+
+        for name, seq in zip(names, seqs):
+            name = name.strip(">")
+            taxon, readname = name.split(".", 1)
+            profile = store[taxon][readname]
+            assert len(seq) == ncols
+
+            ungapped_i = 0
+            for pos, ref_allele, alt_allele, r in \
+                    zip(seed_ungapped_pos, ref_alleles, alt_alleles, seq):
+                print pos
+                print ref_allele
+                print alt_allele
+                print profile[ungapped_i]
+                p = [0, 0, 0, 0, 1, 0] if r == '-' else profile[ungapped_i]
+                ac = AlleleCount(taxon, fname, pos,
+                                 ref_allele, alt_allele, p)
+                AC.append(ac)
+                if r != '-':
+                    ungapped_i += 1
+
+        longname = max(len(x) for x in names) + 2
         for name, seq, nrep in data:
             print >> fw, name.ljust(longname) + seq
         print >> fw, "//".ljust(longname) + "".join(snpsite) + "|"
@@ -352,6 +427,8 @@ def makeloci(clustSfile, store):
     fw.close()
     fw_finalfasta.close()
 
+    return AC
+
 
 def mconsensus(args):
     """
@@ -360,6 +437,8 @@ def mconsensus(args):
     Call consensus along the stacks from cross-sample clustering.
     """
     p = OptionParser(mconsensus.__doc__)
+    p.add_option("--allele_counts", default="allele_counts",
+                 help="Directory to generate allele counts")
     add_consensus_options(p)
     opts, args = p.parse_args(args)
 
@@ -368,11 +447,20 @@ def mconsensus(args):
 
     consensusfiles = args
     pf = opts.prefix
+    acdir = opts.allele_counts
 
     store = ClustStores(consensusfiles)
 
     clustSfile = pf + ".clustS"
-    makeloci(clustSfile, store)
+    AC = makeloci(clustSfile, store)
+
+    mkdir(acdir)
+    acfile = pf + ".allele_counts"
+    acfile = op.join(acdir, acfile)
+    fw = open(acfile, "w")
+    print >> fw, ACHEADER
+    for ac in AC:
+        print >> fw, ac
 
 
 def consensus(args):
@@ -413,7 +501,7 @@ def consensus(args):
         H, E = .01, .001
     logging.debug("H={0} E={1}".format(H, E))
 
-    bases = ACTGN[:4]
+    bases = BASES[:4]
     C = ClustFile(clustSfile)
     output = []
     bins = []
@@ -600,8 +688,7 @@ def stack(S):
     for c in xrange(cols):
         freq = [0] * 6
         for b, nrep in zip(S[:, c], nreps):
-            ib = ACTGN.index(b)
-            freq[ib] += nrep
+            freq[BASES.index(b)] += nrep
         counts.append(freq)
     return counts
 
@@ -650,7 +737,7 @@ def cons(f, minsamp):
 
 
 def makeP(N):
-    # Make list of freq. for ACTG
+    # Make list of freq. for BASES
     sump = float(sum([sum(i) for i in N]))
     if sump:
         p1 = sum([i[0] for i in N]) / sump

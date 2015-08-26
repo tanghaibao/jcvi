@@ -34,6 +34,9 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, listify, mkdir, \
 
 SEP = "//"
 BASES = "ACTGN-"  # CAUTION: change of this line must also change AlleleCounts
+AMB = "RKSYWM"
+AMBL = "rksywm"
+EXTENDEDBASES = BASES + AMB
 ACHEADER = "\t".join("""
 TAXON     CHR   POS     REF_NT  REF_ALLELE      ALT_ALLELE      REF_COUNT
 ALT_COUNT       OTHER_COUNT     TOTAL_READS     A       G       C       T
@@ -111,23 +114,24 @@ class AlleleCount (object):
         self.pos = pos
         self.ref_nt = ref_allele
         self.ref_allele = listify(ref_allele)
-        self.alt_allele = listify(alt_allele)
-        self.ref_count = sum(profile[BASES.index(x)] for x in ref_allele)
-        self.alt_count = sum(profile[BASES.index(x)] for x in alt_allele)
+        alts = []
+        for a in listify(alt_allele):
+            alts.extend(unhetero(a))
+        self.alt_allele = sorted(set(alts))
+        self.ref_count = sum(profile[BASES.index(x)] for x in self.ref_allele)
+        self.alt_count = sum(profile[BASES.index(x)] for x in self.alt_allele)
         self.A, self.C, self.T, self.G, self.N, self.gaps = profile
         self.total_count = sum(profile)
-        self.other_count = self.total_count - self.ref_count - self.alt_count
+        others = set(BASES) - set(self.ref_allele) - set(self.alt_allele)
+        self.other_count = sum(profile[BASES.index(x)] for x in others)
         self.read_ins = self.total_count if self.ref_nt == '-' else 0
         self.read_del = self.gaps
 
     def __str__(self):
-        alt_allele = []
-        for a in self.alt_allele:
-            alt_allele.extend(unhetero(a))
-        alt_allele = ",".join(alt_allele).replace("-", "*")
         return "\t".join(str(x) for x in (self.taxon,
                     self.chr, self.pos,
-                    ",".join(self.ref_nt), ",".join(self.ref_allele), alt_allele,
+                    ",".join(self.ref_nt), ",".join(self.ref_allele),
+                    ",".join(self.alt_allele).replace("-", "*"),
                     self.ref_count, self.alt_count, self.other_count, self.total_count,
                     self.A, self.G, self.C, self.T,
                     self.read_ins, self.read_del, self.total_count
@@ -254,9 +258,9 @@ def breakalleles(consensus):
     a1 = ""
     a2 = ""
     for base in consensus:
-        if base in tuple("RKSYWM"):
+        if base in AMB:
             a, b = unhetero(base)
-        elif base in tuple("rksywm"):
+        elif base in AMBL:
             b, a = unhetero(base)
         else:
             a = b = base
@@ -373,12 +377,13 @@ def makeloci(clustSfile, store):
             if r != '-':
                 ungapped_i += 1
 
-            site = [s[i] for s in seqs]
-            reals = [x for x in site if x not in "N-"]
-            realcounts = sorted([(reals.count(x), x) for x in BASES],
+            site = [s[i] for s in seqs]   # Column slice in MSA
+            reals = [x.upper() for x in site if x not in "N-"]
+            realcounts = sorted([(reals.count(x), x) for x in EXTENDEDBASES],
                                  reverse=True)
             snpsite[i] = '*' if realcounts[1][0] > 1 else '-'
             nonzeros = [x for c, x in realcounts if (c and x != ref_allele)]
+            nonzeros = nonzeros[:2]      # Two most common bases
             alt_alleles.append(nonzeros)
 
         assert len(seed_ungapped_pos) == ncols
@@ -403,7 +408,7 @@ def makeloci(clustSfile, store):
 
                 if ispoly != '*':
                     continue
-                ac = AlleleCount(taxon, fname, pos,
+                ac = AlleleCount(taxon, fname, pos + 1,  # 1-based coordinate
                                  ref_allele, alt_allele, p)
                 AC.append(ac)
 

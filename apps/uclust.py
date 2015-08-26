@@ -18,8 +18,9 @@ import scipy.stats
 import scipy.optimize
 
 from collections import defaultdict
-from itertools import groupby
 from functools import partial
+from itertools import groupby
+from random import sample
 from subprocess import Popen, PIPE, STDOUT
 
 from jcvi.formats.base import BaseFile, FileMerger, must_open, split
@@ -68,6 +69,38 @@ class Clust (list):
         return "\n".join(s) + "\n" + SEP
 
 
+class ClustStore (BaseFile):
+    def __init__(self, consensfile):
+        super(ClustStore, self).__init__(consensfile)
+        binfile = consensfile + ".bin"
+        idxfile = consensfile + ".idx"
+        self.bin = np.fromfile(binfile, dtype=np.uint16)
+        assert self.bin.size % 6 == 0
+
+        self.bin = self.bin.reshape((self.bin.size / 6, 6))
+        self.index = {}
+        fp = open(idxfile)
+        for row in fp:
+            name, start, end = row.split()
+            start, end = int(start), int(end)
+            self.index[name.strip(">")] = (start, end)
+
+    def __getitem__(self, name):
+        start, end = self.index[name]
+        return self.bin[start:end, :]
+
+
+class ClustStores (dict):
+    """
+    ClustStores provides random access to any consensus read
+    """
+    def __init__(self, consensfiles):
+        super(ClustStores, self).__init__(self)
+        for cs in consensfiles:
+            name = op.basename(cs).split(".")[0]
+            self[name] = ClustStore(cs)
+
+
 def main():
 
     actions = (
@@ -95,8 +128,7 @@ def binom_consens(n1, n2, E, H):
     """
     Given two bases are observed at a site n1 and n2, and the error rate E, the
     probability the site is aa, bb, ab is calculated using binomial distribution
-    as in Li_et al 2009, 2011, and if coverage > 500, 500 reads were randomly
-    sampled.
+    as in Li_et al 2009, 2011, and 500 reads were randomly if high coverage.
     """
     maf = n1 / (n1 + n2)
     prior_homo = (1 - H) / 2.
@@ -275,16 +307,22 @@ def mcluster(args):
         parallel_musclewrap(clustfile, cpus, minsamp=opts.minsamp)
 
 
-def makealign(clustSfile, locifile, CUT1):
+def makealign(clustSfile, locifile, CUT1, store):
     C = ClustFile(clustSfile)
     fw = open(locifile, "w")
     for data in C:
         names, seqs, nreps = zip(*data)
         # Strip off cut site
-        seqs = [x[CUT1:].upper() for x in seqs]
+        seqs = [x.upper() for x in seqs]
         longname = max(len(x) for x in names) + 2
 
-        # Apply number of shared heteros paralog filter
+        # TODO: apply number of shared heteros paralog filter
+
+        seed_seq = seqs[0]
+        for name, seq in zip(names, seqs):
+            name = names.strip(">")
+            label, readname = name.split(".", 1)
+            profile = store[label][readname]
 
         # Record variable sites
         ncols = len(seqs[0])
@@ -315,7 +353,7 @@ def makealign(clustSfile, locifile, CUT1):
 
 def mconsensus(args):
     """
-    %prog mconsensus clustSfile
+    %prog mconsensus *.consensus
 
     Call consensus along the stacks from cross-sample clustering.
     """
@@ -323,13 +361,17 @@ def mconsensus(args):
     add_consensus_options(p)
     opts, args = p.parse_args(args)
 
-    if len(args) != 1:
+    if len(args) < 1:
         sys.exit(not p.print_help())
 
-    clustSfile, = args
-    locifile = clustSfile.rsplit(".", 1)[0] + ".loci"
-    if need_update(clustSfile, locifile):
-        makealign(clustSfile, locifile, opts.cut)
+    consensusfiles = args
+    pf = opts.prefix
+
+    store = ClustStores(consensusfiles)
+
+    clustSfile = pf + ".clustS"
+    locifile = pf + ".loci"
+    makealign(clustSfile, locifile, opts.cut, store)
 
 
 def consensus(args):
@@ -424,10 +466,16 @@ def consensus(args):
                 if haplos == 2 and float(n3) / (n1 + n2 + n3 + n4) > .2:
                     cons = "@"   # Paralog
                 else:
+                    m1, m2 = n1, n2
+                    # For high cov data, reduce for base calling
+                    if n1 + n2 >= 500:
+                        s = sample('A' * n1 + 'B' * n2, 500)
+                        m1, m2 = s.count('A'), s.count('B')
+
                     # Make base calls, two different methods available:
                     # binom_consens and naive_consens
                     if n1 + n2 >= mindepth:
-                        P, maf, who = binom_consens(n1, n2, E, H)
+                        P, maf, who = binom_consens(m1, m2, E, H)
                     # High conf if base could be called with 95% post. prob.
                     if P < .95:
                         cons = 'N'
@@ -524,6 +572,9 @@ def consensus(args):
 
     binfile = consensfile + ".bin"
     bins = np.array(bins, dtype=np.uint32)
+    ulimit = 65535
+    bins[bins > ulimit] = ulimit
+    bins = np.array(bins, dtype=np.uint16)  # Compact size
     bins.tofile(binfile)
     logging.debug("Allele counts written to `{0}`".format(binfile))
 
@@ -713,13 +764,10 @@ def alignfast(names, seqs):
     """
     cmd = "muscle -quiet -in -"
     p = Popen(cmd, shell=True, stdin=PIPE, stdout=PIPE, stderr=STDOUT, close_fds=True)
+    s = ""
     for i, j in zip(names, seqs):
-        s = "\n".join((i, j)) + "\n"
-        p.stdin.write(s)
-    p.stdin.flush()
-    p.stdin.close()
-    p.wait()
-    return p.stdout.read()
+        s += "\n".join((i, j)) + "\n"
+    return p.communicate(s)[0]
 
 
 def sortalign(stringnames):
@@ -782,6 +830,8 @@ def musclewrap(clustfile, minsamp=0):
             names, seqs, samples = filter_samples(names, seqs)
             if len(samples) < minsamp:
                 continue
+        else:
+            names, seqs = names[:255], seqs[:255]  # Reduce high coverage data
 
         if len(names) == 1:
             STACK.append((names[0], seqs[0]))

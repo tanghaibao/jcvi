@@ -119,8 +119,6 @@ def add_consensus_options(p):
     p.add_option("--minlength", default=30, type="int", help="Min contig length")
     p.add_option("--mindepth", default=3, type="int", help="Min depth for each stack")
     p.add_option("--minsamp", default=3, type="int", help="Min number of samples")
-    p.add_option("--cut", default=4, type="int",
-                 help="Size of restriction site to trim on the left, e.g. CATG is 4")
 
 
 @memoized
@@ -130,7 +128,6 @@ def binom_consens(n1, n2, E, H):
     probability the site is aa, bb, ab is calculated using binomial distribution
     as in Li_et al 2009, 2011, and 500 reads were randomly if high coverage.
     """
-    maf = n1 / (n1 + n2)
     prior_homo = (1 - H) / 2.
     prior_het = H
     ab = scipy.misc.comb(n1 + n2, n1) / (2. ** (n1 + n2))
@@ -139,16 +136,7 @@ def binom_consens(n1, n2, E, H):
     Q = [prior_homo * aa, prior_homo * bb, prior_het * ab]
     Qn = ['aa', 'bb', 'ab']
     P = max(Q) / sum(Q)
-    return P, maf, Qn[Q.index(max(Q))]
-
-
-def naive_consens(n1, n2):
-    """
-    Majority consensus calling for sites with too low of coverage for
-    statistical calling. Only used with 'lowcounts' option.
-    """
-    maf = n1 * 1. / (n1 + n2)
-    return [1.0, maf, 'aa']
+    return P, Qn[Q.index(max(Q))]
 
 
 def hetero(n1,n2):
@@ -307,9 +295,14 @@ def mcluster(args):
         parallel_musclewrap(clustfile, cpus, minsamp=opts.minsamp)
 
 
-def makealign(clustSfile, locifile, CUT1, store):
+def makeloci(clustSfile, store):
     C = ClustFile(clustSfile)
+    pf = clustSfile.rsplit(".", 1)[0]
+    locifile = pf + ".loci"
+    finalfastafile = pf + ".final.fasta"
     fw = open(locifile, "w")
+    fw_finalfasta = open(finalfastafile, "w")
+    locid = 0
     for data in C:
         names, seqs, nreps = zip(*data)
         # Strip off cut site
@@ -320,7 +313,7 @@ def makealign(clustSfile, locifile, CUT1, store):
 
         seed_seq = seqs[0]
         for name, seq in zip(names, seqs):
-            name = names.strip(">")
+            name = name.strip(">")
             label, readname = name.split(".", 1)
             profile = store[label][readname]
 
@@ -343,12 +336,21 @@ def makealign(clustSfile, locifile, CUT1, store):
                                  reverse=True)
             snpsite[i] = '*' if realcounts[1] > 1 else '-'
 
+        fname = "{0}_{1}".format(pf, locid)
         for name, seq, nrep in data:
             print >> fw, name.ljust(longname) + seq
-        print >> fw, "//".ljust(longname + CUT1) + "".join(snpsite) + "|"
+        print >> fw, "//".ljust(longname) + "".join(snpsite) + "|"
+
+        seed_seq = seed_seq.strip("-N").replace("-", "")
+        print >> fw_finalfasta, ">{0} with {1} sequences\n{2}".\
+                    format(fname, sum(nreps), seed_seq)
+        locid += 1
 
     logging.debug("Stacks written to `{0}`".format(locifile))
+    logging.debug("Final consensus sequences written to `{0}` (n={1})".\
+                    format(finalfastafile, locid))
     fw.close()
+    fw_finalfasta.close()
 
 
 def mconsensus(args):
@@ -370,8 +372,7 @@ def mconsensus(args):
     store = ClustStores(consensusfiles)
 
     clustSfile = pf + ".clustS"
-    locifile = pf + ".loci"
-    makealign(clustSfile, locifile, opts.cut, store)
+    makeloci(clustSfile, store)
 
 
 def consensus(args):
@@ -475,7 +476,7 @@ def consensus(args):
                     # Make base calls, two different methods available:
                     # binom_consens and naive_consens
                     if n1 + n2 >= mindepth:
-                        P, maf, who = binom_consens(m1, m2, E, H)
+                        P, who = binom_consens(m1, m2, E, H)
                     # High conf if base could be called with 95% post. prob.
                     if P < .95:
                         cons = 'N'

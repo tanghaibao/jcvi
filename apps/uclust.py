@@ -21,7 +21,6 @@ from collections import defaultdict
 from copy import deepcopy
 from functools import partial
 from itertools import groupby
-from random import sample
 from subprocess import Popen, PIPE, STDOUT
 
 from jcvi.formats.base import BaseFile, FileMerger, must_open, split
@@ -590,21 +589,18 @@ def consensus(args):
                 cons = '-'
             elif depthofcoverage < mindepth:
                 cons = 'N'
-                n1 = depthofcoverage - 1
-                n2 = 0   # Prevents zero division error
             else:
                 n1, n2, n3, n4 = sorted(site, reverse=True)
 
                 # Speed hack = if diploid exclude if a third base present at > 20%
-                if haplos == 2 and float(n3) / (n1 + n2 + n3 + n4) > .2:
+                if haplos == 2 and float(n3) / depthofcoverage > .2:
                     cons = "@"   # Paralog
                 else:
                     m1, m2 = n1, n2
                     # For high cov data, reduce for base calling
-                    if n1 + n2 >= 500:
-                        s = sample('A' * n1 + 'B' * n2, 500)
-                        m1, m2 = s.count('A'), s.count('B')
-
+                    if n1 + n2 > 500:
+                        m1 = 500 * n1 / (n1 + n2)
+                        m2 = 500 * m2 / (n1 + n2)
                     # Make base calls, two different methods available:
                     # binom_consens and naive_consens
                     if n1 + n2 >= mindepth:
@@ -665,12 +661,12 @@ def consensus(args):
         shortcon = "".join(j for (i, j) in enumerate(cons_seq) \
                             if i not in filtered)
         shortRAD = [j for (i, j) in enumerate(RAD) if i not in filtered]
-        assert len(shortcon) == len(shortRAD)
+        conlen = len(shortcon)
+        assert conlen == len(shortRAD)
 
         # Only allow maxN internal Ns in a locus and maxH het sites
-        if shortcon.count("N") > len(shortcon) * maxN \
-            or nHs > len(shortcon) * maxH \
-            or len(shortcon) < opts.minlength:
+        if shortcon.count("N") > conlen * maxN or nHs > conlen * maxH \
+            or conlen < opts.minlength:
             continue
 
         # Fix Ns by converting to top voting bases
@@ -1053,9 +1049,7 @@ def makeclust(derepfile, userfile, notmatchedfile, clustfile):
         seqs = [('>' + key, D[key])]
         for name, strand, cov in values:
             cov = float(cov)
-            # Only match forward reads if high Cov
-            if strand == "+" and cov >= 90:
-                seqs.append(('>' + name, D[name]))
+            seqs.append(('>' + name, D[name]))
         seq = "\n".join("\n".join(x) for x in seqs)
         print >> fw, "\n".join((seq, SEP))
 
@@ -1084,6 +1078,7 @@ def cluster_smallmem(derepfile, userfile, notmatchedfile, minlength, pctid,
     cmd += " -userout {0}".format(userfile)
     cmd += " -userfields query+target+id+gaps+qstrand+qcov"
     cmd += " -maxaccepts 1 -maxrejects 0"
+    cmd += " -query_cov .9"
     cmd += " -minsl .5 -fulldp"
     cmd += " -usersort -sizein"
     cmd += " -notmatched {0}".format(notmatchedfile)

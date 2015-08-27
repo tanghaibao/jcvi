@@ -313,12 +313,16 @@ def novo2(args):
         allcons.append(outfile)
 
     # Step 2 - clustering across samples
-    outfile = pf + ".clustS"
+    clustSfile = pf + ".clustS"
     cmd = "python -m jcvi.apps.uclust mcluster {0}".format(" ".join(allcons))
     cmd += " --prefix={0}".format(pf)
-    mm.add(allcons, outfile, cmd)
+    mm.add(allcons, clustSfile, cmd)
 
     # Step 3 - make consensus across samples
+    locifile = pf + ".loci"
+    cmd = "python -m jcvi.apps.uclust mconsensus {0}".format(" ".join(allcons))
+    cmd += " --prefix={0}".format(pf)
+    mm.add(allcons + [clustSfile], locifile, cmd)
 
     mm.write()
 

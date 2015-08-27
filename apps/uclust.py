@@ -18,6 +18,7 @@ import scipy.stats
 import scipy.optimize
 
 from collections import defaultdict
+from copy import deepcopy
 from functools import partial
 from itertools import groupby
 from random import sample
@@ -27,6 +28,7 @@ from jcvi.formats.base import BaseFile, FileMerger, must_open, split
 from jcvi.formats.fasta import parse_fasta
 from jcvi.formats.fastq import fasta
 from jcvi.utils.cbook import memoized
+from jcvi.utils.orderedcollections import DefaultOrderedDict
 from jcvi.utils.iter import grouper
 from jcvi.apps.base import OptionParser, ActionDispatcher, listify, mkdir, \
             need_update, sh
@@ -38,12 +40,13 @@ NBASES = len(BASES)
 AMB = "RKSYWM"
 AMBL = "rksywm"
 EXTENDEDBASES = BASES + AMB
-ACHEADER = "\t".join("""
+ACHEADER = """
 TAXON     CHR   POS     REF_NT  REF_ALLELE      ALT_ALLELE      REF_COUNT
 ALT_COUNT       OTHER_COUNT     TOTAL_READS     A       G       C       T
 READ_INS        READ_DEL        TOTAL_READS
-""".split())
-alleles = lambda x: ",".join(x).replace("-", "*")
+""".split()
+ACHEADER_NO_TAXON = ACHEADER[1:]
+alleles = lambda x: (",".join(x).replace("-", "*") if x else "N")
 
 
 class ClustFile (BaseFile):
@@ -120,25 +123,31 @@ class AlleleCount (object):
         for a in listify(alt_allele):
             alts.extend(unhetero(a))
         self.alt_allele = sorted(set(alts))
+        self.update(profile)
+
+    def tostring(self, taxon=False):
+        ref_allele = alleles(self.ref_allele)
+        ar = [self.chr, self.pos,
+                ref_allele, ref_allele, alleles(self.alt_allele),
+                self.ref_count, self.alt_count, self.other_count, self.total_count,
+                self.A, self.G, self.C, self.T,
+                self.read_ins, self.read_del, self.total_count]
+        if taxon:
+            ar = [self.taxon] + ar
+        return "\t".join(str(x) for x in ar)
+
+    def update(self, profile):
         self.ref_count = sum(profile[BASES.index(x)] for x in self.ref_allele)
         self.alt_count = sum(profile[BASES.index(x)] for x in self.alt_allele)
         self.A, self.C, self.T, self.G, N, tgaps, gaps = profile
         self.total_count = sum(profile) - tgaps
         others = set(BASES) - set(self.ref_allele) - set(self.alt_allele)
         self.other_count = sum(profile[BASES.index(x)] for x in others) - tgaps
-        self.read_ins = self.total_count if ref_allele == '-' else 0
+        self.read_ins = self.total_count if '-' in self.ref_allele else 0
         self.read_del = gaps
 
-
-    def __str__(self):
-        ref_allele = alleles(self.ref_allele)
-        return "\t".join(str(x) for x in (self.taxon,
-                    self.chr, self.pos,
-                    ref_allele, ref_allele, alleles(self.alt_allele),
-                    self.ref_count, self.alt_count, self.other_count, self.total_count,
-                    self.A, self.G, self.C, self.T,
-                    self.read_ins, self.read_del, self.total_count
-                    ))
+    def clear(self):
+        self.update([0] * NBASES)
 
 
 class ClustStores (dict):
@@ -347,7 +356,7 @@ def mcluster(args):
         parallel_musclewrap(clustfile, cpus, minsamp=opts.minsamp)
 
 
-def makeloci(clustSfile, store, mindepth):
+def makeloci(clustSfile, store):
     C = ClustFile(clustSfile)
     pf = clustSfile.rsplit(".", 1)[0]
     locifile = pf + ".loci"
@@ -377,7 +386,10 @@ def makeloci(clustSfile, store, mindepth):
             ref_allele = unhetero(r)[0]
             ref_alleles.append(ref_allele)
             seed_ungapped_pos.append(ungapped_i)
-            if r not in '_-':
+            if r in '_-':                # Skip if reference is a deletion
+                alt_alleles.append([])
+                continue
+            else:
                 ungapped_i += 1
 
             site = [s[i] for s in seqs]   # Column slice in MSA
@@ -389,8 +401,7 @@ def makeloci(clustSfile, store, mindepth):
                 snpsite[i] = '*'
             elif altcount == 1:
                 snpsite[i] = '-'
-            nonzeros = [x for c, x in realcounts \
-                        if (c >= mindepth and x != ref_allele)]
+            nonzeros = [x for c, x in realcounts if (c and x != ref_allele)]
             nonzeros = nonzeros[:2]      # Two most common bases
             alt_alleles.append(nonzeros)
 
@@ -462,15 +473,43 @@ def mconsensus(args):
     store = ClustStores(consensusfiles)
 
     clustSfile = pf + ".clustS"
-    AC = makeloci(clustSfile, store, opts.mindepth)
+    AC = makeloci(clustSfile, store)
 
     mkdir(acdir)
     acfile = pf + ".allele_counts"
-    acfile = op.join(acdir, acfile)
     fw = open(acfile, "w")
-    print >> fw, ACHEADER
+    seen = DefaultOrderedDict(list)        # chr, pos => taxa
+    print >> fw, "# " + "\t".join(ACHEADER)
+    # Sort allele counts into separate files
     for ac in AC:
-        print >> fw, ac
+        chrpos = ac.chr, ac.pos
+        seen[chrpos].append(ac)
+        print >> fw, ac.tostring(taxon=True)
+    fw.close()
+
+    logging.debug("Populate all taxa and instantiate empty vector if missing")
+    all_taxa = set([op.basename(x).split(".")[0] for x in consensusfiles])
+    taxon_to_ac = defaultdict(list)
+    for chrpos, aclist in seen.items():
+        included_taxa = set([x.taxon for x in aclist])
+        missing_taxa = all_taxa - included_taxa
+        template = deepcopy(aclist[0])
+        template.clear()
+        for ac in aclist:
+            taxon_to_ac[ac.taxon].append(ac)
+        for tx in missing_taxa:
+            taxon_to_ac[tx].append(template)
+
+    logging.debug("Write allele counts for all taxa")
+    for tx, aclist in sorted(taxon_to_ac.items()):
+        tx_acfile = op.join(acdir, tx + ".allele_counts")
+        fw = open(tx_acfile, "w")
+        print >> fw, "# " + "\t".join(ACHEADER_NO_TAXON)
+        for ac in aclist:
+            print >> fw, ac.tostring()
+        fw.close()
+        logging.debug("Written {0} sites in `{1}`".\
+                format(len(aclist), tx_acfile))
 
 
 def consensus(args):

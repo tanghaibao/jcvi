@@ -302,7 +302,7 @@ def novo2(args):
         flist = [x for x in reads if op.basename(x).split(".")[0] == s]
         outfile = s + ".P{0}.clustS".format(pctid)
         outfile = op.join(clustdir, outfile)
-        cmd = "python -m jcvi.apps.uclust cluster --cpus=4"
+        cmd = "python -m jcvi.apps.uclust cluster --cpus=8"
         cmd += " {0} {1}".format(s, " ".join(flist))
         cmd += " --outdir={0}".format(clustdir)
         cmd += " --pctid={0}".format(pctid)

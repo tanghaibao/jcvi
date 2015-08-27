@@ -22,6 +22,7 @@ from copy import deepcopy
 from functools import partial
 from itertools import groupby
 from subprocess import Popen, PIPE, STDOUT
+from tempfile import mkdtemp
 
 from jcvi.formats.base import BaseFile, FileMerger, must_open, split
 from jcvi.formats.fasta import parse_fasta
@@ -45,7 +46,10 @@ ALT_COUNT       OTHER_COUNT     TOTAL_READS     A       G       C       T
 READ_INS        READ_DEL        TOTAL_READS
 """.split()
 ACHEADER_NO_TAXON = ACHEADER[1:]
+
+
 alleles = lambda x: (",".join(x).replace("-", "*") if x else "N")
+getsize = lambda name: int(name.split(";")[1].replace("size=", ""))
 
 
 class ClustFile (BaseFile):
@@ -62,7 +66,7 @@ class ClustFile (BaseFile):
             data = Clust()
             for name, seq in grouper(contents, 2):
                 name, seq = name.strip(), seq.strip()
-                nrep = int(name.split(";")[1].replace("size=", ""))
+                nrep = getsize(name)
                 data.append((name, seq, nrep))
             yield data
             nstacks += 1
@@ -918,7 +922,7 @@ def parallel_musclewrap(clustfile, cpus, minsamp=0):
 
     from jcvi.apps.grid import Jobs
 
-    outdir = "outdir"
+    outdir = mkdtemp(dir=".")
     fs = split([clustfile, outdir, str(cpus), "--format=clust"])
     g = Jobs(musclewrap_minsamp, fs.names)
     g.run()
@@ -972,16 +976,11 @@ def musclewrap(clustfile, minsamp=0):
         else:
             stringnames = alignfast(names, seqs)
             aligned = sortalign(stringnames)
-            D1 = {}
-            for name, seq in aligned:
-                D1[name] = seq
-
             # Reorder keys by derep number
-            keys = D1.keys()
-            keys.sort(key=lambda x: int(x.split(";")[1].replace("size=", "")),
-                      reverse=True)
-            for key in keys:
-                STACK.append((key, D1[key]))
+            D1 = [(getsize(name), name, seq) for name, seq in aligned]
+            D1.sort(key=lambda x: (-x[0], x[1]))
+            for size, name, seq in D1:
+                STACK.append((name, seq))
 
         if STACK:
             print >> fw, STACK
@@ -1076,7 +1075,7 @@ def cluster_smallmem(derepfile, userfile, notmatchedfile, minlength, pctid,
     cmd += " -id {0}".format(identity)
     cmd += " -userout {0}".format(userfile)
     cmd += " -userfields query+target+id+gaps+qstrand+qcov"
-    cmd += " -maxaccepts 1 -maxrejects 0"
+    cmd += " -maxaccepts 1 -maxrejects 8"  # Decrease maxrejects for speed
     cmd += " -query_cov .9"
     cmd += " -minsl .5 -fulldp"
     cmd += " -usersort -sizein"
@@ -1129,7 +1128,7 @@ def cluster(args):
 
     clustSfile = pf + ".clustS"
     if need_update(clustfile, clustSfile):
-        musclewrap(clustfile)
+        parallel_musclewrap(clustfile, cpus)
 
     statsfile = pf + ".stats"
     if need_update(clustSfile, statsfile):

@@ -272,7 +272,7 @@ def novo2(args):
     Reference-free tGBS pipeline v2.
     """
     p = OptionParser(novo2.__doc__)
-    p.set_align(pctid=96)
+    p.set_align(pctid=94)
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -313,13 +313,13 @@ def novo2(args):
         allcons.append(outfile)
 
     # Step 2 - clustering across samples
-    clustSfile = pf + ".clustS"
+    clustSfile = pf + ".P{0}.clustS".format(pctid)
     cmd = "python -m jcvi.apps.uclust mcluster {0}".format(" ".join(allcons))
     cmd += " --prefix={0}".format(pf)
     mm.add(allcons, clustSfile, cmd)
 
     # Step 3 - make consensus across samples
-    locifile = pf + ".loci"
+    locifile = pf + ".P{0}.loci"
     cmd = "python -m jcvi.apps.uclust mconsensus {0}".format(" ".join(allcons))
     cmd += " --prefix={0}".format(pf)
     mm.add(allcons + [clustSfile], locifile, cmd)

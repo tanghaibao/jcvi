@@ -168,12 +168,18 @@ def count(args):
         if desc.startswith("singleton"):
             sizes.append(1)
             continue
+
         # consensus_for_cluster_0 with 63 sequences
-        name, w, size, seqs = desc.split()
-        if csv:
-            print >> csv, "\t".join(str(x) for x in (name, size, len(rec)))
-        assert w == "with"
-        sizes.append(int(size))
+        if "with" in desc:
+            name, w, size, seqs = desc.split()
+            if csv:
+                print >> csv, "\t".join(str(x) for x in (name, size, len(rec)))
+            assert w == "with"
+            sizes.append(int(size))
+        # MRD85:00603:02472;size=167;
+        else:
+            name, size, tail = desc.split(";")
+            sizes.append(int(size.replace("size=", "")))
 
     if csv:
         csv.close()
@@ -285,7 +291,8 @@ def novo2(args):
 
     # Set up directory structure
     clustdir = "uclust"
-    for d in (clustdir,):
+    acdir ="allele_counts"
+    for d in (clustdir, acdir):
         mkdir(d)
 
     mm = MakeManager()

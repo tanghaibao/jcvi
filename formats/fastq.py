@@ -324,10 +324,10 @@ def fasta(args):
         mkdir(outdir)
 
     fastqfile = fastqfiles[0]
-    pf = fastqfile
-    gzinput = fastqfile.endswith(".gz")
+    pf = op.basename(fastqfile)
+    gzinput = pf.endswith(".gz")
     if gzinput:
-        pf = fastqfile.rsplit(".", 1)[0]
+        pf = pf.rsplit(".", 1)[0]
 
     pf, sf = pf.rsplit(".", 1)
     if sf not in ("fq", "fastq"):
@@ -338,9 +338,11 @@ def fasta(args):
     outfile = opts.outfile or fastafile
     outfile = op.join(outdir, outfile)
     if opts.seqtk:
-        if need_update(fastqfile, outfile):
-            cmd = "seqtk seq -A {0} -L 30 -l 70".format(" ".join(fastqfiles))
-            sh(cmd, outfile=outfile)
+        if need_update(fastqfiles, outfile):
+            for i, fastqfile in enumerate(fastqfiles):
+                cmd = "seqtk seq -A {0} -L 30 -l 70".format(fastqfile)
+                # First one creates file, following ones append to it
+                sh(cmd, outfile=outfile, append=i)
         else:
             logging.debug("Outfile `{0}` already exists.".format(outfile))
         return outfile, None

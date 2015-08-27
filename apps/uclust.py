@@ -600,7 +600,7 @@ def consensus(args):
                     # For high cov data, reduce for base calling
                     if n1 + n2 > 500:
                         m1 = 500 * n1 / (n1 + n2)
-                        m2 = 500 * m2 / (n1 + n2)
+                        m2 = 500 * n2 / (n1 + n2)
                     # Make base calls, two different methods available:
                     # binom_consens and naive_consens
                     if n1 + n2 >= mindepth:
@@ -1042,13 +1042,12 @@ def makeclust(derepfile, userfile, notmatchedfile, clustfile):
     fp = open(userfile)
     for row in fp:
         query, target, id, gaps, qstrand, qcov = row.rstrip().split("\t")
-        U[target].append([query, qstrand, qcov])
+        U[target].append(query)
 
     fw = open(clustfile, "w")
     for key, values in U.items():
         seqs = [('>' + key, D[key])]
-        for name, strand, cov in values:
-            cov = float(cov)
+        for name in values:
             seqs.append(('>' + name, D[name]))
         seq = "\n".join("\n".join(x) for x in seqs)
         print >> fw, "\n".join((seq, SEP))

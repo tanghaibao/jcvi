@@ -12,6 +12,10 @@ import os.path as op
 import sys
 import logging
 
+from collections import defaultdict
+
+from jcvi.formats.base import must_open
+from jcvi.utils.cbook import percentage
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, which
 
 
@@ -21,9 +25,10 @@ class Protocol (object):
         self.outputDir = outputDir
         self.reference = reference
         self.reads = reads
-        oblasr = (24, 98) if highqual else (12, 75)
+        oblasr = (16, 98) if highqual else (8, 70)
         self.blasr = "-minMatch {0} -minPctSimilarity {1}".format(*oblasr)
-        self.blasr += " -bestn 8 -maxScore -500 -nproc 64 -noSplitSubreads"
+        self.blasr += " -bestn 1 -maxScore -500 -nCandidates 20  "
+        self.blasr += " -nproc 64 -noSplitSubreads"
 
     def write_xml(self, filename="Protocol.xml"):
         import xml.etree.cElementTree as ET
@@ -52,14 +57,72 @@ class Protocol (object):
         fw.close()
 
 
+class M4Line (object):
+    """
+    See doc:
+
+    https://github.com/mchaisso/blasr
+    """
+    def __init__(self, sline):
+        args = sline.split()
+        self.query = args[0]
+        self.subject = args[1]
+        self.score = int(args[2])
+        self.qstrand = args[3]
+        self.qstart = int(args[4])
+        self.qstop = int(args[5])
+        self.qlen = int(args[6])
+        self.sstrand = args[7]
+        self.sstart = int(args[8])
+        self.sstop = int(args[9])
+        self.slen = int(args[10])
+        self.spaceusage = int(args[11])
+        self.quality = int(args[12])
+
+
 def main():
 
     actions = (
         ('patch', 'run PBJelly with reference and reads'),
         ('spancount', 'count support for each gap'),
+        ('filterm4', 'filter .m4 file after blasr is run'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def filterm4(args):
+    """
+    %prog filterm4 sample.m4 > filtered.m4
+
+    Filter .m4 file after blasr is run. As blasr takes a long time to run,
+    changing -bestn is undesirable. This screens the m4 file to retain top hits.
+    """
+    p = OptionParser(filterm4.__doc__)
+    p.add_option("--best", default=1, type="int", help="Only retain best N hits")
+    p.set_outfile()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    m4file, = args
+    best = opts.best
+    fp = open(m4file)
+    fw = must_open(opts.outfile, "w")
+    seen = defaultdict(int)
+    retained = total = 0
+    for row in fp:
+        r = M4Line(row)
+        total += 1
+        if total % 100000 == 0:
+            logging.debug("Retained {0} lines".\
+                            format(percentage(retained, total)))
+        if seen.get(r.query, 0) < best:
+            fw.write(row)
+            seen[r.query] += 1
+            retained += 1
+    fw.close()
 
 
 def spancount(args):

@@ -8,6 +8,7 @@ import shutil
 import signal
 import sys
 import logging
+import fnmatch
 
 from httplib import HTTPSConnection
 from urllib import urlencode
@@ -768,13 +769,18 @@ def glob(pathname, pattern=None):
 
 def iglob(pathname, *patterns):
     """
-    Allow multiple file formats. For example:
+    Allow multiple file formats. This is also recursive. For example:
 
     >>> iglob("apps", "*.py", "*.pyc")
     """
-    from itertools import chain
-    it = chain.from_iterable(glob(pathname, pattern) for pattern in patterns)
-    return sorted(list(it))
+    matches = []
+    for root, dirnames, filenames in os.walk(pathname):
+        matching = []
+        for pattern in patterns:
+            matching.extend(fnmatch.filter(filenames, pattern))
+        for filename in matching:
+            matches.append(op.join(root, filename))
+    return sorted(matches)
 
 
 def mkdir(dirname, overwrite=False):

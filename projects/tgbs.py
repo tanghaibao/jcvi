@@ -263,8 +263,8 @@ def novo(args):
                     "--prefix={0}_".format(pf)])
 
 
-def scan_read_files(trimmed):
-    reads = iglob(trimmed, "*.fq", "*.fq.gz")
+def scan_read_files(trimmed, patterns):
+    reads = iglob(trimmed, *patterns)
     samples = sorted(set(op.basename(x).split(".")[0] for x in reads))
     logging.debug("Total {0} read files from {1} samples".\
                     format(len(reads), len(samples)))
@@ -278,8 +278,9 @@ def novo2(args):
     Reference-free tGBS pipeline v2.
     """
     p = OptionParser(novo2.__doc__)
+    p.add_option("--names", default="*.fq,*.fq.gz",
+                 help="File names to search, use comma to separate multiple")
     p.set_align(pctid=94)
-    p.set_cpus()
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -287,7 +288,8 @@ def novo2(args):
 
     trimmed, pf = args
     pctid = opts.pctid
-    reads, samples = scan_read_files(trimmed)
+    patterns = opts.names.split(",")
+    reads, samples = scan_read_files(trimmed, patterns)
 
     # Set up directory structure
     clustdir = "uclust"
@@ -326,7 +328,7 @@ def novo2(args):
     mm.add(allcons, clustSfile, cmd)
 
     # Step 3 - make consensus across samples
-    locifile = pf + ".P{0}.loci"
+    locifile = pf + ".P{0}.loci".format(pctid)
     cmd = "python -m jcvi.apps.uclust mconsensus {0}".format(" ".join(allcons))
     cmd += " --prefix={0}".format(pf)
     mm.add(allcons + [clustSfile], locifile, cmd)

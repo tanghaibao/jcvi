@@ -25,9 +25,9 @@ class Protocol (object):
         self.outputDir = outputDir
         self.reference = reference
         self.reads = reads
-        oblasr = (16, 98) if highqual else (8, 70)
-        self.blasr = "-minMatch {0} -minPctSimilarity {1}".format(*oblasr)
-        self.blasr += " -bestn 1 -maxScore -500 -nCandidates 20  "
+        oblasr = (16, 98) if highqual else (8, 75)
+        self.blasr = "-minMatch {0} -sdpTupleSize 8 -minPctSimilarity {1}".format(*oblasr)
+        self.blasr += " -bestn 1 -nCandidates 10 -maxScore -500"
         self.blasr += " -nproc 64 -noSplitSubreads"
 
     def write_xml(self, filename="Protocol.xml"):

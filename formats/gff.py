@@ -34,7 +34,8 @@ valid_gff_parent_child = {"match": "match_part",
                           "expressed_sequence_match": "match_part",
                           "protein_match": "match_part",
                           "transposable_element": "transposon_fragment",
-                          "mRNA": "exon",
+                          "gene": "mRNA",
+                          "mRNA": "exon,CDS,five_prime_UTR,three_prime_UTR"
                          }
 valid_gff_to_gtf_type = {"exon": "exon",
                          "pseudogenic_exon": "exon",
@@ -324,7 +325,7 @@ class GffFeatureTracker (object):
         return self.tracker[parent][ftype].index(feat_tuple)
 
     def store_symbol(self, g):
-        for symbol_attr in ("symbol", "Alias", "ID"):
+        for symbol_attr in ("symbol", "ID"):
             if symbol_attr in g.attributes:
                 break
         self.symbolstore[g.accn] = g.get_attr(symbol_attr)
@@ -394,6 +395,7 @@ def main():
         ('gb', 'convert gff3 to genbank format'),
         ('sort', 'sort the gff file'),
         ('filter', 'filter the gff file based on Identity and Coverage'),
+        ('sizes', 'calculate sizes of features in gff file'),
         ('format', 'format the gff file, change seqid, etc.'),
         ('fixboundaries', 'fix boundaries of parent features by range chaining child features'),
         ('chain', 'fill in parent features by chaining children'),
@@ -418,6 +420,42 @@ def main():
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def sizes(args):
+    """
+    %prog sizes gffile
+
+    Given a gff file of features, calculate the sizes of chosen parent feature
+    based on summation of sizes of child features.
+
+    For example, for parent 'mRNA' and child 'CDS' feature types, calcuate sizes of
+    mRNA by summing the sizes of the disjoint CDS parts.
+    """
+    p = OptionParser(sizes.__doc__)
+    p.set_outfile()
+    p.add_option("--parent", dest="parent", default="mRNA",
+            help="parent feature for which size is to be calculated")
+    p.add_option("--child", dest="child", default="CDS",
+            help="child feature to use for size calculations")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    gffile, = args
+    parent, cftype = opts.parent, opts.child
+
+    gff = make_index(gffile)
+
+    fw = must_open(opts.outfile, "w")
+    for feat in gff.features_of_type(parent, order_by=('seqid', 'start')):
+        fsize = 0
+        fsize = feat.end - feat.start + 1 \
+                if cftype == parent else \
+                gff.children_bp(feat, child_featuretype=cftype)
+        print >> fw, "\t".join(str(x) for x in (feat.id, fsize))
+    fw.close()
 
 
 def cluster(args):
@@ -903,6 +941,10 @@ def chain(args):
     valid_merge_op = ('sum', 'min', 'max', 'mean', 'collapse')
 
     p = OptionParser(chain.__doc__)
+    p.add_option("--key", dest="attrib_key", default=None,
+                help="Attribute to use as `key` for chaining operation")
+    p.add_option("--break", dest="break_chain", action="store_true",
+                help="Break long chains which are non-contiguous")
     p.add_option("--transfer_attrib", dest="attrib_list",
                 help="Attributes to transfer to parent feature; accepts comma" + \
                 " separated list of attribute names [default: %default]")
@@ -917,14 +959,32 @@ def chain(args):
         sys.exit(not p.print_help())
 
     gffile, = args
+    attrib_key = opts.attrib_key
     attrib_list = opts.attrib_list
     score_merge_op = opts.score_merge_op
+    break_chain = opts.break_chain
+
     gffdict = {}
     fw = must_open(opts.outfile, "w")
     gff = Gff(gffile)
+    if break_chain:
+        ctr, prev_gid = dict(), None
     for g in gff:
         id = g.accn
-        gkey = (g.seqid, id)
+        gid = id
+        if attrib_key:
+            assert attrib_key in g.attributes.keys(), \
+                "Attribute `{0}` not present in GFF3".format(attrib_key)
+            gid = g.get_attr(attrib_key)
+        curr_gid = gid
+        if break_chain:
+            if prev_gid != curr_gid:
+                if curr_gid not in ctr:
+                    ctr[curr_gid] = 0
+                else:
+                    ctr[curr_gid] += 1
+                    gid = "{0}:{1}".format(gid, ctr[curr_gid])
+        gkey = (g.seqid, gid)
         if gkey not in gffdict:
             gffdict[gkey] = { 'seqid': g.seqid,
                             'source': g.source,
@@ -935,13 +995,17 @@ def chain(args):
                             'score': [],
                             'attrs': DefaultOrderedDict(set)
                           }
-            gffdict[gkey]['attrs']['ID'].add(id)
+            gffdict[gkey]['attrs']['ID'].add(gid)
 
         if attrib_list:
             for a in attrib_list.split(","):
                 if a in g.attributes:
                     [gffdict[gkey]['attrs'][a].add(x) for x in g.attributes[a]]
                     del g.attributes[a]
+
+        if break_chain:
+            _attrib = "Alias" if attrib_list and ("Name" not in attrib_list) else "Name"
+            gffdict[gkey]['attrs'][_attrib].add(curr_gid)
 
         gffdict[gkey]['coords'].append((g.start, g.end))
         if score_merge_op:
@@ -950,11 +1014,13 @@ def chain(args):
                 g.score = "."
 
         g.type = valid_gff_parent_child[g.type]
-        g.attributes["Parent"] = g.attributes["ID"]
+        g.attributes["Parent"] = [gid]
         g.attributes["ID"] = ["{0}-{1}".\
-                format(id, len(gffdict[gkey]['children']) + 1)]
+                format(gid, len(gffdict[gkey]['children']) + 1)]
         g.update_attributes()
         gffdict[gkey]['children'].append(g)
+        if break_chain:
+            prev_gid = curr_gid
 
     for gkey, v in sorted(gffdict.items()):
         gseqid, key = gkey
@@ -2325,8 +2391,13 @@ def load(args):
     fw = must_open(opts.outfile, "w")
 
     for feat in get_parents(gff_file, parents):
-        desc = ",".join(feat.attributes[desc_attr]) \
-                if desc_attr and desc_attr in feat.attributes else ""
+        desc = ""
+        if desc_attr:
+            fparent = feat.attributes['Parent'][0]
+            if desc_attr in feat.attributes:
+                desc = ",".join(feat.attributes[desc_attr])
+            elif desc_attr in g[fparent].attributes:
+                desc = ",".join(g[fparent].attributes[desc_attr])
 
         if opts.full_header:
             desc_parts = []

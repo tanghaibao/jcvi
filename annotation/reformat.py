@@ -28,7 +28,7 @@ PRIORITY = (FRAME, RETAIN, OVERLAP, NEW)
 new_id_pat = re.compile(r"^\d+\.[cemtx]+\S+")
 atg_name_pat = re.compile(r"""
         ^(?P<locus>
-            (?:(?P<prefix>\D+[\D\d\D])\.?)(?P<chr>[\d|C|M]+)(?P<sep>[A-z]+)(?P<rank>\d+)
+            (?:(?P<prefix>\w+[\D\d\D])\.?)(?P<chr>[\d|C|M]+)(?P<sep>[A-z]+)(?P<rank>\d+)
         )
         \.?(?P<iso>\d+)?
         """, re.VERBOSE)
@@ -972,7 +972,7 @@ def reindex(args):
     reffasta = Fasta(refpep)
 
     if not opts.scores:
-        fh, pairsfile = mkstemp(suffix=".pairs")
+        fh, pairsfile = mkstemp(prefix='pairs', suffix=".txt", dir=".")
         fw = must_open(pairsfile, "w")
 
     conflict, novel = AutoVivification(), {}
@@ -1034,10 +1034,9 @@ def reindex(args):
         if not opts.scores:
             for isoform in sorted(conflict[geneid]):
                 mrnaid = "{0}.{1}".format(geneid, isoform)
-                assert mrnaid in reffasta, \
-                        "{0} missing in {1} file".format(mrnaid, refpep)
-                for mrna in conflict[geneid][isoform]:
-                    print >> fw, "\t".join(str(x) for x in (mrnaid, mrna[0]))
+                if mrnaid in reffasta.keys():
+                    for mrna in conflict[geneid][isoform]:
+                        print >> fw, "\t".join(str(x) for x in (mrnaid, mrna[0]))
 
     scoresfile = None
     if not opts.scores:
@@ -1049,8 +1048,6 @@ def reindex(args):
         scoresfile = opts.scores
 
     scores = read_scores(scoresfile, sort=True, trimsuffix=False)
-    if not opts.scores:
-        FileShredder([scoresfile], verbose=False)
 
     primary = {}
     for geneid in conflict:
@@ -1058,6 +1055,9 @@ def reindex(args):
         for iso in sorted(conflict[geneid]):
             conflict[geneid][iso].sort(key=lambda k:(k[3], -k[4], -k[5]))
             _iso = "{0}.{1}".format(geneid, iso)
+            if _iso not in scores:
+                novel[geneid].extend(conflict[geneid][iso])
+                continue
             top_score = scores[_iso][0][1]
             result = next((i for i, v in enumerate(conflict[geneid][iso]) if v[0] == top_score), None)
             if result is not None:
@@ -1082,7 +1082,8 @@ def reindex(args):
                 if mrna not in novel[geneid]:
                     seen.append(int(mrna[1]))
                 else:
-                    _iso = (max(seen) + iso + 1) - len(seen)
+                    mseen = 0 if len(seen) == 0 else max(seen)
+                    _iso = (mseen + iso + 1) - len(seen)
 
                 _mrnaid = "{0}.{1}".format(geneid, _iso)
                 _mrna['ID'], _mrna['_old_ID'] = [_mrnaid], [_mrna.id]

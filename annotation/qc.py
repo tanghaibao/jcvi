@@ -45,6 +45,7 @@ def uniq(args):
 
     score = (1 - AED) * length
     """
+
     p = OptionParser(uniq.__doc__)
     p.set_outfile()
     opts, args = p.parse_args(args)
@@ -158,6 +159,9 @@ def trimUTR(args):
         help="File containing gene list for 5' UTR trimming")
     p.add_option("--trim3", default=None, type="str", \
         help="File containing gene list for 3' UTR trimming")
+    p.add_option("--trimrange", default=None, type="str", \
+        help="File containing gene list for UTR trim back" + \
+             "based on suggested (start, stop) coordinate range")
     p.add_option("--refgff", default=None, type="str", \
         help="Reference GFF3 used as fallback to replace UTRs")
     p.set_outfile()
@@ -172,6 +176,16 @@ def trimUTR(args):
     trim_both = False if (opts.trim5 or opts.trim3) else True
     trim5 = SetFile(opts.trim5) if opts.trim5 else set()
     trim3 = SetFile(opts.trim3) if opts.trim3 else set()
+    trimrange = dict()
+    if opts.trimrange:
+        trf = must_open(opts.trimrange)
+        for tr in trf:
+            assert len(tr.split("\t")) == 3, \
+                "Must specify (start, stop) coordinate range"
+            id, start, stop = tr.split("\t")
+            trimrange[id] = (int(start), int(stop))
+        trf.close()
+
     refgff = make_index(opts.refgff) if opts.refgff else None
 
     fw = must_open(opts.outfile, "w")
@@ -215,7 +229,8 @@ def trimUTR(args):
                             refc = None
                     except gffutils.exceptions.FeatureNotFoundError:
                         pass
-                start, end = get_cds_minmax(gff, cid, level=1)
+                start, end = trimrange[cid] if cid in trimrange \
+                    else get_cds_minmax(gff, cid, level=1)
                 if not refc:
                     trim(c, start, end, trim5=t5, trim3=t3, both=trim_both)
                 fprint(c, fw)

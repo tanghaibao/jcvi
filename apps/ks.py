@@ -473,7 +473,7 @@ def calc(args):
 
     output_h = must_open(opts.outfile, "w")
     print >> output_h, header
-    work_dir = op.join(os.getcwd(), "syn_analysis")
+    work_dir = "syn_analysis"
     mkdir(work_dir)
 
     if not protein_file:

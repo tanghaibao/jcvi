@@ -30,6 +30,7 @@ def main():
 
     actions = (
         ('screen', 'screen sequences against library'),
+        ('dedup', 'remove duplicate contigs within assembly'),
         ('build', 'build assembly files after a set of clean-ups'),
         ('overlap', 'build larger contig set by fishing additional seqs'),
         ('overlapbatch', 'call overlap on a set of sequences'),
@@ -37,6 +38,41 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def dedup(args):
+    """
+    %prog dedup assembly.assembly.blast assembly.fasta
+
+    Remove duplicate contigs within assembly.
+    """
+    from jcvi.formats.blast import BlastLine
+
+    p = OptionParser(dedup.__doc__)
+    p.set_align(pctid=0, pctcov=98)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    blastfile, fastafile = args
+    cov = opts.pctcov / 100.
+    sizes = Sizes(fastafile).mapping
+    fp = open(blastfile)
+    removed = set()
+    for row in fp:
+        b = BlastLine(row)
+        query, subject = b.query, b.subject
+        if query == subject:
+            continue
+        qsize, ssize = sizes[query], sizes[subject]
+        qspan = abs(b.qstop - b.qstart)
+        if qspan < qsize * cov:
+            continue
+        if (qsize, query) < (ssize, subject):
+            removed.add(query)
+
+    print "\n".join(sorted(removed))
 
 
 def build(args):

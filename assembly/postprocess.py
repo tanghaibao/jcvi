@@ -18,7 +18,7 @@ import logging
 from collections import defaultdict
 
 from jcvi.formats.contig import ContigFile
-from jcvi.formats.fasta import Fasta, SeqIO, gaps, format, tidy
+from jcvi.formats.fasta import Fasta, SeqIO, gaps, format, parse_fasta, tidy
 from jcvi.formats.sizes import Sizes
 from jcvi.utils.cbook import depends
 from jcvi.assembly.base import n50
@@ -31,6 +31,7 @@ def main():
     actions = (
         ('screen', 'screen sequences against library'),
         ('dedup', 'remove duplicate contigs within assembly'),
+        ('dust', 'remove low-complexity contigs within assembly'),
         ('build', 'build assembly files after a set of clean-ups'),
         ('overlap', 'build larger contig set by fishing additional seqs'),
         ('overlapbatch', 'call overlap on a set of sequences'),
@@ -38,6 +39,34 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def dust(args):
+    """
+    %prog dust assembly.fasta
+
+    Remove low-complexity contigs within assembly.
+    """
+    p = OptionParser(dust.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    fastafile, = args
+    dustfastafile = fastafile.rsplit(".", 1)[0] + ".dust.fasta"
+    if need_update(fastafile, dustfastafile):
+        cmd = "dustmasker -in {0}".format(fastafile)
+        cmd += " -out {1} -outfmt fasta".format(dustfastafile)
+        sh(cmd)
+
+    for name, seq in parse_fasta(dustfastafile):
+        nlow = sum(1 for x in seq if x in "acgtN")
+        pctlow = nlow * 100. / len(seq)
+        if pctlow < 98:
+            continue
+        #print "{0}\t{1:.1f}".format(name, pctlow)
+        print name
 
 
 def dedup(args):

@@ -10,6 +10,7 @@ import logging
 
 from jcvi.formats.fasta import Fasta
 from jcvi.formats.base import write_file
+from jcvi.apps.grid import MakeManager
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update
 
 
@@ -21,10 +22,87 @@ def main():
         ('rmdup', 'remove PCR duplicates from BAM files'),
         ('freebayes', 'call snps using freebayes'),
         ('mpileup', 'call snps using samtools-mpileup'),
+        ('gatk', 'call snps using GATK'),
         ('somatic', 'generate series of SPEEDSESQ-somatic commands'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def gatk(args):
+    """
+    %prog gatk bamfile reference.fasta
+
+    Call SNPs based on GATK best practices.
+    """
+    p = OptionParser(gatk.__doc__)
+    p.set_home("gatk")
+    p.set_home("picard")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    bamfile, ref = args
+    pf = bamfile.rsplit(".", 1)[0]
+    mm = MakeManager()
+    picard = "java -Xmx32g -jar {0}/picard.jar".format(opts.picard_home)
+    tk = "java -Xmx32g -jar {0}/GenomeAnalysisTK.jar".format(opts.gatk_home)
+    tk += " -R {0}".format(ref)
+
+    # Step 0 - build reference
+    dictfile = ref.rsplit(".", 1)[0] + ".dict"
+    cmd1 = picard + " CreateSequenceDictionary"
+    cmd1 += " R={0} O={1}".format(ref, dictfile)
+    cmd2 = "samtools faidx {0}".format(ref)
+    mm.add(ref, dictfile, (cmd1, cmd2))
+
+    # Step 1 - sort bam
+    sortedbamfile = pf + ".sorted.bam"
+    cmd = picard + " SortSam"
+    cmd += " INPUT={0} OUTPUT={1}".format(bamfile, sortedbamfile)
+    cmd += " SORT_ORDER=coordinate CREATE_INDEX=true"
+    mm.add(bamfile, sortedbamfile, cmd)
+
+    # Step 2 - mark duplicates
+    dedupbamfile = pf + ".dedup.bam"
+    cmd = picard + " MarkDuplicates"
+    cmd += " INPUT={0} OUTPUT={1}".format(sortedbamfile, dedupbamfile)
+    cmd += " METRICS_FILE=dedup.log CREATE_INDEX=true"
+    mm.add(sortedbamfile, dedupbamfile, cmd)
+
+    # Step 3 - create indel realignment targets
+    intervals = pf + ".intervals"
+    cmd = tk + " -T RealignerTargetCreator"
+    cmd += " -I {0} -o {1}".format(dedupbamfile, intervals)
+    mm.add(dedupbamfile, intervals, cmd)
+
+    # Step 4 - indel realignment
+    realignedbamfile = pf + ".realigned.bam"
+    cmd = tk + " -T IndelRealigner"
+    cmd += " -targetIntervals {0}".format(intervals)
+    cmd += " -I {0} -o {1}".format(dedupbamfile, realignedbamfile)
+    mm.add((dictfile, intervals), realignedbamfile, cmd)
+
+    # Step 5 - SNP calling
+    vcf = pf + ".vcf"
+    cmd = tk + " -T HaplotypeCaller"
+    cmd += " -I {0}".format(realignedbamfile)
+    cmd += " --genotyping_mode DISCOVERY"
+    cmd += " -stand_emit_conf 10 -stand_call_conf 30"
+    cmd += " -o {0}".format(vcf)
+    mm.add(realignedbamfile, vcf, cmd)
+
+    # Step 6 - SNP filtering
+    filtered_vcf = pf + ".filtered.vcf"
+    cmd = tk + " -T VariantFiltration"
+    cmd += " -V {0}".format(vcf)
+    cmd += ' --filterExpression "DP < 10 || QD < 2.0 || FS > 60.0 || MQ < 40.0"'
+    cmd += ' --filterName "myfilter"'
+    cmd += " -o {0}".format(filtered_vcf)
+    mm.add(vcf, filtered_vcf, cmd)
+
+    mm.write()
 
 
 def somatic(args):
@@ -53,6 +131,7 @@ def somatic(args):
         cmds.append(cmd)
 
     write_file("somatic.sh", "\n".join(cmds))
+
 
 def rmdup(args):
     """

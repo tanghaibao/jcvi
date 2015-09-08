@@ -7,6 +7,7 @@ The whole pipeline is following bwa documentation at
 <http://bio-bwa.sf.net/bwa.shtml>
 """
 
+import os.path as op
 import sys
 import logging
 
@@ -80,6 +81,7 @@ def align(args):
     valid_modes = ("bwasw", "aln", "mem")
     p = OptionParser(align.__doc__)
     p.add_option("--mode", default="mem", choices=valid_modes, help="BWA mode")
+    p.add_option("--rg", help="Read group")
     p.add_option("--readtype", choices=("pacbio", "pbread", "ont2d", "intractg"),
                  help="Read type in bwa-mem")
     p.set_cutoff(cutoff=800)
@@ -186,6 +188,8 @@ def mem(args, opts):
     """
     dbfile, read1file = args[:2]
 
+    pf = op.basename(read1file).split(".")[0]
+    rg = opts.rg or r"@RG\tID:{0}\tSM:sm\tLB:lb\tPL:illumina".format(pf)
     dbfile = check_index(dbfile)
     args[0] = dbfile
     samfile, _, unmapped = get_samfile(read1file, dbfile,
@@ -196,6 +200,7 @@ def mem(args, opts):
 
     cmd = "bwa mem " + " ".join(args)
     cmd += " -M -t {0}".format(opts.cpus)
+    cmd += ' -R "{0}"'.format(rg)
     if opts.readtype:
         cmd += " -x {0}".format(opts.readtype)
     cmd += " " + opts.extra

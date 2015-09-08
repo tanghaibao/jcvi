@@ -345,6 +345,8 @@ def snpflow(args):
     are also supported.
     """
     p = OptionParser(snpflow.__doc__)
+    p.add_option("--names", default="*.fq,*.fq.gz",
+                 help="File names to search, use comma to separate multiple")
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -358,7 +360,8 @@ def snpflow(args):
         logging.debug("Total seqs in ref: {0} (supercat={1})".\
                       format(nseqs, supercat))
 
-    reads, samples = scan_read_files(trimmed)
+    patterns = opts.names.split(",")
+    reads, samples = scan_read_files(trimmed, patterns)
 
     # Set up directory structure
     nativedir, countsdir = "native", "allele_counts"
@@ -430,7 +433,7 @@ def snpflow(args):
         cmd += " --genotype {0}/{1}.SNPs_Het.txt".format(nativedir, s)
         cmd += " --allgenotypes {0}/*.SNPs_Het.txt".format(nativedir)
         cmd += " --fasta {0} --output {1}".format(ref, equalfile)
-        mm.add(flist + allsnps, equalfile, cmd)
+        mm.add(allsnps, equalfile, cmd)
 
     # Step 4 - generate snp matrix
     allequals = [op.join(nativedir, "{0}.equal".format(x)) for x in samples]
@@ -447,7 +450,7 @@ def snpflow(args):
         cmd = "count_reads_per_allele.pl -m snps.matrix.txt"
         cmd += " -s {0} --native {1}/{0}.*unique.native".format(s, nativedir)
         cmd += " -o {0}".format(allele_counts)
-        mm.add([matrix] + flist, allele_counts, cmd)
+        mm.add(matrix, allele_counts, cmd)
         allcounts.append(allele_counts)
 
     # Step 6 - generate raw snps

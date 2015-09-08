@@ -1035,25 +1035,41 @@ def stats(clustSfile, statsfile, mindepth):
     fw.close()
 
 
-def makeclust(derepfile, userfile, notmatchedfile, clustfile):
+def makeclust(derepfile, userfile, notmatchedfile, clustfile,
+              mindepth=3, include=.9):
     D = dict(parse_fasta(derepfile))
     U = defaultdict(list)  # Clusters
     fp = open(userfile)
     for row in fp:
-        query, target, id, gaps, qstrand, qcov = row.rstrip().split("\t")
-        U[target].append(query)
+        query, target, id, qcov, tcov = row.rstrip().split("\t")
+        U[target].append((query, getsize(query),
+                          float(id) * float(qcov) * float(tcov)))
 
     fw = open(clustfile, "w")
-    for key, values in U.items():
+    for key, members in U.items():
+        keysize = getsize(key)
+        members.sort(key=lambda x: (-x[1], -x[2]))
+        totalsize = keysize + sum(x[1] for x in members)
+        cutoff = int(round(totalsize * include))
+        cumulative = keysize
+
+        # Remove outliers within each cluster
         seqs = [('>' + key, D[key])]
-        for name in values:
+        for name, size, id in members:
             seqs.append(('>' + name, D[name]))
+            cumulative += size
+            if cumulative >= cutoff:
+                break
+        if cumulative < mindepth:
+            continue
         seq = "\n".join("\n".join(x) for x in seqs)
         print >> fw, "\n".join((seq, SEP))
 
     I = dict(parse_fasta(notmatchedfile))
     singletons = set(I.keys()) - set(U.keys())
     for key in singletons:
+        if getsize(key) < mindepth:
+            continue
         print >> fw, "\n".join(('>' + key, I[key], SEP))
     fw.close()
 
@@ -1073,11 +1089,10 @@ def cluster_smallmem(derepfile, userfile, notmatchedfile, minlength, pctid,
     cmd += " -leftjust"
     cmd += " -cluster_size {0}".format(derepfile)
     cmd += " -id {0}".format(identity)
+    cmd += " -query_cov {0}".format(identity)
     cmd += " -userout {0}".format(userfile)
-    cmd += " -userfields query+target+id+gaps+qstrand+qcov"
+    cmd += " -userfields query+target+id+qcov+tcov"
     cmd += " -maxaccepts 1 -maxrejects 8"  # Decrease maxrejects for speed
-    cmd += " -query_cov .9"
-    cmd += " -minsl .5 -fulldp"
     cmd += " -usersort -sizein"
     cmd += " -notmatched {0}".format(notmatchedfile)
     cmd += " -threads {0}".format(cpus)
@@ -1105,6 +1120,7 @@ def cluster(args):
     fastqfiles = args[1:]
     cpus = opts.cpus
     pctid = opts.pctid
+    mindepth = opts.mindepth
     minlength = opts.minlength
     fastafile, qualfile = fasta(fastqfiles + ["--seqtk",
                                 "--outdir={0}".format(opts.outdir),
@@ -1124,7 +1140,8 @@ def cluster(args):
 
     clustfile = pf + ".clust"
     if need_update((derepfile, userfile, notmatchedfile), clustfile):
-        makeclust(derepfile, userfile, notmatchedfile, clustfile)
+        makeclust(derepfile, userfile, notmatchedfile, clustfile,
+                  mindepth=mindepth)
 
     clustSfile = pf + ".clustS"
     if need_update(clustfile, clustSfile):
@@ -1132,7 +1149,7 @@ def cluster(args):
 
     statsfile = pf + ".stats"
     if need_update(clustSfile, statsfile):
-        stats(clustSfile, statsfile, mindepth=opts.mindepth)
+        stats(clustSfile, statsfile, mindepth=mindepth)
 
 
 if __name__ == '__main__':

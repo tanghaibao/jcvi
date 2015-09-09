@@ -36,10 +36,8 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, datadir, listify, mkd
 
 SEP = "//"
 BASES = "ACTGN_-"  # CAUTION: change of this line must also change AlleleCounts
+GAPS = BASES[-2:]
 NBASES = len(BASES)
-AMB = "RKSYWM"
-AMBL = "rksywm"
-EXTENDEDBASES = BASES + AMB
 ACHEADER = """
 TAXON     CHR   POS     REF_NT  REF_ALLELE      ALT_ALLELE      REF_COUNT
 ALT_COUNT       OTHER_COUNT     TOTAL_READS     A       G       C       T
@@ -204,21 +202,6 @@ def binom_consens(n1, n2, E, H):
     return P, Qn[Q.index(max(Q))]
 
 
-def hetero(n1,n2):
-    """
-    Returns IUPAC symbol for ambiguity bases, used for polymorphic sites.
-    """
-    D = {('G', 'A'): 'R',
-         ('G', 'T'): 'K',
-         ('G', 'C'): 'S',
-         ('T', 'C'): 'Y',
-         ('T', 'A'): 'W',
-         ('C', 'A'): 'M'}
-    a = D.get((n1, n2))
-    b = D.get((n2, n1))
-    return a or b
-
-
 def unhetero(amb):
     """
     Returns bases from ambiguity code.
@@ -268,24 +251,6 @@ def findalleles(consensus, alleles, AL):
     return "".join(cons)
 
 
-def breakalleles(consensus):
-    """
-    Break ambiguity code consensus seqs into two alleles.
-    """
-    a1 = ""
-    a2 = ""
-    for base in consensus:
-        if base in AMB:
-            a, b = unhetero(base)
-        elif base in AMBL:
-            b, a = unhetero(base)
-        else:
-            a = b = base
-        a1 += a
-        a2 += b
-    return a1, a2
-
-
 def find_pctid(consensusfiles):
     pctid = min([int(op.basename(x).split(".")[-2].replace("P", "")) \
             for x in consensusfiles])
@@ -315,30 +280,25 @@ def mcluster(args):
 
     pf += ".P{0}".format(pctid)
     consensusfile = pf + ".consensus.fasta"
-    haplotypefile = pf + ".haplotype.fasta"
-    if need_update(consensusfiles, (consensusfile, haplotypefile)):
+    if need_update(consensusfiles, consensusfile):
         fw_cons = must_open(consensusfile, "w")
-        fw_haps = must_open(haplotypefile, "w")
         totalseqs = 0
         for cf in consensusfiles:
             nseqs = 0
             s = op.basename(cf).split(".")[0]
             for name, seq in parse_fasta(cf):
                 name = '.'.join((s, name))
-                a1, a2 = breakalleles(seq)
                 print >> fw_cons, ">{0}\n{1}".format(name, seq)
-                print >> fw_haps, ">{0}\n{1}".format(name, a1)
                 nseqs += 1
             logging.debug("Read `{0}`: {1} seqs".format(cf, nseqs))
             totalseqs += nseqs
         logging.debug("Total: {0} seqs".format(totalseqs))
         fw_cons.close()
-        fw_haps.close()
 
     userfile = pf + ".u"
     notmatchedfile = pf + ".notmatched"
-    if need_update(haplotypefile, userfile):
-        cluster_smallmem(haplotypefile, userfile, notmatchedfile,
+    if need_update(consensusfile, userfile):
+        cluster_smallmem(consensusfile, userfile, notmatchedfile,
                          minlength, pctid, cpus)
 
     clustfile = pf + ".clust"
@@ -380,7 +340,7 @@ def makeloci(clustSfile, store, prefix):
             ref_allele = unhetero(r)[0]
             ref_alleles.append(ref_allele)
             seed_ungapped_pos.append(ungapped_i)
-            if r in '_-':                # Skip if reference is a deletion
+            if r in GAPS:                 # Skip if reference is a deletion
                 alt_alleles.append([])
                 continue
             else:
@@ -559,8 +519,7 @@ def consensus(args):
         name, seq, nrep = data[0]
         fname = name.split(";")[0] + ";size={0};".format(total_nreps)
         cons_name, cons_seq, cons_nrep = data[-1]
-        if not cons_name.startswith("CONSENS"):
-            cons_name, cons_seq, cons_nrep = name, seq, nrep
+        assert len(data) == 1 or cons_name.startswith(">CONSENS")
 
         # List for sequence data
         S = [(seq, nrep) for name, seq, nrep in data if nrep]
@@ -576,46 +535,43 @@ def consensus(args):
             continue
 
         # Strip N's from either end and gaps
-        leftjust, rightjust = get_left_right(cons_seq)
-        terminalNs = set(range(leftjust) + range(rightjust + 1, len(cons_seq)))
-        gaps = set(i for i, j in enumerate(cons_seq) if j == '-')
-
-        filtered = terminalNs | gaps
-        shortcon = "".join(j for (i, j) in enumerate(cons_seq) \
-                            if i not in filtered)
-        shortRAD = [j for (i, j) in enumerate(RAD) if i not in filtered]
-        conlen = len(shortcon)
-        assert conlen == len(shortRAD)
+        gaps = set()
+        fixed = set()
+        assert len(cons_seq) == len(RAD)
 
         # Correct consensus by converting to top voting bases
-        corr_shortcon = ""
-        for base, site in zip(shortcon, shortRAD):
-            site = site[:4]
-            n1 = max(site)  # Base with highest count
+        shortcon = ""
+        for i, (base, site) in enumerate(zip(cons_seq, RAD)):
+            nucs = site[:4]
+            ngaps = site[-1]
+            n1 = max(nucs)  # Base with highest count
+            if base in GAPS or n1 < ngaps:
+                gaps.add(i)
+                continue
             # Check count for original base for possible ties
             n0 = site[BASES.index(base)]
-            corr_base = bases[site.index(n1)] if n1 > n0 else base
-            corr_shortcon += corr_base
+            if n1 > n0:
+                base = bases[site.index(n1)]
+                fixed.add(i)
+            shortcon += base
+
+        shortRAD = [j for (i, j) in enumerate(RAD) if i not in gaps]
+        assert len(shortcon) == len(shortRAD)
 
         if opts.verbose:
             print_list = lambda L: ",".join(str(x) for x in sorted(L))
             print fname
             print "\n".join(["{0} {1}".format(*x) for x in S])
             print cons_seq
-            print "Terminal Ns:", print_list(terminalNs)
             print "Gaps:", print_list(gaps)
+            print "Fixed:", print_list(fixed)
             print shortcon
-            diff = "".join((" " if a == b else "*") \
-                        for a, b in zip(shortcon, corr_shortcon))
-            if diff.strip():
-                print corr_shortcon
-                print diff
             print "|".join(["{0}{1}:{2}".\
-                        format(i, corr_shortcon[i], " ".join(str(x) for x in j)) \
+                        format(i, shortcon[i], " ".join(str(x) for x in j)) \
                         for i, j in enumerate(shortRAD)])
             print "-" * 60
 
-        output.append((fname, corr_shortcon))
+        output.append((fname, shortcon))
         bins.extend(shortRAD)
 
         start = end
@@ -667,7 +623,7 @@ def get_left_right(seq):
     """
     Find position of the first and last base
     """
-    cseq = seq.strip("_-N")
+    cseq = seq.strip(GAPS)
     leftjust = seq.index(cseq[0])
     rightjust = seq.rindex(cseq[-1])
 

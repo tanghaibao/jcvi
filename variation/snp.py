@@ -40,6 +40,8 @@ def gatk(args):
                  help="Perform indel realignment")
     p.set_home("gatk")
     p.set_home("picard")
+    p.set_phred()
+    p.set_cpus(cpus=24)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -95,15 +97,22 @@ def gatk(args):
     cmd += " -I {0}".format(realignedbamfile)
     cmd += " --genotyping_mode DISCOVERY"
     cmd += " -stand_emit_conf 10 -stand_call_conf 30"
+    cmd += " -nct {0}".format(opts.cpus)
     cmd += " -o {0}".format(vcf)
+    if opts.phred == "64":
+        cmd += " --fix_misencoded_quality_scores"
     mm.add(realignedbamfile, vcf, cmd)
 
     # Step 6 - SNP filtering
     filtered_vcf = pf + ".filtered.vcf"
     cmd = tk + " -T VariantFiltration"
     cmd += " -V {0}".format(vcf)
-    cmd += ' --filterExpression "DP < 10 || QD < 2.0 || FS > 60.0 || MQ < 40.0"'
-    cmd += ' --filterName "myfilter"'
+    cmd += ' --filterExpression "DP < 10 || DP > 300 || QD < 2.0 || FS > 60.0 || MQ < 40.0"'
+    cmd += ' --filterName "LOWQUAL"'
+    cmd += ' --genotypeFilterExpression "isHomVar == 1"'
+    cmd += ' --genotypeFilterName "HOMOVAR"'
+    cmd += ' --genotypeFilterExpression "isHet == 1"'
+    cmd += ' --genotypeFilterName "HET"'
     cmd += " -o {0}".format(filtered_vcf)
     mm.add(vcf, filtered_vcf, cmd)
 

@@ -36,6 +36,8 @@ def gatk(args):
     Call SNPs based on GATK best practices.
     """
     p = OptionParser(gatk.__doc__)
+    p.add_option("--indelrealign", default=False, action="store_true",
+                 help="Perform indel realignment")
     p.set_home("gatk")
     p.set_home("picard")
     opts, args = p.parse_args(args)
@@ -71,18 +73,21 @@ def gatk(args):
     cmd += " METRICS_FILE=dedup.log CREATE_INDEX=true"
     mm.add(sortedbamfile, dedupbamfile, cmd)
 
-    # Step 3 - create indel realignment targets
-    intervals = pf + ".intervals"
-    cmd = tk + " -T RealignerTargetCreator"
-    cmd += " -I {0} -o {1}".format(dedupbamfile, intervals)
-    mm.add(dedupbamfile, intervals, cmd)
+    if opts.indelrealign:
+        # Step 3 - create indel realignment targets
+        intervals = pf + ".intervals"
+        cmd = tk + " -T RealignerTargetCreator"
+        cmd += " -I {0} -o {1}".format(dedupbamfile, intervals)
+        mm.add(dedupbamfile, intervals, cmd)
 
-    # Step 4 - indel realignment
-    realignedbamfile = pf + ".realigned.bam"
-    cmd = tk + " -T IndelRealigner"
-    cmd += " -targetIntervals {0}".format(intervals)
-    cmd += " -I {0} -o {1}".format(dedupbamfile, realignedbamfile)
-    mm.add((dictfile, intervals), realignedbamfile, cmd)
+        # Step 4 - indel realignment
+        realignedbamfile = pf + ".realigned.bam"
+        cmd = tk + " -T IndelRealigner"
+        cmd += " -targetIntervals {0}".format(intervals)
+        cmd += " -I {0} -o {1}".format(dedupbamfile, realignedbamfile)
+        mm.add((dictfile, intervals), realignedbamfile, cmd)
+    else:
+        realignedbamfile = dedupbamfile
 
     # Step 5 - SNP calling
     vcf = pf + ".vcf"

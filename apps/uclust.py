@@ -49,7 +49,8 @@ ACHEADER_NO_TAXON = ACHEADER[1:]
 
 
 alleles = lambda x: (",".join(x).replace("-", "*") if x else "N")
-getsize = lambda name: int(name.split(";")[1].replace("size=", ""))
+getsize = lambda name: (0 if ";" not in name else \
+            int(name.split(";")[1].replace("size=", "")))
 
 
 class ClustFile (BaseFile):
@@ -518,10 +519,6 @@ def consensus(args):
     p = OptionParser(consensus.__doc__)
     p.add_option("--ploidy", default=2, type="int",
                  help="Number of haplotypes per locus")
-    p.add_option("--maxH", default=.1, type="float",
-                 help="Max portion of heterozygous sites allowed")
-    p.add_option("--maxN", default=.1, type="float",
-                 help="Max portion of Ns allowed")
     p.add_option("--estimate_errors", default=False, action="store_true",
                  help="Estimate H and E from data")
     add_consensus_options(p)
@@ -535,9 +532,6 @@ def consensus(args):
     pf = clustSfile.rsplit(".", 1)[0]
     HEfile = pf + ".HE"
     mindepth = opts.mindepth
-    haplos = opts.ploidy
-    maxH = opts.maxH
-    maxN = opts.maxN
 
     H, E = .01, .001
     if opts.estimate_errors:
@@ -564,16 +558,13 @@ def consensus(args):
 
         name, seq, nrep = data[0]
         fname = name.split(";")[0] + ";size={0};".format(total_nreps)
+        cons_name, cons_seq, cons_nrep = data[-1]
+        if not cons_name.startswith("CONSENS"):
+            cons_name, cons_seq, cons_nrep = name, seq, nrep
 
-        S = []               # List for sequence data
-        alleles = []         # Measures # alleles, detect paralogs
-        nHs = 0              # Measures heterozygous sites in this locus
-        cons_seq = ""        # Consensus sequence
-        P = 0                # Posterior probability of genotype call
-        for name, seq, nrep in data:
-            S.append([seq, nrep])
-
-        # Count all bases
+        # List for sequence data
+        S = [(seq, nrep) for name, seq, nrep in data if nrep]
+        # Pileups for base counting
         RAD = stack(S)
 
         if len(data) == 1:   # No computation needed
@@ -583,79 +574,6 @@ def consensus(args):
             end += len(seq)
             indices.append((fname, start, end))
             continue
-
-        paralog = False
-        for basenumber, site in enumerate(RAD):
-            site, gaps = site[:4], site[-1]
-
-            # Minimum depth of coverage for base calling
-            depthofcoverage = sum(site)
-            if depthofcoverage < gaps:
-                cons = '-'
-            elif depthofcoverage < mindepth:
-                cons = 'N'
-            else:
-                n1, n2, n3, n4 = sorted(site, reverse=True)
-
-                # Speed hack = if diploid exclude if a third base present at > 20%
-                if haplos == 2 and float(n3) / depthofcoverage > .2:
-                    cons = "@"   # Paralog
-                else:
-                    m1, m2 = n1, n2
-                    # For high cov data, reduce for base calling
-                    if n1 + n2 > 500:
-                        m1 = 500 * n1 / (n1 + n2)
-                        m2 = 500 * n2 / (n1 + n2)
-                    # Make base calls, two different methods available:
-                    # binom_consens and naive_consens
-                    if n1 + n2 >= mindepth:
-                        P, who = binom_consens(m1, m2, E, H)
-                    # High conf if base could be called with 95% post. prob.
-                    if P < .95:
-                        cons = 'N'
-                    else:
-                        if who in 'ab':
-                            a = [i for i, l in enumerate(site) if l == n1]
-                            if len(a) == 2:       # alleles came up equal freq
-                                cons = hetero(bases[a[0]], bases[a[1]])
-                            else:                 # alleles came up diff freq
-                                b = [i for i, l in enumerate(site) if l == n2]
-                                # If three alleles came up equal, only need if diploid paralog filter off
-                                if a == b:
-                                    cons = hetero(bases[a[0]], bases[a[1]])
-                                else:
-                                    cons = hetero(bases[a[0]], bases[b[0]])
-                            alleles.append(basenumber)
-                            nHs += 1
-                        else:
-                            cons = bases[site.index(n1)]
-
-            cons_seq += cons
-
-            # Only allow maxH polymorphic sites in a locus
-            if cons == '@':
-                paralog = True
-                break
-
-        if paralog:
-            continue
-
-        # Filter to limit to N haplotypes
-        al = []
-        if len(alleles) > 1:
-            for s, nrep in S:
-                d = []
-                for z in alleles:
-                    if s[z] in unhetero(cons_seq[z]):
-                        d.append(s[z])
-                if "N" not in d and len(d) == len(alleles):
-                    al.append('_'.join(d))
-
-            AL = sorted(set(al), key=al.count)
-
-            # Set correct alleles relative to first polymorphic base
-            if AL:  # and len(AL) <= haplos   - TODO: check ploidy level
-                cons_seq = findalleles(cons_seq, alleles, AL)
 
         # Strip N's from either end and gaps
         leftjust, rightjust = get_left_right(cons_seq)
@@ -669,21 +587,15 @@ def consensus(args):
         conlen = len(shortcon)
         assert conlen == len(shortRAD)
 
-        # Only allow maxN internal Ns in a locus and maxH het sites
-        if shortcon.count("N") > conlen * maxN or nHs > conlen * maxH \
-            or conlen < opts.minlength:
-            continue
-
-        # Fix Ns by converting to top voting bases
-        fixed_shortcon = ""
-        for b, site in zip(shortcon, shortRAD):
-            if b == "N":
-                site = site[:4]
-                n1, n2, n3, n4 = sorted(site, reverse=True)
-                fixed_shortcon += bases[site.index(n1)]
-            else:
-                fixed_shortcon += b
-        shortcon = fixed_shortcon
+        # Correct consensus by converting to top voting bases
+        corr_shortcon = ""
+        for base, site in zip(shortcon, shortRAD):
+            site = site[:4]
+            n1 = max(site)  # Base with highest count
+            # Check count for original base for possible ties
+            n0 = site[BASES.index(base)]
+            corr_base = bases[site.index(n1)] if n1 > n0 else base
+            corr_shortcon += corr_base
 
         if opts.verbose:
             print_list = lambda L: ",".join(str(x) for x in sorted(L))
@@ -692,14 +604,18 @@ def consensus(args):
             print cons_seq
             print "Terminal Ns:", print_list(terminalNs)
             print "Gaps:", print_list(gaps)
-            print "Allelic sites:", print_list(alleles)
             print shortcon
+            diff = "".join((" " if a == b else "*") \
+                        for a, b in zip(shortcon, corr_shortcon))
+            if diff.strip():
+                print corr_shortcon
+                print diff
             print "|".join(["{0}{1}:{2}".\
-                        format(i, shortcon[i], " ".join(str(x) for x in j)) \
+                        format(i, corr_shortcon[i], " ".join(str(x) for x in j)) \
                         for i, j in enumerate(shortRAD)])
             print "-" * 60
 
-        output.append((fname, shortcon))
+        output.append((fname, corr_shortcon))
         bins.extend(shortRAD)
 
         start = end
@@ -751,7 +667,7 @@ def get_left_right(seq):
     """
     Find position of the first and last base
     """
-    cseq = seq.strip("-N")
+    cseq = seq.strip("_-N")
     leftjust = seq.index(cseq[0])
     rightjust = seq.rindex(cseq[-1])
 
@@ -895,7 +811,7 @@ def alignfast(names, seqs):
     Performs MUSCLE alignments on cluster and returns output as string
     """
     matfile = op.join(datadir, "blosum80.mat")
-    cmd = "poa -read_fasta - -pir stdout {0} -tolower -silent".format(matfile)
+    cmd = "poa -read_fasta - -pir stdout {0} -tolower -silent -hb".format(matfile)
     p = Popen(cmd, shell=True, stdin=PIPE, stdout=PIPE, stderr=STDOUT, close_fds=True)
     s = ""
     for i, j in zip(names, seqs):

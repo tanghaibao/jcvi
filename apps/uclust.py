@@ -35,6 +35,7 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, datadir, listify, mkd
 
 
 SEP = "//"
+CONSTAG = ">CONSENS0"
 BASES = "ACTGN_-"  # CAUTION: change of this line must also change AlleleCounts
 GAPS = BASES[-2:]
 NBASES = len(BASES)
@@ -69,7 +70,7 @@ class ClustFile (BaseFile):
                 data.append((name, seq, nrep))
             yield data
             nstacks += 1
-            if nstacks % 5000 == 0:
+            if nstacks % 10000 == 0:
                 logging.debug("{0} stacks parsed".format(nstacks))
 
 
@@ -328,15 +329,15 @@ def makeloci(clustSfile, store, prefix):
         # TODO: apply number of shared heteros paralog filter
 
         # Record variable sites
-        seed_seq = seqs[0]
-        ncols = len(seed_seq)
+        cons_name, cons_seq, cons_nrep = get_seed(data)
+        ncols = len(cons_seq)
         snpsite = [' '] * ncols
         seed_ungapped_pos = []
         ref_alleles = []
         alt_alleles = []
         ungapped_i = 0
         for i in xrange(ncols):
-            r = seed_seq[i]
+            r = cons_seq[i]
             ref_allele = unhetero(r)[0]
             ref_alleles.append(ref_allele)
             seed_ungapped_pos.append(ungapped_i)
@@ -366,6 +367,8 @@ def makeloci(clustSfile, store, prefix):
 
         for name, seq in zip(names, seqs):
             name = name.strip(">")
+            if "." not in name:   # CONSENS0
+                continue
             taxon, readname = name.split(".", 1)
             profile = store[taxon][readname]
             assert len(seq) == ncols
@@ -392,9 +395,9 @@ def makeloci(clustSfile, store, prefix):
             print >> fw, name.ljust(longname) + seq
         print >> fw, "// {0}".format(fname).ljust(longname) + "".join(snpsite) + "|"
 
-        seed_seq = seed_seq.strip("_N").replace("-", "")
+        cons_seq = cons_seq.strip("_N").replace("-", "")
         print >> fw_finalfasta, ">{0} with {1} sequences\n{2}".\
-                    format(fname, sum(nreps), seed_seq)
+                    format(fname, sum(nreps), cons_seq)
         locid += 1
 
     logging.debug("Stacks written to `{0}`".format(locifile))
@@ -468,19 +471,26 @@ def mconsensus(args):
                 format(len(aclist), tx_acfile))
 
 
+def get_seed(data):
+    if len(data) == 1:
+        return data[0]
+
+    for name, seq, nrep in data[::-1]:
+        if name == CONSTAG:
+            break
+    return name, seq, nrep
+
+
 def consensus(args):
     """
     %prog consensus clustSfile
 
     Call consensus along the stacks. Tabulate bases at each site, tests for
-    errors according to error rate, calls consensus. HEfile contains the
-    heterozygosity and error rate as calculated by estimateHE().
+    errors according to error rate, calls consensus.
     """
     p = OptionParser(consensus.__doc__)
     p.add_option("--ploidy", default=2, type="int",
                  help="Number of haplotypes per locus")
-    p.add_option("--estimate_errors", default=False, action="store_true",
-                 help="Estimate H and E from data")
     add_consensus_options(p)
     p.set_verbose()
     opts, args = p.parse_args(args)
@@ -490,18 +500,7 @@ def consensus(args):
 
     clustSfile, = args
     pf = clustSfile.rsplit(".", 1)[0]
-    HEfile = pf + ".HE"
     mindepth = opts.mindepth
-
-    H, E = .01, .001
-    if opts.estimate_errors:
-        try:
-            HEfile = estimateHE([clustSfile])
-            H, E = open(HEfile).readline().split()
-            H, E = float(H), float(E)
-        except:
-            pass
-    logging.debug("H={0} E={1}".format(H, E))
 
     bases = BASES[:4]
     C = ClustFile(clustSfile)
@@ -518,8 +517,10 @@ def consensus(args):
 
         name, seq, nrep = data[0]
         fname = name.split(";")[0] + ";size={0};".format(total_nreps)
-        cons_name, cons_seq, cons_nrep = data[-1]
-        assert len(data) == 1 or cons_name.startswith(">CONSENS")
+        cons_name, cons_seq, cons_nrep = get_seed(data)
+        if len(data) > 1 and cons_name != CONSTAG:
+            logging.debug("Tag {0} not found in cluster {1}".\
+                        format(CONSTAG, cons_name))
 
         # List for sequence data
         S = [(seq, nrep) for name, seq, nrep in data if nrep]

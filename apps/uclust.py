@@ -30,7 +30,7 @@ from jcvi.formats.fastq import fasta
 from jcvi.utils.cbook import memoized
 from jcvi.utils.orderedcollections import DefaultOrderedDict
 from jcvi.utils.iter import grouper
-from jcvi.apps.base import OptionParser, ActionDispatcher, listify, mkdir, \
+from jcvi.apps.base import OptionParser, ActionDispatcher, datadir, listify, mkdir, \
             need_update, sh
 
 
@@ -167,6 +167,7 @@ class ClustStores (dict):
 def main():
 
     actions = (
+        ('align', 'align clustfile to clustSfile'),
         ('estimateHE', 'estimate heterozygosity and error rate for stacks'),
         ('cluster', 'cluster within samples'),
         ('consensus', 'call consensus bases within samples'),
@@ -893,7 +894,8 @@ def alignfast(names, seqs):
     """
     Performs MUSCLE alignments on cluster and returns output as string
     """
-    cmd = "muscle -quiet -in -"
+    matfile = op.join(datadir, "blosum80.mat")
+    cmd = "poa -read_fasta - -pir stdout {0} -tolower -silent".format(matfile)
     p = Popen(cmd, shell=True, stdin=PIPE, stdout=PIPE, stderr=STDOUT, close_fds=True)
     s = ""
     for i, j in zip(names, seqs):
@@ -911,7 +913,7 @@ def replace_terminal(seq):
 def sortalign(stringnames):
     G = stringnames.split("\n>")
     aligned = [('>' + i.split("\n")[0].strip('>'),
-               replace_terminal("".join(i.split("\n")[1:]))) for i in G]
+               replace_terminal("".join(i.split("\n")[1:]).upper())) for i in G]
     return aligned
 
 
@@ -1036,7 +1038,7 @@ def stats(clustSfile, statsfile, mindepth):
 
 
 def makeclust(derepfile, userfile, notmatchedfile, clustfile,
-              mindepth=3, include=.9):
+              mindepth=3, include=.95):
     D = dict(parse_fasta(derepfile))
     U = defaultdict(list)  # Clusters
     fp = open(userfile)
@@ -1150,6 +1152,24 @@ def cluster(args):
     statsfile = pf + ".stats"
     if need_update(clustSfile, statsfile):
         stats(clustSfile, statsfile, mindepth=mindepth)
+
+
+def align(args):
+    """
+    %prog align clustfile
+
+    Align clustfile to clustSfile. Useful for benchmarking aligners.
+    """
+    p = OptionParser(align.__doc__)
+    p.set_cpus()
+    add_consensus_options(p)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    clustfile, = args
+    parallel_musclewrap(clustfile, opts.cpus)
 
 
 if __name__ == '__main__':

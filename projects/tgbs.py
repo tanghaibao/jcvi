@@ -54,6 +54,7 @@ def main():
         ('weblogo', 'extract base composition for reads'),
         ('novo', 'reference-free tGBS pipeline v1'),
         ('novo2', 'reference-free tGBS pipeline v2'),
+        ('mstmap', 'convert LMDs to MSTMAP input'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())

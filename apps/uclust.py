@@ -37,6 +37,7 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, datadir, listify, mkd
 SEP = "//"
 CONSTAG = ">CONSENS0"
 BASES = "ACTGN_-"  # CAUTION: change of this line must also change AlleleCounts
+REAL = BASES[:4]
 GAPS = BASES[-2:]
 NBASES = len(BASES)
 ACHEADER = """
@@ -481,6 +482,47 @@ def get_seed(data):
     return name, seq, nrep
 
 
+def compute_consensus(fname, cons_seq, RAD, S, verbose=False):
+    # Strip N's from either end and gaps
+    gaps = set()
+    fixed = set()
+    assert len(cons_seq) == len(RAD)
+
+    # Correct consensus by converting to top voting bases
+    shortcon = ""
+    for i, (base, site) in enumerate(zip(cons_seq, RAD)):
+        nucs = site[:4]
+        ngaps = site[-1]
+        n1 = max(nucs)  # Base with highest count
+        if base in GAPS or n1 < ngaps:
+            gaps.add(i)
+            continue
+        # Check count for original base for possible ties
+        n0 = site[BASES.index(base)]
+        if n1 > n0:
+            base = REAL[site.index(n1)]
+            fixed.add(i)
+        shortcon += base
+
+    shortRAD = [j for (i, j) in enumerate(RAD) if i not in gaps]
+    assert len(shortcon) == len(shortRAD)
+
+    if verbose:
+        print_list = lambda L: ",".join(str(x) for x in sorted(L))
+        print fname
+        print "\n".join(["{0} {1}".format(*x) for x in S])
+        print cons_seq
+        print "Gaps:", print_list(gaps)
+        print "Fixed:", print_list(fixed)
+        print shortcon
+        print "|".join(["{0}{1}:{2}".\
+                    format(i, shortcon[i], " ".join(str(x) for x in j)) \
+                    for i, j in enumerate(shortRAD)])
+        print "-" * 60
+
+    return shortcon, shortRAD
+
+
 def consensus(args):
     """
     %prog consensus clustSfile
@@ -501,8 +543,8 @@ def consensus(args):
     clustSfile, = args
     pf = clustSfile.rsplit(".", 1)[0]
     mindepth = opts.mindepth
+    verbose = opts.verbose
 
-    bases = BASES[:4]
     C = ClustFile(clustSfile)
     output = []
     bins = []
@@ -515,8 +557,8 @@ def consensus(args):
         if total_nreps < mindepth:
             continue
 
-        name, seq, nrep = data[0]
-        fname = name.split(";")[0] + ";size={0};".format(total_nreps)
+        first_name, first_seq, first_nrep = data[0]
+        fname = first_name.split(";")[0] + ";size={0};".format(total_nreps)
         cons_name, cons_seq, cons_nrep = get_seed(data)
         if len(data) > 1 and cons_name != CONSTAG:
             logging.debug("Tag {0} not found in cluster {1}".\
@@ -535,42 +577,13 @@ def consensus(args):
             indices.append((fname, start, end))
             continue
 
-        # Strip N's from either end and gaps
-        gaps = set()
-        fixed = set()
-        assert len(cons_seq) == len(RAD)
-
-        # Correct consensus by converting to top voting bases
-        shortcon = ""
-        for i, (base, site) in enumerate(zip(cons_seq, RAD)):
-            nucs = site[:4]
-            ngaps = site[-1]
-            n1 = max(nucs)  # Base with highest count
-            if base in GAPS or n1 < ngaps:
-                gaps.add(i)
-                continue
-            # Check count for original base for possible ties
-            n0 = site[BASES.index(base)]
-            if n1 > n0:
-                base = bases[site.index(n1)]
-                fixed.add(i)
-            shortcon += base
-
-        shortRAD = [j for (i, j) in enumerate(RAD) if i not in gaps]
-        assert len(shortcon) == len(shortRAD)
-
-        if opts.verbose:
-            print_list = lambda L: ",".join(str(x) for x in sorted(L))
-            print fname
-            print "\n".join(["{0} {1}".format(*x) for x in S])
-            print cons_seq
-            print "Gaps:", print_list(gaps)
-            print "Fixed:", print_list(fixed)
-            print shortcon
-            print "|".join(["{0}{1}:{2}".\
-                        format(i, shortcon[i], " ".join(str(x) for x in j)) \
-                        for i, j in enumerate(shortRAD)])
-            print "-" * 60
+        shortcon, shortRAD = compute_consensus(fname, cons_seq, \
+                                RAD, S, verbose=verbose)
+        if not shortcon:
+            cons_seq = seq
+            logging.debug("Empty consensus in {0} - use seq #1".format(fname))
+            shortcon, shortRAD = compute_consensus(fname, first_seq,\
+                                RAD, S, verbose=verbose)
 
         output.append((fname, shortcon))
         bins.extend(shortRAD)

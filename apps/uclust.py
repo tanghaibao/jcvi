@@ -438,17 +438,23 @@ def compute_consensus(fname, cons_seq, RAD, S, totalsize,
     assert len(shortcon) == len(shortRAD)
 
     if verbose:
-        print_list = lambda L: ",".join(str(x) for x in sorted(L))
         print fname
         print "\n".join(["{0} {1}".format(*x) for x in S])
+        display = ''
+        basecounts = [''] * NBASES
+        for i, (b, p) in enumerate(zip(cons_seq, RAD)):
+            display += ('+' if i in fixed else b) if i not in gaps else ' '
+            for j, k in enumerate(p):
+                basecounts[j] += (str(k) if k < 10 else '#') if k else '.'
+        print "=" * len(cons_seq)
         print cons_seq
-        print "Gaps:", print_list(gaps)
-        print "Fixed:", print_list(fixed)
-        print shortcon
-        print "|".join(["{0}{1}:{2}".\
-                    format(i, shortcon[i], " ".join(str(x) for x in j)) \
-                    for i, j in enumerate(shortRAD)])
-        print "-" * 60
+        print display
+        print "=" * len(cons_seq)
+        for j, k in enumerate(basecounts):
+            if BASES[j] == 'N':
+                continue
+            print ''.join(k)
+        print "=" * len(cons_seq)
 
     return shortcon, shortRAD
 

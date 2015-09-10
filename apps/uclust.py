@@ -255,8 +255,7 @@ def makeloci(clustSfile, store, prefix, minsamp=3):
         # Strip off cut site
         seqs = [x.upper() for x in seqs]
         fname = "{0}_{1}".format(prefix, locid)
-
-        # TODO: apply number of shared heteros paralog filter
+        ntaxa = sum(1 for s, nrep in zip(seqs, nreps) if nrep)
 
         # Record variable sites
         cons_name, cons_seq, cons_nrep = get_seed(data)
@@ -276,12 +275,13 @@ def makeloci(clustSfile, store, prefix, minsamp=3):
             else:
                 ungapped_i += 1
 
-            site = [s[i] for s in seqs]   # Column slice in MSA
+            site = [s[i] for s, nrep in zip(seqs, nreps) if nrep]   # Column slice in MSA
             reals = [x for x in site if x in REAL]
             # TODO: keep only two alleles
             realcounts = sorted([(reals.count(x), x) for x in REAL], reverse=True)
+            nreals = sum(x[0] for x in realcounts)
             altcount = realcounts[1][0]
-            if altcount >= minsamp:
+            if altcount >= minsamp and nreals >= ntaxa / 2:
                 snpsite[i] = '*'
             nonzeros = [x for c, x in realcounts if (c and x != ref_allele)]
             alt_alleles.append(nonzeros)

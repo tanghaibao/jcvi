@@ -27,7 +27,6 @@ from tempfile import mkdtemp
 from jcvi.formats.base import BaseFile, FileMerger, must_open, split
 from jcvi.formats.fasta import parse_fasta
 from jcvi.formats.fastq import fasta
-from jcvi.utils.cbook import memoized
 from jcvi.utils.orderedcollections import DefaultOrderedDict
 from jcvi.utils.iter import grouper
 from jcvi.apps.base import OptionParser, ActionDispatcher, datadir, listify, mkdir, \
@@ -123,10 +122,7 @@ class AlleleCount (object):
         self.pos = pos
         self.ref_nt = listify(ref_allele)
         self.ref_allele = listify(ref_allele)
-        alts = []
-        for a in listify(alt_allele):
-            alts.extend(unhetero(a))
-        self.alt_allele = sorted(set(alts))
+        self.alt_allele = listify(alt_allele)
         self.update(profile)
 
     def tostring(self, taxon=False):
@@ -184,73 +180,6 @@ def add_consensus_options(p):
     p.add_option("--minlength", default=30, type="int", help="Min contig length")
     p.add_option("--mindepth", default=3, type="int", help="Min depth for each stack")
     p.add_option("--minsamp", default=3, type="int", help="Min number of samples")
-
-
-@memoized
-def binom_consens(n1, n2, E, H):
-    """
-    Given two bases are observed at a site n1 and n2, and the error rate E, the
-    probability the site is aa, bb, ab is calculated using binomial distribution
-    as in Li_et al 2009, 2011, and 500 reads were randomly if high coverage.
-    """
-    prior_homo = (1 - H) / 2.
-    prior_het = H
-    ab = scipy.misc.comb(n1 + n2, n1) / (2. ** (n1 + n2))
-    aa = scipy.stats.binom.pmf(n1, n1 + n2, E)
-    bb = scipy.stats.binom.pmf(n2, n1 + n2, E)
-    Q = [prior_homo * aa, prior_homo * bb, prior_het * ab]
-    Qn = ['aa', 'bb', 'ab']
-    P = max(Q) / sum(Q)
-    return P, Qn[Q.index(max(Q))]
-
-
-def unhetero(amb):
-    """
-    Returns bases from ambiguity code.
-    """
-    amb = amb.upper()
-    D = {'R': ('G', 'A'),
-         'K': ('G', 'T'),
-         'S': ('G', 'C'),
-         'Y': ('T', 'C'),
-         'W': ('T', 'A'),
-         'M': ('C', 'A')}
-    return D.get(amb, amb)
-
-
-def uplow(b):
-    """
-    Precedence G > T > C > A
-    """
-    D = {('G', 'A'): 'G',
-         ('A', 'G'): 'G',
-         ('G', 'T'): 'G',
-         ('T', 'G'): 'G',
-         ('G', 'C'): 'G',
-         ('C', 'G'): 'G',
-         ('T', 'C'): 'T',
-         ('C', 'T'): 'T',
-         ('T', 'A'): 'T',
-         ('A', 'T'): 'T',
-         ('C', 'A'): 'C',
-         ('A', 'C'): 'C'}
-    r = D.get(b)
-    if not r:
-        r = b[0]
-    return r
-
-
-def findalleles(consensus, alleles, AL):
-    cons = list(consensus)
-    bigbase = uplow(tuple([i.split("_")[0] for i in AL]))
-    bigallele = AL.index([i for i in AL if i.split("_")[0] == bigbase][0])
-    for k in range(1, len(alleles)):
-        c = uplow(tuple([i.split("_")[k] for i in AL]))
-        which = AL.index([i for i in AL if i.split("_")[k] == c][0])
-        if AL[bigallele] != AL[which]:
-            cons[alleles[k]] = cons[alleles[k]].lower()
-
-    return "".join(cons)
 
 
 def find_pctid(consensusfiles):
@@ -312,7 +241,7 @@ def mcluster(args):
         parallel_musclewrap(clustfile, cpus, minsamp=opts.minsamp)
 
 
-def makeloci(clustSfile, store, prefix):
+def makeloci(clustSfile, store, prefix, minsamp=3):
     C = ClustFile(clustSfile)
     pf = clustSfile.rsplit(".", 1)[0]
     locifile = pf + ".loci"
@@ -338,27 +267,21 @@ def makeloci(clustSfile, store, prefix):
         alt_alleles = []
         ungapped_i = 0
         for i in xrange(ncols):
-            r = cons_seq[i]
-            ref_allele = unhetero(r)[0]
+            ref_allele = cons_seq[i]
             ref_alleles.append(ref_allele)
             seed_ungapped_pos.append(ungapped_i)
-            if r in GAPS:                 # Skip if reference is a deletion
+            if ref_allele in GAPS:        # Skip if reference is a deletion
                 alt_alleles.append([])
                 continue
             else:
                 ungapped_i += 1
 
             site = [s[i] for s in seqs]   # Column slice in MSA
-            reals = []
-            for x in site:
-                if x not in "N_-":
-                    reals.extend(unhetero(x))
-            realcounts = sorted([(reals.count(x), x) for x in BASES], reverse=True)
+            reals = [x for x in site if x in REAL]
+            realcounts = sorted([(reals.count(x), x) for x in REAL], reverse=True)
             altcount = realcounts[1][0]
-            if altcount > 1:
+            if altcount >= minsamp:
                 snpsite[i] = '*'
-            elif altcount == 1:
-                snpsite[i] = '-'
             nonzeros = [x for c, x in realcounts if (c and x != ref_allele)]
             alt_alleles.append(nonzeros)
 
@@ -378,7 +301,7 @@ def makeloci(clustSfile, store, prefix):
             gap_p = [0, 0, 0, 0, 0, 0, sum(profile[0])]
             for pos, ref_allele, alt_allele, r, ispoly in \
                 zip(seed_ungapped_pos, ref_alleles, alt_alleles, seq, snpsite):
-                if r in '_-':     # insertion in ref, deletion in read
+                if r in GAPS:     # insertion in ref, deletion in read
                     p = gap_p
                 else:
                     p = profile[ungapped_i]
@@ -433,7 +356,7 @@ def mconsensus(args):
     pf = prefix + ".P{0}".format(pctid)
 
     clustSfile = pf + ".clustS"
-    AC = makeloci(clustSfile, store, prefix)
+    AC = makeloci(clustSfile, store, prefix, minsamp=opts.minsamp)
 
     mkdir(acdir)
     acfile = pf + ".allele_counts"
@@ -877,7 +800,7 @@ def musclewrap(clustfile, minsamp=0):
     fw.close()
 
 
-def stats(clustSfile, statsfile, mindepth):
+def makestats(clustSfile, statsfile, mindepth):
     C = ClustFile(clustSfile)
     depth = []
     for data in C:
@@ -897,9 +820,10 @@ def stats(clustSfile, statsfile, mindepth):
         stdk = round(np.std(keep), 3)
     else:
         mek = stdk = 0.0
-    out = dict(label=namecheck, cnts=len(depth), mean=me, std=std,
+    out = dict(label=namecheck, total=sum(depth),
+               cnts=len(depth), mean=me, std=std,
                keep=len(keep), meank=mek, stdk=stdk)
-    header = "label cnts mean std keep meank stdk".split()
+    header = "label total cnts mean std keep meank stdk".split()
 
     bins = [0, 5, 10, 15, 20, 25, 30, 35, 40, 50, 100, 250, 500, 99999]
     ohist, edges = np.histogram(depth, bins)
@@ -1037,7 +961,7 @@ def cluster(args):
 
     statsfile = pf + ".stats"
     if need_update(clustSfile, statsfile):
-        stats(clustSfile, statsfile, mindepth=mindepth)
+        makestats(clustSfile, statsfile, mindepth=mindepth)
 
 
 def align(args):
@@ -1048,7 +972,6 @@ def align(args):
     """
     p = OptionParser(align.__doc__)
     p.set_cpus()
-    add_consensus_options(p)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:

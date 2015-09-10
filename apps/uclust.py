@@ -278,6 +278,7 @@ def makeloci(clustSfile, store, prefix, minsamp=3):
 
             site = [s[i] for s in seqs]   # Column slice in MSA
             reals = [x for x in site if x in REAL]
+            # TODO: keep only two alleles
             realcounts = sorted([(reals.count(x), x) for x in REAL], reverse=True)
             altcount = realcounts[1][0]
             if altcount >= minsamp:
@@ -405,7 +406,7 @@ def get_seed(data):
     return name, seq, nrep
 
 
-def compute_consensus(fname, cons_seq, RAD, S, verbose=False):
+def compute_consensus(fname, cons_seq, RAD, S, mindepth=3, verbose=False):
     # Strip N's from either end and gaps
     gaps = set()
     fixed = set()
@@ -415,9 +416,10 @@ def compute_consensus(fname, cons_seq, RAD, S, verbose=False):
     shortcon = ""
     for i, (base, site) in enumerate(zip(cons_seq, RAD)):
         nucs = site[:4]
+        nreals = sum(nucs)
         ngaps = site[-1]
         n1 = max(nucs)  # Base with highest count
-        if base in GAPS or n1 < ngaps:
+        if base in GAPS or n1 < ngaps or nreals < mindepth:
             gaps.add(i)
             continue
         # Check count for original base for possible ties
@@ -466,6 +468,7 @@ def consensus(args):
     clustSfile, = args
     pf = clustSfile.rsplit(".", 1)[0]
     mindepth = opts.mindepth
+    minlength = opts.minlength
     verbose = opts.verbose
 
     C = ClustFile(clustSfile)
@@ -501,12 +504,14 @@ def consensus(args):
             continue
 
         shortcon, shortRAD = compute_consensus(fname, cons_seq, \
-                                RAD, S, verbose=verbose)
-        if not shortcon:
+                                RAD, S, mindepth=mindepth, verbose=verbose)
+        if len(shortcon) < minlength:
             cons_seq = seq
-            logging.debug("Empty consensus in {0} - use seq #1".format(fname))
             shortcon, shortRAD = compute_consensus(fname, first_seq,\
-                                RAD, S, verbose=verbose)
+                                RAD, S, mindepth=mindepth, verbose=verbose)
+
+        if len(shortcon) < minlength:   # Stop trying
+            continue
 
         output.append((fname, shortcon))
         bins.extend(shortRAD)
@@ -704,7 +709,7 @@ def alignfast(names, seqs):
     Performs MUSCLE alignments on cluster and returns output as string
     """
     matfile = op.join(datadir, "blosum80.mat")
-    cmd = "poa -read_fasta - -pir stdout {0} -tolower -silent -hb".format(matfile)
+    cmd = "poa -read_fasta - -pir stdout {0} -tolower -silent -hb -fuse_all".format(matfile)
     p = Popen(cmd, shell=True, stdin=PIPE, stdout=PIPE, stderr=STDOUT, close_fds=True)
     s = ""
     for i, j in zip(names, seqs):
@@ -780,7 +785,7 @@ def musclewrap(clustfile, minsamp=0):
             if len(samples) < minsamp:
                 continue
         else:
-            names, seqs = names[:255], seqs[:255]  # Reduce high coverage data
+            names, seqs = names[:256], seqs[:256]  # Reduce high coverage data
 
         if len(names) == 1:
             STACK.append((names[0], seqs[0]))
@@ -847,8 +852,7 @@ def makestats(clustSfile, statsfile, mindepth):
     fw.close()
 
 
-def makeclust(derepfile, userfile, notmatchedfile, clustfile,
-              mindepth=3, include=.95):
+def makeclust(derepfile, userfile, notmatchedfile, clustfile, mindepth=3):
     D = dict(parse_fasta(derepfile))
     U = defaultdict(list)  # Clusters
     fp = open(userfile)
@@ -862,18 +866,14 @@ def makeclust(derepfile, userfile, notmatchedfile, clustfile,
         keysize = getsize(key)
         members.sort(key=lambda x: (-x[1], -x[2]))
         totalsize = keysize + sum(x[1] for x in members)
-        cutoff = int(round(totalsize * include))
-        cumulative = keysize
+        if totalsize < mindepth:
+            continue
 
-        # Remove outliers within each cluster
+        # Recruit cluster members
         seqs = [('>' + key, D[key])]
         for name, size, id in members:
             seqs.append(('>' + name, D[name]))
-            cumulative += size
-            if cumulative >= cutoff:
-                break
-        if cumulative < mindepth:
-            continue
+
         seq = "\n".join("\n".join(x) for x in seqs)
         print >> fw, "\n".join((seq, SEP))
 
@@ -898,10 +898,11 @@ def cluster_smallmem(derepfile, userfile, notmatchedfile, minlength, pctid,
                      cpus, usearch="vsearch"):
     identity = pctid / 100.
     cmd = usearch + " -minseqlength {0}".format(minlength)
-    cmd += " -leftjust"
+    #cmd += " -leftjust"
     cmd += " -cluster_size {0}".format(derepfile)
     cmd += " -id {0}".format(identity)
-    cmd += " -query_cov {0}".format(identity)
+    cmd += " -mincols {0}".format(minlength)
+    #cmd += " -query_cov {0}".format(identity)
     cmd += " -userout {0}".format(userfile)
     cmd += " -userfields query+target+id+qcov+tcov"
     cmd += " -maxaccepts 1 -maxrejects 8"  # Decrease maxrejects for speed

@@ -277,18 +277,19 @@ def makeloci(clustSfile, store, prefix, minsamp=3):
 
             site = [s[i] for s, nrep in zip(seqs, nreps) if nrep]   # Column slice in MSA
             reals = [x for x in site if x in REAL]
-            # TODO: keep only two alleles
+
             realcounts = sorted([(reals.count(x), x) for x in REAL], reverse=True)
             nreals = sum(x[0] for x in realcounts)
             altcount = realcounts[1][0]
             if altcount >= minsamp and nreals >= ntaxa / 2:
                 snpsite[i] = '*'
             nonzeros = [x for c, x in realcounts if (c and x != ref_allele)]
-            alt_alleles.append(nonzeros)
+            alt_alleles.append(nonzeros[:1])      # Keep only two alleles
 
         assert len(seed_ungapped_pos) == ncols
         assert len(ref_alleles) == ncols
         assert len(alt_alleles) == ncols
+        cons_seq = cons_seq.strip("_N").replace("-", "")
 
         for name, seq in zip(names, seqs):
             name = name.strip(">")
@@ -310,6 +311,8 @@ def makeloci(clustSfile, store, prefix, minsamp=3):
 
                 if ispoly != '*':
                     continue
+
+                assert cons_seq[pos] == ref_allele       # Sanity check
                 ac = AlleleCount(taxon, fname, pos + 1,  # 1-based coordinate
                                  ref_allele, alt_allele, p)
                 AC.append(ac)
@@ -320,7 +323,6 @@ def makeloci(clustSfile, store, prefix, minsamp=3):
             print >> fw, name.ljust(longname) + seq
         print >> fw, "// {0}".format(fname).ljust(longname) + "".join(snpsite) + "|"
 
-        cons_seq = cons_seq.strip("_N").replace("-", "")
         print >> fw_finalfasta, ">{0} with {1} sequences\n{2}".\
                     format(fname, sum(nreps), cons_seq)
         locid += 1

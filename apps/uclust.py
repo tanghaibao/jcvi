@@ -406,7 +406,8 @@ def get_seed(data):
     return name, seq, nrep
 
 
-def compute_consensus(fname, cons_seq, RAD, S, mindepth=3, verbose=False):
+def compute_consensus(fname, cons_seq, RAD, S, totalsize,
+                      mindepth=3, verbose=False):
     # Strip N's from either end and gaps
     gaps = set()
     fixed = set()
@@ -419,7 +420,9 @@ def compute_consensus(fname, cons_seq, RAD, S, mindepth=3, verbose=False):
         nreals = sum(nucs)
         ngaps = site[-1]
         n1 = max(nucs)  # Base with highest count
-        if base in GAPS or n1 < ngaps or nreals < mindepth:
+        # Delete columns if consensus is gap, or more gaps than bases, or number
+        # of bases not representing half of the abundance
+        if base in GAPS or n1 < ngaps or nreals < max(mindepth, totalsize / 2):
             gaps.add(i)
             continue
         # Check count for original base for possible ties
@@ -504,11 +507,13 @@ def consensus(args):
             continue
 
         shortcon, shortRAD = compute_consensus(fname, cons_seq, \
-                                RAD, S, mindepth=mindepth, verbose=verbose)
+                                RAD, S, total_nreps,
+                                mindepth=mindepth, verbose=verbose)
         if len(shortcon) < minlength:
             cons_seq = seq
             shortcon, shortRAD = compute_consensus(fname, first_seq,\
-                                RAD, S, mindepth=mindepth, verbose=verbose)
+                                RAD, S, total_nreps,
+                                mindepth=mindepth, verbose=verbose)
 
         if len(shortcon) < minlength:   # Stop trying
             continue

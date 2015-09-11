@@ -544,7 +544,7 @@ def graph(args):
     p = OptionParser(graph.__doc__)
     p.add_option("--query", default=-1, type="int", help="Search from node")
     p.add_option("--contig", help="Search from contigs, use comma to separate")
-    p.add_option("--largest", default=10, type="int", help="Only show largest components")
+    p.add_option("--largest", default=0, type="int", help="Only show largest components")
     p.add_option("--maxsize", default=500, type="int", help="Max graph size")
     p.add_option("--nomutualbest", default=False, action="store_true",
                 help="Do not plot mutual best edges as heavy")
@@ -581,12 +581,13 @@ def graph(args):
     SG.add_edges_from(H.edges(data=edgeweight))
     G = SG
 
-    H = list(nx.connected_component_subgraphs(G))
-    c = min(len(H), largest)
-    logging.debug("{0} components found, {1} retained".format(len(H), c))
-    G = nx.Graph()
-    for x in H[:c]:
-        G.add_edges_from(x.edges())
+    if largest:
+        H = list(nx.connected_component_subgraphs(G))
+        c = min(len(H), largest)
+        logging.debug("{0} components found, {1} retained".format(len(H), c))
+        G = nx.Graph()
+        for x in H[:c]:
+            G.add_edges_from(x.edges())
 
     if frgctg:
         from jcvi.utils.counter import Counter

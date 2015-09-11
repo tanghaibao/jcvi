@@ -1017,21 +1017,27 @@ def covfilter(args):
     valid_count = len(valid)
     cutoff_message = "(id={0.pctid}% cov={0.pctcov}%)".format(opts)
 
-    print >> sys.stderr, "Identity: {0} mismatches, {1} gaps, {2} alignlen".\
+    m = "Identity: {0} mismatches, {1} gaps, {2} alignlen\n".\
             format(mismatches, gaps, alignlen)
     total = len(sizes.keys())
-    print >> sys.stderr, "Total mapped: {0} ({1:.1f}% of {2})".\
+    m += "Total mapped: {0} ({1:.1f}% of {2})\n".\
             format(mapped_count, mapped_count * 100. / total, total)
-    print >> sys.stderr, "Total valid {0}: {1} ({2:.1f}% of {3})".\
+    m += "Total valid {0}: {1} ({2:.1f}% of {3})\n".\
             format(cutoff_message, valid_count, valid_count * 100. / total, total)
-    print >> sys.stderr, "Average id = {0:.2f}%".\
+    m += "Average id = {0:.2f}%\n".\
             format(100 - (mismatches + gaps) * 100. / alignlen)
 
     queries_combined = sz.totalsize
-    print >> sys.stderr, "Coverage: {0} covered, {1} total".\
+    m += "Coverage: {0} covered, {1} total\n".\
             format(covered, queries_combined)
-    print >> sys.stderr, "Average coverage = {0:.2f}%".\
+    m += "Average coverage = {0:.2f}%".\
             format(covered * 100. / queries_combined)
+
+    logfile = blastfile + ".covfilter.log"
+    fw = open(logfile, "w")
+    for f in (sys.stderr, fw):
+        print >> f, m
+    fw.close()
 
     if opts.ids:
         filename = opts.ids

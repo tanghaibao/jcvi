@@ -423,8 +423,9 @@ def compute_consensus(fname, cons_seq, RAD, S, totalsize,
         ngaps = site[-1]
         n1 = max(nucs)  # Base with highest count
         # Delete columns if consensus is gap, or more gaps than bases, or number
-        # of bases not representing half of the abundance
-        if base in GAPS or n1 < ngaps or nreals < max(mindepth, totalsize / 2):
+        # of bases plus 'internal' gaps not covering half of the total abundance
+        if base in GAPS or n1 < ngaps or \
+                nreals + ngaps < max(mindepth, totalsize / 2):
             gaps.add(i)
             continue
         # Check count for original base for possible ties

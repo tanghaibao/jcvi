@@ -562,11 +562,16 @@ def graph(args):
     edgeweight = not opts.nomutualbest
     G = read_graph(bestedges, maxerr=opts.maxerr)
 
-    SG = nx.Graph()
+    if largest:
+        H = list(nx.connected_component_subgraphs(G))
+        c = min(len(H), largest)
+        logging.debug("{0} components found, {1} retained".format(len(H), c))
+        G = nx.Graph()
+        for x in H[:c]:
+            G.add_edges_from(x.edges())
+
     if query == -1:
         query = choice(G.nodes())
-
-    if frgctg:
         reads_to_ctgs = parse_ctgs(bestedges, frgctg)
         if contig:
             contigs = set(contig.split(","))
@@ -577,20 +582,11 @@ def graph(args):
             logging.debug("Reads ({0}) extended from the same contig {1}".\
                           format(len(core), ctg))
 
-    H = graph_local_neighborhood(G, query=core, maxsize=opts.maxsize)
-    SG.add_edges_from(H.edges(data=edgeweight))
-    G = SG
-
-    if largest:
-        H = list(nx.connected_component_subgraphs(G))
-        c = min(len(H), largest)
-        logging.debug("{0} components found, {1} retained".format(len(H), c))
-        G = nx.Graph()
-        for x in H[:c]:
-            G.add_edges_from(x.edges())
-
-    if frgctg:
-        from jcvi.utils.counter import Counter
+        # Extract a local neighborhood
+        SG = nx.Graph()
+        H = graph_local_neighborhood(G, query=core, maxsize=opts.maxsize)
+        SG.add_edges_from(H.edges(data=edgeweight))
+        G = SG
 
         seen = []
         for n, attrib in G.nodes_iter(data=True):

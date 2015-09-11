@@ -241,12 +241,15 @@ def coverage(args):
     """
     %prog coverage fastafile bamfile
 
-    Calculate coverage for BAM file. BAM file will be sorted if not already.
+    Calculate coverage for BAM file. BAM file will be sorted unless with
+    --nosort.
     """
     p = OptionParser(coverage.__doc__)
     p.add_option("--format", default="bigwig",
                  choices=("bedgraph", "bigwig", "coverage"),
                  help="Output format")
+    p.add_option("--nosort", default=False, action="store_true",
+                 help="Do not sort BAM")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -254,7 +257,10 @@ def coverage(args):
 
     fastafile, bamfile = args
     format = opts.format
-    bamfile = index([bamfile, "--fasta={0}".format(fastafile)])
+    if opts.nosort:
+        logging.debug("BAM sorting skipped")
+    else:
+        bamfile = index([bamfile, "--fasta={0}".format(fastafile)])
 
     pf = bamfile.rsplit(".", 2)[0]
     sizesfile = Sizes(fastafile).filename

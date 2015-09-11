@@ -1516,15 +1516,23 @@ def sample(args):
     When option --targetsize is used, this program uses a differnent mode. It
     first calculates the current total bases from all ranges and then compare to
     targetsize, if more, then sample down as close to targetsize as possible.
+
+    Selection via --raindrop has the effect of making coverage even. Selected
+    reads have the property that their end points are not within a certain
+    window from one another. One sweep goes from left to right, the other in
+    the reverse direction.
     """
     import random
     from jcvi.assembly.coverage import Coverage
 
     p = OptionParser(sample.__doc__)
+    p.add_option("--raindrop", default=0, type="int",
+                 help="Raindrop selection, ignores all other options")
     p.add_option("--max", default=10, type="int",
-                 help="Max depth allowed [default: %default]")
+                 help="Max depth allowed")
     p.add_option("--targetsize", type="int",
-                 help="Sample bed file to get target base number [default: %default]")
+                 help="Sample bed file to get target base number")
+    p.set_outfile()
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -1532,6 +1540,30 @@ def sample(args):
 
     bedfile, sizesfile = args
     pf = bedfile.rsplit(".", 1)[0]
+    raindrop = opts.raindrop
+
+    # Raindrop method
+    if raindrop:
+        bed = Bed(bedfile)
+        forward = []
+        for b in bed:
+            if not forward or abs(b.start - forward[-1].start) >= raindrop:
+                forward.append(b)
+
+        reverse = []
+        bed.sort(key=lambda x: -x.end)
+        for b in bed:
+            if not reverse or abs(b.end - reverse[-1].end) >= raindrop:
+                reverse.append(b)
+
+        for tag, L in zip(("forward", "reverse"), (forward, reverse)):
+            logging.debug("Selected {0} features in {1} direction, span: {2}".\
+                        format(len(L), tag, sum(x.span for x in L)))
+
+        selected = Bed()
+        selected.extend(set(forward + reverse))
+        selected.print_to_file(opts.outfile, sorted=True)
+        return
 
     targetsize = opts.targetsize
     if targetsize:

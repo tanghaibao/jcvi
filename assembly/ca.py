@@ -583,12 +583,10 @@ def graph(args):
 
     H = list(nx.connected_component_subgraphs(G))
     c = min(len(H), largest)
-
-    if len(H) > c:
-        logging.debug("{0} components found, {1} retained".format(len(H), c))
-        G = nx.Graph()
-        for x in H[:c]:
-            G.add_edges_from(x.edges())
+    logging.debug("{0} components found, {1} retained".format(len(H), c))
+    G = nx.Graph()
+    for x in H[:c]:
+        G.add_edges_from(x.edges())
 
     if frgctg:
         from jcvi.utils.counter import Counter

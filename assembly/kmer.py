@@ -520,8 +520,9 @@ def meryl(args):
     merylfile, = args
     pf, sf = op.splitext(merylfile)
     outfile = pf + ".histogram"
-    cmd = "meryl -Dh -s {0}".format(pf)
-    sh(cmd, outfile=outfile)
+    if need_update(merylfile, outfile):
+        cmd = "meryl -Dh -s {0}".format(pf)
+        sh(cmd, outfile=outfile)
 
     return outfile
 
@@ -626,6 +627,10 @@ def histogram(args):
     ascii = not opts.pdf
     peaks = not opts.nopeaks
     N = int(N)
+
+    if histfile.rsplit(".", 1)[-1] in ("mcdat", "mcidx"):
+        logging.debug("CA kmer index found")
+        histfile = meryl([histfile])
 
     ks = KmerSpectrum(histfile)
     ks.analyze(K=N)

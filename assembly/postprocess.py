@@ -18,8 +18,10 @@ import logging
 from collections import defaultdict
 
 from jcvi.formats.contig import ContigFile
-from jcvi.formats.fasta import Fasta, SeqIO, gaps, format, parse_fasta, tidy
+from jcvi.formats.fasta import Fasta, Seq, SeqIO, SeqRecord, gaps, format, \
+            parse_fasta, tidy
 from jcvi.formats.sizes import Sizes
+from jcvi.formats.base import must_open
 from jcvi.utils.cbook import depends
 from jcvi.assembly.base import n50
 from jcvi.apps.align import run_megablast
@@ -30,6 +32,7 @@ def main():
 
     actions = (
         ('screen', 'screen sequences against library'),
+        ('circular', 'make circular genome'),
         ('dedup', 'remove duplicate contigs within assembly'),
         ('dust', 'remove low-complexity contigs within assembly'),
         ('build', 'build assembly files after a set of clean-ups'),
@@ -39,6 +42,53 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def circular(args):
+    """
+    %prog circular fastafile startpos
+
+    Make circular genome, startpos is the place to start the sequence. This can
+    be determined by mapping to a reference. Self overlaps are then resolved.
+    Startpos is 1-based.
+    """
+    from jcvi.assembly.goldenpath import overlap
+
+    p = OptionParser(circular.__doc__)
+    p.add_option("--flip", default=False, action="store_true",
+                 help="Reverse complement the sequence")
+    p.set_outfile()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    fastafile, startpos = args
+    startpos = int(startpos)
+    key, seq = parse_fasta(fastafile).next()
+    aseq = seq[startpos:]
+    bseq = seq[:startpos]
+    aseqfile, bseqfile = "a.seq", "b.seq"
+
+    for f, s in zip((aseqfile, bseqfile), (aseq, bseq)):
+        fw = must_open(f, "w")
+        print >> fw, ">{0}\n{1}".format(f, s)
+        fw.close()
+
+    o = overlap([aseqfile, bseqfile])
+    seq = aseq[:o.qstop] + bseq[o.sstop:]
+    seq = Seq(seq)
+
+    if opts.flip:
+        seq = seq.reverse_complement()
+
+    for f in (aseqfile, bseqfile):
+        os.remove(f)
+
+    fw = must_open(opts.outfile, "w")
+    rec = SeqRecord(seq, id=key, description="")
+    SeqIO.write([rec], fw, "fasta")
+    fw.close()
 
 
 def dust(args):

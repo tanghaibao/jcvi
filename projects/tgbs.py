@@ -265,7 +265,7 @@ def novo(args):
 
 
 def scan_read_files(trimmed, patterns):
-    reads = iglob(trimmed, *patterns)
+    reads = iglob(trimmed, patterns)
     samples = sorted(set(op.basename(x).split(".")[0] for x in reads))
     logging.debug("Total {0} read files from {1} samples".\
                     format(len(reads), len(samples)))
@@ -279,8 +279,7 @@ def novo2(args):
     Reference-free tGBS pipeline v2.
     """
     p = OptionParser(novo2.__doc__)
-    p.add_option("--names", default="*.fq,*.fq.gz",
-                 help="File names to search, use comma to separate multiple")
+    p.set_fastq_names()
     p.set_align(pctid=94)
     opts, args = p.parse_args(args)
 
@@ -346,8 +345,7 @@ def snpflow(args):
     are also supported.
     """
     p = OptionParser(snpflow.__doc__)
-    p.add_option("--names", default="*.fq,*.fq.gz",
-                 help="File names to search, use comma to separate multiple")
+    p.set_fastq_names()
     p.set_cpus()
     opts, args = p.parse_args(args)
 

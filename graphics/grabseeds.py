@@ -275,7 +275,7 @@ def batchseeds(args):
     jsonfile = opts.calibrate or op.join(folder, "calibrate.json")
     if not op.exists(jsonfile):
         jsonfile = None
-    for im in iglob(folder, "*.jpg", "*.JPG", "*.png"):
+    for im in iglob(folder, "*.jpg,*.JPG,*.png"):
         if im.endswith(".resize.jpg") or \
            im.endswith(".main.jpg") or \
            im.endswith(".label.jpg"):

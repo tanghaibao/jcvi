@@ -400,6 +400,10 @@ class OptionParser (OptionP):
         self.add_option("--dup", default=10, type="int",
                      help="Filter duplicates with coordinates within this distance")
 
+    def set_fastq_names(self):
+        self.add_option("--names", default="*.fq,*.fastq,*.fq.gz,*.fastq.gz",
+                     help="File names to search, use comma to separate multiple")
+
     def set_pairs(self):
         """
         %prog pairs <blastfile|samfile|casfile|bedfile|posmapfile>
@@ -458,7 +462,7 @@ class OptionParser (OptionP):
         self.set_params(dest="Trinity")
         topts = OptionGroup(self, "General Trinity options")
         self.add_option_group(topts)
-        topts.add_option("--JM", default="100G", type="str",
+        topts.add_option("--max_memory", default="128G", type="str",
                 help="Jellyfish memory allocation [default: %default]")
         topts.add_option("--min_contig_length", default=90, type="int",
                 help="Minimum assembled contig length to report" + \
@@ -547,7 +551,7 @@ class OptionParser (OptionP):
     def set_home(self, prog, default=None):
         tag = "--{0}_home".format(prog)
         default = default or {"amos": "~/code/amos-code",
-                   "trinity": "~/export/trinityrnaseq",
+                   "trinity": "~/export/trinityrnaseq-2.0.6",
                    "cdhit": "~/export/cd-hit-v4.6.1-2012-08-27",
                    "maker": "~/export/maker",
                    "pasa": "~/export/PASA",
@@ -769,13 +773,14 @@ def glob(pathname, pattern=None):
     return sorted(gl.glob(pathname))
 
 
-def iglob(pathname, *patterns):
+def iglob(pathname, patterns):
     """
     Allow multiple file formats. This is also recursive. For example:
 
-    >>> iglob("apps", "*.py", "*.pyc")
+    >>> iglob("apps", "*.py,*.pyc")
     """
     matches = []
+    patterns = patterns.split(",")
     for root, dirnames, filenames in os.walk(pathname):
         matching = []
         for pattern in patterns:

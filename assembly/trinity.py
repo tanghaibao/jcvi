@@ -61,6 +61,8 @@ def prepare(args):
         sys.exit(not p.print_help())
 
     inparam, = args[:1]
+    assert op.exists(inparam)
+
     genome = args[1] if len(args) == 2 else None
     method = "GG" if genome is not None else "DN"
 
@@ -77,7 +79,7 @@ def prepare(args):
     mkdir(tfolder)
     os.chdir(tfolder)
 
-    flist = iglob("../" + inparam, "*.fq", "*.fastq", "*.fq.gz", "*.fastq.gz")
+    flist = iglob("../" + inparam, opts.names)
     if paired:
         f1 = [x for x in flist if "_1_" in x or ".1." in x or "_1." in x]
         f2 = [x for x in flist if "_2_" in x or ".2." in x or "_2." in x]
@@ -96,7 +98,7 @@ def prepare(args):
             fm.merge(checkexists=True)
 
     cmd = op.join(thome, "Trinity")
-    cmd += " --seqType fq --JM {0} --CPU {1}".format(opts.JM, opts.cpus)
+    cmd += " --seqType fq --max_memory {0} --CPU {1}".format(opts.max_memory, opts.cpus)
     cmd += " --min_contig_length {0}".format(opts.min_contig_length)
     if opts.bflyGCThreads:
         cmd += " --bflyGCThreads {0}".format(opts.bflyGCThreads)
@@ -125,6 +127,8 @@ def prepare(args):
                 cmd += " --single {0}".format(f)
     if opts.extra:
         cmd += " {0}".format(opts.extra)
+
+    cmd += " --bypass_java_version_check"
 
     runfile = "run.sh"
     write_file(runfile, cmd)

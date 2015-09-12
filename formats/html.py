@@ -52,7 +52,7 @@ def gallery(args):
 
     folder, link_prefix = args
     width = opts.width
-    images = iglob(folder, "*.jpg", "*.JPG", "*.png")
+    images = iglob(folder, "*.jpg,*.JPG,*.png")
     td = '<td>{0}<br><a href="{1}"><img src="{1}" width="{2}"></a></td>'
     print "<table>"
     for ims in grouper(images, opts.columns):

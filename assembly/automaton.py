@@ -3,7 +3,6 @@
 
 """
 Automate genome assembly by iterating assembly on a set of files, individually.
-This is useful for BAC pool assembly where you want to assemble per pool.
 """
 
 import os
@@ -15,7 +14,7 @@ from jcvi.utils.iter import grouper
 from jcvi.formats.base import LineFile, write_file
 from jcvi.formats.fastq import first, pairspf
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, \
-            mkdir, sh, glob, get_abs_path
+            mkdir, sh, glob, iglob, get_abs_path
 
 
 class Meta (object):
@@ -82,8 +81,6 @@ class MetaFile (LineFile):
 def main():
 
     actions = (
-        ('tophat', 'run tophat on a list of inputs'),
-        ('cufflinks', 'run cufflinks following tophat'),
         ('prepare', 'parse list of FASTQ files and prepare input'),
         ('pairs', 'estimate insert sizes for input files'),
         ('contamination', 'remove contaminated reads'),
@@ -159,89 +156,6 @@ def contamination(args):
         if opts.mateorientation:
             align_opts += ["--mateorientation={0}".format(opts.mateorientation)]
         samfile, logfile = align(align_opts)
-
-
-def cufflinks(args):
-    """
-    %prog cufflinks folder reference
-
-    Run cufflinks on a folder containing tophat results.
-    """
-    p = OptionParser(cufflinks.__doc__)
-    p.add_option("--gtf", help="Reference annotation [default: %default]")
-    p.set_cpus()
-    opts, args = p.parse_args(args)
-
-    if len(args) != 2:
-        sys.exit(not p.print_help())
-
-    folder, reference = args
-    os.chdir(folder)
-    bams = glob("*tophat/accepted_hits.bam")
-    for bam in bams:
-        pf, ab = op.split(bam)
-        outdir = op.join(pf, "cufflinks")
-        if op.exists(outdir):
-            logging.debug("Directory {0} found. Skipping.".format(outdir))
-            continue
-        cmd = "cufflinks"
-        cmd += " -o {0}".format(outdir)
-        cmd += " -p {0}".format(opts.cpus)
-        if opts.gtf:
-            cmd += " -g {0}".format(opts.gtf)
-        cmd += " --frag-bias-correct {0}".format(reference)
-        cmd += " --multi-read-correct"
-        cmd += " {0}".format(bam)
-        sh(cmd)
-
-
-def tophat(args):
-    """
-    %prog tophat folder reference
-
-    Run tophat on a folder of reads.
-    """
-    p = OptionParser(tophat.__doc__)
-    p.add_option("--gtf", help="Reference annotation [default: %default]")
-    p.add_option("--single", default=False, action="store_true",
-                 help="Single end mapping")
-    p.add_option("--intron", default=15000, type="int",
-                 help="Max intron size [default: %default]")
-    p.add_option("--dist", default=-50, type="int",
-                 help="Mate inner distance [default: %default]")
-    p.add_option("--stdev", default=50, type="int",
-                 help="Mate standard deviation [default: %default]")
-    p.set_cpus()
-    opts, args = p.parse_args(args)
-
-    if len(args) != 2:
-        sys.exit(not p.print_help())
-
-    num = 1 if opts.single else 2
-    folder, reference = args
-    for p, prefix in iter_project(folder, num):
-        outdir = "{0}_tophat".format(prefix)
-        outfile = op.join(outdir, "accepted_hits.bam")
-        if op.exists(outfile):
-            logging.debug("File `{0}` found. Skipping.".format(outfile))
-            continue
-
-        cmd = "tophat -p {0}".format(opts.cpus)
-        if opts.gtf:
-            cmd += " -G {0}".format(opts.gtf)
-        cmd += " -o {0}".format(outdir)
-
-        if num == 1:  # Single-end
-            a, = p
-            cmd += " {0} {1}".format(reference, a)
-        else:  # Paired-end
-            a, b = p
-            cmd += " --max-intron-length {0}".format(opts.intron)
-            cmd += " --mate-inner-dist {0}".format(opts.dist)
-            cmd += " --mate-std-dev {0}".format(opts.stdev)
-            cmd += " {0} {1} {2}".format(reference, a, b)
-
-        sh(cmd)
 
 
 def pairs(args):
@@ -475,10 +389,9 @@ def soap_trios(p, pf, tag, extra):
     os.chdir(cwd)
 
 
-def iter_project(folder, n=2):
+def iter_project(folder, pattern, n=2):
     # Check for paired reads and extract project id
-    filelist = [x for x in glob(folder + "/*.*") \
-                    if x.rsplit(".", 1)[-1] in ("fq", "fastq", "txt", "gz")]
+    filelist = [x for x in iglob(folder, pattern)]
     for p in grouper(filelist, n):
         if len(p) != n:
             continue

@@ -13,7 +13,7 @@ import logging
 from jcvi.assembly.automaton import iter_project
 from jcvi.apps.grid import MakeManager
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, \
-            mkdir, sh, glob
+            mkdir, sh, iglob
 
 
 def main():
@@ -93,23 +93,42 @@ def cufflinks(args):
         sys.exit(not p.print_help())
 
     folder, reference = args
-    os.chdir(folder)
-    bams = glob("*tophat/accepted_hits.bam")
-    for bam in bams:
-        pf, ab = op.split(bam)
-        outdir = op.join(pf, "cufflinks")
-        if op.exists(outdir):
-            logging.debug("Directory {0} found. Skipping.".format(outdir))
-            continue
+    cpus = opts.cpus
+    gtf = opts.gtf
+    transcripts = "transcripts.gtf"
+
+    mm = MakeManager()
+    gtfs = []
+    for bam in iglob(folder, "*.bam"):
+        pf = op.basename(bam).split(".")[0]
+        outdir = pf + "_cufflinks"
         cmd = "cufflinks"
         cmd += " -o {0}".format(outdir)
-        cmd += " -p {0}".format(opts.cpus)
-        if opts.gtf:
-            cmd += " -g {0}".format(opts.gtf)
+        cmd += " -p {0}".format(cpus)
+        if gtf:
+            cmd += " -g {0}".format(gtf)
         cmd += " --frag-bias-correct {0}".format(reference)
         cmd += " --multi-read-correct"
         cmd += " {0}".format(bam)
-        sh(cmd)
+        cgtf = op.join(outdir, transcripts)
+        mm.add(bam, cgtf, cmd)
+        gtfs.append(cgtf)
+
+    assemblylist = "assembly_list.txt"
+    cmd = 'find . -name "{0}" > {1}'.format(transcripts, assemblylist)
+    mm.add(gtfs, assemblylist, cmd)
+
+    mergedgtf = "merged.gtf"
+    cmd = "cuffmerge"
+    cmd += " -o merged"
+    cmd += " -p {0}".format(cpus)
+    if gtf:
+        cmd += " -g {0}".format(gtf)
+    cmd += " -s {0}".format(reference)
+    cmd += " {0}".format(assemblylist)
+    mm.add(assemblylist, mergedgtf, cmd)
+
+    mm.write()
 
 
 def tophat(args):

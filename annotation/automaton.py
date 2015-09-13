@@ -69,6 +69,7 @@ def star(args):
             cmd += " --readFilesCommand zcat"
         cmd += " --outSAMtype BAM SortedByCoordinate"
         cmd += " --outFileNamePrefix {0}".format(pf)
+        cmd += " --twopassMode Basic"
         mm.add(p, bamfile, cmd)
 
     mm.write()

@@ -542,7 +542,8 @@ def graph(args):
     https://github.com/PacificBiosciences/Bioinformatics-Training/blob/master/scripts/CeleraToGephi.py
     """
     p = OptionParser(graph.__doc__)
-    p.add_option("--query", default=-1, type="int", help="Search from node")
+    p.add_option("--query", default=-1, type="int",
+                 help="Search from node, -1 to select random node, 0 to disable")
     p.add_option("--contig", help="Search from contigs, use comma to separate")
     p.add_option("--largest", default=0, type="int", help="Only show largest components")
     p.add_option("--maxsize", default=500, type="int", help="Max graph size")
@@ -570,8 +571,9 @@ def graph(args):
         for x in H[:c]:
             G.add_edges_from(x.edges())
 
-    if query == -1:
-        query = choice(G.nodes())
+    if query:
+        if query == -1:
+            query = choice(G.nodes())
         reads_to_ctgs = parse_ctgs(bestedges, frgctg)
         if contig:
             contigs = set(contig.split(","))

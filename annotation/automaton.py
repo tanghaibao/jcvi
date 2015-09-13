@@ -70,6 +70,9 @@ def star(args):
         cmd += " --outSAMtype BAM SortedByCoordinate"
         cmd += " --outFileNamePrefix {0}".format(pf)
         cmd += " --twopassMode Basic"
+        # Compatibility for cufflinks
+        cmd += " --outSAMstrandField intronMotif"
+        cmd += " --outFilterIntronMotifs RemoveNoncanonical"
         mm.add(p, bamfile, cmd)
 
     mm.write()

@@ -5,7 +5,6 @@
 Automate genome annotation by iterating processing a set of files, individually.
 """
 
-import os
 import os.path as op
 import sys
 import logging
@@ -118,7 +117,7 @@ def cufflinks(args):
     cmd = 'find . -name "{0}" > {1}'.format(transcripts, assemblylist)
     mm.add(gtfs, assemblylist, cmd)
 
-    mergedgtf = "merged.gtf"
+    mergedgtf = "merged/merged.gtf"
     cmd = "cuffmerge"
     cmd += " -o merged"
     cmd += " -p {0}".format(cpus)

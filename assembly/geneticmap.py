@@ -17,6 +17,21 @@ from jcvi.utils.counter import Counter
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update
 
 
+MSTheader = """population_type {0}
+population_name LG
+distance_function kosambi
+cut_off_p_value 0.000001
+no_map_dist 10.0
+no_map_size 0
+missing_threshold {1}
+estimation_before_clustering no
+detect_bad_data yes
+objective_function ML
+number_of_loci {2}
+number_of_individual {3}
+"""
+
+
 class BinMap (BaseFile, dict):
 
     def __init__(self, filename):
@@ -86,6 +101,29 @@ class MSTMap (LineFile):
         self.nind = len(self[0].genotype)
         logging.debug("Map contains {0} markers in {1} individuals".\
                       format(self.nmarkers, self.nind))
+
+
+class MSTMatrix (object):
+
+    def __init__(self, matrix, markerheader, population_type, missing_threshold):
+        self.matrix = matrix
+        self.markerheader = markerheader
+        self.population_type = population_type
+        self.missing_threshold = missing_threshold
+        self.ngenotypes = len(matrix)
+        self.nind = len(markerheader) - 1
+        assert self.nind == len(matrix[0]) - 1
+        logging.debug("Imported {0} markers and {1} individuals.".\
+                      format(self.ngenotypes, self.nind))
+
+    def write(self, filename="stdout", header=True):
+        fw = must_open(filename, "w")
+        if header:
+            print >> fw, MSTheader.format(self.population_type,
+                                self.missing_threshold, self.ngenotypes, self.nind)
+        print >> fw, "\t".join(self.markerheader)
+        for m in self.matrix:
+            print >> fw, "\t".join(m)
 
 
 def main():

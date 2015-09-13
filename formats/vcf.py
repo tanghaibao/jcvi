@@ -241,6 +241,8 @@ def mstmap(args):
 
     Convert bcf/vcf format to mstmap input.
     """
+    from jcvi.assembly.geneticmap import MSTMatrix
+
     p = OptionParser(mstmap.__doc__)
     p.add_option("--dh", default=False, action="store_true",
                  help="Double haploid population, no het [default: %default]")
@@ -248,8 +250,8 @@ def mstmap(args):
                  help="Allele must be above frequency [default: %default]")
     p.add_option("--mindepth", default=3, type="int",
                  help="Only trust genotype calls with depth [default: %default]")
-    p.add_option("--missingthreshold", default=.25, type="float",
-                 help="Fraction missing must be below [default: %default]")
+    p.add_option("--missing_threshold", default=.25, type="float",
+                 help="Fraction missing must be below")
     p.add_option("--noheader", default=False, action="store_true",
                  help="Do not print MSTmap run parameters [default: %default]")
     p.add_option("--pv4", default=False, action="store_true",
@@ -258,6 +260,7 @@ def mstmap(args):
     p.add_option("--freebayes", default=False, action="store_true",
                  help="VCF output from freebayes")
     p.set_sep(sep=".", help="Use separator to simplify individual names")
+    p.set_outfile()
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -278,20 +281,6 @@ def mstmap(args):
     sep = opts.sep
     depth_index = 1 if opts.freebayes else 2
 
-    header = """population_type {0}
-population_name LG
-distance_function kosambi
-cut_off_p_value 0.000001
-no_map_dist 10.0
-no_map_size 0
-missing_threshold {1}
-estimation_before_clustering no
-detect_bad_data yes
-objective_function ML
-number_of_loci {2}
-number_of_individual {3}
-    """
-
     ptype = "DH" if opts.dh else "RIL6"
     nohet = ptype == "DH"
     fp = open(vcffile)
@@ -303,7 +292,7 @@ number_of_individual {3}
         if row[0] == '#':
             ind = [x.split(sep)[0] for x in atoms[9:]]
             nind = len(ind)
-            mh = "\t".join(["locus_name"] + ind)
+            mh = ["locus_name"] + ind
             continue
 
         marker = "{0}.{1}".format(*atoms[:2])
@@ -319,20 +308,14 @@ number_of_individual {3}
             continue
         if geno.count("B") * f < freq:
             continue
-        if geno.count("-") * f > opts.missingthreshold:
+        if geno.count("-") * f > opts.missing_threshold:
             continue
 
-        genotype = "\t".join([marker] + geno)
+        genotype = [marker] + geno
         genotypes.append(genotype)
 
-    ngenotypes = len(genotypes)
-    logging.debug("Imported {0} markers and {1} individuals.".\
-                  format(ngenotypes, nind))
-
-    if not opts.noheader:
-        print header.format(ptype, opts.missingthreshold, ngenotypes, nind)
-    print mh
-    print "\n".join(genotypes)
+    mm = MSTMatrix(genotypes, mh, ptype, opts.missing_threshold)
+    mm.write(opts.outfile, header=(not opts.noheader))
 
 
 if __name__ == '__main__':

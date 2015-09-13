@@ -60,6 +60,42 @@ def main():
     p.dispatch(globals())
 
 
+def mstmap(args):
+    """
+    %prog mstmap LMD50.snps.genotype.txt
+
+    Convert LMDs to MSTMAP input.
+    """
+    from jcvi.assembly.geneticmap import MSTMatrix
+
+    p = OptionParser(mstmap.__doc__)
+    p.add_option("--population_type", default="RIL6",
+                 help="Type of population, possible values are DH and RILd")
+    p.add_option("--missing_threshold", default=.5,
+                 help="Missing threshold, .25 excludes any marker with >25% missing")
+    p.set_outfile()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    lmd, = args
+    fp = open(lmd)
+    fp.next()  # Header
+    table = {"0": "-", "1": "A", "2": "B", "3": "X"}
+    mh = ["locus_name"] + fp.next().split()[4:]
+    genotypes = []
+    for row in fp:
+        atoms = row.split()
+        chr, pos, ref, alt = atoms[:4]
+        locus_name = ".".join((chr, pos))
+        codes = [table[x] for x in atoms[4:]]
+        genotypes.append([locus_name] + codes)
+
+    mm = MSTMatrix(genotypes, mh, opts.population_type, opts.missing_threshold)
+    mm.write(opts.outfile, header=True)
+
+
 def weblogo(args):
     """
     %prog weblogo [fastafile|fastqfile]

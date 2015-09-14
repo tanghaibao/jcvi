@@ -35,7 +35,7 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, datadir, listify, mkd
 
 SEP = "//"
 CONSTAG = ">CONSENS0"
-BASES = "ACTGN_-"  # CAUTION: change of this line must also change AlleleCounts
+BASES = "ACTGN_-"  # CAUTION: DO NOT CHANGE THIS LINE
 REAL = BASES[:4]
 GAPS = BASES[-2:]
 NBASES = len(BASES)
@@ -418,21 +418,21 @@ def compute_consensus(fname, cons_seq, RAD, S, totalsize,
     # Correct consensus by converting to top voting bases
     shortcon = ""
     for i, (base, site) in enumerate(zip(cons_seq, RAD)):
-        nucs = site[:4]
-        nreals = sum(nucs)
-        ngaps = site[-1]
-        n1 = max(nucs)  # Base with highest count
-        # Delete columns if consensus is gap, or more gaps than bases, or number
-        # of bases plus 'internal' gaps not covering half of the total abundance
-        if base in GAPS or n1 < ngaps or \
-                nreals + ngaps < max(mindepth, totalsize / 2):
+        good = site[:4] + [site[-1]]
+        # Handles terminal regions delete columns if consensus is a terminal gap,
+        # or bases plus 'internal' gaps not covering half of the total abundance
+        if base == '_' or sum(good) < max(mindepth, totalsize / 2):
             gaps.add(i)
             continue
         # Check count for original base for possible ties
         n0 = site[BASES.index(base)]
+        n1 = max(good)  # Base with highest count
         if n1 > n0:
-            base = REAL[site.index(n1)]
+            base = BASES[site.index(n1)]
             fixed.add(i)
+        if base in GAPS:
+            gaps.add(i)
+            continue
         shortcon += base
 
     shortRAD = [j for (i, j) in enumerate(RAD) if i not in gaps]

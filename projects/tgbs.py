@@ -324,8 +324,7 @@ def novo2(args):
 
     trimmed, pf = args
     pctid = opts.pctid
-    patterns = opts.names.split(",")
-    reads, samples = scan_read_files(trimmed, patterns)
+    reads, samples = scan_read_files(trimmed, opts.names)
 
     # Set up directory structure
     clustdir = "uclust"
@@ -395,8 +394,7 @@ def snpflow(args):
         logging.debug("Total seqs in ref: {0} (supercat={1})".\
                       format(nseqs, supercat))
 
-    patterns = opts.names.split(",")
-    reads, samples = scan_read_files(trimmed, patterns)
+    reads, samples = scan_read_files(trimmed, opts.names)
 
     # Set up directory structure
     nativedir, countsdir = "native", "allele_counts"

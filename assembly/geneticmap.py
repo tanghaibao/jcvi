@@ -396,6 +396,8 @@ def bed(args):
     bm = BinMap(mapout)
     bm.print_to_bed(mapbed, switch=opts.switch)
 
+    return mapbed
+
 
 def fasta(args):
     """

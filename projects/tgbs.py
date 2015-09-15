@@ -5,6 +5,7 @@
 Reference-free tGBS related functions.
 """
 
+import os
 import os.path as op
 import logging
 import sys
@@ -55,9 +56,51 @@ def main():
         ('novo', 'reference-free tGBS pipeline v1'),
         ('novo2', 'reference-free tGBS pipeline v2'),
         ('mstmap', 'convert LMDs to MSTMAP input'),
+        ('synteny', 'plot mst map against reference genome'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def synteny(args):
+    """
+    %prog synteny mstmap.out novo.final.fasta reference.fasta
+
+    Plot MSTmap against reference genome.
+    """
+    from jcvi.assembly.geneticmap import bed as geneticmap_bed
+    from jcvi.apps.align import blat
+    from jcvi.formats.blast import bed as blast_bed, best
+
+    p = OptionParser(synteny.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    mstmapout, novo, ref = args
+    pf = mstmapout.split(".")[0]
+    rf = ref.split(".")[0]
+    mstmapbed = geneticmap_bed([mstmapout])
+    cmd = "cut -d. -f1 {0}".format(mstmapbed)
+    tmpbed = mstmapbed + ".tmp"
+    sh(cmd, outfile=tmpbed)
+    os.rename(tmpbed, pf + ".bed")
+
+    cmd = "cut -f4 {0} | cut -d. -f1 | sort -u".format(mstmapbed)
+    idsfile = pf + ".ids"
+    sh(cmd, outfile=idsfile)
+    fastafile = pf + ".fasta"
+    cmd = "faSomeRecords {0} {1} {2}".format(novo, idsfile, fastafile)
+    sh(cmd)
+    blastfile = blat([ref, fastafile])
+    bestblastfile = best([blastfile])
+    blastbed = blast_bed([bestblastfile])
+    os.rename(blastbed, rf + ".bed")
+
+    anchorsfile = "{0}.{1}.anchors".format(pf, rf)
+    cmd = "paste {0} {0}".format(idsfile)
+    sh(cmd, outfile=anchorsfile)
 
 
 def mstmap(args):

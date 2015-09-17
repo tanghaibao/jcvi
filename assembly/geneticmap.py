@@ -65,12 +65,12 @@ class BinMap (BaseFile, dict):
 
 class MSTMapLine (object):
 
-    def __init__(self, row):
+    def __init__(self, row, startidx=3):
         args = row.split()
         self.id = args[0]
         self.seqid, pos = self.id.split(".")
         self.pos = int(pos)
-        self.genotype = "".join(args[1:])
+        self.genotype = "".join(args[startidx:])
 
     def __len__(self):
         return len(self.genotype)
@@ -89,13 +89,16 @@ class MSTMap (LineFile):
     def __init__(self, filename):
         super(MSTMap, self).__init__(filename)
         fp = open(filename)
+        startidx = 1
         for row in fp:
             if row.startswith("locus_name"):
+                if row.split()[1] == "seqid":
+                    startidx = 3
                 self.header = row.split()
                 break
 
         for row in fp:
-            self.append(MSTMapLine(row))
+            self.append(MSTMapLine(row, startidx=startidx))
 
         self.nmarkers = len(self)
         self.nind = len(self[0].genotype)
@@ -142,7 +145,7 @@ def main():
 
 
 def calc_ldscore(a, b):
-    assert len(a) == len(b)
+    assert len(a) == len(b), "{0}\n{1}".format(a, b)
     # Assumes markers as A/B
     c = Counter(zip(a, b))
     c_aa = c[('A', 'A')]
@@ -183,7 +186,7 @@ def ld(args):
     from jcvi.algorithms.matrix import symmetrize
 
     p = OptionParser(ld.__doc__)
-    p.add_option("--subsample", default=500, type="int",
+    p.add_option("--subsample", default=1000, type="int",
                  help="Subsample markers to speed up [default: %default]")
     opts, args, iopts = p.set_image_options(args, figsize="8x8")
 
@@ -207,6 +210,7 @@ def ld(args):
         print >> fw, "\n".join(x.bedline for x in data)
         logging.debug("Write marker set of size {0} to file `{1}`."\
                         .format(nmarkers, markerbedfile))
+        fw.close()
 
         M = np.zeros((nmarkers, nmarkers), dtype=float)
         for i, j in combinations(range(nmarkers), 2):

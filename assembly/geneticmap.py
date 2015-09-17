@@ -13,6 +13,7 @@ from itertools import combinations
 
 from jcvi.formats.base import BaseFile, LineFile, must_open, read_block
 from jcvi.formats.bed import Bed, fastaFromBed
+from jcvi.utils.cbook import memoized
 from jcvi.utils.counter import Counter
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update
 
@@ -144,6 +145,7 @@ def main():
     p.dispatch(globals())
 
 
+@memoized
 def calc_ldscore(a, b):
     assert len(a) == len(b), "{0}\n{1}".format(a, b)
     # Assumes markers as A/B
@@ -196,16 +198,18 @@ def ld(args):
     mstmap, = args
     subsample = opts.subsample
     data = MSTMap(mstmap)
+
+    markerbedfile = mstmap + ".subsample.bed"
+    ldmatrix = mstmap + ".subsample.matrix"
     # Take random subsample while keeping marker order
     if subsample < data.nmarkers:
         data = [data[x] for x in \
                 sorted(sample(xrange(len(data)), subsample))]
+    else:
+        logging.debug("Use all markers, --subsample ignored")
 
-    markerbedfile = mstmap + ".subsample.bed"
-    ldmatrix = mstmap + ".subsample.matrix"
-
-    if need_update(mstmap, (markerbedfile, ldmatrix)):
-        nmarkers = len(data)
+    nmarkers = len(data)
+    if need_update(mstmap, (ldmatrix, markerbedfile)):
         fw = open(markerbedfile, "w")
         print >> fw, "\n".join(x.bedline for x in data)
         logging.debug("Write marker set of size {0} to file `{1}`."\

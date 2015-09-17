@@ -314,35 +314,38 @@ def header(args):
 
 def rename(args):
     """
-    %prog rename map markers.blast > renamed.map
+    %prog rename map markers.bed > renamed.map
 
     Rename markers according to the new mapping locations.
     """
-    from jcvi.formats.blast import bed
-
     p = OptionParser(rename.__doc__)
+    p.set_outfile()
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
         sys.exit(not p.print_help())
 
-    mstmap, blastfile = args
-    bedfile = bed([blastfile])
+    mstmap, bedfile = args
     markersbed = Bed(bedfile)
     markers = markersbed.order
 
     data = MSTMap(mstmap)
     header = data.header
     header = [header[0]] + ["seqid", "start"] + header[1:]
-    print "\t".join(header)
+    renamed = []
     for b in data:
         m, geno = b.id, b.genotype
         if m not in markers:
             continue
 
         i, mb = markers[m]
-        print "\t".join(str(x) for x in \
-                (m, mb.seqid, mb.start, "\t".join(list(geno))))
+        renamed.append([m, mb.seqid, mb.start, "\t".join(list(geno))])
+
+    renamed.sort(key=lambda x: (x[1], x[2]))
+    fw = must_open(opts.outfile, "w")
+    print >> fw, "\t".join(header)
+    for d in renamed:
+        print >> fw, "\t".join(str(x) for x in d)
 
 
 def anchor(args):

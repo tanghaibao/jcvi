@@ -343,11 +343,14 @@ def rename(args):
     renamed = []
     for b in data:
         m, geno = b.id, b.genotype
+        om = m
         if m not in markers:
-            continue
+            m = m.rsplit(".", 1)[0]
+            if m not in markers:
+                continue
 
         i, mb = markers[m]
-        renamed.append([m, mb.seqid, mb.start, "\t".join(list(geno))])
+        renamed.append([om, mb.seqid, mb.start, "\t".join(list(geno))])
 
     renamed.sort(key=lambda x: (x[1], x[2]))
     fw = must_open(opts.outfile, "w")

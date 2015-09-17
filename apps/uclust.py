@@ -241,7 +241,9 @@ def mcluster(args):
         parallel_musclewrap(clustfile, cpus, minsamp=opts.minsamp)
 
 
-def makeloci(clustSfile, store, prefix, minsamp=3):
+def makeloci(clustSfile, store, prefix, minsamp=3, pctid=94):
+    cutoff = 100 - pctid
+    logging.debug("Allow maximum of {0} SNPs per contig".format(cutoff))
     C = ClustFile(clustSfile)
     pf = clustSfile.rsplit(".", 1)[0]
     locifile = pf + ".loci"
@@ -280,9 +282,17 @@ def makeloci(clustSfile, store, prefix, minsamp=3):
 
             realcounts = sorted([(reals.count(x), x) for x in REAL], reverse=True)
             nreals = sum(x[0] for x in realcounts)
+            refcount = realcounts[0][0]
             altcount = realcounts[1][0]
-            if altcount >= minsamp and nreals >= ntaxa / 2:
+            # Select SNP column
+            if altcount >= minsamp and \
+                nreals >= ntaxa / 2 and \
+                (refcount + altcount) >= nreals * .9 and \
+                len(set(cons_seq[i - 3: i])) > 1 and \
+                len(set(cons_seq[i + 1: i + 4])) > 1:
                 snpsite[i] = '*'
+            if snpsite.count('*') > cutoff:
+                snpsite = [' '] * ncols
             nonzeros = [x for c, x in realcounts if (c and x != ref_allele)]
             alt_alleles.append(nonzeros[:1])      # Keep only two alleles
 
@@ -319,9 +329,9 @@ def makeloci(clustSfile, store, prefix, minsamp=3):
 
         longname = max(len(x) for x in names)
         longname = max(len(fname) + 3, longname) + 1
+        print >> fw, "// {0}".format(fname).ljust(longname) + "".join(snpsite) + "|"
         for name, seq, nrep in data:
             print >> fw, name.ljust(longname) + seq
-        print >> fw, "// {0}".format(fname).ljust(longname) + "".join(snpsite) + "|"
 
         print >> fw_finalfasta, ">{0} with {1} sequences\n{2}".\
                     format(fname, sum(nreps), cons_seq)
@@ -359,7 +369,8 @@ def mconsensus(args):
     pf = prefix + ".P{0}".format(pctid)
 
     clustSfile = pf + ".clustS"
-    AC = makeloci(clustSfile, store, prefix, minsamp=opts.minsamp)
+    AC = makeloci(clustSfile, store, prefix,
+                  minsamp=opts.minsamp, pctid=pctid)
 
     mkdir(acdir)
     acfile = pf + ".allele_counts"

@@ -5,6 +5,7 @@
 Reference-free tGBS related functions.
 """
 
+import cPickle
 import os
 import os.path as op
 import logging
@@ -56,10 +57,61 @@ def main():
         ('novo', 'reference-free tGBS pipeline v1'),
         ('novo2', 'reference-free tGBS pipeline v2'),
         ('mstmap', 'convert LMDs to MSTMAP input'),
+        ('query', 'random access to loci file'),
         ('synteny', 'plot mst map against reference genome'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def build_index(locifile):
+    idxfile = locifile + ".idx"
+    if need_update(locifile, idxfile):
+        fp = open(locifile)
+        fw = open(idxfile, "w")
+        idx = {}
+        while True:
+            pos = fp.tell()
+            line = fp.readline()
+            if not line:
+                break
+            if not line.startswith("//"):
+                continue
+            tag, contig = line.split()[:2]
+            idx[contig] = pos
+        cPickle.dump(idx, fw)
+        fw.close()
+        return idx
+
+    idx = cPickle.load(open(idxfile))
+    return idx
+
+
+def query(args):
+    """
+    %prog query out.loci contig
+
+    Random access to loci file. This script helps speeding up debugging.
+    """
+    p = OptionParser(query.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    locifile, contig = args
+    idx = build_index(locifile)
+    pos = idx[contig]
+    logging.debug("Contig {0} found at pos {1}".format(contig, pos))
+    fp = open(locifile)
+    fp.seek(pos)
+    section = []
+    while True:
+        row = fp.readline()
+        if row.startswith("//") and row.split()[1] != contig:
+            break
+        section.append(row)
+    print "".join(section)
 
 
 def synteny(args):

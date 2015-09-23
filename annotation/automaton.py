@@ -136,6 +136,8 @@ def tophat(args):
 
     Run tophat on a folder of reads.
     """
+    from jcvi.apps.bowtie import check_index
+
     p = OptionParser(tophat.__doc__)
     p.add_option("--gtf", help="Reference annotation [default: %default]")
     p.add_option("--single", default=False, action="store_true",
@@ -154,7 +156,8 @@ def tophat(args):
 
     num = 1 if opts.single else 2
     folder, reference = args
-    for p, prefix in iter_project(folder, num):
+    reference = check_index(reference)
+    for p, prefix in iter_project(folder, n=num):
         outdir = "{0}_tophat".format(prefix)
         outfile = op.join(outdir, "accepted_hits.bam")
         if op.exists(outfile):

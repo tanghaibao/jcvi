@@ -181,7 +181,10 @@ class FastqHeader(object):
 
 
 def pairspf(pp):
-    return op.basename(op.commonprefix(pp).rstrip("._-"))
+    pf = op.basename(op.commonprefix(pp).rstrip("._-"))
+    if not pf.strip():
+        pf = op.basename(pp[0])
+    return pf
 
 
 def iter_fastq(filename, offset=0, key=None):

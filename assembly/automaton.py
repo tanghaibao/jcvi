@@ -109,7 +109,7 @@ def spades(args):
         sys.exit(not p.print_help())
 
     folder, = args
-    for p, pf in iter_project(folder, 2):
+    for p, pf in iter_project(folder):
         rl = readlen([p[0], "--silent"])
 
         # <http://spades.bioinf.spbau.ru/release3.1.0/manual.html#sec3.4>
@@ -150,7 +150,7 @@ def contamination(args):
     folder, ecoli = args
     ecoli = get_abs_path(ecoli)
     tag = "--mapped" if opts.mapped else "--unmapped"
-    for p, pf in iter_project(folder, 2):
+    for p, pf in iter_project(folder):
         align_opts = [ecoli] + p + [tag]
         align_opts += ["--cutoff={0}".format(opts.cutoff), "--null"]
         if opts.mateorientation:
@@ -193,7 +193,7 @@ def pairs(args):
     folder, ref = args
     ref = get_abs_path(ref)
     messages = []
-    for p, prefix in iter_project(folder, 2):
+    for p, prefix in iter_project(folder):
         samplefq = op.join(work, prefix + ".first.fastq")
         first([str(opts.firstN)] + p + ["-o", samplefq])
 
@@ -389,7 +389,7 @@ def soap_trios(p, pf, tag, extra):
     os.chdir(cwd)
 
 
-def iter_project(folder, pattern, n=2):
+def iter_project(folder, pattern="*.fq,*.fq.gz,*.fastq,*.fastq.gz", n=2):
     # Check for paired reads and extract project id
     filelist = [x for x in iglob(folder, pattern)]
     for p in grouper(filelist, n):

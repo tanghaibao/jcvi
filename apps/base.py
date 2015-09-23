@@ -780,7 +780,7 @@ def iglob(pathname, patterns):
     >>> iglob("apps", "*.py,*.pyc")
     """
     matches = []
-    patterns = patterns.split(",")
+    patterns = patterns.split(",") if "," in patterns else listify(patterns)
     for root, dirnames, filenames in os.walk(pathname):
         matching = []
         for pattern in patterns:

@@ -105,7 +105,7 @@ def genemark(args):
 
     license = op.expanduser("~/.gm_key")
     assert op.exists(license), "License key ({0}) not found!".format(license)
-    cmd = "{0}/gm_es.pl {1}".format(mhome, fastafile)
+    cmd = "{0}/gmes_petap.pl --ES --sequence {1}".format(mhome, fastafile)
     sh(cmd)
 
     os.chdir(cwd)

@@ -137,6 +137,7 @@ def tophat(args):
     Run tophat on a folder of reads.
     """
     from jcvi.apps.bowtie import check_index
+    from jcvi.formats.fastq import guessoffset
 
     p = OptionParser(tophat.__doc__)
     p.add_option("--gtf", help="Reference annotation [default: %default]")
@@ -148,6 +149,7 @@ def tophat(args):
                  help="Mate inner distance [default: %default]")
     p.add_option("--stdev", default=50, type="int",
                  help="Mate standard deviation [default: %default]")
+    p.set_phred()
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -171,13 +173,16 @@ def tophat(args):
 
         if num == 1:  # Single-end
             a, = p
-            cmd += " {0} {1}".format(reference, a)
         else:  # Paired-end
             a, b = p
             cmd += " --max-intron-length {0}".format(opts.intron)
             cmd += " --mate-inner-dist {0}".format(opts.dist)
             cmd += " --mate-std-dev {0}".format(opts.stdev)
-            cmd += " {0} {1} {2}".format(reference, a, b)
+
+        phred = opts.phred or str(guessoffset([a]))
+        if phred == "64":
+            cmd += " --phred64-quals"
+        cmd += " {0} {1}".format(reference, " ".join(p))
 
         sh(cmd)
 

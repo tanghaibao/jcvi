@@ -425,12 +425,10 @@ def trim(args):
     """
     tv = "0.32"
     TrimJar = "trimmomatic-{0}.jar".format(tv)
-    phdchoices = ("33", "64")
     p = OptionParser(trim.__doc__)
     p.add_option("--path", default=op.join("~/bin", TrimJar),
             help="Path to trimmomatic jar file [default: %default]")
-    p.add_option("--phred", default=None, choices=phdchoices,
-            help="Phred score offset [default: guess]")
+    p.set_phred()
     p.add_option("--nofrags", default=False, action="store_true",
             help="Discard frags file in PE mode [default: %default]")
     p.add_option("--minqv", default=15, type="int",

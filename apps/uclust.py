@@ -242,8 +242,6 @@ def mcluster(args):
 
 
 def makeloci(clustSfile, store, prefix, minsamp=3, pctid=94):
-    cutoff = 100 - pctid
-    logging.debug("Allow maximum of {0} SNPs per contig".format(cutoff))
     C = ClustFile(clustSfile)
     pf = clustSfile.rsplit(".", 1)[0]
     locifile = pf + ".loci"
@@ -252,6 +250,7 @@ def makeloci(clustSfile, store, prefix, minsamp=3, pctid=94):
     fw_finalfasta = open(finalfastafile, "w")
     locid = 0
     AC = []
+    diffratio = 1 - pctid / 100.
     for data in C:
         names, seqs, nreps = zip(*data)
         # Strip off cut site
@@ -287,11 +286,9 @@ def makeloci(clustSfile, store, prefix, minsamp=3, pctid=94):
             # Select SNP column
             if altcount >= minsamp and \
                 nreals >= ntaxa / 2 and \
-                (refcount + altcount) >= nreals * .9 and \
-                len(set(cons_seq[i - 3: i])) > 1 and \
-                len(set(cons_seq[i + 1: i + 4])) > 1:
+                (refcount + altcount) >= nreals * .9:
                 snpsite[i] = '*'
-            if snpsite.count('*') > cutoff:
+            if snpsite.count('*') > ncols * diffratio:
                 snpsite = [' '] * ncols
             nonzeros = [x for c, x in realcounts if (c and x != ref_allele)]
             alt_alleles.append(nonzeros[:1])      # Keep only two alleles
@@ -923,14 +920,14 @@ def cluster_smallmem(derepfile, userfile, notmatchedfile, minlength, pctid,
                      cpus, usearch="vsearch"):
     identity = pctid / 100.
     cmd = usearch + " -minseqlength {0}".format(minlength)
-    #cmd += " -leftjust"
     cmd += " -cluster_size {0}".format(derepfile)
     cmd += " -id {0}".format(identity)
     cmd += " -mincols {0}".format(minlength)
-    #cmd += " -query_cov {0}".format(identity)
+    cmd += " -query_cov {0}".format(.8)
+    cmd += " -target_cov {0}".format(.8)
     cmd += " -userout {0}".format(userfile)
     cmd += " -userfields query+target+id+qcov+tcov"
-    cmd += " -maxaccepts 1 -maxrejects 8"  # Decrease maxrejects for speed
+    cmd += " -maxaccepts 1 -maxrejects 16"  # Decrease maxrejects for speed
     cmd += " -usersort -sizein"
     cmd += " -notmatched {0}".format(notmatchedfile)
     cmd += " -threads {0}".format(cpus)

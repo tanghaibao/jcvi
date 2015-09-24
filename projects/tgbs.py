@@ -411,7 +411,7 @@ def novo2(args):
     """
     p = OptionParser(novo2.__doc__)
     p.set_fastq_names()
-    p.set_align(pctid=94)
+    p.set_align(pctid=95)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:

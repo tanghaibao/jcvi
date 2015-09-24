@@ -241,7 +241,7 @@ def mcluster(args):
         parallel_musclewrap(clustfile, cpus, minsamp=opts.minsamp)
 
 
-def makeloci(clustSfile, store, prefix, minsamp=3, pctid=94):
+def makeloci(clustSfile, store, prefix, minsamp=3, pctid=95):
     C = ClustFile(clustSfile)
     pf = clustSfile.rsplit(".", 1)[0]
     locifile = pf + ".loci"
@@ -910,14 +910,14 @@ def derep(fastafile, derepfile, minlength, cpus, usearch="vsearch"):
 
 
 def cluster_smallmem(derepfile, userfile, notmatchedfile, minlength, pctid,
-                     cpus, usearch="vsearch"):
+                     cpus, cov=.8, usearch="vsearch"):
     identity = pctid / 100.
     cmd = usearch + " -minseqlength {0}".format(minlength)
     cmd += " -cluster_size {0}".format(derepfile)
     cmd += " -id {0}".format(identity)
     cmd += " -mincols {0}".format(minlength)
-    cmd += " -query_cov {0}".format(.8)
-    cmd += " -target_cov {0}".format(.8)
+    cmd += " -query_cov {0}".format(cov)
+    cmd += " -target_cov {0}".format(cov)
     cmd += " -userout {0}".format(userfile)
     cmd += " -userfields query+target+id+qcov+tcov"
     cmd += " -maxaccepts 1 -maxrejects 16"  # Decrease maxrejects for speed
@@ -936,7 +936,7 @@ def cluster(args):
     """
     p = OptionParser(cluster.__doc__)
     add_consensus_options(p)
-    p.set_align(pctid=94)
+    p.set_align(pctid=95)
     p.set_outdir()
     p.set_cpus()
     opts, args = p.parse_args(args)

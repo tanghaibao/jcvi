@@ -350,6 +350,8 @@ def consolidate(args):
     p.add_option("--slop", default=False, action="store_true",
             help="allow minor variation in terminal 5'/3' UTR" + \
                  " start/stop position [default: %default]")
+    p.add_option("--inferUTR", default=False, action="store_true",
+            help="infer presence of UTRs from exon coordinates")
     p.add_option("--mode", default="name", choices=supported_modes,
             help="method used to determine overlapping loci")
     p.add_option("--summary", default=False, action="store_true",
@@ -360,6 +362,7 @@ def consolidate(args):
 
     opts, args = p.parse_args(args)
     slop = opts.slop
+    inferUTR = opts.inferUTR
     mode = opts.mode
 
     if len(args) < 2:
@@ -443,7 +446,8 @@ def consolidate(args):
 
                     if match_subfeats(mrna1, mrna2, dbx1, dbx2, featuretype='CDS'):
                         res = []
-                        for ftype in ('five_prime_UTR', 'three_prime_UTR'):
+                        ftypes = ['exon'] if inferUTR else ['five_prime_UTR', 'three_prime_UTR']
+                        for ftype in ftypes:
                             res.append(match_subfeats(mrna1, mrna2, dbx1, dbx2, featuretype=ftype, slop=slop))
 
                         if all(r == True for r in res):

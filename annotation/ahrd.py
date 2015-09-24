@@ -74,7 +74,7 @@ homolog_pat2 = re.compile(r"^Protein([\s+\S+]+)\s+homolog.*", re.I)
 # 'homolog protein' to '-like protein'
 homolog_pat3 = re.compile(r"\s+homolog\s+protein.*", re.I)
 # 'homolog \S+' to '-like protein'
-homolog_pat4 = re.compile(r"\s+homolog\s+\S+$", re.I)
+homolog_pat4 = re.compile(r"\s+homolog\s+\d+$", re.I)
 # 'homologue$' to '-like protein'
 homolog_pat5 = re.compile(r"\s+homologue[\s+\S+]$", re.I)
 # 'homolog$' to '-like protein'
@@ -192,7 +192,7 @@ Unknown = "Unknown protein"
 Hypothetical = "hypothetical protein"
 
 
-def fix_text(s):
+def fix_text(s, ignore_sym_pat=False):
 
     # Fix descriptions like D7TDB1 (
     s = re.sub("([A-Z0-9]){6} \(", "", s)
@@ -200,7 +200,8 @@ def fix_text(s):
     s = s.replace("(-)", "[-]")
     s = s.replace("(+)", "[+]")
     s = s.replace("(Uncharacterized protein)", "")
-    s = s.translate(None, "()")
+    if not ignore_sym_pat:
+        s = s.translate(None, "()")
 
     # before trimming off at the first ";", check if name has glycosidic
     # linkage information (e.g 1,3 or 1,4). If so, also check if multiple
@@ -219,7 +220,7 @@ def fix_text(s):
     # UPF
     # Remove 'DDB_G\d+' ID
     # '_At[0-9]+g[0-9]+' to ''
-    for pat in (loc_pat, osg_pat, frag_pat, trail_pat, upf_pat, ddb_pat):
+    for pat in (loc_pat, osg_pat, frag_pat, upf_pat, ddb_pat):
         # below is a hack since word boundaries don't work on /
         s = s.strip() + " "
         s = re.sub(pat, "", s)
@@ -276,10 +277,9 @@ def fix_text(s):
         s = s.capitalize()
 
     # 'homolog protein' to '-like protein'
-    # 'homolog \S+' to '-like protein'
     # 'homologue$' to '-like protein'
     # 'homolog$' to '-like protein'
-    for pat in (homolog_pat3, homolog_pat4, homolog_pat5, homolog_pat6):
+    for pat in (homolog_pat3, homolog_pat5, homolog_pat6):
         if re.search(pat, s):
             s = re.sub(pat, "-like protein", s)
 
@@ -302,9 +302,10 @@ def fix_text(s):
     if re.search(prot_pat, s):
         s = re.sub(prot_pat, " protein", s)
 
-    # 'Candidate|Hypothetical|Novel|Predicted|Possible' to 'Putative'
-    if re.search(put_pat, s):
-        s = re.sub(put_pat, "Putative", s)
+    if not s.startswith(Hypothetical):
+        # 'Candidate|Hypothetical|Novel|Predicted|Possible' to 'Putative'
+        if re.search(put_pat, s):
+            s = re.sub(put_pat, "Putative", s)
 
     # 'dimerisation' to 'dimerization'
     if re.search(dimer_pat, s):
@@ -342,19 +343,28 @@ def fix_text(s):
 
     s = s.strip()
 
-    # if name is entirely a gene symbol-like (all capital letters, maybe followed by numbers)
-    # add a "-like protein" at the end
-    if (re.search(sym_pat, s) or re.search(lc_sym_pat, s)) \
-            and not re.search(spada_pat, s):
-        s = s + "-like protein"
+    if not ignore_sym_pat:
+        # 'homolog \d+' to '-like protein'
+        if re.search(homolog_pat4, s):
+            s = re.sub(homolog_pat4, "", s)
 
-    # if gene symbol in parantheses at EOL, remove symbol
-    if re.search(eol_sym_pat, s):
-        s = re.sub(eol_sym_pat, "", s)
+        # Trailing protein numeric copy (e.g. Myb 1)
+        if re.search(trail_pat, s):
+            s = re.sub(trail_pat, "", s)
 
-    # if name terminates at a symbol([^A-Za-z0-9_]), trim it off
-    if re.search(r"\W{1,}$", s) and not re.search(r"\)$", s):
-        s = re.sub("\W{1,}$", "", s)
+        # if name is entirely a gene symbol-like (all capital letters, maybe followed by numbers)
+        # add a "-like protein" at the end
+        if (re.search(sym_pat, s) or re.search(lc_sym_pat, s)) \
+                and not re.search(spada_pat, s):
+            s = s + "-like protein"
+
+        # if gene symbol in parantheses at EOL, remove symbol
+        if re.search(eol_sym_pat, s):
+            s = re.sub(eol_sym_pat, "", s)
+
+        # if name terminates at a symbol([^A-Za-z0-9_]), trim it off
+        if re.search(r"\W{1,}$", s) and not re.search(r"\)$", s):
+            s = re.sub("\W{1,}$", "", s)
 
     # change sulfer to sulfur
     if re.search(sulfer_pat, s):
@@ -418,6 +428,10 @@ def fix(args):
     Fix ugly names from Uniprot.
     """
     p = OptionParser(fix.__doc__)
+    p.add_option("--ignore_sym_pat", default=False, action="store_true",
+        help="Do not fix names matching symbol patterns i.e." + \
+        " names beginning or ending with gene symbols or a series of numbers." + \
+        " e.g. ARM repeat superfamily protein; beta-hexosaminidase 3")
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -436,7 +450,7 @@ def fix(args):
         name, hit, ahrd_code, desc = atoms[:4] \
                 if len(atoms) > 2 else \
                 atoms[0], None, None, atoms[-1]
-        newdesc = fix_text(desc)
+        newdesc = fix_text(desc, ignore_sym_pat=opts.ignore_sym_pat)
         if hit and hit.strip() != "" and newdesc == Hypothetical:
             newdesc = "conserved " + newdesc
         print >> fw, "\t".join(atoms[:4] + [newdesc] + atoms[4:])

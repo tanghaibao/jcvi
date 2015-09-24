@@ -229,8 +229,9 @@ def trimUTR(args):
                             refc = None
                     except gffutils.exceptions.FeatureNotFoundError:
                         pass
-                start, end = trimrange[cid] if cid in trimrange \
-                    else get_cds_minmax(gff, cid, level=1)
+                start, end = get_cds_minmax(gff, cid, level=1)
+                if cid in trimrange:
+                    start, end = range_minmax([trimrange[cid], (start, end)])
                 if not refc:
                     trim(c, start, end, trim5=t5, trim3=t3, both=trim_both)
                 fprint(c, fw)

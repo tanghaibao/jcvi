@@ -475,6 +475,8 @@ def cluster(args):
     p.add_option("--slop", default=False, action="store_true",
             help="allow minor variation in terminal 5'/3' UTR" + \
                  " start/stop position [default: %default]")
+    p.add_option("--inferUTR", default=False, action="store_true",
+            help="infer presence of UTRs from exon coordinates")
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -483,6 +485,7 @@ def cluster(args):
 
     gffile, = args
     slop = opts.slop
+    inferUTR = opts.inferUTR
 
     gff = make_index(gffile)
 
@@ -501,7 +504,8 @@ def cluster(args):
 
                 if match_subfeats(mrna1, mrna2, gff, gff, featuretype='CDS'):
                     res = []
-                    for ftype in ('five_prime_UTR', 'three_prime_UTR'):
+                    ftypes = ['exon'] if inferUTR else ['five_prime_UTR', 'three_prime_UTR']
+                    for ftype in ftypes:
                         res.append(match_subfeats(mrna1, mrna2, gff, gff, featuretype=ftype, slop=slop))
 
                     if all(r == True for r in res):
@@ -1240,7 +1244,7 @@ def format(args):
                 dupcounts[id] += 1
             elif duptype and g.type == duptype:
                 dupranges[g.seqid][id][g.idx] = (g.start, g.end)
-            if opts.multiparents == "merge":
+            if opts.multiparents == "merge" and g.type != "CDS": #don't merge CDS
                 pp = g.get_attr("Parent", first=False)
                 if pp and len(pp) > 0:
                     for parent in pp:
@@ -1271,7 +1275,7 @@ def format(args):
 
         id = g.accn
 
-        if opts.multiparents == "merge":
+        if opts.multiparents == "merge" and g.type != "CDS": #don't merge CDS
             sig = g.sign
             if len(merge_feats[sig]['parents']) > 1:
                 if 'candidate' not in merge_feats[sig]:
@@ -1522,10 +1526,13 @@ def match_Nth_child(f1c, f2c, N=1, slop=False):
 
     if slop:
         if 1 == len(f1c):
-            if f1.strand == '+':
-                Npos = "F" if f1.featuretype.startswith('five_prime') else "L"
-            elif f1.strand == '-':
-                Npos = "L" if f1.featuretype.startswith('five_prime') else "F"
+            if f1.featuretype.endswith('UTR'):
+                if f1.strand == '+':
+                    Npos = "F" if f1.featuretype.startswith('five_prime') else "L"
+                elif f1.strand == '-':
+                    Npos = "L" if f1.featuretype.startswith('five_prime') else "F"
+            elif f1.featuretype == 'exon':
+                return not match_span(f1, f2)
         elif N == 1: Npos = "F"
         elif N == len(f1c): Npos = "L"
 
@@ -1551,18 +1558,24 @@ def match_subfeats(f1, f2, dbx1, dbx2, featuretype=None, slop=False):
     lf1c, lf2c = len(f1c), len(f2c)
     if match_nchildren(f1c, f2c):
         if lf1c > 0 and lf2c > 0:
-            if featuretype.endswith('UTR'):
+            exclN = set()
+            if featuretype.endswith('UTR') or featuretype == 'exon':
+                N = []
                 if featuretype.startswith('five_prime'):
-                    n = 1 if f1.strand == "+" else lf1c
-                else:
-                    n = lf1c if f1.strand == "+" else 1
+                    N = [1] if f1.strand == "+" else [lf1c]
+                elif featuretype.startswith('three_prime'):
+                    N = [lf1c] if f1.strand == "+" else [1]
+                else:   # infer UTR from exon collection
+                    N = [1] if 1 == lf1c else [1, lf1c]
 
-                if match_Nth_child(f1c, f2c, N=n, slop=slop):
-                    del f1c[n-1], f2c[n-1]
-                else:
-                    return False
+                for n in N:
+                    if match_Nth_child(f1c, f2c, N=n, slop=slop):
+                        exclN.add(n-1)
+                    else:
+                        return False
 
-            for cf1, cf2 in zip(f1c, f2c):
+            for i, (cf1, cf2) in enumerate(zip(f1c, f2c)):
+                if i in exclN: continue
                 if not match_span(cf1, cf2):
                     return False
     else:

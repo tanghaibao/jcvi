@@ -835,22 +835,15 @@ def makestats(clustSfile, statsfile, mindepth):
         for name, seq, nrep in data:
             d += nrep
         depth.append(d)
-    keep = [i for i in depth if i >= mindepth]
     namecheck = op.basename(clustSfile).split(".")[0]
     if depth:
         me = round(np.mean(depth), 3)
         std = round(np.std(depth), 3)
     else:
         me = std = 0.0
-    if keep:
-        mek = round(np.mean(keep), 3)
-        stdk = round(np.std(keep), 3)
-    else:
-        mek = stdk = 0.0
     out = dict(label=namecheck, total=sum(depth),
-               cnts=len(depth), mean=me, std=std,
-               keep=len(keep), meank=mek, stdk=stdk)
-    header = "label total cnts mean std keep meank stdk".split()
+               cnts=len(depth), mean=me, std=std)
+    header = "label total cnts mean std".split()
 
     bins = [0, 5, 10, 15, 20, 25, 30, 35, 40, 50, 100, 250, 500, 99999]
     ohist, edges = np.histogram(depth, bins)

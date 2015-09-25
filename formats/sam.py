@@ -58,12 +58,12 @@ class Sam (LineFile):
                 callback(s)
 
 
-def output_bam(cmd, outfile):
+def output_bam(cmd, outfile, cpus=8):
     bam = outfile.endswith(".bam")
     if not bam:
         return cmd + " > {0}".format(outfile)
 
-    outcmd, mflag = ("samtools view -bS", "-F 4")
+    outcmd, mflag = ("samtools view -bS", "-F 4 -@ {0}".format(cpus))
     cmd += " | {0} {1} - > {2}".format(outcmd, mflag, outfile)
 
     return cmd
@@ -197,7 +197,7 @@ def merge(args):
             cmd = "ln -s {0} {1}".format(source, target)
             mm.add("", target, cmd)
         else:
-            cmd = "samtools merge {0} {1}".format(target, source)
+            cmd = "samtools merge -@ 8 {0} {1}".format(target, source)
             mm.add(files, target, cmd, remove=True)
     mm.write()
 
@@ -211,12 +211,14 @@ def count(args):
     p = OptionParser(count.__doc__)
     p.add_option("--type", default="exon",
                  help="Only count feature type")
+    p.set_cpus(cpus=8)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
         sys.exit(not p.print_help())
 
     bamfile, gtf = args
+    cpus = opts.cpus
     pf = bamfile.split(".")[0]
     countfile = pf + ".count"
     if not need_update(bamfile, countfile):
@@ -225,9 +227,9 @@ def count(args):
     nsorted = pf + "_nsorted"
     nsortedbam, nsortedsam = nsorted + ".bam", nsorted + ".sam"
     if need_update(bamfile, nsortedsam):
-        cmd = "samtools sort -n {0} {1}".format(bamfile, nsorted)
+        cmd = "samtools sort -@ {0} -n {1} {2}".format(cpus, bamfile, nsorted)
         sh(cmd)
-        cmd = "samtools view -h {0}".format(nsortedbam)
+        cmd = "samtools view -@ {0} -h {1}".format(cpus, nsortedbam)
         sh(cmd, outfile=nsortedsam)
 
     if need_update(nsortedsam, countfile):
@@ -469,12 +471,14 @@ def index(args):
             help="add @SQ header to the BAM file [default: %default]")
     p.add_option("--unique", default=False, action="store_true",
             help="only retain uniquely mapped reads [default: %default]")
-
+    p.set_cpus(cpus=8)
     opts, args = p.parse_args(args)
+
     if len(args) != 1:
         sys.exit(p.print_help())
 
     samfile, = args
+    cpus = opts.cpus
     fastafile = opts.fasta
     if fastafile:
         assert op.exists(fastafile)
@@ -490,6 +494,7 @@ def index(args):
         cmd = "samtools view -bS {0} -F 4 -o {1}".\
                 format(samfile, bamfile)
 
+    cmd += " -@ {0}".format(cpus)
     if opts.unique:
         cmd += " -q 1"
 
@@ -504,7 +509,9 @@ def index(args):
         sortedbamfile = prefix + ".sorted.bam"
 
     if need_update(bamfile, sortedbamfile):
-        sh("samtools sort {0} {1}.sorted".format(bamfile, prefix))
+        cmd = "samtools sort {0} {1}.sorted".format(bamfile, prefix)
+        cmd += " -@ {0}".format(cpus)
+        sh(cmd)
 
     baifile = sortedbamfile + ".bai"
     if need_update(sortedbamfile, baifile):

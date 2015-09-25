@@ -160,7 +160,7 @@ def blasr(args):
     variantsgff = pf + ".variants.gff"
     consensusfasta = pf + ".consensus.fasta"
     cmd_faidx = "samtools faidx {0}".format(reffasta)
-    cmd = "quiver -j 64 {0}".format(allh5)
+    cmd = "quiver -j 32 {0}".format(allh5)
     cmd += " -r {0} -o {1} -o {2}".format(reffasta, variantsgff, consensusfasta)
     mm.add(allh5, consensusfasta, [cmd_faidx, cmd])
 

@@ -13,6 +13,7 @@ import sys
 import logging
 import re
 
+from collections import defaultdict
 from itertools import groupby, product
 
 from jcvi.utils.cbook import AutoVivification
@@ -1139,7 +1140,7 @@ def publocus(args):
 
     for locus in index:
         pub_locus = index[locus]['pub_locus']
-        Index[locus]['isos'] = sorted(index[locus]['isos'])
+        index[locus]['isos'] = sorted(index[locus]['isos'])
         if len(index[locus]['isos']) > 1:
             new = [chr(n+64) for n in index[locus]['isos'] if n < 27]
             for i, ni in zip(index[locus]['isos'], new):
@@ -1159,6 +1160,7 @@ def augustus(args):
     from jcvi.formats.gff import Gff
 
     p = OptionParser(augustus.__doc__)
+    p.set_outfile()
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -1166,6 +1168,8 @@ def augustus(args):
 
     ingff3, = args
     gff = Gff(ingff3)
+    fw = must_open(opts.outfile, "w")
+    seen = defaultdict(int)
     for g in gff:
         if g.type not in ("gene", "transcript", "CDS"):
             continue
@@ -1173,7 +1177,15 @@ def augustus(args):
         if g.type == "transcript":
             g.type = "mRNA"
 
-        print g
+        prefix = g.seqid + "_"
+        pid = prefix + g.id
+        newid = "{0}-{1}".format(pid, seen[pid]) if pid in seen else pid
+        seen[pid] += 1
+        g.attributes["ID"] = [newid]
+        g.attributes["Parent"] = [(prefix + x) for x in g.attributes["Parent"]]
+        g.update_attributes()
+        print >> fw, g
+    fw.close()
 
 
 def tRNAscan(args):

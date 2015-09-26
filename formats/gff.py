@@ -145,7 +145,7 @@ class GffLine (object):
         if update:
             self.update_attributes(gff3=self.gff3, urlquote=False)
 
-    def update_attributes(self, skipEmpty=None, gff3=None, gtf=None, urlquote=True):
+    def update_attributes(self, skipEmpty=True, gff3=True, gtf=None, urlquote=True):
         attributes = []
         if gtf:
             gff3 = None
@@ -651,7 +651,6 @@ def orient(args):
     $ %prog load --parents=EST_match --children=match_part clc.JCVIv4a.gff
     JCVI.Medtr.v4.fasta -o features.fasta
     """
-    from jcvi.formats.base import DictFile
     from jcvi.formats.fasta import longestorf
 
     p = OptionParser(orient.__doc__)
@@ -692,8 +691,6 @@ def rename(args):
 
     Change the IDs within the gff3.
     """
-    from jcvi.formats.base import DictFile
-
     p = OptionParser(rename.__doc__)
     opts, args = p.parse_args(args)
 
@@ -911,7 +908,7 @@ def gapsplit(args):
                     g.end -= count
                     target_start += count
 
-        g.update_attributes(skipEmpty=True, gff3=True)
+        g.update_attributes()
         print g
 
         parent = g.attributes["Name"][0]
@@ -931,7 +928,7 @@ def gapsplit(args):
             g.attributes["Parent"] = [parent]
             g.attributes["Target"] = [target]
 
-            g.update_attributes(skipEmpty=True, gff3=True)
+            g.update_attributes()
             print g
 
 
@@ -1796,7 +1793,7 @@ def fromgtf(args):
         else:
             assert 0, "Don't know how to deal with {0}".format(g.type)
 
-        g.update_attributes(gff3=True)
+        g.update_attributes()
         print >> fw, g
         nfeats += 1
 

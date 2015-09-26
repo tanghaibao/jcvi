@@ -6,11 +6,16 @@ Automate genome annotation by iterating processing a set of files, individually.
 """
 
 import os.path as op
+import shutil
 import sys
 import logging
 
+from functools import partial
+from tempfile import mkdtemp
+
 from jcvi.assembly.automaton import iter_project
-from jcvi.apps.grid import MakeManager
+from jcvi.apps.grid import Jobs, MakeManager
+from jcvi.formats.base import FileMerger, split
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, \
             mkdir, sh, iglob
 
@@ -18,12 +23,52 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, \
 def main():
 
     actions = (
+        ('augustus', 'run parallel AUGUSTUS'),
         ('cufflinks', 'run cufflinks following tophat'),
         ('star', 'run star alignment'),
         ('tophat', 'run tophat on a list of inputs'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def augustuswrap(fastafile, species="maize"):
+    cmd = "augustus --gff3=on {0}".format(fastafile)
+    cmd += " --species={0}".format(species)
+    outfile = fastafile.replace(".fasta", ".gff3")
+    sh(cmd, outfile=outfile)
+    return outfile
+
+
+def augustus(args):
+    """
+    %prog augustus fastafile
+
+    Run parallel AUGUSTUS. Final results can be reformatted using
+    annotation.reformat.augustus().
+    """
+    p = OptionParser(augustus.__doc__)
+    p.add_option("--species", default="maize",
+                 help="Use species model for prediction")
+    p.set_cpus()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    fastafile, = args
+    cpus = opts.cpus
+    outdir = mkdtemp(dir=".")
+    fs = split([fastafile, outdir, str(cpus)])
+
+    augustuswrap_params = partial(augustuswrap, species=opts.species)
+    g = Jobs(augustuswrap_params, fs.names)
+    g.run()
+
+    gff3files = [x.replace(".fasta", ".gff3") for x in fs.names]
+    outfile = fastafile.replace(".fasta", ".gff3")
+    FileMerger(gff3files, outfile=outfile).merge()
+    shutil.rmtree(outdir)
 
 
 def star(args):

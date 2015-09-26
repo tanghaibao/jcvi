@@ -107,7 +107,7 @@ def dust(args):
     dustfastafile = fastafile.rsplit(".", 1)[0] + ".dust.fasta"
     if need_update(fastafile, dustfastafile):
         cmd = "dustmasker -in {0}".format(fastafile)
-        cmd += " -out {1} -outfmt fasta".format(dustfastafile)
+        cmd += " -out {0} -outfmt fasta".format(dustfastafile)
         sh(cmd)
 
     for name, seq in parse_fasta(dustfastafile):

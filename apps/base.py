@@ -16,7 +16,9 @@ from socket import gethostname
 from subprocess import PIPE, call
 from optparse import OptionParser as OptionP, OptionGroup, SUPPRESS_HELP
 
-
+# http://newbebweb.blogspot.com/2012/02/python-head-ioerror-errno-32-broken.html
+nobreakbuffer = lambda: signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+nobreakbuffer()
 os.environ["LC_ALL"] = "C"
 
 
@@ -728,9 +730,7 @@ def Popen(cmd, stdin=None, stdout=PIPE, debug=False, shell="/bin/bash"):
         logging.debug(cmd)
     # See: <https://blog.nelhage.com/2010/02/a-very-subtle-bug/>
     proc = P(cmd, bufsize=1, stdin=stdin, stdout=stdout, \
-             shell=True, executable=shell,
-             preexec_fn=lambda: signal.signal(signal.SIGPIPE,
-                                     signal.SIG_DFL))
+             shell=True, executable=shell, preexec_fn=nobreakbuffer)
     return proc
 
 

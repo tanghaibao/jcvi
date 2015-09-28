@@ -17,8 +17,8 @@ from jcvi.formats.fasta import Fasta
 from jcvi.formats.sizes import Sizes
 from jcvi.utils.cbook import fill
 from jcvi.assembly.base import Astat
-from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh, \
-            mkdir, glob, get_abs_path
+from jcvi.apps.base import OptionParser, ActionDispatcher, Popen, PIPE, \
+            need_update, sh, mkdir, glob, popen, get_abs_path
 
 
 class SamLine (object):
@@ -28,7 +28,6 @@ class SamLine (object):
         args = row.strip().split("\t")
         self.qname = args[0]
         self.flag = int(args[1])
-        self.orientation = '-' if self.flag & 0x10 == 0 else '+'
         self.rname = args[2]
         self.pos = args[3]
         self.mapq = args[4]
@@ -38,6 +37,27 @@ class SamLine (object):
         self.isize = args[8]
         self.seq = args[9]
         self.qual = args[10]
+        self.extra = args[11:]
+
+    def __str__(self):
+        return  "\t".join(str(x) for x in (self.qname, self.flag,
+                        self.rname, self.pos, self.mapq,
+                        self.cigar, self.mrnm, self.mpos,
+                        self.isize, self.seq, self.qual,
+                        "\t".join(self.extra)))
+
+    @property
+    def orientation(self):
+        return '-' if self.flag & 0x10 == 0 else '+'
+
+    def update_readname(self):
+        if self.flag & 0x40 == 0:
+            tag = "/1"
+        elif self.flag & 0x80 == 0:
+            tag = "/2"
+        else:
+            tag = ""
+        self.qname += tag
 
     @property
     def pairline(self):
@@ -118,6 +138,7 @@ def get_samfile(readfile, dbfile, bam=False, mapped=False,
 def main():
 
     actions = (
+        ('append', 'append /1 or /2 to read names'),
         ('bed', 'convert bam files to bed'),
         ('pair', 'parse sam file and get pairs'),
         ('pairs', 'print paired-end reads from BAM file'),
@@ -135,6 +156,33 @@ def main():
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def append(args):
+    """
+    %prog append bamfile
+
+    Append /1 or /2 to read names. Useful for using the Tophat2 bam file for
+    training AUGUSTUS gene models.
+    """
+    p = OptionParser(append.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    bamfile, = args
+    icmd = "samtools view -h {0}".format(bamfile)
+    bamfile = bamfile.rsplit(".", 1)[0] + ".append.bam"
+    ocmd = "samtools view -b -@ 64 - -o {0}".format(bamfile)
+    p = Popen(ocmd, stdin=PIPE)
+    for row in popen(icmd):
+        if row[0] == '@':
+            print >> p.stdin, row.strip()
+        else:
+            s = SamLine(row)
+            s.update_readname()
+            print >> p.stdin, s
 
 
 def bed(args):

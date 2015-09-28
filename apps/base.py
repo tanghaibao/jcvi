@@ -730,7 +730,7 @@ def Popen(cmd, stdin=None, stdout=PIPE, debug=False, shell="/bin/bash"):
         logging.debug(cmd)
     # See: <https://blog.nelhage.com/2010/02/a-very-subtle-bug/>
     proc = P(cmd, bufsize=1, stdin=stdin, stdout=stdout, \
-             shell=True, executable=shell, preexec_fn=nobreakbuffer)
+             shell=True, executable=shell)
     return proc
 
 

@@ -87,6 +87,7 @@ def genemark(args):
     model gff file is needed.
     """
     p = OptionParser(genemark.__doc__)
+    p.add_option("--junctions", help="Path to `junctions.bed` from Tophat2")
     p.set_home("gmes")
     opts, args = p.parse_args(args)
 
@@ -94,22 +95,25 @@ def genemark(args):
         sys.exit(not p.print_help())
 
     species, fastafile = args
+    junctions = opts.junctions
     mhome = opts.gmes_home
-    gmdir = "genemark"
-    mkdir(gmdir)
-
-    cwd = os.getcwd()
-    os.chdir(gmdir)
-    cmd = "ln -sf ../{0}".format(fastafile)
-    sh(cmd)
 
     license = op.expanduser("~/.gm_key")
     assert op.exists(license), "License key ({0}) not found!".format(license)
-    cmd = "{0}/gmes_petap.pl --ES --sequence {1}".format(mhome, fastafile)
+    cmd = "{0}/gmes_petap.pl --sequence {1}".format(mhome, fastafile)
+    if junctions:
+        intronsgff = "introns.gff"
+        if need_update(junctions, intronsgff):
+            jcmd = "{0}/bet_to_gff.pl".format(mhome)
+            jcmd += " --bed {0} --gff {1} --label Tophat2".\
+                    format(junctions, intronsgff)
+            sh(jcmd)
+        cmd += " --ET {0} --et_score 10".format(intronsgff)
+    else:
+        cmd += " --ES"
     sh(cmd)
 
-    os.chdir(cwd)
-    logging.debug("GENEMARK matrix written to `{0}/mod/{1}.mod`".format(gmdir, species))
+    logging.debug("GENEMARK matrix written to `mod/{0}.mod`".format(species))
 
 
 def snap(args):

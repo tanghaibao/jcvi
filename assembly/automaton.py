@@ -393,7 +393,7 @@ def iter_project(folder, pattern="*.fq,*.fq.gz,*.fastq,*.fastq.gz", n=2):
     # Check for paired reads and extract project id
     filelist = [x for x in iglob(folder, pattern)]
     for p in grouper(filelist, n):
-        if len(p) != n:
+        if len(p) != n or None in p:
             continue
 
         pp = [op.basename(x) for x in p]

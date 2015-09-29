@@ -2,6 +2,7 @@
 basic support for running library as script
 """
 
+import errno
 import os
 import os.path as op
 import shutil
@@ -479,7 +480,7 @@ class OptionParser (OptionP):
         ggopts.add_option("--use_bam", default=None, type="str",
                      help="provide coord-sorted bam file as starting point" + \
                           " [default: %default]")
-        ggopts.add_option("--max_intron", default=2000, type="int",
+        ggopts.add_option("--max_intron", default=15000, type="int",
                      help="maximum allowed intron length [default: %default]")
         ggopts.add_option("--gg_cpu", default=None, type="int",
                      help="set number of threads for individual GG-Trinity" + \
@@ -492,7 +493,7 @@ class OptionParser (OptionP):
             self.set_home("tgi")
             self.add_option("--clean", default=False, action="store_true",
                     help="Clean transcripts using tgi seqclean [default: %default]")
-            self.set_align(pctid=95, pctcov=90, intron=2000, bpsplice=3)
+            self.set_align(pctid=95, pctcov=90, intron=15000, bpsplice=3)
             self.add_option("--aligners", default="blat,gmap",
                     help="Specify splice aligners to use for mapping [default: %default]")
             self.add_option("--fl_accs", default=None, type="str",
@@ -556,7 +557,7 @@ class OptionParser (OptionP):
                    "trinity": "~/export/trinityrnaseq-2.0.6",
                    "cdhit": "~/export/cd-hit-v4.6.1-2012-08-27",
                    "maker": "~/export/maker",
-                   "pasa": "~/export/PASA",
+                   "pasa": "~/export/PASApipeline-2.0.2",
                    "gatk": "~/export",
                    "gmes": "~/export/gmes",
                    "gt": "~/export/genometools",
@@ -576,6 +577,8 @@ class OptionParser (OptionP):
                 default = op.dirname(which(prog))
             except:
                 default = None
+        else:
+            default = op.expanduser(default)
         help = "Home directory for {0} [default: %default]".format(prog.upper())
         self.add_option(tag, default=default, help=help)
 
@@ -788,6 +791,15 @@ def iglob(pathname, patterns):
         for filename in matching:
             matches.append(op.join(root, filename))
     return sorted(matches)
+
+
+def symlink(target, link_name):
+    try:
+        os.symlink(target, link_name)
+    except OSError, e:
+        if e.errno == errno.EEXIST:
+            os.remove(link_name)
+            os.symlink(target, link_name)
 
 
 def mkdir(dirname, overwrite=False):

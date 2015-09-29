@@ -7,13 +7,11 @@ Utilities for submitting PASA jobs and processing PASA results.
 
 import os
 import os.path as op
-from os import symlink
 import sys
 import logging
 
 from jcvi.formats.base import write_file, must_open, FileMerger
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, \
-        which, mkdir
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh, symlink, which
 
 
 alignAssembly_conf = """
@@ -121,19 +119,16 @@ def assemble(args):
     grid = opts.grid
     prepare, runfile = opts.prepare, "run.sh"
     pctcov, pctid = opts.pctcov, opts.pctid
+    compreh_pctid = opts.compreh_pctid
     compreh_pctcov, bpsplice = opts.compreh_pctcov, opts.bpsplice
 
-    mkdir(pasa_db)
-    os.chdir(pasa_db)
-
-    if prepare:
-        write_file(runfile, "")  # initialize run script
-
+    cmds = []
     if ggfasta:
         transcripts = FileMerger([dnfasta, ggfasta], tfasta).merge()
         accn_extract_cmd = "cat {0} | {1} > {2}".format(dnfasta, accn_extract, tdn)
-        write_file(runfile, accn_extract_cmd, append=True) \
-                if prepare else sh(accn_extract_cmd)
+        cmds.append(accn_extract_cmd)
+        if not prepare:
+            sh(accn_extract_cmd)
     else:
         symlink(dnfasta, tfasta)
         transcripts = tfasta
@@ -145,7 +140,7 @@ def assemble(args):
     if clean:
         cleancmd = "{0} {1} -c {2} -l 60".format(seqclean, transcripts, cpus)
         if prepare:
-            write_file(runfile, cleancmd, append=True)
+            cmds.append(cleancmd)
         else:
             prjobid = sh(cleancmd, grid=grid, grid_opts=opts)
 
@@ -157,18 +152,18 @@ def assemble(args):
     symlink(genome, gfasta)
 
     aacmd = "{0} -c {1} -C -R -g {2}".format(launch_pasa, aaconf, gfasta)
-    aacmd += " -t {0}.clean -T -u {0} ".format(transcripts) if clean else \
-             " -t {0} ".format(transcripts)
+    aacmd += " -t {0}.clean -T -u {0}".format(transcripts) if clean else \
+             " -t {0}".format(transcripts)
     if fl_accs:
         symlink(fl_accs, flaccs)
-        aacmd += " -f {0} ".format(flaccs)
+        aacmd += " -f {0}".format(flaccs)
     if ggfasta:
-        aacmd += " --TDN {0} ".format(tdn)
+        aacmd += " --TDN {0}".format(tdn)
     aacmd += " --ALIGNERS {0} -I {1} --CPU {2}".format(",".join(aligners), \
             opts.intron, cpus)
 
     if prepare:
-        write_file(runfile, aacmd, append=True)
+        cmds.append(aacmd)
     else:
         opts.hold_jid = prjobid
         prjobid = sh(aacmd, grid=grid, grid_opts=opts)
@@ -178,10 +173,13 @@ def assemble(args):
         comprehcmd += " --min_per_ID {0} --min_per_aligned {1}".format(compreh_pctid, compreh_pctcov)
 
         if prepare:
-            write_file(runfile, comprehcmd, append=True)
+            cmds.append(comprehcmd)
         else:
             opts.hold_jid = prjobid
             prjobid = sh(comprehcmd, grid=grid, grid_opts=opts)
+
+    if prepare:
+        write_file(runfile, "\n".join(cmds))  # initialize run script
 
 
 def compare(args):

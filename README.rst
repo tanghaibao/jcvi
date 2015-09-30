@@ -1,6 +1,10 @@
 JCVI utility libraries
 ======================
 
+.. image:: https://zenodo.org/badge/doi/10.5281/zenodo.31631.svg
+    :target: http://dx.doi.org/10.5281/zenodo.31631
+    :alt: DOI
+
 .. image:: https://img.shields.io/pypi/v/jcvi.svg
     :target: https://pypi.python.org/pypi/jcvi
     :alt: Latest PyPI version
@@ -12,10 +16,6 @@ JCVI utility libraries
 .. image:: https://scrutinizer-ci.com/g/tanghaibao/jcvi/badges/quality-score.png
     :target: https://scrutinizer-ci.com/g/tanghaibao/jcvi
     :alt: Scrutinizer
-
-.. image:: https://scrutinizer-ci.com/g/tanghaibao/jcvi/badges/build.png
-    :target: https://scrutinizer-ci.com/g/tanghaibao/jcvi
-    :alt: Build
 
 Collection of Python libraries to parse bioinformatics files, or perform
 computation related to assembly, annotation, and comparative genomics.
@@ -177,3 +177,9 @@ Then you need to use one action, you can just do::
 This will tell you the options and arguments it expects.
 
 **Feel free to check out other scripts in the package, it is not just for FASTA.**
+
+
+Reference
+---------
+Haibao Tang et al. (2015). jcvi: JCVI utility libraries. Zenodo.
+`10.5281/zenodo.31631 <http://dx.doi.org/10.5281/zenodo.31631>`_.

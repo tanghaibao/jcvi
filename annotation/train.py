@@ -89,6 +89,7 @@ def genemark(args):
     p = OptionParser(genemark.__doc__)
     p.add_option("--junctions", help="Path to `junctions.bed` from Tophat2")
     p.set_home("gmes")
+    p.set_cpus(cpus=32)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -101,6 +102,7 @@ def genemark(args):
     license = op.expanduser("~/.gm_key")
     assert op.exists(license), "License key ({0}) not found!".format(license)
     cmd = "{0}/gmes_petap.pl --sequence {1}".format(mhome, fastafile)
+    cmd += " --cores {0}".format(opts.cpus)
     if junctions:
         intronsgff = "introns.gff"
         if need_update(junctions, intronsgff):
@@ -113,7 +115,7 @@ def genemark(args):
         cmd += " --ES"
     sh(cmd)
 
-    logging.debug("GENEMARK matrix written to `mod/{0}.mod`".format(species))
+    logging.debug("GENEMARK matrix written to `output/gmhmm.mod")
 
 
 def snap(args):
@@ -145,7 +147,7 @@ def snap(args):
     sh("cat ../{0} >> {1}".format(fastafile, newgffile))
 
     logging.debug("Make models ...")
-    sh("{0}/bin/maker2zff training.gff3".format(mhome))
+    sh("{0}/src/bin/maker2zff training.gff3".format(mhome))
     sh("{0}/exe/snap/fathom -categorize 1000 genome.ann genome.dna".format(mhome))
     sh("{0}/exe/snap/fathom -export 1000 -plus uni.ann uni.dna".format(mhome))
     sh("{0}/exe/snap/forge export.ann export.dna".format(mhome))

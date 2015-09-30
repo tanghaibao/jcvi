@@ -32,9 +32,16 @@ def main():
     p.dispatch(globals())
 
 
-def augustuswrap(fastafile, species="maize"):
+def augustuswrap(fastafile, species="maize", cfgfile=None, hintsfile=None):
     cmd = "augustus --gff3=on {0}".format(fastafile)
     cmd += " --species={0}".format(species)
+    if cfgfile:
+        cmd += " --extrinsicCfgFile={0}".format(cfgfile)
+    if hintsfile:
+        cmd += " --alternatives-from-evidence=true"
+        cmd += " --hintsfile={0} --allow_hinted_splicesites=atac"\
+                .format(hintsfile)
+    cmd += " --introns=on --genemodel=complete"
     outfile = fastafile.replace(".fasta", ".gff3")
     sh(cmd, outfile=outfile)
     return outfile
@@ -50,6 +57,8 @@ def augustus(args):
     p = OptionParser(augustus.__doc__)
     p.add_option("--species", default="maize",
                  help="Use species model for prediction")
+    p.add_option("--hintsfile", help="Hint-guided AUGUSTUS")
+    p.set_home("augustus")
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -58,10 +67,14 @@ def augustus(args):
 
     fastafile, = args
     cpus = opts.cpus
+    mhome = opts.augustus_home
+    cfgfile = op.join(mhome, "config/extrinsic/extrinsic.M.RM.E.W.cfg")
+
     outdir = mkdtemp(dir=".")
     fs = split([fastafile, outdir, str(cpus)])
 
-    augustuswrap_params = partial(augustuswrap, species=opts.species)
+    augustuswrap_params = partial(augustuswrap, species=opts.species,
+                            cfgfile=cfgfile, hintsfile=opts.hintsfile)
     g = Jobs(augustuswrap_params, fs.names)
     g.run()
 

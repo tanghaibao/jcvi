@@ -32,8 +32,10 @@ def main():
     p.dispatch(globals())
 
 
-def augustuswrap(fastafile, species="maize", cfgfile=None, hintsfile=None):
-    cmd = "augustus --gff3=on {0}".format(fastafile)
+def augustuswrap(fastafile, species="maize", gff3=True, cfgfile=None, hintsfile=None):
+    cmd = "augustus {0}".format(fastafile)
+    if gff3:
+        cmd += " --gff3=on"
     cmd += " --species={0}".format(species)
     if cfgfile:
         cmd += " --extrinsicCfgFile={0}".format(cfgfile)
@@ -42,7 +44,8 @@ def augustuswrap(fastafile, species="maize", cfgfile=None, hintsfile=None):
         cmd += " --hintsfile={0} --allow_hinted_splicesites=atac"\
                 .format(hintsfile)
     cmd += " --introns=on --genemodel=complete"
-    outfile = fastafile.replace(".fasta", ".gff3")
+    suffix = ".gff3" if gff3 else ".out"
+    outfile = fastafile.rsplit(".", 1)[0] + suffix
     sh(cmd, outfile=outfile)
     return outfile
 
@@ -58,6 +61,8 @@ def augustus(args):
     p.add_option("--species", default="maize",
                  help="Use species model for prediction")
     p.add_option("--hintsfile", help="Hint-guided AUGUSTUS")
+    p.add_option("--nogff3", default=False, action="store_true",
+                 help="Turn --gff3=off")
     p.set_home("augustus")
     p.set_cpus()
     opts, args = p.parse_args(args)
@@ -68,20 +73,28 @@ def augustus(args):
     fastafile, = args
     cpus = opts.cpus
     mhome = opts.augustus_home
+    gff3 = not opts.nogff3
+    suffix = ".gff3" if gff3 else ".out"
     cfgfile = op.join(mhome, "config/extrinsic/extrinsic.M.RM.E.W.cfg")
 
     outdir = mkdtemp(dir=".")
     fs = split([fastafile, outdir, str(cpus)])
 
     augustuswrap_params = partial(augustuswrap, species=opts.species,
-                            cfgfile=cfgfile, hintsfile=opts.hintsfile)
+                            gff3=gff3, cfgfile=cfgfile,
+                            hintsfile=opts.hintsfile)
     g = Jobs(augustuswrap_params, fs.names)
     g.run()
 
-    gff3files = [x.replace(".fasta", ".gff3") for x in fs.names]
-    outfile = fastafile.replace(".fasta", ".gff3")
+    gff3files = [x.rsplit(".", 1)[0] + suffix for x in fs.names]
+    outfile = fastafile.rsplit(".", 1)[0] + suffix
     FileMerger(gff3files, outfile=outfile).merge()
     shutil.rmtree(outdir)
+
+    if gff3:
+        from jcvi.annotation.reformat import augustus as reformat_augustus
+        reformat_outfile = outfile.replace(".gff3", ".reformat.gff3")
+        reformat_augustus([outfile, "--outfile={0}".format(reformat_outfile)])
 
 
 def star(args):

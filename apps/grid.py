@@ -300,8 +300,8 @@ $CMD"""
 
 def get_grid_engine():
     cmd = "qsub --version"
-    popen(cmd, debug=False).read()
-    return "PBS" if "PBS" in cmd else "SGE"
+    ret = popen(cmd, debug=False).read()
+    return "PBS" if "PBS" in ret else "SGE"
 
 
 def main():

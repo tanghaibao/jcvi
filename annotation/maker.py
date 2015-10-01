@@ -125,11 +125,10 @@ cd $DIR
 arraysh_ua = """
 #PBS -q standard
 #PBS -J 1-{0}
-#PBS -l select=1:ncpus={1}:mem=8gb
+#PBS -l select=1:ncpus={1}:mem=23gb
+#PBS -l pvmem=23gb
 #PBS -l jobtype=serial
-#PBS -l place=pack:shared
-#PBS -l walltime=99:00:00
-#PBS -l cput=99:00:00
+#PBS -l walltime=100:00:00
 #PBS -W group_list=genomeanalytics
 
 cd $PBS_O_WORKDIR

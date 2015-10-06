@@ -1091,7 +1091,8 @@ def format(args):
     p.add_option_group(g1)
 
     g2 = OptionGroup(p, "Parameter(s) used to modify content within columns 1-8")
-    g2.add_option("--seqid", help="Switch seqid from two-column file [default: %default]")
+    g2.add_option("--seqid", help="Switch seqid from two-column file. If not" + \
+                " a file, value will globally replace GFF seqid [default: %default]")
     g2.add_option("--source", help="Switch GFF source from two-column file. If not" + \
                 " a file, value will globally replace GFF source [default: %default]")
     g2.add_option("--type", help="Switch GFF feature type from two-column file. If not" + \
@@ -1166,8 +1167,9 @@ def format(args):
 
     outfile = opts.outfile
 
+    mapping = None
     mod_attrs = set()
-    if mapfile:
+    if mapfile and op.isfile(mapfile):
         mapping = DictFile(mapfile, delimiter="\t", strict=strict)
         mod_attrs.add("ID")
     if note:
@@ -1314,11 +1316,14 @@ def format(args):
             g.phase = phaseT.get(phase, phase)
 
         if mapfile:
-            if origid in mapping:
-                g.seqid = mapping[origid]
+            if isinstance(mapping, dict):
+                if origid in mapping:
+                    g.seqid = mapping[origid]
+                else:
+                    logging.error("{0} not found in `{1}`. ID unchanged.".\
+                            format(origid, mapfile))
             else:
-                logging.error("{0} not found in `{1}`. ID unchanged.".\
-                        format(origid, mapfile))
+                g.seqid = mapfile
 
         if source:
             if isinstance(source, dict) and g.source in source:
@@ -1657,13 +1662,17 @@ def uniq(args):
     populate_children(opts.outfile, bestids, gffile, iter=opts.iter)
 
 
-def populate_children(outfile, ids, gffile, iter="2"):
+def populate_children(outfile, ids, gffile, iter="2", types=None):
     fw = must_open(outfile, "w")
     logging.debug("A total of {0} features selected.".format(len(ids)))
     logging.debug("Populate children. Iteration 1..")
     gff = Gff(gffile)
     children = set()
     for g in gff:
+        if types and g.type in types:
+            _id = g.accn
+            if _id not in ids:
+                ids.append(_id)
         if "Parent" not in g.attributes:
             continue
         for parent in g.attributes["Parent"]:
@@ -1979,6 +1988,8 @@ def extract(args):
                 help="Extract features from certain contigs [default: %default]")
     p.add_option("--names",
                 help="Extract features with certain names [default: %default]")
+    p.add_option("--types", type="str", default=None,
+                help="Extract features of certain feature types [default: %default]")
     p.add_option("--children", default=0, choices=["1", "2"],
                 help="Specify number of iterations: `1` grabs children, " + \
                      "`2` grabs grand-children [default: %default]")
@@ -1996,18 +2007,21 @@ def extract(args):
     gffile, = args
     contigfile = opts.contigs
     namesfile = opts.names
+    typesfile = opts.types
     nametag = opts.tag
 
     contigID = parse_multi_values(contigfile)
     names = parse_multi_values(namesfile)
+    if names == None: names = list()
+    types = parse_multi_values(typesfile)
     outfile = opts.outfile
 
     if opts.children:
-        assert names is not None, "Must set --names"
-        populate_children(outfile, names, gffile, iter=opts.children)
+        assert types is not None or (len(names) > 0), "Must set --names or --types"
+        populate_children(outfile, names, gffile, iter=opts.children, types=types)
         return
 
-    fp = open(gffile)
+    fp = must_open(gffile)
     fw = must_open(opts.outfile, "w")
     for row in fp:
         atoms = row.split()
@@ -2027,7 +2041,11 @@ def extract(args):
         attrib = b.attributes
         if contigID and tag not in contigID:
             continue
-        if names:
+        if types and b.type in types:
+            _id = b.accn
+            if _id not in names:
+                names.append(_id)
+        if names is not None:
             if nametag not in attrib:
                 continue
             if attrib[nametag][0] not in names:
@@ -2348,7 +2366,7 @@ def load(args):
     p.add_option("--desc_attribute", default="Note",
             help="The attribute field to extract and use as FASTA sequence " + \
             "description [default: %default]")
-    p.add_option("--full_header", dest="full_header", default=False, action="store_true",
+    p.add_option("--full_header", default=None, choices=["default", "tair"],
             help="Specify if full FASTA header (with seqid, coordinates and datestamp)" + \
             " should be generated [default: %default]")
 
@@ -2416,9 +2434,14 @@ def load(args):
             if opts.conf_class and 'conf_class' in feat.attributes:
                 desc_parts.append(feat.attributes['conf_class'][0])
 
-            (s, e) = (feat.start, feat.end) if (feat.strand == "+") \
-                    else (feat.end, feat.start)
-            feat_coords = "{0}:{1}-{2}".format(feat.seqid, s, e)
+            if opts.full_header == "tair":
+                orient = "REVERSE" if feat.strand == "-" else "FORWARD"
+                feat_coords = "{0}:{1}-{2} {3} LENGTH=[LEN]".format(feat.seqid, \
+                    feat.start, feat.end, orient)
+            else:
+                (s, e) = (feat.start, feat.end) if (feat.strand == "+") \
+                        else (feat.end, feat.start)
+                feat_coords = "{0}:{1}-{2}".format(feat.seqid, s, e)
             desc_parts.append(feat_coords)
 
             datestamp = opts.datestamp if opts.datestamp else \
@@ -2443,7 +2466,7 @@ def load(args):
                      (upstream_stop, upstream_start)
             upstream_seq_loc = str(feat.seqid) + ":" + str(s) + "-" + str(e)
             desc = sep.join(str(x) for x in (desc, upstream_seq_loc, \
-                    "LENGTH=" + str(upstream_len)))
+                    "FLANKLEN=" + str(upstream_len)))
         else:
             children = []
             if not skipChildren:
@@ -2475,6 +2498,9 @@ def load(args):
         id = ",".join(feat.attributes[id_attr]) if id_attr \
                 and feat.attributes[id_attr] else \
                 feat.id
+
+        if opts.full_header == "tair":
+            desc = desc.replace("[LEN]", str(len(feat_seq)))
 
         rec = SeqRecord(Seq(feat_seq), id=id, description=desc)
         SeqIO.write([rec], fw, "fasta")

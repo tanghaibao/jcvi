@@ -91,10 +91,10 @@ plural_pat = re.compile(r"[deinr]s$", re.I)
 tbp_pat = re.compile(r"like[_]*TBP", re.I)
 
 # 'protein protein' to 'protein'
-prot_pat = re.compile(r" protein protein", re.I)
+prot_pat = re.compile(r"protein protein", re.I)
 
 # 'Candidate|Hypothetical|Novel|Predicted|Possible' to 'Putative'
-put_pat = re.compile(r"Candidate|Hypothetical|Novel|Predicted|Possible", re.I)
+put_pat = re.compile(r"Candidate|Hypothetical|Novel|Predicted|Possible|Probable|Uncharacterized", re.I)
 
 # 'dimerisation' to 'dimerization'
 dimer_pat = re.compile(r"dimerisation", re.I)
@@ -123,16 +123,43 @@ lc_sym_pat = re.compile(r"^[A-z]{1}[a-z]+[0-9]{1,}$")
 eol_sym_pat = re.compile(r"\([A-Z]+[A-Z0-9\-]{0,}\)$")
 
 # sulfer -> sulfur
+# sulph -> sulf
 sulfer_pat = re.compile(r"sulfer")
+sulph_pat = re.compile(r"sulph")
+
+# monoxy to monooxy
+monoxy_pat = re.compile(r"monoxy")
+
+# proteine to protein
+proteine_pat = re.compile(r"proteine")
+
+# signalling to signaling
+signalling_pat = re.compile(r"signalling")
+
+# aluminium to aluminum
+aluminium_pat = re.compile(r"aluminium", re.I)
+
+# haem to heme
+# haemo to hemo
+haem_pat = re.compile(r"\bhaem\b", re.I)
+haemo_pat = re.compile(r"haemo", re.I)
 
 # assessory -> accessory
 assessory_pat = re.compile(r"assessory")
 
 # british to american spelling conversion
 # -ise -> -ize
-# -isation -> ization
-ise_pat = re.compile(r"\b([A-z]+)ise\b")
+# -ised -> -ized
+# -isation -> -ization
+# -bre -> -ber
+ise_pat = re.compile(r"\b([A-z]+)ise([d]?)\b")
 isation_pat = re.compile(r"\b([A-z]+)isation\b")
+bre_pat = re.compile(r"\b([A-z]+)bre\b")
+
+# /with \S+ and \S+/ pattern
+# /, and \S+/ pattern
+# identify names with two domains
+with_and_pat = re.compile(r"[with|,]\s*\S+and\S+")
 
 Template = """
 proteins_fasta: {2}
@@ -194,14 +221,21 @@ Hypothetical = "hypothetical protein"
 
 def fix_text(s, ignore_sym_pat=False):
 
-    # Fix descriptions like D7TDB1 (
-    s = re.sub("([A-Z0-9]){6} \(", "", s)
+    # Fix parantheses containing names
     s = s.translate(None, "[]")
     s = s.replace("(-)", "[-]")
     s = s.replace("(+)", "[+]")
     s = s.replace("(Uncharacterized protein)", "")
     if not ignore_sym_pat:
         s = s.translate(None, "()")
+
+    # fix minor typos, seen in `autonaming` output
+    # change 'protei ' to 'protein '
+    # change 'hypthetical' to 'hypothetical'
+    # fix string starting with 'ytochrome'
+    if 'protei ' in s: s = s.replace('protei ', 'protein ')
+    if 'hypthetical' in s: s = s.replace('hypthetical', 'hypothetical')
+    if s.startswith('ytochrome'): s = s.replace('ytochrome', 'cytochrome')
 
     # before trimming off at the first ";", check if name has glycosidic
     # linkage information (e.g 1,3 or 1,4). If so, also check if multiple
@@ -210,13 +244,18 @@ def fix_text(s, ignore_sym_pat=False):
     if m and ";" in s:
         s = re.sub(";\s*", "-", s)
 
-    s = s.split(";")[0]
+    if not ignore_sym_pat:
+        # Fix descriptions like D7TDB1 (
+        s = re.sub("([A-Z0-9]){6} \(", "", s)
+        s = s.split(";")[0]
+
+    # remove underscore from description
+    s = re.sub("_", " ", s)
 
     # Cellular locations
     # Any word that matches e.g. AT5G54690
     # Any word that matches e.g. Os02g0234800
     # (fragment)
-    # Trailing protein numeric copy (e.g. Myb 1)
     # UPF
     # Remove 'DDB_G\d+' ID
     # '_At[0-9]+g[0-9]+' to ''
@@ -290,8 +329,7 @@ def fix_text(s, ignore_sym_pat=False):
 
     # plural to singular
     if re.search(plural_pat, s):
-        #if s.find('biogenesis') == -1 and s.find('Topors') == -1 and s.find('allergens') == -1:
-        if s.find('biogenesis') == -1 and s.find('Topors') == -1:
+        if (s.find('biogenesis') == -1 and s.find('Topors') == -1) or (not re.search(with_and_pat, s)):
             s = re.sub(r"s$", "", s)
 
     # 'like_TBP' or 'likeTBP' to 'like TBP'
@@ -300,12 +338,7 @@ def fix_text(s, ignore_sym_pat=False):
 
     # 'protein protein' to 'protein'
     if re.search(prot_pat, s):
-        s = re.sub(prot_pat, " protein", s)
-
-    if not s.startswith(Hypothetical):
-        # 'Candidate|Hypothetical|Novel|Predicted|Possible' to 'Putative'
-        if re.search(put_pat, s):
-            s = re.sub(put_pat, "Putative", s)
+        s = re.sub(prot_pat, "protein", s)
 
     # 'dimerisation' to 'dimerization'
     if re.search(dimer_pat, s):
@@ -366,24 +399,73 @@ def fix_text(s, ignore_sym_pat=False):
         if re.search(r"\W{1,}$", s) and not re.search(r"\)$", s):
             s = re.sub("\W{1,}$", "", s)
 
+        if "uncharacterized" in sl:
+            s = "uncharacterized protein"
+
     # change sulfer to sulfur
     if re.search(sulfer_pat, s):
         s = re.sub(sulfer_pat, "sulfur", s)
+
+    # change sulph to sulf
+    if re.search(sulph_pat, s):
+        s = re.sub(sulph_pat, "sulf", s)
+
+    # change monoxy to monooxy
+    if re.search(monoxy_pat, s):
+        s = re.sub(monoxy_pat, "monooxy", s)
+
+    # change proteine to protein
+    if re.search(proteine_pat, s):
+        s = re.sub(proteine_pat, "protein", s)
+
+    # change signalling to signaling
+    if re.search(signalling_pat, s):
+        s = re.sub(signalling_pat, "signaling", s)
+
+    # change aluminium to aluminum
+    if re.search(aluminium_pat, s):
+        s = re.sub(aluminium_pat, "aluminum", s)
+
+    # change haem to heme
+    if re.search(haem_pat, s):
+        s = re.sub(haem_pat, "heme", s)
+
+    # chage haemo to hemo
+    if re.search(haemo_pat, s):
+        s = re.sub(haemo_pat, "hemo", s)
 
     # change assessory to accessory
     if re.search(assessory_pat, s):
         s = re.sub(assessory_pat, "accessory", s)
 
-    # change -ise/-isation to -ize/-ization
+    # change -ise/-ised/-isation to -ize/-ized/-ization
     match = re.search(ise_pat, s)
     if match:
         ret = match.group(1)
-        s = re.sub(ise_pat, "{0}ize".format(ret), s)
+        if match.group(2):
+            suff = match.group(2)
+            s = re.sub(ise_pat, "{0}ize{1}".format(ret, suff), s)
+        else:
+            s = re.sub(ise_pat, "{0}ize".format(ret), s)
 
     match = re.search(isation_pat, s)
     if match:
         ret = match.group(1)
         s = re.sub(isation_pat, "{0}ization".format(ret), s)
+
+    # change -bre to -ber
+    match = re.search(bre_pat, s)
+    if match:
+        ret = match.group(1)
+        s = re.sub(bre_pat, "{0}ber".format(ret), s)
+
+    if not s.startswith(Hypothetical):
+        # 'Candidate|Hypothetical|Novel|Predicted|Possible|Probable|Uncharacterized' to 'Putative'
+        if s.startswith('Uncharacterized') and any(pat in s for pat in ('UCP', 'UPF', 'protein')):
+            pass
+        else:
+            if re.search(put_pat, s):
+                s = re.sub(put_pat, "Putative", s)
 
     """
     case (qr/^Histone-lysine/) { $ahrd =~ s/,\s+H\d{1}\s+lysine\-\d+//gs; }
@@ -404,11 +486,10 @@ def fix_text(s, ignore_sym_pat=False):
     if "FUNCTIONS IN".lower() in sl and "unknown" in sl:
         s = Unknown
 
-    if "uncharacterized" in sl:
-        s = "uncharacterized protein"
+    if "LOCATED IN".lower() in sl:
+        s = Unknown
 
-    s = s.replace(", putative", "")
-    s = s.replace("Putative ", "")
+    s = re.sub(r"[,]*\s+putative$", "", s)
 
     if s == Unknown or s.strip() == "protein":
         s = Hypothetical
@@ -431,7 +512,8 @@ def fix(args):
     p.add_option("--ignore_sym_pat", default=False, action="store_true",
         help="Do not fix names matching symbol patterns i.e." + \
         " names beginning or ending with gene symbols or a series of numbers." + \
-        " e.g. ARM repeat superfamily protein; beta-hexosaminidase 3")
+        " e.g. `ARM repeat superfamily protein`, `beta-hexosaminidase 3`," + \
+        " `CYCLIN A3;4`, `WALL ASSOCIATED KINASE (WAK)-LIKE 10`")
     p.set_outfile()
     opts, args = p.parse_args(args)
 

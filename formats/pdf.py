@@ -11,6 +11,7 @@ import traceback
 from PyPDF2 import PdfFileMerger, parse_filename_page_ranges
 from PyPDF2.pagerange import PAGE_RANGE_HELP
 from jcvi.formats.base import must_open
+from jcvi.utils.natsort import natsorted
 from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
@@ -56,6 +57,8 @@ def cat(args):
     outfile = opts.outfile
     if outfile in args:
         args.remove(outfile)
+
+    args = natsorted(args)
 
     filename_page_ranges = parse_filename_page_ranges(args)
     verbose = opts.verbose

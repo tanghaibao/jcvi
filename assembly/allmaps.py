@@ -26,7 +26,7 @@ from jcvi.algorithms.matrix import determine_signs
 from jcvi.algorithms.ec import GA_setup, GA_run
 from jcvi.formats.agp import AGP, order_to_agp, build as agp_build, reindex
 from jcvi.formats.base import DictFile, FileMerger, FileShredder, must_open, read_block
-from jcvi.formats.bed import Bed, BedLine, sort
+from jcvi.formats.bed import Bed, BedLine, natsorted, sort
 from jcvi.formats.chain import fromagp
 from jcvi.formats.sizes import Sizes
 from jcvi.utils.cbook import human_size, percentage
@@ -1188,7 +1188,7 @@ def path(args):
     fwagp = must_open(agpfile, "w")
     fwtour = must_open(tourfile, "w")
     solutions = []
-    for lgs, scaffolds in sorted(partitions.items()):
+    for lgs, scaffolds in natsorted(partitions.items()):
         if oseqid and oseqid not in lgs:
             continue
         tag = "|".join(lgs)
@@ -1212,7 +1212,7 @@ def path(args):
                      format(version, get_today(), command)
     AGP.print_header(fwagp, comment=comment)
 
-    for s in sorted(solutions, key=lambda x: x.object):
+    for s in natsorted(solutions, key=lambda x: x.object):
         order_to_agp(s.object, s.tour, sizes, fwagp, gapsize=gapsize,
                      gaptype="map")
     fwagp.close()

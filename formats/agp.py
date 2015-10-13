@@ -22,8 +22,7 @@ from Bio import SeqIO
 
 from jcvi.formats.base import LineFile, must_open
 from jcvi.formats.fasta import Fasta
-from jcvi.formats.bed import Bed, BedLine
-from jcvi.formats.gff import Gff, GffLine
+from jcvi.formats.bed import Bed
 from jcvi.assembly.base import calculate_A50
 from jcvi.utils.range import range_intersect
 from jcvi.utils.iter import pairwise, flatten

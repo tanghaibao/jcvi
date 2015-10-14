@@ -193,6 +193,7 @@ class ScaffoldOO (object):
             logging.debug("Current best fitness: {0}".format(best_fitness))
             i += 1
 
+        tour = self.fix_tour(tour)
         self.tour = recode_tour(tour)
         for fw in (sys.stderr, fwtour):
             print_tour(fw, self.object, tag, "FINAL", self.tour)
@@ -384,6 +385,29 @@ class ScaffoldOO (object):
         if sum(flipr) < 0:
             signs = - signs
         return signs
+
+    def fix_tour(self, tour):
+        """
+        Test each scaffold if dropping does not decrease LMS.
+        """
+        scaffolds, oos = zip(*tour)
+        keep = set()
+        for mlg in self.linkage_groups:
+            lg = mlg.lg
+            for s, o in tour:
+                i = scaffolds.index(s)
+                L = [self.get_series(lg, x, xo) for x, xo in tour[:i]]
+                U = [self.get_series(lg, x, xo) for x, xo in tour[i + 1:]]
+                L, U = list(flatten(L)), list(flatten(U))
+                M = self.get_series(lg, s, o)
+                score_with = lms(L + M + U)[0]
+                score_without = lms(L + U)[0]
+                assert score_with >= score_without
+                if score_with > score_without:
+                    keep.add(s)
+        dropped = len(tour) - len(keep)
+        logging.debug("Dropped {0} minor scaffolds".format(dropped))
+        return [(s, o) for (s, o) in tour if s in keep]
 
     def fix_orientation(self, tour):
         """

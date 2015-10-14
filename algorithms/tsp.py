@@ -43,7 +43,7 @@ class Concorde (object):
         if clean:
             shutil.rmtree(work_dir)
             residual_output = ["data.sol", "data.res", "Odata.res"]
-            FileShredder(residual_output)
+            FileShredder(residual_output, verbose=False)
 
 
     def print_to_tsplib(self, edges, tspfile, precision=0):

@@ -1114,17 +1114,21 @@ def mask(args):
     """
     %prog mask agpfile bedfile
 
-    Mask given ranges in components to gaps.
+    Mask given ranges in components to gaps. When the bedfile contains a single
+    base pair, this position can be a point of split and no base is lost
+    (--splitsingle).
     """
     p = OptionParser(mask.__doc__)
     p.add_option("--splitobject", default=False, action="store_true",
                  help="Create new names for object [default: %default]")
     p.add_option("--splitcomponent", default=False, action="store_true",
                  help="Create new names for component [default: %default]")
+    p.add_option("--splitsingle", default=False, action="store_true",
+                 help="Do not remove base on single point")
     p.add_option("--gaptype", default="scaffold",
                  help="Masked region has gap type of [default: %default]")
-    p.add_option("--retain", default=False, action="store_true",
-                 help="Retain old names for non-split objects [default: %default]")
+    p.add_option("--noretain", default=False, action="store_true",
+                 help="Do not retain old names for non-split objects")
     p.add_option("--sep", default=".", help="Separator for splits")
     opts, args = p.parse_args(args)
 
@@ -1162,8 +1166,12 @@ def mask(args):
 
         # Make sure `ivs` contain DISJOINT ranges, and located within `arange`
         ivs = []
+        points = set()
         for i in intervals:
-            iv = range_intersect(arange, (i.start, i.end))
+            start, end = i.start, i.end
+            if opts.splitsingle:
+                points.add(start)
+            iv = range_intersect(arange, (start, end))
             if iv is not None:
                 ivs.append(iv)
 
@@ -1192,7 +1200,8 @@ def mask(args):
                     componentindex[component] += 1
                     aline += ['W', cid, 1, cspan, orientation]
                 else:
-                    aline += ['W', component, a + 1, b - 1, orientation]
+                    end = b if (opts.splitsingle and b in points) else b - 1
+                    aline += ['W', component, a + 1, end, orientation]
                 is_gap = False
             else:
                 cspan = b - a + 1
@@ -1206,7 +1215,7 @@ def mask(args):
             if not (splitobject and is_gap):
                 agp_fixes[component].append(aline)
 
-    retain = opts.retain
+    retain = not opts.noretain
     # Finally write the masked agp
     for a in agp:
         if a.is_gap:

@@ -906,6 +906,10 @@ def refine(args):
     %prog refine breakpoints.bed gaps.bed
 
     Find gaps within or near breakpoint region.
+
+    For breakpoint regions with no gaps, there are two options:
+    - Break in the middle of the region
+    - Break at the closest gap (--closest)
     """
     p = OptionParser(refine.__doc__)
     p.add_option("--closest", default=False, action="store_true",
@@ -941,7 +945,7 @@ def refine(args):
 
         gaps = [(int(x[-1]), x) for x in gaps]
         maxgap = max(gaps)[1]
-        print >> largestgapsfw, "\t".join(maxgap)
+        print >> largestgapsfw, "\t".join(maxgap[ncols:])
 
     nogapsfw.close()
     largestgapsfw.close()
@@ -954,6 +958,17 @@ def refine(args):
         sh(cmd, outfile=closestgapsbed)
         beds += [closestgapsbed]
         toclean += [closestgapsbed]
+    else:
+        pointbed = pf + ".point.bed"
+        pbed = Bed()
+        bed = Bed(nogapsbed)
+        for b in bed:
+            pos = (b.start + b.end) / 2
+            b.start, b.end = pos, pos
+            pbed.append(b)
+        pbed.print_to_file(pointbed)
+        beds += [pointbed]
+        toclean += [pointbed]
 
     refinedbed = pf + ".refined.bed"
     FileMerger(beds, outfile=refinedbed).merge()

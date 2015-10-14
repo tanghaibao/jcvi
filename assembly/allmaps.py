@@ -19,8 +19,8 @@ from functools import partial
 
 from jcvi import __version__ as version
 from jcvi.algorithms.formula import reject_outliers, spearmanr
-from jcvi.algorithms.lis import longest_monotonic_subseq_length as lms, \
-            longest_monotonic_subsequence as lmseq
+from jcvi.algorithms.lis import longest_monotonic_subseq_length_loose as lms, \
+            longest_monotonic_subsequence_loose as lmseq
 from jcvi.algorithms.tsp import hamiltonian
 from jcvi.algorithms.matrix import determine_signs
 from jcvi.algorithms.ec import GA_setup, GA_run

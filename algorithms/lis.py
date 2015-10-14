@@ -58,6 +58,22 @@ def longest_decreasing_subseq_length(xs):
     return longest_increasing_subseq_length(reversed(xs))
 
 
+def longest_monotonic_subseq_length_loose(xs):
+    li = longest_increasing_subseq_length_loose(xs)
+    ld = longest_decreasing_subseq_length_loose(xs)
+    return max(li, ld), li - ld
+
+
+def longest_increasing_subseq_length_loose(xs):
+    xs = [(x, i) for (i, x) in enumerate(xs)]
+    return longest_increasing_subseq_length(xs)
+
+
+def longest_decreasing_subseq_length_loose(xs):
+    xs = [(x, -i) for (i, x) in enumerate(xs)]
+    return longest_decreasing_subseq_length(xs)
+
+
 def longest_increasing_subsequence(xs):
     '''Return a longest increasing subsequence of xs.
 
@@ -104,6 +120,26 @@ def longest_monotonic_subsequence(xs):
     return lds
 
 
+def longest_monotonic_subsequence_loose(xs):
+    lis = longest_increasing_subsequence_loose(xs)
+    lds = longest_decreasing_subsequence_loose(xs)
+    if len(lis) >= len(lds):
+        return lis
+    return lds
+
+
+def longest_increasing_subsequence_loose(xs):
+    xs = [(x, i) for (i, x) in enumerate(xs)]
+    ll = longest_increasing_subsequence(xs)
+    return [x for (x, i) in ll]
+
+
+def longest_decreasing_subsequence_loose(xs):
+    xs = [(x, -i) for (i, x) in enumerate(xs)]
+    ll = longest_decreasing_subsequence(xs)
+    return [x for (x, i) in ll]
+
+
 def backtracking(a, L, bestsofar):
     """
     Start with the heaviest weight and emit index
@@ -120,7 +156,7 @@ def heaviest_increasing_subsequence(a, debug=False):
     weight) pairs.
 
     >>> heaviest_increasing_subsequence([(3, 3), (2, 2), (1, 1), (0, 5)])
-    [(0, 5)]
+    ([(0, 5)], 5)
     """
     # Stores the smallest idx of last element of a subsequence of weight w
     L = {0: -1}
@@ -153,7 +189,7 @@ if __name__ == '__main__':
     doctest.testmod()
 
     import numpy as np
-    A = np.random.random_integers(0, 100, 10)
+    A = np.random.random_integers(0, 10, 10)
     A = list(A)
     B = zip(A, [1] * 10)
     print A
@@ -161,8 +197,12 @@ if __name__ == '__main__':
     print "longest increasing:", lis
     lds = longest_decreasing_subsequence(A)
     print "longest decreasing:", lds
+    lisl = longest_increasing_subsequence_loose(A)
+    print "longest increasing loose:", lisl
+    ldsl = longest_decreasing_subsequence_loose(A)
+    print "longest decreasing loose:", ldsl
     # this should be the same as longest_increasing_subsequence
-    his = heaviest_increasing_subsequence(B)
+    his, his_dd = heaviest_increasing_subsequence(B)
     hlis, wts = zip(*his)
     print "heaviest increasing (weight 1, compare with lis):", hlis
     assert len(lis) == len(his)

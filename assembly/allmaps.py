@@ -525,8 +525,14 @@ class Map (list):
             s[(m.mlg, m.seqid)].append(m)
 
         if remove_outliers:
+            original = clean = 0
             for pair, markers in s.items():
-                s[pair] = self.remove_outliers(markers, function)
+                cm = self.remove_outliers(markers, function)
+                s[pair] = cm
+                original += len(markers)
+                clean += len(cm)
+            logging.debug("Retained {0} clean markers."\
+                    .format(percentage(clean, original)))
         return s
 
     def remove_outliers(self, markers, function):
@@ -1134,7 +1140,7 @@ def path(args):
                  help="Use weights from file")
     p.add_option("--compress", default=1e-6, type="float",
                  help="Compress markers with distance <=")
-    p.add_option("--noremoveoutliers", default=True, action="store_false",
+    p.add_option("--noremoveoutliers", default=False, action="store_true",
                  help="Don't remove outlier markers")
     p.add_option("--distance", default="rank", choices=distance_choices,
                  help="Distance function when building initial consensus")
@@ -1627,7 +1633,7 @@ def plotall(xargs):
     agpfile = pf + ".agp"
     agp = AGP(agpfile)
     objects = [ob for ob, lines in agp.iter_object() if len(lines) > 1]
-    for seqid in sorted(objects):
+    for seqid in natsorted(objects):
         plot(xargs + [seqid])
 
 

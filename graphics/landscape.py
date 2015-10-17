@@ -435,14 +435,13 @@ def heatmap(args):
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
-def draw_gauge(ax, margin, maxl, rightmargin=None, optimal=7):
+def draw_gauge(ax, margin, maxl, rightmargin=None):
     # Draw a gauge on the top of the canvas
     rightmargin = rightmargin or margin
     ax.plot([margin, 1 - rightmargin], [1 - margin, 1 - margin], "k-", lw=2)
 
     best_stride = autoscale(maxl)
-    nintervals = int(round(maxl * 1. / best_stride))
-    newl = nintervals * best_stride
+    nintervals = maxl * 1. / best_stride
 
     xx, yy = margin, 1 - margin
     tip = .005
@@ -451,7 +450,7 @@ def draw_gauge(ax, margin, maxl, rightmargin=None, optimal=7):
     if l[-1] == 'b':
         suffix = target = l[-2:]
 
-    for i in xrange(0, newl + 1, best_stride):
+    for i in xrange(0, maxl + 1, best_stride):
         l = human_size(i, precision=0, target=target)
         if l[-1] == 'b':
             l, suffix = l[:-2], l[-2:]

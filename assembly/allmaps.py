@@ -29,6 +29,7 @@ from jcvi.formats.base import DictFile, FileMerger, FileShredder, must_open, rea
 from jcvi.formats.bed import Bed, BedLine, natsorted, sort
 from jcvi.formats.chain import fromagp
 from jcvi.formats.sizes import Sizes
+from jcvi.graphics.landscape import draw_gauge
 from jcvi.utils.cbook import human_size, percentage
 from jcvi.utils.counter import Counter
 from jcvi.utils.grouper import Grouper
@@ -1179,6 +1180,8 @@ def path(args):
                  help="Do not visualize the alignments")
     p.add_option("--skipconcorde", default=False, action="store_true",
                  help="Skip TSP optimizer, can speed up large cases")
+    p.add_option("--renumber", default=False, action="store_true",
+                 help="Renumber chromosome based on decreasing sizes")
     p.set_cpus(cpus=16)
 
     q = OptionGroup(p, "Genetic algorithm options")
@@ -1296,6 +1299,20 @@ def path(args):
         solutions.append(s)
     fwtour.close()
 
+    # Renumber chromosome based on decreasing size
+    if opts.renumber:
+        chrsizes = {}
+        conversion = {}
+        for s in solutions:
+            chrsizes[s.object] = sum(sizes[x] for (x, o) in s.tour) + \
+                                 (len(s.tour) - 1) * gapsize
+        for i, (c, size) in enumerate(sorted(chrsizes.items(), key=lambda x: -x[1])):
+            newc = "chr{0}".format(i + 1)
+            logging.debug("{0}: {1} => {2}".format(c, size, newc))
+            conversion[c] = newc
+        for s in solutions:
+            s.object = conversion[s.object]
+
     # meta-data about the run parameters
     command = "# COMMAND: python -m jcvi.assembly.allmaps path {0}".\
                      format(" ".join(oargs))
@@ -1325,7 +1342,7 @@ def write_unplaced_agp(agpfile, scaffolds, unplaced_agp):
     scaffolds_seen = set(x.component_id for x in agp)
     sizes = Sizes(scaffolds).mapping
     fwagp = must_open(unplaced_agp, "w")
-    for s in sorted(sizes.keys()):
+    for s in natsorted(sizes.keys()):
         if s in scaffolds_seen:
             continue
         order_to_agp(s, [(s, "?")], sizes, fwagp)
@@ -1587,6 +1604,7 @@ def plot(args):
     patchstart = [f(x) for x in pp]
     HorizontalChromosome(ax2, xstart, xstop, ystop,
                          height=2 * tip, patch=patchstart, lw=2)
+    draw_gauge(ax2, xstart, chrsize)
 
     gap = .03
     ratio = (r - gap * len(mlgs) - tip) / sum(mlgsizes.values())

@@ -731,7 +731,7 @@ def main():
 
 def compress(args):
     """
-    %prog transitive a.agp b.agp
+    %prog compress a.agp b.agp
 
     Convert coordinates based on multiple AGP files. Useful to simplify multiple
     liftOvers to compress multiple chain files into a single chain file, in

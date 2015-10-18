@@ -820,19 +820,19 @@ def main():
     p.dispatch(globals())
 
 
-def compute_score(markers, bonus=2, penalty=-9):
+def compute_score(markers, bonus, penalty):
     """
     Compute chain score using dynamic programming. If a marker is the same
     linkage group as a previous one, we add bonus; otherwise, we penalize the
     chain switching.
     """
     nmarkers = len(markers)
-    s = [0] * nmarkers   # score
+    s = [bonus] * nmarkers   # score
     f = [-1] * nmarkers  # from
     for i in xrange(1, nmarkers):
         for j in xrange(i):
             mi, mj = markers[i], markers[j]
-            t = bonus if mi.mlg == mj.mlg else penalty
+            t = bonus if mi.mlg == mj.mlg else penalty + bonus
             if s[i] < s[j] + t:
                 s[i] = s[j] + t
                 f[i] = j
@@ -857,7 +857,7 @@ def split(args):
     modified through --chunk option.
     """
     p = OptionParser(split.__doc__)
-    p.add_option("--chunk", default=5, type="int",
+    p.add_option("--chunk", default=4, type="int",
                  help="Split chunks of at least N markers")
     opts, args = p.parse_args(args)
 
@@ -870,7 +870,7 @@ def split(args):
     bed = Bed(inputbed)
     for seqid, bb in bed.sub_beds():
         markers = [Marker(x) for x in bb]
-        markers = compute_score(markers, bonus=bonus, penalty=penalty)
+        markers = compute_score(markers, bonus, penalty)
         for mi, mj in pairwise(markers):
             if mi.mlg == mj.mlg:
                 continue
@@ -1187,12 +1187,12 @@ def path(args):
     q = OptionGroup(p, "Genetic algorithm options")
     p.add_option_group(q)
     q.add_option("--ngen", default=500, type="int",
-                 help="Iterations in GA, more ~ slower")
+                 help="Iterations in GA, higher ~ slower")
     q.add_option("--npop", default=100, type="int",
-                 help="Population size in GA, more ~ slower")
+                 help="Population size in GA, higher ~ slower")
     q.add_option("--seed", default=666, type="int",
                  help="Random seed number")
-    opts, args = p.parse_args(args)
+    opts, args, iopts = p.set_image_options(args, figsize="10x6")
 
     if len(args) != 2:
         sys.exit(not p.print_help())
@@ -1334,7 +1334,8 @@ def path(args):
     summary([inputbed, fastafile, "--outfile={0}".format(summaryfile)])
 
     if not opts.noplot:
-        plotall([inputbed, "--links={0}".format(opts.links)])
+        plotall([inputbed, "--links={0}".format(opts.links),
+                           "--figsize={0}".format(opts.figsize)])
 
 
 def write_unplaced_agp(agpfile, scaffolds, unplaced_agp):

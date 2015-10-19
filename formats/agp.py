@@ -94,7 +94,7 @@ class AGPLine (object):
                 logging.error("%s\nerror when validating this line:\n%s" % \
                         (b, row))
 
-        self.sign = -1 if self.orientation == '-' else 1
+        self.sign = {'+': 1, '-': -1, '?': 0}.get(self.orientation)
 
     def __str__(self):
 
@@ -761,6 +761,9 @@ def compress(args):
     for a in agp:
         if a.is_gap:
             continue
+        # Ignore '?' in the mapping
+        if a.sign == 0:
+            a.sign = 1
         store[(a.object, a.object_beg, a.object_end)] = \
               (a.component_id, a.component_beg, a.component_end, a.sign)
 
@@ -774,7 +777,7 @@ def compress(args):
         component_id, component_beg, component_end, sign = \
             store[(a.component_id, a.component_beg, a.component_end)]
 
-        orientation = '-' if sign * a.sign == -1 else '+'
+        orientation = {1: '+', -1: '-', 0: '?'}.get(sign * a.sign)
         atoms = (a.object, a.object_beg, a.object_end, a.part_number, a.component_type,
                  component_id, component_beg, component_end, orientation)
         a = AGPLine("\t".join(str(x) for x in atoms))

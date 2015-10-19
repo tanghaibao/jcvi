@@ -209,8 +209,10 @@ class AGP (LineFile):
         super(AGP, self).__init__(filename)
 
         fp = open(filename)
+        self.header = []
         for row in fp:
             if row[0] == '#':
+                self.header.append(row.strip())
                 continue
             if row.strip() == "":
                 continue
@@ -770,6 +772,7 @@ def compress(args):
     # Second AGP forms the backbone
     agp = AGP(bagpfile)
     fw = must_open(opts.outfile, "w")
+    print >> fw, "\n".join(agp.header)
     for a in agp:
         if a.is_gap:
             print >> fw, a

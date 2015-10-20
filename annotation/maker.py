@@ -303,7 +303,7 @@ def validate(args):
         counter.update(dslog.scaffold_status.values())
         all_failed.extend([(f, x) for x in dslog.failed])
 
-    cmd = 'tail maker.*.out Logs/maker.*.out | grep -c "now finished"'
+    cmd = 'tail maker.*.out | grep -c "now finished"'
     n = int(popen(cmd).read())
     assert len(fsnames) == n
     print >> sys.stderr, "ALL jobs have been finished"

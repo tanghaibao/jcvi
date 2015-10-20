@@ -14,7 +14,7 @@ from urllib import quote, unquote
 from jcvi.utils.cbook import AutoVivification
 from jcvi.formats.base import DictFile, LineFile, must_open, is_number
 from jcvi.formats.fasta import Fasta, SeqIO
-from jcvi.formats.bed import Bed, BedLine
+from jcvi.formats.bed import Bed, BedLine, natsorted
 from jcvi.annotation.reformat import atg_name
 from jcvi.utils.iter import flatten
 from jcvi.utils.range import range_minmax
@@ -1929,6 +1929,8 @@ def merge(args):
     to be a file with a list of gff files.
     """
     p = OptionParser(merge.__doc__)
+    p.add_option("--seq", default=False, action="store_true",
+                 help="Print FASTA sequences at the end")
     p.set_outfile()
 
     opts, args = p.parse_args(args)
@@ -1949,7 +1951,8 @@ def merge(args):
     deflines = set()
     fw = must_open(outfile, "w")
     fastarecs = {}
-    for gffile in gffiles:
+    for gffile in natsorted(gffiles, key=lambda x: op.basename(x)):
+        logging.debug(gffile)
         fp = open(gffile)
         for row in fp:
             row = row.rstrip()
@@ -1963,14 +1966,20 @@ def merge(args):
 
             print >> fw, row
 
+        if not opts.seq:
+            continue
+
         f = Fasta(gffile, lazy=True)
         for key, rec in f.iteritems_ordered():
             if key in fastarecs:
                 continue
             fastarecs[key] = rec
 
-    print >> fw, FastaTag
-    SeqIO.write(fastarecs.values(), fw, "fasta")
+    if opts.seq:
+        print >> fw, FastaTag
+        SeqIO.write(fastarecs.values(), fw, "fasta")
+
+    fw.close()
 
 
 def extract(args):

@@ -5,6 +5,7 @@
 SynFind analyses and visualization.
 """
 
+import os.path as op
 import sys
 import logging
 
@@ -12,13 +13,12 @@ from copy import deepcopy
 from collections import defaultdict
 from itertools import groupby
 
-from jcvi.formats.base import must_open
-from jcvi.utils.cbook import SummaryStats
+from jcvi.formats.base import get_number, must_open
+from jcvi.utils.cbook import SummaryStats, gene_name
 from jcvi.formats.bed import Bed
-from jcvi.compara.synteny import check_beds
 from jcvi.graphics.base import FancyArrow, plt, savefig, panel_labels, markup
 from jcvi.graphics.glyph import CartoonRegion, RoundRect
-from jcvi.apps.base import OptionParser, ActionDispatcher
+from jcvi.apps.base import OptionParser, ActionDispatcher, symlink, sh
 
 
 def main():
@@ -34,35 +34,66 @@ def main():
     p.dispatch(globals())
 
 
-def make_gff(bed):
-    gff = bed.filename.rsplit(".", 1)[0] + ".gff"
-    fw = open(gff, "w")
+def make_gff(bed, fw):
+    prefix = op.basename(bed)[:2]
+    bed = Bed(bed)
+    nfeats = 0
     for b in bed:
+        try:
+            seqid = prefix + str(get_number(b.seqid))
+        except:
+            continue
         print >> fw, "\t".join(str(x) for x in \
-            (b.seqid, b.accn, b.start, b.end))
+            (seqid, b.accn, b.start, b.end))
+        nfeats += 1
     fw.close()
     logging.debug("A total of {0} features converted to `{1}`".\
-                    format(len(bed), gff))
+                    format(nfeats, fw.name))
 
 
 def mcscanx(args):
     """
-    %prog mcscanx athaliana.athaliana.last
+    %prog mcscanx athaliana.athaliana.last athaliana.bed
 
     Wrap around MCScanX.
     """
     p = OptionParser(mcscanx.__doc__)
+    p.add_option("--path", default="../bin/MCScanX",
+                 help="Path to MCScanX")
     p.set_beds()
     opts, args = p.parse_args(args)
 
-    if len(args) != 1:
+    if len(args) < 2:
         sys.exit(not p.print_help())
 
-    blastfile, = args
-    qbed, sbed, qorder, sorder, is_self = check_beds(blastfile, p, opts)
-    make_gff(qbed)
-    if not is_self:
-        make_gff(sbed)
+    blastfile = args[0]
+    bedfiles = args[1:]
+    prefix = "_".join(op.basename(x)[:2] for x in bedfiles)
+    symlink(blastfile, prefix + ".blast")
+    allbedfile = prefix + ".gff"
+    fw = open(allbedfile, "w")
+    for bedfile in bedfiles:
+        make_gff(bedfile, fw)
+    fw.close()
+
+    cmd = opts.path + " " + prefix
+    sh(cmd)
+    outfile = prefix + ".collinearity"
+    fw = open(prefix + ".mcscanx", "w")
+    fp = open(outfile)
+    seen = set()
+    for row in fp:
+        if row[0] == "#" or row.strip() == "":
+            continue
+        pairs = row.split(":")[1].split()
+        a, b = pairs[:2]
+        a, b = gene_name(a), gene_name(b)
+        seen.add((a, b))
+
+    for a, b in sorted(seen):
+        print >> fw, "\t".join((a, b))
+    fw.close()
+    logging.debug("Total pairs: {0}".format(len(seen)))
 
 
 def grasses(args):

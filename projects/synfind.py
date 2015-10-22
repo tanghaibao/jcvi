@@ -15,6 +15,7 @@ from itertools import groupby
 from jcvi.formats.base import must_open
 from jcvi.utils.cbook import SummaryStats
 from jcvi.formats.bed import Bed
+from jcvi.compara.synteny import check_beds
 from jcvi.graphics.base import FancyArrow, plt, savefig, panel_labels, markup
 from jcvi.graphics.glyph import CartoonRegion, RoundRect
 from jcvi.apps.base import OptionParser, ActionDispatcher
@@ -26,9 +27,42 @@ def main():
         ('cartoon', 'generate cartoon illustration of SynFind'),
         ('ecoli', 'gene presence absence analysis in ecoli'),
         ('grasses', 'validate SynFind pan-grass set against James'),
+        # For benchmarking
+        ("mcscanx", 'wrap around MCScanX'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def make_gff(bed):
+    gff = bed.filename.rsplit(".", 1)[0] + ".gff"
+    fw = open(gff, "w")
+    for b in bed:
+        print >> fw, "\t".join(str(x) for x in \
+            (b.seqid, b.accn, b.start, b.end))
+    fw.close()
+    logging.debug("A total of {0} features converted to `{1}`".\
+                    format(len(bed), gff))
+
+
+def mcscanx(args):
+    """
+    %prog mcscanx athaliana.athaliana.last
+
+    Wrap around MCScanX.
+    """
+    p = OptionParser(mcscanx.__doc__)
+    p.set_beds()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    blastfile, = args
+    qbed, sbed, qorder, sorder, is_self = check_beds(blastfile, p, opts)
+    make_gff(qbed)
+    if not is_self:
+        make_gff(sbed)
 
 
 def grasses(args):

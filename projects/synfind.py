@@ -15,6 +15,7 @@ from itertools import groupby
 
 from jcvi.formats.base import get_number, must_open
 from jcvi.utils.cbook import SummaryStats, gene_name
+from jcvi.utils.grouper import Grouper
 from jcvi.formats.bed import Bed
 from jcvi.graphics.base import FancyArrow, plt, savefig, panel_labels, markup
 from jcvi.graphics.glyph import CartoonRegion, RoundRect
@@ -26,12 +27,47 @@ def main():
     actions = (
         ('cartoon', 'generate cartoon illustration of SynFind'),
         ('ecoli', 'gene presence absence analysis in ecoli'),
+        ('athaliana', 'prepare pairs data for At alpha/beta/gamma'),
         ('grasses', 'validate SynFind pan-grass set against James'),
         # For benchmarking
         ("mcscanx", 'wrap around MCScanX'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def extract_groups(g, txtfile):
+    register = defaultdict(list)
+    fp = open(txtfile)
+    fp.next()
+    for row in fp:
+        if row[0] != '>':
+            continue
+        track, atg, myname, pairname = row.split()
+        pairname = pairname.rstrip("ab").upper()
+        register[pairname].append(atg)
+    for pairname, genes in register.items():
+        g.join(*genes)
+
+
+def athaliana(args):
+    """
+    %prog athaliana J_a.txt J_bc.txt
+
+    Prepare pairs data for At alpha/beta/gamma.
+    """
+    p = OptionParser(athaliana.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    atxt, bctxt = args
+    g = Grouper()
+    for txt in (atxt, bctxt):
+        extract_groups(g, txt)
+    for group in list(g):
+        print ",".join(group)
 
 
 def make_gff(bed, fw):

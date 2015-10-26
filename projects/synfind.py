@@ -16,10 +16,11 @@ from itertools import groupby
 from jcvi.formats.base import get_number, must_open
 from jcvi.utils.cbook import SummaryStats, gene_name
 from jcvi.utils.grouper import Grouper
+from jcvi.formats.blast import BlastLine
 from jcvi.formats.bed import Bed
 from jcvi.graphics.base import FancyArrow, plt, savefig, panel_labels, markup
 from jcvi.graphics.glyph import CartoonRegion, RoundRect
-from jcvi.apps.base import OptionParser, ActionDispatcher, symlink, sh
+from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, symlink, sh
 
 
 def main():
@@ -30,10 +31,81 @@ def main():
         ('athaliana', 'prepare pairs data for At alpha/beta/gamma'),
         ('grasses', 'validate SynFind pan-grass set against James'),
         # For benchmarking
+        ('iadhore', 'wrap around iADHoRe'),
         ("mcscanx", 'wrap around MCScanX'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def write_lst(bedfile):
+    pf = op.basename(bedfile).split(".")[0]
+    mkdir(pf)
+    bed = Bed(bedfile)
+    stanza = []
+    for seqid, bs in bed.sub_beds():
+        fname = op.join(pf, "{0}.lst".format(seqid))
+        fw = open(fname, "w")
+        for b in bs:
+            print >> fw, "{0}{1}".format(b.accn, b.strand)
+        stanza.append((seqid, fname))
+        fw.close()
+    return pf, stanza
+
+
+def iadhore(args):
+    """
+    %prog iadhore athaliana.athaliana.last athaliana.bed
+
+    Wrap around iADHoRe.
+    """
+    p = OptionParser(iadhore.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) < 2:
+        sys.exit(not p.print_help())
+
+    lastfile = args[0]
+    bedfiles = args[1:]
+    blast_table = "blast_table.txt"
+    fp = open(lastfile)
+    seen = set()
+    for row in fp:
+        c = BlastLine(row)
+        a, b = c.query, c.subject
+        a, b = gene_name(a), gene_name(b)
+        if a > b:
+            a, b = b, a
+        seen.add((a, b))
+
+    fw = open(blast_table, "w")
+    for a, b in seen:
+        print >> fw, "\t".join((a, b))
+    fw.close()
+    logging.debug("A total of {0} pairs written to `{1}`"\
+            .format(len(seen), blast_table))
+
+    fw = open("config.txt", "w")
+    for bedfile in bedfiles:
+        pf, stanza = write_lst(bedfile)
+        print >> fw, "genome={0}".format(pf)
+        for seqid, fname in stanza:
+            print >> fw,  " ".join((seqid, fname))
+        print >> fw
+
+    print >> fw, "blast_table={0}".format(blast_table)
+    print >> fw, "cluster_type=colinear"
+    print >> fw, "tandem_gap=10"
+    print >> fw, "prob_cutoff=0.001"
+    print >> fw, "gap_size=20"
+    print >> fw, "cluster_gap=20"
+    print >> fw, "q_value=0.9"
+    print >> fw, "anchor_points=4"
+    print >> fw, "alignment_method=gg2"
+    print >> fw, "max_gaps_in_alignment=20"
+    print >> fw, "output_path=i-adhore_out"
+    print >> fw, "number_of_threads=4"
+    fw.close()
 
 
 def extract_groups(g, txtfile):

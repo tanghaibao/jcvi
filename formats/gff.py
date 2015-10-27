@@ -2295,7 +2295,7 @@ def make_index(gff_file):
         if op.exists(db_file):
             os.remove(db_file)
         logging.debug("Indexing `{0}`".format(gff_file))
-        gffutils.create_db(gff_file, db_file)
+        gffutils.create_db(gff_file, db_file, merge_strategy="create_unique")
     else:
         logging.debug("Load index `{0}`".format(gff_file))
 

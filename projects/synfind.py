@@ -18,6 +18,7 @@ from jcvi.utils.cbook import SummaryStats, gene_name
 from jcvi.utils.grouper import Grouper
 from jcvi.formats.blast import BlastLine
 from jcvi.formats.bed import Bed
+from jcvi.formats.gff import load
 from jcvi.graphics.base import FancyArrow, plt, savefig, panel_labels, markup
 from jcvi.graphics.glyph import CartoonRegion, RoundRect
 from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, symlink, sh
@@ -30,12 +31,54 @@ def main():
         ('ecoli', 'gene presence absence analysis in ecoli'),
         ('athaliana', 'prepare pairs data for At alpha/beta/gamma'),
         ('grasses', 'validate SynFind pan-grass set against James'),
+        ('coge', 'prepare coge datasets'),
         # For benchmarking
         ('iadhore', 'wrap around iADHoRe'),
-        ("mcscanx", 'wrap around MCScanX'),
+        ('mcscanx', 'wrap around MCScanX'),
+        ('benchmark', 'compares SynFind, MCScanX, iADHoRe and OrthoFinder'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def coge(args):
+    """
+    %prog coge *.gff
+
+    Prepare coge datasets.
+    """
+    p = OptionParser(coge.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) < 1:
+        sys.exit(not p.print_help())
+
+    gffs = args
+    for gff in gffs:
+        atoms = op.basename(gff).split(".")
+        gid = atoms[-2]
+        assert gid.startswith("gid")
+        gid = get_number(gid)
+        genomefasta = "genome_{0}.faa.fasta".format(gid)
+        species = "_".join(atoms[0].split("_")[:2])
+        cdsfasta = species + ".cds.fasta"
+        load([gff, genomefasta, "--id_attribute=Parent",
+              "--outfile={0}".format(cdsfasta)])
+
+
+def benchmark(args):
+    """
+    %prog benchmark at.truth at.synfind at.mcscanx at.iadhore at.orthofinder
+
+    Compare SynFind, MCScanx, iADHoRe and OrthoFinder against the truth.
+    """
+    p = OptionParser(benchmark.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 5:
+        sys.exit(not p.print_help())
+
+    truth, synfind, mcscanx, iadhored, orthofinder = args
 
 
 def write_lst(bedfile):

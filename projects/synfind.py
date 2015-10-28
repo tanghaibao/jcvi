@@ -151,7 +151,7 @@ def iadhore(args):
     fw.close()
 
 
-def extract_groups(g, txtfile):
+def extract_groups(g, pairs, txtfile):
     register = defaultdict(list)
     fp = open(txtfile)
     fp.next()
@@ -160,8 +160,12 @@ def extract_groups(g, txtfile):
             continue
         track, atg, myname, pairname = row.split()
         pairname = pairname.rstrip("ab").upper()
-        register[pairname].append(atg)
+        register[pairname].append(atg.upper())
+
     for pairname, genes in register.items():
+        tag = pairname[0]
+        tag = {"A": "alpha", "B": "beta", "C": "gamma", "S": "others"}[tag]
+        pairs.add(tuple(sorted(genes) + [tag]))
         g.join(*genes)
 
 
@@ -179,10 +183,19 @@ def athaliana(args):
 
     atxt, bctxt = args
     g = Grouper()
+    pairs = set()
     for txt in (atxt, bctxt):
-        extract_groups(g, txt)
+        extract_groups(g, pairs, txt)
+
+    fw = open("pairs", "w")
+    for pair in sorted(pairs):
+        print >> fw, "\t".join(pair)
+    fw.close()
+
+    fw = open("groups", "w")
     for group in list(g):
-        print ",".join(group)
+        print >> fw, ",".join(group)
+    fw.close()
 
 
 def make_gff(bed, fw):

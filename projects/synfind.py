@@ -11,7 +11,7 @@ import logging
 
 from copy import deepcopy
 from collections import defaultdict
-from itertools import groupby
+from itertools import combinations, groupby
 
 from jcvi.formats.base import get_number, must_open
 from jcvi.utils.cbook import SummaryStats, gene_name
@@ -66,6 +66,14 @@ def coge(args):
               "--outfile={0}".format(cdsfasta)])
 
 
+def calc_sensitivity_specificity(a, truth):
+    sensitivity = len(a & truth) * 100. / len(truth)
+    specificity = len(a & truth) * 100. / len(a)
+    logging.debug("Sensitivity={0:.1f}% Specificity={1:.1f}%".\
+                    format(sensitivity, specificity))
+    return sensitivity, specificity
+
+
 def benchmark(args):
     """
     %prog benchmark at.truth at.synfind at.mcscanx at.iadhore at.orthofinder
@@ -78,7 +86,63 @@ def benchmark(args):
     if len(args) != 5:
         sys.exit(not p.print_help())
 
-    truth, synfind, mcscanx, iadhored, orthofinder = args
+    truth, synfind, mcscanx, iadhore, orthofinder = args
+    fp = open(truth)
+    truth = set()
+    for row in fp:
+        a, b, pair = row.split()
+        truth.add((a, b))
+    logging.debug("Truth: {0} pairs".format(len(truth)))
+
+    fp = open(synfind)
+    synfind = set()
+    for row in fp:
+        if row[0] == '#':
+            continue
+        atoms = row.split()
+        query, hits = atoms[1], atoms[2]
+        hits = [gene_name(x) for x in hits.split(",") if x != "proxy"]
+        query = gene_name(query)
+        for hit in hits:
+            synfind.add(tuple(sorted((query, hit))))
+    logging.debug("SynFind: {0} pairs".format(len(synfind)))
+    calc_sensitivity_specificity(synfind, truth)
+
+    fp = open(mcscanx)
+    mcscanx = set()
+    for row in fp:
+        if row[0] == '#':
+            continue
+        atoms = row.split(":")[1].split()
+        query, hit = atoms[:2]
+        query, hit = gene_name(query), gene_name(hit)
+        mcscanx.add(tuple(sorted((query, hit))))
+    logging.debug("MCScanX: {0} pairs".format(len(mcscanx)))
+    calc_sensitivity_specificity(mcscanx, truth)
+
+    fp = open(iadhore)
+    iadhore = set()
+    fp.next()
+    for row in fp:
+        atoms = row.split()
+        query, hit = atoms[3:5]
+        query, hit = gene_name(query), gene_name(hit)
+        iadhore.add(tuple(sorted((query, hit))))
+    logging.debug("iADHoRe: {0} pairs".format(len(iadhore)))
+    calc_sensitivity_specificity(iadhore, truth)
+
+    fp = open(orthofinder)
+    orthofinder = set()
+    fp.next()
+    for row in fp:
+        row = row.replace('"', "")
+        atoms = row.split(",")
+        genes = [x.strip() for x in atoms if not x.startswith("OG")]
+        genes = [gene_name(x) for x in genes]
+        for a, b in combinations(genes, 2):
+            orthofinder.add(tuple(sorted((a, b))))
+    logging.debug("OrthoFinder: {0} pairs".format(len(orthofinder)))
+    calc_sensitivity_specificity(orthofinder, truth)
 
 
 def write_lst(bedfile):

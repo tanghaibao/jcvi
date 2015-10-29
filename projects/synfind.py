@@ -19,6 +19,7 @@ from jcvi.utils.grouper import Grouper
 from jcvi.formats.blast import BlastLine
 from jcvi.formats.bed import Bed
 from jcvi.formats.gff import Gff, load
+from jcvi.apps.grid import MakeManager
 from jcvi.graphics.base import FancyArrow, plt, savefig, panel_labels, markup
 from jcvi.graphics.glyph import CartoonRegion, RoundRect
 from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, symlink
@@ -35,6 +36,7 @@ def main():
         ('synfind', 'prepare input for SynFind'),
         ('iadhore', 'prepare input for iADHoRe'),
         ('mcscanx', 'prepare input for MCScanX'),
+        ('cyntenator', 'prepare input for Cyntenator'),
         ('athalianatruth', 'prepare truth pairs for At alpha/beta/gamma'),
         ('yeasttruth', 'prepare truth pairs for 14 yeasts'),
         ('grasstruth', 'prepare truth pairs for 4 grasses'),
@@ -321,6 +323,65 @@ def write_lst(bedfile):
         stanza.append((seqid, fname))
         fw.close()
     return pf, stanza
+
+
+def write_txt(bedfile):
+    pf = op.basename(bedfile).split(".")[0][:20]
+    txtfile = pf + ".txt"
+    fw = open(txtfile, "w")
+    print >> fw, "#genome"
+    bed = Bed(bedfile)
+    for b in bed:
+        print >> fw, " ".join(str(x) for x in \
+                (b.accn, b.seqid, b.start, b.end, b.strand))
+    fw.close()
+    return txtfile
+
+
+def cyntenator(args):
+    """
+    %prog cyntenator athaliana.athaliana.last athaliana.bed
+
+    Prepare input for Cyntenator.
+    """
+    p = OptionParser(cyntenator.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) < 2:
+        sys.exit(not p.print_help())
+
+    lastfile = args[0]
+    fp = open(lastfile)
+    filteredlastfile = lastfile + ".blast"
+    fw = open(filteredlastfile, "w")
+    for row in fp:
+        b = BlastLine(row)
+        if b.query == b.subject:
+            continue
+        print >> fw, "\t".join((b.query, b.subject, str(b.score)))
+    fw.close()
+
+    bedfiles = args[1:]
+    fp = open(lastfile)
+    b = BlastLine(fp.next())
+    subject = b.subject
+    txtfiles = []
+    for bedfile in bedfiles:
+        order = Bed(bedfile).order
+        if subject in order:
+            db = op.basename(bedfile).split(".")[0][:20]
+            logging.debug("Found db: {0}".format(db))
+        txtfile = write_txt(bedfile)
+        txtfiles.append(txtfile)
+
+    db += ".txt"
+    mm = MakeManager()
+    for txtfile in txtfiles:
+        outfile = txtfile + ".alignment"
+        cmd = 'cyntenator -t "({0} {1})" -h blast {2} > {3}'\
+                .format(txtfile, db, filteredlastfile, outfile)
+        mm.add((txtfile, db, filteredlastfile), outfile, cmd)
+    mm.write()
 
 
 def iadhore(args):

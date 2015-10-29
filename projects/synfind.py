@@ -13,7 +13,7 @@ from copy import deepcopy
 from collections import defaultdict
 from itertools import groupby
 
-from jcvi.formats.base import DictFile, get_number, must_open
+from jcvi.formats.base import get_number, must_open
 from jcvi.utils.cbook import SummaryStats, gene_name
 from jcvi.utils.grouper import Grouper
 from jcvi.formats.blast import BlastLine
@@ -29,19 +29,85 @@ def main():
     actions = (
         ('cartoon', 'generate cartoon illustration of SynFind'),
         ('ecoli', 'gene presence absence analysis in ecoli'),
-        ('grasses', 'validate SynFind pan-grass set against James'),
+        ('grass', 'validate SynFind pan-grass set against James'),
         ('coge', 'prepare coge datasets'),
         # For benchmarking
-        ('iadhore', 'wrap around iADHoRe'),
-        ('mcscanx', 'wrap around MCScanX'),
-        ('athalianatruth', 'prepare pairs data for At alpha/beta/gamma'),
-        ('yeasttruth', 'prepare pairs data for 14 yeasts'),
-        ('grasstruth', 'prepare pairs data for 4 grasses'),
+        ('synfind', 'prepare input for SynFind'),
+        ('iadhore', 'prepare input for iADHoRe'),
+        ('mcscanx', 'prepare input for MCScanX'),
+        ('athalianatruth', 'prepare truth pairs for At alpha/beta/gamma'),
+        ('yeasttruth', 'prepare truth pairs for 14 yeasts'),
+        ('grasstruth', 'prepare truth pairs for 4 grasses'),
         ('benchmark', 'compare SynFind, MCScanX, iADHoRe and OrthoFinder'),
         ('venn', 'display benchmark results as Venn diagram'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def grasstruth(args):
+    """
+    %prog grasstruth james-pan-grass.txt
+
+    Prepare truth pairs for 4 grasses.
+    """
+    p = OptionParser(grasstruth.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    james, = args
+    fp = open(james)
+    for row in fp:
+        atoms = row.split()
+        genes = []
+        for a in atoms:
+            genes.extend(a.split("||"))
+        genes = [x for x in genes if ":" not in x]
+        Os = [x for x in genes if x.startswith("Os")]
+        for o in Os:
+            for g in genes:
+                if o == g:
+                    continue
+                print "\t".join((o, g))
+
+
+def synfind(args):
+    """
+    %prog synfind all.last *.bed
+
+    Prepare input for SynFind.
+    """
+    p = OptionParser(synfind.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) < 2:
+        sys.exit(not p.print_help())
+
+    lastfile = args[0]
+    bedfiles = args[1:]
+    fp = open(lastfile)
+    filteredlast = lastfile + ".filtered"
+    fw = open(filteredlast, "w")
+    for row in fp:
+        b = BlastLine(row)
+        if b.query == b.subject:
+            continue
+        print >> fw, b
+    fw.close()
+    logging.debug("Filtered LAST file written to `{0}`".format(filteredlast))
+
+    allbed = "all.bed"
+    fw = open(allbed, "w")
+    for i, bedfile in enumerate(bedfiles):
+        prefix = chr(ord('A') + i)
+        bed = Bed(bedfile)
+        for b in bed:
+            b.seqid = prefix + b.seqid
+            print >> fw, b
+    fw.close()
+    logging.debug("Bed file written to `{0}`".format(allbed))
 
 
 def yeasttruth(args):
@@ -171,29 +237,19 @@ def benchmark(args):
     truth = set()
     for row in fp:
         a, b = row.strip().split("\t")[:2]
-        truth.add((a, b))
+        truth.add(tuple(sorted((a, b))))
     logging.debug("Truth: {0} pairs".format(len(truth)))
 
     fp = open(synfind)
-    alias = DictFile(opts.alias) if opts.alias else {}
     fw = must_open(opts.outfile, "w")
     synfind = set()
-    header = fp.next()
-    orgs = header.count("ORG:")
     for row in fp:
-        if row[0] == '#':
-            continue
         atoms = row.strip().split("\t")
-        query, hits = atoms[1], atoms[1: orgs + 1]
-        hits = ",".join(hits)
-        hits = [gene_name(alias.get(x, x)) \
-                for x in hits.split(",") if x != "proxy"]
-        query = gene_name(query)
-        for hit in hits:
-            if query == hit:
-                continue
-            synfind.add(tuple(sorted((query, hit))))
-    write_pairs(synfind, "synfind.pairs")
+        query, hit, tag = atoms[:3]
+        if tag != "S":
+            continue
+        query, hit = gene_name(query), gene_name(hit)
+        synfind.add(tuple(sorted((query, hit))))
     calc_sensitivity_specificity(synfind, truth, "SynFind", fw)
 
     fp = open(mcscanx)
@@ -232,7 +288,6 @@ def benchmark(args):
                 if p == g:
                     continue
                 orthofinder.add(tuple(sorted((p, g))))
-    write_pairs(orthofinder, "orthofinder.pairs")
     calc_sensitivity_specificity(orthofinder, truth, "OrthoFinder", fw)
     fw.close()
 
@@ -390,15 +445,15 @@ def mcscanx(args):
     fw.close()
 
 
-def grasses(args):
+def grass(args):
     """
-    %prog grasses coge_master_table.txt james.txt
+    %prog grass coge_master_table.txt james.txt
 
     Validate SynFind pan-grass set against James. This set can be generated:
 
     https://genomevolution.org/r/fhak
     """
-    p = OptionParser(grasses.__doc__)
+    p = OptionParser(grass._doc__)
     p.set_verbose()
     opts, args = p.parse_args(args)
 

@@ -22,6 +22,7 @@ The last column means orientation. "+" is same direction.
 """
 
 import os.path as op
+import logging
 import sys
 import sqlite3
 
@@ -201,7 +202,10 @@ def main(blastfile, p, opts):
         fw = must_open(opts.outfile, "w")
 
     batch_query(qbed, sbed, all_data, opts, fw=fw, c=c, transpose=False)
-    batch_query(qbed, sbed, all_data, opts, fw=fw, c=c, transpose=True)
+    if qbed.filename == sbed.filename:
+        logging.debug("Self comparisons, mirror ignored")
+    else:
+        batch_query(qbed, sbed, all_data, opts, fw=fw, c=c, transpose=True)
 
     if sqlite:
         c.execute("create index q on synteny (query)")

@@ -134,7 +134,7 @@ def blastfilter_main(blast_file, p, opts):
                 write_new_bed(sbed, sdups_to_mother)
 
             # just want to use this script as a tandem finder.
-            sys.exit()
+            #sys.exit()
 
         before_filter = len(filtered_blasts)
         filtered_blasts = list(filter_tandem(filtered_blasts, \

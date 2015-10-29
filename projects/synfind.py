@@ -11,14 +11,14 @@ import logging
 
 from copy import deepcopy
 from collections import defaultdict
-from itertools import combinations, groupby
+from itertools import groupby
 
-from jcvi.formats.base import get_number, must_open
+from jcvi.formats.base import DictFile, get_number, must_open
 from jcvi.utils.cbook import SummaryStats, gene_name
 from jcvi.utils.grouper import Grouper
 from jcvi.formats.blast import BlastLine
 from jcvi.formats.bed import Bed
-from jcvi.formats.gff import load
+from jcvi.formats.gff import Gff, load
 from jcvi.graphics.base import FancyArrow, plt, savefig, panel_labels, markup
 from jcvi.graphics.glyph import CartoonRegion, RoundRect
 from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, symlink
@@ -29,17 +29,67 @@ def main():
     actions = (
         ('cartoon', 'generate cartoon illustration of SynFind'),
         ('ecoli', 'gene presence absence analysis in ecoli'),
-        ('athaliana', 'prepare pairs data for At alpha/beta/gamma'),
         ('grasses', 'validate SynFind pan-grass set against James'),
         ('coge', 'prepare coge datasets'),
         # For benchmarking
         ('iadhore', 'wrap around iADHoRe'),
         ('mcscanx', 'wrap around MCScanX'),
+        ('athalianatruth', 'prepare pairs data for At alpha/beta/gamma'),
+        ('yeasttruth', 'prepare pairs data for 14 yeasts'),
+        ('grasstruth', 'prepare pairs data for 4 grasses'),
         ('benchmark', 'compare SynFind, MCScanX, iADHoRe and OrthoFinder'),
         ('venn', 'display benchmark results as Venn diagram'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def yeasttruth(args):
+    """
+    %prog yeasttruth Pillars.tab *.gff
+
+    Prepare pairs data for 14 yeasts.
+    """
+    p = OptionParser(yeasttruth.__doc__)
+    p.set_outfile()
+    opts, args = p.parse_args(args)
+
+    if len(args) < 2:
+        sys.exit(not p.print_help())
+
+    pillars = args[0]
+    gffiles = args[1:]
+    aliases = {}
+    pivot = {}
+    for gffile in gffiles:
+        is_pivot = op.basename(gffile).startswith("Saccharomyces_cerevisiae")
+        gff = Gff(gffile)
+        for g in gff:
+            if g.type != "gene":
+                continue
+            for a in g.attributes["Alias"]:
+                aliases[a] = g.accn
+                if is_pivot:
+                    pivot[a] = g.accn
+    logging.debug("Aliases imported: {0}".format(len(aliases)))
+    logging.debug("Pivot imported: {0}".format(len(pivot)))
+    fw = open("yeast.aliases", "w")
+    for k, v in sorted(aliases.items()):
+        print >> fw, "\t".join((k, v))
+    fw.close()
+
+    fp = open(pillars)
+    fw = must_open(opts.outfile, "w")
+    for row in fp:
+        atoms = [x for x in row.split() if x != "---"]
+        pps = [pivot[x] for x in atoms if x in pivot]
+        atoms = [aliases[x] for x in atoms if x in aliases]
+        for p in pps:
+            for a in atoms:
+                if p == a:
+                    continue
+                print >> fw, "\t".join((p, a))
+    fw.close()
 
 
 def venn(args):
@@ -95,6 +145,13 @@ def calc_sensitivity_specificity(a, truth, tag, fw):
     print >> fw, tag, len(a), len(truth), len(common)
 
 
+def write_pairs(pairs, pairsfile):
+    fz = open(pairsfile, "w")
+    for a, b in pairs:
+        print >> fz, "\t".join((a, b))
+    fz.close()
+
+
 def benchmark(args):
     """
     %prog benchmark at.truth at.synfind at.mcscanx at.iadhore at.orthofinder
@@ -102,6 +159,7 @@ def benchmark(args):
     Compare SynFind, MCScanx, iADHoRe and OrthoFinder against the truth.
     """
     p = OptionParser(benchmark.__doc__)
+    p.add_option("--alias", help="Use alias file for SynFind")
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -112,22 +170,30 @@ def benchmark(args):
     fp = open(truth)
     truth = set()
     for row in fp:
-        a, b, pair = row.split()
+        a, b = row.strip().split("\t")[:2]
         truth.add((a, b))
     logging.debug("Truth: {0} pairs".format(len(truth)))
 
     fp = open(synfind)
+    alias = DictFile(opts.alias) if opts.alias else {}
     fw = must_open(opts.outfile, "w")
     synfind = set()
+    header = fp.next()
+    orgs = header.count("ORG:")
     for row in fp:
         if row[0] == '#':
             continue
-        atoms = row.split()
-        query, hits = atoms[1], atoms[2]
-        hits = [gene_name(x) for x in hits.split(",") if x != "proxy"]
+        atoms = row.strip().split("\t")
+        query, hits = atoms[1], atoms[1: orgs + 1]
+        hits = ",".join(hits)
+        hits = [gene_name(alias.get(x, x)) \
+                for x in hits.split(",") if x != "proxy"]
         query = gene_name(query)
         for hit in hits:
+            if query == hit:
+                continue
             synfind.add(tuple(sorted((query, hit))))
+    write_pairs(synfind, "synfind.pairs")
     calc_sensitivity_specificity(synfind, truth, "SynFind", fw)
 
     fp = open(mcscanx)
@@ -135,7 +201,7 @@ def benchmark(args):
     for row in fp:
         if row[0] == '#':
             continue
-        atoms = row.split(":")[1].split()
+        atoms = row.strip().split(":")[1].split()
         query, hit = atoms[:2]
         query, hit = gene_name(query), gene_name(hit)
         mcscanx.add(tuple(sorted((query, hit))))
@@ -145,7 +211,7 @@ def benchmark(args):
     iadhore = set()
     fp.next()
     for row in fp:
-        atoms = row.split()
+        atoms = row.strip().split("\t")
         query, hit = atoms[3:5]
         query, hit = gene_name(query), gene_name(hit)
         iadhore.add(tuple(sorted((query, hit))))
@@ -154,13 +220,19 @@ def benchmark(args):
     fp = open(orthofinder)
     orthofinder = set()
     fp.next()
+    pivots = set([x[0] for x in truth])
     for row in fp:
         row = row.replace('"', "")
         atoms = row.split(",")
         genes = [x.strip() for x in atoms if not x.startswith("OG")]
         genes = [gene_name(x) for x in genes]
-        for a, b in combinations(genes, 2):
-            orthofinder.add(tuple(sorted((a, b))))
+        pps = [x for x in genes if x in pivots]
+        for p in pps:
+            for g in genes:
+                if p == g:
+                    continue
+                orthofinder.add(tuple(sorted((p, g))))
+    write_pairs(orthofinder, "orthofinder.pairs")
     calc_sensitivity_specificity(orthofinder, truth, "OrthoFinder", fw)
     fw.close()
 
@@ -253,13 +325,13 @@ def extract_groups(g, pairs, txtfile):
         g.join(*genes)
 
 
-def athaliana(args):
+def athalianatruth(args):
     """
-    %prog athaliana J_a.txt J_bc.txt
+    %prog athalianatruth J_a.txt J_bc.txt
 
     Prepare pairs data for At alpha/beta/gamma.
     """
-    p = OptionParser(athaliana.__doc__)
+    p = OptionParser(athalianatruth.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:

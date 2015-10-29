@@ -21,7 +21,7 @@ from jcvi.formats.bed import Bed
 from jcvi.formats.gff import load
 from jcvi.graphics.base import FancyArrow, plt, savefig, panel_labels, markup
 from jcvi.graphics.glyph import CartoonRegion, RoundRect
-from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, symlink, sh
+from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, symlink
 
 
 def main():
@@ -35,10 +35,29 @@ def main():
         # For benchmarking
         ('iadhore', 'wrap around iADHoRe'),
         ('mcscanx', 'wrap around MCScanX'),
-        ('benchmark', 'compares SynFind, MCScanX, iADHoRe and OrthoFinder'),
+        ('benchmark', 'compare SynFind, MCScanX, iADHoRe and OrthoFinder'),
+        ('venn', 'display benchmark results as Venn diagram'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def venn(args):
+    """
+    %prog venn athaliana.benchmark
+
+    Display benchmark results as Venn diagram.
+    """
+    p = OptionParser(venn.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    bc, = args
+    fp = open(bc)
+    for row in fp:
+        prog, prog_counts, truth_counts, shared = args
 
 
 def coge(args):
@@ -263,19 +282,14 @@ def athaliana(args):
     fw.close()
 
 
-def make_gff(bed, fw):
-    prefix = op.basename(bed)[:2]
+def make_gff(bed, prefix, fw):
     bed = Bed(bed)
     nfeats = 0
     for b in bed:
-        try:
-            seqid = prefix + str(get_number(b.seqid))
-        except:
-            continue
+        seqid = prefix + b.seqid
         print >> fw, "\t".join(str(x) for x in \
             (seqid, b.accn, b.start, b.end))
         nfeats += 1
-    fw.close()
     logging.debug("A total of {0} features converted to `{1}`".\
                     format(nfeats, fw.name))
 
@@ -287,9 +301,6 @@ def mcscanx(args):
     Wrap around MCScanX.
     """
     p = OptionParser(mcscanx.__doc__)
-    p.add_option("--path", default="../bin/MCScanX",
-                 help="Path to MCScanX")
-    p.set_beds()
     opts, args = p.parse_args(args)
 
     if len(args) < 2:
@@ -301,28 +312,10 @@ def mcscanx(args):
     symlink(blastfile, prefix + ".blast")
     allbedfile = prefix + ".gff"
     fw = open(allbedfile, "w")
-    for bedfile in bedfiles:
-        make_gff(bedfile, fw)
+    for i, bedfile in enumerate(bedfiles):
+        prefix = chr(ord('A') + i)
+        make_gff(bedfile, prefix, fw)
     fw.close()
-
-    cmd = opts.path + " " + prefix
-    sh(cmd)
-    outfile = prefix + ".collinearity"
-    fw = open(prefix + ".mcscanx", "w")
-    fp = open(outfile)
-    seen = set()
-    for row in fp:
-        if row[0] == "#" or row.strip() == "":
-            continue
-        pairs = row.split(":")[1].split()
-        a, b = pairs[:2]
-        a, b = gene_name(a), gene_name(b)
-        seen.add((a, b))
-
-    for a, b in sorted(seen):
-        print >> fw, "\t".join((a, b))
-    fw.close()
-    logging.debug("Total pairs: {0}".format(len(seen)))
 
 
 def grasses(args):

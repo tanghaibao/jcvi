@@ -2107,7 +2107,6 @@ def note(args):
             help="Only process certain types, multiple types allowed with comma")
     p.add_option("--attribute", default="Parent,Note",
             help="Attribute field to extract, multiple fields allowd with comma")
-
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -2124,7 +2123,8 @@ def note(args):
     for g in gff:
         if type and g.type not in type:
             continue
-        keyval = [g.accn] + [g.attributes[x][0] for x in attrib if x in g.attributes]
+        keyval = [g.accn] + [",".join(g.attributes[x]) \
+                            for x in attrib if x in g.attributes]
         keyval = tuple(keyval)
         if keyval not in seen:
             print "\t".join(keyval)

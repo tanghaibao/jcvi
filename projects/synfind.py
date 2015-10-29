@@ -14,13 +14,14 @@ from collections import defaultdict
 from itertools import groupby
 
 from jcvi.formats.base import get_number, must_open
-from jcvi.utils.cbook import SummaryStats, gene_name
+from jcvi.utils.cbook import SummaryStats, gene_name, percentage
 from jcvi.utils.grouper import Grouper
 from jcvi.formats.blast import BlastLine
 from jcvi.formats.bed import Bed
 from jcvi.formats.gff import Gff, load
 from jcvi.apps.grid import MakeManager
-from jcvi.graphics.base import FancyArrow, plt, savefig, panel_labels, markup
+from jcvi.graphics.base import FancyArrow, plt, savefig, panel_labels, markup, \
+            normalize_axes, latex
 from jcvi.graphics.glyph import CartoonRegion, RoundRect
 from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, symlink
 
@@ -174,20 +175,58 @@ def yeasttruth(args):
 
 def venn(args):
     """
-    %prog venn athaliana.benchmark
+    %prog venn *.benchmark
 
     Display benchmark results as Venn diagram.
     """
-    p = OptionParser(venn.__doc__)
-    opts, args = p.parse_args(args)
+    from matplotlib_venn import venn2
 
-    if len(args) != 1:
+    p = OptionParser(venn.__doc__)
+    opts, args, iopts = p.set_image_options(args, figsize="9x9")
+
+    if len(args) < 1:
         sys.exit(not p.print_help())
 
-    bc, = args
-    fp = open(bc)
-    for row in fp:
-        prog, prog_counts, truth_counts, shared = args
+    bcs = args
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes([0, 0, 1, 1])
+
+    pad = .02
+    ystart = 1
+    ywidth = 1. / len(bcs)
+    for bc in bcs:
+        fp = open(bc)
+        data = []
+        for row in fp:
+            prog, pcounts, tcounts, shared = row.split()
+            pcounts = int(pcounts)
+            tcounts = int(tcounts)
+            shared = int(shared)
+            data.append((prog, pcounts, tcounts, shared))
+        xstart = 0
+        xwidth = 1. / len(data)
+        for prog, pcounts, tcounts, shared in data:
+            a, b, c = pcounts - shared, tcounts - shared, shared
+            ax = fig.add_axes([xstart + pad, ystart - ywidth + pad,
+                               xwidth - 2 * pad, ywidth - 2 * pad])
+            venn2(subsets=(a, b, c), set_labels=(prog, "Truth"), ax=ax)
+            message = "Sn={0} Pu={1}".\
+                format(percentage(shared, tcounts, precision=0, mode=2),
+                       percentage(shared, pcounts, precision=0, mode=2))
+            print >> sys.stderr, message
+            ax.text(.5, .92, latex(message), ha="center", va="center",
+                    transform=ax.transAxes, color='b')
+            ax.set_axis_off()
+            xstart += xwidth
+        ystart -= ywidth
+
+    panel_labels(root, ((.04, .96, "A"), (.04, .96 - ywidth, "B"),
+                  (.04, .96 - 2 * ywidth, "C")))
+    panel_labels(root, ((.5, .98, "A. thaliana duplicates"),
+                        (.5, .98 - ywidth, "14 Yeast genomes"),
+                        (.5, .98 - 2 * ywidth, "4 Grass genomes")))
+    normalize_axes(root)
+    savefig("venn.pdf", dpi=opts.dpi)
 
 
 def coge(args):

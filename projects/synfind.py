@@ -59,18 +59,26 @@ def grasstruth(args):
 
     james, = args
     fp = open(james)
+    pairs = set()
     for row in fp:
         atoms = row.split()
         genes = []
-        for a in atoms:
-            genes.extend(a.split("||"))
+        idx = {}
+        for i, a in enumerate(atoms):
+            aa = a.split("||")
+            for ma in aa:
+                idx[ma] = i
+            genes.extend(aa)
         genes = [x for x in genes if ":" not in x]
         Os = [x for x in genes if x.startswith("Os")]
         for o in Os:
             for g in genes:
-                if o == g:
+                if idx[o] == idx[g]:
                     continue
-                print "\t".join((o, g))
+                pairs.add(tuple(sorted((o, g))))
+
+    for a, b in sorted(pairs):
+        print "\t".join((a, b))
 
 
 def synfind(args):
@@ -145,6 +153,7 @@ def yeasttruth(args):
     fw.close()
 
     fp = open(pillars)
+    pairs = set()
     fw = must_open(opts.outfile, "w")
     for row in fp:
         atoms = [x for x in row.split() if x != "---"]
@@ -154,7 +163,10 @@ def yeasttruth(args):
             for a in atoms:
                 if p == a:
                     continue
-                print >> fw, "\t".join((p, a))
+                pairs.add(tuple(sorted((p, a))))
+
+    for a, b in sorted(pairs):
+        print >> fw, "\t".join((a, b))
     fw.close()
 
 
@@ -206,7 +218,7 @@ def calc_sensitivity_specificity(a, truth, tag, fw):
     sensitivity = len(common) * 100. / len(truth)
     specificity = len(common) * 100. / len(a)
     logging.debug("{0}: {1} pairs".format(tag, len(a)))
-    logging.debug("{0}: Sensitivity={1:.1f}% Specificity={2:.1f}%".\
+    logging.debug("{0}: Sensitivity={1:.1f}% Purity={2:.1f}%".\
                     format(tag, sensitivity, specificity))
     print >> fw, tag, len(a), len(truth), len(common)
 
@@ -220,35 +232,41 @@ def write_pairs(pairs, pairsfile):
 
 def benchmark(args):
     """
-    %prog benchmark at.truth at.synfind at.mcscanx at.iadhore at.orthofinder
+    %prog benchmark at bedfile
 
     Compare SynFind, MCScanx, iADHoRe and OrthoFinder against the truth.
     """
     p = OptionParser(benchmark.__doc__)
-    p.add_option("--alias", help="Use alias file for SynFind")
-    p.set_outfile()
     opts, args = p.parse_args(args)
 
-    if len(args) != 5:
+    if len(args) != 2:
         sys.exit(not p.print_help())
 
-    truth, synfind, mcscanx, iadhore, orthofinder = args
+    pf, bedfile = args
+    truth = pf + ".truth"
+    synfind = pf + ".synfind"
+    mcscanx = pf + ".mcscanx"
+    iadhore = pf + ".iadhore"
+    orthofinder = pf + ".orthofinder"
+    pivots = set([x.accn for x in Bed(bedfile)])
+
     fp = open(truth)
     truth = set()
     for row in fp:
         a, b = row.strip().split("\t")[:2]
+        pivots.add(a)
         truth.add(tuple(sorted((a, b))))
     logging.debug("Truth: {0} pairs".format(len(truth)))
 
     fp = open(synfind)
-    fw = must_open(opts.outfile, "w")
+    benchmarkfile = pf + ".benchmark"
+    fw = must_open(benchmarkfile, "w")
     synfind = set()
     for row in fp:
         atoms = row.strip().split("\t")
         query, hit, tag = atoms[:3]
         if tag != "S":
             continue
-        query, hit = gene_name(query), gene_name(hit)
         synfind.add(tuple(sorted((query, hit))))
     calc_sensitivity_specificity(synfind, truth, "SynFind", fw)
 
@@ -259,7 +277,6 @@ def benchmark(args):
             continue
         atoms = row.strip().split(":")[1].split()
         query, hit = atoms[:2]
-        query, hit = gene_name(query), gene_name(hit)
         mcscanx.add(tuple(sorted((query, hit))))
     calc_sensitivity_specificity(mcscanx, truth, "MCScanX", fw)
 
@@ -269,17 +286,15 @@ def benchmark(args):
     for row in fp:
         atoms = row.strip().split("\t")
         query, hit = atoms[3:5]
-        query, hit = gene_name(query), gene_name(hit)
         iadhore.add(tuple(sorted((query, hit))))
     calc_sensitivity_specificity(iadhore, truth, "iADHoRe", fw)
 
     fp = open(orthofinder)
     orthofinder = set()
     fp.next()
-    pivots = set([x[0] for x in truth])
     for row in fp:
         row = row.replace('"', "")
-        atoms = row.split(",")
+        atoms = row.replace(",", " ").split()
         genes = [x.strip() for x in atoms if not x.startswith("OG")]
         genes = [gene_name(x) for x in genes]
         pps = [x for x in genes if x in pivots]
@@ -288,6 +303,7 @@ def benchmark(args):
                 if p == g:
                     continue
                 orthofinder.add(tuple(sorted((p, g))))
+    #write_pairs(orthofinder, "orthofinder.pairs")
     calc_sensitivity_specificity(orthofinder, truth, "OrthoFinder", fw)
     fw.close()
 

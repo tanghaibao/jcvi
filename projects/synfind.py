@@ -66,12 +66,14 @@ def coge(args):
               "--outfile={0}".format(cdsfasta)])
 
 
-def calc_sensitivity_specificity(a, truth):
-    sensitivity = len(a & truth) * 100. / len(truth)
-    specificity = len(a & truth) * 100. / len(a)
-    logging.debug("Sensitivity={0:.1f}% Specificity={1:.1f}%".\
-                    format(sensitivity, specificity))
-    return sensitivity, specificity
+def calc_sensitivity_specificity(a, truth, tag, fw):
+    common = a & truth
+    sensitivity = len(common) * 100. / len(truth)
+    specificity = len(common) * 100. / len(a)
+    logging.debug("{0}: {1} pairs".format(tag, len(a)))
+    logging.debug("{0}: Sensitivity={1:.1f}% Specificity={2:.1f}%".\
+                    format(tag, sensitivity, specificity))
+    print >> fw, tag, len(a), len(truth), len(common)
 
 
 def benchmark(args):
@@ -81,6 +83,7 @@ def benchmark(args):
     Compare SynFind, MCScanx, iADHoRe and OrthoFinder against the truth.
     """
     p = OptionParser(benchmark.__doc__)
+    p.set_outfile()
     opts, args = p.parse_args(args)
 
     if len(args) != 5:
@@ -95,6 +98,7 @@ def benchmark(args):
     logging.debug("Truth: {0} pairs".format(len(truth)))
 
     fp = open(synfind)
+    fw = must_open(opts.outfile, "w")
     synfind = set()
     for row in fp:
         if row[0] == '#':
@@ -105,8 +109,7 @@ def benchmark(args):
         query = gene_name(query)
         for hit in hits:
             synfind.add(tuple(sorted((query, hit))))
-    logging.debug("SynFind: {0} pairs".format(len(synfind)))
-    calc_sensitivity_specificity(synfind, truth)
+    calc_sensitivity_specificity(synfind, truth, "SynFind", fw)
 
     fp = open(mcscanx)
     mcscanx = set()
@@ -117,8 +120,7 @@ def benchmark(args):
         query, hit = atoms[:2]
         query, hit = gene_name(query), gene_name(hit)
         mcscanx.add(tuple(sorted((query, hit))))
-    logging.debug("MCScanX: {0} pairs".format(len(mcscanx)))
-    calc_sensitivity_specificity(mcscanx, truth)
+    calc_sensitivity_specificity(mcscanx, truth, "MCScanX", fw)
 
     fp = open(iadhore)
     iadhore = set()
@@ -128,8 +130,7 @@ def benchmark(args):
         query, hit = atoms[3:5]
         query, hit = gene_name(query), gene_name(hit)
         iadhore.add(tuple(sorted((query, hit))))
-    logging.debug("iADHoRe: {0} pairs".format(len(iadhore)))
-    calc_sensitivity_specificity(iadhore, truth)
+    calc_sensitivity_specificity(iadhore, truth, "iADHoRe", fw)
 
     fp = open(orthofinder)
     orthofinder = set()
@@ -141,8 +142,8 @@ def benchmark(args):
         genes = [gene_name(x) for x in genes]
         for a, b in combinations(genes, 2):
             orthofinder.add(tuple(sorted((a, b))))
-    logging.debug("OrthoFinder: {0} pairs".format(len(orthofinder)))
-    calc_sensitivity_specificity(orthofinder, truth)
+    calc_sensitivity_specificity(orthofinder, truth, "OrthoFinder", fw)
+    fw.close()
 
 
 def write_lst(bedfile):
@@ -154,7 +155,7 @@ def write_lst(bedfile):
         fname = op.join(pf, "{0}.lst".format(seqid))
         fw = open(fname, "w")
         for b in bs:
-            print >> fw, "{0}{1}".format(b.accn, b.strand)
+            print >> fw, "{0}{1}".format(b.accn.replace(" ", ""), b.strand)
         stanza.append((seqid, fname))
         fw.close()
     return pf, stanza

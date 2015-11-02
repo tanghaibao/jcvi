@@ -219,7 +219,32 @@ Unknown = "Unknown protein"
 Hypothetical = "hypothetical protein"
 
 
+def read_interpro(ipr):
+    store = {}
+    fp = open(ipr)
+    # Aco000343.1     0d98a55eb3399a408e06252a2e24efcf        2083    Pfam
+    # PF00476 DNA polymerase family A 1685    2075    1.70E-55        T
+    # 10-10-2014      IPR001098       "DNA-directed DNA polymerase, family A,
+    # palm domain"    GO:0003677|GO:0003887|GO:0006260        KEGG:
+    # 00230+2.7.7.7|KEGG: 00240+2.7.7.7
+    for row in fp:
+        accession, md5, seqlen, analysis, signature, signature_description, \
+        start, stop, score, status, date, interpro, interpro_description, GO, \
+                        pathway = row.split("\t")
+        accession = accession.split(".")[0]
+        interpro_description = interpro_description.replace('"', "")
+        pathway = pathway.strip()
+        if accession not in ipr:
+            store[accession] = (interpro, interpro_description, GO, pathway)
+    return store
+
+
 def fix_text(s, ignore_sym_pat=False):
+
+    if not ignore_sym_pat:
+        # Fix descriptions like D7TDB1 (
+        s = re.sub("([A-Z0-9]){6} \(", "", s)
+        s = s.split(";")[0]
 
     # Fix parantheses containing names
     s = s.translate(None, "[]")
@@ -243,11 +268,6 @@ def fix_text(s, ignore_sym_pat=False):
     m = re.findall(glycosidic_link_pat, s)
     if m and ";" in s:
         s = re.sub(";\s*", "-", s)
-
-    if not ignore_sym_pat:
-        # Fix descriptions like D7TDB1 (
-        s = re.sub("([A-Z0-9]){6} \(", "", s)
-        s = s.split(";")[0]
 
     # remove underscore from description
     s = re.sub("_", " ", s)
@@ -399,7 +419,7 @@ def fix_text(s, ignore_sym_pat=False):
         if re.search(r"\W{1,}$", s) and not re.search(r"\)$", s):
             s = re.sub("\W{1,}$", "", s)
 
-        if "uncharacterized" in sl:
+        if "uncharacterized" in s:
             s = "uncharacterized protein"
 
     # change sulfer to sulfur
@@ -531,7 +551,8 @@ def fix(args):
         atoms = row.rstrip("\r\n").split("\t")
         name, hit, ahrd_code, desc = atoms[:4] \
                 if len(atoms) > 2 else \
-                atoms[0], None, None, atoms[-1]
+                (atoms[0], None, None, atoms[-1])
+
         newdesc = fix_text(desc, ignore_sym_pat=opts.ignore_sym_pat)
         if hit and hit.strip() != "" and newdesc == Hypothetical:
             newdesc = "conserved " + newdesc

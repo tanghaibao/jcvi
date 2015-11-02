@@ -2,7 +2,7 @@
 # -*- coding: UTF-8 -*-
 
 """
-Scripts for the pineapple genome manuscript (unpublished).
+Scripts for the pineapple genome paper.
 """
 
 import sys
@@ -16,6 +16,7 @@ from jcvi.graphics.chromosome import Chromosome
 from jcvi.graphics.karyotype import Karyotype
 from jcvi.graphics.synteny import Synteny, draw_gene_legend
 from jcvi.graphics.glyph import TextCircle
+from jcvi.annotation.ahrd import read_interpro
 from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
@@ -222,26 +223,6 @@ def ancestral(args):
     pf = "pineapple-karyotype"
     image_name = pf + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
-
-
-def read_interpro(ipr):
-    store = {}
-    fp = open(ipr)
-    # Aco000343.1     0d98a55eb3399a408e06252a2e24efcf        2083    Pfam
-    # PF00476 DNA polymerase family A 1685    2075    1.70E-55        T
-    # 10-10-2014      IPR001098       "DNA-directed DNA polymerase, family A,
-    # palm domain"    GO:0003677|GO:0003887|GO:0006260        KEGG:
-    # 00230+2.7.7.7|KEGG: 00240+2.7.7.7
-    for row in fp:
-        accession, md5, seqlen, analysis, signature, signature_description, \
-        start, stop, score, status, date, interpro, interpro_description, GO, \
-                        pathway = row.split("\t")
-        accession = accession.split(".")[0]
-        interpro_description = interpro_description.replace('"', "")
-        pathway = pathway.strip()
-        if accession not in ipr:
-            store[accession] = (interpro, interpro_description, GO, pathway)
-    return store
 
 
 def geneinfo(args):

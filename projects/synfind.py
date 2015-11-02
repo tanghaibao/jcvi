@@ -194,7 +194,8 @@ def venn(args):
     pad = .02
     ystart = 1
     ywidth = 1. / len(bcs)
-    for bc in bcs:
+    tags = ("Bowers", "YGOB", "Schnable")
+    for bc, tag in zip(bcs, tags):
         fp = open(bc)
         data = []
         for row in fp:
@@ -209,7 +210,7 @@ def venn(args):
             a, b, c = pcounts - shared, tcounts - shared, shared
             ax = fig.add_axes([xstart + pad, ystart - ywidth + pad,
                                xwidth - 2 * pad, ywidth - 2 * pad])
-            venn2(subsets=(a, b, c), set_labels=(prog, "Truth"), ax=ax)
+            venn2(subsets=(a, b, c), set_labels=(prog, tag), ax=ax)
             message = "Sn={0} Pu={1}".\
                 format(percentage(shared, tcounts, precision=0, mode=2),
                        percentage(shared, pcounts, precision=0, mode=2))

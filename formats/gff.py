@@ -1663,6 +1663,7 @@ def uniq(args):
 
 
 def populate_children(outfile, ids, gffile, iter="2", types=None):
+    ids = set(ids)
     fw = must_open(outfile, "w")
     logging.debug("A total of {0} features selected.".format(len(ids)))
     logging.debug("Populate children. Iteration 1..")
@@ -1672,7 +1673,7 @@ def populate_children(outfile, ids, gffile, iter="2", types=None):
         if types and g.type in types:
             _id = g.accn
             if _id not in ids:
-                ids.append(_id)
+                ids.add(_id)
         if "Parent" not in g.attributes:
             continue
         for parent in g.attributes["Parent"]:
@@ -1689,6 +1690,23 @@ def populate_children(outfile, ids, gffile, iter="2", types=None):
                 if parent in children:
                     children.add(g.accn)
 
+    logging.debug("Populate parents..")
+    gff = Gff(gffile)
+    parents = set()
+    for g in gff:
+        if g.accn not in ids:
+            continue
+        if "Parent" not in g.attributes:
+            continue
+        for parent in g.attributes["Parent"]:
+            parents.add(parent)
+
+    combined = ids | children | parents
+    logging.debug("Original: {0}".format(len(ids)))
+    logging.debug("Children: {0}".format(len(children)))
+    logging.debug("Parents: {0}".format(len(parents)))
+    logging.debug("Combined: {0}".format(len(combined)))
+
     logging.debug("Filter gff file..")
     gff = Gff(gffile)
     seen = set()
@@ -1696,7 +1714,7 @@ def populate_children(outfile, ids, gffile, iter="2", types=None):
         accn = g.accn
         if accn in seen:
             continue
-        if (accn in ids) or (accn in children):
+        if accn in combined:
             seen.add(accn)
             print >> fw, g
     fw.close()

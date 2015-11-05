@@ -295,7 +295,7 @@ def stats(args):
     here and so normally we call "gene" are actually mRNA, and sometimes "exon"
     are actually CDS, but they are configurable.
 
-    Use --txt to send the numbers to text file in four separate folders,
+    Thee numbers are written to text file in four separate folders,
     corresponding to the four metrics:
 
     Exon length, Intron length, Gene length, Exon count
@@ -307,8 +307,6 @@ def stats(args):
                  help="The gene type [default: %default]")
     p.add_option("--exon", default="CDS",
                  help="The exon type [default: %default]")
-    p.add_option("--txt", default=False, action="store_true",
-                 help="Print out numbers for further analyses [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -341,9 +339,6 @@ def stats(args):
     for x, title in zip((a, b, c, d), metrics):
         x.title = title
         print >> sys.stderr, x
-
-    if not opts.txt:
-        return
 
     prefix = gff_file.split(".")[0]
     for x in (a, b, c, d):

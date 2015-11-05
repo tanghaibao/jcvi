@@ -57,14 +57,17 @@ data <- read.table('$numberfile', header=T, sep="\t", skip=$skip)
 histogram_multiple_template_a = histogram_multiple_template + """
 m <- ggplot(data, aes(x=$xlabel, fill=grp))
 m + geom_bar(binwidth=(vmax-vmin)/$bins, position="dodge") +
-xlim(vmin, vmax) + opts(title='$title')
+xlim(vmin, vmax) +
+labs(title='$title') +
 ggsave('$outfile')
 """
 
 histogram_multiple_template_b = histogram_multiple_template + """
 m <- ggplot(data, aes(x=$xlabel))
 m + geom_histogram(colour="darkgreen", fill="$fill", binwidth=(vmax-vmin)/$bins) +
-xlim(vmin, vmax) + opts(title='$title') + facet_wrap(~grp)
+xlim(vmin, vmax) +
+labs(title='$title') +
+facet_wrap(~grp)
 ggsave('$outfile')
 """
 

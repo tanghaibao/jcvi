@@ -29,8 +29,9 @@ from jcvi.formats.fasta import parse_fasta
 from jcvi.formats.fastq import fasta
 from jcvi.utils.orderedcollections import DefaultOrderedDict
 from jcvi.utils.iter import grouper
+from jcvi.utils.table import write_csv
 from jcvi.apps.base import OptionParser, ActionDispatcher, datadir, listify, mkdir, \
-            need_update, sh
+            iglob, need_update, sh
 
 
 SEP = "//"
@@ -170,9 +171,49 @@ def main():
         ('consensus', 'call consensus bases within samples'),
         ('mcluster', 'cluster across samples'),
         ('mconsensus', 'call consensus bases across samples'),
+        ('stats', 'generate table summarizing .stats files'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def stats(args):
+    """
+    %prog stats folder
+
+    Generate table summarizing .stats files.
+    """
+    p = OptionParser(stats.__doc__)
+    p.set_outfile()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    folder, = args
+    statsfiles = iglob(folder, "*.stats")
+    after_equal = lambda x: x.split("=")[-1]
+    header = "Library Assembled_reads Contigs".split()
+    contents = []
+    # label=M0096 total=7443 cnts=948 mean=7.851 std=35.96
+    for statsfile in statsfiles:
+        fp = open(statsfile)
+        for row in fp:
+            if row.startswith("label="):
+                break
+        label, total, cnts = row.split()[:3]
+        label = after_equal(label)
+        reads = int(after_equal(total))
+        contigs = int(after_equal(cnts))
+        contents.append((label, reads, contigs))
+
+    all_labels, all_reads, all_contigs = zip(*contents)
+    contents.append(("SUM", sum(all_reads), sum(all_contigs)))
+    contents.append(("AVERAGE (per sample)", \
+                    int(np.mean(all_reads)), int(np.mean(all_contigs))))
+    contents.append(("MEDIAN (per sample)", \
+                    int(np.median(all_reads)), int(np.median(all_contigs))))
+    write_csv(header, contents, filename=opts.outfile)
 
 
 def add_consensus_options(p):

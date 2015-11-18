@@ -511,7 +511,7 @@ def fixpartials(args):
     fw = must_open(opts.outfile, "w")
     for gene in gff.features_of_type('gene',  order_by=('seqid', 'start')):
         children = AutoVivification()
-        all_trs = []
+        cflag = False
         transcripts = list(gff.children(gene, level=1, order_by=('start')))
         for transcript in transcripts:
             trid, seqid, strand = transcript.id, transcript.seqid, transcript.strand
@@ -555,14 +555,15 @@ def fixpartials(args):
 
             if not five_prime or not three_prime:
                 if nstart != (None, None) and (start_codon != nstart):
-                    new_cds_span[0] = nstart[0] if strand == '+' \
-                        else nstart[1]
+                    i = 0 if strand == '+' else 1
+                    new_cds_span[i] = nstart[i]
                 if nstop != (None, None) and (stop_codon != nstop):
-                    new_cds_span[1] = nstop[1] if strand == '+' \
-                        else nstop[0]
+                    i = 1 if strand == '+' else 0
+                    new_cds_span[i] = nstop[i]
                 new_cds_span.sort()
 
             if set(cds_span) != set(new_cds_span):
+                cflag = True
                 # if CDS has been extended, appropriately adjust all relevent
                 # child feature (CDS, exon, UTR) coordinates
                 for ftype in children[trid]:
@@ -584,12 +585,12 @@ def fixpartials(args):
                             if child_span[0] == cds_span[1]:
                                 children[trid][ftype][idx].start = new_cds_span[1]
 
-            transcript.start, transcript.stop = \
-                children[trid]['exon'][0].start, children[trid]['exon'][-1].stop
-            all_trs.append((transcript.start, transcript.stop))
+                transcript.start, transcript.stop = \
+                    children[trid]['exon'][0].start, children[trid]['exon'][-1].stop
 
-        _gene_span = range_minmax(all_trs)
-        gene.start, gene.stop = _gene_span[0], _gene_span[1]
+        if cflag:
+            _gene_span = range_minmax([(tr.start, tr.stop) for tr in transcripts])
+            gene.start, gene.stop = _gene_span[0], _gene_span[1]
 
         # print gff file
         print >> fw, gene

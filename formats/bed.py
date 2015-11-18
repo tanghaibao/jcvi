@@ -395,10 +395,54 @@ def main():
         ('seqids', 'print out all seqids on one line'),
         ('alignextend', 'alignextend based on BEDPE and FASTA ref'),
         ('clr', 'extract clear range based on BEDPE'),
+        ('chain', 'chain bed segments together'),
         ('density', 'calculates density of features per seqid'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def chain(args):
+    """
+    %prog chain bedfile
+
+    Chain BED segments together.
+    """
+    from jcvi.utils.grouper import Grouper
+
+    p = OptionParser(chain.__doc__)
+    p.add_option("--dist", default=100000, help="Chaining distance")
+    p.set_outfile()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    bedfile, = args
+    cmd = "sort -k4,4 -k1,1 -k2,2n -k3,3n {0} -o {0}".format(bedfile)
+    sh(cmd)
+    bed = Bed(bedfile, sorted=False)
+    newbed = Bed()
+    for accn, bb in groupby(bed, key=lambda x: x.accn):
+        bb = list(bb)
+        g = Grouper()
+        for a in bb:
+            g.join(a)
+        for a, b in pairwise(bb):
+            if a.seqid == b.seqid and b.start - a.end < opts.dist:
+                g.join(a, b)
+        data = []
+        for p in g:
+            seqid = p[0].seqid
+            start = min(x.start for x in p)
+            end = max(x.end for x in p)
+            score = sum(x.span for x in p)
+            data.append((seqid, start - 1, end, accn, score))
+
+        d = max(data, key=lambda x: x[-1])
+        newbed.append(BedLine("\t".join(str(x) for x in d)))
+
+    newbed.print_to_file(sorted=True)
 
 
 def density(args):

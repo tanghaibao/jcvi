@@ -130,7 +130,7 @@ class GffLine (object):
             return self.attributes[key]
         return None
 
-    def set_attr(self, key, value, update=False, append=False, dbtag=None):
+    def set_attr(self, key, value, update=False, append=False, dbtag=None, urlquote=False):
         if value is None:
             self.attributes.pop(key, None)
         else:
@@ -143,7 +143,7 @@ class GffLine (object):
                 self.attributes[key] = []
             self.attributes[key].extend(value)
         if update:
-            self.update_attributes(gff3=self.gff3, urlquote=False)
+            self.update_attributes(gff3=self.gff3, urlquote=urlquote)
 
     def update_attributes(self, skipEmpty=True, gff3=True, gtf=None, urlquote=True):
         attributes = []
@@ -181,8 +181,8 @@ class GffLine (object):
         if self.key:   # GFF3 format
             if self.key not in self.attributes:
                 a = "{0}_{1}".format(str(self.type).lower(), self.idx)
-                self.set_attr(self.key, a, update=True)
-            a = self.attributes[self.key]
+            else:
+                a = self.attributes[self.key]
         else:          # GFF2 format
             a = self.attributes_text.split()
         return quote(",".join(a), safe=safechars)
@@ -415,11 +415,192 @@ def main():
         ('orient', 'orient the coding features based on translation'),
         ('splicecov', 'tag gff introns with coverage info from junctions.bed'),
         ('summary', 'print summary stats for features of different types'),
-        ('cluster', 'cluster transcripts based on shared splicing structure')
+        ('cluster', 'cluster transcripts based on shared splicing structure'),
+        ('fixpartials', 'fix 5/3 prime partial transcripts, locate nearest in-frame start/stop')
             )
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def _fasta_slice(fasta, seqid, start, stop, strand):
+    """
+    Return slice of fasta, given (seqid, start, stop, strand)
+    """
+    _strand = 1 if strand == '+' else -1
+    return fasta.sequence({'chr': seqid, 'start': start, 'stop': stop, \
+        'strand': _strand})
+
+
+def is_valid_codon(codon, type='start'):
+    """
+    Given a codon sequence, check if it is a valid start/stop codon
+    """
+    if len(codon) != 3:
+        return False
+
+    if type == 'start':
+        if codon != 'ATG':
+            return False
+    elif type == 'stop':
+        if not any(_codon == codon for _codon in ('TGA', 'TAG', 'TAA')):
+            return False
+    else:
+        logging.error("`{0}` is not a valid codon type. ".format(type) + \
+            "Should be one of (`start` or `stop`)")
+        sys.exit()
+
+    return True
+
+
+def scan_for_valid_codon(codon_span, strand, seqid, genome, type='start'):
+    """
+    Given a codon span, strand and reference seqid, scan upstream/downstream
+    to find a valid in-frame start/stop codon
+    """
+    s, e = codon_span[0], codon_span[1]
+    while True:
+        if (type == 'start' and strand == '+') or \
+            (type == 'stop' and strand == '-'):
+            s, e = s - 3, e - 3
+        else:
+            s, e = s + 3, e + 3
+
+        codon = _fasta_slice(genome, seqid, s, e, strand)
+        is_valid = is_valid_codon(codon, type=type)
+        if not is_valid:
+            if type == 'start':
+                ## if we are scanning upstream for a valid start codon,
+                ## stop scanning when we encounter a stop
+                if is_valid_codon(codon, type='stop'):
+                    return (None, None)
+            elif type == 'stop':
+                ## if we are scanning downstream for a valid stop codon,
+                ## stop scanning when we encounter a start
+                if is_valid_codon(codon, type='start'):
+                    return (None, None)
+            continue
+        break
+
+    return (s, e)
+
+
+def fixpartials(args):
+    """
+    %prog fixpartials genes.gff genome.fasta partials.ids
+
+    Given a gff file of features, fix partial (5'/3' incomplete) transcripts
+    by trying to locate nearest in-frame start/stop codon
+    """
+    p = OptionParser(fixpartials.__doc__)
+    p.set_outfile()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    gffile, gfasta, partials, = args
+
+    gff = make_index(gffile)
+    genome = Fasta(gfasta, index=True)
+    partials = LineFile(partials, load=True).lines
+
+    # all_transcripts = [f.id for f in gff.features_of_type("mRNA", \
+    #     order_by=("seqid", "start"))]
+    seen = set()
+    fw = must_open(opts.outfile, "w")
+    for gene in gff.features_of_type('gene',  order_by=('seqid', 'start')):
+        children = AutoVivification()
+        all_trs = []
+        transcripts = list(gff.children(gene, level=1, order_by=('start')))
+        for transcript in transcripts:
+            trid, seqid, strand = transcript.id, transcript.seqid, transcript.strand
+
+            for child in gff.children(transcript, order_by=('start')):
+                ftype = child.featuretype
+                if ftype not in children[trid]: children[trid][ftype] = []
+                children[trid][ftype].append(child)
+
+            five_prime, three_prime = True, True
+            nstart, nstop = (None, None), (None, None)
+            cds_span = [children[trid]['CDS'][0].start, \
+                children[trid]['CDS'][-1].stop]
+            new_cds_span = [x for x in cds_span]
+
+            start_codon = (cds_span[0], cds_span[0] + 2)
+            stop_codon = (cds_span[1] - 2, cds_span[1])
+            if strand == '-': start_codon, stop_codon = stop_codon, start_codon
+
+            if trid in partials:
+                seen.add(trid)
+                start_codon_fasta = _fasta_slice(genome, seqid, \
+                    start_codon[0], start_codon[1], strand)
+                stop_codon_fasta = _fasta_slice(genome, seqid, \
+                    stop_codon[0], stop_codon[1], strand)
+
+                if not is_valid_codon(start_codon_fasta, type='start'):
+                    five_prime = False
+                    nstart = scan_for_valid_codon(start_codon, strand, \
+                        seqid, genome, type='start')
+
+                if not is_valid_codon(stop_codon_fasta, type='stop'):
+                    three_prime = False
+                    nstop = scan_for_valid_codon(stop_codon, strand, \
+                        seqid, genome, type='stop')
+
+                logging.debug("feature={0} ({1})".format(trid, strand) + \
+                ", 5'={0}, 3'={1}".format(five_prime, three_prime) + \
+                ", {0} <== {1} ==> {2}".format(nstart if strand == '+' else nstop, \
+                    cds_span, nstop if strand == '+' else nstart))
+
+            if not five_prime or not three_prime:
+                if nstart != (None, None) and (start_codon != nstart):
+                    new_cds_span[0] = nstart[0] if strand == '+' \
+                        else nstart[1]
+                if nstop != (None, None) and (stop_codon != nstop):
+                    new_cds_span[1] = nstop[1] if strand == '+' \
+                        else nstop[0]
+                new_cds_span.sort()
+
+            if set(cds_span) != set(new_cds_span):
+                # if CDS has been extended, appropriately adjust all relevent
+                # child feature (CDS, exon, UTR) coordinates
+                for ftype in children[trid]:
+                    for idx in range(len(children[trid][ftype])):
+                        child_span = (children[trid][ftype][idx].start, \
+                            children[trid][ftype][idx].stop)
+                        if ftype in ('exon', 'CDS'):
+                            # if exons/CDSs, adjust start and stop according to
+                            # new CDS start and stop, respectively
+                            if child_span[0] == cds_span[0]:
+                                children[trid][ftype][idx].start = new_cds_span[0]
+                            if child_span[1] == cds_span[1]:
+                                children[trid][ftype][idx].stop = new_cds_span[1]
+                        elif ftype.endswith('UTR'):
+                            # if *_prime_UTR, adjust stop according to new CDS start and
+                            #                 adjust start according to new CDS stop
+                            if child_span[1] == cds_span[0]:
+                                children[trid][ftype][idx].stop = new_cds_span[0]
+                            if child_span[0] == cds_span[1]:
+                                children[trid][ftype][idx].start = new_cds_span[1]
+
+            transcript.start, transcript.stop = \
+                children[trid]['exon'][0].start, children[trid]['exon'][-1].stop
+            all_trs.append((transcript.start, transcript.stop))
+
+        _gene_span = range_minmax(all_trs)
+        gene.start, gene.stop = _gene_span[0], _gene_span[1]
+
+        # print gff file
+        print >> fw, gene
+        for transcript in transcripts:
+            trid = transcript.id
+            print >> fw, transcript
+            for cftype in children[trid]:
+                for child in children[trid][cftype]:
+                    print >> fw, child
+
+    fw.close()
 
 
 def sizes(args):
@@ -984,7 +1165,7 @@ def chain(args):
                     ctr[curr_gid] = 0
                 else:
                     ctr[curr_gid] += 1
-                    gid = "{0}:{1}".format(gid, ctr[curr_gid])
+            gid = "{0}:{1}".format(gid, ctr[curr_gid])
         gkey = (g.seqid, gid)
         if gkey not in gffdict:
             gffdict[gkey] = { 'seqid': g.seqid,
@@ -1403,11 +1584,11 @@ def format(args):
                         g.set_attr("ID", "{0}:{1}:{2}".format(parent, g.type, fidx + 1))
 
         pp = g.get_attr("Parent", first=False)
-        if opts.multiparents == "split" and (pp and len(pp) > 1):  # separate features with multiple parents
+        if opts.multiparents == "split" and (pp and len(pp) > 1) and g.type != "CDS":  # separate features with multiple parents
             id = g.get_attr("ID")
             for i, parent in enumerate(pp):
-                g.set_attr("ID", "{0}-{1}".format(id, i + 1))
-                g.set_attr("Parent", parent, update=True)
+                if id: g.set_attr("ID", "{0}-{1}".format(id, i + 1))
+                g.set_attr("Parent", parent, update=True, urlquote=True)
                 if gsac:
                     fix_gsac(g, notes)
                 print >> fw, g

@@ -181,8 +181,8 @@ class GffLine (object):
         if self.key:   # GFF3 format
             if self.key not in self.attributes:
                 a = "{0}_{1}".format(str(self.type).lower(), self.idx)
-                self.set_attr(self.key, a, update=True)
-            a = self.attributes[self.key]
+            else:
+                a = self.attributes[self.key]
         else:          # GFF2 format
             a = self.attributes_text.split()
         return quote(",".join(a), safe=safechars)
@@ -512,8 +512,10 @@ def fixpartials(args):
     for gene in gff.features_of_type('gene',  order_by=('seqid', 'start')):
         children = AutoVivification()
         all_trs = []
-        for transcript in gff.children(gene, level=1, order_by=('start')):
+        transcripts = list(gff.children(gene, level=1, order_by=('start')))
+        for transcript in transcripts:
             trid, seqid, strand = transcript.id, transcript.seqid, transcript.strand
+
             for child in gff.children(transcript, order_by=('start')):
                 ftype = child.featuretype
                 if ftype not in children[trid]: children[trid][ftype] = []
@@ -523,7 +525,7 @@ def fixpartials(args):
             nstart, nstop = (None, None), (None, None)
             cds_span = [children[trid]['CDS'][0].start, \
                 children[trid]['CDS'][-1].stop]
-            new_cds_span = cds_span
+            new_cds_span = [x for x in cds_span]
 
             start_codon = (cds_span[0], cds_span[0] + 2)
             stop_codon = (cds_span[1] - 2, cds_span[1])
@@ -565,32 +567,33 @@ def fixpartials(args):
                 # child feature (CDS, exon, UTR) coordinates
                 for ftype in children[trid]:
                     for idx in range(len(children[trid][ftype])):
-                        print >> sys.stderr, idx, ftype, children[trid][ftype][idx]
-                        child_span = (children[trid][ftype][idx].start, children[trid][ftype][idx].stop)
+                        child_span = (children[trid][ftype][idx].start, \
+                            children[trid][ftype][idx].stop)
                         if ftype in ('exon', 'CDS'):
                             # if exons/CDSs, adjust start and stop according to
                             # new CDS start and stop, respectively
                             if child_span[0] == cds_span[0]:
                                 children[trid][ftype][idx].start = new_cds_span[0]
                             if child_span[1] == cds_span[1]:
-                                childred[trid][ftype][idx].stop = new_cds_span[1]
+                                children[trid][ftype][idx].stop = new_cds_span[1]
                         elif ftype.endswith('UTR'):
                             # if *_prime_UTR, adjust stop according to new CDS start and
                             #                 adjust start according to new CDS stop
                             if child_span[1] == cds_span[0]:
                                 children[trid][ftype][idx].stop = new_cds_span[0]
                             if child_span[0] == cds_span[1]:
-                                childred[trid][ftype][idx].start = new_cds_span[1]
+                                children[trid][ftype][idx].start = new_cds_span[1]
 
-            all_trs.append((children[trid]['exon'][0].start, \
-                children[trid]['exon'][-1].stop))
+            transcript.start, transcript.stop = \
+                children[trid]['exon'][0].start, children[trid]['exon'][-1].stop
+            all_trs.append((transcript.start, transcript.stop))
 
         _gene_span = range_minmax(all_trs)
         gene.start, gene.stop = _gene_span[0], _gene_span[1]
 
         # print gff file
         print >> fw, gene
-        for transcript in gff.children(gene, level=1, order_by=('start')):
+        for transcript in transcripts:
             trid = transcript.id
             print >> fw, transcript
             for cftype in children[trid]:
@@ -1581,10 +1584,10 @@ def format(args):
                         g.set_attr("ID", "{0}:{1}:{2}".format(parent, g.type, fidx + 1))
 
         pp = g.get_attr("Parent", first=False)
-        if opts.multiparents == "split" and (pp and len(pp) > 1):  # separate features with multiple parents
+        if opts.multiparents == "split" and (pp and len(pp) > 1) and g.type != "CDS":  # separate features with multiple parents
             id = g.get_attr("ID")
             for i, parent in enumerate(pp):
-                g.set_attr("ID", "{0}-{1}".format(id, i + 1))
+                if id: g.set_attr("ID", "{0}-{1}".format(id, i + 1))
                 g.set_attr("Parent", parent, update=True, urlquote=True)
                 if gsac:
                     fix_gsac(g, notes)

@@ -23,6 +23,7 @@ from jcvi.formats.blast import BlastSlow, BlastLine
 from jcvi.formats.coords import Overlap_types
 from jcvi.utils.cbook import memoized
 from jcvi.apps.fetch import entrez
+from jcvi.apps.grid import WriteJobs
 from jcvi.apps.base import OptionParser, ActionDispatcher, popen, mkdir, sh, need_update
 
 
@@ -477,6 +478,8 @@ def main():
         ('bes', 'confirm the BES mapping'),
         ('flip', 'flip the FASTA sequences according to a set of references'),
         ('overlap', 'check terminal overlaps between two records'),
+        ('batchoverlap', 'check terminal overlaps for many pairs'),
+        ('graph', 'load overlaps to create bidirectional graph'),
         ('neighbor', 'check neighbors of a component in agpfile'),
         ('blast', 'blast a component to componentpool'),
         ('certificate', 'make certificates for all overlaps in agpfile'),
@@ -486,6 +489,51 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def graph(args):
+    """
+    %prog graph all.ov contigs.fasta
+
+    Load overlaps to create bidirectional graph.
+    """
+    from jcvi.algorithms.graph import BiGraph, BiEdge
+    from jcvi.assembly.syntenypath import graph_to_agp
+
+    p = OptionParser(graph.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    allov, contigsfasta = args
+    g = BiGraph()
+    fp = open(allov)
+    # ctg7180000045865 - ctg7180000086408: a ~ b Overlap: 5108 Identity: 99.02%
+    # Orientation: +
+    contained = set()
+    for row in fp:
+        atoms = row.strip().split(":")
+        pair = atoms[0]
+        a, b = pair.split(" - ")
+        orientation = atoms[-1].strip()
+        tag = atoms[1].replace("Overlap", "").strip()
+        oa = ">"
+        ob = "<" if orientation == '-' else ">"
+        if tag == "a ~ b":
+            g.add_edge(BiEdge(a, b, oa, ob))
+        elif tag == "b ~ a":
+            g.add_edge(BiEdge(b, a, ob, oa))
+        elif tag == "a in b":
+            contained.add(a)
+        elif tag == "b in a":
+            contained.add(b)
+    graph_to_agp(g, allov, contigsfasta)
+
+    containedfile = "contained.ids"
+    fw = open(containedfile, "w")
+    print >> fw, "\n".join(contained)
+    fw.close()
 
 
 def dedup(args):
@@ -585,8 +633,6 @@ def overlap_blastline_writer(oopts):
 
 
 def populate_blastfile(blastfile, agp, outdir, opts):
-    from jcvi.apps.grid import WriteJobs
-
     assert not op.exists(blastfile)
     all_oopts = []
     for a, b, qreverse in agp.iter_paired_components():
@@ -848,6 +894,34 @@ def flip(args):
         os.remove(tmpfasta)
 
 
+def batchoverlap(args):
+    """
+    %prog batchoverlap pairs.txt outdir
+
+    Check overlaps between pairs of sequences.
+    """
+    p = OptionParser(batchoverlap.__doc__)
+    p.set_cpus()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    pairsfile, outdir = args
+    fp = open(pairsfile)
+    cmds = []
+    mkdir("overlaps")
+    for row in fp:
+        a, b = row.split()[:2]
+        oa = op.join(outdir, a + ".fa")
+        ob = op.join(outdir, b + ".fa")
+        cmd = "python -m jcvi.assembly.goldenpath overlap {0} {1}".format(oa, ob)
+        cmd += " -o overlaps/{0}_{1}.ov".format(a, b)
+        cmds.append(cmd)
+
+    print "\n".join(cmds)
+
+
 def overlap(args):
     """
     %prog overlap <a|a.fasta> <b|b.fasta>
@@ -868,6 +942,7 @@ def overlap(args):
     p.add_option("--nochain", default=False, action="store_true",
             help="Do not chain adjacent HSPs [default: chain HSPs]")
     p.set_align(pctid=GoodPct, hitlen=GoodOverlap, evalue=.01)
+    p.set_outfile(outfile=None)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -921,6 +996,11 @@ def overlap(args):
     bid, bsize = Fasta(bfasta).itersizes().next()
     o = Overlap(besthsp, asize, bsize, cutoff, qreverse=opts.qreverse)
     o.print_graphic()
+
+    if opts.outfile:
+        fw = must_open(opts.outfile, "w")
+        print >> fw, str(o)
+        fw.close()
 
     return o
 

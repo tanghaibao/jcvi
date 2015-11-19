@@ -134,22 +134,16 @@ def prune(args):
 
     p = OptionParser(prune.__doc__)
     add_graph_options(p)
-    p.add_option("--edges", help="Write edges to file")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     bestedges, = args
-    write_edges = opts.edges
     G = read_graph(bestedges, maxerr=opts.maxerr)
     reads_to_ctgs = parse_ctgs(bestedges, opts.frgctg)
     edges = defaultdict(int)
     r = defaultdict(int)
-    if write_edges:
-        logging.debug("Write graph to `{0}`".format(write_edges))
-        fw = open(write_edges, "w")
-
     for a, b, d in G.edges_iter(data=True):
         ua, ub = reads_to_ctgs.get(a), reads_to_ctgs.get(b)
         nn = (ua, ub).count(None)
@@ -161,17 +155,11 @@ def prune(args):
                 if ua > ub:
                     ua, ub = ub, ua
                 edges[(ua, ub)] += 1
-                if write_edges:
-                    print >> fw, "\t".join(str(x) for x in (ua, ub, d['weight']))
         elif nn == 1:
             r["One null"] += 1
         else:
             assert nn == 2
             r["Two nulls"] += 1
-
-    if write_edges:
-        fw.close()
-        return
 
     U = nx.Graph()
     difftigs = "diff_tigs.txt"

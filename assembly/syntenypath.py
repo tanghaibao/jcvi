@@ -41,7 +41,7 @@ def bed(args):
     """
     from collections import defaultdict
     from jcvi.compara.synteny import AnchorFile, check_beds
-    from jcvi.formats.bed import Bed, BedLine
+    from jcvi.formats.bed import Bed
     from jcvi.formats.base import get_number
 
     p = OptionParser(bed.__doc__)
@@ -87,7 +87,7 @@ def bed(args):
                                 format(saccn, sseqid)
         bedline = "\t".join(str(x) for x in (qseqid, qstart - 1, qend,
                             "{0}:{1}".format(newsseqid, sstart)))
-        bd.append(BedLine(bedline))
+        bd.add(bedline)
 
     bd.print_to_file(filename=opts.outfile, sorted=True)
 

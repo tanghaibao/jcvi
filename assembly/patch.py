@@ -22,7 +22,7 @@ import logging
 from itertools import groupby
 from collections import defaultdict
 
-from jcvi.formats.bed import Bed, BedLine, complementBed, mergeBed, \
+from jcvi.formats.bed import Bed, complementBed, mergeBed, \
             fastaFromBed, summary
 from jcvi.formats.blast import BlastSlow
 from jcvi.formats.sizes import Sizes
@@ -366,8 +366,8 @@ def insert(args):
         scfs.sort(key=lambda x: corder[x[0]][1].start + corder[x[0]][1].end)
         for scf, strand in scfs:
             size = sizes[scf]
-            beds.append(BedLine("\t".join(str(x) for x in \
-                    (scf, 0, size, sid, 1000, strand))))
+            beds.add("\t".join(str(x) for x in \
+                    (scf, 0, size, sid, 1000, strand)))
 
     finalbed = Bed()
     finalbed.extend(beds)

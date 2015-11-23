@@ -112,6 +112,9 @@ class Bed(LineFile):
         if sorted:
             self.sort(key=self.key)
 
+    def add(self, row):
+        self.append(BedLine(row))
+
     def print_to_file(self, filename="stdout", sorted=False):
         if sorted:
             self.sort(key=self.key)

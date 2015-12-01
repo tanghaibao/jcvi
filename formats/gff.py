@@ -2630,11 +2630,12 @@ def load(args):
     for feat in get_parents(gff_file, parents):
         desc = ""
         if desc_attr:
-            fparent = feat.attributes['Parent'][0]
-            if desc_attr in feat.attributes:
-                desc = ",".join(feat.attributes[desc_attr])
-            elif desc_attr in g[fparent].attributes:
+            fparent = feat.attributes['Parent'][0] \
+                if 'Parent' in feat.attributes else None
+            if fparent and desc_attr in g[fparent].attributes:
                 desc = ",".join(g[fparent].attributes[desc_attr])
+            elif desc_attr in feat.attributes:
+                desc = ",".join(feat.attributes[desc_attr])
 
         if opts.full_header:
             desc_parts = []

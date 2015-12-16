@@ -15,7 +15,7 @@ from jcvi.utils.range import range_interleave
 from jcvi.utils.table import tabulate
 from jcvi.formats.fasta import Fasta
 from jcvi.formats.gff import make_index
-from jcvi.formats.base import DictFile
+from jcvi.formats.base import DictFile, must_open
 from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, need_update
 
 
@@ -140,6 +140,7 @@ def genestats(args):
     p = OptionParser(genestats.__doc__)
     p.add_option("--groupby", default="conf_class",
                  help="Print separate stats groupby")
+    p.set_outfile()
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -222,7 +223,9 @@ def genestats(args):
         r[("Mean transcript size (UTR, CDS)", g)] = mean_transcript_size
         r[("Mean exon size", g)] = mean_exon_size
 
-    print >> sys.stderr, tabulate(r)
+    fw = must_open(opts.outfile, "w")
+    print >> fw, tabulate(r)
+    fw.close()
 
 
 def statstable(args):

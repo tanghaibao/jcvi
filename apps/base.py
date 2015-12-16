@@ -1298,12 +1298,16 @@ def send_email(fromaddr, toaddr, subject, message):
     Send an email message
     """
     from smtplib import SMTP
+    from email.mime.text import MIMEText
 
     SERVER = "localhost"
-    message = "Subject: {0}\n{1}".format(subject, message)
+    _message = MIMEText(message)
+    _message['Subject'] = subject
+    _message['From'] = fromaddr
+    _message['To'] = ", ".join(toaddr)
 
     server = SMTP(SERVER)
-    server.sendmail(fromaddr, toaddr, message)
+    server.sendmail(fromaddr, toaddr, _message.as_string())
     server.quit()
 
 
@@ -1399,10 +1403,11 @@ def notify(args):
     message = " ".join(args).strip()
 
     if opts.method == "email":
-        if not is_valid_email(opts.email):
-            logging.debug("Email address `{0}` is not valid!".format(opts.email))
-            sys.exit()
-        toaddr = [opts.email]   # TO address should be in a list
+        toaddr = opts.email.split(",")   # TO address should be in a list
+        for addr in toaddr:
+            if not is_valid_email(addr):
+                logging.debug("Email address `{0}` is not valid!".format(addr))
+                sys.exit()
         send_email(fromaddr, toaddr, subject, message)
     else:
         pushnotify(subject, message, api=opts.api, priority=opts.priority, \

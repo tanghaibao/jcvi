@@ -1300,6 +1300,8 @@ def format(args):
                 " accepts comma-separated list or list file [default: %default]")
     g3.add_option("--gsac", default=False, action="store_true",
                  help="Fix GSAC GFF3 file attributes [default: %default]")
+    g3.add_option("--invent_protein_feat", default=False, action="store_true",
+                 help="Invent a protein feature span (chain CDS feats)")
     g3.add_option("--process_ftype", default=None, type="str",
                  help="Specify feature types to process; "
                  "accepts comma-separated list of feature types [default: %default]")
@@ -1345,6 +1347,7 @@ def format(args):
     strict = False if opts.nostrict else True
     make_gff_store = True if gffile in ("-", "stdin") else opts.make_gff_store
     invent_name_attr = opts.invent_name_attr
+    invent_protein_feat = opts.invent_protein_feat
     compute_signature = False
 
     outfile = opts.outfile
@@ -1396,7 +1399,8 @@ def format(args):
 
     remove = set()
     if unique or duptype or remove_feats or remove_feats_by_ID \
-            or opts.multiparents == "merge" or invent_name_attr or make_gff_store:
+            or opts.multiparents == "merge" or invent_name_attr or make_gff_store \
+            or invent_protein_feat:
         if unique:
             dupcounts = defaultdict(int)
             seen = defaultdict(int)
@@ -1408,6 +1412,8 @@ def format(args):
             merge_feats = AutoVivification()
         if invent_name_attr:
             ft = GffFeatureTracker()
+        if invent_protein_feat:
+            cds_track = {}
         if opts.multiparents == "merge" or invent_name_attr:
             make_gff_store = compute_signature = True
         gff = Gff(gffile, keep_attr_order=(not opts.no_keep_attr_order), \
@@ -1440,6 +1446,12 @@ def format(args):
                 if not parent:
                     parent = g.get_attr("Parent")
                 ft.track(parent, g)
+            if invent_protein_feat:
+                if g.type == 'CDS':
+                    cds_parent = g.get_attr("Parent")
+                    if cds_parent not in cds_track:
+                        cds_track[cds_parent] = []
+                    cds_track[cds_parent].append((g.start, g.end))
 
     if opts.verifySO:
         so = load_GODag()
@@ -1584,6 +1596,19 @@ def format(args):
                     if opts.multiparents == "merge" and attr == "Name":
                         g.set_attr("ID", "{0}:{1}:{2}".format(parent, g.type, fidx + 1))
 
+        protein_feat = None
+        if invent_protein_feat:
+            if g.type == 'mRNA':
+                if id in cds_track:
+                    pstart, pstop = range_minmax(cds_track[id])
+                    protein_feat = GffLine("\t".join(str(x) for x in [g.seqid, g.source, "protein", pstart, pstop, \
+                            ".", g.strand, ".", "ID={0}-Protein;Name={0};Derives_from={0}".format(id)]))
+            elif g.type == 'CDS':
+                parent = g.get_attr("Parent")
+                if parent in cds_track:
+                    _parent = [parent, "{0}-Protein".format(parent)]
+                    g.set_attr("Parent", _parent)
+
         pp = g.get_attr("Parent", first=False)
         if opts.multiparents == "split" and (pp and len(pp) > 1) and g.type != "CDS":  # separate features with multiple parents
             id = g.get_attr("ID")
@@ -1602,6 +1627,8 @@ def format(args):
             if duptype == g.type and skip[(g.seqid, g.idx, id, g.start, g.end)] == 1:
                 continue
             print >> fw, g
+            if g.type == 'mRNA' and invent_protein_feat:
+                print >> fw, protein_feat
 
     fw.close()
 
@@ -2221,12 +2248,12 @@ def extract(args):
 
     contigID = parse_multi_values(contigfile)
     names = parse_multi_values(namesfile)
-    if names == None: names = list()
     types = parse_multi_values(typesfile)
     outfile = opts.outfile
 
     if opts.children:
-        assert types is not None or (len(names) > 0), "Must set --names or --types"
+        assert types is not None or names is not None, "Must set --names or --types"
+        if names == None: names = list()
         populate_children(outfile, names, gffile, iter=opts.children, types=types)
         return
 

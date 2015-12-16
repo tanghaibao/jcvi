@@ -289,6 +289,7 @@ def main():
     actions = (
         ('tofasta', 'generate fasta file for multiple gb records'),
         ('getgenes', 'extract protein coding genes from Genbank file'),
+        ('getquals', 'extract qualifiers from Genbank file'),
         ('gff', 'convert Genbank file to GFF file'),
               )
 
@@ -404,6 +405,76 @@ def getgenes(args):
         logging.debug("Output written to {0}.bed, {0}.cds".format(prefix,))
     else:
         logging.debug("Output written to {0}.bed, {0}.cds, {0}.pep".format(prefix,))
+
+
+def print_locus_quals(locus_tag, locus, quals_ftypes):
+    """
+    Given a locus_tag and dict of feaures, print out 3-column output:
+        locus_tag, qualifier, value
+
+    Replace locus_tag with protein_id if processing an "mRNA" or "CDS"
+    """
+    prot_id = None
+    for ftype in quals_ftypes:
+        for i, quals in enumerate(locus[locus_tag][ftype]):
+            for elem in quals:
+                elem_id = elem[0]
+                if len(locus[locus_tag]["protein_id"]) > 0 and ftype in ("mRNA", "CDS"):
+                    elem_id = locus[locus_tag]["protein_id"][i]
+                if ftype == 'misc_RNA': ftype = 'ncRNA'
+                print "\t".join(str(x) for x in (elem_id, elem[1], elem[2], ftype))
+
+
+def getquals(args):
+    """
+    %prog getquals [--options] gbkfile > qualsfile
+
+    Read GenBank file and extract all qualifiers per feature type
+    into a tab-delimited file
+    """
+    p = OptionParser(getquals.__doc__)
+    p.add_option("--types", default="gene,mRNA,CDS",
+                type="str", dest="quals_ftypes",
+                help="Feature types from which to extract qualifiers")
+    p.add_option("--ignore", default="locus_tag,product,codon_start,translation",
+                type="str", dest="quals_ignore",
+                help="Qualifiers to exclude from parsing")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    gbkfile, = args
+    quals_ftypes = opts.quals_ftypes.split(",")
+    quals_ignore = opts.quals_ignore.split(",")
+
+    locus = dict()
+    locus_tag = None
+    for rec in SeqIO.parse(gbkfile, "gb"):
+        for f in rec.features:
+            if f.type in quals_ftypes:
+                locus_tag = f.qualifiers[LT][0]
+                if locus_tag not in locus:
+                    locus[locus_tag] = dict()
+                    for ftype in quals_ftypes:
+                        if ftype not in locus[locus_tag]:
+                            locus[locus_tag][ftype] = []
+                        if ftype == "CDS":  # store the CDS protein_id
+                            locus[locus_tag]["protein_id"] = []
+
+                quals = []
+                for qual in f.qualifiers:
+                    if qual in quals_ignore:
+                        continue
+                    for qval in f.qualifiers[qual]:
+                        quals.append((locus_tag, qual, qval))
+                        if qual == "protein_id":
+                            locus[locus_tag]["protein_id"].append(qval)
+                if len(quals) > 0:
+                    locus[locus_tag][f.type].append(quals)
+
+    for locus_tag in locus:
+        print_locus_quals(locus_tag, locus, quals_ftypes)
 
 
 if __name__ == '__main__':

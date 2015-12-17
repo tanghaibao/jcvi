@@ -227,7 +227,10 @@ def thousands(x):
     '12,345'
     """
     import locale
-    locale.setlocale(locale.LC_ALL, "en_US.utf8")
+    try:
+        locale.setlocale(locale.LC_ALL, "en_US.utf8")
+    except Exception:
+        locale.setlocale(locale.LC_ALL, "en_US.UTF-8")
     return locale.format('%d', x, True)
 
 

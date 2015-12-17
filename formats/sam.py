@@ -557,7 +557,7 @@ def index(args):
         sortedbamfile = prefix + ".sorted.bam"
 
     if need_update(bamfile, sortedbamfile):
-        cmd = "samtools sort {0} {1}.sorted".format(bamfile, prefix)
+        cmd = "samtools sort {0} -o {1}".format(bamfile, sortedbamfile)
         cmd += " -@ {0}".format(cpus)
         sh(cmd)
 

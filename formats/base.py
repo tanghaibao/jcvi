@@ -454,7 +454,13 @@ def read_block(handle, signal):
         key=lambda row: row.strip()[:signal_len] == signal))
     found_signal = False
     for header in it:
-        header = header.next().strip()
+        header = list(header)
+        for h in header[:-1]:
+            h = h.strip()
+            if h[:signal_len] != signal:
+                continue
+            yield h, []  # Header only, no contents
+        header = header[-1].strip()
         if header[:signal_len] != signal:
             continue
         found_signal = True

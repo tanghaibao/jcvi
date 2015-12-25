@@ -445,7 +445,7 @@ def chain(args):
         d = max(data, key=lambda x: x[-1])
         newbed.append(BedLine("\t".join(str(x) for x in d)))
 
-    newbed.print_to_file(sorted=True)
+    newbed.print_to_file(opts.outfile, sorted=True)
 
 
 def density(args):

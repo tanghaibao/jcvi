@@ -16,6 +16,7 @@ import sys
 import logging
 
 from collections import defaultdict
+from itertools import groupby
 
 from jcvi.formats.contig import ContigFile
 from jcvi.formats.fasta import Fasta, Seq, SeqIO, SeqRecord, gaps, format, \
@@ -35,6 +36,7 @@ def main():
         ('circular', 'make circular genome'),
         ('dedup', 'remove duplicate contigs within assembly'),
         ('dust', 'remove low-complexity contigs within assembly'),
+        ('dust2bed', 'extract low-complexity regions as bed file'),
         ('build', 'build assembly files after a set of clean-ups'),
         ('overlap', 'build larger contig set by fishing additional seqs'),
         ('overlapbatch', 'call overlap on a set of sequences'),
@@ -42,6 +44,58 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def dust2bed(args):
+    """
+    %prog dust2bed fastafile
+
+    Use dustmasker to find low-complexity regions (LCRs) in the genome.
+    """
+    from jcvi.formats.base import read_block
+
+    p = OptionParser(dust2bed.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    fastafile, = args
+    interval = fastafile + ".iv"
+    if need_update(fastafile, interval):
+        cmd = "dustmasker -in {0}".format(fastafile)
+        sh(cmd, outfile=interval)
+
+    fp = open(interval)
+    bedfile = fastafile.rsplit(".", 1)[0] + ".dust.bed"
+    fw = must_open(bedfile, "w")
+    nlines = 0
+    nbases = 0
+    for header, block in read_block(fp, ">"):
+        header = header.strip(">")
+        for b in block:
+            start, end = b.split(" - ")
+            start, end = int(start), int(end)
+            print >> fw, "\t".join(str(x) for x in (header, start, end))
+            nlines += 1
+            nbases += end - start
+    logging.debug("A total of {0} DUST intervals ({1} bp) exported to `{2}`".\
+                    format(nlines, nbases, bedfile))
+
+
+def fasta2bed(fastafile):
+    """
+    Alternative BED generation from FASTA file. Used for sanity check.
+    """
+    dustfasta = fastafile.rsplit(".", 1)[0] + ".dust.fasta"
+    for name, seq in parse_fasta(dustfasta):
+        for islower, ss in groupby(enumerate(seq), key=lambda x: x[-1].islower()):
+            if not islower:
+                continue
+            ss = list(ss)
+            ms, mn = min(ss)
+            xs, xn = max(ss)
+            print "\t".join(str(x) for x in (name, ms, xs))
 
 
 def circular(args):

@@ -165,7 +165,7 @@ def dust(args):
         sh(cmd)
 
     for name, seq in parse_fasta(dustfastafile):
-        nlow = sum(1 for x in seq if x in "acgtN")
+        nlow = sum(1 for x in seq if x in "acgtnN")
         pctlow = nlow * 100. / len(seq)
         if pctlow < 98:
             continue

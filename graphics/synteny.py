@@ -7,7 +7,7 @@
 Illustrate MCscan multiple collinearity alignments. Use layout.csv to indicate
 the positions of tracks. For example:
 
-#x, y, rotation, ha, va, color
+#x, y, rotation, ha, va, color, ratio
 0.5, 0.6, 0, left, center, g
 0.25, 0.7, 45, top, center, m
 

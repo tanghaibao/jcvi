@@ -166,7 +166,7 @@ class KsPlot (object):
         labels = self.labels
         legendp = self.legendp
         if len(lines) > 1:
-            leg = ax.legend(lines, labels, legendp,
+            leg = ax.legend(lines, labels, loc=legendp,
                             shadow=True, fancybox=True, prop={"size": 10})
             leg.get_frame().set_alpha(.5)
 

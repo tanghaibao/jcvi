@@ -244,6 +244,7 @@ def fontprop(ax, name, size=12):
 
 def markup(s):
     import re
+    s = latex(s)
     s = re.sub("\*(.*)\*", r"\\textit{\1}", s)
     return s
 
@@ -460,7 +461,7 @@ def write_messages(ax, messages):
 
 
 def quickplot(data, xmin, xmax, xlabel, title, ylabel="Counts",
-              figname="plot.pdf", counts=True):
+              figname="plot.pdf", counts=True, print_stats=True):
     """
     Simple plotting function - given a dictionary of data, produce a bar plot
     with the counts shown on the plot.
@@ -497,7 +498,8 @@ def quickplot(data, xmin, xmax, xlabel, title, ylabel="Counts",
     messages += ["Average: {0:.2f}".format(np.mean(kk))]
     messages += ["Median: {0}".format(np.median(kk))]
     ax = plt.gca()
-    write_messages(ax, messages)
+    if print_stats:
+        write_messages(ax, messages)
 
     set_human_axis(ax)
     set_ticklabels_helvetica(ax)

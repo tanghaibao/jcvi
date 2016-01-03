@@ -106,9 +106,48 @@ def main():
         ('blast', 'run blastn using query against reference'),
         ('blat', 'run blat using query against reference'),
         ('blasr', 'run blasr on a set of pacbio reads'),
+        ('nucmer', 'run nucmer using query against reference'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def nucmer(args):
+    """
+    %prog nucmer ref.fasta query.fasta
+
+    Run NUCMER using query against reference. Parallel implementation derived
+    from: <https://github.com/fritzsedlazeck/sge_mummer>
+    """
+    from itertools import product
+
+    from jcvi.apps.grid import MakeManager
+    from jcvi.formats.base import split
+
+    p = OptionParser(nucmer.__doc__)
+    p.set_cpus()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    ref, query = args
+    cpus = opts.cpus
+    nrefs = nqueries = int(cpus ** .5)
+    refdir = ref.split(".")[0] + "-outdir"
+    querydir = query.split(".")[0] + "-outdir"
+    reflist = split([ref, refdir, str(nrefs)]).names
+    querylist = split([query, querydir, str(nqueries)]).names
+
+    mm = MakeManager()
+    for i, (r, q) in enumerate(product(reflist, querylist)):
+        pf = "{0:03d}".format(i)
+        cmd = "nucmer -maxmatch -l 100 -c 500"
+        cmd += " {0} {1} -p {2}".format(r, q, pf)
+        deltafile = pf + ".delta"
+        mm.add((r, q), deltafile, cmd)
+
+    mm.write()
 
 
 def blasr(args):

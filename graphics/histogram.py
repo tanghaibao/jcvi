@@ -249,6 +249,8 @@ def main():
             help="Generate image of format [default: %default]")
     p.add_option("--quick", default=False, action="store_true",
             help="Use quick plot, assuming bins are already counted")
+    p.add_option("--noprintstats", default=False, action="store_true",
+            help="Write basic stats when using --quick")
     opts, args = p.parse_args()
 
     if len(args) < 1:
@@ -267,7 +269,8 @@ def main():
         filename = args[0]
         figname = filename.rsplit(".", 1)[0] + ".pdf"
         data = DictFile(filename, keycast=int, cast=int)
-        quickplot(data, vmin, vmax, xlabel, title, figname=figname)
+        quickplot(data, vmin, vmax, xlabel, title, figname=figname,
+                  print_stats=(not opts.noprintstats))
         return
 
     if fileno == 1:

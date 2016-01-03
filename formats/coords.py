@@ -13,7 +13,8 @@ from math import exp
 from itertools import groupby
 
 from jcvi.formats.base import LineFile, must_open
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update, \
+        get_abs_path
 
 
 Overlap_types = ("none", "a ~ b", "b ~ a", "a in b", "b in a")
@@ -242,15 +243,43 @@ def main():
     actions = (
         ('annotate', 'annotate overlap types in coordsfile'),
         ('blast', 'convert to blast tabular output'),
-        ('summary', 'provide summary on id% and cov%'),
-        ('fromdelta', 'convert deltafile to coordsfile'),
         ('filter', 'filter based on id% and cov%, write a new coords file'),
-        ('bed', 'convert to bed format'),
-        ('coverage', 'report the coverage per query record'),
+        ('fromdelta', 'convert deltafile to coordsfile'),
+        ('merge', 'merge deltafiles'),
         ('sort', 'sort coords file based on query or subject'),
+        ('summary', 'provide summary on id% and cov%'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def merge(args):
+    """
+    %prog merge ref.fasta query.fasta *.delta
+
+    Merge delta files into a single delta.
+    """
+    p = OptionParser(merge.__doc__)
+    p.set_outfile(outfile="merged_results.delta")
+    opts, args = p.parse_args(args)
+
+    if len(args) < 3:
+        sys.exit(not p.print_help())
+
+    ref, query = args[:2]
+    deltafiles = args[2:]
+    outfile = opts.outfile
+
+    ref = get_abs_path(ref)
+    query = get_abs_path(query)
+    fw = must_open(outfile, "w")
+    print >> fw, " ".join((ref, query))
+    print >> fw, "NUCMER"
+    fw.close()
+
+    for d in deltafiles:
+        cmd = "awk 'NR > 2 {{print $0}}' {0}".format(d)
+        sh(cmd, outfile=outfile, append=True)
 
 
 def blast(args):

@@ -171,14 +171,14 @@ class OptionParser (OptionP):
                              action="store_true", help="Cell alignment")
         self.add_option_group(group)
 
-    def set_params(self, dest=None):
+    def set_params(self, prog=None, params=""):
         """
         Add --params options for given command line programs
         """
-        dest_prog = "to {0}".format(dest) if dest else ""
-        self.add_option("--params", dest="extra", default="",
+        dest_prog = "to {0}".format(prog) if prog else ""
+        self.add_option("--params", dest="extra", default=params,
                 help="Extra parameters to pass {0}".format(dest_prog) + \
-                     " (these WILL NOT be validated) [default: %default]")
+                     " (these WILL NOT be validated)")
 
     def set_outfile(self, outfile="stdout"):
         """
@@ -462,7 +462,7 @@ class OptionParser (OptionP):
     def set_trinity_opts(self, gg=False):
         self.set_home("trinity")
         self.set_cpus()
-        self.set_params(dest="Trinity")
+        self.set_params(prog="Trinity")
         topts = OptionGroup(self, "General Trinity options")
         self.add_option_group(topts)
         topts.add_option("--max_memory", default="128G", type="str",

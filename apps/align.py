@@ -125,6 +125,7 @@ def nucmer(args):
     from jcvi.formats.base import split
 
     p = OptionParser(nucmer.__doc__)
+    p.set_params(prog="nucmer", params="-g 5000 -l 24 -c 200")
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -142,7 +143,8 @@ def nucmer(args):
     mm = MakeManager()
     for i, (r, q) in enumerate(product(reflist, querylist)):
         pf = "{0:03d}".format(i)
-        cmd = "nucmer -maxmatch -l 100 -c 500"
+        cmd = "nucmer -maxmatch"
+        cmd += " {0}".format(opts.extra)
         cmd += " {0} {1} -p {2}".format(r, q, pf)
         deltafile = pf + ".delta"
         mm.add((r, q), deltafile, cmd)

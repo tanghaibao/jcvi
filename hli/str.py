@@ -16,7 +16,7 @@ from collections import defaultdict
 from jcvi.graphics.histogram import stem_leaf_plot
 from jcvi.utils.cbook import percentage
 from jcvi.apps.grid import MakeManager
-from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir
+from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, sh
 
 
 class STRLine(object):
@@ -85,10 +85,44 @@ def main():
 
     actions = (
         ('pe', 'infer paired-end reads spanning a certain region'),
+        ('htt', 'extract HTT region and run lobSTR'),
         ('lobstrindex', 'make lobSTR index'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def htt(args):
+    """
+    %prog htt bamfile
+
+    Extract HTT region and run lobSTR.
+    """
+    p = OptionParser(htt.__doc__)
+    p.set_home("lobstr")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    bamfile, = args
+    lhome = opts.lobstr_home
+
+    minibamfile = bamfile.split("/")[-1]
+    cmd = "samtools view {0} chr4:3070000-3080000 -b".format(bamfile)
+    cmd += " -o {0}".format(minibamfile)
+    sh(cmd)
+
+    sh("rm {0}.bai".format(minibamfile))
+    sh("samtools index {0}".format(minibamfile))
+
+    cmd = "allelotype --command classify --bam {0}".format(minibamfile)
+    cmd += " --noise_model {0}/models/illumina_v3.pcrfree".format(lhome)
+    cmd += " --strinfo {0}/hg38/hg38.tab".format(lhome)
+    cmd += " --index-prefix {0}/hg38/lobSTR_".format(lhome)
+    cmd += " --chrom chr4 --out {0}".format(minibamfile.split(".")[0])
+    cmd += " --max-diff-ref 150"
+    sh(cmd)
 
 
 def lobstrindex(args):

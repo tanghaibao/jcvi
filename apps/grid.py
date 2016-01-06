@@ -41,6 +41,7 @@ class Dependency (object):
             s = "{0} : {1}\n".format(target, source)
 
         for c in self.cmds:
+            c = c.replace("$", "$$")  # Command escaping
             s += "\t" + c + "\n"
         return s
 

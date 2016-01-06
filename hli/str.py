@@ -14,6 +14,7 @@ from math import log
 from collections import defaultdict
 from jcvi.graphics.histogram import stem_leaf_plot
 from jcvi.utils.cbook import percentage
+from jcvi.formats.bed import natsorted
 from jcvi.apps.grid import MakeManager
 from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, sh
 
@@ -23,20 +24,20 @@ class STRLine(object):
     def __init__(self, line):
         args = line.split()
         self.seqid = args[0]
-        self.start = int(args[1]) + 1
+        self.start = int(args[1])
         self.end = int(args[2])
-        self.period = int(args[4])
-        self.copynum = float(args[5])
-        self.consensusSize = int(args[6])
-        self.pctmatch = int(args[7])
-        self.pctindel = int(args[8])
-        self.score = int(args[9])
-        self.A = int(args[10])
-        self.C = int(args[11])
-        self.G = int(args[12])
-        self.T = int(args[13])
-        self.entropy = float(args[14])
-        self.motif = args[15]
+        self.period = int(args[3])
+        self.copynum = float(args[4])
+        self.consensusSize = int(args[5])
+        self.pctmatch = int(args[6])
+        self.pctindel = int(args[7])
+        self.score = int(args[8])
+        self.A = int(args[9])
+        self.C = int(args[10])
+        self.G = int(args[11])
+        self.T = int(args[12])
+        self.entropy = float(args[13])
+        self.motif = args[14]
 
     def __str__(self):
         return "\t".join(str(x) for x in (self.seqid, self.start, self.end,
@@ -45,8 +46,8 @@ class STRLine(object):
                         self.A, self.C, self.G, self.T,
                         "{0:.2f}".format(self.entropy), self.motif))
 
-    def is_valid(self, maxperiod=6, maxlength=150, minscore=50):
-        return self.period <= maxperiod and \
+    def is_valid(self, maxperiod=6, maxlength=150, minscore=30):
+        return 2 <= self.period <= maxperiod and \
                (self.end - self.start + 1) <= maxlength and \
                self.score >= minscore
 
@@ -87,9 +88,47 @@ def main():
         ('htt', 'extract HTT region and run lobSTR'),
         ('lobstr', 'run lobSTR on a big BAM'),
         ('lobstrindex', 'make lobSTR index'),
+        ('trf', 'run TRF on FASTA files'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def trf(args):
+    """
+    %prog trf outdir
+
+    Run TRF on FASTA files.
+    """
+    from jcvi.apps.base import iglob
+
+    p = OptionParser(trf.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    outdir, = args
+    mm = MakeManager()
+
+    params = "2 4090 4090 80 10 30 6".split()
+    bedfiles = []
+    for fastafile in natsorted(iglob(outdir, "*.fa,*.fasta")):
+        pf = op.basename(fastafile).split(".")[0]
+        cmd1 = "trf {0} {1} -d -h".format(fastafile, " ".join(params))
+        datfile = op.basename(fastafile) + "." + ".".join(params) + ".dat"
+        bedfile = "{0}.trf.bed".format(pf)
+        cmd2 = "cat {0} | awk '($9 >0)' | sed 's/ /\\t/g'".format(datfile)
+        cmd2 += " | awk '{{print \"{0}\\t\" $0}}' > {1}".format(pf, bedfile)
+        mm.add(fastafile, datfile, cmd1)
+        mm.add(datfile, bedfile, cmd2)
+        bedfiles.append(bedfile)
+
+    bedfile = "trf.bed"
+    cmd = "cat {0} > {1}".format(" ".join(natsorted(bedfiles)), bedfile)
+    mm.add(bedfiles, bedfile, cmd)
+
+    mm.write()
 
 
 def lobstr(args):
@@ -171,7 +210,8 @@ def lobstrindex(args):
     %prog lobstrindex hg38.trf.bed hg38.upper.fa
 
     Make lobSTR index. Make sure the FASTA contain only upper case (so use
-    fasta.format --upper to convert from UCSC fasta).
+    fasta.format --upper to convert from UCSC fasta). The bed file is generated
+    by str().
     """
     import pyfasta
 

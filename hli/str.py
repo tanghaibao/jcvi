@@ -9,7 +9,6 @@ import re
 import os.path as op
 import sys
 import logging
-import pysam
 
 from math import log
 from collections import defaultdict
@@ -86,10 +85,57 @@ def main():
     actions = (
         ('pe', 'infer paired-end reads spanning a certain region'),
         ('htt', 'extract HTT region and run lobSTR'),
+        ('lobstr', 'run lobSTR on a big BAM'),
         ('lobstrindex', 'make lobSTR index'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def lobstr(args):
+    """
+    %prog lobstr bamfile
+
+    Run lobSTR on a big BAM file.
+    """
+    p = OptionParser(lobstr.__doc__)
+    p.set_home("lobstr", default="/mnt/software/lobSTR-4.0.0")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    bamfile, = args
+    lhome = opts.lobstr_home
+
+    mm = MakeManager()
+    vcffiles = []
+    for chr in range(1, 23) + ["X", "Y"]:
+        cmd, vcffile = allelotype_on_chr(bamfile, chr, lhome)
+        mm.add(bamfile, vcffile, cmd)
+        vcffiles.append(vcffile)
+
+    gzfile = bamfile.split(".")[0] + ".vcf.gz"
+    cmd = "vcf-concat {0} | vcf-sort".format(" ".join(vcffiles))
+    cmd += " | bgzip -c > {0}".format(gzfile)
+    mm.add(vcffiles, gzfile, cmd)
+
+    tbifile = gzfile + ".tbi"
+    cmd = "tabix -p vcf {0}".format(gzfile)
+    mm.add(gzfile, tbifile, cmd)
+
+    mm.write()
+
+
+def allelotype_on_chr(bamfile, chr, lhome):
+    outfile = "{0}.chr{1}".format(bamfile.split(".")[0], chr)
+    cmd = "{0}/bin/allelotype --command classify --bam {1}".format(lhome, bamfile)
+    cmd += " --noise_model {0}/models/illumina_v3.pcrfree".format(lhome)
+    cmd += " --strinfo {0}/hg38/hg38.tab".format(lhome)
+    cmd += " --index-prefix {0}/hg38/lobSTR_".format(lhome)
+    cmd += " --chrom chr{0} --out {1}".format(chr, outfile)
+    cmd += " --max-diff-ref 150"
+    return cmd, outfile + ".vcf"
 
 
 def htt(args):
@@ -116,12 +162,7 @@ def htt(args):
     sh("rm {0}.bai".format(minibamfile))
     sh("samtools index {0}".format(minibamfile))
 
-    cmd = "allelotype --command classify --bam {0}".format(minibamfile)
-    cmd += " --noise_model {0}/models/illumina_v3.pcrfree".format(lhome)
-    cmd += " --strinfo {0}/hg38/hg38.tab".format(lhome)
-    cmd += " --index-prefix {0}/hg38/lobSTR_".format(lhome)
-    cmd += " --chrom chr4 --out {0}".format(minibamfile.split(".")[0])
-    cmd += " --max-diff-ref 150"
+    cmd = allelotype_on_chr(minibamfile, 4, lhome)
     sh(cmd)
 
 
@@ -180,6 +221,8 @@ def pe(args):
 
     Infer distance paired-end reads spanning a certain region.
     """
+    import pysam
+
     p = OptionParser(pe.__doc__)
     opts, args = p.parse_args(args)
 

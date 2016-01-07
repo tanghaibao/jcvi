@@ -10,6 +10,8 @@ import os.path as op
 import sys
 import logging
 
+import pyfasta
+
 from math import log
 from collections import defaultdict
 from jcvi.graphics.histogram import stem_leaf_plot
@@ -31,20 +33,25 @@ class STRLine(object):
         self.consensusSize = int(args[5])
         self.pctmatch = int(args[6])
         self.pctindel = int(args[7])
-        self.score = int(args[8])
-        self.A = int(args[9])
-        self.C = int(args[10])
-        self.G = int(args[11])
-        self.T = int(args[12])
+        self.score = args[8]
+        self.A = args[9]
+        self.C = args[10]
+        self.G = args[11]
+        self.T = args[12]
         self.entropy = float(args[13])
         self.motif = args[14]
+        assert self.period == len(self.motif)
+        self.name = args[15] if len(args) == 16 else None
 
     def __str__(self):
-        return "\t".join(str(x) for x in (self.seqid, self.start, self.end,
-                        self.period, self.copynum, self.consensusSize,
-                        self.pctmatch, self.pctindel, self.score,
-                        self.A, self.C, self.G, self.T,
-                        "{0:.2f}".format(self.entropy), self.motif))
+        fields = [self.seqid, self.start, self.end,
+                  self.period, self.copynum, self.consensusSize,
+                  self.pctmatch, self.pctindel, self.score,
+                  self.A, self.C, self.G, self.T,
+                  "{0:.2f}".format(self.entropy), self.motif]
+        if self.name is not None:
+            fields += [self.name]
+        return "\t".join(str(x) for x in fields)
 
     def is_valid(self, maxperiod=6, maxlength=150, minscore=30):
         return 2 <= self.period <= maxperiod and \
@@ -65,20 +72,23 @@ class STRLine(object):
             self.start = start + m.start()
             length = m.end() - m.start()
             subseq = m.group(0)
-            assert length % len(self.motif) == 0
+            assert length % self.period == 0
             assert subseq.startswith(self.motif)
 
             self.end = self.start - 1 + length
-            self.copynum = length / len(self.motif)
+            self.copynum = length / self.period
             self.pctmatch = 100
             self.pctindel = 0
             self.score = 2 * length
-            self.A = subseq.count('A')
-            self.C = subseq.count('C')
-            self.G = subseq.count('G')
-            self.T = subseq.count('T')
-            self.entropy = self.calc_entropy()
+            self.fix_counts(subseq)
             yield self
+
+    def fix_counts(self, subseq):
+        self.A = subseq.count('A')
+        self.C = subseq.count('C')
+        self.G = subseq.count('G')
+        self.T = subseq.count('T')
+        self.entropy = self.calc_entropy()
 
 
 def main():
@@ -89,9 +99,74 @@ def main():
         ('lobstr', 'run lobSTR on a big BAM'),
         ('lobstrindex', 'make lobSTR index'),
         ('trf', 'run TRF on FASTA files'),
+        ('codis', 'liftOver CODIS/Y-STR markers'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def get_motif(s, motif_length):
+    sl = len(s)
+    kmers = set()
+    # Get all kmers
+    for i in xrange(sl - motif_length):
+        ss = s[i: i + motif_length]
+        kmers.add(ss)
+
+    kmer_counts = []
+    for kmer in kmers:
+        kmer_counts.append((s.count(kmer), -s.index(kmer), kmer))
+
+    return sorted(kmer_counts, reverse=True)[0][-1]
+
+
+def codis(args):
+    """
+    %prog codis hg38.trf.bed.new lobstr_v3.0.2_hg38_ref.bed hg38.upper.fa
+
+    LiftOver CODIS/Y-STR markers.
+    """
+    from jcvi.utils.orderedcollections import DefaultOrderedDict
+
+    p = OptionParser(codis.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    trfbed, refbed, fastafile = args
+    # Generate the BED first
+    codisbed = "codis.bed"
+    register = DefaultOrderedDict(list)
+    fp = open(refbed)
+    fw = open(codisbed, "w")
+    for row in fp:
+        s = STRLine(row)
+        if s.name[-1] in (";", "."):
+            continue
+        print >> fw, "\t".join(str(x) for x in (s.seqid, s.start, s.end, s.name))
+        register[s.name].append(s)
+    fw.close()
+
+    genome = pyfasta.Fasta(fastafile)
+    edits = []
+    for name, ss in register.items():
+        s = ss[0]
+        start = min(x.start for x in ss)
+        end = max(x.end for x in ss)
+        s.start = start
+        s.end = end
+        seq = genome[s.seqid][s.start - 1: s.end]
+        s.motif = get_motif(seq, len(s.motif))
+        s.fix_counts(seq)
+        s.copynum = seq.count(s.motif)
+        s.name = " | ".join(\
+                (s.name, "[{0}]{1}".format(s.motif, s.copynum), seq))
+        edits.append(s)
+
+    edits = natsorted(edits, key=lambda x: (x.seqid, x.start))
+    for e in edits:
+        print str(e)
 
 
 def trf(args):
@@ -213,8 +288,6 @@ def lobstrindex(args):
     fasta.format --upper to convert from UCSC fasta). The bed file is generated
     by str().
     """
-    import pyfasta
-
     p = OptionParser(lobstrindex.__doc__)
     p.set_home("lobstr")
     opts, args = p.parse_args(args)

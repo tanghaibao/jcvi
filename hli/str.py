@@ -29,7 +29,7 @@ class STRLine(object):
         self.start = int(args[1])
         self.end = int(args[2])
         self.period = int(args[3])
-        self.copynum = float(args[4])
+        self.copynum = args[4]
         self.consensusSize = int(args[5])
         self.pctmatch = int(args[6])
         self.pctindel = int(args[7])
@@ -152,16 +152,15 @@ def codis(args):
     edits = []
     for name, ss in register.items():
         s = ss[0]
-        start = min(x.start for x in ss)
-        end = max(x.end for x in ss)
-        s.start = start
-        s.end = end
+        s.start = min(x.start for x in ss)
+        s.end = max(x.end for x in ss)
+        s.copynum = natsorted(x.copynum for x in ss)[-1]
         seq = genome[s.seqid][s.start - 1: s.end]
         s.motif = get_motif(seq, len(s.motif))
         s.fix_counts(seq)
-        s.copynum = seq.count(s.motif)
-        s.name = " | ".join(\
-                (s.name, "[{0}]{1}".format(s.motif, s.copynum), seq))
+        #copynum = seq.count(s.motif)
+        #s.name = " | ".join(\
+        #        (s.name, "[{0}]{1}".format(s.motif, copynum), seq))
         edits.append(s)
 
     edits = natsorted(edits, key=lambda x: (x.seqid, x.start))
@@ -208,24 +207,24 @@ def trf(args):
 
 def lobstr(args):
     """
-    %prog lobstr bamfile
+    %prog lobstr bamfile lobstr_index
 
     Run lobSTR on a big BAM file.
     """
     p = OptionParser(lobstr.__doc__)
-    p.set_home("lobstr", default="/mnt/software/lobSTR-4.0.0")
+    p.set_home("lobstr")
     opts, args = p.parse_args(args)
 
-    if len(args) != 1:
+    if len(args) != 2:
         sys.exit(not p.print_help())
 
-    bamfile, = args
+    bamfile, lbidx = args
     lhome = opts.lobstr_home
 
     mm = MakeManager()
     vcffiles = []
     for chr in range(1, 23) + ["X", "Y"]:
-        cmd, vcffile = allelotype_on_chr(bamfile, chr, lhome)
+        cmd, vcffile = allelotype_on_chr(bamfile, chr, lhome, lbidx)
         mm.add(bamfile, vcffile, cmd)
         vcffiles.append(vcffile)
 
@@ -241,12 +240,12 @@ def lobstr(args):
     mm.write()
 
 
-def allelotype_on_chr(bamfile, chr, lhome):
+def allelotype_on_chr(bamfile, chr, lhome, lbidx):
     outfile = "{0}.chr{1}".format(bamfile.split(".")[0], chr)
     cmd = "{0}/bin/allelotype --command classify --bam {1}".format(lhome, bamfile)
     cmd += " --noise_model {0}/models/illumina_v3.pcrfree".format(lhome)
-    cmd += " --strinfo {0}/hg38/hg38.tab".format(lhome)
-    cmd += " --index-prefix {0}/hg38/lobSTR_".format(lhome)
+    cmd += " --strinfo {0}/{1}/index.tab".format(lhome, lbidx)
+    cmd += " --index-prefix {0}/{1}/lobSTR_".format(lhome, lbidx)
     cmd += " --chrom chr{0} --out {1}".format(chr, outfile)
     cmd += " --max-diff-ref 150"
     return cmd, outfile + ".vcf"
@@ -282,46 +281,50 @@ def htt(args):
 
 def lobstrindex(args):
     """
-    %prog lobstrindex hg38.trf.bed hg38.upper.fa
+    %prog lobstrindex hg38.trf.bed hg38.upper.fa hg38
 
     Make lobSTR index. Make sure the FASTA contain only upper case (so use
     fasta.format --upper to convert from UCSC fasta). The bed file is generated
     by str().
     """
     p = OptionParser(lobstrindex.__doc__)
+    p.add_option("--fixseq", action="store_true", default=False,
+                 help="Scan sequences to extract perfect STRs")
     p.set_home("lobstr")
     opts, args = p.parse_args(args)
 
-    if len(args) != 2:
+    if len(args) != 3:
         sys.exit(not p.print_help())
 
-    trfbed, fastafile = args
+    trfbed, fastafile, pf = args
     lhome = opts.lobstr_home
-    pf = fastafile.split(".")[0]
     mkdir(pf)
 
-    genome = pyfasta.Fasta(fastafile)
-    newbedfile = trfbed + ".new"
-    newbed = open(newbedfile, "w")
-    fp = open(trfbed)
-    retained = total = 0
-    for row in fp:
-        s = STRLine(row)
-        total += 1
-        for ns in s.iter_exact_str(genome):
-            if not ns.is_valid():
-                continue
-            print >> newbed, ns
-            retained += 1
-    newbed.close()
-    logging.debug("Retained: {0}".format(percentage(retained, total)))
+    if opts.fixseq:
+        genome = pyfasta.Fasta(fastafile)
+        newbedfile = trfbed + ".new"
+        newbed = open(newbedfile, "w")
+        fp = open(trfbed)
+        retained = total = 0
+        for row in fp:
+            s = STRLine(row)
+            total += 1
+            for ns in s.iter_exact_str(genome):
+                if not ns.is_valid():
+                    continue
+                print >> newbed, ns
+                retained += 1
+        newbed.close()
+        logging.debug("Retained: {0}".format(percentage(retained, total)))
+    else:
+        newbedfile = trfbed
 
     mm = MakeManager()
     cmd = "python {0}/scripts/lobstr_index.py".format(lhome)
     cmd += " --str {0} --ref {1} --out {2}".format(newbedfile, fastafile, pf)
     mm.add((newbedfile, fastafile), op.join(pf, "lobSTR_ref.fasta.rsa"), cmd)
 
-    tabfile = "{0}/{0}.tab".format(pf)
+    tabfile = "{0}/index.tab".format(pf)
     cmd = "python {0}/scripts/GetSTRInfo.py".format(lhome)
     cmd += " {0} {1} > {2}".format(newbedfile, fastafile, tabfile)
     mm.add((newbedfile, fastafile), tabfile, cmd)

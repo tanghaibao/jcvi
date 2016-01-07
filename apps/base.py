@@ -572,7 +572,7 @@ class OptionParser (OptionP):
                    "eddyyeh": "/home/shared/scripts/eddyyeh",
                    "fiona": "~/export/fiona-0.2.0-Linux-x86_64",
                    "fermi": "~/export/fermi",
-                   "lobstr": "~/export/lobSTR-4.0.0",
+                   "lobstr": "/mnt/software/lobSTR-4.0.0",
                    }.get(prog, None)
         if default is None:  # Last attempt at guessing the path
             try:

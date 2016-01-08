@@ -21,6 +21,32 @@ from jcvi.apps.grid import MakeManager
 from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, sh
 
 
+YSEARCH_HAPLOTYPE = """
+DYS393  DYS390 DYS19/DYS394  DYS19b        DYS391        DYS385a/b     DYS385a/b DYS426  DYS388  DYS439
+DYS389I DYS392 DYS389B       DYS458        DYS459a/b     DYS459a/b     DYS455    DYS454  DYS447  DYS437
+DYS448  DYS449 DYS464a/b/c/d DYS464a/b/c/d DYS464a/b/c/d DYS464a/b/c/d DYS464e   DYS464f DYS464g DYS460
+GATA-H4 YCAIIa YCAIIb        DYS456        DYS607        DYS576        DYS570    CDYa    CDYb    DYS442
+DYS438  DYS531 DYS578        DYS395S1a/b   DYS395S1a/b   DYS590        DYS537    DYS641  DYS472  DYS406S1
+DYS511  DYS425 DYS413a/b     DYS413a/b     DYS557        DYS594        DYS436    DYS490  DYS534  DYS450
+DYS444  DYS481 DYS520        DYS446        DYS617        DYS568        DYS487    DYS572  DYS640  DYS492
+DYS565  DYS461 DYS462        GATA-A10      DYS635        GAAT1B07      DYS441    DYS445  DYS452  DYS463
+DYS434  DYS435 DYS485        DYS494        DYS495        DYS505        DYS522    DYS533  DYS549  DYS556
+DYS575  DYS589 DYS636        DYS638        DYS643        DYS714        DYS716    DYS717  DYS726  DXYS156-Y
+""".split()
+YSEARCH_LL = """
+L1  L2  L3  L4  L5  L6  L7  L8  L9  L10
+L11 L12 L13 L14 L15 L16 L17 L18 L19 L20
+L21 L22 L23 L24 L25 L26 L27 L28 L29 L30
+L31 L32 L33 L34 L35 L36 L37 L38 L39 L40
+L41 L54 L55 L56 L57 L58 L59 L60 L61 L62
+L63 L42 L64 L65 L66 L67 L68 L69 L70 L71
+L49 L72 L73 L51 L74 L75 L76 L77 L78 L79
+L80 L43 L44 L45 L46 L47 L48 L50 L52 L53
+L81 L82 L83 L84 L85 L86 L87 L88 L89 L90
+L91 L92 L93 L94 L95 L96 L97 L98 L99 L100
+""".split()
+
+
 class STRLine(object):
 
     def __init__(self, line):
@@ -109,6 +135,19 @@ def main():
     p.dispatch(globals())
 
 
+def build_ysearch_link(r):
+    template = \
+    "http://www.ysearch.org/search_search.asp?fail=2&uid=&freeentry=true&"
+    markers = []
+    for i, marker in zip(YSEARCH_LL, YSEARCH_HAPLOTYPE):
+        z = r.get(marker, "null")
+        if "a/b" in marker or "DYS520" == marker:
+            z = "null"
+        m = "{0}={1}".format(i, z)
+        markers.append(m)
+    return template + "&".join(markers)
+
+
 def ystr(args):
     """
     %prog ystr chrY.vcf tabfile
@@ -135,6 +174,7 @@ def ystr(args):
     header = "Marker|Reads|Ref|Genotype|Motif".split("|")
     contents = []
 
+    simple_register = {}
     for record in reader:
         name = register[(record.CHROM, record.POS)]
         info = record.INFO
@@ -143,10 +183,16 @@ def ystr(args):
         if isinstance(rpa, list):
             rpa = "|".join(str(int(float(x))) for x in rpa)
         ru = info["RU"]
+        simple_register[name] = int(rpa)
         for sample in record.samples:
             contents.append((name, sample["ALLREADS"], ref, rpa, ru))
 
+    a, b, c = "DYS389I", "DYS389B.1", "DYS389B"
+    if a in simple_register and b in simple_register:
+        simple_register[c] = simple_register[a] + simple_register[b]
+
     write_csv(header, contents, sep=" ")
+    print build_ysearch_link(simple_register)
 
 
 def get_motif(s, motif_length):

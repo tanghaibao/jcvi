@@ -12,7 +12,7 @@ import logging
 
 import pyfasta
 
-from math import log
+from math import log, ceil
 from collections import defaultdict
 from jcvi.graphics.histogram import stem_leaf_plot
 from jcvi.utils.cbook import percentage
@@ -67,7 +67,7 @@ class STRLine(object):
     def iter_exact_str(self, genome):
         pat = re.compile("(({0}){{2,}})".format(self.motif))
         start = self.start
-        s = genome[self.seqid][self.start - 1: self.end]
+        s = genome[self.seqid][self.start - 1: self.end].upper()
         for m in re.finditer(pat, s):
             self.start = start + m.start()
             length = m.end() - m.start()
@@ -84,6 +84,9 @@ class STRLine(object):
             yield self
 
     def fix_counts(self, subseq):
+        length = int(ceil(self.period * float(self.copynum)))
+        # Sanity check for length, otherwise lobSTR misses units
+        self.end = max(self.end, self.start + length - 1)
         self.A = subseq.count('A')
         self.C = subseq.count('C')
         self.G = subseq.count('G')
@@ -96,13 +99,54 @@ def main():
     actions = (
         ('pe', 'infer paired-end reads spanning a certain region'),
         ('htt', 'extract HTT region and run lobSTR'),
+        ('liftover', 'liftOver CODIS/Y-STR markers'),
         ('lobstr', 'run lobSTR on a big BAM'),
         ('lobstrindex', 'make lobSTR index'),
         ('trf', 'run TRF on FASTA files'),
-        ('codis', 'liftOver CODIS/Y-STR markers'),
+        ('ystr', 'print out Y-STR info given VCF'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def ystr(args):
+    """
+    %prog ystr chrY.vcf tabfile
+
+    Print out Y-STR info given VCF. Marker name extracted from tabfile.
+    """
+    import vcf
+    from jcvi.utils.table import write_csv
+
+    p = OptionParser(ystr.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    vcffile, tabfile = args
+    reader = vcf.Reader(filename=vcffile)
+    register = {}
+    fp = open(tabfile)
+    for row in fp:
+        s = STRLine(row)
+        register[(s.seqid, s.start)] = s.name
+
+    header = "Marker|Reads|Ref|Genotype|Motif".split("|")
+    contents = []
+
+    for record in reader:
+        name = register[(record.CHROM, record.POS)]
+        info = record.INFO
+        ref = int(float(info["REF"]))
+        rpa = info.get("RPA", ref)
+        if isinstance(rpa, list):
+            rpa = "|".join(str(int(float(x))) for x in rpa)
+        ru = info["RU"]
+        for sample in record.samples:
+            contents.append((name, sample["ALLREADS"], ref, rpa, ru))
+
+    write_csv(header, contents, sep=" ")
 
 
 def get_motif(s, motif_length):
@@ -120,15 +164,15 @@ def get_motif(s, motif_length):
     return sorted(kmer_counts, reverse=True)[0][-1]
 
 
-def codis(args):
+def liftover(args):
     """
-    %prog codis hg38.trf.bed.new lobstr_v3.0.2_hg38_ref.bed hg38.upper.fa
+    %prog liftover hg38.trf.bed.new lobstr_v3.0.2_hg38_ref.bed hg38.upper.fa
 
     LiftOver CODIS/Y-STR markers.
     """
     from jcvi.utils.orderedcollections import DefaultOrderedDict
 
-    p = OptionParser(codis.__doc__)
+    p = OptionParser(liftover.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -155,12 +199,9 @@ def codis(args):
         s.start = min(x.start for x in ss)
         s.end = max(x.end for x in ss)
         s.copynum = natsorted(x.copynum for x in ss)[-1]
-        seq = genome[s.seqid][s.start - 1: s.end]
+        seq = genome[s.seqid][s.start - 1: s.end].upper()
         s.motif = get_motif(seq, len(s.motif))
         s.fix_counts(seq)
-        #copynum = seq.count(s.motif)
-        #s.name = " | ".join(\
-        #        (s.name, "[{0}]{1}".format(s.motif, copynum), seq))
         edits.append(s)
 
     edits = natsorted(edits, key=lambda x: (x.seqid, x.start))
@@ -212,6 +253,7 @@ def lobstr(args):
     Run lobSTR on a big BAM file.
     """
     p = OptionParser(lobstr.__doc__)
+    p.add_option("--chr", help="Run only this chromosome")
     p.set_home("lobstr")
     opts, args = p.parse_args(args)
 
@@ -223,7 +265,8 @@ def lobstr(args):
 
     mm = MakeManager()
     vcffiles = []
-    for chr in range(1, 23) + ["X", "Y"]:
+    chrs = opts.chr or (range(1, 23) + ["X", "Y"])
+    for chr in chrs:
         cmd, vcffile = allelotype_on_chr(bamfile, chr, lhome, lbidx)
         mm.add(bamfile, vcffile, cmd)
         vcffiles.append(vcffile)
@@ -248,6 +291,7 @@ def allelotype_on_chr(bamfile, chr, lhome, lbidx):
     cmd += " --index-prefix {0}/{1}/lobSTR_".format(lhome, lbidx)
     cmd += " --chrom chr{0} --out {1}".format(chr, outfile)
     cmd += " --max-diff-ref 150"
+    cmd += " --haploid chrX,chrY"
     return cmd, outfile + ".vcf"
 
 

@@ -178,7 +178,7 @@ def build_yhrd_link(r, panel, ban=["DYS385"]):
 
 def ystr(args):
     """
-    %prog ystr chrY.vcf tabfile
+    %prog ystr chrY.vcf
 
     Print out Y-STR info given VCF. Marker name extracted from tabfile.
     """
@@ -186,12 +186,15 @@ def ystr(args):
     from jcvi.utils.table import write_csv
 
     p = OptionParser(ystr.__doc__)
+    p.set_home("lobstr")
     opts, args = p.parse_args(args)
 
-    if len(args) != 2:
+    if len(args) != 1:
         sys.exit(not p.print_help())
 
-    vcffile, tabfile = args
+    vcffile, = args
+    db = vcffile.split(".")[-2]
+    tabfile = op.join(opts.lobstr_home, "{0}/index.info".format(db))
     reader = vcf.Reader(filename=vcffile)
     register = {}
     fp = open(tabfile)
@@ -224,6 +227,11 @@ def ystr(args):
     mm = ["DYS385", "DYS413", "YCAII"]
     for m in mm:
         ma, mb = m + 'a', m + 'b'
+        if ma not in simple_register or mb not in simple_register:
+            simple_register[ma] = simple_register[mb] = None
+            del simple_register[ma]
+            del simple_register[mb]
+            continue
         if simple_register[ma] > simple_register[mb]:
             simple_register[ma], simple_register[mb] = \
                     simple_register[mb], simple_register[ma]
@@ -355,7 +363,7 @@ def lobstr(args):
 
     mm = MakeManager()
     vcffiles = []
-    chrs = opts.chr or (range(1, 23) + ["X", "Y"])
+    chrs = [opts.chr] or (range(1, 23) + ["X", "Y"])
     for chr in chrs:
         cmd, vcffile = allelotype_on_chr(bamfile, chr, lhome, lbidx)
         mm.add(bamfile, vcffile, cmd)
@@ -379,10 +387,10 @@ def allelotype_on_chr(bamfile, chr, lhome, lbidx):
     cmd += " --noise_model {0}/models/illumina_v3.pcrfree".format(lhome)
     cmd += " --strinfo {0}/{1}/index.tab".format(lhome, lbidx)
     cmd += " --index-prefix {0}/{1}/lobSTR_".format(lhome, lbidx)
-    cmd += " --chrom chr{0} --out {1}".format(chr, outfile)
+    cmd += " --chrom chr{0} --out {1}.{2}".format(chr, outfile, lbidx)
     cmd += " --max-diff-ref 150"
     cmd += " --haploid chrX,chrY"
-    return cmd, outfile + ".vcf"
+    return cmd, ".".join((outfile, lbidx, "vcf"))
 
 
 def htt(args):
@@ -462,6 +470,10 @@ def lobstrindex(args):
     cmd = "python {0}/scripts/GetSTRInfo.py".format(lhome)
     cmd += " {0} {1} > {2}".format(newbedfile, fastafile, tabfile)
     mm.add((newbedfile, fastafile), tabfile, cmd)
+
+    infofile = "{0}/index.info".format(pf)
+    cmd = "cp {0} {1}".format(trfbed, infofile)
+    mm.add(trfbed, infofile, cmd)
     mm.write()
 
 

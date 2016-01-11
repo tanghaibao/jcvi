@@ -22,16 +22,16 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, sh
 
 
 YSEARCH_HAPLOTYPE = """
-DYS393  DYS390 DYS19/DYS394  DYS19b        DYS391        DYS385a/b     DYS385a/b DYS426  DYS388  DYS439
-DYS389I DYS392 DYS389B       DYS458        DYS459a/b     DYS459a/b     DYS455    DYS454  DYS447  DYS437
-DYS448  DYS449 DYS464a/b/c/d DYS464a/b/c/d DYS464a/b/c/d DYS464a/b/c/d DYS464e   DYS464f DYS464g DYS460
-GATA-H4 YCAIIa YCAIIb        DYS456        DYS607        DYS576        DYS570    CDYa    CDYb    DYS442
-DYS438  DYS531 DYS578        DYS395S1a/b   DYS395S1a/b   DYS590        DYS537    DYS641  DYS472  DYS406S1
-DYS511  DYS425 DYS413a/b     DYS413a/b     DYS557        DYS594        DYS436    DYS490  DYS534  DYS450
-DYS444  DYS481 DYS520        DYS446        DYS617        DYS568        DYS487    DYS572  DYS640  DYS492
-DYS565  DYS461 DYS462        GATA-A10      DYS635        GAAT1B07      DYS441    DYS445  DYS452  DYS463
-DYS434  DYS435 DYS485        DYS494        DYS495        DYS505        DYS522    DYS533  DYS549  DYS556
-DYS575  DYS589 DYS636        DYS638        DYS643        DYS714        DYS716    DYS717  DYS726  DXYS156-Y
+DYS393  DYS390 DYS19/DYS394  DYS19b        DYS391        DYS385a       DYS385b DYS426  DYS388  DYS439
+DYS389I DYS392 DYS389B       DYS458        DYS459a/b     DYS459a/b     DYS455  DYS454  DYS447  DYS437
+DYS448  DYS449 DYS464a/b/c/d DYS464a/b/c/d DYS464a/b/c/d DYS464a/b/c/d DYS464e DYS464f DYS464g DYS460
+GATA-H4 YCAIIa YCAIIb        DYS456        DYS607        DYS576        DYS570  CDYa    CDYb    DYS442
+DYS438  DYS531 DYS578        DYS395S1a/b   DYS395S1a/b   DYS590        DYS537  DYS641  DYS472  DYS406S1
+DYS511  DYS425 DYS413a       DYS413b       DYS557        DYS594        DYS436  DYS490  DYS534  DYS450
+DYS444  DYS481 DYS520        DYS446        DYS617        DYS568        DYS487  DYS572  DYS640  DYS492
+DYS565  DYS461 DYS462        GATA-A10      DYS635        GAAT1B07      DYS441  DYS445  DYS452  DYS463
+DYS434  DYS435 DYS485        DYS494        DYS495        DYS505        DYS522  DYS533  DYS549  DYS556
+DYS575  DYS589 DYS636        DYS638        DYS643        DYS714        DYS716  DYS717  DYS726  DXYS156-Y
 """.split()
 YSEARCH_LL = """
 L1  L2  L3  L4  L5  L6  L7  L8  L9  L10
@@ -44,6 +44,24 @@ L49 L72 L73 L51 L74 L75 L76 L77 L78 L79
 L80 L43 L44 L45 L46 L47 L48 L50 L52 L53
 L81 L82 L83 L84 L85 L86 L87 L88 L89 L90
 L91 L92 L93 L94 L95 L96 L97 L98 L99 L100
+""".split()
+YHRD_YFILER = """
+DYS456 DYS389I DYS390 DYS389B DYS458 DYS19/DYS394 DYS385
+DYS393 DYS391 DYS439 DYS635 DYS392 GATA-H4 DYS437 DYS438 DYS448
+""".split()
+YHRD_YFILERPLUS = """
+DYS576 DYS389I DYS635 DYS389B DYS627 DYS460 DYS458 DYS19/DYS394 GATA-H4 DYS448 DYS391
+DYS456 DYS390 DYS438 DYS392 DYS518 DYS570 DYS437 DYS385a DYS449
+DYS393 DYS439 DYS481 DYF387S1 DYS533
+""".split()
+USYSTR_ALL = """
+DYF387S1 DYS19/DYS394 DYS385 DYS389I
+DYS389B DYS390 DYS391 DYS392
+DYS393 DYS437 DYS438 DYS439
+DYS448 DYS449 DYS456 DYS458
+DYS460 DYS481 DYS518 DYS533
+DYS549 DYS570 DYS576 DYS627
+DYS635 DYS643 GATA-H4
 """.split()
 
 
@@ -135,17 +153,27 @@ def main():
     p.dispatch(globals())
 
 
-def build_ysearch_link(r):
+def build_ysearch_link(r, ban=["DYS520", "DYS413a", "DYS413b"]):
     template = \
     "http://www.ysearch.org/search_search.asp?fail=2&uid=&freeentry=true&"
     markers = []
     for i, marker in zip(YSEARCH_LL, YSEARCH_HAPLOTYPE):
         z = r.get(marker, "null")
-        if "a/b" in marker or "DYS520" == marker:
+        if "a/b" in marker or marker in ban:
             z = "null"
         m = "{0}={1}".format(i, z)
         markers.append(m)
-    return template + "&".join(markers)
+    print template + "&".join(markers)
+
+
+def build_yhrd_link(r, panel, ban=["DYS385"]):
+    L = []
+    for marker in panel:
+        z = r.get(marker, "--")
+        if marker in ban:
+            z = "--"
+        L.append(z)
+    print " ".join(str(x) for x in L)
 
 
 def ystr(args):
@@ -187,12 +215,28 @@ def ystr(args):
         for sample in record.samples:
             contents.append((name, sample["ALLREADS"], ref, rpa, ru))
 
+    # Multi-part markers
     a, b, c = "DYS389I", "DYS389B.1", "DYS389B"
     if a in simple_register and b in simple_register:
         simple_register[c] = simple_register[a] + simple_register[b]
 
+    # Multi-copy markers
+    mm = ["DYS385", "DYS413", "YCAII"]
+    for m in mm:
+        ma, mb = m + 'a', m + 'b'
+        if simple_register[ma] > simple_register[mb]:
+            simple_register[ma], simple_register[mb] = \
+                    simple_register[mb], simple_register[ma]
+
     write_csv(header, contents, sep=" ")
-    print build_ysearch_link(simple_register)
+    print "[YSEARCH]"
+    build_ysearch_link(simple_register)
+    print "[YFILER]"
+    build_yhrd_link(simple_register, panel=YHRD_YFILER)
+    print "[YFILERPLUS]"
+    build_yhrd_link(simple_register, panel=YHRD_YFILERPLUS)
+    print "[YSTR-ALL]"
+    build_yhrd_link(simple_register, panel=USYSTR_ALL)
 
 
 def get_motif(s, motif_length):

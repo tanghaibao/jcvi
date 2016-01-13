@@ -21,6 +21,8 @@ from jcvi.apps.grid import MakeManager
 from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, sh
 
 
+READLEN = 150
+MINSCORE = 30
 YSEARCH_HAPLOTYPE = """
 DYS393  DYS390 DYS19/DYS394  DYS19b        DYS391        DYS385a       DYS385b DYS426  DYS388  DYS439
 DYS389I DYS392 DYS389B       DYS458        DYS459a/b     DYS459a/b     DYS455  DYS454  DYS447  DYS437
@@ -97,13 +99,15 @@ class STRLine(object):
             fields += [self.name]
         return "\t".join(str(x) for x in fields)
 
-    def is_valid(self, maxperiod=6, maxlength=150, minscore=30):
+    def is_valid(self, maxperiod=6, maxlength=READLEN, minscore=MINSCORE):
         return 2 <= self.period <= maxperiod and \
                (self.end - self.start + 1) <= maxlength and \
                self.score >= minscore
 
     def calc_entropy(self):
         total = self.A + self.C + self.G + self.T
+        if total == 0:  # Perhaps they are all Ns - might crash in lobstrindex()
+            return 0
         fractions = [x * 1.0 / total for x in [self.A, self.C, self.G, self.T]]
         entropy = sum([-1.0 * x * log(x, 2) for x in fractions if x != 0])
         return entropy
@@ -264,43 +268,32 @@ def get_motif(s, motif_length):
 
 def liftover(args):
     """
-    %prog liftover hg38.trf.bed.new lobstr_v3.0.2_hg38_ref.bed hg38.upper.fa
+    %prog liftover lobstr_v3.0.2_hg38_ref.bed hg38.upper.fa
 
     LiftOver CODIS/Y-STR markers.
     """
-    from jcvi.utils.orderedcollections import DefaultOrderedDict
-
     p = OptionParser(liftover.__doc__)
+    p.add_option("--checkvalid", default=False, action="store_true",
+                help="Do not check minscore, period and length")
     opts, args = p.parse_args(args)
 
-    if len(args) != 3:
+    if len(args) != 2:
         sys.exit(not p.print_help())
 
-    trfbed, refbed, fastafile = args
-    # Generate the BED first
-    codisbed = "codis.bed"
-    register = DefaultOrderedDict(list)
-    fp = open(refbed)
-    fw = open(codisbed, "w")
-    for row in fp:
-        s = STRLine(row)
-        if s.name[-1] in (";", "."):
-            continue
-        print >> fw, "\t".join(str(x) for x in (s.seqid, s.start, s.end, s.name))
-        register[s.name].append(s)
-    fw.close()
-
+    refbed, fastafile = args
     genome = pyfasta.Fasta(fastafile)
     edits = []
-    for name, ss in register.items():
-        s = ss[0]
-        s.start = min(x.start for x in ss)
-        s.end = max(x.end for x in ss)
-        s.copynum = natsorted(x.copynum for x in ss)[-1]
+    fp = open(refbed)
+    for i, row in enumerate(fp):
+        s = STRLine(row)
         seq = genome[s.seqid][s.start - 1: s.end].upper()
         s.motif = get_motif(seq, len(s.motif))
         s.fix_counts(seq)
+        if opts.checkvalid and not s.is_valid():
+            continue
         edits.append(s)
+        if i % 10000 == 0:
+            print >> sys.stderr, i, "lines read"
 
     edits = natsorted(edits, key=lambda x: (x.seqid, x.start))
     for e in edits:
@@ -324,7 +317,7 @@ def trf(args):
     outdir, = args
     mm = MakeManager()
 
-    params = "2 4090 4090 80 10 30 6".split()
+    params = "2 31 31 80 10 {0} 6".format(MINSCORE).split()
     bedfiles = []
     for fastafile in natsorted(iglob(outdir, "*.fa,*.fasta")):
         pf = op.basename(fastafile).split(".")[0]
@@ -388,7 +381,7 @@ def allelotype_on_chr(bamfile, chr, lhome, lbidx):
     cmd += " --strinfo {0}/{1}/index.tab".format(lhome, lbidx)
     cmd += " --index-prefix {0}/{1}/lobSTR_".format(lhome, lbidx)
     cmd += " --chrom chr{0} --out {1}.{2}".format(chr, outfile, lbidx)
-    cmd += " --max-diff-ref 150"
+    cmd += " --max-diff-ref {0}".format(READLEN)
     cmd += " --haploid chrX,chrY"
     return cmd, ".".join((outfile, lbidx, "vcf"))
 

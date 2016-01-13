@@ -18,6 +18,7 @@ from jcvi.graphics.histogram import stem_leaf_plot
 from jcvi.utils.cbook import percentage
 from jcvi.formats.bed import natsorted
 from jcvi.apps.grid import MakeManager
+from jcvi.formats.base import must_open
 from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, sh
 
 
@@ -100,7 +101,7 @@ class STRLine(object):
         return "\t".join(str(x) for x in fields)
 
     def is_valid(self, maxperiod=6, maxlength=READLEN, minscore=MINSCORE):
-        return 2 <= self.period <= maxperiod and \
+        return 1 <= self.period <= maxperiod and \
                (self.end - self.start + 1) <= maxlength and \
                self.score >= minscore
 
@@ -197,9 +198,11 @@ def ystr(args):
         sys.exit(not p.print_help())
 
     vcffile, = args
-    db = vcffile.split(".")[-2]
+    db = vcffile.replace(".gz", "").split(".")[-2]
     tabfile = op.join(opts.lobstr_home, "{0}/index.info".format(db))
-    reader = vcf.Reader(filename=vcffile)
+    logging.debug("Reading marker info from `{0}`".format(tabfile))
+    fp = must_open(vcffile)
+    reader = vcf.Reader(fp)
     register = {}
     fp = open(tabfile)
     for row in fp:
@@ -218,14 +221,14 @@ def ystr(args):
         if isinstance(rpa, list):
             rpa = "|".join(str(int(float(x))) for x in rpa)
         ru = info["RU"]
-        simple_register[name] = int(rpa)
+        simple_register[name] = rpa
         for sample in record.samples:
             contents.append((name, sample["ALLREADS"], ref, rpa, ru))
 
     # Multi-part markers
     a, b, c = "DYS389I", "DYS389B.1", "DYS389B"
     if a in simple_register and b in simple_register:
-        simple_register[c] = simple_register[a] + simple_register[b]
+        simple_register[c] = int(simple_register[a]) + int(simple_register[b])
 
     # Multi-copy markers
     mm = ["DYS385", "DYS413", "YCAII"]
@@ -274,7 +277,7 @@ def liftover(args):
     """
     p = OptionParser(liftover.__doc__)
     p.add_option("--checkvalid", default=False, action="store_true",
-                help="Do not check minscore, period and length")
+                help="Check minscore, period and length")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -346,6 +349,7 @@ def lobstr(args):
     p = OptionParser(lobstr.__doc__)
     p.add_option("--chr", help="Run only this chromosome")
     p.set_home("lobstr")
+    p.set_outfile("makefile")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -354,15 +358,15 @@ def lobstr(args):
     bamfile, lbidx = args
     lhome = opts.lobstr_home
 
-    mm = MakeManager()
+    mm = MakeManager(filename=opts.outfile)
     vcffiles = []
-    chrs = [opts.chr] or (range(1, 23) + ["X", "Y"])
+    chrs = [opts.chr] if opts.chr else (range(1, 23) + ["X", "Y"])
     for chr in chrs:
         cmd, vcffile = allelotype_on_chr(bamfile, chr, lhome, lbidx)
         mm.add(bamfile, vcffile, cmd)
         vcffiles.append(vcffile)
 
-    gzfile = bamfile.split(".")[0] + ".vcf.gz"
+    gzfile = bamfile.split(".")[0] + ".{0}.vcf.gz".format(lbidx)
     cmd = "vcf-concat {0} | vcf-sort".format(" ".join(vcffiles))
     cmd += " | bgzip -c > {0}".format(gzfile)
     mm.add(vcffiles, gzfile, cmd)
@@ -382,7 +386,7 @@ def allelotype_on_chr(bamfile, chr, lhome, lbidx):
     cmd += " --index-prefix {0}/{1}/lobSTR_".format(lhome, lbidx)
     cmd += " --chrom chr{0} --out {1}.{2}".format(chr, outfile, lbidx)
     cmd += " --max-diff-ref {0}".format(READLEN)
-    cmd += " --haploid chrX,chrY"
+    cmd += " --haploid chrY"
     return cmd, ".".join((outfile, lbidx, "vcf"))
 
 

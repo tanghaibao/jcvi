@@ -22,14 +22,17 @@ def main():
     p.dispatch(globals())
 
 
-def push_to_s3(s3_store, dir_name):
-    cmd = "aws s3 sync %s s3://%s/%s --sse"%(dir_name, s3_store, dir_name)
+def push_to_s3(s3_store, obj_name):
+    cmd = "sync" if op.isdir(obj_name) else "cp"
+    s3address = "s3://{0}/{1}".format(s3_store, obj_name)
+    cmd = "aws s3 {0} {1} {2} --sse".format(cmd, obj_name, s3address)
     sh(cmd)
+    return s3address
 
 
 def pull_from_s3(s3_store):
     file_name = s3_store.split("/")[-1]
-    cmd = "aws s3 cp s3://%s %s --sse"%(s3_store, file_name)
+    cmd = "aws s3 cp s3://{0} {1} --sse".format(s3_store, file_name)
     sh(cmd)
     return op.abspath(file_name)
 

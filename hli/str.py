@@ -19,6 +19,7 @@ from jcvi.utils.cbook import percentage
 from jcvi.formats.bed import natsorted
 from jcvi.apps.grid import MakeManager
 from jcvi.formats.base import must_open
+from jcvi.hli.aws import push_to_s3, pull_from_s3
 from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, sh
 
 
@@ -350,14 +351,23 @@ def lobstr(args):
     p.add_option("--chr", help="Run only this chromosome")
     p.set_home("lobstr")
     p.set_outfile("makefile")
+    p.set_cpus()
+    p.set_aws_opts(store="hli-mv-data-science/htang/str")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
         sys.exit(not p.print_help())
 
     bamfile, lbidx = args
-    lhome = opts.lobstr_home
+    s3mode = bamfile.startswith("s3")
+    store = opts.store
+    if s3mode:
+        localbamfile = bamfile.split("/")[-1]
+        if not op.exists(localbamfile):
+            bamfile = pull_from_s3(bamfile)
+        bamfile = localbamfile
 
+    lhome = opts.lobstr_home
     mm = MakeManager(filename=opts.outfile)
     vcffiles = []
     chrs = [opts.chr] if opts.chr else (range(1, 23) + ["X", "Y"])
@@ -371,11 +381,10 @@ def lobstr(args):
     cmd += " | bgzip -c > {0}".format(gzfile)
     mm.add(vcffiles, gzfile, cmd)
 
-    tbifile = gzfile + ".tbi"
-    cmd = "tabix -p vcf {0}".format(gzfile)
-    mm.add(gzfile, tbifile, cmd)
-
     mm.write()
+    mm.run(cpus=opts.cpus)
+    if s3mode:
+        push_to_s3(store, gzfile)
 
 
 def allelotype_on_chr(bamfile, chr, lhome, lbidx):

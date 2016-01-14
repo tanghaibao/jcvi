@@ -238,6 +238,11 @@ class OptionParser (OptionP):
         self.add_option("--port", type="int",
                 help="Specify port number [default: %default]")
 
+    def set_aws_opts(self, store="hli-mv-data-science/htang"):
+        group = OptionGroup(self, "AWS options")
+        self.add_option_group(group)
+        group.add_option("--store", default=store, help="AWS store name")
+
     def set_stripnames(self, default=True):
         if default:
             self.add_option("--no_strip_names", dest="strip_names",

@@ -147,6 +147,7 @@ class STRLine(object):
 def main():
 
     actions = (
+        ('batchlobstr', "run batch lobSTR"),
         ('pe', 'infer paired-end reads spanning a certain region'),
         ('htt', 'extract HTT region and run lobSTR'),
         ('liftover', 'liftOver CODIS/Y-STR markers'),
@@ -339,6 +340,32 @@ def trf(args):
     mm.add(bedfiles, bedfile, cmd)
 
     mm.write()
+
+
+def batchlobstr(args):
+    """
+    %prog batchlobstr samples.csv
+
+    Run lobSTR sequentially on list of samples. Each line contains:
+    sample-name,s3-location
+    """
+    p = OptionParser(batchlobstr.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    samplesfile, = args
+    fp = open(samplesfile)
+    for row in fp:
+        sample, s3file = row.strip().split(",")
+        s3file = s3file.replace(".gz", "").replace(".vcf", "")
+        bamfile = s3file + ".bam"
+        pf = "--prefix={0}".format(sample)
+        lobstr([bamfile, "hg38", pf])
+        lobstr([bamfile, "hg38-named", pf])
+        sh("rm -f *")
+    fp.close()
 
 
 def lobstr(args):

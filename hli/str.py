@@ -19,7 +19,7 @@ from jcvi.utils.cbook import percentage
 from jcvi.formats.bed import natsorted
 from jcvi.apps.grid import MakeManager
 from jcvi.formats.base import must_open
-from jcvi.hli.aws import push_to_s3, pull_from_s3
+from jcvi.hli.aws import push_to_s3, pull_from_s3, check_exists_s3
 from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, sh
 
 
@@ -349,6 +349,7 @@ def lobstr(args):
     """
     p = OptionParser(lobstr.__doc__)
     p.add_option("--chr", help="Run only this chromosome")
+    p.add_option("--prefix", help="Use prefix file name")
     p.set_home("lobstr")
     p.set_outfile("makefile")
     p.set_cpus()
@@ -361,10 +362,33 @@ def lobstr(args):
     bamfile, lbidx = args
     s3mode = bamfile.startswith("s3")
     store = opts.store
+    pf = opts.prefix or bamfile.split("/")[-1].split(".")[0]
+    gzfile = pf + ".{0}.vcf.gz".format(lbidx)
     if s3mode:
-        localbamfile = bamfile.split("/")[-1]
-        if not op.exists(localbamfile):
-            bamfile = pull_from_s3(bamfile)
+        remotegzfile = "s3://{0}/{1}".format(store, gzfile)
+        if check_exists_s3(remotegzfile):
+            logging.debug("Object `{0}` exists. Computation skipped."\
+                            .format(remotegzfile))
+            return
+        localbamfile = pf + ".bam"
+        localbaifile = localbamfile + ".bai"
+        if op.exists(localbamfile):
+            logging.debug("BAM file already downloaded.")
+        else:
+            pull_from_s3(bamfile, localbamfile)
+        if op.exists(localbaifile):
+            logging.debug("BAM index file already downloaded.")
+        else:
+            remotebaifile = bamfile + ".bai"
+            if check_exists_s3(remotebaifile):
+                pull_from_s3(remotebaifile, localbaifile)
+            else:
+                remotebaifile = bamfile.rsplit(".")[0] + ".bai"
+                if check_exists_s3(remotebaifile):
+                    pull_from_s3(remotebaifile, localbaifile)
+                else:
+                    logging.debug("BAM index cannot be found in S3!")
+                    sh("samtools index {0}".format(localbamfile))
         bamfile = localbamfile
 
     lhome = opts.lobstr_home
@@ -423,7 +447,7 @@ def htt(args):
     sh("rm {0}.bai".format(minibamfile))
     sh("samtools index {0}".format(minibamfile))
 
-    cmd = allelotype_on_chr(minibamfile, 4, lhome)
+    cmd = allelotype_on_chr(minibamfile, 4, lhome, "hg38-named")
     sh(cmd)
 
 

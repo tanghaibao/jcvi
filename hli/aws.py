@@ -10,7 +10,7 @@ import sys
 
 import boto3
 
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh
+from jcvi.apps.base import OptionParser, ActionDispatcher, popen, sh
 
 
 def main():
@@ -22,19 +22,34 @@ def main():
     p.dispatch(globals())
 
 
+def s3ify(address):
+    if not address.startswith("s3://"):
+        address = "s3://" + address.lstrip("/")
+    return address
+
+
 def push_to_s3(s3_store, obj_name):
     cmd = "sync" if op.isdir(obj_name) else "cp"
-    s3address = "s3://{0}/{1}".format(s3_store, obj_name)
+    s3address = "{0}/{1}".format(s3_store, obj_name)
+    s3address = s3ify(s3address)
     cmd = "aws s3 {0} {1} {2} --sse".format(cmd, obj_name, s3address)
     sh(cmd)
     return s3address
 
 
-def pull_from_s3(s3_store):
-    file_name = s3_store.split("/")[-1]
-    cmd = "aws s3 cp s3://{0} {1} --sse".format(s3_store, file_name)
+def pull_from_s3(s3_store, file_name=None):
+    file_name = file_name or s3_store.split("/")[-1]
+    s3_store = s3ify(s3_store)
+    cmd = "aws s3 cp {0} {1} --sse".format(s3_store, file_name)
     sh(cmd)
     return op.abspath(file_name)
+
+
+def check_exists_s3(s3_store_obj_name):
+    s3_store_obj_name = s3ify(s3_store_obj_name)
+    cmd = "aws s3 ls {0} | wc -l".format(s3_store_obj_name)
+    counts = int(popen(cmd).read())
+    return counts != 0
 
 
 def aws_configure(profile, key, value):

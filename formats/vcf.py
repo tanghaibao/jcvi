@@ -5,6 +5,7 @@
 Variant call format.
 """
 
+import os.path as op
 import sys
 import logging
 
@@ -17,6 +18,7 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh
 def main():
 
     actions = (
+        ('from23andme', 'convert 23andme file to vcf file'),
         ('location', 'given SNP locations characterize the locations'),
         ('mstmap', 'convert vcf format to mstmap input'),
         ('summary', 'summarize the genotype calls in table'),
@@ -24,6 +26,63 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def from23andme(args):
+    """
+    %prog from23andme txtfile hg37.fasta
+
+    Convert from23andme file to vcf file.
+    """
+    from datetime import datetime as dt
+    from pyfaidx import Fasta
+
+    p = OptionParser(from23andme.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    txtfile, fastafile = args
+    fasta = Fasta(fastafile)
+    # VCF spec
+    print "##fileformat=VCFv4.2"
+    print "##fileDate={0}{1:02d}{2:02d}".format(dt.now().year, dt.now().month, dt.now().day)
+    print "##source={0}".format(__file__)
+    print "##reference=file://{0}".format(op.abspath(fastafile))
+    print '##INFO=<ID=PR,Number=0,Type=Flag,Description="Provisional reference allele">'
+    print '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">'
+    for contig in [str(x) for x in range(1, 23)] + ["X", "Y", "MT"]:
+        print "##contig=<ID={0},length={1}>".format(contig, len(fasta[contig]))
+    header = "CHROM POS ID REF ALT QUAL FILTER INFO FORMAT".split() + [txtfile]
+    print "#" + "\t".join(header)
+
+    fp = open(txtfile)
+    for row in fp:
+        if row[0] == '#':
+            continue
+        rsid, chr, pos, genotype = row.split()
+        pos = int(pos)
+        if "-" in genotype:  # missing daa
+            continue
+
+        ref = fasta[chr][pos - 1].seq.upper()
+        if len(genotype) == 1:
+            code = "0/0" if genotype == ref else "1/1"
+            alt = "." if genotype == ref else genotype
+        elif len(genotype) == 2:
+            a, b = genotype
+            genotype = set(genotype)
+            alt = ",".join(genotype - set([ref]))
+            alt = alt or "."
+            if ref in genotype:
+                code = "0/0" if a == b else "0/1"
+            else:
+                code = "1/1" if a == b else "1/2"
+            if "D" in genotype or "I" in genotype:
+                code = "1/1" if a == b else "0/1"
+        print "\t".join(str(x) for x in \
+                (chr, pos, rsid, ref, alt, ".", ".", "PR", "GT", code))
 
 
 def refallele(args):

@@ -148,16 +148,77 @@ def main():
 
     actions = (
         ('batchlobstr', "run batch lobSTR"),
+        ('batchhtt', "run batch HTT caller"),
         ('pe', 'infer paired-end reads spanning a certain region'),
         ('htt', 'extract HTT region and run lobSTR'),
         ('liftover', 'liftOver CODIS/Y-STR markers'),
         ('lobstr', 'run lobSTR on a big BAM'),
         ('lobstrindex', 'make lobSTR index'),
         ('trf', 'run TRF on FASTA files'),
+        ('vcfparse', 'parse lobSTR vcf file'),
         ('ystr', 'print out Y-STR info given VCF'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def vcfparse(args):
+    """
+    %prog vcfparse *.vcf
+
+    Parse lobSTR vcf files.
+    """
+    import vcf
+    from jcvi.utils.table import write_csv
+
+    p = OptionParser(vcfparse.__doc__)
+    p.set_home("lobstr")
+    opts, args = p.parse_args(args)
+
+    if len(args) < 1:
+        sys.exit(not p.print_help())
+
+    vcffiles = args
+    header = "Sample|Marker|Reads|Ref|Genotype|Motif".split("|")
+    register = get_register(vcffiles[0], opts.lobstr_home)
+    contents = []
+    n = 0
+    for vcffile in vcffiles:
+        reader = vcf.Reader(open(vcffile))
+        sample_name = vcffile.split("_")[0]
+        n += 1
+        content = None
+        for record in reader:
+            name = register[(record.CHROM, record.POS)]
+            info = record.INFO
+            ref = int(float(info["REF"]))
+            rpa = info.get("RPA", ref)
+            ru = info["RU"]
+            for sample in record.samples:
+                gt = sample["GT"]
+                if gt == "0/0":
+                    alleles = (ref, ref)
+                elif gt in ("0/1", "1/0"):
+                    assert isinstance(rpa, list) and len(rpa) == 1
+                    alleles = (ref, rpa[0])
+                elif gt == "1/1":
+                    assert isinstance(rpa, list) and len(rpa) == 1
+                    alleles = (rpa[0], rpa[0])
+                elif gt == "1/2":
+                    assert isinstance(rpa, list) and len(rpa) == 2
+                    alleles = rpa
+                else:
+                    assert 0
+                alleles = sorted(alleles)
+                alleles = [str(int(x)) for x in alleles]
+                content = (sample_name, name, sample["ALLREADS"],
+                          ref, "|".join(alleles), ru)
+        content = content or (sample_name, name, ".", ref, "n/a", ru)
+        contents.append(content)
+        assert len(contents) == n
+    logging.debug("A total of {0} files parsed".format(n))
+
+    write_csv(header, contents, sep=" ")
 
 
 def build_ysearch_link(r, ban=["DYS520", "DYS413a", "DYS413b"]):
@@ -183,6 +244,18 @@ def build_yhrd_link(r, panel, ban=["DYS385"]):
     print " ".join(str(x) for x in L)
 
 
+def get_register(vcffile, lobstr_home):
+    db = vcffile.replace(".gz", "").split(".")[-2]
+    tabfile = op.join(lobstr_home, "{0}/index.info".format(db))
+    logging.debug("Reading marker info from `{0}`".format(tabfile))
+    register = {}
+    fp = open(tabfile)
+    for row in fp:
+        s = STRLine(row)
+        register[(s.seqid, s.start)] = s.name
+    return register
+
+
 def ystr(args):
     """
     %prog ystr chrY.vcf
@@ -200,20 +273,12 @@ def ystr(args):
         sys.exit(not p.print_help())
 
     vcffile, = args
-    db = vcffile.replace(".gz", "").split(".")[-2]
-    tabfile = op.join(opts.lobstr_home, "{0}/index.info".format(db))
-    logging.debug("Reading marker info from `{0}`".format(tabfile))
-    fp = must_open(vcffile)
-    reader = vcf.Reader(fp)
-    register = {}
-    fp = open(tabfile)
-    for row in fp:
-        s = STRLine(row)
-        register[(s.seqid, s.start)] = s.name
+    register = get_register(vcffile, opts.lobstr_home)
 
     header = "Marker|Reads|Ref|Genotype|Motif".split("|")
     contents = []
-
+    fp = must_open(vcffile)
+    reader = vcf.Reader(fp)
     simple_register = {}
     for record in reader:
         name = register[(record.CHROM, record.POS)]
@@ -448,6 +513,28 @@ def allelotype_on_chr(bamfile, chr, lhome, lbidx):
     cmd += " --max-diff-ref {0}".format(READLEN)
     cmd += " --haploid chrY"
     return cmd, ".".join((outfile, lbidx, "vcf"))
+
+
+def batchhtt(args):
+    """
+    %prog htt samples.csv
+
+    Batch HTT caller. The samples are:
+    SampleId,ExecID,Norm VCF,gVCF,BAM
+    """
+    p = OptionParser(batchhtt.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    samplesfile, = args
+    fp = open(samplesfile)
+    fp.next()  # header
+    for row in fp:
+        sample, ex, vcf, gvcf, bam = row.strip().split(",")
+        htt([bam])
+    fp.close()
 
 
 def htt(args):

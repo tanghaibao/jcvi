@@ -30,9 +30,11 @@ def main():
 
 def from23andme(args):
     """
-    %prog from23andme txtfile hg37.fasta
+    %prog from23andme txtfile hg37.fasta 1 chr1.rsids
 
     Convert from23andme file to vcf file.
+    $ zcat 1000GP_Phase3/1000GP_Phase3_chr1.legend.gz \
+            | grep ^rs | cut -d" " -f1 > chr1.rsids
     """
     from datetime import datetime as dt
     from pyfaidx import Fasta
@@ -40,13 +42,13 @@ def from23andme(args):
     p = OptionParser(from23andme.__doc__)
     opts, args = p.parse_args(args)
 
-    if len(args) != 2:
+    if len(args) != 4:
         sys.exit(not p.print_help())
 
-    txtfile, fastafile = args
+    txtfile, fastafile, seqid, legend = args
     fasta = Fasta(fastafile)
     # VCF spec
-    print "##fileformat=VCFv4.2"
+    print "##fileformat=VCFv4.1"
     print "##fileDate={0}{1:02d}{2:02d}".format(dt.now().year, dt.now().month, dt.now().day)
     print "##source={0}".format(__file__)
     print "##reference=file://{0}".format(op.abspath(fastafile))
@@ -57,16 +59,39 @@ def from23andme(args):
     header = "CHROM POS ID REF ALT QUAL FILTER INFO FORMAT".split() + [txtfile]
     print "#" + "\t".join(header)
 
+    # Read rsid
+    fp = open(legend)
+    # rs145072688:10352:T:TA
+    register = {}
+    for row in fp:
+        rsid, pos, ref, alt = row.strip().split(":")
+        register[rsid] = (pos, ref, alt)
+
     fp = open(txtfile)
+    seen = set()
+    duplicates = indels = missing = 0
     for row in fp:
         if row[0] == '#':
             continue
         rsid, chr, pos, genotype = row.split()
+        if chr != seqid:
+            continue
         pos = int(pos)
+        if (chr, pos) in seen:
+            duplicates += 1
+            continue
+        seen.add((chr, pos))
         if "-" in genotype:  # missing daa
+            missing += 1
             continue
 
         ref = fasta[chr][pos - 1].seq.upper()
+        if rsid in register:
+            assert ref == register[rsid][1], "{0}: ref={1}".format(rsid, ref)
+
+        if "D" in genotype or "I" in genotype:
+            indels += 1
+            continue
         if len(genotype) == 1:
             code = "0/0" if genotype == ref else "1/1"
             alt = "." if genotype == ref else genotype
@@ -75,14 +100,18 @@ def from23andme(args):
             genotype = set(genotype)
             alt = ",".join(genotype - set([ref]))
             alt = alt or "."
+            if rsid in register:
+                alt = register[rsid][2]
             if ref in genotype:
                 code = "0/0" if a == b else "0/1"
             else:
                 code = "1/1" if a == b else "1/2"
-            if "D" in genotype or "I" in genotype:
-                code = "1/1" if a == b else "0/1"
+
         print "\t".join(str(x) for x in \
                 (chr, pos, rsid, ref, alt, ".", ".", "PR", "GT", code))
+
+    print >> sys.stderr, "duplicates={0} indels={1} missing={2}".\
+                    format(duplicates, indels, missing)
 
 
 def refallele(args):

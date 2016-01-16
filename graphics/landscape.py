@@ -100,8 +100,9 @@ def check_window_options(opts):
     return window, shift, subtract
 
 
-def get_beds(s):
-    return [x + ".bed" for x in s]
+def get_beds(s, binned=False):
+    return [x + ".bed" for x in s] if not binned \
+            else [x for x in s]
 
 
 def get_nbins(clen, shift):
@@ -281,6 +282,9 @@ def multilineplot(args):
                  help="List of colors matching number of input bed files")
     p.add_option("--mode", default="span", choices=("span", "count", "score"),
                  help="Accumulate feature based on [default: %default]")
+    p.add_option("--binned", default=False, action="store_true",
+                 help="Specify whether the input is already binned; " +
+                 "if True, input files are considered to be binfiles")
     add_window_options(p)
     opts, args, iopts = p.set_image_options(args, figsize="8x5")
 
@@ -295,15 +299,16 @@ def multilineplot(args):
         lines = opts.lines.split(",")
         assert len(colors) == len(lines), "Number of chosen colors must match" + \
                 " number of input bed files"
-        linebeds = get_beds(lines)
+        linebeds = get_beds(lines, binned=opts.binned)
 
-    linebins = get_binfiles(linebeds, fastafile, shift, mode=opts.mode)
+    linebins = get_binfiles(linebeds, fastafile, shift, mode=opts.mode, binned=opts.binned)
 
     clen = Sizes(fastafile).mapping[chr]
     nbins = get_nbins(clen, shift)
 
     plt.rcParams["xtick.major.size"] = 0
     plt.rcParams["ytick.major.size"] = 0
+    plt.rcParams["figure.figsize"] = iopts.w, iopts.h
 
     fig, axarr = plt.subplots(nrows=len(lines))
     if len(linebeds) == 1:
@@ -464,12 +469,15 @@ def draw_gauge(ax, margin, maxl, rightmargin=None):
     return best_stride / xinterval
 
 
-def get_binfiles(bedfiles, fastafile, shift, mode="span", subtract=None):
-    binopts = ["--binsize={0}".format(shift)]
-    binopts.append("--mode={0}".format(mode))
-    if subtract:
-        binopts.append("--subtract={0}".format(subtract))
-    binfiles = [bins([x, fastafile] + binopts) for x in bedfiles if op.exists(x)]
+def get_binfiles(inputfiles, fastafile, shift, mode="span", subtract=None, binned=False):
+    if not binned:
+        binopts = ["--binsize={0}".format(shift)]
+        binopts.append("--mode={0}".format(mode))
+        if subtract:
+            binopts.append("--subtract={0}".format(subtract))
+        binfiles = [bins([x, fastafile] + binopts) for x in inputfiles if op.exists(x)]
+    else:
+        binfiles = inputfiles
     binfiles = [BinFile(x) for x in binfiles]
 
     return binfiles

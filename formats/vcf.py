@@ -65,7 +65,14 @@ def from23andme(args):
     register = {}
     for row in fp:
         rsid, pos, ref, alt = row.strip().split(":")
-        register[rsid] = (pos, ref, alt)
+        pos = int(pos)
+        if rsid in register:
+            pos1, ref1, alt1 = register[rsid]
+            assert pos == pos1 and ref == ref1
+            if alt not in alt1:
+                register[rsid][-1].append(alt)
+        else:
+            register[rsid] = (pos, ref, [alt])
 
     fp = open(txtfile)
     seen = set()
@@ -81,34 +88,47 @@ def from23andme(args):
             duplicates += 1
             continue
         seen.add((chr, pos))
+        genotype = list(genotype)
         if "-" in genotype:  # missing daa
             missing += 1
             continue
 
-        ref = fasta[chr][pos - 1].seq.upper()
-        if rsid in register:
-            assert ref == register[rsid][1], "{0}: ref={1}".format(rsid, ref)
-
         if "D" in genotype or "I" in genotype:
             indels += 1
-            continue
+        # If rsid is seen in the db, use that
+        if rsid in register:
+            pos, ref, alt = register[rsid]
+            assert fasta[chr][pos - 1:pos + len(ref) - 1].seq.upper() == ref
+            tag = "dbSNP"
+            # Keep it bi-allelic
+            not_seen = [x for x in alt if x not in genotype]
+            while len(alt) > 1 and not_seen:
+                alt.remove(not_seen.pop())
+        else:
+            ref = fasta[chr][pos - 1].seq.upper()
+            alt = list(set(genotype) - set([ref]))
+            tag = "PR"
+        alleles = [ref] + alt
+
         if len(genotype) == 1:
+            genotype = genotype[0]
             code = "0/0" if genotype == ref else "1/1"
             alt = "." if genotype == ref else genotype
         elif len(genotype) == 2:
+            alt = ",".join(alt) or "."
+            if "D" in genotype or "I" in genotype:
+                if tag == "PR":
+                    #logging.debug("Skip row: {0}".format(row.strip()))
+                    continue
+                max_allele = max((len(x), x) for x in alleles)[1]
+                alleles = [("I" if x == max_allele else "D") for x in alleles]
+                assert "I" in alleles and "D" in alleles
             a, b = genotype
-            genotype = set(genotype)
-            alt = ",".join(genotype - set([ref]))
-            alt = alt or "."
-            if rsid in register:
-                alt = register[rsid][2]
-            if ref in genotype:
-                code = "0/0" if a == b else "0/1"
-            else:
-                code = "1/1" if a == b else "1/2"
+            ia, ib = alleles.index(a), alleles.index(b)
+            code = "/".join(str(x) for x in sorted((ia, ib)))
 
         print "\t".join(str(x) for x in \
-                (chr, pos, rsid, ref, alt, ".", ".", "PR", "GT", code))
+                (chr, pos, rsid, ref, alt, ".", ".", tag, "GT", code))
 
     print >> sys.stderr, "duplicates={0} indels={1} missing={2}".\
                     format(duplicates, indels, missing)

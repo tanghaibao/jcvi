@@ -33,8 +33,8 @@ def from23andme(args):
     %prog from23andme txtfile hg37.fasta 1 chr1.rsids
 
     Convert from23andme file to vcf file.
-    $ zcat 1000GP_Phase3/1000GP_Phase3_chr1.legend.gz \
-            | grep ^rs | cut -d" " -f1 > chr1.rsids
+    $ zcat 1000GP_Phase3/1000GP_Phase3_chr1.legend.gz \\
+            | cut -d" " -f1 | grep ":" > chr1.rsids
     """
     from datetime import datetime as dt
     from pyfaidx import Fasta
@@ -64,19 +64,28 @@ def from23andme(args):
     # rs145072688:10352:T:TA
     register = {}
     for row in fp:
-        rsid, pos, ref, alt = row.strip().split(":")
-        pos = int(pos)
-        if rsid in register:
-            pos1, ref1, alt1 = register[rsid]
-            assert pos == pos1 and ref == ref1
-            if alt not in alt1:
-                register[rsid][-1].append(alt)
+        atoms = row.strip().split(":")
+        if len(atoms) == 4:
+            rsid, pos, ref, alt = atoms
         else:
-            register[rsid] = (pos, ref, [alt])
+            continue
+        pos = int(pos)
+        # Use position for non-rsid
+        rsids = [pos] if rsid == seqid else [rsid, pos]
+        for rsid in rsids:
+            if rsid in register:
+                pos1, ref1, alt1 = register[rsid]
+                #assert pos == pos1 and ref == ref1, str(rsid)
+                if alt not in alt1:
+                    register[rsid][-1].append(alt)
+            else:
+                register[rsid] = (pos, ref, [alt])
+    logging.debug("A total of {0} sites imported from `{1}`".\
+                    format(len(register), legend))
 
     fp = open(txtfile)
     seen = set()
-    duplicates = indels = missing = 0
+    duplicates = skipped = missing = 0
     for row in fp:
         if row[0] == '#':
             continue
@@ -93,13 +102,17 @@ def from23andme(args):
             missing += 1
             continue
 
-        if "D" in genotype or "I" in genotype:
-            indels += 1
+        tag = "PR"
         # If rsid is seen in the db, use that
         if rsid in register:
             pos, ref, alt = register[rsid]
-            assert fasta[chr][pos - 1:pos + len(ref) - 1].seq.upper() == ref
             tag = "dbSNP"
+        elif pos in register:
+            pos, ref, alt = register[pos]
+            tag = "dbSNP"
+
+        if tag == "dbSNP":
+            assert fasta[chr][pos - 1:pos + len(ref) - 1].seq.upper() == ref
             # Keep it bi-allelic
             not_seen = [x for x in alt if x not in genotype]
             while len(alt) > 1 and not_seen:
@@ -107,31 +120,34 @@ def from23andme(args):
         else:
             ref = fasta[chr][pos - 1].seq.upper()
             alt = list(set(genotype) - set([ref]))
-            tag = "PR"
         alleles = [ref] + alt
 
         if len(genotype) == 1:
-            genotype = genotype[0]
-            code = "0/0" if genotype == ref else "1/1"
-            alt = "." if genotype == ref else genotype
-        elif len(genotype) == 2:
-            alt = ",".join(alt) or "."
-            if "D" in genotype or "I" in genotype:
-                if tag == "PR":
-                    #logging.debug("Skip row: {0}".format(row.strip()))
-                    continue
-                max_allele = max((len(x), x) for x in alleles)[1]
-                alleles = [("I" if x == max_allele else "D") for x in alleles]
-                assert "I" in alleles and "D" in alleles
-            a, b = genotype
+            genotype = [genotype[0]] * 2
+
+        alt = ",".join(alt) or "."
+        if "D" in genotype or "I" in genotype:
+            if tag == "PR":
+                skipped += 1
+                continue
+            max_allele = max((len(x), x) for x in alleles)[1]
+            alleles = [("I" if x == max_allele else "D") for x in alleles]
+            assert "I" in alleles and "D" in alleles
+        a, b = genotype
+        try:
             ia, ib = alleles.index(a), alleles.index(b)
-            code = "/".join(str(x) for x in sorted((ia, ib)))
+        except ValueError:  # alleles not seen
+            logging.error("{0}: alleles={1}, genotype={2}".\
+                            format(rsid, alleles, genotype))
+            skipped += 1
+            continue
+        code = "/".join(str(x) for x in sorted((ia, ib)))
 
         print "\t".join(str(x) for x in \
                 (chr, pos, rsid, ref, alt, ".", ".", tag, "GT", code))
 
-    print >> sys.stderr, "duplicates={0} indels={1} missing={2}".\
-                    format(duplicates, indels, missing)
+    print >> sys.stderr, "duplicates={0} skipped={1} missing={2}".\
+                    format(duplicates, skipped, missing)
 
 
 def refallele(args):

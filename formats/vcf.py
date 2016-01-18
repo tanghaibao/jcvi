@@ -102,24 +102,20 @@ def from23andme(args):
             missing += 1
             continue
 
-        tag = "PR"
         # If rsid is seen in the db, use that
         if rsid in register:
             pos, ref, alt = register[rsid]
-            tag = "dbSNP"
         elif pos in register:
             pos, ref, alt = register[pos]
-            tag = "dbSNP"
-
-        if tag == "dbSNP":
-            assert fasta[chr][pos - 1:pos + len(ref) - 1].seq.upper() == ref
-            # Keep it bi-allelic
-            not_seen = [x for x in alt if x not in genotype]
-            while len(alt) > 1 and not_seen:
-                alt.remove(not_seen.pop())
         else:
-            ref = fasta[chr][pos - 1].seq.upper()
-            alt = list(set(genotype) - set([ref]))
+            skipped += 1  # Not in reference panel
+            continue
+
+        assert fasta[chr][pos - 1:pos + len(ref) - 1].seq.upper() == ref
+        # Keep it bi-allelic
+        not_seen = [x for x in alt if x not in genotype]
+        while len(alt) > 1 and not_seen:
+            alt.remove(not_seen.pop())
         alleles = [ref] + alt
 
         if len(genotype) == 1:
@@ -127,9 +123,6 @@ def from23andme(args):
 
         alt = ",".join(alt) or "."
         if "D" in genotype or "I" in genotype:
-            if tag == "PR":
-                skipped += 1
-                continue
             max_allele = max((len(x), x) for x in alleles)[1]
             alleles = [("I" if x == max_allele else "D") for x in alleles]
             assert "I" in alleles and "D" in alleles
@@ -144,7 +137,7 @@ def from23andme(args):
         code = "/".join(str(x) for x in sorted((ia, ib)))
 
         print "\t".join(str(x) for x in \
-                (chr, pos, rsid, ref, alt, ".", ".", tag, "GT", code))
+                (chr, pos, rsid, ref, alt, ".", ".", "PR", "GT", code))
 
     print >> sys.stderr, "duplicates={0} skipped={1} missing={2}".\
                     format(duplicates, skipped, missing)

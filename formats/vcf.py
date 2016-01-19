@@ -104,8 +104,13 @@ def fromimpute2(args):
     fasta = Fasta(fastafile)
     print get_vcfstanza(fastafile, fasta)
     fp = open(impute2file)
+    seen = set()
     for row in fp:
         snp_id, rsid, pos, ref, alt, aa, ab, bb = row.split()
+        pos = int(pos)
+        if pos in seen:
+            continue
+        seen.add(pos)
         code = max((float(aa), "0/0"), (float(ab), "0/1"), (float(bb), "1/1"))[-1]
         tag = "PR" if snp_id == chr else "IM"
         print "\t".join(str(x) for x in \

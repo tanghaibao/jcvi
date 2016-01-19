@@ -6,8 +6,10 @@ Impute unknown variations given an input vcf file.
 """
 
 import os.path as op
+import logging
 import sys
 
+from jcvi.utils.cbook import percentage
 from jcvi.apps.grid import MakeManager
 from jcvi.apps.base import OptionParser, ActionDispatcher
 
@@ -17,9 +19,54 @@ def main():
     actions = (
         ('impute', 'use IMPUTE2 to impute vcf'),
         ('beagle', 'use BEAGLE4.1 to impute vcf'),
+        ('validate', 'validate imputation against withheld variants'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def validate(args):
+    """
+    %prog validate imputed.vcf withheld.vcf
+
+    Validate imputation against withheld variants.
+    """
+    p = OptionParser(validate.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    imputed, withheld = args
+    register = {}
+    fp = open(withheld)
+    for row in fp:
+        if row[0] == "#":
+            continue
+        chr, pos, rsid, ref, alt, qual, filter, info, format, genotype = row.split()
+        register[(chr, pos)] = genotype
+
+    logging.debug("Imported {0} records from `{1}`".\
+                    format(len(register), withheld))
+
+    fp = open(imputed)
+    hit = concordant = 0
+    for row in fp:
+        if row[0] == "#":
+            continue
+        chr, pos, rsid, ref, alt, qual, filter, info, format, genotype = row.split()
+        if (chr, pos) not in register:
+            continue
+        if "|" in genotype:
+            genotype = "/".join(sorted(genotype.split("|")))
+        truth = register[(chr, pos)]
+        imputed = genotype.split(":")[0]
+        hit += 1
+        if truth == imputed:
+            concordant += 1
+
+    logging.debug("Total concordant: {0}".\
+            format(percentage(concordant, hit)))
 
 
 def beagle(args):
@@ -104,6 +151,7 @@ def impute(args):
         cmd += " -h {0}.hap.gz -l {0}.legend.gz".format(rpf)
         cmd += " -Ne 20000 -int {0} {1}".format(chunk_start, chunk_end)
         cmd += " -o {0} -allow_large_regions -seed 367946".format(outfile)
+        cmd += " && touch {0}".format(outfile)
         mm.add(hapsfile, outfile, cmd)
         chunks.append(outfile)
 

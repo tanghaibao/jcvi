@@ -12,6 +12,7 @@ import logging
 from collections import defaultdict
 from pyfaidx import Fasta
 
+from jcvi.formats.base import must_open
 from jcvi.formats.sizes import Sizes
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh
 
@@ -26,9 +27,36 @@ def main():
         ('refallele', 'make refAllele file'),
         ('sample', 'sample subset of vcffile'),
         ('summary', 'summarize the genotype calls in table'),
+        ('uniq', 'retain only the first entry in vcf file'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def uniq(args):
+    """
+    %prog uniq vcffile
+
+    Retain only the first entry in vcf file.
+    """
+    p = OptionParser(uniq.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    vcffile, = args
+    fp = must_open(vcffile)
+    seen = set()
+    for row in fp:
+        if row[0] == '#':
+            print row.strip()
+            continue
+        chr, pos, rsid, ref, alt, qual, filter, info, format, genotype = row.split()
+        if (chr, pos) in seen:
+            continue
+        seen.add((chr, pos))
+        print row.strip()
 
 
 def sample(args):

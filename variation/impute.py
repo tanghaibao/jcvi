@@ -11,14 +11,16 @@ import sys
 
 from jcvi.utils.cbook import percentage
 from jcvi.apps.grid import MakeManager
+from jcvi.formats.base import must_open
 from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
 def main():
 
     actions = (
-        ('impute', 'use IMPUTE2 to impute vcf'),
         ('beagle', 'use BEAGLE4.1 to impute vcf'),
+        ('impute', 'use IMPUTE2 to impute vcf'),
+        ('minimac', 'use MINIMAC3 to impute vcf'),
         ('validate', 'validate imputation against withheld variants'),
             )
     p = ActionDispatcher(actions)
@@ -49,7 +51,7 @@ def validate(args):
     logging.debug("Imported {0} records from `{1}`".\
                     format(len(register), withheld))
 
-    fp = open(imputed)
+    fp = must_open(imputed)
     hit = concordant = 0
     for row in fp:
         if row[0] == "#":
@@ -57,10 +59,10 @@ def validate(args):
         chr, pos, rsid, ref, alt, qual, filter, info, format, genotype = row.split()
         if (chr, pos) not in register:
             continue
-        if "|" in genotype:
-            genotype = "/".join(sorted(genotype.split("|")))
         truth = register[(chr, pos)]
         imputed = genotype.split(":")[0]
+        if "|" in imputed:
+            imputed = "/".join(sorted(imputed.split("|")))
         hit += 1
         if truth == imputed:
             concordant += 1
@@ -69,11 +71,51 @@ def validate(args):
             format(percentage(concordant, hit)))
 
 
+def minimac(args):
+    """
+    %prog minimac input.vcf 1
+
+    Use MINIMAC3 to impute vcf on chromosome 1.
+    """
+    p = OptionParser(minimac.__doc__)
+    p.set_home("shapeit")
+    p.set_home("minimac")
+    p.set_cpus()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    vcffile, chr = args
+    mm = MakeManager()
+    pf = vcffile.rsplit(".", 1)[0]
+    hapsfile = pf + ".haps"
+    shapeit_cmd = op.join(opts.shapeit_home, "shapeit")
+    cmd = get_phasing_cmd(shapeit_cmd, vcffile, chr, opts.cpus)
+    mm.add(vcffile, hapsfile, cmd)
+
+    phasedfile = pf + ".phased.vcf"
+    cmd = shapeit_cmd + " -convert --input-haps {0}".format(pf)
+    cmd += " --output-vcf {0}".format(phasedfile)
+    mm.add(hapsfile, phasedfile, cmd)
+
+    opf = pf + ".minimac"
+    minimac_cmd = op.join(opts.minimac_home, "Minimac3-omp")
+    cmd = minimac_cmd + " --chr {0} --cpus {1}".format(chr, opts.cpus)
+    cmd += " --refHaps 1000GP_Phase3/{0}.1000g.Phase3.v5.With.Parameter.Estimates.m3vcf.gz".format(chr)
+    cmd += " --haps {0} --prefix {1}".format(phasedfile, opf)
+    cmd += " --format GT,GP --nobgzip"
+    outvcf = opf + ".dose.vcf"
+    mm.add(phasedfile, outvcf, cmd)
+
+    mm.write()
+
+
 def beagle(args):
     """
     %prog beagle input.vcf 1
 
-    Use BEAGLE to impute vcf on chromosome 1.
+    Use BEAGLE4.1 to impute vcf on chromosome 1.
     """
     p = OptionParser(beagle.__doc__)
     p.set_home("beagle")
@@ -101,6 +143,21 @@ def beagle(args):
     mm.write()
 
 
+def get_phasing_cmd(shapeit_cmd, vcffile, chr, cpus):
+    rpf = "1000GP_Phase3/1000GP_Phase3_chr{0}".format(chr)
+    pf = vcffile.rsplit(".", 1)[0]
+
+    mapfile = "1000GP_Phase3/genetic_map_chr{0}_combined_b37.txt".format(chr)
+    cmd = shapeit_cmd + " --input-vcf {0}".format(vcffile)
+    cmd += " --input-map {0}".format(mapfile)
+    cmd += " --thread {0} --effective-size 20000".format(cpus)
+    cmd += " --output-max {0}.haps {0}.sample".format(pf)
+    cmd += " --input-ref {0}.hap.gz {0}.legend.gz".format(rpf)
+    cmd += " {0}.sample".format(rpf.rsplit("_", 1)[0])
+    cmd += " --output-log {0}.log".format(pf)
+    return cmd
+
+
 def impute(args):
     """
     %prog impute input.vcf hs37d5.fa 1
@@ -121,17 +178,9 @@ def impute(args):
     vcffile, fastafile, chr = args
     mm = MakeManager()
     pf = vcffile.rsplit(".", 1)[0]
-    rpf = "1000GP_Phase3/1000GP_Phase3_chr{0}".format(chr)
-    shapeit_cmd = op.join(opts.shapeit_home, "shapeit")
-    mapfile = "1000GP_Phase3/genetic_map_chr{0}_combined_b37.txt".format(chr)
-    cmd = shapeit_cmd + " --input-vcf {0}".format(vcffile)
-    cmd += " --input-map {0}".format(mapfile)
-    cmd += " --thread {0} --effective-size 20000".format(opts.cpus)
-    cmd += " --output-max {0}.haps {0}.sample".format(pf)
-    cmd += " --input-ref {0}.hap.gz {0}.legend.gz".format(rpf)
-    cmd += " {0}.sample".format(rpf.rsplit("_", 1)[0])
-    cmd += " --output-log {0}.log".format(pf)
     hapsfile = pf + ".haps"
+    shapeit_cmd = op.join(opts.shapeit_home, "shapeit")
+    cmd = get_phasing_cmd(shapeit_cmd, vcffile, chr, opts.cpus)
     mm.add(vcffile, hapsfile, cmd)
 
     fasta = Fasta(fastafile)

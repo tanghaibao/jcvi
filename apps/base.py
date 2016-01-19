@@ -581,6 +581,7 @@ class OptionParser (OptionP):
                    "shapeit": "/mnt/software/shapeit",
                    "impute": "/mnt/software/impute",
                    "beagle": "java -jar /mnt/software/beagle.14Jan16.841.jar",
+                   "minimac": "/mnt/software/Minimac3/bin",
                    }.get(prog, None)
         if default is None:  # Last attempt at guessing the path
             try:

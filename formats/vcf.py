@@ -23,11 +23,49 @@ def main():
         ('fromimpute2', 'convert impute2 output to vcf file'),
         ('location', 'given SNP locations characterize the locations'),
         ('mstmap', 'convert vcf format to mstmap input'),
-        ('summary', 'summarize the genotype calls in table'),
         ('refallele', 'make refAllele file'),
+        ('sample', 'sample subset of vcffile'),
+        ('summary', 'summarize the genotype calls in table'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def sample(args):
+    """
+    %prog sample vcffile 0.9
+
+    Sample subset of vcf file.
+    """
+    from random import random
+
+    p = OptionParser(sample.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    vcffile, ratio = args
+    ratio = float(ratio)
+    fp = open(vcffile)
+    pf = vcffile.rsplit(".", 1)[0]
+    kept = pf + ".kept.vcf"
+    withheld = pf + ".withheld.vcf"
+    fwk = open(kept, "w")
+    fww = open(withheld, "w")
+    nkept = nwithheld = 0
+    for row in fp:
+        if row[0] == '#':
+            print >> fwk, row.strip()
+            continue
+        if random() < ratio:
+            nkept += 1
+            print >> fwk, row.strip()
+        else:
+            nwithheld += 1
+            print >> fww, row.strip()
+    logging.debug("{0} records kept to `{1}`".format(nkept, kept))
+    logging.debug("{0} records withheld to `{1}`".format(nwithheld, withheld))
 
 
 def get_vcfstanza(fastafile, fasta, sampleid="SAMP_001"):

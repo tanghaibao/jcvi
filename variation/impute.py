@@ -22,6 +22,38 @@ def main():
     p.dispatch(globals())
 
 
+def beagle(args):
+    """
+    %prog beagle input.vcf 1
+
+    Use BEAGLE to impute vcf on chromosome 1.
+    """
+    p = OptionParser(beagle.__doc__)
+    p.set_home("beagle")
+    p.set_cpus()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    vcffile, chr = args
+    pf = vcffile.rsplit(".", 1)[0]
+    outpf = pf + ".beagle"
+    outfile = outpf + ".vcf.gz"
+
+    mm = MakeManager()
+    beagle_cmd = opts.beagle_home
+    kg = "1000GP_Phase3"
+    cmd = beagle_cmd + " gt={0}".format(vcffile)
+    cmd += " ref={0}/chr{1}.1kg.phase3.v5a.bref".format(kg, chr)
+    cmd += " map={0}/plink.chr{1}.GRCh37.map".format(kg, chr)
+    cmd += " out={0}".format(outpf)
+    cmd += " nthreads=16 gprobs=true"
+    mm.add(vcffile, outfile, cmd)
+
+    mm.write()
+
+
 def impute(args):
     """
     %prog impute input.vcf hs37d5.fa 1
@@ -47,9 +79,10 @@ def impute(args):
     mapfile = "1000GP_Phase3/genetic_map_chr{0}_combined_b37.txt".format(chr)
     cmd = shapeit_cmd + " --input-vcf {0}".format(vcffile)
     cmd += " --input-map {0}".format(mapfile)
-    cmd += " --threads {0} --effective-size 20000".format(opts.cpus)
+    cmd += " --thread {0} --effective-size 20000".format(opts.cpus)
     cmd += " --output-max {0}.haps {0}.sample".format(pf)
-    cmd += " --input-ref {0}.hap.gz {0}.legend.gz {0}.sample".format(rpf)
+    cmd += " --input-ref {0}.hap.gz {0}.legend.gz".format(rpf)
+    cmd += " {0}.sample".format(rpf.rsplit("_", 1)[0])
     cmd += " --output-log {0}.log".format(pf)
     hapsfile = pf + ".haps"
     mm.add(vcffile, hapsfile, cmd)

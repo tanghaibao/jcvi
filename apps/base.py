@@ -578,6 +578,9 @@ class OptionParser (OptionP):
                    "fiona": "~/export/fiona-0.2.0-Linux-x86_64",
                    "fermi": "~/export/fermi",
                    "lobstr": "/mnt/software/lobSTR-4.0.0",
+                   "shapeit": "/mnt/software/shapeit",
+                   "impute": "/mnt/software/impute",
+                   "beagle": "java -jar /mnt/software/beagle.14Jan16.841.jar",
                    }.get(prog, None)
         if default is None:  # Last attempt at guessing the path
             try:

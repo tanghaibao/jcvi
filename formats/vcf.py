@@ -10,6 +10,7 @@ import sys
 import logging
 
 from collections import defaultdict
+from pyfaidx import Fasta
 
 from jcvi.formats.sizes import Sizes
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh
@@ -19,6 +20,7 @@ def main():
 
     actions = (
         ('from23andme', 'convert 23andme file to vcf file'),
+        ('fromimpute2', 'convert impute2 output to vcf file'),
         ('location', 'given SNP locations characterize the locations'),
         ('mstmap', 'convert vcf format to mstmap input'),
         ('summary', 'summarize the genotype calls in table'),
@@ -26,6 +28,51 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def get_vcfstanza(fastafile, fasta, sampleid="SAMP_001"):
+    from datetime import datetime as dt
+    # VCF spec
+    m = "##fileformat=VCFv4.1\n"
+    m += "##fileDate={0}{1:02d}{2:02d}\n".format(dt.now().year, dt.now().month, dt.now().day)
+    m += "##source={0}\n".format(__file__)
+    m += "##reference=file://{0}\n".format(op.abspath(fastafile).strip("/"))
+    m += '##INFO=<ID=PR,Type=Flag,Description="Provisional genotype">\n'
+    m += '##INFO=<ID=IM,Type=Flag,Description="Imputed genotype">\n'
+    m += '##FORMAT=<ID=GT,Type=String,Description="Genotype">\n'
+    m += '##FORMAT=<ID=GP,Type=Float,Description="Estimated Genotype Probability">\n'
+    for contig in [str(x) for x in range(1, 23)] + ["X", "Y", "MT"]:
+        m += "##contig=<ID={0},length={1}>\n".format(contig, len(fasta[contig]))
+    header = "CHROM POS ID REF ALT QUAL FILTER INFO FORMAT\n".split() + [sampleid]
+    m += "#" + "\t".join(header)
+    return m
+
+
+def fromimpute2(args):
+    """
+    %prog fromimpute2 impute2file fastafile 1
+
+    Convert impute2 output to vcf file. Imputed file looks like:
+
+    --- 1:10177:A:AC 10177 A AC 0.451 0.547 0.002
+    """
+    p = OptionParser(fromimpute2.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    impute2file, fastafile, chr = args
+    fasta = Fasta(fastafile)
+    print get_vcfstanza(fastafile, fasta)
+    fp = open(impute2file)
+    for row in fp:
+        snp_id, rsid, pos, ref, alt, aa, ab, bb = row.split()
+        code = max((float(aa), "0/0"), (float(ab), "0/1"), (float(bb), "1/1"))[-1]
+        tag = "PR" if snp_id == chr else "IM"
+        print "\t".join(str(x) for x in \
+                (chr, pos, rsid, ref, alt, ".", ".", tag, \
+                "GT:GP", code + ":" + ",".join((aa, ab, bb))))
 
 
 def from23andme(args):
@@ -36,9 +83,6 @@ def from23andme(args):
     $ zcat 1000GP_Phase3/1000GP_Phase3_chr1.legend.gz \\
             | cut -d" " -f1 | grep ":" > chr1.rsids
     """
-    from datetime import datetime as dt
-    from pyfaidx import Fasta
-
     p = OptionParser(from23andme.__doc__)
     opts, args = p.parse_args(args)
 
@@ -47,17 +91,7 @@ def from23andme(args):
 
     txtfile, fastafile, seqid, legend = args
     fasta = Fasta(fastafile)
-    # VCF spec
-    print "##fileformat=VCFv4.1"
-    print "##fileDate={0}{1:02d}{2:02d}".format(dt.now().year, dt.now().month, dt.now().day)
-    print "##source={0}".format(__file__)
-    print "##reference=file://{0}".format(op.abspath(fastafile))
-    print '##INFO=<ID=PR,Number=0,Type=Flag,Description="Provisional reference allele">'
-    print '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">'
-    for contig in [str(x) for x in range(1, 23)] + ["X", "Y", "MT"]:
-        print "##contig=<ID={0},length={1}>".format(contig, len(fasta[contig]))
-    header = "CHROM POS ID REF ALT QUAL FILTER INFO FORMAT".split() + [txtfile]
-    print "#" + "\t".join(header)
+    print get_vcfstanza(fastafile, fasta, txtfile)
 
     # Read rsid
     fp = open(legend)

@@ -21,6 +21,7 @@ def main():
         ('beagle', 'use BEAGLE4.1 to impute vcf'),
         ('impute', 'use IMPUTE2 to impute vcf'),
         ('minimac', 'use MINIMAC3 to impute vcf'),
+        ('batchminimac', 'use MINIMAC3 to impute vcf on all chromosomes'),
         ('validate', 'validate imputation against withheld variants'),
             )
     p = ActionDispatcher(actions)
@@ -53,10 +54,14 @@ def validate(args):
 
     fp = must_open(imputed)
     hit = concordant = 0
+    seen = set()
     for row in fp:
         if row[0] == "#":
             continue
         chr, pos, rsid, ref, alt, qual, filter, info, format, genotype = row.split()
+        if (chr, pos) in seen:
+            continue
+        seen.add((chr, pos))
         if (chr, pos) not in register:
             continue
         truth = register[(chr, pos)]
@@ -71,6 +76,42 @@ def validate(args):
             format(percentage(concordant, hit)))
 
 
+def batchminimac(args):
+    """
+    %prog batchminimac input.txt hs37d5.fa
+
+    Use MINIMAC3 to impute vcf on all chromosomes.
+    """
+    p = OptionParser(batchminimac.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    txtfile, fastafile = args
+    mm = MakeManager()
+    pf = txtfile.split(".")[0]
+    for x in range(1, 23):
+        rsidsfile = "chr{0}.rsids".format(x)
+        legendfile = "1000GP_Phase3/1000GP_Phase3_chr{0}.legend.gz".format(x)
+        cmd = 'zcat {0} | cut -d" " -f1 | grep ":" > {1}'.\
+                format(legendfile, rsidsfile)
+        mm.add(legendfile, rsidsfile, cmd)
+
+        chrvcf = pf + ".chr{0}.vcf".format(x)
+        cmd = "python -m jcvi.formats.vcf from23andme"
+        cmd += " {0} {1} {2} {3}".format(txtfile, fastafile, x, rsidsfile)
+        cmd += " > {0}".format(chrvcf)
+        mm.add(rsidsfile, chrvcf, cmd)
+
+        minimacvcf = "{0}.chr{1}.minimac.dose.vcf.gz".format(pf, x)
+        cmd = "python -m jcvi.variation.impute minimac {0} {1}".format(chrvcf, x)
+        cmd += " --outfile {0}".format("makefile.minimac.chr{0}".format(x))
+        mm.add(chrvcf, minimacvcf, cmd)
+
+    mm.write()
+
+
 def minimac(args):
     """
     %prog minimac input.vcf 1
@@ -80,6 +121,7 @@ def minimac(args):
     p = OptionParser(minimac.__doc__)
     p.set_home("shapeit")
     p.set_home("minimac")
+    p.set_outfile()
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -87,7 +129,7 @@ def minimac(args):
         sys.exit(not p.print_help())
 
     vcffile, chr = args
-    mm = MakeManager()
+    mm = MakeManager(filename=opts.outfile)
     pf = vcffile.rsplit(".", 1)[0]
     hapsfile = pf + ".haps"
     shapeit_cmd = op.join(opts.shapeit_home, "shapeit")
@@ -104,11 +146,12 @@ def minimac(args):
     cmd = minimac_cmd + " --chr {0} --cpus {1}".format(chr, opts.cpus)
     cmd += " --refHaps 1000GP_Phase3/{0}.1000g.Phase3.v5.With.Parameter.Estimates.m3vcf.gz".format(chr)
     cmd += " --haps {0} --prefix {1}".format(phasedfile, opf)
-    cmd += " --format GT,GP --nobgzip"
+    cmd += " --format GT,GP"
     outvcf = opf + ".dose.vcf"
     mm.add(phasedfile, outvcf, cmd)
 
     mm.write()
+    mm.run()
 
 
 def beagle(args):

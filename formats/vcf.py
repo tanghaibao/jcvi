@@ -11,10 +11,67 @@ import logging
 
 from collections import defaultdict
 from pyfaidx import Fasta
+from pyliftover import LiftOver
 
 from jcvi.formats.base import must_open
 from jcvi.formats.sizes import Sizes
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh
+
+
+class UniqueLiftover(object):
+    def __init__(self, chainfile):
+        """
+        This object will perform unique single positional liftovers - it will only lift over chromosome positions that
+        map unique to the new genome and if the strand hasn't changed.
+        Note: You should run a VCF Normalization sweep on all lifted ofer CPRAs to check for variants that need to be
+        re-normalized, and to remove variants where the REF now doesn't match after a liftover.
+        The combination of these steps will ensure high quality liftovers. However, it should be noted that this won't
+        prevent the situation where multiple positions in the old genome pile up uniquely in the new genome, so one
+        needs to check for this.
+        It's organised as an object rather than a collection of functions  so that the LiftOver chainfile
+        only gets opened/passed once and not for every position to be lifted over.
+        :param chainfile: A string containing the path to the local UCSC .gzipped chainfile
+        :return:
+        """
+
+        self.liftover = LiftOver(chainfile)
+
+    def liftover_cpra(self, chromosome, position, verbose=False):
+        """
+        Given chromosome, position in 1-based co-ordinates,
+        This will use pyliftover to liftover a CPRA, will return a (c,p) tuple or raise NonUniqueLiftover if no unique
+        and strand maintaining liftover is possible
+        :param chromosome: string with the chromosome as it's represented in the from_genome
+        :param position: position on chromosome (will be cast to int)
+        :return: ((str) chromosome, (int) position) or None if no liftover
+        """
+
+        chromosome = str(chromosome)
+        position = int(position)
+
+        # Perform the liftover lookup, shift the position by 1 as pyliftover deals in 0-based co-ords
+        new = self.liftover.convert_coordinate(chromosome, position - 1)
+        # This has to be here as new will be NoneType when the chromosome doesn't exist in the chainfile
+        if new:
+            # If the liftover is unique
+            if len(new) == 1:
+                # If the liftover hasn't changed strand
+                if new[0][2] == "+":
+                    # Set the co-ordinates to the lifted-over ones and write out
+                    new_chromosome = str(new[0][0])
+                    # Shift the position forward by one to convert back to a 1-based co-ords
+                    new_position = int(new[0][1]) + 1
+                    return new_chromosome, new_position
+                else:
+                    exception_string = "{},{} has a flipped strand in liftover: {}".format(chromosome, position, new)
+            else:
+                exception_string = "{},{} lifts over to multiple positions: {}".format(chromosome, position, new)
+        elif new is None:
+            exception_string = "Chromosome '{}' provided not in chain file".format(chromosome)
+
+        if verbose:
+            logging.error(exception_string)
+        return None, None
 
 
 def main():
@@ -22,6 +79,7 @@ def main():
     actions = (
         ('from23andme', 'convert 23andme file to vcf file'),
         ('fromimpute2', 'convert impute2 output to vcf file'),
+        ('liftover', 'lift over coordinates in vcf file'),
         ('location', 'given SNP locations characterize the locations'),
         ('mstmap', 'convert vcf format to mstmap input'),
         ('refallele', 'make refAllele file'),
@@ -540,6 +598,57 @@ def mstmap(args):
 
     mm = MSTMatrix(genotypes, mh, ptype, opts.missing_threshold)
     mm.write(opts.outfile, header=(not opts.noheader))
+
+
+def liftover(args):
+    """
+    %prog liftover old.vcf hg19ToHg38.over.chain.gz new.vcf
+
+    Lift over coordinates in vcf file.
+    """
+    p = OptionParser(liftover.__doc__)
+    p.add_option("--newid", default=False, action="store_true",
+                 help="Make new identifiers")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    oldvcf, chainfile, newvcf = args
+    ul = UniqueLiftover(chainfile)
+    num_excluded = 0
+    fp = open(oldvcf)
+    fw = open(newvcf, "w")
+    for row in fp:
+        row = row.strip()
+        if row[0] == '#':
+            if row.startswith("##source="):
+                row = "##source={0}".format(__file__)
+            elif row.startswith("##reference="):
+                row = "##reference=hg38"
+            elif row.startswith("##contig="):
+                continue
+            print >> fw, row.strip()
+            continue
+
+        chr, pos, rsid, ref, alt, qual, filter, info, format, genotype = row.split()
+        try:
+            new_chrom, new_pos = ul.liftover_cpra("chr{0}".format(chr), pos)
+        except:
+            num_excluded +=1
+            continue
+
+        if new_chrom != None and new_pos != None:
+            chr, pos = new_chrom, new_pos
+            if opts.newid:
+                rsid = "{0}:{1}".format(new_chrom.replace("chr", ""), new_pos)
+            row = "\t".join(str(x) for x in (chr, pos, rsid, ref, alt, qual,
+                             filter, info, format, genotype))
+            print >> fw, row
+        else:
+            num_excluded +=1
+
+    logging.debug("Excluded {0}".format(num_excluded))
 
 
 if __name__ == '__main__':

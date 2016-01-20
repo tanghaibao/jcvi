@@ -221,6 +221,8 @@ def from23andme(args):
         not_seen = [x for x in alt if x not in genotype]
         while len(alt) > 1 and not_seen:
             alt.remove(not_seen.pop())
+        if len(alt) > 1:
+            alt = [alt[0]]
         alleles = [ref] + alt
 
         if len(genotype) == 1:

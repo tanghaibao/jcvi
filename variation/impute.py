@@ -91,6 +91,8 @@ def batchminimac(args):
     txtfile, fastafile = args
     mm = MakeManager()
     pf = txtfile.split(".")[0]
+    allrawvcf = []
+    alloutvcf = []
     for x in range(1, 23):
         rsidsfile = "chr{0}.rsids".format(x)
         legendfile = "1000GP_Phase3/1000GP_Phase3_chr{0}.legend.gz".format(x)
@@ -103,11 +105,21 @@ def batchminimac(args):
         cmd += " {0} {1} {2} {3}".format(txtfile, fastafile, x, rsidsfile)
         cmd += " > {0}".format(chrvcf)
         mm.add(rsidsfile, chrvcf, cmd)
+        allrawvcf.append(chrvcf)
 
         minimacvcf = "{0}.chr{1}.minimac.dose.vcf.gz".format(pf, x)
         cmd = "python -m jcvi.variation.impute minimac {0} {1}".format(chrvcf, x)
         cmd += " --outfile {0}".format("makefile.minimac.chr{0}".format(x))
         mm.add(chrvcf, minimacvcf, cmd)
+        alloutvcf.append(minimacvcf)
+
+    rawvcf = pf + ".chr1-22.23andme.vcf.gz"
+    cmd = "vcf-concat {0} | bgzip -c > {1}".format(" ".join(allrawvcf), rawvcf)
+    mm.add(allrawvcf, rawvcf, cmd)
+
+    outvcf = pf + ".chr1-22.minimac.vcf.gz"
+    cmd = "vcf-concat {0} | bgzip -c > {1}".format(" ".join(alloutvcf), outvcf)
+    mm.add(alloutvcf, outvcf, cmd)
 
     mm.write()
 

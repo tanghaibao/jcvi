@@ -125,7 +125,7 @@ def nucmer(args):
     from jcvi.formats.base import split
 
     p = OptionParser(nucmer.__doc__)
-    p.set_params(prog="nucmer", params="-g 5000 -l 24 -c 200")
+    p.set_params(prog="nucmer", params="-g 5000 -l 24 -c 500")
     p.set_cpus()
     opts, args = p.parse_args(args)
 

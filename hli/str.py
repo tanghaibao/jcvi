@@ -379,6 +379,14 @@ def trf(args):
     from jcvi.apps.base import iglob
 
     p = OptionParser(trf.__doc__)
+    p.add_option("--mismatch", default=31, type="int",
+                 help="Mismatch and gap penalty")
+    p.add_option("--minscore", default=MINSCORE, type="int",
+                 help="Minimum score to report")
+    p.add_option("--period", default=6, type="int",
+                 help="Maximum period to report")
+    p.add_option("--telomeres", default=False, action="store_true",
+                 help="Run telomere search: minscore=140 period=7")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -386,8 +394,11 @@ def trf(args):
 
     outdir, = args
     mm = MakeManager()
+    if opts.telomeres:
+        opts.minscore, opts.period = 140, 7
 
-    params = "2 31 31 80 10 {0} 6".format(MINSCORE).split()
+    params = "2 {0} {0} 80 10 {1} {2}".\
+            format(opts.mismatch, opts.minscore, opts.period).split()
     bedfiles = []
     for fastafile in natsorted(iglob(outdir, "*.fa,*.fasta")):
         pf = op.basename(fastafile).split(".")[0]

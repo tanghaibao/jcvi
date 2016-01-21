@@ -18,7 +18,31 @@ from jcvi.formats.sizes import Sizes
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh
 
 
+class VcfLine:
+
+    def __init__(self, row):
+        args = row.strip().split()
+        self.seqid = args[0]
+        self.pos = int(args[1])
+        self.rsid = args[2]
+        self.ref = args[3]
+        self.alt = args[4]
+        self.qual = args[5]
+        self.filter = args[6]
+        self.info = args[7]
+        self.format = args[8]
+        self.genotype = args[9]
+
+    def __str__(self):
+        return "\t".join(str(x) for x in (
+            self.seqid, self.pos, self.rsid, self.ref,
+            self.alt, self.qual, self.filter, self.info,
+            self.format, self.genotype
+            ))
+
+
 class UniqueLiftover(object):
+
     def __init__(self, chainfile):
         """
         This object will perform unique single positional liftovers - it will only lift over chromosome positions that
@@ -639,20 +663,18 @@ def liftover(args):
             print >> fw, row.strip()
             continue
 
-        chr, pos, rsid, ref, alt, qual, filter, info, format, genotype = row.split()
+        v = VcfLine(row)
         try:
-            new_chrom, new_pos = ul.liftover_cpra("chr{0}".format(chr), pos)
+            new_chrom, new_pos = ul.liftover_cpra("chr{0}".format(v.seqid), v.pos)
         except:
             num_excluded +=1
             continue
 
         if new_chrom != None and new_pos != None:
-            chr, pos = new_chrom, new_pos
+            v.seqid, v.pos = new_chrom, new_pos
             if opts.newid:
-                rsid = "{0}:{1}".format(new_chrom.replace("chr", ""), new_pos)
-            row = "\t".join(str(x) for x in (chr, pos, rsid, ref, alt, qual,
-                             filter, info, format, genotype))
-            print >> fw, row
+                v.rsid = "{0}:{1}".format(new_chrom.replace("chr", ""), new_pos)
+            print >> fw, v
         else:
             num_excluded +=1
 

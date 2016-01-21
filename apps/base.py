@@ -384,6 +384,9 @@ class OptionParser (OptionP):
         self.add_option("--rclip", default=rclip, type="int",
                 help="Pair ID is derived from rstrip N chars [default: %default]")
 
+    def set_chr(self, chr=",".join(str(x) for x in range(1, 23))):
+        self.add_option("--chr", default=chr, help="Chromosomes to process")
+
     def set_ref(self, ref="/mnt/ref"):
         self.add_option("--ref", default=ref, help="Reference folder")
 

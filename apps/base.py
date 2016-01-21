@@ -384,6 +384,9 @@ class OptionParser (OptionP):
         self.add_option("--rclip", default=rclip, type="int",
                 help="Pair ID is derived from rstrip N chars [default: %default]")
 
+    def set_ref(self, ref="/mnt/ref"):
+        self.add_option("--ref", default=ref, help="Reference folder")
+
     def set_cutoff(self, cutoff=0):
         self.add_option("--cutoff", default=cutoff, type="int",
                 help="Distance to call valid links between mates")

@@ -165,8 +165,6 @@ def get_vcfstanza(fastafile, fasta, sampleid="SAMP_001"):
     m += '##INFO=<ID=IM,Type=Flag,Description="Imputed genotype">\n'
     m += '##FORMAT=<ID=GT,Type=String,Description="Genotype">\n'
     m += '##FORMAT=<ID=GP,Type=Float,Description="Estimated Genotype Probability">\n'
-    for contig in [str(x) for x in range(1, 23)] + ["X", "Y", "MT"]:
-        m += "##contig=<ID={0},length={1}>\n".format(contig, len(fasta[contig]))
     header = "CHROM POS ID REF ALT QUAL FILTER INFO FORMAT\n".split() + [sampleid]
     m += "#" + "\t".join(header)
     return m
@@ -206,24 +204,34 @@ def fromimpute2(args):
 
 def from23andme(args):
     """
-    %prog from23andme txtfile hg37.fasta 1 chr1.rsids
+    %prog from23andme txtfile 1
 
     Convert from23andme file to vcf file.
+
+    --ref points to the folder that contains chr1.rsids
+
     $ zcat 1000GP_Phase3/1000GP_Phase3_chr1.legend.gz \\
             | cut -d" " -f1 | grep ":" > chr1.rsids
     """
     p = OptionParser(from23andme.__doc__)
+    p.set_ref()
     opts, args = p.parse_args(args)
 
-    if len(args) != 4:
+    if len(args) != 2:
         sys.exit(not p.print_help())
 
-    txtfile, fastafile, seqid, legend = args
+    txtfile, seqid = args
+    ref_dir = opts.ref
+    fastafile = op.join(ref_dir, "hs37d5.fa")
     fasta = Fasta(fastafile)
-    print get_vcfstanza(fastafile, fasta, txtfile)
 
+    pf = txtfile.rsplit(".", 1)[0]
+    chrvcf = pf + ".chr{0}.vcf".format(seqid)
+    legend = op.join(ref_dir, "1000GP_Phase3/chr{0}.rsids".format(seqid))
     # Read rsid
     fp = open(legend)
+    fw = open(chrvcf, "w")
+    print >> fw, get_vcfstanza(fastafile, fasta, txtfile)
     # rs145072688:10352:T:TA
     register = {}
     for row in fp:
@@ -301,11 +309,11 @@ def from23andme(args):
             continue
         code = "/".join(str(x) for x in sorted((ia, ib)))
 
-        print "\t".join(str(x) for x in \
+        print >> fw, "\t".join(str(x) for x in \
                 (chr, pos, rsid, ref, alt, ".", ".", "PR", "GT", code))
 
-    print >> sys.stderr, "duplicates={0} skipped={1} missing={2}".\
-                    format(duplicates, skipped, missing)
+    logging.debug("duplicates={0} skipped={1} missing={2}".\
+                    format(duplicates, skipped, missing))
 
 
 def refallele(args):

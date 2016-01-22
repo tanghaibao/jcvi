@@ -10,6 +10,7 @@ import sys
 import logging
 
 from collections import defaultdict
+from itertools import groupby
 from pyfaidx import Fasta
 from pyliftover import LiftOver
 
@@ -126,6 +127,8 @@ def uniq(args):
 
     Retain only the first entry in vcf file.
     """
+    from urlparse import parse_qs
+
     p = OptionParser(uniq.__doc__)
     opts, args = p.parse_args(args)
 
@@ -134,16 +137,21 @@ def uniq(args):
 
     vcffile, = args
     fp = must_open(vcffile)
-    seen = set()
+    data = []
     for row in fp:
         if row[0] == '#':
             print row.strip()
             continue
-        chr, pos, rsid, ref, alt, qual, filter, info, format, genotype = row.split()
-        if (chr, pos) in seen:
+        v = VcfLine(row)
+        data.append(v)
+
+    for pos, vv in groupby(data, lambda x: x.pos):
+        vv = list(vv)
+        if len(vv) == 1:
+            print vv[0]
             continue
-        seen.add((chr, pos))
-        print row.strip()
+        bestv = max(vv, key=lambda x: float(parse_qs(x.info)["R2"][0]))
+        print bestv
 
 
 def sample(args):

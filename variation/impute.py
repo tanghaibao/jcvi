@@ -55,7 +55,8 @@ def passthrough(args):
         v.format = "GT:GP"
         probs = [0] * 3
         probs[gg.index(v.genotype)] = 1
-        v.genotype += ":{0}".format(",".join("{0:.3f}".format(x) for x in probs))
+        v.genotype = v.genotype.replace("/", "|") + \
+                ":{0}".format(",".join("{0:.3f}".format(x) for x in probs))
         print >> fw, v
     fw.close()
 
@@ -106,6 +107,8 @@ def validate(args):
         hit += 1
         if truth == imputed:
             concordant += 1
+        else:
+            print >> sys.stderr, row.strip(), "truth={0}".format(truth)
 
     logging.debug("Total concordant: {0}".\
             format(percentage(concordant, hit)))
@@ -162,8 +165,14 @@ def minimac(args):
         else:
             minimac_autosome(mm, x, chrvcf, opts)
 
+        # keep the best line for multi-allelic markers
+        uniqvcf= "{0}.{1}.minimac.uniq.vcf".format(pf, px)
+        cmd = "python -m jcvi.formats.vcf uniq {0} > {1}".\
+                    format(minimacvcf, uniqvcf)
+        mm.add(minimacvcf, uniqvcf, cmd)
+
         minimacvcf_hg38 = "{0}.{1}.minimac.hg38.vcf".format(pf, px)
-        minimac_liftover(mm, minimacvcf, minimacvcf_hg38, opts)
+        minimac_liftover(mm, uniqvcf, minimacvcf_hg38, opts)
         alloutvcf.append(minimacvcf_hg38)
 
     if len(allrawvcf) > 1:

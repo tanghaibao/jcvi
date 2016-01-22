@@ -202,31 +202,44 @@ def minimac_X(mm, chr, vcffile, opts):
     ranges = [(1, 2699519), (2699520, 154931043), (154931044, 155270560)]
     tags = ["PAR1", "NONPAR", "PAR2"]
     Xvcf = []
+    phasedfiles = []
     for tag, (start, end) in zip(tags, ranges):
         recodefile = pf + "_{0}.recode.vcf".format(tag)
         cmd = "vcftools --vcf {0} --out {1}_{2}".format(vcffile, pf, tag)
         cmd += " --chr X --from-bp {0} --to-bp {1} --recode".format(start, end)
         mm.add(vcffile, recodefile, cmd)
 
-        outvcf = minimac_autosome(mm, chr + "_{0}".format(tag), recodefile, opts)
+        phasedfile = shapeit_phasing(mm, chr + "_{0}".format(tag), recodefile, opts)
+        phasedfiles.append(phasedfile)
+
+    pars = [x for x in phasedfiles if "_PAR" in x]
+    parfile = pf + "_PAR.recode.phased.vcf"
+    nonparfile = pf + "_NONPAR.recode.phased.vcf"
+    cmd = "vcf-concat {0} > {1}".format(" ".join(pars), parfile)
+    mm.add(pars, parfile, cmd)
+
+    for phasedfile in (parfile, nonparfile):
+        outvcf = minimac_autosome(mm, chr, phasedfile, opts, phasing=False)
         Xvcf.append(outvcf)
 
     minimacvcf = pf + ".minimac.dose.vcf"
-    cmd = "vcf-concat {0} > {1}".format(" ".join(Xvcf), minimacvcf)
+    cmd = "vcf-concat {0} | vcf-sort -c > {1}".format(" ".join(Xvcf), minimacvcf)
     mm.add(Xvcf, minimacvcf, cmd)
 
 
-def minimac_autosome(mm, chr, vcffile, opts):
+def minimac_autosome(mm, chr, vcffile, opts, phasing=True):
     pf = vcffile.rsplit(".", 1)[0]
     kg = op.join(opts.ref, "1000GP_Phase3")
-    shapeit_phasing(mm, chr, vcffile, opts)
+    if phasing:
+        shapeit_phasing(mm, chr, vcffile, opts)
+        phasedfile = pf + ".phased.vcf"
+    else:
+        phasedfile = vcffile
 
     chrtag = chr
-    if "_" in chr:  # chrX
-        chr, tag = chr.split("_")
-        chrtag = "X.Non.Pseudo.Auto" if tag == "NONPAR" else "X.Pseudo.Auto"
+    if chr == "X":
+        chrtag = "X.Non.Pseudo.Auto" if "NONPAR" in vcffile else "X.Pseudo.Auto"
 
-    phasedfile = pf + ".phased.vcf"
     opf = pf + ".minimac"
     minimac_cmd = op.join(opts.minimac_home, "Minimac3")
 

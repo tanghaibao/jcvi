@@ -90,9 +90,9 @@ def validate(args):
     for row in fp:
         if row[0] == "#":
             continue
-        chr, pos, genotype = v.seqid, v.pos, v.gentoype
         v = VcfLine(row)
-        if (v.seqid, v.pos) in seen:
+        chr, pos, genotype = v.seqid, v.pos, v.genotype
+        if (chr, pos) in seen:
             continue
         seen.add((chr, pos))
         if (chr, pos) not in register:
@@ -100,8 +100,9 @@ def validate(args):
         truth = register[(chr, pos)]
         imputed = genotype.split(":")[0]
         if "|" in imputed:
-            probs = [float(x) for x in genotype.split(":")[-1].split(",")]
-            imputed = max(zip(probs, ["0/0", "0/1", "1/1"]))[-1]
+            imputed = "/".join(sorted(genotype.split(":")[0].split("|")))
+            #probs = [float(x) for x in genotype.split(":")[-1].split(",")]
+            #imputed = max(zip(probs, ["0/0", "0/1", "1/1"]))[-1]
         hit += 1
         if truth == imputed:
             concordant += 1
@@ -138,8 +139,13 @@ def minimac(args):
     for x in chrs:
         px = CM[x]
         chrvcf = pf + ".{0}.vcf".format(px)
-        cmd = "python -m jcvi.formats.vcf from23andme {0} {1}".format(txtfile, x)
-        cmd += " --ref {0}".format(ref)
+        if txtfile.endswith(".vcf"):
+            cmd = "vcftools --vcf {0} --chr {1}".format(txtfile, x)
+            cmd += " --out {0}.{1} --recode".format(pf, px)
+            cmd += " && mv {0}.{1}.recode.vcf {2}".format(pf, px, chrvcf)
+        else:  # 23andme
+            cmd = "python -m jcvi.formats.vcf from23andme {0} {1}".format(txtfile, x)
+            cmd += " --ref {0}".format(ref)
         mm.add(txtfile, chrvcf, cmd)
 
         chrvcf_hg38 = pf + ".{0}.23andme.hg38.vcf".format(px)
@@ -158,15 +164,17 @@ def minimac(args):
 
         minimacvcf_hg38 = "{0}.{1}.minimac.hg38.vcf".format(pf, px)
         minimac_liftover(mm, minimacvcf, minimacvcf_hg38, opts)
-        alloutvcf.append(minimacvcf)
+        alloutvcf.append(minimacvcf_hg38)
 
-    rawhg38vcfgz = pf + ".all.23andme.hg38.vcf.gz"
-    cmd = "vcf-concat {0} | bgzip > {1}".format(" ".join(allrawvcf), rawhg38vcfgz)
-    mm.add(allrawvcf, rawhg38vcfgz, cmd)
+    if len(allrawvcf) > 1:
+        rawhg38vcfgz = pf + ".all.23andme.hg38.vcf.gz"
+        cmd = "vcf-concat {0} | bgzip > {1}".format(" ".join(allrawvcf), rawhg38vcfgz)
+        mm.add(allrawvcf, rawhg38vcfgz, cmd)
 
-    outhg38vcfgz = pf + ".all.minimac.hg38.vcf.gz"
-    cmd = "vcf-concat {0} | bgzip > {1}".format(" ".join(alloutvcf), outhg38vcfgz)
-    mm.add(alloutvcf, outhg38vcfgz, cmd)
+    if len(alloutvcf) > 1:
+        outhg38vcfgz = pf + ".all.minimac.hg38.vcf.gz"
+        cmd = "vcf-concat {0} | bgzip > {1}".format(" ".join(alloutvcf), outhg38vcfgz)
+        mm.add(alloutvcf, outhg38vcfgz, cmd)
 
     mm.write()
 
@@ -200,14 +208,14 @@ def minimac_X(mm, chr, vcffile, opts):
 
 
 def minimac_autosome(mm, chr, vcffile, opts):
+    pf = vcffile.rsplit(".", 1)[0]
+    kg = op.join(opts.ref, "1000GP_Phase3")
+    shapeit_phasing(mm, chr, vcffile, opts)
+
     chrtag = chr
     if "_" in chr:  # chrX
         chr, tag = chr.split("_")
         chrtag = "X.Non.Pseudo.Auto" if tag == "NONPAR" else "X.Pseudo.Auto"
-
-    pf = vcffile.rsplit(".", 1)[0]
-    kg = op.join(opts.ref, "1000GP_Phase3")
-    shapeit_phasing(mm, chr, vcffile, opts)
 
     phasedfile = pf + ".phased.vcf"
     opf = pf + ".minimac"

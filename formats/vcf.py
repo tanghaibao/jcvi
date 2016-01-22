@@ -313,7 +313,7 @@ def from23andme(args):
         # Y or MT
         if not register:
             assert len(genotype) == 1
-            ref = fasta[chr][pos].seq.upper()
+            ref = fasta[chr][pos - 1].seq.upper()
             if "D" in genotype or "I" in genotype:
                 skipped += 1
                 continue

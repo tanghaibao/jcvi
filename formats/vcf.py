@@ -226,6 +226,34 @@ def fromimpute2(args):
                 "GT:GP", code + ":" + ",".join((aa, ab, bb))))
 
 
+def read_rsid(seqid, legend):
+    if seqid in ["Y", "MT"]:
+        return {}
+    # Read rsid
+    fp = open(legend)
+    # rs145072688:10352:T:TA
+    register = {}
+    for row in fp:
+        atoms = row.strip().split(":")
+        if len(atoms) == 4:
+            rsid, pos, ref, alt = atoms
+        else:
+            continue
+        pos = int(pos)
+        # Use position for non-rsid
+        rsids = [pos] if rsid == seqid else [rsid, pos]
+        for rsid in rsids:
+            if rsid in register:
+                pos1, ref1, alt1 = register[rsid]
+                if alt not in alt1:
+                    register[rsid][-1].append(alt)
+            else:
+                register[rsid] = (pos, ref, [alt])
+    logging.debug("A total of {0} sites imported from `{1}`".\
+                    format(len(register), legend))
+    return register
+
+
 def from23andme(args):
     """
     %prog from23andme txtfile 1
@@ -252,31 +280,10 @@ def from23andme(args):
     pf = txtfile.rsplit(".", 1)[0]
     chrvcf = pf + ".chr{0}.vcf".format(seqid)
     legend = op.join(ref_dir, "1000GP_Phase3/chr{0}.rsids".format(seqid))
-    # Read rsid
-    fp = open(legend)
+    register = read_rsid(seqid, legend)
+
     fw = open(chrvcf, "w")
     print >> fw, get_vcfstanza(fastafile, fasta, txtfile)
-    # rs145072688:10352:T:TA
-    register = {}
-    for row in fp:
-        atoms = row.strip().split(":")
-        if len(atoms) == 4:
-            rsid, pos, ref, alt = atoms
-        else:
-            continue
-        pos = int(pos)
-        # Use position for non-rsid
-        rsids = [pos] if rsid == seqid else [rsid, pos]
-        for rsid in rsids:
-            if rsid in register:
-                pos1, ref1, alt1 = register[rsid]
-                #assert pos == pos1 and ref == ref1, str(rsid)
-                if alt not in alt1:
-                    register[rsid][-1].append(alt)
-            else:
-                register[rsid] = (pos, ref, [alt])
-    logging.debug("A total of {0} sites imported from `{1}`".\
-                    format(len(register), legend))
 
     fp = open(txtfile)
     seen = set()
@@ -295,6 +302,20 @@ def from23andme(args):
         genotype = list(genotype)
         if "-" in genotype:  # missing daa
             missing += 1
+            continue
+
+        # Y or MT
+        if not register:
+            assert len(genotype) == 1
+            ref = fasta[chr][pos].seq.upper()
+            if "D" in genotype or "I" in genotype:
+                skipped += 1
+                continue
+            genotype = genotype[0]
+            code = "0/0" if ref == genotype else "1/1"
+            alt = "." if ref == genotype else genotype
+            print >> fw, "\t".join(str(x) for x in \
+                    (chr, pos, rsid, ref, alt, ".", ".", "PR", "GT", code))
             continue
 
         # If rsid is seen in the db, use that

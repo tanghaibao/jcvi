@@ -108,36 +108,45 @@ def minimac(args):
         cmd = "python -m jcvi.formats.vcf from23andme {0} {1}".format(txtfile, x)
         cmd += " --ref {0}".format(ref)
         mm.add(txtfile, chrvcf, cmd)
-        allrawvcf.append(chrvcf)
 
-        minimac_chr(mm, x, chrvcf, opts)
-        minimacvcf = "{0}.chr{1}.minimac.dose.vcf.gz".format(pf, x)
+        chrvcf_hg38 = pf + ".chr{0}.23andme.hg38.vcf".format(x)
+        minimac_liftover(mm, chrvcf, chrvcf_hg38, opts)
+        allrawvcf.append(chrvcf_hg38)
+
+        if x == "X":
+            continue
+        elif x in ["Y", "MT"]:
+            continue
+        else:
+            minimac_autosome(mm, x, chrvcf, opts)
+
+        minimacvcf = "{0}.chr{1}.minimac.dose.vcf".format(pf, x)
+        minimacvcf_hg38 = "{0}.chr{1}.minimac.hg38.vcf".format(pf, x)
+        minimac_liftover(mm, minimacvcf, minimacvcf_hg38, opts)
         alloutvcf.append(minimacvcf)
 
-    rawvcf = pf + ".all.23andme.hg37.vcf"
-    cmd = "vcf-concat {0} > {1}".format(" ".join(allrawvcf), rawvcf)
-    mm.add(allrawvcf, rawvcf, cmd)
+    rawhg38vcfgz = pf + ".all.23andme.hg38.vcf.gz"
+    cmd = "vcf-concat {0} | bgzip > {1}".format(" ".join(allrawvcf), rawhg38vcfgz)
+    mm.add(allrawvcf, rawhg38vcfgz, cmd)
 
-    rawhg38vcf = pf + ".all.23andme.hg38.vcf"
-    rawhg38vcfgz = rawhg38vcf + ".gz"
-    cmd = "python -m jcvi.formats.vcf liftover {0} {1}/hg19ToHg38.over.chain.gz {2}".\
-            format(rawvcf, ref, rawhg38vcf)
-    mm.add(rawvcf, rawhg38vcfgz, [cmd, "bgzip -f {0}".format(rawhg38vcf)])
-
-    outvcf = pf + ".all.minimac.hg37.vcf"
-    cmd = "vcf-concat {0} > {1}".format(" ".join(alloutvcf), outvcf)
-    mm.add(alloutvcf, outvcf, cmd)
-
-    outhg38vcf = pf + ".all.minimac.hg38.vcf"
-    outhg38vcfgz = outhg38vcf + ".gz"
-    cmd = "python -m jcvi.formats.vcf liftover {0} {1}/hg19ToHg38.over.chain.gz {2}".\
-            format(outvcf, ref, outhg38vcf)
-    mm.add(outvcf, outhg38vcfgz, [cmd, "bgzip -f {0}".format(outhg38vcf)])
+    outhg38vcfgz = pf + ".all.minimac.hg38.vcf.gz"
+    cmd = "vcf-concat {0} | bgzip > {1}".format(" ".join(alloutvcf), outhg38vcfgz)
+    mm.add(alloutvcf, outhg38vcfgz, cmd)
 
     mm.write()
 
 
-def minimac_chr(mm, chr, vcffile, opts):
+def minimac_liftover(mm, chrvcf, chrvcf_hg38, opts):
+    cmd = "python -m jcvi.formats.vcf liftover {0} {1}/hg19ToHg38.over.chain.gz {2}".\
+            format(chrvcf, opts.ref, chrvcf_hg38)
+    mm.add(chrvcf, chrvcf_hg38, cmd)
+
+
+def minimac_X(mm, chr, vcffile, opts):
+    minimac_autosome(mm, chr, vcffile, opts)
+
+
+def minimac_autosome(mm, chr, vcffile, opts):
     pf = vcffile.rsplit(".", 1)[0]
     hapsfile = pf + ".haps"
     kg = op.join(opts.ref, "1000GP_Phase3")
@@ -155,7 +164,7 @@ def minimac_chr(mm, chr, vcffile, opts):
     cmd = minimac_cmd + " --chr {0} --cpus {1}".format(chr, opts.cpus)
     cmd += " --refHaps {0}/{1}.1000g.Phase3.v5.With.Parameter.Estimates.m3vcf.gz".format(kg, chr)
     cmd += " --haps {0} --prefix {1}".format(phasedfile, opf)
-    cmd += " --format GT,GP"
+    cmd += " --format GT,GP --nobgzip"
     outvcf = opf + ".dose.vcf"
     mm.add(phasedfile, outvcf, cmd)
 

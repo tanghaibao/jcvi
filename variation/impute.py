@@ -12,7 +12,7 @@ import sys
 from jcvi.utils.cbook import percentage
 from jcvi.apps.grid import MakeManager
 from jcvi.formats.base import must_open
-from jcvi.formats.vcf import VcfLine
+from jcvi.formats.vcf import VcfLine, CM
 from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
@@ -22,10 +22,42 @@ def main():
         ('beagle', 'use BEAGLE4.1 to impute vcf'),
         ('impute', 'use IMPUTE2 to impute vcf'),
         ('minimac', 'use MINIMAC3 to impute vcf'),
+        ('passthrough', 'pass through Y and MT vcf'),
         ('validate', 'validate imputation against withheld variants'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def passthrough(args):
+    """
+    %prog passthrough chrY.vcf chrY.new.vcf
+
+    Pass through Y and MT vcf.
+    """
+    p = OptionParser(passthrough.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    vcffile, newvcffile = args
+    fp = open(vcffile)
+    fw = open(newvcffile, "w")
+    gg = ["0/0", "0/1", "1/1"]
+    for row in fp:
+        if row[0] == "#":
+            print >> fw, row.strip()
+            continue
+
+        v = VcfLine(row)
+        v.filter = "PASS"
+        v.format = "GT:GP"
+        probs = [0] * 3
+        probs[gg.index(v.genotype)] = 1
+        v.genotype += ":{0}".format(",".join("{0:.3f}".format(x) for x in probs))
+        print >> fw, v
+    fw.close()
 
 
 def validate(args):
@@ -104,24 +136,27 @@ def minimac(args):
     alloutvcf = []
     chrs = opts.chr.split(",")
     for x in chrs:
-        chrvcf = pf + ".chr{0}.vcf".format(x)
+        px = CM[x]
+        chrvcf = pf + ".{0}.vcf".format(px)
         cmd = "python -m jcvi.formats.vcf from23andme {0} {1}".format(txtfile, x)
         cmd += " --ref {0}".format(ref)
         mm.add(txtfile, chrvcf, cmd)
 
-        chrvcf_hg38 = pf + ".chr{0}.23andme.hg38.vcf".format(x)
+        chrvcf_hg38 = pf + ".{0}.23andme.hg38.vcf".format(px)
         minimac_liftover(mm, chrvcf, chrvcf_hg38, opts)
         allrawvcf.append(chrvcf_hg38)
 
+        minimacvcf = "{0}.{1}.minimac.dose.vcf".format(pf, px)
         if x == "X":
-            continue
+            minimac_X(mm, x, chrvcf, opts)
         elif x in ["Y", "MT"]:
-            continue
+            cmd = "python -m jcvi.variation.impute passthrough"
+            cmd += " {0} {1}".format(chrvcf, minimacvcf)
+            mm.add(chrvcf, minimacvcf, cmd)
         else:
             minimac_autosome(mm, x, chrvcf, opts)
 
-        minimacvcf = "{0}.chr{1}.minimac.dose.vcf".format(pf, x)
-        minimacvcf_hg38 = "{0}.chr{1}.minimac.hg38.vcf".format(pf, x)
+        minimacvcf_hg38 = "{0}.{1}.minimac.hg38.vcf".format(pf, px)
         minimac_liftover(mm, minimacvcf, minimacvcf_hg38, opts)
         alloutvcf.append(minimacvcf)
 
@@ -143,30 +178,49 @@ def minimac_liftover(mm, chrvcf, chrvcf_hg38, opts):
 
 
 def minimac_X(mm, chr, vcffile, opts):
-    minimac_autosome(mm, chr, vcffile, opts)
+    """See details here:
+    http://genome.sph.umich.edu/wiki/Minimac3_Cookbook_:_Chromosome_X_Imputation
+    """
+    pf = vcffile.rsplit(".", 1)[0]
+    ranges = [(1, 2699519), (2699520, 154931043), (154931044, 155270560)]
+    tags = ["PAR1", "NONPAR", "PAR2"]
+    Xvcf = []
+    for tag, (start, end) in zip(tags, ranges):
+        recodefile = pf + "_{0}.recode.vcf".format(tag)
+        cmd = "vcftools --vcf {0} --out {1}_{2}".format(vcffile, pf, tag)
+        cmd += " --chr X --from-bp {0} --to-bp {1} --recode".format(start, end)
+        mm.add(vcffile, recodefile, cmd)
+
+        outvcf = minimac_autosome(mm, chr + "_{0}".format(tag), recodefile, opts)
+        Xvcf.append(outvcf)
+
+    minimacvcf = pf + ".minimac.dose.vcf"
+    cmd = "vcf-concat {0} > {1}".format(" ".join(Xvcf), minimacvcf)
+    mm.add(Xvcf, minimacvcf, cmd)
 
 
 def minimac_autosome(mm, chr, vcffile, opts):
+    chrtag = chr
+    if "_" in chr:  # chrX
+        chr, tag = chr.split("_")
+        chrtag = "X.Non.Pseudo.Auto" if tag == "NONPAR" else "X.Pseudo.Auto"
+
     pf = vcffile.rsplit(".", 1)[0]
-    hapsfile = pf + ".haps"
     kg = op.join(opts.ref, "1000GP_Phase3")
-    shapeit_cmd = op.join(opts.shapeit_home, "shapeit")
-    cmd = get_phasing_cmd(shapeit_cmd, vcffile, chr, opts.cpus, kg)
-    mm.add(vcffile, hapsfile, cmd)
+    shapeit_phasing(mm, chr, vcffile, opts)
 
     phasedfile = pf + ".phased.vcf"
-    cmd = shapeit_cmd + " -convert --input-haps {0}".format(pf)
-    cmd += " --output-vcf {0}".format(phasedfile)
-    mm.add(hapsfile, phasedfile, cmd)
-
     opf = pf + ".minimac"
-    minimac_cmd = op.join(opts.minimac_home, "Minimac3-omp")
-    cmd = minimac_cmd + " --chr {0} --cpus {1}".format(chr, opts.cpus)
-    cmd += " --refHaps {0}/{1}.1000g.Phase3.v5.With.Parameter.Estimates.m3vcf.gz".format(kg, chr)
+    minimac_cmd = op.join(opts.minimac_home, "Minimac3")
+
+    cmd = minimac_cmd + " --chr {0}".format(chr)
+    cmd += " --refHaps {0}/{1}.1000g.Phase3.v5.With.Parameter.Estimates.m3vcf.gz".format(kg, chrtag)
     cmd += " --haps {0} --prefix {1}".format(phasedfile, opf)
     cmd += " --format GT,GP --nobgzip"
     outvcf = opf + ".dose.vcf"
     mm.add(phasedfile, outvcf, cmd)
+
+    return outvcf
 
 
 def beagle(args):
@@ -202,19 +256,35 @@ def beagle(args):
     mm.write()
 
 
-def get_phasing_cmd(shapeit_cmd, vcffile, chr, cpus, kg):
+def shapeit_phasing(mm, chr, vcffile, opts, vcf=True):
+    kg = op.join(opts.ref, "1000GP_Phase3")
+    shapeit_cmd = op.join(opts.shapeit_home, "shapeit")
+
     rpf = "{0}/1000GP_Phase3_chr{1}".format(kg, chr)
     pf = vcffile.rsplit(".", 1)[0]
-
     mapfile = "{0}/genetic_map_chr{1}_combined_b37.txt".format(kg, chr)
+    mapfile = mapfile.replace("NONPAR", "nonPAR")
+
+    hapsfile = pf + ".haps"
     cmd = shapeit_cmd + " --input-vcf {0}".format(vcffile)
     cmd += " --input-map {0}".format(mapfile)
-    cmd += " --thread {0} --effective-size 20000".format(cpus)
+    cmd += " --effective-size 11418"
     cmd += " --output-max {0}.haps {0}.sample".format(pf)
     cmd += " --input-ref {0}.hap.gz {0}.legend.gz".format(rpf)
-    cmd += " {0}.sample".format(rpf.rsplit("_", 1)[0])
-    cmd += " --output-log {0}.log".format(pf)
-    return cmd
+    cmd += " {0}/1000GP_Phase3.sample --output-log {1}.log".format(kg, pf)
+    if chr == "X":
+        cmd += " --chrX"
+    mm.add(vcffile, hapsfile, cmd)
+
+    if not vcf:
+        return
+
+    phasedfile = pf + ".phased.vcf"
+    cmd = shapeit_cmd + " -convert --input-haps {0}".format(pf)
+    cmd += " --output-vcf {0}".format(phasedfile)
+    mm.add(hapsfile, phasedfile, cmd)
+
+    return phasedfile
 
 
 def impute(args):
@@ -239,10 +309,8 @@ def impute(args):
     mm = MakeManager()
     pf = vcffile.rsplit(".", 1)[0]
     hapsfile = pf + ".haps"
-    shapeit_cmd = op.join(opts.shapeit_home, "shapeit")
     kg = op.join(opts.ref, "1000GP_Phase3")
-    cmd = get_phasing_cmd(shapeit_cmd, vcffile, chr, opts.cpus, kg)
-    mm.add(vcffile, hapsfile, cmd)
+    shapeit_phasing(mm, chr, vcffile, opts)
 
     fasta = Fasta(fastafile)
     size = len(fasta[chr])

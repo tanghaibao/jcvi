@@ -70,6 +70,7 @@ class MakeManager (list):
         print >> fw, "all : {0}\n".format(" ".join(sorted(self.targets)))
         for d in self:
             print >> fw, d
+        print >> fw, "clean :\n\trm -f {0}\n".format(" ".join(self.targets))
         fw.close()
         logging.debug("Makefile written to `{0}`.".format(self.makefile))
 

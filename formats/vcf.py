@@ -21,7 +21,7 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh
 class VcfLine:
 
     def __init__(self, row):
-        args = row.strip().split()
+        args = row.strip().split("\t")
         self.seqid = args[0]
         self.pos = int(args[1])
         self.rsid = args[2]
@@ -96,6 +96,11 @@ class UniqueLiftover(object):
         if verbose:
             logging.error(exception_string)
         return None, None
+
+
+CM = dict(zip([str(x) for x in range(1, 23)],
+          ["chr{0}".format(x) for x in range(1, 23)]) + \
+          [("X", "chrX"), ("Y", "chrY"), ("MT", "chrM")])
 
 
 def main():
@@ -185,10 +190,10 @@ def get_vcfstanza(fastafile, fasta, sampleid="SAMP_001"):
     m += "##fileDate={0}{1:02d}{2:02d}\n".format(dt.now().year, dt.now().month, dt.now().day)
     m += "##source={0}\n".format(__file__)
     m += "##reference=file://{0}\n".format(op.abspath(fastafile).strip("/"))
-    m += '##INFO=<ID=PR,Type=Flag,Description="Provisional genotype">\n'
-    m += '##INFO=<ID=IM,Type=Flag,Description="Imputed genotype">\n'
-    m += '##FORMAT=<ID=GT,Type=String,Description="Genotype">\n'
-    m += '##FORMAT=<ID=GP,Type=Float,Description="Estimated Genotype Probability">\n'
+    m += '##INFO=<ID=PR,Number=0,Type=Flag,Description="Provisional genotype">\n'
+    m += '##INFO=<ID=IM,Number=0,Type=Flag,Description="Imputed genotype">\n'
+    m += '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n'
+    m += '##FORMAT=<ID=GP,Number=3,Type=Float,Description="Estimated Genotype Probability">\n'
     header = "CHROM POS ID REF ALT QUAL FILTER INFO FORMAT\n".split() + [sampleid]
     m += "#" + "\t".join(header)
     return m
@@ -278,8 +283,9 @@ def from23andme(args):
     fasta = Fasta(fastafile)
 
     pf = txtfile.rsplit(".", 1)[0]
-    chrvcf = pf + ".chr{0}.vcf".format(seqid)
-    legend = op.join(ref_dir, "1000GP_Phase3/chr{0}.rsids".format(seqid))
+    px = CM[seqid]
+    chrvcf = pf + ".{0}.vcf".format(px)
+    legend = op.join(ref_dir, "1000GP_Phase3/{0}.rsids".format(px))
     register = read_rsid(seqid, legend)
 
     fw = open(chrvcf, "w")
@@ -685,8 +691,14 @@ def liftover(args):
             continue
 
         v = VcfLine(row)
+        # GRCh37.p2 has the same MT sequence as hg38 (but hg19 is different)
+        if v.seqid == "MT":
+            v.seqid = "chrM"
+            print >> fw, v
+            continue
+
         try:
-            new_chrom, new_pos = ul.liftover_cpra("chr{0}".format(v.seqid), v.pos)
+            new_chrom, new_pos = ul.liftover_cpra(CM[v.seqid], v.pos)
         except:
             num_excluded +=1
             continue

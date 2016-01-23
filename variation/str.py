@@ -19,7 +19,7 @@ from jcvi.utils.cbook import percentage
 from jcvi.formats.bed import natsorted
 from jcvi.apps.grid import MakeManager
 from jcvi.formats.base import must_open
-from jcvi.hli.aws import push_to_s3, pull_from_s3, check_exists_s3
+from jcvi.utils.aws import push_to_s3, pull_from_s3, check_exists_s3
 from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, sh
 
 

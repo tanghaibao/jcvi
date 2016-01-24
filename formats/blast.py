@@ -972,7 +972,9 @@ def covfilter(args):
             if b.pctid < pctid:
                 continue
 
-            this_covered += abs(start - stop + 1)
+            if start > stop:
+                start, stop = stop, start
+            this_covered += stop - start + 1
             this_alignlen += b.hitlen
             this_mismatches += b.nmismatch
             this_gaps += b.ngaps

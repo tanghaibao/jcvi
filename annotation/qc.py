@@ -10,7 +10,6 @@ testing. Several aspects of annotation QC are implemented in this script.
 """
 
 import sys
-import logging
 
 from jcvi.formats.gff import Gff, get_piles, make_index, import_feats, \
             populate_children, to_range

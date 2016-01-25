@@ -2334,6 +2334,9 @@ def note(args):
             help="Only process certain types, multiple types allowed with comma")
     p.add_option("--attribute", default="Parent,Note",
             help="Attribute field to extract, multiple fields allowd with comma")
+    p.add_option("--AED", type="float", help="Only extract lines with AED score <=")
+    p.add_option("--exoncount", default=False, action="store_true",
+            help="Get the exon count for each mRNA feat")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -2343,15 +2346,33 @@ def note(args):
     type = opts.type
     if type:
         type = type.split(",")
+
+    g = make_index(gffile)
+    exoncounts = {}
+    if opts.exoncount:
+        for feat in g.features_of_type("mRNA"):
+            nexons = 0
+            for c in g.children(feat.id, 1):
+                if c.featuretype != "exon":
+                    continue
+                nexons += 1
+            exoncounts[feat.id] = nexons
+
     attrib = opts.attribute.split(",")
 
     gff = Gff(gffile)
     seen = set()
+    AED = opts.AED
     for g in gff:
         if type and g.type not in type:
             continue
+        if AED is not None and float(g.attributes["_AED"][0]) > AED:
+            continue
         keyval = [g.accn] + [",".join(g.attributes[x]) \
                             for x in attrib if x in g.attributes]
+        if exoncounts:
+            nexons = exoncounts.get(g.accn, 0)
+            keyval.append(str(nexons))
         keyval = tuple(keyval)
         if keyval not in seen:
             print "\t".join(keyval)

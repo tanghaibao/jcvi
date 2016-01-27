@@ -427,6 +427,8 @@ def batchlobstr(args):
     sample-name,s3-location
     """
     p = OptionParser(batchlobstr.__doc__)
+    p.add_option("--workdir", default=os.getcwd(), help="Specify work dir")
+    p.add_option("--sep", default=" ", help="Separator for building commandline")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -439,17 +441,17 @@ def batchlobstr(args):
         s3file = s3file.replace(".gz", "").replace(".vcf", "")
         bamfile = s3file + ".bam"
         pf = "--prefix={0}".format(sample)
-        print " ".join([bamfile, "hg38,hg38-named", pf,
-                        "--workdir=/scratch", "--cleanup"])
+        print opts.sep.join("python -m jcvi.variation.str lobstr".split() + \
+                            [bamfile, "hg38", "hg38-named", pf,
+                            "--workdir={0}".format(opts.workdir), "--cleanup"])
     fp.close()
 
 
 def lobstr(args):
     """
-    %prog lobstr bamfile lobstr_index
+    %prog lobstr bamfile lobstr_index1 lobstr_index2 ...
 
-    Run lobSTR on a big BAM file. lobstr_index can be multiple indices separated
-    by ',' - like hg38,hg38-named
+    Run lobSTR on a big BAM file. There can be multiple lobSTR indices.
     """
     p = OptionParser(lobstr.__doc__)
     p.add_option("--workdir", default=os.getcwd(), help="Specify work dir")
@@ -462,16 +464,18 @@ def lobstr(args):
     p.set_aws_opts(store="hli-mv-data-science/htang/str")
     opts, args = p.parse_args(args)
 
-    if len(args) != 2:
+    if len(args) < 2:
         sys.exit(not p.print_help())
 
-    bamfile, lbindices = args
+    bamfile = args[0]
+    lbindices = args[1:]
     s3mode = bamfile.startswith("s3")
     store = opts.store
-    os.chdir(opts.workdir)
+    workdir = opts.workdir
+    mkdir(workdir)
+    os.chdir(workdir)
 
     pf = opts.prefix or bamfile.split("/")[-1].split(".")[0]
-    lbindices = lbindices.split(',')
     if s3mode:
         gzfile = pf + ".{0}.vcf.gz".format(lbindices[0])
         remotegzfile = "s3://{0}/{1}".format(store, gzfile)

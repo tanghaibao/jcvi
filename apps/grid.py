@@ -75,6 +75,8 @@ class MakeManager (list):
         logging.debug("Makefile written to `{0}`.".format(self.makefile))
 
     def run(self, cpus=1):
+        if not op.exists(self.makefile):
+            self.write()
         cmd = "make -j {0} -f {1}".format(cpus, self.makefile)
         sh(cmd)
 

@@ -6,6 +6,7 @@ Identify repeat numbers in STR repeats.
 """
 
 import re
+import os
 import os.path as op
 import sys
 import logging
@@ -438,9 +439,8 @@ def batchlobstr(args):
         s3file = s3file.replace(".gz", "").replace(".vcf", "")
         bamfile = s3file + ".bam"
         pf = "--prefix={0}".format(sample)
-        lobstr([bamfile, "hg38", pf])
-        lobstr([bamfile, "hg38-named", pf])
-        sh("rm -f *")
+        print " ".join([bamfile, "hg38,hg38-named", pf,
+                        "--workdir=/scratch", "--cleanup"])
     fp.close()
 
 
@@ -448,13 +448,16 @@ def lobstr(args):
     """
     %prog lobstr bamfile lobstr_index
 
-    Run lobSTR on a big BAM file.
+    Run lobSTR on a big BAM file. lobstr_index can be multiple indices separated
+    by ',' - like hg38,hg38-named
     """
     p = OptionParser(lobstr.__doc__)
+    p.add_option("--workdir", default=os.getcwd(), help="Specify work dir")
+    p.add_option("--cleanup", default=False, action="store_true",
+                 help="Clean up the directory contents after done")
     p.add_option("--chr", help="Run only this chromosome")
     p.add_option("--prefix", help="Use prefix file name")
     p.set_home("lobstr")
-    p.set_outfile("makefile")
     p.set_cpus()
     p.set_aws_opts(store="hli-mv-data-science/htang/str")
     opts, args = p.parse_args(args)
@@ -462,12 +465,15 @@ def lobstr(args):
     if len(args) != 2:
         sys.exit(not p.print_help())
 
-    bamfile, lbidx = args
+    bamfile, lbindices = args
     s3mode = bamfile.startswith("s3")
     store = opts.store
+    os.chdir(opts.workdir)
+
     pf = opts.prefix or bamfile.split("/")[-1].split(".")[0]
-    gzfile = pf + ".{0}.vcf.gz".format(lbidx)
+    lbindices = lbindices.split(',')
     if s3mode:
+        gzfile = pf + ".{0}.vcf.gz".format(lbindices[0])
         remotegzfile = "s3://{0}/{1}".format(store, gzfile)
         if check_exists_s3(remotegzfile):
             logging.debug("Object `{0}` exists. Computation skipped."\
@@ -495,23 +501,26 @@ def lobstr(args):
         bamfile = localbamfile
 
     lhome = opts.lobstr_home
-    mm = MakeManager(filename=opts.outfile)
-    vcffiles = []
     chrs = [opts.chr] if opts.chr else (range(1, 23) + ["X", "Y"])
-    for chr in chrs:
-        cmd, vcffile = allelotype_on_chr(bamfile, chr, lhome, lbidx)
-        mm.add(bamfile, vcffile, cmd)
-        vcffiles.append(vcffile)
+    for lbidx in lbindices:
+        mm = MakeManager(filename="makefile.{0}".format(lbidx))
+        vcffiles = []
+        for chr in chrs:
+            cmd, vcffile = allelotype_on_chr(bamfile, chr, lhome, lbidx)
+            mm.add(bamfile, vcffile, cmd)
+            vcffiles.append(vcffile)
 
-    gzfile = bamfile.split(".")[0] + ".{0}.vcf.gz".format(lbidx)
-    cmd = "vcf-concat {0} | vcf-sort".format(" ".join(vcffiles))
-    cmd += " | bgzip -c > {0}".format(gzfile)
-    mm.add(vcffiles, gzfile, cmd)
+        gzfile = bamfile.split(".")[0] + ".{0}.vcf.gz".format(lbidx)
+        cmd = "vcf-concat {0} | vcf-sort".format(" ".join(vcffiles))
+        cmd += " | bgzip -c > {0}".format(gzfile)
+        mm.add(vcffiles, gzfile, cmd)
+        mm.run(cpus=opts.cpus)
 
-    mm.write()
-    mm.run(cpus=opts.cpus)
-    if s3mode:
-        push_to_s3(store, gzfile)
+        if s3mode:
+            push_to_s3(store, gzfile)
+
+    if opts.cleanup:
+        sh("rm -f *")
 
 
 def allelotype_on_chr(bamfile, chr, lhome, lbidx):

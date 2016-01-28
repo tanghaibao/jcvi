@@ -529,7 +529,7 @@ def lobstr(args):
 
 def allelotype_on_chr(bamfile, chr, lhome, lbidx):
     outfile = "{0}.chr{1}".format(bamfile.split(".")[0], chr)
-    cmd = "{0}/bin/allelotype --command classify --bam {1}".format(lhome, bamfile)
+    cmd = "allelotype --command classify --bam {1}".format(lhome, bamfile)
     cmd += " --noise_model {0}/models/illumina_v3.pcrfree".format(lhome)
     cmd += " --strinfo {0}/{1}/index.tab".format(lhome, lbidx)
     cmd += " --index-prefix {0}/{1}/lobSTR_".format(lhome, lbidx)

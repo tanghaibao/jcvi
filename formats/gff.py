@@ -385,9 +385,11 @@ def to_range(obj, score=None, id=None, strand=None):
 
     return (obj.seqid, obj.start, obj.end)
 
+
 def main():
 
     actions = (
+        ('addparent', 'merge sister features and infer their parent'),
         ('bed', 'parse gff and produce bed file for particular feature type'),
         ('bed12', 'produce bed12 file for coding features'),
         ('fromgtf', 'convert gtf to gff3 format'),
@@ -421,6 +423,56 @@ def main():
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def addparent(args):
+    """
+    %prog addparent file.gff
+
+    Merge sister features and infer parents.
+    """
+    p = OptionParser(addparent.__doc__)
+    p.add_option("--childfeat", default="CDS", help="Type of children feature")
+    p.add_option("--parentfeat", default="mRNA", help="Type of merged feature")
+    p.set_outfile()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    gff_file, = args
+    gff = Gff(gff_file)
+    data = defaultdict(list)
+    for g in gff:
+        if g.type != opts.childfeat:
+            continue
+        data[g.parent].append(g)
+
+    logging.debug("A total of {0} {1} features clustered".\
+                    format(len(data), opts.childfeat))
+
+    parents = []
+    for parent, dd in data.items():
+        d = dd[0]
+        start, end = min(x.start for x in dd), max(x.end for x in dd)
+        gffline = "\t".join(str(x) for x in \
+                        (d.seqid, d.source, opts.parentfeat, start, end,
+                         ".", d.strand, ".", "ID={0};Name={0}".format(parent)))
+        parents.append(GffLine(gffline))
+    parents.sort(key=lambda x: (x.seqid, x.start))
+    logging.debug("Merged feature sorted")
+
+    fw = must_open(opts.outfile, "w")
+    for parent in parents:
+        print >> fw, parent
+        parent_id = parent.id
+        for d in data[parent_id]:
+            if d.accn == parent_id:
+                new_id = "{0}.{1}1".format(parent_id, opts.childfeat)
+                d.set_attr("ID", new_id)
+                d.set_attr("Name", new_id, update=True)
+            print >> fw, d
+    fw.close()
 
 
 def _fasta_slice(fasta, seqid, start, stop, strand):

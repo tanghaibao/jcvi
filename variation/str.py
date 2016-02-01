@@ -427,8 +427,8 @@ def batchlobstr(args):
     sample-name,s3-location
     """
     p = OptionParser(batchlobstr.__doc__)
-    p.add_option("--workdir", default=os.getcwd(), help="Specify work dir")
-    p.add_option("--sep", default=" ", help="Separator for building commandline")
+    p.add_option("--workdir", default="/scratch/test", help="Specify work dir")
+    p.add_option("--sep", default=",", help="Separator for building commandline")
     p.set_aws_opts(store="hli-mv-data-science/htang/str")
     opts, args = p.parse_args(args)
 

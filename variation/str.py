@@ -20,7 +20,7 @@ from jcvi.utils.cbook import percentage
 from jcvi.formats.bed import natsorted
 from jcvi.apps.grid import MakeManager
 from jcvi.formats.base import must_open
-from jcvi.utils.aws import push_to_s3, pull_from_s3, check_exists_s3
+from jcvi.utils.aws import push_to_s3, pull_from_s3, check_exists_s3, ls_s3
 from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, sh
 
 
@@ -429,22 +429,36 @@ def batchlobstr(args):
     p = OptionParser(batchlobstr.__doc__)
     p.add_option("--workdir", default=os.getcwd(), help="Specify work dir")
     p.add_option("--sep", default=" ", help="Separator for building commandline")
+    p.set_aws_opts(store="hli-mv-data-science/htang/str")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     samplesfile, = args
+    store = opts.store
+    computed = ls_s3(store)
     fp = open(samplesfile)
+    skipped = total = 0
     for row in fp:
+        total += 1
         sample, s3file = row.strip().split(",")
         s3file = s3file.replace(".gz", "").replace(".vcf", "")
         bamfile = s3file + ".bam"
-        pf = "--prefix={0}".format(sample)
+
+        gzfile = sample + ".{0}.vcf.gz".format("hg38")
+        if gzfile in computed:
+            logging.debug("Object `{0}` exists. Computation skipped."\
+                            .format(gzfile))
+            skipped += 1
+            continue
+
         print opts.sep.join("python -m jcvi.variation.str lobstr".split() + \
-                            [bamfile, "hg38", "hg38-named", pf,
-                            "--workdir={0}".format(opts.workdir), "--cleanup"])
+                            [bamfile, "hg38", "hg38-named",
+                            "--prefix", sample,
+                            "--workdir", opts.workdir, "--cleanup"])
     fp.close()
+    logging.debug("Total skipped: {0}".format(percentage(skipped, total)))
 
 
 def lobstr(args):

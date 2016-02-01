@@ -45,6 +45,15 @@ def pull_from_s3(s3_store, file_name=None):
     return op.abspath(file_name)
 
 
+def ls_s3(s3_store_obj_name):
+    s3_store_obj_name = s3ify(s3_store_obj_name)
+    cmd = "aws s3 ls {0}/".format(s3_store_obj_name)
+    contents = []
+    for row in popen(cmd):
+        contents.append(row.split()[-1])
+    return contents
+
+
 def check_exists_s3(s3_store_obj_name):
     s3_store_obj_name = s3ify(s3_store_obj_name)
     cmd = "aws s3 ls {0} | wc -l".format(s3_store_obj_name)

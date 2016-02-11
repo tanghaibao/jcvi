@@ -136,9 +136,17 @@ class BlockFile (BaseFile):
         self.ncols = ncols
 
     def get_extent(self, i, order, debug=True):
-        col = self.columns[i]
-        ocol = [order[x] for x in col if x in order]
-        orientation = '+' if ocol[0][0] <= ocol[-1][0] else '-'
+        # Some blocks file, such as ones manually edited, will have garbled
+        # order, which prompts the hack below
+        acol = [order[x][0] for x in self.columns[0] if x in order]
+        bcol = [order[x][0] for x in self.columns[i] if x in order]
+        elen = min(len(acol), len(bcol))
+        ia, ib = acol[:elen], bcol[:elen]
+        slope, intercept = np.polyfit(ia, ib, 1)
+        orientation = '+' if slope >= 0 else '-'
+
+        ocol = [order[x] for x in self.columns[i] if x in order]
+        #orientation = '+' if ocol[0][0] <= ocol[-1][0] else '-'
         si, start = min(ocol)
         ei, end = max(ocol)
         same_chr = (start.seqid == end.seqid)

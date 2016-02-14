@@ -191,7 +191,7 @@ class Region (object):
         if va == "top":
             yy = y + cc * pad
         elif va == "bottom":
-            yy = y - cc * pad - .01
+            yy = y - cc * pad
         else:
             yy = y
 
@@ -225,7 +225,7 @@ class Synteny (object):
         bed = Bed(bedfile)
         order = bed.order
         bf = BlockFile(datafile)
-        lo = Layout(layoutfile)
+        self.layout = lo = Layout(layoutfile)
         switch = DictFile(switch, delimiter="\t") if switch else None
         if extra_features:
             extra_features = Bed(extra_features)
@@ -298,13 +298,13 @@ def draw_gene_legend(ax, x1, x2, ytop, d=.04, text=False, repeat=False):
     ax.plot([x2, x2 + d], [ytop, ytop], ":", color=backward, lw=2)
     ax.plot([x2], [ytop], "<", color=backward, mec="g")
     if text:
-        ax.text(x1 + d / 2, ytop + d, "gene (+)", ha="center")
-        ax.text(x2 + d / 2, ytop + d, "gene (-)", ha="center")
+        ax.text(x1 + d / 2, ytop + d / 2, "gene (+)", ha="center")
+        ax.text(x2 + d / 2, ytop + d / 2, "gene (-)", ha="center")
     if repeat:
         xr = (x1 + x2 + d) / 2
         Glyph(ax, xr - d / 2, xr + d / 2, ytop, .012 * 3 / 4, gradient=False,
               fc='#ff7f00', zorder=2)
-        ax.text(xr, ytop + d, "repeat", ha="center")
+        ax.text(xr, ytop + d / 2, "repeat", ha="center")
 
 
 def main():

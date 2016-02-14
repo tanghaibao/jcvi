@@ -57,12 +57,20 @@ def utricularia(args):
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
 
-    Synteny(fig, root, datafile, bedfile, layoutfile, switch=switch)
+    s = Synteny(fig, root, datafile, bedfile, layoutfile, switch=switch)
     light = "lightslategrey"
-    RoundRect(root, (.03, .71), .94, .18, fill=False, lw=2, ec=light)
-    RoundRect(root, (.03, .16), .94, .43, fill=False, lw=2, ec=light)
-    root.text(.94, .85, "2x zoom", color=light, ha="right", va="center")
-    root.text(.94, .2, "6x zoom", color=light, ha="right", va="center")
+    RoundRect(root, (.02, .69), .96, .24, fill=False, lw=2, ec=light)
+    RoundRect(root, (.02, .09), .96, .48, fill=False, lw=2, ec=light)
+    za, zb = s.layout[1].ratio, s.layout[-1].ratio  # zoom level
+    if za != 1:
+        root.text(.96, .88, "{}x zoom".format(za).replace(".0x", "x"),
+                  color=light, ha="right", va="center")
+    if zb != 1:
+        root.text(.96, .13, "{}x zoom".format(zb).replace(".0x", "x"),
+                  color=light, ha="right", va="center")
+
+    # legend showing the orientation of the genes
+    draw_gene_legend(root, .24, .32, .64, text=True)
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)

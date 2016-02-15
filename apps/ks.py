@@ -75,6 +75,7 @@ class MrTransCommandline(AbstractCommandline):
 def main():
 
     actions = (
+        ('batch', 'compute ks for a set of anchors file'),
         ('fromgroups', 'flatten the gene families into pairs'),
         ('prepare', 'prepare pairs of sequences'),
         ('calc', 'calculate Ks between pairs of sequences'),
@@ -85,6 +86,41 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def batch(args):
+    """
+    %prog batch all.cds *.anchors
+
+    Compute Ks values for a set of anchors file. This will generate a bunch of
+    work directories for each comparisons. The anchorsfile should be in the form
+    of specie1.species2.anchors.
+    """
+    from jcvi.apps.grid import MakeManager
+
+    p = OptionParser(batch.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) < 2:
+        sys.exit(not p.print_help())
+
+    cdsfile = args[0]
+    anchors = args[1:]
+    workdirs = [".".join(op.basename(x).split(".")[:2]) for x in anchors]
+    for wd in workdirs:
+        mkdir(wd)
+
+    mm = MakeManager()
+    for wd, ac in zip(workdirs, anchors):
+        pairscdsfile = wd + ".cds.fasta"
+        cmd = "python -m jcvi.apps.ks prepare {} {} -o {}".\
+                format(ac, cdsfile, pairscdsfile)
+        mm.add((ac, cdsfile), pairscdsfile, cmd)
+        ksfile = wd + ".ks"
+        cmd = "python -m jcvi.apps.ks calc {} -o {} --workdir {}".\
+                format(pairscdsfile, ksfile, wd)
+        mm.add(pairscdsfile, ksfile, cmd)
+    mm.write()
 
 
 class LayoutLine (object):
@@ -459,6 +495,7 @@ def calc(args):
                       "e.g. ESTs [default: %default]")
     p.add_option("--msa", default="clustalw", choices=("clustalw", "muscle"),
                  help="software used to align the proteins [default: %default]")
+    p.add_option("--workdir", default=os.getcwd(), help="Work directory")
     p.set_outfile()
 
     opts, args = p.parse_args(args)
@@ -473,7 +510,7 @@ def calc(args):
 
     output_h = must_open(opts.outfile, "w")
     print >> output_h, header
-    work_dir = "syn_analysis"
+    work_dir = op.join(opts.workdir, "syn_analysis")
     mkdir(work_dir)
 
     if not protein_file:

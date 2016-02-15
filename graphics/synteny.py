@@ -302,7 +302,7 @@ class Synteny (object):
             for i in xrange(ntrees):
                 ax = fig.add_axes([xstart, ystart, xiv, yiv])
                 label, outgroup, tx = trees[i]
-                draw_tree(ax, tx, outgroup=outgroup, rmargin=.4)
+                draw_tree(ax, tx, outgroup=outgroup, rmargin=.4, leaffont=11)
                 xstart += xiv
                 RoundLabel(ax, .5, .3, label, fill=True, fc="lavender", color="r")
 

@@ -9,7 +9,7 @@ from ete2 import Tree
 
 from jcvi.formats.sizes import Sizes
 from jcvi.formats.base import DictFile
-from jcvi.graphics.base import Rectangle, plt, savefig
+from jcvi.graphics.base import Rectangle, plt, savefig, normalize_axes
 from jcvi.graphics.glyph import ExonGlyph, get_setups
 from jcvi.apps.base import OptionParser, glob
 
@@ -196,6 +196,8 @@ def draw_tree(ax, tx, rmargin=.3, leafcolor="k", supportcolor="k",
         ys = (margin + yy) / 2.
         ax.text(xs, ys, "SH test against ref tree: {0}"\
                 .format(SH), ha="left", size=leaffont, color="g")
+
+    normalize_axes(ax)
 
 
 def read_trees(tree):

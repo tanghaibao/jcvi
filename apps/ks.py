@@ -194,7 +194,7 @@ class KsPlot (object):
 
         self.labels = [markup(x) for x in self.labels]
 
-    def draw(self, title="*Ks* distribution"):
+    def draw(self, title="*Ks* distribution", filename="Ks_plot.pdf"):
 
         ax = self.ax
         ks_max = self.ks_max
@@ -214,8 +214,7 @@ class KsPlot (object):
         ax.set_xticklabels(ax.get_xticks(), family='Helvetica')
         ax.set_yticklabels(ax.get_yticks(), family='Helvetica')
 
-        image_name = "Ks_plot.pdf"
-        savefig(image_name, dpi=300)
+        savefig(filename, dpi=300)
 
 
 def multireport(args):
@@ -235,6 +234,7 @@ def multireport(args):
     If color or marker is missing, then a random one will be assigned.
     """
     p = OptionParser(multireport.__doc__)
+    p.set_outfile(outfile="Ks_plot.pdf")
     add_plot_options(p)
     opts, args, iopts = p.set_image_options(args, figsize="5x5")
 
@@ -260,7 +260,7 @@ def multireport(args):
                     color=lo.color, marker=lo.marker,
                     fill=fill, fitted=opts.fit)
 
-    kp.draw(title=opts.title)
+    kp.draw(title=opts.title, filename=opts.outfile)
 
 
 def get_GC3(cdsfile):

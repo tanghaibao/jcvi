@@ -2,7 +2,7 @@
 # -*- coding: UTF-8 -*-
 
 """
-%prog anchorfile --qbed query.bed --sbed subject.bed
+%prog [anchorfile|ksfile] --qbed query.bed --sbed subject.bed
 
 visualize the anchorfile in a dotplot. anchorfile contains two columns
 indicating gene pairs, followed by an optional column (e.g. Ks value).
@@ -27,9 +27,10 @@ import string
 
 from random import sample
 
+from jcvi.apps.ks import KsFile
 from jcvi.compara.synteny import AnchorFile, batch_scan, check_beds
 from jcvi.utils.cbook import seqid_parse, thousands
-from jcvi.apps.base import OptionParser
+from jcvi.apps.base import OptionParser, need_update
 from jcvi.graphics.base import plt, Rectangle, set_human_axis, savefig, \
             draw_cmap, TextHandler, latex, markup
 
@@ -301,6 +302,16 @@ if __name__ == "__main__":
         palette = Palette(palette)
 
     anchorfile, = args
+    cmaptext = opts.cmaptext
+    if anchorfile.endswith(".ks"):
+        logging.debug("Anchors contain Ks values")
+        cmaptext = cmaptext or "*Ks* values"
+        anchorksfile = anchorfile + ".anchors"
+        if need_update(anchorfile, anchorksfile):
+            ksfile = KsFile(anchorfile)
+            ksfile.print_to_anchors(anchorksfile)
+        anchorfile = anchorksfile
+
     qbed, sbed, qorder, sorder, is_self = check_beds(anchorfile, p, opts)
 
     if opts.skipempty:
@@ -326,6 +337,6 @@ if __name__ == "__main__":
     image_name = op.splitext(anchorfile)[0] + "." + opts.format
     dotplot_main(anchorfile, qbed, sbed, image_name, iopts,
             vmin=opts.vmin, vmax=opts.vmax, is_self=is_self,
-            synteny=opts.synteny, cmap_text=opts.cmaptext, cmap=iopts.cmap,
+            synteny=opts.synteny, cmap_text=cmaptext, cmap=iopts.cmap,
             genomenames=opts.genomenames, sample_number=opts.sample_number,
             minfont=opts.minfont, palette=palette)

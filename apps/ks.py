@@ -16,15 +16,15 @@ import numpy as np
 from math import log, sqrt, pi, exp
 from itertools import product, combinations
 from functools import partial
-from collections import namedtuple
 
 from Bio import SeqIO
 from Bio import AlignIO
 from Bio.Align.Applications import ClustalwCommandline, MuscleCommandline
 
-from jcvi.formats.base import must_open
+from jcvi.formats.base import LineFile, must_open
 from jcvi.graphics.base import plt, savefig, AbstractLayout, markup
 from jcvi.utils.table import write_csv
+from jcvi.utils.cbook import gene_name
 from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, sh, \
             Popen, getpath, iglob
 
@@ -253,7 +253,7 @@ def multireport(args):
     ax = fig.add_axes([.12, .1, .8, .8])
     kp = KsPlot(ax, ks_max, bins, legendp=opts.legendp)
     for lo in layout:
-        data = read_ks_file(lo.ksfile)
+        data = KsFile(lo.ksfile)
         data = [x.ng_ks for x in data]
         data = [x for x in data if ks_min <= x <= ks_max]
         kp.add_data(data, lo.components, label=lo.label, \
@@ -329,12 +329,12 @@ def gc3(args):
         if plot:
             plot_GC3(GC3_2, cdsfile2, fill="lightgreen")
 
-    data = read_ks_file(ks_file)
+    data = KsFile(ks_file)
     noriginals = len(data)
 
     fw = must_open(outfile, "w")
     writer = csv.writer(fw)
-    writer.writerow(header.split(","))
+    writer.writerow(fields.split(","))
     nlines = 0
     cutoff = .75
     for d in data:
@@ -754,7 +754,7 @@ def subset(args):
     ksvals = {}
     for ksfile in ksfiles:
         ksvals.update(dict((line.name, line) for line in \
-                        read_ks_file(ksfile, strip_names=opts.strip_names)))
+                        KsFile(ksfile, strip_names=opts.strip_names)))
 
     fp = open(pairsfile)
     fw = must_open(outfile, "w")
@@ -778,10 +778,10 @@ def subset(args):
                 continue
         ksline = ksvals[name]
         if block:
-            print >>fw, "\t".join(str(x) for x in (a, b, ksline.ng_ks))
+            print >>fw, "\t".join(str(x) for x in (a, b, ksline.ks))
         else:
-            ksline = ksline._replace(name = ";".join((a, b)))
-            print >>fw, ",".join(map(str, ksline))
+            ksline.name = ";".join((a, b))
+            print >>fw, ksline
         i += 1
     fw.close()
 
@@ -790,7 +790,7 @@ def subset(args):
     return outfile
 
 
-header = fields = "name,yn_ks,yn_ka,ng_ks,ng_ka"
+fields = "name,yn_ks,yn_ka,ng_ks,ng_ka"
 descriptions = {
         'name': 'Gene pair',
         'yn_ks': 'Yang-Nielson Ks estimate',
@@ -798,34 +798,59 @@ descriptions = {
         'ng_ks': 'Nei-Gojobori Ks estimate',
         'ng_ka': 'Nei-Gojobori Ka estimate'}
 
-KsLine = namedtuple("KsLine", fields)
+
+class KsLine:
+
+    def __init__(self, row, strip_names=False):
+        args = row.strip().split(",")
+        self.name = args[0]
+        self.yn_ks = self.get_float(args[1])
+        self.yn_ka = self.get_float(args[2])
+        self.ng_ks = self.get_float(args[3])
+        self.ng_ka = self.get_float(args[4])
+        self.ks = self.ng_ks
+        if ";" in self.name:
+            self.gene_a, self.gene_b = self.name.split(";")
+        if strip_names:
+            self.gene_a = gene_name(self.gene_a)
+            self.gene_b = gene_name(self.gene_b)
+
+    def get_float(self, x):
+        try:
+            x = float(x)
+        except:
+            x = -1
+        return x
+
+    def __str__(self):
+        return ",".join(str(x) for x in (self.name, self.yn_ks, self.yn_ka,
+                         self.ng_ks, self.ng_ka))
+
+    @property
+    def anchorline(self):
+        return "\t".join((self.gene_a, self.gene_b, "{:.3f}".format(self.ks)))
 
 
-def read_ks_file(ks_file, strip_names=False):
-    from jcvi.utils.cbook import gene_name
+class KsFile(LineFile):
 
-    reader = csv.reader(open(ks_file, "rb"))
-    data = []
-    for row in reader:
-        if row[0] == "name":  # header
-            continue
+    def __init__(self, filename, strip_names=False):
+        super(KsFile, self).__init__(filename)
 
-        for i, a in enumerate(row):
-            if i == 0:
-                if strip_names:
-                    row[i] = ";".join(gene_name(x) for x in row[i].split(";"))
+        fp = open(filename)
+        for row in fp:
+            ksline = KsLine(row, strip_names=strip_names)
+            if ksline.name == "name":  # header
                 continue
-            try:
-                row[i] = float(row[i])
-            except:
-                row[i] = -1
+            self.append(ksline)
 
-        data.append(KsLine._make(row))
+        logging.debug('File `{0}` contains a total of {1} gene pairs'.\
+                format(filename, len(self)))
 
-    logging.debug('File `{0}` contains a total of {1} gene pairs'.\
-            format(ks_file, len(data)))
-
-    return data
+    def print_to_anchors(self, outfile):
+        fw = must_open(outfile, "w")
+        for row in self:
+            print >> fw, row.anchorline
+        fw.close()
 
 
 def my_hist(ax, l, interval, max_r, color='g', marker='.', fill=False):
@@ -969,7 +994,7 @@ def report(args):
         sys.exit(not p.print_help())
 
     ks_file, = args
-    data = read_ks_file(ks_file)
+    data = KsFile(ks_file)
     ks_min = opts.vmin
     ks_max = opts.vmax
     bins = opts.bins

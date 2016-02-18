@@ -14,7 +14,7 @@ import logging
 import pyfasta
 
 from math import log, ceil
-from jcvi.utils.cbook import percentage
+from jcvi.utils.cbook import percentage, uniqify
 from jcvi.formats.bed import natsorted
 from jcvi.apps.grid import MakeManager
 from jcvi.formats.base import LineFile, must_open
@@ -195,23 +195,20 @@ class LobSTRvcf(dict):
                 if gt == "0/0":
                     alleles = (ref, ref)
                 elif gt in ("0/1", "1/0"):
-                    assert isinstance(rpa, list) and len(rpa) == 1
+                    #assert isinstance(rpa, list) and len(rpa) == 1
                     alleles = (ref, rpa[0])
                 elif gt == "1/1":
-                    assert isinstance(rpa, list) and len(rpa) == 1
+                    #assert isinstance(rpa, list) and len(rpa) == 1
                     alleles = (rpa[0], rpa[0])
                 elif gt == "1/2":
-                    assert isinstance(rpa, list) and len(rpa) == 2
+                    #assert isinstance(rpa, list) and len(rpa) == 2
                     alleles = rpa
-                else:
-                    assert 0
-                alleles = sorted(alleles)
-                alleles = [str(int(x)) for x in alleles]
-                self[name] = "|".join(alleles)
+                self[name] = ",".join(str(int(x)) for x in sorted(alleles))
 
     @property
     def csvline(self):
-        return self.samplekey + ",".join([self.get(c, "") for c in self.columns])
+        return self.samplekey + "," + ",".join([self.get(c, ",") \
+                    for c in self.columns])
 
 
 def main():
@@ -239,6 +236,7 @@ def run(filename):
         lv.parse(filename.replace(".hg38.", ".hg38-named."))
         fw = open(csvfile, "w")
         print >> fw, lv.csvline
+        fw.close()
 
 
 def compile(args):
@@ -265,10 +263,21 @@ def compile(args):
         si = STRFile(opts.lobstr_home, db="hg38")
         sj = STRFile(opts.lobstr_home, db="hg38-named")
         ids = si.ids + [x.rsplit("_", 1)[0] for x in sj.ids]
+        uids = uniqify(ids)
+        logging.debug("Combined: {} Unique: {}".format(len(ids), len(uids)))
+
         fw = open(stridsfile, "w")
-        print >> fw, "\n".join(ids)
+        print >> fw, "\n".join(uids)
         fw.close()
-        logging.debug("Writing {} markers in `{}`".format(len(ids), stridsfile))
+        logging.debug("Writing {} markers in `{}`".format(len(uids), stridsfile))
+
+        # Generate two alleles
+        dipuids = []
+        for uid in uids:
+            dipuids.extend([uid + ".1", uid + ".2"])
+        fw = open("header.ids", "w")
+        print >> fw, "SampleKey," + ",".join(dipuids)
+        fw.close()
 
     Tasks(run, vcffiles, cpus=opts.cpus)
 
@@ -485,7 +494,7 @@ def batchlobstr(args):
         s3file = s3file.replace(".gz", "").replace(".vcf", "")
         bamfile = s3file + ".bam"
 
-        gzfile = sample + ".{0}.vcf.gz".format("hg38")
+        gzfile = sample + ".{0}.vcf.gz".format("hg38-named")
         if gzfile in computed:
             logging.debug("Object `{0}` exists. Computation skipped."\
                             .format(gzfile))

@@ -9,19 +9,17 @@ import re
 import os
 import os.path as op
 import sys
+import vcf
 import logging
-
 import pyfasta
 
 from math import log, ceil
-from collections import defaultdict
-from jcvi.graphics.histogram import stem_leaf_plot
 from jcvi.utils.cbook import percentage
 from jcvi.formats.bed import natsorted
 from jcvi.apps.grid import MakeManager
-from jcvi.formats.base import must_open
+from jcvi.formats.base import LineFile, must_open
 from jcvi.utils.aws import push_to_s3, pull_from_s3, check_exists_s3, ls_s3
-from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, sh
+from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, need_update, sh
 
 
 READLEN = 150
@@ -72,7 +70,7 @@ DYS635 DYS643 GATA-H4
 
 class STRLine(object):
 
-    def __init__(self, line):
+    def __init__(self, line, named=False):
         args = line.split()
         self.seqid = args[0]
         self.start = int(args[1])
@@ -91,6 +89,7 @@ class STRLine(object):
         self.motif = args[14]
         assert self.period == len(self.motif)
         self.name = args[15] if len(args) == 16 else None
+        self.named = named
 
     def __str__(self):
         fields = [self.seqid, self.start, self.end,
@@ -101,6 +100,15 @@ class STRLine(object):
         if self.name is not None:
             fields += [self.name]
         return "\t".join(str(x) for x in fields)
+
+    @property
+    def longname(self):
+        name = "_".join(str(x) for x in \
+                    (self.seqid, self.start, self.motif,
+                    int(float(self.copynum))))
+        if self.named:
+            name += "_" + self.name
+        return name
 
     def is_valid(self, maxperiod=6, maxlength=READLEN, minscore=MINSCORE):
         return 1 <= self.period <= maxperiod and \
@@ -145,56 +153,43 @@ class STRLine(object):
         self.entropy = self.calc_entropy()
 
 
-def main():
+class STRFile (LineFile):
 
-    actions = (
-        ('batchlobstr', "run batch lobSTR"),
-        ('batchhtt', "run batch HTT caller"),
-        ('pe', 'infer paired-end reads spanning a certain region'),
-        ('htt', 'extract HTT region and run lobSTR'),
-        ('liftover', 'liftOver CODIS/Y-STR markers'),
-        ('lobstr', 'run lobSTR on a big BAM'),
-        ('lobstrindex', 'make lobSTR index'),
-        ('trf', 'run TRF on FASTA files'),
-        ('vcfparse', 'parse lobSTR vcf file'),
-        ('ystr', 'print out Y-STR info given VCF'),
-            )
-    p = ActionDispatcher(actions)
-    p.dispatch(globals())
+    def __init__(self, lobstr_home, db="hg38"):
+        filename = op.join(lobstr_home, "{0}/index.info".format(db))
+        super(STRFile, self).__init__(filename)
+        fp = open(filename)
+        named = db == "hg38-named"
+        for row in fp:
+            self.append(STRLine(row, named=named))
+
+    @property
+    def ids(self):
+        return [s.longname for s in self]
+
+    @property
+    def register(self):
+        return dict(((s.seqid, s.start), s.name) for s in self)
 
 
-def vcfparse(args):
-    """
-    %prog vcfparse *.vcf
+class LobSTRvcf(dict):
 
-    Parse lobSTR vcf files.
-    """
-    import vcf
-    from jcvi.utils.table import write_csv
+    def __init__(self, columnidsfile="STR.ids"):
+        self.samplekey = None
+        fp = open(columnidsfile)
+        self.columns = [x.strip() for x in fp]
+        logging.debug("A total of {} markers imported".format(len(self.columns)))
 
-    p = OptionParser(vcfparse.__doc__)
-    p.set_home("lobstr")
-    opts, args = p.parse_args(args)
-
-    if len(args) < 1:
-        sys.exit(not p.print_help())
-
-    vcffiles = args
-    header = "Sample|Marker|Reads|Ref|Genotype|Motif".split("|")
-    register = get_register(vcffiles[0], opts.lobstr_home)
-    contents = []
-    n = 0
-    for vcffile in vcffiles:
-        reader = vcf.Reader(open(vcffile))
-        sample_name = vcffile.split("_")[0]
-        n += 1
-        content = None
+    def parse(self, filename):
+        self.samplekey = op.basename(filename).split(".")[0]
+        fp = open(filename)
+        reader = vcf.Reader(fp)
         for record in reader:
-            name = register[(record.CHROM, record.POS)]
             info = record.INFO
             ref = int(float(info["REF"]))
             rpa = info.get("RPA", ref)
-            ru = info["RU"]
+            motif = info["MOTIF"]
+            name = "_".join(str(x) for x in (record.CHROM, record.POS, motif, ref))
             for sample in record.samples:
                 gt = sample["GT"]
                 if gt == "0/0":
@@ -212,14 +207,70 @@ def vcfparse(args):
                     assert 0
                 alleles = sorted(alleles)
                 alleles = [str(int(x)) for x in alleles]
-                content = (sample_name, name, sample["ALLREADS"],
-                          ref, "|".join(alleles), ru)
-        content = content or (sample_name, name, ".", ref, "n/a", ru)
-        contents.append(content)
-        assert len(contents) == n
-    logging.debug("A total of {0} files parsed".format(n))
+                self[name] = "|".join(alleles)
 
-    write_csv(header, contents, sep=" ")
+    @property
+    def csvline(self):
+        return self.samplekey + ",".join([self.get(c, "") for c in self.columns])
+
+
+def main():
+
+    actions = (
+        ('compile', "compile vcf results into master spreadsheet"),
+        ('batchlobstr', "run batch lobSTR"),
+        ('batchhtt', "run batch HTT caller"),
+        ('htt', 'extract HTT region and run lobSTR'),
+        ('liftover', 'liftOver CODIS/Y-STR markers'),
+        ('lobstr', 'run lobSTR on a big BAM'),
+        ('lobstrindex', 'make lobSTR index'),
+        ('trf', 'run TRF on FASTA files'),
+        ('ystr', 'print out Y-STR info given VCF'),
+            )
+    p = ActionDispatcher(actions)
+    p.dispatch(globals())
+
+
+def run(filename):
+    csvfile = filename + ".csv"
+    if need_update(filename, csvfile):
+        lv = LobSTRvcf()
+        lv.parse(filename)
+        lv.parse(filename.replace(".hg38.", ".hg38-named."))
+        fw = open(csvfile, "w")
+        print >> fw, lv.csvline
+
+
+def compile(args):
+    """
+    %prog compile dir
+
+    Compile vcf results into master spreadsheet.
+    """
+    from glob import glob
+    from jcvi.apps.tasks import Tasks
+
+    p = OptionParser(compile.__doc__)
+    p.set_home("lobstr")
+    p.set_cpus()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    folder, = args
+    stridsfile = "STR.ids"
+    vcffiles = glob(folder + "/*.hg38.vcf.gz")
+    if need_update(vcffiles[0], stridsfile):
+        si = STRFile(opts.lobstr_home, db="hg38")
+        sj = STRFile(opts.lobstr_home, db="hg38-named")
+        ids = si.ids + [x.rsplit("_", 1)[0] for x in sj.ids]
+        fw = open(stridsfile, "w")
+        print >> fw, "\n".join(ids)
+        fw.close()
+        logging.debug("Writing {} markers in `{}`".format(len(ids), stridsfile))
+
+    Tasks(run, vcffiles, cpus=opts.cpus)
 
 
 def build_ysearch_link(r, ban=["DYS520", "DYS413a", "DYS413b"]):
@@ -245,25 +296,12 @@ def build_yhrd_link(r, panel, ban=["DYS385"]):
     print " ".join(str(x) for x in L)
 
 
-def get_register(vcffile, lobstr_home):
-    db = vcffile.replace(".gz", "").split(".")[-2]
-    tabfile = op.join(lobstr_home, "{0}/index.info".format(db))
-    logging.debug("Reading marker info from `{0}`".format(tabfile))
-    register = {}
-    fp = open(tabfile)
-    for row in fp:
-        s = STRLine(row)
-        register[(s.seqid, s.start)] = s.name
-    return register
-
-
 def ystr(args):
     """
     %prog ystr chrY.vcf
 
     Print out Y-STR info given VCF. Marker name extracted from tabfile.
     """
-    import vcf
     from jcvi.utils.table import write_csv
 
     p = OptionParser(ystr.__doc__)
@@ -274,7 +312,8 @@ def ystr(args):
         sys.exit(not p.print_help())
 
     vcffile, = args
-    register = get_register(vcffile, opts.lobstr_home)
+    si = STRFile(opts.lobstr_home, db="hg38-named")
+    register = si.register
 
     header = "Marker|Reads|Ref|Genotype|Motif".split("|")
     contents = []
@@ -657,56 +696,6 @@ def lobstrindex(args):
     cmd = "cp {0} {1}".format(trfbed, infofile)
     mm.add(trfbed, infofile, cmd)
     mm.write()
-
-
-def pe(args):
-    """
-    %prog pe bam chr start end
-
-    Infer distance paired-end reads spanning a certain region.
-    """
-    import pysam
-
-    p = OptionParser(pe.__doc__)
-    opts, args = p.parse_args(args)
-
-    if len(args) != 4:
-        sys.exit(not p.print_help())
-
-    bam, chr, start, end = args
-    start, end = int(start), int(end)
-    target_len = end - start + 1
-    pad = 1000  # How far do we look beyond the target
-    pstart = start - pad
-    pend = end + pad
-    logging.debug("Target length={0}".format(target_len))
-
-    samfile = pysam.AlignmentFile(bam, "rb")
-    iter = samfile.fetch(chr, pstart, pend)
-    cache = defaultdict(list)
-    for x in iter:
-        if not x.is_paired:
-            continue
-        cache[x.query_name].append(x)
-
-    tlens = []
-    for name, reads in cache.iteritems():
-        if len(reads) < 2:
-            continue
-        a, b = reads[:2]
-        # Get all pairs where read1 is on left flank and read2 is on right flank
-        if a.reference_start >= start or b.reference_end <= end:
-            continue
-        for x in (a, b):
-            print x.query_name, x.is_reverse, \
-                    x.query_alignment_start, x.query_alignment_end, \
-                    x.reference_start, x.reference_end, \
-                    x.tlen
-        print '=' * 60
-        tlen = abs(x.tlen)
-        tlens.append(tlen)
-
-    stem_leaf_plot(tlens, 300, 600, 20)
 
 
 if __name__ == '__main__':

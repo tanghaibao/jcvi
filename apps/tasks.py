@@ -1,9 +1,6 @@
 import logging
 from multiprocessing import Process, JoinableQueue, Queue, cpu_count
 
-logging.basicConfig()
-_logger = logging.getLogger(__name__)
-
 
 class Poison:  # Sentinel to signal queue end
     pass
@@ -21,10 +18,10 @@ class Worker (Process):
         while True:
             next_task = self.tasks.get()
             if isinstance(next_task, Poison):
-                _logger.debug("{}: Exiting".format(proc_name))
+                logging.debug("{}: Exiting".format(proc_name))
                 self.tasks.task_done()
                 break
-            _logger.debug("{}: {}".format(proc_name, next_task))
+            logging.debug("{}: {}".format(proc_name, next_task))
             res = next_task()
             self.tasks.task_done()
             self.results.put(res)
@@ -67,6 +64,7 @@ class Tasks (object):
         results = Queue()
         njobs = len(args)
         cpus = min(cpus, njobs)
+        logging.debug("Use {} CPUs for {} tasks".format(cpus, njobs))
 
         self.workers = Workers(tasks, results, cpus)
         self.workers.start()

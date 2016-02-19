@@ -180,7 +180,7 @@ class LobSTRvcf(dict):
         self.columns = [x.strip() for x in fp]
         logging.debug("A total of {} markers imported".format(len(self.columns)))
 
-    def parse(self, filename):
+    def parse(self, filename, cleanup=False):
         self.samplekey = op.basename(filename).split(".")[0]
         fp = must_open(filename)
         reader = vcf.Reader(fp)
@@ -205,6 +205,9 @@ class LobSTRvcf(dict):
                     alleles = rpa
                 self[name] = ",".join(str(int(x)) for x in sorted(alleles))
 
+        if cleanup:
+            sh("rm -f {}".format(op.basename(filename)))
+
     @property
     def csvline(self):
         return ",".join([self.get(c, "-1,-1") for c in self.columns])
@@ -227,13 +230,13 @@ def main():
     p.dispatch(globals())
 
 
-def run(filename, store):
+def run(filename, store, cleanup):
     csvfile = filename + ".csv"
     try:
         if not check_exists_s3(csvfile):
             lv = LobSTRvcf()
-            lv.parse(filename)
-            lv.parse(filename.replace(".hg38.", ".hg38-named."))
+            lv.parse(filename, cleanup=cleanup)
+            lv.parse(filename.replace(".hg38.", ".hg38-named."), cleanup=cleanup)
 
             csvfile = op.basename(filename) + ".csv"
             fw = open(csvfile, "w")
@@ -287,7 +290,7 @@ def compile(args):
         print >> fw, ",".join(dipuids)
         fw.close()
 
-    run_args = [(x, opts.store) for x in vcffiles]
+    run_args = [(x, opts.store, opts.cleanup) for x in vcffiles]
     Tasks(run, run_args, cpus=opts.cpus)
 
 

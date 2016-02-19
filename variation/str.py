@@ -19,7 +19,7 @@ from jcvi.formats.bed import natsorted
 from jcvi.apps.grid import MakeManager
 from jcvi.formats.base import LineFile, must_open
 from jcvi.utils.aws import push_to_s3, pull_from_s3, check_exists_s3, ls_s3
-from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, need_update, sh
+from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, sh
 
 
 READLEN = 150
@@ -182,7 +182,7 @@ class LobSTRvcf(dict):
 
     def parse(self, filename):
         self.samplekey = op.basename(filename).split(".")[0]
-        fp = open(filename)
+        fp = must_open(filename)
         reader = vcf.Reader(fp)
         for record in reader:
             info = record.INFO
@@ -207,8 +207,7 @@ class LobSTRvcf(dict):
 
     @property
     def csvline(self):
-        return self.samplekey + "," + ",".join([self.get(c, ",") \
-                    for c in self.columns])
+        return ",".join([self.get(c, "-1,-1") for c in self.columns])
 
 
 def main():
@@ -228,38 +227,48 @@ def main():
     p.dispatch(globals())
 
 
-def run(filename):
+def run(filename, store):
     csvfile = filename + ".csv"
-    if need_update(filename, csvfile):
-        lv = LobSTRvcf()
-        lv.parse(filename)
-        lv.parse(filename.replace(".hg38.", ".hg38-named."))
-        fw = open(csvfile, "w")
-        print >> fw, lv.csvline
-        fw.close()
+    try:
+        if not check_exists_s3(csvfile):
+            lv = LobSTRvcf()
+            lv.parse(filename)
+            lv.parse(filename.replace(".hg38.", ".hg38-named."))
+
+            csvfile = op.basename(filename) + ".csv"
+            fw = open(csvfile, "w")
+            print >> fw, lv.csvline
+            fw.close()
+            push_to_s3(store, csvfile)
+    except:
+        logging.debug("Thread failed!")
 
 
 def compile(args):
     """
-    %prog compile dir
+    %prog compile samples.csv
 
     Compile vcf results into master spreadsheet.
     """
-    from glob import glob
     from jcvi.apps.tasks import Tasks
 
     p = OptionParser(compile.__doc__)
     p.set_home("lobstr")
     p.set_cpus()
+    p.set_aws_opts(store="hli-mv-data-science/htang/str")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    folder, = args
+    samples, = args
+    workdir = opts.workdir
+    mkdir(workdir)
+    os.chdir(workdir)
+
     stridsfile = "STR.ids"
-    vcffiles = glob(folder + "/*.hg38.vcf.gz")
-    if need_update(vcffiles[0], stridsfile):
+    vcffiles = [x.strip() for x in open(samples)]
+    if not op.exists(stridsfile):
         si = STRFile(opts.lobstr_home, db="hg38")
         sj = STRFile(opts.lobstr_home, db="hg38-named")
         ids = si.ids + [x.rsplit("_", 1)[0] for x in sj.ids]
@@ -269,17 +278,17 @@ def compile(args):
         fw = open(stridsfile, "w")
         print >> fw, "\n".join(uids)
         fw.close()
-        logging.debug("Writing {} markers in `{}`".format(len(uids), stridsfile))
 
         # Generate two alleles
         dipuids = []
         for uid in uids:
             dipuids.extend([uid + ".1", uid + ".2"])
         fw = open("header.ids", "w")
-        print >> fw, "SampleKey," + ",".join(dipuids)
+        print >> fw, ",".join(dipuids)
         fw.close()
 
-    Tasks(run, vcffiles, cpus=opts.cpus)
+    run_args = [(x, opts.store) for x in vcffiles]
+    Tasks(run, run_args, cpus=opts.cpus)
 
 
 def build_ysearch_link(r, ban=["DYS520", "DYS413a", "DYS413b"]):
@@ -516,9 +525,6 @@ def lobstr(args):
     Run lobSTR on a big BAM file. There can be multiple lobSTR indices.
     """
     p = OptionParser(lobstr.__doc__)
-    p.add_option("--workdir", default=os.getcwd(), help="Specify work dir")
-    p.add_option("--cleanup", default=False, action="store_true",
-                 help="Clean up the directory contents after done")
     p.add_option("--chr", help="Run only this chromosome")
     p.add_option("--prefix", help="Use prefix file name")
     p.set_home("lobstr")

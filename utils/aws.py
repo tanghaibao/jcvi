@@ -16,10 +16,32 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, popen, sh
 def main():
 
     actions = (
+        ('ls', 'list files with support for wildcards'),
         ('role', 'change aws role'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def ls(args):
+    """
+    %prog ls "s3://hli-mv-data-science/htang/str/*.vcf.gz"
+
+    List files with support for wildcards.
+    """
+    import fnmatch
+
+    p = OptionParser(ls.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    store, = args
+    store, cards = store.rsplit("/", 1)
+    contents = ls_s3(store)
+    filtered = fnmatch.filter(contents, cards)
+    print "\n".join(("/".join((store, x)) for x in filtered))
 
 
 def s3ify(address):
@@ -39,9 +61,10 @@ def push_to_s3(s3_store, obj_name):
 
 def pull_from_s3(s3_store, file_name=None):
     file_name = file_name or s3_store.split("/")[-1]
-    s3_store = s3ify(s3_store)
-    cmd = "aws s3 cp {0} {1} --sse".format(s3_store, file_name)
-    sh(cmd)
+    if not op.exists(file_name):
+        s3_store = s3ify(s3_store)
+        cmd = "aws s3 cp {0} {1} --sse".format(s3_store, file_name)
+        sh(cmd)
     return op.abspath(file_name)
 
 

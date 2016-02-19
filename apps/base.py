@@ -242,6 +242,9 @@ class OptionParser (OptionP):
         group = OptionGroup(self, "AWS options")
         self.add_option_group(group)
         group.add_option("--store", default=store, help="AWS store name")
+        group.add_option("--workdir", default=os.getcwd(), help="Specify work dir")
+        group.add_option("--cleanup", default=False, action="store_true",
+                     help="Clean up the directory contents after done")
 
     def set_stripnames(self, default=True):
         if default:

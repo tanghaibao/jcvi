@@ -336,6 +336,10 @@ def must_open(filename, mode="r", checkexists=False, skipcheck=False, \
             import fileinput
             return fileinput.input(filename)
 
+    if filename.startswith("s3://"):
+        from jcvi.utils.aws import pull_from_s3
+        filename = pull_from_s3(filename)
+
     if filename in ("-", "stdin"):
         assert "r" in mode
         fp = sys.stdin

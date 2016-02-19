@@ -548,7 +548,7 @@ def lobstr(args):
 
     pf = opts.prefix or bamfile.split("/")[-1].split(".")[0]
     if s3mode:
-        gzfile = pf + ".{0}.vcf.gz".format(lbindices[0])
+        gzfile = pf + ".{0}.vcf.gz".format(lbindices[-1])
         remotegzfile = "s3://{0}/{1}".format(store, gzfile)
         if check_exists_s3(remotegzfile):
             logging.debug("Object `{0}` exists. Computation skipped."\

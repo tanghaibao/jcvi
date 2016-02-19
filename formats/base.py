@@ -146,13 +146,8 @@ class FileSplitter (object):
         self.outputdir = outputdir
         self.mode = mode
 
-        self.format = format
+        self.format = format or self._guess_format(filename)
         logging.debug("format is %s" % format)
-
-        guessedformat = self._guess_format(filename)
-        if format != guessedformat:
-            logging.warn("warn: format guessed from suffix - {0}"\
-                          .format(guessedformat))
 
         if format in ("fasta", "fastq"):
             self.klass = "seqio"
@@ -802,8 +797,7 @@ def split(args):
             help="split all records [default: %default]")
     p.add_option("--mode", default="optimal", choices=mode_choices,
             help="Mode when splitting records [default: %default]")
-    p.add_option("--format", default="fasta",
-            choices=("fasta", "fastq", "txt", "clust"),
+    p.add_option("--format", choices=("fasta", "fastq", "txt", "clust"),
             help="input file format [default: %default]")
 
     opts, args = p.parse_args(args)

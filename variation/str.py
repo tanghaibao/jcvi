@@ -267,7 +267,7 @@ def compile(args):
     os.chdir(workdir)
 
     stridsfile = "STR.ids"
-    vcffiles = [x.strip() for x in open(samples)]
+    vcffiles = [x.strip() for x in must_open(samples)]
     if not op.exists(stridsfile):
         si = STRFile(opts.lobstr_home, db="hg38")
         sj = STRFile(opts.lobstr_home, db="hg38-named")

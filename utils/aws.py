@@ -7,6 +7,7 @@ AWS-related methods.
 
 import os.path as op
 import sys
+import fnmatch
 
 import boto3
 
@@ -17,10 +18,43 @@ def main():
 
     actions = (
         ('ls', 'list files with support for wildcards'),
+        ('cp', 'copy files with support for wildcards'),
         ('role', 'change aws role'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def glob_s3(store):
+    store, cards = store.rsplit("/", 1)
+    contents = ls_s3(store)
+    filtered = fnmatch.filter(contents, cards)
+    filtered = ["/".join((store, x)) for x in filtered]
+
+    return filtered
+
+
+def cp(args):
+    """
+    %prog cp "s3://hli-mv-data-science/htang/str/*.csv" .
+
+    Copy files to folder.
+    """
+    p = OptionParser(cp.__doc__)
+    p.add_option("--force", default=False,
+                 action="store_true", help="Force overwrite if exists")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    store, folder = args
+    contents = glob_s3(store)
+    for c in contents:
+        oc = op.basename(c)
+        tc = op.join(folder, oc)
+        if opts.force or not op.exists(tc):
+            pull_from_s3(c)
 
 
 def ls(args):
@@ -29,8 +63,6 @@ def ls(args):
 
     List files with support for wildcards.
     """
-    import fnmatch
-
     p = OptionParser(ls.__doc__)
     opts, args = p.parse_args(args)
 
@@ -38,10 +70,7 @@ def ls(args):
         sys.exit(not p.print_help())
 
     store, = args
-    store, cards = store.rsplit("/", 1)
-    contents = ls_s3(store)
-    filtered = fnmatch.filter(contents, cards)
-    print "\n".join(("/".join((store, x)) for x in filtered))
+    print "\n".join(glob_s3(store))
 
 
 def s3ify(address):

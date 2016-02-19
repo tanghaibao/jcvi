@@ -12,6 +12,7 @@ import sys
 import vcf
 import logging
 import pyfasta
+import numpy as np
 
 from math import log, ceil
 from jcvi.utils.cbook import percentage, uniqify
@@ -217,6 +218,7 @@ def main():
 
     actions = (
         ('compile', "compile vcf results into master spreadsheet"),
+        ('mergecsv', "combine csv into binary array"),
         ('batchlobstr', "run batch lobSTR"),
         ('batchhtt', "run batch HTT caller"),
         ('htt', 'extract HTT region and run lobSTR'),
@@ -228,6 +230,36 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def mergecsv(args):
+    """
+    %prog mergecsv *.csv
+
+    Combine CSV into binary array.
+    """
+    p = OptionParser(mergecsv.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) < 1:
+        sys.exit(not p.print_help())
+
+    csvfiles = args
+    arrays = []
+    samplekeys = []
+    for csvfile in csvfiles:
+        samplekey = op.basename(csvfile).split(".")[0]
+        a = np.fromfile(csvfile, sep=",", dtype=np.int16)
+        arrays.append(a)
+        samplekeys.append(samplekey)
+        print >> sys.stderr, samplekey, a
+    print >> sys.stderr, "Merging"
+    b = np.concatenate(arrays)
+    b.tofile("out.bin")
+
+    fw = open("samples", "w")
+    print >> fw, "\n".join(samplekeys)
+    fw.close()
 
 
 def run(filename, store, cleanup):
@@ -487,7 +519,6 @@ def batchlobstr(args):
     sample-name,s3-location
     """
     p = OptionParser(batchlobstr.__doc__)
-    p.add_option("--workdir", default="/scratch/test", help="Specify work dir")
     p.add_option("--sep", default=",", help="Separator for building commandline")
     p.set_aws_opts(store="hli-mv-data-science/htang/str")
     opts, args = p.parse_args(args)

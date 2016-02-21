@@ -176,8 +176,8 @@ class Track (object):
             TextCircle(ax, xx, y + pad, si, radius=.01,
                        fc="w", color=color, size=10, transform=tr)
 
-        xp = min(self.xstart / 2, .1) if (self.xstart + self.xend) / 2 <= .5 \
-                                      else max(1 - self.xend / 2, .92)
+        xp = min(self.xstart / 2, .1) #if (self.xstart + self.xend) / 2 <= .5 \
+                                      #else max(1 - self.xend / 2, .92)
         label = markup(self.label)
         c = color if color != "gainsboro" else "k"
         if plot_label:

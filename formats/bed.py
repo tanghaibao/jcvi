@@ -658,6 +658,7 @@ def seqids(args):
     p.add_option("--maxn", default=100, type="int",
                  help="Maximum number of seqids")
     p.add_option("--prefix", help="Seqids must start with")
+    p.add_option("--exclude", default="random", help="Seqids should not contain")
     opts, args = p.parse_args(args)
 
     if len(args) < 1:
@@ -665,10 +666,13 @@ def seqids(args):
 
     bedfile, = args
     pf = opts.prefix
+    exclude = opts.exclude
     bed = Bed(bedfile)
     s = bed.seqids
     if pf:
         s = [x for x in s if x.startswith(pf)]
+    if exclude:
+        s = [x for x in s if not exclude in x]
     s = s[:opts.maxn]
     print ",".join(s)
 

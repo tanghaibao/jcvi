@@ -86,6 +86,9 @@ class Tasks (object):
             self.results.append(res)
             njobs -= 1
 
+        tasks.close()
+        results.close()
+
 
 def listify(a):
     return a if (isinstance(a, list) or isinstance(a, tuple)) else [a]

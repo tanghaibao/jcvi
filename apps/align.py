@@ -125,6 +125,8 @@ def nucmer(args):
     from jcvi.formats.base import split
 
     p = OptionParser(nucmer.__doc__)
+    p.add_option("--chunks", type="int",
+                 help="Split both query and subject into chunks")
     p.set_params(prog="nucmer", params="-g 5000 -l 24 -c 500")
     p.set_cpus()
     opts, args = p.parse_args(args)
@@ -134,7 +136,7 @@ def nucmer(args):
 
     ref, query = args
     cpus = opts.cpus
-    nrefs = nqueries = int(cpus ** .5)
+    nrefs = nqueries = opts.chunks or int(cpus ** .5)
     refdir = ref.split(".")[0] + "-outdir"
     querydir = query.split(".")[0] + "-outdir"
     reflist = split([ref, refdir, str(nrefs)]).names
@@ -148,6 +150,7 @@ def nucmer(args):
         cmd += " {0} {1} -p {2}".format(r, q, pf)
         deltafile = pf + ".delta"
         mm.add((r, q), deltafile, cmd)
+        print cmd
 
     mm.write()
 

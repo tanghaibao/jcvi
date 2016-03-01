@@ -16,7 +16,7 @@ import logging
 from collections import defaultdict
 
 from jcvi.formats.base import BaseFile, LineFile, write_file
-from jcvi.apps.grid import GridProcess, get_grid_engine
+from jcvi.apps.grid import GridProcess, get_grid_engine, PBS_STANZA
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, popen, \
             sh, mkdir, glob, get_abs_path
 
@@ -121,16 +121,7 @@ DIR=`awk "NR==$SGE_TASK_ID" {0}`
 cd $DIR
 {1} --ignore_nfs_tmp"""
 
-
-arraysh_ua = """
-#PBS -q standard
-#PBS -J 1-{0}
-#PBS -l select=1:ncpus={1}:mem=23gb
-#PBS -l pvmem=23gb
-#PBS -l jobtype=serial
-#PBS -l walltime=100:00:00
-#PBS -W group_list=genomeanalytics
-
+arraysh_ua = PBS_STANZA + """
 cd $PBS_O_WORKDIR
 DIR=`awk "NR==$PBS_ARRAY_INDEX" {2}`
 cd $DIR

@@ -297,8 +297,22 @@ class Grid (list):
             pi.start()
 
 
+PBS_STANZA = """
+#PBS -q standard
+#PBS -J 1-{0}
+#PBS -l select=1:ncpus={1}:mem=23gb
+#PBS -l pvmem=23gb
+#PBS -l walltime=100:00:00
+#PBS -W group_list=genomeanalytics
+"""
+
 arraysh = """
 CMD=`awk "NR==$SGE_TASK_ID" {0}`
+$CMD"""
+
+arraysh_ua = PBS_STANZA + """
+cd $PBS_O_WORKDIR
+CMD=`awk "NR==$PBS_ARRAY_INDEX" {2}`
 $CMD"""
 
 
@@ -335,7 +349,7 @@ def array(args):
 
     cmds, = args
     fp = open(cmds)
-    ncmds = sum(1 for x in fp)
+    N = sum(1 for x in fp)
     fp.close()
 
     pf = cmds.rsplit(".",  1)[0]
@@ -343,8 +357,14 @@ def array(args):
     assert runfile != cmds, \
             "Commands list file should not have a `.sh` extension"
 
-    contents = arraysh.format(cmds)
+    engine = get_grid_engine()
+    threaded = opts.threaded or 1
+    contents = arraysh.format(cmds) if engine == "SGE" \
+                else arraysh_ua.format(N, threaded, cmds)
     write_file(runfile, contents)
+
+    if engine == "PBS":
+        return
 
     outfile = "{0}.{1}.out".format(pf, "\$TASK_ID")
     errfile = "{0}.{1}.err".format(pf, "\$TASK_ID")

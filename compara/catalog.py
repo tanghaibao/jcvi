@@ -626,7 +626,7 @@ def ortholog(args):
     qprefix = ".".join((bprefix, aprefix))
     last = pprefix + ".last"
     if need_update((afasta, bfasta), last):
-        last_main([bfasta, afasta, "-o", last])
+        last_main([bfasta, afasta])
 
     if a == b:
         last = filter([last, "--hitlen=0", "--pctid=98", "--inverse", "--noself"])

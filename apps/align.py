@@ -296,9 +296,11 @@ def last(args):
     p.add_option("--format", default="BlastTab",
                  choices=("TAB", "MAF", "BlastTab", "BlastTab+"),
                  help="Output format")
-    p.set_cpus(cpus=32)
+    p.add_option("--minlen", default=0, type="int",
+                 help="Filter alignments by how many bases match")
+    p.add_option("--minid", default=0, type="int", help="Minimum sequence identity")
+    p.set_cpus()
     p.set_params()
-    p.set_outfile()
 
     opts, args = p.parse_args(args)
 
@@ -322,11 +324,21 @@ def last(args):
     cmd += " -f {0}".format(opts.format)
     cmd += " {0} {1}".format(subjectdb, query)
 
+    minlen = opts.minlen
+    minid = opts.minid
     extra = opts.extra
-    if extra:
-        cmd += " " + extra
+    assert minid != 100, "Perfect match not yet supported"
+    mm = minid / (100 - minid)
 
-    sh(cmd, outfile=opts.outfile)
+    if minlen:
+        extra += " -e{0}".format(minlen)
+    if minid:
+        extra += " -r1 -q{0} -a{0} -b{0}".format(mm)
+    if extra:
+        cmd += " " + extra.strip()
+
+    lastfile = get_outfile(subject, query, suffix="last")
+    sh(cmd, outfile=lastfile)
 
 
 if __name__ == '__main__':

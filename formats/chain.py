@@ -79,7 +79,6 @@ def main():
 
     actions = (
         ('blat', 'generate PSL file using BLAT'),
-        ('last', 'generate PSL file using LAST'),
         ('frompsl', 'generate chain file from PSL format'),
         ('fromagp', 'generate chain file from AGP format'),
         ('summary', 'provide stats of the chain file'),
@@ -222,44 +221,6 @@ def blat(args):
                 for x in (newfasta, oldfasta)))
     cmd += pslfile
     sh(cmd)
-
-
-def last(args):
-    """
-    %prog last old.fasta new.fasta
-
-    Generate psl file using LAST. Scoring parameters (-r -q -a -b -e)
-    automatically selected based on --minlen and --minid.
-    """
-    from jcvi.apps.align import last as lastapp
-
-    p = OptionParser(last.__doc__)
-    p.add_option("--distant", default=False, action="store_true",
-                 help="Assume distant relations")
-    p.add_option("--minlen", default=1000, type="int",
-                 help="Filter alignments by how many bases match [default: %default]")
-    p.add_option("--minid", default=80, type="int",
-                 help="Minimum sequence identity [default: %default]")
-    p.set_outfile()
-
-    opts, args = p.parse_args(args)
-    if len(args) != 2:
-        sys.exit(not p.print_help())
-
-    oldfasta, newfasta = args
-    args = [oldfasta, newfasta, "--format=MAF", "--outfile={0}".format(opts.outfile)]
-
-    minlen = opts.minlen
-    minid = opts.minid
-
-    assert minid != 100, "Perfect match not yet supported"
-    mm = minid / (100 - minid)
-
-    extra = r'--params=-r1 -q{0} -a{0} -b{0} -e{1}'.format(mm, minlen)
-    if not opts.distant:
-        args.append(extra)
-
-    lastapp(args)
 
 
 def frompsl(args):

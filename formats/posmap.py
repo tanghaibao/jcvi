@@ -310,25 +310,5 @@ def dup(args):
         print >> sys.stderr, "{0}: {1}".format(label, v)
 
 
-def pairs(args):
-    """
-    See __doc__ for OptionParser.set_pairs().
-    """
-    import jcvi.formats.bed
-
-    p = OptionParser(pairs.__doc__)
-    p.set_pairs()
-    opts, targs = p.parse_args(args)
-
-    if len(targs) != 1:
-        sys.exit(not p.print_help())
-
-    frgscffile, = targs
-    bedfile = bed([frgscffile])
-    args[args.index(frgscffile)] = bedfile
-
-    return jcvi.formats.bed.pairs(args)
-
-
 if __name__ == '__main__':
     main()

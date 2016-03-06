@@ -46,9 +46,8 @@ Following modules are available as generic Bioinformatics handling methods.
 
 - ``formats``
     Currently supports ``.ace`` format (phrap, cap3, etc.), ``.agp`` (goldenpath),
-    ``.bed`` format, ``.blast`` output, ``.btab`` format, ``.cas`` (CLC assembler output),
-    ``.coords`` format (``nucmer`` output), ``.fasta`` format, ``.fastq`` format,
-    ``.fpc`` format, ``.gff`` format, ``obo`` format (ontology),
+    ``.bed`` format, ``.blast`` output, ``.btab`` format, ``.coords`` format (``nucmer`` output),
+    ``.fasta`` format, ``.fastq`` format, ``.fpc`` format, ``.gff`` format, ``obo`` format (ontology),
     ``.psl`` format (UCSC blat, GMAP, etc.), ``.posmap`` format (Celera assembler output),
     ``.sam`` format (read mapping), ``.contig`` format (TIGR assembly format), etc.
 
@@ -143,31 +142,33 @@ Most of the scripts in this package contains multiple actions. To use the
 
 
     Available ACTIONs:
-              clean | Remove irregular chars in fasta seqs
+              clean | Remove irregular chars in FASTA seqs
                diff | Check if two fasta records contain same information
             extract | Given fasta file and seq id, retrieve the sequence in fasta format
               fastq | Combine fasta and qual to create fastq file
              filter | Filter the records by size
              format | Trim accession id to the first space or switch id based on 2-column mapping file
-            fromtab | Convert 2-column sequence file to fasta format
+            fromtab | Convert 2-column sequence file to FASTA format
                gaps | Print out a list of gap sizes within sequences
           identical | Given 2 fasta files, find all exactly identical records
                 ids | Generate a list of headers
                info | Run `sequence_info` on fasta files
-              ispcr | Reformat paired primers into ispcr query format
+              ispcr | Reformat paired primers into isPcr query format
                join | Concatenate a list of seqs and add gaps in between
-         longestorf | Find longest orf for cds fasta
+         longestorf | Find longest orf for CDS fasta
                pair | Sort paired reads to .pairs, rest to .fragments
         pairinplace | Starting from fragment.fasta, find if adjacent records can form pairs
                pool | Pool a bunch of fastafiles together and add prefix
+               qual | Generate dummy .qual file based on FASTA file
              random | Randomly take some records
              sequin | Generate a gapped fasta file for sequin submission
                some | Include or exclude a list of records (also performs on .qual file if available)
-               sort | Sort the records by ids, sizes, etc.
-            summary | Report the real no of bases and n's in fasta files
+               sort | Sort the records by IDs, sizes, etc.
+            summary | Report the real no of bases and N's in fasta files
                tidy | Normalize gap sizes and remove small components in fasta
-          translate | Translate cds to proteins
+          translate | Translate CDS to proteins
                trim | Given a cross_match screened fasta, trim the sequence
+          trimsplit | Split sequences at lower-cased letters
                uniq | Remove records that are the same
 
 Then you need to use one action, you can just do::

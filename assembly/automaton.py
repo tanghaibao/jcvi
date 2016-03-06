@@ -163,7 +163,7 @@ def pairs(args):
     %prog pairs folder reference.fasta
 
     Estimate insert size distribution. Compatible with a variety of aligners,
-    including CLC, BOWTIE and BWA.
+    including BOWTIE and BWA.
     """
     p = OptionParser(pairs.__doc__)
     p.set_firstN()
@@ -179,12 +179,7 @@ def pairs(args):
     work = "-".join(("pairs", aligner))
     mkdir(work)
 
-    if aligner == "clc":
-        from jcvi.apps.clc import align
-        from jcvi.formats.cas import pairs as ps
-    else:
-        from jcvi.formats.sam import pairs as ps
-
+    from jcvi.formats.sam import pairs as ps
     if aligner == "bowtie":
         from jcvi.apps.bowtie import align
     elif aligner == "bwa":

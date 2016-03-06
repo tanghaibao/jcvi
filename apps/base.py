@@ -423,7 +423,7 @@ class OptionParser (OptionP):
 
     def set_pairs(self):
         """
-        %prog pairs <blastfile|samfile|casfile|bedfile|posmapfile>
+        %prog pairs <blastfile|samfile|bedfile>
 
         Report how many paired ends mapped, avg distance between paired ends, etc.
         Paired reads must have the same prefix, use --rclip to remove trailing
@@ -603,7 +603,7 @@ class OptionParser (OptionP):
         self.add_option(tag, default=default, help=help)
 
     def set_aligner(self, aligner="bowtie"):
-        valid_aligners = ("clc", "bowtie", "bwa")
+        valid_aligners = ("bowtie", "bwa")
         self.add_option("--aligner", default=aligner, choices=valid_aligners,
                      help="Use aligner [default: %default]")
 

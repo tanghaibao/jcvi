@@ -146,7 +146,7 @@ class FileSplitter (object):
         self.outputdir = outputdir
         self.mode = mode
 
-        self.format = format or self._guess_format(filename)
+        format = format or self._guess_format(filename)
         logging.debug("format is %s" % format)
 
         if format in ("fasta", "fastq"):
@@ -156,6 +156,7 @@ class FileSplitter (object):
         else:
             self.klass = "txt"
 
+        self.format = format
         mkdir(outputdir)
 
     def _open(self, filename):

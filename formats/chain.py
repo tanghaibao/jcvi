@@ -231,7 +231,7 @@ def last(args):
     Generate psl file using LAST. Scoring parameters (-r -q -a -b -e)
     automatically selected based on --minlen and --minid.
     """
-    from jcvi.apps.last import main as lastapp, supported_formats
+    from jcvi.apps.align import last as lastapp
 
     p = OptionParser(last.__doc__)
     p.add_option("--distant", default=False, action="store_true",
@@ -240,8 +240,6 @@ def last(args):
                  help="Filter alignments by how many bases match [default: %default]")
     p.add_option("--minid", default=80, type="int",
                  help="Minimum sequence identity [default: %default]")
-    p.add_option("--format", default="maf", choices=supported_formats,
-                 help="Output format")
     p.set_outfile()
 
     opts, args = p.parse_args(args)
@@ -249,8 +247,7 @@ def last(args):
         sys.exit(not p.print_help())
 
     oldfasta, newfasta = args
-    args = [oldfasta, newfasta, "--format={0}".format(opts.format), \
-                "--outfile={0}".format(opts.outfile)]
+    args = [oldfasta, newfasta, "--format=MAF", "--outfile={0}".format(opts.outfile)]
 
     minlen = opts.minlen
     minid = opts.minid

@@ -107,6 +107,7 @@ def main():
         ('blat', 'run blat using query against reference'),
         ('blasr', 'run blasr on a set of pacbio reads'),
         ('nucmer', 'run nucmer using query against reference'),
+        ('last', 'run last using query against reference'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -270,6 +271,62 @@ def blast(args):
                   hitlen=None, best=opts.best, task=opts.task, cpus=opts.cpus)
 
     return blastfile
+
+
+@depends
+def run_lastdb(infile=None, outfile=None, mask=False, lastdb_bin="lastdb"):
+    outfilebase = outfile.rsplit(".", 1)[0]
+    mask = "-c " if mask else ""
+    cmd = "{0} {1}{2} {3}".format(lastdb_bin, mask, outfilebase, infile)
+    sh(cmd)
+
+
+def last(args):
+    """
+    %prog database.fasta query.fasta
+
+    Run LAST by calling LASTDB and LASTAL. LAST program available:
+    <http://last.cbrc.jp>
+
+    Works with LAST-719.
+    """
+    p = OptionParser(last.__doc__)
+    p.add_option("--path", help="Specify LAST path")
+    p.add_option("--mask", default=False, action="store_true", help="Invoke -c in lastdb")
+    p.add_option("--format", default="BlastTab",
+                 choices=("TAB", "MAF", "BlastTab", "BlastTab+"),
+                 help="Output format")
+    p.set_cpus(cpus=32)
+    p.set_params()
+    p.set_outfile()
+
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    subject, query = args
+    path = opts.path
+    cpus = opts.cpus
+    getpath = lambda x: op.join(path, x) if path else x
+    lastdb_bin = getpath("lastdb")
+    lastal_bin = getpath("lastal")
+
+    subjectdb = subject.rsplit(".", 1)[0]
+    run_lastdb(infile=subject, outfile=subjectdb + ".prj", mask=opts.mask, \
+              lastdb_bin=lastdb_bin)
+
+    u = 2 if opts.mask else 0
+    cmd = "{0} -u {1}".format(lastal_bin, u)
+    cmd += " -P {0} -i3G".format(cpus)
+    cmd += " -f {0}".format(opts.format)
+    cmd += " {0} {1}".format(subjectdb, query)
+
+    extra = opts.extra
+    if extra:
+        cmd += " " + extra
+
+    sh(cmd, outfile=opts.outfile)
 
 
 if __name__ == '__main__':

@@ -533,14 +533,11 @@ def batchlobstr(args):
     skipped = total = 0
     for row in fp:
         total += 1
-        sample, s3file = row.strip().split(",")
-        s3file = s3file.replace(".gz", "").replace(".vcf", "")
-        bamfile = s3file + ".bam"
+        sample, s3file = row.strip().split(",")[:2]
+        bamfile = s3file.replace(".gz", "").replace(".vcf", ".bam")
 
         gzfile = sample + ".{0}.vcf.gz".format("hg38-named")
         if gzfile in computed:
-            logging.debug("Object `{0}` exists. Computation skipped."\
-                            .format(gzfile))
             skipped += 1
             continue
 

@@ -179,6 +179,7 @@ class LobSTRvcf(dict):
         self.samplekey = None
         fp = open(columnidsfile)
         self.columns = [x.strip() for x in fp]
+        self.evidence = {}  # name: (supporting reads, stutter reads)
         logging.debug("A total of {} markers imported".format(len(self.columns)))
 
     def parse(self, filename, cleanup=False):
@@ -187,24 +188,38 @@ class LobSTRvcf(dict):
         reader = vcf.Reader(fp)
         for record in reader:
             info = record.INFO
-            ref = int(float(info["REF"]))
+            ref = float(info["REF"])
             rpa = info.get("RPA", ref)
             motif = info["MOTIF"]
-            name = "_".join(str(x) for x in (record.CHROM, record.POS, motif, ref))
+            name = "_".join(str(x) for x in (record.CHROM, record.POS,
+                                             motif, int(ref)))
             for sample in record.samples:
                 gt = sample["GT"]
                 if gt == "0/0":
                     alleles = (ref, ref)
                 elif gt in ("0/1", "1/0"):
-                    #assert isinstance(rpa, list) and len(rpa) == 1
                     alleles = (ref, rpa[0])
                 elif gt == "1/1":
-                    #assert isinstance(rpa, list) and len(rpa) == 1
                     alleles = (rpa[0], rpa[0])
                 elif gt == "1/2":
-                    #assert isinstance(rpa, list) and len(rpa) == 2
                     alleles = rpa
                 self[name] = ",".join(str(int(x)) for x in sorted(alleles))
+
+                # Collect supporting read evidence
+                motif_length = len(motif)
+                adjusted_alleles = [(x - ref) * motif_length for x in alleles]
+                support = stutter = 0
+                allreads = sample["ALLREADS"]
+                for x in allreads.split(";"):
+                    k, v = x.split("|")
+                    k, v = int(k), int(v)
+                    min_dist = min([abs(k - x) for x in adjusted_alleles])
+                    if min_dist >= motif_length:
+                        stutter += v
+                    support += v
+                print name, ref, allreads, alleles, adjusted_alleles, \
+                      "stutter={} support={}".format(stutter, support)
+                self.evidence[name] = "{},{}".format(stutter, support)
 
         if cleanup:
             sh("rm -f {}".format(op.basename(filename)))
@@ -212,6 +227,10 @@ class LobSTRvcf(dict):
     @property
     def csvline(self):
         return ",".join([self.get(c, "-1,-1") for c in self.columns])
+
+    @property
+    def evline(self):
+        return ",".join([self.evidence.get(c, "-1,-1") for c in self.columns])
 
 
 def main():
@@ -262,21 +281,35 @@ def mergecsv(args):
     fw.close()
 
 
-def run(filename, store, cleanup):
-    csvfile = filename + ".csv"
-    try:
-        if not check_exists_s3(csvfile):
-            lv = LobSTRvcf()
-            lv.parse(filename, cleanup=cleanup)
-            lv.parse(filename.replace(".hg38.", ".hg38-named."), cleanup=cleanup)
+def write_csv_ev(filename, cleanup):
+    lv = LobSTRvcf()
+    lv.parse(filename, cleanup=cleanup)
+    lv.parse(filename.replace(".hg38.", ".hg38-named."), cleanup=cleanup)
 
-            csvfile = op.basename(filename) + ".csv"
-            fw = open(csvfile, "w")
-            print >> fw, lv.csvline
-            fw.close()
-            push_to_s3(store, csvfile)
-    except:
-        logging.debug("Thread failed!")
+    csvfile = op.basename(filename) + ".csv"
+    fw = open(csvfile, "w")
+    print >> fw, lv.csvline
+    fw.close()
+
+    evfile = op.basename(filename) + ".ev"
+    fw = open(evfile, "w")
+    print >> fw, lv.evline
+    fw.close()
+    #push_to_s3(store, csvfile)
+    #push_to_s3(store, evfile)
+
+
+def run(arg):
+    filename, store, cleanup = arg
+    csvfile = filename + ".csv"
+    evfile = filename + ".ev"
+    # TODO: wrap this in a try .. except block
+    #try:
+    if 1:
+        if not check_exists_s3(csvfile) and not check_exists_s3(evfile):
+            write_csv_ev(filename, cleanup)
+    #except:
+    #    logging.debug("Thread failed!")
 
 
 def compile(args):
@@ -285,7 +318,7 @@ def compile(args):
 
     Compile vcf results into master spreadsheet.
     """
-    from jcvi.apps.tasks import Tasks
+    from multiprocessing import Pool
 
     p = OptionParser(compile.__doc__)
     p.set_home("lobstr")
@@ -322,8 +355,11 @@ def compile(args):
         print >> fw, ",".join(dipuids)
         fw.close()
 
+    p = Pool(processes=opts.cpus)
     run_args = [(x, opts.store, opts.cleanup) for x in vcffiles]
-    Tasks(run, run_args, cpus=opts.cpus)
+    run(run_args[0])
+    #for res in p.map_async(run, run_args).get():
+    #    continue
 
 
 def build_ysearch_link(r, ban=["DYS520", "DYS413a", "DYS413b"]):

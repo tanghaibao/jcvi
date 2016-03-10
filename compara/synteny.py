@@ -10,7 +10,7 @@ from collections import defaultdict
 
 from jcvi.algorithms.lis import heaviest_increasing_subsequence as his
 from jcvi.formats.bed import Bed
-from jcvi.formats.blast import BlastLine
+from jcvi.formats.blast import Blast
 from jcvi.formats.base import BaseFile, SetFile, read_block, must_open
 from jcvi.utils.grouper import Grouper
 from jcvi.utils.cbook import gene_name, human_size
@@ -264,11 +264,10 @@ def read_blast(blast_file, qorder, sorder, is_self=False, ostrip=True):
     """
     read the blast and convert name into coordinates
     """
-    fp = open(blast_file)
     filtered_blast = []
     seen = set()
-    for row in fp:
-        b = BlastLine(row)
+    bl = Blast(blast_file)
+    for b in bl:
         query, subject = b.query, b.subject
         if query == subject:
             continue

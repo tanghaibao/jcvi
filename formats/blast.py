@@ -125,6 +125,8 @@ class Blast (BaseFile):
     def __iter__(self):
         self.fp.seek(0)
         for row in self.fp:
+            if row[0] == '#':
+                continue
             yield BlastLine(row)
 
     def iter_hits(self):

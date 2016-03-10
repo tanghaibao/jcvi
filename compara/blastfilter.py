@@ -27,7 +27,7 @@ import os.path as op
 from collections import defaultdict
 from itertools import groupby
 
-from jcvi.formats.blast import BlastLine
+from jcvi.formats.blast import Blast
 from jcvi.utils.grouper import Grouper
 from jcvi.utils.cbook import gene_name
 from jcvi.compara.synteny import check_beds
@@ -41,13 +41,12 @@ def blastfilter_main(blast_file, p, opts):
     tandem_Nmax = opts.tandem_Nmax
     cscore = opts.cscore
 
-    fp = file(blast_file)
-    total_lines = sum(1 for line in fp)
+    fp = open(blast_file)
+    total_lines = sum(1 for line in fp if line[0] != '#')
     logging.debug("Load BLAST file `%s` (total %d lines)" % \
             (blast_file, total_lines))
-    fp.seek(0)
-    blasts = sorted([BlastLine(line) for line in fp], \
-            key=lambda b: b.score, reverse=True)
+    bl = Blast(blast_file)
+    blasts = sorted(list(bl), key=lambda b: b.score, reverse=True)
 
     filtered_blasts = []
     seen = set()

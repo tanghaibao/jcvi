@@ -279,11 +279,14 @@ def read_blast(blast_file, qorder, sorder, is_self=False, ostrip=True):
         qi, q = qorder[query]
         si, s = sorder[subject]
 
-        if is_self and qi > si:
+        if is_self:
             # remove redundant a<->b to one side when doing self-self BLAST
-            query, subject = subject, query
-            qi, si = si, qi
-            q, s = s, q
+            if qi > si:
+                query, subject = subject, query
+                qi, si = si, qi
+                q, s = s, q
+            if si - qi < 10:  # Too close to diagonal! possible tandem repeats
+                continue
 
         key = query, subject
         if key in seen:

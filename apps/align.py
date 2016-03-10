@@ -145,7 +145,7 @@ def nucmer(args):
 
     mm = MakeManager()
     for i, (r, q) in enumerate(product(reflist, querylist)):
-        pf = "{0:03d}".format(i)
+        pf = "{0:04d}".format(i)
         cmd = "nucmer -maxmatch"
         cmd += " {0}".format(opts.extra)
         cmd += " {0} {1} -p {2}".format(r, q, pf)

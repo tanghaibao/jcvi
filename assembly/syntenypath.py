@@ -15,7 +15,7 @@ from jcvi.formats.blast import BlastSlow, Blast
 from jcvi.formats.sizes import Sizes
 from jcvi.utils.iter import pairwise
 from jcvi.utils.range import range_intersect
-from jcvi.algorithms.graph import BiGraph, BiEdge
+from jcvi.algorithms.graph import BiGraph
 from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
@@ -121,8 +121,7 @@ def happy_edges(row, prefix=None):
             a = prefix + a
             b = prefix + b
 
-        e = BiEdge(a, b, oa, ob)
-        yield e, is_uncertain
+        yield (a, b, oa, ob), is_uncertain
 
 
 def partition(args):
@@ -155,10 +154,9 @@ def partition(args):
         edges = happy_edges(row, prefix=prefix)
 
         small_graph = BiGraph()
-        for e, is_uncertain in edges:
-            if is_uncertain:
-                e.color = "gray"
-            small_graph.add_edge(e)
+        for (a, b, oa, ob), is_uncertain in edges:
+            color = "gray" if is_uncertain else "black"
+            small_graph.add_edge(a, b, oa, ob, color=color)
 
         for (u, v), e in bg.edges.items():
             # Grab edge if both vertices are on the same line
@@ -299,7 +297,7 @@ def fromblast(args):
 
             atag = ">" if a.orientation == "+" else "<"
             btag = ">" if b.orientation == "+" else "<"
-            g.add_edge(BiEdge(asub, bsub, atag, btag))
+            g.add_edge(asub, bsub, atag, btag)
 
     graph_to_agp(g, blastfile, subjectfasta, verbose=opts.verbose)
 
@@ -416,9 +414,7 @@ def connect(args):
             bsub = b.subject
             atag = ">" if a.orientation == "+" else "<"
             btag = ">" if b.orientation == "+" else "<"
-            e = BiEdge(asub, bsub, atag, btag)
-            g.add_edge(e)
-            print "=" * 5, e
+            g.add_edge(asub, bsub, atag, btag)
 
     graph_to_agp(g, blastfile, fastafile, verbose=False)
 

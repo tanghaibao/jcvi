@@ -115,14 +115,13 @@ class BiGraph (object):
         if v not in self.nodes:
             self.nodes[v] = BiNode(v)
 
-    def add_edge(self, e):
-        v1, v2 = e.v1, e.v2
-
-        assert isinstance(e, BiEdge)
+    def add_edge(self, v1, v2, o1, o2, color="black", length=None):
         for v in (v1, v2):
             self.add_node(v)
         n1 = self.nodes.get(v1)
         n2 = self.nodes.get(v2)
+
+        e = BiEdge(v1, v2, o1, o2, color=color, length=length)
         l = n1.outs if e.o1 == ">" else n1.ins
         r = n2.ins if e.o2 == ">" else n2.outs
         l.append(e)
@@ -210,7 +209,7 @@ class BiGraph (object):
             oa = a[-1]
             ob = b[0]
             a, b = a.strip("<>"), b.strip("<>")
-            self.add_edge(BiEdge(a, b, oa, ob, color=color))
+            self.add_edge(a, b, oa, ob, color=color)
             nedges += 1
         logging.debug("A total of {0} edges imported from `{1}` (color={2}).".
                       format(nedges, filename, color))
@@ -343,15 +342,15 @@ def graph_simplify(G):
 
 def bigraph_test():
     g = BiGraph()
-    g.add_edge(BiEdge(1, 2, ">", "<"))
-    g.add_edge(BiEdge(2, 3, "<", "<", color="red"))
-    g.add_edge(BiEdge(2, 3, ">", ">", color="blue"))
-    g.add_edge(BiEdge(5, 3, ">", ">"))
-    g.add_edge(BiEdge(4, 3, "<", ">"))
-    g.add_edge(BiEdge(4, 6, ">", ">"))
-    g.add_edge(BiEdge(7, 1, ">", ">"))
-    g.add_edge(BiEdge(7, 5, "<", ">"))
-    g.add_edge(BiEdge(8, 6, ">", "<"))
+    g.add_edge(1, 2, ">", "<")
+    g.add_edge(2, 3, "<", "<", color="red")
+    g.add_edge(2, 3, ">", ">", color="blue")
+    g.add_edge(5, 3, ">", ">")
+    g.add_edge(4, 3, "<", ">")
+    g.add_edge(4, 6, ">", ">")
+    g.add_edge(7, 1, ">", ">")
+    g.add_edge(7, 5, "<", ">")
+    g.add_edge(8, 6, ">", "<")
     print g
     g.write()
     for path in g.iter_paths():

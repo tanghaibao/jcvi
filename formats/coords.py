@@ -13,6 +13,7 @@ from math import exp
 from itertools import groupby
 
 from jcvi.formats.base import LineFile, must_open
+from jcvi.algorithms.graph import BiGraph
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update, \
         get_abs_path
 
@@ -204,6 +205,45 @@ class Coords (LineFile):
         return best_hits
 
 
+class OVLLine:
+
+    def __init__(self, row):
+        # tig00000004     tig00042923     I       -64039  -18713  16592   99.84
+        # See also: assembly.goldenpath.Overlap for another implementation
+        args = row.split()
+        self.a = args[0]
+        self.b = args[1]
+        self.bstrand = '+' if args[2] == 'N' else '-'
+        self.ahang = int(args[3])
+        self.bhang = int(args[4])
+        self.overlap = int(args[5])
+        self.pctid = float(args[6])
+        self.score = int(self.overlap * self.pctid / 100)
+
+    def __str__(self):
+        if self.ahang > 0:
+            tag = "a->b" if self.bhang > 0 else "b in a"
+        elif self.ahang < 0:
+            tag = "b->a" if self.bhang < 0 else "a in b"
+        if self.bstrand == '-':
+            tag = tag.replace('b', '-b')
+        tag = tag.replace('a', self.a)
+        tag = tag.replace('b', self.b)
+        return tag
+
+
+class OVL (LineFile):
+
+    def __init__(self, filename):
+        super(OVL, self).__init__(filename)
+        fp = must_open(filename)
+        self.graph = BiGraph()
+        for row in fp:
+            o = OVLLine(row)
+            btag = '<' if o.bstrand == '-' else '>'
+            self.graph.add_edge(o.a, o.b, '>', btag, length=o.score)
+
+
 def get_stats(coordsfile):
 
     from jcvi.utils.range import range_union
@@ -245,12 +285,31 @@ def main():
         ('blast', 'convert to blast tabular output'),
         ('filter', 'filter based on id% and cov%, write a new coords file'),
         ('fromdelta', 'convert deltafile to coordsfile'),
+        ('graph', 'build overlap graph from AMOS overlaps'),
         ('merge', 'merge deltafiles'),
         ('sort', 'sort coords file based on query or subject'),
         ('summary', 'provide summary on id% and cov%'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def graph(args):
+    """
+    %prog graph nucmer2ovl.ovl
+
+    Build overlap graph from ovl file which is converted using NUCMER2OVL.
+    """
+    p = OptionParser(graph.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    ovlfile, = args
+    ovl = OVL(ovlfile)
+    g = ovl.graph
+    print g
 
 
 def merge(args):

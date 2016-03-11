@@ -16,7 +16,7 @@ from jcvi.formats.sizes import Sizes
 from jcvi.formats.base import BaseFile, read_block, write_file
 from jcvi.formats.agp import AGP, AGPLine, reindex, tidy
 from jcvi.utils.iter import pairwise
-from jcvi.algorithms.graph import BiGraph, BiEdge
+from jcvi.algorithms.graph import BiGraph
 from jcvi.apps.base import OptionParser, ActionDispatcher, download
 
 
@@ -79,8 +79,7 @@ class EvidenceFile (BaseFile):
             self.scf[scaffold] = [x.tig for x in lines]
 
             for a, b in pairwise(lines):
-                e = BiEdge(a.tig, b.tig, a.o, b.o, length=a.gaps)
-                g.add_edge(e)
+                g.add_edge(a.tig, b.tig, a.o, b.o, length=a.gaps)
 
             if len(lines) == 1:  # Singleton scaffold
                 a = lines[0]

@@ -497,7 +497,7 @@ def graph(args):
 
     Load overlaps to create bidirectional graph.
     """
-    from jcvi.algorithms.graph import BiGraph, BiEdge
+    from jcvi.algorithms.graph import BiGraph
     from jcvi.assembly.syntenypath import graph_to_agp
 
     p = OptionParser(graph.__doc__)
@@ -521,9 +521,9 @@ def graph(args):
         oa = ">"
         ob = "<" if orientation == '-' else ">"
         if tag == "a ~ b":
-            g.add_edge(BiEdge(a, b, oa, ob))
+            g.add_edge(a, b, oa, ob)
         elif tag == "b ~ a":
-            g.add_edge(BiEdge(b, a, ob, oa))
+            g.add_edge(b, a, ob, oa)
         elif tag == "a in b":
             contained.add(a)
         elif tag == "b in a":

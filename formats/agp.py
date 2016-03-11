@@ -423,17 +423,16 @@ class AGP (LineFile):
 
     @property
     def graph(self):
-        from jcvi.algorithms.graph import BiGraph, BiEdge
+        from jcvi.algorithms.graph import BiGraph
 
         g = BiGraph()
         for ob, lines in self.iter_object():
             components = [x for x in lines if not x.is_gap]
             gaps = [x for x in lines if x.is_gap]
             for i, (a, b) in enumerate(pairwise(components)):
-                e = BiEdge(a.component_id, b.component_id,
+                g.add_edge(a.component_id, b.component_id,
                            a.orientation, b.orientation,
                            length=gaps[i].gap_length)
-                g.add_edge(e)
             if len(components) == 1:  # Singleton object
                 a = components[0]
                 g.add_node(a.component_id)

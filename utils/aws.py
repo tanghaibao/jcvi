@@ -11,6 +11,7 @@ import fnmatch
 
 import boto3
 
+from jcvi.formats.base import SetFile
 from jcvi.apps.base import OptionParser, ActionDispatcher, popen, sh
 
 
@@ -25,12 +26,15 @@ def main():
     p.dispatch(globals())
 
 
-def glob_s3(store):
+def glob_s3(store, keys=None):
     store, cards = store.rsplit("/", 1)
     contents = ls_s3(store)
-    filtered = fnmatch.filter(contents, cards)
-    filtered = ["/".join((store, x)) for x in filtered]
+    if keys:
+        filtered = [x for x in contents if op.basename(x).split(".")[0] in keys]
+    else:
+        filtered = fnmatch.filter(contents, cards)
 
+    filtered = ["/".join((store, x)) for x in filtered]
     return filtered
 
 
@@ -64,13 +68,17 @@ def ls(args):
     List files with support for wildcards.
     """
     p = OptionParser(ls.__doc__)
+    p.add_option("--keys", help="List of keys to include")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     store, = args
-    print "\n".join(glob_s3(store))
+    keys = opts.keys
+    if keys:
+        keys = SetFile(keys)
+    print "\n".join(glob_s3(store, keys=keys))
 
 
 def s3ify(address):

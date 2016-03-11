@@ -89,8 +89,10 @@ class STRLine(object):
         self.entropy = float(args[13])
         self.motif = args[14]
         assert self.period == len(self.motif)
-        self.name = args[15] if len(args) == 16 else None
-        self.named = named
+        if named:
+            self.name = args[15] if len(args) == 16 else None
+        else:
+            self.name = None
 
     def __str__(self):
         fields = [self.seqid, self.start, self.end,
@@ -107,7 +109,7 @@ class STRLine(object):
         name = "_".join(str(x) for x in \
                     (self.seqid, self.start, self.motif,
                     int(float(self.copynum))))
-        if self.named:
+        if self.name is not None:
             name += "_" + self.name
         return name
 
@@ -160,9 +162,8 @@ class STRFile (LineFile):
         filename = op.join(lobstr_home, "{0}/index.info".format(db))
         super(STRFile, self).__init__(filename)
         fp = open(filename)
-        named = db == "hg38-named"
         for row in fp:
-            self.append(STRLine(row, named=named))
+            self.append(STRLine(row))
 
     @property
     def ids(self):
@@ -210,15 +211,15 @@ class LobSTRvcf(dict):
                 adjusted_alleles = [(x - ref) * motif_length for x in alleles]
                 support = stutter = 0
                 allreads = sample["ALLREADS"]
-                for x in allreads.split(";"):
-                    k, v = x.split("|")
+                for r in allreads.split(";"):
+                    k, v = r.split("|")
                     k, v = int(k), int(v)
                     min_dist = min([abs(k - x) for x in adjusted_alleles])
-                    if min_dist >= motif_length:
+                    if motif_length * .5 < min_dist < motif_length * 1.5:
                         stutter += v
                     support += v
-                print name, ref, allreads, alleles, adjusted_alleles, \
-                      "stutter={} support={}".format(stutter, support)
+                #print name, ref, allreads, alleles, adjusted_alleles, \
+                #      "stutter={} support={}".format(stutter, support)
                 self.evidence[name] = "{},{}".format(stutter, support)
 
         if cleanup:
@@ -321,6 +322,8 @@ def compile(args):
     from multiprocessing import Pool
 
     p = OptionParser(compile.__doc__)
+    p.add_option("--db", default="hg38,hg38-named",
+                 help="Use these lobSTR db")
     p.set_home("lobstr")
     p.set_cpus()
     p.set_aws_opts(store="hli-mv-data-science/htang/str")
@@ -331,15 +334,16 @@ def compile(args):
 
     samples, = args
     workdir = opts.workdir
+    dbs = opts.db.split(",")
     mkdir(workdir)
     os.chdir(workdir)
 
     stridsfile = "STR.ids"
     vcffiles = [x.strip() for x in must_open(samples)]
     if not op.exists(stridsfile):
-        si = STRFile(opts.lobstr_home, db="hg38")
-        sj = STRFile(opts.lobstr_home, db="hg38-named")
-        ids = si.ids + [x.rsplit("_", 1)[0] for x in sj.ids]
+        ids = []
+        for db in dbs:
+            ids.extend(STRFile(opts.lobstr_home, db=db).ids)
         uids = uniqify(ids)
         logging.debug("Combined: {} Unique: {}".format(len(ids), len(uids)))
 
@@ -357,9 +361,9 @@ def compile(args):
 
     p = Pool(processes=opts.cpus)
     run_args = [(x, opts.store, opts.cleanup) for x in vcffiles]
-    run(run_args[0])
-    #for res in p.map_async(run, run_args).get():
-    #    continue
+    #run(run_args[0])
+    for res in p.map_async(run, run_args).get():
+        continue
 
 
 def build_ysearch_link(r, ban=["DYS520", "DYS413a", "DYS413b"]):

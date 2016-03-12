@@ -73,19 +73,11 @@ class BiNode (object):
 class BiEdge (object):
 
     def __init__(self, v1, v2, o1, o2, color="black", length=None):
-
-        self.v1 = v1
-        self.v2 = v2
-
         o1 = o1.translate(trans)
         o2 = o2.translate(trans)
-
         assert o1 in dirs and o2 in dirs
         self.o1 = o1
         self.o2 = o2
-
-        if v1 > v2:
-            self.flip()
 
         self.color = color
         self.length = length
@@ -127,6 +119,9 @@ class BiGraph (object):
         l.append(e)
         r.append(e)
         e.v1, e.v2 = n1, n2
+        if v1 > v2:
+            v1, v2 = v2, v1
+            e.flip()
         self.edges[(v1, v2)] = e
 
     def get_node(self, v):

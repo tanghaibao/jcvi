@@ -162,7 +162,7 @@ class Coords (LineFile):
         for row in fp:
             try:
                 self.append(CoordsLine(row))
-            except AssertionError, e:
+            except AssertionError:
                 pass
 
         if sorted:
@@ -220,16 +220,13 @@ class OVLLine:
         self.pctid = float(args[6])
         self.score = int(self.overlap * self.pctid / 100)
 
-    def __str__(self):
-        if self.ahang > 0:
-            tag = "a->b" if self.bhang > 0 else "b in a"
+    @property
+    def tag(self):
+        if self.ahang >= 0:
+            t = "a->b" if self.bhang > 0 else "b in a"
         elif self.ahang < 0:
-            tag = "b->a" if self.bhang < 0 else "a in b"
-        if self.bstrand == '-':
-            tag = tag.replace('b', '-b')
-        tag = tag.replace('a', self.a)
-        tag = tag.replace('b', self.b)
-        return tag
+            t = "b->a" if self.bhang < 0 else "a in b"
+        return t
 
 
 class OVL (LineFile):
@@ -237,11 +234,28 @@ class OVL (LineFile):
     def __init__(self, filename):
         super(OVL, self).__init__(filename)
         fp = must_open(filename)
-        self.graph = BiGraph()
+        contained = set()
         for row in fp:
             o = OVLLine(row)
-            btag = '<' if o.bstrand == '-' else '>'
-            self.graph.add_edge(o.a, o.b, '>', btag, length=o.score)
+            self.append(o)
+            if o.tag == "a in b":
+                contained.add(o.a)
+            elif o.tag == "b in a":
+                contained.add(o.b)
+        logging.debug("Imported {} links. Contained tigs: {}".\
+                        format(len(self), len(contained)))
+        self.contained = contained
+
+        self.graph = BiGraph()
+        for o in self:
+            if o.tag == "a->b":
+                a, b = o.a, o.b
+            elif o.tag == "b->a":
+                a, b = o.b, o.a
+            if a in contained or b in contained:
+                continue
+            bstrand = '<' if o.bstrand == '-' else '>'
+            self.graph.add_edge(a, b, '>', bstrand, length=o.score)
 
 
 def get_stats(coordsfile):
@@ -310,6 +324,13 @@ def graph(args):
     ovl = OVL(ovlfile)
     g = ovl.graph
     print g
+    g.write("graph.txt")
+    for path in g.iter_paths():
+        m, oo = g.path(path)
+        print m, oo
+
+    fw = open("contained.ids", "w")
+    print >> fw, "\n".join(sorted(ovl.contained))
 
 
 def merge(args):

@@ -499,6 +499,15 @@ class AGP (LineFile):
             print >> sys.stderr, msg
         return deleted
 
+    def convert_to_gap(self, a, verbose=False):
+        ai, ax = self.get_line(a)
+        gline = AGPLine.gline(ax.object, 100)
+        self[ai] = gline
+        if verbose:
+            msg = "* Convert from/to:\n"
+            msg += "\n".join([str(ax), str(gline), "-" * 60]) + "\n"
+            print >> sys.stderr, msg
+
     def delete_between(self, a, b, verbose=True):
         return self.update_between(a, b, [], verbose=verbose)
 

@@ -479,7 +479,6 @@ def main():
         ('flip', 'flip the FASTA sequences according to a set of references'),
         ('overlap', 'check terminal overlaps between two records'),
         ('batchoverlap', 'check terminal overlaps for many pairs'),
-        ('graph', 'load overlaps to create bidirectional graph'),
         ('neighbor', 'check neighbors of a component in agpfile'),
         ('blast', 'blast a component to componentpool'),
         ('certificate', 'make certificates for all overlaps in agpfile'),
@@ -489,51 +488,6 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
-
-
-def graph(args):
-    """
-    %prog graph all.ov contigs.fasta
-
-    Load overlaps to create bidirectional graph.
-    """
-    from jcvi.algorithms.graph import BiGraph
-    from jcvi.assembly.syntenypath import graph_to_agp
-
-    p = OptionParser(graph.__doc__)
-    opts, args = p.parse_args(args)
-
-    if len(args) != 2:
-        sys.exit(not p.print_help())
-
-    allov, contigsfasta = args
-    g = BiGraph()
-    fp = open(allov)
-    # ctg7180000045865 - ctg7180000086408: a ~ b Overlap: 5108 Identity: 99.02%
-    # Orientation: +
-    contained = set()
-    for row in fp:
-        atoms = row.strip().split(":")
-        pair = atoms[0]
-        a, b = pair.split(" - ")
-        orientation = atoms[-1].strip()
-        tag = atoms[1].replace("Overlap", "").strip()
-        oa = ">"
-        ob = "<" if orientation == '-' else ">"
-        if tag == "a ~ b":
-            g.add_edge(a, b, oa, ob)
-        elif tag == "b ~ a":
-            g.add_edge(b, a, ob, oa)
-        elif tag == "a in b":
-            contained.add(a)
-        elif tag == "b in a":
-            contained.add(b)
-    graph_to_agp(g, allov, contigsfasta)
-
-    containedfile = "contained.ids"
-    fw = open(containedfile, "w")
-    print >> fw, "\n".join(contained)
-    fw.close()
 
 
 def dedup(args):
@@ -632,19 +586,24 @@ def overlap_blastline_writer(oopts):
     return str(o.blastline)
 
 
+def get_overlap_opts(aid, bid, qreverse, outdir, opts):
+    oopts = [aid, bid, \
+            "--suffix", "fa", \
+            "--dir", outdir, \
+            "--pctid={0}".format(opts.pctid), \
+            "--hitlen={0}".format(opts.hitlen)]
+    if qreverse:
+        oopts += ["--qreverse"]
+    return oopts
+
+
 def populate_blastfile(blastfile, agp, outdir, opts):
     assert not op.exists(blastfile)
     all_oopts = []
     for a, b, qreverse in agp.iter_paired_components():
         aid = a.component_id
         bid = b.component_id
-        oopts = [aid, bid, \
-                "--suffix", "fa", \
-                "--dir", outdir, \
-                "--pctid={0}".format(opts.pctid), \
-                "--hitlen={0}".format(opts.hitlen)]
-        if qreverse:
-            oopts += ["--qreverse"]
+        oopts = get_overlap_opts(aid, bid, outdir, opts)
         all_oopts.append(oopts)
 
     pool = WriteJobs(overlap_blastline_writer, all_oopts, \
@@ -669,8 +628,6 @@ def anneal(args):
     p.set_align(pctid=GoodPct, hitlen=GoodOverlap)
     p.add_option("--hang", default=GoodOverhang, type="int",
                  help="Maximum overhang length [default: %default]")
-    p.add_option("--nozipshreds", default=False, action="store_true",
-                 help="Don't zip shred lines [default: %default]")
     p.set_outdir(outdir="outdir")
     p.set_cpus()
     opts, args = p.parse_args(args)
@@ -685,7 +642,6 @@ def anneal(args):
         cmd = "faSplit byname {0} {1}/".format(contigs, outdir)
         sh(cmd)
 
-    zipshreds = not opts.nozipshreds
     cutoff = Cutoff(opts.pctid, opts.hitlen, opts.hang)
     logging.debug(str(cutoff))
 
@@ -706,16 +662,17 @@ def anneal(args):
     for a, b, qreverse in agp.iter_paired_components():
         aid = a.component_id
         bid = b.component_id
-        if zipshreds and is_adjacent_shreds(a, b):
-            print >> sys.stderr, "Adjacent shreds: {0} - {1}".format(aid, bid)
-            newagp.delete_between(aid, bid, verbose=True)
-            continue
 
         pair = (aid, bid)
-        if pair not in blast:
-            continue
+        if pair in blast:
+            bl = blast[pair]
+        else:
+            oopts = get_overlap_opts(aid, bid, qreverse, outdir, opts)
+            o = overlap(oopts)
+            if not o:
+                continue
+            bl = o.blastline
 
-        bl = blast[pair]
         o = Overlap(bl, a.component_span, b.component_span,
                         cutoff, qreverse=qreverse)
 
@@ -741,9 +698,10 @@ def anneal(args):
                     format(len(clrstore)))
 
     for cid, c in clrstore.items():
-        if not c.is_valid:
-            print >> sys.stderr, "Remove {0}".format(c)
-            newagp.delete_line(cid, verbose=True)
+        if c.is_valid:
+            continue
+        print >> sys.stderr, "Remove {0}".format(c)
+        newagp.convert_to_gap(cid, verbose=True)
 
     # Update all ranges that has modified clr
     for a in newagp:
@@ -972,7 +930,7 @@ def overlap(args):
 
     assert op.exists(afasta) and op.exists(bfasta)
 
-    cmd = "blastn"
+    cmd = "blastn -dust no"
     cmd += " -query {0} -subject {1}".format(afasta, bfasta)
     cmd += " -evalue {0} -outfmt 6 -perc_identity {1}".format(evalue, pctid)
 

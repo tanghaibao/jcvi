@@ -234,7 +234,7 @@ def removecontains(args):
         iid = int(row.split()[0])
         s.add(iid)
 
-    cmd = "gatekeeper -dumpfragments -lastfragiid asm.gkpStore"
+    cmd = "gatekeeper -dumpfragments -lastfragiid {}".format(gkpStore)
     gkpmsg = popen(cmd).read()
     last_iid = int(gkpmsg.strip().split()[-1])
 

@@ -992,6 +992,8 @@ def setop(args):
 
     Please quote the argument to avoid shell interpreting | and &.
     """
+    from jcvi.utils.natsort import natsorted
+
     p = OptionParser(setop.__doc__)
     p.add_option("--column", default=0, type="int",
                  help="The column to extract, 0-based, -1 to disable [default: %default]")
@@ -1017,7 +1019,7 @@ def setop(args):
     elif op == '^':
         t = fa ^ fb
 
-    for x in sorted(t):
+    for x in natsorted(t):
         print x
 
 

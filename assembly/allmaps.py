@@ -859,6 +859,8 @@ def split(args):
     p = OptionParser(split.__doc__)
     p.add_option("--chunk", default=4, type="int",
                  help="Split chunks of at least N markers")
+    p.add_option("--splitsingle", default=False, action="store_true",
+                 help="Split breakpoint range right in the middle")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -866,7 +868,9 @@ def split(args):
 
     inputbed, = args
     bonus = 2
-    penalty = -(opts.chunk * bonus - 1)
+    nchunk = opts.chunk
+    nbreaks = 0
+    penalty = -(nchunk * bonus - 1)
     bed = Bed(inputbed)
     for seqid, bb in bed.sub_beds():
         markers = [Marker(x) for x in bb]
@@ -876,8 +880,14 @@ def split(args):
                 continue
             assert mi.seqid == mj.seqid
             start, end = mi.pos, mj.pos
-            assert start < end
-            print "\t".join(str(x) for x in (mi.seqid, start, end))
+            if start > end:
+                start, end = end, start
+            if opts.splitsingle:
+                start = end = (start + end) / 2
+            print "\t".join(str(x) for x in (mi.seqid, start - 1, end))
+            nbreaks += 1
+    logging.debug("A total of {} breakpoints inferred (--chunk={})".\
+                    format(nbreaks, nchunk))
 
 
 def animation(args):

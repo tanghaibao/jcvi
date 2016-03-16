@@ -1174,8 +1174,11 @@ def path(args):
     p.add_option("--gapsize", default=100, type="int",
                  help="Insert gaps of size between scaffolds")
     p.add_option("--seqid", help="Only run partition with this seqid")
+    p.add_option("--partitions", help="Use predefined partitions of LGs")
     p.add_option("--links", default=10, type="int",
                  help="Only plot matchings more than")
+    p.add_option("--mincount", default=1, type="int",
+                 help="Minimum markers on a contig")
     p.add_option("--noplot", default=False, action="store_true",
                  help="Do not visualize the alignments")
     p.add_option("--skipconcorde", default=False, action="store_true",
@@ -1203,7 +1206,9 @@ def path(args):
     pf = inputbed.rsplit(".", 1)[0]
     bedfile = pf + ".bed"
     weightsfile = opts.weightsfile
+    partitionsfile = opts.partitions
     gapsize = opts.gapsize
+    mincount = opts.mincount
     skipconcorde = opts.skipconcorde
     ngen = opts.ngen
     npop = opts.npop
@@ -1234,28 +1239,34 @@ def path(args):
     for mlg in cc.mlgs:
         C.join(mlg)
 
-    logging.debug("Partition LGs based on {0}".format(ref))
-    for mapname in mapnames:
-        if mapname == ref:
-            continue
-        # Compute co-occurrence between LG pairs
-        G = defaultdict(int)
-        for s in allseqids:
-            s = Scaffold(s, cc)
-            s.add_LG_pairs(G, (ref, mapname))
-        # Convert edge list to adj list
-        nodes = defaultdict(list)
-        for (a, b), w in G.items():
-            nodes[a].append((b, w))
-        # Find the best ref LG every non-ref LG matches to
-        for n, neighbors in nodes.items():
-            if n.split("-")[0] == ref:
+    if partitionsfile:
+        logging.debug("Partition LGs based on `{}`".format(partitionsfile))
+        fp = open(partitionsfile)
+        for row in fp:
+            C.join(*row.strip().split(","))
+    else:
+        logging.debug("Partition LGs based on {0}".format(ref))
+        for mapname in mapnames:
+            if mapname == ref:
                 continue
-            neighbors = dict(neighbors)
-            best_neighbor, best_value = best_no_ambiguous(neighbors, n)
-            if best_neighbor is None:
-                continue
-            C.join(n, best_neighbor)
+            # Compute co-occurrence between LG pairs
+            G = defaultdict(int)
+            for s in allseqids:
+                s = Scaffold(s, cc)
+                s.add_LG_pairs(G, (ref, mapname))
+            # Convert edge list to adj list
+            nodes = defaultdict(list)
+            for (a, b), w in G.items():
+                nodes[a].append((b, w))
+            # Find the best ref LG every non-ref LG matches to
+            for n, neighbors in nodes.items():
+                if n.split("-")[0] == ref:
+                    continue
+                neighbors = dict(neighbors)
+                best_neighbor, best_value = best_no_ambiguous(neighbors, n)
+                if best_neighbor is None:
+                    continue
+                C.join(n, best_neighbor)
 
     partitions = defaultdict(list)
     # Partition the scaffolds and assign them to one consensus
@@ -1269,6 +1280,8 @@ def path(args):
             mw = weights[mapname]
             if consensus not in counts:
                 counts[consensus] = 0
+            if count < mincount:
+                continue
             counts[consensus] += count * mw
         best_consensus, best_value = best_no_ambiguous(counts, seqid)
         if best_consensus is None:

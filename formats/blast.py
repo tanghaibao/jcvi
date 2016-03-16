@@ -1095,6 +1095,8 @@ def bed(args):
     Print out bed file based on coordinates in BLAST report. By default, write
     out subject positions. Use --swap to write query positions.
     """
+    from jcvi.formats.bed import sort as bed_sort
+
     p = OptionParser(bed.__doc__)
     p.add_option("--swap", default=False, action="store_true",
                  help="Write query positions [default: %default]")
@@ -1117,6 +1119,8 @@ def bed(args):
         print >> fw, b.bedline
 
     logging.debug("File written to `{0}`.".format(bedfile))
+    fw.close()
+    bed_sort([bedfile, "-i"])
 
     return bedfile
 

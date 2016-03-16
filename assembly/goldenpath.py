@@ -603,7 +603,7 @@ def populate_blastfile(blastfile, agp, outdir, opts):
     for a, b, qreverse in agp.iter_paired_components():
         aid = a.component_id
         bid = b.component_id
-        oopts = get_overlap_opts(aid, bid, outdir, opts)
+        oopts = get_overlap_opts(aid, bid, qreverse, outdir, opts)
         all_oopts.append(oopts)
 
     pool = WriteJobs(overlap_blastline_writer, all_oopts, \

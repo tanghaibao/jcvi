@@ -10,6 +10,7 @@ import logging
 
 from string import maketrans
 from itertools import groupby, combinations
+from collections import defaultdict
 
 from jcvi.formats.blast import BlastSlow, Blast
 from jcvi.formats.sizes import Sizes
@@ -34,6 +35,7 @@ class OVLLine:
         self.overlap = int(args[5])
         self.pctid = float(args[6])
         self.score = int(self.overlap * self.pctid / 100)
+        self.best = None
 
     @property
     def tag(self):
@@ -50,6 +52,7 @@ class OVL (LineFile):
         super(OVL, self).__init__(filename)
         fp = must_open(filename)
         contained = set()
+        alledges = defaultdict(list)
         for row in fp:
             o = OVLLine(row)
             self.append(o)
@@ -57,12 +60,23 @@ class OVL (LineFile):
                 contained.add(o.a)
             elif o.tag == "b in a":
                 contained.add(o.b)
+            if o.tag == "a->b":
+                alledges[o.a + "-3`"].append(o)
+            elif o.tag == "b->a":
+                alledges[o.a + "-5`"].append(o)
         logging.debug("Imported {} links. Contained tigs: {}".\
                         format(len(self), len(contained)))
         self.contained = contained
 
+        logging.debug("Pruning edges to keep the mutual best")
+        for k, v in alledges.items():
+            bo = max(v, key=lambda x: x.score)
+            bo.best = True
+
         self.graph = BiGraph()
         for o in self:
+            if not o.best:
+                continue
             if o.tag == "a->b":
                 a, b = o.a, o.b
             elif o.tag == "b->a":

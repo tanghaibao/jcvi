@@ -400,9 +400,50 @@ def main():
         ('clr', 'extract clear range based on BEDPE'),
         ('chain', 'chain bed segments together'),
         ('density', 'calculates density of features per seqid'),
+        ('tiling', 'compute the minimum tiling path'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def tiling(args):
+    """
+    %prog tiling bedfile
+
+    Compute minimum tiling path using greedy algorithm. If the goal is to have
+    the least number of clone. It can be shown that the greedy algorithm is also
+    optimal.
+    """
+    p = OptionParser(tiling.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    bedfile, = args
+    bed = Bed(bedfile)
+    selected = []
+    for seqid, sbed in bed.sub_beds():
+        ubed = []
+        for start, b in groupby(sbed, key=lambda x: x.start):
+            ubed.append(max(b, key=lambda x: x.end))
+
+        current_end = ubed[0].end
+        stack = [ubed[0]]
+        selected.append(ubed[0])
+        for b in ubed[1:]:
+            if b.start > current_end:
+                mx = max(stack, key=lambda x: x.end)
+                selected.append(mx)
+                current_end = mx.end
+                stack = [b]
+            if b.end <= current_end:  # Contained
+                continue
+            stack.append(b)
+        selected.append(max(stack, key=lambda x: x.end))
+
+    for b in selected:
+        print b
 
 
 def chain(args):

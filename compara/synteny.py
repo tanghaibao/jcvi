@@ -9,7 +9,7 @@ import numpy as np
 from collections import defaultdict
 
 from jcvi.algorithms.lis import heaviest_increasing_subsequence as his
-from jcvi.formats.bed import Bed
+from jcvi.formats.bed import Bed, BedLine
 from jcvi.formats.blast import Blast
 from jcvi.formats.base import BaseFile, SetFile, read_block, must_open
 from jcvi.utils.grouper import Grouper
@@ -785,6 +785,8 @@ def simple(args):
                 help="Output additional columns [default: %default]")
     p.add_option("--coords", default=False, action="store_true",
                 help="Output columns with base coordinates [default: %default]")
+    p.add_option("--bed", default=False, action="store_true",
+                help="Generate BED file for the blocks")
     p.add_option("--noheader", default=False, action="store_true",
                 help="Don't output header [default: %default]")
     p.set_beds()
@@ -797,6 +799,10 @@ def simple(args):
     additional = opts.rich
     coords = opts.coords
     header = not opts.noheader
+    bed = opts.bed
+    if bed:
+        coords = True
+        bbed = Bed()
 
     ac = AnchorFile(anchorfile)
     simplefile = anchorfile.rsplit(".", 1)[0] + ".simple"
@@ -860,6 +866,12 @@ def simple(args):
             bargs = [block_id, bseqid, bstartbase, bendbase,
                      bbase, bstart, bend, bspan, orientation]
 
+            if bed:
+                bbed.append(BedLine("\t".join(str(x) for x in \
+                           (bseqid, bstartbase - 1, bendbase,
+                           "{}:{}-{}".format(aseqid, astartbase, aendbase),
+                           size, orientation))))
+
             for args in (aargs, bargs):
                 print >> fws, "\t".join(str(x) for x in args)
             continue
@@ -875,11 +887,16 @@ def simple(args):
 
     if coords:
         print >> sys.stderr, "Total block span in {0}: {1}".format(qbed.filename, \
-                        human_size(atotalbase, precision=0))
+                        human_size(atotalbase, precision=2))
         print >> sys.stderr, "Total block span in {0}: {1}".format(sbed.filename, \
-                        human_size(btotalbase, precision=0))
+                        human_size(btotalbase, precision=2))
         print >> sys.stderr, "Ratio: {0:.1f}x".format(\
                         max(atotalbase, btotalbase) * 1. / min(atotalbase, btotalbase))
+
+    if bed:
+        bedfile = simplefile + ".bed"
+        bbed.print_to_file(filename=bedfile, sorted=True)
+        logging.debug("Bed file written to `{}`".format(bedfile))
 
 
 def screen(args):

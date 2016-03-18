@@ -16,6 +16,7 @@ from jcvi.formats.base import LineFile, must_open, is_number, get_number
 from jcvi.formats.sizes import Sizes
 from jcvi.utils.iter import pairwise
 from jcvi.utils.cbook import SummaryStats, thousands, percentage
+from jcvi.utils.grouper import Grouper
 from jcvi.utils.natsort import natsort_key, natsorted
 from jcvi.utils.range import Range, range_union, range_chain, \
             range_distance, range_intersect
@@ -63,6 +64,8 @@ class BedLine(object):
 
         s = "\t".join(str(x) for x in args)
         return s
+
+    __repr__ = __str__
 
     def __getitem__(self, key):
         return getattr(self, key)
@@ -415,35 +418,71 @@ def tiling(args):
     optimal.
     """
     p = OptionParser(tiling.__doc__)
+    p.add_option("--overlap", default=3000, type="int",
+                 help="Minimum amount of overlaps required")
+    p.set_verbose()
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     bedfile, = args
+    ov = opts.overlap
+
     bed = Bed(bedfile)
-    selected = []
+    inf = len(bed)
+    selected = Bed()
     for seqid, sbed in bed.sub_beds():
-        ubed = []
-        for start, b in groupby(sbed, key=lambda x: x.start):
-            ubed.append(max(b, key=lambda x: x.end))
+        g = Grouper()
+        current = sbed[0]
+        # Partition connected features
+        for a in sbed:
+            g.join(a)
+            # requires a real overlap
+            if a.start < current.end - ov:
+                g.join(a, current)
+            if a.end > current.end:
+                current = a
 
-        current_end = ubed[0].end
-        stack = [ubed[0]]
-        selected.append(ubed[0])
-        for b in ubed[1:]:
-            if b.start > current_end:
-                mx = max(stack, key=lambda x: x.end)
-                selected.append(mx)
-                current_end = mx.end
-                stack = [b]
-            if b.end <= current_end:  # Contained
-                continue
-            stack.append(b)
-        selected.append(max(stack, key=lambda x: x.end))
+        # Process per partition
+        for gbed in g:
+            end = max(x.end for x in gbed)
+            gbed.sort(key=lambda x: (x.start, -x.end))
+            entries = len(gbed)
+            counts = [inf] * entries
+            counts[0] = 1
+            traceback = [-1] * entries
+            for i, a in enumerate(gbed):
+                for j in xrange(i + 1, entries):
+                    b = gbed[j]
+                    if b.start >= a.end - ov:
+                        break
+                    # Two ranges overlap!
+                    if counts[i] + 1 < counts[j]:
+                        counts[j] = counts[i] + 1
+                        traceback[j] = i
+            endi = [i for i, a in enumerate(gbed) if a.end == end]
+            last = min((traceback[i], i) for i in endi)[1]
+            chain = []
+            while last != -1:
+                chain.append(last)
+                last = traceback[last]
+            chain = chain[::-1]
+            selected.extend([gbed[x] for x in chain])
 
-    for b in selected:
-        print b
+            if opts.verbose:
+                print counts
+                print traceback
+                print chain
+                print "\n".join(str(x) for x in gbed)
+                print "*" * 30
+                print "\n".join(str(gbed[x]) for x in chain)
+                print
+
+    tilingbedfile = bedfile.rsplit(".", 1)[0] + ".tiling.bed"
+    selected.print_to_file(filename=tilingbedfile, sorted=True)
+    logging.debug("A total of {} tiling features written to `{}`"\
+                    .format(len(selected), tilingbedfile))
 
 
 def chain(args):
@@ -452,8 +491,6 @@ def chain(args):
 
     Chain BED segments together.
     """
-    from jcvi.utils.grouper import Grouper
-
     p = OptionParser(chain.__doc__)
     p.add_option("--dist", default=100000, help="Chaining distance")
     p.set_outfile()

@@ -413,9 +413,9 @@ def tiling(args):
     """
     %prog tiling bedfile
 
-    Compute minimum tiling path using greedy algorithm. If the goal is to have
-    the least number of clone. It can be shown that the greedy algorithm is also
-    optimal.
+    Compute minimum tiling path using as few clones as possible. Implemented
+    with dynamic programming. Greedy algorithm may also work according a
+    stackoverflow source.
     """
     p = OptionParser(tiling.__doc__)
     p.add_option("--overlap", default=3000, type="int",

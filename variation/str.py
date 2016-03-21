@@ -282,7 +282,7 @@ def mergecsv(args):
     fw.close()
 
 
-def write_csv_ev(filename, cleanup):
+def write_csv_ev(filename, store, cleanup):
     lv = LobSTRvcf()
     lv.parse(filename, cleanup=cleanup)
     lv.parse(filename.replace(".hg38.", ".hg38-named."), cleanup=cleanup)
@@ -296,21 +296,24 @@ def write_csv_ev(filename, cleanup):
     fw = open(evfile, "w")
     print >> fw, lv.evline
     fw.close()
-    #push_to_s3(store, csvfile)
-    #push_to_s3(store, evfile)
+
+    # Save to s3
+    push_to_s3(store, csvfile)
+    push_to_s3(store, evfile)
 
 
 def run(arg):
     filename, store, cleanup = arg
     csvfile = filename + ".csv"
-    evfile = filename + ".ev"
-    # TODO: wrap this in a try .. except block
-    #try:
-    if 1:
-        if not check_exists_s3(csvfile) and not check_exists_s3(evfile):
-            write_csv_ev(filename, cleanup)
-    #except:
-    #    logging.debug("Thread failed!")
+    #evfile = filename + ".ev"
+    try:
+        if check_exists_s3(csvfile):
+            logging.debug("{} exists. Skipped.".format(csvfile))
+        else:
+            write_csv_ev(filename, store, cleanup)
+            logging.debug("{} written and uploaded.".format(csvfile))
+    except:
+        logging.debug("Thread failed!")
 
 
 def compile(args):
@@ -335,8 +338,10 @@ def compile(args):
     samples, = args
     workdir = opts.workdir
     dbs = opts.db.split(",")
+    cwd = os.getcwd()
     mkdir(workdir)
     os.chdir(workdir)
+    samples = op.join(cwd, samples)
 
     stridsfile = "STR.ids"
     vcffiles = [x.strip() for x in must_open(samples)]

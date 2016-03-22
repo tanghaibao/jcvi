@@ -509,7 +509,7 @@ def calc(args):
         sys.exit(not p.print_help())
 
     output_h = must_open(opts.outfile, "w")
-    print >> output_h, header
+    print >> output_h, fields
     work_dir = op.join(opts.workdir, "syn_analysis")
     mkdir(work_dir)
 

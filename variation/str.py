@@ -239,6 +239,7 @@ def main():
     actions = (
         ('compile', "compile vcf results into master spreadsheet"),
         ('mergecsv', "combine csv into binary array"),
+        ('reformat', 'reformat binary array to master spreadsheet'),
         ('batchlobstr', "run batch lobSTR"),
         ('batchhtt', "run batch HTT caller"),
         ('htt', 'extract HTT region and run lobSTR'),
@@ -250,6 +251,21 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def reformat(args):
+    """
+    %prog reformat out.bin STR.ids samples.ids
+
+    Reformat binary array to master spreadsheet.
+    """
+    p = OptionParser(reformat.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    binfile, strids, sampleids = args
 
 
 def mergecsv(args):
@@ -269,7 +285,10 @@ def mergecsv(args):
     samplekeys = []
     for csvfile in csvfiles:
         samplekey = op.basename(csvfile).split(".")[0]
-        a = np.fromfile(csvfile, sep=",", dtype=np.int16)
+        a = np.fromfile(csvfile, sep=",", dtype=np.int32)
+        x1 = a[::2]
+        x2 = a[1::2]
+        a = x1 * 1000 + x2
         arrays.append(a)
         samplekeys.append(samplekey)
         print >> sys.stderr, samplekey, a

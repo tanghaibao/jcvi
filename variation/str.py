@@ -15,6 +15,8 @@ import pyfasta
 import numpy as np
 
 from math import log, ceil
+from collections import defaultdict
+
 from jcvi.utils.cbook import percentage, uniqify
 from jcvi.formats.bed import natsorted
 from jcvi.apps.grid import MakeManager
@@ -240,6 +242,7 @@ def main():
         ('compile', "compile vcf results into master spreadsheet"),
         ('mergecsv', "combine csv into binary array"),
         ('reformat', 'reformat binary array to master spreadsheet'),
+        ('filterloci', 'select subset of loci'),
         ('batchlobstr', "run batch lobSTR"),
         ('batchhtt', "run batch HTT caller"),
         ('htt', 'extract HTT region and run lobSTR'),
@@ -251,6 +254,118 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def filterloci(args):
+    """
+    %prog filterloci allele_freq STR-exons.wo.bed SAMPLES
+
+    Filter subset of loci that satisfy:
+    1. no redundancy (unique chr:pos)
+    2. variable (n_alleles > 1)
+    3. low level of missing data (>= 50% autosomal + X, > 25% for Y)
+
+    Write meta file with the following infor:
+    1. id
+    2. title
+    3. gene_name
+    4. variant_type
+    5. motif
+    6. allele_frequency
+
+    `STR-exons.wo.bed` can be generated like this:
+    $ tail -n 854476 /mnt/software/lobSTR-4.0.0/hg38/index.tab | cut -f1-3 > all-STR.bed
+    $ intersectBed -a all-STR.bed -b all-exons.bed -wo > STR-exons.wo.bed
+    """
+    p = OptionParser(filterloci.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    af, wobed, samples = args
+    nsamples = len([x.strip() for x in open(samples)])
+    nalleles = nsamples * 2
+    logging.debug("Load {} samples ({} alleles) from `{}`".\
+                    format(nsamples, nalleles, samples))
+
+    logging.debug("Load gene intersections from `{}`".format(wobed))
+    fp = open(wobed)
+    gene_map = defaultdict(set)
+    for row in fp:
+        chr1, start1, end1, chr2, start2, end2, name, ov = row.split()
+        gene_map[(chr1, start1)] |= set(name.split(","))
+    for k, v in gene_map.items():
+        non_enst = sorted(x for x in v if not x.startswith("ENST"))
+        enst = sorted(x.rsplit(".", 1)[0] for x in v if x.startswith("ENST"))
+        gene_map[k] = ",".join(non_enst + enst)
+
+    logging.debug("Filtering loci from `{}`".format(af))
+    fp = open(af)
+    treds = """chr19_45770205_CAG
+    chr6_170561926_CAG
+    chrX_67545318_CAG
+    chr9_69037287_GAA
+    chrX_147912051_CGG
+    chr4_3074877_CAG
+    chrX_148500639_CCG
+    chr12_6936729_CAG
+    chr13_70139384_CTG
+    chr6_16327636_CTG
+    chr14_92071011_CTG
+    chr12_111598951_CTG
+    chr3_63912686_CAG
+    chr19_13207859_CTG""".split()
+    seen = set(treds)
+    remove = []
+    fw = open("meta.tsv", "w")
+    header = "id title gene_name variant_type motif allele_frequency".\
+                replace(" ",  "\t")
+    print >> fw, header
+    variant_type = "short tandem repeats"
+    title = "Short tandem repeats ({})n"
+    for row in fp:
+        sname, counts = row.split()
+        name = sname.rsplit("_", 1)[0]
+        seqid, pos, motif = name.split("_")
+        if name in seen:
+            remove.append(sname)
+            continue
+        seen.add(name)
+        countst = [x for x in counts.strip("{}").split(",") if x]
+        countsd = {}
+        for x in countst:
+            a, b = x.split(":")
+            countsd[int(a)] = int(b)
+
+        if counts_filter(countsd, nalleles, seqid):
+            remove.append(sname)
+            continue
+
+        gene_name = gene_map.get((seqid, pos), "")
+        print >> fw, "\t".join((name, title.format(motif),
+                                gene_name, variant_type, motif, counts))
+    fw.close()
+
+    removeidsfile = "remove.ids"
+    fw = open(removeidsfile, "w")
+    print >> fw, "\n".join(remove)
+    fw.close()
+    logging.debug("A total of {} filtered loci written to `{}`".\
+                    format(len(remove), removeidsfile))
+
+
+def counts_filter(countsd, nalleles, seqid):
+    # Check for variability
+    if len(countsd) < 2:
+        return True
+
+    # Check for missingness
+    observed = sum(countsd.values())
+    observed_pct = observed * 100  / nalleles
+    if observed_pct < 50:
+        if not (seqid == "chrY" and observed_pct >= 25):
+            return True
 
 
 def reformat(args):
@@ -277,23 +392,18 @@ def reformat(args):
 
     m.resize(nsamples, nloci)
     df = pd.DataFrame(m, index=samples, columns=loci)
-    #mask = pd.DataFrame(0, index=samples, columns=loci)
 
-    default = "{:.6f}".format(1)
     fw = open("allele_freq", "w")
     for i, columnname in enumerate(loci):
         a = m[:, i]
-        a[a < 0] = 0
         counts = Counter()
         xa = a / 1000
         xb = a % 1000
         counts.update(xa)
         counts.update(xb)
-        del counts[0]
+        del counts[-1]
         s = 0
         af = "{" + ",".join("{}:{}".format(k, v) for k, v in sorted(counts.items())) + "}"
-        print "=" * 10, columnname, "=" * 10
-        print af
         print >> fw, "\t".join((columnname, af))
         percentile = {}
         for k, v in sorted(counts.items(), reverse=True):
@@ -302,11 +412,9 @@ def reformat(args):
         for k, v in percentile.items():
             v = "{:.6f}".format(v * 1. / s)
             percentile[k] = v
-        #mask[columnname] = [percentile.get(x, default) for x in xb]
 
     fw.close()
     df.to_csv("data.tsv", sep="\t", index_label="SampleKey")
-    #mask.to_csv("mask.tsv", sep="\t", index_label="SampleKey")
 
 
 def mergecsv(args):

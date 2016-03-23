@@ -13,6 +13,7 @@ import vcf
 import logging
 import pyfasta
 import numpy as np
+import pandas as pd
 
 from math import log, ceil
 from collections import defaultdict
@@ -241,8 +242,9 @@ def main():
     actions = (
         ('compile', "compile vcf results into master spreadsheet"),
         ('mergecsv', "combine csv into binary array"),
-        ('reformat', 'reformat binary array to master spreadsheet'),
-        ('filterloci', 'select subset of loci'),
+        ('count', 'count alleles in master spreadsheet'),
+        ('filterloci', 'select subset of loci based on allele counts'),
+        ('filterdata', 'select subset of data based on filtered loci'),
         ('batchlobstr', "run batch lobSTR"),
         ('batchhtt', "run batch HTT caller"),
         ('htt', 'extract HTT region and run lobSTR'),
@@ -254,6 +256,80 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def counts_to_percentile(counts):
+    percentile = {}
+    s = 0
+    for k, v in sorted(counts.items(), reverse=True):
+        s += v
+        percentile[k] = s
+    for k, v in percentile.items():
+        v = "{:.6f}".format(v * 1. / s)
+        percentile[k] = v
+    return percentile
+
+
+def filterdata(args):
+    """
+    %prog filterdata data.bin samples.ids STR.ids allele_freq remove.ids final.ids
+
+    Filter subset of data after dropping remove.ids.
+    """
+    p = OptionParser(filterdata.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 6:
+        sys.exit(not p.print_help())
+
+    binfile, sampleids, strids, af, remove, final = args
+    df, m, samples, loci = read_binfile(binfile, sampleids, strids)
+    remove = [x.strip() for x in open(remove)]
+    final = [x.strip() for x in open(final)]
+    assert len(loci) == len(remove) + len(final)
+
+    fp = open(af)
+    percentiles = {}
+    for row in fp:
+        sname, counts = row.split()
+        countst = [x for x in counts.strip("{}").split(",") if x]
+        countsd = {}
+        for x in countst:
+            a, b = x.split(":")
+            countsd[int(a)] = int(b)
+        percentile = counts_to_percentile(countsd)
+        percentiles[sname] = percentile
+
+    pvalues = []
+    default = "{:.6f}".format(1)
+    for i, sname in enumerate(loci):
+        a = m[:, i]
+        xb = a % 1000
+        percentile = percentiles[sname]
+        pp = np.array([percentile.get(x, default) for x in xb], dtype="S8")
+        if i % 1000 == 0:
+            print >> sys.stderr, i, sname
+            print >> sys.stderr, xb
+            print >> sys.stderr, pp
+        pvalues.append(pp)
+    mask = pd.concat(pvalues, axis=1)
+    mask.columns = loci
+
+    df.drop(remove, inplace=True, axis=1)
+    mask.drop(remove, inplace=True, axis=1)
+
+    # Save a copy of the raw numpy array
+    filtered_bin = "filtered.bin"
+    m = df.as_matrix()
+    m[m < 0] = -1
+    m.tofile(filtered_bin)
+    logging.debug("Binary matrix written to `{}`".format(filtered_bin))
+
+    # Write output
+    df.columns = final
+    df.to_csv("final.data.tsv", sep="\t", index_label="SampleKey")
+    mask.columns = final
+    mask.to_csv("final.mask.tsv", sep="\t", index_label="SampleKey")
 
 
 def filterloci(args):
@@ -328,10 +404,6 @@ def filterloci(args):
         sname, counts = row.split()
         name = sname.rsplit("_", 1)[0]
         seqid, pos, motif = name.split("_")
-        if name in seen:
-            remove.append(sname)
-            continue
-        seen.add(name)
         countst = [x for x in counts.strip("{}").split(",") if x]
         countsd = {}
         for x in countst:
@@ -341,6 +413,11 @@ def filterloci(args):
         if counts_filter(countsd, nalleles, seqid):
             remove.append(sname)
             continue
+
+        if name in seen:
+            remove.append(sname)
+            continue
+        seen.add(name)
 
         gene_name = gene_map.get((seqid, pos), "")
         print >> fw, "\t".join((name, title.format(motif),
@@ -368,22 +445,7 @@ def counts_filter(countsd, nalleles, seqid):
             return True
 
 
-def reformat(args):
-    """
-    %prog reformat data.bin STR.ids samples.ids
-
-    Reformat binary array to master spreadsheet.
-    """
-    import pandas as pd
-    from collections import Counter
-
-    p = OptionParser(reformat.__doc__)
-    opts, args = p.parse_args(args)
-
-    if len(args) != 3:
-        sys.exit(not p.print_help())
-
-    binfile, strids, sampleids = args
+def read_binfile(binfile, sampleids, strids):
     m = np.fromfile(binfile, dtype=np.int32)
     samples = [x.strip() for x in open(sampleids)]
     loci = [x.strip() for x in open(strids)]
@@ -392,7 +454,25 @@ def reformat(args):
 
     m.resize(nsamples, nloci)
     df = pd.DataFrame(m, index=samples, columns=loci)
+    return df, m, samples, loci
 
+
+def count(args):
+    """
+    %prog count data.bin samples.ids STR.ids
+
+    Count alleles in master spreadsheet per locus.
+    """
+    from collections import Counter
+
+    p = OptionParser(count.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    binfile, sampleids, strids = args
+    df, m, samples, loci = read_binfile(binfile, sampleids, strids)
     fw = open("allele_freq", "w")
     for i, columnname in enumerate(loci):
         a = m[:, i]
@@ -402,19 +482,9 @@ def reformat(args):
         counts.update(xa)
         counts.update(xb)
         del counts[-1]
-        s = 0
         af = "{" + ",".join("{}:{}".format(k, v) for k, v in sorted(counts.items())) + "}"
         print >> fw, "\t".join((columnname, af))
-        percentile = {}
-        for k, v in sorted(counts.items(), reverse=True):
-            s += v
-            percentile[k] = s
-        for k, v in percentile.items():
-            v = "{:.6f}".format(v * 1. / s)
-            percentile[k] = v
-
     fw.close()
-    df.to_csv("data.tsv", sep="\t", index_label="SampleKey")
 
 
 def mergecsv(args):

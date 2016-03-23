@@ -255,10 +255,13 @@ def main():
 
 def reformat(args):
     """
-    %prog reformat out.bin STR.ids samples.ids
+    %prog reformat data.bin STR.ids samples.ids
 
     Reformat binary array to master spreadsheet.
     """
+    import pandas as pd
+    from collections import Counter
+
     p = OptionParser(reformat.__doc__)
     opts, args = p.parse_args(args)
 
@@ -266,6 +269,44 @@ def reformat(args):
         sys.exit(not p.print_help())
 
     binfile, strids, sampleids = args
+    m = np.fromfile(binfile, dtype=np.int32)
+    samples = [x.strip() for x in open(sampleids)]
+    loci = [x.strip() for x in open(strids)]
+    nsamples, nloci = len(samples), len(loci)
+    print >> sys.stderr, "{} x {} entries imported".format(nsamples, nloci)
+
+    m.resize(nsamples, nloci)
+    df = pd.DataFrame(m, index=samples, columns=loci)
+    #mask = pd.DataFrame(0, index=samples, columns=loci)
+
+    default = "{:.6f}".format(1)
+    fw = open("allele_freq", "w")
+    for i, columnname in enumerate(loci):
+        a = m[:, i]
+        a[a < 0] = 0
+        counts = Counter()
+        xa = a / 1000
+        xb = a % 1000
+        counts.update(xa)
+        counts.update(xb)
+        del counts[0]
+        s = 0
+        af = "{" + ",".join("{}:{}".format(k, v) for k, v in sorted(counts.items())) + "}"
+        print "=" * 10, columnname, "=" * 10
+        print af
+        print >> fw, "\t".join((columnname, af))
+        percentile = {}
+        for k, v in sorted(counts.items(), reverse=True):
+            s += v
+            percentile[k] = s
+        for k, v in percentile.items():
+            v = "{:.6f}".format(v * 1. / s)
+            percentile[k] = v
+        #mask[columnname] = [percentile.get(x, default) for x in xb]
+
+    fw.close()
+    df.to_csv("data.tsv", sep="\t", index_label="SampleKey")
+    #mask.to_csv("mask.tsv", sep="\t", index_label="SampleKey")
 
 
 def mergecsv(args):
@@ -289,12 +330,13 @@ def mergecsv(args):
         x1 = a[::2]
         x2 = a[1::2]
         a = x1 * 1000 + x2
+        a[a < 0] = -1
         arrays.append(a)
         samplekeys.append(samplekey)
         print >> sys.stderr, samplekey, a
     print >> sys.stderr, "Merging"
     b = np.concatenate(arrays)
-    b.tofile("out.bin")
+    b.tofile("data.bin")
 
     fw = open("samples", "w")
     print >> fw, "\n".join(samplekeys)

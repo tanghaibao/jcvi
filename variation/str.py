@@ -17,6 +17,7 @@ import pandas as pd
 
 from math import log, ceil
 from collections import defaultdict
+from multiprocessing import Pool
 
 from jcvi.utils.cbook import percentage, uniqify
 from jcvi.formats.bed import natsorted
@@ -270,6 +271,25 @@ def counts_to_percentile(counts):
     return percentile
 
 
+def convert_to_percentile(arg):
+    i, a, percentile = arg
+    xb = a % 1000
+    pp = np.array([percentile.get(x, "1.000000") for x in xb], dtype="S8")
+    if i % 1000 == 0:
+        print >> sys.stderr, i
+        print >> sys.stderr, xb
+        print >> sys.stderr, pp
+    return i, pp
+
+
+def write_csv(csvfile, m, index, columns, sep="\t", index_label="SampleKey"):
+    fw = open(csvfile, "w")
+    print >> fw, "\t".join([index_label] + columns)
+    for i, a in enumerate(m):
+        print >> fw, index[i] + "\t" + "\t".join(str(x) for x in a)
+    fw.close()
+
+
 def filterdata(args):
     """
     %prog filterdata data.bin samples.ids STR.ids allele_freq remove.ids final.ids
@@ -277,6 +297,7 @@ def filterdata(args):
     Filter subset of data after dropping remove.ids.
     """
     p = OptionParser(filterdata.__doc__)
+    p.set_cpus()
     opts, args = p.parse_args(args)
 
     if len(args) != 6:
@@ -285,6 +306,7 @@ def filterdata(args):
     binfile, sampleids, strids, af, remove, final = args
     df, m, samples, loci = read_binfile(binfile, sampleids, strids)
     remove = [x.strip() for x in open(remove)]
+    removes = set(remove)
     final = [x.strip() for x in open(final)]
     assert len(loci) == len(remove) + len(final)
 
@@ -300,23 +322,27 @@ def filterdata(args):
         percentile = counts_to_percentile(countsd)
         percentiles[sname] = percentile
 
-    pvalues = []
-    default = "{:.6f}".format(1)
+    p = Pool(processes=opts.cpus)
+    run_args = []
     for i, sname in enumerate(loci):
+        if sname in removes:
+            continue
         a = m[:, i]
-        xb = a % 1000
         percentile = percentiles[sname]
-        pp = np.array([percentile.get(x, default) for x in xb], dtype="S8")
-        if i % 1000 == 0:
-            print >> sys.stderr, i, sname
-            print >> sys.stderr, xb
-            print >> sys.stderr, pp
-        pvalues.append(pp)
-    mask = pd.concat(pvalues, axis=1)
-    mask.columns = loci
+        run_args.append((i, a, percentile))
+
+    res = []
+    for r in p.map_async(convert_to_percentile, run_args).get():
+        res.append(r)
+    res.sort()
+
+    # Write mask (P-value) matrix
+    ii, pvalues = zip(*res)
+    m = np.vstack(pvalues).T
+    write_csv("final.mask.tsv", m, samples, final)
 
     df.drop(remove, inplace=True, axis=1)
-    mask.drop(remove, inplace=True, axis=1)
+    df.columns = final
 
     # Save a copy of the raw numpy array
     filtered_bin = "filtered.bin"
@@ -325,11 +351,8 @@ def filterdata(args):
     m.tofile(filtered_bin)
     logging.debug("Binary matrix written to `{}`".format(filtered_bin))
 
-    # Write output
-    df.columns = final
+    # Write data output
     df.to_csv("final.data.tsv", sep="\t", index_label="SampleKey")
-    mask.columns = final
-    mask.to_csv("final.mask.tsv", sep="\t", index_label="SampleKey")
 
 
 def filterloci(args):
@@ -561,8 +584,6 @@ def compile(args):
 
     Compile vcf results into master spreadsheet.
     """
-    from multiprocessing import Pool
-
     p = OptionParser(compile.__doc__)
     p.add_option("--db", default="hg38,hg38-named",
                  help="Use these lobSTR db")
@@ -605,7 +626,6 @@ def compile(args):
 
     p = Pool(processes=opts.cpus)
     run_args = [(x, opts.store, opts.cleanup) for x in vcffiles]
-    #run(run_args[0])
     for res in p.map_async(run, run_args).get():
         continue
 

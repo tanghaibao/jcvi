@@ -75,7 +75,7 @@ DYS635 DYS643 GATA-H4
 
 class STRLine(object):
 
-    def __init__(self, line, named=False):
+    def __init__(self, line):
         args = line.split()
         self.seqid = args[0]
         self.start = int(args[1])
@@ -93,10 +93,7 @@ class STRLine(object):
         self.entropy = float(args[13])
         self.motif = args[14]
         assert self.period == len(self.motif)
-        if named:
-            self.name = args[15] if len(args) == 16 else None
-        else:
-            self.name = None
+        self.name = args[15] if len(args) > 15 else None
 
     def __str__(self):
         fields = [self.seqid, self.start, self.end,
@@ -110,12 +107,8 @@ class STRLine(object):
 
     @property
     def longname(self):
-        name = "_".join(str(x) for x in \
-                    (self.seqid, self.start, self.motif,
-                    int(float(self.copynum))))
-        if self.name is not None:
-            name += "_" + self.name
-        return name
+        return "_".join(str(x) for x in \
+                    (self.seqid, self.start, self.motif))
 
     def is_valid(self, maxperiod=6, maxlength=READLEN, minscore=MINSCORE):
         return 1 <= self.period <= maxperiod and \
@@ -547,7 +540,6 @@ def mergecsv(args):
 def write_csv_ev(filename, store, cleanup):
     lv = LobSTRvcf()
     lv.parse(filename, cleanup=cleanup)
-    lv.parse(filename.replace(".hg38.", ".hg38-named."), cleanup=cleanup)
 
     csvfile = op.basename(filename) + ".csv"
     fw = open(csvfile, "w")
@@ -585,8 +577,7 @@ def compile(args):
     Compile vcf results into master spreadsheet.
     """
     p = OptionParser(compile.__doc__)
-    p.add_option("--db", default="hg38,hg38-named",
-                 help="Use these lobSTR db")
+    p.add_option("--db", default="hg38", help="Use these lobSTR db")
     p.set_home("lobstr")
     p.set_cpus()
     p.set_aws_opts(store="hli-mv-data-science/htang/str")
@@ -840,14 +831,13 @@ def batchlobstr(args):
         sample, s3file = row.strip().split(",")[:2]
         bamfile = s3file.replace(".gz", "").replace(".vcf", ".bam")
 
-        gzfile = sample + ".{0}.vcf.gz".format("hg38-named")
+        gzfile = sample + ".{0}.vcf.gz".format("hg38")
         if gzfile in computed:
             skipped += 1
             continue
 
         print opts.sep.join("python -m jcvi.variation.str lobstr".split() + \
-                            [bamfile, "hg38", "hg38-named",
-                            "--prefix", sample,
+                            [bamfile, "hg38", "--prefix", sample,
                             "--workdir", opts.workdir, "--cleanup"])
     fp.close()
     logging.debug("Total skipped: {0}".format(percentage(skipped, total)))

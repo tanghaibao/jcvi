@@ -279,7 +279,7 @@ def bin(args):
     fp.next()
     arrays = []
     for i, row in enumerate(fp):
-        a = np.fromstring(row, sep="\t", dtype=np.float32)
+        a = np.fromstring(row, sep="\t", dtype=dtype)
         a = a[1:]
         arrays.append(a)
         print >> sys.stderr, i, a
@@ -500,8 +500,8 @@ def counts_filter(countsd, nalleles, seqid):
             return True
 
 
-def read_binfile(binfile, sampleids, strids):
-    m = np.fromfile(binfile, dtype=np.int32)
+def read_binfile(binfile, sampleids, strids, dtype=np.int32):
+    m = np.fromfile(binfile, dtype=dtype)
     samples = [x.strip() for x in open(sampleids)]
     loci = [x.strip() for x in open(strids)]
     nsamples, nloci = len(samples), len(loci)

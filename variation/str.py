@@ -235,6 +235,7 @@ def main():
 
     actions = (
         ('compile', "compile vcf results into master spreadsheet"),
+        ('bin', 'convert tsv to binary format'),
         ('mergecsv', "combine csv into binary array"),
         ('count', 'count alleles in master spreadsheet'),
         ('filterloci', 'select subset of loci based on allele counts'),
@@ -250,6 +251,44 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def bin(args):
+    """
+    %prog bin data.tsv
+
+    Conver tsv to binary format.
+    """
+    p = OptionParser(bin.__doc__)
+    p.add_option("--dtype", choices=("float32", "int32"),
+                 help="dtype of the matrix")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    tsvfile, = args
+    dtype = opts.dtype
+    if dtype is None:  # Guess
+        dtype = np.int32 if "data" in tsvfile else np.float32
+    else:
+        dtype = np.int32 if dtype == "int32" else np.float32
+
+    print >> sys.stderr, "dtype: {}".format(dtype)
+    fp = open(tsvfile)
+    fp.next()
+    arrays = []
+    for i, row in enumerate(fp):
+        a = np.fromstring(row, sep="\t", dtype=np.float32)
+        a = a[1:]
+        arrays.append(a)
+        print >> sys.stderr, i, a
+
+    print >> sys.stderr, "Merging"
+    b = np.concatenate(arrays)
+    print >> sys.stderr, "Binary shape: {}".format(b.shape)
+    binfile = tsvfile.rsplit(".", 1)[0] + ".bin"
+    b.tofile(binfile)
 
 
 def counts_to_percentile(counts):

@@ -605,8 +605,8 @@ def run(arg):
         else:
             write_csv_ev(filename, store, cleanup)
             logging.debug("{} written and uploaded.".format(csvfile))
-    except:
-        logging.debug("Thread failed!")
+    except Exception, e:
+        logging.debug("Thread failed! Error: {}".format(e))
 
 
 def compile(args):
@@ -644,14 +644,6 @@ def compile(args):
 
         fw = open(stridsfile, "w")
         print >> fw, "\n".join(uids)
-        fw.close()
-
-        # Generate two alleles
-        dipuids = []
-        for uid in uids:
-            dipuids.extend([uid + ".1", uid + ".2"])
-        fw = open("header.ids", "w")
-        print >> fw, ",".join(dipuids)
         fw.close()
 
     p = Pool(processes=opts.cpus)

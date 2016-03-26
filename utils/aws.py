@@ -18,8 +18,9 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, popen, sh
 def main():
 
     actions = (
-        ('ls', 'list files with support for wildcards'),
         ('cp', 'copy files with support for wildcards'),
+        ('ls', 'list files with support for wildcards'),
+        ('rm', 'remove files with support for wildcards'),
         ('role', 'change aws role'),
             )
     p = ActionDispatcher(actions)
@@ -36,6 +37,29 @@ def glob_s3(store, keys=None):
 
     filtered = ["/".join((store, x)) for x in filtered]
     return filtered
+
+
+def rm_s3(store):
+    cmd = "aws s3 rm {}".format(store)
+    sh(cmd)
+
+
+def rm(args):
+    """
+    %prog rm "s3://hli-mv-data-science/htang/str/*.csv"
+
+    Remove a bunch of files.
+    """
+    p = OptionParser(rm.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    store, = args
+    contents = glob_s3(store)
+    for c in contents:
+        rm_s3(c)
 
 
 def cp(args):

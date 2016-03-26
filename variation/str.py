@@ -869,7 +869,8 @@ def batchlobstr(args):
 
         print opts.sep.join("python -m jcvi.variation.str lobstr".split() + \
                             [bamfile, "hg38", "--prefix", sample,
-                            "--workdir", opts.workdir, "--cleanup"])
+                            "--workdir", opts.workdir, "--cleanup",
+                            "--store", opts.store])
     fp.close()
     logging.debug("Total skipped: {0}".format(percentage(skipped, total)))
 

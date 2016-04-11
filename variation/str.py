@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 
 from math import log, ceil
-from collections import defaultdict
+from collections import Counter, defaultdict
 from multiprocessing import Pool
 
 from jcvi.utils.cbook import percentage, uniqify
@@ -189,8 +189,7 @@ class LobSTRvcf(dict):
             ref = float(info["REF"])
             rpa = info.get("RPA", ref)
             motif = info["MOTIF"]
-            name = "_".join(str(x) for x in (record.CHROM, record.POS,
-                                             motif, int(ref)))
+            name = "_".join(str(x) for x in (record.CHROM, record.POS, motif))
             for sample in record.samples:
                 gt = sample["GT"]
                 if gt == "0/0":
@@ -237,7 +236,7 @@ def main():
         ('compile', "compile vcf results into master spreadsheet"),
         ('bin', 'convert tsv to binary format'),
         ('mergecsv', "combine csv into binary array"),
-        ('count', 'count alleles in master spreadsheet'),
+        ('mask', 'compute P-values based on meta and data'),
         ('filterloci', 'select subset of loci based on allele counts'),
         ('filterdata', 'select subset of data based on filtered loci'),
         ('batchlobstr', "run batch lobSTR"),
@@ -251,6 +250,60 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def mask(args):
+    """
+    %prog mask meta.tsv data.bin samples.ids STR.ids
+
+    Compute P-values based on meta and data. Write mask.bin and a new meta.tsv
+    with updated counts.
+    """
+    p = OptionParser(mask.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 4:
+        sys.exit(not p.print_help())
+
+    metafile, databin, sampleids, strids = args
+    df, m, samples, loci = read_binfile(databin, sampleids, strids)
+    sf = pd.read_csv(metafile, index_col=0, sep="\t")
+    #print sf[["id", "allele_frequency"]]
+    for i, locus in enumerate(loci):
+        a = m[:, i]
+        print locus, a
+        counts = alleles_to_counts(a)
+        p_counts = af_to_counts(sf.ix[locus]["allele_frequency"])
+        print "before:", counts
+        counts.update(p_counts)
+        af = counts_to_af(counts)
+        print "after:", counts
+        if i > 30:
+            return
+
+
+def alleles_to_counts(a):
+    counts = Counter()
+    xa = a / 1000
+    xb = a % 1000
+    counts.update(xa)
+    counts.update(xb)
+    del counts[-1]
+    del counts[999]
+    return counts
+
+
+def counts_to_af(counts):
+    return "{" + ",".join("{}:{}".format(k, v) for k, v in sorted(counts.items())) + "}"
+
+
+def af_to_counts(af):
+    countst = [x for x in af.strip("{}").split(",") if x]
+    countsd = {}
+    for x in countst:
+        a, b = x.split(":")
+        countsd[int(a)] = int(b)
+    return countsd
 
 
 def bin(args):
@@ -346,11 +399,7 @@ def filterdata(args):
     percentiles = {}
     for row in fp:
         sname, counts = row.split()
-        countst = [x for x in counts.strip("{}").split(",") if x]
-        countsd = {}
-        for x in countst:
-            a, b = x.split(":")
-            countsd[int(a)] = int(b)
+        countsd = af_to_counts(counts)
         percentile = counts_to_percentile(countsd)
         percentiles[sname] = percentile
 
@@ -510,36 +559,6 @@ def read_binfile(binfile, sampleids, strids, dtype=np.int32):
     m.resize(nsamples, nloci)
     df = pd.DataFrame(m, index=samples, columns=loci)
     return df, m, samples, loci
-
-
-def count(args):
-    """
-    %prog count data.bin samples.ids STR.ids
-
-    Count alleles in master spreadsheet per locus.
-    """
-    from collections import Counter
-
-    p = OptionParser(count.__doc__)
-    opts, args = p.parse_args(args)
-
-    if len(args) != 3:
-        sys.exit(not p.print_help())
-
-    binfile, sampleids, strids = args
-    df, m, samples, loci = read_binfile(binfile, sampleids, strids)
-    fw = open("allele_freq", "w")
-    for i, columnname in enumerate(loci):
-        a = m[:, i]
-        counts = Counter()
-        xa = a / 1000
-        xb = a % 1000
-        counts.update(xa)
-        counts.update(xb)
-        del counts[-1]
-        af = "{" + ",".join("{}:{}".format(k, v) for k, v in sorted(counts.items())) + "}"
-        print >> fw, "\t".join((columnname, af))
-    fw.close()
 
 
 def mergecsv(args):
@@ -824,7 +843,7 @@ def trf(args):
         cmd1 = "trf {0} {1} -d -h".format(fastafile, " ".join(params))
         datfile = op.basename(fastafile) + "." + ".".join(params) + ".dat"
         bedfile = "{0}.trf.bed".format(pf)
-        cmd2 = "cat {0} | awk '($9 >0)' | sed 's/ /\\t/g'".format(datfile)
+        cmd2 = "cat {0} | awk '($9 >= 0)' | sed 's/ /\\t/g'".format(datfile)
         cmd2 += " | awk '{{print \"{0}\\t\" $0}}' > {1}".format(pf, bedfile)
         mm.add(fastafile, datfile, cmd1)
         mm.add(datfile, bedfile, cmd2)

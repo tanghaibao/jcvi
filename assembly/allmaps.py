@@ -1031,6 +1031,12 @@ def estimategaps(args):
     reindex([outagpfile, "--inplace"])
 
 
+def filename_to_mapname(filename):
+    # Infer map name based on file name
+    mapname = op.basename(filename).split(".")[0]
+    return mapname.replace("-", "_").replace(":", "_")
+
+
 def merge(args):
     """
     %prog merge map1 map2 map3 ...
@@ -1059,7 +1065,7 @@ def merge(args):
     b = Bed()
     mapnames = set()
     for row in fp:
-        mapname = fp.filename().split(".")[0]
+        mapname = filename_to_mapname(fp.filename())
         mapnames.add(mapname)
         try:
             m = CSVMapLine(row, mapname=mapname)
@@ -1100,7 +1106,7 @@ def mergebed(args):
     b = Bed()
     mapnames = set()
     for row in fp:
-        mapname = fp.filename().split(".")[0]
+        mapname = filename_to_mapname(fp.filename())
         mapnames.add(mapname)
         try:
             m = BedLine(row)

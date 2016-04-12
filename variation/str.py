@@ -28,7 +28,7 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, sh
 
 
 READLEN = 150
-MINSCORE = 30
+MINSCORE = 40
 YSEARCH_HAPLOTYPE = """
 DYS393  DYS390 DYS19/DYS394  DYS19b        DYS391        DYS385a       DYS385b DYS426  DYS388  DYS439
 DYS389I DYS392 DYS389B       DYS458        DYS459a/b     DYS459a/b     DYS455  DYS454  DYS447  DYS437
@@ -71,6 +71,20 @@ DYS460 DYS481 DYS518 DYS533
 DYS549 DYS570 DYS576 DYS627
 DYS635 DYS643 GATA-H4
 """.split()
+TREDS = """chr19_45770205_CAG
+chr6_170561926_CAG
+chrX_67545318_CAG
+chr9_69037287_GAA
+chrX_147912051_CGG
+chr4_3074877_CAG
+chrX_148500639_CCG
+chr12_6936729_CAG
+chr13_70139384_CTG
+chr6_16327636_CTG
+chr14_92071011_CTG
+chr12_111598951_CTG
+chr3_63912686_CAG
+chr19_13207859_CTG""".split()
 
 
 class STRLine(object):
@@ -454,7 +468,7 @@ def filterloci(args):
     6. allele_frequency
 
     `STR-exons.wo.bed` can be generated like this:
-    $ tail -n 854476 /mnt/software/lobSTR-4.0.0/hg38/index.tab | cut -f1-3 > all-STR.bed
+    $ tail -n 854476 /mnt/software/lobSTR/hg38/index.tab | cut -f1-3 > all-STR.bed
     $ intersectBed -a all-STR.bed -b all-exons.bed -wo > STR-exons.wo.bed
     """
     p = OptionParser(filterloci.__doc__)
@@ -482,21 +496,7 @@ def filterloci(args):
 
     logging.debug("Filtering loci from `{}`".format(af))
     fp = open(af)
-    treds = """chr19_45770205_CAG
-    chr6_170561926_CAG
-    chrX_67545318_CAG
-    chr9_69037287_GAA
-    chrX_147912051_CGG
-    chr4_3074877_CAG
-    chrX_148500639_CCG
-    chr12_6936729_CAG
-    chr13_70139384_CTG
-    chr6_16327636_CTG
-    chr14_92071011_CTG
-    chr12_111598951_CTG
-    chr3_63912686_CAG
-    chr19_13207859_CTG""".split()
-    seen = set(treds)
+    seen = set(TREDS)
     remove = []
     fw = open("meta.tsv", "w")
     header = "id title gene_name variant_type motif allele_frequency".\
@@ -843,7 +843,8 @@ def trf(args):
         cmd1 = "trf {0} {1} -d -h".format(fastafile, " ".join(params))
         datfile = op.basename(fastafile) + "." + ".".join(params) + ".dat"
         bedfile = "{0}.trf.bed".format(pf)
-        cmd2 = "cat {0} | awk '($9 >= 0)' | sed 's/ /\\t/g'".format(datfile)
+        cmd2 = "cat {} | awk '($8 <= {} && $9 >= 0)'".format(datfile, READLEN)
+        cmd2 += " | sed 's/ /\\t/g'"
         cmd2 += " | awk '{{print \"{0}\\t\" $0}}' > {1}".format(pf, bedfile)
         mm.add(fastafile, datfile, cmd1)
         mm.add(datfile, bedfile, cmd2)
@@ -979,6 +980,8 @@ def allelotype_on_chr(bamfile, chr, lhome, lbidx):
     cmd += " --index-prefix {0}/{1}/lobSTR_".format(lhome, lbidx)
     cmd += " --chrom chr{0} --out {1}.{2}".format(chr, outfile, lbidx)
     cmd += " --max-diff-ref {0}".format(READLEN)
+    cmd += " --realign --filter-mapq0 --filter-clipped"
+    cmd += " --max-repeats-in-ends 3 --min-read-end-matcch 10"
     cmd += " --haploid chrY"
     return cmd, ".".join((outfile, lbidx, "vcf"))
 
@@ -1042,8 +1045,6 @@ def lobstrindex(args):
     by str().
     """
     p = OptionParser(lobstrindex.__doc__)
-    p.add_option("--fixseq", action="store_true", default=False,
-                 help="Scan sequences to extract perfect STRs")
     p.set_home("lobstr")
     opts, args = p.parse_args(args)
 
@@ -1054,24 +1055,22 @@ def lobstrindex(args):
     lhome = opts.lobstr_home
     mkdir(pf)
 
-    if opts.fixseq:
-        genome = pyfasta.Fasta(fastafile)
-        newbedfile = trfbed + ".new"
-        newbed = open(newbedfile, "w")
-        fp = open(trfbed)
-        retained = total = 0
-        for row in fp:
-            s = STRLine(row)
-            total += 1
-            for ns in s.iter_exact_str(genome):
-                if not ns.is_valid():
-                    continue
-                print >> newbed, ns
-                retained += 1
-        newbed.close()
-        logging.debug("Retained: {0}".format(percentage(retained, total)))
-    else:
-        newbedfile = trfbed
+    newbedfile = trfbed + ".new"
+    newbed = open(newbedfile, "w")
+    fp = open(trfbed)
+    retained = total = 0
+    seen = set(TREDS)
+    for row in fp:
+        r = STRLine(row)
+        total += 1
+        name = r.longname
+        if name in seen:
+            continue
+        seen.add(name)
+        print >> newbed, r
+        retained += 1
+    newbed.close()
+    logging.debug("Retained: {0}".format(percentage(retained, total)))
 
     mm = MakeManager()
     cmd = "python {0}/scripts/lobstr_index.py".format(lhome)
@@ -1084,7 +1083,7 @@ def lobstrindex(args):
     mm.add((newbedfile, fastafile), tabfile, cmd)
 
     infofile = "{0}/index.info".format(pf)
-    cmd = "cp {0} {1}".format(trfbed, infofile)
+    cmd = "cp {0} {1}".format(newbedfile, infofile)
     mm.add(trfbed, infofile, cmd)
     mm.write()
 

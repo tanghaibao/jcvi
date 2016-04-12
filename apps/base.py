@@ -586,7 +586,7 @@ class OptionParser (OptionP):
                    "eddyyeh": "/home/shared/scripts/eddyyeh",
                    "fiona": "~/export/fiona-0.2.0-Linux-x86_64",
                    "fermi": "~/export/fermi",
-                   "lobstr": "/mnt/software/lobSTR-4.0.0",
+                   "lobstr": "/mnt/software/lobSTR",
                    "shapeit": "/mnt/software/shapeit",
                    "impute": "/mnt/software/impute",
                    "beagle": "java -jar /mnt/software/beagle.14Jan16.841.jar",

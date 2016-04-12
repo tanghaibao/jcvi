@@ -617,7 +617,6 @@ def write_csv_ev(filename, store, cleanup):
 def run(arg):
     filename, store, cleanup = arg
     csvfile = filename + ".csv"
-    #evfile = filename + ".ev"
     try:
         if check_exists_s3(csvfile):
             logging.debug("{} exists. Skipped.".format(csvfile))
@@ -638,7 +637,7 @@ def compile(args):
     p.add_option("--db", default="hg38", help="Use these lobSTR db")
     p.set_home("lobstr")
     p.set_cpus()
-    p.set_aws_opts(store="hli-mv-data-science/htang/str")
+    p.set_aws_opts(store="hli-mv-data-science/htang/str-data")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -646,6 +645,8 @@ def compile(args):
 
     samples, = args
     workdir = opts.workdir
+    store = opts.output_path
+    cleanup = not opts.nocleanup
     dbs = opts.db.split(",")
     cwd = os.getcwd()
     mkdir(workdir)
@@ -666,7 +667,7 @@ def compile(args):
         fw.close()
 
     p = Pool(processes=opts.cpus)
-    run_args = [(x, opts.store, opts.cleanup) for x in vcffiles]
+    run_args = [(x, store, cleanup) for x in vcffiles]
     for res in p.map_async(run, run_args).get():
         continue
 
@@ -866,20 +867,22 @@ def batchlobstr(args):
     """
     p = OptionParser(batchlobstr.__doc__)
     p.add_option("--sep", default=",", help="Separator for building commandline")
-    p.set_aws_opts(store="hli-mv-data-science/htang/str")
+    p.set_home("lobstr", default="s3://hli-mv-data-science/htang/str-build/lobSTR/")
+    p.set_aws_opts(store="hli-mv-data-science/htang/str-data")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     samplesfile, = args
-    store = opts.store
+    store = opts.output_path
     computed = ls_s3(store)
     fp = open(samplesfile)
     skipped = total = 0
     for row in fp:
         total += 1
         sample, s3file = row.strip().split(",")[:2]
+        exec_id, sample_id = sample.split("_")
         bamfile = s3file.replace(".gz", "").replace(".vcf", ".bam")
 
         gzfile = sample + ".{0}.vcf.gz".format("hg38")
@@ -888,36 +891,40 @@ def batchlobstr(args):
             continue
 
         print opts.sep.join("python -m jcvi.variation.str lobstr".split() + \
-                            [bamfile, "hg38", "--prefix", sample,
-                            "--workdir", opts.workdir, "--cleanup",
-                            "--store", opts.store])
+                            ["hg38",
+                            "--input_bam_path", bamfile,
+                            "--output_path", store,
+                            "--sample_id", sample_id,
+                            "--workflow_execution_id", exec_id,
+                            "--lobstr_home", opts.lobstr_home,
+                            "--workdir", opts.workdir])
     fp.close()
     logging.debug("Total skipped: {0}".format(percentage(skipped, total)))
 
 
 def lobstr(args):
     """
-    %prog lobstr bamfile lobstr_index1 lobstr_index2 ...
+    %prog lobstr lobstr_index1 lobstr_index2 ...
 
     Run lobSTR on a big BAM file. There can be multiple lobSTR indices. In
     addition, bamfile can be S3 location and --lobstr_home can be S3 location
-    (e.g.  s3://hli-mv-data-science/htang/str-build/lobSTR/)
+    (e.g. s3://hli-mv-data-science/htang/str-build/lobSTR/)
     """
     p = OptionParser(lobstr.__doc__)
     p.add_option("--chr", help="Run only this chromosome")
-    p.add_option("--prefix", help="Use prefix file name")
-    p.set_home("lobstr")
+    p.set_home("lobstr", default="s3://hli-mv-data-science/htang/str-build/lobSTR/")
     p.set_cpus()
-    p.set_aws_opts(store="hli-mv-data-science/htang/str")
+    p.set_aws_opts(store="hli-mv-data-science/htang/str-data")
     opts, args = p.parse_args(args)
+    bamfile = opts.input_bam_path
 
-    if len(args) < 2:
+    if len(args) < 1 or bamfile is None:
         sys.exit(not p.print_help())
 
-    bamfile = args[0]
-    lbindices = args[1:]
+    lbindices = args
     s3mode = bamfile.startswith("s3")
-    store = opts.store
+    store = opts.output_path
+    cleanup = not opts.nocleanup
     workdir = opts.workdir
     mkdir(workdir)
     os.chdir(workdir)
@@ -926,10 +933,16 @@ def lobstr(args):
     if lhome.startswith("s3://"):
         lhome = pull_from_s3(lhome, overwrite=False)
 
-    pf = opts.prefix or bamfile.split("/")[-1].split(".")[0]
+    exec_id, sample_id = opts.workflow_execution_id, opts.sample_id
+    prefix = [x for x in (exec_id, sample_id) if x]
+    if prefix:
+        pf = "_".join(prefix)
+    else:
+        pf = bamfile.split("/")[-1].split(".")[0]
+
     if s3mode:
         gzfile = pf + ".{0}.vcf.gz".format(lbindices[-1])
-        remotegzfile = "s3://{0}/{1}".format(store, gzfile)
+        remotegzfile = "{0}/{1}".format(store, gzfile)
         if check_exists_s3(remotegzfile):
             logging.debug("Object `{0}` exists. Computation skipped."\
                             .format(remotegzfile))
@@ -956,37 +969,43 @@ def lobstr(args):
         bamfile = localbamfile
 
     chrs = [opts.chr] if opts.chr else (range(1, 23) + ["X", "Y"])
+    ofiles = []
     for lbidx in lbindices:
-        mm = MakeManager(filename="makefile.{0}".format(lbidx))
+        makefile = "makefile.{0}".format(lbidx)
+        ofiles.append(makefile)
+        mm = MakeManager(filename=makefile)
+        ofiles.append(bamfile)
         vcffiles = []
         for chr in chrs:
             cmd, vcffile = allelotype_on_chr(bamfile, chr, lhome, lbidx)
             mm.add(bamfile, vcffile, cmd)
             vcffiles.append(vcffile)
+            ofiles.append(vcffile)
 
         gzfile = bamfile.split(".")[0] + ".{0}.vcf.gz".format(lbidx)
         cmd = "vcf-concat {0} | vcf-sort".format(" ".join(vcffiles))
         cmd += " | bgzip -c > {0}".format(gzfile)
         mm.add(vcffiles, gzfile, cmd)
         mm.run(cpus=opts.cpus)
+        ofiles.append(gzfile)
 
         if s3mode:
             push_to_s3(store, gzfile)
 
-    if opts.cleanup:
-        sh("rm -f *")
+    if cleanup:
+        sh("rm -f {} *.bai *.stats".format(" ".join(ofiles)))
 
 
 def allelotype_on_chr(bamfile, chr, lhome, lbidx):
     outfile = "{0}.chr{1}".format(bamfile.split(".")[0], chr)
-    cmd = "allelotype --command classify --bam {1}".format(lhome, bamfile)
+    cmd = "allelotype --command classify --bam {}".format(bamfile)
     cmd += " --noise_model {0}/models/illumina_v3.pcrfree".format(lhome)
     cmd += " --strinfo {0}/{1}/index.tab".format(lhome, lbidx)
     cmd += " --index-prefix {0}/{1}/lobSTR_".format(lhome, lbidx)
     cmd += " --chrom chr{0} --out {1}.{2}".format(chr, outfile, lbidx)
     cmd += " --max-diff-ref {0}".format(READLEN)
     cmd += " --realign --filter-mapq0 --filter-clipped"
-    cmd += " --max-repeats-in-ends 3 --min-read-end-matcch 10"
+    cmd += " --max-repeats-in-ends 3 --min-read-end-match 10"
     cmd += " --haploid chrY"
     return cmd, ".".join((outfile, lbidx, "vcf"))
 

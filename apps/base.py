@@ -239,12 +239,18 @@ class OptionParser (OptionP):
                 help="Specify port number [default: %default]")
 
     def set_aws_opts(self, store="hli-mv-data-science/htang"):
-        group = OptionGroup(self, "AWS options")
+        from jcvi.utils.aws import s3ify
+        store = s3ify(store)
+        group = OptionGroup(self, "AWS and Docker options")
         self.add_option_group(group)
-        group.add_option("--store", default=store, help="AWS store name")
+        # https://github.com/hlids/infrastructure/wiki/Docker-calling-convention
+        group.add_option("--sample_id", help="Sample ID")
+        group.add_option("--workflow_execution_id", help="Workflow execution ID")
+        group.add_option("--input_bam_path", help="Input BAM location (s3 ok)")
+        group.add_option("--output_path", default=store, help="Output s3 path")
         group.add_option("--workdir", default=os.getcwd(), help="Specify work dir")
-        group.add_option("--cleanup", default=False, action="store_true",
-                     help="Clean up the directory contents after done")
+        group.add_option("--nocleanup", default=False, action="store_true",
+                     help="Don't clean up after done")
 
     def set_stripnames(self, default=True):
         if default:

@@ -120,12 +120,18 @@ def push_to_s3(s3_store, obj_name):
     return s3address
 
 
-def pull_from_s3(s3_store, file_name=None):
+def pull_from_s3(s3_store, file_name=None, overwrite=True):
+    is_dir = s3_store.endswith("/")
+    if is_dir:
+        s3_store = s3_store.rstrip("/")
     file_name = file_name or s3_store.split("/")[-1]
     if not op.exists(file_name):
         s3_store = s3ify(s3_store)
-        cmd = "aws s3 cp {0} {1} --sse".format(s3_store, file_name)
-        sh(cmd)
+        if overwrite or (not op.exists(file_name)):
+            cmd = "aws s3 cp {0} {1} --sse".format(s3_store, file_name)
+            if is_dir:
+                cmd += " --recursive"
+            sh(cmd)
     return op.abspath(file_name)
 
 

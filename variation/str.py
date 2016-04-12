@@ -899,7 +899,9 @@ def lobstr(args):
     """
     %prog lobstr bamfile lobstr_index1 lobstr_index2 ...
 
-    Run lobSTR on a big BAM file. There can be multiple lobSTR indices.
+    Run lobSTR on a big BAM file. There can be multiple lobSTR indices. In
+    addition, bamfile can be S3 location and --lobstr_home can be S3 location
+    (e.g.  s3://hli-mv-data-science/htang/str-build/lobSTR/)
     """
     p = OptionParser(lobstr.__doc__)
     p.add_option("--chr", help="Run only this chromosome")
@@ -919,6 +921,10 @@ def lobstr(args):
     workdir = opts.workdir
     mkdir(workdir)
     os.chdir(workdir)
+
+    lhome = opts.lobstr_home
+    if lhome.startswith("s3://"):
+        lhome = pull_from_s3(lhome, overwrite=False)
 
     pf = opts.prefix or bamfile.split("/")[-1].split(".")[0]
     if s3mode:
@@ -949,7 +955,6 @@ def lobstr(args):
                     sh("samtools index {0}".format(localbamfile))
         bamfile = localbamfile
 
-    lhome = opts.lobstr_home
     chrs = [opts.chr] if opts.chr else (range(1, 23) + ["X", "Y"])
     for lbidx in lbindices:
         mm = MakeManager(filename="makefile.{0}".format(lbidx))

@@ -192,17 +192,19 @@ class LobSTRvcf(dict):
         fp = open(columnidsfile)
         self.columns = [x.strip() for x in fp]
         self.evidence = {}  # name: (supporting reads, stutter reads)
-        logging.debug("A total of {} markers imported".format(len(self.columns)))
+        logging.debug("A total of {} markers imported from `{}`".\
+                        format(len(self.columns), columnidsfile))
 
     def parse(self, filename, cleanup=False):
         self.samplekey = op.basename(filename).split(".")[0]
         filtered = ".filtered." in filename
-        logging.debug("VCF file is filtered, only retain PASS calls")
+        if filtered:
+            logging.debug("VCF file is filtered, only retain PASS calls")
         fp = must_open(filename)
         reader = vcf.Reader(fp)
         for record in reader:
             info = record.INFO
-            ref = int(float(info["REF"]))
+            ref = float(info["REF"])
             rpa = info.get("RPA", ref)
             motif = info["MOTIF"]
             name = "_".join(str(x) for x in (record.CHROM, record.POS, motif))
@@ -277,7 +279,7 @@ def main():
 
 def run_filter(arg):
     vcffile, lhome = arg
-    filteredvcf = vcffile.replace(".vcf.gz", ".filtered.vcf.gz")
+    filteredvcf = vcffile.replace(".vcf", ".filtered.vcf")
     if need_update(vcffile, filteredvcf):
         cmd = "python {}/scripts/lobSTR_filter_vcf.py".format(lhome)
         cmd += " --vcf {}".format(vcffile)
@@ -293,7 +295,8 @@ def filtervcf(args):
     """
     %prog filtervcf NA12878.hg38.vcf.gz
 
-    Filter lobSTR VCF using script shipped in lobSTR.
+    Filter lobSTR VCF using script shipped in lobSTR. Input file can be a list
+    of vcf files.
     """
     p = OptionParser(filtervcf.__doc__)
     p.set_home("lobstr", default="/mnt/software/lobSTR")
@@ -305,10 +308,16 @@ def filtervcf(args):
 
     samples, = args
     lhome = opts.lobstr_home
-    vcffiles = [x.strip() for x in must_open(samples)]
+    if samples.endswith(".vcf") or samples.endswith(".vcf.gz"):
+        vcffiles = [samples]
+    else:
+        vcffiles = [x.strip() for x in must_open(samples)]
 
-    p = Pool(processes=opts.cpus)
+    vcffiles = [x for x in vcffiles if ".filtered." not in x]
+
     run_args = [(x, lhome) for x in vcffiles]
+    cpus = min(opts.cpus, len(run_args))
+    p = Pool(processes=cpus)
     for res in p.map_async(run_filter, run_args).get():
         continue
 
@@ -464,7 +473,6 @@ def filterdata(args):
         percentile = counts_to_percentile(countsd)
         percentiles[sname] = percentile
 
-    p = Pool(processes=opts.cpus)
     run_args = []
     for i, sname in enumerate(loci):
         if sname in removes:
@@ -473,6 +481,8 @@ def filterdata(args):
         percentile = percentiles[sname]
         run_args.append((i, a, percentile))
 
+    cpus = min(opts.cpus, len(run_args))
+    p = Pool(processes=cpus)
     res = []
     for r in p.map_async(convert_to_percentile, run_args).get():
         res.append(r)
@@ -718,8 +728,9 @@ def compilevcf(args):
         print >> fw, "\n".join(uids)
         fw.close()
 
-    p = Pool(processes=opts.cpus)
     run_args = [(x, cleanup, store) for x in vcffiles]
+    cpus = min(opts.cpus, len(run_args))
+    p = Pool(processes=cpus)
     for res in p.map_async(run_compile, run_args).get():
         continue
 
@@ -1021,31 +1032,32 @@ def lobstr(args):
         bamfile = localbamfile
 
     chrs = [opts.chr] if opts.chr else (range(1, 23) + ["X", "Y"])
-    ofiles = []
     for lbidx in lbindices:
         makefile = "makefile.{0}".format(lbidx)
-        ofiles.append(makefile)
         mm = MakeManager(filename=makefile)
-        ofiles.append(bamfile)
         vcffiles = []
         for chr in chrs:
             cmd, vcffile = allelotype_on_chr(bamfile, chr, lhome, lbidx)
             mm.add(bamfile, vcffile, cmd)
-            vcffiles.append(vcffile)
-            ofiles.append(vcffile)
+            filteredvcffile = vcffile.replace(".vcf", ".filtered.vcf")
+            cmd = "python -m jcvi.variation.str filtervcf {}".format(vcffile)
+            cmd += " --lobstr_home {}".format(lhome)
+            mm.add(vcffile, filteredvcffile, cmd)
+            vcffiles.append(filteredvcffile)
 
         gzfile = bamfile.split(".")[0] + ".{0}.vcf.gz".format(lbidx)
         cmd = "vcf-concat {0} | vcf-sort".format(" ".join(vcffiles))
         cmd += " | bgzip -c > {0}".format(gzfile)
         mm.add(vcffiles, gzfile, cmd)
+
         mm.run(cpus=opts.cpus)
-        ofiles.append(gzfile)
 
         if s3mode:
             push_to_s3(store, gzfile)
 
     if cleanup:
-        sh("rm -f {} *.bai *.stats".format(" ".join(ofiles)))
+        mm.clean()
+        sh("rm -f {} {} *.bai *.stats".format(bamfile, mm.makefile))
 
 
 def allelotype_on_chr(bamfile, chr, lhome, lbidx):
@@ -1056,8 +1068,7 @@ def allelotype_on_chr(bamfile, chr, lhome, lbidx):
     cmd += " --index-prefix {0}/{1}/lobSTR_".format(lhome, lbidx)
     cmd += " --chrom chr{0} --out {1}.{2}".format(chr, outfile, lbidx)
     cmd += " --max-diff-ref {0}".format(READLEN)
-    cmd += " --realign --filter-mapq0 --filter-clipped"
-    cmd += " --max-repeats-in-ends 3 --min-read-end-match 10"
+    cmd += " --realign"
     cmd += " --haploid chrY"
     return cmd, ".".join((outfile, lbidx, "vcf"))
 

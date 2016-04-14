@@ -80,6 +80,10 @@ class MakeManager (list):
         cmd = "make -j {0} -f {1}".format(cpus, self.makefile)
         sh(cmd)
 
+    def clean(self):
+        cmd = "make clean -f {}".format(self.makefile)
+        sh(cmd)
+
 
 class Jobs (list):
     """

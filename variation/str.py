@@ -276,18 +276,39 @@ def main():
     p.dispatch(globals())
 
 
-def run_filter(arg):
-    vcffile, lhome = arg
-    filteredvcf = vcffile.replace(".vcf", ".filtered.vcf")
-    if need_update(vcffile, filteredvcf):
-        cmd = "python {}/scripts/lobSTR_filter_vcf.py".format(lhome)
-        cmd += " --vcf {}".format(vcffile)
-        cmd += " --loc-cov 5 --loc-log-score 0.8"
-        cmd += " --loc-call-rate 0.8 --loc-max-ref-length 80"
-        cmd += " --call-cov 5 --call-log-score 0.8 --call-dist-end 20"
-        sh(cmd, outfile=filteredvcf)
+def write_filtered(vcffile, lhome, store=None):
+    if vcffile.startswith("s3://"):
+        vcffile = pull_from_s3(vcffile)
+
+    filteredvcf = op.basename(vcffile).replace(".vcf", ".filtered.vcf")
+    cmd = "python {}/scripts/lobSTR_filter_vcf.py".format(lhome)
+    cmd += " --vcf {}".format(vcffile)
+    cmd += " --loc-cov 5 --loc-log-score 0.8"
+    cmd += " --loc-call-rate 0.8 --loc-max-ref-length 80"
+    cmd += " --call-cov 5 --call-log-score 0.8 --call-dist-end 20"
+    sh(cmd, outfile=filteredvcf)
+
+    if store:
+        push_to_s3(store, filteredvcf)
 
     return filteredvcf
+
+
+def run_filter(arg):
+    vcffile, lhome, store = arg
+    filteredvcf = vcffile.replace(".vcf", ".filtered.vcf")
+    try:
+        if vcffile.startswith("s3://"):
+            if check_exists_s3(filteredvcf):
+                logging.debug("{} exists. Skipped.".format(filteredvcf))
+            else:
+                write_filtered(vcffile, lhome, store=store)
+                logging.debug("{} written and uploaded.".format(filteredvcf))
+        else:
+            if need_update(vcffile, filteredvcf):
+                write_filtered(vcffile, lhome, store=None)
+    except Exception, e:
+        logging.debug("Thread failed! Error: {}".format(e))
 
 
 def filtervcf(args):
@@ -299,6 +320,7 @@ def filtervcf(args):
     """
     p = OptionParser(filtervcf.__doc__)
     p.set_home("lobstr", default="/mnt/software/lobSTR")
+    p.set_aws_opts(store="hli-mv-data-science/htang/str")
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -307,6 +329,8 @@ def filtervcf(args):
 
     samples, = args
     lhome = opts.lobstr_home
+    store = opts.output_path
+
     if samples.endswith(".vcf") or samples.endswith(".vcf.gz"):
         vcffiles = [samples]
     else:
@@ -314,7 +338,7 @@ def filtervcf(args):
 
     vcffiles = [x for x in vcffiles if ".filtered." not in x]
 
-    run_args = [(x, lhome) for x in vcffiles]
+    run_args = [(x, lhome, x.startswith("s3://") and store) for x in vcffiles]
     cpus = min(opts.cpus, len(run_args))
     p = Pool(processes=cpus)
     for res in p.map_async(run_filter, run_args).get():

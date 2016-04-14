@@ -195,9 +195,8 @@ class LobSTRvcf(dict):
         logging.debug("A total of {} markers imported from `{}`".\
                         format(len(self.columns), columnidsfile))
 
-    def parse(self, filename, cleanup=False):
+    def parse(self, filename, filtered=True, cleanup=False):
         self.samplekey = op.basename(filename).split(".")[0]
-        filtered = ".filtered." in filename
         if filtered:
             logging.debug("VCF file is filtered, only retain PASS calls")
         fp = must_open(filename)
@@ -652,9 +651,9 @@ def mergecsv(args):
     fw.close()
 
 
-def write_csv_ev(filename, cleanup, store=None):
+def write_csv_ev(filename, filtered, cleanup, store=None):
     lv = LobSTRvcf()
-    lv.parse(filename, cleanup=cleanup)
+    lv.parse(filename, filtered=filtered, cleanup=cleanup)
 
     csvfile = op.basename(filename) + ".csv"
     fw = open(csvfile, "w")
@@ -673,18 +672,18 @@ def write_csv_ev(filename, cleanup, store=None):
 
 
 def run_compile(arg):
-    filename, cleanup, store = arg
+    filename, filtered, cleanup, store = arg
     csvfile = filename + ".csv"
     try:
         if filename.startswith("s3://"):
             if check_exists_s3(csvfile):
                 logging.debug("{} exists. Skipped.".format(csvfile))
             else:
-                write_csv_ev(filename, cleanup, store=store)
+                write_csv_ev(filename, filtered, cleanup, store=store)
                 logging.debug("{} written and uploaded.".format(csvfile))
         else:
             if need_update(filename, csvfile):
-                write_csv_ev(filename, cleanup, store=None)
+                write_csv_ev(filename, filtered, cleanup, store=None)
     except Exception, e:
         logging.debug("Thread failed! Error: {}".format(e))
 
@@ -697,6 +696,8 @@ def compilevcf(args):
     """
     p = OptionParser(compilevcf.__doc__)
     p.add_option("--db", default="hg38", help="Use these lobSTR db")
+    p.add_option("--nofilter", default=False, action="store_true",
+                 help="Do not filter the variants")
     p.set_home("lobstr")
     p.set_cpus()
     p.set_aws_opts(store="hli-mv-data-science/htang/str-data")
@@ -709,6 +710,7 @@ def compilevcf(args):
     workdir = opts.workdir
     store = opts.output_path
     cleanup = not opts.nocleanup
+    filtered = not opts.nofilter
     dbs = opts.db.split(",")
     cwd = os.getcwd()
     mkdir(workdir)
@@ -728,7 +730,7 @@ def compilevcf(args):
         print >> fw, "\n".join(uids)
         fw.close()
 
-    run_args = [(x, cleanup, store) for x in vcffiles]
+    run_args = [(x, filtered, cleanup, store) for x in vcffiles]
     cpus = min(opts.cpus, len(run_args))
     p = Pool(processes=cpus)
     for res in p.map_async(run_compile, run_args).get():

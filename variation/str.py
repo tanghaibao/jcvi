@@ -24,7 +24,7 @@ from jcvi.formats.bed import natsorted
 from jcvi.apps.grid import MakeManager
 from jcvi.formats.base import LineFile, must_open
 from jcvi.utils.aws import push_to_s3, pull_from_s3, check_exists_s3, ls_s3
-from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, sh
+from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, need_update, sh
 
 
 READLEN = 150
@@ -196,16 +196,21 @@ class LobSTRvcf(dict):
 
     def parse(self, filename, cleanup=False):
         self.samplekey = op.basename(filename).split(".")[0]
+        filtered = ".filtered." in filename
+        logging.debug("VCF file is filtered, only retain PASS calls")
         fp = must_open(filename)
         reader = vcf.Reader(fp)
         for record in reader:
             info = record.INFO
-            ref = float(info["REF"])
+            ref = int(float(info["REF"]))
             rpa = info.get("RPA", ref)
             motif = info["MOTIF"]
             name = "_".join(str(x) for x in (record.CHROM, record.POS, motif))
             for sample in record.samples:
                 gt = sample["GT"]
+                ft = sample["FT"] if filtered else "PASS"
+                if ft != "PASS":
+                    continue
                 if gt == "0/0":
                     alleles = (ref, ref)
                 elif gt in ("0/1", "1/0"):
@@ -247,23 +252,65 @@ class LobSTRvcf(dict):
 def main():
 
     actions = (
-        ('compile', "compile vcf results into master spreadsheet"),
+        # Compile population data
         ('bin', 'convert tsv to binary format'),
-        ('mergecsv', "combine csv into binary array"),
         ('mask', 'compute P-values based on meta and data'),
         ('filterloci', 'select subset of loci based on allele counts'),
         ('filterdata', 'select subset of data based on filtered loci'),
+        ('filtervcf', 'filter lobSTR VCF'),
+        ('compilevcf', "compile vcf results into master spreadsheet"),
+        ('mergecsv', "combine csv into binary array"),
+        # lobSTR related
+        ('lobstrindex', 'make lobSTR index'),
         ('batchlobstr', "run batch lobSTR"),
+        ('lobstr', 'run lobSTR on a big BAM'),
         ('batchhtt', "run batch HTT caller"),
         ('htt', 'extract HTT region and run lobSTR'),
+        # Specific markers
         ('liftover', 'liftOver CODIS/Y-STR markers'),
-        ('lobstr', 'run lobSTR on a big BAM'),
-        ('lobstrindex', 'make lobSTR index'),
         ('trf', 'run TRF on FASTA files'),
         ('ystr', 'print out Y-STR info given VCF'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def run_filter(arg):
+    vcffile, lhome = arg
+    filteredvcf = vcffile.replace(".vcf.gz", ".filtered.vcf.gz")
+    if need_update(vcffile, filteredvcf):
+        cmd = "python {}/scripts/lobSTR_filter_vcf.py".format(lhome)
+        cmd += " --vcf {}".format(vcffile)
+        cmd += " --loc-cov 5 --loc-log-score 0.8"
+        cmd += " --loc-call-rate 0.8 --loc-max-ref-length 80"
+        cmd += " --call-cov 5 --call-log-score 0.8 --call-dist-end 20"
+        sh(cmd, outfile=filteredvcf)
+
+    return filteredvcf
+
+
+def filtervcf(args):
+    """
+    %prog filtervcf NA12878.hg38.vcf.gz
+
+    Filter lobSTR VCF using script shipped in lobSTR.
+    """
+    p = OptionParser(filtervcf.__doc__)
+    p.set_home("lobstr", default="/mnt/software/lobSTR")
+    p.set_cpus()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    samples, = args
+    lhome = opts.lobstr_home
+    vcffiles = [x.strip() for x in must_open(samples)]
+
+    p = Pool(processes=opts.cpus)
+    run_args = [(x, lhome) for x in vcffiles]
+    for res in p.map_async(run_filter, run_args).get():
+        continue
 
 
 def mask(args):
@@ -595,7 +642,7 @@ def mergecsv(args):
     fw.close()
 
 
-def write_csv_ev(filename, store, cleanup):
+def write_csv_ev(filename, cleanup, store=None):
     lv = LobSTRvcf()
     lv.parse(filename, cleanup=cleanup)
 
@@ -610,30 +657,35 @@ def write_csv_ev(filename, store, cleanup):
     fw.close()
 
     # Save to s3
-    push_to_s3(store, csvfile)
-    push_to_s3(store, evfile)
+    if store:
+        push_to_s3(store, csvfile)
+        push_to_s3(store, evfile)
 
 
-def run(arg):
-    filename, store, cleanup = arg
+def run_compile(arg):
+    filename, cleanup, store = arg
     csvfile = filename + ".csv"
     try:
-        if check_exists_s3(csvfile):
-            logging.debug("{} exists. Skipped.".format(csvfile))
+        if filename.startswith("s3://"):
+            if check_exists_s3(csvfile):
+                logging.debug("{} exists. Skipped.".format(csvfile))
+            else:
+                write_csv_ev(filename, cleanup, store=store)
+                logging.debug("{} written and uploaded.".format(csvfile))
         else:
-            write_csv_ev(filename, store, cleanup)
-            logging.debug("{} written and uploaded.".format(csvfile))
+            if need_update(filename, csvfile):
+                write_csv_ev(filename, cleanup, store=None)
     except Exception, e:
         logging.debug("Thread failed! Error: {}".format(e))
 
 
-def compile(args):
+def compilevcf(args):
     """
-    %prog compile samples.csv
+    %prog compilevcf samples.csv
 
     Compile vcf results into master spreadsheet.
     """
-    p = OptionParser(compile.__doc__)
+    p = OptionParser(compilevcf.__doc__)
     p.add_option("--db", default="hg38", help="Use these lobSTR db")
     p.set_home("lobstr")
     p.set_cpus()
@@ -667,8 +719,8 @@ def compile(args):
         fw.close()
 
     p = Pool(processes=opts.cpus)
-    run_args = [(x, store, cleanup) for x in vcffiles]
-    for res in p.map_async(run, run_args).get():
+    run_args = [(x, cleanup, store) for x in vcffiles]
+    for res in p.map_async(run_compile, run_args).get():
         continue
 
 

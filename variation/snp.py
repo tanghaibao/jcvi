@@ -66,7 +66,7 @@ def mappability(args):
     mm.add(mapb, wig, cmd)
 
     bw = mer + ".bw"
-    cmd = "wigToBigWig {} {}.sizes {}".format(wig, pf, bw)
+    cmd = "wigToBigWig {} {}.sizes {}".format(wig, mer, bw)
     mm.add(wig, bw, cmd)
 
     bg = mer + ".bedGraph"

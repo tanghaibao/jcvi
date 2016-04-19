@@ -73,6 +73,10 @@ def mappability(args):
     cmd = "bigWigToBedGraph {} {}".format(bw, bg)
     mm.add(bw, bg, cmd)
 
+    merged = mer + ".filtered-1.merge.bed"
+    cmd = "python -m jcvi.formats.bed filterbedgraph {} 1".format(bg)
+    mm.add(bg, merged, cmd)
+
     mm.write()
 
 

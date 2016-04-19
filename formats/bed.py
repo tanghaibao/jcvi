@@ -395,7 +395,8 @@ def main():
         ('flanking', 'get n flanking features for a given position'),
         ('some', 'get a subset of bed features given a list'),
         ('fix', 'fix non-standard bed files'),
-        ('filter', 'filter the bedfile to retain records between size range'),
+        ('filter', 'filter bedfile to retain records between size range'),
+        ('filterbedgraph', 'filter bedgraph to extract unique regions'),
         ('random', 'extract a random subset of features'),
         ('juncs', 'trim junctions.bed overhang to get intron, merge multiple beds'),
         ('seqids', 'print out all seqids on one line'),
@@ -407,6 +408,39 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def filterbedgraph(args):
+    """
+    %prog filterbedgraph a.bedgraph 1
+
+    Filter the bedGraph, typically from the gem-mappability pipeline. Unique
+    regions are 1, two copies .5, etc.
+    """
+    p = OptionParser(filterbedgraph.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    bedgraphfile, cutoff = args
+    c = float(cutoff)
+    fp = open(bedgraphfile)
+    pf = bedgraphfile.rsplit(".", 1)[0]
+    filteredbed = pf + ".filtered-{}.bed".format(cutoff)
+    fw = open(filteredbed, "w")
+    nfiltered = ntotal = 0
+    for row in fp:
+        b = BedLine(row)
+        ntotal += 1
+        if float(b.accn) >= c:
+            print >> fw, b
+            nfiltered += 1
+    fw.close()
+    logging.debug("A total of {} intervals (score  >= {}) written to `{}`".\
+                    format(percentage(nfiltered, ntotal), cutoff, filteredbed))
+
+    mergeBed(filteredbed, sorted=True, delim=None)
 
 
 def tiling(args):
@@ -1434,7 +1468,8 @@ def mergeBed(bedfile, d=0, sorted=False, nms=False, s=False, scores=None, delim=
             scores = "mean"
         cmd += " -scores {0}".format(scores)
 
-    cmd += ' -delim "{0}"'.format(delim)
+    if delim:
+        cmd += ' -delim "{0}"'.format(delim)
 
     pf = bedfile.rsplit(".", 1)[0] if bedfile.endswith(".bed") else bedfile
     mergebedfile = op.basename(pf) + ".merge.bed"

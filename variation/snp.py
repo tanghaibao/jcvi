@@ -24,9 +24,56 @@ def main():
         ('mpileup', 'call snps using samtools-mpileup'),
         ('gatk', 'call snps using GATK'),
         ('somatic', 'generate series of SPEEDSESQ-somatic commands'),
+        ('mappability', 'generate 50mer mappability for reference genome'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def mappability(args):
+    """
+    %prog mappability reference.fasta
+
+    Generate 50mer mappability for reference genome. Commands are based on gem
+    mapper. See instructions:
+    <https://github.com/xuefzhao/Reference.Mappability>
+    """
+    p = OptionParser(mappability.__doc__)
+    p.add_option("--mer", default=50, type="int", help="User mer size")
+    p.set_cpus()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    ref, = args
+    K = opts.mer
+    pf = ref.rsplit(".", 1)[0]
+    mm = MakeManager()
+
+    gem = pf + ".gem"
+    cmd = "gem-indexer -i {} -o {}".format(ref, pf)
+    mm.add(ref, gem, cmd)
+
+    mer = pf + ".{}mer".format(K)
+    mapb = mer + ".mappability"
+    cmd = "gem-mappability -I {} -l {} -o {} -T {}".\
+                format(gem, K, mer, opts.cpus)
+    mm.add(gem, mapb, cmd)
+
+    wig = mer + ".wig"
+    cmd = "gem-2-wig -I {} -i {} -o {}".format(gem, mapb, mer)
+    mm.add(mapb, wig, cmd)
+
+    bw = mer + ".bw"
+    cmd = "wigToBigWig {} {}.sizes {}".format(wig, pf, bw)
+    mm.add(wig, bw, cmd)
+
+    bg = mer + ".bedGraph"
+    cmd = "bigWigToBedGraph {} {}".format(bw, bg)
+    mm.add(bw, bg, cmd)
+
+    mm.write()
 
 
 def gatk(args):

@@ -1178,7 +1178,7 @@ def allelotype_on_chr(bamfile, chr, lhome, lbidx):
 
 def batchhtt(args):
     """
-    %prog htt samples.csv
+    %prog htt samples.csv chr4:3070000-3080000
 
     Batch HTT caller. The samples are:
     SampleId,ExecID,Norm VCF,gVCF,BAM
@@ -1186,21 +1186,21 @@ def batchhtt(args):
     p = OptionParser(batchhtt.__doc__)
     opts, args = p.parse_args(args)
 
-    if len(args) != 1:
+    if len(args) != 2:
         sys.exit(not p.print_help())
 
-    samplesfile, = args
+    samplesfile, region = args
     fp = open(samplesfile)
     fp.next()  # header
     for row in fp:
         sample, ex, vcf, gvcf, bam = row.strip().split(",")
-        htt([bam])
+        htt([bam, region])
     fp.close()
 
 
 def htt(args):
     """
-    %prog htt bamfile
+    %prog htt bamfile chr4:3070000-3080000
 
     Extract HTT region and run lobSTR.
     """
@@ -1208,21 +1208,24 @@ def htt(args):
     p.set_home("lobstr")
     opts, args = p.parse_args(args)
 
-    if len(args) != 1:
+    if len(args) != 2:
         sys.exit(not p.print_help())
 
-    bamfile, = args
+    bamfile, region = args
     lhome = opts.lobstr_home
 
     minibamfile = bamfile.split("/")[-1]
-    cmd = "samtools view {0} chr4:3070000-3080000 -b".format(bamfile)
+    baifile = minibamfile + ".bai"
+    if op.exists(baifile):
+        sh("rm {}".format(baifile))
+    cmd = "samtools view {} {} -b".format(bamfile, region)
     cmd += " -o {0}".format(minibamfile)
     sh(cmd)
 
-    sh("rm {0}.bai".format(minibamfile))
     sh("samtools index {0}".format(minibamfile))
 
-    cmd = allelotype_on_chr(minibamfile, 4, lhome, "hg38-named")
+    c = region.split(":")[0].replace("chr", "")
+    cmd, vcf = allelotype_on_chr(minibamfile, c, lhome, "hg38")
     sh(cmd)
 
 

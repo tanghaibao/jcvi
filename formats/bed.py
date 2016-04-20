@@ -437,7 +437,7 @@ def filterbedgraph(args):
             print >> fw, b
             nfiltered += 1
     fw.close()
-    logging.debug("A total of {} intervals (score  >= {}) written to `{}`".\
+    logging.debug("A total of {} intervals (score >= {}) written to `{}`".\
                     format(percentage(nfiltered, ntotal), cutoff, filteredbed))
 
     mergeBed(filteredbed, sorted=True, delim=None)

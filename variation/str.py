@@ -195,19 +195,38 @@ class LobSTRvcf(dict):
         logging.debug("A total of {} markers imported from `{}`".\
                         format(len(self.columns), columnidsfile))
 
-    def parse(self, filename, filtered=True, cleanup=False):
+    def parse(self, filename, filtered=True, cleanup=False, stutter=False):
         self.samplekey = op.basename(filename).split(".")[0]
         if filtered:
             logging.debug("VCF file is filtered, only retain PASS calls")
         fp = must_open(filename)
         reader = vcf.Reader(fp)
         for record in reader:
+            if stutter and record.CHROM != "chrY":
+                continue
             info = record.INFO
             ref = float(info["REF"])
             rpa = info.get("RPA", ref)
             motif = info["MOTIF"]
             name = "_".join(str(x) for x in (record.CHROM, record.POS, motif))
             for sample in record.samples:
+                if stutter:
+                    dp = int(sample["DP"])
+                    if dp < 10:
+                        break
+                    allreads = sample["ALLREADS"]
+                    counts = []
+                    for r in allreads.split(";"):
+                        k, v = r.split("|")
+                        counts.append(int(v))
+                    mode = max(counts)
+                    st = dp - mode
+                    if st * 1. / dp > .2:
+                        break
+                    self.evidence[name] = "{},{}".format(st, dp)
+                    #print name, st, dp
+                    break
+
                 gt = sample["GT"]
                 ft = sample["FT"] if filtered else "PASS"
                 if ft != "PASS":
@@ -267,6 +286,7 @@ def main():
         ('lobstr', 'run lobSTR on a big BAM'),
         ('batchhtt', "run batch HTT caller"),
         ('htt', 'extract HTT region and run lobSTR'),
+        ('stutter', 'extract info from lobSTR vcf file'),
         # Specific markers
         ('liftover', 'liftOver CODIS/Y-STR markers'),
         ('trf', 'run TRF on FASTA files'),
@@ -274,6 +294,53 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def stutter(args):
+    """
+    %prog stutter a.vcf.gzi sample_id
+
+    Extract info from lobSTR vcf file. Generates a file that has the following
+    fields:
+
+    CHR, POS, MOTIF, RL, ALLREADS, Q
+    """
+    p = OptionParser(stutter.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    vcf, = args
+    pf = op.basename(vcf).split(".")[0]
+    execid, sampleid = pf.split("_")
+
+    C = "vcftools --remove-filtered-all --min-meanDP 10"
+    C += " --gzvcf {} --out {}".format(vcf, pf)
+    C += " --indv {}".format(sampleid)
+
+    info = pf + ".INFO"
+    if need_update(vcf, info):
+        cmd = C + " --get-INFO MOTIF --get-INFO RL"
+        sh(cmd)
+
+    allreads = pf + ".ALLREADS.FORMAT"
+    if need_update(vcf, allreads):
+        cmd = C + " --extract-FORMAT-info ALLREADS"
+        sh(cmd)
+
+    q = pf + ".Q.FORMAT"
+    if need_update(vcf, q):
+        cmd = C + " --extract-FORMAT-info Q"
+        sh(cmd)
+
+    outfile = pf + ".STUTTER"
+    if need_update((info, allreads, q), outfile):
+        cmd = "cut -f1,2,5,6 {}".format(info)
+        cmd += r" | sed -e 's/\t/_/g'"
+        cmd += " | paste - {} {}".format(allreads, q)
+        cmd += " | cut -f1,4,7"
+        sh(cmd, outfile=outfile)
 
 
 def write_filtered(vcffile, lhome, store=None):
@@ -675,16 +742,21 @@ def mergecsv(args):
     fw.close()
 
 
-def write_csv_ev(filename, filtered, cleanup, store=None):
+def write_csv_ev(filename, filtered, cleanup, store=None, stutter=False):
     lv = LobSTRvcf()
-    lv.parse(filename, filtered=filtered, cleanup=cleanup)
-
+    lv.parse(filename, filtered=filtered, cleanup=cleanup, stutter=stutter)
     csvfile = op.basename(filename) + ".csv"
+    evfile = op.basename(filename) + ".ev"
+    if stutter:
+        fw = open(evfile, "w")
+        print >> fw, lv.evline
+        fw.close()
+        return
+
     fw = open(csvfile, "w")
     print >> fw, lv.csvline
     fw.close()
 
-    evfile = op.basename(filename) + ".ev"
     fw = open(evfile, "w")
     print >> fw, lv.evline
     fw.close()
@@ -696,18 +768,20 @@ def write_csv_ev(filename, filtered, cleanup, store=None):
 
 
 def run_compile(arg):
-    filename, filtered, cleanup, store = arg
+    filename, filtered, cleanup, store, stutter = arg
     csvfile = filename + ".csv"
     try:
         if filename.startswith("s3://"):
             if check_exists_s3(csvfile):
                 logging.debug("{} exists. Skipped.".format(csvfile))
             else:
-                write_csv_ev(filename, filtered, cleanup, store=store)
+                write_csv_ev(filename, filtered, cleanup,
+                             store=store, stutter=stutter)
                 logging.debug("{} written and uploaded.".format(csvfile))
         else:
             if need_update(filename, csvfile):
-                write_csv_ev(filename, filtered, cleanup, store=None)
+                write_csv_ev(filename, filtered, cleanup,
+                             store=None, stutter=stutter)
     except Exception, e:
         logging.debug("Thread failed! Error: {}".format(e))
 
@@ -720,6 +794,8 @@ def compilevcf(args):
     """
     p = OptionParser(compilevcf.__doc__)
     p.add_option("--db", default="hg38", help="Use these lobSTR db")
+    p.add_option("--stutter", default=False, action="store_true",
+                 help="Count stutter reads on chrY")
     p.add_option("--nofilter", default=False, action="store_true",
                  help="Do not filter the variants")
     p.set_home("lobstr")
@@ -733,6 +809,7 @@ def compilevcf(args):
     samples, = args
     workdir = opts.workdir
     store = opts.output_path
+    stutter = opts.stutter
     cleanup = not opts.nocleanup
     filtered = not opts.nofilter
     dbs = opts.db.split(",")
@@ -754,7 +831,7 @@ def compilevcf(args):
         print >> fw, "\n".join(uids)
         fw.close()
 
-    run_args = [(x, filtered, cleanup, store) for x in vcffiles]
+    run_args = [(x, filtered, cleanup, store, stutter) for x in vcffiles]
     cpus = min(opts.cpus, len(run_args))
     p = Pool(processes=cpus)
     for res in p.map_async(run_compile, run_args).get():

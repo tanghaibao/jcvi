@@ -285,7 +285,8 @@ def read_blast(blast_file, qorder, sorder, is_self=False, ostrip=True):
                 query, subject = subject, query
                 qi, si = si, qi
                 q, s = s, q
-            if si - qi < 10:  # Too close to diagonal! possible tandem repeats
+            # Too close to diagonal! possible tandem repeats
+            if q.seqid == s.seqid and si - qi < 40:
                 continue
 
         key = query, subject

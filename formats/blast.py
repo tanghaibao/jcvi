@@ -325,6 +325,8 @@ def filter(args):
         if not remove:
             print >> fw, row.rstrip()
 
+    fw.close()
+
     return newblastfile
 
 

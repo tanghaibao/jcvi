@@ -47,6 +47,8 @@ def cat(args):
             In case you don't want chapter 10 before chapter 2.
     """
     p = OptionParser(cat.__doc__.format(page_range_help=PAGE_RANGE_HELP))
+    p.add_option("--nosort", default=False, action="store_true",
+                 help="Do not sort file names")
     p.set_outfile()
     p.set_verbose(help="Show page ranges as they are being read")
     opts, args = p.parse_args(args)
@@ -58,7 +60,8 @@ def cat(args):
     if outfile in args:
         args.remove(outfile)
 
-    args = natsorted(args)
+    if not opts.nosort:
+        args = natsorted(args)
 
     filename_page_ranges = parse_filename_page_ranges(args)
     verbose = opts.verbose

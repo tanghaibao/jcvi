@@ -828,7 +828,8 @@ class KsLine:
 
     @property
     def anchorline(self):
-        return "\t".join((self.gene_a, self.gene_b, "{:.3f}".format(self.ks)))
+        return "\t".join((gene_name(self.gene_a), gene_name(self.gene_b),
+                         "{:.3f}".format(self.ks)))
 
 
 class KsFile(LineFile):

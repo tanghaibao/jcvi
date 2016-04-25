@@ -28,7 +28,7 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, need_update, s
 
 
 READLEN = 150
-MINSCORE = 40
+MINSCORE = 36
 YSEARCH_HAPLOTYPE = """
 DYS393  DYS390 DYS19/DYS394  DYS19b        DYS391        DYS385a       DYS385b DYS426  DYS388  DYS439
 DYS389I DYS392 DYS389B       DYS458        DYS459a/b     DYS459a/b     DYS455  DYS454  DYS447  DYS437
@@ -351,8 +351,8 @@ def write_filtered(vcffile, lhome, store=None):
     cmd = "python {}/scripts/lobSTR_filter_vcf.py".format(lhome)
     cmd += " --vcf {}".format(vcffile)
     cmd += " --loc-cov 5 --loc-log-score 0.8"
-    cmd += " --loc-call-rate 0.8 --loc-max-ref-length 80"
-    cmd += " --call-cov 5 --call-log-score 0.8 --call-dist-end 20"
+    #cmd += " --loc-call-rate 0.8 --loc-max-ref-length 80"
+    #cmd += " --call-cov 5 --call-log-score 0.8 --call-dist-end 20"
     sh(cmd, outfile=filteredvcf)
 
     if store:
@@ -990,6 +990,8 @@ def trf(args):
                  help="Minimum score to report")
     p.add_option("--period", default=6, type="int",
                  help="Maximum period to report")
+    p.add_option("--minlength", default=MINSCORE / 2, type="int",
+                 help="Minimum length of repeat tract")
     p.add_option("--telomeres", default=False, action="store_true",
                  help="Run telomere search: minscore=140 period=7")
     opts, args = p.parse_args(args)
@@ -998,6 +1000,7 @@ def trf(args):
         sys.exit(not p.print_help())
 
     outdir, = args
+    minlength = opts.minlength
     mm = MakeManager()
     if opts.telomeres:
         opts.minscore, opts.period = 140, 7
@@ -1010,7 +1013,8 @@ def trf(args):
         cmd1 = "trf {0} {1} -d -h".format(fastafile, " ".join(params))
         datfile = op.basename(fastafile) + "." + ".".join(params) + ".dat"
         bedfile = "{0}.trf.bed".format(pf)
-        cmd2 = "cat {} | awk '($8 <= {} && $9 >= 0)'".format(datfile, READLEN)
+        cmd2 = "cat {} | awk '($8 >= {} && $8 <= {})'".\
+                    format(datfile, minlength, READLEN - minlength)
         cmd2 += " | sed 's/ /\\t/g'"
         cmd2 += " | awk '{{print \"{0}\\t\" $0}}' > {1}".format(pf, bedfile)
         mm.add(fastafile, datfile, cmd1)
@@ -1231,39 +1235,45 @@ def htt(args):
 
 def lobstrindex(args):
     """
-    %prog lobstrindex hg38.trf.bed hg38.upper.fa hg38
+    %prog lobstrindex hg38.trf.bed hg38.upper.fa
 
     Make lobSTR index. Make sure the FASTA contain only upper case (so use
     fasta.format --upper to convert from UCSC fasta). The bed file is generated
     by str().
     """
     p = OptionParser(lobstrindex.__doc__)
+    p.add_option("--notreds", default=False, action="store_true",
+                 help="Remove TREDs from the bed file")
     p.set_home("lobstr")
     opts, args = p.parse_args(args)
 
-    if len(args) != 3:
+    if len(args) != 2:
         sys.exit(not p.print_help())
 
-    trfbed, fastafile, pf = args
+    trfbed, fastafile = args
+    pf = fastafile.split(".")[0]
     lhome = opts.lobstr_home
     mkdir(pf)
 
-    newbedfile = trfbed + ".new"
-    newbed = open(newbedfile, "w")
-    fp = open(trfbed)
-    retained = total = 0
-    seen = set(TREDS)
-    for row in fp:
-        r = STRLine(row)
-        total += 1
-        name = r.longname
-        if name in seen:
-            continue
-        seen.add(name)
-        print >> newbed, r
-        retained += 1
-    newbed.close()
-    logging.debug("Retained: {0}".format(percentage(retained, total)))
+    if opts.notreds:
+        newbedfile = trfbed + ".new"
+        newbed = open(newbedfile, "w")
+        fp = open(trfbed)
+        retained = total = 0
+        seen = set()
+        for row in fp:
+            r = STRLine(row)
+            total += 1
+            name = r.longname
+            if name in seen:
+                continue
+            seen.add(name)
+            print >> newbed, r
+            retained += 1
+        newbed.close()
+        logging.debug("Retained: {0}".format(percentage(retained, total)))
+    else:
+        newbedfile = trfbed
 
     mm = MakeManager()
     cmd = "python {0}/scripts/lobstr_index.py".format(lhome)

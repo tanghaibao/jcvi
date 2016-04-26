@@ -197,12 +197,14 @@ class LobSTRvcf(dict):
 
     def parse(self, filename, filtered=True, cleanup=False, stutter=False):
         self.samplekey = op.basename(filename).split(".")[0]
-        if filtered:
-            logging.debug("VCF file is filtered, only retain PASS calls")
+        logging.debug("Parse `{}` (filtered={} stutter={})".\
+                        format(filename, filtered, stutter))
         fp = must_open(filename)
         reader = vcf.Reader(fp)
         for record in reader:
             if stutter and record.CHROM != "chrY":
+                continue
+            if filtered and record.FILTER:
                 continue
             info = record.INFO
             ref = float(info["REF"])
@@ -224,12 +226,10 @@ class LobSTRvcf(dict):
                     if st * 1. / dp > .2:
                         break
                     self.evidence[name] = "{},{}".format(st, dp)
-                    #print name, st, dp
                     break
 
                 gt = sample["GT"]
-                ft = sample["FT"] if filtered else "PASS"
-                if ft != "PASS":
+                if filtered and sample["FT"] != "PASS":
                     continue
                 if gt == "0/0":
                     alleles = (ref, ref)
@@ -244,18 +244,16 @@ class LobSTRvcf(dict):
                 # Collect supporting read evidence
                 motif_length = len(motif)
                 adjusted_alleles = [(x - ref) * motif_length for x in alleles]
-                support = stutter = 0
+                support = stutters = 0
                 allreads = sample["ALLREADS"]
                 for r in allreads.split(";"):
                     k, v = r.split("|")
                     k, v = int(k), int(v)
                     min_dist = min([abs(k - x) for x in adjusted_alleles])
                     if motif_length * .5 < min_dist < motif_length * 1.5:
-                        stutter += v
+                        stutters += v
                     support += v
-                #print name, ref, allreads, alleles, adjusted_alleles, \
-                #      "stutter={} support={}".format(stutter, support)
-                self.evidence[name] = "{},{}".format(stutter, support)
+                self.evidence[name] = "{},{}".format(stutters, support)
 
         if cleanup:
             sh("rm -f {}".format(op.basename(filename)))

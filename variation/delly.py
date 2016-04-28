@@ -9,7 +9,7 @@ import sys
 import logging
 
 from jcvi.formats.base import BaseFile, read_until, must_open
-from jcvi.apps.base import OptionParser, ActionDispatcher
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh
 
 
 class DelLine (object):
@@ -59,6 +59,7 @@ def main():
 
     actions = (
         ('bed', 'Convert del.txt to del.bed'),
+        ('mito', 'Find mito deletions in BAM'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -84,6 +85,30 @@ def bed(args):
     delt, = args
     dt = Delly(delt)
     dt.write_bed("del.bed")
+
+
+def mito(args):
+    """
+    %prog mito input.bam chrM chrM.fa
+
+    Identify mitochondrial deletions.
+    """
+    from jcvi.formats.sam import get_minibam
+
+    p = OptionParser(mito.__doc__)
+    p.set_cpus()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    inputbam, region, chrMfa = args
+    minibam = get_minibam(inputbam, region)
+
+    realign = minibam.rsplit(".", 1)[0] + ".realign"
+    cmd = "speedseq realign -v -t {}".format(opts.cpus)
+    cmd += " -o {} {} {}".format(realign, chrMfa, minibam)
+    sh(cmd)
 
 
 if __name__ == '__main__':

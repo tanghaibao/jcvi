@@ -135,6 +135,20 @@ def get_samfile(readfile, dbfile, bam=False, mapped=False,
     return samfile, mapped, unmapped
 
 
+def get_minibam(bamfile, region):
+    xregion = region.replace(":", "_").replace("-", "_").replace(",", "")
+    minibamfile = op.basename(bamfile).replace(".bam", ".{}.bam".format(xregion))
+    baifile = minibamfile + ".bai"
+    if op.exists(baifile):
+        sh("rm {}".format(baifile))
+    cmd = "samtools view {} {} -b".format(bamfile, region)
+    cmd += " -o {0}".format(minibamfile)
+
+    sh(cmd)
+    sh("samtools index {0}".format(minibamfile))
+    return minibamfile
+
+
 def main():
 
     actions = (

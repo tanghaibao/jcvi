@@ -1206,6 +1206,8 @@ def htt(args):
 
     Extract HTT region and run lobSTR.
     """
+    from jcvi.formats.sam import get_minibam
+
     p = OptionParser(htt.__doc__)
     p.set_home("lobstr")
     opts, args = p.parse_args(args)
@@ -1216,16 +1218,7 @@ def htt(args):
     bamfile, region = args
     lhome = opts.lobstr_home
 
-    minibamfile = bamfile.split("/")[-1]
-    baifile = minibamfile + ".bai"
-    if op.exists(baifile):
-        sh("rm {}".format(baifile))
-    cmd = "samtools view {} {} -b".format(bamfile, region)
-    cmd += " -o {0}".format(minibamfile)
-    sh(cmd)
-
-    sh("samtools index {0}".format(minibamfile))
-
+    minibamfile = get_minibam(bamfile, region)
     c = region.split(":")[0].replace("chr", "")
     cmd, vcf = allelotype_on_chr(minibamfile, c, lhome, "hg38")
     sh(cmd)

@@ -61,6 +61,7 @@ def main():
     actions = (
         ('bed', 'Convert del.txt to del.bed'),
         ('mito', 'Find mito deletions in BAM'),
+        ('mitocompile', 'Compile mito deletions from multiple VCF files'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -88,22 +89,60 @@ def bed(args):
     dt.write_bed("del.bed")
 
 
+def mitocompile(args):
+    """
+    %prog mitcompile *.vcf.gz
+
+    Extract information about deletions in vcf file.
+    """
+    from jcvi.formats.vcf import VcfLine
+    from urlparse import parse_qsl
+
+    p = OptionParser(mitocompile.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) < 1:
+        sys.exit(not p.print_help())
+
+    vcfs = args
+    print "\t".join("vcf seqid pos alt pe sr".split())
+    for vcf in vcfs:
+        fp = must_open(vcf)
+        for row in fp:
+            if row[0] == '#':
+                continue
+            v = VcfLine(row)
+            info = dict(parse_qsl(v.info))
+            print "\t".join(str(x) for x in (vcf, v.seqid, v.pos, v.alt,
+                        info["PE"], info["SR"]))
+
+
 def mito(args):
     """
-    %prog mito input.bam chrM chrM.fa
+    %prog mito chrM.fa input.bam
 
     Identify mitochondrial deletions.
     """
-    from jcvi.formats.sam import get_minibam
-
     p = OptionParser(mito.__doc__)
     p.set_cpus()
     opts, args = p.parse_args(args)
 
-    if len(args) != 3:
+    if len(args) != 2:
         sys.exit(not p.print_help())
 
-    bamfile, region, chrMfa = args
+    chrMfa, bamfile = args
+    if not bamfile.endswith(".bam"):
+        bamfiles = [x.strip() for x in open(bamfile)]
+    else:
+        bamfiles = [bamfile]
+
+    for bamfile in bamfiles:
+        run_mito(chrMfa, bamfile, opts)
+
+
+def run_mito(chrMfa, bamfile, opts):
+    from jcvi.formats.sam import get_minibam
+    region = "chrM"
     minibam = op.basename(bamfile).replace(".bam", ".{}.bam".format(region))
     if not op.exists(minibam):
         get_minibam(bamfile, region)

@@ -105,7 +105,7 @@ def mitocompile(args):
         sys.exit(not p.print_help())
 
     vcfs = args
-    print "\t".join("vcf seqid pos alt pe sr".split())
+    print "\t".join("vcf seqid pos alt svlen pe sr".split())
     for vcf in vcfs:
         fp = must_open(vcf)
         for row in fp:
@@ -114,7 +114,7 @@ def mitocompile(args):
             v = VcfLine(row)
             info = dict(parse_qsl(v.info))
             print "\t".join(str(x) for x in (vcf, v.seqid, v.pos, v.alt,
-                        info["PE"], info["SR"]))
+                        info.get("SVLEN"), info["PE"], info["SR"]))
 
 
 def mito(args):

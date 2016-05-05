@@ -5,11 +5,12 @@
 Convert delly output to BED format.
 """
 
+import os.path as op
 import sys
 import logging
 
 from jcvi.formats.base import BaseFile, read_until, must_open
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update
 
 
 class DelLine (object):
@@ -102,13 +103,27 @@ def mito(args):
     if len(args) != 3:
         sys.exit(not p.print_help())
 
-    inputbam, region, chrMfa = args
-    minibam = get_minibam(inputbam, region)
+    bamfile, region, chrMfa = args
+    minibam = op.basename(bamfile).replace(".bam", ".{}.bam".format(region))
+    if not op.exists(minibam):
+        get_minibam(bamfile, region)
 
     realign = minibam.rsplit(".", 1)[0] + ".realign"
-    cmd = "speedseq realign -v -t {}".format(opts.cpus)
-    cmd += " -o {} {} {}".format(realign, chrMfa, minibam)
-    sh(cmd)
+    margs = " -v -t {} -o {}".format(opts.cpus, realign)
+    if need_update(minibam, realign):
+        cmd = "speedseq realign"
+        cmd += margs
+        cmd += " {} {}".format(chrMfa, minibam)
+        sh(cmd)
+
+    vcffile = realign + ".sv.vcf.gz"
+    if need_update(realign, vcffile):
+        cmd = "speedseq sv"
+        cmd += margs
+        cmd += " -g -R {}".format(chrMfa)
+        cmd += " -B {} -D {} -S {}".format(realign + ".bam",
+                        realign + ".discordants.bam", realign + ".splitters.bam")
+        sh(cmd)
 
 
 if __name__ == '__main__':

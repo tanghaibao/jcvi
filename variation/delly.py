@@ -124,6 +124,8 @@ def mito(args):
     Identify mitochondrial deletions.
     """
     p = OptionParser(mito.__doc__)
+    p.add_option("--realignonly", default=False, action="store_true",
+                 help="Realign only")
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -137,32 +139,42 @@ def mito(args):
         bamfiles = [bamfile]
 
     for bamfile in bamfiles:
-        run_mito(chrMfa, bamfile, opts)
+        run_mito(chrMfa, bamfile, opts, realignonly=opts.realignonly)
 
 
-def run_mito(chrMfa, bamfile, opts):
+def run_mito(chrMfa, bamfile, opts, realignonly=False):
     from jcvi.formats.sam import get_minibam
     region = "chrM"
     minibam = op.basename(bamfile).replace(".bam", ".{}.bam".format(region))
     if not op.exists(minibam):
         get_minibam(bamfile, region)
+    else:
+        logging.debug("{} found. Skipped.".format(minibam))
 
     realign = minibam.rsplit(".", 1)[0] + ".realign"
+    realignbam = realign + ".bam"
     margs = " -v -t {} -o {}".format(opts.cpus, realign)
-    if need_update(minibam, realign):
+    if need_update(minibam, realign + ".bam"):
         cmd = "speedseq realign"
         cmd += margs
         cmd += " {} {}".format(chrMfa, minibam)
         sh(cmd)
+    else:
+        logging.debug("{} found. Skipped.".format(realignbam))
+
+    if realignonly:
+        return
 
     vcffile = realign + ".sv.vcf.gz"
-    if need_update(realign, vcffile):
+    if need_update(realignbam, vcffile):
         cmd = "speedseq sv"
         cmd += margs
         cmd += " -g -R {}".format(chrMfa)
-        cmd += " -B {} -D {} -S {}".format(realign + ".bam",
+        cmd += " -B {} -D {} -S {}".format(realignbam,
                         realign + ".discordants.bam", realign + ".splitters.bam")
         sh(cmd)
+    else:
+        logging.debug("{} found. Skipped.".format(vcffile))
 
 
 if __name__ == '__main__':

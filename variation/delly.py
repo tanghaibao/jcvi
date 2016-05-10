@@ -169,7 +169,7 @@ def run_mito(chrMfa, bamfile, opts, realignonly=False):
     if need_update(realignbam, vcffile):
         cmd = "speedseq sv"
         cmd += margs
-        cmd += " -g -R {}".format(chrMfa)
+        cmd += " -R {}".format(chrMfa)
         cmd += " -B {} -D {} -S {}".format(realignbam,
                         realign + ".discordants.bam", realign + ".splitters.bam")
         sh(cmd)

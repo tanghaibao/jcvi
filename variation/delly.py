@@ -5,12 +5,14 @@
 Convert delly output to BED format.
 """
 
+import os
 import os.path as op
 import sys
 import logging
 
 from jcvi.formats.base import BaseFile, read_until, must_open
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update
+from jcvi.utils.aws import push_to_s3
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh, mkdir, need_update
 
 
 class DelLine (object):
@@ -124,6 +126,7 @@ def mito(args):
     Identify mitochondrial deletions.
     """
     p = OptionParser(mito.__doc__)
+    p.set_aws_opts(store="hli-mv-data-science/htang/mito-deletions")
     p.add_option("--realignonly", default=False, action="store_true",
                  help="Realign only")
     p.set_cpus()
@@ -133,16 +136,21 @@ def mito(args):
         sys.exit(not p.print_help())
 
     chrMfa, bamfile = args
+    store = opts.output_path
+    cleanup = not opts.nocleanup
+
     if not bamfile.endswith(".bam"):
         bamfiles = [x.strip() for x in open(bamfile)]
     else:
         bamfiles = [bamfile]
 
     for bamfile in bamfiles:
-        run_mito(chrMfa, bamfile, opts, realignonly=opts.realignonly)
+        run_mito(chrMfa, bamfile, opts,
+                 realignonly=opts.realignonly,
+                 store=store, cleanup=cleanup)
 
 
-def run_mito(chrMfa, bamfile, opts, realignonly=False):
+def run_mito(chrMfa, bamfile, opts, realignonly=False, store=None, cleanup=False):
     from jcvi.formats.sam import get_minibam
     region = "chrM"
     minibam = op.basename(bamfile).replace(".bam", ".{}.bam".format(region))
@@ -175,6 +183,12 @@ def run_mito(chrMfa, bamfile, opts, realignonly=False):
         sh(cmd)
     else:
         logging.debug("{} found. Skipped.".format(vcffile))
+
+    if cleanup:
+        sh("rm -f {}* {}*".format(minibam, realignbam))
+
+    if store:
+        push_to_s3(store, vcffile)
 
 
 if __name__ == '__main__':

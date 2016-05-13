@@ -5,14 +5,13 @@
 Convert delly output to BED format.
 """
 
-import os
 import os.path as op
 import sys
 import logging
 
 from jcvi.formats.base import BaseFile, read_until, must_open
-from jcvi.utils.aws import push_to_s3
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, mkdir, need_update
+from jcvi.utils.aws import ls_s3, push_to_s3
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update
 
 
 class DelLine (object):
@@ -129,6 +128,8 @@ def mito(args):
     p.set_aws_opts(store="hli-mv-data-science/htang/mito-deletions")
     p.add_option("--realignonly", default=False, action="store_true",
                  help="Realign only")
+    p.add_option("--svonly", default=False, action="store_true",
+                 help="Run Realign => SV calls only")
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -139,18 +140,41 @@ def mito(args):
     store = opts.output_path
     cleanup = not opts.nocleanup
 
+    if not op.exists(chrMfa):
+        logging.debug("File `{}` missing. Exiting.".format(chrMfa))
+
+    chrMfai = chrMfa + ".fai"
+    if not op.exists(chrMfai):
+        cmd = "samtools index {}".format(chrMfa)
+        sh(cmd)
+
     if not bamfile.endswith(".bam"):
         bamfiles = [x.strip() for x in open(bamfile)]
     else:
         bamfiles = [bamfile]
 
+    if store:
+        computed = ls_s3(store)
+        computed = [op.basename(x).split('.')[0] for x in computed if \
+                        x.endswith(".sv.vcf.gz")]
+        remaining_samples = [x for x in bamfiles \
+                    if op.basename(x).split(".")[0] not in computed]
+
+        logging.debug("Already computed on `{}`: {}".\
+                        format(store, len(bamfiles) - len(remaining_samples)))
+        bamfiles = remaining_samples
+
+    logging.debug("Total samples: {}".format(len(bamfiles)))
+
     for bamfile in bamfiles:
         run_mito(chrMfa, bamfile, opts,
                  realignonly=opts.realignonly,
+                 svonly=opts.svonly,
                  store=store, cleanup=cleanup)
 
 
-def run_mito(chrMfa, bamfile, opts, realignonly=False, store=None, cleanup=False):
+def run_mito(chrMfa, bamfile, opts, realignonly=False, svonly=False,
+             store=None, cleanup=False):
     from jcvi.formats.sam import get_minibam
     region = "chrM"
     minibam = op.basename(bamfile).replace(".bam", ".{}.bam".format(region))
@@ -184,11 +208,23 @@ def run_mito(chrMfa, bamfile, opts, realignonly=False, store=None, cleanup=False
     else:
         logging.debug("{} found. Skipped.".format(vcffile))
 
+    if store:
+        push_to_s3(store, vcffile)
+
+    if svonly:
+        return
+
+    piledriver = realign + ".piledriver"
+    if need_update(realignbam, piledriver):
+        cmd = "bamtools piledriver -fasta {}".format(chrMfa)
+        cmd += " -in {}".format(realignbam)
+        sh(cmd, outfile=piledriver)
+
     if cleanup:
         sh("rm -f {}* {}*".format(minibam, realignbam))
 
     if store:
-        push_to_s3(store, vcffile)
+        push_to_s3(store, piledriver)
 
 
 if __name__ == '__main__':

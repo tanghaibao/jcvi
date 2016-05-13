@@ -142,6 +142,7 @@ def mito(args):
 
     if not op.exists(chrMfa):
         logging.debug("File `{}` missing. Exiting.".format(chrMfa))
+        return
 
     chrMfai = chrMfa + ".fai"
     if not op.exists(chrMfai):
@@ -212,6 +213,8 @@ def run_mito(chrMfa, bamfile, opts, realignonly=False, svonly=False,
         push_to_s3(store, vcffile)
 
     if svonly:
+        if cleanup:
+            do_cleanup(minibam, realignbam)
         return
 
     piledriver = realign + ".piledriver"
@@ -220,11 +223,15 @@ def run_mito(chrMfa, bamfile, opts, realignonly=False, svonly=False,
         cmd += " -in {}".format(realignbam)
         sh(cmd, outfile=piledriver)
 
-    if cleanup:
-        sh("rm -f {}* {}*".format(minibam, realignbam))
-
     if store:
         push_to_s3(store, piledriver)
+
+    if cleanup:
+        do_cleanup(minibam, realignbam)
+
+
+def do_cleanup(minibam, realignbam):
+    sh("rm -f {}* {}*".format(minibam, realignbam))
 
 
 if __name__ == '__main__':

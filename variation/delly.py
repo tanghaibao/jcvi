@@ -11,7 +11,8 @@ import logging
 
 from jcvi.formats.base import BaseFile, read_until, must_open
 from jcvi.utils.aws import ls_s3, push_to_s3
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh, \
+            need_update, which
 
 
 class DelLine (object):
@@ -130,6 +131,7 @@ def mito(args):
                  help="Realign only")
     p.add_option("--svonly", default=False, action="store_true",
                  help="Run Realign => SV calls only")
+    p.set_home("speedseq", default="/mnt/software/speedseq/bin")
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -184,11 +186,13 @@ def run_mito(chrMfa, bamfile, opts, realignonly=False, svonly=False,
     else:
         logging.debug("{} found. Skipped.".format(minibam))
 
+    speedseq_bin = op.join(opts.speedseq_home, "speedseq")
+
     realign = minibam.rsplit(".", 1)[0] + ".realign"
     realignbam = realign + ".bam"
     margs = " -v -t {} -o {}".format(opts.cpus, realign)
     if need_update(minibam, realign + ".bam"):
-        cmd = "speedseq realign"
+        cmd = speedseq_bin + " realign"
         cmd += margs
         cmd += " {} {}".format(chrMfa, minibam)
         sh(cmd)
@@ -200,7 +204,7 @@ def run_mito(chrMfa, bamfile, opts, realignonly=False, svonly=False,
 
     vcffile = realign + ".sv.vcf.gz"
     if need_update(realignbam, vcffile):
-        cmd = "speedseq sv"
+        cmd = speedseq_bin + " sv"
         cmd += margs
         cmd += " -R {}".format(chrMfa)
         cmd += " -B {} -D {} -S {}".format(realignbam,

@@ -10,6 +10,7 @@ import sys
 import logging
 
 from jcvi.formats.base import BaseFile, read_until, must_open
+from jcvi.formats.sam import coverage
 from jcvi.utils.aws import ls_s3, push_to_s3
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, \
             need_update, which
@@ -131,6 +132,8 @@ def mito(args):
                  help="Realign only")
     p.add_option("--svonly", default=False, action="store_true",
                  help="Run Realign => SV calls only")
+    p.add_option("--support", default=1, type="int",
+                 help="Minimum number of supporting reads")
     p.set_home("speedseq", default="/mnt/software/speedseq/bin")
     p.set_cpus()
     opts, args = p.parse_args(args)
@@ -159,7 +162,7 @@ def mito(args):
     if store:
         computed = ls_s3(store)
         computed = [op.basename(x).split('.')[0] for x in computed if \
-                        x.endswith(".sv.vcf.gz")]
+                        x.endswith(".depth")]
         remaining_samples = [x for x in bamfiles \
                     if op.basename(x).split(".")[0] not in computed]
 
@@ -202,11 +205,20 @@ def run_mito(chrMfa, bamfile, opts, realignonly=False, svonly=False,
     if realignonly:
         return
 
+    depthfile = realign + ".depth"
+    if need_update(realignbam, depthfile):
+        coverage([chrMfa, realignbam, "--nosort", "--format=coverage",
+                  "--outfile={}".format(depthfile)])
+
+    if store:
+        push_to_s3(store, depthfile)
+
     vcffile = realign + ".sv.vcf.gz"
     if need_update(realignbam, vcffile):
         cmd = speedseq_bin + " sv"
         cmd += margs
         cmd += " -R {}".format(chrMfa)
+        cmd += " -m {}".format(opts.support)
         cmd += " -B {} -D {} -S {}".format(realignbam,
                         realign + ".discordants.bam", realign + ".splitters.bam")
         sh(cmd)

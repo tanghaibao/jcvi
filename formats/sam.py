@@ -12,7 +12,7 @@ import logging
 from collections import defaultdict
 from itertools import groupby
 
-from jcvi.formats.base import LineFile
+from jcvi.formats.base import LineFile, must_open
 from jcvi.formats.fasta import Fasta
 from jcvi.formats.sizes import Sizes
 from jcvi.utils.cbook import fill
@@ -314,6 +314,7 @@ def coverage(args):
                  help="Output format")
     p.add_option("--nosort", default=False, action="store_true",
                  help="Do not sort BAM")
+    p.set_outfile()
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -348,8 +349,10 @@ def coverage(args):
         sh(cmd, outfile=coveragefile)
 
     gcf = GenomeCoverageFile(coveragefile)
+    fw = must_open(opts.outfile, "w")
     for seqid, cov in gcf.iter_coverage_seqid():
-        print "\t".join((seqid, "{0:.1f}".format(cov)))
+        print >> fw, "\t".join((seqid, "{0:.1f}".format(cov)))
+    fw.close()
 
 
 def fpkm(args):

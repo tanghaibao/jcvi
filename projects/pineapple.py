@@ -276,7 +276,7 @@ def geneinfo(args):
 
 def ploidy(args):
     """
-    %prog cotton seqids karyotype.layout mcscan.out all.bed synteny.layout
+    %prog ploidy seqids karyotype.layout mcscan.out all.bed synteny.layout
 
     Build a figure that calls graphics.karyotype to illustrate the high ploidy
     of WGD history of pineapple genome. The script calls both graphics.karyotype

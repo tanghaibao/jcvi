@@ -10,7 +10,7 @@ import sys
 
 import numpy as np
 
-from jcvi.graphics.base import plt, Polygon, savefig
+from jcvi.graphics.base import plt, Polygon, panel_labels, savefig
 from jcvi.graphics.glyph import GeneGlyph, RoundRect, TextCircle, DoubleSquare, plot_cap
 from jcvi.graphics.karyotype import Karyotype
 from jcvi.graphics.synteny import Synteny, draw_gene_legend
@@ -33,10 +33,48 @@ def main():
         # Unpublished
         ('birch', 'plot birch macro-synteny (requires data)'),
         ('litchi', 'plot litchi micro-synteny (requires data)'),
+        ('pomegranate', 'plot pomegranate macro- and micro-synteny (requires data)'),
         ('utricularia', 'plot utricularia micro-synteny (requires data)'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def pomegranate(args):
+    """
+    %prog cotton seqids karyotype.layout mcscan.out all.bed synteny.layout
+
+    Build a figure that calls graphics.karyotype to illustrate the high ploidy
+    of WGD history of pineapple genome. The script calls both graphics.karyotype
+    and graphic.synteny.
+    """
+    p = OptionParser(pomegranate.__doc__)
+    opts, args, iopts = p.set_image_options(args, figsize="9x7")
+
+    if len(args) != 5:
+        sys.exit(not p.print_help())
+
+    seqidsfile, klayout, datafile, bedfile, slayout = args
+
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes([0, 0, 1, 1])
+
+    Karyotype(fig, root, seqidsfile, klayout)
+    Synteny(fig, root, datafile, bedfile, slayout)
+
+    # legend showing the orientation of the genes
+    draw_gene_legend(root, .27, .37, .47)
+
+    labels = ((.04, .96, 'A'), (.04, .52, 'B'))
+    panel_labels(root, labels)
+
+    root.set_xlim(0, 1)
+    root.set_ylim(0, 1)
+    root.set_axis_off()
+
+    pf = "pomegranate-karyotype"
+    image_name = pf + "." + iopts.format
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
 def utricularia(args):

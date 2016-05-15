@@ -50,6 +50,10 @@ class LayoutLine (object):
         self.ratio = 1
         if len(args) > 6:
             self.ratio = float(args[6])
+        if len(args) > 7:
+            self.label = args[7].strip()
+        else:
+            self.label = None
 
 
 class Layout (AbstractLayout):
@@ -142,6 +146,9 @@ class Region (object):
 
         if switch:
             chr = switch.get(chr, chr)
+        if layout.label:
+            chr = layout.label
+
         label = "-".join((human_size(startbp, target="Mb")[:-2],
                           human_size(endbp, target="Mb")))
 

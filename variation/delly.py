@@ -11,9 +11,9 @@ import logging
 
 from jcvi.formats.base import BaseFile, read_until, must_open
 from jcvi.formats.sam import coverage
+from jcvi.utils.cbook import percentage
 from jcvi.utils.aws import ls_s3, push_to_s3
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, \
-            need_update, which
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update
 
 
 class DelLine (object):
@@ -108,15 +108,26 @@ def mitocompile(args):
         sys.exit(not p.print_help())
 
     vcfs = args
-    print "\t".join("vcf seqid pos alt svlen pe sr".split())
-    for vcf in vcfs:
+    print "\t".join("vcf samplekey depth seqid pos alt svlen pe sr".split())
+    for i, vcf in enumerate(vcfs):
+        if (i + 1) % 100 == 0:
+            logging.debug("Process `{}` [{}]".\
+                    format(vcf, percentage(i + 1, len(vcfs))))
+        depthfile = vcf.replace(".sv.vcf.gz", ".depth")
+        fp = must_open(depthfile)
+        chrm, depth = fp.next().split()
+        depth = int(float(depth))
+        samplekey = op.basename(vcf).split("_")[0]
+
         fp = must_open(vcf)
         for row in fp:
             if row[0] == '#':
                 continue
             v = VcfLine(row)
             info = dict(parse_qsl(v.info))
-            print "\t".join(str(x) for x in (vcf, v.seqid, v.pos, v.alt,
+            print "\t".join(str(x) for x in (vcf,
+                        samplekey, depth,
+                        v.seqid, v.pos, v.alt,
                         info.get("SVLEN"), info["PE"], info["SR"]))
 
 

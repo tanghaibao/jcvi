@@ -63,7 +63,7 @@ def pomegranate(args):
     Synteny(fig, root, datafile, bedfile, slayout)
 
     # legend showing the orientation of the genes
-    draw_gene_legend(root, .27, .37, .47)
+    draw_gene_legend(root, .42, .52, .48)
 
     labels = ((.04, .96, 'A'), (.04, .52, 'B'))
     panel_labels(root, labels)

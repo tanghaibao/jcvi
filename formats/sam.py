@@ -157,6 +157,7 @@ def main():
         ('pair', 'parse sam file and get pairs'),
         ('pairs', 'print paired-end reads from BAM file'),
         ('chimera', 'parse sam file from `bwasw` and list multi-hit reads'),
+        ('noclip', 'remove clipped reads from bam'),
         ('ace', 'convert sam file to ace'),
         ('index', 'convert to bam, sort and then index'),
         ('consensus', 'convert bam alignments to consensus FASTA'),
@@ -170,6 +171,27 @@ def main():
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def noclip(args):
+    """
+    %prog noclip bamfile
+
+    Remove clipped reads from BAM.
+    """
+    p = OptionParser(noclip.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    bamfile, = args
+    noclipbam = bamfile.replace(".bam", ".noclip.bam")
+    cmd = "samtools view -h {} | awk -F '\t' '($6 !~ /H|S/)'".format(bamfile)
+    cmd += " | samtools view -@ 4 -b -o {}".format(noclipbam)
+    sh(cmd)
+
+    sh("samtools index {}".format(noclipbam))
 
 
 def append(args):

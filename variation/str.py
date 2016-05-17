@@ -1011,7 +1011,7 @@ def trf(args):
         cmd1 = "trf {0} {1} -d -h".format(fastafile, " ".join(params))
         datfile = op.basename(fastafile) + "." + ".".join(params) + ".dat"
         bedfile = "{0}.trf.bed".format(pf)
-        cmd2 = "cat {} | awk '($8 >= {} && $8 <= {})'".\
+        cmd2 = "cat {} | grep -v ^Parameters | awk '($8 >= {} && $8 <= {})'".\
                     format(datfile, minlength, READLEN - minlength)
         cmd2 += " | sed 's/ /\\t/g'"
         cmd2 += " | awk '{{print \"{0}\\t\" $0}}' > {1}".format(pf, bedfile)
@@ -1174,7 +1174,7 @@ def allelotype_on_chr(bamfile, chr, lhome, lbidx):
     cmd += " --chrom chr{0} --out {1}.{2}".format(chr, outfile, lbidx)
     cmd += " --max-diff-ref {0}".format(READLEN)
     cmd += " --realign"
-    cmd += " --haploid chrY"
+    cmd += " --haploid chrY,chrM"
     return cmd, ".".join((outfile, lbidx, "vcf"))
 
 

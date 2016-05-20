@@ -64,10 +64,43 @@ def main():
     actions = (
         ('bed', 'Convert del.txt to del.bed'),
         ('mito', 'Find mito deletions in BAM'),
+        ('mitosomatic', 'Find mito mosaic somatic mutations in piledriver results'),
         ('mitocompile', 'Compile mito deletions from multiple VCF files'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def mitosomatic(args):
+    """
+    %prog mitosomatic t.piledriver
+
+    Find mito mosaic somatic mutations in piledriver results.
+    """
+    import pandas as pd
+
+    p = OptionParser(mitosomatic.__doc__)
+    p.add_option("--minaf", default=.01, type="float",
+                 help="Minimum allele fraction")
+    p.add_option("--maxaf", default=.1, type="float",
+                 help="Maximum allele fraction")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    df, = args
+    df = pd.read_csv(df, sep="\t")
+    for i, row in df.iterrows():
+        na = row["num_A"]
+        nt = row["num_T"]
+        nc = row["num_C"]
+        ng = row["num_G"]
+        major, minor = sorted([na, nt, nc, ng], reverse=True)[:2]
+        af = minor * 1. / (major + minor)
+        if not (opts.minaf <= af <= opts.maxaf):
+            continue
+        print "{}\t{}\t{:.6f}".format(row["chrom"], row["start"], af)
 
 
 def bed(args):

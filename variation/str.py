@@ -296,7 +296,7 @@ def main():
 
 def stutter(args):
     """
-    %prog stutter a.vcf.gzi sample_id
+    %prog stutter a.vcf.gz
 
     Extract info from lobSTR vcf file. Generates a file that has the following
     fields:

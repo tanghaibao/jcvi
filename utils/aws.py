@@ -27,9 +27,9 @@ def main():
     p.dispatch(globals())
 
 
-def glob_s3(store, keys=None):
+def glob_s3(store, keys=None, recursive=False):
     store, cards = store.rsplit("/", 1)
-    contents = ls_s3(store)
+    contents = ls_s3(store, recursive=recursive)
     if keys:
         filtered = [x for x in contents if op.basename(x).split(".")[0] in keys]
     else:
@@ -93,6 +93,8 @@ def ls(args):
     """
     p = OptionParser(ls.__doc__)
     p.add_option("--keys", help="List of keys to include")
+    p.add_option("--recursive", default=False, action="store_true",
+                 help="Recursive search")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -102,7 +104,7 @@ def ls(args):
     keys = opts.keys
     if keys:
         keys = SetFile(keys)
-    print "\n".join(glob_s3(store, keys=keys))
+    print "\n".join(glob_s3(store, keys=keys, recursive=opts.recursive))
 
 
 def s3ify(address):
@@ -135,9 +137,11 @@ def pull_from_s3(s3_store, file_name=None, overwrite=True):
     return op.abspath(file_name)
 
 
-def ls_s3(s3_store_obj_name):
+def ls_s3(s3_store_obj_name, recursive=False):
     s3_store_obj_name = s3ify(s3_store_obj_name)
     cmd = "aws s3 ls {0}/".format(s3_store_obj_name)
+    if recursive:
+        cmd += " --recursive"
     contents = []
     for row in popen(cmd):
         contents.append(row.split()[-1])

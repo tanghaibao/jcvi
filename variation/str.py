@@ -988,8 +988,6 @@ def trf(args):
                  help="Minimum score to report")
     p.add_option("--period", default=6, type="int",
                  help="Maximum period to report")
-    p.add_option("--minlength", default=MINSCORE / 2, type="int",
-                 help="Minimum length of repeat tract")
     p.add_option("--telomeres", default=False, action="store_true",
                  help="Run telomere search: minscore=140 period=7")
     opts, args = p.parse_args(args)
@@ -998,7 +996,7 @@ def trf(args):
         sys.exit(not p.print_help())
 
     outdir, = args
-    minlength = opts.minlength
+    minlength = opts.minscore / 2
     mm = MakeManager()
     if opts.telomeres:
         opts.minscore, opts.period = 140, 7

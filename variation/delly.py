@@ -80,7 +80,7 @@ def mitosomatic(args):
     import pandas as pd
 
     p = OptionParser(mitosomatic.__doc__)
-    p.add_option("--minaf", default=.01, type="float",
+    p.add_option("--minaf", default=.005, type="float",
                  help="Minimum allele fraction")
     p.add_option("--maxaf", default=.1, type="float",
                  help="Maximum allele fraction")
@@ -96,8 +96,12 @@ def mitosomatic(args):
         nt = row["num_T"]
         nc = row["num_C"]
         ng = row["num_G"]
-        major, minor = sorted([na, nt, nc, ng], reverse=True)[:2]
-        af = minor * 1. / (major + minor)
+        nd = row["num_D"]
+        ni = row["num_I"]
+        depth = row["depth"]
+        #major, minor = sorted([na, nt, nc, ng], reverse=True)[:2]
+        #af = minor * 1. / (major + minor)
+        af = (nd + ni) * 1. / depth
         if not (opts.minaf <= af <= opts.maxaf):
             continue
         print "{}\t{}\t{:.6f}".format(row["chrom"], row["start"], af)

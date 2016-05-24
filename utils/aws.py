@@ -35,7 +35,11 @@ def glob_s3(store, keys=None, recursive=False):
     else:
         filtered = fnmatch.filter(contents, cards)
 
+    if recursive:
+        store = "s3://" + store.replace("s3://", "").split("/")[0]
+
     filtered = ["/".join((store, x)) for x in filtered]
+
     return filtered
 
 

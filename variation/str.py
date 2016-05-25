@@ -817,7 +817,10 @@ def compilevcf(args):
     samples = op.join(cwd, samples)
 
     stridsfile = "STR.ids"
-    vcffiles = [x.strip() for x in must_open(samples)]
+    if samples.endswith(".vcf.gz") or samples.endswith(".vcf"):
+        vcffiles = [samples]
+    else:
+        vcffiles = [x.strip() for x in must_open(samples)]
     if not op.exists(stridsfile):
         ids = []
         for db in dbs:

@@ -90,6 +90,8 @@ def mitosomatic(args):
         sys.exit(not p.print_help())
 
     df, = args
+    af_file = df.rsplit(".", 1)[0] + ".af"
+    fw = open(af_file, "w")
     df = pd.read_csv(df, sep="\t")
     for i, row in df.iterrows():
         na = row["num_A"]
@@ -104,7 +106,10 @@ def mitosomatic(args):
         af = (nd + ni) * 1. / depth
         if not (opts.minaf <= af <= opts.maxaf):
             continue
-        print "{}\t{}\t{:.6f}".format(row["chrom"], row["start"], af)
+        print >> fw, "{}\t{}\t{:.6f}".format(row["chrom"], row["start"], af)
+    fw.close()
+
+    logging.debug("Allele freq written to `{}`".format(af_file))
 
 
 def bed(args):

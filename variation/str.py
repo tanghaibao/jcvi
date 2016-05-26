@@ -453,6 +453,7 @@ def meta(args):
     """
     p = OptionParser(meta.__doc__)
     p.set_cpus()
+    p.set_outfile()
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -460,13 +461,16 @@ def meta(args):
 
     binfile, sampleids, strids, = args
     df, m, samples, loci = read_binfile(binfile, sampleids, strids)
+    nalleles = len(samples)
+    fw = must_open(opts.outfile, "w")
     for i, locus in enumerate(loci):
         a = m[:, i]
         counts = alleles_to_counts(a)
         af = counts_to_af(counts)
-        print locus, a, af
-        if i > 30:
-            return
+        seqid = locus.split("_")[0]
+        remove = counts_filter(counts, nalleles, seqid)
+        print >> fw, "\t".join((locus, af, "REMOVE" if remove else "PASS"))
+    fw.close()
 
 
 def mask(args):
@@ -722,6 +726,8 @@ def counts_filter(countsd, nalleles, seqid):
     if observed_pct < 50:
         if not (seqid == "chrY" and observed_pct >= 25):
             return True
+
+    return False
 
 
 def read_binfile(binfile, sampleids, strids, dtype=np.int32):

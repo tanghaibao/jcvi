@@ -272,12 +272,14 @@ def main():
     actions = (
         # Compile population data
         ('bin', 'convert tsv to binary format'),
+        ('meta', 'compute allele frequencies and write to meta'),
         ('mask', 'compute P-values based on meta and data'),
-        ('filterloci', 'select subset of loci based on allele counts'),
-        ('filterdata', 'select subset of data based on filtered loci'),
         ('filtervcf', 'filter lobSTR VCF'),
+        # Compile population data - pipeline
         ('compilevcf', "compile vcf results into master spreadsheet"),
         ('mergecsv', "combine csv into binary array"),
+        ('filterdata', 'select subset of data based on filtered loci'),
+        ('filterloci', 'select subset of loci based on allele counts'),
         # lobSTR related
         ('lobstrindex', 'make lobSTR index'),
         ('batchlobstr', "run batch lobSTR"),
@@ -410,6 +412,63 @@ def filtervcf(args):
         continue
 
 
+def write_meta(af, gene_map, remove, seen, nalleles, filename="meta.tsv"):
+    fp = open(af)
+    fw = open(filename, "w")
+    header = "id title gene_name variant_type motif allele_frequency".\
+                replace(" ",  "\t")
+    print >> fw, header
+    variant_type = "short tandem repeats"
+    title = "Short tandem repeats ({})n"
+    for row in fp:
+        sname, counts = row.split()
+        name = sname.rsplit("_", 1)[0]
+        seqid, pos, motif = name.split("_")
+        countst = [x for x in counts.strip("{}").split(",") if x]
+        countsd = {}
+        for x in countst:
+            a, b = x.split(":")
+            countsd[int(a)] = int(b)
+
+        if counts_filter(countsd, nalleles, seqid):
+            remove.append(sname)
+            continue
+
+        if name in seen:
+            remove.append(sname)
+            continue
+        seen.add(name)
+
+        gene_name = gene_map.get((seqid, pos), "")
+        print >> fw, "\t".join((name, title.format(motif),
+                                gene_name, variant_type, motif, counts))
+    fw.close()
+
+
+def meta(args):
+    """
+    %prog prune data.bin samples STR.ids
+
+    Comppute allele frequencies and prune sites based on missingness.
+    """
+    p = OptionParser(meta.__doc__)
+    p.set_cpus()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    binfile, sampleids, strids, = args
+    df, m, samples, loci = read_binfile(binfile, sampleids, strids)
+    for i, locus in enumerate(loci):
+        a = m[:, i]
+        counts = alleles_to_counts(a)
+        af = counts_to_af(counts)
+        print locus, a, af
+        if i > 30:
+            return
+
+
 def mask(args):
     """
     %prog mask meta.tsv data.bin samples.ids STR.ids
@@ -441,10 +500,10 @@ def mask(args):
 
 
 def alleles_to_counts(a):
-    counts = Counter()
-    xa = a / 1000
+    #xa = a / 1000
     xb = a % 1000
-    counts.update(xa)
+    counts = Counter()
+    #counts.update(xa)
     counts.update(xb)
     del counts[-1]
     del counts[999]
@@ -640,38 +699,9 @@ def filterloci(args):
         gene_map[k] = ",".join(non_enst + enst)
 
     logging.debug("Filtering loci from `{}`".format(af))
-    fp = open(af)
     seen = set(TREDS)
     remove = []
-    fw = open("meta.tsv", "w")
-    header = "id title gene_name variant_type motif allele_frequency".\
-                replace(" ",  "\t")
-    print >> fw, header
-    variant_type = "short tandem repeats"
-    title = "Short tandem repeats ({})n"
-    for row in fp:
-        sname, counts = row.split()
-        name = sname.rsplit("_", 1)[0]
-        seqid, pos, motif = name.split("_")
-        countst = [x for x in counts.strip("{}").split(",") if x]
-        countsd = {}
-        for x in countst:
-            a, b = x.split(":")
-            countsd[int(a)] = int(b)
-
-        if counts_filter(countsd, nalleles, seqid):
-            remove.append(sname)
-            continue
-
-        if name in seen:
-            remove.append(sname)
-            continue
-        seen.add(name)
-
-        gene_name = gene_map.get((seqid, pos), "")
-        print >> fw, "\t".join((name, title.format(motif),
-                                gene_name, variant_type, motif, counts))
-    fw.close()
+    write_meta(af, gene_map, remove, seen, nalleles, filename="meta.tsv")
 
     removeidsfile = "remove.ids"
     fw = open(removeidsfile, "w")

@@ -257,15 +257,13 @@ class LobSTRvcf(dict):
 def main():
 
     actions = (
-        # Compile population data
+        # Compile population data - pipeline: compilevcf->mergecsv->meta->mask
         ('bin', 'convert tsv to binary format'),
-        ('meta', 'compute allele frequencies and write to meta'),
-        ('mask', 'compute P-values based on meta and data'),
         ('filtervcf', 'filter lobSTR VCF'),
-        # Compile population data - pipeline
         ('compilevcf', "compile vcf results into master spreadsheet"),
         ('mergecsv', "combine csv into binary array"),
-        ('filterdata', 'select subset of data based on filtered loci'),
+        ('meta', 'compute allele frequencies and write to meta'),
+        ('mask', 'compute P-values based on meta and data'),
         # lobSTR related
         ('lobstrindex', 'make lobSTR index'),
         ('batchlobstr', "run batch lobSTR"),
@@ -489,36 +487,6 @@ def meta(args):
     write_meta(af_file, gene_map, TREDS, filename="meta.tsv")
 
 
-def mask(args):
-    """
-    %prog mask meta.tsv data.bin samples.ids STR.ids
-
-    Compute P-values based on meta and data. Write mask.bin and a new meta.tsv
-    with updated counts.
-    """
-    p = OptionParser(mask.__doc__)
-    opts, args = p.parse_args(args)
-
-    if len(args) != 4:
-        sys.exit(not p.print_help())
-
-    metafile, databin, sampleids, strids = args
-    df, m, samples, loci = read_binfile(databin, sampleids, strids)
-    sf = pd.read_csv(metafile, index_col=0, sep="\t")
-    #print sf[["id", "allele_frequency"]]
-    for i, locus in enumerate(loci):
-        a = m[:, i]
-        print locus, a
-        counts = alleles_to_counts(a)
-        p_counts = af_to_counts(sf.ix[locus]["allele_frequency"])
-        print "before:", counts
-        counts.update(p_counts)
-        af = counts_to_af(counts)
-        print "after:", counts
-        if i > 30:
-            return
-
-
 def alleles_to_counts(a):
     #xa = a / 1000
     xb = a % 1000
@@ -612,41 +580,55 @@ def write_csv(csvfile, m, index, columns, sep="\t", index_label="SampleKey"):
     fw.close()
 
 
-def filterdata(args):
-    """
-    %prog filterdata data.bin samples.ids STR.ids allele_freq remove.ids final.ids
+def read_meta(metafile):
+    df = pd.read_csv(metafile, sep="\t")
+    final_columns = []
+    percentiles = {}
+    for i, row in df.iterrows():
+        id = row["id"]
+        final_columns.append(id)
+        counts = row["allele_frequency"]
+        countsd = af_to_counts(counts)
+        percentile = counts_to_percentile(countsd)
+        percentiles[id] = percentile
+    return final_columns, percentiles
 
-    Filter subset of data after dropping remove.ids.
+
+def mask(args):
     """
-    p = OptionParser(filterdata.__doc__)
+    %prog mask data.bin samples.ids STR.ids meta.tsv
+
+    Compute P-values based on meta and data. Write mask.bin and a new meta.tsv
+    with updated counts.
+    """
+    p = OptionParser(mask.__doc__)
     p.set_cpus()
     opts, args = p.parse_args(args)
 
-    if len(args) != 6:
+    if len(args) != 4:
         sys.exit(not p.print_help())
 
-    binfile, sampleids, strids, af, remove, final = args
-    df, m, samples, loci = read_binfile(binfile, sampleids, strids)
-    remove = [x.strip() for x in open(remove)]
-    removes = set(remove)
-    final = [x.strip() for x in open(final)]
-    assert len(loci) == len(remove) + len(final)
+    databin, sampleids, strids, metafile = args
+    final_columns, percentiles = read_meta(metafile)
+    df, m, samples, loci = read_binfile(databin, sampleids, strids)
 
-    fp = open(af)
-    percentiles = {}
-    for row in fp:
-        sname, counts = row.split()
-        countsd = af_to_counts(counts)
-        percentile = counts_to_percentile(countsd)
-        percentiles[sname] = percentile
-
+    final = set(final_columns)
+    remove = []
     run_args = []
-    for i, sname in enumerate(loci):
-        if sname in removes:
+    for i, locus in enumerate(loci):
+        if locus not in final:
+            remove.append(locus)
             continue
         a = m[:, i]
-        percentile = percentiles[sname]
+        percentile = percentiles[locus]
         run_args.append((i, a, percentile))
+
+    filteredstrids = "filtered.STR.ids"
+    fw = open(filteredstrids, "w")
+    print >> fw, "\n".join(final_columns)
+    fw.close()
+    logging.debug("Dropped {} columns; Retained {} columns (`{}`)".\
+                    format(len(remove), len(final_columns), filteredstrids))
 
     cpus = min(opts.cpus, len(run_args))
     p = Pool(processes=cpus)
@@ -658,20 +640,22 @@ def filterdata(args):
     # Write mask (P-value) matrix
     ii, pvalues = zip(*res)
     m = np.vstack(pvalues).T
-    write_csv("final.mask.tsv", m, samples, final)
+    write_csv("mask.tsv", m, samples, final_columns)
 
     df.drop(remove, inplace=True, axis=1)
-    df.columns = final
+    df.columns = final_columns
 
     # Save a copy of the raw numpy array
-    filtered_bin = "filtered.bin"
+    filtered_bin = "filtered.data.bin"
     m = df.as_matrix()
+    m %= 1000
+    m[m == 999] = -1
     m[m < 0] = -1
     m.tofile(filtered_bin)
-    logging.debug("Binary matrix written to `{}`".format(filtered_bin))
+    logging.debug("Filtered binary matrix written to `{}`".format(filtered_bin))
 
     # Write data output
-    df.to_csv("final.data.tsv", sep="\t", index_label="SampleKey")
+    df.to_csv("filtered.data.tsv", sep="\t", index_label="SampleKey")
 
 
 def counts_filter(countsd, nalleles, seqid):

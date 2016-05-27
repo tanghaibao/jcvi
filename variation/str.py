@@ -24,7 +24,8 @@ from jcvi.formats.bed import natsorted
 from jcvi.apps.grid import MakeManager
 from jcvi.formats.base import LineFile, must_open
 from jcvi.utils.aws import push_to_s3, pull_from_s3, check_exists_s3, ls_s3
-from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, need_update, sh
+from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, need_update, \
+            datadir, sh
 
 
 READLEN = 150
@@ -71,20 +72,6 @@ DYS460 DYS481 DYS518 DYS533
 DYS549 DYS570 DYS576 DYS627
 DYS635 DYS643 GATA-H4
 """.split()
-TREDS = """chr19_45770205_CAG
-chr6_170561926_CAG
-chrX_67545318_CAG
-chr9_69037287_GAA
-chrX_147912051_CGG
-chr4_3074877_CAG
-chrX_148500639_CCG
-chr12_6936729_CAG
-chr13_70139384_CTG
-chr6_16327636_CTG
-chr14_92071011_CTG
-chr12_111598951_CTG
-chr3_63912686_CAG
-chr19_13207859_CTG""".split()
 
 
 class STRLine(object):
@@ -279,7 +266,6 @@ def main():
         ('compilevcf', "compile vcf results into master spreadsheet"),
         ('mergecsv', "combine csv into binary array"),
         ('filterdata', 'select subset of data based on filtered loci'),
-        ('filterloci', 'select subset of loci based on allele counts'),
         # lobSTR related
         ('lobstrindex', 'make lobSTR index'),
         ('batchlobstr', "run batch lobSTR"),
@@ -412,8 +398,8 @@ def filtervcf(args):
         continue
 
 
-def write_meta(af, gene_map, remove, seen, nalleles, filename="meta.tsv"):
-    fp = open(af)
+def write_meta(af_file, gene_map, blacklist, filename="meta.tsv"):
+    fp = open(af_file)
     fw = open(filename, "w")
     header = "id title gene_name variant_type motif allele_frequency".\
                 replace(" ",  "\t")
@@ -421,56 +407,86 @@ def write_meta(af, gene_map, remove, seen, nalleles, filename="meta.tsv"):
     variant_type = "short tandem repeats"
     title = "Short tandem repeats ({})n"
     for row in fp:
-        sname, counts = row.split()
-        name = sname.rsplit("_", 1)[0]
-        seqid, pos, motif = name.split("_")
-        countst = [x for x in counts.strip("{}").split(",") if x]
-        countsd = {}
-        for x in countst:
-            a, b = x.split(":")
-            countsd[int(a)] = int(b)
-
-        if counts_filter(countsd, nalleles, seqid):
-            remove.append(sname)
+        locus, af, remove = row.split()
+        if remove != "PASS":
+            continue
+        if locus in blacklist:
             continue
 
-        if name in seen:
-            remove.append(sname)
-            continue
-        seen.add(name)
-
+        seqid, pos, motif = locus.split("_")
         gene_name = gene_map.get((seqid, pos), "")
-        print >> fw, "\t".join((name, title.format(motif),
-                                gene_name, variant_type, motif, counts))
+        print >> fw, "\t".join((locus, title.format(motif),
+                                gene_name, variant_type, motif, af))
     fw.close()
+    logging.debug("Write meta file to `{}`".format(filename))
+
+
+def read_treds(tredsfile):
+    df = pd.read_csv(tredsfile)
+    treds = set(df["id"])
+    logging.debug("Loaded {} treds from `{}`".format(len(treds), tredsfile))
+    return treds
 
 
 def meta(args):
     """
-    %prog prune data.bin samples STR.ids
+    %prog prune data.bin samples STR.ids STR-exons.wo.bed
 
-    Comppute allele frequencies and prune sites based on missingness.
+    Compute allele frequencies and prune sites based on missingness.
+
+    Filter subset of loci that satisfy:
+    1. no redundancy (unique chr:pos)
+    2. variable (n_alleles > 1)
+    3. low level of missing data (>= 50% autosomal + X, > 25% for Y)
+
+    Write meta file with the following infor:
+    1. id
+    2. title
+    3. gene_name
+    4. variant_type
+    5. motif
+    6. allele_frequency
+
+    `STR-exons.wo.bed` can be generated like this:
+    $ tail -n 694105 /mnt/software/lobSTR/hg38/index.tab | cut -f1-3 > all-STR.bed
+    $ intersectBed -a all-STR.bed -b all-exons.bed -wo > STR-exons.wo.bed
     """
     p = OptionParser(meta.__doc__)
     p.set_cpus()
-    p.set_outfile()
     opts, args = p.parse_args(args)
 
-    if len(args) != 3:
+    if len(args) != 4:
         sys.exit(not p.print_help())
 
-    binfile, sampleids, strids, = args
+    binfile, sampleids, strids, wobed = args
     df, m, samples, loci = read_binfile(binfile, sampleids, strids)
     nalleles = len(samples)
-    fw = must_open(opts.outfile, "w")
-    for i, locus in enumerate(loci):
-        a = m[:, i]
-        counts = alleles_to_counts(a)
-        af = counts_to_af(counts)
-        seqid = locus.split("_")[0]
-        remove = counts_filter(counts, nalleles, seqid)
-        print >> fw, "\t".join((locus, af, "REMOVE" if remove else "PASS"))
-    fw.close()
+    af_file = "allele_freq"
+    if need_update(binfile, af_file):
+        fw = must_open(af_file, "w")
+        for i, locus in enumerate(loci):
+            a = m[:, i]
+            counts = alleles_to_counts(a)
+            af = counts_to_af(counts)
+            seqid = locus.split("_")[0]
+            remove = counts_filter(counts, nalleles, seqid)
+            print >> fw, "\t".join((locus, af, "REMOVE" if remove else "PASS"))
+        fw.close()
+
+    logging.debug("Load gene intersections from `{}`".format(wobed))
+    fp = open(wobed)
+    gene_map = defaultdict(set)
+    for row in fp:
+        chr1, start1, end1, chr2, start2, end2, name, ov = row.split()
+        gene_map[(chr1, start1)] |= set(name.split(","))
+    for k, v in gene_map.items():
+        non_enst = sorted(x for x in v if not x.startswith("ENST"))
+        enst = sorted(x.rsplit(".", 1)[0] for x in v if x.startswith("ENST"))
+        gene_map[k] = ",".join(non_enst + enst)
+
+    tredsfile = op.join(datadir, "TREDs.meta.hg38.csv")
+    TREDS = read_treds(tredsfile)
+    write_meta(af_file, gene_map, TREDS, filename="meta.tsv")
 
 
 def mask(args):
@@ -656,63 +672,6 @@ def filterdata(args):
 
     # Write data output
     df.to_csv("final.data.tsv", sep="\t", index_label="SampleKey")
-
-
-def filterloci(args):
-    """
-    %prog filterloci allele_freq STR-exons.wo.bed SAMPLES
-
-    Filter subset of loci that satisfy:
-    1. no redundancy (unique chr:pos)
-    2. variable (n_alleles > 1)
-    3. low level of missing data (>= 50% autosomal + X, > 25% for Y)
-
-    Write meta file with the following infor:
-    1. id
-    2. title
-    3. gene_name
-    4. variant_type
-    5. motif
-    6. allele_frequency
-
-    `STR-exons.wo.bed` can be generated like this:
-    $ tail -n 854476 /mnt/software/lobSTR/hg38/index.tab | cut -f1-3 > all-STR.bed
-    $ intersectBed -a all-STR.bed -b all-exons.bed -wo > STR-exons.wo.bed
-    """
-    p = OptionParser(filterloci.__doc__)
-    opts, args = p.parse_args(args)
-
-    if len(args) != 3:
-        sys.exit(not p.print_help())
-
-    af, wobed, samples = args
-    nsamples = len([x.strip() for x in open(samples)])
-    nalleles = nsamples * 2
-    logging.debug("Load {} samples ({} alleles) from `{}`".\
-                    format(nsamples, nalleles, samples))
-
-    logging.debug("Load gene intersections from `{}`".format(wobed))
-    fp = open(wobed)
-    gene_map = defaultdict(set)
-    for row in fp:
-        chr1, start1, end1, chr2, start2, end2, name, ov = row.split()
-        gene_map[(chr1, start1)] |= set(name.split(","))
-    for k, v in gene_map.items():
-        non_enst = sorted(x for x in v if not x.startswith("ENST"))
-        enst = sorted(x.rsplit(".", 1)[0] for x in v if x.startswith("ENST"))
-        gene_map[k] = ",".join(non_enst + enst)
-
-    logging.debug("Filtering loci from `{}`".format(af))
-    seen = set(TREDS)
-    remove = []
-    write_meta(af, gene_map, remove, seen, nalleles, filename="meta.tsv")
-
-    removeidsfile = "remove.ids"
-    fw = open(removeidsfile, "w")
-    print >> fw, "\n".join(remove)
-    fw.close()
-    logging.debug("A total of {} filtered loci written to `{}`".\
-                    format(len(remove), removeidsfile))
 
 
 def counts_filter(countsd, nalleles, seqid):

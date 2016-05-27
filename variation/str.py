@@ -258,13 +258,14 @@ class LobSTRvcf(dict):
 def main():
 
     actions = (
-        # Compile population data - pipeline: compilevcf->mergecsv->meta->mask
+        # Compile population data - pipeline: compilevcf->mergecsv->meta->data->mask
         ('bin', 'convert tsv to binary format'),
         ('filtervcf', 'filter lobSTR VCF'),
         ('compilevcf', "compile vcf results into master spreadsheet"),
         ('mergecsv', "combine csv into binary array"),
         ('meta', 'compute allele frequencies and write to meta'),
-        ('mask', 'compute P-values based on meta and data'),
+        ('data', 'filter data based on the meta calls'),
+        ('mask', 'compute P-values based on meta calls and data'),
         ('treds', 'compile allele_frequency for TRED results'),
         # lobSTR related
         ('lobstrindex', 'make lobSTR index'),
@@ -505,10 +506,11 @@ def meta(args):
         sys.exit(not p.print_help())
 
     binfile, sampleids, strids, wobed = args
-    df, m, samples, loci = read_binfile(binfile, sampleids, strids)
-    nalleles = len(samples)
+
     af_file = "allele_freq"
     if need_update(binfile, af_file):
+        df, m, samples, loci = read_binfile(binfile, sampleids, strids)
+        nalleles = len(samples)
         fw = must_open(af_file, "w")
         for i, locus in enumerate(loci):
             a = m[:, i]
@@ -532,7 +534,10 @@ def meta(args):
 
     tredsfile = op.join(datadir, "TREDs.meta.hg38.csv")
     TREDS = read_treds(tredsfile)
-    write_meta(af_file, gene_map, TREDS, filename="meta.tsv")
+
+    metafile = "STRs_{}_SEARCH.meta.tsv".format(timestamp())
+    write_meta(af_file, gene_map, TREDS, filename=metafile)
+    logging.debug("File `{}` written.".format(metafile))
 
 
 def alleles_to_counts(a):
@@ -654,14 +659,13 @@ def write_mask(cpus, samples, final_columns, run_args, filename="mask.tsv"):
     write_csv(filename, m, samples, final_columns)
 
 
-def mask(args):
+def data(args):
     """
-    %prog mask data.bin samples.ids STR.ids meta.tsv
+    %prog data data.bin samples.ids STR.ids meta.tsv
 
-    Compute P-values based on meta and data. Write mask.bin and a new meta.tsv
-    with updated counts.
+    Make data.tsv based on meta.tsv.
     """
-    p = OptionParser(mask.__doc__)
+    p = OptionParser(data.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 4:
@@ -671,7 +675,7 @@ def mask(args):
     final_columns, percentiles = read_meta(metafile)
     df, m, samples, loci = read_binfile(databin, sampleids, strids)
 
-    m = df.as_matrix()
+    # Clean the data
     m %= 1000  # Get the larger of the two alleles
     m[m == 999] = -1  # Missing data
 
@@ -686,7 +690,8 @@ def mask(args):
         percentile = percentiles[locus]
         run_args.append((i, a, percentile))
 
-    filteredstrids = "filtered.STR.ids"
+    pf = "STRs_{}_SEARCH".format(timestamp())
+    filteredstrids = "{}.STR.ids".format(pf)
     fw = open(filteredstrids, "w")
     print >> fw, "\n".join(final_columns)
     fw.close()
@@ -697,20 +702,30 @@ def mask(args):
     df.drop(remove, inplace=True, axis=1)
     df.columns = final_columns
 
-    filtered_bin = "filtered.data.bin"
+    filtered_bin = "{}.data.bin".format(pf)
     if need_update(databin, filtered_bin):
+        m = df.as_matrix()
         m.tofile(filtered_bin)
         logging.debug("Filtered binary matrix written to `{}`".format(filtered_bin))
 
     # Write data output
-    filtered_tsv = "filtered.data.tsv"
+    filtered_tsv = "{}.data.tsv".format(pf)
     if need_update(databin, filtered_tsv):
-        df.to_csv("filtered.data.tsv", sep="\t", index_label="SampleKey")
+        df.to_csv(filtered_tsv, sep="\t", index_label="SampleKey")
 
-    maskfile = "mask.tsv"
-    if need_update(databin, maskfile):
-        cpus = min(8, len(run_args))
-        write_mask(cpus, samples, final_columns, run_args, filename=maskfile)
+
+def mask(args):
+    """
+    %prog mask
+
+    Compute P-values based on meta and data. Write mask.bin and a new meta.tsv
+    with updated counts.
+    """
+    pass
+    #maskfile = "mask.tsv"
+    #if need_update(databin, maskfile):
+    #    cpus = min(8, len(run_args))
+    #    write_mask(cpus, samples, final_columns, run_args, filename=maskfile)
 
 
 def counts_filter(countsd, nalleles, seqid):

@@ -428,7 +428,7 @@ def read_treds(tredsfile):
 
 def meta(args):
     """
-    %prog prune data.bin samples STR.ids STR-exons.wo.bed
+    %prog meta data.bin samples STR.ids STR-exons.wo.bed
 
     Compute allele frequencies and prune sites based on missingness.
 
@@ -468,7 +468,7 @@ def meta(args):
             af = counts_to_af(counts)
             seqid = locus.split("_")[0]
             remove = counts_filter(counts, nalleles, seqid)
-            print >> fw, "\t".join((locus, af, "REMOVE" if remove else "PASS"))
+            print >> fw, "\t".join((locus, af, remove))
         fw.close()
 
     logging.debug("Load gene intersections from `{}`".format(wobed))
@@ -594,6 +594,19 @@ def read_meta(metafile):
     return final_columns, percentiles
 
 
+def write_mask(cpus, samples, final_columns, run_args):
+    p = Pool(processes=cpus)
+    res = []
+    for r in p.map_async(convert_to_percentile, run_args).get():
+        res.append(r)
+    res.sort()
+
+    # Write mask (P-value) matrix
+    ii, pvalues = zip(*res)
+    m = np.vstack(pvalues).T
+    write_csv("mask.tsv", m, samples, final_columns)
+
+
 def mask(args):
     """
     %prog mask data.bin samples.ids STR.ids meta.tsv
@@ -630,47 +643,42 @@ def mask(args):
     logging.debug("Dropped {} columns; Retained {} columns (`{}`)".\
                     format(len(remove), len(final_columns), filteredstrids))
 
-    cpus = min(opts.cpus, len(run_args))
-    p = Pool(processes=cpus)
-    res = []
-    for r in p.map_async(convert_to_percentile, run_args).get():
-        res.append(r)
-    res.sort()
-
-    # Write mask (P-value) matrix
-    ii, pvalues = zip(*res)
-    m = np.vstack(pvalues).T
-    write_csv("mask.tsv", m, samples, final_columns)
+    #cpus = min(opts.cpus, len(run_args))
+    #write_mask(cpus)
 
     df.drop(remove, inplace=True, axis=1)
     df.columns = final_columns
 
     # Save a copy of the raw numpy array
-    filtered_bin = "filtered.data.bin"
     m = df.as_matrix()
     m %= 1000
     m[m == 999] = -1
     m[m < 0] = -1
-    m.tofile(filtered_bin)
-    logging.debug("Filtered binary matrix written to `{}`".format(filtered_bin))
+
+    filtered_bin = "filtered.data.bin"
+    if need_update(databin, filtered_bin):
+        m.tofile(filtered_bin)
+        logging.debug("Filtered binary matrix written to `{}`".format(filtered_bin))
 
     # Write data output
-    df.to_csv("filtered.data.tsv", sep="\t", index_label="SampleKey")
+    filtered_tsv = "filtered.data.tsv"
+    if need_update(databin, filtered_tsv):
+        df.to_csv("filtered.data.tsv", sep="\t", index_label="SampleKey")
 
 
 def counts_filter(countsd, nalleles, seqid):
     # Check for variability
     if len(countsd) < 2:
-        return True
+        return "INVARIANT"
 
     # Check for missingness
     observed = sum(countsd.values())
     observed_pct = observed * 100  / nalleles
     if observed_pct < 50:
         if not (seqid == "chrY" and observed_pct >= 25):
-            return True
+            return "MISSING"
 
-    return False
+    return "PASS"
 
 
 def read_binfile(binfile, sampleids, strids, dtype=np.int32):

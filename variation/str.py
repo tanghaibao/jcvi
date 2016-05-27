@@ -716,12 +716,19 @@ def data(args):
 
 def mask(args):
     """
-    %prog mask
+    %prog mask data.bin samples.ids STR.ids meta.tsv
 
-    Compute P-values based on meta and data. Write mask.bin and a new meta.tsv
-    with updated counts.
+    Compute P-values based on meta and data. The `data.bin` should be the matrix
+    containing filtered loci and the output mask.tsv will have the same
+    dimension.
     """
-    pass
+    p = OptionParser(mask.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 4:
+        sys.exit(not p.print_help())
+
+    databin, sampleids, strids, metafile = args
     #maskfile = "mask.tsv"
     #if need_update(databin, maskfile):
     #    cpus = min(8, len(run_args))

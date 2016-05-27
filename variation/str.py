@@ -20,6 +20,7 @@ from collections import Counter, defaultdict
 from multiprocessing import Pool
 
 from jcvi.utils.cbook import percentage, uniqify
+from jcvi.formats.base import timestamp
 from jcvi.formats.bed import natsorted
 from jcvi.apps.grid import MakeManager
 from jcvi.formats.base import LineFile, must_open
@@ -316,13 +317,13 @@ def treds(args):
 
     tf["allele_frequency"] = af
 
-    metafile = "filtered.meta.tsv"
+    metafile = "TREDs_{}_SEARCH.meta.tsv".format(timestamp())
     tf.to_csv(metafile, sep="\t", index=False)
     logging.debug("File `{}` written.".format(metafile))
 
     pp = df[tags]
     pp.columns = final_columns
-    datafile = "filtered.data.tsv"
+    datafile = "TREDs_{}_SEARCH.data.tsv".format(timestamp())
     pp.to_csv(datafile, sep="\t", index=False)
     logging.debug("File `{}` written.".format(datafile))
 

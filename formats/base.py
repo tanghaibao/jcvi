@@ -316,6 +316,11 @@ def check_exists(filename, oappend=False):
     return overwrite
 
 
+def timestamp():
+    from datetime import datetime as dt
+    return "{0}{1:02d}{2:02d}".format(dt.now().year, dt.now().month, dt.now().day)
+
+
 def must_open(filename, mode="r", checkexists=False, skipcheck=False, \
             oappend=False):
     """

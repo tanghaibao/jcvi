@@ -192,10 +192,10 @@ def sample(args):
 
 
 def get_vcfstanza(fastafile, fasta, sampleid="SAMP_001"):
-    from datetime import datetime as dt
+    from jcvi.formats.base import timestamp
     # VCF spec
     m = "##fileformat=VCFv4.1\n"
-    m += "##fileDate={0}{1:02d}{2:02d}\n".format(dt.now().year, dt.now().month, dt.now().day)
+    m += "##fileDate={0}\n".format(timestamp())
     m += "##source={0}\n".format(__file__)
     m += "##reference=file://{0}\n".format(op.abspath(fastafile).strip("/"))
     m += '##INFO=<ID=PR,Number=0,Type=Flag,Description="Provisional genotype">\n'

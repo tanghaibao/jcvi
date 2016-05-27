@@ -264,6 +264,7 @@ def main():
         ('mergecsv', "combine csv into binary array"),
         ('meta', 'compute allele frequencies and write to meta'),
         ('mask', 'compute P-values based on meta and data'),
+        ('treds', 'compile allele_frequency for TRED results'),
         # lobSTR related
         ('lobstrindex', 'make lobSTR index'),
         ('batchlobstr', "run batch lobSTR"),
@@ -278,6 +279,52 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def treds(args):
+    """
+    %prog treds hli.tred.tsv
+
+    Compile allele_frequency for TREDs results. Write data.tsv, meta.tsv and
+    mask.tsv in one go.
+    """
+    p = OptionParser(treds.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    tredresults, = args
+    df = pd.read_csv(tredresults, sep="\t")
+
+    tredsfile = op.join(datadir, "TREDs.meta.hg38.csv")
+    tf = pd.read_csv(tredsfile)
+
+    tds = list(tf["abbreviation"])
+    ids = list(tf["id"])
+    tags = ["SampleKey"]
+    final_columns = ["SampleKey"]
+    afs = []
+    for td, id in zip(tds, ids):
+        tag = "{}.2".format(td)
+        tags.append(tag)
+        a = df["{}.2".format(td)]
+        final_columns.append(id)
+        counts = alleles_to_counts(a)
+        af = counts_to_af(counts)
+        afs.append(af)
+
+    tf["allele_frequency"] = af
+
+    metafile = "filtered.meta.tsv"
+    tf.to_csv(metafile, sep="\t", index=False)
+    logging.debug("File `{}` written.".format(metafile))
+
+    pp = df[tags]
+    pp.columns = final_columns
+    datafile = "filtered.data.tsv"
+    pp.to_csv(datafile, sep="\t", index=False)
+    logging.debug("File `{}` written.".format(datafile))
 
 
 def stutter(args):
@@ -479,8 +526,8 @@ def meta(args):
         gene_map[(chr1, start1)] |= set(name.split(","))
     for k, v in gene_map.items():
         non_enst = sorted(x for x in v if not x.startswith("ENST"))
-        enst = sorted(x.rsplit(".", 1)[0] for x in v if x.startswith("ENST"))
-        gene_map[k] = ",".join(non_enst + enst)
+        #enst = sorted(x.rsplit(".", 1)[0] for x in v if x.startswith("ENST"))
+        gene_map[k] = ",".join(non_enst)
 
     tredsfile = op.join(datadir, "TREDs.meta.hg38.csv")
     TREDS = read_treds(tredsfile)

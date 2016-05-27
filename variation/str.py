@@ -406,7 +406,7 @@ def write_meta(af_file, gene_map, blacklist, filename="meta.tsv"):
     title = "Short tandem repeats ({})n"
     for row in fp:
         locus, af, remove = row.split()
-        if remove != "PASS":
+        if remove == "MISSING":
             continue
         if locus in blacklist:
             continue
@@ -563,11 +563,10 @@ def counts_to_percentile(counts):
 
 def convert_to_percentile(arg):
     i, a, percentile = arg
-    xb = a % 1000
-    pp = np.array([percentile.get(x, "1.000000") for x in xb], dtype="S8")
+    pp = np.array([percentile.get(x, "1.000000") for x in a], dtype="S8")
     if i % 1000 == 0:
         print >> sys.stderr, i
-        print >> sys.stderr, xb
+        print >> sys.stderr, a
         print >> sys.stderr, pp
     return i, pp
 
@@ -594,7 +593,7 @@ def read_meta(metafile):
     return final_columns, percentiles
 
 
-def write_mask(cpus, samples, final_columns, run_args):
+def write_mask(cpus, samples, final_columns, run_args, filename="mask.tsv"):
     p = Pool(processes=cpus)
     res = []
     for r in p.map_async(convert_to_percentile, run_args).get():
@@ -604,7 +603,7 @@ def write_mask(cpus, samples, final_columns, run_args):
     # Write mask (P-value) matrix
     ii, pvalues = zip(*res)
     m = np.vstack(pvalues).T
-    write_csv("mask.tsv", m, samples, final_columns)
+    write_csv(filename, m, samples, final_columns)
 
 
 def mask(args):
@@ -615,7 +614,6 @@ def mask(args):
     with updated counts.
     """
     p = OptionParser(mask.__doc__)
-    p.set_cpus()
     opts, args = p.parse_args(args)
 
     if len(args) != 4:
@@ -624,6 +622,10 @@ def mask(args):
     databin, sampleids, strids, metafile = args
     final_columns, percentiles = read_meta(metafile)
     df, m, samples, loci = read_binfile(databin, sampleids, strids)
+
+    m = df.as_matrix()
+    m %= 1000  # Get the larger of the two alleles
+    m[m == 999] = -1  # Missing data
 
     final = set(final_columns)
     remove = []
@@ -643,17 +645,9 @@ def mask(args):
     logging.debug("Dropped {} columns; Retained {} columns (`{}`)".\
                     format(len(remove), len(final_columns), filteredstrids))
 
-    #cpus = min(opts.cpus, len(run_args))
-    #write_mask(cpus)
-
+    # Remove low-quality columns!
     df.drop(remove, inplace=True, axis=1)
     df.columns = final_columns
-
-    # Save a copy of the raw numpy array
-    m = df.as_matrix()
-    m %= 1000
-    m[m == 999] = -1
-    m[m < 0] = -1
 
     filtered_bin = "filtered.data.bin"
     if need_update(databin, filtered_bin):
@@ -665,18 +659,23 @@ def mask(args):
     if need_update(databin, filtered_tsv):
         df.to_csv("filtered.data.tsv", sep="\t", index_label="SampleKey")
 
+    maskfile = "mask.tsv"
+    if need_update(databin, maskfile):
+        cpus = min(8, len(run_args))
+        write_mask(cpus, samples, final_columns, run_args, filename=maskfile)
+
 
 def counts_filter(countsd, nalleles, seqid):
-    # Check for variability
-    if len(countsd) < 2:
-        return "INVARIANT"
-
     # Check for missingness
     observed = sum(countsd.values())
     observed_pct = observed * 100  / nalleles
     if observed_pct < 50:
         if not (seqid == "chrY" and observed_pct >= 25):
             return "MISSING"
+
+    # Check for variability
+    if len(countsd) < 2:
+        return "INVARIANT"
 
     return "PASS"
 

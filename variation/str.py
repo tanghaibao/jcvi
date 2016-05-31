@@ -681,14 +681,10 @@ def data(args):
 
     final = set(final_columns)
     remove = []
-    run_args = []
     for i, locus in enumerate(loci):
         if locus not in final:
             remove.append(locus)
             continue
-        a = m[:, i]
-        percentile = percentiles[locus]
-        run_args.append((i, a, percentile))
 
     pf = "STRs_{}_SEARCH".format(timestamp())
     filteredstrids = "{}.STR.ids".format(pf)
@@ -729,10 +725,20 @@ def mask(args):
         sys.exit(not p.print_help())
 
     databin, sampleids, strids, metafile = args
-    #maskfile = "mask.tsv"
-    #if need_update(databin, maskfile):
-    #    cpus = min(8, len(run_args))
-    #    write_mask(cpus, samples, final_columns, run_args, filename=maskfile)
+    final_columns, percentiles = read_meta(metafile)
+    df, m, samples, loci = read_binfile(databin, sampleids, strids)
+
+    pf = "STRs_{}_SEARCH".format(timestamp())
+    maskfile = pf + ".mask.tsv"
+    run_args = []
+    for i, locus in enumerate(loci):
+        a = m[:, i]
+        percentile = percentiles[locus]
+        run_args.append((i, a, percentile))
+
+    if need_update(databin, maskfile):
+        cpus = min(8, len(run_args))
+        write_mask(cpus, samples, final_columns, run_args, filename=maskfile)
 
 
 def counts_filter(countsd, nalleles, seqid):

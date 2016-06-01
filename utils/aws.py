@@ -81,7 +81,11 @@ def cp(args):
         sys.exit(not p.print_help())
 
     store, folder = args
-    contents = glob_s3(store)
+    if op.exists(store):
+        contents = [x.strip() for x in open(store)]
+    else:
+        contents = glob_s3(store)
+
     for c in contents:
         oc = op.basename(c)
         tc = op.join(folder, oc)

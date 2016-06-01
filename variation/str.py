@@ -316,7 +316,7 @@ def treds(args):
         af = counts_to_af(counts)
         afs.append(af)
 
-    tf["allele_frequency"] = af
+    tf["allele_frequency"] = afs
 
     metafile = "TREDs_{}_SEARCH.meta.tsv".format(timestamp())
     tf.to_csv(metafile, sep="\t", index=False)
@@ -714,6 +714,10 @@ def mask(args):
     """
     %prog mask data.bin samples.ids STR.ids meta.tsv
 
+    OR
+
+    %prog mask data.tsv meta.tsv
+
     Compute P-values based on meta and data. The `data.bin` should be the matrix
     containing filtered loci and the output mask.tsv will have the same
     dimension.
@@ -721,14 +725,24 @@ def mask(args):
     p = OptionParser(mask.__doc__)
     opts, args = p.parse_args(args)
 
-    if len(args) != 4:
+    if len(args) not in (2, 4):
         sys.exit(not p.print_help())
 
-    databin, sampleids, strids, metafile = args
-    final_columns, percentiles = read_meta(metafile)
-    df, m, samples, loci = read_binfile(databin, sampleids, strids)
+    if len(args) == 4:
+        databin, sampleids, strids, metafile = args
+        df, m, samples, loci = read_binfile(databin, sampleids, strids)
+        mode = "STRs"
+    elif len(args) == 2:
+        databin, metafile = args
+        df = pd.read_csv(databin, sep="\t", index_col=0)
+        m = df.as_matrix()
+        samples = df.index
+        loci = list(df.columns)
+        mode = "TREDs"
 
-    pf = "STRs_{}_SEARCH".format(timestamp())
+    pf = "{}_{}_SEARCH".format(mode, timestamp())
+    final_columns, percentiles = read_meta(metafile)
+
     maskfile = pf + ".mask.tsv"
     run_args = []
     for i, locus in enumerate(loci):
@@ -736,7 +750,7 @@ def mask(args):
         percentile = percentiles[locus]
         run_args.append((i, a, percentile))
 
-    if need_update(databin, maskfile):
+    if mode == "TREDs" or need_update(databin, maskfile):
         cpus = min(8, len(run_args))
         write_mask(cpus, samples, final_columns, run_args, filename=maskfile)
 

@@ -10,6 +10,7 @@ import sys
 import fnmatch
 
 import boto3
+from multiprocessing import Pool
 
 from jcvi.formats.base import SetFile
 from jcvi.apps.base import OptionParser, ActionDispatcher, popen, sh
@@ -66,31 +67,42 @@ def rm(args):
         rm_s3(c)
 
 
+def worker(work):
+    folder, c, force = work
+    oc = op.basename(c)
+    tc = op.join(folder, oc)
+    if force or not op.exists(tc):
+        pull_from_s3(c)
+
+
 def cp(args):
     """
     %prog cp "s3://hli-mv-data-science/htang/str/*.csv" .
 
-    Copy files to folder.
+    Copy files to folder. Accepts list of s3 addresses as input.
     """
     p = OptionParser(cp.__doc__)
     p.add_option("--force", default=False,
                  action="store_true", help="Force overwrite if exists")
+    p.set_cpus()
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
         sys.exit(not p.print_help())
 
     store, folder = args
+    force = opts.force
+    cpus = opts.cpus
     if op.exists(store):
         contents = [x.strip() for x in open(store)]
     else:
         contents = glob_s3(store)
 
-    for c in contents:
-        oc = op.basename(c)
-        tc = op.join(folder, oc)
-        if opts.force or not op.exists(tc):
-            pull_from_s3(c)
+    tasks = [(folder, c, force) for c in contents]
+    worker_pool = Pool(cpus)
+    worker_pool.map(worker, tasks)
+    worker_pool.close()
+    worker_pool.join()
 
 
 def ls(args):

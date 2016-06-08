@@ -68,11 +68,9 @@ def rm(args):
 
 
 def worker(work):
-    folder, c, force = work
-    oc = op.basename(c)
-    tc = op.join(folder, oc)
-    if force or not op.exists(tc):
-        pull_from_s3(c)
+    c, target, force = work
+    if force or not op.exists(target):
+        pull_from_s3(c, target)
 
 
 def cp(args):
@@ -94,11 +92,19 @@ def cp(args):
     force = opts.force
     cpus = opts.cpus
     if op.exists(store):
-        contents = [x.strip() for x in open(store)]
+        contents = [x.strip().split(",") for x in open(store)]
     else:
         contents = glob_s3(store)
 
-    tasks = [(folder, c, force) for c in contents]
+    tasks = []
+    for c in contents:
+        if len(c) == 1:
+            oc = op.basename(c)
+            tc = op.join(folder, oc)
+        else:
+            c, tc = c
+        tasks.append((c, tc, force))
+
     worker_pool = Pool(cpus)
     worker_pool.map(worker, tasks)
     worker_pool.close()

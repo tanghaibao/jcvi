@@ -649,8 +649,9 @@ def read_meta(metafile):
 def write_mask(cpus, samples, final_columns, run_args, filename="mask.tsv"):
     p = Pool(processes=cpus)
     res = []
-    for r in p.map_async(convert_to_percentile, run_args).get():
-        res.append(r)
+    r = p.map_async(convert_to_percentile, run_args,
+                    callback=res.append)
+    r.wait()
     res.sort()
 
     # Write mask (P-value) matrix

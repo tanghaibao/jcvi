@@ -499,6 +499,8 @@ def meta(args):
     $ intersectBed -a all-STR.bed -b all-exons.bed -wo > STR-exons.wo.bed
     """
     p = OptionParser(meta.__doc__)
+    p.add_option("--cutoff", default=.5, type="float",
+                 help="Percent observed required (chrY half cutoff)")
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -506,6 +508,7 @@ def meta(args):
         sys.exit(not p.print_help())
 
     binfile, sampleids, strids, wobed = args
+    cutoff = opts.cutoff
 
     af_file = "allele_freq"
     if need_update(binfile, af_file):
@@ -517,7 +520,7 @@ def meta(args):
             counts = alleles_to_counts(a)
             af = counts_to_af(counts)
             seqid = locus.split("_")[0]
-            remove = counts_filter(counts, nalleles, seqid)
+            remove = counts_filter(counts, nalleles, seqid, cutoff=cutoff)
             print >> fw, "\t".join((locus, af, remove))
         fw.close()
 
@@ -667,6 +670,8 @@ def data(args):
     Make data.tsv based on meta.tsv.
     """
     p = OptionParser(data.__doc__)
+    p.add_option("--notsv", default=False, action="store_true",
+                 help="Do not write data.tsv")
     opts, args = p.parse_args(args)
 
     if len(args) != 4:
@@ -707,7 +712,7 @@ def data(args):
 
     # Write data output
     filtered_tsv = "{}.data.tsv".format(pf)
-    if need_update(databin, filtered_tsv):
+    if not opts.notsv and need_update(databin, filtered_tsv):
         df.to_csv(filtered_tsv, sep="\t", index_label="SampleKey")
 
 
@@ -756,12 +761,13 @@ def mask(args):
         write_mask(cpus, samples, final_columns, run_args, filename=maskfile)
 
 
-def counts_filter(countsd, nalleles, seqid):
+def counts_filter(countsd, nalleles, seqid, cutoff=.5):
+    cutoff *= 100
     # Check for missingness
     observed = sum(countsd.values())
     observed_pct = observed * 100  / nalleles
-    if observed_pct < 50:
-        if not (seqid == "chrY" and observed_pct >= 25):
+    if observed_pct < cutoff:
+        if not (seqid == "chrY" and observed_pct >= cutoff / 2):
             return "MISSING"
 
     # Check for variability

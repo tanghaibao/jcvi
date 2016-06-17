@@ -1074,6 +1074,8 @@ def trf(args):
                  help="Minimum score to report")
     p.add_option("--period", default=6, type="int",
                  help="Maximum period to report")
+    p.add_option("--lobstr", default=False, action="store_true",
+                 help="Generate output for lobSTR")
     p.add_option("--telomeres", default=False, action="store_true",
                  help="Run telomere search: minscore=140 period=7")
     opts, args = p.parse_args(args)
@@ -1095,8 +1097,12 @@ def trf(args):
         cmd1 = "trf {0} {1} -d -h".format(fastafile, " ".join(params))
         datfile = op.basename(fastafile) + "." + ".".join(params) + ".dat"
         bedfile = "{0}.trf.bed".format(pf)
-        cmd2 = "cat {} | grep -v ^Parameters | awk '($8 >= {} && $8 <= {})'".\
-                    format(datfile, minlength, READLEN - minlength)
+        cmd2 = "cat {} | grep -v ^Parameters".format(datfile)
+        if opts.lobstr:
+            cmd2 += " | awk '($8 >= {} && $8 <= {})'".\
+                    format(minlength, READLEN - minlength)
+        else:
+            cmd2 += " | awk '($8 >= 0)'"
         cmd2 += " | sed 's/ /\\t/g'"
         cmd2 += " | awk '{{print \"{0}\\t\" $0}}' > {1}".format(pf, bedfile)
         mm.add(fastafile, datfile, cmd1)

@@ -558,7 +558,7 @@ def index(args):
             help="add @SQ header to the BAM file [default: %default]")
     p.add_option("--unique", default=False, action="store_true",
             help="only retain uniquely mapped reads [default: %default]")
-    p.set_cpus(cpus=8)
+    p.set_cpus()
     opts, args = p.parse_args(args)
 
     if len(args) != 1:

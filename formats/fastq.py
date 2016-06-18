@@ -18,6 +18,7 @@ from Bio.SeqIO.QualityIO import FastqGeneralIterator
 
 from jcvi.formats.fasta import must_open, rc
 from jcvi.formats.base import DictFile
+from jcvi.utils.cbook import percentage
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, \
         which, mkdir, need_update
 
@@ -222,9 +223,42 @@ def main():
         ('format', 'format fastq file, convert header from casava 1.8+ to older format'),
         ('fasta', 'convert fastq to fasta and qual file'),
         ('fromsra', 'convert sra to fastq using `fastq-dump`'),
+        ('uniq', 'retain only first instance of duplicate (by name) reads'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def uniq(args):
+    """
+    %prog uniq fastqfile
+
+    Retain only first instance of duplicate reads. Duplicate is defined as
+    having the same read name.
+    """
+    p = OptionParser(uniq.__doc__)
+    p.set_outfile()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    fastqfile, = args
+    fw = must_open(opts.outfile, "w")
+    nduplicates = nreads = 0
+    seen = set()
+    for rec in iter_fastq(fastqfile):
+        nreads += 1
+        if rec is None:
+            break
+        name = rec.name
+        if name in seen:
+            nduplicates += 1
+            continue
+        seen.add(name)
+        print >> fw, rec
+    logging.debug("Removed duplicate reads: {}".\
+                  format(percentage(nduplicates, nreads)))
 
 
 def suffix(args):
@@ -233,8 +267,6 @@ def suffix(args):
 
     Filter reads based on suffix.
     """
-    from jcvi.utils.cbook import percentage
-
     p = OptionParser(suffix.__doc__)
     p.set_outfile()
     opts, args = p.parse_args(args)

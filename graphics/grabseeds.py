@@ -396,7 +396,14 @@ def extract_label(labelfile):
 
 def load_image(resizefile):
     img = plt.imread(resizefile)
-    h, w, c = img.shape
+    if len(img.shape) == 2:  # Gray-scale image, convert to RGB
+        # http://www.socouldanyone.com/2013/03/converting-grayscale-to-rgb-with-numpy.html
+        h, w = img.shape
+        ret = np.empty((h, w, 3), dtype=np.uint8)
+        ret[:, :, 2] = ret[:, :, 1] = ret[:, :, 0] = img
+        img = ret
+    else:
+        h, w, c = img.shape
     logging.debug("Image `{0}` loaded ({1}px x {2}px).".format(resizefile, w, h))
     return img
 

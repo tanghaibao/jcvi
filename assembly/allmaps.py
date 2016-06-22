@@ -1172,6 +1172,8 @@ def path(args):
     each map is given in file `weights.txt`. The map with the highest weight is
     considered the pivot map. The final output is an AGP file that contains
     ordered scaffolds.
+
+    Please note that BED file and FASTA file cannot share the same prefix.
     """
     oargs = args
     p = OptionParser(path.__doc__)
@@ -1219,7 +1221,13 @@ def path(args):
     inputbed, fastafile = args
     inputbed = opts.bedfile or inputbed
     fastafile = opts.fastafile or fastafile
+
     pf = inputbed.rsplit(".", 1)[0]
+    if op.basename(fastafile).split(".")[0] == pf:
+        print >> sys.stderr, "ERROR: Filename collision `{}`. We suggest to rename `{}`"\
+                .format(pf, inputbed)
+        sys.exit(1)
+
     bedfile = pf + ".bed"
     weightsfile = opts.weightsfile
     partitionsfile = opts.partitions

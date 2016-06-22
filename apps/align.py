@@ -128,7 +128,7 @@ def nucmer(args):
     p = OptionParser(nucmer.__doc__)
     p.add_option("--chunks", type="int",
                  help="Split both query and subject into chunks")
-    p.set_params(prog="nucmer", params="-g 5000 -l 24 -c 500")
+    p.set_params(prog="nucmer", params="-l 100 -c 500")
     p.set_cpus()
     opts, args = p.parse_args(args)
 

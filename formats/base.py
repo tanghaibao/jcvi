@@ -819,7 +819,7 @@ def split(args):
         logging.debug("option -all override N")
         N = fs.num_records
     else:
-        N = int(N)
+        N = min(fs.num_records, int(N))
         assert N > 0, "N must be > 0"
 
     logging.debug("split file into %d chunks" % N)

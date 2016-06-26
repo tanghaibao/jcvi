@@ -178,7 +178,7 @@ def assemble(args):
             sys.exit()
 
         file_list = [file for file in os.listdir(opts.input_folder) \
-                if file.lower().endswith('.fa') or file.lower().endswith('.fasta')]
+                if file.lower().endswith(('.fa', '.fasta'))]
         folder = opts.input_folder
         folder = folder.rstrip('/')
         for i in xrange(len(file_list)):

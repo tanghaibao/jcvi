@@ -431,7 +431,7 @@ def filtervcf(args):
     lhome = opts.lobstr_home
     store = opts.output_path
 
-    if samples.endswith(".vcf") or samples.endswith(".vcf.gz"):
+    if samples.endswith((".vcf", ".vcf.gz")):
         vcffiles = [samples]
     else:
         vcffiles = [x.strip() for x in must_open(samples)]
@@ -900,7 +900,7 @@ def compilevcf(args):
     samples = op.join(cwd, samples)
 
     stridsfile = "STR.ids"
-    if samples.endswith(".vcf.gz") or samples.endswith(".vcf"):
+    if samples.endswith((".vcf", ".vcf.gz")):
         vcffiles = [samples]
     else:
         vcffiles = [x.strip() for x in must_open(samples)]

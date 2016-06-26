@@ -306,7 +306,7 @@ def calc_readlen(f, first):
 
 def is_fastq(f):
     fq = f.replace(".gz", "") if f.endswith(".gz") else f
-    return any((fq.endswith(".fastq"), fq.endswith(".fq")))
+    return any(fq.endswith((".fastq", ".fq")))
 
 
 def readlen(args):

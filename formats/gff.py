@@ -2166,7 +2166,7 @@ def gtf(args):
     gff = Gff(gffile)
     transcript_info = AutoVivification()
     for g in gff:
-        if g.type.endswith("RNA") or g.type.endswith("transcript"):
+        if g.type.endswith(("RNA", "transcript")):
             if "ID" in g.attributes and "Parent" in g.attributes:
                 transcript_id = g.get_attr("ID")
                 gene_id = g.get_attr("Parent")

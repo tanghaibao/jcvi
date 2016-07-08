@@ -452,7 +452,7 @@ class CSVMapLine (object):
 
     def __init__(self, row, sep=",", mapname=None):
         # ScaffoldID,ScaffoldPosition,LinkageGroup,GeneticPosition
-        args = row.strip().split(sep)
+        args = [x.strip() for x in row.split(sep)]
         self.seqid = args[0]
         self.pos = int(args[1])
         self.lg = args[2]

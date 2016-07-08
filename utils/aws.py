@@ -98,7 +98,7 @@ def cp(args):
 
     tasks = []
     for c in contents:
-        if len(c) == 1:
+        if isinstance(c, basestring):
             oc = op.basename(c)
             tc = op.join(folder, oc)
         else:

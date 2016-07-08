@@ -328,6 +328,8 @@ def treds(args):
     pp.to_csv(datafile, sep="\t", index=False)
     logging.debug("File `{}` written.".format(datafile))
 
+    mask([datafile, metafile])
+
 
 def stutter(args):
     """
@@ -657,6 +659,9 @@ def write_mask(cpus, samples, final_columns, run_args, filename="mask.tsv"):
     r.wait()
     res.sort()
 
+    if len(res) == 1:  # sometimes res end up with one more nest
+        res, = res
+
     # Write mask (P-value) matrix
     ii, pvalues = zip(*res)
     m = np.vstack(pvalues).T
@@ -759,6 +764,7 @@ def mask(args):
     if mode == "TREDs" or need_update(databin, maskfile):
         cpus = min(8, len(run_args))
         write_mask(cpus, samples, final_columns, run_args, filename=maskfile)
+        logging.debug("File `{}` written.".format(maskfile))
 
 
 def counts_filter(countsd, nalleles, seqid, cutoff=.5):

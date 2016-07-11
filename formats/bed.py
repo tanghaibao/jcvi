@@ -2066,8 +2066,8 @@ def sort(args):
         pf, sf = op.basename(bedfile).rsplit(".", 1)
         sortedbed = pf + ".sorted." + sf
 
-    sortopt = "-k1,1 -k2,2n -k4,4" if not opts.accn else \
-              "-k4,4 -k1,1 -k2,2n"
+    sortopt = "-k1,1 -k2,2n -k3,3n -k4,4" if not opts.accn else \
+              "-k4,4 -k1,1 -k2,2n -k3,3n"
     cmd = "sort"
     if opts.tmpdir:
         cmd += " -T {0}".format(opts.tmpdir)

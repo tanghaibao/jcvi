@@ -15,7 +15,7 @@ import logging
 import time
 from multiprocessing import Pool
 
-from jcvi.formats.base import BaseFile, SetFile
+from jcvi.formats.base import BaseFile, SetFile, timestamp
 from jcvi.apps.base import OptionParser, ActionDispatcher, datafile, popen, sh
 
 
@@ -63,6 +63,7 @@ def main():
         ('rm', 'remove files with support for wildcards'),
         ('role', 'change aws role'),
         ('launch', 'launch ec2 instance'),
+        ('stop', 'stop ec2 instance'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -150,6 +151,66 @@ def launch(args):
     response = client.describe_instances(InstanceIds=[instance_id])
     ip_address = response["Reservations"][0]["Instances"][0]["PrivateIpAddress"]
     print >> sys.stderr, "IP address {}".format(ip_address)
+
+
+def stop(args):
+    """
+    %prog stop
+
+    Stop EC2 instance.
+    """
+    p = OptionParser(stop.__doc__)
+    p.add_option("--profile", default="mvrad-datasci-role", help="Profile name")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 0:
+        sys.exit(not p.print_help())
+
+    session = boto3.Session(profile_name=opts.profile)
+    client = session.client('ec2')
+    s = InstanceSkeleton()
+
+    # Create image
+    instance_id = s.instance_id
+    block_device_mappings = []
+    for volume in s.volumes:
+        block_device_mappings.append(
+            {
+                "DeviceName": volume["Device"],
+                "NoDevice": ""
+            }
+        )
+
+    new_image_name = "htang-dev-{}-{}".format(timestamp(), int(time.time()))
+    response = client.create_image(
+        InstanceId=instance_id,
+        Name=new_image_name,
+        BlockDeviceMappings=block_device_mappings
+    )
+    print >> sys.stderr, response
+    new_image_id = response["ImageId"]
+
+    image_status = ""
+    while image_status != "available":
+        logging.debug("Waiting for image to be ready")
+        time.sleep(10)
+        response = client.describe_images(ImageIds=[new_image_id])
+        image_status = response["Images"][0]["State"]
+
+    # Delete old image, snapshot and shut down instance
+    old_image_id = s.image_id
+    response = client.describe_images(ImageIds=[old_image_id])
+    old_snapshot_id = response["Images"][0]["BlockDeviceMappings"][0]["Ebs"]["SnapshotId"]
+    response = client.deregister_image(ImageId=old_image_id)
+    print >> sys.stderr, response
+    response = client.delete_snapshot(SnapshotId=old_snapshot_id)
+    print >> sys.stderr, response
+    response = client.terminate_instances(InstanceIds=[instance_id])
+    print >> sys.stderr, response
+
+    # Save new image id
+    s.save_image_id(new_image_id)
+    s.save_instance_id("")
 
 
 def glob_s3(store, keys=None, recursive=False):

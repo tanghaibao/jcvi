@@ -10,10 +10,49 @@ import sys
 import fnmatch
 
 import boto3
+import json
+import logging
+import time
 from multiprocessing import Pool
 
-from jcvi.formats.base import SetFile
-from jcvi.apps.base import OptionParser, ActionDispatcher, popen, sh
+from jcvi.formats.base import BaseFile, SetFile
+from jcvi.apps.base import OptionParser, ActionDispatcher, datafile, popen, sh
+
+
+class InstanceSkeleton(BaseFile):
+
+    def __init__(self, filename=datafile("instance.json")):
+        super(InstanceSkeleton, self).__init__(filename)
+        self.spec = json.load(open(filename))
+
+    @property
+    def launch_spec(self):
+        return self.spec["LaunchSpec"]
+
+    @property
+    def instance_id(self):
+        return self.spec["InstanceId"]
+
+    @property
+    def volumes(self):
+        return self.spec["Volumes"]
+
+    @property
+    def image_id(self):
+        return self.spec["LaunchSpec"]["ImageId"]
+
+    def save(self):
+        fw = open(self.filename, "w")
+        json.dump(self.spec, fw, indent=4)
+        fw.close()
+
+    def save_instance_id(self, instance_id):
+        self.spec["InstanceId"] = instance_id
+        self.save()
+
+    def save_image_id(self, image_id):
+        self.spec["LaunchSpec"]["ImageId"] = image_id
+        self.save()
 
 
 def main():
@@ -23,9 +62,94 @@ def main():
         ('ls', 'list files with support for wildcards'),
         ('rm', 'remove files with support for wildcards'),
         ('role', 'change aws role'),
+        ('launch', 'launch ec2 instance'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def launch(args):
+    """
+    %prog launch
+
+    Launch ec2 instance through command line.
+    """
+    p = OptionParser(launch.__doc__)
+    p.add_option("--profile", default="mvrad-datasci-role", help="Profile name")
+    p.add_option("--price", default=3.0, type=float, help="Spot price")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 0:
+        sys.exit(not p.print_help())
+
+    session = boto3.Session(profile_name=opts.profile)
+    client = session.client('ec2')
+    s = InstanceSkeleton()
+
+    # Make sure the instance id is empty
+    instance_id = s.instance_id
+    if len(instance_id) > 0:
+        logging.error("Instance exists {}".format(instance_id))
+        sys.exit(1)
+
+    # Launch spot instance
+    launch_spec = s.launch_spec
+    response = client.request_spot_instances(
+        SpotPrice=str(opts.price),
+        InstanceCount=1,
+        Type="one-time",
+        AvailabilityZoneGroup="us-west-2b",
+        LaunchSpecification=launch_spec
+    )
+
+    request_id = response["SpotInstanceRequests"][0]["SpotInstanceRequestId"]
+    print >> sys.stderr, "Request id {}".format(request_id)
+
+    instance_id = ""
+    while not instance_id:
+        response = client.describe_spot_instance_requests(
+            SpotInstanceRequestIds=[request_id]
+        )
+        if "InstanceId" in response["SpotInstanceRequests"][0]:
+            instance_id = response["SpotInstanceRequests"][0]["InstanceId"]
+        else:
+            logging.debug("Waiting to be fulfilled ...")
+            time.sleep(10)
+
+    print >> sys.stderr, "Instance id {}".format(instance_id)
+
+    status = ""
+    while status != "running":
+        logging.debug("Waiting instance to run ...")
+        time.sleep(3)
+        response = client.describe_instance_status(InstanceIds=[instance_id])
+        if len(response["InstanceStatuses"]) > 0:
+            status = response["InstanceStatuses"][0]["InstanceState"]["Name"]
+
+    # Tagging
+    response = client.create_tags(
+        Resources=[instance_id],
+        Tags=[{"Key": k, "Value": v} for k, v in { \
+                    "Name": "htang-lx-spot",
+                    "owner": "htang",
+                    "project": "mv-bioinformatics"
+                }.items()]
+    )
+
+    # Attach working volumes
+    volumes = s.volumes
+    for volume in volumes:
+        response = client.attach_volume(
+            VolumeId=volume["VolumeId"],
+            InstanceId=instance_id,
+            Device=volume["Device"]
+        )
+
+    # Save instance id and ip
+    s.save_instance_id(instance_id)
+    response = client.describe_instances(InstanceIds=[instance_id])
+    ip_address = response["Reservations"][0]["Instances"][0]["PrivateIpAddress"]
+    print >> sys.stderr, "IP address {}".format(ip_address)
 
 
 def glob_s3(store, keys=None, recursive=False):

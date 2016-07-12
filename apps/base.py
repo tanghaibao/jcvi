@@ -652,6 +652,7 @@ def get_abs_path(link_name):
 
 
 datadir = get_abs_path(op.join(op.dirname(__file__), '../utils/data'))
+datafile = lambda x: op.join(datadir, x)
 
 
 def splitall(path):

@@ -1,10 +1,6 @@
 {
-    "InstanceId": "", 
+    "InstanceId": "i-b5977c21", 
     "LaunchSpec": {
-        "IamInstanceProfile": {
-            "Name": "", 
-            "Arn": ""
-        }, 
         "Monitoring": {
             "Enabled": false
         }, 
@@ -15,8 +11,12 @@
         "KeyName": "mvrad-pdx-htang", 
         "EbsOptimized": true, 
         "SubnetId": "subnet-123ab865", 
-        "ImageId": "ami-6675b606", 
-        "InstanceType": "r3.4xlarge"
+        "IamInstanceProfile": {
+            "Name": "", 
+            "Arn": ""
+        }, 
+        "InstanceType": "r3.4xlarge", 
+        "ImageId": "ami-7e70b31e"
     }, 
     "Volumes": [
         {

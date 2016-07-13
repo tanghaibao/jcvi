@@ -83,6 +83,7 @@ def launch(args):
     if len(args) != 0:
         sys.exit(not p.print_help())
 
+    role(["205134639408", "htang", "114692162163", "mvrad-datasci-role"])
     session = boto3.Session(profile_name=opts.profile)
     client = session.client('ec2')
     s = InstanceSkeleton()
@@ -166,6 +167,7 @@ def stop(args):
     if len(args) != 0:
         sys.exit(not p.print_help())
 
+    role(["205134639408", "htang", "114692162163", "mvrad-datasci-role"])
     session = boto3.Session(profile_name=opts.profile)
     client = session.client('ec2')
     s = InstanceSkeleton()

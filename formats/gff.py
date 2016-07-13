@@ -1178,6 +1178,10 @@ def chain(args):
     p = OptionParser(chain.__doc__)
     p.add_option("--key", dest="attrib_key", default=None,
                 help="Attribute to use as `key` for chaining operation")
+    p.add_option("--chain_ftype", default="mRNA",
+                help="GFF feature type to use for chaining operation")
+    p.add_option("--parent_ftype", default="gene",
+                help="GFF feature type to use for the chained coordinates")
     p.add_option("--break", dest="break_chain", action="store_true",
                 help="Break long chains which are non-contiguous")
     p.add_option("--transfer_attrib", dest="attrib_list",
@@ -1199,12 +1203,19 @@ def chain(args):
     score_merge_op = opts.score_merge_op
     break_chain = opts.break_chain
 
+    chain_ftype = opts.chain_ftype
+    parent_ftype = opts.parent_ftype
+
     gffdict = {}
     fw = must_open(opts.outfile, "w")
     gff = Gff(gffile)
     if break_chain:
         ctr, prev_gid = dict(), None
     for g in gff:
+        if g.type != chain_ftype:
+            print >> fw, g
+            continue
+
         id = g.accn
         gid = id
         if attrib_key:
@@ -1224,7 +1235,7 @@ def chain(args):
             gffdict[gkey] = { 'seqid': g.seqid,
                             'source': g.source,
                             'strand': g.strand,
-                            'type': g.type,
+                            'type': parent_ftype,
                             'coords': [],
                             'children': [],
                             'score': [],
@@ -1248,7 +1259,6 @@ def chain(args):
                 gffdict[gkey]['score'].append(float(g.score))
                 g.score = "."
 
-        g.type = valid_gff_parent_child[g.type]
         g.attributes["Parent"] = [gid]
         g.attributes["ID"] = ["{0}-{1}".\
                 format(gid, len(gffdict[gkey]['children']) + 1)]

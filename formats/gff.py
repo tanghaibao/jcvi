@@ -35,7 +35,10 @@ valid_gff_parent_child = {"match": "match_part",
                           "protein_match": "match_part",
                           "transposable_element": "transposon_fragment",
                           "gene": "mRNA",
-                          "mRNA": "exon,CDS,five_prime_UTR,three_prime_UTR"
+                          "mRNA": "exon",
+                          "mRNA": "CDS",
+                          "mRNA": "five_prime_UTR",
+                          "mRNA": "three_prime_UTR"
                          }
 valid_gff_to_gtf_type = {"exon": "exon",
                          "pseudogenic_exon": "exon",

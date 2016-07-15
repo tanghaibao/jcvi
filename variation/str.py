@@ -183,15 +183,12 @@ class LobSTRvcf(dict):
         logging.debug("A total of {} markers imported from `{}`".\
                         format(len(self.columns), columnidsfile))
 
-    def parse(self, filename, filtered=True, cleanup=False, stutter=False):
+    def parse(self, filename, filtered=True, cleanup=False):
         self.samplekey = op.basename(filename).split(".")[0]
-        logging.debug("Parse `{}` (filtered={} stutter={})".\
-                        format(filename, filtered, stutter))
+        logging.debug("Parse `{}` (filtered={})".format(filename, filtered))
         fp = must_open(filename)
         reader = vcf.Reader(fp)
         for record in reader:
-            if stutter and record.CHROM != "chrY":
-                continue
             if filtered and record.FILTER:
                 continue
             info = record.INFO
@@ -200,22 +197,6 @@ class LobSTRvcf(dict):
             motif = info["MOTIF"]
             name = "_".join(str(x) for x in (record.CHROM, record.POS, motif))
             for sample in record.samples:
-                if stutter:
-                    dp = int(sample["DP"])
-                    if dp < 10:
-                        break
-                    allreads = sample["ALLREADS"]
-                    counts = []
-                    for r in allreads.split(";"):
-                        k, v = r.split("|")
-                        counts.append(int(v))
-                    mode = max(counts)
-                    st = dp - mode
-                    if st * 1. / dp > .2:
-                        break
-                    self.evidence[name] = "{},{}".format(st, dp)
-                    break
-
                 gt = sample["GT"]
                 if filtered and sample["FT"] != "PASS":
                     continue
@@ -829,16 +810,11 @@ def mergecsv(args):
     fw.close()
 
 
-def write_csv_ev(filename, filtered, cleanup, store=None, stutter=False):
+def write_csv_ev(filename, filtered, cleanup, store=None):
     lv = LobSTRvcf()
-    lv.parse(filename, filtered=filtered, cleanup=cleanup, stutter=stutter)
+    lv.parse(filename, filtered=filtered, cleanup=cleanup)
     csvfile = op.basename(filename) + ".csv"
     evfile = op.basename(filename) + ".ev"
-    if stutter:
-        fw = open(evfile, "w")
-        print >> fw, lv.evline
-        fw.close()
-        return
 
     fw = open(csvfile, "w")
     print >> fw, lv.csvline
@@ -855,20 +831,18 @@ def write_csv_ev(filename, filtered, cleanup, store=None, stutter=False):
 
 
 def run_compile(arg):
-    filename, filtered, cleanup, store, stutter = arg
+    filename, filtered, cleanup, store = arg
     csvfile = filename + ".csv"
     try:
         if filename.startswith("s3://"):
             if check_exists_s3(csvfile):
                 logging.debug("{} exists. Skipped.".format(csvfile))
             else:
-                write_csv_ev(filename, filtered, cleanup,
-                             store=store, stutter=stutter)
+                write_csv_ev(filename, filtered, cleanup, store=store)
                 logging.debug("{} written and uploaded.".format(csvfile))
         else:
             if need_update(filename, csvfile):
-                write_csv_ev(filename, filtered, cleanup,
-                             store=None, stutter=stutter)
+                write_csv_ev(filename, filtered, cleanup, store=None)
     except Exception, e:
         logging.debug("Thread failed! Error: {}".format(e))
 
@@ -881,8 +855,6 @@ def compilevcf(args):
     """
     p = OptionParser(compilevcf.__doc__)
     p.add_option("--db", default="hg38", help="Use these lobSTR db")
-    p.add_option("--stutter", default=False, action="store_true",
-                 help="Count stutter reads on chrY")
     p.add_option("--nofilter", default=False, action="store_true",
                  help="Do not filter the variants")
     p.set_home("lobstr")
@@ -896,7 +868,6 @@ def compilevcf(args):
     samples, = args
     workdir = opts.workdir
     store = opts.output_path
-    stutter = opts.stutter
     cleanup = not opts.nocleanup
     filtered = not opts.nofilter
     dbs = opts.db.split(",")
@@ -921,7 +892,7 @@ def compilevcf(args):
         print >> fw, "\n".join(uids)
         fw.close()
 
-    run_args = [(x, filtered, cleanup, store, stutter) for x in vcffiles]
+    run_args = [(x, filtered, cleanup, store) for x in vcffiles]
     cpus = min(opts.cpus, len(run_args))
     p = Pool(processes=cpus)
     for res in p.map_async(run_compile, run_args).get():

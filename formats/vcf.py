@@ -16,6 +16,7 @@ from pyliftover import LiftOver
 
 from jcvi.formats.base import must_open
 from jcvi.formats.sizes import Sizes
+from jcvi.utils.cbook import percentage
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh
 
 
@@ -113,12 +114,52 @@ def main():
         ('location', 'given SNP locations characterize the locations'),
         ('mstmap', 'convert vcf format to mstmap input'),
         ('refallele', 'make refAllele file'),
-        ('sample', 'sample subset of vcffile'),
+        ('sample', 'sample subset of vcf file'),
         ('summary', 'summarize the genotype calls in table'),
         ('uniq', 'retain only the first entry in vcf file'),
+        ('validate', 'fast validation of vcf file'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def validate(args):
+    """
+    %prog validate input.vcf genome.fasta
+
+    Fasta validation of vcf file.
+    """
+    import pyfasta
+
+    p = OptionParser(validate.__doc__)
+    p.add_option("--prefix", help="Add prefix to seqid")
+    opts, args = p.parse_args(args)
+
+    vcffile, fastafile = args
+    pf = opts.prefix
+    genome = pyfasta.Fasta(fastafile, record_class=pyfasta.MemoryRecord)
+    fp = must_open(vcffile)
+    match_ref = match_alt = total = 0
+    for row in fp:
+        if row[0] == '#':
+            continue
+        seqid, pos, id, ref, alt = row.split()[:5]
+        total += 1
+        if pf:
+            seqid = pf + seqid
+        pos = int(pos)
+        if seqid not in genome:
+            continue
+        true_ref = genome[seqid][pos - 1]
+        if total % 100000 == 0:
+            print >> sys.stderr, total, "sites parsed"
+        if ref == true_ref:
+            match_ref += 1
+        elif alt == true_ref:
+            match_alt += 1
+
+    logging.debug("Match REF: {}".format(percentage(match_ref, total)))
+    logging.debug("Match ALT: {}".format(percentage(match_alt, total)))
 
 
 def uniq(args):

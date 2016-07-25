@@ -668,8 +668,8 @@ def sizes(args):
     """
     p = OptionParser(sizes.__doc__)
     p.set_outfile()
-    p.add_option("--parent", dest="parent", default="mRNA",
-            help="parent feature for which size is to be calculated")
+    p.add_option("--parents", dest="parents", default="mRNA",
+            help="parent feature(s) for which size is to be calculated")
     p.add_option("--child", dest="child", default="CDS",
             help="child feature to use for size calculations")
     opts, args = p.parse_args(args)
@@ -678,18 +678,19 @@ def sizes(args):
         sys.exit(not p.print_help())
 
     gffile, = args
-    parent, cftype = opts.parent, opts.child
+    parents, cftype = set(opts.parents.split(",")), opts.child
 
     gff = make_index(gffile)
 
     fw = must_open(opts.outfile, "w")
-    for feat in gff.features_of_type(parent, order_by=('seqid', 'start')):
-        fsize = 0
-        fsize = feat.end - feat.start + 1 \
-                if cftype == parent else \
-                gff.children_bp(feat, child_featuretype=cftype)
-        print >> fw, "\t".join(str(x) for x in (feat.id, fsize))
-    fw.close()
+    for parent in parents:
+        for feat in gff.features_of_type(parent, order_by=('seqid', 'start')):
+            fsize = 0
+            fsize = feat.end - feat.start + 1 \
+                    if cftype == parent else \
+                    gff.children_bp(feat, child_featuretype=cftype)
+            print >> fw, "\t".join(str(x) for x in (feat.id, fsize))
+        fw.close()
 
 
 def cluster(args):

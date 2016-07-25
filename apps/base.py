@@ -4,6 +4,7 @@ basic support for running library as script
 
 import errno
 import os
+import time
 import os.path as op
 import shutil
 import signal
@@ -879,7 +880,6 @@ def last_updated(a):
     """
     Check the time since file was last updated.
     """
-    import time
     return time.time() - op.getmtime(a)
 
 
@@ -1440,7 +1440,7 @@ def notify(args):
                    timestamp=opts.timestamp)
 
 
-def is_running(pid):
+def pid_exists(pid):
     """Check whether pid exists in the current process table."""
     if pid < 0:
         return False
@@ -1451,6 +1451,79 @@ def is_running(pid):
         return e.errno == errno.EPERM
     else:
         return True
+
+
+class TimeoutExpired(Exception):
+    pass
+
+
+def _waitpid(pid, interval=None, timeout=None):
+    """
+    Wait for process with pid 'pid' to terminate and return its
+    exit status code as an integer.
+
+    If pid is not a children of os.getpid() (current process) just
+    waits until the process disappears and return None.
+
+    If pid does not exist at all return None immediately.
+
+    Raise TimeoutExpired on timeout expired (if specified).
+
+    Source: http://code.activestate.com/recipes/578022-wait-for-pid-and-check-for-pid-existance-posix
+    """
+    def check_timeout(delay):
+        if timeout is not None:
+            if time.time() >= stop_at:
+                raise TimeoutExpired
+        time.sleep(delay)
+        return min(delay * 2, interval)
+
+    if timeout is not None:
+        waitcall = lambda: os.waitpid(pid, os.WNOHANG)
+        stop_at = time.time() + timeout
+    else:
+        waitcall = lambda: os.waitpid(pid, 0)
+
+    delay = 0.0001
+    while 1:
+        try:
+            retpid, status = waitcall()
+        except OSError, err:
+            if err.errno == errno.EINTR:
+                delay = check_timeout(delay)
+                continue
+            elif err.errno == errno.ECHILD:
+                # This has two meanings:
+                # - pid is not a child of os.getpid() in which case
+                #   we keep polling until it's gone
+                # - pid never existed in the first place
+                # In both cases we'll eventually return None as we
+                # can't determine its exit status code.
+                while 1:
+                    if pid_exists(pid):
+                        delay = check_timeout(delay)
+                        logging.debug(delay)
+                    else:
+                        return
+            else:
+                raise
+        else:
+            if retpid == 0:
+                # WNOHANG was used, pid is still running
+                delay = check_timeout(delay)
+                continue
+
+        # process exited due to a signal; return the integer of
+        # that signal
+        if os.WIFSIGNALED(status):
+            return os.WTERMSIG(status)
+        # process exited using exit(2) system call; return the
+        # integer exit(2) system call has been called with
+        elif os.WIFEXITED(status):
+            return os.WEXITSTATUS(status)
+        else:
+            # should never happen
+                raise RuntimeError("unknown process exit status")
 
 
 def waitpid(args):
@@ -1470,7 +1543,7 @@ def waitpid(args):
     valid_notif_methods.extend(list(flatten(available_push_api.values())))
 
     p = OptionParser(waitpid.__doc__)
-    p.add_option("--notify", default=None, choices=valid_notif_methods,
+    p.add_option("--notify", default="email", choices=valid_notif_methods,
                  help="Specify type of notification to be sent after waiting")
     p.add_option("--interval", default=120, type="int",
                  help="Specify PID polling interval in seconds")
@@ -1499,21 +1572,20 @@ def waitpid(args):
 
     pid = int(" ".join(args).strip())
 
-    status = is_running(pid)
+    status = pid_exists(pid)
     if status:
         if opts.message:
             msg = opts.message
         else:
             get_origcmd = "ps -p {0} -o cmd h".format(pid)
             msg = check_output(shlex.split(get_origcmd)).strip()
-        while is_running(pid):
-            sleep(opts.interval)
+        _waitpid(pid, interval=opts.interval)
     else:
         logging.debug("Process with PID {0} does not exist".format(pid))
         sys.exit()
 
     if opts.notify:
-        notifycmd = ["[completed] {0}: `{1}`".format(gethostname(), msg)]
+        notifycmd = ["[{0}] `{1}`".format(gethostname(), msg)]
         if opts.notify != "email":
             notifycmd.append("--method={0}".format("push"))
             notifycmd.append("--api={0}".format(opts.notify))

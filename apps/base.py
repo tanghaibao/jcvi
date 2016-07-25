@@ -1502,7 +1502,6 @@ def _waitpid(pid, interval=None, timeout=None):
                 while 1:
                     if pid_exists(pid):
                         delay = check_timeout(delay)
-                        logging.debug(delay)
                     else:
                         return
             else:
@@ -1523,7 +1522,7 @@ def _waitpid(pid, interval=None, timeout=None):
             return os.WEXITSTATUS(status)
         else:
             # should never happen
-                raise RuntimeError("unknown process exit status")
+            raise RuntimeError("unknown process exit status")
 
 
 def waitpid(args):

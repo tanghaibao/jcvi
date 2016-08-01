@@ -1,5 +1,5 @@
 {
-    "InstanceId": "i-b5977c21", 
+    "InstanceId": "i-140dcc80", 
     "LaunchSpec": {
         "Monitoring": {
             "Enabled": false
@@ -15,8 +15,8 @@
             "Name": "", 
             "Arn": ""
         }, 
-        "InstanceType": "r3.4xlarge", 
-        "ImageId": "ami-7e70b31e"
+        "InstanceType": "r3.2xlarge", 
+        "ImageId": "ami-41569a21"
     }, 
     "Volumes": [
         {

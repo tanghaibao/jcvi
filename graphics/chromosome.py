@@ -19,7 +19,7 @@ from jcvi.formats.bed import Bed
 from jcvi.graphics.glyph import RoundRect
 from jcvi.graphics.base import plt, Rectangle, Polygon, CirclePolygon, savefig
 from jcvi.graphics.glyph import BaseGlyph, plot_cap
-from jcvi.apps.base import OptionParser
+from jcvi.apps.base import OptionParser, datafile
 
 
 class Chromosome (BaseGlyph):
@@ -237,6 +237,62 @@ def write_ImageMapLine(tlx, tly, brx, bry, w, h, dpi, chr, segment_start, segmen
            + '" href="#' + chr + '"' \
            + ' title="' + chr + ':' + str(segment_start) + '..' + str(segment_end) + '"' \
            + ' />'
+
+
+def get_hg38_chromsizes(filename=datafile("hg38.chrom.sizes")):
+    chromsizes = DictFile(filename)
+    chromsizes = dict((k, int(v)) for k, v in chromsizes.items())
+    return chromsizes
+
+
+def get_color(tag):
+    if "neg" in tag:
+        return "w", 1
+    if "acen" in tag:
+        return "r", 1
+    try:
+        alpha = int(tag[4:]) * 1. / 100
+    except:
+        return "w", 1
+    return "k", alpha
+
+
+def draw_cytoband(ax, chrom, filename=datafile("hg38.band.txt"),
+                  ymid=.5, width=.99, height=.11):
+    import pandas as pd
+
+    bands = pd.read_csv(filename, sep="\t")
+    chrombands = bands[bands["#chrom"] == chrom]
+    data = []
+    for i, (chr, start, end, name, gie) in chrombands.iterrows():
+        data.append((chr, start, end, name, gie))
+    chromsize = max(x[2] for x in data)
+    scale = width * 1. / chromsize
+    xstart, ystart = (1 - width) / 2, ymid - height / 2
+    bp_to_pos = lambda x: xstart + x * scale
+    in_acen = False
+    for chr, start, end, name, gie in data:
+        color, alpha = get_color(gie)
+        bplen = end - start
+        if "acen" in gie:
+            if in_acen:
+                xys = [(bp_to_pos(start), ymid), (bp_to_pos(end), ystart), (bp_to_pos(end), ystart + height)]
+            else:
+                xys = [(bp_to_pos(start), ystart), (bp_to_pos(start), ystart + height), (bp_to_pos(end), ymid)]
+            p = Polygon(xys, closed=True, ec='k', fc=color, alpha=alpha)
+            in_acen = True
+        else:
+            p = Rectangle((bp_to_pos(start), ystart), bplen * scale, height,
+                              ec='k', fc=color, alpha=alpha)
+        #print bp_to_pos(end)
+        ax.add_patch(p)
+        ax.text(bp_to_pos((start + end) / 2), ymid + height * .8, name, rotation=40, color="lightslategray")
+
+    ax.text(.5, ystart - height, chrom, size=16, ha="center", va="center")
+
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.set_axis_off()
 
 
 def main():

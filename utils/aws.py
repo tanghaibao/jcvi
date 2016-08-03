@@ -350,6 +350,16 @@ def pull_from_s3(s3_store, file_name=None, overwrite=True):
     return op.abspath(file_name)
 
 
+def sync_from_s3(s3_store, target_dir=None):
+    s3_store = s3_store.rstrip("/")
+    s3_store = s3ify(s3_store)
+    if target_dir is None:
+        target_dir = op.basename(s3_store)
+    cmd = "aws s3 sync {}/ {}/".format(s3_store, target_dir)
+    sh(cmd)
+    return target_dir
+
+
 def ls_s3(s3_store_obj_name, recursive=False):
     s3_store_obj_name = s3ify(s3_store_obj_name)
     cmd = "aws s3 ls {0}/".format(s3_store_obj_name)

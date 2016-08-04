@@ -6,6 +6,7 @@ Helper functions for Copy Number Variations (CNV).
 """
 
 import sys
+import logging
 import os.path as op
 
 import numpy as np
@@ -14,7 +15,7 @@ import pandas as pd
 from collections import defaultdict
 
 from jcvi.utils.aws import sync_from_s3
-from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, sh
+from jcvi.apps.base import OptionParser, ActionDispatcher, getfilesize, mkdir, sh
 
 
 autosomes = ["chr{}".format(x) for x in range(1, 23)]
@@ -32,10 +33,11 @@ def main():
 
 
 def load_cib(cibfile, n=1000):
-    if not op.exists(cibfile):
-        cibfile += ".gz"
+    cibgzfile = cibfile + ".gz"
+    if not op.exists(cibfile) or getfilesize(cibfile) < getfilesize(cibgzfile):
+        cibfile = cibgzfile
     if cibfile.endswith(".gz"):
-        sh("pigz -d -k {}".format(cibfile))
+        sh("pigz -d -k -f {}".format(cibfile))
         cibfile = cibfile.replace(".gz", "")
     cib = np.fromfile(cibfile, dtype=np.int8) + 128
     rm = pd.rolling_mean(cib, n, min_periods=n / 2)
@@ -83,11 +85,20 @@ def gcshift(args):
 
     s3dir, sample_key = args
     n = opts.binsize
+    cndir = sample_key + "-cn"
+    if op.exists(cndir):
+        logging.debug("Directory {} exists. Skipped.".format(cndir))
+        return
+
     gcdir = "gc"
     if not op.exists(gcdir):
         build_gc_array(n=n)
 
-    sync_from_s3(s3dir, target_dir=sample_key)
+    if s3dir.startswith("s3://"):
+        sync_from_s3(s3dir, target_dir=sample_key)
+    assert op.exists(sample_key), "Directory {} doesn't exist!"\
+                    .format(sample_key)
+
     # Build GC correction table
     gc_bin = defaultdict(list)
     gc_med = {}
@@ -109,7 +120,6 @@ def gcshift(args):
         gc_med[gci] = med = np.median(nonzero_k) / 2
         print >> sys.stderr, gci, len(nonzero_k), med
 
-    cndir = sample_key + "-cn"
     mkdir(cndir)
     apply_fun = np.vectorize(gc_med.get)
     # Apply the GC correction over coverage

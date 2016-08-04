@@ -27,9 +27,45 @@ def main():
 
     actions = (
         ('gcshift', 'correct cib according to GC content'),
+        ('mergecn', 'compile matrix of GC-corrected copy numbers'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def mergecn(args):
+    """
+    %prog mergecn FACE.csv
+
+    Compile matrix of GC-corrected copy numbers. Place a bunch of folders in the
+    csv file. Each folder will be scanned, one chromosomes after another.
+    """
+    p = OptionParser(mergecn.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    csvfile, = args
+    samples = [x.replace("-cn", "").strip().strip("/") for x in open(csvfile)]
+    betadir = "beta"
+    mkdir(betadir)
+    for seqid in autosomes:
+        names = [op.join(s + "-cn", "{}.{}.cn".format(s, seqid)) \
+                    for s in samples]
+        arrays = [np.fromfile(name, dtype=np.float) for name in names]
+        shapes = [x.shape[0] for x in arrays]
+        med_shape = np.median(shapes)
+        arrays = [[x] for x in arrays if x.shape[0] == med_shape]
+        ar = np.concatenate(arrays)
+        print seqid, ar.shape
+        rows, columns = ar.shape
+        beta = [np.median(ar[:, j]) for j in xrange(columns)]
+        beta = np.array(beta) / 2
+        print beta
+        betafile = op.join(betadir, "{}.beta".format(seqid))
+        beta.tofile(betafile)
+        logging.debug("Written to `{}`".format(betafile))
 
 
 def load_cib(cibfile, n=1000):

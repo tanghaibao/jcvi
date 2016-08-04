@@ -70,6 +70,8 @@ def gcshift(args):
     p = OptionParser(gcshift.__doc__)
     p.add_option("--binsize", default=1000, type="int",
                  help="Window size along chromosome")
+    p.add_option("--cleanup", default=False, action="store_true",
+                 help="Clean up downloaded s3 folder")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -113,6 +115,10 @@ def gcshift(args):
         cn = cib / beta
         cnfile = op.join(cndir, "{}.{}.cn".format(sample_key, seqid))
         cn.tofile(cnfile)
+
+    if opts.cleanup:
+        import shutil
+        shutil.rmtree(sample_key)
 
 
 if __name__ == '__main__':

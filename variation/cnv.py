@@ -11,6 +11,8 @@ import os.path as op
 import numpy as np
 import pandas as pd
 
+from collections import defaultdict
+
 from jcvi.utils.aws import sync_from_s3
 from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, sh
 
@@ -80,12 +82,37 @@ def gcshift(args):
         build_gc_array(n=n)
 
     sync_from_s3(s3dir, target_dir=sample_key)
-    for seqid in autosomes:
+    # Build GC correction table
+    gc_bin = defaultdict(list)
+    gc_med = {}
+    coverage = []
+
+    for seqid in allsomes:
         gcfile = op.join(gcdir, "{}.{}.gc".format(seqid, n))
         gc = np.fromfile(gcfile, dtype=np.uint8)
         cibfile = op.join(sample_key, "{}.{}.cib".format(sample_key, seqid))
         cib = load_cib(cibfile)
-        print gc.shape, cib.shape
+        print >> sys.stderr, seqid, gc.shape, cib.shape
+        if seqid in autosomes:
+            for gci, k in zip(gc, cib):
+                gc_bin[gci].append(k)
+        coverage.append((seqid, gc, cib))
+
+    for gci, k in gc_bin.items():
+        nonzero_k = [x for x in k if x]
+        gc_med[gci] = med = np.median(nonzero_k) / 2
+        print >> sys.stderr, gci, len(nonzero_k), med
+
+    cndir = sample_key + "-cn"
+    mkdir(cndir)
+    apply_fun = np.vectorize(gc_med.get)
+    # Apply the GC correction over coverage
+    for seqid, gc, cib in coverage:
+        nitems = cib.shape[0]
+        beta = apply_fun(gc[:nitems])
+        cn = cib / beta
+        cnfile = op.join(cndir, "{}.{}.cn".format(sample_key, seqid))
+        cn.tofile(cnfile)
 
 
 if __name__ == '__main__':

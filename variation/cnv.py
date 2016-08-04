@@ -38,7 +38,11 @@ def load_cib(cibfile, n=1000):
         sh("pigz -d -k {}".format(cibfile))
         cibfile = cibfile.replace(".gz", "")
     cib = np.fromfile(cibfile, dtype=np.int8) + 128
-    return pd.rolling_mean(cib, n, min_periods=n / 2)[n - 1::n]
+    rm = pd.rolling_mean(cib, n, min_periods=n / 2)
+    a = rm[n - 1::n].copy()
+    del cib
+    del rm
+    return a
 
 
 def build_gc_array(fastafile="/mnt/ref/hg38.upper.fa",
@@ -94,7 +98,7 @@ def gcshift(args):
         gc = np.fromfile(gcfile, dtype=np.uint8)
         cibfile = op.join(sample_key, "{}.{}.cib".format(sample_key, seqid))
         cib = load_cib(cibfile)
-        print >> sys.stderr, seqid, gc.shape, cib.shape
+        print >> sys.stderr, seqid, gc.shape[0], cib.shape[0]
         if seqid in autosomes:
             for gci, k in zip(gc, cib):
                 gc_bin[gci].append(k)

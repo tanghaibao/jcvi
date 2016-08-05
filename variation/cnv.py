@@ -15,6 +15,7 @@ import pandas as pd
 from collections import defaultdict
 
 from jcvi.utils.aws import sync_from_s3
+from jcvi.algorithms.formula import get_kmeans
 from jcvi.apps.base import OptionParser, ActionDispatcher, getfilesize, mkdir, sh
 
 
@@ -50,22 +51,43 @@ def mergecn(args):
     samples = [x.replace("-cn", "").strip().strip("/") for x in open(csvfile)]
     betadir = "beta"
     mkdir(betadir)
-    for seqid in autosomes:
+    for seqid in allsomes:
         names = [op.join(s + "-cn", "{}.{}.cn".format(s, seqid)) \
                     for s in samples]
         arrays = [np.fromfile(name, dtype=np.float) for name in names]
         shapes = [x.shape[0] for x in arrays]
         med_shape = np.median(shapes)
-        arrays = [[x] for x in arrays if x.shape[0] == med_shape]
+        arrays = [x for x in arrays if x.shape[0] == med_shape]
+        ploidy = 2 if seqid not in ("chrY", "chrM") else 1
+        if seqid in sexsomes:
+            chr_med = [np.median([x for x in a if x > 0]) for a in arrays]
+            chr_med = np.array(chr_med)
+            idx = get_kmeans(chr_med, k=2)
+            zero_med = np.median(chr_med[idx == 0])
+            one_med = np.median(chr_med[idx == 1])
+            logging.debug("K-means with {} c0:{} c1:{}".\
+                    format(seqid, zero_med, one_med))
+            higher_idx = 1 if one_med > zero_med else 0
+            # Use the higher mean coverage componen
+            arrays = np.array(arrays)[idx == higher_idx]
+        arrays = [[x] for x in arrays]
         ar = np.concatenate(arrays)
         print seqid, ar.shape
         rows, columns = ar.shape
-        beta = [np.median(ar[:, j]) for j in xrange(columns)]
-        beta = np.array(beta) / 2
-        print beta
+        beta = []
+        std = []
+        for j in xrange(columns):
+            a = ar[:, j]
+            beta.append(np.median(a))
+            std.append(np.std(a) / np.mean(x))
+        beta = np.array(beta) / ploidy
         betafile = op.join(betadir, "{}.beta".format(seqid))
         beta.tofile(betafile)
+        stdfile = op.join(betadir, "{}.std".format(seqid))
+        std = np.array(std)
+        std.tofile(stdfile)
         logging.debug("Written to `{}`".format(betafile))
+        ar.tofile("{}.bin".format(seqid))
 
 
 def load_cib(cibfile, n=1000):

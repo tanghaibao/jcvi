@@ -29,9 +29,41 @@ def main():
     actions = (
         ('gcshift', 'correct cib according to GC content'),
         ('mergecn', 'compile matrix of GC-corrected copy numbers'),
+        # Interact with CCN script
+        ('batchccn', 'run CCN script in batch'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def batchccn(args):
+    """
+    %prog batchccn test.csv
+
+    Run CCN script in batch. Write makefile.
+    """
+    from jcvi.apps.grid import MakeManager
+
+    p = OptionParser(batchccn.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    csvfile, = args
+    mm = MakeManager()
+    pf = op.basename(csvfile).split(".")[0]
+    mkdir(pf)
+
+    df = pd.read_csv(csvfile)
+    cmd = "perl /mnt/software/ccn_gcn_hg38_script/ccn_gcn_hg38.pl"
+    cmd += " -n {} -b {}"
+    cmd += " -o {} -r hg38".format(pf)
+    for i, (sample_key, bam) in df.iterrows():
+        cmdi = cmd.format(sample_key, bam)
+        outfile = "{}/{}/{}.ccn".format(pf, sample_key, sample_key)
+        mm.add(csvfile, outfile, cmdi)
+    mm.write()
 
 
 def mergecn(args):
@@ -79,7 +111,7 @@ def mergecn(args):
         for j in xrange(columns):
             a = ar[:, j]
             beta.append(np.median(a))
-            std.append(np.std(a) / np.mean(x))
+            std.append(np.std(a) / np.mean(a))
         beta = np.array(beta) / ploidy
         betafile = op.join(betadir, "{}.beta".format(seqid))
         beta.tofile(betafile)

@@ -55,7 +55,10 @@ def batchccn(args):
     pf = op.basename(csvfile).split(".")[0]
     mkdir(pf)
 
-    df = pd.read_csv(csvfile)
+    header = open(csvfile).next()
+    header = None if header.strip().endswith(".bam") else "infer"
+    logging.debug("Header={}".format(header))
+    df = pd.read_csv(csvfile, header=header)
     cmd = "perl /mnt/software/ccn_gcn_hg38_script/ccn_gcn_hg38.pl"
     cmd += " -n {} -b {}"
     cmd += " -o {} -r hg38".format(pf)

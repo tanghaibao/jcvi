@@ -16,9 +16,11 @@ import pandas as pd
 from collections import defaultdict
 from random import choice
 
+from jcvi.apps.grid import MakeManager
 from jcvi.utils.aws import sync_from_s3
 from jcvi.algorithms.formula import get_kmeans
-from jcvi.apps.base import OptionParser, ActionDispatcher, getfilesize, mkdir, sh
+from jcvi.apps.base import OptionParser, ActionDispatcher, getfilesize, \
+            mkdir, sh
 
 
 autosomes = ["chr{}".format(x) for x in range(1, 23)]
@@ -270,9 +272,42 @@ def main():
         ('hmm', 'run cnv segmentation'),
         # Interact with CCN script
         ('batchccn', 'run CCN script in batch'),
+        ('batchhmm', 'run HMM in batch'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def batchhmm(args):
+    """
+    %prog batchhmm workdir
+
+    Run CNV segmentation caller in batch mode. Scans a workdir.
+    """
+    from glob import glob
+
+    p = OptionParser(batchhmm.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    workdir, = args
+    sampledirs = [x.rstrip("/") for x in glob("{}/*_*".format(workdir)) if op.isdir(x)]
+    mm = MakeManager()
+    cmd_cn = "python -m jcvi.variation.cnv gcshift {} {}"
+    cmd_seg = "python -m jcvi.variation.cnv hmm {} {}"
+    for sampledir in sampledirs:
+        cndir = sampledir + "-cn"
+        sample = op.basename(sampledir)
+        cmd = cmd_cn.format(workdir, sample)
+        mm.add(sampledir, cndir, cmd)
+
+        segfile = sampledir + ".seg"
+        cmd = cmd_seg.format(workdir, sample)
+        mm.add(cndir, segfile, cmd)
+
+    mm.write()
 
 
 def hmm(args):
@@ -312,8 +347,6 @@ def batchccn(args):
 
     Run CCN script in batch. Write makefile.
     """
-    from jcvi.apps.grid import MakeManager
-
     p = OptionParser(batchccn.__doc__)
     opts, args = p.parse_args(args)
 
@@ -430,9 +463,8 @@ def build_gc_array(fastafile="/mnt/ref/hg38.upper.fa",
 
 def gcshift(args):
     """
-    %prog gcshift \
-        s3://hli-bix-us-west-2/kubernetes/wf-root-test/102340_NA12878/lpierce-ccn_gcn-v2/ \
-        102340_NA12878
+    %prog gcshift workdir 102340_NA12878 \
+        s3://hli-bix-us-west-2/kubernetes/wf-root-test/102340_NA12878/lpierce-ccn_gcn-v2/
 
     Download CCN output folder and convert cib to copy number per 1Kb.
     """
@@ -441,26 +473,37 @@ def gcshift(args):
                  help="Window size along chromosome")
     p.add_option("--cleanup", default=False, action="store_true",
                  help="Clean up downloaded s3 folder")
+    p.add_option("--rebuildgc", default=False, action="store_true",
+                 help="Rebuild GC directory rather than pulling from S3")
     opts, args = p.parse_args(args)
 
-    if len(args) != 2:
+    if len(args) == 2:
+        workdir, sample_key = args
+        s3dir = None
+    elif len(args) == 3:
+        workdir, sample_key, s3dir = args
+    else:
         sys.exit(not p.print_help())
 
-    s3dir, sample_key = args
     n = opts.binsize
-    cndir = sample_key + "-cn"
+    mkdir(workdir)
+    sampledir = op.join(workdir, sample_key)
+    if s3dir:
+        sync_from_s3(s3dir, target_dir=sampledir)
+
+    assert op.exists(sampledir), "Directory {} doesn't exist!".format(sampledir)
+
+    cndir = op.join(workdir, sample_key + "-cn")
     if op.exists(cndir):
         logging.debug("Directory {} exists. Skipped.".format(cndir))
         return
 
     gcdir = "gc"
+    if opts.rebuildgc:
+        build_gc_array(n=n, gcdir=gcdir)
     if not op.exists(gcdir):
-        build_gc_array(n=n)
-
-    if s3dir.startswith("s3://"):
-        sync_from_s3(s3dir, target_dir=sample_key)
-    assert op.exists(sample_key), "Directory {} doesn't exist!"\
-                    .format(sample_key)
+        sync_from_s3("s3://hli-mv-data-science/htang/ccn/gc",
+                     target_dir=gcdir)
 
     # Build GC correction table
     gc_bin = defaultdict(list)
@@ -470,7 +513,7 @@ def gcshift(args):
     for seqid in allsomes:
         gcfile = op.join(gcdir, "{}.{}.gc".format(seqid, n))
         gc = np.fromfile(gcfile, dtype=np.uint8)
-        cibfile = op.join(sample_key, "{}.{}.cib".format(sample_key, seqid))
+        cibfile = op.join(sampledir, "{}.{}.cib".format(sample_key, seqid))
         cib = load_cib(cibfile)
         print >> sys.stderr, seqid, gc.shape[0], cib.shape[0]
         if seqid in autosomes:
@@ -495,7 +538,7 @@ def gcshift(args):
 
     if opts.cleanup:
         import shutil
-        shutil.rmtree(sample_key)
+        shutil.rmtree(sampledir)
 
 
 if __name__ == '__main__':

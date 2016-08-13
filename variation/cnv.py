@@ -26,41 +26,6 @@ sexsomes = ["chrX", "chrY"]
 allsomes = autosomes + sexsomes
 
 
-def contiguous_regions(condition):
-    """Finds contiguous True regions of the boolean array "condition". Returns
-    a 2D array where the first column is the start index of the region and the
-    second column is the end index."""
-
-    # Find the indicies of changes in "condition"
-    d = np.diff(condition)
-    idx, = d.nonzero()
-
-    # We need to start things after the change in "condition". Therefore,
-    # we'll shift the index by 1 to the right.
-    idx += 1
-
-    if condition[0]:
-        # If the start of condition is True prepend a 0
-        idx = np.r_[0, idx]
-
-    if condition[-1]:
-        # If the end of condition is True, append the length of the array
-        idx = np.r_[idx, condition.size] # Edit
-
-    # Reshape the result into two columns
-    idx.shape = (-1,2)
-    return idx
-
-
-def format_float(f):
-    s = "{:.2f}".format(f)
-    return s.rstrip('0').rstrip('.')
-
-
-def around_value(s, mu, max_dev=.25):
-    return mu - max_dev < s < mu + max_dev
-
-
 class CopyNumberHMM(object):
 
     def __init__(self, workdir, betadir="beta",
@@ -110,15 +75,17 @@ class CopyNumberHMM(object):
         segments = self.annotate_segments(Z)
         events = []
         for mean_cn, rr in segments:
+            ss = fixed[rr[0]: rr[1]]
+            realbins = np.sum(np.isfinite(ss))
             # Determine whether this is an outlier
-            tag = self.tag(chr, mean_cn, rr, med_cn, base)
+            tag = self.tag(chr, mean_cn, rr, med_cn, base, realbins)
             if tag:
                 print tag
             events.append((mean_cn, rr, tag))
 
         return X, Z, clen, events
 
-    def tag(self, chr, mean_cn, rr, med_cn, base):
+    def tag(self, chr, mean_cn, rr, med_cn, base, realbins):
         around_1 = around_value(mean_cn, 1)
         around_2 = around_value(mean_cn, 2)
         if chr == "chrX":
@@ -147,8 +114,9 @@ class CopyNumberHMM(object):
                 return
         tag = "GAIN" if mean_cn > base else "LOSS"
         mb = rr / 1000.
-        return"[{}] {}:{}-{}Mb (CN={})".format(tag, chr,
-                                format_float(mb[0]), format_float(mb[1]), mean_cn)
+        return "[{}] {}:{}-{}Mb CN={} bins={}".format(tag, chr,
+                                format_float(mb[0]), format_float(mb[1]),
+                                mean_cn, realbins)
 
     def initialize(self, mu, sigma, step):
         from hmmlearn import hmm
@@ -256,6 +224,41 @@ class CopyNumberHMM(object):
         axs[0].set_ylabel("Copy number")
 
 
+def contiguous_regions(condition):
+    """Finds contiguous True regions of the boolean array "condition". Returns
+    a 2D array where the first column is the start index of the region and the
+    second column is the end index."""
+
+    # Find the indicies of changes in "condition"
+    d = np.diff(condition)
+    idx, = d.nonzero()
+
+    # We need to start things after the change in "condition". Therefore,
+    # we'll shift the index by 1 to the right.
+    idx += 1
+
+    if condition[0]:
+        # If the start of condition is True prepend a 0
+        idx = np.r_[0, idx]
+
+    if condition[-1]:
+        # If the end of condition is True, append the length of the array
+        idx = np.r_[idx, condition.size] # Edit
+
+    # Reshape the result into two columns
+    idx.shape = (-1,2)
+    return idx
+
+
+def format_float(f):
+    s = "{:.2f}".format(f)
+    return s.rstrip('0').rstrip('.')
+
+
+def around_value(s, mu, max_dev=.25):
+    return mu - max_dev < s < mu + max_dev
+
+
 def main():
 
     actions = (
@@ -286,7 +289,18 @@ def hmm(args):
 
     workdir, sample_key = args
     model = CopyNumberHMM(workdir=workdir)
-    model.run(sample_key)
+    events = model.run(sample_key)
+    hmmfile = op.join(workdir, sample_key + ".seg")
+    fw = open(hmmfile, "w")
+    nevents = 0
+    for mean_cn, rr, event in events:
+        if event is None:
+            continue
+        print >> fw, " ".join((sample_key, event))
+        nevents += 1
+    fw.close()
+    logging.debug("A total of {} aberrant events written to `{}`"\
+                    .format(nevents, hmmfile))
 
 
 def batchccn(args):

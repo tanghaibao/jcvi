@@ -114,9 +114,12 @@ class CopyNumberHMM(object):
                 return
         tag = "GAIN" if mean_cn > base else "LOSS"
         mb = rr / 1000.
-        return "[{}] {}:{}-{}Mb CN={} bins={}".format(tag, chr,
+        msg = "[{}] {}:{}-{}Mb CN={} bins={}".format(tag, chr,
                                 format_float(mb[0]), format_float(mb[1]),
                                 mean_cn, realbins)
+        if realbins >= 10000:
+            msg += "*"
+        return msg
 
     def initialize(self, mu, sigma, step):
         from hmmlearn import hmm
@@ -210,14 +213,14 @@ class CopyNumberHMM(object):
                 size = 10
             else:
                 yinterval = .05
-                size = 16
+                size = 12
             for mean_cn, rr, event in events:
                 if mean_cn > 6:
                     continue
                 ax.text(np.mean(rr), mean_cn + .2, mean_cn, ha="center", bbox=props)
                 if event is None:
                     continue
-                ax.text(.5, yy, event, color='r', ha="center",
+                ax.text(.5, yy, event.rsplit(" ", 1)[0], color='r', ha="center",
                         transform=ax.transAxes, size=size)
                 yy -= yinterval
 

@@ -10,9 +10,11 @@ import logging
 import os.path as op
 
 import numpy as np
+import numpy.ma as ma
 import pandas as pd
 
 from collections import defaultdict
+from random import choice
 
 from jcvi.utils.aws import sync_from_s3
 from jcvi.algorithms.formula import get_kmeans
@@ -24,16 +26,267 @@ sexsomes = ["chrX", "chrY"]
 allsomes = autosomes + sexsomes
 
 
+def contiguous_regions(condition):
+    """Finds contiguous True regions of the boolean array "condition". Returns
+    a 2D array where the first column is the start index of the region and the
+    second column is the end index."""
+
+    # Find the indicies of changes in "condition"
+    d = np.diff(condition)
+    idx, = d.nonzero()
+
+    # We need to start things after the change in "condition". Therefore,
+    # we'll shift the index by 1 to the right.
+    idx += 1
+
+    if condition[0]:
+        # If the start of condition is True prepend a 0
+        idx = np.r_[0, idx]
+
+    if condition[-1]:
+        # If the end of condition is True, append the length of the array
+        idx = np.r_[idx, condition.size] # Edit
+
+    # Reshape the result into two columns
+    idx.shape = (-1,2)
+    return idx
+
+
+def format_float(f):
+    s = "{:.2f}".format(f)
+    return s.rstrip('0').rstrip('.')
+
+
+def around_value(s, mu, max_dev=.25):
+    return mu - max_dev < s < mu + max_dev
+
+
+class CopyNumberHMM(object):
+
+    def __init__(self, workdir, betadir="beta",
+                 mu=.003, sigma=10, step=.1, threshold=.2):
+        self.model = self.initialize(mu=mu, sigma=sigma, step=step)
+        self.workdir = workdir
+        self.betadir = betadir
+        if not op.exists(betadir):
+            sync_from_s3("s3://hli-mv-data-science/htang/ccn/beta",
+                         target_dir=betadir)
+        self.mu = mu
+        self.sigma = sigma
+        self.step = step
+        self.threshold = threshold
+
+    def run(self, samplekey, chrs=allsomes):
+        if isinstance(chrs, str):
+            chrs = [chrs]
+        allevents = []
+        for chr in chrs:
+            X, Z, clen, events = self.run_one(samplekey, chr)
+            allevents.extend(events)
+        return allevents
+
+    def run_one(self, samplekey, chr):
+        cov = np.fromfile("{}/{}-cn/{}.{}.cn".format(self.workdir, samplekey, samplekey, chr))
+        beta = np.fromfile("beta/{}.beta".format(chr))
+        std = np.fromfile("beta/{}.std".format(chr))
+        # Check if the two arrays have different dimensions
+        clen, blen = cov.shape[0], beta.shape[0]
+        if clen < blen:
+            cov = np.array(list(cov) + [np.nan] * (blen - clen))
+            clen = cov.shape[0]
+        assert clen == blen, "coverage and correction array not same dimension"
+        normalized = cov / beta
+        fixed = normalized.copy()
+        fixed[np.where(std > self.threshold)] = np.nan
+        X = fixed
+        Z = self.predict(X)
+
+        med_cn = np.median(fixed[np.isfinite(fixed)])
+        base = med_cn if chr == "chrX" else 2
+        base = base if chr != "chrY" else 1
+        print chr, med_cn
+
+        # Annotate segments
+        segments = self.annotate_segments(Z)
+        events = []
+        for mean_cn, rr in segments:
+            # Determine whether this is an outlier
+            tag = self.tag(chr, mean_cn, rr, med_cn, base)
+            if tag:
+                print tag
+            events.append((mean_cn, rr, tag))
+
+        return X, Z, clen, events
+
+    def tag(self, chr, mean_cn, rr, med_cn, base):
+        around_1 = around_value(mean_cn, 1)
+        around_2 = around_value(mean_cn, 2)
+        if chr == "chrX":
+            start, end = rr
+            if med_cn < 1.5:  # Male
+                # PAR ~ 2, rest ~ 1
+                if end < 5000 or start > 155000:
+                    if around_2:
+                        return
+                else:
+                    if around_1:
+                        return
+            else:
+                # All ~ 2
+                if around_2:
+                    return
+        elif chr == "chrY":
+            if med_cn < .5: # Female
+                if mean_cn < .5:
+                    return
+            else:
+                if around_1:
+                    return
+        else:
+            if around_2:
+                return
+        tag = "GAIN" if mean_cn > base else "LOSS"
+        mb = rr / 1000.
+        return"[{}] {}:{}-{}Mb (CN={})".format(tag, chr,
+                                format_float(mb[0]), format_float(mb[1]), mean_cn)
+
+    def initialize(self, mu, sigma, step):
+        from hmmlearn import hmm
+
+        # Initial population probability
+        n = int(10 / step)
+        startprob = 1. / n * np.ones(n)
+        transmat = mu * np.ones((n, n))
+        np.fill_diagonal(transmat, 1 - (n - 1) * mu)
+
+        # The means of each component
+        means = np.arange(0, step * n, step)
+        means.resize((n, 1, 1))
+        # The covariance of each component
+        covars = sigma * np.ones((n, 1, 1))
+
+        # Build an HMM instance and set parameters
+        model = hmm.GaussianHMM(n_components=n, covariance_type="full")
+
+        # Instead of fitting it from the data, we directly set the estimated
+        # parameters, the means and covariance of the components
+        model.startprob_ = startprob
+        model.transmat_ = transmat
+        model.means_ = means
+        model.covars_ = covars
+        return model
+
+    def predict(self, X):
+        # Handle missing values
+        X = ma.masked_invalid(X)
+        mask = X.mask
+        dX = ma.compressed(X).reshape(-1, 1)
+        dZ = self.model.predict(dX)
+        Z = np.array([np.nan for i in xrange(X.shape[0])])
+        Z[~mask] = dZ
+        Z = ma.masked_invalid(Z)
+
+        return Z * self.step
+
+    def annotate_segments(self, Z):
+        """ Report the copy number and start-end segment
+        """
+        # We need a way to go from compressed idices to original indices
+        P = Z.copy()
+        P[~np.isfinite(P)] = -1
+        _, mapping = np.unique(np.cumsum(P >= 0), return_index=True)
+
+        dZ = Z.compressed()
+        uniq, idx = np.unique(dZ, return_inverse=True)
+        segments = []
+        for i, mean_cn in enumerate(uniq):
+            if not np.isfinite(mean_cn):
+                continue
+            for rr in contiguous_regions(idx == i):
+                segments.append((mean_cn, mapping[rr]))
+
+        return segments
+
+    def plot(self, samplekey, chrs=allsomes, color=None, dx=None):
+        import matplotlib.pyplot as plt
+        from jcvi.utils.brewer2mpl import get_map
+
+        props = dict(boxstyle='round', facecolor='wheat', alpha=0.2)
+
+        if isinstance(chrs, str):
+            chrs = [chrs]
+        f, axs = plt.subplots(1, len(chrs), sharey=True)
+        if not isinstance(axs, np.ndarray):
+            axs = np.array([axs])
+        plt.tight_layout()
+        if color is None:
+            color = choice(get_map('Set2', 'qualitative', 8).mpl_colors)
+
+        for chr, ax in zip(chrs, axs):
+            X, Z, clen, events = self.run_one(samplekey, chr)
+            ax.plot(X, ".", label="observations", ms=2, mfc=color, alpha=0.7)
+            ax.plot(Z, "k.", label="hidden", ms=6)
+            ax.set_xlim(0, clen)
+            ax.set_ylim(0, 6)
+            ax.set_xlabel("1Kb bins")
+            title = "{} {}".format(samplekey.split("_")[1], chr)
+            if dx:
+                title += " ({})".format(dx)
+            ax.set_title(title)
+
+            # The final calls
+            yy = .9
+            abnormal = [x for x in events if x[-1]]
+            if len(abnormal) > 5:
+                yinterval = .02
+                size = 10
+            else:
+                yinterval = .05
+                size = 16
+            for mean_cn, rr, event in events:
+                if mean_cn > 6:
+                    continue
+                ax.text(np.mean(rr), mean_cn + .2, mean_cn, ha="center", bbox=props)
+                if event is None:
+                    continue
+                ax.text(.5, yy, event, color='r', ha="center",
+                        transform=ax.transAxes, size=size)
+                yy -= yinterval
+
+        axs[0].set_ylabel("Copy number")
+
+
 def main():
 
     actions = (
         ('gcshift', 'correct cib according to GC content'),
         ('mergecn', 'compile matrix of GC-corrected copy numbers'),
+        ('hmm', 'run cnv segmentation'),
         # Interact with CCN script
         ('batchccn', 'run CCN script in batch'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def hmm(args):
+    """
+    %prog hmm workdir sample_key
+
+    Run CNV segmentation caller. The workdir must contain a subfolder called
+    `sample_key-cn` that contains CN for each chromosome. A `beta` directory
+    that contains scaler for each bin must also be present in the current
+    directory.
+    """
+    p = OptionParser(hmm.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    workdir, sample_key = args
+    model = CopyNumberHMM(workdir=workdir)
+    model.run(sample_key)
 
 
 def batchccn(args):

@@ -61,10 +61,14 @@ class CopyNumberHMM(object):
         std = np.fromfile("beta/{}.std".format(chr))
         # Check if the two arrays have different dimensions
         clen, blen = cov.shape[0], beta.shape[0]
-        if clen < blen:
-            cov = np.array(list(cov) + [np.nan] * (blen - clen))
-            clen = cov.shape[0]
-        assert clen == blen, "coverage and correction array not same dimension"
+        tlen = max(clen, blen)
+        if tlen > clen:
+            cov = np.array(list(cov) + [np.nan] * (tlen - clen))
+        elif tlen > blen:
+            beta = np.array(list(beta) + [np.nan] * (tlen - blen))
+        clen, blen = cov.shape[0], beta.shape[0]
+        assert clen == blen, "cov ({}) and correction ({}) not same dimension".\
+                                format(clen, blen)
         normalized = cov / beta
         fixed = normalized.copy()
         fixed[np.where(std > self.threshold)] = np.nan
@@ -72,8 +76,6 @@ class CopyNumberHMM(object):
         Z = self.predict(X)
 
         med_cn = np.median(fixed[np.isfinite(fixed)])
-        base = med_cn if chr == "chrX" else 2
-        base = base if chr != "chrY" else 1
         print chr, med_cn
 
         # Annotate segments
@@ -83,26 +85,30 @@ class CopyNumberHMM(object):
             ss = fixed[rr[0]: rr[1]]
             realbins = np.sum(np.isfinite(ss))
             # Determine whether this is an outlier
-            tag = self.tag(chr, mean_cn, rr, med_cn, base, realbins)
+            tag = self.tag(chr, mean_cn, rr, med_cn, realbins)
             if tag:
                 print tag
             events.append((mean_cn, rr, tag))
 
         return X, Z, clen, events
 
-    def tag(self, chr, mean_cn, rr, med_cn, base, realbins):
+    def tag(self, chr, mean_cn, rr, med_cn, realbins):
+        around_0 = around_value(mean_cn, 0)
         around_1 = around_value(mean_cn, 1)
         around_2 = around_value(mean_cn, 2)
+        base = 2
         is_PAR = 0
         if chr == "chrX":
             start, end = rr
             is_PAR = end < 5000 or start > 155000
-            if med_cn < 1.5:  # Male
+            if med_cn < 1.25:  # Male
                 # PAR ~ 2, rest ~ 1
                 if is_PAR:
+                    base = 2
                     if around_2:
                         return
                 else:
+                    base = 1
                     if around_1:
                         return
             else:
@@ -110,10 +116,12 @@ class CopyNumberHMM(object):
                 if around_2:
                     return
         elif chr == "chrY":
-            if med_cn < .5: # Female
-                if mean_cn < .5:
+            if med_cn < .25: # Female
+                base = 0
+                if around_0:
                     return
             else:
+                base = 1
                 if around_1:
                     return
         else:
@@ -314,9 +322,10 @@ def batchhmm(args):
             cmd = cmd_cn.format(workdir, sample)
             mm.add(sampledir, cndir, cmd)
 
-        segfile = sampledir + ".seg"
+        cnfile = op.join(cndir, "{}.chrY.cn".format(sample))
+        segfile = op.join(workdir, sample + ".seg")
         cmd = cmd_seg.format(workdir, sample)
-        mm.add(cndir, segfile, cmd)
+        mm.add(cnfile, segfile, cmd)
 
     mm.write()
 

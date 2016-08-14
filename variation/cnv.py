@@ -26,6 +26,9 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, getfilesize, \
 autosomes = ["chr{}".format(x) for x in range(1, 23)]
 sexsomes = ["chrX", "chrY"]
 allsomes = autosomes + sexsomes
+# See: http://www.ncbi.nlm.nih.gov/projects/genome/assembly/grc/human/
+PAR = [("chrX", 10001, 2781479),
+       ("chrX", 155701383, 156030895)]
 
 
 class CopyNumberHMM(object):
@@ -90,11 +93,13 @@ class CopyNumberHMM(object):
     def tag(self, chr, mean_cn, rr, med_cn, base, realbins):
         around_1 = around_value(mean_cn, 1)
         around_2 = around_value(mean_cn, 2)
+        is_PAR = 0
         if chr == "chrX":
             start, end = rr
+            is_PAR = end < 5000 or start > 155000
             if med_cn < 1.5:  # Male
                 # PAR ~ 2, rest ~ 1
-                if end < 5000 or start > 155000:
+                if is_PAR:
                     if around_2:
                         return
                 else:
@@ -116,10 +121,12 @@ class CopyNumberHMM(object):
                 return
         tag = "GAIN" if mean_cn > base else "LOSS"
         mb = rr / 1000.
-        msg = "[{}] {}:{}-{}Mb CN={} bins={}".format(tag, chr,
-                                format_float(mb[0]), format_float(mb[1]),
+        coords = "{}:{}-{}Mb".format(chr, format_float(mb[0]), format_float(mb[1]))
+        if is_PAR:
+            coords += ":PAR"
+        msg = "[{}] {} CN={} bins={}".format(tag, coords,
                                 mean_cn, realbins)
-        if realbins >= 10000:
+        if realbins >= 10000:  # Mark segments longer than 10K bins ~ 10Mb
             msg += "*"
         return msg
 
@@ -298,10 +305,14 @@ def batchhmm(args):
     cmd_cn = "python -m jcvi.variation.cnv gcshift {} {}"
     cmd_seg = "python -m jcvi.variation.cnv hmm {} {}"
     for sampledir in sampledirs:
-        cndir = sampledir + "-cn"
         sample = op.basename(sampledir)
-        cmd = cmd_cn.format(workdir, sample)
-        mm.add(sampledir, cndir, cmd)
+        if sampledir.endswith("-cn"):
+            cndir = sampledir
+            sample = sample.replace("-cn", "")
+        else:
+            cndir = sampledir + "-cn"
+            cmd = cmd_cn.format(workdir, sample)
+            mm.add(sampledir, cndir, cmd)
 
         segfile = sampledir + ".seg"
         cmd = cmd_seg.format(workdir, sample)

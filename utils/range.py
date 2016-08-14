@@ -76,23 +76,40 @@ def ranges_intersect(rset):
     return a
 
 
-def range_overlap(a, b):
+def range_overlap(a, b, ratio=False):
     """
-    Returns whether or not two ranges overlap.
+    Returns whether two ranges overlap. Set percentage=True returns overlap
+    ratio over the shorter range of the two.
 
-    >>> range_overlap(("1", 30, 45), ("1", 45, 55))
-    True
+    >>> range_overlap(("1", 30, 45), ("1", 41, 55))
+    5
+    >>> range_overlap(("1", 21, 45), ("1", 41, 75), ratio=True)
+    0.2
+    >>> range_overlap(("1", 30, 45), ("1", 15, 55))
+    16
+    >>> range_overlap(("1", 30, 45), ("1", 15, 55), ratio=True)
+    1.0
     >>> range_overlap(("1", 30, 45), ("1", 57, 68))
-    False
+    0
     >>> range_overlap(("1", 30, 45), ("2", 42, 55))
-    False
+    0
+    >>> range_overlap(("1", 30, 45), ("2", 42, 55), ratio=True)
+    0.0
     """
     a_chr, a_min, a_max = a
     b_chr, b_min, b_max = b
+    a_min, a_max = sorted((a_min, a_max))
+    b_min, b_max = sorted((b_min, b_max))
+    shorter = min((a_max - a_min), (b_max - b_min)) + 1
     # must be on the same chromosome
     if a_chr != b_chr:
-        return False
-    return (a_min <= b_max) and (b_min <= a_max)
+        ov = 0
+    else:
+        ov = min(shorter, (a_max - b_min + 1), (b_max - a_min + 1))
+        ov = max(ov, 0)
+    if ratio:
+        ov /= float(shorter)
+    return ov
 
 
 def range_distance(a, b, distmode='ss'):

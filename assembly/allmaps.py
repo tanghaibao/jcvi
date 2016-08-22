@@ -473,7 +473,11 @@ class Marker (object):
         self.seqid = b.seqid
         self.pos = b.start
         self.mlg, cm = b.accn.split(":")
-        self.mapname, self.lg = b.accn.split("-")
+        try:
+            self.mapname, self.lg = b.accn.split("-", 1)
+        except ValueError:
+            logging.error("Malformed marker name: {}".format(b.accn))
+            sys.exit(1)
         self.cm = float(cm)
         self.accn = b.accn
         self.args = b.args

@@ -1043,6 +1043,7 @@ def trf(args):
     Run TRF on FASTA files.
     """
     from jcvi.apps.base import iglob
+    cparams = "1 1 2 80 5 200 2000"
 
     p = OptionParser(trf.__doc__)
     p.add_option("--mismatch", default=31, type="int",
@@ -1055,6 +1056,8 @@ def trf(args):
                  help="Generate output for lobSTR")
     p.add_option("--telomeres", default=False, action="store_true",
                  help="Run telomere search: minscore=140 period=7")
+    p.add_option("--centromeres", default=False, action="store_true",
+                 help="Run centromere search: {}".format(cparams))
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -1068,6 +1071,9 @@ def trf(args):
 
     params = "2 {0} {0} 80 10 {1} {2}".\
             format(opts.mismatch, opts.minscore, opts.period).split()
+    if opts.centromeres:
+        params = cparams.split()
+
     bedfiles = []
     for fastafile in natsorted(iglob(outdir, "*.fa,*.fasta")):
         pf = op.basename(fastafile).split(".")[0]

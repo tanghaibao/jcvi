@@ -871,6 +871,9 @@ def pool(args):
     from jcvi.formats.base import longest_unique_prefix
 
     p = OptionParser(pool.__doc__)
+    p.add_option("--sep", default=".", help="Separator between prefix and name")
+    p.add_option("--sequential", default=False, action="store_true",
+            help="Add sequential IDs")
     opts, args = p.parse_args(args)
 
     if len(args) < 1:
@@ -879,8 +882,11 @@ def pool(args):
     for fastafile in args:
         pf = longest_unique_prefix(fastafile, args)
         print >> sys.stderr, fastafile, "=>", pf
-        prefixopt = "--prefix={0}_".format(pf)
-        format([fastafile, "stdout", prefixopt])
+        prefixopt = "--prefix={0}{1}".format(pf, opts.sep)
+        format_args = [fastafile, "stdout", prefixopt]
+        if opts.sequential:
+            format_args += ["--sequential=replace"]
+        format(format_args)
 
 
 def ids(args):

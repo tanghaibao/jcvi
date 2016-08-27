@@ -159,7 +159,6 @@ def main():
         ('chimera', 'parse sam file from `bwasw` and list multi-hit reads'),
         ('noclip', 'remove clipped reads from bam'),
         ('ace', 'convert sam file to ace'),
-        ('index', 'convert to bam, sort and then index'),
         ('consensus', 'convert bam alignments to consensus FASTA'),
         ('fpkm', 'calculate FPKM values from BAM file'),
         ('coverage', 'calculate depth for BAM file'),
@@ -167,10 +166,41 @@ def main():
         ('mapped', 'extract mapped/unmapped reads from samfile'),
         ('count', 'count the number of reads mapped using htseq'),
         ('merge', 'merge bam files'),
+        # Convenience function
+        ('index', 'convert to bam, sort and then index'),
+        ('extract', 'extract sub-bam for just one contig'),
             )
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def extract(args):
+    """
+    %prog extract bamfile contig
+
+    Extract sub-bam for just one contig.
+    """
+    p = OptionParser(extract.__doc__)
+    p.set_cpus()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    bamfile, contig = args
+    cpus = opts.cpus
+    pf = bamfile.split(".")[0]
+    outfile = ".".join((contig.split("|")[0], pf, "bam"))
+    if op.exists(outfile):
+        logging.error("Output name exists: `{}`".format(outfile))
+        return
+
+    if need_update(bamfile, outfile):
+        cmd = 'samtools view {} "{}" -@ {}'.format(bamfile, contig, cpus)
+        cmd += " -b -o {}".format(outfile)
+        sh(cmd)
+    index([outfile, "--cpus={}".format(cpus)])
 
 
 def noclip(args):

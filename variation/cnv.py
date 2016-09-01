@@ -282,6 +282,7 @@ def around_value(s, mu, max_dev=.25):
 def main():
 
     actions = (
+        ('cib', 'convert bam to cib'),
         ('gcshift', 'correct cib according to GC content'),
         ('mergecn', 'compile matrix of GC-corrected copy numbers'),
         ('hmm', 'run cnv segmentation'),
@@ -291,6 +292,21 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def cib(args):
+    """
+    %prog cib bamfile cibdir
+
+    Convert BAM to CIB.
+    """
+    p = OptionParser(cib.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    bamfile, cibdir = args
 
 
 def batchhmm(args):

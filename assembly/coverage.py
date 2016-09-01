@@ -121,17 +121,20 @@ def bed_to_bedpe(bedfile, bedpefile, pairsbedfile=None, matesfile=None, ca=False
     nbedpe = 0
     nspan = 0
     for clonename, blines in clones.items():
-        if len(blines) == 2:
+        nlines = len(blines)
+        if nlines == 2:
             a, b = blines
             aseqid, astart, aend = a.seqid, a.start, a.end
             bseqid, bstart, bend = b.seqid, b.start, b.end
             print >> fw, "\t".join(str(x) for x in (aseqid, astart - 1, aend,
                 bseqid, bstart - 1, bend, clonename))
             nbedpe += 1
-        else:
+        elif nlines == 1:
             a, = blines
             aseqid, astart, aend = a.seqid, a.start, a.end
             bseqid, bstart, bend = 0, 0, 0
+        else:  # More than two lines per pair
+            pass
 
         if pairsbedfile:
             start = min(astart, bstart) if bstart > 0 else astart

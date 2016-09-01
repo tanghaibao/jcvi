@@ -94,6 +94,10 @@ def plot_some_queries(refs, qsizes, rsizes, deltafile, refcov,
         logging.debug("Empty - {0} vs. {1}".format(queries, refs))
         return None
 
+    if not layout:
+        queries = sorted(queries)
+        refs = sorted(refs)
+
     writeXfile(queries, qsizes, Qfile)
     writeXfile(refs, rsizes, Rfile)
 

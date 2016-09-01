@@ -182,7 +182,7 @@ def scaffold(args):
     contigs = args[0]
     libtxt = write_libraries(args[1:], aligner=opts.aligner)
     # Requires getopts.pl which may be missing
-    download("http://mflib.org/xampp/perl/lib/getopts.pl")
+    download("http://web.vims.edu/bridge/bridge2/aw/lib/getopts.pl")
 
     cmd = "perl " + op.join(opts.sspace_home, "SSPACE_Standard_v3.0.pl")
     cmd += " -l {0} -s {1} -T {2}".format(libtxt, contigs, opts.cpus)

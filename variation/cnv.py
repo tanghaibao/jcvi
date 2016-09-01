@@ -12,8 +12,10 @@ import os.path as op
 import numpy as np
 import numpy.ma as ma
 import pandas as pd
+import pysam
 
 from collections import defaultdict
+from multiprocessing import Pool
 from random import choice
 
 from jcvi.apps.grid import MakeManager
@@ -294,19 +296,52 @@ def main():
     p.dispatch(globals())
 
 
+def bam_to_cib(arg):
+    bamfile, seq, cibdir = arg
+    bam = pysam.AlignmentFile(bamfile, "rb")
+    name, length = seq["SN"], seq["LN"]
+    logging.debug("Computing depth for {} (length={})".format(name, length))
+    pileup = bam.pileup(name)
+    a = np.zeros(length, dtype=np.uint8)
+    for x in pileup:
+        a[x.reference_pos] = min(x.nsegments, 255)
+
+    cibfile = op.join(cibdir, name + ".cib")
+    a.tofile(cibfile)
+    logging.debug("Depth written to `{}`".format(cibfile))
+
+
 def cib(args):
     """
     %prog cib bamfile cibdir
 
-    Convert BAM to CIB.
+    Convert BAM to CIB (a binary storage of uint8 per base).
     """
     p = OptionParser(cib.__doc__)
+    p.add_option("--prefix", help="Report seqids with this prefix only")
+    p.set_cpus()
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
         sys.exit(not p.print_help())
 
     bamfile, cibdir = args
+    mkdir(cibdir)
+    bam = pysam.AlignmentFile(bamfile, "rb")
+    refs = [x for x in bam.header["SQ"]]
+    prefix = opts.prefix
+    if prefix:
+        refs = [x for x in refs if x["SN"].startswith(prefix)]
+
+    task_args = []
+    for r in refs:
+        task_args.append((bamfile, r, cibdir))
+    cpus = min(opts.cpus, len(task_args))
+    logging.debug("Use {} cpus".format(cpus))
+
+    p = Pool(processes=cpus)
+    for res in p.imap(bam_to_cib, task_args):
+        continue
 
 
 def batchhmm(args):

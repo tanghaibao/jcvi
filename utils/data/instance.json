@@ -1,5 +1,19 @@
 {
-    "InstanceId": "i-140dcc80", 
+    "InstanceId": "i-30501828", 
+    "Volumes": [
+        {
+            "Device": "/dev/sdf", 
+            "VolumeId": "vol-aad57e1f"
+        }, 
+        {
+            "Device": "/dev/sdg", 
+            "VolumeId": "vol-c709aa72"
+        }, 
+        {
+            "Device": "/dev/sdh", 
+            "VolumeId": "vol-2f09aa9a"
+        }
+    ], 
     "LaunchSpec": {
         "Monitoring": {
             "Enabled": false
@@ -15,21 +29,7 @@
             "Name": "", 
             "Arn": ""
         }, 
-        "InstanceType": "r3.2xlarge", 
-        "ImageId": "ami-41569a21"
-    }, 
-    "Volumes": [
-        {
-            "Device": "/dev/sdf", 
-            "VolumeId": "vol-aad57e1f"
-        }, 
-        {
-            "Device": "/dev/sdg", 
-            "VolumeId": "vol-c709aa72"
-        }, 
-        {
-            "Device": "/dev/sdh", 
-            "VolumeId": "vol-2f09aa9a"
-        }
-    ]
+        "InstanceType": "c4.8xlarge", 
+        "ImageId": "ami-f6ce0496"
+    }
 }

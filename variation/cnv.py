@@ -302,9 +302,9 @@ def bam_to_cib(arg):
     name, length = seq["SN"], seq["LN"]
     logging.debug("Computing depth for {} (length={})".format(name, length))
     pileup = bam.pileup(name)
-    a = np.zeros(length, dtype=np.uint8)
+    a = np.zeros(length, dtype=np.int8) - 128
     for x in pileup:
-        a[x.reference_pos] = min(x.nsegments, 255)
+        a[x.reference_pos] = min(x.nsegments, 255) - 128
 
     cibfile = op.join(cibdir, name + ".cib")
     a.tofile(cibfile)
@@ -315,7 +315,7 @@ def cib(args):
     """
     %prog cib bamfile cibdir
 
-    Convert BAM to CIB (a binary storage of uint8 per base).
+    Convert BAM to CIB (a binary storage of int8 per base).
     """
     p = OptionParser(cib.__doc__)
     p.add_option("--prefix", help="Report seqids with this prefix only")
@@ -501,11 +501,15 @@ def mergecn(args):
 
 def load_cib(cibfile, n=1000):
     cibgzfile = cibfile + ".gz"
-    if not op.exists(cibfile) or getfilesize(cibfile) < getfilesize(cibgzfile):
-        cibfile = cibgzfile
+    if not op.exists(cibfile):
+        if op.exists(cibgzfile) and getfilesize(cibfile) < getfilesize(cibgzfile):
+            cibfile = cibgzfile
     if cibfile.endswith(".gz"):
         sh("pigz -d -k -f {}".format(cibfile))
         cibfile = cibfile.replace(".gz", "")
+    if not op.exists(cibfile):
+        return
+
     cib = np.fromfile(cibfile, dtype=np.int8) + 128
     rm = pd.rolling_mean(cib, n, min_periods=n / 2)
     a = rm[n - 1::n].copy()
@@ -544,7 +548,7 @@ def gcshift(args):
                  help="Window size along chromosome")
     p.add_option("--cleanup", default=False, action="store_true",
                  help="Clean up downloaded s3 folder")
-    p.add_option("--rebuildgc", default=False, action="store_true",
+    p.add_option("--rebuildgc", default="/mnt/ref/hg38.upper.fa",
                  help="Rebuild GC directory rather than pulling from S3")
     opts, args = p.parse_args(args)
 
@@ -557,6 +561,7 @@ def gcshift(args):
         sys.exit(not p.print_help())
 
     n = opts.binsize
+    rebuildgc = opts.rebuildgc
     mkdir(workdir)
     sampledir = op.join(workdir, sample_key)
     if s3dir:
@@ -570,8 +575,8 @@ def gcshift(args):
         return
 
     gcdir = "gc"
-    if opts.rebuildgc:
-        build_gc_array(n=n, gcdir=gcdir)
+    if rebuildgc:
+        build_gc_array(fastafile=rebuildgc, n=n, gcdir=gcdir)
     if not op.exists(gcdir):
         sync_from_s3("s3://hli-mv-data-science/htang/ccn/gc",
                      target_dir=gcdir)
@@ -586,6 +591,9 @@ def gcshift(args):
         gc = np.fromfile(gcfile, dtype=np.uint8)
         cibfile = op.join(sampledir, "{}.{}.cib".format(sample_key, seqid))
         cib = load_cib(cibfile)
+        if not cib:
+            logging.error("File {} not found. Continue anyway.".format(cibfile))
+            continue
         print >> sys.stderr, seqid, gc.shape[0], cib.shape[0]
         if seqid in autosomes:
             for gci, k in zip(gc, cib):

@@ -19,7 +19,8 @@ from multiprocessing import Pool
 from random import choice
 
 from jcvi.apps.grid import MakeManager
-from jcvi.utils.aws import push_to_s3, sync_from_s3
+from jcvi.utils.aws import glob_s3, push_to_s3, sync_from_s3
+from jcvi.utils.cbook import percentage
 from jcvi.algorithms.formula import get_kmeans
 from jcvi.apps.base import OptionParser, ActionDispatcher, getfilesize, \
             mkdir, sh
@@ -290,7 +291,7 @@ def main():
         ('hmm', 'run cnv segmentation'),
         # Interact with CCN script
         ('batchccn', 'run CCN script in batch'),
-        ('batchhmm', 'run HMM in batch'),
+        ('batchcn', 'run HMM in batch'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -344,41 +345,39 @@ def cib(args):
         continue
 
 
-def batchhmm(args):
+def batchcn(args):
     """
-    %prog batchhmm workdir
+    %prog batchcn workdir samples.csv
 
     Run CNV segmentation caller in batch mode. Scans a workdir.
     """
-    from glob import glob
-
-    p = OptionParser(batchhmm.__doc__)
+    p = OptionParser(batchcn.__doc__)
+    p.add_option("--upload", default="s3://hli-mv-data-science/htang/ccn",
+                 help="Upload cn and seg results to s3")
     opts, args = p.parse_args(args)
 
-    if len(args) != 1:
+    if len(args) != 2:
         sys.exit(not p.print_help())
 
-    workdir, = args
-    sampledirs = [x.rstrip("/") for x in glob("{}/*_*".format(workdir)) if op.isdir(x)]
-    mm = MakeManager()
-    cmd_cn = "python -m jcvi.variation.cnv cn {} {}"
-    cmd_seg = "python -m jcvi.variation.cnv hmm {} {}"
-    for sampledir in sampledirs:
-        sample = op.basename(sampledir)
-        if sampledir.endswith("-cn"):
-            cndir = sampledir
-            sample = sample.replace("-cn", "")
-        else:
-            cndir = sampledir + "-cn"
-            cmd = cmd_cn.format(workdir, sample)
-            mm.add(sampledir, cndir, cmd)
+    workdir, samples = args
+    upload = opts.upload
+    store = upload + "/{}/*.seg".format(workdir)
+    computed = [op.basename(x).split(".")[0] for x in glob_s3(store)]
+    computed = set(computed)
 
-        cnfile = op.join(cndir, "{}.chrY.cn".format(sample))
-        segfile = op.join(workdir, sample + ".seg")
-        cmd = cmd_seg.format(workdir, sample)
-        mm.add(cnfile, segfile, cmd)
+    # Generate a bunch of cn commands
+    fp = open(samples)
+    nskipped = ntotal = 0
+    cmd = "python -m jcvi.variation.cnv cn --hmm --cleanup {}".format(workdir)
+    for row in fp:
+        samplekey, path = row.strip().split(",")
+        ntotal += 1
+        if samplekey in computed:
+            nskipped += 1
+            continue
+        print " ".join((cmd, samplekey, path))
 
-    mm.write()
+    logging.debug("Skipped: {}".format(percentage(nskipped, ntotal)))
 
 
 def hmm(args):
@@ -644,6 +643,7 @@ def cn(args):
     if opts.cleanup:
         import shutil
         shutil.rmtree(sampledir)
+        shutil.rmtree(cndir)
 
 
 if __name__ == '__main__':

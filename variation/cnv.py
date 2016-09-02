@@ -297,23 +297,23 @@ def main():
 
 
 def bam_to_cib(arg):
-    bamfile, seq, cibdir = arg
+    bamfile, seq, samplekey = arg
     bam = pysam.AlignmentFile(bamfile, "rb")
     name, length = seq["SN"], seq["LN"]
     logging.debug("Computing depth for {} (length={})".format(name, length))
     pileup = bam.pileup(name)
-    a = np.zeros(length, dtype=np.int8) - 128
+    a = np.ones(length, dtype=np.int8) * -128
     for x in pileup:
         a[x.reference_pos] = min(x.nsegments, 255) - 128
 
-    cibfile = op.join(cibdir, name + ".cib")
+    cibfile = op.join(samplekey, "{}.{}.cib".format(samplekey, name))
     a.tofile(cibfile)
     logging.debug("Depth written to `{}`".format(cibfile))
 
 
 def cib(args):
     """
-    %prog cib bamfile cibdir
+    %prog cib bamfile samplekey
 
     Convert BAM to CIB (a binary storage of int8 per base).
     """
@@ -325,8 +325,8 @@ def cib(args):
     if len(args) != 2:
         sys.exit(not p.print_help())
 
-    bamfile, cibdir = args
-    mkdir(cibdir)
+    bamfile, samplekey = args
+    mkdir(samplekey)
     bam = pysam.AlignmentFile(bamfile, "rb")
     refs = [x for x in bam.header["SQ"]]
     prefix = opts.prefix
@@ -335,7 +335,7 @@ def cib(args):
 
     task_args = []
     for r in refs:
-        task_args.append((bamfile, r, cibdir))
+        task_args.append((bamfile, r, samplekey))
     cpus = min(opts.cpus, len(task_args))
     logging.debug("Use {} cpus".format(cpus))
 
@@ -524,6 +524,9 @@ def build_gc_array(fastafile="/mnt/ref/hg38.upper.fa",
     f = Fasta(fastafile)
     mkdir(gcdir)
     for seqid in allsomes:
+        if seqid not in f:
+            logging.debug("Seq {} not found. Continue anyway.".format(seqid))
+            continue
         c = np.array(f[seqid])
         gc = (c == 'G') | (c == 'C')  # If base is GC
         rr = ~(c == 'N')              # If base is real
@@ -548,7 +551,7 @@ def gcshift(args):
                  help="Window size along chromosome")
     p.add_option("--cleanup", default=False, action="store_true",
                  help="Clean up downloaded s3 folder")
-    p.add_option("--rebuildgc", default="/mnt/ref/hg38.upper.fa",
+    p.add_option("--rebuildgc",
                  help="Rebuild GC directory rather than pulling from S3")
     opts, args = p.parse_args(args)
 
@@ -588,12 +591,12 @@ def gcshift(args):
 
     for seqid in allsomes:
         gcfile = op.join(gcdir, "{}.{}.gc".format(seqid, n))
+        if not op.exists(gcfile):
+            logging.error("File {} not found. Continue anyway.".format(gcfile))
+            continue
         gc = np.fromfile(gcfile, dtype=np.uint8)
         cibfile = op.join(sampledir, "{}.{}.cib".format(sample_key, seqid))
         cib = load_cib(cibfile)
-        if not cib:
-            logging.error("File {} not found. Continue anyway.".format(cibfile))
-            continue
         print >> sys.stderr, seqid, gc.shape[0], cib.shape[0]
         if seqid in autosomes:
             for gci, k in zip(gc, cib):

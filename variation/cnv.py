@@ -19,7 +19,7 @@ from multiprocessing import Pool
 from random import choice
 
 from jcvi.apps.grid import MakeManager
-from jcvi.utils.aws import sync_from_s3
+from jcvi.utils.aws import push_to_s3, sync_from_s3
 from jcvi.algorithms.formula import get_kmeans
 from jcvi.apps.base import OptionParser, ActionDispatcher, getfilesize, \
             mkdir, sh
@@ -285,7 +285,7 @@ def main():
 
     actions = (
         ('cib', 'convert bam to cib'),
-        ('gcshift', 'correct cib according to GC content'),
+        ('cn', 'correct cib according to GC content'),
         ('mergecn', 'compile matrix of GC-corrected copy numbers'),
         ('hmm', 'run cnv segmentation'),
         # Interact with CCN script
@@ -361,7 +361,7 @@ def batchhmm(args):
     workdir, = args
     sampledirs = [x.rstrip("/") for x in glob("{}/*_*".format(workdir)) if op.isdir(x)]
     mm = MakeManager()
-    cmd_cn = "python -m jcvi.variation.cnv gcshift {} {}"
+    cmd_cn = "python -m jcvi.variation.cnv cn {} {}"
     cmd_seg = "python -m jcvi.variation.cnv hmm {} {}"
     for sampledir in sampledirs:
         sample = op.basename(sampledir)
@@ -410,6 +410,7 @@ def hmm(args):
     fw.close()
     logging.debug("A total of {} aberrant events written to `{}`"\
                     .format(nevents, hmmfile))
+    return hmmfile
 
 
 def batchccn(args):
@@ -499,10 +500,19 @@ def mergecn(args):
         ar.tofile("{}.bin".format(seqid))
 
 
+def is_matching_gz(origfile, gzfile):
+    if not op.exists(origfile):
+        return False
+    if not op.exists(gzfile):
+        return False
+    return getfilesize(origfile) == getfilesize(gzfile)
+
+
 def load_cib(cibfile, n=1000):
     cibgzfile = cibfile + ".gz"
-    if not op.exists(cibfile):
-        if op.exists(cibgzfile) and getfilesize(cibfile) < getfilesize(cibgzfile):
+    # When we try unzip if cib not found, or cib does not match cibgz
+    if not op.exists(cibfile) or not is_matching_gz(cibfile, cibgzfile):
+        if op.exists(cibgzfile):
             cibfile = cibgzfile
     if cibfile.endswith(".gz"):
         sh("pigz -d -k -f {}".format(cibfile))
@@ -539,18 +549,22 @@ def build_gc_array(fastafile="/mnt/ref/hg38.upper.fa",
         print >> sys.stderr, seqid, gc_pct, arfile
 
 
-def gcshift(args):
+def cn(args):
     """
-    %prog gcshift workdir 102340_NA12878 \
+    %prog cn workdir 102340_NA12878 \
         s3://hli-bix-us-west-2/kubernetes/wf-root-test/102340_NA12878/lpierce-ccn_gcn-v2/
 
     Download CCN output folder and convert cib to copy number per 1Kb.
     """
-    p = OptionParser(gcshift.__doc__)
+    p = OptionParser(cn.__doc__)
     p.add_option("--binsize", default=1000, type="int",
                  help="Window size along chromosome")
     p.add_option("--cleanup", default=False, action="store_true",
                  help="Clean up downloaded s3 folder")
+    p.add_option("--hmm", default=False, action="store_true",
+                 help="Run HMM caller after computing CN")
+    p.add_option("--upload", default="s3://hli-mv-data-science/htang/ccn",
+                 help="Upload cn and seg results to s3")
     p.add_option("--rebuildgc",
                  help="Rebuild GC directory rather than pulling from S3")
     opts, args = p.parse_args(args)
@@ -614,9 +628,18 @@ def gcshift(args):
     for seqid, gc, cib in coverage:
         nitems = cib.shape[0]
         beta = apply_fun(gc[:nitems])
-        cn = cib / beta
+        beta_cn = cib / beta
         cnfile = op.join(cndir, "{}.{}.cn".format(sample_key, seqid))
-        cn.tofile(cnfile)
+        beta_cn.tofile(cnfile)
+
+    # Run HMM caller if asked
+    segfile = hmm([workdir, sample_key]) if opts.hmm else None
+
+    upload = opts.upload
+    if upload:
+        push_to_s3(upload, cndir)
+        if segfile:
+            push_to_s3(upload, segfile)
 
     if opts.cleanup:
         import shutil

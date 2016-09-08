@@ -68,10 +68,14 @@ class Layout (AbstractLayout):
                 args = row.rstrip().split(delimiter)
                 args = [x.strip() for x in args]
                 i, j, fn = args[1:4]
+                if len(args) == 5 and args[4]:
+                    samearc = args[4]
+                else:
+                    samearc = 'below'
                 i, j = int(i), int(j)
                 assert args[0] == 'e'
                 blocks = self.parse_blocks(fn, i)
-                self.edges.append((i, j, blocks))
+                self.edges.append((i, j, blocks, samearc))
             else:
                 self.append(LayoutLine(row, delimiter=delimiter,
                             generank=generank))
@@ -209,9 +213,9 @@ class Track (object):
 class ShadeManager (object):
 
     def __init__(self, ax, tracks, layout, heightpad=0):
-        for i, j, blocks in layout.edges:
+        for i, j, blocks, samearc in layout.edges:
             # if same track (duplication shades), shall we draw above or below?
-            samearc = "above" if i == j and i == 0 else "below"
+            #samearc = "above" if i == j and i == 0 else "below"
             self.draw_blocks(ax, blocks, tracks[i], tracks[j],
                              samearc=samearc, heightpad=heightpad)
 

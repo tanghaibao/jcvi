@@ -227,6 +227,7 @@ class SimpleFile (object):
         # Sometimes the simplefile has query and subject wrong
         fp = open(simplefile)
         self.blocks = []
+        check = False
         for row in fp:
             if row[:2] == "##" or row.startswith("StartGeneA"):
                 continue
@@ -236,11 +237,20 @@ class SimpleFile (object):
                 hl = hl or defaultcolor
             a, b, c, d, score, orientation = row.split()
             if order and a not in order:
-                a, b, c, d = c, d, a, b
+                if c not in order:
+                    check = True
+                    print >> sys.stderr, \
+                    '''{} {} {} {} can not found in bed files.'''.format(a, b, c, d)
+                else:
+                    a, b, c, d = c, d, a, b
             if orientation == '-':
                 c, d = d, c
             score = int(score)
             self.blocks.append((a, b, c, d, score, orientation, hl))
+        if check:
+            print >> sys.stderr, '''Error: some genes in blocks can't be found, 
+please rerun after making sure that bed file agree with simple file.'''
+            exit(1)
 
 
 def _score(cluster):

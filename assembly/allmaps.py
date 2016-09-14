@@ -1541,7 +1541,7 @@ def plot(args):
     tip = .02
     marker_pos = {}
     # Palette
-    colors = dict((mapname, set2[i]) for i, mapname in enumerate(mapnames))
+    colors = dict((mapname, set2[i % len(set2)]) for i, mapname in enumerate(mapnames))
     colors = dict((mlg, colors[mlg.split("-")[0]]) for mlg in mlgs)
 
     rhos = {}

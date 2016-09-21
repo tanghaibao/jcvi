@@ -15,12 +15,12 @@ from math import sin, cos, pi
 import numpy as np
 from jcvi.graphics.base import plt, savefig, normalize_axes, Rectangle, latex
 
-from Image import open as iopen
+from PIL.Image import open as iopen
 from wand.image import Image
 from scipy.ndimage import binary_fill_holes, distance_transform_edt
 from scipy.optimize import fmin_bfgs as fmin
 from skimage.color import gray2rgb, rgb2gray
-from skimage.filter import canny, roberts, sobel
+from skimage.filters import canny, roberts, sobel
 from skimage.feature import peak_local_max
 from skimage.measure import regionprops, label
 from skimage.morphology import disk, closing, watershed

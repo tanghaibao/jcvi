@@ -414,7 +414,7 @@ def heatmap(args):
 
         Y = np.array([m, m])
         root.imshow(Y, extent=(xx, xx + xlen, yy, yy + yh - inner),
-                    interpolation="nearest", aspect="auto")
+                    interpolation="nearest", aspect="auto", cmap=iopts.cmap)
         root.text(xx + xlen + .01, yy, s, size=10)
 
     yy -= yh

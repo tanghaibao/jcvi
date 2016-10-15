@@ -5,6 +5,7 @@ mostly decorator patterns
 
 import os.path as op
 import re
+import sys
 import logging
 import functools
 
@@ -42,6 +43,20 @@ class memoized(object):
     def __get__(self, obj, objtype):
         """Support instance methods."""
         return functools.partial(self.__call__, obj)
+
+
+def inspect(item, maxchar=80):
+    """
+    Inspect the attributes of an item.
+    """
+    for i in dir(item):
+        try:
+            member = str(getattr(item, i))
+            if maxchar and len(member) > maxchar:
+                member = member[:maxchar] + "..."
+        except:
+            member = "[ERROR]"
+        print >> sys.stderr, "{}: {}".format(i, member)
 
 
 def timeit(func):

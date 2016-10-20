@@ -461,8 +461,8 @@ def mergecn(args):
     betadir = "beta"
     mkdir(betadir)
     for seqid in allsomes:
-        names = [op.join(s + "-cn", "{}.{}.cn".format(s, seqid)) \
-                    for s in samples]
+        names = [op.join(s + "-cn", "{}.{}.cn".\
+                    format(op.basename(s), seqid)) for s in samples]
         arrays = [np.fromfile(name, dtype=np.float) for name in names]
         shapes = [x.shape[0] for x in arrays]
         med_shape = np.median(shapes)

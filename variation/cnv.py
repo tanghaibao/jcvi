@@ -357,29 +357,45 @@ def sweep(args):
                 print tcmd
 
 
-def compare(args):
-    """
-    %prog compare NA12878_array_hg38.bed cnv.seg
-
-    Compare cnv output to known ground truths.
-    """
-    p = OptionParser(compare.__doc__)
-    opts, args = p.parse_args(args)
-
-    if len(args) != 2:
-        sys.exit(not p.print_help())
-
-    truths, cnvoutput = args
+def compare_worker(arg):
+    cnvoutput, truths = arg
     cmd = "intersectBed -f .5 -F .5"
     cmd += " -a {} -b {} | wc -l".format(cnvoutput, truths)
-    nlines = int(popen(cmd).read())
+    nlines = int(popen(cmd, debug=False).read())
     target_lines = len([x for x in open(cnvoutput)])
     truths_lines = len([x for x in open(truths)])
     precision = nlines * 100.  / target_lines
     recall = nlines * 100. / truths_lines
-    print "\t".join(str(x) for x in (cnvoutput, truths, \
+    d = "\t".join(str(x) for x in (cnvoutput, truths, \
                         nlines, target_lines, truths_lines, \
                         precision, recall))
+    return d
+
+
+def compare(args):
+    """
+    %prog compare NA12878_array_hg38.bed *.seg
+
+    Compare cnv output to known ground truths.
+    """
+    p = OptionParser(compare.__doc__)
+    p.set_cpus()
+    opts, args = p.parse_args(args)
+
+    if len(args) < 2:
+        sys.exit(not p.print_help())
+
+    truths = args[0]
+    cnvoutputs = args[1:]
+    cpus = min(len(cnvoutputs), opts.cpus)
+    p = Pool(processes=cpus)
+    results = []
+    files = [(x, truths) for x in cnvoutputs]
+    r = p.map_async(compare_worker, files, callback=results.append)
+    r.wait()
+
+    for res in results:
+        print "\n".join(res)
 
 
 def bam_to_cib(arg):

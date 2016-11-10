@@ -34,6 +34,36 @@ PAR = [("chrX", 10001, 2781479),
        ("chrX", 155701383, 156030895)]
 
 
+class CopyNumberSegment(object):
+
+    def __init__(self, chr, rr, tag, mean_cn, realbins, is_PAR=False):
+        self.chr = chr
+        self.rr = rr
+        self.start = rr[0] * 1000
+        self.end = rr[1] * 1000
+        self.span = self.end - self.start
+        self.tag = tag
+        self.mean_cn = mean_cn
+        self.realbins = realbins
+        self.is_PAR = is_PAR
+
+    def __str__(self):
+        mb = self.rr / 1000.
+        coords = "{}:{}-{}Mb".format(self.chr, format_float(mb[0]), format_float(mb[1]))
+        if self.is_PAR:
+            coords += ":PAR"
+        msg = "[{}] {} CN={} bins={}".format(self.tag, coords,
+                                self.mean_cn, self.realbins)
+        if self.realbins >= 10000:  # Mark segments longer than 10K bins ~ 10Mb
+            msg += "*"
+        return msg
+
+    @property
+    def bedline(self):
+        return "\t".join(str(x) for x in (self.chr, self.start, self.end,
+                                               self.tag, self.span, self.mean_cn))
+
+
 class CopyNumberHMM(object):
 
     def __init__(self, workdir, betadir="beta",
@@ -88,19 +118,24 @@ class CopyNumberHMM(object):
             ss = fixed[rr[0]: rr[1]]
             realbins = np.sum(np.isfinite(ss))
             # Determine whether this is an outlier
-            tag = self.tag(chr, mean_cn, rr, med_cn, realbins)
-            if tag:
-                print tag
-            events.append((mean_cn, rr, tag))
+            segment = self.tag(chr, mean_cn, rr, med_cn, realbins)
+            if segment:
+                events.append((mean_cn, rr, segment))
+        events.sort(key=lambda x: x[-1].start)
+
+        # Send some debug info to screen
+        for mean_cn, rr, segment in events:
+            print segment
 
         return X, Z, clen, events
 
-    def tag(self, chr, mean_cn, rr, med_cn, realbins):
+    def tag(self, chr, mean_cn, rr, med_cn, realbins, base=2):
         around_0 = around_value(mean_cn, 0)
         around_1 = around_value(mean_cn, 1)
         around_2 = around_value(mean_cn, 2)
-        base = 2
-        is_PAR = 0
+        if realbins <= 1:      # Remove singleton bins
+            return
+        is_PAR = False
         if chr == "chrX":
             start, end = rr
             is_PAR = end < 5000 or start > 155000
@@ -130,16 +165,9 @@ class CopyNumberHMM(object):
         else:
             if around_2:
                 return
-        tag = "GAIN" if mean_cn > base else "LOSS"
-        mb = rr / 1000.
-        coords = "{}:{}-{}Mb".format(chr, format_float(mb[0]), format_float(mb[1]))
-        if is_PAR:
-            coords += ":PAR"
-        msg = "[{}] {} CN={} bins={}".format(tag, coords,
-                                mean_cn, realbins)
-        if realbins >= 10000:  # Mark segments longer than 10K bins ~ 10Mb
-            msg += "*"
-        return msg
+        tag = "DUP" if mean_cn > base else "DEL"
+        segment = CopyNumberSegment(chr, rr, tag, mean_cn, realbins, is_PAR=False)
+        return segment
 
     def initialize(self, mu, sigma, step):
         from hmmlearn import hmm
@@ -274,7 +302,7 @@ def contiguous_regions(condition):
 
 
 def format_float(f):
-    s = "{:.2f}".format(f)
+    s = "{:.3f}".format(f)
     return s.rstrip('0').rstrip('.')
 
 
@@ -292,9 +320,26 @@ def main():
         # Interact with CCN script
         ('batchccn', 'run CCN script in batch'),
         ('batchcn', 'run HMM in batch'),
+        # Benchmark, training, etc.
+        ('compare', 'compare cnv output to ground truths'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def compare(args):
+    """
+    %prog compare cnv.out NA12878_array_hg38.bed
+
+    Compare cnv output to known ground truths.
+    """
+    p = OptionParser(compare.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    cnvoutput, truths = args
 
 
 def bam_to_cib(arg):
@@ -390,13 +435,19 @@ def hmm(args):
     directory.
     """
     p = OptionParser(hmm.__doc__)
+    p.add_option("--mu", default=.003, type="float", help="Transition probability")
+    p.add_option("--sigma", default=1, type="float",
+                 help="Standard deviation of Gaussian emission distribution")
+    p.add_option("--threshold", default=1, type="float",
+                 help="Standard deviation must be < this in the baseline population")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
         sys.exit(not p.print_help())
 
     workdir, sample_key = args
-    model = CopyNumberHMM(workdir=workdir)
+    model = CopyNumberHMM(workdir=workdir, mu=opts.mu, sigma=opts.sigma,
+                          threshold=opts.threshold)
     events = model.run(sample_key)
     hmmfile = op.join(workdir, sample_key + ".seg")
     fw = open(hmmfile, "w")
@@ -404,7 +455,7 @@ def hmm(args):
     for mean_cn, rr, event in events:
         if event is None:
             continue
-        print >> fw, " ".join((sample_key, event))
+        print >> fw, " ".join((event.bedline, sample_key))
         nevents += 1
     fw.close()
     logging.debug("A total of {} aberrant events written to `{}`"\

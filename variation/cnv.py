@@ -23,7 +23,7 @@ from jcvi.utils.aws import glob_s3, push_to_s3, sync_from_s3
 from jcvi.utils.cbook import percentage
 from jcvi.algorithms.formula import get_kmeans
 from jcvi.apps.base import OptionParser, ActionDispatcher, getfilesize, \
-            mkdir, sh
+            mkdir, popen, sh
 
 
 autosomes = ["chr{}".format(x) for x in range(1, 23)]
@@ -321,15 +321,45 @@ def main():
         ('batchccn', 'run CCN script in batch'),
         ('batchcn', 'run HMM in batch'),
         # Benchmark, training, etc.
+        ('sweep', 'write a number of commands to sweep parameter space'),
         ('compare', 'compare cnv output to ground truths'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
 
+def sweep(args):
+    """
+    %prog sweep workdir 102340_NA12878
+
+    Write a number of commands to sweep parameter space.
+    """
+    p = OptionParser(sweep.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    workdir, sample_key = args
+    golden_ratio = (1 + 5 ** .5) / 2
+    cmd = "python -m jcvi.variation.cnv hmm {} {}".format(workdir, sample_key)
+    cmd += " --mu {:.5f} --sigma {:.3f} --threshold {:.3f}"
+    mus = [.00012 * golden_ratio ** x for x in range(10)]
+    sigmas = [.0012 * golden_ratio ** x for x in range(20)]
+    thresholds = [.1 * golden_ratio ** x for x in range(10)]
+    print >> sys.stderr, mus
+    print >> sys.stderr, sigmas
+    print >> sys.stderr, thresholds
+    for mu in mus:
+        for sigma in sigmas:
+            for threshold in thresholds:
+                tcmd = cmd.format(mu, sigma, threshold)
+                print tcmd
+
+
 def compare(args):
     """
-    %prog compare cnv.out NA12878_array_hg38.bed
+    %prog compare NA12878_array_hg38.bed cnv.seg
 
     Compare cnv output to known ground truths.
     """
@@ -339,7 +369,17 @@ def compare(args):
     if len(args) != 2:
         sys.exit(not p.print_help())
 
-    cnvoutput, truths = args
+    truths, cnvoutput = args
+    cmd = "intersectBed -f .5 -F .5"
+    cmd += " -a {} -b {} | wc -l".format(cnvoutput, truths)
+    nlines = int(popen(cmd).read())
+    target_lines = len([x for x in open(cnvoutput)])
+    truths_lines = len([x for x in open(truths)])
+    precision = nlines * 100.  / target_lines
+    recall = nlines * 100. / truths_lines
+    print "\t".join(str(x) for x in (cnvoutput, truths, \
+                        nlines, target_lines, truths_lines, \
+                        precision, recall))
 
 
 def bam_to_cib(arg):
@@ -436,7 +476,7 @@ def hmm(args):
     """
     p = OptionParser(hmm.__doc__)
     p.add_option("--mu", default=.003, type="float", help="Transition probability")
-    p.add_option("--sigma", default=1, type="float",
+    p.add_option("--sigma", default=.1, type="float",
                  help="Standard deviation of Gaussian emission distribution")
     p.add_option("--threshold", default=1, type="float",
                  help="Standard deviation must be < this in the baseline population")
@@ -449,7 +489,9 @@ def hmm(args):
     model = CopyNumberHMM(workdir=workdir, mu=opts.mu, sigma=opts.sigma,
                           threshold=opts.threshold)
     events = model.run(sample_key)
-    hmmfile = op.join(workdir, sample_key + ".seg")
+    params = ".mu-{}.sigma-{}.threshold-{}"\
+                .format(opts.mu, opts.sigma, opts.threshold)
+    hmmfile = op.join(workdir, sample_key + params + ".seg")
     fw = open(hmmfile, "w")
     nevents = 0
     for mean_cn, rr, event in events:

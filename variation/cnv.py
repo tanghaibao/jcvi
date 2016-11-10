@@ -268,7 +268,7 @@ class CopyNumberHMM(object):
                 ax.text(np.mean(rr), mean_cn + .2, mean_cn, ha="center", bbox=props)
                 if event is None:
                     continue
-                ax.text(.5, yy, event.rsplit(" ", 1)[0], color='r', ha="center",
+                ax.text(.5, yy, str(event).rsplit(" ", 1)[0], color='r', ha="center",
                         transform=ax.transAxes, size=size)
                 yy -= yinterval
 

@@ -43,9 +43,34 @@ def main():
 
     actions = (
         ('prepare', 'convert vcf and bam to variant list'),
+        ('counts', 'collect allele counts from RO/AO fields'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def counts(args):
+    """
+    %prog counts vcffile
+
+    Collect allele counts from RO and AO fields.
+    """
+    p = OptionParser(counts.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    vcffile, = args
+    vcf_reader = vcf.Reader(open(vcffile))
+    for r in vcf_reader:
+        v = CPRA(r)
+        if not v.is_valid:
+            continue
+        for sample in r.samples:
+            ro = sample["RO"]
+            ao = sample["AO"]
+            print "\t".join(str(x) for x in (v, ro, ao))
 
 
 def prepare(args):

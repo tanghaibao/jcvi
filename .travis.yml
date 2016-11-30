@@ -8,8 +8,8 @@ matrix:
         - os: linux
           python: 2.7
         # Use generic language for osx and install python by hand
-        - os: osx
-          language: generic
+        #- os: osx
+        #  language: generic
 
 # Setup anaconda
 before_install:

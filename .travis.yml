@@ -1,0 +1,36 @@
+language: python
+env:
+    global:
+        - OSX_PYTHON_VERSIONS='2.7'
+matrix:
+    include:
+        # Use the built in venv for linux builds
+        - os: linux
+          python: 2.7
+        # Use generic language for osx and install python by hand
+        - os: osx
+          language: generic
+
+# Setup anaconda
+before_install:
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then PYTHON_VERSIONS=$TRAVIS_PYTHON_VERSION ; curl https://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -o miniconda.sh ; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then PYTHON_VERSIONS=$OSX_PYTHON_VERSIONS; curl https://repo.continuum.io/miniconda/Miniconda-latest-MacOSX-x86_64.sh -o miniconda.sh ; fi
+  - bash miniconda.sh -b -p $HOME/miniconda
+  - export PATH="$HOME/miniconda/bin:$PATH"
+  - hash -r
+  - conda config --set always_yes yes --set changeps1 no
+  - conda update -q conda
+
+
+  # Useful for debugging any issues with conda
+  - conda info -a
+
+# Install packages
+install:
+  - for VERSION in $PYTHON_VERSIONS ; do conda create --name $VERSION --yes python=$VERSION --file requirements.txt ; source activate $VERSION ; python setup.py install; done
+
+# command to run tests
+script:
+  - for VERSION in $PYTHON_VERSIONS ; do source activate $VERSION ; python -m jcvi.apps.console ; done
+
+sudo: false

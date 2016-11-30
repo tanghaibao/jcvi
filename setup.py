@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 from setuptools import setup, find_packages
-from glob import glob
 
 
 name = "jcvi"
@@ -30,7 +29,7 @@ setup(
       url='http://github.com/tanghaibao/jcvi',
       description='Python utility libraries on genome assembly, '\
                   'annotation and comparative genomics',
-      long_description=open("README.rst").read(),
+      long_description=open("README.md").read(),
       install_requires=['biopython', 'numpy', 'matplotlib',
                         'deap', 'networkx']
      )

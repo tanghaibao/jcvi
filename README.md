@@ -3,6 +3,7 @@ JCVI utility libraries
 [![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.31631.svg)](http://dx.doi.org/10.5281/zenodo.31631)
 [![Latest PyPI version](https://img.shields.io/pypi/v/jcvi.svg)](https://pypi.python.org/pypi/jcvi)
 [![Number of PyPI downloads](https://img.shields.io/pypi/dm/jcvi.svg)](https://pypi.python.org/pypi/jcvi)
+[![Travis-CI](https://travis-ci.org/tanghaibao/jcvi.svg?branch=master)](https://travis-ci.org/tanghaibao/jcvi)
 
 Collection of Python libraries to parse bioinformatics files, or perform
 computation related to assembly, annotation, and comparative genomics.

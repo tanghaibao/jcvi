@@ -1,5 +1,5 @@
-JCVI utility libraries
-======================
+# JCVI utility libraries
+
 [![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.31631.svg)](http://dx.doi.org/10.5281/zenodo.31631)
 [![Latest PyPI version](https://img.shields.io/pypi/v/jcvi.svg)](https://pypi.python.org/pypi/jcvi)
 [![Number of PyPI downloads](https://img.shields.io/pypi/dm/jcvi.svg)](https://pypi.python.org/pypi/jcvi)
@@ -16,30 +16,24 @@ computation related to assembly, annotation, and comparative genomics.
 | Email   | <tanghaibao@gmail.com> |
 | License | [BSD](http://creativecommons.org/licenses/BSD/) |
 
+## Contents
 
-Contents
---------
 Following modules are available as generic Bioinformatics handling
 methods.
 
--  `algorithms`
-    -   Linear programming solver with SCIP and GLPK.
-    -   Supermap: find set of non-overlapping anchors in BLAST or
-        NUCMER output.
-    -   Longest or heaviest increasing subsequence.
-    -   Matrix operations.
+- `algorithms`
+  - Linear programming solver with SCIP and GLPK.
+  - Supermap: find set of non-overlapping anchors in BLAST or NUCMER output.
+  - Longest or heaviest increasing subsequence.
+  - Matrix operations.
 
--  `apps`
+- `apps`
+  - GenBank entrez accession, phytozome, ensembl and SRA downloader.
+  - Calculate (non)synonymous substitution rate between gene pairs.
+  - Basic phylogenetic tree construction using PHYLIP, PhyML, or RAxML, and viualization.
+  - Wrapper for BLAST+, LASTZ, LAST, BWA, BOWTIE2, CLC, CDHIT, CAP3, etc.
 
-    -   GenBank entrez accession, phytozome, ensembl and SRA downloader.
-    -   Calculate (non)synonymous substitution rate between
-        gene pairs.
-    -   Basic phylogenetic tree construction using PHYLIP, PhyML, or
-        RAxML, and visualization.
-    -   Wrapper for BLAST+, LASTZ, LAST, BWA, BOWTIE2, CLC, CDHIT,
-        CAP3, etc.
-
--  `formats`
+- `formats`
 
     Currently supports `.ace` format (phrap, cap3, etc.), `.agp`
     (goldenpath), `.bed` format, `.blast` output, `.btab` format,
@@ -49,87 +43,78 @@ methods.
     assembler output), `.sam` format (read mapping), `.contig`
     format (TIGR assembly format), etc.
 
--   `graphics`
-    -   BLAST or synteny dot plot.
-    -   Histogram using R and ASCII art.
-    -   Paint regions on set of chromosomes.
-    -   Macro-synteny and micro-synteny plots.
+- `graphics`
+  - BLAST or synteny dot plot.
+  - Histogram using R and ASCII art.
+  - Paint regions on set of chromosomes.
+  - Macro-synteny and micro-synteny plots.
 
--   `utils`
-
-    -   Grouper can be used as disjoint set data structure.
-    -   range contains common range operations, like overlap
-        and chaining.
-    -   Sybase connector to JCVI internal database.
-    -   Miscellaneous cookbook recipes, iterators decorators,
-        table utilities.
+- `utils`
+  - Grouper can be used as disjoint set data structure.
+  - range contains common range operations, like overlap
+    and chaining.
+  - Sybase connector to JCVI internal database.
+  - Miscellaneous cookbook recipes, iterators decorators,
+    table utilities.
 
 Then there are modules that contain domain-specific methods.
 
--  `assembly`
+- `assembly`
+  - K-mer histogram analysis.
+  - Preparation and validation of tiling path for clone-based assemblies.
+  - Scaffolding through BAMBUS, optical map and genetic map.
+  - Pre-assembly and post-assembly QC procedures.
 
-    -   K-mer histogram analysis.
-    -   Preparation and validation of tiling path for
-        clone-based assemblies.
-    -   Scaffolding through BAMBUS, optical map and genetic map.
-    -   Pre-assembly and post-assembly QC procedures.
+- `annotation`
+  - Training of *ab initio* gene predictors.
+  - Calculate gene, exon and intron statistics.
+  - Wrapper for PASA and EVM.
+  - Launch multiple MAKER processes.
 
--  `annotation`
+- `compara`
+  - C-score based BLAST filter.
+  - Synteny scan (de-novo) and lift over (find nearby anchors).
+  - Ancestral genome reconstruction using Sankoff's and PAR method.
+  - Ortholog and tandem gene duplicates finder.
 
-    -   Training of *ab initio* gene predictors.
-    -   Calculate gene, exon and intron statistics.
-    -   Wrapper for PASA and EVM.
-    -   Launch multiple MAKER processes.
-
--  `compara`
-
-    -   C-score based BLAST filter.
-    -   Synteny scan (de-novo) and lift over (find nearby anchors).
-    -   Ancestral genome reconstruction using Sankoff's and
-        PAR method.
-    -   Ortholog and tandem gene duplicates finder.
-
-
-Applications
-------------
+## Applications
 
 Please visit [wiki](https://github.com/tanghaibao/jcvi/wiki) for
 full-fledged applications. Also visit our
 [Gallery](https://github.com/tanghaibao/jcvi/wiki/Gallery) to see our
 graphics functionality for the production of publication-ready figures.
 
-
-Dependencies
-------------
+## Dependencies
 
 Following are a list of third-party python packages that are used by
 some routines in the library. These dependencies are *not* mandatory
 since they are only used by a few modules.
 
--   [Biopython](http://www.biopython.org)
--   [numpy](http://numpy.scipy.org)
--   [matplotlib](http://matplotlib.org/)
+- [Biopython](http://www.biopython.org)
+- [numpy](http://numpy.scipy.org)
+- [matplotlib](http://matplotlib.org/)
 
 There are other Python modules here and there in various scripts. The
 best way is to install them via `pip install` when you see
 `ImportError`.
 
-
-Installation
-------------
+## Installation
 
 The easiest way is to install it via PyPI:
-```
+
+```bash
 easy_install jcvi
 ```
 
 To install the development version:
-```
+
+```bash
 pip install git+git://github.com/tanghaibao/jcvi.git
 ```
 
 Alternatively, if you want to install manually:
-```
+
+```bash
 cd ~/code  # or any directory of your choice
 git clone git://github.com/tanghaibao/jcvi.git
 export PYTHONPATH=~/code:$PYTHONPATH
@@ -143,13 +128,14 @@ In addition, a few module might ask for locations of external programs,
 if the extended cannot be found in your `PATH`. The external programs
 that are often used are:
 
--   [Kent tools](http://hgdownload.cse.ucsc.edu/admin/jksrc.zip)
--   [BEDTOOLS](http://code.google.com/p/bedtools/)
--   [EMBOSS](http://emboss.sourceforge.net/)
+- [Kent tools](http://hgdownload.cse.ucsc.edu/admin/jksrc.zip)
+- [BEDTOOLS](http://code.google.com/p/bedtools/)
+- [EMBOSS](http://emboss.sourceforge.net/)
 
 Most of the scripts in this package contains multiple actions. To use
 the `fasta` example:
-```
+
+```bash
 Usage:
     python -m jcvi.formats.fasta ACTION
 
@@ -186,7 +172,8 @@ Available ACTIONs:
 ```
 
 Then you need to use one action, you can just do:
-```
+
+```bash
 python -m jcvi.formats.fasta extract
 ```
 
@@ -195,8 +182,7 @@ This will tell you the options and arguments it expects.
 **Feel free to check out other scripts in the package, it is not just
 for FASTA.**
 
+## Reference
 
-Reference
----------
 Haibao Tang et al. (2015). jcvi: JCVI utility libraries. Zenodo.
 [10.5281/zenodo.31631](http://dx.doi.org/10.5281/zenodo.31631).

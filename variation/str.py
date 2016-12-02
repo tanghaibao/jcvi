@@ -272,6 +272,8 @@ def treds(args):
     mask.tsv in one go.
     """
     p = OptionParser(treds.__doc__)
+    p.add_option("--csv", default=False, action="store_true",
+                 help="Also write `meta.csv`")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -289,10 +291,14 @@ def treds(args):
     final_columns = ["SampleKey"]
     afs = []
     for td, id in zip(tds, ids):
-        tag = "{}.2".format(td)
-        tags.append(tag)
-        a = df["{}.2".format(td)]
+        tag1 = "{}.1".format(td)
+        tag2 = "{}.2".format(td)
+        if tag2 not in df:
+            afs.append("{}")
+            continue
+        tags.append(tag2)
         final_columns.append(id)
+        a = np.array(list(df[tag1]) + list(df[tag2]))
         counts = alleles_to_counts(a)
         af = counts_to_af(counts)
         afs.append(af)
@@ -302,6 +308,10 @@ def treds(args):
     metafile = "TREDs_{}_SEARCH.meta.tsv".format(timestamp())
     tf.to_csv(metafile, sep="\t", index=False)
     logging.debug("File `{}` written.".format(metafile))
+    if opts.csv:
+        metacsvfile = metafile.rsplit(".", 1)[0] + ".csv"
+        tf.to_csv(metacsvfile, index=False)
+        logging.debug("File `{}` written.".format(metacsvfile))
 
     pp = df[tags]
     pp.columns = final_columns

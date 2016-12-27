@@ -19,6 +19,9 @@ RUN pip install scipy
 # <https://github.com/tanghaibao/jcvi/wiki/GRABSEEDS%3A-How-to-install>
 RUN apt-get install -y libxft-dev libfreetype6 libfreetype6-dev
 RUN pip install matplotlib scikit-image pypdf2 wand Pillow
+RUN apt-get install -y libmagickwand-dev
+RUN apt-get install -y texlive texlive-latex-extra texlive-latex-recommended
+RUN apt-get install -y dvipng
 
 # Install jcvi
 RUN pip install git+git://github.com/tanghaibao/jcvi.git

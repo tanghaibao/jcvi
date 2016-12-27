@@ -226,7 +226,7 @@ class CopyNumberHMM(object):
 
         return segments
 
-    def plot(self, samplekey, chrs=allsomes, color=None, dx=None):
+    def plot(self, samplekey, chrs=allsomes, color=None, dx=None, ymax=8):
         import matplotlib.pyplot as plt
         from jcvi.utils.brewer2mpl import get_map
 
@@ -246,7 +246,7 @@ class CopyNumberHMM(object):
             ax.plot(X, ".", label="observations", ms=2, mfc=color, alpha=0.7)
             ax.plot(Z, "k.", label="hidden", ms=6)
             ax.set_xlim(0, clen)
-            ax.set_ylim(0, 6)
+            ax.set_ylim(0, ymax)
             ax.set_xlabel("1Kb bins")
             title = "{} {}".format(samplekey.split("_")[1], chr)
             if dx:
@@ -263,7 +263,7 @@ class CopyNumberHMM(object):
                 yinterval = .05
                 size = 12
             for mean_cn, rr, event in events:
-                if mean_cn > 6:
+                if mean_cn > ymax:
                     continue
                 ax.text(np.mean(rr), mean_cn + .2, mean_cn, ha="center", bbox=props)
                 if event is None:

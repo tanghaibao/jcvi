@@ -226,7 +226,8 @@ class CopyNumberHMM(object):
 
         return segments
 
-    def plot(self, samplekey, chrs=allsomes, color=None, dx=None, ymax=8):
+    def plot(self, samplekey, chrs=allsomes, color=None, dx=None, ymax=8,
+             ms=2, alpha=.7):
         import matplotlib.pyplot as plt
         from jcvi.utils.brewer2mpl import get_map
 
@@ -241,11 +242,17 @@ class CopyNumberHMM(object):
         if color is None:
             color = choice(get_map('Set2', 'qualitative', 8).mpl_colors)
 
-        for chr, ax in zip(chrs, axs):
+        for region, ax in zip(chrs, axs):
+            chr, start, end = parse_region(region)
             X, Z, clen, events = self.run_one(samplekey, chr)
-            ax.plot(X, ".", label="observations", ms=2, mfc=color, alpha=0.7)
+            ax.plot(X, ".", label="observations", ms=ms, mfc=color, alpha=alpha)
             ax.plot(Z, "k.", label="hidden", ms=6)
-            ax.set_xlim(0, clen)
+
+            if start is None and end is None:
+                ax.set_xlim(0, clen)
+            else:
+                ax.set_xlim(start / 1000, end / 1000)
+
             ax.set_ylim(0, ymax)
             ax.set_xlabel("1Kb bins")
             title = "{} {}".format(samplekey.split("_")[1], chr)
@@ -273,6 +280,15 @@ class CopyNumberHMM(object):
                 yy -= yinterval
 
         axs[0].set_ylabel("Copy number")
+
+
+def parse_region(region):
+    if ":" not in region:
+        return region, None, None
+
+    chr, start_end = region.split(":")
+    start, end = start_end.split("-")
+    return chr, int(start), int(end)
 
 
 def contiguous_regions(condition):

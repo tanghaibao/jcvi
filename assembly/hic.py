@@ -92,7 +92,7 @@ def agp(args):
     logging.debug('Anchored: {}, Singletons: {}'.\
                   format(len(anchored), len(singletons)))
 
-    for s in singletons:
+    for s in natsorted(singletons):
         order_to_agp(s, [(s, "?")], sizes, fwagp)
 
 

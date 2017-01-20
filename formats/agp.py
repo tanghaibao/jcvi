@@ -653,14 +653,16 @@ class OO (LineFile):
                 object_beg += size
 
 
-def order_to_agp(object, ctgorder, sizes, fwagp, gapsize=100, gaptype="scaffold"):
+def order_to_agp(object, ctgorder, sizes, fwagp, gapsize=100,
+                 gaptype="scaffold", evidence=''):
 
     o = OO()  # Without a filename
     for scaffold_number, (ctg, strand) in enumerate(ctgorder):
         size = sizes[ctg]
         o.add(object, ctg, size, strand)
 
-    o.write_AGP(fwagp, gapsize=gapsize, gaptype=gaptype, phases={})
+    o.write_AGP(fwagp, gapsize=gapsize, gaptype=gaptype,
+                phases={}, evidence=evidence)
 
 
 def trimNs(seq, line, newagp):

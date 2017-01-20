@@ -359,7 +359,7 @@ def must_open(filename, mode="r", checkexists=False, skipcheck=False, \
 
     elif filename.endswith(".gz"):
         if 'r' in mode:
-            cmd = "zcat {0}".format(filename)
+            cmd = "gunzip -c {0}".format(filename)
             fp = popen(cmd, debug=False)
         elif 'w' in mode:
             import gzip

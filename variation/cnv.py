@@ -13,6 +13,7 @@ import numpy as np
 import numpy.ma as ma
 import pandas as pd
 import pysam
+import matplotlib.pyplot as plt
 
 from collections import defaultdict
 from multiprocessing import Pool
@@ -228,7 +229,6 @@ class CopyNumberHMM(object):
 
     def plot(self, samplekey, chrs=allsomes, color=None, dx=None, ymax=8,
              ms=2, alpha=.7):
-        import matplotlib.pyplot as plt
         from jcvi.utils.brewer2mpl import get_map
 
         props = dict(boxstyle='round', facecolor='wheat', alpha=0.2)
@@ -336,12 +336,37 @@ def main():
         # Interact with CCN script
         ('batchccn', 'run CCN script in batch'),
         ('batchcn', 'run HMM in batch'),
+        ('plot', 'plot some chromosomes for visual proof'),
         # Benchmark, training, etc.
         ('sweep', 'write a number of commands to sweep parameter space'),
         ('compare', 'compare cnv output to ground truths'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def plot(args):
+    """
+    %prog plot workdir sample chr1,chr2
+
+    Plot some chromosomes for visual proof. Separate multiple chromosomes with
+    comma. Must contain folder workdir/sample-cn/.
+    """
+    from jcvi.graphics.base import savefig
+
+    p = OptionParser(plot.__doc__)
+    opts, args, iopts = p.set_image_options(args, figsize="8x7", format="png")
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    workdir, sample_key, chrs = args
+    chrs = chrs.split(",")
+    hmm = CopyNumberHMM(workdir=workdir)
+    hmm.plot(sample_key, chrs=chrs)
+
+    image_name = sample_key + "_cn." + iopts.format
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
 def sweep(args):

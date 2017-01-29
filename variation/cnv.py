@@ -13,7 +13,6 @@ import numpy as np
 import numpy.ma as ma
 import pandas as pd
 import pysam
-import matplotlib.pyplot as plt
 
 from collections import defaultdict
 from multiprocessing import Pool
@@ -229,6 +228,8 @@ class CopyNumberHMM(object):
 
     def plot(self, samplekey, chrs=allsomes, color=None, dx=None, ymax=8,
              ms=2, alpha=.7):
+
+        import matplotlib.pyplot as plt
         from jcvi.utils.brewer2mpl import get_map
 
         props = dict(boxstyle='round', facecolor='wheat', alpha=0.2)
@@ -330,6 +331,7 @@ def main():
 
     actions = (
         ('cib', 'convert bam to cib'),
+        ('coverage', 'plot coverage along chromosome'),
         ('cn', 'correct cib according to GC content'),
         ('mergecn', 'compile matrix of GC-corrected copy numbers'),
         ('hmm', 'run cnv segmentation'),
@@ -343,6 +345,33 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def coverage(args):
+    """
+    %prog coverage *.coverage
+
+    Plot coverage along chromosome. The coverage file can be generated with:
+    $ samtools depth a.bam > a.coverage
+
+    The plot is a simple line plot using matplotlib.
+    """
+    from jcvi.graphics.base import savefig
+
+    p = OptionParser(coverage.__doc__)
+    opts, args, iopts = p.set_image_options(args, format="png")
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    covfile, = args
+    df = pd.read_csv(covfile, sep='\t', names=["Ref", "Position", "Depth"])
+
+    xlabel, ylabel = "Position", "Depth"
+    df.plot(xlabel, ylabel, color='g')
+
+    image_name = covfile + "." + iopts.format
+    savefig(image_name)
 
 
 def plot(args):

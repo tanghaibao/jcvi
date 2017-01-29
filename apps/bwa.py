@@ -187,9 +187,11 @@ def mem(args, opts):
     Wrapper for `bwa mem`. Output will be read1.sam.
     """
     dbfile, read1file = args[:2]
+    readtype = opts.readtype
+    pl = readtype or "illumina"
 
     pf = op.basename(read1file).split(".")[0]
-    rg = opts.rg or r"@RG\tID:{0}\tSM:sm\tLB:lb\tPL:illumina".format(pf)
+    rg = opts.rg or r"@RG\tID:{0}\tSM:sm\tLB:lb\tPL:{1}".format(pf, pl)
     dbfile = check_index(dbfile)
     args[0] = dbfile
     samfile, _, unmapped = get_samfile(read1file, dbfile,
@@ -201,8 +203,8 @@ def mem(args, opts):
     cmd = "bwa mem " + " ".join(args)
     cmd += " -M -t {0}".format(opts.cpus)
     cmd += ' -R "{0}"'.format(rg)
-    if opts.readtype:
-        cmd += " -x {0}".format(opts.readtype)
+    if readtype:
+        cmd += " -x {0}".format(readtype)
     cmd += " " + opts.extra
     return cmd, samfile
 

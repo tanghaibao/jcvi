@@ -177,11 +177,12 @@ class LobSTRvcf(dict):
 
     def __init__(self, columnidsfile="STR.ids"):
         self.samplekey = None
-        fp = open(columnidsfile)
-        self.columns = [x.strip() for x in fp]
         self.evidence = {}  # name: (supporting reads, stutter reads)
-        logging.debug("A total of {} markers imported from `{}`".\
-                        format(len(self.columns), columnidsfile))
+        if columnidsfile:
+            fp = open(columnidsfile)
+            self.columns = [x.strip() for x in fp]
+            logging.debug("A total of {} markers imported from `{}`".\
+                            format(len(self.columns), columnidsfile))
 
     def parse(self, filename, filtered=True, cleanup=False):
         self.samplekey = op.basename(filename).split(".")[0]
@@ -252,8 +253,7 @@ def main():
         ('lobstrindex', 'make lobSTR index'),
         ('batchlobstr', "run batch lobSTR"),
         ('lobstr', 'run lobSTR on a big BAM'),
-        ('batchhtt', "run batch HTT caller"),
-        ('htt', 'extract HTT region and run lobSTR'),
+        ('locus', 'extract selected locus and run lobSTR'),
         ('stutter', 'extract info from lobSTR vcf file'),
         # Specific markers
         ('liftover', 'liftOver CODIS/Y-STR markers'),
@@ -282,7 +282,7 @@ def treds(args):
     tredresults, = args
     df = pd.read_csv(tredresults, sep="\t")
 
-    tredsfile = op.join(datadir, "TREDs.meta.hg38.csv")
+    tredsfile = op.join(datadir, "TREDs.meta.csv")
     tf = pd.read_csv(tredsfile)
 
     tds = list(tf["abbreviation"])
@@ -1261,50 +1261,48 @@ def allelotype_on_chr(bamfile, chr, lhome, lbidx):
     return cmd, ".".join((outfile, lbidx, "vcf"))
 
 
-def batchhtt(args):
+def locus(args):
     """
-    %prog htt samples.csv chr4:3070000-3080000
+    %prog locus bamfile
 
-    Batch HTT caller. The samples are:
-    SampleId,ExecID,Norm VCF,gVCF,BAM
-    """
-    p = OptionParser(batchhtt.__doc__)
-    opts, args = p.parse_args(args)
-
-    if len(args) != 2:
-        sys.exit(not p.print_help())
-
-    samplesfile, region = args
-    fp = open(samplesfile)
-    fp.next()  # header
-    for row in fp:
-        sample, ex, vcf, gvcf, bam = row.strip().split(",")
-        htt([bam, region])
-    fp.close()
-
-
-def htt(args):
-    """
-    %prog htt bamfile chr4:3070000-3080000
-
-    Extract HTT region and run lobSTR.
+    Extract selected locus from a list of TREDs for validation, and run lobSTR.
     """
     from jcvi.formats.sam import get_minibam
+    # See `Format-lobSTR-database.ipynb` for a list of TREDs for validation
+    INCLUDE = ["HD", "SBMA", "SCA1", "SCA2", "SCA8", "SCA17", "DM1", "DM2"]
 
-    p = OptionParser(htt.__doc__)
+    p = OptionParser(locus.__doc__)
+    p.add_option("--tred", choices=INCLUDE,
+                 help="TRED name")
     p.set_home("lobstr")
     opts, args = p.parse_args(args)
 
-    if len(args) != 2:
+    if len(args) != 1:
         sys.exit(not p.print_help())
 
-    bamfile, region = args
+    bamfile, = args
     lhome = opts.lobstr_home
+    tred = opts.tred
+
+    tredsfile = op.join(datadir, "TREDs.meta.csv")
+    tf = pd.read_csv(tredsfile, index_col=0)
+    row = tf.ix[tred]
+    seqid, start_end = row["repeat_location"].split(":")
+
+    PAD = 1000
+    start, end = start_end.split('-')
+    start, end = int(start) - PAD, int(end) + PAD
+    region = "{}:{}-{}".format(seqid, start, end)
 
     minibamfile = get_minibam(bamfile, region)
-    c = region.split(":")[0].replace("chr", "")
-    cmd, vcf = allelotype_on_chr(minibamfile, c, lhome, "hg38")
+    c = seqid.replace("chr", "")
+    cmd, vcf = allelotype_on_chr(minibamfile, c, lhome, "TREDs")
     sh(cmd)
+
+    parser = LobSTRvcf(columnidsfile=None)
+    parser.parse(vcf, filtered=False)
+    k, v = parser.items()[0]
+    print >> sys.stderr, "{} => {}".format(tred, v.replace(',', '/'))
 
 
 def lobstrindex(args):

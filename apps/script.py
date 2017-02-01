@@ -16,6 +16,7 @@ default_template = """
 
 import sys
 
+{}
 from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
@@ -27,7 +28,18 @@ def main():
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
+{}
 
+if __name__ == '__main__':
+    main()
+"""
+
+default_imports = ""
+
+graphic_imports = """
+from jcvi.graphics.base import plt, savefig, normalize_axes"""
+
+default_app = """
 def app(args):
     \"\"\"
     %prog app
@@ -38,28 +50,15 @@ def app(args):
 
     if len(args) != 1:
         sys.exit(not p.print_help())
-
-
-if __name__ == '__main__':
-    main()
 """
 
-graphic_template = """
-\"\"\"
-%prog datafile
+graphic_app = """
+def app():
+    \"\"\"
+    %prog datafile
 
-Illustrate blablabla...
-\"\"\"
-
-
-import sys
-import logging
-
-from jcvi.graphics.base import plt, savefig, normalize_axes
-from jcvi.apps.base import OptionParser
-
-
-def main():
+    Illustrate blablabla...
+    \"\"\"
     p = OptionParser(__doc__)
     opts, args, iopts = p.set_image_options()
 
@@ -75,10 +74,6 @@ def main():
 
     image_name = pf + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
-
-
-if __name__ == '__main__':
-    main()
 """
 
 
@@ -97,7 +92,9 @@ def main():
         sys.exit(not p.print_help())
 
     script, = args
-    template = graphic_template if opts.graphic else default_template
+    imports = graphic_imports if opts.graphic else default_imports
+    app = graphic_app if opts.graphic else default_app
+    template = default_template.format(imports, app)
     write_file(script, template)
 
     message = "template writes to `{0}`".format(script)

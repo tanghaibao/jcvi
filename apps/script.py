@@ -53,14 +53,14 @@ def app(args):
 """
 
 graphic_app = """
-def app():
+def app(args):
     \"\"\"
     %prog datafile
 
     Illustrate blablabla...
     \"\"\"
     p = OptionParser(__doc__)
-    opts, args, iopts = p.set_image_options()
+    opts, args, iopts = p.set_image_options(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())

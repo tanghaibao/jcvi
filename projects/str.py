@@ -73,7 +73,7 @@ def evidences(args):
     draw_jointplot(outdir + "/C", "MeanCoverage", "HD.PEDP",
                    data=mf, color='m', xlim=xlim, ylim=ylim, format=format)
 
-    ylim = (0, 50)
+    xlim = (0, 50)
     draw_jointplot(outdir + "/D", "HD.2", "HD.FDP",
                    data=mf, xlim=xlim, ylim=ylim, format=format)
     draw_jointplot(outdir + "/E", "HD.2", "HD.PDP",
@@ -95,7 +95,7 @@ def draw_jointplot(figname, x, y, data=None, kind="reg", color=None,
                 "HD.FDP": "Depth of full spanning reads",
                 "HD.PDP": "Depth of partial spanning reads",
                 "HD.PEDP": "Depth of paired-end reads",
-                "HD.2": "Size of the longer allele"}
+                "HD.2": "Repeat size of the longer allele"}
 
     g = sns.jointplot(x, y, data=data, kind=kind, color=color,
                       xlim=xlim, ylim=ylim)

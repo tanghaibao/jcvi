@@ -171,7 +171,7 @@ def panel_labels(ax, labels, size=16):
                         ha="center", va="center")
 
 
-def savefig(figname, dpi=150, iopts=None):
+def savefig(figname, dpi=150, iopts=None, cleanup=True):
     try:
         format = figname.rsplit(".", 1)[-1].lower()
     except:
@@ -190,7 +190,8 @@ def savefig(figname, dpi=150, iopts=None):
         msg += " {0}".format(iopts)
     logging.debug(msg)
 
-    plt.rcdefaults()
+    if cleanup:
+        plt.rcdefaults()
 
 
 # human readable size (Kb, Mb, Gb)

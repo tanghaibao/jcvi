@@ -9,7 +9,7 @@ import sys
 import pandas as pd
 
 from jcvi.graphics.base import plt, savefig, normalize_axes
-from jcvi.apps.base import OptionParser, ActionDispatcher
+from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir
 
 
 def main():
@@ -31,10 +31,12 @@ def evidences(args):
     - Longer allele
     """
     p = OptionParser(__doc__)
-    opts, args, iopts = p.set_image_options(args)
+    opts, args, iopts = p.set_image_options(args, format="pdf")
 
     if len(args) != 0:
         sys.exit(not p.print_help())
+
+    format = iopts.format
 
     # Extract sample coverage first
     df = pd.read_csv("qc-export-MeanCoverage.csv", header=None,
@@ -59,6 +61,47 @@ def evidences(args):
                   tred + ".PDP", tred + ".PEDP"]
     ef.index.name = "SampleKey"
     mf = df.merge(ef, how="right", left_index=True, right_index=True)
+
+    # Plot a bunch of figures
+    outdir = "output"
+    mkdir(outdir)
+    xlim = ylim = (0, 100)
+    draw_jointplot(outdir + "/A", "MeanCoverage", "HD.FDP",
+                   data=mf, xlim=xlim, ylim=ylim, format=format)
+    draw_jointplot(outdir + "/B", "MeanCoverage", "HD.PDP",
+                   data=mf, color='g', xlim=xlim, ylim=ylim, format=format)
+    draw_jointplot(outdir + "/C", "MeanCoverage", "HD.PEDP",
+                   data=mf, color='m', xlim=xlim, ylim=ylim, format=format)
+
+    ylim = (0, 50)
+    draw_jointplot(outdir + "/D", "HD.2", "HD.FDP",
+                   data=mf, xlim=xlim, ylim=ylim, format=format)
+    draw_jointplot(outdir + "/E", "HD.2", "HD.PDP",
+                   data=mf, color='g', xlim=xlim, ylim=ylim, format=format)
+    draw_jointplot(outdir + "/F", "HD.2", "HD.PEDP",
+                   data=mf, color='m', xlim=xlim, ylim=ylim, format=format)
+
+
+def draw_jointplot(figname, x, y, data=None, kind="reg", color=None,
+                   xlim=None, ylim=None, format="pdf"):
+    """
+    Wraps around sns.jointplot
+    """
+    import seaborn as sns
+    sns.set_context('talk')
+    plt.clf()
+
+    register = {"MeanCoverage": "Sample Mean Coverage",
+                "HD.FDP": "Depth of full spanning reads",
+                "HD.PDP": "Depth of partial spanning reads",
+                "HD.PEDP": "Depth of paired-end reads",
+                "HD.2": "Size of the longer allele"}
+
+    g = sns.jointplot(x, y, data=data, kind=kind, color=color,
+                      xlim=xlim, ylim=ylim)
+    g.ax_joint.set_xlabel(register.get(x, x))
+    g.ax_joint.set_ylabel(register.get(y, y))
+    savefig(figname + "." + format, cleanup=False)
 
 
 def compare(args):

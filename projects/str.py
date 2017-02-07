@@ -106,9 +106,9 @@ def draw_jointplot(figname, x, y, data=None, kind="reg", color=None,
 
 def compare(args):
     """
-    %prog datafile
+    %prog compare Evaluation.csv
 
-    Illustrate blablabla...
+    Compare performances of various variant callers on simulated STR datasets.
     """
     p = OptionParser(__doc__)
     opts, args, iopts = p.set_image_options(args)
@@ -118,10 +118,36 @@ def compare(args):
 
     datafile, = args
     pf = datafile.rsplit(".", 1)[0]
-    fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes([0, 0, 1, 1])
 
-    normalize_axes(root)
+    # Huntington risk allele
+    infected_thr = 40
+    ref_thr = 19
+
+    # Read evaluation results
+    df = pd.read_csv("Evaluation.csv")
+    truth = df["Truth"]
+
+    # Start plotting
+    plt.figure(1, (iopts.w, iopts.h))
+    plt.plot(truth, df["Manta"], 'bx-')
+    plt.plot(truth, df["Isaac"], 'yo-')
+    plt.plot(truth, df["GATK"], 'md-')
+    plt.plot(truth, df["lobSTR"], 'c+-')
+    plt.plot(truth, truth, 'k--') # to show diagonal
+
+    bbox = {'facecolor': 'tomato', 'alpha': .2, 'ec': 'w'}
+    pad = 1
+    plt.axhline(infected_thr, color='tomato')
+    plt.text(min(truth) + pad, infected_thr - pad, 'Risk threshold',
+             bbox=bbox, va="top")
+    plt.axhline(ref_thr, color='tomato')
+    plt.text(max(truth) - pad, ref_thr - pad, 'Reference repeat count',
+             bbox=bbox, ha="right", va="top")
+
+    plt.xlabel('Num of CAG repeats inserted')
+    plt.ylabel('Num of CAG repeats called')
+    plt.title(r'Simulated haploid $\mathit{h}$')
+    plt.legend(['Manta', 'Isaac', 'GATK', 'lobSTR', 'Truth'], loc='best')
 
     image_name = pf + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)

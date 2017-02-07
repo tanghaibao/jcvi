@@ -42,7 +42,7 @@ from jcvi.graphics.base import plt, savefig, normalize_axes"""
 default_app = """
 def app(args):
     \"\"\"
-    %prog app
+    %prog app datafile
 
     \"\"\"
     p = OptionParser(app.__doc__)
@@ -55,9 +55,8 @@ def app(args):
 graphic_app = """
 def app(args):
     \"\"\"
-    %prog datafile
+    %prog app datafile
 
-    Illustrate blablabla...
     \"\"\"
     p = OptionParser(__doc__)
     opts, args, iopts = p.set_image_options(args)

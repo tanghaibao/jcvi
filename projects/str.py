@@ -11,6 +11,7 @@ import vcf
 import pandas as pd
 
 from jcvi.graphics.base import plt, savefig
+from jcvi.apps.grid import Parallel
 from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, iglob
 
 
@@ -45,9 +46,22 @@ def batchlobstr(args):
     """
     %prog batchlobstr bamlist
 
-    Run lobSTR on a list of BAMs.
+    Run lobSTR on a list of BAMs. The corresponding batch command for TREDPARSE:
+    $ tred.py --toy bamlist --haploid CHR4 --workdir tredparse_results
     """
     p = OptionParser(batchlobstr.__doc__)
+    p.set_cpus()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    bamlist, = args
+    cmd = "python -m jcvi.variation.str lobstr TOY"
+    cmd += " --input_bam_path {}"
+    cmds = [cmd.format(x.strip()) for x in open(bamlist).readlines()]
+    p = Parallel(cmds, cpus=opts.cpus)
+    p.run()
 
 
 def compilevcf(args):
@@ -78,7 +92,7 @@ def compilevcf(args):
                 res = "-1/-1"
             num = op.basename(vcf_file).split(".")[0]
             print num, res
-        except TypeError:
+        except (TypeError, AttributeError) as e:
             p = TREDPARSEvcf(vcf_file)
             continue
 

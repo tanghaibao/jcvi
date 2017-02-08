@@ -7,11 +7,24 @@ import sys
 import re
 import logging
 
-from multiprocessing import Process, Queue, cpu_count
+from multiprocessing import Pool, Process, Queue, cpu_count
 
 from jcvi.formats.base import write_file, must_open
 from jcvi.apps.base import OptionParser, ActionDispatcher, popen, backup, \
             mkdir, sh, listify
+
+
+class Parallel(object):
+    """
+    Run a number of commands in parallel.
+    """
+    def __init__(self, cmds, cpus=cpu_count()):
+        self.cmds = cmds
+        self.cpus = min(len(cmds), cpus)
+
+    def run(self):
+        p = Pool(processes=self.cpus)
+        p.map(sh, self.cmds)
 
 
 class Dependency (object):

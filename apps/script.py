@@ -58,7 +58,7 @@ def app(args):
     %prog app datafile
 
     \"\"\"
-    p = OptionParser(__doc__)
+    p = OptionParser(app.__doc__)
     opts, args, iopts = p.set_image_options(args)
 
     if len(args) != 1:

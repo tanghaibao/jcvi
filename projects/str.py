@@ -5,21 +5,52 @@
 Related scripts for the HLI-STR (TREDPARSE) paper.
 """
 
+import os.path as op
 import sys
 import pandas as pd
 
-from jcvi.graphics.base import plt, savefig, normalize_axes
-from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir
+from jcvi.graphics.base import plt, savefig
+from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, iglob
 
 
 def main():
 
     actions = (
+        ('compilevcf', 'compile vcf outputs into lists'),
         ('compare', 'compare callers on fake HD patients'),
         ('evidences', 'plot distribution of evidences'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def compilevcf(args):
+    """
+    %prog compilevcf dir
+
+    Compile vcf outputs into lists.
+    """
+    from jcvi.variation.str import LobSTRvcf
+
+    p = OptionParser(compilevcf.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    folder, = args
+    vcf_files = iglob(folder, "*.vcf,*.vcf.gz")
+    for vcf_file in vcf_files:
+        p = LobSTRvcf(columnidsfile=None)
+        p.parse(vcf_file, filtered=False)
+        res = p.items()
+        if res:
+            k, v = res[0]
+            res = v.replace(',', '/')
+        else:
+            res = "-1/-1"
+        num = op.basename(vcf_file).split(".")[0]
+        print num, res
 
 
 def evidences(args):
@@ -30,7 +61,7 @@ def evidences(args):
     - Sample mean coverage
     - Longer allele
     """
-    p = OptionParser(__doc__)
+    p = OptionParser(evidences.__doc__)
     opts, args, iopts = p.set_image_options(args, format="pdf")
 
     if len(args) != 0:

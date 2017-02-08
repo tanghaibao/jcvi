@@ -1176,7 +1176,7 @@ def lobstr(args):
     if lbindices[0] == "TOY":  # Simulation mode
         cmd, vcf_file = allelotype_on_chr(bamfile, "CHR4", "/mnt/software/lobSTR/", "TOY")
         stats_file = vcf_file.rsplit(".", 1)[0] + ".allelotype.stats"
-        mkdir("results")
+        mkdir("lobstr_results")
         sh(cmd)
         sh("cp {} results/ && rm {}".format(vcf_file, stats_file))
         return

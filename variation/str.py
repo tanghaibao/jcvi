@@ -1173,6 +1173,14 @@ def lobstr(args):
         sys.exit(not p.print_help())
 
     lbindices = args
+    if lbindices[0] == "TOY":  # Simulation mode
+        cmd, vcf_file = allelotype_on_chr(bamfile, "CHR4", "/mnt/software/lobSTR/", "TOY")
+        stats_file = vcf_file.rsplit(".", 1)[0] + ".allelotype.stats"
+        mkdir("results")
+        sh(cmd)
+        sh("cp {} results/ && rm {}".format(vcf_file, stats_file))
+        return
+
     s3mode = bamfile.startswith("s3")
     store = opts.output_path
     cleanup = not opts.nocleanup
@@ -1249,12 +1257,14 @@ def lobstr(args):
 
 
 def allelotype_on_chr(bamfile, chr, lhome, lbidx):
-    outfile = "{0}.chr{1}".format(bamfile.split(".")[0], chr)
+    if "chr" not in chr.lower():
+        chr = "chr" + chr
+    outfile = "{0}.{1}".format(bamfile.split(".")[0], chr)
     cmd = "allelotype --command classify --bam {}".format(bamfile)
     cmd += " --noise_model {0}/models/illumina_v3.pcrfree".format(lhome)
     cmd += " --strinfo {0}/{1}/index.tab".format(lhome, lbidx)
     cmd += " --index-prefix {0}/{1}/lobSTR_".format(lhome, lbidx)
-    cmd += " --chrom chr{0} --out {1}.{2}".format(chr, outfile, lbidx)
+    cmd += " --chrom {0} --out {1}.{2}".format(chr, outfile, lbidx)
     cmd += " --max-diff-ref {0}".format(READLEN)
     cmd += " --realign"
     cmd += " --haploid chrY,chrM"

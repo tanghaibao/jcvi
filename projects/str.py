@@ -7,21 +7,47 @@ Related scripts for the HLI-STR (TREDPARSE) paper.
 
 import os.path as op
 import sys
+import vcf
 import pandas as pd
 
 from jcvi.graphics.base import plt, savefig
 from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, iglob
 
 
+class TREDPARSEvcf(object):
+
+    def __init__(self, vcffile):
+        samplekey = op.basename(vcffile).split(".")[0]
+        reader = vcf.Reader(open(vcffile, "rb"))
+        res = "-1/-1"
+        for rec in reader:
+            sample = rec.samples[0]
+            res = sample["GB"]
+            break
+        print samplekey, res
+
+
 def main():
 
     actions = (
+        # Compile results
+        ('batchlobstr', 'run lobSTR on a list of BAMs'),
         ('compilevcf', 'compile vcf outputs into lists'),
+        # Plotting
         ('compare', 'compare callers on fake HD patients'),
         ('evidences', 'plot distribution of evidences'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def batchlobstr(args):
+    """
+    %prog batchlobstr bamlist
+
+    Run lobSTR on a list of BAMs.
+    """
+    p = OptionParser(batchlobstr.__doc__)
 
 
 def compilevcf(args):
@@ -41,16 +67,20 @@ def compilevcf(args):
     folder, = args
     vcf_files = iglob(folder, "*.vcf,*.vcf.gz")
     for vcf_file in vcf_files:
-        p = LobSTRvcf(columnidsfile=None)
-        p.parse(vcf_file, filtered=False)
-        res = p.items()
-        if res:
-            k, v = res[0]
-            res = v.replace(',', '/')
-        else:
-            res = "-1/-1"
-        num = op.basename(vcf_file).split(".")[0]
-        print num, res
+        try:
+            p = LobSTRvcf(columnidsfile=None)
+            p.parse(vcf_file, filtered=False)
+            res = p.items()
+            if res:
+                k, v = res[0]
+                res = v.replace(',', '/')
+            else:
+                res = "-1/-1"
+            num = op.basename(vcf_file).split(".")[0]
+            print num, res
+        except TypeError:
+            p = TREDPARSEvcf(vcf_file)
+            continue
 
 
 def evidences(args):

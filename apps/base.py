@@ -18,6 +18,8 @@ from socket import gethostname
 from subprocess import PIPE, call
 from optparse import OptionParser as OptionP, OptionGroup, SUPPRESS_HELP
 
+from jcvi.utils.natsort import natsorted
+
 # http://newbebweb.blogspot.com/2012/02/python-head-ioerror-errno-32-broken.html
 nobreakbuffer = lambda: signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 nobreakbuffer()
@@ -102,8 +104,6 @@ class OptionParser (OptionP):
         return OptionP.parse_args(self, args)
 
     def add_help_from_choices(self, o):
-        from jcvi.utils.natsort import natsorted
-
         if o.help == SUPPRESS_HELP:
             return
 
@@ -801,7 +801,7 @@ def glob(pathname, pattern=None):
     import glob as gl
     if pattern:
         pathname = op.join(pathname, pattern)
-    return sorted(gl.glob(pathname))
+    return natsorted(gl.glob(pathname))
 
 
 def iglob(pathname, patterns):
@@ -818,7 +818,7 @@ def iglob(pathname, patterns):
             matching.extend(fnmatch.filter(filenames, pattern))
         for filename in matching:
             matches.append(op.join(root, filename))
-    return sorted(matches)
+    return natsorted(matches)
 
 
 def symlink(target, link_name):

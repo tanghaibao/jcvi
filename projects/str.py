@@ -8,6 +8,7 @@ Related scripts for the HLI-STR (TREDPARSE) paper.
 import os.path as op
 import sys
 import vcf
+import logging
 import pandas as pd
 
 from jcvi.graphics.base import plt, savefig
@@ -31,6 +32,8 @@ class TREDPARSEvcf(object):
 def main():
 
     actions = (
+        # Prepare data
+        ('mergebam', 'merge sets of BAMs to make diploid'),
         # Compile results
         ('batchlobstr', 'run lobSTR on a list of BAMs'),
         ('compilevcf', 'compile vcf outputs into lists'),
@@ -40,6 +43,51 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def mergebam(args):
+    """
+    %prog mergebam dir1 dir2 homo_outdir
+    or
+    %prog mergebam dir1 dir2/20.bam het_outdir
+
+    Merge sets of BAMs to make diploid. Two modes:
+    - Homozygous mode: pair-up the bams in the two folders and merge
+    - Heterozygous mode: pair the bams in first folder with a particular bam
+    """
+    p = OptionParser(mergebam.__doc__)
+    p.set_cpus()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    idir1, idir2, outdir = args
+    dir1 = [idir1] if idir1.endswith(".bam") else iglob(idir1, "*.bam")
+    dir2 = [idir2] if idir2.endswith(".bam") else iglob(idir2, "*.bam")
+    nbams1 = len(dir1)
+    nbams2 = len(dir2)
+    # Make sure more or the same number of bams in first pile
+    if nbams1 < nbams2:
+        dir1, dir2 = dir2, dir1
+    if nbams1 == nbams2:
+        logging.debug("Homozygous mode")
+    elif nbams1 > nbams2:
+        assert nbams2 == 1, "Second pile must contain a single bam"
+        dir2 = [idir2] * nbams1
+
+    assert len(dir1) == len(dir2), "Two piles must contain same number of bams"
+    cmd = "samtools merge {} {} {} && samtools index {}"
+    cmds = []
+    mkdir(outdir)
+    for a, b in zip(dir1, dir2):
+        ia = op.basename(a).split(".")[0]
+        ib = op.basename(b).split(".")[0]
+        outfile = op.join(outdir, "{}_{}.bam".format(ia, ib))
+        cmds.append(cmd.format(outfile, a, b, outfile))
+
+    p = Parallel(cmds, cpus=opts.cpus)
+    p.run()
 
 
 def batchlobstr(args):

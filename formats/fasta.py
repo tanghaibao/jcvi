@@ -1735,6 +1735,7 @@ def extract(args):
     "seqname", or "seqname:start-stop", or "seqname:start-stop:-"
     """
     p = OptionParser(extract.__doc__)
+    p.add_option('--newname', help="Use this new name instead")
     p.add_option('--include', default=False, action="store_true",
             help="search description line for match [default: %default]")
     p.add_option('--exclude', default=False, action="store_true",
@@ -1831,7 +1832,8 @@ def extract(args):
             logging.error(e)
             return
 
-        rec = SeqRecord(seq, id=query, description="")
+        newid = opts.newname or query
+        rec = SeqRecord(seq, id=newid, description="")
         SeqIO.write([rec], fw, "fasta")
 
     return fw.name

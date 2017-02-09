@@ -11,7 +11,7 @@ import vcf
 import logging
 import pandas as pd
 
-from jcvi.graphics.base import plt, savefig
+from jcvi.graphics.base import normalize_axes, panel_labels, plt, savefig
 from jcvi.apps.grid import Parallel
 from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, iglob
 
@@ -230,6 +230,32 @@ def draw_jointplot(figname, x, y, data=None, kind="reg", color=None,
     savefig(figname + "." + format, cleanup=False)
 
 
+def long_allele(s, default=19, exclude=None):
+    if '_' in s:
+        a, b = s.split('_')
+    elif '/' in s:
+        a, b = s.split('/')
+    else:
+        raise Exception, "Don't know how to split string {}".format(s)
+
+    res = [int(a), int(b)]
+    if exclude and exclude in res:
+        res.remove(exclude)
+    res = max(res)
+    return default if res < 0 else res
+
+
+def parse_results(datafile, exclude=None):
+    fp = open(datafile)
+    data = []
+    for row in fp:
+        truth, call = row.split()
+        t = long_allele(truth, exclude=exclude),
+        c = long_allele(call, exclude=exclude)
+        data.append((t, c))
+    return data
+
+
 def compare(args):
     """
     %prog compare Evaluation.csv
@@ -237,43 +263,93 @@ def compare(args):
     Compare performances of various variant callers on simulated STR datasets.
     """
     p = OptionParser(__doc__)
-    opts, args, iopts = p.set_image_options(args)
+    opts, args, iopts = p.set_image_options(args, figsize="15x5")
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     datafile, = args
     pf = datafile.rsplit(".", 1)[0]
+    fig, (ax1, ax2, ax3) = plt.subplots(ncols=3, nrows=1,
+                                        figsize=(iopts.w, iopts.h))
+    plt.tight_layout(pad=2)
 
     # Huntington risk allele
     infected_thr = 40
     ref_thr = 19
 
-    # Read evaluation results
+    # ax1: Multiple callers at lower range
     df = pd.read_csv("Evaluation.csv")
     truth = df["Truth"]
 
-    # Start plotting
-    plt.figure(1, (iopts.w, iopts.h))
-    plt.plot(truth, df["Manta"], 'bx-')
-    plt.plot(truth, df["Isaac"], 'yo-')
-    plt.plot(truth, df["GATK"], 'md-')
-    plt.plot(truth, df["lobSTR"], 'c+-')
-    plt.plot(truth, truth, 'k--') # to show diagonal
+    ax1.plot(truth, df["Manta"], 'bx-')
+    ax1.plot(truth, df["Isaac"], 'yo-')
+    ax1.plot(truth, df["GATK"], 'md-')
+    ax1.plot(truth, df["lobSTR"], 'c+-')
+    ax1.plot(truth, truth, 'k--') # to show diagonal
 
     bbox = {'facecolor': 'tomato', 'alpha': .2, 'ec': 'w'}
-    pad = 1
-    plt.axhline(infected_thr, color='tomato')
-    plt.text(min(truth) + pad, infected_thr - pad, 'Risk threshold',
-             bbox=bbox, va="top")
-    plt.axhline(ref_thr, color='tomato')
-    plt.text(max(truth) - pad, ref_thr - pad, 'Reference repeat count',
+    pad = 2
+    ax1.axhline(infected_thr, color='tomato')
+    ax1.text(max(truth) - pad, infected_thr + pad, 'Risk threshold',
+             bbox=bbox, ha="right")
+    ax1.axhline(ref_thr, color='tomato')
+    ax1.text(max(truth) - pad, ref_thr - pad, 'Reference repeat count',
              bbox=bbox, ha="right", va="top")
 
-    plt.xlabel('Num of CAG repeats inserted')
-    plt.ylabel('Num of CAG repeats called')
-    plt.title(r'Simulated haploid $\mathit{h}$')
-    plt.legend(['Manta', 'Isaac', 'GATK', 'lobSTR', 'Truth'], loc='best')
+    ax1.set_xlabel(r'Num of CAG repeats inserted ($\mathit{h}$)')
+    ax1.set_ylabel('Num of CAG repeats called')
+    ax1.set_title(r'Simulated haploid $\mathit{h}$')
+    ax1.legend(['Manta', 'Isaac', 'GATK', 'lobSTR', 'Truth'], loc='best')
+
+    max_insert = 120
+    # ax2: lobSTR vs TREDPARSE with haploid model
+    lobstr_results = parse_results("lobstr_results_homo.txt")
+    tredparse_results = parse_results("tredparse_results_homo.txt")
+    truth = range(10, max_insert + 1)
+    lx, ly = zip(*lobstr_results)
+    tx, ty = zip(*tredparse_results)
+
+    ax2.plot(lx, ly, 'c+-')
+    ax2.plot(tx, ty, 'gx-')
+    ax2.plot(truth, truth, 'k--')
+
+    ax2.set_xlabel(r'Num of CAG repeats inserted ($\mathit{h}$)')
+    ax2.set_ylabel('Num of CAG repeats called')
+    ax2.set_title(r'Simulated haploid $\mathit{h}$')
+    ax2.legend(['lobSTR', 'TREDPARSE', 'Truth'], loc='best')
+
+    pad *= 2
+    ax2.axhline(infected_thr, color='tomato')
+    ax2.text(max(truth) - pad, infected_thr + pad, 'Risk threshold',
+             bbox=bbox, ha="right")
+    ax2.set_xlim(10, max_insert)
+
+    # ax3: lobSTR vs TREDPARSE with haploid model
+    lobstr_results = parse_results("lobstr_results_het.txt", exclude=20)
+    tredparse_results = parse_results("tredparse_results_het.txt", exclude=20)
+    truth = range(10, max_insert + 1)
+    lx, ly = zip(*lobstr_results)
+    tx, ty = zip(*tredparse_results)
+
+    ax3.plot(lx, ly, 'c+-')
+    ax3.plot(tx, ty, 'gx-')
+    ax3.plot(truth, truth, 'k--')
+
+    ax3.set_xlabel(r'Num of CAG repeats inserted ($\mathit{h}$)')
+    ax3.set_ylabel('Num of CAG repeats called')
+    ax3.set_title(r'Simulated diploid $\mathit{20/h}$')
+    ax3.legend(['lobSTR', 'TREDPARSE', 'Truth'], loc='best')
+    ax3.axhline(infected_thr, color='tomato')
+    ax3.text(max(truth) - pad, infected_thr + pad, 'Risk threshold',
+             bbox=bbox, ha="right")
+    ax3.set_xlim(10, max_insert)
+
+    root = fig.add_axes([0, 0, 1, 1])
+    pad = .03
+    panel_labels(root, ((pad / 2, 1 - pad, "A"), (1 / 3., 1 - pad, "B"),
+                        (2 / 3., 1 - pad, "C")))
+    normalize_axes(root)
 
     image_name = pf + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)

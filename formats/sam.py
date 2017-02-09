@@ -152,7 +152,9 @@ def get_minibam(bamfile, region):
 def main():
 
     actions = (
-        ('append', 'append /1 or /2 to read names'),
+        # Alter read names
+        ('append', 'append or prepend string to read names'),
+        # Extract info
         ('bed', 'convert bam files to bed'),
         ('pair', 'parse sam file and get pairs'),
         ('pairs', 'print paired-end reads from BAM file'),
@@ -232,12 +234,15 @@ def append(args):
     training AUGUSTUS gene models.
     """
     p = OptionParser(append.__doc__)
+    p.add_option("--prepend", help="Prepend string to read names")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     bamfile, = args
+    prepend = opts.prepend
+
     icmd = "samtools view -h {0}".format(bamfile)
     bamfile = bamfile.rsplit(".", 1)[0] + ".append.bam"
     ocmd = "samtools view -b -@ 64 - -o {0}".format(bamfile)
@@ -247,7 +252,10 @@ def append(args):
             print >> p.stdin, row.strip()
         else:
             s = SamLine(row)
-            s.update_readname()
+            if prepend:
+                s.qname = prepend + "_" + s.qname
+            else:
+                s.update_readname()
             print >> p.stdin, s
 
 

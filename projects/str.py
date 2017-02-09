@@ -98,6 +98,8 @@ def batchlobstr(args):
     $ tred.py --toy bamlist --haploid CHR4 --workdir tredparse_results
     """
     p = OptionParser(batchlobstr.__doc__)
+    p.add_option("--haploid", default="chrY,chrM",
+                 help="Use haploid model for these chromosomes")
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -107,6 +109,7 @@ def batchlobstr(args):
     bamlist, = args
     cmd = "python -m jcvi.variation.str lobstr TOY"
     cmd += " --input_bam_path {}"
+    cmd += " --haploid {}".format(opts.haploid)
     cmds = [cmd.format(x.strip()) for x in open(bamlist).readlines()]
     p = Parallel(cmds, cpus=opts.cpus)
     p.run()

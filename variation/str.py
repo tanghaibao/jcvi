@@ -1162,6 +1162,8 @@ def lobstr(args):
     (e.g. s3://hli-mv-data-science/htang/str-build/lobSTR/)
     """
     p = OptionParser(lobstr.__doc__)
+    p.add_option("--haploid", default="chrY,chrM",
+                 help="Use haploid model for these chromosomes")
     p.add_option("--chr", help="Run only this chromosome")
     p.set_home("lobstr", default="s3://hli-mv-data-science/htang/str-build/lobSTR/")
     p.set_cpus()
@@ -1174,7 +1176,8 @@ def lobstr(args):
 
     lbindices = args
     if lbindices[0] == "TOY":  # Simulation mode
-        cmd, vcf_file = allelotype_on_chr(bamfile, "CHR4", "/mnt/software/lobSTR/", "TOY")
+        cmd, vcf_file = allelotype_on_chr(bamfile, "CHR4", "/mnt/software/lobSTR/",
+                                          "TOY", haploid=opts.haploid)
         stats_file = vcf_file.rsplit(".", 1)[0] + ".allelotype.stats"
         results_dir = "lobstr_results"
         mkdir(results_dir)
@@ -1234,7 +1237,8 @@ def lobstr(args):
         mm = MakeManager(filename=makefile)
         vcffiles = []
         for chr in chrs:
-            cmd, vcffile = allelotype_on_chr(bamfile, chr, lhome, lbidx)
+            cmd, vcffile = allelotype_on_chr(bamfile, chr, lhome,
+                                             lbidx, haploid=opts.haploid)
             mm.add(bamfile, vcffile, cmd)
             filteredvcffile = vcffile.replace(".vcf", ".filtered.vcf")
             cmd = "python -m jcvi.variation.str filtervcf {}".format(vcffile)
@@ -1257,7 +1261,7 @@ def lobstr(args):
         sh("rm -f {} {} *.bai *.stats".format(bamfile, mm.makefile))
 
 
-def allelotype_on_chr(bamfile, chr, lhome, lbidx):
+def allelotype_on_chr(bamfile, chr, lhome, lbidx, haploid="chrY,chrM"):
     if "chr" not in chr.lower():
         chr = "chr" + chr
     outfile = "{0}.{1}".format(bamfile.split(".")[0], chr)
@@ -1268,7 +1272,7 @@ def allelotype_on_chr(bamfile, chr, lhome, lbidx):
     cmd += " --chrom {0} --out {1}.{2}".format(chr, outfile, lbidx)
     cmd += " --max-diff-ref {0}".format(READLEN)
     cmd += " --realign"
-    cmd += " --haploid chrY,chrM"
+    cmd += " --haploid {}".format(haploid)
     return cmd, ".".join((outfile, lbidx, "vcf"))
 
 

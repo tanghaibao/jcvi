@@ -504,20 +504,11 @@ def jellyfish(args):
         sh(cmd)
 
 
-def meryl(args):
+def merylhistogram(merylfile):
     """
-    %prog meryl merylfile
-
     Run meryl to dump histogram to be used in kmer.histogram(). The merylfile
     are the files ending in .mcidx or .mcdat.
     """
-    p = OptionParser(meryl.__doc__)
-    opts, args = p.parse_args(args)
-
-    if len(args) != 1:
-        sys.exit(p.print_help())
-
-    merylfile, = args
     pf, sf = op.splitext(merylfile)
     outfile = pf + ".histogram"
     if need_update(merylfile, outfile):
@@ -604,8 +595,7 @@ def histogram(args):
     %prog histogram meryl.histogram species K
 
     Plot the histogram based on meryl K-mer distribution, species and N are
-    only used to annotate the graphic. Find out totalKmers when running
-    kmer.meryl().
+    only used to annotate the graphic.
     """
     p = OptionParser(histogram.__doc__)
     p.add_option("--vmin", dest="vmin", default=1, type="int",
@@ -630,7 +620,7 @@ def histogram(args):
 
     if histfile.rsplit(".", 1)[-1] in ("mcdat", "mcidx"):
         logging.debug("CA kmer index found")
-        histfile = meryl([histfile])
+        histfile = merylhistogram(histfile)
 
     ks = KmerSpectrum(histfile)
     ks.analyze(K=N)

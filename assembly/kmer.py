@@ -16,6 +16,7 @@ from jcvi.graphics.base import plt, asciiplot, set_human_axis, savefig, \
 from jcvi.formats.fasta import Fasta
 from jcvi.formats.base import BaseFile, must_open, get_number
 from jcvi.utils.cbook import thousands, percentage
+from jcvi.assembly.automaton import iter_project
 from jcvi.apps.grid import MakeManager
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, \
             need_update, Popen, PIPE
@@ -208,8 +209,11 @@ class KmerSpectrum (BaseFile):
 def main():
 
     actions = (
-        ('jellyfish', 'dump histogram using `jellyfish`'),
-        ('meryl', 'dump histogram using `meryl`'),
+        # K-mer counting
+        ('jellyfish', 'count kmers using `jellyfish`'),
+        ('meryl', 'count kmers using `meryl`'),
+        ('kmc', 'count kmers using `kmc`'),
+        # K-mer histogram
         ('histogram', 'plot the histogram based on meryl K-mer distribution'),
         ('multihistogram', 'plot histogram across a set of K-mer sizes'),
         # These forms a pipeline to count K-mers for given FASTA seq
@@ -224,14 +228,43 @@ def main():
     p.dispatch(globals())
 
 
+def kmc(args):
+    """
+    %prog kmc folder
+
+    Run kmc3 on Illumina reads.
+    """
+    p = OptionParser(kmc.__doc__)
+    p.add_option("-k", default=19, type="int", help="Kmer size")
+    p.set_cpus()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    folder, = args
+    K = opts.k
+    mm = MakeManager()
+    for p, pf in iter_project(folder):
+        infiles = pf + ".infiles"
+        fw = open(infiles, "w")
+        print >> fw, "\n".join(p)
+        fw.close()
+
+        cmd = "kmc -k{} -m64 @{} {} .".format(K, infiles, pf)
+        cmd += " -t{}".format(opts.cpus)
+        outfile = pf + ".kmc_suf"
+        mm.add(p, outfile, cmd)
+
+    mm.write()
+
+
 def meryl(args):
     """
     %prog meryl folder
 
     Run meryl on Illumina reads.
     """
-    from jcvi.assembly.automaton import iter_project
-
     p = OptionParser(meryl.__doc__)
     p.add_option("-k", default=19, type="int", help="Kmer size")
     p.set_cpus()

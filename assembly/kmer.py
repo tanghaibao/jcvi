@@ -16,6 +16,7 @@ from jcvi.graphics.base import plt, asciiplot, set_human_axis, savefig, \
 from jcvi.formats.fasta import Fasta
 from jcvi.formats.base import BaseFile, must_open, get_number
 from jcvi.utils.cbook import thousands, percentage
+from jcvi.apps.grid import MakeManager
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, \
             need_update, Popen, PIPE
 
@@ -221,6 +222,47 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def meryl(args):
+    """
+    %prog meryl folder
+
+    Run meryl on Illumina reads.
+    """
+    from jcvi.assembly.automaton import iter_project
+
+    p = OptionParser(meryl.__doc__)
+    p.add_option("-k", default=19, type="int", help="Kmer size")
+    p.set_cpus()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    folder, = args
+    K = opts.k
+    cpus = opts.cpus
+    mm = MakeManager()
+    for p, pf in iter_project(folder):
+        cmds = []
+        mss = []
+        for i, ip in enumerate(p):
+            ms = "{}{}.ms{}".format(pf, i + 1, K)
+            mss.append(ms)
+            cmd = "meryl -B -C -m {} -threads {}".format(K, cpus)
+            cmd += " -s {} -o {}".format(ip, ms)
+            cmds.append(cmd)
+        ams, bms = mss
+        pms = "{}.ms{}".format(pf, K)
+        cmd = "meryl -M add -s {} -s {} -o {}".format(ams, bms, pms)
+        cmds.append(cmd)
+        cmd = "rm -f {}.mcdat {}.mcidx {}.mcdat {}.mcidx".\
+                    format(ams, ams, bms, bms)
+        cmds.append(cmd)
+        mm.add(p, pms + ".mcdat", cmds)
+
+    mm.write()
 
 
 def model(args):

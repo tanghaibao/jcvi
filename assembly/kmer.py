@@ -236,6 +236,8 @@ def kmc(args):
     """
     p = OptionParser(kmc.__doc__)
     p.add_option("-k", default=19, type="int", help="Kmer size")
+    p.add_option("-c", default=2, type="int",
+                 help="Maximal value of a counter")
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -246,13 +248,14 @@ def kmc(args):
     K = opts.k
     mm = MakeManager()
     for p, pf in iter_project(folder):
+        pf = pf.split("_")[0] + ".ms{}".format(K)
         infiles = pf + ".infiles"
         fw = open(infiles, "w")
         print >> fw, "\n".join(p)
         fw.close()
 
-        cmd = "kmc -k{} -m64 @{} {} .".format(K, infiles, pf)
-        cmd += " -t{}".format(opts.cpus)
+        cmd = "kmc -k{} -m64 -t{} -cs{}".format(K, opts.cpus, opts.c)
+        cmd += " @{} {} .".format(infiles, pf)
         outfile = pf + ".kmc_suf"
         mm.add(p, outfile, cmd)
 

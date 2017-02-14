@@ -206,6 +206,25 @@ class KmerSpectrum (BaseFile):
         print >> sys.stderr, m
 
 
+class KMCComplex(object):
+
+    def __init__(self, indices):
+        self.indices = indices
+
+    def write(self, outfile, filename="stdout"):
+        fw = must_open(filename, "w")
+        print >> fw, "INPUT:"
+        ss = []
+        pad = len(str(len(self.indices)))
+        for i, e in enumerate(self.indices):
+            s = "s{0:0{1}d}".format(i + 1, pad)
+            ss.append(s)
+            print >> fw, "{} = {}".format(s, e.rsplit(".", 1)[0])
+        print >> fw, "OUTPUT:"
+        print >> fw, "{} = {}".format(outfile, " + sum ".join(ss))
+        fw.close()
+
+
 def main():
 
     actions = (
@@ -213,6 +232,7 @@ def main():
         ('jellyfish', 'count kmers using `jellyfish`'),
         ('meryl', 'count kmers using `meryl`'),
         ('kmc', 'count kmers using `kmc`'),
+        ('kmcunion', 'union kmc indices'),
         # K-mer histogram
         ('histogram', 'plot the histogram based on meryl K-mer distribution'),
         ('multihistogram', 'plot histogram across a set of K-mer sizes'),
@@ -226,6 +246,24 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def kmcunion(args):
+    """
+    %prog kmc *.kmc_suf
+
+    Union kmc indices.
+    """
+    p = OptionParser(kmcunion.__doc__)
+    p.add_option("-o", default="results", help="Output name")
+    opts, args = p.parse_args(args)
+
+    if len(args) < 2:
+        sys.exit(not p.print_help())
+
+    indices = args
+    ku = KMCComplex(indices)
+    ku.write(opts.o)
 
 
 def kmc(args):

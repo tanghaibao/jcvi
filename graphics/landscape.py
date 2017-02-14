@@ -289,6 +289,7 @@ def multilineplot(args):
     p.add_option("--binned", default=False, action="store_true",
                  help="Specify whether the input is already binned; " +
                  "if True, input files are considered to be binfiles")
+    p.add_option("--ymax", type="int", help="Set Y-axis max")
     add_window_options(p)
     opts, args, iopts = p.set_image_options(args, figsize="8x5")
 
@@ -323,6 +324,9 @@ def multilineplot(args):
     for i, ax in enumerate(axarr):
         lineplot(ax, [linebins[i]], nbins, chr, window, shift, \
                 color="{0}{1}".format(colors[i], 'r'))
+
+    if opts.ymax:
+        ax.set_ylim(0, opts.ymax)
 
     plt.subplots_adjust(hspace=0.5)
 

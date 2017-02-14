@@ -276,8 +276,9 @@ def bed(args):
     logging.debug("Imported {} {}-mers".format(len(KMERS), K))
 
     for name, seq in parse_fasta(fastafile):
+        name = name.split()[0]
         for i in range(len(seq) - K):
-            if i % 1000000 == 0:
+            if i % 5000000 == 0:
                 print >> sys.stderr, "{}:{}".format(name, i)
             kmer = seq[i: i + K]
             if kmer in KMERS:

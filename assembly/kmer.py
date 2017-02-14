@@ -233,6 +233,7 @@ def main():
         ('meryl', 'count kmers using `meryl`'),
         ('kmc', 'count kmers using `kmc`'),
         ('kmcunion', 'union kmc indices'),
+        ('bed', 'map kmers on FASTA'),
         # K-mer histogram
         ('histogram', 'plot the histogram based on meryl K-mer distribution'),
         ('multihistogram', 'plot histogram across a set of K-mer sizes'),
@@ -246,6 +247,41 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def bed(args):
+    """
+    %prog bed fastafile kmer.dump.txt
+
+    Map kmers on FASTA.
+    """
+    from jcvi.formats.fasta import rc, parse_fasta
+
+    p = OptionParser(bed.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    fastafile, dumpfile = args
+    fp = open(dumpfile)
+    KMERS = set()
+    for row in fp:
+        kmer = row.split()[0]
+        kmer_rc = rc(kmer)
+        KMERS.add(kmer)
+        KMERS.add(kmer_rc)
+
+    K = len(kmer)
+    logging.debug("Imported {} {}-mers".format(len(KMERS), K))
+
+    for name, seq in parse_fasta(fastafile):
+        for i in range(len(seq) - K):
+            if i % 1000000 == 0:
+                print >> sys.stderr, "{}:{}".format(name, i)
+            kmer = seq[i: i + K]
+            if kmer in KMERS:
+                print "\t".join(str(x) for x in (name, i, i + K, kmer))
 
 
 def kmcunion(args):

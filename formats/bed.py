@@ -1270,6 +1270,8 @@ def bins(args):
                  help="Subtract bases from window [default: %default]")
     p.add_option("--mode", default="span", choices=("span", "count", "score"),
                  help="Accumulate feature based on [default: %default]")
+    p.add_option("--nomerge", default=False, action="store_true",
+                 help="Do not merge features")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -1292,7 +1294,8 @@ def bins(args):
     sizes = sz.mapping
     fw = open(binfile, "w")
     scores = "median" if mode == "score" else None
-    bedfile = mergeBed(bedfile, nms=True, scores=scores)
+    if not opts.nomerge:
+        bedfile = mergeBed(bedfile, nms=True, scores=scores)
     if subtract:
         subtractmerge = mergeBed(subtract)
         subtract_complement = complementBed(subtractmerge, sizesfile)

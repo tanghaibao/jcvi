@@ -87,6 +87,8 @@ def add_window_options(p):
                  help="Size of shift [default: %default]")
     p.add_option("--subtract",
                  help="Subtract bases from window [default: %default]")
+    p.add_option("--nomerge", default=False, action="store_true",
+                 help="Do not merge features")
 
 
 def check_window_options(opts):
@@ -96,8 +98,9 @@ def check_window_options(opts):
     assert window % shift == 0, "--window must be divisible by --shift"
     logging.debug("Line/stack-plot options: window={0} shift={1} subtract={2}".\
                     format(window, shift, subtract))
+    merge = not opts.nomerge
 
-    return window, shift, subtract
+    return window, shift, subtract, merge
 
 
 def get_beds(s, binned=False):
@@ -189,7 +192,7 @@ def composite(args):
         sys.exit(not p.print_help())
 
     fastafile, chr = args
-    window, shift, subtract = check_window_options(opts)
+    window, shift, subtract, merge = check_window_options(opts)
     linebeds, barbeds, altbarbeds = [], [], []
     fatten = opts.fatten
     if opts.lines:
@@ -202,7 +205,8 @@ def composite(args):
         altbars = opts.altbars.split(",")
         altbarbeds = get_beds(altbars)
 
-    linebins = get_binfiles(linebeds, fastafile, shift, mode=opts.mode)
+    linebins = get_binfiles(linebeds, fastafile, shift,
+                            mode=opts.mode, merge=merge)
 
     margin = .12
     clen = Sizes(fastafile).mapping[chr]
@@ -292,7 +296,7 @@ def multilineplot(args):
         sys.exit(not p.print_help())
 
     fastafile, chr = args
-    window, shift, subtract = check_window_options(opts)
+    window, shift, subtract, merge = check_window_options(opts)
     linebeds = []
     colors = opts.colors
     if opts.lines:
@@ -301,7 +305,8 @@ def multilineplot(args):
                 " number of input bed files"
         linebeds = get_beds(lines, binned=opts.binned)
 
-    linebins = get_binfiles(linebeds, fastafile, shift, mode=opts.mode, binned=opts.binned)
+    linebins = get_binfiles(linebeds, fastafile, shift, mode=opts.mode,
+                            binned=opts.binned, merge=merge)
 
     clen = Sizes(fastafile).mapping[chr]
     nbins = get_nbins(clen, shift)
@@ -348,14 +353,16 @@ def heatmap(args):
         sys.exit(not p.print_help())
 
     fastafile, chr = args
-    window, shift, subtract = check_window_options(opts)
+    window, shift, subtract, merge = check_window_options(opts)
 
     stacks = opts.stacks.split(",")
     heatmaps = opts.heatmaps.split(",")
     stackbeds = get_beds(stacks)
     heatmapbeds = get_beds(heatmaps)
-    stackbins = get_binfiles(stackbeds, fastafile, shift, subtract=subtract)
-    heatmapbins = get_binfiles(heatmapbeds, fastafile, shift, subtract=subtract)
+    stackbins = get_binfiles(stackbeds, fastafile, shift,
+                             subtract=subtract, merge=merge)
+    heatmapbins = get_binfiles(heatmapbeds, fastafile, shift,
+                               subtract=subtract, merge=merge)
 
     margin = .06
     inner = .015
@@ -469,12 +476,15 @@ def draw_gauge(ax, margin, maxl, rightmargin=None):
     return best_stride / xinterval
 
 
-def get_binfiles(inputfiles, fastafile, shift, mode="span", subtract=None, binned=False):
+def get_binfiles(inputfiles, fastafile, shift, mode="span", subtract=None,
+                 binned=False, merge=True):
     if not binned:
         binopts = ["--binsize={0}".format(shift)]
         binopts.append("--mode={0}".format(mode))
         if subtract:
             binopts.append("--subtract={0}".format(subtract))
+        if not merge:
+            binopts.append("--nomerge")
         binfiles = [bins([x, fastafile] + binopts) for x in inputfiles if op.exists(x)]
     else:
         binfiles = inputfiles
@@ -535,14 +545,15 @@ def stack(args):
 
     fastafile, = args
     top = opts.top
-    window, shift, subtract = check_window_options(opts)
+    window, shift, subtract, merge = check_window_options(opts)
     switch = opts.switch
     if switch:
         switch = DictFile(opts.switch)
 
     stacks = opts.stacks.split(",")
     bedfiles = get_beds(stacks)
-    binfiles = get_binfiles(bedfiles, fastafile, shift, subtract=subtract)
+    binfiles = get_binfiles(bedfiles, fastafile, shift,
+                            subtract=subtract, merge=merge)
 
     sizes = Sizes(fastafile)
     s = list(sizes.iter_sizes())[:top]

@@ -248,7 +248,7 @@ class SimpleFile (object):
             score = int(score)
             self.blocks.append((a, b, c, d, score, orientation, hl))
         if check:
-            print >> sys.stderr, '''Error: some genes in blocks can't be found, 
+            print >> sys.stderr, '''Error: some genes in blocks can't be found,
 please rerun after making sure that bed file agree with simple file.'''
             exit(1)
 
@@ -1276,6 +1276,10 @@ def depth(args):
     p = OptionParser(depth.__doc__)
     p.add_option("--depthfile",
                  help="Generate file with gene and depth [default: %default]")
+    p.add_option("--histogram", default=False, action="store_true",
+                 help="Plot histograms in PDF")
+    p.add_option("--title", default=None,
+                 help="Title to display in the plot")
     p.set_beds()
 
     opts, args = p.parse_args(args)
@@ -1303,8 +1307,9 @@ def depth(args):
 
     qgenome = op.basename(qbed.filename).split(".")[0]
     sgenome = op.basename(sbed.filename).split(".")[0]
-    print >> sys.stderr, "Genome {0} depths:".format(qgenome)
-    ds, details = range_depth(qranges, len(qbed))
+    qtag = "Genome {0} depths".format(qgenome)
+    print >> sys.stderr, "{}:".format(qtag)
+    dsq, details = range_depth(qranges, len(qbed))
     if depthfile:
         fw = open(depthfile, "w")
         write_details(fw, details, qbed)
@@ -1312,12 +1317,63 @@ def depth(args):
     if is_self:
         return
 
-    print >> sys.stderr, "Genome {0} depths:".format(sgenome)
-    ds, details = range_depth(sranges, len(sbed))
+    stag = "Genome {0} depths".format(sgenome)
+    print >> sys.stderr, "{}:".format(stag)
+    dss, details = range_depth(sranges, len(sbed))
     if depthfile:
         write_details(fw, details, sbed)
         fw.close()
         logging.debug("Depth written to `{0}`.".format(depthfile))
+
+    if not opts.histogram:
+        return
+
+    from jcvi.graphics.base import plt, quickplot_ax, savefig, normalize_axes
+
+    # Plot two histograms one for query genome, one for subject genome
+    plt.figure(1, (6, 3))
+    f, (ax1, ax2) = plt.subplots(1, 2, sharey=True)
+
+    xmax = max(dsq.keys() + dss.keys()) + 1
+    qpeak = find_peak(dsq)
+    speak = find_peak(dss)
+
+    qtag = "# of {} blocks per {} gene".format(sgenome, qgenome)
+    stag = "# of {} blocks per {} gene".format(qgenome, sgenome)
+    quickplot_ax(ax2, dsq, 0, xmax, qtag, ylabel="Percentage of genome", highlight=qpeak)
+    quickplot_ax(ax1, dss, 0, xmax, stag, ylabel=None, highlight=speak)
+
+    title = opts.title or "{} vs {} syntenic depths\n{}:{} pattern"\
+                    .format(qgenome, sgenome, speak, qpeak)
+    root = f.add_axes([0, 0, 1, 1])
+    vs, pattern = title.split('\n')
+    root.text(.5, .97, vs, ha="center", va="center", color="darkslategray")
+    root.text(.5, .925, pattern, ha="center", va="center",
+                                 color="tomato", size=16)
+    print >> sys.stderr, title
+
+    normalize_axes(root)
+
+    pf = anchorfile.rsplit(".", 1)[0] + ".depth"
+    image_name = pf + ".pdf"
+    savefig(image_name)
+
+
+def find_peak(data, cutoff=.5):
+    '''
+    This will look for the point where cumulative cutoff is reached. For
+    example:
+
+    >>> find_peak({0: 27, 1: 71, 2: 1})
+    1
+    '''
+    total_length = sum(data.values())
+    count_cutoff = cutoff * total_length
+    cum_sum = 0
+    for i, count in sorted(data.items()):
+        cum_sum += count
+        if cum_sum > count_cutoff:
+            return i
 
 
 def get_blocks(scaffold, bs, order, xdist=20, ydist=20, N=6):

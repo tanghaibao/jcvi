@@ -15,7 +15,7 @@ mpl.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 
-from matplotlib import cm, rc
+from matplotlib import cm, rc, rcParams
 from matplotlib.patches import Rectangle, Polygon, CirclePolygon, PathPatch, \
             FancyArrow, FancyArrowPatch
 from matplotlib.path import Path
@@ -250,6 +250,14 @@ def markup(s):
     return s
 
 
+def append_percentage(s):
+    # The percent symbol needs escaping in latex
+    if rcParams['text.usetex'] is True:
+        return s + r'$\%$'
+    else:
+        return s + '%'
+
+
 def setup_theme(context='notebook', style="darkgrid", palette='deep', font='Helvetica'):
     try:
         import seaborn as sns
@@ -459,6 +467,49 @@ def write_messages(ax, messages):
     for msg in messages:
         ax.text(.95, yy, msg, color=tc, transform=axt, ha="right")
         yy -= .05
+
+
+def quickplot_ax(ax, data, xmin, xmax, xlabel, title=None, ylabel="Counts",
+                 counts=True, percentage=True, highlight=None):
+    '''
+    TODO: redundant with quickplot(), need to be refactored.
+    '''
+    if percentage:
+        total_length = sum(data.values())
+        data = dict((k, v * 100. / total_length) for (k, v) in data.items())
+
+    left, height = zip(*sorted(data.items()))
+    pad = max(height) * .01
+    c1, c2 = "darkslategray", "tomato"
+    if counts:
+        for l, h in zip(left, height):
+            if xmax and l > xmax:
+                break
+            tag = str(int(h))
+            rotation = 90
+            if percentage:
+                tag = append_percentage(tag)
+                rotation = 0
+            color = c1
+            if highlight is not None and l == highlight:
+                color = c2
+            ax.text(l, h + pad, tag, color=color, size=8,
+                     ha="center", va="bottom", rotation=rotation)
+    if xmax is None:
+        xmax = max(left)
+
+    ax.bar(left, height, align="center", fc=c1)
+    if highlight:
+        ax.bar([highlight], [data[highlight]], align="center", ec=c2, fc=c2)
+
+    ax.set_xlabel(markup(xlabel))
+    if ylabel:
+        ax.set_ylabel(markup(ylabel))
+    if title:
+        ax.set_title(markup(title))
+    ax.set_xlim((xmin - .5, xmax + .5))
+    if percentage:
+        ax.set_ylim(0, 100)
 
 
 def quickplot(data, xmin, xmax, xlabel, title, ylabel="Counts",

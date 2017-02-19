@@ -1278,8 +1278,8 @@ def depth(args):
                  help="Generate file with gene and depth [default: %default]")
     p.add_option("--histogram", default=False, action="store_true",
                  help="Plot histograms in PDF")
-    p.add_option("--title", default=None,
-                 help="Title to display in the plot")
+    p.add_option("--xmax", type="int", help="x-axis maximum to display in plot")
+    p.add_option("--title", default=None, help="Title to display in plot")
     p.set_beds()
 
     opts, args = p.parse_args(args)
@@ -1334,7 +1334,7 @@ def depth(args):
     plt.figure(1, (6, 3))
     f, (ax1, ax2) = plt.subplots(1, 2, sharey=True)
 
-    xmax = max(dsq.keys() + dss.keys()) + 1
+    xmax = opts.xmax or max(dsq.keys() + dss.keys())
     qpeak = find_peak(dsq)
     speak = find_peak(dss)
 

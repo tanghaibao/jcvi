@@ -1334,7 +1334,7 @@ def depth(args):
     plt.figure(1, (6, 3))
     f, (ax1, ax2) = plt.subplots(1, 2, sharey=True)
 
-    xmax = opts.xmax or max(dsq.keys() + dss.keys())
+    xmax = opts.xmax or max(4, max(dsq.keys() + dss.keys()))
     qpeak = find_peak(dsq)
     speak = find_peak(dss)
 

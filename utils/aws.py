@@ -62,20 +62,20 @@ def main():
         ('ls', 'list files with support for wildcards'),
         ('rm', 'remove files with support for wildcards'),
         ('role', 'change aws role'),
-        ('launch', 'launch ec2 instance'),
+        ('start', 'start ec2 instance'),
         ('stop', 'stop ec2 instance'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
 
-def launch(args):
+def start(args):
     """
-    %prog launch
+    %prog start
 
     Launch ec2 instance through command line.
     """
-    p = OptionParser(launch.__doc__)
+    p = OptionParser(start.__doc__)
     p.add_option("--profile", default="mvrad-datasci-role", help="Profile name")
     p.add_option("--price", default=3.0, type=float, help="Spot price")
     opts, args = p.parse_args(args)

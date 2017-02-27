@@ -1359,7 +1359,7 @@ def depth(args):
     savefig(image_name)
 
 
-def find_peak(data, cutoff=.5):
+def find_peak(data, cutoff=.9):
     '''
     This will look for the point where cumulative cutoff is reached. For
     example:

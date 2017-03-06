@@ -18,12 +18,14 @@ from socket import gethostname
 from subprocess import PIPE, call
 from optparse import OptionParser as OptionP, OptionGroup, SUPPRESS_HELP
 
+from jcvi import __copyright__, __version__
 from jcvi.utils.natsort import natsorted
 
 # http://newbebweb.blogspot.com/2012/02/python-head-ioerror-errno-32-broken.html
 nobreakbuffer = lambda: signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 nobreakbuffer()
 os.environ["LC_ALL"] = "C"
+JCVIHELP = "JCVI utility libraries v{} [{}]\n".format(__version__, __copyright__)
 
 
 class ActionDispatcher (object):
@@ -62,6 +64,7 @@ class ActionDispatcher (object):
             action = action.rjust(max_action_len + 4)
             help += " | ".join((action, action_help[0].upper() + \
                                         action_help[1:])) + '\n'
+        help += "\n" + JCVIHELP
 
         sys.stderr.write(help)
         sys.exit(1)
@@ -86,9 +89,9 @@ class ActionDispatcher (object):
 
 class OptionParser (OptionP):
 
-    def __init__(self, doc):
+    def __init__(self, doc, version="jcvi {}".format(__version__)):
 
-        OptionP.__init__(self, doc)
+        OptionP.__init__(self, doc, version=version, epilog=JCVIHELP)
 
     def parse_args(self, args=None):
         dests = set()
@@ -127,7 +130,8 @@ class OptionParser (OptionP):
             o.help = help_pf
             if o.default is None:
                 default_tag = "disabled"
-            if o.get_opt_string() != "--help" and o.action != "store_false":
+            if o.get_opt_string() not in ("--help", "--version") \
+                        and o.action != "store_false":
                 o.help += " [default: {0}]".format(default_tag)
 
     def set_grid(self):
@@ -1536,7 +1540,6 @@ def waitpid(args):
     Specify `--grid` option to send the new process to the grid after waiting for PID
     """
     import shlex
-    from time import sleep
     from jcvi.utils.iter import flatten
 
     valid_notif_methods.extend(list(flatten(available_push_api.values())))

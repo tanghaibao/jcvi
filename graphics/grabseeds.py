@@ -530,7 +530,8 @@ def seeds(args):
         npixels = int(props.area)
         # Sample the center of the blob for color
         d = min(int(round(minor / 2 * .35)) + 1, 50)
-        square = img[(y0 - d):(y0 + d), (x0 - d):(x0 + d)]
+        x0d, y0d = int(round(x0)), int(round(y0))
+        square = img[(y0d - d):(y0d + d), (x0d - d):(x0d + d)]
         pixels = []
         for row in square:
             pixels.extend(row)

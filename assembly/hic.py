@@ -19,10 +19,10 @@ from jcvi.formats.sizes import Sizes
 class ContigOrderingLine(object):
     '''Stores one line in the ContigOrdering file
     '''
-    def __init__(self, line):
+    def __init__(self, line, sep="|"):
         args = line.split()
         self.contig_id = args[0]
-        self.contig_name = args[1]
+        self.contig_name = args[1].split(sep)[0]
         contig_rc = args[2]
         assert contig_rc in ('0', '1')
         self.strand = '+' if contig_rc == '0' else '-'

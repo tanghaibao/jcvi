@@ -306,7 +306,7 @@ def calc_readlen(f, first):
 
 def is_fastq(f):
     fq = f.replace(".gz", "") if f.endswith(".gz") else f
-    return any(fq.endswith((".fastq", ".fq")))
+    return fq.endswith((".fastq", ".fq"))
 
 
 def readlen(args):
@@ -320,14 +320,16 @@ def readlen(args):
     p.set_firstN()
     p.add_option("--silent", default=False, action="store_true",
                  help="Do not print read length stats")
+    p.add_option("--nocheck", default=False, action="store_true",
+                 help="Do not check file type suffix")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     f, = args
-    if not is_fastq(f):
-        logging.debug("File `{0}` does not endswith .fastq or .fq")
+    if (not opts.nocheck) and (not is_fastq(f)):
+        logging.debug("File `{}` does not endswith .fastq or .fq".format(f))
         return 0
 
     s = calc_readlen(f, opts.firstN)

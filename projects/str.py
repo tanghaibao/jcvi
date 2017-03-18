@@ -157,6 +157,8 @@ def evidences(args):
     - Longer allele
     """
     p = OptionParser(evidences.__doc__)
+    p.add_option("--csv", default="hli.20170316.tred.tsv",
+                 help="TRED csv output to plot")
     opts, args, iopts = p.set_image_options(args, format="pdf")
 
     if len(args) != 0:
@@ -169,11 +171,11 @@ def evidences(args):
                      names=["Samplekey", "MeanCoverage"], index_col=0)
 
     # Find coverage for HD
-    xf = pd.read_csv("hli.20170201.tred.tsv", sep="\t", index_col=0)
+    xf = pd.read_csv(opts.csv, sep="\t", index_col=0)
     dp = {}
     tred = "HD"
     for sk, row in xf.iterrows():
-        sk = sk.split('_')[1]
+        sk = str(sk)
         a1 = row[tred + ".1"]
         a2 = row[tred + ".2"]
         fdp = row[tred + ".FDP"]

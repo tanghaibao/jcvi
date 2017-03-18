@@ -30,6 +30,6 @@
             "Arn": ""
         }, 
         "InstanceType": "c4.8xlarge", 
-        "ImageId": "ami-337efd53"
+        "ImageId": "ami-fc8c049c"
     }
 }

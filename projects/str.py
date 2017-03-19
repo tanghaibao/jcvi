@@ -258,9 +258,10 @@ def parse_results(datafile, exclude=None):
     return data
 
 
-def compute_rmsd(a, b):
-    assert len(a) == len(b)
-    return (sum((i - j) ** 2 for (i, j) in zip(a, b)) / len(a)) ** .5
+def compute_rmsd(truth, a):
+    if len(a) > len(truth):
+        a = a[: len(truth)]
+    return (sum((i - j) ** 2 for (i, j) in zip(truth, a)) / len(truth)) ** .5
 
 
 def compare(args):
@@ -337,6 +338,7 @@ def compare(args):
     ax2.text(max(truth) - pad, infected_thr + pad, 'Risk threshold',
              bbox=bbox, ha="right")
     ax2.set_xlim(10, max_insert)
+    ax2.set_ylim(10, max_insert)
 
     # ax3: lobSTR vs TREDPARSE with haploid model
     lobstr_results = parse_results("lobstr_results_het.txt", exclude=20)
@@ -361,6 +363,7 @@ def compare(args):
     ax3.text(max(truth) - pad, infected_thr + pad, 'Risk threshold',
              bbox=bbox, ha="right")
     ax3.set_xlim(10, max_insert)
+    ax3.set_ylim(10, max_insert)
 
     root = fig.add_axes([0, 0, 1, 1])
     pad = .03

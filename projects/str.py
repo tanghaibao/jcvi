@@ -258,6 +258,11 @@ def parse_results(datafile, exclude=None):
     return data
 
 
+def compute_rmsd(a, b):
+    assert len(a) == len(b)
+    return (sum((i - j) ** 2 for (i, j) in zip(a, b)) / len(a)) ** .5
+
+
 def compare(args):
     """
     %prog compare Evaluation.csv
@@ -265,6 +270,8 @@ def compare(args):
     Compare performances of various variant callers on simulated STR datasets.
     """
     p = OptionParser(__doc__)
+    p.add_option('--maxinsert', default=300, type="int",
+                 help="Maximum number of repeats")
     opts, args, iopts = p.set_image_options(args, figsize="15x5")
 
     if len(args) != 1:
@@ -304,13 +311,15 @@ def compare(args):
     ax1.set_title(r'Simulated haploid $\mathit{h}$')
     ax1.legend(['Manta', 'Isaac', 'GATK', 'lobSTR', 'Truth'], loc='best')
 
-    max_insert = 120
+    max_insert = opts.maxinsert
     # ax2: lobSTR vs TREDPARSE with haploid model
     lobstr_results = parse_results("lobstr_results_homo.txt")
     tredparse_results = parse_results("tredparse_results_homo.txt")
     truth = range(10, max_insert + 1)
     lx, ly = zip(*lobstr_results)
     tx, ty = zip(*tredparse_results)
+    lrmsd = compute_rmsd(truth, ly)
+    trmsd = compute_rmsd(truth, ty)
 
     ax2.plot(lx, ly, 'c+-')
     ax2.plot(tx, ty, 'gx-')
@@ -319,7 +328,9 @@ def compare(args):
     ax2.set_xlabel(r'Num of CAG repeats inserted ($\mathit{h}$)')
     ax2.set_ylabel('Num of CAG repeats called')
     ax2.set_title(r'Simulated haploid $\mathit{h}$')
-    ax2.legend(['lobSTR', 'TREDPARSE', 'Truth'], loc='best')
+    ax2.legend(['lobSTR (RMSD={:.2f})'.format(lrmsd),
+                'TREDPARSE (RMSD={:.2f})'.format(trmsd),
+                'Truth'], loc='best')
 
     pad *= 2
     ax2.axhline(infected_thr, color='tomato')
@@ -333,6 +344,8 @@ def compare(args):
     truth = range(10, max_insert + 1)
     lx, ly = zip(*lobstr_results)
     tx, ty = zip(*tredparse_results)
+    lrmsd = compute_rmsd(truth, ly)
+    trmsd = compute_rmsd(truth, ty)
 
     ax3.plot(lx, ly, 'c+-')
     ax3.plot(tx, ty, 'gx-')
@@ -341,7 +354,9 @@ def compare(args):
     ax3.set_xlabel(r'Num of CAG repeats inserted ($\mathit{h}$)')
     ax3.set_ylabel('Num of CAG repeats called')
     ax3.set_title(r'Simulated diploid $\mathit{20/h}$')
-    ax3.legend(['lobSTR', 'TREDPARSE', 'Truth'], loc='best')
+    ax3.legend(['lobSTR (RMSD={:.2f})'.format(lrmsd),
+                'TREDPARSE (RMSD={:.2f})'.format(trmsd),
+                'Truth'], loc='best')
     ax3.axhline(infected_thr, color='tomato')
     ax3.text(max(truth) - pad, infected_thr + pad, 'Risk threshold',
              bbox=bbox, ha="right")

@@ -25,8 +25,9 @@ class TREDPARSEvcf(object):
         for rec in reader:
             sample = rec.samples[0]
             res = sample["GB"]
+            ci = sample["CI"]
             break
-        print samplekey, res
+        print samplekey, res, ci
 
 
 def main():

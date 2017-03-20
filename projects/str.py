@@ -254,14 +254,40 @@ def long_allele(s, default=19, exclude=None):
     return default if res < 0 else res
 
 
+def get_lo_hi_from_CI(s, exclude=None):
+    """
+    Parse the confidence interval from CI.
+
+    >>> get_lo_hi_from_CI("20-20/40-60")
+    (40, 60)
+    """
+    a, b = s.split("|")
+    ai, aj = a.split("-")
+    bi, bj = b.split("-")
+
+    los = [int(ai), int(bi)]
+    his = [int(aj), int(bj)]
+    if exclude and exclude in los:
+        los.remove(exclude)
+    if exclude and exclude in his:
+        his.remove(exclude)
+    return max(los), max(his)
+
+
 def parse_results(datafile, exclude=None):
     fp = open(datafile)
     data = []
     for row in fp:
-        truth, call = row.split()
-        t = long_allele(truth, exclude=exclude),
+        atoms = row.split()
+        truth, call = atoms[:2]
+        t = long_allele(truth, exclude=exclude)
         c = long_allele(call, exclude=exclude)
-        data.append((t, c))
+        if len(atoms) == 3:
+            ci = atoms[2]
+            lo, hi = get_lo_hi_from_CI(ci, exclude=exclude)
+            data.append((t, c, lo, hi))
+        else:
+            data.append((t, c))
     return data
 
 
@@ -343,27 +369,28 @@ def compare2(args):
     plt.tight_layout(pad=2)
 
     bbox = {'facecolor': 'tomato', 'alpha': .2, 'ec': 'w'}
-    pad = 4
+    pad = 8
+    ms = 3
 
     # ax1: lobSTR vs TREDPARSE with haploid model
     lobstr_results = parse_results("lobstr_results_homo.txt")
     tredparse_results = parse_results("tredparse_results_homo.txt")
     truth = range(10, max_insert + 1)
     lx, ly = zip(*lobstr_results)
-    tx, ty = zip(*tredparse_results)
+    tx, ty, tl, th = zip(*tredparse_results)
     lrmsd = compute_rmsd(truth, ly)
     trmsd = compute_rmsd(truth, ty)
 
-    ax1.plot(lx, ly, 'c+-')
-    ax1.plot(tx, ty, 'gx-')
-    ax1.plot(truth, truth, 'k--')
+    ax1.plot(lx, ly, 'c+-', ms=ms, label='lobSTR (RMSD={:.2f})'.format(lrmsd))
+    ax1.plot(tx, ty, 'g.-', ms=ms, label='TREDPARSE (RMSD={:.2f})'.format(trmsd))
+    ax1.plot(truth, truth, 'k--', label='Truth')
+    ax1.fill_between(tx, tl, th, facecolor='g', alpha=.25,
+                     label='TREDPARSE 95$\%$ CI')
 
     ax1.set_xlabel(r'Num of CAG repeats inserted ($\mathit{h}$)')
     ax1.set_ylabel('Num of CAG repeats called')
     ax1.set_title(r'Simulated haploid $\mathit{h}$')
-    ax1.legend(['lobSTR (RMSD={:.2f})'.format(lrmsd),
-                'TREDPARSE (RMSD={:.2f})'.format(trmsd),
-                'Truth'], loc='best')
+    ax1.legend(loc='best')
 
     ax1.axhline(infected_thr, color='tomato')
     ax1.text(max(truth) - pad, infected_thr + pad, 'Risk threshold',
@@ -376,20 +403,20 @@ def compare2(args):
     tredparse_results = parse_results("tredparse_results_het.txt", exclude=20)
     truth = range(10, max_insert + 1)
     lx, ly = zip(*lobstr_results)
-    tx, ty = zip(*tredparse_results)
+    tx, ty, tl, th = zip(*tredparse_results)
     lrmsd = compute_rmsd(truth, ly)
     trmsd = compute_rmsd(truth, ty)
 
-    ax2.plot(lx, ly, 'c+-')
-    ax2.plot(tx, ty, 'gx-')
-    ax2.plot(truth, truth, 'k--')
+    ax2.plot(lx, ly, 'c+-', ms=ms, label='lobSTR (RMSD={:.2f})'.format(lrmsd))
+    ax2.plot(tx, ty, 'g.-', ms=ms, label='TREDPARSE (RMSD={:.2f})'.format(trmsd))
+    ax2.plot(truth, truth, 'k--', label='Truth')
+    ax2.fill_between(tx, tl, th, facecolor='g', alpha=.25,
+                     label='TREDPARSE 95$\%$ CI')
 
     ax2.set_xlabel(r'Num of CAG repeats inserted ($\mathit{h}$)')
     ax2.set_ylabel('Num of CAG repeats called')
     ax2.set_title(r'Simulated diploid $\mathit{20/h}$')
-    ax2.legend(['lobSTR (RMSD={:.2f})'.format(lrmsd),
-                'TREDPARSE (RMSD={:.2f})'.format(trmsd),
-                'Truth'], loc='best')
+    ax2.legend(loc='best')
     ax2.axhline(infected_thr, color='tomato')
     ax2.text(max(truth) - pad, infected_thr + pad, 'Risk threshold',
              bbox=bbox, ha="right")

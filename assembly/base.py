@@ -204,14 +204,15 @@ def wgsim(args):
     p = OptionParser(wgsim.__doc__)
     p.add_option("--erate", default=.02, type="float",
                  help="Base error rate of the read [default: %default]")
+    p.add_option("--noerrors", default=False, action="store_true",
+                 help="Simulate reads with no errors [default: %default]")
     p.add_option("--distance", default=500, type="int",
                  help="Outer distance between the two ends [default: %default]")
     p.add_option("--genomesize", type="int",
                  help="Genome size in Mb [default: estimate from data]")
-    p.add_option("--readlen", default=100, type="int",
-                 help="Length of the read [default: %default]")
-    p.add_option("--noerrors", default=False, action="store_true",
-                 help="Simulate reads with no errors [default: %default]")
+    p.add_option("--readlen", default=150, type="int",
+                 help="Length of the read")
+    p.set_outfile(outfile=None)
     p.set_depth(depth=10)
     opts, args = p.parse_args(args)
 
@@ -230,7 +231,7 @@ def wgsim(args):
     distance = opts.distance
     stdev = distance / 5
 
-    outpf = "{0}.{1}bp.{2}x".format(pf, distance, depth)
+    outpf = opts.outfile or "{0}.{1}bp.{2}x".format(pf, distance, depth)
     distance -= 2 * readlen  # Outer distance => Inner distance
     assert distance >= 0, "Outer distance must be >= 2 * readlen"
 

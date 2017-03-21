@@ -6,13 +6,24 @@ Related scripts for the HLI-STR (TREDPARSE) paper.
 """
 
 import os.path as op
+import os
 import sys
 import vcf
 import logging
+import shutil
 import pandas as pd
 
+from pyfaidx import Fasta
+from Bio import SeqIO
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
+
 from jcvi.graphics.base import normalize_axes, panel_labels, plt, savefig
+from jcvi.formats.sam import index
 from jcvi.apps.grid import Parallel
+from jcvi.apps.bwa import align
+from jcvi.apps.base import sh
+from jcvi.assembly.base import wgsim
 from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, iglob
 
 
@@ -55,18 +66,65 @@ def main():
 
 def simulate(args):
     """
-    %prog simulate 1 300
+    %prog simulate run_dir 1 300
 
-    Simulate BAMs with varying inserts with dwgsim.
+    Simulate BAMs with varying inserts with dwgsim. The above command will
+    simulate between 1 to 300 CAGs in the HD region, in a directory called
+    `run_dir`.
     """
     p = OptionParser(simulate.__doc__)
+    p.add_option("--readlen", default=150, type="int",
+                 help="Length of the read")
+    p.set_depth(depth=10)
     opts, args = p.parse_args(args)
 
-    if len(args) != 2:
+    if len(args) != 3:
         sys.exit(not p.print_help())
 
-    start, end = args
+    rundir, start, end = args
     start, end = int(start), int(end)
+    basecwd = os.getcwd()
+    mkdir(rundir)
+    os.chdir(rundir)
+    cwd = os.getcwd()
+
+    # Huntington region
+    pad_left, pad_right = 1000, 10000
+    chr, start, end = 'chr4', 3074877, 3074933
+    fasta = Fasta("/Users/htang/projects/ref/hg38.upper.fa")
+    seq_left = fasta[chr][start - pad_left:start - 1]
+    seq_right = fasta[chr][end: end + pad_right]
+    motif = 'CAG'
+
+    # Write fake sequence
+    for units in range(start, end + 1):
+        pf = str(units)
+        mkdir(pf)
+        os.chdir(pf)
+        seq = str(seq_left) + motif * units + str(seq_right)
+        rec = SeqRecord(Seq(seq), description="", id=chr.upper())
+        fastafile = pf + ".fasta"
+        fw = open(fastafile, "w")
+        SeqIO.write([rec], fw, "fasta")
+        fw.close()
+
+        # Simulate reads on it
+        wgsim([fastafile, "--depth={}".format(opts.depth),
+                          "--readlen={}".format(opts.readlen),
+                          "--outfile={}".format(pf)])
+
+        read1 = pf + ".bwa.read1.fastq"
+        read2 = pf + ".bwa.read2.fastq"
+        samfile, _ = align([fastafile, read1, read2])
+        indexed_samfile = index([samfile])
+
+        sh("mv {} ../{}.bam".format(indexed_samfile, pf))
+        sh("mv {}.bai ../{}.bam.bai".format(indexed_samfile, pf))
+
+        os.chdir(cwd)
+        shutil.rmtree(pf)
+
+    os.chdir(basecwd)
 
 
 def mergebam(args):

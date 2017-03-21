@@ -200,12 +200,14 @@ def mem(args, opts):
         logging.error("`{0}` exists. `bwa mem` already run.".format(samfile))
         return "", samfile
 
-    cmd = "bwa mem " + " ".join(args)
+    cmd = "bwa mem"
     cmd += " -M -t {0}".format(opts.cpus)
     cmd += ' -R "{0}"'.format(rg)
     if readtype:
         cmd += " -x {0}".format(readtype)
     cmd += " " + opts.extra
+    cmd += " ".join(args)
+
     return cmd, samfile
 
 

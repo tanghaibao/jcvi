@@ -39,6 +39,7 @@ def main():
 
     actions = (
         # Prepare data
+        ('simulate', 'simulate bams with varying inserts with dwgsim'),
         ('mergebam', 'merge sets of BAMs to make diploid'),
         # Compile results
         ('batchlobstr', 'run lobSTR on a list of BAMs'),
@@ -50,6 +51,22 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def simulate(args):
+    """
+    %prog simulate 1 300
+
+    Simulate BAMs with varying inserts with dwgsim.
+    """
+    p = OptionParser(simulate.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    start, end = args
+    start, end = int(start), int(end)
 
 
 def mergebam(args):

@@ -81,8 +81,8 @@ def simulate(args):
     if len(args) != 3:
         sys.exit(not p.print_help())
 
-    rundir, start, end = args
-    start, end = int(start), int(end)
+    rundir, startunits, endunits = args
+    startunits, endunits = int(startunits), int(endunits)
     basecwd = os.getcwd()
     mkdir(rundir)
     os.chdir(rundir)
@@ -97,7 +97,7 @@ def simulate(args):
     motif = 'CAG'
 
     # Write fake sequence
-    for units in range(start, end + 1):
+    for units in range(startunits, endunits + 1):
         pf = str(units)
         mkdir(pf)
         os.chdir(pf)

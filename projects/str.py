@@ -126,6 +126,7 @@ def simulate(args):
         # Simulate reads on it
         wgsim([fastafile, "--depth={}".format(opts.depth),
                           "--readlen={}".format(opts.readlen),
+                          "--distance={}".format(opts.distance),
                           "--outfile={}".format(pf)])
 
         read1 = pf + ".bwa.read1.fastq"

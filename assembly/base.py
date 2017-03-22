@@ -233,7 +233,6 @@ def wgsim(args):
     stdev = distance / 10
 
     outpf = opts.outfile or "{0}.{1}bp.{2}x".format(pf, distance, depth)
-    assert distance >= 2 * readlen, "Outer distance must be >= 2 * readlen"
 
     logging.debug("Total genome size: {0} bp".format(size))
     logging.debug("Target depth: {0}x".format(depth))

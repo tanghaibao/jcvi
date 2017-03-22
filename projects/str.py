@@ -71,6 +71,14 @@ def make_fasta(seq, fastafile, id):
     fw.close()
 
 
+def add_simulate_options(p):
+    p.add_option("--readlen", default=150, type="int",
+                 help="Length of the read")
+    p.add_option("--distance", default=500, type="int",
+                 help="Outer distance between the two ends")
+    p.set_depth(depth=20)
+
+
 def simulate(args):
     """
     %prog simulate run_dir 1 300
@@ -82,9 +90,7 @@ def simulate(args):
     p = OptionParser(simulate.__doc__)
     p.add_option("--ref", default="/Users/htang/projects/ref/hg38.upper.fa",
                  help="Reference genome sequence")
-    p.add_option("--readlen", default=150, type="int",
-                 help="Length of the read")
-    p.set_depth(depth=10)
+    add_simulate_options(p)
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -433,20 +439,22 @@ def compare(args):
 
 def compare2(args):
     """
-    %prog compare2 depth
+    %prog compare2
 
     Compare performances of various variant callers on simulated STR datasets.
     """
     p = OptionParser(compare2.__doc__)
     p.add_option('--maxinsert', default=300, type="int",
                  help="Maximum number of repeats")
+    add_simulate_options(p)
     opts, args, iopts = p.set_image_options(args, figsize="10x5")
 
-    if len(args) != 1:
+    if len(args) != 0:
         sys.exit(not p.print_help())
 
-    depth, = args
-    depth = int(depth)
+    depth = opts.depth
+    readlen = opts.readlen
+    distance = opts.distance
     max_insert = opts.maxinsert
     fig, (ax1, ax2) = plt.subplots(ncols=2, nrows=1,
                                    figsize=(iopts.w, iopts.h))
@@ -473,7 +481,8 @@ def compare2(args):
 
     ax1.set_xlabel(r'Num of CAG repeats inserted ($\mathit{h}$)')
     ax1.set_ylabel('Num of CAG repeats called')
-    ax1.set_title(r'Simulated haploid $\mathit{h}$ at haploid depth %s$\times$' % depth)
+    ax1.set_title(r"Simulated haploid $\mathit{h}$" + \
+            r" ($D=%s\times, R=%dbp, V=%dbp$)" % (depth, readlen, distance))
     ax1.legend(loc='best')
 
     ax1.axhline(infected_thr, color='tomato')
@@ -496,7 +505,8 @@ def compare2(args):
 
     ax2.set_xlabel(r'Num of CAG repeats inserted ($\mathit{h}$)')
     ax2.set_ylabel('Num of CAG repeats called')
-    ax2.set_title(r'Simulated diploid $\mathit{20/h}$ at haploid depth %s$\times$' % depth)
+    ax2.set_title(r"Simulated diploid $\mathit{20/h}$" + \
+            r" ($D=%s\times, R=%dbp, V=%dbp$)" % (depth, readlen, distance))
     ax2.legend(loc='best')
     ax2.axhline(infected_thr, color='tomato')
     ax2.text(max(truth) - pad, infected_thr + pad, 'Risk threshold',

@@ -491,7 +491,7 @@ def compare2(args):
     lobstr_results = parse_results("lobstr_results_homo.txt")
     tredparse_results = parse_results("tredparse_results_homo.txt")
     title = r"Simulated haploid $\mathit{h}$" + \
-            r" ($D=%s\times, R=%dbp, V=%dbp$)" % (depth, readlen, distance)
+            r" ($D=%s\times, L=%dbp, V=%dbp$)" % (depth, readlen, distance)
     plot_compare(ax1, title, tredparse_results, lobstr_results,
                  max_insert=max_insert)
 
@@ -499,7 +499,7 @@ def compare2(args):
     lobstr_results = parse_results("lobstr_results_het.txt", exclude=20)
     tredparse_results = parse_results("tredparse_results_het.txt", exclude=20)
     title = r"Simulated diploid $\mathit{20/h}$" + \
-            r" ($D=%s\times, R=%dbp, V=%dbp$)" % (depth, readlen, distance)
+            r" ($D=%s\times, L=%dbp, V=%dbp$)" % (depth, readlen, distance)
     plot_compare(ax2, title, tredparse_results, lobstr_results,
                  max_insert=max_insert)
 
@@ -533,7 +533,6 @@ def compare4(args):
         sys.exit(not p.print_help())
 
     depth = opts.depth
-    readlen = opts.readlen
     max_insert = opts.maxinsert
     fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(ncols=2, nrows=2,
                                    figsize=(iopts.w, iopts.h))

@@ -56,9 +56,10 @@ def main():
         ('batchlobstr', 'run lobSTR on a list of BAMs'),
         ('compilevcf', 'compile vcf outputs into lists'),
         # Plotting
+        ('evidences', 'plot distribution of evidences'),
         ('compare', 'compare callers on fake HD patients'),
         ('compare2', 'compare TREDPARSE and lobSTR on fake HD patients'),
-        ('evidences', 'plot distribution of evidences'),
+        ('compare4', 'compare TREDPARSE and lobSTR on fake HD patients adding coverage'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -494,7 +495,7 @@ def compare2(args):
     plot_compare(ax1, title, tredparse_results, lobstr_results,
                  max_insert=max_insert)
 
-    # ax2: lobSTR vs TREDPARSE with haploid model
+    # ax2: lobSTR vs TREDPARSE with diploid model
     lobstr_results = parse_results("lobstr_results_het.txt", exclude=20)
     tredparse_results = parse_results("tredparse_results_het.txt", exclude=20)
     title = r"Simulated diploid $\mathit{20/h}$" + \
@@ -509,6 +510,76 @@ def compare2(args):
     root = fig.add_axes([0, 0, 1, 1])
     pad = .03
     panel_labels(root, ((pad / 2, 1 - pad, "A"), (1 / 2., 1 - pad, "B")))
+    normalize_axes(root)
+
+    image_name = "tredparse." + iopts.format
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
+
+
+def compare4(args):
+    """
+    %prog compare2
+
+    Compare performances of various variant callers on simulated STR datasets.
+    Adds coverage comparisons as panel C and D.
+    """
+    p = OptionParser(compare2.__doc__)
+    p.add_option('--maxinsert', default=300, type="int",
+                 help="Maximum number of repeats")
+    add_simulate_options(p)
+    opts, args, iopts = p.set_image_options(args, figsize="10x10")
+
+    if len(args) != 0:
+        sys.exit(not p.print_help())
+
+    depth = opts.depth
+    readlen = opts.readlen
+    distance = opts.distance
+    max_insert = opts.maxinsert
+    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(ncols=2, nrows=2,
+                                   figsize=(iopts.w, iopts.h))
+    plt.tight_layout(pad=3)
+
+    # ax1: lobSTR vs TREDPARSE with haploid model
+    lobstr_results = parse_results("lobstr_results_homo-20x-150bp-500bp.txt")
+    tredparse_results = parse_results("tredparse_results_homo-20x-150bp-500bp.txt")
+    title = r"Simulated haploid $\mathit{h}$" + \
+            r" ($D=%s\times, R=%dbp, V=%dbp$)" % (depth, readlen, distance)
+    plot_compare(ax1, title, tredparse_results, lobstr_results,
+                 max_insert=max_insert)
+
+    # ax2: lobSTR vs TREDPARSE with diploid model (depth=20x)
+    lobstr_results = parse_results("lobstr_results_het-20x-150bp-500bp.txt", exclude=20)
+    tredparse_results = parse_results("tredparse_results_het-20x-150bp-500bp.txt", exclude=20)
+    title = r"Simulated diploid $\mathit{20/h}$" + \
+            r" ($D=%s\times, R=%dbp, V=%dbp$)" % (depth, readlen, distance)
+    plot_compare(ax2, title, tredparse_results, lobstr_results,
+                 max_insert=max_insert)
+
+    # ax3: lobSTR vs TREDPARSE with diploid model (depth=5x)
+    lobstr_results = parse_results("lobstr_results_het-5x-150bp-500bp.txt", exclude=20)
+    tredparse_results = parse_results("tredparse_results_het-5x-150bp-500bp.txt", exclude=20)
+    title = r"Simulated diploid $\mathit{20/h}$" + \
+            r" ($D=%s\times, R=%dbp, V=%dbp$)" % (5, readlen, distance)
+    plot_compare(ax3, title, tredparse_results, lobstr_results,
+                 max_insert=max_insert)
+
+    # ax4: lobSTR vs TREDPARSE with diploid model (depth=80x)
+    lobstr_results = parse_results("lobstr_results_het-80x-150bp-500bp.txt", exclude=20)
+    tredparse_results = parse_results("tredparse_results_het-80x-150bp-500bp.txt", exclude=20)
+    title = r"Simulated diploid $\mathit{20/h}$" + \
+            r" ($D=%s\times, R=%dbp, V=%dbp$)" % (80, readlen, distance)
+    plot_compare(ax4, title, tredparse_results, lobstr_results,
+                 max_insert=max_insert)
+
+    for ax in (ax1, ax2, ax3, ax4):
+        ax.set_xlim(0, max_insert)
+        ax.set_ylim(0, max_insert)
+
+    root = fig.add_axes([0, 0, 1, 1])
+    pad = .03
+    panel_labels(root, ((pad / 2, 1 - pad, "A"), (1 / 2., 1 - pad, "B"),
+                        (pad / 2, 1 / 2. , "C"), (1 / 2., 1 / 2. , "D")))
     normalize_axes(root)
 
     image_name = "tredparse." + iopts.format

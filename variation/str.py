@@ -461,11 +461,11 @@ def write_meta(af_file, gene_map, blacklist, filename="meta.tsv"):
     logging.debug("Write meta file to `{}`".format(filename))
 
 
-def read_treds(tredsfile):
+def read_treds(tredsfile=op.join(datadir, "TREDs.meta.csv")):
     df = pd.read_csv(tredsfile)
     treds = set(df["id"])
     logging.debug("Loaded {} treds from `{}`".format(len(treds), tredsfile))
-    return treds
+    return treds, df
 
 
 def meta(args):
@@ -528,8 +528,7 @@ def meta(args):
         #enst = sorted(x.rsplit(".", 1)[0] for x in v if x.startswith("ENST"))
         gene_map[k] = ",".join(non_enst)
 
-    tredsfile = op.join(datadir, "TREDs.meta.hg38.csv")
-    TREDS = read_treds(tredsfile)
+    TREDS, df = read_treds()
 
     metafile = "STRs_{}_SEARCH.meta.tsv".format(timestamp())
     write_meta(af_file, gene_map, TREDS, filename=metafile)

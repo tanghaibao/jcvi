@@ -11,6 +11,7 @@ import sys
 import vcf
 import logging
 import shutil
+import numpy as np
 import pandas as pd
 
 from pyfaidx import Fasta
@@ -20,6 +21,7 @@ from Bio.SeqRecord import SeqRecord
 
 from jcvi.graphics.base import normalize_axes, panel_labels, plt, savefig
 from jcvi.formats.sam import index
+from jcvi.variation.str import af_to_counts, read_treds
 from jcvi.apps.grid import Parallel
 from jcvi.apps.bwa import align
 from jcvi.apps.base import sh
@@ -60,9 +62,81 @@ def main():
         ('compare', 'compare callers on fake HD patients'),
         ('compare2', 'compare TREDPARSE and lobSTR on fake HD patients'),
         ('compare4', 'compare TREDPARSE and lobSTR on fake HD patients adding coverage'),
+        ('allelefreq', 'plot the allele frequencies of some STRs'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def plot_allelefreq(ax, df, locus, color='lightslategray'):
+    tred = df.ix[locus]
+    cnt = af_to_counts(tred["allele_frequency"])
+
+    cntx, cnty = zip(*cnt.items())
+
+    motif = tred["motif"]
+    cutoff_prerisk = tred["cutoff_prerisk"]
+    cutoff_risk = tred["cutoff_risk"]
+    npredisease = sum(v for (k, v) in cnt.items() if \
+                    cutoff_prerisk <= k < cutoff_risk)
+    npatients = sum(v for (k, v) in cnt.items() if k >= cutoff_risk)
+
+    ax.bar(cntx, cnty, fc=color)
+
+    ymin, ymax = ax.get_ylim()
+    if cutoff_prerisk < cutoff_risk and npredisease:
+        ax.axvline(x=cutoff_prerisk, color="k", lw=2)
+        ax.text(cutoff_prerisk + 1, .5 * ymax,
+                r"Pre-disease ($\geq${}$\times${}) - {} persons".\
+                format(cutoff_prerisk, motif, npredisease),
+                rotation=90, color="k", ha="center", va="center")
+    ax.axvline(x=cutoff_risk, color="r", lw=2)
+    ax.text(cutoff_risk + 1, .5 * ymax,
+            r"Disease ($\geq${}$\times${}) - {} persons".\
+            format(cutoff_risk, motif, npatients),
+            rotation=90, color="r", ha="center", va="center")
+
+    x = []  # All allelels
+    for k, v in cnt.items():
+        x.extend([k] * v)
+
+    ax.set_xlabel("Number of repeat units")
+    ax.set_ylabel("Number of alleles")
+    ax.set_xlim(0, 50)
+    ax.set_title(r"{} ({}) median={:.0f}$\times${}".\
+                format(locus, tred["title"], np.median(x), motif))
+
+
+def allelefreq(args):
+    """
+    %prog allelefreq DM1,HD,SCA1,SCA17
+
+    Plot the allele frequencies of some STRs.
+    """
+    p = OptionParser(allelefreq.__doc__)
+    opts, args, iopts = p.set_image_options(args, figsize="10x10")
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    loci, = args
+    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(ncols=2, nrows=2,
+                                                 figsize=(iopts.w, iopts.h))
+    plt.tight_layout(pad=4)
+    treds, df = read_treds()
+    df = df.set_index(["abbreviation"])
+
+    for ax, locus in zip((ax1, ax2, ax3, ax4), loci.split(",")):
+        plot_allelefreq(ax, df, locus)
+
+    root = fig.add_axes([0, 0, 1, 1])
+    pad = .03
+    panel_labels(root, ((pad / 2, 1 - pad, "A"), (1 / 2., 1 - pad, "B"),
+                        (pad / 2, 1 / 2. , "C"), (1 / 2., 1 / 2. , "D")))
+    normalize_axes(root)
+
+    image_name = "allelefreq." + iopts.format
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
 def make_fasta(seq, fastafile, id):

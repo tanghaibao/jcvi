@@ -80,6 +80,8 @@ def simulate(args):
     `run_dir`.
     """
     p = OptionParser(simulate.__doc__)
+    p.add_option("--ref", default="/Users/htang/projects/ref/hg38.upper.fa",
+                 help="Reference genome sequence")
     p.add_option("--readlen", default=150, type="int",
                  help="Length of the read")
     p.set_depth(depth=10)
@@ -98,7 +100,7 @@ def simulate(args):
     # Huntington region
     pad_left, pad_right = 1000, 10000
     chr, start, end = 'chr4', 3074877, 3074933
-    fasta = Fasta("/Users/htang/projects/ref/hg38.upper.fa")
+    fasta = Fasta(opts.ref)
     seq_left = fasta[chr][start - pad_left:start - 1]
     seq_right = fasta[chr][end: end + pad_right]
     motif = 'CAG'

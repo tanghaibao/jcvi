@@ -433,7 +433,7 @@ def compare(args):
 
 def compare2(args):
     """
-    %prog compare2
+    %prog compare2 depth
 
     Compare performances of various variant callers on simulated STR datasets.
     """
@@ -442,9 +442,11 @@ def compare2(args):
                  help="Maximum number of repeats")
     opts, args, iopts = p.set_image_options(args, figsize="10x5")
 
-    if len(args) != 0:
+    if len(args) != 1:
         sys.exit(not p.print_help())
 
+    depth, = args
+    depth = int(depth)
     max_insert = opts.maxinsert
     fig, (ax1, ax2) = plt.subplots(ncols=2, nrows=1,
                                    figsize=(iopts.w, iopts.h))
@@ -471,7 +473,7 @@ def compare2(args):
 
     ax1.set_xlabel(r'Num of CAG repeats inserted ($\mathit{h}$)')
     ax1.set_ylabel('Num of CAG repeats called')
-    ax1.set_title(r'Simulated haploid $\mathit{h}$')
+    ax1.set_title(r'Simulated haploid $\mathit{h}$ at haploid depth %s$\times$' % depth)
     ax1.legend(loc='best')
 
     ax1.axhline(infected_thr, color='tomato')
@@ -494,7 +496,7 @@ def compare2(args):
 
     ax2.set_xlabel(r'Num of CAG repeats inserted ($\mathit{h}$)')
     ax2.set_ylabel('Num of CAG repeats called')
-    ax2.set_title(r'Simulated diploid $\mathit{20/h}$')
+    ax2.set_title(r'Simulated diploid $\mathit{20/h}$ at haploid depth %s$\times$' % depth)
     ax2.legend(loc='best')
     ax2.axhline(infected_thr, color='tomato')
     ax2.text(max(truth) - pad, infected_thr + pad, 'Risk threshold',

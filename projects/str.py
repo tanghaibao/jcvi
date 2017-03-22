@@ -453,9 +453,9 @@ def compare2(args):
     ms = 3
 
     # ax1: lobSTR vs TREDPARSE with haploid model
+    truth = range(1, max_insert + 1)
     lobstr_results = parse_results("lobstr_results_homo.txt")
     tredparse_results = parse_results("tredparse_results_homo.txt")
-    truth = range(10, max_insert + 1)
     lx, ly = zip(*lobstr_results)
     tx, ty, tl, th = zip(*tredparse_results)
     lrmsd = compute_rmsd(truth, ly)
@@ -475,13 +475,10 @@ def compare2(args):
     ax1.axhline(infected_thr, color='tomato')
     ax1.text(max(truth) - pad, infected_thr + pad, 'Risk threshold',
              bbox=bbox, ha="right")
-    ax1.set_xlim(10, max_insert)
-    ax1.set_ylim(10, max_insert)
 
     # ax2: lobSTR vs TREDPARSE with haploid model
     lobstr_results = parse_results("lobstr_results_het.txt", exclude=20)
     tredparse_results = parse_results("tredparse_results_het.txt", exclude=20)
-    truth = range(10, max_insert + 1)
     lx, ly = zip(*lobstr_results)
     tx, ty, tl, th = zip(*tredparse_results)
     lrmsd = compute_rmsd(truth, ly)
@@ -500,8 +497,10 @@ def compare2(args):
     ax2.axhline(infected_thr, color='tomato')
     ax2.text(max(truth) - pad, infected_thr + pad, 'Risk threshold',
              bbox=bbox, ha="right")
-    ax2.set_xlim(10, max_insert)
-    ax2.set_ylim(10, max_insert)
+
+    for ax in (ax1, ax2):
+        ax.set_xlim(0, max_insert)
+        ax.set_ylim(0, max_insert)
 
     root = fig.add_axes([0, 0, 1, 1])
     pad = .03

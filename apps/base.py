@@ -391,7 +391,7 @@ class OptionParser (OptionP):
         return opts, args, ImageOptions(opts)
 
     def set_depth(self, depth=50):
-        self.add_option("--depth", default=depth, type="int",
+        self.add_option("--depth", default=depth, type="float",
                      help="Desired depth [default: %default]")
 
     def set_rclip(self, rclip=0):

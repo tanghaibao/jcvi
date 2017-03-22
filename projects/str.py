@@ -534,7 +534,6 @@ def compare4(args):
 
     depth = opts.depth
     readlen = opts.readlen
-    distance = opts.distance
     max_insert = opts.maxinsert
     fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(ncols=2, nrows=2,
                                    figsize=(iopts.w, iopts.h))
@@ -544,7 +543,7 @@ def compare4(args):
     lobstr_results = parse_results("lobstr_results_homo-20x-150bp-500bp.txt")
     tredparse_results = parse_results("tredparse_results_homo-20x-150bp-500bp.txt")
     title = r"Simulated haploid $\mathit{h}$" + \
-            r" ($D=%s\times, R=%dbp, V=%dbp$)" % (depth, readlen, distance)
+            r" ($Depth=%s\times)" % depth
     plot_compare(ax1, title, tredparse_results, lobstr_results,
                  max_insert=max_insert)
 
@@ -552,7 +551,7 @@ def compare4(args):
     lobstr_results = parse_results("lobstr_results_het-20x-150bp-500bp.txt", exclude=20)
     tredparse_results = parse_results("tredparse_results_het-20x-150bp-500bp.txt", exclude=20)
     title = r"Simulated diploid $\mathit{20/h}$" + \
-            r" ($D=%s\times, R=%dbp, V=%dbp$)" % (depth, readlen, distance)
+            r" ($Depth=%s\times$)" % depth
     plot_compare(ax2, title, tredparse_results, lobstr_results,
                  max_insert=max_insert)
 
@@ -560,7 +559,7 @@ def compare4(args):
     lobstr_results = parse_results("lobstr_results_het-5x-150bp-500bp.txt", exclude=20)
     tredparse_results = parse_results("tredparse_results_het-5x-150bp-500bp.txt", exclude=20)
     title = r"Simulated diploid $\mathit{20/h}$" + \
-            r" ($D=%s\times, R=%dbp, V=%dbp$)" % (5, readlen, distance)
+            r" ($Depth=%s\times$)" % 5
     plot_compare(ax3, title, tredparse_results, lobstr_results,
                  max_insert=max_insert)
 
@@ -568,7 +567,7 @@ def compare4(args):
     lobstr_results = parse_results("lobstr_results_het-80x-150bp-500bp.txt", exclude=20)
     tredparse_results = parse_results("tredparse_results_het-80x-150bp-500bp.txt", exclude=20)
     title = r"Simulated diploid $\mathit{20/h}$" + \
-            r" ($D=%s\times, R=%dbp, V=%dbp$)" % (80, readlen, distance)
+            r" ($Depth=%s\times$)" % 80
     plot_compare(ax4, title, tredparse_results, lobstr_results,
                  max_insert=max_insert)
 

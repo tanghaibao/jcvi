@@ -201,7 +201,15 @@ def mem(args, opts):
         return "", samfile
 
     cmd = "bwa mem"
-    cmd += " -M -t {0}".format(opts.cpus)
+    '''
+    -Y
+    Use soft clipping CIGAR operation for supplementary alignments. By default,
+    BWA-MEM uses soft clipping for the primary alignment and hard clipping for
+    supplementary alignments.
+    -M
+    Mark shorter split hits as secondary (for Picard compatibility).
+    '''
+    cmd += " -M -Y -t {0}".format(opts.cpus)
     cmd += ' -R "{0}"'.format(rg)
     if readtype:
         cmd += " -x {0}".format(readtype)

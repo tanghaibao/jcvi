@@ -438,6 +438,31 @@ def compare(args):
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
+def plot_compare(ax, title, tredparse_results, lobstr_results, pad=8, ms=3,
+                 max_insert=300, depth=20, readlen=150, distance=500):
+    truth = range(1, max_insert + 1)
+    lx, ly = zip(*lobstr_results)
+    tx, ty, tl, th = zip(*tredparse_results)
+    lrmsd = compute_rmsd(truth, ly)
+    trmsd = compute_rmsd(truth, ty)
+
+    ax.plot(lx, ly, 'c+-', ms=ms, label='lobSTR (RMSD={:.2f})'.format(lrmsd))
+    ax.plot(tx, ty, 'g.-', ms=ms, label='TREDPARSE (RMSD={:.2f})'.format(trmsd))
+    ax.plot(truth, truth, 'k--', label='Truth')
+    ax.fill_between(tx, tl, th, facecolor='g', alpha=.25,
+                     label='TREDPARSE 95$\%$ CI')
+
+    ax.set_xlabel(r'Num of CAG repeats inserted ($\mathit{h}$)')
+    ax.set_ylabel('Num of CAG repeats called')
+    ax.set_title(title)
+    ax.legend(loc='best')
+
+    bbox = {'facecolor': 'tomato', 'alpha': .2, 'ec': 'w'}
+    ax.axhline(infected_thr, color='tomato')
+    ax.text(max(truth) - pad, infected_thr + pad, 'Risk threshold',
+             bbox=bbox, ha="right")
+
+
 def compare2(args):
     """
     %prog compare2
@@ -461,57 +486,21 @@ def compare2(args):
                                    figsize=(iopts.w, iopts.h))
     plt.tight_layout(pad=2)
 
-    bbox = {'facecolor': 'tomato', 'alpha': .2, 'ec': 'w'}
-    pad = 8
-    ms = 3
-
     # ax1: lobSTR vs TREDPARSE with haploid model
-    truth = range(1, max_insert + 1)
     lobstr_results = parse_results("lobstr_results_homo.txt")
     tredparse_results = parse_results("tredparse_results_homo.txt")
-    lx, ly = zip(*lobstr_results)
-    tx, ty, tl, th = zip(*tredparse_results)
-    lrmsd = compute_rmsd(truth, ly)
-    trmsd = compute_rmsd(truth, ty)
-
-    ax1.plot(lx, ly, 'c+-', ms=ms, label='lobSTR (RMSD={:.2f})'.format(lrmsd))
-    ax1.plot(tx, ty, 'g.-', ms=ms, label='TREDPARSE (RMSD={:.2f})'.format(trmsd))
-    ax1.plot(truth, truth, 'k--', label='Truth')
-    ax1.fill_between(tx, tl, th, facecolor='g', alpha=.25,
-                     label='TREDPARSE 95$\%$ CI')
-
-    ax1.set_xlabel(r'Num of CAG repeats inserted ($\mathit{h}$)')
-    ax1.set_ylabel('Num of CAG repeats called')
-    ax1.set_title(r"Simulated haploid $\mathit{h}$" + \
-            r" ($D=%s\times, R=%dbp, V=%dbp$)" % (depth, readlen, distance))
-    ax1.legend(loc='best')
-
-    ax1.axhline(infected_thr, color='tomato')
-    ax1.text(max(truth) - pad, infected_thr + pad, 'Risk threshold',
-             bbox=bbox, ha="right")
+    title = r"Simulated haploid $\mathit{h}$" + \
+            r" ($D=%s\times, R=%dbp, V=%dbp$)" % (depth, readlen, distance)
+    plot_compare(ax1, title, tredparse_results, lobstr_results,
+                 max_insert=max_insert)
 
     # ax2: lobSTR vs TREDPARSE with haploid model
     lobstr_results = parse_results("lobstr_results_het.txt", exclude=20)
     tredparse_results = parse_results("tredparse_results_het.txt", exclude=20)
-    lx, ly = zip(*lobstr_results)
-    tx, ty, tl, th = zip(*tredparse_results)
-    lrmsd = compute_rmsd(truth, ly)
-    trmsd = compute_rmsd(truth, ty)
-
-    ax2.plot(lx, ly, 'c+-', ms=ms, label='lobSTR (RMSD={:.2f})'.format(lrmsd))
-    ax2.plot(tx, ty, 'g.-', ms=ms, label='TREDPARSE (RMSD={:.2f})'.format(trmsd))
-    ax2.plot(truth, truth, 'k--', label='Truth')
-    ax2.fill_between(tx, tl, th, facecolor='g', alpha=.25,
-                     label='TREDPARSE 95$\%$ CI')
-
-    ax2.set_xlabel(r'Num of CAG repeats inserted ($\mathit{h}$)')
-    ax2.set_ylabel('Num of CAG repeats called')
-    ax2.set_title(r"Simulated diploid $\mathit{20/h}$" + \
-            r" ($D=%s\times, R=%dbp, V=%dbp$)" % (depth, readlen, distance))
-    ax2.legend(loc='best')
-    ax2.axhline(infected_thr, color='tomato')
-    ax2.text(max(truth) - pad, infected_thr + pad, 'Risk threshold',
-             bbox=bbox, ha="right")
+    title = r"Simulated diploid $\mathit{20/h}$" + \
+            r" ($D=%s\times, R=%dbp, V=%dbp$)" % (depth, readlen, distance)
+    plot_compare(ax2, title, tredparse_results, lobstr_results,
+                 max_insert=max_insert)
 
     for ax in (ax1, ax2):
         ax.set_xlim(0, max_insert)

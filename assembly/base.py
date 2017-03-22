@@ -9,6 +9,7 @@ import os.path as op
 import sys
 import logging
 
+import math
 from math import log
 ln2 = log(2)
 
@@ -226,14 +227,13 @@ def wgsim(args):
     size = genomesize * 1000000 if genomesize else Fasta(fastafile).totalsize
     depth = opts.depth
     readlen = opts.readlen
-    readnum = size * depth / (2 * readlen)
+    readnum = int(math.ceil(size * depth / (2 * readlen)))
 
     distance = opts.distance
     stdev = distance / 5
 
     outpf = opts.outfile or "{0}.{1}bp.{2}x".format(pf, distance, depth)
-    distance -= 2 * readlen  # Outer distance => Inner distance
-    assert distance >= 0, "Outer distance must be >= 2 * readlen"
+    assert distance >= 2 * readlen, "Outer distance must be >= 2 * readlen"
 
     logging.debug("Total genome size: {0} bp".format(size))
     logging.debug("Target depth: {0}x".format(depth))

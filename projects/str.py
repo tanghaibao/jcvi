@@ -136,7 +136,7 @@ def simulate(args):
 
 def mergebam(args):
     """
-    %prog mergebam dir1 dir2 homo_outdir
+    %prog mergebam dir1 homo_outdir
     or
     %prog mergebam dir1 dir2/20.bam het_outdir
 
@@ -148,22 +148,20 @@ def mergebam(args):
     p.set_cpus()
     opts, args = p.parse_args(args)
 
-    if len(args) != 3:
+    if len(args) not in (2, 3):
         sys.exit(not p.print_help())
 
-    idir1, idir2, outdir = args
-    dir1 = [idir1] if idir1.endswith(".bam") else iglob(idir1, "*.bam")
-    dir2 = [idir2] if idir2.endswith(".bam") else iglob(idir2, "*.bam")
-    nbams1 = len(dir1)
-    nbams2 = len(dir2)
-    # Make sure more or the same number of bams in first pile
-    if nbams1 < nbams2:
-        dir1, dir2 = dir2, dir1
-    if nbams1 == nbams2:
+    if len(args) == 2:
+        idir1, outdir = args
+        dir1 = [idir1] if idir1.endswith(".bam") else iglob(idir1, "*.bam")
         logging.debug("Homozygous mode")
-    elif nbams1 > nbams2:
-        assert nbams2 == 1, "Second pile must contain a single bam"
-        dir2 = [idir2] * nbams1
+        dir2 = [""] * len(dir1)
+    elif len(args) == 3:
+        idir1, idir2, outdir = args
+        dir1 = [idir1] if idir1.endswith(".bam") else iglob(idir1, "*.bam")
+        dir2 = [idir2] if idir2.endswith(".bam") else iglob(idir2, "*.bam")
+        assert len(dir2) == 1, "Second pile must contain a single bam"
+        dir2 = [idir2] * len(dir1)
 
     assert len(dir1) == len(dir2), "Two piles must contain same number of bams"
     cmd = "samtools merge {} {} {} && samtools index {}"
@@ -171,7 +169,7 @@ def mergebam(args):
     mkdir(outdir)
     for a, b in zip(dir1, dir2):
         ia = op.basename(a).split(".")[0]
-        ib = op.basename(b).split(".")[0]
+        ib = op.basename(b).split(".")[0] if b else ia
         outfile = op.join(outdir, "{}_{}.bam".format(ia, ib))
         cmds.append(cmd.format(outfile, a, b, outfile))
 

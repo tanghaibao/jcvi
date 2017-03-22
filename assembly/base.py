@@ -203,7 +203,7 @@ def wgsim(args):
     Run dwgsim on fastafile.
     """
     p = OptionParser(wgsim.__doc__)
-    p.add_option("--erate", default=.02, type="float",
+    p.add_option("--erate", default=.01, type="float",
                  help="Base error rate of the read [default: %default]")
     p.add_option("--noerrors", default=False, action="store_true",
                  help="Simulate reads with no errors [default: %default]")
@@ -230,7 +230,7 @@ def wgsim(args):
     readnum = int(math.ceil(size * depth / (2 * readlen)))
 
     distance = opts.distance
-    stdev = distance / 5
+    stdev = distance / 10
 
     outpf = opts.outfile or "{0}.{1}bp.{2}x".format(pf, distance, depth)
     assert distance >= 2 * readlen, "Outer distance must be >= 2 * readlen"

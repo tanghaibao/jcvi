@@ -64,6 +64,13 @@ def main():
     p.dispatch(globals())
 
 
+def make_fasta(seq, fastafile, id):
+    rec = SeqRecord(Seq(seq), description="", id=id)
+    fw = open(fastafile, "w")
+    SeqIO.write([rec], fw, "fasta")
+    fw.close()
+
+
 def simulate(args):
     """
     %prog simulate run_dir 1 300
@@ -95,6 +102,9 @@ def simulate(args):
     seq_left = fasta[chr][start - pad_left:start - 1]
     seq_right = fasta[chr][end: end + pad_right]
     motif = 'CAG'
+    reffastafile = "ref.fasta"
+    seq = str(fasta[chr][start - pad_left: end + pad_right])
+    make_fasta(seq, reffastafile, id=chr.upper())
 
     # Write fake sequence
     for units in range(startunits, endunits + 1):
@@ -102,11 +112,8 @@ def simulate(args):
         mkdir(pf)
         os.chdir(pf)
         seq = str(seq_left) + motif * units + str(seq_right)
-        rec = SeqRecord(Seq(seq), description="", id=chr.upper())
         fastafile = pf + ".fasta"
-        fw = open(fastafile, "w")
-        SeqIO.write([rec], fw, "fasta")
-        fw.close()
+        make_fasta(seq, fastafile, id=chr.upper())
 
         # Simulate reads on it
         wgsim([fastafile, "--depth={}".format(opts.depth),
@@ -115,7 +122,7 @@ def simulate(args):
 
         read1 = pf + ".bwa.read1.fastq"
         read2 = pf + ".bwa.read2.fastq"
-        samfile, _ = align([fastafile, read1, read2])
+        samfile, _ = align(["../{}".format(reffastafile), read1, read2])
         indexed_samfile = index([samfile])
 
         sh("mv {} ../{}.bam".format(indexed_samfile, pf))

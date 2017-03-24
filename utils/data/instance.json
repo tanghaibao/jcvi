@@ -1,5 +1,19 @@
 {
-    "InstanceId": "i-0b25f5bb906f796aa", 
+    "InstanceId": "i-058b88f874752b04b", 
+    "Volumes": [
+        {
+            "Device": "/dev/sdf", 
+            "VolumeId": "vol-aad57e1f"
+        }, 
+        {
+            "Device": "/dev/sdg", 
+            "VolumeId": "vol-c709aa72"
+        }, 
+        {
+            "Device": "/dev/sdh", 
+            "VolumeId": "vol-2f09aa9a"
+        }
+    ], 
     "LaunchSpec": {
         "Monitoring": {
             "Enabled": false
@@ -17,19 +31,5 @@
         }, 
         "InstanceType": "c4.8xlarge", 
         "ImageId": "ami-fc8c049c"
-    }, 
-    "Volumes": [
-        {
-            "Device": "/dev/sdf", 
-            "VolumeId": "vol-aad57e1f"
-        }, 
-        {
-            "Device": "/dev/sdg", 
-            "VolumeId": "vol-c709aa72"
-        }, 
-        {
-            "Device": "/dev/sdh", 
-            "VolumeId": "vol-2f09aa9a"
-        }
-    ]
+    }
 }

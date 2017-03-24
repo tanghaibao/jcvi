@@ -77,7 +77,7 @@ def start(args):
     """
     p = OptionParser(start.__doc__)
     p.add_option("--profile", default="mvrad-datasci-role", help="Profile name")
-    p.add_option("--price", default=3.0, type=float, help="Spot price")
+    p.add_option("--price", default=4.0, type=float, help="Spot price")
     opts, args = p.parse_args(args)
 
     if len(args) != 0:

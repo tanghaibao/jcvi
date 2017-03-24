@@ -534,7 +534,9 @@ def plot_compare(ax, title, tredparse_results, lobstr_results, pad=8, ms=3,
 
     bbox = {'facecolor': 'tomato', 'alpha': .2, 'ec': 'w'}
     ax.axhline(infected_thr, color='tomato')
-    ax.text(max(truth) - pad, infected_thr + pad, 'Risk threshold',
+    ax.text(max(truth) - pad, infected_thr + pad,
+             'Risk cutoff={}'.format(infected_thr) +
+             r'$\times$CAGs',
              bbox=bbox, ha="right")
 
 

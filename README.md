@@ -11,9 +11,9 @@ computation related to assembly, annotation, and comparative genomics.
 | | |
 | --- | --- |
 | Authors | Haibao Tang ([tanghaibao](http://github.com/tanghaibao)) |
-|| Vivek Krishnakumar ([vivekkrish](https://github.com/vivekkrish)) |
-|| Jingping Li ([Jingping](https://github.com/Jingping)) |
-|| Xingtan Zhang ([tangerzhang](https://github.com/tangerzhang)) |
+| | Vivek Krishnakumar ([vivekkrish](https://github.com/vivekkrish)) |
+| | Jingping Li ([Jingping](https://github.com/Jingping)) |
+| | Xingtan Zhang ([tangerzhang](https://github.com/tangerzhang)) |
 | Email   | <tanghaibao@gmail.com> |
 | License | [BSD](http://creativecommons.org/licenses/BSD/) |
 

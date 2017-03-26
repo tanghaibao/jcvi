@@ -61,7 +61,8 @@ def main():
         ('evidences', 'plot distribution of evidences'),
         ('compare', 'compare callers on fake HD patients'),
         ('compare2', 'compare TREDPARSE and lobSTR on fake HD patients'),
-        ('compare4', 'compare TREDPARSE and lobSTR on fake HD patients adding coverage'),
+        ('compare3', 'compare TREDPARSE on fake HD patients adding evidence'),
+        ('compare4', 'compare TREDPARSE on fake HD patients adding coverage'),
         ('allelefreq', 'plot the allele frequencies of some STRs'),
             )
     p = ActionDispatcher(actions)
@@ -514,17 +515,19 @@ def compare(args):
 
 
 def plot_compare(ax, title, tredparse_results, lobstr_results, pad=8, ms=3,
-                 max_insert=300, depth=20, readlen=150, distance=500):
+                 max_insert=300, depth=20, readlen=150, distance=500, color='g'):
     truth = range(1, max_insert + 1)
-    lx, ly = zip(*lobstr_results)
     tx, ty, tl, th = zip(*tredparse_results)
-    lrmsd = compute_rmsd(truth, ly)
     trmsd = compute_rmsd(truth, ty)
+    if lobstr_results:
+        lx, ly = zip(*lobstr_results)
+        lrmsd = compute_rmsd(truth, ly)
 
-    ax.plot(lx, ly, 'c+-', ms=ms, label='lobSTR (RMSD={:.2f})'.format(lrmsd))
-    ax.plot(tx, ty, 'g.-', ms=ms, label='TREDPARSE (RMSD={:.2f})'.format(trmsd))
+    if lobstr_results:
+        ax.plot(lx, ly, 'c+-', ms=ms, label='lobSTR (RMSD={:.2f})'.format(lrmsd))
+    ax.plot(tx, ty, '.-', color=color, ms=ms, label='TREDPARSE (RMSD={:.2f})'.format(trmsd))
     ax.plot(truth, truth, 'k--', label='Truth')
-    ax.fill_between(tx, tl, th, facecolor='g', alpha=.25,
+    ax.fill_between(tx, tl, th, facecolor=color, alpha=.25,
                      label='TREDPARSE 95$\%$ CI')
 
     ax.set_xlabel(r'Num of CAG repeats inserted ($\mathit{h}$)')
@@ -592,14 +595,77 @@ def compare2(args):
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
+def compare3(args):
+    """
+    %prog compare3
+
+    Compare performances of various variant callers on simulated STR datasets.
+    This compares the power of various evidence types.
+    """
+    p = OptionParser(compare3.__doc__)
+    p.add_option('--maxinsert', default=300, type="int",
+                 help="Maximum number of repeats")
+    add_simulate_options(p)
+    opts, args, iopts = p.set_image_options(args, figsize="10x10")
+
+    if len(args) != 0:
+        sys.exit(not p.print_help())
+
+    max_insert = opts.maxinsert
+    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(ncols=2, nrows=2,
+                                   figsize=(iopts.w, iopts.h))
+    plt.tight_layout(pad=3)
+
+    # ax1: Spanning
+    tredparse_results = parse_results("tredparse_results_het-spanning.txt")
+    title = r"Simulated haploid $\mathit{h}$" + \
+            r" (Spanning reads)"
+    plot_compare(ax1, title, tredparse_results, None,
+                 max_insert=max_insert)
+
+    # ax2: Partial
+    tredparse_results = parse_results("tredparse_results_het-partial.txt", exclude=20)
+    title = r"Simulated diploid $\mathit{20/h}$" + \
+            r" (Partial reads)"
+    plot_compare(ax2, title, tredparse_results, None,
+                 max_insert=max_insert)
+
+    # ax3: Repeat
+    tredparse_results = parse_results("tredparse_results_het-repeat.txt", exclude=20)
+    title = r"Simulated diploid $\mathit{20/h}$" + \
+            r" (Repeat-only reads)"
+    plot_compare(ax3, title, tredparse_results, None,
+                 max_insert=max_insert)
+
+    # ax4: Pair
+    tredparse_results = parse_results("tredparse_results_het-pair.txt", exclude=20)
+    title = r"Simulated diploid $\mathit{20/h}$" + \
+            r" (Paired-end reads)"
+    plot_compare(ax4, title, tredparse_results, None,
+                 max_insert=max_insert)
+
+    for ax in (ax1, ax2, ax3, ax4):
+        ax.set_xlim(0, max_insert)
+        ax.set_ylim(0, max_insert)
+
+    root = fig.add_axes([0, 0, 1, 1])
+    pad = .03
+    panel_labels(root, ((pad / 2, 1 - pad, "A"), (1 / 2., 1 - pad, "B"),
+                        (pad / 2, 1 / 2. , "C"), (1 / 2., 1 / 2. , "D")))
+    normalize_axes(root)
+
+    image_name = "tredparse." + iopts.format
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
+
+
 def compare4(args):
     """
-    %prog compare2
+    %prog compare4
 
     Compare performances of various variant callers on simulated STR datasets.
     Adds coverage comparisons as panel C and D.
     """
-    p = OptionParser(compare2.__doc__)
+    p = OptionParser(compare4.__doc__)
     p.add_option('--maxinsert', default=300, type="int",
                  help="Maximum number of repeats")
     add_simulate_options(p)

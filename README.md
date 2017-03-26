@@ -8,7 +8,7 @@
 Collection of Python libraries to parse bioinformatics files, or perform
 computation related to assembly, annotation, and comparative genomics.
 
-|||
+| - | - |
 | --- | --- |
 | Authors | Haibao Tang ([tanghaibao](http://github.com/tanghaibao)) |
 || Vivek Krishnakumar ([vivekkrish](https://github.com/vivekkrish)) |

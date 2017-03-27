@@ -329,7 +329,7 @@ def evidences(args):
     - Longer allele
     """
     p = OptionParser(evidences.__doc__)
-    p.add_option("--csv", default="hli.20170316.tred.tsv",
+    p.add_option("--csv", default="hli.20170327.tred.tsv",
                  help="TRED csv output to plot")
     opts, args, iopts = p.set_image_options(args, format="pdf")
 
@@ -623,25 +623,25 @@ def compare3(args):
     color = "lightslategray"
     # ax1: Spanning
     tredparse_results = parse_results("tredparse_results_het-spanning.txt")
-    title = r"Simulated haploid $\mathit{h}$ (Spanning reads)"
+    title = r"Simulated diploid $\mathit{20/h}$ (Sub-model 1: Spanning reads)"
     plot_compare(ax1, title, tredparse_results, None, color=color,
                  max_insert=max_insert)
 
     # ax2: Partial
     tredparse_results = parse_results("tredparse_results_het-partial.txt", exclude=20)
-    title = r"Simulated diploid $\mathit{20/h}$ (Partial reads)"
+    title = r"Simulated diploid $\mathit{20/h}$ (Sub-model 2: Partial reads)"
     plot_compare(ax2, title, tredparse_results, None, color=color,
                  max_insert=max_insert)
 
     # ax3: Repeat
     tredparse_results = parse_results("tredparse_results_het-repeat.txt", exclude=20)
-    title = r"Simulated diploid $\mathit{20/h}$ (Repeat-only reads)"
+    title = r"Simulated diploid $\mathit{20/h}$ (Sub-model 3: Repeat-only reads)"
     plot_compare(ax3, title, tredparse_results, None, color=color,
                  max_insert=max_insert)
 
     # ax4: Pair
     tredparse_results = parse_results("tredparse_results_het-pair.txt", exclude=20)
-    title = r"Simulated diploid $\mathit{20/h}$ (Paired-end reads)"
+    title = r"Simulated diploid $\mathit{20/h}$ (Sub-model 4: Paired-end reads)"
     plot_compare(ax4, title, tredparse_results, None, color=color,
                  max_insert=max_insert)
 

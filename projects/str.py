@@ -618,30 +618,26 @@ def compare3(args):
 
     # ax1: Spanning
     tredparse_results = parse_results("tredparse_results_het-spanning.txt")
-    title = r"Simulated haploid $\mathit{h}$" + \
-            r" (Spanning reads)"
-    plot_compare(ax1, title, tredparse_results, None,
+    title = r"Simulated haploid $\mathit{h}$ (Spanning reads)"
+    plot_compare(ax1, title, tredparse_results, None, color='k',
                  max_insert=max_insert)
 
     # ax2: Partial
     tredparse_results = parse_results("tredparse_results_het-partial.txt", exclude=20)
-    title = r"Simulated diploid $\mathit{20/h}$" + \
-            r" (Partial reads)"
-    plot_compare(ax2, title, tredparse_results, None,
+    title = r"Simulated diploid $\mathit{20/h}$ (Partial reads)"
+    plot_compare(ax2, title, tredparse_results, None, color='k',
                  max_insert=max_insert)
 
     # ax3: Repeat
     tredparse_results = parse_results("tredparse_results_het-repeat.txt", exclude=20)
-    title = r"Simulated diploid $\mathit{20/h}$" + \
-            r" (Repeat-only reads)"
-    plot_compare(ax3, title, tredparse_results, None,
+    title = r"Simulated diploid $\mathit{20/h}$ (Repeat-only reads)"
+    plot_compare(ax3, title, tredparse_results, None, color='k',
                  max_insert=max_insert)
 
     # ax4: Pair
     tredparse_results = parse_results("tredparse_results_het-pair.txt", exclude=20)
-    title = r"Simulated diploid $\mathit{20/h}$" + \
-            r" (Paired-end reads)"
-    plot_compare(ax4, title, tredparse_results, None,
+    title = r"Simulated diploid $\mathit{20/h}$ (Paired-end reads)"
+    plot_compare(ax4, title, tredparse_results, None, color='k',
                  max_insert=max_insert)
 
     for ax in (ax1, ax2, ax3, ax4):

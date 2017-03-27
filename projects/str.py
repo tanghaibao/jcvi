@@ -13,13 +13,14 @@ import logging
 import shutil
 import numpy as np
 import pandas as pd
+from math import log
 
 from pyfaidx import Fasta
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
-from jcvi.graphics.base import normalize_axes, panel_labels, plt, savefig
+from jcvi.graphics.base import Rectangle, normalize_axes, panel_labels, plt, savefig
 from jcvi.formats.sam import index
 from jcvi.variation.str import af_to_counts, read_treds
 from jcvi.apps.grid import Parallel
@@ -64,9 +65,79 @@ def main():
         ('compare3', 'compare TREDPARSE on fake HD patients adding evidence'),
         ('compare4', 'compare TREDPARSE on fake HD patients adding coverage'),
         ('allelefreq', 'plot the allele frequencies of some STRs'),
+        # Diagram
+        ('diagram', 'plot the predictive power of various evidences'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def diagram(args):
+    """
+    %prog diagram
+
+    Plot the predictive power of various evidences.
+    """
+    p = OptionParser(diagram.__doc__)
+    opts, args, iopts = p.set_image_options(args, figsize="6x4")
+
+    if len(args) != 0:
+        sys.exit(not p.print_help())
+
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes([0, 0, 1, 1])
+
+    # Gauge on top, this is log-scale
+    yy = .7
+    yinterval = .1
+    height = .05
+    yp = yy - yinterval - height
+    canvas = .8
+    convert = lambda x: .1 + x * canvas / 1200
+    # Symbols
+    root.text(.5, .87, r"$L$: Read length, $F$: Flank size, $V$: Pair distance", ha="center")
+    root.text(.5, .82, r"ex. $L=150bp, F=9bp, V=500bp$", ha="center")
+
+    # Mark the key events
+    lsg = "lightslategray"
+    pad = .02
+    root.plot((.1, .1 + canvas), (yy, yy), '-', color=lsg, lw=2)
+    ppad = 30
+    keyevents = ((150 - 18, 150 - 18 - ppad, 0, r"$L - 2F$"),
+                  (150 - 9,         150 - 9, 1, r"$L - F$"),
+                      (150,      150 + ppad, 2, r"$L$"),
+                  (500 - 9,         500 - 9, 3, r"$V - F$"),
+             (500 * 2 - 18,    500 * 2 - 18, 2, r"$2(V - F)$"),
+                )
+    for event, pos, i, label in keyevents:
+        _event = convert(event)
+        _pos = convert(pos)
+        ystart = yp - i * yinterval
+        root.plot((_event, _event), (ystart, yy + pad), ':', color=lsg)
+        root.text(_pos, yy + pad, label, rotation=45, va="bottom", size=8)
+
+    # Range on bottom. These are simple 4 rectangles, with the range indicating
+    # the predictive range.
+    CLOSED, OPEN = range(2)
+    ranges = ((0,       150 - 18, CLOSED, "Spanning reads"),
+              (9,        150 - 9, OPEN,   "Partial reads"),
+              (150, 500 * 2 - 18, CLOSED, "Repeat reads"),
+              (0,        500 - 9, CLOSED, "Paired-end reads"),
+             )
+    for start, end, starttag, label in ranges:
+        _start = convert(start)
+        _end = convert(end)
+        data = [[0., 1.], [0., 1.]] if starttag == OPEN else \
+               [[1., 0.], [1., 0.]]
+        root.imshow(data, interpolation='bicubic',
+                    extent=[_start, _end, yp, yp + height])
+        root.text(_end + pad, yp + height / 2, label, va="center")
+        yp -= yinterval
+
+    normalize_axes(root)
+
+    image_name = "diagram." + iopts.format
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
 def plot_allelefreq(ax, df, locus, color='lightslategray'):

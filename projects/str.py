@@ -13,14 +13,13 @@ import logging
 import shutil
 import numpy as np
 import pandas as pd
-from math import log
 
 from pyfaidx import Fasta
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
-from jcvi.graphics.base import Rectangle, normalize_axes, panel_labels, plt, savefig
+from jcvi.graphics.base import FancyArrow, normalize_axes, panel_labels, plt, savefig
 from jcvi.formats.sam import index
 from jcvi.variation.str import af_to_counts, read_treds
 from jcvi.apps.grid import Parallel
@@ -88,22 +87,31 @@ def diagram(args):
     root = fig.add_axes([0, 0, 1, 1])
 
     # Gauge on top, this is log-scale
+    lsg = "lightslategray"
     yy = .7
     yinterval = .1
     height = .05
     yp = yy - yinterval - height
-    canvas = .8
-    convert = lambda x: .1 + x * canvas / 1200
+    canvas = .9
+    xstart = .05
+    convert = lambda x: xstart + x * canvas / 1200
     # Symbols
-    root.text(.5, .87, r"$L$: Read length, $F$: Flank size, $V$: Pair distance", ha="center")
-    root.text(.5, .82, r"ex. $L=150bp, F=9bp, V=500bp$", ha="center")
+    root.text(.5, .9, r"$L$: Read length, $F$: Flank size, $V$: Pair distance", ha="center")
+    root.text(.5, .85, r"ex. $L=150bp, F=9bp, V=500bp$", ha="center")
+    root.text(xstart + canvas, yy - height, "STR repeat length", ha="center",
+              color=lsg, size=10)
 
     # Mark the key events
-    lsg = "lightslategray"
     pad = .02
-    root.plot((.1, .1 + canvas), (yy, yy), '-', color=lsg, lw=2)
+    arrowlen = canvas * 1.05
+    arrowprops = dict(length_includes_head=True, width=.01, fc=lsg, lw=0,
+                      head_length=arrowlen * .12, head_width=.04)
+    p = FancyArrow(xstart, yy, arrowlen, 0, shape="right", **arrowprops)
+    root.add_patch(p)
+
     ppad = 30
-    keyevents = ((150 - 18, 150 - 18 - ppad, 0, r"$L - 2F$"),
+    keyevents = ((       0,               0, -1, r"$0$"),
+                 (150 - 18, 150 - 18 - ppad, 0, r"$L - 2F$"),
                   (150 - 9,         150 - 9, 1, r"$L - F$"),
                       (150,      150 + ppad, 2, r"$L$"),
                   (500 - 9,         500 - 9, 3, r"$V - F$"),
@@ -112,9 +120,13 @@ def diagram(args):
     for event, pos, i, label in keyevents:
         _event = convert(event)
         _pos = convert(pos)
-        ystart = yp - i * yinterval
-        root.plot((_event, _event), (ystart, yy + pad), ':', color=lsg)
+        root.plot((_event, _event), (yy - height / 4, yy + height / 4),
+                  '-', color='k')
         root.text(_pos, yy + pad, label, rotation=45, va="bottom", size=8)
+        if i < 0:
+            continue
+        ystart = yp - i * yinterval
+        root.plot((_event, _event), (ystart, yy - height / 4), ':', color=lsg)
 
     # Range on bottom. These are simple 4 rectangles, with the range indicating
     # the predictive range.
@@ -129,7 +141,7 @@ def diagram(args):
         _end = convert(end)
         data = [[0., 1.], [0., 1.]] if starttag == OPEN else \
                [[1., 0.], [1., 0.]]
-        root.imshow(data, interpolation='bicubic',
+        root.imshow(data, interpolation='bicubic', cmap=plt.cm.Greens,
                     extent=[_start, _end, yp, yp + height])
         root.text(_end + pad, yp + height / 2, label, va="center")
         yp -= yinterval

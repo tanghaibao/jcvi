@@ -602,7 +602,8 @@ def compare(args):
 
 
 def plot_compare(ax, title, tredparse_results, lobstr_results, pad=8, ms=3,
-                 max_insert=300, depth=20, readlen=150, distance=500, color='g'):
+                 max_insert=300, depth=20, readlen=150, distance=500, color='g',
+                 risk=True):
     truth = range(1, max_insert + 1)
     tx, ty, tl, th = zip(*tredparse_results)
     trmsd = compute_rmsd(truth, ty)
@@ -623,11 +624,22 @@ def plot_compare(ax, title, tredparse_results, lobstr_results, pad=8, ms=3,
     ax.legend(loc='best')
 
     bbox = {'facecolor': 'tomato', 'alpha': .2, 'ec': 'w'}
-    ax.axhline(infected_thr, color='tomato')
-    ax.text(max(truth) - pad, infected_thr + pad,
-             'Risk cutoff={}'.format(infected_thr) +
-             r'$\times$CAGs',
-             bbox=bbox, ha="right")
+    if risk:
+        ax.axhline(infected_thr, color='tomato')
+        ax.text(max(truth) - pad, infected_thr + pad,
+                 'Risk cutoff={}'.format(infected_thr) +
+                 r'$\times$CAGs',
+                 bbox=bbox, ha="right")
+    else:
+        readlength, pairdistance = 150 / 3, 500 / 3
+        ax.axhline(readlength, color='tomato')
+        ax.text(max(truth) - pad, readlength + pad,
+                 'Read Length ($L$)',
+                 bbox=bbox, ha="right")
+        ax.axhline(pairdistance, color='tomato')
+        ax.text(max(truth) - pad, pairdistance + pad,
+                 'Paired-end distance($V$)',
+                 bbox=bbox, ha="right")
 
 
 def compare2(args):
@@ -708,25 +720,27 @@ def compare3(args):
     tredparse_results = parse_results("tredparse_results_het-spanning.txt")
     title = r"Simulated diploid $\mathit{20/h}$ (Sub-model 1: Spanning reads)"
     plot_compare(ax1, title, tredparse_results, None, color=color,
-                 max_insert=max_insert)
+                 max_insert=max_insert, risk=False)
 
     # ax2: Partial
     tredparse_results = parse_results("tredparse_results_het-partial.txt", exclude=20)
     title = r"Simulated diploid $\mathit{20/h}$ (Sub-model 2: Partial reads)"
     plot_compare(ax2, title, tredparse_results, None, color=color,
-                 max_insert=max_insert)
+                 max_insert=max_insert, risk=False)
 
     # ax3: Repeat
     tredparse_results = parse_results("tredparse_results_het-repeat.txt", exclude=20)
+    # HACK (repeat reads won't work under 50)
+    tredparse_results = [x for x in tredparse_results if x[0] > 50]
     title = r"Simulated diploid $\mathit{20/h}$ (Sub-model 3: Repeat-only reads)"
     plot_compare(ax3, title, tredparse_results, None, color=color,
-                 max_insert=max_insert)
+                 max_insert=max_insert, risk=False)
 
     # ax4: Pair
     tredparse_results = parse_results("tredparse_results_het-pair.txt", exclude=20)
     title = r"Simulated diploid $\mathit{20/h}$ (Sub-model 4: Paired-end reads)"
     plot_compare(ax4, title, tredparse_results, None, color=color,
-                 max_insert=max_insert)
+                 max_insert=max_insert, risk=False)
 
     for ax in (ax1, ax2, ax3, ax4):
         ax.set_xlim(0, max_insert)

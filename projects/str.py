@@ -78,7 +78,7 @@ def diagram(args):
     Plot the predictive power of various evidences.
     """
     p = OptionParser(diagram.__doc__)
-    opts, args, iopts = p.set_image_options(args, figsize="6x4")
+    opts, args, iopts = p.set_image_options(args, figsize="8x4")
 
     if len(args) != 0:
         sys.exit(not p.print_help())
@@ -92,8 +92,8 @@ def diagram(args):
     yinterval = .1
     height = .05
     yp = yy - yinterval - height
-    canvas = .9
-    xstart = .05
+    canvas = .95
+    xstart = .025
     convert = lambda x: xstart + x * canvas / 1200
     # Symbols
     root.text(.5, .9, r"$L$: Read length, $F$: Flank size, $V$: Pair distance", ha="center")

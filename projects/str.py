@@ -154,7 +154,7 @@ def diagram(args):
 
 def plot_allelefreq(ax, df, locus, color='lightslategray'):
     tred = df.ix[locus]
-    cnt = af_to_counts(tred["allele_frequency"])
+    cnt = af_to_counts(tred["allele_freq"])
 
     cntx, cnty = zip(*cnt.items())
 
@@ -168,14 +168,15 @@ def plot_allelefreq(ax, df, locus, color='lightslategray'):
     ax.bar(cntx, cnty, fc=color)
 
     ymin, ymax = ax.get_ylim()
+    pad = 1.25
     if cutoff_prerisk < cutoff_risk and npredisease:
         ax.axvline(x=cutoff_prerisk, color="k", lw=2)
-        ax.text(cutoff_prerisk + 1, .5 * ymax,
+        ax.text(cutoff_prerisk + pad, .5 * ymax,
                 r"Pre-disease ($\geq${}$\times${}) - {} persons".\
                 format(cutoff_prerisk, motif, npredisease),
                 rotation=90, color="k", ha="center", va="center")
     ax.axvline(x=cutoff_risk, color="r", lw=2)
-    ax.text(cutoff_risk + 1, .5 * ymax,
+    ax.text(cutoff_risk + pad, .5 * ymax,
             r"Disease ($\geq${}$\times${}) - {} persons".\
             format(cutoff_risk, motif, npatients),
             rotation=90, color="r", ha="center", va="center")
@@ -193,7 +194,7 @@ def plot_allelefreq(ax, df, locus, color='lightslategray'):
 
 def allelefreq(args):
     """
-    %prog allelefreq DM1,HD,SCA1,SCA17
+    %prog allelefreq HD,DM1,SCA1,SCA17
 
     Plot the allele frequencies of some STRs.
     """

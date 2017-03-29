@@ -172,12 +172,12 @@ def plot_allelefreq(ax, df, locus, color='lightslategray'):
     if cutoff_prerisk < cutoff_risk and npredisease:
         ax.axvline(x=cutoff_prerisk, color="k", lw=2)
         ax.text(cutoff_prerisk + pad, .5 * ymax,
-                r"Pre-disease ($\geq${}$\times${}) - {} persons".\
+                r"Pre-disease ($\geq${}$\times${}) - {} alleles".\
                 format(cutoff_prerisk, motif, npredisease),
                 rotation=90, color="k", ha="center", va="center")
     ax.axvline(x=cutoff_risk, color="r", lw=2)
     ax.text(cutoff_risk + pad, .5 * ymax,
-            r"Disease ($\geq${}$\times${}) - {} persons".\
+            r"Disease ($\geq${}$\times${}) - {} alleles".\
             format(cutoff_risk, motif, npatients),
             rotation=90, color="r", ha="center", va="center")
 
@@ -413,7 +413,7 @@ def evidences(args):
     - Longer allele
     """
     p = OptionParser(evidences.__doc__)
-    p.add_option("--csv", default="hli.20170327.tred.tsv",
+    p.add_option("--csv", default="hli.20170328.tred.tsv",
                  help="TRED csv output to plot")
     opts, args, iopts = p.set_image_options(args, format="pdf")
 

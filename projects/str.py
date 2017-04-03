@@ -32,6 +32,8 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, iglob
 # Huntington risk allele
 infected_thr = 40
 ref_thr = 19
+SIMULATED_HAPLOID = r'Simulated haploid $\mathit{h}$'
+SIMULATED_DIPLOID = r"Simulated diploid $\mathit{20/h}$"
 
 
 class TREDPARSEvcf(object):
@@ -587,7 +589,7 @@ def compare(args):
         ax.axhline(ref_thr, color='tomato')
         ax.text(max(truth) - pad, ref_thr - pad, 'Reference repeat count',
                 bbox=bbox, ha="right", va="top")
-        ax.set_title(r'Simulated haploid $\mathit{h}$')
+        ax.set_title(SIMULATED_HAPLOID)
         ax.set_xlabel(r'Num of CAG repeats inserted ($\mathit{h}$)')
         ax.set_ylabel('Num of CAG repeats called')
         ax.legend([prog, 'Truth'], loc='best')
@@ -669,7 +671,7 @@ def compare2(args):
     # ax1: lobSTR vs TREDPARSE with haploid model
     lobstr_results = parse_results("lobstr_results_homo.txt")
     tredparse_results = parse_results("tredparse_results_homo.txt")
-    title = r"Simulated haploid $\mathit{h}$" + \
+    title = SIMULATED_HAPLOID + \
             r" ($D=%s\times, L=%dbp, V=%dbp$)" % (depth, readlen, distance)
     plot_compare(ax1, title, tredparse_results, lobstr_results,
                  max_insert=max_insert)
@@ -677,7 +679,7 @@ def compare2(args):
     # ax2: lobSTR vs TREDPARSE with diploid model
     lobstr_results = parse_results("lobstr_results_het.txt", exclude=20)
     tredparse_results = parse_results("tredparse_results_het.txt", exclude=20)
-    title = r"Simulated diploid $\mathit{20/h}$" + \
+    title = SIMULATED_DIPLOID + \
             r" ($D=%s\times, L=%dbp, V=%dbp$)" % (depth, readlen, distance)
     plot_compare(ax2, title, tredparse_results, lobstr_results,
                  max_insert=max_insert)
@@ -719,13 +721,13 @@ def compare3(args):
     color = "lightslategray"
     # ax1: Spanning
     tredparse_results = parse_results("tredparse_results_het-spanning.txt")
-    title = r"Simulated diploid $\mathit{20/h}$ (Sub-model 1: Spanning reads)"
+    title = SIMULATED_DIPLOID + "( Sub-model 1: Spanning reads)"
     plot_compare(ax1, title, tredparse_results, None, color=color,
                  max_insert=max_insert, risk=False)
 
     # ax2: Partial
     tredparse_results = parse_results("tredparse_results_het-partial.txt", exclude=20)
-    title = r"Simulated diploid $\mathit{20/h}$ (Sub-model 2: Partial reads)"
+    title = SIMULATED_DIPLOID + " (Sub-model 2: Partial reads)"
     plot_compare(ax2, title, tredparse_results, None, color=color,
                  max_insert=max_insert, risk=False)
 
@@ -733,13 +735,13 @@ def compare3(args):
     tredparse_results = parse_results("tredparse_results_het-repeat.txt", exclude=20)
     # HACK (repeat reads won't work under 50)
     tredparse_results = [x for x in tredparse_results if x[0] > 50]
-    title = r"Simulated diploid $\mathit{20/h}$ (Sub-model 3: Repeat-only reads)"
+    title = SIMULATED_DIPLOID + " (Sub-model 3: Repeat-only reads)"
     plot_compare(ax3, title, tredparse_results, None, color=color,
                  max_insert=max_insert, risk=False)
 
     # ax4: Pair
     tredparse_results = parse_results("tredparse_results_het-pair.txt", exclude=20)
-    title = r"Simulated diploid $\mathit{20/h}$ (Sub-model 4: Paired-end reads)"
+    title = SIMULATED_DIPLOID + " (Sub-model 4: Paired-end reads)"
     plot_compare(ax4, title, tredparse_results, None, color=color,
                  max_insert=max_insert, risk=False)
 
@@ -782,32 +784,28 @@ def compare4(args):
     # ax1: lobSTR vs TREDPARSE with haploid model
     lobstr_results = parse_results("lobstr_results_homo-20x-150bp-500bp.txt")
     tredparse_results = parse_results("tredparse_results_homo-20x-150bp-500bp.txt")
-    title = r"Simulated haploid $\mathit{h}$" + \
-            r" ($Depth=%s\times)" % depth
+    title = SIMULATED_HAPLOID + r" ($Depth=%s\times)" % depth
     plot_compare(ax1, title, tredparse_results, lobstr_results,
                  max_insert=max_insert)
 
     # ax2: lobSTR vs TREDPARSE with diploid model (depth=20x)
     lobstr_results = parse_results("lobstr_results_het-20x-150bp-500bp.txt", exclude=20)
     tredparse_results = parse_results("tredparse_results_het-20x-150bp-500bp.txt", exclude=20)
-    title = r"Simulated diploid $\mathit{20/h}$" + \
-            r" ($Depth=%s\times$)" % depth
+    title = SIMULATED_DIPLOID + r" ($Depth=%s\times$)" % depth
     plot_compare(ax2, title, tredparse_results, lobstr_results,
                  max_insert=max_insert)
 
     # ax3: lobSTR vs TREDPARSE with diploid model (depth=5x)
     lobstr_results = parse_results("lobstr_results_het-5x-150bp-500bp.txt", exclude=20)
     tredparse_results = parse_results("tredparse_results_het-5x-150bp-500bp.txt", exclude=20)
-    title = r"Simulated diploid $\mathit{20/h}$" + \
-            r" ($Depth=%s\times$)" % 5
+    title = SIMULATED_DIPLOID + r" ($Depth=%s\times$)" % 5
     plot_compare(ax3, title, tredparse_results, lobstr_results,
                  max_insert=max_insert)
 
     # ax4: lobSTR vs TREDPARSE with diploid model (depth=80x)
     lobstr_results = parse_results("lobstr_results_het-80x-150bp-500bp.txt", exclude=20)
     tredparse_results = parse_results("tredparse_results_het-80x-150bp-500bp.txt", exclude=20)
-    title = r"Simulated diploid $\mathit{20/h}$" + \
-            r" ($Depth=%s\times$)" % 80
+    title = SIMULATED_DIPLOID + r" ($Depth=%s\times$)" % 80
     plot_compare(ax4, title, tredparse_results, lobstr_results,
                  max_insert=max_insert)
 

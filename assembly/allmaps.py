@@ -810,6 +810,7 @@ def main():
 
     actions = (
         ('animation', 'visualize history of scaffold OO'),
+        ('fake', 'make fake scaffolds.fasta'),
         ('merge', 'merge csv maps and convert to bed format'),
         ('mergebed', 'merge maps in bed format'),
         ('path', 'construct golden path given a set of genetic maps'),
@@ -822,6 +823,41 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def fake(args):
+    """
+    %prog fake input.bed
+
+    Make fake `scaffolds.fasta`. Use case for this is that sometimes I would
+    receive just the csv/bed file and I'd like to use path() out of the box.
+    """
+    from math import ceil
+    from random import choice
+
+    from Bio import SeqIO
+    from Bio.Seq import Seq
+    from Bio.SeqRecord import SeqRecord
+
+    p = OptionParser(fake.__doc__)
+    p.set_outfile()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    inputbed, = args
+    bed = Bed(inputbed)
+    recs = []
+    for seqid, sb in bed.sub_beds():
+        maxend = max(x.end for x in sb)
+        size = int(ceil(maxend / 1000.) * 1000)
+        seq = "".join([choice("ACGT") for x in xrange(size)])
+        rec = SeqRecord(Seq(seq), id=seqid, description="")
+        recs.append(rec)
+
+    fw = must_open(opts.outfile, "w")
+    SeqIO.write(recs, fw, "fasta")
 
 
 def compute_score(markers, bonus, penalty):

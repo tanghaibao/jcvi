@@ -83,7 +83,7 @@ def output_bam(cmd, outfile, cpus=8):
     if not bam:
         return cmd + " > {0}".format(outfile)
 
-    outcmd, mflag = ("samtools view -bS", "-F 4 -@ {0}".format(cpus))
+    outcmd, mflag = ("samtools view -bS", "-@ {0}".format(cpus))
     cmd += " | {0} {1} - > {2}".format(outcmd, mflag, outfile)
 
     return cmd

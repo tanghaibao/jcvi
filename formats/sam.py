@@ -613,10 +613,10 @@ def index(args):
         faifile = fastafile + ".fai"
         if need_update(fastafile, faifile):
             sh("samtools faidx {0}".format(fastafile))
-        cmd = "samtools view -bt {0} {1} -F 4 -o {2}".\
+        cmd = "samtools view -bt {0} {1} -o {2}".\
                 format(faifile, samfile, bamfile)
     else:
-        cmd = "samtools view -bS {0} -F 4 -o {1}".\
+        cmd = "samtools view -bS {0} -o {1}".\
                 format(samfile, bamfile)
 
     cmd += " -@ {0}".format(cpus)

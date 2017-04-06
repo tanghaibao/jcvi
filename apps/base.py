@@ -89,9 +89,9 @@ class ActionDispatcher (object):
 
 class OptionParser (OptionP):
 
-    def __init__(self, doc, version="jcvi {}".format(__version__)):
+    def __init__(self, doc):
 
-        OptionP.__init__(self, doc, version=version, epilog=JCVIHELP)
+        OptionP.__init__(self, doc, epilog=JCVIHELP)
 
     def parse_args(self, args=None):
         dests = set()

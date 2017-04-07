@@ -15,6 +15,7 @@ from itertools import izip_longest
 
 from jcvi.compara.synteny import AnchorFile, check_beds
 from jcvi.formats.bed import Bed
+from jcvi.utils.grouper import Grouper
 from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
@@ -26,9 +27,35 @@ def main():
         ('pairs', 'convert anchorsfile to pairsfile'),
         # Sankoff-Zheng reconstruction
         ('adjgraph', 'construct adjacency graph'),
+        # Experimental gene order graph for ancestral reconstruction
+        ('fuse', 'fuse gene orders based on anchorsfile'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def fuse(args):
+    """
+    %prog fuse *.bed *.anchors
+
+    Fuse gene orders based on anchors file.
+    """
+    p = OptionParser(fuse.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) < 1:
+        sys.exit(not p.print_help())
+
+    bedfiles = [x for x in args if x.endswith(".bed")]
+    anchorfiles = [x for x in args if x.endswith(".anchors")]
+    aligned_genes = Grouper()
+    for anchorfile in anchorfiles:
+        af = AnchorFile(anchorfile)
+        for a, b, block_id in af.iter_pairs():
+            aligned_genes.join(a, b)
+
+    print list(aligned_genes)
+    logging.debug("Total aligned genes: {}".format(len(aligned_genes)))
 
 
 def adjgraph(args):

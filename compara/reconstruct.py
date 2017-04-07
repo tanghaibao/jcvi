@@ -40,18 +40,9 @@ def add_bed_to_graph(G, bed, families):
         for b in bs:
             accn = b.accn
             strand = b.strand
-            node = "|".join(families[accn])
-            G.add_edge(node + "-5p", node + "-3p")
+            node = "&".join(families[accn])
             if prev_node:
-                if prev_strand == '+':
-                    u = prev_node + "-5p"
-                else:
-                    u = prev_node + "-3p"
-                if strand == '+':
-                    v = node + "-5p"
-                else:
-                    v = node + "-3p"
-                G.add_edge(u, v)
+                G.add_edge(prev_node, node, prev_strand, strand)
             prev_node, prev_strand = node, strand
 
     return G
@@ -63,7 +54,7 @@ def fuse(args):
 
     Fuse gene orders based on anchors file.
     """
-    import networkx as nx
+    from jcvi.algorithms.graph import BiGraph
 
     p = OptionParser(fuse.__doc__)
     opts, args = p.parse_args(args)
@@ -85,19 +76,14 @@ def fuse(args):
     logging.debug("Total families: {}, Gene members: {}"\
                 .format(len(families), len(allowed)))
 
-    G = nx.DiGraph()
+    G = BiGraph()
     for bedfile in bedfiles:
         bed = Bed(bedfile, include=allowed)
         add_bed_to_graph(G, bed, families)
 
-    logging.debug("Graph constructed: {} nodes, {} edges"\
-                .format(len(G), len(G.edges())))
-
-    components = list(nx.strongly_connected_components(G))
-    logging.debug("Strongly connected components: {}".format(len(components)))
-
-    Gc = max(nx.strongly_connected_component_subgraphs(G), key=len)
-    nx.write_gexf(Gc, "graph.gexf")
+    for path in G.iter_paths():
+        m, oo = G.path(path)
+        print m
 
 
 def adjgraph(args):

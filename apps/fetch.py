@@ -227,11 +227,16 @@ def phytozome(args):
 
     $ %prog phytozome Athaliana,Vvinifera,Osativa,Sbicolor,Slycopersicum
     """
+    from jcvi.formats.gff import bed as gff_bed
+    from jcvi.formats.fasta import format as fasta_format
+
     p = OptionParser(phytozome.__doc__)
     p.add_option("--version", default="9.0",
                  help="Phytozome version [default: %default]")
     p.add_option("--assembly", default=False, action="store_true",
                  help="Download assembly [default: %default]")
+    p.add_option("--format", default=False, action="store_true",
+                 help="Format to CDS and BED for synteny inference")
     opts, args = p.parse_args(args)
 
     url = "ftp://ftp.jgi-psf.org/pub/compgen/phytozome/v{0}/".\
@@ -247,7 +252,15 @@ def phytozome(args):
     species, = args
     species = species.split(",")
     for s in species:
-        download_species_phytozome(s, valid_species, url, assembly=opts.assembly)
+        gff, fa = download_species_phytozome(s, valid_species, url,
+                                             assembly=opts.assembly)
+        if not opts.format:
+            continue
+
+        bedfile = s + ".bed"
+        cdsfile = s + ".cds"
+        gff_bed([gff, "--phytozome", "-o", bedfile])
+        fasta_format([fa, cdsfile, r"--sep=|"])
 
 
 def download_species_phytozome(species, valid_species, url, assembly=False):
@@ -266,10 +279,12 @@ def download_species_phytozome(species, valid_species, url, assembly=False):
     asm_url = urljoin(surl, "assembly/{0}.fa.gz".format(pf))
     ann_url = urljoin(surl, "annotation/{0}_gene.gff3.gz".format(pf))
     cds_url = urljoin(surl, "annotation/{0}_cds.fa.gz".format(pf))
+    res = []
     if assembly:
         download(asm_url)
     for u in (ann_url, cds_url):
-        download(u)
+        res.append(download(u))
+    return res
 
 
 def get_first_rec(fastafile):

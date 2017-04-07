@@ -139,7 +139,7 @@ class AGPLine (object):
         attributes = ";".join(("ID=" + gff_feat_id, \
                               "Name=" + self.component_id, \
                               "phase=" + self.component_type))
-        gff_feat_type = "gap" if self.component_type == "N" \
+        gff_feat_type = "gap" if self.component_type in ["N", "U"] \
             else gff_feat_type
         orientation = "." if self.orientation == "na" else self.orientation
 

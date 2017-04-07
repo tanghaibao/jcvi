@@ -1328,6 +1328,8 @@ def format(args):
                  help="Disable strict parsing of GFF file and/or mapping file [default: %default]")
     g1.add_option("--remove_attr", dest="remove_attrs", help="Specify attributes to remove; " + \
                 "accepts comma-separated list of attribute names [default: %default]")
+    g1.add_option("--copy_id_attr_to_name", default=False, action="store_true",
+                 help="Copy `ID` attribute value to `Name`, when `Name` is not defined")
     g1.add_option("--invent_name_attr", default=False, action="store_true",
                  help="Invent `Name` attribute for 2nd level child features; " + \
                 "Formatted like PARENT:FEAT_TYPE:FEAT_INDEX")
@@ -1409,6 +1411,9 @@ def format(args):
                 opts.remove_feats_by_ID.split(",")
     strict = False if opts.nostrict else True
     make_gff_store = True if gffile in ("-", "stdin") else opts.make_gff_store
+    assert not (opts.copy_id_attr_to_name and opts.invent_name_attr), \
+        "Cannot use `--copy_id_attr_to_name` and `--invent_name_attr` together"
+    copy_id_attr_to_name = opts.copy_id_attr_to_name
     invent_name_attr = opts.invent_name_attr
     invent_protein_feat = opts.invent_protein_feat
     compute_signature = False
@@ -1475,6 +1480,8 @@ def format(args):
             merge_feats = AutoVivification()
         if invent_name_attr:
             ft = GffFeatureTracker()
+        elif copy_id_attr_to_name:
+            pass
         if invent_protein_feat:
             cds_track = {}
         if opts.multiparents == "merge" or invent_name_attr:
@@ -1605,8 +1612,9 @@ def format(args):
 
         if attrib_files:
             for attr_name in attr_values:
-                if id in attr_values[attr_name]:
-                    g.set_attr(attr_name, attr_values[attr_name][id])
+                name = g.get_attr("Name")
+                if name in attr_values[attr_name]:
+                    g.set_attr(attr_name, attr_values[attr_name][name])
 
         if dbxref_files:
             for dbtag in dbxref_values:
@@ -1658,6 +1666,9 @@ def format(args):
                     g.set_attr(attr, "{0}:{1}:{2}".format(symbol, g.type, fidx + 1))
                     if opts.multiparents == "merge" and attr == "Name":
                         g.set_attr("ID", "{0}:{1}:{2}".format(parent, g.type, fidx + 1))
+        elif copy_id_attr_to_name:
+            if "Name" not in g.attributes.keys():
+                g.set_attr("Name", g.get_attr("ID"))
 
         protein_feat = None
         if invent_protein_feat:

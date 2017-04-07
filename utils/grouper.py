@@ -103,6 +103,9 @@ class Grouper(object):
     def num_members(self):
         return sum(len(x) for x in self)
 
+    def keys(self):
+        return self._mapping.keys()
+
 
 if __name__ == '__main__':
     import doctest

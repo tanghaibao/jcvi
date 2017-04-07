@@ -96,7 +96,8 @@ class BedLine(object):
 
 class Bed(LineFile):
 
-    def __init__(self, filename=None, key=None, sorted=True, juncs=False):
+    def __init__(self, filename=None, key=None, sorted=True, juncs=False,
+                       include=None):
         super(Bed, self).__init__(filename)
 
         # the sorting key provides some flexibility in ordering the features
@@ -110,7 +111,10 @@ class Bed(LineFile):
         for line in must_open(filename):
             if line[0] == "#" or (juncs and line.startswith('track name')):
                 continue
-            self.append(BedLine(line))
+            b = BedLine(line)
+            if include and b.accn not in include:
+                continue
+            self.append(b)
 
         if sorted:
             self.sort(key=self.key)

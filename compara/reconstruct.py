@@ -34,12 +34,37 @@ def main():
     p.dispatch(globals())
 
 
+def add_bed_to_graph(G, bed, families):
+    for seqid, bs in bed.sub_beds():
+        prev_node, prev_strand = None, '+'
+        for b in bs:
+            accn = b.accn
+            strand = b.strand
+            node = "|".join(families[accn])
+            G.add_edge(node + "-5p", node + "-3p")
+            if prev_node:
+                if prev_strand == '+':
+                    u = prev_node + "-5p"
+                else:
+                    u = prev_node + "-3p"
+                if strand == '+':
+                    v = node + "-5p"
+                else:
+                    v = node + "-3p"
+                G.add_edge(u, v)
+            prev_node, prev_strand = node, strand
+
+    return G
+
+
 def fuse(args):
     """
     %prog fuse *.bed *.anchors
 
     Fuse gene orders based on anchors file.
     """
+    import networkx as nx
+
     p = OptionParser(fuse.__doc__)
     opts, args = p.parse_args(args)
 
@@ -48,14 +73,31 @@ def fuse(args):
 
     bedfiles = [x for x in args if x.endswith(".bed")]
     anchorfiles = [x for x in args if x.endswith(".anchors")]
-    aligned_genes = Grouper()
+
+    # TODO: Use Markov clustering to sparsify the edges
+    families = Grouper()
     for anchorfile in anchorfiles:
         af = AnchorFile(anchorfile)
         for a, b, block_id in af.iter_pairs():
-            aligned_genes.join(a, b)
+            families.join(a, b)
 
-    print list(aligned_genes)
-    logging.debug("Total aligned genes: {}".format(len(aligned_genes)))
+    allowed = set(families.keys())
+    logging.debug("Total families: {}, Gene members: {}"\
+                .format(len(families), len(allowed)))
+
+    G = nx.DiGraph()
+    for bedfile in bedfiles:
+        bed = Bed(bedfile, include=allowed)
+        add_bed_to_graph(G, bed, families)
+
+    logging.debug("Graph constructed: {} nodes, {} edges"\
+                .format(len(G), len(G.edges())))
+
+    components = list(nx.strongly_connected_components(G))
+    logging.debug("Strongly connected components: {}".format(len(components)))
+
+    Gc = max(nx.strongly_connected_component_subgraphs(G), key=len)
+    nx.write_gexf(Gc, "graph.gexf")
 
 
 def adjgraph(args):

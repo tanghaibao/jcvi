@@ -384,7 +384,8 @@ def soap_trios(p, pf, tag, extra):
     os.chdir(cwd)
 
 
-def iter_project(folder, pattern="*.fq,*.fq.gz,*.fastq,*.fastq.gz", n=2):
+def iter_project(folder, pattern="*.fq,*.fq.gz,*.fastq,*.fastq.gz", n=2,
+                 commonprefix=True):
     # Check for paired reads and extract project id
     filelist = [x for x in iglob(folder, pattern)]
     for p in grouper(filelist, n):
@@ -392,7 +393,7 @@ def iter_project(folder, pattern="*.fq,*.fq.gz,*.fastq,*.fastq.gz", n=2):
             continue
 
         pp = [op.basename(x) for x in p]
-        pf = pairspf(pp)
+        pf = pairspf(pp, commonprefix=commonprefix)
         yield list(p), pf
 
 

@@ -181,8 +181,12 @@ class FastqHeader(object):
         return str(self)
 
 
-def pairspf(pp):
-    pf = op.basename(op.commonprefix(pp).rstrip("._-"))
+def pairspf(pp, commonprefix=True):
+    if commonprefix:
+        pf = op.commonprefix(pp).rstrip("._-")
+    else:
+        pf = min(pp)
+    pf = op.basename(pf)
     if not pf.strip():
         pf = op.basename(pp[0])
     return pf

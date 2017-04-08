@@ -327,7 +327,7 @@ def kmc(args):
     K = opts.k
     n = 1 if opts.single else 2
     mm = MakeManager()
-    for p, pf in iter_project(folder, n=n):
+    for p, pf in iter_project(folder, n=n, commonprefix=False):
         pf = pf.split("_")[0] + ".ms{}".format(K)
         infiles = pf + ".infiles"
         fw = open(infiles, "w")

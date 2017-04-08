@@ -113,6 +113,9 @@ class BiGraph (object):
         n1 = self.nodes.get(v1)
         n2 = self.nodes.get(v2)
 
+        if (v1, v2) in self.edges or (v2, v1) in self.edges:
+            return
+
         e = BiEdge(v1, v2, o1, o2, color=color, length=length)
         l = n1.outs if e.o1 == ">" else n1.ins
         r = n2.ins if e.o2 == ">" else n2.outs

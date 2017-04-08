@@ -453,14 +453,11 @@ def entrez(args):
 
 def sra(args):
     """
-    %prog sra term
+    %prog sra [term|term.ids]
 
-    Given an SRA run ID, fetch the corresponding .sra file
-    from the sra-instant FTP
+    Given an SRA run ID, fetch the corresponding .sra file from the sra-instant FTP.
+    The term can also be a file containing list of SRR ids, one per line.
     """
-    sra_base_url = "ftp://ftp-trace.ncbi.nlm.nih.gov/sra/sra-instant/reads/ByRun/sra/"
-    sra_run_id_re = re.compile(r'^([DES]{1}RR)(\d{3})(\d{3,4})$')
-
     p = OptionParser(sra.__doc__)
     opts, args = p.parse_args(args)
 
@@ -468,6 +465,22 @@ def sra(args):
         sys.exit(not p.print_help())
 
     term, = args
+    if op.isfile(term):
+        terms = [x.strip() for x in open(term)]
+    else:
+        terms = [term]
+
+    for term in terms:
+        srafile = download_srr_term(term)
+        pf = srafile.split(".")[0]
+        mkdir(pf)
+        cmd = "fastq-dump --outdir {} --split-files {}".format(pf, srafile)
+        sh(cmd)
+
+
+def download_srr_term(term):
+    sra_base_url = "ftp://ftp-trace.ncbi.nlm.nih.gov/sra/sra-instant/reads/ByRun/sra/"
+    sra_run_id_re = re.compile(r'^([DES]{1}RR)(\d{3})(\d{3,4})$')
 
     m = re.search(sra_run_id_re, term)
     if m is None:
@@ -480,7 +493,7 @@ def sra(args):
     download_url = urljoin(sra_base_url, prefix, subprefix, term, "{0}.sra".format(term))
 
     logging.debug("Downloading file: {0}".format(download_url))
-    download(download_url)
+    return download(download_url)
 
 
 if __name__ == '__main__':

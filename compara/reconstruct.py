@@ -40,7 +40,7 @@ def add_bed_to_graph(G, bed, families):
         for b in bs:
             accn = b.accn
             strand = b.strand
-            node = "&".join(families[accn])
+            node = "=".join(families[accn])
             if prev_node:
                 G.add_edge(prev_node, node, prev_strand, strand)
             prev_node, prev_strand = node, strand

@@ -310,9 +310,13 @@ def kmc(args):
     Run kmc3 on Illumina reads.
     """
     p = OptionParser(kmc.__doc__)
-    p.add_option("-k", default=19, type="int", help="Kmer size")
-    p.add_option("-c", default=2, type="int",
+    p.add_option("-k", default=21, type="int", help="Kmer size")
+    p.add_option("--ci", default=2, type="int",
+                 help="Minimum value of a counter")
+    p.add_option("--cs", default=2, type="int",
                  help="Maximal value of a counter")
+    p.add_option("--single", default=False, action="store_true",
+                 help="Input is single-end data, only one FASTQ")
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -321,15 +325,17 @@ def kmc(args):
 
     folder, = args
     K = opts.k
+    n = 1 if opts.single else 2
     mm = MakeManager()
-    for p, pf in iter_project(folder):
+    for p, pf in iter_project(folder, n=n):
         pf = pf.split("_")[0] + ".ms{}".format(K)
         infiles = pf + ".infiles"
         fw = open(infiles, "w")
         print >> fw, "\n".join(p)
         fw.close()
 
-        cmd = "kmc -k{} -m64 -t{} -cs{}".format(K, opts.cpus, opts.c)
+        cmd = "kmc -k{} -m64 -t{}".format(K, opts.cpus)
+        cmd += " -ci{} -cs{}".format(opts.ci, opts.cs)
         cmd += " @{} {} .".format(infiles, pf)
         outfile = pf + ".kmc_suf"
         mm.add(p, outfile, cmd)

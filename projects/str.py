@@ -11,6 +11,7 @@ import sys
 import vcf
 import logging
 import shutil
+import json
 import numpy as np
 import pandas as pd
 
@@ -34,6 +35,7 @@ infected_thr = 40
 ref_thr = 19
 SIMULATED_HAPLOID = r'Simulated haploid $\mathit{h}$'
 SIMULATED_DIPLOID = r"Simulated diploid $\mathit{20/h}$"
+lsg = "lightslategray"
 
 
 class TREDPARSEvcf(object):
@@ -62,6 +64,7 @@ def main():
         # Plotting
         ('evidences', 'plot distribution of evidences'),
         ('likelihood', 'plot likelihood surface'),
+        ('likelihood2', 'plot likelihood surface and marginals'),
         ('compare', 'compare callers on fake HD patients'),
         ('compare2', 'compare TREDPARSE and lobSTR on fake HD patients'),
         ('compare3', 'compare TREDPARSE on fake HD patients adding evidence'),
@@ -114,8 +117,6 @@ def likelihood(args):
                                    figsize=(iopts.w, iopts.h))
     plt.tight_layout(pad=4)
 
-    lsg = "lightslategray"
-
     # Haploid model
     LL, CI_h1, CI_h2, MLE = parse_log("100_100.log")
     data = []
@@ -153,26 +154,8 @@ def likelihood(args):
         data[a, b] = v
         data[b, a] = v
 
-    mask = np.zeros_like(data)
-    mask[np.triu_indices_from(mask)] = True
-    data = np.ma.array(data, mask=mask)
-    im = ax2.imshow(data, cmap=opts.cmap)
-
-    from mpl_toolkits.axes_grid1 import make_axes_locatable
-    divider = make_axes_locatable(ax2)
-    cax = divider.append_axes("right", size="5%", pad=.05)
-    cb = plt.colorbar(im, cax)
-    cb.set_label(LL_label)
-
-    circle = plt.Circle((20, 104), 4, ec='w', fill=False)
-    ax2.add_artist(circle)
-    ax2.annotate(r"$\hat{h_1}=20, \hat{h_2}=104$", color=lsg,
-                 xy=(20, 104), xytext=(70, 50),
-                 arrowprops=dict(fc=lsg, ec='w'))
-
-    ax2.set_xlabel(r"$h_1$")
-    ax2.set_ylabel(r"$h_2$")
-    ax2.set_title("Simulated diploid ($h_{1}^{truth}=20, h_{2}^{truth}=100$)")
+    data = mask_upper_triangle(data)
+    ax_imshow(ax2, data, opts.cmap, LL_label, 20, 104)
 
     root = fig.add_axes([0, 0, 1, 1])
     pad = .04
@@ -180,6 +163,71 @@ def likelihood(args):
     normalize_axes(root)
 
     image_name = "likelihood." + iopts.format
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
+
+
+def mask_upper_triangle(data):
+    mask = np.zeros_like(data)
+    mask[np.triu_indices_from(mask)] = True
+    data = np.ma.array(data, mask=mask)
+    return data
+
+
+def ax_imshow(ax, data, cmap, label, h1_hat, h2_hat, r=4):
+    im = ax.imshow(data, cmap=cmap, origin="lower")
+
+    from mpl_toolkits.axes_grid1 import make_axes_locatable
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("right", size="5%", pad=.05)
+    cb = plt.colorbar(im, cax)
+    cb.set_label(label)
+
+    circle = plt.Circle((h1_hat, h2_hat), r, ec='w', fill=False)
+    ax.add_artist(circle)
+    ax.annotate("$\hat{h_1}=%d, \hat{h_2}=%d$" % (h1_hat, h2_hat),
+                 color=lsg, xy=(h1_hat + r, 104 - r), xytext=(70, 40),
+                 arrowprops=dict(fc=lsg, ec='w'))
+
+    ax.set_xlabel(r"$h_1$")
+    ax.set_ylabel(r"$h_2$")
+    ax.set_title("Simulated diploid ($h_{1}^{truth}=20, h_{2}^{truth}=100$)")
+
+
+def likelihood2(args):
+    """
+    %prog likelihood2 100_20.json
+
+    Plot the likelihood surface and marginal distributions.
+    """
+    p = OptionParser(likelihood.__doc__)
+    opts, args, iopts = p.set_image_options(args, figsize="10x5",
+                                style="white", cmap="coolwarm")
+
+    jsonfile, = args
+    fig, (ax1, ax2) = plt.subplots(ncols=2, nrows=1,
+                                   figsize=(iopts.w, iopts.h))
+    plt.tight_layout(pad=4)
+
+    j = json.load(open(jsonfile))
+    calls = j["tredCalls"]
+    P_h1h2 = calls["toy.P_h1h2"]
+    data = np.zeros((301, 301))
+    for k, v in P_h1h2.items():
+        a, b = k.split(",")
+        a, b = int(a), int(b)
+        data[a, b] = v
+        data[b, a] = v
+
+    data = mask_upper_triangle(data)
+    a1, a2 = calls["toy.1"], calls["toy.2"]
+    ax_imshow(ax1, data, opts.cmap, "Probability", a1, a2)
+
+    root = fig.add_axes([0, 0, 1, 1])
+    pad = .04
+    panel_labels(root, ((pad / 2, 1 - pad, "A"), (1 / 2. + pad, 1 - pad, "B")))
+    normalize_axes(root)
+
+    image_name = "likelihood2." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
@@ -199,7 +247,6 @@ def diagram(args):
     root = fig.add_axes([0, 0, 1, 1])
 
     # Gauge on top, this is log-scale
-    lsg = "lightslategray"
     yy = .7
     yinterval = .1
     height = .05

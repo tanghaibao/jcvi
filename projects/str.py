@@ -173,8 +173,40 @@ def mask_upper_triangle(data):
     return data
 
 
-def ax_imshow(ax, data, cmap, label, h1_hat, h2_hat, r=4):
-    im = ax.imshow(data, cmap=cmap, origin="lower")
+def ax_plot(ax, P_h, h_hat, CI_h, xlabel, ylabel):
+    max_P = max(P_h.values())
+    a, b = CI_h
+
+    ax.plot([h_hat, h_hat], [0, max_P], ":", color=lsg, lw=2)
+    ax.set_xlabel(r"$%s$" % xlabel)
+    ax.set_ylabel(ylabel)
+
+    data = []
+    for k, v in sorted(P_h.items()):
+        data.append((int(k), v))
+    data.sort()
+    x, y = zip(*data)
+    x = np.array(x)
+    curve, = ax.plot(x, y, "-", color=lsg, lw=2)
+    title = "Marginal distribution for $%s$" % xlabel
+    ax.set_title(title)
+
+    if a == b:
+        ax.plot([h_hat, h_hat], [0, max_P], "-", color=lsg, lw=2)
+    else:
+        ax.fill_between(x, [0] * len(x), y, where=(x >= a) & (x <= b),
+                         color=lsg, alpha=.5)
+    ax.set_xlim(0, 300)
+
+    ymin, ymax = ax.get_ylim()
+    ax.text(h_hat + 20, ymax * 4. / 5, r"$\hat{%s}=%d$" % (xlabel, h_hat),
+            color=lsg, va="center")
+    ax.text(h_hat + 20, ymax * 3. / 5, "95$\%$ CI" + r"$=%s-%s$" % (a, b),
+            color=lsg, va="center")
+
+
+def ax_imshow(ax, P_h1h2, cmap, label, h1_hat, h2_hat, r=4, draw_circle=True):
+    im = ax.imshow(P_h1h2, cmap=cmap, origin="lower")
 
     from mpl_toolkits.axes_grid1 import make_axes_locatable
     divider = make_axes_locatable(ax)
@@ -182,8 +214,10 @@ def ax_imshow(ax, data, cmap, label, h1_hat, h2_hat, r=4):
     cb = plt.colorbar(im, cax)
     cb.set_label(label)
 
-    circle = plt.Circle((h1_hat, h2_hat), r, ec='w', fill=False)
-    ax.add_artist(circle)
+    if draw_circle:
+        circle = plt.Circle((h1_hat, h2_hat), r, ec='w', fill=False)
+        ax.add_artist(circle)
+
     ax.annotate("$\hat{h_1}=%d, \hat{h_2}=%d$" % (h1_hat, h2_hat),
                  color=lsg, xy=(h1_hat + r, 104 - r), xytext=(70, 40),
                  arrowprops=dict(fc=lsg, ec='w'))
@@ -199,14 +233,19 @@ def likelihood2(args):
 
     Plot the likelihood surface and marginal distributions.
     """
+    from matplotlib import gridspec
+
     p = OptionParser(likelihood.__doc__)
     opts, args, iopts = p.set_image_options(args, figsize="10x5",
                                 style="white", cmap="coolwarm")
 
     jsonfile, = args
-    fig, (ax1, ax2) = plt.subplots(ncols=2, nrows=1,
-                                   figsize=(iopts.w, iopts.h))
-    plt.tight_layout(pad=4)
+    fig = plt.figure(figsize=(iopts.w, iopts.h))
+    gs = gridspec.GridSpec(2, 2)
+    ax1 = fig.add_subplot(gs[:, 0])
+    ax2 = fig.add_subplot(gs[0, 1])
+    ax3 = fig.add_subplot(gs[1, 1])
+    plt.tight_layout(pad=5)
 
     j = json.load(open(jsonfile))
     calls = j["tredCalls"]
@@ -218,13 +257,24 @@ def likelihood2(args):
         data[a, b] = v
         data[b, a] = v
 
+    label = "Probability"
     data = mask_upper_triangle(data)
-    a1, a2 = calls["toy.1"], calls["toy.2"]
-    ax_imshow(ax1, data, opts.cmap, "Probability", a1, a2)
+    h1_hat, h2_hat = calls["toy.1"], calls["toy.2"]
+    ax_imshow(ax1, data, opts.cmap, label, h1_hat, h2_hat, draw_circle=False)
+
+    CI = calls["toy.CI"]
+    CI_h1, CI_h2 = CI.split("|")
+    CI_h1 = [int(x) for x in CI_h1.split('-')]
+    CI_h2 = [int(x) for x in CI_h2.split('-')]
+    P_h1 = calls["toy.P_h1"]
+    P_h2 = calls["toy.P_h2"]
+
+    ax_plot(ax2, P_h1, h1_hat, CI_h1, "h_1", label)
+    ax_plot(ax3, P_h2, h2_hat, CI_h2, "h_2", label)
 
     root = fig.add_axes([0, 0, 1, 1])
     pad = .04
-    panel_labels(root, ((pad / 2, 1 - pad, "A"), (1 / 2. + pad, 1 - pad, "B")))
+    panel_labels(root, ((pad, 1 - pad, "A"), (1 / 2. + pad / 2, 1 - pad, "B")))
     normalize_axes(root)
 
     image_name = "likelihood2." + iopts.format

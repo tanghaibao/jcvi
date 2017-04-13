@@ -130,7 +130,7 @@ def likelihood(args):
     h_hat, max_LL = max(data, key=lambda x: x[-1])
     _, min_LL = min(data, key=lambda x: x[-1])
     ymin, ymax = ax1.get_ylim()
-    ax1.set_ylim([ymin, ymax + 20])
+    ax1.set_ylim([ymin, ymax + 30])
 
     LL_label = "log(Likelihood)"
     ax1.plot([h_hat, h_hat], [ymin, max_LL], ":", color=lsg, lw=2)
@@ -163,6 +163,12 @@ def likelihood(args):
     cax = divider.append_axes("right", size="5%", pad=.05)
     cb = plt.colorbar(im, cax)
     cb.set_label(LL_label)
+
+    circle = plt.Circle((20, 104), 4, ec='w', fill=False)
+    ax2.add_artist(circle)
+    ax2.annotate(r"$\hat{h_1}=20, \hat{h_2}=104$", color=lsg,
+                 xy=(20, 104), xytext=(70, 50),
+                 arrowprops=dict(fc=lsg, ec='w'))
 
     ax2.set_xlabel(r"$h_1$")
     ax2.set_ylabel(r"$h_2$")

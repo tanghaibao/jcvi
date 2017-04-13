@@ -205,7 +205,8 @@ def ax_plot(ax, P_h, h_hat, CI_h, xlabel, ylabel):
             color=lsg, va="center")
 
 
-def ax_imshow(ax, P_h1h2, cmap, label, h1_hat, h2_hat, r=4, draw_circle=True):
+def ax_imshow(ax, P_h1h2, cmap, label, h1_hat, h2_hat, h1_truth, h2_truth,
+              r=4, draw_circle=True):
     im = ax.imshow(P_h1h2, cmap=cmap, origin="lower")
 
     from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -218,13 +219,14 @@ def ax_imshow(ax, P_h1h2, cmap, label, h1_hat, h2_hat, r=4, draw_circle=True):
         circle = plt.Circle((h1_hat, h2_hat), r, ec='w', fill=False)
         ax.add_artist(circle)
 
-    ax.annotate("$\hat{h_1}=%d, \hat{h_2}=%d$" % (h1_hat, h2_hat),
-                 color=lsg, xy=(h1_hat + r, 104 - r), xytext=(70, 40),
-                 arrowprops=dict(fc=lsg, ec='w'))
+    annotation = "$\hat{h_1}=%d, \hat{h_2}=%d$" % (h1_hat, h2_hat)
+    ax.text(h2_hat, h1_hat, annotation, color=lsg, va="center")
 
     ax.set_xlabel(r"$h_1$")
     ax.set_ylabel(r"$h_2$")
-    ax.set_title("Simulated diploid ($h_{1}^{truth}=20, h_{2}^{truth}=100$)")
+    title = "Simulated diploid ($h_{1}^{truth}=%d, h_{2}^{truth}=%d$)" \
+                % (h1_truth, h2_truth)
+    ax.set_title(title)
 
 
 def likelihood2(args):
@@ -260,7 +262,10 @@ def likelihood2(args):
     label = "Probability"
     data = mask_upper_triangle(data)
     h1_hat, h2_hat = calls["toy.1"], calls["toy.2"]
-    ax_imshow(ax1, data, opts.cmap, label, h1_hat, h2_hat, draw_circle=False)
+    pf = op.basename(jsonfile).split(".")[0]
+    h1_truth, h2_truth = sorted([int(x) for x in pf.split("_")])
+    ax_imshow(ax1, data, opts.cmap, label, h1_hat, h2_hat,
+              h1_truth, h2_truth, draw_circle=False)
 
     CI = calls["toy.CI"]
     CI_h1, CI_h2 = CI.split("|")
@@ -277,7 +282,7 @@ def likelihood2(args):
     panel_labels(root, ((pad, 1 - pad, "A"), (1 / 2. + pad / 2, 1 - pad, "B")))
     normalize_axes(root)
 
-    image_name = "likelihood2." + iopts.format
+    image_name = "likelihood2.{}.".format(pf) + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 

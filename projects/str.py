@@ -19,7 +19,7 @@ from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
-from jcvi.graphics.base import FancyArrow, cm, normalize_axes, panel_labels, plt, savefig
+from jcvi.graphics.base import FancyArrow, normalize_axes, panel_labels, plt, savefig
 from jcvi.formats.sam import index
 from jcvi.variation.str import af_to_counts, read_treds
 from jcvi.apps.grid import Parallel
@@ -124,7 +124,7 @@ def likelihood(args):
     data.sort()
     x, y = zip(*data)
     x = np.array(x)
-    ax1.plot(x, y, "-", color=lsg, lw=2)
+    curve, = ax1.plot(x, y, "-", color=lsg, lw=2)
     ax1.set_title("Simulated haploid ($h^{truth}=100$)")
 
     h_hat, max_LL = max(data, key=lambda x: x[-1])
@@ -139,9 +139,9 @@ def likelihood(args):
     ax1.set_ylabel(LL_label)
 
     a, b = CI_h1
-    ax1.fill_between(x, [ymin] * len(x), y, where=(x >= a) & (x <= b),
+    ci = ax1.fill_between(x, [ymin] * len(x), y, where=(x >= a) & (x <= b),
                      color=lsg, alpha=.5)
-    ax1.legend(["Likelihood curve", r'95$\%$ CI'], loc='best')
+    ax1.legend([curve, ci], ["Likelihood curve", r'95$\%$ CI'], loc='best')
 
     # Diploid model
     LL, CI_h1, CI_h2, MLE = parse_log("100_20.log")

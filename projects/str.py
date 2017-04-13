@@ -19,7 +19,7 @@ from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
-from jcvi.graphics.base import FancyArrow, normalize_axes, panel_labels, plt, savefig
+from jcvi.graphics.base import FancyArrow, cm, normalize_axes, panel_labels, plt, savefig
 from jcvi.formats.sam import index
 from jcvi.variation.str import af_to_counts, read_treds
 from jcvi.apps.grid import Parallel
@@ -104,13 +104,15 @@ def likelihood(args):
     - 100_20.log, diploid model
     """
     p = OptionParser(likelihood.__doc__)
-    opts, args, iopts = p.set_image_options(args, figsize="8x4")
+    opts, args, iopts = p.set_image_options(args, figsize="10x5",
+                                style="white", cmap="coolwarm")
 
     if len(args) != 0:
         sys.exit(not p.print_help())
 
     fig, (ax1, ax2) = plt.subplots(ncols=2, nrows=1,
                                    figsize=(iopts.w, iopts.h))
+    plt.tight_layout(pad=4)
 
     lsg = "lightslategray"
 
@@ -123,24 +125,51 @@ def likelihood(args):
     x, y = zip(*data)
     x = np.array(x)
     ax1.plot(x, y, "-", color=lsg, lw=2)
-    ax1.set_title("Simulated haploid ($h_{truth}=100$)")
+    ax1.set_title("Simulated haploid ($h^{truth}=100$)")
 
     h_hat, max_LL = max(data, key=lambda x: x[-1])
     _, min_LL = min(data, key=lambda x: x[-1])
     ymin, ymax = ax1.get_ylim()
     ax1.set_ylim([ymin, ymax + 20])
 
+    LL_label = "log(Likelihood)"
     ax1.plot([h_hat, h_hat], [ymin, max_LL], ":", color=lsg, lw=2)
-    ax1.text(h_hat, max_LL + 10, r"$\hat{h}$", color=lsg)
-    ax1.set_ylabel("log(Likelihood)")
+    ax1.text(h_hat, max_LL + 10, r"$\hat{h}=93$", color=lsg)
+    ax1.set_xlabel(r"$h$")
+    ax1.set_ylabel(LL_label)
 
     a, b = CI_h1
     ax1.fill_between(x, [ymin] * len(x), y, where=(x >= a) & (x <= b),
                      color=lsg, alpha=.5)
     ax1.legend(["Likelihood curve", r'95$\%$ CI'], loc='best')
 
+    # Diploid model
+    LL, CI_h1, CI_h2, MLE = parse_log("100_20.log")
+    h_hat, max_LL = max(data, key=lambda x: x[-1])
+    _, min_LL = min(data, key=lambda x: x[-1])
+    data = np.ones((301, 301)) * min_LL
+    for k, v in LL.items():
+        a, b = k
+        data[a, b] = v
+        data[b, a] = v
+
+    mask = np.zeros_like(data)
+    mask[np.triu_indices_from(mask)] = True
+    data = np.ma.array(data, mask=mask)
+    im = ax2.imshow(data, cmap=opts.cmap)
+
+    from mpl_toolkits.axes_grid1 import make_axes_locatable
+    divider = make_axes_locatable(ax2)
+    cax = divider.append_axes("right", size="5%", pad=.05)
+    cb = plt.colorbar(im, cax)
+    cb.set_label(LL_label)
+
+    ax2.set_xlabel(r"$h_1$")
+    ax2.set_ylabel(r"$h_2$")
+    ax2.set_title("Simulated diploid ($h_{1}^{truth}=20, h_{2}^{truth}=100$)")
+
     root = fig.add_axes([0, 0, 1, 1])
-    pad = .03
+    pad = .04
     panel_labels(root, ((pad / 2, 1 - pad, "A"), (1 / 2., 1 - pad, "B")))
     normalize_axes(root)
 

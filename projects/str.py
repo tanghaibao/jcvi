@@ -251,7 +251,7 @@ def likelihood2(args):
     """
     from matplotlib import gridspec
 
-    p = OptionParser(likelihood.__doc__)
+    p = OptionParser(likelihood2.__doc__)
     opts, args, iopts = p.set_image_options(args, figsize="10x5",
                                 style="white", cmap="coolwarm")
 
@@ -282,7 +282,7 @@ def likelihood3(args):
     """
     from matplotlib import gridspec
 
-    p = OptionParser(likelihood.__doc__)
+    p = OptionParser(likelihood3.__doc__)
     opts, args, iopts = p.set_image_options(args, figsize="10x10",
                                 style="white", cmap="coolwarm")
     if len(args) != 2:

@@ -65,6 +65,7 @@ def main():
         ('evidences', 'plot distribution of evidences'),
         ('likelihood', 'plot likelihood surface'),
         ('likelihood2', 'plot likelihood surface and marginals'),
+        ('likelihood3', 'plot likelihood surface and marginals for two settings'),
         ('compare', 'compare callers on fake HD patients'),
         ('compare2', 'compare TREDPARSE and lobSTR on fake HD patients'),
         ('compare3', 'compare TREDPARSE on fake HD patients adding evidence'),
@@ -173,7 +174,7 @@ def mask_upper_triangle(data):
     return data
 
 
-def ax_plot(ax, P_h, h_hat, CI_h, xlabel, ylabel):
+def ax_plot(ax, P_h, h_hat, CI_h, xlabel, ylabel, ticks=True):
     max_P = max(P_h.values())
     a, b = CI_h
 
@@ -190,6 +191,8 @@ def ax_plot(ax, P_h, h_hat, CI_h, xlabel, ylabel):
     curve, = ax.plot(x, y, "-", color=lsg, lw=2)
     title = "Marginal distribution for $%s$" % xlabel
     ax.set_title(title)
+    if not ticks:
+        ax.set_yticks([])
 
     if a == b:
         ax.plot([h_hat, h_hat], [0, max_P], "-", color=lsg, lw=2)
@@ -199,14 +202,23 @@ def ax_plot(ax, P_h, h_hat, CI_h, xlabel, ylabel):
     ax.set_xlim(0, 300)
 
     ymin, ymax = ax.get_ylim()
-    ax.text(h_hat + 20, ymax * 4. / 5, r"$\hat{%s}=%d$" % (xlabel, h_hat),
-            color=lsg, va="center")
-    ax.text(h_hat + 20, ymax * 3. / 5, "95$\%$ CI" + r"$=%s-%s$" % (a, b),
-            color=lsg, va="center")
+    if h_hat < 150:
+        ax.text(h_hat + 20, ymax * 4. / 5, r"$\hat{%s}=%d$" % (xlabel, h_hat),
+                color=lsg, va="center")
+        ax.text(h_hat + 20, ymax * 3. / 5, "95$\%$ CI" + r"$=%s-%s$" % (a, b),
+                color=lsg, va="center")
+    else:
+        ax.text(h_hat - 30, ymax * 4. / 5, r"$\hat{%s}=%d$" % (xlabel, h_hat),
+                color=lsg, ha="right", va="center")
+        ax.text(h_hat - 30, ymax * 3. / 5, "95$\%$ CI" + r"$=%s-%s$" % (a, b),
+                color=lsg, ha="right", va="center")
+
+    ymin, ymax = ax.get_ylim()
+    ax.set_ylim(ymin, ymax * 1.05)
 
 
 def ax_imshow(ax, P_h1h2, cmap, label, h1_hat, h2_hat, h1_truth, h2_truth,
-              r=4, draw_circle=True):
+              r=4, draw_circle=True, ticks=True):
     im = ax.imshow(P_h1h2, cmap=cmap, origin="lower")
 
     from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -214,13 +226,15 @@ def ax_imshow(ax, P_h1h2, cmap, label, h1_hat, h2_hat, h1_truth, h2_truth,
     cax = divider.append_axes("right", size="5%", pad=.05)
     cb = plt.colorbar(im, cax)
     cb.set_label(label)
+    if not ticks:
+        cb.set_ticks([])
 
     if draw_circle:
         circle = plt.Circle((h1_hat, h2_hat), r, ec='w', fill=False)
         ax.add_artist(circle)
 
     annotation = "$\hat{h_1}=%d, \hat{h_2}=%d$" % (h1_hat, h2_hat)
-    ax.text(h2_hat, h1_hat, annotation, color=lsg, va="center")
+    ax.text(200, 100, annotation, color=lsg, ha="center", va="center")
 
     ax.set_xlabel(r"$h_1$")
     ax.set_ylabel(r"$h_2$")
@@ -241,14 +255,63 @@ def likelihood2(args):
     opts, args, iopts = p.set_image_options(args, figsize="10x5",
                                 style="white", cmap="coolwarm")
 
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
     jsonfile, = args
     fig = plt.figure(figsize=(iopts.w, iopts.h))
     gs = gridspec.GridSpec(2, 2)
     ax1 = fig.add_subplot(gs[:, 0])
     ax2 = fig.add_subplot(gs[0, 1])
     ax3 = fig.add_subplot(gs[1, 1])
-    plt.tight_layout(pad=5)
+    plt.tight_layout(pad=3)
+    pf = plot_panel(jsonfile, ax1, ax2, ax3, opts.cmap)
 
+    root = fig.add_axes([0, 0, 1, 1])
+    normalize_axes(root)
+
+    image_name = "likelihood2.{}.".format(pf) + iopts.format
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
+
+
+def likelihood3(args):
+    """
+    %prog likelihood2 200_20.json 200_100.json
+
+    Plot the likelihood surface and marginal distributions for two settings.
+    """
+    from matplotlib import gridspec
+
+    p = OptionParser(likelihood.__doc__)
+    opts, args, iopts = p.set_image_options(args, figsize="10x10",
+                                style="white", cmap="coolwarm")
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    jsonfile1, jsonfile2 = args
+    fig = plt.figure(figsize=(iopts.w, iopts.h))
+    gs = gridspec.GridSpec(9, 2)
+    ax1 = fig.add_subplot(gs[:4, 0])
+    ax2 = fig.add_subplot(gs[:2, 1])
+    ax3 = fig.add_subplot(gs[2:4, 1])
+    ax4 = fig.add_subplot(gs[5:, 0])
+    ax5 = fig.add_subplot(gs[5:7, 1])
+    ax6 = fig.add_subplot(gs[7:, 1])
+    plt.tight_layout(pad=2)
+
+    plot_panel(jsonfile1, ax1, ax2, ax3, opts.cmap)
+    plot_panel(jsonfile2, ax4, ax5, ax6, opts.cmap)
+
+    root = fig.add_axes([0, 0, 1, 1])
+    pad = .02
+    panel_labels(root, ((pad, 1 - pad, "A"), (pad, 4. / 9, "B")))
+    normalize_axes(root)
+
+    image_name = "likelihood3." + iopts.format
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
+
+
+def plot_panel(jsonfile, ax1, ax2, ax3, cmap):
     j = json.load(open(jsonfile))
     calls = j["tredCalls"]
     P_h1h2 = calls["toy.P_h1h2"]
@@ -259,13 +322,13 @@ def likelihood2(args):
         data[a, b] = v
         data[b, a] = v
 
-    label = "Probability"
+    label = "Probability density"
     data = mask_upper_triangle(data)
     h1_hat, h2_hat = calls["toy.1"], calls["toy.2"]
     pf = op.basename(jsonfile).split(".")[0]
     h1_truth, h2_truth = sorted([int(x) for x in pf.split("_")])
-    ax_imshow(ax1, data, opts.cmap, label, h1_hat, h2_hat,
-              h1_truth, h2_truth, draw_circle=False)
+    ax_imshow(ax1, data, cmap, label, h1_hat, h2_hat,
+              h1_truth, h2_truth, draw_circle=False, ticks=False)
 
     CI = calls["toy.CI"]
     CI_h1, CI_h2 = CI.split("|")
@@ -274,16 +337,10 @@ def likelihood2(args):
     P_h1 = calls["toy.P_h1"]
     P_h2 = calls["toy.P_h2"]
 
-    ax_plot(ax2, P_h1, h1_hat, CI_h1, "h_1", label)
-    ax_plot(ax3, P_h2, h2_hat, CI_h2, "h_2", label)
+    ax_plot(ax2, P_h1, h1_hat, CI_h1, "h_1", label, ticks=False)
+    ax_plot(ax3, P_h2, h2_hat, CI_h2, "h_2", label, ticks=False)
 
-    root = fig.add_axes([0, 0, 1, 1])
-    pad = .04
-    panel_labels(root, ((pad, 1 - pad, "A"), (1 / 2. + pad / 2, 1 - pad, "B")))
-    normalize_axes(root)
-
-    image_name = "likelihood2.{}.".format(pf) + iopts.format
-    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
+    return pf
 
 
 def diagram(args):

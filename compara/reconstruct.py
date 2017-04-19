@@ -76,14 +76,17 @@ def fuse(args):
     logging.debug("Total families: {}, Gene members: {}"\
                 .format(len(families), len(allowed)))
 
+    # TODO: Use C++ implementation of BiGraph() when available
+    # For now just serialize this to the disk
     G = BiGraph()
     for bedfile in bedfiles:
         bed = Bed(bedfile, include=allowed)
         add_bed_to_graph(G, bed, families)
 
-    for path in G.iter_paths():
-        m, oo = G.path(path)
-        print m
+    G.write(filename="graph.edges")
+    #for path in G.iter_paths():
+    #    m, oo = G.path(path)
+    #    print m
 
 
 def adjgraph(args):

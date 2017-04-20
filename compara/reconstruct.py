@@ -48,6 +48,23 @@ def add_bed_to_graph(G, bed, families):
     return G
 
 
+def print_edges(G, bed, families):
+    """
+    Instead of going through the graph construction, just print the edges.
+    """
+    symbols = {'+': '>', '-': '<'}
+    for seqid, bs in bed.sub_beds():
+        prev_node, prev_strand = None, '+'
+        for b in bs:
+            accn = b.accn
+            strand = b.strand
+            node = "=".join(families[accn])
+            if prev_node:
+                print "{}{}--{}{}".format(prev_node, symbols[prev_strand],
+                                          symbols[strand], node)
+            prev_node, prev_strand = node, strand
+
+
 def fuse(args):
     """
     %prog fuse *.bed *.anchors
@@ -81,9 +98,10 @@ def fuse(args):
     G = BiGraph()
     for bedfile in bedfiles:
         bed = Bed(bedfile, include=allowed)
-        add_bed_to_graph(G, bed, families)
+        #add_bed_to_graph(G, bed, families)
+        print_edges(G, bed, families)
 
-    G.write(filename="graph.edges")
+    #G.write(filename="graph.edges")
     #for path in G.iter_paths():
     #    m, oo = G.path(path)
     #    print m

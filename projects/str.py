@@ -21,11 +21,12 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
 from jcvi.graphics.base import FancyArrow, normalize_axes, panel_labels, plt, savefig
-from jcvi.formats.sam import index
+from jcvi.formats.base import must_open
+from jcvi.formats.sam import get_minibam_bed, index
 from jcvi.variation.str import af_to_counts, read_treds
 from jcvi.apps.grid import Parallel
 from jcvi.apps.bwa import align
-from jcvi.apps.base import sh
+from jcvi.apps.base import datafile, sh
 from jcvi.assembly.base import wgsim
 from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, iglob
 
@@ -58,6 +59,7 @@ def main():
         # Prepare data
         ('simulate', 'simulate bams with varying inserts with dwgsim'),
         ('mergebam', 'merge sets of BAMs to make diploid'),
+        ('mini', 'prepare mini-BAMs that contain only the STR loci'),
         # Compile results
         ('batchlobstr', 'run lobSTR on a list of BAMs'),
         ('compilevcf', 'compile vcf outputs into lists'),
@@ -76,6 +78,61 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def make_STR_bed(filename="STR.bed", pad=100000):
+    tredsfile = datafile("TREDs.meta.csv")
+    tf = pd.read_csv(tredsfile)
+
+    tds = list(tf["abbreviation"])
+    regions = list(tf["repeat_location"])
+    fw = must_open(filename, "w")
+    for td, region in zip(tds, regions):
+        c, startend = region.split(":")
+        start, end = startend.split("-")
+        start, end = int(start), int(end)
+        print >> fw, "\t".join(str(x) for x in (c, start - pad, end + pad, td))
+
+    UNIQY = datafile("chrY.hg38.unique_ccn.gc")
+    fp = open(UNIQY)
+    nregions = 0
+    for i, row in enumerate(fp):
+        # Some regions still have mapped reads, exclude a few
+        if i in (1, 4, 6, 7, 10, 11, 13, 16, 18, 19):
+            continue
+        if nregions >= 5:
+            break
+        c, start, end, gc = row.split()
+        start, end = int(start), int(end)
+        print >> fw, "\t".join(str(x) for x in (c, start - pad, end + pad,
+                                    "chrY.unique_ccn.{}".format(nregions)))
+        nregions += 1
+
+    fw.close()
+    return filename
+
+
+def mini(args):
+    """
+    %prog mini bamfile
+
+    Prepare mini-BAMs that contain only the STR loci.
+    """
+    p = OptionParser(mini.__doc__)
+    p.add_option("--pad", default=100000, type="int",
+                 help="Add padding to the STR reigons")
+    p.set_outfile()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    bamfile, = args
+    pad = opts.pad
+    bedfile = make_STR_bed(pad=pad)
+
+    minibam = get_minibam_bed(bamfile, bedfile)
+    logging.debug("Mini-BAM written to `{}`".format(minibam))
 
 
 def parse_log(logfile):

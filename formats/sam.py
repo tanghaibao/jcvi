@@ -149,6 +149,20 @@ def get_minibam(bamfile, region):
     return minibamfile
 
 
+def get_minibam_bed(bamfile, bedfile):
+    pf = op.basename(bedfile).split(".")[0]
+    minibamfile = op.basename(bamfile).replace(".bam", ".{}.bam".format(pf))
+    baifile = minibamfile + ".bai"
+    if op.exists(baifile):
+        sh("rm {}".format(baifile))
+    cmd = "samtools view {} -L {} -b".format(bamfile, bedfile)
+    cmd += " -o {0}".format(minibamfile)
+
+    sh(cmd)
+    sh("samtools index {0}".format(minibamfile))
+    return minibamfile
+
+
 def main():
 
     actions = (

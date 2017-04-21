@@ -105,7 +105,7 @@ best way is to install them via `pip install` when you see
 The easiest way is to install it via PyPI:
 
 ```bash
-easy_install jcvi
+pip install jcvi
 ```
 
 To install the development version:

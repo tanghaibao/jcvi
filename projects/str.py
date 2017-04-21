@@ -80,7 +80,7 @@ def main():
     p.dispatch(globals())
 
 
-def make_STR_bed(filename="STR.bed", pad=100000):
+def make_STR_bed(filename="STR.bed", pad=0):
     tredsfile = datafile("TREDs.meta.csv")
     tf = pd.read_csv(tredsfile)
 
@@ -119,7 +119,7 @@ def mini(args):
     Prepare mini-BAMs that contain only the STR loci.
     """
     p = OptionParser(mini.__doc__)
-    p.add_option("--pad", default=100000, type="int",
+    p.add_option("--pad", default=20000, type="int",
                  help="Add padding to the STR reigons")
     p.set_outfile()
     opts, args = p.parse_args(args)

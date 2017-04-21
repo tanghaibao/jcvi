@@ -150,12 +150,30 @@ def get_minibam(bamfile, region):
 
 
 def get_minibam_bed(bamfile, bedfile):
+    """ samtools view -L could do the work, but it is NOT random access. Here we
+    are processing multiple regions sequentially. See also:
+
+    https://www.biostars.org/p/49306/
+    """
     pf = op.basename(bedfile).split(".")[0]
+    minisamfile = op.basename(bamfile).replace(".bam", ".{}.sam".format(pf))
     minibamfile = op.basename(bamfile).replace(".bam", ".{}.bam".format(pf))
     baifile = minibamfile + ".bai"
     if op.exists(baifile):
         sh("rm {}".format(baifile))
-    cmd = "samtools view {} -L {} -b".format(bamfile, bedfile)
+
+    cmd = "samtools view -H {} > {}".format(bamfile, minisamfile)
+    sh(cmd)
+
+    cmd = "cat {}".format(bedfile)
+    cmd += " | perl -lane 'print \"$F[0]:$F[1]-$F[2]\"'"
+    cmd += " | xargs -n1 -t -I \{\}"
+    cmd += " samtools view {}".format(bamfile)
+    cmd += " \{\} >> " + minisamfile
+    sh(cmd)
+
+    cmd = "samtools view {} -b".format(minisamfile)
+    cmd += " | samtools sort -"
     cmd += " -o {0}".format(minibamfile)
 
     sh(cmd)

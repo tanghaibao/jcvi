@@ -114,7 +114,7 @@ def make_STR_bed(filename="STR.bed", pad=0):
 
 def mini(args):
     """
-    %prog mini bamfile
+    %prog mini bamfile minibamfile
 
     Prepare mini-BAMs that contain only the STR loci.
     """

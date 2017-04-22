@@ -149,15 +149,15 @@ def get_minibam(bamfile, region):
     return minibamfile
 
 
-def get_minibam_bed(bamfile, bedfile):
+def get_minibam_bed(bamfile, bedfile, minibam=None):
     """ samtools view -L could do the work, but it is NOT random access. Here we
     are processing multiple regions sequentially. See also:
 
     https://www.biostars.org/p/49306/
     """
     pf = op.basename(bedfile).split(".")[0]
-    minisamfile = op.basename(bamfile).replace(".bam", ".{}.sam".format(pf))
-    minibamfile = op.basename(bamfile).replace(".bam", ".{}.bam".format(pf))
+    minibamfile = minibam or op.basename(bamfile).replace(".bam", ".{}.bam".format(pf))
+    minisamfile = minibam.replace(".bam", ".sam")
     baifile = minibamfile + ".bai"
     if op.exists(baifile):
         sh("rm {}".format(baifile))

@@ -124,14 +124,14 @@ def mini(args):
     p.set_outfile()
     opts, args = p.parse_args(args)
 
-    if len(args) != 1:
+    if len(args) != 2:
         sys.exit(not p.print_help())
 
-    bamfile, = args
+    bamfile, minibam = args
     pad = opts.pad
     bedfile = make_STR_bed(pad=pad)
 
-    minibam = get_minibam_bed(bamfile, bedfile)
+    get_minibam_bed(bamfile, bedfile, minibam)
     logging.debug("Mini-BAM written to `{}`".format(minibam))
 
 

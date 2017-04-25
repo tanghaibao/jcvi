@@ -1,5 +1,5 @@
 {
-    "InstanceId": "i-058b88f874752b04b", 
+    "InstanceId": "i-0db233bedcde84fb2", 
     "Volumes": [
         {
             "Device": "/dev/sdf", 
@@ -30,6 +30,6 @@
             "Arn": ""
         }, 
         "InstanceType": "c4.8xlarge", 
-        "ImageId": "ami-fc8c049c"
+        "ImageId": "ami-556af635"
     }
 }

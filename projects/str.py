@@ -80,18 +80,25 @@ def main():
     p.dispatch(globals())
 
 
-def make_STR_bed(filename="STR.bed", pad=0):
+def make_STR_bed(filename="STR.bed", pad=0, treds=None):
     tredsfile = datafile("TREDs.meta.csv")
     tf = pd.read_csv(tredsfile)
 
     tds = list(tf["abbreviation"])
     regions = list(tf["repeat_location"])
     fw = must_open(filename, "w")
+    extract_Y = False
     for td, region in zip(tds, regions):
+        if treds and (td not in treds):
+            continue
         c, startend = region.split(":")
+        extract_Y = extract_Y or (c == "chrY")
         start, end = startend.split("-")
         start, end = int(start), int(end)
         print >> fw, "\t".join(str(x) for x in (c, start - pad, end + pad, td))
+
+    if not extract_Y:
+        return filename
 
     UNIQY = datafile("chrY.hg38.unique_ccn.gc")
     fp = open(UNIQY)
@@ -121,6 +128,8 @@ def mini(args):
     p = OptionParser(mini.__doc__)
     p.add_option("--pad", default=20000, type="int",
                  help="Add padding to the STR reigons")
+    p.add_option("--treds", default=None,
+                 help="Extract specific treds, use comma to separate")
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -128,8 +137,9 @@ def mini(args):
         sys.exit(not p.print_help())
 
     bamfile, minibam = args
+    treds = opts.treds.split(",") if opts.treds else None
     pad = opts.pad
-    bedfile = make_STR_bed(pad=pad)
+    bedfile = make_STR_bed(pad=pad, treds=treds)
 
     get_minibam_bed(bamfile, bedfile, minibam)
     logging.debug("Mini-BAM written to `{}`".format(minibam))

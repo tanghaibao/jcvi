@@ -327,6 +327,7 @@ def gene_name(st, exclude=("ev",), sep="."):
     """
     if any(st.startswith(x) for x in exclude):
         sep = None
+    st = st.split('|')[0]
 
     return st.rsplit(sep, 1)[0]
 

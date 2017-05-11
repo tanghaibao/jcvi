@@ -720,6 +720,7 @@ def main():
         ('phase', 'given genbank file, get the phase for the HTG BAC record'),
         ('bed', 'print out the tiling paths in bed/gff3 format'),
         ('frombed', 'generate AGP file based on bed file'),
+        ('fromcsv', 'generate AGP file based on simple csv file'),
         ('extendbed', 'extend the components to fill the component range and output bed/gff3 format file'),
         ('gaps', 'print out the distribution of gap sizes'),
         ('tpf', 'print out a list of accessions, aka Tiling Path File'),
@@ -739,6 +740,42 @@ def main():
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def fromcsv(args):
+    """
+    %prog fromcsv contigs.fasta map.csv map.agp
+
+    Convert csv which contains list of scaffolds/contigs to AGP file.
+    """
+    import csv
+    from jcvi.formats.sizes import Sizes
+
+    p = OptionParser(fromcsv.__doc__)
+    p.add_option("--evidence", default="map",
+                 help="Linkage evidence to add in AGP")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    contigsfasta, mapcsv, mapagp = args
+    reader = csv.reader(open(mapcsv))
+    sizes = Sizes(contigsfasta).mapping
+    reader.next()   # Header
+    fwagp = must_open(mapagp, "w")
+    o = OO()
+    for row in reader:
+        if len(row) == 2:
+            object, ctg = row
+            strand = '?'
+        elif len(row) == 3:
+            object, ctg, strand = row
+        size = sizes[ctg]
+        o.add(object, ctg, size, strand)
+
+    o.write_AGP(fwagp, gapsize=100, gaptype="scaffold",
+                phases={}, evidence=opts.evidence)
 
 
 def compress(args):

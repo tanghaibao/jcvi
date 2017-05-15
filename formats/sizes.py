@@ -93,6 +93,12 @@ class Sizes (LineFile):
             ctg, size = row.split()[:2]
             yield ctg, int(size)
 
+    def iter_names(self):
+        self.fp.seek(0)
+        for row in self.fp:
+            ctg, size = row.split()[:2]
+            yield ctg
+
     def get_position(self, ctg, pos):
         if ctg not in self.cumsizes_mapping:
             return None

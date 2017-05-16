@@ -192,14 +192,12 @@ class KsPlot (object):
             self.lines.append(line_mixture)
             self.labels.append(label + " (fitted)")
 
-        self.labels = [markup(x) for x in self.labels]
-
     def draw(self, title="*Ks* distribution", filename="Ks_plot.pdf"):
 
         ax = self.ax
         ks_max = self.ks_max
         lines = self.lines
-        labels = self.labels
+        labels = [markup(x) for x in self.labels]
         legendp = self.legendp
         if len(lines) > 1:
             leg = ax.legend(lines, labels, loc=legendp,

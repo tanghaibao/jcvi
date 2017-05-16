@@ -375,9 +375,50 @@ def main():
         ('clean', 'remove irregular chars in FASTA seqs'),
         ('ispcr', 'reformat paired primers into isPcr query format'),
         ('fromtab', 'convert 2-column sequence file to FASTA format'),
+        ('gc', 'plot G+C content distribution'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def gc(args):
+    """
+    %prog gc fastafile
+
+    Plot G+C content distribution.
+    """
+    p = OptionParser(gc.__doc__)
+    p.add_option("--binsize", default=500, type="int",
+                 help="Bin size to use")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    fastafile, = args
+    binsize = opts.binsize
+    allbins = []
+    for name, seq in parse_fasta(fastafile):
+        for i in range(len(seq) / binsize):
+            atcnt = gccnt = 0
+            for c in seq[i * binsize: (i + 1) * binsize].upper():
+                if c in "AT":
+                    atcnt += 1
+                elif c in "GC":
+                    gccnt += 1
+            totalcnt = atcnt + gccnt
+            if totalcnt == 0:
+                continue
+            gcpct = gccnt * 100 / totalcnt
+            allbins.append(gcpct)
+
+    from jcvi.graphics.base import asciiplot
+    from collections import Counter
+
+    title = "Total number of bins={}".format(len(allbins))
+    c = Counter(allbins)
+    x, y = zip(*sorted(c.items()))
+    asciiplot(x, y, title=title)
 
 
 def trimsplit(args):

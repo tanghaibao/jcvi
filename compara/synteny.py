@@ -1280,6 +1280,7 @@ def depth(args):
                  help="Plot histograms in PDF")
     p.add_option("--xmax", type="int", help="x-axis maximum to display in plot")
     p.add_option("--title", default=None, help="Title to display in plot")
+    p.add_option("--quota", help="Force to use this quota, e.g. 1:1, 1:2 ...")
     p.set_beds()
 
     opts, args = p.parse_args(args)
@@ -1335,8 +1336,12 @@ def depth(args):
     f, (ax1, ax2) = plt.subplots(1, 2, sharey=True)
 
     xmax = opts.xmax or max(4, max(dsq.keys() + dss.keys()))
-    qpeak = find_peak(dsq)
-    speak = find_peak(dss)
+    if opts.quota:
+        speak, qpeak = opts.quota.split(":")
+        qpeak, speak = int(qpeak), int(speak)
+    else:
+        qpeak = find_peak(dsq)
+        speak = find_peak(dss)
 
     qtag = "# of {} blocks per {} gene".format(sgenome, qgenome)
     stag = "# of {} blocks per {} gene".format(qgenome, sgenome)

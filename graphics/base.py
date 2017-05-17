@@ -488,7 +488,7 @@ def quickplot_ax(ax, data, xmin, xmax, xlabel, title=None, ylabel="Counts",
             tag = str(int(h))
             rotation = 90
             if percentage:
-                tag = append_percentage(tag)
+                tag = append_percentage(tag) if int(tag) > 0 else ""
                 rotation = 0
             color = c1
             if highlight is not None and l == highlight:

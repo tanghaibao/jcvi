@@ -1345,8 +1345,10 @@ def depth(args):
 
     qtag = "# of {} blocks per {} gene".format(sgenome, qgenome)
     stag = "# of {} blocks per {} gene".format(qgenome, sgenome)
-    quickplot_ax(ax1, dss, 0, xmax, stag, ylabel="Percentage of genome", highlight=speak)
-    quickplot_ax(ax2, dsq, 0, xmax, qtag, ylabel=None, highlight=qpeak)
+    quickplot_ax(ax1, dss, 0, xmax, stag, ylabel="Percentage of genome",
+                 highlight=range(1, speak + 1))
+    quickplot_ax(ax2, dsq, 0, xmax, qtag, ylabel=None,
+                 highlight=range(1, qpeak + 1))
 
     title = opts.title or "{} vs {} syntenic depths\n{}:{} pattern"\
                     .format(qgenome, sgenome, speak, qpeak)

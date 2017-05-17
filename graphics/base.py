@@ -491,7 +491,7 @@ def quickplot_ax(ax, data, xmin, xmax, xlabel, title=None, ylabel="Counts",
                 tag = append_percentage(tag) if int(tag) > 0 else ""
                 rotation = 0
             color = c1
-            if highlight is not None and l == highlight:
+            if highlight is not None and l in highlight:
                 color = c2
             ax.text(l, h + pad, tag, color=color, size=8,
                      ha="center", va="bottom", rotation=rotation)
@@ -500,7 +500,8 @@ def quickplot_ax(ax, data, xmin, xmax, xlabel, title=None, ylabel="Counts",
 
     ax.bar(left, height, align="center", fc=c1)
     if highlight:
-        ax.bar([highlight], [data[highlight]], align="center", ec=c2, fc=c2)
+        for h in highlight:
+            ax.bar([h], [data[h]], align="center", ec=c2, fc=c2)
 
     ax.set_xlabel(markup(xlabel))
     if ylabel:

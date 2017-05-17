@@ -8,6 +8,7 @@ Process Hi-C output into AGP for chromosomal-scale scaffolding.
 import logging
 import sys
 import os.path as op
+import numpy as np
 
 from jcvi.apps.base import OptionParser, ActionDispatcher, iglob
 from jcvi.utils.natsort import natsorted
@@ -58,9 +59,70 @@ def main():
     actions = (
         ('agp', 'generate AGP file based on LACHESIS output'),
         ('heatmap', 'generate heatmap based on LACHESIS output'),
+        ('score', 'score the current LACHESIS CLM'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def score(args):
+    """
+    %prog score main_results/ cached_data/ contigsfasta
+
+    Score the current LACHESIS CLM.
+    """
+    p = OptionParser(score.__doc__)
+    opts, args, iopts = p.set_image_options(args, figsize="8x8",
+                                            style="white", cmap="coolwarm")
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    mdir, cdir, contigsfasta = args
+    orderingfiles = natsorted(iglob(mdir, "*.ordering"))
+    sizes = Sizes(contigsfasta)
+    contig_ids = dict((name, i) for (i, name) in \
+                        enumerate(sizes.iter_names()))
+    oo = []
+    # Load contact matrix
+    glm = op.join(cdir, "all.GLM")
+    N = len(contig_ids)
+    M = np.zeros((N, N), dtype=int)
+    fp = open(glm)
+    for row in fp:
+        if row[0] == '#':
+            continue
+        x, y, z = row.split()
+        if x == 'X':
+            continue
+        M[int(x), int(y)] = int(z)
+
+    for ofile in orderingfiles:
+        co = ContigOrdering(ofile)
+        for x in co:
+            contig_id = contig_ids[x.contig_name]
+            oo.append(contig_id)
+        pf = op.basename(ofile).split(".")[0]
+        print pf
+        print oo
+        calculate_score(oo, sizes, M)
+        oo = oo[30:] + oo[:30]
+        calculate_score(oo, sizes, M)
+        break
+
+
+def calculate_score(oo, sizes, M):
+    sizes_oo = [sizes.sizes[x] for x in oo]
+    sizes_cum = np.cumsum(sizes_oo)
+    s = 0
+    for ia in xrange(len(oo)):
+        a = oo[ia]
+        for ib in xrange(ia + 1, len(oo)):
+            b = oo[ib]
+            links = M[a, b]
+            s += links * 1. / (sizes_cum[ib] - sizes_cum[ia])
+    print "score = {}".format(s)
+    return s
 
 
 def heatmap(args):

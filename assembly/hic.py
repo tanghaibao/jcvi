@@ -71,6 +71,8 @@ def score(args):
 
     Score the current LACHESIS CLM.
     """
+    from jcvi.algorithms.ec import GA_setup, GA_run
+
     p = OptionParser(score.__doc__)
     opts, args, iopts = p.set_image_options(args, figsize="8x8",
                                             style="white", cmap="coolwarm")
@@ -105,24 +107,38 @@ def score(args):
         pf = op.basename(ofile).split(".")[0]
         print pf
         print oo
-        calculate_score(oo, sizes, M)
-        oo = oo[30:] + oo[:30]
-        calculate_score(oo, sizes, M)
+
+        tour, tour_sizes, tour_M = prepare_ec(oo, sizes, M)
+        toolbox = GA_setup(tour)
+        toolbox.register("evaluate", score_evaluate,
+                         tour_sizes=tour_sizes, tour_M=tour_M)
+        tour, tour.fitness = GA_run(toolbox, npop=100, cpus=64)
+        print tour, tour.fitness
         break
 
 
-def calculate_score(oo, sizes, M):
-    sizes_oo = [sizes.sizes[x] for x in oo]
+def prepare_ec(oo, sizes, M):
+    """
+    This prepares EC and converts from contig_id to an index.
+    """
+    tour = range(len(oo))
+    tour_sizes = [sizes.sizes[x] for x in oo]
+    tour_M = M[oo, :][:, oo]
+    return tour, tour_sizes, tour_M
+
+
+def score_evaluate(tour, tour_sizes=None, tour_M=None):
+    sizes_oo = [tour_sizes[x] for x in tour]
     sizes_cum = np.cumsum(sizes_oo)
     s = 0
-    for ia in xrange(len(oo)):
-        a = oo[ia]
-        for ib in xrange(ia + 1, len(oo)):
-            b = oo[ib]
-            links = M[a, b]
+    for ia in xrange(len(tour)):
+        a = tour[ia]
+        for ib in xrange(ia + 1, len(tour)):
+            b = tour[ib]
+            links = tour_M[a, b]
             s += links * 1. / (sizes_cum[ib] - sizes_cum[ia])
-    print "score = {}".format(s)
-    return s
+    #print "score = {}".format(s)
+    return s,
 
 
 def heatmap(args):

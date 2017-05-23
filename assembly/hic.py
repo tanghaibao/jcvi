@@ -10,6 +10,8 @@ import sys
 import os.path as op
 import numpy as np
 
+from functools import partial
+
 from jcvi.apps.base import OptionParser, ActionDispatcher, iglob
 from jcvi.utils.natsort import natsorted
 from jcvi.formats.agp import order_to_agp
@@ -83,8 +85,9 @@ def score(args):
     mdir, cdir, contigsfasta = args
     orderingfiles = natsorted(iglob(mdir, "*.ordering"))
     sizes = Sizes(contigsfasta)
-    contig_ids = dict((name, i) for (i, name) in \
-                        enumerate(sizes.iter_names()))
+    contig_names = list(sizes.iter_names())
+    contig_ids = dict((name, i) for (i, name) in enumerate(contig_names))
+
     oo = []
     # Load contact matrix
     glm = op.join(cdir, "all.GLM")
@@ -98,6 +101,17 @@ def score(args):
         if x == 'X':
             continue
         M[int(x), int(y)] = int(z)
+
+    fwtour = open("tour", "w")
+    def callback(tour, gen, oo):
+        fitness = tour.fitness if hasattr(tour, "fitness") else None
+        label = "GA-{0}".format(gen)
+        if fitness:
+            fitness = "{0}".format(fitness).split(",")[0].replace("(", "")
+            label += "-" + fitness
+        print >> fwtour, ">" + label
+        print >> fwtour, " ".join(contig_names[oo[x]] for x in tour)
+        return tour
 
     for ofile in orderingfiles:
         co = ContigOrdering(ofile)
@@ -115,12 +129,16 @@ def score(args):
         #print score_evaluate(array.array('i', tour),
         #                     tour_sizes=tour_sizes, tour_M=tour_M)
 
+        callbacki = partial(callback, oo=oo)
         toolbox = GA_setup(tour)
         toolbox.register("evaluate", score_evaluate,
                          tour_sizes=tour_sizes, tour_M=tour_M)
-        tour, tour.fitness = GA_run(toolbox, npop=100, cpus=64)
-        #print tour, tour.fitness
+        tour, tour.fitness = GA_run(toolbox, npop=100, cpus=64,
+                                    callback=callbacki)
+        print tour, tour.fitness
         break
+
+    fwtour.close()
 
 
 def prepare_ec(oo, sizes, M):

@@ -109,11 +109,17 @@ def score(args):
         print oo
 
         tour, tour_sizes, tour_M = prepare_ec(oo, sizes, M)
+
+        from .chic import score_evaluate
+        #import array
+        #print score_evaluate(array.array('i', tour),
+        #                     tour_sizes=tour_sizes, tour_M=tour_M)
+
         toolbox = GA_setup(tour)
         toolbox.register("evaluate", score_evaluate,
                          tour_sizes=tour_sizes, tour_M=tour_M)
         tour, tour.fitness = GA_run(toolbox, npop=100, cpus=64)
-        print tour, tour.fitness
+        #print tour, tour.fitness
         break
 
 
@@ -122,7 +128,7 @@ def prepare_ec(oo, sizes, M):
     This prepares EC and converts from contig_id to an index.
     """
     tour = range(len(oo))
-    tour_sizes = [sizes.sizes[x] for x in oo]
+    tour_sizes = np.array([sizes.sizes[x] for x in oo])
     tour_M = M[oo, :][:, oo]
     return tour, tour_sizes, tour_M
 
@@ -131,13 +137,13 @@ def score_evaluate(tour, tour_sizes=None, tour_M=None):
     sizes_oo = [tour_sizes[x] for x in tour]
     sizes_cum = np.cumsum(sizes_oo)
     s = 0
-    for ia in xrange(len(tour)):
+    size = len(tour)
+    for ia in xrange(size):
         a = tour[ia]
-        for ib in xrange(ia + 1, len(tour)):
+        for ib in xrange(ia + 1, size):
             b = tour[ib]
             links = tour_M[a, b]
             s += links * 1. / (sizes_cum[ib] - sizes_cum[ia])
-    #print "score = {}".format(s)
     return s,
 
 

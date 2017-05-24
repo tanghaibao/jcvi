@@ -9,6 +9,7 @@ import logging
 import sys
 import os.path as op
 import numpy as np
+import math
 
 from functools import partial
 
@@ -171,9 +172,6 @@ def heatmap(args):
 
     Generate heatmap file based on LACHESISS output.
     """
-    import math
-    import numpy as np
-
     p = OptionParser(heatmap.__doc__)
     opts, args, iopts = p.set_image_options(args, figsize="8x8",
                                             style="white", cmap="coolwarm")
@@ -184,24 +182,39 @@ def heatmap(args):
     mdir, cdir, contigsfasta = args
     orderingfiles = natsorted(iglob(mdir, "*.ordering"))
     sizes = Sizes(contigsfasta)
-    start = 0
-    bins = {}
     contig_ids = dict((name, str(i)) for (i, name) in \
                             enumerate(sizes.iter_names()))
-    breaks = []
+    tours = []
     for ofile in orderingfiles:
         co = ContigOrdering(ofile)
-        for x in co:
-            size = sizes.mapping[x.contig_name]
-            contig_id = contig_ids[x.contig_name]
+        tour = [x.contig_name for x in co]
+        tours.append(tour)
+
+    totalbins, bins, breaks = make_bins(tours, sizes, contig_ids)
+    glm = op.join(cdir, "all.GLM")
+    M = read_glm(glm, totalbins, bins)
+    plot_heatmap(M, breaks, iopts)
+
+
+def make_bins(tours, sizes, contig_ids):
+    breaks = []
+    start = 0
+    bins = {}
+    for tour in tours:
+        for x in tour:
+            size = sizes.mapping[x]
+            contig_id = contig_ids[x]
             end = start + int(math.ceil(size / 100000.))
             bins[contig_id] = (start, end)
             start = end
         breaks.append(start)
 
     totalbins = start
+    return totalbins, bins, breaks
+
+
+def read_glm(glm, totalbins, bins):
     M = np.zeros((totalbins, totalbins))
-    glm = op.join(cdir, "all.GLM")
     for row in open(glm):
         if row[0] == '#':
             continue
@@ -217,7 +230,10 @@ def heatmap(args):
         M[xstart:xend, ystart:yend] = z
 
     M = np.log10(M + 1)
+    return M
 
+
+def plot_heatmap(M, breaks, iopts):
     from jcvi.graphics.base import normalize_axes, plt, savefig
 
     fig = plt.figure(figsize=(iopts.w, iopts.h))

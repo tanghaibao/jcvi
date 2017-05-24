@@ -13,7 +13,7 @@ import math
 
 from functools import partial
 
-from jcvi.apps.base import OptionParser, ActionDispatcher, iglob
+from jcvi.apps.base import OptionParser, ActionDispatcher, iglob, mkdir
 from jcvi.utils.natsort import natsorted
 from jcvi.formats.agp import order_to_agp
 from jcvi.formats.base import LineFile, must_open
@@ -61,11 +61,52 @@ def main():
 
     actions = (
         ('agp', 'generate AGP file based on LACHESIS output'),
-        ('heatmap', 'generate heatmap based on LACHESIS output'),
         ('score', 'score the current LACHESIS CLM'),
+        # Plotting
+        ('heatmap', 'generate heatmap based on LACHESIS output'),
+        ('animation', 'plot optimization history'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def animation(args):
+    """
+    %prog animation tour cached_data/ contigsfasta
+
+    Plot optimization history.
+    """
+    p = OptionParser(animation.__doc__)
+    opts, args, iopts = p.set_image_options(args, figsize="8x8",
+                                            style="white", cmap="coolwarm")
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    tourfile, cdir, contigsfasta = args
+    sizes = Sizes(contigsfasta)
+
+    contig_names = list(sizes.iter_names())
+    contig_ids = dict((name, i) for (i, name) in enumerate(contig_names))
+
+    fp = open(tourfile)
+    glm = op.join(cdir, "all.GLM")
+    odir = "animation"
+    mkdir(odir)
+    for row in fp:
+        if row[0] == '>':
+            label = row[1:].strip()
+            pf, i, score = label.split("-")
+            i = int(i)
+            continue
+        else:
+            if i % 500 != 0:
+                continue
+            tours = [row.split()]
+            totalbins, bins, breaks = make_bins(tours, sizes, contig_ids)
+            M = read_glm(glm, totalbins, bins)
+            image_name = op.join(odir, label) + ".png"
+            plot_heatmap(M, breaks, iopts, image_name)
 
 
 def score(args):
@@ -77,8 +118,7 @@ def score(args):
     from jcvi.algorithms.ec import GA_setup, GA_run
 
     p = OptionParser(score.__doc__)
-    opts, args, iopts = p.set_image_options(args, figsize="8x8",
-                                            style="white", cmap="coolwarm")
+    opts, args = p.parse_args(args)
 
     if len(args) != 3:
         sys.exit(not p.print_help())
@@ -182,8 +222,9 @@ def heatmap(args):
     mdir, cdir, contigsfasta = args
     orderingfiles = natsorted(iglob(mdir, "*.ordering"))
     sizes = Sizes(contigsfasta)
-    contig_ids = dict((name, str(i)) for (i, name) in \
-                            enumerate(sizes.iter_names()))
+    contig_names = list(sizes.iter_names())
+    contig_ids = dict((name, i) for (i, name) in enumerate(contig_names))
+
     tours = []
     for ofile in orderingfiles:
         co = ContigOrdering(ofile)
@@ -191,9 +232,12 @@ def heatmap(args):
         tours.append(tour)
 
     totalbins, bins, breaks = make_bins(tours, sizes, contig_ids)
+
     glm = op.join(cdir, "all.GLM")
     M = read_glm(glm, totalbins, bins)
-    plot_heatmap(M, breaks, iopts)
+
+    image_name = "heatmap." + iopts.format
+    plot_heatmap(M, breaks, iopts, image_name)
 
 
 def make_bins(tours, sizes, contig_ids):
@@ -221,6 +265,7 @@ def read_glm(glm, totalbins, bins):
         x, y, z = row.split()
         if x == 'X':
             continue
+        x, y = int(x), int(y)
         if x not in bins or y not in bins:
             continue
         xstart, xend = bins[x]
@@ -233,9 +278,10 @@ def read_glm(glm, totalbins, bins):
     return M
 
 
-def plot_heatmap(M, breaks, iopts):
+def plot_heatmap(M, breaks, iopts, image_name):
     from jcvi.graphics.base import normalize_axes, plt, savefig
 
+    plt.clf()
     fig = plt.figure(figsize=(iopts.w, iopts.h))
     plt.imshow(M, cmap=iopts.cmap, origin="lower", interpolation='none')
     ax = plt.gca()
@@ -246,11 +292,13 @@ def plot_heatmap(M, breaks, iopts):
 
     ax.set_xlim(xlim)
     ax.set_ylim(xlim)
+    label = op.basename(image_name).rsplit(".", 1)[0]
+    plt.title(label)
 
     root = fig.add_axes([0, 0, 1, 1])
     normalize_axes(root)
-    image_name = "heatmap." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
+    plt.close(fig)
 
 
 def agp(args):

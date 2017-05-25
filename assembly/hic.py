@@ -77,8 +77,10 @@ def animation(args):
 
     Plot optimization history.
     """
+    from jcvi.assembly.allmaps import make_movie
+
     p = OptionParser(animation.__doc__)
-    p.add_option("--frames", default=500, type="int",
+    p.add_option("--frames", default=250, type="int",
                  help="Only plot every N frames")
     opts, args, iopts = p.set_image_options(args, figsize="8x8",
                                             style="white", cmap="coolwarm")
@@ -100,9 +102,12 @@ def animation(args):
             if i % opts.frames != 0:
                 continue
             tour = ",".join(row.split())
-            image_name = op.join(odir, label) + ".png"
+            image_name = op.join(odir, "{:06d}".format(i)) + "." + iopts.format
             heatmap(["main_results", cdir, contigsfasta,
-                     "--tour", tour, "--outfile", image_name])
+                     "--tour", tour, "--outfile", image_name,
+                     "--label", label])
+
+    make_movie(odir, "heatmap_animation")
 
 
 def score(args):
@@ -211,6 +216,7 @@ def heatmap(args):
     """
     p = OptionParser(heatmap.__doc__)
     p.add_option("--tour", help="List of contigs separated by comma")
+    p.add_option("--label", help="Figure title")
     p.set_outfile(outfile=None)
     opts, args, iopts = p.set_image_options(args, figsize="8x8",
                                             style="white", cmap="coolwarm")
@@ -238,8 +244,7 @@ def heatmap(args):
     glm = op.join(cdir, "all.GLM")
     M = read_glm(glm, totalbins, bins)
 
-    image_name = opts.outfile or ("heatmap." + iopts.format)
-    plot_heatmap(M, breaks, iopts, image_name)
+    plot_heatmap(M, breaks, opts, iopts)
 
 
 def make_bins(tours, sizes, contig_ids):
@@ -280,7 +285,9 @@ def read_glm(glm, totalbins, bins):
     return M
 
 
-def plot_heatmap(M, breaks, iopts, image_name):
+def plot_heatmap(M, breaks, opts, iopts):
+    image_name = opts.outfile or ("heatmap." + iopts.format)
+
     fig = plt.figure(figsize=(iopts.w, iopts.h))
     ax = fig.add_axes([.1, .1, .8, .8])
     ax.imshow(M, cmap=iopts.cmap, origin="lower", interpolation='none')
@@ -291,7 +298,7 @@ def plot_heatmap(M, breaks, iopts, image_name):
 
     ax.set_xlim(xlim)
     ax.set_ylim(xlim)
-    label = op.basename(image_name).rsplit(".", 1)[0]
+    label = opts.label or op.basename(image_name).rsplit(".", 1)[0]
     ax.set_title(label)
 
     root = fig.add_axes([0, 0, 1, 1])

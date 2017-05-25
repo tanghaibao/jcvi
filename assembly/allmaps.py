@@ -993,6 +993,10 @@ def animation(args):
             sh("cp {0} {1}/".format(image_name, ffmpeg))
         i += 1
 
+    make_movie(ffmpeg, pf)
+
+
+def make_movie(ffmpeg, pf):
     # Make the movie
     os.chdir(ffmpeg)
     cmd = "parallel convert -density 300 {} {.}.png ::: *.pdf"

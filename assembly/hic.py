@@ -18,6 +18,7 @@ from jcvi.utils.natsort import natsorted
 from jcvi.formats.agp import order_to_agp
 from jcvi.formats.base import LineFile, must_open
 from jcvi.formats.sizes import Sizes
+from jcvi.graphics.base import normalize_axes, plt, savefig
 
 
 class ContigOrderingLine(object):
@@ -77,6 +78,8 @@ def animation(args):
     Plot optimization history.
     """
     p = OptionParser(animation.__doc__)
+    p.add_option("--frames", default=500, type="int",
+                 help="Only plot every N frames")
     opts, args, iopts = p.set_image_options(args, figsize="8x8",
                                             style="white", cmap="coolwarm")
 
@@ -84,13 +87,7 @@ def animation(args):
         sys.exit(not p.print_help())
 
     tourfile, cdir, contigsfasta = args
-    sizes = Sizes(contigsfasta)
-
-    contig_names = list(sizes.iter_names())
-    contig_ids = dict((name, i) for (i, name) in enumerate(contig_names))
-
     fp = open(tourfile)
-    glm = op.join(cdir, "all.GLM")
     odir = "animation"
     mkdir(odir)
     for row in fp:
@@ -100,13 +97,12 @@ def animation(args):
             i = int(i)
             continue
         else:
-            if i % 500 != 0:
+            if i % opts.frames != 0:
                 continue
-            tours = [row.split()]
-            totalbins, bins, breaks = make_bins(tours, sizes, contig_ids)
-            M = read_glm(glm, totalbins, bins)
+            tour = ",".join(row.split())
             image_name = op.join(odir, label) + ".png"
-            plot_heatmap(M, breaks, iopts, image_name)
+            heatmap(["main_results", cdir, contigsfasta,
+                     "--tour", tour, "--outfile", image_name])
 
 
 def score(args):
@@ -118,6 +114,7 @@ def score(args):
     from jcvi.algorithms.ec import GA_setup, GA_run
 
     p = OptionParser(score.__doc__)
+    p.set_cpus()
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -165,16 +162,13 @@ def score(args):
 
         tour, tour_sizes, tour_M = prepare_ec(oo, sizes, M)
 
+        # Faster Cython version for evaluation
         from .chic import score_evaluate
-        #import array
-        #print score_evaluate(array.array('i', tour),
-        #                     tour_sizes=tour_sizes, tour_M=tour_M)
-
         callbacki = partial(callback, oo=oo)
         toolbox = GA_setup(tour)
         toolbox.register("evaluate", score_evaluate,
                          tour_sizes=tour_sizes, tour_M=tour_M)
-        tour, tour.fitness = GA_run(toolbox, npop=100, cpus=64,
+        tour, tour.fitness = GA_run(toolbox, npop=100, cpus=opts.cpus,
                                     callback=callbacki)
         print tour, tour.fitness
         break
@@ -193,8 +187,8 @@ def prepare_ec(oo, sizes, M):
 
 
 def score_evaluate(tour, tour_sizes=None, tour_M=None):
-    sizes_oo = [tour_sizes[x] for x in tour]
-    sizes_cum = np.cumsum(sizes_oo)
+    sizes_oo = np.array([tour_sizes[x] for x in tour])
+    sizes_cum = np.cumsum(sizes_oo) - sizes_oo / 2
     s = 0
     size = len(tour)
     for ia in xrange(size):
@@ -202,7 +196,10 @@ def score_evaluate(tour, tour_sizes=None, tour_M=None):
         for ib in xrange(ia + 1, size):
             b = tour[ib]
             links = tour_M[a, b]
-            s += links * 1. / (sizes_cum[ib] - sizes_cum[ia])
+            dist = sizes_cum[ib] - sizes_cum[ia]
+            if dist > 1e7:
+                break
+            s += links * 1. / dist
     return s,
 
 
@@ -213,6 +210,8 @@ def heatmap(args):
     Generate heatmap file based on LACHESISS output.
     """
     p = OptionParser(heatmap.__doc__)
+    p.add_option("--tour", help="List of contigs separated by comma")
+    p.set_outfile(outfile=None)
     opts, args, iopts = p.set_image_options(args, figsize="8x8",
                                             style="white", cmap="coolwarm")
 
@@ -225,18 +224,21 @@ def heatmap(args):
     contig_names = list(sizes.iter_names())
     contig_ids = dict((name, i) for (i, name) in enumerate(contig_names))
 
-    tours = []
-    for ofile in orderingfiles:
-        co = ContigOrdering(ofile)
-        tour = [x.contig_name for x in co]
-        tours.append(tour)
+    if opts.tour:
+        tours = [opts.tour.split(",")]
+    else:
+        tours = []
+        for ofile in orderingfiles:
+            co = ContigOrdering(ofile)
+            tour = [x.contig_name for x in co]
+            tours.append(tour)
 
     totalbins, bins, breaks = make_bins(tours, sizes, contig_ids)
 
     glm = op.join(cdir, "all.GLM")
     M = read_glm(glm, totalbins, bins)
 
-    image_name = "heatmap." + iopts.format
+    image_name = opts.outfile or ("heatmap." + iopts.format)
     plot_heatmap(M, breaks, iopts, image_name)
 
 
@@ -279,26 +281,22 @@ def read_glm(glm, totalbins, bins):
 
 
 def plot_heatmap(M, breaks, iopts, image_name):
-    from jcvi.graphics.base import normalize_axes, plt, savefig
-
-    plt.clf()
     fig = plt.figure(figsize=(iopts.w, iopts.h))
-    plt.imshow(M, cmap=iopts.cmap, origin="lower", interpolation='none')
-    ax = plt.gca()
+    ax = fig.add_axes([.1, .1, .8, .8])
+    ax.imshow(M, cmap=iopts.cmap, origin="lower", interpolation='none')
     xlim = ax.get_xlim()
     for b in breaks[:-1]:
-        plt.plot([b, b], xlim, 'w-')
-        plt.plot(xlim, [b, b], 'w-')
+        ax.plot([b, b], xlim, 'w-')
+        ax.plot(xlim, [b, b], 'w-')
 
     ax.set_xlim(xlim)
     ax.set_ylim(xlim)
     label = op.basename(image_name).rsplit(".", 1)[0]
-    plt.title(label)
+    ax.set_title(label)
 
     root = fig.add_axes([0, 0, 1, 1])
     normalize_axes(root)
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
-    plt.close(fig)
 
 
 def agp(args):

@@ -406,8 +406,7 @@ def synteny_liftover(points, anchors, dist):
         yield point, tuple(anchors[idx])
 
 
-def check_beds(hintfile, p, opts):
-
+def get_bed_filenames(hintfile, p, opts):
     wd, hintfile = op.split(hintfile)
     if not (opts.qbed and opts.sbed):
         try:
@@ -420,14 +419,18 @@ def check_beds(hintfile, p, opts):
             print >> sys.stderr, "Options --qbed and --sbed are required"
             sys.exit(not p.print_help())
 
-    qbed_file, sbed_file = opts.qbed, opts.sbed
+    return opts.qbed, opts.sbed
+
+
+def check_beds(hintfile, p, opts, sorted=True):
+    qbed_file, sbed_file = get_bed_filenames(hintfile, p, opts)
     # is this a self-self blast?
     is_self = (qbed_file == sbed_file)
     if is_self:
         logging.debug("Looks like self-self comparison.")
 
-    qbed = Bed(opts.qbed)
-    sbed = Bed(opts.sbed)
+    qbed = Bed(opts.qbed, sorted=sorted)
+    sbed = Bed(opts.sbed, sorted=sorted)
     qorder = qbed.order
     sorder = sbed.order
 

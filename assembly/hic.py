@@ -7,13 +7,15 @@ Process Hi-C output into AGP for chromosomal-scale scaffolding.
 
 import logging
 import sys
+import os
 import os.path as op
 import numpy as np
 import math
 
 from functools import partial
 
-from jcvi.apps.base import OptionParser, ActionDispatcher, iglob, mkdir
+from jcvi.apps.base import OptionParser, ActionDispatcher, iglob, mkdir, symlink
+from jcvi.assembly.allmaps import make_movie
 from jcvi.utils.natsort import natsorted
 from jcvi.formats.agp import order_to_agp
 from jcvi.formats.base import LineFile, must_open
@@ -65,21 +67,109 @@ def main():
         ('score', 'score the current LACHESIS CLM'),
         # Plotting
         ('heatmap', 'generate heatmap based on LACHESIS output'),
-        ('animation', 'plot optimization history'),
+        ('heatmapmovie', 'plot heatmap optimization history'),
+        ('syntenymovie', 'plot synteny optimization history'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
 
-def animation(args):
+def syntenymovie(args):
     """
-    %prog animation tour cached_data/ contigsfasta
+    %prog syntenymovie tour contigs.ref.last
 
-    Plot optimization history.
+    Plot synteny optimization history.
     """
-    from jcvi.assembly.allmaps import make_movie
+    from jcvi.compara.synteny import get_bed_filenames
+    from jcvi.formats.bed import Bed
+    from jcvi.formats.blast import Blast
+    from jcvi.utils.cbook import gene_name
+    from jcvi.graphics.dotplot import dotplot_main
 
-    p = OptionParser(animation.__doc__)
+    p = OptionParser(syntenymovie.__doc__)
+    p.add_option("--frames", default=250, type="int",
+                 help="Only plot every N frames")
+    p.set_beds()
+    opts, args, iopts = p.set_image_options(args, figsize="8x8")
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    tourfile, lastfile = args
+    qbedfile, sbedfile = get_bed_filenames(lastfile, p, opts)
+    odir = "syntenymovie"
+    mkdir(odir)
+
+    tourfile = op.abspath(tourfile)
+    lastfile = op.abspath(lastfile)
+    qbedfile = op.abspath(qbedfile)
+    sbedfile = op.abspath(sbedfile)
+    cwd = os.getcwd()
+    qbed = Bed(qbedfile, sorted=False)
+    contig_to_beds = dict(qbed.sub_beds())
+    os.chdir(odir)
+
+    # Make anchorsfile
+    anchorsfile = ".".join(op.basename(lastfile).split(".", 2)[:2]) + ".anchors"
+    fw = open(anchorsfile, "w")
+    for b in Blast(lastfile):
+        print >> fw, "\t".join((gene_name(b.query), gene_name(b.subject),
+                                str(int(b.score))))
+    fw.close()
+
+    # Symlink sbed
+    symlink(sbedfile, op.basename(sbedfile))
+
+    for i, label, tour in iter_tours(tourfile, frames=opts.frames):
+        # Make BED file with new order
+        qb = Bed()
+        for contig in tour:
+            for x in contig_to_beds[contig]:
+                qb.append(x)
+        qb.print_to_file(op.basename(qbedfile))
+        # Plot dot plot, but do not sort contigs by name (otherwise losing
+        # order)
+        image_name = "{:06d}".format(i) + "." + iopts.format
+        dotplot_main([anchorsfile, "--nosort", "--nosep",
+                      "--title", label, "--outfile", image_name])
+
+    os.chdir(cwd)
+    make_movie(odir, odir)
+
+
+def iter_tours(tourfile, frames=250):
+    """
+    Extract tours from tourfile. Tourfile contains a set of contig
+    configurations, generated at each iteration of the genetic algorithm. Each
+    configuration has two rows, first row contains iteration id and score,
+    second row contains list of contigs, separated by comma.
+    """
+    fp = open(tourfile)
+
+    for row in fp:
+        if row[0] == '>':
+            label = row[1:].strip()
+            if label.count("-") == 2:
+                pf, i, score = label.split("-")
+                i = int(i)
+            else:
+                i = 0
+            continue
+        else:
+            if i % frames != 0:
+                continue
+            yield i, label, row.split()
+
+    fp.close()
+
+
+def heatmapmovie(args):
+    """
+    %prog heatmapmovie tour cached_data/ contigsfasta
+
+    Plot heatmap optimization history.
+    """
+    p = OptionParser(heatmapmovie.__doc__)
     p.add_option("--frames", default=250, type="int",
                  help="Only plot every N frames")
     opts, args, iopts = p.set_image_options(args, figsize="8x8",
@@ -89,25 +179,16 @@ def animation(args):
         sys.exit(not p.print_help())
 
     tourfile, cdir, contigsfasta = args
-    fp = open(tourfile)
-    odir = "animation"
+    odir = "heatmapmovie"
     mkdir(odir)
-    for row in fp:
-        if row[0] == '>':
-            label = row[1:].strip()
-            pf, i, score = label.split("-")
-            i = int(i)
-            continue
-        else:
-            if i % opts.frames != 0:
-                continue
-            tour = ",".join(row.split())
-            image_name = op.join(odir, "{:06d}".format(i)) + "." + iopts.format
-            heatmap(["main_results", cdir, contigsfasta,
-                     "--tour", tour, "--outfile", image_name,
-                     "--label", label])
 
-    make_movie(odir, "heatmap_animation")
+    for i, label, tour in iter_tours(tourfile):
+        image_name = op.join(odir, "{:06d}".format(i)) + "." + iopts.format
+        tour = ",".join(tour)
+        heatmap(["main_results", cdir, contigsfasta,
+                 "--tour", tour, "--outfile", image_name,
+                 "--label", label])
+    make_movie(odir, odir)
 
 
 def score(args):
@@ -152,8 +233,7 @@ def score(args):
         if fitness:
             fitness = "{0}".format(fitness).split(",")[0].replace("(", "")
             label += "-" + fitness
-        print >> fwtour, ">" + label
-        print >> fwtour, " ".join(contig_names[oo[x]] for x in tour)
+        print_tour(fwtour, tour, label, contig_names, oo)
         return tour
 
     for ofile in orderingfiles:
@@ -166,6 +246,8 @@ def score(args):
         print oo
 
         tour, tour_sizes, tour_M = prepare_ec(oo, sizes, M)
+        # Store INIT tour
+        print_tour(fwtour, tour, "INIT", contig_names, oo)
 
         # Faster Cython version for evaluation
         from .chic import score_evaluate
@@ -179,6 +261,11 @@ def score(args):
         break
 
     fwtour.close()
+
+
+def print_tour(fwtour, tour, label, contig_names, oo):
+    print >> fwtour, ">" + label
+    print >> fwtour, " ".join(contig_names[oo[x]] for x in tour)
 
 
 def prepare_ec(oo, sizes, M):

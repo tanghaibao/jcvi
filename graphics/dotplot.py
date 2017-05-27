@@ -69,26 +69,10 @@ def draw_box(clusters, ax, color="b"):
                                 ec=color, fc='y', alpha=.5))
 
 
-def dotplot_main(anchorfile, qbed, sbed, image_name, iopts, vmin=0, vmax=1,
-        is_self=False, synteny=False, cmap_text=None, cmap="copper", genomenames=None,
-        sample_number=10000, minfont=5, palette=None, chrlw=.01, title=None):
-
-    fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes([0, 0, 1, 1])  # the whole canvas
-    ax = fig.add_axes([.1, .1, .8, .8])  # the dot plot
-
-    dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=vmin, vmax=vmax,
-        is_self=is_self, synteny=synteny, cmap_text=cmap_text, cmap=cmap,
-        genomenames=genomenames, sample_number=sample_number,
-        minfont=minfont, palette=palette, chrlw=chrlw, title=title)
-
-    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
-
-
 def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
         is_self=False, synteny=False, cmap_text=None, cmap="copper",
         genomenames=None, sample_number=10000, minfont=5, palette=None,
-        chrlw=.01, title=None, sepcolor="gainsboro"):
+        chrlw=.01, title=None, sep=True, sepcolor="gainsboro"):
 
     fp = open(anchorfile)
 
@@ -150,11 +134,6 @@ def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
                       "for clarity.".format(sample_number, npairs))
         data = sample(data, sample_number)
 
-    # the data are plotted in this order, the least value are plotted
-    # last for aesthetics
-    #if not palette:
-    #    data.sort(key=lambda x: -x[2])
-
     x, y, c = zip(*data)
 
     if palette:
@@ -186,7 +165,8 @@ def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
         seqid = "".join(seqid_parse(seqid)[:2])
 
         xchr_labels.append((seqid, (beg + end) / 2, fontsize))
-        ax.plot([beg, beg], ylim, "-", lw=chrlw, color=sepcolor)
+        if sep:
+            ax.plot([beg, beg], ylim, "-", lw=chrlw, color=sepcolor)
 
     for (seqid, beg, end) in sbed.get_breaks():
         ysize_ratio = abs(end - beg) * .8 / ysize
@@ -194,7 +174,8 @@ def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
         seqid = "".join(seqid_parse(seqid)[:2])
 
         ychr_labels.append((seqid, (beg + end) / 2, fontsize))
-        ax.plot(xlim, [beg, beg], "-", lw=chrlw, color=sepcolor)
+        if sep:
+            ax.plot(xlim, [beg, beg], "-", lw=chrlw, color=sepcolor)
 
     # plot the chromosome labels
     for label, pos, fontsize in xchr_labels:
@@ -269,8 +250,7 @@ def subset_bed(bed, seqids):
     return newbed
 
 
-if __name__ == "__main__":
-
+def dotplot_main(args):
     p = OptionParser(__doc__)
     p.set_beds()
     p.add_option("--synteny", default=False, action="store_true",
@@ -289,9 +269,15 @@ if __name__ == "__main__":
             help="Do not render labels with size smaller than")
     p.add_option("--colormap",
             help="Two column file, block id to color mapping [default: %default]")
+    p.add_option("--nosort", default=False, action="store_true",
+            help="Do not sort the seqids along the axes")
+    p.add_option("--nosep", default=False, action="store_true",
+            help="Do not add contig lines")
     p.add_option("--skipempty", default=False, action="store_true",
             help="Skip seqids that do not have matches")
-    opts, args, iopts = p.set_image_options(sys.argv[1:], figsize="8x8",
+    p.add_option("--title", help="Title of the dot plot")
+    p.set_outfile()
+    opts, args, iopts = p.set_image_options(args, figsize="8x8",
                                             style="dark", dpi=90, cmap="copper")
 
     if len(args) != 1:
@@ -312,7 +298,8 @@ if __name__ == "__main__":
             ksfile.print_to_anchors(anchorksfile)
         anchorfile = anchorksfile
 
-    qbed, sbed, qorder, sorder, is_self = check_beds(anchorfile, p, opts)
+    qbed, sbed, qorder, sorder, is_self = check_beds(anchorfile, p, opts,
+                sorted=(not opts.nosort))
 
     if opts.skipempty:
         ac = AnchorFile(anchorfile)
@@ -334,9 +321,22 @@ if __name__ == "__main__":
             qbed = subset_bed(qbed, qseqids)
             sbed = subset_bed(sbed, sseqids)
 
-    image_name = op.splitext(anchorfile)[0] + "." + opts.format
-    dotplot_main(anchorfile, qbed, sbed, image_name, iopts,
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes([0, 0, 1, 1])  # the whole canvas
+    ax = fig.add_axes([.1, .1, .8, .8])  # the dot plot
+
+    dotplot(anchorfile, qbed, sbed, fig, root, ax,
             vmin=opts.vmin, vmax=opts.vmax, is_self=is_self,
-            synteny=opts.synteny, cmap_text=cmaptext, cmap=iopts.cmap,
+            synteny=opts.synteny, cmap_text=opts.cmaptext, cmap=iopts.cmap,
             genomenames=opts.genomenames, sample_number=opts.sample_number,
-            minfont=opts.minfont, palette=palette)
+            minfont=opts.minfont, palette=palette, sep=(not opts.nosep),
+            title=opts.title)
+
+    image_name = opts.outfile or \
+            (op.splitext(anchorfile)[0] + "." + opts.format)
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
+    fig.clear()
+
+
+if __name__ == "__main__":
+    dotplot(sys.argv[1:])

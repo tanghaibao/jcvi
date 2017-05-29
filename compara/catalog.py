@@ -650,7 +650,7 @@ def ortholog(args):
                         "--quota={0}".format(quota), "--screen"])
         if need_update(anchors, pdf):
             from jcvi.graphics.dotplot import dotplot_main
-            dotplot_main([anchors, "--skipempty"])
+            dotplot_main([anchors])
         return
 
     if need_update(filtered_last, anchors):

@@ -69,6 +69,62 @@ def draw_box(clusters, ax, color="b"):
                                 ec=color, fc='y', alpha=.5))
 
 
+def plot_breaks_and_labels(fig, root, ax, xsize, ysize,
+                           qbreaks, sbreaks, sep=True, chrlw=.01,
+                           sepcolor="gainsboro", minfont=5):
+    xlim = (0, xsize)
+    ylim = (ysize, 0)  # invert the y-axis
+
+    # Tag to mark whether to plot chr name (skip small ones)
+    xchr_labels, ychr_labels = [], []
+    th = TextHandler(fig)
+
+    # plot the chromosome breaks
+    for (seqid, beg, end) in qbreaks:
+        xsize_ratio = abs(end - beg) * .8 / xsize
+        fontsize = th.select_fontsize(xsize_ratio)
+        seqid = "".join(seqid_parse(seqid)[:2])
+
+        xchr_labels.append((seqid, (beg + end) / 2, fontsize))
+        if sep:
+            ax.plot([beg, beg], ylim, "-", lw=chrlw, color=sepcolor)
+
+    for (seqid, beg, end) in sbreaks:
+        ysize_ratio = abs(end - beg) * .8 / ysize
+        fontsize = th.select_fontsize(ysize_ratio)
+        seqid = "".join(seqid_parse(seqid)[:2])
+
+        ychr_labels.append((seqid, (beg + end) / 2, fontsize))
+        if sep:
+            ax.plot(xlim, [beg, beg], "-", lw=chrlw, color=sepcolor)
+
+    # plot the chromosome labels
+    for label, pos, fontsize in xchr_labels:
+        pos = .1 + pos * .8 / xsize
+        if fontsize >= minfont:
+            root.text(pos, .91, latex(label), size=fontsize,
+                ha="center", va="bottom", rotation=45, color="grey")
+
+    # remember y labels are inverted
+    for label, pos, fontsize in ychr_labels:
+        pos = .9 - pos * .8 / ysize
+        if fontsize >= minfont:
+            root.text(.91, pos, latex(label), size=fontsize,
+                va="center", color="grey")
+
+    return xlim, ylim
+
+
+def downsample(data, sample_number=10000):
+    npairs = len(data)
+    # Only show random subset
+    if npairs > sample_number:
+        logging.debug("Showing a random subset of {0} data points (total {1}) " \
+                      "for clarity.".format(sample_number, npairs))
+        data = sample(data, sample_number)
+    return npairs
+
+
 def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
         is_self=False, synteny=False, cmap_text=None, cmap="copper",
         genomenames=None, sample_number=10000, minfont=5, palette=None,
@@ -127,13 +183,7 @@ def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
         if is_self:  # Mirror image
             data.append((si, qi, nv))
 
-    npairs = len(data)
-    # Only show random subset
-    if npairs > sample_number:
-        logging.debug("Showing a random subset of {0} data points (total {1}) " \
-                      "for clarity.".format(sample_number, npairs))
-        data = sample(data, sample_number)
-
+    npairs = downsample(data, sample_number=sample_number)
     x, y, c = zip(*data)
 
     if palette:
@@ -151,45 +201,11 @@ def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
 
     xsize, ysize = len(qbed), len(sbed)
     logging.debug("xsize=%d ysize=%d" % (xsize, ysize))
-    xlim = (0, xsize)
-    ylim = (ysize, 0)  # invert the y-axis
-
-    # Tag to mark whether to plot chr name (skip small ones)
-    xchr_labels, ychr_labels = [], []
-    th = TextHandler(fig)
-
-    # plot the chromosome breaks
-    for (seqid, beg, end) in qbed.get_breaks():
-        xsize_ratio = abs(end - beg) * .8 / xsize
-        fontsize = th.select_fontsize(xsize_ratio)
-        seqid = "".join(seqid_parse(seqid)[:2])
-
-        xchr_labels.append((seqid, (beg + end) / 2, fontsize))
-        if sep:
-            ax.plot([beg, beg], ylim, "-", lw=chrlw, color=sepcolor)
-
-    for (seqid, beg, end) in sbed.get_breaks():
-        ysize_ratio = abs(end - beg) * .8 / ysize
-        fontsize = th.select_fontsize(ysize_ratio)
-        seqid = "".join(seqid_parse(seqid)[:2])
-
-        ychr_labels.append((seqid, (beg + end) / 2, fontsize))
-        if sep:
-            ax.plot(xlim, [beg, beg], "-", lw=chrlw, color=sepcolor)
-
-    # plot the chromosome labels
-    for label, pos, fontsize in xchr_labels:
-        pos = .1 + pos * .8 / xsize
-        if fontsize >= minfont:
-            root.text(pos, .91, latex(label), size=fontsize,
-                ha="center", va="bottom", rotation=45, color="grey")
-
-    # remember y labels are inverted
-    for label, pos, fontsize in ychr_labels:
-        pos = .9 - pos * .8 / ysize
-        if fontsize >= minfont:
-            root.text(.91, pos, latex(label), size=fontsize,
-                va="center", color="grey")
+    qbreaks = qbed.get_breaks()
+    sbreaks = sbed.get_breaks()
+    xlim, ylim = plot_breaks_and_labels(fig, root, ax, xsize, ysize,
+                           qbreaks, sbreaks, sep=sep, chrlw=chrlw,
+                           sepcolor=sepcolor, minfont=minfont)
 
     # create a diagonal to separate mirror image for self comparison
     if is_self:

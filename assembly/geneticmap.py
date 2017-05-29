@@ -8,8 +8,9 @@ chromosomes.
 
 import sys
 import logging
+import numpy as np
 
-from itertools import combinations
+from itertools import combinations, groupby
 
 from jcvi.formats.base import BaseFile, LineFile, must_open, read_block
 from jcvi.formats.bed import Bed, fastaFromBed
@@ -140,9 +141,89 @@ def main():
         ('anchor', 'anchor scaffolds based on map'),
         ('rename', 'rename markers according to the new mapping locations'),
         ('header', 'rename lines in the map header'),
+        ('dotplot', 'make dotplot between chromosomes and linkage maps'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def dotplot(args):
+    """
+    %prog dotplot map.csv ref.fasta
+
+    Make dotplot between chromosomes and linkage maps.
+    The input map is csv formatted, for example:
+
+    ScaffoldID,ScaffoldPosition,LinkageGroup,GeneticPosition
+    scaffold_2707,11508,1,0
+    scaffold_2707,11525,1,1.2
+    """
+    from jcvi.assembly.allmaps import CSVMapLine
+    from jcvi.formats.sizes import Sizes
+    from jcvi.graphics.base import normalize_axes, plt, savefig
+    from jcvi.graphics.dotplot import downsample, plot_breaks_and_labels
+    from jcvi.utils.natsort import natsorted
+
+    p = OptionParser(dotplot.__doc__)
+    p.set_outfile(outfile=None)
+    opts, args, iopts = p.set_image_options(args, figsize="8x8",
+                                            style="dark", dpi=90, cmap="copper")
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    csvfile, fastafile = args
+    sizes = natsorted(Sizes(fastafile).mapping.items())
+    seen = set()
+    raw_data = []
+
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes([0, 0, 1, 1])  # the whole canvas
+    ax = fig.add_axes([.1, .1, .8, .8])  # the dot plot
+
+    fp = must_open(csvfile)
+    for row in fp:
+        m = CSVMapLine(row)
+        seen.add(m.seqid)
+        raw_data.append(m)
+
+    # X-axis is the genome assembly
+    ctgs, ctg_sizes = zip(*sizes)
+    xsize = sum(ctg_sizes)
+    qb = list(np.cumsum(ctg_sizes))
+    qbreaks = list(zip(ctgs, [0] + qb, qb))
+    qstarts = dict(zip(ctgs, [0] + qb))
+
+    # Y-axis is the map
+    key = lambda x: x.lg
+    raw_data.sort(key=key)
+    ssizes = {}
+    for lg, d in groupby(raw_data, key=key):
+        ssizes[lg] = max([x.cm for x in d])
+    ssizes = natsorted(ssizes.items())
+    lgs, lg_sizes = zip(*ssizes)
+    ysize = sum(lg_sizes)
+    sb = list(np.cumsum(lg_sizes))
+    sbreaks = list(zip(lgs, [0] + sb, sb))
+    sstarts = dict(zip(lgs, [0] + sb))
+
+    # Re-code all the scatter dots
+    data = [(qstarts[x.seqid] + x.pos, sstarts[x.lg] + x.cm, 'g') for x in raw_data]
+    downsample(data)
+
+    x, y, c = zip(*data)
+    ax.scatter(x, y, c=c, edgecolors="none", s=2, lw=0)
+
+    xlim, ylim = plot_breaks_and_labels(fig, root, ax,
+                            xsize, ysize, qbreaks, sbreaks)
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
+    normalize_axes(root)
+
+    image_name = opts.outfile or \
+                (csvfile.rsplit(".", 1)[0] + "." + iopts.format)
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
+    fig.clear()
 
 
 @memoized

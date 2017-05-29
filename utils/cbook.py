@@ -350,6 +350,7 @@ def seqid_parse(seqid, sep=["-", "_"], stdpf=True):
     >>> seqid_parse("AC235758.1", stdpf=False)
     ('AC', '235758.1', '')
     """
+    seqid = seqid.split(';')[0]
     if "mito" in seqid or "chloro" in seqid:
         return (seqid, "", "")
 

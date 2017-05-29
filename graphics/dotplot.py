@@ -276,7 +276,7 @@ def dotplot_main(args):
     p.add_option("--skipempty", default=False, action="store_true",
             help="Skip seqids that do not have matches")
     p.add_option("--title", help="Title of the dot plot")
-    p.set_outfile()
+    p.set_outfile(outfile=None)
     opts, args, iopts = p.set_image_options(args, figsize="8x8",
                                             style="dark", dpi=90, cmap="copper")
 
@@ -339,4 +339,4 @@ def dotplot_main(args):
 
 
 if __name__ == "__main__":
-    dotplot(sys.argv[1:])
+    dotplot_main(sys.argv[1:])

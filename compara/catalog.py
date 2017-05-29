@@ -640,6 +640,7 @@ def ortholog(args):
 
     anchors = pprefix + ".anchors"
     lifted_anchors = pprefix + ".lifted.anchors"
+    pdf = pprefix + ".pdf"
     if not opts.full:
         if need_update(filtered_last, lifted_anchors):
             scan([filtered_last, anchors, dist,
@@ -647,6 +648,9 @@ def ortholog(args):
         if quota:
             quota_main([lifted_anchors,
                         "--quota={0}".format(quota), "--screen"])
+        if need_update(anchors, pdf):
+            from jcvi.graphics.dotplot import dotplot_main
+            dotplot_main([anchors, "--skipempty"])
         return
 
     if need_update(filtered_last, anchors):

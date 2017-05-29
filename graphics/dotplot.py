@@ -32,7 +32,7 @@ from jcvi.compara.synteny import AnchorFile, batch_scan, check_beds
 from jcvi.utils.cbook import seqid_parse, thousands
 from jcvi.apps.base import OptionParser, need_update
 from jcvi.graphics.base import plt, Rectangle, set_human_axis, savefig, \
-            draw_cmap, TextHandler, latex, markup
+            draw_cmap, TextHandler, latex, markup, normalize_axes
 
 
 class Palette (dict):
@@ -69,7 +69,7 @@ def draw_box(clusters, ax, color="b"):
                                 ec=color, fc='y', alpha=.5))
 
 
-def plot_breaks_and_labels(fig, root, ax, xsize, ysize,
+def plot_breaks_and_labels(fig, root, ax, gx, gy, xsize, ysize,
                            qbreaks, sbreaks, sep=True, chrlw=.01,
                            sepcolor="gainsboro", minfont=5):
     xlim = (0, xsize)
@@ -112,6 +112,21 @@ def plot_breaks_and_labels(fig, root, ax, xsize, ysize,
             root.text(.91, pos, latex(label), size=fontsize,
                 va="center", color="grey")
 
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
+
+    ax.set_xlabel(markup(gx), size=16)
+    ax.set_ylabel(markup(gy), size=16)
+
+    # beautify the numeric axis
+    for tick in ax.get_xticklines() + ax.get_yticklines():
+        tick.set_visible(False)
+
+    set_human_axis(ax)
+
+    plt.setp(ax.get_xticklabels() + ax.get_yticklabels(),
+            color='gray', size=10)
+
     return xlim, ylim
 
 
@@ -131,6 +146,12 @@ def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
         chrlw=.01, title=None, sep=True, sepcolor="gainsboro"):
 
     fp = open(anchorfile)
+    # add genome names
+    if genomenames:
+        gx, gy = genomenames.split("_")
+    else:
+        to_ax_label = lambda fname: op.basename(fname).split(".")[0]
+        gx, gy = [to_ax_label(x.filename) for x in (qbed, sbed)]
 
     qorder = qbed.order
     sorder = sbed.order
@@ -203,34 +224,13 @@ def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
     logging.debug("xsize=%d ysize=%d" % (xsize, ysize))
     qbreaks = qbed.get_breaks()
     sbreaks = sbed.get_breaks()
-    xlim, ylim = plot_breaks_and_labels(fig, root, ax, xsize, ysize,
+    xlim, ylim = plot_breaks_and_labels(fig, root, ax, gx, gy, xsize, ysize,
                            qbreaks, sbreaks, sep=sep, chrlw=chrlw,
                            sepcolor=sepcolor, minfont=minfont)
 
     # create a diagonal to separate mirror image for self comparison
     if is_self:
         ax.plot(xlim, (0, ysize), 'm-', alpha=.5, lw=2)
-
-    ax.set_xlim(xlim)
-    ax.set_ylim(ylim)
-
-    # add genome names
-    if genomenames:
-        gx, gy = genomenames.split("_")
-    else:
-        to_ax_label = lambda fname: op.basename(fname).split(".")[0]
-        gx, gy = [to_ax_label(x.filename) for x in (qbed, sbed)]
-    ax.set_xlabel(markup(gx), size=16)
-    ax.set_ylabel(markup(gy), size=16)
-
-    # beautify the numeric axis
-    for tick in ax.get_xticklines() + ax.get_yticklines():
-        tick.set_visible(False)
-
-    set_human_axis(ax)
-
-    plt.setp(ax.get_xticklabels() + ax.get_yticklabels(),
-            color='gray', size=10)
 
     if palette:  # bottom-left has the palette, if available
         colors = palette.colors
@@ -248,10 +248,7 @@ def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
         title += " ({0} gene pairs)".format(thousands(npairs))
     root.set_title(markup(title), x=.5, y=.96, color="k")
     logging.debug(title)
-
-    root.set_xlim(0, 1)
-    root.set_ylim(0, 1)
-    root.set_axis_off()
+    normalize_axes(root)
 
 
 def subset_bed(bed, seqids):

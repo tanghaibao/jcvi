@@ -20,7 +20,6 @@ from jcvi.apps.base import OptionParser, ActionDispatcher
 def main():
 
     actions = (
-        ('blat', 'make ALLMAPS input csv based on sequences'),
         ('lms', 'ALLMAPS cartoon to illustrate LMS metric'),
         ('estimategaps', "illustrate ALLMAPS gap estimation algorithm"),
         ('simulation', 'plot ALLMAPS accuracy across a range of simulated data'),
@@ -30,55 +29,6 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
-
-
-def blat(args):
-    """
-    %prog blat map1.txt ref.fasta
-
-    Make ALLMAPS input csv based on sequences. The tab-delimited txt file
-    include: name, LG, position, sequence.
-    """
-    from jcvi.formats.base import is_number
-    from jcvi.formats.blast import best as blast_best, bed as blast_bed
-    from jcvi.apps.align import blat as blat_align
-
-    p = OptionParser(blat.__doc__)
-    opts, args = p.parse_args(args)
-
-    if len(args) != 2:
-        sys.exit(not p.print_help())
-
-    maptxt, ref = args
-    pf = maptxt.rsplit(".", 1)[0]
-    register = {}
-    fastafile = pf + ".fasta"
-    fp = open(maptxt)
-    fw = open(fastafile, "w")
-    for row in fp:
-        name, lg, pos, seq = row.split()
-        if not is_number(pos):
-            continue
-        register[name] = (pf + '-' + lg, pos)
-        print >> fw, ">{0}\n{1}\n".format(name, seq)
-    fw.close()
-
-    blatfile = blat_align([ref, fastafile])
-    bestfile = blast_best([blatfile])
-    bedfile = blast_bed([bestfile])
-    b = Bed(bedfile).order
-    csvfile = pf + ".csv"
-    fp = open(maptxt)
-    fw = open(csvfile, "w")
-    for row in fp:
-        name, lg, pos, seq = row.split()
-        if name not in b:
-            continue
-        bbi, bb = b[name]
-        scaffold, scaffold_pos = bb.seqid, bb.start
-        print >> fw, ",".join(str(x) for x in \
-                    (scaffold, scaffold_pos, lg, pos))
-    fw.close()
 
 
 def resample(args):

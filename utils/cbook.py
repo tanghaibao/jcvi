@@ -380,6 +380,8 @@ def seqid_parse(seqid, sep=["-", "_"], stdpf=True):
     else: # use standard prefix
         if re.findall("chr", prefix, re.I):
             prefix = "Chr"
+        if re.findall("lg", prefix, re.I):
+            prefix = "LG"
         elif re.findall("sca", prefix, re.I):
             prefix = "Sca"
         elif re.findall("supercontig", prefix, re.I):

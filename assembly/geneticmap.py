@@ -6,6 +6,7 @@ Use genetic map to break chimeric scaffolds, order and orient scaffolds onto
 chromosomes.
 """
 
+import os.path as op
 import sys
 import logging
 import numpy as np
@@ -141,10 +142,64 @@ def main():
         ('anchor', 'anchor scaffolds based on map'),
         ('rename', 'rename markers according to the new mapping locations'),
         ('header', 'rename lines in the map header'),
+        # Plot genetic map
+        ('blat', 'make ALLMAPS input csv based on sequences'),
         ('dotplot', 'make dotplot between chromosomes and linkage maps'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def blat(args):
+    """
+    %prog blat map1.txt ref.fasta
+
+    Make ALLMAPS input csv based on sequences. The tab-delimited txt file
+    include: name, LG, position, sequence.
+    """
+    from jcvi.formats.base import is_number
+    from jcvi.formats.blast import best as blast_best, bed as blast_bed
+    from jcvi.apps.align import blat as blat_align
+
+    p = OptionParser(blat.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    maptxt, ref = args
+    pf = maptxt.rsplit(".", 1)[0]
+    register = {}
+    fastafile = pf + ".fasta"
+    fp = open(maptxt)
+    fw = open(fastafile, "w")
+    for row in fp:
+        name, lg, pos, seq = row.split()
+        if not is_number(pos):
+            continue
+        register[name] = (pf + '-' + lg, pos)
+        print >> fw, ">{0}\n{1}\n".format(name, seq)
+    fw.close()
+
+    blatfile = blat_align([ref, fastafile])
+    bestfile = blast_best([blatfile])
+    bedfile = blast_bed([bestfile])
+    b = Bed(bedfile).order
+
+    pf = ".".join((op.basename(maptxt).split(".")[0],
+                   op.basename(ref).split(".")[0]))
+    csvfile = pf + ".csv"
+    fp = open(maptxt)
+    fw = open(csvfile, "w")
+    for row in fp:
+        name, lg, pos, seq = row.split()
+        if name not in b:
+            continue
+        bbi, bb = b[name]
+        scaffold, scaffold_pos = bb.seqid, bb.start
+        print >> fw, ",".join(str(x) for x in \
+                    (scaffold, scaffold_pos, lg, pos))
+    fw.close()
 
 
 def dotplot(args):
@@ -160,9 +215,10 @@ def dotplot(args):
     """
     from jcvi.assembly.allmaps import CSVMapLine
     from jcvi.formats.sizes import Sizes
-    from jcvi.graphics.base import normalize_axes, plt, savefig
-    from jcvi.graphics.dotplot import downsample, plot_breaks_and_labels
     from jcvi.utils.natsort import natsorted
+    from jcvi.graphics.base import shorten
+    from jcvi.graphics.dotplot import plt, savefig, markup, normalize_axes, \
+                    downsample, plot_breaks_and_labels, thousands
 
     p = OptionParser(dotplot.__doc__)
     p.set_outfile(outfile=None)
@@ -204,20 +260,28 @@ def dotplot(args):
     lgs, lg_sizes = zip(*ssizes)
     ysize = sum(lg_sizes)
     sb = list(np.cumsum(lg_sizes))
-    sbreaks = list(zip(lgs, [0] + sb, sb))
+    sbreaks = list(zip([("LG" + x) for x in lgs], [0] + sb, sb))
     sstarts = dict(zip(lgs, [0] + sb))
 
     # Re-code all the scatter dots
     data = [(qstarts[x.seqid] + x.pos, sstarts[x.lg] + x.cm, 'g') for x in raw_data]
-    downsample(data)
+    npairs = downsample(data)
 
     x, y, c = zip(*data)
     ax.scatter(x, y, c=c, edgecolors="none", s=2, lw=0)
 
-    xlim, ylim = plot_breaks_and_labels(fig, root, ax,
-                            xsize, ysize, qbreaks, sbreaks)
+    # Flip X-Y label
+    gy, gx = op.basename(csvfile).split(".")[:2]
+    gx, gy = shorten(gx, maxchar=30), shorten(gy, maxchar=30)
+    xlim, ylim = plot_breaks_and_labels(fig, root, ax, gx, gy,
+                                xsize, ysize, qbreaks, sbreaks)
     ax.set_xlim(xlim)
     ax.set_ylim(ylim)
+
+    title = "Alignment: {} vs {}".format(gx, gy)
+    title += " ({} markers)".format(thousands(npairs))
+    root.set_title(markup(title), x=.5, y=.96, color="k")
+    logging.debug(title)
     normalize_axes(root)
 
     image_name = opts.outfile or \

@@ -20,7 +20,7 @@ from jcvi.formats.base import LineFile, DictFile
 from jcvi.formats.bed import Bed, bins
 from jcvi.algorithms.matrix import moving_sum
 from jcvi.graphics.base import plt, Rectangle, CirclePolygon, savefig, \
-            ticker, human_readable_base
+            ticker, human_readable_base, latex
 from jcvi.utils.cbook import human_size, autoscale
 from jcvi.apps.base import OptionParser, ActionDispatcher
 
@@ -319,7 +319,7 @@ def multilineplot(args):
     fig, axarr = plt.subplots(nrows=len(lines))
     if len(linebeds) == 1:
         axarr = (axarr, )
-    fig.suptitle(chr, color="darkslategray")
+    fig.suptitle(latex(chr), color="darkslategray")
 
     for i, ax in enumerate(axarr):
         lineplot(ax, [linebins[i]], nbins, chr, window, shift, \

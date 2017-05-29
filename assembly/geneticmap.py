@@ -264,7 +264,8 @@ def dotplot(args):
     sstarts = dict(zip(lgs, [0] + sb))
 
     # Re-code all the scatter dots
-    data = [(qstarts[x.seqid] + x.pos, sstarts[x.lg] + x.cm, 'g') for x in raw_data]
+    data = [(qstarts[x.seqid] + x.pos, sstarts[x.lg] + x.cm, 'g') \
+                for x in raw_data if (x.seqid in qstarts)]
     npairs = downsample(data)
 
     x, y, c = zip(*data)

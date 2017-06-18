@@ -7,7 +7,7 @@ Script to plot diagrams of assembly graph in polyploids.
 """
 
 from collections import defaultdict
-from graphviz import Digraph
+from graphviz import Graph
 from random import choice, sample
 from matplotlib.colors import to_hex
 
@@ -30,8 +30,7 @@ def sequence_to_graph(G, seq, color='black'):
         if x.endswith("_1"):  # Mutation
             G.node(x, color=color, width="0.1", shape="circle", label="")
         else:
-            G.node(x, style="filled", color=color, width="0.1",
-                   shape="circle", fillcolor=color, label="")
+            G.node(x, color=color)
     for a, b in pairwise(seq):
         G.edge(a, b, color=color)
 
@@ -55,7 +54,7 @@ def zip_sequences(G, allseqs, color="white"):
 
 def main():
     SIZE = 20
-    PLOIDY = 6
+    PLOIDY = 2
     MUTATIONS = 2
 
     indices = range(SIZE)
@@ -70,8 +69,9 @@ def main():
                 zip(allseqs, [str(x) for x in range(PLOIDY)])]
 
     # Build graph structure
-    G = Digraph("Assembly graph", filename="graph")
-    G.attr(rankdir='LR', nodesep="0.02", fontname="Helvetica", splines="curved")
+    G = Graph("Assembly graph", filename="graph")
+    G.attr(rankdir="LR", fontname="Helvetica", splines="true")
+    G.attr(ranksep=".2", nodesep="0.02")
     G.attr('node', shape='point')
     G.attr('edge', dir='none', penwidth='4')
 

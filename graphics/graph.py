@@ -8,11 +8,11 @@ Script to plot diagrams of assembly graph in polyploids.
 
 from collections import defaultdict
 from graphviz import Digraph
-from itertools import combinations
 from random import choice, sample
+from matplotlib.colors import to_hex
 
 from jcvi.utils.iter import pairwise
-from jcvi.utils.webcolors import css3_names_to_hex
+from jcvi.utils.brewer2mpl import get_map
 
 
 def make_sequence(seq, name="S"):
@@ -47,13 +47,14 @@ def zip_sequences(G, allseqs, color="lightgray"):
             groups[part].append(x)
         for part, g in groups.items():
             with G.subgraph(name=part) as c:
-                #c.attr(margin='50')
-                for a, b in combinations(g, 2):
-                    c.edge(a, b, color=color, constraint="false")
+                c.attr(label=part)
+                c.attr(color='blue')
+                for x in g:
+                    c.node(x)
 
 
 def main():
-    SIZE = 30
+    SIZE = 20
     PLOIDY = 6
     MUTATIONS = 5
 
@@ -74,7 +75,9 @@ def main():
     G.attr('node', shape='point')
     G.attr('edge', dir='none', penwidth='4')
 
-    colors = sample(css3_names_to_hex.keys(), PLOIDY)
+    colorset = get_map('Set2', 'qualitative', 8).mpl_colors
+    colorset = [to_hex(x) for x in colorset]
+    colors = sample(colorset, PLOIDY)
     print colors
     for s, color in zip(allseqs, colors):
         sequence_to_graph(G, s, color=color)

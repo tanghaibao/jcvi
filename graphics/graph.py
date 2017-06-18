@@ -6,20 +6,11 @@
 Script to plot diagrams of assembly graph in polyploids.
 """
 
-import networkx as nx
 from itertools import combinations
 from random import choice
+from graphviz import Digraph
 
 from jcvi.utils.iter import pairwise
-from jcvi.utils.webcolors import name_to_rgb
-
-
-def make_rgb_color(color):
-    """
-    Convert web color name into a dictionary of color compatible with GEXF.
-    """
-    r, g, b = name_to_rgb(color)
-    return {'r': r, 'g': g, 'b': b, 'a': 0}
 
 
 def make_sequence(seq, name="S"):
@@ -29,46 +20,28 @@ def make_sequence(seq, name="S"):
     return ["{}_{}_{}".format(name, i, x) for i, x in enumerate(seq)]
 
 
-def make_node_viz(color):
-    """
-    Make GEXF-compatible node viz.
-    """
-    return {'color': make_rgb_color(color)}
-
-
-def make_edge_viz(color, thickness=4):
-    """
-    Make GEXF-compatible edge viz.
-    """
-    return {'color': make_rgb_color(color),
-            'thickness': thickness}
-
-
 def sequence_to_graph(G, seq, color='black'):
     """
     Automatically construct graph given a sequence of characters.
     """
-    node_viz = make_node_viz(color)
-    edge_viz = make_edge_viz(color)
-    for x in seq:
-        G.add_node(x)
-        G.node[x]['viz'] = node_viz
-    for a, b in pairwise(seq):
-        G.add_edge(a, b)
-        G.edge[a][b]['viz'] = edge_viz
+    with G.subgraph(name=color) as c:
+        c.attr('node', color=color)
+        c.attr('edge', color=color)
+        for x in seq:
+            c.node(x)
+        for a, b in pairwise(seq):
+            c.edge(a, b)
 
 
-def zip_sequence(G, seqA, seqB, color="white"):
+def zip_sequence(G, seqA, seqB, color="lightgray"):
     """
     Fuse certain nodes together, if they contain same data except for the
     sequence name.
     """
-    edge_viz = make_edge_viz(color)
     for a, b in zip(seqA, seqB):
         if a.split('_', 1)[1] != b.split('_', 1)[1]:
             continue
-        G.add_edge(a, b, weight=2)
-        G.edge[a][b]['viz'] = edge_viz
+        G.edge(a, b, color=color)
 
 
 def main():
@@ -87,7 +60,11 @@ def main():
                 zip(allseqs, "ABC")]
 
     # Build graph structure
-    G = nx.Graph()
+    G = Digraph("Assembly graph", filename="graph")
+    G.attr(rankdir='LR')
+    G.attr('node', shape='point')
+    G.attr('edge', dir='none', penwidth='4')
+
     colors = ['green', 'magenta', 'lightslategray']
     for s, color in zip(allseqs, colors):
         sequence_to_graph(G, s, color=color)
@@ -95,8 +72,7 @@ def main():
         zip_sequence(G, sA, sB)
 
     # Output graph
-    gexf = "graph.gexf"
-    nx.write_gexf(G, gexf)
+    G.view()
 
 
 if __name__ == '__main__':

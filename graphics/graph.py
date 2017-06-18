@@ -26,16 +26,13 @@ def sequence_to_graph(G, seq, color='black'):
     """
     Automatically construct graph given a sequence of characters.
     """
-    with G.subgraph(name=color) as c:
-        c.attr('node', color=color)
-        c.attr('edge', color=color)
-        for x in seq:
-            c.node(x)
-        for a, b in pairwise(seq):
-            c.edge(a, b)
+    for x in seq:
+        G.node(x, color=color)
+    for a, b in pairwise(seq):
+        G.edge(a, b, color=color)
 
 
-def zip_sequences(G, allseqs, color="lightgray"):
+def zip_sequences(G, allseqs, color="white"):
     """
     Fuse certain nodes together, if they contain same data except for the
     sequence name.
@@ -46,9 +43,7 @@ def zip_sequences(G, allseqs, color="lightgray"):
             part = x.split('_', 1)[1]
             groups[part].append(x)
         for part, g in groups.items():
-            with G.subgraph(name=part) as c:
-                c.attr(label=part)
-                c.attr(color='blue')
+            with G.subgraph(name="cluster_" + part) as c:
                 for x in g:
                     c.node(x)
 
@@ -78,7 +73,6 @@ def main():
     colorset = get_map('Set2', 'qualitative', 8).mpl_colors
     colorset = [to_hex(x) for x in colorset]
     colors = sample(colorset, PLOIDY)
-    print colors
     for s, color in zip(allseqs, colors):
         sequence_to_graph(G, s, color=color)
     zip_sequences(G, allseqs)

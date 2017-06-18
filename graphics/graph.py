@@ -6,11 +6,13 @@
 Script to plot diagrams of assembly graph in polyploids.
 """
 
-from itertools import combinations
-from random import choice
+from collections import defaultdict
 from graphviz import Digraph
+from itertools import combinations
+from random import choice, sample
 
 from jcvi.utils.iter import pairwise
+from jcvi.utils.webcolors import css3_names_to_hex
 
 
 def make_sequence(seq, name="S"):
@@ -33,43 +35,50 @@ def sequence_to_graph(G, seq, color='black'):
             c.edge(a, b)
 
 
-def zip_sequence(G, seqA, seqB, color="lightgray"):
+def zip_sequences(G, allseqs, color="lightgray"):
     """
     Fuse certain nodes together, if they contain same data except for the
     sequence name.
     """
-    for a, b in zip(seqA, seqB):
-        if a.split('_', 1)[1] != b.split('_', 1)[1]:
-            continue
-        G.edge(a, b, color=color)
+    for s in zip(*allseqs):
+        groups = defaultdict(list)
+        for x in s:
+            part = x.split('_', 1)[1]
+            groups[part].append(x)
+        for part, g in groups.items():
+            with G.subgraph(name=part) as c:
+                #c.attr(margin='50')
+                for a, b in combinations(g, 2):
+                    c.edge(a, b, color=color, constraint="false")
 
 
 def main():
-    size = 30
-    indices = range(size)
+    SIZE = 30
+    PLOIDY = 6
+    MUTATIONS = 5
+
+    indices = range(SIZE)
     # Build fake data
-    seqA = list("0" * size)
-    seqB = seqA[:]
-    seqC = seqA[:]
-    allseqs = [seqA, seqB, seqC]
+    seqA = list("0" * SIZE)
+    allseqs = [seqA[:] for x in range(PLOIDY)]  # Hexaploid
     for s in allseqs:
-        for i in [choice(indices) for x in range(5)]:
+        for i in [choice(indices) for x in range(MUTATIONS)]:
             s[i] = "1"
 
     allseqs = [make_sequence(s, name=name) for (s, name) in \
-                zip(allseqs, "ABC")]
+                zip(allseqs, [str(x) for x in range(PLOIDY)])]
 
     # Build graph structure
     G = Digraph("Assembly graph", filename="graph")
-    G.attr(rankdir='LR')
+    G.attr(rankdir='LR', nodesep="0.1", fontname="Helvetica")
     G.attr('node', shape='point')
     G.attr('edge', dir='none', penwidth='4')
 
-    colors = ['green', 'magenta', 'lightslategray']
+    colors = sample(css3_names_to_hex.keys(), PLOIDY)
+    print colors
     for s, color in zip(allseqs, colors):
         sequence_to_graph(G, s, color=color)
-    for sA, sB in combinations(allseqs, 2):
-        zip_sequence(G, sA, sB)
+    zip_sequences(G, allseqs)
 
     # Output graph
     G.view()

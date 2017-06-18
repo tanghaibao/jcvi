@@ -27,7 +27,11 @@ def sequence_to_graph(G, seq, color='black'):
     Automatically construct graph given a sequence of characters.
     """
     for x in seq:
-        G.node(x, color=color)
+        if x.endswith("_1"):  # Mutation
+            G.node(x, color=color, width="0.1", shape="circle", label="")
+        else:
+            G.node(x, style="filled", color=color, width="0.1",
+                   shape="circle", fillcolor=color, label="")
     for a, b in pairwise(seq):
         G.edge(a, b, color=color)
 
@@ -46,12 +50,13 @@ def zip_sequences(G, allseqs, color="white"):
             with G.subgraph(name="cluster_" + part) as c:
                 for x in g:
                     c.node(x)
+                c.attr(style="invis")
 
 
 def main():
     SIZE = 20
     PLOIDY = 6
-    MUTATIONS = 5
+    MUTATIONS = 2
 
     indices = range(SIZE)
     # Build fake data
@@ -66,7 +71,7 @@ def main():
 
     # Build graph structure
     G = Digraph("Assembly graph", filename="graph")
-    G.attr(rankdir='LR', nodesep="0.1", fontname="Helvetica")
+    G.attr(rankdir='LR', nodesep="0.02", fontname="Helvetica", splines="curved")
     G.attr('node', shape='point')
     G.attr('edge', dir='none', penwidth='4')
 

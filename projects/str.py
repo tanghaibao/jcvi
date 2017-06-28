@@ -53,6 +53,21 @@ class TREDPARSEvcf(object):
         print samplekey, res, ci
 
 
+class TrioOrDuo:
+
+    def __init__(self, parents, child, family):
+        self.parents = dict((x, family[x]) for x in parents)
+        self.child = dict((x, family[x]) for x in child)
+
+    def __len__(self):
+        return len(self.parents) + len(self.child)
+
+    def __str__(self):
+        return str(self.parents) + "=>" + str(self.child)
+
+    __repr__ = __str__
+
+
 def main():
 
     actions = (
@@ -75,9 +90,72 @@ def main():
         ('allelefreq', 'plot the allele frequencies of some STRs'),
         # Diagram
         ('diagram', 'plot the predictive power of various evidences'),
+        # Extra analysis for reviews
+        ('mendelian', 'calculate Mendelian errors based on trios and duos'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def extract_trios(family):
+    """
+    Identify all trios/duos inside a family, where a family contains dictionary
+    of relationship: individual, for example:
+      {
+	"ChildSelf": "176531498",
+	"DzTwin": "176531497",
+	"Parent": "176449143"
+      }
+    """
+    self_key = ["ChildSelf"]
+    keys = family.keys()
+    spouse_key = [x for x in keys if ("spouse" in x.lower())]
+    assert len(spouse_key) <= 1
+    parent_keys = [x for x in keys if \
+                    ("parent" in x.lower()) and ("grand" not in x.lower())]
+    sib_keys = [x for x in keys if ("sibling" in x.lower()) \
+                    or ("twin" in x.lower())] + self_key
+    child_keys  = [x for x in keys if \
+                    ("child"  in x.lower()) and ("grand" not in x.lower()) \
+                    and ("self" not in x.lower())]
+
+    for sk in sib_keys:
+        yield TrioOrDuo(parent_keys, [sk], family)
+    for ck in child_keys:
+        yield TrioOrDuo(self_key + spouse_key, [ck], family)
+
+
+def mendelian(args):
+    """
+    %prog mendelian trios_candidate.json hli.20170424.tred.tsv
+
+    Calculate Mendelian errors based on trios and duos.
+    """
+    p = OptionParser(mendelian.__doc__)
+    p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    triosjson, tredtsv = args
+    js = json.load(open(triosjson))
+    allterms = set()
+    duos = []
+    trios = []
+    for v in js:
+        allterms |= set(v.keys())
+        for trio_or_duo in extract_trios(v):
+            assert len(trio_or_duo) in (2, 3)
+            if len(trio_or_duo) == 2:
+                duos.append(trio_or_duo)
+            else:
+                trios.append(trio_or_duo)
+    print "\n".join(allterms)
+    print "A total of {} families imported".format(len(js))
+    print "Duos: {}".format(len(duos))
+    print duos
+    print "Trios: {}".format(len(trios))
+    print trios
 
 
 def make_STR_bed(filename="STR.bed", pad=0, treds=None):

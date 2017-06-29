@@ -56,8 +56,9 @@ class TREDPARSEvcf(object):
 class TrioOrDuo:
 
     def __init__(self, parents, child, family):
-        self.parents = dict((x, family[x]) for x in parents)
-        self.child = dict((x, family[x]) for x in child)
+        self.parents = dict((x, int(family[x])) for x in parents)
+        self.child = dict((x, int(family[x])) for x in child)
+        self.is_trio = len(self.parents) == 2
 
     def __len__(self):
         return len(self.parents) + len(self.child)
@@ -66,6 +67,32 @@ class TrioOrDuo:
         return str(self.parents) + "=>" + str(self.child)
 
     __repr__ = __str__
+
+    def check_mendelian(self, df, tred):
+        child_key = self.child.values()[0]
+        c = get_alleles(df, child_key, tred)
+        if self.is_trio:
+            parent_keys = self.parents.values()
+            p1 = get_alleles(df, parent_keys[0], tred)
+            p2 = get_alleles(df, parent_keys[1], tred)
+            print parent_keys[0], parent_keys[1], child_key, p1, p2, c
+        else:
+            parent_key = self.parents.values()[0]
+            p1 = get_alleles(df, parent_key, tred)
+            print parent_key, child_key, p1, c
+
+
+def get_alleles(df, sample, tred):
+    alleles = []
+    try:
+        s = df.ix[sample]
+    except:
+        return None
+    a = int(s[tred + ".1"])
+    b = int(s[tred + ".2"])
+    alleles.add(a)
+    alleles.add(b)
+    return alleles
 
 
 def main():
@@ -125,6 +152,14 @@ def extract_trios(family):
         yield TrioOrDuo(self_key + spouse_key, [ck], family)
 
 
+def read_tred_tsv(tsvfile):
+    """
+    Read the TRED table into a dataframe.
+    """
+    df = pd.read_csv(tsvfile, index_col=0, sep="\t")
+    return df
+
+
 def mendelian(args):
     """
     %prog mendelian trios_candidate.json hli.20170424.tred.tsv
@@ -152,10 +187,14 @@ def mendelian(args):
                 trios.append(trio_or_duo)
     print "\n".join(allterms)
     print "A total of {} families imported".format(len(js))
-    print "Duos: {}".format(len(duos))
-    print duos
-    print "Trios: {}".format(len(trios))
-    print trios
+    #print "Duos: {}".format(len(duos))
+    #print "Trios: {}".format(len(trios))
+
+    df = read_tred_tsv(tredtsv)
+    print df
+    print df.ix["164648328"]
+    for trio in trios:
+        trio.check_mendelian(df, "HD")
 
 
 def make_STR_bed(filename="STR.bed", pad=0, treds=None):

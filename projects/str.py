@@ -19,6 +19,7 @@ from pyfaidx import Fasta
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
+from itertools import product
 
 from jcvi.graphics.base import FancyArrow, normalize_axes, panel_labels, plt, savefig
 from jcvi.formats.base import must_open
@@ -63,6 +64,15 @@ class TrioOrDuo:
     def __len__(self):
         return len(self.parents) + len(self.child)
 
+    def __key(self):
+        return tuple(sorted(self.parents.values()) + self.child.values())
+
+    def __hash__(self):
+        return hash(self.__key())
+
+    def __eq__(x, y):
+        return x.__key() == y.__key()
+
     def __str__(self):
         return str(self.parents) + "=>" + str(self.child)
 
@@ -75,23 +85,29 @@ class TrioOrDuo:
             parent_keys = self.parents.values()
             p1 = get_alleles(df, parent_keys[0], tred)
             p2 = get_alleles(df, parent_keys[1], tred)
-            print parent_keys[0], parent_keys[1], child_key, p1, p2, c
+            possible_progenies = list(product(p1, p2))
+            mendelian_correct = not (c in possible_progenies)
+            print parent_keys[0], parent_keys[1], child_key, p1, p2, \
+                        c, mendelian_correct
         else:
             parent_key = self.parents.values()[0]
             p1 = get_alleles(df, parent_key, tred)
-            print parent_key, child_key, p1, c
+            mendelian_correct = len(set(p1) & set(c)) > 0
+            print parent_key, child_key, p1, \
+                        c, mendelian_correct
 
 
 def get_alleles(df, sample, tred):
     alleles = []
     try:
-        s = df.ix[sample]
+        s = df[df["SampleKey"] == int(sample)]
     except:
         return None
     a = int(s[tred + ".1"])
     b = int(s[tred + ".2"])
-    alleles.add(a)
-    alleles.add(b)
+    alleles.append(a)
+    alleles.append(b)
+
     return alleles
 
 
@@ -156,7 +172,7 @@ def read_tred_tsv(tsvfile):
     """
     Read the TRED table into a dataframe.
     """
-    df = pd.read_csv(tsvfile, index_col=0, sep="\t")
+    df = pd.read_csv(tsvfile, sep="\t")
     return df
 
 
@@ -175,26 +191,29 @@ def mendelian(args):
     triosjson, tredtsv = args
     js = json.load(open(triosjson))
     allterms = set()
-    duos = []
-    trios = []
+    duos = set()
+    trios = set()
     for v in js:
         allterms |= set(v.keys())
         for trio_or_duo in extract_trios(v):
             assert len(trio_or_duo) in (2, 3)
             if len(trio_or_duo) == 2:
-                duos.append(trio_or_duo)
+                duos.add(trio_or_duo)
             else:
-                trios.append(trio_or_duo)
+                trios.add(trio_or_duo)
     print "\n".join(allterms)
     print "A total of {} families imported".format(len(js))
-    #print "Duos: {}".format(len(duos))
-    #print "Trios: {}".format(len(trios))
 
+    # Read in all data
     df = read_tred_tsv(tredtsv)
-    print df
-    print df.ix["164648328"]
+
+    print "Trios: {}".format(len(trios))
     for trio in trios:
         trio.check_mendelian(df, "HD")
+
+    print "Duos: {}".format(len(duos))
+    for duo in duos:
+        duo.check_mendelian(df, "HD")
 
 
 def make_STR_bed(filename="STR.bed", pad=0, treds=None):

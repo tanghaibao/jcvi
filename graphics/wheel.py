@@ -11,7 +11,7 @@ import sys
 from collections import OrderedDict
 from itertools import groupby
 
-from jcvi.graphics.base import plt, savefig, normalize_axes, set2
+from jcvi.graphics.base import plt, savefig, normalize_axes
 from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
@@ -69,7 +69,7 @@ def wheel(args):
     Wheel plot that shows continous data in radial axes.
     """
     p = OptionParser(wheel.__doc__)
-    opts, args, iopts = p.set_image_options(args, figsize="10x10")
+    opts, args, iopts = p.set_image_options(args, figsize="5x5")
 
     if len(args) != 2:
         sys.exit(not p.print_help())
@@ -93,6 +93,7 @@ def wheel(args):
     brewer = ["#a6cee3", "#1f78b4", "#b2df8a", "#33a02c",
               "#fb9a99", "#e31a1c", "#fdbf6f", "#ff7f00",
               "#cab2d6", "#6a3d9a", "#ffff99", "#b15928"]
+
     # Baseline
     theta = np.linspace(0, 2 * np.pi, endpoint=False, num=categories)
     _theta = np.linspace(0, 2 * np.pi)
@@ -105,30 +106,41 @@ def wheel(args):
     ax.axis('off')
 
     # Sectors (groupings)
-    gg = {}
+    collapsed_groups = []
+    gg = []
     for group, c in groupby(enumerate(groups), lambda x: x[1]):
         c = [x[0] for x in list(c)]
-        gg[group] = c
+        collapsed_groups.append(group)
+        gg.append(c)
     print gg
 
     theta_interval = 2 * np.pi / categories
     theta_pad = theta_interval / 2 * .9
-    for color, group in zip(brewer, gg.values()):
+    for color, group in zip(brewer, gg):
         tmin, tmax = min(group), max(group)
         sector(ax, theta[tmin], theta[tmax], theta_pad, R * .95,
-                   "-", color=color)
+                   "-", color=color, lw=2)
 
     # Data
     r = df
     closed_plot(ax, theta, r, color="lightslategray")
-    for color, group in zip(brewer, gg.values()):
+    for color, group in zip(brewer, gg):
         color_theta = [theta[x] for x in group]
         color_r = [r[x] for x in group]
-        ax.plot(color_theta, color_r, "o")
+        ax.plot(color_theta, color_r, "o", color=color)
 
     ax.set_rmin(-R)
     ax.set_rmax(R)
 
+    # Labels
+    from math import cos, sin
+    for i, label in enumerate(labels):
+        tl = theta[i]
+        x, y = .5 + .5 * cos(tl), .5 + .5 * sin(tl)
+        root.text(x, y, label)
+        print x, y, label
+
+    root.text(.5, .5, "TEST")
     normalize_axes(root)
 
     image_name = pf + "." + iopts.format

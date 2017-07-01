@@ -79,22 +79,30 @@ class TrioOrDuo:
 
     __repr__ = __str__
 
-    def check_mendelian(self, df, tred, verbose=False):
+    def check_mendelian(self, df, tred, x_linked=False, verbose=False):
         child_key = self.child.values()[0]
         c = get_alleles(df, child_key, tred)
+        if c is None:
+            return 0
         if self.is_trio:
             parent_keys = self.parents.values()
             p1 = get_alleles(df, parent_keys[0], tred)
             p2 = get_alleles(df, parent_keys[1], tred)
-            possible_progenies = list(product(p1, p2))
-            mendelian_error = (c in possible_progenies)
+            if (p1 is None) or (p2 is None):
+                return 0
+            possible_progenies = set(tuple(sorted(x)) for x in product(p1, p2))
+            if x_linked:  # Add all hemizygotes
+                possible_progenies |= set((x, x) for x in (set(p1) | set(p2)))
+            mendelian_error = not (c in possible_progenies)
             if verbose:
                 print parent_keys[0], parent_keys[1], child_key, p1, p2, \
                             c, not mendelian_error
         else:
             parent_key = self.parents.values()[0]
             p1 = get_alleles(df, parent_key, tred)
-            mendelian_error = len(set(p1) & set(c)) > 0
+            if p1 is None:
+                return 0
+            mendelian_error = len(set(p1) & set(c)) == 0
             if verbose:
                 print parent_key, child_key, p1, \
                             c, not mendelian_error
@@ -102,17 +110,15 @@ class TrioOrDuo:
 
 
 def get_alleles(df, sample, tred):
-    alleles = []
     try:
-        s = df[df["SampleKey"] == sample]
+        s = df.ix[sample]
+        a = int(s[tred + ".1"])
+        b = int(s[tred + ".2"])
     except:
         return None
-    a = int(s[tred + ".1"])
-    b = int(s[tred + ".2"])
-    alleles.append(a)
-    alleles.append(b)
-
-    return alleles
+    if a == -1 or b == -1:
+        return None
+    return (a, b)
 
 
 def main():
@@ -176,7 +182,7 @@ def read_tred_tsv(tsvfile):
     """
     Read the TRED table into a dataframe.
     """
-    df = pd.read_csv(tsvfile, sep="\t", dtype={"SampleKey": str})
+    df = pd.read_csv(tsvfile, sep="\t", index_col=0, dtype={"SampleKey": str})
     return df
 
 
@@ -187,12 +193,14 @@ def mendelian(args):
     Calculate Mendelian errors based on trios and duos.
     """
     p = OptionParser(mendelian.__doc__)
-    p.parse_args(args)
+    p.set_verbose()
+    opts, args = p.parse_args(args)
 
     if len(args) != 2:
         sys.exit(not p.print_help())
 
     triosjson, tredtsv = args
+    verbose = opts.verbose
     js = json.load(open(triosjson))
     allterms = set()
     duos = set()
@@ -211,21 +219,26 @@ def mendelian(args):
     # Read in all data
     df = read_tred_tsv(tredtsv)
 
-    tred = "HD"
-    print "[TRED] {}".format(tred)
-    n_total = len(trios)
-    n_error = 0
-    print "Trios: {}".format(n_total)
-    for trio in trios:
-        n_error += trio.check_mendelian(df, tred)
-    print "Mendelian errors: {}".format(percentage(n_error, n_total))
+    ids, treds = read_treds()
+    for tred, inheritance in zip(treds["abbreviation"], treds["inheritance"]):
+        x_linked = inheritance[0] == 'X'   # X-linked
+        print "[TRED] {} X-linked={}".format(tred, x_linked)
+        n_total = len(trios)
+        n_error = 0
+        for trio in trios:
+            n_error += trio.check_mendelian(df, tred,
+                                            x_linked=x_linked, verbose=verbose)
+        print "Trios - Mendelian errors: {}".format(percentage(n_error, n_total))
 
-    n_total = len(duos)
-    n_error = 0
-    print "Duos: {}".format(n_total)
-    for duo in duos:
-        n_error += duo.check_mendelian(df, tred)
-    print "Mendelian errors: {}".format(percentage(n_error, n_total))
+        if x_linked:
+            continue
+
+        n_total = len(duos)
+        n_error = 0
+        for duo in duos:
+            n_error += duo.check_mendelian(df, tred,
+                                            x_linked=x_linked, verbose=verbose)
+        print "Duos  - Mendelian errors: {}".format(percentage(n_error, n_total))
 
 
 def make_STR_bed(filename="STR.bed", pad=0, treds=None):

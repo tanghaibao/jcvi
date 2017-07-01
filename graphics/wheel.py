@@ -90,9 +90,11 @@ def wheel(args):
     categories = len(df)
     ax = plt.subplot(111, projection='polar')
 
-    brewer = ["#a6cee3", "#1f78b4", "#b2df8a", "#33a02c",
-              "#fb9a99", "#e31a1c", "#fdbf6f", "#ff7f00",
-              "#cab2d6", "#6a3d9a", "#ffff99", "#b15928"]
+    brewer = [ "#FF3B30", "#DD43A0", "#5856D6",
+	       "#007AFE", "#56BDEC", "#4CD8BA",
+	       "#4CD864", "#B0F457", "#FEF221",
+	       "#FFCC01", "#FF9500", "#FF3B30",
+    ]
 
     # Baseline
     theta = np.linspace(0, 2 * np.pi, endpoint=False, num=categories)
@@ -112,14 +114,15 @@ def wheel(args):
         c = [x[0] for x in list(c)]
         collapsed_groups.append(group)
         gg.append(c)
-    print gg
 
-    theta_interval = 2 * np.pi / categories
-    theta_pad = theta_interval / 2 * .9
-    for color, group in zip(brewer, gg):
-        tmin, tmax = min(group), max(group)
-        sector(ax, theta[tmin], theta[tmax], theta_pad, R * .95,
-                   "-", color=color, lw=2)
+    sector = False
+    if sector:
+        theta_interval = 2 * np.pi / categories
+        theta_pad = theta_interval / 2 * .9
+        for color, group in zip(brewer, gg):
+            tmin, tmax = min(group), max(group)
+            sector(ax, theta[tmin], theta[tmax], theta_pad, R * .95,
+                       "-", color=color, lw=2)
 
     # Data
     r = df
@@ -140,7 +143,6 @@ def wheel(args):
         root.text(x, y, label)
         print x, y, label
 
-    root.text(.5, .5, "TEST")
     normalize_axes(root)
 
     image_name = pf + "." + iopts.format

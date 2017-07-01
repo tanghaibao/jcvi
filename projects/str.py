@@ -25,6 +25,7 @@ from jcvi.graphics.base import FancyArrow, normalize_axes, panel_labels, plt, sa
 from jcvi.formats.base import must_open
 from jcvi.formats.sam import get_minibam_bed, index
 from jcvi.variation.str import af_to_counts, read_treds
+from jcvi.utils.cbook import percentage
 from jcvi.apps.grid import Parallel
 from jcvi.apps.bwa import align
 from jcvi.apps.base import datafile, sh
@@ -57,8 +58,8 @@ class TREDPARSEvcf(object):
 class TrioOrDuo:
 
     def __init__(self, parents, child, family):
-        self.parents = dict((x, int(family[x])) for x in parents)
-        self.child = dict((x, int(family[x])) for x in child)
+        self.parents = dict((x, family[x]) for x in parents)
+        self.child = dict((x, family[x]) for x in child)
         self.is_trio = len(self.parents) == 2
 
     def __len__(self):
@@ -78,7 +79,7 @@ class TrioOrDuo:
 
     __repr__ = __str__
 
-    def check_mendelian(self, df, tred):
+    def check_mendelian(self, df, tred, verbose=False):
         child_key = self.child.values()[0]
         c = get_alleles(df, child_key, tred)
         if self.is_trio:
@@ -86,21 +87,24 @@ class TrioOrDuo:
             p1 = get_alleles(df, parent_keys[0], tred)
             p2 = get_alleles(df, parent_keys[1], tred)
             possible_progenies = list(product(p1, p2))
-            mendelian_correct = not (c in possible_progenies)
-            print parent_keys[0], parent_keys[1], child_key, p1, p2, \
-                        c, mendelian_correct
+            mendelian_error = (c in possible_progenies)
+            if verbose:
+                print parent_keys[0], parent_keys[1], child_key, p1, p2, \
+                            c, not mendelian_error
         else:
             parent_key = self.parents.values()[0]
             p1 = get_alleles(df, parent_key, tred)
-            mendelian_correct = len(set(p1) & set(c)) > 0
-            print parent_key, child_key, p1, \
-                        c, mendelian_correct
+            mendelian_error = len(set(p1) & set(c)) > 0
+            if verbose:
+                print parent_key, child_key, p1, \
+                            c, not mendelian_error
+        return mendelian_error
 
 
 def get_alleles(df, sample, tred):
     alleles = []
     try:
-        s = df[df["SampleKey"] == int(sample)]
+        s = df[df["SampleKey"] == sample]
     except:
         return None
     a = int(s[tred + ".1"])
@@ -172,7 +176,7 @@ def read_tred_tsv(tsvfile):
     """
     Read the TRED table into a dataframe.
     """
-    df = pd.read_csv(tsvfile, sep="\t")
+    df = pd.read_csv(tsvfile, sep="\t", dtype={"SampleKey": str})
     return df
 
 
@@ -201,19 +205,27 @@ def mendelian(args):
                 duos.add(trio_or_duo)
             else:
                 trios.add(trio_or_duo)
-    print "\n".join(allterms)
+    #print "\n".join(allterms)
     print "A total of {} families imported".format(len(js))
 
     # Read in all data
     df = read_tred_tsv(tredtsv)
 
-    print "Trios: {}".format(len(trios))
+    tred = "HD"
+    print "[TRED] {}".format(tred)
+    n_total = len(trios)
+    n_error = 0
+    print "Trios: {}".format(n_total)
     for trio in trios:
-        trio.check_mendelian(df, "HD")
+        n_error += trio.check_mendelian(df, tred)
+    print "Mendelian errors: {}".format(percentage(n_error, n_total))
 
-    print "Duos: {}".format(len(duos))
+    n_total = len(duos)
+    n_error = 0
+    print "Duos: {}".format(n_total)
     for duo in duos:
-        duo.check_mendelian(df, "HD")
+        n_error += duo.check_mendelian(df, tred)
+    print "Mendelian errors: {}".format(percentage(n_error, n_total))
 
 
 def make_STR_bed(filename="STR.bed", pad=0, treds=None):

@@ -146,6 +146,7 @@ def main():
         ('compare3', 'compare TREDPARSE on fake HD patients adding evidence'),
         ('compare4', 'compare TREDPARSE on fake HD patients adding coverage'),
         ('allelefreq', 'plot the allele frequencies of some STRs'),
+        ('mendelian_errors', 'plot Mendelian errors calculated by mendelian'),
         # Diagram
         ('diagram', 'plot the predictive power of various evidences'),
         # Extra analysis for reviews
@@ -153,6 +154,65 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def mendelian_errors(args):
+    """
+    %prog mendelian_errors STR-Mendelian-errors.csv
+
+    Plot Mendelian errors as calculated by mendelian(). File
+    `STR-Mendelian-errors.csv` looks like:
+
+    ,Duos  - Mendelian errors,Trios - Mendelian errors
+    SCA36,1.40%,0.60%
+    ULD,0.30%,1.50%
+    BPES,0.00%,1.80%
+
+    One TRED disease per line, followed by duo errors and trio errors.
+    """
+    p = OptionParser(mendelian_errors.__doc__)
+    opts, args, iopts = p.set_image_options(args, figsize="7x7")
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    csvfile, = args
+    fig, ax = plt.subplots(ncols=1, nrows=1,
+                           figsize=(iopts.w, iopts.h))
+    root = fig.add_axes([0, 0, 1, 1])
+
+    ymin = -.2
+    df = pd.read_csv(csvfile)
+    data = []
+    for i, d in df.iterrows():
+        data.append(d)
+    treds, duos, trios = zip(*data)
+    ntreds = len(treds)
+    ticks = range(ntreds)
+    treds = [x.split()[0] for x in treds]
+    duos = [float(x.rstrip('%')) for x in duos]
+    trios = [float(x.rstrip('%')) for x in trios]
+
+    for tick, duo, trio in zip(ticks, duos, trios):
+        m = max(duo, trio)
+        ax.plot([tick, tick], [ymin, m], "-", lw=2, color='lightslategray')
+
+    duos, = ax.plot(duos, "o", mfc='w', mec='g')
+    trios, = ax.plot(trios, "o", mfc='w', mec='b')
+    ax.set_title("Mendelian errors based on trios and duos in HLI samples")
+    nduos = "Mendelian errors in 362 duos"
+    ntrios = "Mendelian errors in 339 trios"
+    ax.legend([trios, duos], [ntrios, nduos], loc='best')
+
+    ax.set_xticks(ticks)
+    ax.set_xticklabels(treds, rotation=45, ha="right", size=8)
+    ax.set_ylabel("Mendelian errors (\%)")
+    ax.set_ylim(ymin, 20)
+
+    normalize_axes(root)
+
+    image_name = "mendelian_errors." + iopts.format
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
 def extract_trios(family):

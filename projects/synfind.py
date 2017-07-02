@@ -212,8 +212,8 @@ def venn(args):
                                xwidth - 2 * pad, ywidth - 2 * pad])
             venn2(subsets=(a, b, c), set_labels=(prog, tag), ax=ax)
             message = "Sn={0} Pu={1}".\
-                format(percentage(shared, tcounts, precision=0, mode=2),
-                       percentage(shared, pcounts, precision=0, mode=2))
+                format(percentage(shared, tcounts, precision=0, mode=-1),
+                       percentage(shared, pcounts, precision=0, mode=-1))
             print >> sys.stderr, message
             ax.text(.5, .92, latex(message), ha="center", va="center",
                     transform=ax.transAxes, color='b')

@@ -227,12 +227,15 @@ def percentage(a, b, precision=1, mode=0):
     >>> percentage(100, 200)
     '100 of 200 (50.0%)'
     """
+    _a, _b = a, b
     pct = "{0:.{1}f}%".format(a * 100. / b, precision)
     a, b = thousands(a), thousands(b)
     if mode == 0:
         return "{0} of {1} ({2})".format(a, b, pct)
     elif mode == 1:
         return "{0} ({1})".format(a, pct)
+    elif mode == 2:
+        return _a * 100. / _b
     return pct
 
 

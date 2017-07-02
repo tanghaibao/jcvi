@@ -61,7 +61,7 @@ def tabulate(d, transpose=False, thousands=True, key_fun=None, sep=',', align=Tr
         combo = [(r, c) for c in cols]
         if transpose:
             combo = [(c, r) for (r, c) in combo]
-        data = [d[x] for x in combo]
+        data = [d.get(x, "n/a") for x in combo]
         data = ["{0:.1f}".format(x) if isinstance(x, float) else x \
                     for x in data]
         if key_fun:

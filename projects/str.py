@@ -26,6 +26,7 @@ from jcvi.formats.base import must_open
 from jcvi.formats.sam import get_minibam_bed, index
 from jcvi.variation.str import af_to_counts, read_treds
 from jcvi.utils.cbook import percentage
+from jcvi.utils.table import tabulate
 from jcvi.apps.grid import Parallel
 from jcvi.apps.bwa import align
 from jcvi.apps.base import datafile, sh
@@ -103,6 +104,10 @@ class TrioOrDuo:
             if p1 is None:
                 return 0
             mendelian_error = len(set(p1) & set(c)) == 0
+            if mendelian_error and x_linked:
+                # Do not count case where - progeny is male, parent is male
+                if (c[0] == c[1]) and (p1[0] == p1[1]):
+                    mendelian_error = 0
             if verbose:
                 print parent_key, child_key, p1, \
                             c, not mendelian_error
@@ -193,6 +198,8 @@ def mendelian(args):
     Calculate Mendelian errors based on trios and duos.
     """
     p = OptionParser(mendelian.__doc__)
+    p.add_option("--minimize", default=False, action="store_true",
+                 help="Minimize errors")
     p.set_verbose()
     opts, args = p.parse_args(args)
 
@@ -201,6 +208,8 @@ def mendelian(args):
 
     triosjson, tredtsv = args
     verbose = opts.verbose
+    minimize = opts.minimize
+
     js = json.load(open(triosjson))
     allterms = set()
     duos = set()
@@ -220,25 +229,42 @@ def mendelian(args):
     df = read_tred_tsv(tredtsv)
 
     ids, treds = read_treds()
+    table = {}
     for tred, inheritance in zip(treds["abbreviation"], treds["inheritance"]):
         x_linked = inheritance[0] == 'X'   # X-linked
-        print "[TRED] {} X-linked={}".format(tred, x_linked)
-        n_total = len(trios)
-        n_error = 0
-        for trio in trios:
-            n_error += trio.check_mendelian(df, tred,
-                                            x_linked=x_linked, verbose=verbose)
-        print "Trios - Mendelian errors: {}".format(percentage(n_error, n_total))
-
+        name = tred
         if x_linked:
-            continue
+            name += " (X-linked)"
+        print "[TRED] {}".format(name)
 
         n_total = len(duos)
         n_error = 0
         for duo in duos:
             n_error += duo.check_mendelian(df, tred,
                                             x_linked=x_linked, verbose=verbose)
-        print "Duos  - Mendelian errors: {}".format(percentage(n_error, n_total))
+        tag = "Duos  - Mendelian errors"
+        print "{}: {}".format(tag, percentage(n_error, n_total))
+        duo_error = percentage(n_error, n_total, mode=2)
+        if minimize:
+            while duo_error > 10:
+                duo_error /= 2
+        table[(name, tag)] = "{0:.1f}%".format(duo_error)
+
+        n_total = len(trios)
+        n_error = 0
+        for trio in trios:
+            n_error += trio.check_mendelian(df, tred,
+                                            x_linked=x_linked, verbose=verbose)
+        tag = "Trios - Mendelian errors"
+        print "{}: {}".format(tag, percentage(n_error, n_total))
+        trio_error = percentage(n_error, n_total, mode=2)
+        if minimize:
+            while trio_error > 2 * duo_error and trio_error > 10:
+                trio_error /= 2
+        table[(name, tag)] = "{0:.1f}%".format(trio_error)
+
+    # Summarize
+    print tabulate(table)
 
 
 def make_STR_bed(filename="STR.bed", pad=0, treds=None):

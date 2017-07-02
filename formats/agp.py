@@ -205,7 +205,7 @@ class AGPLine (object):
 
 class AGP (LineFile):
 
-    def __init__(self, filename, validate=True, sorted=True):
+    def __init__(self, filename, nogaps=False, validate=True, sorted=True):
         super(AGP, self).__init__(filename)
 
         fp = open(filename)
@@ -216,7 +216,10 @@ class AGP (LineFile):
                 continue
             if row.strip() == "":
                 continue
-            self.append(AGPLine(row, validate=validate))
+            a = AGPLine(row, validate=validate)
+            if nogaps and a.is_gap:
+                continue
+            self.append(a)
 
         self.validate = validate
         if validate:
@@ -1012,7 +1015,7 @@ def swap(args):
 
     agpfile, = args
 
-    agp = AGP(agpfile)
+    agp = AGP(agpfile, nogaps=True, validate=False)
     agp.sort(key=lambda x: (x.component_id, x.component_beg))
 
     newagpfile = agpfile.rsplit(".", 1)[0] + ".swapped.agp"

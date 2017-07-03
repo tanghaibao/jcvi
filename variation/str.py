@@ -1283,11 +1283,15 @@ def locus(args):
     """
     from jcvi.formats.sam import get_minibam
     # See `Format-lobSTR-database.ipynb` for a list of TREDs for validation
-    INCLUDE = ["HD", "SBMA", "SCA1", "SCA2", "SCA8", "SCA17", "DM1", "DM2"]
+    INCLUDE = ["HD", "SBMA", "SCA1", "SCA2", "SCA8", "SCA17", "DM1", "DM2",
+               "FXTAS"]
+    db_choices = ("hg38", "hg19")
 
     p = OptionParser(locus.__doc__)
     p.add_option("--tred", choices=INCLUDE,
                  help="TRED name")
+    p.add_option("--ref", choices=db_choices, default="hg38",
+                 help="Reference genome")
     p.set_home("lobstr")
     opts, args = p.parse_args(args)
 
@@ -1295,13 +1299,19 @@ def locus(args):
         sys.exit(not p.print_help())
 
     bamfile, = args
+    ref = opts.ref
     lhome = opts.lobstr_home
     tred = opts.tred
 
     tredsfile = op.join(datadir, "TREDs.meta.csv")
     tf = pd.read_csv(tredsfile, index_col=0)
     row = tf.ix[tred]
-    seqid, start_end = row["repeat_location"].split(":")
+    tag = "repeat_location"
+    ldb = "TREDs"
+    if ref == "hg19":
+        tag += "." + ref
+        ldb += "-" + ref
+    seqid, start_end = row[tag].split(":")
 
     PAD = 1000
     start, end = start_end.split('-')
@@ -1310,11 +1320,16 @@ def locus(args):
 
     minibamfile = get_minibam(bamfile, region)
     c = seqid.replace("chr", "")
-    cmd, vcf = allelotype_on_chr(minibamfile, c, lhome, "TREDs")
+    cmd, vcf = allelotype_on_chr(minibamfile, c, lhome, ldb)
     sh(cmd)
 
     parser = LobSTRvcf(columnidsfile=None)
     parser.parse(vcf, filtered=False)
+    items = parser.items()
+    if not items:
+        print >> sys.stderr, "No entry found!"
+        return
+
     k, v = parser.items()[0]
     print >> sys.stderr, "{} => {}".format(tred, v.replace(',', '/'))
 

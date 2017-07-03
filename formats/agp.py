@@ -272,6 +272,13 @@ class AGP (LineFile):
         south = self.getAdjacentClone(i)
         return north, south
 
+    def transfer_header(self, fw=sys.stdout):
+        """
+        transfer_header() copies header to a new file.
+        print_header() creates a new header.
+        """
+        print >> fw, "\n".join(self.header)
+
     @classmethod
     def print_header(cls, fw=sys.stdout, organism=None,
                           taxid=None, source=None, comment=None):
@@ -1020,6 +1027,7 @@ def swap(args):
 
     newagpfile = agpfile.rsplit(".", 1)[0] + ".swapped.agp"
     fw = open(newagpfile, "w")
+    agp.transfer_header(fw)
     for cid, aa in groupby(agp, key=(lambda x: x.component_id)):
         aa = list(aa)
         aranges = [(x.component_id, x.component_beg, x.component_end) \
@@ -1319,6 +1327,7 @@ def reindex(args):
     newagpfile = pf + ".reindexed.agp"
 
     fw = open(newagpfile, "w")
+    agp.transfer_header(fw)
     for chr, chr_agp in groupby(agp, lambda x: x.object):
         chr_agp = list(chr_agp)
         object_beg = 1

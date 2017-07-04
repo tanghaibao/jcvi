@@ -167,7 +167,7 @@ def depth(args):
     import seaborn as sns
 
     p = OptionParser(depth.__doc__)
-    opts, args, iopts = p.set_image_options(args, figsize="16x16")
+    opts, args, iopts = p.set_image_options(args, figsize="14x14")
 
     if len(args) != 1:
         sys.exit(not p.print_help())
@@ -190,12 +190,17 @@ def depth(args):
         mdp = []    # (tred, median_dp)
         for tred, motif in zip(treds["abbreviation"], treds["motif"]):
             if len(motif) > 4:
-                motif = motif[:4] + ".."
-            xtred = "{}({})".format(tred, motif)
+                if "/" in motif:  # CTG/CAG
+                    motif = motif.split("/")[0]
+                else:
+                    motif = motif[:4] + ".."
+            xtred = "{} {}".format(tred, motif)
             md = [x for x in data[tred + '.' + dp] if x >= 0]
             subsample = 10000 if dp == "RDP" else 1000
             md = sample(md, subsample)
-            mdp.append((xtred, np.median(md)))
+            pmd = [x for x in md if x > 0]
+            median = np.median(pmd) if pmd else 0
+            mdp.append((xtred, median))
             for d in md:
                 xd.append((xtred, d))
 
@@ -208,14 +213,17 @@ def depth(args):
         sns.boxplot(xt, xd, ax=ax, order=order, fliersize=2)
         xticklabels = ax.get_xticklabels()
         ax.set_xticklabels(xticklabels, rotation=45, ha="right")
-        ax.set_title("Number of {} per locus".format(title), size=16)
+        ax.set_title("Number of {} per locus".format(title), size=18)
         ylim = 30 if dp == "RDP" else 100
         ax.set_ylim(0, ylim)
 
+        yticklabels = [int(x) for x in ax.get_yticks()]
+        ax.set_yticklabels(yticklabels, family='Helvetica', size=14)
+
     root = fig.add_axes([0, 0, 1, 1])
     pad = .04
-    panel_labels(root, ((pad / 2,  1 - pad, "A"), (1 / 2.,  1 - pad, "B"),
-                        (pad / 2, .5, "C"), (1 / 2., .5, "D")))
+    panel_labels(root, ((pad,  1 - pad, "A"), (1 / 2. + pad / 2,  1 - pad, "B"),
+                        (pad, .5 - pad / 2, "C"), (1 / 2. + pad / 2, .5 - pad / 2, "D")))
     normalize_axes(root)
 
     image_name = "depth." + iopts.format
@@ -272,6 +280,8 @@ def mendelian_errors(args):
 
     ax.set_xticks(ticks)
     ax.set_xticklabels(treds, rotation=45, ha="right", size=8)
+    yticklabels = [int(x) for x in ax.get_yticks()]
+    ax.set_yticklabels(yticklabels, family='Helvetica')
     ax.set_ylabel("Mendelian errors (\%)")
     ax.set_ylim(ymin, 20)
 

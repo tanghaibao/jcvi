@@ -15,6 +15,7 @@ import json
 import numpy as np
 import pandas as pd
 
+from random import sample
 from pyfaidx import Fasta
 from Bio import SeqIO
 from Bio.Seq import Seq
@@ -147,6 +148,7 @@ def main():
         ('compare4', 'compare TREDPARSE on fake HD patients adding coverage'),
         ('allelefreq', 'plot the allele frequencies of some STRs'),
         ('mendelian_errors', 'plot Mendelian errors calculated by mendelian'),
+        ('depth', 'plot read depths across all TREDs'),
         # Diagram
         ('diagram', 'plot the predictive power of various evidences'),
         # Extra analysis for reviews
@@ -154,6 +156,70 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def depth(args):
+    """
+    %prog depth DP.tsv
+
+    Plot read depths across all TREDs.
+    """
+    import seaborn as sns
+
+    p = OptionParser(depth.__doc__)
+    opts, args, iopts = p.set_image_options(args, figsize="16x16")
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    tsvfile, = args
+    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(ncols=2, nrows=2,
+                                    figsize=(iopts.w, iopts.h))
+    plt.tight_layout(pad=6)
+
+    data = pd.read_csv(tsvfile, sep="\t", low_memory=False)
+
+    ids, treds = read_treds()
+    for (dp, ax, title) in zip(("FDP", "PDP", "RDP", "PEDP"),
+                        (ax1, ax2, ax3, ax4),
+                        ("Spanning reads", "Partial reads",
+                         "Repeat-only reads", "Paired-end reads")):
+        logging.debug("Build {}".format(title))
+        # Construct related data structure
+        xd = []     # (tred, dp)
+        mdp = []    # (tred, median_dp)
+        for tred, motif in zip(treds["abbreviation"], treds["motif"]):
+            if len(motif) > 4:
+                motif = motif[:4] + ".."
+            xtred = "{}({})".format(tred, motif)
+            md = [x for x in data[tred + '.' + dp] if x >= 0]
+            subsample = 10000 if dp == "RDP" else 1000
+            md = sample(md, subsample)
+            mdp.append((xtred, np.median(md)))
+            for d in md:
+                xd.append((xtred, d))
+
+        # Determine order
+        mdp.sort(key=lambda x: x[1])
+        order, mdp = zip(*mdp)
+
+        # OK, now plot
+        xt, xd = zip(*xd)
+        sns.boxplot(xt, xd, ax=ax, order=order, fliersize=2)
+        xticklabels = ax.get_xticklabels()
+        ax.set_xticklabels(xticklabels, rotation=45, ha="right")
+        ax.set_title("Number of {} per locus".format(title), size=16)
+        ylim = 30 if dp == "RDP" else 100
+        ax.set_ylim(0, ylim)
+
+    root = fig.add_axes([0, 0, 1, 1])
+    pad = .04
+    panel_labels(root, ((pad / 2,  1 - pad, "A"), (1 / 2.,  1 - pad, "B"),
+                        (pad / 2, .5, "C"), (1 / 2., .5, "D")))
+    normalize_axes(root)
+
+    image_name = "depth." + iopts.format
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
 def mendelian_errors(args):

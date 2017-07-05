@@ -719,12 +719,14 @@ def getdomainname():
 
 def sh(cmd, grid=False, infile=None, outfile=None, errfile=None,
         append=False, background=False, threaded=None, log=True,
-        grid_opts=None, shell="/bin/bash"):
+        grid_opts=None, silent=False, shell="/bin/bash"):
     """
     simple wrapper for system calls
     """
     if not cmd:
         return 1
+    if silent:
+        outfile = errfile = "/dev/null"
     if grid:
         from jcvi.apps.grid import GridProcess
         pr = GridProcess(cmd, infile=infile, outfile=outfile, errfile=errfile,

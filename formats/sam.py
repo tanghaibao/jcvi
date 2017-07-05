@@ -228,8 +228,8 @@ def fastq(args):
 
     bamfile, pf = args
     singletons = pf + ".se.fastq"
-    a = pf + ".1.fastq"
-    b = pf + ".2.fastq"
+    a = pf + ".read1.fastq"
+    b = pf + ".read2.fastq"
 
     cmd  = "samtools collate -uOn 128 {} tmp-prefix".format(bamfile)
     cmd += " | samtools fastq -s {} -1 {} -2 {} -"\

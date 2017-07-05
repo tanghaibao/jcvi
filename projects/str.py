@@ -31,7 +31,7 @@ from jcvi.utils.table import tabulate
 from jcvi.apps.grid import Parallel
 from jcvi.apps.bwa import align
 from jcvi.apps.base import datafile, sh
-from jcvi.assembly.sim import wgsim
+from jcvi.assembly.sim import eagle, wgsim
 from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, iglob
 
 
@@ -918,6 +918,8 @@ def simulate(args):
     `run_dir`.
     """
     p = OptionParser(simulate.__doc__)
+    p.add_option("--method", choices=("wgsim", "eagle"), default="eagle",
+                 help="Read simulator")
     p.add_option("--ref", default="/Users/htang/projects/ref/hg38.upper.fa",
                  help="Reference genome sequence")
     add_simulate_options(p)
@@ -944,6 +946,7 @@ def simulate(args):
     seq = str(fasta[chr][start - pad_left: end + pad_right])
     make_fasta(seq, reffastafile, id=chr.upper())
 
+    simulate_method = wgsim if opts.method == "wgsim" else eagle
     # Write fake sequence
     for units in range(startunits, endunits + 1):
         pf = str(units)
@@ -954,7 +957,7 @@ def simulate(args):
         make_fasta(seq, fastafile, id=chr.upper())
 
         # Simulate reads on it
-        wgsim([fastafile, "--depth={}".format(opts.depth),
+        simulate_method([fastafile, "--depth={}".format(opts.depth),
                           "--readlen={}".format(opts.readlen),
                           "--distance={}".format(opts.distance),
                           "--outfile={}".format(pf)])

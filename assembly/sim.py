@@ -119,7 +119,8 @@ def eagle(args):
     sh(cmd, silent=True)
 
     # Retrieve results
-    outpf = opts.outfile or "{0}.{1}bp.{2}x.bwa".format(pf, distance, depth)
+    outpf = opts.outfile or "{0}.{1}bp.{2}x".format(pf, distance, depth)
+    outpf += ".bwa"
     cwd = os.getcwd()
     eagle_dir = "EAGLE"
     os.chdir(eagle_dir)

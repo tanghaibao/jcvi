@@ -42,6 +42,9 @@ SIMULATED_HAPLOID = r'Simulated haploid $\mathit{h}$'
 SIMULATED_DIPLOID = r"Simulated diploid $\mathit{20/h}$"
 lsg = "lightslategray"
 
+# List of TRED loci excluded from plots
+ignore = ("AR",)
+
 
 class TREDPARSEvcf(object):
 
@@ -189,6 +192,9 @@ def depth(args):
         xd = []     # (tred, dp)
         mdp = []    # (tred, median_dp)
         for tred, motif in zip(treds["abbreviation"], treds["motif"]):
+            if tred in ignore:
+                logging.debug("Ignore {}".format(tred))
+                continue
             if len(motif) > 4:
                 if "/" in motif:  # CTG/CAG
                     motif = motif.split("/")[0]
@@ -245,7 +251,7 @@ def mendelian_errors(args):
     One TRED disease per line, followed by duo errors and trio errors.
     """
     p = OptionParser(mendelian_errors.__doc__)
-    opts, args, iopts = p.set_image_options(args, figsize="7x7")
+    opts, args, iopts = p.set_image_options(args, figsize="6x6")
 
     if len(args) != 1:
         sys.exit(not p.print_help())
@@ -259,6 +265,9 @@ def mendelian_errors(args):
     df = pd.read_csv(csvfile)
     data = []
     for i, d in df.iterrows():
+        if d['TRED'].split()[0] in ignore:
+            logging.debug("Ignore {}".format(d['TRED']))
+            continue
         data.append(d)
     treds, duos, trios = zip(*data)
     ntreds = len(treds)

@@ -7,6 +7,7 @@ Simulate Illumina sequencing reads.
 
 import os
 import os.path as op
+import random
 import shutil
 import sys
 import logging
@@ -116,6 +117,7 @@ def eagle(args):
     cmd += " --quality-table {}".format(quality_file1)
     cmd += " --quality-table {}".format(quality_file2)
     cmd += " --template-length-table {}".format(template_distance)
+    cmd += " --random-seed {}".format(random.randint(1, 65535))
     sh(cmd, silent=True)
 
     # Retrieve results

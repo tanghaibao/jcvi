@@ -31,7 +31,7 @@ from jcvi.utils.table import tabulate
 from jcvi.apps.grid import Parallel
 from jcvi.apps.bwa import align
 from jcvi.apps.base import datafile, sh
-from jcvi.assembly.base import wgsim
+from jcvi.assembly.sim import wgsim
 from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, iglob
 
 

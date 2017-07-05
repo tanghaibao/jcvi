@@ -1392,7 +1392,7 @@ def compare3(args):
     color = "lightslategray"
     # ax1: Spanning
     tredparse_results = parse_results("tredparse_results_het-spanning.txt")
-    title = SIMULATED_DIPLOID + "( Sub-model 1: Spanning reads)"
+    title = SIMULATED_DIPLOID + " (Sub-model 1: Spanning reads)"
     plot_compare(ax1, title, tredparse_results, None, color=color,
                  max_insert=max_insert, risk=False)
 

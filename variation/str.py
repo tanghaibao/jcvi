@@ -209,7 +209,10 @@ class LobSTRvcf(dict):
                     alleles = (rpa[0], rpa[0])
                 elif gt == "1/2":
                     alleles = rpa
-                self[name] = ",".join(str(int(x)) for x in sorted(alleles))
+                try:
+                    self[name] = ",".join(str(int(x)) for x in sorted(alleles))
+                except:
+                    self[name] = "-,-"
 
                 # Collect supporting read evidence
                 motif_length = len(motif)

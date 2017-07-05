@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: UTF-8 -*-
+
 """
 SAM alignment format. There are other tools that handles better SAM and BAM.
 This script simply parses the lines in SAM into human readable fields.
@@ -5,6 +8,7 @@ This script simply parses the lines in SAM into human readable fields.
 http://samtools.sourceforge.net/SAM1.pdf
 """
 
+import os
 import os.path as op
 import sys
 import logging
@@ -188,6 +192,7 @@ def main():
         ('append', 'append or prepend string to read names'),
         # Extract info
         ('bed', 'convert bam files to bed'),
+        ('fastq', 'convert bam files to paired fastq'),
         ('pair', 'parse sam file and get pairs'),
         ('pairs', 'print paired-end reads from BAM file'),
         ('chimera', 'parse sam file from `bwasw` and list multi-hit reads'),
@@ -207,6 +212,33 @@ def main():
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def fastq(args):
+    """
+    %prog fastq bamfile prefix
+
+    Convert BAM files to paired FASTQ files.
+    """
+    p = OptionParser(fastq.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    bamfile, pf = args
+    singletons = pf + ".se.fastq"
+    a = pf + ".1.fastq"
+    b = pf + ".2.fastq"
+
+    cmd  = "samtools collate -uOn 128 {} tmp-prefix".format(bamfile)
+    cmd += " | samtools fastq -s {} -1 {} -2 {} -"\
+                .format(singletons, a, b)
+    sh(cmd)
+
+    if os.stat(singletons).st_size == 0:  # singleton file is empty
+        os.remove(singletons)
+    return a, b
 
 
 def extract(args):

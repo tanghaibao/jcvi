@@ -27,6 +27,7 @@ from jcvi.formats.base import must_open
 from jcvi.formats.sam import get_minibam_bed, index
 from jcvi.variation.str import TREDsRepo, af_to_counts, read_treds
 from jcvi.utils.cbook import percentage
+from jcvi.utils.natsort import natsorted
 from jcvi.utils.table import tabulate
 from jcvi.apps.grid import Parallel
 from jcvi.apps.bwa import align
@@ -137,6 +138,7 @@ def main():
         ('simulate', 'simulate bams with varying inserts with dwgsim'),
         ('mergebam', 'merge sets of BAMs to make diploid'),
         ('mini', 'prepare mini-BAMs that contain only the STR loci'),
+        ('alts', 'build alternative loci based on simulation data'),
         # Compile results
         ('batchlobstr', 'run lobSTR on a list of BAMs'),
         ('compilevcf', 'compile vcf outputs into lists'),
@@ -159,6 +161,101 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def in_region(rname, rstart, target_chr, target_start, target_end):
+    """
+    Quick check if a point is within the target region.
+    """
+    return (rname == target_chr) and \
+           (target_start <= rstart <= target_end)
+
+
+def alts(args):
+    """
+    %prog alts HD
+
+    Build alternative loci based on simulation data.
+    """
+    import pysam
+    from jcvi.utils.iter import pairwise
+    from jcvi.utils.grouper import Grouper
+
+    p = OptionParser(alts.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) < 1:
+        sys.exit(not p.print_help())
+
+    treds = args
+    repo = TREDsRepo()
+    if "all" in treds:
+        treds = repo.keys()
+
+    pad_left, pad_right = 1000, 10000
+    READLEN = 150
+    for tred in treds:
+        t = repo[tred]
+        # This is the region that involves the TRED locus
+        chr, start, end = t.chr, t.repeat_start, t.repeat_end
+        start -= pad_left
+        end += pad_right
+
+        # Simulate a depth 1000 BAM with 300 repeats
+        if not op.isdir(tred):
+            simulate([tred, "300", "300", "--depth=1000", "--tred={}".format(tred)])
+        bamfile = op.join(tred, "300.bam")
+
+        # Parse the BAM file, retrieve all regions
+        bamfile = pysam.AlignmentFile(bamfile, "rb")
+        nreads = altreads = 0
+        alt_points = set()
+        for read in bamfile.fetch():
+            fname, fstart = bamfile.getrname(read.reference_id), read.reference_start
+            rname, rstart = bamfile.getrname(read.next_reference_id), read.next_reference_start
+            f_in_region = in_region(fname, fstart, chr, start, end)
+            r_in_region = in_region(rname, rstart, chr, start, end)
+            if (not f_in_region) and r_in_region:
+                alt_points.add((fname, fstart))
+                altreads += 1
+            if (not r_in_region) and f_in_region:
+                alt_points.add((rname, rstart))
+                altreads += 1
+            nreads += 1
+
+        logging.debug("A total of {} reads ({} alts) processed".\
+                    format(nreads, altreads))
+        alt_points = natsorted(alt_points)
+
+        # Chain these points together into regions
+        g = Grouper()
+        for a, b in pairwise(alt_points):
+            achr, apos = a
+            bchr, bpos = b
+            g.join(a)
+            g.join(b)
+            if achr != bchr:
+                continue
+            if (bpos - apos) > READLEN:
+                continue
+            g.join(a, b)
+
+        # All regions that contain ALT
+        alt_sum = 0
+        regions = []
+        for c in g:
+            chr_min, pos_min = min(c)
+            chr_max, pos_max = max(c)
+            assert chr_min, chr_max
+            pos_min -= READLEN
+            pos_max += READLEN
+            regions.append((chr_min, pos_min, pos_max))
+            alt_sum += pos_max - pos_min
+
+        regions = "|".join(["{}:{}-{}".format(c, start, end) \
+                        for c, start, end in natsorted(regions)])
+        print "{},{}".format(tred, regions)
+        logging.debug("Alternative region sum: {} bp".format(alt_sum))
 
 
 def depth(args):
@@ -946,7 +1043,7 @@ def simulate(args):
     fasta = Fasta(ref)
     seq_left = fasta[chr][start - pad_left:start - 1]
     seq_right = fasta[chr][end: end + pad_right]
-    motif = 'CAG'
+    motif = tred.repeat
 
     simulate_method = wgsim if opts.method == "wgsim" else eagle
     # Write fake sequence

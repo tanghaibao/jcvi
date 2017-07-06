@@ -25,7 +25,7 @@ from itertools import product
 from jcvi.graphics.base import FancyArrow, normalize_axes, panel_labels, plt, savefig
 from jcvi.formats.base import must_open
 from jcvi.formats.sam import get_minibam_bed, index
-from jcvi.variation.str import af_to_counts, read_treds
+from jcvi.variation.str import TREDsRepo, af_to_counts, read_treds
 from jcvi.utils.cbook import percentage
 from jcvi.utils.table import tabulate
 from jcvi.apps.grid import Parallel
@@ -921,6 +921,7 @@ def simulate(args):
                  help="Read simulator")
     p.add_option("--ref", default="/mnt/ref/hg38.upper.fa",
                  help="Reference genome sequence")
+    p.add_option("--tred", default="HD", help="TRED locus")
     add_simulate_options(p)
     opts, args = p.parse_args(args)
 
@@ -935,9 +936,13 @@ def simulate(args):
     os.chdir(rundir)
     cwd = os.getcwd()
 
-    # Huntington region
+    # TRED region (e.g. Huntington)
     pad_left, pad_right = 1000, 10000
-    chr, start, end = 'chr4', 3074877, 3074933
+    repo = TREDsRepo()
+    tred = repo[opts.tred]
+    chr, start, end = tred.chr, tred.repeat_start, tred.repeat_end
+
+    logging.debug("Simulating {}".format(tred))
     fasta = Fasta(ref)
     seq_left = fasta[chr][start - pad_left:start - 1]
     seq_right = fasta[chr][end: end + pad_right]

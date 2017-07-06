@@ -8,6 +8,7 @@ Identify repeat numbers in STR repeats.
 import re
 import os
 import os.path as op
+import json
 import sys
 import vcf
 import logging
@@ -26,8 +27,11 @@ from jcvi.apps.grid import MakeManager
 from jcvi.formats.base import LineFile, must_open
 from jcvi.utils.aws import push_to_s3, pull_from_s3, check_exists_s3, ls_s3
 from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, need_update, \
-            datadir, sh
+            datafile, sh
 
+
+REF = "hg38"
+REPO = datafile("TREDs.meta.csv")
 
 READLEN = 150
 MINSCORE = 36
@@ -73,6 +77,88 @@ DYS460 DYS481 DYS518 DYS533
 DYS549 DYS570 DYS576 DYS627
 DYS635 DYS643 GATA-H4
 """.split()
+
+
+class TREDsRepo(dict):
+
+    def __init__(self, ref=REF, toy=False):
+
+        self.ref = ref
+        df = pd.read_csv(REPO, index_col=0)
+        self.names = []
+        for name, row in df.iterrows():
+            self[name] = TRED(name, row, ref=ref)
+            self.names.append(name)
+        self.df = df
+
+        if toy:
+            tr = self.get("HD")
+            tr.name = "toy"
+            tr.chr = "CHR4"
+            tr.repeat_start = 1001
+            tr.repeat_end = 1057
+            self[tr.name] = tr
+
+    def to_json(self):
+        s = self.df.to_json(orient='index')
+        s = s.decode('windows-1252').encode('utf8')
+        s = json.dumps(json.loads(s), sort_keys=True, indent=2)
+        return s
+
+    def set_ploidy(self, haploid):
+        if not haploid:
+            return
+        for k, v in self.items():
+            if v.chr in haploid:
+                v.ploidy = 1
+
+    def get_info(self, tredName):
+        tr = self.get(tredName)
+        info = "END={};MOTIF={};NS=1;REF={};CR={};IH={};RL={};VT=STR".\
+                    format(tr.repeat_end, tr.repeat, tr.ref_copy,
+                           tr.cutoff_risk, tr.inheritance,
+                           tr.ref_copy * len(tr.repeat))
+        return tr.chr, tr.repeat_start, tr.ref_copy, tr.repeat, info
+
+
+class TRED(object):
+
+    def __init__(self, name, row, ref=REF):
+
+        self.row = row
+        self.name = name
+        self.repeat = row["repeat"]
+        repeat_location_field = "repeat_location"
+        if ref != REF:
+            repeat_location_field += "." + ref.split("_")[0]
+        repeat_location = row[repeat_location_field]
+        if "_nochr" in ref:  # Some reference version do not have chr
+            repeat_location = repeat_location.replace("chr", "")
+        self.chr, repeat_location = repeat_location.split(":")
+        repeat_start, repeat_end = repeat_location.split("-")
+        self.repeat_start = int(repeat_start)
+        self.repeat_end = int(repeat_end)
+        self.ref_copy = (self.repeat_end - self.repeat_start + 1) / len(self.repeat)
+        self.prefix = row["prefix"]
+        self.suffix = row["suffix"]
+        self.cutoff_prerisk = row["cutoff_prerisk"]
+        self.cutoff_risk = row["cutoff_risk"]
+        self.inheritance = row["inheritance"]
+        self.is_xlinked = self.inheritance[0] == 'X'
+        self.is_recessive = self.inheritance[-1] == 'R'
+        self.is_expansion = row["mutation_nature"] == 'increase'
+        self.ploidy = 2
+
+    def __repr__(self):
+        return "{} inheritance={} id={}_{}_{}".\
+                format(self.name, self.inheritance,
+                       self.chr, self.repeat_start, self.repeat)
+
+    def __str__(self):
+        return ";".join(str(x) for x in \
+                (self.name, self.repeat,
+                 self.chr, self.repeat_start, self.repeat_end,
+                 self.prefix, self.suffix))
 
 
 class STRLine(object):
@@ -285,7 +371,7 @@ def treds(args):
     tredresults, = args
     df = pd.read_csv(tredresults, sep="\t")
 
-    tredsfile = op.join(datadir, "TREDs.meta.csv")
+    tredsfile = datafile("TREDs.meta.csv")
     tf = pd.read_csv(tredsfile)
 
     tds = list(tf["abbreviation"])
@@ -464,7 +550,7 @@ def write_meta(af_file, gene_map, blacklist, filename="meta.tsv"):
     logging.debug("Write meta file to `{}`".format(filename))
 
 
-def read_treds(tredsfile=op.join(datadir, "TREDs.meta.csv")):
+def read_treds(tredsfile=datafile("TREDs.meta.csv")):
     df = pd.read_csv(tredsfile)
     treds = set(df["id"])
     logging.debug("Loaded {} treds from `{}`".format(len(treds), tredsfile))
@@ -1308,7 +1394,7 @@ def locus(args):
     lhome = opts.lobstr_home
     tred = opts.tred
 
-    tredsfile = op.join(datadir, "TREDs.meta.csv")
+    tredsfile = datafile("TREDs.meta.csv")
     tf = pd.read_csv(tredsfile, index_col=0)
     row = tf.ix[tred]
     tag = "repeat_location"

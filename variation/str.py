@@ -1167,6 +1167,8 @@ def lobstr(args):
     p.add_option("--haploid", default="chrY,chrM",
                  help="Use haploid model for these chromosomes")
     p.add_option("--chr", help="Run only this chromosome")
+    p.add_option("--simulation", default=False, action="store_true",
+                 help="Simulation mode")
     p.set_home("lobstr", default="s3://hli-mv-data-science/htang/str-build/lobSTR/")
     p.set_cpus()
     p.set_aws_opts(store="hli-mv-data-science/htang/str-data")
@@ -1177,9 +1179,9 @@ def lobstr(args):
         sys.exit(not p.print_help())
 
     lbindices = args
-    if lbindices[0] == "TOY":  # Simulation mode
-        cmd, vcf_file = allelotype_on_chr(bamfile, "CHR4", "/mnt/software/lobSTR/",
-                                          "TOY", haploid=opts.haploid)
+    if opts.simulation:  # Simulation mode
+        cmd, vcf_file = allelotype_on_chr(bamfile, "chr4", "/mnt/software/lobSTR/",
+                                          "TREDs", haploid=opts.haploid)
         stats_file = vcf_file.rsplit(".", 1)[0] + ".allelotype.stats"
         results_dir = "lobstr_results"
         mkdir(results_dir)

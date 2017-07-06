@@ -710,10 +710,10 @@ def likelihood3(args):
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
-def plot_panel(jsonfile, ax1, ax2, ax3, cmap):
+def plot_panel(jsonfile, ax1, ax2, ax3, cmap, tred="HD"):
     j = json.load(open(jsonfile))
     calls = j["tredCalls"]
-    P_h1h2 = calls["toy.P_h1h2"]
+    P_h1h2 = calls[tred + ".P_h1h2"]
     data = np.zeros((301, 301))
     for k, v in P_h1h2.items():
         a, b = k.split(",")
@@ -723,18 +723,18 @@ def plot_panel(jsonfile, ax1, ax2, ax3, cmap):
 
     label = "Probability density"
     data = mask_upper_triangle(data)
-    h1_hat, h2_hat = calls["toy.1"], calls["toy.2"]
+    h1_hat, h2_hat = calls[tred + ".1"], calls[tred + ".2"]
     pf = op.basename(jsonfile).split(".")[0]
     h1_truth, h2_truth = sorted([int(x) for x in pf.split("_")])
     ax_imshow(ax1, data, cmap, label, h1_hat, h2_hat,
               h1_truth, h2_truth, draw_circle=False, ticks=False)
 
-    CI = calls["toy.CI"]
+    CI = calls[tred + ".CI"]
     CI_h1, CI_h2 = CI.split("|")
     CI_h1 = [int(x) for x in CI_h1.split('-')]
     CI_h2 = [int(x) for x in CI_h2.split('-')]
-    P_h1 = calls["toy.P_h1"]
-    P_h2 = calls["toy.P_h2"]
+    P_h1 = calls[tred + ".P_h1"]
+    P_h2 = calls[tred + ".P_h2"]
 
     ax_plot(ax2, P_h1, h1_hat, CI_h1, "h_1", label, ticks=False)
     ax_plot(ax3, P_h2, h2_hat, CI_h2, "h_2", label, ticks=False)
@@ -749,7 +749,7 @@ def diagram(args):
     Plot the predictive power of various evidences.
     """
     p = OptionParser(diagram.__doc__)
-    opts, args, iopts = p.set_image_options(args, figsize="8x4")
+    opts, args, iopts = p.set_image_options(args, figsize="8x4", format="png")
 
     if len(args) != 0:
         sys.exit(not p.print_help())
@@ -764,7 +764,7 @@ def diagram(args):
     yp = yy - yinterval - height
     canvas = .95
     xstart = .025
-    convert = lambda x: xstart + x * canvas / 1200
+    convert = lambda x: xstart + x * canvas / 600
     # Symbols
     root.text(.5, .9, r"$L$: Read length, $F$: Flank size, $V$: Pair distance", ha="center")
     root.text(.5, .85, r"ex. $L=150bp, F=9bp, V=500bp$", ha="center")
@@ -785,7 +785,6 @@ def diagram(args):
                   (150 - 9,         150 - 9, 1, r"$L - F$"),
                       (150,      150 + ppad, 2, r"$L$"),
                   (500 - 9,         500 - 9, 3, r"$V - F$"),
-             (500 * 2 - 18,    500 * 2 - 18, 2, r"$2(V - F)$"),
                 )
     for event, pos, i, label in keyevents:
         _event = convert(event)
@@ -803,7 +802,7 @@ def diagram(args):
     CLOSED, OPEN = range(2)
     ranges = ((0,       150 - 18, CLOSED, "Spanning reads"),
               (9,        150 - 9, OPEN,   "Partial reads"),
-              (150, 500 * 2 - 18, CLOSED, "Repeat reads"),
+              (150,      500 - 9, CLOSED, "Repeat reads"),
               (0,        500 - 9, CLOSED, "Paired-end reads"),
              )
     for start, end, starttag, label in ranges:
@@ -920,7 +919,7 @@ def simulate(args):
     p = OptionParser(simulate.__doc__)
     p.add_option("--method", choices=("wgsim", "eagle"), default="eagle",
                  help="Read simulator")
-    p.add_option("--ref", default="/Users/htang/projects/ref/hg38.upper.fa",
+    p.add_option("--ref", default="/mnt/ref/hg38.upper.fa",
                  help="Reference genome sequence")
     add_simulate_options(p)
     opts, args = p.parse_args(args)
@@ -929,6 +928,7 @@ def simulate(args):
         sys.exit(not p.print_help())
 
     rundir, startunits, endunits = args
+    ref = opts.ref
     startunits, endunits = int(startunits), int(endunits)
     basecwd = os.getcwd()
     mkdir(rundir)
@@ -938,13 +938,10 @@ def simulate(args):
     # Huntington region
     pad_left, pad_right = 1000, 10000
     chr, start, end = 'chr4', 3074877, 3074933
-    fasta = Fasta(opts.ref)
+    fasta = Fasta(ref)
     seq_left = fasta[chr][start - pad_left:start - 1]
     seq_right = fasta[chr][end: end + pad_right]
     motif = 'CAG'
-    reffastafile = "ref.fasta"
-    seq = str(fasta[chr][start - pad_left: end + pad_right])
-    make_fasta(seq, reffastafile, id=chr.upper())
 
     simulate_method = wgsim if opts.method == "wgsim" else eagle
     # Write fake sequence
@@ -964,7 +961,7 @@ def simulate(args):
 
         read1 = pf + ".bwa.read1.fastq"
         read2 = pf + ".bwa.read2.fastq"
-        samfile, _ = align(["../{}".format(reffastafile), read1, read2])
+        samfile, _ = align([ref, read1, read2])
         indexed_samfile = index([samfile])
 
         sh("mv {} ../{}.bam".format(indexed_samfile, pf))
@@ -1024,7 +1021,7 @@ def batchlobstr(args):
     %prog batchlobstr bamlist
 
     Run lobSTR on a list of BAMs. The corresponding batch command for TREDPARSE:
-    $ tred.py --toy bamlist --haploid CHR4 --workdir tredparse_results
+    $ tred.py bamlist --haploid chr4 --workdir tredparse_results
     """
     p = OptionParser(batchlobstr.__doc__)
     p.add_option("--haploid", default="chrY,chrM",
@@ -1036,9 +1033,10 @@ def batchlobstr(args):
         sys.exit(not p.print_help())
 
     bamlist, = args
-    cmd = "python -m jcvi.variation.str lobstr TOY"
+    cmd = "python -m jcvi.variation.str lobstr TREDs"
     cmd += " --input_bam_path {}"
     cmd += " --haploid {}".format(opts.haploid)
+    cmd += " --simulation"
     cmds = [cmd.format(x.strip()) for x in open(bamlist).readlines()]
     p = Parallel(cmds, cpus=opts.cpus)
     p.run()

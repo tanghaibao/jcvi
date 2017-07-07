@@ -182,6 +182,7 @@ def alts(args):
     from jcvi.utils.grouper import Grouper
 
     p = OptionParser(alts.__doc__)
+    p.set_outfile(outfile="TREDs.alts.csv")
     opts, args = p.parse_args(args)
 
     if len(args) < 1:
@@ -194,6 +195,7 @@ def alts(args):
 
     pad_left, pad_right = 1000, 10000
     READLEN = 150
+    fw = must_open(opts.outfile, "w")
     for tred in treds:
         t = repo[tred]
         # This is the region that involves the TRED locus
@@ -254,8 +256,12 @@ def alts(args):
 
         regions = "|".join(["{}:{}-{}".format(c, start, end) \
                         for c, start, end in natsorted(regions)])
-        print "{},{}".format(tred, regions)
+        line = "{},{}".format(tred, regions)
+        print >> sys.stderr, line
+        print >> fw, line
         logging.debug("Alternative region sum: {} bp".format(alt_sum))
+
+    fw.close()
 
 
 def depth(args):
@@ -1317,7 +1323,9 @@ def parse_results(datafile, exclude=None):
     return data
 
 
-def compute_rmsd(truth, a):
+def compute_rmsd(truth, a, limit=150):
+    truth = truth[:limit]
+    a = a[:limit]
     if len(a) > len(truth):
         a = a[: len(truth)]
     return (sum((i - j) ** 2 for (i, j) in zip(truth, a)) / len(truth)) ** .5
@@ -1385,9 +1393,12 @@ def plot_compare(ax, title, tredparse_results, lobstr_results, pad=8, ms=3,
         lx, ly = zip(*lobstr_results)
         lrmsd = compute_rmsd(truth, ly)
 
+    rmsd_tag = "$RMSD_{1:150}$"
     if lobstr_results:
-        ax.plot(lx, ly, 'c+-', ms=ms, label='lobSTR (RMSD={:.2f})'.format(lrmsd))
-    ax.plot(tx, ty, '.-', color=color, ms=ms, label='TREDPARSE (RMSD={:.2f})'.format(trmsd))
+        ax.plot(lx, ly, 'c+-', ms=ms,
+                        label='lobSTR ({}={:.2f})'.format(rmsd_tag, lrmsd))
+    ax.plot(tx, ty, '.-', color=color, ms=ms,
+                        label='TREDPARSE ({}={:.2f})'.format(rmsd_tag, trmsd))
     ax.plot(truth, truth, 'k--', label='Truth')
     ax.fill_between(tx, tl, th, facecolor=color, alpha=.25,
                      label='TREDPARSE 95$\%$ CI')

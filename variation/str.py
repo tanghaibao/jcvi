@@ -81,7 +81,7 @@ DYS635 DYS643 GATA-H4
 
 class TREDsRepo(dict):
 
-    def __init__(self, ref=REF, toy=False):
+    def __init__(self, ref=REF):
 
         self.ref = ref
         df = pd.read_csv(REPO, index_col=0)
@@ -90,14 +90,6 @@ class TREDsRepo(dict):
             self[name] = TRED(name, row, ref=ref)
             self.names.append(name)
         self.df = df
-
-        if toy:
-            tr = self.get("HD")
-            tr.name = "toy"
-            tr.chr = "CHR4"
-            tr.repeat_start = 1001
-            tr.repeat_end = 1057
-            self[tr.name] = tr
 
     def to_json(self):
         s = self.df.to_json(orient='index')

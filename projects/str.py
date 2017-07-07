@@ -191,72 +191,82 @@ def alts(args):
     treds = args
     repo = TREDsRepo()
     if "all" in treds:
-        treds = repo.keys()
+        treds = repo.names
 
     pad_left, pad_right = 1000, 10000
     READLEN = 150
     fw = must_open(opts.outfile, "w")
+    print >> fw, "TRED,alts,alts.hg19"  # Header
     for tred in treds:
-        t = repo[tred]
-        # This is the region that involves the TRED locus
-        chr, start, end = t.chr, t.repeat_start, t.repeat_end
-        start -= pad_left
-        end += pad_right
+        ref_regions = []
 
         # Simulate a depth 1000 BAM with 300 repeats
-        if not op.isdir(tred):
-            simulate([tred, "300", "300", "--depth=1000", "--tred={}".format(tred)])
-        bamfile = op.join(tred, "300.bam")
+        for ref in ("hg38", "hg19"):
 
-        # Parse the BAM file, retrieve all regions
-        bamfile = pysam.AlignmentFile(bamfile, "rb")
-        nreads = altreads = 0
-        alt_points = set()
-        for read in bamfile.fetch():
-            fname, fstart = bamfile.getrname(read.reference_id), read.reference_start
-            rname, rstart = bamfile.getrname(read.next_reference_id), read.next_reference_start
-            f_in_region = in_region(fname, fstart, chr, start, end)
-            r_in_region = in_region(rname, rstart, chr, start, end)
-            if (not f_in_region) and r_in_region:
-                alt_points.add((fname, fstart))
-                altreads += 1
-            if (not r_in_region) and f_in_region:
-                alt_points.add((rname, rstart))
-                altreads += 1
-            nreads += 1
+            # This is the region that involves the TRED locus
+            repo = TREDsRepo(ref=ref)
+            t = repo[tred]
+            chr, start, end = t.chr, t.repeat_start, t.repeat_end
+            start -= pad_left
+            end += pad_right
 
-        logging.debug("A total of {} reads ({} alts) processed".\
-                    format(nreads, altreads))
-        alt_points = natsorted(alt_points)
+            tred_ref = "{}_{}".format(tred, ref)
+            if not op.isdir(tred_ref):
+                simulate([tred_ref, "300", "300", "--depth=1000",
+                          "--ref={}".format(ref), "--tred={}".format(tred)])
+            bamfile = op.join(tred_ref, "300.bam")
 
-        # Chain these points together into regions
-        g = Grouper()
-        for a, b in pairwise(alt_points):
-            achr, apos = a
-            bchr, bpos = b
-            g.join(a)
-            g.join(b)
-            if achr != bchr:
-                continue
-            if (bpos - apos) > READLEN:
-                continue
-            g.join(a, b)
+            # Parse the BAM file, retrieve all regions
+            bamfile = pysam.AlignmentFile(bamfile, "rb")
+            nreads = altreads = 0
+            alt_points = set()
+            for read in bamfile.fetch():
+                fname, fstart = bamfile.getrname(read.reference_id), read.reference_start
+                rname, rstart = bamfile.getrname(read.next_reference_id), read.next_reference_start
+                f_in_region = in_region(fname, fstart, chr, start, end)
+                r_in_region = in_region(rname, rstart, chr, start, end)
+                if (not f_in_region) and r_in_region:
+                    alt_points.add((fname, fstart))
+                    altreads += 1
+                if (not r_in_region) and f_in_region:
+                    alt_points.add((rname, rstart))
+                    altreads += 1
+                nreads += 1
 
-        # All regions that contain ALT
-        alt_sum = 0
-        regions = []
-        for c in g:
-            chr_min, pos_min = min(c)
-            chr_max, pos_max = max(c)
-            assert chr_min, chr_max
-            pos_min -= READLEN
-            pos_max += READLEN
-            regions.append((chr_min, pos_min, pos_max))
-            alt_sum += pos_max - pos_min
+            logging.debug("A total of {} reads ({} alts) processed".\
+                        format(nreads, altreads))
+            alt_points = natsorted(alt_points)
 
-        regions = "|".join(["{}:{}-{}".format(c, start, end) \
-                        for c, start, end in natsorted(regions)])
-        line = "{},{}".format(tred, regions)
+            # Chain these points together into regions
+            g = Grouper()
+            for a in alt_points:
+                g.join(a)
+            for a, b in pairwise(alt_points):
+                achr, apos = a
+                bchr, bpos = b
+                if achr != bchr:
+                    continue
+                if (bpos - apos) > READLEN:
+                    continue
+                g.join(a, b)
+
+            # All regions that contain ALT
+            alt_sum = 0
+            regions = []
+            for c in g:
+                chr_min, pos_min = min(c)
+                chr_max, pos_max = max(c)
+                assert chr_min, chr_max
+                pos_min -= READLEN
+                pos_max += READLEN
+                regions.append((chr_min, pos_min, pos_max))
+                alt_sum += pos_max - pos_min
+
+            regions = "|".join(["{}:{}-{}".format(c, start, end) \
+                            for c, start, end in natsorted(regions)])
+            ref_regions.append(regions)
+
+        line = ",".join([tred] + ref_regions)
         print >> sys.stderr, line
         print >> fw, line
         logging.debug("Alternative region sum: {} bp".format(alt_sum))
@@ -778,7 +788,7 @@ def likelihood2(args):
 
 def likelihood3(args):
     """
-    %prog likelihood2 200_20.json 200_100.json
+    %prog likelihood3 140_20.json 140_70.json
 
     Plot the likelihood surface and marginal distributions for two settings.
     """
@@ -1022,8 +1032,8 @@ def simulate(args):
     p = OptionParser(simulate.__doc__)
     p.add_option("--method", choices=("wgsim", "eagle"), default="eagle",
                  help="Read simulator")
-    p.add_option("--ref", default="/mnt/ref/hg38.upper.fa",
-                 help="Reference genome sequence")
+    p.add_option("--ref", default="hg38", choices=("hg38", "hg19"),
+                 help="Reference genome version")
     p.add_option("--tred", default="HD", help="TRED locus")
     add_simulate_options(p)
     opts, args = p.parse_args(args)
@@ -1033,6 +1043,7 @@ def simulate(args):
 
     rundir, startunits, endunits = args
     ref = opts.ref
+    ref_fasta = "/mnt/ref/{}.upper.fa".format(ref)
     startunits, endunits = int(startunits), int(endunits)
     basecwd = os.getcwd()
     mkdir(rundir)
@@ -1041,12 +1052,12 @@ def simulate(args):
 
     # TRED region (e.g. Huntington)
     pad_left, pad_right = 1000, 10000
-    repo = TREDsRepo()
+    repo = TREDsRepo(ref=ref)
     tred = repo[opts.tred]
     chr, start, end = tred.chr, tred.repeat_start, tred.repeat_end
 
     logging.debug("Simulating {}".format(tred))
-    fasta = Fasta(ref)
+    fasta = Fasta(ref_fasta)
     seq_left = fasta[chr][start - pad_left:start - 1]
     seq_right = fasta[chr][end: end + pad_right]
     motif = tred.repeat
@@ -1069,7 +1080,7 @@ def simulate(args):
 
         read1 = pf + ".bwa.read1.fastq"
         read2 = pf + ".bwa.read2.fastq"
-        samfile, _ = align([ref, read1, read2])
+        samfile, _ = align([ref_fasta, read1, read2])
         indexed_samfile = index([samfile])
 
         sh("mv {} ../{}.bam".format(indexed_samfile, pf))

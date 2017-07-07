@@ -149,8 +149,8 @@ def main():
         ('likelihood3', 'plot likelihood surface and marginals for two settings'),
         ('compare', 'compare callers on fake HD patients'),
         ('compare2', 'compare TREDPARSE and lobSTR on fake HD patients'),
-        ('compare3', 'compare TREDPARSE on fake HD patients adding evidence'),
-        ('compare4', 'compare TREDPARSE on fake HD patients adding coverage'),
+        ('power', 'compare TREDPARSE on fake HD patients adding evidence'),
+        ('tredparse', 'compare TREDPARSE on fake HD patients adding coverage'),
         ('allelefreq', 'plot the allele frequencies of some STRs'),
         ('mendelian_errors', 'plot Mendelian errors calculated by mendelian'),
         ('depth', 'plot read depths across all TREDs'),
@@ -1490,18 +1490,18 @@ def compare2(args):
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
-def compare3(args):
+def power(args):
     """
-    %prog compare3
+    %prog power
 
     Compare performances of various variant callers on simulated STR datasets.
     This compares the power of various evidence types.
     """
-    p = OptionParser(compare3.__doc__)
+    p = OptionParser(power.__doc__)
     p.add_option('--maxinsert', default=300, type="int",
                  help="Maximum number of repeats")
     add_simulate_options(p)
-    opts, args, iopts = p.set_image_options(args, figsize="10x10")
+    opts, args, iopts = p.set_image_options(args, figsize="10x10", format="png")
 
     if len(args) != 0:
         sys.exit(not p.print_help())
@@ -1548,18 +1548,18 @@ def compare3(args):
                         (pad / 2, 1 / 2. , "C"), (1 / 2., 1 / 2. , "D")))
     normalize_axes(root)
 
-    image_name = "tredparse." + iopts.format
+    image_name = "power." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
-def compare4(args):
+def tredparse(args):
     """
-    %prog compare4
+    %prog tredparse
 
     Compare performances of various variant callers on simulated STR datasets.
     Adds coverage comparisons as panel C and D.
     """
-    p = OptionParser(compare4.__doc__)
+    p = OptionParser(tredparse.__doc__)
     p.add_option('--maxinsert', default=300, type="int",
                  help="Maximum number of repeats")
     add_simulate_options(p)

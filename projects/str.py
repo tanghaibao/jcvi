@@ -85,7 +85,8 @@ class TrioOrDuo:
 
     __repr__ = __str__
 
-    def check_mendelian(self, df, tred, x_linked=False, verbose=False):
+    def check_mendelian(self, df, tred, tolerance=0,
+                        x_linked=False, verbose=False):
         child_key = self.child.values()[0]
         c = get_alleles(df, child_key, tred)
         if c is None:
@@ -96,9 +97,8 @@ class TrioOrDuo:
             p2 = get_alleles(df, parent_keys[1], tred)
             if (p1 is None) or (p2 is None):
                 return 0
-            possible_progenies = set(tuple(sorted(x)) for x in product(p1, p2))
-            if x_linked:  # Add all hemizygotes
-                possible_progenies |= set((x, x) for x in (set(p1) | set(p2)))
+            possible_progenies = get_progenies(p1, p2, x_linked=x_linked,
+                                 tolerance=tolerance)
             mendelian_error = not (c in possible_progenies)
             if verbose:
                 print parent_keys[0], parent_keys[1], child_key, p1, p2, \
@@ -108,7 +108,8 @@ class TrioOrDuo:
             p1 = get_alleles(df, parent_key, tred)
             if p1 is None:
                 return 0
-            mendelian_error = len(set(p1) & set(c)) == 0
+            _p1 = expand_alleles(p1, tolerance=tolerance)
+            mendelian_error = len(set(_p1) & set(c)) == 0
             if mendelian_error and x_linked:
                 # Do not count case where - progeny is male, parent is male
                 if (c[0] == c[1]) and (p1[0] == p1[1]):
@@ -117,6 +118,28 @@ class TrioOrDuo:
                 print parent_key, child_key, p1, \
                             c, not mendelian_error
         return mendelian_error
+
+
+def expand_alleles(p, tolerance=0):
+    """
+    Returns expanded allele set given the tolerance.
+    """
+    _p = set()
+    for x in p:
+        _p |= set(range(x - tolerance, x + tolerance + 1))
+    return _p
+
+
+def get_progenies(p1, p2, x_linked=False, tolerance=0):
+    """
+    Returns possible progenies in a trio.
+    """
+    _p1 = expand_alleles(p1, tolerance=tolerance)
+    _p2 = expand_alleles(p2, tolerance=tolerance)
+    possible_progenies = set(tuple(sorted(x)) for x in product(_p1, _p2))
+    if x_linked:  # Add all hemizygotes
+        possible_progenies |= set((x, x) for x in (set(_p1) | set(_p2)))
+    return possible_progenies
 
 
 def get_alleles(df, sample, tred):
@@ -458,6 +481,8 @@ def mendelian(args):
     p = OptionParser(mendelian.__doc__)
     p.add_option("--minimize", default=False, action="store_true",
                  help="Minimize errors")
+    p.add_option("--tolerance", default=0, type="int",
+                 help="Tolernace for differences")
     p.set_verbose()
     opts, args = p.parse_args(args)
 
@@ -467,6 +492,7 @@ def mendelian(args):
     triosjson, tredtsv = args
     verbose = opts.verbose
     minimize = opts.minimize
+    tolerance = opts.tolerance
 
     js = json.load(open(triosjson))
     allterms = set()
@@ -498,7 +524,7 @@ def mendelian(args):
         n_total = len(duos)
         n_error = 0
         for duo in duos:
-            n_error += duo.check_mendelian(df, tred,
+            n_error += duo.check_mendelian(df, tred, tolerance=tolerance,
                                             x_linked=x_linked, verbose=verbose)
         tag = "Duos  - Mendelian errors"
         print "{}: {}".format(tag, percentage(n_error, n_total))
@@ -511,7 +537,7 @@ def mendelian(args):
         n_total = len(trios)
         n_error = 0
         for trio in trios:
-            n_error += trio.check_mendelian(df, tred,
+            n_error += trio.check_mendelian(df, tred, tolerance=tolerance,
                                             x_linked=x_linked, verbose=verbose)
         tag = "Trios - Mendelian errors"
         print "{}: {}".format(tag, percentage(n_error, n_total))

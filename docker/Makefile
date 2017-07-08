@@ -9,9 +9,14 @@ BASENAME = jcvi
 all: build push
 test: build testrun
 
-build:
+clean:
+	docker system prune -f
+
+build: clean
 	docker build -f $(BASENAME).dockerfile -t $(NS)/$(BASENAME):$(TAG) ./
+
 push:
 	docker push $(NS)/$(BASENAME):$(TAG)
+
 testrun:
 	docker run $(NS)/$(BASENAME):$(TAG) tred.py

@@ -96,7 +96,7 @@ def wheel(args):
     root = fig.add_axes([0, 0, 1, 1])
     categories = len(df)
     #ax = plt.subplot(111, projection='polar')
-    ax = fig.add_axes([0.1, 0.1, 0.8, 0.8], polar=True, axisbg='#d5de9c')
+    ax = fig.add_axes([0.1, 0.1, 0.8, 0.8], polar=True)
 
     brewer = [ "#FF3B30", "#DD43A0", "#5856D6",
 	       "#007AFE", "#56BDEC", "#4CD8BA",
@@ -105,11 +105,12 @@ def wheel(args):
     ]
 
     # Baseline
-    theta = np.linspace(0, 2 * np.pi, endpoint=False, num=categories)
-    _theta = np.linspace(0, 2 * np.pi)
+    theta = np.linspace(1.5 * np.pi, 3.5 * np.pi, endpoint=False, num=categories)
+    _theta = np.linspace(1.5 * np.pi, 3.5 * np.pi)
     R = 30
     xlim = (-R, R) if column == "score" else (-100, 100)
     plim = (-R / 2, R) if column == "score" else (0, 100)
+    ci = (-.5, 2) if column == "score" else (10, 90)
 
     # Grid
     for t in theta:
@@ -119,8 +120,6 @@ def wheel(args):
     # Contours
     for t in plim:
         ax.plot(_theta, [t] * len(_theta), color=linecolor)
-
-    # Shades
 
     # Sectors (groupings)
     collapsed_groups = []
@@ -141,11 +140,26 @@ def wheel(args):
 
     # Data
     r = df
-    closed_plot(ax, theta, r, color="lightslategray")
+    closed_plot(ax, theta, r, color="lightslategray", alpha=.25)
+    all_data = []
     for color, group in zip(brewer, gg):
-        color_theta = [theta[x] for x in group]
-        color_r = [r[x] for x in group]
-        ax.plot(color_theta, color_r, "o", color=color)
+        hidden_data = [(theta[x], r[x]) for x in group if \
+                            (ci[0] <= r[x] <= ci[1])]
+        shown_data = [(theta[x], r[x]) for x in group if (r[x] < ci[0] \
+                            or r[x] > ci[1])]
+        all_data.append((theta[x], labels[x], r[x]))
+        for alpha, data in zip((1, 1), (hidden_data, shown_data)):
+            if not data:
+                continue
+            color_theta, color_r = zip(*data)
+            ax.plot(color_theta, color_r, "o", color=color, alpha=alpha)
+
+    # Print out data
+    diseaseNames, risks = labels, df
+    print "var theta = [{}]".format(",".join("{:.1f}".format(degrees(x)) for x in theta))
+    print "var risks = [{}]".format(",".join(str(x) for x in risks))
+    print "var diseaseNames = [{}]".format(",".join(\
+                    ['"{}"'.format(x) for x in diseaseNames]))
 
     # Labels
     from math import cos, sin

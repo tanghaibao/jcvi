@@ -81,7 +81,7 @@ def wheel(args):
 
     datafile, groupsfile = args
     column = opts.column
-    linecolor = "#D4D4D4"
+    linecolor = "#d6d6d6"
     df = parse_data(datafile, score_column=opts.column)
     groups = parse_groups(groupsfile)
     labels = [g for g in groups if g in df]
@@ -113,8 +113,9 @@ def wheel(args):
     ci = (-.5, 2) if column == "score" else (10, 90)
 
     # Grid
-    for t in theta:
-        ax.plot([t, t], plim, color=linecolor)
+    if column == "score":
+        for t in theta:
+            ax.plot([t, t], plim, color=linecolor)
     ax.axis('off')
 
     # Contours
@@ -181,11 +182,8 @@ def wheel(args):
 
     # Add confidence interval
     if column == "percentile":
-        pass
-        #p10 = ax.plot(_theta, [10] * len(_theta), color=linecolor)
-        #p90 = ax.plot(_theta, [90] * len(_theta), color=linecolor)
-        #ax.fill_between(p10, p90, fc=linecolor, alpha=.5)
-        #ax.add_patch(Rectangle([10, 0], 2 * np.pi, 80, fc='b', alpha=.5))
+        barcolor = "#eeeeee"
+        ax.bar([0], [ci[1] - ci[0]], width=2 * np.pi, bottom=ci[0], fc=barcolor)
 
     ax.set_rmin(xlim[0])
     ax.set_rmax(xlim[1])

@@ -1,5 +1,5 @@
 {
-    "InstanceId": "i-00392cc227c3a486b", 
+    "InstanceId": "i-05e4919890822243d", 
     "Volumes": [
         {
             "Device": "/dev/sdf", 
@@ -23,6 +23,14 @@
             "sg-76bd4f11"
         ], 
         "KeyName": "mvrad-pdx-htang", 
+        "BlockDeviceMappings": [
+            {
+                "DeviceName": "/dev/sda1", 
+                "Ebs": {
+                    "VolumeSize": 64
+                }
+            }
+        ], 
         "EbsOptimized": true, 
         "SubnetId": "subnet-123ab865", 
         "IamInstanceProfile": {
@@ -30,6 +38,6 @@
             "Arn": ""
         }, 
         "InstanceType": "c4.8xlarge", 
-        "ImageId": "ami-e9c4cd90"
+        "ImageId": "ami-933f23ea"
     }
 }

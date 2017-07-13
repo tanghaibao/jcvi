@@ -43,7 +43,7 @@ class InstanceSkeleton(BaseFile):
 
     def save(self):
         fw = open(self.filename, "w")
-        json.dump(self.spec, fw, indent=4)
+        json.dump(self.spec, fw, indent=4, sort_keys=True)
         fw.close()
 
     def save_instance_id(self, instance_id):

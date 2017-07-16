@@ -115,8 +115,8 @@ def plot_breaks_and_labels(fig, root, ax, gx, gy, xsize, ysize,
     ax.set_xlim(xlim)
     ax.set_ylim(ylim)
 
-    ax.set_xlabel(markup(gx), size=16)
-    ax.set_ylabel(markup(gy), size=16)
+    ax.set_xlabel(gx, size=16)
+    ax.set_ylabel(gy, size=16)
 
     # beautify the numeric axis
     for tick in ax.get_xticklines() + ax.get_yticklines():
@@ -149,6 +149,7 @@ def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
     # add genome names
     if genomenames:
         gx, gy = genomenames.split("_")
+        gx, gy = markup(gx), markup(gy)
     else:
         to_ax_label = lambda fname: op.basename(fname).split(".")[0]
         gx, gy = [to_ax_label(x.filename) for x in (qbed, sbed)]
@@ -246,7 +247,7 @@ def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
             title = "Intra-genomic comparison within {0}".format(gx)
             npairs /= 2
         title += " ({0} gene pairs)".format(thousands(npairs))
-    root.set_title(markup(title), x=.5, y=.96, color="k")
+    root.set_title(title, x=.5, y=.96, color="k")
     logging.debug(title)
     normalize_axes(root)
 

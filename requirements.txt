@@ -1,5 +1,4 @@
 biopython
-deap
 matplotlib
 networkx
 numpy

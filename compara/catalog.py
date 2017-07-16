@@ -608,6 +608,8 @@ def ortholog(args):
     p.add_option("--dist", default=20, type="int",
                  help="Extent of flanking regions to search")
     p.add_option("--quota", help="Quota align parameter")
+    p.add_option("--nostdpf", default=False, action="store_true",
+            help="Do not standardize contig names")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -650,7 +652,10 @@ def ortholog(args):
                         "--quota={0}".format(quota), "--screen"])
         if need_update(anchors, pdf):
             from jcvi.graphics.dotplot import dotplot_main
-            dotplot_main([anchors])
+            dargs = [anchors]
+            if opts.nostdpf:
+                dargs += ["--nostdpf"]
+            dotplot_main(dargs)
         return
 
     if need_update(filtered_last, anchors):

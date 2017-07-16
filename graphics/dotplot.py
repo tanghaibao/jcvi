@@ -71,7 +71,7 @@ def draw_box(clusters, ax, color="b"):
 
 def plot_breaks_and_labels(fig, root, ax, gx, gy, xsize, ysize,
                            qbreaks, sbreaks, sep=True, chrlw=.01,
-                           sepcolor="gainsboro", minfont=5):
+                           sepcolor="gainsboro", minfont=5, stdpf=True):
     xlim = (0, xsize)
     ylim = (ysize, 0)  # invert the y-axis
 
@@ -83,7 +83,7 @@ def plot_breaks_and_labels(fig, root, ax, gx, gy, xsize, ysize,
     for (seqid, beg, end) in qbreaks:
         xsize_ratio = abs(end - beg) * .8 / xsize
         fontsize = th.select_fontsize(xsize_ratio)
-        seqid = "".join(seqid_parse(seqid)[:2])
+        seqid = "".join(seqid_parse(seqid, stdpf=stdpf)[:2])
 
         xchr_labels.append((seqid, (beg + end) / 2, fontsize))
         if sep:
@@ -92,7 +92,7 @@ def plot_breaks_and_labels(fig, root, ax, gx, gy, xsize, ysize,
     for (seqid, beg, end) in sbreaks:
         ysize_ratio = abs(end - beg) * .8 / ysize
         fontsize = th.select_fontsize(ysize_ratio)
-        seqid = "".join(seqid_parse(seqid)[:2])
+        seqid = "".join(seqid_parse(seqid, stdpf=stdpf)[:2])
 
         ychr_labels.append((seqid, (beg + end) / 2, fontsize))
         if sep:
@@ -143,7 +143,7 @@ def downsample(data, sample_number=10000):
 def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
         is_self=False, synteny=False, cmap_text=None, cmap="copper",
         genomenames=None, sample_number=10000, minfont=5, palette=None,
-        chrlw=.01, title=None, sep=True, sepcolor="gainsboro"):
+        chrlw=.01, title=None, sep=True, sepcolor="gainsboro", stdpf=True):
 
     fp = open(anchorfile)
     # add genome names
@@ -226,7 +226,7 @@ def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
     sbreaks = sbed.get_breaks()
     xlim, ylim = plot_breaks_and_labels(fig, root, ax, gx, gy, xsize, ysize,
                            qbreaks, sbreaks, sep=sep, chrlw=chrlw,
-                           sepcolor=sepcolor, minfont=minfont)
+                           sepcolor=sepcolor, minfont=minfont, stdpf=stdpf)
 
     # create a diagonal to separate mirror image for self comparison
     if is_self:
@@ -286,6 +286,8 @@ def dotplot_main(args):
             help="Do not sort the seqids along the axes")
     p.add_option("--nosep", default=False, action="store_true",
             help="Do not add contig lines")
+    p.add_option("--nostdpf", default=False, action="store_true",
+            help="Do not standardize contig names")
     p.add_option("--skipempty", default=False, action="store_true",
             help="Skip seqids that do not have matches")
     p.add_option("--title", help="Title of the dot plot")
@@ -343,7 +345,7 @@ def dotplot_main(args):
             synteny=opts.synteny, cmap_text=opts.cmaptext, cmap=iopts.cmap,
             genomenames=opts.genomenames, sample_number=opts.sample_number,
             minfont=opts.minfont, palette=palette, sep=(not opts.nosep),
-            title=opts.title)
+            title=opts.title, stdpf=(not opts.nostdpf))
 
     image_name = opts.outfile or \
             (op.splitext(anchorfile)[0] + "." + opts.format)

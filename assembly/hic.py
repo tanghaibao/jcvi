@@ -65,6 +65,7 @@ def main():
     actions = (
         ('agp', 'generate AGP file based on LACHESIS output'),
         ('score', 'score the current LACHESIS CLM'),
+        ('optimize', 'optimize the contig order and orientation'),
         # Plotting
         ('heatmap', 'generate heatmap based on LACHESIS output'),
         ('heatmapmovie', 'plot heatmap optimization history'),
@@ -72,6 +73,22 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def optimize(args):
+    """
+    %prog optimize test.clm test.ids
+
+    Optimize the contig order and orientation, based on CLM file.
+    """
+    p = OptionParser(optimize.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    clmfile, idsfile = args
+    # Load contact map
 
 
 def syntenymovie(args):

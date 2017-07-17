@@ -70,32 +70,33 @@ def draw_box(clusters, ax, color="b"):
 
 
 def plot_breaks_and_labels(fig, root, ax, gx, gy, xsize, ysize,
-                           qbreaks, sbreaks, sep=True, chrlw=.01,
-                           sepcolor="gainsboro", minfont=5, stdpf=True):
+                           qbreaks, sbreaks, sep=True, chrlw=.1,
+                           sepcolor="g", minfont=5, stdpf=True):
     xlim = (0, xsize)
     ylim = (ysize, 0)  # invert the y-axis
 
     # Tag to mark whether to plot chr name (skip small ones)
     xchr_labels, ychr_labels = [], []
     th = TextHandler(fig)
+    qbreaks, sbreaks = list(qbreaks), list(sbreaks)
 
     # plot the chromosome breaks
-    for (seqid, beg, end) in qbreaks:
+    for i, (seqid, beg, end) in enumerate(qbreaks):
         xsize_ratio = abs(end - beg) * .8 / xsize
         fontsize = th.select_fontsize(xsize_ratio)
         seqid = "".join(seqid_parse(seqid, stdpf=stdpf)[:2])
 
         xchr_labels.append((seqid, (beg + end) / 2, fontsize))
-        if sep:
+        if sep and i:
             ax.plot([beg, beg], ylim, "-", lw=chrlw, color=sepcolor)
 
-    for (seqid, beg, end) in sbreaks:
+    for i, (seqid, beg, end) in enumerate(sbreaks):
         ysize_ratio = abs(end - beg) * .8 / ysize
         fontsize = th.select_fontsize(ysize_ratio)
         seqid = "".join(seqid_parse(seqid, stdpf=stdpf)[:2])
 
         ychr_labels.append((seqid, (beg + end) / 2, fontsize))
-        if sep:
+        if sep and i:
             ax.plot(xlim, [beg, beg], "-", lw=chrlw, color=sepcolor)
 
     # plot the chromosome labels
@@ -143,7 +144,7 @@ def downsample(data, sample_number=10000):
 def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
         is_self=False, synteny=False, cmap_text=None, cmap="copper",
         genomenames=None, sample_number=10000, minfont=5, palette=None,
-        chrlw=.01, title=None, sep=True, sepcolor="gainsboro", stdpf=True):
+        chrlw=.1, title=None, sep=True, sepcolor="g", stdpf=True):
 
     fp = open(anchorfile)
     # add genome names

@@ -335,7 +335,7 @@ def gene_name(st, exclude=("ev",), sep="."):
     return st.rsplit(sep, 1)[0]
 
 
-def seqid_parse(seqid, sep=["-", "_"], stdpf=True):
+def seqid_parse(seqid, sep=["-"], stdpf=True):
     """
     This function tries to parse seqid (1st col in bed files)
     return prefix, numeric id, and suffix, for example:
@@ -380,6 +380,7 @@ def seqid_parse(seqid, sep=["-", "_"], stdpf=True):
             prefix = atoms[0]
         else:
             prefix = atoms[-2]
+        prefix = prefix.replace("Chromosome", "Chr")
     else: # use standard prefix
         if re.findall("chr", prefix, re.I):
             prefix = "Chr"

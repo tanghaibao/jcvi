@@ -78,25 +78,24 @@ def plot_breaks_and_labels(fig, root, ax, gx, gy, xsize, ysize,
     # Tag to mark whether to plot chr name (skip small ones)
     xchr_labels, ychr_labels = [], []
     th = TextHandler(fig)
-    qbreaks, sbreaks = list(qbreaks), list(sbreaks)
 
     # plot the chromosome breaks
-    for i, (seqid, beg, end) in enumerate(qbreaks):
+    for (seqid, beg, end) in qbreaks:
         xsize_ratio = abs(end - beg) * .8 / xsize
         fontsize = th.select_fontsize(xsize_ratio)
         seqid = "".join(seqid_parse(seqid, stdpf=stdpf)[:2])
 
         xchr_labels.append((seqid, (beg + end) / 2, fontsize))
-        if sep and i:
+        if sep:
             ax.plot([beg, beg], ylim, "-", lw=chrlw, color=sepcolor)
 
-    for i, (seqid, beg, end) in enumerate(sbreaks):
+    for (seqid, beg, end) in sbreaks:
         ysize_ratio = abs(end - beg) * .8 / ysize
         fontsize = th.select_fontsize(ysize_ratio)
         seqid = "".join(seqid_parse(seqid, stdpf=stdpf)[:2])
 
         ychr_labels.append((seqid, (beg + end) / 2, fontsize))
-        if sep and i:
+        if sep:
             ax.plot(xlim, [beg, beg], "-", lw=chrlw, color=sepcolor)
 
     # plot the chromosome labels
@@ -112,6 +111,12 @@ def plot_breaks_and_labels(fig, root, ax, gx, gy, xsize, ysize,
         if fontsize >= minfont:
             root.text(.91, pos, latex(label), size=fontsize,
                 va="center", color="grey")
+
+    # Plot the frame
+    ax.plot(xlim, [0, 0], "-", lw=chrlw, color=sepcolor)
+    ax.plot(xlim, [ysize, ysize], "-", lw=chrlw, color=sepcolor)
+    ax.plot([0, 0], ylim, "-", lw=chrlw, color=sepcolor)
+    ax.plot([xsize, xsize], ylim, "-", lw=chrlw, color=sepcolor)
 
     ax.set_xlim(xlim)
     ax.set_ylim(ylim)

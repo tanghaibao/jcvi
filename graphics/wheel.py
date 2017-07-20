@@ -43,8 +43,12 @@ def parse_data(datafile, score_column="score"):
     data = {}
     fp = open(datafile)
     for row in fp:
-        label, score, percentile = row.split(",")
+        atoms = row.split(",")
+        if len(atoms) == 4:   # First column is SampleID
+            atoms = atoms[1:]
+        label, score, percentile = atoms
         label = label.strip()
+        label = label.strip('"')
         score = float(score.strip())
         percentile = float(percentile.strip())
         if score_column == "score":
@@ -107,7 +111,7 @@ def wheel(args):
     # Baseline
     theta = np.linspace(1.5 * np.pi, 3.5 * np.pi, endpoint=False, num=categories)
     _theta = np.linspace(1.5 * np.pi, 3.5 * np.pi)
-    R = 30
+    R = max(max(df), 10)
     xlim = (-R, R) if column == "score" else (-100, 100)
     plim = (-R / 2, R) if column == "score" else (0, 100)
     ci = (-.5, 2) if column == "score" else (10, 90)

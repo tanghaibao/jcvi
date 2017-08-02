@@ -76,6 +76,7 @@ class CLMFile:
     def __init__(self, clmfile, idsfile, skiprecover=True):
         self.parse_ids(idsfile, skiprecover)
         self.parse_clm(clmfile)
+        self.build_matrices()
 
     def parse_ids(self, idsfile, skiprecover):
         '''IDS file has a list of contigs that need to be ordered. 'recover',
@@ -109,7 +110,8 @@ class CLMFile:
     def parse_clm(self, clmfile):
         logging.debug("Parse clmfile `{}`".format(clmfile))
         fp = open(clmfile)
-        contacts = defaultdict(list)
+        contacts = {}
+        orientations = defaultdict(list)
         for row in fp:
             atoms = row.strip().split('\t')
             assert len(atoms) == 3, "Malformed line `{}`".format(atoms)
@@ -121,11 +123,37 @@ class CLMFile:
                 continue
             if bt not in self.tig_to_idx:
                 continue
-            for dist in dists.split():
-                contacts[(atig, btig)].append(int(dist))
+            dists = [int(x) for x in dists.split()]
+            contacts[(at, bt)] = dists
+            orientations[(at, bt)].append((ao + bo, min(dists)))
 
         self.contacts = contacts
-        print contacts
+        self.orientations = orientations
+
+    def build_matrices(self):
+        N = self.ntigs
+        M = np.zeros((N, N), dtype="int")
+        for (at, bt), dists in self.contacts.items():
+            ai = self.tig_to_idx[at]
+            bi = self.tig_to_idx[bt]
+            if ai > bi:
+                ai, bi = bi, ai
+            M[ai, bi] = len(dists)
+
+        O = np.zeros((N, N), dtype="int")
+        for (at, bt), dists in self.orientations.items():
+            ai = self.tig_to_idx[at]
+            bi = self.tig_to_idx[bt]
+            if ai > bi:
+                ai, bi = bi, ai
+            mo, md = min(dists, key=lambda x: x[1])
+            strandedness = 1 if mo[0] == mo[1] else -1
+            O[ai, bi] = strandedness
+
+        self.M = M
+        self.O = O
+        print M
+        print O
 
 
 def main():

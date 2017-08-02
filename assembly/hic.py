@@ -12,6 +12,7 @@ import os.path as op
 import numpy as np
 import math
 
+from collections import defaultdict
 from functools import partial
 
 from jcvi.apps.base import OptionParser, ActionDispatcher, iglob, mkdir, symlink
@@ -60,6 +61,73 @@ class ContigOrdering(LineFile):
                      gapsize=gapsize, gaptype=gaptype, evidence=evidence)
 
 
+class CLMFile:
+    '''CLM file (modified) has the following format:
+
+    tig00046211+ tig00063795+       1       53173
+    tig00046211+ tig00063795-       1       116050
+    tig00046211- tig00063795+       1       71155
+    tig00046211- tig00063795-       1       134032
+    tig00030676+ tig00077819+       7       136407 87625 87625 106905 102218 169660 169660
+    tig00030676+ tig00077819-       7       126178 152952 152952 35680 118923 98367 98367
+    tig00030676- tig00077819+       7       118651 91877 91877 209149 125906 146462 146462
+    tig00030676- tig00077819-       7       108422 157204 157204 137924 142611 75169 75169
+    '''
+    def __init__(self, clmfile, idsfile, skiprecover=True):
+        self.parse_ids(idsfile, skiprecover)
+        self.parse_clm(clmfile)
+
+    def parse_ids(self, idsfile, skiprecover):
+        '''IDS file has a list of contigs that need to be ordered. 'recover',
+        keyword, if available in the third column, is less confident.
+
+        tig00015093     46912
+        tig00035238     46779   recover
+        tig00030900     119291
+        '''
+        logging.debug("Parse idsfile `{}`".format(idsfile))
+        fp = open(idsfile)
+        tigs = []
+        for row in fp:
+            atoms = row.split()
+            tig, size = atoms[:2]
+            if skiprecover and len(atoms) == 3 and atoms[2] == 'recover':
+                continue
+            tigs.append((tig, size))
+
+        # Mapping tig names to their indices and sizes
+        tig_to_idx = {}
+        tig_to_size = {}
+        for i, (tig, size) in enumerate(tigs):
+            tig_to_idx[tig] = i
+            tig_to_size[tig] = size
+
+        self.tig_to_idx = tig_to_idx
+        self.tig_to_size = tig_to_size
+        self.ntigs = len(tig_to_idx)
+
+    def parse_clm(self, clmfile):
+        logging.debug("Parse clmfile `{}`".format(clmfile))
+        fp = open(clmfile)
+        contacts = defaultdict(list)
+        for row in fp:
+            atoms = row.strip().split('\t')
+            assert len(atoms) == 3, "Malformed line `{}`".format(atoms)
+            abtig, links, dists = atoms
+            atig, btig = abtig.split()
+            at, ao = atig[:-1], atig[-1]
+            bt, bo = btig[:-1], btig[-1]
+            if at not in self.tig_to_idx:
+                continue
+            if bt not in self.tig_to_idx:
+                continue
+            for dist in dists.split():
+                contacts[(atig, btig)].append(int(dist))
+
+        self.contacts = contacts
+        print contacts
+
+
 def main():
 
     actions = (
@@ -89,6 +157,7 @@ def optimize(args):
 
     clmfile, idsfile = args
     # Load contact map
+    clm = CLMFile(clmfile, idsfile)
 
 
 def syntenymovie(args):

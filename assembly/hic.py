@@ -15,6 +15,7 @@ import math
 from collections import defaultdict
 from functools import partial
 
+from jcvi.algorithms.ec import GA_setup, GA_run
 from jcvi.apps.base import OptionParser, ActionDispatcher, iglob, mkdir, symlink
 from jcvi.assembly.allmaps import make_movie
 from jcvi.utils.natsort import natsorted
@@ -92,9 +93,15 @@ class CLMFile:
         for row in fp:
             atoms = row.split()
             tig, size = atoms[:2]
+            size = int(size)
             if skiprecover and len(atoms) == 3 and atoms[2] == 'recover':
                 continue
             tigs.append((tig, size))
+
+        # Arrange contig names and sizes
+        _tigs, _sizes = zip(*tigs)
+        self.contig_names = _tigs
+        self.sizes = np.array(_sizes)
 
         # Mapping tig names to their indices and sizes
         tig_to_idx = {}
@@ -152,8 +159,6 @@ class CLMFile:
 
         self.M = M
         self.O = O
-        print M
-        print O
 
 
 def main():
@@ -178,6 +183,7 @@ def optimize(args):
     Optimize the contig order and orientation, based on CLM file.
     """
     p = OptionParser(optimize.__doc__)
+    p.set_cpus()
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -186,6 +192,36 @@ def optimize(args):
     clmfile, idsfile = args
     # Load contact map
     clm = CLMFile(clmfile, idsfile)
+    contig_names = clm.contig_names
+    tour_sizes = clm.sizes
+    tour_M = clm.M
+    N = clm.ntigs
+    tour = range(N)
+    oo = range(N)
+
+    fwtour = open("tour", "w")
+    def callback(tour, gen, oo):
+        fitness = tour.fitness if hasattr(tour, "fitness") else None
+        label = "GA-{0}".format(gen)
+        if fitness:
+            fitness = "{0}".format(fitness).split(",")[0].replace("(", "")
+            label += "-" + fitness
+        print_tour(fwtour, tour, label, contig_names, oo)
+        return tour
+
+    # Store INIT tour
+    print_tour(fwtour, tour, "INIT", contig_names, oo)
+
+    # Faster Cython version for evaluation
+    from .chic import score_evaluate
+    callbacki = partial(callback, oo=oo)
+    toolbox = GA_setup(tour)
+    toolbox.register("evaluate", score_evaluate,
+                     tour_sizes=tour_sizes, tour_M=tour_M)
+    tour, tour.fitness = GA_run(toolbox, npop=100, cpus=opts.cpus,
+                                callback=callbacki)
+    print tour, tour.fitness
+
 
 
 def syntenymovie(args):
@@ -311,8 +347,6 @@ def score(args):
 
     Score the current LACHESIS CLM.
     """
-    from jcvi.algorithms.ec import GA_setup, GA_run
-
     p = OptionParser(score.__doc__)
     p.set_cpus()
     opts, args = p.parse_args(args)

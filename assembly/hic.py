@@ -139,7 +139,7 @@ class CLMFile:
 
     def build_matrices(self):
         N = self.ntigs
-        M = np.zeros((N, N), dtype="int")
+        M = np.zeros((N, N), dtype=int)
         for (at, bt), dists in self.contacts.items():
             ai = self.tig_to_idx[at]
             bi = self.tig_to_idx[bt]
@@ -147,7 +147,7 @@ class CLMFile:
                 ai, bi = bi, ai
             M[ai, bi] = len(dists)
 
-        O = np.zeros((N, N), dtype="int")
+        O = np.zeros((N, N), dtype=int)
         for (at, bt), dists in self.orientations.items():
             ai = self.tig_to_idx[at]
             bi = self.tig_to_idx[bt]
@@ -221,7 +221,7 @@ def optimize(args):
     tour, tour.fitness = GA_run(toolbox, npop=100, cpus=opts.cpus,
                                 callback=callbacki)
     print tour, tour.fitness
-
+    fwtour.close()
 
 
 def syntenymovie(args):

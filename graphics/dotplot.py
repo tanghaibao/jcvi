@@ -155,10 +155,10 @@ def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
     # add genome names
     if genomenames:
         gx, gy = genomenames.split("_")
-        gx, gy = markup(gx), markup(gy)
     else:
         to_ax_label = lambda fname: op.basename(fname).split(".")[0]
         gx, gy = [to_ax_label(x.filename) for x in (qbed, sbed)]
+    gx, gy = markup(gx), markup(gy)
 
     qorder = qbed.order
     sorder = sbed.order

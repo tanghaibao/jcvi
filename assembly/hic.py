@@ -132,7 +132,7 @@ class CLMFile:
                 continue
             dists = [int(x) for x in dists.split()]
             contacts[(at, bt)] = dists
-            orientations[(at, bt)].append((ao + bo, min(dists)))
+            orientations[(at, bt)].append((ao + bo, sum(dists)))
 
         self.contacts = contacts
         self.orientations = orientations
@@ -199,7 +199,8 @@ def optimize(args):
     tour = range(N)
     oo = range(N)
 
-    fwtour = open("tour", "w")
+    tourfile = clmfile.rsplit(".", 1)[0] + ".tour"
+    fwtour = open(tourfile, "w")
     def callback(tour, gen, oo):
         fitness = tour.fitness if hasattr(tour, "fitness") else None
         label = "GA-{0}".format(gen)

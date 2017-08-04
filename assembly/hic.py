@@ -248,7 +248,7 @@ def syntenymovie(args):
 
     tourfile, lastfile = args
     qbedfile, sbedfile = get_bed_filenames(lastfile, p, opts)
-    odir = "syntenymovie"
+    odir = op.basename(tourfile).rsplit(".", 1)[0] + "-syntenymovie"
     mkdir(odir)
 
     tourfile = op.abspath(tourfile)

@@ -181,9 +181,43 @@ def main():
         ('diagram', 'plot the predictive power of various evidences'),
         # Extra analysis for reviews
         ('mendelian', 'calculate Mendelian errors based on trios and duos'),
+        ('mendelian2', 'second iteration of Mendelian error calculation'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def mendelian2(args):
+    """
+    %prog mendelian2
+        XC_kinship_TRIO_annotationed_age_sex_PaternalMaternalAgeWhenChildWasBorn.txt
+        hli.20170805.tsv
+
+    Second iteration of Mendelian error calculation. This includes all the read
+    counts and gender information to correct error estimate of X-linked loci.
+    """
+    p = OptionParser(mendelian2.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    triofile, hlitsv = args
+    triodata = pd.read_csv(triofile, sep="\t")
+    samplekey = lambda x: x.split("_")[1]
+    for i, row in triodata.iterrows():
+        proband = row["proband"]
+        parents = row["parents"]
+        proband_sex = row["proband_sex"]
+        parents_sex = row["parent1_sex,parent2_sex"]
+        proband = samplekey(proband)
+        p1, p2 = parents.split(",")
+        p1, p2 = samplekey(p1), samplekey(p2)
+        p1_sex, p2_sex = parents_sex.split(",")
+        if p1_sex == "Male":
+            p1, p2 = p2, p1
+            p1_sex, p2_sex = p2_sex, p1_sex
+        print "\t".join((proband, proband_sex, p1, p1_sex, p2, p2_sex))
 
 
 def in_region(rname, rstart, target_chr, target_start, target_end):

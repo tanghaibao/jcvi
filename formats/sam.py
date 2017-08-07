@@ -139,17 +139,23 @@ def get_samfile(readfile, dbfile, bam=False, mapped=False,
     return samfile, mapped, unmapped
 
 
-def get_minibam(bamfile, region):
+def get_minibam(bamfile, region, overwrite=True):
     xregion = region.replace(":", "_").replace("-", "_").replace(",", "")
     minibamfile = op.basename(bamfile).replace(".bam", ".{}.bam".format(xregion))
     baifile = minibamfile + ".bai"
     if op.exists(baifile):
         sh("rm {}".format(baifile))
+
+    if not overwrite and op.exists(minibamfile):
+        logging.error("Output name exists: `{}`".format(minibamfile))
+        return
+
     cmd = "samtools view {} {} -b".format(bamfile, region)
     cmd += " -o {0}".format(minibamfile)
 
     sh(cmd)
     sh("samtools index {0}".format(minibamfile))
+
     return minibamfile
 
 
@@ -207,7 +213,7 @@ def main():
         ('merge', 'merge bam files'),
         # Convenience function
         ('index', 'convert to bam, sort and then index'),
-        ('extract', 'extract sub-bam for just one contig'),
+        ('mini', 'extract mini-bam for a single region'),
             )
 
     p = ActionDispatcher(actions)
@@ -241,32 +247,20 @@ def fastq(args):
     return a, b
 
 
-def extract(args):
+def mini(args):
     """
-    %prog extract bamfile contig
+    %prog mini bamfile region
 
-    Extract sub-bam for just one contig.
+    Extract mini-bam for a single region.
     """
-    p = OptionParser(extract.__doc__)
-    p.set_cpus()
+    p = OptionParser(mini.__doc__)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
         sys.exit(not p.print_help())
 
-    bamfile, contig = args
-    cpus = opts.cpus
-    pf = bamfile.split(".")[0]
-    outfile = ".".join((contig.split("|")[0], pf, "bam"))
-    if op.exists(outfile):
-        logging.error("Output name exists: `{}`".format(outfile))
-        return
-
-    if need_update(bamfile, outfile):
-        cmd = 'samtools view {} "{}" -@ {}'.format(bamfile, contig, cpus)
-        cmd += " -b -o {}".format(outfile)
-        sh(cmd)
-    index([outfile, "--cpus={}".format(cpus)])
+    bamfile, region = args
+    get_minibam(bamfile, region)
 
 
 def noclip(args):

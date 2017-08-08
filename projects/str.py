@@ -247,14 +247,43 @@ def mendelian2(args):
 
         h = " ".join((header.format("Parent1"), header.format("Parent2"),
                       header.format("Kid")))
-        print >> fw, "\t".join(h.split())
-        tredcall = lambda x: td.get(x, [""] * 6)[1:]
+        print >> fw, "\t".join(h.split() + ["MendelianError"])
+        tredcall = lambda x: td.get(x, [""] * 6)
+        n_correct = n_errors = 0
         for proband, proband_sex, p1, p1_sex, p2, p2_sex in trios:
-            cells  = [p1, p1_sex] + tredcall(p1)
-            cells += [p2, p2_sex] + tredcall(p2)
-            cells += [proband, proband_sex] + tredcall(proband)
-            print >> fw, "\t".join(cells)
+            tp1 = tredcall(p1)
+            tp2 = tredcall(p2)
+            tpp = tredcall(proband)
+            cells  = [p1, p1_sex] + tp1[1:]
+            cells += [p2, p2_sex] + tp2[1:]
+            cells += [proband, proband_sex] + tpp[1:]
+            m = mendelian_check(tp1, tp2, tpp)
+            if m:
+                n_correct += 1
+            else:
+                n_errors += 1
+            print >> fw, "\t".join(cells + ["Correct" if m else "Error"])
         fw.close()
+
+        error_rate = n_errors * 100. / (n_correct + n_errors)
+        print >> sys.stderr, "A total of {:.1f}% errors"\
+                    .format(error_rate)
+
+
+def mendelian_check(tp1, tp2, tpp):
+    """
+    Compare TRED calls for Parent1, Parent2 and Proband.
+    """
+    call_to_ints = lambda x: tuple(int(_) for _ in x.split("|"))
+    tp1_sex, tp1_call = tp1[:2]
+    tp2_sex, tp2_call = tp2[:2]
+    tpp_sex, tpp_call = tpp[:2]
+    tp1_call = call_to_ints(tp1_call)
+    tp2_call = call_to_ints(tp2_call)
+    tpp_call = call_to_ints(tpp_call)
+    possible_progenies = set(tuple(sorted(x)) \
+                    for x in product(tp1_call, tp2_call))
+    return tpp_call in possible_progenies
 
 
 def in_region(rname, rstart, target_chr, target_start, target_end):

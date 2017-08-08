@@ -206,7 +206,8 @@ def mendelian2(args):
         sys.exit(not p.print_help())
 
     triofile, hlitsv = args
-    treds = opts.treds.split(",") if opts.treds else []
+    repo = TREDsRepo()
+    treds = opts.treds.split(",") if opts.treds else repo.names
     triodata = pd.read_csv(triofile, sep="\t")
     samplekey = lambda x: x.split("_")[1]
     trios = []
@@ -227,7 +228,6 @@ def mendelian2(args):
     header  = "{0} {0}_Gender {0}_Calls"
     header += " {0}_FullReads {0}_PartialReads {0}_RepeatReads {0}_PairedReads"
     tredsdata = pd.read_csv(hlitsv, sep="\t", low_memory=False)
-    repo = TREDsRepo()
     for tred in treds:
         fw = open("trios_{}.details.tsv".format(tred), "w")
         td = {}
@@ -250,10 +250,10 @@ def mendelian2(args):
         h = " ".join((header.format("Parent1"), header.format("Parent2"),
                       header.format("Kid")))
         print >> fw, "\t".join(h.split() + ["MendelianError"])
-        tredcall = lambda x: td.get(x, [""] * 6)
+        tredcall = lambda x: td.get(x, ["", "-1|-1", "", "", "", ""])
         counts = defaultdict(int)
         is_xlinked = repo[tred].is_xlinked
-        print >> sys.stderr, "X_linked = {}".format(is_xlinked)
+        print >> sys.stderr, "[{}] X_linked = {}".format(tred, is_xlinked)
         for proband, proband_sex, p1, p1_sex, p2, p2_sex in trios:
             tp1 = tredcall(p1)
             tp2 = tredcall(p2)
@@ -279,9 +279,9 @@ def mendelian_check(tp1, tp2, tpp, is_xlinked=False):
     tp1_sex, tp1_call = tp1[:2]
     tp2_sex, tp2_call = tp2[:2]
     tpp_sex, tpp_call = tpp[:2]
-    tp1_evidence = sum(int(x) for x in tp1[2:])
-    tp2_evidence = sum(int(x) for x in tp2[2:])
-    tpp_evidence = sum(int(x) for x in tpp[2:])
+    #tp1_evidence = sum(int(x) for x in tp1[2:])
+    #tp2_evidence = sum(int(x) for x in tp2[2:])
+    #tpp_evidence = sum(int(x) for x in tpp[2:])
     tp1_call = call_to_ints(tp1_call)
     tp2_call = call_to_ints(tp2_call)
     tpp_call = call_to_ints(tpp_call)

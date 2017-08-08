@@ -1095,7 +1095,8 @@ def plot_allelefreq(ax, df, locus, color='lightslategray'):
     ax.bar(cntx, cnty, fc=color)
 
     ymin, ymax = ax.get_ylim()
-    pad = 1.25
+    xmax = (cutoff_risk / 10 + 1) * 10 if cutoff_risk > 50 else 50
+    pad = xmax * .03
     if cutoff_prerisk < cutoff_risk and npredisease:
         ax.axvline(x=cutoff_prerisk, color="k", lw=2)
         ax.text(cutoff_prerisk + pad, .5 * ymax,
@@ -1114,37 +1115,39 @@ def plot_allelefreq(ax, df, locus, color='lightslategray'):
 
     ax.set_xlabel("Number of repeat units")
     ax.set_ylabel("Number of alleles")
-    ax.set_xlim(0, 50)
+    ax.set_xlim(0, xmax)
     ax.set_title(r"{} ({}) median={:.0f}$\times${}".\
                 format(locus, tred["title"], np.median(x), motif))
 
 
 def allelefreq(args):
     """
-    %prog allelefreq HD,DM1,SCA1,SCA17
+    %prog allelefreq HD,DM1,SCA1,SCA17,FXTAS,FRAXE
 
     Plot the allele frequencies of some STRs.
     """
     p = OptionParser(allelefreq.__doc__)
-    opts, args, iopts = p.set_image_options(args, figsize="10x10")
+    opts, args, iopts = p.set_image_options(args, figsize="12x18")
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     loci, = args
-    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(ncols=2, nrows=2,
+    fig, ((ax1, ax2), (ax3, ax4), (ax5, ax6)) = plt.subplots(ncols=2, nrows=3,
                                                  figsize=(iopts.w, iopts.h))
     plt.tight_layout(pad=4)
     treds, df = read_treds()
     df = df.set_index(["abbreviation"])
 
-    for ax, locus in zip((ax1, ax2, ax3, ax4), loci.split(",")):
+    for ax, locus in zip((ax1, ax2, ax3, ax4, ax5, ax6), loci.split(",")):
         plot_allelefreq(ax, df, locus)
 
     root = fig.add_axes([0, 0, 1, 1])
     pad = .03
     panel_labels(root, ((pad / 2, 1 - pad, "A"), (1 / 2., 1 - pad, "B"),
-                        (pad / 2, 1 / 2. , "C"), (1 / 2., 1 / 2. , "D")))
+                        (pad / 2, 2 / 3. , "C"), (1 / 2., 2 / 3. , "D"),
+                        (pad / 2, 1 / 3. , "E"), (1 / 2., 1 / 3. , "F"),
+                        ))
     normalize_axes(root)
 
     image_name = "allelefreq." + iopts.format

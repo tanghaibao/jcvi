@@ -250,7 +250,7 @@ def mendelian2(args):
         h = " ".join((header.format("Parent1"), header.format("Parent2"),
                       header.format("Kid")))
         print >> fw, "\t".join(h.split() + ["MendelianError"])
-        tredcall = lambda x: td.get(x, ["", "-1|-1", "", "", "", ""])
+        tredcall = lambda x: td.get(x, ["", "-1|-1", "", "", "", ""])[:]
         counts = defaultdict(int)
         is_xlinked = repo[tred].is_xlinked
         print >> sys.stderr, "[{}] X_linked = {}".format(tred, is_xlinked)
@@ -258,11 +258,16 @@ def mendelian2(args):
             tp1 = tredcall(p1)
             tp2 = tredcall(p2)
             tpp = tredcall(proband)
+            m = mendelian_check(tp1, tp2, tpp, is_xlinked=is_xlinked)
+            counts[m] += 1
+            if is_xlinked:
+                for (p, p_sex) in ((tp1, p1_sex), (tp2, p2_sex),
+                                   (tpp, proband_sex)):
+                    if p_sex == "Male":
+                        p[1] = p[1].split("|")[0] + "|."
             cells  = [p1, p1_sex] + tp1[1:]
             cells += [p2, p2_sex] + tp2[1:]
             cells += [proband, proband_sex] + tpp[1:]
-            m = mendelian_check(tp1, tp2, tpp, is_xlinked=is_xlinked)
-            counts[m] += 1
             print >> fw, "\t".join(cells + [m])
         fw.close()
 

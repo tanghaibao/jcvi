@@ -267,8 +267,8 @@ def mendelian2(args):
         fw.close()
 
         error_rate = counts["Error"] * 100. / (counts["Correct"] + counts["Error"])
-        print >> sys.stderr, "A total of {:.1f}% errors"\
-                    .format(error_rate)
+        print >> sys.stderr, "A total of {:.1f}% errors (N_correct={} N_errors={})"\
+                    .format(error_rate, counts["Correct"], counts["Error"])
 
 
 def mendelian_check(tp1, tp2, tpp, is_xlinked=False):
@@ -279,6 +279,9 @@ def mendelian_check(tp1, tp2, tpp, is_xlinked=False):
     tp1_sex, tp1_call = tp1[:2]
     tp2_sex, tp2_call = tp2[:2]
     tpp_sex, tpp_call = tpp[:2]
+    tp1_evidence = sum(int(x) for x in tp1[2:])
+    tp2_evidence = sum(int(x) for x in tp2[2:])
+    tpp_evidence = sum(int(x) for x in tpp[2:])
     tp1_call = call_to_ints(tp1_call)
     tp2_call = call_to_ints(tp2_call)
     tpp_call = call_to_ints(tpp_call)
@@ -286,13 +289,12 @@ def mendelian_check(tp1, tp2, tpp, is_xlinked=False):
                     for x in product(tp1_call, tp2_call))
     if is_xlinked and tpp_sex == "Male":
         possible_progenies = set(tuple((x, x)) for x in tp1_call)
-    if tpp_call in possible_progenies:
-        tag = "Correct"
+    if -1 in tp1_call or -1 in tp2_call or -1 in tpp_call:
+        tag = "Missing"
+    #elif tp1_evidence < 2 or tp2_evidence < 2 or tpp_evidence < 2:
+    #    tag = "Missing"
     else:
-        if -1 in tp1_call or -1 in tp2_call or -1 in tpp_call:
-            tag = "Missing"
-        else:
-            tag = "Error"
+        tag = "Correct" if tpp_call in possible_progenies else "Error"
     return tag
 
 

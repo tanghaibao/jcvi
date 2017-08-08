@@ -263,6 +263,8 @@ def mendelian2(args):
             if is_xlinked:
                 for (p, p_sex) in ((tp1, p1_sex), (tp2, p2_sex),
                                    (tpp, proband_sex)):
+                    if p[1] == "-1|-1":
+                        p[1] = "n.a."
                     if p_sex == "Male":
                         p[1] = p[1].split("|")[0] + "|."
             cells  = [p1, p1_sex] + tp1[1:]

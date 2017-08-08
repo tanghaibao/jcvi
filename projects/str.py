@@ -197,14 +197,18 @@ def mendelian2(args):
     counts and gender information to correct error estimate of X-linked loci.
     """
     p = OptionParser(mendelian2.__doc__)
+    p.add_option("--treds", default=None,
+                 help="Extract specific treds, use comma to separate")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
         sys.exit(not p.print_help())
 
     triofile, hlitsv = args
+    treds = opts.treds.split(",") if opts.treds else []
     triodata = pd.read_csv(triofile, sep="\t")
     samplekey = lambda x: x.split("_")[1]
+    trios = []
     for i, row in triodata.iterrows():
         proband = row["proband"]
         parents = row["parents"]
@@ -217,7 +221,40 @@ def mendelian2(args):
         if p1_sex == "Male":
             p1, p2 = p2, p1
             p1_sex, p2_sex = p2_sex, p1_sex
-        print "\t".join((proband, proband_sex, p1, p1_sex, p2, p2_sex))
+        trios.append((proband, proband_sex, p1, p1_sex, p2, p2_sex))
+
+    header  = "{0} {0}_Gender {0}_Calls"
+    header += " {0}_FullReads {0}_PartialReads {0}_RepeatReads {0}_PairedReads"
+    tredsdata = pd.read_csv(hlitsv, sep="\t", low_memory=False)
+    for tred in treds:
+        fw = open("trios_{}.details.tsv".format(tred), "w")
+        td = {}
+        for i, row in tredsdata.iterrows():
+            s = str(row["SampleKey"])
+            inferredGender = row["inferredGender"]
+            try:
+                a1 = int(row[tred + ".1"])
+                a2 = int(row[tred + ".2"])
+                calls = "{}|{}".format(a1, a2)
+                fdp = int(row[tred + ".FDP"])
+                pdp = int(row[tred + ".PDP"])
+                rdp = int(row[tred + ".RDP"])
+                pedp = int(row[tred + ".PEDP"])
+                td[s] = [str(x) for x in (inferredGender,
+                            calls, fdp, pdp, rdp, pedp)]
+            except:
+                continue
+
+        h = " ".join((header.format("Parent1"), header.format("Parent2"),
+                      header.format("Kid")))
+        print >> fw, "\t".join(h.split())
+        tredcall = lambda x: td.get(x, [""] * 6)[1:]
+        for proband, proband_sex, p1, p1_sex, p2, p2_sex in trios:
+            cells  = [p1, p1_sex] + tredcall(p1)
+            cells += [p2, p2_sex] + tredcall(p2)
+            cells += [proband, proband_sex] + tredcall(proband)
+            print >> fw, "\t".join(cells)
+        fw.close()
 
 
 def in_region(rname, rstart, target_chr, target_start, target_end):

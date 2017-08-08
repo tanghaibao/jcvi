@@ -15,6 +15,7 @@ import json
 import numpy as np
 import pandas as pd
 
+from collections import defaultdict
 from random import sample
 from pyfaidx import Fasta
 from Bio import SeqIO
@@ -226,6 +227,7 @@ def mendelian2(args):
     header  = "{0} {0}_Gender {0}_Calls"
     header += " {0}_FullReads {0}_PartialReads {0}_RepeatReads {0}_PairedReads"
     tredsdata = pd.read_csv(hlitsv, sep="\t", low_memory=False)
+    repo = TREDsRepo()
     for tred in treds:
         fw = open("trios_{}.details.tsv".format(tred), "w")
         td = {}
@@ -249,7 +251,9 @@ def mendelian2(args):
                       header.format("Kid")))
         print >> fw, "\t".join(h.split() + ["MendelianError"])
         tredcall = lambda x: td.get(x, [""] * 6)
-        n_correct = n_errors = 0
+        counts = defaultdict(int)
+        is_xlinked = repo[tred].is_xlinked
+        print >> sys.stderr, "X_linked = {}".format(is_xlinked)
         for proband, proband_sex, p1, p1_sex, p2, p2_sex in trios:
             tp1 = tredcall(p1)
             tp2 = tredcall(p2)
@@ -257,20 +261,17 @@ def mendelian2(args):
             cells  = [p1, p1_sex] + tp1[1:]
             cells += [p2, p2_sex] + tp2[1:]
             cells += [proband, proband_sex] + tpp[1:]
-            m = mendelian_check(tp1, tp2, tpp)
-            if m:
-                n_correct += 1
-            else:
-                n_errors += 1
-            print >> fw, "\t".join(cells + ["Correct" if m else "Error"])
+            m = mendelian_check(tp1, tp2, tpp, is_xlinked=is_xlinked)
+            counts[m] += 1
+            print >> fw, "\t".join(cells + [m])
         fw.close()
 
-        error_rate = n_errors * 100. / (n_correct + n_errors)
+        error_rate = counts["Error"] * 100. / (counts["Correct"] + counts["Error"])
         print >> sys.stderr, "A total of {:.1f}% errors"\
                     .format(error_rate)
 
 
-def mendelian_check(tp1, tp2, tpp):
+def mendelian_check(tp1, tp2, tpp, is_xlinked=False):
     """
     Compare TRED calls for Parent1, Parent2 and Proband.
     """
@@ -283,7 +284,16 @@ def mendelian_check(tp1, tp2, tpp):
     tpp_call = call_to_ints(tpp_call)
     possible_progenies = set(tuple(sorted(x)) \
                     for x in product(tp1_call, tp2_call))
-    return tpp_call in possible_progenies
+    if is_xlinked and tpp_sex == "Male":
+        possible_progenies = set(tuple((x, x)) for x in tp1_call)
+    if tpp_call in possible_progenies:
+        tag = "Correct"
+    else:
+        if -1 in tp1_call or -1 in tp2_call or -1 in tpp_call:
+            tag = "Missing"
+        else:
+            tag = "Error"
+    return tag
 
 
 def in_region(rname, rstart, target_chr, target_start, target_end):

@@ -7,6 +7,7 @@ Related scripts for the HLI-STR (TREDPARSE) paper.
 
 import os.path as op
 import os
+import csv
 import sys
 import vcf
 import logging
@@ -25,7 +26,7 @@ from itertools import product
 
 from jcvi.graphics.base import FancyArrow, normalize_axes, panel_labels, plt, \
             savefig, set_helvetica_axis
-from jcvi.formats.base import must_open
+from jcvi.formats.base import is_number, must_open
 from jcvi.formats.sam import get_minibam_bed, index
 from jcvi.variation.str import TREDsRepo, af_to_counts, read_treds
 from jcvi.utils.cbook import percentage
@@ -226,11 +227,15 @@ def mendelian2(args):
             p1_sex, p2_sex = p2_sex, p1_sex
         trios.append((proband, proband_sex, p1, p1_sex, p2, p2_sex))
 
-    header  = "{0} {0}_Gender {0}_Calls"
-    header += " {0}_FullReads {0}_PartialReads {0}_RepeatReads {0}_PairedReads"
+    header  = "{0} {0}_Sex {0}_Calls"
+    header += " {0}_Full {0}_Partial {0}_Repeat {0}_Paired"
     tredsdata = pd.read_csv(hlitsv, sep="\t", low_memory=False)
+    tsvfiles = []
     for tred in treds:
-        fw = open("trios_{}.details.tsv".format(tred), "w")
+        if tred in ("FXS", "AR"):
+            continue
+        tsvfile = "{}.details.tsv".format(tred)
+        fw = open(tsvfile, "w")
         td = {}
         for i, row in tredsdata.iterrows():
             s = str(row["SampleKey"])
@@ -246,13 +251,14 @@ def mendelian2(args):
             except:
                 continue
 
-        h = " ".join((header.format("Parent1"), header.format("Parent2"),
+        h = " ".join((header.format("P1"), header.format("P2"),
                       header.format("Kid")))
         print >> fw, "\t".join(h.split() + ["MendelianError"])
         tredcall = lambda x: td.get(x, ["", "-1|-1", "", "", "", ""])[:]
         counts = defaultdict(int)
         is_xlinked = repo[tred].is_xlinked
-        print >> sys.stderr, "[{}] X_linked = {}".format(tred, is_xlinked)
+        shorten = lambda x: str(int(x[-4:]))   # Simplify SampleKey
+        #shorten = lambda x: x
         for proband, proband_sex, p1, p1_sex, p2, p2_sex in trios:
             tp1 = tredcall(p1)
             tp2 = tredcall(p2)
@@ -264,16 +270,32 @@ def mendelian2(args):
                                    (tpp, proband_sex)):
                     if p[1].startswith("-"):
                         p[1] = "n.a."
-            cells  = [p1, p1_sex] + tp1[1:]
-            cells += [p2, p2_sex] + tp2[1:]
-            cells += [proband, proband_sex] + tpp[1:]
+            cells  = [shorten(p1), p1_sex] + tp1[1:]
+            cells += [shorten(p2), p2_sex] + tp2[1:]
+            cells += [shorten(proband), proband_sex] + tpp[1:]
             print >> fw, "\t".join(cells + [m])
         fw.close()
+        tsvfiles.append(tsvfile)
 
         error_rate = counts["Error"] * 100. / (counts["Correct"] + counts["Error"])
-        print >> sys.stderr, "A total of {:.1f}% errors (N_correct={} N_errors={} N_missing={})"\
-                    .format(error_rate, counts["Correct"], counts["Error"],
+        print >> sys.stderr, "[{}] X-linked={} {:.1f}% errors (N_correct={} N_errors={} N_missing={})"\
+                    .format(tred, is_xlinked,  error_rate, counts["Correct"], counts["Error"],
                             counts["Missing"])
+
+    # Combine into a master spreadsheet
+    import xlwt
+    wb = xlwt.Workbook()
+    converter = lambda x: int(x) if is_number(x, cast=int) else x
+    for tsvfile in tsvfiles:
+	sheet = op.basename(tsvfile).split(".", 1)[0]
+	ws = wb.add_sheet(sheet)
+	fp = open(tsvfile, 'rb')
+	reader = csv.reader(fp, delimiter="\t")
+	for r, row in enumerate(reader):
+	    for c, col in enumerate(row):
+		ws.write(r, c, converter(col))
+
+    wb.save('output.xls')
 
 
 def mendelian_check(tp1, tp2, tpp, is_xlinked=False):
@@ -1111,11 +1133,11 @@ def plot_allelefreq(ax, df, locus, color='lightslategray'):
     for k, v in cnt.items():
         x.extend([k] * v)
 
-    set_helvetica_axis(ax)
     ax.set_xlabel("Number of repeat units")
     ax.set_ylabel("Number of alleles")
     ax.set_xlim(0, xmax)
     ax.set_title(r"{} ({})".format(locus, tred["title"], motif))
+    set_helvetica_axis(ax)
 
 
 def allelefreq(args):

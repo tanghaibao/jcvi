@@ -304,6 +304,8 @@ def mendelian2(args):
                     style = {"Correct": correct, "Error": error,
                              "Missing": missing}[col]
 		ws.write(r, c, converter(col), style)
+        ws.set_panes_frozen(True)
+        ws.set_horz_split_pos(1)
 
     wb.save('Trios.xls')
 

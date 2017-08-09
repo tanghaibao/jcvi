@@ -23,7 +23,8 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from itertools import product
 
-from jcvi.graphics.base import FancyArrow, normalize_axes, panel_labels, plt, savefig
+from jcvi.graphics.base import FancyArrow, normalize_axes, panel_labels, plt, \
+            savefig, set_helvetica_axis
 from jcvi.formats.base import must_open
 from jcvi.formats.sam import get_minibam_bed, index
 from jcvi.variation.str import TREDsRepo, af_to_counts, read_treds
@@ -1110,11 +1111,11 @@ def plot_allelefreq(ax, df, locus, color='lightslategray'):
     for k, v in cnt.items():
         x.extend([k] * v)
 
+    set_helvetica_axis(ax)
     ax.set_xlabel("Number of repeat units")
     ax.set_ylabel("Number of alleles")
     ax.set_xlim(0, xmax)
-    ax.set_title(r"{} ({}) median={:.0f}$\times${}".\
-                format(locus, tred["title"], np.median(x), motif))
+    ax.set_title(r"{} ({})".format(locus, tred["title"], motif))
 
 
 def allelefreq(args):
@@ -1124,7 +1125,7 @@ def allelefreq(args):
     Plot the allele frequencies of some STRs.
     """
     p = OptionParser(allelefreq.__doc__)
-    opts, args, iopts = p.set_image_options(args, figsize="12x18")
+    opts, args, iopts = p.set_image_options(args, figsize="9x13")
 
     if len(args) != 1:
         sys.exit(not p.print_help())
@@ -1141,9 +1142,9 @@ def allelefreq(args):
 
     root = fig.add_axes([0, 0, 1, 1])
     pad = .03
-    panel_labels(root, ((pad / 2, 1 - pad, "A"), (1 / 2., 1 - pad, "B"),
-                        (pad / 2, 2 / 3. , "C"), (1 / 2., 2 / 3. , "D"),
-                        (pad / 2, 1 / 3. , "E"), (1 / 2., 1 / 3. , "F"),
+    panel_labels(root, ((pad / 2, 1 - pad, "A"), (.5 + pad, 1 - pad, "B"),
+                        (pad / 2, 2 / 3. - pad / 2, "C"), (.5 + pad, 2 / 3. - pad / 2, "D"),
+                        (pad / 2, 1 / 3. , "E"), (.5 + pad, 1 / 3. , "F"),
                         ))
     normalize_axes(root)
 

@@ -223,6 +223,11 @@ def set_human_axis(ax, formatter=human_formatter):
 
 set_human_base_axis = partial(set_human_axis, formatter=human_base_formatter)
 
+
+def set_helvetica_axis(ax):
+    ax.set_xticklabels([int(x) for x in ax.get_xticks()], family='Helvetica')
+    ax.set_yticklabels([int(x) for x in ax.get_yticks()], family='Helvetica')
+
 available_fonts = [op.basename(x) for x in glob(datadir + "/*.ttf")]
 
 

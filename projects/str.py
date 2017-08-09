@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+2#!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
 """
@@ -178,16 +178,88 @@ def main():
         ('power', 'compare TREDPARSE on fake HD patients adding evidence'),
         ('tredparse', 'compare TREDPARSE on fake HD patients adding coverage'),
         ('allelefreq', 'plot the allele frequencies of some STRs'),
-        ('mendelian_errors', 'plot Mendelian errors calculated by mendelian'),
         ('depth', 'plot read depths across all TREDs'),
         # Diagram
         ('diagram', 'plot the predictive power of various evidences'),
         # Extra analysis for reviews
         ('mendelian', 'calculate Mendelian errors based on trios and duos'),
         ('mendelian2', 'second iteration of Mendelian error calculation'),
+        ('mendelian_errors', 'plot Mendelian errors calculated by mendelian'),
+        ('mendelian_errors2', 'plot Mendelian errors calculated by mendelian2'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def mendelian_errors2(args):
+    """
+    %prog mendelian_errors2 Trios.summary.csv
+
+    Plot Mendelian errors as calculated by mendelian(). File
+    `Trios.summary.csv` looks like:
+
+    Name,Motif,Inheritance,N_Correct,N_Error,N_missing,ErrorRate [N_Error / (N_Correct + N_Error))]
+    DM1,CTG,AD,790,12,0,1.5%
+    DM2,CCTG,AD,757,45,0,5.6%
+    DRPLA,CAG,AD,791,11,0,1.4%
+    """
+    p = OptionParser(mendelian_errors2.__doc__)
+    opts, args, iopts = p.set_image_options(args, figsize="7x7", format="png")
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    csvfile, = args
+    fig, ax = plt.subplots(ncols=1, nrows=1,
+                           figsize=(iopts.w, iopts.h))
+    root = fig.add_axes([0, 0, 1, 1])
+
+    ymin = -.2
+    df = pd.read_csv(csvfile)
+    data = []
+    for i, d in df.iterrows():
+        tred = d['Name']
+        motif = d['Motif']
+        if tred in ignore:
+            logging.debug("Ignore {}".format(d['TRED']))
+            continue
+
+        if len(motif) > 6:
+            if "/" in motif:  # CTG/CAG
+                motif = motif.split("/")[0]
+            else:
+                motif = motif[:6] + ".."
+        xtred = "{} {}".format(tred, motif)
+        accuracy = d[-1]
+        data.append((xtred, accuracy))
+
+    key = lambda x: float(x.rstrip('%'))
+    data.sort(key=lambda x: key(x[-1]))
+    print data
+    treds, accuracies = zip(*data)
+    ntreds = len(treds)
+    ticks = range(ntreds)
+    accuracies = [key(x) for x in accuracies]
+
+    for tick, accuracy in zip(ticks, accuracies):
+        ax.plot([tick, tick], [ymin, accuracy], "-", lw=2, color='lightslategray')
+
+    trios, = ax.plot(accuracies, "o", mfc='w', mec='b')
+    ax.set_title("Mendelian errors based on STR calls in trios in HLI samples")
+    ntrios = "Mendelian errors in 802 trios"
+    ax.legend([trios], [ntrios], loc='best')
+
+    ax.set_xticks(ticks)
+    ax.set_xticklabels(treds, rotation=45, ha="right", size=8)
+    ax.set_yticklabels([int(x) for x in ax.get_yticks()], family='Helvetica')
+    ax.set_ylabel("Mendelian errors (\%)")
+    ax.set_ylim(ymin, 100)
+
+    normalize_axes(root)
+
+    image_name = "mendelian_errors2." + iopts.format
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
+
 
 
 def mendelian2(args):
@@ -231,9 +303,15 @@ def mendelian2(args):
     header += " {0}_Full {0}_Partial {0}_Repeat {0}_Paired"
     tredsdata = pd.read_csv(hlitsv, sep="\t", low_memory=False)
     tsvfiles = []
+    summary = open("Trios.summary.csv", "w")
+    summary_header = "Name,Motif,Inheritance,N_Correct,N_Error,N_missing," \
+                     "ErrorRate [N_Error / (N_Correct + N_Error))]"
+    print >> summary, summary_header
+    print summary_header
     for tred in treds:
         if tred in ("FXS", "AR"):
             continue
+        tr = repo[tred]
         tsvfile = "{}.details.tsv".format(tred)
         fw = open(tsvfile, "w")
         td = {}
@@ -258,7 +336,6 @@ def mendelian2(args):
         counts = defaultdict(int)
         is_xlinked = repo[tred].is_xlinked
         shorten = lambda x: str(int(x[-4:]))   # Simplify SampleKey
-        #shorten = lambda x: x
         for proband, proband_sex, p1, p1_sex, p2, p2_sex in trios:
             tp1 = tredcall(p1)
             tp2 = tredcall(p2)
@@ -278,9 +355,11 @@ def mendelian2(args):
         tsvfiles.append(tsvfile)
 
         error_rate = counts["Error"] * 100. / (counts["Correct"] + counts["Error"])
-        print >> sys.stderr, "[{}] X-linked={} {:.1f}% errors (N_correct={} N_errors={} N_missing={})"\
-                    .format(tred, is_xlinked,  error_rate, counts["Correct"], counts["Error"],
-                            counts["Missing"])
+        line = ",".join(str(x) for x in (tred, tr.motif, tr.inheritance,
+                        counts["Correct"], counts["Error"], counts["Missing"],
+                        "{:.1f}%".format(error_rate)))
+        print >> summary, line
+        print line
 
     # Combine into a master spreadsheet
     import xlwt
@@ -308,6 +387,7 @@ def mendelian2(args):
         ws.set_horz_split_pos(1)
 
     wb.save('Trios.xls')
+    summary.close()
 
 
 def mendelian_check(tp1, tp2, tpp, is_xlinked=False):
@@ -630,8 +710,6 @@ def mendelian(args):
     Calculate Mendelian errors based on trios and duos.
     """
     p = OptionParser(mendelian.__doc__)
-    p.add_option("--minimize", default=False, action="store_true",
-                 help="Minimize errors")
     p.add_option("--tolerance", default=0, type="int",
                  help="Tolernace for differences")
     p.set_verbose()
@@ -642,7 +720,6 @@ def mendelian(args):
 
     triosjson, tredtsv = args
     verbose = opts.verbose
-    minimize = opts.minimize
     tolerance = opts.tolerance
 
     js = json.load(open(triosjson))
@@ -680,9 +757,6 @@ def mendelian(args):
         tag = "Duos  - Mendelian errors"
         print "{}: {}".format(tag, percentage(n_error, n_total))
         duo_error = percentage(n_error, n_total, mode=2)
-        if minimize:
-            while duo_error > 10:
-                duo_error /= 2
         table[(name, tag)] = "{0:.1f}%".format(duo_error)
 
         n_total = len(trios)
@@ -693,9 +767,6 @@ def mendelian(args):
         tag = "Trios - Mendelian errors"
         print "{}: {}".format(tag, percentage(n_error, n_total))
         trio_error = percentage(n_error, n_total, mode=2)
-        if minimize:
-            while trio_error > 2 * duo_error and trio_error > 10:
-                trio_error /= 2
         table[(name, tag)] = "{0:.1f}%".format(trio_error)
 
     # Summarize

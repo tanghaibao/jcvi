@@ -120,6 +120,7 @@ class TRED(object):
         self.row = row
         self.name = name
         self.repeat = row["repeat"]
+        self.motif = row["motif"]
         repeat_location_field = "repeat_location"
         if ref != REF:
             repeat_location_field += "." + ref.split("_")[0]

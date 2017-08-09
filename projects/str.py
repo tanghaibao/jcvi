@@ -235,9 +235,7 @@ def mendelian2(args):
             s = str(row["SampleKey"])
             inferredGender = row["inferredGender"]
             try:
-                a1 = int(row[tred + ".1"])
-                a2 = int(row[tred + ".2"])
-                calls = "{}|{}".format(a1, a2)
+                calls = row[tred + ".calls"]
                 fdp = int(row[tred + ".FDP"])
                 pdp = int(row[tred + ".PDP"])
                 rdp = int(row[tred + ".RDP"])
@@ -263,10 +261,8 @@ def mendelian2(args):
             if is_xlinked:
                 for (p, p_sex) in ((tp1, p1_sex), (tp2, p2_sex),
                                    (tpp, proband_sex)):
-                    if p[1] == "-1|-1":
+                    if p[1].startswith("-"):
                         p[1] = "n.a."
-                    if p_sex == "Male":
-                        p[1] = p[1].split("|")[0] + "|."
             cells  = [p1, p1_sex] + tp1[1:]
             cells += [p2, p2_sex] + tp2[1:]
             cells += [proband, proband_sex] + tpp[1:]
@@ -274,15 +270,16 @@ def mendelian2(args):
         fw.close()
 
         error_rate = counts["Error"] * 100. / (counts["Correct"] + counts["Error"])
-        print >> sys.stderr, "A total of {:.1f}% errors (N_correct={} N_errors={})"\
-                    .format(error_rate, counts["Correct"], counts["Error"])
+        print >> sys.stderr, "A total of {:.1f}% errors (N_correct={} N_errors={} N_missing={})"\
+                    .format(error_rate, counts["Correct"], counts["Error"],
+                            counts["Missing"])
 
 
 def mendelian_check(tp1, tp2, tpp, is_xlinked=False):
     """
     Compare TRED calls for Parent1, Parent2 and Proband.
     """
-    call_to_ints = lambda x: tuple(int(_) for _ in x.split("|"))
+    call_to_ints = lambda x: tuple(int(_) for _ in x.split("|") if _ != ".")
     tp1_sex, tp1_call = tp1[:2]
     tp2_sex, tp2_call = tp2[:2]
     tpp_sex, tpp_call = tpp[:2]
@@ -295,7 +292,7 @@ def mendelian_check(tp1, tp2, tpp, is_xlinked=False):
     possible_progenies = set(tuple(sorted(x)) \
                     for x in product(tp1_call, tp2_call))
     if is_xlinked and tpp_sex == "Male":
-        possible_progenies = set(tuple((x, x)) for x in tp1_call)
+        possible_progenies = set(tuple((x,)) for x in tp1_call)
     if -1 in tp1_call or -1 in tp2_call or -1 in tpp_call:
         tag = "Missing"
     #elif tp1_evidence < 2 or tp2_evidence < 2 or tpp_evidence < 2:

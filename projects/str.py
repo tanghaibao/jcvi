@@ -227,7 +227,7 @@ def mendelian2(args):
             p1_sex, p2_sex = p2_sex, p1_sex
         trios.append((proband, proband_sex, p1, p1_sex, p2, p2_sex))
 
-    header  = "{0} {0}_Sex {0}_Calls"
+    header  = "{0}_ID {0}_Sex {0}_Calls"
     header += " {0}_Full {0}_Partial {0}_Repeat {0}_Paired"
     tredsdata = pd.read_csv(hlitsv, sep="\t", low_memory=False)
     tsvfiles = []
@@ -253,7 +253,7 @@ def mendelian2(args):
 
         h = " ".join((header.format("P1"), header.format("P2"),
                       header.format("Kid")))
-        print >> fw, "\t".join(h.split() + ["MendelianError"])
+        print >> fw, "\t".join(["MendelianError"] + h.split())
         tredcall = lambda x: td.get(x, ["", "-1|-1", "", "", "", ""])[:]
         counts = defaultdict(int)
         is_xlinked = repo[tred].is_xlinked
@@ -273,7 +273,7 @@ def mendelian2(args):
             cells  = [shorten(p1), p1_sex] + tp1[1:]
             cells += [shorten(p2), p2_sex] + tp2[1:]
             cells += [shorten(proband), proband_sex] + tpp[1:]
-            print >> fw, "\t".join(cells + [m])
+            print >> fw, "\t".join([m] + cells)
         fw.close()
         tsvfiles.append(tsvfile)
 
@@ -286,16 +286,26 @@ def mendelian2(args):
     import xlwt
     wb = xlwt.Workbook()
     converter = lambda x: int(x) if is_number(x, cast=int) else x
+    header = xlwt.easyxf("font: bold on, name Helvetica; align: horiz center")
+    hc = "font: name Helvetica; align: horiz center;"
+    horiz_center = xlwt.Style.easyxf(hc)
+    correct = xlwt.Style.easyxf(hc + "pattern: pattern solid, fore_colour light_green;")
+    error = xlwt.Style.easyxf(hc + "pattern: pattern solid, fore_colour rose;")
+    missing = xlwt.Style.easyxf(hc + "pattern: pattern solid, fore_colour light_yellow;")
     for tsvfile in tsvfiles:
 	sheet = op.basename(tsvfile).split(".", 1)[0]
 	ws = wb.add_sheet(sheet)
 	fp = open(tsvfile, 'rb')
 	reader = csv.reader(fp, delimiter="\t")
 	for r, row in enumerate(reader):
+            style = header if r == 0 else horiz_center
 	    for c, col in enumerate(row):
-		ws.write(r, c, converter(col))
+                if c == 0 and r:
+                    style = {"Correct": correct, "Error": error,
+                             "Missing": missing}[col]
+		ws.write(r, c, converter(col), style)
 
-    wb.save('output.xls')
+    wb.save('Trios.xls')
 
 
 def mendelian_check(tp1, tp2, tpp, is_xlinked=False):

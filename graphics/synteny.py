@@ -240,7 +240,8 @@ class Synteny (object):
 
     def __init__(self, fig, root, datafile, bedfile, layoutfile,
                  switch=None, tree=None, extra_features=None,
-                 chr_label=True, loc_label=True, pad=.04):
+                 chr_label=True, loc_label=True, pad=.04,
+                 scalebar=False):
 
         w, h = fig.get_figwidth(), fig.get_figheight()
         bed = Bed(bedfile)
@@ -296,6 +297,25 @@ class Synteny (object):
                 ymid = (ymids[i] + ymids[j]) / 2
                 Shade(root, a, b, ymid, alpha=1, highlight=h, zorder=2)
 
+        if scalebar:
+            print >> sys.stderr, "Build scalebar (scale={})".format(scale)
+            # Find the best length of the scalebar
+            ar = [1, 2, 5]
+            candidates = [1000 * x for x in ar] + [10000 * x for x in ar] + \
+                         [100000 * x for x in ar]
+            # Find the one that's close to an optimal canvas size
+            dists = [(abs(x / scale - .12), x) for x in candidates]
+            dist, candidate = min(dists)
+            dist = candidate / scale
+            x, y, yp = .2, .96, .005
+            a, b = x - dist / 2, x + dist / 2
+            lsg = "lightslategrey"
+            root.plot([a, a], [y - yp, y + yp], "-", lw=2, color=lsg)
+            root.plot([b, b], [y - yp, y + yp], "-", lw=2, color=lsg)
+            root.plot([a, b], [y, y], "-", lw=2, color=lsg)
+            root.text(x, y + .02, human_size(candidate, precision=0),
+                      ha="center", va="center")
+
         if tree:
             from jcvi.graphics.tree import draw_tree, read_trees
 
@@ -336,6 +356,8 @@ def main():
     p.add_option("--tree",
                  help="Display trees on the bottom of the figure [default: %default]")
     p.add_option("--extra", help="Extra features in BED format")
+    p.add_option("--scalebar", default=False, action="store_true",
+                 help="Add scale bar to the plot")
     opts, args, iopts = p.set_image_options(figsize="8x7")
 
     if len(args) != 3:
@@ -350,7 +372,8 @@ def main():
     root = fig.add_axes([0, 0, 1, 1])
 
     Synteny(fig, root, datafile, bedfile, layoutfile,
-            switch=switch, tree=tree, extra_features=opts.extra)
+            switch=switch, tree=tree, extra_features=opts.extra,
+            scalebar=opts.scalebar)
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)

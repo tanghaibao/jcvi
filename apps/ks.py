@@ -545,12 +545,14 @@ def calc(args):
 def find_synonymous(input_file, work_dir):
     """Run yn00 to find the synonymous subsitution rate for the alignment.
     """
+    cwd = os.getcwd()
+    os.chdir(work_dir)
     # create the .ctl file
-    ctl_file = op.join(work_dir, "yn-input.ctl")
-    output_file = op.join(work_dir, "nuc-subs.yn")
+    ctl_file = "yn-input.ctl"
+    output_file = "nuc-subs.yn"
     ctl_h = open(ctl_file, "w")
     ctl_h.write("seqfile = %s\noutfile = %s\nverbose = 0\n" %
-                (input_file, output_file))
+                (op.basename(input_file), output_file))
     ctl_h.write("icode = 0\nweighting = 0\ncommonf3x4 = 0\n")
     ctl_h.close()
 
@@ -586,6 +588,7 @@ def find_synonymous(input_file, work_dir):
         h = open(output_file)
         print >>sys.stderr, "yn00 didn't work: \n%s" % h.read()
 
+    os.chdir(cwd)
     return ds_value_yn, dn_value_yn, ds_value_ng, dn_value_ng
 
 

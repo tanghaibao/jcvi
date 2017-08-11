@@ -16,7 +16,7 @@ from collections import defaultdict
 from functools import partial
 
 from jcvi.algorithms.ec import GA_setup, GA_run
-from jcvi.apps.base import OptionParser, ActionDispatcher, iglob, mkdir, symlink
+from jcvi.apps.base import OptionParser, ActionDispatcher, backup, iglob, mkdir, symlink
 from jcvi.assembly.allmaps import make_movie
 from jcvi.utils.natsort import natsorted
 from jcvi.formats.agp import order_to_agp
@@ -179,7 +179,8 @@ def optimize(args):
     Optimize the contig order and orientation, based on CLM file.
     """
     p = OptionParser(optimize.__doc__)
-    p.add_option("--init", help="Use initial tour from file")
+    p.add_option("--startover", default=False, action="store_true",
+                 help="Do not resume from existing tour file")
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -187,28 +188,30 @@ def optimize(args):
         sys.exit(not p.print_help())
 
     clmfile, idsfile = args
-    inittourfile = opts.init
+    startover = opts.startover
     # Load contact map
     clm = CLMFile(clmfile, idsfile)
     contig_names = clm.contig_names
     tour_sizes = clm.sizes
     tour_M = clm.M
     N = clm.ntigs
-    # Load initial tour
-    if inittourfile:
-        tour_contigs = open(inittourfile).readlines()[-1].split()
+
+    tourfile = clmfile.rsplit(".", 1)[0] + ".tour"
+    if startover or (not op.exists(tourfile)):
+        tour = range(N)  # Use starting (random) order otherwise
+    else:
+        logging.debug("File `{}` found".format(tourfile))
+        tour_contigs = open(tourfile).readlines()[-1].split()
         tour = []
         for tc in tour_contigs:
             if tc not in contig_names:
                 logging.debug("Contig `{}` in file `{}` not found in `{}`"\
-                                .format(tc, inittourfile, idsfile))
+                                .format(tc, tourfile, idsfile))
                 continue
             tour.append(clm.tig_to_idx[tc])
-    else:
-        tour = range(N)  # Use starting (random) order otherwise
+        backup(tourfile)
     oo = range(N)
 
-    tourfile = clmfile.rsplit(".", 1)[0] + ".tour"
     fwtour = open(tourfile, "w")
     def callback(tour, gen, oo):
         fitness = tour.fitness if hasattr(tour, "fitness") else None

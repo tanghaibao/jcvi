@@ -183,6 +183,7 @@ def optimize(args):
     Optimize the contig order and orientation, based on CLM file.
     """
     p = OptionParser(optimize.__doc__)
+    p.add_option("--init", help="Use initial tour from file")
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -190,13 +191,22 @@ def optimize(args):
         sys.exit(not p.print_help())
 
     clmfile, idsfile = args
+    inittourfile = opts.init
     # Load contact map
     clm = CLMFile(clmfile, idsfile)
     contig_names = clm.contig_names
     tour_sizes = clm.sizes
     tour_M = clm.M
     N = clm.ntigs
-    tour = range(N)
+    # Load initial tour
+    if inittourfile:
+        tour_contigs = open(inittourfile).readline().split()
+        tour = []
+        for tc in tour_contigs:
+            if tc in contig_names:
+                tour.append(contig_names.index(tc))
+    else:
+        tour = range(N)  # Use starting (random) order otherwise
     oo = range(N)
 
     tourfile = clmfile.rsplit(".", 1)[0] + ".tour"

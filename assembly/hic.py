@@ -143,19 +143,15 @@ class CLMFile:
         for (at, bt), dists in self.contacts.items():
             ai = self.tig_to_idx[at]
             bi = self.tig_to_idx[bt]
-            if ai > bi:
-                ai, bi = bi, ai
-            M[ai, bi] = len(dists)
+            M[ai, bi] = M[bi, ai] = len(dists)
 
         O = np.zeros((N, N), dtype=int)
         for (at, bt), dists in self.orientations.items():
             ai = self.tig_to_idx[at]
             bi = self.tig_to_idx[bt]
-            if ai > bi:
-                ai, bi = bi, ai
             mo, md = min(dists, key=lambda x: x[1])
             strandedness = 1 if mo[0] == mo[1] else -1
-            O[ai, bi] = strandedness
+            O[ai, bi] = O[bi, ai] = strandedness
 
         self.M = M
         self.O = O
@@ -200,11 +196,14 @@ def optimize(args):
     N = clm.ntigs
     # Load initial tour
     if inittourfile:
-        tour_contigs = open(inittourfile).readline().split()
+        tour_contigs = open(inittourfile).readlines()[-1].split()
         tour = []
         for tc in tour_contigs:
-            if tc in contig_names:
-                tour.append(contig_names.index(tc))
+            if tc not in contig_names:
+                logging.debug("Contig `{}` in file `{}` not found in `{}`"\
+                                .format(tc, inittourfile, idsfile))
+                continue
+            tour.append(clm.tig_to_idx[tc])
     else:
         tour = range(N)  # Use starting (random) order otherwise
     oo = range(N)

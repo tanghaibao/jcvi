@@ -654,7 +654,7 @@ def ortholog(args):
             from jcvi.graphics.dotplot import dotplot_main
             dargs = [anchors]
             if opts.nostdpf:
-                dargs += ["--nostdpf"]
+                dargs += ["--nostdpf", "--skipempty"]
             dotplot_main(dargs)
         return
 

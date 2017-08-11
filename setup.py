@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from setuptools import setup, find_packages
+from distutils.extension import Extension
 
 
 name = "jcvi"
@@ -23,6 +24,7 @@ setup(
       packages=[name] + ['.'.join((name, x)) for x in find_packages()],
       include_package_data=True,
       package_data={"jcvi.utils.data": ["*.*"]},
+      ext_modules=[Extension("assembly.chic", ["assembly/chic.c"])],
       classifiers=classifiers,
       zip_safe=False,
       license='BSD',
@@ -32,4 +34,4 @@ setup(
       long_description=open("README.md").read(),
       install_requires=['biopython', 'deap',
                         'matplotlib', 'networkx', 'numpy']
-     )
+ )

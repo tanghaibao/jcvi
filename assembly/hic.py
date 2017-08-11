@@ -16,6 +16,7 @@ from collections import defaultdict
 from functools import partial
 
 from jcvi.algorithms.ec import GA_setup, GA_run
+from jcvi.algorithms.matrix import get_signs
 from jcvi.apps.base import OptionParser, ActionDispatcher, backup, iglob, mkdir, symlink
 from jcvi.assembly.allmaps import make_movie
 from jcvi.utils.natsort import natsorted
@@ -181,6 +182,7 @@ def optimize(args):
     p = OptionParser(optimize.__doc__)
     p.add_option("--startover", default=False, action="store_true",
                  help="Do not resume from existing tour file")
+    p.set_outfile(outfile=None)
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -196,7 +198,7 @@ def optimize(args):
     tour_M = clm.M
     N = clm.ntigs
 
-    tourfile = clmfile.rsplit(".", 1)[0] + ".tour"
+    tourfile = opts.outfile or clmfile.rsplit(".", 1)[0] + ".tour"
     if startover or (not op.exists(tourfile)):
         tour = range(N)  # Use starting (random) order otherwise
     else:
@@ -212,6 +214,9 @@ def optimize(args):
         backup(tourfile)
     oo = range(N)
 
+    # Determine orientations
+    signs = get_signs(clm.O, validate=False)
+
     fwtour = open(tourfile, "w")
     def callback(tour, gen, oo):
         fitness = tour.fitness if hasattr(tour, "fitness") else None
@@ -219,11 +224,11 @@ def optimize(args):
         if fitness:
             fitness = "{0}".format(fitness).split(",")[0].replace("(", "")
             label += "-" + fitness
-        print_tour(fwtour, tour, label, contig_names, oo)
+        print_tour(fwtour, tour, label, contig_names, oo, signs=signs)
         return tour
 
     # Store INIT tour
-    print_tour(fwtour, tour, "INIT", contig_names, oo)
+    print_tour(fwtour, tour, "INIT", contig_names, oo, signs=signs)
 
     # Faster Cython version for evaluation
     from .chic import score_evaluate
@@ -231,7 +236,7 @@ def optimize(args):
     toolbox = GA_setup(tour)
     toolbox.register("evaluate", score_evaluate,
                      tour_sizes=tour_sizes, tour_M=tour_M)
-    tour, tour.fitness = GA_run(toolbox, npop=100, cpus=opts.cpus,
+    tour, tour.fitness = GA_run(toolbox, ngen=1000, npop=100, cpus=opts.cpus,
                                 callback=callbacki)
     print tour, tour.fitness
     fwtour.close()
@@ -287,7 +292,12 @@ def syntenymovie(args):
         # Make BED file with new order
         qb = Bed()
         for contig in tour:
-            for x in contig_to_beds[contig]:
+            if contig[-1] in ('+', '-', '?'):
+                contig, o = contig[:-1], contig[-1]
+            bedlines = contig_to_beds[contig]
+            if o == '-':
+                bedlines.reverse()
+            for x in bedlines:
                 qb.append(x)
         qb.print_to_file(op.basename(qbedfile))
         # Plot dot plot, but do not sort contigs by name (otherwise losing
@@ -424,9 +434,17 @@ def score(args):
     fwtour.close()
 
 
-def print_tour(fwtour, tour, label, contig_names, oo):
+def print_tour(fwtour, tour, label, contig_names, oo, signs=None):
     print >> fwtour, ">" + label
-    print >> fwtour, " ".join(contig_names[oo[x]] for x in tour)
+    if signs is not None:
+        contig_o = []
+        for x in tour:
+            idx = oo[x]
+            sign = {1: '+', 0: '?', -1: '-'}[signs[idx]]
+            contig_o.append(contig_names[idx] + sign)
+        print >> fwtour, " ".join(contig_o)
+    else:
+        print >> fwtour, " ".join(contig_names[oo[x]] for x in tour)
 
 
 def prepare_ec(oo, sizes, M):

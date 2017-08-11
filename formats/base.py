@@ -51,6 +51,7 @@ class DictFile (BaseFile, dict):
                        strict=True, keycast=None, cast=None):
 
         super(DictFile, self).__init__(filename)
+        self.keypos = keypos
 
         fp = must_open(filename)
         ncols = max(keypos, valuepos) + 1
@@ -850,6 +851,8 @@ def join(args):
                  help="Do not print header [default: %default]")
     p.add_option("--na", default="na",
                  help="Value for unjoined data [default: %default]")
+    p.add_option("--compact", default=False, action="store_true",
+                 help="Do not repeat pivotal columns in output")
     p.add_option("--keysep", default=",",
                  help="specify separator joining multiple elements in the key column"
                  + " of the pivot file [default: %default]")
@@ -859,6 +862,7 @@ def join(args):
     nargs = len(args)
 
     keysep = opts.keysep
+    compact = opts.compact
 
     if len(args) < 2:
         sys.exit(not p.print_help())
@@ -885,8 +889,14 @@ def join(args):
     files = [DictFile(f, keypos=c, valuepos=None, delimiter=s) \
                         for f, c, s in zip(args, cc, ss)]
     otherfiles = files[1:]
-    header = "\t".join(flatten([op.basename(x.filename)] * x.ncols \
-                        for x in files))
+    # The header contains filenames
+    headers = []
+    for i, x in enumerate(files):
+        ncols = x.ncols
+        if i and compact:
+            ncols -= 1
+        headers += [op.basename(x.filename)] * ncols
+    header = "\t".join(headers)
 
     fp = must_open(pivotfile)
     fw = must_open(opts.outfile, "w")
@@ -902,7 +912,10 @@ def join(args):
         for d in otherfiles:
             drows = list()
             for key in keys:
-                drows.append(d.get(key, [na] * d.ncols))
+                krow = d.get(key, [na] * d.ncols)
+                if compact:
+                    krow.pop(d.keypos)
+                drows.append(krow)
             drow = [keysep.join(x) for x in list(zip(*drows))]
             newrow += drow
         print >> fw, "\t".join(newrow)

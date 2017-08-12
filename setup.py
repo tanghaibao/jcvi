@@ -2,6 +2,7 @@
 
 from setuptools import setup, find_packages
 from distutils.extension import Extension
+import numpy
 
 
 name = "jcvi"
@@ -12,7 +13,7 @@ classifiers = [
     'Programming Language :: Python',
     'Programming Language :: Python :: 2',
     'Topic :: Scientific/Engineering :: Bio-Informatics',
-    ]
+]
 
 exec(open("__init__.py").read())
 setup(
@@ -24,7 +25,9 @@ setup(
       packages=[name] + ['.'.join((name, x)) for x in find_packages()],
       include_package_data=True,
       package_data={"jcvi.utils.data": ["*.*"]},
-      ext_modules=[Extension("assembly.chic", ["assembly/chic.c"])],
+      ext_modules=[Extension("assembly.chic", ["assembly/chic.c"],
+                             include_dirs=[numpy.get_include()]),
+      ],
       classifiers=classifiers,
       zip_safe=False,
       license='BSD',

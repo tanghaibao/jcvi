@@ -290,7 +290,7 @@ def syntenymovie(args):
     symlink(sbedfile, op.basename(sbedfile))
 
     args = []
-    for i, label, tour in iter_tours(tourfile, frames=opts.frames):
+    for i, label, tour, tour_o in iter_tours(tourfile, frames=opts.frames):
         padi = "{:06d}".format(i)
         # Make sure the anchorsfile and bedfile has the serial number in,
         # otherwise parallelization may fail
@@ -299,9 +299,7 @@ def syntenymovie(args):
         symlink(anchorsfile, ianchorsfile)
         # Make BED file with new order
         qb = Bed()
-        for contig in tour:
-            if contig[-1] in ('+', '-', '?'):
-                contig, o = contig[:-1], contig[-1]
+        for contig, o in zip(tour, tour_o):
             bedlines = contig_to_beds[contig]
             if o == '-':
                 bedlines.reverse()
@@ -344,14 +342,23 @@ def iter_tours(tourfile, frames=250):
         else:
             if i % frames != 0:
                 continue
-            yield i, label, row.split()
+            tour = []
+            tour_o = []
+            for contig in row.split():
+                if contig[-1] in ('+', '-', '?'):
+                    tour.append(contig[:-1])
+                    tour_o.append(contig[-1])
+                else:  # Unoriented
+                    tour.append(contig)
+                    tour_o.append('?')
+            yield i, label, tour, tour_o
 
     fp.close()
 
 
 def heatmapmovie(args):
     """
-    %prog heatmapmovie tour cached_data/ contigsfasta
+    %prog heatmapmovie tour test.clm test.ids
 
     Plot heatmap optimization history.
     """
@@ -364,16 +371,19 @@ def heatmapmovie(args):
     if len(args) != 3:
         sys.exit(not p.print_help())
 
-    tourfile, cdir, contigsfasta = args
-    odir = "heatmapmovie"
+    tourfile, clmfile, idsfile = args
+    odir = op.basename(tourfile).rsplit(".", 1)[0] + "-heatmapmovie"
     mkdir(odir)
 
-    for i, label, tour in iter_tours(tourfile):
+    args = []
+    for i, label, tour, tour_o in iter_tours(tourfile):
         image_name = op.join(odir, "{:06d}".format(i)) + "." + iopts.format
         tour = ",".join(tour)
-        heatmap(["main_results", cdir, contigsfasta,
-                 "--tour", tour, "--outfile", image_name,
-                 "--label", label])
+        args.append([[tour, clmfile, idsfile,
+                    "--outfile", image_name, "--label", label]])
+
+    Jobs(heatmap, args).run()
+
     make_movie(odir, odir)
 
 
@@ -489,12 +499,12 @@ def score_evaluate(tour, tour_sizes=None, tour_M=None):
 
 def heatmap(args):
     """
-    %prog heatmap main_results/ cached_data/ contigs.fasta
+    %prog heatmap tour test.clm test.ids
 
-    Generate heatmap file based on LACHESISS output.
+    Generate heatmap file based on LACHESISS output. Tour contains a list of
+    contigs separated by comma.
     """
     p = OptionParser(heatmap.__doc__)
-    p.add_option("--tour", help="List of contigs separated by comma")
     p.add_option("--label", help="Figure title")
     p.set_outfile(outfile=None)
     opts, args, iopts = p.set_image_options(args, figsize="8x8",
@@ -503,62 +513,41 @@ def heatmap(args):
     if len(args) != 3:
         sys.exit(not p.print_help())
 
-    mdir, cdir, contigsfasta = args
-    orderingfiles = natsorted(iglob(mdir, "*.ordering"))
-    sizes = Sizes(contigsfasta)
-    contig_names = list(sizes.iter_names())
-    contig_ids = dict((name, i) for (i, name) in enumerate(contig_names))
+    tour, clmfile, idsfile = args
+    tour = tour.split(",")
 
-    if opts.tour:
-        tours = [opts.tour.split(",")]
-    else:
-        tours = []
-        for ofile in orderingfiles:
-            co = ContigOrdering(ofile)
-            tour = [x.contig_name for x in co]
-            tours.append(tour)
-
-    totalbins, bins, breaks = make_bins(tours, sizes, contig_ids)
-
-    glm = op.join(cdir, "all.GLM")
-    M = read_glm(glm, totalbins, bins)
-
+    clm = CLMFile(clmfile, idsfile)
+    totalbins, bins, breaks = make_bins(tour, clm.tig_to_size)
+    M = read_clm(clm, totalbins, bins)
     plot_heatmap(M, breaks, opts, iopts)
 
 
-def make_bins(tours, sizes, contig_ids):
+def make_bins(tour, sizes):
     breaks = []
     start = 0
     bins = {}
-    for tour in tours:
-        for x in tour:
-            size = sizes.mapping[x]
-            contig_id = contig_ids[x]
-            end = start + int(math.ceil(size / 100000.))
-            bins[contig_id] = (start, end)
-            start = end
-        breaks.append(start)
+    for x in tour:
+        size = sizes[x]
+        end = start + int(math.ceil(size / 100000.))
+        bins[x] = (start, end)
+        start = end
+    breaks.append(start)
 
     totalbins = start
     return totalbins, bins, breaks
 
 
-def read_glm(glm, totalbins, bins):
+def read_clm(clm, totalbins, bins):
     M = np.zeros((totalbins, totalbins))
-    for row in open(glm):
-        if row[0] == '#':
-            continue
-        x, y, z = row.split()
-        if x == 'X':
-            continue
-        x, y = int(x), int(y)
+    for (x, y), dists in clm.contacts.items():
         if x not in bins or y not in bins:
             continue
         xstart, xend = bins[x]
         ystart, yend = bins[y]
         #z = float(z) / ((xend - xstart) * (yend - ystart))
-        z = float(z)
+        z = len(dists)
         M[xstart:xend, ystart:yend] = z
+        M[ystart:yend, xstart:xend] = z
 
     M = np.log10(M + 1)
     return M

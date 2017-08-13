@@ -996,11 +996,13 @@ def animation(args):
     make_movie(ffmpeg, pf)
 
 
-def make_movie(ffmpeg, pf):
+def make_movie(ffmpeg, pf, format="pdf"):
     # Make the movie
     os.chdir(ffmpeg)
-    cmd = "parallel convert -density 300 {} {.}.png ::: *.pdf"
-    sh(cmd)
+    if format != "png":
+        cmd = "parallel convert -density 300 {} {.}.png ::: " \
+                + "*.{}".format(format)
+        sh(cmd)
     cmd = "ffmpeg -framerate 1 -pattern_type glob -i '*.png' {0}.mp4".format(pf)
     sh(cmd)
 

@@ -18,6 +18,7 @@ from functools import partial
 from jcvi.algorithms.ec import GA_setup, GA_run
 from jcvi.algorithms.matrix import get_signs
 from jcvi.apps.base import OptionParser, ActionDispatcher, backup, iglob, mkdir, symlink
+from jcvi.apps.grid import Jobs
 from jcvi.assembly.allmaps import make_movie
 from jcvi.utils.natsort import natsorted
 from jcvi.formats.agp import order_to_agp
@@ -258,7 +259,7 @@ def syntenymovie(args):
     p.add_option("--frames", default=250, type="int",
                  help="Only plot every N frames")
     p.set_beds()
-    opts, args, iopts = p.set_image_options(args, figsize="8x8")
+    opts, args, iopts = p.set_image_options(args, figsize="8x8", format="png")
 
     if len(args) != 2:
         sys.exit(not p.print_help())
@@ -288,6 +289,7 @@ def syntenymovie(args):
     # Symlink sbed
     symlink(sbedfile, op.basename(sbedfile))
 
+    args = []
     for i, label, tour in iter_tours(tourfile, frames=opts.frames):
         # Make BED file with new order
         qb = Bed()
@@ -303,11 +305,13 @@ def syntenymovie(args):
         # Plot dot plot, but do not sort contigs by name (otherwise losing
         # order)
         image_name = "{:06d}".format(i) + "." + iopts.format
-        dotplot_main([anchorsfile, "--nosort", "--nosep",
-                      "--title", label, "--outfile", image_name])
+        args.append([[anchorsfile, "--nosort", "--nosep",
+                      "--title", label, "--outfile", image_name]])
+
+    Jobs(dotplot_main, args).run()
 
     os.chdir(cwd)
-    make_movie(odir, odir)
+    make_movie(odir, odir, format=iopts.format)
 
 
 def iter_tours(tourfile, frames=250):

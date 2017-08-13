@@ -256,7 +256,7 @@ def syntenymovie(args):
     from jcvi.graphics.dotplot import dotplot_main
 
     p = OptionParser(syntenymovie.__doc__)
-    p.add_option("--frames", default=250, type="int",
+    p.add_option("--frames", default=500, type="int",
                  help="Only plot every N frames")
     p.set_beds()
     opts, args, iopts = p.set_image_options(args, figsize="8x8")
@@ -321,7 +321,7 @@ def syntenymovie(args):
     make_movie(odir, odir, format=iopts.format)
 
 
-def iter_tours(tourfile, frames=250):
+def iter_tours(tourfile, frames=1):
     """
     Extract tours from tourfile. Tourfile contains a set of contig
     configurations, generated at each iteration of the genetic algorithm. Each
@@ -363,7 +363,7 @@ def heatmapmovie(args):
     Plot heatmap optimization history.
     """
     p = OptionParser(heatmapmovie.__doc__)
-    p.add_option("--frames", default=250, type="int",
+    p.add_option("--frames", default=500, type="int",
                  help="Only plot every N frames")
     opts, args, iopts = p.set_image_options(args, figsize="8x8",
                                             style="white", cmap="coolwarm")
@@ -376,7 +376,7 @@ def heatmapmovie(args):
     mkdir(odir)
 
     args = []
-    for i, label, tour, tour_o in iter_tours(tourfile):
+    for i, label, tour, tour_o in iter_tours(tourfile, frames=opts.frames):
         image_name = op.join(odir, "{:06d}".format(i)) + "." + iopts.format
         tour = ",".join(tour)
         args.append([[tour, clmfile, idsfile,

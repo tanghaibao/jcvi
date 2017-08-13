@@ -259,7 +259,7 @@ def syntenymovie(args):
     p.add_option("--frames", default=250, type="int",
                  help="Only plot every N frames")
     p.set_beds()
-    opts, args, iopts = p.set_image_options(args, figsize="8x8", format="png")
+    opts, args, iopts = p.set_image_options(args, figsize="8x8")
 
     if len(args) != 2:
         sys.exit(not p.print_help())
@@ -291,6 +291,12 @@ def syntenymovie(args):
 
     args = []
     for i, label, tour in iter_tours(tourfile, frames=opts.frames):
+        padi = "{:06d}".format(i)
+        # Make sure the anchorsfile and bedfile has the serial number in,
+        # otherwise parallelization may fail
+        a, b = op.basename(anchorsfile).split(".", 1)
+        ianchorsfile = a + "_" + padi + "." + b
+        symlink(anchorsfile, ianchorsfile)
         # Make BED file with new order
         qb = Bed()
         for contig in tour:
@@ -301,11 +307,14 @@ def syntenymovie(args):
                 bedlines.reverse()
             for x in bedlines:
                 qb.append(x)
-        qb.print_to_file(op.basename(qbedfile))
+
+        a, b = op.basename(qbedfile).split(".", 1)
+        ibedfile = a + "_" + padi + "." + b
+        qb.print_to_file(ibedfile)
         # Plot dot plot, but do not sort contigs by name (otherwise losing
         # order)
-        image_name = "{:06d}".format(i) + "." + iopts.format
-        args.append([[anchorsfile, "--nosort", "--nosep",
+        image_name = padi + "." + iopts.format
+        args.append([[ianchorsfile, "--nosort", "--nosep",
                       "--title", label, "--outfile", image_name]])
 
     Jobs(dotplot_main, args).run()

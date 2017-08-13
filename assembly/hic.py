@@ -77,6 +77,8 @@ class CLMFile:
     tig00030676- tig00077819-       7       108422 157204 157204 137924 142611 75169 75169
     '''
     def __init__(self, clmfile, idsfile, skiprecover=True):
+        self.clmfile = clmfile
+        self.idsfile = idsfile
         self.parse_ids(idsfile, skiprecover)
         self.parse_clm(clmfile)
         self.build_matrices()
@@ -139,6 +141,13 @@ class CLMFile:
         self.contacts = contacts
         self.orientations = orientations
 
+    def calculate_densities(self):
+        densities = defaultdict(int)
+        for (at, bt), dists in self.contacts.items():
+            densities[at] += len(dists)
+            densities[bt] += len(dists)
+        return densities
+
     def build_matrices(self):
         N = self.ntigs
         M = np.zeros((N, N), dtype=int)
@@ -162,9 +171,12 @@ class CLMFile:
 def main():
 
     actions = (
+        # LACHESIS output processing
         ('agp', 'generate AGP file based on LACHESIS output'),
         ('score', 'score the current LACHESIS CLM'),
+        # Scaffolding
         ('optimize', 'optimize the contig order and orientation'),
+        ('density', 'estimate link density of contigs'),
         # Plotting
         ('heatmap', 'generate heatmap based on LACHESIS output'),
         ('heatmapmovie', 'plot heatmap optimization history'),
@@ -172,6 +184,37 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def density(args):
+    """
+    %prog density test.clm test.ids
+
+    Estimate link density of contigs.
+    """
+    p = OptionParser(density.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    clmfile, idsfile = args
+    clm = CLMFile(clmfile, idsfile, skiprecover=False)
+    sizes = clm.tig_to_size
+    densities = clm.calculate_densities()
+    logdensities = {}
+    for name in clm.contig_names:
+        s = sizes[name]
+        d = densities[name]
+        logd = np.log10(d * 1. / s)
+        logdensities[name] = logd
+        print "\t".join(str(x) for x in (name, s, d, logd))
+
+    tourfile = clmfile.rsplit(".", 1)[0] + ".tour"
+    if op.exists(tourfile):
+        tour = iter_last_tour(tourfile, clm)
+        logds = [logdensities[x] for x in tour]
+        print logds
 
 
 def optimize(args):
@@ -204,14 +247,8 @@ def optimize(args):
         tour = range(N)  # Use starting (random) order otherwise
     else:
         logging.debug("File `{}` found".format(tourfile))
-        tour_contigs = open(tourfile).readlines()[-1].split()
-        tour = []
-        for tc in tour_contigs:
-            if tc not in contig_names:
-                logging.debug("Contig `{}` in file `{}` not found in `{}`"\
-                                .format(tc, tourfile, idsfile))
-                continue
-            tour.append(clm.tig_to_idx[tc])
+        tour = iter_last_tour(tourfile, clm)
+        tour = [clm.tig_to_idx[x] for x in tour]
         backup(tourfile)
     oo = range(N)
 
@@ -321,6 +358,42 @@ def syntenymovie(args):
     make_movie(odir, odir, format=iopts.format)
 
 
+def separate_tour_and_o(row):
+    """
+    The tour line typically contains contig list like:
+    tig00044568+ tig00045748- tig00071055- tig00015093- tig00030900-
+
+    This function separates the names from the orientations.
+    """
+    tour = []
+    tour_o = []
+    for contig in row.split():
+        if contig[-1] in ('+', '-', '?'):
+            tour.append(contig[:-1])
+            tour_o.append(contig[-1])
+        else:  # Unoriented
+            tour.append(contig)
+            tour_o.append('?')
+    return tour, tour_o
+
+
+def iter_last_tour(tourfile, clm):
+    """
+    Extract last tour from tourfile. The clm instance is also passed in to check
+    if any contig is covered in the clm.
+    """
+    row = open(tourfile).readlines()[-1]
+    _tour, tour_o = separate_tour_and_o(row)
+    tour = []
+    for tc in _tour:
+        if tc not in clm.contig_names:
+            logging.debug("Contig `{}` in file `{}` not found in `{}`"\
+                            .format(tc, tourfile, clm.idsfile))
+            continue
+        tour.append(tc)
+    return tour
+
+
 def iter_tours(tourfile, frames=1):
     """
     Extract tours from tourfile. Tourfile contains a set of contig
@@ -342,15 +415,7 @@ def iter_tours(tourfile, frames=1):
         else:
             if i % frames != 0:
                 continue
-            tour = []
-            tour_o = []
-            for contig in row.split():
-                if contig[-1] in ('+', '-', '?'):
-                    tour.append(contig[:-1])
-                    tour_o.append(contig[-1])
-                else:  # Unoriented
-                    tour.append(contig)
-                    tour_o.append('?')
+            tour, tour_o = separate_tour_and_o(row)
             yield i, label, tour, tour_o
 
     fp.close()

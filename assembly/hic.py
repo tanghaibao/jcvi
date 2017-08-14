@@ -16,7 +16,6 @@ from collections import defaultdict
 from functools import partial
 
 from jcvi.algorithms.ec import GA_setup, GA_run
-from jcvi.algorithms.formula import get_kmeans
 from jcvi.algorithms.matrix import get_signs
 from jcvi.apps.base import OptionParser, ActionDispatcher, backup, iglob, mkdir, symlink
 from jcvi.apps.grid import Jobs
@@ -125,6 +124,9 @@ class CLMFile:
         self.tig_to_size = tig_to_size
         self.ntigs = len(tig_to_idx)
 
+        # Initially all contigs are considered active
+        self.active = set(_tigs)
+
     def parse_clm(self):
         clmfile = self.clmfile
         logging.debug("Parse clmfile `{}`".format(clmfile))
@@ -150,11 +152,48 @@ class CLMFile:
         self.orientations = orientations
 
     def calculate_densities(self):
+        """
+        Calculate the density of inter-contig links per base. Strong contigs are
+        considered to have high level of inter-contig links in the current
+        partition.
+        """
+        active = self.active
         densities = defaultdict(int)
         for (at, bt), dists in self.contacts.items():
+            if not (at in active and bt in active):
+                continue
             densities[at] += len(dists)
             densities[bt] += len(dists)
-        return densities
+
+        logdensities = {}
+        for x, d in densities.items():
+            s = self.tig_to_size[x]
+            logd = np.log10(d * 1. / min(s, 500000))
+            logdensities[x] = logd
+
+        return logdensities
+
+    def activate(self, threshold=-3):
+        """
+        Select strong contigs in the current partition.
+        """
+        done = False
+        while not done:
+            logdensities = self.calculate_densities()
+            remove = set(x for x, d in logdensities.items() if d < threshold)
+            if remove:
+                old_active = len(self.active)
+                old_active_length = self.active_length
+                self.active -= remove
+                logging.debug("Filter contigs: {} (length={}) => {} (length={})".\
+                            format(old_active, old_active_length,
+                                   len(self.active), self.active_length))
+            else:
+                done = True
+
+    @property
+    def active_length(self):
+        return sum([self.tig_to_size[x] for x in self.active])
 
     def build_matrices(self):
         N = self.ntigs
@@ -207,29 +246,18 @@ def density(args):
 
     clmfile, = args
     clm = CLMFile(clmfile, skiprecover=False)
-    sizes = clm.tig_to_size
-    densities = clm.calculate_densities()
-    logdensities = {}
     pf = clmfile.rsplit(".", 1)[0]
 
+    logdensities = clm.calculate_densities()
     densityfile = pf + ".density"
     fw = open(densityfile, "w")
-    for name in clm.contig_names:
-        s = sizes[name]
-        d = densities[name]
-        logd = np.log10(d * 1. / min(s, 500000))
-        logdensities[name] = logd
-        print >> fw, "\t".join(str(x) for x in (name, s, d, logd))
+    for name, logd in logdensities.items():
+        s = clm.tig_to_size[name]
+        print >> fw, "\t".join(str(x) for x in (name, s, logd))
     fw.close()
     logging.debug("Density written to `{}`".format(densityfile))
 
-    tourfile = clmfile.rsplit(".", 1)[0] + ".tour"
-    if op.exists(tourfile):
-        tour = iter_last_tour(tourfile, clm)
-        logds = [logdensities[x] for x in tour]
-        idx = get_kmeans(logds, 2)
-        for i, ld in sorted(zip(idx, logds)):
-            print "{}\t{}".format(i, ld)
+    clm.activate()
 
 
 def optimize(args):

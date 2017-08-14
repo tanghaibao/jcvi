@@ -149,8 +149,8 @@ class Region (object):
         if layout.label:
             chr = layout.label
 
-        label = "-".join((human_size(startbp, target="Mb")[:-2],
-                          human_size(endbp, target="Mb")))
+        label = "-".join((human_size(startbp, target="Mb", precision=2)[:-2],
+                          human_size(endbp, target="Mb", precision=2)))
 
         height = .012
         self.gg = {}

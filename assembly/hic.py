@@ -16,6 +16,7 @@ from collections import defaultdict
 from functools import partial
 
 from jcvi.algorithms.ec import GA_setup, GA_run
+from jcvi.algorithms.formula import get_kmeans
 from jcvi.algorithms.matrix import get_signs
 from jcvi.apps.base import OptionParser, ActionDispatcher, backup, iglob, mkdir, symlink
 from jcvi.apps.grid import Jobs
@@ -203,18 +204,26 @@ def density(args):
     sizes = clm.tig_to_size
     densities = clm.calculate_densities()
     logdensities = {}
+    pf = clmfile.rsplit(".", 1)[0]
+
+    densityfile = pf + ".density"
+    fw = open(densityfile, "w")
     for name in clm.contig_names:
         s = sizes[name]
         d = densities[name]
-        logd = np.log10(d * 1. / s)
+        logd = np.log10(d * 1. / min(s, 500000))
         logdensities[name] = logd
-        print "\t".join(str(x) for x in (name, s, d, logd))
+        print >> fw, "\t".join(str(x) for x in (name, s, d, logd))
+    fw.close()
+    logging.debug("Density written to `{}`".format(densityfile))
 
     tourfile = clmfile.rsplit(".", 1)[0] + ".tour"
     if op.exists(tourfile):
         tour = iter_last_tour(tourfile, clm)
         logds = [logdensities[x] for x in tour]
-        print logds
+        idx = get_kmeans(logds, 2)
+        for i, ld in sorted(zip(idx, logds)):
+            print "{}\t{}".format(i, ld)
 
 
 def optimize(args):

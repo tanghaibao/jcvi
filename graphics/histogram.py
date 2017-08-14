@@ -99,7 +99,7 @@ def loghistogram(data, base=2, ascii=True, title="Counts", summary=False):
     asciiplot(x, y, title=title)
 
 
-def get_data(filename, vmin=None, vmax=None, skip=0):
+def get_data(filename, vmin=None, vmax=None, skip=0, col=0):
     from jcvi.utils.cbook import SummaryStats
 
     fp = open(filename)
@@ -114,7 +114,7 @@ def get_data(filename, vmin=None, vmax=None, skip=0):
     for s in xrange(skip):
         fp.next()
 
-    data = np.array([ntype(x) for x in fp])
+    data = np.array([ntype(x.split()[col]) for x in fp])
     s = SummaryStats(data, title=filename)
     print >> sys.stderr, s
 
@@ -148,11 +148,11 @@ def stem_leaf_plot(data, vmin, vmax, bins, digit=1, title=None):
 
 
 def texthistogram(numberfiles, vmin, vmax, title=None,
-                  bins=20, skip=0, base=0):
+                  bins=20, skip=0, col=0, base=0):
 
     for nf in numberfiles:
         logging.debug("Import `{0}`.".format(nf))
-        data, vmin, vmax = get_data(nf, vmin, vmax, skip=skip)
+        data, vmin, vmax = get_data(nf, vmin, vmax, skip=skip, col=col)
         if base:
             loghistogram(data, base=base, title=title)
         else:
@@ -160,16 +160,16 @@ def texthistogram(numberfiles, vmin, vmax, title=None,
 
 
 def histogram(numberfile, vmin, vmax, xlabel, title, outfmt="pdf",
-              bins=50, skip=0, ascii=False, base=0, fill="white"):
+              bins=50, skip=0, col=0, ascii=False, base=0, fill="white"):
     """
     Generate histogram using number from numberfile, and only numbers in the
     range of (vmin, vmax)
     """
     if ascii:
         return texthistogram([numberfile], vmin, vmax, title=title,
-                bins=bins, skip=skip, base=base)
+                bins=bins, skip=skip, col=col, base=base)
 
-    data, vmin, vmax = get_data(numberfile, vmin, vmax, skip=skip)
+    data, vmin, vmax = get_data(numberfile, vmin, vmax, skip=skip, col=col)
     outfile = numberfile + ".base{0}.{1}".format(base, outfmt) \
                 if base else numberfile + ".pdf"
     template = histogram_log_template if base else histogram_template
@@ -234,6 +234,7 @@ def main():
     p = OptionParser(main.__doc__)
     p.add_option("--skip", default=0, type="int",
             help="skip the first several lines [default: %default]")
+    p.add_option("--col", default=0, type="int", help="Get the n-th column")
     p.set_histogram()
     p.add_option("--tags", dest="tags", default=None,
             help="tags for data if multiple input files, comma sep")
@@ -276,7 +277,7 @@ def main():
     if fileno == 1:
         histogram(args[0], vmin, vmax, xlabel, title, outfmt=opts.format,
                 bins=bins, skip=skip, ascii=opts.ascii,
-                base=base, fill=opts.fill)
+                base=base, fill=opts.fill, col=opts.col)
     else:
         histogram_multiple(args, vmin, vmax, xlabel, title, outfmt=opts.format,
                 tags=opts.tags, bins=bins, skip=skip, ascii=opts.ascii,

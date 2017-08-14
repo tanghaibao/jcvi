@@ -247,14 +247,15 @@ def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
             root.text(xstart + .04, ystart, category, color=c)
             xstart += .1
 
-    if not title:
+    if title is None:
         title = "Inter-genomic comparison: {0} vs {1}".format(gx, gy)
         if is_self:
             title = "Intra-genomic comparison within {0}".format(gx)
             npairs /= 2
         title += " ({0} gene pairs)".format(thousands(npairs))
     root.set_title(title, x=.5, y=.96, color="k")
-    logging.debug(title)
+    if title:
+        logging.debug("Dot plot title: {}".format(title))
     normalize_axes(root)
 
 

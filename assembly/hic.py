@@ -21,11 +21,16 @@ from jcvi.algorithms.matrix import get_signs
 from jcvi.apps.base import OptionParser, ActionDispatcher, backup, iglob, mkdir, symlink
 from jcvi.apps.grid import Jobs
 from jcvi.assembly.allmaps import make_movie
-from jcvi.utils.natsort import natsorted
+from jcvi.compara.synteny import check_beds, get_bed_filenames
 from jcvi.formats.agp import order_to_agp
 from jcvi.formats.base import LineFile, must_open
+from jcvi.formats.bed import Bed
 from jcvi.formats.sizes import Sizes
+from jcvi.formats.blast import Blast
 from jcvi.graphics.base import normalize_axes, plt, savefig
+from jcvi.graphics.dotplot import dotplot
+from jcvi.utils.cbook import gene_name
+from jcvi.utils.natsort import natsorted
 
 
 class ContigOrderingLine(object):
@@ -179,9 +184,8 @@ def main():
         ('optimize', 'optimize the contig order and orientation'),
         ('density', 'estimate link density of contigs'),
         # Plotting
-        ('heatmap', 'generate heatmap based on LACHESIS output'),
-        ('heatmapmovie', 'plot heatmap optimization history'),
-        ('syntenymovie', 'plot synteny optimization history'),
+        ('movieframe', 'plot heatmap and synteny for a particular tour'),
+        ('movie', 'plot heatmap optimization history in a tourfile'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -289,40 +293,21 @@ def optimize(args):
     fwtour.close()
 
 
-def syntenymovie(args):
+def prepare_synteny(tourfile, lastfile, odir, p, opts):
     """
-    %prog syntenymovie tour contigs.ref.last
-
-    Plot synteny optimization history.
+    Prepare synteny plots for movie().
     """
-    from jcvi.compara.synteny import get_bed_filenames
-    from jcvi.formats.bed import Bed
-    from jcvi.formats.blast import Blast
-    from jcvi.utils.cbook import gene_name
-    from jcvi.graphics.dotplot import dotplot_main
-
-    p = OptionParser(syntenymovie.__doc__)
-    p.add_option("--frames", default=500, type="int",
-                 help="Only plot every N frames")
-    p.set_beds()
-    opts, args, iopts = p.set_image_options(args, figsize="8x8")
-
-    if len(args) != 2:
-        sys.exit(not p.print_help())
-
-    tourfile, lastfile = args
     qbedfile, sbedfile = get_bed_filenames(lastfile, p, opts)
-    odir = op.basename(tourfile).rsplit(".", 1)[0] + "-syntenymovie"
-    mkdir(odir)
-
-    tourfile = op.abspath(tourfile)
-    lastfile = op.abspath(lastfile)
     qbedfile = op.abspath(qbedfile)
     sbedfile = op.abspath(sbedfile)
-    cwd = os.getcwd()
+
     qbed = Bed(qbedfile, sorted=False)
     contig_to_beds = dict(qbed.sub_beds())
+
+    # Create a separate directory for the subplots and movie
+    mkdir(odir)
     os.chdir(odir)
+    logging.debug("Change into subdir `{}`".format(odir))
 
     # Make anchorsfile
     anchorsfile = ".".join(op.basename(lastfile).split(".", 2)[:2]) + ".anchors"
@@ -335,36 +320,7 @@ def syntenymovie(args):
     # Symlink sbed
     symlink(sbedfile, op.basename(sbedfile))
 
-    args = []
-    for i, label, tour, tour_o in iter_tours(tourfile, frames=opts.frames):
-        padi = "{:06d}".format(i)
-        # Make sure the anchorsfile and bedfile has the serial number in,
-        # otherwise parallelization may fail
-        a, b = op.basename(anchorsfile).split(".", 1)
-        ianchorsfile = a + "_" + padi + "." + b
-        symlink(anchorsfile, ianchorsfile)
-        # Make BED file with new order
-        qb = Bed()
-        for contig, o in zip(tour, tour_o):
-            bedlines = contig_to_beds[contig]
-            if o == '-':
-                bedlines.reverse()
-            for x in bedlines:
-                qb.append(x)
-
-        a, b = op.basename(qbedfile).split(".", 1)
-        ibedfile = a + "_" + padi + "." + b
-        qb.print_to_file(ibedfile)
-        # Plot dot plot, but do not sort contigs by name (otherwise losing
-        # order)
-        image_name = padi + "." + iopts.format
-        args.append([[ianchorsfile, "--nosort", "--nosep",
-                      "--title", label, "--outfile", image_name]])
-
-    Jobs(dotplot_main, args).run()
-
-    os.chdir(cwd)
-    make_movie(odir, odir, format=iopts.format)
+    return anchorsfile, qbedfile, contig_to_beds
 
 
 def separate_tour_and_o(row):
@@ -430,34 +386,64 @@ def iter_tours(tourfile, frames=1):
     fp.close()
 
 
-def heatmapmovie(args):
+def movie(args):
     """
-    %prog heatmapmovie tour test.clm test.ids
+    %prog movie test.tour test.clm test.ids ref.contigs.last
 
-    Plot heatmap optimization history.
+    Plot optimization history.
     """
-    p = OptionParser(heatmapmovie.__doc__)
+    p = OptionParser(movie.__doc__)
     p.add_option("--frames", default=500, type="int",
                  help="Only plot every N frames")
-    opts, args, iopts = p.set_image_options(args, figsize="8x8",
+    p.set_beds()
+    opts, args, iopts = p.set_image_options(args, figsize="16x8",
                                             style="white", cmap="coolwarm")
 
-    if len(args) != 3:
+    if len(args) != 4:
         sys.exit(not p.print_help())
 
-    tourfile, clmfile, idsfile = args
-    odir = op.basename(tourfile).rsplit(".", 1)[0] + "-heatmapmovie"
-    mkdir(odir)
+    tourfile, clmfile, idsfile, lastfile = args
+    tourfile = op.abspath(tourfile)
+    clmfile = op.abspath(clmfile)
+    idsfile = op.abspath(idsfile)
+    lastfile = op.abspath(lastfile)
+    cwd = os.getcwd()
+    odir = op.basename(tourfile).rsplit(".", 1)[0] + "-movie"
+    anchorsfile, qbedfile, contig_to_beds = \
+                prepare_synteny(tourfile, lastfile, odir, p, opts)
 
     args = []
     for i, label, tour, tour_o in iter_tours(tourfile, frames=opts.frames):
-        image_name = op.join(odir, "{:06d}".format(i)) + "." + iopts.format
+        padi = "{:06d}".format(i)
+        # Make sure the anchorsfile and bedfile has the serial number in,
+        # otherwise parallelization may fail
+        a, b = op.basename(anchorsfile).split(".", 1)
+        ianchorsfile = a + "_" + padi + "." + b
+        symlink(anchorsfile, ianchorsfile)
+
+        # Make BED file with new order
+        qb = Bed()
+        for contig, o in zip(tour, tour_o):
+            bedlines = contig_to_beds[contig]
+            if o == '-':
+                bedlines.reverse()
+            for x in bedlines:
+                qb.append(x)
+
+        a, b = op.basename(qbedfile).split(".", 1)
+        ibedfile = a + "_" + padi + "." + b
+        qb.print_to_file(ibedfile)
+        # Plot dot plot, but do not sort contigs by name (otherwise losing
+        # order)
+        image_name = padi + "." + iopts.format
+
         tour = ",".join(tour)
-        args.append([[tour, clmfile, idsfile,
+        args.append([[tour, clmfile, idsfile, ianchorsfile,
                     "--outfile", image_name, "--label", label]])
 
-    Jobs(heatmap, args).run()
+    Jobs(movieframe, args).run()
 
+    os.chdir(cwd)
     make_movie(odir, odir)
 
 
@@ -571,29 +557,48 @@ def score_evaluate(tour, tour_sizes=None, tour_M=None):
     return s,
 
 
-def heatmap(args):
+def movieframe(args):
     """
-    %prog heatmap tour test.clm test.ids
+    %prog movieframe tour test.clm test.ids contigs.ref.anchors
 
-    Generate heatmap file based on LACHESISS output. Tour contains a list of
-    contigs separated by comma.
+    Draw heatmap and synteny in the same plot.
     """
-    p = OptionParser(heatmap.__doc__)
+    p = OptionParser(movieframe.__doc__)
     p.add_option("--label", help="Figure title")
+    p.set_beds()
     p.set_outfile(outfile=None)
-    opts, args, iopts = p.set_image_options(args, figsize="8x8",
+    opts, args, iopts = p.set_image_options(args, figsize="16x8",
                                             style="white", cmap="coolwarm")
 
-    if len(args) != 3:
+    if len(args) != 4:
         sys.exit(not p.print_help())
 
-    tour, clmfile, idsfile = args
+    tour, clmfile, idsfile, anchorsfile = args
     tour = tour.split(",")
+    image_name = opts.outfile or ("movieframe." + iopts.format)
+    label = opts.label or op.basename(image_name).rsplit(".", 1)[0]
 
     clm = CLMFile(clmfile, idsfile)
     totalbins, bins, breaks = make_bins(tour, clm.tig_to_size)
     M = read_clm(clm, totalbins, bins)
-    plot_heatmap(M, breaks, opts, iopts)
+
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes([0, 0, 1, 1])        # whole canvas
+    ax1 = fig.add_axes([.05, .1, .4, .8])    # heatmap
+    ax2 = fig.add_axes([.55, .1, .4, .8])    # dot plot
+    ax2_root = fig.add_axes([.5, 0, .5, 1])  # dot plot canvas
+
+    # Left axis: heatmap
+    plot_heatmap(ax1, M, breaks, label, iopts)
+
+    # Right axis: synteny
+    qbed, sbed, qorder, sorder, is_self = check_beds(anchorsfile, p, opts,
+                sorted=False)
+    dotplot(anchorsfile, qbed, sbed, fig, ax2_root, ax2, sep=False, title="")
+
+    root.text(.5, .975, label, color="darkslategray", ha="center", va="center")
+    normalize_axes(root)
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
 def make_bins(tour, sizes):
@@ -627,25 +632,14 @@ def read_clm(clm, totalbins, bins):
     return M
 
 
-def plot_heatmap(M, breaks, opts, iopts):
-    image_name = opts.outfile or ("heatmap." + iopts.format)
-
-    fig = plt.figure(figsize=(iopts.w, iopts.h))
-    ax = fig.add_axes([.1, .1, .8, .8])
+def plot_heatmap(ax, M, breaks, label, iopts):
     ax.imshow(M, cmap=iopts.cmap, origin="lower", interpolation='none')
     xlim = ax.get_xlim()
     for b in breaks[:-1]:
         ax.plot([b, b], xlim, 'w-')
         ax.plot(xlim, [b, b], 'w-')
-
     ax.set_xlim(xlim)
     ax.set_ylim(xlim)
-    label = opts.label or op.basename(image_name).rsplit(".", 1)[0]
-    ax.set_title(label)
-
-    root = fig.add_axes([0, 0, 1, 1])
-    normalize_axes(root)
-    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
 def agp(args):

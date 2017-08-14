@@ -86,7 +86,6 @@ class CLMFile:
         self.idsfile = clmfile.rsplit(".", 1)[0] + ".ids"
         self.parse_ids(skiprecover)
         self.parse_clm()
-        self.build_matrices()
 
     def parse_ids(self, skiprecover):
         '''IDS file has a list of contigs that need to be ordered. 'recover',
@@ -110,19 +109,9 @@ class CLMFile:
 
         # Arrange contig names and sizes
         _tigs, _sizes = zip(*tigs)
-        self.contig_names = _tigs
+        self.contigs = set(_tigs)
         self.sizes = np.array(_sizes)
-
-        # Mapping tig names to their indices and sizes
-        tig_to_idx = {}
-        tig_to_size = {}
-        for i, (tig, size) in enumerate(tigs):
-            tig_to_idx[tig] = i
-            tig_to_size[tig] = size
-
-        self.tig_to_idx = tig_to_idx
-        self.tig_to_size = tig_to_size
-        self.ntigs = len(tig_to_idx)
+        self.tig_to_size = dict(tigs)
 
         # Initially all contigs are considered active
         self.active = set(_tigs)
@@ -140,9 +129,9 @@ class CLMFile:
             atig, btig = abtig.split()
             at, ao = atig[:-1], atig[-1]
             bt, bo = btig[:-1], btig[-1]
-            if at not in self.tig_to_idx:
+            if at not in self.tig_to_size:
                 continue
-            if bt not in self.tig_to_idx:
+            if bt not in self.tig_to_size:
                 continue
             dists = [int(x) for x in dists.split()]
             contacts[(at, bt)] = dists
@@ -192,27 +181,60 @@ class CLMFile:
                 done = True
 
     @property
-    def active_length(self):
-        return sum([self.tig_to_size[x] for x in self.active])
+    def active_contigs(self):
+        return list(self.active)
 
-    def build_matrices(self):
-        N = self.ntigs
+    @property
+    def active_sizes(self):
+        return np.array([self.tig_to_size[x] for x in self.active])
+
+    @property
+    def active_length(self):
+        return self.active_sizes.sum()
+
+    @property
+    def N(self):
+        return len(self.active)
+
+    @property
+    def tig_to_idx(self):
+        return dict((x, i) for (i, x) in enumerate(self.active))
+
+    @property
+    def M(self):
+        """
+        Contact frequency matrix. Each cell contains how many inter-contig links
+        between i-th and j-th contigs.
+        """
+        N = self.N
+        tig_to_idx = self.tig_to_idx
         M = np.zeros((N, N), dtype=int)
         for (at, bt), dists in self.contacts.items():
-            ai = self.tig_to_idx[at]
-            bi = self.tig_to_idx[bt]
+            if not (at in tig_to_idx and bt in tig_to_idx):
+                continue
+            ai = tig_to_idx[at]
+            bi = tig_to_idx[bt]
             M[ai, bi] = M[bi, ai] = len(dists)
+        return M
 
+    @property
+    def O(self):
+        """
+        Pairwise strandedness matrix. Each cell contains whether i-th and j-th
+        contig are the same orientation +1, or opposite orientation -1.
+        """
+        N = self.N
+        tig_to_idx = self.tig_to_idx
         O = np.zeros((N, N), dtype=int)
         for (at, bt), dists in self.orientations.items():
-            ai = self.tig_to_idx[at]
-            bi = self.tig_to_idx[bt]
+            if not (at in tig_to_idx and bt in tig_to_idx):
+                continue
+            ai = tig_to_idx[at]
+            bi = tig_to_idx[bt]
             mo, md = min(dists, key=lambda x: x[1])
             strandedness = 1 if mo[0] == mo[1] else -1
             O[ai, bi] = O[bi, ai] = strandedness
-
-        self.M = M
-        self.O = O
+        return O
 
 
 def main():
@@ -279,11 +301,9 @@ def optimize(args):
     clmfile, = args
     startover = opts.startover
     # Load contact map
-    clm = CLMFile(clmfile)
-    contig_names = clm.contig_names
-    tour_sizes = clm.sizes
-    tour_M = clm.M
-    N = clm.ntigs
+    clm = CLMFile(clmfile, skiprecover=False)
+    clm.activate()
+    N = clm.N
 
     tourfile = opts.outfile or clmfile.rsplit(".", 1)[0] + ".tour"
     if startover or (not op.exists(tourfile)):
@@ -291,12 +311,20 @@ def optimize(args):
     else:
         logging.debug("File `{}` found".format(tourfile))
         tour = iter_last_tour(tourfile, clm)
-        tour = [clm.tig_to_idx[x] for x in tour]
+        clm.active = set(tour)
+        tig_to_idx = clm.tig_to_idx
+        tour = [tig_to_idx[x] for x in tour]
         backup(tourfile)
+
+    # Prepare input files
+    tour_contigs = clm.active_contigs
+    tour_sizes = clm.active_sizes
+    tour_M = clm.M
+    tour_O = clm.O
     oo = range(N)
 
     # Determine orientations
-    signs = get_signs(clm.O, validate=False)
+    signs = get_signs(tour_O, validate=False)
 
     fwtour = open(tourfile, "w")
     def callback(tour, gen, oo):
@@ -305,11 +333,11 @@ def optimize(args):
         if fitness:
             fitness = "{0}".format(fitness).split(",")[0].replace("(", "")
             label += "-" + fitness
-        print_tour(fwtour, tour, label, contig_names, oo, signs=signs)
+        print_tour(fwtour, tour, label, tour_contigs, oo, signs=signs)
         return tour
 
     # Store INIT tour
-    print_tour(fwtour, tour, "INIT", contig_names, oo, signs=signs)
+    print_tour(fwtour, tour, "INIT", tour_contigs, oo, signs=signs)
 
     # Faster Cython version for evaluation
     from .chic import score_evaluate
@@ -381,7 +409,7 @@ def iter_last_tour(tourfile, clm):
     _tour, tour_o = separate_tour_and_o(row)
     tour = []
     for tc in _tour:
-        if tc not in clm.contig_names:
+        if tc not in clm.contigs:
             logging.debug("Contig `{}` in file `{}` not found in `{}`"\
                             .format(tc, tourfile, clm.idsfile))
             continue

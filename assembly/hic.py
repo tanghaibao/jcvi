@@ -162,23 +162,32 @@ class CLMFile:
 
         return logdensities
 
-    def activate(self, threshold=-3):
+    def report_active(self):
+        logging.debug("Active contigs: {} (length={})"\
+                    .format(len(self.active), self.active_length))
+
+    def activate(self, threshold=-3, maxsize=500):
         """
         Select strong contigs in the current partition.
         """
         done = False
+        self.report_active()
         while not done:
             logdensities = self.calculate_densities()
             remove = set(x for x, d in logdensities.items() if d < threshold)
             if remove:
-                old_active = len(self.active)
-                old_active_length = self.active_length
                 self.active -= remove
-                logging.debug("Filter contigs: {} (length={}) => {} (length={})".\
-                            format(old_active, old_active_length,
-                                   len(self.active), self.active_length))
+                self.report_active()
             else:
                 done = True
+
+        N = self.N
+        if N > maxsize:
+            candidates = sorted([(x, self.tig_to_size[x]) \
+                            for x in self.active], key=lambda x: -x[1])[:maxsize]
+            candidates, candidatesizes = zip(*candidates)
+            self.active = set(candidates)
+            self.report_active()
 
     @property
     def active_contigs(self):

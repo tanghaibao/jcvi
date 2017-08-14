@@ -82,14 +82,14 @@ class CLMFile:
     tig00030676- tig00077819+       7       118651 91877 91877 209149 125906 146462 146462
     tig00030676- tig00077819-       7       108422 157204 157204 137924 142611 75169 75169
     '''
-    def __init__(self, clmfile, idsfile, skiprecover=True):
+    def __init__(self, clmfile, skiprecover=True):
         self.clmfile = clmfile
-        self.idsfile = idsfile
-        self.parse_ids(idsfile, skiprecover)
-        self.parse_clm(clmfile)
+        self.idsfile = clmfile.rsplit(".", 1)[0] + ".ids"
+        self.parse_ids(skiprecover)
+        self.parse_clm()
         self.build_matrices()
 
-    def parse_ids(self, idsfile, skiprecover):
+    def parse_ids(self, skiprecover):
         '''IDS file has a list of contigs that need to be ordered. 'recover',
         keyword, if available in the third column, is less confident.
 
@@ -97,6 +97,7 @@ class CLMFile:
         tig00035238     46779   recover
         tig00030900     119291
         '''
+        idsfile = self.idsfile
         logging.debug("Parse idsfile `{}`".format(idsfile))
         fp = open(idsfile)
         tigs = []
@@ -124,7 +125,8 @@ class CLMFile:
         self.tig_to_size = tig_to_size
         self.ntigs = len(tig_to_idx)
 
-    def parse_clm(self, clmfile):
+    def parse_clm(self):
+        clmfile = self.clmfile
         logging.debug("Parse clmfile `{}`".format(clmfile))
         fp = open(clmfile)
         contacts = {}
@@ -193,18 +195,18 @@ def main():
 
 def density(args):
     """
-    %prog density test.clm test.ids
+    %prog density test.clm
 
     Estimate link density of contigs.
     """
     p = OptionParser(density.__doc__)
     opts, args = p.parse_args(args)
 
-    if len(args) != 2:
+    if len(args) != 1:
         sys.exit(not p.print_help())
 
-    clmfile, idsfile = args
-    clm = CLMFile(clmfile, idsfile, skiprecover=False)
+    clmfile, = args
+    clm = CLMFile(clmfile, skiprecover=False)
     sizes = clm.tig_to_size
     densities = clm.calculate_densities()
     logdensities = {}
@@ -232,7 +234,7 @@ def density(args):
 
 def optimize(args):
     """
-    %prog optimize test.clm test.ids
+    %prog optimize test.clm
 
     Optimize the contig order and orientation, based on CLM file.
     """
@@ -243,13 +245,13 @@ def optimize(args):
     p.set_cpus()
     opts, args = p.parse_args(args)
 
-    if len(args) != 2:
+    if len(args) != 1:
         sys.exit(not p.print_help())
 
-    clmfile, idsfile = args
+    clmfile, = args
     startover = opts.startover
     # Load contact map
-    clm = CLMFile(clmfile, idsfile)
+    clm = CLMFile(clmfile)
     contig_names = clm.contig_names
     tour_sizes = clm.sizes
     tour_M = clm.M
@@ -388,7 +390,7 @@ def iter_tours(tourfile, frames=1):
 
 def movie(args):
     """
-    %prog movie test.tour test.clm test.ids ref.contigs.last
+    %prog movie test.tour test.clm ref.contigs.last
 
     Plot optimization history.
     """
@@ -399,13 +401,12 @@ def movie(args):
     opts, args, iopts = p.set_image_options(args, figsize="16x8",
                                             style="white", cmap="coolwarm")
 
-    if len(args) != 4:
+    if len(args) != 3:
         sys.exit(not p.print_help())
 
-    tourfile, clmfile, idsfile, lastfile = args
+    tourfile, clmfile, lastfile = args
     tourfile = op.abspath(tourfile)
     clmfile = op.abspath(clmfile)
-    idsfile = op.abspath(idsfile)
     lastfile = op.abspath(lastfile)
     cwd = os.getcwd()
     odir = op.basename(tourfile).rsplit(".", 1)[0] + "-movie"
@@ -438,7 +439,7 @@ def movie(args):
         image_name = padi + "." + iopts.format
 
         tour = ",".join(tour)
-        args.append([[tour, clmfile, idsfile, ianchorsfile,
+        args.append([[tour, clmfile, ianchorsfile,
                     "--outfile", image_name, "--label", label]])
 
     Jobs(movieframe, args).run()
@@ -559,7 +560,7 @@ def score_evaluate(tour, tour_sizes=None, tour_M=None):
 
 def movieframe(args):
     """
-    %prog movieframe tour test.clm test.ids contigs.ref.anchors
+    %prog movieframe tour test.clm contigs.ref.anchors
 
     Draw heatmap and synteny in the same plot.
     """
@@ -570,15 +571,15 @@ def movieframe(args):
     opts, args, iopts = p.set_image_options(args, figsize="16x8",
                                             style="white", cmap="coolwarm")
 
-    if len(args) != 4:
+    if len(args) != 3:
         sys.exit(not p.print_help())
 
-    tour, clmfile, idsfile, anchorsfile = args
+    tour, clmfile, anchorsfile = args
     tour = tour.split(",")
     image_name = opts.outfile or ("movieframe." + iopts.format)
     label = opts.label or op.basename(image_name).rsplit(".", 1)[0]
 
-    clm = CLMFile(clmfile, idsfile)
+    clm = CLMFile(clmfile)
     totalbins, bins, breaks = make_bins(tour, clm.tig_to_size)
     M = read_clm(clm, totalbins, bins)
 

@@ -644,7 +644,7 @@ def movieframe(args):
     image_name = opts.outfile or ("movieframe." + iopts.format)
     label = opts.label or op.basename(image_name).rsplit(".", 1)[0]
 
-    clm = CLMFile(clmfile)
+    clm = CLMFile(clmfile, skiprecover=False)
     totalbins, bins, breaks = make_bins(tour, clm.tig_to_size)
     M = read_clm(clm, totalbins, bins)
 
@@ -706,6 +706,10 @@ def plot_heatmap(ax, M, breaks, label, iopts):
         ax.plot(xlim, [b, b], 'w-')
     ax.set_xlim(xlim)
     ax.set_ylim(xlim)
+    ax.set_xticklabels([int(x) for x in ax.get_xticks()],
+                        family='Helvetica', color="gray")
+    ax.set_yticklabels([int(x) for x in ax.get_yticks()],
+                        family='Helvetica', color="gray")
 
 
 def agp(args):

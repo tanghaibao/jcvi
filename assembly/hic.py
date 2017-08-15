@@ -82,7 +82,7 @@ class CLMFile:
     tig00030676- tig00077819+       7       118651 91877 91877 209149 125906 146462 146462
     tig00030676- tig00077819-       7       108422 157204 157204 137924 142611 75169 75169
     '''
-    def __init__(self, clmfile, skiprecover=True):
+    def __init__(self, clmfile, skiprecover=False):
         self.name = op.basename(clmfile).rsplit(".", 1)[0]
         self.clmfile = clmfile
         self.idsfile = clmfile.rsplit(".", 1)[0] + ".ids"
@@ -276,7 +276,7 @@ def density(args):
         sys.exit(not p.print_help())
 
     clmfile, = args
-    clm = CLMFile(clmfile, skiprecover=False)
+    clm = CLMFile(clmfile)
     pf = clmfile.rsplit(".", 1)[0]
 
     logdensities = clm.calculate_densities()
@@ -310,13 +310,12 @@ def optimize(args):
     clmfile, = args
     startover = opts.startover
     # Load contact map
-    clm = CLMFile(clmfile, skiprecover=False)
-    clm.activate()
-    N = clm.N
+    clm = CLMFile(clmfile)
 
     tourfile = opts.outfile or clmfile.rsplit(".", 1)[0] + ".tour"
     if startover or (not op.exists(tourfile)):
-        tour = range(N)  # Use starting (random) order otherwise
+        clm.activate()
+        tour = range(clm.N)  # Use starting (random) order otherwise
     else:
         logging.debug("File `{}` found".format(tourfile))
         tour = iter_last_tour(tourfile, clm)
@@ -326,6 +325,7 @@ def optimize(args):
         backup(tourfile)
 
     # Prepare input files
+    N = clm.N
     tour_contigs = clm.active_contigs
     tour_sizes = clm.active_sizes
     tour_M = clm.M
@@ -644,7 +644,7 @@ def movieframe(args):
     image_name = opts.outfile or ("movieframe." + iopts.format)
     label = opts.label or op.basename(image_name).rsplit(".", 1)[0]
 
-    clm = CLMFile(clmfile, skiprecover=False)
+    clm = CLMFile(clmfile)
     totalbins, bins, breaks = make_bins(tour, clm.tig_to_size)
     M = read_clm(clm, totalbins, bins)
 

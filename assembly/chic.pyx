@@ -17,7 +17,7 @@ ctypedef np.int_t DTYPE_t
 
 
 @cython.boundscheck(False)  # Turn off bounds-checking
-@cython.wraparound(False)   # Turn off negative index wrapping for entire
+@cython.wraparound(False)   # Turn off negative index wrapping
 def score_evaluate(array.array tour,
                    np.ndarray[DTYPE_t, ndim=1] tour_sizes=None,
                    np.ndarray[DTYPE_t, ndim=2] tour_M=None):

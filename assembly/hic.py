@@ -15,6 +15,7 @@ import math
 
 from collections import defaultdict
 from functools import partial
+from multiprocessing import Pool
 
 from jcvi.algorithms.formula import outlier_cutoff
 from jcvi.algorithms.ec import GA_setup, GA_run
@@ -186,33 +187,48 @@ class CLMFile:
             if backuptour:
                 backup(tourfile)
         else:
-            done = False
             self.report_active()
-            while not done:
+            while True:
                 logdensities = self.calculate_densities()
                 lb, ub = outlier_cutoff(logdensities.values(), threshold=3)
-                logging.debug("Lower bound: {}, Upper bound: {}".format(lb, ub))
+                logging.debug("Log10(link_densities) = {} - {}".format(lb, ub))
                 remove = set(x for x, d in logdensities.items() if (d < lb or d > ub))
                 if remove:
                     self.active -= remove
                     self.report_active()
                 else:
-                    done = True
+                    break
 
             logging.debug("Remove contigs with size < {}".format(minsize))
             self.active = set(x for x in self.active if self.tig_to_size[x] >= minsize)
-            self.report_active()
             tour = range(self.N)  # Use starting (random) order otherwise
 
+        self.report_active()
         # Initial tour
-        tour = array.array('i', tour)
-        return tour
+        return array.array('i', tour)
 
     def evaluate_tour(self, tour):
         """ Use Cythonized version to evaluate the score of a current tour
         """
         from .chic import score_evaluate
         return score_evaluate(tour, self.active_sizes, self.M)
+
+    def prune_tour(self, tour, cpus):
+        """ Test deleting each contig and check the delta_score
+        """
+        tour_score, = self.evaluate_tour(tour)
+        logging.debug("Starting score: {}".format(tour_score))
+        active_sizes = self.active_sizes
+        M = self.M
+        args = []
+        for i, t in enumerate(tour):
+            stour = tour[:i] + tour[i + 1:]
+            args.append((i, stour, tour_score, active_sizes, M))
+
+        # Parallel run
+        p = Pool(processes=cpus)
+        for results in p.imap(prune_tour_worker, args):
+            print "\t".join(str(x) for x in results)
 
     @property
     def active_contigs(self):
@@ -271,6 +287,17 @@ class CLMFile:
         return O
 
 
+def prune_tour_worker(arg):
+    """ Worker thread for CLMFile.prune_tour()
+    """
+    from .chic import score_evaluate
+
+    i, stour, tour_score, active_sizes, M = arg
+    stour_score, = score_evaluate(stour, active_sizes, M)
+    delta_score = tour_score - stour_score
+    return (i, np.log10(delta_score))
+
+
 def main():
 
     actions = (
@@ -297,6 +324,7 @@ def density(args):
     p = OptionParser(density.__doc__)
     p.add_option("--save", default=False, action="store_true",
                  help="Write log densitites of contigs to file")
+    p.set_cpus()
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -318,15 +346,8 @@ def density(args):
 
     tourfile = clmfile.rsplit(".", 1)[0] + ".tour"
     tour = clm.activate(tourfile=tourfile, backuptour=False)
-    tour_score, = clm.evaluate_tour(tour)
 
-    # Test deleting each contig and check the delta_score
-    for i, t in enumerate(tour):
-        stour = tour[:i] + tour[i + 1:]
-        stour_score, = clm.evaluate_tour(stour)
-        delta_score = tour_score - stour_score
-        print "\t".join(str(x) for x in (clm.active_contigs[t], stour_score,
-                                         np.log10(delta_score)))
+    clm.prune_tour(tour, opts.cpus)
 
 
 def optimize(args):
@@ -353,11 +374,10 @@ def optimize(args):
     tourfile = opts.outfile or clmfile.rsplit(".", 1)[0] + ".tour"
     if startover:
         tourfile = None
-    clm.activate(tourfile=tourfile)
+    tour = clm.activate(tourfile=tourfile)
 
     # Prepare input files
     N = clm.N
-    tour = clm.tour
     tour_contigs = clm.active_contigs
     tour_sizes = clm.active_sizes
     tour_M = clm.M

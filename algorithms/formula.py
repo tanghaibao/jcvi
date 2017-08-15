@@ -111,7 +111,7 @@ def outlier_cutoff(a, threshold=3.5):
     M = np.median(A)
     D = np.absolute(A - M)
     MAD = np.median(D)
-    C = threshold / .6745 * MAD
+    C = threshold / .67449 * MAD
     return M - C, M + C
 
 

@@ -15,6 +15,7 @@ import math
 from collections import defaultdict
 from functools import partial
 
+from jcvi.algorithms.formula import outlier_cutoff
 from jcvi.algorithms.ec import GA_setup, GA_run
 from jcvi.algorithms.matrix import get_signs
 from jcvi.apps.base import OptionParser, ActionDispatcher, backup, iglob, mkdir, symlink
@@ -166,7 +167,7 @@ class CLMFile:
         logging.debug("Active contigs: {} (length={})"\
                     .format(len(self.active), self.active_length))
 
-    def activate(self, threshold=-3, maxsize=500):
+    def activate(self, minsize=10000):
         """
         Select strong contigs in the current partition.
         """
@@ -174,20 +175,18 @@ class CLMFile:
         self.report_active()
         while not done:
             logdensities = self.calculate_densities()
-            remove = set(x for x, d in logdensities.items() if d < threshold)
+            lb, ub = outlier_cutoff(logdensities.values(), threshold=3)
+            logging.debug("Lower bound: {}, Upper bound: {}".format(lb, ub))
+            remove = set(x for x, d in logdensities.items() if (d < lb or d > ub))
             if remove:
                 self.active -= remove
                 self.report_active()
             else:
                 done = True
 
-        N = self.N
-        if N > maxsize:
-            candidates = sorted([(x, self.tig_to_size[x]) \
-                            for x in self.active], key=lambda x: -x[1])[:maxsize]
-            candidates, candidatesizes = zip(*candidates)
-            self.active = set(candidates)
-            self.report_active()
+        logging.debug("Remove contigs with size < {}".format(minsize))
+        self.active = set(x for x in self.active if self.tig_to_size[x] >= minsize)
+        self.report_active()
 
     @property
     def active_contigs(self):

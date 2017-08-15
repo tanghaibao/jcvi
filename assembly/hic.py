@@ -5,6 +5,7 @@
 Process Hi-C output into AGP for chromosomal-scale scaffolding.
 """
 
+import array
 import logging
 import sys
 import os
@@ -168,26 +169,49 @@ class CLMFile:
         logging.debug("Active contigs: {} (length={})"\
                     .format(len(self.active), self.active_length))
 
-    def activate(self, minsize=10000):
+    def activate(self, tourfile=None, minsize=10000, backuptour=True):
         """
         Select strong contigs in the current partition.
         """
-        done = False
-        self.report_active()
-        while not done:
-            logdensities = self.calculate_densities()
-            lb, ub = outlier_cutoff(logdensities.values(), threshold=3)
-            logging.debug("Lower bound: {}, Upper bound: {}".format(lb, ub))
-            remove = set(x for x, d in logdensities.items() if (d < lb or d > ub))
-            if remove:
-                self.active -= remove
-                self.report_active()
-            else:
-                done = True
+        if tourfile and (not op.exists(tourfile)):
+            logging.debug("Tourfile `{}` not found".format(tourfile))
+            tourfile = None
 
-        logging.debug("Remove contigs with size < {}".format(minsize))
-        self.active = set(x for x in self.active if self.tig_to_size[x] >= minsize)
-        self.report_active()
+        if tourfile:
+            logging.debug("Importing tourfile `{}`".format(tourfile))
+            tour = iter_last_tour(tourfile, self)
+            self.active = set(tour)
+            tig_to_idx = self.tig_to_idx
+            tour = [tig_to_idx[x] for x in tour]
+            if backuptour:
+                backup(tourfile)
+        else:
+            done = False
+            self.report_active()
+            while not done:
+                logdensities = self.calculate_densities()
+                lb, ub = outlier_cutoff(logdensities.values(), threshold=3)
+                logging.debug("Lower bound: {}, Upper bound: {}".format(lb, ub))
+                remove = set(x for x, d in logdensities.items() if (d < lb or d > ub))
+                if remove:
+                    self.active -= remove
+                    self.report_active()
+                else:
+                    done = True
+
+            logging.debug("Remove contigs with size < {}".format(minsize))
+            self.active = set(x for x in self.active if self.tig_to_size[x] >= minsize)
+            self.report_active()
+            tour = range(self.N)  # Use starting (random) order otherwise
+
+        # Initial tour
+        self.tour = array.array('i', tour)
+
+    def evaluate_tour(self):
+        """ Use Cythonized version to evaluate the score of a current tour
+        """
+        from .chic import score_evaluate
+        return score_evaluate(self.tour, self.active_sizes, self.M)
 
     @property
     def active_contigs(self):
@@ -270,6 +294,8 @@ def density(args):
     Estimate link density of contigs.
     """
     p = OptionParser(density.__doc__)
+    p.add_option("--save", default=False, action="store_true",
+                 help="Write log densitites of contigs to file")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -279,16 +305,19 @@ def density(args):
     clm = CLMFile(clmfile)
     pf = clmfile.rsplit(".", 1)[0]
 
-    logdensities = clm.calculate_densities()
-    densityfile = pf + ".density"
-    fw = open(densityfile, "w")
-    for name, logd in logdensities.items():
-        s = clm.tig_to_size[name]
-        print >> fw, "\t".join(str(x) for x in (name, s, logd))
-    fw.close()
-    logging.debug("Density written to `{}`".format(densityfile))
+    if opts.save:
+        logdensities = clm.calculate_densities()
+        densityfile = pf + ".density"
+        fw = open(densityfile, "w")
+        for name, logd in logdensities.items():
+            s = clm.tig_to_size[name]
+            print >> fw, "\t".join(str(x) for x in (name, s, logd))
+        fw.close()
+        logging.debug("Density written to `{}`".format(densityfile))
 
-    clm.activate()
+    tourfile = clmfile.rsplit(".", 1)[0] + ".tour"
+    clm.activate(tourfile=tourfile, backuptour=False)
+    print clm.evaluate_tour()
 
 
 def optimize(args):
@@ -313,19 +342,13 @@ def optimize(args):
     clm = CLMFile(clmfile)
 
     tourfile = opts.outfile or clmfile.rsplit(".", 1)[0] + ".tour"
-    if startover or (not op.exists(tourfile)):
-        clm.activate()
-        tour = range(clm.N)  # Use starting (random) order otherwise
-    else:
-        logging.debug("File `{}` found".format(tourfile))
-        tour = iter_last_tour(tourfile, clm)
-        clm.active = set(tour)
-        tig_to_idx = clm.tig_to_idx
-        tour = [tig_to_idx[x] for x in tour]
-        backup(tourfile)
+    if startover:
+        tourfile = None
+    clm.activate(tourfile=tourfile)
 
     # Prepare input files
     N = clm.N
+    tour = clm.tour
     tour_contigs = clm.active_contigs
     tour_sizes = clm.active_sizes
     tour_M = clm.M

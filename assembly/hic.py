@@ -83,6 +83,7 @@ class CLMFile:
     tig00030676- tig00077819-       7       108422 157204 157204 137924 142611 75169 75169
     '''
     def __init__(self, clmfile, skiprecover=True):
+        self.name = op.basename(clmfile).rsplit(".", 1)[0]
         self.clmfile = clmfile
         self.idsfile = clmfile.rsplit(".", 1)[0] + ".ids"
         self.parse_ids(skiprecover)
@@ -654,14 +655,15 @@ def movieframe(args):
     ax2_root = fig.add_axes([.5, 0, .5, 1])  # dot plot canvas
 
     # Left axis: heatmap
-    plot_heatmap(ax1, M, breaks, label, iopts)
+    plot_heatmap(ax1, M, breaks, iopts)
 
     # Right axis: synteny
     qbed, sbed, qorder, sorder, is_self = check_beds(anchorsfile, p, opts,
                 sorted=False)
     dotplot(anchorsfile, qbed, sbed, fig, ax2_root, ax2, sep=False, title="")
 
-    root.text(.5, .975, label, color="darkslategray", ha="center", va="center")
+    root.text(.5, .98, clm.name, color="g", ha="center", va="center")
+    root.text(.5, .95, label, color="darkslategray", ha="center", va="center")
     normalize_axes(root)
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
@@ -697,7 +699,7 @@ def read_clm(clm, totalbins, bins):
     return M
 
 
-def plot_heatmap(ax, M, breaks, label, iopts):
+def plot_heatmap(ax, M, breaks, iopts):
     ax.imshow(M, cmap=iopts.cmap, origin="lower", interpolation='none')
     xlim = ax.get_xlim()
     for b in breaks[:-1]:

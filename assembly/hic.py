@@ -205,13 +205,14 @@ class CLMFile:
             tour = range(self.N)  # Use starting (random) order otherwise
 
         # Initial tour
-        self.tour = array.array('i', tour)
+        tour = array.array('i', tour)
+        return tour
 
-    def evaluate_tour(self):
+    def evaluate_tour(self, tour):
         """ Use Cythonized version to evaluate the score of a current tour
         """
         from .chic import score_evaluate
-        return score_evaluate(self.tour, self.active_sizes, self.M)
+        return score_evaluate(tour, self.active_sizes, self.M)
 
     @property
     def active_contigs(self):
@@ -316,8 +317,16 @@ def density(args):
         logging.debug("Density written to `{}`".format(densityfile))
 
     tourfile = clmfile.rsplit(".", 1)[0] + ".tour"
-    clm.activate(tourfile=tourfile, backuptour=False)
-    print clm.evaluate_tour()
+    tour = clm.activate(tourfile=tourfile, backuptour=False)
+    tour_score, = clm.evaluate_tour(tour)
+
+    # Test deleting each contig and check the delta_score
+    for i, t in enumerate(tour):
+        stour = tour[:i] + tour[i + 1:]
+        stour_score, = clm.evaluate_tour(stour)
+        delta_score = tour_score - stour_score
+        print "\t".join(str(x) for x in (clm.active_contigs[t], stour_score,
+                                         np.log10(delta_score)))
 
 
 def optimize(args):

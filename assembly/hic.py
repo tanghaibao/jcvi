@@ -223,23 +223,24 @@ class CLMFile:
         args = []
         for i, t in enumerate(tour):
             stour = tour[:i] + tour[i + 1:]
-            args.append((i, stour, tour_score, active_sizes, M))
+            args.append((t, stour, tour_score, active_sizes, M))
 
         # Parallel run
         p = Pool(processes=cpus)
         results = list(p.imap(prune_tour_worker, args))
-        results.sort()
         assert len(tour) == len(results), \
                 "Array size mismatch, tour({}) != results({})"\
                         .format(len(tour), len(results))
 
         # Identify outliers
-        idx, log10deltas = zip(*results)
+        active_contigs = self.active_contigs
+        idx, _, log10deltas = zip(*results)
+        #for t, b, c in results:
+        #    print "\t".join(str(x) for x in (t, active_contigs[t], b, c))
         lb, ub = outlier_cutoff(log10deltas, threshold=3)
         logging.debug("Log10(delta_score) ~ [{}, {}]".format(lb, ub))
 
-        active_contigs = self.active_contigs
-        remove = set(active_contigs[x] for (x, d) in results if d < lb)
+        remove = set(active_contigs[x] for (x, _, d) in results if d < lb)
         self.active -= remove
         self.report_active()
 
@@ -310,11 +311,11 @@ def prune_tour_worker(arg):
     """
     from .chic import score_evaluate
 
-    i, stour, tour_score, active_sizes, M = arg
+    t, stour, tour_score, active_sizes, M = arg
     stour_score, = score_evaluate(stour, active_sizes, M)
     delta_score = tour_score - stour_score
-    log10d = np.log10(delta_score) if delta_score > 0 else -9
-    return (i, log10d)
+    log10d = np.log10(delta_score) if delta_score >= 0 else -9
+    return (t, delta_score, log10d)
 
 
 def main():
@@ -366,7 +367,10 @@ def density(args):
     tourfile = clmfile.rsplit(".", 1)[0] + ".tour"
     tour = clm.activate(tourfile=tourfile, backuptour=False)
 
-    clm.prune_tour(tour, opts.cpus)
+    tour = clm.prune_tour(tour, opts.cpus)
+    print [clm.active_contigs[x] for x in tour]
+    score, = clm.evaluate_tour(tour)
+    logging.debug("Post-pruning score: {}".format(score))
 
 
 def optimize(args):

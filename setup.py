@@ -26,7 +26,8 @@ setup(
       include_package_data=True,
       package_data={"jcvi.utils.data": ["*.*"]},
       ext_modules=[Extension("assembly.chic", ["assembly/chic.c"],
-                             include_dirs=[numpy.get_include()]),
+                             include_dirs=[numpy.get_include()],
+                             extra_compile_args=["-O3"])
       ],
       classifiers=classifiers,
       zip_safe=False,

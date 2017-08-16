@@ -37,6 +37,8 @@ def score_evaluate(array.array tour,
         for ib in range(ia + 1, size):
             b = tour[ib]
             links = tour_M[a, b]
+            if links == 0:
+                continue
             dist = sizes_cum[ib] - sizes_cum[ia]
             if dist > 1e7:
                 break

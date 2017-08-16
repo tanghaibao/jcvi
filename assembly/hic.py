@@ -35,6 +35,17 @@ from jcvi.utils.cbook import gene_name
 from jcvi.utils.natsort import natsorted
 
 
+# Map orientations to ints
+FF = {'+': 1, '-': -1, '?': 0}
+RR = {'+': -1, '-': 1, '?': 0}
+LB = 14             # Lower bound for golden_array()
+UB = 33             # Upper bound for golden_array()
+BB = UB - LB + 1    # Span for golden_array()
+GR = [    842,    1364,    2206,    3571,    5777,    9349,   15126,
+        24476,   39602,   64079,  103681,  167761,  271442,  439204,
+       710646, 1149851, 1860497, 3010349, 4870846, 7881196]
+
+
 class ContigOrderingLine(object):
     '''Stores one line in the ContigOrdering file
     '''
@@ -126,7 +137,7 @@ class CLMFile:
         logging.debug("Parse clmfile `{}`".format(clmfile))
         fp = open(clmfile)
         contacts = {}
-        contacts_oriented = {}
+        contacts_oriented = defaultdict(dict)
         orientations = defaultdict(list)
         for row in fp:
             atoms = row.strip().split('\t')
@@ -141,7 +152,8 @@ class CLMFile:
                 continue
             dists = [int(x) for x in dists.split()]
             contacts[(at, bt)] = dists
-            contacts_oriented[(at, bt, ao + bo)] = dists
+            contacts_oriented[(at, bt)][(FF[ao], FF[bo])] = dists
+            contacts_oriented[(bt, at)][(RR[bo], RR[ao])] = dists
             orientations[(at, bt)].append((ao + bo, sum(dists)))
 
         self.contacts = contacts
@@ -172,7 +184,7 @@ class CLMFile:
 
     def report_active(self):
         logging.debug("Active contigs: {} (length={})"\
-                    .format(len(self.active), self.active_length))
+                    .format(self.N, self.active_sizes.sum()))
 
     def activate(self, tourfile=None, minsize=10000, backuptour=True):
         """
@@ -200,8 +212,7 @@ class CLMFile:
             self.active = set(tour)
             tig_to_idx = self.tig_to_idx
             tour = [tig_to_idx[x] for x in tour]
-            d = {'+': 1, '-': -1, '?': 0}
-            self.signs = np.array([d[x] for x in tour_o], dtype=int)
+            self.signs = np.array([FF[x] for x in tour_o], dtype=int)
             if backuptour:
                 backup(tourfile)
         else:
@@ -225,7 +236,8 @@ class CLMFile:
             self.signs = get_signs(self.O, validate=False)
 
         self.report_active()
-        self.tour = array.array('i', tour)
+        self.tour = tour = array.array('i', tour)
+        return tour
 
     def evaluate_tour(self, tour):
         """ Use Cythonized version to evaluate the score of a current tour
@@ -283,10 +295,6 @@ class CLMFile:
         return np.array([self.tig_to_size[x] for x in self.active])
 
     @property
-    def active_length(self):
-        return self.active_sizes.sum()
-
-    @property
     def N(self):
         return len(self.active)
 
@@ -331,7 +339,7 @@ class CLMFile:
         return O
 
     @property
-    def MO(self):
+    def P(self):
         """
         Contact frequency matrix when contigs are already oriented. This is s a
         similar matrix as M, but rather than having the number of links in the
@@ -340,15 +348,39 @@ class CLMFile:
         N = self.N
         tig_to_idx = self.tig_to_idx
         signs = self.signs
-        MO = np.zeros((N, N), dtype=int)
-        for (at, bt, abo), dists in self.contacts_oriented.items():
+        P = np.zeros((N, N, BB), dtype=int)
+        for (at, bt), k in self.contacts_oriented.items():
             if not (at in tig_to_idx and bt in tig_to_idx):
                 continue
             ai = tig_to_idx[at]
             bi = tig_to_idx[bt]
-            ao = signs[at]
-            bo = signs[bt]
-        return MO
+            ao = signs[ai]
+            bo = signs[bi]
+            dists = k[(ao, bo)]
+            print dists
+            print [(g, c) for g, c in zip(GR, golden_array(dists)) if c]
+            P[ai, bi] = golden_array(dists)
+        return P
+
+
+def golden_array(a, phi=1.61803398875, lb=LB, ub=UB):
+    """ Given list of ints, we aggregate similar values so that it becomes an
+    array of multiples of phi, where phi is the golden ratio.
+
+    phi ^ 14 = 843
+    phi ^ 33 = 7881196
+
+    So the arrary of counts go between 843 to 788196.
+    """
+    counts = np.zeros(BB, dtype=int)
+    for x in a:
+        c = int(round(math.log(x, phi)))
+        if c < lb:
+            c = lb
+        if c > ub:
+            c = ub
+        counts[c - lb] += 1
+    return counts
 
 
 def prune_tour_worker(arg):
@@ -411,6 +443,9 @@ def density(args):
 
     tourfile = clmfile.rsplit(".", 1)[0] + ".tour"
     tour = clm.activate(tourfile=tourfile, backuptour=False)
+    P = clm.P
+    return
+
     tour = clm.prune_tour(tour, opts.cpus)
 
     print [clm.active_contigs[x] for x in tour]

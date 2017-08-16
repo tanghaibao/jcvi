@@ -90,6 +90,7 @@ class CLMFile:
         self.idsfile = clmfile.rsplit(".", 1)[0] + ".ids"
         self.parse_ids(skiprecover)
         self.parse_clm()
+        self.signs = {}
 
     def parse_ids(self, skiprecover):
         '''IDS file has a list of contigs that need to be ordered. 'recover',
@@ -125,6 +126,7 @@ class CLMFile:
         logging.debug("Parse clmfile `{}`".format(clmfile))
         fp = open(clmfile)
         contacts = {}
+        contacts_oriented = {}
         orientations = defaultdict(list)
         for row in fp:
             atoms = row.strip().split('\t')
@@ -139,9 +141,11 @@ class CLMFile:
                 continue
             dists = [int(x) for x in dists.split()]
             contacts[(at, bt)] = dists
+            contacts_oriented[(at, bt, ao + bo)] = dists
             orientations[(at, bt)].append((ao + bo, sum(dists)))
 
         self.contacts = contacts
+        self.contacts_oriented = contacts_oriented
         self.orientations = orientations
 
     def calculate_densities(self):
@@ -172,7 +176,19 @@ class CLMFile:
 
     def activate(self, tourfile=None, minsize=10000, backuptour=True):
         """
-        Select strong contigs in the current partition.
+        Select contigs in the current partition. This is the setup phase of the
+        algorithm, and supports two modes:
+
+        - "de novo": This is useful at the start of a new run where no tours are
+          available. We select the strong contigs that have significant number
+          of links to other contigs in the partition. We build a histogram of
+          link density (# links per bp) and remove the contigs that appear to be
+          outliers. The orientations are derived from the matrix decomposition
+          of the pairwise strandedness matrix O.
+
+        - "hotstart": This is useful when there was a past run, with a given
+          tourfile. In this case, the active contig list and orientations are
+          derived from the last tour in the file.
         """
         if tourfile and (not op.exists(tourfile)):
             logging.debug("Tourfile `{}` not found".format(tourfile))
@@ -180,10 +196,12 @@ class CLMFile:
 
         if tourfile:
             logging.debug("Importing tourfile `{}`".format(tourfile))
-            tour = iter_last_tour(tourfile, self)
+            tour, tour_o = iter_last_tour(tourfile, self)
             self.active = set(tour)
             tig_to_idx = self.tig_to_idx
             tour = [tig_to_idx[x] for x in tour]
+            d = {'+': 1, '-': -1, '?': 0}
+            self.signs = np.array([d[x] for x in tour_o], dtype=int)
             if backuptour:
                 backup(tourfile)
         else:
@@ -203,9 +221,11 @@ class CLMFile:
             self.active = set(x for x in self.active if self.tig_to_size[x] >= minsize)
             tour = range(self.N)  # Use starting (random) order otherwise
 
+            # Determine orientations
+            self.signs = get_signs(self.O, validate=False)
+
         self.report_active()
-        # Initial tour
-        return array.array('i', tour)
+        self.tour = array.array('i', tour)
 
     def evaluate_tour(self, tour):
         """ Use Cythonized version to evaluate the score of a current tour
@@ -214,40 +234,45 @@ class CLMFile:
         return score_evaluate(tour, self.active_sizes, self.M)
 
     def prune_tour(self, tour, cpus):
-        """ Test deleting each contig and check the delta_score
+        """ Test deleting each contig and check the delta_score; tour here must
+        be an array of ints.
         """
-        tour_score, = self.evaluate_tour(tour)
-        logging.debug("Starting score: {}".format(tour_score))
-        active_sizes = self.active_sizes
-        M = self.M
-        args = []
-        for i, t in enumerate(tour):
-            stour = tour[:i] + tour[i + 1:]
-            args.append((t, stour, tour_score, active_sizes, M))
+        while True:
+            tour_score, = self.evaluate_tour(tour)
+            logging.debug("Starting score: {}".format(tour_score))
+            active_sizes = self.active_sizes
+            M = self.M
+            args = []
+            for i, t in enumerate(tour):
+                stour = tour[:i] + tour[i + 1:]
+                args.append((t, stour, tour_score, active_sizes, M))
 
-        # Parallel run
-        p = Pool(processes=cpus)
-        results = list(p.imap(prune_tour_worker, args))
-        assert len(tour) == len(results), \
-                "Array size mismatch, tour({}) != results({})"\
-                        .format(len(tour), len(results))
+            # Parallel run
+            p = Pool(processes=cpus)
+            results = list(p.imap(prune_tour_worker, args))
+            assert len(tour) == len(results), \
+                    "Array size mismatch, tour({}) != results({})"\
+                            .format(len(tour), len(results))
 
-        # Identify outliers
-        active_contigs = self.active_contigs
-        idx, _, log10deltas = zip(*results)
-        #for t, b, c in results:
-        #    print "\t".join(str(x) for x in (t, active_contigs[t], b, c))
-        lb, ub = outlier_cutoff(log10deltas, threshold=3)
-        logging.debug("Log10(delta_score) ~ [{}, {}]".format(lb, ub))
+            # Identify outliers
+            active_contigs = self.active_contigs
+            idx, _, log10deltas = zip(*results)
+            #for t, b, c in results:
+            #    print "\t".join(str(x) for x in (t, active_contigs[t], b, c))
+            lb, ub = outlier_cutoff(log10deltas, threshold=3)
+            logging.debug("Log10(delta_score) ~ [{}, {}]".format(lb, ub))
 
-        remove = set(active_contigs[x] for (x, _, d) in results if d < lb)
-        self.active -= remove
-        self.report_active()
+            remove = set(active_contigs[x] for (x, _, d) in results if d < lb)
+            self.active -= remove
+            self.report_active()
 
-        tig_to_idx = self.tig_to_idx
-        tour = [active_contigs[x] for x in tour]
-        tour = [tig_to_idx[x] for x in tour if x not in remove]
-        return array.array('i', tour)
+            tig_to_idx = self.tig_to_idx
+            tour = [active_contigs[x] for x in tour]
+            tour = array.array('i', [tig_to_idx[x] for x in tour \
+                                        if x not in remove])
+            if not remove:
+                break
+        return tour
 
     @property
     def active_contigs(self):
@@ -304,6 +329,26 @@ class CLMFile:
             strandedness = 1 if mo[0] == mo[1] else -1
             O[ai, bi] = O[bi, ai] = strandedness
         return O
+
+    @property
+    def MO(self):
+        """
+        Contact frequency matrix when contigs are already oriented. This is s a
+        similar matrix as M, but rather than having the number of links in the
+        cell, it points to an array that has the actual distances.
+        """
+        N = self.N
+        tig_to_idx = self.tig_to_idx
+        signs = self.signs
+        MO = np.zeros((N, N), dtype=int)
+        for (at, bt, abo), dists in self.contacts_oriented.items():
+            if not (at in tig_to_idx and bt in tig_to_idx):
+                continue
+            ai = tig_to_idx[at]
+            bi = tig_to_idx[bt]
+            ao = signs[at]
+            bo = signs[bt]
+        return MO
 
 
 def prune_tour_worker(arg):
@@ -366,8 +411,8 @@ def density(args):
 
     tourfile = clmfile.rsplit(".", 1)[0] + ".tour"
     tour = clm.activate(tourfile=tourfile, backuptour=False)
-
     tour = clm.prune_tour(tour, opts.cpus)
+
     print [clm.active_contigs[x] for x in tour]
     score, = clm.evaluate_tour(tour)
     logging.debug("Post-pruning score: {}".format(score))
@@ -398,18 +443,15 @@ def optimize(args):
     if startover:
         tourfile = None
     tour = clm.activate(tourfile=tourfile)
-    #tour = clm.prune_tour(tour, opts.cpus)
 
     # Prepare input files
     N = clm.N
     tour_contigs = clm.active_contigs
     tour_sizes = clm.active_sizes
     tour_M = clm.M
-    tour_O = clm.O
+    tour = clm.tour
+    signs = clm.signs
     oo = range(N)
-
-    # Determine orientations
-    signs = get_signs(tour_O, validate=False)
 
     fwtour = open(tourfile, "w")
     def callback(tour, gen, oo):
@@ -491,15 +533,17 @@ def iter_last_tour(tourfile, clm):
     if any contig is covered in the clm.
     """
     row = open(tourfile).readlines()[-1]
-    _tour, tour_o = separate_tour_and_o(row)
+    _tour, _tour_o = separate_tour_and_o(row)
     tour = []
-    for tc in _tour:
+    tour_o = []
+    for tc, to in zip(_tour, _tour_o):
         if tc not in clm.contigs:
             logging.debug("Contig `{}` in file `{}` not found in `{}`"\
                             .format(tc, tourfile, clm.idsfile))
             continue
         tour.append(tc)
-    return tour
+        tour_o.append(to)
+    return tour, tour_o
 
 
 def iter_tours(tourfile, frames=1):

@@ -191,7 +191,7 @@ class CLMFile:
             while True:
                 logdensities = self.calculate_densities()
                 lb, ub = outlier_cutoff(logdensities.values(), threshold=3)
-                logging.debug("Log10(link_densities) = {} - {}".format(lb, ub))
+                logging.debug("Log10(link_densities) ~ [{}, {}]".format(lb, ub))
                 remove = set(x for x, d in logdensities.items() if (d < lb or d > ub))
                 if remove:
                     self.active -= remove
@@ -227,8 +227,26 @@ class CLMFile:
 
         # Parallel run
         p = Pool(processes=cpus)
-        for results in p.imap(prune_tour_worker, args):
-            print "\t".join(str(x) for x in results)
+        results = list(p.imap(prune_tour_worker, args))
+        results.sort()
+        assert len(tour) == len(results), \
+                "Array size mismatch, tour({}) != results({})"\
+                        .format(len(tour), len(results))
+
+        # Identify outliers
+        idx, log10deltas = zip(*results)
+        lb, ub = outlier_cutoff(log10deltas, threshold=3)
+        logging.debug("Log10(delta_score) ~ [{}, {}]".format(lb, ub))
+
+        active_contigs = self.active_contigs
+        remove = set(active_contigs[x] for (x, d) in results if d < lb)
+        self.active -= remove
+        self.report_active()
+
+        tig_to_idx = self.tig_to_idx
+        tour = [active_contigs[x] for x in tour]
+        tour = [tig_to_idx[x] for x in tour if x not in remove]
+        return array.array('i', tour)
 
     @property
     def active_contigs(self):
@@ -295,7 +313,8 @@ def prune_tour_worker(arg):
     i, stour, tour_score, active_sizes, M = arg
     stour_score, = score_evaluate(stour, active_sizes, M)
     delta_score = tour_score - stour_score
-    return (i, np.log10(delta_score))
+    log10d = np.log10(delta_score) if delta_score > 0 else -9
+    return (i, log10d)
 
 
 def main():
@@ -375,6 +394,7 @@ def optimize(args):
     if startover:
         tourfile = None
     tour = clm.activate(tourfile=tourfile)
+    #tour = clm.prune_tour(tour, opts.cpus)
 
     # Prepare input files
     N = clm.N

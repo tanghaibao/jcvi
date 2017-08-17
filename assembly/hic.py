@@ -152,8 +152,11 @@ class CLMFile:
                 continue
             dists = [int(x) for x in dists.split()]
             contacts[(at, bt)] = dists
-            contacts_oriented[(at, bt)][(FF[ao], FF[bo])] = dists
-            contacts_oriented[(bt, at)][(RR[bo], RR[ao])] = dists
+            gdists = golden_array(dists)
+            #print dists
+            #print [(g, c) for g, c in zip(GR, gdists) if c]
+            contacts_oriented[(at, bt)][(FF[ao], FF[bo])] = gdists
+            contacts_oriented[(bt, at)][(RR[bo], RR[ao])] = gdists
             orientations[(at, bt)].append((ao + bo, sum(dists)))
 
         self.contacts = contacts
@@ -356,10 +359,7 @@ class CLMFile:
             bi = tig_to_idx[bt]
             ao = signs[ai]
             bo = signs[bi]
-            dists = k[(ao, bo)]
-            print dists
-            print [(g, c) for g, c in zip(GR, golden_array(dists)) if c]
-            P[ai, bi] = golden_array(dists)
+            P[ai, bi] = k[(ao, bo)]
         return P
 
 
@@ -370,7 +370,10 @@ def golden_array(a, phi=1.61803398875, lb=LB, ub=UB):
     phi ^ 14 = 843
     phi ^ 33 = 7881196
 
-    So the arrary of counts go between 843 to 788196.
+    So the array of counts go between 843 to 788196. One triva is that the
+    exponents of phi gets closer to integers as N grows. See interesting
+    discussion here:
+    <https://www.johndcook.com/blog/2017/03/22/golden-powers-are-nearly-integers/>
     """
     counts = np.zeros(BB, dtype=int)
     for x in a:
@@ -443,7 +446,12 @@ def density(args):
 
     tourfile = clmfile.rsplit(".", 1)[0] + ".tour"
     tour = clm.activate(tourfile=tourfile, backuptour=False)
-    P = clm.P
+    tour_sizes = clm.active_sizes
+    tour_P = clm.P
+
+    from .chic import score_evaluate_oriented
+    score, = score_evaluate_oriented(tour, tour_sizes, tour_P)
+    print score
     return
 
     tour = clm.prune_tour(tour, opts.cpus)

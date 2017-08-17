@@ -210,7 +210,9 @@ class CLMFile:
             self.active = set(tour)
             tig_to_idx = self.tig_to_idx
             tour = [tig_to_idx[x] for x in tour]
-            self.signs = np.array([FF[x] for x in tour_o], dtype=int)
+            signs = sorted([(x, FF[o]) for (x, o) in zip(tour, tour_o)])
+            _, signs = zip(*signs)
+            self.signs = np.array(signs, dtype=int)
             if backuptour:
                 backup(tourfile)
         else:

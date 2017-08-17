@@ -34,8 +34,8 @@ def score_evaluate(array.array tour,
 
     cdef double s = 0.0
     cdef int size = len(tour)
-    cdef int a, b, links
-    cdef int ia, ib
+    cdef int a, b, ia, ib
+    cdef int links
     cdef int dist
     for ia in range(size):
         a = tour[ia]
@@ -61,6 +61,7 @@ def score_evaluate_oriented(array.array tour,
     cdef double s = 0.0
     cdef int size = len(tour)
     cdef int a, b, c, ia, ib, ic
+    cdef int dist
     for ia in range(size):
         a = tour[ia]
         for ib in range(ia + 1, size):

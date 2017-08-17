@@ -14,12 +14,11 @@ import array
 
 
 ctypedef np.int_t INT
-cdef int BB = 16
+cdef int BB = 12
 cdef int *GR = \
-     [   2206,    3571,    5777,    9349,
-        15126,   24476,   39602,   64079,
-       103681,  167761,  271442,  439204,
-       710646, 1149851, 1860497, 3010349]
+     [   5778,    9349,   15127,   24476,
+        39603,   64079,  103682,  167761,
+       271443,  439204,  710647, 1149851]
 
 
 @cython.boundscheck(False)  # Turn off bounds-checking
@@ -43,6 +42,8 @@ def score_evaluate(array.array tour,
         for ib in range(ia + 1, size):
             b = tour[ib]
             links = tour_M[a, b]
+            if links == 0:
+                continue
             dist = sizes_cum[ib] - sizes_cum[ia]
             if dist > 1e7:
                 break
@@ -67,6 +68,8 @@ def score_evaluate_oriented(array.array tour,
         a = tour[ia]
         for ib in range(ia + 1, size):
             b = tour[ib]
+            if tour_P[a, b, 0] == -1:
+                continue
             dist = sizes_cum[ib - 1] - sizes_cum[ia]
             if dist > 1e7:
                 break

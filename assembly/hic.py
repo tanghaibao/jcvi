@@ -38,8 +38,8 @@ from jcvi.utils.natsort import natsorted
 # Map orientations to ints
 FF = {'+': 1, '-': -1, '?': 0}
 RR = {'+': -1, '-': 1, '?': 0}
-LB = 16             # Lower bound for golden_array()
-UB = 31             # Upper bound for golden_array()
+LB = 18             # Lower bound for golden_array()
+UB = 29             # Upper bound for golden_array()
 BB = UB - LB + 1    # Span for golden_array()
 
 
@@ -150,8 +150,6 @@ class CLMFile:
             dists = [int(x) for x in dists.split()]
             contacts[(at, bt)] = dists
             gdists = golden_array(dists)
-            #print dists
-            #print [(g, c) for g, c in zip(GR, gdists) if c]
             contacts_oriented[(at, bt)][(FF[ao], FF[bo])] = gdists
             contacts_oriented[(bt, at)][(RR[bo], RR[ao])] = gdists
             orientations[(at, bt)].append((ao + bo, sum(dists)))
@@ -348,7 +346,7 @@ class CLMFile:
         N = self.N
         tig_to_idx = self.tig_to_idx
         signs = self.signs
-        P = np.zeros((N, N, BB), dtype=int)
+        P = np.ones((N, N, BB), dtype=int) * -1  # Use -1 as the sentinel
         for (at, bt), k in self.contacts_oriented.items():
             if not (at in tig_to_idx and bt in tig_to_idx):
                 continue

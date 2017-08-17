@@ -38,12 +38,9 @@ from jcvi.utils.natsort import natsorted
 # Map orientations to ints
 FF = {'+': 1, '-': -1, '?': 0}
 RR = {'+': -1, '-': 1, '?': 0}
-LB = 14             # Lower bound for golden_array()
-UB = 33             # Upper bound for golden_array()
+LB = 16             # Lower bound for golden_array()
+UB = 31             # Upper bound for golden_array()
 BB = UB - LB + 1    # Span for golden_array()
-GR = [    842,    1364,    2206,    3571,    5777,    9349,   15126,
-        24476,   39602,   64079,  103681,  167761,  271442,  439204,
-       710646, 1149851, 1860497, 3010349, 4870846, 7881196]
 
 
 class ContigOrderingLine(object):

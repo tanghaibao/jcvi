@@ -245,6 +245,25 @@ class CLMFile:
         from .chic import score_evaluate
         return score_evaluate(tour, self.active_sizes, self.M)
 
+    def evaluate_tour_oriented(self, tour):
+        """ Use Cythonized version to evaluate the score of a current tour,
+        taking orientation into consideration.
+        """
+        from .chic import score_evaluate_oriented
+        return score_evaluate_oriented(tour, self.active_sizes, self.P)
+
+    def flip_whole(self, tour):
+        """ Test flipping every single contig to see if score improves.
+        """
+        score, = self.evaluate_tour_oriented(tour)
+        self.signs = -self.signs
+        score_flipped, = self.evaluate_tour_oriented(tour)
+        logging.debug("Before flipping: {}, After flipping: {}"\
+                    .format(score, score_flipped))
+        if score_flipped <= score:
+            logging.debug("Score decreased ... flipping back")
+            self.signs = -self.signs
+
     def prune_tour(self, tour, cpus):
         """ Test deleting each contig and check the delta_score; tour here must
         be an array of ints.
@@ -443,12 +462,7 @@ def density(args):
 
     tourfile = clmfile.rsplit(".", 1)[0] + ".tour"
     tour = clm.activate(tourfile=tourfile, backuptour=False)
-    tour_sizes = clm.active_sizes
-    tour_P = clm.P
-
-    from .chic import score_evaluate_oriented
-    score, = score_evaluate_oriented(tour, tour_sizes, tour_P)
-    print score
+    clm.flip_whole(tour)
     return
 
     tour = clm.prune_tour(tour, opts.cpus)
@@ -505,6 +519,9 @@ def optimize(args):
 
     # Store INIT tour
     print_tour(fwtour, tour, "INIT", tour_contigs, oo, signs=signs)
+    clm.flip_whole(tour)
+    print_tour(fwtour, tour, "FLIPPED", tour_contigs, oo, signs=-signs)
+    return
 
     # Faster Cython version for evaluation
     from .chic import score_evaluate
@@ -595,6 +612,7 @@ def iter_tours(tourfile, frames=1):
     """
     fp = open(tourfile)
 
+    i = -1
     for row in fp:
         if row[0] == '>':
             label = row[1:].strip()
@@ -602,7 +620,7 @@ def iter_tours(tourfile, frames=1):
                 pf, i, score = label.split("-")
                 i = int(i)
             else:
-                i = 0
+                i += 1
             continue
         else:
             if i % frames != 0:

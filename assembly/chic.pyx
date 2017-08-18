@@ -56,6 +56,7 @@ def score_evaluate(array.array tour,
 def score_evaluate_oriented(array.array tour,
                             np.ndarray[INT, ndim=1] tour_sizes=None,
                             np.ndarray[INT, ndim=3] tour_P=None):
+    cdef int x
     cdef np.ndarray sizes_oo = \
                 np.array([tour_sizes[x] for x in tour])
     cdef np.ndarray sizes_cum = np.cumsum(sizes_oo)

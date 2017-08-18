@@ -262,6 +262,11 @@ def _score(cluster):
 
 
 def group_hits(blasts):
+    if not blasts:
+        return {"": []}
+    if len(blasts[0]) == 3:  # Already in the form of (qi, si, score)
+        return {"": blasts}
+
     # grouping the hits based on chromosome pair
     all_hits = defaultdict(list)
     for b in blasts:

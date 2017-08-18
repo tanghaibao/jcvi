@@ -152,7 +152,8 @@ class CLMFile:
             gdists = golden_array(dists)
             contacts_oriented[(at, bt)][(FF[ao], FF[bo])] = gdists
             contacts_oriented[(bt, at)][(RR[bo], RR[ao])] = gdists
-            orientations[(at, bt)].append((ao + bo, sum(dists)))
+            strandedness = 1 if ao == bo else -1
+            orientations[(at, bt)].append((strandedness, dists))
 
         self.contacts = contacts
         self.contacts_oriented = contacts_oriented
@@ -233,7 +234,7 @@ class CLMFile:
             tour = range(self.N)  # Use starting (random) order otherwise
 
             # Determine orientations
-            self.signs = get_signs(self.O, validate=False)
+            self.flip_all(tour)
 
         self.report_active()
         self.tour = tour = array.array('i', tour)
@@ -251,6 +252,15 @@ class CLMFile:
         """
         from .chic import score_evaluate_oriented
         return score_evaluate_oriented(tour, self.active_sizes, self.P)
+
+    def flip_all(self, tour):
+        """ Initialize the orientations based on pairwise O matrix.
+        """
+        score, = self.evaluate_tour_oriented(tour)
+        self.signs = get_signs(self.O, validate=False)
+        score_flipped, = self.evaluate_tour_oriented(tour)
+        logging.debug("Before flipping: {}, After flipping: {}"\
+                    .format(score, score_flipped))
 
     def flip_whole(self, tour):
         """ Test flipping every single contig to see if score improves.
@@ -352,9 +362,10 @@ class CLMFile:
                 continue
             ai = tig_to_idx[at]
             bi = tig_to_idx[bt]
-            mo, md = min(dists, key=lambda x: x[1])
-            strandedness = 1 if mo[0] == mo[1] else -1
-            O[ai, bi] = O[bi, ai] = strandedness
+            strandedness, md = min(dists, key=lambda x: sum(x[1]))
+            score = strandedness * len(md)
+            #print at, bt, dists, score
+            O[ai, bi] = O[bi, ai] = score
         return O
 
     @property
@@ -462,8 +473,9 @@ def density(args):
 
     tourfile = clmfile.rsplit(".", 1)[0] + ".tour"
     tour = clm.activate(tourfile=tourfile, backuptour=False)
-    clm.flip_whole(tour)
+    print clm.O
     return
+    clm.flip_whole(tour)
 
     tour = clm.prune_tour(tour, opts.cpus)
 
@@ -519,8 +531,10 @@ def optimize(args):
 
     # Store INIT tour
     print_tour(fwtour, tour, "INIT", tour_contigs, oo, signs=signs)
-    clm.flip_whole(tour)
-    print_tour(fwtour, tour, "FLIPPED", tour_contigs, oo, signs=-signs)
+    #clm.flip_whole(tour)
+    #print_tour(fwtour, tour, "FLIPPED", tour_contigs, oo, signs=clm.signs)
+    clm.flip_all(tour)
+    print_tour(fwtour, tour, "REFLIP", tour_contigs, oo, signs=clm.signs)
     return
 
     # Faster Cython version for evaluation

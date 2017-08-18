@@ -256,6 +256,10 @@ class CLMFile:
         from .chic import score_evaluate_oriented
         return score_evaluate_oriented(tour, self.active_sizes, self.P)
 
+    def flip_log(self, method, score, score_flipped, tag):
+        logging.debug("{}: {} => {} {}"\
+                        .format(method, score, score_flipped, tag))
+
     def flip_all(self, tour):
         """ Initialize the orientations based on pairwise O matrix.
         """
@@ -267,8 +271,7 @@ class CLMFile:
         else:
             self.signs = -self.signs
             tag = REJECT
-        logging.debug("FLIPALL: {} => {} [{}]"\
-                        .format(score, score_flipped, tag))
+        self.flip_log("FLIPALL", score, score_flipped, tag)
 
     def flip_whole(self, tour):
         """ Test flipping all contigs at the same time to see if score improves.
@@ -281,8 +284,7 @@ class CLMFile:
         else:
             self.signs = -self.signs
             tag = REJECT
-        logging.debug("FLIPWHOLE: {} => {} [{}]"\
-                        .format(score, score_flipped, tag))
+        self.flip_log("FLIPWHOLE", score, score_flipped, tag)
 
     def flip_one(self, tour):
         """ Test flipping every single contig sequentially to see if score
@@ -297,13 +299,14 @@ class CLMFile:
             if score_flipped > score:
                 n_accepts += 1
                 tag = ACCEPT
-                score = score_flipped
             else:
                 self.signs[i] = -self.signs[i]
                 n_rejects += 1
                 tag = REJECT
-            logging.debug("FLIPONE ({}/{}): {} => {} [{}]"\
-                            .format(i, len(self.signs), score, score_flipped, tag))
+            self.flip_log("FLIPONE ({}/{})".format(i, len(self.signs)),
+                        score, score_flipped, tag)
+            if tag == ACCEPT:
+                score = score_flipped
         logging.debug("FLIPONE: N_accepts={} N_rejects={}"\
                         .format(n_accepts, n_rejects))
 

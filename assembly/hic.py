@@ -21,6 +21,7 @@ from jcvi.algorithms.formula import outlier_cutoff
 from jcvi.algorithms.ec import GA_setup, GA_run
 from jcvi.algorithms.matrix import get_signs
 from jcvi.apps.base import OptionParser, ActionDispatcher, backup, iglob, mkdir, symlink
+from jcvi.apps.console import green, red
 from jcvi.apps.grid import Jobs
 from jcvi.assembly.allmaps import make_movie
 from jcvi.compara.synteny import check_beds, get_bed_filenames
@@ -41,6 +42,8 @@ RR = {'+': -1, '-': 1, '?': 0}
 LB = 18             # Lower bound for golden_array()
 UB = 29             # Upper bound for golden_array()
 BB = UB - LB + 1    # Span for golden_array()
+ACCEPT = green("ACCEPT")
+REJECT = red("REJECT")
 
 
 class ContigOrderingLine(object):
@@ -259,20 +262,50 @@ class CLMFile:
         score, = self.evaluate_tour_oriented(tour)
         self.signs = get_signs(self.O, validate=False)
         score_flipped, = self.evaluate_tour_oriented(tour)
-        logging.debug("Before flipping: {}, After flipping: {}"\
-                    .format(score, score_flipped))
+        if score_flipped > score:
+            tag = ACCEPT
+        else:
+            self.signs = -self.signs
+            tag = REJECT
+        logging.debug("FLIPALL: {} => {} [{}]"\
+                        .format(score, score_flipped, tag))
 
     def flip_whole(self, tour):
-        """ Test flipping every single contig to see if score improves.
+        """ Test flipping all contigs at the same time to see if score improves.
         """
         score, = self.evaluate_tour_oriented(tour)
         self.signs = -self.signs
         score_flipped, = self.evaluate_tour_oriented(tour)
-        logging.debug("Before flipping: {}, After flipping: {}"\
-                    .format(score, score_flipped))
-        if score_flipped <= score:
-            logging.debug("Score decreased ... flipping back")
+        if score_flipped > score:
+            tag = ACCEPT
+        else:
             self.signs = -self.signs
+            tag = REJECT
+        logging.debug("FLIPWHOLE: {} => {} [{}]"\
+                        .format(score, score_flipped, tag))
+
+    def flip_one(self, tour):
+        """ Test flipping every single contig sequentially to see if score
+        improves.
+        """
+        n_accepts = n_rejects = 0
+        for i, s in enumerate(self.signs):
+            if i == 0:
+                score, = self.evaluate_tour_oriented(tour)
+            self.signs[i] = -self.signs[i]
+            score_flipped, = self.evaluate_tour_oriented(tour)
+            if score_flipped > score:
+                n_accepts += 1
+                tag = ACCEPT
+                score = score_flipped
+            else:
+                self.signs[i] = -self.signs[i]
+                n_rejects += 1
+                tag = REJECT
+            logging.debug("FLIPONE ({}/{}): {} => {} [{}]"\
+                            .format(i, len(self.signs), score, score_flipped, tag))
+        logging.debug("FLIPONE: N_accepts={} N_rejects={}"\
+                        .format(n_accepts, n_rejects))
 
     def prune_tour(self, tour, cpus):
         """ Test deleting each contig and check the delta_score; tour here must
@@ -473,9 +506,9 @@ def density(args):
 
     tourfile = clmfile.rsplit(".", 1)[0] + ".tour"
     tour = clm.activate(tourfile=tourfile, backuptour=False)
-    print clm.O
-    return
+    clm.flip_all(tour)
     clm.flip_whole(tour)
+    clm.flip_one(tour)
 
     tour = clm.prune_tour(tour, opts.cpus)
 
@@ -530,11 +563,13 @@ def optimize(args):
         return tour
 
     # Store INIT tour
-    print_tour(fwtour, tour, "INIT", tour_contigs, oo, signs=signs)
-    #clm.flip_whole(tour)
-    #print_tour(fwtour, tour, "FLIPPED", tour_contigs, oo, signs=clm.signs)
+    print_tour(fwtour, tour, "INIT", tour_contigs, oo, signs=clm.signs)
     clm.flip_all(tour)
-    print_tour(fwtour, tour, "REFLIP", tour_contigs, oo, signs=clm.signs)
+    print_tour(fwtour, tour, "FLIPALL", tour_contigs, oo, signs=clm.signs)
+    clm.flip_whole(tour)
+    print_tour(fwtour, tour, "FLIPWHOLE", tour_contigs, oo, signs=clm.signs)
+    clm.flip_one(tour)
+    print_tour(fwtour, tour, "FLIPONE", tour_contigs, oo, signs=clm.signs)
     return
 
     # Faster Cython version for evaluation

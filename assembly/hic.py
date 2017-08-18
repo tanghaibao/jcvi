@@ -263,13 +263,14 @@ class CLMFile:
     def flip_all(self, tour):
         """ Initialize the orientations based on pairwise O matrix.
         """
+        old_signs = self.signs[:]
         score, = self.evaluate_tour_oriented(tour)
         self.signs = get_signs(self.O, validate=False)
         score_flipped, = self.evaluate_tour_oriented(tour)
         if score_flipped > score:
             tag = ACCEPT
         else:
-            self.signs = -self.signs
+            self.signs = old_signs[:]
             tag = REJECT
         self.flip_log("FLIPALL", score, score_flipped, tag)
 
@@ -291,19 +292,19 @@ class CLMFile:
         improves.
         """
         n_accepts = n_rejects = 0
-        for i, s in enumerate(self.signs):
+        for i, (t, s) in enumerate(zip(tour, self.signs)):
             if i == 0:
                 score, = self.evaluate_tour_oriented(tour)
-            self.signs[i] = -self.signs[i]
+            self.signs[t] = -self.signs[t]
             score_flipped, = self.evaluate_tour_oriented(tour)
             if score_flipped > score:
                 n_accepts += 1
                 tag = ACCEPT
             else:
-                self.signs[i] = -self.signs[i]
+                self.signs[t] = -self.signs[t]
                 n_rejects += 1
                 tag = REJECT
-            self.flip_log("FLIPONE ({}/{})".format(i, len(self.signs)),
+            self.flip_log("FLIPONE ({}/{})".format(i + 1, len(self.signs)),
                         score, score_flipped, tag)
             if tag == ACCEPT:
                 score = score_flipped
@@ -568,11 +569,12 @@ def optimize(args):
     # Store INIT tour
     print_tour(fwtour, tour, "INIT", tour_contigs, oo, signs=clm.signs)
     clm.flip_all(tour)
-    print_tour(fwtour, tour, "FLIPALL", tour_contigs, oo, signs=clm.signs)
-    clm.flip_whole(tour)
-    print_tour(fwtour, tour, "FLIPWHOLE", tour_contigs, oo, signs=clm.signs)
-    clm.flip_one(tour)
-    print_tour(fwtour, tour, "FLIPONE", tour_contigs, oo, signs=clm.signs)
+    for gen in (1, 2):
+        print_tour(fwtour, tour, "FLIPALL-{}".format(gen), tour_contigs, oo, signs=clm.signs)
+        clm.flip_whole(tour)
+        print_tour(fwtour, tour, "FLIPWHOLE-{}".format(gen), tour_contigs, oo, signs=clm.signs)
+        clm.flip_one(tour)
+        print_tour(fwtour, tour, "FLIPONE-{}".format(gen), tour_contigs, oo, signs=clm.signs)
     return
 
     # Faster Cython version for evaluation

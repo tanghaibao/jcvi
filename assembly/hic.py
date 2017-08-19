@@ -507,7 +507,8 @@ def simulate(args):
     Reads = GenomeSize * Coverage / PE
 
     # Simulate the gene positions
-    GenePositions = np.random.random_integers(0, GenomeSize - 1, size=Genes)
+    GenePositions = np.sort(np.random.random_integers(0,
+                            GenomeSize - 1, size=Genes))
 
     # Simulate the contig sizes that sum to GenomeSize
     # See also:
@@ -517,8 +518,17 @@ def simulate(args):
     ContigStarts = np.cumsum(ContigSizes)
     print ContigStarts
 
-    ContigOrientations = np.sign(np.random.rand(Contigs) - .5)
-    print ContigOrientations
+    # Simulate gene to contig membership
+    GeneContigs = np.searchsorted(ContigStarts, GenePositions, side="right")
+    print GeneContigs
+
+    # Simulate links, uniform start, with link distances following 1/x, where x
+    # is the distance between the links. As an approximation, we have link sizes
+    # between [1e3, 1e7], so we map from uniform [1e-7, 1e-3]
+    a, b = 1e-7, 1e-3
+    LinkSizes = np.array(np.round_(1 / ((b - a) * np.random.rand(1000) + a),
+                         decimals=0), dtype="int")
+    print LinkSizes
 
 
 def density(args):

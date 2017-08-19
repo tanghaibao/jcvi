@@ -468,6 +468,8 @@ def main():
         # LACHESIS output processing
         ('agp', 'generate AGP file based on LACHESIS output'),
         ('score', 'score the current LACHESIS CLM'),
+        # Simulation
+        ('simulate', 'simulate CLM data'),
         # Scaffolding
         ('optimize', 'optimize the contig order and orientation'),
         ('density', 'estimate link density of contigs'),
@@ -477,6 +479,46 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def simulate(args):
+    """
+    %prog simulate test
+
+    Simulate CLM and IDS files with given names.
+
+    The simulator assumes several distributions:
+    - Links are distributed uniformly across genome
+    - Log10(link_size) are distributed normally
+    - Genes are distributed uniformly
+    """
+    p = OptionParser(simulate.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    pf, = args
+    GenomeSize = 10000000
+    Genes = 1000
+    Contigs = 100
+    Coverage = 100
+    PE = 500
+    Reads = GenomeSize * Coverage / PE
+
+    # Simulate the gene positions
+    GenePositions = np.random.random_integers(0, GenomeSize - 1, size=Genes)
+
+    # Simulate the contig sizes that sum to GenomeSize
+    # See also:
+    # <https://en.wikipedia.org/wiki/User:Skinnerd/Simplex_Point_Picking>
+    ContigSizes = np.random.dirichlet([1] * Contigs, 1) * GenomeSize
+    ContigSizes = np.array(np.round_(ContigSizes, decimals=0), dtype=int)
+    ContigStarts = np.cumsum(ContigSizes)
+    print ContigStarts
+
+    ContigOrientations = np.sign(np.random.rand(Contigs) - .5)
+    print ContigOrientations
 
 
 def density(args):

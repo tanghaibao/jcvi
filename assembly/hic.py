@@ -502,9 +502,9 @@ def simulate(args):
     GenomeSize = 10000000
     Genes = 1000
     Contigs = 100
-    Coverage = 100
+    Coverage = .01
     PE = 500
-    Reads = GenomeSize * Coverage / PE
+    Links = int(GenomeSize * Coverage / PE)
 
     # Simulate the gene positions
     GenePositions = np.sort(np.random.random_integers(0,
@@ -518,17 +518,29 @@ def simulate(args):
     ContigStarts = np.cumsum(ContigSizes)
     print ContigStarts
 
-    # Simulate gene to contig membership
+    # Find gene to contig membership
     GeneContigs = np.searchsorted(ContigStarts, GenePositions, side="right")
     print GeneContigs
 
     # Simulate links, uniform start, with link distances following 1/x, where x
     # is the distance between the links. As an approximation, we have link sizes
     # between [1e3, 1e7], so we map from uniform [1e-7, 1e-3]
+    LinkStarts = np.sort(np.random.random_integers(0, GenomeSize - 1, size=Links))
     a, b = 1e-7, 1e-3
-    LinkSizes = np.array(np.round_(1 / ((b - a) * np.random.rand(1000) + a),
+    LinkSizes = np.array(np.round_(1 / ((b - a) * np.random.rand(Links) + a),
                          decimals=0), dtype="int")
-    print LinkSizes
+    LinkEnds = LinkStarts + LinkSizes
+    print LinkStarts
+    print LinkEnds
+
+    # Find link to contig membership
+    LinkStartContigs = np.searchsorted(ContigStarts, LinkStarts, side="right")
+    LinkEndContigs = np.searchsorted(ContigStarts, LinkEnds, side="right")
+
+    # Extract inter-contig links
+    InterContigLinks = LinkStartContigs != LinkEndContigs
+    print LinkStarts[InterContigLinks]
+    print LinkEnds[InterContigLinks]
 
 
 def density(args):

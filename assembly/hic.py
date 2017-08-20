@@ -683,6 +683,8 @@ def optimize(args):
     p = OptionParser(optimize.__doc__)
     p.add_option("--startover", default=False, action="store_true",
                  help="Do not resume from existing tour file")
+    p.add_option("--skipGA", default=False, action="store_true",
+                 help="Skip GA step")
     p.set_outfile(outfile=None)
     p.set_cpus()
     opts, args = p.parse_args(args)
@@ -692,6 +694,7 @@ def optimize(args):
 
     clmfile, = args
     startover = opts.startover
+    runGA = not opts.skipGA
     # Load contact map
     clm = CLMFile(clmfile)
 
@@ -722,15 +725,16 @@ def optimize(args):
         print_tour(fwtour, tour, label, tour_contigs, oo, signs=signs)
         return tour
 
-    # Faster Cython version for evaluation
-    from .chic import score_evaluate
-    callbacki = partial(callback, oo=oo)
-    toolbox = GA_setup(tour)
-    toolbox.register("evaluate", score_evaluate,
-                     tour_sizes=tour_sizes, tour_M=tour_M)
-    tour, tour.fitness = GA_run(toolbox, ngen=1000, npop=100, cpus=opts.cpus,
-                                callback=callbacki)
-    print tour, tour.fitness
+    if runGA:
+        # Faster Cython version for evaluation
+        from .chic import score_evaluate
+        callbacki = partial(callback, oo=oo)
+        toolbox = GA_setup(tour)
+        toolbox.register("evaluate", score_evaluate,
+                         tour_sizes=tour_sizes, tour_M=tour_M)
+        tour, tour.fitness = GA_run(toolbox, ngen=1000, npop=100, cpus=opts.cpus,
+                                    callback=callbacki)
+        print tour, tour.fitness
 
     # Flip orientations
     clm.flip_all(tour)
@@ -879,7 +883,7 @@ def movie(args):
         for contig, o in zip(tour, tour_o):
             if contig not in contig_to_beds:
                 continue
-            bedlines = contig_to_beds[contig]
+            bedlines = contig_to_beds[contig][:]
             if o == '-':
                 bedlines.reverse()
             for x in bedlines:

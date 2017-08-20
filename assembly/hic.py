@@ -513,14 +513,20 @@ def simulate(args):
     # Simulate the contig sizes that sum to GenomeSize
     # See also:
     # <https://en.wikipedia.org/wiki/User:Skinnerd/Simplex_Point_Picking>
-    ContigSizes = np.random.dirichlet([1] * Contigs, 1) * GenomeSize
+    ContigSizes, = np.random.dirichlet([1] * Contigs, 1) * GenomeSize
     ContigSizes = np.array(np.round_(ContigSizes, decimals=0), dtype=int)
-    ContigStarts = np.cumsum(ContigSizes)
-    print ContigStarts
+    ContigStarts = np.zeros(Contigs, dtype=int)
+    ContigStarts[1:] = np.cumsum(ContigSizes)[:-1]
+
+    # Write IDS file
+    idsfile = pf + ".ids"
+    fw = open(idsfile, "w")
+    for i, s in enumerate(ContigSizes):
+        print >> fw, "tig{:04d}\t{}".format(i, s)
+    fw.close()
 
     # Find gene to contig membership
-    GeneContigs = np.searchsorted(ContigStarts, GenePositions, side="right")
-    print GeneContigs
+    GeneContigs = np.searchsorted(ContigStarts, GenePositions) - 1
 
     # Simulate links, uniform start, with link distances following 1/x, where x
     # is the distance between the links. As an approximation, we have link sizes
@@ -530,17 +536,47 @@ def simulate(args):
     LinkSizes = np.array(np.round_(1 / ((b - a) * np.random.rand(Links) + a),
                          decimals=0), dtype="int")
     LinkEnds = LinkStarts + LinkSizes
-    print LinkStarts
-    print LinkEnds
 
     # Find link to contig membership
-    LinkStartContigs = np.searchsorted(ContigStarts, LinkStarts, side="right")
-    LinkEndContigs = np.searchsorted(ContigStarts, LinkEnds, side="right")
+    LinkStartContigs = np.searchsorted(ContigStarts, LinkStarts) - 1
+    LinkEndContigs = np.searchsorted(ContigStarts, LinkEnds) - 1
+    print LinkStarts
+    print LinkStartContigs
 
     # Extract inter-contig links
-    InterContigLinks = LinkStartContigs != LinkEndContigs
-    print LinkStarts[InterContigLinks]
-    print LinkEnds[InterContigLinks]
+    InterContigLinks = (LinkStartContigs != LinkEndContigs) & \
+                       (LinkEndContigs != Contigs)
+    ICLinkStartContigs = LinkStartContigs[InterContigLinks]
+    ICLinkEndContigs = LinkEndContigs[InterContigLinks]
+    ICLinkStarts = LinkStarts[InterContigLinks]
+    ICLinkEnds = LinkEnds[InterContigLinks]
+
+    # Write CLM file
+    write_clm(ICLinkStartContigs, ICLinkEndContigs, ICLinkStarts, ICLinkEnds,
+              ContigStarts, ContigSizes)
+    '''
+    print ICLinkStartContigs
+    print ICLinkEndContigs
+    print ICLinkStarts
+    print ICLinkEnds
+    '''
+
+
+def write_clm(ICLinkStartContigs, ICLinkEndContigs, ICLinkStarts, ICLinkEnds,
+              ContigStarts, ContigSizes):
+    """
+    Write CLM file from simulated data.
+    """
+    clm = defaultdict(list)
+    for start, end, linkstart, linkend in \
+        zip(ICLinkStartContigs, ICLinkEndContigs, ICLinkStarts, ICLinkEnds):
+        start_a = ContigStarts[start]
+        start_b = start_a + ContigSizes[start]
+        end_a = ContigStarts[end]
+        end_b = end_a + ContigSizes[end]
+        clm[(start, end)].append((linkstart - start_a, start_b - linkstart,
+                                  linkend - end_a, end_b - linkend))
+    print clm
 
 
 def density(args):

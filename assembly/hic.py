@@ -101,7 +101,7 @@ class CLMFile:
         self.idsfile = clmfile.rsplit(".", 1)[0] + ".ids"
         self.parse_ids(skiprecover)
         self.parse_clm()
-        self.signs = []
+        self.signs = None
 
     def parse_ids(self, skiprecover):
         '''IDS file has a list of contigs that need to be ordered. 'recover',
@@ -265,7 +265,7 @@ class CLMFile:
     def flip_all(self, tour):
         """ Initialize the orientations based on pairwise O matrix.
         """
-        if not self.signs:  # First run
+        if self.signs is None:  # First run
             score = 0
         else:
             old_signs = self.signs[:]
@@ -499,22 +499,26 @@ def simulate(args):
     - Genes are distributed uniformly
     """
     p = OptionParser(simulate.__doc__)
+    p.add_option("--genomesize", default=10000000, type="int",
+                 help="Genome size")
+    p.add_option("--genes", default=1000, type="int",
+                 help="Number of genes")
+    p.add_option("--contigs", default=100, type="int",
+                 help="Number of contigs")
+    p.add_option("--coverage", default=10, type="int",
+                 help="Link coverage")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     pf, = args
-    GenomeSize = 10000000
-    Genes = 1000
-    Contigs = 100
-    Coverage = 10
+    GenomeSize = opts.genomesize
+    Genes = opts.genes
+    Contigs = opts.contigs
+    Coverage = opts.coverage
     PE = 500
     Links = int(GenomeSize * Coverage / PE)
-
-    # Simulate the gene positions
-    GenePositions = np.sort(np.random.random_integers(0,
-                            GenomeSize - 1, size=Genes))
 
     # Simulate the contig sizes that sum to GenomeSize
     # See also:
@@ -531,8 +535,10 @@ def simulate(args):
         print >> fw, "tig{:04d}\t{}".format(i, s)
     fw.close()
 
-    # Find gene to contig membership
-    GeneContigs = np.searchsorted(ContigStarts, GenePositions) - 1
+    # Simulate the gene positions
+    GenePositions = np.sort(np.random.random_integers(0,
+                            GenomeSize - 1, size=Genes))
+    write_last_and_beds(pf, GenePositions, ContigStarts)
 
     # Simulate links, uniform start, with link distances following 1/x, where x
     # is the distance between the links. As an approximation, we have link sizes
@@ -558,6 +564,35 @@ def simulate(args):
     # Write CLM file
     write_clm(pf, ICLinkStartContigs, ICLinkEndContigs, ICLinkStarts, ICLinkEnds,
               ContigStarts, ContigSizes)
+
+
+def write_last_and_beds(pf, GenePositions, ContigStarts):
+    """
+    Write LAST file, query and subject BED files.
+    """
+    qbedfile = pf + "tigs.bed"
+    sbedfile = pf + "chr.bed"
+    lastfile = "{}tigs.{}chr.last".format(pf, pf)
+    qbedfw = open(qbedfile, "w")
+    sbedfw = open(sbedfile, "w")
+    lastfw = open(lastfile, "w")
+
+    GeneContigs = np.searchsorted(ContigStarts, GenePositions) - 1
+    for i, (c, gstart) in enumerate(zip(GeneContigs, GenePositions)):
+        gene = "gene{:05d}".format(i)
+        tig = "tig{:04d}".format(c)
+        start = ContigStarts[c]
+        cstart = gstart - start
+        print >> qbedfw, "\t".join(str(x) for x in \
+                        (tig, cstart, cstart + 1, gene))
+        print >> sbedfw, "\t".join(str(x) for x in \
+                        ("chr1", gstart, gstart + 1, gene))
+        lastatoms = [gene, gene, 100] + [0] * 8 + [100]
+        print >> lastfw, "\t".join(str(x) for x in lastatoms)
+
+    qbedfw.close()
+    sbedfw.close()
+    lastfw.close()
 
 
 def write_clm(pf, ICLinkStartContigs, ICLinkEndContigs, ICLinkStarts, ICLinkEnds,
@@ -675,6 +710,9 @@ def optimize(args):
     oo = range(N)
 
     fwtour = open(tourfile, "w")
+    # Store INIT tour
+    print_tour(fwtour, tour, "INIT", tour_contigs, oo, signs=clm.signs)
+
     def callback(tour, gen, oo):
         fitness = tour.fitness if hasattr(tour, "fitness") else None
         label = "GA-{0}".format(gen)
@@ -694,8 +732,7 @@ def optimize(args):
                                 callback=callbacki)
     print tour, tour.fitness
 
-    # Store INIT tour
-    print_tour(fwtour, tour, "FLIPINIT", tour_contigs, oo, signs=clm.signs)
+    # Flip orientations
     clm.flip_all(tour)
     for gen in (1, 2):
         print_tour(fwtour, tour, "FLIPALL-{}".format(gen), tour_contigs, oo, signs=clm.signs)
@@ -784,18 +821,17 @@ def iter_tours(tourfile, frames=1):
     """
     fp = open(tourfile)
 
-    i = -1
-    for row in fp:
+    for i, row in enumerate(fp):
         if row[0] == '>':
             label = row[1:].strip()
-            if label.count("-") == 2:
-                pf, i, score = label.split("-")
-                i = int(i)
+            if label.startswith("GA"):
+                pf, j, score = label.split("-")
+                j = int(j)
             else:
-                i += 1
+                j = 0
             continue
         else:
-            if i % frames != 0:
+            if j % frames != 0:
                 continue
             tour, tour_o = separate_tour_and_o(row)
             yield i, label, tour, tour_o
@@ -840,6 +876,8 @@ def movie(args):
         # Make BED file with new order
         qb = Bed()
         for contig, o in zip(tour, tour_o):
+            if contig not in contig_to_beds:
+                continue
             bedlines = contig_to_beds[contig]
             if o == '-':
                 bedlines.reverse()

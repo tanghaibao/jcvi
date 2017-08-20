@@ -224,7 +224,7 @@ class CLMFile:
             self.report_active()
             while True:
                 logdensities = self.calculate_densities()
-                lb, ub = outlier_cutoff(logdensities.values(), threshold=3)
+                lb, ub = outlier_cutoff(logdensities.values())
                 logging.debug("Log10(link_densities) ~ [{}, {}]".format(lb, ub))
                 remove = set(x for x, d in logdensities.items() if (d < lb or d > ub))
                 if remove:
@@ -279,6 +279,7 @@ class CLMFile:
             self.signs = old_signs[:]
             tag = REJECT
         self.flip_log("FLIPALL", score, score_flipped, tag)
+        return tag
 
     def flip_whole(self, tour):
         """ Test flipping all contigs at the same time to see if score improves.
@@ -292,12 +293,14 @@ class CLMFile:
             self.signs = -self.signs
             tag = REJECT
         self.flip_log("FLIPWHOLE", score, score_flipped, tag)
+        return tag
 
     def flip_one(self, tour):
         """ Test flipping every single contig sequentially to see if score
         improves.
         """
         n_accepts = n_rejects = 0
+        any_tag_ACCEPT = False
         for i, (t, s) in enumerate(zip(tour, self.signs)):
             if i == 0:
                 score, = self.evaluate_tour_oriented(tour)
@@ -313,9 +316,11 @@ class CLMFile:
             self.flip_log("FLIPONE ({}/{})".format(i + 1, len(self.signs)),
                         score, score_flipped, tag)
             if tag == ACCEPT:
+                any_tag_ACCEPT = True
                 score = score_flipped
         logging.debug("FLIPONE: N_accepts={} N_rejects={}"\
                         .format(n_accepts, n_rejects))
+        return ACCEPT if any_tag_ACCEPT else REJECT
 
     def prune_tour(self, tour, cpus):
         """ Test deleting each contig and check the delta_score; tour here must
@@ -343,7 +348,7 @@ class CLMFile:
             idx, _, log10deltas = zip(*results)
             #for t, b, c in results:
             #    print "\t".join(str(x) for x in (t, active_contigs[t], b, c))
-            lb, ub = outlier_cutoff(log10deltas, threshold=3)
+            lb, ub = outlier_cutoff(log10deltas)
             logging.debug("Log10(delta_score) ~ [{}, {}]".format(lb, ub))
 
             remove = set(active_contigs[x] for (x, _, d) in results if d < lb)
@@ -356,6 +361,8 @@ class CLMFile:
                                         if x not in remove])
             if not remove:
                 break
+
+        self.tour = tour
         return tour
 
     @property
@@ -369,6 +376,10 @@ class CLMFile:
     @property
     def N(self):
         return len(self.active)
+
+    @property
+    def oo(self):
+        return range(self.N)
 
     @property
     def tig_to_idx(self):
@@ -669,7 +680,6 @@ def density(args):
 
     tour = clm.prune_tour(tour, opts.cpus)
 
-    print [clm.active_contigs[x] for x in tour]
     score, = clm.evaluate_tour(tour)
     logging.debug("Post-pruning score: {}".format(score))
 
@@ -695,6 +705,8 @@ def optimize(args):
     clmfile, = args
     startover = opts.startover
     runGA = not opts.skipGA
+    cpus = opts.cpus
+
     # Load contact map
     clm = CLMFile(clmfile)
 
@@ -703,49 +715,79 @@ def optimize(args):
         tourfile = None
     tour = clm.activate(tourfile=tourfile)
 
+    fwtour = open(tourfile, "w")
+    # Store INIT tour
+    print_tour(fwtour, clm.tour, "INIT", clm.active_contigs, clm.oo, signs=clm.signs)
+
+    if runGA:
+        for phase in range(1, 3):
+            optimize_ordering(fwtour, clm, phase, cpus)
+
+    # Flip orientations
+    clm.flip_all(tour)
+    phase = 1
+    while True:
+        tag1, tag2 = optimize_orientations(fwtour, clm, phase, cpus)
+        if tag1 == REJECT and tag2 == REJECT:
+            logging.debug("Terminating ... no more {}".format(ACCEPT))
+            break
+        phase += 1
+
+    fwtour.close()
+
+
+def optimize_ordering(fwtour, clm, phase, cpus):
+    """
+    Optimize the ordering of contigs by using score_evaluate() and Genetic
+    Algorithm (GA).
+    """
+    from .chic import score_evaluate
+
     # Prepare input files
-    N = clm.N
     tour_contigs = clm.active_contigs
     tour_sizes = clm.active_sizes
     tour_M = clm.M
     tour = clm.tour
     signs = clm.signs
-    oo = range(N)
+    oo = clm.oo
 
-    fwtour = open(tourfile, "w")
-    # Store INIT tour
-    print_tour(fwtour, tour, "INIT", tour_contigs, oo, signs=clm.signs)
-
-    def callback(tour, gen, oo):
+    def callback(tour, gen, phase, oo):
         fitness = tour.fitness if hasattr(tour, "fitness") else None
-        label = "GA-{0}".format(gen)
+        label = "GA{}-{}".format(phase, gen)
         if fitness:
             fitness = "{0}".format(fitness).split(",")[0].replace("(", "")
             label += "-" + fitness
         print_tour(fwtour, tour, label, tour_contigs, oo, signs=signs)
         return tour
 
-    if runGA:
-        # Faster Cython version for evaluation
-        from .chic import score_evaluate
-        callbacki = partial(callback, oo=oo)
-        toolbox = GA_setup(tour)
-        toolbox.register("evaluate", score_evaluate,
-                         tour_sizes=tour_sizes, tour_M=tour_M)
-        tour, tour.fitness = GA_run(toolbox, ngen=1000, npop=100, cpus=opts.cpus,
-                                    callback=callbacki)
-        print tour, tour.fitness
+    callbacki = partial(callback, phase=phase, oo=oo)
+    toolbox = GA_setup(tour)
+    toolbox.register("evaluate", score_evaluate,
+                     tour_sizes=tour_sizes, tour_M=tour_M)
+    tour, tour_fitness = GA_run(toolbox, ngen=1000, npop=100, cpus=cpus,
+                                callback=callbacki)
 
-    # Flip orientations
-    clm.flip_all(tour)
-    for gen in (1, 2):
-        print_tour(fwtour, tour, "FLIPALL-{}".format(gen), tour_contigs, oo, signs=clm.signs)
-        clm.flip_whole(tour)
-        print_tour(fwtour, tour, "FLIPWHOLE-{}".format(gen), tour_contigs, oo, signs=clm.signs)
-        clm.flip_one(tour)
-        print_tour(fwtour, tour, "FLIPONE-{}".format(gen), tour_contigs, oo, signs=clm.signs)
+    tour = clm.prune_tour(tour, cpus)
+    return tour
 
-    fwtour.close()
+
+def optimize_orientations(fwtour, clm, phase, cpus):
+    """
+    Optimize the orientations of contigs by using score_evaluate_oriented() and
+    heuristic flipping algorithms.
+    """
+    # Prepare input files
+    tour_contigs = clm.active_contigs
+    tour = clm.tour
+    oo = clm.oo
+
+    print_tour(fwtour, tour, "FLIPALL{}".format(phase), tour_contigs, oo, signs=clm.signs)
+    tag1 = clm.flip_whole(tour)
+    print_tour(fwtour, tour, "FLIPWHOLE{}".format(phase), tour_contigs, oo, signs=clm.signs)
+    tag2 = clm.flip_one(tour)
+    print_tour(fwtour, tour, "FLIPONE{}".format(phase), tour_contigs, oo, signs=clm.signs)
+
+    return tag1, tag2
 
 
 def prepare_synteny(tourfile, lastfile, odir, p, opts):
@@ -855,7 +897,8 @@ def movie(args):
                  help="Only plot every N frames")
     p.set_beds()
     opts, args, iopts = p.set_image_options(args, figsize="16x8",
-                                            style="white", cmap="coolwarm")
+                                            style="white", cmap="coolwarm",
+                                            format="png", dpi=300)
 
     if len(args) != 3:
         sys.exit(not p.print_help())
@@ -903,7 +946,7 @@ def movie(args):
     Jobs(movieframe, args).run()
 
     os.chdir(cwd)
-    make_movie(odir, odir)
+    make_movie(odir, odir, format=iopts.format)
 
 
 def score(args):
@@ -1027,7 +1070,8 @@ def movieframe(args):
     p.set_beds()
     p.set_outfile(outfile=None)
     opts, args, iopts = p.set_image_options(args, figsize="16x8",
-                                            style="white", cmap="coolwarm")
+                                            style="white", cmap="coolwarm",
+                                            format="png", dpi=300)
 
     if len(args) != 3:
         sys.exit(not p.print_help())

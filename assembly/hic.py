@@ -101,7 +101,7 @@ class CLMFile:
         self.idsfile = clmfile.rsplit(".", 1)[0] + ".ids"
         self.parse_ids(skiprecover)
         self.parse_clm()
-        self.signs = {}
+        self.signs = []
 
     def parse_ids(self, skiprecover):
         '''IDS file has a list of contigs that need to be ordered. 'recover',
@@ -219,6 +219,7 @@ class CLMFile:
             self.signs = np.array(signs, dtype=int)
             if backuptour:
                 backup(tourfile)
+            tour = array.array('i', tour)
         else:
             self.report_active()
             while True:
@@ -235,12 +236,13 @@ class CLMFile:
             logging.debug("Remove contigs with size < {}".format(minsize))
             self.active = set(x for x in self.active if self.tig_to_size[x] >= minsize)
             tour = range(self.N)  # Use starting (random) order otherwise
+            tour = array.array('i', tour)
 
             # Determine orientations
             self.flip_all(tour)
 
         self.report_active()
-        self.tour = tour = array.array('i', tour)
+        self.tour = tour
         return tour
 
     def evaluate_tour(self, tour):
@@ -263,8 +265,12 @@ class CLMFile:
     def flip_all(self, tour):
         """ Initialize the orientations based on pairwise O matrix.
         """
-        old_signs = self.signs[:]
-        score, = self.evaluate_tour_oriented(tour)
+        if not self.signs:  # First run
+            score = 0
+        else:
+            old_signs = self.signs[:]
+            score, = self.evaluate_tour_oriented(tour)
+
         self.signs = get_signs(self.O, validate=False)
         score_flipped, = self.evaluate_tour_oriented(tour)
         if score_flipped > score:
@@ -502,7 +508,7 @@ def simulate(args):
     GenomeSize = 10000000
     Genes = 1000
     Contigs = 100
-    Coverage = .01
+    Coverage = 10
     PE = 500
     Links = int(GenomeSize * Coverage / PE)
 
@@ -540,8 +546,6 @@ def simulate(args):
     # Find link to contig membership
     LinkStartContigs = np.searchsorted(ContigStarts, LinkStarts) - 1
     LinkEndContigs = np.searchsorted(ContigStarts, LinkEnds) - 1
-    print LinkStarts
-    print LinkStartContigs
 
     # Extract inter-contig links
     InterContigLinks = (LinkStartContigs != LinkEndContigs) & \
@@ -552,17 +556,11 @@ def simulate(args):
     ICLinkEnds = LinkEnds[InterContigLinks]
 
     # Write CLM file
-    write_clm(ICLinkStartContigs, ICLinkEndContigs, ICLinkStarts, ICLinkEnds,
+    write_clm(pf, ICLinkStartContigs, ICLinkEndContigs, ICLinkStarts, ICLinkEnds,
               ContigStarts, ContigSizes)
-    '''
-    print ICLinkStartContigs
-    print ICLinkEndContigs
-    print ICLinkStarts
-    print ICLinkEnds
-    '''
 
 
-def write_clm(ICLinkStartContigs, ICLinkEndContigs, ICLinkStarts, ICLinkEnds,
+def write_clm(pf, ICLinkStartContigs, ICLinkEndContigs, ICLinkStarts, ICLinkEnds,
               ContigStarts, ContigSizes):
     """
     Write CLM file from simulated data.
@@ -574,9 +572,29 @@ def write_clm(ICLinkStartContigs, ICLinkEndContigs, ICLinkStarts, ICLinkEnds,
         start_b = start_a + ContigSizes[start]
         end_a = ContigStarts[end]
         end_b = end_a + ContigSizes[end]
+        if linkend >= end_b:
+            continue
         clm[(start, end)].append((linkstart - start_a, start_b - linkstart,
                                   linkend - end_a, end_b - linkend))
-    print clm
+
+    clmfile = pf + ".clm"
+    fw = open(clmfile, "w")
+    format_array = lambda _: [str(x) for x in sorted(_) if x > 0]
+    for (start, end), links in sorted(clm.items()):
+        start = "tig{:04d}".format(start)
+        end = "tig{:04d}".format(end)
+        nlinks = len(links)
+        if not nlinks:
+            continue
+        ff = format_array([(b + c) for a, b, c, d in links])
+        fr = format_array([(b + d) for a, b, c, d in links])
+        rf = format_array([(a + c) for a, b, c, d in links])
+        rr = format_array([(a + d) for a, b, c, d in links])
+        print >> fw, "{}+ {}+\t{}\t{}".format(start, end, nlinks, " ".join(ff))
+        print >> fw, "{}+ {}-\t{}\t{}".format(start, end, nlinks, " ".join(fr))
+        print >> fw, "{}- {}+\t{}\t{}".format(start, end, nlinks, " ".join(rf))
+        print >> fw, "{}- {}-\t{}\t{}".format(start, end, nlinks, " ".join(rr))
+    fw.close()
 
 
 def density(args):
@@ -666,17 +684,6 @@ def optimize(args):
         print_tour(fwtour, tour, label, tour_contigs, oo, signs=signs)
         return tour
 
-    # Store INIT tour
-    print_tour(fwtour, tour, "INIT", tour_contigs, oo, signs=clm.signs)
-    clm.flip_all(tour)
-    for gen in (1, 2):
-        print_tour(fwtour, tour, "FLIPALL-{}".format(gen), tour_contigs, oo, signs=clm.signs)
-        clm.flip_whole(tour)
-        print_tour(fwtour, tour, "FLIPWHOLE-{}".format(gen), tour_contigs, oo, signs=clm.signs)
-        clm.flip_one(tour)
-        print_tour(fwtour, tour, "FLIPONE-{}".format(gen), tour_contigs, oo, signs=clm.signs)
-    return
-
     # Faster Cython version for evaluation
     from .chic import score_evaluate
     callbacki = partial(callback, oo=oo)
@@ -686,6 +693,17 @@ def optimize(args):
     tour, tour.fitness = GA_run(toolbox, ngen=1000, npop=100, cpus=opts.cpus,
                                 callback=callbacki)
     print tour, tour.fitness
+
+    # Store INIT tour
+    print_tour(fwtour, tour, "FLIPINIT", tour_contigs, oo, signs=clm.signs)
+    clm.flip_all(tour)
+    for gen in (1, 2):
+        print_tour(fwtour, tour, "FLIPALL-{}".format(gen), tour_contigs, oo, signs=clm.signs)
+        clm.flip_whole(tour)
+        print_tour(fwtour, tour, "FLIPWHOLE-{}".format(gen), tour_contigs, oo, signs=clm.signs)
+        clm.flip_one(tour)
+        print_tour(fwtour, tour, "FLIPONE-{}".format(gen), tour_contigs, oo, signs=clm.signs)
+
     fwtour.close()
 
 

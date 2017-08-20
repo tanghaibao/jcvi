@@ -756,7 +756,7 @@ def prepare_synteny(tourfile, lastfile, odir, p, opts):
     contig_to_beds = dict(qbed.sub_beds())
 
     # Create a separate directory for the subplots and movie
-    mkdir(odir)
+    mkdir(odir, overwrite=True)
     os.chdir(odir)
     logging.debug("Change into subdir `{}`".format(odir))
 
@@ -821,7 +821,8 @@ def iter_tours(tourfile, frames=1):
     """
     fp = open(tourfile)
 
-    for i, row in enumerate(fp):
+    i = 0
+    for row in fp:
         if row[0] == '>':
             label = row[1:].strip()
             if label.startswith("GA"):
@@ -829,7 +830,7 @@ def iter_tours(tourfile, frames=1):
                 j = int(j)
             else:
                 j = 0
-            continue
+            i += 1
         else:
             if j % frames != 0:
                 continue

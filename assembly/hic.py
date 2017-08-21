@@ -226,7 +226,8 @@ class CLMFile:
                 logdensities = self.calculate_densities()
                 lb, ub = outlier_cutoff(logdensities.values())
                 logging.debug("Log10(link_densities) ~ [{}, {}]".format(lb, ub))
-                remove = set(x for x, d in logdensities.items() if (d < lb or d > ub))
+                remove = set(x for x, d in logdensities.items() \
+                                if (d < lb and self.tig_to_size[x] < minsize * 10))
                 if remove:
                     self.active -= remove
                     self.report_active()

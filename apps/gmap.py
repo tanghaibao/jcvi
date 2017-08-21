@@ -77,7 +77,7 @@ def check_index(dbfile, supercat=False, go=True):
             updated = True
         dbfile = supercatfile + ".fasta"
 
-    dbfile = get_abs_path(dbfile)
+    #dbfile = get_abs_path(dbfile)
     dbdir, filename = op.split(dbfile)
     if not dbdir:
         dbdir = "."

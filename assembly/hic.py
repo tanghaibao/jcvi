@@ -259,14 +259,15 @@ class CLMFile:
 
     def evaluate_tour_P(self, tour):
         """ Use Cythonized version to evaluate the score of a current tour,
-        taking orientation into consideration.
+        with better precision on the distance of the contigs.
         """
         from .chic import score_evaluate_P
         return score_evaluate_P(tour, self.active_sizes, self.P)
 
     def evaluate_tour_Q(self, tour):
         """ Use Cythonized version to evaluate the score of a current tour,
-        with better precision on the distance of the contigs.
+        taking orientation into consideration. This may be the most accurate
+        evaluation under the right condition.
         """
         from .chic import score_evaluate_Q
         return score_evaluate_Q(tour, self.active_sizes, self.Q)
@@ -340,14 +341,14 @@ class CLMFile:
         be an array of ints.
         """
         while True:
-            tour_score, = self.evaluate_tour_M(tour)
+            tour_score, = self.evaluate_tour_P(tour)
             logging.debug("Starting score: {}".format(tour_score))
             active_sizes = self.active_sizes
-            M = self.M
+            P = self.P
             args = []
             for i, t in enumerate(tour):
                 stour = tour[:i] + tour[i + 1:]
-                args.append((t, stour, tour_score, active_sizes, M))
+                args.append((t, stour, tour_score, active_sizes, P))
 
             # Parallel run
             p = Pool(processes=cpus)
@@ -359,8 +360,6 @@ class CLMFile:
             # Identify outliers
             active_contigs = self.active_contigs
             idx, _, log10deltas = zip(*results)
-            #for t, b, c in results:
-            #    print "\t".join(str(x) for x in (t, active_contigs[t], b, c))
             lb, ub = outlier_cutoff(log10deltas)
             logging.debug("Log10(delta_score) ~ [{}, {}]".format(lb, ub))
 
@@ -375,7 +374,6 @@ class CLMFile:
             if not remove:
                 break
 
-        self.tour = tour
         return tour
 
     @property
@@ -510,10 +508,10 @@ def golden_array(a, phi=1.61803398875, lb=LB, ub=UB):
 def prune_tour_worker(arg):
     """ Worker thread for CLMFile.prune_tour()
     """
-    from .chic import score_evaluate_M
+    from .chic import score_evaluate_P
 
-    t, stour, tour_score, active_sizes, M = arg
-    stour_score, = score_evaluate_M(stour, active_sizes, M)
+    t, stour, tour_score, active_sizes, P = arg
+    stour_score, = score_evaluate_P(stour, active_sizes, P)
     delta_score = tour_score - stour_score
     log10d = np.log10(delta_score) if delta_score >= 0 else -9
     return (t, delta_score, log10d)
@@ -718,11 +716,6 @@ def density(args):
     clm.flip_whole(tour)
     clm.flip_one(tour)
 
-    tour = clm.prune_tour(tour, opts.cpus)
-
-    score, = clm.evaluate_tour_M(tour)
-    logging.debug("Post-pruning score: {}".format(score))
-
 
 def optimize(args):
     """
@@ -761,7 +754,9 @@ def optimize(args):
 
     if runGA:
         for phase in range(1, 3):
-            optimize_ordering(fwtour, clm, phase, cpus)
+            tour = optimize_ordering(fwtour, clm, phase, cpus)
+            #tour = clm.prune_tour(tour, cpus)
+            clm.tour = tour
 
     # Flip orientations
     clm.flip_all(tour)
@@ -780,12 +775,12 @@ def optimize_ordering(fwtour, clm, phase, cpus):
     """
     Optimize the ordering of contigs by Genetic Algorithm (GA).
     """
-    from .chic import score_evaluate_M
+    from .chic import score_evaluate_P
 
     # Prepare input files
     tour_contigs = clm.active_contigs
     tour_sizes = clm.active_sizes
-    tour_M = clm.M
+    tour_P = clm.P
     tour = clm.tour
     signs = clm.signs
     oo = clm.oo
@@ -801,12 +796,11 @@ def optimize_ordering(fwtour, clm, phase, cpus):
 
     callbacki = partial(callback, phase=phase, oo=oo)
     toolbox = GA_setup(tour)
-    toolbox.register("evaluate", score_evaluate_M,
-                     tour_sizes=tour_sizes, tour_M=tour_M)
+    toolbox.register("evaluate", score_evaluate_P,
+                     tour_sizes=tour_sizes, tour_P=tour_P)
     tour, tour_fitness = GA_run(toolbox, ngen=1000, npop=100, cpus=cpus,
                                 callback=callbacki)
 
-    tour = clm.prune_tour(tour, cpus)
     return tour
 
 

@@ -74,7 +74,7 @@ def score_evaluate_P(array.array tour,
 
     cdef double s = 0.0
     cdef int size = len(tour)
-    cdef int a, b, c, ia, ib, ic
+    cdef int a, b, c, ia, ib
     cdef int dist
     for ia in range(size):
         a = tour[ia]
@@ -83,8 +83,10 @@ def score_evaluate_P(array.array tour,
             dist = sizes_cum[ib - 1] - sizes_cum[ia]
             if dist > LIMIT:
                 break
-            c, d = tour_P[a, b]
-            s += c / (d + dist)
+            c = tour_P[a, b, 0]
+            if c == 0:
+                continue
+            s += c / (tour_P[a, b, 1] + dist)
     return s,
 
 

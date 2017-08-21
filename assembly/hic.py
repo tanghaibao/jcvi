@@ -341,14 +341,14 @@ class CLMFile:
         be an array of ints.
         """
         while True:
-            tour_score, = self.evaluate_tour_P(tour)
+            tour_score, = self.evaluate_tour_M(tour)
             logging.debug("Starting score: {}".format(tour_score))
             active_sizes = self.active_sizes
-            P = self.P
+            M = self.M
             args = []
             for i, t in enumerate(tour):
                 stour = tour[:i] + tour[i + 1:]
-                args.append((t, stour, tour_score, active_sizes, P))
+                args.append((t, stour, tour_score, active_sizes, M))
 
             # Parallel run
             p = Pool(processes=cpus)
@@ -508,10 +508,10 @@ def golden_array(a, phi=1.61803398875, lb=LB, ub=UB):
 def prune_tour_worker(arg):
     """ Worker thread for CLMFile.prune_tour()
     """
-    from .chic import score_evaluate_P
+    from .chic import score_evaluate_M
 
-    t, stour, tour_score, active_sizes, P = arg
-    stour_score, = score_evaluate_P(stour, active_sizes, P)
+    t, stour, tour_score, active_sizes, M = arg
+    stour_score, = score_evaluate_M(stour, active_sizes, M)
     delta_score = tour_score - stour_score
     log10d = np.log10(delta_score) if delta_score >= 0 else -9
     return (t, delta_score, log10d)
@@ -775,12 +775,12 @@ def optimize_ordering(fwtour, clm, phase, cpus):
     """
     Optimize the ordering of contigs by Genetic Algorithm (GA).
     """
-    from .chic import score_evaluate_P
+    from .chic import score_evaluate_M
 
     # Prepare input files
     tour_contigs = clm.active_contigs
     tour_sizes = clm.active_sizes
-    tour_P = clm.P
+    tour_M = clm.M
     tour = clm.tour
     signs = clm.signs
     oo = clm.oo
@@ -791,13 +791,14 @@ def optimize_ordering(fwtour, clm, phase, cpus):
         if fitness:
             fitness = "{0}".format(fitness).split(",")[0].replace("(", "")
             label += "-" + fitness
-        print_tour(fwtour, tour, label, tour_contigs, oo, signs=signs)
+        if gen % 20 == 0:
+            print_tour(fwtour, tour, label, tour_contigs, oo, signs=signs)
         return tour
 
     callbacki = partial(callback, phase=phase, oo=oo)
     toolbox = GA_setup(tour)
-    toolbox.register("evaluate", score_evaluate_P,
-                     tour_sizes=tour_sizes, tour_P=tour_P)
+    toolbox.register("evaluate", score_evaluate_M,
+                     tour_sizes=tour_sizes, tour_M=tour_M)
     tour, tour_fitness = GA_run(toolbox, ngen=1000, npop=100, cpus=cpus,
                                 callback=callbacki)
 

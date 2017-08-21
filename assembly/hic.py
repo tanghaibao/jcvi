@@ -151,7 +151,7 @@ class CLMFile:
             if bt not in self.tig_to_size:
                 continue
             dists = [int(x) for x in dists.split()]
-            contacts[(at, bt)] = dists
+            contacts[(at, bt)] = len(dists)
             gdists = golden_array(dists)
             contacts_oriented[(at, bt)][(FF[ao], FF[bo])] = gdists
             contacts_oriented[(bt, at)][(RR[bo], RR[ao])] = gdists
@@ -160,6 +160,11 @@ class CLMFile:
 
         self.contacts = contacts
         self.contacts_oriented = contacts_oriented
+        # Preprocess the orientations dict
+        for (at, bt), dists in orientations.items():
+            dists = [(s, d, hmean_int(d)) for (s, d) in dists]
+            strandedness, md, mh = min(dists, key=lambda x: x[-1])
+            orientations[(at, bt)] = (strandedness, len(md), mh)
         self.orientations = orientations
 
     def calculate_densities(self):
@@ -170,11 +175,11 @@ class CLMFile:
         """
         active = self.active
         densities = defaultdict(int)
-        for (at, bt), dists in self.contacts.items():
+        for (at, bt), links in self.contacts.items():
             if not (at in active and bt in active):
                 continue
-            densities[at] += len(dists)
-            densities[bt] += len(dists)
+            densities[at] += links
+            densities[bt] += links
 
         logdensities = {}
         for x, d in densities.items():
@@ -246,18 +251,25 @@ class CLMFile:
         self.tour = tour
         return tour
 
-    def evaluate_tour(self, tour):
+    def evaluate_tour_M(self, tour):
         """ Use Cythonized version to evaluate the score of a current tour
         """
-        from .chic import score_evaluate
-        return score_evaluate(tour, self.active_sizes, self.M)
+        from .chic import score_evaluate_M
+        return score_evaluate_M(tour, self.active_sizes, self.M)
 
-    def evaluate_tour_oriented(self, tour):
+    def evaluate_tour_P(self, tour):
         """ Use Cythonized version to evaluate the score of a current tour,
         taking orientation into consideration.
         """
-        from .chic import score_evaluate_oriented
-        return score_evaluate_oriented(tour, self.active_sizes, self.P)
+        from .chic import score_evaluate_P
+        return score_evaluate_P(tour, self.active_sizes, self.P)
+
+    def evaluate_tour_Q(self, tour):
+        """ Use Cythonized version to evaluate the score of a current tour,
+        with better precision on the distance of the contigs.
+        """
+        from .chic import score_evaluate_Q
+        return score_evaluate_Q(tour, self.active_sizes, self.Q)
 
     def flip_log(self, method, score, score_flipped, tag):
         logging.debug("{}: {} => {} {}"\
@@ -270,10 +282,10 @@ class CLMFile:
             score = 0
         else:
             old_signs = self.signs[:]
-            score, = self.evaluate_tour_oriented(tour)
+            score, = self.evaluate_tour_Q(tour)
 
         self.signs = get_signs(self.O, validate=False)
-        score_flipped, = self.evaluate_tour_oriented(tour)
+        score_flipped, = self.evaluate_tour_Q(tour)
         if score_flipped > score:
             tag = ACCEPT
         else:
@@ -285,9 +297,9 @@ class CLMFile:
     def flip_whole(self, tour):
         """ Test flipping all contigs at the same time to see if score improves.
         """
-        score, = self.evaluate_tour_oriented(tour)
+        score, = self.evaluate_tour_Q(tour)
         self.signs = -self.signs
-        score_flipped, = self.evaluate_tour_oriented(tour)
+        score_flipped, = self.evaluate_tour_Q(tour)
         if score_flipped > score:
             tag = ACCEPT
         else:
@@ -304,9 +316,9 @@ class CLMFile:
         any_tag_ACCEPT = False
         for i, (t, s) in enumerate(zip(tour, self.signs)):
             if i == 0:
-                score, = self.evaluate_tour_oriented(tour)
+                score, = self.evaluate_tour_Q(tour)
             self.signs[t] = -self.signs[t]
-            score_flipped, = self.evaluate_tour_oriented(tour)
+            score_flipped, = self.evaluate_tour_Q(tour)
             if score_flipped > score:
                 n_accepts += 1
                 tag = ACCEPT
@@ -328,7 +340,7 @@ class CLMFile:
         be an array of ints.
         """
         while True:
-            tour_score, = self.evaluate_tour(tour)
+            tour_score, = self.evaluate_tour_M(tour)
             logging.debug("Starting score: {}".format(tour_score))
             active_sizes = self.active_sizes
             M = self.M
@@ -395,12 +407,12 @@ class CLMFile:
         N = self.N
         tig_to_idx = self.tig_to_idx
         M = np.zeros((N, N), dtype=int)
-        for (at, bt), dists in self.contacts.items():
+        for (at, bt), links in self.contacts.items():
             if not (at in tig_to_idx and bt in tig_to_idx):
                 continue
             ai = tig_to_idx[at]
             bi = tig_to_idx[bt]
-            M[ai, bi] = M[bi, ai] = len(dists)
+            M[ai, bi] = M[bi, ai] = links
         return M
 
     @property
@@ -412,19 +424,39 @@ class CLMFile:
         N = self.N
         tig_to_idx = self.tig_to_idx
         O = np.zeros((N, N), dtype=int)
-        for (at, bt), dists in self.orientations.items():
+        for (at, bt), (strandedness, md, mh) in self.orientations.items():
             if not (at in tig_to_idx and bt in tig_to_idx):
                 continue
             ai = tig_to_idx[at]
             bi = tig_to_idx[bt]
-            strandedness, md = min(dists, key=lambda x: sum(x[1]))
-            score = strandedness * len(md)
-            #print at, bt, dists, score
+            score = strandedness * md
             O[ai, bi] = O[bi, ai] = score
         return O
 
     @property
     def P(self):
+        """
+        Contact frequency matrix with better precision on distance between
+        contigs. In the matrix M, the distance is assumed to be the distance
+        between mid-points of two contigs. In matrix Q, however, we compute the
+        harmonic mean of the links for the orientation configuration that is the
+        shortest. This offers better precision for the distance between big
+        contigs.
+        """
+        N = self.N
+        tig_to_idx = self.tig_to_idx
+        P = np.zeros((N, N, 2), dtype=int)
+        for (at, bt), (strandedness, md, mh) in self.orientations.items():
+            if not (at in tig_to_idx and bt in tig_to_idx):
+                continue
+            ai = tig_to_idx[at]
+            bi = tig_to_idx[bt]
+            P[ai, bi, 0] = P[bi, ai, 0] = md
+            P[ai, bi, 1] = P[bi, ai, 1] = mh
+        return P
+
+    @property
+    def Q(self):
         """
         Contact frequency matrix when contigs are already oriented. This is s a
         similar matrix as M, but rather than having the number of links in the
@@ -433,7 +465,7 @@ class CLMFile:
         N = self.N
         tig_to_idx = self.tig_to_idx
         signs = self.signs
-        P = np.ones((N, N, BB), dtype=int) * -1  # Use -1 as the sentinel
+        Q = np.ones((N, N, BB), dtype=int) * -1  # Use -1 as the sentinel
         for (at, bt), k in self.contacts_oriented.items():
             if not (at in tig_to_idx and bt in tig_to_idx):
                 continue
@@ -441,8 +473,15 @@ class CLMFile:
             bi = tig_to_idx[bt]
             ao = signs[ai]
             bo = signs[bi]
-            P[ai, bi] = k[(ao, bo)]
-        return P
+            Q[ai, bi] = k[(ao, bo)]
+        return Q
+
+
+def hmean_int(a):
+    """ Harmonic mean of an array, returns the closest int
+    """
+    from scipy.stats import hmean
+    return int(round(hmean(a)))
 
 
 def golden_array(a, phi=1.61803398875, lb=LB, ub=UB):
@@ -471,10 +510,10 @@ def golden_array(a, phi=1.61803398875, lb=LB, ub=UB):
 def prune_tour_worker(arg):
     """ Worker thread for CLMFile.prune_tour()
     """
-    from .chic import score_evaluate
+    from .chic import score_evaluate_M
 
     t, stour, tour_score, active_sizes, M = arg
-    stour_score, = score_evaluate(stour, active_sizes, M)
+    stour_score, = score_evaluate_M(stour, active_sizes, M)
     delta_score = tour_score - stour_score
     log10d = np.log10(delta_score) if delta_score >= 0 else -9
     return (t, delta_score, log10d)
@@ -681,7 +720,7 @@ def density(args):
 
     tour = clm.prune_tour(tour, opts.cpus)
 
-    score, = clm.evaluate_tour(tour)
+    score, = clm.evaluate_tour_M(tour)
     logging.debug("Post-pruning score: {}".format(score))
 
 
@@ -739,10 +778,9 @@ def optimize(args):
 
 def optimize_ordering(fwtour, clm, phase, cpus):
     """
-    Optimize the ordering of contigs by using score_evaluate() and Genetic
-    Algorithm (GA).
+    Optimize the ordering of contigs by Genetic Algorithm (GA).
     """
-    from .chic import score_evaluate
+    from .chic import score_evaluate_M
 
     # Prepare input files
     tour_contigs = clm.active_contigs
@@ -763,7 +801,7 @@ def optimize_ordering(fwtour, clm, phase, cpus):
 
     callbacki = partial(callback, phase=phase, oo=oo)
     toolbox = GA_setup(tour)
-    toolbox.register("evaluate", score_evaluate,
+    toolbox.register("evaluate", score_evaluate_M,
                      tour_sizes=tour_sizes, tour_M=tour_M)
     tour, tour_fitness = GA_run(toolbox, ngen=1000, npop=100, cpus=cpus,
                                 callback=callbacki)
@@ -774,8 +812,7 @@ def optimize_ordering(fwtour, clm, phase, cpus):
 
 def optimize_orientations(fwtour, clm, phase, cpus):
     """
-    Optimize the orientations of contigs by using score_evaluate_oriented() and
-    heuristic flipping algorithms.
+    Optimize the orientations of contigs by using heuristic flipping algorithms.
     """
     # Prepare input files
     tour_contigs = clm.active_contigs
@@ -1007,10 +1044,10 @@ def score(args):
         print_tour(fwtour, tour, "INIT", contig_names, oo)
 
         # Faster Cython version for evaluation
-        from .chic import score_evaluate
+        from .chic import score_evaluate_M
         callbacki = partial(callback, oo=oo)
         toolbox = GA_setup(tour)
-        toolbox.register("evaluate", score_evaluate,
+        toolbox.register("evaluate", score_evaluate_M,
                          tour_sizes=tour_sizes, tour_M=tour_M)
         tour, tour.fitness = GA_run(toolbox, npop=100, cpus=opts.cpus,
                                     callback=callbacki)
@@ -1044,6 +1081,9 @@ def prepare_ec(oo, sizes, M):
 
 
 def score_evaluate(tour, tour_sizes=None, tour_M=None):
+    """ SLOW python version of the evaluation function. For benchmarking
+    purposes only. Do not use in production.
+    """
     sizes_oo = np.array([tour_sizes[x] for x in tour])
     sizes_cum = np.cumsum(sizes_oo) - sizes_oo / 2
     s = 0
@@ -1106,13 +1146,13 @@ def movieframe(args):
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
-def make_bins(tour, sizes):
+def make_bins(tour, sizes, binsize=100000):
     breaks = []
     start = 0
     bins = {}
     for x in tour:
         size = sizes[x]
-        end = start + int(math.ceil(size / 100000.))
+        end = start + int(math.ceil(size * 1. / binsize))
         bins[x] = (start, end)
         start = end
     breaks.append(start)
@@ -1123,13 +1163,11 @@ def make_bins(tour, sizes):
 
 def read_clm(clm, totalbins, bins):
     M = np.zeros((totalbins, totalbins))
-    for (x, y), dists in clm.contacts.items():
+    for (x, y), z in clm.contacts.items():
         if x not in bins or y not in bins:
             continue
         xstart, xend = bins[x]
         ystart, yend = bins[y]
-        #z = float(z) / ((xend - xstart) * (yend - ystart))
-        z = len(dists)
         M[xstart:xend, ystart:yend] = z
         M[ystart:yend, xstart:xend] = z
 

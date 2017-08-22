@@ -282,7 +282,7 @@ class CLMFile:
         if self.signs is None:  # First run
             score = 0
         else:
-            old_signs = self.signs[:]
+            old_signs = self.signs[:self.N]
             score, = self.evaluate_tour_Q(tour)
 
         self.signs = get_signs(self.O, validate=False)
@@ -315,7 +315,7 @@ class CLMFile:
         """
         n_accepts = n_rejects = 0
         any_tag_ACCEPT = False
-        for i, (t, s) in enumerate(zip(tour, self.signs)):
+        for i, t in enumerate(tour):
             if i == 0:
                 score, = self.evaluate_tour_Q(tour)
             self.signs[t] = -self.signs[t]
@@ -359,11 +359,11 @@ class CLMFile:
 
             # Identify outliers
             active_contigs = self.active_contigs
-            idx, _, log10deltas = zip(*results)
+            idx, log10deltas = zip(*results)
             lb, ub = outlier_cutoff(log10deltas)
             logging.debug("Log10(delta_score) ~ [{}, {}]".format(lb, ub))
 
-            remove = set(active_contigs[x] for (x, _, d) in results if d < lb)
+            remove = set(active_contigs[x] for (x, d) in results if d < lb)
             self.active -= remove
             self.report_active()
 
@@ -373,6 +373,9 @@ class CLMFile:
                                         if x not in remove])
             if not remove:
                 break
+
+        self.tour = tour
+        self.flip_all(tour)
 
         return tour
 
@@ -513,8 +516,8 @@ def prune_tour_worker(arg):
     t, stour, tour_score, active_sizes, M = arg
     stour_score, = score_evaluate_M(stour, active_sizes, M)
     delta_score = tour_score - stour_score
-    log10d = np.log10(delta_score) if delta_score >= 0 else -9
-    return (t, delta_score, log10d)
+    log10d = np.log10(delta_score) if delta_score > 1e-9 else -9
+    return t, log10d
 
 
 def main():
@@ -755,11 +758,9 @@ def optimize(args):
     if runGA:
         for phase in range(1, 3):
             tour = optimize_ordering(fwtour, clm, phase, cpus)
-            #tour = clm.prune_tour(tour, cpus)
-            clm.tour = tour
+            tour = clm.prune_tour(tour, cpus)
 
     # Flip orientations
-    clm.flip_all(tour)
     phase = 1
     while True:
         tag1, tag2 = optimize_orientations(fwtour, clm, phase, cpus)

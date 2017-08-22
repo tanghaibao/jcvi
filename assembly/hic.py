@@ -32,7 +32,7 @@ from jcvi.formats.sizes import Sizes
 from jcvi.formats.blast import Blast
 from jcvi.graphics.base import normalize_axes, plt, savefig
 from jcvi.graphics.dotplot import dotplot
-from jcvi.utils.cbook import gene_name
+from jcvi.utils.cbook import gene_name, human_size
 from jcvi.utils.natsort import natsorted
 
 
@@ -44,6 +44,7 @@ UB = 29             # Upper bound for golden_array()
 BB = UB - LB + 1    # Span for golden_array()
 ACCEPT = green("ACCEPT")
 REJECT = red("REJECT")
+BINSIZE = 50000
 
 
 class ContigOrderingLine(object):
@@ -1143,13 +1144,13 @@ def movieframe(args):
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
-def make_bins(tour, sizes, binsize=100000):
+def make_bins(tour, sizes):
     breaks = []
     start = 0
     bins = {}
     for x in tour:
         size = sizes[x]
-        end = start + int(math.ceil(size * 1. / binsize))
+        end = start + int(round(size * 1. / BINSIZE))
         bins[x] = (start, end)
         start = end
     breaks.append(start)
@@ -1184,6 +1185,9 @@ def plot_heatmap(ax, M, breaks, iopts):
                         family='Helvetica', color="gray")
     ax.set_yticklabels([int(x) for x in ax.get_yticks()],
                         family='Helvetica', color="gray")
+    binlabel = "Bins ({} per bin)".format(human_size(BINSIZE, precision=0))
+    ax.set_xlabel(binlabel)
+    ax.set_ylabel(binlabel)
 
 
 def agp(args):

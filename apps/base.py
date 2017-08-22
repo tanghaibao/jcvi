@@ -1643,14 +1643,12 @@ def getpath(cmd, name=None, url=None, cfg="~/.jcvirc", warn="exit"):
         changed = True
 
     path = op.join(op.expanduser(fullpath), cmd)
-    try:
-        assert is_exe(path), \
-            "***ERROR: Cannot execute binary `{0}`. ".format(path)
-    except AssertionError, e:
-        if warn == "exit":
+    if warn == "exit":
+        try:
+            assert is_exe(path), \
+                "***ERROR: Cannot execute binary `{0}`. ".format(path)
+        except AssertionError, e:
             sys.exit("{0!s}Please verify and rerun.".format(e))
-        elif warn == "warn":
-            logging.warning("{0!s}Some functions may not work.***".format(e))
 
     if changed:
         configfile = open(cfg, "w")

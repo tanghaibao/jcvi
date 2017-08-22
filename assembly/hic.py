@@ -478,11 +478,11 @@ class CLMFile:
         return Q
 
 
-def hmean_int(a):
+def hmean_int(a, a_min=5778, a_max=1149851):
     """ Harmonic mean of an array, returns the closest int
     """
     from scipy.stats import hmean
-    return int(round(hmean(a)))
+    return int(round(hmean(np.clip(a, a_min, a_max))))
 
 
 def golden_array(a, phi=1.61803398875, lb=LB, ub=UB):
@@ -802,6 +802,7 @@ def optimize_ordering(fwtour, clm, phase, cpus):
                      tour_sizes=tour_sizes, tour_M=tour_M)
     tour, tour_fitness = GA_run(toolbox, ngen=1000, npop=100, cpus=cpus,
                                 callback=callbacki)
+    clm.tour = tour
 
     return tour
 

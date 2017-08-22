@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from setuptools import setup, find_packages
-from distutils.extension import Extension
+from setuptools.extension import Extension
 import numpy
 
 
@@ -25,7 +25,7 @@ setup(
       packages=[name] + ['.'.join((name, x)) for x in find_packages()],
       include_package_data=True,
       package_data={"jcvi.utils.data": ["*.*"]},
-      ext_modules=[Extension("assembly.chic", ["assembly/chic.c"],
+      ext_modules=[Extension("jcvi.assembly.chic", ["assembly/chic.c"],
                              include_dirs=[numpy.get_include()],
                              extra_compile_args=["-O3"])
       ],
@@ -37,5 +37,5 @@ setup(
                   'annotation and comparative genomics',
       long_description=open("README.md").read(),
       install_requires=['biopython', 'deap',
-                        'matplotlib', 'networkx', 'numpy']
+                        'matplotlib', 'networkx', 'numpy'],
  )

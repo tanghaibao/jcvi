@@ -37,8 +37,8 @@ from jcvi.utils.natsort import natsorted
 
 
 # Map orientations to ints
-FF = {'+': 1, '-': -1, '?': 0}
-RR = {'+': -1, '-': 1, '?': 0}
+FF = {'+': 1, '-': -1, '?': 1}
+RR = {'+': -1, '-': 1, '?': -1}
 LB = 18             # Lower bound for golden_array()
 UB = 29             # Upper bound for golden_array()
 BB = UB - LB + 1    # Span for golden_array()
@@ -250,6 +250,7 @@ class CLMFile:
 
         self.report_active()
         self.tour = tour
+
         return tour
 
     def evaluate_tour_M(self, tour):
@@ -286,7 +287,8 @@ class CLMFile:
             old_signs = self.signs[:self.N]
             score, = self.evaluate_tour_Q(tour)
 
-        self.signs = get_signs(self.O, validate=False)
+        # Remember we cannot have ambiguous orientation code (0 or '?') here
+        self.signs = get_signs(self.O, validate=False, ambiguous=False)
         score_flipped, = self.evaluate_tour_Q(tour)
         if score_flipped > score:
             tag = ACCEPT

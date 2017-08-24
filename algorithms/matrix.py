@@ -88,7 +88,7 @@ def symmetrize(M):
     return M + M.T - np.diag(M.diagonal())
 
 
-def get_signs(M, cutoff=1e-10, validate=True):
+def get_signs(M, cutoff=1e-10, validate=True, ambiguous=True):
     """
     Given a numpy array M that contains pairwise orientations, find the largest
     eigenvalue and associated eigenvector and return the signs for the
@@ -127,6 +127,9 @@ def get_signs(M, cutoff=1e-10, validate=True):
         # The final result should have all pairwise in the same direction
         assert (final >= 0).all(), \
                 "result check fails:\n{0}".format(final)
+
+    if not ambiguous:   # Do we allow ambiguous orientation (=0) ?
+        sign_array[sign_array == 0] = 1
 
     return sign_array
 

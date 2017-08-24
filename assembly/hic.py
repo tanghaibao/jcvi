@@ -730,6 +730,8 @@ def optimize(args):
     Optimize the contig order and orientation, based on CLM file.
     """
     p = OptionParser(optimize.__doc__)
+    p.add_option("--skiprecover", default=False, action="store_true",
+                 help="Do not import 'recover' contigs")
     p.add_option("--startover", default=False, action="store_true",
                  help="Do not resume from existing tour file")
     p.add_option("--skipGA", default=False, action="store_true",
@@ -747,7 +749,7 @@ def optimize(args):
     cpus = opts.cpus
 
     # Load contact map
-    clm = CLMFile(clmfile)
+    clm = CLMFile(clmfile, skiprecover=opts.skiprecover)
 
     tourfile = opts.outfile or clmfile.rsplit(".", 1)[0] + ".tour"
     if startover:

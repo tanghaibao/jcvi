@@ -31,7 +31,7 @@ cdef int *GR = \
        271443,  439204,  710647, 1149851]
 
 
-def score_evaluate_M(array.array tour,
+def score_evaluate_M(array.array[int] tour,
                    np.ndarray[INT, ndim=1] tour_sizes=None,
                    np.ndarray[INT, ndim=2] tour_M=None):
     cdef np.ndarray[INT, ndim=1] sizes_oo = tour_sizes[tour]
@@ -56,7 +56,7 @@ def score_evaluate_M(array.array tour,
     return s,
 
 
-def score_evaluate_P(array.array tour,
+def score_evaluate_P(array.array[int] tour,
                      np.ndarray[INT, ndim=1] tour_sizes=None,
                      np.ndarray[INT, ndim=3] tour_P=None):
     cdef np.ndarray[INT, ndim=1] sizes_oo = tour_sizes[tour]
@@ -80,7 +80,7 @@ def score_evaluate_P(array.array tour,
     return s,
 
 
-def score_evaluate_Q(array.array tour,
+def score_evaluate_Q(array.array[int] tour,
                      np.ndarray[INT, ndim=1] tour_sizes=None,
                      np.ndarray[INT, ndim=3] tour_Q=None):
     cdef np.ndarray[INT, ndim=1] sizes_oo = tour_sizes[tour]

@@ -116,7 +116,7 @@ class Region (object):
 
     def __init__(self, ax, ext, layout, bed, scale, switch=None,
                  chr_label=True, loc_label=True,
-                 pad=.04, vpad=.012, extra_features=None):
+                 pad=.05, vpad=.015, extra_features=None):
         x, y = layout.x, layout.y
         ratio = layout.ratio
         scale /= ratio
@@ -240,7 +240,7 @@ class Synteny (object):
 
     def __init__(self, fig, root, datafile, bedfile, layoutfile,
                  switch=None, tree=None, extra_features=None,
-                 chr_label=True, loc_label=True, pad=.04,
+                 chr_label=True, loc_label=True, pad=.05, vpad=.015,
                  scalebar=False):
 
         w, h = fig.get_figwidth(), fig.get_figheight()
@@ -274,7 +274,7 @@ class Synteny (object):
         self.gg = gg = {}
         self.rr = []
         ymids = []
-        vpad = .012 * w / h
+        #vpad = .012 * w / h
         for i in xrange(bf.ncols):
             ext = exts[i]
             ef = extras[i] if extras else None

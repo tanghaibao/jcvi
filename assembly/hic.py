@@ -290,7 +290,7 @@ class CLMFile:
         # Remember we cannot have ambiguous orientation code (0 or '?') here
         self.signs = get_signs(self.O, validate=False, ambiguous=False)
         score_flipped, = self.evaluate_tour_Q(tour)
-        if score_flipped > score:
+        if score_flipped >= score:
             tag = ACCEPT
         else:
             self.signs = old_signs[:]

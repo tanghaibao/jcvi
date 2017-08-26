@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-# -*- coding: UTF-8 -*-
+#cython: boundscheck=False, wraparound=False, initializedcheck=False, cdivision=True
 
 """
 Cythonized version of score_evaluate() in hic.py.
@@ -32,22 +31,17 @@ cdef int *GR = \
        271443,  439204,  710647, 1149851]
 
 
-@cython.boundscheck(False)  # Turn off bounds-checking
-@cython.wraparound(False)   # Turn off negative index wrapping
 def score_evaluate_M(array.array tour,
                    np.ndarray[INT, ndim=1] tour_sizes=None,
                    np.ndarray[INT, ndim=2] tour_M=None):
-
-    cdef int x
-    cdef np.ndarray sizes_oo = \
-                np.array([tour_sizes[x] for x in tour])
-    cdef np.ndarray sizes_cum = np.cumsum(sizes_oo) - sizes_oo // 2
+    cdef np.ndarray[INT, ndim=1] sizes_oo = tour_sizes[tour]
+    cdef np.ndarray[INT, ndim=1] sizes_cum = np.cumsum(sizes_oo) - sizes_oo // 2
 
     cdef double s = 0.0
     cdef int size = len(tour)
     cdef int a, b, ia, ib
     cdef int links
-    cdef int dist
+    cdef double dist
     for ia in range(size):
         a = tour[ia]
         for ib in range(ia + 1, size):
@@ -62,20 +56,16 @@ def score_evaluate_M(array.array tour,
     return s,
 
 
-@cython.boundscheck(False)  # Turn off bounds-checking
-@cython.wraparound(False)   # Turn off negative index wrapping
 def score_evaluate_P(array.array tour,
                      np.ndarray[INT, ndim=1] tour_sizes=None,
                      np.ndarray[INT, ndim=3] tour_P=None):
-    cdef int x
-    cdef np.ndarray sizes_oo = \
-                np.array([tour_sizes[x] for x in tour])
-    cdef np.ndarray sizes_cum = np.cumsum(sizes_oo)
+    cdef np.ndarray[INT, ndim=1] sizes_oo = tour_sizes[tour]
+    cdef np.ndarray[INT, ndim=1] sizes_cum = np.cumsum(sizes_oo)
 
     cdef double s = 0.0
     cdef int size = len(tour)
     cdef int a, b, c, ia, ib
-    cdef int dist
+    cdef double dist
     for ia in range(size):
         a = tour[ia]
         for ib in range(ia + 1, size):
@@ -90,20 +80,16 @@ def score_evaluate_P(array.array tour,
     return s,
 
 
-@cython.boundscheck(False)  # Turn off bounds-checking
-@cython.wraparound(False)   # Turn off negative index wrapping
 def score_evaluate_Q(array.array tour,
                      np.ndarray[INT, ndim=1] tour_sizes=None,
                      np.ndarray[INT, ndim=3] tour_Q=None):
-    cdef int x
-    cdef np.ndarray sizes_oo = \
-                np.array([tour_sizes[x] for x in tour])
-    cdef np.ndarray sizes_cum = np.cumsum(sizes_oo)
+    cdef np.ndarray[INT, ndim=1] sizes_oo = tour_sizes[tour]
+    cdef np.ndarray[INT, ndim=1] sizes_cum = np.cumsum(sizes_oo)
 
     cdef double s = 0.0
     cdef int size = len(tour)
     cdef int a, b, c, ia, ib, ic
-    cdef int dist
+    cdef double dist
     for ia in range(size):
         a = tour[ia]
         for ib in range(ia + 1, size):

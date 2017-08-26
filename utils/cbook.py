@@ -332,7 +332,17 @@ def gene_name(st, exclude=("ev",), sep="."):
         sep = None
     st = st.split('|')[0]
 
-    return st.rsplit(sep, 1)[0]
+    if sep in st:
+        name, suffix = st.rsplit(sep, 1)
+    else:
+        name, suffix = st, ""
+
+    # We only want to remove suffix that are isoforms, longer suffix would
+    # suggest that it is part of the right gene name
+    if len(suffix) != 1:
+        name = st
+
+    return name
 
 
 def seqid_parse(seqid, sep=["-"], stdpf=True):

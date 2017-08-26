@@ -12,9 +12,9 @@ layout provides configuration for placement of tracks and mapping file between t
 Layout file example - first section specify how to draw each track. Then the "edges"
 section specify which connections to draw.
 
-# y, xstart, xend, rotation, color, label, va, bed
-.6, .1, .4, 0, m, Grape, top, grape.bed
-.4, .3, .6, 60, k, Athaliana, top, athaliana.bed
+# y, xstart, xend, rotation, color, label, va, bed, label_va
+.6, .1, .4, 0, m, Grape, top, grape.bed, center
+.4, .3, .6, 60, k, Athaliana, top, athaliana.bed, center
 # edges
 e, 0, 1, athaliana.grape.4x1.simple
 """
@@ -50,6 +50,10 @@ class LayoutLine (object):
         self.label = args[5]
         self.va = args[6]
         self.bed = Bed(args[7])
+        if len(args) == 9:
+            self.label_va = args[8]
+        else:
+            self.label_va = "center"
         self.order = self.bed.order
         self.order_in_chr = self.bed.order_in_chr if generank \
                             else self.bed.bp_in_chr
@@ -87,7 +91,7 @@ class Layout (AbstractLayout):
         return SimpleFile(simplefile, order=order).blocks
 
 
-MaxSeqids = 20   # above which no labels are written
+MaxSeqids = 16   # above which no labels are written
 
 
 class Track (object):
@@ -105,6 +109,7 @@ class Track (object):
         self.label = t.label
         self.rotation = t.rotation
         self.va = t.va
+        self.label_va = t.label_va
         self.color = t.color if t.color != "None" else None
         self.seqids = t.seqids
         self.bed = t.bed
@@ -117,7 +122,7 @@ class Track (object):
         self.xend = t.xend
 
         # Rotation transform
-        x = (self.xstart + self.xend) / 2
+        self.x = x = (self.xstart + self.xend) / 2
         y = self.y
         self.tr = mpl.transforms.Affine2D().\
                     rotate_deg_around(x, y, self.rotation) + ax.transAxes
@@ -143,7 +148,7 @@ class Track (object):
     def __str__(self):
         return self.label
 
-    def draw(self, roundrect=False, plot_label=True):
+    def draw(self, roundrect=False, plot_label=True, vpad=.05):
         if self.empty:
             return
 
@@ -169,7 +174,8 @@ class Track (object):
             xx = (xstart + xend) / 2
             xstart = xend + gap
 
-            if nseqids > 2 * MaxSeqids and (i + 1) % 10 != 0:
+            step = 2 if nseqids <= 40 else 10
+            if nseqids >= 2 * MaxSeqids and (i + 1) % step != 0:
                 continue
             if nseqids < 5:
                 continue
@@ -185,8 +191,16 @@ class Track (object):
         label = markup(self.label)
         c = color if color != "gainsboro" else "k"
         if plot_label:
-            ax.text(xp, y + self.height * .6, label,
-                    ha="center", color=c, transform=tr)
+            if self.label_va == "top":
+                x, y = self.x, self.y + vpad
+                va = "bottom"
+            elif self.label_va == "bottom":
+                x, y = self.x, self.y - vpad
+                va = "top"
+            else:  # "center"
+                x, y = self.xstart - vpad, self.y
+                va = "center"
+            ax.text(x, y, label, ha="center", va="center", color=c, transform=tr)
 
     def update_offsets(self):
         self.offsets = {}

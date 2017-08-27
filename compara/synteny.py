@@ -6,7 +6,7 @@ import sys
 import logging
 
 import numpy as np
-from collections import defaultdict
+from collections import Iterable, defaultdict
 
 from jcvi.algorithms.lis import heaviest_increasing_subsequence as his
 from jcvi.formats.bed import Bed, BedLine
@@ -264,7 +264,9 @@ def _score(cluster):
 def group_hits(blasts):
     if not blasts:
         return {"": []}
-    if len(blasts[0]) == 3:  # Already in the form of (qi, si, score)
+
+    # Already in the form of (qi, si, score)
+    if isinstance(blasts[0], Iterable) and len(blasts[0]) == 3:
         return {"": blasts}
 
     # grouping the hits based on chromosome pair

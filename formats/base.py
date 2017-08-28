@@ -521,9 +521,37 @@ def main():
         ('subset', 'subset tabular-like files based on common column'),
         ('truncate', 'remove lines from end of file'),
         ('append', 'append a column with fixed value'),
+        ('seqids', 'make a list of seqids for graphics.karyotype'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def seqids(args):
+    """
+    %prog seqids prefix start end
+
+    Make a list of seqids for graphics.karyotype. For example:
+
+    $ python -m jcvi.formats.base seqids chromosome_ 1 3
+    chromosome_1,chromosome_2,chromosome_3
+    $ python -m jcvi.formats.base seqids A 3 1 --pad0=2
+    A03,A02,A01
+    """
+    p = OptionParser(seqids.__doc__)
+    p.add_option("--pad0", default=0, help="How many zeros to pad")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    prefix, start, end = args
+    pad0 = opts.pad0
+    start, end = int(start), int(end)
+    step = 1 if start <= end else -1
+
+    print ",".join(["{}{:0{}d}".format(prefix, x, pad0) \
+                    for x in xrange(start, end + step, step)])
 
 
 def pairwise(args):
@@ -841,8 +869,6 @@ def join(args):
       Use comma to separate multiple values if the column separator is different
       in each file.
     """
-    from jcvi.utils.iter import flatten
-
     p = OptionParser(join.__doc__)
     p.add_option("--column", default="0",
                  help="0-based column id, multiple values allowed [default: %default]")

@@ -27,7 +27,6 @@ import string
 
 from random import sample
 
-from jcvi.apps.ks import KsFile
 from jcvi.compara.synteny import AnchorFile, batch_scan, check_beds
 from jcvi.utils.cbook import seqid_parse, thousands
 from jcvi.apps.base import OptionParser, need_update
@@ -313,6 +312,8 @@ def dotplot_main(args):
     anchorfile, = args
     cmaptext = opts.cmaptext
     if anchorfile.endswith(".ks"):
+        from jcvi.apps.ks import KsFile
+
         logging.debug("Anchors contain Ks values")
         cmaptext = cmaptext or "*Ks* values"
         anchorksfile = anchorfile + ".anchors"

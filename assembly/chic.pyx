@@ -32,8 +32,8 @@ cdef int *GR = \
 
 
 def score_evaluate_M(array.array[int] tour,
-                   np.ndarray[INT, ndim=1] tour_sizes=None,
-                   np.ndarray[INT, ndim=2] tour_M=None):
+                     np.ndarray[INT, ndim=1] tour_sizes=None,
+                     np.ndarray[INT, ndim=2] tour_M=None):
     cdef np.ndarray[INT, ndim=1] sizes_oo = tour_sizes[tour]
     cdef np.ndarray[INT, ndim=1] sizes_cum = np.cumsum(sizes_oo) - sizes_oo // 2
 

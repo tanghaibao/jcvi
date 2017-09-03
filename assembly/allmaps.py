@@ -996,7 +996,7 @@ def movie(args):
     make_movie(ffmpeg, pf)
 
 
-def make_movie(workdir, pf, delay=1, format="pdf", engine="ffmpeg"):
+def make_movie(workdir, pf, fps=1, format="pdf", engine="ffmpeg"):
     """
     Make the movie using either ffmpeg or gifsicle.
     """
@@ -1010,10 +1010,10 @@ def make_movie(workdir, pf, delay=1, format="pdf", engine="ffmpeg"):
             "Only ffmpeg or gifsicle is currently supported"
     if engine == "ffmpeg":
         cmd = "ffmpeg -framerate {} -pattern_type glob -i '*.png' {}.mp4"\
-                .format(delay, pf)
+                .format(fps, pf)
     elif engine == "gifsicle":
         cmd  = "convert *.png gif:- |"
-        cmd += " gifsicle --delay {} --loop --optimize=3".format(delay / 100)
+        cmd += " gifsicle --delay {} --loop --optimize=3".format(100 / fps)
         cmd += " --colors=256 --multifile - > {}.gif".format(pf)
 
     sh(cmd)

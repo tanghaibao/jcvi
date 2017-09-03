@@ -935,6 +935,8 @@ def movie(args):
     p = OptionParser(movie.__doc__)
     p.add_option("--frames", default=500, type="int",
                  help="Only plot every N frames")
+    p.add_option("--engine", default="ffmpeg", choices=("ffmpeg", "gifsicle"),
+                 help="Movie engine, output MP4 or GIF")
     p.set_beds()
     opts, args, iopts = p.set_image_options(args, figsize="16x8",
                                             style="white", cmap="coolwarm",
@@ -986,7 +988,7 @@ def movie(args):
     Jobs(movieframe, args).run()
 
     os.chdir(cwd)
-    make_movie(odir, odir, format=iopts.format)
+    make_movie(odir, odir, engine=opts.engine, format=iopts.format)
 
 
 def score(args):
@@ -1114,7 +1116,7 @@ def movieframe(args):
     p.set_outfile(outfile=None)
     opts, args, iopts = p.set_image_options(args, figsize="16x8",
                                             style="white", cmap="coolwarm",
-                                            format="png", dpi=300)
+                                            format="png", dpi=120)
 
     if len(args) != 3:
         sys.exit(not p.print_help())

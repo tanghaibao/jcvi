@@ -601,6 +601,9 @@ def ortholog(args):
     from jcvi.formats.blast import cscore, filter
 
     p = OptionParser(ortholog.__doc__)
+    p.add_option("--dbtype", default="nucl",
+                 choices=("nucl", "prot"),
+                 help="Molecule type of subject database")
     p.add_option("--full", default=False, action="store_true",
                  help="Run in full mode, including blocks and RBH")
     p.add_option("--cscore", default=0.7, type="float",
@@ -616,8 +619,10 @@ def ortholog(args):
         sys.exit(not p.print_help())
 
     a, b = args
-    abed, afasta = a + ".bed", a + ".cds"
-    bbed, bfasta = b + ".bed", b + ".cds"
+    dbtype = opts.dbtype
+    suffix = ".cds" if dbtype == "nucl" else ".pep"
+    abed, afasta = a + ".bed", a + suffix
+    bbed, bfasta = b + ".bed", b + suffix
     ccscore = opts.cscore
     quota = opts.quota
     dist = "--dist={0}".format(opts.dist)
@@ -628,7 +633,7 @@ def ortholog(args):
     qprefix = ".".join((bprefix, aprefix))
     last = pprefix + ".last"
     if need_update((afasta, bfasta), last):
-        last_main([bfasta, afasta])
+        last_main([bfasta, afasta], dbtype)
 
     if a == b:
         lastself = last + ".P98L0.inverse"

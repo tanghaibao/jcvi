@@ -274,14 +274,15 @@ def blast(args):
 
 
 @depends
-def run_lastdb(infile=None, outfile=None, mask=False, lastdb_bin="lastdb"):
+def run_lastdb(infile=None, outfile=None, mask=False, lastdb_bin="lastdb", dbtype="nucl"):
     outfilebase = outfile.rsplit(".", 1)[0]
+    db = "-p " if dbtype == "prot" else ""
     mask = "-c " if mask else ""
-    cmd = "{0} {1}{2} {3}".format(lastdb_bin, mask, outfilebase, infile)
+    cmd = "{0} {1}{2}{3} {4}".format(lastdb_bin, db, mask, outfilebase, infile)
     sh(cmd)
 
 
-def last(args):
+def last(args, dbtype=None):
     """
     %prog database.fasta query.fasta
 
@@ -291,6 +292,9 @@ def last(args):
     Works with LAST-719.
     """
     p = OptionParser(last.__doc__)
+    p.add_option("--dbtype", default="nucl",
+                 choices=("nucl", "prot"),
+                 help="Molecule type of subject database")
     p.add_option("--path", help="Specify LAST path")
     p.add_option("--mask", default=False, action="store_true", help="Invoke -c in lastdb")
     p.add_option("--format", default="BlastTab",
@@ -310,13 +314,15 @@ def last(args):
     subject, query = args
     path = opts.path
     cpus = opts.cpus
+    if not dbtype:
+        dbtype = opts.dbtype
     getpath = lambda x: op.join(path, x) if path else x
     lastdb_bin = getpath("lastdb")
     lastal_bin = getpath("lastal")
 
     subjectdb = subject.rsplit(".", 1)[0]
     run_lastdb(infile=subject, outfile=subjectdb + ".prj", mask=opts.mask, \
-              lastdb_bin=lastdb_bin)
+              lastdb_bin=lastdb_bin, dbtype=dbtype)
 
     u = 2 if opts.mask else 0
     cmd = "{0} -u {1}".format(lastal_bin, u)

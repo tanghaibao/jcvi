@@ -1046,7 +1046,10 @@ def summary(args):
     anchorfile, = args
     ac = AnchorFile(anchorfile)
     clusters = ac.blocks
-
+    if clusters == [[]]:
+        logging.debug("A total of 0 anchor was found. Aborted.")
+        raise ValueError("A total of 0 anchor was found. Aborted.")
+    
     nclusters = len(clusters)
     nanchors = [len(c) for c in clusters]
     nranchors = [_score(c) for c in clusters]  # non-redundant anchors

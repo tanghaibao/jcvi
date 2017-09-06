@@ -342,8 +342,7 @@ def read_anchors(ac, qorder, sorder, minsize=0):
         anchor_to_block[pair] = idx
         nanchors += 1
 
-    
-    ging.debug("A total of {0} anchors imported.".format(nanchors))
+    logging.debug("A total of {0} anchors imported.".format(nanchors))
     assert nanchors == len(anchor_to_block)
 
     return all_anchors, anchor_to_block

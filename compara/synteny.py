@@ -342,7 +342,8 @@ def read_anchors(ac, qorder, sorder, minsize=0):
         anchor_to_block[pair] = idx
         nanchors += 1
 
-    logging.debug("A total of {0} anchors imported.".format(nanchors))
+    
+    ging.debug("A total of {0} anchors imported.".format(nanchors))
     assert nanchors == len(anchor_to_block)
 
     return all_anchors, anchor_to_block
@@ -1049,7 +1050,7 @@ def summary(args):
     if clusters == [[]]:
         logging.debug("A total of 0 anchor was found. Aborted.")
         raise ValueError("A total of 0 anchor was found. Aborted.")
-    
+
     nclusters = len(clusters)
     nanchors = [len(c) for c in clusters]
     nranchors = [_score(c) for c in clusters]  # non-redundant anchors

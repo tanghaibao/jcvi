@@ -31,7 +31,8 @@ JCVIHELP = "JCVI utility libraries v{} [{}]\n".format(__version__, __copyright__
 class ActionDispatcher (object):
     """
     This class will be invoked
-    a) when either a directory is run via __main__, listing all SCRIPTs
+    a) when the base package is run via __main__, listing all MODULESs
+    a) when a directory is run via __main__, listing all SCRIPTs
     b) when a script is run directly, listing all ACTIONs
 
     This is controlled through the meta variable, which is automatically
@@ -47,12 +48,20 @@ class ActionDispatcher (object):
     def get_meta(self):
         args = splitall(sys.argv[0])[-3:]
         args[-1] = args[-1].replace(".py", "")
-        meta = "SCRIPT" if args[-1] == "__main__" else "ACTION"
+        if args[-2] == "jcvi":
+            meta = "MODULE"
+        elif args[-1] == "__main__":
+            meta = "SCRIPT"
+        else:
+            meta = "ACTION"
         return meta, args
 
     def print_help(self):
         meta, args = self.get_meta()
-        if meta == "SCRIPT":
+        if meta == "MODULE":
+            del args[0]
+            args[-1] = meta
+        elif meta == "SCRIPT":
             args[-1] = meta
         else:
             args[-1] += " " + meta
@@ -681,12 +690,16 @@ def get_module_docstring(filepath):
     return docstring
 
 
-def dmain(mainfile):
+def dmain(mainfile, type="action"):
     cwd = op.dirname(mainfile)
-    pyscripts = glob(op.join(cwd, "*.py"))
+    pyscripts = [x for x in glob(op.join(cwd, "*", '__main__.py'))] \
+        if type == "module" \
+        else glob(op.join(cwd, "*.py"))
     actions = []
     for ps in sorted(pyscripts):
-        action = op.basename(ps).replace(".py", "")
+        action = op.basename(op.dirname(ps)) \
+            if type == "module" \
+            else op.basename(ps).replace(".py", "")
         if action[0] == "_":  # hidden namespace
             continue
         pd = get_module_docstring(ps)

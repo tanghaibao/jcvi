@@ -1828,28 +1828,28 @@ def tredparse(args):
     # ax1: lobSTR vs TREDPARSE with haploid model
     lobstr_results = parse_results("lobstr_results_homo-20x-150bp-500bp.txt")
     tredparse_results = parse_results("tredparse_results_homo-20x-150bp-500bp.txt")
-    title = SIMULATED_HAPLOID + r" ($Depth=%s\times)" % depth
+    title = SIMULATED_HAPLOID + r" (Depth=$%s\times$)" % depth
     plot_compare(ax1, title, tredparse_results, lobstr_results,
                  max_insert=max_insert)
 
     # ax2: lobSTR vs TREDPARSE with diploid model (depth=20x)
     lobstr_results = parse_results("lobstr_results_het-20x-150bp-500bp.txt", exclude=20)
     tredparse_results = parse_results("tredparse_results_het-20x-150bp-500bp.txt", exclude=20)
-    title = SIMULATED_DIPLOID + r" ($Depth=%s\times$)" % depth
+    title = SIMULATED_DIPLOID + r" (Depth=$%s\times$)" % depth
     plot_compare(ax2, title, tredparse_results, lobstr_results,
                  max_insert=max_insert)
 
     # ax3: lobSTR vs TREDPARSE with diploid model (depth=5x)
     lobstr_results = parse_results("lobstr_results_het-5x-150bp-500bp.txt", exclude=20)
     tredparse_results = parse_results("tredparse_results_het-5x-150bp-500bp.txt", exclude=20)
-    title = SIMULATED_DIPLOID + r" ($Depth=%s\times$)" % 5
+    title = SIMULATED_DIPLOID + r" (Depth=$%s\times$)" % 5
     plot_compare(ax3, title, tredparse_results, lobstr_results,
                  max_insert=max_insert)
 
     # ax4: lobSTR vs TREDPARSE with diploid model (depth=80x)
     lobstr_results = parse_results("lobstr_results_het-80x-150bp-500bp.txt", exclude=20)
     tredparse_results = parse_results("tredparse_results_het-80x-150bp-500bp.txt", exclude=20)
-    title = SIMULATED_DIPLOID + r" ($Depth=%s\times$)" % 80
+    title = SIMULATED_DIPLOID + r" (Depth=$%s\times$)" % 80
     plot_compare(ax4, title, tredparse_results, lobstr_results,
                  max_insert=max_insert)
 

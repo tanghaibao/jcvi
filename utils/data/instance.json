@@ -1,5 +1,5 @@
 {
-    "InstanceId": "i-02442fbb4d1f5f992", 
+    "InstanceId": "i-0541cd4b27107bb93", 
     "LaunchSpec": {
         "BlockDeviceMappings": [
             {
@@ -15,7 +15,7 @@
             "Arn": "", 
             "Name": ""
         }, 
-        "ImageId": "ami-9b3529e2", 
+        "ImageId": "ami-fef71e86", 
         "InstanceType": "c4.8xlarge", 
         "KeyName": "mvrad-pdx-htang", 
         "Monitoring": {

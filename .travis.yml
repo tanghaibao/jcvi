@@ -20,7 +20,6 @@ before_install:
   - hash -r
   - conda config --set always_yes yes --set changeps1 no
   - conda update -q conda
-  - conda install numpy
 
   # Useful for debugging any issues with conda
   - conda info -a
@@ -31,6 +30,6 @@ install:
 
 # command to run tests
 script:
-  - for VERSION in $PYTHON_VERSIONS ; do source activate $VERSION ; python -m jcvi.apps.console ; done
+  - for VERSION in $PYTHON_VERSIONS ; do source activate $VERSION ; py.test tests.py ; done
 
 sudo: false

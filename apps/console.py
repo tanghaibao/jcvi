@@ -142,8 +142,7 @@ white = lambda s: str(ColoredText(s, "white"))
 dark = lambda s: str(ColoredText(s, "dark"))
 
 
-if __name__ == '__main__':
-
+def test():
     # test spin cursor
     spin = SpinCursor(msg="Spinning...", minspin=5, speed=5)
     spin.start()
@@ -184,3 +183,7 @@ if __name__ == '__main__':
         'red|on_grey|underline'))
     print(ColoredText('Reversed green on red color',
         'green|on_red|reverse'))
+
+
+if __name__ == '__main__':
+    test()

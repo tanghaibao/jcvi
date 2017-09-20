@@ -1671,5 +1671,22 @@ def getpath(cmd, name=None, url=None, cfg="~/.jcvirc", warn="exit"):
     return path
 
 
+def inspect(object):
+    """ A better dir() showing attributes and values
+    """
+    for k in dir(object):
+        try:
+            details = getattr(object, k)
+        except Exception as e:
+            details = e
+
+        try:
+            details = str(details)
+        except Exception as e:
+            details = e
+
+        print >> sys.stderr, "{}: {}".format(k, details)
+
+
 if __name__ == '__main__':
     main()

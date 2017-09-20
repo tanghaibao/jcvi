@@ -356,14 +356,41 @@ def parse_segments(vcffile):
     chr1    788879  Canvas:GAIN:chr1:788880-821005  N       <CNV>   2       q10
     SVTYPE=CNV;END=821005;CNVLEN=32126      RC:BC:CN:MCC    157:4:3:2
     """
+    from cStringIO import StringIO
     from cyvcf2 import VCF
+    from pybedtools import BedTool
 
+    output = StringIO()
     for v in VCF(vcffile):
         chrom = v.CHROM
         start = v.start
         end = v.INFO.get('END') - 1
-        cn = v.format('CN')
-        print chrom, start, end, cn
+        cn, = v.format('CN')[0]
+        print >> output, "\t".join(str(x) for x in (chrom, start, end, cn))
+
+    beds = BedTool(output.getvalue(), from_string=True)
+    return beds
+
+
+def counter_mean_and_median(counter):
+    """ Calculate the mean and median value of a counter
+    """
+    if not counter:
+        return np.nan, np.nan
+
+    total = sum(v for k, v in counter.items())
+    mid = total / 2
+    weighted_sum = 0
+    items_seen = 0
+    median_found = False
+    for k, v in sorted(counter.items()):
+        weighted_sum += k * v
+        items_seen += v
+        if not median_found and items_seen >= mid:
+            median = k
+            median_found = True
+    mean = weighted_sum * 1. / total
+    return mean, median
 
 
 def gcn(args):
@@ -372,6 +399,8 @@ def gcn(args):
 
     Compile gene copy njumber based on CANVAS results.
     """
+    from pybedtools import BedTool
+
     p = OptionParser(gcn.__doc__)
     p.add_option("--exons", default="knownGenesExons.noAltContig.sort.txt",
                  help="UCSC exons BED")
@@ -382,7 +411,31 @@ def gcn(args):
         sys.exit(not p.print_help())
 
     canvasvcf, = args
-    parse_segments(canvasvcf)
+    exons = BedTool(opts.exons)
+    cn = parse_segments(canvasvcf)
+    overlaps = exons.intersect(cn, wao=True)
+    gcn_store = {}
+    for ov in overlaps:
+        gene_name = ov.name.split("_", 1)[0]
+        if gene_name not in gcn_store:
+            gcn_store[gene_name] = defaultdict(int)
+        # Fields are: [u'chr1', u'24319565', u'24319747',
+        # u'uc021oix.1_exon_0_0_chr1_24319566_f', u'0', u'+', u'chr1',
+        # u'22182974', u'34631690', u'2', u'182']
+        cn = ov.fields[-2]
+        if cn == ".":
+            continue
+        cn = int(cn)
+        if cn > 10:
+            cn = 10
+        amt = int(ov.fields[-1])
+        gcn_store[gene_name][cn] += amt
+
+    for k, v in sorted(gcn_store.items()):
+        v_mean, v_median = counter_mean_and_median(v)
+        print "\t".join((k,
+                         ",".join("{}:{}".format(*z) for z in sorted(v.items())),
+                         "{:.3f}".format(v_mean), str(v_median)))
 
 
 def coverage(args):

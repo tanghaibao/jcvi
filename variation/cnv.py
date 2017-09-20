@@ -335,6 +335,8 @@ def main():
         ('cn', 'correct cib according to GC content'),
         ('mergecn', 'compile matrix of GC-corrected copy numbers'),
         ('hmm', 'run cnv segmentation'),
+        # Gene copy number
+        ('gcn', 'gene copy number based on CANVAS results'),
         # Interact with CCN script
         ('batchccn', 'run CCN script in batch'),
         ('batchcn', 'run HMM in batch'),
@@ -345,6 +347,42 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def parse_segments(vcffile):
+    """ Extract all copy number segments from a CANVAS file
+
+    VCF line looks like:
+    chr1    788879  Canvas:GAIN:chr1:788880-821005  N       <CNV>   2       q10
+    SVTYPE=CNV;END=821005;CNVLEN=32126      RC:BC:CN:MCC    157:4:3:2
+    """
+    from cyvcf2 import VCF
+
+    for v in VCF(vcffile):
+        chrom = v.CHROM
+        start = v.start
+        end = v.INFO.get('END') - 1
+        cn = v.format('CN')
+        print chrom, start, end, cn
+
+
+def gcn(args):
+    """
+    %prog gcn canvas.vcf.gz
+
+    Compile gene copy njumber based on CANVAS results.
+    """
+    p = OptionParser(gcn.__doc__)
+    p.add_option("--exons", default="knownGenesExons.noAltContig.sort.txt",
+                 help="UCSC exons BED")
+    p.add_option("--xref", default="ucsc_kgXref.txt", help="Gene name table")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    canvasvcf, = args
+    parse_segments(canvasvcf)
 
 
 def coverage(args):

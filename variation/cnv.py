@@ -433,7 +433,7 @@ def counter_format(counter):
 
 def gcn(args):
     """
-    %prog gcn exons.sorted_by_gene_id.bed data/*.vcf.gz
+    %prog gcn gencode.v26.exonunion.bed data/*.vcf.gz
 
     Compile gene copy njumber based on CANVAS results.
     """
@@ -450,7 +450,8 @@ def gcn(args):
     tsvfile = opts.outfile
 
     df = vcf_to_df(canvasvcfs, exonbed, opts.cpus)
-    df_to_tsv(df, tsvfile)
+    for suffix in (".avgcn", ".medcn"):
+        df_to_tsv(df, tsvfile, suffix)
 
 
 def vcf_to_df_worker(arg):
@@ -484,7 +485,8 @@ def vcf_to_df_worker(arg):
 
     for k, v in sorted(gcn_store.items()):
         v_mean, v_median = counter_mean_and_median(v)
-        d[k] = v_mean
+        d[k + ".avgcn"] = v_mean
+        d[k + ".medcn"] = v_median
     return d
 
 
@@ -504,13 +506,14 @@ def vcf_to_df(canvasvcfs, exonbed, cpus):
     return df
 
 
-def df_to_tsv(df, tsvfile):
+def df_to_tsv(df, tsvfile, suffix):
     """ Serialize the dataframe as a tsv
     """
-    columns = ["SampleKey"] + sorted(x for x in df.columns if x != "SampleKey")
+    tsvfile += suffix
+    columns = ["SampleKey"] + sorted(x for x in df.columns if x.endswith(suffix))
     tf = df.reindex_axis(columns, axis='columns')
     tf.sort_values("SampleKey")
-    tf.to_csv(tsvfile, sep='\t', index=False)
+    tf.to_csv(tsvfile, sep='\t', index=False, float_format='%.3f', na_rep="na")
     print >> sys.stderr, "TSV output written to `{}` (# samples={})"\
                 .format(tsvfile, tf.shape[0])
 

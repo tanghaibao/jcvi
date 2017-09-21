@@ -18,7 +18,7 @@ from collections import defaultdict
 from itertools import groupby
 from multiprocessing import Pool
 from random import choice
-from pybedtools import BedTool
+from pybedtools import BedTool, cleanup, set_tempdir
 
 from jcvi.algorithms.formula import get_kmeans
 from jcvi.apps.grid import MakeManager
@@ -439,6 +439,7 @@ def gcn(args):
     """
     p = OptionParser(gcn.__doc__)
     p.set_cpus()
+    p.set_tmpdir(tmpdir="tmp")
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -448,6 +449,10 @@ def gcn(args):
     exonbed = args[0]
     canvasvcfs = args[1:]
     tsvfile = opts.outfile
+    tmpdir = opts.tmpdir
+
+    mkdir(tmpdir)
+    set_tempdir(tmpdir)
 
     df = vcf_to_df(canvasvcfs, exonbed, opts.cpus)
     for suffix in (".avgcn", ".medcn"):
@@ -487,6 +492,7 @@ def vcf_to_df_worker(arg):
         v_mean, v_median = counter_mean_and_median(v)
         d[k + ".avgcn"] = v_mean
         d[k + ".medcn"] = v_median
+    cleanup()
     return d
 
 
@@ -513,7 +519,7 @@ def df_to_tsv(df, tsvfile, suffix):
     columns = ["SampleKey"] + sorted(x for x in df.columns if x.endswith(suffix))
     tf = df.reindex_axis(columns, axis='columns')
     tf.sort_values("SampleKey")
-    tf.to_csv(tsvfile, sep='\t', index=False, float_format='%.3f', na_rep="na")
+    tf.to_csv(tsvfile, sep='\t', index=False, float_format='%.4g', na_rep="na")
     print >> sys.stderr, "TSV output written to `{}` (# samples={})"\
                 .format(tsvfile, tf.shape[0])
 

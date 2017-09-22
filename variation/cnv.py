@@ -462,8 +462,9 @@ def gcn(args):
 def vcf_to_df_worker(arg):
     """ Convert CANVAS vcf to a dict, single thread
     """
-    canvasvcf, exonbed = arg
-    samplekey = op.basename(canvasvcf).split(".")[0]
+    canvasvcf, exonbed, i = arg
+    logging.debug("Working on job {}: {}".format(i, canvasvcf))
+    samplekey = op.basename(canvasvcf).split(".")[0].rsplit('_', 1)[0]
     d = {'SampleKey': samplekey}
 
     exons = BedTool(exonbed)
@@ -502,7 +503,7 @@ def vcf_to_df(canvasvcfs, exonbed, cpus):
     df = pd.DataFrame()
     p = Pool(processes=cpus)
     results = []
-    args = [(x, exonbed) for x in canvasvcfs]
+    args = [(x, exonbed, i) for (i, x) in enumerate(canvasvcfs)]
     r = p.map_async(vcf_to_df_worker, args,
                     callback=results.append)
     r.wait()

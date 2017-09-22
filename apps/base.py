@@ -1024,6 +1024,7 @@ def main():
         ('mdownload', 'multiple download a list of files'),
         ('waitpid', 'wait for a PID to finish and then perform desired action'),
         ('notify', 'send an email/push notification'),
+        ('mergecsv', 'merge a set of tsv files'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())

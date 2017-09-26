@@ -256,6 +256,9 @@ class Gff (LineFile):
             self.keep_attr_order = keep_attr_order
             self.compute_signature = compute_signature
             if filename in ("-", "stdin") or filename.endswith(".gz"):
+                if ".gtf" in filename:
+                    self.gff3 = False
+                    logging.debug("File is not gff3 standard.")
                 return
 
             self.set_gff_type()

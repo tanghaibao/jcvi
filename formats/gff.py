@@ -1616,7 +1616,9 @@ def format(args):
         if attrib_files:
             for attr_name in attr_values:
                 name = g.get_attr("Name")
-                if name in attr_values[attr_name]:
+                if id in attr_values[attr_name]:
+                    g.set_attr(attr_name, attr_values[attr_name][id])
+                elif name and name in attr_values[attr_name]:
                     g.set_attr(attr_name, attr_values[attr_name][name])
 
         if dbxref_files:

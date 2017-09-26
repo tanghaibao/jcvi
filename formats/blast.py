@@ -539,7 +539,7 @@ def annotate(args):
         sys.exit(not p.print_help())
 
     blastfile, afasta, bfasta = args
-    fp = open(blastfile)
+    fp = must_open(blastfile)
     asizes = Sizes(afasta).mapping
     bsizes = Sizes(bfasta).mapping
     cutoff = Cutoff(opts.pctid, opts.hitlen, opts.hang)

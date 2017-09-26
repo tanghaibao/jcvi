@@ -180,7 +180,7 @@ class GffLine (object):
     def accn(self):
         if self.key:   # GFF3 format
             if self.key not in self.attributes:
-                a = "{0}_{1}".format(str(self.type).lower(), self.idx)
+                a = ["{0}_{1}".format(str(self.type).lower(), self.idx)]
             else:
                 a = self.attributes[self.key]
         else:          # GFF2 format

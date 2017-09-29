@@ -250,22 +250,35 @@ def phytozome(args):
         sys.exit(not p.print_help())
 
     species, = args
+    if species == "all":
+        species = ",".join(valid_species)
+
     species = species.split(",")
+    use_IDs = set()
+    # We have to watch out when the gene names and mRNA names mismatch, in which
+    # case we just extract the mRNA names
+    use_mRNAs = set(["Cclementina", "Creinhardtii", "Csinensis", "Fvesca",
+                    "Lusitatissimum", "Mesculenta", "Mguttatus", "Ppersica",
+                    "Pvirgatum", "Rcommunis", "Sitalica", "Tcacao",
+                    "Thalophila", "Vcarteri", "Vvinifera", "Zmays"])
+
     for s in species:
         gff, fa = download_species_phytozome(s, valid_species, url,
                                              assembly=opts.assembly)
+        key = "ID" if s in use_IDs else "Name"
+        ttype = "mRNA" if s in use_mRNAs else "gene"
         if not opts.format:
             continue
 
         bedfile = s + ".bed"
         cdsfile = s + ".cds"
-        gff_bed([gff, "--phytozome", "-o", bedfile])
+        gff_bed([gff, "--type={}".format(ttype), "--key={}".format(key),
+                 "-o", bedfile])
         fasta_format([fa, cdsfile, r"--sep=|"])
 
 
-def download_species_phytozome(species, valid_species, url, assembly=False):
-    from os.path import join as urljoin
-
+def download_species_phytozome(species, valid_species, url,
+                               assembly=False, format=True):
     assert species in valid_species, \
             "{0} is not in the species list".format(species)
 

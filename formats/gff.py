@@ -2564,8 +2564,6 @@ def bed(args):
             help="Append GFF feature type to extracted key value")
     p.add_option("--nosort", default=False, action="store_true",
             help="Do not sort the output bed file [default: %default]")
-    p.add_option("--phytozome", default=False, action="store_true",
-            help="Use Phytozome convention, extract Name per gene")
     p.set_stripnames(default=False)
     p.set_outfile()
 
@@ -2584,9 +2582,6 @@ def bed(args):
         type = set(x.strip() for x in opts.type.split(","))
     if opts.source:
         source = set(x.strip() for x in opts.source.split(","))
-    if opts.phytozome:
-        key = "Name"
-        type = set(["gene"])
 
     gff = Gff(gffile, key=key, append_source=opts.append_source, \
         append_ftype=opts.append_ftype, score_attrib=opts.score_attrib)

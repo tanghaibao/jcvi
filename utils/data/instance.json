@@ -1,43 +1,44 @@
 {
-    "InstanceId": "i-0541cd4b27107bb93", 
+    "AvailabilityZone": "us-west-2b",
+    "InstanceId": "",
     "LaunchSpec": {
         "BlockDeviceMappings": [
             {
-                "DeviceName": "/dev/sda1", 
+                "DeviceName": "/dev/sda1",
                 "Ebs": {
-                    "VolumeSize": 64, 
+                    "VolumeSize": 64,
                     "VolumeType": "gp2"
                 }
             }
-        ], 
-        "EbsOptimized": true, 
+        ],
+        "EbsOptimized": true,
         "IamInstanceProfile": {
-            "Arn": "", 
+            "Arn": "",
             "Name": ""
-        }, 
-        "ImageId": "ami-fef71e86", 
-        "InstanceType": "c4.8xlarge", 
-        "KeyName": "mvrad-pdx-htang", 
+        },
+        "ImageId": "ami-1cfb0164",
+        "InstanceType": "c3.8xlarge",
+        "KeyName": "mvrad-pdx-htang",
         "Monitoring": {
             "Enabled": false
-        }, 
+        },
         "SecurityGroupIds": [
-            "sg-31982956", 
+            "sg-31982956",
             "sg-76bd4f11"
-        ], 
+        ],
         "SubnetId": "subnet-123ab865"
-    }, 
+    },
     "Volumes": [
         {
-            "Device": "/dev/sdf", 
+            "Device": "/dev/sdf",
             "VolumeId": "vol-aad57e1f"
-        }, 
+        },
         {
-            "Device": "/dev/sdg", 
+            "Device": "/dev/sdg",
             "VolumeId": "vol-c709aa72"
-        }, 
+        },
         {
-            "Device": "/dev/sdh", 
+            "Device": "/dev/sdh",
             "VolumeId": "vol-2f09aa9a"
         }
     ]

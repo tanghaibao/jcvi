@@ -34,12 +34,44 @@ class InstanceSkeleton(BaseFile):
         return self.spec["InstanceId"]
 
     @property
+    def availability_zone(self):
+        return self.spec["AvailabilityZone"]
+
+    @property
     def volumes(self):
         return self.spec["Volumes"]
 
     @property
+    def block_device_mappings(self):
+        return self.launch_spec["BlockDeviceMappings"]
+
+    @property
+    def ebs_optimized(self):
+        return self.launch_spec["EbsOptimized"]
+
+    @property
     def image_id(self):
-        return self.spec["LaunchSpec"]["ImageId"]
+        return self.launch_spec["ImageId"]
+
+    @property
+    def instance_type(self):
+        return self.launch_spec["InstanceType"]
+
+    @property
+    def key_name(self):
+        return self.launch_spec["KeyName"]
+
+    @property
+    def security_group_ids(self):
+        return self.launch_spec["SecurityGroupIds"]
+
+    @property
+    def subnet_id(self):
+        return self.launch_spec["SubnetId"]
+
+    @property
+    def iam_instance_profile(self):
+        return self.launch_spec["IamInstanceProfile"]
 
     def save(self):
         fw = open(self.filename, "w")
@@ -76,6 +108,8 @@ def start(args):
     Launch ec2 instance through command line.
     """
     p = OptionParser(start.__doc__)
+    p.add_option("--ondemand", default=False, action="store_true",
+                 help="Do we want a more expensive on-demand instance")
     p.add_option("--profile", default="mvrad-datasci-role", help="Profile name")
     p.add_option("--price", default=4.0, type=float, help="Spot price")
     opts, args = p.parse_args(args)
@@ -94,32 +128,49 @@ def start(args):
         logging.error("Instance exists {}".format(instance_id))
         sys.exit(1)
 
-    # Launch spot instance
     launch_spec = s.launch_spec
-    response = client.request_spot_instances(
-        SpotPrice=str(opts.price),
-        InstanceCount=1,
-        Type="one-time",
-        AvailabilityZoneGroup="us-west-2b",
-        LaunchSpecification=launch_spec
-    )
-
-    request_id = response["SpotInstanceRequests"][0]["SpotInstanceRequestId"]
-    print >> sys.stderr, "Request id {}".format(request_id)
-
     instance_id = ""
-    while not instance_id:
-        response = client.describe_spot_instance_requests(
-            SpotInstanceRequestIds=[request_id]
+
+    if opts.ondemand:
+        # Launch on-demand instance
+        instances = client.run_instances(
+            BlockDeviceMappings=s.block_device_mappings,
+            MaxCount=1, MinCount=1,
+            ImageId=s.image_id,
+            InstanceType=s.instance_type,
+            KeyName=s.key_name,
+            Placement={"AvailabilityZone": s.availability_zone},
+            SecurityGroupIds=s.security_group_ids,
+            EbsOptimized=s.ebs_optimized,
+            IamInstanceProfile=s.iam_instance_profile,
         )
-        if "InstanceId" in response["SpotInstanceRequests"][0]:
-            instance_id = response["SpotInstanceRequests"][0]["InstanceId"]
-        else:
-            logging.debug("Waiting to be fulfilled ...")
-            time.sleep(10)
+        instance_id = instances[0]
 
+    else:
+        # Launch spot instance
+        response = client.request_spot_instances(
+            SpotPrice=str(opts.price),
+            InstanceCount=1,
+            Type="one-time",
+            AvailabilityZoneGroup=s.availability_zone,
+            LaunchSpecification=launch_spec
+        )
+
+        request_id = response["SpotInstanceRequests"][0]["SpotInstanceRequestId"]
+        print >> sys.stderr, "Request id {}".format(request_id)
+
+        while not instance_id:
+            response = client.describe_spot_instance_requests(
+                SpotInstanceRequestIds=[request_id]
+            )
+            if "InstanceId" in response["SpotInstanceRequests"][0]:
+                instance_id = response["SpotInstanceRequests"][0]["InstanceId"]
+            else:
+                logging.debug("Waiting to be fulfilled ...")
+                time.sleep(10)
+
+    # Check if the instance is running
     print >> sys.stderr, "Instance id {}".format(instance_id)
-
     status = ""
     while status != "running":
         logging.debug("Waiting instance to run ...")
@@ -417,7 +468,7 @@ def role(args):
     aws_configure(dst_role, 'aws_session_token', creds['SessionToken'])
     aws_configure(dst_role, 'region', region)
 
-    print dst_role
+    print >> sys.stderr, dst_role
 
 
 if __name__ == '__main__':

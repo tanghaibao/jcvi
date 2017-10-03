@@ -16,8 +16,8 @@
             "Arn": "",
             "Name": ""
         },
-        "ImageId": "ami-1cfb0164",
-        "InstanceType": "c3.8xlarge",
+        "ImageId": "ami-c5ed17bd",
+        "InstanceType": "c4.8xlarge",
         "KeyName": "mvrad-pdx-htang",
         "Monitoring": {
             "Enabled": false
@@ -28,6 +28,7 @@
         ],
         "SubnetId": "subnet-123ab865"
     },
+    "PrivateIpAddress": "",
     "Volumes": [
         {
             "Device": "/dev/sdf",

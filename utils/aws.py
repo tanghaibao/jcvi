@@ -34,6 +34,10 @@ class InstanceSkeleton(BaseFile):
         return self.spec["InstanceId"]
 
     @property
+    def private_ip_address(self):
+        return self.spec["PrivateIpAddress"]
+
+    @property
     def availability_zone(self):
         return self.spec["AvailabilityZone"]
 
@@ -75,11 +79,14 @@ class InstanceSkeleton(BaseFile):
 
     def save(self):
         fw = open(self.filename, "w")
-        json.dump(self.spec, fw, indent=4, sort_keys=True)
+        s = json.dumps(self.spec, indent=4, sort_keys=True)
+        # Clear the trailing spaces
+        print >> fw, "\n".join(x.rstrip() for x in s.splitlines())
         fw.close()
 
-    def save_instance_id(self, instance_id):
+    def save_instance_id(self, instance_id, private_id_address):
         self.spec["InstanceId"] = instance_id
+        self.spec["PrivateIpAddress"] = private_id_address
         self.save()
 
     def save_image_id(self, image_id):
@@ -96,9 +103,24 @@ def main():
         ('role', 'change aws role'),
         ('start', 'start ec2 instance'),
         ('stop', 'stop ec2 instance'),
+        ('ip', 'describe current instance'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def ip(args):
+    """
+    %prog describe
+
+    Show current IP address from JSON settings.
+    """
+    if len(args) != 0:
+        sys.exit(not p.print_help())
+
+    s = InstanceSkeleton()
+    print >> sys.stderr, "IP address:", s.private_ip_address
+    print >> sys.stderr, "Instance type:", s.instance_type
 
 
 def start(args):
@@ -117,7 +139,7 @@ def start(args):
     if len(args) != 0:
         sys.exit(not p.print_help())
 
-    role(["205134639408", "htang", "114692162163", "mvrad-datasci-role"])
+    role(["htang"])
     session = boto3.Session(profile_name=opts.profile)
     client = session.client('ec2')
     s = InstanceSkeleton()
@@ -133,7 +155,7 @@ def start(args):
 
     if opts.ondemand:
         # Launch on-demand instance
-        instances = client.run_instances(
+        response = client.run_instances(
             BlockDeviceMappings=s.block_device_mappings,
             MaxCount=1, MinCount=1,
             ImageId=s.image_id,
@@ -141,10 +163,11 @@ def start(args):
             KeyName=s.key_name,
             Placement={"AvailabilityZone": s.availability_zone},
             SecurityGroupIds=s.security_group_ids,
+            SubnetId=s.subnet_id,
             EbsOptimized=s.ebs_optimized,
             IamInstanceProfile=s.iam_instance_profile,
         )
-        instance_id = instances[0]
+        instance_id = response["Instances"][0]["InstanceId"]
 
     else:
         # Launch spot instance
@@ -180,10 +203,11 @@ def start(args):
             status = response["InstanceStatuses"][0]["InstanceState"]["Name"]
 
     # Tagging
+    name = "htang-lx-ondemand" if opts.ondemand else "htang-lx-spot"
     response = client.create_tags(
         Resources=[instance_id],
         Tags=[{"Key": k, "Value": v} for k, v in { \
-                    "Name": "htang-lx-spot",
+                    "Name": name,
                     "owner": "htang",
                     "project": "mv-bioinformatics"
                 }.items()]
@@ -199,10 +223,11 @@ def start(args):
         )
 
     # Save instance id and ip
-    s.save_instance_id(instance_id)
     response = client.describe_instances(InstanceIds=[instance_id])
     ip_address = response["Reservations"][0]["Instances"][0]["PrivateIpAddress"]
     print >> sys.stderr, "IP address {}".format(ip_address)
+
+    s.save_instance_id(instance_id, ip_address)
 
 
 def stop(args):
@@ -218,7 +243,7 @@ def stop(args):
     if len(args) != 0:
         sys.exit(not p.print_help())
 
-    role(["205134639408", "htang", "114692162163", "mvrad-datasci-role"])
+    role(["htang"])
     session = boto3.Session(profile_name=opts.profile)
     client = session.client('ec2')
     s = InstanceSkeleton()
@@ -263,7 +288,7 @@ def stop(args):
 
     # Save new image id
     s.save_image_id(new_image_id)
-    s.save_instance_id("")
+    s.save_instance_id("", "")
 
 
 def glob_s3(store, keys=None, recursive=False):

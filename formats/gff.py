@@ -2741,6 +2741,7 @@ def load(args):
     desc_attr = opts.desc_attribute
     sep = opts.sep
 
+    import gffutils
     g = make_index(gff_file)
     f = Fasta(fasta_file, index=False)
     seqlen = {}
@@ -2754,8 +2755,14 @@ def load(args):
         if desc_attr:
             fparent = feat.attributes['Parent'][0] \
                 if 'Parent' in feat.attributes else None
-            if fparent and desc_attr in g[fparent].attributes:
-                desc = ",".join(g[fparent].attributes[desc_attr])
+            if fparent:
+                try:
+                    g_fparent = g[fparent]
+                except gffutils.exceptions.FeatureNotFoundError:
+                    logging.error("{} not found in index .. skipped".format(fparent))
+                    continue
+                if desc_attr in g_fparent.attributes:
+                    desc = ",".join(g_fparent.attributes[desc_attr])
             elif desc_attr in feat.attributes:
                 desc = ",".join(feat.attributes[desc_attr])
 

@@ -26,7 +26,7 @@ before_install:
 
 # Install packages
 install:
-  - for VERSION in $PYTHON_VERSIONS ; do conda create --name $VERSION --yes python=$VERSION --file requirements.txt ; source activate $VERSION ; python setup.py install; done
+  - for VERSION in $PYTHON_VERSIONS ; do conda create --name $VERSION --yes python=$VERSION --file requirements.txt ; source activate $VERSION ; python setup.py install; python setup.py build_ext --inplace; done
 
 # command to run tests
 script:

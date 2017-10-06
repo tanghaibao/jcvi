@@ -86,9 +86,13 @@ from Cython.Distutils import build_ext
 # Start the show
 check_version()
 author, email, license, version = import_init()
-ext_modules = [Extension("jcvi.assembly.chic", ["assembly/chic.pyx"],
+ext_modules = [
+    Extension("jcvi.assembly.chic", ["assembly/chic.pyx"],
                      include_dirs=[np.get_include()],
-                     extra_compile_args=["-O3"])]
+                     extra_compile_args=["-O3"]),
+    Extension("jcvi.formats.cblast", ["formats/cblast.pyx"],
+                     extra_compile_args=["-O3"])
+]
 
 setup(
       name=name,

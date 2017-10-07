@@ -1,9 +1,5 @@
 #!/usr/bin/env python
 
-import sys
-import subprocess
-import pkg_resources
-
 from setuptools import setup, find_packages, Extension
 from setup_helper import SetupHelper
 
@@ -20,7 +16,7 @@ classifiers = [
 
 # Use the helper
 h = SetupHelper(initfile="__init__.py", readmefile="README.md")
-h.check_version(majorv=2, minorv=7)
+h.check_version(name, majorv=2, minorv=7)
 h.install_requirements(requires=["cython", "numpy"])
 
 # Now these are available

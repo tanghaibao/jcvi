@@ -18,7 +18,7 @@ class SetupHelper (object):
         self.author = ", ".join(self.author)
         self.long_description = self.get_long_description(readmefile)
 
-    def check_version(self, majorv=2, minorv=7):
+    def check_version(self, name, majorv=2, minorv=7):
         """ Make sure the package runs on the supported Python version
         """
         if sys.version_info.major == majorv and sys.version_info.minor != minorv:

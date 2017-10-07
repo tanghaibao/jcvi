@@ -278,8 +278,7 @@ def group_hits(blasts):
 
 
 def read_blast(blast_file, qorder, sorder, is_self=False, ostrip=True):
-    """
-    read the blast and convert name into coordinates
+    """ Read the blast and convert name into coordinates
     """
     filtered_blast = []
     seen = set()

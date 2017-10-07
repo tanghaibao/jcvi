@@ -1,3 +1,5 @@
+#cython: boundscheck=False, wraparound=False, initializedcheck=False, cdivision=True
+
 """
 Cythonized (fast) version of BlastLine
 
@@ -8,9 +10,9 @@ cdef extern from *:
     ctypedef char* const_char_star "const char*"
 
 import sys
-cimport libc.stdlib
 from libc.stdio cimport FILE, EOF, fopen, fscanf, rewind, fclose, sscanf, \
             fgets, sprintf
+from libc.string cimport strcpy
 
 
 cdef extern from "Python.h":
@@ -23,8 +25,10 @@ cdef const_char_star blast_output = "%s\t%s\t%.2f\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%
 
 
 cdef class Blast:
-    cdef FILE* fh
-    cdef object filename
+    cdef:
+        FILE* fh
+        object filename
+
     def __cinit__(self, char* filename):
         self.fh = fopen(filename, 'r')
         self.filename = filename
@@ -34,12 +38,14 @@ cdef class Blast:
         return self
 
     def __next__(self):
-        cdef float pct = 0.0, evalue = 0.0, bit = 0.0
-        cdef char qname[128]
-        cdef char sname[128]
-        cdef int hlen, nmiss, ngap, qstart, qstop, sstart, sstop
-        cdef char *tmp
-        cdef int success
+        cdef:
+            float pct = 0.0, evalue = 0.0, bit = 0.0
+            char qname[128]
+            char sname[128]
+            int hlen, nmiss, ngap, qstart, qstop, sstart, sstop
+            char *tmp
+            int success
+
         success = fscanf(self.fh, blast_format_line, qname, sname, \
                          &pct, &hlen, &nmiss, &ngap, &qstart, &qstop,\
                          &sstart, &sstop, &evalue, &bit )
@@ -52,7 +58,7 @@ cdef class Blast:
         fclose(self.fh)
 
     def __repr__(self):
-        return "BlastFile('%s')" % (self.filename, )
+        return "Blast('%s')" % (self.filename, )
 
 
 cdef class BlastLine:
@@ -67,59 +73,37 @@ cdef class BlastLine:
     ...  'qstart', 'qstop', 'sstart', 'sstop', 'evalue', 'score')
     >>> [getattr(b, attr) for attr in attrs]  # doctest: +ELLIPSIS
     ['Os09g11510', 'Os08g13650', 92.3..., 39, 3, 0, 2273, 2311, 3237, 3199, 0.001..., 54.0]
-
     """
-    cdef public int hitlen, nmismatch, ngaps, qstart, qstop, sstart, sstop
-    cdef public float pctid, score
-    cdef public double evalue
-    cdef public char orientation
-    cdef public int qi, si
 
-    cdef char _cqseqid[32]
-    cdef char _csseqid[32]
-    cdef object _pyqseqid, _pysseqid
-    cdef char _cquery[128]
-    cdef char _csubject[128]
-    cdef object _pysubject, _pyquery
     __slots__ = ('query', 'subject', 'pctid', 'hitlen', 'nmismatch', 'ngaps', \
                  'qstart', 'qstop', 'sstart', 'sstop', 'evalue', 'score', \
                  'qseqid', 'sseqid', 'qi', 'si', 'orientation')
 
-    property qseqid:
-        def __get__(self):
-            if self._pyqseqid is None:
-                return self._cqseqid
-            return self._pyqseqid
-        def __set__(self, val):
-            self._pyqseqid = val
-
-    property sseqid:
-        def __get__(self):
-            if self._pysseqid is None:
-                return self._csseqid
-            return self._pysseqid
-        def __set__(self, val):
-            self._pysseqid = val
+    cdef public:
+        char _query[128]
+        char _subject[128]
+        int hitlen, nmismatch, ngaps, qstart, qstop, sstart, sstop
+        float pctid, score
+        double evalue
+        object qseqid, sseqid
+        int qi, si
+        char orientation
 
     property query:
         def __get__(self):
-            if self._pyquery is None:
-                return self._cquery
-            return self._pyquery
+            return self._query
         def __set__(self, val):
-            self._pyquery = val
+            strcpy(self._query, val)
 
     property subject:
         def __get__(self):
-            if self._pysubject is None:
-                return self._csubject
-            return self._pysubject
+            return self._subject
         def __set__(self, val):
-            self._pysubject = val
+            strcpy(self._subject, val)
 
     def __init__(self, char *sline):
         if sline != NULL:
-            sscanf(sline, blast_format, self._cquery, self._csubject,
+            sscanf(sline, blast_format, self._query, self._subject,
                 &self.pctid, &self.hitlen, &self.nmismatch, &self.ngaps,
                 &self.qstart, &self.qstop,
                 &self.sstart, &self.sstop,
@@ -156,13 +140,13 @@ cdef class BlastLine:
             args[8], args[9] = args[9], args[8]
 
         cdef char result[512]
-        sprintf(result, blast_output, self._cquery, self._csubject,
+        sprintf(result, blast_output, self._query, self._subject,
             self.pctid, self.hitlen, self.nmismatch, self.ngaps,
             self.qstart, self.qstop,
             self.sstart, self.sstop,
             self.evalue, self.score)
 
-        return str(result)
+        return result
 
     @property
     def swapped(self):

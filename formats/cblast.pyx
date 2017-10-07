@@ -6,22 +6,15 @@ Cythonized (fast) version of BlastLine
 Stolen from brentp's biostuff (thanks):
 <https://github.com/brentp/bpbio/blob/master/biostuff/biostuff/cblastline.pyx>
 """
-cdef extern from *:
-    ctypedef char* const_char_star "const char*"
-
 import sys
 from libc.stdio cimport FILE, EOF, fopen, fscanf, rewind, fclose, sscanf, \
             fgets, sprintf
 from libc.string cimport strcpy
 
 
-cdef extern from "Python.h":
-    char *PyString_AsString(object)
-
-
-cdef const_char_star blast_format = "%s\t%s\t%f\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%lf\t%f"
-cdef const_char_star blast_format_line = "%s\t%s\t%f\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%lf\t%f\n"
-cdef const_char_star blast_output = "%s\t%s\t%.2f\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.2g\t%.3g"
+cdef const char *blast_format = "%s\t%s\t%f\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%lf\t%f"
+cdef const char *blast_format_line = "%s\t%s\t%f\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%lf\t%f\n"
+cdef const char *blast_output = "%s\t%s\t%.2f\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.2g\t%.3g"
 
 
 cdef class Blast:

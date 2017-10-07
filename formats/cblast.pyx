@@ -174,16 +174,12 @@ cdef class BlastLine:
             self.evalue, self.score)
 
 
-cdef extern from "pnew.h":
-        cdef BlastLine NEW_BLASTLINE "PY_NEW" (object t)
-
-
-cpdef BlastLine create_blast_line(char *query, char*subject, float pctid, int hitlen,
+cdef BlastLine create_blast_line(char *query, char *subject, float pctid, int hitlen,
                        int nmismatch, int ngaps, int qstart, int qstop,
                        int sstart, int sstop, float evalue, float score):
     """ Factory method.
     """
-    cdef BlastLine b = NEW_BLASTLINE(BlastLine)
+    cdef BlastLine b = BlastLine.__new__(BlastLine)
     b.query = query
     b.subject = subject
     b.pctid = pctid

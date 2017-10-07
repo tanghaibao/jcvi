@@ -31,7 +31,7 @@ class InstanceSkeleton(BaseFile):
 
     @property
     def instance_id(self):
-        return self.spec["InstanceId"]
+        return self.spec["InstanceId"].strip()
 
     @property
     def private_ip_address(self):
@@ -146,7 +146,7 @@ def start(args):
 
     # Make sure the instance id is empty
     instance_id = s.instance_id
-    if len(instance_id) > 0:
+    if instance_id != "":
         logging.error("Instance exists {}".format(instance_id))
         sys.exit(1)
 
@@ -248,8 +248,12 @@ def stop(args):
     client = session.client('ec2')
     s = InstanceSkeleton()
 
-    # Create image
+    # Make sure the instance id is NOT empty
     instance_id = s.instance_id
+    if instance_id == "":
+        logging.error("Cannot find instance_id {}".format(instance_id))
+        sys.exit(1)
+
     block_device_mappings = []
     for volume in s.volumes:
         block_device_mappings.append(

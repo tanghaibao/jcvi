@@ -695,6 +695,9 @@ def multihistogram(args):
             help="Maximum value, inclusive")
     opts, args, iopts = p.set_image_options(args, figsize="10x5", dpi=300)
 
+    if len(args) < 1:
+        sys.exit(not p.print_help())
+
     histfiles = args[:-1]
     species = args[-1]
     fig = plt.figure(1, (iopts.w, iopts.h))

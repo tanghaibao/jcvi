@@ -1689,5 +1689,25 @@ def inspect(object):
         print >> sys.stderr, "{}: {}".format(k, details)
 
 
+def sample_N(a, N):
+    """ When size of N is >= size of a, random.sample() will emit an error:
+    ValueError: sample larger than population
+
+    This method handles such restrictions by repeatedly sampling when that
+    happens.
+
+    Examples:
+    >>> sample_N([1, 2, 3], 2)
+    >>> sample_N([1, 2, 3], 3)
+    >>> sample_N([1, 2, 3], 4)
+    """
+    import random
+
+    if N < len(a):
+        return random.sample(a, N)
+
+    return [random.choice(a) for x in range(N)]
+
+
 if __name__ == '__main__':
     main()

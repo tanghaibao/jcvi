@@ -6,7 +6,6 @@ import sys
 import logging
 
 from functools import partial
-from random import sample
 
 import numpy as np
 import matplotlib as mpl
@@ -23,7 +22,7 @@ from matplotlib.path import Path
 from jcvi.utils.brewer2mpl import get_map
 from jcvi.formats.base import LineFile
 from jcvi.apps.console import dark, green
-from jcvi.apps.base import glob, listify, datadir
+from jcvi.apps.base import glob, listify, datadir, sample_N
 
 
 class ImageOptions (object):
@@ -94,11 +93,11 @@ class AbstractLayout (LineFile):
 
     def assign_colors(self):
         colorset = get_map('Set2', 'qualitative', 8).mpl_colors
-        colorset = sample(colorset, len(self))
+        colorset = sample_N(colorset, len(self))
         self.assign_array("color", colorset)
 
     def assign_markers(self):
-        markerset = sample(mpl.lines.Line2D.filled_markers, len(self))
+        markerset = sample_N(mpl.lines.Line2D.filled_markers, len(self))
         self.assign_array("marker", markerset)
 
     def __str__(self):

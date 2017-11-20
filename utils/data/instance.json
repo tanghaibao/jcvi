@@ -16,7 +16,7 @@
             "Arn": "",
             "Name": ""
         },
-        "ImageId": "ami-9376b3eb",
+        "ImageId": "ami-ac3cf2d4",
         "InstanceType": "c4.8xlarge",
         "KeyName": "mvrad-pdx-htang",
         "Monitoring": {

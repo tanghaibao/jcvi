@@ -386,6 +386,7 @@ def bambus(args):
     Insert unplaced scaffolds based on mates.
     """
     from jcvi.utils.iter import pairwise
+    from jcvi.formats.bed import BedLine
     from jcvi.formats.posmap import MatesFile
 
     p = OptionParser(bambus.__doc__)
@@ -504,6 +505,10 @@ def bambus(args):
         mmin, mmax = range_minmax([x[1:3] for x in candidates])
         if (mmax - mmin) > maxdist:
             print >> log, msg
+            continue
+
+        if mmin >= mmax:
+            print >> log, "Invalid (min, max) range"
             continue
 
         # Determine orientation by voting

@@ -386,7 +386,7 @@ def array(args):
     outfile = "{0}.{1}.out".format(pf, "\$TASK_ID")
     errfile = "{0}.{1}.err".format(pf, "\$TASK_ID")
     p = GridProcess("sh {0}".format(runfile), outfile=outfile, errfile=errfile,
-                    arr=ncmds, grid_opts=opts)
+                    arr=N, grid_opts=opts)
     p.start()
 
 

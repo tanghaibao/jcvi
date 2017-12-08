@@ -166,7 +166,8 @@ proteins_fasta: {2}
 blast_dbs:
   swissprot:
     weight: 100
-    file: swissprot/{1}.swissprot.pairwise
+    file: swissprot/{1}.swissprot.tab
+    datdabase: dbs/swissprot.fasta
     blacklist: {0}/blacklist_descline.txt
     filter: {0}/filter_descline_sprot.txt
     token_blacklist: {0}/blacklist_token.txt
@@ -174,7 +175,8 @@ blast_dbs:
 
   tair:
     weight: 50
-    file: tair/{1}.tair.pairwise
+    file: tair/{1}.tair.tab
+    database: dbs/tair.fasta
     blacklist: {0}/blacklist_descline.txt
     filter: {0}/filter_descline_tair.txt
     token_blacklist: {0}/blacklist_token.txt
@@ -182,7 +184,8 @@ blast_dbs:
 
   trembl:
     weight: 10
-    file: trembl/{1}.trembl.pairwise
+    file: trembl/{1}.trembl.tab
+    database: dbs/trembl.fasta
     blacklist: {0}/blacklist_descline.txt
     filter: {0}/filter_descline_trembl.txt
     token_blacklist: {0}/blacklist_token.txt
@@ -644,7 +647,7 @@ def batch(args):
 
     bit_score, db_score, ovl_score = ahrd_weights[opts.blastprog]
 
-    for f in glob("{0}/*.fasta".format(splits)):
+    for f in glob("{0}/*.fa*".format(splits)):
         fb = op.basename(f).rsplit(".", 1)[0]
         fw = open(op.join(output, fb + ".yml"), "w")
 

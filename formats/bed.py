@@ -83,6 +83,18 @@ class BedLine(object):
     def tag(self):
         return "{0}:{1}-{2}".format(self.seqid, self.start, self.end)
 
+    def reverse_complement(self, sizes):
+        size = sizes.get_size(self.seqid)
+
+        start = size - self.end + 1
+        end = size - self.start + 1
+        self.start, self.end = start, end
+        assert self.start <= self.end, \
+                "start={0} end={1}".format(self.start, self.end)
+
+        if self.strand:
+            strand = {'+': '-', '-': '+'}[self.strand]
+
     def gffline(self, type='match', source='default'):
         score = "." if not self.score or \
                 (self.score and not is_number(self.score)) \
@@ -1789,6 +1801,8 @@ def bedpe(args):
     p = OptionParser(bedpe.__doc__)
     p.add_option("--span", default=False, action="store_true",
                  help="Write span bed file [default: %default]")
+    p.add_option("--strand", default=False, action="store_true",
+            help="Write the strand columns [default: %default]")
     p.add_option("--mates", help="Check the library stats from .mates file")
     opts, args = p.parse_args(args)
 
@@ -1800,7 +1814,8 @@ def bedpe(args):
     bedpefile = pf + ".bedpe"
     bedspanfile = pf + ".spans.bed" if opts.span else None
     bed_to_bedpe(bedfile, bedpefile, \
-                 pairsbedfile=bedspanfile, matesfile=opts.mates)
+                 pairsbedfile=bedspanfile, matesfile=opts.mates, \
+                 strand=opts.strand)
     return bedpefile, bedspanfile
 
 

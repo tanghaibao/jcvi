@@ -1,0 +1,182 @@
+
+format_do_nothing:
+    action: format
+    opts:
+    args: __DIR__/inputs/sample.gff
+    outputs: [stdout]
+    references: [inputs/sample.gff]
+
+format_remove_feats:
+    action: format
+    opts: --remove_feats=chromosome,protein
+    args: __DIR__/inputs/sample.gff
+    outputs: [stdout]
+    references: [references/sample.remove_feats.gff]
+
+format_remove_attrs:
+    action: format
+    opts: --remove_attr=Derives_from
+    args: __DIR__/inputs/sample.gff
+    outputs: [stdout]
+    references: [references/sample.remove_attrs.gff]
+
+format_multiparents_merge:
+    action: format
+    opts: --multiparents=merge
+    args: __DIR__/inputs/sample.gff
+    outputs: [stdout]
+    references: [references/sample.multiparents_merge.gff]
+
+format_multiparents_split:
+    action: format
+    opts: --multiparents=split
+    args: __DIR__/inputs/sample.gff
+    outputs: [stdout]
+    references: [references/sample.multiparents_split.gff]
+
+format_invent_protein_feat:
+    action: format
+    opts: --invent_protein_feat
+    args: __DIR__/inputs/sample.gff
+    outputs: [stdout]
+    references: [references/sample.invent_protein_feat.gff]
+
+format_invent_name_attr:
+    action: format
+    opts: --invent_name_attr
+    args: __DIR__/inputs/sample.gff
+    outputs: [stdout]
+    references: [references/sample.invent_name_attr.gff]
+
+bed_do_nothing:
+    action: bed
+    opts: 
+    args: __DIR__/inputs/sample.gff
+    outputs: [stdout]
+    references: [references/sample.bed]
+
+bed_append_source_ftype:
+    action: bed
+    opts: --append_source --append_ftype
+    args: __DIR__/inputs/sample.gff
+    outputs: [stdout]
+    references: [references/sample.append_source_ftype.bed]
+
+bed_ftype_strip_names:
+    action: bed
+    opts: --type=mRNA --strip_names
+    args: __DIR__/inputs/sample.gff
+    outputs: [stdout]
+    references: [references/sample.ftype_strip_names.bed]
+
+bed12_do_nothing:
+    action: bed12
+    opts: 
+    args: __DIR__/inputs/sample.gff
+    outputs: [stdout]
+    references: [references/sample.bed12.bed]
+
+cluster_slop:
+    action: cluster
+    opts: --slop
+    args: __DIR__/inputs/sample2.gff
+    outputs: [stdout]
+    references: [references/sample2.cluster.gff]
+
+extract_by_names:
+    action: extract
+    opts: --names=AT2G01008,AT2G01022
+    args: __DIR__/inputs/sample.gff
+    outputs: [stdout]
+    references: [references/sample.extract_by_names.gff]
+
+extract_by_names_with_children:
+    action: extract
+    opts: --names=AT2G01008,AT2G01022 --children=2
+    args: __DIR__/inputs/sample.gff
+    outputs: [stdout]
+    references: [references/sample.extract_by_names_with_children.gff]
+
+extract_by_types_with_children:
+    action: extract
+    opts: --types=mRNA --children=1
+    args: __DIR__/inputs/sample.gff
+    outputs: [stdout]
+    references: [references/sample.extract_by_types_with_children.gff]
+
+filter_by_child_feat_length:
+    action: filter
+    opts: --child_ftype=CDS --child_bp=200
+    args: __DIR__/inputs/sample.gff
+    outputs: [stdout]
+    references: [references/sample.filter_by_child_feat_length.gff]
+
+summary:
+    action: summary
+    opts: 
+    args: __DIR__/inputs/sample.gff
+    outputs: [stdout]
+    references: [references/sample.summary.txt]
+
+gtf:
+    action: gtf
+    opts: 
+    args: __DIR__/inputs/sample.gff
+    outputs: [stdout]
+    references: [references/sample.gtf]
+
+load_cdna_fasta:
+    action: load
+    opts: 
+    args: __DIR__/inputs/sample.gff __DIR__/inputs/sample.fa
+    outputs: [stdout]
+    references: [references/sample.cdna.fa]
+
+load_cds_fasta:
+    action: load
+    opts: --feature=CDS --full_header=tair --datestamp=20101214
+    args: __DIR__/inputs/sample.gff __DIR__/inputs/sample.fa
+    outputs: [stdout]
+    references: [references/sample.cds.fa]
+
+load_upstream_tss_fasta:
+    action: load
+    opts: --feature=upstream:TSS:500
+    args: __DIR__/inputs/sample.gff __DIR__/inputs/sample.fa
+    outputs: [stdout]
+    references: [references/sample.upstream_TSS_500.fa]
+
+load_upstream_trss_fasta:
+    action: load
+    opts: --feature=upstream:TrSS:500
+    args: __DIR__/inputs/sample.gff __DIR__/inputs/sample.fa
+    outputs: [stdout]
+    references: [references/sample.upstream_TrSS_500.fa]
+
+merge:
+    action: merge
+    opts: 
+    args: __DIR__/inputs/*.gff
+    outputs: [stdout]
+    references: [references/sample.merge.gff]
+
+note_mrna_parent_exoncount:
+    action: note
+    opts: --type=mRNA --attribute=Parent --exoncount
+    args: __DIR__/inputs/sample.gff
+    outputs: [stdout]
+    references: [references/sample.mrna_parent_exoncount.tsv]
+
+sizes_cds_feats:
+    action: sizes
+    opts:
+    args: __DIR__/inputs/sample.gff
+    outputs: [stdout]
+    references: [references/sample.sizes_cds_feats.tsv]
+
+summary_isoform:
+    action: summary
+    opts: --isoform
+    args: __DIR__/inputs/sample.gff
+    outputs: [stdout]
+    references: [references/sample.summary_isoform.txt]

@@ -163,10 +163,16 @@ with_and_pat = re.compile(r"[with|,]\s*\S+and\S+")
 
 Template = """
 proteins_fasta: {2}
+token_score_bit_score_weight: {4}
+token_score_database_score_weight: {5}
+token_score_overlap_score_weight: {6}
+description_score_relative_description_frequency_weight: 0.6
+output: {3}
 blast_dbs:
   swissprot:
     weight: 100
-    file: swissprot/{1}.swissprot.pairwise
+    file: ./swissprot/{1}.swissprot.tab
+    database: ./dbs/swissprot.fasta
     blacklist: {0}/blacklist_descline.txt
     filter: {0}/filter_descline_sprot.txt
     token_blacklist: {0}/blacklist_token.txt
@@ -174,25 +180,24 @@ blast_dbs:
 
   tair:
     weight: 50
-    file: tair/{1}.tair.pairwise
+    file: ./tair/{1}.tair.tab
+    database: ./dbs/tair.fasta
     blacklist: {0}/blacklist_descline.txt
     filter: {0}/filter_descline_tair.txt
+    fasta_header_regex: "^>(?<accession>[aA][tT][0-9mMcC][gG]\\\\d+(\\\\.\\\\d+)?)\\\\s+\\\\|[^\\\\|]+\\\\|\\\\s+(?<description>[^\\\\|]+)(\\\\s*\\\\|.*)?$"
+    short_accession_regex: "^(?<shortAccession>.+)$"
     token_blacklist: {0}/blacklist_token.txt
     description_score_bit_score_weight: 0.4
 
   trembl:
     weight: 10
-    file: trembl/{1}.trembl.pairwise
+    file: ./trembl/{1}.trembl.tab
+    database: ./dbs/trembl.fasta
     blacklist: {0}/blacklist_descline.txt
     filter: {0}/filter_descline_trembl.txt
     token_blacklist: {0}/blacklist_token.txt
     description_score_bit_score_weight: 0.4
 {7}
-token_score_bit_score_weight: {4}
-token_score_database_score_weight: {5}
-token_score_overlap_score_weight: {6}
-description_score_relative_description_frequency_weight: 0.6
-output: {3}
 """
 
 iprscanTemplate = """
@@ -644,7 +649,7 @@ def batch(args):
 
     bit_score, db_score, ovl_score = ahrd_weights[opts.blastprog]
 
-    for f in glob("{0}/*.fasta".format(splits)):
+    for f in glob("{0}/*.fa*".format(splits)):
         fb = op.basename(f).rsplit(".", 1)[0]
         fw = open(op.join(output, fb + ".yml"), "w")
 

@@ -1,44 +1,50 @@
 {
-    "InstanceId": "i-02442fbb4d1f5f992", 
+    "AvailabilityZone": "us-west-2b",
+    "InstanceId": "i-0539d4c91278360c6",
     "LaunchSpec": {
         "BlockDeviceMappings": [
             {
-                "DeviceName": "/dev/sda1", 
+                "DeviceName": "/dev/sda1",
                 "Ebs": {
-                    "VolumeSize": 64, 
+                    "VolumeSize": 80,
                     "VolumeType": "gp2"
                 }
             }
-        ], 
-        "EbsOptimized": true, 
+        ],
+        "EbsOptimized": true,
         "IamInstanceProfile": {
-            "Arn": "", 
+            "Arn": "",
             "Name": ""
-        }, 
-        "ImageId": "ami-9b3529e2", 
-        "InstanceType": "c4.8xlarge", 
-        "KeyName": "mvrad-pdx-htang", 
+        },
+        "ImageId": "ami-2e09aa56",
+        "InstanceType": "c4.8xlarge",
+        "KeyName": "mvrad-pdx-htang",
         "Monitoring": {
             "Enabled": false
-        }, 
+        },
         "SecurityGroupIds": [
-            "sg-31982956", 
+            "sg-31982956",
             "sg-76bd4f11"
-        ], 
+        ],
         "SubnetId": "subnet-123ab865"
-    }, 
+    },
+    "PrivateIpAddress": "10.6.86.29",
     "Volumes": [
         {
-            "Device": "/dev/sdf", 
+            "Device": "/dev/sdf",
             "VolumeId": "vol-aad57e1f"
-        }, 
+        },
         {
-            "Device": "/dev/sdg", 
+            "Device": "/dev/sdg",
             "VolumeId": "vol-c709aa72"
-        }, 
+        },
         {
-            "Device": "/dev/sdh", 
+            "Device": "/dev/sdh",
             "VolumeId": "vol-2f09aa9a"
+        },
+        {
+            "Device": "/dev/sdi",
+            "VolumeId": "vol-0c9d29668103ce2cf"
         }
     ]
 }

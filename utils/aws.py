@@ -31,23 +31,62 @@ class InstanceSkeleton(BaseFile):
 
     @property
     def instance_id(self):
-        return self.spec["InstanceId"]
+        return self.spec["InstanceId"].strip()
+
+    @property
+    def private_ip_address(self):
+        return self.spec["PrivateIpAddress"]
+
+    @property
+    def availability_zone(self):
+        return self.spec["AvailabilityZone"]
 
     @property
     def volumes(self):
         return self.spec["Volumes"]
 
     @property
+    def block_device_mappings(self):
+        return self.launch_spec["BlockDeviceMappings"]
+
+    @property
+    def ebs_optimized(self):
+        return self.launch_spec["EbsOptimized"]
+
+    @property
     def image_id(self):
-        return self.spec["LaunchSpec"]["ImageId"]
+        return self.launch_spec["ImageId"]
+
+    @property
+    def instance_type(self):
+        return self.launch_spec["InstanceType"]
+
+    @property
+    def key_name(self):
+        return self.launch_spec["KeyName"]
+
+    @property
+    def security_group_ids(self):
+        return self.launch_spec["SecurityGroupIds"]
+
+    @property
+    def subnet_id(self):
+        return self.launch_spec["SubnetId"]
+
+    @property
+    def iam_instance_profile(self):
+        return self.launch_spec["IamInstanceProfile"]
 
     def save(self):
         fw = open(self.filename, "w")
-        json.dump(self.spec, fw, indent=4, sort_keys=True)
+        s = json.dumps(self.spec, indent=4, sort_keys=True)
+        # Clear the trailing spaces
+        print >> fw, "\n".join(x.rstrip() for x in s.splitlines())
         fw.close()
 
-    def save_instance_id(self, instance_id):
+    def save_instance_id(self, instance_id, private_id_address):
         self.spec["InstanceId"] = instance_id
+        self.spec["PrivateIpAddress"] = private_id_address
         self.save()
 
     def save_image_id(self, image_id):
@@ -64,9 +103,24 @@ def main():
         ('role', 'change aws role'),
         ('start', 'start ec2 instance'),
         ('stop', 'stop ec2 instance'),
+        ('ip', 'describe current instance'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def ip(args):
+    """
+    %prog describe
+
+    Show current IP address from JSON settings.
+    """
+    if len(args) != 0:
+        sys.exit(not p.print_help())
+
+    s = InstanceSkeleton()
+    print >> sys.stderr, "IP address:", s.private_ip_address
+    print >> sys.stderr, "Instance type:", s.instance_type
 
 
 def start(args):
@@ -76,6 +130,8 @@ def start(args):
     Launch ec2 instance through command line.
     """
     p = OptionParser(start.__doc__)
+    p.add_option("--ondemand", default=False, action="store_true",
+                 help="Do we want a more expensive on-demand instance")
     p.add_option("--profile", default="mvrad-datasci-role", help="Profile name")
     p.add_option("--price", default=4.0, type=float, help="Spot price")
     opts, args = p.parse_args(args)
@@ -83,43 +139,61 @@ def start(args):
     if len(args) != 0:
         sys.exit(not p.print_help())
 
-    role(["205134639408", "htang", "114692162163", "mvrad-datasci-role"])
+    role(["htang"])
     session = boto3.Session(profile_name=opts.profile)
     client = session.client('ec2')
     s = InstanceSkeleton()
 
     # Make sure the instance id is empty
     instance_id = s.instance_id
-    if len(instance_id) > 0:
+    if instance_id != "":
         logging.error("Instance exists {}".format(instance_id))
         sys.exit(1)
 
-    # Launch spot instance
     launch_spec = s.launch_spec
-    response = client.request_spot_instances(
-        SpotPrice=str(opts.price),
-        InstanceCount=1,
-        Type="one-time",
-        AvailabilityZoneGroup="us-west-2b",
-        LaunchSpecification=launch_spec
-    )
-
-    request_id = response["SpotInstanceRequests"][0]["SpotInstanceRequestId"]
-    print >> sys.stderr, "Request id {}".format(request_id)
-
     instance_id = ""
-    while not instance_id:
-        response = client.describe_spot_instance_requests(
-            SpotInstanceRequestIds=[request_id]
+
+    if opts.ondemand:
+        # Launch on-demand instance
+        response = client.run_instances(
+            BlockDeviceMappings=s.block_device_mappings,
+            MaxCount=1, MinCount=1,
+            ImageId=s.image_id,
+            InstanceType=s.instance_type,
+            KeyName=s.key_name,
+            Placement={"AvailabilityZone": s.availability_zone},
+            SecurityGroupIds=s.security_group_ids,
+            SubnetId=s.subnet_id,
+            EbsOptimized=s.ebs_optimized,
+            IamInstanceProfile=s.iam_instance_profile,
         )
-        if "InstanceId" in response["SpotInstanceRequests"][0]:
-            instance_id = response["SpotInstanceRequests"][0]["InstanceId"]
-        else:
-            logging.debug("Waiting to be fulfilled ...")
-            time.sleep(10)
+        instance_id = response["Instances"][0]["InstanceId"]
 
+    else:
+        # Launch spot instance
+        response = client.request_spot_instances(
+            SpotPrice=str(opts.price),
+            InstanceCount=1,
+            Type="one-time",
+            AvailabilityZoneGroup=s.availability_zone,
+            LaunchSpecification=launch_spec
+        )
+
+        request_id = response["SpotInstanceRequests"][0]["SpotInstanceRequestId"]
+        print >> sys.stderr, "Request id {}".format(request_id)
+
+        while not instance_id:
+            response = client.describe_spot_instance_requests(
+                SpotInstanceRequestIds=[request_id]
+            )
+            if "InstanceId" in response["SpotInstanceRequests"][0]:
+                instance_id = response["SpotInstanceRequests"][0]["InstanceId"]
+            else:
+                logging.debug("Waiting to be fulfilled ...")
+                time.sleep(10)
+
+    # Check if the instance is running
     print >> sys.stderr, "Instance id {}".format(instance_id)
-
     status = ""
     while status != "running":
         logging.debug("Waiting instance to run ...")
@@ -129,10 +203,11 @@ def start(args):
             status = response["InstanceStatuses"][0]["InstanceState"]["Name"]
 
     # Tagging
+    name = "htang-lx-ondemand" if opts.ondemand else "htang-lx-spot"
     response = client.create_tags(
         Resources=[instance_id],
         Tags=[{"Key": k, "Value": v} for k, v in { \
-                    "Name": "htang-lx-spot",
+                    "Name": name,
                     "owner": "htang",
                     "project": "mv-bioinformatics"
                 }.items()]
@@ -148,10 +223,11 @@ def start(args):
         )
 
     # Save instance id and ip
-    s.save_instance_id(instance_id)
     response = client.describe_instances(InstanceIds=[instance_id])
     ip_address = response["Reservations"][0]["Instances"][0]["PrivateIpAddress"]
     print >> sys.stderr, "IP address {}".format(ip_address)
+
+    s.save_instance_id(instance_id, ip_address)
 
 
 def stop(args):
@@ -167,13 +243,17 @@ def stop(args):
     if len(args) != 0:
         sys.exit(not p.print_help())
 
-    role(["205134639408", "htang", "114692162163", "mvrad-datasci-role"])
+    role(["htang"])
     session = boto3.Session(profile_name=opts.profile)
     client = session.client('ec2')
     s = InstanceSkeleton()
 
-    # Create image
+    # Make sure the instance id is NOT empty
     instance_id = s.instance_id
+    if instance_id == "":
+        logging.error("Cannot find instance_id {}".format(instance_id))
+        sys.exit(1)
+
     block_device_mappings = []
     for volume in s.volumes:
         block_device_mappings.append(
@@ -212,7 +292,7 @@ def stop(args):
 
     # Save new image id
     s.save_image_id(new_image_id)
-    s.save_instance_id("")
+    s.save_instance_id("", "")
 
 
 def glob_s3(store, keys=None, recursive=False):
@@ -417,7 +497,7 @@ def role(args):
     aws_configure(dst_role, 'aws_session_token', creds['SessionToken'])
     aws_configure(dst_role, 'region', region)
 
-    print dst_role
+    print >> sys.stderr, dst_role
 
 
 if __name__ == '__main__':

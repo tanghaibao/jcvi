@@ -92,7 +92,7 @@ def clone_name(s, ca=False):
     return s.rstrip('ab')
 
 
-def bed_to_bedpe(bedfile, bedpefile, pairsbedfile=None, matesfile=None, ca=False):
+def bed_to_bedpe(bedfile, bedpefile, pairsbedfile=None, matesfile=None, ca=False, strand=False):
     """
     This converts the bedfile to bedpefile, assuming the reads are from CA.
     """
@@ -126,8 +126,10 @@ def bed_to_bedpe(bedfile, bedpefile, pairsbedfile=None, matesfile=None, ca=False
             a, b = blines
             aseqid, astart, aend = a.seqid, a.start, a.end
             bseqid, bstart, bend = b.seqid, b.start, b.end
-            print >> fw, "\t".join(str(x) for x in (aseqid, astart - 1, aend,
-                bseqid, bstart - 1, bend, clonename))
+            outcols = [aseqid, astart - 1, aend, bseqid, bstart - 1, bend, clonename]
+            if strand:
+                outcols.extend([0, a.strand, b.strand])
+            print >> fw, "\t".join(str(x) for x in outcols)
             nbedpe += 1
         elif nlines == 1:
             a, = blines

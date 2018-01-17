@@ -522,6 +522,7 @@ def main():
         ('truncate', 'remove lines from end of file'),
         ('append', 'append a column with fixed value'),
         ('seqids', 'make a list of seqids for graphics.karyotype'),
+        ('mergecsv', 'merge a set of tsv files'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -1065,6 +1066,36 @@ def setop(args):
 
     for x in natsorted(t):
         print x
+
+
+def mergecsv(args):
+    """
+    %prog mergecsv *.tsv
+
+    Merge a set of tsv files.
+    """
+    p = OptionParser(mergecsv.__doc__)
+    p.set_outfile()
+    opts, args = p.parse_args(args)
+
+    if len(args) < 2:
+        sys.exit(not p.print_help())
+
+    tsvfiles = args
+    outfile = opts.outfile
+
+    if op.exists(outfile):
+        os.remove(outfile)
+
+    tsvfile = tsvfiles[0]
+    fw = must_open(opts.outfile, "w")
+    for i, tsvfile in enumerate(tsvfiles):
+        fp = open(tsvfile)
+        if i > 0:
+            fp.next()
+        for row in fp:
+            fw.write(row)
+    fw.close()
 
 
 if __name__ == '__main__':

@@ -130,6 +130,8 @@ def fromagp(args):
     from jcvi.formats.sizes import Sizes
 
     p = OptionParser(fromagp.__doc__)
+    p.add_option("--novalidate", default=False, action="store_true",
+                 help="Do not validate AGP")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -138,7 +140,7 @@ def fromagp(args):
     agpfile, componentfasta, objectfasta = args
     chainfile = agpfile.rsplit(".", 1)[0] + ".chain"
     fw = open(chainfile, "w")
-    agp = AGP(agpfile)
+    agp = AGP(agpfile, validate=(not opts.novalidate))
     componentsizes = Sizes(componentfasta).mapping
     objectsizes = Sizes(objectfasta).mapping
     chain = "chain"

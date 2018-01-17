@@ -219,7 +219,7 @@ def download_file_wget(url, target, cookies=None):
     cmd = ['wget', url, '--output-document', target]
     cmd += ["--no-check-certificate"]
     if url.startswith("ftp:"):
-        cmd += ["--no-passive-ftp"]
+        cmd += ["--passive-ftp"]
     if cookies:
         cmd += ["--load-cookies", cookies]
     subprocess.check_call(cmd)

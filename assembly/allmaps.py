@@ -817,12 +817,105 @@ def main():
         ('build', 'build associated FASTA and CHAIN file'),
         ('split', 'split suspicious scaffolds'),
         ('summary', 'report summary stats for maps and final consensus'),
+        # Visualization
         ('plot', 'plot matches between goldenpath and maps for single object'),
         ('plotall', 'plot matches between goldenpath and maps for all objects'),
+        ('plotratio', 'illustrate physical vs map distance ratio'),
         ('movie', 'visualize history of scaffold OO'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def normalize_lms_axis(ax, xlim=None, ylim=None, xfactor=1e-6, yfactor=1,
+                       xlabel=None, ylabel="Map (cM)"):
+    """ Normalize the axis limits and labels to beautify axis.
+    """
+    if xlim:
+        ax.set_xlim(0, xlim)
+    if ylim:
+        ax.set_ylim(0, ylim)
+    if xlabel:
+        xticklabels = [int(round(x * xfactor)) for x in ax.get_xticks()]
+        ax.set_xticklabels(xticklabels, family='Helvetica')
+        ax.set_xlabel(xlabel)
+    else:
+        ax.set_xticks([])
+    if ylabel:
+        yticklabels = [int(round(x * yfactor)) for x in ax.get_yticks()]
+        ax.set_yticklabels(yticklabels, family='Helvetica')
+        ax.set_ylabel(ylabel)
+    else:
+        ax.set_yticks([])
+
+
+def plotratio(args):
+    """
+    %prog plotratio JM-2 chr23 JMMale-23
+
+    Illustrate physical vs map distance ratio, that were used in the gap estimation algorithm.
+    """
+    from jcvi.graphics.base import plt, savefig, normalize_axes, panel_labels, set2
+
+    p = OptionParser(estimategaps.__doc__)
+    opts, args, iopts = p.set_image_options(args, figsize="6x6", dpi=300)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    pf, seqid, mlg = args
+    bedfile = pf + ".lifted.bed"
+    agpfile = pf + ".agp"
+
+    function = lambda x: x.cm
+    cc = Map(bedfile, scaffold_info=True, function=function)
+    agp = AGP(agpfile)
+
+    g = GapEstimator(cc, agp, seqid, mlg, function=function)
+    pp, chrsize, mlgsize = g.pp, g.chrsize, g.mlgsize
+    spl, spld = g.spl, g.spld
+    g.compute_all_gaps(verbose=False)
+
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes([0, 0, 1, 1])
+
+    # Panel A
+    xstart, ystart = .15, .55
+    w, h = .7, .4
+    t = np.linspace(0, chrsize, 1000)
+    ax = fig.add_axes([xstart, ystart, w, h])
+    mx, my = zip(*g.scatter_data)
+    rho = spearmanr(mx, my)
+
+    dsg = "g"
+    ax.vlines(pp, 0, mlgsize, colors="beige")
+    ax.plot(mx, my, ".", color=set2[3])
+    ax.plot(t, spl(t), "-", color=dsg)
+    ax.text(.05, .95, mlg, va="top", transform=ax.transAxes)
+    normalize_lms_axis(ax, xlim=chrsize, ylim=mlgsize,
+                       ylabel="Genetic distance (cM)")
+    if rho < 0:
+        ax.invert_yaxis()
+
+    # Panel B
+    ystart = .1
+    ax = fig.add_axes([xstart, ystart, w, h])
+    ax.vlines(pp, 0, mlgsize, colors="beige")
+    ax.plot(t, spld(t), "-", lw=2, color=dsg)
+    ax.plot(pp, spld(pp), "o", mfc="w", mec=dsg, ms=5)
+    normalize_lms_axis(ax, xlim=chrsize, ylim=25 * 1e-6,
+                       xfactor=1e-6,
+                       xlabel="Physical position (Mb) on {}".format(seqid),
+                       yfactor=1000000, ylabel="Recomb. rate\n(cM / Mb)")
+    ax.xaxis.grid(False)
+
+    labels = ((.05, .95, 'A'), (.05, .5, 'B'))
+    panel_labels(root, labels)
+    normalize_axes(root)
+
+    pf = "plotratio"
+    image_name = pf + "." + iopts.format
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
 def fake(args):
@@ -996,14 +1089,13 @@ def movie(args):
     make_movie(ffmpeg, pf)
 
 
-def make_movie(workdir, pf, fps=1, format="pdf", engine="ffmpeg"):
-    """
-    Make the movie using either ffmpeg or gifsicle.
+def make_movie(workdir, pf, dpi=120, fps=1, format="pdf", engine="ffmpeg"):
+    """ Make the movie using either ffmpeg or gifsicle.
     """
     os.chdir(workdir)
     if format != "png":
-        cmd = "parallel convert -density 300 {} {.}.png ::: " \
-                + "*.{}".format(format)
+        cmd  = "parallel convert -density {}".format(dpi)
+        cmd += " {} {.}.png ::: " + "*.{}".format(format)
         sh(cmd)
 
     assert engine in ("ffmpeg", "gifsicle"), \

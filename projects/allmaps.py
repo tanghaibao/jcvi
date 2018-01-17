@@ -8,7 +8,7 @@ Scripts for the ALLMAPS manuscript (un-published)
 import sys
 import numpy as np
 
-from jcvi.assembly.allmaps import AGP, Map, GapEstimator, spearmanr
+from jcvi.assembly.allmaps import AGP, Map, GapEstimator, normalize_lms_axis, spearmanr
 from jcvi.formats.bed import Bed
 from jcvi.utils.cbook import percentage
 from jcvi.graphics.chromosome import HorizontalChromosome
@@ -269,26 +269,6 @@ def estimategaps(args):
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
-def normalize_lms_axis(ax, xlim=110, ylim=110, xfactor=1e-6, yfactor=1,
-                       xlabel=None, ylabel="Map (cM)"):
-    if xlim:
-        ax.set_xlim(0, xlim)
-    if ylim:
-        ax.set_ylim(0, ylim)
-    if xlabel:
-        xticklabels = [int(round(x * xfactor)) for x in ax.get_xticks()]
-        ax.set_xticklabels(xticklabels, family='Helvetica')
-        ax.set_xlabel(xlabel)
-    else:
-        ax.set_xticks([])
-    if ylabel:
-        yticklabels = [int(round(x * yfactor)) for x in ax.get_yticks()]
-        ax.set_yticklabels(yticklabels, family='Helvetica')
-        ax.set_ylabel(ylabel)
-    else:
-        ax.set_yticks([])
-
-
 def lms(args):
     """
     %prog lms
@@ -327,7 +307,7 @@ def lms(args):
     ax.text(80, 30, "LIS = 7", color="r", ha="center", va="center")
     ax.text(80, 20, "LDS = 4", color="g", ha="center", va="center")
     ax.text(80, 10, "LMS = $max$(LIS, LDS) = 7", ha="center", va="center")
-    normalize_lms_axis(ax)
+    normalize_lms_axis(ax, xlim=110, ylim=110)
 
     # Panel B
     w = .37
@@ -343,7 +323,7 @@ def lms(args):
                               solid_capstyle="round", solid_joinstyle="round")
     ax.plot(xdata, ydata, "k.", mec="k", mfc="w", mew=3, ms=12)
     ax.vlines(p, 0, 110, colors="beige", lw=3)
-    normalize_lms_axis(ax)
+    normalize_lms_axis(ax, xlim=110, ylim=110)
     patch = [.1 + w * x / 110. for x in p]
     HorizontalChromosome(root, .1, .1 + w, .09, patch=patch,
                          height=.02, lw=2)
@@ -361,7 +341,7 @@ def lms(args):
                               solid_capstyle="round", solid_joinstyle="round")
     ax.plot(xdata, ydata, "k.", mec="k", mfc="w", mew=3, ms=12)
     ax.vlines(p, [0], [110], colors="beige", lw=3)
-    normalize_lms_axis(ax)
+    normalize_lms_axis(ax, xlim=110, ylim=110)
     HorizontalChromosome(root, .6, .6 + w, .09, patch=patch,
                          height=.02, lw=2)
     scaffolds = ("a", "-c", "b")

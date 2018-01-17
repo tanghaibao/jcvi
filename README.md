@@ -2,7 +2,6 @@
 
 [![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.31631.svg)](https://doi.org/10.5281/zenodo.594205)
 [![Latest PyPI version](https://img.shields.io/pypi/v/jcvi.svg)](https://pypi.python.org/pypi/jcvi)
-[![Number of PyPI downloads](https://img.shields.io/pypi/dm/jcvi.svg)](https://pypi.python.org/pypi/jcvi)
 [![Travis-CI](https://travis-ci.org/tanghaibao/jcvi.svg?branch=master)](https://travis-ci.org/tanghaibao/jcvi)
 [![Pushbullet](https://img.shields.io/badge/pushbullet-commit_log-lightgrey.svg)](https://www.pushbullet.com/channel?tag=tanghaibao-jcvi-commits)
 

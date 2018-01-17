@@ -180,7 +180,7 @@ class GffLine (object):
     def accn(self):
         if self.key:   # GFF3 format
             if self.key not in self.attributes:
-                a = "{0}_{1}".format(str(self.type).lower(), self.idx)
+                a = ["{0}_{1}".format(str(self.type).lower(), self.idx)]
             else:
                 a = self.attributes[self.key]
         else:          # GFF2 format
@@ -256,6 +256,9 @@ class Gff (LineFile):
             self.keep_attr_order = keep_attr_order
             self.compute_signature = compute_signature
             if filename in ("-", "stdin") or filename.endswith(".gz"):
+                if ".gtf" in filename:
+                    self.gff3 = False
+                    logging.debug("File is not gff3 standard.")
                 return
 
             self.set_gff_type()
@@ -844,7 +847,7 @@ def summary(args):
         table[(type, "Unique bases")] = bs.unique_bases
         table[(type, "Total bases")] = bs.total_bases
 
-    print >> sys.stderr, tabulate(table)
+    print >> sys.stdout, tabulate(table)
 
 
 def gb(args):
@@ -1435,6 +1438,7 @@ def format(args):
     if names:
         names = DictFile(names, delimiter="\t", strict=strict)
         mod_attrs.add("Name")
+
     if attrib_files:
         attr_values = {}
         for fn in attrib_files:
@@ -1613,7 +1617,9 @@ def format(args):
         if attrib_files:
             for attr_name in attr_values:
                 name = g.get_attr("Name")
-                if name in attr_values[attr_name]:
+                if id in attr_values[attr_name]:
+                    g.set_attr(attr_name, attr_values[attr_name][id])
+                elif name and name in attr_values[attr_name]:
                     g.set_attr(attr_name, attr_values[attr_name][name])
 
         if dbxref_files:
@@ -2212,6 +2218,7 @@ def gtf(args):
 
         g.type = valid_gff_to_gtf_type[g.type]
         for tid in transcript_id:
+            if tid not in transcript_info: continue
             gene_type = transcript_info[tid]["gene_type"]
             if not gene_type.endswith("RNA") and not gene_type.endswith("transcript"):
                 continue
@@ -2559,8 +2566,6 @@ def bed(args):
             help="Append GFF feature type to extracted key value")
     p.add_option("--nosort", default=False, action="store_true",
             help="Do not sort the output bed file [default: %default]")
-    p.add_option("--phytozome", default=False, action="store_true",
-            help="Use Phytozome convention, extract Name per gene")
     p.set_stripnames(default=False)
     p.set_outfile()
 
@@ -2579,9 +2584,6 @@ def bed(args):
         type = set(x.strip() for x in opts.type.split(","))
     if opts.source:
         source = set(x.strip() for x in opts.source.split(","))
-    if opts.phytozome:
-        key = "Name"
-        type = set(["gene"])
 
     gff = Gff(gffile, key=key, append_source=opts.append_source, \
         append_ftype=opts.append_ftype, score_attrib=opts.score_attrib)
@@ -2741,6 +2743,7 @@ def load(args):
     desc_attr = opts.desc_attribute
     sep = opts.sep
 
+    import gffutils
     g = make_index(gff_file)
     f = Fasta(fasta_file, index=False)
     seqlen = {}
@@ -2754,8 +2757,14 @@ def load(args):
         if desc_attr:
             fparent = feat.attributes['Parent'][0] \
                 if 'Parent' in feat.attributes else None
-            if fparent and desc_attr in g[fparent].attributes:
-                desc = ",".join(g[fparent].attributes[desc_attr])
+            if fparent:
+                try:
+                    g_fparent = g[fparent]
+                except gffutils.exceptions.FeatureNotFoundError:
+                    logging.error("{} not found in index .. skipped".format(fparent))
+                    continue
+                if desc_attr in g_fparent.attributes:
+                    desc = ",".join(g_fparent.attributes[desc_attr])
             elif desc_attr in feat.attributes:
                 desc = ",".join(feat.attributes[desc_attr])
 
@@ -2853,6 +2862,7 @@ def parse_feature_param(feature):
 
     upstream_site, upstream_len = None, None
     flag, error_msg = None, None
+    parents, children = None, None
     if re.match(r'upstream', feature):
         parents, children = "mRNA", "CDS"
         feature, upstream_site, upstream_len = re.search(r'([A-z]+):([A-z]+):(\S+)', \

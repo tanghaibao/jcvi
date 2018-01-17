@@ -30,6 +30,6 @@ install:
 
 # command to run tests
 script:
-  - for VERSION in $PYTHON_VERSIONS ; do source activate $VERSION ; py.test --tb=short ; done
+  - for VERSION in $PYTHON_VERSIONS ; do source activate $VERSION ; py.test --tb=short tests/ ; done
 
 sudo: false

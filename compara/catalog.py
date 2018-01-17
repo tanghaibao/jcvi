@@ -613,6 +613,9 @@ def ortholog(args):
     p.add_option("--quota", help="Quota align parameter")
     p.add_option("--nostdpf", default=False, action="store_true",
             help="Do not standardize contig names")
+    p.add_option("--no_strip_names", default=False, action="store_true",
+            help="Do not strip alternative splicing "
+            "(e.g. At5g06540.1 -> At5g06540)")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -643,15 +646,22 @@ def ortholog(args):
 
     filtered_last = last + ".filtered"
     if need_update(last, filtered_last):
-        blastfilter_main([last, "--cscore={0}".format(ccscore)])
+        if opts.no_strip_names:
+            blastfilter_main([last, "--cscore={0}".format(ccscore), "--no_strip_names"])
+        else:
+            blastfilter_main([last, "--cscore={0}".format(ccscore)])
 
     anchors = pprefix + ".anchors"
     lifted_anchors = pprefix + ".lifted.anchors"
     pdf = pprefix + ".pdf"
     if not opts.full:
         if need_update(filtered_last, lifted_anchors):
-            scan([filtered_last, anchors, dist,
-                    "--liftover={0}".format(last)])
+            if opts.no_strip_names:
+                scan([filtered_last, anchors, dist,
+                        "--liftover={0}".format(last), "--no_strip_names"])
+            else:
+                scan([filtered_last, anchors, dist,
+                        "--liftover={0}".format(last)])
         if quota:
             quota_main([lifted_anchors,
                         "--quota={0}".format(quota), "--screen"])
@@ -664,7 +674,10 @@ def ortholog(args):
         return
 
     if need_update(filtered_last, anchors):
-        scan([filtered_last, anchors, dist])
+        if opts.no_strip_names:
+            scan([filtered_last, anchors, dist, "--no_strip_names"])
+        else:
+            scan([filtered_last, anchors, dist])
 
     ooanchors = pprefix + ".1x1.anchors"
     if need_update(anchors, ooanchors):
@@ -672,7 +685,10 @@ def ortholog(args):
 
     lifted_anchors = pprefix + ".1x1.lifted.anchors"
     if need_update((last, ooanchors), lifted_anchors):
-        liftover([last, ooanchors, dist])
+        if opts.no_strip_names:
+            liftover([last, ooanchors, dist, "--no_strip_names"])
+        else:
+            liftover([last, ooanchors, dist])
 
     pblocks = pprefix + ".1x1.blocks"
     qblocks = qprefix + ".1x1.blocks"

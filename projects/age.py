@@ -31,28 +31,28 @@ traits_template = '''
 <html>
     <head>
         <title>ART traits</title>
+        <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/css/materialize.min.css">
         <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/js/materialize.min.js"></script>
         <style>
         img{
             float:left;
             border-radius: 5px;
-            margin-top: 5px;
-            margin-bottom: 5px;
             margin-right: 10px;
             margin-left: 10px;
-            width: 180;
-            height: 90;
+            width: 128;
+            height: 64;
         }
         #box{
             border-radius: 50%;
-            width:50px;
-            height:50px;
+            width: 48px;
+            height: 48px;
         }
         </style>
     </head>
-    <body>
-    <table class="bordered">
+    <body class="container">
+    <table class="centered bordered table-bordered">
     <thead>
     <tr>
         <th>Sample ID</th>
@@ -127,7 +127,10 @@ def traits(args):
 
     samples = []
     for folder in args:
-        filename = iglob(folder, "*-traits.json")[0]
+        targets = iglob(folder, "*-traits.json")
+        if not targets:
+            continue
+        filename = targets[0]
         js = json.load(open(filename))
         js["skin_rgb"] = make_rgb(
             js["traits"]["skin-color"]["L"],

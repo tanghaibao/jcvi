@@ -36,14 +36,16 @@ traits_template = '''
         <style>
         img{
             float:left;
-            margin-top: 10px;
-            margin-bottom: 10px;
-            margin-right: 15px;
-            margin-left: 15px;
+            border-radius: 5px;
+            margin-top: 5px;
+            margin-bottom: 5px;
+            margin-right: 10px;
+            margin-left: 10px;
             width: 180;
             height: 90;
         }
         #box{
+            border-radius: 50%;
             width:50px;
             height:50px;
         }

@@ -992,7 +992,7 @@ def fromsra(args):
     if compress:
         cmd.append("--{0}".format(compress))
     if paired:
-        cmd.append("--split-3")
+        cmd.append("--split-files")
     if outdir:
         cmd.append("--outdir {0}".format(outdir))
     cmd.append(srafile)

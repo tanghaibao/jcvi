@@ -15,6 +15,7 @@ from Bio import Entrez, SeqIO
 
 from jcvi.formats.base import must_open
 from jcvi.formats.fasta import print_first_difference
+from jcvi.formats.fastq import fromsra
 from jcvi.utils.cbook import tile
 from jcvi.utils.iter import grouper
 from jcvi.apps.console import green
@@ -494,10 +495,10 @@ def sra(args):
         srafile = download_srr_term(term)
         pf = srafile.split(".")[0]
         mkdir(pf)
-        cmd = "fastq-dump --outdir {} --split-files {}".format(pf, srafile)
+        _opts = [srafile, "--paired", "--outdir={0}".format(pf)]
         if not opts.nogzip:
-            cmd += " --gzip"
-        sh(cmd)
+            _opts.append("--compress=gzip")
+        fromsra(_opts)
 
 
 def download_srr_term(term):

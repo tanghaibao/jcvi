@@ -355,6 +355,7 @@ def main():
                    'based on 2-column mapping file'),
         ('pool', 'pool a bunch of fastafiles together and add prefix'),
         ('random', 'randomly take some records'),
+        ('simulate', 'simulate random fasta file for testing'),
         ('diff', 'check if two fasta records contain same information'),
         ('identical', 'given 2 fasta files, find all exactly identical records'),
         ('trim', 'given a cross_match screened fasta, trim the sequence'),
@@ -379,6 +380,40 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def simulate_one(fw, name, size):
+    """
+    Simulate a random sequence with name and size
+    """
+    from random import choice
+    seq = Seq(''.join(choice('ACGT') for _ in xrange(size)))
+    s = SeqRecord(seq, id=name, description="Fake sequence")
+    SeqIO.write([s], fw, "fasta")
+
+
+def simulate(args):
+    """
+    %prog simulate idsfile
+
+    Simulate random FASTA file based on idsfile, which is a two-column
+    tab-separated file with sequence name and size.
+    """
+    p = OptionParser(simulate.__doc__)
+    p.set_outfile()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    idsfile, = args
+    fp = open(idsfile)
+    fw = must_open(opts.outfile, "w")
+    for row in fp:
+        name, size = row.split()
+        size = int(size)
+        simulate_one(fw, name, size)
+    fp.close()
 
 
 def gc(args):

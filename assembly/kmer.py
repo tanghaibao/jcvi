@@ -211,7 +211,9 @@ class KMCComplex(object):
     def __init__(self, indices):
         self.indices = indices
 
-    def write(self, outfile, filename="stdout"):
+    def write(self, outfile, filename="stdout", action="union"):
+        assert action in ("union", "intersect")
+        op = " + sum " if action == "union" else " * "
         fw = must_open(filename, "w")
         print >> fw, "INPUT:"
         ss = []
@@ -221,7 +223,7 @@ class KMCComplex(object):
             ss.append(s)
             print >> fw, "{} = {}".format(s, e.rsplit(".", 1)[0])
         print >> fw, "OUTPUT:"
-        print >> fw, "{} = {}".format(outfile, " + sum ".join(ss))
+        print >> fw, "{} = {}".format(outfile, op.join(ss))
         fw.close()
 
 
@@ -232,7 +234,7 @@ def main():
         ('jellyfish', 'count kmers using `jellyfish`'),
         ('meryl', 'count kmers using `meryl`'),
         ('kmc', 'count kmers using `kmc`'),
-        ('kmcunion', 'union kmc indices'),
+        ('kmcop', 'intersect or union kmc indices'),
         ('bed', 'map kmers on FASTA'),
         # K-mer histogram
         ('histogram', 'plot the histogram based on meryl K-mer distribution'),
@@ -285,13 +287,15 @@ def bed(args):
                 print "\t".join(str(x) for x in (name, i, i + K, kmer))
 
 
-def kmcunion(args):
+def kmcop(args):
     """
-    %prog kmc *.kmc_suf
+    %prog kmcop *.kmc_suf
 
-    Union kmc indices.
+    Intersect or union kmc indices.
     """
     p = OptionParser(kmcunion.__doc__)
+    p.add_option("--action", choice=("union", "intersect"),
+                default="union", help="Action")
     p.add_option("-o", default="results", help="Output name")
     opts, args = p.parse_args(args)
 
@@ -300,7 +304,7 @@ def kmcunion(args):
 
     indices = args
     ku = KMCComplex(indices)
-    ku.write(opts.o)
+    ku.write(opts.o, action=opts.action)
 
 
 def kmc(args):
@@ -316,7 +320,11 @@ def kmc(args):
     p.add_option("--cs", default=2, type="int",
                  help="Maximal value of a counter")
     p.add_option("--single", default=False, action="store_true",
-                 help="Input is single-end data, only one FASTQ")
+                 help="Input is single-end data, only one FASTQ/FASTA")
+    p.add_option("--fasta", default=False, action="store_true",
+                 help="Input is FASTA instead of FASTQ")
+    p.add_option("--pattern", default="*.fq,*.fq.gz,*.fastq,*.fastq.gz",
+                 help="Search files with these suffixes in folder")
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -326,8 +334,12 @@ def kmc(args):
     folder, = args
     K = opts.k
     n = 1 if opts.single else 2
+    pattern = "*.fa,*.fa.gz,*.fasta,*.fasta.gz" if opts.fasta else \
+              "*.fq,*.fq.gz,*.fastq,*.fastq.gz"
+
     mm = MakeManager()
-    for p, pf in iter_project(folder, n=n, commonprefix=False):
+    for p, pf in iter_project(folder, pattern=pattern,
+                              n=n, commonprefix=False):
         pf = pf.split("_")[0] + ".ms{}".format(K)
         infiles = pf + ".infiles"
         fw = open(infiles, "w")
@@ -336,6 +348,8 @@ def kmc(args):
 
         cmd = "kmc -k{} -m64 -t{}".format(K, opts.cpus)
         cmd += " -ci{} -cs{}".format(opts.ci, opts.cs)
+        if opts.fasta:
+            cmd += " -fm"
         cmd += " @{} {} .".format(infiles, pf)
         outfile = pf + ".kmc_suf"
         mm.add(p, outfile, cmd)

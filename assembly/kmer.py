@@ -8,7 +8,10 @@ Deals with K-mers and K-mer distribution from reads or genome
 import os.path as op
 import sys
 import logging
+import math
 import numpy as np
+
+from collections import defaultdict
 
 from jcvi.graphics.base import plt, asciiplot, set_human_axis, savefig, \
             markup, panel_labels, normalize_axes, set_ticklabels_helvetica, \
@@ -235,6 +238,7 @@ def main():
         ('meryl', 'count kmers using `meryl`'),
         ('kmc', 'count kmers using `kmc`'),
         ('kmcop', 'intersect or union kmc indices'),
+        ('entropy', 'calculate entropy for kmers from kmc dump'),
         ('bed', 'map kmers on FASTA'),
         # K-mer histogram
         ('histogram', 'plot the histogram based on meryl K-mer distribution'),
@@ -249,6 +253,46 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def entropy_score(kmer):
+    """
+    Schmieder and Edwards. Quality control and preprocessing of metagenomic datasets. (2011) Bioinformatics
+    https://academic.oup.com/bioinformatics/article/27/6/863/236283/Quality-control-and-preprocessing-of-metagenomic
+    """
+    l = len(kmer) - 2
+    k = l if l < 64 else 64
+    counts = defaultdict(int)
+    for i in range(l):
+        trinuc = kmer[i: i + 3]
+        counts[trinuc] += 1
+
+    logk = math.log(k)
+    res = 0
+    for k, v in counts.items():
+        f = v * 1. / l
+        res += f * math.log(f) / logk
+    return res * -100
+
+
+def entropy(args):
+    """
+    %prog entropy kmc_dump.out
+
+    kmc_dump.out contains two columns:
+    AAAAAAAAAAAGAAGAAAGAAA  34
+    """
+    p = OptionParser(entropy.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    kmc_out, = args
+    fp = open(kmc_out)
+    for row in fp:
+        kmer, count = row.split()
+        print " ".join((kmer, count, "{:.2f}".format(entropy_score(kmer))))
 
 
 def bed(args):

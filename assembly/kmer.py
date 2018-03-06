@@ -293,8 +293,8 @@ def kmcop(args):
 
     Intersect or union kmc indices.
     """
-    p = OptionParser(kmcunion.__doc__)
-    p.add_option("--action", choice=("union", "intersect"),
+    p = OptionParser(kmcop.__doc__)
+    p.add_option("--action", choices=("union", "intersect"),
                 default="union", help="Action")
     p.add_option("-o", default="results", help="Output name")
     opts, args = p.parse_args(args)
@@ -316,15 +316,15 @@ def kmc(args):
     p = OptionParser(kmc.__doc__)
     p.add_option("-k", default=21, type="int", help="Kmer size")
     p.add_option("--ci", default=2, type="int",
-                 help="Minimum value of a counter")
+                 help="Exclude kmers with less than ci counts")
     p.add_option("--cs", default=2, type="int",
                  help="Maximal value of a counter")
+    p.add_option("--cx", default=None, type="int",
+                 help="Exclude kmers with more than cx counts")
     p.add_option("--single", default=False, action="store_true",
                  help="Input is single-end data, only one FASTQ/FASTA")
     p.add_option("--fasta", default=False, action="store_true",
                  help="Input is FASTA instead of FASTQ")
-    p.add_option("--pattern", default="*.fq,*.fq.gz,*.fastq,*.fastq.gz",
-                 help="Search files with these suffixes in folder")
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -348,6 +348,8 @@ def kmc(args):
 
         cmd = "kmc -k{} -m64 -t{}".format(K, opts.cpus)
         cmd += " -ci{} -cs{}".format(opts.ci, opts.cs)
+        if opts.cx:
+            cmd += " -cx{}".format(opts.cx)
         if opts.fasta:
             cmd += " -fm"
         cmd += " @{} {} .".format(infiles, pf)

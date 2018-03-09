@@ -283,6 +283,8 @@ def entropy(args):
     AAAAAAAAAAAGAAGAAAGAAA  34
     """
     p = OptionParser(entropy.__doc__)
+    p.add_option("--threshold", default=0, type="int",
+                help="Complexity needs to be above")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -292,7 +294,9 @@ def entropy(args):
     fp = open(kmc_out)
     for row in fp:
         kmer, count = row.split()
-        print " ".join((kmer, count, "{:.2f}".format(entropy_score(kmer))))
+        score = entropy_score(kmer)
+        if score >= opts.threshold:
+            print " ".join((kmer, count, "{:.2f}".format(score)))
 
 
 def bed(args):

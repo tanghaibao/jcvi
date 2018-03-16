@@ -490,6 +490,7 @@ def trim(args):
         pairs += ".gz"
 
     get_prefix = lambda x: op.basename(x).replace(".gz", "").rsplit(".", 1)[0]
+    get_dirname = lambda x: "{0}/".format(op.dirname(x)) if op.dirname(x) else ''
     if len(args) == 1:
         cmd += " SE"
         cmd += phredflag
@@ -498,7 +499,8 @@ def trim(args):
             cmd += trimlog
         fastqfile, = args
         prefix = get_prefix(fastqfile)
-        frags1 = prefix + frags
+        dirname = get_dirname(fastqfile)
+        frags1 = dirname + prefix + frags
         cmd += " {0}".format(" ".join((fastqfile, frags1)))
     else:
         cmd += " PE"
@@ -508,11 +510,13 @@ def trim(args):
             cmd += trimlog
         fastqfile1, fastqfile2 = args
         prefix1 = get_prefix(fastqfile1)
+        dirname1 = get_dirname(fastqfile1)
         prefix2 = get_prefix(fastqfile2)
-        pairs1 = prefix1 + pairs
-        pairs2 = prefix2 + pairs
-        frags1 = prefix1 + frags
-        frags2 = prefix2 + frags
+        dirname2 = get_dirname(fastqfile2)
+        pairs1 = dirname1 + prefix1 + pairs
+        pairs2 = dirname2 + prefix2 + pairs
+        frags1 = dirname1 + prefix1 + frags
+        frags2 = dirname2 + prefix2 + frags
         if opts.nofrags:
             frags1 = "/dev/null"
             frags2 = "/dev/null"

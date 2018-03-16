@@ -495,6 +495,7 @@ class OptionParser (OptionP):
 
     def set_trinity_opts(self, gg=False):
         self.set_home("trinity")
+        self.set_home("hpcgridrunner")
         self.set_cpus()
         self.set_params(prog="Trinity")
         topts = OptionGroup(self, "General Trinity options")
@@ -506,20 +507,16 @@ class OptionParser (OptionP):
                      " [default: %default]")
         topts.add_option("--bflyGCThreads", default=None, type="int",
                 help="Threads for garbage collection [default: %default]")
-        topts.add_option("--grid_conf_file", default="$TRINITY_HOME/htc_conf/JCVI_SGE.0611.conf", \
-                type="str", help="Configuration file for supported compute farms" + \
+        topts.add_option("--grid_conf_file", default="JCVI_SGE.0689.conf", \
+                type="str", help="HpcGridRunner config file for supported compute farms" + \
                                  " [default: %default]")
         ggopts = OptionGroup(self, "Genome-guided Trinity options")
         self.add_option_group(ggopts)
-        ggopts.add_option("--use_bam", default=None, type="str",
+        ggopts.add_option("--bam", default=None, type="str",
                      help="provide coord-sorted bam file as starting point" + \
                           " [default: %default]")
         ggopts.add_option("--max_intron", default=15000, type="int",
                      help="maximum allowed intron length [default: %default]")
-        ggopts.add_option("--gg_cpu", default=None, type="int",
-                     help="set number of threads for individual GG-Trinity" + \
-                          " commands. if not defined, inherits from `--cpu`" + \
-                          " [default: %default]")
 
     def set_pasa_opts(self, action="assemble"):
         self.set_home("pasa")
@@ -589,6 +586,7 @@ class OptionParser (OptionP):
         tag = "--{0}_home".format(prog)
         default = default or {"amos": "~/code/amos-code",
                    "trinity": "~/export/trinityrnaseq-2.0.6",
+                   "hpcgridrunner": "~/export/hpcgridrunner-1.0.2",
                    "cdhit": "~/export/cd-hit-v4.6.1-2012-08-27",
                    "maker": "~/export/maker",
                    "augustus": "~/export/maker/exe/augustus",

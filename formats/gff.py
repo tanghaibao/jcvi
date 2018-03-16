@@ -1182,9 +1182,9 @@ def chain(args):
     p = OptionParser(chain.__doc__)
     p.add_option("--key", dest="attrib_key", default=None,
                 help="Attribute to use as `key` for chaining operation")
-    p.add_option("--chain_ftype", default="mRNA",
+    p.add_option("--chain_ftype", default="cDNA_match",
                 help="GFF feature type to use for chaining operation")
-    p.add_option("--parent_ftype", default="gene",
+    p.add_option("--parent_ftype", default=None,
                 help="GFF feature type to use for the chained coordinates")
     p.add_option("--break", dest="break_chain", action="store_true",
                 help="Break long chains which are non-contiguous")
@@ -1208,7 +1208,7 @@ def chain(args):
     break_chain = opts.break_chain
 
     chain_ftype = opts.chain_ftype
-    parent_ftype = opts.parent_ftype
+    parent_ftype = opts.parent_ftype if opts.parent_ftype else chain_ftype
 
     gffdict = {}
     fw = must_open(opts.outfile, "w")
@@ -1266,6 +1266,7 @@ def chain(args):
         g.attributes["Parent"] = [gid]
         g.attributes["ID"] = ["{0}-{1}".\
                 format(gid, len(gffdict[gkey]['children']) + 1)]
+        g.type = valid_gff_parent_child[g.type]
         g.update_attributes()
         gffdict[gkey]['children'].append(g)
         if break_chain:

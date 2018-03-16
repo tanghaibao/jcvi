@@ -164,7 +164,7 @@ def augustus(args):
     Train AUGUSTUS model given gffile and fastafile. Whole procedure taken from:
     <http://www.molecularevolution.org/molevolfiles/exercises/augustus/training.html>
     """
-    p = OptionParser(snap.__doc__)
+    p = OptionParser(augustus.__doc__)
     p.add_option("--autotrain", default=False, action="store_true",
                  help="Run autoAugTrain.pl to iteratively train AUGUSTUS")
     p.set_home("augustus")

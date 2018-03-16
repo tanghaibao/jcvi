@@ -332,6 +332,8 @@ def insert(args):
     seen = set()
     for row in fp:
         atoms = row.split()
+        if len(atoms) <= 6:
+            continue
         unplaced = atoms[3]
         strand = atoms[5]
         gapid = atoms[9]
@@ -351,12 +353,12 @@ def insert(args):
     bed([maskedagpfile, "--outfile={0}".format(maskedbedfile)])
 
     mbed = Bed(maskedbedfile)
-    beds = []
+    finalbed = Bed()
     for b in mbed:
         sid = b.seqid
         key = (sid, b.start, b.end)
         if key not in gappositions:
-            beds.append(b)
+            finalbed.add("{0}\n".format(b))
             continue
 
         gapid = gappositions[key]
@@ -366,11 +368,9 @@ def insert(args):
         scfs.sort(key=lambda x: corder[x[0]][1].start + corder[x[0]][1].end)
         for scf, strand in scfs:
             size = sizes[scf]
-            beds.add("\t".join(str(x) for x in \
+            finalbed.add("\t".join(str(x) for x in \
                     (scf, 0, size, sid, 1000, strand)))
 
-    finalbed = Bed()
-    finalbed.extend(beds)
     finalbedfile = "final.bed"
     finalbed.print_to_file(finalbedfile)
 
@@ -496,19 +496,22 @@ def bambus(args):
 
         candidates = [x for x in alldepths if x[-1] == maxdepth]
         nseqids = len(set(x[0] for x in candidates))
-        msg = "Multiple conflicting candidates found"
         if nseqids != 1:
+            msg = "Multiple conflicting candidates found"
             print >> log, msg
             continue
 
         seqid, mmin, mmax, depth = candidates[0]
         mmin, mmax = range_minmax([x[1:3] for x in candidates])
-        if (mmax - mmin) > maxdist:
-            print >> log, msg
-            continue
 
         if mmin >= mmax:
+            msg = "Invalid (min, max) range"
             print >> log, "Invalid (min, max) range"
+            continue
+
+        if (mmax - mmin) > maxdist:
+            msg = "(min, max) distance greater than library maxdist"
+            print >> log, msg
             continue
 
         # Determine orientation by voting
@@ -950,7 +953,7 @@ def refine(args):
 
         gaps = [(int(x[-1]), x) for x in gaps]
         maxgap = max(gaps)[1]
-        print >> largestgapsfw, "\t".join(maxgap[ncols:])
+        print >> largestgapsfw, "\t".join(maxgap)
 
     nogapsfw.close()
     largestgapsfw.close()

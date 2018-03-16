@@ -8,7 +8,10 @@ Deals with K-mers and K-mer distribution from reads or genome
 import os.path as op
 import sys
 import logging
+import math
 import numpy as np
+
+from collections import defaultdict
 
 from jcvi.graphics.base import plt, asciiplot, set_human_axis, savefig, \
             markup, panel_labels, normalize_axes, set_ticklabels_helvetica, \
@@ -211,7 +214,9 @@ class KMCComplex(object):
     def __init__(self, indices):
         self.indices = indices
 
-    def write(self, outfile, filename="stdout"):
+    def write(self, outfile, filename="stdout", action="union"):
+        assert action in ("union", "intersect")
+        op = " + sum " if action == "union" else " * "
         fw = must_open(filename, "w")
         print >> fw, "INPUT:"
         ss = []
@@ -221,7 +226,7 @@ class KMCComplex(object):
             ss.append(s)
             print >> fw, "{} = {}".format(s, e.rsplit(".", 1)[0])
         print >> fw, "OUTPUT:"
-        print >> fw, "{} = {}".format(outfile, " + sum ".join(ss))
+        print >> fw, "{} = {}".format(outfile, op.join(ss))
         fw.close()
 
 
@@ -232,7 +237,8 @@ def main():
         ('jellyfish', 'count kmers using `jellyfish`'),
         ('meryl', 'count kmers using `meryl`'),
         ('kmc', 'count kmers using `kmc`'),
-        ('kmcunion', 'union kmc indices'),
+        ('kmcop', 'intersect or union kmc indices'),
+        ('entropy', 'calculate entropy for kmers from kmc dump'),
         ('bed', 'map kmers on FASTA'),
         # K-mer histogram
         ('histogram', 'plot the histogram based on meryl K-mer distribution'),
@@ -247,6 +253,50 @@ def main():
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def entropy_score(kmer):
+    """
+    Schmieder and Edwards. Quality control and preprocessing of metagenomic datasets. (2011) Bioinformatics
+    https://academic.oup.com/bioinformatics/article/27/6/863/236283/Quality-control-and-preprocessing-of-metagenomic
+    """
+    l = len(kmer) - 2
+    k = l if l < 64 else 64
+    counts = defaultdict(int)
+    for i in range(l):
+        trinuc = kmer[i: i + 3]
+        counts[trinuc] += 1
+
+    logk = math.log(k)
+    res = 0
+    for k, v in counts.items():
+        f = v * 1. / l
+        res += f * math.log(f) / logk
+    return res * -100
+
+
+def entropy(args):
+    """
+    %prog entropy kmc_dump.out
+
+    kmc_dump.out contains two columns:
+    AAAAAAAAAAAGAAGAAAGAAA  34
+    """
+    p = OptionParser(entropy.__doc__)
+    p.add_option("--threshold", default=0, type="int",
+                help="Complexity needs to be above")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    kmc_out, = args
+    fp = open(kmc_out)
+    for row in fp:
+        kmer, count = row.split()
+        score = entropy_score(kmer)
+        if score >= opts.threshold:
+            print " ".join((kmer, count, "{:.2f}".format(score)))
 
 
 def bed(args):
@@ -285,13 +335,15 @@ def bed(args):
                 print "\t".join(str(x) for x in (name, i, i + K, kmer))
 
 
-def kmcunion(args):
+def kmcop(args):
     """
-    %prog kmc *.kmc_suf
+    %prog kmcop *.kmc_suf
 
-    Union kmc indices.
+    Intersect or union kmc indices.
     """
-    p = OptionParser(kmcunion.__doc__)
+    p = OptionParser(kmcop.__doc__)
+    p.add_option("--action", choices=("union", "intersect"),
+                default="union", help="Action")
     p.add_option("-o", default="results", help="Output name")
     opts, args = p.parse_args(args)
 
@@ -300,7 +352,7 @@ def kmcunion(args):
 
     indices = args
     ku = KMCComplex(indices)
-    ku.write(opts.o)
+    ku.write(opts.o, action=opts.action)
 
 
 def kmc(args):
@@ -312,11 +364,15 @@ def kmc(args):
     p = OptionParser(kmc.__doc__)
     p.add_option("-k", default=21, type="int", help="Kmer size")
     p.add_option("--ci", default=2, type="int",
-                 help="Minimum value of a counter")
+                 help="Exclude kmers with less than ci counts")
     p.add_option("--cs", default=2, type="int",
                  help="Maximal value of a counter")
+    p.add_option("--cx", default=None, type="int",
+                 help="Exclude kmers with more than cx counts")
     p.add_option("--single", default=False, action="store_true",
-                 help="Input is single-end data, only one FASTQ")
+                 help="Input is single-end data, only one FASTQ/FASTA")
+    p.add_option("--fasta", default=False, action="store_true",
+                 help="Input is FASTA instead of FASTQ")
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -326,8 +382,12 @@ def kmc(args):
     folder, = args
     K = opts.k
     n = 1 if opts.single else 2
+    pattern = "*.fa,*.fa.gz,*.fasta,*.fasta.gz" if opts.fasta else \
+              "*.fq,*.fq.gz,*.fastq,*.fastq.gz"
+
     mm = MakeManager()
-    for p, pf in iter_project(folder, n=n, commonprefix=False):
+    for p, pf in iter_project(folder, pattern=pattern,
+                              n=n, commonprefix=False):
         pf = pf.split("_")[0] + ".ms{}".format(K)
         infiles = pf + ".infiles"
         fw = open(infiles, "w")
@@ -336,6 +396,10 @@ def kmc(args):
 
         cmd = "kmc -k{} -m64 -t{}".format(K, opts.cpus)
         cmd += " -ci{} -cs{}".format(opts.ci, opts.cs)
+        if opts.cx:
+            cmd += " -cx{}".format(opts.cx)
+        if opts.fasta:
+            cmd += " -fm"
         cmd += " @{} {} .".format(infiles, pf)
         outfile = pf + ".kmc_suf"
         mm.add(p, outfile, cmd)

@@ -208,7 +208,7 @@ class AGP (LineFile):
     def __init__(self, filename, nogaps=False, validate=True, sorted=True):
         super(AGP, self).__init__(filename)
 
-        fp = open(filename)
+        fp = must_open(filename)
         self.header = []
         for row in fp:
             if row[0] == '#':

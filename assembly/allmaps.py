@@ -1860,9 +1860,9 @@ def plotall(xargs):
 
     inputbed, = args
     pf = inputbed.rsplit(".", 1)[0]
-    agpfile = pf + ".agp"
+    agpfile = pf + ".chr.agp"
     agp = AGP(agpfile)
-    objects = [ob for ob, lines in agp.iter_object() if len(lines) > 1]
+    objects = [ob for ob, lines in agp.iter_object()]
     for seqid in natsorted(objects):
         plot(xargs + [seqid])
 

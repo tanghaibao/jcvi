@@ -28,21 +28,16 @@ def main():
 
 def prepare(args):
     """
-    %prog prepare [--options] folder [genome.fasta]
+    %prog prepare [--options] folder [--bam rnaseq.coordSorted.bam]
 
     Run Trinity on a folder of reads.  When paired-end (--paired) mode is on,
     filenames will be scanned based on whether they contain the patterns
     ("_1_" and "_2_") or (".1." and ".2.") or ("_1." and "_2.").
 
-    By default, prepare script for DN
+    By default, prepare script for DN-Trinity.
 
-    If genome.fasta is provided, prepare script for GG-Trinity.
-    If coord-sorted BAM is provided, then it will use it as starting point.
-
-    Since GG-Trinity jobs are partitioned DN-Trinity jobs run on relatively small
-    regions, lesser amount of CPU can be specified for each DN job using `--gg_cpu`
-    In such cases, the `--cpu` should be set to a larger value to help speedup
-    upstream steps such as GSNAP read mapping or coordinate sorting of BAM files.
+    If coord-sorted BAM is provided, prepare script for GG-Trinity, using BAM
+    as starting point.
 
     Newer versions of trinity can take multiple fastq files as input.
     If "--merge" is specified, the fastq files are merged together before assembling
@@ -54,6 +49,7 @@ def prepare(args):
                  help="Merge individual input fastq's into left/right/single" + \
                       " file(s) [default: %default]")
     p.set_trinity_opts()
+    p.set_fastq_names()
     p.set_grid()
     opts, args = p.parse_args(args)
 
@@ -61,16 +57,17 @@ def prepare(args):
         sys.exit(not p.print_help())
 
     inparam, = args[:1]
-    assert op.exists(inparam)
-
-    genome = args[1] if len(args) == 2 else None
-    method = "GG" if genome is not None else "DN"
 
     paired = opts.paired
     merge = opts.merge
-    thome = opts.trinity_home
-    use_bam = opts.use_bam
-    gg_cpu = opts.gg_cpu
+    trinty_home = opts.trinity_home
+    hpc_grid_runner_home = opts.hpcgridrunner_home
+
+    method = "DN"
+    bam = opts.bam
+    if bam and op.exists(bam):
+        bam = op.abspath(bam)
+        method = "GG"
 
     pf = inparam.split(".")[0]
     tfolder = "{0}_{1}".format(pf, method)
@@ -79,56 +76,60 @@ def prepare(args):
     mkdir(tfolder)
     os.chdir(tfolder)
 
-    flist = iglob("../" + inparam, opts.names)
-    if paired:
-        f1 = [x for x in flist if "_1_" in x or ".1." in x or "_1." in x]
-        f2 = [x for x in flist if "_2_" in x or ".2." in x or "_2." in x]
-        assert len(f1) == len(f2)
-        if merge:
-            r1, r2 = "left.fastq", "right.fastq"
-            reads = ((f1, r1), (f2, r2))
-    else:
-        if merge:
-            r = "single.fastq"
-            reads = ((flist, r), )
+    if method == "DN":
+        assert op.exists(inparam)
 
-    if merge:
-        for fl, r in reads:
-            fm = FileMerger(fl, r)
-            fm.merge(checkexists=True)
+        flist = iglob("../" + inparam, opts.names)
+        if paired:
+            f1 = [x for x in flist if "_1_" in x or ".1." in x or "_1." in x]
+            f2 = [x for x in flist if "_2_" in x or ".2." in x or "_2." in x]
+            assert len(f1) == len(f2)
+            if merge:
+                r1, r2 = "left.fastq", "right.fastq"
+                reads = ((f1, r1), (f2, r2))
+        else:
+            if merge:
+                r = "single.fastq"
+                reads = ((flist, r), )
 
-    cmd = op.join(thome, "Trinity")
+        if merge:
+            for fl, r in reads:
+                fm = FileMerger(fl, r)
+                fm.merge(checkexists=True)
+
+    cmd = op.join(trinty_home, "Trinity")
     cmd += " --seqType fq --max_memory {0} --CPU {1}".format(opts.max_memory, opts.cpus)
     cmd += " --min_contig_length {0}".format(opts.min_contig_length)
+
     if opts.bflyGCThreads:
         cmd += " --bflyGCThreads {0}".format(opts.bflyGCThreads)
 
     if method == "GG":
-        cmd += " --genome {0} --genome_guided_max_intron {1}".format(genome, opts.max_intron)
-        if use_bam:
-            cmd += " --genome_guided_use_bam {0}".format(use_bam)
-        if gg_cpu:
-            cmd += " --genome_guided_CPU {0}".format(gg_cpu)
-    if opts.grid and opts.grid_conf_file:
-        cmd += " --grid_conf_file={0}".format(opts.grid_conf_file)
-
-    if paired:
-        if merge:
-            cmd += " --left {0} --right {1}".format(reads[0][-1], reads[1][-1])
-        else:
-            for lf, rf in zip(f1, f2):
-                cmd += " --left {0}".format(lf)
-                cmd += " --right {0}".format(rf)
+        cmd += " --genome_guided_bam {0}".format(bam)
+        cmd += " --genome_guided_max_intron {0}".format(opts.max_intron)
     else:
-        if merge:
-             cmd += " --single {0}".format(reads[0][-1])
+        if paired:
+            if merge:
+                cmd += " --left {0} --right {1}".format(reads[0][-1], reads[1][-1])
+            else:
+                cmd += " --left {0}".format(",".join(f1))
+                cmd += " --right {0}".format(",".join(f2))
         else:
-            for f in flist:
-                cmd += " --single {0}".format(f)
+            if merge:
+                 cmd += " --single {0}".format(reads[0][-1])
+            else:
+                for f in flist:
+                    cmd += " --single {0}".format(f)
+
+    if opts.grid and opts.grid_conf_file:
+        hpc_grid_runner = op.join(hpc_grid_runner_home, "hpc_cmds_GridRunner.pl")
+        hpc_grid_conf_file = op.join(hpc_grid_runner_home, "hpc_conf", opts.grid_conf_file)
+        assert op.exists(hpc_grid_conf_file), "HpcGridRunner conf file does not exist: {0}".format(hpc_grid_conf_file)
+
+        cmd += ' --grid_exec "{0} --grid_conf {1} -c"'.format(hpc_grid_runner, hpc_grid_conf_file)
+
     if opts.extra:
         cmd += " {0}".format(opts.extra)
-
-    cmd += " --bypass_java_version_check"
 
     runfile = "run.sh"
     write_file(runfile, cmd)

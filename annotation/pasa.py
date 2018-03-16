@@ -123,6 +123,12 @@ def assemble(args):
     compreh_pctcov, bpsplice = opts.compreh_pctcov, opts.bpsplice
 
     cmds = []
+
+    # set PASAHOME env variable if preparing shell script
+    if prepare:
+        env_cmd = 'export PASAHOME="{0}"'.format(PASA_HOME)
+        cmds.append(env_cmd)
+
     if ggfasta:
         transcripts = FileMerger([dnfasta, ggfasta], tfasta).merge()
         accn_extract_cmd = "cat {0} | {1} > {2}".format(dnfasta, accn_extract, tdn)

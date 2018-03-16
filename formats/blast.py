@@ -1118,7 +1118,9 @@ def bed(args):
     swap = opts.swap
 
     fp = must_open(blastfile)
-    bedfile = blastfile.rsplit(".", 1)[0] + ".bed"
+    bedfile =  "{0}.bed".format(blastfile.rsplit(".", 1)[0]) \
+            if blastfile.endswith(".blast") \
+            else "{0}.bed".format(blastfile)
     fw = open(bedfile, "w")
     for row in fp:
         b = BlastLine(row)

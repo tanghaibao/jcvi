@@ -81,7 +81,7 @@ class FastqHeader(object):
         self.paired = False
         if len(header) == 3 and "length" in header[2]:
             self.dialect = "sra"
-            self.readId = header[0]
+            self.readId = header[0].lstrip('@')
             m = re.search("length\=(\d+)", header[2])
             if m:
                 self.readLen = m.group(1)
@@ -98,7 +98,7 @@ class FastqHeader(object):
                 self.xPos, self.yPos = h[3], h[4]
         else:
             h = header[0].split(":")
-            self.instrument = h[0]
+            self.instrument = h[0].lstrip('@')
             if len(header) == 2 and header[1].find(":"):
                 self.dialect = ">=1.8"  # Illumina Casava 1.8+ format
 
@@ -143,7 +143,7 @@ class FastqHeader(object):
             h1 = ":".join(str(x) for x in h1elems)
             h2 = "length={0}".format(self.readLen)
 
-            return "{0} {1} {2}".format(h0, h1, h2)
+            return "@{0} {1} {2}".format(h0, h1, h2)
         elif self.dialect == ">=1.8":
             yPos = "{0}/{1}".format(self.yPos, self.readNum) if self.paired \
                     else self.yPos
@@ -177,6 +177,7 @@ class FastqHeader(object):
         if tag:
             readNum = tag.split("/")[1]
             self.readNum = readNum
+            self.paired = True
 
         return str(self)
 

@@ -206,7 +206,7 @@ class GridProcess (object):
     def __init__(self, cmd, jobid="", pcode="99999", queue="default", threaded=None,
                        infile=None, outfile=None, errfile=None, arr=None,
                        concurrency=None, outdir=".", name=None, hold_jid=None,
-                       grid_opts=None):
+                       extra_opts=None, grid_opts=None):
 
         self.cmd = cmd
         self.jobid = jobid
@@ -222,6 +222,7 @@ class GridProcess (object):
         self.pcode = pcode
         self.hold_jid = hold_jid
         self.pat = self.pat2 if arr else self.pat1
+        self.extra = extra_opts if extra_opts else None
         if grid_opts:
             self.__dict__.update(GridOpts(grid_opts))
 
@@ -251,6 +252,8 @@ class GridProcess (object):
         if self.hold_jid:
             param = "-hold_jid_ad" if self.arr else "-hold_jid"
             qsub += " {0} {1}".format(param, self.hold_jid)
+        if self.extra:
+            qsub += " {0}".format(self.extra)
 
         # I/O
         infile = self.infile
@@ -359,6 +362,7 @@ def array(args):
     """
     p = OptionParser(array.__doc__)
     p.set_grid_opts(array=True)
+    p.set_params(prog="grid")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -386,7 +390,7 @@ def array(args):
     outfile = "{0}.{1}.out".format(pf, "\$TASK_ID")
     errfile = "{0}.{1}.err".format(pf, "\$TASK_ID")
     p = GridProcess("sh {0}".format(runfile), outfile=outfile, errfile=errfile,
-                    arr=N, grid_opts=opts)
+                    arr=N, extra_opts=opts.extra, grid_opts=opts)
     p.start()
 
 
@@ -419,6 +423,7 @@ def run(args):
     """
     p = OptionParser(run.__doc__)
     p.set_grid_opts()
+    p.set_params(prog="grid")
     opts, args = p.parse_args(args)
 
     if len(args) == 0:
@@ -467,7 +472,7 @@ def run(args):
         cmds.append((ncmd, outfile))
 
     for ncmd, outfile in cmds:
-        p = GridProcess(ncmd, outfile=outfile, grid_opts=opts)
+        p = GridProcess(ncmd, outfile=outfile, extra_opts=opts.extra, grid_opts=opts)
         p.start()
 
 

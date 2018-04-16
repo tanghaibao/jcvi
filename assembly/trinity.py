@@ -60,7 +60,7 @@ def prepare(args):
 
     paired = opts.paired
     merge = opts.merge
-    trinty_home = opts.trinity_home
+    trinity_home = opts.trinity_home
     hpc_grid_runner_home = opts.hpcgridrunner_home
 
     method = "DN"
@@ -76,13 +76,19 @@ def prepare(args):
     mkdir(tfolder)
     os.chdir(tfolder)
 
+    cmds = []
+
+    # set TRINITY_HOME env variable when preparing shell script
+    env_cmd = 'export TRINITY_HOME="{0}"'.format(trinity_home)
+    cmds.append(env_cmd)
+
     if method == "DN":
-        assert op.exists(inparam)
+        assert op.exists("../" + inparam)
 
         flist = iglob("../" + inparam, opts.names)
         if paired:
-            f1 = [x for x in flist if "_1_" in x or ".1." in x or "_1." in x]
-            f2 = [x for x in flist if "_2_" in x or ".2." in x or "_2." in x]
+            f1 = [x for x in flist if "_1_" in x or ".1." in x or "_1." in x or "_R1" in x]
+            f2 = [x for x in flist if "_2_" in x or ".2." in x or "_2." in x or "_R2" in x]
             assert len(f1) == len(f2)
             if merge:
                 r1, r2 = "left.fastq", "right.fastq"
@@ -97,7 +103,7 @@ def prepare(args):
                 fm = FileMerger(fl, r)
                 fm.merge(checkexists=True)
 
-    cmd = op.join(trinty_home, "Trinity")
+    cmd = op.join(trinity_home, "Trinity")
     cmd += " --seqType fq --max_memory {0} --CPU {1}".format(opts.max_memory, opts.cpus)
     cmd += " --min_contig_length {0}".format(opts.min_contig_length)
 
@@ -131,8 +137,16 @@ def prepare(args):
     if opts.extra:
         cmd += " {0}".format(opts.extra)
 
+    cmds.append(cmd)
+
+    if opts.cleanup:
+        cleanup_cmd = 'rm -rf !("Trinity.fasta"|"Trinity.gene_trans_map"|"Trinity.timing")' \
+            if method == "DN" else \
+            'rm -rf !("Trinity-GG.fasta"|"Trinity-GG.gene_trans_map"|"Trinity.timing")'
+        cmd.append(cleanup_cmd)
+
     runfile = "run.sh"
-    write_file(runfile, cmd)
+    write_file(runfile, "\n".join(cmds))
     os.chdir(cwd)
 
 

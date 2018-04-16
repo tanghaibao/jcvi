@@ -144,7 +144,8 @@ def assemble(args):
 
     prjobid = None
     if clean:
-        cleancmd = "{0} {1} -c {2} -l 60".format(seqclean, transcripts, cpus)
+        ccpus = 16 if cpus >= 16 else cpus
+        cleancmd = "{0} {1} -c {2} -l 60".format(seqclean, transcripts, ccpus)
         if prepare:
             cmds.append(cleancmd)
         else:

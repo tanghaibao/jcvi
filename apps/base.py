@@ -339,7 +339,7 @@ class OptionParser (OptionP):
             self.add_option("--evalue", default=evalue, type="float",
                      help="E-value cutoff [default: %default]")
         if compreh_pctid is not None:
-            self.add_option("--compreh_pctid", default=pctid, type="int",
+            self.add_option("--compreh_pctid", default=compreh_pctid, type="int",
                      help="Sequence percent identity cutoff used to " + \
                           "build PASA comprehensive transcriptome [default: %default]")
         if compreh_pctcov is not None:
@@ -510,6 +510,8 @@ class OptionParser (OptionP):
         topts.add_option("--grid_conf_file", default="JCVI_SGE.0689.conf", \
                 type="str", help="HpcGridRunner config file for supported compute farms" + \
                                  " [default: %default]")
+        topts.add_option("--cleanup", default=False, action="store_true",
+                     help="Force clean-up of unwanted files after Trinity run is complete")
         ggopts = OptionGroup(self, "Genome-guided Trinity options")
         self.add_option_group(ggopts)
         ggopts.add_option("--bam", default=None, type="str",

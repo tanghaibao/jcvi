@@ -1616,6 +1616,18 @@ def waitpid(args):
         sh(cmd, grid=opts.grid, background=bg)
 
 
+def get_config(path):
+    import ConfigParser
+    config = ConfigParser.RawConfigParser()
+    try:
+        config.read(path)
+    except configparser.ParsingError:
+        e = sys.exc_info()[1]
+        log_error_and_exit(logger, "There was a problem reading or parsing "
+                           "your credentials file: %s" % (e.args[0],))
+    return config
+
+
 def getpath(cmd, name=None, url=None, cfg="~/.jcvirc", warn="exit"):
     """
     Get install locations of common binaries

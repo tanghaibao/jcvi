@@ -347,9 +347,77 @@ def main():
         # Benchmark, training, etc.
         ('sweep', 'write a number of commands to sweep parameter space'),
         ('compare', 'compare cnv output to ground truths'),
+        # Plots
+        ('gcdepth', 'plot GC content vs depth for genomic bins'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def gcdepth(args):
+    """
+    %prog gcdepth sample_name tag
+
+    Plot GC content vs depth vs genomnic bins. Inputs are mosdepth output:
+    - NA12878_S1.mosdepth.global.dist.txt
+    - NA12878_S1.mosdepth.region.dist.txt
+    - NA12878_S1.regions.bed.gz
+    - NA12878_S1.regions.bed.gz.csi
+    - NA12878_S1.regions.gc.bed.gz
+
+    A sample mosdepth.sh script might look like:
+    ```
+    #!/bin/bash
+    LD_LIBRARY_PATH=mosdepth/htslib/ mosdepth/mosdepth $1 \\
+        bams/$1.bam -t 4 -c chr1 -n --by 1000
+
+    bedtools nuc -fi GRCh38/WholeGenomeFasta/genome.fa \\
+        -bed $1.regions.bed.gz \\
+        | pigz -c > $1.regions.gc.bed.gz
+    ```
+    """
+    import hashlib
+    from jcvi.graphics.base import plt, savefig, set2
+
+    p = OptionParser(gcdepth.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    sample_name, tag = args
+    # The tag is used to add to title, also provide a random (hashed) color
+    coloridx = int(hashlib.sha1(tag).hexdigest(), 16) % len(set2)
+    color = set2[coloridx]
+
+    # mosdepth outputs a table that we can use to plot relationship
+    gcbedgz = sample_name + ".regions.gc.bed.gz"
+    df = pd.read_csv(gcbedgz, delimiter="\t")
+    mf = df.loc[:, ("4_usercol", "6_pct_gc")]
+    mf.columns = ["depth", "gc"]
+
+    # We discard any bins that are gaps
+    mf = mf[(mf["depth"] > .001) | (mf["gc"] > .001)]
+
+    # Create GC bins
+    gcbins = defaultdict(list)
+    for i, row in mf.iterrows():
+        gcp = int(round(row["gc"] * 100))
+        gcbins[gcp].append(row["depth"])
+    gcd = sorted((k * .01, np.median(v)) for (k, v) in gcbins.items())
+    gcd_x, gcd_y = zip(*gcd)
+
+    # Plot
+    plt.plot(mf["gc"], mf["depth"], ".", color="lightslategray", ms=2,
+             mec="lightslategray", alpha=.1)
+    plt.plot(gcd_x, gcd_y, "-", color=color, lw=2)
+    ax = plt.gca()
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 100)
+    ax.set_title("{} ({})".format(sample_name.split("_")[0], tag))
+    ax.set_xlabel("GC content")
+    ax.set_ylabel("Depth")
+    savefig(sample_name + ".gcdepth.png")
 
 
 def exonunion(args):

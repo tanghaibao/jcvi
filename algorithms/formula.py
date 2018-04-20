@@ -13,6 +13,36 @@ from math import log, exp, sqrt
 from jcvi.utils.cbook import human_size
 
 
+def mean_confidence_interval(data, confidence=0.95):
+    # Compute the confidence interval around the mean
+    import scipy
+
+    a = 1.0 * np.array(data)
+    n = len(a)
+    m, se = np.mean(a), scipy.stats.sem(a)
+    h = se * scipy.stats.t._ppf((1 + confidence) / 2., n - 1)
+    return m, m - h, m + h
+
+
+def confidence_interval(data, confidence=0.95):
+    # Compute the confidence interval of the data
+    # Note the difference from mean_confidence_interval()
+    a = 1.0 * np.array(data)
+    n = len(a)
+    m, stdev = np.mean(a), np.std(a)
+    h = 1.96 * stdev
+    return m, m - h, m + h
+
+
+def MAD_interval(data):
+    # Compute the MAD interval of the data
+    A = 1.0 * np.array(data)
+    M = np.median(A)
+    D = np.absolute(A - M)
+    MAD = np.median(D)
+    return M, M - MAD, M + MAD
+
+
 def erf(x):
     # save the sign of x
     sign = 1 if x >= 0 else -1

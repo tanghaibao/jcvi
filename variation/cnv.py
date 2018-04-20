@@ -377,6 +377,7 @@ def gcdepth(args):
     ```
     """
     import hashlib
+    from jcvi.algorithms.formula import MAD_interval as confidence_interval
     from jcvi.graphics.base import plt, savefig, set2
 
     p = OptionParser(gcdepth.__doc__)
@@ -404,14 +405,19 @@ def gcdepth(args):
     for i, row in mf.iterrows():
         gcp = int(round(row["gc"] * 100))
         gcbins[gcp].append(row["depth"])
-    gcd = sorted((k * .01, np.median(v)) for (k, v) in gcbins.items())
+    gcd = sorted((k * .01, confidence_interval(v)) for (k, v) in gcbins.items())
     gcd_x, gcd_y = zip(*gcd)
+    m, lo, hi = zip(*gcd_y)
 
     # Plot
     plt.plot(mf["gc"], mf["depth"], ".", color="lightslategray", ms=2,
              mec="lightslategray", alpha=.1)
-    plt.plot(gcd_x, gcd_y, "-", color=color, lw=2)
+    patch = plt.fill_between(gcd_x, lo, hi, facecolor=color, alpha=.25, zorder=10,
+                     linewidth=0.0, label="Median +/- MAD band")
+    plt.plot(gcd_x, m, "-", color=color, lw=2, zorder=20)
+
     ax = plt.gca()
+    ax.legend(handles=[patch], loc="best")
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 100)
     ax.set_title("{} ({})".format(sample_name.split("_")[0], tag))

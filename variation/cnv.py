@@ -378,7 +378,7 @@ def gcdepth(args):
     """
     import hashlib
     from jcvi.algorithms.formula import MAD_interval as confidence_interval
-    from jcvi.graphics.base import plt, savefig, set2
+    from jcvi.graphics.base import latex, plt, savefig, set2
 
     p = OptionParser(gcdepth.__doc__)
     opts, args = p.parse_args(args)
@@ -420,7 +420,7 @@ def gcdepth(args):
     ax.legend(handles=[patch], loc="best")
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 100)
-    ax.set_title("{} ({})".format(sample_name.split("_")[0], tag))
+    ax.set_title("{} ({})".format(latex(sample_name), tag))
     ax.set_xlabel("GC content")
     ax.set_ylabel("Depth")
     savefig(sample_name + ".gcdepth.png")

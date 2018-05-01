@@ -396,7 +396,7 @@ def iter_project(folder, pattern="*.fq,*.fq.gz,*.fastq,*.fastq.gz", n=2,
 
         pp = [op.basename(x) for x in p]
         pf = pairspf(pp, commonprefix=commonprefix)
-        yield list(p), pf
+        yield sorted(p), pf
 
 
 def soapX(args):

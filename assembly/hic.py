@@ -575,23 +575,33 @@ def heatmap(args):
     header = json.loads(open(jsonfile).read())
     # Load the matrix
     A = np.load(npyfile)
+    # Several concerns in practice:
+    # The diagonal counts may be too strong, this can either be resolved by
+    # masking them. Or perform a log transform on the entire heatmap.
+    B = A.astype("float64")
+    B += 1.0
+    B = np.log(B)
+    vmin, vmax = 1, 7
+    B[B < vmin] = vmin
+    B[B > vmax] = vmax
+    print B
+    logging.debug("Matrix log-transformation and thresholding ({}-{}) done"
+                  .format(vmin, vmax))
 
     # Canvas
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])       # whole canvas
     ax = fig.add_axes([.05, .05, .9, .9])   # just the heatmap
 
-    # Several concerns in practice:
-    # The diagonal counts may be too strong, this can either be resolved by
-    # masking them. Or perform a log transform on the entire heatmap.
     breaks = header["starts"].values()
     breaks += [header["total_bins"]]   # This is actually discarded
     breaks = sorted(breaks)[1:]
-    plot_heatmap(ax, A, breaks, iopts, binsize=opts.resolution)
+    plot_heatmap(ax, B, breaks, iopts, binsize=opts.resolution)
 
     # Title
     pf = npyfile.rsplit(".", 1)[0]
-    root.text(.5, .95, pf, color="darkslategray", ha="center", va="center")
+    root.text(.5, .98, pf, color="darkslategray", size=18,
+              ha="center", va="center")
 
     normalize_axes(root)
     image_name = pf + "." + iopts.format
@@ -1396,7 +1406,6 @@ def plot_heatmap(ax, M, breaks, iopts, binsize=BINSIZE):
                        family='Helvetica', color="gray")
     binlabel = "Bins ({} per bin)".format(human_size(binsize, precision=0))
     ax.set_xlabel(binlabel)
-    ax.set_ylabel(binlabel)
 
 
 def agp(args):

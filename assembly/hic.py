@@ -659,6 +659,18 @@ def get_seqstarts(bamfile, N):
     return seqstarts, seqsize, total_bins
 
 
+def get_distbins(start=100, bins=2500, ratio=1.01):
+    """ Get exponentially sized
+    """
+    b = np.ones(bins, dtype="float64")
+    b[0] = 100
+    for i in range(1, bins):
+        b[i] = b[i - 1] * ratio
+    bins = np.around(b).astype(dtype="int")
+    binsizes = np.diff(bins)
+    return bins, binsizes
+
+
 def bam2mat(args):
     """
     %prog bam2mat input.bam
@@ -682,13 +694,18 @@ def bam2mat(args):
     bamfilename, = args
     pf = bamfilename.rsplit(".", 1)[0]
     N = opts.resolution
+    bins = 2500
+    minsize = 100
 
     seqstarts, seqsize, total_bins = get_seqstarts(bamfilename, N)
+    distbinstarts, distbinsizes = get_distbins(start=minsize, bins=bins)
 
     # Store the starts and sizes into a JSON file
     jsonfile = pf + ".json"
     fwjson = open(jsonfile, "w")
-    header = {"starts": seqstarts, "sizes": seqsize, "total_bins": total_bins}
+    header = {"starts": seqstarts, "sizes": seqsize, "total_bins": total_bins,
+              "distbinstarts": list(distbinstarts),
+              "distbinsizes": list(distbinsizes)}
     json.dump(header, fwjson, sort_keys=True, indent=4)
     fwjson.close()
     logging.debug("Contig bin starts written to `{}`".format(jsonfile))
@@ -697,10 +714,14 @@ def bam2mat(args):
     logging.debug("Initialize matrix of size {}x{}"
                   .format(total_bins, total_bins))
     A = np.zeros((total_bins, total_bins), dtype="int")
+    B = np.zeros(bins, dtype="int")
 
     # Find the bin ID of each read
     def bin_number(chr, pos):
         return seqstarts[chr] + pos / N
+
+    def distbin_number(dist, start=minsize, ratio=1.01):
+        return int(round(math.log(dist * 1.0 / start, ratio)))
 
     bamfile = pysam.AlignmentFile(bamfilename, "rb")
     # Check all reads, rules borrowed from LACHESIS
@@ -710,7 +731,7 @@ def bam2mat(args):
         j += 1
         if j % 100000 == 0:
             print >> sys.stderr, "{} reads counted".format(j)
-        # if j >= 10000: break
+        if j >= 10000: break
 
         if c.is_qcfail and c.is_duplicate:
             continue
@@ -730,16 +751,26 @@ def bam2mat(args):
         bpos = c.next_reference_start
         if achr not in seqstarts or bchr not in seqstarts:
             continue
+        if achr == bchr:
+            dist = abs(apos - bpos)
+	    if dist < minsize:
+	        continue
+            db = distbin_number(dist)
+            B[db] += 1
+
         abin, bbin = bin_number(achr, apos), bin_number(bchr, bpos)
         A[abin, bbin] += 1
         if abin != bbin:
             A[bbin, abin] += 1
+
         k += 1
 
     logging.debug("Total reads counted: {}".format(percentage(2 * k, j)))
     bamfile.close()
     np.save(pf, A)
     logging.debug("Link counts written to `{}.npy`".format(pf))
+    np.save(pf + ".dist", B)
+    logging.debug("Link dists written to `{}.dist.npy`".format(pf))
 
 
 def simulate(args):

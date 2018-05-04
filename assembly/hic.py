@@ -6,6 +6,7 @@ Process Hi-C output into AGP for chromosomal-scale scaffolding.
 """
 
 import array
+import json
 import logging
 import sys
 import os
@@ -540,9 +541,118 @@ def main():
         # Plotting
         ('movieframe', 'plot heatmap and synteny for a particular tour'),
         ('movie', 'plot heatmap optimization history in a tourfile'),
+        # Reference-based analytics
+        ('bam2mat', 'convert bam file to .mat format used in plotting'),
+        ('heatmap', 'plot heatmap based on .mat format'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def get_seqstarts(bamfile, N):
+    """ Go through the SQ headers and pull out all sequences with size
+    greater than the resolution settings, i.e. contains at least a few cells
+    """
+    import pysam
+    bamfile = pysam.AlignmentFile(bamfile, "rb")
+    seqsize = {}
+    for kv in bamfile.header["SQ"]:
+        if kv["LN"] < 10 * N:
+            continue
+        seqsize[kv["SN"]] = kv["LN"] / N + 1
+
+    allseqs = natsorted(seqsize.keys())
+    allseqsizes = np.array([seqsize[x] for x in allseqs])
+    seqstarts = np.cumsum(allseqsizes)
+    seqstarts = np.roll(seqstarts, 1)
+    total_bins = seqstarts[0]
+    seqstarts[0] = 0
+    seqstarts = dict(zip(allseqs, seqstarts))
+
+    return seqstarts, seqsize, total_bins
+
+
+def bam2mat(args):
+    """
+    %prog bam2mat input.bam
+
+    Convert bam file to .mat format, which is simply numpy 2D array. Important
+    parameter is the resolution, which is the cell size. Small cell size lead
+    to more fine-grained heatmap, but leads to large .mat size and slower
+    plotting.
+    """
+    import pysam
+    from jcvi.utils.cbook import percentage
+
+    p = OptionParser(bam2mat.__doc__)
+    p.add_option("--resolution", default=500000, type="int",
+                 help="Resolution when counting the links")
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    bamfilename, = args
+    pf = bamfilename.rsplit(".", 1)[0]
+    N = opts.resolution
+
+    seqstarts, seqsize, total_bins = get_seqstarts(bamfilename, N)
+
+    # Store the starts and sizes into a JSON file
+    jsonfile = pf + ".json"
+    fwjson = open(jsonfile, "w")
+    header = {"starts": seqstarts, "sizes": seqsize, "total_bins": total_bins}
+    json.dump(header, fwjson, sort_keys=True, indent=4)
+    fwjson.close()
+    logging.debug("Contig bin starts written to `{}`".format(jsonfile))
+
+    print(sorted(seqstarts.items(), key=lambda x: x[-1]))
+    logging.debug("Initialize matrix of size {}x{}"
+                  .format(total_bins, total_bins))
+    A = np.zeros((total_bins, total_bins), dtype="int")
+
+    # Find the bin ID of each read
+    def bin_number(chr, pos):
+        return seqstarts[chr] + pos / N
+
+    bamfile = pysam.AlignmentFile(bamfilename, "rb")
+    # Check all reads, rules borrowed from LACHESIS
+    # https://github.com/shendurelab/LACHESIS/blob/master/src/GenomeLinkMatrix.cc#L1476
+    j = k = 0
+    for c in bamfile:
+        j += 1
+        if j % 100000 == 0:
+            print >> sys.stderr, "{} reads counted".format(j)
+        # if j >= 10000: break
+
+        if c.is_qcfail and c.is_duplicate:
+            continue
+        if c.is_secondary and c.is_supplementary:
+            continue
+        if c.mapping_quality == 0:
+            continue
+        if not c.is_paired:
+            continue
+        if c.is_read2:  # Take only one read
+            continue
+
+        # pysam v0.8.3 does not support keyword reference_name
+        achr = bamfile.getrname(c.reference_id)
+        apos = c.reference_start
+        bchr = bamfile.getrname(c.next_reference_id)
+        bpos = c.next_reference_start
+        if achr not in seqstarts or bchr not in seqstarts:
+            continue
+        abin, bbin = bin_number(achr, apos), bin_number(bchr, bpos)
+        A[abin, bbin] += 1
+        if abin != bbin:
+            A[bbin, abin] += 1
+        k += 1
+
+    logging.debug("Total reads counted: {}".format(percentage(2 * k, j)))
+    bamfile.close()
+    np.save(pf, A)
+    logging.debug("Link counts written to `{}.npy`".format(pf))
 
 
 def simulate(args):

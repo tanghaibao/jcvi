@@ -563,6 +563,7 @@ def heatmap(args):
     p = OptionParser(heatmap.__doc__)
     p.add_option("--resolution", default=500000, type="int",
                  help="Resolution when counting the links")
+    p.add_option("--chr", help="Plot this contig/chr only")
     opts, args, iopts = p.set_image_options(args, figsize="10x10",
                                             style="white", cmap="coolwarm",
                                             format="png", dpi=120)
@@ -571,10 +572,19 @@ def heatmap(args):
         sys.exit(not p.print_help())
 
     npyfile, jsonfile = args
+    contig = opts.chr
     # Load contig/chromosome starts and sizes
     header = json.loads(open(jsonfile).read())
     # Load the matrix
     A = np.load(npyfile)
+
+    # Select specific submatrix
+    if contig:
+        contig_start = header["starts"][contig]
+        contig_size = header["sizes"][contig]
+        contig_end = contig_start + contig_size
+        A = A[contig_start: contig_end, contig_start: contig_end]
+
     # Several concerns in practice:
     # The diagonal counts may be too strong, this can either be resolved by
     # masking them. Or perform a log transform on the entire heatmap.
@@ -596,15 +606,20 @@ def heatmap(args):
     breaks = header["starts"].values()
     breaks += [header["total_bins"]]   # This is actually discarded
     breaks = sorted(breaks)[1:]
+    if contig:
+        breaks = []
     plot_heatmap(ax, B, breaks, iopts, binsize=opts.resolution)
 
     # Title
     pf = npyfile.rsplit(".", 1)[0]
-    root.text(.5, .98, pf, color="darkslategray", size=18,
+    title = pf
+    if contig:
+        title += "-{}".format(contig)
+    root.text(.5, .98, title, color="darkslategray", size=18,
               ha="center", va="center")
 
     normalize_axes(root)
-    image_name = pf + "." + iopts.format
+    image_name = title + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
@@ -731,7 +746,7 @@ def bam2mat(args):
         j += 1
         if j % 100000 == 0:
             print >> sys.stderr, "{} reads counted".format(j)
-        if j >= 10000: break
+        # if j >= 10000: break
 
         if c.is_qcfail and c.is_duplicate:
             continue
@@ -753,8 +768,8 @@ def bam2mat(args):
             continue
         if achr == bchr:
             dist = abs(apos - bpos)
-	    if dist < minsize:
-	        continue
+            if dist < minsize:
+                continue
             db = distbin_number(dist)
             B[db] += 1
 

@@ -63,7 +63,7 @@ def batch(args):
         cmds = [cmd1, cmd2]
 
         if s3dir:
-            cmd = "aws cp {} {} --sse".format(nbamfile,
+            cmd = "aws s3 cp {} {} --sse".format(nbamfile,
                                               op.join(s3dir, bamfile))
             cmds.append(cmd)
 

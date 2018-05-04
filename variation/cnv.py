@@ -14,7 +14,7 @@ import numpy.ma as ma
 import pandas as pd
 import pysam
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 from itertools import groupby
 from multiprocessing import Pool
 from random import choice
@@ -51,11 +51,12 @@ class CopyNumberSegment(object):
 
     def __str__(self):
         mb = self.rr / 1000.
-        coords = "{}:{}-{}Mb".format(self.chr, format_float(mb[0]), format_float(mb[1]))
+        coords = "{}:{}-{}Mb".format(self.chr, format_float(mb[0]),
+                                     format_float(mb[1]))
         if self.is_PAR:
             coords += ":PAR"
         msg = "[{}] {} CN={} bins={}".format(self.tag, coords,
-                                self.mean_cn, self.realbins)
+                                             self.mean_cn, self.realbins)
         if self.realbins >= 10000:  # Mark segments longer than 10K bins ~ 10Mb
             msg += "*"
         return msg
@@ -63,7 +64,7 @@ class CopyNumberSegment(object):
     @property
     def bedline(self):
         return "\t".join(str(x) for x in (self.chr, self.start, self.end,
-                                               self.tag, self.span, self.mean_cn))
+                                          self.tag, self.span, self.mean_cn))
 
 
 class CopyNumberHMM(object):
@@ -91,7 +92,8 @@ class CopyNumberHMM(object):
         return allevents
 
     def run_one(self, samplekey, chr):
-        cov = np.fromfile("{}/{}-cn/{}.{}.cn".format(self.workdir, samplekey, samplekey, chr))
+        cov = np.fromfile("{}/{}-cn/{}.{}.cn"
+                          .format(self.workdir, samplekey, samplekey, chr))
         beta = np.fromfile("beta/{}.beta".format(chr))
         std = np.fromfile("beta/{}.std".format(chr))
         # Check if the two arrays have different dimensions
@@ -102,8 +104,9 @@ class CopyNumberHMM(object):
         elif tlen > blen:
             beta = np.array(list(beta) + [np.nan] * (tlen - blen))
         clen, blen = cov.shape[0], beta.shape[0]
-        assert clen == blen, "cov ({}) and correction ({}) not same dimension".\
-                                format(clen, blen)
+        assert clen == blen, \
+            "cov ({}) and correction ({}) not same dimension"\
+            .format(clen, blen)
         normalized = cov / beta
         fixed = normalized.copy()
         fixed[np.where(std > self.threshold)] = np.nan
@@ -156,7 +159,7 @@ class CopyNumberHMM(object):
                 if around_2:
                     return
         elif chr == "chrY":
-            if med_cn < .25: # Female
+            if med_cn < .25:  # Female
                 base = 0
                 if around_0:
                     return
@@ -168,7 +171,8 @@ class CopyNumberHMM(object):
             if around_2:
                 return
         tag = "DUP" if mean_cn > base else "DEL"
-        segment = CopyNumberSegment(chr, rr, tag, mean_cn, realbins, is_PAR=False)
+        segment = CopyNumberSegment(chr, rr, tag, mean_cn,
+                                    realbins, is_PAR=False)
         return segment
 
     def initialize(self, mu, sigma, step):
@@ -248,7 +252,8 @@ class CopyNumberHMM(object):
         for region, ax in zip(chrs, axs):
             chr, start, end = parse_region(region)
             X, Z, clen, events = self.run_one(samplekey, chr)
-            ax.plot(X, ".", label="observations", ms=ms, mfc=color, alpha=alpha)
+            ax.plot(X, ".", label="observations",
+                    ms=ms, mfc=color, alpha=alpha)
             ax.plot(Z, "k.", label="hidden", ms=6)
 
             if start is None and end is None:
@@ -275,10 +280,12 @@ class CopyNumberHMM(object):
             for mean_cn, rr, event in events:
                 if mean_cn > ymax:
                     continue
-                ax.text(np.mean(rr), mean_cn + .2, mean_cn, ha="center", bbox=props)
+                ax.text(np.mean(rr), mean_cn + .2, mean_cn,
+                        ha="center", bbox=props)
                 if event is None:
                     continue
-                ax.text(.5, yy, str(event).rsplit(" ", 1)[0], color='r', ha="center",
+                ax.text(.5, yy, str(event).rsplit(" ", 1)[0],
+                        color='r', ha="center",
                         transform=ax.transAxes, size=size)
                 yy -= yinterval
 
@@ -313,10 +320,10 @@ def contiguous_regions(condition):
 
     if condition[-1]:
         # If the end of condition is True, append the length of the array
-        idx = np.r_[idx, condition.size] # Edit
+        idx = np.r_[idx, condition.size]  # Edit
 
     # Reshape the result into two columns
-    idx.shape = (-1,2)
+    idx.shape = (-1, 2)
     return idx
 
 
@@ -339,7 +346,8 @@ def main():
         ('hmm', 'run cnv segmentation'),
         # Gene copy number
         ('exonunion', 'collapse overlapping exons within the same gene'),
-        ('gcn', 'gene copy number based on CANVAS results'),
+        ('gcn', 'gene copy number based on Canvas results'),
+        ('summarycanvas', 'count different tags in Canvas vcf'),
         # Interact with CCN script
         ('batchccn', 'run CCN script in batch'),
         ('batchcn', 'run HMM in batch'),
@@ -405,15 +413,17 @@ def gcdepth(args):
     for i, row in mf.iterrows():
         gcp = int(round(row["gc"] * 100))
         gcbins[gcp].append(row["depth"])
-    gcd = sorted((k * .01, confidence_interval(v)) for (k, v) in gcbins.items())
+    gcd = sorted((k * .01, confidence_interval(v))
+                 for (k, v) in gcbins.items())
     gcd_x, gcd_y = zip(*gcd)
     m, lo, hi = zip(*gcd_y)
 
     # Plot
     plt.plot(mf["gc"], mf["depth"], ".", color="lightslategray", ms=2,
              mec="lightslategray", alpha=.1)
-    patch = plt.fill_between(gcd_x, lo, hi, facecolor=color, alpha=.25, zorder=10,
-                     linewidth=0.0, label="Median +/- MAD band")
+    patch = plt.fill_between(gcd_x, lo, hi,
+                             facecolor=color, alpha=.25, zorder=10,
+                             linewidth=0.0, label="Median +/- MAD band")
     plt.plot(gcd_x, m, "-", color=color, lw=2, zorder=20)
 
     ax = plt.gca()
@@ -445,12 +455,37 @@ def exonunion(args):
     gencodebed, = args
     beds = BedTool(gencodebed)
     # fields[3] is gene_id; fields[6] is gene_name
-    key = lambda x: x.fields[3]
-    #beds = sorted(beds, key=key)  # GTF file came sorted with gene_id
-    for g, gb in groupby(beds, key=key):
+    for g, gb in groupby(beds, key=lambda x: x.fields[3]):
         gb = BedTool(gb)
         sys.stdout.write(str(gb.sort().merge(c="4,5,6,7",
                              o=','.join(['first'] * 4))))
+
+
+def get_gain_loss_summary(vcffile):
+    """ Extract Canvas:GAIN/LOSS/REF/LOH tags
+    """
+    from cyvcf2 import VCF
+
+    counter = Counter()
+    for v in VCF(vcffile):
+        tag = v.ID.split(":")[1]
+        counter[tag] += 1
+
+    return counter
+
+
+def summarycanvas(args):
+    """
+    %prog summarycanvas output.vcf.gz
+
+    Generate tag counts (GAIN/LOSS/REF/LOH) of segments in Canvas output.
+    """
+    p = OptionParser(summarycanvas.__doc__)
+    opts, args = p.parse_args(args)
+
+    vcffile, = args
+    counter = get_gain_loss_summary(vcffile)
+    print(" ".join("{}:{}".format(k, v) for k, v in sorted(counter.items())))
 
 
 def parse_segments(vcffile):
@@ -591,7 +626,8 @@ def df_to_tsv(df, tsvfile, suffix):
     """ Serialize the dataframe as a tsv
     """
     tsvfile += suffix
-    columns = ["SampleKey"] + sorted(x for x in df.columns if x.endswith(suffix))
+    columns = ["SampleKey"] + sorted(x for x in df.columns
+                                     if x.endswith(suffix))
     tf = df.reindex_axis(columns, axis='columns')
     tf.sort_values("SampleKey")
     tf.to_csv(tsvfile, sep='\t', index=False, float_format='%.4g', na_rep="na")
@@ -686,11 +722,11 @@ def compare_worker(arg):
     nlines = int(popen(cmd, debug=False).read())
     target_lines = len([x for x in open(cnvoutput)])
     truths_lines = len([x for x in open(truths)])
-    precision = nlines * 100.  / target_lines
+    precision = nlines * 100. / target_lines
     recall = nlines * 100. / truths_lines
-    d = "\t".join(str(x) for x in (cnvoutput, truths, \
-                        nlines, target_lines, truths_lines, \
-                        precision, recall))
+    d = "\t".join(str(x) for x in (cnvoutput, truths,
+                                   nlines, target_lines, truths_lines,
+                                   precision, recall))
     return d
 
 
@@ -813,11 +849,13 @@ def hmm(args):
     directory.
     """
     p = OptionParser(hmm.__doc__)
-    p.add_option("--mu", default=.003, type="float", help="Transition probability")
+    p.add_option("--mu", default=.003, type="float",
+                 help="Transition probability")
     p.add_option("--sigma", default=.1, type="float",
                  help="Standard deviation of Gaussian emission distribution")
     p.add_option("--threshold", default=1, type="float",
-                 help="Standard deviation must be < this in the baseline population")
+                 help="Standard deviation must be < this "
+                      "in the baseline population")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -828,7 +866,7 @@ def hmm(args):
                           threshold=opts.threshold)
     events = model.run(sample_key)
     params = ".mu-{}.sigma-{}.threshold-{}"\
-                .format(opts.mu, opts.sigma, opts.threshold)
+             .format(opts.mu, opts.sigma, opts.threshold)
     hmmfile = op.join(workdir, sample_key + params + ".seg")
     fw = open(hmmfile, "w")
     nevents = 0
@@ -838,8 +876,8 @@ def hmm(args):
         print >> fw, " ".join((event.bedline, sample_key))
         nevents += 1
     fw.close()
-    logging.debug("A total of {} aberrant events written to `{}`"\
-                    .format(nevents, hmmfile))
+    logging.debug("A total of {} aberrant events written to `{}`"
+                  .format(nevents, hmmfile))
     return hmmfile
 
 
@@ -878,7 +916,7 @@ def mergecn(args):
     """
     %prog mergecn FACE.csv
 
-    Compile matrix of GC-corrected copy numbers. Place a bunch of folders in the
+    Compile matrix of GC-corrected copy numbers. Place a bunch of folders in
     csv file. Each folder will be scanned, one chromosomes after another.
     """
     p = OptionParser(mergecn.__doc__)
@@ -892,8 +930,8 @@ def mergecn(args):
     betadir = "beta"
     mkdir(betadir)
     for seqid in allsomes:
-        names = [op.join(s + "-cn", "{}.{}.cn".\
-                    format(op.basename(s), seqid)) for s in samples]
+        names = [op.join(s + "-cn", "{}.{}.cn".
+                 format(op.basename(s), seqid)) for s in samples]
         arrays = [np.fromfile(name, dtype=np.float) for name in names]
         shapes = [x.shape[0] for x in arrays]
         med_shape = np.median(shapes)
@@ -905,8 +943,8 @@ def mergecn(args):
             idx = get_kmeans(chr_med, k=2)
             zero_med = np.median(chr_med[idx == 0])
             one_med = np.median(chr_med[idx == 1])
-            logging.debug("K-means with {} c0:{} c1:{}".\
-                    format(seqid, zero_med, one_med))
+            logging.debug("K-means with {} c0:{} c1:{}"
+                          .format(seqid, zero_med, one_med))
             higher_idx = 1 if one_med > zero_med else 0
             # Use the higher mean coverage componen
             arrays = np.array(arrays)[idx == higher_idx]
@@ -1014,7 +1052,8 @@ def cn(args):
     if s3dir:
         sync_from_s3(s3dir, target_dir=sampledir)
 
-    assert op.exists(sampledir), "Directory {} doesn't exist!".format(sampledir)
+    assert op.exists(sampledir), \
+        "Directory {} doesn't exist!".format(sampledir)
 
     cndir = op.join(workdir, sample_key + "-cn")
     if op.exists(cndir):

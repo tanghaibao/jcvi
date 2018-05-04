@@ -542,11 +542,40 @@ def main():
         ('movieframe', 'plot heatmap and synteny for a particular tour'),
         ('movie', 'plot heatmap optimization history in a tourfile'),
         # Reference-based analytics
-        ('bam2mat', 'convert bam file to .mat format used in plotting'),
-        ('heatmap', 'plot heatmap based on .mat format'),
+        ('bam2mat', 'convert bam file to .npy format used in plotting'),
+        ('mergemat', 'combine counts from multiple .npy data files'),
+        ('heatmap', 'plot heatmap based on .npy format'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def mergemat(args):
+    """
+    %prog mergemat *.npy
+
+    Combine counts from multiple .npy data files.
+    """
+    p = OptionParser(mergemat.__doc__)
+    p.set_outfile(outfile="out")
+    opts, args = p.parse_args(args)
+
+    if len(args) < 1:
+        sys.exit(not p.print_help())
+
+    npyfiles = args
+    A = np.load(npyfiles[0])
+    logging.debug("Load `{}`: matrix of shape {}:; sum={}"
+                  .format(npyfiles[0], A.shape, A.sum()))
+    for npyfile in npyfiles[1:]:
+        B = np.load(npyfile)
+        A += B
+        logging.debug("Load `{}`: sum={}"
+                      .format(npyfiles[0], A.sum()))
+
+    pf = opts.outfile
+    np.save(pf, A)
+    logging.debug("Combined {} files into `{}.npy`".format(len(npyfiles), pf))
 
 
 def get_seqstarts(bamfile, N):

@@ -20,7 +20,8 @@ from multiprocessing import Pool
 from jcvi.algorithms.formula import outlier_cutoff
 from jcvi.algorithms.ec import GA_setup, GA_run
 from jcvi.algorithms.matrix import get_signs
-from jcvi.apps.base import OptionParser, ActionDispatcher, backup, iglob, mkdir, symlink
+from jcvi.apps.base import OptionParser, ActionDispatcher, backup, iglob, \
+    mkdir, symlink
 from jcvi.apps.console import green, red
 from jcvi.apps.grid import Jobs
 from jcvi.assembly.allmaps import make_movie
@@ -91,10 +92,10 @@ class CLMFile:
     tig00046211+ tig00063795-       1       116050
     tig00046211- tig00063795+       1       71155
     tig00046211- tig00063795-       1       134032
-    tig00030676+ tig00077819+       7       136407 87625 87625 106905 102218 169660 169660
-    tig00030676+ tig00077819-       7       126178 152952 152952 35680 118923 98367 98367
-    tig00030676- tig00077819+       7       118651 91877 91877 209149 125906 146462 146462
-    tig00030676- tig00077819-       7       108422 157204 157204 137924 142611 75169 75169
+    tig00030676+ tig00077819+       5       136407 87625 87625 106905 102218
+    tig00030676+ tig00077819-       5       126178 152952 152952 35680 118923
+    tig00030676- tig00077819+       5       118651 91877 91877 209149 125906
+    tig00030676- tig00077819-       5       108422 157204 157204 137924 142611
     '''
     def __init__(self, clmfile, skiprecover=False):
         self.name = op.basename(clmfile).rsplit(".", 1)[0]
@@ -170,7 +171,7 @@ class CLMFile:
 
     def calculate_densities(self):
         """
-        Calculate the density of inter-contig links per base. Strong contigs are
+        Calculate the density of inter-contig links per base. Strong contigs
         considered to have high level of inter-contig links in the current
         partition.
         """
@@ -191,18 +192,18 @@ class CLMFile:
         return logdensities
 
     def report_active(self):
-        logging.debug("Active contigs: {} (length={})"\
-                    .format(self.N, self.active_sizes.sum()))
+        logging.debug("Active contigs: {} (length={})"
+                      .format(self.N, self.active_sizes.sum()))
 
     def activate(self, tourfile=None, minsize=10000, backuptour=True):
         """
         Select contigs in the current partition. This is the setup phase of the
         algorithm, and supports two modes:
 
-        - "de novo": This is useful at the start of a new run where no tours are
+        - "de novo": This is useful at the start of a new run where no tours
           available. We select the strong contigs that have significant number
           of links to other contigs in the partition. We build a histogram of
-          link density (# links per bp) and remove the contigs that appear to be
+          link density (# links per bp) and remove the contigs that appear as
           outliers. The orientations are derived from the matrix decomposition
           of the pairwise strandedness matrix O.
 
@@ -231,9 +232,10 @@ class CLMFile:
             while True:
                 logdensities = self.calculate_densities()
                 lb, ub = outlier_cutoff(logdensities.values())
-                logging.debug("Log10(link_densities) ~ [{}, {}]".format(lb, ub))
-                remove = set(x for x, d in logdensities.items() \
-                                if (d < lb and self.tig_to_size[x] < minsize * 10))
+                logging.debug("Log10(link_densities) ~ [{}, {}]"
+                              .format(lb, ub))
+                remove = set(x for x, d in logdensities.items() if
+                             (d < lb and self.tig_to_size[x] < minsize * 10))
                 if remove:
                     self.active -= remove
                     self.report_active()
@@ -241,7 +243,8 @@ class CLMFile:
                     break
 
             logging.debug("Remove contigs with size < {}".format(minsize))
-            self.active = set(x for x in self.active if self.tig_to_size[x] >= minsize)
+            self.active = set(x for x in self.active if
+                              self.tig_to_size[x] >= minsize)
             tour = range(self.N)  # Use starting (random) order otherwise
             tour = array.array('i', tour)
 
@@ -275,8 +278,8 @@ class CLMFile:
         return score_evaluate_Q(tour, self.active_sizes, self.Q)
 
     def flip_log(self, method, score, score_flipped, tag):
-        logging.debug("{}: {} => {} {}"\
-                        .format(method, score, score_flipped, tag))
+        logging.debug("{}: {} => {} {}"
+                      .format(method, score, score_flipped, tag))
 
     def flip_all(self, tour):
         """ Initialize the orientations based on pairwise O matrix.
@@ -331,12 +334,12 @@ class CLMFile:
                 n_rejects += 1
                 tag = REJECT
             self.flip_log("FLIPONE ({}/{})".format(i + 1, len(self.signs)),
-                        score, score_flipped, tag)
+                          score, score_flipped, tag)
             if tag == ACCEPT:
                 any_tag_ACCEPT = True
                 score = score_flipped
-        logging.debug("FLIPONE: N_accepts={} N_rejects={}"\
-                        .format(n_accepts, n_rejects))
+        logging.debug("FLIPONE: N_accepts={} N_rejects={}"
+                      .format(n_accepts, n_rejects))
         return ACCEPT if any_tag_ACCEPT else REJECT
 
     def prune_tour(self, tour, cpus):
@@ -357,8 +360,8 @@ class CLMFile:
             p = Pool(processes=cpus)
             results = list(p.imap(prune_tour_worker, args))
             assert len(tour) == len(results), \
-                    "Array size mismatch, tour({}) != results({})"\
-                            .format(len(tour), len(results))
+                "Array size mismatch, tour({}) != results({})"\
+                .format(len(tour), len(results))
 
             # Identify outliers
             active_contigs = self.active_contigs
@@ -372,8 +375,8 @@ class CLMFile:
 
             tig_to_idx = self.tig_to_idx
             tour = [active_contigs[x] for x in tour]
-            tour = array.array('i', [tig_to_idx[x] for x in tour \
-                                        if x not in remove])
+            tour = array.array('i', [tig_to_idx[x] for x in tour
+                                     if x not in remove])
             if not remove:
                 break
 
@@ -405,8 +408,8 @@ class CLMFile:
     @property
     def M(self):
         """
-        Contact frequency matrix. Each cell contains how many inter-contig links
-        between i-th and j-th contigs.
+        Contact frequency matrix. Each cell contains how many inter-contig
+        links between i-th and j-th contigs.
         """
         N = self.N
         tig_to_idx = self.tig_to_idx
@@ -442,8 +445,8 @@ class CLMFile:
         """
         Contact frequency matrix with better precision on distance between
         contigs. In the matrix M, the distance is assumed to be the distance
-        between mid-points of two contigs. In matrix Q, however, we compute the
-        harmonic mean of the links for the orientation configuration that is the
+        between mid-points of two contigs. In matrix Q, however, we compute
+        harmonic mean of the links for the orientation configuration that is
         shortest. This offers better precision for the distance between big
         contigs.
         """
@@ -596,9 +599,10 @@ def simulate(args):
     write_last_and_beds(pf, GenePositions, ContigStarts)
 
     # Simulate links, uniform start, with link distances following 1/x, where x
-    # is the distance between the links. As an approximation, we have link sizes
+    # is the distance between the links. As an approximation, we have links
     # between [1e3, 1e7], so we map from uniform [1e-7, 1e-3]
-    LinkStarts = np.sort(np.random.random_integers(0, GenomeSize - 1, size=Links))
+    LinkStarts = np.sort(np.random.random_integers(0, GenomeSize - 1,
+                                                   size=Links))
     a, b = 1e-7, 1e-3
     LinkSizes = np.array(np.round_(1 / ((b - a) * np.random.rand(Links) + a),
                          decimals=0), dtype="int")
@@ -617,7 +621,8 @@ def simulate(args):
     ICLinkEnds = LinkEnds[InterContigLinks]
 
     # Write CLM file
-    write_clm(pf, ICLinkStartContigs, ICLinkEndContigs, ICLinkStarts, ICLinkEnds,
+    write_clm(pf, ICLinkStartContigs, ICLinkEndContigs,
+              ICLinkStarts, ICLinkEnds,
               ContigStarts, ContigSizes)
 
 
@@ -638,10 +643,10 @@ def write_last_and_beds(pf, GenePositions, ContigStarts):
         tig = "tig{:04d}".format(c)
         start = ContigStarts[c]
         cstart = gstart - start
-        print >> qbedfw, "\t".join(str(x) for x in \
-                        (tig, cstart, cstart + 1, gene))
-        print >> sbedfw, "\t".join(str(x) for x in \
-                        ("chr1", gstart, gstart + 1, gene))
+        print >> qbedfw, "\t".join(str(x) for x in
+                                   (tig, cstart, cstart + 1, gene))
+        print >> sbedfw, "\t".join(str(x) for x in
+                                   ("chr1", gstart, gstart + 1, gene))
         lastatoms = [gene, gene, 100] + [0] * 8 + [100]
         print >> lastfw, "\t".join(str(x) for x in lastatoms)
 
@@ -650,14 +655,16 @@ def write_last_and_beds(pf, GenePositions, ContigStarts):
     lastfw.close()
 
 
-def write_clm(pf, ICLinkStartContigs, ICLinkEndContigs, ICLinkStarts, ICLinkEnds,
+def write_clm(pf, ICLinkStartContigs, ICLinkEndContigs,
+              ICLinkStarts, ICLinkEnds,
               ContigStarts, ContigSizes):
     """
     Write CLM file from simulated data.
     """
     clm = defaultdict(list)
     for start, end, linkstart, linkend in \
-        zip(ICLinkStartContigs, ICLinkEndContigs, ICLinkStarts, ICLinkEnds):
+            zip(ICLinkStartContigs, ICLinkEndContigs,
+                ICLinkStarts, ICLinkEnds):
         start_a = ContigStarts[start]
         start_b = start_a + ContigSizes[start]
         end_a = ContigStarts[end]
@@ -669,7 +676,10 @@ def write_clm(pf, ICLinkStartContigs, ICLinkEndContigs, ICLinkStarts, ICLinkEnds
 
     clmfile = pf + ".clm"
     fw = open(clmfile, "w")
-    format_array = lambda _: [str(x) for x in sorted(_) if x > 0]
+
+    def format_array(a):
+        return [str(x) for x in sorted(a) if x > 0]
+
     for (start, end), links in sorted(clm.items()):
         start = "tig{:04d}".format(start)
         end = "tig{:04d}".format(end)
@@ -758,7 +768,8 @@ def optimize(args):
 
     fwtour = open(tourfile, "w")
     # Store INIT tour
-    print_tour(fwtour, clm.tour, "INIT", clm.active_contigs, clm.oo, signs=clm.signs)
+    print_tour(fwtour, clm.tour, "INIT",
+               clm.active_contigs, clm.oo, signs=clm.signs)
 
     if runGA:
         for phase in range(1, 3):
@@ -814,18 +825,21 @@ def optimize_ordering(fwtour, clm, phase, cpus):
 
 def optimize_orientations(fwtour, clm, phase, cpus):
     """
-    Optimize the orientations of contigs by using heuristic flipping algorithms.
+    Optimize the orientations of contigs by using heuristic flipping.
     """
     # Prepare input files
     tour_contigs = clm.active_contigs
     tour = clm.tour
     oo = clm.oo
 
-    print_tour(fwtour, tour, "FLIPALL{}".format(phase), tour_contigs, oo, signs=clm.signs)
+    print_tour(fwtour, tour, "FLIPALL{}".format(phase),
+               tour_contigs, oo, signs=clm.signs)
     tag1 = clm.flip_whole(tour)
-    print_tour(fwtour, tour, "FLIPWHOLE{}".format(phase), tour_contigs, oo, signs=clm.signs)
+    print_tour(fwtour, tour, "FLIPWHOLE{}".format(phase),
+               tour_contigs, oo, signs=clm.signs)
     tag2 = clm.flip_one(tour)
-    print_tour(fwtour, tour, "FLIPONE{}".format(phase), tour_contigs, oo, signs=clm.signs)
+    print_tour(fwtour, tour, "FLIPONE{}".format(phase),
+               tour_contigs, oo, signs=clm.signs)
 
     return tag1, tag2
 
@@ -847,7 +861,8 @@ def prepare_synteny(tourfile, lastfile, odir, p, opts):
     logging.debug("Change into subdir `{}`".format(odir))
 
     # Make anchorsfile
-    anchorsfile = ".".join(op.basename(lastfile).split(".", 2)[:2]) + ".anchors"
+    anchorsfile = ".".join(op.basename(lastfile).split(".", 2)[:2]) \
+                  + ".anchors"
     fw = open(anchorsfile, "w")
     for b in Blast(lastfile):
         print >> fw, "\t".join((gene_name(b.query), gene_name(b.subject),
@@ -881,7 +896,7 @@ def separate_tour_and_o(row):
 
 def iter_last_tour(tourfile, clm):
     """
-    Extract last tour from tourfile. The clm instance is also passed in to check
+    Extract last tour from tourfile. The clm instance is also passed in to see
     if any contig is covered in the clm.
     """
     row = open(tourfile).readlines()[-1]
@@ -890,8 +905,8 @@ def iter_last_tour(tourfile, clm):
     tour_o = []
     for tc, to in zip(_tour, _tour_o):
         if tc not in clm.contigs:
-            logging.debug("Contig `{}` in file `{}` not found in `{}`"\
-                            .format(tc, tourfile, clm.idsfile))
+            logging.debug("Contig `{}` in file `{}` not found in `{}`"
+                          .format(tc, tourfile, clm.idsfile))
             continue
         tour.append(tc)
         tour_o.append(to)
@@ -952,7 +967,7 @@ def movie(args):
     cwd = os.getcwd()
     odir = op.basename(tourfile).rsplit(".", 1)[0] + "-movie"
     anchorsfile, qbedfile, contig_to_beds = \
-                prepare_synteny(tourfile, lastfile, odir, p, opts)
+        prepare_synteny(tourfile, lastfile, odir, p, opts)
 
     args = []
     for i, label, tour, tour_o in iter_tours(tourfile, frames=opts.frames):
@@ -1025,6 +1040,7 @@ def score(args):
         M[int(x), int(y)] = int(z)
 
     fwtour = open("tour", "w")
+
     def callback(tour, gen, oo):
         fitness = tour.fitness if hasattr(tour, "fitness") else None
         label = "GA-{0}".format(gen)
@@ -1141,7 +1157,7 @@ def movieframe(args):
 
     # Right axis: synteny
     qbed, sbed, qorder, sorder, is_self = check_beds(anchorsfile, p, opts,
-                sorted=False)
+                                                     sorted=False)
     dotplot(anchorsfile, qbed, sbed, fig, ax2_root, ax2, sep=False, title="")
 
     root.text(.5, .98, clm.name, color="g", ha="center", va="center")
@@ -1188,9 +1204,9 @@ def plot_heatmap(ax, M, breaks, iopts):
     ax.set_xlim(xlim)
     ax.set_ylim(xlim)
     ax.set_xticklabels([int(x) for x in ax.get_xticks()],
-                        family='Helvetica', color="gray")
+                       family='Helvetica', color="gray")
     ax.set_yticklabels([int(x) for x in ax.get_yticks()],
-                        family='Helvetica', color="gray")
+                       family='Helvetica', color="gray")
     binlabel = "Bins ({} per bin)".format(human_size(BINSIZE, precision=0))
     ax.set_xlabel(binlabel)
     ax.set_ylabel(binlabel)
@@ -1223,7 +1239,7 @@ def agp(args):
         co.write_agp(obj, sizes, fwagp)
 
     singletons = contigs - anchored
-    logging.debug('Anchored: {}, Singletons: {}'.\
+    logging.debug('Anchored: {}, Singletons: {}'.
                   format(len(anchored), len(singletons)))
 
     for s in natsorted(singletons):

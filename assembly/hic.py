@@ -544,10 +544,58 @@ def main():
         # Reference-based analytics
         ('bam2mat', 'convert bam file to .npy format used in plotting'),
         ('mergemat', 'combine counts from multiple .npy data files'),
-        ('heatmap', 'plot heatmap based on .npy format'),
+        ('heatmap', 'plot heatmap based on .npy file'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def heatmap(args):
+    """
+    %prog heatmap input.npy genome.json
+
+    Plot heatmap based on .npy data file. The .npy stores a square matrix with
+    bins of genome, and cells inside the matrix represent number of links
+    between bin i and bin j. The `genome.json` contains the offsets of each
+    contig/chr so that we know where to draw boundary lines, or extract per
+    contig/chromosome heatmap.
+    """
+    p = OptionParser(heatmap.__doc__)
+    p.add_option("--resolution", default=500000, type="int",
+                 help="Resolution when counting the links")
+    opts, args, iopts = p.set_image_options(args, figsize="10x10",
+                                            style="white", cmap="coolwarm",
+                                            format="png", dpi=120)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    npyfile, jsonfile = args
+    # Load contig/chromosome starts and sizes
+    header = json.loads(open(jsonfile).read())
+    # Load the matrix
+    A = np.load(npyfile)
+
+    # Canvas
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes([0, 0, 1, 1])       # whole canvas
+    ax = fig.add_axes([.05, .05, .9, .9])   # just the heatmap
+
+    # Several concerns in practice:
+    # The diagonal counts may be too strong, this can either be resolved by
+    # masking them. Or perform a log transform on the entire heatmap.
+    breaks = header["starts"].values()
+    breaks += [header["total_bins"]]   # This is actually discarded
+    breaks = sorted(breaks)[1:]
+    plot_heatmap(ax, A, breaks, iopts, binsize=opts.resolution)
+
+    # Title
+    pf = npyfile.rsplit(".", 1)[0]
+    root.text(.5, .95, pf, color="darkslategray", ha="center", va="center")
+
+    normalize_axes(root)
+    image_name = pf + "." + iopts.format
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
 def mergemat(args):
@@ -1334,7 +1382,7 @@ def read_clm(clm, totalbins, bins):
     return M
 
 
-def plot_heatmap(ax, M, breaks, iopts):
+def plot_heatmap(ax, M, breaks, iopts, binsize=BINSIZE):
     ax.imshow(M, cmap=iopts.cmap, origin="lower", interpolation='none')
     xlim = ax.get_xlim()
     for b in breaks[:-1]:
@@ -1346,7 +1394,7 @@ def plot_heatmap(ax, M, breaks, iopts):
                        family='Helvetica', color="gray")
     ax.set_yticklabels([int(x) for x in ax.get_yticks()],
                        family='Helvetica', color="gray")
-    binlabel = "Bins ({} per bin)".format(human_size(BINSIZE, precision=0))
+    binlabel = "Bins ({} per bin)".format(human_size(binsize, precision=0))
     ax.set_xlabel(binlabel)
     ax.set_ylabel(binlabel)
 

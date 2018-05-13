@@ -168,9 +168,9 @@ def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
                         .format(vmin, vmax))
 
     block_id = 0
+    block_color = None
     for row in fp:
         atoms = row.split()
-        block_color = None
         if row[0] == "#":
             block_id += 1
             if palette:

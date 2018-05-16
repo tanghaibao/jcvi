@@ -450,11 +450,16 @@ def sync_from_s3(s3_store, target_dir=None):
 def ls_s3(s3_store_obj_name, recursive=False):
     s3_store_obj_name = s3ify(s3_store_obj_name)
     cmd = "aws s3 ls {0}/".format(s3_store_obj_name)
-    if recursive:
-        cmd += " --recursive"
     contents = []
     for row in popen(cmd):
         contents.append(row.split()[-1])
+    if recursive:
+        que = [x for x in contents if x.endswith("/")]
+        while que:
+            f = que.pop(0).rstrip("/")
+            f = op.join(s3_store_obj_name, f)
+            contents += ls_s3(f, recursive=True)
+
     return contents
 
 

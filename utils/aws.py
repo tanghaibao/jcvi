@@ -374,7 +374,11 @@ def cp(args):
             oc = op.basename(c)
             tc = op.join(folder, oc)
         else:
-            c, tc = c
+            if len(c) == 2:
+                c, tc = c
+            else:
+                c, = c
+                tc = op.basename(c)
         tasks.append((c, tc, force))
 
     worker_pool = Pool(cpus)

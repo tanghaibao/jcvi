@@ -313,8 +313,6 @@ def glob_s3(store, keys=None, recursive=False):
     if recursive:
         store = "s3://" + store.replace("s3://", "").split("/")[0]
 
-    filtered = ["/".join((store, x)) for x in filtered]
-
     return filtered
 
 
@@ -452,12 +450,14 @@ def ls_s3(s3_store_obj_name, recursive=False):
     cmd = "aws s3 ls {0}/".format(s3_store_obj_name)
     contents = []
     for row in popen(cmd):
-        contents.append(row.split()[-1])
+        f = row.split()[-1]
+        f = op.join(s3_store_obj_name, f)
+        contents.append(f)
+
     if recursive:
         que = [x for x in contents if x.endswith("/")]
         while que:
             f = que.pop(0).rstrip("/")
-            f = op.join(s3_store_obj_name, f)
             contents += ls_s3(f, recursive=True)
 
     return contents

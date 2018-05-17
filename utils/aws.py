@@ -730,7 +730,6 @@ def get_credentials(profile, args, config):
     logging.info(
         "Success! Your credentials will expire in %s seconds at: %s"
         % (args.duration, response['Credentials']['Expiration']))
-    sys.exit(0)
 
 
 def log_error_and_exit(message):

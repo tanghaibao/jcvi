@@ -544,8 +544,13 @@ def write_meta(af_file, gene_map, blacklist, filename="meta.tsv"):
 
 
 def read_treds(tredsfile=datafile("TREDs.meta.csv")):
-    df = pd.read_csv(tredsfile)
-    treds = set(df["id"])
+    if tredsfile.endswith(".csv"):
+        df = pd.read_csv(tredsfile)
+        treds = set(df["id"])
+    else:
+        df = pd.read_csv(tredsfile, sep="\t")
+        treds = set(df["abbreviation"])
+
     logging.debug("Loaded {} treds from `{}`".format(len(treds), tredsfile))
     return treds, df
 

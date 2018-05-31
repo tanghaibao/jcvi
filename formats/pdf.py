@@ -5,6 +5,7 @@
 Manipulate PDF files, using PyPDF2 library.
 """
 
+import os
 import sys
 import traceback
 
@@ -49,6 +50,8 @@ def cat(args):
     p = OptionParser(cat.__doc__.format(page_range_help=PAGE_RANGE_HELP))
     p.add_option("--nosort", default=False, action="store_true",
                  help="Do not sort file names")
+    p.add_option("--cleanup", default=False, action="store_true",
+                 help="Remove individual pdfs after merging")
     p.set_outfile()
     p.set_verbose(help="Show page ranges as they are being read")
     opts, args = p.parse_args(args)
@@ -82,6 +85,10 @@ def cat(args):
         sys.exit(1)
     merger.write(fw)
     fw.close()
+
+    if opts.cleanup:
+        for arg in args:
+            os.remove(arg)
 
 
 if __name__ == '__main__':

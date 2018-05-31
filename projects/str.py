@@ -178,6 +178,7 @@ def main():
         ('power', 'compare TREDPARSE on fake HD patients adding evidence'),
         ('tredparse', 'compare TREDPARSE on fake HD patients adding coverage'),
         ('allelefreq', 'plot the allele frequencies of some STRs'),
+        ('allelefreqall', 'plot all 30 STR allele frequencies'),
         ('depth', 'plot read depths across all TREDs'),
         # Diagram
         ('diagram', 'plot the predictive power of various evidences'),
@@ -1223,6 +1224,42 @@ def plot_allelefreq(ax, df, locus, color='lightslategray'):
     set_helvetica_axis(ax)
 
 
+def allelefreqall(args):
+    """
+    %prog allelefreqall HN_Platinum_Gold.20180525.tsv.report.txt
+
+    Plot all 30 STR allele frequencies.
+    """
+    p = OptionParser(allelefreqall.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    reportfile, = args
+    treds, df = read_treds(reportfile)
+    # Prepare 5 pages, each page with 6 distributions
+    treds.remove("AR")
+    treds.remove("FXS")
+    treds = sorted(treds)
+    count = 6
+    pdfs = []
+    for page in xrange(len(treds) / count):
+        start = page * count
+        page_treds = treds[start: start + count]
+        allelefreq([",".join(page_treds), "--usereport", reportfile,
+                    "--nopanels", "--figsize", "12x16"])
+        outpdf = "allelefreq.{}.pdf".format(page)
+        sh("mv allelefreq.pdf {}".format(outpdf))
+        pdfs.append(outpdf)
+
+    from jcvi.formats.pdf import cat
+
+    finalpdf = "allelefreq.all.pdf"
+    cat(pdfs + ["-o", finalpdf, "--cleanup"])
+    logging.debug("Merging pdfs into `{}`".format(finalpdf))
+
+
 def allelefreq(args):
     """
     %prog allelefreq HD,DM1,SCA1,SCA17,FXTAS,FRAXE
@@ -1230,6 +1267,9 @@ def allelefreq(args):
     Plot the allele frequencies of some STRs.
     """
     p = OptionParser(allelefreq.__doc__)
+    p.add_option("--nopanels", default=False, action="store_true",
+                 help="No panel labels A, B, ...")
+    p.add_option("--usereport", help="Use allele frequency in report file")
     opts, args, iopts = p.set_image_options(args, figsize="9x13")
 
     if len(args) != 1:
@@ -1239,7 +1279,11 @@ def allelefreq(args):
     fig, ((ax1, ax2), (ax3, ax4), (ax5, ax6)) = plt.subplots(ncols=2, nrows=3,
                                                  figsize=(iopts.w, iopts.h))
     plt.tight_layout(pad=4)
-    treds, df = read_treds()
+    if opts.usereport:
+        treds, df = read_treds(tredsfile=opts.usereport)
+    else:
+        treds, df = read_treds()
+
     df = df.set_index(["abbreviation"])
 
     for ax, locus in zip((ax1, ax2, ax3, ax4, ax5, ax6), loci.split(",")):
@@ -1247,7 +1291,8 @@ def allelefreq(args):
 
     root = fig.add_axes([0, 0, 1, 1])
     pad = .03
-    panel_labels(root, ((pad / 2, 1 - pad, "A"), (.5 + pad, 1 - pad, "B"),
+    if not opts.nopanels:
+        panel_labels(root, ((pad / 2, 1 - pad, "A"), (.5 + pad, 1 - pad, "B"),
                         (pad / 2, 2 / 3. - pad / 2, "C"), (.5 + pad, 2 / 3. - pad / 2, "D"),
                         (pad / 2, 1 / 3. , "E"), (.5 + pad, 1 / 3. , "F"),
                         ))

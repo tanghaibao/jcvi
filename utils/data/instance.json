@@ -1,6 +1,6 @@
 {
     "AvailabilityZone": "us-west-2b",
-    "InstanceId": "i-040bf5ffb43d1a368",
+    "InstanceId": "i-0cc7d4f7a9aaa655b",
     "LaunchSpec": {
         "BlockDeviceMappings": [
             {
@@ -16,7 +16,7 @@
             "Arn": "",
             "Name": ""
         },
-        "ImageId": "ami-e9d6ab91",
+        "ImageId": "ami-29433a51",
         "InstanceType": "c4.8xlarge",
         "KeyName": "mvrad-pdx-htang",
         "Monitoring": {
@@ -28,7 +28,7 @@
         ],
         "SubnetId": "subnet-123ab865"
     },
-    "PrivateIpAddress": "10.6.72.45",
+    "PrivateIpAddress": "10.6.94.101",
     "Volumes": [
         {
             "Device": "/dev/sdf",

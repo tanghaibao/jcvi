@@ -7,6 +7,7 @@ Manipulate PDF files, using PyPDF2 library.
 
 import os
 import sys
+import logging
 import traceback
 
 from PyPDF2 import PdfFileMerger, parse_filename_page_ranges
@@ -87,6 +88,7 @@ def cat(args):
     fw.close()
 
     if opts.cleanup:
+        logging.debug("Cleaning up {} files".format(len(args)))
         for arg in args:
             os.remove(arg)
 

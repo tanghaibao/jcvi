@@ -1208,7 +1208,15 @@ def plot_allelefreq(ax, df, locus, color='lightslategray'):
                 format(cutoff_prerisk, motif, npredisease),
                 rotation=90, color="k", ha="center", va="center")
     ax.axvline(x=cutoff_risk, color="r", lw=2)
-    ax.text(cutoff_risk + pad, .5 * ymax,
+
+    if locus == "AR":
+        npatients = sum(v for (k, v) in cnt.items() if k <= cutoff_risk)
+        ax.text(cutoff_risk - pad, .5 * ymax,
+            r"Disease ($\leq${}$\times${}) - {} alleles".\
+            format(cutoff_risk, motif, npatients),
+            rotation=90, color="r", ha="center", va="center")
+    else:
+        ax.text(cutoff_risk + pad, .5 * ymax,
             r"Disease ($\geq${}$\times${}) - {} alleles".\
             format(cutoff_risk, motif, npatients),
             rotation=90, color="r", ha="center", va="center")
@@ -1239,14 +1247,14 @@ def allelefreqall(args):
     reportfile, = args
     treds, df = read_treds(reportfile)
     # Prepare 5 pages, each page with 6 distributions
-    treds.remove("AR")
-    treds.remove("FXS")
     treds = sorted(treds)
     count = 6
     pdfs = []
-    for page in xrange(len(treds) / count):
+    for page in xrange(len(treds) / count + 1):
         start = page * count
         page_treds = treds[start: start + count]
+        if not page_treds:
+            break
         allelefreq([",".join(page_treds), "--usereport", reportfile,
                     "--nopanels", "--figsize", "12x16"])
         outpdf = "allelefreq.{}.pdf".format(page)
@@ -1255,9 +1263,10 @@ def allelefreqall(args):
 
     from jcvi.formats.pdf import cat
 
-    finalpdf = "allelefreq.all.pdf"
-    cat(pdfs + ["-o", finalpdf, "--cleanup"])
+    pf = op.basename(reportfile).split(".")[0]
+    finalpdf = pf + ".allelefreq.pdf"
     logging.debug("Merging pdfs into `{}`".format(finalpdf))
+    cat(pdfs + ["-o", finalpdf, "--cleanup"])
 
 
 def allelefreq(args):
@@ -1286,8 +1295,14 @@ def allelefreq(args):
 
     df = df.set_index(["abbreviation"])
 
-    for ax, locus in zip((ax1, ax2, ax3, ax4, ax5, ax6), loci.split(",")):
+    axes = (ax1, ax2, ax3, ax4, ax5, ax6)
+    loci = loci.split(",")
+    for ax, locus in zip(axes, loci):
         plot_allelefreq(ax, df, locus)
+
+    # Delete unused axes
+    for ax in axes[len(loci):]:
+        ax.set_axis_off()
 
     root = fig.add_axes([0, 0, 1, 1])
     pad = .03

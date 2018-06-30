@@ -574,6 +574,8 @@ def heatmap(args):
     contig = opts.chr
     # Load contig/chromosome starts and sizes
     header = json.loads(open(jsonfile).read())
+    resolution = header.get("resolution", opts.resolution)
+    logging.debug("Resolution set to {}".format(resolution))
     # Load the matrix
     A = np.load(npyfile)
 
@@ -607,7 +609,7 @@ def heatmap(args):
     breaks = sorted(breaks)[1:]
     if contig:
         breaks = []
-    plot_heatmap(ax, B, breaks, iopts, binsize=opts.resolution)
+    plot_heatmap(ax, B, breaks, iopts, binsize=resolution)
 
     # Title
     pf = npyfile.rsplit(".", 1)[0]

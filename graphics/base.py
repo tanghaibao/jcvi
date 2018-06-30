@@ -4,6 +4,7 @@
 import os.path as op
 import sys
 import logging
+logging.getLogger().setLevel(logging.CRITICAL)
 
 from functools import partial
 
@@ -23,6 +24,7 @@ from jcvi.utils.brewer2mpl import get_map
 from jcvi.formats.base import LineFile
 from jcvi.apps.console import dark, green
 from jcvi.apps.base import glob, listify, datadir, sample_N
+logging.getLogger().setLevel(logging.DEBUG)
 
 
 class ImageOptions (object):

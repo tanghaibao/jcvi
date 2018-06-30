@@ -999,7 +999,7 @@ def getfilesize(filename, ratio=None):
     return size
 
 
-def debug():
+def debug(level=logging.DEBUG):
     """
     Turn on the debugging
     """
@@ -1007,7 +1007,7 @@ def debug():
 
     format = yellow("%(asctime)s [%(module)s]")
     format += magenta(" %(message)s")
-    logging.basicConfig(level=logging.DEBUG,
+    logging.basicConfig(level=level,
             format=format,
             datefmt="%H:%M:%S")
 

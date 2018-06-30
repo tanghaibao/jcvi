@@ -37,7 +37,6 @@ from jcvi.graphics.dotplot import dotplot
 from jcvi.utils.cbook import gene_name, human_size
 from jcvi.utils.natsort import natsorted
 
-
 # Map orientations to ints
 FF = {'+': 1, '-': -1, '?': 1}
 RR = {'+': -1, '-': 1, '?': -1}

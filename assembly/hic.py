@@ -563,6 +563,8 @@ def heatmap(args):
     p.add_option("--resolution", default=500000, type="int",
                  help="Resolution when counting the links")
     p.add_option("--chr", help="Plot this contig/chr only")
+    p.add_option("--nobreaks", default=False, action="store_true",
+                 help="Do not plot breaks (esp. if contigs are small)")
     opts, args, iopts = p.set_image_options(args, figsize="10x10",
                                             style="white", cmap="coolwarm",
                                             format="png", dpi=120)
@@ -607,7 +609,7 @@ def heatmap(args):
     breaks = header["starts"].values()
     breaks += [header["total_bins"]]   # This is actually discarded
     breaks = sorted(breaks)[1:]
-    if contig:
+    if contig or opts.nobreaks:
         breaks = []
     plot_heatmap(ax, B, breaks, iopts, binsize=resolution)
 
@@ -1171,7 +1173,7 @@ def iter_tours(tourfile, frames=1):
         if row[0] == '>':
             label = row[1:].strip()
             if label.startswith("GA"):
-                pf, j, score = label.split("-")
+                pf, j, score = label.split("-", 2)
                 j = int(j)
             else:
                 j = 0

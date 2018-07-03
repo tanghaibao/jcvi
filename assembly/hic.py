@@ -623,6 +623,8 @@ def heatmap(args):
 
     normalize_axes(root)
     image_name = title + "." + iopts.format
+    # macOS sometimes has way too verbose output
+    logging.getLogger().setLevel(logging.CRITICAL)
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
@@ -1442,13 +1444,13 @@ def read_clm(clm, totalbins, bins):
 
 
 def plot_heatmap(ax, M, breaks, iopts, binsize=BINSIZE):
-    ax.imshow(M, cmap=iopts.cmap, origin="lower", interpolation='none')
+    ax.imshow(M, cmap=iopts.cmap, interpolation='none')
     xlim = ax.get_xlim()
     for b in breaks[:-1]:
         ax.plot([b, b], xlim, 'w-')
         ax.plot(xlim, [b, b], 'w-')
     ax.set_xlim(xlim)
-    ax.set_ylim(xlim)
+    ax.set_ylim((xlim[1], xlim[0]))  # Flip the y-axis so the origin is at the top
     ax.set_xticklabels([int(x) for x in ax.get_xticks()],
                        family='Helvetica', color="gray")
     ax.set_yticklabels([int(x) for x in ax.get_yticks()],

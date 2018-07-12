@@ -187,6 +187,10 @@ def extract_twin_values(triples, traits, gender=None):
     triples: (a, b, "Female/Male") triples. The sample IDs are then used to query
              the traits dictionary.
     traits: sample_id => value dictionary
+
+    Returns
+    =======
+    tuples of size 2, that contain paired trait values of the twins
     """
     # Construct the pairs of trait values
     traitValuesAbsent = 0
@@ -238,6 +242,11 @@ def plot_abs_diff(ax, mzValues, dzValues, label=None, palette="PRGn"):
     sns.boxplot(x, y, palette=palette, ax=ax)
     ax.set_ylabel("Absolute difference in {}".format(label))
 
+def filter_low_values(data, cutoff):
+    newData = [(a, b) for a, b in data if a > cutoff and b > cutoff]
+    print "Removed {} outliers (<= {})"\
+        .format(len(data) - len(newData), cutoff)
+    return newData
 
 def composite(df, sameGenderMZ, sameGenderDZ, size=(16, 24)):
     """Embed both absdiff figures and heritability figures.
@@ -254,7 +263,7 @@ def composite(df, sameGenderMZ, sameGenderDZ, size=(16, 24)):
     ax4b = plt.subplot2grid((6, 4), (4, 2), rowspan=2, colspan=2)
 
     # Telomeres
-    telomeres = extract_trait(df, "Sample name", "telomeres.Length_x")
+    telomeres = extract_trait(df, "Sample name", "telomeres.Length")
     mzTelomeres = extract_twin_values(sameGenderMZ, telomeres)
     dzTelomeres = extract_twin_values(sameGenderDZ, telomeres)
     plot_paired_values(ax1b, mzTelomeres, dzTelomeres, label="Telomere length")
@@ -264,6 +273,7 @@ def composite(df, sameGenderMZ, sameGenderDZ, size=(16, 24)):
     CCNX = extract_trait(df, "Sample name", "ccn.chrX")
     mzCCNX = extract_twin_values(sameGenderMZ, CCNX, gender="Female")
     dzCCNX = extract_twin_values(sameGenderDZ, CCNX, gender="Female")
+    dzCCNX = filter_low_values(dzCCNX, 1.75)
     plot_paired_values(ax2b, mzCCNX, dzCCNX, gender="Female only", label="ChrX copy number")
     plot_abs_diff(ax2a, mzCCNX, dzCCNX, label="ChrX copy number")
 
@@ -271,6 +281,8 @@ def composite(df, sameGenderMZ, sameGenderDZ, size=(16, 24)):
     CCNY = extract_trait(df, "Sample name", "ccn.chrY")
     mzCCNY = extract_twin_values(sameGenderMZ, CCNY, gender="Male")
     dzCCNY = extract_twin_values(sameGenderDZ, CCNY, gender="Male")
+    dzCCNY = filter_low_values(dzCCNY, .75)
+
     plot_paired_values(ax3b, mzCCNY, dzCCNY, gender="Male only", label="ChrY copy number")
     plot_abs_diff(ax3a, mzCCNY, dzCCNY, label="ChrY copy number")
 
@@ -296,7 +308,7 @@ def composite(df, sameGenderMZ, sameGenderDZ, size=(16, 24)):
 
 def heritability(args):
     """
-    %prog combined.tsv MZ-twins.csv DZ-twins.csv
+    %prog pg.tsv MZ-twins.csv DZ-twins.csv
 
     Plot composite figures ABCD on absolute difference of 4 traits,
     EFGH on heritability of 4 traits. The 4 traits are:

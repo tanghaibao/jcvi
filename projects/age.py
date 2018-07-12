@@ -308,19 +308,21 @@ def heritability(args):
     if len(args) != 3:
         sys.exit(not p.print_help())
 
+    combined, mz, dz = args
+
     # Prepare twins data
     def get_pairs(filename):
         with open(filename) as fp:
             for row in fp:
                 yield row.strip().split(",")
 
-    MZ = list(get_pairs("MZ-twins.csv"))
-    DZ = list(get_pairs("DZ-twins.csv"))
+    MZ = list(get_pairs(mz))
+    DZ = list(get_pairs(dz))
 
     print len(MZ), "monozygotic twins"
     print len(DZ), "dizygotic twins"
 
-    df = pd.read_csv("combined.tsv", sep="\t", index_col=0)
+    df = pd.read_csv(combined, sep="\t", index_col=0)
     df["Sample name"] = np.array(df["Sample name"], dtype=np.str)
     gender = extract_trait(df, "Sample name", "hli_calc_gender")
     sameGenderMZ = list(filter_same_gender(MZ, gender))

@@ -29,6 +29,7 @@ def main():
         ('qc', 'plot distributions of basic statistics of a sample'),
         ('correlation', 'plot correlation of age vs. postgenomic features'),
         ('heritability', 'plot composite on heritability estimates'),
+        ('regression', 'plot chronological vs. predicted age'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -154,6 +155,31 @@ def traits(args):
     print >> fw, template.render(samples=samples)
     logging.debug("Report written to `{}`".format(fw.name))
     fw.close()
+
+
+def regression(args):
+    """
+    %prog regression postgenomic-s.tsv
+
+    Plot chronological vs. predicted age.
+    """
+    p = OptionParser(regression.__doc__)
+    opts, args, iopts = p.set_image_options(args, figsize="8x8")
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    tsvfile, = args
+    df = pd.read_csv(tsvfile, sep="\t")
+    chrono = "Chronological age (yr)"
+    pred = "Predicted age (yr)"
+    resdf = pd.DataFrame({chrono: df["hli_calc_age_sample_taken"], pred: df["Predicted Age"]})
+    g = sns.jointplot(chrono, pred, resdf, joint_kws={"s": 6},
+                      xlim=(0, 100), ylim=(0, 80))
+    g.fig.set_figwidth(iopts.w)
+    g.fig.set_figheight(iopts.h)
+    outfile = tsvfile.rsplit(".", 1)[0] + ".regression.pdf"
+    savefig(outfile)
 
 
 def composite_correlation(df, size=(12, 8)):

@@ -26,6 +26,7 @@ def main():
         ('compile', 'extract telomere length and ccn'),
         ('traits', 'make HTML page that reports eye and skin color'),
         # Age paper
+        ('qc', 'plot distributions of basic statistics of a sample'),
         ('heritability', 'plot composite on heritability estimates'),
             )
     p = ActionDispatcher(actions)
@@ -152,6 +153,82 @@ def traits(args):
     print >> fw, template.render(samples=samples)
     logging.debug("Report written to `{}`".format(fw.name))
     fw.close()
+
+
+def composite_qc(df_orig, size=(16, 12)):
+    """ Plot composite QC figures
+    """
+    df = df_orig.rename(columns={"hli_calc_age_sample_taken": "Age",
+                       "hli_calc_gender": "Gender",
+                       "eth7_max": "Ethnicity",
+                       "Release Client": "Cohort",
+                       "Chemistry": "Sequencing chemistry"
+                      })
+
+    fig = plt.figure(1, size)
+    ax1 = plt.subplot2grid((2, 6), (0, 0), rowspan=1, colspan=2)
+    ax2 = plt.subplot2grid((2, 6), (0, 2), rowspan=1, colspan=2)
+    ax3 = plt.subplot2grid((2, 6), (0, 4), rowspan=1, colspan=2)
+    ax4 = plt.subplot2grid((2, 6), (1, 0), rowspan=1, colspan=3)
+    ax5 = plt.subplot2grid((2, 6), (1, 3), rowspan=1, colspan=3)
+
+    sns.distplot(df["Age"].dropna(), kde=False, ax=ax1)
+    sns.countplot(x="Gender", data=df, ax=ax2)
+    sns.countplot(x="Sequencing chemistry", data=df, ax=ax3)
+    sns.countplot(x="Ethnicity", data=df, ax=ax4,
+                    order = df['Ethnicity'].value_counts().index)
+    sns.countplot(x="Cohort", data=df, ax=ax5,
+                    order = df['Cohort'].value_counts().index)
+    # Anonymize the cohorts
+    cohorts = ax5.get_xticklabels()
+    newCohorts = []
+    for i, c in enumerate(cohorts):
+        if c.get_text() == "Spector":
+            c = "TwinsUK"
+        elif c.get_text() != "Health Nucleus":
+            c = "C{}".format(i + 1)
+        newCohorts.append(c)
+    ax5.set_xticklabels(newCohorts)
+
+    for ax in (ax5,):
+        ax.set_xticklabels(ax.get_xticklabels(), ha="right", rotation=30)
+
+    for ax in (ax1, ax2, ax3, ax4, ax5):
+        ax.set_title(ax.get_xlabel())
+        ax.set_xlabel("")
+
+    plt.tight_layout()
+
+    root = fig.add_axes((0, 0, 1, 1))
+    labels = ((.02, .96, "A"),
+              (.35, .96, "B"),
+              (.68, .96, "C"),
+              (.02, .5, "D"),
+              (.52, .5, "E"))
+    panel_labels(root, labels)
+    root.set_xlim(0, 1)
+    root.set_ylim(0, 1)
+    root.set_axis_off()
+
+
+def qc(args):
+    """
+    %prog qc postgenomic-s.tsv
+
+    Plot basic statistics of a given sample:
+    Age, Gender, Ethnicity, Cohort, Chemistry
+    """
+    p = OptionParser(heritability.__doc__)
+    opts, args, iopts = p.set_image_options(args, figsize="10x6")
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    tsvfile, = args
+    df = pd.read_csv(tsvfile, sep="\t")
+    composite_qc(df, size=(iopts.w, iopts.h))
+    outfile = tsvfile.rsplit(".", 1)[0] + ".pdf"
+    savefig(outfile)
 
 
 def extract_trait(df, id_field, trait_field):
@@ -304,7 +381,6 @@ def composite(df, sameGenderMZ, sameGenderDZ, size=(16, 24)):
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
     root.set_axis_off()
-
 
 def heritability(args):
     """

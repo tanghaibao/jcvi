@@ -161,26 +161,31 @@ def composite_qc(df_orig, size=(16, 12)):
     df = df_orig.rename(columns={"hli_calc_age_sample_taken": "Age",
                        "hli_calc_gender": "Gender",
                        "eth7_max": "Ethnicity",
+                       "MeanCoverage": "Mean coverage",
+                       "Chemistry": "Sequencing chemistry",
                        "Release Client": "Cohort",
-                       "Chemistry": "Sequencing chemistry"
+
                       })
 
     fig = plt.figure(1, size)
-    ax1 = plt.subplot2grid((2, 6), (0, 0), rowspan=1, colspan=2)
-    ax2 = plt.subplot2grid((2, 6), (0, 2), rowspan=1, colspan=2)
-    ax3 = plt.subplot2grid((2, 6), (0, 4), rowspan=1, colspan=2)
-    ax4 = plt.subplot2grid((2, 6), (1, 0), rowspan=1, colspan=3)
-    ax5 = plt.subplot2grid((2, 6), (1, 3), rowspan=1, colspan=3)
+    ax1 = plt.subplot2grid((2, 7), (0, 0), rowspan=1, colspan=2)
+    ax2 = plt.subplot2grid((2, 7), (0, 2), rowspan=1, colspan=2)
+    ax3 = plt.subplot2grid((2, 7), (0, 4), rowspan=1, colspan=3)
+    ax4 = plt.subplot2grid((2, 7), (1, 0), rowspan=1, colspan=2)
+    ax5 = plt.subplot2grid((2, 7), (1, 2), rowspan=1, colspan=2)
+    ax6 = plt.subplot2grid((2, 7), (1, 4), rowspan=1, colspan=3)
 
     sns.distplot(df["Age"].dropna(), kde=False, ax=ax1)
     sns.countplot(x="Gender", data=df, ax=ax2)
-    sns.countplot(x="Sequencing chemistry", data=df, ax=ax3)
-    sns.countplot(x="Ethnicity", data=df, ax=ax4,
+    sns.countplot(x="Ethnicity", data=df, ax=ax3,
                     order = df['Ethnicity'].value_counts().index)
-    sns.countplot(x="Cohort", data=df, ax=ax5,
+    sns.distplot(df["Mean coverage"].dropna(), kde=False, ax=ax4)
+    ax4.set_xlim(0, 100)
+    sns.countplot(x="Sequencing chemistry", data=df, ax=ax5)
+    sns.countplot(x="Cohort", data=df, ax=ax6,
                     order = df['Cohort'].value_counts().index)
     # Anonymize the cohorts
-    cohorts = ax5.get_xticklabels()
+    cohorts = ax6.get_xticklabels()
     newCohorts = []
     for i, c in enumerate(cohorts):
         if c.get_text() == "Spector":
@@ -188,12 +193,12 @@ def composite_qc(df_orig, size=(16, 12)):
         elif c.get_text() != "Health Nucleus":
             c = "C{}".format(i + 1)
         newCohorts.append(c)
-    ax5.set_xticklabels(newCohorts)
+    ax6.set_xticklabels(newCohorts)
 
-    for ax in (ax5,):
+    for ax in (ax6,):
         ax.set_xticklabels(ax.get_xticklabels(), ha="right", rotation=30)
 
-    for ax in (ax1, ax2, ax3, ax4, ax5):
+    for ax in (ax1, ax2, ax3, ax4, ax5, ax6):
         ax.set_title(ax.get_xlabel())
         ax.set_xlabel("")
 
@@ -201,10 +206,11 @@ def composite_qc(df_orig, size=(16, 12)):
 
     root = fig.add_axes((0, 0, 1, 1))
     labels = ((.02, .96, "A"),
-              (.35, .96, "B"),
-              (.68, .96, "C"),
-              (.02, .5, "D"),
-              (.52, .5, "E"))
+              (.3, .96, "B"),
+              (.6, .96, "C"),
+              (.02, .52, "D"),
+              (.3, .52, "E"),
+              (.6, .52, "F"))
     panel_labels(root, labels)
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)

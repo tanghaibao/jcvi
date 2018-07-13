@@ -25,11 +25,12 @@ def main():
     actions = (
         ('compile', 'extract telomere length and ccn'),
         ('traits', 'make HTML page that reports eye and skin color'),
-        # Age paper
+        # Age paper plots
         ('qc', 'plot distributions of basic statistics of a sample'),
         ('correlation', 'plot correlation of age vs. postgenomic features'),
         ('heritability', 'plot composite on heritability estimates'),
         ('regression', 'plot chronological vs. predicted age'),
+        ('ccn', 'plot several ccn plots including chr1,chrX,chrY,chrM'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -155,6 +156,100 @@ def traits(args):
     print >> fw, template.render(samples=samples)
     logging.debug("Report written to `{}`".format(fw.name))
     fw.close()
+
+
+def plot_fit_line(ax, x, y):
+    from numpy.polynomial.polynomial import polyfit
+    t = np.arange(100)
+    xy = [(a, b) for (a, b) in zip(x, y) if np.isfinite(a) and np.isfinite(b)]
+    x, y = zip(*xy)
+    b, m = polyfit(x, y, 1)
+    print "y = {} + {} * x".format(b, m)
+    ax.plot(t, b + m * t, '-', lw=3, color='k')
+
+
+def composite_ccn(df, size=(12, 8)):
+    """ Plot composite ccn figure
+    """
+    fig = plt.figure(1, size)
+    ax1 = plt.subplot2grid((2, 2), (0, 0))
+    ax2 = plt.subplot2grid((2, 2), (0, 1))
+    ax3 = plt.subplot2grid((2, 2), (1, 0))
+    ax4 = plt.subplot2grid((2, 2), (1, 1))
+    chemistry = ["V1", "V2", "V2.5", float("nan")]
+    colors = sns.color_palette("Set2", 8)
+    color_map = dict(zip(chemistry, colors))
+    mf = df[df["hli_calc_gender"] == "Male"]
+
+    age_label = "Chronological age (yr)"
+    ax1.scatter(mf["hli_calc_age_sample_taken"], mf["ccn.chrX"],
+                s=10, marker='.',
+                color='lightslategray')
+    ax1.set_ylim(0.8, 1.1)
+    plot_fit_line(ax1, mf["hli_calc_age_sample_taken"], mf["ccn.chrX"])
+    ax1.set_ylabel("ChrX copy number")
+    ax1.set_title("ChrX copy number in Male")
+
+    ax2.scatter(mf["hli_calc_age_sample_taken"], mf["ccn.chrY"],
+                s=10, marker='.',
+                color='lightslategray')
+    plot_fit_line(ax2, mf["hli_calc_age_sample_taken"], mf["ccn.chrY"])
+    ax2.set_ylim(0.8, 1.1)
+    ax2.set_ylabel("ChrY copy number")
+    ax2.set_title("ChrY copy number in Male")
+
+    ax3.scatter(df["hli_calc_age_sample_taken"], df["ccn.chr1"],
+                s=10, marker='.',
+                color='lightslategray')
+    plot_fit_line(ax3, df["hli_calc_age_sample_taken"], df["ccn.chr1"])
+    ax3.set_ylim(1.8, 2.1)
+    ax3.set_ylabel("Chr1 copy number")
+    ax3.set_title("Chr1 copy number")
+
+    ax4.scatter(df["hli_calc_age_sample_taken"], df["ccn.chrM"],
+                s=10, marker='.',
+                color='lightslategray')
+    plot_fit_line(ax4, df["hli_calc_age_sample_taken"], df["ccn.chrM"])
+    ax4.set_ylim(0, 400)
+    ax4.set_ylabel("Mitochondria copy number")
+    ax4.set_title("Mitochondria copy number")
+
+    from matplotlib.lines import Line2D
+    legend_elements = [Line2D([0], [0], marker='.', color='w', label=chem,
+                          markerfacecolor=color) \
+                        for (chem, color) in zip(chemistry, colors)[:3]]
+    for ax in (ax1, ax2, ax3, ax4):
+        ax.set_xlabel(age_label)
+
+    plt.tight_layout()
+    root = fig.add_axes((0, 0, 1, 1))
+    labels = ((.02, .98, "A"),
+              (.52, .98, "B"),
+              (.02, .5, "C"),
+              (.52, .5, "D"))
+    panel_labels(root, labels)
+    root.set_xlim(0, 1)
+    root.set_ylim(0, 1)
+    root.set_axis_off()
+
+
+def ccn(args):
+    """
+    %prog ccn combined.tsv
+
+    Plot several ccn plots including chr1,chrX,chrY,chrM
+    """
+    p = OptionParser(ccn.__doc__)
+    opts, args, iopts = p.set_image_options(args, figsize="12x8")
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    tsvfile, = args
+    df = pd.read_csv(tsvfile, sep="\t")
+    composite_ccn(df, size=(iopts.w, iopts.h))
+    outfile = tsvfile.rsplit(".", 1)[0] + ".ccn.pdf"
+    savefig(outfile)
 
 
 def regression(args):

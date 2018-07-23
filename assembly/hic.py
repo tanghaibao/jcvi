@@ -837,8 +837,9 @@ def simulate(args):
     # Write IDS file
     idsfile = pf + ".ids"
     fw = open(idsfile, "w")
+    print >> fw, "#Contig\tRECounts\tLength"
     for i, s in enumerate(ContigSizes):
-        print >> fw, "tig{:04d}\t{}".format(i, s)
+        print >> fw, "tig{:04d}\t{}\t{}".format(i, s / (4 ** 4), s)
     fw.close()
 
     # Simulate the gene positions

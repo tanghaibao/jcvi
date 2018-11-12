@@ -118,6 +118,8 @@ class CLMFile:
         fp = open(idsfile)
         tigs = []
         for row in fp:
+            if row[0] == '#':  # Header
+                continue
             atoms = row.split()
             tig, size = atoms[:2]
             size = int(size)

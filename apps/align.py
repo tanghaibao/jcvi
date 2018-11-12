@@ -108,6 +108,7 @@ def main():
         ('blasr', 'run blasr on a set of pacbio reads'),
         ('nucmer', 'run nucmer using query against reference'),
         ('last', 'run last using query against reference'),
+        ('lastgenome', 'run whole genome LAST and screen for 1-to-1 matches'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -271,6 +272,57 @@ def blast(args):
                   hitlen=None, best=opts.best, task=opts.task, cpus=opts.cpus)
 
     return blastfile
+
+
+def lastgenome(args):
+    """
+    %prog genome_A.fasta genome_B.fasta
+
+    Run LAST by calling LASTDB, LASTAL and LAST-SPLIT. The recipe is based on
+    tutorial here:
+
+    <https://github.com/mcfrith/last-genome-alignments>
+
+    The script runs the following steps:
+    $ lastdb -P0 -uNEAR -R01 Chr10A-NEAR Chr10A.fa
+    $ lastal -E0.05 -C2 Chr10A-NEAR Chr10B.fa | last-split -m1 | maf-swap | last-split -m1 -fMAF > Chr10A.Chr10B.1-1.maf
+    $ maf-convert -n blasttab Chr10A.Chr10B.1-1.maf > Chr10A.Chr10B.1-1.blast
+
+    Works with LAST v959.
+    """
+    from jcvi.apps.grid import MakeManager
+
+    p = OptionParser(lastgenome.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    gA, gB = args
+    mm = MakeManager()
+    bb = lambda x : op.basename(x).rsplit(".", 1)[0]
+    gA_pf, gB_pf = bb(gA), bb(gB)
+
+    # Build LASTDB
+    dbname = "-".join((gA_pf, "NEAR"))
+    dbfile = dbname + ".suf"
+    build_db_cmd = "lastdb -P0 -uNEAR -R01 {} {}".format(dbfile, gA)
+    mm.add(gA, dbfile, build_db_cmd)
+
+    # Run LASTAL
+    maffile = "{}.{}.1-1.maf".format(gA_pf, gB_pf)
+    lastal_cmd = "lastal -E0.05 -C2 {} {}".format(dbname, gB)
+    lastal_cmd += " | last-split -m1"
+    lastal_cmd += " | maf-swap"
+    lastal_cmd += " | last-split -m1 -fMAF > {}".format(maffile)
+    mm.add([dbfile, gB], maffile, lastal_cmd)
+
+    # Convert to BLAST format
+    blastfile = maffile.replace(".maf", ".blast")
+    convert_cmd = "maf-convert -n blasttab {} > {}".format(maffile, blastfile)
+    mm.add(maffile, blastfile, convert_cmd)
+
+    mm.write()
 
 
 @depends

@@ -33,12 +33,19 @@ class BlastLine(object):
         else:
             self.orientation = '+'
 
+    @property
+    def has_score(self):
+        return hasattr(self, "score")
+
     def __repr__(self):
         return "BlastLine('%s' to '%s', eval=%.3f, score=%.1f)" % \
                 (self.query, self.subject, self.evalue, self.score)
 
     def __str__(self):
-        args = [getattr(self, attr) for attr in BlastLine.__slots__[:12]]
+        if self.has_score:
+            args = [getattr(self, attr) for attr in BlastLine.__slots__[:12]]
+        else:
+            args = [getattr(self, attr) for attr in BlastLine.__slots__[:10]]
         if self.orientation == '-':
             args[8], args[9] = args[9], args[8]
         return "\t".join(str(x) for x in args)

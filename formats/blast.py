@@ -708,7 +708,8 @@ def combine_HSPs(a):
         m.qstop = max(m.qstop, b.qstop)
         m.sstart = min(m.sstart, b.sstart)
         m.sstop = max(m.sstop, b.sstop)
-        m.score += b.score
+        if m.has_score:
+            m.score += b.score
 
     m.pctid = 100 - (m.nmismatch + m.ngaps) * 100. / m.hitlen
     return m
@@ -739,7 +740,7 @@ def chain_HSPs(blast, xdist=100, ydist=100):
                 # x-axis distance
                 del_x = get_distance(a, b)
                 if del_x > xdist:
-                    continue
+                    break
                 # y-axis distance
                 del_y = get_distance(a, b, xaxis=False)
                 if del_y > ydist:
@@ -748,7 +749,8 @@ def chain_HSPs(blast, xdist=100, ydist=100):
                 clusters.join(a, b)
 
     chained_hsps = [combine_HSPs(x) for x in clusters]
-    chained_hsps = sorted(chained_hsps, key=lambda x: (x.query, -x.score))
+    key = lambda x: (x.query, -x.score if x.has_score else 0)
+    chained_hsps = sorted(chained_hsps, key=key)
 
     return chained_hsps
 
@@ -757,8 +759,7 @@ def chain(args):
     """
     %prog chain blastfile
 
-    Chain adjacent HSPs together to form larger HSP. The adjacent HSPs have to
-    share the same orientation.
+    Chain adjacent HSPs together to form larger HSP.
     """
     p = OptionParser(chain.__doc__)
     p.add_option("--dist", dest="dist",
@@ -775,7 +776,9 @@ def chain(args):
     assert dist > 0
 
     blast = BlastSlow(blastfile)
+    logging.debug("A total of {} records imported".format(len(blast)))
     chained_hsps = chain_HSPs(blast, xdist=dist, ydist=dist)
+    logging.debug("A total of {} records after chaining".format(len(chained_hsps)))
 
     for b in chained_hsps:
         print b

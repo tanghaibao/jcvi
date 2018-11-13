@@ -22,62 +22,8 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, sh, popen
 try:
     from .cblast import BlastLine
 except:
+    from .pyblast import BlastLine
     logging.error("Fall back to Python implementation of BlastLine")
-
-    class BlastLine(object):
-        __slots__ = ('query', 'subject', 'pctid', 'hitlen', 'nmismatch', 'ngaps', \
-                     'qstart', 'qstop', 'sstart', 'sstop', 'evalue', 'score', \
-                     'qseqid', 'sseqid', 'qi', 'si', 'orientation')
-
-        def __init__(self, sline):
-            args = sline.split("\t")
-            self.query = args[0]
-            self.subject = args[1]
-            self.pctid = float(args[2])
-            self.hitlen = int(args[3])
-            self.nmismatch = int(args[4])
-            self.ngaps = int(args[5])
-            self.qstart = int(args[6])
-            self.qstop = int(args[7])
-            self.sstart = int(args[8])
-            self.sstop = int(args[9])
-            self.evalue = float(args[10])
-            self.score = float(args[11])
-
-            if self.sstart > self.sstop:
-                self.sstart, self.sstop = self.sstop, self.sstart
-                self.orientation = '-'
-            else:
-                self.orientation = '+'
-
-        def __repr__(self):
-            return "BlastLine('%s' to '%s', eval=%.3f, score=%.1f)" % \
-                    (self.query, self.subject, self.evalue, self.score)
-
-        def __str__(self):
-            args = [getattr(self, attr) for attr in BlastLine.__slots__[:12]]
-            if self.orientation == '-':
-                args[8], args[9] = args[9], args[8]
-            return "\t".join(str(x) for x in args)
-
-        @property
-        def swapped(self):
-            """
-            Swap query and subject.
-            """
-            args = [getattr(self, attr) for attr in BlastLine.__slots__[:12]]
-            args[0:2] = [self.subject, self.query]
-            args[6:10] = [self.sstart, self.sstop, self.qstart, self.qstop]
-            if self.orientation == '-':
-                args[8], args[9] = args[9], args[8]
-            b = "\t".join(str(x) for x in args)
-            return BlastLine(b)
-
-        @property
-        def bedline(self):
-            return "\t".join(str(x) for x in \
-                    (self.subject, self.sstart - 1, self.sstop, self.query,
-                     self.score, self.orientation))
 
 
 class BlastSlow (LineFile):
@@ -218,8 +164,8 @@ class BlastLineByConversion (BlastLine):
 
 
 def get_stats(blastfile):
-
     from jcvi.utils.range import range_union
+    from .pyblast import BlastLine
 
     logging.debug("report stats on `%s`" % blastfile)
     fp = open(blastfile)

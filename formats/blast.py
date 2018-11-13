@@ -164,10 +164,10 @@ class BlastLineByConversion (BlastLine):
 
 
 def get_stats(blastfile):
-    from jcvi.utils.range import range_union
+    from jcvi.utils.range import range_union, range_span
     from .pyblast import BlastLine
 
-    logging.debug("report stats on `%s`" % blastfile)
+    logging.debug("Report stats on `%s`" % blastfile)
     fp = open(blastfile)
     ref_ivs = []
     qry_ivs = []
@@ -186,15 +186,17 @@ def get_stats(blastfile):
             sstart, sstop = sstop, sstart
         ref_ivs.append((c.subject, sstart, sstop))
 
-        alen = sstop - sstart
+        alen = c.hitlen
         alignlen += alen
-        identicals += c.pctid / 100. * alen
+        identicals += c.hitlen - c.nmismatch - c.ngaps
 
     qrycovered = range_union(qry_ivs)
     refcovered = range_union(ref_ivs)
+    qryspan = range_span(qry_ivs)
+    refspan = range_span(ref_ivs)
     id_pct = identicals * 100. / alignlen
 
-    return qrycovered, refcovered, id_pct
+    return qrycovered, refcovered, qryspan, refspan, id_pct
 
 
 def filter(args):
@@ -1216,8 +1218,8 @@ def summary(args):
 
     blastfile, = args
 
-    qrycovered, refcovered, id_pct = get_stats(blastfile)
-    print_stats(qrycovered, refcovered, id_pct)
+    qrycovered, refcovered, qryspan, refspan, id_pct = get_stats(blastfile)
+    print_stats(qrycovered, refcovered, qryspan, refspan, id_pct)
 
 
 def subset(args):

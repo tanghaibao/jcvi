@@ -317,6 +317,33 @@ def range_union(ranges):
     return total_len
 
 
+def range_span(ranges):
+    """
+    Returns the total span between the left most range to the right most range.
+
+    >>> ranges = [("1", 30, 45), ("1", 40, 50), ("1", 10, 50)]
+    >>> range_span(ranges)
+    41
+    >>> ranges = [("1", 30, 45), ("2", 40, 50)]
+    >>> range_span(ranges)
+    27
+    >>> ranges = [("1", 30, 45), ("1", 45, 50)]
+    >>> range_span(ranges)
+    21
+    >>> range_span([])
+    0
+    """
+    if not ranges:
+        return 0
+
+    ranges.sort()
+    ans = 0
+    for seq, lt in groupby(ranges, key=lambda x: x[0]):
+        lt = list(lt)
+        ans += max(max(lt)[1:]) - min(min(lt)[1:]) + 1
+    return ans
+
+
 def _make_endpoints(ranges):
     assert ranges, "Ranges cannot be empty"
     endpoints = []

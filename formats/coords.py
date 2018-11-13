@@ -413,18 +413,22 @@ def annotate(args):
         print "{0}\t{1}".format(row.strip(), Overlap_types[ov])
 
 
-def print_stats(qrycovered, refcovered, id_pct):
+def print_stats(qrycovered, refcovered, qryspan, refspan, id_pct):
     from jcvi.utils.cbook import thousands
 
     try:
-        refcovered = thousands(refcovered)
         qrycovered = thousands(qrycovered)
+        refcovered = thousands(refcovered)
+        qryspan = thousands(qryspan)
+        refspan = thousands(refspan)
     except:
         pass
-    m1 = "Reference coverage: {0} bp".format(refcovered)
-    m2 = "Query coverage: {0} bp".format(qrycovered)
-    m3 = "Identity: {0:.2f}%".format(id_pct)
-    print >> sys.stderr, "\n".join((m1, m2, m3))
+    m1 = "Query coverage: {0} bp".format(qrycovered)
+    m2 = "Reference coverage: {0} bp".format(refcovered)
+    m3 = "Query span: {} bp".format(qryspan)
+    m4 = "Reference span: {} bp".format(refspan)
+    m5 = "Identity: {0:.2f}%".format(id_pct)
+    print >> sys.stderr, "\n".join((m1, m2, m3, m4, m5))
 
 
 def summary(args):
@@ -445,7 +449,7 @@ def summary(args):
     coordsfile, = args
     qrycovered, refcovered, id_pct = get_stats(coordsfile)
 
-    print_stats(qrycovered, refcovered, id_pct)
+    print_stats(qrycovered, refcovered, None, None, id_pct)
 
 
 def filter(args):

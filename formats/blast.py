@@ -303,9 +303,54 @@ def main():
         ('annotate', 'annotate overlap types in BLAST tabular file'),
         ('score', 'add up the scores for each query seq'),
         ('rbbh', 'find reciprocal-best blast hits'),
+        ('gaps', 'find distribution of gap sizes between adjacent HSPs'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def collect_gaps(blast, use_subject=False):
+    """
+    Collect the gaps between adjacent HSPs in the BLAST file.
+    """
+    key = lambda x: x.sstart if use_subject else x.qstart
+    blast.sort(key=key)
+
+    for a, b in zip(blast, blast[1:]):
+        if use_subject:
+            if a.sstop < b.sstart:
+                yield b.sstart - a.sstop
+        else:
+            if a.qstop < b.qstart:
+                yield b.qstart - a.qstop
+
+
+def gaps(args):
+    """
+    %prog gaps A_vs_B.blast
+
+    Find distribution of gap sizes betwen adjacent HSPs.
+    """
+    p = OptionParser(gaps.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    blastfile, = args
+    blast = BlastSlow(blastfile)
+    logging.debug("A total of {} records imported".format(len(blast)))
+
+    query_gaps = list(collect_gaps(blast))
+    subject_gaps = list(collect_gaps(blast, use_subject=True))
+    logging.debug("Query gaps: {}  Subject gaps: {}"\
+                    .format(len(query_gaps), len(subject_gaps)))
+
+    from jcvi.graphics.base import savefig
+    import seaborn as sns
+
+    sns.distplot(query_gaps)
+    savefig("query_gaps.pdf")
 
 
 def rbbh(args):

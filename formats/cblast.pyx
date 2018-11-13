@@ -102,11 +102,13 @@ cdef class BlastLine:
                 &self.sstart, &self.sstop,
                 &self.evalue, &self.score)
 
+        self.orientation = '+'
+        if self.qstart > self.qstop:
+            self.qstart, self.qstop = self.qstop, self.qstart
+            self.orientation = '-'
         if self.sstart > self.sstop:
             self.sstart, self.sstop = self.sstop, self.sstart
             self.orientation = '-'
-        else:
-            self.orientation = '+'
 
     def __richcmp__(BlastLine self, BlastLine other, size_t op):
         if op == 2: # ==

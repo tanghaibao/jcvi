@@ -236,7 +236,7 @@ def get_stats(coordsfile):
     qrycovered = range_union(qry_ivs)
     refcovered = range_union(ref_ivs)
 
-    return qrycovered, refcovered, (identicals, alignlen)
+    return qrycovered, refcovered, identicals
 
 
 def main():
@@ -431,10 +431,11 @@ def summary(args):
         sys.exit(p.print_help())
 
     coordsfile, = args
-    qrycovered, refcovered, id_pct = get_stats(coordsfile)
+    qrycovered, refcovered, identicals = get_stats(coordsfile)
 
     filename = op.basename(coordsfile)
-    alignstats = AlignStats(filename, qrycovered, refcovered, None, None, id_pct)
+    alignstats = AlignStats(filename, qrycovered, refcovered,
+                            None, None, identicals)
     alignstats.print_stats()
 
 

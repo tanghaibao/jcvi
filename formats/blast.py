@@ -168,18 +168,18 @@ class AlignStats:
     Stores the alignment statistics that is used in formats.blast.summary()
     and formats.coords.summary()
     """
-    def __init__(self, filename, qrycovered, refcovered, qryspan, refspan, id_pct):
+    def __init__(self, filename, qrycovered, refcovered,
+                 qryspan, refspan, identicals):
         self.filename = filename
         self.qrycovered = qrycovered
         self.refcovered = refcovered
         self.qryspan = qryspan
         self.refspan = refspan
-        self.identicals, self.alignlen = id_pct
+        self.identicals = identicals
 
     def __str__(self):
         pp = lambda x, d: "{:.2f}".format(x * 100. / d)
         return "\t".join(str(x) for x in (self.filename,
-            self.identicals, self.alignlen, pp(self.identicals, self.alignlen),
             self.qrycovered, pp(self.identicals, self.qrycovered),
             self.refcovered, pp(self.identicals, self.refcovered),
             self.qryspan, pp(self.identicals, self.qryspan),
@@ -190,14 +190,13 @@ class AlignStats:
         refcovered = self.refcovered
         qryspan = self.qryspan
         refspan = self.refspan
-        m0 = "Identity: {}".format(percentage(self.identicals, self.alignlen))
         m1 = "Query coverage: {}".\
                 format(percentage(self.identicals, qrycovered))
         m2 = "Reference coverage: {}".\
                 format(percentage(self.identicals, refcovered))
         m3 = "Query span: {}".format(percentage(self.identicals, qryspan))
         m4 = "Reference span: {}".format(percentage(self.identicals, refspan))
-        print >> sys.stderr, "\n".join((m0, m1, m2, m3, m4))
+        print >> sys.stderr, "\n".join((m1, m2, m3, m4))
 
 
 def get_stats(blastfile):
@@ -232,7 +231,7 @@ def get_stats(blastfile):
     qryspan = range_span(qry_ivs)
     refspan = range_span(ref_ivs)
 
-    return qrycovered, refcovered, qryspan, refspan, (identicals, alignlen)
+    return qrycovered, refcovered, qryspan, refspan, identicals
 
 
 def filter(args):
@@ -1253,9 +1252,10 @@ def summary(args):
 
     blastfile, = args
 
-    qrycovered, refcovered, qryspan, refspan, id_pct = get_stats(blastfile)
+    qrycovered, refcovered, qryspan, refspan, identicals = get_stats(blastfile)
     filename = op.basename(blastfile)
-    alignstats = AlignStats(filename, qrycovered, refcovered, qryspan, refspan, id_pct)
+    alignstats = AlignStats(filename, qrycovered, refcovered,
+                            qryspan, refspan, identicals)
     if opts.tabular:
         print(str(alignstats))
     else:

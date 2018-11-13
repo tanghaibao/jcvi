@@ -11,11 +11,11 @@ from collections import defaultdict
 
 from jcvi.formats.base import LineFile, BaseFile, must_open
 from jcvi.formats.bed import Bed
-from jcvi.formats.coords import print_stats
 from jcvi.formats.sizes import Sizes
 from jcvi.utils.grouper import Grouper
 from jcvi.utils.orderedcollections import OrderedDict
 from jcvi.utils.range import range_distance
+from jcvi.utils.cbook import percentage, thousands
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, popen
 
 
@@ -163,6 +163,38 @@ class BlastLineByConversion (BlastLine):
             sys.exit(m)
 
 
+class AlignStats:
+    """
+    Stores the alignment statistics that is used in formats.blast.summary()
+    and formats.coords.summary()
+    """
+    def __init__(self, qrycovered, refcovered, qryspan, refspan, id_pct):
+        self.qrycovered = qrycovered
+        self.refcovered = refcovered
+        self.qryspan = qryspan
+        self.refspan = refspan
+        self.identicals, self.alignlen = id_pct
+
+    def print_stats(self):
+        qrycovered = self.qrycovered
+        refcovered = self.refcovered
+        qryspan = self.qryspan
+        refspan = self.refspan
+        try:
+            qryspan = thousands(qryspan)
+            refspan = thousands(refspan)
+        except:
+            pass
+        m0 = "Identity: {}".format(percentage(self.identicals, self.alignlen))
+        m1 = "Query coverage: {}".\
+                format(percentage(self.identicals, qrycovered))
+        m2 = "Reference coverage: {}".\
+                format(percentage(self.identicals, refcovered))
+        m3 = "Query span: {} bp".format(qryspan)
+        m4 = "Reference span: {} bp".format(refspan)
+        print >> sys.stderr, "\n".join((m0, m1, m2, m3, m4))
+
+
 def get_stats(blastfile):
     from jcvi.utils.range import range_union, range_span
     from .pyblast import BlastLine
@@ -194,9 +226,8 @@ def get_stats(blastfile):
     refcovered = range_union(ref_ivs)
     qryspan = range_span(qry_ivs)
     refspan = range_span(ref_ivs)
-    id_pct = identicals * 100. / alignlen
 
-    return qrycovered, refcovered, qryspan, refspan, id_pct
+    return qrycovered, refcovered, qryspan, refspan, (identicals, alignlen)
 
 
 def filter(args):
@@ -747,7 +778,6 @@ def combine_HSPs(a):
     for b in a[1:]:
         assert m.query == b.query
         assert m.subject == b.subject
-        assert m.orientation == b.orientation
         m.hitlen += b.hitlen
         m.nmismatch += b.nmismatch
         m.ngaps += b.ngaps
@@ -781,8 +811,6 @@ def chain_HSPs(blast, xdist=100, ydist=100):
             clusters.join(a)
             for j in xrange(i + 1, n):
                 b = points[j]
-                if a.orientation != b.orientation:
-                    continue
 
                 # x-axis distance
                 del_x = get_distance(a, b)
@@ -1219,7 +1247,8 @@ def summary(args):
     blastfile, = args
 
     qrycovered, refcovered, qryspan, refspan, id_pct = get_stats(blastfile)
-    print_stats(qrycovered, refcovered, qryspan, refspan, id_pct)
+    alignstats = AlignStats(qrycovered, refcovered, qryspan, refspan, id_pct)
+    alignstats.print_stats()
 
 
 def subset(args):

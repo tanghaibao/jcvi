@@ -125,6 +125,9 @@ cdef class BlastLine:
         else:
             raise Exception("that comparison not implemented")
 
+    def __hash__(self):
+        return id(self)
+
     def __repr__(self):
         return "BlastLine('%s' to '%s', eval=%.3f, score=%.1f)" % \
                 (self.query, self.subject, self.evalue, self.score)
@@ -142,6 +145,10 @@ cdef class BlastLine:
             self.evalue, self.score)
 
         return result
+
+    @property
+    def has_score(self):
+        return hasattr(self, "score")
 
     @property
     def swapped(self):

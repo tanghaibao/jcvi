@@ -234,9 +234,8 @@ def get_stats(coordsfile):
 
     qrycovered = range_union(qry_ivs)
     refcovered = range_union(ref_ivs)
-    id_pct = identicals * 100. / alignlen
 
-    return qrycovered, refcovered, id_pct
+    return qrycovered, refcovered, (identicals, alignlen)
 
 
 def main():
@@ -413,30 +412,14 @@ def annotate(args):
         print "{0}\t{1}".format(row.strip(), Overlap_types[ov])
 
 
-def print_stats(qrycovered, refcovered, qryspan, refspan, id_pct):
-    from jcvi.utils.cbook import thousands
-
-    try:
-        qrycovered = thousands(qrycovered)
-        refcovered = thousands(refcovered)
-        qryspan = thousands(qryspan)
-        refspan = thousands(refspan)
-    except:
-        pass
-    m1 = "Query coverage: {0} bp".format(qrycovered)
-    m2 = "Reference coverage: {0} bp".format(refcovered)
-    m3 = "Query span: {} bp".format(qryspan)
-    m4 = "Reference span: {} bp".format(refspan)
-    m5 = "Identity: {0:.2f}%".format(id_pct)
-    print >> sys.stderr, "\n".join((m1, m2, m3, m4, m5))
-
-
 def summary(args):
     """
     %prog summary coordsfile
 
     provide summary on id% and cov%, for both query and reference
     """
+    from jcvi.formats.blast import AlignStats
+
     p = OptionParser(summary.__doc__)
     p.add_option("-s", dest="single", default=False, action="store_true",
             help="provide stats per reference seq")
@@ -449,7 +432,8 @@ def summary(args):
     coordsfile, = args
     qrycovered, refcovered, id_pct = get_stats(coordsfile)
 
-    print_stats(qrycovered, refcovered, None, None, id_pct)
+    alignstats = AlignStats(qrycovered, refcovered, None, None, id_pct)
+    alignstats.print_stats()
 
 
 def filter(args):

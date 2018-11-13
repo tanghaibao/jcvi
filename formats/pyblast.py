@@ -27,11 +27,13 @@ class BlastLine(object):
             self.evalue = float(args[10])
             self.score = float(args[11])
 
+        self.orientation = '+'
+        if self.qstart > self.qstop:
+            self.qstart, self.qstop = self.qstop, self.qstart
+            self.orientation = '-'
         if self.sstart > self.sstop:
             self.sstart, self.sstop = self.sstop, self.sstart
             self.orientation = '-'
-        else:
-            self.orientation = '+'
 
     @property
     def has_score(self):

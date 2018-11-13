@@ -8,6 +8,7 @@ output - mostly as *.coords file.
 
 import sys
 import logging
+import os.path as op
 
 from math import exp
 from itertools import groupby
@@ -432,7 +433,8 @@ def summary(args):
     coordsfile, = args
     qrycovered, refcovered, id_pct = get_stats(coordsfile)
 
-    alignstats = AlignStats(qrycovered, refcovered, None, None, id_pct)
+    filename = op.basename(coordsfile)
+    alignstats = AlignStats(filename, qrycovered, refcovered, None, None, id_pct)
     alignstats.print_stats()
 
 

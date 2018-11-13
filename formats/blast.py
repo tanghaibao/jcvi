@@ -168,30 +168,35 @@ class AlignStats:
     Stores the alignment statistics that is used in formats.blast.summary()
     and formats.coords.summary()
     """
-    def __init__(self, qrycovered, refcovered, qryspan, refspan, id_pct):
+    def __init__(self, filename, qrycovered, refcovered, qryspan, refspan, id_pct):
+        self.filename = filename
         self.qrycovered = qrycovered
         self.refcovered = refcovered
         self.qryspan = qryspan
         self.refspan = refspan
         self.identicals, self.alignlen = id_pct
 
+    def __str__(self):
+        pp = lambda x, d: "{:.2f}".format(x * 100. / d)
+        return "\t".join(str(x) for x in (self.filename,
+            self.identicals, self.alignlen, pp(self.identicals, self.alignlen),
+            self.qrycovered, pp(self.identicals, self.qrycovered),
+            self.refcovered, pp(self.identicals, self.refcovered),
+            self.qryspan, pp(self.identicals, self.qryspan),
+            self.refspan, pp(self.identicals, self.refspan)))
+
     def print_stats(self):
         qrycovered = self.qrycovered
         refcovered = self.refcovered
         qryspan = self.qryspan
         refspan = self.refspan
-        try:
-            qryspan = thousands(qryspan)
-            refspan = thousands(refspan)
-        except:
-            pass
         m0 = "Identity: {}".format(percentage(self.identicals, self.alignlen))
         m1 = "Query coverage: {}".\
                 format(percentage(self.identicals, qrycovered))
         m2 = "Reference coverage: {}".\
                 format(percentage(self.identicals, refcovered))
-        m3 = "Query span: {} bp".format(qryspan)
-        m4 = "Reference span: {} bp".format(refspan)
+        m3 = "Query span: {}".format(percentage(self.identicals, qryspan))
+        m4 = "Reference span: {}".format(percentage(self.identicals, refspan))
         print >> sys.stderr, "\n".join((m0, m1, m2, m3, m4))
 
 
@@ -1238,6 +1243,8 @@ def summary(args):
     comparing genomes (based on NUCMER results).
     """
     p = OptionParser(summary.__doc__)
+    p.add_option("--tabular", default=False, action="store_true",
+                help="Print succint tabular output")
 
     opts, args = p.parse_args(args)
 
@@ -1247,8 +1254,12 @@ def summary(args):
     blastfile, = args
 
     qrycovered, refcovered, qryspan, refspan, id_pct = get_stats(blastfile)
-    alignstats = AlignStats(qrycovered, refcovered, qryspan, refspan, id_pct)
-    alignstats.print_stats()
+    filename = op.basename(blastfile)
+    alignstats = AlignStats(filename, qrycovered, refcovered, qryspan, refspan, id_pct)
+    if opts.tabular:
+        print(str(alignstats))
+    else:
+        alignstats.print_stats()
 
 
 def subset(args):

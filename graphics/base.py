@@ -8,6 +8,7 @@ logging.getLogger().setLevel(logging.CRITICAL)
 
 from functools import partial
 
+import platform
 import numpy as np
 import matplotlib as mpl
 mpl.use('Agg')
@@ -275,7 +276,8 @@ def setup_theme(context='notebook', style="darkgrid", palette='deep', font='Helv
     except (ImportError, SyntaxError):
         pass
 
-    rc('text', usetex=True)
+    if platform.system() != "Darwin":
+        rc('text', usetex=True)
 
     if font == "Helvetica":
         rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica']})

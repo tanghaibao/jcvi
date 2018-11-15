@@ -386,6 +386,8 @@ class OptionParser (OptionP):
         group.add_option("--diverge", default="PiYG", choices=allowed_diverge,
                 help="Contrasting color scheme")
         group.add_option("--cmap", default=cmap, help="Use this color map")
+        group.add_option("--notex", default=False, action="store_true",
+                help="Do not use tex")
 
         if args is None:
             args = sys.argv[1:]
@@ -395,7 +397,7 @@ class OptionParser (OptionP):
         assert opts.dpi > 0
         assert "x" in opts.figsize
 
-        setup_theme(style=opts.style, font=opts.font)
+        setup_theme(style=opts.style, font=opts.font, usetex=(not opts.notex))
 
         return opts, args, ImageOptions(opts)
 
@@ -782,6 +784,14 @@ def Popen(cmd, stdin=None, stdout=PIPE, debug=False, shell="/bin/bash"):
     proc = P(cmd, bufsize=1, stdin=stdin, stdout=stdout, \
              shell=True, executable=shell)
     return proc
+
+
+def is_macOS():
+    """
+    Check if current OS is macOS, this impacts mostly plotting code.
+    """
+    import platform
+    return platform.system() == "Darwin"
 
 
 def popen(cmd, debug=True, shell="/bin/bash"):

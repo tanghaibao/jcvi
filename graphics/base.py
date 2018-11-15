@@ -8,7 +8,6 @@ logging.getLogger().setLevel(logging.CRITICAL)
 
 from functools import partial
 
-import platform
 import numpy as np
 import matplotlib as mpl
 mpl.use('Agg')
@@ -168,7 +167,8 @@ def normalize_axes(axes):
 
 def panel_labels(ax, labels, size=16):
     for xx, yy, panel_label in labels:
-        panel_label = r"$\textbf{{{0}}}$".format(panel_label)
+        if rcParams['text.usetex']:
+            panel_label = r"$\textbf{{{0}}}$".format(panel_label)
         ax.text(xx, yy, panel_label, size=size,
                         ha="center", va="center")
 
@@ -259,13 +259,14 @@ def markup(s):
 
 def append_percentage(s):
     # The percent symbol needs escaping in latex
-    if rcParams['text.usetex'] is True:
+    if rcParams['text.usetex']:
         return s + r'$\%$'
     else:
         return s + '%'
 
 
-def setup_theme(context='notebook', style="darkgrid", palette='deep', font='Helvetica'):
+def setup_theme(context='notebook', style="darkgrid", palette='deep',
+                font='Helvetica', usetex=True):
     try:
         import seaborn as sns
         extra_rc = {"lines.linewidth": 1,
@@ -276,8 +277,7 @@ def setup_theme(context='notebook', style="darkgrid", palette='deep', font='Helv
     except (ImportError, SyntaxError):
         pass
 
-    if platform.system() != "Darwin":
-        rc('text', usetex=True)
+    rc('text', usetex=usetex)
 
     if font == "Helvetica":
         rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica']})

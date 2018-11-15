@@ -199,7 +199,7 @@ class AlignStats:
         print >> sys.stderr, "\n".join((m1, m2, m3, m4))
 
 
-def get_stats(blastfile):
+def get_stats(blastfile, strict=False):
     from jcvi.utils.range import range_union, range_span
     from .pyblast import BlastLine
 
@@ -208,7 +208,7 @@ def get_stats(blastfile):
     ref_ivs = []
     qry_ivs = []
     identicals = 0
-    alignlen = 0
+    ngaps = 0
 
     for row in fp:
         c = BlastLine(row)
@@ -223,11 +223,17 @@ def get_stats(blastfile):
         ref_ivs.append((c.subject, sstart, sstop))
 
         alen = c.hitlen
-        alignlen += alen
+        ngaps += c.ngaps
         identicals += c.hitlen - c.nmismatch - c.ngaps
 
     qrycovered = range_union(qry_ivs)
     refcovered = range_union(ref_ivs)
+    if strict:
+        # We discount gaps in counting covered bases, since we
+        # did not track individually gaps in qry and ref, we assume
+        # the gaps are opened evenly in the two sequences
+        qrycovered -= ngaps / 2
+        refcovered -= ngaps / 2
     qryspan = range_span(qry_ivs)
     refspan = range_span(ref_ivs)
 
@@ -1242,6 +1248,8 @@ def summary(args):
     comparing genomes (based on NUCMER results).
     """
     p = OptionParser(summary.__doc__)
+    p.add_option("--strict", default=False, action="store_true",
+                help="Strict 'gapless' mode. Exclude gaps from covered base.")
     p.add_option("--tabular", default=False, action="store_true",
                 help="Print succint tabular output")
 
@@ -1252,7 +1260,8 @@ def summary(args):
 
     blastfile, = args
 
-    qrycovered, refcovered, qryspan, refspan, identicals = get_stats(blastfile)
+    qrycovered, refcovered, qryspan, refspan, identicals = get_stats(blastfile,
+            strict=opts.strict)
     filename = op.basename(blastfile)
     alignstats = AlignStats(filename, qrycovered, refcovered,
                             qryspan, refspan, identicals)

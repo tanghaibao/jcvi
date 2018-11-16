@@ -15,6 +15,7 @@ from libc.string cimport strcpy
 cdef const char *blast_format = "%s\t%s\t%f\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%lf\t%f"
 cdef const char *blast_format_line = "%s\t%s\t%f\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%lf\t%f\n"
 cdef const char *blast_output = "%s\t%s\t%.2f\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.2g\t%.3g"
+cdef const char *bed_output = "%s\t%d\t%d\t%s:%d-%d\t%.2g\t%c"
 
 
 cdef class Blast:
@@ -165,9 +166,13 @@ cdef class BlastLine:
 
     @property
     def bedline(self):
-        return "\t".join(str(x) for x in \
-                (self.subject, self.sstart - 1, self.sstop, self.query,
-                 self.score, self.orientation))
+        cdef char result[512]
+        sprintf(result, bed_output,
+                self._subject, self.sstart - 1, self.sstop,
+                self._query, self.qstart, self.qstop,
+                self.score, self.orientation)
+
+        return result
 
     def __reduce__(self):
         return create_blast_line, (

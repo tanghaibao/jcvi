@@ -180,6 +180,7 @@ class AlignStats:
     def __str__(self):
         pp = lambda x, d: "{:.2f}".format(x * 100. / d)
         return "\t".join(str(x) for x in (self.filename,
+            self.identicals,
             self.qrycovered, pp(self.identicals, self.qrycovered),
             self.refcovered, pp(self.identicals, self.refcovered),
             self.qryspan, pp(self.identicals, self.qryspan),
@@ -1142,6 +1143,8 @@ def bed(args):
     p = OptionParser(bed.__doc__)
     p.add_option("--swap", default=False, action="store_true",
                  help="Write query positions [default: %default]")
+    p.add_option("--both", default=False, action="store_true",
+                 help="Generate one line for each of query and subject")
 
     opts, args = p.parse_args(args)
 
@@ -1149,7 +1152,8 @@ def bed(args):
         sys.exit(p.print_help())
 
     blastfile, = args
-    swap = opts.swap
+    positive = (not opts.swap) or opts.both
+    negative = opts.swap or opts.both
 
     fp = must_open(blastfile)
     bedfile =  "{0}.bed".format(blastfile.rsplit(".", 1)[0]) \
@@ -1158,9 +1162,10 @@ def bed(args):
     fw = open(bedfile, "w")
     for row in fp:
         b = BlastLine(row)
-        if swap:
-            b = b.swapped
-        print >> fw, b.bedline
+        if positive:
+            print >> fw, b.bedline
+        if negative:
+            print >> fw, b.swapped.bedline
 
     logging.debug("File written to `{0}`.".format(bedfile))
     fw.close()

@@ -15,6 +15,7 @@ from itertools import groupby
 
 from jcvi.formats.base import LineFile, must_open
 from jcvi.algorithms.graph import BiGraph
+from jcvi.assembly.base import calculate_A50
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update, \
         get_abs_path
 
@@ -216,6 +217,7 @@ def get_stats(coordsfile):
     qry_ivs = []
     identicals = 0
     alignlen = 0
+    alignlens = []
 
     for c in coords:
 
@@ -232,11 +234,16 @@ def get_stats(coordsfile):
         alen = sstop - sstart
         alignlen += alen
         identicals += c.identity / 100. * alen
+        alignlens.append(alen)
 
     qrycovered = range_union(qry_ivs)
     refcovered = range_union(ref_ivs)
+    _, AL50, _ = calculate_A50(alignlens)
+    filename = op.basename(coordsfile)
+    alignstats = AlignStats(filename, qrycovered, refcovered,
+                            None, None, identicals)
 
-    return qrycovered, refcovered, identicals
+    return alignstats
 
 
 def main():
@@ -431,11 +438,7 @@ def summary(args):
         sys.exit(p.print_help())
 
     coordsfile, = args
-    qrycovered, refcovered, identicals = get_stats(coordsfile)
-
-    filename = op.basename(coordsfile)
-    alignstats = AlignStats(filename, qrycovered, refcovered,
-                            None, None, identicals)
+    alignstats = get_stats(coordsfile)
     alignstats.print_stats()
 
 

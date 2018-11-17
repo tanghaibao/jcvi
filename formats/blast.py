@@ -16,6 +16,7 @@ from jcvi.utils.grouper import Grouper
 from jcvi.utils.orderedcollections import OrderedDict
 from jcvi.utils.range import range_distance
 from jcvi.utils.cbook import percentage, thousands
+from jcvi.assembly.base import calculate_A50
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, popen
 
 
@@ -169,13 +170,14 @@ class AlignStats:
     and formats.coords.summary()
     """
     def __init__(self, filename, qrycovered, refcovered,
-                 qryspan, refspan, identicals):
+                 qryspan, refspan, identicals, AL50):
         self.filename = filename
         self.qrycovered = qrycovered
         self.refcovered = refcovered
         self.qryspan = qryspan
         self.refspan = refspan
         self.identicals = identicals
+        self.AL50 = AL50
 
     def __str__(self):
         pp = lambda x, d: "{:.2f}".format(x * 100. / d)
@@ -191,13 +193,15 @@ class AlignStats:
         refcovered = self.refcovered
         qryspan = self.qryspan
         refspan = self.refspan
+        m0 = "AL50 (>=50% of bases in alignment blocks >= this size): {}".\
+                format(self.AL50)
         m1 = "Query coverage: {}".\
                 format(percentage(self.identicals, qrycovered))
         m2 = "Reference coverage: {}".\
                 format(percentage(self.identicals, refcovered))
         m3 = "Query span: {}".format(percentage(self.identicals, qryspan))
         m4 = "Reference span: {}".format(percentage(self.identicals, refspan))
-        print >> sys.stderr, "\n".join((m1, m2, m3, m4))
+        print >> sys.stderr, "\n".join((m0, m1, m2, m3, m4))
 
 
 def get_stats(blastfile, strict=False):
@@ -210,6 +214,7 @@ def get_stats(blastfile, strict=False):
     qry_ivs = []
     identicals = 0
     ngaps = 0
+    alignlens = []
 
     for row in fp:
         c = BlastLine(row)
@@ -226,6 +231,7 @@ def get_stats(blastfile, strict=False):
         alen = c.hitlen
         ngaps += c.ngaps
         identicals += c.hitlen - c.nmismatch - c.ngaps
+        alignlens.append(alen)
 
     qrycovered = range_union(qry_ivs)
     refcovered = range_union(ref_ivs)
@@ -237,8 +243,12 @@ def get_stats(blastfile, strict=False):
         refcovered -= ngaps / 2
     qryspan = range_span(qry_ivs)
     refspan = range_span(ref_ivs)
+    _, AL50, _ = calculate_A50(alignlens)
+    filename = op.basename(blastfile)
+    alignstats = AlignStats(filename, qrycovered, refcovered,
+                            qryspan, refspan, identicals, AL50)
 
-    return qrycovered, refcovered, qryspan, refspan, identicals
+    return alignstats
 
 
 def filter(args):
@@ -1265,11 +1275,7 @@ def summary(args):
 
     blastfile, = args
 
-    qrycovered, refcovered, qryspan, refspan, identicals = get_stats(blastfile,
-            strict=opts.strict)
-    filename = op.basename(blastfile)
-    alignstats = AlignStats(filename, qrycovered, refcovered,
-                            qryspan, refspan, identicals)
+    alignstats = get_stats(blastfile, strict=opts.strict)
     if opts.tabular:
         print(str(alignstats))
     else:

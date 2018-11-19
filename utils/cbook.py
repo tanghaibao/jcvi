@@ -332,7 +332,7 @@ def gene_name(st, exclude=("ev",), sep="."):
         sep = None
     st = st.split('|')[0]
 
-    if sep in st:
+    if sep and sep in st:
         name, suffix = st.rsplit(sep, 1)
     else:
         name, suffix = st, ""

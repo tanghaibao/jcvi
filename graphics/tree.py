@@ -212,7 +212,7 @@ def read_trees(tree):
         header = parse_qs(header[1:])
         label = header["label"][0].strip("\"")
         outgroup = header["outgroup"]
-        color, = header["color"]
+        color, = header.get("color", ["k"])
         trees.append((label, outgroup, color, "".join(tx)))
 
     return trees

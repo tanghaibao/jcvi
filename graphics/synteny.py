@@ -346,7 +346,8 @@ class Synteny (object):
                 draw_tree(ax, tx, outgroup=outgroup, rmargin=.4, leaffont=11,
                           treecolor=color, supportcolor=color, leafcolor=color)
                 xstart += xiv
-                RoundLabel(ax, .5, .3, label, fill=True, fc="lavender", color="r")
+                RoundLabel(ax, .5, .3, label, fill=True, fc="lavender",
+                           color=color)
 
 
 def draw_gene_legend(ax, x1, x2, ytop, d=.04, text=False, repeat=False):

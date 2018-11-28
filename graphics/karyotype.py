@@ -115,6 +115,7 @@ class Track (object):
         self.bed = t.bed
         self.order = t.order
         self.order_in_chr = t.order_in_chr
+        self.rev = t.rev
         self.ax = ax
         self.height = height
 
@@ -161,6 +162,15 @@ class Track (object):
         va = self.va
         nseqids = len(self.seqids)
         tr = self.tr
+
+        def make_circle_name(sid):
+            sid = sid.rsplit("_", 1)[-1]
+            si = "".join(x for x in sid if x in string.digits)
+            si = str(int(si))
+            if sid in self.rev:
+                si += '-'
+            return si
+
         for i, sid in enumerate(self.seqids):
             size = self.sizes[sid]
             rsize = self.ratio * size
@@ -169,9 +179,7 @@ class Track (object):
                                       height=self.height, lw=self.lw, fc=color,
                                       roundrect=roundrect)
             hc.set_transform(tr)
-            sid = sid.rsplit("_", 1)[-1]
-            si = "".join(x for x in sid if x in string.digits)
-            si = str(int(si))
+            si = make_circle_name(sid)
             xx = (xstart + xend) / 2
             xstart = xend + gap
 
@@ -211,7 +219,12 @@ class Track (object):
         seqid, i, f = order_in_chr[gene]
         if seqid not in self.offsets:
             return [None, None]
-        x = self.offsets[seqid] + self.ratio * i
+
+        x = self.offsets[seqid]
+        if seqid in self.rev:
+            x += self.ratio * (self.sizes[seqid] - i - 1)
+        else:
+            x += self.ratio * i
         y = self.y
         x, y = self.tr.transform((x, y))
         x, y = self.inv.transform((x, y))
@@ -268,11 +281,15 @@ class Karyotype (object):
         layout = Layout(layoutfile, generank=generank)
 
         fp = open(seqidsfile)
+        # Strip the reverse orientation tag for e.g. chr3-
+        di = lambda x: x[:-1] if x[-1] == '-' else x
         for i, row in enumerate(fp):
             if row[0] == '#':
                 continue
             t = layout[i]
             seqids = row.rstrip().split(",")
+            t.rev = set(x[:-1] for x in seqids if x[-1] == '-')
+            seqids = [di(x) for x in seqids]
             if t.empty:
                 continue
 

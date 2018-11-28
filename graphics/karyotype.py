@@ -148,7 +148,8 @@ class Track (object):
     def __str__(self):
         return self.label
 
-    def draw(self, roundrect=False, plot_label=True, pad=.03, vpad=.09):
+    def draw(self, roundrect=False, plot_label=True, plot_circles=True,
+             pad=.03, vpad=.09):
         if self.empty:
             return
 
@@ -181,21 +182,19 @@ class Track (object):
                 continue
 
             hpad = -pad if va == "bottom" else pad
-            TextCircle(ax, xx, y + hpad, si, radius=.01,
-                       fc="w", color=color, size=10, transform=tr)
+            if plot_circles:
+                TextCircle(ax, xx, y + hpad, si, radius=.01,
+                           fc="w", color=color, size=10, transform=tr)
 
         label = markup(self.label)
         c = color if color != "gainsboro" else "k"
         if plot_label:
             if self.label_va == "top":
                 x, y = self.x, self.y + vpad
-                va = "bottom"
             elif self.label_va == "bottom":
                 x, y = self.x, self.y - vpad
-                va = "top"
             else:  # "center"
                 x, y = self.xstart - vpad, self.y
-                va = "center"
             ax.text(x, y, label, ha="center", va="center", color=c, transform=tr)
 
     def update_offsets(self):
@@ -264,7 +263,7 @@ class Karyotype (object):
 
     def __init__(self, fig, root, seqidsfile, layoutfile, gap=.01,
                  height=.01, lw=1, generank=True, sizes=None, heightpad=0,
-                 roundrect=False, plot_label=True):
+                 roundrect=False, plot_label=True, plot_circles=True):
 
         layout = Layout(layoutfile, generank=generank)
 
@@ -297,7 +296,8 @@ class Karyotype (object):
         ShadeManager(root, tracks, layout, heightpad=heightpad)
 
         for tr in tracks:
-            tr.draw(roundrect=roundrect, plot_label=plot_label)  # this time for real
+            tr.draw(roundrect=roundrect,
+                    plot_label=plot_label, plot_circles=plot_circles)
 
         self.tracks = tracks
         self.layout = layout
@@ -305,6 +305,8 @@ class Karyotype (object):
 
 def main():
     p = OptionParser(__doc__)
+    p.add_option("--nocircles", default=False, action="store_true",
+                 help="Do not plot chromosome circles")
     opts, args, iopts = p.set_image_options(figsize="8x7")
 
     if len(args) != 2:
@@ -315,7 +317,8 @@ def main():
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
 
-    Karyotype(fig, root, seqidsfile, layoutfile)
+    Karyotype(fig, root, seqidsfile, layoutfile,
+              plot_circles=(not opts.nocircles))
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)

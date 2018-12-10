@@ -105,11 +105,12 @@ def spearmanr(x, y):
     >>> round(spearmanr(x, z), 4)
     -0.6325
     """
-    from Bio.Cluster import distancematrix
+    from scipy import stats
 
     if not x or not y:
         return 0
-    return 1 - distancematrix((x, y), dist="s")[1][0]
+    corr, pvalue = stats.spearmanr(x, y)
+    return corr
 
 
 def reject_outliers(a, threshold=3.5):
@@ -121,8 +122,8 @@ def reject_outliers(a, threshold=3.5):
     <http://contchart.com/outliers.aspx>
 
     >>> a = [0, 1, 2, 4, 12, 58, 188, 189]
-    >>> reject_outliers(a)
-    array([False, False, False, False, False,  True,  True,  True], dtype=bool)
+    >>> list(reject_outliers(a))
+    [False, False, False, False, False, True, True, True]
     """
     if len(a) < 3:
         return np.zeros(len(a), dtype=bool)

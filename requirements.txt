@@ -3,3 +3,4 @@ biopython
 matplotlib
 networkx
 numpy
+scipy

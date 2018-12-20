@@ -189,11 +189,13 @@ def pairs(args):
     ref = get_abs_path(ref)
     messages = []
     for p, prefix in iter_project(folder):
-        samplefq = op.join(work, prefix + ".first.fastq")
-        first([str(opts.firstN)] + p + ["-o", samplefq])
+        samplefq = []
+        for i in range(2):
+            samplefq.append(op.join(work, prefix + "_{0}.first.fastq".format(i+1)))
+            first([str(opts.firstN)] + [p[i]] + ["-o", samplefq[i]])
 
         os.chdir(work)
-        align_args = [ref, op.basename(samplefq)]
+        align_args = [ref] + [op.basename(fq) for fq in samplefq]
         outfile, logfile = align(align_args)
         bedfile, stats = ps([outfile, "--rclip={0}".format(opts.rclip)])
         os.chdir(cwd)
@@ -394,7 +396,7 @@ def iter_project(folder, pattern="*.fq,*.fq.gz,*.fastq,*.fastq.gz", n=2,
 
         pp = [op.basename(x) for x in p]
         pf = pairspf(pp, commonprefix=commonprefix)
-        yield list(p), pf
+        yield sorted(p), pf
 
 
 def soapX(args):

@@ -51,5 +51,6 @@ setup(
       description='Python utility libraries on genome assembly, '\
                   'annotation and comparative genomics',
       install_requires=['biopython', 'deap',
-                        'matplotlib', 'networkx', 'numpy', 'PyYAML'],
- )
+                        'matplotlib', 'networkx',
+                        'numpy', 'scipy', 'PyYAML'],
+)

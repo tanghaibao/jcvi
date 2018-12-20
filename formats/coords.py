@@ -8,12 +8,14 @@ output - mostly as *.coords file.
 
 import sys
 import logging
+import os.path as op
 
 from math import exp
 from itertools import groupby
 
 from jcvi.formats.base import LineFile, must_open
 from jcvi.algorithms.graph import BiGraph
+from jcvi.assembly.base import calculate_A50
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update, \
         get_abs_path
 
@@ -215,6 +217,7 @@ def get_stats(coordsfile):
     qry_ivs = []
     identicals = 0
     alignlen = 0
+    alignlens = []
 
     for c in coords:
 
@@ -231,12 +234,16 @@ def get_stats(coordsfile):
         alen = sstop - sstart
         alignlen += alen
         identicals += c.identity / 100. * alen
+        alignlens.append(alen)
 
     qrycovered = range_union(qry_ivs)
     refcovered = range_union(ref_ivs)
-    id_pct = identicals * 100. / alignlen
+    _, AL50, _ = calculate_A50(alignlens)
+    filename = op.basename(coordsfile)
+    alignstats = AlignStats(filename, qrycovered, refcovered,
+                            None, None, identicals)
 
-    return qrycovered, refcovered, id_pct
+    return alignstats
 
 
 def main():
@@ -413,26 +420,14 @@ def annotate(args):
         print "{0}\t{1}".format(row.strip(), Overlap_types[ov])
 
 
-def print_stats(qrycovered, refcovered, id_pct):
-    from jcvi.utils.cbook import thousands
-
-    try:
-        refcovered = thousands(refcovered)
-        qrycovered = thousands(qrycovered)
-    except:
-        pass
-    m1 = "Reference coverage: {0} bp".format(refcovered)
-    m2 = "Query coverage: {0} bp".format(qrycovered)
-    m3 = "Identity: {0:.2f}%".format(id_pct)
-    print >> sys.stderr, "\n".join((m1, m2, m3))
-
-
 def summary(args):
     """
     %prog summary coordsfile
 
     provide summary on id% and cov%, for both query and reference
     """
+    from jcvi.formats.blast import AlignStats
+
     p = OptionParser(summary.__doc__)
     p.add_option("-s", dest="single", default=False, action="store_true",
             help="provide stats per reference seq")
@@ -443,9 +438,8 @@ def summary(args):
         sys.exit(p.print_help())
 
     coordsfile, = args
-    qrycovered, refcovered, id_pct = get_stats(coordsfile)
-
-    print_stats(qrycovered, refcovered, id_pct)
+    alignstats = get_stats(coordsfile)
+    alignstats.print_stats()
 
 
 def filter(args):

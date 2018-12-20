@@ -13,6 +13,36 @@ from math import log, exp, sqrt
 from jcvi.utils.cbook import human_size
 
 
+def mean_confidence_interval(data, confidence=0.95):
+    # Compute the confidence interval around the mean
+    import scipy
+
+    a = 1.0 * np.array(data)
+    n = len(a)
+    m, se = np.mean(a), scipy.stats.sem(a)
+    h = se * scipy.stats.t._ppf((1 + confidence) / 2., n - 1)
+    return m, m - h, m + h
+
+
+def confidence_interval(data, confidence=0.95):
+    # Compute the confidence interval of the data
+    # Note the difference from mean_confidence_interval()
+    a = 1.0 * np.array(data)
+    n = len(a)
+    m, stdev = np.mean(a), np.std(a)
+    h = 1.96 * stdev
+    return m, m - h, m + h
+
+
+def MAD_interval(data):
+    # Compute the MAD interval of the data
+    A = 1.0 * np.array(data)
+    M = np.median(A)
+    D = np.absolute(A - M)
+    MAD = np.median(D)
+    return M, M - MAD, M + MAD
+
+
 def erf(x):
     # save the sign of x
     sign = 1 if x >= 0 else -1
@@ -75,11 +105,12 @@ def spearmanr(x, y):
     >>> round(spearmanr(x, z), 4)
     -0.6325
     """
-    from Bio.Cluster import distancematrix
+    from scipy import stats
 
     if not x or not y:
         return 0
-    return 1 - distancematrix((x, y), dist="s")[1][0]
+    corr, pvalue = stats.spearmanr(x, y)
+    return corr
 
 
 def reject_outliers(a, threshold=3.5):
@@ -91,8 +122,8 @@ def reject_outliers(a, threshold=3.5):
     <http://contchart.com/outliers.aspx>
 
     >>> a = [0, 1, 2, 4, 12, 58, 188, 189]
-    >>> reject_outliers(a)
-    array([False, False, False, False, False,  True,  True,  True], dtype=bool)
+    >>> list(reject_outliers(a))
+    [False, False, False, False, False, True, True, True]
     """
     if len(a) < 3:
         return np.zeros(len(a), dtype=bool)

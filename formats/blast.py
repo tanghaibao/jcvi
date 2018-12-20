@@ -11,73 +11,20 @@ from collections import defaultdict
 
 from jcvi.formats.base import LineFile, BaseFile, must_open
 from jcvi.formats.bed import Bed
-from jcvi.formats.coords import print_stats
 from jcvi.formats.sizes import Sizes
 from jcvi.utils.grouper import Grouper
 from jcvi.utils.orderedcollections import OrderedDict
 from jcvi.utils.range import range_distance
+from jcvi.utils.cbook import percentage, thousands
+from jcvi.assembly.base import calculate_A50
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, popen
 
 
 try:
     from .cblast import BlastLine
 except:
+    from .pyblast import BlastLine
     logging.error("Fall back to Python implementation of BlastLine")
-
-    class BlastLine(object):
-        __slots__ = ('query', 'subject', 'pctid', 'hitlen', 'nmismatch', 'ngaps', \
-                     'qstart', 'qstop', 'sstart', 'sstop', 'evalue', 'score', \
-                     'qseqid', 'sseqid', 'qi', 'si', 'orientation')
-
-        def __init__(self, sline):
-            args = sline.split("\t")
-            self.query = args[0]
-            self.subject = args[1]
-            self.pctid = float(args[2])
-            self.hitlen = int(args[3])
-            self.nmismatch = int(args[4])
-            self.ngaps = int(args[5])
-            self.qstart = int(args[6])
-            self.qstop = int(args[7])
-            self.sstart = int(args[8])
-            self.sstop = int(args[9])
-            self.evalue = float(args[10])
-            self.score = float(args[11])
-
-            if self.sstart > self.sstop:
-                self.sstart, self.sstop = self.sstop, self.sstart
-                self.orientation = '-'
-            else:
-                self.orientation = '+'
-
-        def __repr__(self):
-            return "BlastLine('%s' to '%s', eval=%.3f, score=%.1f)" % \
-                    (self.query, self.subject, self.evalue, self.score)
-
-        def __str__(self):
-            args = [getattr(self, attr) for attr in BlastLine.__slots__[:12]]
-            if self.orientation == '-':
-                args[8], args[9] = args[9], args[8]
-            return "\t".join(str(x) for x in args)
-
-        @property
-        def swapped(self):
-            """
-            Swap query and subject.
-            """
-            args = [getattr(self, attr) for attr in BlastLine.__slots__[:12]]
-            args[0:2] = [self.subject, self.query]
-            args[6:10] = [self.sstart, self.sstop, self.qstart, self.qstop]
-            if self.orientation == '-':
-                args[8], args[9] = args[9], args[8]
-            b = "\t".join(str(x) for x in args)
-            return BlastLine(b)
-
-        @property
-        def bedline(self):
-            return "\t".join(str(x) for x in \
-                    (self.subject, self.sstart - 1, self.sstop, self.query,
-                     self.score, self.orientation))
 
 
 class BlastSlow (LineFile):
@@ -217,16 +164,57 @@ class BlastLineByConversion (BlastLine):
             sys.exit(m)
 
 
-def get_stats(blastfile):
+class AlignStats:
+    """
+    Stores the alignment statistics that is used in formats.blast.summary()
+    and formats.coords.summary()
+    """
+    def __init__(self, filename, qrycovered, refcovered,
+                 qryspan, refspan, identicals, AL50):
+        self.filename = filename
+        self.qrycovered = qrycovered
+        self.refcovered = refcovered
+        self.qryspan = qryspan
+        self.refspan = refspan
+        self.identicals = identicals
+        self.AL50 = AL50
 
-    from jcvi.utils.range import range_union
+    def __str__(self):
+        pp = lambda x, d: "{:.2f}".format(x * 100. / d)
+        return "\t".join(str(x) for x in (self.filename,
+            self.identicals,
+            self.qrycovered, pp(self.identicals, self.qrycovered),
+            self.refcovered, pp(self.identicals, self.refcovered),
+            self.qryspan, pp(self.identicals, self.qryspan),
+            self.refspan, pp(self.identicals, self.refspan)))
 
-    logging.debug("report stats on `%s`" % blastfile)
+    def print_stats(self):
+        qrycovered = self.qrycovered
+        refcovered = self.refcovered
+        qryspan = self.qryspan
+        refspan = self.refspan
+        m0 = "AL50 (>=50% of bases in alignment blocks >= this size): {}".\
+                format(self.AL50)
+        m1 = "Query coverage: {}".\
+                format(percentage(self.identicals, qrycovered))
+        m2 = "Reference coverage: {}".\
+                format(percentage(self.identicals, refcovered))
+        m3 = "Query span: {}".format(percentage(self.identicals, qryspan))
+        m4 = "Reference span: {}".format(percentage(self.identicals, refspan))
+        print >> sys.stderr, "\n".join((m0, m1, m2, m3, m4))
+
+
+def get_stats(blastfile, strict=False):
+    from jcvi.utils.range import range_union, range_span
+    from .pyblast import BlastLine
+
+    logging.debug("Report stats on `%s`" % blastfile)
     fp = open(blastfile)
     ref_ivs = []
     qry_ivs = []
     identicals = 0
-    alignlen = 0
+    ngaps = 0
+    alignlens = []
 
     for row in fp:
         c = BlastLine(row)
@@ -240,15 +228,27 @@ def get_stats(blastfile):
             sstart, sstop = sstop, sstart
         ref_ivs.append((c.subject, sstart, sstop))
 
-        alen = sstop - sstart
-        alignlen += alen
-        identicals += c.pctid / 100. * alen
+        alen = c.hitlen
+        ngaps += c.ngaps
+        identicals += c.hitlen - c.nmismatch - c.ngaps
+        alignlens.append(alen)
 
     qrycovered = range_union(qry_ivs)
     refcovered = range_union(ref_ivs)
-    id_pct = identicals * 100. / alignlen
+    if strict:
+        # We discount gaps in counting covered bases, since we
+        # did not track individually gaps in qry and ref, we assume
+        # the gaps are opened evenly in the two sequences
+        qrycovered -= ngaps / 2
+        refcovered -= ngaps / 2
+    qryspan = range_span(qry_ivs)
+    refspan = range_span(ref_ivs)
+    _, AL50, _ = calculate_A50(alignlens)
+    filename = op.basename(blastfile)
+    alignstats = AlignStats(filename, qrycovered, refcovered,
+                            qryspan, refspan, identicals, AL50)
 
-    return qrycovered, refcovered, id_pct
+    return alignstats
 
 
 def filter(args):
@@ -357,9 +357,54 @@ def main():
         ('annotate', 'annotate overlap types in BLAST tabular file'),
         ('score', 'add up the scores for each query seq'),
         ('rbbh', 'find reciprocal-best blast hits'),
+        ('gaps', 'find distribution of gap sizes between adjacent HSPs'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def collect_gaps(blast, use_subject=False):
+    """
+    Collect the gaps between adjacent HSPs in the BLAST file.
+    """
+    key = lambda x: x.sstart if use_subject else x.qstart
+    blast.sort(key=key)
+
+    for a, b in zip(blast, blast[1:]):
+        if use_subject:
+            if a.sstop < b.sstart:
+                yield b.sstart - a.sstop
+        else:
+            if a.qstop < b.qstart:
+                yield b.qstart - a.qstop
+
+
+def gaps(args):
+    """
+    %prog gaps A_vs_B.blast
+
+    Find distribution of gap sizes betwen adjacent HSPs.
+    """
+    p = OptionParser(gaps.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    blastfile, = args
+    blast = BlastSlow(blastfile)
+    logging.debug("A total of {} records imported".format(len(blast)))
+
+    query_gaps = list(collect_gaps(blast))
+    subject_gaps = list(collect_gaps(blast, use_subject=True))
+    logging.debug("Query gaps: {}  Subject gaps: {}"\
+                    .format(len(query_gaps), len(subject_gaps)))
+
+    from jcvi.graphics.base import savefig
+    import seaborn as sns
+
+    sns.distplot(query_gaps)
+    savefig("query_gaps.pdf")
 
 
 def rbbh(args):
@@ -754,7 +799,6 @@ def combine_HSPs(a):
     for b in a[1:]:
         assert m.query == b.query
         assert m.subject == b.subject
-        assert m.orientation == b.orientation
         m.hitlen += b.hitlen
         m.nmismatch += b.nmismatch
         m.ngaps += b.ngaps
@@ -762,7 +806,8 @@ def combine_HSPs(a):
         m.qstop = max(m.qstop, b.qstop)
         m.sstart = min(m.sstart, b.sstart)
         m.sstop = max(m.sstop, b.sstop)
-        m.score += b.score
+        if m.has_score:
+            m.score += b.score
 
     m.pctid = 100 - (m.nmismatch + m.ngaps) * 100. / m.hitlen
     return m
@@ -787,13 +832,11 @@ def chain_HSPs(blast, xdist=100, ydist=100):
             clusters.join(a)
             for j in xrange(i + 1, n):
                 b = points[j]
-                if a.orientation != b.orientation:
-                    continue
 
                 # x-axis distance
                 del_x = get_distance(a, b)
                 if del_x > xdist:
-                    continue
+                    break
                 # y-axis distance
                 del_y = get_distance(a, b, xaxis=False)
                 if del_y > ydist:
@@ -802,7 +845,8 @@ def chain_HSPs(blast, xdist=100, ydist=100):
                 clusters.join(a, b)
 
     chained_hsps = [combine_HSPs(x) for x in clusters]
-    chained_hsps = sorted(chained_hsps, key=lambda x: (x.query, -x.score))
+    key = lambda x: (x.query, -x.score if x.has_score else 0)
+    chained_hsps = sorted(chained_hsps, key=key)
 
     return chained_hsps
 
@@ -811,8 +855,7 @@ def chain(args):
     """
     %prog chain blastfile
 
-    Chain adjacent HSPs together to form larger HSP. The adjacent HSPs have to
-    share the same orientation.
+    Chain adjacent HSPs together to form larger HSP.
     """
     p = OptionParser(chain.__doc__)
     p.add_option("--dist", dest="dist",
@@ -829,7 +872,9 @@ def chain(args):
     assert dist > 0
 
     blast = BlastSlow(blastfile)
+    logging.debug("A total of {} records imported".format(len(blast)))
     chained_hsps = chain_HSPs(blast, xdist=dist, ydist=dist)
+    logging.debug("A total of {} records after chaining".format(len(chained_hsps)))
 
     for b in chained_hsps:
         print b
@@ -1108,6 +1153,8 @@ def bed(args):
     p = OptionParser(bed.__doc__)
     p.add_option("--swap", default=False, action="store_true",
                  help="Write query positions [default: %default]")
+    p.add_option("--both", default=False, action="store_true",
+                 help="Generate one line for each of query and subject")
 
     opts, args = p.parse_args(args)
 
@@ -1115,7 +1162,8 @@ def bed(args):
         sys.exit(p.print_help())
 
     blastfile, = args
-    swap = opts.swap
+    positive = (not opts.swap) or opts.both
+    negative = opts.swap or opts.both
 
     fp = must_open(blastfile)
     bedfile =  "{0}.bed".format(blastfile.rsplit(".", 1)[0]) \
@@ -1124,9 +1172,10 @@ def bed(args):
     fw = open(bedfile, "w")
     for row in fp:
         b = BlastLine(row)
-        if swap:
-            b = b.swapped
-        print >> fw, b.bedline
+        if positive:
+            print >> fw, b.bedline
+        if negative:
+            print >> fw, b.swapped.bedline
 
     logging.debug("File written to `{0}`.".format(bedfile))
     fw.close()
@@ -1214,6 +1263,10 @@ def summary(args):
     comparing genomes (based on NUCMER results).
     """
     p = OptionParser(summary.__doc__)
+    p.add_option("--strict", default=False, action="store_true",
+                help="Strict 'gapless' mode. Exclude gaps from covered base.")
+    p.add_option("--tabular", default=False, action="store_true",
+                help="Print succint tabular output")
 
     opts, args = p.parse_args(args)
 
@@ -1222,8 +1275,11 @@ def summary(args):
 
     blastfile, = args
 
-    qrycovered, refcovered, id_pct = get_stats(blastfile)
-    print_stats(qrycovered, refcovered, id_pct)
+    alignstats = get_stats(blastfile, strict=opts.strict)
+    if opts.tabular:
+        print(str(alignstats))
+    else:
+        alignstats.print_stats()
 
 
 def subset(args):

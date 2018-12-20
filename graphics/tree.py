@@ -69,7 +69,8 @@ def decode_name(name, barcodemap):
     return name
 
 
-def draw_tree(ax, tx, rmargin=.3, leafcolor="k", supportcolor="k",
+def draw_tree(ax, tx, rmargin=.3,
+              treecolor="k", leafcolor="k", supportcolor="k",
               outgroup=None, reroot=True, gffdir=None, sizes=None,
               trunc_name=None, SH=None, scutoff=0, barcodefile=None,
               leafcolorfile=None, leaffont=12):
@@ -165,10 +166,10 @@ def draw_tree(ax, tx, rmargin=.3, leafcolor="k", supportcolor="k",
             children_x, children_y = zip(*children)
             min_y, max_y = min(children_y), max(children_y)
             # plot the vertical bar
-            ax.plot((xx, xx), (min_y, max_y), "k-")
+            ax.plot((xx, xx), (min_y, max_y), "-", color=treecolor)
             # plot the horizontal bar
             for cx, cy in children:
-                ax.plot((xx, cx), (cy, cy), "k-")
+                ax.plot((xx, cx), (cy, cy), "-", color=treecolor)
             yy = sum(children_y) * 1. / len(children_y)
             support = n.support
             if support > 1:
@@ -185,11 +186,11 @@ def draw_tree(ax, tx, rmargin=.3, leafcolor="k", supportcolor="k",
     x1 = xstart + .1
     x2 = x1 + br * scale
     yy = ystart - i * yinterval
-    ax.plot([x1, x1], [yy - tip, yy + tip], "k-")
-    ax.plot([x2, x2], [yy - tip, yy + tip], "k-")
-    ax.plot([x1, x2], [yy, yy], "k-")
+    ax.plot([x1, x1], [yy - tip, yy + tip], "-", color=treecolor)
+    ax.plot([x2, x2], [yy - tip, yy + tip], "-", color=treecolor)
+    ax.plot([x1, x2], [yy, yy], "-", color=treecolor)
     ax.text((x1 + x2) / 2, yy - tip, "{0:g}".format(br),
-            va="top", ha="center", size=leaffont)
+            va="top", ha="center", size=leaffont, color=treecolor)
 
     if SH is not None:
         xs = x1
@@ -211,7 +212,8 @@ def read_trees(tree):
         header = parse_qs(header[1:])
         label = header["label"][0].strip("\"")
         outgroup = header["outgroup"]
-        trees.append((label, outgroup, "".join(tx)))
+        color, = header.get("color", ["k"])
+        trees.append((label, outgroup, color, "".join(tx)))
 
     return trees
 

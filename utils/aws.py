@@ -5,18 +5,25 @@
 AWS-related methods.
 """
 
+import os
 import os.path as op
 import sys
 import fnmatch
-
 import boto3
 import json
 import logging
 import time
+import getpass
+
+from datetime import datetime
+from ConfigParser import NoOptionError, NoSectionError
 from multiprocessing import Pool
+from botocore.exceptions import ClientError, ParamValidationError
 
 from jcvi.formats.base import BaseFile, SetFile, timestamp
-from jcvi.apps.base import OptionParser, ActionDispatcher, datafile, popen, sh
+from jcvi.apps.base import OptionParser, ActionDispatcher, datafile, get_config, popen, sh
+
+AWS_CREDS_PATH = '%s/.aws/credentials' % (op.expanduser('~'),)
 
 
 class InstanceSkeleton(BaseFile):
@@ -306,8 +313,6 @@ def glob_s3(store, keys=None, recursive=False):
     if recursive:
         store = "s3://" + store.replace("s3://", "").split("/")[0]
 
-    filtered = ["/".join((store, x)) for x in filtered]
-
     return filtered
 
 
@@ -369,7 +374,11 @@ def cp(args):
             oc = op.basename(c)
             tc = op.join(folder, oc)
         else:
-            c, tc = c
+            if len(c) == 2:
+                c, tc = c
+            else:
+                c, = c
+                tc = op.basename(c)
         tasks.append((c, tc, force))
 
     worker_pool = Pool(cpus)
@@ -443,11 +452,18 @@ def sync_from_s3(s3_store, target_dir=None):
 def ls_s3(s3_store_obj_name, recursive=False):
     s3_store_obj_name = s3ify(s3_store_obj_name)
     cmd = "aws s3 ls {0}/".format(s3_store_obj_name)
-    if recursive:
-        cmd += " --recursive"
     contents = []
     for row in popen(cmd):
-        contents.append(row.split()[-1])
+        f = row.split()[-1]
+        f = op.join(s3_store_obj_name, f)
+        contents.append(f)
+
+    if recursive:
+        que = [x for x in contents if x.endswith("/")]
+        while que:
+            f = que.pop(0).rstrip("/")
+            contents += ls_s3(f, recursive=True)
+
     return contents
 
 
@@ -464,40 +480,281 @@ def aws_configure(profile, key, value):
 
 def role(args):
     """
-    %prog role src_acct src_username dst_acct dst_role
+    %prog role htang
 
-    Change aws role. For example:
-    %prog role 205134639408 htang 114692162163 mvrad-datasci-role
+    Change aws role.
     """
+    src_acct, src_username, dst_acct, dst_role = \
+        "205134639408 htang 114692162163 mvrad-datasci-role".split()
+
     p = OptionParser(role.__doc__)
+    p.add_option("--profile", default="mvrad-datasci-role", help="Profile name")
+    p.add_option('--device',
+                    default="arn:aws:iam::" + src_acct + ":mfa/" + src_username,
+                    metavar='arn:aws:iam::123456788990:mfa/dudeman',
+                    help="The MFA Device ARN. This value can also be "
+                    "provided via the environment variable 'MFA_DEVICE' or"
+                    " the ~/.aws/credentials variable 'aws_mfa_device'.")
+    p.add_option('--duration',
+                    type=int, default=3600,
+                    help="The duration, in seconds, that the temporary "
+                            "credentials should remain valid. Minimum value: "
+                            "900 (15 minutes). Maximum: 129600 (36 hours). "
+                            "Defaults to 43200 (12 hours), or 3600 (one "
+                            "hour) when using '--assume-role'. This value "
+                            "can also be provided via the environment "
+                            "variable 'MFA_STS_DURATION'. ")
+    p.add_option('--assume-role', '--assume',
+                    default="arn:aws:iam::" + dst_acct + ":role/" + dst_role,
+                    metavar='arn:aws:iam::123456788990:role/RoleName',
+                    help="The ARN of the AWS IAM Role you would like to "
+                    "assume, if specified. This value can also be provided"
+                    " via the environment variable 'MFA_ASSUME_ROLE'")
+    p.add_option('--role-session-name',
+                    help="Friendly session name required when using "
+                    "--assume-role",
+                    default=getpass.getuser())
+    p.add_option('--force',
+                    help="Refresh credentials even if currently valid.",
+                    action="store_true")
     opts, args = p.parse_args(args)
 
-    if len(args) == 1 and args[0] == "htang":
-        args = "205134639408 htang 114692162163 mvrad-datasci-role".split()
-
-    if len(args) != 4:
+    if len(args) != 1:
         sys.exit(not p.print_help())
 
-    src_acct, src_username, dst_acct, dst_role = args
-    region = 'us-west-2'
-    mfa_token = raw_input('Enter MFA Token [ENTER]: ')
+    # Use a config to check the expiration of session token
+    config = get_config(AWS_CREDS_PATH)
+    validate(opts, config)
+
+
+def validate(args, config):
+    """Validate if the config file is properly structured
+    """
+    profile = args.profile
+    if not args.profile:
+        if os.environ.get('AWS_PROFILE'):
+            args.profile = os.environ.get('AWS_PROFILE')
+        else:
+            args.profile = 'default'
+
+    if args.assume_role:
+        role_msg = "with assumed role: %s" % (args.assume_role,)
+    elif config.has_option(args.profile, 'assumed_role_arn'):
+        role_msg = "with assumed role: %s" % (
+            config.get(args.profile, 'assumed_role_arn'))
+    else:
+        role_msg = ""
+    logging.info('Validating credentials for profile: %s %s' %
+                (profile, role_msg))
+    reup_message = "Obtaining credentials for a new role or profile."
+
+    try:
+        key_id = config.get(profile, 'aws_access_key_id')
+        access_key = config.get(profile, 'aws_secret_access_key')
+    except NoSectionError:
+        log_error_and_exit("Credentials session '[%s]' is missing. "
+                           "You must add this section to your credentials file "
+                           "along with your long term 'aws_access_key_id' and "
+                           "'aws_secret_access_key'" % (profile,))
+    except NoOptionError as e:
+        log_error_and_exit(e)
+
+    # get device from param, env var or config
+    if not args.device:
+        if os.environ.get('MFA_DEVICE'):
+            args.device = os.environ.get('MFA_DEVICE')
+        elif config.has_option(profile, 'aws_mfa_device'):
+            args.device = config.get(profile, 'aws_mfa_device')
+        else:
+            log_error_and_exit('You must provide --device or MFA_DEVICE or set '
+                               '"aws_mfa_device" in ".aws/credentials"')
+
+    # get assume_role from param or env var
+    if not args.assume_role:
+        if os.environ.get('MFA_ASSUME_ROLE'):
+            args.assume_role = os.environ.get('MFA_ASSUME_ROLE')
+        elif config.has_option(profile, 'assume_role'):
+            args.assume_role = config.get(profile, 'assume_role')
+
+    # get duration from param, env var or set default
+    if not args.duration:
+        if os.environ.get('MFA_STS_DURATION'):
+            args.duration = int(os.environ.get('MFA_STS_DURATION'))
+        else:
+            args.duration = 3600 if args.assume_role else 43200
+
+    # If this is False, only refresh credentials if expired. Otherwise
+    # always refresh.
+    force_refresh = False
+
+    # Validate presence of profile-term section
+    if not config.has_section(profile):
+        config.add_section(profile)
+        force_refresh = True
+    # Validate option integrity of profile section
+    else:
+        required_options = ['assumed_role',
+                            'aws_access_key_id', 'aws_secret_access_key',
+                            'aws_session_token', 'aws_security_token',
+                            'expiration']
+        try:
+            short_term = {}
+            for option in required_options:
+                short_term[option] = config.get(profile, option)
+        except NoOptionError:
+            logging.warn("Your existing credentials are missing or invalid, "
+                        "obtaining new credentials.")
+            force_refresh = True
+
+        try:
+            current_role = config.get(profile, 'assumed_role_arn')
+        except NoOptionError:
+            current_role = None
+
+        if args.force:
+            logging.info("Forcing refresh of credentials.")
+            force_refresh = True
+        # There are not credentials for an assumed role,
+        # but the user is trying to assume one
+        elif current_role is None and args.assume_role:
+            logging.info(reup_message)
+            force_refresh = True
+        # There are current credentials for a role and
+        # the role arn being provided is the same.
+        elif (current_role is not None and
+                args.assume_role and current_role == args.assume_role):
+            pass
+        # There are credentials for a current role and the role
+        # that is attempting to be assumed is different
+        elif (current_role is not None and
+              args.assume_role and current_role != args.assume_role):
+            logging.info(reup_message)
+            force_refresh = True
+        # There are credentials for a current role and no role arn is
+        # being supplied
+        elif current_role is not None and args.assume_role is None:
+            logging.info(reup_message)
+            force_refresh = True
+
+    should_refresh = True
+
+    # Unless we're forcing a refresh, check expiration.
+    if not force_refresh:
+        exp = datetime.strptime(
+            config.get(profile, 'expiration'), '%Y-%m-%d %H:%M:%S')
+        diff = exp - datetime.utcnow()
+        if diff.total_seconds() <= 0:
+            logging.info("Your credentials have expired, renewing.")
+        else:
+            should_refresh = False
+            logging.info(
+                "Your credentials are still valid for %s seconds"
+                " they will expire at %s"
+                % (diff.total_seconds(), exp))
+
+    if should_refresh:
+        get_credentials(profile, args, config)
+
+
+def get_credentials(profile, args, config):
+    console_input = prompter()
+    mfa_token = console_input('Enter AWS MFA code for device [%s] '
+                              '(renewing for %s seconds): ' %
+                              (args.device, args.duration))
 
     boto3.setup_default_session(profile_name='default')
-
     client = boto3.client('sts')
-    response = client.assume_role(RoleArn="arn:aws:iam::" + dst_acct + ":role/" + dst_role,
-                                  RoleSessionName=dst_role,
-                                  SerialNumber="arn:aws:iam::" + src_acct + ":mfa/" + src_username,
-                                  TokenCode=mfa_token)
 
-    creds = response['Credentials']
+    if args.assume_role:
 
-    aws_configure(dst_role, 'aws_access_key_id', creds['AccessKeyId'])
-    aws_configure(dst_role, 'aws_secret_access_key', creds['SecretAccessKey'])
-    aws_configure(dst_role, 'aws_session_token', creds['SessionToken'])
-    aws_configure(dst_role, 'region', region)
+        logging.info("Assuming Role - Profile: %s, Role: %s, Duration: %s",
+                    profile, args.assume_role, args.duration)
 
-    print >> sys.stderr, dst_role
+        try:
+            print(args.assume_role, args.role_session_name, args.device, mfa_token)
+            response = client.assume_role(
+                RoleArn=args.assume_role,
+                RoleSessionName=args.role_session_name,
+                SerialNumber=args.device,
+                TokenCode=mfa_token
+            )
+        except ClientError as e:
+            log_error_and_exit("An error occured while calling "
+                               "assume role: {}".format(e))
+        except ParamValidationError:
+            log_error_and_exit("Token must be six digits")
+
+        config.set(profile,
+            'assumed_role',
+            'True',
+        )
+        config.set(profile,
+            'assumed_role_arn',
+            args.assume_role,
+        )
+    else:
+        logging.info("Fetching Credentials - Profile: %s, Duration: %s",
+                    profile, args.duration)
+        try:
+            response = client.get_session_token(
+                DurationSeconds=args.duration,
+                SerialNumber=args.device,
+                TokenCode=mfa_token
+            )
+        except ClientError as e:
+            log_error_and_exit(
+                "An error occured while calling assume role: {}".format(e))
+        except ParamValidationError:
+            log_error_and_exit(
+                "Token must be six digits")
+
+        config.set(profile,
+            'assumed_role',
+            'False',
+        )
+        config.remove_option(profile, 'assumed_role_arn')
+
+    # aws_session_token and aws_security_token are both added
+    # to support boto and boto3
+    options = [
+        ('aws_access_key_id', 'AccessKeyId'),
+        ('aws_secret_access_key', 'SecretAccessKey'),
+        ('aws_session_token', 'SessionToken'),
+        ('aws_security_token', 'SessionToken'),
+    ]
+
+    for option, value in options:
+        config.set(profile,
+            option,
+            response['Credentials'][value]
+        )
+    # Save expiration individiually, so it can be manipulated
+    config.set(profile,
+        'expiration',
+        response['Credentials']['Expiration'].strftime('%Y-%m-%d %H:%M:%S')
+    )
+    with open(AWS_CREDS_PATH, 'w') as configfile:
+        config.write(configfile)
+
+    logging.info(
+        "Success! Your credentials will expire in %s seconds at: %s"
+        % (args.duration, response['Credentials']['Expiration']))
+
+
+def log_error_and_exit(message):
+    """Log an error message and exit with error"""
+    logging.error(message)
+    sys.exit(1)
+
+
+def prompter():
+    """Ask for a string from the user"""
+    try:
+        console_input = raw_input
+    except NameError:
+        console_input = input
+
+    return console_input
 
 
 if __name__ == '__main__':

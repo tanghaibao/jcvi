@@ -13,8 +13,10 @@ import logging
 
 from jcvi.formats.sam import output_bam, get_samfile, mapped
 from jcvi.formats.base import FileShredder
+from jcvi.assembly.automaton import iter_project
+from jcvi.apps.grid import MakeManager
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh, \
-            get_abs_path
+            get_abs_path, mkdir
 
 
 def main():
@@ -22,15 +24,58 @@ def main():
     actions = (
         ('index', 'wraps bwa index'),
         ('align', 'wraps bwa aln|mem|bwasw'),
+        ('batch', 'run bwa in batch mode'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
 
+def batch(args):
+    """
+    %proj batch database.fasta project_dir output_dir
+
+    Run bwa in batch mode.
+    """
+    p = OptionParser(batch.__doc__)
+    set_align_options(p)
+    p.set_sam_options()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    ref_fasta, proj_dir, outdir = args
+    outdir = outdir.rstrip("/")
+    s3dir = None
+    if outdir.startswith("s3://"):
+        s3dir = outdir
+        outdir = op.basename(outdir)
+        mkdir(outdir)
+
+    mm = MakeManager()
+    for p, pf in iter_project(proj_dir):
+        targs = [ref_fasta] + p
+        cmd1, bamfile = mem(targs, opts)
+        if cmd1:
+            cmd1 = output_bam(cmd1, bamfile)
+        nbamfile = op.join(outdir, bamfile)
+        cmd2 = "mv {} {}".format(bamfile, nbamfile)
+        cmds = [cmd1, cmd2]
+
+        if s3dir:
+            cmd = "aws s3 cp {} {} --sse".format(nbamfile,
+                                              op.join(s3dir, bamfile))
+            cmds.append(cmd)
+
+        mm.add(p, nbamfile, cmds)
+
+    mm.write()
+
+
 def check_index(dbfile):
     dbfile = get_abs_path(dbfile)
     safile = dbfile + ".sa"
-    if need_update(dbfile, safile):
+    if not op.exists(safile):
         cmd = "bwa index {0}".format(dbfile)
         sh(cmd)
     else:
@@ -72,6 +117,17 @@ def index(args):
     check_index(dbfile)
 
 
+def set_align_options(p):
+    """ Used in align() and batch()
+    """
+    p.add_option("--bwa", default="bwa", help="Run bwa at this path")
+    p.add_option("--rg", help="Read group")
+    p.add_option("--readtype",
+                 choices=("pacbio", "pbread", "ont2d", "intractg"),
+                 help="Read type in bwa-mem")
+    p.set_cutoff(cutoff=800)
+
+
 def align(args):
     """
     %prog align database.fasta read1.fq [read2.fq]
@@ -81,10 +137,7 @@ def align(args):
     valid_modes = ("bwasw", "aln", "mem")
     p = OptionParser(align.__doc__)
     p.add_option("--mode", default="mem", choices=valid_modes, help="BWA mode")
-    p.add_option("--rg", help="Read group")
-    p.add_option("--readtype", choices=("pacbio", "pbread", "ont2d", "intractg"),
-                 help="Read type in bwa-mem")
-    p.set_cutoff(cutoff=800)
+    set_align_options(p)
     p.set_sam_options()
 
     opts, args = p.parse_args(args)
@@ -169,7 +222,7 @@ def sampe(args, opts):
         logging.error("`{0}` exists. `bwa samse` already run.".format(samfile))
         return "", samfile
 
-    cmd = "bwa sampe " + " ".join((dbfile, sai1file, sai2file, \
+    cmd = "bwa sampe " + " ".join((dbfile, sai1file, sai2file,
                                    read1file, read2file))
     cmd += " " + opts.extra
     if opts.cutoff:
@@ -200,7 +253,7 @@ def mem(args, opts):
         logging.error("`{0}` exists. `bwa mem` already run.".format(samfile))
         return "", samfile
 
-    cmd = "bwa mem"
+    cmd = "{} mem".format(opts.bwa)
     '''
     -M Mark shorter split hits as secondary (for Picard compatibility).
     '''

@@ -15,6 +15,7 @@ from libc.string cimport strcpy
 cdef const char *blast_format = "%s\t%s\t%f\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%lf\t%f"
 cdef const char *blast_format_line = "%s\t%s\t%f\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%lf\t%f\n"
 cdef const char *blast_output = "%s\t%s\t%.2f\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.2g\t%.3g"
+cdef const char *bed_output = "%s\t%d\t%d\t%s:%d-%d\t%.2g\t%c"
 
 
 cdef class Blast:
@@ -102,11 +103,13 @@ cdef class BlastLine:
                 &self.sstart, &self.sstop,
                 &self.evalue, &self.score)
 
+        self.orientation = '+'
+        if self.qstart > self.qstop:
+            self.qstart, self.qstop = self.qstop, self.qstart
+            self.orientation = '-'
         if self.sstart > self.sstop:
             self.sstart, self.sstop = self.sstop, self.sstart
             self.orientation = '-'
-        else:
-            self.orientation = '+'
 
     def __richcmp__(BlastLine self, BlastLine other, size_t op):
         if op == 2: # ==
@@ -122,6 +125,9 @@ cdef class BlastLine:
             return not self.__richcmp__(other, 2)
         else:
             raise Exception("that comparison not implemented")
+
+    def __hash__(self):
+        return id(self)
 
     def __repr__(self):
         return "BlastLine('%s' to '%s', eval=%.3f, score=%.1f)" % \
@@ -142,6 +148,10 @@ cdef class BlastLine:
         return result
 
     @property
+    def has_score(self):
+        return hasattr(self, "score")
+
+    @property
     def swapped(self):
         """
         Swap query and subject.
@@ -156,9 +166,13 @@ cdef class BlastLine:
 
     @property
     def bedline(self):
-        return "\t".join(str(x) for x in \
-                (self.subject, self.sstart - 1, self.sstop, self.query,
-                 self.score, self.orientation))
+        cdef char result[512]
+        sprintf(result, bed_output,
+                self._subject, self.sstart - 1, self.sstop,
+                self._query, self.qstart, self.qstop,
+                self.score, self.orientation)
+
+        return result
 
     def __reduce__(self):
         return create_blast_line, (

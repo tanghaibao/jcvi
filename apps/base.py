@@ -339,7 +339,7 @@ class OptionParser (OptionP):
             self.add_option("--evalue", default=evalue, type="float",
                      help="E-value cutoff [default: %default]")
         if compreh_pctid is not None:
-            self.add_option("--compreh_pctid", default=pctid, type="int",
+            self.add_option("--compreh_pctid", default=compreh_pctid, type="int",
                      help="Sequence percent identity cutoff used to " + \
                           "build PASA comprehensive transcriptome [default: %default]")
         if compreh_pctcov is not None:
@@ -386,6 +386,8 @@ class OptionParser (OptionP):
         group.add_option("--diverge", default="PiYG", choices=allowed_diverge,
                 help="Contrasting color scheme")
         group.add_option("--cmap", default=cmap, help="Use this color map")
+        group.add_option("--notex", default=False, action="store_true",
+                help="Do not use tex")
 
         if args is None:
             args = sys.argv[1:]
@@ -395,7 +397,7 @@ class OptionParser (OptionP):
         assert opts.dpi > 0
         assert "x" in opts.figsize
 
-        setup_theme(style=opts.style, font=opts.font)
+        setup_theme(style=opts.style, font=opts.font, usetex=(not opts.notex))
 
         return opts, args, ImageOptions(opts)
 
@@ -510,6 +512,8 @@ class OptionParser (OptionP):
         topts.add_option("--grid_conf_file", default="JCVI_SGE.0689.conf", \
                 type="str", help="HpcGridRunner config file for supported compute farms" + \
                                  " [default: %default]")
+        topts.add_option("--cleanup", default=False, action="store_true",
+                     help="Force clean-up of unwanted files after Trinity run is complete")
         ggopts = OptionGroup(self, "Genome-guided Trinity options")
         self.add_option_group(ggopts)
         ggopts.add_option("--bam", default=None, type="str",
@@ -782,6 +786,14 @@ def Popen(cmd, stdin=None, stdout=PIPE, debug=False, shell="/bin/bash"):
     return proc
 
 
+def is_macOS():
+    """
+    Check if current OS is macOS, this impacts mostly plotting code.
+    """
+    import platform
+    return platform.system() == "Darwin"
+
+
 def popen(cmd, debug=True, shell="/bin/bash"):
     return Popen(cmd, debug=debug, shell=shell).stdout
 
@@ -997,7 +1009,7 @@ def getfilesize(filename, ratio=None):
     return size
 
 
-def debug():
+def debug(level=logging.DEBUG):
     """
     Turn on the debugging
     """
@@ -1005,7 +1017,7 @@ def debug():
 
     format = yellow("%(asctime)s [%(module)s]")
     format += magenta(" %(message)s")
-    logging.basicConfig(level=logging.DEBUG,
+    logging.basicConfig(level=level,
             format=format,
             datefmt="%H:%M:%S")
 
@@ -1612,6 +1624,18 @@ def waitpid(args):
     if cmd is not None:
         bg = False if opts.grid else True
         sh(cmd, grid=opts.grid, background=bg)
+
+
+def get_config(path):
+    import ConfigParser
+    config = ConfigParser.RawConfigParser()
+    try:
+        config.read(path)
+    except configparser.ParsingError:
+        e = sys.exc_info()[1]
+        log_error_and_exit(logger, "There was a problem reading or parsing "
+                           "your credentials file: %s" % (e.args[0],))
+    return config
 
 
 def getpath(cmd, name=None, url=None, cfg="~/.jcvirc", warn="exit"):

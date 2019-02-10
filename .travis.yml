@@ -30,6 +30,9 @@ install:
 
 # command to run tests
 script:
-  - for VERSION in $PYTHON_VERSIONS ; do source activate $VERSION ; py.test tests.py ; done
+  - for VERSION in $PYTHON_VERSIONS ; do source activate $VERSION ; py.test tests.py --cov=jcvi ; done
+
+after_success:
+  - coveralls
 
 sudo: false

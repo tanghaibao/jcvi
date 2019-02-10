@@ -1,4 +1,6 @@
 pytest
+pytest-cov
+coveralls
 biopython
 matplotlib
 networkx

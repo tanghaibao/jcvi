@@ -3,7 +3,7 @@
 [![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.31631.svg)](https://doi.org/10.5281/zenodo.594205)
 [![Latest PyPI version](https://img.shields.io/pypi/v/jcvi.svg)](https://pypi.python.org/pypi/jcvi)
 [![Travis-CI](https://travis-ci.org/tanghaibao/jcvi.svg?branch=master)](https://travis-ci.org/tanghaibao/jcvi)
-[![Pushbullet](https://img.shields.io/badge/pushbullet-commit_log-lightgrey.svg)](https://www.pushbullet.com/channel?tag=tanghaibao-jcvi-commits)
+[![Coverage Status](https://coveralls.io/repos/github/tanghaibao/jcvi/badge.svg)](https://coveralls.io/github/tanghaibao/jcvi)
 
 Collection of Python libraries to parse bioinformatics files, or perform
 computation related to assembly, annotation, and comparative genomics.

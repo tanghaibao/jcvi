@@ -1,0 +1,193 @@
+#!/usr/bin/env python
+# -*- coding: UTF-8 -*-
+
+"""
+py.test script for jcvi repo
+
+* Test cases are defined using `yml` config files (tests.yml)
+* Test config files are stored in directory by the name of the script (./tests/formats/gff.py/tests.yml)
+* Test directory contains valid input data files used by the test cases (./tests/formats/gff.py/inputs)
+* Test directory contains reference/output files for comparison against test results (./tests/formats/gff.py/references)
+
+This testing functionality was adapted from the implementation developed by https://github.com/CGATOxford/cgat
+"""
+
+import sys
+import subprocess as sp
+import os.path as op
+from shutil import rmtree as rmdir_
+import glob
+import re
+import tempfile
+import gzip
+import time
+import hashlib
+
+import yaml
+import pytest
+
+
+LOG = open("test_scripts.log", "a")
+
+
+def pytest_generate_tests(metafunc):
+    """
+    Generates a parametrized list of tests to execute
+    """
+
+    # ignore directories that don't exist as tests
+    # ignore non-directories
+    script_dirs = glob.glob("tests/*/*.py")
+    script_dirs = [x for x in script_dirs if op.exists(x) and op.isdir(x)]
+    script_dirs.sort()
+
+    _test_argnames = ['test_name', 'script', 'action', 'options', 'arguments', 'outputs', 'references', 'work_dir']
+
+    for script_dir in script_dirs:
+        script_name = script_dir.replace("tests/", "")
+        _script = op.abspath(script_name)
+
+        yamlconf = "{0}/tests.yml".format(script_dir)
+        if not op.exists(yamlconf):
+            continue
+
+        script_tests = yaml.load(open(yamlconf))
+
+        # run each test defined in SCRIPT/ACTION.py/tests.yml
+        _test_argvalues = []
+        for test_name, test_params in sorted(script_tests.items()):
+            _test_argvalues.append(
+                (test_name, _script, test_params["action"],
+                 test_params["opts"], test_params["args"],
+                 test_params["outputs"], test_params["references"],
+                 script_dir)
+            )
+
+    metafunc.parametrize(_test_argnames, _test_argvalues)
+
+
+def test_script(test_name, script, action, options, arguments, outputs,
+                 references, work_dir):
+    """
+    Runs a parametrized test with the following parameters
+
+    :param test_name:  Unique name of the test
+    :param script:     jcvi.formats.SCRIPT to invoke (e.g. `jcvi.formats.gff`)
+    :param action:     jcvi.formats.SCRIPT ACTION to invoke (e.g. `format`)
+    :param options:    Options to be passed (e.g. `--remove_feats=chromosome,protein`)
+    :param arguments:  Arguments to be passed (e.g. `sample_input.gff`)
+    :param outputs:    List of output files to collect
+    :param references: List of reference files to check against output
+    :param work_dir:   Directory of test data (working directory)
+    :return:           Asserts test status (pass/fail)
+    """
+
+    start_time = time.time()
+
+    tmp_dir = tempfile.mkdtemp()
+
+    opts, args = "", ""
+    if options:
+        opts = _fname_resolver(options, tmp_dir=tmp_dir, work_dir=work_dir)
+    if arguments:
+        args = _fname_resolver(arguments, tmp_dir=tmp_dir, work_dir=work_dir)
+
+    stdout, stderr = op.join(tmp_dir, "stdout"), op.join(tmp_dir, "stderr")
+
+    cmd = ("/bin/bash -c "
+           "'python %(script)s %(action)s"
+           " %(opts)s %(args)s"
+           " > %(stdout)s"
+           " 2> %(stderr)s'") % locals()
+
+    cmd = ("python %(script)s %(action)s"
+           " %(opts)s %(args)s"
+           " > %(stdout)s") % locals()
+
+    proc = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, \
+                    cwd=tmp_dir, shell=True)
+
+    proc_stdout, proc_stderr = proc.communicate()
+
+    fail, log_msg = False, None
+    if proc.returncode != 0:
+        log_msg = "Error (retcode={}): {}: {}".format(proc.returncode, proc_stderr, cmd)
+        fail = True
+
+    if not fail:
+        for output, reference in zip(outputs, references):
+            if output == "stdout":
+                output = stdout
+            elif output.startswith("__DIR__"):
+                output = _fname_resolver(output, work_dir=work_dir)
+            else:
+                output = op.join(tmp_dir, output)
+
+            if not op.exists(output):
+                fail = True
+                log_msg = "Error: output file `{0}` does not exist: {1}".format(output, cmd)
+
+            reference = op.join(work_dir, reference)
+            if not fail and not op.exists(reference):
+                fail = True
+                log_msg = "Error: reference file `{0}` does not exist ({1}): {2}".format(reference, \
+                                                                                  tmp_dir, cmd)
+
+            if not fail:
+                for outline, refline in zip(_read(output), _read(reference)):
+                    if outline != refline:  # perform line-by-line comparison of output against reference
+                        fail = True
+                        log_msg = ("Error: files `{0}` and `{1}` are not the same\n".format(output, reference) + \
+                                   "{0}\nmd5: output={1} reference={2}").format(cmd, \
+                                                                                _md5sum(output), _md5sum(reference))
+                        break
+
+    end_time = time.time()
+    LOG.write("{0}\t{1}\t{2}\n".format(script, test_name, end_time-start_time))
+    LOG.flush()
+
+    rmdir_(tmp_dir)
+    assert not fail, log_msg
+
+
+def _fname_resolver(fname, tmp_dir=None, work_dir=None):
+    """
+    Given a file or folder fname with placeholders (__TMP__ or __DIR__),
+    replace them with values provided via named parameters
+
+    :param tmp_dir: Temporary directory name to replace placeholder
+    :param work_dir: Working directory name to replace placeholder
+    :return: Returns processed file/folder name
+    """
+    if tmp_dir:
+        fname = re.sub("__TMP__", tmp_dir, fname)
+    if work_dir:
+        fname = re.sub("__DIR__", op.abspath(work_dir), fname)
+
+    return fname
+
+
+def _read(filename):
+    """
+    Appropriately open file based on filetype/extension (i.e. gzip or plain-text)
+    and yield lines
+
+    :param filename: Input file (plain text or gzipped) to read
+    :return: Yields lines from the input file
+    """
+    fp = gzip.open(filename) if filename.endswith(".gz") \
+            else open(filename)
+
+    for line in fp:
+        if not line.startswith("#"):
+            yield line
+
+
+def _md5sum(filename):
+    """
+    Calculate and return md5checksum of file
+
+    :param filename: Input filename
+    :return: Returns md5 checksum of input file
+    """
+    return hashlib.md5(open(filename, "rb").read()).hexdigest()

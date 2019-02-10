@@ -13,8 +13,14 @@ matrix:
 
 # Setup anaconda
 before_install:
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then PYTHON_VERSIONS=$TRAVIS_PYTHON_VERSION ; curl https://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -o miniconda.sh ; fi
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then PYTHON_VERSIONS=$OSX_PYTHON_VERSIONS; curl https://repo.continuum.io/miniconda/Miniconda-latest-MacOSX-x86_64.sh -o miniconda.sh ; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
+        PYTHON_VERSIONS=$TRAVIS_PYTHON_VERSION ;
+        curl https://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -o miniconda.sh ;
+    fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
+        PYTHON_VERSIONS=$OSX_PYTHON_VERSIONS ;
+        curl https://repo.continuum.io/miniconda/Miniconda-latest-MacOSX-x86_64.sh -o miniconda.sh ;
+    fi
   - bash miniconda.sh -b -p $HOME/miniconda
   - export PATH="$HOME/miniconda/bin:$PATH"
   - hash -r
@@ -26,11 +32,20 @@ before_install:
 
 # Install packages
 install:
-  - for VERSION in $PYTHON_VERSIONS ; do conda create --name $VERSION --yes python=$VERSION --file requirements.txt ; source activate $VERSION ; python setup.py install; python setup.py build_ext --inplace; done
+  - for VERSION in $PYTHON_VERSIONS ; do
+        conda create --name $VERSION --yes python=$VERSION --file requirements.txt ;
+        source activate $VERSION ;
+        python setup.py install ;
+        python setup.py build_ext --inplace ;
+        pip install gffutils ;
+    done
 
 # command to run tests
 script:
-  - for VERSION in $PYTHON_VERSIONS ; do source activate $VERSION ; py.test tests.py --cov=jcvi ; done
+  - for VERSION in $PYTHON_VERSIONS ; do
+        source activate $VERSION ;
+        py.test --cov=jcvi tests/ ;
+    done
 
 after_success:
   - coveralls

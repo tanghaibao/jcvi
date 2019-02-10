@@ -5,4 +5,5 @@ biopython
 matplotlib
 networkx
 numpy
+PyYAML
 scipy

@@ -52,5 +52,5 @@ setup(
                   'annotation and comparative genomics',
       install_requires=['biopython', 'deap',
                         'matplotlib', 'networkx',
-                        'numpy', 'scipy'],
- )
+                        'numpy', 'scipy', 'PyYAML'],
+)

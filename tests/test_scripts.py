@@ -26,6 +26,22 @@ import hashlib
 import yaml
 import pytest
 
+from importlib import import_module
+from StringIO import StringIO
+
+# https://stackoverflow.com/questions/16571150/how-to-capture-stdout-output-from-a-python-function-call
+class Capturing(list):
+    def __init__(self, stdout):
+        self.fw = open(stdout, "w")
+
+    def __enter__(self):
+        self._stdout = sys.stdout
+        sys.stdout = self.fw
+
+    def __exit__(self, *args):
+        self.fw.close()
+        sys.stdout = self._stdout
+
 
 LOG = open("test_scripts.log", "a")
 
@@ -46,6 +62,9 @@ def pytest_generate_tests(metafunc):
     for script_dir in script_dirs:
         script_name = script_dir.replace("tests/", "")
         _script = op.abspath(script_name)
+        # We need: jcvi.formats.gff
+        script_name = script_name[:script_name.rfind(".py")].replace('/', '.')
+        _script = "jcvi." + script_name
 
         yamlconf = "{0}/tests.yml".format(script_dir)
         if not op.exists(yamlconf):
@@ -94,25 +113,29 @@ def test_script(test_name, script, action, options, arguments, outputs,
 
     stdout, stderr = op.join(tmp_dir, "stdout"), op.join(tmp_dir, "stderr")
 
-    cmd = ("/bin/bash -c "
-           "'python %(script)s %(action)s"
-           " %(opts)s %(args)s"
-           " > %(stdout)s"
-           " 2> %(stderr)s'") % locals()
-
     cmd = ("python %(script)s %(action)s"
            " %(opts)s %(args)s"
            " > %(stdout)s") % locals()
 
-    proc = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, \
-                    cwd=tmp_dir, shell=True)
+    # proc = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, \
+    #                 cwd=tmp_dir, shell=True)
 
-    proc_stdout, proc_stderr = proc.communicate()
+    # proc_stdout, proc_stderr = proc.communicate()
 
     fail, log_msg = False, None
-    if proc.returncode != 0:
-        log_msg = "Error (retcode={}): {}: {}".format(proc.returncode, proc_stderr, cmd)
-        fail = True
+    # if proc.returncode != 0:
+    #     log_msg = "Error (retcode={}): {}: {}".format(proc.returncode, proc_stderr, cmd)
+    #     fail = True
+    module = import_module(script)
+    func = getattr(module, action)
+    args = " ".join((opts, args)).split()
+
+    with Capturing(stdout) as output:
+        try:
+            func(args)
+        except Exception as e:
+            log_msg = "Error: {}".format(e)
+            fail = True
 
     if not fail:
         for output, reference in zip(outputs, references):

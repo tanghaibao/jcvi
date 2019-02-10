@@ -50,7 +50,7 @@ format_invent_name_attr:
 
 bed_do_nothing:
     action: bed
-    opts: 
+    opts:
     args: __DIR__/inputs/sample.gff
     outputs: [stdout]
     references: [references/sample.bed]
@@ -71,7 +71,7 @@ bed_ftype_strip_names:
 
 bed12_do_nothing:
     action: bed12
-    opts: 
+    opts:
     args: __DIR__/inputs/sample.gff
     outputs: [stdout]
     references: [references/sample.bed12.bed]
@@ -113,21 +113,21 @@ filter_by_child_feat_length:
 
 summary:
     action: summary
-    opts: 
+    opts:
     args: __DIR__/inputs/sample.gff
     outputs: [stdout]
     references: [references/sample.summary.txt]
 
 gtf:
     action: gtf
-    opts: 
+    opts:
     args: __DIR__/inputs/sample.gff
     outputs: [stdout]
     references: [references/sample.gtf]
 
 load_cdna_fasta:
     action: load
-    opts: 
+    opts:
     args: __DIR__/inputs/sample.gff __DIR__/inputs/sample.fa
     outputs: [stdout]
     references: [references/sample.cdna.fa]
@@ -155,8 +155,8 @@ load_upstream_trss_fasta:
 
 merge:
     action: merge
-    opts: 
-    args: __DIR__/inputs/*.gff
+    opts:
+    args: __DIR__/inputs/sample.gff __DIR__/inputs/sample2.gff
     outputs: [stdout]
     references: [references/sample.merge.gff]
 

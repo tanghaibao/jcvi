@@ -100,6 +100,10 @@ def test_script(test_name, script, action, options, arguments, outputs,
            " > %(stdout)s"
            " 2> %(stderr)s'") % locals()
 
+    cmd = ("python %(script)s %(action)s"
+           " %(opts)s %(args)s"
+           " > %(stdout)s") % locals()
+
     proc = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, \
                     cwd=tmp_dir, shell=True)
 
@@ -107,7 +111,7 @@ def test_script(test_name, script, action, options, arguments, outputs,
 
     fail, log_msg = False, None
     if proc.returncode != 0:
-        log_msg = "Error: {0}: {1}".format(proc_stderr, cmd)
+        log_msg = "Error (retcode={}): {}: {}".format(proc.returncode, proc_stderr, cmd)
         fail = True
 
     if not fail:

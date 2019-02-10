@@ -1641,7 +1641,7 @@ def build(args):
     if need_update((mapbed, chainfile), liftedbed):
         cmd = "liftOver -minMatch=1 {0} {1} {2} unmapped".\
                 format(mapbed, chainfile, liftedbed)
-        sh(cmd)
+        sh(cmd, check=True)
 
     if opts.cleanup:
         FileShredder([chr_fasta, unplaced_fasta, combined_fasta,

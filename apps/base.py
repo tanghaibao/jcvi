@@ -15,7 +15,7 @@ import fnmatch
 from httplib import HTTPSConnection
 from urllib import urlencode
 from socket import gethostname
-from subprocess import PIPE, call
+from subprocess import PIPE, call, check_call
 from optparse import OptionParser as OptionP, OptionGroup, SUPPRESS_HELP
 
 from jcvi import __copyright__, __version__
@@ -734,7 +734,7 @@ def getdomainname():
 
 def sh(cmd, grid=False, infile=None, outfile=None, errfile=None,
         append=False, background=False, threaded=None, log=True,
-        grid_opts=None, silent=False, shell="/bin/bash"):
+        grid_opts=None, silent=False, shell="/bin/bash", check=False):
     """
     simple wrapper for system calls
     """
@@ -770,7 +770,9 @@ def sh(cmd, grid=False, infile=None, outfile=None, errfile=None,
 
         if log:
             logging.debug(cmd)
-        return call(cmd, shell=True, executable=shell)
+
+        call_func = check_call if check else call
+        return call_func(cmd, shell=True, executable=shell)
 
 
 def Popen(cmd, stdin=None, stdout=PIPE, debug=False, shell="/bin/bash"):

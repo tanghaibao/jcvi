@@ -30,6 +30,9 @@ install:
 
 # command to run tests
 script:
-  - for VERSION in $PYTHON_VERSIONS ; do source activate $VERSION ; py.test --tb=short tests/ ; done
+  - for VERSION in $PYTHON_VERSIONS ; do source activate $VERSION ; py.test --tb=short --cov=jcvi tests/ ; done
+
+after_success:
+  - coveralls
 
 sudo: false

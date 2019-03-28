@@ -118,7 +118,7 @@ Alternatively, if you want to install manually:
 ```bash
 cd ~/code  # or any directory of your choice
 git clone git://github.com/tanghaibao/jcvi.git
-export PYTHONPATH=~/code:$PYTHONPATH
+export PYTHONPATH=~/code/jcvi:$PYTHONPATH
 ```
 
 Please replace `~/code` above with whatever you like, but it must

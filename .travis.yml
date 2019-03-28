@@ -11,7 +11,7 @@ matrix:
           python: 3.6
         # Use generic language for osx and install python by hand
         - os: osx
-         language: generic
+          language: generic
 
 # Setup anaconda
 before_install:

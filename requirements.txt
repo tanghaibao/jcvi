@@ -1,9 +1,10 @@
-pytest
-pytest-cov
-coveralls
 biopython
+coveralls
+cython
 matplotlib
 networkx
 numpy
+pytest
+pytest-cov
 PyYAML
 scipy

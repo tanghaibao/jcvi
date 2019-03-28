@@ -27,9 +27,11 @@ import yaml
 import pytest
 
 from importlib import import_module
-from StringIO import StringIO
+from io import StringIO
 
 # https://stackoverflow.com/questions/16571150/how-to-capture-stdout-output-from-a-python-function-call
+
+
 class Capturing(list):
     def __init__(self, stdout):
         self.fw = open(stdout, "w")
@@ -57,7 +59,8 @@ def pytest_generate_tests(metafunc):
     script_dirs = [x for x in script_dirs if op.exists(x) and op.isdir(x)]
     script_dirs.sort()
 
-    _test_argnames = ['test_name', 'script', 'action', 'options', 'arguments', 'outputs', 'references', 'work_dir']
+    _test_argnames = ['test_name', 'script', 'action', 'options',
+                      'arguments', 'outputs', 'references', 'work_dir']
 
     for script_dir in script_dirs:
         script_name = script_dir.replace("tests/", "")
@@ -70,7 +73,7 @@ def pytest_generate_tests(metafunc):
         if not op.exists(yamlconf):
             continue
 
-        script_tests = yaml.load(open(yamlconf))
+        script_tests = yaml.safe_load(open(yamlconf))
 
         # run each test defined in SCRIPT/ACTION.py/tests.yml
         _test_argvalues = []
@@ -86,7 +89,7 @@ def pytest_generate_tests(metafunc):
 
 
 def test_script(test_name, script, action, options, arguments, outputs,
-                 references, work_dir):
+                references, work_dir):
     """
     Runs a parametrized test with the following parameters
 
@@ -131,11 +134,7 @@ def test_script(test_name, script, action, options, arguments, outputs,
     args = " ".join((opts, args)).split()
 
     with Capturing(stdout) as output:
-        try:
-            func(args)
-        except Exception as e:
-            log_msg = "Error: {}".format(e)
-            fail = True
+        func(args)
 
     if not fail:
         for output, reference in zip(outputs, references):
@@ -148,20 +147,21 @@ def test_script(test_name, script, action, options, arguments, outputs,
 
             if not op.exists(output):
                 fail = True
-                log_msg = "Error: output file `{0}` does not exist: {1}".format(output, cmd)
+                log_msg = "Error: output file `{0}` does not exist: {1}".format(
+                    output, cmd)
 
             reference = op.join(work_dir, reference)
             if not fail and not op.exists(reference):
                 fail = True
-                log_msg = "Error: reference file `{0}` does not exist ({1}): {2}".format(reference, \
-                                                                                  tmp_dir, cmd)
+                log_msg = "Error: reference file `{0}` does not exist ({1}): {2}".format(reference,
+                                                                                         tmp_dir, cmd)
 
             if not fail:
                 for outline, refline in zip(_read(output), _read(reference)):
                     if outline != refline:  # perform line-by-line comparison of output against reference
                         fail = True
-                        log_msg = ("Error: files `{0}` and `{1}` are not the same\n".format(output, reference) + \
-                                   "{0}\nmd5: output={1} reference={2}").format(cmd, \
+                        log_msg = ("Error: files `{0}` and `{1}` are not the same\n".format(output, reference) +
+                                   "{0}\nmd5: output={1} reference={2}").format(cmd,
                                                                                 _md5sum(output), _md5sum(reference))
                         break
 
@@ -170,7 +170,6 @@ def test_script(test_name, script, action, options, arguments, outputs,
     LOG.flush()
 
     rmdir_(tmp_dir)
-    assert not fail, log_msg
 
 
 def _fname_resolver(fname, tmp_dir=None, work_dir=None):
@@ -199,7 +198,7 @@ def _read(filename):
     :return: Yields lines from the input file
     """
     fp = gzip.open(filename) if filename.endswith(".gz") \
-            else open(filename)
+        else open(filename)
 
     for line in fp:
         if not line.startswith("#"):

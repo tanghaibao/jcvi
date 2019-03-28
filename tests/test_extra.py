@@ -14,6 +14,7 @@ def test_formats_cblast():
     """
     from jcvi.formats.cblast import BlastLine
 
-    b = BlastLine("Os09g11510	Os08g13650	92.31	39	3	0	2273	2311	3237	3199	0.001	54.0")
-    assert b.query == 'Os09g11510'
+    b = BlastLine(
+        "Os09g11510	Os08g13650	92.31	39	3	0	2273	2311	3237	3199	0.001	54.0")
+    assert b.query == b'Os09g11510'
     assert b.hitlen == 39

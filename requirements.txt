@@ -4,6 +4,7 @@ cython
 matplotlib
 networkx
 numpy
+pypandoc
 pytest
 pytest-cov
 PyYAML

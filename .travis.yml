@@ -35,11 +35,11 @@ before_install:
 # Install packages
 install:
   - for VERSION in $PYTHON_VERSIONS ; do
-        conda create --name $VERSION --yes python=$VERSION --file requirements.txt ;
+        conda create --name $VERSION --yes python=$VERSION;
         source activate $VERSION ;
+        pip install -r requirements.txt ;
         python setup.py install ;
         python setup.py build_ext --inplace ;
-        pip install gffutils ;
     done
 
 # command to run tests

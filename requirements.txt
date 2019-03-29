@@ -4,6 +4,7 @@ boto3
 coveralls
 cython
 ete3
+gffutils
 jinja2
 matplotlib
 networkx

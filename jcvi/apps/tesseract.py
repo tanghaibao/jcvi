@@ -1,6 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
+from __future__ import print_function
+
+import os
+import sys
+import subprocess
+from six.moves import cStringIO
+import PIL.Image
 '''
 Python-tesseract is an optical character recognition (OCR) tool for python.
 That is, it will recognize and "read" the text embedded in images.
@@ -42,16 +49,10 @@ Copyright (c) Samuel Hoffstaetter, 2009
 http://wiki.github.com/hoffstaetter/python-tesseract
 
 '''
-from __future__ import print_function
 
 # CHANGE THIS IF TESSERACT IS NOT IN YOUR PATH, OR IS NAMED DIFFERENTLY
 tesseract_cmd = 'tesseract'
 
-import PIL.Image
-import StringIO
-import subprocess
-import sys
-import os
 
 __all__ = ['image_to_string']
 
@@ -82,7 +83,7 @@ def run_tesseract(input_filename, output_filename_base, lang=None, boxes=False):
         command += ['batch.nochop', 'makebox']
 
     proc = subprocess.Popen(command,
-            stderr=subprocess.PIPE)
+                            stderr=subprocess.PIPE)
     return (proc.wait(), proc.stderr.read())
 
 
@@ -114,7 +115,7 @@ def tempnam():
     # prevent os.tmpname from printing an error...
     stderr = sys.stderr
     try:
-        sys.stderr = StringIO.StringIO()
+        sys.stderr = cStringIO.StringIO()
         return os.tempnam(None, 'tess_')
     finally:
         sys.stderr = stderr
@@ -172,6 +173,6 @@ if __name__ == '__main__':
             exit(1)
         print(image_to_string(image, lang=lang))
     else:
-        sys.stderr.write('Usage: python tesseract.py [-l language] input_file\n')
+        sys.stderr.write(
+            'Usage: python tesseract.py [-l language] input_file\n')
         exit(2)
-

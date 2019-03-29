@@ -101,8 +101,8 @@ class UniqueLiftover(object):
         return None, None
 
 
-CM = dict(zip([str(x) for x in range(1, 23)],
-          ["chr{0}".format(x) for x in range(1, 23)]) + \
+CM = dict(list(zip([str(x) for x in range(1, 23)],
+          ["chr{0}".format(x) for x in range(1, 23)])) + \
           [("X", "chrX"), ("Y", "chrY"), ("MT", "chrM")])
 
 

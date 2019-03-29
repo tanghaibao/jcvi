@@ -105,7 +105,7 @@ class TrioOrDuo:
                                  tolerance=tolerance)
             mendelian_error = not (c in possible_progenies)
             if verbose:
-                print(parent_keys[0], parent_keys[1], child_key, p1, p2, \
+                print(parent_keys[0], parent_keys[1], child_key, p1, p2,
                             c, not mendelian_error)
         else:
             parent_key = self.parents.values()[0]
@@ -119,7 +119,7 @@ class TrioOrDuo:
                 if (c[0] == c[1]) and (p1[0] == p1[1]):
                     mendelian_error = 0
             if verbose:
-                print(parent_key, child_key, p1, \
+                print(parent_key, child_key, p1,
                             c, not mendelian_error)
         return mendelian_error
 
@@ -244,7 +244,8 @@ def mendelian_errors2(args):
     accuracies = [key(x) for x in accuracies]
 
     for tick, accuracy in zip(ticks, accuracies):
-        ax.plot([tick, tick], [ymin, accuracy], "-", lw=2, color='lightslategray')
+        ax.plot([tick, tick], [ymin, accuracy],
+                "-", lw=2, color='lightslategray')
 
     trios, = ax.plot(accuracies, "o", mfc='w', mec='b')
     ax.set_title("Mendelian errors based on STR calls in trios in HLI samples")
@@ -261,7 +262,6 @@ def mendelian_errors2(args):
 
     image_name = "mendelian_errors2." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
-
 
 
 def mendelian2(args):
@@ -301,7 +301,7 @@ def mendelian2(args):
             p1_sex, p2_sex = p2_sex, p1_sex
         trios.append((proband, proband_sex, p1, p1_sex, p2, p2_sex))
 
-    header  = "{0}_ID {0}_Sex {0}_Calls"
+    header = "{0}_ID {0}_Sex {0}_Calls"
     header += " {0}_Full {0}_Partial {0}_Repeat {0}_Paired"
     tredsdata = pd.read_csv(hlitsv, sep="\t", low_memory=False)
     tsvfiles = []
@@ -349,14 +349,15 @@ def mendelian2(args):
                                    (tpp, proband_sex)):
                     if p[1].startswith("-"):
                         p[1] = "n.a."
-            cells  = [shorten(p1), p1_sex] + tp1[1:]
+            cells = [shorten(p1), p1_sex] + tp1[1:]
             cells += [shorten(p2), p2_sex] + tp2[1:]
             cells += [shorten(proband), proband_sex] + tpp[1:]
             print("\t".join([m] + cells), file=fw)
         fw.close()
         tsvfiles.append(tsvfile)
 
-        error_rate = counts["Error"] * 100. / (counts["Correct"] + counts["Error"])
+        error_rate = counts["Error"] * 100. / \
+            (counts["Correct"] + counts["Error"])
         line = ",".join(str(x) for x in (tred, tr.motif, tr.inheritance,
                         counts["Correct"], counts["Error"], counts["Missing"],
                         "{:.1f}%".format(error_rate)))
@@ -370,23 +371,25 @@ def mendelian2(args):
     header = xlwt.easyxf("font: bold on, name Helvetica; align: horiz center")
     hc = "font: name Helvetica; align: horiz center;"
     horiz_center = xlwt.Style.easyxf(hc)
-    correct = xlwt.Style.easyxf(hc + "pattern: pattern solid, fore_colour light_green;")
+    correct = xlwt.Style.easyxf(
+        hc + "pattern: pattern solid, fore_colour light_green;")
     error = xlwt.Style.easyxf(hc + "pattern: pattern solid, fore_colour rose;")
-    missing = xlwt.Style.easyxf(hc + "pattern: pattern solid, fore_colour light_yellow;")
+    missing = xlwt.Style.easyxf(
+        hc + "pattern: pattern solid, fore_colour light_yellow;")
     for tsvfile in tsvfiles:
-	sheet = op.basename(tsvfile).split(".", 1)[0]
-	ws = wb.add_sheet(sheet)
-	fp = open(tsvfile, 'rb')
-	reader = csv.reader(fp, delimiter="\t")
-	for r, row in enumerate(reader):
+        sheet = op.basename(tsvfile).split(".", 1)[0]
+        ws = wb.add_sheet(sheet)
+        fp = open(tsvfile, 'rb')
+        reader = csv.reader(fp, delimiter="\t")
+        for r, row in enumerate(reader):
             style = header if r == 0 else horiz_center
-	    for c, col in enumerate(row):
-                if c == 0 and r:
-                    style = {"Correct": correct, "Error": error,
-                             "Missing": missing}[col]
-		ws.write(r, c, converter(col), style)
-        ws.set_panes_frozen(True)
-        ws.set_horz_split_pos(1)
+            for c, col in enumerate(row):
+                    if c == 0 and r:
+                        style = {"Correct": correct, "Error": error,
+                                "Missing": missing}[col]
+            ws.write(r, c, converter(col), style)
+            ws.set_panes_frozen(True)
+            ws.set_horz_split_pos(1)
 
     wb.save('Trios.xls')
     summary.close()
@@ -400,9 +403,9 @@ def mendelian_check(tp1, tp2, tpp, is_xlinked=False):
     tp1_sex, tp1_call = tp1[:2]
     tp2_sex, tp2_call = tp2[:2]
     tpp_sex, tpp_call = tpp[:2]
-    #tp1_evidence = sum(int(x) for x in tp1[2:])
-    #tp2_evidence = sum(int(x) for x in tp2[2:])
-    #tpp_evidence = sum(int(x) for x in tpp[2:])
+    # tp1_evidence = sum(int(x) for x in tp1[2:])
+    # tp2_evidence = sum(int(x) for x in tp2[2:])
+    # tpp_evidence = sum(int(x) for x in tpp[2:])
     tp1_call = call_to_ints(tp1_call)
     tp2_call = call_to_ints(tp2_call)
     tpp_call = call_to_ints(tpp_call)
@@ -412,7 +415,7 @@ def mendelian_check(tp1, tp2, tpp, is_xlinked=False):
         possible_progenies = set(tuple((x,)) for x in tp1_call)
     if -1 in tp1_call or -1 in tp2_call or -1 in tpp_call:
         tag = "Missing"
-    #elif tp1_evidence < 2 or tp2_evidence < 2 or tpp_evidence < 2:
+    # elif tp1_evidence < 2 or tp2_evidence < 2 or tpp_evidence < 2:
     #    tag = "Missing"
     else:
         tag = "Correct" if tpp_call in possible_progenies else "Error"
@@ -736,7 +739,7 @@ def mendelian(args):
                 duos.add(trio_or_duo)
             else:
                 trios.add(trio_or_duo)
-    #print "\n".join(allterms)
+    # print "\n".join(allterms)
     print("A total of {} families imported".format(len(js)))
 
     # Read in all data

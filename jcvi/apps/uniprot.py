@@ -10,7 +10,9 @@ import os.path as op
 import sys
 import time
 import logging
-import urllib, urllib2
+from six.moves.urllib.parse import urlencode
+from six.moves.urllib.request import Request, urlopen
+from six.moves.urllib.error import HTTPError, URLError
 
 from jcvi.formats.base import must_open
 from jcvi.apps.base import OptionParser, ActionDispatcher
@@ -18,12 +20,13 @@ from jcvi.apps.base import OptionParser, ActionDispatcher
 
 uniprot_url = "http://www.uniprot.org/uniprot/"
 
-valid_formats = ["html", "tab", "xls", "fasta", "gff", "txt", "xml", "rdf", "list", "rss"]
+valid_formats = ["html", "tab", "xls", "fasta",
+                 "gff", "txt", "xml", "rdf", "list", "rss"]
 valid_columns = ["citation", "clusters", "comments", "database", "domains", "domain", "ec",
-                "id", "entry name", "existence", "families", "features", "genes", "go", "go-id",
-                "interpro", "interactor", "keywords", "keyword-id", "last-modified", "length",
-                "organism", "organism-id", "pathway", "protein names", "reviewed", "score",
-                "sequence", "3d", "subcellular locations", "taxon", "tools", "version", "virus hosts"]
+                 "id", "entry name", "existence", "families", "features", "genes", "go", "go-id",
+                 "interpro", "interactor", "keywords", "keyword-id", "last-modified", "length",
+                 "organism", "organism-id", "pathway", "protein names", "reviewed", "score",
+                 "sequence", "3d", "subcellular locations", "taxon", "tools", "version", "virus hosts"]
 
 valid_column_formats = ["tab", "xls"]
 valid_include_formats = ["fasta", "rdf"]
@@ -33,10 +36,9 @@ def main():
 
     actions = (
         ('fetch', 'fetch records from uniprot. input is a list of query terms'),
-        )
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
-
 
 
 def fetch(args):
@@ -58,19 +60,19 @@ def fetch(args):
     p = OptionParser(fetch.__doc__)
 
     p.add_option("--format", default="tab", choices=valid_formats,
-            help="download format [default: %default]")
+                 help="download format [default: %default]")
     p.add_option("--columns", default="entry name, protein names, genes,organism",
-            help="columns to download, if --format is `tab` or `xls`." +
-            " [default: %default]")
+                 help="columns to download, if --format is `tab` or `xls`." +
+                 " [default: %default]")
     p.add_option("--include", default=False, action="store_true",
-            help="Include isoforms when --format is `fasta` or include `description` when" +
-            " --format is `rdf`. [default: %default]");
+                 help="Include isoforms when --format is `fasta` or include `description` when" +
+                 " --format is `rdf`. [default: %default]")
     p.add_option("--limit", default=10, type="int",
-            help="Max number of results to retrieve [default: %default]")
+                 help="Max number of results to retrieve [default: %default]")
     p.add_option("--offset", default=0, type="int",
-            help="Offset of first result, used with --limit [default: %default]")
+                 help="Offset of first result, used with --limit [default: %default]")
     p.add_option("--skipcheck", default=False, action="store_true",
-            help="turn off prompt to check file existence [default: %default]")
+                 help="turn off prompt to check file existence [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -110,8 +112,8 @@ def fetch(args):
     outfile = "{0}.{1}".format(pf, opts.format)
 
     # If noprompt, will not check file existence
-    fw = must_open(outfile, "w", checkexists=True, \
-            skipcheck=opts.skipcheck)
+    fw = must_open(outfile, "w", checkexists=True,
+                   skipcheck=opts.skipcheck)
     if fw is None:
         return
 
@@ -123,11 +125,11 @@ def fetch(args):
 
         url_params['query'] = query
 
-        data = urllib.urlencode(url_params)
+        data = urlencode(url_params)
         try:
-            request = urllib2.Request(uniprot_url, data)
-            response = urllib2.urlopen(request)
-        except (urllib2.HTTPError, urllib2.URLError,
+            request = Request(uniprot_url, data)
+            response = urlopen(request)
+        except (HTTPError, URLError,
                 RuntimeError, KeyError) as e:
             logging.error(e)
             logging.debug("wait 5 seconds to reconnect...")
@@ -143,8 +145,8 @@ def fetch(args):
         seen.add(query)
 
     if seen:
-        print("A total of {0} out of {1} queries returned results.".\
-                format(len(seen), len(list_of_queries)), file=sys.stderr)
+        print("A total of {0} out of {1} queries returned results.".
+              format(len(seen), len(list_of_queries)), file=sys.stderr)
 
 
 if __name__ == '__main__':

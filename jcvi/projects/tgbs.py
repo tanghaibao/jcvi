@@ -6,7 +6,7 @@ Reference-free tGBS related functions.
 """
 from __future__ import print_function
 
-import cPickle
+from six.moves.cPickle import dump, load
 import os
 import os.path as op
 import logging
@@ -22,7 +22,7 @@ from jcvi.apps.gmap import check_index
 from jcvi.apps.grid import MakeManager
 from jcvi.graphics.base import plt, savefig, normalize_axes
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh, \
-            iglob, mkdir
+    iglob, mkdir
 
 
 speedupsh = r"""
@@ -60,7 +60,7 @@ def main():
         ('mstmap', 'convert LMDs to MSTMAP input'),
         ('query', 'random access to loci file'),
         ('synteny', 'plot mst map against reference genome'),
-            )
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -80,11 +80,11 @@ def build_index(locifile):
                 continue
             tag, contig = line.split()[:2]
             idx[contig] = pos
-        cPickle.dump(idx, fw)
+        dump(idx, fw)
         fw.close()
         return idx
 
-    idx = cPickle.load(open(idxfile))
+    idx = load(open(idxfile))
     return idx
 
 
@@ -229,7 +229,7 @@ def weblogo(args):
     fw_R = open("R.fasta", "w")
     fastq = fastqfile.endswith(".fastq")
     it = iter_fastq(fastqfile) if fastq else \
-           SeqIO.parse(must_open(fastqfile), "fasta")
+        SeqIO.parse(must_open(fastqfile), "fasta")
     for rec in it:
         k += 1
         if k % 1000 == 0:
@@ -306,7 +306,8 @@ def count(args):
         if "with" in desc:
             name, w, size, seqs = desc.split()
             if csv:
-                print("\t".join(str(x) for x in (name, size, len(rec))), file=csv)
+                print("\t".join(str(x)
+                                for x in (name, size, len(rec))), file=csv)
             assert w == "with"
             sizes.append(int(size))
         # MRD85:00603:02472;size=167;
@@ -362,15 +363,15 @@ def novo(args):
     jf = pf + "-K23.histogram"
     if need_update(diginormfile, jf):
         jellyfish([diginormfile, "--prefix={0}".format(pf),
-                    "--cpus={0}".format(cpus),
-                    "--jellyfish_home={0}".format(opts.jellyfish_home)])
+                   "--cpus={0}".format(cpus),
+                   "--jellyfish_home={0}".format(opts.jellyfish_home)])
 
     genomesize = histogram([jf, pf, "23"])
     fiona = pf + ".fiona.fa"
     if need_update(diginormfile, fiona):
         cmd = op.join(opts.fiona_home, "fiona")
         cmd += " -g {0} -nt {1} --sequencing-technology {2}".\
-                    format(genomesize, cpus, opts.technology)
+            format(genomesize, cpus, opts.technology)
         cmd += " -vv {0} {1}".format(diginormfile, fiona)
         logfile = pf + ".fiona.log"
         sh(cmd, outfile=logfile, errfile=logfile)
@@ -393,14 +394,14 @@ def novo(args):
     finalfile = pf + ".final.fasta"
     if need_update(filteredfile, finalfile):
         format([filteredfile, finalfile, "--sequential=replace",
-                    "--prefix={0}_".format(pf)])
+                "--prefix={0}_".format(pf)])
 
 
 def scan_read_files(trimmed, patterns):
     reads = iglob(trimmed, patterns)
     samples = sorted(set(op.basename(x).split(".")[0] for x in reads))
-    logging.debug("Total {0} read files from {1} samples".\
-                    format(len(reads), len(samples)))
+    logging.debug("Total {0} read files from {1} samples".
+                  format(len(reads), len(samples)))
     return reads, samples
 
 
@@ -424,7 +425,7 @@ def novo2(args):
 
     # Set up directory structure
     clustdir = "uclust"
-    acdir ="allele_counts"
+    acdir = "allele_counts"
     for d in (clustdir, acdir):
         mkdir(d)
 
@@ -487,7 +488,7 @@ def snpflow(args):
     nseqs = len(Fasta(ref))
     supercat = nseqs >= 1000
     if supercat:
-        logging.debug("Total seqs in ref: {0} (supercat={1})".\
+        logging.debug("Total seqs in ref: {0} (supercat={1})".
                       format(nseqs, supercat))
 
     reads, samples = scan_read_files(trimmed, opts.names)
@@ -523,7 +524,7 @@ def snpflow(args):
         mm.add((f, db), nativefile, cmd)
 
         cmd = "python -m jcvi.apps.gmap bam {0} {1} --cpus=1".\
-                format(gsnapfile, gmapdb)
+            format(gsnapfile, gmapdb)
         mm.add(nativefile, samstatsfile, cmd)
         allnatives.append(nativefile)
         allsamstats.append(samstatsfile)
@@ -532,7 +533,8 @@ def snpflow(args):
     if supercat:
         nativeconverted = nativedir + "-converted"
         mkdir(nativeconverted)
-        allnativesc = [op.join(nativeconverted, op.basename(x)) for x in allnatives]
+        allnativesc = [op.join(nativeconverted, op.basename(x))
+                       for x in allnatives]
         cmd = "tGBS-Convert_Pseudo_Genome_NATIVE_Coordinates.pl"
         cmd += " -i {0}/*.native -o {1}".format(nativedir, nativeconverted)
         cmd += " -c {0}".format(coordsfile)
@@ -542,7 +544,8 @@ def snpflow(args):
         runfile = "speedup.sh"
         write_file(runfile, speedupsh.format(nativeconverted, opts.cpus))
         nativedir = nativeconverted
-        allsnps = [op.join(nativedir, "{0}.SNPs_Het.txt".format(x)) for x in samples]
+        allsnps = [
+            op.join(nativedir, "{0}.SNPs_Het.txt".format(x)) for x in samples]
         mm.add(allnativesc, allsnps, "./{0}".format(runfile))
     else:
         for s in samples:
@@ -550,11 +553,13 @@ def snpflow(args):
             cmd = "SNP_Discovery-short.pl"
             cmd += " -native {0}/{1}.*unique.native".format(nativedir, s)
             cmd += " -o {0} -a 2 -ac 0.3 -c 0.8".format(snpfile)
-            flist = [x for x in allnatives if op.basename(x).split(".")[0] == s]
+            flist = [x for x in allnatives if op.basename(x).split(".")[
+                0] == s]
             mm.add(flist, snpfile, cmd)
 
     # Step 3 - generate equal file
-    allsnps = [op.join(nativedir, "{0}.SNPs_Het.txt".format(x)) for x in samples]
+    allsnps = [op.join(nativedir, "{0}.SNPs_Het.txt".format(x))
+               for x in samples]
     for s in samples:
         equalfile = op.join(nativedir, "{0}.equal".format(s))
         cmd = "extract_reference_alleles.pl"
@@ -575,7 +580,8 @@ def snpflow(args):
     # Step 5 - generate allele counts
     allcounts = []
     for s in samples:
-        allele_counts = op.join(countsdir, "{0}.SNPs_Het.allele_counts".format(s))
+        allele_counts = op.join(
+            countsdir, "{0}.SNPs_Het.allele_counts".format(s))
         cmd = "count_reads_per_allele.pl -m snps.matrix.txt"
         cmd += " -s {0} --native {1}/{0}.*unique.native".format(s, nativedir)
         cmd += " -o {0}".format(allele_counts)
@@ -618,7 +624,8 @@ def snpplot(args):
     datafile, = args
     # Read in CDT file
     fp = open(datafile)
-    next(fp); next(fp)
+    next(fp)
+    next(fp)
     data = []
     for row in fp:
         atoms = row.split()[4:]

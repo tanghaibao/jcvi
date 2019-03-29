@@ -14,8 +14,10 @@ import logging
 import fnmatch
 import six
 
+from six.moves import input
 from six.moves.http_client import HTTPSConnection
 from six.moves.urllib.parse import urlencode
+from six.moves.configparser import ConfigParser, RawConfigParser, NoOptionError, NoSectionError, ParsingError
 from socket import gethostname
 from subprocess import PIPE, call, check_call
 from optparse import OptionParser as OptionP, OptionGroup, SUPPRESS_HELP
@@ -1326,10 +1328,8 @@ def pushnotify(subject, message, api="pushover", priority=0, timestamp=None):
     assert type(priority) is int and -1 <= priority <= 2, \
             "Priority should be and int() between -1 and 2"
 
-    import ConfigParser
-
     cfgfile = op.join(op.expanduser("~"), "pushnotify.ini")
-    Config = ConfigParser.ConfigParser()
+    Config = ConfigParser()
     if op.exists(cfgfile):
         Config.read(cfgfile)
     else:
@@ -1631,11 +1631,10 @@ def waitpid(args):
 
 
 def get_config(path):
-    import ConfigParser
-    config = ConfigParser.RawConfigParser()
+    config = RawConfigParser()
     try:
         config.read(path)
-    except configparser.ParsingError:
+    except ParsingError:
         e = sys.exc_info()[1]
         log_error_and_exit(logger, "There was a problem reading or parsing "
                            "your credentials file: %s" % (e.args[0],))
@@ -1648,14 +1647,12 @@ def getpath(cmd, name=None, url=None, cfg="~/.jcvirc", warn="exit"):
     First, check ~/.jcvirc file to get the full path
     If not present, ask on the console and store
     """
-    import ConfigParser
-
     p = which(cmd)  # if in PATH, just returns it
     if p:
         return p
 
     PATH = "Path"
-    config = ConfigParser.RawConfigParser()
+    config = RawConfigParser()
     cfg = op.expanduser(cfg)
     changed = False
     if op.exists(cfg):
@@ -1665,7 +1662,7 @@ def getpath(cmd, name=None, url=None, cfg="~/.jcvirc", warn="exit"):
 
     try:
         fullpath = config.get(PATH, name)
-    except ConfigParser.NoSectionError:
+    except NoSectionError:
         config.add_section(PATH)
         changed = True
     except:
@@ -1673,12 +1670,12 @@ def getpath(cmd, name=None, url=None, cfg="~/.jcvirc", warn="exit"):
 
     try:
         fullpath = config.get(PATH, name)
-    except ConfigParser.NoOptionError:
+    except NoOptionError:
         msg = "=== Configure path for {0} ===\n".format(name, cfg)
         if url:
             msg += "URL: {0}\n".format(url)
         msg += "[Directory that contains `{0}`]: ".format(cmd)
-        fullpath = raw_input(msg).strip()
+        fullpath = input(msg).strip()
         config.set(PATH, name, fullpath)
         changed = True
 

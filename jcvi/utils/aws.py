@@ -18,7 +18,7 @@ import getpass
 import six
 
 from datetime import datetime
-from ConfigParser import NoOptionError, NoSectionError
+from six.moves.configparser import NoOptionError, NoSectionError
 from multiprocessing import Pool
 from botocore.exceptions import ClientError, ParamValidationError
 

@@ -31,7 +31,8 @@ import sys
 import time
 import logging
 
-from urllib2 import urlopen, URLError, HTTPError
+from six.moves.urllib.request import urlopen
+from six.moves.urllib.error import HTTPError, URLError
 from ClientForm import ParseResponse
 from BeautifulSoup import BeautifulSoup
 
@@ -155,7 +156,7 @@ def main():
     actions = (
         ('newick', 'query a list of IDs to newick'),
         ('test', 'test taxonomy module'),
-            )
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 

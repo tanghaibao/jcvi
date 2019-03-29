@@ -13,7 +13,7 @@ from __future__ import print_function
 import os.path as op
 import sys
 import logging
-import cPickle
+from six.moves.cPickle import dump, load
 
 import networkx as nx
 from random import choice
@@ -285,10 +285,10 @@ def overlap(args):
                 continue
             j = int(row.split()[0])
             exclude.add(j)
-        cPickle.dump(exclude, fw)
+        dump(exclude, fw)
         fw.close()
 
-    exclude = cPickle.load(open(bestcontainscache))
+    exclude = load(open(bestcontainscache))
     logging.debug("A total of {0} reads to exclude".format(len(exclude)))
 
     cmd = "overlapStore -d ../asm.ovlStore -b {0} -e {0}".format(iid)
@@ -359,11 +359,11 @@ def parse_ctgs(bestedges, frgtoctg):
             logging.debug("Loaded mapping: {0}".format(len(reads_to_ctgs)))
 
         fw = open(cache, "w")
-        cPickle.dump(reads_to_ctgs, fw)
+        dump(reads_to_ctgs, fw)
         fw.close()
         logging.debug("Contig mapping written to `{0}`".format(cache))
 
-    reads_to_ctgs = cPickle.load(open(cache))
+    reads_to_ctgs = load(open(cache))
     logging.debug("Contig mapping loaded from `{0}`".format(cache))
     return reads_to_ctgs
 
@@ -414,7 +414,7 @@ def read_graph(bestedges, maxerr=100, directed=False):
 
         if directed:
             fw = open(bestgraph, "w")
-            cPickle.dump(G, fw)
+            dump(G, fw)
             fw.close()
         else:
             nx.write_gpickle(G, bestgraph)
@@ -445,7 +445,7 @@ def read_graph(bestedges, maxerr=100, directed=False):
 
     logging.debug("Read graph from `{0}`".format(bestgraph))
     if directed:
-        G = cPickle.load(open(bestgraph))
+        G = load(open(bestgraph))
     else:
         G = nx.read_gpickle(bestgraph)
         graph_stats(G)

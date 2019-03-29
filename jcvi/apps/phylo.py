@@ -36,7 +36,7 @@ from itertools import chain
 from functools import partial
 
 import numpy as np
-from ete2 import Tree
+from ete3 import Tree
 from Bio import SeqIO, AlignIO
 from Bio.Data import CodonTable
 from Bio.Emboss.Applications import FSeqBootCommandline, FDNADistCommandline, \

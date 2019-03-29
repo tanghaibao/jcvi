@@ -6,7 +6,7 @@ import sys
 import os.path as op
 import logging
 
-from ete2 import Tree
+from ete3 import Tree
 
 from jcvi.formats.sizes import Sizes
 from jcvi.formats.base import DictFile

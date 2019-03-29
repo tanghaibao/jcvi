@@ -1,5 +1,4 @@
 biopython
-bx-python
 boto3
 coveralls
 cython
@@ -10,7 +9,6 @@ matplotlib
 networkx
 numpy
 graphviz
-pypandoc
 PyPDF2
 pysam
 pytest

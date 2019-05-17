@@ -2,6 +2,7 @@ biopython
 boto3
 coveralls
 cython
+deap
 ete3
 gffutils
 jinja2

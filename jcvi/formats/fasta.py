@@ -242,7 +242,7 @@ class ORFFinder (object):
             self.sequence = self.seq
             if direction == "-":
                 self.sequence = rc(self.sequence)
-            for frame in xrange(3):
+            for frame in range(3):
                 self.scan_sequence(frame, direction)
 
         strand, frame, start, end, length = self.result
@@ -389,7 +389,7 @@ def simulate_one(fw, name, size):
     Simulate a random sequence with name and size
     """
     from random import choice
-    seq = Seq(''.join(choice('ACGT') for _ in xrange(size)))
+    seq = Seq(''.join(choice('ACGT') for _ in range(size)))
     s = SeqRecord(seq, id=name, description="Fake sequence")
     SeqIO.write([s], fw, "fasta")
 
@@ -798,7 +798,7 @@ def translate(args):
     represents a partial gene, therefore disrupting the frame of the protein.
     Check all three frames to get a valid translation.
     """
-    transl_tables = [str(x) for x in xrange(1,25)]
+    transl_tables = [str(x) for x in range(1,25)]
     p = OptionParser(translate.__doc__)
     p.add_option("--ids", default=False, action="store_true",
                  help="Create .ids file with the complete/partial/gaps "
@@ -834,12 +834,12 @@ def translate(args):
     for name, rec in f.iteritems_ordered():
         cds = rec.seq
         cdslen = len(cds)
-        peplen = cdslen / 3
+        peplen = cdslen // 3
         total += 1
 
         # Try all three frames
         pep = ""
-        for i in xrange(3):
+        for i in range(3):
             newcds = cds[i: i + peplen * 3]
             newpep = newcds.translate(table=opts.table)
             if len(newpep.split("*")[0]) > len(pep.split("*")[0]):

@@ -11,7 +11,11 @@ import os
 import os.path as op
 import json
 import sys
-import vcf
+try:
+    import vcf
+except ImportError:
+    pass
+
 import logging
 import pyfasta
 import numpy as np
@@ -1173,8 +1177,9 @@ def trf(args):
 
     bedfiles = []
     for fastafile in natsorted(iglob(outdir, "*.fa,*.fasta")):
-        pf = op.basename(fastafile).split(".")[0]
-        cmd1 = "trf {0} {1} -d -h".format(fastafile, " ".join(params))
+        pf = op.basename(fastafile).rsplit(".", 1)[0]
+        # Commands starting with trf ignores errors
+        cmd1 = "-trf {0} {1} -d -h".format(fastafile, " ".join(params))
         datfile = op.basename(fastafile) + "." + ".".join(params) + ".dat"
         bedfile = "{0}.trf.bed".format(pf)
         cmd2 = "cat {} | grep -v ^Parameters".format(datfile)

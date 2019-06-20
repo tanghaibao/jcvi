@@ -65,7 +65,7 @@ cdef bytes c_str(s):
 
     return s
 
-cdef str py_str(char* s):
+cdef unicode py_str(char* s):
     if s == NULL:
         return None
     else:

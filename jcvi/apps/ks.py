@@ -402,7 +402,7 @@ def fromgroups(args):
 def find_first_isoform(a, f):
     if a in f:
         return a
-    for i in xrange(100):
+    for i in range(100):
         ia = ".".join((a, str(i)))
         if ia in f:
             return ia
@@ -570,7 +570,7 @@ def find_synonymous(input_file, work_dir):
     row = output_h.readline()
     while row:
         if row.find("Nei & Gojobori") >=0:
-            for x in xrange(5):
+            for x in range(5):
                 row = next(output_h)
             dn_value_ng, ds_value_ng = row.split('(')[1].split(')')[0].split()
             break
@@ -638,7 +638,7 @@ def run_mrtrans(align_fasta, recs, work_dir, outfmt="paml"):
             rec.description = ""
         print(">{0}\n{1}".format(rec.id, prot_seqs[i]), file=align_h)
     align_h.close()
-    SeqIO.write(recs, file(nuc_file, "w"), "fasta")
+    SeqIO.write(recs, open(nuc_file, "w"), "fasta")
 
     # run the program
     cl = MrTransCommandline(align_file, nuc_file, output_file, outfmt=outfmt)
@@ -658,14 +658,14 @@ def clustal_align_protein(recs, work_dir, outfmt="fasta"):
     """
     fasta_file = op.join(work_dir, "prot-start.fasta")
     align_file = op.join(work_dir, "prot.aln")
-    SeqIO.write(recs, file(fasta_file, "w"), "fasta")
+    SeqIO.write(recs, open(fasta_file, "w"), "fasta")
 
     clustal_cl = ClustalwCommandline(cmd=CLUSTALW_BIN("clustalw2"),
             infile=fasta_file, outfile=align_file, outorder="INPUT",
             type="PROTEIN")
     stdout, stderr = clustal_cl()
 
-    aln_file = file(clustal_cl.outfile)
+    aln_file = open(clustal_cl.outfile)
     alignment = AlignIO.read(aln_file, "clustal")
     print("\tDoing clustalw alignment: %s" % clustal_cl, file=sys.stderr)
     if outfmt == "fasta":
@@ -681,7 +681,7 @@ def muscle_align_protein(recs, work_dir, outfmt="fasta", inputorder=True):
     """
     fasta_file = op.join(work_dir, "prot-start.fasta")
     align_file = op.join(work_dir, "prot.aln")
-    SeqIO.write(recs, file(fasta_file, "w"), "fasta")
+    SeqIO.write(recs, open(fasta_file, "w"), "fasta")
 
     muscle_cl = MuscleCommandline(cmd=MUSCLE_BIN("muscle"),
             input=fasta_file, out=align_file, seqtype="protein",
@@ -948,7 +948,7 @@ def plot_ks_dist(ax, data, interval, components, ks_max,
 
         line_mixture, = ax.plot(bins, y, ':', color=color, lw=3)
 
-        for i in xrange(components):
+        for i in range(components):
             peak_val = exp(mus[i])
             mixline = lognormpdf_mix(peak_val, probs, mus, variances, interval)
             ax.text(peak_val, mixline, "Ks=%.2f" % peak_val, \

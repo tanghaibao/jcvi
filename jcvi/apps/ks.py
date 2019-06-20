@@ -813,9 +813,9 @@ class KsLine:
         self.ks = self.ng_ks
         if ";" in self.name:
             self.gene_a, self.gene_b = self.name.split(";")
-        if strip_names:
-            self.gene_a = gene_name(self.gene_a)
-            self.gene_b = gene_name(self.gene_b)
+            if strip_names:
+                self.gene_a = gene_name(self.gene_a)
+                self.gene_b = gene_name(self.gene_b)
 
     def get_float(self, x):
         try:

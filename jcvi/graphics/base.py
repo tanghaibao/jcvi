@@ -314,7 +314,7 @@ def asciiplot(x, y, digit=1, width=50, title=None, char="="):
     if title:
         print(dark(title), file=sys.stderr)
 
-    az = ay * width / ay.max()
+    az = ay * width // ay.max()
     tx = [asciiaxis(x, digit=digit) for x in ax]
     rjust = max([len(x) for x in tx]) + 1
 

@@ -1,4 +1,5 @@
-#cython: boundscheck=False, wraparound=False, initializedcheck=False, cdivision=True
+# cython: boundscheck=False, wraparound=False, initializedcheck=False, cdivision=True
+# cython: language_level=2
 
 """
 Cythonized (fast) version of BlastLine
@@ -64,7 +65,7 @@ cdef bytes c_str(s):
 
     return s
 
-cdef unicode tounicode(char* s):
+cdef str py_str(char* s):
     if s == NULL:
         return None
     else:
@@ -101,15 +102,15 @@ cdef class BlastLine:
 
     property query:
         def __get__(self):
-            return self._query
-        def __set__(self, val):
-            strcpy(self._query, val)
+            return py_str(self._query)
+        def __set__(self, val: str):
+            strcpy(self._query, c_str(val))
 
     property subject:
         def __get__(self):
-            return self._subject
-        def __set__(self, val):
-            strcpy(self._subject, val)
+            return py_str(self._subject)
+        def __set__(self, val: str):
+            strcpy(self._subject, c_str(val))
 
     def __init__(self, s):
         sline = c_str(s)
@@ -161,7 +162,7 @@ cdef class BlastLine:
             self.sstart, self.sstop,
             self.evalue, self.score)
 
-        return result
+        return py_str(result)
 
     @property
     def has_score(self):
@@ -188,7 +189,7 @@ cdef class BlastLine:
                 self._query, self.qstart, self.qstop,
                 self.score, self.orientation)
 
-        return result
+        return py_str(result)
 
     def __reduce__(self):
         return create_blast_line, (

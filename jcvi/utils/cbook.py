@@ -223,7 +223,7 @@ def enumerate_reversed(sequence):
 
     Source: http://stackoverflow.com/questions/529424/traverse-a-list-in-reverse-order-in-python
     """
-    for index in reversed(xrange(len(sequence))):
+    for index in reversed(range(len(sequence))):
         yield index, sequence[index]
 
 
@@ -464,7 +464,7 @@ def fill(text, delimiter="", width=70):
     Wrap text with width per line
     """
     texts = []
-    for i in xrange(0, len(text), width):
+    for i in range(0, len(text), width):
         t = delimiter.join(text[i:i + width])
         texts.append(t)
     return "\n".join(texts)

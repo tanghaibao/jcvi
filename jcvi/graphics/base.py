@@ -5,7 +5,7 @@ from __future__ import print_function
 import os.path as op
 import sys
 import logging
-logging.getLogger().setLevel(logging.CRITICAL)
+logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
 from functools import partial
 
@@ -64,7 +64,7 @@ class TextHandler (object):
         return xmax - xmin, ymax - ymin
 
     def build_height_array(self, fig, start=1, stop=36):
-        for i in xrange(start, stop + 1):
+        for i in range(start, stop + 1):
             w, h = TextHandler.get_text_width_height(fig, size=i)
             self.heights.append((h, i))
 

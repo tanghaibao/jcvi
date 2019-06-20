@@ -257,7 +257,7 @@ def _score(cluster):
     """
     score of the cluster, in this case, is the number of non-repetitive matches
     """
-    x, y = zip(*cluster)[:2]
+    x, y = list(zip(*cluster))[:2]
     return min(len(set(x)), len(set(y)))
 
 
@@ -1270,7 +1270,7 @@ def write_details(fw, details, bed):
     Write per gene depth to file
     """
     for a, b, depth in details:
-        for i in xrange(a, b):
+        for i in range(a, b):
             gi = bed[i].accn
             print("\t".join((gi, str(depth))), file=fw)
 

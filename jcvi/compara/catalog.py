@@ -614,6 +614,9 @@ def ortholog(args):
     p.add_option("--quota", help="Quota align parameter")
     p.add_option("--nostdpf", default=False, action="store_true",
             help="Do not standardize contig names")
+    p.add_option("--genomenames", type="string", default=None,
+            help="genome names for labeling axes in the form of qname_sname, " \
+            "eg. \"*Vitis vinifera*_*Oryza sativa*\"")
     p.add_option("--no_strip_names", default=False, action="store_true",
             help="Do not strip alternative splicing "
             "(e.g. At5g06540.1 -> At5g06540)")
@@ -671,6 +674,8 @@ def ortholog(args):
             dargs = [anchors]
             if opts.nostdpf:
                 dargs += ["--nostdpf", "--skipempty"]
+            if opts.genomenames:
+                dargs += ["--genomenames", opts.genomenames]
             dotplot_main(dargs)
         return
 

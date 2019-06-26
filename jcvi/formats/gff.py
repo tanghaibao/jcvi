@@ -2683,7 +2683,7 @@ def load(args):
     from jcvi.formats.fasta import Seq, SeqRecord
 
     # can request output fasta sequence id to be picked from following attributes
-    valid_id_attributes = ["ID", "Name", "Parent", "Alias", "Target"]
+    valid_id_attributes = ["ID", "Name", "Parent", "Alias", "Target", "orig_protein_id"]
 
     p = OptionParser(load.__doc__)
     p.add_option("--parents", dest="parents", default="mRNA",

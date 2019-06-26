@@ -157,6 +157,8 @@ def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
     else:
         to_ax_label = lambda fname: op.basename(fname).split(".")[0]
         gx, gy = [to_ax_label(x.filename) for x in (qbed, sbed)]
+
+    # Stylize the axis labels
     gx, gy = markup(gx), markup(gy)
 
     qorder = qbed.order
@@ -282,7 +284,7 @@ def dotplot_main(args):
             help="Maximum value in the colormap [default: %default]")
     p.add_option("--genomenames", type="string", default=None,
             help="genome names for labeling axes in the form of qname_sname, " \
-            "eg. \"Vitis vinifera_Oryza sativa\"")
+            "eg. \"*Vitis vinifera*_*Oryza sativa*\"")
     p.add_option("--nmax", dest="sample_number", type="int", default=10000,
             help="Maximum number of data points to plot [default: %default]")
     p.add_option("--minfont", type="int", default=4,
@@ -299,7 +301,7 @@ def dotplot_main(args):
             help="Skip seqids that do not have matches")
     p.add_option("--title", help="Title of the dot plot")
     p.set_outfile(outfile=None)
-    opts, args, iopts = p.set_image_options(args, figsize="8x8",
+    opts, args, iopts = p.set_image_options(args, figsize="9x9",
                                             style="dark", dpi=90, cmap="copper")
 
     if len(args) != 1:

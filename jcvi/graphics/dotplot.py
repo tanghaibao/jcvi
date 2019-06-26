@@ -282,9 +282,6 @@ def dotplot_main(args):
             help="Minimum value in the colormap [default: %default]")
     p.add_option("--vmax", dest="vmax", type="float", default=2,
             help="Maximum value in the colormap [default: %default]")
-    p.add_option("--genomenames", type="string", default=None,
-            help="genome names for labeling axes in the form of qname_sname, " \
-            "eg. \"*Vitis vinifera*_*Oryza sativa*\"")
     p.add_option("--nmax", dest="sample_number", type="int", default=10000,
             help="Maximum number of data points to plot [default: %default]")
     p.add_option("--minfont", type="int", default=4,
@@ -295,11 +292,8 @@ def dotplot_main(args):
             help="Do not sort the seqids along the axes")
     p.add_option("--nosep", default=False, action="store_true",
             help="Do not add contig lines")
-    p.add_option("--nostdpf", default=False, action="store_true",
-            help="Do not standardize contig names")
-    p.add_option("--skipempty", default=False, action="store_true",
-            help="Skip seqids that do not have matches")
     p.add_option("--title", help="Title of the dot plot")
+    p.set_dotplot_opts()
     p.set_outfile(outfile=None)
     opts, args, iopts = p.set_image_options(args, figsize="9x9",
                                             style="dark", dpi=90, cmap="copper")

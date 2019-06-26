@@ -405,6 +405,19 @@ class OptionParser (OptionP):
 
         return opts, args, ImageOptions(opts)
 
+    def set_dotplot_opts(self):
+        """Used in compara.catalog and graphics.dotplot
+        """
+        group = OptionGroup(self, "Dot plot parameters")
+        group.add_option("--skipempty", default=False, action="store_true",
+                help="Skip seqids that do not have matches")
+        group.add_option("--nostdpf", default=False, action="store_true",
+                help="Do not standardize contig names")
+        group.add_option("--genomenames", type="string", default=None,
+                help="genome names for labeling axes in the form of qname_sname, " \
+                "eg. \"*Vitis vinifera*_*Oryza sativa*\"")
+        self.add_option_group(group)
+
     def set_depth(self, depth=50):
         self.add_option("--depth", default=depth, type="float",
                      help="Desired depth [default: %default]")

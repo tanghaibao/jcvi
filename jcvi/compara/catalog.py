@@ -17,7 +17,7 @@ from jcvi.formats.base import must_open, BaseFile
 from jcvi.utils.grouper import Grouper
 from jcvi.utils.cbook import gene_name
 from jcvi.compara.synteny import AnchorFile, check_beds
-from jcvi.apps.base import OptionParser, glob, ActionDispatcher, \
+from jcvi.apps.base import OptionParser, OptionGroup, glob, ActionDispatcher, \
             need_update, sh, mkdir
 
 
@@ -612,14 +612,11 @@ def ortholog(args):
     p.add_option("--dist", default=20, type="int",
                  help="Extent of flanking regions to search")
     p.add_option("--quota", help="Quota align parameter")
-    p.add_option("--nostdpf", default=False, action="store_true",
-            help="Do not standardize contig names")
-    p.add_option("--genomenames", type="string", default=None,
-            help="genome names for labeling axes in the form of qname_sname, " \
-            "eg. \"*Vitis vinifera*_*Oryza sativa*\"")
     p.add_option("--no_strip_names", default=False, action="store_true",
             help="Do not strip alternative splicing "
             "(e.g. At5g06540.1 -> At5g06540)")
+    p.set_dotplot_opts()
+
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -673,7 +670,9 @@ def ortholog(args):
             from jcvi.graphics.dotplot import dotplot_main
             dargs = [anchors]
             if opts.nostdpf:
-                dargs += ["--nostdpf", "--skipempty"]
+                dargs += ["--nostdpf"]
+            if opts.skipempty:
+                dargs += ["--skipempty"]
             if opts.genomenames:
                 dargs += ["--genomenames", opts.genomenames]
             dotplot_main(dargs)

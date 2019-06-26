@@ -360,11 +360,10 @@ def must_open(filename, mode="r", checkexists=False, skipcheck=False, \
         fp = NamedTemporaryFile(delete=False)
 
     elif filename.endswith(".gz"):
+        import gzip
         if 'r' in mode:
-            cmd = "gunzip -c {0}".format(filename)
-            fp = popen(cmd, debug=False)
+            fp = gzip.open(filename, mode + 't')
         elif 'w' in mode:
-            import gzip
             fp = gzip.open(filename, mode)
 
     elif filename.endswith(".bz2"):

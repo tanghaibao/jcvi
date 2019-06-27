@@ -33,7 +33,7 @@ from jcvi.formats.base import LineFile, must_open
 from jcvi.formats.bed import Bed
 from jcvi.formats.sizes import Sizes
 from jcvi.formats.blast import Blast
-from jcvi.graphics.base import normalize_axes, plt, savefig
+from jcvi.graphics.base import latex, normalize_axes, plt, savefig
 from jcvi.graphics.dotplot import dotplot
 from jcvi.utils.cbook import gene_name, human_size
 from jcvi.utils.natsort import natsorted
@@ -609,7 +609,7 @@ def heatmap(args):
     root = fig.add_axes([0, 0, 1, 1])       # whole canvas
     ax = fig.add_axes([.05, .05, .9, .9])   # just the heatmap
 
-    breaks = header["starts"].values()
+    breaks = list(header["starts"].values())
     breaks += [header["total_bins"]]   # This is actually discarded
     breaks = sorted(breaks)[1:]
     if contig or opts.nobreaks:
@@ -621,7 +621,7 @@ def heatmap(args):
     title = pf
     if contig:
         title += "-{}".format(contig)
-    root.text(.5, .98, title, color="darkslategray", size=18,
+    root.text(.5, .98, latex(title), color="darkslategray", size=18,
               ha="center", va="center")
 
     normalize_axes(root)
@@ -669,7 +669,7 @@ def get_seqstarts(bamfile, N):
     for kv in bamfile.header["SQ"]:
         if kv["LN"] < 10 * N:
             continue
-        seqsize[kv["SN"]] = kv["LN"] / N + 1
+        seqsize[kv["SN"]] = kv["LN"] // N + 1
 
     allseqs = natsorted(seqsize.keys())
     allseqsizes = np.array([seqsize[x] for x in allseqs])
@@ -729,7 +729,16 @@ def bam2mat(args):
     header = {"starts": seqstarts, "sizes": seqsize, "total_bins": total_bins,
               "distbinstarts": list(distbinstarts),
               "distbinsizes": list(distbinsizes)}
-    json.dump(header, fwjson, sort_keys=True, indent=4)
+
+    # int64 will not be able to deserialize with Python 3
+    # Here is a workaround:
+    # https://stackoverflow.com/questions/11942364/typeerror-integer-is-not-json-serializable-when-serializing-json-in-python
+    def default(o):
+        if isinstance(o, np.int64):
+            return int(o)
+        raise TypeError
+
+    json.dump(header, fwjson, sort_keys=True, indent=4, default=default)
     fwjson.close()
     logging.debug("Contig bin starts written to `{}`".format(jsonfile))
 
@@ -741,7 +750,7 @@ def bam2mat(args):
 
     # Find the bin ID of each read
     def bin_number(chr, pos):
-        return seqstarts[chr] + pos / N
+        return seqstarts[chr] + pos // N
 
     def distbin_number(dist, start=minsize, ratio=1.01):
         return int(round(math.log(dist * 1.0 / start, ratio)))

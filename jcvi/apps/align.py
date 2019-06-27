@@ -109,7 +109,8 @@ def main():
         ('blasr', 'run blasr on a set of pacbio reads'),
         ('nucmer', 'run nucmer using query against reference'),
         ('last', 'run last using query against reference'),
-        ('lastgenome', 'run whole genome LAST and screen for 1-to-1 matches'),
+        ('lastgenome', 'run whole genome LAST'),
+        ('lastgenomeuniq', 'run whole genome LAST and screen for 1-to-1 matches'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -276,6 +277,45 @@ def blast(args):
 
 
 def lastgenome(args):
+    """
+    %prog genome_A.fasta genome_B.fasta
+
+    Run LAST by calling LASTDB, LASTAL. The script runs the following steps:
+    $ lastdb -P0 -uNEAR -R01 Chr10A-NEAR Chr10A.fa
+    $ lastal -E0.05 -C2 Chr10A-NEAR Chr10A.fa -fTAB > Chr10A.Chr10A.tab
+    $ last-dotplot Chr10A.Chr10A.tab
+    """
+    from jcvi.apps.grid import MakeManager
+
+    from jcvi.apps.grid import MakeManager
+
+    p = OptionParser(lastgenome.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    gA, gB = args
+    mm = MakeManager()
+    bb = lambda x : op.basename(x).rsplit(".", 1)[0]
+    gA_pf, gB_pf = bb(gA), bb(gB)
+
+    # Build LASTDB
+    dbname = "-".join((gA_pf, "NEAR"))
+    dbfile = dbname + ".suf"
+    build_db_cmd = "lastdb -P0 -uNEAR -R01 {} {}".format(dbfile, gA)
+    mm.add(gA, dbfile, build_db_cmd)
+
+    # Run LASTAL
+    tabfile = "{}.{}.tab".format(gA_pf, gB_pf)
+    lastal_cmd = "lastal -E0.05 -C2 {} {}".format(dbname, gB)
+    lastal_cmd += " -fTAB > {}".format(tabfile)
+    mm.add([dbfile, gB], tabfile, lastal_cmd)
+
+    mm.write()
+
+
+def lastgenomeuniq(args):
     """
     %prog genome_A.fasta genome_B.fasta
 

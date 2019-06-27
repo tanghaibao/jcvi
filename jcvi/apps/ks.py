@@ -206,6 +206,8 @@ class KsPlot (object):
             leg.get_frame().set_alpha(.5)
 
         ax.set_xlim((0, ks_max - self.interval))
+        ylim = ax.get_ylim()[-1]
+        ax.set_ylim(0, ylim)
         ax.set_title(markup(title), fontweight="bold")
         ax.set_xlabel(markup('Synonymous substitutions per site (*Ks*)'))
         ax.set_ylabel('Percentage of gene pairs')
@@ -235,7 +237,7 @@ def multireport(args):
     p = OptionParser(multireport.__doc__)
     p.set_outfile(outfile="Ks_plot.pdf")
     add_plot_options(p)
-    opts, args, iopts = p.set_image_options(args, figsize="5x5")
+    opts, args, iopts = p.set_image_options(args, figsize="6x6")
 
     if len(args) != 1:
         sys.exit(not p.print_help())

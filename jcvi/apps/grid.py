@@ -140,7 +140,7 @@ class WriteJobs (object):
             workerq.put(a)
 
         cpus = min(cpus, len(args))
-        for i in xrange(cpus):
+        for i in range(cpus):
             workerq.put(Poison())
 
         self.worker = Jobs(work, args=[(workerq, writerq, target)] * cpus)

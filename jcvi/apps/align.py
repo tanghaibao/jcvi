@@ -14,7 +14,7 @@ import logging
 
 from jcvi.utils.cbook import depends
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, get_abs_path, \
-            which
+            which, mkdir
 
 
 @depends
@@ -111,9 +111,63 @@ def main():
         ('last', 'run last using query against reference'),
         ('lastgenome', 'run whole genome LAST'),
         ('lastgenomeuniq', 'run whole genome LAST and screen for 1-to-1 matches'),
+        ('minimap', 'run minimap2 aligner'),
             )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def minimap(args):
+    """
+    %prog minimap ref.fasta query.fasta
+
+    Wrap minimap2 aligner using query against sequences. When query and ref
+    is the same, we are in "self-scan" mode (e.g. useful for finding internal
+    duplications resulted from mis-assemblies).
+    """
+    from jcvi.apps.grid import MakeManager
+    from jcvi.formats.fasta import Fasta
+
+    p = OptionParser(minimap.__doc__)
+    p.add_option("--chunks", type="int", default=2000000,
+                 help="Split ref.fasta into chunks of size in self-scan mode")
+    p.set_outdir(outdir="outdir")
+    p.set_cpus()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    ref, query = args
+    chunks = opts.chunks
+    outdir = opts.outdir
+    if ref != query:
+        raise NotImplementedError
+
+    # "self-scan" mode
+    # build faidx (otherwise, parallel make may complain)
+    sh("samtools faidx {}".format(ref))
+    f = Fasta(ref)
+    mkdir(outdir)
+    mm = MakeManager()
+    for name, size in f.itersizes():
+        start = 0
+        for end in range(chunks, size, chunks):
+            fafile = op.join(outdir, "{}_{}_{}.fa".format(name, start + 1, end))
+            cmd = "samtools faidx {} {}:{}-{} -o {}"\
+                    .format(ref, name, start + 1, end, fafile)
+            mm.add(ref, fafile, cmd)
+
+            paffile = fafile.rsplit(".", 1)[0] + ".paf"
+            cmd = "minimap2 -P {} {} > {}".format(fafile, fafile, paffile)
+            mm.add(fafile, paffile, cmd)
+
+            epsfile = fafile.rsplit(".", 1)[0] + ".eps"
+            cmd = "minidot {} > {}".format(paffile, epsfile)
+            mm.add(paffile, epsfile, cmd)
+            start += chunks
+
+    mm.write()
 
 
 def nucmer(args):
@@ -285,8 +339,6 @@ def lastgenome(args):
     $ lastal -E0.05 -C2 Chr10A-NEAR Chr10A.fa -fTAB > Chr10A.Chr10A.tab
     $ last-dotplot Chr10A.Chr10A.tab
     """
-    from jcvi.apps.grid import MakeManager
-
     from jcvi.apps.grid import MakeManager
 
     p = OptionParser(lastgenome.__doc__)

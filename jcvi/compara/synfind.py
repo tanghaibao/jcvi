@@ -81,7 +81,7 @@ def find_synteny_region(query, sbed, data, window, cutoff, colinear=False):
 
     a, b = tee(ysorted)
     next(b, None)
-    for ia, ib in izip(a, b):
+    for ia, ib in zip(a, b):
         pos1, pos2 = ia[1], ib[1]
         if pos2 - pos1 < window and sbed[pos1].seqid == sbed[pos2].seqid:
             g.join(ia, ib)

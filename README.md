@@ -3,19 +3,18 @@
 [![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.31631.svg)](https://doi.org/10.5281/zenodo.594205)
 [![Latest PyPI version](https://img.shields.io/pypi/v/jcvi.svg)](https://pypi.python.org/pypi/jcvi)
 [![Travis-CI](https://travis-ci.org/tanghaibao/jcvi.svg?branch=master)](https://travis-ci.org/tanghaibao/jcvi)
-[![Coverage Status](https://coveralls.io/repos/github/tanghaibao/jcvi/badge.svg)](https://coveralls.io/github/tanghaibao/jcvi)
 
 Collection of Python libraries to parse bioinformatics files, or perform
 computation related to assembly, annotation, and comparative genomics.
 
-| | |
-| --- | --- |
-| Authors | Haibao Tang ([tanghaibao](http://github.com/tanghaibao)) |
-| | Vivek Krishnakumar ([vivekkrish](https://github.com/vivekkrish)) |
-| | Jingping Li ([Jingping](https://github.com/Jingping)) |
-| | Xingtan Zhang ([tangerzhang](https://github.com/tangerzhang)) |
-| Email   | <tanghaibao@gmail.com> |
-| License | [BSD](http://creativecommons.org/licenses/BSD/) |
+|         |                                                                  |
+| ------- | ---------------------------------------------------------------- |
+| Authors | Haibao Tang ([tanghaibao](http://github.com/tanghaibao))         |
+|         | Vivek Krishnakumar ([vivekkrish](https://github.com/vivekkrish)) |
+|         | Jingping Li ([Jingping](https://github.com/Jingping))            |
+|         | Xingtan Zhang ([tangerzhang](https://github.com/tangerzhang))    |
+| Email   | <tanghaibao@gmail.com>                                           |
+| License | [BSD](http://creativecommons.org/licenses/BSD/)                  |
 
 ## Contents
 
@@ -23,12 +22,14 @@ Following modules are available as generic Bioinformatics handling
 methods.
 
 - `algorithms`
+
   - Linear programming solver with SCIP and GLPK.
   - Supermap: find set of non-overlapping anchors in BLAST or NUCMER output.
   - Longest or heaviest increasing subsequence.
   - Matrix operations.
 
 - `apps`
+
   - GenBank entrez accession, phytozome, ensembl and SRA downloader.
   - Calculate (non)synonymous substitution rate between gene pairs.
   - Basic phylogenetic tree construction using PHYLIP, PhyML, or RAxML, and viualization.
@@ -36,15 +37,16 @@ methods.
 
 - `formats`
 
-    Currently supports `.ace` format (phrap, cap3, etc.), `.agp`
-    (goldenpath), `.bed` format, `.blast` output, `.btab` format,
-    `.coords` format (`nucmer` output), `.fasta` format, `.fastq`
-    format, `.fpc` format, `.gff` format, `obo` format (ontology),
-    `.psl` format (UCSC blat, GMAP, etc.), `.posmap` format (Celera
-    assembler output), `.sam` format (read mapping), `.contig`
-    format (TIGR assembly format), etc.
+  Currently supports `.ace` format (phrap, cap3, etc.), `.agp`
+  (goldenpath), `.bed` format, `.blast` output, `.btab` format,
+  `.coords` format (`nucmer` output), `.fasta` format, `.fastq`
+  format, `.fpc` format, `.gff` format, `obo` format (ontology),
+  `.psl` format (UCSC blat, GMAP, etc.), `.posmap` format (Celera
+  assembler output), `.sam` format (read mapping), `.contig`
+  format (TIGR assembly format), etc.
 
 - `graphics`
+
   - BLAST or synteny dot plot.
   - Histogram using R and ASCII art.
   - Paint regions on set of chromosomes.
@@ -61,13 +63,15 @@ methods.
 Then there are modules that contain domain-specific methods.
 
 - `assembly`
+
   - K-mer histogram analysis.
   - Preparation and validation of tiling path for clone-based assemblies.
   - Scaffolding through BAMBUS, optical map and genetic map.
   - Pre-assembly and post-assembly QC procedures.
 
 - `annotation`
-  - Training of *ab initio* gene predictors.
+
+  - Training of _ab initio_ gene predictors.
   - Calculate gene, exon and intron statistics.
   - Wrapper for PASA and EVM.
   - Launch multiple MAKER processes.
@@ -88,7 +92,7 @@ graphics functionality for the production of publication-ready figures.
 ## Dependencies
 
 Following are a list of third-party python packages that are used by
-some routines in the library. These dependencies are *not* mandatory
+some routines in the library. These dependencies are _not_ mandatory
 since they are only used by a few modules.
 
 - [Biopython](http://www.biopython.org)
@@ -136,7 +140,7 @@ that are often used are:
 Most of the scripts in this package contains multiple actions. To use
 the `fasta` example:
 
-```bash
+```console
 Usage:
     python -m jcvi.formats.fasta ACTION
 
@@ -174,7 +178,7 @@ Available ACTIONs:
 
 Then you need to use one action, you can just do:
 
-```bash
+```console
 python -m jcvi.formats.fasta extract
 ```
 

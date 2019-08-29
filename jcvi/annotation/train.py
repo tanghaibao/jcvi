@@ -186,8 +186,9 @@ def augustus(args):
     if op.exists(target):
         logging.debug("Removing existing target `{0}`".format(target))
         sh("rm -rf {0}".format(target))
-
-    sh("{0}/scripts/new_species.pl --species={1}".format(mhome, species))
+        
+    config_path = "{0}/config".format(mhome)
+    sh("{0}/scripts/new_species.pl --species={1} --AUGUSTUS_CONFIG_PATH={2}".format(mhome, species, config_path))
     sh("{0}/scripts/gff2gbSmallDNA.pl ../{1} ../{2} 1000 raw.gb".\
             format(mhome, gffile, fastafile))
     sh("{0}/bin/etraining --species={1} raw.gb 2> train.err".\

@@ -2767,7 +2767,7 @@ def load(args):
                     continue
                 if desc_attr in g_fparent.attributes:
                     desc = ",".join(g_fparent.attributes[desc_attr])
-            elif desc_attr in feat.attributes:
+            if not desc and desc_attr in feat.attributes:
                 desc = ",".join(feat.attributes[desc_attr])
 
         if opts.full_header:

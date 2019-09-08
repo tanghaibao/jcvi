@@ -122,7 +122,7 @@ class CLMFile:
             if row[0] == '#':  # Header
                 continue
             atoms = row.split()
-            tig, size = atoms[:2]
+            tig, _, size = atoms
             size = int(size)
             if skiprecover and len(atoms) == 3 and atoms[2] == 'recover':
                 continue
@@ -234,7 +234,7 @@ class CLMFile:
             self.report_active()
             while True:
                 logdensities = self.calculate_densities()
-                lb, ub = outlier_cutoff(logdensities.values())
+                lb, ub = outlier_cutoff(list(logdensities.values()))
                 logging.debug("Log10(link_densities) ~ [{}, {}]"
                               .format(lb, ub))
                 remove = set(x for x, d in logdensities.items() if
@@ -851,19 +851,17 @@ def simulate(args):
     fw = open(idsfile, "w")
     print("#Contig\tRECounts\tLength", file=fw)
     for i, s in enumerate(ContigSizes):
-        print("tig{:04d}\t{}\t{}".format(i, s / (4 ** 4), s), file=fw)
+        print("tig{:04d}\t{}\t{}".format(i, s // (4 ** 4), s), file=fw)
     fw.close()
 
     # Simulate the gene positions
-    GenePositions = np.sort(np.random.random_integers(0,
-                            GenomeSize - 1, size=Genes))
+    GenePositions = np.sort(np.random.randint(0, GenomeSize, size=Genes))
     write_last_and_beds(pf, GenePositions, ContigStarts)
 
     # Simulate links, uniform start, with link distances following 1/x, where x
     # is the distance between the links. As an approximation, we have links
     # between [1e3, 1e7], so we map from uniform [1e-7, 1e-3]
-    LinkStarts = np.sort(np.random.random_integers(0, GenomeSize - 1,
-                                                   size=Links))
+    LinkStarts = np.sort(np.random.randint(0, GenomeSize, size=Links))
     a, b = 1e-7, 1e-3
     LinkSizes = np.array(np.round_(1 / ((b - a) * np.random.rand(Links) + a),
                          decimals=0), dtype="int")

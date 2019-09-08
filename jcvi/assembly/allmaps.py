@@ -1106,7 +1106,7 @@ def make_movie(workdir, pf, dpi=120, fps=1, format="pdf", engine="ffmpeg"):
                 .format(fps, pf)
     elif engine == "gifsicle":
         cmd  = "convert *.png gif:- |"
-        cmd += " gifsicle --delay {} --loop --optimize=3".format(100 / fps)
+        cmd += " gifsicle --delay {} --loop --optimize=3".format(100 // fps)
         cmd += " --colors=256 --multifile - > {}.gif".format(pf)
 
     sh(cmd)

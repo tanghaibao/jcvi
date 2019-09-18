@@ -51,6 +51,7 @@ methods.
   - Histogram using R and ASCII art.
   - Paint regions on set of chromosomes.
   - Macro-synteny and micro-synteny plots.
+  - Ribbon plots from whole genome alignments.
 
 - `utils`
   - Grouper can be used as disjoint set data structure.

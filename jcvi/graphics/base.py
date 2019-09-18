@@ -174,19 +174,19 @@ def panel_labels(ax, labels, size=16):
                         ha="center", va="center")
 
 
-def savefig(figname, dpi=150, iopts=None, cleanup=True):
+def savefig(figname, dpi=150, iopts=None, cleanup=True, transparent=False):
     try:
         format = figname.rsplit(".", 1)[-1].lower()
     except:
         format = "pdf"
     try:
-        plt.savefig(figname, dpi=dpi, format=format)
+        plt.savefig(figname, dpi=dpi, format=format, transparent=transparent)
     except Exception as e:
         message = "savefig failed. Reset usetex to False."
         message += "\n{0}".format(str(e))
         logging.error(message)
         rc('text', **{'usetex': False})
-        plt.savefig(figname, dpi=dpi)
+        plt.savefig(figname, dpi=dpi, transparent=transparent)
 
     msg = "Figure saved to `{0}`".format(figname)
     if iopts:

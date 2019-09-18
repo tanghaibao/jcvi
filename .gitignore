@@ -1,5 +1,8 @@
 # Created by http://www.gitignore.io
 
+# Ribbon testing
+ribbon_test/
+
 ### Python ###
 # Byte-compiled / optimized / DLL files
 __pycache__/

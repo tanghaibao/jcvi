@@ -134,6 +134,8 @@ def snap(args):
         sys.exit(not p.print_help())
 
     species, gffile, fastafile = args
+    gffile = os.path.abspath(gffile)
+    fastafile = os.path.abspath(fastafile)
     mhome = opts.maker_home
     snapdir = "snap"
     mkdir(snapdir)
@@ -143,9 +145,9 @@ def snap(args):
 
     newgffile = "training.gff3"
     logging.debug("Construct GFF file combined with sequence ...")
-    sh("cat ../{0} > {1}".format(gffile, newgffile))
+    sh("cat {0} > {1}".format(gffile, newgffile))
     sh('echo "##FASTA" >> {0}'.format(newgffile))
-    sh("cat ../{0} >> {1}".format(fastafile, newgffile))
+    sh("cat {0} >> {1}".format(fastafile, newgffile))
 
     logging.debug("Make models ...")
     sh("{0}/src/bin/maker2zff training.gff3".format(mhome))
@@ -175,6 +177,8 @@ def augustus(args):
         sys.exit(not p.print_help())
 
     species, gffile, fastafile = args
+    gffile = os.path.abspath(gffile)
+    fastafile = os.path.abspath(fastafile)
     mhome = opts.augustus_home
     augdir = "augustus"
 
@@ -189,7 +193,7 @@ def augustus(args):
         
     config_path = "{0}/config".format(mhome)
     sh("{0}/scripts/new_species.pl --species={1} --AUGUSTUS_CONFIG_PATH={2}".format(mhome, species, config_path))
-    sh("{0}/scripts/gff2gbSmallDNA.pl ../{1} ../{2} 1000 raw.gb".\
+    sh("{0}/scripts/gff2gbSmallDNA.pl {1} {2} 1000 raw.gb".\
             format(mhome, gffile, fastafile))
     sh("{0}/bin/etraining --species={1} raw.gb 2> train.err".\
             format(mhome, species))

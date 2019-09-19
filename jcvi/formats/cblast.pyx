@@ -58,18 +58,17 @@ cdef class Blast:
 
 # Python 2 and 3 differ in str and unicode handling
 # https://github.com/PySlurm/pyslurm/wiki/Strings-and-bytes-in-Cython
-cdef bytes c_str(s):
-    if PY_MAJOR_VERSION == 3 and isinstance(s, str):
-        # Only accept byte strings as text input in Python 2.x, not in Py3.
+cdef bytes c_str(str s):
+    if PY_MAJOR_VERSION == 3:
         return s.encode("UTF-8")
+    # On Py2 we convert str to bytes
+    return bytes(s)
 
-    return s
-
-cdef unicode py_str(char* s):
-    if s == NULL:
-        return None
-    else:
+cdef str py_str(bytes s):
+    if PY_MAJOR_VERSION == 3:
         return s.decode("UTF-8", "replace")
+    # On Py2 s.decode() returns a unicode
+    return str(s.decode("UTF-8", "replace"))
 
 
 cdef class BlastLine:

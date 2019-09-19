@@ -29,7 +29,7 @@ from jcvi.utils.natsort import natsorted
 nobreakbuffer = lambda: signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 nobreakbuffer()
 os.environ["LC_ALL"] = "C"
-JCVIHELP = "JCVI utility libraries v{} [{}]\n".format(__version__, __copyright__)
+JCVIHELP = "JCVI utility libraries {} [{}]\n".format(__version__, __copyright__)
 
 
 class ActionDispatcher (object):

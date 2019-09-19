@@ -62,7 +62,7 @@ cdef bytes c_str(str s):
     if PY_MAJOR_VERSION == 3:
         return s.encode("UTF-8")
     # On Py2 we convert str to bytes
-    return bytes(s, "UTF-8")
+    return bytes(s)
 
 cdef str py_str(bytes s):
     if PY_MAJOR_VERSION == 3:

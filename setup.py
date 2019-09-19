@@ -4,6 +4,7 @@ from __future__ import absolute_import
 
 import numpy as np
 import os.path as op
+import versioneer
 
 from setuptools import setup, find_packages, Extension
 from setup_helper import SetupHelper
@@ -46,11 +47,11 @@ setup(
     name=name,
     author=h.author,
     author_email=h.email,
-    version=h.version,
+    version=versioneer.get_version(),
     license=h.license,
     long_description=h.long_description,
     long_description_content_type="text/markdown",
-    cmdclass={"build_ext": build_ext},
+    cmdclass={"build_ext": build_ext, **versioneer.get_cmdclass()},
     packages=[name]
     + [".".join((name, x)) for x in find_packages("jcvi", exclude=["test*.py"])],
     include_package_data=True,

@@ -360,7 +360,7 @@ class Synteny (object):
         # genename: (orderedPosition, seqname, start, end, genename, score, strand)
         order = bed.order
         # Import synteny links (pairs of source > target IDs for features in BED file)
-        bf = BlockFile(blocks)
+        bf = BlockFile(blocks, defaultcolor='hide')
         # Import layout config
         self.layout = lo = Layout(layoutfile)
         
@@ -471,6 +471,8 @@ class Synteny (object):
             # Paint ribbons for which a highlight colour was set
             for ga, gb, h in bf.iter_pairs(i, j, highlight=True):
                 if not (i, ga) in gg.keys() or not (j, gb) in gg.keys():
+                    continue
+                if h == "hide":
                     continue
                 a, b = gg[(i, ga)], gg[(j, gb)]
                 ymid = (ymids[i] + ymids[j]) / 2

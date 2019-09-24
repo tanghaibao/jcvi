@@ -1,1 +1,3 @@
 include LICENSE* README* utils/data/* requirements.txt setup_helper.py
+include versioneer.py
+include jcvi/_version.py

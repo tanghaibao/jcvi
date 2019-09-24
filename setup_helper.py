@@ -13,7 +13,7 @@ class SetupHelper(object):
     """
 
     def __init__(self, initfile="__init__.py", readmefile="README.md"):
-        self.author, self.email, self.license, self.version = self.get_init(initfile)
+        self.author, self.email, self.license = self.get_init(initfile)
         self.author = ", ".join(self.author)
         self.long_description = self.get_long_description(readmefile)
 
@@ -46,11 +46,10 @@ class SetupHelper(object):
                 next(itr("__author__")),
                 next(itr("__email__")),
                 next(itr("__license__")),
-                next(itr("__version__")),
             )
         except StopIteration:
             raise ValueError(
-                "One of author, email, license, or version"
+                "One of author, email, license"
                 " cannot be found in {}".format(filename)
             )
 

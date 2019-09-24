@@ -90,7 +90,7 @@ def blastfilter_main(blast_file, p, opts):
         if key in seen:
             continue
         seen.add(key)
-        b.query, b.subject = key
+        b.query, b.subject = [ str(k) for k in key ]
 
         b.qi, b.si = qi, si
         b.qseqid, b.sseqid = q.seqid, s.seqid

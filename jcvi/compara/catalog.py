@@ -671,6 +671,8 @@ def ortholog(args):
             dargs = [anchors]
             if opts.nostdpf:
                 dargs += ["--nostdpf"]
+            if opts.nochpf:
+                dargs += ["--nochpf"]
             if opts.skipempty:
                 dargs += ["--skipempty"]
             if opts.genomenames:

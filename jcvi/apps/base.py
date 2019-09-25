@@ -411,6 +411,8 @@ class OptionParser (OptionP):
         group = OptionGroup(self, "Dot plot parameters")
         group.add_option("--skipempty", default=False, action="store_true",
                 help="Skip seqids that do not have matches")
+        group.add_option("--nochpf", default=False, action="store_true",
+                help="Do not change the contig name")
         group.add_option("--nostdpf", default=False, action="store_true",
                 help="Do not standardize contig names")
         group.add_option("--genomenames", type="string", default=None,

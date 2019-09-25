@@ -351,7 +351,7 @@ class Synteny (object):
                  orientation=None, tree=None, features=None,
                  chr_label=True, loc_label=True, pad=.05, vpad=.015,
                  scalebar=False, paintbyscore=False, paintbystrand=False, 
-                 prune_features=True, plotRibbonBlocks=False, annotcolor='g',scaleAlpha=False):
+                 prune_features=True, plotRibbonBlocks=False, annotcolor='g',scaleAlpha=False,noline=False):
         # Set figure dimensions
         w, h = fig.get_figwidth(), fig.get_figheight()
         # Import primary annotations from bedfile
@@ -464,7 +464,11 @@ class Synteny (object):
                     ribbonColor = self.inversionCheck(a,b)   
                 if paintbyscore:
                     baseAlpha = self.scoreCheck(a,scaleAlpha)
-                Shade(root, a, b, ymid, fc=ribbonColor, lw=0.1, alpha=baseAlpha)
+                if noline:
+                    lw = 0.0
+                else:
+                    lw = 0.1
+                Shade(root, a, b, ymid, fc=ribbonColor, lw=lw, alpha=baseAlpha)
                 # Add second low alpha ribbon track with thin outlines. Helps visualise very thin bands.
                 #Shade(root, a, b, ymid, fc=ribbonColor, lw=0.1, alpha=0.125)
 
@@ -587,6 +591,7 @@ def main():
     p.add_option("--annotcolor", default="g", help="Comma delimited string of color code for 'annotation' feature tracks. Default: 'g'.")
     p.add_option("--scaleAlpha", default=False, action="store_true", help="If set, ribbon alpha values will be rescaled from 0.5-1 to 0.15-0.95 Note: Assumes 50% min identity in alignments.")
     p.add_option("--transparent", default=False, action="store_true", help="If set, save image with transparent background.")
+    p.add_option("--noline", default=False, action="store_true", help="If set, do not draw outline on ribbons.")
     # Unpack options
     # opts = {'style': 'darkgrid', 'format': 'pdf', 'scalebar': False, 'extra': 'grape_peach_cacao.bed', 'tree': None, 'diverge': 'PiYG', 'cmap': 'jet', 'figsize': '8x7', 'font': 'Helvetica', 'dpi': 300}
     # args = positional args, data files
@@ -618,7 +623,7 @@ def main():
             orientation=flip, tree=opts.tree, features=opts.annotations,
             scalebar=opts.scalebar, paintbyscore=opts.paintbyscore, paintbystrand=opts.paintbystrand,
             prune_features=opts.noprune, plotRibbonBlocks=opts.plotHits, annotcolor=opts.annotcolor,
-            scaleAlpha=opts.scaleAlpha)
+            scaleAlpha=opts.scaleAlpha, noline=opts.noline)
     
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)

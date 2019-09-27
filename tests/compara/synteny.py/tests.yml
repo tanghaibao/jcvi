@@ -1,0 +1,13 @@
+scan:
+  action: scan
+  opts:
+  args: __DIR__/inputs/testtigs.testchr.last __TMP__/testtigs.testchr.anchors
+  outputs: [__TMP__/testtigs.testchr.anchors]
+  references: [references/testtigs.testchr.anchors]
+
+depth:
+  action: depth
+  opts:
+  args: __DIR__/inputs/testtigs.testchr.anchors
+  outputs: [stdout]
+  references: [references/testtigs.testchr.anchors]

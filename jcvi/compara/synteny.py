@@ -285,7 +285,7 @@ def read_blast(blast_file, qorder, sorder, is_self=False, ostrip=True):
     bl = Blast(blast_file)
     for b in bl:
         query, subject = b.query, b.subject
-        if query == subject:
+        if is_self and query == subject:
             continue
         if ostrip:
             query, subject = gene_name(query), gene_name(subject)
@@ -1115,7 +1115,7 @@ def stats(args):
 def get_best_pair(qs, ss, ts):
     pairs = {}
     for q, s, t in zip(qs, ss, ts):
-        t = long(t)
+        t = int(t[:-1]) if t[-1] == 'L' else int(t)
         if q not in pairs or pairs[q][1] < t:
             pairs[q] = (s, t)
 
@@ -1185,7 +1185,7 @@ def mcscan(args):
     if mergetandem:
         assert not ascii
         tandems = {}
-        for row in file(mergetandem):
+        for row in open(mergetandem):
             row = row.split()
             s = ";".join(row)
             for atom in row:
@@ -1347,7 +1347,7 @@ def depth(args):
     plt.figure(1, (6, 3))
     f, (ax1, ax2) = plt.subplots(1, 2, sharey=True)
 
-    xmax = opts.xmax or max(4, max(dsq.keys() + dss.keys()))
+    xmax = opts.xmax or max(4, max(list(dsq.keys()) + list(dss.keys())))
     if opts.quota:
         speak, qpeak = opts.quota.split(":")
         qpeak, speak = int(qpeak), int(speak)

@@ -48,25 +48,33 @@ class Capturing(list):
 LOG = open("test_scripts.log", "a")
 
 
-def pytest_generate_tests(metafunc):
+def generate_tests(metafunc, domain):
     """
     Generates a parametrized list of tests to execute
     """
-
     # ignore directories that don't exist as tests
     # ignore non-directories
-    script_dirs = glob.glob("tests/*/*.py")
+    script_dirs = glob.glob("tests/{}/*.py".format(domain))
     script_dirs = [x for x in script_dirs if op.exists(x) and op.isdir(x)]
     script_dirs.sort()
 
-    _test_argnames = ['test_name', 'script', 'action', 'options',
-                      'arguments', 'outputs', 'references', 'work_dir']
+    _test_argnames = [
+        "test_name",
+        "script",
+        "action",
+        "options",
+        "arguments",
+        "outputs",
+        "references",
+        "work_dir",
+    ]
+    _test_argvalues = []
 
     for script_dir in script_dirs:
         script_name = script_dir.replace("tests/", "")
         _script = op.abspath(script_name)
         # We need: jcvi.formats.gff
-        script_name = script_name[:script_name.rfind(".py")].replace('/', '.')
+        script_name = script_name[: script_name.rfind(".py")].replace("/", ".")
         _script = "jcvi." + script_name
 
         yamlconf = "{0}/tests.yml".format(script_dir)
@@ -76,26 +84,32 @@ def pytest_generate_tests(metafunc):
         script_tests = yaml.safe_load(open(yamlconf))
 
         # run each test defined in SCRIPT/ACTION.py/tests.yml
-        _test_argvalues = []
         for test_name, test_params in sorted(script_tests.items()):
             _test_argvalues.append(
-                (test_name, _script, test_params["action"],
-                 test_params["opts"], test_params["args"],
-                 test_params["outputs"], test_params["references"],
-                 script_dir)
+                (
+                    test_name,
+                    _script,
+                    test_params["action"],
+                    test_params["opts"],
+                    test_params["args"],
+                    test_params["outputs"],
+                    test_params["references"],
+                    script_dir,
+                )
             )
 
     metafunc.parametrize(_test_argnames, _test_argvalues)
 
 
-def test_script(test_name, script, action, options, arguments, outputs,
-                references, work_dir):
+def test_script(
+    test_name, script, action, options, arguments, outputs, references, work_dir
+):
     """
     Runs a parametrized test with the following parameters
 
     :param test_name:  Unique name of the test
-    :param script:     jcvi.formats.SCRIPT to invoke (e.g. `jcvi.formats.gff`)
-    :param action:     jcvi.formats.SCRIPT ACTION to invoke (e.g. `format`)
+    :param script:     SCRIPT to invoke (e.g. `jcvi.formats.gff`)
+    :param action:     SCRIPT ACTION to invoke (e.g. `format`)
     :param options:    Options to be passed (e.g. `--remove_feats=chromosome,protein`)
     :param arguments:  Arguments to be passed (e.g. `sample_input.gff`)
     :param outputs:    List of output files to collect
@@ -116,9 +130,9 @@ def test_script(test_name, script, action, options, arguments, outputs,
 
     stdout, stderr = op.join(tmp_dir, "stdout"), op.join(tmp_dir, "stderr")
 
-    cmd = ("python %(script)s %(action)s"
-           " %(opts)s %(args)s"
-           " > %(stdout)s") % locals()
+    cmd = (
+        "python %(script)s %(action)s" " %(opts)s %(args)s" " > %(stdout)s"
+    ) % locals()
 
     # proc = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, \
     #                 cwd=tmp_dir, shell=True)
@@ -148,25 +162,32 @@ def test_script(test_name, script, action, options, arguments, outputs,
             if not op.exists(output):
                 fail = True
                 log_msg = "Error: output file `{0}` does not exist: {1}".format(
-                    output, cmd)
+                    output, cmd
+                )
 
             reference = op.join(work_dir, reference)
             if not fail and not op.exists(reference):
                 fail = True
-                log_msg = "Error: reference file `{0}` does not exist ({1}): {2}".format(reference,
-                                                                                         tmp_dir, cmd)
+                log_msg = "Error: reference file `{0}` does not exist ({1}): {2}".format(
+                    reference, tmp_dir, cmd
+                )
 
             if not fail:
                 for outline, refline in zip(_read(output), _read(reference)):
-                    if outline != refline:  # perform line-by-line comparison of output against reference
+                    if (
+                        outline != refline
+                    ):  # perform line-by-line comparison of output against reference
                         fail = True
-                        log_msg = ("Error: files `{0}` and `{1}` are not the same\n".format(output, reference) +
-                                   "{0}\nmd5: output={1} reference={2}").format(cmd,
-                                                                                _md5sum(output), _md5sum(reference))
+                        log_msg = (
+                            "Error: files `{0}` and `{1}` are not the same\n".format(
+                                output, reference
+                            )
+                            + "{0}\nmd5: output={1} reference={2}"
+                        ).format(cmd, _md5sum(output), _md5sum(reference))
                         break
 
     end_time = time.time()
-    LOG.write("{0}\t{1}\t{2}\n".format(script, test_name, end_time-start_time))
+    LOG.write("{0}\t{1}\t{2}\n".format(script, test_name, end_time - start_time))
     LOG.flush()
 
     rmdir_(tmp_dir)
@@ -197,8 +218,7 @@ def _read(filename):
     :param filename: Input file (plain text or gzipped) to read
     :return: Yields lines from the input file
     """
-    fp = gzip.open(filename) if filename.endswith(".gz") \
-        else open(filename)
+    fp = gzip.open(filename) if filename.endswith(".gz") else open(filename)
 
     for line in fp:
         if not line.startswith("#"):

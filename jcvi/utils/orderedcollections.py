@@ -23,126 +23,13 @@
 
 from six.moves.urllib.parse import parse_qsl
 from bisect import bisect_left, bisect_right
-from collections import Callable, defaultdict
-try:
-    from UserDict import DictMixin
-except ImportError:
-    from collections import MutableMapping as DictMixin
-
-
-class OrderedDict(dict, DictMixin):
-
-    def __init__(self, *args, **kwds):
-        if len(args) > 1:
-            raise TypeError('expected at most 1 arguments, got %d' % len(args))
-        try:
-            self.__end
-        except AttributeError:
-            self.clear()
-        self.update(*args, **kwds)
-
-    def clear(self):
-        self.__end = end = []
-        end += [None, end, end]         # sentinel node for doubly linked list
-        self.__map = {}                 # key --> [key, prev, next]
-        dict.clear(self)
-
-    def __setitem__(self, key, value):
-        if key not in self:
-            end = self.__end
-            curr = end[1]
-            curr[2] = end[1] = self.__map[key] = [key, curr, end]
-        dict.__setitem__(self, key, value)
-
-    def __delitem__(self, key):
-        dict.__delitem__(self, key)
-        key, prev, next = self.__map.pop(key)
-        prev[2] = next
-        next[1] = prev
-
-    def __iter__(self):
-        end = self.__end
-        curr = end[2]
-        while curr is not end:
-            yield curr[0]
-            curr = curr[2]
-
-    def __reversed__(self):
-        end = self.__end
-        curr = end[1]
-        while curr is not end:
-            yield curr[0]
-            curr = curr[1]
-
-    def popitem(self, last=True):
-        if not self:
-            raise KeyError('dictionary is empty')
-        if last:
-            key = next(reversed(self))
-        else:
-            key = next(iter(self))
-        value = self.pop(key)
-        return key, value
-
-    def __reduce__(self):
-        items = [[k, self[k]] for k in self]
-        tmp = self.__map, self.__end
-        del self.__map, self.__end
-        inst_dict = vars(self).copy()
-        self.__map, self.__end = tmp
-        if inst_dict:
-            return (self.__class__, (items,), inst_dict)
-        return self.__class__, (items,)
-
-    def keys(self):
-        return list(self)
-
-    setdefault = DictMixin.setdefault
-    update = DictMixin.update
-    pop = DictMixin.pop
-    values = DictMixin.values
-    items = DictMixin.items
-
-    def __repr__(self):
-        if not self:
-            return '%s()' % (self.__class__.__name__,)
-        return '%s(%r)' % (self.__class__.__name__, self.items())
-
-    def copy(self):
-        return self.__class__(self)
-
-    @classmethod
-    def fromkeys(cls, iterable, value=None):
-        d = cls()
-        for key in iterable:
-            d[key] = value
-        return d
-
-    def __eq__(self, other):
-        if isinstance(other, OrderedDict):
-            if len(self) != len(other):
-                return False
-            for p, q in zip(self.items(), other.items()):
-                if p != q:
-                    return False
-            return True
-        return dict.__eq__(self, other)
-
-    def __ne__(self, other):
-        return not self == other
-
-
-"""
-<http://stackoverflow.com/questions/6190331/can-i-do-an-ordered-default-dict-in-python>
-"""
+from collections import Callable, defaultdict, OrderedDict
 
 
 class DefaultOrderedDict(OrderedDict):
-
     def __init__(self, default_factory=None, *a, **kw):
-        if (default_factory is not None and
-                not isinstance(default_factory, Callable)):
-            raise TypeError('first argument must be callable')
+        if default_factory is not None and not isinstance(default_factory, Callable):
+            raise TypeError("first argument must be callable")
         OrderedDict.__init__(self, *a, **kw)
         self.default_factory = default_factory
 
@@ -162,7 +49,7 @@ class DefaultOrderedDict(OrderedDict):
         if self.default_factory is None:
             args = tuple()
         else:
-            args = self.default_factory,
+            args = (self.default_factory,)
         return type(self), args, None, None, self.items()
 
     def copy(self):
@@ -173,12 +60,14 @@ class DefaultOrderedDict(OrderedDict):
 
     def __deepcopy__(self, memo):
         import copy
-        return type(self)(self.default_factory,
-                          copy.deepcopy(self.items()))
+
+        return type(self)(self.default_factory, copy.deepcopy(self.items()))
 
     def __repr__(self):
-        return 'OrderedDefaultDict(%s, %s)' % (self.default_factory,
-                                               OrderedDict.__repr__(self))
+        return "OrderedDefaultDict(%s, %s)" % (
+            self.default_factory,
+            OrderedDict.__repr__(self),
+        )
 
 
 def parse_qs(qs, keep_blank_values=0, strict_parsing=0, keep_attr_order=True):
@@ -203,7 +92,7 @@ Recipe from <http://code.activestate.com/recipes/577197-sortedcollection/>.
 
 
 class SortedCollection(object):
-    '''Sequence sorted by a key function.
+    """Sequence sorted by a key function.
 
     SortedCollection() is much easier to work with than using bisect() directly.
     It supports key functions like those use in sorted(), min(), and max().
@@ -269,7 +158,7 @@ class SortedCollection(object):
      ('david', 'thomas', 32),
      ('roger', 'young', 30)]
 
-    '''
+    """
 
     def __init__(self, iterable=(), key=None):
         self._given_key = key
@@ -289,7 +178,7 @@ class SortedCollection(object):
     def _delkey(self):
         self._setkey(None)
 
-    key = property(_getkey, _setkey, _delkey, 'key function')
+    key = property(_getkey, _setkey, _delkey, "key function")
 
     def clear(self):
         self.__init__([], self._key)
@@ -310,10 +199,10 @@ class SortedCollection(object):
         return reversed(self._items)
 
     def __repr__(self):
-        return '%s(%r, key=%s)' % (
+        return "%s(%r, key=%s)" % (
             self.__class__.__name__,
             self._items,
-            getattr(self._given_key, '__name__', repr(self._given_key))
+            getattr(self._given_key, "__name__", repr(self._given_key)),
         )
 
     def __reduce__(self):
@@ -326,75 +215,76 @@ class SortedCollection(object):
         return item in self._items[i:j]
 
     def index(self, item):
-        'Find the position of an item.  Raise ValueError if not found.'
+        "Find the position of an item.  Raise ValueError if not found."
         k = self._key(item)
         i = bisect_left(self._keys, k)
         j = bisect_right(self._keys, k)
         return self._items[i:j].index(item) + i
 
     def count(self, item):
-        'Return number of occurrences of item'
+        "Return number of occurrences of item"
         k = self._key(item)
         i = bisect_left(self._keys, k)
         j = bisect_right(self._keys, k)
         return self._items[i:j].count(item)
 
     def insert(self, item):
-        'Insert a new item.  If equal keys are found, add to the left'
+        "Insert a new item.  If equal keys are found, add to the left"
         k = self._key(item)
         i = bisect_left(self._keys, k)
         self._keys.insert(i, k)
         self._items.insert(i, item)
 
     def insert_right(self, item):
-        'Insert a new item.  If equal keys are found, add to the right'
+        "Insert a new item.  If equal keys are found, add to the right"
         k = self._key(item)
         i = bisect_right(self._keys, k)
         self._keys.insert(i, k)
         self._items.insert(i, item)
 
     def remove(self, item):
-        'Remove first occurence of item.  Raise ValueError if not found'
+        "Remove first occurence of item.  Raise ValueError if not found"
         i = self.index(item)
         del self._keys[i]
         del self._items[i]
 
     def find(self, item):
-        'Return first item with a key == item.  Raise ValueError if not found.'
+        "Return first item with a key == item.  Raise ValueError if not found."
         k = self._key(item)
         i = bisect_left(self._keys, k)
         if i != len(self) and self._keys[i] == k:
             return self._items[i]
-        raise ValueError('No item found with key equal to: %r' % (k,))
+        raise ValueError("No item found with key equal to: %r" % (k,))
 
     def find_le(self, item):
-        'Return last item with a key <= item.  Raise ValueError if not found.'
+        "Return last item with a key <= item.  Raise ValueError if not found."
         k = self._key(item)
         i = bisect_right(self._keys, k)
         if i:
             return self._items[i - 1]
-        raise ValueError('No item found with key at or below: %r' % (k,))
+        raise ValueError("No item found with key at or below: %r" % (k,))
 
     def find_lt(self, item):
-        'Return last item with a key < item.  Raise ValueError if not found.'
+        "Return last item with a key < item.  Raise ValueError if not found."
         k = self._key(item)
         i = bisect_left(self._keys, k)
         if i:
             return self._items[i - 1]
-        raise ValueError('No item found with key below: %r' % (k,))
+        raise ValueError("No item found with key below: %r" % (k,))
 
     def find_ge(self, item):
-        'Return first item with a key >= equal to item.  Raise ValueError if not found'
+        "Return first item with a key >= equal to item.  Raise ValueError if not found"
         k = self._key(item)
         i = bisect_left(self._keys, k)
         if i != len(self):
             return self._items[i]
-        raise ValueError('No item found with key at or above: %r' % (k,))
+        raise ValueError("No item found with key at or above: %r" % (k,))
 
     def find_gt(self, item):
-        'Return first item with a key > item.  Raise ValueError if not found'
+        "Return first item with a key > item.  Raise ValueError if not found"
         k = self._key(item)
         i = bisect_right(self._keys, k)
         if i != len(self):
             return self._items[i]
-        raise ValueError('No item found with key above: %r' % (k,))
+        raise ValueError("No item found with key above: %r" % (k,))
+

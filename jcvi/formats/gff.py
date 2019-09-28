@@ -755,7 +755,7 @@ def cluster(args):
                 g.join((mrna1.id, mrna1s))
 
         print(gene, file=fw)
-        for group in g:
+        for group in sorted(g):
             group.sort(key=lambda x: x[1], reverse=True)
             mrnas = [el[0] for el in group]
             m = mrnas[0]
@@ -1039,6 +1039,7 @@ def filter(args):
 
     fw = must_open(opts.outfile, "w")
     for g in gffdb.features_of_type(ptype, order_by=('seqid', 'start')):
+        g.attributes = DefaultOrderedDict(**g.attributes)
         if ptype != otype:
             feats = list(gffdb.children(g, featuretype=otype, order_by=('start')))
             ok_feats = [f for f in feats if f.id not in bad]
@@ -2225,7 +2226,7 @@ def gtf(args):
             if not gene_type.endswith("RNA") and not gene_type.endswith("transcript"):
                 continue
             gene_id = transcript_info[tid]["gene_id"]
-            g.attributes = dict(gene_id=[gene_id], transcript_id=[tid])
+            g.attributes = DefaultOrderedDict(gene_id=[gene_id], transcript_id=[tid])
             g.update_attributes(gtf=True, urlquote=False)
 
             print(g)
@@ -2991,8 +2992,11 @@ def bed12(args):
         name = f.id
         score = 0
         strand = f.strand
-        thickStart = 1e15
-        thickEnd = 0
+        # When there is no thick part, thickStart and thickEnd are usually set
+        # to the chromStart position
+        # <https://genome.ucsc.edu/FAQ/FAQformat.html>
+        thickStart = chromStart
+        thickEnd = chromStart
         blocks = []
 
         for c in g.children(name, 1):

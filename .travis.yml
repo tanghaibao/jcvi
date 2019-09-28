@@ -8,10 +8,10 @@ matrix:
       python: 3.7
     - os: osx
       language: generic
-      env: PYTHON=2.7.10
+      env: PYTHON=2.7
     - os: osx
       language: generic
-      env: PYTHON=3.7.3
+      env: PYTHON=3.7
 
 # Setup anaconda
 before_install:
@@ -38,8 +38,7 @@ install:
     conda create --name $VERSION --yes python=$VERSION;
     source activate $VERSION ;
     pip install -r requirements.txt ;
-    python setup.py install ;
-    python setup.py build_ext --inplace ;
+    pip install -e . ;
     done
 
 # command to run tests

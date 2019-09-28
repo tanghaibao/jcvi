@@ -117,7 +117,6 @@ def test_script(
     :param work_dir:   Directory of test data (working directory)
     :return:           Asserts test status (pass/fail)
     """
-
     start_time = time.time()
 
     tmp_dir = tempfile.mkdtemp()
@@ -134,15 +133,7 @@ def test_script(
         "python %(script)s %(action)s" " %(opts)s %(args)s" " > %(stdout)s"
     ) % locals()
 
-    # proc = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, \
-    #                 cwd=tmp_dir, shell=True)
-
-    # proc_stdout, proc_stderr = proc.communicate()
-
     fail, log_msg = False, None
-    # if proc.returncode != 0:
-    #     log_msg = "Error (retcode={}): {}: {}".format(proc.returncode, proc_stderr, cmd)
-    #     fail = True
     module = import_module(script)
     func = getattr(module, action)
     args = " ".join((opts, args)).split()
@@ -152,12 +143,7 @@ def test_script(
 
     if not fail:
         for output, reference in zip(outputs, references):
-            if output == "stdout":
-                output = stdout
-            elif output.startswith("__DIR__"):
-                output = _fname_resolver(output, work_dir=work_dir)
-            else:
-                output = op.join(tmp_dir, output)
+            output = _fname_resolver(output, tmp_dir=tmp_dir, work_dir=work_dir)
 
             if not op.exists(output):
                 fail = True
@@ -178,13 +164,12 @@ def test_script(
                         outline != refline
                     ):  # perform line-by-line comparison of output against reference
                         fail = True
-                        log_msg = (
-                            "Error: files `{0}` and `{1}` are not the same\n".format(
-                                output, reference
-                            )
-                            + "{0}\nmd5: output={1} reference={2}"
-                        ).format(cmd, _md5sum(output), _md5sum(reference))
+                        log_msg = "Error: files `{}` and `{}` are not the same\n+ {}\n- {}\n".format(
+                            output, reference, outline, refline
+                        )
                         break
+
+    assert not fail, log_msg
 
     end_time = time.time()
     LOG.write("{0}\t{1}\t{2}\n".format(script, test_name, end_time - start_time))
@@ -204,6 +189,8 @@ def _fname_resolver(fname, tmp_dir=None, work_dir=None):
     """
     if tmp_dir:
         fname = re.sub("__TMP__", tmp_dir, fname)
+        if fname == "stdout":
+            fname = op.join(tmp_dir, fname)
     if work_dir:
         fname = re.sub("__DIR__", op.abspath(work_dir), fname)
 

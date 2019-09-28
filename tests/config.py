@@ -164,12 +164,9 @@ def test_script(
                         outline != refline
                     ):  # perform line-by-line comparison of output against reference
                         fail = True
-                        log_msg = (
-                            "Error: files `{0}` and `{1}` are not the same\n".format(
-                                output, reference
-                            )
-                            + "{0}\nmd5: output={1} reference={2}"
-                        ).format(cmd, _md5sum(output), _md5sum(reference))
+                        log_msg = "Error: files `{}` and `{}` are not the same\n+ {}\n- {}\n".format(
+                            output, reference, outline, refline
+                        )
                         break
 
     assert not fail, log_msg

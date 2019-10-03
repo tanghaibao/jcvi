@@ -55,7 +55,7 @@ class DictFile (BaseFile, dict):
         self.keypos = keypos
 
         fp = must_open(filename)
-        ncols = max(keypos, valuepos) + 1
+        ncols = (max(keypos, valuepos) if valuepos else keypos) + 1
         thiscols = 0
         for lineno, row in enumerate(fp):
             row = row.rstrip()

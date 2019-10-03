@@ -105,7 +105,7 @@ class BlockFile (BaseFile):
     def __init__(self, filename, defaultcolor='#fb8072', header=False):
         super(BlockFile, self).__init__(filename)
         fp = must_open(filename)
-        hd = fp.next().rstrip().split("\t")
+        hd = next(fp).rstrip().split("\t")
         ncols = len(hd)
         if header:
             self.header = hd
@@ -133,7 +133,7 @@ class BlockFile (BaseFile):
 
         self.data = data
         self.highlight = highlight
-        self.columns = zip(*data)
+        self.columns = list(zip(*data))
         self.ncols = ncols
 
     def get_extent(self, i, order, debug=True):

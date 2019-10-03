@@ -259,7 +259,7 @@ class Synteny (object):
 
         exts = []
         extras = []
-        for i in xrange(bf.ncols):
+        for i in range(bf.ncols):
             ext = bf.get_extent(i, order)
             exts.append(ext)
             if extra_features:
@@ -280,7 +280,7 @@ class Synteny (object):
         self.rr = []
         ymids = []
         #vpad = .012 * w / h
-        for i in xrange(bf.ncols):
+        for i in range(bf.ncols):
             ext = exts[i]
             ef = extras[i] if extras else None
             r = Region(root, ext, lo[i], bed, scale, switch,
@@ -341,7 +341,7 @@ class Synteny (object):
             yiv = .3
             xstart = 0
             ystart = min(ymids) - .4
-            for i in xrange(ntrees):
+            for i in range(ntrees):
                 ax = fig.add_axes([xstart, ystart, xiv, yiv])
                 label, outgroup, color, tx = trees[i]
                 draw_tree(ax, tx, outgroup=outgroup, rmargin=.4, leaffont=11,

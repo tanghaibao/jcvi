@@ -21,8 +21,8 @@ from wand.image import Image
 from scipy.ndimage import binary_fill_holes, distance_transform_edt
 from scipy.optimize import fmin_bfgs as fmin
 from skimage.color import gray2rgb, rgb2gray
-from skimage.filters import canny, roberts, sobel
-from skimage.feature import peak_local_max
+from skimage.filters import roberts, sobel
+from skimage.feature import canny, peak_local_max
 from skimage.measure import regionprops, label
 from skimage.morphology import disk, closing, watershed
 from skimage.segmentation import clear_border
@@ -327,6 +327,39 @@ def slice(s, m):
     return ra, rb
 
 
+def convert_background(pngfile, new_background=(37, 90, 223)):
+    '''Replace the background color with the specified background color, default is blue
+    '''
+    _name, _ext = op.splitext(op.basename(pngfile))
+    _name += '_bgxform'
+    newfile = op.join(op.dirname(pngfile), _name + _ext)
+    if not new_background:
+        new_background = (37, 90, 223)
+    meanr = 115
+    meang = 150
+    meanb = 135
+    img = iopen(pngfile)
+    pixels = list(img.getdata())
+    h,w = img.size
+
+    # Get Standard Deviation of RGB
+    rgbArray = []
+    for x in range(255):
+        rgbArray.append(x)
+    stdRGB = np.std(rgbArray)
+
+    # Change Background Color
+    for i in range(len(pixels)):
+            r,g,b=pixels[i]
+            if (r >= (meanr - stdRGB) and r <= (meanr + stdRGB)):
+                if (g >= (meang - stdRGB) and g <= (meang + stdRGB)):
+                    if (b >= (meanb - stdRGB) and b <= (meanb + stdRGB)):
+                        pixels[i] = new_background
+    img.putdata(pixels)
+    img.save(newfile)
+    return newfile
+
+
 def convert_image(pngfile, pf, outdir=".",
                   resize=1000, format="jpeg", rotate=0,
                   rows=':', cols=':', labelrows=None, labelcols=None):
@@ -435,6 +468,7 @@ def seeds(args):
         pixel_cm_ratio, tr = calib["PixelCMratio"], calib["RGBtransform"]
         tr = np.array(tr)
 
+    pngfile = convert_background(pngfile)
     resizefile, mainfile, labelfile, exif = \
                       convert_image(pngfile, pf, outdir=outdir,
                                     rotate=opts.rotate,
@@ -446,7 +480,6 @@ def seeds(args):
 
     fig, (ax1, ax2, ax3, ax4) = plt.subplots(ncols=4, nrows=1,
                                              figsize=(iopts.w, iopts.h))
-
     # Edge detection
     img_gray = rgb2gray(img)
     logging.debug("Running {0} edge detection ...".format(ff))
@@ -575,7 +608,7 @@ def seeds(args):
         ax4.text(.27, yy, o.hashtag, va="center")
         yy -= .06
     ax4.text(.1 , yy, "(A total of {0} objects displayed)".format(nb_labels),
-             color="darkslategrey")
+             color="darkslategray")
     normalize_axes(ax4)
 
     for ax in (ax1, ax2, ax3):

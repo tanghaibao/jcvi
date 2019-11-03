@@ -198,8 +198,7 @@ def calibrate(args):
     logging.debug("Calibration specs written to `{0}`.".format(jsonfile))
 
     return jsonfile
-
-
+   
 def add_seeds_options(p, args):
     g1 = OptionGroup(p, "Image manipulation")
     g1.add_option("--rotate", default=0, type="int",
@@ -212,6 +211,9 @@ def add_seeds_options(p, args):
                 help="Label rows e.g. `:800` from first 800 rows")
     g1.add_option("--labelcols",
                 help="Label cols e.g. `-800: from last 800 rows")
+    valid_colors = ("red", "green", "blue", "purple", "yellow", "orange", 'INVERSE') 
+    g1.add_option("--changeBackground", default=0, choices=valid_colors,
+            help="Changes background color")
     p.add_option_group(g1)
 
     g2 = OptionGroup(p, "Object recognition")
@@ -327,37 +329,83 @@ def slice(s, m):
     return ra, rb
 
 
-def convert_background(pngfile, new_background=(37, 90, 223)):
+def convert_background(pngfile, new_background):
     '''Replace the background color with the specified background color, default is blue
     '''
-    _name, _ext = op.splitext(op.basename(pngfile))
-    _name += '_bgxform'
-    newfile = op.join(op.dirname(pngfile), _name + _ext)
-    if not new_background:
-        new_background = (37, 90, 223)
-    meanr = 115
-    meang = 150
-    meanb = 135
-    img = iopen(pngfile)
-    pixels = list(img.getdata())
-    h,w = img.size
+    if new_background:
+        _name, _ext = op.splitext(op.basename(pngfile))
+        _name += '_bgxform'
+        newfile = op.join(op.dirname(pngfile), _name + _ext)
+        
+        img = iopen(pngfile)
+        pixels = list(img.getdata())
+        h,w = img.size
 
-    # Get Standard Deviation of RGB
-    rgbArray = []
-    for x in range(255):
-        rgbArray.append(x)
-    stdRGB = np.std(rgbArray)
+        # Get Standard Deviation of RGB
+        rgbArray = []
+        for x in range(255):
+            rgbArray.append(x)
+        stdRGB = np.std(rgbArray) * .8
 
-    # Change Background Color
-    for i in range(len(pixels)):
-            r,g,b=pixels[i]
-            if (r >= (meanr - stdRGB) and r <= (meanr + stdRGB)):
-                if (g >= (meang - stdRGB) and g <= (meang + stdRGB)):
-                    if (b >= (meanb - stdRGB) and b <= (meanb + stdRGB)):
-                        pixels[i] = new_background
-    img.putdata(pixels)
-    img.save(newfile)
-    return newfile
+        #Get average color
+        obcolor = [None,None,None]
+        pixel_values = []
+        for t in range(3):
+            pixel_color = img.getdata(band=t)
+            for pixel in pixel_color:
+                if pixel > (stdRGB):
+                    pixel_values.append(pixel)
+            obcolor[t] = sum(pixel_values) / len(pixel_values)
+        
+        #Get background color using average color and standard deviation
+        for t in range(3):
+            pixel_color = img.getdata(band=t)
+            seed_pixel_values = []
+            for i in pixel_color:
+                if ((i > (obcolor[t] - stdRGB)) and (i < (obcolor[t] + stdRGB))):
+                    seed_pixel_values.append(i)
+            obcolor[t] = sum(seed_pixel_values) / len(seed_pixel_values)
+                
+
+        #Selection of colors based on option parser
+        nbcolor = [None, None, None]
+        if (new_background == 'INVERSE'):
+            nbcolor = [None, None, None]
+            for t in range(3):
+                nbcolor[t] = 255 - obcolor[t]
+        elif (new_background == 'red'):
+            nbcolor = [255, 0, 0]
+
+        elif (new_background == 'green'):
+            nbcolor = [0, 255, 0]
+
+        elif (new_background == 'blue'):
+            nbcolor = [0, 0, 255]
+
+        elif (new_background == 'yellow'):
+            nbcolor = [255, 255, 0]
+
+        elif (new_background == 'purple'):
+            nbcolor = [255, 0, 255]
+
+        elif (new_background == 'orange'):
+            nbcolor = [255, 165, 0]
+
+
+
+        # Change Background Color
+        obcolor = tuple(obcolor)
+        nbcolor = tuple(nbcolor)
+        for i in range(len(pixels)):
+                r,g,b=pixels[i]
+                if (r >= (obcolor[0] - stdRGB) and r <= (obcolor[0] + stdRGB)):
+                    if (g >= (obcolor[1] - stdRGB) and g <= (obcolor[1] + stdRGB)):
+                        if (b >= (obcolor[2] - stdRGB) and b <= (obcolor[2] + stdRGB)):
+                            pixels[i] = nbcolor
+        img.putdata(pixels)
+        img.save(newfile, 'PNG')
+        return newfile
+    return pngfile
 
 
 def convert_image(pngfile, pf, outdir=".",
@@ -467,14 +515,13 @@ def seeds(args):
         calib = json.load(must_open(calib))
         pixel_cm_ratio, tr = calib["PixelCMratio"], calib["RGBtransform"]
         tr = np.array(tr)
-
-    pngfile = convert_background(pngfile)
+    nbcolor = opts.changeBackground
+    pngfile = convert_background(pngfile, nbcolor)
     resizefile, mainfile, labelfile, exif = \
                       convert_image(pngfile, pf, outdir=outdir,
                                     rotate=opts.rotate,
                                     rows=rows, cols=cols,
                                     labelrows=labelrows, labelcols=labelcols)
-
     oimg = load_image(resizefile)
     img = load_image(mainfile)
 

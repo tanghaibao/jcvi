@@ -13,6 +13,7 @@ graphviz
 PyPDF2
 pytest
 pytest-cov
+pytest-benchmark
 PyYAML
 scipy
 seaborn

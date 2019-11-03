@@ -176,7 +176,7 @@ def download_species_ensembl(species, valid_species, url):
             download(f)
 
 
-def get_cookies(cookies="cookies"):
+def get_cookies(cookies=".phytozome_cookies"):
     from getpass import getpass
 
     # Check if cookies is still good
@@ -194,26 +194,28 @@ def get_cookies(cookies="cookies"):
 
 def phytozome10(args):
     """
-    %prog phytozome species
+    %prog phytozome10 species
 
     Retrieve genomes and annotations from phytozome using Globus API. Available
     species listed below. Use comma to give a list of species to download. For
     example:
 
     $ %prog phytozome Athaliana,Vvinifera,Osativa,Sbicolor,Slycopersicum
+
+    The downloader will prompt you to enter Phytozome user name and password
+    during downloading. Please register for a login at:
+    https://phytozome.jgi.doe.gov/pz/portal.html.
     """
     from jcvi.apps.biomart import GlobusXMLParser
 
     p = OptionParser(phytozome10.__doc__)
-    p.add_option("--version", default=10, help="Phytozome version")
+    p.add_option(
+        "--version", default=10, choices=(10, 11, 12), help="Phytozome version"
+    )
     opts, args = p.parse_args(args)
 
-    if len(args) != 1:
-        sys.exit(not p.print_help())
-
-    species, = args
     cookies = get_cookies()
-    directory_listing = "get-directory.xml"
+    directory_listing = ".phytozome_directory_V{}.xml".format(opts.version)
     # Get directory listing
     dlist = "http://genome.jgi.doe.gov/ext-api/downloads/get-directory?organism=PhytozomeV{}".format(
         opts.version
@@ -221,8 +223,12 @@ def phytozome10(args):
     d = download(dlist, filename=directory_listing, debug=True, cookies=cookies)
     g = GlobusXMLParser(directory_listing)
     genomes = g.get_genomes()
-    for genome in genomes:
-        print(genome)
+    valid_species = [x.name for x in genomes]
+    species_tile = tile(valid_species)
+    p.set_usage("\n".join((phytozome10.__doc__, species_tile)))
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
 
 
 def phytozome(args):

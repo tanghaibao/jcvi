@@ -210,7 +210,7 @@ def phytozome10(args):
 
     p = OptionParser(phytozome10.__doc__)
     p.add_option(
-        "--version", default=10, choices=(10, 11, 12), help="Phytozome version"
+        "--version", default=12, choices=(10, 11, 12), help="Phytozome version"
     )
     p.add_option(
         "--assembly",
@@ -232,15 +232,17 @@ def phytozome10(args):
     dlist = "http://genome.jgi.doe.gov/ext-api/downloads/get-directory?organism=PhytozomeV{}".format(
         opts.version
     )
-    d = download(dlist, filename=directory_listing, debug=True, cookies=cookies)
+    d = download(dlist, filename=directory_listing, cookies=cookies)
     g = GlobusXMLParser(directory_listing)
     genomes = g.get_genomes()
-    valid_species = [x.name for x in genomes]
+    valid_species = genomes.keys()
     species_tile = tile(valid_species)
     p.set_usage("\n".join((phytozome10.__doc__, species_tile)))
 
     if len(args) != 1:
         sys.exit(not p.print_help())
+
+    base_url = "http://genome.jgi.doe.gov"
 
     species, = args
     if species == "all":
@@ -248,14 +250,49 @@ def phytozome10(args):
 
     species = species.split(",")
     for s in species:
-        gff, fa = download_species_phytozome10(s, valid_species, assembly=opts.assembly)
+        res = download_species_phytozome10(
+            genomes, s, valid_species, base_url, cookies, assembly=opts.assembly
+        )
+        if not res:
+            logging.error("No files downloaded")
+        gff, fa = res.get("gff"), res.get("cds")
         if opts.format:
             format_bed_and_cds(s, gff, fa)
 
 
-def download_species_phytozome10(species, valid_species, assembly=False):
+def download_species_phytozome10(
+    genomes, species, valid_species, base_url, cookies, assembly=False
+):
+    """Download assembly FASTA and annotation GFF.
+
+    Args:
+        genomes (dict): Dictionary parsed from Globus XML.
+        species ([type]): Target species to download.
+        valid_species ([type]): Allowed set of species
+        assembly (bool, optional): Do we download assembly FASTA (can be big). Defaults to False.
+    """
     assert species in valid_species, "{} is not in the species list".format(species)
-    return None, None
+    res = {}
+    genome = genomes.get(species)
+    if not genome:
+        return res
+
+    genome_assembly = genome.get("assembly")
+    if assembly and genome_assembly:
+        asm_name = next(x for x in genome_assembly if x.endswith(".fa.gz"))
+        if asm_name:
+            res["asm"] = genome_assembly.download(asm_name, base_url, cookies)
+
+    genome_annotation = genome.get("annotation")
+    if genome_annotation:
+        gff_name = next(x for x in genome_annotation if x.endswith(".gene.gff3.gz"))
+        if gff_name:
+            res["gff"] = genome_annotation.download(gff_name, base_url, cookies)
+        cds_name = next(x for x in genome_annotation if x.endswith(".cds.fa.gz"))
+        if cds_name:
+            res["cds"] = genome_annotation.download(cds_name, base_url, cookies)
+
+    return res
 
 
 def phytozome(args):
@@ -299,14 +336,15 @@ def phytozome(args):
     species = species.split(",")
 
     for s in species:
-        gff, fa = download_species_phytozome(
-            s, valid_species, url, assembly=opts.assembly
-        )
+        res = download_species_phytozome(s, valid_species, url, assembly=opts.assembly)
+        if not res:
+            logging.error("No files downloaded")
+        gff, cdsfa = res.get("gff"), res.get("cds")
         if opts.format:
-            format_bed_and_cds(s, gff, fa)
+            format_bed_and_cds(s, gff, cdsfa)
 
 
-def format_bed_and_cds(species, gff, fa):
+def format_bed_and_cds(species, gff, cdsfa):
     """Run gff.format() and fasta.format() to generate BED and CDS files.
     This prepares the input files for the MCscan synteny workflow.
 
@@ -348,14 +386,14 @@ def format_bed_and_cds(species, gff, fa):
     bedfile = species + ".bed"
     cdsfile = species + ".cds"
     gff_bed([gff, "--type={}".format(ttype), "--key={}".format(key), "-o", bedfile])
-    fasta_format([fa, cdsfile, r"--sep=|"])
+    fasta_format([cdsfa, cdsfile, r"--sep=|"])
 
 
-def download_species_phytozome(species, valid_species, url, assembly=False):
+def download_species_phytozome(species, valid_species, base_url, assembly=False):
     assert species in valid_species, "{} is not in the species list".format(species)
 
     # We want to download assembly and annotation for given species
-    surl = urljoin(url, species)
+    surl = urljoin(base_url, species)
     contents = [x for x in ls_ftp(surl) if x.endswith("_readme.txt")]
     magic = contents[0].split("_")[1]  # Get the magic number
     logging.debug("Found magic number for {0}: {1}".format(species, magic))
@@ -364,11 +402,11 @@ def download_species_phytozome(species, valid_species, url, assembly=False):
     asm_url = urljoin(surl, "assembly/{0}.fa.gz".format(pf))
     ann_url = urljoin(surl, "annotation/{0}_gene.gff3.gz".format(pf))
     cds_url = urljoin(surl, "annotation/{0}_cds.fa.gz".format(pf))
-    res = []
+    res = {}
     if assembly:
-        download(asm_url)
-    for u in (ann_url, cds_url):
-        res.append(download(u))
+        res["asm"] = download(asm_url)
+    res["gff"] = download(ann_url)
+    res["cds"] = download(cds_url)
     return res
 
 

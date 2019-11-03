@@ -12,9 +12,11 @@ import sys
 import urllib
 import logging
 
+from urllib.parse import urljoin, parse_qs
+
 from xml.etree.ElementTree import ElementTree, Element, SubElement, tostring
 
-from jcvi.apps.base import OptionParser, ActionDispatcher
+from jcvi.apps.base import OptionParser, ActionDispatcher, download
 
 
 class GlobusXMLParser(ElementTree):
@@ -32,26 +34,27 @@ class GlobusXMLParser(ElementTree):
         Only folders containing `assembly` and `annotation` are of interest.
         """
         root = PhytozomePath(next(self.iter(tag="organismDownloads")))
-        genomes = []
-        for child in root.children.values():
+        genomes = {}
+        for child in root.values():
             if child.has_genome_release:
-                genomes.append(child)
+                genomes[child.name] = child
 
         # early_release
-        early_release = root.children.get("early_release")
+        early_release = root.get("early_release")
         if early_release:
-            for child in early_release.children.values():
+            for child in early_release.values():
                 if child.has_genome_release:
-                    genomes.append(child)
+                    genomes[child.name] = child
 
         return genomes
 
 
-class PhytozomePath(object):
+class PhytozomePath(dict):
     TAGS_OF_INTEREST = ("organismDownloads", "folder", "file")
 
     def __init__(self, element):
-        """Deserialize XML => folder structure
+        """Deserialize XML => dict-like structure to ease navigation
+        between folders. Keys are folder or file names.
 
         Args:
             element (ElementTree): XML parse tree
@@ -65,22 +68,35 @@ class PhytozomePath(object):
         else:
             self.name = element.attrib["name"]
         self.tag = tag
-        children = {}
         for child in element.getchildren():
             if child.tag not in self.TAGS_OF_INTEREST:
                 continue
             child = PhytozomePath(child)
-            children[child.name] = child
-        self.children = children
+            self[child.name] = child
 
     @property
     def has_genome_release(self):
         """Only the folders that contain both `assembly` and `annotation` are of interest here.
         """
-        return "assembly" in self.children and "annotation" in self.children
+        return "assembly" in self and "annotation" in self
+
+    def download(self, name, base_url, cookies):
+        """Download the file if it has an URL. Otherwise, this will recursively search the children.
+
+        Args:
+            name (str, optional): Name of the file. Defaults to None.
+        """
+        if self.name == name and base_url and self.url:
+            _url, = parse_qs(self.url)["url"]
+            url = urljoin(base_url, _url)
+            download(url, debug=True, cookies=cookies)
+        else:
+            for child_name, child in self.items():
+                if child_name == name:
+                    child.download(name, base_url, cookies)
 
     def __repr__(self):
-        return "{}: [{}]".format(self.name, ", ".join(repr(v) for v in self.children))
+        return "{}: [{}]".format(self.name, ", ".join(repr(v) for v in self))
 
 
 class MartXMLParser(ElementTree):

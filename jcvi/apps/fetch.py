@@ -212,6 +212,18 @@ def phytozome10(args):
     p.add_option(
         "--version", default=10, choices=(10, 11, 12), help="Phytozome version"
     )
+    p.add_option(
+        "--assembly",
+        default=False,
+        action="store_true",
+        help="Download assembly [default: %default]",
+    )
+    p.add_option(
+        "--format",
+        default=False,
+        action="store_true",
+        help="Format to CDS and BED for synteny inference",
+    )
     opts, args = p.parse_args(args)
 
     cookies = get_cookies()
@@ -230,6 +242,21 @@ def phytozome10(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
+    species, = args
+    if species == "all":
+        species = ",".join(valid_species)
+
+    species = species.split(",")
+    for s in species:
+        gff, fa = download_species_phytozome10(s, valid_species, assembly=opts.assembly)
+        if opts.format:
+            format_bed_and_cds(s, gff, fa)
+
+
+def download_species_phytozome10(species, valid_species, assembly=False):
+    assert species in valid_species, "{} is not in the species list".format(species)
+    return None, None
+
 
 def phytozome(args):
     """
@@ -240,13 +267,7 @@ def phytozome(args):
 
     $ %prog phytozome Athaliana,Vvinifera,Osativa,Sbicolor,Slycopersicum
     """
-    from jcvi.formats.gff import bed as gff_bed
-    from jcvi.formats.fasta import format as fasta_format
-
     p = OptionParser(phytozome.__doc__)
-    p.add_option(
-        "--version", default="9.0", help="Phytozome version [default: %default]"
-    )
     p.add_option(
         "--assembly",
         default=False,
@@ -261,6 +282,7 @@ def phytozome(args):
     )
     opts, args = p.parse_args(args)
 
+    version = "9.0"
     url = "ftp://ftp.jgi-psf.org/pub/compgen/phytozome/v{0}/".format(opts.version)
     valid_species = [x for x in ls_ftp(url) if "." not in x]
 
@@ -275,9 +297,32 @@ def phytozome(args):
         species = ",".join(valid_species)
 
     species = species.split(",")
-    use_IDs = set()
+
+    for s in species:
+        gff, fa = download_species_phytozome(
+            s, valid_species, url, assembly=opts.assembly
+        )
+        if opts.format:
+            format_bed_and_cds(s, gff, fa)
+
+
+def format_bed_and_cds(species, gff, fa):
+    """Run gff.format() and fasta.format() to generate BED and CDS files.
+    This prepares the input files for the MCscan synteny workflow.
+
+    https://github.com/tanghaibao/jcvi/wiki/MCscan-(Python-version)
+
+    Args:
+        species (str): Name of the species
+        gff (str): Path to the GFF file
+        fa (str): Path to the FASTA file
+    """
+    from jcvi.formats.gff import bed as gff_bed
+    from jcvi.formats.fasta import format as fasta_format
+
     # We have to watch out when the gene names and mRNA names mismatch, in which
     # case we just extract the mRNA names
+    use_IDs = set()
     use_mRNAs = set(
         [
             "Cclementina",
@@ -298,26 +343,16 @@ def phytozome(args):
             "Zmays",
         ]
     )
-
-    for s in species:
-        gff, fa = download_species_phytozome(
-            s, valid_species, url, assembly=opts.assembly
-        )
-        key = "ID" if s in use_IDs else "Name"
-        ttype = "mRNA" if s in use_mRNAs else "gene"
-        if not opts.format:
-            continue
-
-        bedfile = s + ".bed"
-        cdsfile = s + ".cds"
-        gff_bed([gff, "--type={}".format(ttype), "--key={}".format(key), "-o", bedfile])
-        fasta_format([fa, cdsfile, r"--sep=|"])
+    key = "ID" if species in use_IDs else "Name"
+    ttype = "mRNA" if species in use_mRNAs else "gene"
+    bedfile = species + ".bed"
+    cdsfile = species + ".cds"
+    gff_bed([gff, "--type={}".format(ttype), "--key={}".format(key), "-o", bedfile])
+    fasta_format([fa, cdsfile, r"--sep=|"])
 
 
-def download_species_phytozome(
-    species, valid_species, url, assembly=False, format=True
-):
-    assert species in valid_species, "{0} is not in the species list".format(species)
+def download_species_phytozome(species, valid_species, url, assembly=False):
+    assert species in valid_species, "{} is not in the species list".format(species)
 
     # We want to download assembly and annotation for given species
     surl = urljoin(url, species)

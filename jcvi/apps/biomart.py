@@ -12,7 +12,7 @@ import sys
 import urllib
 import logging
 
-from urllib.parse import urljoin, parse_qs
+from urllib.parse import urljoin
 
 from xml.etree.ElementTree import ElementTree, Element, SubElement, tostring
 
@@ -83,17 +83,20 @@ class PhytozomePath(dict):
     def download(self, name, base_url, cookies):
         """Download the file if it has an URL. Otherwise, this will recursively search the children.
 
+        See also:
+        <https://genome.jgi.doe.gov/portal/help/download.jsf>
+
         Args:
             name (str, optional): Name of the file. Defaults to None.
         """
         if self.name == name and base_url and self.url:
-            _url, = parse_qs(self.url)["url"]
-            url = urljoin(base_url, _url)
-            download(url, debug=True, cookies=cookies)
+            url = urljoin(base_url, self.url)
+            download(url, filename=name, debug=True, cookies=cookies)
         else:
             for child_name, child in self.items():
                 if child_name == name:
                     child.download(name, base_url, cookies)
+        return name
 
     def __repr__(self):
         return "{}: [{}]".format(self.name, ", ".join(repr(v) for v in self))

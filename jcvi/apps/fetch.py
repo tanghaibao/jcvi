@@ -123,8 +123,11 @@ def main():
     actions = (
         ("entrez", "fetch records from entrez using a list of GenBank accessions"),
         ("bisect", "determine the version of the accession by querying entrez"),
+        (
+            "phytozome9",
+            "retrieve genomes and annotations from phytozome version 9.0 (legacy)",
+        ),
         ("phytozome", "retrieve genomes and annotations from phytozome"),
-        ("phytozome10", "retrieve genomes and annotations from phytozome"),
         ("ensembl", "retrieve genomes and annotations from ensembl"),
         ("sra", "retrieve files from SRA via the sra-instant FTP"),
     )
@@ -192,9 +195,9 @@ def get_cookies(cookies=".phytozome_cookies"):
     return cookies
 
 
-def phytozome10(args):
+def phytozome(args):
     """
-    %prog phytozome10 species
+    %prog phytozome species
 
     Retrieve genomes and annotations from phytozome using Globus API. Available
     species listed below. Use comma to give a list of species to download. For
@@ -208,9 +211,12 @@ def phytozome10(args):
     """
     from jcvi.apps.biomart import GlobusXMLParser
 
-    p = OptionParser(phytozome10.__doc__)
+    p = OptionParser(phytozome.__doc__)
     p.add_option(
-        "--version", default=12, choices=(10, 11, 12), help="Phytozome version"
+        "--version",
+        default="12",
+        choices=("9", "10", "11", "12", "12_unrestricted"),
+        help="Phytozome version",
     )
     p.add_option(
         "--assembly",
@@ -229,20 +235,19 @@ def phytozome10(args):
     cookies = get_cookies()
     directory_listing = ".phytozome_directory_V{}.xml".format(opts.version)
     # Get directory listing
-    dlist = "http://genome.jgi.doe.gov/ext-api/downloads/get-directory?organism=PhytozomeV{}".format(
-        opts.version
+    base_url = "http://genome.jgi.doe.gov"
+    dlist = "{}/ext-api/downloads/get-directory?organism=PhytozomeV{}".format(
+        base_url, opts.version
     )
     d = download(dlist, filename=directory_listing, cookies=cookies)
     g = GlobusXMLParser(directory_listing)
     genomes = g.get_genomes()
     valid_species = genomes.keys()
     species_tile = tile(valid_species)
-    p.set_usage("\n".join((phytozome10.__doc__, species_tile)))
+    p.set_usage("\n".join((phytozome.__doc__, species_tile)))
 
     if len(args) != 1:
         sys.exit(not p.print_help())
-
-    base_url = "http://genome.jgi.doe.gov"
 
     species, = args
     if species == "all":
@@ -250,7 +255,7 @@ def phytozome10(args):
 
     species = species.split(",")
     for s in species:
-        res = download_species_phytozome10(
+        res = download_species_phytozome(
             genomes, s, valid_species, base_url, cookies, assembly=opts.assembly
         )
         if not res:
@@ -260,15 +265,15 @@ def phytozome10(args):
             format_bed_and_cds(s, gff, fa)
 
 
-def download_species_phytozome10(
+def download_species_phytozome(
     genomes, species, valid_species, base_url, cookies, assembly=False
 ):
     """Download assembly FASTA and annotation GFF.
 
     Args:
         genomes (dict): Dictionary parsed from Globus XML.
-        species ([type]): Target species to download.
-        valid_species ([type]): Allowed set of species
+        species (str): Target species to download.
+        valid_species (List[str]): Allowed set of species
         assembly (bool, optional): Do we download assembly FASTA (can be big). Defaults to False.
     """
     assert species in valid_species, "{} is not in the species list".format(species)
@@ -295,16 +300,16 @@ def download_species_phytozome10(
     return res
 
 
-def phytozome(args):
+def phytozome9(args):
     """
-    %prog phytozome species
+    %prog phytozome9 species
 
     Retrieve genomes and annotations from phytozome FTP. Available species
     listed below. Use comma to give a list of species to download. For example:
 
-    $ %prog phytozome Athaliana,Vvinifera,Osativa,Sbicolor,Slycopersicum
+    $ %prog phytozome9 Athaliana,Vvinifera,Osativa,Sbicolor,Slycopersicum
     """
-    p = OptionParser(phytozome.__doc__)
+    p = OptionParser(phytozome9.__doc__)
     p.add_option(
         "--assembly",
         default=False,
@@ -320,10 +325,10 @@ def phytozome(args):
     opts, args = p.parse_args(args)
 
     version = "9.0"
-    url = "ftp://ftp.jgi-psf.org/pub/compgen/phytozome/v{0}/".format(opts.version)
+    url = "ftp://ftp.jgi-psf.org/pub/compgen/phytozome/v{0}/".format(version)
     valid_species = [x for x in ls_ftp(url) if "." not in x]
 
-    doc = "\n".join((phytozome.__doc__, tile(valid_species)))
+    doc = "\n".join((phytozome9.__doc__, tile(valid_species)))
     p.set_usage(doc)
 
     if len(args) != 1:
@@ -336,7 +341,7 @@ def phytozome(args):
     species = species.split(",")
 
     for s in species:
-        res = download_species_phytozome(s, valid_species, url, assembly=opts.assembly)
+        res = download_species_phytozome9(s, valid_species, url, assembly=opts.assembly)
         if not res:
             logging.error("No files downloaded")
         gff, cdsfa = res.get("gff"), res.get("cds")
@@ -389,7 +394,7 @@ def format_bed_and_cds(species, gff, cdsfa):
     fasta_format([cdsfa, cdsfile, r"--sep=|"])
 
 
-def download_species_phytozome(species, valid_species, base_url, assembly=False):
+def download_species_phytozome9(species, valid_species, base_url, assembly=False):
     assert species in valid_species, "{} is not in the species list".format(species)
 
     # We want to download assembly and annotation for given species

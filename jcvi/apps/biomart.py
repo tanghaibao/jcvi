@@ -27,31 +27,60 @@ class GlobusXMLParser(ElementTree):
         with open(xml_file) as fp:
             self.parse(fp)
 
-    def parse_folder(self):
+    def get_genomes(self):
         """
         Only folders containing `assembly` and `annotation` are of interest.
         """
-        organism_downloads = [
-            PhytozomePath(t) for t in self.iter(tag="organismDownloads")
-        ]
-        print(organism_downloads)
+        root = PhytozomePath(next(self.iter(tag="organismDownloads")))
+        genomes = []
+        for child in root.children.values():
+            if child.has_genome_release:
+                genomes.append(child)
+
+        # early_release
+        early_release = root.children.get("early_release")
+        if early_release:
+            for child in early_release.children.values():
+                if child.has_genome_release:
+                    genomes.append(child)
+
+        return genomes
 
 
 class PhytozomePath(object):
+    TAGS_OF_INTEREST = ("organismDownloads", "folder", "file")
+
     def __init__(self, element):
         """Deserialize XML => folder structure
 
         Args:
             element (ElementTree): XML parse tree
         """
-        self.name = element.attrib["name"]
-        children = []
+        tag = element.tag
+        assert tag in self.TAGS_OF_INTEREST
+        self.url = None
+        if tag == "file":
+            self.name = element.attrib["filename"]
+            self.url = element.attrib["url"]
+        else:
+            self.name = element.attrib["name"]
+        self.tag = tag
+        children = {}
         for child in element.getchildren():
-            children.append(PhytozomePath(t) for t in child.iter(tag="folder"))
+            if child.tag not in self.TAGS_OF_INTEREST:
+                continue
+            child = PhytozomePath(child)
+            children[child.name] = child
         self.children = children
 
+    @property
+    def has_genome_release(self):
+        """Only the folders that contain both `assembly` and `annotation` are of interest here.
+        """
+        return "assembly" in self.children and "annotation" in self.children
+
     def __repr__(self):
-        return "[{} | {} children]".format(self.name, len(self.children))
+        return "{}: [{}]".format(self.name, ", ".join(repr(v) for v in self.children))
 
 
 class MartXMLParser(ElementTree):

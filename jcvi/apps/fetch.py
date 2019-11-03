@@ -220,7 +220,9 @@ def phytozome10(args):
     )
     d = download(dlist, filename=directory_listing, debug=True, cookies=cookies)
     g = GlobusXMLParser(directory_listing)
-    g.parse_folder()
+    genomes = g.get_genomes()
+    for genome in genomes:
+        print(genome)
 
 
 def phytozome(args):

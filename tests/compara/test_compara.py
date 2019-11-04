@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-import unittest
-from .config import test_script, generate_tests
+from ..config import test_script, generate_tests
 
 
 def pytest_generate_tests(metafunc):

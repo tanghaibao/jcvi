@@ -21,21 +21,21 @@ computation related to assembly, annotation, and comparative genomics.
 Following modules are available as generic Bioinformatics handling
 methods.
 
-- `algorithms`
+- <kbd>algorithms</kbd>
 
   - Linear programming solver with SCIP and GLPK.
   - Supermap: find set of non-overlapping anchors in BLAST or NUCMER output.
   - Longest or heaviest increasing subsequence.
   - Matrix operations.
 
-- `apps`
+- <kbd>apps</kbd>
 
-  - GenBank entrez accession, phytozome, ensembl and SRA downloader.
+  - GenBank entrez accession, Phytozome, Ensembl and SRA downloader.
   - Calculate (non)synonymous substitution rate between gene pairs.
   - Basic phylogenetic tree construction using PHYLIP, PhyML, or RAxML, and viualization.
   - Wrapper for BLAST+, LASTZ, LAST, BWA, BOWTIE2, CLC, CDHIT, CAP3, etc.
 
-- `formats`
+- <kbd>formats</kbd>
 
   Currently supports `.ace` format (phrap, cap3, etc.), `.agp`
   (goldenpath), `.bed` format, `.blast` output, `.btab` format,
@@ -45,38 +45,37 @@ methods.
   assembler output), `.sam` format (read mapping), `.contig`
   format (TIGR assembly format), etc.
 
-- `graphics`
+- <kbd>graphics</kbd>
 
   - BLAST or synteny dot plot.
   - Histogram using R and ASCII art.
   - Paint regions on set of chromosomes.
   - Macro-synteny and micro-synteny plots.
 
-- `utils`
+- <kbd>utils</kbd>
   - Grouper can be used as disjoint set data structure.
   - range contains common range operations, like overlap
     and chaining.
-  - Sybase connector to JCVI internal database.
   - Miscellaneous cookbook recipes, iterators decorators,
     table utilities.
 
 Then there are modules that contain domain-specific methods.
 
-- `assembly`
+- <kbd>assembly</kbd>
 
   - K-mer histogram analysis.
   - Preparation and validation of tiling path for clone-based assemblies.
-  - Scaffolding through BAMBUS, optical map and genetic map.
+  - Scaffolding through ALLMAPS, optical map and genetic map.
   - Pre-assembly and post-assembly QC procedures.
 
-- `annotation`
+- <kbd>annotation</kbd>
 
   - Training of _ab initio_ gene predictors.
   - Calculate gene, exon and intron statistics.
   - Wrapper for PASA and EVM.
   - Launch multiple MAKER processes.
 
-- `compara`
+- <kbd>compara</kbd>
   - C-score based BLAST filter.
   - Synteny scan (de-novo) and lift over (find nearby anchors).
   - Ancestral genome reconstruction using Sankoff's and PAR method.
@@ -85,9 +84,7 @@ Then there are modules that contain domain-specific methods.
 ## Applications
 
 Please visit [wiki](https://github.com/tanghaibao/jcvi/wiki) for
-full-fledged applications. Also visit our
-[Gallery](https://github.com/tanghaibao/jcvi/wiki/Gallery) to see our
-graphics functionality for the production of publication-ready figures.
+full-fledged applications.
 
 ## Dependencies
 
@@ -107,27 +104,23 @@ best way is to install them via `pip install` when you see
 
 The easiest way is to install it via PyPI:
 
-```bash
+```console
 pip install jcvi
 ```
 
 To install the development version:
 
-```bash
+```console
 pip install git+git://github.com/tanghaibao/jcvi.git
 ```
 
 Alternatively, if you want to install manually:
 
-```bash
+```console
 cd ~/code  # or any directory of your choice
 git clone git://github.com/tanghaibao/jcvi.git
-export PYTHONPATH=~/code/jcvi:$PYTHONPATH
+pip install -e .
 ```
-
-Please replace `~/code` above with whatever you like, but it must
-contain `jcvi`. To avoid setting `PYTHONPATH` everytime, please insert
-the `export` command in your `.bashrc` or `.bash_profile`.
 
 In addition, a few module might ask for locations of external programs,
 if the extended cannot be found in your `PATH`. The external programs
@@ -154,6 +147,7 @@ Available ACTIONs:
          format | Trim accession id to the first space or switch id based on 2-column mapping file
         fromtab | Convert 2-column sequence file to FASTA format
            gaps | Print out a list of gap sizes within sequences
+             gc | Plot G+C content distribution
       identical | Given 2 fasta files, find all exactly identical records
             ids | Generate a list of headers
            info | Run `sequence_info` on fasta files
@@ -166,6 +160,7 @@ Available ACTIONs:
            qual | Generate dummy .qual file based on FASTA file
          random | Randomly take some records
          sequin | Generate a gapped fasta file for sequin submission
+       simulate | Simulate random fasta file for testing
            some | Include or exclude a list of records (also performs on .qual file if available)
            sort | Sort the records by IDs, sizes, etc.
         summary | Report the real no of bases and N's in fasta files

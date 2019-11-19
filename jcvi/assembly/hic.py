@@ -659,7 +659,7 @@ def mergemat(args):
     logging.debug("Combined {} files into `{}.npy`".format(len(npyfiles), pf))
 
 
-def get_seqstarts(bamfile, N):
+def get_seqstarts(bamfile, N, seqids=None):
     """ Go through the SQ headers and pull out all sequences with size
     greater than the resolution settings, i.e. contains at least a few cells
     """
@@ -671,19 +671,20 @@ def get_seqstarts(bamfile, N):
             continue
         seqsize[kv["SN"]] = kv["LN"] // N + 1
 
-    allseqs = natsorted(seqsize.keys())
+    allseqs = seqids or natsorted(seqsize.keys())
     allseqsizes = np.array([seqsize[x] for x in allseqs])
     seqstarts = np.cumsum(allseqsizes)
     seqstarts = np.roll(seqstarts, 1)
     total_bins = seqstarts[0]
     seqstarts[0] = 0
     seqstarts = dict(zip(allseqs, seqstarts))
+    seqid_sizes = dict((x, seqsize[x]) for x in allseqs)
 
-    return seqstarts, seqsize, total_bins
+    return seqstarts, seqid_sizes, total_bins
 
 
-def get_distbins(start=100, bins=2500, ratio=1.01):
-    """ Get exponentially sized
+def get_distbins(start=100, bins=2000, ratio=1.01):
+    """ Get exponentially sized bins for link length
     """
     b = np.ones(bins, dtype="float64")
     b[0] = 100
@@ -709,6 +710,8 @@ def bam2mat(args):
     p = OptionParser(bam2mat.__doc__)
     p.add_option("--resolution", default=500000, type="int",
                  help="Resolution when counting the links")
+    p.add_option("--seqids", default=None,
+                 help="Use a given seqids file, a single line with seqids joined by comma")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -717,10 +720,12 @@ def bam2mat(args):
     bamfilename, = args
     pf = bamfilename.rsplit(".", 1)[0]
     N = opts.resolution
-    bins = 2500
-    minsize = 100
+    bins = 1500    # Distance distribution bins
+    minsize = 100  # Record distance if it is at least minsize
+    seqids = open(opts.seqids).readline().strip().split(',') \
+            if op.exists(opts.seqids) else None
 
-    seqstarts, seqsize, total_bins = get_seqstarts(bamfilename, N)
+    seqstarts, seqsize, total_bins = get_seqstarts(bamfilename, N, seqids=seqids)
     distbinstarts, distbinsizes = get_distbins(start=minsize, bins=bins)
 
     # Store the starts and sizes into a JSON file
@@ -728,7 +733,8 @@ def bam2mat(args):
     fwjson = open(jsonfile, "w")
     header = {"starts": seqstarts, "sizes": seqsize, "total_bins": total_bins,
               "distbinstarts": list(distbinstarts),
-              "distbinsizes": list(distbinsizes)}
+              "distbinsizes": list(distbinsizes),
+              "resolution": N}
 
     # int64 will not be able to deserialize with Python 3
     # Here is a workaround:
@@ -763,7 +769,7 @@ def bam2mat(args):
         j += 1
         if j % 100000 == 0:
             print("{} reads counted".format(j), file=sys.stderr)
-        # if j >= 10000: break
+        if j >= 10000000: break
 
         if c.is_qcfail and c.is_duplicate:
             continue
@@ -1367,9 +1373,9 @@ def score_evaluate(tour, tour_sizes=None, tour_M=None):
     sizes_cum = np.cumsum(sizes_oo) - sizes_oo / 2
     s = 0
     size = len(tour)
-    for ia in xrange(size):
+    for ia in range(size):
         a = tour[ia]
-        for ib in xrange(ia + 1, size):
+        for ib in range(ia + 1, size):
             b = tour[ib]
             links = tour_M[a, b]
             dist = sizes_cum[ib] - sizes_cum[ia]

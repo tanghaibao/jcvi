@@ -215,7 +215,7 @@ class FileSplitter (object):
 
         names = []
         pad0 = len(str(int(N - 1)))
-        for i in xrange(N):
+        for i in range(N):
             name = "{0}_{1:0{2}d}{3}".format(root, i, pad0, ext)
             names.append(name)
 
@@ -311,7 +311,7 @@ def check_exists(filename, oappend=False):
         if oappend:
             return oappend
         logging.error("`{0}` found, overwrite (Y/N)?".format(filename))
-        overwrite = (raw_input() == 'Y')
+        overwrite = input() == 'Y'
     else:
         overwrite = True
 
@@ -515,6 +515,7 @@ def main():
         ('split', 'split large file into N chunks'),
         ('reorder', 'reorder columns in tab-delimited files'),
         ('flatten', 'convert a list of IDs into one per line'),
+        ('unflatten', 'convert lines to a list of IDs on single line'),
         ('group', 'group elements in a table based on key (groupby) column'),
         ('setop', 'set operations on files'),
         ('join', 'join tabular-like files based on common column'),
@@ -552,7 +553,7 @@ def seqids(args):
     step = 1 if start <= end else -1
 
     print(",".join(["{}{:0{}d}".format(prefix, x, pad0) \
-                    for x in xrange(start, end + step, step)]))
+                    for x in range(start, end + step, step)]))
 
 
 def pairwise(args):
@@ -691,6 +692,26 @@ def flatten(args):
             print(row.strip().replace(opts.sep, "\n"))
 
 
+def unflatten(args):
+    """
+    %prog unflatten idsfile > unflattened
+
+    Given a list of ids, one per line, unflatten the list onto a single line with sep.
+    """
+    p = OptionParser(unflatten.__doc__)
+    p.add_option("--sep", default=",", help="Separator when joining ids")
+    p.set_outfile()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    idsfile, = args
+    ids = must_open(idsfile).read().split()
+    with must_open(opts.outfile, "w") as fw:
+        print(opts.sep.join(ids), file=fw)
+
+
 def group(args):
     """
     %prog group tabfile > tabfile.grouped
@@ -746,7 +767,7 @@ def group(args):
         atoms = row.split(sep)
         if groupby is not None:
             if len(cols) < len(atoms):
-                cols = [x for x in xrange(len(atoms))]
+                cols = [x for x in range(len(atoms))]
             if groupby not in cols:
                 logging.error("groupby col index `{0}` is out of range".format(groupby))
                 sys.exit()

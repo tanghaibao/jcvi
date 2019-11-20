@@ -769,7 +769,6 @@ def bam2mat(args):
         j += 1
         if j % 100000 == 0:
             print("{} reads counted".format(j), file=sys.stderr)
-        if j >= 10000000: break
 
         if c.is_qcfail and c.is_duplicate:
             continue

@@ -675,6 +675,9 @@ def heatmap(args):
     contig/chromosome heatmap.
     """
     p = OptionParser(heatmap.__doc__)
+    p.add_option("--title", help="Title of the heatmap")
+    p.add_option("--vmin", default=1, type="int", help="Minimum value in the heatmap")
+    p.add_option("--vmax", default=6, type="int", help="Maximum value in the heatmap")
     p.add_option("--chr", help="Plot this contig/chr only")
     p.add_option(
         "--nobreaks",
@@ -693,7 +696,8 @@ def heatmap(args):
     contig = opts.chr
     # Load contig/chromosome starts and sizes
     header = json.loads(open(jsonfile).read())
-    resolution = header.get("resolution", opts.resolution)
+    resolution = header.get("resolution")
+    assert resolution is not None, "`resolution` not found in `{}`".format(jsonfile)
     logging.debug("Resolution set to {}".format(resolution))
     # Load the matrix
     A = np.load(npyfile)
@@ -711,7 +715,7 @@ def heatmap(args):
     B = A.astype("float64")
     B += 1.0
     B = np.log(B)
-    vmin, vmax = 1, 7
+    vmin, vmax = opts.vmin, opts.vmax
     B[B < vmin] = vmin
     B[B > vmax] = vmax
     print(B)
@@ -1631,7 +1635,10 @@ def read_clm(clm, totalbins, bins):
 
 
 def plot_heatmap(ax, M, breaks, iopts, binsize=BINSIZE):
-    ax.imshow(M, cmap=iopts.cmap, interpolation="none")
+    import seaborn as sns
+
+    cmap = sns.cubehelix_palette(rot=0.5, as_cmap=True)
+    ax.imshow(M, cmap=cmap, interpolation="none")
     xlim = ax.get_xlim()
     for b in breaks[:-1]:
         ax.plot([b, b], xlim, "w-")

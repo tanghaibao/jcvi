@@ -572,6 +572,42 @@ def main():
     p.dispatch(globals())
 
 
+def fit_power_law(xs, ys):
+    """ Fit power law distribution.
+
+    See reference:
+    http://mathworld.wolfram.com/LeastSquaresFittingPowerLaw.html
+    Assumes the form Y = A * X^B, returns
+
+    Args:
+        xs ([int]): X vector
+        ys ([float64]): Y vector
+
+    Returns:
+        (A, B), the coefficients
+    """
+    import math
+
+    sum_logXlogY, sum_logXlogX, sum_logX, sum_logY = 0, 0, 0, 0
+    N = len(xs)
+    for i in range(N):
+        if not xs[i] or not ys[i]:
+            continue
+        logXs, logYs = math.log(xs[i]), math.log(ys[i])
+        sum_logXlogY += logXs * logYs
+        sum_logXlogX += logXs * logXs
+        sum_logX += logXs
+        sum_logY += logYs
+
+    B = (N * sum_logXlogY - sum_logX * sum_logY) / (
+        N * sum_logXlogX - sum_logX * sum_logX
+    )
+    A = math.exp((sum_logY - B * sum_logX) / N)
+    logging.debug("Power law Y = {:.1f} * X ^ {:.4f}".format(A, B))
+    label = "$Y={:.1f} \\times X^{{ {:.4f} }}$".format(A, B)
+    return A, B, label
+
+
 def dist(args):
     """
     %prog dist input.dist.npy genome.json
@@ -581,10 +617,12 @@ def dist(args):
     """
     import seaborn as sns
     import pandas as pd
-    from jcvi.graphics.base import human_base_formatter
+    from jcvi.graphics.base import human_base_formatter, markup
 
     p = OptionParser(dist.__doc__)
     p.add_option("--title", help="Title of the histogram")
+    p.add_option("--xmin", default=300, help="Minimum distance")
+    p.add_option("--xmax", default=6000000, help="Maximum distance")
     opts, args, iopts = p.set_image_options(args, figsize="6x6")
 
     if len(args) != 2:
@@ -595,23 +633,31 @@ def dist(args):
     header = json.loads(open(jsonfile).read())
     distbin_starts = np.array(header["distbinstarts"], dtype="float64")
     distbin_sizes = np.array(header["distbinsizes"], dtype="float64")
-    A = np.load(npyfile)
+    a = np.load(npyfile)
 
-    size, = min(distbin_sizes.shape, distbin_starts.shape, A.shape)
+    xmin, xmax = opts.xmin, opts.xmax
+    size, = min(distbin_sizes.shape, distbin_starts.shape, a.shape)
     df = pd.DataFrame()
-    df["BinStart"] = distbin_starts[:size]
-    df["LinkDensity"] = A[:size] / distbin_sizes[:size]
-    ax = sns.lineplot(x="BinStart", y="LinkDensity", data=df, lw=3, color="lightslategray")
-    tx = df['BinStart']
-    # ax.plot(tx, ty, 'r:', lw=3, label=label)
-    # ax.legend()
+    xstart, xend = (
+        np.searchsorted(distbin_starts, xmin),
+        np.searchsorted(distbin_starts, xmax),
+    )
+    df["BinStart"] = distbin_starts[xstart:xend]
+    df["LinkDensity"] = a[xstart:xend] / distbin_sizes[xstart:xend]
+    ax = sns.lineplot(
+        x="BinStart", y="LinkDensity", data=df, lw=3, color="lightslategray"
+    )
+    tx = df["BinStart"]
+    A, B, label = fit_power_law(tx, df["LinkDensity"])
+    ty = A * tx ** B
+    ax.plot(tx, ty, "r:", lw=3, label=label)
+    ax.legend()
     if opts.title:
-        ax.set_title(opts.title)
+        ax.set_title(markup(opts.title))
     ax.set_xlabel("Link size (bp)")
     ax.set_ylabel("Density (\# of links per bp)")
-    ax.set_xscale("log", nonposx='clip')
-    ax.set_yscale("log", nonposy='clip')
-    ax.set_xlim((200, 80000000))
+    ax.set_xscale("log", nonposx="clip")
+    ax.set_yscale("log", nonposy="clip")
     ax.xaxis.set_major_formatter(human_base_formatter)
 
     image_name = pf + "." + opts.format

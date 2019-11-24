@@ -5,7 +5,11 @@ with some modifications.
 """
 
 from itertools import *
-from collections import Iterable
+
+try:
+    from collections.abc import Iterable
+except:
+    from collections import Iterable
 from six.moves import zip_longest
 
 
@@ -158,7 +162,7 @@ def iter_except(func, exception, first=None):
 
 def random_product(*args, **kwds):
     "Random selection from itertools.product(*args, **kwds)"
-    pools = map(tuple, args) * kwds.get('repeat', 1)
+    pools = map(tuple, args) * kwds.get("repeat", 1)
     return tuple(random.choice(pool) for pool in pools)
 
 
@@ -221,11 +225,12 @@ def chunked(iterable, n):
 
     """
     # Doesn't seem to run into any number-of-args limits.
-    for group in (list(g) for g in zip_longest(*[iter(iterable)] * n,
-                                               fillvalue=_marker)):
+    for group in (
+        list(g) for g in zip_longest(*[iter(iterable)] * n, fillvalue=_marker)
+    ):
         if group[-1] is _marker:
             # If this is the last group, shuck off the padding:
-            del group[group.index(_marker):]
+            del group[group.index(_marker) :]
         yield group
 
 
@@ -262,6 +267,7 @@ class peekable(object):
         >>> assert not peekable([])
 
     """
+
     # Lowercase to blend in with itertools. The fact that it's a class is an
     # implementation detail.
 
@@ -285,7 +291,7 @@ class peekable(object):
         provided, raise ``StopIteration``.
 
         """
-        if not hasattr(self, '_peek'):
+        if not hasattr(self, "_peek"):
             try:
                 self._peek = next(self._it)
             except StopIteration:
@@ -300,6 +306,7 @@ class peekable(object):
         return ret
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import doctest
+
     doctest.testmod()

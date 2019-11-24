@@ -23,7 +23,12 @@
 
 from six.moves.urllib.parse import parse_qsl
 from bisect import bisect_left, bisect_right
-from collections import Callable, defaultdict, OrderedDict
+from collections import defaultdict, OrderedDict
+
+try:
+    from collections.abc import Callable
+except ImportError:
+    from collections import Callable
 
 
 class DefaultOrderedDict(OrderedDict):

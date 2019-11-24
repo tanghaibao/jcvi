@@ -12,13 +12,44 @@ import numpy as np
 is_symmetric = lambda M: (M.T == M).all()
 
 
+def compact(A, factor=2):
+    """ Make a matrix compact by a compact_factor.
+    Reference:
+    https://stackoverflow.com/questions/36383107/how-to-evaluate-the-sum-of-values-within-array-blocks
+
+    Args:
+        A (numpy.ndarray): 2D matrix
+        factor (int, optional): Compact factor. Defaults to 2.
+
+    Example:
+    >>> A = np.arange(16, dtype="int").reshape(4, 4); A
+    array([[ 0,  1,  2,  3],
+           [ 4,  5,  6,  7],
+           [ 8,  9, 10, 11],
+           [12, 13, 14, 15]])
+    >>> compact(A, factor=2)
+    array([[10, 18],
+           [42, 50]])
+    >>> compact(A, factor=4)
+    array([[120]])
+    """
+    assert len(A.shape) == 2, "Input matrix must be 2D"
+    rows, cols = A.shape
+    new_rows = rows // factor * factor
+    new_cols = cols // factor * factor
+    if (new_rows, new_cols) != A.shape:
+        A = A[:new_rows, :new_cols]
+    A_reshaped = A.reshape(rows // factor, factor, cols // factor, factor)
+    return np.einsum("ijkl->ik", A_reshaped)
+
+
 def moving_sum(a, window=10):
     kernel = np.repeat(1, window)
     return np.convolve(a, kernel, mode="same")
 
 
 def moving_average(a, window=10):
-    kernel = np.repeat(1., window) / window
+    kernel = np.repeat(1.0, window) / window
     return np.convolve(a, kernel)
 
 
@@ -26,11 +57,11 @@ def chunk_average(a, window=10, offset=None):
     # Fixed size window, take average within the window
     offset = offset or window
 
-    bins = int(math.ceil((a.size - window) * 1. / offset)) + 1
-    r = np.zeros((bins, ), dtype=np.float)
+    bins = int(math.ceil((a.size - window) * 1.0 / offset)) + 1
+    r = np.zeros((bins,), dtype=np.float)
     start = 0
-    for i in xrange(bins):
-        r[i] = np.average(a[start: start + window])
+    for i in range(bins):
+        r[i] = np.average(a[start : start + window])
         start += offset
     return r
 
@@ -125,10 +156,9 @@ def get_signs(M, cutoff=1e-10, validate=True, ambiguous=True):
         diag = np.matrix(np.eye(N, dtype=int) * sign_array)
         final = diag * M * diag
         # The final result should have all pairwise in the same direction
-        assert (final >= 0).all(), \
-                "result check fails:\n{0}".format(final)
+        assert (final >= 0).all(), "result check fails:\n{0}".format(final)
 
-    if not ambiguous:   # Do we allow ambiguous orientation (=0) ?
+    if not ambiguous:  # Do we allow ambiguous orientation (=0) ?
         sign_array[sign_array == 0] = 1
 
     return sign_array
@@ -157,13 +187,13 @@ def spring_system(A, K, L):
     >>> A = np.array([[1, -1, 0], [0, 1, -1], [1, 0, -1]])
     >>> K = np.eye(3, dtype=int)
     >>> L = np.array([1, 2, 3])
-    >>> print spring_system(A, K, L)
-    [ 1.  3.]
+    >>> spring_system(A, K, L)
+    array([1., 3.])
     """
     # Linear equation is A'KAx = -A'KL
     C = np.dot(A.T, K)
     left = np.dot(C, A)
-    right = - np.dot(C, L)
+    right = -np.dot(C, L)
 
     left = left[1:, 1:]
     right = right[1:]
@@ -172,6 +202,7 @@ def spring_system(A, K, L):
     return x
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import doctest
+
     doctest.testmod()

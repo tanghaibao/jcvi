@@ -153,8 +153,9 @@ def get_signs(M, cutoff=1e-10, validate=True, ambiguous=True):
         sign_array = -sign_array
 
     if validate:
-        diag = np.matrix(np.eye(N, dtype=int) * sign_array)
-        final = diag * M * diag
+        diag = np.eye(N, dtype=int) * sign_array
+        # final = diag @ M @ diag
+        final = diag.dot(M).dot(diag)  # Python2.7 compatible
         # The final result should have all pairwise in the same direction
         assert (final >= 0).all(), "result check fails:\n{0}".format(final)
 

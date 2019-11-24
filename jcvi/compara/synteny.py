@@ -7,7 +7,8 @@ import sys
 import logging
 
 import numpy as np
-from collections import Iterable, defaultdict
+from collections import defaultdict
+from collections.abc import Iterable
 
 from jcvi.algorithms.lis import heaviest_increasing_subsequence as his
 from jcvi.formats.bed import Bed, BedLine

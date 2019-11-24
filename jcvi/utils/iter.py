@@ -5,7 +5,11 @@ with some modifications.
 """
 
 from itertools import *
-from collections.abc import Iterable
+
+try:
+    from collections.abc import Iterable
+except:
+    from collections import Iterable
 from six.moves import zip_longest
 
 

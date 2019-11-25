@@ -9,20 +9,20 @@ from __future__ import print_function
 import array
 import json
 import logging
-import sys
+import math
 import os
 import os.path as op
-import numpy as np
-import math
-
+import sys
 from collections import defaultdict
 from functools import partial
 from multiprocessing import Pool
 
+import numpy as np
+
+from jcvi.algorithms.ec import GA_run, GA_setup
 from jcvi.algorithms.formula import outlier_cutoff
-from jcvi.algorithms.ec import GA_setup, GA_run
 from jcvi.algorithms.matrix import get_signs
-from jcvi.apps.base import OptionParser, ActionDispatcher, backup, iglob, mkdir, symlink
+from jcvi.apps.base import ActionDispatcher, OptionParser, backup, iglob, mkdir, symlink
 from jcvi.apps.console import green, red
 from jcvi.apps.grid import Jobs
 from jcvi.assembly.allmaps import make_movie
@@ -30,9 +30,16 @@ from jcvi.compara.synteny import check_beds, get_bed_filenames
 from jcvi.formats.agp import order_to_agp
 from jcvi.formats.base import LineFile, must_open
 from jcvi.formats.bed import Bed
-from jcvi.formats.sizes import Sizes
 from jcvi.formats.blast import Blast
-from jcvi.graphics.base import latex, normalize_axes, plt, savefig
+from jcvi.formats.sizes import Sizes
+from jcvi.graphics.base import (
+    markup,
+    normalize_axes,
+    plt,
+    savefig,
+    ticker,
+    human_readable,
+)
 from jcvi.graphics.dotplot import dotplot
 from jcvi.utils.cbook import gene_name, human_size
 from jcvi.utils.natsort import natsorted
@@ -664,6 +671,24 @@ def dist(args):
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
+def generate_groups(groupsfile):
+    """ Parse 'groups' file. The 'groups' file has the following format,
+    for example:
+
+    seq1,seq2 b
+    seq1 g
+    seq2 g
+
+    Args:
+        groupsfile (str): Path to the groups file
+    """
+    data = []
+    with open(groupsfile) as fp:
+        for row in fp:
+            seqids, color = row.split()
+            yield seqids, color
+
+
 def heatmap(args):
     """
     %prog heatmap input.npy genome.json
@@ -673,9 +698,20 @@ def heatmap(args):
     between bin i and bin j. The `genome.json` contains the offsets of each
     contig/chr so that we know where to draw boundary lines, or extract per
     contig/chromosome heatmap.
+
+    If a 'groups' file is given (with --groups), we will draw squares on the
+    heatmap. The 'groups' file has the following format, for example:
+
+    seq1,seq2 b
+    seq1 g
+    seq2 g
+
+    This will first draw a square around seq1+seq2 with blue color, then seq1
+    and seq2 individually with green color.
     """
     p = OptionParser(heatmap.__doc__)
     p.add_option("--title", help="Title of the heatmap")
+    p.add_option("--groups", help="Groups file, see doc")
     p.add_option("--vmin", default=1, type="int", help="Minimum value in the heatmap")
     p.add_option("--vmax", default=6, type="int", help="Maximum value in the heatmap")
     p.add_option("--chr", help="Plot this contig/chr only")
@@ -686,7 +722,7 @@ def heatmap(args):
         help="Do not plot breaks (esp. if contigs are small)",
     )
     opts, args, iopts = p.set_image_options(
-        args, figsize="10x10", style="white", cmap="coolwarm", format="png", dpi=120
+        args, figsize="11x11", style="white", cmap="coolwarm", format="png", dpi=120
     )
 
     if len(args) != 2:
@@ -694,6 +730,8 @@ def heatmap(args):
 
     npyfile, jsonfile = args
     contig = opts.chr
+    groups = list(generate_groups(opts.groups)) if opts.groups else []
+
     # Load contig/chromosome starts and sizes
     header = json.loads(open(jsonfile).read())
     resolution = header.get("resolution")
@@ -708,6 +746,25 @@ def heatmap(args):
         contig_size = header["sizes"][contig]
         contig_end = contig_start + contig_size
         A = A[contig_start:contig_end, contig_start:contig_end]
+
+    # Convert seqids to positions for each group
+    new_groups = []
+    for seqids, color in groups:
+        seqids = seqids.split(",")
+        assert all(
+            x in header["starts"] for x in seqids
+        ), f"{seqids} contain ids not found in starts"
+        assert all(
+            x in header["sizes"] for x in seqids
+        ), f"{seqids} contain ids not found in sizes"
+        start = min(header["starts"][x] for x in seqids)
+        end = max(header["starts"][x] + header["sizes"][x] for x in seqids)
+        position_seqids = []
+        for seqid in seqids:
+            seqid_start = header["starts"][seqid]
+            seqid_size = header["sizes"][seqid]
+            position_seqids.append((seqid_start + seqid_size / 2, seqid))
+        new_groups.append((start, end, position_seqids, color))
 
     # Several concerns in practice:
     # The diagonal counts may be too strong, this can either be resolved by
@@ -733,17 +790,17 @@ def heatmap(args):
     breaks = sorted(breaks)[1:]
     if contig or opts.nobreaks:
         breaks = []
-    plot_heatmap(ax, B, breaks, iopts, binsize=resolution)
+    plot_heatmap(ax, B, breaks, iopts, groups=new_groups, binsize=resolution)
 
     # Title
     pf = npyfile.rsplit(".", 1)[0]
-    title = pf
+    title = opts.title
     if contig:
         title += "-{}".format(contig)
     root.text(
         0.5,
         0.98,
-        latex(title),
+        markup(title),
         color="darkslategray",
         size=18,
         ha="center",
@@ -751,7 +808,7 @@ def heatmap(args):
     )
 
     normalize_axes(root)
-    image_name = title + "." + iopts.format
+    image_name = pf + "." + iopts.format
     # macOS sometimes has way too verbose output
     logging.getLogger().setLevel(logging.CRITICAL)
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
@@ -1635,24 +1692,56 @@ def read_clm(clm, totalbins, bins):
     return M
 
 
-def plot_heatmap(ax, M, breaks, iopts, binsize=BINSIZE):
+def plot_heatmap(ax, M, breaks, iopts, groups=[], plot_breaks=False, binsize=BINSIZE):
+    """ Plot heatmap illustrating the contact probabilities in Hi-C data.
+
+    Args:
+        ax (pyplot.axes): Matplotlib axis
+        M (np.array): 2D numpy-array
+        breaks (List[int]): Positions of chromosome starts. Can be None.
+        iopts (OptionParser options): Graphical options passed in from commandline
+        groups (List, optional): [(start, end, [(position, seqid)], color)]. Defaults to [].
+        plot_breaks (bool): Whether to plot white breaks. Defaults to False.
+        binsize (int, optional): Resolution of the heatmap. Defaults to BINSIZE.
+    """
     import seaborn as sns
 
     cmap = sns.cubehelix_palette(rot=0.5, as_cmap=True)
     ax.imshow(M, cmap=cmap, interpolation="none")
-    xlim = ax.get_xlim()
-    for b in breaks[:-1]:
-        ax.plot([b, b], xlim, "w-")
-        ax.plot(xlim, [b, b], "w-")
+    _, xmax = ax.get_xlim()
+    xlim = (0, xmax)
+    if plot_breaks:
+        for b in breaks[:-1]:
+            ax.plot([b, b], xlim, "w-")
+            ax.plot(xlim, [b, b], "w-")
+
+    def simplify_seqid(seqid):
+        seqid = seqid.replace("_", "")
+        if seqid[:3].lower() == "chr":
+            seqid = seqid[3:]
+        return seqid.lstrip("0")
+
+    for start, end, position_seqids, color in groups:
+        # Plot a square
+        ax.plot([start, start], [start, end], "-", color=color)
+        ax.plot([start, end], [start, start], "-", color=color)
+        ax.plot([start, end], [end, end], "-", color=color)
+        ax.plot([end, end], [start, end], "-", color=color)
+        for position, seqid in position_seqids:
+            seqid = simplify_seqid(seqid)
+            ax.text(position, end, seqid, ha="center", va="top")
+
     ax.set_xlim(xlim)
     ax.set_ylim((xlim[1], xlim[0]))  # Flip the y-axis so the origin is at the top
-    ax.set_xticklabels(
-        [int(x) for x in ax.get_xticks()], family="Helvetica", color="gray"
+    ax.set_xticklabels(ax.get_xticks(), family="Helvetica", color="gray")
+    ax.set_yticklabels(ax.get_yticks(), family="Helvetica", color="gray", rotation=90)
+    ax.tick_params(left=True, bottom=True, labelleft=True, labelbottom=True)
+    formatter = ticker.FuncFormatter(
+        lambda x, pos: human_readable(int(x) * binsize, pos, base=True)
     )
-    ax.set_yticklabels(
-        [int(x) for x in ax.get_yticks()], family="Helvetica", color="gray"
-    )
-    binlabel = "Bins ({} per bin)".format(human_size(binsize, precision=0))
+    ax.xaxis.set_major_formatter(formatter)
+    ax.yaxis.set_major_formatter(formatter)
+    binlabel = "Resolution = {} per bin".format(human_size(binsize, precision=0))
     ax.set_xlabel(binlabel)
 
 

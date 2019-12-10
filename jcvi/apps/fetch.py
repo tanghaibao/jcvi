@@ -14,7 +14,7 @@ from os.path import join as urljoin
 
 from Bio import Entrez, SeqIO
 
-from jcvi.formats.base import must_open
+from jcvi.formats.base import FileShredder, must_open
 from jcvi.formats.fasta import print_first_difference
 from jcvi.formats.fastq import fromsra
 from jcvi.utils.cbook import tile
@@ -239,8 +239,14 @@ def phytozome(args):
     dlist = "{}/ext-api/downloads/get-directory?organism=PhytozomeV{}".format(
         base_url, opts.version
     )
-    d = download(dlist, filename=directory_listing, cookies=cookies)
-    g = GlobusXMLParser(directory_listing)
+    try:
+        d = download(dlist, filename=directory_listing, cookies=cookies)
+        g = GlobusXMLParser(directory_listing)
+    except:
+        logging.error("Error downloading directory listing ... cleaning up")
+        FileShredder([directory_listing, cookies])
+        sys.exit(1)
+
     genomes = g.get_genomes()
     valid_species = genomes.keys()
     species_tile = tile(valid_species)

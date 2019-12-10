@@ -32,9 +32,8 @@ from jcvi.graphics.synteny import Shade
 from jcvi.graphics.base import mpl, plt, savefig, markup, AbstractLayout
 
 
-class LayoutLine (object):
-
-    def __init__(self, row, delimiter=',', generank=True):
+class LayoutLine(object):
+    def __init__(self, row, delimiter=",", generank=True):
         args = row.rstrip().split(delimiter)
         args = [x.strip() for x in args]
 
@@ -55,34 +54,31 @@ class LayoutLine (object):
         else:
             self.label_va = "center"
         self.order = self.bed.order
-        self.order_in_chr = self.bed.order_in_chr if generank \
-                            else self.bed.bp_in_chr
+        self.order_in_chr = self.bed.order_in_chr if generank else self.bed.bp_in_chr
 
 
-class Layout (AbstractLayout):
-
-    def __init__(self, filename, delimiter=',', generank=False):
+class Layout(AbstractLayout):
+    def __init__(self, filename, delimiter=",", generank=False):
         super(Layout, self).__init__(filename)
         fp = open(filename)
         self.edges = []
         for row in fp:
-            if row[0] == '#':
+            if row[0] == "#":
                 continue
-            if row[0] == 'e':
+            if row[0] == "e":
                 args = row.rstrip().split(delimiter)
                 args = [x.strip() for x in args]
                 i, j, fn = args[1:4]
                 if len(args) == 5 and args[4]:
                     samearc = args[4]
                 else:
-                    samearc = 'below'
+                    samearc = "below"
                 i, j = int(i), int(j)
-                assert args[0] == 'e'
+                assert args[0] == "e"
                 blocks = self.parse_blocks(fn, i)
                 self.edges.append((i, j, blocks, samearc))
             else:
-                self.append(LayoutLine(row, delimiter=delimiter,
-                            generank=generank))
+                self.append(LayoutLine(row, delimiter=delimiter, generank=generank))
 
         self.assign_colors()
 
@@ -91,13 +87,21 @@ class Layout (AbstractLayout):
         return SimpleFile(simplefile, order=order).blocks
 
 
-MaxSeqids = 16   # above which no labels are written
+MaxSeqids = 16  # above which no labels are written
 
 
-class Track (object):
-
-    def __init__(self, ax, t, gap=.01, height=.01, lw=1, draw=True,
-                 heightpad=0, roundrect=False):
+class Track(object):
+    def __init__(
+        self,
+        ax,
+        t,
+        gap=0.01,
+        height=0.01,
+        lw=1,
+        draw=True,
+        heightpad=0,
+        roundrect=False,
+    ):
 
         self.empty = t.empty
         if t.empty:
@@ -125,13 +129,15 @@ class Track (object):
         # Rotation transform
         self.x = x = (self.xstart + self.xend) / 2
         y = self.y
-        self.tr = mpl.transforms.Affine2D().\
-                    rotate_deg_around(x, y, self.rotation) + ax.transAxes
+        self.tr = (
+            mpl.transforms.Affine2D().rotate_deg_around(x, y, self.rotation)
+            + ax.transAxes
+        )
         self.inv = ax.transAxes.inverted()
 
         nseqids = len(self.seqids)
         if nseqids > MaxSeqids:
-            gap = min(gap, gap * MaxSeqids / nseqids + .001)
+            gap = min(gap, gap * MaxSeqids / nseqids + 0.001)
         self.gap = gap
 
         rpad = 1 - t.xend
@@ -149,8 +155,9 @@ class Track (object):
     def __str__(self):
         return self.label
 
-    def draw(self, roundrect=False, plot_label=True, plot_circles=True,
-             pad=.03, vpad=.09):
+    def draw(
+        self, roundrect=False, plot_label=True, plot_circles=True, pad=0.03, vpad=0.09
+    ):
         if self.empty:
             return
 
@@ -168,16 +175,23 @@ class Track (object):
             si = "".join(x for x in sid if x in string.digits)
             si = str(int(si))
             if sid in self.rev:
-                si += '-'
+                si += "-"
             return si
 
         for i, sid in enumerate(self.seqids):
             size = self.sizes[sid]
             rsize = self.ratio * size
             xend = xstart + rsize
-            hc = HorizontalChromosome(ax, xstart, xend, y,
-                                      height=self.height, lw=self.lw, fc=color,
-                                      roundrect=roundrect)
+            hc = HorizontalChromosome(
+                ax,
+                xstart,
+                xend,
+                y,
+                height=self.height,
+                lw=self.lw,
+                fc=color,
+                roundrect=roundrect,
+            )
             hc.set_transform(tr)
             si = make_circle_name(sid)
             xx = (xstart + xend) / 2
@@ -191,8 +205,17 @@ class Track (object):
 
             hpad = -pad if va == "bottom" else pad
             if plot_circles:
-                TextCircle(ax, xx, y + hpad, si, radius=.01,
-                           fc="w", color=color, size=10, transform=tr)
+                TextCircle(
+                    ax,
+                    xx,
+                    y + hpad,
+                    si,
+                    radius=0.01,
+                    fc="w",
+                    color=color,
+                    size=10,
+                    transform=tr,
+                )
 
         label = markup(self.label)
         c = color if color != "gainsboro" else "k"
@@ -202,7 +225,7 @@ class Track (object):
             elif self.label_va == "bottom":
                 x, y = self.x, self.y - vpad
             else:  # "center"
-                x, y = self.xstart - vpad, self.y
+                x, y = self.xstart - vpad / 2, self.y
             ax.text(x, y, label, ha="center", va="center", color=c, transform=tr)
 
     def update_offsets(self):
@@ -232,17 +255,17 @@ class Track (object):
         return [x, y]
 
 
-class ShadeManager (object):
-
-    def __init__(self, ax, tracks, layout, heightpad=0):
+class ShadeManager(object):
+    def __init__(self, ax, tracks, layout, heightpad=0, style="curve"):
+        self.style = style
         for i, j, blocks, samearc in layout.edges:
             # if same track (duplication shades), shall we draw above or below?
-            #samearc = "above" if i == j and i == 0 else "below"
-            self.draw_blocks(ax, blocks, tracks[i], tracks[j],
-                             samearc=samearc, heightpad=heightpad)
+            # samearc = "above" if i == j and i == 0 else "below"
+            self.draw_blocks(
+                ax, blocks, tracks[i], tracks[j], samearc=samearc, heightpad=heightpad
+            )
 
-    def draw_blocks(self, ax, blocks, atrack, btrack,
-                    samearc="below", heightpad=0):
+    def draw_blocks(self, ax, blocks, atrack, btrack, samearc="below", heightpad=0):
         for a, b, c, d, score, orientation, highlight in blocks:
             p = atrack.get_coords(a), atrack.get_coords(b)
             q = btrack.get_coords(c), btrack.get_coords(d)
@@ -251,8 +274,8 @@ class ShadeManager (object):
 
             ymid = (atrack.y + btrack.y) / 2
             px, qx = p[0][0], q[0][0]
-            xdist = abs(px - qx) if px and qx else .5
-            pad = .09 * xdist / .5
+            xdist = abs(px - qx) if px and qx else 0.5
+            pad = 0.09 * xdist / 0.5
             if atrack.y == btrack.y:
                 if samearc == "below":
                     ymid = atrack.y - pad
@@ -268,27 +291,51 @@ class ShadeManager (object):
 
             zorder = 2 if highlight else 1
             lw = 1 if highlight else 0
-            Shade(ax, p, q, ymid, highlight=highlight, alpha=1, fc="gainsboro",
-                        ec="gainsboro", lw=lw, zorder=zorder)
+            Shade(
+                ax,
+                p,
+                q,
+                ymid,
+                highlight=highlight,
+                alpha=1,
+                fc="gainsboro",
+                ec="gainsboro",
+                lw=lw,
+                zorder=zorder,
+                style=self.style,
+            )
 
 
-class Karyotype (object):
-
-    def __init__(self, fig, root, seqidsfile, layoutfile, gap=.01,
-                 height=.01, lw=1, generank=True, sizes=None, heightpad=0,
-                 roundrect=False, plot_label=True, plot_circles=True):
+class Karyotype(object):
+    def __init__(
+        self,
+        fig,
+        root,
+        seqidsfile,
+        layoutfile,
+        gap=0.01,
+        height=0.01,
+        lw=1,
+        generank=True,
+        sizes=None,
+        heightpad=0,
+        roundrect=False,
+        plot_label=True,
+        plot_circles=True,
+        shadestyle="curve",
+    ):
 
         layout = Layout(layoutfile, generank=generank)
 
         fp = open(seqidsfile)
         # Strip the reverse orientation tag for e.g. chr3-
-        di = lambda x: x[:-1] if x[-1] == '-' else x
+        di = lambda x: x[:-1] if x[-1] == "-" else x
         for i, row in enumerate(fp):
-            if row[0] == '#':
+            if row[0] == "#":
                 continue
             t = layout[i]
             seqids = row.rstrip().split(",")
-            t.rev = set(x[:-1] for x in seqids if x[-1] == '-')
+            t.rev = set(x[:-1] for x in seqids if x[-1] == "-")
             seqids = [di(x) for x in seqids]
             if t.empty:
                 continue
@@ -310,11 +357,12 @@ class Karyotype (object):
             tr = Track(root, lo, gap=gap, height=height, lw=lw, draw=False)
             tracks.append(tr)
 
-        ShadeManager(root, tracks, layout, heightpad=heightpad)
+        ShadeManager(root, tracks, layout, heightpad=heightpad, style=shadestyle)
 
         for tr in tracks:
-            tr.draw(roundrect=roundrect,
-                    plot_label=plot_label, plot_circles=plot_circles)
+            tr.draw(
+                roundrect=roundrect, plot_label=plot_label, plot_circles=plot_circles
+            )
 
         self.tracks = tracks
         self.layout = layout
@@ -322,8 +370,18 @@ class Karyotype (object):
 
 def main():
     p = OptionParser(__doc__)
-    p.add_option("--nocircles", default=False, action="store_true",
-                 help="Do not plot chromosome circles")
+    p.add_option(
+        "--nocircles",
+        default=False,
+        action="store_true",
+        help="Do not plot chromosome circles",
+    )
+    p.add_option(
+        "--shadestyle",
+        default="curve",
+        choices=Shade.Styles,
+        help="Style of syntenic wedges",
+    )
     opts, args, iopts = p.set_image_options(figsize="8x7")
 
     if len(args) != 2:
@@ -334,8 +392,14 @@ def main():
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
 
-    Karyotype(fig, root, seqidsfile, layoutfile,
-              plot_circles=(not opts.nocircles))
+    Karyotype(
+        fig,
+        root,
+        seqidsfile,
+        layoutfile,
+        plot_circles=(not opts.nocircles),
+        shadestyle=opts.shadestyle,
+    )
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
@@ -346,5 +410,5 @@ def main():
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

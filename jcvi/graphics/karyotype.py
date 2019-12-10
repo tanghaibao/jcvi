@@ -324,7 +324,6 @@ class Karyotype(object):
         plot_circles=True,
         shadestyle="curve",
     ):
-
         layout = Layout(layoutfile, generank=generank)
 
         fp = open(seqidsfile)
@@ -345,8 +344,10 @@ class Karyotype(object):
             if generank:
                 sz = dict((x, len(list(bed.sub_bed(x)))) for x in seqids)
             else:
-                assert sizes is not None
-                sz = dict((x, sizes[x]) for x in seqids)
+                sz = sizes or dict(
+                    (x, max(z.end for z in list(bed.sub_bed(x)))) for x in seqids
+                )
+                assert sz is not None, "sizes not available and cannot be inferred"
             t.seqids = seqids
             t.sizes = sz
 
@@ -370,6 +371,12 @@ class Karyotype(object):
 
 def main():
     p = OptionParser(__doc__)
+    p.add_option(
+        "--basepair",
+        default=False,
+        action="store_true",
+        help="Use base pair position instead of gene rank",
+    )
     p.add_option(
         "--nocircles",
         default=False,
@@ -399,6 +406,7 @@ def main():
         layoutfile,
         plot_circles=(not opts.nocircles),
         shadestyle=opts.shadestyle,
+        generank=(not opts.basepair),
     )
 
     root.set_xlim(0, 1)

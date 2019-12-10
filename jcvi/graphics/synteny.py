@@ -122,7 +122,7 @@ class Shade(object):
             lw (int, optional): Line width. Defaults to 1.
             zorder (int, optional): Z-order. Defaults to 1.
         """
-        assert style in Styles, "style must be one of {}".format(Styles)
+        assert style in self.Styles, "style must be one of {}".format(Styles)
         a1, a2 = a
         b1, b2 = b
         ax1, ay1 = a1
@@ -497,7 +497,7 @@ def main():
     p.add_option(
         "--shadestyle",
         default="curve",
-        choice=Shade.Styles,
+        choices=Shade.Styles,
         help="Style of syntenic wedges",
     )
     opts, args, iopts = p.set_image_options(figsize="8x7")

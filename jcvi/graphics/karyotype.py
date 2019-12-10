@@ -225,7 +225,7 @@ class Track(object):
             elif self.label_va == "bottom":
                 x, y = self.x, self.y - vpad
             else:  # "center"
-                x, y = self.xstart - vpad, self.y
+                x, y = self.xstart - vpad / 2, self.y
             ax.text(x, y, label, ha="center", va="center", color=c, transform=tr)
 
     def update_offsets(self):
@@ -379,7 +379,7 @@ def main():
     p.add_option(
         "--shadestyle",
         default="curve",
-        choice=Shade.Styles,
+        choices=Shade.Styles,
         help="Style of syntenic wedges",
     )
     opts, args, iopts = p.set_image_options(figsize="8x7")

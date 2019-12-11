@@ -8,16 +8,17 @@ import bisect
 
 # We want a maximum function which accepts a default value
 from functools import partial, reduce
+
 maximum = partial(reduce, max)
 
 
 def patience_sort(xs):
-    '''Patience sort an iterable, xs.
+    """Patience sort an iterable, xs.
 
     This function generates a series of pairs (x, pile), where "pile"
     is the 0-based index of the pile "x" should be placed on top of.
     Elements of "xs" must be less-than comparable.
-    '''
+    """
     pile_tops = list()
     for x in xs:
         pile = bisect.bisect_left(pile_tops, x)
@@ -29,7 +30,7 @@ def patience_sort(xs):
 
 
 def longest_monotonic_subseq_length(xs):
-    '''Return the length of the longest monotonic subsequence of xs, second
+    """Return the length of the longest monotonic subsequence of xs, second
     return value is the difference between increasing and decreasing lengths.
 
     >>> longest_monotonic_subseq_length((4, 5, 1, 2, 3))
@@ -38,20 +39,20 @@ def longest_monotonic_subseq_length(xs):
     (4, 2)
     >>> longest_monotonic_subseq_length((1, 2, 1))
     (2, 0)
-    '''
+    """
     li = longest_increasing_subseq_length(xs)
     ld = longest_decreasing_subseq_length(xs)
     return max(li, ld), li - ld
 
 
 def longest_increasing_subseq_length(xs):
-    '''Return the length of the longest increasing subsequence of xs.
+    """Return the length of the longest increasing subsequence of xs.
 
     >>> longest_increasing_subseq_length(range(3))
     3
     >>> longest_increasing_subseq_length([3, 1, 2, 0])
     2
-    '''
+    """
     return 1 + maximum((pile for x, pile in patience_sort(xs)), -1)
 
 
@@ -76,14 +77,14 @@ def longest_decreasing_subseq_length_loose(xs):
 
 
 def longest_increasing_subsequence(xs):
-    '''Return a longest increasing subsequence of xs.
+    """Return a longest increasing subsequence of xs.
 
     (Note that there may be more than one such subsequence.)
     >>> longest_increasing_subsequence(range(3))
     [0, 1, 2]
     >>> longest_increasing_subsequence([3, 1, 2, 0])
     [1, 2]
-    '''
+    """
     # Patience sort xs, stacking (x, prev_ix) pairs on the piles.
     # Prev_ix indexes the element at the top of the previous pile,
     # which has a lower x value than the current x value.
@@ -105,11 +106,11 @@ def longest_increasing_subsequence(xs):
 
 
 def longest_decreasing_subsequence(xs):
-    '''
+    """
     Wrapper that calls longest_increasing_subsequence
     >>> longest_decreasing_subsequence([23, 19, 97, 16, 37, 44, 88, 77, 26])
     [97, 88, 77, 26]
-    '''
+    """
     return list(reversed(longest_increasing_subsequence(reversed(xs))))
 
 
@@ -164,7 +165,7 @@ def heaviest_increasing_subsequence(a, debug=False):
     bestsofar = [(0, -1)] * len(a)  # (best weight, from_idx)
     for i, (key, weight) in enumerate(a):
 
-        for w, j in L.items():
+        for w, j in list(L.items()):
             if j != -1 and a[j][0] >= key:
                 continue
 
@@ -178,21 +179,24 @@ def heaviest_increasing_subsequence(a, debug=False):
                 bestsofar[i] = newbest
 
         if debug:
-            #print (key, weight), L
+            # print (key, weight), L
             print((key, weight), bestsofar)
 
     tb = reversed(list(backtracking(a, L, bestsofar)))
     return [a[x] for x in tb], max(L.items())[0]
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import doctest
+
     doctest.testmod()
 
     import numpy as np
-    A = np.random.random_integers(0, 10, 10)
+
+    LENGTH = 20
+    A = [np.random.randint(0, 20) for x in range(LENGTH)]
     A = list(A)
-    B = zip(A, [1] * 10)
+    B = list(zip(A, [1] * LENGTH))
     print(A)
     lis = longest_increasing_subsequence(A)
     print("longest increasing:", lis)

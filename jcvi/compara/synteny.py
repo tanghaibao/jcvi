@@ -7,7 +7,11 @@ import sys
 import logging
 
 import numpy as np
-from collections import Iterable, defaultdict
+from collections import defaultdict
+try:
+    from collections.abc import Iterable
+except ImportError:
+    from collections import Iterable
 
 from jcvi.algorithms.lis import heaviest_increasing_subsequence as his
 from jcvi.formats.bed import Bed, BedLine
@@ -105,7 +109,7 @@ class BlockFile (BaseFile):
     def __init__(self, filename, defaultcolor='#fb8072', header=False):
         super(BlockFile, self).__init__(filename)
         fp = must_open(filename)
-        hd = fp.next().rstrip().split("\t")
+        hd = next(fp).rstrip().split("\t")
         ncols = len(hd)
         if header:
             self.header = hd
@@ -135,7 +139,7 @@ class BlockFile (BaseFile):
 
         self.data = data
         self.highlight = highlight
-        self.columns = zip(*data)
+        self.columns = list(zip(*data))
         self.ncols = ncols
 
     def get_extent(self, i, order, debug=True):
@@ -287,7 +291,7 @@ def read_blast(blast_file, qorder, sorder, is_self=False, ostrip=True):
     bl = Blast(blast_file)
     for b in bl:
         query, subject = b.query, b.subject
-        if query == subject:
+        if is_self and query == subject:
             continue
         if ostrip:
             query, subject = gene_name(query), gene_name(subject)
@@ -1117,7 +1121,7 @@ def stats(args):
 def get_best_pair(qs, ss, ts):
     pairs = {}
     for q, s, t in zip(qs, ss, ts):
-        t = long(t)
+        t = int(t[:-1]) if t[-1] == 'L' else int(t)
         if q not in pairs or pairs[q][1] < t:
             pairs[q] = (s, t)
 
@@ -1187,7 +1191,7 @@ def mcscan(args):
     if mergetandem:
         assert not ascii
         tandems = {}
-        for row in file(mergetandem):
+        for row in open(mergetandem):
             row = row.split()
             s = ";".join(row)
             for atom in row:
@@ -1349,7 +1353,7 @@ def depth(args):
     plt.figure(1, (6, 3))
     f, (ax1, ax2) = plt.subplots(1, 2, sharey=True)
 
-    xmax = opts.xmax or max(4, max(dsq.keys() + dss.keys()))
+    xmax = opts.xmax or max(4, max(list(dsq.keys()) + list(dss.keys())))
     if opts.quota:
         speak, qpeak = opts.quota.split(":")
         qpeak, speak = int(qpeak), int(speak)

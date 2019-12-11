@@ -11,9 +11,9 @@ networkx
 numpy
 graphviz
 PyPDF2
-pysam
 pytest
 pytest-cov
+pytest-benchmark
 PyYAML
 scipy
 seaborn

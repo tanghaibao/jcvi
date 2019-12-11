@@ -12,26 +12,97 @@ import sys
 import urllib
 import logging
 
+from urllib.parse import urljoin
+
 from xml.etree.ElementTree import ElementTree, Element, SubElement, tostring
 
-from jcvi.apps.base import OptionParser, ActionDispatcher
+from jcvi.apps.base import OptionParser, ActionDispatcher, download
 
 
-class GlobusXMLParser (ElementTree):
+class GlobusXMLParser(ElementTree):
+    def __init__(self, xml_file):
+        """Parse an Globus directory listing XML file
 
-    def __init__(self, xml_data):
-        self.parse(xml_data)
+        Args:
+            xml_file (str): Path to the XML file
+        """
+        with open(xml_file) as fp:
+            self.parse(fp)
 
-    def parse_folder(self):
+    def get_genomes(self):
         """
         Only folders containing `assembly` and `annotation` are of interest.
         """
-        for t in self.getiterator("folder"):
-            print(t.attrib["name"])
+        root = PhytozomePath(next(self.iter(tag="organismDownloads")))
+        genomes = {}
+        for child in root.values():
+            if child.has_genome_release:
+                genomes[child.name] = child
+
+        # early_release
+        early_release = root.get("early_release")
+        if early_release:
+            for child in early_release.values():
+                if child.has_genome_release:
+                    genomes[child.name] = child
+
+        return genomes
+
+
+class PhytozomePath(dict):
+    TAGS_OF_INTEREST = ("organismDownloads", "folder", "file")
+
+    def __init__(self, element):
+        """Deserialize XML => dict-like structure to ease navigation
+        between folders. Keys are folder or file names.
+
+        Args:
+            element (ElementTree): XML parse tree
+        """
+        tag = element.tag
+        assert tag in self.TAGS_OF_INTEREST
+        self.url = None
+        if tag == "file":
+            self.name = element.attrib["filename"]
+            self.url = element.attrib["url"]
+        else:
+            self.name = element.attrib["name"]
+        self.tag = tag
+        for child in element.getchildren():
+            if child.tag not in self.TAGS_OF_INTEREST:
+                continue
+            child = PhytozomePath(child)
+            self[child.name] = child
+
+    @property
+    def has_genome_release(self):
+        """Only the folders that contain both `assembly` and `annotation` are of interest here.
+        """
+        return "assembly" in self and "annotation" in self
+
+    def download(self, name, base_url, cookies):
+        """Download the file if it has an URL. Otherwise, this will recursively search the children.
+
+        See also:
+        <https://genome.jgi.doe.gov/portal/help/download.jsf>
+
+        Args:
+            name (str, optional): Name of the file. Defaults to None.
+        """
+        if self.name == name and base_url and self.url:
+            url = urljoin(base_url, self.url)
+            download(url, filename=name, debug=True, cookies=cookies)
+        else:
+            for child_name, child in self.items():
+                if child_name == name:
+                    child.download(name, base_url, cookies)
+        return name
+
+    def __repr__(self):
+        return "{}: [{}]".format(self.name, ", ".join(repr(v) for v in self))
 
 
 class MartXMLParser(ElementTree):
-
     def __init__(self, xml_data):
         self.parse(xml_data)
 
@@ -54,19 +125,27 @@ class MartXMLParser(ElementTree):
 
 
 class Mart(dict):
-
-    def __init__(self, host="www.biomart.org", path="/biomart/martservice",
-            port="80", name="ensembl", virtual_schema="default", **attrib):
+    def __init__(
+        self,
+        host="www.biomart.org",
+        path="/biomart/martservice",
+        port="80",
+        name="ensembl",
+        virtual_schema="default",
+        **attrib
+    ):
 
         self.__dict__ = attrib.copy()
-        self.__dict__.update(x for x in locals().items() \
-                                if x[0] not in ("self", "attrib"))
+        self.__dict__.update(
+            x for x in locals().items() if x[0] not in ("self", "attrib")
+        )
 
         self.registry = {}
         self.url = "http://{0}:{1}{2}".format(self.host, self.port, path)
         self.display_name = self.__dict__.get("displayName", "")
-        self.virtual_schema = self.__dict__.get("serverVirtualSchema",
-                self.virtual_schema)
+        self.virtual_schema = self.__dict__.get(
+            "serverVirtualSchema", self.virtual_schema
+        )
 
     def __str__(self):
         return "\t".join((self.name, self.display_name, self.virtual_schema))
@@ -97,7 +176,7 @@ class Mart(dict):
                 self[name] = Dataset(name, description, last_updated, self)
 
     def list_datasets(self):
-        if len(self)==0:
+        if len(self) == 0:
             self.get_datasets()
         for m in sorted(self.values(), key=str):
             print(m)
@@ -107,6 +186,7 @@ class Dataset(object):
     """
     Connect to a specified dataset in the database
     """
+
     def __init__(self, name, description, last_updated, mart):
         self.name = name
         self.description = description
@@ -150,9 +230,9 @@ class Dataset(object):
 
 
 class MartQuery(object):
-
-    def __init__(self, dataset=None, formatter="TSV", header="0",
-            unique_rows="0", count="0"):
+    def __init__(
+        self, dataset=None, formatter="TSV", header="0", unique_rows="0", count="0"
+    ):
         self.dataset = dataset
         self.url = dataset.mart.url
         self.virtual_schema = dataset.mart.virtual_schema
@@ -179,11 +259,20 @@ class MartQuery(object):
         self.formatter = format
 
     def build_query(self):
-        query_t = Element("Query", dict(virtualSchemaName=self.virtual_schema,
-            formatter=self.formatter, header=self.header, uniqueRows=self.unique_rows,
-            count=self.count, datasetConfigVersion="0.6"))
-        dataset_t = SubElement(query_t, "Dataset", dict(name=self.name,
-            interface="default"))
+        query_t = Element(
+            "Query",
+            dict(
+                virtualSchemaName=self.virtual_schema,
+                formatter=self.formatter,
+                header=self.header,
+                uniqueRows=self.unique_rows,
+                count=self.count,
+                datasetConfigVersion="0.6",
+            ),
+        )
+        dataset_t = SubElement(
+            query_t, "Dataset", dict(name=self.name, interface="default")
+        )
         for key, val in self.filters.items():
             SubElement(dataset_t, "Filter", dict(name=key, value=val))
         for attribute in self.attributes:
@@ -200,7 +289,6 @@ class MartQuery(object):
 
 
 class MartArgument(object):
-
     def __init__(self, **attrib):
         self.__dict__ = attrib.copy()
 
@@ -214,6 +302,7 @@ class Attribute(MartArgument):
 
     For example, the gene start, stop, or chromosomes it belongs to
     """
+
     pass
 
 
@@ -224,6 +313,7 @@ class Filter(MartArgument):
     For example, you can restrict output to all genes located on chr. 1
     then use the filter chromosome_name with value `1`
     """
+
     def add_options(self, options):
         self.options = dict((x.displayName, x) for x in options)
 
@@ -257,11 +347,15 @@ def get_ensembl_dataset():
 
 def get_phytozome_dataset():
     # Either of the following method is okay
-    #bm = Mart()
-    #phytozome = bm.registry["phytozome_mart"]
+    # bm = Mart()
+    # phytozome = bm.registry["phytozome_mart"]
 
-    phytozome = Mart(host="www.phytozome.net", port="80",
-            name="phytozome_mart", virtual_schema="zome_mart")
+    phytozome = Mart(
+        host="www.phytozome.net",
+        port="80",
+        name="phytozome_mart",
+        virtual_schema="zome_mart",
+    )
 
     phytozome.get_datasets()
     dataset = phytozome["phytozome"]
@@ -287,9 +381,7 @@ def get_bed_from_phytozome(genelist):
 
 def main():
 
-    actions = (
-        ('bed', 'get gene bed from phytozome'),
-            )
+    actions = (("bed", "get gene bed from phytozome"),)
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -324,9 +416,10 @@ def bed(args):
     logging.debug("A total of {0} records written to `{1}`.".format(i + 1, bedfile))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     import doctest
+
     doctest.testmod()
 
     main()

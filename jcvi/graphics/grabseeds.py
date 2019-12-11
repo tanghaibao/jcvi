@@ -21,8 +21,8 @@ from wand.image import Image
 from scipy.ndimage import binary_fill_holes, distance_transform_edt
 from scipy.optimize import fmin_bfgs as fmin
 from skimage.color import gray2rgb, rgb2gray
-from skimage.filters import canny, roberts, sobel
-from skimage.feature import peak_local_max
+from skimage.filters import roberts, sobel
+from skimage.feature import canny, peak_local_max
 from skimage.measure import regionprops, label
 from skimage.morphology import disk, closing, watershed
 from skimage.segmentation import clear_border
@@ -198,8 +198,7 @@ def calibrate(args):
     logging.debug("Calibration specs written to `{0}`.".format(jsonfile))
 
     return jsonfile
-
-
+   
 def add_seeds_options(p, args):
     g1 = OptionGroup(p, "Image manipulation")
     g1.add_option("--rotate", default=0, type="int",
@@ -212,6 +211,9 @@ def add_seeds_options(p, args):
                 help="Label rows e.g. `:800` from first 800 rows")
     g1.add_option("--labelcols",
                 help="Label cols e.g. `-800: from last 800 rows")
+    valid_colors = ("red", "green", "blue", "purple", "yellow", "orange", 'INVERSE') 
+    g1.add_option("--changeBackground", default=0, choices=valid_colors,
+            help="Changes background color")
     p.add_option_group(g1)
 
     g2 = OptionGroup(p, "Object recognition")
@@ -327,6 +329,85 @@ def slice(s, m):
     return ra, rb
 
 
+def convert_background(pngfile, new_background):
+    '''Replace the background color with the specified background color, default is blue
+    '''
+    if new_background:
+        _name, _ext = op.splitext(op.basename(pngfile))
+        _name += '_bgxform'
+        newfile = op.join(op.dirname(pngfile), _name + _ext)
+        
+        img = iopen(pngfile)
+        pixels = list(img.getdata())
+        h,w = img.size
+
+        # Get Standard Deviation of RGB
+        rgbArray = []
+        for x in range(255):
+            rgbArray.append(x)
+        stdRGB = np.std(rgbArray) * .8
+
+        #Get average color
+        obcolor = [None,None,None]
+        pixel_values = []
+        for t in range(3):
+            pixel_color = img.getdata(band=t)
+            for pixel in pixel_color:
+                if pixel > (stdRGB):
+                    pixel_values.append(pixel)
+            obcolor[t] = sum(pixel_values) / len(pixel_values)
+        
+        #Get background color using average color and standard deviation
+        for t in range(3):
+            pixel_color = img.getdata(band=t)
+            seed_pixel_values = []
+            for i in pixel_color:
+                if ((i > (obcolor[t] - stdRGB)) and (i < (obcolor[t] + stdRGB))):
+                    seed_pixel_values.append(i)
+            obcolor[t] = sum(seed_pixel_values) / len(seed_pixel_values)
+                
+
+        #Selection of colors based on option parser
+        nbcolor = [None, None, None]
+        if (new_background == 'INVERSE'):
+            nbcolor = [None, None, None]
+            for t in range(3):
+                nbcolor[t] = 255 - obcolor[t]
+        elif (new_background == 'red'):
+            nbcolor = [255, 0, 0]
+
+        elif (new_background == 'green'):
+            nbcolor = [0, 255, 0]
+
+        elif (new_background == 'blue'):
+            nbcolor = [0, 0, 255]
+
+        elif (new_background == 'yellow'):
+            nbcolor = [255, 255, 0]
+
+        elif (new_background == 'purple'):
+            nbcolor = [255, 0, 255]
+
+        elif (new_background == 'orange'):
+            nbcolor = [255, 165, 0]
+
+
+
+        # Change Background Color
+        obcolor = tuple(obcolor)
+        nbcolor = tuple(nbcolor)
+        for i in range(len(pixels)):
+                r,g,b=pixels[i]
+                if (r >= (obcolor[0] - stdRGB) and r <= (obcolor[0] + stdRGB)):
+                    if (g >= (obcolor[1] - stdRGB) and g <= (obcolor[1] + stdRGB)):
+                        if (b >= (obcolor[2] - stdRGB) and b <= (obcolor[2] + stdRGB)):
+                            pixels[i] = nbcolor
+        img.putdata(pixels)
+        img.save(newfile, 'PNG')
+        return newfile
+    return pngfile
+
+
 def convert_image(pngfile, pf, outdir=".",
                   resize=1000, format="jpeg", rotate=0,
                   rows=':', cols=':', labelrows=None, labelcols=None):
@@ -434,19 +515,18 @@ def seeds(args):
         calib = json.load(must_open(calib))
         pixel_cm_ratio, tr = calib["PixelCMratio"], calib["RGBtransform"]
         tr = np.array(tr)
-
+    nbcolor = opts.changeBackground
+    pngfile = convert_background(pngfile, nbcolor)
     resizefile, mainfile, labelfile, exif = \
                       convert_image(pngfile, pf, outdir=outdir,
                                     rotate=opts.rotate,
                                     rows=rows, cols=cols,
                                     labelrows=labelrows, labelcols=labelcols)
-
     oimg = load_image(resizefile)
     img = load_image(mainfile)
 
     fig, (ax1, ax2, ax3, ax4) = plt.subplots(ncols=4, nrows=1,
                                              figsize=(iopts.w, iopts.h))
-
     # Edge detection
     img_gray = rgb2gray(img)
     logging.debug("Running {0} edge detection ...".format(ff))
@@ -575,7 +655,7 @@ def seeds(args):
         ax4.text(.27, yy, o.hashtag, va="center")
         yy -= .06
     ax4.text(.1 , yy, "(A total of {0} objects displayed)".format(nb_labels),
-             color="darkslategrey")
+             color="darkslategray")
     normalize_axes(ax4)
 
     for ax in (ax1, ax2, ax3):

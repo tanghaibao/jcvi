@@ -4,17 +4,7 @@
 import unittest
 
 
-class TestAppsConsole(unittest.TestCase):
-    """ Test colorful ASCII text
-    """
-
-    def test_apps_console(self):
-        from jcvi.apps.console import test
-
-        test()
-
-
-class TestFormatsCblast(unittest.TestCase):
+class TestCblast(unittest.TestCase):
     """ Test formats.cblast - BLAST parsing
     """
 

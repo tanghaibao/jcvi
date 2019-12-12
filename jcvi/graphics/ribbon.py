@@ -27,18 +27,26 @@ from jcvi.formats.bed import Bed
 from jcvi.formats.base import DictFile
 from jcvi.utils.cbook import human_size
 from jcvi.apps.base import OptionParser
+from jcvi.graphics.glyph import (
+    Glyph, RoundLabel, GeneGlyph
+)
+from jcvi.graphics.base import (
+    mpl,
+    plt,
+    savefig,
+    markup,
+    Path,
+    PathPatch,
+    AbstractLayout,
+)            
 
-from jcvi.graphics.glyph import Glyph, RoundLabel, GeneGlyph
-from jcvi.graphics.base import mpl, plt, savefig, markup, \
-            Path, PathPatch, AbstractLayout
 
-
-forward, backward = 'b', 'g'  # Genes with different orientations
+forward, backward = "b", "g"  # Genes with different orientations
 
 class LayoutLine (object):
 #0-11: x,y,rotation,ha,va,color,ratio,label,chrmName,rStart,rEnd,chrmMax
-    def __init__(self, row, delimiter=','):
-        self.hidden = row[0] == '*'
+    def __init__(self, row, delimiter=","):
+        self.hidden = row[0] == "*"
         if self.hidden:
             row = row[1:]
         args = row.rstrip().split(delimiter)
@@ -72,7 +80,7 @@ class LayoutLine (object):
 
 class Layout (AbstractLayout):
 
-    def __init__(self, filename, delimiter=','):
+    def __init__(self, filename, delimiter=","):
         super(Layout, self).__init__(filename)
         fp = open(filename)
         self.edges = []
@@ -80,16 +88,16 @@ class Layout (AbstractLayout):
             # Skip blank lines
             if row.strip():
                 # Skip header rows
-                if row[0] == '#':
+                if row[0] == "#":
                     continue
                 # Import edges
-                if row[0] == 'e':
+                if row[0] == "e":
                     args = row.rstrip().split(delimiter)
                     args = [x.strip() for x in args]
                     # From index 1 and 2
                     a, b = args[1:3]
                     a, b = int(a), int(b)
-                    assert args[0] == 'e'
+                    assert args[0] == "e"
                     self.edges.append((a, b))
                 else:
                     # Parse all other lines as sequence tracks
@@ -103,9 +111,38 @@ class Layout (AbstractLayout):
 
 
 class Shade (object):
+    Styles = ("curve", "line")
+    def __init__(
+        self,
+        ax,
+        a,
+        b,
+        ymid,
+        highlight=False,
+        style="curve",
+        ec="k",
+        fc="k",
+        alpha=0.2,
+        lw=1,
+        zorder=1,):
+        """ Create syntenic wedges between tracks.
+        Args:
+            ax: matplotlib Axes
+            # Note: a & b customised from synteny for ribbon module. Description is from synteny version.
+            #a (tuple of floats): ((start_x, start_y), (end_x, end_y))
+            #b (tuple of floats): ((start_x, start_y), (end_x, end_y))
+            ymid (float): y-mid position for curve style only
+            highlight (bool, optional): Plot this shade if color is specified. Defaults to False.
+            style (str, optional): Style. Defaults to "curve", must be one of
+            ("curve", "line")
+            ec (str, optional): Edge color. Defaults to "k".
+            fc (str, optional): Face color. Defaults to "k".
+            alpha (float, optional): Transparency. Defaults to 0.2.
+            lw (int, optional): Line width. Defaults to 1.
+            zorder (int, optional): Z-order. Defaults to 1.
+        """
+        assert style in Shade.Styles, "style must be one of {}".format(Styles)
 
-    def __init__(self, ax, a, b, ymid, highlight=False, ec="k", fc="k",
-                    alpha=.2, lw=1, zorder=1):
         #a1, a2 = a
         #b1, b2 = b
         a1, a2, a_start, a_end, a_strand, a_score = a
@@ -115,25 +152,26 @@ class Shade (object):
         bx1, by1 = b1
         bx2, by2 = b2
         M, C4, L, CP = Path.MOVETO, Path.CURVE4, Path.LINETO, Path.CLOSEPOLY
-        pathdata = \
-        [
-            (M, a1),
-            (C4, (ax1, ymid)),
-            (C4, (bx1, ymid)),
-            (C4, b1),
-            (L, b2),
-            (C4, (bx2, ymid)),
-            (C4, (ax2, ymid)),
-            (C4, a2),
-            (CP, a1)
-        ]
+        if style == "curve":
+            pathdata = [
+                (M, a1),
+                (C4, (ax1, ymid)),
+                (C4, (bx1, ymid)),
+                (C4, b1),
+                (L, b2),
+                (C4, (bx2, ymid)),
+                (C4, (ax2, ymid)),
+                (C4, a2),
+                (CP, a1),
+            ]
+        else:
+            pathdata = [(M, a1), (L, b1), (L, b2), (L, a2), (CP, a1)]
         codes, verts = zip(*pathdata)
         path = Path(verts, codes)
         if highlight:
             ec = fc = highlight
 
-        pp = PathPatch(path, ec=ec, fc=fc, alpha=alpha,
-                     lw=lw, zorder=zorder)
+        pp = PathPatch(path, ec=ec, fc=fc, alpha=alpha, lw=lw, zorder=zorder)
         ax.add_patch(pp)
 
 
@@ -141,21 +179,20 @@ class Region (object):
 
     def __init__(self, ax, ext, layout, bed, scale,
                  orientation=None, parent_ori=None, chr_label=True, loc_label=True,
-                 pad=.05, vpad=.015, features=None, plotRibbonBlocks=False, annotcolor='g'):
+                 pad=0.05, vpad=0.015, features=None, plotRibbonBlocks=False, annotcolor="g"):
         x, y = layout.x, layout.y
         ratio = layout.ratio
         scale /= ratio
         self.y = y
         lr = layout.rotation
-        tr = mpl.transforms.Affine2D().\
-                    rotate_deg_around(x, y, lr) + ax.transAxes
+        tr = mpl.transforms.Affine2D().rotate_deg_around(x, y, lr) + ax.transAxes
         inv = ax.transAxes.inverted()
 
         # Import standard track extent (by max feature range)
         start, end, si, ei, chrm, trackOri, span = ext
         startbp, endbp = start.start, end.end  # Get start/end of first/last features from blockfile
         #Default all input tracks to Fwd orientation
-        trackOri = '+'
+        trackOri = "+"
 
         # Override track extent if custom range provided
         if layout.chrmName and layout.rStart and layout.rEnd:
@@ -178,7 +215,7 @@ class Region (object):
                     lw=4, zorder=2)
 
         # Compose Chromosome label
-        if orientation == "R" or trackOri == '-':
+        if orientation == "R" or trackOri == "-":
             label_startbp, label_endbp = endbp, startbp
         else:
             label_startbp, label_endbp = startbp, endbp
@@ -190,7 +227,7 @@ class Region (object):
                           human_size(label_endbp, target="Mb", precision=2)))
         
         # Plot annotation tracks
-        height = .012
+        height = 0.012
         self.gg = {}
 
         # Process and plot ribbons as blocks
@@ -201,13 +238,13 @@ class Region (object):
                 continue
             # Set feature orientation - Note: Not really 'strand' just orientation relative to Parent where Parent is always '+'
             strand = g.strand
-            if orientation == 'R':
+            if orientation == "R":
                 gstart, gend = self.flip(gstart, gend, startbp, endbp)
                 assert gstart <= gend
                 # Flip feature strand (relative to parent) if self track has been flipped
                 strand = "+" if strand == "-" else "-"
             # Invert gene start/end positions if feature on '-' strand
-            if strand == '-':
+            if strand == "-":
                 gstart, gend = gend, gstart
                 assert gstart >= gend
             x1, x2, a, b = self.get_coordinates(gstart, gend, y, cv, tr, inv)
@@ -238,7 +275,7 @@ class Region (object):
                 gstart, gend, outofrange = self.clip2range(g.start, g.end, startbp, endbp)
                 if outofrange:
                     continue
-                if orientation == 'R':
+                if orientation == "R":
                     gstart, gend = self.flip(gstart, gend, startbp, endbp)
                 x1, x2, a, b = self.get_coordinates(gstart, gend, y, cv, tr, inv)
                 # Set custom annotation color / y-offset / height 
@@ -252,7 +289,7 @@ class Region (object):
         # Position and apply chromosome labels
         ha, va = layout.ha, layout.va
 
-        hpad = .02
+        hpad = 0.02
         if ha == "left":
             xx = xstart - hpad
             ha = "right"
@@ -264,7 +301,7 @@ class Region (object):
             ha = "center"
 
         # Tentative solution to labels stick into glyph
-        magic = 40.
+        magic = 40.0
         cc = abs(lr) / magic if abs(lr) > magic else 1
         if va == "top":
             yy = y + cc * pad
@@ -278,7 +315,7 @@ class Region (object):
                                                     l.reshape((1, 2)))[0]
         lx, ly = l
         if not hidden:
-            bbox = dict(boxstyle="round", fc='w', ec='w', alpha=.5)
+            bbox = dict(boxstyle="round", fc="w", ec="w", alpha=0.5)
             kwargs = dict(ha=ha, va="center",
                           rotation=trans_angle, bbox=bbox, zorder=10)
 
@@ -351,7 +388,8 @@ class Synteny (object):
                  orientation=None, tree=None, features=None,
                  chr_label=True, loc_label=True, pad=.05, vpad=.015,
                  scalebar=False, paintbyscore=False, paintbystrand=False, 
-                 prune_features=True, plotRibbonBlocks=False, annotcolor='g',scaleAlpha=False,noline=False):
+                 prune_features=True, plotRibbonBlocks=False, annotcolor="g",scaleAlpha=False,noline=False,shadestyle="curve"):
+        
         # Set figure dimensions
         w, h = fig.get_figwidth(), fig.get_figheight()
         # Import primary annotations from bedfile
@@ -360,7 +398,7 @@ class Synteny (object):
         # genename: (orderedPosition, seqname, start, end, genename, score, strand)
         order = bed.order
         # Import synteny links (pairs of source > target IDs for features in BED file)
-        bf = BlockFile(blocks, defaultcolor='hide')
+        bf = BlockFile(blocks, defaultcolor="hide")
         # Import layout config
         self.layout = lo = Layout(layoutfile)
         
@@ -424,7 +462,7 @@ class Synteny (object):
         # Find largest coord range for any track
         #maxspan = max(exts, key=lambda x: x[-1])[-1]
         maxspan = max(customSpans)
-        scale = maxspan / .65
+        scale = maxspan / 0.65
 
         self.gg = gg = {}
         self.rr = []
@@ -468,9 +506,9 @@ class Synteny (object):
                     lw = 0.0
                 else:
                     lw = 0.1
-                Shade(root, a, b, ymid, fc=ribbonColor, lw=lw, alpha=baseAlpha)
+                Shade(root, a, b, ymid, fc=ribbonColor, lw=lw, alpha=baseAlpha, style=shadestyle)
                 # Add second low alpha ribbon track with thin outlines. Helps visualise very thin bands.
-                #Shade(root, a, b, ymid, fc=ribbonColor, lw=0.1, alpha=0.125)
+                #Shade(root, a, b, ymid, fc=ribbonColor, lw=0.1, alpha=0.125, style=shadestyle)
 
             # Paint ribbons for which a highlight colour was set
             for ga, gb, h in bf.iter_pairs(i, j, highlight=True):
@@ -483,25 +521,28 @@ class Synteny (object):
                 baseAlpha = 1
                 if paintbyscore:
                     baseAlpha = self.scoreCheck(a,scaleAlpha)
-                Shade(root, a, b, ymid, alpha=baseAlpha, highlight=h, zorder=1)
+                Shade(root, a, b, ymid, alpha=baseAlpha, highlight=h, zorder=1, style=shadestyle)
 
         if scalebar:
             print >> sys.stderr, "Build scalebar (scale={})".format(scale)
             # Find the best length of the scalebar
             ar = [1, 2, 5]
-            candidates = [1000 * x for x in ar] + [10000 * x for x in ar] + \
-                         [100000 * x for x in ar]
+            candidates = (
+                [1000 * x for x in ar]
+                + [10000 * x for x in ar]
+                + [100000 * x for x in ar]
+            )
             # Find the one that's close to an optimal canvas size
-            dists = [(abs(x / scale - .12), x) for x in candidates]
+            dists = [(abs(x / scale - 0.12), x) for x in candidates]
             dist, candidate = min(dists)
             dist = candidate / scale
-            x, y, yp = .2, .96, .005
+            x, y, yp = 0.2, 0.96, 0.005
             a, b = x - dist / 2, x + dist / 2
             lsg = "lightslategrey"
             root.plot([a, a], [y - yp, y + yp], "-", lw=2, color=lsg)
             root.plot([b, b], [y - yp, y + yp], "-", lw=2, color=lsg)
             root.plot([a, b], [y, y], "-", lw=2, color=lsg)
-            root.text(x, y + .02, human_size(candidate, precision=0),
+            root.text(x, y + 0.02, human_size(candidate, precision=0),
                       ha="center", va="center")
 
         if tree:
@@ -510,22 +551,22 @@ class Synteny (object):
             trees = read_trees(tree)
             ntrees = len(trees)
             logging.debug("A total of {0} trees imported.".format(ntrees))
-            xiv = 1. / ntrees
-            yiv = .3
+            xiv = 1.0 / ntrees
+            yiv = 0.3
             xstart = 0
-            ystart = min(ymids) - .4
+            ystart = min(ymids) - 0.4
             for i in xrange(ntrees):
                 ax = fig.add_axes([xstart, ystart, xiv, yiv])
                 label, outgroup, tx = trees[i]
-                draw_tree(ax, tx, outgroup=outgroup, rmargin=.4, leaffont=11)
+                draw_tree(ax, tx, outgroup=outgroup, rmargin=0.4, leaffont=11)
                 xstart += xiv
-                RoundLabel(ax, .5, .3, label, fill=True, fc="lavender", color="r")
+                RoundLabel(ax, 0.5, 0.3, label, fill=True, fc="lavender", color="r")
 
     def inversionCheck(self,a,b):
         a1, a2, a_start, a_end, a_strand, a_score = a
         b1, b2, b_start, b_end, b_strand, b_score = b
-        aDir = 'F' if a_start < a_end else 'R'
-        bDir = 'F' if b_start < b_end else 'R'
+        aDir = "F" if a_start < a_end else "R"
+        bDir = "F" if b_start < b_end else "R"
         if aDir == bDir: 
             return forward 
         else: 
@@ -558,19 +599,25 @@ def draw_gene_legend(ax, x1, x2, ytop, d=.04, text=False, repeat=False):
     if repeat:
         xr = (x1 + x2 + d) / 2
         Glyph(ax, xr - d / 2, xr + d / 2, ytop, .012 * 3 / 4, gradient=False,
-              fc='#ff7f00', zorder=2)
+              fc="#ff7f00", zorder=2)
         ax.text(xr, ytop + d / 2, "repeat", ha="center")
 
 def set_strand_colors(colorCodes):
     global forward
     global backward
-    forward , backward = colorCodes.strip().split(',')
+    forward , backward = colorCodes.strip().split(",")
 
 def main():
     # Get cmd line args
     p = OptionParser(__doc__)
-    p.add_option("--outfile", default=None, help="Prefix for output graphic.")
-    p.add_option("--annotations", help="Feature annotations in BED format. \n \
+    p.add_option(
+        "--outfile", 
+        default=None, 
+        help="Prefix for output graphic."
+    )
+    p.add_option(
+        "--annotations", 
+        help="Feature annotations in BED format. \n \
         [1] seqid \n \
         [2] start \n \
         [3] end \n \
@@ -579,19 +626,81 @@ def main():
         [6] strand \n \
         [7] Custom color. i.e. '.' = use default color, else any pyplot compatible color code: 'g', 'green, '#02ab2e', etc. \n \
         [8] Vertical offset multiplier. i.e. 0 = plot on chrm line, -1 = plot below chrm, 1 = plot above chrm \n \
-        [9] Feature height multiplier. i.e. 1 = default, 2 = double height ")
-    p.add_option("--noprune", default=True, action="store_false", help="If set, do not exclude small features from annotation track. ")
-    p.add_option("--reorient", default=None, help="Comma delimited string of 'F' or 'R' characters. Must be same number and order as tracks in layout file. \n i.e. F,F,R will flip the third track. Default: All Forward.")
-    p.add_option("--tree", help="Display trees on the bottom of the figure [default: %default]")
-    p.add_option("--scalebar", default=False, action="store_true", help="Add scale bar to the plot")
-    p.add_option("--paintbyscore", default=False, action="store_true", help="Set ribbon transparancy using score column from ribbon bedfile.")
-    p.add_option("--paintbystrand", default=False, action="store_true", help="Set ribbon colour by alignment orientation. Red=Inverted, Blue=Same")
-    p.add_option("--plotHits", default=False, action="store_true", help="If set, plot ribbon features from blockfile also as annotations.")
-    p.add_option("--strandcolors", default="b,g", help="Comma delimited string of color codes for forward or inverted orientation ribbons. Used by paintbystrand. Default: 'b,g' for forward,inverted.")
-    p.add_option("--annotcolor", default="g", help="Comma delimited string of color code for 'annotation' feature tracks. Default: 'g'.")
-    p.add_option("--scaleAlpha", default=False, action="store_true", help="If set, ribbon alpha values will be rescaled from 0.5-1 to 0.15-0.95 Note: Assumes 50% min identity in alignments.")
-    p.add_option("--transparent", default=False, action="store_true", help="If set, save image with transparent background.")
-    p.add_option("--noline", default=False, action="store_true", help="If set, do not draw outline on ribbons.")
+        [9] Feature height multiplier. i.e. 1 = default, 2 = double height "
+    )
+    p.add_option(
+        "--noprune", 
+        default=True, 
+        action="store_false", 
+        help="If set, do not exclude small features from annotation track. "
+    )
+    p.add_option(
+        "--reorient", 
+        default=None, 
+        help="Comma delimited string of 'F' or 'R' characters. Must be same number and order as tracks in layout file. \n i.e. F,F,R will flip the third track. Default: All Forward."
+    )
+    p.add_option(
+        "--tree", 
+        help="Display trees on the bottom of the figure [default: %default]"
+    )
+    p.add_option(
+        "--scalebar", 
+        default=False, 
+        action="store_true", 
+        help="Add scale bar to the plot"
+    )
+    p.add_option(
+        "--paintbyscore", 
+        default=False, 
+        action="store_true", 
+        help="Set ribbon transparancy using score column from ribbon bedfile."
+    )
+    p.add_option(
+        "--paintbystrand", 
+        default=False, 
+        action="store_true", 
+        help="Set ribbon colour by alignment orientation. Red=Inverted, Blue=Same"
+    )
+    p.add_option(
+        "--plotHits", 
+        default=False, 
+        action="store_true", 
+        help="If set, plot ribbon features from blockfile also as annotations."
+    )
+    p.add_option(
+        "--strandcolors", 
+        default="b,g", 
+        help="Comma delimited string of color codes for forward or inverted orientation ribbons. Used by paintbystrand. Default: 'b,g' for forward,inverted."
+    )
+    p.add_option(
+        "--annotcolor", 
+        default="g", 
+        help="Comma delimited string of color code for 'annotation' feature tracks. Default: 'g'."
+    )
+    p.add_option(
+        "--scaleAlpha", 
+        default=False, 
+        action="store_true", 
+        help="If set, ribbon alpha values will be rescaled from 0.5-1 to 0.15-0.95 Note: Assumes 50% min identity in alignments."
+    )
+    p.add_option(
+        "--transparent", 
+        default=False, 
+        action="store_true", 
+        help="If set, save image with transparent background."
+    )
+    p.add_option(
+        "--noline", 
+        default=False, 
+        action="store_true", 
+        help="If set, do not draw outline on ribbons."
+    )
+    p.add_option(
+        "--shadestyle",
+        default="curve",
+        choices=Shade.Styles,
+        help="Style of syntenic wedges"
+    )
     # Unpack options
     # opts = {'style': 'darkgrid', 'format': 'pdf', 'scalebar': False, 'extra': 'grape_peach_cacao.bed', 'tree': None, 'diverge': 'PiYG', 'cmap': 'jet', 'figsize': '8x7', 'font': 'Helvetica', 'dpi': 300}
     # args = positional args, data files
@@ -610,7 +719,7 @@ def main():
 
     # Get custom track orientations
     if opts.reorient:
-        flip = [x for x in opts.reorient.strip().split(',') if x in ('F','R')]
+        flip = [x for x in opts.reorient.strip().split(",") if x in ("F","R")]
     else:
         flip = None
     
@@ -619,11 +728,25 @@ def main():
     root = fig.add_axes([0, 0, 1, 1])
 
     # Plot all the things!
-    Synteny(fig, root, blocks, bedfile, layoutfile,
-            orientation=flip, tree=opts.tree, features=opts.annotations,
-            scalebar=opts.scalebar, paintbyscore=opts.paintbyscore, paintbystrand=opts.paintbystrand,
-            prune_features=opts.noprune, plotRibbonBlocks=opts.plotHits, annotcolor=opts.annotcolor,
-            scaleAlpha=opts.scaleAlpha, noline=opts.noline)
+    Synteny(
+        fig, 
+        root, 
+        blocks, 
+        bedfile, 
+        layoutfile,
+        orientation=flip, 
+        tree=opts.tree, 
+        features=opts.annotations,
+        scalebar=opts.scalebar, 
+        paintbyscore=opts.paintbyscore, 
+        paintbystrand=opts.paintbystrand,
+        prune_features=opts.noprune, 
+        plotRibbonBlocks=opts.plotHits, 
+        annotcolor=opts.annotcolor,
+        scaleAlpha=opts.scaleAlpha, 
+        noline=opts.noline, 
+        shadestyle=opts.shadestyle,
+    )
     
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
@@ -637,5 +760,5 @@ def main():
 
     savefig(image_name, dpi=iopts.dpi, iopts=iopts, transparent=opts.transparent)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

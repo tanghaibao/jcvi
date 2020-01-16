@@ -9,7 +9,6 @@ from __future__ import print_function
 import sys
 import logging
 
-from string import maketrans
 from itertools import groupby, combinations
 from collections import defaultdict
 
@@ -23,14 +22,13 @@ from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
 class OVLLine:
-
     def __init__(self, row):
         # tig00000004     tig00042923     I       -64039  -18713  16592   99.84
         # See also: assembly.goldenpath.Overlap for another implementation
         args = row.split()
         self.a = args[0]
         self.b = args[1]
-        self.bstrand = '+' if args[2] == 'N' else '-'
+        self.bstrand = "+" if args[2] == "N" else "-"
         self.ahang = int(args[3])
         self.bhang = int(args[4])
         self.overlap = int(args[5])
@@ -47,8 +45,7 @@ class OVLLine:
         return t
 
 
-class OVL (LineFile):
-
+class OVL(LineFile):
     def __init__(self, filename):
         super(OVL, self).__init__(filename)
         fp = must_open(filename)
@@ -65,8 +62,9 @@ class OVL (LineFile):
                 alledges[o.a + "-3`"].append(o)
             elif o.tag == "b->a":
                 alledges[o.a + "-5`"].append(o)
-        logging.debug("Imported {} links. Contained tigs: {}".\
-                        format(len(self), len(contained)))
+        logging.debug(
+            "Imported {} links. Contained tigs: {}".format(len(self), len(contained))
+        )
         self.contained = contained
 
         logging.debug("Pruning edges to keep the mutual best")
@@ -84,21 +82,21 @@ class OVL (LineFile):
                 a, b = o.b, o.a
             if a in contained or b in contained:
                 continue
-            bstrand = '<' if o.bstrand == '-' else '>'
-            self.graph.add_edge(a, b, '>', bstrand, length=o.score)
+            bstrand = "<" if o.bstrand == "-" else ">"
+            self.graph.add_edge(a, b, ">", bstrand, length=o.score)
 
 
 def main():
 
     actions = (
         ("bed", "convert ANCHORS file to BED format"),
-        ('fromblast', 'Generate path from BLAST file'),
-        ('fromovl', 'build overlap graph from AMOS overlaps'),
-        ('happy', 'Make graph from happy mapping data'),
-        ('partition', 'Make individual graphs partitioned by happy mapping'),
-        ('merge', 'Merge multiple graphs together and visualize'),
-        ('connect', 'connect contigs using long reads'),
-            )
+        ("fromblast", "Generate path from BLAST file"),
+        ("fromovl", "build overlap graph from AMOS overlaps"),
+        ("happy", "Make graph from happy mapping data"),
+        ("partition", "Make individual graphs partitioned by happy mapping"),
+        ("merge", "Merge multiple graphs together and visualize"),
+        ("connect", "connect contigs using long reads"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -137,10 +135,15 @@ def bed(args):
     from jcvi.formats.base import get_number
 
     p = OptionParser(bed.__doc__)
-    p.add_option("--switch", default=False, action="store_true",
-                 help="Switch reference and aligned map elements")
-    p.add_option("--scale", type="float",
-                 help="Scale the aligned map distance by factor")
+    p.add_option(
+        "--switch",
+        default=False,
+        action="store_true",
+        help="Switch reference and aligned map elements",
+    )
+    p.add_option(
+        "--scale", type="float", help="Scale the aligned map distance by factor"
+    )
     p.set_beds()
     p.set_outfile()
     opts, args = p.parse_args(args)
@@ -175,10 +178,13 @@ def bed(args):
         try:
             newsseqid = get_number(sseqid)
         except ValueError:
-            raise ValueError("`{0}` is on `{1}` with no number to extract".\
-                                format(saccn, sseqid))
-        bedline = "\t".join(str(x) for x in (qseqid, qstart - 1, qend,
-                            "{0}:{1}".format(newsseqid, sstart)))
+            raise ValueError(
+                "`{0}` is on `{1}` with no number to extract".format(saccn, sseqid)
+            )
+        bedline = "\t".join(
+            str(x)
+            for x in (qseqid, qstart - 1, qend, "{0}:{1}".format(newsseqid, sstart))
+        )
         bd.add(bedline)
 
     bd.print_to_file(filename=opts.outfile, sorted=True)
@@ -196,18 +202,18 @@ def happy_edges(row, prefix=None):
     """
     Convert a row in HAPPY file and yield edges.
     """
-    trans = maketrans("[](){}", "      ")
+    trans = str.maketrans("[](){}", "      ")
     row = row.strip().strip("+")
     row = row.translate(trans)
     scfs = [x.strip("+") for x in row.split(":")]
     for a, b in pairwise(scfs):
-        oa = '<' if a.strip()[0] == '-' else '>'
-        ob = '<' if b.strip()[0] == '-' else '>'
+        oa = "<" if a.strip()[0] == "-" else ">"
+        ob = "<" if b.strip()[0] == "-" else ">"
 
-        is_uncertain = a[-1] == ' ' or b[0] == ' '
+        is_uncertain = a[-1] == " " or b[0] == " "
 
-        a = a.strip().strip('-')
-        b = b.strip().strip('-')
+        a = a.strip().strip("-")
+        b = b.strip().strip("-")
 
         if prefix:
             a = prefix + a
@@ -226,10 +232,18 @@ def partition(args):
     allowed_format = ("png", "ps")
     p = OptionParser(partition.__doc__)
     p.add_option("--prefix", help="Add prefix to the name [default: %default]")
-    p.add_option("--namestart", default=0, type="int",
-                 help="Use a shorter name, starting index [default: %default]")
-    p.add_option("--format", default="png", choices=allowed_format,
-            help="Generate image of format [default: %default]")
+    p.add_option(
+        "--namestart",
+        default=0,
+        type="int",
+        help="Use a shorter name, starting index [default: %default]",
+    )
+    p.add_option(
+        "--format",
+        default="png",
+        choices=allowed_format,
+        help="Generate image of format [default: %default]",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -264,8 +278,9 @@ def partition(args):
 
         pngfile = "A{0:02d}.{1}".format(i + 1, opts.format)
         telomeres = (nns[0], nns[-1])
-        small_graph.draw(pngfile, namestart=opts.namestart,
-                         nodehighlight=telomeres, dpi=72)
+        small_graph.draw(
+            pngfile, namestart=opts.namestart, nodehighlight=telomeres, dpi=72
+        )
 
     legend = ["Edge colors:"]
     legend.append("[BLUE] Experimental + Synteny")
@@ -283,8 +298,11 @@ def merge(args):
     Merge multiple graphs together and visualize.
     """
     p = OptionParser(merge.__doc__)
-    p.add_option("--colorlist", default="black,red,pink,blue,green",
-                 help="The color palette [default: %default]")
+    p.add_option(
+        "--colorlist",
+        default="black,red,pink,blue,green",
+        help="The color palette [default: %default]",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) < 1:
@@ -357,10 +375,18 @@ def fromblast(args):
     from jcvi.utils.range import range_distance
 
     p = OptionParser(fromblast.__doc__)
-    p.add_option("--clique", default=False, action="store_true",
-                 help="Populate clique instead of linear path [default: %default]")
-    p.add_option("--maxdist", default=100000, type="int",
-                 help="Create edge within certain distance [default: %default]")
+    p.add_option(
+        "--clique",
+        default=False,
+        action="store_true",
+        help="Populate clique instead of linear path [default: %default]",
+    )
+    p.add_option(
+        "--maxdist",
+        default=100000,
+        type="int",
+        help="Create edge within certain distance [default: %default]",
+    )
     p.set_verbose(help="Print verbose reports to stdout")
     opts, args = p.parse_args(args)
 
@@ -400,7 +426,7 @@ def graph_to_agp(g, blastfile, subjectfasta, exclude=[], verbose=False):
 
     logging.debug(str(g))
     g.write("graph.txt")
-    #g.draw("graph.pdf")
+    # g.draw("graph.pdf")
 
     paths = []
     for path in g.iter_paths():
@@ -414,16 +440,16 @@ def graph_to_agp(g, blastfile, subjectfasta, exclude=[], verbose=False):
 
     npaths = len(paths)
     ntigs = sum(len(x) for x in paths)
-    logging.debug("Graph decomposed to {0} paths with {1} components.".\
-                  format(npaths, ntigs))
+    logging.debug(
+        "Graph decomposed to {0} paths with {1} components.".format(npaths, ntigs)
+    )
 
     agpfile = blastfile + ".agp"
     sizes = Sizes(subjectfasta)
     fwagp = open(agpfile, "w")
     scaffolded = set()
     for i, oo in enumerate(paths):
-        ctgorder = [(str(ctg), ("+" if strand else "-")) \
-                     for ctg, strand in oo]
+        ctgorder = [(str(ctg), ("+" if strand else "-")) for ctg, strand in oo]
         scaffolded |= set(ctg for ctg, strand in ctgorder)
         object = "pmol_{0:04d}".format(i)
         order_to_agp(object, ctgorder, sizes.mapping, fwagp)
@@ -442,8 +468,11 @@ def graph_to_agp(g, blastfile, subjectfasta, exclude=[], verbose=False):
         object = ctg
         order_to_agp(object, ctgorder, sizes.mapping, fwagp)
         nsingletons += 1
-    logging.debug("scaffolded={} excluded={} singletons={}".\
-                    format(nscaffolded, nexcluded, nsingletons))
+    logging.debug(
+        "scaffolded={} excluded={} singletons={}".format(
+            nscaffolded, nexcluded, nsingletons
+        )
+    )
 
     fwagp.close()
     logging.debug("AGP file written to `{0}`.".format(agpfile))
@@ -456,8 +485,12 @@ def connect(args):
     Connect contigs using long reads.
     """
     p = OptionParser(connect.__doc__)
-    p.add_option("--clip", default=2000, type="int",
-            help="Only consider end of contigs [default: %default]")
+    p.add_option(
+        "--clip",
+        default=2000,
+        type="int",
+        help="Only consider end of contigs [default: %default]",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -516,5 +549,5 @@ def connect(args):
     graph_to_agp(g, blastfile, fastafile, verbose=False)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

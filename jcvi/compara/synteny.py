@@ -883,9 +883,7 @@ def simple(args):
     else:
         h = "StartGeneA|EndGeneA|StartGeneB|EndGeneB|Orientation|Score"
         if additional:
-            h += (
-                "|StartOrderA|EndOrderA|StartOrderB|EndOrderB|" "SizeA|SizeB|Size|Block"
-            )
+            h += "|StartOrderA|EndOrderA|StartOrderB|EndOrderB|SizeA|SizeB|Size|Block"
 
     fws = open(simplefile, "w")
     if header:

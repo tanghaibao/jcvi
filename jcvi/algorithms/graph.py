@@ -11,7 +11,6 @@ import logging
 
 import networkx as nx
 from collections import deque
-from string import maketrans
 
 from jcvi.utils.iter import pairwise
 from jcvi.formats.base import must_open
@@ -21,11 +20,10 @@ from jcvi.formats.base import must_open
 Bidirectional graph.
 """
 dirs = (">", "<")
-trans = maketrans("+?-", ">><")
+trans = str.maketrans("+?-", ">><")
 
 
-class BiNode (object):
-
+class BiNode(object):
     def __init__(self, v):
         self.v = v
         self.ins = []
@@ -71,8 +69,7 @@ class BiNode (object):
     __repr__ = __str__
 
 
-class BiEdge (object):
-
+class BiEdge(object):
     def __init__(self, v1, v2, o1, o2, color="black", length=None):
         o1 = o1.translate(trans)
         o2 = o2.translate(trans)
@@ -84,8 +81,7 @@ class BiEdge (object):
         self.length = length
 
     def __str__(self):
-        return "".join(str(x) for x in \
-                 (self.v1, self.o1, "--", self.o2, self.v2))
+        return "".join(str(x) for x in (self.v1, self.o1, "--", self.o2, self.v2))
 
     def flip(self):
         self.v2, self.v1 = self.v1, self.v2
@@ -94,15 +90,15 @@ class BiEdge (object):
         self.o2 = ">" if o1 == "<" else "<"
 
 
-class BiGraph (object):
-
+class BiGraph(object):
     def __init__(self):
         self.nodes = {}
         self.edges = {}
 
     def __str__(self):
-        return "BiGraph with {0} nodes and {1} edges".\
-                format(len(self.nodes), len(self.edges))
+        return "BiGraph with {0} nodes and {1} edges".format(
+            len(self.nodes), len(self.edges)
+        )
 
     def add_node(self, v):
         if v not in self.nodes:
@@ -150,11 +146,11 @@ class BiGraph (object):
 
             path = deque([vv])
 
-            #print "cur", v
+            # print "cur", v
             discovered.add(v)
             prev, ptag = vv.get_next(tag=">")
             while prev:
-                #print prev, ptag
+                # print prev, ptag
                 if prev.v in discovered:
                     break
                 path.appendleft(prev)
@@ -163,14 +159,14 @@ class BiGraph (object):
 
             next, ntag = vv.get_next(tag="<")
             while next:
-                #print next, ntag
+                # print next, ntag
                 if next.v in discovered:
                     break
                 path.append(next)
                 discovered.add(next.v)
                 next, ntag = next.get_next(tag=ntag)
 
-            #discovered |= set(x.v for x in path)
+            # discovered |= set(x.v for x in path)
             yield path
 
     def path(self, path, flip=False):
@@ -210,8 +206,11 @@ class BiGraph (object):
             a, b = a.strip("<>"), b.strip("<>")
             self.add_edge(a, b, oa, ob, color=color)
             nedges += 1
-        logging.debug("A total of {0} edges imported from `{1}` (color={2}).".
-                      format(nedges, filename, color))
+        logging.debug(
+            "A total of {0} edges imported from `{1}` (color={2}).".format(
+                nedges, filename, color
+            )
+        )
 
     def write(self, filename="stdout"):
 
@@ -220,14 +219,21 @@ class BiGraph (object):
             print(e, file=fw)
         logging.debug("Graph written to `{0}`.".format(filename))
 
-    def draw(self, pngfile, dpi=96, verbose=False, namestart=0,
-                nodehighlight=None, prog="circo"):
+    def draw(
+        self,
+        pngfile,
+        dpi=96,
+        verbose=False,
+        namestart=0,
+        nodehighlight=None,
+        prog="circo",
+    ):
         import pygraphviz as pgv
 
         G = pgv.AGraph()
         for e in self.edges.values():
-            arrowhead = (e.o1 == ">")
-            arrowtail = (e.o2 == "<")
+            arrowhead = e.o1 == ">"
+            arrowtail = e.o2 == "<"
             if e.o1 != e.o2:  # Not sure why this is necessary
                 arrowhead = not arrowhead
                 arrowtail = not arrowtail
@@ -235,8 +241,7 @@ class BiGraph (object):
             arrowtail = "normal" if arrowtail else "inv"
             v1, v2 = e.v1, e.v2
             v1, v2 = str(v1)[namestart:], str(v2)[namestart:]
-            G.add_edge(v1, v2, color=e.color,
-                       arrowhead=arrowhead, arrowtail=arrowtail)
+            G.add_edge(v1, v2, color=e.color, arrowhead=arrowhead, arrowtail=arrowtail)
 
         if nodehighlight:
             for n in nodehighlight:
@@ -299,8 +304,12 @@ def graph_local_neighborhood(G, query, maxdegree=10000, maxsize=10000):
             break
 
         seen |= queue
-        print("iter: {0}, graph size={1} ({2} excluding core)".\
-                                format(depth, len(seen), len(seen) - coresize), file=sys.stderr)
+        print(
+            "iter: {0}, graph size={1} ({2} excluding core)".format(
+                depth, len(seen), len(seen) - coresize
+            ),
+            file=sys.stderr,
+        )
         depth += 1
 
     return G.subgraph(seen)
@@ -335,8 +344,9 @@ def graph_simplify(G):
         for n in neighbors:
             G.add_edge(newtag, n)
         G.remove_nodes_from(c)
-    logging.debug("Contract {0} path nodes into {1} nodes.".\
-                    format(len(path_nodes), len(cc)))
+    logging.debug(
+        "Contract {0} path nodes into {1} nodes.".format(len(path_nodes), len(cc))
+    )
 
 
 def bigraph_test():
@@ -357,12 +367,12 @@ def bigraph_test():
         print(p)
         print(oo)
 
-    #g.draw("demo.png", verbose=True)
+    # g.draw("demo.png", verbose=True)
 
 
 def update_weight(G, a, b, w):
     if G.has_edge(a, b):  # Parallel edges found!
-        G[a][b]['weight'] += w
+        G[a][b]["weight"] += w
     else:
         G.add_edge(a, b, weight=w)
 
@@ -391,7 +401,7 @@ def reduce_paths(G):
     while not nx.is_directed_acyclic_graph(G):
         edges = []
         for a, b, w in G.edges_iter(data=True):
-            w = w['weight']
+            w = w["weight"]
             edges.append((a, b, w))
         mf, mf_score = min_feedback_arc_set(edges)
         for a, b, w in mf:
@@ -476,11 +486,11 @@ def longest_path_weighted_nodes(G, source, target, weights=None):
     score, fromc = weights[:], [-1] * nnodes
     si = node_to_index[source]
     ti = node_to_index[target]
-    for a in tree[si: ti]:
+    for a in tree[si:ti]:
         ai = node_to_index[a]
         for b, w in G[a].items():
             bi = node_to_index[b]
-            w = w.get('weight', 1)
+            w = w.get("weight", 1)
             d = score[ai] + weights[bi] * w  # Favor heavier edges
             if d <= score[bi]:
                 continue
@@ -497,7 +507,9 @@ def longest_path_weighted_nodes(G, source, target, weights=None):
     return path, score[ti]
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import doctest
+
     doctest.testmod()
-    #bigraph_test()
+    # bigraph_test()
+

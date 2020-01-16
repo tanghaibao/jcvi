@@ -337,7 +337,7 @@ class SequenceInfo (object):
 
 
 def rc(s):
-    _complement = string.maketrans('ATCGatcgNnXx', 'TAGCtagcNnXx')
+    _complement = str.maketrans('ATCGatcgNnXx', 'TAGCtagcNnXx')
     cs = s.translate(_complement)
     return cs[::-1]
 

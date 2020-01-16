@@ -19,7 +19,7 @@ from __future__ import print_function
 
 import os.path as op
 import sys
-from six.moves import cStringIO
+from six.moves import StringIO
 import logging
 
 from jcvi.utils.range import range_overlap
@@ -125,8 +125,7 @@ def make_range(clusters, extend=0):
         if ymax < ymin:
             ymin, ymax = ymax, ymin
 
-        eclusters.append(((xchr, xmin, xmax),
-                          (ychr, ymin, ymax), score))
+        eclusters.append(((xchr, xmin, xmax), (ychr, ymin, ymax), score))
 
     return eclusters
 
@@ -138,7 +137,7 @@ def get_constraints(clusters, quota=(1, 1), Nmax=0):
     qa, qb = quota
     eclusters = make_range(clusters, extend=-Nmax)
     # (1-based index, cluster score)
-    nodes = [(i+1, c[-1]) for i, c in enumerate(eclusters)]
+    nodes = [(i + 1, c[-1]) for i, c in enumerate(eclusters)]
 
     eclusters_x, eclusters_y, scores = zip(*eclusters)
 
@@ -157,7 +156,7 @@ def format_lp(nodes, constraints_x, qa, constraints_y, qb):
      x1 + x2 <= 1
     End
     """
-    lp_handle = cStringIO.StringIO()
+    lp_handle = StringIO()
 
     lp_handle.write("Maximize\n ")
     records = 0
@@ -172,19 +171,22 @@ def format_lp(nodes, constraints_x, qa, constraints_y, qb):
     num_of_constraints = 0
     lp_handle.write("Subject To\n")
     for c in constraints_x:
-        additions = " + ".join("x%d" % (x+1) for x in c)
+        additions = " + ".join("x%d" % (x + 1) for x in c)
         lp_handle.write(" %s <= %d\n" % (additions, qa))
     num_of_constraints += len(constraints_x)
 
     # non-self
     if not (constraints_x is constraints_y):
         for c in constraints_y:
-            additions = " + ".join("x%d" % (x+1) for x in c)
+            additions = " + ".join("x%d" % (x + 1) for x in c)
             lp_handle.write(" %s <= %d\n" % (additions, qb))
         num_of_constraints += len(constraints_y)
 
-    print("number of variables (%d), number of constraints (%d)" %
-          (len(nodes), num_of_constraints), file=sys.stderr)
+    print(
+        "number of variables (%d), number of constraints (%d)"
+        % (len(nodes), num_of_constraints),
+        file=sys.stderr,
+    )
 
     lp_handle.write("Binary\n")
     for i, score in nodes:
@@ -198,14 +200,20 @@ def format_lp(nodes, constraints_x, qa, constraints_y, qb):
     return lp_data
 
 
-def solve_lp(clusters, quota, work_dir="work", Nmax=0,
-             self_match=False, solver="SCIP", verbose=False):
+def solve_lp(
+    clusters,
+    quota,
+    work_dir="work",
+    Nmax=0,
+    self_match=False,
+    solver="SCIP",
+    verbose=False,
+):
     """
     Solve the formatted LP instance
     """
     qb, qa = quota  # flip it
-    nodes, constraints_x, constraints_y = get_constraints(
-        clusters, (qa, qb), Nmax=Nmax)
+    nodes, constraints_x, constraints_y = get_constraints(clusters, (qa, qb), Nmax=Nmax)
 
     if self_match:
         constraints_x = constraints_y = constraints_x | constraints_y
@@ -216,15 +224,13 @@ def solve_lp(clusters, quota, work_dir="work", Nmax=0,
         filtered_list = SCIPSolver(lp_data, work_dir, verbose=verbose).results
         if not filtered_list:
             print("SCIP fails... trying GLPK", file=sys.stderr)
-            filtered_list = GLPKSolver(
-                lp_data, work_dir, verbose=verbose).results
+            filtered_list = GLPKSolver(lp_data, work_dir, verbose=verbose).results
 
     elif solver == "GLPK":
         filtered_list = GLPKSolver(lp_data, work_dir, verbose=verbose).results
         if not filtered_list:
             print("GLPK fails... trying SCIP", file=sys.stderr)
-            filtered_list = SCIPSolver(
-                lp_data, work_dir, verbose=verbose).results
+            filtered_list = SCIPSolver(lp_data, work_dir, verbose=verbose).results
 
     return filtered_list
 
@@ -249,28 +255,48 @@ def main(args):
     p = OptionParser(__doc__)
 
     p.set_beds()
-    p.add_option("--quota", default="1:1",
-                 help="`quota mapping` procedure -- screen blocks to constrain mapping"
-                 " (useful for orthology), "
-                 "put in the format like (#subgenomes expected for genome X):"
-                 "(#subgenomes expected for genome Y) "
-                 "[default: %default]")
-    p.add_option("--Nm", dest="Nmax", type="int", default=10,
-                 help="distance cutoff to tolerate two blocks that are "
-                 "slightly overlapping (cutoff for `quota mapping`) "
-                 "[default: %default units (gene or bp dist)]")
+    p.add_option(
+        "--quota",
+        default="1:1",
+        help="`quota mapping` procedure -- screen blocks to constrain mapping"
+        " (useful for orthology), "
+        "put in the format like (#subgenomes expected for genome X):"
+        "(#subgenomes expected for genome Y) "
+        "[default: %default]",
+    )
+    p.add_option(
+        "--Nm",
+        dest="Nmax",
+        type="int",
+        default=10,
+        help="distance cutoff to tolerate two blocks that are "
+        "slightly overlapping (cutoff for `quota mapping`) "
+        "[default: %default units (gene or bp dist)]",
+    )
 
     supported_solvers = ("SCIP", "GLPK")
-    p.add_option("--self", dest="self_match",
-                 action="store_true", default=False,
-                 help="you might turn this on when screening paralogous blocks, "
-                 "esp. if you have reduced mirrored blocks into non-redundant set")
-    p.add_option("--solver", default="SCIP", choices=supported_solvers,
-                 help="use MIP solver [default: %default]")
+    p.add_option(
+        "--self",
+        dest="self_match",
+        action="store_true",
+        default=False,
+        help="you might turn this on when screening paralogous blocks, "
+        "esp. if you have reduced mirrored blocks into non-redundant set",
+    )
+    p.add_option(
+        "--solver",
+        default="SCIP",
+        choices=supported_solvers,
+        help="use MIP solver [default: %default]",
+    )
     p.set_verbose(help="Show verbose solver output")
 
-    p.add_option("--screen", default=False, action="store_true",
-                 help="generate new anchors file [default: %default]")
+    p.add_option(
+        "--screen",
+        default=False,
+        action="store_true",
+        help="generate new anchors file [default: %default]",
+    )
 
     opts, args = p.parse_args(args)
 
@@ -286,14 +312,17 @@ def main(args):
             qa, qb = opts.quota.split(":")
             qa, qb = int(qa), int(qb)
         except:
-            print("quota string should be the form x:x (2:4, 1:3, etc.)",
-                  file=sys.stderr)
+            print(
+                "quota string should be the form x:x (2:4, 1:3, etc.)", file=sys.stderr
+            )
             sys.exit(1)
 
         if opts.self_match and qa != qb:
-            raise Exception("when comparing genome to itself, "
-                            "quota must be the same number "
-                            "(like 1:1, 2:2) you have %s" % opts.quota)
+            raise Exception(
+                "when comparing genome to itself, "
+                "quota must be the same number "
+                "(like 1:1, 2:2) you have %s" % opts.quota
+            )
         quota = (qa, qb)
 
     self_match = opts.self_match
@@ -305,9 +334,15 @@ def main(args):
     # below runs `quota mapping`
     work_dir = op.join(op.dirname(op.abspath(qa_file)), "work")
 
-    selected_ids = solve_lp(clusters, quota, work_dir=work_dir,
-                            Nmax=opts.Nmax, self_match=self_match,
-                            solver=opts.solver, verbose=opts.verbose)
+    selected_ids = solve_lp(
+        clusters,
+        quota,
+        work_dir=work_dir,
+        Nmax=opts.Nmax,
+        self_match=self_match,
+        solver=opts.solver,
+        verbose=opts.verbose,
+    )
 
     logging.debug("Selected {0} blocks.".format(len(selected_ids)))
     prefix = qa_file.rsplit(".", 1)[0]
@@ -329,5 +364,5 @@ def main(args):
         screen(largs)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main(sys.argv[1:])

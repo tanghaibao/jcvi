@@ -15,6 +15,7 @@ from math import sqrt
 from six.moves import zip_longest
 
 from jcvi.compara.synteny import AnchorFile, check_beds
+from jcvi.formats.base import get_number
 from jcvi.formats.bed import Bed
 from jcvi.utils.grouper import Grouper
 from jcvi.apps.base import OptionParser, ActionDispatcher
@@ -23,13 +24,13 @@ from jcvi.apps.base import OptionParser, ActionDispatcher
 def main():
 
     actions = (
-        ('collinear', 'reduce synteny blocks to strictly collinear'),
-        ('zipbed', 'build ancestral contig from collinear blocks'),
-        ('pairs', 'convert anchorsfile to pairsfile'),
+        ("collinear", "reduce synteny blocks to strictly collinear"),
+        ("zipbed", "build ancestral contig from collinear blocks"),
+        ("pairs", "convert anchorsfile to pairsfile"),
         # Sankoff-Zheng reconstruction
-        ('adjgraph', 'construct adjacency graph'),
+        ("adjgraph", "construct adjacency graph"),
         # Experimental gene order graph for ancestral reconstruction
-        ('fuse', 'fuse gene orders based on anchorsfile'),
+        ("fuse", "fuse gene orders based on anchorsfile"),
     )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -37,7 +38,7 @@ def main():
 
 def add_bed_to_graph(G, bed, families):
     for seqid, bs in bed.sub_beds():
-        prev_node, prev_strand = None, '+'
+        prev_node, prev_strand = None, "+"
         for b in bs:
             accn = b.accn
             strand = b.strand
@@ -53,16 +54,19 @@ def print_edges(G, bed, families):
     """
     Instead of going through the graph construction, just print the edges.
     """
-    symbols = {'+': '>', '-': '<'}
+    symbols = {"+": ">", "-": "<"}
     for seqid, bs in bed.sub_beds():
-        prev_node, prev_strand = None, '+'
+        prev_node, prev_strand = None, "+"
         for b in bs:
             accn = b.accn
             strand = b.strand
             node = "=".join(families[accn])
             if prev_node:
-                print("{}{}--{}{}".format(prev_node, symbols[prev_strand],
-                                          symbols[strand], node))
+                print(
+                    "{}{}--{}{}".format(
+                        prev_node, symbols[prev_strand], symbols[strand], node
+                    )
+                )
             prev_node, prev_strand = node, strand
 
 
@@ -91,15 +95,16 @@ def fuse(args):
             families.join(a, b)
 
     allowed = set(families.keys())
-    logging.debug("Total families: {}, Gene members: {}"
-                  .format(len(families), len(allowed)))
+    logging.debug(
+        "Total families: {}, Gene members: {}".format(len(families), len(allowed))
+    )
 
     # TODO: Use C++ implementation of BiGraph() when available
     # For now just serialize this to the disk
     G = BiGraph()
     for bedfile in bedfiles:
         bed = Bed(bedfile, include=allowed)
-        #add_bed_to_graph(G, bed, families)
+        # add_bed_to_graph(G, bed, families)
         print_edges(G, bed, families)
 
     # G.write(filename="graph.edges")
@@ -211,13 +216,12 @@ def pairs(args):
         lines = []
         for q, s, score in block:
             npairs += 1
-            score = score.replace('L', '')
+            score = score.replace("L", "")
             lines.append("\t".join((q, s, score, block_id)))
         print("\n".join(sorted(lines)), file=fw)
 
     fw.close()
-    logging.debug("A total of {0} pairs written to `{1}`.".
-                  format(npairs, outfile))
+    logging.debug("A total of {0} pairs written to `{1}`.".format(npairs, outfile))
 
 
 def interleave_pairs(pairs):
@@ -247,8 +251,7 @@ def zipbed(args):
     proceeds by interleaving the genes together.
     """
     p = OptionParser(zipbed.__doc__)
-    p.add_option("--prefix", default="b",
-                 help="Prefix for the new seqid [default: %default]")
+    p.add_option("--prefix", default="b", help="Prefix for the new seqid")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -274,14 +277,14 @@ def zipbed(args):
         newbed = list(interleave_pairs(pairs))
         for i, b in enumerate(newbed):
             accn = bed[b].accn
-            print("\t".join(str(x)
-                            for x in (block_id, i, i + 1, accn)), file=fw)
+            print("\t".join(str(x) for x in (block_id, i, i + 1, accn)), file=fw)
 
     logging.debug("Reconstructed bedfile written to `{0}`.".format(newbedfile))
 
 
 # Non-linear transformation of anchor scores
-def score_convert(x): return int(sqrt(x))
+def score_convert(x):
+    return int(sqrt(x))
 
 
 def get_collinear(block):
@@ -303,7 +306,7 @@ def print_chain(block, ascending=True):
     scores = [score_convert(c) for (a, b, c) in block]
 
     for i, (a, b, c) in enumerate(block):
-        for j in xrange(i + 1, i + scope):
+        for j in range(i + 1, i + scope):
             if j >= bsize:
                 break
 
@@ -318,7 +321,7 @@ def print_chain(block, ascending=True):
                 fromm[j] = i
                 scores[j] = this_score
 
-    scoresfromm = zip(scores, fromm)
+    scoresfromm = list(zip(scores, fromm))
     maxchain = max(scoresfromm)
     chainscore, chainend = maxchain
     solution = [scoresfromm.index(maxchain), chainend]
@@ -366,7 +369,7 @@ def collinear(args):
         for q, s, score in block:
             qi, q = qorder[q]
             si, s = sorder[s]
-            score = int(long(score))
+            score = get_number(score)
             iblock.append([qi, si, score])
 
         block = get_collinear(iblock)
@@ -379,5 +382,5 @@ def collinear(args):
     fw.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

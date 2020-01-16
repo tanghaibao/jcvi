@@ -8,6 +8,7 @@ import logging
 
 import numpy as np
 from collections import defaultdict
+
 try:
     from collections.abc import Iterable
 except ImportError:
@@ -23,8 +24,7 @@ from jcvi.utils.range import Range, range_chain
 from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
-class AnchorFile (BaseFile):
-
+class AnchorFile(BaseFile):
     def __init__(self, filename, minsize=0):
         super(AnchorFile, self).__init__(filename)
         self.blocks = list(self.iter_blocks(minsize=minsize))
@@ -59,7 +59,7 @@ class AnchorFile (BaseFile):
                         nremoved += 1
                         continue
                     av = accepted[pair]
-                    if score != av and score != av + 'L':
+                    if score != av and score != av + "L":
                         score = av
                         ncorrected += 1
                 print("\t".join((a, b, score)), file=fw)
@@ -98,15 +98,15 @@ class AnchorFile (BaseFile):
             nlines += 1
         fw.close()
 
-        logging.debug("A total of {0} BLAST lines written to `{1}`."\
-                        .format(nlines, outfile))
+        logging.debug(
+            "A total of {0} BLAST lines written to `{1}`.".format(nlines, outfile)
+        )
 
         return outfile
 
 
-class BlockFile (BaseFile):
-
-    def __init__(self, filename, defaultcolor='#fb8072', header=False):
+class BlockFile(BaseFile):
+    def __init__(self, filename, defaultcolor="#fb8072", header=False):
         super(BlockFile, self).__init__(filename)
         fp = must_open(filename)
         hd = next(fp).rstrip().split("\t")
@@ -120,7 +120,7 @@ class BlockFile (BaseFile):
         data = []
         highlight = []
         for row in fp:
-            hl = ("*" in row)
+            hl = "*" in row
             # r* highlights the block in red color
             if hl:
                 hl, row = row.split("*", 1)
@@ -148,21 +148,27 @@ class BlockFile (BaseFile):
         elen = min(len(acol), len(bcol))
         ia, ib = acol[:elen], bcol[:elen]
         slope, intercept = np.polyfit(ia, ib, 1)
-        orientation = '+' if slope >= 0 else '-'
+        orientation = "+" if slope >= 0 else "-"
 
         ocol = [order[x] for x in self.columns[i] if x in order]
-        #orientation = '+' if ocol[0][0] <= ocol[-1][0] else '-'
+        # orientation = '+' if ocol[0][0] <= ocol[-1][0] else '-'
         si, start = min(ocol)
         ei, end = max(ocol)
-        same_chr = (start.seqid == end.seqid)
+        same_chr = start.seqid == end.seqid
         chr = start.seqid if same_chr else None
         ngenes = ei - si + 1
         if debug:
             r = "{0}:{1}-{2}".format(chr, start.start, end.end)
-            print("Column {0}: {1} - {2} ({3})".\
-                    format(i, start.accn, end.accn, r), file=sys.stderr)
-            print("  {0} .. {1} ({2}) features .. {3}".\
-                    format(chr, ngenes, len(ocol), orientation), file=sys.stderr)
+            print(
+                "Column {0}: {1} - {2} ({3})".format(i, start.accn, end.accn, r),
+                file=sys.stderr,
+            )
+            print(
+                "  {0} .. {1} ({2}) features .. {3}".format(
+                    chr, ngenes, len(ocol), orientation
+                ),
+                file=sys.stderr,
+            )
 
         span = abs(start.start - end.end)
 
@@ -212,23 +218,19 @@ class BlockFile (BaseFile):
                     downstream = col[i]
                     downstream_dist = i - qi
                     break
-            closest = upstream if upstream_dist < downstream_dist \
-                    else downstream
+            closest = upstream if upstream_dist < downstream_dist else downstream
             # output in .simple format
             if invert:
-                line = "\t".join(str(x) for x in \
-                        (closest, closest, gene, gene, 0, "+"))
+                line = "\t".join(str(x) for x in (closest, closest, gene, gene, 0, "+"))
             else:
-                line = "\t".join(str(x) for x in \
-                        (gene, gene, closest, closest, 0, "+"))
+                line = "\t".join(str(x) for x in (gene, gene, closest, closest, 0, "+"))
             if color is not None:
                 line = color + "*" + line
             yield line
 
 
-class SimpleFile (object):
-
-    def __init__(self, simplefile, defaultcolor='#fb8072', order=None):
+class SimpleFile(object):
+    def __init__(self, simplefile, defaultcolor="#fb8072", order=None):
         # Sometimes the simplefile has query and subject wrong
         fp = open(simplefile)
         self.blocks = []
@@ -236,7 +238,7 @@ class SimpleFile (object):
         for row in fp:
             if row[:2] == "##" or row.startswith("StartGeneA"):
                 continue
-            hl = ("*" in row)
+            hl = "*" in row
             if hl:
                 hl, row = row.split("*", 1)
                 hl = hl or defaultcolor
@@ -244,16 +246,24 @@ class SimpleFile (object):
             if order and a not in order:
                 if c not in order:
                     check = True
-                    print('''{} {} {} {} can not found in bed files.'''.format(a, b, c, d), file=sys.stderr)
+                    print(
+                        """{} {} {} {} can not found in bed files.""".format(
+                            a, b, c, d
+                        ),
+                        file=sys.stderr,
+                    )
                 else:
                     a, b, c, d = c, d, a, b
-            if orientation == '-':
+            if orientation == "-":
                 c, d = d, c
             score = int(score)
             self.blocks.append((a, b, c, d, score, orientation, hl))
         if check:
-            print('''Error: some genes in blocks can't be found,
-please rerun after making sure that bed file agree with simple file.''', file=sys.stderr)
+            print(
+                """Error: some genes in blocks can't be found,
+please rerun after making sure that bed file agree with simple file.""",
+                file=sys.stderr,
+            )
             exit(1)
 
 
@@ -320,8 +330,11 @@ def read_blast(blast_file, qorder, sorder, is_self=False, ostrip=True):
 
         filtered_blast.append(b)
 
-    logging.debug("A total of {0} BLAST imported from `{1}`.".\
-                  format(len(filtered_blast), blast_file))
+    logging.debug(
+        "A total of {0} BLAST imported from `{1}`.".format(
+            len(filtered_blast), blast_file
+        )
+    )
 
     return filtered_blast
 
@@ -351,7 +364,7 @@ def read_anchors(ac, qorder, sorder, minsize=0):
     return all_anchors, anchor_to_block
 
 
-def synteny_scan(points, xdist, ydist, N):
+def synteny_scan(points, xdist, ydist, N, is_self=False, intrabound=300):
     """
     This is the core single linkage algorithm which behaves in O(n):
     iterate through the pairs, foreach pair we look back on the
@@ -370,17 +383,23 @@ def synteny_scan(points, xdist, ydist, N):
             del_y = points[i][1] - points[j][1]
             if abs(del_y) > ydist:
                 continue
+            # In self-comparison, ignore the anchors that are too close to the diagonal
+            if is_self:
+                intradist = min(
+                    abs(points[i][0] - points[i][1]), abs(points[j][0] - points[j][1])
+                )
+                if intradist < intrabound:
+                    continue
             # otherwise join
             clusters.join(points[i], points[j])
 
     # select clusters that are at least >=N
-    clusters = [sorted(cluster) for cluster in list(clusters) \
-            if _score(cluster) >= N]
+    clusters = [sorted(cluster) for cluster in list(clusters) if _score(cluster) >= N]
 
     return clusters
 
 
-def batch_scan(points, xdist=20, ydist=20, N=5):
+def batch_scan(points, xdist=20, ydist=20, N=5, is_self=False, intrabound=300):
     """
     runs synteny_scan() per chromosome pair
     """
@@ -389,7 +408,11 @@ def batch_scan(points, xdist=20, ydist=20, N=5):
     clusters = []
     for chr_pair in sorted(chr_pair_points.keys()):
         points = chr_pair_points[chr_pair]
-        clusters.extend(synteny_scan(points, xdist, ydist, N))
+        clusters.extend(
+            synteny_scan(
+                points, xdist, ydist, N, is_self=is_self, intrabound=intrabound
+            )
+        )
 
     return clusters
 
@@ -404,7 +427,7 @@ def synteny_liftover(points, anchors, dist):
     points = np.array(points, dtype=int)
     ppoints = points[:, :2] if points.shape[1] > 2 else points
     tree = cKDTree(anchors, leafsize=16)
-    #print tree.data
+    # print tree.data
     dists, idxs = tree.query(ppoints, p=1, distance_upper_bound=dist)
 
     for point, dist, idx in zip(points, dists, idxs):
@@ -423,8 +446,7 @@ def get_bed_filenames(hintfile, p, opts):
             q, s = hintfile.split(".", 2)[:2]
             opts.qbed = op.join(wd, q + ".bed")
             opts.sbed = op.join(wd, s + ".bed")
-            logging.debug("Assuming --qbed={0} --sbed={1}".\
-                         format(opts.qbed, opts.sbed))
+            logging.debug("Assuming --qbed={0} --sbed={1}".format(opts.qbed, opts.sbed))
         except:
             print("Options --qbed and --sbed are required", file=sys.stderr)
             sys.exit(not p.print_help())
@@ -435,7 +457,7 @@ def get_bed_filenames(hintfile, p, opts):
 def check_beds(hintfile, p, opts, sorted=True):
     qbed_file, sbed_file = get_bed_filenames(hintfile, p, opts)
     # is this a self-self blast?
-    is_self = (qbed_file == sbed_file)
+    is_self = qbed_file == sbed_file
     if is_self:
         logging.debug("Looks like self-self comparison.")
 
@@ -453,8 +475,9 @@ def add_options(p, args, dist=10):
     returns opts, files
     """
     p.set_beds()
-    p.add_option("--dist", default=dist, type="int",
-            help="Extent of flanking regions to search [default: %default]")
+    p.add_option(
+        "--dist", default=dist, type="int", help="Extent of flanking regions to search"
+    )
 
     opts, args = p.parse_args(args)
 
@@ -469,23 +492,23 @@ def add_options(p, args, dist=10):
 def main():
 
     actions = (
-        ('scan', 'get anchor list using single-linkage algorithm'),
-        ('summary', 'provide statistics for pairwise blocks'),
-        ('liftover', 'given anchor list, pull adjacent pairs from blast file'),
-        ('mcscan', 'stack synteny blocks on a reference bed'),
-        ('mcscanq', 'query multiple synteny blocks'),
-        ('screen', 'extract subset of blocks from anchorfile'),
-        ('simple', 'convert anchorfile to simple block descriptions'),
-        ('stats', 'provide statistics for mscan blocks'),
-        ('depth', 'calculate the depths in the two genomes in comparison'),
-        ('breakpoint', 'identify breakpoints where collinearity ends'),
-        ('matrix', 'make oxford grid based on anchors file'),
-        ('coge', 'convert CoGe file to anchors file'),
-        ('spa', 'convert chr ordering from SPA to simple lists'),
-        ('layout', 'compute layout based on .simple file'),
-        ('rebuild', 'rebuild anchors file from prebuilt blocks file'),
-        ('fromaligns', 'convert aligns file to anchors file'),
-            )
+        ("scan", "get anchor list using single-linkage algorithm"),
+        ("summary", "provide statistics for pairwise blocks"),
+        ("liftover", "given anchor list, pull adjacent pairs from blast file"),
+        ("mcscan", "stack synteny blocks on a reference bed"),
+        ("mcscanq", "query multiple synteny blocks"),
+        ("screen", "extract subset of blocks from anchorfile"),
+        ("simple", "convert anchorfile to simple block descriptions"),
+        ("stats", "provide statistics for mscan blocks"),
+        ("depth", "calculate the depths in the two genomes in comparison"),
+        ("breakpoint", "identify breakpoints where collinearity ends"),
+        ("matrix", "make oxford grid based on anchors file"),
+        ("coge", "convert CoGe file to anchors file"),
+        ("spa", "convert chr ordering from SPA to simple lists"),
+        ("layout", "compute layout based on .simple file"),
+        ("rebuild", "rebuild anchors file from prebuilt blocks file"),
+        ("fromaligns", "convert aligns file to anchors file"),
+    )
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -494,7 +517,7 @@ def main():
 def colinear_evaluate_weights(tour, data):
     tour = dict((s, i) for i, s in enumerate(tour))
     data = [(tour[x], score) for x, score in data if x in tour]
-    return his(data)[-1],
+    return (his(data)[-1],)
 
 
 def layout(args):
@@ -567,9 +590,9 @@ def fromaligns(args):
         if row.startswith("## Alignment"):
             print("###", file=fw)
             continue
-        if row[0] == '#' or not row.strip():
+        if row[0] == "#" or not row.strip():
             continue
-        atoms = row.split(':')[-1].split()
+        atoms = row.split(":")[-1].split()
         print("\t".join(atoms[:2]), file=fw)
     fw.close()
 
@@ -584,8 +607,9 @@ def mcscanq(args):
     """
     p = OptionParser(mcscanq.__doc__)
     p.add_option("--color", help="Add color highlight, used in plotting")
-    p.add_option("--invert", default=False, action="store_true",
-                 help="Invert query and subject [default: %default]")
+    p.add_option(
+        "--invert", default=False, action="store_true", help="Invert query and subject"
+    )
     opts, args = p.parse_args(args)
 
     if len(args) < 2:
@@ -611,8 +635,12 @@ def spa(args):
     from jcvi.utils.cbook import uniqify
 
     p = OptionParser(spa.__doc__)
-    p.add_option("--unmapped", default=False, action="store_true",
-                 help="Include unmapped scaffolds in the list [default: %default]")
+    p.add_option(
+        "--unmapped",
+        default=False,
+        action="store_true",
+        help="Include unmapped scaffolds in the list",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) < 1:
@@ -628,10 +656,10 @@ def spa(args):
         mapping = []
         missing = []
         for row in fp:
-            if row[0] == '#' or not row.strip():
+            if row[0] == "#" or not row.strip():
                 continue
 
-            atoms = row.rstrip().split('\t')
+            atoms = row.rstrip().split("\t")
             if len(atoms) == 2:
                 a, c2 = atoms
                 assert a == "unmapped"
@@ -664,10 +692,15 @@ def rebuild(args):
     Rebuild anchors file from pre-built blocks file.
     """
     p = OptionParser(rebuild.__doc__)
-    p.add_option("--header", default=False, action="store_true",
-                 help="First line is header [default: %default]")
-    p.add_option("--write_blast", default=False, action="store_true",
-                 help="Get blast records of rebuilt anchors [default: %default]")
+    p.add_option(
+        "--header", default=False, action="store_true", help="First line is header"
+    )
+    p.add_option(
+        "--write_blast",
+        default=False,
+        action="store_true",
+        help="Get blast records of rebuilt anchors",
+    )
     p.set_beds()
 
     opts, args = p.parse_args(args)
@@ -717,10 +750,11 @@ def coge(args):
         print(tag, file=fw_ac)
         lines = list(lines)
         for line in lines:
-            if line[0] == '#':
+            if line[0] == "#":
                 continue
-            ks, ka, achr, a, astart, astop, bchr, \
-                    b, bstart, bstop, ev, ss = line.split()
+            ks, ka, achr, a, astart, astop, bchr, b, bstart, bstop, ev, ss = (
+                line.split()
+            )
             a = a.split("||")[3]
             b = b.split("||")[3]
             print("\t".join((a, b, ev)), file=fw_ac)
@@ -738,7 +772,7 @@ def matrix(args):
     """
 
     p = OptionParser(matrix.__doc__)
-    p.add_option("--seqids", help="File with seqids [default: %default]")
+    p.add_option("--seqids", help="File with seqids")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -748,7 +782,7 @@ def matrix(args):
     ac = AnchorFile(anchorfile)
     seqidsfile = opts.seqids
     if seqidsfile:
-        seqids = SetFile(seqidsfile, delimiter=',')
+        seqids = SetFile(seqidsfile, delimiter=",")
 
     order = Bed(bedfile).order
     blocks = ac.blocks
@@ -773,8 +807,7 @@ def matrix(args):
     bseqids = list(bseqids)
     print("\t".join(["o"] + bseqids), file=fw)
     for aseqid in aseqids:
-        print("\t".join([aseqid] + \
-                    [str(m[(aseqid, x)]) for x in bseqids]), file=fw)
+        print("\t".join([aseqid] + [str(m[(aseqid, x)]) for x in bseqids]), file=fw)
 
 
 def get_boundary_bases(start, end, order):
@@ -805,14 +838,24 @@ def simple(args):
     block_id  seqidB    startB    endB     bpSpanB  GeneB1   GeneB2  geneSpanB
     """
     p = OptionParser(simple.__doc__)
-    p.add_option("--rich", default=False, action="store_true", \
-                help="Output additional columns [default: %default]")
-    p.add_option("--coords", default=False, action="store_true",
-                help="Output columns with base coordinates [default: %default]")
-    p.add_option("--bed", default=False, action="store_true",
-                help="Generate BED file for the blocks")
-    p.add_option("--noheader", default=False, action="store_true",
-                help="Don't output header [default: %default]")
+    p.add_option(
+        "--rich", default=False, action="store_true", help="Output additional columns"
+    )
+    p.add_option(
+        "--coords",
+        default=False,
+        action="store_true",
+        help="Output columns with base coordinates",
+    )
+    p.add_option(
+        "--bed",
+        default=False,
+        action="store_true",
+        help="Generate BED file for the blocks",
+    )
+    p.add_option(
+        "--noheader", default=False, action="store_true", help="Don't output header"
+    )
     p.set_beds()
     opts, args = p.parse_args(args)
 
@@ -840,8 +883,7 @@ def simple(args):
     else:
         h = "StartGeneA|EndGeneA|StartGeneB|EndGeneB|Orientation|Score"
         if additional:
-            h += "|StartOrderA|EndOrderA|StartOrderB|EndOrderB|"\
-                  "SizeA|SizeB|Size|Block"
+            h += "|StartOrderA|EndOrderA|StartOrderB|EndOrderB|SizeA|SizeB|Size|Block"
 
     fws = open(simplefile, "w")
     if header:
@@ -866,35 +908,62 @@ def simple(args):
         size = len(block)
 
         slope, intercept = np.polyfit(ia, ib, 1)
-        orientation = "+" if slope >= 0 else '-'
+        orientation = "+" if slope >= 0 else "-"
         aspan = aendi - astarti + 1
         bspan = bendi - bstarti + 1
-        score = int((aspan * bspan) ** .5)
+        score = int((aspan * bspan) ** 0.5)
         score = str(score)
         block_id = pf + "-block-{0}".format(i)
 
         if coords:
 
-            aseqid, astartbase, aendbase = \
-                    get_boundary_bases(astart, aend, qorder)
-            bseqid, bstartbase, bendbase = \
-                    get_boundary_bases(bstart, bend, sorder)
+            aseqid, astartbase, aendbase = get_boundary_bases(astart, aend, qorder)
+            bseqid, bstartbase, bendbase = get_boundary_bases(bstart, bend, sorder)
             abase = aendbase - astartbase + 1
             bbase = bendbase - bstartbase + 1
             atotalbase += abase
             btotalbase += bbase
 
             # Write dual lines
-            aargs = [block_id, aseqid, astartbase, aendbase,
-                     abase, astart, aend, aspan, "+"]
-            bargs = [block_id, bseqid, bstartbase, bendbase,
-                     bbase, bstart, bend, bspan, orientation]
+            aargs = [
+                block_id,
+                aseqid,
+                astartbase,
+                aendbase,
+                abase,
+                astart,
+                aend,
+                aspan,
+                "+",
+            ]
+            bargs = [
+                block_id,
+                bseqid,
+                bstartbase,
+                bendbase,
+                bbase,
+                bstart,
+                bend,
+                bspan,
+                orientation,
+            ]
 
             if bed:
-                bbed.append(BedLine("\t".join(str(x) for x in \
-                           (bseqid, bstartbase - 1, bendbase,
-                           "{}:{}-{}".format(aseqid, astartbase, aendbase),
-                           size, orientation))))
+                bbed.append(
+                    BedLine(
+                        "\t".join(
+                            str(x)
+                            for x in (
+                                bseqid,
+                                bstartbase - 1,
+                                bendbase,
+                                "{}:{}-{}".format(aseqid, astartbase, aendbase),
+                                size,
+                                orientation,
+                            )
+                        )
+                    )
+                )
 
             for args in (aargs, bargs):
                 print("\t".join(str(x) for x in args), file=fws)
@@ -902,20 +971,31 @@ def simple(args):
 
         args = [astart, aend, bstart, bend, score, orientation]
         if additional:
-            args += [astarti, aendi, bstarti, bendi,
-                     sizeA, sizeB, size, block_id]
+            args += [astarti, aendi, bstarti, bendi, sizeA, sizeB, size, block_id]
         print("\t".join(str(x) for x in args), file=fws)
 
     fws.close()
     logging.debug("A total of {0} blocks written to `{1}`.".format(i + 1, simplefile))
 
     if coords:
-        print("Total block span in {0}: {1}".format(qbed.filename, \
-                        human_size(atotalbase, precision=2)), file=sys.stderr)
-        print("Total block span in {0}: {1}".format(sbed.filename, \
-                        human_size(btotalbase, precision=2)), file=sys.stderr)
-        print("Ratio: {0:.1f}x".format(\
-                        max(atotalbase, btotalbase) * 1. / min(atotalbase, btotalbase)), file=sys.stderr)
+        print(
+            "Total block span in {0}: {1}".format(
+                qbed.filename, human_size(atotalbase, precision=2)
+            ),
+            file=sys.stderr,
+        )
+        print(
+            "Total block span in {0}: {1}".format(
+                sbed.filename, human_size(btotalbase, precision=2)
+            ),
+            file=sys.stderr,
+        )
+        print(
+            "Ratio: {0:.1f}x".format(
+                max(atotalbase, btotalbase) * 1.0 / min(atotalbase, btotalbase)
+            ),
+            file=sys.stderr,
+        )
 
     if bed:
         bedfile = simplefile + ".bed"
@@ -934,21 +1014,28 @@ def screen(args):
     3. Option --seqpairs: only allow seqpairs in this file, one per line, e.g. "Chr01,Chr05".
     4. Option --minspan: remove blocks with less span than this.
     5. Option --minsize: remove blocks with less number of anchors than this.
+    6. Option --intrabound: remove blocks that are too close to the diagonal on
+       self dot plot that are typically artifacts
     """
+    from jcvi.utils.range import range_distance
+
     p = OptionParser(screen.__doc__)
     p.set_beds()
 
-    p.add_option("--ids", help="File with block IDs (0-based) [default: %default]")
-    p.add_option("--seqids", help="File with seqids [default: %default]")
-    p.add_option("--seqpairs", help="File with seqpairs [default: %default]")
-    p.add_option("--nointra", action="store_true",
-                 help="Remove intra-chromosomal blocks [default: %default]")
-    p.add_option("--minspan", default=0, type="int",
-                 help="Only blocks with span >= [default: %default]")
-    p.add_option("--minsize", default=0, type="int",
-                 help="Only blocks with anchors >= [default: %default]")
-    p.add_option("--simple", action="store_true",
-                 help="Write simple anchorfile with block ends [default: %default]")
+    p.add_option("--ids", help="File with block IDs (0-based)")
+    p.add_option("--seqids", help="File with seqids")
+    p.add_option("--seqpairs", help="File with seqpairs")
+    p.add_option(
+        "--intrabound",
+        default=300,
+        type="int",
+        help="Lower bound of intra-chromosomal blocks (only for self comparison)",
+    )
+    p.add_option("--minspan", default=0, type="int", help="Only blocks with span >=")
+    p.add_option("--minsize", default=0, type="int", help="Only blocks with anchors >=")
+    p.add_option(
+        "--simple", action="store_true", help="Write simple anchorfile with block ends"
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -962,14 +1049,14 @@ def screen(args):
     minspan = opts.minspan
     minsize = opts.minsize
     osimple = opts.simple
-    nointra = opts.nointra
+    intrabound = opts.intrabound
     ids, seqids, seqpairs = None, None, None
 
     if idsfile:
-        ids = SetFile(idsfile, delimiter=',')
+        ids = SetFile(idsfile, delimiter=",")
         ids = set(int(x) for x in ids)
     if seqidsfile:
-        seqids = SetFile(seqidsfile, delimiter=',')
+        seqids = SetFile(seqidsfile, delimiter=",")
     if seqpairsfile:
         fp = open(seqpairsfile)
         seqpairs = set()
@@ -992,8 +1079,10 @@ def screen(args):
         b = [sorder[x] for x in b]
         ia, oa = zip(*a)
         ib, ob = zip(*b)
-        aspan = max(ia) - min(ia) + 1
-        bspan = max(ib) - min(ib) + 1
+        min_ia, max_ia = min(ia), max(ia)
+        min_ib, max_ib = min(ib), max(ib)
+        aspan = max_ia - min_ia + 1
+        bspan = max_ib - min_ib + 1
         aseqid = oa[0].seqid
         bseqid = ob[0].seqid
 
@@ -1005,8 +1094,14 @@ def screen(args):
             if (aseqid, bseqid) not in seqpairs:
                 continue
 
-        if nointra and aseqid == bseqid:
-            continue
+        same_chromosome = is_self and (aseqid == bseqid)
+
+        if same_chromosome:
+            dist, _ = range_distance(
+                (aseqid, min_ia, max_ia, "?"), (bseqid, min_ib, max_ib, "?")
+            )
+            if dist < intrabound:
+                continue
 
         if minsize:
             if len(block) < minsize:
@@ -1024,11 +1119,16 @@ def screen(args):
     fw.close()
 
     if osimple:
-        simple([newanchorfile, "--noheader", \
-                "--qbed=" + qbed.filename, "--sbed=" + sbed.filename])
+        simple(
+            [
+                newanchorfile,
+                "--noheader",
+                "--qbed=" + qbed.filename,
+                "--sbed=" + sbed.filename,
+            ]
+        )
 
-    logging.debug("Before: {0} blocks, After: {1} blocks".\
-                  format(len(blocks), selected))
+    logging.debug("Before: {0} blocks, After: {1} blocks".format(len(blocks), selected))
 
 
 def summary(args):
@@ -1040,7 +1140,7 @@ def summary(args):
     from jcvi.utils.cbook import SummaryStats
 
     p = OptionParser(summary.__doc__)
-    p.add_option("--prefix", help="Generate per block stats [default: %default]")
+    p.add_option("--prefix", help="Generate per block stats")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -1056,8 +1156,12 @@ def summary(args):
     nclusters = len(clusters)
     nanchors = [len(c) for c in clusters]
     nranchors = [_score(c) for c in clusters]  # non-redundant anchors
-    print("A total of {0} (NR:{1}) anchors found in {2} clusters.".\
-                  format(sum(nanchors), sum(nranchors), nclusters), file=sys.stderr)
+    print(
+        "A total of {0} (NR:{1}) anchors found in {2} clusters.".format(
+            sum(nanchors), sum(nranchors), nclusters
+        ),
+        file=sys.stderr,
+    )
     print("Stats:", SummaryStats(nanchors), file=sys.stderr)
     print("NR stats:", SummaryStats(nranchors), file=sys.stderr)
 
@@ -1090,10 +1194,10 @@ def stats(args):
     total = orthologous = 0
     for row in fp:
         atoms = row.rstrip().split("\t")
-        hits = [x for x in atoms[1:] if x != '.']
+        hits = [x for x in atoms[1:] if x != "."]
         counts[len(hits)] += 1
         total += 1
-        if atoms[1] != '.':
+        if atoms[1] != ".":
             orthologous += 1
 
     print("Total lines: {0}".format(total), file=sys.stderr)
@@ -1103,8 +1207,10 @@ def stats(args):
     print(file=sys.stderr)
 
     matches = sum(n for i, n in counts.items() if i != 0)
-    print("Total lines with matches: {0}".\
-                format(percentage(matches, total)), file=sys.stderr)
+    print(
+        "Total lines with matches: {0}".format(percentage(matches, total)),
+        file=sys.stderr,
+    )
     for i, n in sorted(counts.items()):
         if i == 0:
             continue
@@ -1112,14 +1218,16 @@ def stats(args):
         print("Count {0}: {1}".format(i, percentage(n, matches)), file=sys.stderr)
 
     print(file=sys.stderr)
-    print("Orthologous matches: {0}".\
-                format(percentage(orthologous, matches)), file=sys.stderr)
+    print(
+        "Orthologous matches: {0}".format(percentage(orthologous, matches)),
+        file=sys.stderr,
+    )
 
 
 def get_best_pair(qs, ss, ts):
     pairs = {}
     for q, s, t in zip(qs, ss, ts):
-        t = int(t[:-1]) if t[-1] == 'L' else int(t)
+        t = int(t[:-1]) if t[-1] == "L" else int(t)
         if q not in pairs or pairs[q][1] < t:
             pairs[q] = (s, t)
 
@@ -1156,17 +1264,27 @@ def mcscan(args):
     tandem cluster as one line, tab separated.
     """
     p = OptionParser(mcscan.__doc__)
-    p.add_option("--iter", default=100, type="int",
-                 help="Max number of chains to output [default: %default]")
-    p.add_option("--ascii", default=False, action="store_true",
-                 help="Output symbols rather than gene names [default: %default]")
-    p.add_option("--Nm", default=10, type="int",
-                 help="Clip block ends to allow slight overlaps [default: %default]")
-    p.add_option("--trackids", action="store_true",
-                 help="Track block IDs in separate file [default: %default]")
-    p.add_option("--mergetandem", default=None,
-                 help="merge tandems genes in output acoording to PATH-TO-TANDEM_FILE, "\
-                 "cannot be used with --ascii")
+    p.add_option(
+        "--iter", default=100, type="int", help="Max number of chains to output"
+    )
+    p.add_option(
+        "--ascii",
+        default=False,
+        action="store_true",
+        help="Output symbols rather than gene names",
+    )
+    p.add_option(
+        "--Nm", default=10, type="int", help="Clip block ends to allow slight overlaps"
+    )
+    p.add_option(
+        "--trackids", action="store_true", help="Track block IDs in separate file"
+    )
+    p.add_option(
+        "--mergetandem",
+        default=None,
+        help="merge tandems genes in output acoording to PATH-TO-TANDEM_FILE, "
+        "cannot be used with --ascii",
+    )
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -1290,10 +1408,10 @@ def depth(args):
     from jcvi.utils.range import range_depth
 
     p = OptionParser(depth.__doc__)
-    p.add_option("--depthfile",
-                 help="Generate file with gene and depth [default: %default]")
-    p.add_option("--histogram", default=False, action="store_true",
-                 help="Plot histograms in PDF")
+    p.add_option("--depthfile", help="Generate file with gene and depth")
+    p.add_option(
+        "--histogram", default=False, action="store_true", help="Plot histograms in PDF"
+    )
     p.add_option("--xmax", type="int", help="x-axis maximum to display in plot")
     p.add_option("--title", default=None, help="Title to display in plot")
     p.add_option("--quota", help="Force to use this quota, e.g. 1:1, 1:2 ...")
@@ -1361,18 +1479,24 @@ def depth(args):
 
     qtag = "# of {} blocks per {} gene".format(sgenome, qgenome)
     stag = "# of {} blocks per {} gene".format(qgenome, sgenome)
-    quickplot_ax(ax1, dss, 0, xmax, stag, ylabel="Percentage of genome",
-                 highlight=range(1, speak + 1))
-    quickplot_ax(ax2, dsq, 0, xmax, qtag, ylabel=None,
-                 highlight=range(1, qpeak + 1))
+    quickplot_ax(
+        ax1,
+        dss,
+        0,
+        xmax,
+        stag,
+        ylabel="Percentage of genome",
+        highlight=range(1, speak + 1),
+    )
+    quickplot_ax(ax2, dsq, 0, xmax, qtag, ylabel=None, highlight=range(1, qpeak + 1))
 
-    title = opts.title or "{} vs {} syntenic depths\n{}:{} pattern"\
-                    .format(qgenome, sgenome, speak, qpeak)
+    title = opts.title or "{} vs {} syntenic depths\n{}:{} pattern".format(
+        qgenome, sgenome, speak, qpeak
+    )
     root = f.add_axes([0, 0, 1, 1])
-    vs, pattern = title.split('\n')
-    root.text(.5, .97, vs, ha="center", va="center", color="darkslategray")
-    root.text(.5, .925, pattern, ha="center", va="center",
-                                 color="tomato", size=16)
+    vs, pattern = title.split("\n")
+    root.text(0.5, 0.97, vs, ha="center", va="center", color="darkslategray")
+    root.text(0.5, 0.925, pattern, ha="center", va="center", color="tomato", size=16)
     print(title, file=sys.stderr)
 
     normalize_axes(root)
@@ -1382,14 +1506,14 @@ def depth(args):
     savefig(image_name)
 
 
-def find_peak(data, cutoff=.9):
-    '''
+def find_peak(data, cutoff=0.9):
+    """
     This will look for the point where cumulative cutoff is reached. For
     example:
 
     >>> find_peak({0: 27, 1: 71, 2: 1})
     1
-    '''
+    """
     total_length = sum(data.values())
     count_cutoff = cutoff * total_length
     cum_sum = 0
@@ -1409,7 +1533,7 @@ def get_blocks(scaffold, bs, order, xdist=20, ydist=20, N=6):
         y = (b.start + b.end) / 2
         points.append((x, y))
 
-    #print scaffold, points
+    # print scaffold, points
     blocks = synteny_scan(points, xdist, ydist, N)
     return blocks
 
@@ -1426,12 +1550,13 @@ def breakpoint(args):
     from jcvi.utils.range import range_interleave
 
     p = OptionParser(breakpoint.__doc__)
-    p.add_option("--xdist", type="int", default=20,
-                 help="xdist (in related genome) cutoff [default: %default]")
-    p.add_option("--ydist", type="int", default=200000,
-                 help="ydist (in current genome) cutoff [default: %default]")
-    p.add_option("-n", type="int", default=5,
-                 help="number of markers in a block [default: %default]")
+    p.add_option(
+        "--xdist", type="int", default=20, help="xdist (in related genome) cutoff"
+    )
+    p.add_option(
+        "--ydist", type="int", default=200000, help="ydist (in current genome) cutoff"
+    )
+    p.add_option("-n", type="int", default=5, help="number of markers in a block")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -1442,8 +1567,9 @@ def breakpoint(args):
     blastbedfile = bed([blastfile])
     bbed = Bed(blastbedfile)
     for scaffold, bs in bbed.sub_beds():
-        blocks = get_blocks(scaffold, bs, order,
-                            xdist=opts.xdist, ydist=opts.ydist, N=opts.n)
+        blocks = get_blocks(
+            scaffold, bs, order, xdist=opts.xdist, ydist=opts.ydist, N=opts.n
+        )
         sblocks = []
         for block in blocks:
             xx, yy = zip(*block)
@@ -1461,22 +1587,42 @@ def scan(args):
     pull out syntenic anchors from blastfile based on single-linkage algorithm
     """
     p = OptionParser(scan.__doc__)
-    p.add_option("-n", "--min_size", dest="n", type="int", default=4,
-            help="minimum number of anchors in a cluster [default: %default]")
-    p.add_option("--liftover",
-            help="Scan BLAST file to find extra anchors [default: %default]")
+    p.add_option(
+        "-n",
+        "--min_size",
+        dest="n",
+        type="int",
+        default=4,
+        help="minimum number of anchors in a cluster",
+    )
+    p.add_option(
+        "--intrabound",
+        default=300,
+        type="int",
+        help="Lower bound of intra-chromosomal blocks (only for self comparison)",
+    )
+    p.add_option("--liftover", help="Scan BLAST file to find extra anchors")
     p.set_stripnames()
 
     blast_file, anchor_file, dist, opts = add_options(p, args, dist=20)
     qbed, sbed, qorder, sorder, is_self = check_beds(blast_file, p, opts)
 
-    filtered_blast = read_blast(blast_file, qorder, sorder, \
-                                is_self=is_self, ostrip=False)
+    intrabound = opts.intrabound
+    filtered_blast = read_blast(
+        blast_file, qorder, sorder, is_self=is_self, ostrip=False
+    )
 
     fw = open(anchor_file, "w")
     logging.debug("Chaining distance = {0}".format(dist))
 
-    clusters = batch_scan(filtered_blast, xdist=dist, ydist=dist, N=opts.n)
+    clusters = batch_scan(
+        filtered_blast,
+        xdist=dist,
+        ydist=dist,
+        N=opts.n,
+        is_self=is_self,
+        intrabound=intrabound,
+    )
     for cluster in clusters:
         print("###", file=fw)
         for qi, si, score in cluster:
@@ -1514,11 +1660,11 @@ def liftover(args):
     blast_file, anchor_file, dist, opts = add_options(p, args)
     qbed, sbed, qorder, sorder, is_self = check_beds(blast_file, p, opts)
 
-    filtered_blast = read_blast(blast_file, qorder, sorder,
-                            is_self=is_self, ostrip=opts.strip_names)
+    filtered_blast = read_blast(
+        blast_file, qorder, sorder, is_self=is_self, ostrip=opts.strip_names
+    )
     blast_to_score = dict(((b.qi, b.si), int(b.score)) for b in filtered_blast)
-    accepted = dict(((b.query, b.subject), str(int(b.score))) \
-                     for b in filtered_blast)
+    accepted = dict(((b.query, b.subject), str(int(b.score))) for b in filtered_blast)
 
     ac = AnchorFile(anchor_file)
     all_hits = group_hits(filtered_blast)
@@ -1550,5 +1696,5 @@ def liftover(args):
     return newanchorfile
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

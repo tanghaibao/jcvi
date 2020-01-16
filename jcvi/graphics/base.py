@@ -59,8 +59,12 @@ class TextHandler(object):
         self.heights = []
         try:
             self.build_height_array(fig)
-        except ValueError:
-            logging.debug("Failed to init heights. Variable label sizes skipped.")
+        except ValueError as e:
+            logging.debug(
+                "Failed to init heights (error: {}). Variable label sizes skipped.".format(
+                    e
+                )
+            )
 
     @classmethod
     def get_text_width_height(cls, fig, txt="chr01", size=12, usetex=True):

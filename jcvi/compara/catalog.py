@@ -17,12 +17,18 @@ from jcvi.formats.base import must_open, BaseFile
 from jcvi.utils.grouper import Grouper
 from jcvi.utils.cbook import gene_name
 from jcvi.compara.synteny import AnchorFile, check_beds
-from jcvi.apps.base import OptionParser, OptionGroup, glob, ActionDispatcher, \
-            need_update, sh, mkdir
+from jcvi.apps.base import (
+    OptionParser,
+    OptionGroup,
+    glob,
+    ActionDispatcher,
+    need_update,
+    sh,
+    mkdir,
+)
 
 
-class OMGFile (BaseFile):
-
+class OMGFile(BaseFile):
     def __init__(self, filename):
         super(OMGFile, self).__init__(filename)
         fp = open(filename)
@@ -61,15 +67,15 @@ class OMGFile (BaseFile):
 def main():
 
     actions = (
-        ('tandem', 'identify tandem gene groups within certain distance'),
-        ('ortholog', 'run a combined synteny and RBH pipeline to call orthologs'),
-        ('group', 'cluster the anchors into ortho-groups'),
-        ('omgprepare', 'prepare weights file to run Sankoff OMG algorithm'),
-        ('omg', 'generate a series of Sankoff OMG algorithm inputs'),
-        ('omgparse', 'parse the OMG outputs to get gene lists'),
-        ('enrich', 'enrich OMG output by pulling genes missed by OMG'),
-        ('layout', 'layout the gene lists'),
-            )
+        ("tandem", "identify tandem gene groups within certain distance"),
+        ("ortholog", "run a combined synteny and RBH pipeline to call orthologs"),
+        ("group", "cluster the anchors into ortho-groups"),
+        ("omgprepare", "prepare weights file to run Sankoff OMG algorithm"),
+        ("omg", "generate a series of Sankoff OMG algorithm inputs"),
+        ("omgparse", "parse the OMG outputs to get gene lists"),
+        ("enrich", "enrich OMG output by pulling genes missed by OMG"),
+        ("layout", "layout the gene lists"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -114,8 +120,12 @@ def enrich(args):
     Enrich OMG output by pulling genes misses by OMG.
     """
     p = OptionParser(enrich.__doc__)
-    p.add_option("--ghost", default=False, action="store_true",
-                 help="Add ghost homologs already used [default: %default]")
+    p.add_option(
+        "--ghost",
+        default=False,
+        action="store_true",
+        help="Add ghost homologs already used",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -138,8 +148,11 @@ def enrich(args):
         members = row.strip().split(",")
         groups.join(*members)
 
-    logging.debug("Imported {0} families with {1} members.".\
-                    format(len(groups), groups.num_members))
+    logging.debug(
+        "Imported {0} families with {1} members.".format(
+            len(groups), groups.num_members
+        )
+    )
 
     seen = set()
     omggroups = Grouper()
@@ -151,8 +164,9 @@ def enrich(args):
         omggroups.join(*genes)
 
     nmembers = omggroups.num_members
-    logging.debug("Imported {0} OMG families with {1} members.".\
-                    format(len(omggroups), nmembers))
+    logging.debug(
+        "Imported {0} OMG families with {1} members.".format(len(omggroups), nmembers)
+    )
     assert nmembers == len(seen)
 
     alltaxa = set(str(x) for x in range(ntaxa))
@@ -177,12 +191,12 @@ def enrich(args):
             print(row.rstrip())
             continue
 
-        leftover_sorted_by_taxa = dict((k, \
-                             [x for x in leftover if info[x] == k]) \
-                                for k in missing_taxa)
+        leftover_sorted_by_taxa = dict(
+            (k, [x for x in leftover if info[x] == k]) for k in missing_taxa
+        )
 
-        #print genes, leftover
-        #print leftover_sorted_by_taxa
+        # print genes, leftover
+        # print leftover_sorted_by_taxa
         solutions = []
         for solution in product(*leftover_sorted_by_taxa.values()):
             score = sum(weights.get((a, b), 0) for a in solution for b in genes)
@@ -190,14 +204,14 @@ def enrich(args):
                 continue
             score += sum(weights.get((a, b), 0) for a, b in combinations(solution, 2))
             solutions.append((score, solution))
-            #print solution, score
+            # print solution, score
 
         best_solution = max(solutions) if solutions else None
         if best_solution is None:
             print(row.rstrip())
             continue
 
-        #print "best ==>", best_solution
+        # print "best ==>", best_solution
         best_score, best_addition = best_solution
         genes.extend(best_addition)
         recruited.extend(best_addition)
@@ -300,8 +314,7 @@ def layout(args):
     separated by comma in place of taxa, e.g. "BR,BO,AN,CN"
     """
     p = OptionParser(layout.__doc__)
-    p.add_option("--sort",
-                 help="Sort layout file based on bedfile [default: %default]")
+    p.add_option("--sort", help="Sort layout file based on bedfile")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -329,7 +342,7 @@ def layout(args):
     coldata = zip(*data)
     ngenes = []
     for i, tx in enumerate(taxa):
-        genes = [x for x in coldata[i] if x != '.']
+        genes = [x for x in coldata[i] if x != "."]
         genes = set(x.strip("|") for x in genes)
         ngenes.append((len(genes), tx))
 
@@ -394,8 +407,9 @@ def group(args):
         for a, b, idx in ac.iter_pairs():
             groups.join(a, b)
 
-    logging.debug("Created {0} groups with {1} members.".\
-                  format(len(groups), groups.num_members))
+    logging.debug(
+        "Created {0} groups with {1} members.".format(len(groups), groups.num_members)
+    )
 
     outfile = opts.outfile
     fw = must_open(outfile, "w")
@@ -449,9 +463,9 @@ def omg(args):
                 if b not in genes:
                     continue
 
-                contents += "weight {0}".format(c) + '\n'
-                contents += info[a] + '\n'
-                contents += info[b] + '\n\n'
+                contents += "weight {0}".format(c) + "\n"
+                contents += info[a] + "\n"
+                contents += info[b] + "\n\n"
                 npairs += 1
 
         header = "a group of genes  :length ={0}".format(npairs)
@@ -480,8 +494,10 @@ def geneinfo(bed, order, genomeidx, ploidy):
         except ValueError:
             chr = "0"
 
-        print("\t".join(str(x) for x in \
-                    (s.accn, chr, s.start, s.end, s.strand, idx, pd)), file=fwinfo)
+        print(
+            "\t".join(str(x) for x in (s.accn, chr, s.start, s.end, s.strand, idx, pd)),
+            file=fwinfo,
+        )
     fwinfo.close()
 
     logging.debug("Update info file `{0}`.".format(infofile))
@@ -499,12 +515,11 @@ def omgprepare(args):
     from jcvi.formats.base import DictFile
 
     p = OptionParser(omgprepare.__doc__)
-    p.add_option("--norbh", action="store_true",
-                 help="Disable RBH hits [default: %default]")
-    p.add_option("--pctid", default=0, type="int",
-                 help="Percent id cutoff for RBH hits [default: %default]")
-    p.add_option("--cscore", default=90, type="int",
-                 help="C-score cutoff for RBH hits [default: %default]")
+    p.add_option("--norbh", action="store_true", help="Disable RBH hits")
+    p.add_option(
+        "--pctid", default=0, type="int", help="Percent id cutoff for RBH hits"
+    )
+    p.add_option("--cscore", default=90, type="int", help="C-score cutoff for RBH hits")
     p.set_stripnames()
     p.set_beds()
 
@@ -572,7 +587,7 @@ def make_ortholog(blocksfile, rbhfile, orthofile):
     nrecruited = 0
     for row in fp:
         a, b = row.split()
-        if b == '.':
+        if b == ".":
             if a in adict:
                 b = adict[a]
                 nrecruited += 1
@@ -602,19 +617,29 @@ def ortholog(args):
     from jcvi.formats.blast import cscore, filter
 
     p = OptionParser(ortholog.__doc__)
-    p.add_option("--dbtype", default="nucl",
-                 choices=("nucl", "prot"),
-                 help="Molecule type of subject database")
-    p.add_option("--full", default=False, action="store_true",
-                 help="Run in full mode, including blocks and RBH")
-    p.add_option("--cscore", default=0.7, type="float",
-                 help="C-score cutoff [default: %default]")
-    p.add_option("--dist", default=20, type="int",
-                 help="Extent of flanking regions to search")
+    p.add_option(
+        "--dbtype",
+        default="nucl",
+        choices=("nucl", "prot"),
+        help="Molecule type of subject database",
+    )
+    p.add_option(
+        "--full",
+        default=False,
+        action="store_true",
+        help="Run in full mode, including blocks and RBH",
+    )
+    p.add_option("--cscore", default=0.7, type="float", help="C-score cutoff")
+    p.add_option(
+        "--dist", default=20, type="int", help="Extent of flanking regions to search"
+    )
     p.add_option("--quota", help="Quota align parameter")
-    p.add_option("--no_strip_names", default=False, action="store_true",
-            help="Do not strip alternative splicing "
-            "(e.g. At5g06540.1 -> At5g06540)")
+    p.add_option(
+        "--no_strip_names",
+        default=False,
+        action="store_true",
+        help="Do not strip alternative splicing " "(e.g. At5g06540.1 -> At5g06540)",
+    )
     p.set_dotplot_opts()
 
     opts, args = p.parse_args(args)
@@ -658,16 +683,22 @@ def ortholog(args):
     if not opts.full:
         if need_update(filtered_last, lifted_anchors):
             if opts.no_strip_names:
-                scan([filtered_last, anchors, dist,
-                        "--liftover={0}".format(last), "--no_strip_names"])
+                scan(
+                    [
+                        filtered_last,
+                        anchors,
+                        dist,
+                        "--liftover={0}".format(last),
+                        "--no_strip_names",
+                    ]
+                )
             else:
-                scan([filtered_last, anchors, dist,
-                        "--liftover={0}".format(last)])
+                scan([filtered_last, anchors, dist, "--liftover={0}".format(last)])
         if quota:
-            quota_main([lifted_anchors,
-                        "--quota={0}".format(quota), "--screen"])
+            quota_main([lifted_anchors, "--quota={0}".format(quota), "--screen"])
         if need_update(anchors, pdf):
             from jcvi.graphics.dotplot import dotplot_main
+
             dargs = [anchors]
             if opts.nostdpf:
                 dargs += ["--nostdpf"]
@@ -677,6 +708,8 @@ def ortholog(args):
                 dargs += ["--skipempty"]
             if opts.genomenames:
                 dargs += ["--genomenames", opts.genomenames]
+            if opts.theme:
+                dargs += ["--theme", opts.theme]
             dotplot_main(dargs)
         return
 
@@ -714,8 +747,18 @@ def ortholog(args):
         make_ortholog(qblocks, rbh, qortho)
 
 
-def tandem_main(blast_file, cds_file, bed_file, N=3, P=50, is_self=True, \
-    evalue=.01, strip_name=".", ofile=sys.stderr, genefam=False):
+def tandem_main(
+    blast_file,
+    cds_file,
+    bed_file,
+    N=3,
+    P=50,
+    is_self=True,
+    evalue=0.01,
+    strip_name=".",
+    ofile=sys.stderr,
+    genefam=False,
+):
 
     if genefam:
         N = 1e5
@@ -736,7 +779,7 @@ def tandem_main(blast_file, cds_file, bed_file, N=3, P=50, is_self=True, \
             b = BlastLine(row)
             query_len = sizes[b.query]
             subject_len = sizes[b.subject]
-            if b.hitlen < min(query_len, subject_len)*P/100.:
+            if b.hitlen < min(query_len, subject_len) * P / 100.0:
                 continue
 
             query = gene_name(b.query, strip_name)
@@ -757,7 +800,7 @@ def tandem_main(blast_file, cds_file, bed_file, N=3, P=50, is_self=True, \
             b = BlastLine(row)
             query_len = sizes[b.query]
             subject_len = sizes[b.subject]
-            if b.hitlen < min(query_len, subject_len)*P/100.:
+            if b.hitlen < min(query_len, subject_len) * P / 100.0:
                 continue
             if b.evalue > evalue:
                 continue
@@ -771,14 +814,19 @@ def tandem_main(blast_file, cds_file, bed_file, N=3, P=50, is_self=True, \
         else:
             g = Grouper()
             for i, atom in enumerate(bed):
-                for x in range(1, N+1):
-                    if all([i-x >= 0, bed[i-x].seqid == atom.seqid, \
-                        homologs.joined(bed[i-x].accn, atom.accn)]):
+                for x in range(1, N + 1):
+                    if all(
+                        [
+                            i - x >= 0,
+                            bed[i - x].seqid == atom.seqid,
+                            homologs.joined(bed[i - x].accn, atom.accn),
+                        ]
+                    ):
                         leni = sizes[bed[i].accn]
-                        lenx = sizes[bed[i-x].accn]
-                        if abs(leni - lenx) > max(leni, lenx)*(1-P/100.):
+                        lenx = sizes[bed[i - x].accn]
+                        if abs(leni - lenx) > max(leni, lenx) * (1 - P / 100.0):
                             continue
-                        g.join(bed[i-x].accn, atom.accn)
+                        g.join(bed[i - x].accn, atom.accn)
 
     # dump the grouper
     fw = must_open(ofile, "w")
@@ -796,8 +844,10 @@ def tandem_main(blast_file, cds_file, bed_file, N=3, P=50, is_self=True, \
     # generate reports
     print("Proximal paralogues (dist=%d):" % N, file=sys.stderr)
     print("Total %d genes in %d families" % (ngenes, nfamilies), file=sys.stderr)
-    print("Longest families (%d): %s" % (len(longest_family),
-        ",".join(longest_family)), file=sys.stderr)
+    print(
+        "Longest families (%d): %s" % (len(longest_family), ",".join(longest_family)),
+        file=sys.stderr,
+    )
 
     return families
 
@@ -813,19 +863,39 @@ def tandem(args):
     pep_file can also be used in same manner.
     """
     p = OptionParser(tandem.__doc__)
-    p.add_option("--tandem_Nmax", dest="tandem_Nmax", type="int", default=3,
-               help="merge tandem genes within distance [default: %default]")
-    p.add_option("--percent_overlap", type="int", default=50,
-               help="tandem genes have >=x% aligned sequence, x=0-100 \
-               [default: %default]")
-    p.set_align(evalue=.01)
-    p.add_option("--not_self", default=False, action="store_true",
-                 help="provided is not self blast file [default: %default]")
-    p.add_option("--strip_gene_name", dest="sep", type="string", default=".",
-               help="strip alternative splicing. Use None for no stripping. \
-               [default: %default]")
-    p.add_option("--genefamily", dest="genefam", action="store_true",
-                 help="compile gene families based on similarity [default: %default]")
+    p.add_option(
+        "--tandem_Nmax",
+        dest="tandem_Nmax",
+        type="int",
+        default=3,
+        help="merge tandem genes within distance",
+    )
+    p.add_option(
+        "--percent_overlap",
+        type="int",
+        default=50,
+        help="tandem genes have >=x% aligned sequence, x=0-100",
+    )
+    p.set_align(evalue=0.01)
+    p.add_option(
+        "--not_self",
+        default=False,
+        action="store_true",
+        help="provided is not self blast file",
+    )
+    p.add_option(
+        "--strip_gene_name",
+        dest="sep",
+        type="string",
+        default=".",
+        help="strip alternative splicing. Use None for no stripping.",
+    )
+    p.add_option(
+        "--genefamily",
+        dest="genefam",
+        action="store_true",
+        help="compile gene families based on similarity",
+    )
     p.set_outfile()
 
     opts, args = p.parse_args(args)
@@ -840,9 +910,19 @@ def tandem(args):
     sep = opts.sep
     ofile = opts.outfile
 
-    tandem_main(blast_file, cds_file, bed_file, N=N, P=P, is_self=is_self, \
-        evalue=opts.evalue, strip_name=sep, ofile=ofile, genefam=opts.genefam)
+    tandem_main(
+        blast_file,
+        cds_file,
+        bed_file,
+        N=N,
+        P=P,
+        is_self=is_self,
+        evalue=opts.evalue,
+        strip_name=sep,
+        ofile=ofile,
+        genefam=opts.genefam,
+    )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

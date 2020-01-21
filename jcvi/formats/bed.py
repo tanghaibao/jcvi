@@ -13,7 +13,7 @@ import numpy as np
 from collections import defaultdict
 from itertools import groupby
 
-from jcvi.formats.base import LineFile, must_open, is_number, get_number
+from jcvi.formats.base import DictFile, LineFile, must_open, is_number, get_number
 from jcvi.formats.sizes import Sizes
 from jcvi.utils.iter import pairwise
 from jcvi.utils.cbook import SummaryStats, thousands, percentage
@@ -478,13 +478,13 @@ def format(args):
         "--switch", type="string", help="Switch seqids based on two-column file"
     )
     p.set_outfile()
-    opts, args = p.parse_args()
+    opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     bedfile, = args
-    switch = DictFile(switch, delimiter="\t") if switch else None
+    switch = DictFile(opts.switch, delimiter="\t") if opts.switch else None
     bed = Bed(bedfile)
     with must_open(opts.outfile, "w") as fw:
         for b in bed:

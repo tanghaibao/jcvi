@@ -80,8 +80,7 @@ class AbstractMIPSolver(object):
             self.results = self.parse_output(outfile)
 
         if self.results:
-            logging.debug("optimized objective value ({0})".
-                          format(self.obj_val))
+            logging.debug("optimized objective value ({0})".format(self.obj_val))
 
     def run(self, lp_data, work_dir):
         raise NotImplementedError
@@ -107,30 +106,63 @@ class GLPKSolver(AbstractMIPSolver):
             if op.exists(f):
                 os.remove(f)
 
-        cmd = "glpsol --cuts --fpump --lp {0} -o {1} -w {2}".format(lpfile,
-                                                                    outfile, listfile)
+        cmd = "glpsol --cuts --fpump --lp {0} -o {1} -w {2}".format(
+            lpfile, outfile, listfile
+        )
 
         outf = None if self.verbose else "/dev/null"
         retcode = sh(cmd, outfile=outf)
 
         if retcode == 127:
-            logging.error("You need to install program `glpsol` " +
-                          "[http://www.gnu.org/software/glpk/]")
+            logging.error(
+                "You need to install program `glpsol` "
+                + "[http://www.gnu.org/software/glpk/]"
+            )
             return -1, None
 
         return retcode, listfile
 
     def parse_output(self, listfile, clean=False):
+        """Extract results from the GLPK output. The GLPK output looks like
 
+        c Problem:
+        c Rows:       306
+        c Columns:    520
+        c Non-zeros:  623
+        c Status:     INTEGER OPTIMAL
+        c Objective:  obj = 23405 (MAXimum)
+        c
+        s mip 306 520 o 23405
+        i 1 1
+        i 2 1
+        i 3 1
+        i 4 1
+        i 5 1
+        i 6 1
+        ...
+        """
         fp = open(listfile)
-        header = fp.readline()
-        columns, rows = header.split()
-        rows = int(rows)
-        data = fp.readlines()
-        self.obj_val = int(data[0].split()[-1])
-        # the info are contained in the last several lines
-        results = [int(x) for x in data[-rows:]]
-        results = [i for i, x in enumerate(results) if x == 1]
+        results = []
+        expected_cols, observed_cols = 0, 0
+        for row in fp:
+            if row[0] == "s":
+                s, mip, rows, cols, o, obj_val = row.split()
+                expected_cols = int(cols)
+                self.obj_val = int(obj_val)
+            if row[0] != "j":
+                continue
+            observed_cols += 1
+            tag, row_id, value = row.split()
+            assert tag == "j", "Expecting the first field == j"
+            row_id, value = int(row_id), int(value)
+            if value == 1:
+                results.append(row_id - 1)
+
+        assert (
+            expected_cols == observed_cols
+        ), "Number of columns mismatch: expected {}, observed {}".format(
+            expected_cols, observed_cols
+        )
 
         fp.close()
 
@@ -157,8 +189,9 @@ class SCIPSolver(AbstractMIPSolver):
         retcode = sh(cmd, outfile=outf)
 
         if retcode == 127:
-            logging.error("You need to install program `scip` " +
-                          "[http://scip.zib.de/]")
+            logging.error(
+                "You need to install program `scip` " + "[http://scip.zib.de/]"
+            )
             return -1, None
 
         return retcode, outfile
@@ -194,7 +227,7 @@ class SCIPSolver(AbstractMIPSolver):
         return results
 
 
-class LPInstance (object):
+class LPInstance(object):
     """
     CPLEX LP format commonly contains three blocks:
     objective, constraints, vars
@@ -230,8 +263,9 @@ class LPInstance (object):
     def add_objective(self, edges, objective=MAXIMIZE):
         assert edges, "Edges must be non-empty"
         self.objective = objective
-        items = [" + {0}x{1}".format(w, i + 1)
-                 for i, (a, b, w) in enumerate(edges) if w]
+        items = [
+            " + {0}x{1}".format(w, i + 1) for i, (a, b, w) in enumerate(edges) if w
+        ]
         sums = fill(items, width=10)
         self.sum = sums
 
@@ -305,10 +339,11 @@ def hamiltonian(edges, directed=False, constraint_generation=True):
         edges = dual_edges
 
     DUMMY = "DUMMY"
-    dummy_edges = edges + [(DUMMY, x, 0) for x in nodes] + \
-                          [(x, DUMMY, 0) for x in nodes]
+    dummy_edges = (
+        edges + [(DUMMY, x, 0) for x in nodes] + [(x, DUMMY, 0) for x in nodes]
+    )
 
-    #results = tsp(dummy_edges, constraint_generation=constraint_generation)
+    # results = tsp(dummy_edges, constraint_generation=constraint_generation)
     results = tsp_gurobi(dummy_edges)
     if results:
         results = [x for x in results if DUMMY not in x]
@@ -332,7 +367,9 @@ def tsp_gurobi(edges):
 
     m = Model()
 
-    def step(x): return "u_{0}".format(x)
+    def step(x):
+        return "u_{0}".format(x)
+
     # Create variables
     vars = {}
     for i, (a, b, w) in enumerate(edges):
@@ -356,8 +393,7 @@ def tsp_gurobi(edges):
         m.addConstr(quicksum(vars[x] for x in outgoing_edges) == 1)
 
     # Subtour elimination
-    edge_store = dict(((idx[a], idx[b]), i)
-                      for i, (a, b, w) in enumerate(edges))
+    edge_store = dict(((idx[a], idx[b]), i) for i, (a, b, w) in enumerate(edges))
 
     # Given a list of edges, finds the shortest subtour
     def subtour(s_edges):
@@ -389,7 +425,7 @@ def tsp_gurobi(edges):
         selected = []
         # make a list of edges selected in the solution
         sol = model.cbGetSolution([model._vars[i] for i in range(nedges)])
-        selected = [edges[i] for i, x in enumerate(sol) if x > .5]
+        selected = [edges[i] for i, x in enumerate(sol) if x > 0.5]
         selected = [(idx[a], idx[b]) for a, b, w in selected]
         # find the shortest cycle in the selected edge list
         tour = subtour(selected)
@@ -398,8 +434,7 @@ def tsp_gurobi(edges):
         # add a subtour elimination constraint
         c = tour
         incident = [edge_store[a, b] for a, b in pairwise(c + [c[0]])]
-        model.cbLazy(quicksum(model._vars[x]
-                              for x in incident) <= len(tour) - 1)
+        model.cbLazy(quicksum(model._vars[x] for x in incident) <= len(tour) - 1)
 
     m.update()
 
@@ -407,10 +442,11 @@ def tsp_gurobi(edges):
     m.params.LazyConstraints = 1
     m.optimize(subtourelim)
 
-    selected = [v.varName for v in m.getVars() if v.x > .5]
+    selected = [v.varName for v in m.getVars() if v.x > 0.5]
     selected = [int(x) for x in selected if x[:2] != "u_"]
-    results = sorted(x for i, x in enumerate(edges) if i in selected) \
-        if selected else None
+    results = (
+        sorted(x for i, x in enumerate(edges) if i in selected) if selected else None
+    )
     return results
 
 
@@ -474,8 +510,11 @@ def tsp(edges, constraint_generation=False):
         subtours = []
         while True:
             selected, obj_val = L.lpsolve()
-            results = sorted(x for i, x in enumerate(edges) if i in selected) \
-                if selected else None
+            results = (
+                sorted(x for i, x in enumerate(edges) if i in selected)
+                if selected
+                else None
+            )
             if not results:
                 break
             G = edges_to_graph(results)
@@ -492,8 +531,11 @@ def tsp(edges, constraint_generation=False):
         L.add_vars(nnodes - 1, offset=start_step, binary=False)
         L.bounds = bounds
         selected, obj_val = L.lpsolve()
-        results = sorted(x for i, x in enumerate(edges) if i in selected) \
-            if selected else None
+        results = (
+            sorted(x for i, x in enumerate(edges) if i in selected)
+            if selected
+            else None
+        )
 
     return results
 
@@ -539,7 +581,7 @@ def path(edges, source, sink, flavor="longest"):
             constraints.append("{0} = 1".format(icc))
         else:
             # Balancing
-            constraints.append("{0}{1} = 0".format(icc, occ.replace('+', '-')))
+            constraints.append("{0}{1} = 0".format(icc, occ.replace("+", "-")))
             # Simple path
             if incoming_edges:
                 constraints.append("{0} <= 1".format(icc))
@@ -550,8 +592,9 @@ def path(edges, source, sink, flavor="longest"):
     L.add_vars(nedges)
 
     selected, obj_val = L.lpsolve()
-    results = sorted(x for i, x in enumerate(edges) if i in selected) \
-        if selected else None
+    results = (
+        sorted(x for i, x in enumerate(edges) if i in selected) if selected else None
+    )
     results = edges_to_path(results)
 
     return results, obj_val
@@ -606,16 +649,19 @@ def min_feedback_arc_set(edges, remove=False, maxcycles=20000):
 
     selected, obj_val = L.lpsolve(clean=False)
     if remove:
-        results = [x for i, x in enumerate(edges) if i not in selected] \
-            if selected else None
+        results = (
+            [x for i, x in enumerate(edges) if i not in selected] if selected else None
+        )
     else:
-        results = [x for i, x in enumerate(edges) if i in selected] \
-            if selected else None
+        results = (
+            [x for i, x in enumerate(edges) if i in selected] if selected else None
+        )
 
     return results, obj_val
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     import doctest
+
     doctest.testmod()

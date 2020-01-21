@@ -30,12 +30,21 @@ from random import sample
 from jcvi.compara.synteny import AnchorFile, batch_scan, check_beds
 from jcvi.utils.cbook import seqid_parse, thousands
 from jcvi.apps.base import OptionParser, need_update
-from jcvi.graphics.base import plt, Rectangle, set_human_axis, savefig, \
-            draw_cmap, TextHandler, latex, markup, normalize_axes
+from jcvi.graphics.base import (
+    plt,
+    Rectangle,
+    set_human_axis,
+    savefig,
+    draw_cmap,
+    TextHandler,
+    latex,
+    markup,
+    normalize_axes,
+    set1,
+)
 
 
-class Palette (dict):
-
+class Palette(dict):
     def __init__(self, palettefile):
 
         pal = "rbcygmk"
@@ -50,8 +59,11 @@ class Palette (dict):
         self.categories = sorted(set(self.values()))
         self.colors = dict(zip(self.categories, pal))
 
-        logging.debug("Color info ({0} categories) imported for {1} blocks.".\
-                        format(len(self.colors), len(self)))
+        logging.debug(
+            "Color info ({0} categories) imported for {1} blocks.".format(
+                len(self.colors), len(self)
+            )
+        )
         logging.debug(str(self.colors))
 
         for k, v in self.items():  # Update from categories to colors
@@ -62,15 +74,31 @@ def draw_box(clusters, ax, color="b"):
 
     for cluster in clusters:
         xrect, yrect = zip(*cluster)
-        xmin, xmax, ymin, ymax = min(xrect), max(xrect), \
-                                min(yrect), max(yrect)
-        ax.add_patch(Rectangle((xmin, ymin), xmax - xmin, ymax - ymin,\
-                                ec=color, fc='y', alpha=.5))
+        xmin, xmax, ymin, ymax = min(xrect), max(xrect), min(yrect), max(yrect)
+        ax.add_patch(
+            Rectangle(
+                (xmin, ymin), xmax - xmin, ymax - ymin, ec=color, fc="y", alpha=0.5
+            )
+        )
 
 
-def plot_breaks_and_labels(fig, root, ax, gx, gy, xsize, ysize,
-                           qbreaks, sbreaks, sep=True, chrlw=.1,
-                           sepcolor="g", minfont=5, stdpf=True, chpf=True):
+def plot_breaks_and_labels(
+    fig,
+    root,
+    ax,
+    gx,
+    gy,
+    xsize,
+    ysize,
+    qbreaks,
+    sbreaks,
+    sep=True,
+    chrlw=0.1,
+    sepcolor="g",
+    minfont=5,
+    stdpf=True,
+    chpf=True,
+):
     xlim = (0, xsize)
     ylim = (ysize, 0)  # invert the y-axis
 
@@ -80,7 +108,7 @@ def plot_breaks_and_labels(fig, root, ax, gx, gy, xsize, ysize,
 
     # plot the chromosome breaks
     for (seqid, beg, end) in qbreaks:
-        xsize_ratio = abs(end - beg) * .8 / xsize
+        xsize_ratio = abs(end - beg) * 0.8 / xsize
         fontsize = th.select_fontsize(xsize_ratio)
         if chpf:
             seqid = "".join(seqid_parse(seqid, stdpf=stdpf)[:2])
@@ -90,7 +118,7 @@ def plot_breaks_and_labels(fig, root, ax, gx, gy, xsize, ysize,
             ax.plot([beg, beg], ylim, "-", lw=chrlw, color=sepcolor)
 
     for (seqid, beg, end) in sbreaks:
-        ysize_ratio = abs(end - beg) * .8 / ysize
+        ysize_ratio = abs(end - beg) * 0.8 / ysize
         fontsize = th.select_fontsize(ysize_ratio)
         if chpf:
             seqid = "".join(seqid_parse(seqid, stdpf=stdpf)[:2])
@@ -101,17 +129,24 @@ def plot_breaks_and_labels(fig, root, ax, gx, gy, xsize, ysize,
 
     # plot the chromosome labels
     for label, pos, fontsize in xchr_labels:
-        pos = .1 + pos * .8 / xsize
+        pos = 0.1 + pos * 0.8 / xsize
         if fontsize >= minfont:
-            root.text(pos, .91, latex(label), size=fontsize,
-                ha="center", va="bottom", rotation=45, color="grey")
+            root.text(
+                pos,
+                0.91,
+                latex(label),
+                size=fontsize,
+                ha="center",
+                va="bottom",
+                rotation=45,
+                color="grey",
+            )
 
     # remember y labels are inverted
     for label, pos, fontsize in ychr_labels:
-        pos = .9 - pos * .8 / ysize
+        pos = 0.9 - pos * 0.8 / ysize
         if fontsize >= minfont:
-            root.text(.91, pos, latex(label), size=fontsize,
-                va="center", color="grey")
+            root.text(0.91, pos, latex(label), size=fontsize, va="center", color="grey")
 
     # Plot the frame
     ax.plot(xlim, [0, 0], "-", lw=chrlw, color=sepcolor)
@@ -131,8 +166,7 @@ def plot_breaks_and_labels(fig, root, ax, gx, gy, xsize, ysize,
 
     set_human_axis(ax)
 
-    plt.setp(ax.get_xticklabels() + ax.get_yticklabels(),
-            color='gray', size=10)
+    plt.setp(ax.get_xticklabels() + ax.get_yticklabels(), color="gray", size=10)
 
     return xlim, ylim
 
@@ -141,16 +175,38 @@ def downsample(data, sample_number=10000):
     npairs = len(data)
     # Only show random subset
     if npairs > sample_number:
-        logging.debug("Showing a random subset of {0} data points (total {1}) " \
-                      "for clarity.".format(sample_number, npairs))
+        logging.debug(
+            "Showing a random subset of {0} data points (total {1}) "
+            "for clarity.".format(sample_number, npairs)
+        )
         data = sample(data, sample_number)
     return npairs
 
 
-def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
-        is_self=False, synteny=False, cmap_text=None, cmap="copper",
-        genomenames=None, sample_number=10000, minfont=5, palette=None,
-        chrlw=.1, title=None, sep=True, sepcolor="g", stdpf=True, chpf=True):
+def dotplot(
+    anchorfile,
+    qbed,
+    sbed,
+    fig,
+    root,
+    ax,
+    vmin=0,
+    vmax=1,
+    is_self=False,
+    synteny=False,
+    cmap_text=None,
+    cmap="copper",
+    genomenames=None,
+    sample_number=10000,
+    minfont=5,
+    palette=None,
+    chrlw=0.1,
+    title=None,
+    sep=True,
+    sepcolor="g",
+    stdpf=True,
+    chpf=True,
+):
 
     fp = open(anchorfile)
     # add genome names
@@ -168,8 +224,7 @@ def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
 
     data = []
     if cmap_text:
-        logging.debug("Capping values within [{0:.1f}, {1:.1f}]"\
-                        .format(vmin, vmax))
+        logging.debug("Capping values within [{0:.1f}, {1:.1f}]".format(vmin, vmax))
 
     block_id = 0
     for row in fp:
@@ -220,8 +275,9 @@ def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
     if palette:
         ax.scatter(x, y, c=c, edgecolors="none", s=2, lw=0)
     else:
-        ax.scatter(x, y, c=c, edgecolors="none", s=2, lw=0, cmap=cmap,
-                vmin=vmin, vmax=vmax)
+        ax.scatter(
+            x, y, c=c, edgecolors="none", s=2, lw=0, cmap=cmap, vmin=vmin, vmax=vmax
+        )
 
     if synteny:
         clusters = batch_scan(data, qbed, sbed)
@@ -234,21 +290,35 @@ def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
     logging.debug("xsize=%d ysize=%d" % (xsize, ysize))
     qbreaks = qbed.get_breaks()
     sbreaks = sbed.get_breaks()
-    xlim, ylim = plot_breaks_and_labels(fig, root, ax, gx, gy, xsize, ysize,
-                           qbreaks, sbreaks, sep=sep, chrlw=chrlw,
-                           sepcolor=sepcolor, minfont=minfont, stdpf=stdpf, chpf=chpf)
+    xlim, ylim = plot_breaks_and_labels(
+        fig,
+        root,
+        ax,
+        gx,
+        gy,
+        xsize,
+        ysize,
+        qbreaks,
+        sbreaks,
+        sep=sep,
+        chrlw=chrlw,
+        sepcolor=sepcolor,
+        minfont=minfont,
+        stdpf=stdpf,
+        chpf=chpf,
+    )
 
     # create a diagonal to separate mirror image for self comparison
     if is_self:
-        ax.plot(xlim, (0, ysize), 'm-', alpha=.5, lw=2)
+        ax.plot(xlim, (0, ysize), "m-", alpha=0.5, lw=2)
 
     if palette:  # bottom-left has the palette, if available
         colors = palette.colors
-        xstart, ystart = .1, .05
+        xstart, ystart = 0.1, 0.05
         for category, c in sorted(colors.items()):
-            root.add_patch(Rectangle((xstart, ystart), .03, .02, lw=0, fc=c))
-            root.text(xstart + .04, ystart, category, color=c)
-            xstart += .1
+            root.add_patch(Rectangle((xstart, ystart), 0.03, 0.02, lw=0, fc=c))
+            root.text(xstart + 0.04, ystart, category, color=c)
+            xstart += 0.1
 
     if title is None:
         title = "Inter-genomic comparison: {0} vs {1}".format(gx, gy)
@@ -256,7 +326,7 @@ def dotplot(anchorfile, qbed, sbed, fig, root, ax, vmin=0, vmax=1,
             title = "Intra-genomic comparison within {0}".format(gx)
             npairs /= 2
         title += " ({0} gene pairs)".format(thousands(npairs))
-    root.set_title(title, x=.5, y=.96, color="k")
+    root.set_title(title, x=0.5, y=0.96, color="k")
     if title:
         logging.debug("Dot plot title: {}".format(title))
     normalize_axes(root)
@@ -277,28 +347,56 @@ def subset_bed(bed, seqids):
 def dotplot_main(args):
     p = OptionParser(__doc__)
     p.set_beds()
-    p.add_option("--synteny", default=False, action="store_true",
-            help="Run a fast synteny scan and display blocks [default: %default]")
+    p.add_option(
+        "--synteny",
+        default=False,
+        action="store_true",
+        help="Run a fast synteny scan and display blocks",
+    )
     p.add_option("--cmaptext", help="Draw colormap box on the bottom-left corner")
-    p.add_option("--vmin", dest="vmin", type="float", default=0,
-            help="Minimum value in the colormap [default: %default]")
-    p.add_option("--vmax", dest="vmax", type="float", default=2,
-            help="Maximum value in the colormap [default: %default]")
-    p.add_option("--nmax", dest="sample_number", type="int", default=10000,
-            help="Maximum number of data points to plot [default: %default]")
-    p.add_option("--minfont", type="int", default=4,
-            help="Do not render labels with size smaller than")
-    p.add_option("--colormap",
-            help="Two column file, block id to color mapping [default: %default]")
-    p.add_option("--nosort", default=False, action="store_true",
-            help="Do not sort the seqids along the axes")
-    p.add_option("--nosep", default=False, action="store_true",
-            help="Do not add contig lines")
+    p.add_option(
+        "--vmin",
+        dest="vmin",
+        type="float",
+        default=0,
+        help="Minimum value in the colormap",
+    )
+    p.add_option(
+        "--vmax",
+        dest="vmax",
+        type="float",
+        default=2,
+        help="Maximum value in the colormap",
+    )
+    p.add_option(
+        "--nmax",
+        dest="sample_number",
+        type="int",
+        default=10000,
+        help="Maximum number of data points to plot",
+    )
+    p.add_option(
+        "--minfont",
+        type="int",
+        default=4,
+        help="Do not render labels with size smaller than",
+    )
+    p.add_option("--colormap", help="Two column file, block id to color mapping")
+    p.add_option(
+        "--nosort",
+        default=False,
+        action="store_true",
+        help="Do not sort the seqids along the axes",
+    )
+    p.add_option(
+        "--nosep", default=False, action="store_true", help="Do not add contig lines"
+    )
     p.add_option("--title", help="Title of the dot plot")
     p.set_dotplot_opts()
     p.set_outfile(outfile=None)
-    opts, args, iopts = p.set_image_options(args, figsize="9x9",
-                                            style="dark", dpi=90, cmap="copper")
+    opts, args, iopts = p.set_image_options(
+        args, figsize="9x9", style="dark", dpi=90, cmap="copper"
+    )
 
     if len(args) != 1:
         sys.exit(not p.print_help())
@@ -320,8 +418,9 @@ def dotplot_main(args):
             ksfile.print_to_anchors(anchorksfile)
         anchorfile = anchorksfile
 
-    qbed, sbed, qorder, sorder, is_self = check_beds(anchorfile, p, opts,
-                sorted=(not opts.nosort))
+    qbed, sbed, qorder, sorder, is_self = check_beds(
+        anchorfile, p, opts, sorted=(not opts.nosort)
+    )
 
     if opts.skipempty:
         ac = AnchorFile(anchorfile)
@@ -345,17 +444,33 @@ def dotplot_main(args):
 
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])  # the whole canvas
-    ax = fig.add_axes([.1, .1, .8, .8])  # the dot plot
+    ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])  # the dot plot
 
-    dotplot(anchorfile, qbed, sbed, fig, root, ax,
-            vmin=opts.vmin, vmax=opts.vmax, is_self=is_self,
-            synteny=opts.synteny, cmap_text=opts.cmaptext, cmap=iopts.cmap,
-            genomenames=opts.genomenames, sample_number=opts.sample_number,
-            minfont=opts.minfont, palette=palette, sep=(not opts.nosep),
-            title=opts.title, stdpf=(not opts.nostdpf), chpf=(not opts.nochpf))
+    dotplot(
+        anchorfile,
+        qbed,
+        sbed,
+        fig,
+        root,
+        ax,
+        vmin=opts.vmin,
+        vmax=opts.vmax,
+        is_self=is_self,
+        synteny=opts.synteny,
+        cmap_text=opts.cmaptext,
+        cmap=iopts.cmap,
+        genomenames=opts.genomenames,
+        sample_number=opts.sample_number,
+        minfont=opts.minfont,
+        palette=palette,
+        sep=(not opts.nosep),
+        sepcolor=set1[int(opts.theme)],
+        title=opts.title,
+        stdpf=(not opts.nostdpf),
+        chpf=(not opts.nochpf),
+    )
 
-    image_name = opts.outfile or \
-            (op.splitext(anchorfile)[0] + "." + opts.format)
+    image_name = opts.outfile or (op.splitext(anchorfile)[0] + "." + opts.format)
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
     fig.clear()
 

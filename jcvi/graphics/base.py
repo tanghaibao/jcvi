@@ -146,8 +146,8 @@ def prettyplot():
     # pleasant to look at by Drs. Cynthia Brewer and Mark Harrower of Pennsylvania
     # State University. These colors look lovely together, and are less
     # saturated than those colors in Set1. For more on ColorBrewer, see:
-    set2 = get_map("Set2", "qualitative", 8).mpl_colors
-    set1 = get_map("Set1", "qualitative", 9).mpl_colors
+    set2 = get_map("Set2", "qualitative", 8).hex_colors
+    set1 = get_map("Set1", "qualitative", 9).hex_colors
 
     reds = mpl.cm.Reds
     reds.set_bad("white")

@@ -108,7 +108,7 @@ class AbstractLayout(LineFile):
 
     def assign_colors(self):
         number = len(self)
-        palette = set2 if number <= 8 else set3
+        palette = set2_n if number <= 8 else set3_n
         colorset = palette(min(number, 12))
         self.assign_array("color", colorset)
 
@@ -142,11 +142,11 @@ def shorten(s, maxchar=20):
     return s[:pad] + "..." + s[-pad:]
 
 
-def set1(number=9):
+def set1_n(number=9):
     return get_map("Set1", "qualitative", number).hex_colors
 
 
-def set2(number=8):
+def set2_n(number=8):
     # Get Set2 from ColorBrewer, a set of colors deemed colorblind-safe and
     # pleasant to look at by Drs. Cynthia Brewer and Mark Harrower of Pennsylvania
     # State University. These colors look lovely together, and are less
@@ -154,8 +154,11 @@ def set2(number=8):
     return get_map("Set2", "qualitative", number).hex_colors
 
 
-def set3(number=12):
+def set3_n(number=12):
     return get_map("Set3", "qualitative", number).hex_colors
+
+
+set1, set2, set3 = set1_n(), set2_n(), set3_n()
 
 
 def prettyplot():

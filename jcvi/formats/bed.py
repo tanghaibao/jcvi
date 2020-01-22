@@ -13,23 +13,36 @@ import numpy as np
 from collections import defaultdict
 from itertools import groupby
 
-from jcvi.formats.base import LineFile, must_open, is_number, get_number
+from jcvi.formats.base import DictFile, LineFile, must_open, is_number, get_number
 from jcvi.formats.sizes import Sizes
 from jcvi.utils.iter import pairwise
 from jcvi.utils.cbook import SummaryStats, thousands, percentage
 from jcvi.utils.grouper import Grouper
 from jcvi.utils.natsort import natsort_key, natsorted
-from jcvi.utils.range import Range, range_union, range_chain, \
-            range_distance, range_intersect
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, \
-            need_update, popen
+from jcvi.utils.range import (
+    Range,
+    range_union,
+    range_chain,
+    range_distance,
+    range_intersect,
+)
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update, popen
 
 
 class BedLine(object):
     # the Bed format supports more columns. we only need
     # the first 4, but keep the information in 'extra'.
-    __slots__ = ("seqid", "start", "end", "accn",
-                 "extra", "score", "strand", "args", "nargs")
+    __slots__ = (
+        "seqid",
+        "start",
+        "end",
+        "accn",
+        "extra",
+        "score",
+        "strand",
+        "args",
+        "nargs",
+    )
 
     def __init__(self, sline):
         args = sline.strip().split("\t")
@@ -37,8 +50,7 @@ class BedLine(object):
         self.seqid = args[0]
         self.start = int(args[1]) + 1
         self.end = int(args[2])
-        assert self.start <= self.end, \
-                "start={0} end={1}".format(self.start, self.end)
+        assert self.start <= self.end, "start={0} end={1}".format(self.start, self.end)
         self.extra = self.accn = self.score = self.strand = None
 
         if nargs > 3:
@@ -77,7 +89,7 @@ class BedLine(object):
 
     @property
     def range(self):
-        strand = self.strand or '+'
+        strand = self.strand or "+"
         return (self.seqid, self.start, self.end, strand)
 
     @property
@@ -90,27 +102,36 @@ class BedLine(object):
         start = size - self.end + 1
         end = size - self.start + 1
         self.start, self.end = start, end
-        assert self.start <= self.end, \
-                "start={0} end={1}".format(self.start, self.end)
+        assert self.start <= self.end, "start={0} end={1}".format(self.start, self.end)
 
         if self.strand:
-            strand = {'+': '-', '-': '+'}[self.strand]
+            strand = {"+": "-", "-": "+"}[self.strand]
 
-    def gffline(self, type='match', source='default'):
-        score = "." if not self.score or \
-                (self.score and not is_number(self.score)) \
-                else self.score
+    def gffline(self, type="match", source="default"):
+        score = (
+            "."
+            if not self.score or (self.score and not is_number(self.score))
+            else self.score
+        )
         strand = "." if not self.strand else self.strand
-        row = "\t".join((self.seqid, source, type,
-            str(self.start), str(self.end), score,
-            strand, '.', 'ID=' + self.accn))
+        row = "\t".join(
+            (
+                self.seqid,
+                source,
+                type,
+                str(self.start),
+                str(self.end),
+                score,
+                strand,
+                ".",
+                "ID=" + self.accn,
+            )
+        )
         return row
 
 
 class Bed(LineFile):
-
-    def __init__(self, filename=None, key=None, sorted=True, juncs=False,
-                       include=None):
+    def __init__(self, filename=None, key=None, sorted=True, juncs=False, include=None):
         super(Bed, self).__init__(filename)
 
         # the sorting key provides some flexibility in ordering the features
@@ -122,7 +143,7 @@ class Bed(LineFile):
             return
 
         for line in must_open(filename):
-            if line[0] == "#" or (juncs and line.startswith('track name')):
+            if line[0] == "#" or (juncs and line.startswith("track name")):
                 continue
             b = BedLine(line)
             if include and b.accn not in include:
@@ -227,7 +248,6 @@ class Bed(LineFile):
 
 
 class BedpeLine(object):
-
     def __init__(self, sline):
         args = sline.strip().split("\t")
         self.seqid1 = args[0]
@@ -256,14 +276,14 @@ class BedpeLine(object):
 
     @property
     def is_innie(self):
-        return (self.strand1, self.strand2) == ('+', '-')
+        return (self.strand1, self.strand2) == ("+", "-")
 
     def rc(self):
-        self.strand1 = '+' if self.strand1 == '-' else '-'
-        self.strand2 = '+' if self.strand2 == '-' else '-'
+        self.strand1 = "+" if self.strand1 == "-" else "-"
+        self.strand2 = "+" if self.strand2 == "-" else "-"
 
     def _extend(self, rlen, size, start, end, strand):
-        if strand == '+':
+        if strand == "+":
             end = start + rlen - 1
             if end > size:
                 end = size
@@ -276,15 +296,26 @@ class BedpeLine(object):
         return start, end, strand
 
     def extend(self, rlen, size):
-        self.start1, self.end1, self.strand1 = self._extend(\
-                rlen, size, self.start1, self.end1, self.strand1)
-        self.start2, self.end2, self.strand2 = self._extend(\
-                rlen, size, self.start2, self.end2, self.strand2)
+        self.start1, self.end1, self.strand1 = self._extend(
+            rlen, size, self.start1, self.end1, self.strand1
+        )
+        self.start2, self.end2, self.strand2 = self._extend(
+            rlen, size, self.start2, self.end2, self.strand2
+        )
 
     def __str__(self):
-        args = (self.seqid1, self.start1 - 1, self.end1,
-                self.seqid2, self.start2 - 1, self.end2,
-                self.accn, self.score, self.strand1, self.strand2)
+        args = (
+            self.seqid1,
+            self.start1 - 1,
+            self.end1,
+            self.seqid2,
+            self.start2 - 1,
+            self.end2,
+            self.accn,
+            self.score,
+            self.strand1,
+            self.strand2,
+        )
         return "\t".join(str(x) for x in args)
 
     @property
@@ -295,8 +326,7 @@ class BedpeLine(object):
         return "\t".join(str(x) for x in args)
 
 
-class BedEvaluate (object):
-
+class BedEvaluate(object):
     def __init__(self, TPbed, FPbed, FNbed, TNbed):
 
         self.TP = Bed(TPbed).sum(unique=True)
@@ -314,41 +344,46 @@ class BedEvaluate (object):
         table[("Prediction-False", "Reality-False")] = self.TN
         msg = str(tabulate(table))
 
-        msg += "\nSensitivity [TP / (TP + FN)]: {0:.1f} %\n".\
-                format(self.sensitivity * 100)
-        msg += "Specificity [TP / (TP + FP)]: {0:.1f} %\n".\
-                format(self.specificity * 100)
-        msg += "Accuracy [(TP + TN) / (TP + FP + FN + TN)]: {0:.1f} %".\
-                format(self.accuracy * 100)
+        msg += "\nSensitivity [TP / (TP + FN)]: {0:.1f} %\n".format(
+            self.sensitivity * 100
+        )
+        msg += "Specificity [TP / (TP + FP)]: {0:.1f} %\n".format(
+            self.specificity * 100
+        )
+        msg += "Accuracy [(TP + TN) / (TP + FP + FN + TN)]: {0:.1f} %".format(
+            self.accuracy * 100
+        )
         return msg
 
     @property
     def sensitivity(self):
         if self.TP + self.FN == 0:
             return 0
-        return self.TP * 1. / (self.TP + self.FN)
+        return self.TP * 1.0 / (self.TP + self.FN)
 
     @property
     def specificity(self):
         if self.TP + self.FP == 0:
             return 0
-        return self.TP * 1. / (self.TP + self.FP)
+        return self.TP * 1.0 / (self.TP + self.FP)
 
     @property
     def accuracy(self):
         if self.TP + self.FP + self.FN + self.TN == 0:
             return 0
-        return (self.TP + self.TN) * 1. / \
-               (self.TP + self.FP + self.FN + self.TN)
+        return (self.TP + self.TN) * 1.0 / (self.TP + self.FP + self.FN + self.TN)
 
     @property
     def score(self):
-        return "|".join(("{0:.3f}".format(x) for x in \
-                    (self.sensitivity, self.specificity, self.accuracy)))
+        return "|".join(
+            (
+                "{0:.3f}".format(x)
+                for x in (self.sensitivity, self.specificity, self.accuracy)
+            )
+        )
 
 
 class BedSummary(object):
-
     def __init__(self, bed):
         mspans = [(x.span, x.accn) for x in bed]
         spans, accns = zip(*mspans)
@@ -358,13 +393,18 @@ class BedSummary(object):
         self.nfeats = len(bed)
         self.total_bases = bed_sum(bed, unique=False)
         self.unique_bases = bed_sum(bed)
-        self.coverage = self.total_bases * 1. / self.unique_bases
+        self.coverage = self.total_bases * 1.0 / self.unique_bases
 
     def report(self):
         print("Total seqids: {0}".format(self.nseqids), file=sys.stderr)
         print("Total ranges: {0}".format(self.nfeats), file=sys.stderr)
-        print("Total unique bases: {0} bp".format(thousands(self.unique_bases)), file=sys.stderr)
-        print("Total bases: {0} bp".format(thousands(self.total_bases)), file=sys.stderr)
+        print(
+            "Total unique bases: {0} bp".format(thousands(self.unique_bases)),
+            file=sys.stderr,
+        )
+        print(
+            "Total bases: {0} bp".format(thousands(self.total_bases)), file=sys.stderr
+        )
         print("Estimated coverage: {0:.1f}x".format(self.coverage), file=sys.stderr)
         print(self.stats, file=sys.stderr)
         maxspan, maxaccn = max(self.mspans)
@@ -378,8 +418,7 @@ class BedSummary(object):
 
 def bed_sum(beds, seqid=None, unique=True):
     if seqid:
-        ranges = [(x.seqid, x.start, x.end) for x in beds \
-                    if x.seqid == seqid]
+        ranges = [(x.seqid, x.start, x.end) for x in beds if x.seqid == seqid]
     else:
         ranges = [(x.seqid, x.start, x.end) for x in beds]
 
@@ -391,40 +430,67 @@ def bed_sum(beds, seqid=None, unique=True):
 def main():
 
     actions = (
-        ('depth', 'calculate average depth per feature using coverageBed'),
-        ('mergebydepth', 'returns union of features beyond certain depth'),
-        ('sort', 'sort bed file'),
-        ('merge', 'merge bed files'),
-        ('index', 'index bed file using tabix'),
-        ('bins', 'bin bed lengths into each window'),
-        ('summary', 'summarize the lengths of the intervals'),
-        ('evaluate', 'make truth table and calculate sensitivity and specificity'),
-        ('pile', 'find the ids that intersect'),
-        ('pairs', 'estimate insert size between paired reads from bedfile'),
-        ('mates', 'print paired reads from bedfile'),
-        ('sizes', 'infer the sizes for each seqid'),
-        ('uniq', 'remove overlapping features with higher scores'),
-        ('longest', 'select longest feature within overlapping piles'),
-        ('bedpe', 'convert to bedpe format'),
-        ('distance', 'calculate distance between bed features'),
-        ('sample', 'sample bed file and remove high-coverage regions'),
-        ('refine', 'refine bed file using a second bed file'),
-        ('flanking', 'get n flanking features for a given position'),
-        ('some', 'get a subset of bed features given a list'),
-        ('fix', 'fix non-standard bed files'),
-        ('filter', 'filter bedfile to retain records between size range'),
-        ('filterbedgraph', 'filter bedgraph to extract unique regions'),
-        ('random', 'extract a random subset of features'),
-        ('juncs', 'trim junctions.bed overhang to get intron, merge multiple beds'),
-        ('seqids', 'print out all seqids on one line'),
-        ('alignextend', 'alignextend based on BEDPE and FASTA ref'),
-        ('clr', 'extract clear range based on BEDPE'),
-        ('chain', 'chain bed segments together'),
-        ('density', 'calculates density of features per seqid'),
-        ('tiling', 'compute the minimum tiling path'),
-            )
+        ("depth", "calculate average depth per feature using coverageBed"),
+        ("mergebydepth", "returns union of features beyond certain depth"),
+        ("sort", "sort bed file"),
+        ("merge", "merge bed files"),
+        ("index", "index bed file using tabix"),
+        ("bins", "bin bed lengths into each window"),
+        ("summary", "summarize the lengths of the intervals"),
+        ("evaluate", "make truth table and calculate sensitivity and specificity"),
+        ("pile", "find the ids that intersect"),
+        ("pairs", "estimate insert size between paired reads from bedfile"),
+        ("mates", "print paired reads from bedfile"),
+        ("sizes", "infer the sizes for each seqid"),
+        ("uniq", "remove overlapping features with higher scores"),
+        ("longest", "select longest feature within overlapping piles"),
+        ("bedpe", "convert to bedpe format"),
+        ("distance", "calculate distance between bed features"),
+        ("sample", "sample bed file and remove high-coverage regions"),
+        ("refine", "refine bed file using a second bed file"),
+        ("flanking", "get n flanking features for a given position"),
+        ("some", "get a subset of bed features given a list"),
+        ("fix", "fix non-standard bed files"),
+        ("filter", "filter bedfile to retain records between size range"),
+        ("filterbedgraph", "filter bedgraph to extract unique regions"),
+        ("random", "extract a random subset of features"),
+        ("juncs", "trim junctions.bed overhang to get intron, merge multiple beds"),
+        ("seqids", "print out all seqids on one line"),
+        ("alignextend", "alignextend based on BEDPE and FASTA ref"),
+        ("clr", "extract clear range based on BEDPE"),
+        ("chain", "chain bed segments together"),
+        ("density", "calculates density of features per seqid"),
+        ("tiling", "compute the minimum tiling path"),
+        ("format", "reformat BED file"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def format(args):
+    """
+    %prog format input.bed
+
+    Re-format BED file, e.g. switch sequence ids.
+    """
+    p = OptionParser(format.__doc__)
+    p.add_option(
+        "--switch", type="string", help="Switch seqids based on two-column file"
+    )
+    p.set_outfile()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    bedfile, = args
+    switch = DictFile(opts.switch, delimiter="\t") if opts.switch else None
+    bed = Bed(bedfile)
+    with must_open(opts.outfile, "w") as fw:
+        for b in bed:
+            if switch and b.seqid in switch:
+                b.seqid = switch[b.seqid]
+            print(b, file=fw)
 
 
 def filterbedgraph(args):
@@ -454,8 +520,11 @@ def filterbedgraph(args):
             print(b, file=fw)
             nfiltered += 1
     fw.close()
-    logging.debug("A total of {} intervals (score >= {}) written to `{}`".\
-                    format(percentage(nfiltered, ntotal), cutoff, filteredbed))
+    logging.debug(
+        "A total of {} intervals (score >= {}) written to `{}`".format(
+            percentage(nfiltered, ntotal), cutoff, filteredbed
+        )
+    )
 
     mergeBed(filteredbed, sorted=True, delim=None)
 
@@ -469,8 +538,12 @@ def tiling(args):
     stackoverflow source.
     """
     p = OptionParser(tiling.__doc__)
-    p.add_option("--overlap", default=3000, type="int",
-                 help="Minimum amount of overlaps required")
+    p.add_option(
+        "--overlap",
+        default=3000,
+        type="int",
+        help="Minimum amount of overlaps required",
+    )
     p.set_verbose()
     opts, args = p.parse_args(args)
 
@@ -532,8 +605,11 @@ def tiling(args):
 
     tilingbedfile = bedfile.rsplit(".", 1)[0] + ".tiling.bed"
     selected.print_to_file(filename=tilingbedfile, sorted=True)
-    logging.debug("A total of {} tiling features written to `{}`"\
-                    .format(len(selected), tilingbedfile))
+    logging.debug(
+        "A total of {} tiling features written to `{}`".format(
+            len(selected), tilingbedfile
+        )
+    )
 
 
 def chain(args):
@@ -598,8 +674,7 @@ def density(args):
         nfeats = len(bb)
         size = sizes[seqid]
         ds = nfeats * 1e6 / size
-        print("\t".join(str(x) for x in \
-                    (seqid, nfeats, size, "{0:.1f}".format(ds))))
+        print("\t".join(str(x) for x in (seqid, nfeats, size, "{0:.1f}".format(ds))))
 
 
 def clr(args):
@@ -626,8 +701,9 @@ def clr(args):
 
     filtered = bedpe + ".filtered"
     if need_update(bedpe, filtered):
-        filter_bedpe(bedpe, filtered, ref, rc=opts.rc,
-                     minlen=opts.minlen, maxlen=opts.maxlen)
+        filter_bedpe(
+            bedpe, filtered, ref, rc=opts.rc, minlen=opts.minlen, maxlen=opts.maxlen
+        )
 
     rmdup = filtered + ".sorted.rmdup"
     if need_update(filtered, rmdup):
@@ -661,11 +737,13 @@ def sfa_to_fq(sfa, qvchar):
     return fq
 
 
-def filter_bedpe(bedpe, filtered, ref, rc=False, rlen=None,
-                 minlen=2000, maxlen=8000):
+def filter_bedpe(bedpe, filtered, ref, rc=False, rlen=None, minlen=2000, maxlen=8000):
     tag = " after RC" if rc else ""
-    logging.debug("Filter criteria: innie{0}, {1} <= insertsize <= {2}".\
-                    format(tag, minlen, maxlen))
+    logging.debug(
+        "Filter criteria: innie{0}, {1} <= insertsize <= {2}".format(
+            tag, minlen, maxlen
+        )
+    )
     sizes = Sizes(ref).mapping
     fp = must_open(bedpe)
     fw = must_open(filtered, "w")
@@ -684,8 +762,11 @@ def filter_bedpe(bedpe, filtered, ref, rc=False, rlen=None,
         if rlen:
             b.extend(rlen, sizes[b.seqid1])
         print(b, file=fw)
-    logging.debug("A total of {0} mates written to `{1}`.".\
-                    format(percentage(retained, total), filtered))
+    logging.debug(
+        "A total of {0} mates written to `{1}`.".format(
+            percentage(retained, total), filtered
+        )
+    )
     fw.close()
 
 
@@ -704,22 +785,27 @@ def rmdup_bedpe(filtered, rmdup, dupwiggle=10):
         for i, a in enumerate(ss):
             if a.isdup:
                 continue
-            for b in ss[i + 1:]:
+            for b in ss[i + 1 :]:
                 if b.start1 > a.start1 + dupwiggle:
                     break
                 if b.isdup:
                     continue
-                if a.seqid2 == b.seqid2 and \
-                   a.start2 - dupwiggle <= b.start2 <= a.start2 + dupwiggle:
-                   b.isdup = True
+                if (
+                    a.seqid2 == b.seqid2
+                    and a.start2 - dupwiggle <= b.start2 <= a.start2 + dupwiggle
+                ):
+                    b.isdup = True
         for a in ss:
             total += 1
             if a.isdup:
                 continue
             retained += 1
             print(a, file=fw)
-    logging.debug("A total of {0} mates written to `{1}`.".\
-                    format(percentage(retained, total), rmdup))
+    logging.debug(
+        "A total of {0} mates written to `{1}`.".format(
+            percentage(retained, total), rmdup
+        )
+    )
     fw.close()
 
 
@@ -733,12 +819,16 @@ def alignextend(args):
     https://github.com/nathanhaigh/amos/blob/master/src/Experimental/alignextend.pl
     """
     p = OptionParser(alignextend.__doc__)
-    p.add_option("--len", default=100, type="int",
-                 help="Extend to this length")
-    p.add_option("--qv", default=31, type="int",
-                 help="Dummy qv score for extended bases")
-    p.add_option("--bedonly", default=False, action="store_true",
-                 help="Only generate bed files, no FASTA")
+    p.add_option("--len", default=100, type="int", help="Extend to this length")
+    p.add_option(
+        "--qv", default=31, type="int", help="Dummy qv score for extended bases"
+    )
+    p.add_option(
+        "--bedonly",
+        default=False,
+        action="store_true",
+        help="Only generate bed files, no FASTA",
+    )
     p.set_bedpe()
     opts, args = p.parse_args(args)
 
@@ -751,8 +841,15 @@ def alignextend(args):
 
     filtered = bedpe + ".filtered"
     if need_update(bedpe, filtered):
-        filter_bedpe(bedpe, filtered, ref, rc=opts.rc,
-                     minlen=opts.minlen, maxlen=opts.maxlen, rlen=opts.rlen)
+        filter_bedpe(
+            bedpe,
+            filtered,
+            ref,
+            rc=opts.rc,
+            minlen=opts.minlen,
+            maxlen=opts.maxlen,
+            rlen=opts.rlen,
+        )
 
     rmdup = filtered + ".filtered.sorted.rmdup"
     if need_update(filtered, rmdup):
@@ -784,8 +881,7 @@ def seqids(args):
     Print out all seqids on one line. Useful for graphics.karyotype.
     """
     p = OptionParser(seqids.__doc__)
-    p.add_option("--maxn", default=100, type="int",
-                 help="Maximum number of seqids")
+    p.add_option("--maxn", default=100, type="int", help="Maximum number of seqids")
     p.add_option("--prefix", help="Seqids must start with")
     p.add_option("--exclude", default="random", help="Seqids should not contain")
     opts, args = p.parse_args(args)
@@ -802,7 +898,7 @@ def seqids(args):
         s = [x for x in s if x.startswith(pf)]
     if exclude:
         s = [x for x in s if not exclude in x]
-    s = s[:opts.maxn]
+    s = s[: opts.maxn]
     print(",".join(s))
 
 
@@ -826,7 +922,7 @@ def juncs(args):
     if len(args) < 1:
         sys.exit(not p.print_help())
 
-    fh, trimbed = mkstemp(suffix = ".bed")
+    fh, trimbed = mkstemp(suffix=".bed")
     fw = must_open(trimbed, "w")
     for i, juncbed in enumerate(args):
         bed = Bed(juncbed, juncs=True)
@@ -843,7 +939,7 @@ def juncs(args):
         sh("sort -k1,1 -k2,2n {0} -o {0}".format(trimbed))
 
         tbed = BedTool(trimbed)
-        grouptbed = tbed.groupby(g=[1,2,3,6], c=5, ops=['sum'])
+        grouptbed = tbed.groupby(g=[1, 2, 3, 6], c=5, ops=["sum"])
 
         cmd = """awk -F $'\t' 'BEGIN { OFS = FS } { ID = sprintf("mJUNC%07d", NR); print $1,$2,$3,ID,$5,$4; }'"""
         infile = grouptbed.fn
@@ -895,12 +991,15 @@ def filter(args):
     Filter the bedfile to retain records between certain size range.
     """
     p = OptionParser(filter.__doc__)
-    p.add_option("--minsize", default=0, type="int",
-                 help="Minimum feature length")
-    p.add_option("--maxsize", default=1000000000, type="int",
-                 help="Minimum feature length")
-    p.add_option("--minaccn", type="int",
-                 help="Minimum value of accn, useful to filter based on coverage")
+    p.add_option("--minsize", default=0, type="int", help="Minimum feature length")
+    p.add_option(
+        "--maxsize", default=1000000000, type="int", help="Minimum feature length"
+    )
+    p.add_option(
+        "--minaccn",
+        type="int",
+        help="Minimum value of accn, useful to filter based on coverage",
+    )
     p.add_option("--minscore", type="int", help="Minimum score")
     p.set_outfile()
 
@@ -934,10 +1033,8 @@ def filter(args):
         print(b, file=fw)
         keep.append(span)
 
-    logging.debug("Stats: {0} features kept.".\
-                    format(percentage(len(keep), len(total))))
-    logging.debug("Stats: {0} bases kept.".\
-                    format(percentage(sum(keep), sum(total))))
+    logging.debug("Stats: {0} features kept.".format(percentage(len(keep), len(total))))
+    logging.debug("Stats: {0} bases kept.".format(percentage(sum(keep), sum(total))))
 
 
 def make_bedgraph(bedfile, fastafile):
@@ -960,8 +1057,7 @@ def mergebydepth(args):
     Similar to mergeBed, but only returns regions beyond certain depth.
     """
     p = OptionParser(mergebydepth.__doc__)
-    p.add_option("--mindepth", default=3, type="int",
-                 help="Minimum depth required")
+    p.add_option("--mindepth", default=3, type="int", help="Minimum depth required")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -973,8 +1069,13 @@ def mergebydepth(args):
 
     bedgraphfiltered = bedgraph + ".d{0}".format(mindepth)
     if need_update(bedgraph, bedgraphfiltered):
-        filter([bedgraph, "--minaccn={0}".format(mindepth),
-                "--outfile={0}".format(bedgraphfiltered)])
+        filter(
+            [
+                bedgraph,
+                "--minaccn={0}".format(mindepth),
+                "--outfile={0}".format(bedgraphfiltered),
+            ]
+        )
 
     merged = bedgraphfiltered + ".merge.fasta"
     if need_update(bedgraphfiltered, merged):
@@ -1027,12 +1128,11 @@ def longest(args):
     from jcvi.formats.sizes import Sizes
 
     p = OptionParser(longest.__doc__)
-    p.add_option("--maxsize", default=20000, type="int",
-                 help="Limit max size")
-    p.add_option("--minsize", default=60, type="int",
-                 help="Limit min size")
-    p.add_option("--precedence", default="Medtr",
-                 help="Accessions with prefix take precedence")
+    p.add_option("--maxsize", default=20000, type="int", help="Limit max size")
+    p.add_option("--minsize", default=60, type="int", help="Limit min size")
+    p.add_option(
+        "--precedence", default="Medtr", help="Accessions with prefix take precedence"
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -1063,19 +1163,25 @@ def longest(args):
         ids.add(max_accn)
 
     newids = remove_isoforms(ids)
-    logging.debug("Remove isoforms: before={0} after={1}".\
-                    format(len(ids), len(newids)))
+    logging.debug("Remove isoforms: before={0} after={1}".format(len(ids), len(newids)))
 
     longestidsfile = pf + ".longest.ids"
     fw = open(longestidsfile, "w")
     print("\n".join(newids), file=fw)
     fw.close()
-    logging.debug("A total of {0} records written to `{1}`.".\
-                    format(len(newids), longestidsfile))
+    logging.debug(
+        "A total of {0} records written to `{1}`.".format(len(newids), longestidsfile)
+    )
 
     longestbedfile = pf + ".longest.bed"
-    some([bedfile, longestidsfile, "--outfile={0}".format(longestbedfile),
-            "--no_strip_names"])
+    some(
+        [
+            bedfile,
+            longestidsfile,
+            "--outfile={0}".format(longestbedfile),
+            "--no_strip_names",
+        ]
+    )
 
 
 def merge(args):
@@ -1109,8 +1215,7 @@ def fix(args):
     Fix non-standard bed files. One typical problem is start > end.
     """
     p = OptionParser(fix.__doc__)
-    p.add_option("--minspan", default=0, type="int",
-                 help="Enforce minimum span [default: %default]")
+    p.add_option("--minspan", default=0, type="int", help="Enforce minimum span")
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -1127,10 +1232,10 @@ def fix(args):
         assert len(atoms) >= 3, "Must be at least 3 columns"
         seqid, start, end = atoms[:3]
         start, end = int(start), int(end)
-        orientation = '+'
+        orientation = "+"
         if start > end:
             start, end = end, start
-            orientation = '-'
+            orientation = "-"
             nfixed += 1
 
         atoms[1:3] = [str(start), str(end)]
@@ -1161,8 +1266,13 @@ def some(args):
     from jcvi.utils.cbook import gene_name
 
     p = OptionParser(some.__doc__)
-    p.add_option("-v", dest="inverse", default=False, action="store_true",
-                 help="Get the inverse, like grep -v [default: %default]")
+    p.add_option(
+        "-v",
+        dest="inverse",
+        default=False,
+        action="store_true",
+        help="Get the inverse, like grep -v",
+    )
     p.set_outfile()
     p.set_stripnames()
     opts, args = p.parse_args(args)
@@ -1191,8 +1301,7 @@ def some(args):
             print(b, file=fw)
 
     fw.close()
-    logging.debug("Stats: {0} features kept.".\
-                    format(percentage(nkeep, ntotal)))
+    logging.debug("Stats: {0} features kept.".format(percentage(nkeep, ntotal)))
 
 
 def uniq(args):
@@ -1205,8 +1314,7 @@ def uniq(args):
 
     p = OptionParser(uniq.__doc__)
     p.add_option("--sizes", help="Use sequence length as score")
-    p.add_option("--mode", default="span", choices=("span", "score"),
-                 help="Pile mode")
+    p.add_option("--mode", default="span", choices=("span", "score"), help="Pile mode")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -1218,15 +1326,20 @@ def uniq(args):
 
     if opts.sizes:
         sizes = Sizes(opts.sizes).mapping
-        ranges = [Range(x.seqid, x.start, x.end, sizes[x.accn], i) \
-                    for i, x in enumerate(bed)]
+        ranges = [
+            Range(x.seqid, x.start, x.end, sizes[x.accn], i) for i, x in enumerate(bed)
+        ]
     else:
         if opts.mode == "span":
-            ranges = [Range(x.seqid, x.start, x.end, x.end - x.start + 1, i) \
-                        for i, x in enumerate(bed)]
+            ranges = [
+                Range(x.seqid, x.start, x.end, x.end - x.start + 1, i)
+                for i, x in enumerate(bed)
+            ]
         else:
-            ranges = [Range(x.seqid, x.start, x.end, float(x.score), i) \
-                        for i, x in enumerate(bed)]
+            ranges = [
+                Range(x.seqid, x.start, x.end, float(x.score), i)
+                for i, x in enumerate(bed)
+            ]
 
     selected, score = range_chain(ranges)
     selected = [x.id for x in selected]
@@ -1281,14 +1394,17 @@ def bins(args):
     from jcvi.formats.sizes import Sizes
 
     p = OptionParser(bins.__doc__)
-    p.add_option("--binsize", default=100000, type="int",
-                 help="Size of the bins [default: %default]")
-    p.add_option("--subtract",
-                 help="Subtract bases from window [default: %default]")
-    p.add_option("--mode", default="span", choices=("span", "count", "score"),
-                 help="Accumulate feature based on [default: %default]")
-    p.add_option("--nomerge", default=False, action="store_true",
-                 help="Do not merge features")
+    p.add_option("--binsize", default=100000, type="int", help="Size of the bins")
+    p.add_option("--subtract", help="Subtract bases from window")
+    p.add_option(
+        "--mode",
+        default="span",
+        choices=("span", "count", "score"),
+        help="Accumulate feature based on",
+    )
+    p.add_option(
+        "--nomerge", default=False, action="store_true", help="Do not merge features"
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -1343,10 +1459,10 @@ def bins(args):
             endbin = end / binsize
 
             assert startbin <= endbin
-            c[startbin:endbin + 1] += 1
+            c[startbin : endbin + 1] += 1
 
             if mode == "score":
-                a[startbin:endbin + 1] += float(bb.score)
+                a[startbin : endbin + 1] += float(bb.score)
 
             elif mode == "span":
                 if startbin == endbin:
@@ -1357,7 +1473,7 @@ def bins(args):
                     lastsize = end - endbin * binsize
                     a[startbin] += firstsize
                     if startbin + 1 < endbin:
-                        a[startbin + 1:endbin] += binsize
+                        a[startbin + 1 : endbin] += binsize
                     a[endbin] += lastsize
 
         if mode == "count":
@@ -1384,8 +1500,7 @@ def pile(args):
     from jcvi.utils.grouper import Grouper
 
     p = OptionParser(pile.__doc__)
-    p.add_option("--minOverlap", default=0, type="int",
-                 help="Minimum overlap required [default: %default]")
+    p.add_option("--minOverlap", default=0, type="int", help="Minimum overlap required")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -1451,8 +1566,7 @@ def index(args):
 def fastaFromBed(bedfile, fastafile, name=False, tab=False, stranded=False):
     suffix = ".sfa" if tab else ".fasta"
     outfile = op.basename(bedfile).rsplit(".", 1)[0] + suffix
-    cmd = "fastaFromBed -fi {0} -bed {1} -fo {2}".\
-            format(fastafile, bedfile, outfile)
+    cmd = "fastaFromBed -fi {0} -bed {1} -fo {2}".format(fastafile, bedfile, outfile)
     if name:
         cmd += " -name"
     if tab:
@@ -1475,15 +1589,22 @@ def mergeBed(bedfile, d=0, sorted=False, nms=False, s=False, scores=None, delim=
     if nms:
         nargs = len(open(bedfile).readline().split())
         if nargs <= 3:
-            logging.debug("Only {0} columns detected... set nms=True"\
-                            .format(nargs))
+            logging.debug("Only {0} columns detected... set nms=True".format(nargs))
         else:
             cmd += " -c 4 -o collapse"
     if s:
         cmd += " -s"
     if scores:
-        valid_opts = ("sum", "min", "max", "mean", "median",
-                "mode", "antimode", "collapse")
+        valid_opts = (
+            "sum",
+            "min",
+            "max",
+            "mean",
+            "median",
+            "mode",
+            "antimode",
+            "collapse",
+        )
         if not scores in valid_opts:
             scores = "mean"
         cmd += " -scores {0}".format(scores)
@@ -1514,8 +1635,12 @@ def intersectBed(bedfile1, bedfile2):
     cmd += " -a {0} -b {1}".format(bedfile1, bedfile2)
     suffix = ".intersect.bed"
 
-    intersectbedfile = ".".join((op.basename(bedfile1).split(".")[0],
-            op.basename(bedfile2).split(".")[0])) + suffix
+    intersectbedfile = (
+        ".".join(
+            (op.basename(bedfile1).split(".")[0], op.basename(bedfile2).split(".")[0])
+        )
+        + suffix
+    )
 
     if need_update([bedfile1, bedfile2], intersectbedfile):
         sh(cmd, outfile=intersectbedfile)
@@ -1552,8 +1677,7 @@ def evaluate(args):
     from jcvi.formats.sizes import Sizes
 
     p = OptionParser(evaluate.__doc__)
-    p.add_option("--query",
-                 help="Chromosome location [default: %default]")
+    p.add_option("--query", help="Chromosome location")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -1609,7 +1733,7 @@ def intersectBed_wao(abedfile, bbedfile, minOverlap=0):
     for row in fp:
         atoms = row.split()
         aline = "\t".join(atoms[:acols])
-        bline = "\t".join(atoms[acols:acols + bcols])
+        bline = "\t".join(atoms[acols : acols + bcols])
         c = int(atoms[-1])
         if c < minOverlap:
             continue
@@ -1672,9 +1796,13 @@ def distance(args):
     from jcvi.utils.iter import pairwise
 
     p = OptionParser(distance.__doc__)
-    p.add_option("--distmode", default="ss", choices=("ss", "ee"),
-            help="Distance mode between paired reads. ss is outer distance, " \
-                 "ee is inner distance [default: %default]")
+    p.add_option(
+        "--distmode",
+        default="ss",
+        choices=("ss", "ee"),
+        help="Distance mode between paired reads. ss is outer distance, "
+        "ee is inner distance",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -1695,8 +1823,7 @@ def distance(args):
             print(dist)
             valid += 1
 
-    logging.debug("Total valid (> 0) distances: {0}.".\
-                  format(percentage(valid, total)))
+    logging.debug("Total valid (> 0) distances: {0}.".format(percentage(valid, total)))
 
 
 def sample(args):
@@ -1718,12 +1845,16 @@ def sample(args):
     from jcvi.assembly.coverage import Coverage
 
     p = OptionParser(sample.__doc__)
-    p.add_option("--raindrop", default=0, type="int",
-                 help="Raindrop selection, ignores all other options")
-    p.add_option("--max", default=10, type="int",
-                 help="Max depth allowed")
-    p.add_option("--targetsize", type="int",
-                 help="Sample bed file to get target base number")
+    p.add_option(
+        "--raindrop",
+        default=0,
+        type="int",
+        help="Raindrop selection, ignores all other options",
+    )
+    p.add_option("--max", default=10, type="int", help="Max depth allowed")
+    p.add_option(
+        "--targetsize", type="int", help="Sample bed file to get target base number"
+    )
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -1749,8 +1880,11 @@ def sample(args):
                 reverse.append(b)
 
         for tag, L in zip(("forward", "reverse"), (forward, reverse)):
-            logging.debug("Selected {0} features in {1} direction, span: {2}".\
-                        format(len(L), tag, sum(x.span for x in L)))
+            logging.debug(
+                "Selected {0} features in {1} direction, span: {2}".format(
+                    len(L), tag, sum(x.span for x in L)
+                )
+            )
 
         selected = Bed()
         selected.extend(set(forward + reverse))
@@ -1800,10 +1934,12 @@ def bedpe(args):
     from jcvi.assembly.coverage import bed_to_bedpe
 
     p = OptionParser(bedpe.__doc__)
-    p.add_option("--span", default=False, action="store_true",
-                 help="Write span bed file [default: %default]")
-    p.add_option("--strand", default=False, action="store_true",
-            help="Write the strand columns [default: %default]")
+    p.add_option(
+        "--span", default=False, action="store_true", help="Write span bed file"
+    )
+    p.add_option(
+        "--strand", default=False, action="store_true", help="Write the strand columns"
+    )
     p.add_option("--mates", help="Check the library stats from .mates file")
     opts, args = p.parse_args(args)
 
@@ -1814,9 +1950,13 @@ def bedpe(args):
     pf = bedfile.rsplit(".", 1)[0]
     bedpefile = pf + ".bedpe"
     bedspanfile = pf + ".spans.bed" if opts.span else None
-    bed_to_bedpe(bedfile, bedpefile, \
-                 pairsbedfile=bedspanfile, matesfile=opts.mates, \
-                 strand=opts.strand)
+    bed_to_bedpe(
+        bedfile,
+        bedpefile,
+        pairsbedfile=bedspanfile,
+        matesfile=opts.mates,
+        strand=opts.strand,
+    )
     return bedpefile, bedspanfile
 
 
@@ -1841,14 +1981,13 @@ def sizes(args):
     if fw:
         b = Bed(bedfile)
         for s, sbeds in b.sub_beds():
-            print("{0}\t{1}".format(\
-                         s, max(x.end for x in sbeds)), file=fw)
+            print("{0}\t{1}".format(s, max(x.end for x in sbeds)), file=fw)
         logging.debug("Sizes file written to `{0}`.".format(sizesfile))
 
     return sizesfile
 
 
-def analyze_dists(dists, cutoff=1000, alpha=.1):
+def analyze_dists(dists, cutoff=1000, alpha=0.1):
     """
     The dists can show bimodal distribution if they come from a mate-pair
     library. Assume bimodal distribution and then separate the two peaks. Based
@@ -1860,21 +1999,34 @@ def analyze_dists(dists, cutoff=1000, alpha=.1):
     c0, c1 = len(peak0), len(peak1)
     logging.debug("Component counts: {0} {1}".format(c0, c1))
     if c0 == 0 or c1 == 0 or float(c1) / len(dists) < alpha:
-        logging.debug("Single peak identified ({0} / {1} < {2})".\
-                        format(c1, len(dists), alpha))
+        logging.debug(
+            "Single peak identified ({0} / {1} < {2})".format(c1, len(dists), alpha)
+        )
         return np.median(dists)
 
     peak0_median = np.median(peak0)
     peak1_median = np.median(peak1)
-    logging.debug("Dual peaks identified: {0}bp ({1}), {2}bp ({3}) (selected)".\
-                format(int(peak0_median), c0, int(peak1_median), c1))
+    logging.debug(
+        "Dual peaks identified: {0}bp ({1}), {2}bp ({3}) (selected)".format(
+            int(peak0_median), c0, int(peak1_median), c1
+        )
+    )
 
     return peak1_median
 
 
-def report_pairs(data, cutoff=0, mateorientation=None,
-        pairsfile=None, insertsfile=None, rclip=1, ascii=False, bins=20,
-        distmode="ss", mpcutoff=1000):
+def report_pairs(
+    data,
+    cutoff=0,
+    mateorientation=None,
+    pairsfile=None,
+    insertsfile=None,
+    rclip=1,
+    ascii=False,
+    bins=20,
+    distmode="ss",
+    mpcutoff=1000,
+):
     """
     This subroutine is used by the pairs function in blast.py and cas.py.
     Reports number of fragments and pairs as well as linked pairs
@@ -1915,10 +2067,11 @@ def report_pairs(data, cutoff=0, mateorientation=None,
         aquery, bquery = a.accn, b.accn
         astrand, bstrand = a.strand, b.strand
 
-        dist, orientation = range_distance(\
-                (asubject, astart, astop, astrand),
-                (bsubject, bstart, bstop, bstrand),
-                distmode=distmode)
+        dist, orientation = range_distance(
+            (asubject, astart, astop, astrand),
+            (bsubject, bstart, bstop, bstrand),
+            distmode=distmode,
+        )
 
         if dist >= 0:
             all_dist.append((dist, orientation, aquery, bquery))
@@ -1933,8 +2086,10 @@ def report_pairs(data, cutoff=0, mateorientation=None,
         p0 = analyze_dists(dists, cutoff=mpcutoff)
         cutoff = int(2 * p0)  # initial estimate
         cutoff = int(math.ceil(cutoff / bins)) * bins
-        logging.debug("Insert size cutoff set to {0}, ".format(cutoff) +
-            "use '--cutoff' to override")
+        logging.debug(
+            "Insert size cutoff set to {0}, ".format(cutoff)
+            + "use '--cutoff' to override"
+        )
 
     for dist, orientation, aquery, bquery in all_dist:
         if dist > cutoff:
@@ -1947,8 +2102,12 @@ def report_pairs(data, cutoff=0, mateorientation=None,
             print("{0}\t{1}\t{2}".format(aquery, bquery, dist), file=pairsfw)
         orientations[orientation] += 1
 
-    print("{0} fragments, {1} pairs ({2} total)".\
-                format(num_fragments, num_pairs, num_fragments + num_pairs * 2), file=sys.stderr)
+    print(
+        "{0} fragments, {1} pairs ({2} total)".format(
+            num_fragments, num_pairs, num_fragments + num_pairs * 2
+        ),
+        file=sys.stderr,
+    )
 
     s = SummaryStats(linked_dist, dtype="int")
     num_links = s.size
@@ -1956,18 +2115,22 @@ def report_pairs(data, cutoff=0, mateorientation=None,
     meandist, stdev = s.mean, s.sd
     p0, p1, p2 = s.median, s.p1, s.p2
 
-    print("%d pairs (%.1f%%) are linked (cutoff=%d)" % \
-            (num_links, num_links * 100. / num_pairs, cutoff), file=sys.stderr)
-    print("mean distance between mates: {0} +/- {1}".\
-            format(meandist, stdev), file=sys.stderr)
+    print(
+        "%d pairs (%.1f%%) are linked (cutoff=%d)"
+        % (num_links, num_links * 100.0 / num_pairs, cutoff),
+        file=sys.stderr,
+    )
+    print(
+        "mean distance between mates: {0} +/- {1}".format(meandist, stdev),
+        file=sys.stderr,
+    )
     print("median distance between mates: {0}".format(p0), file=sys.stderr)
     print("95% distance range: {0} - {1}".format(p1, p2), file=sys.stderr)
     print("\nOrientations:", file=sys.stderr)
 
     orientation_summary = []
     for orientation, count in sorted(orientations.items()):
-        o = "{0}:{1}".format(orientation, \
-                percentage(count, num_links, mode=1))
+        o = "{0}:{1}".format(orientation, percentage(count, num_links, mode=1))
         orientation_summary.append(o.split()[0])
         print(o, file=sys.stderr)
 
@@ -1980,9 +2143,16 @@ def report_pairs(data, cutoff=0, mateorientation=None,
         if prefix > 10:
             prefix = prefix.split("-")[0]
         osummary = " ".join(orientation_summary)
-        title="{0} ({1}; median:{2} bp)".format(prefix, osummary, p0)
-        histogram(insertsfile, vmin=0, vmax=cutoff, bins=bins,
-                xlabel="Insertsize", title=title, ascii=ascii)
+        title = "{0} ({1}; median:{2} bp)".format(prefix, osummary, p0)
+        histogram(
+            insertsfile,
+            vmin=0,
+            vmax=cutoff,
+            bins=bins,
+            xlabel="Insertsize",
+            title=title,
+            ascii=ascii,
+        )
         if op.exists(insertsfile):
             os.remove(insertsfile)
 
@@ -2010,10 +2180,20 @@ def pairs(args):
     data = [BedLine(row) for i, row in enumerate(fp) if i < opts.nrows]
 
     ascii = not opts.pdf
-    return bedfile, report_pairs(data, opts.cutoff, opts.mateorientation,
-           pairsfile=opts.pairsfile, insertsfile=insertsfile,
-           rclip=opts.rclip, ascii=ascii, bins=opts.bins,
-           distmode=opts.distmode)
+    return (
+        bedfile,
+        report_pairs(
+            data,
+            opts.cutoff,
+            opts.mateorientation,
+            pairsfile=opts.pairsfile,
+            insertsfile=insertsfile,
+            rclip=opts.rclip,
+            ascii=ascii,
+            bins=opts.bins,
+            distmode=opts.distmode,
+        ),
+    )
 
 
 def summary(args):
@@ -2023,10 +2203,15 @@ def summary(args):
     Sum the total lengths of the intervals.
     """
     p = OptionParser(summary.__doc__)
-    p.add_option("--sizes", default=False, action="store_true",
-                 help="Write .sizes file")
-    p.add_option("--all", default=False, action="store_true",
-                 help="Write summary stats per seqid")
+    p.add_option(
+        "--sizes", default=False, action="store_true", help="Write .sizes file"
+    )
+    p.add_option(
+        "--all",
+        default=False,
+        action="store_true",
+        help="Write summary stats per seqid",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -2061,14 +2246,27 @@ def sort(args):
     `sort` command.
     """
     p = OptionParser(sort.__doc__)
-    p.add_option("-i", "--inplace", dest="inplace",
-            default=False, action="store_true",
-            help="Sort bed file in place [default: %default]")
-    p.add_option("-u", dest="unique",
-            default=False, action="store_true",
-            help="Uniqify the bed file")
-    p.add_option("--accn", default=False, action="store_true",
-            help="Sort based on the accessions [default: %default]")
+    p.add_option(
+        "-i",
+        "--inplace",
+        dest="inplace",
+        default=False,
+        action="store_true",
+        help="Sort bed file in place",
+    )
+    p.add_option(
+        "-u",
+        dest="unique",
+        default=False,
+        action="store_true",
+        help="Uniqify the bed file",
+    )
+    p.add_option(
+        "--accn",
+        default=False,
+        action="store_true",
+        help="Sort based on the accessions",
+    )
     p.set_outfile(outfile=None)
     p.set_tmpdir()
     opts, args = p.parse_args(args)
@@ -2089,8 +2287,9 @@ def sort(args):
         pf, sf = op.basename(bedfile).rsplit(".", 1)
         sortedbed = pf + ".sorted." + sf
 
-    sortopt = "-k1,1 -k2,2n -k3,3n -k4,4" if not opts.accn else \
-              "-k4,4 -k1,1 -k2,2n -k3,3n"
+    sortopt = (
+        "-k1,1 -k2,2n -k3,3n -k4,4" if not opts.accn else "-k4,4 -k1,1 -k2,2n -k3,3n"
+    )
     cmd = "sort"
     if opts.tmpdir:
         cmd += " -T {0}".format(opts.tmpdir)
@@ -2111,12 +2310,24 @@ def mates(args):
     Generate the mates file by inferring from the names.
     """
     p = OptionParser(mates.__doc__)
-    p.add_option("--lib", default=False, action="store_true",
-            help="Output library information along with pairs [default: %default]")
-    p.add_option("--nointra", default=False, action="store_true",
-            help="Remove mates that are intra-scaffold [default: %default]")
-    p.add_option("--prefix", default=False, action="store_true",
-            help="Only keep links between IDs with same prefix [default: %default]")
+    p.add_option(
+        "--lib",
+        default=False,
+        action="store_true",
+        help="Output library information along with pairs",
+    )
+    p.add_option(
+        "--nointra",
+        default=False,
+        action="store_true",
+        help="Remove mates that are intra-scaffold",
+    )
+    p.add_option(
+        "--prefix",
+        default=False,
+        action="store_true",
+        help="Only keep links between IDs with same prefix",
+    )
     p.set_mates()
 
     opts, args = p.parse_args(args)
@@ -2135,14 +2346,13 @@ def mates(args):
     lib = pf if opts.lib else None
     fw = open(matesfile, "w")
     if lib:
-        bedfile, stats = pairs([bedfile, \
-                        "--rclip={0}".format(rclip),
-                        "--cutoff={0}".format(opts.cutoff)])
+        bedfile, stats = pairs(
+            [bedfile, "--rclip={0}".format(rclip), "--cutoff={0}".format(opts.cutoff)]
+        )
         sv = int(2 * stats.sd)
         mindist = max(stats.mean - sv, 1)
         maxdist = stats.mean + sv
-        print("\t".join(str(x) for x in \
-                ("library", pf, mindist, maxdist)), file=fw)
+        print("\t".join(str(x) for x in ("library", pf, mindist, maxdist)), file=fw)
 
     num_fragments = num_pairs = 0
     matesbedfile = matesfile + ".bed"
@@ -2175,8 +2385,11 @@ def mates(args):
         print(a, file=fwm)
         print(b, file=fwm)
 
-    logging.debug("Discard {0} frags and write {1} pairs to `{2}` and `{3}`.".\
-            format(num_fragments, num_pairs, matesfile, matesbedfile))
+    logging.debug(
+        "Discard {0} frags and write {1} pairs to `{2}` and `{3}`.".format(
+            num_fragments, num_pairs, matesfile, matesbedfile
+        )
+    )
 
     fw.close()
     fwm.close()
@@ -2193,16 +2406,27 @@ def flanking(args):
     from numpy import array, argsort
 
     p = OptionParser(flanking.__doc__)
-    p.add_option("--chrom", default=None, type="string",
-            help="chrom name of the position in query. Make sure it matches bedfile.")
-    p.add_option("--coord", default=None, type="int",
-            help="coordinate of the position in query.")
-    p.add_option("-n", default=10, type="int",
-            help="number of flanking features to get [default: %default]")
-    p.add_option("--side", default="both", choices=("upstream", "downstream", "both"),
-            help="which side to get flanking features [default: %default]")
-    p.add_option("--max_d", default=None, type="int",
-            help="features <= max_d away from position [default: %default]")
+    p.add_option(
+        "--chrom",
+        default=None,
+        type="string",
+        help="chrom name of the position in query. Make sure it matches bedfile.",
+    )
+    p.add_option(
+        "--coord", default=None, type="int", help="coordinate of the position in query."
+    )
+    p.add_option(
+        "-n", default=10, type="int", help="number of flanking features to get"
+    )
+    p.add_option(
+        "--side",
+        default="both",
+        choices=("upstream", "downstream", "both"),
+        help="which side to get flanking features",
+    )
+    p.add_option(
+        "--max_d", default=None, type="int", help="features <= max_d away from position"
+    )
     p.set_outfile()
 
     opts, args = p.parse_args(args)
@@ -2217,18 +2441,20 @@ def flanking(args):
     chrombed = Bed(bedfile).sub_bed(position[0])
 
     if side == "upstream":
-        data = [(abs(f.start-position[1]), f) for f in chrombed \
-            if f.start <= position[1]]
+        data = [
+            (abs(f.start - position[1]), f) for f in chrombed if f.start <= position[1]
+        ]
     elif side == "downstream":
-        data = [(abs(f.start-position[1]), f) for f in chrombed \
-            if f.start >= position[1]]
+        data = [
+            (abs(f.start - position[1]), f) for f in chrombed if f.start >= position[1]
+        ]
     else:
-        data = [(abs(f.start-position[1]), f) for f in chrombed]
+        data = [(abs(f.start - position[1]), f) for f in chrombed]
 
     if maxd:
-        data = [f for f in data if f[0]<=maxd]
+        data = [f for f in data if f[0] <= maxd]
 
-    n += 1 # not counting self
+    n += 1  # not counting self
     n = min(n, len(data))
     distances, subbed = zip(*data)
     distances = array(distances)
@@ -2242,5 +2468,5 @@ def flanking(args):
     return (position, flankingbed)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

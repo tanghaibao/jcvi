@@ -204,11 +204,14 @@ class KsPlot(object):
         marker=".",
         fill=False,
         fitted=True,
+        kde=False,
     ):
 
         ax = self.ax
         ks_max = self.ks_max
         interval = self.interval
+        if kde:
+            marker = None
 
         line, line_mixture = plot_ks_dist(
             ax,
@@ -220,6 +223,7 @@ class KsPlot(object):
             marker=marker,
             fill=fill,
             fitted=fitted,
+            kde=kde,
         )
         self.lines.append(line)
         self.labels.append(label)
@@ -251,7 +255,7 @@ class KsPlot(object):
         ax.set_ylim(0, ylim)
         ax.set_title(markup(title), fontweight="bold")
         ax.set_xlabel(markup("Synonymous substitutions per site (*Ks*)"))
-        ax.set_ylabel("Percentage of gene pairs")
+        ax.set_ylabel("Percentage of gene pairs (bin size={})".format(self.interval))
 
         ax.set_xticklabels(ax.get_xticks(), family="Helvetica")
         ax.set_yticklabels(ax.get_yticks(), family="Helvetica")
@@ -306,6 +310,7 @@ def multireport(args):
             marker=lo.marker,
             fill=fill,
             fitted=opts.fit,
+            kde=opts.kde,
         )
 
     kp.draw(title=opts.title, filename=opts.outfile)
@@ -952,7 +957,7 @@ class KsFile(LineFile):
         fw.close()
 
 
-def my_hist(ax, l, interval, max_r, color="g", marker=".", fill=False):
+def my_hist(ax, l, interval, max_r, color="g", marker=".", fill=False, kde=False):
     if not l:
         return
 
@@ -963,6 +968,14 @@ def my_hist(ax, l, interval, max_r, color="g", marker=".", fill=False):
         nx = [x for x in l if xmin <= x < xmax]
         n.append(i)
         p.append(len(nx) * 100.0 / total_len)
+
+    if kde:
+        from scipy import stats
+
+        kernel = stats.gaussian_kde(l)
+        n = np.arange(0, max_r, interval)
+        kn = kernel(n)
+        p = kn / sum(kn) * 100
 
     if fill:
         from pylab import poly_between
@@ -1039,9 +1052,12 @@ def plot_ks_dist(
     marker=".",
     fill=False,
     fitted=True,
+    kde=False,
 ):
 
-    line, = my_hist(ax, data, interval, ks_max, color=color, marker=marker, fill=fill)
+    line, = my_hist(
+        ax, data, interval, ks_max, color=color, marker=marker, fill=fill, kde=kde
+    )
     logging.debug("Total {0} pairs after filtering.".format(len(data)))
 
     line_mixture = None
@@ -1071,6 +1087,7 @@ def plot_ks_dist(
 
 def add_plot_options(p):
     p.add_option("--fit", default=False, action="store_true", help="Plot fitted lines")
+    p.add_option("--kde", default=False, action="store_true", help="Use KDE smoothing")
     p.add_option("--vmin", default=0.0, type="float", help="Minimum value, inclusive")
     p.add_option("--vmax", default=2.0, type="float", help="Maximum value, inclusive")
     p.add_option(
@@ -1150,7 +1167,7 @@ def report(args):
     fig = plt.figure(1, (iopts.w, iopts.h))
     ax = fig.add_axes([0.12, 0.1, 0.8, 0.8])
     kp = KsPlot(ax, ks_max, opts.bins, legendp=opts.legendp)
-    kp.add_data(data, components, fill=opts.fill, fitted=opts.fit)
+    kp.add_data(data, components, fill=opts.fill, fitted=opts.fit, kde=opts.kde)
     kp.draw(title=opts.title)
 
 

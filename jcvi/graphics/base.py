@@ -107,8 +107,9 @@ class AbstractLayout(LineFile):
                 setattr(x, attrib, c)
 
     def assign_colors(self):
-        colorset = get_map("Set2", "qualitative", 8).mpl_colors
-        colorset = sample_N(colorset, len(self))
+        number = len(self)
+        palette = set2_n if number <= 8 else set3_n
+        colorset = palette(min(number, 12))
         self.assign_array("color", colorset)
 
     def assign_markers(self):
@@ -141,14 +142,26 @@ def shorten(s, maxchar=20):
     return s[:pad] + "..." + s[-pad:]
 
 
-def prettyplot():
+def set1_n(number=9):
+    return get_map("Set1", "qualitative", number).hex_colors
+
+
+def set2_n(number=8):
     # Get Set2 from ColorBrewer, a set of colors deemed colorblind-safe and
     # pleasant to look at by Drs. Cynthia Brewer and Mark Harrower of Pennsylvania
     # State University. These colors look lovely together, and are less
     # saturated than those colors in Set1. For more on ColorBrewer, see:
-    set2 = get_map("Set2", "qualitative", 8).hex_colors
-    set1 = get_map("Set1", "qualitative", 9).hex_colors
+    return get_map("Set2", "qualitative", number).hex_colors
 
+
+def set3_n(number=12):
+    return get_map("Set3", "qualitative", number).hex_colors
+
+
+set1, set2, set3 = set1_n(), set2_n(), set3_n()
+
+
+def prettyplot():
     reds = mpl.cm.Reds
     reds.set_bad("white")
     reds.set_under("white")
@@ -163,10 +176,10 @@ def prettyplot():
     green_purple = get_map("PRGn", "diverging", 11).mpl_colormap
     red_purple = get_map("RdPu", "sequential", 9).mpl_colormap
 
-    return blues_r, reds, blue_red, set1, set2, green_purple, red_purple
+    return blues_r, reds, blue_red, green_purple, red_purple
 
 
-blues_r, reds, blue_red, set1, set2, green_purple, red_purple = prettyplot()
+blues_r, reds, blue_red, green_purple, red_purple = prettyplot()
 
 
 def normalize_axes(axes):

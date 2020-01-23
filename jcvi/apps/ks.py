@@ -26,8 +26,15 @@ from jcvi.formats.base import LineFile, must_open
 from jcvi.graphics.base import plt, savefig, AbstractLayout, markup
 from jcvi.utils.table import write_csv
 from jcvi.utils.cbook import gene_name
-from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, sh, \
-            Popen, getpath, iglob
+from jcvi.apps.base import (
+    OptionParser,
+    ActionDispatcher,
+    mkdir,
+    sh,
+    Popen,
+    getpath,
+    iglob,
+)
 
 
 CLUSTALW_BIN = partial(getpath, name="CLUSTALW2", warn="warn")
@@ -37,7 +44,6 @@ PAML_BIN = partial(getpath, name="PAML", warn="warn")
 
 
 class AbstractCommandline:
-
     def run(self):
         r = Popen(str(self))
         return r.communicate()
@@ -46,6 +52,7 @@ class AbstractCommandline:
 class YnCommandline(AbstractCommandline):
     """Little commandline for yn00.
     """
+
     def __init__(self, ctl_file, command=PAML_BIN("yn00")):
         self.ctl_file = ctl_file
         self.parameters = []
@@ -58,8 +65,15 @@ class YnCommandline(AbstractCommandline):
 class MrTransCommandline(AbstractCommandline):
     """Simple commandline faker.
     """
-    def __init__(self, prot_align_file, nuc_file, output_file, outfmt="paml",
-            command=PAL2NAL_BIN("pal2nal.pl")):
+
+    def __init__(
+        self,
+        prot_align_file,
+        nuc_file,
+        output_file,
+        outfmt="paml",
+        command=PAL2NAL_BIN("pal2nal.pl"),
+    ):
         self.prot_align_file = prot_align_file
         self.nuc_file = nuc_file
         self.output_file = output_file
@@ -69,22 +83,26 @@ class MrTransCommandline(AbstractCommandline):
         self.parameters = []
 
     def __str__(self):
-        return self.command + " %s %s -output %s > %s" % \
-            (self.prot_align_file, self.nuc_file, self.outfmt, self.output_file)
+        return self.command + " %s %s -output %s > %s" % (
+            self.prot_align_file,
+            self.nuc_file,
+            self.outfmt,
+            self.output_file,
+        )
 
 
 def main():
 
     actions = (
-        ('batch', 'compute ks for a set of anchors file'),
-        ('fromgroups', 'flatten the gene families into pairs'),
-        ('prepare', 'prepare pairs of sequences'),
-        ('calc', 'calculate Ks between pairs of sequences'),
-        ('subset', 'subset pre-calculated Ks according to pairs file'),
-        ('gc3', 'filter the Ks results to remove high GC3 genes'),
-        ('report', 'generate a distribution of Ks values'),
-        ('multireport', 'generate several Ks value distributions in same figure'),
-            )
+        ("batch", "compute ks for a set of anchors file"),
+        ("fromgroups", "flatten the gene families into pairs"),
+        ("prepare", "prepare pairs of sequences"),
+        ("calc", "calculate Ks between pairs of sequences"),
+        ("subset", "subset pre-calculated Ks according to pairs file"),
+        ("gc3", "filter the Ks results to remove high GC3 genes"),
+        ("report", "generate a distribution of Ks values"),
+        ("multireport", "generate several Ks value distributions in same figure"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -114,19 +132,20 @@ def batch(args):
     mm = MakeManager()
     for wd, ac in zip(workdirs, anchors):
         pairscdsfile = wd + ".cds.fasta"
-        cmd = "python -m jcvi.apps.ks prepare {} {} -o {}".\
-                format(ac, cdsfile, pairscdsfile)
+        cmd = "python -m jcvi.apps.ks prepare {} {} -o {}".format(
+            ac, cdsfile, pairscdsfile
+        )
         mm.add((ac, cdsfile), pairscdsfile, cmd)
         ksfile = wd + ".ks"
-        cmd = "python -m jcvi.apps.ks calc {} -o {} --workdir {}".\
-                format(pairscdsfile, ksfile, wd)
+        cmd = "python -m jcvi.apps.ks calc {} -o {} --workdir {}".format(
+            pairscdsfile, ksfile, wd
+        )
         mm.add(pairscdsfile, ksfile, cmd)
     mm.write()
 
 
-class LayoutLine (object):
-
-    def __init__(self, row, delimiter=','):
+class LayoutLine(object):
+    def __init__(self, row, delimiter=","):
         args = row.rstrip().split(delimiter)
         args = [x.strip() for x in args]
         self.ksfile = args[0]
@@ -136,13 +155,14 @@ class LayoutLine (object):
         self.marker = args[4]
 
     def __str__(self):
-        return ", ".join(str(x) for x in (self.ksfile, self.components,
-                                         self.label, self.color, self.marker))
+        return ", ".join(
+            str(x)
+            for x in (self.ksfile, self.components, self.label, self.color, self.marker)
+        )
 
 
-class Layout (AbstractLayout):
-
-    def __init__(self, filename, delimiter=','):
+class Layout(AbstractLayout):
+    def __init__(self, filename, delimiter=","):
         super(Layout, self).__init__(filename)
         if not op.exists(filename):
             ksfiles = iglob(".", "*.ks")
@@ -157,7 +177,7 @@ class Layout (AbstractLayout):
 
         fp = open(filename)
         for row in fp:
-            if row[0] == '#':
+            if row[0] == "#":
                 continue
             self.append(LayoutLine(row, delimiter=delimiter))
 
@@ -165,9 +185,8 @@ class Layout (AbstractLayout):
         self.assign_markers()
 
 
-class KsPlot (object):
-
-    def __init__(self, ax, ks_max, bins, legendp='upper left'):
+class KsPlot(object):
+    def __init__(self, ax, ks_max, bins, legendp="upper left"):
 
         self.ax = ax
         self.ks_max = ks_max
@@ -176,16 +195,36 @@ class KsPlot (object):
         self.lines = []
         self.labels = []
 
-    def add_data(self, data, components=1, label="Ks",
-                 color='r', marker='.', fill=False, fitted=True):
+    def add_data(
+        self,
+        data,
+        components=1,
+        label="Ks",
+        color="r",
+        marker=".",
+        fill=False,
+        fitted=True,
+        kde=False,
+    ):
 
         ax = self.ax
         ks_max = self.ks_max
         interval = self.interval
+        if kde:
+            marker = None
 
-        line, line_mixture = plot_ks_dist(ax, data, interval, components, ks_max,
-                                          color=color, marker=marker,
-                                          fill=fill, fitted=fitted)
+        line, line_mixture = plot_ks_dist(
+            ax,
+            data,
+            interval,
+            components,
+            ks_max,
+            color=color,
+            marker=marker,
+            fill=fill,
+            fitted=fitted,
+            kde=kde,
+        )
         self.lines.append(line)
         self.labels.append(label)
 
@@ -201,19 +240,25 @@ class KsPlot (object):
         labels = [markup(x) for x in self.labels]
         legendp = self.legendp
         if len(lines) > 1:
-            leg = ax.legend(lines, labels, loc=legendp,
-                            shadow=True, fancybox=True, prop={"size": 10})
-            leg.get_frame().set_alpha(.5)
+            leg = ax.legend(
+                lines,
+                labels,
+                loc=legendp,
+                shadow=True,
+                fancybox=True,
+                prop={"size": 10},
+            )
+            leg.get_frame().set_alpha(0.5)
 
         ax.set_xlim((0, ks_max - self.interval))
         ylim = ax.get_ylim()[-1]
         ax.set_ylim(0, ylim)
         ax.set_title(markup(title), fontweight="bold")
-        ax.set_xlabel(markup('Synonymous substitutions per site (*Ks*)'))
-        ax.set_ylabel('Percentage of gene pairs')
+        ax.set_xlabel(markup("Synonymous substitutions per site (*Ks*)"))
+        ax.set_ylabel("Percentage of gene pairs (bin size={})".format(self.interval))
 
-        ax.set_xticklabels(ax.get_xticks(), family='Helvetica')
-        ax.set_yticklabels(ax.get_yticks(), family='Helvetica')
+        ax.set_xticklabels(ax.get_xticks(), family="Helvetica")
+        ax.set_yticklabels(ax.get_yticks(), family="Helvetica")
 
         savefig(filename, dpi=300)
 
@@ -251,15 +296,22 @@ def multireport(args):
     print(layout, file=sys.stderr)
 
     fig = plt.figure(1, (iopts.w, iopts.h))
-    ax = fig.add_axes([.12, .1, .8, .8])
+    ax = fig.add_axes([0.12, 0.1, 0.8, 0.8])
     kp = KsPlot(ax, ks_max, bins, legendp=opts.legendp)
     for lo in layout:
         data = KsFile(lo.ksfile)
         data = [x.ng_ks for x in data]
         data = [x for x in data if ks_min <= x <= ks_max]
-        kp.add_data(data, lo.components, label=lo.label, \
-                    color=lo.color, marker=lo.marker,
-                    fill=fill, fitted=opts.fit)
+        kp.add_data(
+            data,
+            lo.components,
+            label=lo.label,
+            color=lo.color,
+            marker=lo.marker,
+            fill=fill,
+            fitted=opts.fit,
+            kde=opts.kde,
+        )
 
     kp.draw(title=opts.title, filename=opts.outfile)
 
@@ -272,7 +324,7 @@ def get_GC3(cdsfile):
     for name, rec in f.iteritems_ordered():
         positions = rec.seq[2::3].upper()
         gc_counts = sum(1 for x in positions if x in "GC")
-        gc_ratio = gc_counts * 1. / len(positions)
+        gc_ratio = gc_counts * 1.0 / len(positions)
         GC3[name] = gc_ratio
 
     return GC3
@@ -285,11 +337,20 @@ def plot_GC3(GC3, cdsfile, fill="white"):
     fw = must_open(numberfile, "w")
     fw.write("\n".join(map(str, GC3.values())))
     fw.close()
-    histogram(numberfile, vmin=0, vmax=1, xlabel="GC3", title=cdsfile,
-          bins=50, skip=0, ascii=False, log=0, fill=fill)
+    histogram(
+        numberfile,
+        vmin=0,
+        vmax=1,
+        xlabel="GC3",
+        title=cdsfile,
+        bins=50,
+        skip=0,
+        ascii=False,
+        log=0,
+        fill=fill,
+    )
 
-    logging.debug("{0} GC3 values plotted to {1}.pdf".\
-            format(len(GC3), numberfile))
+    logging.debug("{0} GC3 values plotted to {1}.pdf".format(len(GC3), numberfile))
 
 
 def gc3(args):
@@ -306,8 +367,9 @@ def gc3(args):
     concatenated or separated.
     """
     p = OptionParser(gc3.__doc__)
-    p.add_option("--plot", default=False, action="store_true",
-                 help="Also plot the GC3 histogram [default: %default]")
+    p.add_option(
+        "--plot", default=False, action="store_true", help="Also plot the GC3 histogram"
+    )
     p.set_outfile()
 
     opts, args = p.parse_args(args)
@@ -337,7 +399,7 @@ def gc3(args):
     writer = csv.writer(fw)
     writer.writerow(fields.split(","))
     nlines = 0
-    cutoff = .75
+    cutoff = 0.75
     for d in data:
         a, b = d.name.split(";")
         aratio, bratio = GC3[a], GC3[b]
@@ -362,8 +424,7 @@ def extract_pairs(abed, bbed, groups):
     is_self = abed.filename == bbed.filename
     npairs = 0
     for group in groups:
-        iter = combinations(group, 2) if is_self \
-                    else product(group, repeat=2)
+        iter = combinations(group, 2) if is_self else product(group, repeat=2)
 
         for a, b in iter:
             if a not in aorder or b not in border:
@@ -443,7 +504,7 @@ def prepare(args):
         f2 = Fasta(pepfile)
         fw2 = must_open(outfile + ".pep", "w")
     for row in fp:
-        if row[0] == '#':
+        if row[0] == "#":
             continue
         a, b = row.split()[:2]
         if a == b:
@@ -491,11 +552,17 @@ def calc(args):
     from jcvi.formats.fasta import translate
 
     p = OptionParser(calc.__doc__)
-    p.add_option("--longest", action="store_true",
-                 help="Get longest ORF, only works if no pep file, "\
-                      "e.g. ESTs [default: %default]")
-    p.add_option("--msa", default="clustalw", choices=("clustalw", "muscle"),
-                 help="software used to align the proteins [default: %default]")
+    p.add_option(
+        "--longest",
+        action="store_true",
+        help="Get longest ORF, only works if no pep file, e.g. ESTs",
+    )
+    p.add_option(
+        "--msa",
+        default="clustalw",
+        choices=("clustalw", "muscle"),
+        help="software used to align the proteins",
+    )
     p.add_option("--workdir", default=os.getcwd(), help="Work directory")
     p.set_outfile()
 
@@ -523,8 +590,9 @@ def calc(args):
 
     prot_iterator = SeqIO.parse(open(protein_file), "fasta")
     dna_iterator = SeqIO.parse(open(dna_file), "fasta")
-    for p_rec_1, p_rec_2, n_rec_1, n_rec_2 in \
-            zip(prot_iterator, prot_iterator, dna_iterator, dna_iterator):
+    for p_rec_1, p_rec_2, n_rec_1, n_rec_2 in zip(
+        prot_iterator, prot_iterator, dna_iterator, dna_iterator
+    ):
 
         print("--------", p_rec_1.name, p_rec_2.name, file=sys.stderr)
         if opts.msa == "clustalw":
@@ -533,12 +601,26 @@ def calc(args):
             align_fasta = muscle_align_protein((p_rec_1, p_rec_2), work_dir)
         mrtrans_fasta = run_mrtrans(align_fasta, (n_rec_1, n_rec_2), work_dir)
         if mrtrans_fasta:
-            ds_subs_yn, dn_subs_yn, ds_subs_ng, dn_subs_ng = \
-                    find_synonymous(mrtrans_fasta, work_dir)
+            ds_subs_yn, dn_subs_yn, ds_subs_ng, dn_subs_ng = find_synonymous(
+                mrtrans_fasta, work_dir
+            )
             if ds_subs_yn is not None:
                 pair_name = "%s;%s" % (p_rec_1.name, p_rec_2.name)
-                output_h.write("%s\n" % (",".join(str(x) for x in (pair_name,
-                        ds_subs_yn, dn_subs_yn, ds_subs_ng, dn_subs_ng))))
+                output_h.write(
+                    "%s\n"
+                    % (
+                        ",".join(
+                            str(x)
+                            for x in (
+                                pair_name,
+                                ds_subs_yn,
+                                dn_subs_yn,
+                                ds_subs_ng,
+                                dn_subs_ng,
+                            )
+                        )
+                    )
+                )
                 output_h.flush()
 
     # Clean-up
@@ -554,8 +636,10 @@ def find_synonymous(input_file, work_dir):
     ctl_file = "yn-input.ctl"
     output_file = "nuc-subs.yn"
     ctl_h = open(ctl_file, "w")
-    ctl_h.write("seqfile = %s\noutfile = %s\nverbose = 0\n" %
-                (op.basename(input_file), output_file))
+    ctl_h.write(
+        "seqfile = %s\noutfile = %s\nverbose = 0\n"
+        % (op.basename(input_file), output_file)
+    )
     ctl_h.write("icode = 0\nweighting = 0\ncommonf3x4 = 0\n")
     ctl_h.close()
 
@@ -571,10 +655,10 @@ def find_synonymous(input_file, work_dir):
     output_h = open(output_file)
     row = output_h.readline()
     while row:
-        if row.find("Nei & Gojobori") >=0:
+        if row.find("Nei & Gojobori") >= 0:
             for x in range(5):
                 row = next(output_h)
-            dn_value_ng, ds_value_ng = row.split('(')[1].split(')')[0].split()
+            dn_value_ng, ds_value_ng = row.split("(")[1].split(")")[0].split()
             break
         row = output_h.readline()
     output_h.close()
@@ -662,9 +746,13 @@ def clustal_align_protein(recs, work_dir, outfmt="fasta"):
     align_file = op.join(work_dir, "prot.aln")
     SeqIO.write(recs, open(fasta_file, "w"), "fasta")
 
-    clustal_cl = ClustalwCommandline(cmd=CLUSTALW_BIN("clustalw2"),
-            infile=fasta_file, outfile=align_file, outorder="INPUT",
-            type="PROTEIN")
+    clustal_cl = ClustalwCommandline(
+        cmd=CLUSTALW_BIN("clustalw2"),
+        infile=fasta_file,
+        outfile=align_file,
+        outorder="INPUT",
+        type="PROTEIN",
+    )
     stdout, stderr = clustal_cl()
 
     aln_file = open(clustal_cl.outfile)
@@ -685,9 +773,13 @@ def muscle_align_protein(recs, work_dir, outfmt="fasta", inputorder=True):
     align_file = op.join(work_dir, "prot.aln")
     SeqIO.write(recs, open(fasta_file, "w"), "fasta")
 
-    muscle_cl = MuscleCommandline(cmd=MUSCLE_BIN("muscle"),
-            input=fasta_file, out=align_file, seqtype="protein",
-            clwstrict=True)
+    muscle_cl = MuscleCommandline(
+        cmd=MUSCLE_BIN("muscle"),
+        input=fasta_file,
+        out=align_file,
+        seqtype="protein",
+        clwstrict=True,
+    )
     stdout, stderr = muscle_cl()
     alignment = AlignIO.read(muscle_cl.out, "clustal")
 
@@ -716,8 +808,7 @@ def muscle_inputorder(inputfastafile, alnfile, trunc_name=True):
     aa = AlignIO.read(alnfile, "clustal")
     alignment = dict((a.id[:maxi], a) for a in aa)
     if trunc_name and len(alignment) < len(aa):
-        raise ValueError\
-            ("ERROR: The first 30 chars of your seq names are not unique")
+        raise ValueError("ERROR: The first 30 chars of your seq names are not unique")
 
     fw = must_open(alnfile, "w")
     for rec in SeqIO.parse(inputfastafile, "fasta"):
@@ -736,10 +827,12 @@ def subset(args):
     in tab delimited pairsfile/anchorfile.
     """
     p = OptionParser(subset.__doc__)
-    p.add_option("--noheader", action="store_true",
-                 help="don't write ksfile header line [default: %default]")
-    p.add_option("--block", action="store_true",
-                 help="preserve block structure in input [default: %default]")
+    p.add_option(
+        "--noheader", action="store_true", help="don't write ksfile header line"
+    )
+    p.add_option(
+        "--block", action="store_true", help="preserve block structure in input"
+    )
     p.set_stripnames()
     p.set_outfile()
 
@@ -757,8 +850,12 @@ def subset(args):
 
     ksvals = {}
     for ksfile in ksfiles:
-        ksvals.update(dict((line.name, line) for line in \
-                        KsFile(ksfile, strip_names=opts.strip_names)))
+        ksvals.update(
+            dict(
+                (line.name, line)
+                for line in KsFile(ksfile, strip_names=opts.strip_names)
+            )
+        )
 
     fp = open(pairsfile)
     fw = must_open(outfile, "w")
@@ -768,7 +865,7 @@ def subset(args):
 
     i = j = 0
     for row in fp:
-        if row[0] == '#':
+        if row[0] == "#":
             if block:
                 print(row.strip(), file=fw)
             continue
@@ -796,15 +893,15 @@ def subset(args):
 
 fields = "name,yn_ks,yn_ka,ng_ks,ng_ka"
 descriptions = {
-        'name': 'Gene pair',
-        'yn_ks': 'Yang-Nielson Ks estimate',
-        'yn_ka': 'Yang-Nielson Ka estimate',
-        'ng_ks': 'Nei-Gojobori Ks estimate',
-        'ng_ka': 'Nei-Gojobori Ka estimate'}
+    "name": "Gene pair",
+    "yn_ks": "Yang-Nielson Ks estimate",
+    "yn_ka": "Yang-Nielson Ka estimate",
+    "ng_ks": "Nei-Gojobori Ks estimate",
+    "ng_ka": "Nei-Gojobori Ka estimate",
+}
 
 
 class KsLine:
-
     def __init__(self, row, strip_names=False):
         args = row.strip().split(",")
         self.name = args[0]
@@ -827,17 +924,18 @@ class KsLine:
         return x
 
     def __str__(self):
-        return ",".join(str(x) for x in (self.name, self.yn_ks, self.yn_ka,
-                         self.ng_ks, self.ng_ka))
+        return ",".join(
+            str(x) for x in (self.name, self.yn_ks, self.yn_ka, self.ng_ks, self.ng_ka)
+        )
 
     @property
     def anchorline(self):
-        return "\t".join((gene_name(self.gene_a), gene_name(self.gene_b),
-                         "{:.3f}".format(self.ks)))
+        return "\t".join(
+            (gene_name(self.gene_a), gene_name(self.gene_b), "{:.3f}".format(self.ks))
+        )
 
 
 class KsFile(LineFile):
-
     def __init__(self, filename, strip_names=False):
         super(KsFile, self).__init__(filename)
 
@@ -848,8 +946,9 @@ class KsFile(LineFile):
                 continue
             self.append(ksline)
 
-        logging.debug('File `{0}` contains a total of {1} gene pairs'.\
-                format(filename, len(self)))
+        logging.debug(
+            "File `{0}` contains a total of {1} gene pairs".format(filename, len(self))
+        )
 
     def print_to_anchors(self, outfile):
         fw = must_open(outfile, "w")
@@ -858,37 +957,47 @@ class KsFile(LineFile):
         fw.close()
 
 
-def my_hist(ax, l, interval, max_r, color='g', marker='.', fill=False):
+def my_hist(ax, l, interval, max_r, color="g", marker=".", fill=False, kde=False):
     if not l:
         return
 
     n, p = [], []
     total_len = len(l)
     for i in np.arange(0, max_r, interval):
-        xmin, xmax = i - .5 * interval, i + .5 * interval
+        xmin, xmax = i - 0.5 * interval, i + 0.5 * interval
         nx = [x for x in l if xmin <= x < xmax]
         n.append(i)
-        p.append(len(nx) * 100. / total_len)
+        p.append(len(nx) * 100.0 / total_len)
+
+    if kde:
+        from scipy import stats
+
+        kernel = stats.gaussian_kde(l)
+        n = np.arange(0, max_r, interval)
+        kn = kernel(n)
+        p = kn / sum(kn) * 100
 
     if fill:
         from pylab import poly_between
 
         xs, ys = poly_between(n, 0, p)
-        line = ax.fill(xs, ys, fc=color, alpha=.5)
+        line = ax.fill(xs, ys, fc=color, alpha=0.5)
 
     else:
-        line = ax.plot(n, p, color=color, lw=2, ms=3,
-                       marker=marker, mfc="w", mec=color, mew=2)
+        line = ax.plot(
+            n, p, color=color, lw=2, ms=3, marker=marker, mfc="w", mec=color, mew=2
+        )
 
     return line
 
 
 def lognormpdf(bins, mu, sigma):
-    return np.exp(-(np.log(bins) - mu) ** 2 / (2 * sigma ** 2)) / \
-            (bins * sigma * sqrt(2 * pi))
+    return np.exp(-(np.log(bins) - mu) ** 2 / (2 * sigma ** 2)) / (
+        bins * sigma * sqrt(2 * pi)
+    )
 
 
-def lognormpdf_mix(bins, probs, mus, sigmas, interval=.1):
+def lognormpdf_mix(bins, probs, mus, sigmas, interval=0.1):
     y = 0
     for prob, mu, sigma in zip(probs, mus, sigmas):
         y += prob * lognormpdf(bins, mu, sigma)
@@ -907,7 +1016,7 @@ def get_mixture(data, components):
 
     probs, mus, sigmas = [], [], []
     fw = must_open("tmp", "w")
-    log_data = [log(x) for x in data if x > .05]
+    log_data = [log(x) for x in data if x > 0.05]
     data = "\n".join(["%.4f" % x for x in log_data]).replace("inf\n", "")
     fw.write(data)
     fw.close()
@@ -916,7 +1025,7 @@ def get_mixture(data, components):
     pipe = popen(cmd)
 
     for row in pipe:
-        if row[0] != '#':
+        if row[0] != "#":
             continue
 
         atoms = row.split(",")
@@ -933,69 +1042,94 @@ def get_mixture(data, components):
     return probs, mus, sigmas
 
 
-def plot_ks_dist(ax, data, interval, components, ks_max,
-                 color='r', marker='.', fill=False, fitted=True):
+def plot_ks_dist(
+    ax,
+    data,
+    interval,
+    components,
+    ks_max,
+    color="r",
+    marker=".",
+    fill=False,
+    fitted=True,
+    kde=False,
+):
 
-    line, = my_hist(ax, data, interval, ks_max,
-                    color=color, marker=marker, fill=fill)
+    line, = my_hist(
+        ax, data, interval, ks_max, color=color, marker=marker, fill=fill, kde=kde
+    )
     logging.debug("Total {0} pairs after filtering.".format(len(data)))
 
     line_mixture = None
     if fitted:
         probs, mus, variances = get_mixture(data, components)
 
-        iv = .001
+        iv = 0.001
         bins = np.arange(iv, ks_max, iv)
         y = lognormpdf_mix(bins, probs, mus, variances, interval)
 
-        line_mixture, = ax.plot(bins, y, ':', color=color, lw=3)
+        line_mixture, = ax.plot(bins, y, ":", color=color, lw=3)
 
         for i in range(components):
             peak_val = exp(mus[i])
             mixline = lognormpdf_mix(peak_val, probs, mus, variances, interval)
-            ax.text(peak_val, mixline, "Ks=%.2f" % peak_val, \
-                    color="w", size=10, bbox=dict(ec='w',fc=color, \
-                    alpha=.6, boxstyle='round'))
+            ax.text(
+                peak_val,
+                mixline,
+                "Ks=%.2f" % peak_val,
+                color="w",
+                size=10,
+                bbox=dict(ec="w", fc=color, alpha=0.6, boxstyle="round"),
+            )
 
     return line, line_mixture
 
 
 def add_plot_options(p):
-    p.add_option("--fit", default=False, action="store_true",
-                 help="Plot fitted lines")
-    p.add_option("--vmin", default=0., type="float",
-                 help="Minimum value, inclusive [default: %default]")
-    p.add_option("--vmax", default=2., type="float",
-                 help="Maximum value, inclusive [default: %default]")
-    p.add_option("--bins", default=40, type="int",
-                 help="Number of bins to plot in the histogram [default: %default]")
-    p.add_option("--legendp", default="upper right",
-                 help="Place of the legend [default: %default]")
-    p.add_option("--nofill", dest="fill", default=True, action="store_false",
-                 help="Do not fill the histogram area")
-    p.add_option("--title", default="*Ks* distribution",
-                 help="Title of the plot [default: %default]")
+    p.add_option("--fit", default=False, action="store_true", help="Plot fitted lines")
+    p.add_option("--kde", default=False, action="store_true", help="Use KDE smoothing")
+    p.add_option("--vmin", default=0.0, type="float", help="Minimum value, inclusive")
+    p.add_option("--vmax", default=2.0, type="float", help="Maximum value, inclusive")
+    p.add_option(
+        "--bins", default=40, type="int", help="Number of bins to plot in the histogram"
+    )
+    p.add_option("--legendp", default="upper right", help="Place of the legend")
+    p.add_option(
+        "--fill",
+        default=False,
+        action="store_true",
+        help="Do not fill the histogram area",
+    )
+    p.add_option("--title", default="*Ks* distribution", help="Title of the plot")
 
 
 def report(args):
-    '''
+    """
     %prog report ksfile
 
     generate a report given a Ks result file (as produced by synonymous_calc.py).
     describe the median Ks, Ka values, as well as the distribution in stem-leaf plot
-    '''
+    """
     from jcvi.utils.cbook import SummaryStats
     from jcvi.graphics.histogram import stem_leaf_plot
 
     p = OptionParser(report.__doc__)
-    p.add_option("--pdf", default=False, action="store_true",
-            help="Generate graphic output for the histogram [default: %default]")
-    p.add_option("--components", default=1, type="int",
-            help="Number of components to decompose peaks [default: %default]")
+    p.add_option(
+        "--pdf",
+        default=False,
+        action="store_true",
+        help="Generate graphic output for the histogram",
+    )
+    p.add_option(
+        "--components",
+        default=1,
+        type="int",
+        help="Number of components to decompose peaks",
+    )
     add_plot_options(p)
     opts, args, iopts = p.set_image_options(args, figsize="5x5")
 
-    if len(args) !=  1:
+    if len(args) != 1:
         sys.exit(not p.print_help())
 
     ks_file, = args
@@ -1006,7 +1140,7 @@ def report(args):
 
     for f in fields.split(",")[1:]:
         columndata = [getattr(x, f) for x in data]
-        ks = ("ks" in f)
+        ks = "ks" in f
         if not ks:
             continue
 
@@ -1014,13 +1148,13 @@ def report(args):
 
         st = SummaryStats(columndata)
         title = "{0} ({1}): ".format(descriptions[f], ks_file)
-        title += "Median:{0:.3f} (1Q:{1:.3f}|3Q:{2:.3f}||".\
-                format(st.median, st.firstq, st.thirdq)
-        title += "Mean:{0:.3f}|Std:{1:.3f}||N:{2})".\
-                format(st.mean, st.sd, st.size)
+        title += "Median:{0:.3f} (1Q:{1:.3f}|3Q:{2:.3f}||".format(
+            st.median, st.firstq, st.thirdq
+        )
+        title += "Mean:{0:.3f}|Std:{1:.3f}||N:{2})".format(st.mean, st.sd, st.size)
 
-        tbins = (0, ks_max, bins) if ks else (0, .6, 10)
-        digit = 2 if (ks_max * 1. / bins) < .1 else 1
+        tbins = (0, ks_max, bins) if ks else (0, 0.6, 10)
+        digit = 2 if (ks_max * 1.0 / bins) < 0.1 else 1
         stem_leaf_plot(columndata, *tbins, digit=digit, title=title)
 
     if not opts.pdf:
@@ -1031,11 +1165,11 @@ def report(args):
     data = [x for x in data if ks_min <= x <= ks_max]
 
     fig = plt.figure(1, (iopts.w, iopts.h))
-    ax = fig.add_axes([.12, .1, .8, .8])
+    ax = fig.add_axes([0.12, 0.1, 0.8, 0.8])
     kp = KsPlot(ax, ks_max, opts.bins, legendp=opts.legendp)
-    kp.add_data(data, components, fill=opts.fill, fitted=opts.fit)
+    kp.add_data(data, components, fill=opts.fill, fitted=opts.fit, kde=opts.kde)
     kp.draw(title=opts.title)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

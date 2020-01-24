@@ -831,6 +831,8 @@ def translate(args):
     represents a partial gene, therefore disrupting the frame of the protein.
     Check all three frames to get a valid translation.
     """
+    from jcvi.utils.cbook import gene_name
+
     transl_tables = [str(x) for x in range(1, 25)]
     p = OptionParser(translate.__doc__)
     p.add_option(
@@ -851,9 +853,16 @@ def translate(args):
         choices=transl_tables,
         help="Specify translation table to use",
     )
+    p.add_option(
+        "--strip_names",
+        default=False,
+        action="store_true",
+        help="Strip alternative splicing (e.g. At5g06540.1 -> At5g06540)",
+    )
     p.set_outfile()
 
     opts, args = p.parse_args(args)
+    strip_names = opts.strip_names
 
     if len(args) != 1:
         sys.exit(not p.print_help())
@@ -875,7 +884,14 @@ def translate(args):
     five_prime_missing = three_prime_missing = 0
     contain_ns = complete = cannot_translate = total = 0
 
+    seen = set()
     for name, rec in f.iteritems_ordered():
+        if strip_names:
+            name = gene_name(name)
+
+        if name in seen:
+            continue
+
         cds = rec.seq
         cdslen = len(cds)
         peplen = cdslen // 3
@@ -924,6 +940,7 @@ def translate(args):
         peprec = SeqRecord(pep, id=name, description=rec.description)
         SeqIO.write([peprec], fw, "fasta")
         fw.flush()
+        seen.add(name)
 
     print(
         "Complete gene models: {0}".format(percentage(complete, total)), file=sys.stderr
@@ -945,6 +962,12 @@ def translate(args):
         )
 
     fw.close()
+
+    logging.debug(
+        "Total records: {}, Unique records (strip_names={}): {}".format(
+            total, strip_names, len(seen)
+        )
+    )
 
     return cdsfasta, outfile
 
@@ -1748,7 +1771,6 @@ def get_qual(fastafile, suffix=QUALSUFFIX, check=True):
             logging.debug("qual file `{0}` found".format(qualfile2))
             return qualfile2
         else:
-            logging.warning("qual file not found")
             return None
 
     return qualfile1

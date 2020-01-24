@@ -885,7 +885,10 @@ def translate(args):
     contain_ns = complete = cannot_translate = total = 0
 
     seen = set()
+    grand_total = 0
     for name, rec in f.iteritems_ordered():
+        grand_total += 1
+
         if strip_names:
             name = gene_name(name)
 
@@ -965,7 +968,7 @@ def translate(args):
 
     logging.debug(
         "Total records: {}, Unique records (strip_names={}): {}".format(
-            total, strip_names, len(seen)
+            grand_total, strip_names, len(seen)
         )
     )
 

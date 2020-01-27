@@ -44,6 +44,30 @@ class AnchorFile(BaseFile):
                 a, b = row[:2]
                 yield a, b, block_id
 
+    def make_ranges(self, order, clip=10):
+        """ Prepare anchors information into a set of ranges for chaining
+        """
+        ranges = []
+        block_pairs = defaultdict(dict)
+        blocks = self.blocks
+        for i, ib in enumerate(blocks):
+            q, s, t = zip(*ib)
+            if q[0] not in order:
+                q, s = s, q
+
+            r = make_range(q, s, t, i, order, block_pairs, clip=clip)
+            ranges.append(r)
+
+            assert q[0] in order
+            if s[0] not in order:
+                continue
+
+            # is_self comparison
+            q, s = s, q
+            r = make_range(q, s, t, i, order, block_pairs, clip=clip)
+            ranges.append(r)
+        return ranges, block_pairs
+
     def print_to_file(self, filename="stdout", accepted=None):
         fw = must_open(filename, "w")
         blocks = self.blocks
@@ -495,8 +519,12 @@ def main():
         ("scan", "get anchor list using single-linkage algorithm"),
         ("summary", "provide statistics for pairwise blocks"),
         ("liftover", "given anchor list, pull adjacent pairs from blast file"),
+        # Multiple synteny blocks inference
         ("mcscan", "stack synteny blocks on a reference bed"),
         ("mcscanq", "query multiple synteny blocks"),
+        # Assemble multiple synteny blocks
+        ("query", "collect matching region based on the query region"),
+        # Filter synteny blocks
         ("screen", "extract subset of blocks from anchorfile"),
         ("simple", "convert anchorfile to simple block descriptions"),
         ("stats", "provide statistics for mscan blocks"),
@@ -512,6 +540,24 @@ def main():
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def query(args):
+    """
+    %prog query bedfile anchorsfile startGeneId endGeneId
+
+    Collect matching region based on query region as given by startGeneId to
+    endGeneId. This can be considered a local verion of mcscan().
+
+    Typical pipeline is to extract a set of pairwise syntenic regions to the
+    selected region of interest and then assemble them into .blocks file for
+    plotting purposes.
+    """
+    p = OptionParser(query.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
 
 
 def colinear_evaluate_weights(tour, data):
@@ -1236,7 +1282,7 @@ def get_best_pair(qs, ss, ts):
     return spairs
 
 
-def get_range(q, s, t, i, order, block_pairs, clip=10):
+def make_range(q, s, t, i, order, block_pairs, clip=10):
     pairs = get_best_pair(q, s, t)
     score = len(pairs)
     block_pairs[i].update(pairs)
@@ -1314,25 +1360,7 @@ def mcscan(args):
                 tandems[atom] = s
 
     ac = AnchorFile(anchorfile)
-    ranges = []
-    block_pairs = defaultdict(dict)
-    blocks = ac.blocks
-    for i, ib in enumerate(blocks):
-        q, s, t = zip(*ib)
-        if q[0] not in order:
-            q, s = s, q
-
-        r = get_range(q, s, t, i, order, block_pairs, clip=clip)
-        ranges.append(r)
-
-        assert q[0] in order
-        if s[0] not in order:
-            continue
-
-        # is_self comparison
-        q, s = s, q
-        r = get_range(q, s, t, i, order, block_pairs, clip=clip)
-        ranges.append(r)
+    ranges, block_pairs = ac.make_ranges(order, clip=clip)
 
     fw = must_open(ofile, "w")
 

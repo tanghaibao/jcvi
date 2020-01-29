@@ -524,6 +524,7 @@ def main():
         ("mcscanq", "query multiple synteny blocks"),
         # Assemble multiple synteny blocks
         ("query", "collect matching region based on the query region"),
+        ("assemble", "build blocks from regions defined by start and end"),
         # Filter synteny blocks
         ("screen", "extract subset of blocks from anchorfile"),
         ("simple", "convert anchorfile to simple block descriptions"),
@@ -610,7 +611,7 @@ def query(args):
                 matching_region.add(b)
             else:
                 matching_region.add(a)
-        if len(matching_region) < 4:
+        if len(matching_region) < 2:
             continue
         # Print a summary of the matching region
         regions.append(get_region_size(matching_region, sbed, sorder))
@@ -619,10 +620,26 @@ def query(args):
         regions, key=lambda x: (-x[-1], -x[-2])  # Sort by (anchor_count, span) DESC
     ):
         print(
-            "{} - {} ({}): span {}, anchors {}".format(
+            "{} {} ({}): span {}, anchors {}".format(
                 min_accn, max_accn, seqid, span, anchor_count
             )
         )
+
+
+def assemble(args):
+    """
+    %prog assemble regionsfile all.bed all.cds
+
+    Assemble blocks file based on regions file. Regions file may look like:
+
+    """
+    p = OptionParser(assemble.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    regionsfile, bedfile, cdsfile = args
 
 
 def colinear_evaluate_weights(tour, data):

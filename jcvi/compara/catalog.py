@@ -638,7 +638,7 @@ def ortholog(args):
         "--no_strip_names",
         default=False,
         action="store_true",
-        help="Do not strip alternative splicing " "(e.g. At5g06540.1 -> At5g06540)",
+        help="Do not strip alternative splicing (e.g. At5g06540.1 -> At5g06540)",
     )
     p.set_dotplot_opts()
 

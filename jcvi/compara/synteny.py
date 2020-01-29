@@ -644,6 +644,7 @@ def assemble(args):
     Contents after the 3rd field (end gene) are ignored. Using the example
     above, the final .blocks file will contain 5 columns, one column for each line.
     """
+    import shutil
     from tempfile import mkdtemp, mkstemp
 
     from jcvi.apps.align import last
@@ -651,11 +652,19 @@ def assemble(args):
     from jcvi.formats.base import FileShredder
 
     p = OptionParser(assemble.__doc__)
+    p.add_option(
+        "--no_strip_names",
+        default=False,
+        action="store_true",
+        help="Do not strip alternative splicing (e.g. At5g06540.1 -> At5g06540)",
+    )
+    p.set_outfile()
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
         sys.exit(not p.print_help())
 
+    strip_names = not opts.no_strip_names
     regionsfile, bedfile, cdsfile = args
     species_beds = {}
     column_genes = []
@@ -682,19 +691,43 @@ def assemble(args):
 
     # Extract FASTA
     fd, fastafile = mkstemp(dir=workdir)
-    some([cdsfile, idsfile, fastafile])
+    some_args = [cdsfile, idsfile, fastafile]
+    if not strip_names:
+        some_args += ["--no_strip_names"]
+    some(some_args)
 
     # Perform self-comparison and collect all pairs
     last_output = last([fastafile, fastafile, "--outdir", workdir])
     blast = Blast(last_output)
     pairs = set()
     for b in blast:
-        pairs.add((b.query, b.subject))
+        query, subject = b.query, b.subject
+        if strip_names:
+            query, subject = gene_name(query), gene_name(subject)
+        pairs.add((query, subject))
     logging.debug("Extracted {} gene pairs from `{}`".format(len(pairs), last_output))
 
     # Sort the pairs into columns
+    N = len(column_genes)
+    fw = must_open(opts.outfile, "w")
+    for i in range(N):
+        for j in range(i + 1, N):
+            genes_i = column_genes[i]
+            genes_j = column_genes[j]
+            for a, b in pairs:
+                if not (a in genes_i and b in genes_j):
+                    continue
+                slots = ["."] * N
+                slots[i] = a
+                slots[j] = b
+                print("\t".join(slots), file=fw)
+    fw.close()
+
+    # Compress the pairwise results and merge when possible
+    # TODO: This is currently not optimized and inefficient
 
     # Cleanup
+    shutil.rmtree(workdir)
 
 
 def colinear_evaluate_weights(tour, data):

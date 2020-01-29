@@ -668,9 +668,12 @@ def assemble(args):
     regionsfile, bedfile, cdsfile = args
     species_beds = {}
     column_genes = []
+    pivot = None
     with open(regionsfile) as fp:
         for row in fp:
             species, start, end = row.split()[:3]
+            if pivot is None:
+                pivot = species
             if species not in species_beds:
                 species_beds[species] = Bed(species + ".bed")
             bed = species_beds[species]
@@ -709,7 +712,7 @@ def assemble(args):
 
     # Sort the pairs into columns
     N = len(column_genes)
-    fw = must_open(opts.outfile, "w")
+    all_slots = []
     for i in range(N):
         for j in range(i + 1, N):
             genes_i = column_genes[i]
@@ -720,11 +723,54 @@ def assemble(args):
                 slots = ["."] * N
                 slots[i] = a
                 slots[j] = b
-                print("\t".join(slots), file=fw)
-    fw.close()
+                all_slots.append(slots)
 
     # Compress the pairwise results and merge when possible
     # TODO: This is currently not optimized and inefficient
+    def is_compatible(slots1, slots2):
+        # At least intersects for one gene
+        assert len(slots1) == len(slots2)
+        flag = False
+        for a, b in zip(slots1, slots2):
+            if "." in (a, b):
+                continue
+            if a == b:
+                flag = True
+            else:
+                return False
+        return flag
+
+    def merge(slots, processed):
+        for i, a in enumerate(slots):
+            if processed[i] == "." and a != ".":
+                processed[i] = a
+
+    processed_slots = []
+    all_slots.sort()
+    for slots in all_slots:
+        merged = False
+        for processed in processed_slots:
+            if is_compatible(slots, processed):
+                merge(slots, processed)  # Merge into that line
+                merged = True
+                break
+        if not merged:  # New information
+            processed_slots.append(slots)
+
+    logging.debug(
+        "Before compression: {}, After compression: {}".format(
+            len(all_slots), len(processed_slots)
+        )
+    )
+
+    pivot_order = species_beds[pivot].order
+    pivot_max = len(species_beds[pivot])
+    pivot_sort_key = lambda x: pivot_order[x[0]][0] if x[0] != "." else pivot_max
+    processed_slots.sort(key=pivot_sort_key)
+
+    with must_open(opts.outfile, "w") as fw:
+        for slots in processed_slots:
+            print("\t".join(slots), file=fw)
 
     # Cleanup
     shutil.rmtree(workdir)

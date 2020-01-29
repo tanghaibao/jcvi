@@ -2,6 +2,7 @@
 # -*- coding: UTF-8 -*-
 
 from __future__ import print_function
+
 import os.path as op
 import sys
 import logging
@@ -632,7 +633,23 @@ def assemble(args):
 
     Assemble blocks file based on regions file. Regions file may look like:
 
+    amborella evm_27.model.AmTr_v1.0_scaffold00004.87 evm_27.model.AmTr_v1.0_scaffold00004.204
+    apostasia Ash010455 Ash010479 (fragScaff_scaffold_5)
+    apostasia Ash018328 Ash018367 (original_scaffold_2912)
+    apostasia Ash007533 Ash007562 (fragScaff_scaffold_132)
+    apostasia Ash002281 Ash002299 (fragScaff_scaffold_86)
+
+    Where each line lists a region, starting with the species name (species.bed
+    must be present in the current directory). Followed by start and end gene.
+    Contents after the 3rd field (end gene) are ignored. Using the example
+    above, the final .blocks file will contain 5 columns, one column for each line.
     """
+    from tempfile import mkdtemp, mkstemp
+
+    from jcvi.apps.align import last
+    from jcvi.formats.fasta import some
+    from jcvi.formats.base import FileShredder
+
     p = OptionParser(assemble.__doc__)
     opts, args = p.parse_args(args)
 
@@ -640,6 +657,44 @@ def assemble(args):
         sys.exit(not p.print_help())
 
     regionsfile, bedfile, cdsfile = args
+    species_beds = {}
+    column_genes = []
+    with open(regionsfile) as fp:
+        for row in fp:
+            species, start, end = row.split()[:3]
+            if species not in species_beds:
+                species_beds[species] = Bed(species + ".bed")
+            bed = species_beds[species]
+            order = bed.order
+            si, s = order[start]
+            ei, e = order[end]
+            genes = set(x.accn for x in bed[si : ei + 1])
+            column_genes.append(genes)
+
+    # Write gene ids
+    workdir = mkdtemp()
+    fd, idsfile = mkstemp(dir=workdir)
+    with open(idsfile, "w") as fw:
+        for genes in column_genes:
+            print(" ".join(genes), file=fw)
+
+        logging.debug("Gene ids written to `{}`".format(idsfile))
+
+    # Extract FASTA
+    fd, fastafile = mkstemp(dir=workdir)
+    some([cdsfile, idsfile, fastafile])
+
+    # Perform self-comparison and collect all pairs
+    last_output = last([fastafile, fastafile, "--outdir", workdir])
+    blast = Blast(last_output)
+    pairs = set()
+    for b in blast:
+        pairs.add((b.query, b.subject))
+    logging.debug("Extracted {} gene pairs from `{}`".format(len(pairs), last_output))
+
+    # Sort the pairs into columns
+
+    # Cleanup
 
 
 def colinear_evaluate_weights(tour, data):

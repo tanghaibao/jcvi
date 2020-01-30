@@ -859,10 +859,17 @@ def translate(args):
         action="store_true",
         help="Strip alternative splicing (e.g. At5g06540.1 -> At5g06540)",
     )
+    p.add_option(
+        "--unique",
+        default=False,
+        action="store_true",
+        help="Ensure the output FASTA contains unique identifiers",
+    )
     p.set_outfile()
 
     opts, args = p.parse_args(args)
     strip_names = opts.strip_names
+    unique = opts.unique
 
     if len(args) != 1:
         sys.exit(not p.print_help())
@@ -892,7 +899,7 @@ def translate(args):
         if strip_names:
             name = gene_name(name)
 
-        if name in seen:
+        if unique and name in seen:
             continue
 
         cds = rec.seq

@@ -12,23 +12,35 @@ import numpy as np
 from random import choice, shuffle, random, randint
 
 from jcvi.apps.base import OptionParser, ActionDispatcher
-from jcvi.graphics.base import plt, Rectangle, CirclePolygon, Polygon, \
-            savefig, get_map
+from jcvi.graphics.base import (
+    plt,
+    Rectangle,
+    CirclePolygon,
+    Ellipse,
+    Polygon,
+    savefig,
+    get_map,
+)
 
 
-tstep = .05
+tstep = 0.05
 Timing = np.arange(0, 1 + tstep, tstep)
-arrowprops = dict(arrowstyle="fancy", fc="lightslategray", ec="lightslategray",
-            connectionstyle="arc3,rad=-0.05")
+arrowprops = dict(
+    arrowstyle="fancy",
+    fc="lightslategray",
+    ec="lightslategray",
+    connectionstyle="arc3,rad=-0.05",
+)
 
 
-class Bezier (object):
+class Bezier(object):
     """
     Cubic bezier curve, see the math:
     <http://www.moshplant.com/direct-or/bezier/math.html>
     p0 : origin, p1, p2 :control, p3: destination
     """
-    def __init__(self, ax, p0, p1, p2, p3, color='m', alpha=.2):
+
+    def __init__(self, ax, p0, p1, p2, p3, color="m", alpha=0.2):
         pts = (p0, p1, p2, p3)
         px, py = zip(*pts)
         xt = self.get_array(px)
@@ -49,83 +61,134 @@ class Bezier (object):
         return a * tcubic + b * tsquared + c * t + p0
 
 
-class RoundLabel (object):
+class RoundLabel(object):
     """Round rectangle around the text label
     """
+
     def __init__(self, ax, x1, x2, t, lw=0, fill=False, fc="lavender", **kwargs):
 
-        ax.text(x1, x2, t, ha="center",
-            bbox=dict(boxstyle="round", fill=fill, fc=fc, lw=lw), **kwargs)
+        ax.text(
+            x1,
+            x2,
+            t,
+            ha="center",
+            bbox=dict(boxstyle="round", fill=fill, fc=fc, lw=lw),
+            **kwargs
+        )
 
 
-class RoundRect (object):
+class RoundRect(object):
     """Round rectangle directly
     """
-    def __init__(self, ax, xy, width, height, shrink=.1, label=None, **kwargs):
+
+    def __init__(self, ax, xy, width, height, shrink=0.1, label=None, **kwargs):
 
         shrink *= height
-        x, y= xy
+        x, y = xy
         pts = []
         # plot the four rounded cap one by one
-        pts += plot_cap((x + width - shrink, y + height - shrink),
-                             np.radians(range(0, 90)), shrink)
+        pts += plot_cap(
+            (x + width - shrink, y + height - shrink), np.radians(range(0, 90)), shrink
+        )
         pts += [[x + width - shrink, y + height], [x + shrink, y + height]]
-        pts += plot_cap((x + shrink, y + height - shrink),
-                             np.radians(range(90, 180)), shrink)
+        pts += plot_cap(
+            (x + shrink, y + height - shrink), np.radians(range(90, 180)), shrink
+        )
         pts += [[x, y + height - shrink], [x, y + shrink]]
-        pts += plot_cap((x + shrink, y + shrink),
-                             np.radians(range(180, 270)), shrink)
+        pts += plot_cap((x + shrink, y + shrink), np.radians(range(180, 270)), shrink)
         pts += [[x + shrink, y], [x + width - shrink, y]]
-        pts += plot_cap((x + width - shrink, y + shrink),
-                             np.radians(range(270, 360)), shrink)
+        pts += plot_cap(
+            (x + width - shrink, y + shrink), np.radians(range(270, 360)), shrink
+        )
         pts += [[x + width, y + shrink], [x + width, y + height - shrink]]
         p1 = Polygon(pts, **kwargs)
         ax.add_patch(p1)
         # add a white transparency ellipse filter
         if label:
-            ax.text(x + width / 2,y + height / 2,label, size=10,
-                      ha="center", va="center", color="w")
+            ax.text(
+                x + width / 2,
+                y + height / 2,
+                label,
+                size=10,
+                ha="center",
+                va="center",
+                color="w",
+            )
 
 
-class DoubleSquare (object):
+class DoubleSquare(object):
     """Square with a double-line margin
     """
-    def __init__(self, ax, x, y, radius=.01, **kwargs):
+
+    def __init__(self, ax, x, y, radius=0.01, **kwargs):
 
         d = radius * 1.5
-        ax.add_patch(Rectangle((x - d, y - d), 2 * d, 2 * d,
-                     fc="w", ec="k", zorder=10))
+        ax.add_patch(Rectangle((x - d, y - d), 2 * d, 2 * d, fc="w", ec="k", zorder=10))
         d = radius
-        ax.add_patch(Rectangle((x - d, y - d), 2 * d, 2 * d,
-                     zorder=10, **kwargs))
+        ax.add_patch(Rectangle((x - d, y - d), 2 * d, 2 * d, zorder=10, **kwargs))
 
 
-class DoubleCircle (object):
+class DoubleCircle(object):
     """Circle with a double-line margin
     """
-    def __init__(self, ax, x, y, radius=.01, **kwargs):
 
-        ax.add_patch(CirclePolygon((x, y), radius * 1.4,
-                     resolution=50, fc="w", ec="k"))
-        ax.add_patch(CirclePolygon((x, y), radius,
-                     resolution=50, **kwargs))
+    def __init__(self, ax, x, y, radius=0.01, **kwargs):
+
+        ax.add_patch(CirclePolygon((x, y), radius * 1.4, resolution=50, fc="w", ec="k"))
+        ax.add_patch(CirclePolygon((x, y), radius, resolution=50, **kwargs))
 
 
-class TextCircle (object):
+def get_asymmetry(ax, radius):
+    """Calculates asymmetry of x and y axes. For axes that do not keep equal aspect ratio.
+
+    Args:
+        ax (Axes): matplotlib axes
+    """
+    x0, y0 = ax.transAxes.transform((0, 0))  # Lower left in pixels
+    x1, y1 = ax.transAxes.transform((1, 1))  # Upper right in pixels
+    dx = x1 - x0
+    dy = y1 - y0
+    maxd = max(dx, dy)
+    width = radius * maxd / dx
+    height = radius * maxd / dy
+    return width, height
+
+
+class TextCircle(object):
     """Circle with a character wrapped in
     """
-    def __init__(self, ax, x, y, label, radius=.02, fc="k", color="w",
-                size=12, zorder=4, **kwargs):
 
-        circle = CirclePolygon((x, y), radius, resolution=20, \
-                                fc=fc, ec=fc, zorder=zorder, **kwargs)
+    def __init__(
+        self,
+        ax,
+        x,
+        y,
+        label,
+        radius=0.02,
+        fc="k",
+        color="w",
+        size=12,
+        zorder=4,
+        **kwargs
+    ):
+
+        width, height = get_asymmetry(ax, radius)
+        circle = Ellipse((x, y), width, height, fc=fc, ec=fc, zorder=zorder, **kwargs)
         ax.add_patch(circle)
-        ax.text(x, y, label, ha="center", va="center", color=color,
-                size=size, zorder=zorder + 1, **kwargs)
+        ax.text(
+            x,
+            y,
+            label,
+            ha="center",
+            va="center",
+            color=color,
+            size=size,
+            zorder=zorder + 1,
+            **kwargs
+        )
 
 
-class BaseGlyph (list):
-
+class BaseGlyph(list):
     def __init__(self, ax):
         self.ax = ax
 
@@ -138,33 +201,44 @@ class BaseGlyph (list):
             p.set_transform(tr)
 
 
-class Glyph (BaseGlyph):
+class Glyph(BaseGlyph):
     """Draws gradient rectangle
     """
-    def __init__(self, ax, x1, x2, y, height=.04, gradient=True, fc="gray", **kwargs):
+
+    def __init__(self, ax, x1, x2, y, height=0.04, gradient=True, fc="gray", **kwargs):
 
         super(Glyph, self).__init__(ax)
         width = x2 - x1
         # Frame around the gradient rectangle
-        p1 = (x1, y - .5 * height)
-        self.append(Rectangle(p1, width, height, fc=fc,
-            lw=0, **kwargs))
+        p1 = (x1, y - 0.5 * height)
+        self.append(Rectangle(p1, width, height, fc=fc, lw=0, **kwargs))
 
         # Several overlaying patches
         if gradient:
-            for cascade in np.arange(.1, .55, .05):
+            for cascade in np.arange(0.1, 0.55, 0.05):
                 p1 = (x1, y - height * cascade)
-                self.append(Rectangle(p1, width, 2 * cascade * height,
-                    fc='w', lw=0, alpha=.1, **kwargs))
+                self.append(
+                    Rectangle(
+                        p1,
+                        width,
+                        2 * cascade * height,
+                        fc="w",
+                        lw=0,
+                        alpha=0.1,
+                        **kwargs
+                    )
+                )
 
         self.add_patches()
 
 
-class ExonGlyph (BaseGlyph):
+class ExonGlyph(BaseGlyph):
     """Multiple rectangles linked together.
     """
-    def __init__(self, ax, x, y, mrnabed, exonbeds, height=.03, ratio=1,
-                 align="left", **kwargs):
+
+    def __init__(
+        self, ax, x, y, mrnabed, exonbeds, height=0.03, ratio=1, align="left", **kwargs
+    ):
 
         super(ExonGlyph, self).__init__(ax)
         start, end = mrnabed.start, mrnabed.end
@@ -178,11 +252,23 @@ class ExonGlyph (BaseGlyph):
             Glyph(ax, xc(bstart), xc(bend), y, fc="orange")
 
 
-class GeneGlyph (BaseGlyph):
+class GeneGlyph(BaseGlyph):
     """Draws an oriented gene symbol, with color gradient, to represent genes
     """
-    def __init__(self, ax, x1, x2, y, height, gradient=True, tip=.0025, \
-                 color="k", shadow=False, **kwargs):
+
+    def __init__(
+        self,
+        ax,
+        x1,
+        x2,
+        y,
+        height,
+        gradient=True,
+        tip=0.0025,
+        color="k",
+        shadow=False,
+        **kwargs
+    ):
 
         super(GeneGlyph, self).__init__(ax)
         # Figure out the polygon vertices first
@@ -190,11 +276,11 @@ class GeneGlyph (BaseGlyph):
         level = 10
         tip = min(tip, abs(x1 - x2))
         # Frame
-        p1 = (x1, y - height * .5)
-        p2 = (x2 - orientation * tip, y - height * .5)
+        p1 = (x1, y - height * 0.5)
+        p2 = (x2 - orientation * tip, y - height * 0.5)
         p3 = (x2, y)
-        p4 = (x2 - orientation * tip, y + height * .5)
-        p5 = (x1, y + .5*height)
+        p4 = (x2 - orientation * tip, y + height * 0.5)
+        p5 = (x1, y + 0.5 * height)
         if "fc" not in kwargs:
             kwargs["fc"] = color
         if "ec" not in kwargs:
@@ -206,33 +292,36 @@ class GeneGlyph (BaseGlyph):
             zz = kwargs.get("zorder", 1)
             zz += 1
             # Patch (apply white mask)
-            for cascade in np.arange(0, .5, .5 / level):
+            for cascade in np.arange(0, 0.5, 0.5 / level):
                 p1 = (x1, y - height * cascade)
                 p2 = (x2 - orientation * tip, y - height * cascade)
                 p3 = (x2, y)
                 p4 = (x2 - orientation * tip, y + height * cascade)
                 p5 = (x1, y + height * cascade)
-                self.append(Polygon([p1, p2, p3, p4, p5], fc='w', \
-                        lw=0, alpha=.2, zorder=zz))
+                self.append(
+                    Polygon([p1, p2, p3, p4, p5], fc="w", lw=0, alpha=0.2, zorder=zz)
+                )
 
         if shadow:
             import matplotlib.patheffects as pe
-            P.set_path_effects([pe.withSimplePatchShadow((1, -1), alpha=.4)])
+
+            P.set_path_effects([pe.withSimplePatchShadow((1, -1), alpha=0.4)])
 
         self.add_patches()
 
 
-class CartoonRegion (object):
+class CartoonRegion(object):
     """
     Draw a collection of GeneGlyphs along chromosome.
     """
+
     def __init__(self, n, k=12):
         # Chromosome
         self.n = n
         self.orientations = [choice([-1, 1]) for i in xrange(n)]
         self.assign_colors(k)
 
-    def draw(self, ax, x, y, gene_len=.012, strip=True, color=True):
+    def draw(self, ax, x, y, gene_len=0.012, strip=True, color=True):
         if strip:
             self.strip()
 
@@ -242,10 +331,10 @@ class CartoonRegion (object):
         self.x1, self.x2 = x1, x2
         self.y = y
         ax.plot((x1, x2), (y, y), color="gray", lw=2, zorder=1)
-        bit = .008
+        bit = 0.008
         xs = (x1 - 2 * bit, x1 - bit, x2 + bit, x2 + 2 * bit)
         ax.plot(xs, [y] * 4, ".", lw=2, color="gray")
-        pos = np.arange(x1 + t, x2, t)[:self.n]
+        pos = np.arange(x1 + t, x2, t)[: self.n]
         assert len(pos) == self.n, "len(pos) = {0}".format(len(pos))
 
         gl = gene_len / 2
@@ -253,27 +342,39 @@ class CartoonRegion (object):
             x1, x2 = x - gl, x + gl
             if o < 0:
                 x1, x2 = x2, x1
-            if not color and c != 'k':
-                c = 'w'
-            GeneGlyph(ax, x1, x2, y, gene_len, color=c, ec='k',
-                      gradient=False, shadow=True, zorder=10)
+            if not color and c != "k":
+                c = "w"
+            GeneGlyph(
+                ax,
+                x1,
+                x2,
+                y,
+                gene_len,
+                color=c,
+                ec="k",
+                gradient=False,
+                shadow=True,
+                zorder=10,
+            )
 
     def assign_colors(self, k):
         from matplotlib.colors import rgb2hex
 
-        colorset = get_map('Paired', 'qualitative', k).mpl_colors
+        colorset = get_map("Paired", "qualitative", k).mpl_colors
         colorset = [rgb2hex(x) for x in colorset]
-        cs = colorset + ['w'] * (self.n - k - 1)
+        cs = colorset + ["w"] * (self.n - k - 1)
         shuffle(cs)
-        self.colors = cs[:self.n / 2] + ['k'] + cs[self.n / 2:]
+        self.colors = cs[: self.n / 2] + ["k"] + cs[self.n / 2 :]
         lf, p, rf = self.find_k()
         self.exchange(lf, p - 2)
         self.exchange(rf, p + 2)
 
     def exchange(self, p1, p2):
         self.colors[p1], self.colors[p2] = self.colors[p2], self.colors[p1]
-        self.orientations[p1], self.orientations[p2] = \
-                self.orientations[p2], self.orientations[p1]
+        self.orientations[p1], self.orientations[p2] = (
+            self.orientations[p2],
+            self.orientations[p1],
+        )
 
     def delete(self, p, waiver=None):
         if waiver and self.colors[p] in waiver:
@@ -283,7 +384,7 @@ class CartoonRegion (object):
         self.n -= 1
 
     def insert(self, p):
-        self.colors.insert(p, 'w')
+        self.colors.insert(p, "w")
         self.orientations.insert(p, choice([-1, 1]))
         self.n += 1
 
@@ -319,43 +420,43 @@ class CartoonRegion (object):
         self.truncate(lf, rf + 1)
 
     def strip(self):
-        while self.colors[0] == 'w':
+        while self.colors[0] == "w":
             self.delete(0)
-        while self.colors[-1] == 'w':
+        while self.colors[-1] == "w":
             self.delete(self.n - 1)
 
     def find_k(self):
-        p = self.colors.index('k')
-        lf = max(i for i, c in enumerate(self.colors[:p]) if c != 'w')
-        rf = min(i for i, c in enumerate(self.colors[p + 1:]) if c != 'w')
+        p = self.colors.index("k")
+        lf = max(i for i, c in enumerate(self.colors[:p]) if c != "w")
+        rf = min(i for i, c in enumerate(self.colors[p + 1 :]) if c != "w")
         return lf, p, rf + p + 1
 
-    def evolve(self, mode='S', target=10):
+    def evolve(self, mode="S", target=10):
         n = self.n
-        assert mode in ('S', 'F', 'G')
-        keep_k = mode == 'S'
+        assert mode in ("S", "F", "G")
+        keep_k = mode == "S"
         p = self.assign_flankers()
         waiver = self.flanks[:]
-        if mode == 'S':
-            waiver += ['k']
-        if mode == 'F':
+        if mode == "S":
+            waiver += ["k"]
+        if mode == "F":
             self.delete(p)
-        elif mode == 'G':
-            left_score = sum(1 for x in self.colors[:p] if x != 'w')
-            right_score = sum(1 for x in self.colors[p + 1:] if x != 'w')
+        elif mode == "G":
+            left_score = sum(1 for x in self.colors[:p] if x != "w")
+            right_score = sum(1 for x in self.colors[p + 1 :] if x != "w")
             if left_score > right_score:
-                self.colors[:p + 1] = ['w'] * (p + 1)
+                self.colors[: p + 1] = ["w"] * (p + 1)
             else:
-                self.colors[p:] = ['w'] * (self.n - p)
+                self.colors[p:] = ["w"] * (self.n - p)
         while self.nonwhites > target:
-            if random() > .35:
+            if random() > 0.35:
                 self.delete(randint(0, self.n - 1), waiver=waiver)
-            if random() > .65 and self.n < n * .8:
+            if random() > 0.65 and self.n < n * 0.8:
                 self.insert(randint(0, self.n - 1))
 
     @property
     def nonwhites(self):
-        return sum(1 for x in self.colors if x != 'w')
+        return sum(1 for x in self.colors if x != "w")
 
 
 def plot_cap(center, t, r):
@@ -366,9 +467,9 @@ def plot_cap(center, t, r):
 def main():
 
     actions = (
-        ('demo', 'run a demo to showcase some common usages of various glyphs'),
-        ('gff', 'draw exons for genes based on gff files'),
-            )
+        ("demo", "run a demo to showcase some common usages of various glyphs"),
+        ("gff", "draw exons for genes based on gff files"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -392,7 +493,7 @@ def get_cds_beds(gffile, noUTR=False):
     return mrnabed, cdsbeds
 
 
-def get_setups(gffiles, canvas=.6, noUTR=False):
+def get_setups(gffiles, canvas=0.6, noUTR=False):
     setups = []
     for gffile in gffiles:
         genename = op.basename(gffile).rsplit(".", 1)[0]
@@ -414,10 +515,10 @@ def gff(args):
     """
     align_choices = ("left", "center", "right")
     p = OptionParser(gff.__doc__)
-    p.add_option("--align", default="left", choices=align_choices,
-                 help="Horizontal alignment [default: %default]")
-    p.add_option("--noUTR", default=False, action="store_true",
-                 help="Do not plot UTRs [default: %default]")
+    p.add_option(
+        "--align", default="left", choices=align_choices, help="Horizontal alignment"
+    )
+    p.add_option("--noUTR", default=False, action="store_true", help="Do not plot UTRs")
     opts, args = p.parse_args(args)
 
     if len(args) < 1:
@@ -429,13 +530,13 @@ def gff(args):
     gffiles = args
     ngenes = len(gffiles)
 
-    canvas = .6
+    canvas = 0.6
     setups, ratio = get_setups(gffiles, canvas=canvas, noUTR=opts.noUTR)
     align = opts.align
-    xs = .2 if align == "left" else .8
+    xs = 0.2 if align == "left" else 0.8
     yinterval = canvas / ngenes
-    ys = .8
-    tip = .01
+    ys = 0.8
+    tip = 0.01
     for genename, mrnabed, cdsbeds in setups:
         ExonGlyph(root, xs, ys, mrnabed, cdsbeds, ratio=ratio, align=align)
         if align == "left":
@@ -465,53 +566,60 @@ def demo(args):
     fig = plt.figure(1, (8, 5))
     root = fig.add_axes([0, 0, 1, 1])
 
-    panel_space = .23
-    dup_space = .025
+    panel_space = 0.23
+    dup_space = 0.025
     # Draw a gene and two regulatory elements at these arbitrary locations
-    locs = [(.5, .9), # ancestral gene
-            (.5, .9 - panel_space + dup_space), # identical copies
-            (.5, .9 - panel_space - dup_space),
-            (.5, .9 - 2 * panel_space + dup_space), # degenerate copies
-            (.5, .9 - 2 * panel_space - dup_space),
-            (.2, .9 - 3 * panel_space + dup_space), # sub-functionalization
-            (.2, .9 - 3 * panel_space - dup_space),
-            (.5, .9 - 3 * panel_space + dup_space), # neo-functionalization
-            (.5, .9 - 3 * panel_space - dup_space),
-            (.8, .9 - 3 * panel_space + dup_space), # non-functionalization
-            (.8, .9 - 3 * panel_space - dup_space),
-            ]
+    locs = [
+        (0.5, 0.9),  # ancestral gene
+        (0.5, 0.9 - panel_space + dup_space),  # identical copies
+        (0.5, 0.9 - panel_space - dup_space),
+        (0.5, 0.9 - 2 * panel_space + dup_space),  # degenerate copies
+        (0.5, 0.9 - 2 * panel_space - dup_space),
+        (0.2, 0.9 - 3 * panel_space + dup_space),  # sub-functionalization
+        (0.2, 0.9 - 3 * panel_space - dup_space),
+        (0.5, 0.9 - 3 * panel_space + dup_space),  # neo-functionalization
+        (0.5, 0.9 - 3 * panel_space - dup_space),
+        (0.8, 0.9 - 3 * panel_space + dup_space),  # non-functionalization
+        (0.8, 0.9 - 3 * panel_space - dup_space),
+    ]
 
     default_regulator = "gm"
-    regulators = [default_regulator,
-            default_regulator, default_regulator,
-            "wm", default_regulator,
-            "wm", "gw",
-            "wb", default_regulator,
-            "ww", default_regulator,
-            ]
+    regulators = [
+        default_regulator,
+        default_regulator,
+        default_regulator,
+        "wm",
+        default_regulator,
+        "wm",
+        "gw",
+        "wb",
+        default_regulator,
+        "ww",
+        default_regulator,
+    ]
 
-    width = .24
+    width = 0.24
     for i, (xx, yy) in enumerate(locs):
         regulator = regulators[i]
-        x1, x2 = xx - .5 * width, xx + .5 * width
+        x1, x2 = xx - 0.5 * width, xx + 0.5 * width
         Glyph(root, x1, x2, yy)
         if i == 9:  # upper copy for non-functionalization
             continue
 
         # coding region
-        x1, x2 = xx - .16 * width, xx + .45 * width
+        x1, x2 = xx - 0.16 * width, xx + 0.45 * width
         Glyph(root, x1, x2, yy, fc="k")
 
         # two regulatory elements
-        x1, x2 = xx - .4 * width, xx - .28 * width
+        x1, x2 = xx - 0.4 * width, xx - 0.28 * width
         for xx, fc in zip((x1, x2), regulator):
-            if fc == 'w':
+            if fc == "w":
                 continue
 
             DoubleCircle(root, xx, yy, fc=fc)
 
         rotation = 30
-        tip = .02
+        tip = 0.02
         if i == 0:
             ya = yy + tip
             root.text(x1, ya, "Flower", rotation=rotation, va="bottom")
@@ -521,31 +629,33 @@ def demo(args):
             root.text(x2, ya, "Leaf", rotation=rotation, va="bottom")
 
     # Draw arrows between panels (center)
-    arrow_dist = .08
-    ar_xpos = .5
-    for ar_ypos in (.3, .53, .76):
-        root.annotate(" ", (ar_xpos, ar_ypos),
-                (ar_xpos, ar_ypos + arrow_dist),
-                arrowprops=arrowprops)
+    arrow_dist = 0.08
+    ar_xpos = 0.5
+    for ar_ypos in (0.3, 0.53, 0.76):
+        root.annotate(
+            " ",
+            (ar_xpos, ar_ypos),
+            (ar_xpos, ar_ypos + arrow_dist),
+            arrowprops=arrowprops,
+        )
 
-    ar_ypos = .3
-    for ar_xpos in (.2, .8):
-        root.annotate(" ", (ar_xpos, ar_ypos),
-                (.5, ar_ypos + arrow_dist),
-                arrowprops=arrowprops)
+    ar_ypos = 0.3
+    for ar_xpos in (0.2, 0.8):
+        root.annotate(
+            " ", (ar_xpos, ar_ypos), (0.5, ar_ypos + arrow_dist), arrowprops=arrowprops
+        )
 
     # Duplication, Degeneration
-    xx = .6
-    ys = (.76, .53)
+    xx = 0.6
+    ys = (0.76, 0.53)
     processes = ("Duplication", "Degeneration")
     for yy, process in zip(ys, processes):
-        root.text(xx, yy + .02, process, fontweight="bold")
+        root.text(xx, yy + 0.02, process, fontweight="bold")
 
     # Label of fates
-    xs = (.2, .5, .8)
-    fates = ("Subfunctionalization", "Neofunctionalization",
-            "Nonfunctionalization")
-    yy = .05
+    xs = (0.2, 0.5, 0.8)
+    fates = ("Subfunctionalization", "Neofunctionalization", "Nonfunctionalization")
+    yy = 0.05
     for xx, fate in zip(xs, fates):
         RoundLabel(root, xx, yy, fate)
 
@@ -557,5 +667,5 @@ def demo(args):
     savefig(figname, dpi=300)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

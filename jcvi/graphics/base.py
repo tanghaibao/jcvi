@@ -23,6 +23,7 @@ from matplotlib.patches import (
     Rectangle,
     Polygon,
     CirclePolygon,
+    Ellipse,
     PathPatch,
     FancyArrow,
     FancyArrowPatch,

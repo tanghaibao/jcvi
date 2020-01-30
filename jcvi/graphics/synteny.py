@@ -75,13 +75,17 @@ class Layout(AbstractLayout):
                 args = row.rstrip().split(delimiter)
                 args = [x.strip() for x in args]
                 a, b = args[1:3]
-                if len(args) == 4 and args[3]:
-                    samearc = args[3]
+                if len(args) >= 4 and args[3]:
+                    blockcolor = args[3]
+                else:
+                    blockcolor = None
+                if len(args) >= 5 and args[4]:
+                    samearc = args[4]
                 else:
                     samearc = None
                 a, b = int(a), int(b)
                 assert args[0] == "e"
-                self.edges.append((a, b, samearc))
+                self.edges.append((a, b, blockcolor, samearc))
             else:
                 self.append(LayoutLine(row, delimiter=delimiter))
 
@@ -122,6 +126,7 @@ class Shade(object):
             lw (int, optional): Line width. Defaults to 1.
             zorder (int, optional): Z-order. Defaults to 1.
         """
+        fc = fc or "gainsboro"  # Default block color is grayish
         assert style in self.Styles, "style must be one of {}".format(Styles)
         a1, a2 = a
         b1, b2 = b
@@ -379,16 +384,20 @@ class Synteny(object):
             gg.update(dict(((i, k), v) for k, v in r.gg.items()))
             ymids.append(r.y)
 
-        for i, j, samearc in lo.edges:
+        for i, j, blockcolor, samearc in lo.edges:
             for ga, gb, h in bf.iter_pairs(i, j):
                 a, b = gg[(i, ga)], gg[(j, gb)]
                 if samearc == "above":
                     ymid = ymids[i] + 2 * pad
+                elif samearc == "above2":
+                    ymid = ymids[i] + 4 * pad
                 elif samearc == "below":
                     ymid = ymids[i] - 2 * pad
+                elif samearc == "below2":
+                    ymid = ymids[i] - 4 * pad
                 else:
                     ymid = (ymids[i] + ymids[j]) / 2
-                Shade(root, a, b, ymid, fc="gainsboro", lw=0, alpha=1, style=shadestyle)
+                Shade(root, a, b, ymid, fc=blockcolor, lw=0, alpha=1, style=shadestyle)
 
             for ga, gb, h in bf.iter_pairs(i, j, highlight=True):
                 a, b = gg[(i, ga)], gg[(j, gb)]

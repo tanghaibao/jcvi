@@ -2,6 +2,7 @@
 # -*- coding: UTF-8 -*-
 
 from __future__ import print_function
+
 import os.path as op
 import sys
 import logging
@@ -524,6 +525,7 @@ def main():
         ("mcscanq", "query multiple synteny blocks"),
         # Assemble multiple synteny blocks
         ("query", "collect matching region based on the query region"),
+        ("assemble", "build blocks from regions defined by start and end"),
         # Filter synteny blocks
         ("screen", "extract subset of blocks from anchorfile"),
         ("simple", "convert anchorfile to simple block descriptions"),
@@ -610,7 +612,7 @@ def query(args):
                 matching_region.add(b)
             else:
                 matching_region.add(a)
-        if len(matching_region) < 4:
+        if len(matching_region) < 2:
             continue
         # Print a summary of the matching region
         regions.append(get_region_size(matching_region, sbed, sorder))
@@ -619,10 +621,159 @@ def query(args):
         regions, key=lambda x: (-x[-1], -x[-2])  # Sort by (anchor_count, span) DESC
     ):
         print(
-            "{} - {} ({}): span {}, anchors {}".format(
+            "{} {} ({}): span {}, anchors {}".format(
                 min_accn, max_accn, seqid, span, anchor_count
             )
         )
+
+
+def assemble(args):
+    """
+    %prog assemble regionsfile all.bed all.cds
+
+    Assemble blocks file based on regions file. Regions file may look like:
+
+    amborella evm_27.model.AmTr_v1.0_scaffold00004.87 evm_27.model.AmTr_v1.0_scaffold00004.204
+    apostasia Ash010455 Ash010479 (fragScaff_scaffold_5)
+    apostasia Ash018328 Ash018367 (original_scaffold_2912)
+    apostasia Ash007533 Ash007562 (fragScaff_scaffold_132)
+    apostasia Ash002281 Ash002299 (fragScaff_scaffold_86)
+
+    Where each line lists a region, starting with the species name (species.bed
+    must be present in the current directory). Followed by start and end gene.
+    Contents after the 3rd field (end gene) are ignored. Using the example
+    above, the final .blocks file will contain 5 columns, one column for each line.
+    """
+    import shutil
+    from tempfile import mkdtemp, mkstemp
+
+    from jcvi.apps.align import last
+    from jcvi.formats.fasta import some
+    from jcvi.formats.base import FileShredder
+
+    p = OptionParser(assemble.__doc__)
+    p.add_option(
+        "--no_strip_names",
+        default=False,
+        action="store_true",
+        help="Do not strip alternative splicing (e.g. At5g06540.1 -> At5g06540)",
+    )
+    p.set_outfile()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    strip_names = not opts.no_strip_names
+    regionsfile, bedfile, cdsfile = args
+    species_beds = {}
+    column_genes = []
+    pivot = None
+    with open(regionsfile) as fp:
+        for row in fp:
+            species, start, end = row.split()[:3]
+            if pivot is None:
+                pivot = species
+            if species not in species_beds:
+                species_beds[species] = Bed(species + ".bed")
+            bed = species_beds[species]
+            order = bed.order
+            si, s = order[start]
+            ei, e = order[end]
+            genes = set(x.accn for x in bed[si : ei + 1])
+            column_genes.append(genes)
+
+    # Write gene ids
+    workdir = mkdtemp()
+    fd, idsfile = mkstemp(dir=workdir)
+    with open(idsfile, "w") as fw:
+        for genes in column_genes:
+            print(" ".join(genes), file=fw)
+
+        logging.debug("Gene ids written to `{}`".format(idsfile))
+
+    # Extract FASTA
+    fd, fastafile = mkstemp(dir=workdir)
+    some_args = [cdsfile, idsfile, fastafile]
+    if not strip_names:
+        some_args += ["--no_strip_names"]
+    some(some_args)
+
+    # Perform self-comparison and collect all pairs
+    last_output = last([fastafile, fastafile, "--outdir", workdir])
+    blast = Blast(last_output)
+    pairs = set()
+    for b in blast:
+        query, subject = b.query, b.subject
+        if strip_names:
+            query, subject = gene_name(query), gene_name(subject)
+        pairs.add((query, subject))
+    logging.debug("Extracted {} gene pairs from `{}`".format(len(pairs), last_output))
+
+    # Sort the pairs into columns
+    N = len(column_genes)
+    all_slots = []
+    for i in range(N):
+        for j in range(i + 1, N):
+            genes_i = column_genes[i]
+            genes_j = column_genes[j]
+            for a, b in pairs:
+                if not (a in genes_i and b in genes_j):
+                    continue
+                slots = ["."] * N
+                slots[i] = a
+                slots[j] = b
+                all_slots.append(slots)
+
+    # Compress the pairwise results and merge when possible
+    # TODO: This is currently not optimized and inefficient
+    def is_compatible(slots1, slots2):
+        # At least intersects for one gene
+        assert len(slots1) == len(slots2)
+        flag = False
+        for a, b in zip(slots1, slots2):
+            if "." in (a, b):
+                continue
+            if a == b:
+                flag = True
+            else:
+                return False
+        return flag
+
+    def merge(slots, processed):
+        for i, a in enumerate(slots):
+            if processed[i] == "." and a != ".":
+                processed[i] = a
+
+    processed_slots = []
+    all_slots.sort()
+    for slots in all_slots:
+        merged = False
+        for processed in processed_slots:
+            if is_compatible(slots, processed):
+                merge(slots, processed)  # Merge into that line
+                merged = True
+                break
+        if not merged:  # New information
+            processed_slots.append(slots)
+
+    logging.debug(
+        "Before compression: {}, After compression: {}".format(
+            len(all_slots), len(processed_slots)
+        )
+    )
+
+    pivot_order = species_beds[pivot].order
+    pivot_max = len(species_beds[pivot])
+    pivot_sort_key = lambda x: pivot_order[x[0]][0] if x[0] != "." else pivot_max
+    processed_slots.sort(key=pivot_sort_key)
+
+    with must_open(opts.outfile, "w") as fw:
+        for slots in processed_slots:
+            print("\t".join(slots), file=fw)
+
+    # Cleanup
+    shutil.rmtree(workdir)
 
 
 def colinear_evaluate_weights(tour, data):

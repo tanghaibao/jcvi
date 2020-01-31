@@ -34,25 +34,25 @@ def truncate_name(name, rule=None):
     k = re.search("(?<=^head)[0-9]{1,2}$", rule)
     if k:
         k = k.group(0)
-        tname = name[int(k):]
+        tname = name[int(k) :]
     else:
         k = re.search("(?<=^ohead)[0-9]{1,2}$", rule)
         if k:
             k = k.group(0)
-            tname = name[:int(k)]
+            tname = name[: int(k)]
         else:
             k = re.search("(?<=^tail)[0-9]{1,2}$", rule)
             if k:
                 k = k.group(0)
-                tname = name[:-int(k)]
+                tname = name[: -int(k)]
             else:
                 k = re.search("(?<=^otail)[0-9]{1,2}$", rule)
                 if k:
                     k = k.group(0)
-                    tname = name[-int(k):]
+                    tname = name[-int(k) :]
                 else:
                     print(truncate_name.__doc__, file=sys.stderr)
-                    raise ValueError('Wrong rule for truncation!')
+                    raise ValueError("Wrong rule for truncation!")
     return tname
 
 
@@ -70,11 +70,24 @@ def decode_name(name, barcodemap):
     return name
 
 
-def draw_tree(ax, tx, rmargin=.3,
-              treecolor="k", leafcolor="k", supportcolor="k",
-              outgroup=None, reroot=True, gffdir=None, sizes=None,
-              trunc_name=None, SH=None, scutoff=0, barcodefile=None,
-              leafcolorfile=None, leaffont=12):
+def draw_tree(
+    ax,
+    tx,
+    rmargin=0.3,
+    treecolor="k",
+    leafcolor="k",
+    supportcolor="k",
+    outgroup=None,
+    reroot=True,
+    gffdir=None,
+    sizes=None,
+    trunc_name=None,
+    SH=None,
+    scutoff=0,
+    barcodefile=None,
+    leafcolorfile=None,
+    leaffont=12,
+):
     """
     main function for drawing phylogenetic tree
     """
@@ -92,11 +105,11 @@ def draw_tree(ax, tx, rmargin=.3,
 
     farthest, max_dist = t.get_farthest_leaf()
 
-    margin = .05
+    margin = 0.05
     xstart = margin
     ystart = 1 - margin
     canvas = 1 - rmargin - 2 * margin
-    tip = .005
+    tip = 0.005
     # scale the tree
     scale = canvas / max_dist
 
@@ -148,14 +161,28 @@ def draw_tree(ax, tx, rmargin=.3,
                 if "," in lc:
                     lc = map(float, lc.split(","))
 
-            ax.text(xx + tip, yy, sname, va="center",
-                    fontstyle="italic", size=leaffont, color=lc)
+            ax.text(
+                xx + tip,
+                yy,
+                sname,
+                va="center",
+                fontstyle="italic",
+                size=leaffont,
+                color=lc,
+            )
 
             gname = n.name.split("_")[0]
             if gname in structures:
                 mrnabed, cdsbeds = structures[gname]
-                ExonGlyph(ax, 1 - rmargin / 2, yy, mrnabed, cdsbeds,
-                          align="right", ratio=ratio)
+                ExonGlyph(
+                    ax,
+                    1 - rmargin / 2,
+                    yy,
+                    mrnabed,
+                    cdsbeds,
+                    align="right",
+                    ratio=ratio,
+                )
             if sizes and gname in sizes:
                 size = sizes[gname]
                 size = size / 3 - 1  # base pair converted to amino acid
@@ -171,33 +198,52 @@ def draw_tree(ax, tx, rmargin=.3,
             # plot the horizontal bar
             for cx, cy in children:
                 ax.plot((xx, cx), (cy, cy), "-", color=treecolor)
-            yy = sum(children_y) * 1. / len(children_y)
+            yy = sum(children_y) * 1.0 / len(children_y)
             support = n.support
             if support > 1:
-                support = support / 100.
+                support = support / 100.0
             if not n.is_root():
-                if support > scutoff / 100.:
-                    ax.text(xx, yy+.005, "{0:d}".format(int(abs(support * 100))),
-                            ha="right", size=leaffont, color=supportcolor)
+                if support > scutoff / 100.0:
+                    ax.text(
+                        xx,
+                        yy + 0.005,
+                        "{0:d}".format(int(abs(support * 100))),
+                        ha="right",
+                        size=leaffont,
+                        color=supportcolor,
+                    )
 
         coords[n] = (xx, yy)
 
     # scale bar
-    br = .1
-    x1 = xstart + .1
+    br = 0.1
+    x1 = xstart + 0.1
     x2 = x1 + br * scale
     yy = ystart - i * yinterval
     ax.plot([x1, x1], [yy - tip, yy + tip], "-", color=treecolor)
     ax.plot([x2, x2], [yy - tip, yy + tip], "-", color=treecolor)
     ax.plot([x1, x2], [yy, yy], "-", color=treecolor)
-    ax.text((x1 + x2) / 2, yy - tip, "{0:g}".format(br),
-            va="top", ha="center", size=leaffont, color=treecolor)
+    ax.text(
+        (x1 + x2) / 2,
+        yy - tip,
+        "{0:g}".format(br),
+        va="top",
+        ha="center",
+        size=leaffont,
+        color=treecolor,
+    )
 
     if SH is not None:
         xs = x1
-        ys = (margin + yy) / 2.
-        ax.text(xs, ys, "SH test against ref tree: {0}"
-                .format(SH), ha="left", size=leaffont, color="g")
+        ys = (margin + yy) / 2.0
+        ax.text(
+            xs,
+            ys,
+            "SH test against ref tree: {0}".format(SH),
+            ha="left",
+            size=leaffont,
+            color="g",
+        )
 
     normalize_axes(ax)
 
@@ -211,7 +257,7 @@ def read_trees(tree):
     fp = open(tree)
     for header, tx in read_block(fp, "#"):
         header = parse_qs(header[1:])
-        label = header["label"][0].strip("\"")
+        label = header["label"][0].strip('"')
         outgroup = header["outgroup"]
         color, = header.get("color", ["k"])
         trees.append((label, outgroup, color, "".join(tx)))
@@ -223,31 +269,48 @@ def draw_geoscale(ax, minx=0, maxx=175):
     """
     Draw geological epoch on million year ago (mya) scale.
     """
-    a, b = .1, .6  # Correspond to 200mya and 0mya
-    def cv(x): return b - (x - b) / (maxx - minx) * (b - a)
-    ax.plot((a, b), (.5, .5), "k-")
-    tick = .015
+    a, b = 0.1, 0.6  # Correspond to 200mya and 0mya
+
+    def cv(x):
+        return b - (x - b) / (maxx - minx) * (b - a)
+
+    ax.plot((a, b), (0.5, 0.5), "k-")
+    tick = 0.015
     for mya in xrange(maxx - 25, 0, -25):
         p = cv(mya)
-        ax.plot((p, p), (.5, .5 - tick), "k-")
-        ax.text(p, .5 - 2.5 * tick, str(mya), ha="center", va="center")
-    ax.text((a + b) / 2, .5 - 5 * tick, "Time before present (million years)",
-            ha="center", va="center")
+        ax.plot((p, p), (0.5, 0.5 - tick), "k-")
+        ax.text(p, 0.5 - 2.5 * tick, str(mya), ha="center", va="center")
+    ax.text(
+        (a + b) / 2,
+        0.5 - 5 * tick,
+        "Time before present (million years)",
+        ha="center",
+        va="center",
+    )
 
     # Source:
     # http://www.weston.org/schools/ms/biologyweb/evolution/handouts/GSAchron09.jpg
-    Geo = (("Neogene", 2.6, 23.0, "#fee400"),
-           ("Paleogene", 23.0, 65.5, "#ff9a65"),
-           ("Cretaceous", 65.5, 145.5, "#80ff40"),
-           ("Jurassic", 145.5, 201.6, "#33fff3"))
-    h = .05
+    Geo = (
+        ("Neogene", 2.6, 23.0, "#fee400"),
+        ("Paleogene", 23.0, 65.5, "#ff9a65"),
+        ("Cretaceous", 65.5, 145.5, "#80ff40"),
+        ("Jurassic", 145.5, 201.6, "#33fff3"),
+    )
+    h = 0.05
     for era, start, end, color in Geo:
         start, end = cv(start), cv(end)
         end = max(a, end)
-        p = Rectangle((end, .5 + tick / 2), abs(start - end),
-                      h, lw=1, ec="w", fc=color)
-        ax.text((start + end) / 2, .5 + (tick + h) / 2, era,
-                ha="center", va="center", size=9)
+        p = Rectangle(
+            (end, 0.5 + tick / 2), abs(start - end), h, lw=1, ec="w", fc=color
+        )
+        ax.text(
+            (start + end) / 2,
+            0.5 + (tick + h) / 2,
+            era,
+            ha="center",
+            va="center",
+            size=9,
+        )
         ax.add_patch(p)
 
 
@@ -264,29 +327,44 @@ def main(args):
     distinctive barcodes in column1 and new names in column2, tab delimited.
     """
     p = OptionParser(main.__doc__)
-    p.add_option("--outgroup", help="Outgroup for rerooting the tree. " +
-                 "Use comma to separate multiple taxa.")
-    p.add_option("--noreroot", default=False, action="store_true",
-                 help="Don't reroot the input tree [default: %default]")
-    p.add_option("--rmargin", default=.3, type="float",
-                 help="Set blank rmargin to the right [default: %default]")
-    p.add_option("--gffdir", default=None,
-                 help="The directory that contain GFF files [default: %default]")
-    p.add_option("--sizes", default=None,
-                 help="The FASTA file or the sizes file [default: %default]")
-    p.add_option("--SH", default=None, type="string",
-                 help="SH test p-value [default: %default]")
-    p.add_option("--scutoff", default=0, type="int",
-                 help="cutoff for displaying node support, 0-100 [default: %default]")
-    p.add_option("--barcode", default=None,
-                 help="path to seq names barcode mapping file: "
-                 "barcode<tab>new_name [default: %default]")
-    p.add_option("--leafcolor", default="k",
-                 help="Font color for the OTUs, or path to a file "
-                 "containing color mappings: leafname<tab>color [default: %default]")
+    p.add_option(
+        "--outgroup",
+        help="Outgroup for rerooting the tree. "
+        + "Use comma to separate multiple taxa.",
+    )
+    p.add_option(
+        "--noreroot",
+        default=False,
+        action="store_true",
+        help="Don't reroot the input tree",
+    )
+    p.add_option(
+        "--rmargin", default=0.3, type="float", help="Set blank rmargin to the right"
+    )
+    p.add_option("--gffdir", default=None, help="The directory that contain GFF files")
+    p.add_option("--sizes", default=None, help="The FASTA file or the sizes file")
+    p.add_option("--SH", default=None, type="string", help="SH test p-value")
+    p.add_option(
+        "--scutoff",
+        default=0,
+        type="int",
+        help="cutoff for displaying node support, 0-100",
+    )
+    p.add_option(
+        "--barcode",
+        default=None,
+        help="path to seq names barcode mapping file: " "barcode<tab>new_name",
+    )
+    p.add_option(
+        "--leafcolor",
+        default="k",
+        help="Font color for the OTUs, or path to a file "
+        "containing color mappings: leafname<tab>color",
+    )
     p.add_option("--leaffont", default=12, help="Font size for the OTUs")
-    p.add_option("--geoscale", default=False, action="store_true",
-                 help="Plot geological scale")
+    p.add_option(
+        "--geoscale", default=False, action="store_true", help="Plot geological scale"
+    )
 
     opts, args, iopts = p.set_image_options(args, figsize="8x6")
 
@@ -324,11 +402,21 @@ def main(args):
             leafcolor = opts.leafcolor
             leafcolorfile = None
 
-        draw_tree(root, tx, rmargin=opts.rmargin, leafcolor=leafcolor,
-                  outgroup=outgroup, reroot=reroot, gffdir=opts.gffdir,
-                  sizes=opts.sizes, SH=opts.SH, scutoff=opts.scutoff,
-                  barcodefile=opts.barcode, leafcolorfile=leafcolorfile,
-                  leaffont=opts.leaffont)
+        draw_tree(
+            root,
+            tx,
+            rmargin=opts.rmargin,
+            leafcolor=leafcolor,
+            outgroup=outgroup,
+            reroot=reroot,
+            gffdir=opts.gffdir,
+            sizes=opts.sizes,
+            SH=opts.SH,
+            scutoff=opts.scutoff,
+            barcodefile=opts.barcode,
+            leafcolorfile=leafcolorfile,
+            leaffont=opts.leaffont,
+        )
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
@@ -338,5 +426,5 @@ def main(args):
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main(sys.argv[1:])

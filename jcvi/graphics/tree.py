@@ -9,10 +9,32 @@ import logging
 from ete3 import Tree
 
 from jcvi.formats.sizes import Sizes
-from jcvi.formats.base import DictFile
-from jcvi.graphics.base import Rectangle, plt, savefig, normalize_axes
+from jcvi.formats.base import DictFile, LineFile
+from jcvi.graphics.base import Rectangle, plt, savefig, markup, normalize_axes
 from jcvi.graphics.glyph import ExonGlyph, get_setups
 from jcvi.apps.base import OptionParser, glob
+
+
+class LeafInfoLine:
+    def __init__(self, row, delimiter=","):
+        args = [x.strip() for x in row.split(delimiter)]
+        self.name = args[0]
+        self.color = args[1]
+        self.new_name = None
+        if len(args) > 2:
+            self.new_name = args[2]
+
+
+class LeafInfoFile(LineFile):
+    def __init__(self, filename, delimiter=","):
+        super(LeafInfoFile, self).__init__(filename)
+        self.cache = {}
+        with open(filename) as fp:
+            for row in fp:
+                if row[0] == "#":
+                    continue
+                line = LeafInfoLine(row, delimiter=delimiter)
+                self.cache[line.name] = line
 
 
 def truncate_name(name, rule=None):
@@ -56,20 +78,6 @@ def truncate_name(name, rule=None):
     return tname
 
 
-def decode_name(name, barcodemap):
-    """
-    rename seq/taxon name, typically for a tree display,
-    according to a barcode map given in a dictionary
-
-    By definition barcodes should be distinctive.
-    """
-    for barcode in barcodemap:
-        if barcode in name:
-            return barcodemap[barcode]
-
-    return name
-
-
 def draw_tree(
     ax,
     tx,
@@ -77,7 +85,6 @@ def draw_tree(
     rmargin=0.2,
     tip=0.01,
     treecolor="k",
-    leafcolor="k",
     supportcolor="k",
     outgroup=None,
     dashedoutgroup=False,
@@ -87,9 +94,9 @@ def draw_tree(
     trunc_name=None,
     SH=None,
     scutoff=0,
-    barcodefile=None,
-    leafcolorfile=None,
+    leafcolor="k",
     leaffont=12,
+    leafinfo=None,
 ):
     """
     main function for drawing phylogenetic tree
@@ -97,10 +104,8 @@ def draw_tree(
 
     t = Tree(tx)
     if reroot:
-        adjust_dist = False
         if outgroup:
             R = t.get_common_ancestor(*outgroup)
-            adjust_dist = True
         else:
             # Calculate the midpoint node
             R = t.get_midpoint_outgroup()
@@ -111,7 +116,7 @@ def draw_tree(
         # By default, the distance to outgroup and non-outgroup is the same
         # we re-adjust the distances so that the outgroups will appear
         # farthest from everything else
-        if adjust_dist:
+        if dashedoutgroup:
             a, b = t.children
             # Avoid even split
             total = a.dist + b.dist
@@ -140,11 +145,6 @@ def draw_tree(
     if sizes:
         sizes = Sizes(sizes).mapping
 
-    if barcodefile:
-        barcodemap = DictFile(barcodefile, delimiter="\t")
-
-    leafcolors = DictFile(leafcolorfile, delimiter="\t") if leafcolorfile else None
-
     coords = {}
     i = 0
     for n in t.traverse("postorder"):
@@ -160,20 +160,23 @@ def draw_tree(
             else:
                 name = n.name
 
-            if barcodefile:
-                name = decode_name(name, barcodemap)
-
-            sname = name.replace("_", "-")
-
-            lc = leafcolors.get(n.name, leafcolor) if leafcolors else leafcolor
+            if leafinfo and n.name in leafinfo:
+                line = leafinfo[n.name]
+                lc = line.color
+                sname = line.new_name
+            else:
+                lc = leafcolor
+                sname = None
+            lc = lc or "k"
+            sname = sname or name.replace("_", "-")
             # if color is given as "R,G,B"
             if "," in lc:
-                lc = map(float, lc.split(","))
+                lc = [float(x) for x in lc.split(",")]
 
             ax.text(
                 xx + tip,
                 yy,
-                sname,
+                markup(sname),
                 va="center",
                 fontstyle="italic",
                 size=leaffont,
@@ -199,7 +202,7 @@ def draw_tree(
                 ax.text(1 - rmargin / 2 + tip, yy, size, size=leaffont)
 
         else:
-            linestyle = "--" if n is t else "-"
+            linestyle = "--" if (dashedoutgroup and n is t) else "-"
             children = [coords[x] for x in n.get_children()]
             children_x, children_y = zip(*children)
             min_y, max_y = min(children_y), max(children_y)
@@ -331,10 +334,6 @@ def main(args):
     Plot Newick formatted tree. The gene structure can be plotted along if
     --gffdir is given. The gff file needs to be `genename.gff`. If --sizes is
     on, also show the number of amino acids.
-
-    With --barcode a mapping file can be provided to convert seq names to
-    eg. species names, useful in unified tree display. This file should have
-    distinctive barcodes in column1 and new names in column2, tab delimited.
     """
     p = OptionParser(main.__doc__)
     p.add_option(
@@ -355,22 +354,15 @@ def main(args):
     p.add_option("--sizes", default=None, help="The FASTA file or the sizes file")
     p.add_option("--SH", default=None, type="string", help="SH test p-value")
     p.add_option(
-        "--barcode",
-        default=None,
-        help="path to seq names barcode mapping file: barcode<tab>new_name",
-    )
-    p.add_option(
         "--geoscale", default=False, action="store_true", help="Plot geological scale"
     )
 
     group = p.add_option_group("Node style")
-    group.add_option(
-        "--leafcolor",
-        default="k",
-        help="Font color for the OTUs, or path to a file "
-        "containing color mappings: leafname<tab>color",
-    )
+    group.add_option("--leafcolor", default="k", help="Font color for the OTUs")
     group.add_option("--leaffont", default=12, help="Font size for the OTUs")
+    group.add_option(
+        "--leafinfo", help="CSV file specifying the leaves: name,color,new_name"
+    )
     group.add_option(
         "--scutoff",
         default=0,
@@ -410,7 +402,7 @@ def main(args):
         ((Os03g0124100:0.08845,Sb01g048930:0.09055)1.0:0.05332,
         (Os10g0534700:0.06592,Sb01g030630:0.04824)-1.0:0.07886):0.09389);"""
     else:
-        logging.debug("Load tree file `{0}`.".format(datafile))
+        logging.debug("Load tree file `{0}`".format(datafile))
         tx = open(datafile).read()
 
     pf = datafile.rsplit(".", 1)[0]
@@ -424,18 +416,12 @@ def main(args):
         draw_geoscale(root)
 
     else:
-        if op.isfile(opts.leafcolor):
-            leafcolor = "k"
-            leafcolorfile = opts.leafcolor
-        else:
-            leafcolor = opts.leafcolor
-            leafcolorfile = None
+        leafinfo = LeafInfoFile(opts.leafinfo).cache if opts.leafinfo else None
 
         draw_tree(
             root,
             tx,
             rmargin=opts.rmargin,
-            leafcolor=leafcolor,
             supportcolor=supportcolor,
             outgroup=outgroup,
             dashedoutgroup=opts.dashedoutgroup,
@@ -444,9 +430,9 @@ def main(args):
             sizes=opts.sizes,
             SH=opts.SH,
             scutoff=opts.scutoff,
-            barcodefile=opts.barcode,
-            leafcolorfile=leafcolorfile,
+            leafcolor=opts.leafcolor,
             leaffont=opts.leaffont,
+            leafinfo=leafinfo,
         )
 
     root.set_xlim(0, 1)

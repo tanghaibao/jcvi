@@ -255,7 +255,7 @@ class KsPlot(object):
         ax.set_ylim(0, ylim)
         ax.set_title(markup(title), fontweight="bold")
         ax.set_xlabel(markup("Synonymous substitutions per site (*Ks*)"))
-        ax.set_ylabel("Percentage of gene pairs (bin size={})".format(self.interval))
+        ax.set_ylabel("Percentage of gene pairs (bin={})".format(self.interval))
 
         ax.set_xticklabels(ax.get_xticks(), family="Helvetica")
         ax.set_yticklabels(ax.get_yticks(), family="Helvetica")
@@ -282,7 +282,7 @@ def multireport(args):
     p = OptionParser(multireport.__doc__)
     p.set_outfile(outfile="Ks_plot.pdf")
     add_plot_options(p)
-    opts, args, iopts = p.set_image_options(args, figsize="6x6")
+    opts, args, iopts = p.set_image_options(args, figsize="8x5")
 
     if len(args) != 1:
         sys.exit(not p.print_help())
@@ -1089,9 +1089,9 @@ def add_plot_options(p):
     p.add_option("--fit", default=False, action="store_true", help="Plot fitted lines")
     p.add_option("--kde", default=False, action="store_true", help="Use KDE smoothing")
     p.add_option("--vmin", default=0.0, type="float", help="Minimum value, inclusive")
-    p.add_option("--vmax", default=2.0, type="float", help="Maximum value, inclusive")
+    p.add_option("--vmax", default=3.0, type="float", help="Maximum value, inclusive")
     p.add_option(
-        "--bins", default=40, type="int", help="Number of bins to plot in the histogram"
+        "--bins", default=60, type="int", help="Number of bins to plot in the histogram"
     )
     p.add_option("--legendp", default="upper right", help="Place of the legend")
     p.add_option(

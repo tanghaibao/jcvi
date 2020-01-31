@@ -384,27 +384,29 @@ class Synteny(object):
             gg.update(dict(((i, k), v) for k, v in r.gg.items()))
             ymids.append(r.y)
 
+        def offset(samearc):
+            if samearc == "above":
+                return 2 * pad
+            if samearc == "above2":
+                return 4 * pad
+            if samearc == "below":
+                return -2 * pad
+            if samearc == "below2":
+                return -4 * pad
+
         for i, j, blockcolor, samearc in lo.edges:
             for ga, gb, h in bf.iter_pairs(i, j):
                 a, b = gg[(i, ga)], gg[(j, gb)]
-                if samearc == "above":
-                    ymid = ymids[i] + 2 * pad
-                elif samearc == "above2":
-                    ymid = ymids[i] + 4 * pad
-                elif samearc == "below":
-                    ymid = ymids[i] - 2 * pad
-                elif samearc == "below2":
-                    ymid = ymids[i] - 4 * pad
+                if samearc is not None:
+                    ymid = ymids[i] + offset(samearc)
                 else:
                     ymid = (ymids[i] + ymids[j]) / 2
                 Shade(root, a, b, ymid, fc=blockcolor, lw=0, alpha=1, style=shadestyle)
 
             for ga, gb, h in bf.iter_pairs(i, j, highlight=True):
                 a, b = gg[(i, ga)], gg[(j, gb)]
-                if samearc == "above":
-                    ymid = ymids[i] + 2 * pad
-                elif samearc == "below":
-                    ymid = ymids[i] - 2 * pad
+                if samearc is not None:
+                    ymid = ymids[i] + offset(samearc)
                 else:
                     ymid = (ymids[i] + ymids[j]) / 2
                 Shade(

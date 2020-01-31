@@ -73,7 +73,9 @@ def decode_name(name, barcodemap):
 def draw_tree(
     ax,
     tx,
-    rmargin=0.3,
+    margin=0.06,
+    rmargin=0.2,
+    tip=0.01,
     treecolor="k",
     leafcolor="k",
     supportcolor="k",
@@ -94,24 +96,35 @@ def draw_tree(
 
     t = Tree(tx)
     if reroot:
+        adjust_dist = False
         if outgroup:
             R = t.get_common_ancestor(*outgroup)
+            adjust_dist = True
         else:
             # Calculate the midpoint node
             R = t.get_midpoint_outgroup()
 
-        if R != t:
+        if R is not t:
             t.set_outgroup(R)
+
+        # By default, the distance to outgroup and non-outgroup is the same
+        # we re-adjust the distances so that the outgroups will appear
+        # farthest from everything else
+        if adjust_dist:
+            a, b = t.children
+            # Avoid even split
+            total = a.dist + b.dist
+            newR = t.get_common_ancestor(*outgroup)
+            a.dist = 0.9 * total
+            b.dist = total - a.dist
 
     farthest, max_dist = t.get_farthest_leaf()
 
-    margin = 0.05
     xstart = margin
     ystart = 1 - margin
-    canvas = 1 - rmargin - 2 * margin
-    tip = 0.005
+    canvas = 1 - 2 * margin
     # scale the tree
-    scale = canvas / max_dist
+    scale = (canvas - rmargin) / max_dist
 
     num_leaves = len(t.get_leaf_names())
     yinterval = canvas / (num_leaves + 1)
@@ -202,7 +215,7 @@ def draw_tree(
             support = n.support
             if support > 1:
                 support = support / 100.0
-            if not n.is_root():
+            if not n.is_root() and supportcolor:
                 if support > scutoff / 100.0:
                     ax.text(
                         xx,
@@ -339,7 +352,7 @@ def main(args):
         help="Don't reroot the input tree",
     )
     p.add_option(
-        "--rmargin", default=0.3, type="float", help="Set blank rmargin to the right"
+        "--rmargin", default=0.2, type="float", help="Set blank rmargin to the right"
     )
     p.add_option("--gffdir", default=None, help="The directory that contain GFF files")
     p.add_option("--sizes", default=None, help="The FASTA file or the sizes file")
@@ -353,7 +366,7 @@ def main(args):
     p.add_option(
         "--barcode",
         default=None,
-        help="path to seq names barcode mapping file: " "barcode<tab>new_name",
+        help="path to seq names barcode mapping file: barcode<tab>new_name",
     )
     p.add_option(
         "--leafcolor",
@@ -364,6 +377,13 @@ def main(args):
     p.add_option("--leaffont", default=12, help="Font size for the OTUs")
     p.add_option(
         "--geoscale", default=False, action="store_true", help="Plot geological scale"
+    )
+    p.add_option(
+        "--no_support",
+        dest="support",
+        default=True,
+        action="store_false",
+        help="Do not print node support values",
     )
 
     opts, args, iopts = p.set_image_options(args, figsize="8x6")
@@ -391,6 +411,8 @@ def main(args):
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
 
+    supportcolor = "k" if opts.support else None
+
     if opts.geoscale:
         draw_geoscale(root)
 
@@ -407,6 +429,7 @@ def main(args):
             tx,
             rmargin=opts.rmargin,
             leafcolor=leafcolor,
+            supportcolor=supportcolor,
             outgroup=outgroup,
             reroot=reroot,
             gffdir=opts.gffdir,

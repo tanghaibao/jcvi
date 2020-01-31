@@ -73,13 +73,14 @@ def decode_name(name, barcodemap):
 def draw_tree(
     ax,
     tx,
-    margin=0.06,
+    margin=0.08,
     rmargin=0.2,
     tip=0.01,
     treecolor="k",
     leafcolor="k",
     supportcolor="k",
     outgroup=None,
+    dashedoutgroup=False,
     reroot=True,
     gffdir=None,
     sizes=None,
@@ -121,7 +122,7 @@ def draw_tree(
     farthest, max_dist = t.get_farthest_leaf()
 
     xstart = margin
-    ystart = 1 - margin
+    ystart = 2 * margin
     canvas = 1 - 2 * margin
     # scale the tree
     scale = (canvas - rmargin) / max_dist
@@ -142,8 +143,7 @@ def draw_tree(
     if barcodefile:
         barcodemap = DictFile(barcodefile, delimiter="\t")
 
-    if leafcolorfile:
-        leafcolors = DictFile(leafcolorfile, delimiter="\t")
+    leafcolors = DictFile(leafcolorfile, delimiter="\t") if leafcolorfile else None
 
     coords = {}
     i = 0
@@ -152,7 +152,7 @@ def draw_tree(
         xx = xstart + scale * dist
 
         if n.is_leaf():
-            yy = ystart - i * yinterval
+            yy = ystart + i * yinterval
             i += 1
 
             if trunc_name:
@@ -165,14 +165,10 @@ def draw_tree(
 
             sname = name.replace("_", "-")
 
-            try:
-                lc = leafcolors[n.name]
-            except Exception:
-                lc = leafcolor
-            else:
-                # if color is given as "R,G,B"
-                if "," in lc:
-                    lc = map(float, lc.split(","))
+            lc = leafcolors.get(n.name, leafcolor) if leafcolors else leafcolor
+            # if color is given as "R,G,B"
+            if "," in lc:
+                lc = map(float, lc.split(","))
 
             ax.text(
                 xx + tip,
@@ -203,14 +199,15 @@ def draw_tree(
                 ax.text(1 - rmargin / 2 + tip, yy, size, size=leaffont)
 
         else:
+            linestyle = "--" if n is t else "-"
             children = [coords[x] for x in n.get_children()]
             children_x, children_y = zip(*children)
             min_y, max_y = min(children_y), max(children_y)
             # plot the vertical bar
-            ax.plot((xx, xx), (min_y, max_y), "-", color=treecolor)
+            ax.plot((xx, xx), (min_y, max_y), linestyle, color=treecolor)
             # plot the horizontal bar
             for cx, cy in children:
-                ax.plot((xx, cx), (cy, cy), "-", color=treecolor)
+                ax.plot((xx, cx), (cy, cy), linestyle, color=treecolor)
             yy = sum(children_y) * 1.0 / len(children_y)
             support = n.support
             if support > 1:
@@ -232,7 +229,7 @@ def draw_tree(
     br = 0.1
     x1 = xstart + 0.1
     x2 = x1 + br * scale
-    yy = ystart - i * yinterval
+    yy = margin
     ax.plot([x1, x1], [yy - tip, yy + tip], "-", color=treecolor)
     ax.plot([x2, x2], [yy - tip, yy + tip], "-", color=treecolor)
     ax.plot([x1, x2], [yy, yy], "-", color=treecolor)
@@ -358,32 +355,42 @@ def main(args):
     p.add_option("--sizes", default=None, help="The FASTA file or the sizes file")
     p.add_option("--SH", default=None, type="string", help="SH test p-value")
     p.add_option(
-        "--scutoff",
-        default=0,
-        type="int",
-        help="cutoff for displaying node support, 0-100",
-    )
-    p.add_option(
         "--barcode",
         default=None,
         help="path to seq names barcode mapping file: barcode<tab>new_name",
     )
     p.add_option(
+        "--geoscale", default=False, action="store_true", help="Plot geological scale"
+    )
+
+    group = p.add_option_group("Node style")
+    group.add_option(
         "--leafcolor",
         default="k",
         help="Font color for the OTUs, or path to a file "
         "containing color mappings: leafname<tab>color",
     )
-    p.add_option("--leaffont", default=12, help="Font size for the OTUs")
-    p.add_option(
-        "--geoscale", default=False, action="store_true", help="Plot geological scale"
+    group.add_option("--leaffont", default=12, help="Font size for the OTUs")
+    group.add_option(
+        "--scutoff",
+        default=0,
+        type="int",
+        help="cutoff for displaying node support, 0-100",
     )
-    p.add_option(
+    group.add_option(
         "--no_support",
         dest="support",
         default=True,
         action="store_false",
         help="Do not print node support values",
+    )
+
+    group = p.add_option_group("Edge style")
+    group.add_option(
+        "--dashedoutgroup",
+        default=False,
+        action="store_true",
+        help="Gray out the edges connecting outgroup and non-outgroup",
     )
 
     opts, args, iopts = p.set_image_options(args, figsize="8x6")
@@ -431,6 +438,7 @@ def main(args):
             leafcolor=leafcolor,
             supportcolor=supportcolor,
             outgroup=outgroup,
+            dashedoutgroup=opts.dashedoutgroup,
             reroot=reroot,
             gffdir=opts.gffdir,
             sizes=opts.sizes,

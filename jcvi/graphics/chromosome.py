@@ -18,7 +18,16 @@ import numpy as np
 from jcvi.apps.base import OptionGroup, OptionParser, datafile
 from jcvi.formats.base import DictFile, get_number
 from jcvi.formats.bed import Bed
-from jcvi.graphics.base import CirclePolygon, Polygon, Rectangle, plt, savefig, set3_n
+from jcvi.graphics.base import (
+    CirclePolygon,
+    Polygon,
+    Rectangle,
+    markup,
+    plt,
+    savefig,
+    set1_n,
+    set3_n,
+)
 from jcvi.graphics.glyph import BaseGlyph, RoundRect, plot_cap
 
 
@@ -261,7 +270,16 @@ class GeneticMap(BaseGlyph):
 
 class Gauge(BaseGlyph):
     def __init__(
-        self, ax, x, y1, y2, max_chr_len, step=1e6, tip=0.008, extra=0.006, fc="b"
+        self,
+        ax,
+        x,
+        y1,
+        y2,
+        max_chr_len,
+        step=1e6,
+        tip=0.008,
+        extra=0.006,
+        fc="lightslategray",
     ):
         # tip = length of the ticks
         # extra = offset for the unit label
@@ -445,6 +463,9 @@ def main():
         action="store_false",
         help="Do not generate color legend",
     )
+    g.add_option(
+        "--mergedist", default=0, type="int", help="Merge regions closer than "
+    )
     g.add_option("--empty", help="Write legend for unpainted region")
     p.add_option_group(g)
 
@@ -458,6 +479,7 @@ def main():
     if len(args) == 2:
         mappingfile = args[1]
 
+    mergedist = opts.mergedist
     winsize = opts.winsize
     imagemap = opts.imagemap
     w, h = iopts.w, iopts.h
@@ -478,13 +500,13 @@ def main():
             "A total of {0} classes found: {1}".format(len(classes), ",".join(classes))
         )
     else:
-        mappings = {}
         classes = sorted(set(x.accn for x in bed))
-        # logging.debug("No classes registered (no id_mappings given).")
+        mappings = dict((x, x) for x in classes)
 
     # Assign colors to classes
     ncolors = min(len(classes), 12)
-    mycolors = set3_n(number=ncolors)
+    palette = set1_n if ncolors <= 8 else set3_n
+    mycolors = palette(number=ncolors)
     class_colors = dict(zip(classes, mycolors))
     logging.debug("Assigned colors: {}".format(class_colors))
 
@@ -536,17 +558,20 @@ def main():
 
     chr_idxs = dict((a, i) for i, a in enumerate(sorted(chr_lens.keys())))
 
-    alpha = 0.75
+    alpha = 1
     # color the regions
     for chr in sorted(chr_lens.keys()):
         segment_size, excess = 0, 0
         bac_list = []
+        prev_end, prev_klass = 0, None
         for b in bed.sub_bed(chr):
             clen = chr_lens[chr]
             idx = chr_idxs[chr]
             klass = b.accn
             start = b.start
             end = b.end
+            if start < prev_end + mergedist and klass == prev_klass:
+                start = prev_end
             xx = xstart + idx * xinterval
             yystart = ystart - end * ratio
             yyend = ystart - start * ratio
@@ -555,11 +580,12 @@ def main():
                     (xx, yystart),
                     xwidth,
                     yyend - yystart,
-                    fc=class_colors.get(klass, "w"),
+                    fc=class_colors.get(klass, "lightslategray"),
                     lw=0,
                     alpha=alpha,
                 )
             )
+            prev_end, prev_klass = b.end, klass
 
             if imagemap:
                 """
@@ -659,7 +685,7 @@ def main():
         root.text(xstart + xwidth + 0.01, yy, empty, fontsize=10)
 
     if opts.title:
-        root.text(0.5, 0.95, opts.title, fontstyle="italic", ha="center", va="center")
+        root.text(0.5, 0.95, markup(opts.title), ha="center", va="center")
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)

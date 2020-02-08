@@ -7,20 +7,19 @@ from the script used in the Tang et al. PNAS 2010 paper, sigma figure.
 """
 from __future__ import print_function
 
-import sys
 import logging
-
-from math import ceil
+import sys
 from itertools import groupby
+from math import ceil
+from optparse import OptionGroup
 
 import numpy as np
 
-from jcvi.formats.base import DictFile
+from jcvi.apps.base import OptionGroup, OptionParser, datafile
+from jcvi.formats.base import DictFile, get_number
 from jcvi.formats.bed import Bed
-from jcvi.graphics.glyph import RoundRect
-from jcvi.graphics.base import plt, Rectangle, Polygon, CirclePolygon, savefig
-from jcvi.graphics.glyph import BaseGlyph, plot_cap
-from jcvi.apps.base import OptionParser, datafile
+from jcvi.graphics.base import CirclePolygon, Polygon, Rectangle, plt, savefig, set3_n
+from jcvi.graphics.glyph import BaseGlyph, RoundRect, plot_cap
 
 
 class Chromosome(BaseGlyph):
@@ -272,7 +271,7 @@ class Gauge(BaseGlyph):
         gauge = int(ceil(max_chr_len / step))
         ratio = r / max_chr_len
         yinterval = 2 * ratio * step
-        for g in xrange(0, gauge, 2):
+        for g in range(0, gauge, 2):
             if g % 10:
                 ax.plot((x, x + tip), (yy, yy), "-", color=fc)
             else:
@@ -400,30 +399,55 @@ def main():
     chromosomes, and `id_mappings` file that map the ids to certain class. Each
     class will get assigned a unique color. `id_mappings` file is optional (if
     omitted, will not paint the chromosome features, except the centromere).
+
+    The extent of the chromosomes are given by --sizes, which contains
+    chr<tab>size, one per line. If not specified, the extent of the chromosomes
+    are assumed to be the end for the last feature, which might be an underestimate.
     """
+    from jcvi.formats.sizes import Sizes
+
     p = OptionParser(main.__doc__)
     p.add_option(
-        "--title", default="Medicago truncatula v3.5", help="title of the image",
+        "--sizes", help="FASTA sizes file, which contains chr<tab>size, one per line"
     )
-    p.add_option(
+    g = OptionGroup(p, "Display accessories")
+    g.add_option(
+        "--title", help="title of the image",
+    )
+    g.add_option(
         "--gauge",
         default=False,
         action="store_true",
         help="draw a gauge with size label",
     )
-    p.add_option(
+    p.add_option_group(g)
+
+    g = OptionGroup(p, "HTML image map")
+    g.add_option(
         "--imagemap",
         default=False,
         action="store_true",
         help="generate an HTML image map associated with the image",
     )
-    p.add_option(
+    g.add_option(
         "--winsize",
         default=50000,
         type="int",
         help="if drawing an imagemap, specify the window size (bases) of each map element ",
     )
-    p.add_option("--empty", help="Write legend for unpainted region")
+    p.add_option_group(g)
+
+    g = OptionGroup(p, "Color legend")
+    g.add_option(
+        "--nolegend",
+        dest="legend",
+        default=True,
+        action="store_false",
+        help="Do not generate color legend",
+    )
+    g.add_option("--empty", help="Write legend for unpainted region")
+    p.add_option_group(g)
+
     opts, args, iopts = p.set_image_options(figsize="6x6", dpi=300)
 
     if len(args) not in (1, 2):
@@ -439,6 +463,7 @@ def main():
     w, h = iopts.w, iopts.h
     dpi = iopts.dpi
 
+    bed = Bed(bedfile)
     prefix = bedfile.rsplit(".", 1)[0]
     figname = prefix + "." + opts.format
     if imagemap:
@@ -454,19 +479,24 @@ def main():
         )
     else:
         mappings = {}
-        classes = []
-        logging.debug("No classes registered (no id_mappings given).")
+        classes = sorted(set(x.accn for x in bed))
+        # logging.debug("No classes registered (no id_mappings given).")
 
-    mycolors = "rgbymc"
+    # Assign colors to classes
+    ncolors = min(len(classes), 12)
+    mycolors = set3_n(number=ncolors)
     class_colors = dict(zip(classes, mycolors))
+    logging.debug("Assigned colors: {}".format(class_colors))
 
-    bed = Bed(bedfile)
     chr_lens = {}
     centromeres = {}
-    for b, blines in groupby(bed, key=(lambda x: x.seqid)):
-        blines = list(blines)
-        maxlen = max(x.end for x in blines)
-        chr_lens[b] = maxlen
+    if opts.sizes:
+        chr_lens = Sizes(opts.sizes).sizes_mapping
+    else:
+        for b, blines in groupby(bed, key=(lambda x: x.seqid)):
+            blines = list(blines)
+            maxlen = max(x.end for x in blines)
+            chr_lens[b] = maxlen
 
     for b in bed:
         accn = b.accn
@@ -494,6 +524,7 @@ def main():
     # first the chromosomes
     for a, (chr, clen) in enumerate(sorted(chr_lens.items())):
         xx = xstart + a * xinterval + 0.5 * xwidth
+        chr = str(get_number(chr))
         root.text(xx, ystart + 0.01, chr, ha="center")
         if centromeres:
             yy = ystart - centromeres[chr] * ratio
@@ -608,25 +639,27 @@ def main():
         Gauge(root, xstart, ystart - r, ystart, max_chr_len)
 
     # class legends, four in a row
-    xstart = 0.1
-    xinterval = 0.2
-    xwidth = 0.04
-    yy = 0.08
-    for klass, cc in sorted(class_colors.items()):
-        if klass == "-":
-            continue
-        root.add_patch(
-            Rectangle((xstart, yy), xwidth, xwidth, fc=cc, lw=0, alpha=alpha)
-        )
-        root.text(xstart + xwidth + 0.01, yy, klass, fontsize=10)
-        xstart += xinterval
+    if opts.legend:
+        xstart = 0.1
+        xinterval = 0.8 / len(class_colors)
+        xwidth = 0.04
+        yy = 0.08
+        for klass, cc in sorted(class_colors.items()):
+            if klass == "-":
+                continue
+            root.add_patch(
+                Rectangle((xstart, yy), xwidth, xwidth, fc=cc, lw=0, alpha=alpha)
+            )
+            root.text(xstart + xwidth + 0.01, yy, klass, fontsize=10)
+            xstart += xinterval
 
     empty = opts.empty
     if empty:
         root.add_patch(Rectangle((xstart, yy), xwidth, xwidth, fill=False, lw=1))
         root.text(xstart + xwidth + 0.01, yy, empty, fontsize=10)
 
-    root.text(0.5, 0.95, opts.title, fontstyle="italic", ha="center", va="center")
+    if opts.title:
+        root.text(0.5, 0.95, opts.title, fontstyle="italic", ha="center", va="center")
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)

@@ -23,10 +23,21 @@ from jcvi.graphics.glyph import BaseGlyph, plot_cap
 from jcvi.apps.base import OptionParser, datafile
 
 
-class Chromosome (BaseGlyph):
-
-    def __init__(self, ax, x, y1, y2, width=.015, ec="k", patch=None,
-                 patchcolor='lightgrey', lw=1, fc="k", zorder=2):
+class Chromosome(BaseGlyph):
+    def __init__(
+        self,
+        ax,
+        x,
+        y1,
+        y2,
+        width=0.015,
+        ec="k",
+        patch=None,
+        patchcolor="lightgrey",
+        lw=1,
+        fc="k",
+        zorder=2,
+    ):
         """
         Chromosome with positions given in (x, y1) => (x, y2)
 
@@ -38,19 +49,20 @@ class Chromosome (BaseGlyph):
         pts, r = self.get_pts(x, y1, y2, width)
         self.append(Polygon(pts, fill=False, lw=lw, ec=ec, zorder=zorder))
         if patch:
-            rr = r * .9  # Shrink a bit for the patches
+            rr = r * 0.9  # Shrink a bit for the patches
             for i in range(0, len(patch), 2):
                 if i + 1 > len(patch) - 1:
                     continue
                 p1, p2 = patch[i], patch[i + 1]
-                self.append(Rectangle((x - rr, p1), 2 * rr, p2 - p1, lw=0,
-                             fc=patchcolor))
+                self.append(
+                    Rectangle((x - rr, p1), 2 * rr, p2 - p1, lw=0, fc=patchcolor)
+                )
 
         self.add_patches()
 
     def get_pts(self, x, y1, y2, width):
         w = width / 2
-        r = width / (3 ** .5)
+        r = width / (3 ** 0.5)
 
         pts = []
         pts += plot_cap((x, y1 + r), np.radians(range(210, 330)), r)
@@ -61,11 +73,22 @@ class Chromosome (BaseGlyph):
         return pts, r
 
 
-class HorizontalChromosome (BaseGlyph):
-
-    def __init__(self, ax, x1, x2, y, height=.015, ec="k", patch=None,
-                 patchcolor='lightgrey', lw=1, fc=None,
-                 zorder=2, roundrect=False):
+class HorizontalChromosome(BaseGlyph):
+    def __init__(
+        self,
+        ax,
+        x1,
+        x2,
+        y,
+        height=0.015,
+        ec="k",
+        patch=None,
+        patchcolor="lightgrey",
+        lw=1,
+        fc=None,
+        zorder=2,
+        roundrect=False,
+    ):
         """
         Horizontal version of the Chromosome glyph above.
         """
@@ -73,32 +96,48 @@ class HorizontalChromosome (BaseGlyph):
         super(HorizontalChromosome, self).__init__(ax)
         pts, r = self.get_pts(x1, x2, y, height)
         if roundrect:
-            RoundRect(ax, (x1, y - height * .5), x2 - x1, height, fill=False,
-                      lw=lw, ec=ec, zorder=zorder + 1)
+            RoundRect(
+                ax,
+                (x1, y - height * 0.5),
+                x2 - x1,
+                height,
+                fill=False,
+                lw=lw,
+                ec=ec,
+                zorder=zorder + 1,
+            )
         else:
             self.append(Polygon(pts, fill=False, lw=lw, ec=ec, zorder=zorder))
 
         if fc:
             pts, r = self.get_pts(x1, x2, y, height / 2)
             if roundrect:
-                RoundRect(ax, (x1, y - height / 4), x2 - x1, height / 2, fc=fc,
-                          lw=0, zorder=zorder)
+                RoundRect(
+                    ax,
+                    (x1, y - height / 4),
+                    x2 - x1,
+                    height / 2,
+                    fc=fc,
+                    lw=0,
+                    zorder=zorder,
+                )
             else:
                 self.append(Polygon(pts, fc=fc, lw=0, zorder=zorder))
         if patch:
-            rr = r * .9  # Shrink a bit for the patches
+            rr = r * 0.9  # Shrink a bit for the patches
             for i in range(0, len(patch), 2):
                 if i + 1 > len(patch) - 1:
                     continue
                 p1, p2 = patch[i], patch[i + 1]
-                self.append(Rectangle((p1, y - rr), p2 - p1, 2 * rr, lw=0,
-                             fc=patchcolor))
+                self.append(
+                    Rectangle((p1, y - rr), p2 - p1, 2 * rr, lw=0, fc=patchcolor)
+                )
 
         self.add_patches()
 
     def get_pts(self, x1, x2, y, height):
         h = height / 2
-        r = height / (3 ** .5)
+        r = height / (3 ** 0.5)
 
         if x2 - x1 < 2 * height:  # rectangle for small chromosomes
             return [[x1, y + h], [x1, y - h], [x2, y - h], [x2, y + h]], r
@@ -112,14 +151,13 @@ class HorizontalChromosome (BaseGlyph):
         return pts, r
 
 
-class ChromosomeWithCentromere (object):
-
-    def __init__(self, ax, x, y1, y2, y3, width=.015, fc="k", fill=False, zorder=2):
+class ChromosomeWithCentromere(object):
+    def __init__(self, ax, x, y1, y2, y3, width=0.015, fc="k", fill=False, zorder=2):
         """
         Chromosome with centromeres at y2 position
         """
         pts = []
-        r = width * .5
+        r = width * 0.5
         pts += plot_cap((x, y1 - r), np.radians(range(180)), r)
         pts += [[x - r, y1 - r], [x - r, y2 + r]]
         pts += plot_cap((x, y2 + r), np.radians(range(180, 360)), r)
@@ -131,30 +169,52 @@ class ChromosomeWithCentromere (object):
         pts += plot_cap((x, y3 + r), np.radians(range(180, 360)), r)
         pts += [[x + r, y3 + r], [x + r, y2 - r]]
         ax.add_patch(Polygon(pts, fc=fc, fill=fill, zorder=zorder))
-        ax.add_patch(CirclePolygon((x, y2), radius=r * .5,
-            fc="k", ec="k", zorder=zorder))
+        ax.add_patch(
+            CirclePolygon((x, y2), radius=r * 0.5, fc="k", ec="k", zorder=zorder)
+        )
 
 
-class ChromosomeMap (object):
+class ChromosomeMap(object):
     """
     Line plots along the chromosome.
     """
-    def __init__(self, fig, root, xstart, xend, ystart, yend, pad, ymin, ymax, bins,
-                    title, subtitle, patchstart=None):
+
+    def __init__(
+        self,
+        fig,
+        root,
+        xstart,
+        xend,
+        ystart,
+        yend,
+        pad,
+        ymin,
+        ymax,
+        bins,
+        title,
+        subtitle,
+        patchstart=None,
+    ):
 
         width, height = xend - xstart, yend - ystart
 
         y = ystart - pad
-        HorizontalChromosome(root, xstart, xend, y, patch=patchstart, height=.03)
+        HorizontalChromosome(root, xstart, xend, y, patch=patchstart, height=0.03)
 
         # Gauge
         lsg = "lightslategrey"
-        root.plot([xstart - pad, xstart - pad], [ystart, ystart + height],
-                    lw=2, color=lsg)
-        root.plot([xend + pad, xend + pad], [ystart, ystart + height],
-                    lw=2, color=lsg)
-        root.text((xstart + xend) / 2, ystart + height + 2 * pad, title,
-                    ha="center", va="center", color=lsg)
+        root.plot(
+            [xstart - pad, xstart - pad], [ystart, ystart + height], lw=2, color=lsg
+        )
+        root.plot([xend + pad, xend + pad], [ystart, ystart + height], lw=2, color=lsg)
+        root.text(
+            (xstart + xend) / 2,
+            ystart + height + 2 * pad,
+            title,
+            ha="center",
+            va="center",
+            color=lsg,
+        )
 
         iv = (ymax - ymin) / bins
         iv_height = height / bins
@@ -165,18 +225,20 @@ class ChromosomeMap (object):
             val += iv
             yy += iv_height
 
-        root.text((xstart + xend) / 2, y - .05, subtitle, ha="center", va="center", color=lsg)
+        root.text(
+            (xstart + xend) / 2, y - 0.05, subtitle, ha="center", va="center", color=lsg
+        )
 
         self.axes = fig.add_axes([xstart, ystart, width, height])
 
 
-class GeneticMap (BaseGlyph):
-
-    def __init__(self, ax, x, y1, y2, markers, unit="cM",
-                 tip=.008, fc="k", flip=False):
+class GeneticMap(BaseGlyph):
+    def __init__(
+        self, ax, x, y1, y2, markers, unit="cM", tip=0.008, fc="k", flip=False
+    ):
         # tip = length of the ticks
         y1, y2 = sorted((y1, y2))
-        ax.plot([x, x], [y1, y2], '-', color=fc, lw=2)
+        ax.plot([x, x], [y1, y2], "-", color=fc, lw=2)
         max_marker_name, max_chr_len = max(markers, key=lambda x: x[-1])
         r = y2 - y1
         ratio = r / max_chr_len
@@ -188,20 +250,23 @@ class GeneticMap (BaseGlyph):
         self.marker_pos = marker_pos
 
         t = tip / 2
-        end_cm_labels = ((y2 + t, max_chr_len, "bottom"), (y1 - t, 0, "top")) if flip \
-                        else ((y2 + t, 0, "bottom"), (y1 - t, max_chr_len, "top"))
+        end_cm_labels = (
+            ((y2 + t, max_chr_len, "bottom"), (y1 - t, 0, "top"))
+            if flip
+            else ((y2 + t, 0, "bottom"), (y1 - t, max_chr_len, "top"))
+        )
         for yy, cm, va in end_cm_labels:
             label = "{0} {1}".format(int(cm), unit)
             ax.text(x, yy, label, color="gray", va=va, ha="center")
 
 
-class Gauge (BaseGlyph):
-
-    def __init__(self, ax, x, y1, y2, max_chr_len, step=1e6,
-                 tip=.008, extra=.006, fc="b"):
+class Gauge(BaseGlyph):
+    def __init__(
+        self, ax, x, y1, y2, max_chr_len, step=1e6, tip=0.008, extra=0.006, fc="b"
+    ):
         # tip = length of the ticks
         # extra = offset for the unit label
-        ax.plot([x, x], [y1, y2], '-', color=fc, lw=2)
+        ax.plot([x, x], [y1, y2], "-", color=fc, lw=2)
         r = y2 - y1
         yy = y2
         gauge = int(ceil(max_chr_len / step))
@@ -211,10 +276,10 @@ class Gauge (BaseGlyph):
             if g % 10:
                 ax.plot((x, x + tip), (yy, yy), "-", color=fc)
             else:
-                ax.plot((x - tip, x + tip), (yy, yy), '-', color=fc, lw=2)
+                ax.plot((x - tip, x + tip), (yy, yy), "-", color=fc, lw=2)
                 ax.text(x + tip + extra, yy, g, color="gray", va="center")
             yy -= yinterval
-        ax.text(x, yy - .03, "Mb", color="gray", va="center")
+        ax.text(x, yy - 0.03, "Mb", color="gray", va="center")
 
 
 def canvas2px(coord, dmn, dpi):
@@ -232,12 +297,22 @@ def write_ImageMapLine(tlx, tly, brx, bry, w, h, dpi, chr, segment_start, segmen
     """
     tlx, brx = [canvas2px(x, w, dpi) for x in (tlx, brx)]
     tly, bry = [canvas2px(y, h, dpi) for y in (tly, bry)]
-    chr, bac_list = chr.split(':')
-    return '<area shape="rect" coords="' + \
-           ",".join(str(x) for x in (tlx, tly, brx, bry)) \
-           + '" href="#' + chr + '"' \
-           + ' title="' + chr + ':' + str(segment_start) + '..' + str(segment_end) + '"' \
-           + ' />'
+    chr, bac_list = chr.split(":")
+    return (
+        '<area shape="rect" coords="'
+        + ",".join(str(x) for x in (tlx, tly, brx, bry))
+        + '" href="#'
+        + chr
+        + '"'
+        + ' title="'
+        + chr
+        + ":"
+        + str(segment_start)
+        + ".."
+        + str(segment_end)
+        + '"'
+        + " />"
+    )
 
 
 def get_hg38_chromsizes(filename=datafile("hg38.chrom.sizes")):
@@ -252,14 +327,15 @@ def get_color(tag):
     if "acen" in tag:
         return "r", 1
     try:
-        alpha = int(tag[4:]) * 1. / 100
+        alpha = int(tag[4:]) * 1.0 / 100
     except:
         return "w", 1
     return "k", alpha
 
 
-def draw_cytoband(ax, chrom, filename=datafile("hg38.band.txt"),
-                  ymid=.5, width=.99, height=.11):
+def draw_cytoband(
+    ax, chrom, filename=datafile("hg38.band.txt"), ymid=0.5, width=0.99, height=0.11
+):
     import pandas as pd
 
     bands = pd.read_csv(filename, sep="\t")
@@ -268,7 +344,7 @@ def draw_cytoband(ax, chrom, filename=datafile("hg38.band.txt"),
     for i, (chr, start, end, name, gie) in chrombands.iterrows():
         data.append((chr, start, end, name, gie))
     chromsize = max(x[2] for x in data)
-    scale = width * 1. / chromsize
+    scale = width * 1.0 / chromsize
     xstart, ystart = (1 - width) / 2, ymid - height / 2
     bp_to_pos = lambda x: xstart + x * scale
     in_acen = False
@@ -277,19 +353,39 @@ def draw_cytoband(ax, chrom, filename=datafile("hg38.band.txt"),
         bplen = end - start
         if "acen" in gie:
             if in_acen:
-                xys = [(bp_to_pos(start), ymid), (bp_to_pos(end), ystart), (bp_to_pos(end), ystart + height)]
+                xys = [
+                    (bp_to_pos(start), ymid),
+                    (bp_to_pos(end), ystart),
+                    (bp_to_pos(end), ystart + height),
+                ]
             else:
-                xys = [(bp_to_pos(start), ystart), (bp_to_pos(start), ystart + height), (bp_to_pos(end), ymid)]
-            p = Polygon(xys, closed=True, ec='k', fc=color, alpha=alpha)
+                xys = [
+                    (bp_to_pos(start), ystart),
+                    (bp_to_pos(start), ystart + height),
+                    (bp_to_pos(end), ymid),
+                ]
+            p = Polygon(xys, closed=True, ec="k", fc=color, alpha=alpha)
             in_acen = True
         else:
-            p = Rectangle((bp_to_pos(start), ystart), bplen * scale, height,
-                              ec='k', fc=color, alpha=alpha)
-        #print bp_to_pos(end)
+            p = Rectangle(
+                (bp_to_pos(start), ystart),
+                bplen * scale,
+                height,
+                ec="k",
+                fc=color,
+                alpha=alpha,
+            )
+        # print bp_to_pos(end)
         ax.add_patch(p)
-        ax.text(bp_to_pos((start + end) / 2), ymid + height * .8, name, rotation=40, color="lightslategray")
+        ax.text(
+            bp_to_pos((start + end) / 2),
+            ymid + height * 0.8,
+            name,
+            rotation=40,
+            color="lightslategray",
+        )
 
-    ax.text(.5, ystart - height, chrom, size=16, ha="center", va="center")
+    ax.text(0.5, ystart - height, chrom, size=16, ha="center", va="center")
 
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
@@ -306,15 +402,27 @@ def main():
     omitted, will not paint the chromosome features, except the centromere).
     """
     p = OptionParser(main.__doc__)
-    p.add_option("--title", default="Medicago truncatula v3.5",
-            help="title of the image [default: `%default`]")
-    p.add_option("--gauge", default=False, action="store_true",
-            help="draw a gauge with size label [default: %default]")
-    p.add_option("--imagemap", default=False, action="store_true",
-            help="generate an HTML image map associated with the image [default: %default]")
-    p.add_option("--winsize", default=50000, type="int",
-            help="if drawing an imagemap, specify the window size (bases) of each map element "
-                 "[default: %default bp]")
+    p.add_option(
+        "--title", default="Medicago truncatula v3.5", help="title of the image",
+    )
+    p.add_option(
+        "--gauge",
+        default=False,
+        action="store_true",
+        help="draw a gauge with size label",
+    )
+    p.add_option(
+        "--imagemap",
+        default=False,
+        action="store_true",
+        help="generate an HTML image map associated with the image",
+    )
+    p.add_option(
+        "--winsize",
+        default=50000,
+        type="int",
+        help="if drawing an imagemap, specify the window size (bases) of each map element ",
+    )
     p.add_option("--empty", help="Write legend for unpainted region")
     opts, args, iopts = p.set_image_options(figsize="6x6", dpi=300)
 
@@ -334,15 +442,16 @@ def main():
     prefix = bedfile.rsplit(".", 1)[0]
     figname = prefix + "." + opts.format
     if imagemap:
-        imgmapfile = prefix + '.map'
+        imgmapfile = prefix + ".map"
         mapfh = open(imgmapfile, "w")
         print('<map id="' + prefix + '">', file=mapfh)
 
     if mappingfile:
         mappings = DictFile(mappingfile, delimiter="\t")
         classes = sorted(set(mappings.values()))
-        logging.debug("A total of {0} classes found: {1}".format(len(classes),
-            ','.join(classes)))
+        logging.debug(
+            "A total of {0} classes found: {1}".format(len(classes), ",".join(classes))
+        )
     else:
         mappings = {}
         classes = []
@@ -366,7 +475,7 @@ def main():
         if accn in mappings:
             b.accn = mappings[accn]
         else:
-            b.accn = '-'
+            b.accn = "-"
 
     chr_number = len(chr_lens)
     if centromeres:
@@ -375,27 +484,28 @@ def main():
     fig = plt.figure(1, (w, h))
     root = fig.add_axes([0, 0, 1, 1])
 
-    r = .7  # width and height of the whole chromosome set
-    xstart, ystart = .15, .85
+    r = 0.7  # width and height of the whole chromosome set
+    xstart, ystart = 0.15, 0.85
     xinterval = r / chr_number
-    xwidth = xinterval * .5  # chromosome width
+    xwidth = xinterval * 0.5  # chromosome width
     max_chr_len = max(chr_lens.values())
     ratio = r / max_chr_len  # canvas / base
 
     # first the chromosomes
     for a, (chr, clen) in enumerate(sorted(chr_lens.items())):
-        xx = xstart + a * xinterval + .5 * xwidth
-        root.text(xx, ystart + .01, chr, ha="center")
+        xx = xstart + a * xinterval + 0.5 * xwidth
+        root.text(xx, ystart + 0.01, chr, ha="center")
         if centromeres:
             yy = ystart - centromeres[chr] * ratio
-            ChromosomeWithCentromere(root, xx, ystart, yy,
-                    ystart - clen * ratio, width=xwidth)
+            ChromosomeWithCentromere(
+                root, xx, ystart, yy, ystart - clen * ratio, width=xwidth
+            )
         else:
             Chromosome(root, xx, ystart, ystart - clen * ratio, width=xwidth)
 
     chr_idxs = dict((a, i) for i, a in enumerate(sorted(chr_lens.keys())))
 
-    alpha = .75
+    alpha = 0.75
     # color the regions
     for chr in sorted(chr_lens.keys()):
         segment_size, excess = 0, 0
@@ -409,8 +519,16 @@ def main():
             xx = xstart + idx * xinterval
             yystart = ystart - end * ratio
             yyend = ystart - start * ratio
-            root.add_patch(Rectangle((xx, yystart), xwidth, yyend - yystart,
-                fc=class_colors.get(klass, "w"), lw=0, alpha=alpha))
+            root.add_patch(
+                Rectangle(
+                    (xx, yystart),
+                    xwidth,
+                    yyend - yystart,
+                    fc=class_colors.get(klass, "w"),
+                    lw=0,
+                    alpha=alpha,
+                )
+            )
 
             if imagemap:
                 """
@@ -427,10 +545,28 @@ def main():
                         excess = segment
                         break
                     segment_end = segment_start + winsize - 1
-                    tlx, tly, brx, bry = xx, (1 - ystart) + segment_start * ratio, \
-                                  xx + xwidth, (1 - ystart) + segment_end * ratio
-                    print('\t' + write_ImageMapLine(tlx, tly, brx, bry, \
-                            w, h, dpi, chr+":"+",".join(bac_list), segment_start, segment_end), file=mapfh)
+                    tlx, tly, brx, bry = (
+                        xx,
+                        (1 - ystart) + segment_start * ratio,
+                        xx + xwidth,
+                        (1 - ystart) + segment_end * ratio,
+                    )
+                    print(
+                        "\t"
+                        + write_ImageMapLine(
+                            tlx,
+                            tly,
+                            brx,
+                            bry,
+                            w,
+                            h,
+                            dpi,
+                            chr + ":" + ",".join(bac_list),
+                            segment_start,
+                            segment_end,
+                        ),
+                        file=mapfh,
+                    )
 
                     segment_start += winsize
                     segment -= winsize
@@ -439,39 +575,58 @@ def main():
         if imagemap and excess > 0:
             bac_list.append(b.accn)
             segment_end = end
-            tlx, tly, brx, bry = xx, (1 - ystart) + segment_start * ratio, \
-                          xx + xwidth, (1 - ystart) + segment_end * ratio
-            print('\t' + write_ImageMapLine(tlx, tly, brx, bry, \
-                    w, h, dpi, chr+":"+",".join(bac_list), segment_start, segment_end), file=mapfh)
+            tlx, tly, brx, bry = (
+                xx,
+                (1 - ystart) + segment_start * ratio,
+                xx + xwidth,
+                (1 - ystart) + segment_end * ratio,
+            )
+            print(
+                "\t"
+                + write_ImageMapLine(
+                    tlx,
+                    tly,
+                    brx,
+                    bry,
+                    w,
+                    h,
+                    dpi,
+                    chr + ":" + ",".join(bac_list),
+                    segment_start,
+                    segment_end,
+                ),
+                file=mapfh,
+            )
 
     if imagemap:
-        print('</map>', file=mapfh)
+        print("</map>", file=mapfh)
         mapfh.close()
         logging.debug("Image map written to `{0}`".format(mapfh.name))
 
     if opts.gauge:
-        xstart, ystart = .9, .85
+        xstart, ystart = 0.9, 0.85
         Gauge(root, xstart, ystart - r, ystart, max_chr_len)
 
     # class legends, four in a row
-    xstart = .1
-    xinterval = .2
-    xwidth = .04
-    yy = .08
+    xstart = 0.1
+    xinterval = 0.2
+    xwidth = 0.04
+    yy = 0.08
     for klass, cc in sorted(class_colors.items()):
-        if klass == '-':
+        if klass == "-":
             continue
-        root.add_patch(Rectangle((xstart, yy), xwidth, xwidth, fc=cc, lw=0,
-            alpha=alpha))
-        root.text(xstart + xwidth + .01, yy, klass, fontsize=10)
+        root.add_patch(
+            Rectangle((xstart, yy), xwidth, xwidth, fc=cc, lw=0, alpha=alpha)
+        )
+        root.text(xstart + xwidth + 0.01, yy, klass, fontsize=10)
         xstart += xinterval
 
     empty = opts.empty
     if empty:
         root.add_patch(Rectangle((xstart, yy), xwidth, xwidth, fill=False, lw=1))
-        root.text(xstart + xwidth + .01, yy, empty, fontsize=10)
+        root.text(xstart + xwidth + 0.01, yy, empty, fontsize=10)
 
-    root.text(.5, .95, opts.title, fontstyle="italic", ha="center", va="center")
+    root.text(0.5, 0.95, opts.title, fontstyle="italic", ha="center", va="center")
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
@@ -480,5 +635,5 @@ def main():
     savefig(figname, dpi=dpi, iopts=iopts)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

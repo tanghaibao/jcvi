@@ -110,7 +110,10 @@ class AbstractLayout(LineFile):
     def assign_colors(self):
         number = len(self)
         palette = set2_n if number <= 8 else set3_n
-        colorset = palette(min(number, 12))
+        # Restrict palette numbers between [3, 12]
+        palette_number = max(3, min(number, 12))
+        colorset = palette(palette_number)
+        colorset = sample_N(colorset, number)
         self.assign_array("color", colorset)
 
     def assign_markers(self):
@@ -451,13 +454,13 @@ def get_intensity(octal):
     return intensity
 
 
-def adjust_spines(ax, spines):
+def adjust_spines(ax, spines, outward=False, color="lightslategray"):
     # Modified from <http://matplotlib.org/examples/pylab_examples/spine_placement_demo.html>
     for loc, spine in ax.spines.items():
         if loc in spines:
-            pass
-            # spine.set_position(('outward', 10)) # outward by 10 points
-            # spine.set_smart_bounds(True)
+            if outward:
+                spine.set_position(("outward", 8))  # outward by 10 points
+            spine.set_color(color)
         else:
             spine.set_color("none")  # don't draw spine
 
@@ -470,6 +473,9 @@ def adjust_spines(ax, spines):
         ax.xaxis.set_ticks_position("bottom")
     else:
         ax.xaxis.set_ticks_position("top")
+
+    # Change tick styles directly
+    ax.tick_params(color=color)
 
 
 def set_ticklabels_helvetica(ax, xcast=int, ycast=int):
@@ -525,9 +531,7 @@ def quickplot_ax(
     percentage=True,
     highlight=None,
 ):
-    """
-    TODO: redundant with quickplot(), need to be refactored.
-    """
+    # TODO: redundant with quickplot(), need to be refactored.
     if percentage:
         total_length = sum(data.values())
         data = dict((k, v * 100.0 / total_length) for (k, v) in data.items())

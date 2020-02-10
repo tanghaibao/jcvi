@@ -6,36 +6,32 @@ Calculation of synonymous substitutions (Ks).
 """
 from __future__ import print_function
 
-import sys
-import os
-import os.path as op
 import csv
 import logging
+import os
+import os.path as op
+import sys
+from functools import partial
+from itertools import combinations, product
+from math import exp, log, pi, sqrt
 
 import numpy as np
-
-from math import log, sqrt, pi, exp
-from itertools import product, combinations
-from functools import partial
-
-from Bio import SeqIO
-from Bio import AlignIO
+from Bio import AlignIO, SeqIO
 from Bio.Align.Applications import ClustalwCommandline, MuscleCommandline
 
-from jcvi.formats.base import LineFile, must_open
-from jcvi.graphics.base import plt, savefig, AbstractLayout, markup
-from jcvi.utils.table import write_csv
-from jcvi.utils.cbook import gene_name
 from jcvi.apps.base import (
-    OptionParser,
     ActionDispatcher,
-    mkdir,
-    sh,
+    OptionParser,
     Popen,
     getpath,
     iglob,
+    mkdir,
+    sh,
 )
-
+from jcvi.formats.base import LineFile, must_open
+from jcvi.graphics.base import AbstractLayout, adjust_spines, markup, plt, savefig
+from jcvi.utils.cbook import gene_name
+from jcvi.utils.table import write_csv
 
 CLUSTALW_BIN = partial(getpath, name="CLUSTALW2", warn="warn")
 MUSCLE_BIN = partial(getpath, name="MUSCLE", warn="warn")
@@ -260,6 +256,8 @@ class KsPlot(object):
         ax.set_xticklabels(ax.get_xticks(), family="Helvetica")
         ax.set_yticklabels(ax.get_yticks(), family="Helvetica")
 
+        adjust_spines(ax, ["left", "bottom"], outward=True)
+
         savefig(filename, dpi=300)
 
 
@@ -282,12 +280,12 @@ def multireport(args):
     p = OptionParser(multireport.__doc__)
     p.set_outfile(outfile="Ks_plot.pdf")
     add_plot_options(p)
-    opts, args, iopts = p.set_image_options(args, figsize="8x5")
+    opts, args, iopts = p.set_image_options(args, figsize="8x6")
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    layoutfile, = args
+    (layoutfile,) = args
     ks_min = opts.vmin
     ks_max = opts.vmax
     bins = opts.bins
@@ -296,7 +294,8 @@ def multireport(args):
     print(layout, file=sys.stderr)
 
     fig = plt.figure(1, (iopts.w, iopts.h))
-    ax = fig.add_axes([0.12, 0.1, 0.8, 0.8])
+    ax = fig.add_axes([0.12, 0.13, 0.8, 0.8])
+
     kp = KsPlot(ax, ks_max, bins, legendp=opts.legendp)
     for lo in layout:
         data = KsFile(lo.ksfile)
@@ -992,7 +991,7 @@ def my_hist(ax, l, interval, max_r, color="g", marker=".", fill=False, kde=False
 
 
 def lognormpdf(bins, mu, sigma):
-    return np.exp(-(np.log(bins) - mu) ** 2 / (2 * sigma ** 2)) / (
+    return np.exp(-((np.log(bins) - mu) ** 2) / (2 * sigma ** 2)) / (
         bins * sigma * sqrt(2 * pi)
     )
 
@@ -1055,7 +1054,7 @@ def plot_ks_dist(
     kde=False,
 ):
 
-    line, = my_hist(
+    (line,) = my_hist(
         ax, data, interval, ks_max, color=color, marker=marker, fill=fill, kde=kde
     )
     logging.debug("Total {0} pairs after filtering.".format(len(data)))
@@ -1068,7 +1067,7 @@ def plot_ks_dist(
         bins = np.arange(iv, ks_max, iv)
         y = lognormpdf_mix(bins, probs, mus, variances, interval)
 
-        line_mixture, = ax.plot(bins, y, ":", color=color, lw=3)
+        (line_mixture,) = ax.plot(bins, y, ":", color=color, lw=3)
 
         for i in range(components):
             peak_val = exp(mus[i])
@@ -1132,7 +1131,7 @@ def report(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    ks_file, = args
+    (ks_file,) = args
     data = KsFile(ks_file)
     ks_min = opts.vmin
     ks_max = opts.vmax

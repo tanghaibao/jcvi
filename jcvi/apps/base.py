@@ -1465,7 +1465,7 @@ def mdownload(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    linksfile, = args
+    (linksfile,) = args
     links = [(x.strip(),) for x in open(linksfile)]
     j = Jobs(download, links)
     j.run()
@@ -1526,7 +1526,7 @@ def timestamp(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    path, = args
+    (path,) = args
     for root, dirs, files in os.walk(path):
         for f in files:
             filename = op.join(root, f)
@@ -1549,7 +1549,7 @@ def touch(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    info, = args
+    (info,) = args
     fp = open(info)
     for row in fp:
         path, atime, mtime = row.split()
@@ -2161,11 +2161,11 @@ def inspect(object):
 
 
 def sample_N(a, N):
-    """ When size of N is >= size of a, random.sample() will emit an error:
+    """ When size of N is > size of a, random.sample() will emit an error:
     ValueError: sample larger than population
 
     This method handles such restrictions by repeatedly sampling when that
-    happens.
+    happens. Guaranteed to cover all items if N is > size of a.
 
     Examples:
     >>> sample_N([1, 2, 3], 2)
@@ -2174,10 +2174,12 @@ def sample_N(a, N):
     """
     import random
 
-    if N < len(a):
-        return random.sample(a, N)
+    ret = []
+    while N > len(a):
+        ret += random.sample(a, len(a))
+        N -= len(a)
 
-    return [random.choice(a) for x in range(N)]
+    return ret + random.sample(a, N)
 
 
 if __name__ == "__main__":

@@ -110,7 +110,10 @@ class AbstractLayout(LineFile):
     def assign_colors(self):
         number = len(self)
         palette = set2_n if number <= 8 else set3_n
-        colorset = palette(min(number, 12))
+        # Restrict palette numbers between [3, 12]
+        palette_number = max(3, min(number, 12))
+        colorset = palette(palette_number)
+        colorset = sample_N(colorset, number)
         self.assign_array("color", colorset)
 
     def assign_markers(self):

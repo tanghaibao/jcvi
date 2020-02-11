@@ -11,8 +11,16 @@ import logging
 from itertools import groupby, islice, cycle
 
 from Bio import SeqIO
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, debug, need_update, \
-            mkdir, popen
+from jcvi.apps.base import (
+    OptionParser,
+    ActionDispatcher,
+    sh,
+    debug,
+    need_update,
+    mkdir,
+    popen,
+)
+
 debug()
 
 
@@ -20,8 +28,7 @@ FastaExt = ("fasta", "fa", "fna", "cds", "pep", "faa", "fsa", "seq", "nt", "aa")
 FastqExt = ("fastq", "fq")
 
 
-class BaseFile (object):
-
+class BaseFile(object):
     def __init__(self, filename):
 
         self.filename = filename
@@ -29,27 +36,38 @@ class BaseFile (object):
             logging.debug("Load file `{0}`".format(filename))
 
 
-class LineFile (BaseFile, list):
+class LineFile(BaseFile, list):
     """
     Generic file parser for line-based files
     """
+
     def __init__(self, filename, comment=None, load=False):
 
         super(LineFile, self).__init__(filename)
 
         if load:
             fp = must_open(filename)
-            self.lines = [l.strip() for l in fp if l[0]!=comment]
-            logging.debug("Load {0} lines from `{1}`.".\
-                        format(len(self.lines), filename))
+            self.lines = [l.strip() for l in fp if l[0] != comment]
+            logging.debug(
+                "Load {0} lines from `{1}`.".format(len(self.lines), filename)
+            )
 
 
-class DictFile (BaseFile, dict):
+class DictFile(BaseFile, dict):
     """
     Generic file parser for multi-column files, keyed by a particular index.
     """
-    def __init__(self, filename, keypos=0, valuepos=1, delimiter=None,
-                       strict=True, keycast=None, cast=None):
+
+    def __init__(
+        self,
+        filename,
+        keypos=0,
+        valuepos=1,
+        delimiter=None,
+        strict=True,
+        keycast=None,
+        cast=None,
+    ):
 
         super(DictFile, self).__init__(filename)
         self.keypos = keypos
@@ -82,12 +100,10 @@ class DictFile (BaseFile, dict):
 
         assert thiscols, "File empty"
         self.ncols = thiscols
-        logging.debug("Imported {0} records from `{1}`.".\
-                    format(len(self), filename))
+        logging.debug("Imported {0} records from `{1}`.".format(len(self), filename))
 
 
-class SetFile (BaseFile, set):
-
+class SetFile(BaseFile, set):
     def __init__(self, filename, column=-1, delimiter=None):
         super(SetFile, self).__init__(filename)
         fp = open(filename)
@@ -100,10 +116,11 @@ class SetFile (BaseFile, set):
             self.update(keys)
 
 
-class FileShredder (object):
+class FileShredder(object):
     """
     Same as rm -f *
     """
+
     def __init__(self, filelist, verbose=True):
 
         filelist = [x for x in filelist if x and op.exists(x)]
@@ -111,10 +128,11 @@ class FileShredder (object):
         sh(cmd, log=verbose)
 
 
-class FileMerger (object):
+class FileMerger(object):
     """
     Same as cat * > filename
     """
+
     def __init__(self, filelist, outfile):
 
         self.filelist = filelist
@@ -141,8 +159,7 @@ class FileMerger (object):
         return outfile
 
 
-class FileSplitter (object):
-
+class FileSplitter(object):
     def __init__(self, filename, outputdir=None, format="fasta", mode="cycle"):
         self.filename = filename
         self.outputdir = outputdir
@@ -167,6 +184,7 @@ class FileSplitter (object):
             handle = SeqIO.parse(open(filename), self.format)
         elif self.klass == "clust":
             from jcvi.apps.uclust import ClustFile
+
             handle = iter(ClustFile(filename))
         else:
             handle = open(filename)
@@ -249,8 +267,9 @@ class FileSplitter (object):
             self.names = [op.join(self.outputdir, x) for x in self.names]
 
         if not need_update(self.filename, self.names) and not force:
-            logging.error("file %s already existed, skip file splitting" % \
-                    self.names[0])
+            logging.error(
+                "file %s already existed, skip file splitting" % self.names[0]
+            )
             return
 
         filehandles = [open(x, "w") for x in self.names]
@@ -300,7 +319,7 @@ def longest_unique_prefix(query, targets, remove_self=True):
     if remove_self and len(query) in prefix_lengths:
         prefix_lengths.remove(len(query))
     longest_length = max(prefix_lengths)
-    return query[:longest_length + 1]
+    return query[: longest_length + 1]
 
 
 def check_exists(filename, oappend=False):
@@ -311,7 +330,7 @@ def check_exists(filename, oappend=False):
         if oappend:
             return oappend
         logging.error("`{0}` found, overwrite (Y/N)?".format(filename))
-        overwrite = input() == 'Y'
+        overwrite = input() == "Y"
     else:
         overwrite = True
 
@@ -320,11 +339,11 @@ def check_exists(filename, oappend=False):
 
 def timestamp():
     from datetime import datetime as dt
+
     return "{0}{1:02d}{2:02d}".format(dt.now().year, dt.now().month, dt.now().day)
 
 
-def must_open(filename, mode="r", checkexists=False, skipcheck=False, \
-            oappend=False):
+def must_open(filename, mode="r", checkexists=False, skipcheck=False, oappend=False):
     """
     Accepts filename and returns filehandle.
 
@@ -337,10 +356,12 @@ def must_open(filename, mode="r", checkexists=False, skipcheck=False, \
             filename = " ".join(filename)  # allow opening multiple gz/bz2 files
         else:
             import fileinput
+
             return fileinput.input(filename)
 
     if filename.startswith("s3://"):
         from jcvi.utils.aws import pull_from_s3
+
         filename = pull_from_s3(filename)
 
     if filename in ("-", "stdin"):
@@ -357,36 +378,41 @@ def must_open(filename, mode="r", checkexists=False, skipcheck=False, \
 
     elif filename == "tmp" and mode == "w":
         from tempfile import NamedTemporaryFile
+
         fp = NamedTemporaryFile(delete=False)
 
     elif filename.endswith(".gz"):
         import gzip
-        if 'r' in mode:
-            fp = gzip.open(filename, mode + 't')
-        elif 'w' in mode:
+
+        if "r" in mode:
+            fp = gzip.open(filename, mode + "t")
+        elif "w" in mode:
             fp = gzip.open(filename, mode)
 
     elif filename.endswith(".bz2"):
-        if 'r' in mode:
+        if "r" in mode:
             cmd = "bzcat {0}".format(filename)
             fp = popen(cmd, debug=False)
-        elif 'w' in mode:
+        elif "w" in mode:
             import bz2
+
             fp = bz2.BZ2File(filename, mode)
 
     else:
         if checkexists:
             assert mode == "w"
-            overwrite = (not op.exists(filename)) if skipcheck \
-                        else check_exists(filename, oappend)
+            overwrite = (
+                (not op.exists(filename))
+                if skipcheck
+                else check_exists(filename, oappend)
+            )
             if overwrite:
                 if oappend:
                     fp = open(filename, "a")
                 else:
                     fp = open(filename, "w")
             else:
-                logging.debug("File `{0}` already exists. Skipped."\
-                        .format(filename))
+                logging.debug("File `{0}` already exists. Skipped.".format(filename))
                 return None
         else:
             fp = open(filename, mode)
@@ -410,8 +436,9 @@ def write_file(filename, contents, meta=None, skipcheck=False, append=False, tee
             meta = "file"
 
     meta_choices = ("file", "run script", "python script")
-    assert meta in meta_choices, "meta must be one of {0}".\
-                    format("|".join(meta_choices))
+    assert meta in meta_choices, "meta must be one of {0}".format(
+        "|".join(meta_choices)
+    )
 
     contents = contents.strip()
     shebang = "\n"
@@ -456,8 +483,10 @@ def read_block(handle, signal):
     record
     """
     signal_len = len(signal)
-    it = (x[1] for x in groupby(handle,
-        key=lambda row: row.strip()[:signal_len] == signal))
+    it = (
+        x[1]
+        for x in groupby(handle, key=lambda row: row.strip()[:signal_len] == signal)
+    )
     found_signal = False
     for header in it:
         header = list(header)
@@ -484,7 +513,7 @@ def is_number(s, cast=float):
     Check if a string is a number. Use cast=int to check if s is an integer.
     """
     try:
-        cast(s) # for int, long and float
+        cast(s)  # for int, long and float
     except ValueError:
         return False
 
@@ -496,8 +525,9 @@ def get_number(s, cast=int):
     Try to get a number out of a string, and cast it.
     """
     import string
+
     d = "".join(x for x in str(s) if x in string.digits)
-    return cast(d)
+    return cast(d) if d else s
 
 
 def flexible_cast(s):
@@ -511,20 +541,20 @@ def flexible_cast(s):
 def main():
 
     actions = (
-        ('pairwise', 'convert a list of IDs into all pairs'),
-        ('split', 'split large file into N chunks'),
-        ('reorder', 'reorder columns in tab-delimited files'),
-        ('flatten', 'convert a list of IDs into one per line'),
-        ('unflatten', 'convert lines to a list of IDs on single line'),
-        ('group', 'group elements in a table based on key (groupby) column'),
-        ('setop', 'set operations on files'),
-        ('join', 'join tabular-like files based on common column'),
-        ('subset', 'subset tabular-like files based on common column'),
-        ('truncate', 'remove lines from end of file'),
-        ('append', 'append a column with fixed value'),
-        ('seqids', 'make a list of seqids for graphics.karyotype'),
-        ('mergecsv', 'merge a set of tsv files'),
-            )
+        ("pairwise", "convert a list of IDs into all pairs"),
+        ("split", "split large file into N chunks"),
+        ("reorder", "reorder columns in tab-delimited files"),
+        ("flatten", "convert a list of IDs into one per line"),
+        ("unflatten", "convert lines to a list of IDs on single line"),
+        ("group", "group elements in a table based on key (groupby) column"),
+        ("setop", "set operations on files"),
+        ("join", "join tabular-like files based on common column"),
+        ("subset", "subset tabular-like files based on common column"),
+        ("truncate", "remove lines from end of file"),
+        ("append", "append a column with fixed value"),
+        ("seqids", "make a list of seqids for graphics.karyotype"),
+        ("mergecsv", "merge a set of tsv files"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -552,8 +582,14 @@ def seqids(args):
     start, end = int(start), int(end)
     step = 1 if start <= end else -1
 
-    print(",".join(["{}{:0{}d}".format(prefix, x, pad0) \
-                    for x in range(start, end + step, step)]))
+    print(
+        ",".join(
+            [
+                "{}{:0{}d}".format(prefix, x, pad0)
+                for x in range(start, end + step, step)
+            ]
+        )
+    )
 
 
 def pairwise(args):
@@ -570,7 +606,7 @@ def pairwise(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    idsfile, = args
+    (idsfile,) = args
     ids = SetFile(idsfile)
     ids = sorted(ids)
     fw = open(idsfile + ".pairs", "w")
@@ -627,7 +663,7 @@ def truncate(args):
     while f.tell() > 0:
         f.seek(-1, os.SEEK_CUR)
         char = f.read(1)
-        if char == '\n':
+        if char == "\n":
             count += 1
         if count == number + 1:
             f.truncate()
@@ -667,16 +703,19 @@ def flatten(args):
 
     p = OptionParser(flatten.__doc__)
     p.set_sep(sep=",")
-    p.add_option("--zipflatten", default=None, dest="zipsep",
-                 help="Specify if columns of the file should be zipped before" +
-                 " flattening. If so, specify delimiter separating column elements" +
-                 " [default: %default]")
+    p.add_option(
+        "--zipflatten",
+        default=None,
+        dest="zipsep",
+        help="Specify if columns of the file should be zipped before"
+        + " flattening. If so, specify delimiter separating column elements",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    tabfile, = args
+    (tabfile,) = args
     zipsep = opts.zipsep
 
     fp = must_open(tabfile)
@@ -687,7 +726,11 @@ def flatten(args):
             frows = []
             for atom in atoms:
                 frows.append(atom.split(zipsep))
-            print("\n".join([zipsep.join(x) for x in list(zip_longest(*frows, fillvalue="na"))]))
+            print(
+                "\n".join(
+                    [zipsep.join(x) for x in list(zip_longest(*frows, fillvalue="na"))]
+                )
+            )
         else:
             print(row.strip().replace(opts.sep, "\n"))
 
@@ -706,7 +749,7 @@ def unflatten(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    idsfile, = args
+    (idsfile,) = args
     ids = must_open(idsfile).read().split()
     with must_open(opts.outfile, "w") as fw:
         print(opts.sep.join(ids), file=fw)
@@ -743,18 +786,24 @@ def group(args):
 
     p = OptionParser(group.__doc__)
     p.set_sep()
-    p.add_option("--groupby", default=None, type='int',
-                 help="Default column to groupby [default: %default]")
-    p.add_option("--groupsep", default=',',
-                 help="Separator to join the grouped elements [default: `%default`]")
-    p.add_option("--nouniq", default=False, action="store_true",
-                 help="Do not uniqify the grouped elements [default: %default]")
+    p.add_option(
+        "--groupby", default=None, type="int", help="Default column to groupby",
+    )
+    p.add_option(
+        "--groupsep", default=",", help="Separator to join the grouped elements",
+    )
+    p.add_option(
+        "--nouniq",
+        default=False,
+        action="store_true",
+        help="Do not uniqify the grouped elements",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    tabfile, = args
+    (tabfile,) = args
     sep = opts.sep
     groupby = opts.groupby
     groupsep = opts.groupsep
@@ -850,12 +899,20 @@ def split(args):
     """
     p = OptionParser(split.__doc__)
     mode_choices = ("batch", "cycle", "optimal")
-    p.add_option("--all", default=False, action="store_true",
-            help="split all records [default: %default]")
-    p.add_option("--mode", default="optimal", choices=mode_choices,
-            help="Mode when splitting records [default: %default]")
-    p.add_option("--format", choices=("fasta", "fastq", "txt", "clust"),
-            help="input file format [default: %default]")
+    p.add_option(
+        "--all", default=False, action="store_true", help="split all records",
+    )
+    p.add_option(
+        "--mode",
+        default="optimal",
+        choices=mode_choices,
+        help="Mode when splitting records",
+    )
+    p.add_option(
+        "--format",
+        choices=("fasta", "fastq", "txt", "clust"),
+        help="input file format",
+    )
 
     opts, args = p.parse_args(args)
 
@@ -863,8 +920,7 @@ def split(args):
         sys.exit(not p.print_help())
 
     filename, outdir, N = args
-    fs = FileSplitter(filename, outputdir=outdir,
-                      format=opts.format, mode=opts.mode)
+    fs = FileSplitter(filename, outputdir=outdir, format=opts.format, mode=opts.mode)
 
     if opts.all:
         logging.debug("option -all override N")
@@ -892,18 +948,26 @@ def join(args):
       in each file.
     """
     p = OptionParser(join.__doc__)
-    p.add_option("--column", default="0",
-                 help="0-based column id, multiple values allowed [default: %default]")
+    p.add_option(
+        "--column", default="0", help="0-based column id, multiple values allowed",
+    )
     p.set_sep(multiple=True)
-    p.add_option("--noheader", default=False, action="store_true",
-                 help="Do not print header [default: %default]")
-    p.add_option("--na", default="na",
-                 help="Value for unjoined data [default: %default]")
-    p.add_option("--compact", default=False, action="store_true",
-                 help="Do not repeat pivotal columns in output")
-    p.add_option("--keysep", default=",",
-                 help="specify separator joining multiple elements in the key column"
-                 + " of the pivot file [default: %default]")
+    p.add_option(
+        "--noheader", default=False, action="store_true", help="Do not print header",
+    )
+    p.add_option("--na", default="na", help="Value for unjoined data")
+    p.add_option(
+        "--compact",
+        default=False,
+        action="store_true",
+        help="Do not repeat pivotal columns in output",
+    )
+    p.add_option(
+        "--keysep",
+        default=",",
+        help="specify separator joining multiple elements in the key column"
+        + " of the pivot file",
+    )
     p.set_outfile()
 
     opts, args = p.parse_args(args)
@@ -934,8 +998,10 @@ def join(args):
 
     # Maintain the first file line order, and combine other files into it
     pivotfile = args[0]
-    files = [DictFile(f, keypos=c, valuepos=None, delimiter=s) \
-                        for f, c, s in zip(args, cc, ss)]
+    files = [
+        DictFile(f, keypos=c, valuepos=None, delimiter=s)
+        for f, c, s in zip(args, cc, ss)
+    ]
     otherfiles = files[1:]
     # The header contains filenames
     headers = []
@@ -987,12 +1053,17 @@ def subset(args):
     """
 
     p = OptionParser(subset.__doc__)
-    p.add_option("--column", default="0",
-                 help="0-based column id, multiple values allowed [default: %default]")
+    p.add_option(
+        "--column", default="0", help="0-based column id, multiple values allowed",
+    )
     p.set_sep(multiple=True)
-    p.add_option("--pivot", default=1, type="int",
-                 help="1 for using order in file1, 2 for using order in \
-                    file2 [default: %default]")
+    p.add_option(
+        "--pivot",
+        default=1,
+        type="int",
+        help="1 for using order in file1, 2 for using order in \
+                    file2",
+    )
     p.set_outfile()
 
     opts, args = p.parse_args(args)
@@ -1004,8 +1075,7 @@ def subset(args):
     c = opts.column
     if "," in c:
         cc = [int(x) for x in c.split(",")]
-        assert len(set(cc[1:])) == 1, \
-            "Multiple file2's must have same column index."
+        assert len(set(cc[1:])) == 1, "Multiple file2's must have same column index."
         cc = cc[0:2]
     else:
         cc = [int(c)] * 2
@@ -1013,8 +1083,9 @@ def subset(args):
     s = opts.sep
     if "," in s:
         ss = [x for x in s.split(",")]
-        assert len(set(cc[1:])) == 1, \
-            "Multiple file2's must have same column separator."
+        assert (
+            len(set(cc[1:])) == 1
+        ), "Multiple file2's must have same column separator."
         ss = ss[0:2]
     else:
         ss = [s] * 2
@@ -1025,10 +1096,12 @@ def subset(args):
         file2 = args[1]
     newargs = [args[0], file2]
 
-    files = [DictFile(f, keypos=c, valuepos=None, delimiter=s) \
-                        for f, c, s in zip(newargs, cc, ss)]
+    files = [
+        DictFile(f, keypos=c, valuepos=None, delimiter=s)
+        for f, c, s in zip(newargs, cc, ss)
+    ]
 
-    pivot = 0 if opts.pivot==1 else 1
+    pivot = 0 if opts.pivot == 1 else 1
     fp = open(newargs[pivot])
     fw = must_open(opts.outfile, "w")
 
@@ -1036,7 +1109,7 @@ def subset(args):
         row = row.rstrip()
         atoms = row.split(ss[pivot])
         key = atoms[cc[pivot]]
-        d = files[1-pivot]
+        d = files[1 - pivot]
         if key in d:
             print(ss[0].join(files[0][key]), file=fw)
 
@@ -1061,28 +1134,32 @@ def setop(args):
     from jcvi.utils.natsort import natsorted
 
     p = OptionParser(setop.__doc__)
-    p.add_option("--column", default=0, type="int",
-                 help="The column to extract, 0-based, -1 to disable [default: %default]")
+    p.add_option(
+        "--column",
+        default=0,
+        type="int",
+        help="The column to extract, 0-based, -1 to disable",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    statement, = args
+    (statement,) = args
     fa, op, fb = statement.split()
-    assert op in ('|', '&', '-', '^')
+    assert op in ("|", "&", "-", "^")
 
     column = opts.column
     fa = SetFile(fa, column=column)
     fb = SetFile(fb, column=column)
 
-    if op == '|':
+    if op == "|":
         t = fa | fb
-    elif op == '&':
+    elif op == "&":
         t = fa & fb
-    elif op == '-':
+    elif op == "-":
         t = fa - fb
-    elif op == '^':
+    elif op == "^":
         t = fa ^ fb
 
     for x in natsorted(t):
@@ -1119,5 +1196,5 @@ def mergecsv(args):
     fw.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

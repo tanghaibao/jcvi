@@ -15,7 +15,7 @@ from optparse import OptionGroup
 
 import numpy as np
 
-from jcvi.apps.base import OptionGroup, OptionParser, datafile
+from jcvi.apps.base import OptionGroup, OptionParser, datafile, sample_N
 from jcvi.formats.base import DictFile, get_number
 from jcvi.formats.bed import Bed
 from jcvi.graphics.base import (
@@ -504,10 +504,11 @@ def main():
         mappings = dict((x, x) for x in classes)
 
     # Assign colors to classes
-    ncolors = min(len(classes), 12)
+    ncolors = max(3, min(len(classes), 12))
     palette = set1_n if ncolors <= 8 else set3_n
-    mycolors = palette(number=ncolors)
-    class_colors = dict(zip(classes, mycolors))
+    colorset = palette(number=ncolors)
+    colorset = sample_N(colorset, len(classes))
+    class_colors = dict(zip(classes, colorset))
     logging.debug("Assigned colors: {}".format(class_colors))
 
     chr_lens = {}
@@ -531,7 +532,9 @@ def main():
 
     chr_number = len(chr_lens)
     if centromeres:
-        assert chr_number == len(centromeres)
+        assert chr_number == len(
+            centromeres
+        ), "chr_number = {}, centromeres = {}".format(chr_number, centromeres)
 
     fig = plt.figure(1, (w, h))
     root = fig.add_axes([0, 0, 1, 1])
@@ -546,8 +549,7 @@ def main():
     # first the chromosomes
     for a, (chr, clen) in enumerate(sorted(chr_lens.items())):
         xx = xstart + a * xinterval + 0.5 * xwidth
-        chr = str(get_number(chr))
-        root.text(xx, ystart + 0.01, chr, ha="center")
+        root.text(xx, ystart + 0.01, str(get_number(chr)), ha="center")
         if centromeres:
             yy = ystart - centromeres[chr] * ratio
             ChromosomeWithCentromere(
@@ -568,6 +570,8 @@ def main():
             clen = chr_lens[chr]
             idx = chr_idxs[chr]
             klass = b.accn
+            if klass == "centromere":
+                continue
             start = b.start
             end = b.end
             if start < prev_end + mergedist and klass == prev_klass:
@@ -671,7 +675,7 @@ def main():
         xwidth = 0.04
         yy = 0.08
         for klass, cc in sorted(class_colors.items()):
-            if klass == "-":
+            if klass == "-" or klass == "centromere":
                 continue
             root.add_patch(
                 Rectangle((xstart, yy), xwidth, xwidth, fc=cc, lw=0, alpha=alpha)

@@ -22,6 +22,7 @@ from jcvi.graphics.base import (
     CirclePolygon,
     Polygon,
     Rectangle,
+    latex,
     markup,
     plt,
     savefig,
@@ -668,6 +669,9 @@ def main():
         xstart, ystart = 0.9, 0.85
         Gauge(root, xstart, ystart - r, ystart, max_chr_len)
 
+    if "centromere" in class_colors:
+        del class_colors["centromere"]
+
     # class legends, four in a row
     if opts.legend:
         xstart = 0.1
@@ -675,12 +679,12 @@ def main():
         xwidth = 0.04
         yy = 0.08
         for klass, cc in sorted(class_colors.items()):
-            if klass == "-" or klass == "centromere":
+            if klass == "-":
                 continue
             root.add_patch(
                 Rectangle((xstart, yy), xwidth, xwidth, fc=cc, lw=0, alpha=alpha)
             )
-            root.text(xstart + xwidth + 0.01, yy, klass, fontsize=10)
+            root.text(xstart + xwidth + 0.01, yy, latex(klass), fontsize=10)
             xstart += xinterval
 
     empty = opts.empty

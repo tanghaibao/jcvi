@@ -80,9 +80,10 @@ def truncate_name(name, rule=None):
 
 def draw_tree(
     ax,
-    tx,
+    t,
+    hpd=None,
     margin=0.1,
-    rmargin=0.15,
+    rmargin=0.2,
     tip=0.01,
     treecolor="k",
     supportcolor="k",
@@ -103,7 +104,6 @@ def draw_tree(
     main function for drawing phylogenetic tree
     """
 
-    t = Tree(tx)
     if reroot:
         if outgroup:
             R = t.get_common_ancestor(*outgroup)
@@ -129,12 +129,11 @@ def draw_tree(
 
     xstart = margin
     ystart = 2 * margin
-    canvas = 1 - 2 * margin
     # scale the tree
-    scale = (canvas - rmargin) / max_dist
+    scale = (1 - margin - rmargin) / max_dist
 
     num_leaves = len(t.get_leaf_names())
-    yinterval = canvas / num_leaves
+    yinterval = (1 - ystart) / num_leaves
 
     # get exons structures, if any
     structures = {}
@@ -282,7 +281,7 @@ def read_trees(tree):
     return trees
 
 
-def draw_geoscale(ax, margin=0.1, rmargin=0.15, yy=0.1, minx=0, maxx=350):
+def draw_geoscale(ax, margin=0.1, rmargin=0.2, yy=0.1, minx=0, maxx=350):
     """
     Draw geological epoch on million year ago (mya) scale.
     """
@@ -333,6 +332,35 @@ def draw_geoscale(ax, margin=0.1, rmargin=0.15, yy=0.1, minx=0, maxx=350):
         ax.add_patch(p)
 
 
+def parse_tree(infile):
+    """ Parse newick formatted tree file and returns a tuple consisted of a
+    Tree object, and a HPD dictionary if 95%HPD is found in the newick string,
+    otherwise None
+
+    Args:
+        infile (str): Path to the tree file
+    """
+    import re
+
+    with open(infile) as fp:
+        treedata = fp.read()
+    hpd_re = re.compile(r"( \[&95%HPD=[^[]*\])")
+
+    def repl(match):
+        repl.count += 1
+        name = "N{}".format(repl.count)
+        lb, ub = re.findall(r"HPD=\{(.*), (.*)\}", match.group(0))[0]
+        repl.hpd[name] = (float(lb), float(ub))
+        return name
+
+    repl.count = 0
+    repl.hpd = {}
+
+    treedata, changed = re.subn(hpd_re, repl, treedata)
+
+    return (Tree(treedata, format=1), repl.hpd) if changed else (Tree(treedata), None)
+
+
 def main(args):
     """
     %prog newicktree
@@ -354,7 +382,7 @@ def main(args):
         help="Don't reroot the input tree",
     )
     p.add_option(
-        "--rmargin", default=0.15, type="float", help="Set blank rmargin to the right"
+        "--rmargin", default=0.2, type="float", help="Set blank rmargin to the right"
     )
     p.add_option("--gffdir", default=None, help="The directory that contain GFF files")
     p.add_option("--sizes", default=None, help="The FASTA file or the sizes file")
@@ -402,14 +430,17 @@ def main(args):
     if opts.outgroup:
         outgroup = opts.outgroup.split(",")
 
+    hpd = None
     if datafile == "demo":
-        tx = """(((Os02g0681100:0.1151,Sb04g031800:0.11220)1.0:0.0537,
+        t = Tree(
+            """(((Os02g0681100:0.1151,Sb04g031800:0.11220)1.0:0.0537,
         (Os04g0578800:0.04318,Sb06g026210:0.04798)-1.0:0.08870)1.0:0.06985,
         ((Os03g0124100:0.08845,Sb01g048930:0.09055)1.0:0.05332,
         (Os10g0534700:0.06592,Sb01g030630:0.04824)-1.0:0.07886):0.09389);"""
+        )
     else:
         logging.debug("Load tree file `{0}`".format(datafile))
-        tx = open(datafile).read()
+        t, hpd = parse_tree(datafile)
 
     pf = datafile.rsplit(".", 1)[0]
 
@@ -417,12 +448,13 @@ def main(args):
     root = fig.add_axes([0, 0, 1, 1])
 
     supportcolor = "k" if opts.support else None
-    margin, rmargin = 0.08, opts.rmargin  # Left and right margin
+    margin, rmargin = 0.1, opts.rmargin  # Left and right margin
     leafinfo = LeafInfoFile(opts.leafinfo).cache if opts.leafinfo else None
 
     draw_tree(
         root,
-        tx,
+        t,
+        hpd=hpd,
         margin=margin,
         rmargin=rmargin,
         supportcolor=supportcolor,

@@ -7,6 +7,7 @@ import logging
 import os.path as op
 import sys
 
+from collections import defaultdict
 from ete3 import Tree
 
 from jcvi.apps.base import OptionParser, glob
@@ -36,6 +37,28 @@ class LeafInfoFile(LineFile):
                     continue
                 line = LeafInfoLine(row, delimiter=delimiter)
                 self.cache[line.name] = line
+
+
+class WGDInfoLine:
+    def __init__(self, row, delimiter=","):
+        args = [x.strip() for x in row.split(delimiter)]
+        self.node_name = args[0]
+        self.divergence = float(args[1]) / 100
+        self.name = args[2]
+        self.color = args[3] or "w"
+        self.style = args[4]
+
+
+class WGDInfoFile(LineFile):
+    def __init__(self, filename, delimiter=","):
+        super(WGDInfoFile, self).__init__(filename)
+        self.cache = defaultdict(list)
+        with open(filename) as fp:
+            for row in fp:
+                if row[0] == "#":
+                    continue
+                line = WGDInfoLine(row, delimiter=delimiter)
+                self.cache[line.node_name].append(line)
 
 
 def truncate_name(name, rule=None):
@@ -79,6 +102,21 @@ def truncate_name(name, rule=None):
     return tname
 
 
+def draw_wgd(ax, y, rescale, name, wgdcache):
+    """Draw WGD a (xx yy) position
+
+    Args:
+        ax (axis): Matplotlib axes
+        xx (float): x position
+        yy (float): y position
+        wgdline (WGDInfo): WGDInfoLines that contains the styling information
+    """
+    if not wgdcache or name not in wgdcache:
+        return
+    for line in wgdcache[name]:
+        TextCircle(ax, rescale(line.divergence), y, line.name, fc="g")
+
+
 def draw_tree(
     ax,
     t,
@@ -100,6 +138,7 @@ def draw_tree(
     leafcolor="k",
     leaffont=12,
     leafinfo=None,
+    wgdinfo=None,
     geoscale=False,
 ):
     """
@@ -137,6 +176,9 @@ def draw_tree(
 
     def rescale(dist):
         return xstart + scale * dist
+
+    def rescale_divergence(divergence):
+        return rescale(max_dist - divergence)
 
     num_leaves = len(t.get_leaf_names())
     yinterval = (1 - ystart) / num_leaves
@@ -222,7 +264,7 @@ def draw_tree(
             if n.name in hpd:
                 a, b = hpd[n.name]
                 ax.plot(
-                    (rescale(max_dist - a), rescale(max_dist - b)),
+                    (rescale_divergence(a), rescale_divergence(b)),
                     (yy, yy),
                     "b-",
                     alpha=0.6,
@@ -245,6 +287,8 @@ def draw_tree(
                 TextCircle(ax, xx, yy, n.name, size=9)
 
         coords[n] = (xx, yy)
+        # WGD info
+        draw_wgd(ax, yy, rescale_divergence, n.name, wgdinfo)
 
     # scale bar
     if geoscale:
@@ -414,9 +458,6 @@ def main(args):
     p.add_option("--gffdir", default=None, help="The directory that contain GFF files")
     p.add_option("--sizes", default=None, help="The FASTA file or the sizes file")
     p.add_option("--SH", default=None, type="string", help="SH test p-value")
-    p.add_option(
-        "--geoscale", default=False, action="store_true", help="Plot geological scale",
-    )
 
     group = p.add_option_group("Node style")
     group.add_option("--leafcolor", default="k", help="Font color for the OTUs")
@@ -453,6 +494,14 @@ def main(args):
         help="Gray out the edges connecting outgroup and non-outgroup",
     )
 
+    group = p.add_option_group("Additional annotations")
+    group.add_option(
+        "--geoscale", default=False, action="store_true", help="Plot geological scale",
+    )
+    group.add_option(
+        "--wgdinfo", help="CSV specifying the position and style of WGD events"
+    )
+
     opts, args, iopts = p.set_image_options(args, figsize="10x7")
 
     if len(args) != 1:
@@ -484,6 +533,7 @@ def main(args):
     supportcolor = "k" if opts.support else None
     margin, rmargin = 0.1, opts.rmargin  # Left and right margin
     leafinfo = LeafInfoFile(opts.leafinfo).cache if opts.leafinfo else None
+    wgdinfo = WGDInfoFile(opts.wgdinfo).cache if opts.wgdinfo else None
 
     draw_tree(
         root,
@@ -503,6 +553,7 @@ def main(args):
         leafcolor=opts.leafcolor,
         leaffont=opts.leaffont,
         leafinfo=leafinfo,
+        wgdinfo=wgdinfo,
         geoscale=opts.geoscale,
     )
 

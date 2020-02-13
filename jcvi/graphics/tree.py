@@ -2,17 +2,18 @@
 # -*- coding: UTF-8 -*-
 
 from __future__ import print_function
-import sys
-import os.path as op
+
 import logging
+import os.path as op
+import sys
 
 from ete3 import Tree
 
-from jcvi.formats.sizes import Sizes
-from jcvi.formats.base import DictFile, LineFile
-from jcvi.graphics.base import Rectangle, set3_n, plt, savefig, markup, normalize_axes
-from jcvi.graphics.glyph import ExonGlyph, get_setups
 from jcvi.apps.base import OptionParser, glob
+from jcvi.formats.base import DictFile, LineFile
+from jcvi.formats.sizes import Sizes
+from jcvi.graphics.base import Rectangle, markup, normalize_axes, plt, savefig, set3_n
+from jcvi.graphics.glyph import ExonGlyph, TextCircle, get_setups
 
 
 class LeafInfoLine:
@@ -87,6 +88,7 @@ def draw_tree(
     tip=0.01,
     treecolor="k",
     supportcolor="k",
+    internal=True,
     outgroup=None,
     dashedoutgroup=False,
     reroot=True,
@@ -132,6 +134,9 @@ def draw_tree(
     # scale the tree
     scale = (1 - margin - rmargin) / max_dist
 
+    def rescale(dist):
+        return xstart + scale * dist
+
     num_leaves = len(t.get_leaf_names())
     yinterval = (1 - ystart) / num_leaves
 
@@ -149,7 +154,7 @@ def draw_tree(
     i = 0
     for n in t.traverse("postorder"):
         dist = n.get_distance(t)
-        xx = xstart + scale * dist
+        xx = rescale(dist)
 
         if n.is_leaf():
             yy = ystart + i * yinterval
@@ -212,6 +217,16 @@ def draw_tree(
             for cx, cy in children:
                 ax.plot((xx, cx), (cy, cy), linestyle, color=treecolor)
             yy = sum(children_y) * 1.0 / len(children_y)
+            # plot HPD if exists
+            if n.name in hpd:
+                a, b = hpd[n.name]
+                ax.plot(
+                    (rescale(max_dist - a), rescale(max_dist - b)),
+                    (yy, yy),
+                    "b-",
+                    alpha=0.6,
+                    lw=4,
+                )
             support = n.support
             if support > 1:
                 support = support / 100.0
@@ -225,6 +240,8 @@ def draw_tree(
                         size=leaffont,
                         color=supportcolor,
                     )
+            if internal and n.name:
+                TextCircle(ax, xx, yy, n.name, size=9)
 
         coords[n] = (xx, yy)
 
@@ -327,7 +344,7 @@ def draw_geoscale(ax, margin=0.1, rmargin=0.2, yy=0.1, minx=0, maxx=350):
             era,
             ha="center",
             va="center",
-            size=9,
+            size=8,
         )
         ax.add_patch(p)
 
@@ -410,6 +427,13 @@ def main(args):
         action="store_false",
         help="Do not print node support values",
     )
+    group.add_option(
+        "--no_internal",
+        dest="internal",
+        default=True,
+        action="store_false",
+        help="Do not show internal nodes",
+    )
 
     group = p.add_option_group("Edge style")
     group.add_option(
@@ -458,6 +482,7 @@ def main(args):
         margin=margin,
         rmargin=rmargin,
         supportcolor=supportcolor,
+        internal=opts.internal,
         outgroup=outgroup,
         dashedoutgroup=opts.dashedoutgroup,
         reroot=reroot,

@@ -10,7 +10,7 @@ from ete3 import Tree
 
 from jcvi.formats.sizes import Sizes
 from jcvi.formats.base import DictFile, LineFile
-from jcvi.graphics.base import Rectangle, plt, savefig, markup, normalize_axes
+from jcvi.graphics.base import Rectangle, set3_n, plt, savefig, markup, normalize_axes
 from jcvi.graphics.glyph import ExonGlyph, get_setups
 from jcvi.apps.base import OptionParser, glob
 
@@ -81,8 +81,8 @@ def truncate_name(name, rule=None):
 def draw_tree(
     ax,
     tx,
-    margin=0.08,
-    rmargin=0.2,
+    margin=0.1,
+    rmargin=0.15,
     tip=0.01,
     treecolor="k",
     supportcolor="k",
@@ -97,6 +97,7 @@ def draw_tree(
     leafcolor="k",
     leaffont=12,
     leafinfo=None,
+    geoscale=False,
 ):
     """
     main function for drawing phylogenetic tree
@@ -133,7 +134,7 @@ def draw_tree(
     scale = (canvas - rmargin) / max_dist
 
     num_leaves = len(t.get_leaf_names())
-    yinterval = canvas / (num_leaves + 1)
+    yinterval = canvas / num_leaves
 
     # get exons structures, if any
     structures = {}
@@ -229,22 +230,25 @@ def draw_tree(
         coords[n] = (xx, yy)
 
     # scale bar
-    br = 0.1
-    x1 = xstart + 0.1
-    x2 = x1 + br * scale
-    yy = margin
-    ax.plot([x1, x1], [yy - tip, yy + tip], "-", color=treecolor)
-    ax.plot([x2, x2], [yy - tip, yy + tip], "-", color=treecolor)
-    ax.plot([x1, x2], [yy, yy], "-", color=treecolor)
-    ax.text(
-        (x1 + x2) / 2,
-        yy - tip,
-        "{0:g}".format(br),
-        va="top",
-        ha="center",
-        size=leaffont,
-        color=treecolor,
-    )
+    if geoscale:
+        draw_geoscale(ax, margin=margin, rmargin=rmargin, yy=margin)
+    else:
+        br = 0.1
+        x1 = xstart + 0.1
+        x2 = x1 + br * scale
+        yy = margin
+        ax.plot([x1, x1], [yy - tip, yy + tip], "-", color=treecolor)
+        ax.plot([x2, x2], [yy - tip, yy + tip], "-", color=treecolor)
+        ax.plot([x1, x2], [yy, yy], "-", color=treecolor)
+        ax.text(
+            (x1 + x2) / 2,
+            yy - tip,
+            "{0:g}".format(br),
+            va="top",
+            ha="center",
+            size=leaffont,
+            color=treecolor,
+        )
 
     if SH is not None:
         xs = x1
@@ -272,53 +276,55 @@ def read_trees(tree):
         header = parse_qs(header[1:])
         label = header["label"][0].strip('"')
         outgroup = header["outgroup"]
-        color, = header.get("color", ["k"])
+        (color,) = header.get("color", ["k"])
         trees.append((label, outgroup, color, "".join(tx)))
 
     return trees
 
 
-def draw_geoscale(ax, minx=0, maxx=175):
+def draw_geoscale(ax, margin=0.1, rmargin=0.15, yy=0.1, minx=0, maxx=350):
     """
     Draw geological epoch on million year ago (mya) scale.
     """
-    a, b = 0.1, 0.6  # Correspond to 200mya and 0mya
+    a, b = margin, 1 - rmargin  # Correspond to 350mya and 0mya
 
     def cv(x):
         return b - (x - b) / (maxx - minx) * (b - a)
 
-    ax.plot((a, b), (0.5, 0.5), "k-")
-    tick = 0.015
-    for mya in xrange(maxx - 25, 0, -25):
+    ax.plot((a, b), (yy, yy), "k-")
+    tick = 0.0125
+    for mya in range(maxx - 25, 0, -25):
         p = cv(mya)
-        ax.plot((p, p), (0.5, 0.5 - tick), "k-")
-        ax.text(p, 0.5 - 2.5 * tick, str(mya), ha="center", va="center")
+        ax.plot((p, p), (yy, yy - tick), "k-")
+        ax.text(p, yy - 2.5 * tick, str(mya), ha="center", va="center")
+
     ax.text(
         (a + b) / 2,
-        0.5 - 5 * tick,
+        yy - 5 * tick,
         "Time before present (million years)",
         ha="center",
         va="center",
     )
 
     # Source:
-    # http://www.weston.org/schools/ms/biologyweb/evolution/handouts/GSAchron09.jpg
+    # https://en.wikipedia.org/wiki/Geological_period
     Geo = (
-        ("Neogene", 2.6, 23.0, "#fee400"),
-        ("Paleogene", 23.0, 65.5, "#ff9a65"),
-        ("Cretaceous", 65.5, 145.5, "#80ff40"),
-        ("Jurassic", 145.5, 201.6, "#33fff3"),
+        ("Neogene", 2.588, 23.03),
+        ("Paleogene", 23.03, 66.0),
+        ("Cretaceous", 66.0, 145.5),
+        ("Jurassic", 145.5, 201.3),
+        ("Triassic", 201.3, 252.17),
+        ("Permian", 252.17, 298.9),
+        ("Carboniferous", 298.9, 358.9),
     )
     h = 0.05
-    for era, start, end, color in Geo:
+    for (era, start, end), color in zip(Geo, set3_n(len(Geo))):
         start, end = cv(start), cv(end)
         end = max(a, end)
-        p = Rectangle(
-            (end, 0.5 + tick / 2), abs(start - end), h, lw=1, ec="w", fc=color
-        )
+        p = Rectangle((end, yy + tick / 2), abs(start - end), h, lw=1, ec="w", fc=color)
         ax.text(
             (start + end) / 2,
-            0.5 + (tick + h) / 2,
+            yy + (tick + h) / 2,
             era,
             ha="center",
             va="center",
@@ -348,7 +354,7 @@ def main(args):
         help="Don't reroot the input tree",
     )
     p.add_option(
-        "--rmargin", default=0.2, type="float", help="Set blank rmargin to the right"
+        "--rmargin", default=0.15, type="float", help="Set blank rmargin to the right"
     )
     p.add_option("--gffdir", default=None, help="The directory that contain GFF files")
     p.add_option("--sizes", default=None, help="The FASTA file or the sizes file")
@@ -385,12 +391,12 @@ def main(args):
         help="Gray out the edges connecting outgroup and non-outgroup",
     )
 
-    opts, args, iopts = p.set_image_options(args, figsize="8x6")
+    opts, args, iopts = p.set_image_options(args, figsize="10x7")
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    datafile, = args
+    (datafile,) = args
     outgroup = None
     reroot = not opts.noreroot
     if opts.outgroup:
@@ -411,29 +417,27 @@ def main(args):
     root = fig.add_axes([0, 0, 1, 1])
 
     supportcolor = "k" if opts.support else None
+    margin, rmargin = 0.08, opts.rmargin  # Left and right margin
+    leafinfo = LeafInfoFile(opts.leafinfo).cache if opts.leafinfo else None
 
-    if opts.geoscale:
-        draw_geoscale(root)
-
-    else:
-        leafinfo = LeafInfoFile(opts.leafinfo).cache if opts.leafinfo else None
-
-        draw_tree(
-            root,
-            tx,
-            rmargin=opts.rmargin,
-            supportcolor=supportcolor,
-            outgroup=outgroup,
-            dashedoutgroup=opts.dashedoutgroup,
-            reroot=reroot,
-            gffdir=opts.gffdir,
-            sizes=opts.sizes,
-            SH=opts.SH,
-            scutoff=opts.scutoff,
-            leafcolor=opts.leafcolor,
-            leaffont=opts.leaffont,
-            leafinfo=leafinfo,
-        )
+    draw_tree(
+        root,
+        tx,
+        margin=margin,
+        rmargin=rmargin,
+        supportcolor=supportcolor,
+        outgroup=outgroup,
+        dashedoutgroup=opts.dashedoutgroup,
+        reroot=reroot,
+        gffdir=opts.gffdir,
+        sizes=opts.sizes,
+        SH=opts.SH,
+        scutoff=opts.scutoff,
+        leafcolor=opts.leafcolor,
+        leaffont=opts.leaffont,
+        leafinfo=leafinfo,
+        geoscale=opts.geoscale,
+    )
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)

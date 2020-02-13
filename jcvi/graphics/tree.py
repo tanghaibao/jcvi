@@ -128,6 +128,7 @@ def draw_tree(
             b.dist = total - a.dist
 
     farthest, max_dist = t.get_farthest_leaf()
+    print("max_dist = {}".format(max_dist), file=sys.stderr)
 
     xstart = margin
     ystart = 2 * margin
@@ -247,7 +248,7 @@ def draw_tree(
 
     # scale bar
     if geoscale:
-        draw_geoscale(ax, margin=margin, rmargin=rmargin, yy=margin)
+        draw_geoscale(ax, margin=margin, rmargin=rmargin, yy=margin, max_dist=max_dist)
     else:
         br = 0.1
         x1 = xstart + 0.1
@@ -298,18 +299,23 @@ def read_trees(tree):
     return trees
 
 
-def draw_geoscale(ax, margin=0.1, rmargin=0.2, yy=0.1, minx=0, maxx=350):
+def draw_geoscale(ax, margin=0.1, rmargin=0.2, yy=0.1, max_dist=3.0):
     """
     Draw geological epoch on million year ago (mya) scale.
+    max_dist = 3.0 => max is 300 mya
     """
-    a, b = margin, 1 - rmargin  # Correspond to 350mya and 0mya
+    import math
+
+    a, b = margin, 1 - rmargin  # Correspond to 300mya and 0mya
+    minx, maxx = 0, int(max_dist * 100)
 
     def cv(x):
         return b - (x - b) / (maxx - minx) * (b - a)
 
     ax.plot((a, b), (yy, yy), "k-")
     tick = 0.0125
-    for mya in range(maxx - 25, 0, -25):
+    scale_start = int(math.ceil(maxx / 25) * 25)
+    for mya in range(scale_start - 25, 0, -25):
         p = cv(mya)
         ax.plot((p, p), (yy, yy - tick), "k-")
         ax.text(p, yy - 2.5 * tick, str(mya), ha="center", va="center")
@@ -331,10 +337,12 @@ def draw_geoscale(ax, margin=0.1, rmargin=0.2, yy=0.1, minx=0, maxx=350):
         ("Jurassic", 145.5, 201.3),
         ("Triassic", 201.3, 252.17),
         ("Permian", 252.17, 298.9),
-        ("Carboniferous", 298.9, 358.9),
+        # ("Carboniferous", 298.9, 358.9),
     )
     h = 0.05
     for (era, start, end), color in zip(Geo, set3_n(len(Geo))):
+        if maxx - start < 10:  # not visible enough
+            continue
         start, end = cv(start), cv(end)
         end = max(a, end)
         p = Rectangle((end, yy + tick / 2), abs(start - end), h, lw=1, ec="w", fc=color)
@@ -374,6 +382,8 @@ def parse_tree(infile):
     repl.hpd = {}
 
     treedata, changed = re.subn(hpd_re, repl, treedata)
+    if repl.hpd:
+        print(repl.hpd, file=sys.stderr)
 
     return (Tree(treedata, format=1), repl.hpd) if changed else (Tree(treedata), None)
 
@@ -405,7 +415,7 @@ def main(args):
     p.add_option("--sizes", default=None, help="The FASTA file or the sizes file")
     p.add_option("--SH", default=None, type="string", help="SH test p-value")
     p.add_option(
-        "--geoscale", default=False, action="store_true", help="Plot geological scale"
+        "--geoscale", default=False, action="store_true", help="Plot geological scale",
     )
 
     group = p.add_option_group("Node style")

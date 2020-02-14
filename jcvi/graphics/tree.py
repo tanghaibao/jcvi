@@ -40,12 +40,12 @@ class LeafInfoFile(LineFile):
 
 
 class WGDInfoLine:
-    def __init__(self, row, delimiter=","):
+    def __init__(self, row, delimiter=",", defaultcolor="#7fc97f"):
         args = [x.strip() for x in row.split(delimiter)]
         self.node_name = args[0]
         self.divergence = float(args[1]) / 100
         self.name = args[2]
-        self.color = args[3] or "w"
+        self.color = args[3] or defaultcolor
         self.style = args[4]
 
 
@@ -114,7 +114,16 @@ def draw_wgd(ax, y, rescale, name, wgdcache):
     if not wgdcache or name not in wgdcache:
         return
     for line in wgdcache[name]:
-        TextCircle(ax, rescale(line.divergence), y, line.name, fc="g")
+        TextCircle(
+            ax,
+            rescale(line.divergence),
+            y,
+            line.name,
+            fc=line.color,
+            radius=0.0225,
+            color="k",
+            fontweight="bold",
+        )
 
 
 def draw_tree(
@@ -266,9 +275,10 @@ def draw_tree(
                 ax.plot(
                     (rescale_divergence(a), rescale_divergence(b)),
                     (yy, yy),
-                    "b-",
-                    alpha=0.6,
-                    lw=4,
+                    "-",
+                    color="darkslategray",
+                    alpha=0.4,
+                    lw=2,
                 )
             support = n.support
             if support > 1:

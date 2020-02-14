@@ -281,6 +281,8 @@ def fontprop(ax, name, size=12):
 
 
 def markup(s):
+    if "$" in s:
+        return s
     import re
 
     s = latex(s)

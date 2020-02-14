@@ -258,7 +258,8 @@ class KsPlot(object):
 
         adjust_spines(ax, ["left", "bottom"], outward=True)
 
-        savefig(filename, dpi=300)
+        if filename:
+            savefig(filename, dpi=300)
 
 
 def multireport(args):

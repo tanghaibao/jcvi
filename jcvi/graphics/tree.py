@@ -2,17 +2,19 @@
 # -*- coding: UTF-8 -*-
 
 from __future__ import print_function
-import sys
-import os.path as op
-import logging
 
+import logging
+import os.path as op
+import sys
+
+from collections import defaultdict
 from ete3 import Tree
 
-from jcvi.formats.sizes import Sizes
-from jcvi.formats.base import DictFile, LineFile
-from jcvi.graphics.base import Rectangle, plt, savefig, markup, normalize_axes
-from jcvi.graphics.glyph import ExonGlyph, get_setups
 from jcvi.apps.base import OptionParser, glob
+from jcvi.formats.base import DictFile, LineFile
+from jcvi.formats.sizes import Sizes
+from jcvi.graphics.base import Rectangle, markup, normalize_axes, plt, savefig, set3_n
+from jcvi.graphics.glyph import ExonGlyph, TextCircle, get_setups
 
 
 class LeafInfoLine:
@@ -35,6 +37,28 @@ class LeafInfoFile(LineFile):
                     continue
                 line = LeafInfoLine(row, delimiter=delimiter)
                 self.cache[line.name] = line
+
+
+class WGDInfoLine:
+    def __init__(self, row, delimiter=",", defaultcolor="#7fc97f"):
+        args = [x.strip() for x in row.split(delimiter)]
+        self.node_name = args[0]
+        self.divergence = float(args[1]) / 100
+        self.name = args[2]
+        self.color = args[3] or defaultcolor
+        self.style = args[4]
+
+
+class WGDInfoFile(LineFile):
+    def __init__(self, filename, delimiter=","):
+        super(WGDInfoFile, self).__init__(filename)
+        self.cache = defaultdict(list)
+        with open(filename) as fp:
+            for row in fp:
+                if row[0] == "#":
+                    continue
+                line = WGDInfoLine(row, delimiter=delimiter)
+                self.cache[line.node_name].append(line)
 
 
 def truncate_name(name, rule=None):
@@ -78,14 +102,40 @@ def truncate_name(name, rule=None):
     return tname
 
 
+def draw_wgd(ax, y, rescale, name, wgdcache):
+    """Draw WGD a (xx yy) position
+
+    Args:
+        ax (axis): Matplotlib axes
+        xx (float): x position
+        yy (float): y position
+        wgdline (WGDInfo): WGDInfoLines that contains the styling information
+    """
+    if not wgdcache or name not in wgdcache:
+        return
+    for line in wgdcache[name]:
+        TextCircle(
+            ax,
+            rescale(line.divergence),
+            y,
+            line.name,
+            fc=line.color,
+            radius=0.0225,
+            color="k",
+            fontweight="bold",
+        )
+
+
 def draw_tree(
     ax,
-    tx,
-    margin=0.08,
+    t,
+    hpd=None,
+    margin=0.1,
     rmargin=0.2,
     tip=0.01,
     treecolor="k",
     supportcolor="k",
+    internal=True,
     outgroup=None,
     dashedoutgroup=False,
     reroot=True,
@@ -97,12 +147,13 @@ def draw_tree(
     leafcolor="k",
     leaffont=12,
     leafinfo=None,
+    wgdinfo=None,
+    geoscale=False,
 ):
     """
     main function for drawing phylogenetic tree
     """
 
-    t = Tree(tx)
     if reroot:
         if outgroup:
             R = t.get_common_ancestor(*outgroup)
@@ -125,15 +176,21 @@ def draw_tree(
             b.dist = total - a.dist
 
     farthest, max_dist = t.get_farthest_leaf()
+    print("max_dist = {}".format(max_dist), file=sys.stderr)
 
     xstart = margin
     ystart = 2 * margin
-    canvas = 1 - 2 * margin
     # scale the tree
-    scale = (canvas - rmargin) / max_dist
+    scale = (1 - margin - rmargin) / max_dist
+
+    def rescale(dist):
+        return xstart + scale * dist
+
+    def rescale_divergence(divergence):
+        return rescale(max_dist - divergence)
 
     num_leaves = len(t.get_leaf_names())
-    yinterval = canvas / (num_leaves + 1)
+    yinterval = (1 - ystart) / num_leaves
 
     # get exons structures, if any
     structures = {}
@@ -149,7 +206,7 @@ def draw_tree(
     i = 0
     for n in t.traverse("postorder"):
         dist = n.get_distance(t)
-        xx = xstart + scale * dist
+        xx = rescale(dist)
 
         if n.is_leaf():
             yy = ystart + i * yinterval
@@ -212,6 +269,17 @@ def draw_tree(
             for cx, cy in children:
                 ax.plot((xx, cx), (cy, cy), linestyle, color=treecolor)
             yy = sum(children_y) * 1.0 / len(children_y)
+            # plot HPD if exists
+            if n.name in hpd:
+                a, b = hpd[n.name]
+                ax.plot(
+                    (rescale_divergence(a), rescale_divergence(b)),
+                    (yy, yy),
+                    "-",
+                    color="darkslategray",
+                    alpha=0.4,
+                    lw=2,
+                )
             support = n.support
             if support > 1:
                 support = support / 100.0
@@ -225,26 +293,33 @@ def draw_tree(
                         size=leaffont,
                         color=supportcolor,
                     )
+            if internal and n.name:
+                TextCircle(ax, xx, yy, n.name, size=9)
 
         coords[n] = (xx, yy)
+        # WGD info
+        draw_wgd(ax, yy, rescale_divergence, n.name, wgdinfo)
 
     # scale bar
-    br = 0.1
-    x1 = xstart + 0.1
-    x2 = x1 + br * scale
-    yy = margin
-    ax.plot([x1, x1], [yy - tip, yy + tip], "-", color=treecolor)
-    ax.plot([x2, x2], [yy - tip, yy + tip], "-", color=treecolor)
-    ax.plot([x1, x2], [yy, yy], "-", color=treecolor)
-    ax.text(
-        (x1 + x2) / 2,
-        yy - tip,
-        "{0:g}".format(br),
-        va="top",
-        ha="center",
-        size=leaffont,
-        color=treecolor,
-    )
+    if geoscale:
+        draw_geoscale(ax, margin=margin, rmargin=rmargin, yy=margin, max_dist=max_dist)
+    else:
+        br = 0.1
+        x1 = xstart + 0.1
+        x2 = x1 + br * scale
+        yy = margin
+        ax.plot([x1, x1], [yy - tip, yy + tip], "-", color=treecolor)
+        ax.plot([x2, x2], [yy - tip, yy + tip], "-", color=treecolor)
+        ax.plot([x1, x2], [yy, yy], "-", color=treecolor)
+        ax.text(
+            (x1 + x2) / 2,
+            yy - tip,
+            "{0:g}".format(br),
+            va="top",
+            ha="center",
+            size=leaffont,
+            color=treecolor,
+        )
 
     if SH is not None:
         xs = x1
@@ -272,59 +347,99 @@ def read_trees(tree):
         header = parse_qs(header[1:])
         label = header["label"][0].strip('"')
         outgroup = header["outgroup"]
-        color, = header.get("color", ["k"])
+        (color,) = header.get("color", ["k"])
         trees.append((label, outgroup, color, "".join(tx)))
 
     return trees
 
 
-def draw_geoscale(ax, minx=0, maxx=175):
+def draw_geoscale(ax, margin=0.1, rmargin=0.2, yy=0.1, max_dist=3.0):
     """
     Draw geological epoch on million year ago (mya) scale.
+    max_dist = 3.0 => max is 300 mya
     """
-    a, b = 0.1, 0.6  # Correspond to 200mya and 0mya
+    import math
+
+    a, b = margin, 1 - rmargin  # Correspond to 300mya and 0mya
+    minx, maxx = 0, int(max_dist * 100)
 
     def cv(x):
         return b - (x - b) / (maxx - minx) * (b - a)
 
-    ax.plot((a, b), (0.5, 0.5), "k-")
-    tick = 0.015
-    for mya in xrange(maxx - 25, 0, -25):
+    ax.plot((a, b), (yy, yy), "k-")
+    tick = 0.0125
+    scale_start = int(math.ceil(maxx / 25) * 25)
+    for mya in range(scale_start - 25, 0, -25):
         p = cv(mya)
-        ax.plot((p, p), (0.5, 0.5 - tick), "k-")
-        ax.text(p, 0.5 - 2.5 * tick, str(mya), ha="center", va="center")
+        ax.plot((p, p), (yy, yy - tick), "k-")
+        ax.text(p, yy - 2.5 * tick, str(mya), ha="center", va="center")
+
     ax.text(
         (a + b) / 2,
-        0.5 - 5 * tick,
+        yy - 5 * tick,
         "Time before present (million years)",
         ha="center",
         va="center",
     )
 
     # Source:
-    # http://www.weston.org/schools/ms/biologyweb/evolution/handouts/GSAchron09.jpg
+    # https://en.wikipedia.org/wiki/Geological_period
     Geo = (
-        ("Neogene", 2.6, 23.0, "#fee400"),
-        ("Paleogene", 23.0, 65.5, "#ff9a65"),
-        ("Cretaceous", 65.5, 145.5, "#80ff40"),
-        ("Jurassic", 145.5, 201.6, "#33fff3"),
+        ("Neogene", 2.588, 23.03),
+        ("Paleogene", 23.03, 66.0),
+        ("Cretaceous", 66.0, 145.5),
+        ("Jurassic", 145.5, 201.3),
+        ("Triassic", 201.3, 252.17),
+        ("Permian", 252.17, 298.9),
+        # ("Carboniferous", 298.9, 358.9),
     )
     h = 0.05
-    for era, start, end, color in Geo:
+    for (era, start, end), color in zip(Geo, set3_n(len(Geo))):
+        if maxx - start < 10:  # not visible enough
+            continue
         start, end = cv(start), cv(end)
         end = max(a, end)
-        p = Rectangle(
-            (end, 0.5 + tick / 2), abs(start - end), h, lw=1, ec="w", fc=color
-        )
+        p = Rectangle((end, yy + tick / 2), abs(start - end), h, lw=1, ec="w", fc=color)
         ax.text(
             (start + end) / 2,
-            0.5 + (tick + h) / 2,
+            yy + (tick + h) / 2,
             era,
             ha="center",
             va="center",
-            size=9,
+            size=8,
         )
         ax.add_patch(p)
+
+
+def parse_tree(infile):
+    """ Parse newick formatted tree file and returns a tuple consisted of a
+    Tree object, and a HPD dictionary if 95%HPD is found in the newick string,
+    otherwise None
+
+    Args:
+        infile (str): Path to the tree file
+    """
+    import re
+
+    with open(infile) as fp:
+        treedata = fp.read()
+    hpd_re = re.compile(r"( \[&95%HPD=[^[]*\])")
+
+    def repl(match):
+        repl.count += 1
+        name = "N{}".format(repl.count)
+        lb, ub = re.findall(r"HPD=\{(.*), (.*)\}", match.group(0))[0]
+        repl.hpd[name] = (float(lb), float(ub))
+        return name
+
+    repl.count = 0
+    repl.hpd = {}
+
+    treedata, changed = re.subn(hpd_re, repl, treedata)
+    if repl.hpd:
+        print(repl.hpd, file=sys.stderr)
+
+    return (Tree(treedata, format=1), repl.hpd) if changed else (Tree(treedata), None)
 
 
 def main(args):
@@ -353,9 +468,6 @@ def main(args):
     p.add_option("--gffdir", default=None, help="The directory that contain GFF files")
     p.add_option("--sizes", default=None, help="The FASTA file or the sizes file")
     p.add_option("--SH", default=None, type="string", help="SH test p-value")
-    p.add_option(
-        "--geoscale", default=False, action="store_true", help="Plot geological scale"
-    )
 
     group = p.add_option_group("Node style")
     group.add_option("--leafcolor", default="k", help="Font color for the OTUs")
@@ -376,6 +488,13 @@ def main(args):
         action="store_false",
         help="Do not print node support values",
     )
+    group.add_option(
+        "--no_internal",
+        dest="internal",
+        default=True,
+        action="store_false",
+        help="Do not show internal nodes",
+    )
 
     group = p.add_option_group("Edge style")
     group.add_option(
@@ -385,25 +504,36 @@ def main(args):
         help="Gray out the edges connecting outgroup and non-outgroup",
     )
 
-    opts, args, iopts = p.set_image_options(args, figsize="8x6")
+    group = p.add_option_group("Additional annotations")
+    group.add_option(
+        "--geoscale", default=False, action="store_true", help="Plot geological scale",
+    )
+    group.add_option(
+        "--wgdinfo", help="CSV specifying the position and style of WGD events"
+    )
+
+    opts, args, iopts = p.set_image_options(args, figsize="10x7")
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    datafile, = args
+    (datafile,) = args
     outgroup = None
     reroot = not opts.noreroot
     if opts.outgroup:
         outgroup = opts.outgroup.split(",")
 
+    hpd = None
     if datafile == "demo":
-        tx = """(((Os02g0681100:0.1151,Sb04g031800:0.11220)1.0:0.0537,
+        t = Tree(
+            """(((Os02g0681100:0.1151,Sb04g031800:0.11220)1.0:0.0537,
         (Os04g0578800:0.04318,Sb06g026210:0.04798)-1.0:0.08870)1.0:0.06985,
         ((Os03g0124100:0.08845,Sb01g048930:0.09055)1.0:0.05332,
         (Os10g0534700:0.06592,Sb01g030630:0.04824)-1.0:0.07886):0.09389);"""
+        )
     else:
         logging.debug("Load tree file `{0}`".format(datafile))
-        tx = open(datafile).read()
+        t, hpd = parse_tree(datafile)
 
     pf = datafile.rsplit(".", 1)[0]
 
@@ -411,29 +541,31 @@ def main(args):
     root = fig.add_axes([0, 0, 1, 1])
 
     supportcolor = "k" if opts.support else None
+    margin, rmargin = 0.1, opts.rmargin  # Left and right margin
+    leafinfo = LeafInfoFile(opts.leafinfo).cache if opts.leafinfo else None
+    wgdinfo = WGDInfoFile(opts.wgdinfo).cache if opts.wgdinfo else None
 
-    if opts.geoscale:
-        draw_geoscale(root)
-
-    else:
-        leafinfo = LeafInfoFile(opts.leafinfo).cache if opts.leafinfo else None
-
-        draw_tree(
-            root,
-            tx,
-            rmargin=opts.rmargin,
-            supportcolor=supportcolor,
-            outgroup=outgroup,
-            dashedoutgroup=opts.dashedoutgroup,
-            reroot=reroot,
-            gffdir=opts.gffdir,
-            sizes=opts.sizes,
-            SH=opts.SH,
-            scutoff=opts.scutoff,
-            leafcolor=opts.leafcolor,
-            leaffont=opts.leaffont,
-            leafinfo=leafinfo,
-        )
+    draw_tree(
+        root,
+        t,
+        hpd=hpd,
+        margin=margin,
+        rmargin=rmargin,
+        supportcolor=supportcolor,
+        internal=opts.internal,
+        outgroup=outgroup,
+        dashedoutgroup=opts.dashedoutgroup,
+        reroot=reroot,
+        gffdir=opts.gffdir,
+        sizes=opts.sizes,
+        SH=opts.SH,
+        scutoff=opts.scutoff,
+        leafcolor=opts.leafcolor,
+        leaffont=opts.leaffont,
+        leafinfo=leafinfo,
+        wgdinfo=wgdinfo,
+        geoscale=opts.geoscale,
+    )
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)

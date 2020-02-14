@@ -426,7 +426,7 @@ class Synteny(object):
             dists = [(abs(x / scale - 0.12), x) for x in candidates]
             dist, candidate = min(dists)
             dist = candidate / scale
-            x, y, yp = 0.2, 0.96, 0.005
+            x, y, yp = 0.22, 0.92, 0.005
             a, b = x - dist / 2, x + dist / 2
             lsg = "lightslategrey"
             root.plot([a, a], [y - yp, y + yp], "-", lw=2, color=lsg)

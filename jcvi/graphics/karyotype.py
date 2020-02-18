@@ -90,6 +90,31 @@ class Layout(AbstractLayout):
 MaxSeqids = 16  # above which no labels are written
 
 
+def make_circle_name(sid, rev):
+    """Extract a succinct label based on sid.
+
+
+    Args:
+        sid (str): seqid
+        rev (set[str]): Set of seqids that are reversed
+
+    Returns:
+        str: Single letter label for the sid
+    """
+    import re
+
+    in_reverse = sid in rev
+    sid = sid.rsplit("_", 1)[-1]
+    si = re.findall(r"\d+", sid)
+    if si:
+        si = str(int(si[0]))
+    else:
+        si = sid[0].upper()
+    if in_reverse:
+        si += "-"
+    return si
+
+
 class Track(object):
     def __init__(
         self,
@@ -170,14 +195,6 @@ class Track(object):
         nseqids = len(self.seqids)
         tr = self.tr
 
-        def make_circle_name(sid):
-            sid = sid.rsplit("_", 1)[-1]
-            si = "".join(x for x in sid if x in string.digits)
-            si = str(int(si))
-            if sid in self.rev:
-                si += "-"
-            return si
-
         for i, sid in enumerate(self.seqids):
             size = self.sizes[sid]
             rsize = self.ratio * size
@@ -193,7 +210,7 @@ class Track(object):
                 roundrect=roundrect,
             )
             hc.set_transform(tr)
-            si = make_circle_name(sid)
+            si = make_circle_name(sid, self.rev)
             xx = (xstart + xend) / 2
             xstart = xend + gap
 
@@ -206,15 +223,7 @@ class Track(object):
             hpad = -pad if va == "bottom" else pad
             if plot_circles:
                 TextCircle(
-                    ax,
-                    xx,
-                    y + hpad,
-                    si,
-                    radius=0.01,
-                    fc="w",
-                    color=color,
-                    size=10,
-                    transform=tr,
+                    ax, xx, y + hpad, si, fc="w", color=color, size=10, transform=tr,
                 )
 
         label = markup(self.label)

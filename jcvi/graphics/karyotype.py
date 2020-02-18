@@ -223,15 +223,7 @@ class Track(object):
             hpad = -pad if va == "bottom" else pad
             if plot_circles:
                 TextCircle(
-                    ax,
-                    xx,
-                    y + hpad,
-                    si,
-                    radius=0.01,
-                    fc="w",
-                    color=color,
-                    size=10,
-                    transform=tr,
+                    ax, xx, y + hpad, si, fc="w", color=color, size=10, transform=tr,
                 )
 
         label = markup(self.label)

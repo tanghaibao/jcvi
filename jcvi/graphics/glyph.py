@@ -169,6 +169,7 @@ class TextCircle(object):
         color="w",
         size=12,
         zorder=4,
+        fontweight="bold",
         **kwargs
     ):
 
@@ -184,6 +185,7 @@ class TextCircle(object):
             color=color,
             size=size,
             zorder=zorder + 1,
+            fontweight=fontweight,
             **kwargs
         )
 

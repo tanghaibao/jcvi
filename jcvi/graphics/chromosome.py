@@ -15,13 +15,15 @@ from optparse import OptionGroup
 
 import numpy as np
 
-from jcvi.apps.base import OptionGroup, OptionParser, datafile
+from jcvi.apps.base import OptionGroup, OptionParser, datafile, sample_N
 from jcvi.formats.base import DictFile, get_number
 from jcvi.formats.bed import Bed
+from jcvi.formats.sizes import Sizes
 from jcvi.graphics.base import (
     CirclePolygon,
     Polygon,
     Rectangle,
+    latex,
     markup,
     plt,
     savefig,
@@ -422,7 +424,6 @@ def main():
     chr<tab>size, one per line. If not specified, the extent of the chromosomes
     are assumed to be the end for the last feature, which might be an underestimate.
     """
-    from jcvi.formats.sizes import Sizes
 
     p = OptionParser(main.__doc__)
     p.add_option(
@@ -479,15 +480,50 @@ def main():
     if len(args) == 2:
         mappingfile = args[1]
 
-    mergedist = opts.mergedist
-    winsize = opts.winsize
-    imagemap = opts.imagemap
-    w, h = iopts.w, iopts.h
-    dpi = iopts.dpi
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes([0, 0, 1, 1])
 
-    bed = Bed(bedfile)
+    draw_chromosomes(
+        root,
+        bedfile,
+        sizes=opts.sizes,
+        iopts=iopts,
+        mergedist=opts.mergedist,
+        winsize=opts.winsize,
+        imagemap=opts.imagemap,
+        mappingfile=mappingfile,
+        gauge=opts.gauge,
+        legend=opts.legend,
+        empty=opts.empty,
+        title=opts.title,
+    )
+
+    root.set_xlim(0, 1)
+    root.set_ylim(0, 1)
+    root.set_axis_off()
+
     prefix = bedfile.rsplit(".", 1)[0]
     figname = prefix + "." + opts.format
+    savefig(figname, dpi=iopts.dpi, iopts=iopts)
+
+
+def draw_chromosomes(
+    root,
+    bedfile,
+    sizes,
+    iopts,
+    mergedist,
+    winsize,
+    imagemap,
+    mappingfile=None,
+    gauge=False,
+    legend=True,
+    empty=False,
+    title=None,
+):
+    bed = Bed(bedfile)
+    prefix = bedfile.rsplit(".", 1)[0]
+
     if imagemap:
         imgmapfile = prefix + ".map"
         mapfh = open(imgmapfile, "w")
@@ -504,16 +540,17 @@ def main():
         mappings = dict((x, x) for x in classes)
 
     # Assign colors to classes
-    ncolors = min(len(classes), 12)
+    ncolors = max(3, min(len(classes), 12))
     palette = set1_n if ncolors <= 8 else set3_n
-    mycolors = palette(number=ncolors)
-    class_colors = dict(zip(classes, mycolors))
+    colorset = palette(number=ncolors)
+    colorset = sample_N(colorset, len(classes))
+    class_colors = dict(zip(classes, colorset))
     logging.debug("Assigned colors: {}".format(class_colors))
 
     chr_lens = {}
     centromeres = {}
-    if opts.sizes:
-        chr_lens = Sizes(opts.sizes).sizes_mapping
+    if sizes:
+        chr_lens = Sizes(sizes).sizes_mapping
     else:
         for b, blines in groupby(bed, key=(lambda x: x.seqid)):
             blines = list(blines)
@@ -531,10 +568,9 @@ def main():
 
     chr_number = len(chr_lens)
     if centromeres:
-        assert chr_number == len(centromeres)
-
-    fig = plt.figure(1, (w, h))
-    root = fig.add_axes([0, 0, 1, 1])
+        assert chr_number == len(
+            centromeres
+        ), "chr_number = {}, centromeres = {}".format(chr_number, centromeres)
 
     r = 0.7  # width and height of the whole chromosome set
     xstart, ystart = 0.15, 0.85
@@ -546,8 +582,7 @@ def main():
     # first the chromosomes
     for a, (chr, clen) in enumerate(sorted(chr_lens.items())):
         xx = xstart + a * xinterval + 0.5 * xwidth
-        chr = str(get_number(chr))
-        root.text(xx, ystart + 0.01, chr, ha="center")
+        root.text(xx, ystart + 0.01, str(get_number(chr)), ha="center")
         if centromeres:
             yy = ystart - centromeres[chr] * ratio
             ChromosomeWithCentromere(
@@ -568,6 +603,8 @@ def main():
             clen = chr_lens[chr]
             idx = chr_idxs[chr]
             klass = b.accn
+            if klass == "centromere":
+                continue
             start = b.start
             end = b.end
             if start < prev_end + mergedist and klass == prev_klass:
@@ -615,9 +652,9 @@ def main():
                             tly,
                             brx,
                             bry,
-                            w,
-                            h,
-                            dpi,
+                            iopts.w,
+                            iopts.h,
+                            iopts.dpi,
                             chr + ":" + ",".join(bac_list),
                             segment_start,
                             segment_end,
@@ -645,9 +682,9 @@ def main():
                     tly,
                     brx,
                     bry,
-                    w,
-                    h,
-                    dpi,
+                    iopts.w,
+                    iopts.h,
+                    iopts.dpi,
                     chr + ":" + ",".join(bac_list),
                     segment_start,
                     segment_end,
@@ -660,12 +697,15 @@ def main():
         mapfh.close()
         logging.debug("Image map written to `{0}`".format(mapfh.name))
 
-    if opts.gauge:
+    if gauge:
         xstart, ystart = 0.9, 0.85
         Gauge(root, xstart, ystart - r, ystart, max_chr_len)
 
+    if "centromere" in class_colors:
+        del class_colors["centromere"]
+
     # class legends, four in a row
-    if opts.legend:
+    if legend:
         xstart = 0.1
         xinterval = 0.8 / len(class_colors)
         xwidth = 0.04
@@ -676,22 +716,15 @@ def main():
             root.add_patch(
                 Rectangle((xstart, yy), xwidth, xwidth, fc=cc, lw=0, alpha=alpha)
             )
-            root.text(xstart + xwidth + 0.01, yy, klass, fontsize=10)
+            root.text(xstart + xwidth + 0.01, yy, latex(klass), fontsize=10)
             xstart += xinterval
 
-    empty = opts.empty
     if empty:
         root.add_patch(Rectangle((xstart, yy), xwidth, xwidth, fill=False, lw=1))
         root.text(xstart + xwidth + 0.01, yy, empty, fontsize=10)
 
-    if opts.title:
-        root.text(0.5, 0.95, markup(opts.title), ha="center", va="center")
-
-    root.set_xlim(0, 1)
-    root.set_ylim(0, 1)
-    root.set_axis_off()
-
-    savefig(figname, dpi=dpi, iopts=iopts)
+    if title:
+        root.text(0.5, 0.95, markup(title), ha="center", va="center")
 
 
 if __name__ == "__main__":

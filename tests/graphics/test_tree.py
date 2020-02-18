@@ -10,7 +10,7 @@ def remove_ifexists(filename):
         os.remove(filename)
 
 
-def test_tree_main():
+def disabled_test_tree_main():
     from jcvi.graphics.tree import main as tree_main
 
     demo = "demo.png"

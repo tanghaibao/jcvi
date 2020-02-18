@@ -103,7 +103,7 @@ def truncate_name(name, rule=None):
 
 
 def draw_wgd(ax, y, rescale, name, wgdcache):
-    """Draw WGD a (xx yy) position
+    """Draw WGD at (xx yy) position
 
     Args:
         ax (axis): Matplotlib axes
@@ -270,7 +270,7 @@ def draw_tree(
                 ax.plot((xx, cx), (cy, cy), linestyle, color=treecolor)
             yy = sum(children_y) * 1.0 / len(children_y)
             # plot HPD if exists
-            if n.name in hpd:
+            if hpd and n.name in hpd:
                 a, b = hpd[n.name]
                 ax.plot(
                     (rescale_divergence(a), rescale_divergence(b)),

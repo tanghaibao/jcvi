@@ -33,9 +33,15 @@ from matplotlib.path import Path
 from jcvi.utils.brewer2mpl import get_map
 from jcvi.formats.base import LineFile
 from jcvi.apps.console import dark, green
-from jcvi.apps.base import glob, listify, datadir, sample_N
+from jcvi.apps.base import glob, listify, datadir, sample_N, which
 
 logging.getLogger().setLevel(logging.DEBUG)
+
+
+def is_usetex():
+    """Check if latex command is available
+    """
+    return bool(which("latex")) and bool(which("lp"))
 
 
 class ImageOptions(object):
@@ -68,7 +74,7 @@ class TextHandler(object):
             )
 
     @classmethod
-    def get_text_width_height(cls, fig, txt="chr01", size=12, usetex=True):
+    def get_text_width_height(cls, fig, txt="chr01", size=12, usetex=is_usetex()):
         tp = mpl.textpath.TextPath((0, 0), txt, size=size, usetex=usetex)
         bb = tp.get_extents()
         xmin, ymin = fig.transFigure.inverted().transform((bb.xmin, bb.ymin))
@@ -212,7 +218,7 @@ def savefig(figname, dpi=150, iopts=None, cleanup=True):
         message = "savefig failed. Reset usetex to False."
         message += "\n{0}".format(str(e))
         logging.error(message)
-        rc("text", **{"usetex": False})
+        rc("text", usetex=False)
         plt.savefig(figname, dpi=dpi)
 
     msg = "Figure saved to `{0}`".format(figname)
@@ -299,7 +305,11 @@ def append_percentage(s):
 
 
 def setup_theme(
-    context="notebook", style="darkgrid", palette="deep", font="Helvetica", usetex=True
+    context="notebook",
+    style="darkgrid",
+    palette="deep",
+    font="Helvetica",
+    usetex=is_usetex(),
 ):
     try:
         import seaborn as sns
@@ -313,7 +323,12 @@ def setup_theme(
     except (ImportError, SyntaxError):
         pass
 
-    rc("text", usetex=usetex)
+    if usetex:
+        rc("text", usetex=usetex)
+    else:
+        logging.error(
+            "Set text.usetex={}. Font styles may be inconsistent.".format(usetex)
+        )
 
     if font == "Helvetica":
         rc("font", **{"family": "sans-serif", "sans-serif": ["Helvetica"]})

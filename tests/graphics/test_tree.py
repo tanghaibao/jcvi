@@ -13,9 +13,9 @@ def remove_ifexists(filename):
 def test_tree_main():
     from jcvi.graphics.tree import main as tree_main
 
-    demopdf = "demo.pdf"
-    remove_ifexists(demopdf)
+    demo = "demo.png"
+    remove_ifexists(demo)
 
-    tree_main(["demo"])
-    assert op.exists(demopdf)
-    remove_ifexists(demopdf)
+    tree_main(["demo", "--format", "png"])
+    assert op.exists(demo)
+    remove_ifexists(demo)

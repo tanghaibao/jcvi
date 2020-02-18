@@ -93,6 +93,10 @@ MaxSeqids = 16  # above which no labels are written
 def make_circle_name(sid, rev):
     """Extract a succinct label based on sid.
 
+    If there are numbers to be extracted, returns the first group of number.
+    Otherwise, the first letter is returned.
+
+    If sid is in rev, then '-' gets appended to the label.
 
     Args:
         sid (str): seqid

@@ -172,8 +172,7 @@ class BlockFile(BaseFile):
         bcol = [order[x][0] for x in self.columns[i] if x in order]
         elen = min(len(acol), len(bcol))
         ia, ib = acol[:elen], bcol[:elen]
-        slope, intercept = np.polyfit(ia, ib, 1)
-        orientation = "+" if slope >= 0 else "-"
+        slope = get_orientation(ia, ib)
 
         ocol = [order[x] for x in self.columns[i] if x in order]
         # orientation = '+' if ocol[0][0] <= ocol[-1][0] else '-'
@@ -298,6 +297,23 @@ def _score(cluster):
     """
     x, y = list(zip(*cluster))[:2]
     return min(len(set(x)), len(set(y)))
+
+
+def get_orientation(ia, ib):
+    """ Infer the orientation of a pairwise block.
+
+    Args:
+        ia (List[int]): List a
+        ib (List[int]): List b
+
+    Returns:
+        str: plus (+) or minus (-)
+    """
+    if len(ia) != len(ib) or len(ia) < 2:
+        return "+"  # Just return a default orientation
+
+    slope, intercept = np.polyfit(ia, ib, 1)
+    return "+" if slope >= 0 else "-"
 
 
 def group_hits(blasts):
@@ -845,7 +861,7 @@ def fromaligns(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    alignsfile, = args
+    (alignsfile,) = args
     fp = must_open(alignsfile)
     fw = must_open(opts.outfile, "w")
     for row in fp:
@@ -998,7 +1014,7 @@ def coge(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    cogefile, = args
+    (cogefile,) = args
     fp = must_open(cogefile)
     cogefile = cogefile.replace(".gz", "")
     ksfile = cogefile + ".ks"
@@ -1014,9 +1030,20 @@ def coge(args):
         for line in lines:
             if line[0] == "#":
                 continue
-            ks, ka, achr, a, astart, astop, bchr, b, bstart, bstop, ev, ss = (
-                line.split()
-            )
+            (
+                ks,
+                ka,
+                achr,
+                a,
+                astart,
+                astop,
+                bchr,
+                b,
+                bstart,
+                bstop,
+                ev,
+                ss,
+            ) = line.split()
             a = a.split("||")[3]
             b = b.split("||")[3]
             print("\t".join((a, b, ev)), file=fw_ac)
@@ -1124,7 +1151,7 @@ def simple(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    anchorfile, = args
+    (anchorfile,) = args
     additional = opts.rich
     coords = opts.coords
     header = not opts.noheader
@@ -1169,8 +1196,7 @@ def simple(args):
         sizeB = len(set(ib))
         size = len(block)
 
-        slope, intercept = np.polyfit(ia, ib, 1)
-        orientation = "+" if slope >= 0 else "-"
+        orientation = get_orientation(ia, ib)
         aspan = aendi - astarti + 1
         bspan = bendi - bstarti + 1
         score = int((aspan * bspan) ** 0.5)
@@ -1407,7 +1433,7 @@ def summary(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    anchorfile, = args
+    (anchorfile,) = args
     ac = AnchorFile(anchorfile)
     clusters = ac.blocks
     if clusters == [[]]:
@@ -1449,7 +1475,7 @@ def stats(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    blocksfile, = args
+    (blocksfile,) = args
     fp = open(blocksfile)
     counts = defaultdict(int)
     total = orthologous = 0
@@ -1665,7 +1691,7 @@ def depth(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    anchorfile, = args
+    (anchorfile,) = args
     qbed, sbed, qorder, sorder, is_self = check_beds(anchorfile, p, opts)
     depthfile = opts.depthfile
     ac = AnchorFile(anchorfile)

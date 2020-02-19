@@ -40,8 +40,19 @@ from jcvi.graphics.base import (
     AbstractLayout,
 )            
 
+# Backwards compatibility with Python 2
+try:
+    # If running Py2 and xrange() exists, use for all instances of Py3 range()
+    range = xrange
+except NameError:
+    pass
 
-forward, backward = "b", "g"  # Genes with different orientations
+# All code below uses Py2 -> Py3 conversions: 
+# range() -> list(range())
+# xrange() -> range()
+
+
+forward, backward = "#1f77b4","#2ca02c"  #Default colours for ribbons with different orientations
 
 class LayoutLine (object):
 #0-11: x,y,rotation,ha,va,color,ratio,label,chrmName,rStart,rEnd,chrmMax
@@ -230,7 +241,7 @@ class Region (object):
         height = 0.012
         self.gg = {}
 
-        # Process and plot ribbons as blocks
+        # Process and plot ribbon intervals as annotation features 
         self.ribbonBlocks = ribbonBlocks = bed[si: ei + 1]
         for g in ribbonBlocks:
             gstart, gend, outofrange = self.clip2range(g.start, g.end, startbp, endbp)
@@ -420,7 +431,7 @@ class Synteny (object):
         customSpans = []
 
         # For each track (by index)
-        for i in xrange(bf.ncols):
+        for i in range(bf.ncols):
             # Set range coord containing all annotations
             ext = bf.get_extent(i, order) 
             # Add to ext index
@@ -469,7 +480,7 @@ class Synteny (object):
         ymids = []
         
         # Plot annotations
-        for i in xrange(bf.ncols):
+        for i in range(bf.ncols):
             ext = exts[i]
             fe = feats[i] if feats else None
             ori = orientation[i] if orientation else None
@@ -555,7 +566,7 @@ class Synteny (object):
             yiv = 0.3
             xstart = 0
             ystart = min(ymids) - 0.4
-            for i in xrange(ntrees):
+            for i in range(ntrees):
                 ax = fig.add_axes([xstart, ystart, xiv, yiv])
                 label, outgroup, tx = trees[i]
                 draw_tree(ax, tx, outgroup=outgroup, rmargin=0.4, leaffont=11)
@@ -669,7 +680,7 @@ def main():
     )
     p.add_option(
         "--strandcolors", 
-        default="b,g", 
+        default=None, 
         help="Comma delimited string of color codes for forward or inverted orientation ribbons. Used by paintbystrand. Default: 'b,g' for forward,inverted."
     )
     p.add_option(
@@ -715,7 +726,8 @@ def main():
     blocks, bedfile, layoutfile = args
     
     # Set strand colors as global vars
-    set_strand_colors(opts.strandcolors)
+    if opts.strandcolors:
+        set_strand_colors(opts.strandcolors)
 
     # Get custom track orientations
     if opts.reorient:

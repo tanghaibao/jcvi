@@ -172,7 +172,7 @@ class BlockFile(BaseFile):
         bcol = [order[x][0] for x in self.columns[i] if x in order]
         elen = min(len(acol), len(bcol))
         ia, ib = acol[:elen], bcol[:elen]
-        slope = get_orientation(ia, ib)
+        orientation = get_orientation(ia, ib)
 
         ocol = [order[x] for x in self.columns[i] if x in order]
         # orientation = '+' if ocol[0][0] <= ocol[-1][0] else '-'

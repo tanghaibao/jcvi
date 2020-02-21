@@ -65,7 +65,11 @@ def mask(args):
 
     outfastafile = fastafile.rsplit(".", 1)[0] + ".masked.fasta"
     vecbedfile = blast([fastafile])
-    ecolifile = download(db, filename="Ecoli.fasta") if is_internet_file(db) else db
+    ecolifile = (
+        download(db, filename="Ecoli.fasta", handle_gzip=True)
+        if is_internet_file(db)
+        else db
+    )
     assert op.exists(ecolifile)
     ecolibedfile = blast([fastafile, "--db={0}".format(ecolifile)])
 

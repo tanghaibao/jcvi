@@ -1365,7 +1365,7 @@ def ls_ftp(dir):
     return files
 
 
-def download(url, filename=None, debug=True, cookies=None):
+def download(url, filename=None, debug=True, cookies=None, handle_gzip=False):
     """ Download URL to local
 
     Args:
@@ -1373,6 +1373,8 @@ def download(url, filename=None, debug=True, cookies=None):
         filename (str, optional): Local file name. Defaults to None.
         debug (bool, optional): Print debug messages. Defaults to True.
         cookies (str, optional): cookies file. Defaults to None.
+        handle_gzip (bool, optional): Postprocess .gz files, either compress or
+        uncompress. Defaults to False.
 
     Returns:
         str: Local file name.
@@ -1388,7 +1390,9 @@ def download(url, filename=None, debug=True, cookies=None):
         filename_gzipped = filename and filename.endswith(".gz")
         need_gunzip = url_gzipped and (not filename_gzipped)
         need_gzip = (not url_gzipped) and filename_gzipped
-        if need_gunzip or need_gzip:  # One more compress/decompress step after download
+        if handle_gzip and (
+            need_gunzip or need_gzip
+        ):  # One more compress/decompress step after download
             target = basepath
         else:  # Just download
             target = filename or basepath
@@ -1413,7 +1417,7 @@ def download(url, filename=None, debug=True, cookies=None):
             print(e, file=sys.stderr)
             FileShredder([target])
 
-        if success:
+        if success and handle_gzip:
             if need_gunzip:
                 sh("gzip -dc {}".format(target), outfile=filename)
                 FileShredder([target])

@@ -13,8 +13,14 @@ import shutil
 import logging
 
 from jcvi.utils.cbook import depends
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, get_abs_path, \
-            which, mkdir
+from jcvi.apps.base import (
+    OptionParser,
+    ActionDispatcher,
+    sh,
+    get_abs_path,
+    which,
+    mkdir,
+)
 
 
 @depends
@@ -25,24 +31,31 @@ def run_formatdb(infile=None, outfile=None, dbtype="nucl"):
 
 
 @depends
-def run_blat(infile=None, outfile=None, db="UniVec_Core",
-             pctid=95, hitlen=50, cpus=16, overwrite=True):
+def run_blat(
+    infile=None,
+    outfile=None,
+    db="UniVec_Core",
+    pctid=95,
+    hitlen=50,
+    cpus=16,
+    overwrite=True,
+):
 
     cmd = "pblat -threads={0}".format(cpus) if which("pblat") else "blat"
-    cmd += ' {0} {1} -out=blast8 {2}'.format(db, infile, outfile)
+    cmd += " {0} {1} -out=blast8 {2}".format(db, infile, outfile)
     sh(cmd)
 
     blatfile = outfile
     filtered_blatfile = outfile + ".P{0}L{1}".format(pctid, hitlen)
-    run_blast_filter(infile=blatfile, outfile=filtered_blatfile,
-            pctid=pctid, hitlen=hitlen)
+    run_blast_filter(
+        infile=blatfile, outfile=filtered_blatfile, pctid=pctid, hitlen=hitlen
+    )
     if overwrite:
         shutil.move(filtered_blatfile, blatfile)
 
 
 @depends
-def run_vecscreen(infile=None, outfile=None, db="UniVec_Core",
-        pctid=None, hitlen=None):
+def run_vecscreen(infile=None, outfile=None, db="UniVec_Core", pctid=None, hitlen=None):
     """
     BLASTN parameters reference:
     http://www.ncbi.nlm.nih.gov/VecScreen/VecScreen_docs.html
@@ -60,8 +73,18 @@ def run_vecscreen(infile=None, outfile=None, db="UniVec_Core",
 
 
 @depends
-def run_megablast(infile=None, outfile=None, db=None, wordsize=None, \
-        pctid=98, hitlen=100, best=None, evalue=0.01, task="megablast", cpus=16):
+def run_megablast(
+    infile=None,
+    outfile=None,
+    db=None,
+    wordsize=None,
+    pctid=98,
+    hitlen=100,
+    best=None,
+    evalue=0.01,
+    task="megablast",
+    cpus=16,
+):
 
     assert db, "Need to specify database fasta file."
 
@@ -86,16 +109,16 @@ def run_megablast(infile=None, outfile=None, db=None, wordsize=None, \
     if pctid and hitlen:
         blastfile = outfile
         filtered_blastfile = outfile + ".P{0}L{1}".format(pctid, hitlen)
-        run_blast_filter(infile=blastfile, outfile=filtered_blastfile,
-                pctid=pctid, hitlen=hitlen)
+        run_blast_filter(
+            infile=blastfile, outfile=filtered_blastfile, pctid=pctid, hitlen=hitlen
+        )
         shutil.move(filtered_blastfile, blastfile)
 
 
 def run_blast_filter(infile=None, outfile=None, pctid=95, hitlen=50):
     from jcvi.formats.blast import filter
 
-    logging.debug("Filter BLAST result (pctid={0}, hitlen={1})".\
-            format(pctid, hitlen))
+    logging.debug("Filter BLAST result (pctid={0}, hitlen={1})".format(pctid, hitlen))
     pctidopt = "--pctid={0}".format(pctid)
     hitlenopt = "--hitlen={0}".format(hitlen)
     filter([infile, pctidopt, hitlenopt])
@@ -104,15 +127,15 @@ def run_blast_filter(infile=None, outfile=None, pctid=95, hitlen=50):
 def main():
 
     actions = (
-        ('blast', 'run blastn using query against reference'),
-        ('blat', 'run blat using query against reference'),
-        ('blasr', 'run blasr on a set of pacbio reads'),
-        ('nucmer', 'run nucmer using query against reference'),
-        ('last', 'run last using query against reference'),
-        ('lastgenome', 'run whole genome LAST'),
-        ('lastgenomeuniq', 'run whole genome LAST and screen for 1-to-1 matches'),
-        ('minimap', 'run minimap2 aligner'),
-            )
+        ("blast", "run blastn using query against reference"),
+        ("blat", "run blat using query against reference"),
+        ("blasr", "run blasr on a set of pacbio reads"),
+        ("nucmer", "run nucmer using query against reference"),
+        ("last", "run last using query against reference"),
+        ("lastgenome", "run whole genome LAST"),
+        ("lastgenomeuniq", "run whole genome LAST and screen for 1-to-1 matches"),
+        ("minimap", "run minimap2 aligner"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -129,8 +152,12 @@ def minimap(args):
     from jcvi.formats.fasta import Fasta
 
     p = OptionParser(minimap.__doc__)
-    p.add_option("--chunks", type="int", default=2000000,
-                 help="Split ref.fasta into chunks of size in self-scan mode")
+    p.add_option(
+        "--chunks",
+        type="int",
+        default=2000000,
+        help="Split ref.fasta into chunks of size in self-scan mode",
+    )
     p.set_outdir(outdir="outdir")
     p.set_cpus()
     opts, args = p.parse_args(args)
@@ -154,8 +181,9 @@ def minimap(args):
         start = 0
         for end in range(chunks, size, chunks):
             fafile = op.join(outdir, "{}_{}_{}.fa".format(name, start + 1, end))
-            cmd = "samtools faidx {} {}:{}-{} -o {}"\
-                    .format(ref, name, start + 1, end, fafile)
+            cmd = "samtools faidx {} {}:{}-{} -o {}".format(
+                ref, name, start + 1, end, fafile
+            )
             mm.add(ref, fafile, cmd)
 
             paffile = fafile.rsplit(".", 1)[0] + ".paf"
@@ -183,8 +211,9 @@ def nucmer(args):
     from jcvi.formats.base import split
 
     p = OptionParser(nucmer.__doc__)
-    p.add_option("--chunks", type="int",
-                 help="Split both query and subject into chunks")
+    p.add_option(
+        "--chunks", type="int", help="Split both query and subject into chunks"
+    )
     p.set_params(prog="nucmer", params="-l 100 -c 500")
     p.set_cpus()
     opts, args = p.parse_args(args)
@@ -194,7 +223,7 @@ def nucmer(args):
 
     ref, query = args
     cpus = opts.cpus
-    nrefs = nqueries = opts.chunks or int(cpus ** .5)
+    nrefs = nqueries = opts.chunks or int(cpus ** 0.5)
     refdir = ref.split(".")[0] + "-outdir"
     querydir = query.split(".")[0] + "-outdir"
     reflist = split([ref, refdir, str(nrefs)]).names
@@ -269,10 +298,14 @@ def blasr(args):
     mm.write()
 
 
-def get_outfile(reffasta, queryfasta, suffix="blast"):
+def get_outfile(reffasta, queryfasta, suffix="blast", outdir=None):
     q = op.basename(queryfasta).split(".")[0]
     r = op.basename(reffasta).split(".")[0]
-    return ".".join((q, r, suffix))
+    outfile = ".".join((q, r, suffix))
+    if outdir:
+        outfile = op.join(outdir, outfile)
+
+    return outfile
 
 
 def blat(args):
@@ -292,9 +325,15 @@ def blat(args):
     reffasta, queryfasta = args
     blastfile = get_outfile(reffasta, queryfasta, suffix="blat")
 
-    run_blat(infile=queryfasta, outfile=blastfile, db=reffasta,
-             pctid=opts.pctid, hitlen=opts.hitlen, cpus=opts.cpus,
-             overwrite=False)
+    run_blat(
+        infile=queryfasta,
+        outfile=blastfile,
+        db=reffasta,
+        pctid=opts.pctid,
+        hitlen=opts.hitlen,
+        cpus=opts.cpus,
+        overwrite=False,
+    )
 
     return blastfile
 
@@ -305,15 +344,14 @@ def blast(args):
 
     Calls blast and then filter the BLAST hits. Default is megablast.
     """
-    task_choices = ("blastn", "blastn-short", "dc-megablast", \
-                    "megablast", "vecscreen")
+    task_choices = ("blastn", "blastn-short", "dc-megablast", "megablast", "vecscreen")
     p = OptionParser(blast.__doc__)
-    p.set_align(pctid=0, evalue=.01)
-    p.add_option("--wordsize", type="int", help="Word size [default: %default]")
-    p.add_option("--best", default=1, type="int",
-            help="Only look for best N hits [default: %default]")
-    p.add_option("--task", default="megablast", choices=task_choices,
-            help="Task of the blastn [default: %default]")
+    p.set_align(pctid=0, evalue=0.01)
+    p.add_option("--wordsize", type="int", help="Word size")
+    p.add_option("--best", default=1, type="int", help="Only look for best N hits")
+    p.add_option(
+        "--task", default="megablast", choices=task_choices, help="Task of the blastn"
+    )
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -323,9 +361,18 @@ def blast(args):
     reffasta, queryfasta = args
     blastfile = get_outfile(reffasta, queryfasta)
 
-    run_megablast(infile=queryfasta, outfile=blastfile, db=reffasta,
-                  wordsize=opts.wordsize, pctid=opts.pctid, evalue=opts.evalue,
-                  hitlen=None, best=opts.best, task=opts.task, cpus=opts.cpus)
+    run_megablast(
+        infile=queryfasta,
+        outfile=blastfile,
+        db=reffasta,
+        wordsize=opts.wordsize,
+        pctid=opts.pctid,
+        evalue=opts.evalue,
+        hitlen=None,
+        best=opts.best,
+        task=opts.task,
+        cpus=opts.cpus,
+    )
 
     return blastfile
 
@@ -349,7 +396,7 @@ def lastgenome(args):
 
     gA, gB = args
     mm = MakeManager()
-    bb = lambda x : op.basename(x).rsplit(".", 1)[0]
+    bb = lambda x: op.basename(x).rsplit(".", 1)[0]
     gA_pf, gB_pf = bb(gA), bb(gB)
 
     # Build LASTDB
@@ -393,7 +440,7 @@ def lastgenomeuniq(args):
 
     gA, gB = args
     mm = MakeManager()
-    bb = lambda x : op.basename(x).rsplit(".", 1)[0]
+    bb = lambda x: op.basename(x).rsplit(".", 1)[0]
     gA_pf, gB_pf = bb(gA), bb(gB)
 
     # Build LASTDB
@@ -419,7 +466,9 @@ def lastgenomeuniq(args):
 
 
 @depends
-def run_lastdb(infile=None, outfile=None, mask=False, lastdb_bin="lastdb", dbtype="nucl"):
+def run_lastdb(
+    infile=None, outfile=None, mask=False, lastdb_bin="lastdb", dbtype="nucl"
+):
     outfilebase = outfile.rsplit(".", 1)[0]
     db = "-p " if dbtype == "prot" else ""
     mask = "-c " if mask else ""
@@ -437,18 +486,31 @@ def last(args, dbtype=None):
     Works with LAST-719.
     """
     p = OptionParser(last.__doc__)
-    p.add_option("--dbtype", default="nucl",
-                 choices=("nucl", "prot"),
-                 help="Molecule type of subject database")
+    p.add_option(
+        "--dbtype",
+        default="nucl",
+        choices=("nucl", "prot"),
+        help="Molecule type of subject database",
+    )
     p.add_option("--path", help="Specify LAST path")
-    p.add_option("--mask", default=False, action="store_true", help="Invoke -c in lastdb")
-    p.add_option("--format", default="BlastTab",
-                 choices=("TAB", "MAF", "BlastTab", "BlastTab+"),
-                 help="Output format")
-    p.add_option("--minlen", default=0, type="int",
-                 help="Filter alignments by how many bases match")
+    p.add_option(
+        "--mask", default=False, action="store_true", help="Invoke -c in lastdb"
+    )
+    p.add_option(
+        "--format",
+        default="BlastTab",
+        choices=("TAB", "MAF", "BlastTab", "BlastTab+"),
+        help="Output format",
+    )
+    p.add_option(
+        "--minlen",
+        default=0,
+        type="int",
+        help="Filter alignments by how many bases match",
+    )
     p.add_option("--minid", default=0, type="int", help="Minimum sequence identity")
     p.set_cpus()
+    p.set_outdir()
     p.set_params()
 
     opts, args = p.parse_args(args)
@@ -466,8 +528,13 @@ def last(args, dbtype=None):
     lastal_bin = getpath("lastal")
 
     subjectdb = subject.rsplit(".", 1)[0]
-    run_lastdb(infile=subject, outfile=subjectdb + ".prj", mask=opts.mask, \
-              lastdb_bin=lastdb_bin, dbtype=dbtype)
+    run_lastdb(
+        infile=subject,
+        outfile=subjectdb + ".prj",
+        mask=opts.mask,
+        lastdb_bin=lastdb_bin,
+        dbtype=dbtype,
+    )
 
     u = 2 if opts.mask else 0
     cmd = "{0} -u {1}".format(lastal_bin, u)
@@ -488,9 +555,10 @@ def last(args, dbtype=None):
     if extra:
         cmd += " " + extra.strip()
 
-    lastfile = get_outfile(subject, query, suffix="last")
+    lastfile = get_outfile(subject, query, suffix="last", outdir=opts.outdir)
     sh(cmd, outfile=lastfile)
+    return lastfile
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

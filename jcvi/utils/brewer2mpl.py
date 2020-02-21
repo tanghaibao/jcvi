@@ -7,21 +7,29 @@ from jcvi.apps.base import datadir as _DATADIR
 
 try:
     from matplotlib.colors import LinearSegmentedColormap
-except ImportError:     # pragma: no cover
+except ImportError:  # pragma: no cover
     HAVE_MPL = False
 else:
     HAVE_MPL = True
 
 
-__all__ = ('COLOR_MAPS', 'print_maps', 'print_all_maps', 'print_maps_by_type',
-           'get_map', 'MAP_TYPES', 'BrewerMap')
+__all__ = (
+    "COLOR_MAPS",
+    "print_maps",
+    "print_all_maps",
+    "print_maps_by_type",
+    "get_map",
+    "get_maps",
+    "MAP_TYPES",
+    "BrewerMap",
+)
 
-_DATAFILE = os.path.join(_DATADIR, 'colorbrewer_all_schemes.json')
+_DATAFILE = os.path.join(_DATADIR, "colorbrewer_all_schemes.json")
 
-with open(_DATAFILE, 'r') as f:
+with open(_DATAFILE, "r") as f:
     COLOR_MAPS = json.load(f)
 
-MAP_TYPES = ('Sequential', 'Diverging', 'Qualitative')
+MAP_TYPES = ("Sequential", "Diverging", "Qualitative")
 
 
 def print_maps(map_type=None, number=None):
@@ -35,7 +43,6 @@ def print_maps(map_type=None, number=None):
     number : int, optional
         Filter output by number of defined colors. By default there is
         no numeric filtering.
-
     """
     if not map_type and not number:
         print_all_maps()
@@ -44,15 +51,16 @@ def print_maps(map_type=None, number=None):
         print_maps_by_type(map_type, number)
 
     else:
-        s = ('Invalid parameter combination. '
-             'number without map_type is not supported.')
+        s = (
+            "Invalid parameter combination. "
+            "number without map_type is not supported."
+        )
         raise ValueError(s)
 
 
 def print_all_maps():
     """
     Print the name and number of defined colors of all available color maps.
-
     """
     for t in MAP_TYPES:
         print_maps_by_type(t)
@@ -69,24 +77,23 @@ def print_maps_by_type(map_type, number=None):
     number : int, optional
         Filter output by number of defined colors. By default there is
         no numeric filtering.
-
     """
     map_type = map_type.lower().capitalize()
     if map_type not in MAP_TYPES:
-        s = 'Invalid map type, must be one of {0}'.format(MAP_TYPES)
+        s = "Invalid map type, must be one of {0}".format(MAP_TYPES)
         raise ValueError(s)
 
     print(map_type)
 
     map_keys = sorted(COLOR_MAPS[map_type].keys())
 
-    format_str = '{0:8}  :  {1}'
+    format_str = "{0:8}  :  {1}"
 
     for mk in map_keys:
         num_keys = sorted(COLOR_MAPS[map_type][mk].keys(), key=int)
 
         if not number or str(number) in num_keys:
-            num_str = '{' + ', '.join(num_keys) + '}'
+            num_str = "{" + ", ".join(num_keys) + "}"
             print(format_str.format(mk, num_str))
 
 
@@ -113,8 +120,8 @@ class _ColorMap(object):
     hex_colors : list
     mpl_colors : list
     mpl_colormap : matplotlib LinearSegmentedColormap
-
     """
+
     def __init__(self, name, map_type, colors):
         self.name = name
         self.type = map_type
@@ -130,8 +137,7 @@ class _ColorMap(object):
         hc = []
 
         for color in self.colors:
-            h = '#' + ''.join('{0:>02}'.format(hex(c)[2:].upper())
-                              for c in color)
+            h = "#" + "".join("{0:>02}".format(hex(c)[2:].upper()) for c in color)
             hc.append(h)
 
         return hc
@@ -145,7 +151,7 @@ class _ColorMap(object):
         mc = []
 
         for color in self.colors:
-            mc.append(tuple([x / 255. for x in color]))
+            mc.append(tuple([x / 255.0 for x in color]))
 
         return mc
 
@@ -165,11 +171,10 @@ class _ColorMap(object):
         `matplotlib.colors.LinearSegmentedColormap.from_list`.
 
         """
-        if not HAVE_MPL:    # pragma: no cover
-            raise RuntimeError('matplotlib not available.')
+        if not HAVE_MPL:  # pragma: no cover
+            raise RuntimeError("matplotlib not available.")
 
-        cmap = LinearSegmentedColormap.from_list(self.name,
-                                                 self.mpl_colors, **kwargs)
+        cmap = LinearSegmentedColormap.from_list(self.name, self.mpl_colors, **kwargs)
 
         return cmap
 
@@ -217,15 +222,15 @@ class BrewerMap(_ColorMap):
     hex_colors : list
     mpl_colors : list
     mpl_colormap : matplotlib LinearSegmentedColormap
-
     """
+
     @property
     def colorbrewer2_url(self):
         """
         URL that can be used to view the color map at colorbrewer2.org.
 
         """
-        url = 'http://colorbrewer2.org/index.html?type={0}&scheme={1}&n={2}'
+        url = "http://colorbrewer2.org/index.html?type={0}&scheme={1}&n={2}"
         return url.format(self.type.lower(), self.name, self.number)
 
     def colorbrewer2(self):
@@ -251,14 +256,13 @@ def get_map(name, map_type, number, reverse=False):
         Number of defined colors in color map.
     reverse : bool, optional
         Set to True to get the reversed color map.
-
     """
     number = str(number)
     map_type = map_type.lower().capitalize()
 
     # check for valid type
     if map_type not in MAP_TYPES:
-        s = 'Invalid map type, must be one of {0}'.format(MAP_TYPES)
+        s = "Invalid map type, must be one of {0}".format(MAP_TYPES)
         raise ValueError(s)
 
     # make a dict of lower case map name to map name so this can be
@@ -270,31 +274,64 @@ def get_map(name, map_type, number, reverse=False):
 
     # check for valid name
     if name.lower() not in map_names:
-        s = 'Invalid color map name {0!r} for type {1!r}.\n'
+        s = "Invalid color map name {0!r} for type {1!r}.\n"
         s = s.format(name, map_type)
         valid_names = [str(k) for k in COLOR_MAPS[map_type].keys()]
         valid_names.sort()
-        s += 'Valid names are: {0}'.format(valid_names)
+        s += "Valid names are: {0}".format(valid_names)
         raise ValueError(s)
 
     name = map_names[name.lower()]
 
     # check for valid number
     if number not in COLOR_MAPS[map_type][name]:
-        s = 'Invalid number for map type {0!r} and name {1!r}.\n'
+        s = "Invalid number for map type {0!r} and name {1!r}.\n"
         s = s.format(map_type, str(name))
         valid_numbers = [int(k) for k in COLOR_MAPS[map_type][name].keys()]
         valid_numbers.sort()
-        s += 'Valid numbers are : {0}'.format(valid_numbers)
+        s += "Valid numbers are : {0}".format(valid_numbers)
         raise ValueError(s)
 
-    colors = COLOR_MAPS[map_type][name][number]['Colors']
+    colors = COLOR_MAPS[map_type][name][number]["Colors"]
 
     if reverse:
-        name += '_r'
+        name += "_r"
         colors = [x for x in reversed(colors)]
 
     return BrewerMap(name, map_type, colors)
+
+
+def get_maps(map_type, number=None):
+    """
+    Get all available maps of a given type.
+
+    Parameters
+    ----------
+    map_type : {'Sequential', 'Diverging', 'Qualitative'}
+        Select map type to print.
+    number : int, optional
+        Filter output by number of defined colors. By default there is
+        no numeric filtering.
+
+    Returns
+    -------
+    maps: name of the maps
+    """
+    map_type = map_type.lower().capitalize()
+    if map_type not in MAP_TYPES:
+        s = "Invalid map type, must be one of {0}".format(MAP_TYPES)
+        raise ValueError(s)
+
+    map_keys = sorted(COLOR_MAPS[map_type].keys())
+    maps = []
+
+    for mk in map_keys:
+        num_keys = sorted(COLOR_MAPS[map_type][mk].keys(), key=int)
+
+        if not number or str(number) in num_keys:
+            maps.append(get_map(mk, map_type, number))
+
+    return maps
 
 
 def _load_maps_by_type(map_type):
@@ -313,7 +350,6 @@ def _load_maps_by_type(map_type):
     Returns
     -------
     maps : dict of BrewerMap
-
     """
     seq_maps = COLOR_MAPS[map_type]
 
@@ -324,13 +360,17 @@ def _load_maps_by_type(map_type):
 
         for num in seq_maps[map_name]:
             inum = int(num)
-            colors = seq_maps[map_name][num]['Colors']
+            colors = seq_maps[map_name][num]["Colors"]
 
             bmap = BrewerMap(map_name, map_type, colors)
 
             loaded_maps[map_name][inum] = bmap
 
         max_num = int(max(seq_maps[map_name].keys(), key=int))
-        loaded_maps[map_name]['max'] = loaded_maps[map_name][max_num]
+        loaded_maps[map_name]["max"] = loaded_maps[map_name][max_num]
 
     return loaded_maps
+
+
+if __name__ == "__main__":
+    print_maps()

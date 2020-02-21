@@ -20,8 +20,10 @@ from functools import partial
 
 from jcvi import __version__ as version
 from jcvi.algorithms.formula import reject_outliers, spearmanr
-from jcvi.algorithms.lis import longest_monotonic_subseq_length_loose as lms, \
-            longest_monotonic_subsequence_loose as lmseq
+from jcvi.algorithms.lis import (
+    longest_monotonic_subseq_length_loose as lms,
+    longest_monotonic_subsequence_loose as lmseq,
+)
 from jcvi.algorithms.tsp import hamiltonian
 from jcvi.algorithms.matrix import determine_signs
 from jcvi.algorithms.ec import GA_setup, GA_run
@@ -36,8 +38,16 @@ from jcvi.utils.counter import Counter
 from jcvi.utils.grouper import Grouper
 from jcvi.utils.iter import flatten, pairwise
 from jcvi.utils.table import tabulate
-from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher, sh, \
-            need_update, get_today, SUPPRESS_HELP, mkdir
+from jcvi.apps.base import (
+    OptionParser,
+    OptionGroup,
+    ActionDispatcher,
+    sh,
+    need_update,
+    get_today,
+    SUPPRESS_HELP,
+    mkdir,
+)
 
 
 START, END = "START", "END"
@@ -46,8 +56,7 @@ linkage_choices = ("single", "double", "complete", "average", "median")
 np.seterr(invalid="ignore")
 
 
-class Scaffold (object):
-
+class Scaffold(object):
     def __init__(self, seqid, mapc):
         self.markers = mapc.extract(seqid)
         self.seqid = seqid
@@ -70,10 +79,8 @@ class Scaffold (object):
             G[bk, ak] += weight
 
 
-class LinkageGroup (object):
-
-    def __init__(self, lg, length, markers, function=(lambda x: x.rank),
-                       linkage=min):
+class LinkageGroup(object):
+    def __init__(self, lg, length, markers, function=(lambda x: x.rank), linkage=min):
         self.lg = lg
         self.length = length
         self.markers = markers
@@ -120,14 +127,29 @@ class LinkageGroup (object):
         return distances
 
 
-class ScaffoldOO (object):
+class ScaffoldOO(object):
     """
     This contains the routine to construct order and orientation for the
     scaffolds per partition.
     """
-    def __init__(self, lgs, scaffolds, mapc, pivot, weights, sizes,
-                 function=(lambda x: x.rank), linkage=min, fwtour=None,
-                 skipconcorde=False, ngen=500, npop=100, cpus=8, seed=666):
+
+    def __init__(
+        self,
+        lgs,
+        scaffolds,
+        mapc,
+        pivot,
+        weights,
+        sizes,
+        function=(lambda x: x.rank),
+        linkage=min,
+        fwtour=None,
+        skipconcorde=False,
+        ngen=500,
+        npop=100,
+        cpus=8,
+        seed=666,
+    ):
 
         self.lgs = lgs
         self.lengths = mapc.lengths
@@ -172,26 +194,27 @@ class ScaffoldOO (object):
 
         i = 0
         best_tour, best_fitness = None, None
-        while True:   # Multiple EC rounds due to orientation fixes
+        while True:  # Multiple EC rounds due to orientation fixes
             logging.debug("Start EC round {0}".format(i))
             scaffolds_oo = dict(tour)
             scfs, tour, ww = self.prepare_ec(scaffolds, tour, weights)
             callbacki = partial(callback, i=i)
             toolbox = GA_setup(tour)
-            toolbox.register("evaluate", colinear_evaluate_multi,
-                                         scfs=scfs, weights=ww)
-            tour, fitness = GA_run(toolbox, ngen=ngen, npop=npop, \
-                                            cpus=cpus, seed=seed,
-                                            callback=callbacki)
+            toolbox.register("evaluate", colinear_evaluate_multi, scfs=scfs, weights=ww)
+            tour, fitness = GA_run(
+                toolbox, ngen=ngen, npop=npop, cpus=cpus, seed=seed, callback=callbacki
+            )
             tour = callbacki(tour, "FIN")
             if best_fitness and fitness <= best_fitness:
-                logging.debug("No fitness improvement: {0}. Exit EC.".\
-                              format(best_fitness))
+                logging.debug(
+                    "No fitness improvement: {0}. Exit EC.".format(best_fitness)
+                )
                 break
             tour = self.fix_orientation(tour)
             best_tour, best_fitness = tour, fitness
-            print_tour(fwtour, self.object, tag,
-                       "GA{0}-FIXORI".format(i), tour, recode=True)
+            print_tour(
+                fwtour, self.object, tag, "GA{0}-FIXORI".format(i), tour, recode=True
+            )
             logging.debug("Current best fitness: {0}".format(best_fitness))
             i += 1
 
@@ -246,8 +269,9 @@ class ScaffoldOO (object):
                     markers[s] = xs
             if not markers:
                 continue
-            LG = LinkageGroup(lg, length, markers,
-                              function=self.function, linkage=self.linkage)
+            LG = LinkageGroup(
+                lg, length, markers, function=self.function, linkage=self.linkage
+            )
             self.linkage_groups.append(LG)
 
     def distances_to_tour(self):
@@ -274,7 +298,7 @@ class ScaffoldOO (object):
 
         edges = []
         for a, b, d in G.edges(data=True):
-            edges.append((a, b, d['weight']))
+            edges.append((a, b, d["weight"]))
 
         if self.skipconcorde:
             logging.debug("concorde-TSP skipped. Use default scaffold ordering.")
@@ -385,7 +409,7 @@ class ScaffoldOO (object):
         nmarkers = [pivot_nmarkers.get(x, 0) for x in scaffolds]
         flipr = signs * np.sign(np.array(pivot_oo)) * nmarkers
         if sum(flipr) < 0:
-            signs = - signs
+            signs = -signs
         return signs
 
     def fix_tour(self, tour):
@@ -399,7 +423,7 @@ class ScaffoldOO (object):
             for s, o in tour:
                 i = scaffolds.index(s)
                 L = [self.get_series(lg, x, xo) for x, xo in tour[:i]]
-                U = [self.get_series(lg, x, xo) for x, xo in tour[i + 1:]]
+                U = [self.get_series(lg, x, xo) for x, xo in tour[i + 1 :]]
                 L, U = list(flatten(L)), list(flatten(U))
                 M = self.get_series(lg, s, o)
                 score_with = lms(L + M + U)[0]
@@ -425,7 +449,7 @@ class ScaffoldOO (object):
             for s, o in tour:
                 i = scaffolds.index(s)
                 L = [self.get_series(lg, x, xo) for x, xo in tour[:i]]
-                U = [self.get_series(lg, x, xo) for x, xo in tour[i + 1:]]
+                U = [self.get_series(lg, x, xo) for x, xo in tour[i + 1 :]]
                 L, U = list(flatten(L)), list(flatten(U))
                 M = self.get_series(lg, s)
                 plus = lms(L + M + U)
@@ -449,8 +473,7 @@ class ScaffoldOO (object):
         return tour
 
 
-class CSVMapLine (object):
-
+class CSVMapLine(object):
     def __init__(self, row, sep=",", mapname=None):
         # ScaffoldID,ScaffoldPosition,LinkageGroup,GeneticPosition
         args = [x.strip() for x in row.split(sep)]
@@ -464,12 +487,12 @@ class CSVMapLine (object):
     def bedline(self):
         marker = "{0}-{1}:{2:.6f}".format(self.mapname, self.lg, self.cm)
         track = "{0}:{1}".format(self.seqid, self.pos)
-        return "\t".join(str(x) for x in \
-                (self.seqid, self.pos - 1, self.pos, marker, track))
+        return "\t".join(
+            str(x) for x in (self.seqid, self.pos - 1, self.pos, marker, track)
+        )
 
 
-class Marker (object):
-
+class Marker(object):
     def __init__(self, b):
         self.seqid = b.seqid
         self.pos = b.start
@@ -486,21 +509,26 @@ class Marker (object):
 
     def parse_scaffold_info(self):
         self.scaffoldaccn = self.args[-1]
-        self.scaffoldid, scaffoldpos = self.scaffoldaccn.split(':')
+        self.scaffoldid, scaffoldpos = self.scaffoldaccn.split(":")
         self.scaffoldpos = int(scaffoldpos)
 
     def __str__(self):
-        return "\t".join(str(x) for x in
-                    (self.seqid, self.pos - 1, self.pos,
-                     self.accn, self.rank))
+        return "\t".join(
+            str(x) for x in (self.seqid, self.pos - 1, self.pos, self.accn, self.rank)
+        )
 
     __repr__ = __str__
 
 
-class Map (list):
-
-    def __init__(self, filename, scaffold_info=False, compress=1e-6,
-                 remove_outliers=False, function=(lambda x: x.rank)):
+class Map(list):
+    def __init__(
+        self,
+        filename,
+        scaffold_info=False,
+        compress=1e-6,
+        remove_outliers=False,
+        function=(lambda x: x.rank),
+    ):
         bed = Bed(filename)
         for b in bed:
             self.append(Marker(b))
@@ -517,8 +545,11 @@ class Map (list):
         self.seqids = sorted(set(x.seqid for x in self))
         self.mapnames = sorted(set(x.mapname for x in self))
         self.mlgs = sorted(set(x.mlg for x in self))
-        logging.debug("Map contains {0} markers in {1} linkage groups.".\
-                      format(self.nmarkers, len(self.mlgs)))
+        logging.debug(
+            "Map contains {0} markers in {1} linkage groups.".format(
+                self.nmarkers, len(self.mlgs)
+            )
+        )
 
     def extract(self, seqid):
         r = [x for x in self if x.seqid == seqid]
@@ -561,8 +592,9 @@ class Map (list):
                 s[pair] = cm
                 original += len(markers)
                 clean += len(cm)
-            logging.debug("Retained {0} clean markers."\
-                    .format(percentage(clean, original)))
+            logging.debug(
+                "Retained {0} clean markers.".format(percentage(clean, original))
+            )
         return s
 
     def remove_outliers(self, markers, function):
@@ -572,8 +604,7 @@ class Map (list):
         return clean_markers
 
 
-class MapSummary (object):
-
+class MapSummary(object):
     def __init__(self, markers, l50, s, scaffolds=None):
         markers = self.unique_markers(markers)
         self.num_markers = len(markers)
@@ -605,9 +636,9 @@ class MapSummary (object):
 
     def export_table(self, r, mapname, total):
         r["Markers (unique)", mapname] = self.num_markers
-        r["Markers per Mb", mapname] = \
-                self.num_markers * 1e6 / self.total_bases \
-                if self.total_bases else 0
+        r["Markers per Mb", mapname] = (
+            self.num_markers * 1e6 / self.total_bases if self.total_bases else 0
+        )
         r["Scaffolds", mapname] = self.num_scaffolds
         r["N50 Scaffolds", mapname] = self.num_n50_scaffolds
         r["Total bases", mapname] = percentage(self.total_bases, total, mode=1)
@@ -617,8 +648,7 @@ class MapSummary (object):
         r["Scaffolds with >=4 markers", mapname] = self.scaffold_4m
 
 
-class Weights (DictFile):
-
+class Weights(DictFile):
     def __init__(self, filename, mapnames, cast=int):
         super(Weights, self).__init__(filename, cast=cast)
         self.maps = [x.split()[0] for x in must_open(filename)]
@@ -643,12 +673,12 @@ class Weights (DictFile):
 
     def get_pivot(self, mapnames):
         # Break ties by occurence in file
-        return max((w, -self.maps.index(m), m) \
-                    for m, w in self.items() if m in mapnames)
+        return max(
+            (w, -self.maps.index(m), m) for m, w in self.items() if m in mapnames
+        )
 
 
-class Layout (object):
-
+class Layout(object):
     def __init__(self, mlgsizes):
 
         self.mlgsizes = mlgsizes
@@ -662,13 +692,13 @@ class Layout (object):
         for i in range(N):
             parts.append([])
         # LPT greedy algorithm, sort by LG size decreasing
-        for mlg, mlgsize in sorted(self.mlgsizes.items(), key=lambda x: - x[-1]):
+        for mlg, mlgsize in sorted(self.mlgsizes.items(), key=lambda x: -x[-1]):
             mt, mi = min((x, i) for (i, x) in enumerate(endtime))
             endtime[mi] += mlgsize
             parts[mi].append((mlg, mlgsize))
         self.parts = parts
 
-    def calculate_coords(self, r=.8, gapsize=.1):
+    def calculate_coords(self, r=0.8, gapsize=0.1):
         # Find the larger partition
         part_sizes = []
         for p in self.parts:
@@ -680,7 +710,7 @@ class Layout (object):
         self.ratio = ratio
 
         coords = {}
-        for x, p, (ps, ngaps) in zip((.25, .75), self.parts, part_sizes):
+        for x, p, (ps, ngaps) in zip((0.25, 0.75), self.parts, part_sizes):
             gaps = gapsize * ngaps
             ystart = (1 + ratio * ps + gaps) / 2
             for m, ms in p:
@@ -690,12 +720,10 @@ class Layout (object):
         self.coords = coords
 
 
-class GapEstimator (object):
-
+class GapEstimator(object):
     def __init__(self, mapc, agp, seqid, mlg, function=lambda x: x.cm):
         mm = mapc.extract_mlg(mlg)
-        logging.debug("Extracted {0} markers for {1}-{2}".\
-                        format(len(mm), seqid, mlg))
+        logging.debug("Extracted {0} markers for {1}-{2}".format(len(mm), seqid, mlg))
         self.mlgsize = max(function(x) for x in mm)
 
         self.agp = [x for x in agp if x.object == seqid]
@@ -741,7 +769,7 @@ class GapEstimator (object):
         all_marker_pairs = []
         for x, y in product(ma, mb):
             cm_dist = abs(x.cm - y.cm)
-            ratio, = self.spld([gappos])
+            (ratio,) = self.spld([gappos])
             converted_dist = int(round(cm_dist / ratio))
             overhang_x = abs(x.pos - gappos)
             overhang_y = abs(y.pos - gappos) - minsize
@@ -751,7 +779,7 @@ class GapEstimator (object):
             if estimated > maxsize:
                 estimated = maxsize
             if verbose:
-                print('=' * 10)
+                print("=" * 10)
                 print(x)
                 print(y)
                 print(x.scaffoldaccn, y.scaffoldaccn)
@@ -762,14 +790,15 @@ class GapEstimator (object):
 
         gapsize = min(all_marker_pairs) if all_marker_pairs else None
         if verbose:
-            print('*'* 5, a, b, gapsize)
+            print("*" * 5, a, b, gapsize)
         return gapsize
 
     def compute_all_gaps(self, minsize=100, maxsize=500000, verbose=False):
         self.gapsizes = []
         for (a, b), gappos in zip(pairwise(self.scaffolds), self.pp):
-            gapsize = self.compute_one_gap(a, b, gappos,
-                                           minsize, maxsize, verbose=verbose)
+            gapsize = self.compute_one_gap(
+                a, b, gappos, minsize, maxsize, verbose=verbose
+            )
             self.gapsizes.append(gapsize)
 
 
@@ -804,32 +833,33 @@ def double_linkage(L):
         return L[0]
     L.sort()
     a, b = L[:2]
-    return (a + b) / 2.
+    return (a + b) / 2.0
 
 
 def main():
 
     actions = (
-        ('fake', 'make fake scaffolds.fasta'),
-        ('merge', 'merge csv maps and convert to bed format'),
-        ('mergebed', 'merge maps in bed format'),
-        ('path', 'construct golden path given a set of genetic maps'),
-        ('estimategaps', 'estimate sizes of inter-scaffold gaps'),
-        ('build', 'build associated FASTA and CHAIN file'),
-        ('split', 'split suspicious scaffolds'),
-        ('summary', 'report summary stats for maps and final consensus'),
+        ("fake", "make fake scaffolds.fasta"),
+        ("merge", "merge csv maps and convert to bed format"),
+        ("mergebed", "merge maps in bed format"),
+        ("path", "construct golden path given a set of genetic maps"),
+        ("estimategaps", "estimate sizes of inter-scaffold gaps"),
+        ("build", "build associated FASTA and CHAIN file"),
+        ("split", "split suspicious scaffolds"),
+        ("summary", "report summary stats for maps and final consensus"),
         # Visualization
-        ('plot', 'plot matches between goldenpath and maps for single object'),
-        ('plotall', 'plot matches between goldenpath and maps for all objects'),
-        ('plotratio', 'illustrate physical vs map distance ratio'),
-        ('movie', 'visualize history of scaffold OO'),
-            )
+        ("plot", "plot matches between goldenpath and maps for single object"),
+        ("plotall", "plot matches between goldenpath and maps for all objects"),
+        ("plotratio", "illustrate physical vs map distance ratio"),
+        ("movie", "visualize history of scaffold OO"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
 
-def normalize_lms_axis(ax, xlim=None, ylim=None, xfactor=1e-6, yfactor=1,
-                       xlabel=None, ylabel="Map (cM)"):
+def normalize_lms_axis(
+    ax, xlim=None, ylim=None, xfactor=1e-6, yfactor=1, xlabel=None, ylabel="Map (cM)"
+):
     """ Normalize the axis limits and labels to beautify axis.
     """
     if xlim:
@@ -838,13 +868,13 @@ def normalize_lms_axis(ax, xlim=None, ylim=None, xfactor=1e-6, yfactor=1,
         ax.set_ylim(0, ylim)
     if xlabel:
         xticklabels = [int(round(x * xfactor)) for x in ax.get_xticks()]
-        ax.set_xticklabels(xticklabels, family='Helvetica')
+        ax.set_xticklabels(xticklabels, family="Helvetica")
         ax.set_xlabel(xlabel)
     else:
         ax.set_xticks([])
     if ylabel:
         yticklabels = [int(round(x * yfactor)) for x in ax.get_yticks()]
-        ax.set_yticklabels(yticklabels, family='Helvetica')
+        ax.set_yticklabels(yticklabels, family="Helvetica")
         ax.set_ylabel(ylabel)
     else:
         ax.set_yticks([])
@@ -881,8 +911,8 @@ def plotratio(args):
     root = fig.add_axes([0, 0, 1, 1])
 
     # Panel A
-    xstart, ystart = .15, .55
-    w, h = .7, .4
+    xstart, ystart = 0.15, 0.55
+    w, h = 0.7, 0.4
     t = np.linspace(0, chrsize, 1000)
     ax = fig.add_axes([xstart, ystart, w, h])
     mx, my = zip(*g.scatter_data)
@@ -892,25 +922,29 @@ def plotratio(args):
     ax.vlines(pp, 0, mlgsize, colors="beige")
     ax.plot(mx, my, ".", color=set2[3])
     ax.plot(t, spl(t), "-", color=dsg)
-    ax.text(.05, .95, mlg, va="top", transform=ax.transAxes)
-    normalize_lms_axis(ax, xlim=chrsize, ylim=mlgsize,
-                       ylabel="Genetic distance (cM)")
+    ax.text(0.05, 0.95, mlg, va="top", transform=ax.transAxes)
+    normalize_lms_axis(ax, xlim=chrsize, ylim=mlgsize, ylabel="Genetic distance (cM)")
     if rho < 0:
         ax.invert_yaxis()
 
     # Panel B
-    ystart = .1
+    ystart = 0.1
     ax = fig.add_axes([xstart, ystart, w, h])
     ax.vlines(pp, 0, mlgsize, colors="beige")
     ax.plot(t, spld(t), "-", lw=2, color=dsg)
     ax.plot(pp, spld(pp), "o", mfc="w", mec=dsg, ms=5)
-    normalize_lms_axis(ax, xlim=chrsize, ylim=25 * 1e-6,
-                       xfactor=1e-6,
-                       xlabel="Physical position (Mb) on {}".format(seqid),
-                       yfactor=1000000, ylabel="Recomb. rate\n(cM / Mb)")
+    normalize_lms_axis(
+        ax,
+        xlim=chrsize,
+        ylim=25 * 1e-6,
+        xfactor=1e-6,
+        xlabel="Physical position (Mb) on {}".format(seqid),
+        yfactor=1000000,
+        ylabel="Recomb. rate\n(cM / Mb)",
+    )
     ax.xaxis.grid(False)
 
-    labels = ((.05, .95, 'A'), (.05, .5, 'B'))
+    labels = ((0.05, 0.95, "A"), (0.05, 0.5, "B"))
     panel_labels(root, labels)
     normalize_axes(root)
 
@@ -940,13 +974,13 @@ def fake(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    inputbed, = args
+    (inputbed,) = args
     bed = Bed(inputbed)
     recs = []
     for seqid, sb in bed.sub_beds():
         maxend = max(x.end for x in sb)
-        size = int(ceil(maxend / 1000.) * 1000)
-        seq = "".join([choice("ACGT") for x in xrange(size)])
+        size = int(ceil(maxend / 1000.0) * 1000)
+        seq = "".join([choice("ACGT") for x in range(size)])
         rec = SeqRecord(Seq(seq), id=seqid, description="")
         recs.append(rec)
 
@@ -961,10 +995,10 @@ def compute_score(markers, bonus, penalty):
     chain switching.
     """
     nmarkers = len(markers)
-    s = [bonus] * nmarkers   # score
+    s = [bonus] * nmarkers  # score
     f = [-1] * nmarkers  # from
-    for i in xrange(1, nmarkers):
-        for j in xrange(i):
+    for i in range(1, nmarkers):
+        for j in range(i):
             mi, mj = markers[i], markers[j]
             t = bonus if mi.mlg == mj.mlg else penalty + bonus
             if s[i] < s[j] + t:
@@ -991,16 +1025,21 @@ def split(args):
     modified through --chunk option.
     """
     p = OptionParser(split.__doc__)
-    p.add_option("--chunk", default=4, type="int",
-                 help="Split chunks of at least N markers")
-    p.add_option("--splitsingle", default=False, action="store_true",
-                 help="Split breakpoint range right in the middle")
+    p.add_option(
+        "--chunk", default=4, type="int", help="Split chunks of at least N markers"
+    )
+    p.add_option(
+        "--splitsingle",
+        default=False,
+        action="store_true",
+        help="Split breakpoint range right in the middle",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    inputbed, = args
+    (inputbed,) = args
     bonus = 2
     nchunk = opts.chunk
     nbreaks = 0
@@ -1020,8 +1059,9 @@ def split(args):
                 start = end = (start + end) / 2
             print("\t".join(str(x) for x in (mi.seqid, start - 1, end)))
             nbreaks += 1
-    logging.debug("A total of {} breakpoints inferred (--chunk={})".\
-                    format(nbreaks, nchunk))
+    logging.debug(
+        "A total of {} breakpoints inferred (--chunk={})".format(nbreaks, nchunk)
+    )
 
 
 def movie(args):
@@ -1035,8 +1075,12 @@ def movie(args):
     specific pseudomolecule, for example `chr1`.
     """
     p = OptionParser(movie.__doc__)
-    p.add_option("--gapsize", default=100, type="int",
-                 help="Insert gaps of size between scaffolds")
+    p.add_option(
+        "--gapsize",
+        default=100,
+        type="int",
+        help="Insert gaps of size between scaffolds",
+    )
     add_allmaps_plot_options(p)
     opts, args = p.parse_args(args)
 
@@ -1071,17 +1115,15 @@ def movie(args):
         image_name = ".".join((seqid, "{0:04d}".format(i), label, "pdf"))
         if need_update(tourfile, image_name):
             fwagp = must_open(agpfile, "w")
-            order_to_agp(seqid, tour, sizes, fwagp, gapsize=gapsize,
-                         gaptype="map")
+            order_to_agp(seqid, tour, sizes, fwagp, gapsize=gapsize, gaptype="map")
             fwagp.close()
             logging.debug("{0} written to `{1}`".format(header, agpfile))
             build([inputbed, scaffoldsfasta, "--cleanup"])
             pdf_name = plot([inputbed, seqid, "--title={0}".format(label)])
             sh("mv {0} {1}".format(pdf_name, image_name))
         if label in ("INIT", "FLIP", "TSP", "FINAL"):
-            for j in xrange(5):  # Delay for 5 frames
-                image_delay = image_name.rsplit(".", 1)[0] + \
-                              ".d{0}.pdf".format(j)
+            for j in range(5):  # Delay for 5 frames
+                image_delay = image_name.rsplit(".", 1)[0] + ".d{0}.pdf".format(j)
                 sh("cp {0} {1}/{2}".format(image_name, ffmpeg, image_delay))
         else:
             sh("cp {0} {1}/".format(image_name, ffmpeg))
@@ -1095,17 +1137,20 @@ def make_movie(workdir, pf, dpi=120, fps=1, format="pdf", engine="ffmpeg"):
     """
     os.chdir(workdir)
     if format != "png":
-        cmd  = "parallel convert -density {}".format(dpi)
+        cmd = "parallel convert -density {}".format(dpi)
         cmd += " {} {.}.png ::: " + "*.{}".format(format)
         sh(cmd)
 
-    assert engine in ("ffmpeg", "gifsicle"), \
-            "Only ffmpeg or gifsicle is currently supported"
+    assert engine in (
+        "ffmpeg",
+        "gifsicle",
+    ), "Only ffmpeg or gifsicle is currently supported"
     if engine == "ffmpeg":
-        cmd = "ffmpeg -framerate {} -pattern_type glob -i '*.png' {}.mp4"\
-                .format(fps, pf)
+        cmd = "ffmpeg -framerate {} -pattern_type glob -i '*.png' {}.mp4".format(
+            fps, pf
+        )
     elif engine == "gifsicle":
-        cmd  = "convert *.png gif:- |"
+        cmd = "convert *.png gif:- |"
         cmd += " gifsicle --delay {} --loop --optimize=3".format(100 // fps)
         cmd += " --colors=256 --multifile - > {}.gif".format(pf)
 
@@ -1121,19 +1166,21 @@ def estimategaps(args):
     The AGP file `input.chr.agp` will be modified in-place.
     """
     p = OptionParser(estimategaps.__doc__)
-    p.add_option("--minsize", default=100, type="int",
-                 help="Minimum gap size")
-    p.add_option("--maxsize", default=500000, type="int",
-                 help="Maximum gap size")
-    p.add_option("--links", default=10, type="int",
-                 help="Only use linkage grounds with matchings more than")
+    p.add_option("--minsize", default=100, type="int", help="Minimum gap size")
+    p.add_option("--maxsize", default=500000, type="int", help="Maximum gap size")
+    p.add_option(
+        "--links",
+        default=10,
+        type="int",
+        help="Only use linkage grounds with matchings more than",
+    )
     p.set_verbose(help="Print details for each gap calculation")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    inputbed, = args
+    (inputbed,) = args
     pf = inputbed.rsplit(".", 1)[0]
     agpfile = pf + ".chr.agp"
     bedfile = pf + ".lifted.bed"
@@ -1152,13 +1199,12 @@ def estimategaps(args):
         s = Scaffold(ob, cc)
         mlg_counts = s.mlg_counts
         gaps = [x for x in components if x.is_gap]
-        gapsizes = [None] * len(gaps)   # master
+        gapsizes = [None] * len(gaps)  # master
         for mlg, count in mlg_counts.items():
             if count < links:
                 continue
             g = GapEstimator(cc, agp, ob, mlg)
-            g.compute_all_gaps(minsize=minsize, maxsize=maxsize, \
-                               verbose=verbose)
+            g.compute_all_gaps(minsize=minsize, maxsize=maxsize, verbose=verbose)
             # Merge evidence from this mlg into master
             assert len(g.gapsizes) == len(gaps)
             for i, gs in enumerate(gapsizes):
@@ -1174,7 +1220,7 @@ def estimategaps(args):
         for x in components:
             if x.is_gap:
                 x.gap_length = gapsizes[i] or minsize
-                x.component_type = 'U' if x.gap_length == 100 else 'N'
+                x.component_type = "U" if x.gap_length == 100 else "N"
                 i += 1
             print(x, file=fw)
 
@@ -1184,8 +1230,8 @@ def estimategaps(args):
 
 def filename_to_mapname(filename):
     # Infer map name based on file name
-    mapname = op.basename(filename).split(".")[0]
-    return mapname.replace("-", "_").replace(":", "_")
+    mapname = op.basename(filename).rsplit(".", 1)[0]
+    return mapname.replace("-", "_").replace(":", "_").replace(".", "_")
 
 
 def merge(args):
@@ -1202,8 +1248,9 @@ def merge(args):
     scaffold_759,81336,1,9.7
     """
     p = OptionParser(merge.__doc__)
-    p.add_option("-w", "--weightsfile", default="weights.txt",
-                 help="Write weights to file")
+    p.add_option(
+        "-w", "--weightsfile", default="weights.txt", help="Write weights to file"
+    )
     p.set_outfile("out.bed")
     opts, args = p.parse_args(args)
 
@@ -1229,8 +1276,7 @@ def merge(args):
             continue
 
     b.print_to_file(filename=outfile, sorted=True)
-    logging.debug("A total of {0} markers written to `{1}`.".\
-                        format(len(b), outfile))
+    logging.debug("A total of {0} markers written to `{1}`.".format(len(b), outfile))
 
     assert len(maps) == len(mapnames), "You have a collision in map names"
     write_weightsfile(mapnames, weightsfile=opts.weightsfile)
@@ -1243,8 +1289,9 @@ def mergebed(args):
     Combine bed maps to bed format, adding the map name.
     """
     p = OptionParser(mergebed.__doc__)
-    p.add_option("-w", "--weightsfile", default="weights.txt",
-                 help="Write weights to file")
+    p.add_option(
+        "-w", "--weightsfile", default="weights.txt", help="Write weights to file"
+    )
     p.set_outfile("out.bed")
     opts, args = p.parse_args(args)
 
@@ -1268,8 +1315,7 @@ def mergebed(args):
             continue
 
     b.print_to_file(filename=outfile, sorted=True)
-    logging.debug("A total of {0} markers written to `{1}`.".\
-                        format(len(b), outfile))
+    logging.debug("A total of {0} markers written to `{1}`.".format(len(b), outfile))
 
     assert len(maps) == len(mapnames), "You have a collision in map names"
     write_weightsfile(mapnames, weightsfile=opts.weightsfile)
@@ -1277,8 +1323,9 @@ def mergebed(args):
 
 def write_weightsfile(mapnames, weightsfile="weights.txt"):
     if op.exists(weightsfile):
-        logging.debug("Weights file `{0}` found. Will not overwrite.".\
-                        format(weightsfile))
+        logging.debug(
+            "Weights file `{0}` found. Will not overwrite.".format(weightsfile)
+        )
         return
 
     fw = open(weightsfile, "w")
@@ -1298,8 +1345,7 @@ def best_no_ambiguous(d, label):
 
 def get_function(field):
     assert field in distance_choices
-    return (lambda x: x.cm) if field == "cM" else \
-           (lambda x: x.rank)
+    return (lambda x: x.cm) if field == "cM" else (lambda x: x.rank)
 
 
 def print_tour(fw, object, tag, label, tour, recode=False):
@@ -1311,7 +1357,7 @@ def print_tour(fw, object, tag, label, tour, recode=False):
 
 
 def recode_tour(tour):
-    recode = {0: '?', 1: '+', -1: '-'}
+    recode = {0: "?", 1: "+", -1: "-"}
     return [(x, recode[o]) for x, o in tour]
 
 
@@ -1330,40 +1376,76 @@ def path(args):
     p = OptionParser(path.__doc__)
     p.add_option("-b", "--bedfile", help=SUPPRESS_HELP)
     p.add_option("-s", "--fastafile", help=SUPPRESS_HELP)
-    p.add_option("-w", "--weightsfile", default="weights.txt",
-                 help="Use weights from file")
-    p.add_option("--compress", default=1e-6, type="float",
-                 help="Compress markers with distance <=")
-    p.add_option("--noremoveoutliers", default=False, action="store_true",
-                 help="Don't remove outlier markers")
-    p.add_option("--distance", default="rank", choices=distance_choices,
-                 help="Distance function when building initial consensus")
-    p.add_option("--linkage", default="double", choices=linkage_choices,
-                 help="Linkage function when building initial consensus")
-    p.add_option("--gapsize", default=100, type="int",
-                 help="Insert gaps of size between scaffolds")
+    p.add_option(
+        "-w", "--weightsfile", default="weights.txt", help="Use weights from file"
+    )
+    p.add_option(
+        "--compress",
+        default=1e-6,
+        type="float",
+        help="Compress markers with distance <=",
+    )
+    p.add_option(
+        "--noremoveoutliers",
+        default=False,
+        action="store_true",
+        help="Don't remove outlier markers",
+    )
+    p.add_option(
+        "--distance",
+        default="rank",
+        choices=distance_choices,
+        help="Distance function when building initial consensus",
+    )
+    p.add_option(
+        "--linkage",
+        default="double",
+        choices=linkage_choices,
+        help="Linkage function when building initial consensus",
+    )
+    p.add_option(
+        "--gapsize",
+        default=100,
+        type="int",
+        help="Insert gaps of size between scaffolds",
+    )
     p.add_option("--seqid", help="Only run partition with this seqid")
     p.add_option("--partitions", help="Use predefined partitions of LGs")
-    p.add_option("--links", default=10, type="int",
-                 help="Only plot matchings more than")
-    p.add_option("--mincount", default=1, type="int",
-                 help="Minimum markers on a contig")
-    p.add_option("--noplot", default=False, action="store_true",
-                 help="Do not visualize the alignments")
-    p.add_option("--skipconcorde", default=False, action="store_true",
-                 help="Skip TSP optimizer, can speed up large cases")
-    p.add_option("--renumber", default=False, action="store_true",
-                 help="Renumber chromosome based on decreasing sizes")
+    p.add_option(
+        "--links", default=10, type="int", help="Only plot matchings more than"
+    )
+    p.add_option(
+        "--mincount", default=1, type="int", help="Minimum markers on a contig"
+    )
+    p.add_option(
+        "--noplot",
+        default=False,
+        action="store_true",
+        help="Do not visualize the alignments",
+    )
+    p.add_option(
+        "--skipconcorde",
+        default=False,
+        action="store_true",
+        help="Skip TSP optimizer, can speed up large cases",
+    )
+    p.add_option(
+        "--renumber",
+        default=False,
+        action="store_true",
+        help="Renumber chromosome based on decreasing sizes",
+    )
     p.set_cpus(cpus=16)
 
     q = OptionGroup(p, "Genetic algorithm options")
     p.add_option_group(q)
-    q.add_option("--ngen", default=500, type="int",
-                 help="Iterations in GA, higher ~ slower")
-    q.add_option("--npop", default=100, type="int",
-                 help="Population size in GA, higher ~ slower")
-    q.add_option("--seed", default=666, type="int",
-                 help="Random seed number")
+    q.add_option(
+        "--ngen", default=500, type="int", help="Iterations in GA, higher ~ slower"
+    )
+    q.add_option(
+        "--npop", default=100, type="int", help="Population size in GA, higher ~ slower"
+    )
+    q.add_option("--seed", default=666, type="int", help="Random seed number")
     opts, args, iopts = p.set_image_options(args, figsize="10x6")
 
     if len(args) != 2:
@@ -1375,8 +1457,12 @@ def path(args):
 
     pf = inputbed.rsplit(".", 1)[0]
     if op.basename(fastafile).split(".")[0] == pf:
-        print("ERROR: Filename collision `{}`. We suggest to rename `{}`"\
-                .format(pf, inputbed), file=sys.stderr)
+        print(
+            "ERROR: Filename collision `{}`. We suggest to rename `{}`".format(
+                pf, inputbed
+            ),
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     bedfile = pf + ".bed"
@@ -1390,13 +1476,20 @@ def path(args):
     cpus = opts.cpus
     seed = opts.seed
     if sys.version_info[:2] < (2, 7):
-        logging.debug("Python version: {0}. CPUs set to 1.".\
-                        format(sys.version.splitlines()[0].strip()))
+        logging.debug(
+            "Python version: {0}. CPUs set to 1.".format(
+                sys.version.splitlines()[0].strip()
+            )
+        )
         cpus = 1
 
     function = get_function(opts.distance)
-    cc = Map(bedfile, function=function, compress=opts.compress, \
-             remove_outliers=(not opts.noremoveoutliers))
+    cc = Map(
+        bedfile,
+        function=function,
+        compress=opts.compress,
+        remove_outliers=(not opts.noremoveoutliers),
+    )
     mapnames = cc.mapnames
     allseqids = cc.seqids
     weights = Weights(weightsfile, mapnames)
@@ -1405,8 +1498,13 @@ def path(args):
     linkage = opts.linkage
     oseqid = opts.seqid
     logging.debug("Linkage function: {0}-linkage".format(linkage))
-    linkage = {"single": min, "double": double_linkage, "complete": max,
-               "average": np.mean, "median": np.median}[linkage]
+    linkage = {
+        "single": min,
+        "double": double_linkage,
+        "complete": max,
+        "average": np.mean,
+        "median": np.median,
+    }[linkage]
 
     # Partition the linkage groups into consensus clusters
     C = Grouper()
@@ -1479,10 +1577,22 @@ def path(args):
             logging.debug("Skipping {0} ...".format(tag))
             continue
         logging.debug("Working on {0} ...".format(tag))
-        s = ScaffoldOO(lgs, scaffolds, cc, pivot, weights, sizes,
-                       function=function, linkage=linkage, fwtour=fwtour,
-                       skipconcorde=skipconcorde,
-                       ngen=ngen, npop=npop, cpus=cpus, seed=seed)
+        s = ScaffoldOO(
+            lgs,
+            scaffolds,
+            cc,
+            pivot,
+            weights,
+            sizes,
+            function=function,
+            linkage=linkage,
+            fwtour=fwtour,
+            skipconcorde=skipconcorde,
+            ngen=ngen,
+            npop=npop,
+            cpus=cpus,
+            seed=seed,
+        )
 
         solutions.append(s)
     fwtour.close()
@@ -1492,8 +1602,9 @@ def path(args):
         chrsizes = {}
         conversion = {}
         for s in solutions:
-            chrsizes[s.object] = sum(sizes[x] for (x, o) in s.tour) + \
-                                 (len(s.tour) - 1) * gapsize
+            chrsizes[s.object] = (
+                sum(sizes[x] for (x, o) in s.tour) + (len(s.tour) - 1) * gapsize
+            )
         for i, (c, size) in enumerate(sorted(chrsizes.items(), key=lambda x: -x[1])):
             newc = "chr{0}".format(i + 1)
             logging.debug("{0}: {1} => {2}".format(c, size, newc))
@@ -1502,15 +1613,16 @@ def path(args):
             s.object = conversion[s.object]
 
     # meta-data about the run parameters
-    command = "# COMMAND: python -m jcvi.assembly.allmaps path {0}".\
-                     format(" ".join(oargs))
-    comment = "Generated by ALLMAPS v{0} ({1})\n{2}".\
-                     format(version, get_today(), command)
+    command = "# COMMAND: python -m jcvi.assembly.allmaps path {0}".format(
+        " ".join(oargs)
+    )
+    comment = "Generated by ALLMAPS v{0} ({1})\n{2}".format(
+        version, get_today(), command
+    )
     AGP.print_header(fwagp, comment=comment)
 
     for s in natsorted(solutions, key=lambda x: x.object):
-        order_to_agp(s.object, s.tour, sizes, fwagp, gapsize=gapsize,
-                     gaptype="map")
+        order_to_agp(s.object, s.tour, sizes, fwagp, gapsize=gapsize, gaptype="map")
     fwagp.close()
 
     logging.debug("AGP file written to `{0}`.".format(agpfile))
@@ -1522,8 +1634,13 @@ def path(args):
     summary([inputbed, fastafile, "--outfile={0}".format(summaryfile)])
 
     if not opts.noplot:
-        plotall([inputbed, "--links={0}".format(opts.links),
-                           "--figsize={0}".format(opts.figsize)])
+        plotall(
+            [
+                inputbed,
+                "--links={0}".format(opts.links),
+                "--figsize={0}".format(opts.figsize),
+            ]
+        )
 
 
 def write_unplaced_agp(agpfile, scaffolds, unplaced_agp):
@@ -1580,13 +1697,16 @@ def summary(args):
     agp = AGP(chr_agp)
     print("*** Summary for consensus map ***", file=fw)
     consensus_scaffolds = set(x.component_id for x in agp if not x.is_gap)
-    oriented_scaffolds = set(x.component_id for x in agp \
-                            if (not x.is_gap) and x.orientation != '?')
+    oriented_scaffolds = set(
+        x.component_id for x in agp if (not x.is_gap) and x.orientation != "?"
+    )
     unplaced_scaffolds = set(s.mapping.keys()) - consensus_scaffolds
 
-    for mapname, sc in (("Anchored", consensus_scaffolds),
-                    ("Oriented", oriented_scaffolds),
-                    ("Unplaced", unplaced_scaffolds)):
+    for mapname, sc in (
+        ("Anchored", consensus_scaffolds),
+        ("Oriented", oriented_scaffolds),
+        ("Unplaced", unplaced_scaffolds),
+    ):
         markers = [x for x in cc if x.seqid in sc]
         ms = MapSummary(markers, l50, s, scaffolds=sc)
         ms.export_table(r, mapname, total)
@@ -1603,8 +1723,12 @@ def build(args):
     new positions of the markers will be reported in *.lifted.bed.
     """
     p = OptionParser(build.__doc__)
-    p.add_option("--cleanup", default=False, action="store_true",
-                 help="Clean up bulky FASTA files, useful for plotting")
+    p.add_option(
+        "--cleanup",
+        default=False,
+        action="store_true",
+        help="Clean up bulky FASTA files, useful for plotting",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -1640,27 +1764,43 @@ def build(args):
 
     liftedbed = mapbed.rsplit(".", 1)[0] + ".lifted.bed"
     if need_update((mapbed, chainfile), liftedbed):
-        cmd = "liftOver -minMatch=1 {0} {1} {2} unmapped".\
-                format(mapbed, chainfile, liftedbed)
+        cmd = "liftOver -minMatch=1 {0} {1} {2} unmapped".format(
+            mapbed, chainfile, liftedbed
+        )
         sh(cmd, check=True)
 
     if opts.cleanup:
-        FileShredder([chr_fasta, unplaced_fasta, combined_fasta,
-                      chainfile, unplaced_agp,
-                      combined_fasta + ".sizes", "unmapped"])
+        FileShredder(
+            [
+                chr_fasta,
+                unplaced_fasta,
+                combined_fasta,
+                chainfile,
+                unplaced_agp,
+                combined_fasta + ".sizes",
+                "unmapped",
+            ]
+        )
 
     sort([liftedbed, "-i"])  # Sort bed in place
 
 
 def add_allmaps_plot_options(p):
-    p.add_option("-w", "--weightsfile", default="weights.txt",
-                 help="Use weights from file")
-    p.add_option("--distance", default="cM", choices=distance_choices,
-                 help="Plot markers based on distance")
-    p.add_option("--links", default=10, type="int",
-                 help="Only plot matchings more than")
-    p.add_option("--panels", default=False, action="store_true",
-                 help="Add panel labels A/B")
+    p.add_option(
+        "-w", "--weightsfile", default="weights.txt", help="Use weights from file"
+    )
+    p.add_option(
+        "--distance",
+        default="cM",
+        choices=distance_choices,
+        help="Plot markers based on distance",
+    )
+    p.add_option(
+        "--links", default=10, type="int", help="Only plot matchings more than"
+    )
+    p.add_option(
+        "--panels", default=False, action="store_true", help="Add panel labels A/B"
+    )
 
 
 def plot(args):
@@ -1673,10 +1813,15 @@ def plot(args):
     1. Parallel axes, and matching markers are shown in connecting lines;
     2. Scatter plot.
     """
-    from jcvi.graphics.base import plt, savefig, normalize_axes, \
-                set2, panel_labels, shorten
-    from jcvi.graphics.chromosome import Chromosome, GeneticMap, \
-                HorizontalChromosome
+    from jcvi.graphics.base import (
+        plt,
+        savefig,
+        normalize_axes,
+        set2,
+        panel_labels,
+        shorten,
+    )
+    from jcvi.graphics.chromosome import Chromosome, GeneticMap, HorizontalChromosome
 
     p = OptionParser(plot.__doc__)
     p.add_option("--title", help="Title of the plot")
@@ -1715,18 +1860,18 @@ def plot(args):
 
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
-    bbox = dict(boxstyle="round", fc='darkslategray', ec='darkslategray')
+    bbox = dict(boxstyle="round", fc="darkslategray", ec="darkslategray")
     if opts.title:
-        root.text(.5, .95, opts.title, color="w", bbox=bbox, size=16)
-    ax1 = fig.add_axes([0, 0, .5, 1])
-    ax2 = fig.add_axes([.5, 0, .5, 1])
+        root.text(0.5, 0.95, opts.title, color="w", bbox=bbox, size=16)
+    ax1 = fig.add_axes([0, 0, 0.5, 1])
+    ax2 = fig.add_axes([0.5, 0, 0.5, 1])
 
     # Find the layout first
-    ystart, ystop = .9, .1
+    ystart, ystop = 0.9, 0.1
     L = Layout(mlgsizes)
     coords = L.coords
 
-    tip = .02
+    tip = 0.02
     marker_pos = {}
     # Palette
     colors = dict((mapname, set2[i % len(set2)]) for i, mapname in enumerate(mapnames))
@@ -1744,13 +1889,20 @@ def plot(args):
         flip = rho < 0
 
         g = GeneticMap(ax1, x, y1, y2, markers, tip=tip, flip=flip)
-        extra = -3 * tip if x < .5 else 3 * tip
-        ha = "right" if x < .5 else "left"
+        extra = -3 * tip if x < 0.5 else 3 * tip
+        ha = "right" if x < 0.5 else "left"
         mapname = mlg.split("-")[0]
         tlg = shorten(mlg.replace("_", "."))  # Latex does not like underscore char
         label = "{0} (w={1})".format(tlg, weights[mapname])
-        ax1.text(x + extra, (y1 + y2) / 2, label, color=colors[mlg],
-                 ha=ha, va="center", rotation=90)
+        ax1.text(
+            x + extra,
+            (y1 + y2) / 2,
+            label,
+            color=colors[mlg],
+            ha=ha,
+            va="center",
+            rotation=90,
+        )
         marker_pos.update(g.marker_pos)
 
     agp = AGP(agpfile)
@@ -1762,10 +1914,10 @@ def plot(args):
     ratio = r / chrsize
     f = lambda x: (ystart - ratio * x)
     patchstart = [f(x.object_beg) for x in agp if not x.is_gap]
-    Chromosome(ax1, .5, ystart, ystop, width=2 * tip, patch=patchstart, lw=2)
+    Chromosome(ax1, 0.5, ystart, ystop, width=2 * tip, patch=patchstart, lw=2)
 
     label = "{0} ({1})".format(seqid, human_size(chrsize, precision=0))
-    ax1.text(.5, ystart + tip, label, ha="center")
+    ax1.text(0.5, ystart + tip, label, ha="center")
 
     scatter_data = defaultdict(list)
     # Connecting lines
@@ -1774,7 +1926,7 @@ def plot(args):
         if marker_name not in marker_pos:
             continue
 
-        cx = .5
+        cx = 0.5
         cy = f(b.pos)
         mx = coords[b.mlg][0]
         my = marker_pos[marker_name]
@@ -1791,18 +1943,19 @@ def plot(args):
     f = lambda x: (xstart + ratio * x)
     pp = [x.object_beg for x in agp if not x.is_gap]
     patchstart = [f(x) for x in pp]
-    HorizontalChromosome(ax2, xstart, xstop, ystop,
-                         height=2 * tip, patch=patchstart, lw=2)
+    HorizontalChromosome(
+        ax2, xstart, xstop, ystop, height=2 * tip, patch=patchstart, lw=2
+    )
     draw_gauge(ax2, xstart, chrsize)
 
-    gap = .03
+    gap = 0.03
     ratio = (r - gap * len(mlgs) - tip) / sum(mlgsizes.values())
 
     tlgs = []
     for mlg, mlgsize in sorted(mlgsizes.items()):
         height = ratio * mlgsize
         ystart -= height
-        xx = .5 + xstart / 2
+        xx = 0.5 + xstart / 2
         width = r / 2
         color = colors[mlg]
         ax = fig.add_axes([xx, ystart, width, height])
@@ -1813,17 +1966,24 @@ def plot(args):
         ax.vlines(pp, 0, 2 * mlgsize, colors="beige")
         ax.plot(xx, yy, ".", color=color)
         rho = rhos[mlg]
-        ax.text(.5, 1 - .4 * gap / height, r"$\rho$={0:.3f}".format(rho),
-                    ha="center", va="top", transform=ax.transAxes, color="gray")
+        ax.text(
+            0.5,
+            1 - 0.4 * gap / height,
+            r"$\rho$={0:.3f}".format(rho),
+            ha="center",
+            va="top",
+            transform=ax.transAxes,
+            color="gray",
+        )
         tlg = shorten(mlg.replace("_", "."))
         tlgs.append((tlg, ypos, color))
         ax.set_xlim(0, chrsize)
         ax.set_ylim(0, mlgsize)
         ax.set_xticks([])
-        while height / len(ax.get_yticks()) < .03 and len(ax.get_yticks()) >= 2:
+        while height / len(ax.get_yticks()) < 0.03 and len(ax.get_yticks()) >= 2:
             ax.set_yticks(ax.get_yticks()[::2])  # Sparsify the ticks
         yticklabels = [int(x) for x in ax.get_yticks()]
-        ax.set_yticklabels(yticklabels, family='Helvetica')
+        ax.set_yticklabels(yticklabels, family="Helvetica")
         if rho < 0:
             ax.invert_yaxis()
 
@@ -1831,11 +1991,10 @@ def plot(args):
         ha = "center"
         if len(tlgs) > 4:
             ha = "right" if i % 2 else "left"
-        root.text(.5, ypos, tlg, color=color, rotation=90,
-                      ha=ha, va="center")
+        root.text(0.5, ypos, tlg, color=color, rotation=90, ha=ha, va="center")
 
     if opts.panels:
-        labels = ((.04, .96, 'A'), (.48, .96, 'B'))
+        labels = ((0.04, 0.96, "A"), (0.48, 0.96, "B"))
         panel_labels(root, labels)
 
     normalize_axes((ax1, ax2, root))
@@ -1859,7 +2018,7 @@ def plotall(xargs):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    inputbed, = args
+    (inputbed,) = args
     pf = inputbed.rsplit(".", 1)[0]
     agpfile = pf + ".chr.agp"
     agp = AGP(agpfile)
@@ -1868,5 +2027,5 @@ def plotall(xargs):
         plot(xargs + [seqid])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

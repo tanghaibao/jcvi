@@ -23,6 +23,7 @@ from matplotlib.patches import (
     Rectangle,
     Polygon,
     CirclePolygon,
+    Ellipse,
     PathPatch,
     FancyArrow,
     FancyArrowPatch,
@@ -32,9 +33,15 @@ from matplotlib.path import Path
 from jcvi.utils.brewer2mpl import get_map
 from jcvi.formats.base import LineFile
 from jcvi.apps.console import dark, green
-from jcvi.apps.base import glob, listify, datadir, sample_N
+from jcvi.apps.base import glob, listify, datadir, sample_N, which
 
 logging.getLogger().setLevel(logging.DEBUG)
+
+
+def is_usetex():
+    """Check if latex command is available
+    """
+    return bool(which("latex")) and bool(which("lp"))
 
 
 class ImageOptions(object):
@@ -59,11 +66,15 @@ class TextHandler(object):
         self.heights = []
         try:
             self.build_height_array(fig)
-        except ValueError:
-            logging.debug("Failed to init heights. Variable label sizes skipped.")
+        except ValueError as e:
+            logging.debug(
+                "Failed to init heights (error: {}). Variable label sizes skipped.".format(
+                    e
+                )
+            )
 
     @classmethod
-    def get_text_width_height(cls, fig, txt="chr01", size=12, usetex=True):
+    def get_text_width_height(cls, fig, txt="chr01", size=12, usetex=is_usetex()):
         tp = mpl.textpath.TextPath((0, 0), txt, size=size, usetex=usetex)
         bb = tp.get_extents()
         xmin, ymin = fig.transFigure.inverted().transform((bb.xmin, bb.ymin))
@@ -103,8 +114,12 @@ class AbstractLayout(LineFile):
                 setattr(x, attrib, c)
 
     def assign_colors(self):
-        colorset = get_map("Set2", "qualitative", 8).mpl_colors
-        colorset = sample_N(colorset, len(self))
+        number = len(self)
+        palette = set2_n if number <= 8 else set3_n
+        # Restrict palette numbers between [3, 12]
+        palette_number = max(3, min(number, 12))
+        colorset = palette(palette_number)
+        colorset = sample_N(colorset, number)
         self.assign_array("color", colorset)
 
     def assign_markers(self):
@@ -137,14 +152,26 @@ def shorten(s, maxchar=20):
     return s[:pad] + "..." + s[-pad:]
 
 
-def prettyplot():
+def set1_n(number=9):
+    return get_map("Set1", "qualitative", number).hex_colors
+
+
+def set2_n(number=8):
     # Get Set2 from ColorBrewer, a set of colors deemed colorblind-safe and
     # pleasant to look at by Drs. Cynthia Brewer and Mark Harrower of Pennsylvania
     # State University. These colors look lovely together, and are less
     # saturated than those colors in Set1. For more on ColorBrewer, see:
-    set2 = get_map("Set2", "qualitative", 8).mpl_colors
-    set1 = get_map("Set1", "qualitative", 9).mpl_colors
+    return get_map("Set2", "qualitative", number).hex_colors
 
+
+def set3_n(number=12):
+    return get_map("Set3", "qualitative", number).hex_colors
+
+
+set1, set2, set3 = set1_n(), set2_n(), set3_n()
+
+
+def prettyplot():
     reds = mpl.cm.Reds
     reds.set_bad("white")
     reds.set_under("white")
@@ -159,10 +186,10 @@ def prettyplot():
     green_purple = get_map("PRGn", "diverging", 11).mpl_colormap
     red_purple = get_map("RdPu", "sequential", 9).mpl_colormap
 
-    return blues_r, reds, blue_red, set1, set2, green_purple, red_purple
+    return blues_r, reds, blue_red, green_purple, red_purple
 
 
-blues_r, reds, blue_red, set1, set2, green_purple, red_purple = prettyplot()
+blues_r, reds, blue_red, green_purple, red_purple = prettyplot()
 
 
 def normalize_axes(axes):
@@ -191,7 +218,7 @@ def savefig(figname, dpi=150, iopts=None, cleanup=True, transparent=False):
         message = "savefig failed. Reset usetex to False."
         message += "\n{0}".format(str(e))
         logging.error(message)
-        rc("text", **{"usetex": False})
+        rc("text", usetex=False)
         plt.savefig(figname, dpi=dpi, transparent=transparent)
 
     msg = "Figure saved to `{0}`".format(figname)
@@ -260,6 +287,8 @@ def fontprop(ax, name, size=12):
 
 
 def markup(s):
+    if "$" in s:
+        return s
     import re
 
     s = latex(s)
@@ -276,7 +305,11 @@ def append_percentage(s):
 
 
 def setup_theme(
-    context="notebook", style="darkgrid", palette="deep", font="Helvetica", usetex=True
+    context="notebook",
+    style="darkgrid",
+    palette="deep",
+    font="Helvetica",
+    usetex=is_usetex(),
 ):
     try:
         import seaborn as sns
@@ -290,7 +323,12 @@ def setup_theme(
     except (ImportError, SyntaxError):
         pass
 
-    rc("text", usetex=usetex)
+    if usetex:
+        rc("text", usetex=usetex)
+    else:
+        logging.error(
+            "Set text.usetex={}. Font styles may be inconsistent.".format(usetex)
+        )
 
     if font == "Helvetica":
         rc("font", **{"family": "sans-serif", "sans-serif": ["Helvetica"]})
@@ -433,13 +471,13 @@ def get_intensity(octal):
     return intensity
 
 
-def adjust_spines(ax, spines):
+def adjust_spines(ax, spines, outward=False, color="lightslategray"):
     # Modified from <http://matplotlib.org/examples/pylab_examples/spine_placement_demo.html>
     for loc, spine in ax.spines.items():
         if loc in spines:
-            pass
-            # spine.set_position(('outward', 10)) # outward by 10 points
-            # spine.set_smart_bounds(True)
+            if outward:
+                spine.set_position(("outward", 8))  # outward by 10 points
+            spine.set_color(color)
         else:
             spine.set_color("none")  # don't draw spine
 
@@ -452,6 +490,9 @@ def adjust_spines(ax, spines):
         ax.xaxis.set_ticks_position("bottom")
     else:
         ax.xaxis.set_ticks_position("top")
+
+    # Change tick styles directly
+    ax.tick_params(color=color)
 
 
 def set_ticklabels_helvetica(ax, xcast=int, ycast=int):
@@ -507,9 +548,7 @@ def quickplot_ax(
     percentage=True,
     highlight=None,
 ):
-    """
-    TODO: redundant with quickplot(), need to be refactored.
-    """
+    # TODO: redundant with quickplot(), need to be refactored.
     if percentage:
         total_length = sum(data.values())
         data = dict((k, v * 100.0 / total_length) for (k, v) in data.items())

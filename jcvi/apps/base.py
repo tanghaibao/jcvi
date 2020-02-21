@@ -1397,9 +1397,10 @@ def download(url, filename=None, debug=True, cookies=None):
         target = filename or "index.html"
 
     success = False
-    if filename and op.exists(filename):
+    final_filename = filename or target
+    if op.exists(final_filename):
         if debug:
-            msg = "File `{}` exists. Download skipped.".format(target)
+            msg = "File `{}` exists. Download skipped.".format(final_filename)
             logging.error(msg)
     else:
         from jcvi.utils.ez_setup import get_best_downloader
@@ -1420,7 +1421,7 @@ def download(url, filename=None, debug=True, cookies=None):
                 sh("gzip -c {}".format(target), outfile=filename)
                 FileShredder([target])
 
-    return filename or target
+    return final_filename
 
 
 def getfilesize(filename, ratio=None):

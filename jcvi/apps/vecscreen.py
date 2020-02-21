@@ -70,7 +70,7 @@ def mask(args):
     ecolibedfile = blast([fastafile, "--db={0}".format(ecolifile)])
 
     cmd = "cat {0} {1}".format(vecbedfile, ecolibedfile)
-    cmd += " | mergeBed -nms -d 100 -i stdin"
+    cmd += " | mergeBed -c 4 -o collapse -d 100 -i stdin"
     cmd += " | maskFastaFromBed -fi {0} -bed stdin -fo {1}".format(
         fastafile, outfastafile
     )

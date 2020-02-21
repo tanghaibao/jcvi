@@ -1365,33 +1365,67 @@ def ls_ftp(dir):
     return files
 
 
-def download(url, filename=None, debug=True, cookies=None):
+def download(url, filename=None, debug=True, cookies=None, handle_gzip=False):
+    """ Download URL to local
+
+    Args:
+        url (str): Link to the file on the internet.
+        filename (str, optional): Local file name. Defaults to None.
+        debug (bool, optional): Print debug messages. Defaults to True.
+        cookies (str, optional): cookies file. Defaults to None.
+        handle_gzip (bool, optional): Postprocess .gz files, either compress or
+        uncompress. Defaults to False.
+
+    Returns:
+        str: Local file name.
+    """
     from six.moves.urllib.parse import urlsplit
     from subprocess import CalledProcessError
     from jcvi.formats.base import FileShredder
 
     scheme, netloc, path, query, fragment = urlsplit(url)
-    filename = filename or op.basename(path)
-    filename = filename.strip()
+    basepath = op.basename(path)
+    if basepath:
+        url_gzipped = basepath.endswith(".gz")
+        filename_gzipped = filename and filename.endswith(".gz")
+        need_gunzip = url_gzipped and (not filename_gzipped)
+        need_gzip = (not url_gzipped) and filename_gzipped
+        if handle_gzip and (
+            need_gunzip or need_gzip
+        ):  # One more compress/decompress step after download
+            target = basepath
+        else:  # Just download
+            target = filename or basepath
+    else:
+        need_gunzip, need_gzip = False, False
+        target = filename or "index.html"
 
-    if not filename:
-        filename = "index.html"
-
-    if op.exists(filename):
+    success = False
+    final_filename = filename or target
+    if op.exists(final_filename):
         if debug:
-            msg = "File `{0}` exists. Download skipped.".format(filename)
+            msg = "File `{}` exists. Download skipped.".format(final_filename)
             logging.error(msg)
     else:
         from jcvi.utils.ez_setup import get_best_downloader
 
         downloader = get_best_downloader()
         try:
-            downloader(url, filename, cookies=cookies)
+            downloader(url, target, cookies=cookies)
+            success = True
         except (CalledProcessError, KeyboardInterrupt) as e:
             print(e, file=sys.stderr)
-            FileShredder([filename])
+            FileShredder([target])
 
-    return filename
+        if success and handle_gzip:
+            if need_gunzip:
+                sh("gzip -dc {}".format(target), outfile=filename)
+                FileShredder([target])
+            elif need_gzip:
+                sh("gzip -c {}".format(target), outfile=filename)
+                FileShredder([target])
+
+    return final_filename
 
 
 def getfilesize(filename, ratio=None):

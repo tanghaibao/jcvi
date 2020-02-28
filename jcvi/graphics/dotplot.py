@@ -229,11 +229,9 @@ def dotplot(
     block_id = 0
     for row in fp:
         atoms = row.split()
-        block_color = None
         if row[0] == "#":
             block_id += 1
-            if palette:
-                block_color = palette.get(block_id, "k")
+            block_color = palette.get(block_id, "k") if palette else None
             continue
 
         # first two columns are query and subject, and an optional third column
@@ -264,7 +262,7 @@ def dotplot(
         qi, q = qorder[query]
         si, s = sorder[subject]
 
-        nv = value if block_color is None else block_color
+        nv = block_color or value
         data.append((qi, si, nv))
         if is_self:  # Mirror image
             data.append((si, qi, nv))

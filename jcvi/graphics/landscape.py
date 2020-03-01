@@ -27,6 +27,7 @@ from jcvi.graphics.base import (
     ticker,
     human_readable_base,
     latex,
+    set_human_axis,
 )
 from jcvi.utils.cbook import human_size, autoscale
 from jcvi.apps.base import OptionParser, ActionDispatcher
@@ -81,9 +82,116 @@ def main():
         ("heatmap", "similar to stack but adding heatmap"),
         ("composite", "combine line plots, feature bars and alt-bars"),
         ("multilineplot", "combine multiple line plots in one vertical stack"),
+        ("depth", "show per chromosome depth plot across genome"),
     )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def draw_depth(root, ax, bed, colormap=None, defaultcolor="k"):
+    """ Draw depth plot on the given axes, using data from bed
+
+    Args:
+        root (matplotlib.Axes): Canvas axes
+        ax (matplotlib.Axes): Axes to plot data on
+        bed (Bed): Bed data from mosdepth
+        colormap (Dict): seqid => color
+    """
+    if colormap is None:
+        colormap = {}
+    sizes = bed.max_bp_in_chr
+    seqids = colormap.keys() if colormap else sizes.keys()
+    starts = {}
+    label_positions = []
+    start = 0
+    for seqid in seqids:
+        starts[seqid] = start
+        end = start + sizes[seqid]
+        start = end
+        label_positions.append((seqid, (start + end) / 2))
+    xsize = end
+
+    # Extract plotting data
+    data = []
+    for b in bed:
+        seqid = b.seqid
+        if seqid not in starts:
+            continue
+        # chr01A  2000000 3000000 113.00
+        x = starts[seqid] + (b.start + b.end) / 2
+        y = float(b.accn)
+        c = colormap.get(seqid, defaultcolor)
+        data.append((x, y, c))
+
+    x, y, c = zip(*data)
+    ax.scatter(
+        x, y, c=c, edgecolors="none", s=2, lw=0,
+    )
+    logging.debug("Obtained {} data points with depth data".format(len(data)))
+
+    # beautify the numeric axis
+    for tick in ax.get_xticklines() + ax.get_yticklines():
+        tick.set_visible(False)
+
+    for seqid, position in label_positions:
+        xpos = 0.1 + position * 0.8 / xsize
+        c = colormap.get(seqid, defaultcolor)
+        root.text(xpos, 0.05, seqid, color=c, ha="right", va="center", rotation=20)
+
+    ax.set_xlim(0, xsize)
+    ax.set_ylim(0, 100)
+    ax.set_ylabel("Depth")
+
+    set_human_axis(ax)
+    plt.setp(ax.get_xticklabels() + ax.get_yticklabels(), color="gray", size=10)
+
+    root.set_xlim(0, 1)
+    root.set_ylim(0, 1)
+    root.set_axis_off()
+
+
+def depth(args):
+    """
+    %prog depth sample.regions.bed.gz
+
+    Plot the mosdepth regions BED file. We recommend to generate this BED file
+    by (please adjust the --by parameter to your required resolution):
+
+    $ mosdepth --no-per-base --use-median --fast-mode --by 1000000 sample.wgs
+    sample.bam
+
+    Use --colormap to specify a colormap between seqid and desired color. For
+    example:
+
+    chr1    r
+    chr2    g
+    ...
+
+    Only seqids that are in the colormap will be plotted, in the order that's
+    given in the file. When --colormap is not set, every seqid will be drawn in black.
+    """
+    p = OptionParser(depth.__doc__)
+    p.add_option(
+        "--colormap", help="Two-column tab-separated mappings between seqid and color"
+    )
+    opts, args, iopts = p.set_image_options(args, style="dark", figsize="12x4")
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    (bedfile,) = args
+    bed = Bed(bedfile)
+
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes([0, 0, 1, 1])
+    ax = fig.add_axes([0.1, 0.2, 0.8, 0.7])
+
+    colormap = DictFile(opts.colormap) if opts.colormap else {}
+    draw_depth(root, ax, bed, colormap=colormap)
+
+    pf = bedfile.split(".", 1)[0]
+    image_name = pf + "." + iopts.format
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
 def add_window_options(p):

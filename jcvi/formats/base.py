@@ -8,6 +8,7 @@ import math
 import sys
 import logging
 
+from collections import OrderedDict
 from itertools import groupby, islice, cycle
 
 from Bio import SeqIO
@@ -53,7 +54,7 @@ class LineFile(BaseFile, list):
             )
 
 
-class DictFile(BaseFile, dict):
+class DictFile(BaseFile, OrderedDict):
     """
     Generic file parser for multi-column files, keyed by a particular index.
     """

@@ -376,7 +376,7 @@ def omgparse(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    work, = args
+    (work,) = args
     omgfiles = glob(op.join(work, "gf*.out"))
     for omgfile in omgfiles:
         omg = OMGFile(omgfile)
@@ -640,6 +640,7 @@ def ortholog(args):
         action="store_true",
         help="Do not strip alternative splicing (e.g. At5g06540.1 -> At5g06540)",
     )
+    p.set_cpus()
     p.set_dotplot_opts()
 
     opts, args = p.parse_args(args)
@@ -655,6 +656,7 @@ def ortholog(args):
     ccscore = opts.cscore
     quota = opts.quota
     dist = "--dist={0}".format(opts.dist)
+    cpus_flag = "--cpus={}".format(opts.cpus)
 
     aprefix = afasta.split(".")[0]
     bprefix = bfasta.split(".")[0]
@@ -662,7 +664,7 @@ def ortholog(args):
     qprefix = ".".join((bprefix, aprefix))
     last = pprefix + ".last"
     if need_update((afasta, bfasta), last):
-        last_main([bfasta, afasta], dbtype)
+        last_main([bfasta, afasta, cpus_flag], dbtype)
 
     if a == b:
         lastself = last + ".P98L0.inverse"

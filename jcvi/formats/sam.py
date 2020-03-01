@@ -638,14 +638,15 @@ def vcf(args):
 
     if caller == "mpileup":
         cmd = "bcftools mpileup -Ou -f"
-        cmd += " {0} {1}".format(fastafile, " ".join(bamfiles))
-        cmd += " | bcftools call -mv -Oz"
+        cmd += " {} {}".format(fastafile, " ".join(bamfiles))
+        cmd += " | bcftools call -mv -Oz -o {}".format(opts.outfile)
     elif caller == "freebayes":
         cmd = "freebayes -f"
-        cmd += " {0} {1}".format(fastafile, " ".join(bamfiles))
-    sh(cmd, outfile=opts.outfile)
+        cmd += " {} {} > {}".format(fastafile, " ".join(bamfiles), opts.outfile)
+    sh(cmd)
 
     cmd = "bcftools index {}".format(opts.outfile)
+    sh(cmd)
 
 
 def breakpoint(r):

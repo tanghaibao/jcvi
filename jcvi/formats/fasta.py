@@ -1351,6 +1351,9 @@ def format(args):
         action="store_true",
         help="Remove description after identifier",
     )
+    p.add_option(
+        "--minlength", default=0, type="int", help="Minimum sequence length to keep"
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -1372,6 +1375,7 @@ def format(args):
     idsfile = opts.ids
     idsfile = open(idsfile, "w") if idsfile else None
     upper = opts.upper
+    minlength = opts.minlength
 
     if mapfile:
         mapping = DictFile(mapfile, delimiter="\t")
@@ -1380,7 +1384,11 @@ def format(args):
 
     fp = SeqIO.parse(must_open(infasta), "fasta")
     fw = must_open(outfasta, "w")
+    nremoved = 0
     for i, rec in enumerate(fp):
+        if len(rec) < minlength:
+            nremoved += 1
+            continue
         origid = rec.id
         description = rec.description.replace(origid, "").strip()
         if sep:
@@ -1438,6 +1446,11 @@ def format(args):
     if idsfile:
         logging.debug("Conversion table written to `{0}`.".format(idsfile.name))
         idsfile.close()
+
+    if nremoved:
+        logging.debug(
+            "Removed {} sequences with length < {}".format(nremoved, minlength)
+        )
 
 
 def print_first_difference(

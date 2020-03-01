@@ -564,20 +564,19 @@ def consensus(args):
     """
     %prog consensus fastafile bamfile
 
-    Convert bam alignments to consensus FASTQ/FASTA.
+    Convert bam alignments to consensus FASTQ/FASTA. See also:
+    https://cbc.brown.edu/blog/consensus-vcf/
     """
+    valid_callers = ("bcftools", "gatk4")
     p = OptionParser(consensus.__doc__)
-    p.add_option(
-        "--fasta",
-        default=False,
-        action="store_true",
-        help="Generate consensus FASTA sequences",
-    )
     p.add_option(
         "--nosort", default=False, action="store_true", help="Do not sort the BAM files"
     )
     p.add_option(
-        "--mask", default=0, type="int", help="Mask bases with quality lower than"
+        "--caller",
+        default="bcftools",
+        choices=valid_callers,
+        help="Use consensus caller",
     )
     opts, args = p.parse_args(args)
 
@@ -585,20 +584,20 @@ def consensus(args):
         sys.exit(not p.print_help())
 
     fastafile, bamfile = args
-    fasta = opts.fasta
-    suffix = "fasta" if fasta else "fastq"
     pf = bamfile.rsplit(".", 1)[0]
-    cnsfile = pf + ".cns.{0}".format(suffix)
+    cnsfile = pf + ".cns.fasta"
     vcfgzfile = pf + ".vcf.gz"
     vcf_args = [fastafile, bamfile, "-o", vcfgzfile]
     if opts.nosort:
         vcf_args += ["--nosort"]
     vcf(vcf_args)
-    cmd = "zcat {0} | vcfutils.pl vcf2fq".format(vcfgzfile)
-    if fasta:
-        cmd += " | seqtk seq -q {0} -A -".format(opts.mask)
-
-    sh(cmd, outfile=cnsfile)
+    if opts.caller == "bcftools":
+        cmd = "bcftools consensus -f {} -o {} {}".format(fastafile, cnsfile, vcfgzfile)
+    else:
+        cmd = "gatk4 FastaAlternateReferenceMaker -R {} -O {} -V {}".format(
+            fastafile, cnsfile, vcfgzfile
+        )
+    sh(cmd)
 
 
 def vcf(args):
@@ -638,13 +637,15 @@ def vcf(args):
         bamfiles = [x.replace(".bam", ".sorted.bam") for x in bamfiles]
 
     if caller == "mpileup":
-        cmd = "samtools mpileup -E -uf"
+        cmd = "bcftools mpileup -Ou -f"
         cmd += " {0} {1}".format(fastafile, " ".join(bamfiles))
-        cmd += " | bcftools call -vmO v"
+        cmd += " | bcftools call -mv -Oz"
     elif caller == "freebayes":
         cmd = "freebayes -f"
         cmd += " {0} {1}".format(fastafile, " ".join(bamfiles))
     sh(cmd, outfile=opts.outfile)
+
+    cmd = "bcftools index {}".format(opts.outfile)
 
 
 def breakpoint(r):

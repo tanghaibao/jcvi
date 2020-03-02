@@ -28,6 +28,7 @@ from jcvi.graphics.base import (
     human_readable_base,
     latex,
     set_human_axis,
+    normalize_axes,
 )
 from jcvi.utils.cbook import human_size, autoscale
 from jcvi.apps.base import OptionParser, ActionDispatcher
@@ -187,11 +188,14 @@ def draw_depth(
         tick.set_visible(False)
 
     median_depth_y = 0.88
+    chr_label_y = 0.08
     for seqid, position in label_positions:
         xpos = 0.1 + position * 0.8 / xsize
         c = chrinfo[seqid].color if seqid in chrinfo else defaultcolor
         newseqid = chrinfo[seqid].new_name if seqid in chrinfo else seqid
-        root.text(xpos, 0.05, newseqid, color=c, ha="center", va="center", rotation=20)
+        root.text(
+            xpos, chr_label_y, newseqid, color=c, ha="center", va="center", rotation=20
+        )
         seqid_median = medians[seqid]
         root.text(
             xpos,
@@ -203,24 +207,22 @@ def draw_depth(
         )
 
     root.text(
-        0.5, 0.95, title, color="darkslategray", ha="center", va="center", size=15,
+        0.95, 0.5, title, color="darkslategray", ha="center", va="center", size=15,
     )
 
+    ax.set_xticks([])
     ax.set_xlim(0, xsize)
     ax.set_ylim(0, ylim)
     ax.set_ylabel("Depth")
 
     set_human_axis(ax)
     plt.setp(ax.get_xticklabels() + ax.get_yticklabels(), color="gray", size=10)
-
-    root.set_xlim(0, 1)
-    root.set_ylim(0, 1)
-    root.set_axis_off()
+    normalize_axes(root)
 
 
 def depth(args):
     """
-    %prog depth sample.regions.bed.gz
+    %prog depth *.regions.bed.gz
 
     Plot the mosdepth regions BED file. We recommend to generate this BED file
     by (please adjust the --by parameter to your required resolution):
@@ -236,7 +238,11 @@ def depth(args):
     ...
 
     Only seqids that are in the colormap will be plotted, in the order that's
-    given in the file. When --colormap is not set, every seqid will be drawn in black.
+    given in the file. When --colormap is not set, every seqid will be drawn in
+    black.
+
+    Can take multiple BED files as input and then plot all of them in a
+    composite figure.
     """
     p = OptionParser(depth.__doc__)
     p.add_option(
@@ -247,22 +253,35 @@ def depth(args):
     )
     opts, args, iopts = p.set_image_options(args, style="dark", figsize="14x4")
 
-    if len(args) != 1:
+    if len(args) < 1:
         sys.exit(not p.print_help())
 
-    (bedfile,) = args
-    pf = op.basename(bedfile).split(".", 1)[0]
-    title = opts.title or pf.split("_")[0]
-    bed = Bed(bedfile)
-
+    bedfiles = args
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
-    ax = fig.add_axes([0.1, 0.2, 0.8, 0.65])
 
-    chrinfo = ChrInfoFile(opts.chrinfo) if opts.chrinfo else {}
-    draw_depth(root, ax, bed, chrinfo=chrinfo, title=title)
+    npanels = len(bedfiles)
+    yinterval = 1.0 / npanels
+    ypos = 1 - yinterval
+    for bedfile in bedfiles:
+        pf = op.basename(bedfile).split(".", 1)[0]
+        title = opts.title or pf.split("_")[0]
+        bed = Bed(bedfile)
 
-    pf = bedfile.split(".", 1)[0]
+        panel_root = root if npanels == 1 else fig.add_axes([0, ypos, 1, yinterval])
+        panel_ax = fig.add_axes([0.1, ypos + 0.2 * yinterval, 0.8, 0.65 * yinterval])
+        if ypos > 0.001:
+            root.plot((0, 1), (ypos, ypos), "-", lw=2, color="lightslategray")
+
+        chrinfo = ChrInfoFile(opts.chrinfo) if opts.chrinfo else {}
+        draw_depth(panel_root, panel_ax, bed, chrinfo=chrinfo, title=title)
+        ypos -= yinterval
+
+    normalize_axes(root)
+
+    if npanels > 1:
+        pf = op.commonprefix(bedfiles)
+    pf = pf or "depth"
     image_name = pf + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 

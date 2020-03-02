@@ -8,6 +8,7 @@ import math
 import sys
 import logging
 
+from collections import OrderedDict
 from itertools import groupby, islice, cycle
 
 from Bio import SeqIO
@@ -53,7 +54,7 @@ class LineFile(BaseFile, list):
             )
 
 
-class DictFile(BaseFile, dict):
+class DictFile(BaseFile, OrderedDict):
     """
     Generic file parser for multi-column files, keyed by a particular index.
     """
@@ -78,6 +79,7 @@ class DictFile(BaseFile, dict):
         for lineno, row in enumerate(fp):
             row = row.rstrip()
             atoms = row.split(delimiter)
+            atoms = [x.strip() for x in atoms]
             thiscols = len(atoms)
             if thiscols < ncols:
                 action = "Aborted" if strict else "Skipped"

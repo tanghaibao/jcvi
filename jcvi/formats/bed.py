@@ -10,7 +10,7 @@ import math
 import logging
 import numpy as np
 
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 from itertools import groupby
 
 from jcvi.formats.base import DictFile, LineFile, must_open, is_number, get_number
@@ -202,6 +202,15 @@ class Bed(LineFile):
         for seqid, beds in groupby(self, key=lambda x: x.seqid):
             for i, f in enumerate(beds):
                 res[f.accn] = (seqid, (f.start + f.end) / 2, f)
+        return res
+
+    @property
+    def max_bp_in_chr(self):
+        # Get the maximum bp position on a particular seqid
+        res = OrderedDict()
+        self.sort(key=self.nullkey)
+        for seqid, beds in groupby(self, key=lambda x: x.seqid):
+            res[seqid] = max(x.end for x in beds)
         return res
 
     @property
@@ -483,7 +492,7 @@ def format(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    bedfile, = args
+    (bedfile,) = args
     switch = DictFile(opts.switch, delimiter="\t") if opts.switch else None
     bed = Bed(bedfile)
     with must_open(opts.outfile, "w") as fw:
@@ -550,7 +559,7 @@ def tiling(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    bedfile, = args
+    (bedfile,) = args
     ov = opts.overlap
 
     bed = Bed(bedfile)
@@ -626,7 +635,7 @@ def chain(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    bedfile, = args
+    (bedfile,) = args
     cmd = "sort -k4,4 -k1,1 -k2,2n -k3,3n {0} -o {0}".format(bedfile)
     sh(cmd)
     bed = Bed(bedfile, sorted=False)
@@ -889,7 +898,7 @@ def seqids(args):
     if len(args) < 1:
         sys.exit(not p.print_help())
 
-    bedfile, = args
+    (bedfile,) = args
     pf = opts.prefix
     exclude = opts.exclude
     bed = Bed(bedfile)
@@ -1008,7 +1017,7 @@ def filter(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    bedfile, = args
+    (bedfile,) = args
     fp = must_open(bedfile)
     fw = must_open(opts.outfile, "w")
     minsize, maxsize = opts.minsize, opts.maxsize
@@ -1222,7 +1231,7 @@ def fix(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    bedfile, = args
+    (bedfile,) = args
     minspan = opts.minspan
     fp = open(bedfile)
     fw = must_open(opts.outfile, "w")
@@ -1320,7 +1329,7 @@ def uniq(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    bedfile, = args
+    (bedfile,) = args
     uniqbedfile = bedfile.split(".")[0] + ".uniq.bed"
     bed = Bed(bedfile)
 
@@ -1538,7 +1547,7 @@ def index(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    bedfile, = args
+    (bedfile,) = args
     fastafile = opts.fasta
     if fastafile:
         bedfile = make_bedgraph(bedfile, fastafile)
@@ -1808,7 +1817,7 @@ def distance(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    bedfile, = args
+    (bedfile,) = args
     sortedbedfile = sort([bedfile])
     valid = total = 0
     fp = open(sortedbedfile)
@@ -1946,7 +1955,7 @@ def bedpe(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    bedfile, = args
+    (bedfile,) = args
     pf = bedfile.rsplit(".", 1)[0]
     bedpefile = pf + ".bedpe"
     bedspanfile = pf + ".spans.bed" if opts.span else None
@@ -1972,7 +1981,7 @@ def sizes(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    bedfile, = args
+    (bedfile,) = args
     assert op.exists(bedfile)
 
     sizesfile = bedfile.rsplit(".", 1)[0] + ".sizes"
@@ -2170,7 +2179,7 @@ def pairs(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    bedfile, = args
+    (bedfile,) = args
 
     basename = bedfile.split(".")[0]
     insertsfile = ".".join((basename, "inserts"))
@@ -2217,7 +2226,7 @@ def summary(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    bedfile, = args
+    (bedfile,) = args
     bed = Bed(bedfile)
     bs = BedSummary(bed)
     if opts.sizes:
@@ -2274,7 +2283,7 @@ def sort(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    bedfile, = args
+    (bedfile,) = args
     inplace = opts.inplace
 
     if not inplace and ".sorted." in bedfile:
@@ -2335,7 +2344,7 @@ def mates(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    bedfile, = args
+    (bedfile,) = args
     rclip = opts.rclip
 
     key = (lambda x: x.accn[:-rclip]) if rclip else (lambda x: x.accn)
@@ -2434,7 +2443,7 @@ def flanking(args):
     if any([len(args) != 1, opts.chrom is None, opts.coord is None]):
         sys.exit(not p.print_help())
 
-    bedfile, = args
+    (bedfile,) = args
     position = (opts.chrom, opts.coord)
     n, side, maxd = opts.n, opts.side, opts.max_d
 

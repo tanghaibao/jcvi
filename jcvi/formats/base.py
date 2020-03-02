@@ -79,6 +79,7 @@ class DictFile(BaseFile, OrderedDict):
         for lineno, row in enumerate(fp):
             row = row.rstrip()
             atoms = row.split(delimiter)
+            atoms = [x.strip() for x in atoms]
             thiscols = len(atoms)
             if thiscols < ncols:
                 action = "Aborted" if strict else "Skipped"

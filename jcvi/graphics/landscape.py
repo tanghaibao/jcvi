@@ -16,7 +16,7 @@ import numpy as np
 from collections import defaultdict, OrderedDict
 
 from jcvi.formats.sizes import Sizes
-from jcvi.formats.base import BaseFile, LineFile
+from jcvi.formats.base import BaseFile, DictFile, LineFile
 from jcvi.formats.bed import Bed, bins
 from jcvi.algorithms.matrix import moving_sum
 from jcvi.graphics.base import (
@@ -27,6 +27,7 @@ from jcvi.graphics.base import (
     ticker,
     human_readable_base,
     latex,
+    markup,
     set_human_axis,
     normalize_axes,
 )
@@ -98,6 +99,27 @@ class ChrInfoFile(BaseFile, OrderedDict):
                 self[line.name] = line
 
 
+class TitleInfoLine:
+    def __init__(self, row, delimiter=","):
+        args = [x.strip() for x in row.split(delimiter)]
+        self.name = args[0]
+        self.title = args[1]
+        self.subtitle = None
+        if len(args) > 2:
+            self.subtitle = args[2]
+
+
+class TitleInfoFile(BaseFile, OrderedDict):
+    def __init__(self, filename, delimiter=","):
+        super(TitleInfoFile, self).__init__(filename)
+        with open(filename) as fp:
+            for row in fp:
+                if row[0] == "#":
+                    continue
+                line = TitleInfoLine(row, delimiter=delimiter)
+                self[line.name] = line
+
+
 def main():
 
     actions = (
@@ -112,7 +134,15 @@ def main():
 
 
 def draw_depth(
-    root, ax, bed, chrinfo={}, defaultcolor="k", sepcolor="w", ylim=100, title=None
+    root,
+    ax,
+    bed,
+    chrinfo={},
+    defaultcolor="k",
+    sepcolor="w",
+    ylim=100,
+    title=None,
+    subtitle=None,
 ):
     """ Draw depth plot on the given axes, using data from bed
 
@@ -124,7 +154,8 @@ def draw_depth(
         defaultcolor (str): matplotlib-compatible color for data points
         sepcolor (str): matplotlib-compatible color for chromosome breaks
         ylim (int): Upper limit of the y-axis (depth)
-        title (str): Title of the figure
+        title (str): Title of the figure, to the right of the axis
+        subtitle (str): Subtitle of the figure, just below title
     """
     if chrinfo is None:
         chrinfo = {}
@@ -206,9 +237,26 @@ def draw_depth(
             va="center",
         )
 
-    root.text(
-        0.95, 0.5, title, color="darkslategray", ha="center", va="center", size=15,
-    )
+    if title:
+        root.text(
+            0.95,
+            0.5,
+            markup(title),
+            color="darkslategray",
+            ha="center",
+            va="center",
+            size=15,
+        )
+    if subtitle:
+        root.text(
+            0.95,
+            0.375,
+            markup(subtitle),
+            color="darkslategray",
+            ha="center",
+            va="center",
+            size=15,
+        )
 
     ax.set_xticks([])
     ax.set_xlim(0, xsize)
@@ -249,7 +297,7 @@ def depth(args):
         "--chrinfo", help="Comma-separated mappings between seqid, color, new_name"
     )
     p.add_option(
-        "--title", help="Title of the figure, infers from filename if not specified"
+        "--titleinfo", help="Comma-separated titles mappings between filename, title",
     )
     opts, args, iopts = p.set_image_options(args, style="dark", figsize="14x4")
 
@@ -257,6 +305,9 @@ def depth(args):
         sys.exit(not p.print_help())
 
     bedfiles = args
+    chrinfo = ChrInfoFile(opts.chrinfo) if opts.chrinfo else {}
+    titleinfo = TitleInfoFile(opts.titleinfo) if opts.titleinfo else {}
+
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
 
@@ -265,7 +316,6 @@ def depth(args):
     ypos = 1 - yinterval
     for bedfile in bedfiles:
         pf = op.basename(bedfile).split(".", 1)[0]
-        title = opts.title or pf.split("_")[0]
         bed = Bed(bedfile)
 
         panel_root = root if npanels == 1 else fig.add_axes([0, ypos, 1, yinterval])
@@ -273,8 +323,15 @@ def depth(args):
         if ypos > 0.001:
             root.plot((0, 1), (ypos, ypos), "-", lw=2, color="lightslategray")
 
-        chrinfo = ChrInfoFile(opts.chrinfo) if opts.chrinfo else {}
-        draw_depth(panel_root, panel_ax, bed, chrinfo=chrinfo, title=title)
+        title = titleinfo.get(bedfile, pf.split("_", 1)[0])
+        subtitle = None
+        if isinstance(title, TitleInfoLine):
+            subtitle = title.subtitle
+            title = title.title
+
+        draw_depth(
+            panel_root, panel_ax, bed, chrinfo=chrinfo, title=title, subtitle=subtitle
+        )
         ypos -= yinterval
 
     normalize_axes(root)

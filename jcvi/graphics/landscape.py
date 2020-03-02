@@ -13,10 +13,10 @@ import logging
 
 import numpy as np
 
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 
 from jcvi.formats.sizes import Sizes
-from jcvi.formats.base import LineFile, DictFile
+from jcvi.formats.base import BaseFile, LineFile
 from jcvi.formats.bed import Bed, bins
 from jcvi.algorithms.matrix import moving_sum
 from jcvi.graphics.base import (
@@ -75,6 +75,28 @@ class BinFile(LineFile):
         fp.close()
 
 
+class ChrInfoLine:
+    def __init__(self, row, delimiter=","):
+        args = [x.strip() for x in row.split(delimiter)]
+        self.name = args[0]
+        self.color = args[1]
+        if len(args) > 2:
+            self.new_name = args[2]
+        else:
+            self.new_name = self.name
+
+
+class ChrInfoFile(BaseFile, OrderedDict):
+    def __init__(self, filename, delimiter=","):
+        super(ChrInfoFile, self).__init__(filename)
+        with open(filename) as fp:
+            for row in fp:
+                if row[0] == "#":
+                    continue
+                line = ChrInfoLine(row, delimiter=delimiter)
+                self[line.name] = line
+
+
 def main():
 
     actions = (
@@ -88,31 +110,40 @@ def main():
     p.dispatch(globals())
 
 
-def draw_depth(root, ax, bed, colormap=None, defaultcolor="k"):
+def draw_depth(
+    root, ax, bed, chrinfo={}, defaultcolor="k", sepcolor="w", ylim=100, title=None
+):
     """ Draw depth plot on the given axes, using data from bed
 
     Args:
         root (matplotlib.Axes): Canvas axes
         ax (matplotlib.Axes): Axes to plot data on
         bed (Bed): Bed data from mosdepth
-        colormap (Dict): seqid => color
+        chrinfo (ChrInfoFile): seqid => color, new name
+        defaultcolor (str): matplotlib-compatible color for data points
+        sepcolor (str): matplotlib-compatible color for chromosome breaks
+        ylim (int): Upper limit of the y-axis (depth)
+        title (str): Title of the figure
     """
-    if colormap is None:
-        colormap = {}
+    if chrinfo is None:
+        chrinfo = {}
     sizes = bed.max_bp_in_chr
-    seqids = colormap.keys() if colormap else sizes.keys()
+    seqids = chrinfo.keys() if chrinfo else sizes.keys()
     starts = {}
+    ends = {}
     label_positions = []
     start = 0
     for seqid in seqids:
         starts[seqid] = start
         end = start + sizes[seqid]
-        start = end
+        ends[seqid] = end
         label_positions.append((seqid, (start + end) / 2))
+        start = end
     xsize = end
 
     # Extract plotting data
     data = []
+    data_by_seqid = defaultdict(list)
     for b in bed:
         seqid = b.seqid
         if seqid not in starts:
@@ -120,26 +151,63 @@ def draw_depth(root, ax, bed, colormap=None, defaultcolor="k"):
         # chr01A  2000000 3000000 113.00
         x = starts[seqid] + (b.start + b.end) / 2
         y = float(b.accn)
-        c = colormap.get(seqid, defaultcolor)
+        c = chrinfo[seqid].color if seqid in chrinfo else "k"
         data.append((x, y, c))
+        data_by_seqid[seqid].append(y)
 
     x, y, c = zip(*data)
     ax.scatter(
-        x, y, c=c, edgecolors="none", s=2, lw=0,
+        x, y, c=c, edgecolors="none", s=8, lw=0,
     )
     logging.debug("Obtained {} data points with depth data".format(len(data)))
+
+    # Per seqid median
+    medians = {}
+    for seqid, values in data_by_seqid.items():
+        c = chrinfo[seqid].color if seqid in chrinfo else defaultcolor
+        seqid_start = starts[seqid]
+        seqid_end = ends[seqid]
+        seqid_median = np.median(values)
+        medians[seqid] = seqid_median
+        ax.plot(
+            (seqid_start, seqid_end),
+            (seqid_median, seqid_median),
+            "-",
+            lw=4,
+            color=c,
+            alpha=0.5,
+        )
+
+    # vertical lines for all the breaks
+    for pos in starts.values():
+        ax.plot((pos, pos), (0, ylim), "-", lw=1, color=sepcolor)
 
     # beautify the numeric axis
     for tick in ax.get_xticklines() + ax.get_yticklines():
         tick.set_visible(False)
 
+    median_depth_y = 0.88
     for seqid, position in label_positions:
         xpos = 0.1 + position * 0.8 / xsize
-        c = colormap.get(seqid, defaultcolor)
-        root.text(xpos, 0.05, seqid, color=c, ha="right", va="center", rotation=20)
+        c = chrinfo[seqid].color if seqid in chrinfo else defaultcolor
+        newseqid = chrinfo[seqid].new_name if seqid in chrinfo else seqid
+        root.text(xpos, 0.05, newseqid, color=c, ha="center", va="center", rotation=20)
+        seqid_median = medians[seqid]
+        root.text(
+            xpos,
+            median_depth_y,
+            str(int(seqid_median)),
+            color=c,
+            ha="center",
+            va="center",
+        )
+
+    root.text(
+        0.5, 0.95, title, color="darkslategray", ha="center", va="center", size=15,
+    )
 
     ax.set_xlim(0, xsize)
-    ax.set_ylim(0, 100)
+    ax.set_ylim(0, ylim)
     ax.set_ylabel("Depth")
 
     set_human_axis(ax)
@@ -160,11 +228,11 @@ def depth(args):
     $ mosdepth --no-per-base --use-median --fast-mode --by 1000000 sample.wgs
     sample.bam
 
-    Use --colormap to specify a colormap between seqid and desired color. For
-    example:
+    Use --chrinfo to specify a colormap between seqid, desired color, and
+    optionally a new name. For example:
 
-    chr1    r
-    chr2    g
+    chr1    r    C1
+    chr2    g    C2
     ...
 
     Only seqids that are in the colormap will be plotted, in the order that's
@@ -172,22 +240,27 @@ def depth(args):
     """
     p = OptionParser(depth.__doc__)
     p.add_option(
-        "--colormap", help="Two-column tab-separated mappings between seqid and color"
+        "--chrinfo", help="Comma-separated mappings between seqid, color, new_name"
     )
-    opts, args, iopts = p.set_image_options(args, style="dark", figsize="12x4")
+    p.add_option(
+        "--title", help="Title of the figure, infers from filename if not specified"
+    )
+    opts, args, iopts = p.set_image_options(args, style="dark", figsize="14x4")
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     (bedfile,) = args
+    pf = op.basename(bedfile).split(".", 1)[0]
+    title = opts.title or pf.split("_")[0]
     bed = Bed(bedfile)
 
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
-    ax = fig.add_axes([0.1, 0.2, 0.8, 0.7])
+    ax = fig.add_axes([0.1, 0.2, 0.8, 0.65])
 
-    colormap = DictFile(opts.colormap) if opts.colormap else {}
-    draw_depth(root, ax, bed, colormap=colormap)
+    chrinfo = ChrInfoFile(opts.chrinfo) if opts.chrinfo else {}
+    draw_depth(root, ax, bed, chrinfo=chrinfo, title=title)
 
     pf = bedfile.split(".", 1)[0]
     image_name = pf + "." + iopts.format
